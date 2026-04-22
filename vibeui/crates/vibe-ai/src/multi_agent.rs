@@ -388,6 +388,9 @@ async fn run_single_agent(
                     break;
                 }
             }
+            AgentEvent::Verifier { decision } => {
+                tracing::info!(id, ?decision, "Sub-agent verifier decision");
+            }
         }
     }
 

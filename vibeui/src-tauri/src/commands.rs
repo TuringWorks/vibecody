@@ -4172,8 +4172,14 @@ pub async fn start_agent_task(
             .with_parent_context(context.clone()),
     );
     let approval = ApprovalPolicy::from_str(&approval_policy);
+    // Chat surface defaults: enable the verifier subagent on task_complete.
+    // Sandbox / Manager / SDK paths do not call this command.
+    let verifier_hooks = vibe_ai::hooks::HookRunner::empty()
+        .with_llm_provider(provider_arc.clone())
+        .with_verifier();
     let agent = AgentLoop::new(provider_arc, approval, executor)
-        .with_policy(&workspace_root);
+        .with_policy(&workspace_root)
+        .with_hooks(verifier_hooks);
 
     let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
     let agent_pending = state.agent_pending.clone();
@@ -4389,6 +4395,18 @@ pub async fn start_agent_task(
                         let _ = app_handle.emit("agent:error", format!("Agent blocked: {}", reason));
                         break;
                     }
+                }
+                AgentEvent::Verifier { decision } => {
+                    let (status, message) = match &decision {
+                        vibe_ai::agent::VerifierDecision::Pass => ("pass", String::new()),
+                        vibe_ai::agent::VerifierDecision::Nits(text) => ("nits", text.clone()),
+                        vibe_ai::agent::VerifierDecision::Fail(reason) => ("fail", reason.clone()),
+                    };
+                    let payload = serde_json::json!({
+                        "status": status,
+                        "message": message,
+                    });
+                    let _ = app_handle.emit("agent:verifier", payload);
                 }
             }
         }

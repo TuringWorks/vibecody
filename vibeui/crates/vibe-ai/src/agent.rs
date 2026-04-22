@@ -389,6 +389,21 @@ pub struct AgentStep {
 
 // ── Agent Events ──────────────────────────────────────────────────────────────
 
+/// Outcome reported by the verifier subagent (PostToolUse hook on
+/// `task_complete`).
+#[derive(Debug, Clone)]
+pub enum VerifierDecision {
+    /// All checks green — the agent's task_complete proceeds.
+    Pass,
+    /// Checks pass but the verifier left non-blocking notes that get
+    /// appended to the next turn (used for follow-up commit messages,
+    /// minor style fixes, etc.).
+    Nits(String),
+    /// Verifier rejected task_complete; the agent loops back to address
+    /// the reason before it can complete again.
+    Fail(String),
+}
+
 /// Events emitted by the agent loop to the UI or REPL.
 pub enum AgentEvent {
     /// A streaming chunk from the LLM.
@@ -425,6 +440,12 @@ pub enum AgentEvent {
     CircuitBreak {
         state: AgentHealthState,
         reason: String,
+    },
+    /// Verifier subagent reported on a `task_complete` claim.
+    /// `Pass` finishes the task; `Nits` finishes with appended notes;
+    /// `Fail` rejects the claim and the agent loops back to address it.
+    Verifier {
+        decision: VerifierDecision,
     },
 }
 
@@ -968,6 +989,57 @@ impl AgentLoop {
                     ToolCall::TaskComplete { summary } => summary.clone(),
                     _ => "Task complete.".to_string(),
                 };
+
+                // ── Verifier hook (PostToolUse on task_complete) ──────────
+                // Verifier subagents register as PostToolUse hooks scoped to
+                // the task_complete tool. Allow → Pass; InjectContext → Nits
+                // (proceed with notes); Block → Fail (loop back to address).
+                if let Some(hooks) = &self.hooks {
+                    let _hook_span = tracing::info_span!(
+                        "agent.hook",
+                        event = "PostToolUse",
+                        tool = "task_complete",
+                        session_id = %session_id,
+                    );
+                    let pseudo_result = ToolResult::ok("task_complete", &summary);
+                    let verifier_decision = hooks.run(&HookEvent::PostToolUse {
+                        call: call.clone(),
+                        result: pseudo_result,
+                        session_id: session_id.clone(),
+                    }).await;
+
+                    match verifier_decision {
+                        HookDecision::Allow => {
+                            let _ = event_tx.send(AgentEvent::Verifier {
+                                decision: VerifierDecision::Pass,
+                            }).await;
+                        }
+                        HookDecision::InjectContext { text } => {
+                            let _ = event_tx.send(AgentEvent::Verifier {
+                                decision: VerifierDecision::Nits(text.clone()),
+                            }).await;
+                            messages.push(Message {
+                                role: MessageRole::User,
+                                content: format!("[Verifier nits] {}", text),
+                            });
+                        }
+                        HookDecision::Block { reason } => {
+                            tracing::warn!(reason = %reason, "Verifier blocked task_complete");
+                            let _ = event_tx.send(AgentEvent::Verifier {
+                                decision: VerifierDecision::Fail(reason.clone()),
+                            }).await;
+                            messages.push(Message {
+                                role: MessageRole::User,
+                                content: format!(
+                                    "❌ Verifier blocked task_complete: {}\n\nAddress the verifier's feedback before calling task_complete again.",
+                                    reason
+                                ),
+                            });
+                            continue;
+                        }
+                    }
+                }
+
                 // Fire TaskCompleted hook
                 if let Some(hooks) = &self.hooks {
                     let _hook_span = tracing::info_span!(

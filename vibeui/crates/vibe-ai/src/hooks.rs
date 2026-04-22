@@ -154,7 +154,48 @@ pub struct HookConfig {
     pub async_exec: bool,
 }
 
+/// Default verifier prompt template. The verifier subagent runs as an LLM
+/// PostToolUse hook on `task_complete` and reports back via the structured
+/// JSON response defined in `exec_llm_hook` (`{ok, reason, nits}`).
+pub const DEFAULT_VERIFIER_PROMPT: &str = "\
+You are a verifier subagent reviewing whether the main agent's `task_complete` \
+claim is valid. You have a read-only view of the workspace via the event JSON \
+below. Make the call cheaply — do not over-think.
+
+Decide:
+- PASS: the work appears done and consistent with the task summary.
+- NITS: the work is done but has minor non-blocking notes (style, follow-up \
+  commit message wording, missed nice-to-haves). Pass with notes.
+- FAIL: the work has a real problem that would surprise the user (incomplete \
+  feature, secrets in diff, dead branches, unrelated changes, missing error \
+  handling at boundaries, contradicts the task summary).
+
+Respond with EXACTLY ONE JSON object on a single line, no prose, no fences:
+
+{\"ok\": true}                                      ← PASS, no notes
+{\"ok\": true, \"nits\": \"<short notes>\"}             ← NITS
+{\"ok\": false, \"reason\": \"<concise reason>\"}       ← FAIL
+
+Be strict on FAIL — only block when the user would actually want a retry. \
+If you are unsure, prefer PASS or NITS over FAIL.";
+
 impl HookConfig {
+    /// Returns the default verifier hook: a `PostToolUse` LLM hook scoped to
+    /// the `task_complete` tool, using `DEFAULT_VERIFIER_PROMPT`. Surfaces
+    /// can register this directly via `HookRunner::new(vec![…])` or append
+    /// it to user-defined hooks.
+    pub fn default_verifier() -> Self {
+        Self {
+            event: "PostToolUse".to_string(),
+            tools: Some(vec!["task_complete".to_string()]),
+            paths: None,
+            handler: HookHandler::Llm {
+                prompt: DEFAULT_VERIFIER_PROMPT.to_string(),
+            },
+            async_exec: false,
+        }
+    }
+
     /// Returns true if this config applies to the given event.
     pub fn matches(&self, event: &HookEvent) -> bool {
         if self.event != event.type_name() {
@@ -207,6 +248,24 @@ impl HookRunner {
     /// Attach an LLM provider so `handler = { llm = "..." }` hooks can evaluate.
     pub fn with_llm_provider(mut self, provider: Arc<dyn AIProvider>) -> Self {
         self.llm_provider = Some(provider);
+        self
+    }
+
+    /// Append the default verifier hook (PostToolUse on `task_complete`).
+    /// Idempotent — does nothing if a verifier-shaped hook is already
+    /// registered. Caller must also `with_llm_provider` for it to evaluate.
+    pub fn with_verifier(mut self) -> Self {
+        let already_registered = self.configs.iter().any(|c| {
+            c.event == "PostToolUse"
+                && c.tools
+                    .as_ref()
+                    .map(|t| t.iter().any(|name| name == "task_complete"))
+                    .unwrap_or(false)
+                && matches!(c.handler, HookHandler::Llm { .. })
+        });
+        if !already_registered {
+            self.configs.push(HookConfig::default_verifier());
+        }
         self
     }
 
@@ -286,7 +345,14 @@ async fn exec_llm_hook(
     match provider.chat(&messages, None).await {
         Ok(response) => {
             #[derive(Deserialize)]
-            struct LlmHookResponse { ok: bool, reason: Option<String> }
+            struct LlmHookResponse {
+                ok: bool,
+                reason: Option<String>,
+                /// Optional non-blocking notes that get injected into the next
+                /// turn even when `ok` is true. Used by verifier hooks to
+                /// surface NITS (style fixes, follow-ups) without blocking.
+                nits: Option<String>,
+            }
             // Try to find JSON in the response (model may wrap it in text)
             let json_str = response
                 .lines()
@@ -297,6 +363,11 @@ async fn exec_llm_hook(
                     return Ok(HookDecision::Block {
                         reason: resp.reason.unwrap_or_else(|| "LLM hook blocked".to_string()),
                     });
+                }
+                if let Some(nits) = resp.nits {
+                    if !nits.trim().is_empty() {
+                        return Ok(HookDecision::InjectContext { text: nits });
+                    }
                 }
             }
             Ok(HookDecision::Allow)
@@ -663,6 +734,42 @@ mod tests {
             async_exec: false,
         };
         assert!(!cfg.matches(&pre_tool_call()));
+    }
+
+    #[test]
+    fn default_verifier_is_post_task_complete_llm_hook() {
+        let cfg = HookConfig::default_verifier();
+        assert_eq!(cfg.event, "PostToolUse");
+        assert_eq!(
+            cfg.tools.as_deref(),
+            Some(&["task_complete".to_string()][..])
+        );
+        assert!(matches!(cfg.handler, HookHandler::Llm { .. }));
+        assert!(!cfg.async_exec, "verifier must be synchronous so it can block");
+        let post_complete = HookEvent::PostToolUse {
+            call: ToolCall::TaskComplete { summary: "done".into() },
+            result: ToolResult::ok("task_complete", "done"),
+            session_id: "s".into(),
+        };
+        assert!(cfg.matches(&post_complete));
+        let post_other = HookEvent::PostToolUse {
+            call: ToolCall::Bash { command: "ls".into() },
+            result: ToolResult::ok("bash", "x"),
+            session_id: "s".into(),
+        };
+        assert!(!cfg.matches(&post_other), "verifier must not fire on non-task_complete tools");
+    }
+
+    #[test]
+    fn with_verifier_appends_default_hook_idempotently() {
+        let runner = HookRunner::empty().with_verifier();
+        assert_eq!(runner.configs.len(), 1, "first call adds the hook");
+        let runner = runner.with_verifier();
+        assert_eq!(
+            runner.configs.len(),
+            1,
+            "second call is a no-op when a verifier-shaped hook already exists"
+        );
     }
 
     #[tokio::test]

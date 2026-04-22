@@ -666,6 +666,50 @@ describe('AIChat — response does not disappear (controlled mode)', () => {
     expect(screen.queryByText(/Destructive tool/)).not.toBeInTheDocument();
   });
 
+  it('verifier card renders PASS / NITS / FAIL (useAgentLoop=true)', async () => {
+    function ControlledAgentChat() {
+      const [messages, setMessages] = useState<Message[]>([]);
+      return (
+        <AIChat
+          provider="test-provider"
+          messages={messages}
+          onMessagesChange={setMessages}
+          useAgentLoop={true}
+          onUseAgentLoopChange={() => {}}
+        />
+      );
+    }
+    render(<ControlledAgentChat />);
+    await flushAll();
+    await sendUserMessage('do the thing');
+
+    // PASS — green card with no message body
+    act(() => {
+      emitTauriEvent('agent:verifier', { status: 'pass', message: '' });
+    });
+    await flushAll();
+    const passCard = await screen.findByTestId('verifier-card');
+    expect(passCard.textContent).toContain('PASS');
+
+    // NITS — yellow card with the nit text
+    act(() => {
+      emitTauriEvent('agent:verifier', { status: 'nits', message: 'commit message could be tighter' });
+    });
+    await flushAll();
+    const nitsCard = await screen.findByTestId('verifier-card');
+    expect(nitsCard.textContent).toContain('NITS');
+    expect(nitsCard.textContent).toContain('commit message could be tighter');
+
+    // FAIL — red card with the failure reason
+    act(() => {
+      emitTauriEvent('agent:verifier', { status: 'fail', message: 'tests are still failing' });
+    });
+    await flushAll();
+    const failCard = await screen.findByTestId('verifier-card');
+    expect(failCard.textContent).toContain('FAIL');
+    expect(failCard.textContent).toContain('tests are still failing');
+  });
+
   it('stop button aborts mid-run (useAgentLoop=true)', async () => {
     function ControlledAgentChat() {
       const [messages, setMessages] = useState<Message[]>([]);

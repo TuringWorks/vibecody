@@ -1003,6 +1003,12 @@ export function AIChat({
     success: boolean;
     approved: boolean;
   }>>([]);
+  // verifierResult: PASS / NITS / FAIL summary from the verifier subagent's
+  // PostToolUse hook on task_complete. Cleared on new run / terminal events.
+  const [verifierResult, setVerifierResult] = useState<{
+    status: "pass" | "nits" | "fail";
+    message: string;
+  } | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1672,6 +1678,16 @@ export function AIChat({
       if (cancelled) { a7(); return; }
       unlisteners.push(a7);
 
+      // agent:verifier — verifier subagent reported PASS / NITS / FAIL on
+      // the task_complete claim. Non-terminal: surfaced as a step card; the
+      // backend has already injected nits / retry context into the next turn.
+      const av = await listen<{ status: "pass" | "nits" | "fail"; message: string }>("agent:verifier", (e) => {
+        if (!agentRunOwnerRef.current) return;
+        setVerifierResult(e.payload);
+      });
+      if (cancelled) { av(); return; }
+      unlisteners.push(av);
+
       // agent:circuit_break — backend tripped its circuit breaker (treat as terminal).
       const a8 = await listen<string>("agent:circuit_break", (e) => {
         if (!agentRunOwnerRef.current) return;
@@ -1776,6 +1792,7 @@ export function AIChat({
     // the same streamingText / messages state used by the chat path.
     if (useAgentLoopRef.current) {
       setAgentSteps([]);
+      setVerifierResult(null);
       setPendingApproval(null);
       agentRunOwnerRef.current = true;
       try {
@@ -2300,6 +2317,51 @@ export function AIChat({
                     )}
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Verifier card — PASS / NITS / FAIL from the verifier subagent */}
+        {verifierResult && (
+          <div className="message message-assistant" data-testid="verifier-card">
+            <div className="message-icon"><span className="assistant-icon">AI</span></div>
+            <div className="message-content">
+              <div
+                style={{
+                  border: `1px solid ${
+                    verifierResult.status === "fail"
+                      ? "rgba(220, 80, 80, 0.45)"
+                      : verifierResult.status === "nits"
+                        ? "rgba(220, 180, 60, 0.45)"
+                        : "rgba(60, 200, 120, 0.45)"
+                  }`,
+                  borderRadius: 6,
+                  padding: "6px 10px",
+                  fontSize: "0.85em",
+                  background:
+                    verifierResult.status === "fail"
+                      ? "rgba(220, 80, 80, 0.08)"
+                      : verifierResult.status === "nits"
+                        ? "rgba(220, 180, 60, 0.08)"
+                        : "rgba(60, 200, 120, 0.08)",
+                }}
+              >
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <strong>
+                    Verifier:{" "}
+                    {verifierResult.status === "pass"
+                      ? "✅ PASS"
+                      : verifierResult.status === "nits"
+                        ? "📝 NITS"
+                        : "❌ FAIL"}
+                  </strong>
+                </div>
+                {verifierResult.message && (
+                  <div style={{ marginTop: 4, opacity: 0.85, whiteSpace: "pre-wrap" }}>
+                    {verifierResult.message}
+                  </div>
+                )}
               </div>
             </div>
           </div>

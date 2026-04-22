@@ -1210,6 +1210,9 @@ async fn run_agent(
                 }
                 break;
             }
+            AgentEvent::Verifier { decision } => {
+                log.push(format!("verifier: {:?}", decision));
+            }
         }
     }
 

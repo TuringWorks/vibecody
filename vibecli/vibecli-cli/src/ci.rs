@@ -454,6 +454,11 @@ pub async fn run_ci(
                 outcome = CiOutcome::Partial;
                 break;
             }
+            AgentEvent::Verifier { decision } => {
+                if verbose {
+                    eprintln!("  verifier: {:?}", decision);
+                }
+            }
         }
     }
 

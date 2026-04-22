@@ -13741,6 +13741,14 @@ async fn run_agent_repl_with_context(
                 AgentEvent::RetryableError { ref error, attempt, max_attempts, backoff_ms } => serde_json::json!({"type":"retry","error":error,"attempt":attempt,"max_attempts":max_attempts,"backoff_ms":backoff_ms}),
                 AgentEvent::CircuitBreak { ref state, ref reason } => serde_json::json!({"type":"circuit_break","state":state.to_string(),"reason":reason}),
                 AgentEvent::Partial { ref summary, steps_completed, steps_planned, ref remaining_plan } => serde_json::json!({"type":"partial","summary":summary,"steps_completed":steps_completed,"steps_planned":steps_planned,"remaining_plan":remaining_plan}),
+                AgentEvent::Verifier { ref decision } => {
+                    let (status, message) = match decision {
+                        vibe_ai::agent::VerifierDecision::Pass => ("pass", String::new()),
+                        vibe_ai::agent::VerifierDecision::Nits(t) => ("nits", t.clone()),
+                        vibe_ai::agent::VerifierDecision::Fail(r) => ("fail", r.clone()),
+                    };
+                    serde_json::json!({"type":"verifier","status":status,"message":message})
+                }
             };
             println!("{}", obj);
             io::stdout().flush()?;
@@ -13930,6 +13938,18 @@ async fn run_agent_repl_with_context(
                     }
                     break;
                 }
+            }
+            AgentEvent::Verifier { decision } => {
+                let label = match &decision {
+                    vibe_ai::agent::VerifierDecision::Pass => "✅ verifier: pass".to_string(),
+                    vibe_ai::agent::VerifierDecision::Nits(text) => {
+                        format!("📝 verifier nits: {}", text)
+                    }
+                    vibe_ai::agent::VerifierDecision::Fail(reason) => {
+                        format!("❌ verifier fail: {}", reason)
+                    }
+                };
+                println!("{}", label);
             }
         }
     }

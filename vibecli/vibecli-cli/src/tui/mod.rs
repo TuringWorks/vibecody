@@ -728,6 +728,9 @@ async fn handle_chat_input(
                                     steps_completed, steps_planned, summary
                                 ))
                             }
+                            AgentEvent::Verifier { decision } => {
+                                AppEvent::AgentChunk(format!("\nverifier: {:?}\n", decision))
+                            }
                         };
                         if tx_clone.send(app_ev).await.is_err() {
                             break;
