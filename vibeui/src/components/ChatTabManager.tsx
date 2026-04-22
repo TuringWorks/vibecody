@@ -32,20 +32,9 @@ interface ChatTabManagerProps {
     onPendingWrite?: (path: string, content: string) => void;
 }
 
-const STORAGE_KEY = "vibecody:chat-sessions";
+const LEGACY_SESSIONS_KEY = "vibecody:chat-sessions";
 const HISTORY_KEY = "vibecody:chat-history";
 const MAX_HISTORY = 50;
-
-function loadPersistedSessions(): Record<string, Message[]> {
-    try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? JSON.parse(raw) : {};
-    } catch { return {}; }
-}
-
-function savePersistedSessions(sessions: Record<string, Message[]>) {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions)); } catch { /* quota */ }
-}
 
 function loadHistory(): ChatSession[] {
     try {
@@ -96,11 +85,14 @@ export function ChatTabManager({
     currentFile,
     onPendingWrite,
 }: ChatTabManagerProps) {
-    // Restore persisted sessions on mount
-    const initialSessions = useRef(loadPersistedSessions());
-
-    // Refresh adventure names from backend once on mount (non-blocking)
-    useEffect(() => { refreshAdventureNames(); }, []);
+    // Refresh adventure names from backend once on mount (non-blocking).
+    // Also drop the legacy per-tab message blob — we no longer auto-restore
+    // tab messages across app launches; History is the source of truth for
+    // past chats, and the user expects a fresh window on open / "+".
+    useEffect(() => {
+        refreshAdventureNames();
+        try { localStorage.removeItem(LEGACY_SESSIONS_KEY); } catch { /* ignore */ }
+    }, []);
 
     // ── Session memory ─────────────────────────────────────────────────────────
     const memory = useSessionMemory();
@@ -122,20 +114,15 @@ export function ChatTabManager({
     const [showMemoryDialog, setShowMemoryDialog] = useState(false);
     const [history, setHistory] = useState<ChatSession[]>(loadHistory);
 
-    // Per-tab message storage (lifted from AIChat)
-    const [tabMessages, setTabMessages] = useState<Record<string, Message[]>>(() => {
-        return initialSessions.current;
-    });
+    // Per-tab message storage (lifted from AIChat). Lives in React state for
+    // the lifetime of the panel — not persisted to localStorage. Closed tabs
+    // with messages are auto-saved to History (see closeTab below).
+    const [tabMessages, setTabMessages] = useState<Record<string, Message[]>>({});
 
-    // Persist messages to localStorage on change (debounced)
-    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    useEffect(() => {
-        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = setTimeout(() => {
-            savePersistedSessions(tabMessages);
-        }, 500);
-        return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
-    }, [tabMessages]);
+    // tab.id → history session id. A tab gets bound to a history entry the
+    // first time it's saved (or when restored from history). Subsequent saves
+    // update that same entry instead of stacking duplicates.
+    const [tabHistoryIds, setTabHistoryIds] = useState<Record<string, string>>({});
 
     const tabMessagesRef = useRef(tabMessages);
     tabMessagesRef.current = tabMessages;
@@ -188,34 +175,74 @@ export function ChatTabManager({
         setActiveTabId(newTab.id);
     };
 
-    // Track which tabs have already been saved to history to prevent duplicates.
-    const savedTabsRef = useRef<Set<string>>(new Set());
+    /**
+     * Save (or update) a tab's messages to history.
+     *
+     * If the tab is already bound to a history entry — because it was
+     * restored from history, or saved earlier in this session — that entry
+     * is updated in place and moved to the top. Otherwise a new entry is
+     * created and the tab is bound to it. Returns the history id used.
+     *
+     * `firstMessageTitle` controls how the title is derived on the FIRST
+     * save only (for the explicit Save button, which prefers the first user
+     * message; closeTab uses the tab title). Updates never touch the title.
+     */
+    const persistTabToHistory = (tabId: string, firstMessageTitle: boolean): string | null => {
+        const msgs = tabMessages[tabId] ?? [];
+        if (msgs.length === 0) return null;
+        const tab = tabs.find(t => t.id === tabId);
+        const provider = tab?.provider ?? defaultProvider;
+        const existingId = tabHistoryIds[tabId];
+
+        if (existingId && history.some(h => h.id === existingId)) {
+            const existing = history.find(h => h.id === existingId)!;
+            const updatedSession: ChatSession = {
+                ...existing,
+                provider,
+                messages: msgs,
+                savedAt: Date.now(),
+            };
+            const updated = [
+                updatedSession,
+                ...history.filter(h => h.id !== existingId),
+            ].slice(0, MAX_HISTORY);
+            setHistory(updated);
+            saveHistory(updated);
+            return existingId;
+        }
+
+        const newId = `session-${Date.now()}`;
+        let title = tab?.title ?? tabId;
+        if (firstMessageTitle) {
+            const firstUserMsg = msgs.find(m => m.role === "user");
+            if (firstUserMsg) {
+                title = firstUserMsg.content.slice(0, 50) + (firstUserMsg.content.length > 50 ? "..." : "");
+            }
+        }
+        const session: ChatSession = { id: newId, title, provider, messages: msgs, savedAt: Date.now() };
+        const updated = [session, ...history].slice(0, MAX_HISTORY);
+        setHistory(updated);
+        saveHistory(updated);
+        setTabHistoryIds(prev => ({ ...prev, [tabId]: newId }));
+        return newId;
+    };
 
     const closeTab = (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
         if (tabs.length === 1) return;
 
-        // Save to history before closing if there are messages and
-        // the tab hasn't already been saved (prevents duplicates when
-        // the user clicks "Save" then immediately closes the tab).
-        const msgs = tabMessages[id] ?? [];
-        if (msgs.length > 0 && !savedTabsRef.current.has(id)) {
-            const tab = tabs.find(t => t.id === id);
-            const session: ChatSession = {
-                id: `session-${Date.now()}`,
-                title: tab?.title ?? id,
-                provider: tab?.provider ?? defaultProvider,
-                messages: msgs,
-                savedAt: Date.now(),
-            };
-            const updated = [session, ...history].slice(0, MAX_HISTORY);
-            setHistory(updated);
-            saveHistory(updated);
-        }
-        savedTabsRef.current.delete(id);
+        // Save (or update) the tab's history entry on close so the latest
+        // messages survive after the tab is gone.
+        persistTabToHistory(id, false);
 
-        // Clean up persisted messages
+        // Clean up tab-scoped state
         setTabMessages(prev => {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+        });
+        setTabHistoryIds(prev => {
+            if (!(id in prev)) return prev;
             const next = { ...prev };
             delete next[id];
             return next;
@@ -248,7 +275,8 @@ export function ChatTabManager({
         );
     };
 
-    /** Restore a session from history into a new tab */
+    /** Restore a session from history into a new tab. The new tab is bound
+     * to the same history entry, so future saves update it in place. */
     const restoreSession = (session: ChatSession) => {
         nextTabId++;
         const newTab: ChatTab = {
@@ -259,6 +287,7 @@ export function ChatTabManager({
         };
         setTabs(prev => [...prev, newTab]);
         setTabMessages(prev => ({ ...prev, [newTab.id]: session.messages }));
+        setTabHistoryIds(prev => ({ ...prev, [newTab.id]: session.id }));
         setActiveTabId(newTab.id);
         setShowHistory(false);
     };
@@ -268,34 +297,29 @@ export function ChatTabManager({
         const updated = history.filter(h => h.id !== sessionId);
         setHistory(updated);
         saveHistory(updated);
+        // Drop any tab→history binding pointing at the deleted entry so a
+        // subsequent save creates a fresh entry rather than reviving the id.
+        setTabHistoryIds(prev => {
+            let changed = false;
+            const next: Record<string, string> = {};
+            for (const [tabId, hId] of Object.entries(prev)) {
+                if (hId === sessionId) { changed = true; continue; }
+                next[tabId] = hId;
+            }
+            return changed ? next : prev;
+        });
     };
 
     const clearHistory = () => {
         setHistory([]);
         saveHistory([]);
+        setTabHistoryIds({});
     };
 
-    /** Save current tab to history explicitly */
+    /** Save current tab to history explicitly. Updates an existing entry if
+     * this tab has been saved (or restored) before; otherwise creates one. */
     const saveCurrentToHistory = () => {
-        const msgs = tabMessages[activeTabId] ?? [];
-        if (msgs.length === 0) return;
-        const tab = tabs.find(t => t.id === activeTabId);
-        const firstUserMsg = msgs.find(m => m.role === "user");
-        const title = firstUserMsg
-            ? firstUserMsg.content.slice(0, 50) + (firstUserMsg.content.length > 50 ? "..." : "")
-            : tab?.title ?? activeTabId;
-        const session: ChatSession = {
-            id: `session-${Date.now()}`,
-            title,
-            provider: tab?.provider ?? defaultProvider,
-            messages: msgs,
-            savedAt: Date.now(),
-        };
-        const updated = [session, ...history].slice(0, MAX_HISTORY);
-        setHistory(updated);
-        saveHistory(updated);
-        // Mark tab as saved so closeTab won't create a duplicate entry
-        savedTabsRef.current.add(activeTabId);
+        persistTabToHistory(activeTabId, true);
     };
 
     // ── Inline tab rename ──────────────────────────────────────────────────────

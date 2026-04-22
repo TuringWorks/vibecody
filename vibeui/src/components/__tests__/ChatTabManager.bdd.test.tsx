@@ -22,8 +22,24 @@ vi.mock('@tauri-apps/api/core', () => ({
 }));
 
 vi.mock('../AIChat', () => ({
-  AIChat: ({ messages }: { messages: unknown[] }) => (
-    <div data-testid="ai-chat">messages:{messages.length}</div>
+  AIChat: ({ messages, onMessagesChange, sessionId }: {
+    messages: { role: string; content: string }[];
+    onMessagesChange?: (msgs: { role: string; content: string }[]) => void;
+    sessionId?: string;
+  }) => (
+    <div data-testid="ai-chat" data-session-id={sessionId}>
+      messages:{messages.length}
+      <button
+        type="button"
+        data-testid="mock-send"
+        onClick={() => onMessagesChange?.([
+          ...messages,
+          { role: 'user', content: `msg-${messages.length + 1}` },
+        ])}
+      >
+        send
+      </button>
+    </div>
   ),
 }));
 
@@ -239,17 +255,101 @@ describe('Given the user double-clicks a tab title', () => {
 
 // ── Scenario 8: Session persistence ───────────────────────────────────────────
 
-describe('Given localStorage has persisted sessions', () => {
-  it('When the component mounts, Then it does not crash with stale data', () => {
+describe('Given localStorage has a legacy persisted-sessions blob', () => {
+  it('When the component mounts, Then the new tab opens fresh (not resurrected from localStorage)', () => {
     localStorage.setItem('vibecody:chat-sessions', JSON.stringify({
       'tab-1': [{ id: '1', role: 'user', content: 'Hello', timestamp: Date.now() }],
     }));
-    expect(() => renderManager()).not.toThrow();
+    renderManager();
+    // Mock AIChat renders "messages:N" — fresh tab must show 0
+    expect(screen.getByTestId('ai-chat')).toHaveTextContent('messages:0');
+    // And the legacy blob must be evicted on mount
+    expect(localStorage.getItem('vibecody:chat-sessions')).toBeNull();
   });
 
   it('When localStorage has corrupt JSON, Then the component renders normally', () => {
     localStorage.setItem('vibecody:chat-sessions', 'not-valid-json{{{');
     expect(() => renderManager()).not.toThrow();
     expect(screen.getByTitle('New chat tab')).toBeInTheDocument();
+  });
+});
+
+// ── Scenario 9: History dedup — Save twice updates one entry ──────────────────
+
+function readHistory(): Array<{ id: string; messages: { role: string; content: string }[] }> {
+  const raw = localStorage.getItem('vibecody:chat-history');
+  return raw ? JSON.parse(raw) : [];
+}
+
+describe('Given a tab has been saved to history once', () => {
+  it('When the user adds more messages and clicks Save again, Then history holds one entry (updated, not duplicated)', () => {
+    renderManager();
+
+    // Type a message → Save button appears
+    fireEvent.click(screen.getByTestId('mock-send'));
+    fireEvent.click(screen.getByTitle('Save current session to history'));
+    expect(readHistory()).toHaveLength(1);
+    const firstId = readHistory()[0].id;
+    expect(readHistory()[0].messages).toHaveLength(1);
+
+    // Add another message and save again
+    fireEvent.click(screen.getByTestId('mock-send'));
+    fireEvent.click(screen.getByTitle('Save current session to history'));
+
+    const after = readHistory();
+    expect(after).toHaveLength(1);
+    expect(after[0].id).toBe(firstId);
+    expect(after[0].messages).toHaveLength(2);
+  });
+
+  it('When the user closes the tab after saving, Then no duplicate is appended', () => {
+    renderManager();
+
+    // Type into and save the only tab (which is the active one)
+    fireEvent.click(screen.getByTestId('mock-send'));
+    fireEvent.click(screen.getByTitle('Save current session to history'));
+    expect(readHistory()).toHaveLength(1);
+    const firstId = readHistory()[0].id;
+
+    // Add a second tab so closeTab is allowed, then close the first (saved) tab.
+    fireEvent.click(screen.getByTitle('New chat tab'));
+    fireEvent.click(screen.getAllByTitle('Close tab')[0]);
+
+    const after = readHistory();
+    expect(after).toHaveLength(1);
+    expect(after[0].id).toBe(firstId);
+  });
+});
+
+describe('Given a session is restored from history into a new tab', () => {
+  it('When the user adds messages and saves, Then the original history entry is updated in place', () => {
+    // Pre-seed history with a session
+    const seededId = 'session-seed-1';
+    localStorage.setItem('vibecody:chat-history', JSON.stringify([{
+      id: seededId,
+      title: 'Seeded',
+      provider: 'ollama',
+      messages: [{ role: 'user', content: 'original' }],
+      savedAt: 1700000000000,
+    }]));
+
+    renderManager();
+
+    // Open History panel and click Restore on the seeded entry
+    fireEvent.click(screen.getByTitle('Session history'));
+    fireEvent.click(screen.getByTitle('Restore into new tab'));
+
+    // After restore, two tabs are mounted (original + restored). The restored
+    // one is active; its parent wrapper has display:flex (vs display:none).
+    const aiChats = screen.getAllByTestId('ai-chat');
+    const activeChat = aiChats.find(el => (el.parentElement as HTMLElement).style.display !== 'none');
+    expect(activeChat).toBeTruthy();
+    fireEvent.click(activeChat!.querySelector('[data-testid="mock-send"]')!);
+    fireEvent.click(screen.getByTitle('Save current session to history'));
+
+    const after = readHistory();
+    expect(after).toHaveLength(1);
+    expect(after[0].id).toBe(seededId);
+    expect(after[0].messages).toHaveLength(2);
   });
 });
