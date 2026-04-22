@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useModelRegistry, PROVIDER_DEFAULT_MODEL } from "../hooks/useModelRegistry";
+import { useModelRegistry, PROVIDER_DEFAULT_MODEL, getDefaultProvider } from "../hooks/useModelRegistry";
 
 // -- Types --------------------------------------------------------------------
 
@@ -117,8 +117,8 @@ export function ArenaPanel() {
   // Provider / model selection
   const [providerA, setProviderA] = useState("ollama");
   const [modelA, setModelA] = useState(PROVIDER_DEFAULT_MODEL.ollama ?? "");
-  const [providerB, setProviderB] = useState("claude");
-  const [modelB, setModelB] = useState(PROVIDER_DEFAULT_MODEL.claude ?? "");
+  const [providerB, setProviderB] = useState(getDefaultProvider());
+  const [modelB, setModelB] = useState(PROVIDER_DEFAULT_MODEL[getDefaultProvider()] ?? "");
 
   // Prompt
   const [prompt, setPrompt] = useState("");

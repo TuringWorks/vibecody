@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Users, Send, LogOut, Copy, Check, Bot, Loader2, WifiOff } from "lucide-react";
+import { getDefaultProvider } from "../hooks/useModelRegistry";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -51,7 +52,7 @@ const PEER_COLORS = [
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function CollabChatPanel({ provider = "claude", daemonPort = 7878 }: CollabChatPanelProps) {
+export function CollabChatPanel({ provider = getDefaultProvider(), daemonPort = 7878 }: CollabChatPanelProps) {
   // Room state
   const [connected, setConnected] = useState(false);
   const [roomId, setRoomId] = useState<string | null>(null);

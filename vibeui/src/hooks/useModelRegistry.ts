@@ -63,6 +63,55 @@ export const STATIC_MODELS: Record<string, string[]> = {
 
 export const ALL_PROVIDERS = Object.keys(STATIC_MODELS);
 
+/**
+ * Preferred default provider for panels that need an initial selection.
+ * Points at the embedded mistralrs backend served by the local VibeCLI daemon —
+ * privacy-preserving, no API key required, and the strategic direction for
+ * VibeCody inference. Panels that need vision or cloud-only capabilities
+ * should pick a different default explicitly.
+ */
+export const DEFAULT_PROVIDER = "vibecli-mistralrs";
+
+const DEFAULT_PROVIDER_CACHE_KEY = "vibecody:default-provider";
+const DAEMON_HEALTH_URL = "http://localhost:7878/health";
+/** Fallback when the embedded daemon is not reachable. */
+const EMBEDDED_UNREACHABLE_FALLBACK = "ollama";
+
+/**
+ * Synchronous default-provider read. Returns the value cached by the last
+ * `probeAndCacheDefaultProvider()` call, or `DEFAULT_PROVIDER` if nothing is
+ * cached yet. Safe to call in `useState(...)` initializers and function
+ * parameter defaults.
+ */
+export function getDefaultProvider(): string {
+  try {
+    return localStorage.getItem(DEFAULT_PROVIDER_CACHE_KEY) || DEFAULT_PROVIDER;
+  } catch {
+    return DEFAULT_PROVIDER;
+  }
+}
+
+/**
+ * Pings the VibeCLI daemon's `/health` endpoint and caches the result. The
+ * cached value is only read on the NEXT app launch (by `getDefaultProvider`),
+ * so this never races with user selections in the current session.
+ * Call once on app mount.
+ */
+export async function probeAndCacheDefaultProvider(): Promise<void> {
+  let resolved = EMBEDDED_UNREACHABLE_FALLBACK;
+  try {
+    const res = await fetch(DAEMON_HEALTH_URL, { signal: AbortSignal.timeout(800) });
+    if (res.ok) resolved = DEFAULT_PROVIDER;
+  } catch {
+    // daemon unreachable — keep fallback
+  }
+  try {
+    localStorage.setItem(DEFAULT_PROVIDER_CACHE_KEY, resolved);
+  } catch {
+    // localStorage unavailable — silently skip
+  }
+}
+
 /** Default model to pre-select when a provider is chosen in a dropdown. */
 export const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
   "claude-code": "claude-sonnet-4-6",

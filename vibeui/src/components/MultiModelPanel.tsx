@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useModelRegistry, PROVIDER_DEFAULT_MODEL } from "../hooks/useModelRegistry";
+import { useModelRegistry, PROVIDER_DEFAULT_MODEL, getDefaultProvider } from "../hooks/useModelRegistry";
 
 interface ModelResponse {
  provider: string;
@@ -98,8 +98,8 @@ export function MultiModelPanel() {
  const [prompt, setPrompt] = useState("");
  const [providerA, setProviderA] = useState("ollama");
  const [modelA, setModelA] = useState(PROVIDER_DEFAULT_MODEL.ollama ?? "");
- const [providerB, setProviderB] = useState("claude");
- const [modelB, setModelB] = useState(PROVIDER_DEFAULT_MODEL.claude ?? "");
+ const [providerB, setProviderB] = useState(getDefaultProvider());
+ const [modelB, setModelB] = useState(PROVIDER_DEFAULT_MODEL[getDefaultProvider()] ?? "");
  const [result, setResult] = useState<CompareResult | null>(null);
  const [loading, setLoading] = useState(false);
  const [error, setError] = useState<string | null>(null);

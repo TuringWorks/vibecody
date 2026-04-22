@@ -5,6 +5,7 @@ import {
   Send, Square, FolderOpen, RefreshCw, Bot, User,
   MessageSquare, AlertCircle, CheckCircle, ChevronDown, Play,
 } from "lucide-react";
+import { getDefaultProvider } from "../hooks/useModelRegistry";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -282,7 +283,7 @@ export interface GatewaySandboxPanelProps {
   provider?: string;
 }
 
-export function GatewaySandboxPanel({ provider: defaultProvider = "claude" }: GatewaySandboxPanelProps) {
+export function GatewaySandboxPanel({ provider: defaultProvider = getDefaultProvider() }: GatewaySandboxPanelProps) {
   const [platform, setPlatform] = useState<PlatformId>("telegram");
   const [credentials, setCredentials] = useState<Record<string, string>>({});
   const [sandboxPath, setSandboxPath] = useState("");

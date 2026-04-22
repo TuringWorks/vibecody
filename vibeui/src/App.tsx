@@ -4,6 +4,7 @@ import { useToast } from "./hooks/useToast";
 import { useNotifications } from "./hooks/useNotifications";
 import { useApiKeyMonitor } from "./hooks/useApiKeyMonitor";
 import { useDaemonMonitor } from "./hooks/useDaemonMonitor";
+import { probeAndCacheDefaultProvider } from "./hooks/useModelRegistry";
 import { Toaster } from "./components/Toaster";
 import { NotificationCenter } from "./components/NotificationCenter";
 import Editor, { DiffEditor, OnMount } from "@monaco-editor/react";
@@ -189,6 +190,9 @@ function App() {
     invoke<string[]>("get_available_ai_providers")
       .then(refreshProviders)
       .catch(console.error);
+
+    // Probe embedded-daemon reachability and cache for next session's default.
+    probeAndCacheDefaultProvider();
 
     // Listen for provider updates from Settings panel (API key changes)
     const onProvidersUpdated = (e: Event) => {

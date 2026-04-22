@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useModelRegistry, PROVIDER_DEFAULT_MODEL } from "../hooks/useModelRegistry";
+import { useModelRegistry, PROVIDER_DEFAULT_MODEL, getDefaultProvider } from "../hooks/useModelRegistry";
 import { listen } from "@tauri-apps/api/event";
 import {
   Compass, Handshake, Link, Trophy, BrainCircuit,
@@ -245,8 +245,8 @@ export function SuperBrainPanel() {
       model: PROVIDER_DEFAULT_MODEL[p] ?? "",
     }))
   );
-  const [judgeProvider, setJudgeProvider] = useState("claude");
-  const [judgeModel, setJudgeModel] = useState(PROVIDER_DEFAULT_MODEL.claude ?? "claude-sonnet-4-6");
+  const [judgeProvider, setJudgeProvider] = useState(getDefaultProvider());
+  const [judgeModel, setJudgeModel] = useState(PROVIDER_DEFAULT_MODEL[getDefaultProvider()] ?? "");
   const [prompt, setPrompt] = useState("");
   const [thinking, setThinking] = useState(false);
   const [progress, setProgress] = useState("");

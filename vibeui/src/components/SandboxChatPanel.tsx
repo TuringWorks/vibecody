@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { FolderOpen, RefreshCw, File, Folder, ChevronRight, ChevronDown, Shield } from "lucide-react";
 import { AIChat } from "./AIChat";
-import { useModelRegistry } from "../hooks/useModelRegistry";
+import { useModelRegistry, getDefaultProvider } from "../hooks/useModelRegistry";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -45,7 +45,7 @@ function formatFileTree(entries: FileEntry[], sandboxPath: string): string {
 export function SandboxChatPanel({ provider: initialProvider, availableProviders }: SandboxChatPanelProps) {
   const { providers } = useModelRegistry();
   const effectiveProviders = availableProviders ?? providers;
-  const [provider, setProvider] = useState(initialProvider ?? effectiveProviders[0] ?? "claude");
+  const [provider, setProvider] = useState(initialProvider ?? effectiveProviders[0] ?? getDefaultProvider());
 
   const [sandboxPath, setSandboxPath] = useState<string | null>(null);
   const [entries, setEntries] = useState<FileEntry[]>([]);
