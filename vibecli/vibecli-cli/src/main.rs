@@ -13694,6 +13694,7 @@ async fn run_agent_repl_with_context(
 
     let policy_label = match approval {
         ApprovalPolicy::ChatOnly  => "chat-only (no tool calls, conversational only)",
+        ApprovalPolicy::ReadOnly  => "read-only (auto-execute reads; block writes/bash/spawn)",
         ApprovalPolicy::Suggest   => "manual (ask before every action)",
         ApprovalPolicy::AutoEdit  => "smart (auto-apply files, ask for shell commands)",
         ApprovalPolicy::FullAuto  => "autonomous (execute everything without prompting)",

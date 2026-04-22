@@ -320,6 +320,11 @@ impl CircuitBreaker {
 pub enum ApprovalPolicy {
     /// Conversational mode only — all tool calls are blocked. Equivalent to Goose "Chat Only".
     ChatOnly,
+    /// Read-only audit mode — auto-execute non-destructive tools (read_file,
+    /// list_directory, search_files, diffstat, think, plan_task, task_complete,
+    /// web_search, fetch_url) and block all writes/bash/spawn. Used by verifier
+    /// and explore subagents that must not mutate state.
+    ReadOnly,
     /// Show each tool call to the user and wait for y/n/a approval. Equivalent to Goose "Manual Approval".
     Suggest,
     /// Auto-apply file edits; require approval only for bash commands. Equivalent to Goose "Smart Approval".
@@ -335,6 +340,7 @@ impl ApprovalPolicy {
             "full-auto" | "fullauto" | "auto" | "autonomous" => Self::FullAuto,
             "auto-edit" | "autoedit" | "smart" | "smart-approval" => Self::AutoEdit,
             "chat-only" | "chatonly" | "chat" => Self::ChatOnly,
+            "read-only" | "readonly" | "read" | "audit" => Self::ReadOnly,
             _ => Self::Suggest,
         }
     }
@@ -343,10 +349,30 @@ impl ApprovalPolicy {
     pub fn display_name(&self) -> &'static str {
         match self {
             Self::ChatOnly => "Chat Only",
+            Self::ReadOnly => "Read-Only",
             Self::Suggest  => "Manual Approval",
             Self::AutoEdit => "Smart Approval",
             Self::FullAuto => "Completely Autonomous",
         }
+    }
+
+    /// True when `tool` may be auto-executed under ReadOnly mode.
+    /// The allowlist intentionally excludes Bash — read-only callers should
+    /// rely on Diffstat / ReadFile / ListDirectory for inspection rather than
+    /// shelling out, since bash is hard to gate at the policy layer.
+    pub fn is_readonly_tool(tool: &ToolCall) -> bool {
+        matches!(
+            tool,
+            ToolCall::ReadFile { .. }
+                | ToolCall::ListDirectory { .. }
+                | ToolCall::SearchFiles { .. }
+                | ToolCall::Diffstat { .. }
+                | ToolCall::Think { .. }
+                | ToolCall::PlanTask { .. }
+                | ToolCall::TaskComplete { .. }
+                | ToolCall::WebSearch { .. }
+                | ToolCall::FetchUrl { .. }
+        )
     }
 }
 
@@ -1232,6 +1258,7 @@ impl AgentLoop {
         }
         match &self.approval {
             ApprovalPolicy::ChatOnly  => true, // always block — no tool execution in chat-only mode
+            ApprovalPolicy::ReadOnly  => !ApprovalPolicy::is_readonly_tool(call),
             ApprovalPolicy::FullAuto  => false,
             ApprovalPolicy::AutoEdit  => matches!(call, ToolCall::Bash { .. }),
             ApprovalPolicy::Suggest => true,
@@ -1780,6 +1807,40 @@ mod circuit_breaker_tests {
         assert_eq!(ApprovalPolicy::from_str(""), ApprovalPolicy::Suggest);
         assert_eq!(ApprovalPolicy::from_str("unknown"), ApprovalPolicy::Suggest);
         assert_eq!(ApprovalPolicy::from_str("garbage"), ApprovalPolicy::Suggest);
+    }
+
+    #[test]
+    fn approval_policy_from_str_read_only() {
+        assert_eq!(ApprovalPolicy::from_str("read-only"), ApprovalPolicy::ReadOnly);
+        assert_eq!(ApprovalPolicy::from_str("readonly"), ApprovalPolicy::ReadOnly);
+        assert_eq!(ApprovalPolicy::from_str("READ-ONLY"), ApprovalPolicy::ReadOnly);
+        assert_eq!(ApprovalPolicy::from_str("audit"), ApprovalPolicy::ReadOnly);
+    }
+
+    #[test]
+    fn read_only_policy_allows_reads_blocks_writes() {
+        // Allowed under ReadOnly:
+        assert!(ApprovalPolicy::is_readonly_tool(&ToolCall::ReadFile { path: "x".into() }));
+        assert!(ApprovalPolicy::is_readonly_tool(&ToolCall::ListDirectory { path: "x".into() }));
+        assert!(ApprovalPolicy::is_readonly_tool(&ToolCall::SearchFiles { query: "q".into(), glob: None }));
+        assert!(ApprovalPolicy::is_readonly_tool(&ToolCall::Diffstat { path: "x".into() }));
+        assert!(ApprovalPolicy::is_readonly_tool(&ToolCall::Think { thought: "t".into() }));
+        assert!(ApprovalPolicy::is_readonly_tool(&ToolCall::PlanTask { steps: "1. do".into() }));
+        assert!(ApprovalPolicy::is_readonly_tool(&ToolCall::TaskComplete { summary: "s".into() }));
+        assert!(ApprovalPolicy::is_readonly_tool(&ToolCall::WebSearch { query: "q".into(), num_results: 5 }));
+        assert!(ApprovalPolicy::is_readonly_tool(&ToolCall::FetchUrl { url: "u".into() }));
+
+        // Blocked under ReadOnly (i.e. needs_approval would be true):
+        assert!(!ApprovalPolicy::is_readonly_tool(&ToolCall::WriteFile { path: "x".into(), content: "".into() }));
+        assert!(!ApprovalPolicy::is_readonly_tool(&ToolCall::ApplyPatch { path: "x".into(), patch: "".into() }));
+        assert!(!ApprovalPolicy::is_readonly_tool(&ToolCall::Bash { command: "ls".into() }));
+        assert!(!ApprovalPolicy::is_readonly_tool(&ToolCall::SpawnAgent { task: "t".into(), max_steps: None, max_depth: None }));
+        assert!(!ApprovalPolicy::is_readonly_tool(&ToolCall::RecordMemory { key: "k".into(), value: "v".into() }));
+    }
+
+    #[test]
+    fn approval_policy_display_name_includes_read_only() {
+        assert_eq!(ApprovalPolicy::ReadOnly.display_name(), "Read-Only");
     }
 
     // ── AgentContext defaults ────────────────────────────────────────────
