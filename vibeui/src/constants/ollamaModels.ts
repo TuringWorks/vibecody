@@ -2,7 +2,7 @@
  * Ollama chat models — static fallback list for when Ollama API is unreachable.
  *
  * Source: https://ollama.com/library?sort=newest
- * Last updated: 2026-03-31
+ * Last updated: 2026-04-21
  *
  * Only chat / general-purpose models are included here.
  * Embedding models, vision-only models, and OCR models are excluded.
@@ -11,6 +11,7 @@
 export const OLLAMA_CHAT_MODELS: string[] = [
   // ── Latest / flagship ──────────────────────────────────────────────
   "qwen3-coder",
+  "qwen3.6",
   "qwen3.5",
   "qwen3",
   "qwen3-next",
@@ -21,6 +22,7 @@ export const OLLAMA_CHAT_MODELS: string[] = [
   "llama4",
   "llama3.3",
   "llama3.2",
+  "gemma4",
   "gemma3",
   "gemma3n",
   "phi4",
@@ -33,10 +35,12 @@ export const OLLAMA_CHAT_MODELS: string[] = [
   "gemini-3-flash-preview",
 
   // ── Strong reasoning / agentic ─────────────────────────────────────
+  "glm-5.1",
   "glm-5",
   "glm-4.7",
   "glm-4.7-flash",
   "glm-4.6",
+  "kimi-k2.6",
   "kimi-k2.5",
   "kimi-k2",
   "kimi-k2-thinking",
@@ -87,6 +91,7 @@ export const OLLAMA_CHAT_MODELS: string[] = [
   "smollm2",
 
   // ── Community / fine-tuned ─────────────────────────────────────────
+  "gpt-oss-safeguard",
   "r1-1776",
   "dolphin3",
   "hermes3",
