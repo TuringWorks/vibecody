@@ -103,9 +103,59 @@ pub enum FinishReason {
     Error,
 }
 
+/// Role tag on a chat turn. Maps 1:1 to OpenAI / Ollama wire roles.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ChatRole {
+    System,
+    User,
+    Assistant,
+    Tool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatMessage {
+    pub role: ChatRole,
+    pub content: String,
+}
+
+/// Multi-turn chat request — preserves message structure so backends can
+/// apply the model's own chat template (Qwen ChatML, Llama-3 instruct,
+/// etc.) instead of receiving a pre-flattened blob.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatRequest {
+    pub messages: Vec<ChatMessage>,
+    pub max_tokens: usize,
+    pub temperature: f32,
+    pub stop: Vec<String>,
+}
+
 #[async_trait]
 pub trait TextGenerator: Send + Sync {
     async fn generate(&self, req: GenerationRequest) -> Result<GenerationResponse>;
+
+    /// Chat-aware generation. Default impl flattens to a single `prompt`
+    /// (content-only join, no role prefix) so legacy backends keep working
+    /// — but real implementations should override and pass each turn to
+    /// the underlying engine so the model's chat template is applied per
+    /// message. The flatten default is a correctness fallback, not a
+    /// quality target: stuffing a multi-turn conversation through a
+    /// single-prompt API loses the role boundaries the template needs.
+    async fn generate_chat(&self, req: ChatRequest) -> Result<GenerationResponse> {
+        let prompt = req
+            .messages
+            .iter()
+            .map(|m| m.content.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        self.generate(GenerationRequest {
+            prompt,
+            max_tokens: req.max_tokens,
+            temperature: req.temperature,
+            stop: req.stop,
+        })
+        .await
+    }
 }
 
 // ---------------------------------------------------------------------------

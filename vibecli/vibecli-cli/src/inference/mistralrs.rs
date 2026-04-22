@@ -48,6 +48,7 @@ use tokio::sync::RwLock;
 #[cfg(mistralrs_enabled)]
 use vibe_infer::{
     mistral::{KvCacheMode, MistralGenerator},
+    ChatRole as InferChatRole, ChatMessage as InferChatMessage, ChatRequest as InferChatRequest,
     GenerationRequest, InferenceError, TextGenerator,
 };
 
@@ -119,12 +120,32 @@ fn finish_label(reason: vibe_infer::FinishReason) -> &'static str {
 }
 
 #[cfg(mistralrs_enabled)]
-fn flatten_messages(messages: &[ChatMessage]) -> String {
+fn map_chat_messages(messages: &[ChatMessage]) -> Vec<InferChatMessage> {
     messages
         .iter()
-        .map(|m| format!("{}: {}", m.role, m.content))
-        .collect::<Vec<_>>()
-        .join("\n")
+        .map(|m| InferChatMessage {
+            role: parse_role(&m.role),
+            content: m.content.clone(),
+        })
+        .collect()
+}
+
+/// Map an Ollama-wire role string to the structured `ChatRole` mistralrs
+/// understands. Unknown roles fall back to `User` — preserves user content
+/// rather than dropping the turn, but flagged in tracing so future role
+/// additions don't silently lose information.
+#[cfg(mistralrs_enabled)]
+fn parse_role(role: &str) -> InferChatRole {
+    match role.to_ascii_lowercase().as_str() {
+        "system" => InferChatRole::System,
+        "assistant" => InferChatRole::Assistant,
+        "tool" => InferChatRole::Tool,
+        "user" => InferChatRole::User,
+        other => {
+            tracing::warn!("vibecli inference: unknown chat role `{other}` — treating as user");
+            InferChatRole::User
+        }
+    }
 }
 
 /// Pull `num_predict` (tokens) and `temperature` out of an Ollama-style
@@ -156,12 +177,16 @@ impl Backend for MistralRsBackend {
         req: ChatRequest,
     ) -> BackendResult<BoxStream<'static, BackendResult<ChatChunk>>> {
         let gen = self.get_or_load(&req.model).await?;
-        let prompt = flatten_messages(&req.messages);
+        let messages = map_chat_messages(&req.messages);
         let (max_tokens, temperature) = sampler_from_options(req.options.as_ref());
 
+        // Use the chat-aware path so each turn keeps its role and the
+        // model's own template (Qwen ChatML, Llama-3 instruct, etc.) is
+        // applied per message — flattening to one user prompt produced
+        // doubled `user: user: ...` artifacts and broke multi-turn.
         let resp = gen
-            .generate(GenerationRequest {
-                prompt,
+            .generate_chat(InferChatRequest {
+                messages,
                 max_tokens,
                 temperature,
                 stop: vec![],

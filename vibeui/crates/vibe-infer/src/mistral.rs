@@ -40,7 +40,10 @@ use mistralrs::{
 };
 
 use crate::kv_cache_codec::{CandleTurboQuantCodec, NativeTurboQuantCodec};
-use crate::{FinishReason, GenerationRequest, GenerationResponse, InferenceError, Result, TextGenerator};
+use crate::{
+    ChatRequest, ChatRole, FinishReason, GenerationRequest, GenerationResponse, InferenceError,
+    Result, TextGenerator,
+};
 
 /// KV-cache storage mode selected at load time.
 ///
@@ -211,38 +214,67 @@ async fn install_codec_after_load(model: &Model, mode: &KvCacheMode) -> Result<(
 #[async_trait]
 impl TextGenerator for MistralGenerator {
     async fn generate(&self, req: GenerationRequest) -> Result<GenerationResponse> {
+        // Single-prompt path: wrap the entire prompt as one user turn and
+        // let mistralrs apply the model's chat template. Multi-turn callers
+        // should prefer `generate_chat`, which preserves role boundaries.
         let messages = TextMessages::new().add_message(TextMessageRole::User, &req.prompt);
-        let builder = RequestBuilder::from(messages)
-            .set_sampler_max_len(req.max_tokens)
-            .set_sampler_temperature(req.temperature as f64);
-
-        let response = self.model.send_chat_request(builder).await.map_err(be)?;
-
-        let choice = response
-            .choices
-            .first()
-            .ok_or_else(|| InferenceError::Backend("mistralrs: no choices in response".into()))?;
-
-        let text = choice
-            .message
-            .content
-            .clone()
-            .unwrap_or_default();
-
-        let finish = match choice.finish_reason.as_str() {
-            "stop" => FinishReason::Stop,
-            "length" => FinishReason::Length,
-            _ => FinishReason::Stop,
-        };
-
-        let tokens_generated = response.usage.completion_tokens as usize;
-
-        Ok(GenerationResponse {
-            text,
-            tokens_generated,
-            finish_reason: finish,
-        })
+        send(&self.model, messages, req.max_tokens, req.temperature).await
     }
+
+    async fn generate_chat(&self, req: ChatRequest) -> Result<GenerationResponse> {
+        // Map every turn to a `TextMessageRole` so mistralrs templates each
+        // one independently — this is what produces a correct ChatML /
+        // Llama-3-instruct prompt rather than a flattened blob the model
+        // has to reverse-engineer.
+        let mut messages = TextMessages::new();
+        for m in &req.messages {
+            messages = messages.add_message(map_role(m.role), &m.content);
+        }
+        send(&self.model, messages, req.max_tokens, req.temperature).await
+    }
+}
+
+fn map_role(role: ChatRole) -> TextMessageRole {
+    match role {
+        ChatRole::System => TextMessageRole::System,
+        ChatRole::User => TextMessageRole::User,
+        ChatRole::Assistant => TextMessageRole::Assistant,
+        ChatRole::Tool => TextMessageRole::Tool,
+    }
+}
+
+async fn send(
+    model: &Model,
+    messages: TextMessages,
+    max_tokens: usize,
+    temperature: f32,
+) -> Result<GenerationResponse> {
+    let builder = RequestBuilder::from(messages)
+        .set_sampler_max_len(max_tokens)
+        .set_sampler_temperature(temperature as f64);
+
+    let response = model.send_chat_request(builder).await.map_err(be)?;
+
+    let choice = response
+        .choices
+        .first()
+        .ok_or_else(|| InferenceError::Backend("mistralrs: no choices in response".into()))?;
+
+    let text = choice.message.content.clone().unwrap_or_default();
+
+    let finish = match choice.finish_reason.as_str() {
+        "stop" => FinishReason::Stop,
+        "length" => FinishReason::Length,
+        _ => FinishReason::Stop,
+    };
+
+    let tokens_generated = response.usage.completion_tokens as usize;
+
+    Ok(GenerationResponse {
+        text,
+        tokens_generated,
+        finish_reason: finish,
+    })
 }
 
 fn be<E: std::fmt::Display>(e: E) -> InferenceError {
