@@ -2318,7 +2318,7 @@ function App() {
       )}
 
       {/* Onboarding Tour */}
-      {showTour && workspaceFolders.length > 0 && (
+      {showTour && (
         <OnboardingTour onComplete={completeTour} />
       )}
 

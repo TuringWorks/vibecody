@@ -28,7 +28,7 @@ const STEPS: TourStep[] = [
     description: 'Terminal (⌘`), Browser, theme toggle, Command Palette (⌘K). Pro tip: Use ⌘1-9 to switch AI panel tabs quickly.',
   },
   {
-    target: '.editor-area',
+    target: '.editor-container',
     title: 'Getting Started With Your Project',
     description: 'Open a folder to start. VibeCody auto-detects your project type, build system, and test framework. Use /init in the CLI to generate a project profile that gives the AI deep understanding of your codebase.',
   },
