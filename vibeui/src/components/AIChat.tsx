@@ -2075,14 +2075,17 @@ export function AIChat({
             <label
               className="chat-action-btn"
               title={useAgentLoop
-                ? "Agent loop ON — sends messages through start_agent_task with multi-step planning, tool execution, and approval prompts"
-                : "Agent loop OFF — uses single-turn stream_chat_message (legacy path)"}
+                ? "Agent mode is ON — the assistant can plan and run multiple steps (search, edit, run commands) per message, asking for your approval. Click to turn off."
+                : "Agent mode is OFF — single reply per message. Click to turn on multi-step actions."}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 4,
                 cursor: isLoading ? "not-allowed" : "pointer",
                 opacity: isLoading ? 0.5 : 1,
                 fontWeight: useAgentLoop ? 600 : 400,
                 color: useAgentLoop ? "var(--accent-color)" : undefined,
+                background: useAgentLoop ? "var(--accent-bg, rgba(96,165,250,0.15))" : undefined,
+                borderColor: useAgentLoop ? "var(--accent-color)" : undefined,
+                userSelect: "none",
               }}
             >
               <input
@@ -2091,8 +2094,9 @@ export function AIChat({
                 disabled={isLoading || !onUseAgentLoopChange}
                 onChange={(e) => onUseAgentLoopChange?.(e.target.checked)}
                 style={{ margin: 0, cursor: "inherit" }}
+                aria-label="Toggle agent mode (multi-step actions)"
               />
-              Agent
+              Agent {useAgentLoop ? "ON" : "OFF"}
             </label>
             {isLoading && (
               <button className="chat-action-btn chat-action-stop" onClick={stopMessage} title="Stop generation">

@@ -152,16 +152,16 @@ export function ChatTabManager({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // When the top-bar provider changes, update all tabs that haven't been
-    // manually overridden by the user.
+    // When the top-bar provider changes, update ALL tabs and clear any
+    // per-tab manual override. The top-bar is the global default and an
+    // explicit user action — it always wins. Users who want per-tab
+    // divergence can re-pick from the per-tab dropdown afterwards.
     const prevProvider = useRef(defaultProvider);
     useEffect(() => {
         if (defaultProvider && defaultProvider !== prevProvider.current) {
             prevProvider.current = defaultProvider;
             setTabs((prev) =>
-                prev.map((t) =>
-                    t.manualOverride ? t : { ...t, provider: defaultProvider }
-                )
+                prev.map((t) => ({ ...t, provider: defaultProvider, manualOverride: false }))
             );
         }
         if (defaultProvider) {
