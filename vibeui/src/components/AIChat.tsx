@@ -303,6 +303,15 @@ function formatTime(ts?: number): string {
 
 type AgentMode = "fast" | "chat" | "planning";
 
+/**
+ * Max number of automatic continue turns after a chat response that triggered
+ * tool execution. Each completion that emits tool_output spends one turn:
+ * the assistant message + tool output is fed back so the model can act on
+ * the result without the user typing "continue". Capped to bound runaway
+ * loops on misbehaving prompts.
+ */
+const MAX_AGENT_TURNS = 10;
+
 /** Extract <thinking>...</thinking> blocks from content. Returns [cleanedContent, thinkingText]. */
 function extractThinking(content: string): [string, string] {
   const thinkingRegex = /<thinking>([\s\S]*?)<\/thinking>/g;
@@ -865,6 +874,29 @@ export function AIChat({
   const onMessagesChangeRef = useRef(onMessagesChange);
   onMessagesChangeRef.current = onMessagesChange;
 
+  // Refs for props the chat:complete listener needs when auto-continuing.
+  // The listener is registered once with [setMessages] deps, so reading
+  // these props directly would capture stale values across renders.
+  const providerRef = useRef(provider);
+  providerRef.current = provider;
+  const contextRef = useRef(context);
+  contextRef.current = context;
+  const fileTreeRef = useRef(fileTree);
+  fileTreeRef.current = fileTree;
+  const currentFileRef = useRef(currentFile);
+  currentFileRef.current = currentFile;
+  const sessionIdRef = useRef(sessionId);
+  sessionIdRef.current = sessionId;
+  const sessionTitleRef = useRef(sessionTitle);
+  sessionTitleRef.current = sessionTitle;
+  const pinnedMemoryRef = useRef(pinnedMemory);
+  pinnedMemoryRef.current = pinnedMemory;
+
+  // Auto-continue turn counter. Reset to 0 at the start of every user-initiated
+  // sendMessage; bumped for each automatic re-invocation triggered by
+  // tool_output coming back from the backend. See MAX_AGENT_TURNS.
+  const agentTurnCountRef = useRef(0);
+
   // In controlled mode, multiple Tauri events can fire before React
   // re-renders (e.g. chat:complete then chat:metrics). Each call to
   // setMessages reads messagesRef.current for the "prev" value, but
@@ -1204,6 +1236,8 @@ export function AIChat({
       case "planning": return "planning";
     }
   }, [agentMode]);
+  const backendModeRef = useRef(backendMode);
+  backendModeRef.current = backendMode;
 
   // Track scroll position
   const handleScroll = useCallback(() => {
@@ -1258,7 +1292,12 @@ export function AIChat({
         const response = e.payload;
         const [cleanedContent, thinkingText] = extractThinking(response.message);
         const [finalContent, toolCalls] = parseToolCalls(cleanedContent);
+        const hasToolOutput = !!(response.tool_output && response.tool_output.trim());
 
+        // Capture the post-update message list for potential auto-continue.
+        // setMessages's update fn runs synchronously in both controlled and
+        // local modes, so this ref is populated before the next line executes.
+        const captured: { value: Message[] | null } = { value: null };
         setMessages((prev) => {
           const msg: Message = {
             role: "assistant",
@@ -1269,35 +1308,17 @@ export function AIChat({
           };
           const updated = [...prev, msg];
 
-          if (response.tool_output && response.tool_output.trim()) {
+          if (hasToolOutput) {
             updated.push({
               role: "assistant",
               content: "```\n" + response.tool_output.trim() + "\n```",
               timestamp: Date.now(),
             });
           }
+          captured.value = updated;
           return updated;
         });
-
-        // In controlled mode (ChatTabManager), setMessages updates the parent's
-        // state which won't propagate back as a new `messages` prop until the
-        // parent re-renders.  If we clear streaming state here, there is a
-        // frame where both the streaming text AND the finalized message are
-        // absent — causing the response to visually "disappear".
-        //
-        // Solution: signal that a clear is pending and let the useEffect on
-        // `messages` handle the actual cleanup once the prop update arrives.
-        if (onMessagesChangeRef.current) {
-          pendingClearRef.current += 1;
-        } else {
-          // Uncontrolled mode — state is local, so clearing is safe immediately
-          setStreamingText("");
-          setTokensPerSec(null);
-          setStreamTokenCount(0);
-          setStreamStatus(null);
-          setRetryInfo(null);
-          setIsLoading(false);
-        }
+        const nextMessages = captured.value;
 
         if (response.pending_write && onPendingWriteRef.current) {
           onPendingWriteRef.current(response.pending_write.path, response.pending_write.content);
@@ -1308,6 +1329,69 @@ export function AIChat({
           window.dispatchEvent(new Event("vibeui:refresh-files"));
         }
         if (onFileActionRef.current) onFileActionRef.current();
+
+        // Auto-continue: when the model emits tools, the backend executed them
+        // and returned the output as a separate message — but the model itself
+        // never sees that output. Re-invoke stream_chat_message with the full
+        // updated history so the model can react. Skipped when the user
+        // cancelled, when the turn cap is reached, or when no tools ran.
+        const shouldAutoContinue =
+          hasToolOutput &&
+          !cancelledRef.current &&
+          agentTurnCountRef.current < MAX_AGENT_TURNS - 1 &&
+          nextMessages !== null;
+
+        if (shouldAutoContinue && nextMessages) {
+          agentTurnCountRef.current += 1;
+          const turn = agentTurnCountRef.current;
+          // Reset stream-progress UI but keep isLoading=true so the user
+          // sees one continuous "thinking" state across the loop.
+          setStreamingText("");
+          setTokensPerSec(null);
+          setStreamTokenCount(0);
+          setRetryInfo(null);
+          streamStartMsRef.current = null;
+          streamCharsRef.current = 0;
+          setStreamStatus(`Continuing (${turn}/${MAX_AGENT_TURNS - 1})`);
+
+          const backendMessages = nextMessages.map(({ role, content }) => ({ role, content }));
+          const effectiveContext =
+            [pinnedMemoryRef.current, contextRef.current].filter(Boolean).join("\n\n") || null;
+          const chatRequest = {
+            messages: backendMessages,
+            provider: providerRef.current,
+            context: effectiveContext,
+            file_tree: fileTreeRef.current ?? null,
+            current_file: currentFileRef.current ?? null,
+            mode: backendModeRef.current ?? null,
+            attachments: [],
+            session_id: sessionIdRef.current ?? null,
+            session_title: sessionTitleRef.current ?? null,
+          };
+          invoke("stream_chat_message", { request: chatRequest }).catch((err) => {
+            console.error("[AIChat] auto-continue invoke failed:", err);
+            agentTurnCountRef.current = 0;
+            setStreamStatus(null);
+            setIsLoading(false);
+          });
+          return;
+        }
+
+        // Terminal completion — clear loading state.
+        agentTurnCountRef.current = 0;
+        if (onMessagesChangeRef.current) {
+          // Controlled mode: defer clearing streaming UI until the new
+          // `messages` prop propagates back, otherwise the response visually
+          // disappears for one frame. The useEffect on `messages` does it.
+          pendingClearRef.current += 1;
+        } else {
+          setStreamingText("");
+          setTokensPerSec(null);
+          setStreamTokenCount(0);
+          setStreamStatus(null);
+          setRetryInfo(null);
+          setIsLoading(false);
+        }
       });
       if (cancelled) { u2(); return; }
       unlisteners.push(u2);
@@ -1329,6 +1413,7 @@ export function AIChat({
           timestamp: Date.now(),
           isError: true,
         }]);
+        agentTurnCountRef.current = 0;
         if (onMessagesChangeRef.current) {
           pendingClearRef.current += 1;
         } else {
@@ -1441,6 +1526,7 @@ export function AIChat({
     setSlashQuery(null);
     setIsNearBottom(true);
     cancelledRef.current = false;
+    agentTurnCountRef.current = 0;
     setIsLoading(true);
     setStreamingText("");
     setTokensPerSec(null);
@@ -1519,6 +1605,7 @@ export function AIChat({
 
   const stopMessage = useCallback(async () => {
     cancelledRef.current = true;
+    agentTurnCountRef.current = 0;
     await invoke("stop_chat_stream").catch(() => {});
     setMessages((prev) => {
       if (streamingText) {
