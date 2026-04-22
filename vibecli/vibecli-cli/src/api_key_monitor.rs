@@ -39,6 +39,7 @@ const PROVIDER_LABELS: &[(&str, &str)] = &[
     ("fireworks", "Fireworks AI"),
     ("sambanova", "SambaNova"),
     ("ollama", "Ollama"),
+    ("vibecli_mistralrs", "VibeCLI mistralrs (local)"),
 ];
 
 pub fn provider_label(name: &str) -> &str {
@@ -117,6 +118,9 @@ fn build_provider(name: &str, pc: &CfgProviderConfig) -> Option<Arc<dyn vibe_ai:
         "fireworks" => Some(Arc::new(vibe_ai::providers::fireworks::FireworksProvider::new(config))),
         "sambanova" => Some(Arc::new(vibe_ai::providers::sambanova::SambaNovaProvider::new(config))),
         "ollama" => Some(Arc::new(vibe_ai::providers::ollama::OllamaProvider::new(config))),
+        "vibecli_mistralrs" | "vibecli-mistralrs" => Some(Arc::new(
+            vibe_ai::providers::vibecli_mistralrs::VibeCliMistralRsProvider::new(config),
+        )),
         _ => None,
     }
 }
@@ -141,6 +145,7 @@ fn resolve_env_key(name: &str) -> Option<String> {
         "together" => "TOGETHER_API_KEY",
         "fireworks" => "FIREWORKS_API_KEY",
         "sambanova" => "SAMBANOVA_API_KEY",
+        "vibecli_mistralrs" | "vibecli-mistralrs" => "VIBECLI_DAEMON_TOKEN",
         _ => return None,
     };
     std::env::var(var).ok().filter(|v| !v.is_empty())
@@ -152,7 +157,7 @@ fn configured_providers(cfg: &Config) -> Vec<(String, Arc<dyn vibe_ai::provider:
         "anthropic", "openai", "gemini", "grok", "groq", "openrouter",
         "azure_openai", "mistral", "cerebras", "deepseek", "zhipu",
         "vercel_ai", "minimax", "perplexity", "together", "fireworks",
-        "sambanova", "ollama",
+        "sambanova", "ollama", "vibecli_mistralrs",
     ];
     let mut providers = Vec::new();
     for name in &all_names {

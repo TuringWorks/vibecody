@@ -13272,12 +13272,31 @@ fn build_temp_provider(provider_type: &str, model: &str)
         "together"             => std::env::var("TOGETHER_API_KEY").ok(),
         "fireworks"            => std::env::var("FIREWORKS_API_KEY").ok(),
         "ollama"               => Some(String::new()),
+        "vibecli-mistralrs" | "vibecli_mistralrs" => {
+            // Token: env first, then ~/.vibecli/daemon.token. Empty string acts
+            // as "no auth needed" so build_temp_provider doesn't reject the
+            // provider when the token file exists but isn't pre-loaded into env.
+            std::env::var("VIBECLI_DAEMON_TOKEN").ok().or_else(|| {
+                let home = std::env::var("HOME").ok().filter(|s| !s.is_empty())?;
+                std::fs::read_to_string(
+                    std::path::PathBuf::from(home)
+                        .join(".vibecli")
+                        .join("daemon.token"),
+                )
+                .ok()
+                .map(|s| s.trim().to_string())
+            }).or_else(|| Some(String::new()))
+        }
         _                      => std::env::var(format!("{}_API_KEY", provider_type.to_uppercase())).ok(),
     };
 
     // Fall back to saved settings from profile_settings.db
+    let auth_optional = matches!(
+        provider_type,
+        "ollama" | "vibecli-mistralrs" | "vibecli_mistralrs"
+    );
     let api_key = match api_key_from_env {
-        Some(ref k) if !k.is_empty() || provider_type == "ollama" => api_key_from_env,
+        Some(ref k) if !k.is_empty() || auth_optional => api_key_from_env,
         _ => {
             let provider_name = match provider_type {
                 "claude" | "anthropic" => "anthropic",
@@ -13291,7 +13310,7 @@ fn build_temp_provider(provider_type: &str, model: &str)
     };
 
     // Reject providers that need an API key but don't have one
-    if provider_type != "ollama" && api_key.as_ref().is_none_or(|k| k.is_empty()) {
+    if !auth_optional && api_key.as_ref().is_none_or(|k| k.is_empty()) {
         return None;
     }
 
@@ -13316,6 +13335,9 @@ fn build_temp_provider(provider_type: &str, model: &str)
         "together"             => Arc::new(providers::TogetherProvider::new(cfg)),
         "fireworks"            => Arc::new(providers::FireworksProvider::new(cfg)),
         "ollama"               => Arc::new(providers::OllamaProvider::new(cfg)),
+        "vibecli-mistralrs" | "vibecli_mistralrs" => {
+            Arc::new(providers::vibecli_mistralrs::VibeCliMistralRsProvider::new(cfg))
+        }
         _                      => return None,
     };
     Some(vibe_ai::ResilientProvider::wrap(p))

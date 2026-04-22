@@ -14157,9 +14157,36 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
 }
 
 fn create_raw_provider(provider_name: &str, model: Option<String>, cfg: &Config) -> Result<Arc<dyn LLMProvider>> {
-    use vibe_ai::providers::{claude, openai, gemini, grok, groq, openrouter, azure_openai, bedrock, copilot, mistral, cerebras, deepseek, zhipu, vercel_ai, minimax, perplexity, together, fireworks, sambanova};
+    use vibe_ai::providers::{claude, openai, gemini, grok, groq, openrouter, azure_openai, bedrock, copilot, mistral, cerebras, deepseek, zhipu, vercel_ai, minimax, perplexity, together, fireworks, sambanova, vibecli_mistralrs};
 
     match provider_name.to_lowercase().as_str() {
+        // ── VibeCLI in-process mistralrs (Ollama wire + X-VibeCLI-Backend pin) ─
+        "vibecli-mistralrs" | "vibecli_mistralrs" => {
+            let pc = cfg.vibecli_mistralrs.as_ref();
+            let api_url = pc
+                .and_then(|c| c.api_url.clone())
+                .or_else(|| std::env::var("VIBECLI_DAEMON_URL").ok())
+                .unwrap_or_else(|| "http://localhost:7878".to_string());
+            let cfg_model = pc.and_then(|c| c.model.clone());
+            let model = model
+                .or(cfg_model)
+                .unwrap_or_else(|| "Qwen/Qwen2.5-0.5B-Instruct".to_string());
+            let api_key = pc
+                .and_then(|c| c.api_key.clone())
+                .or_else(|| std::env::var("VIBECLI_DAEMON_TOKEN").ok());
+            Ok(Arc::new(vibecli_mistralrs::VibeCliMistralRsProvider::new(
+                ProviderConfig {
+                    provider_type: "vibecli-mistralrs".to_string(),
+                    api_url: Some(api_url),
+                    model,
+                    api_key,
+                    max_tokens: None,
+                    temperature: None,
+                    ..Default::default()
+                },
+            )))
+        }
+
         // ── Ollama (local, no API key required) ───────────────────────────────
         "ollama" => {
             let cfg_model = cfg.ollama.as_ref().and_then(|c| c.model.clone());

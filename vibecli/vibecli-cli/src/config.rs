@@ -35,6 +35,17 @@ pub struct Config {
     /// # If no api_key is set, a device key derived from hostname+username is used.
     /// ```
     pub ollama: Option<ProviderConfig>,
+    /// VibeCLI's in-process mistralrs backend (Ollama-compatible wire format,
+    /// pinned via `X-VibeCLI-Backend: mistralrs`).
+    ///
+    /// ```toml
+    /// [vibecli_mistralrs]
+    /// enabled = true
+    /// model = "Qwen/Qwen2.5-0.5B-Instruct"
+    /// api_url = "http://localhost:7878"    # optional, default localhost:7878
+    /// # api_key auto-resolves from ~/.vibecli/daemon.token; set explicitly to override.
+    /// ```
+    pub vibecli_mistralrs: Option<ProviderConfig>,
     pub openai: Option<ProviderConfig>,
     pub claude: Option<ProviderConfig>,
     pub gemini: Option<ProviderConfig>,
@@ -1728,6 +1739,7 @@ impl Config {
             "together" => self.together.as_ref(),
             "fireworks" => self.fireworks.as_ref(),
             "sambanova" => self.sambanova.as_ref(),
+            "vibecli_mistralrs" | "vibecli-mistralrs" => self.vibecli_mistralrs.as_ref(),
             _ => None,
         }
     }

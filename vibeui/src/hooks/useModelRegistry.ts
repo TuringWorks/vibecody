@@ -41,6 +41,20 @@ export const STATIC_MODELS: Record<string, string[]> = {
   bedrock: ["anthropic.claude-3-5-sonnet-20241022-v2:0", "anthropic.claude-3-haiku-20240307-v1:0"],
   copilot: ["gpt-4o"],
   ollama: OLLAMA_CHAT_MODELS,
+  // vibecli-mistralrs talks to the local vibecli daemon (default :7878) and
+  // pins the in-process mistralrs backend via X-VibeCLI-Backend. Models here
+  // are repo ids that mistralrs can lazy-load from Hugging Face on first use.
+  "vibecli-mistralrs": [
+    "Qwen/Qwen2.5-0.5B-Instruct",
+    "Qwen/Qwen2.5-1.5B-Instruct",
+    "Qwen/Qwen2.5-3B-Instruct",
+    "Qwen/Qwen2.5-7B-Instruct",
+    "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+    "Qwen/Qwen2.5-Coder-7B-Instruct",
+    "meta-llama/Llama-3.2-1B-Instruct",
+    "meta-llama/Llama-3.2-3B-Instruct",
+    "microsoft/Phi-3.5-mini-instruct",
+  ],
   zhipu: ["glm-4-plus", "glm-4-flash"],
   vercel_ai: [],
   minimax: ["abab6.5s-chat"],
@@ -68,6 +82,7 @@ export const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
   bedrock:      "anthropic.claude-3-5-sonnet-20241022-v2:0",
   copilot:      "gpt-4o",
   ollama:       "qwen3",
+  "vibecli-mistralrs": "Qwen/Qwen2.5-1.5B-Instruct",
   zhipu:        "glm-4-plus",
   vercel_ai:    "",
   minimax:      "abab6.5s-chat",

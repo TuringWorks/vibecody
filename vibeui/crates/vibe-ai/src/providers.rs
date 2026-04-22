@@ -23,6 +23,7 @@ pub mod perplexity;
 pub mod together;
 pub mod fireworks;
 pub mod sambanova;
+pub mod vibecli_mistralrs;
 
 pub use ollama::OllamaProvider;
 pub use claude::ClaudeProvider;
