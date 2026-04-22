@@ -565,6 +565,138 @@ describe('AIChat — response does not disappear (controlled mode)', () => {
     expect(screen.getByText(/Explain this code/)).toBeInTheDocument();
   });
 
+  it('agent loop completes a multi-step task (useAgentLoop=true)', async () => {
+    function ControlledAgentChat() {
+      const [messages, setMessages] = useState<Message[]>([]);
+      return (
+        <AIChat
+          provider="test-provider"
+          messages={messages}
+          onMessagesChange={setMessages}
+          useAgentLoop={true}
+          onUseAgentLoopChange={() => {}}
+        />
+      );
+    }
+    render(<ControlledAgentChat />);
+    await flushAll();
+
+    // Send the initial task
+    await sendUserMessage('list the files in src/');
+
+    // sendMessage must have called start_agent_task (NOT stream_chat_message)
+    expect(mockInvoke).toHaveBeenCalledWith(
+      'start_agent_task',
+      expect.objectContaining({ task: 'list the files in src/', approvalPolicy: 'suggest' }),
+    );
+    expect(mockInvoke).not.toHaveBeenCalledWith('stream_chat_message', expect.anything());
+
+    // Agent streams a planning chunk
+    act(() => { emitTauriEvent('agent:chunk', 'Planning: I will list the directory.'); });
+    await flushAll();
+    expect(screen.getByText(/Planning: I will list/)).toBeInTheDocument();
+
+    // Agent completes a tool step
+    act(() => {
+      emitTauriEvent('agent:step', {
+        step_num: 1,
+        tool_name: 'list_directory',
+        tool_summary: "list 'src/'",
+        output: 'a.ts\nb.ts',
+        success: true,
+        approved: true,
+      });
+    });
+    await flushAll();
+    expect(screen.getByText('list_directory')).toBeInTheDocument();
+    expect(screen.getByText(/a\.ts/)).toBeInTheDocument();
+
+    // Agent completes the run with a summary; the markdown renderer may split
+    // text across nodes, so match on document.body.textContent rather than
+    // requiring a single matching text node.
+    act(() => { emitTauriEvent('agent:complete', 'AGENT_COMPLETE_TOKEN: src contains files'); });
+    await flushAll();
+    await waitFor(() => {
+      expect(document.body.textContent ?? '').toContain('AGENT_COMPLETE_TOKEN');
+    });
+  });
+
+  it('approval rejection halts the tool call (useAgentLoop=true)', async () => {
+    function ControlledAgentChat() {
+      const [messages, setMessages] = useState<Message[]>([]);
+      return (
+        <AIChat
+          provider="test-provider"
+          messages={messages}
+          onMessagesChange={setMessages}
+          useAgentLoop={true}
+          onUseAgentLoopChange={() => {}}
+        />
+      );
+    }
+    render(<ControlledAgentChat />);
+    await flushAll();
+    await sendUserMessage('delete temp/');
+
+    // Backend asks for approval on a destructive tool
+    act(() => {
+      emitTauriEvent('agent:pending', {
+        name: 'delete_file',
+        summary: "delete 'temp/' recursively",
+        is_destructive: true,
+      });
+    });
+    await flushAll();
+
+    // Banner must be visible with both buttons
+    expect(screen.getByText(/Destructive tool/)).toBeInTheDocument();
+    const rejectBtn = screen.getByRole('button', { name: /Reject/i });
+    expect(rejectBtn).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Approve/i })).toBeInTheDocument();
+
+    // User rejects → respond_to_agent_approval(false)
+    fireEvent.click(rejectBtn);
+    await flushAll();
+
+    expect(mockInvoke).toHaveBeenCalledWith(
+      'respond_to_agent_approval',
+      { approved: false },
+    );
+    // Banner clears after rejection
+    expect(screen.queryByText(/Destructive tool/)).not.toBeInTheDocument();
+  });
+
+  it('stop button aborts mid-run (useAgentLoop=true)', async () => {
+    function ControlledAgentChat() {
+      const [messages, setMessages] = useState<Message[]>([]);
+      return (
+        <AIChat
+          provider="test-provider"
+          messages={messages}
+          onMessagesChange={setMessages}
+          useAgentLoop={true}
+          onUseAgentLoopChange={() => {}}
+        />
+      );
+    }
+    render(<ControlledAgentChat />);
+    await flushAll();
+    await sendUserMessage('do a long task');
+
+    // Agent emits a chunk so we know it's mid-run
+    act(() => { emitTauriEvent('agent:chunk', 'Working...'); });
+    await flushAll();
+
+    // Stop button is visible while loading
+    const stopBtn = await screen.findByText('Stop');
+    fireEvent.click(stopBtn);
+    await flushAll();
+
+    // stop_agent_task is invoked (NOT stop_chat_stream — this tab owns an agent)
+    expect(mockInvoke).toHaveBeenCalledWith('stop_agent_task');
+    expect(mockInvoke).not.toHaveBeenCalledWith('stop_chat_stream');
+  });
+
   it('streaming response survives workspace change mid-stream', async () => {
     render(<ControlledAIChat />);
     await flushAll();

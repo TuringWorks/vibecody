@@ -261,6 +261,14 @@ interface AIChatProps {
  sessionId?: string;
  /** Human-readable tab title (e.g. "Ember Ridge") used as the session task. */
  sessionTitle?: string;
+ /**
+  * When true, sendMessage routes through start_agent_task (full multi-step
+  * agent loop with planning, tool execution, and approval) instead of the
+  * single-turn stream_chat_message path. Phase-1 opt-in flag.
+  */
+ useAgentLoop?: boolean;
+ /** Called when the user toggles the agent-loop switch in the chat header. */
+ onUseAgentLoopChange?: (on: boolean) => void;
 }
 
 // ── Slash commands ───────────────────────────────────────────────────────────
@@ -858,6 +866,8 @@ export function AIChat({
   pinnedMemory,
   sessionId,
   sessionTitle,
+  useAgentLoop = false,
+  onUseAgentLoopChange,
 }: AIChatProps) {
   const [agentMode, setAgentMode] = useState<AgentMode>("chat");
   const [localMessages, setLocalMessages] = useState<Message[]>([]);
@@ -896,6 +906,20 @@ export function AIChat({
   // sendMessage; bumped for each automatic re-invocation triggered by
   // tool_output coming back from the backend. See MAX_AGENT_TURNS.
   const agentTurnCountRef = useRef(0);
+
+  // Live ref to useAgentLoop so the listener closures (registered once) can
+  // read the current value when deciding whether they're handling agent or
+  // chat events. Keeping this in a ref also lets sendMessage pick the route
+  // without re-creating the callback on every toggle.
+  const useAgentLoopRef = useRef(useAgentLoop);
+  useAgentLoopRef.current = useAgentLoop;
+
+  // True only when this AIChat instance invoked start_agent_task and hasn't
+  // yet seen a terminal event (complete/error/partial). Gates agent:* events
+  // so a chat tab that didn't start the run ignores another tab's events.
+  // Cleared on terminal events and on stop. Phase-1 single-slot constraint:
+  // only one agent run can be in flight across the whole app.
+  const agentRunOwnerRef = useRef(false);
 
   // In controlled mode, multiple Tauri events can fire before React
   // re-renders (e.g. chat:complete then chat:metrics). Each call to
@@ -961,6 +985,24 @@ export function AIChat({
   const [streamStatus, setStreamStatus] = useState<string | null>(null);
   const [retryInfo, setRetryInfo] = useState<{ attempt: number; max: number } | null>(null);
   const [expandedThinking, setExpandedThinking] = useState<Record<number, boolean>>({});
+
+  // Agent-loop UI state (only meaningful when useAgentLoop is true).
+  // pendingApproval: the current ToolCallPending awaiting user approve/reject.
+  // agentSteps: completed step cards rendered between the user prompt and the
+  // final agent:complete summary. Cleared when the run terminates.
+  const [pendingApproval, setPendingApproval] = useState<{
+    name: string;
+    summary: string;
+    is_destructive: boolean;
+  } | null>(null);
+  const [agentSteps, setAgentSteps] = useState<Array<{
+    step_num: number;
+    tool_name: string;
+    tool_summary: string;
+    output: string;
+    success: boolean;
+    approved: boolean;
+  }>>([]);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -1472,6 +1514,189 @@ export function AIChat({
       });
       if (cancelled) { u6(); return; }
       unlisteners.push(u6);
+
+      // ── Agent loop listeners ────────────────────────────────────────────
+      // All agent:* events are global (no session_id today). Each handler
+      // gates on agentRunOwnerRef so only the tab that called start_agent_task
+      // mutates state. Phase 3 will scope these per-session.
+
+      // agent:chunk — incremental LLM token stream during planning / synthesis.
+      // Reuse streamingText so the UI shows the same typing cursor as chat mode.
+      const a1 = await listen<string>("agent:chunk", (e) => {
+        if (!agentRunOwnerRef.current) return;
+        const now = Date.now();
+        const chunk = e.payload;
+        if (streamStartMsRef.current === null) streamStartMsRef.current = now;
+        streamCharsRef.current += chunk.length;
+        const elapsedSec = (now - streamStartMsRef.current) / 1000;
+        const approxTokens = Math.round(streamCharsRef.current / 4);
+        if (elapsedSec > 0) {
+          setTokensPerSec(Math.round(approxTokens / elapsedSec));
+        }
+        setStreamTokenCount(approxTokens);
+        setStreamingText((prev) => prev + chunk);
+      });
+      if (cancelled) { a1(); return; }
+      unlisteners.push(a1);
+
+      // agent:step — tool execution finished. Push to agentSteps and reset
+      // streaming so the next planning chunk renders fresh.
+      const a2 = await listen<{
+        step_num: number;
+        tool_name: string;
+        tool_summary: string;
+        output: string;
+        success: boolean;
+        approved: boolean;
+      }>("agent:step", (e) => {
+        if (!agentRunOwnerRef.current) return;
+        setAgentSteps((prev) => [...prev, e.payload]);
+        setStreamingText("");
+        setPendingApproval(null);
+        streamStartMsRef.current = null;
+        streamCharsRef.current = 0;
+        setTokensPerSec(null);
+        setStreamTokenCount(0);
+      });
+      if (cancelled) { a2(); return; }
+      unlisteners.push(a2);
+
+      // agent:pending — backend is asking for approval before a tool call.
+      // Stop streaming and surface the approval banner above the input.
+      const a3 = await listen<{ name: string; summary: string; is_destructive: boolean }>("agent:pending", (e) => {
+        if (!agentRunOwnerRef.current) return;
+        setStreamingText("");
+        setPendingApproval(e.payload);
+        setStreamStatus(`Awaiting approval: ${e.payload.name}`);
+      });
+      if (cancelled) { a3(); return; }
+      unlisteners.push(a3);
+
+      // agent:complete — terminal success. Push the summary as an assistant
+      // message and clear all agent / streaming state.
+      const a4 = await listen<string>("agent:complete", (e) => {
+        if (!agentRunOwnerRef.current) return;
+        agentRunOwnerRef.current = false;
+        setMessages((prev) => [...prev, {
+          role: "assistant",
+          content: e.payload || "Agent task complete.",
+          timestamp: Date.now(),
+        }]);
+        setPendingApproval(null);
+        setAgentSteps([]);
+        if (onMessagesChangeRef.current) {
+          pendingClearRef.current += 1;
+        } else {
+          setStreamingText("");
+          setTokensPerSec(null);
+          setStreamTokenCount(0);
+          setStreamStatus(null);
+          setRetryInfo(null);
+          setIsLoading(false);
+        }
+      });
+      if (cancelled) { a4(); return; }
+      unlisteners.push(a4);
+
+      // agent:partial — terminal partial completion (turn cap, plan exhausted).
+      // Render the partial summary as an assistant message.
+      const a5 = await listen<{
+        summary: string;
+        steps_completed: number;
+        steps_planned: number;
+        remaining_plan: string[];
+      }>("agent:partial", (e) => {
+        if (!agentRunOwnerRef.current) return;
+        agentRunOwnerRef.current = false;
+        const { summary, steps_completed, steps_planned, remaining_plan } = e.payload;
+        const body =
+          `⚠ Partial completion (${steps_completed}/${steps_planned} steps)\n\n${summary}` +
+          (remaining_plan.length > 0
+            ? `\n\nRemaining:\n${remaining_plan.map((s, i) => `  ${steps_completed + i + 1}. ${s}`).join("\n")}`
+            : "");
+        setMessages((prev) => [...prev, {
+          role: "assistant",
+          content: body,
+          timestamp: Date.now(),
+        }]);
+        setPendingApproval(null);
+        setAgentSteps([]);
+        if (onMessagesChangeRef.current) {
+          pendingClearRef.current += 1;
+        } else {
+          setStreamingText("");
+          setTokensPerSec(null);
+          setStreamTokenCount(0);
+          setStreamStatus(null);
+          setRetryInfo(null);
+          setIsLoading(false);
+        }
+      });
+      if (cancelled) { a5(); return; }
+      unlisteners.push(a5);
+
+      // agent:error — terminal failure.
+      const a6 = await listen<string>("agent:error", (e) => {
+        if (!agentRunOwnerRef.current) return;
+        agentRunOwnerRef.current = false;
+        setMessages((prev) => [...prev, {
+          role: "assistant",
+          content: `Agent error: ${e.payload}`,
+          timestamp: Date.now(),
+          isError: true,
+        }]);
+        setPendingApproval(null);
+        setAgentSteps([]);
+        if (onMessagesChangeRef.current) {
+          pendingClearRef.current += 1;
+        } else {
+          setStreamingText("");
+          setTokensPerSec(null);
+          setStreamTokenCount(0);
+          setStreamStatus(null);
+          setRetryInfo(null);
+          setIsLoading(false);
+        }
+      });
+      if (cancelled) { a6(); return; }
+      unlisteners.push(a6);
+
+      // agent:retry — non-terminal; backend is retrying after a transient
+      // failure. Update status bar.
+      const a7 = await listen<{ error: string; attempt: number; max_attempts: number; backoff_ms: number }>("agent:retry", (e) => {
+        if (!agentRunOwnerRef.current) return;
+        const { error, attempt, max_attempts, backoff_ms } = e.payload;
+        setRetryInfo({ attempt: attempt + 1, max: max_attempts });
+        setStreamStatus(`Retrying (${attempt + 1}/${max_attempts}) in ${(backoff_ms / 1000).toFixed(1)}s — ${error}`);
+      });
+      if (cancelled) { a7(); return; }
+      unlisteners.push(a7);
+
+      // agent:circuit_break — backend tripped its circuit breaker (treat as terminal).
+      const a8 = await listen<string>("agent:circuit_break", (e) => {
+        if (!agentRunOwnerRef.current) return;
+        agentRunOwnerRef.current = false;
+        setMessages((prev) => [...prev, {
+          role: "assistant",
+          content: `Agent halted (circuit breaker): ${e.payload}`,
+          timestamp: Date.now(),
+          isError: true,
+        }]);
+        setPendingApproval(null);
+        setAgentSteps([]);
+        if (onMessagesChangeRef.current) {
+          pendingClearRef.current += 1;
+        } else {
+          setStreamingText("");
+          setTokensPerSec(null);
+          setStreamTokenCount(0);
+          setStreamStatus(null);
+          setRetryInfo(null);
+          setIsLoading(false);
+        }
+      });
+      if (cancelled) { a8(); return; }
+      unlisteners.push(a8);
     })();
 
     return () => {
@@ -1542,6 +1767,36 @@ export function AIChat({
       detail: `Q: ${userMessage.content}${currentAttachments.length > 0 ? ` [${currentAttachments.length} file(s)]` : ""}`,
     });
 
+    // ── Agent-loop branch ────────────────────────────────────────────────
+    // When the per-tab toggle is on, route through start_agent_task instead
+    // of stream_chat_message. Each invocation is self-contained — no chat
+    // history is plumbed through; the backend agent gets just `messageText`
+    // as the task description. (Phase-1 limitation; Phase 3 will plumb
+    // history.) Listeners (agent:chunk/step/pending/complete/...) update
+    // the same streamingText / messages state used by the chat path.
+    if (useAgentLoopRef.current) {
+      setAgentSteps([]);
+      setPendingApproval(null);
+      agentRunOwnerRef.current = true;
+      try {
+        await invoke("start_agent_task", {
+          task: messageText,
+          approvalPolicy: "suggest",
+          provider,
+        });
+      } catch (error) {
+        agentRunOwnerRef.current = false;
+        const errStr = String(error);
+        setMessages((prev) => [...prev, {
+          role: "assistant",
+          content: `Failed to start agent: ${errStr}`,
+          isError: true,
+        }]);
+        setIsLoading(false);
+      }
+      return;
+    }
+
     try {
       // Build request with only the fields the backend expects
       const backendMessages = [...messages, userMessage].map(({ role, content }) => ({
@@ -1606,7 +1861,14 @@ export function AIChat({
   const stopMessage = useCallback(async () => {
     cancelledRef.current = true;
     agentTurnCountRef.current = 0;
-    await invoke("stop_chat_stream").catch(() => {});
+    // If this tab owns an agent run, abort it via stop_agent_task; otherwise
+    // (or in addition) stop the chat stream. Both are best-effort.
+    if (agentRunOwnerRef.current) {
+      agentRunOwnerRef.current = false;
+      await invoke("stop_agent_task").catch(() => {});
+    } else {
+      await invoke("stop_chat_stream").catch(() => {});
+    }
     setMessages((prev) => {
       if (streamingText) {
         const [cleaned, thinking] = extractThinking(streamingText);
@@ -1620,6 +1882,8 @@ export function AIChat({
       }
       return prev;
     });
+    setPendingApproval(null);
+    setAgentSteps([]);
     setStreamingText("");
     setTokensPerSec(null);
     setStreamTokenCount(0);
@@ -1791,6 +2055,28 @@ export function AIChat({
             {provider && <span className="chat-provider-label">{provider}</span>}
           </div>
           <div className="chat-header-actions">
+            <label
+              className="chat-action-btn"
+              title={useAgentLoop
+                ? "Agent loop ON — sends messages through start_agent_task with multi-step planning, tool execution, and approval prompts"
+                : "Agent loop OFF — uses single-turn stream_chat_message (legacy path)"}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 4,
+                cursor: isLoading ? "not-allowed" : "pointer",
+                opacity: isLoading ? 0.5 : 1,
+                fontWeight: useAgentLoop ? 600 : 400,
+                color: useAgentLoop ? "var(--accent-color)" : undefined,
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={useAgentLoop}
+                disabled={isLoading || !onUseAgentLoopChange}
+                onChange={(e) => onUseAgentLoopChange?.(e.target.checked)}
+                style={{ margin: 0, cursor: "inherit" }}
+              />
+              Agent
+            </label>
             {isLoading && (
               <button className="chat-action-btn chat-action-stop" onClick={stopMessage} title="Stop generation">
                 Stop
@@ -1971,6 +2257,54 @@ export function AIChat({
           ))
         )}
 
+        {/* Agent steps — completed tool executions in the current run */}
+        {agentSteps.length > 0 && (
+          <div className="message message-assistant">
+            <div className="message-icon"><span className="assistant-icon">AI</span></div>
+            <div className="message-content">
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {agentSteps.map((step) => (
+                  <div
+                    key={step.step_num}
+                    style={{
+                      border: "1px solid var(--border-color, #2a2a2a)",
+                      borderRadius: 6,
+                      padding: "6px 10px",
+                      fontSize: "0.85em",
+                      background: step.success ? "rgba(60, 200, 120, 0.06)" : "rgba(220, 80, 80, 0.06)",
+                    }}
+                  >
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <span style={{ opacity: 0.6 }}>#{step.step_num}</span>
+                      <strong>{step.tool_name}</strong>
+                      <span style={{ opacity: 0.85 }}>{step.tool_summary}</span>
+                      <span style={{ marginLeft: "auto", opacity: 0.6 }}>
+                        {step.success ? "✓" : "✗"}
+                      </span>
+                    </div>
+                    {step.output && (
+                      <pre
+                        style={{
+                          margin: "4px 0 0",
+                          padding: "4px 6px",
+                          background: "rgba(0,0,0,0.25)",
+                          borderRadius: 4,
+                          maxHeight: 160,
+                          overflow: "auto",
+                          fontSize: "0.85em",
+                          whiteSpace: "pre-wrap",
+                        }}
+                      >
+                        {step.output.length > 800 ? step.output.slice(0, 800) + "\n…" : step.output}
+                      </pre>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Streaming message */}
         {isLoading && (
           <div className="message message-assistant">
@@ -2025,6 +2359,68 @@ export function AIChat({
               {provider && <> &middot; {provider}</>}
             </span>
           )}
+        </div>
+      )}
+
+      {/* Agent approval banner — visible only when agent:pending fired */}
+      {pendingApproval && (
+        <div
+          role="alertdialog"
+          aria-label="Tool approval required"
+          style={{
+            margin: "8px 12px",
+            padding: "10px 12px",
+            border: `1px solid ${pendingApproval.is_destructive ? "#d63b3b" : "#d6a83b"}`,
+            borderRadius: 8,
+            background: pendingApproval.is_destructive ? "rgba(214, 59, 59, 0.08)" : "rgba(214, 168, 59, 0.08)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <strong style={{ color: pendingApproval.is_destructive ? "#d63b3b" : "#d6a83b" }}>
+              {pendingApproval.is_destructive ? "⚠ Destructive tool — approval required" : "Tool approval required"}
+            </strong>
+            <span style={{ marginLeft: "auto", opacity: 0.7, fontSize: "0.85em" }}>
+              {pendingApproval.name}
+            </span>
+          </div>
+          <div style={{ fontSize: "0.9em", whiteSpace: "pre-wrap" }}>
+            {pendingApproval.summary}
+          </div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <button
+              className="chat-action-btn"
+              onClick={async () => {
+                try {
+                  await invoke("respond_to_agent_approval", { approved: false });
+                } catch (e) {
+                  console.error("[AIChat] reject agent approval failed:", e);
+                }
+                setPendingApproval(null);
+              }}
+            >
+              Reject
+            </button>
+            <button
+              className="chat-action-btn"
+              style={{
+                background: pendingApproval.is_destructive ? "#d63b3b" : "var(--accent-color, #3b82f6)",
+                color: "#fff",
+              }}
+              onClick={async () => {
+                try {
+                  await invoke("respond_to_agent_approval", { approved: true });
+                } catch (e) {
+                  console.error("[AIChat] approve agent approval failed:", e);
+                }
+                setPendingApproval(null);
+              }}
+            >
+              Approve
+            </button>
+          </div>
         </div>
       )}
 

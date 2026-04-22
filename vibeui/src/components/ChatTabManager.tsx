@@ -124,6 +124,16 @@ export function ChatTabManager({
     // update that same entry instead of stacking duplicates.
     const [tabHistoryIds, setTabHistoryIds] = useState<Record<string, string>>({});
 
+    // tab.id → agent-loop toggle. When true, AIChat routes sendMessage through
+    // start_agent_task instead of stream_chat_message. Default off; opt-in only
+    // until Phase 3 flips the global default. Not persisted across app launches
+    // because there is only one global agent task slot — surfacing it as a
+    // sticky setting would let two tabs both think they own it.
+    const [tabAgentLoop, setTabAgentLoop] = useState<Record<string, boolean>>({});
+    const setAgentLoopForTab = useCallback((tabId: string, on: boolean) => {
+        setTabAgentLoop(prev => ({ ...prev, [tabId]: on }));
+    }, []);
+
     const tabMessagesRef = useRef(tabMessages);
     tabMessagesRef.current = tabMessages;
 
@@ -664,6 +674,8 @@ export function ChatTabManager({
                             pinnedMemory={memory.getPinnedSystemPromptText() || undefined}
                             sessionId={tab.id}
                             sessionTitle={tab.title}
+                            useAgentLoop={!!tabAgentLoop[tab.id]}
+                            onUseAgentLoopChange={(on) => setAgentLoopForTab(tab.id, on)}
                         />
                     </div>
                 ))}
