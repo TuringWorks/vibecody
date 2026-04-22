@@ -3860,9 +3860,10 @@ mod tests {
         // ── Inference (Ollama-compat) routes ──────────────────────────────
 
         /// Variant of `test_app` with an inference Router wired up.
-        /// Both backends will fail at request time in tests (no ollama
-        /// daemon running, vibe-mistralrs feature off) — these tests
-        /// verify routing/auth/error mapping, not real inference.
+        /// Both backends fail at request time in tests (no ollama daemon
+        /// running, and either no `mistralrs_enabled` cfg or no model
+        /// cache available) — these tests verify routing / auth / error
+        /// mapping, not real inference.
         fn test_app_with_inference(token: &str) -> (Router, tempfile::TempDir) {
             let tmp_dir = tempfile::tempdir().unwrap();
             let db = crate::job_manager::JobsDb::open_with(
@@ -3926,9 +3927,13 @@ mod tests {
         }
 
         #[tokio::test]
-        async fn api_chat_with_mistralrs_header_returns_503_when_feature_off() {
-            // vibe-mistralrs feature is off in default test build — backend
-            // surfaces Unavailable, which the handler maps to 503.
+        async fn api_chat_with_mistralrs_header_routes_to_backend() {
+            // Two cfg modes (set by build.rs):
+            //   - cfg(not(mistralrs_enabled)) — Linux/Windows w/o feature:
+            //     MistralRsBackend surfaces Unavailable → handler maps to 503.
+            //   - cfg(mistralrs_enabled) — macOS or feature on: backend
+            //     attempts a real model load, which fails in CI (no
+            //     network / model cache) → non-200 status.
             let (app, _tmp) = test_app_with_inference("secret-token");
             let req = Request::builder()
                 .method("POST")
@@ -3941,14 +3946,15 @@ mod tests {
                 ))
                 .unwrap();
             let resp = app.oneshot(req).await.unwrap();
-            // Without the vibe-mistralrs feature compiled in, MistralRsBackend
-            // returns Unavailable on every chat — our handler maps to 503.
-            #[cfg(not(feature = "vibe-mistralrs"))]
+            #[cfg(not(mistralrs_enabled))]
             assert_eq!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
-            // With the feature on, the call would attempt a real model
-            // download and likely fail (no network in CI) — still non-200.
-            #[cfg(feature = "vibe-mistralrs")]
-            assert_ne!(resp.status(), StatusCode::OK);
+            // With mistralrs_enabled, the backend is actually invoked.
+            // Outcome depends on whether the model is cached: 200 if it is,
+            // 502/500 if it has to fault the network and that fails.
+            // Either way, it must NOT be 503 — that would mean we fell
+            // through to the canned "feature off" path.
+            #[cfg(mistralrs_enabled)]
+            assert_ne!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
         }
 
         #[tokio::test]

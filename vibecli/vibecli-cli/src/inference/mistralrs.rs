@@ -3,8 +3,10 @@
 //!
 //! ## Build mode
 //!
-//! Real implementation is gated behind vibecli's `vibe-mistralrs` feature
-//! (which turns on `vibe-infer/mistralrs`). Without that feature, every
+//! Real implementation is gated on `cfg(mistralrs_enabled)`, which the
+//! crate's `build.rs` emits when **either** the user opted in with
+//! `--features vibe-mistralrs` **or** the build target is macOS (where
+//! Metal acceleration is bundled by default). Without that cfg, every
 //! method returns [`BackendError::Unavailable`] with a recompile hint —
 //! the daemon still builds and the ollama backend still works.
 //!
@@ -27,23 +29,23 @@
 
 use async_trait::async_trait;
 use futures::stream::BoxStream;
-#[cfg(feature = "vibe-mistralrs")]
+#[cfg(mistralrs_enabled)]
 use futures::stream;
 
-#[cfg(feature = "vibe-mistralrs")]
+#[cfg(mistralrs_enabled)]
 use super::backend::ChatMessage;
 use super::backend::{
     Backend, BackendError, BackendKind, BackendResult, ChatChunk, ChatRequest,
     GenerateChunk, GenerateRequest, ModelInfo, PullProgress, PullRequest,
 };
 
-#[cfg(feature = "vibe-mistralrs")]
+#[cfg(mistralrs_enabled)]
 use std::collections::HashMap;
-#[cfg(feature = "vibe-mistralrs")]
+#[cfg(mistralrs_enabled)]
 use std::sync::Arc;
-#[cfg(feature = "vibe-mistralrs")]
+#[cfg(mistralrs_enabled)]
 use tokio::sync::RwLock;
-#[cfg(feature = "vibe-mistralrs")]
+#[cfg(mistralrs_enabled)]
 use vibe_infer::{
     mistral::{KvCacheMode, MistralGenerator},
     GenerationRequest, InferenceError, TextGenerator,
@@ -51,9 +53,9 @@ use vibe_infer::{
 
 /// In-process text-generation backed by `vibe-infer::MistralGenerator`.
 pub struct MistralRsBackend {
-    #[cfg(feature = "vibe-mistralrs")]
+    #[cfg(mistralrs_enabled)]
     cache: Arc<RwLock<HashMap<String, Arc<MistralGenerator>>>>,
-    #[cfg(not(feature = "vibe-mistralrs"))]
+    #[cfg(not(mistralrs_enabled))]
     _private: (),
 }
 
@@ -66,15 +68,15 @@ impl Default for MistralRsBackend {
 impl MistralRsBackend {
     pub fn new() -> Self {
         Self {
-            #[cfg(feature = "vibe-mistralrs")]
+            #[cfg(mistralrs_enabled)]
             cache: Arc::new(RwLock::new(HashMap::new())),
-            #[cfg(not(feature = "vibe-mistralrs"))]
+            #[cfg(not(mistralrs_enabled))]
             _private: (),
         }
     }
 }
 
-#[cfg(feature = "vibe-mistralrs")]
+#[cfg(mistralrs_enabled)]
 impl MistralRsBackend {
     async fn get_or_load(&self, model_id: &str) -> BackendResult<Arc<MistralGenerator>> {
         if let Some(g) = self.cache.read().await.get(model_id) {
@@ -96,7 +98,7 @@ impl MistralRsBackend {
     }
 }
 
-#[cfg(feature = "vibe-mistralrs")]
+#[cfg(mistralrs_enabled)]
 fn map_infer_err(e: InferenceError) -> BackendError {
     match e {
         InferenceError::ModelNotFound(name, _) => BackendError::ModelNotFound(name),
@@ -107,7 +109,7 @@ fn map_infer_err(e: InferenceError) -> BackendError {
     }
 }
 
-#[cfg(feature = "vibe-mistralrs")]
+#[cfg(mistralrs_enabled)]
 fn finish_label(reason: vibe_infer::FinishReason) -> &'static str {
     match reason {
         vibe_infer::FinishReason::Stop => "stop",
@@ -116,7 +118,7 @@ fn finish_label(reason: vibe_infer::FinishReason) -> &'static str {
     }
 }
 
-#[cfg(feature = "vibe-mistralrs")]
+#[cfg(mistralrs_enabled)]
 fn flatten_messages(messages: &[ChatMessage]) -> String {
     messages
         .iter()
@@ -129,7 +131,7 @@ fn flatten_messages(messages: &[ChatMessage]) -> String {
 /// `options` blob. Ollama uses `num_predict` for the cap; OpenAI uses
 /// `max_tokens`. We accept either so curl examples written for the OpenAI
 /// world still work.
-#[cfg(feature = "vibe-mistralrs")]
+#[cfg(mistralrs_enabled)]
 fn sampler_from_options(opts: Option<&serde_json::Value>) -> (usize, f32) {
     let max_tokens = opts
         .and_then(|v| v.get("num_predict").or_else(|| v.get("max_tokens")))
@@ -148,7 +150,7 @@ impl Backend for MistralRsBackend {
         BackendKind::Mistralrs
     }
 
-    #[cfg(feature = "vibe-mistralrs")]
+    #[cfg(mistralrs_enabled)]
     async fn chat(
         &self,
         req: ChatRequest,
@@ -194,7 +196,7 @@ impl Backend for MistralRsBackend {
         Ok(Box::pin(stream::iter(vec![Ok(content_frame), Ok(done_frame)])))
     }
 
-    #[cfg(not(feature = "vibe-mistralrs"))]
+    #[cfg(not(mistralrs_enabled))]
     async fn chat(
         &self,
         _req: ChatRequest,
@@ -205,7 +207,7 @@ impl Backend for MistralRsBackend {
         ))
     }
 
-    #[cfg(feature = "vibe-mistralrs")]
+    #[cfg(mistralrs_enabled)]
     async fn generate(
         &self,
         req: GenerateRequest,
@@ -245,7 +247,7 @@ impl Backend for MistralRsBackend {
         ])))
     }
 
-    #[cfg(not(feature = "vibe-mistralrs"))]
+    #[cfg(not(mistralrs_enabled))]
     async fn generate(
         &self,
         _req: GenerateRequest,
@@ -256,7 +258,7 @@ impl Backend for MistralRsBackend {
         ))
     }
 
-    #[cfg(feature = "vibe-mistralrs")]
+    #[cfg(mistralrs_enabled)]
     async fn list_models(&self) -> BackendResult<Vec<ModelInfo>> {
         let cache = self.cache.read().await;
         let now = chrono::Utc::now().to_rfc3339();
@@ -272,12 +274,12 @@ impl Backend for MistralRsBackend {
             .collect())
     }
 
-    #[cfg(not(feature = "vibe-mistralrs"))]
+    #[cfg(not(mistralrs_enabled))]
     async fn list_models(&self) -> BackendResult<Vec<ModelInfo>> {
         Ok(Vec::new())
     }
 
-    #[cfg(feature = "vibe-mistralrs")]
+    #[cfg(mistralrs_enabled)]
     async fn pull(
         &self,
         req: PullRequest,
@@ -303,7 +305,7 @@ impl Backend for MistralRsBackend {
         Ok(Box::pin(stream::iter(progress)))
     }
 
-    #[cfg(not(feature = "vibe-mistralrs"))]
+    #[cfg(not(mistralrs_enabled))]
     async fn pull(
         &self,
         _req: PullRequest,
@@ -314,7 +316,7 @@ impl Backend for MistralRsBackend {
         ))
     }
 
-    #[cfg(feature = "vibe-mistralrs")]
+    #[cfg(mistralrs_enabled)]
     async fn show(&self, name: &str) -> BackendResult<ModelInfo> {
         let cache = self.cache.read().await;
         if cache.contains_key(name) {
@@ -330,7 +332,7 @@ impl Backend for MistralRsBackend {
         }
     }
 
-    #[cfg(not(feature = "vibe-mistralrs"))]
+    #[cfg(not(mistralrs_enabled))]
     async fn show(&self, name: &str) -> BackendResult<ModelInfo> {
         Err(BackendError::ModelNotFound(name.into()))
     }

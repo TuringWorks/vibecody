@@ -12,10 +12,15 @@ testing = []
 # default so the standard build doesn't require cmake + a C++ toolchain.
 voice-whisper = ["dep:whisper-rs"]
 # Enables the in-process mistral.rs inference backend (TurboQuant-aware KV
-# cache). Off by default — mistralrs pulls candle 0.10.x transitively which
-# adds ~2 minutes of cold compile. Turn on when you want the daemon's
-# `/api/*` Ollama-compat surface to serve from the in-process model rather
-# than reverse-proxying to `ollama serve`.
+# cache). Off by default on Linux / Windows — mistralrs pulls candle 0.10.x
+# transitively which adds ~2 minutes of cold compile. Turn on when you
+# want the daemon's `/api/*` Ollama-compat surface to serve from the
+# in-process model rather than reverse-proxying to `ollama serve`.
+#
+# On macOS this feature is effectively always-on: `build.rs` emits
+# `cfg(mistralrs_enabled)` and the [target.'cfg(target_os = "macos")']
+# block below pulls vibe-infer's Metal-accelerated path into every macOS
+# build. Apple Silicon devs get the GPU codec without remembering a flag.
 vibe-mistralrs = ["vibe-infer/mistralrs"]
 vibe-mistralrs-cuda = ["vibe-mistralrs", "vibe-infer/mistralrs-cuda"]
 vibe-mistralrs-metal = ["vibe-mistralrs", "vibe-infer/mistralrs-metal"]
@@ -78,6 +83,13 @@ socket2 = "0.5"
 snow = "0.9"
 libc = "0.2"
 whisper-rs = { version = "0.13", optional = true }
+
+# macOS: always pull in the Metal-accelerated mistral.rs backend. Cargo
+# unifies feature flags across multiple declarations of the same dep, so
+# this is additive on top of the workspace `vibe-infer` line above. Pair
+# with the `mistralrs_enabled` cfg emitted by `build.rs`.
+[target.'cfg(target_os = "macos")'.dependencies]
+vibe-infer = { path = "../../vibeui/crates/vibe-infer", features = ["mistralrs", "mistralrs-metal"] }
 
 # OpenTelemetry (OTLP/HTTP export)
 opentelemetry = { version = "0.27", features = ["trace"] }
