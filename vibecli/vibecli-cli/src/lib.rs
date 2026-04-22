@@ -307,6 +307,8 @@ pub mod handoff;
 pub mod home_assistant;
 pub mod idp;
 pub mod image_gen_agent;
+pub mod inference;
+pub mod inference_routes;
 pub mod inference_server;
 pub mod infinite_context;
 pub mod jetbrains_hooks;

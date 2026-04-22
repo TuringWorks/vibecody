@@ -209,6 +209,7 @@ invoke("workspace_secret_list",    { workspacePath })        // metadata only
 - Read project secrets via `WorkspaceStore` or the `workspace_secret_*` Tauri commands.
 - Store any new sensitive value (token, credential, secret) in the appropriate encrypted store.
 - Check `workspace_settings` before falling back to global `profile_settings` for provider/model preferences.
+- **Explain non-trivial changes with an ASCII architecture diagram before writing code** (see [Explaining Changes](#explaining-changes--diagrams-before-prose) below).
 
 ### DO NOT
 
@@ -218,6 +219,31 @@ invoke("workspace_secret_list",    { workspacePath })        // metadata only
 - Store company master keys in `~/.vibecli/keys/*.key` files — use `ProfileStore.set_master_key()`.
 - Hard-code API keys in source code, config files, or test fixtures.
 - Commit any file containing real credentials.
+
+---
+
+## Explaining Changes — diagrams before prose
+
+When a proposed change crosses file boundaries, introduces a new dispatch layer, or shifts how a request flows between modules, **lead the explanation with an ASCII architecture diagram, not a paragraph**. Diagrams make invariants visible at a glance that prose hides: who calls whom, where state lives, which boxes are new vs. existing, and what the happy-path trace looks like.
+
+### When to draw one
+
+- New or changed request flow (HTTP route, Tauri command, IPC message)
+- New module that adds dispatch/routing (trait with multiple impls)
+- Cross-process contracts (daemon ↔ client, sidecar integrations)
+- Storage-layout changes (new DB, new cache dir, new file path)
+- Any change to the Product Matrix or Change-Surface Cookbook above
+
+### How to draw one
+
+- ASCII box-drawing characters render cleanly in terminals and GitHub markdown
+- Label boxes with **file path or module name** — readers should be able to grep the name
+- Show flow direction explicitly (`→`, `▼`) at every hop
+- Use a short legend when boxes differ in kind (in-process vs. external process, new vs. existing, sync vs. async)
+- Follow the diagram with a concrete "request walk" — don't make reviewers simulate it mentally
+- Two small, focused diagrams beat one that tries to show everything (e.g., "request flow" vs. "storage topology")
+
+Prose alone is fine for single-file edits, bug fixes, or scoped refactors. The rule kicks in when a reviewer needs to understand **where something lives** or **how a request travels**, not just what line changed.
 
 ---
 

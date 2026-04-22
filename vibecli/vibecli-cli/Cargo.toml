@@ -11,6 +11,14 @@ testing = []
 # Enables the real whisper.cpp FFI backend (WhisperTranscriber). Off by
 # default so the standard build doesn't require cmake + a C++ toolchain.
 voice-whisper = ["dep:whisper-rs"]
+# Enables the in-process mistral.rs inference backend (TurboQuant-aware KV
+# cache). Off by default — mistralrs pulls candle 0.10.x transitively which
+# adds ~2 minutes of cold compile. Turn on when you want the daemon's
+# `/api/*` Ollama-compat surface to serve from the in-process model rather
+# than reverse-proxying to `ollama serve`.
+vibe-mistralrs = ["vibe-infer/mistralrs"]
+vibe-mistralrs-cuda = ["vibe-mistralrs", "vibe-infer/mistralrs-cuda"]
+vibe-mistralrs-metal = ["vibe-mistralrs", "vibe-infer/mistralrs-metal"]
 
 [lib]
 name = "vibecli_cli"
@@ -38,8 +46,10 @@ crossterm = { workspace = true, features = ["event-stream"] }
 serde = { workspace = true, features = ["derive"] }
 toml = "0.8"
 async-trait.workspace = true
+thiserror = { workspace = true }
 regex.workspace = true
 reqwest = { workspace = true, features = ["multipart"] }
+bytes = "1"
 urlencoding = "2.1"
 axum.workspace = true
 tower-http.workspace = true

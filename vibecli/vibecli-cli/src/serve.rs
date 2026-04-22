@@ -112,6 +112,11 @@ pub struct ServeState {
     /// background shortly after daemon startup.  The beacon endpoint reads
     /// from here instead of blocking per-request.
     pub public_url_cache: Arc<std::sync::Mutex<Option<String>>>,
+    /// Pluggable inference router (mistralrs vs ollama-proxy). `None` when
+    /// the daemon is built without inference support — the `/api/*`
+    /// handlers respond with 503 in that case so the rest of the daemon
+    /// stays usable.
+    pub inference_router: Option<Arc<crate::inference::Router>>,
 }
 
 // ── Request / Response types ──────────────────────────────────────────────────
@@ -1468,9 +1473,20 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         axum::Router::new()
     });
 
+    // Ollama-compatible inference routes (/api/chat, /api/generate, /api/tags,
+    // /api/pull, /api/show). Mounted under bearer auth + rate limiting,
+    // since the daemon's `/api/*` surface is not the same security boundary
+    // as ollama's plain-HTTP localhost socket. See `inference_routes.rs`
+    // for the full handler set.
+    let inference_limiter = Arc::new(RateLimiter::new(60, Duration::from_secs(60)));
+    let inference_routes = crate::inference_routes::build_routes()
+        .route_layer(middleware::from_fn_with_state(inference_limiter, rate_limit))
+        .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
+
     // Public routes (health check, GitHub webhook with HMAC, pairing, collab WS, ACP discovery)
     public_routes
         .merge(authed_routes)
+        .merge(inference_routes)
         .nest("/watch", watch_router)
         .fallback(|| async {
             (StatusCode::NOT_FOUND, Json(serde_json::json!({"error":"Not found"})))
@@ -1585,6 +1601,7 @@ pub async fn serve(
         github_app_config: gh_app_config,
         started_at: std::time::Instant::now(),
         public_url_cache: Arc::clone(&public_url_cache),
+        inference_router: Some(Arc::new(crate::inference::Router::from_env())),
     };
 
     // Background task: detect or start an ngrok / Tailscale Funnel tunnel and
@@ -3752,6 +3769,7 @@ mod tests {
                 github_app_config: crate::github_app::GithubAppConfig::default(),
                 started_at: std::time::Instant::now(),
                 public_url_cache: Arc::new(std::sync::Mutex::new(None)),
+                inference_router: None,
             };
             (build_router(state, 7878), tmp_dir)
         }
@@ -3837,6 +3855,100 @@ mod tests {
                 .unwrap();
             let resp = app.oneshot(req).await.unwrap();
             assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        // ── Inference (Ollama-compat) routes ──────────────────────────────
+
+        /// Variant of `test_app` with an inference Router wired up.
+        /// Both backends will fail at request time in tests (no ollama
+        /// daemon running, vibe-mistralrs feature off) — these tests
+        /// verify routing/auth/error mapping, not real inference.
+        fn test_app_with_inference(token: &str) -> (Router, tempfile::TempDir) {
+            let tmp_dir = tempfile::tempdir().unwrap();
+            let db = crate::job_manager::JobsDb::open_with(
+                &tmp_dir.path().join("jobs.db"),
+                [42u8; 32],
+            )
+            .unwrap();
+            let state = ServeState {
+                provider: Arc::new(MockProvider),
+                approval: ApprovalPolicy::FullAuto,
+                workspace_root: tmp_dir.path().to_path_buf(),
+                job_manager: Arc::new(crate::job_manager::JobManager::new_with(db)),
+                jobs_dir: tmp_dir.path().to_path_buf(),
+                provider_name: "mock".to_string(),
+                api_token: token.to_string(),
+                collab_server: Arc::new(CollabServer::new(5)),
+                github_app_config: crate::github_app::GithubAppConfig::default(),
+                started_at: std::time::Instant::now(),
+                public_url_cache: Arc::new(std::sync::Mutex::new(None)),
+                inference_router: Some(Arc::new(crate::inference::Router::new(
+                    crate::inference::backend::BackendKind::Ollama,
+                ))),
+            };
+            (build_router(state, 7878), tmp_dir)
+        }
+
+        #[tokio::test]
+        async fn api_chat_without_auth_returns_401() {
+            let (app, _tmp) = test_app_with_inference("secret-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/api/chat")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"model":"qwen2.5:0.5b","messages":[{"role":"user","content":"hi"}]}"#,
+                ))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        #[tokio::test]
+        async fn api_tags_without_auth_returns_401() {
+            let (app, _tmp) = test_app_with_inference("secret-token");
+            let req = Request::builder().uri("/api/tags").body(Body::empty()).unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        #[tokio::test]
+        async fn api_tags_returns_503_when_router_absent() {
+            // `test_app` (no inference router) — handler must return 503 not panic.
+            let (app, _tmp) = test_app("secret-token");
+            let req = Request::builder()
+                .uri("/api/tags")
+                .header("authorization", "Bearer secret-token")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
+        }
+
+        #[tokio::test]
+        async fn api_chat_with_mistralrs_header_returns_503_when_feature_off() {
+            // vibe-mistralrs feature is off in default test build — backend
+            // surfaces Unavailable, which the handler maps to 503.
+            let (app, _tmp) = test_app_with_inference("secret-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/api/chat")
+                .header("authorization", "Bearer secret-token")
+                .header("x-vibecli-backend", "mistralrs")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"model":"Qwen/Qwen2.5-0.5B-Instruct","messages":[{"role":"user","content":"hi"}]}"#,
+                ))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            // Without the vibe-mistralrs feature compiled in, MistralRsBackend
+            // returns Unavailable on every chat — our handler maps to 503.
+            #[cfg(not(feature = "vibe-mistralrs"))]
+            assert_eq!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
+            // With the feature on, the call would attempt a real model
+            // download and likely fail (no network in CI) — still non-200.
+            #[cfg(feature = "vibe-mistralrs")]
+            assert_ne!(resp.status(), StatusCode::OK);
         }
 
         #[tokio::test]
