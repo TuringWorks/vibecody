@@ -4111,11 +4111,18 @@ pub struct AgentStepPayload {
 /// - `agent:step`    — step completed (AgentStepPayload)
 /// - `agent:complete`— task done (String summary)
 /// - `agent:error`   — error (String)
+///
+/// When `tab_id` is `Some(id)`, events are emitted under the per-tab name
+/// `agent:{id}:{base}` instead of the bare `agent:{base}`. This lets each
+/// AIChat tab subscribe to only its own events. Callers that don't care
+/// about tab routing (AgentPanel, SpecPanel) pass `None` and continue to
+/// receive the legacy global event names.
 #[tauri::command]
 pub async fn start_agent_task(
     task: String,
     approval_policy: String,
     provider: String,
+    tab_id: Option<String>,
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
@@ -4244,12 +4251,24 @@ pub async fn start_agent_task(
     // When the channel closes without having received Complete/Error/Partial
     // (e.g. the agent task panicked or was aborted), we mark the sub-agent
     // as "failed" instead of leaving it stuck in "working".
+    let event_tab_id = tab_id.clone();
     tokio::spawn(async move {
+        // Per-tab event scoping: when a tab_id was provided, every emit goes
+        // to `agent:{id}:{base}` instead of the bare `agent:{base}`. AIChat
+        // listens to its own scoped name so two tabs never see each other's
+        // events. AgentPanel/SpecPanel pass no tab_id and keep the legacy
+        // global names.
+        let event_name = |base: &str| -> String {
+            match &event_tab_id {
+                Some(id) => format!("agent:{}:{}", id, base),
+                None => format!("agent:{}", base),
+            }
+        };
         let mut got_terminal = false;
         while let Some(event) = event_rx.recv().await {
             match event {
                 AgentEvent::StreamChunk(text) => {
-                    let _ = app_handle.emit("agent:chunk", text);
+                    let _ = app_handle.emit(&event_name("chunk"), text);
                 }
                 AgentEvent::ToolCallPending { call, result_tx } => {
                     let payload = AgentPendingPayload {
@@ -4261,7 +4280,7 @@ pub async fn start_agent_task(
                         let mut slot = agent_pending.lock().await;
                         *slot = Some(PendingAgentCall { call, result_tx });
                     }
-                    let _ = app_handle.emit("agent:pending", payload);
+                    let _ = app_handle.emit(&event_name("pending"), payload);
                 }
                 AgentEvent::ToolCallExecuted(step) => {
                     let payload = AgentStepPayload {
@@ -4272,7 +4291,7 @@ pub async fn start_agent_task(
                         success: step.tool_result.success,
                         approved: step.approved,
                     };
-                    let _ = app_handle.emit("agent:step", payload);
+                    let _ = app_handle.emit(&event_name("step"), payload);
                     // Checkpoint: persist step
                     {
                         let mut ck = ck_arc.lock().await;
@@ -4302,7 +4321,7 @@ pub async fn start_agent_task(
                 }
                 AgentEvent::Complete(summary) => {
                     got_terminal = true;
-                    let _ = app_handle.emit("agent:complete", summary.clone());
+                    let _ = app_handle.emit(&event_name("complete"), summary.clone());
                     let estimated_tokens = (summary.len() as u64 / 4).max(1);
                     record_agent_run_stats(&active_mode_for_stats, estimated_tokens);
                     {
@@ -4332,7 +4351,7 @@ pub async fn start_agent_task(
                         "steps_planned": steps_planned,
                         "remaining_plan": &remaining_plan,
                     });
-                    let _ = app_handle.emit("agent:partial", payload);
+                    let _ = app_handle.emit(&event_name("partial"), payload);
                     let estimated_tokens = (summary.len() as u64 / 4).max(1);
                     record_agent_run_stats(&active_mode_for_stats, estimated_tokens);
                     {
@@ -4357,7 +4376,7 @@ pub async fn start_agent_task(
                 }
                 AgentEvent::Error(msg) => {
                     got_terminal = true;
-                    let _ = app_handle.emit("agent:error", msg.clone());
+                    let _ = app_handle.emit(&event_name("error"), msg.clone());
                     {
                         let mut agents = sub_agents_tracker.lock().await;
                         if let Some(a) = agents.iter_mut().find(|a| a.id == agent_task_id) {
@@ -4382,17 +4401,17 @@ pub async fn start_agent_task(
                         "max_attempts": max_attempts,
                         "backoff_ms": backoff_ms,
                     });
-                    let _ = app_handle.emit("agent:retry", payload);
+                    let _ = app_handle.emit(&event_name("retry"), payload);
                 }
                 AgentEvent::CircuitBreak { state, reason } => {
                     let payload = serde_json::json!({
                         "state": state.to_string(),
                         "reason": reason,
                     });
-                    let _ = app_handle.emit("agent:circuit_break", payload);
+                    let _ = app_handle.emit(&event_name("circuit_break"), payload);
                     if state == vibe_ai::agent::AgentHealthState::Blocked {
                         got_terminal = true;
-                        let _ = app_handle.emit("agent:error", format!("Agent blocked: {}", reason));
+                        let _ = app_handle.emit(&event_name("error"), format!("Agent blocked: {}", reason));
                         break;
                     }
                 }
@@ -4406,7 +4425,7 @@ pub async fn start_agent_task(
                         "status": status,
                         "message": message,
                     });
-                    let _ = app_handle.emit("agent:verifier", payload);
+                    let _ = app_handle.emit(&event_name("verifier"), payload);
                 }
             }
         }
@@ -4416,7 +4435,7 @@ pub async fn start_agent_task(
         // the sub-agent doesn't stay stuck in "working" forever.
         if !got_terminal {
             let msg = "Agent stream ended without completion signal (possible crash or abort)".to_string();
-            let _ = app_handle.emit("agent:error", msg.clone());
+            let _ = app_handle.emit(&event_name("error"), msg.clone());
             let mut agents = sub_agents_tracker.lock().await;
             if let Some(a) = agents.iter_mut().find(|a| a.id == agent_task_id) {
                 a.status = "failed".to_string();
@@ -4544,8 +4563,10 @@ pub async fn resume_agent_task(
     let archive_path = ck_path.with_extension("json.resumed");
     let _ = std::fs::rename(&ck_path, &archive_path);
 
-    // Delegate to start_agent_task with the enriched task
-    start_agent_task(continuation_task, approval_policy, provider, app_handle, state).await
+    // Delegate to start_agent_task with the enriched task. Resume runs are
+    // not bound to a specific chat tab, so pass tab_id=None and use the
+    // legacy global event names.
+    start_agent_task(continuation_task, approval_policy, provider, None, app_handle, state).await
 }
 
 /// Decompose a task into independent chunks and run them in parallel.

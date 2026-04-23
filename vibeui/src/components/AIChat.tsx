@@ -1522,14 +1522,19 @@ export function AIChat({
       unlisteners.push(u6);
 
       // ── Agent loop listeners ────────────────────────────────────────────
-      // All agent:* events are global (no session_id today). Each handler
-      // gates on agentRunOwnerRef so only the tab that called start_agent_task
-      // mutates state. Phase 3 will scope these per-session.
+      // When this tab has a sessionId, the backend emits per-tab event names
+      // like `agent:{sessionId}:chunk` (see start_agent_task in commands.rs).
+      // We listen on those scoped names so two tabs running agents in
+      // parallel never see each other's events. The agentRunOwnerRef gate
+      // only applies when sessionId is absent (legacy global event names),
+      // because per-tab scoping already guarantees event ownership.
+      const agentEvent = (base: string) =>
+        sessionIdRef.current ? `agent:${sessionIdRef.current}:${base}` : `agent:${base}`;
 
       // agent:chunk — incremental LLM token stream during planning / synthesis.
       // Reuse streamingText so the UI shows the same typing cursor as chat mode.
-      const a1 = await listen<string>("agent:chunk", (e) => {
-        if (!agentRunOwnerRef.current) return;
+      const a1 = await listen<string>(agentEvent("chunk"), (e) => {
+        if (!sessionIdRef.current && !agentRunOwnerRef.current) return;
         const now = Date.now();
         const chunk = e.payload;
         if (streamStartMsRef.current === null) streamStartMsRef.current = now;
@@ -1554,8 +1559,8 @@ export function AIChat({
         output: string;
         success: boolean;
         approved: boolean;
-      }>("agent:step", (e) => {
-        if (!agentRunOwnerRef.current) return;
+      }>(agentEvent("step"), (e) => {
+        if (!sessionIdRef.current && !agentRunOwnerRef.current) return;
         setAgentSteps((prev) => [...prev, e.payload]);
         setStreamingText("");
         setPendingApproval(null);
@@ -1569,8 +1574,8 @@ export function AIChat({
 
       // agent:pending — backend is asking for approval before a tool call.
       // Stop streaming and surface the approval banner above the input.
-      const a3 = await listen<{ name: string; summary: string; is_destructive: boolean }>("agent:pending", (e) => {
-        if (!agentRunOwnerRef.current) return;
+      const a3 = await listen<{ name: string; summary: string; is_destructive: boolean }>(agentEvent("pending"), (e) => {
+        if (!sessionIdRef.current && !agentRunOwnerRef.current) return;
         setStreamingText("");
         setPendingApproval(e.payload);
         setStreamStatus(`Awaiting approval: ${e.payload.name}`);
@@ -1580,8 +1585,8 @@ export function AIChat({
 
       // agent:complete — terminal success. Push the summary as an assistant
       // message and clear all agent / streaming state.
-      const a4 = await listen<string>("agent:complete", (e) => {
-        if (!agentRunOwnerRef.current) return;
+      const a4 = await listen<string>(agentEvent("complete"), (e) => {
+        if (!sessionIdRef.current && !agentRunOwnerRef.current) return;
         agentRunOwnerRef.current = false;
         setMessages((prev) => [...prev, {
           role: "assistant",
@@ -1611,8 +1616,8 @@ export function AIChat({
         steps_completed: number;
         steps_planned: number;
         remaining_plan: string[];
-      }>("agent:partial", (e) => {
-        if (!agentRunOwnerRef.current) return;
+      }>(agentEvent("partial"), (e) => {
+        if (!sessionIdRef.current && !agentRunOwnerRef.current) return;
         agentRunOwnerRef.current = false;
         const { summary, steps_completed, steps_planned, remaining_plan } = e.payload;
         const body =
@@ -1642,8 +1647,8 @@ export function AIChat({
       unlisteners.push(a5);
 
       // agent:error — terminal failure.
-      const a6 = await listen<string>("agent:error", (e) => {
-        if (!agentRunOwnerRef.current) return;
+      const a6 = await listen<string>(agentEvent("error"), (e) => {
+        if (!sessionIdRef.current && !agentRunOwnerRef.current) return;
         agentRunOwnerRef.current = false;
         setMessages((prev) => [...prev, {
           role: "assistant",
@@ -1669,8 +1674,8 @@ export function AIChat({
 
       // agent:retry — non-terminal; backend is retrying after a transient
       // failure. Update status bar.
-      const a7 = await listen<{ error: string; attempt: number; max_attempts: number; backoff_ms: number }>("agent:retry", (e) => {
-        if (!agentRunOwnerRef.current) return;
+      const a7 = await listen<{ error: string; attempt: number; max_attempts: number; backoff_ms: number }>(agentEvent("retry"), (e) => {
+        if (!sessionIdRef.current && !agentRunOwnerRef.current) return;
         const { error, attempt, max_attempts, backoff_ms } = e.payload;
         setRetryInfo({ attempt: attempt + 1, max: max_attempts });
         setStreamStatus(`Retrying (${attempt + 1}/${max_attempts}) in ${(backoff_ms / 1000).toFixed(1)}s — ${error}`);
@@ -1681,16 +1686,16 @@ export function AIChat({
       // agent:verifier — verifier subagent reported PASS / NITS / FAIL on
       // the task_complete claim. Non-terminal: surfaced as a step card; the
       // backend has already injected nits / retry context into the next turn.
-      const av = await listen<{ status: "pass" | "nits" | "fail"; message: string }>("agent:verifier", (e) => {
-        if (!agentRunOwnerRef.current) return;
+      const av = await listen<{ status: "pass" | "nits" | "fail"; message: string }>(agentEvent("verifier"), (e) => {
+        if (!sessionIdRef.current && !agentRunOwnerRef.current) return;
         setVerifierResult(e.payload);
       });
       if (cancelled) { av(); return; }
       unlisteners.push(av);
 
       // agent:circuit_break — backend tripped its circuit breaker (treat as terminal).
-      const a8 = await listen<string>("agent:circuit_break", (e) => {
-        if (!agentRunOwnerRef.current) return;
+      const a8 = await listen<string>(agentEvent("circuit_break"), (e) => {
+        if (!sessionIdRef.current && !agentRunOwnerRef.current) return;
         agentRunOwnerRef.current = false;
         setMessages((prev) => [...prev, {
           role: "assistant",
@@ -1800,6 +1805,7 @@ export function AIChat({
           task: messageText,
           approvalPolicy: "suggest",
           provider,
+          tabId: sessionId ?? null,
         });
       } catch (error) {
         agentRunOwnerRef.current = false;

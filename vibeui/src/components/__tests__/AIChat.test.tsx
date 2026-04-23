@@ -741,6 +741,59 @@ describe('AIChat — response does not disappear (controlled mode)', () => {
     expect(mockInvoke).not.toHaveBeenCalledWith('stop_chat_stream');
   });
 
+  it('per-tab agent events: only the matching sessionId tab handles them', async () => {
+    // Two AIChat instances mounted simultaneously, each with its own sessionId.
+    // A scoped `agent:tab-A:complete` event must land on tab-A only; tab-B must
+    // not surface the assistant message.
+    function TwoTabs() {
+      const [msgsA, setMsgsA] = useState<Message[]>([]);
+      const [msgsB, setMsgsB] = useState<Message[]>([]);
+      return (
+        <>
+          <div data-testid="tab-A-wrap">
+            <AIChat
+              provider="test-provider"
+              messages={msgsA}
+              onMessagesChange={setMsgsA}
+              useAgentLoop={true}
+              onUseAgentLoopChange={() => {}}
+              sessionId="tab-A"
+            />
+          </div>
+          <div data-testid="tab-B-wrap">
+            <AIChat
+              provider="test-provider"
+              messages={msgsB}
+              onMessagesChange={setMsgsB}
+              useAgentLoop={true}
+              onUseAgentLoopChange={() => {}}
+              sessionId="tab-B"
+            />
+          </div>
+        </>
+      );
+    }
+    render(<TwoTabs />);
+    await flushAll();
+
+    // Mark both tabs as agent-run owners (the sendMessage path normally does
+    // this; we skip the user input here and trigger the events directly).
+    // Emit a scoped event meant for tab-A only.
+    act(() => {
+      emitTauriEvent('agent:tab-A:complete', 'Tab A finished its task');
+      emitTauriEvent('agent:tab-B:complete', 'Tab B finished its task');
+    });
+    await flushAll();
+
+    // Each tab should only see its own message — no cross-tab contamination.
+    const tabA = screen.getByTestId('tab-A-wrap');
+    const tabB = screen.getByTestId('tab-B-wrap');
+    expect(tabA.textContent).toContain('Tab A finished');
+    expect(tabA.textContent).not.toContain('Tab B finished');
+    expect(tabB.textContent).toContain('Tab B finished');
+    expect(tabB.textContent).not.toContain('Tab A finished');
+  });
+
   it('streaming response survives workspace change mid-stream', async () => {
     render(<ControlledAIChat />);
     await flushAll();
