@@ -43,6 +43,9 @@ logs/
 
 # VibeCLI local data (auto-generated, user-specific)
 .vibecli/
+
+# Local-only working notes (internal triage, not for upstream)
+notes/
 docs/Gemfile.lock
 /jetbrains-plugin/.gradle
 /jetbrains-plugin/.intellijPlatform
