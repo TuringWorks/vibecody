@@ -368,6 +368,7 @@ pub fn run() {
             commands::predict_next_edit,
             commands::inline_edit,
             commands::generate_code,
+            commands::diffcomplete_generate,
             // Build System commands
             commands::list_workspace_subdirs,
             commands::detect_build_system,

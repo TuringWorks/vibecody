@@ -21,17 +21,14 @@ vi.mock('lucide-react', () => {
     Component.displayName = name;
     return Component;
   };
-  return {
-    User: icon('User'), Palette: icon('Palette'), LogIn: icon('LogIn'),
-    Save: icon('Save'), Key: icon('Key'), X: icon('X'),
-    Check: icon('Check'), Upload: icon('Upload'), Download: icon('Download'),
-    RotateCcw: icon('RotateCcw'), Sun: icon('Sun'), Moon: icon('Moon'),
-    Eye: icon('Eye'), EyeOff: icon('EyeOff'), ChevronRight: icon('ChevronRight'),
-    CheckCircle: icon('CheckCircle'), MinusCircle: icon('MinusCircle'),
-    AlertCircle: icon('AlertCircle'), Loader2: icon('Loader2'), Zap: icon('Zap'),
-    // StatusMessage dependencies
-    AlertTriangle: icon('AlertTriangle'), Inbox: icon('Inbox'),
-  };
+  const names = [
+    'User', 'Palette', 'LogIn', 'Save', 'Key', 'X', 'Check', 'Upload', 'Download',
+    'RotateCcw', 'Sun', 'Moon', 'Eye', 'EyeOff', 'ChevronRight', 'CheckCircle',
+    'MinusCircle', 'AlertCircle', 'Loader2', 'Zap', 'Plug', 'Mail', 'CalendarDays',
+    'ClipboardList', 'MessageSquare', 'Search', 'Mic', 'Home', 'Server',
+    'AlertTriangle', 'Inbox',
+  ];
+  return Object.fromEntries(names.map(n => [n, icon(n)]));
 });
 
 // ── Import after mocks ────────────────────────────────────────────────────
@@ -193,6 +190,50 @@ describe('SettingsPanel', () => {
     fireEvent.click(screen.getByText('API Keys'));
     await waitFor(() => {
       expect(mockInvoke).toHaveBeenCalledWith("validate_all_api_keys");
+    });
+  });
+
+  // ── Inline completion toggle ──────────────────────────────────────────
+
+  describe('Inline completion toggle', () => {
+    beforeEach(() => {
+      localStorage.removeItem("vibeui-ai-inline-completion-enabled");
+    });
+
+    it('defaults to enabled when no setting stored', () => {
+      render(<SettingsPanel />);
+      fireEvent.click(screen.getAllByText('Appearance')[0]);
+      const label = screen.getByText('Inline completion (ghost text)');
+      const checkbox = label.closest('label')!.querySelector('input[type="checkbox"]') as HTMLInputElement;
+      expect(checkbox.checked).toBe(true);
+    });
+
+    it('reflects stored "false" value on mount', () => {
+      localStorage.setItem("vibeui-ai-inline-completion-enabled", "false");
+      render(<SettingsPanel />);
+      fireEvent.click(screen.getAllByText('Appearance')[0]);
+      const label = screen.getByText('Inline completion (ghost text)');
+      const checkbox = label.closest('label')!.querySelector('input[type="checkbox"]') as HTMLInputElement;
+      expect(checkbox.checked).toBe(false);
+    });
+
+    it('writes "false" to localStorage when toggled off', () => {
+      render(<SettingsPanel />);
+      fireEvent.click(screen.getAllByText('Appearance')[0]);
+      const label = screen.getByText('Inline completion (ghost text)');
+      const checkbox = label.closest('label')!.querySelector('input[type="checkbox"]') as HTMLInputElement;
+      fireEvent.click(checkbox);
+      expect(localStorage.getItem("vibeui-ai-inline-completion-enabled")).toBe("false");
+    });
+
+    it('writes "true" to localStorage when toggled back on', () => {
+      localStorage.setItem("vibeui-ai-inline-completion-enabled", "false");
+      render(<SettingsPanel />);
+      fireEvent.click(screen.getAllByText('Appearance')[0]);
+      const label = screen.getByText('Inline completion (ghost text)');
+      const checkbox = label.closest('label')!.querySelector('input[type="checkbox"]') as HTMLInputElement;
+      fireEvent.click(checkbox);
+      expect(localStorage.getItem("vibeui-ai-inline-completion-enabled")).toBe("true");
     });
   });
 });

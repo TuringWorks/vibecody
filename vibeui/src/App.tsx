@@ -13,6 +13,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { open } from "@tauri-apps/plugin-dialog";
 import { InlineChat } from "./components/InlineChat";
 import type { InlineChatSelection } from "./components/InlineChat";
+import { DiffCompleteModal } from "./components/DiffCompleteModal";
 import { Terminal } from "./components/Terminal";
 import { BrowserPanel } from "./components/BrowserPanel";
 import { detectLanguage, getFileIcon } from "./utils/fileUtils";
@@ -496,6 +497,15 @@ function App() {
     selection: InlineChatSelection;
     position: { top: number; left: number };
   } | null>(null);
+  // DiffComplete (⌘.) state — explicit-trigger, diff-output AI edit
+  const [diffComplete, setDiffComplete] = useState<{
+    filePath: string;
+    language: string;
+    originalContent: string;
+    selectionText: string;
+    selectionStartLine: number; // 1-based
+    selectionEndLine: number;
+  } | null>(null);
   const editorRef = useRef<any>(null);
   // Ref mirror of currentDirectory for use inside async callbacks that outlive a render
   const currentDirectoryRef = useRef(currentDirectory);
@@ -573,6 +583,26 @@ function App() {
             top: rect.top + lineTop - scrollTop + 20,
             left: rect.left + layoutInfo.contentLeft + 20,
           },
+        });
+      }
+    );
+
+    // ── Cmd+. : DiffComplete (diff-mode AI edit) ──
+    editor.addCommand(
+      monaco.KeyMod.CtrlCmd | monaco.KeyCode.Period,
+      () => {
+        const model = editor.getModel();
+        if (!model) return;
+        const selection = editor.getSelection();
+        const hasSelection = selection && !selection.isEmpty();
+        const selectedText = hasSelection ? model.getValueInRange(selection) : "";
+        setDiffComplete({
+          filePath: activeFilePath ?? "",
+          language: model.getLanguageId(),
+          originalContent: model.getValue(),
+          selectionText: selectedText,
+          selectionStartLine: hasSelection ? selection.startLineNumber : 0,
+          selectionEndLine: hasSelection ? selection.endLineNumber : 0,
         });
       }
     );
@@ -695,9 +725,12 @@ function App() {
     });
 
     // Phase 3: Inline AI completions (ghost text / FIM)
+    // Gated by the `vibeui-ai-inline-completion-enabled` setting (Settings → Appearance → AI).
+    // When disabled, `provideInlineCompletions` returns empty so no model inference is triggered.
     if (typeof (monaco.languages as any).registerInlineCompletionsProvider === 'function') {
       (monaco.languages as any).registerInlineCompletionsProvider('*', {
         provideInlineCompletions: async (model: any, position: any) => {
+          if (localStorage.getItem("vibeui-ai-inline-completion-enabled") === "false") return { items: [] };
           const provider = selectedProviderRef.current;
           if (!provider) return { items: [] };
 
@@ -2272,6 +2305,41 @@ function App() {
             setInlineChat(null);
           }}
           onReject={() => setInlineChat(null)}
+        />
+      )}
+
+      {/* DiffComplete Modal (⌘.) — diff-mode AI edit */}
+      {diffComplete && (
+        <DiffCompleteModal
+          open={!!diffComplete}
+          onClose={() => setDiffComplete(null)}
+          filePath={diffComplete.filePath}
+          language={diffComplete.language}
+          originalContent={diffComplete.originalContent}
+          selectionText={diffComplete.selectionText}
+          selectionStartLine={diffComplete.selectionStartLine}
+          selectionEndLine={diffComplete.selectionEndLine}
+          provider={selectedProvider}
+          onApply={(modified) => {
+            if (modified === null) return;
+            const editor = editorRef.current;
+            const model = editor?.getModel();
+            if (!model) return;
+            const fullRange = model.getFullModelRange();
+            editor.executeEdits("diffcomplete-apply", [{
+              range: fullRange,
+              text: modified,
+              forceMoveMarkers: true,
+            }]);
+            flowContext.add({
+              kind: "inline_edit",
+              summary: `DiffComplete applied to ${diffComplete.filePath.split("/").pop() ?? "file"}`,
+              detail: diffComplete.selectionText
+                ? `Edited selection lines ${diffComplete.selectionStartLine}-${diffComplete.selectionEndLine}`
+                : "Whole-file edit",
+              filePath: diffComplete.filePath,
+            });
+          }}
         />
       )}
 

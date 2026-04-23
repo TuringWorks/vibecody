@@ -6498,6 +6498,63 @@ pub async fn inline_edit(
     chat_engine.chat(&messages, None).await.map_err(|e| e.to_string())
 }
 
+/// Diff-mode completion (⌘.): explicit-trigger, diff-output alternative to
+/// keystroke-driven ghost-text. The model returns a unified diff against the
+/// user's selection/context; the host reviews and applies via `DiffReviewPanel`.
+#[derive(serde::Serialize)]
+pub struct DiffCompleteResponseDto {
+    pub unified_diff: String,
+    pub explanation: Option<String>,
+    pub model_name: String,
+}
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn diffcomplete_generate(
+    state: tauri::State<'_, AppState>,
+    file_path: String,
+    language: String,
+    selection_text: Option<String>,
+    selection_start_line: Option<u32>,
+    selection_end_line: Option<u32>,
+    before_context: String,
+    after_context: String,
+    instruction: String,
+    provider: String,
+) -> Result<DiffCompleteResponseDto, String> {
+    let request = vibe_ai::diffcomplete::DiffCompleteRequest {
+        file_path,
+        language,
+        selection_text,
+        selection_start_line,
+        selection_end_line,
+        before_context,
+        after_context,
+        instruction,
+    };
+
+    let active = {
+        let mut chat_engine = state.chat_engine.lock().await;
+        if !provider.is_empty() {
+            let _ = chat_engine.set_provider_by_name(&provider);
+        }
+        chat_engine
+            .active_provider()
+            .cloned()
+            .ok_or_else(|| "No active AI provider configured".to_string())?
+    };
+
+    let response = vibe_ai::diffcomplete::generate(active, request)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    Ok(DiffCompleteResponseDto {
+        unified_diff: response.unified_diff,
+        explanation: response.explanation,
+        model_name: response.model_name,
+    })
+}
+
 /// Generate code at cursor position using file context, project context, and user instruction.
 #[tauri::command]
 pub async fn generate_code(

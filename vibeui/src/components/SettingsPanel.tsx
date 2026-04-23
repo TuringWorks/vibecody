@@ -94,6 +94,7 @@ const STORAGE_KEYS = {
   density: "vibeui-density",
   oauth: "vibeui-oauth",
   customizations: "vibeui-customizations",
+  inlineCompletion: "vibeui-ai-inline-completion-enabled",
 };
 
 /* ── Shared styles ─────────────────────────────────────────────────── */
@@ -457,14 +458,17 @@ function AppearanceSection() {
   const [fontSize, setFontSize] = useState(13);
   const [density, setDensity] = useState<"compact" | "normal" | "spacious">("normal");
   const [filterCategory, setFilterCategory] = useState<"all" | "standard" | "high-contrast" | "color-blind" | "supercar">("all");
+  const [inlineCompletion, setInlineCompletion] = useState(true);
 
   useEffect(() => {
     const storedTheme = localStorage.getItem(STORAGE_KEYS.theme) || "dark-sherwood";
     const storedSize = localStorage.getItem(STORAGE_KEYS.fontSize);
     const storedDensity = localStorage.getItem("vibeui-density");
+    const storedInline = localStorage.getItem(STORAGE_KEYS.inlineCompletion);
     setActiveThemeId(storedTheme);
     if (storedSize) setFontSize(parseInt(storedSize, 10));
     if (storedDensity) setDensity(storedDensity as typeof density);
+    if (storedInline !== null) setInlineCompletion(storedInline !== "false");
   }, []);
 
   const applyTheme = useCallback((theme: ThemeDef) => {
@@ -483,6 +487,11 @@ function AppearanceSection() {
     localStorage.setItem("vibeui-density", d);
     const spacing = d === "compact" ? "2px" : d === "spacious" ? "6px" : "4px";
     document.documentElement.style.setProperty("--density-spacing", spacing);
+  };
+
+  const applyInlineCompletion = (enabled: boolean) => {
+    setInlineCompletion(enabled);
+    localStorage.setItem(STORAGE_KEYS.inlineCompletion, String(enabled));
   };
 
   const filtered = filterCategory === "all" ? THEMES : THEMES.filter(t => t.category === filterCategory);
@@ -560,13 +569,34 @@ function AppearanceSection() {
       </div>
 
       {/* UI Density */}
-      <div>
+      <div style={{ marginBottom: 16 }}>
         <label className="panel-label">UI Density</label>
         <div style={{ display: "flex", gap: 8 }}>
           {(["compact", "normal", "spacious"] as const).map(d => (
             <button key={d} onClick={() => applyDensity(d)} className={`panel-tab ${density === d ? "active" : ""}`} style={{ flex: 1, textTransform: "capitalize" }}>{d}</button>
           ))}
         </div>
+      </div>
+
+      <div className="panel-divider" />
+
+      {/* AI editor features */}
+      <div>
+        <label className="panel-label" style={{ marginBottom: 8 }}>AI editor features</label>
+        <label style={{ display: "flex", alignItems: "flex-start", gap: 8, cursor: "pointer" }}>
+          <input
+            type="checkbox"
+            checked={inlineCompletion}
+            onChange={e => applyInlineCompletion(e.target.checked)}
+            style={{ marginTop: 3, accentColor: "var(--accent-blue)" }}
+          />
+          <span>
+            <span style={{ fontSize: "var(--font-size-md)", color: "var(--text-primary)" }}>Inline completion (ghost text)</span>
+            <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 2 }}>
+              Automatic as-you-type suggestions shown as ghost text, accepted with Tab. Disabling stops all keystroke-driven model calls. Changes take effect on next cursor move.
+            </div>
+          </span>
+        </label>
       </div>
     </div>
   );
