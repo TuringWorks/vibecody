@@ -18,7 +18,7 @@ const STEPS: TourStep[] = [
     description: 'Select your AI provider here — Ollama, Claude, ChatGPT, Gemini, Grok, and more are supported. Set your API key in Settings.',
   },
   {
-    target: '.btn-secondary',
+    target: '[title="Toggle Vibe Toolkit"]',
     title: 'AI Panel — Your Coding Partner',
     description: 'Toggle with ⌘J. Use Chat for questions, Agent for autonomous tasks, and 130+ specialized panels. Type @ in chat to inject files, git context, docs, or web pages.',
   },
