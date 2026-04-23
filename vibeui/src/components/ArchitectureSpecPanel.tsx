@@ -1181,7 +1181,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
         </span>}
       </div>
 
-      <div className="panel-tab-bar" style={{ marginBottom: 12 }}>
+      <div className="panel-tab-bar">
         {(["togaf", "zachman", "c4", "adr", "governance"] as NavTab[]).map(t => (
           <button key={t} className={`panel-tab ${tab === t ? "active" : ""}`}
             onClick={() => { setTab(t); setReport(""); setEditingCell(null); }}>
@@ -1190,11 +1190,14 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
         ))}
       </div>
 
-      {tab === "togaf"      && renderTogaf()}
-      {tab === "zachman"    && renderZachman()}
-      {tab === "c4"         && renderC4()}
-      {tab === "adr"        && renderAdr()}
-      {tab === "governance" && renderGovernance()}
+      {/* panel-body gives all 4-sided padding per design-system/components/panel.md */}
+      <div className="panel-body">
+        {tab === "togaf"      && renderTogaf()}
+        {tab === "zachman"    && renderZachman()}
+        {tab === "c4"         && renderC4()}
+        {tab === "adr"        && renderAdr()}
+        {tab === "governance" && renderGovernance()}
+      </div>
     </div>
   );
 }

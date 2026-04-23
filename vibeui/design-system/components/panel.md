@@ -213,6 +213,47 @@ Rare — use only when the panel title comes from the composite tab bar.
 
 ---
 
+## The Margin Rule (4-sided padding on every panel)
+
+**Every panel MUST inset its scrollable content from the container edges on all four sides.** Content flush against a panel edge reads as unfinished and crowds adjacent panels in multi-pane layouts.
+
+The canonical way to satisfy this is: put content inside `.panel-body`, which already sets `padding: 8px 12px` on all four sides.
+
+```tsx
+// ✅ CORRECT — content is inside panel-body, inset on all 4 sides
+<div className="panel-container">
+  <div className="panel-header">…</div>
+  <div className="panel-tab-bar">…</div>   {/* tab-bar spans full width by design */}
+  <div className="panel-body">
+    {/* all scrollable content lives here */}
+    {tab === "a" && renderA()}
+    {tab === "b" && renderB()}
+  </div>
+</div>
+
+// ❌ WRONG — render output becomes a direct sibling of panel-container,
+//    first card sits flush against the left/right/bottom edges
+<div className="panel-container">
+  <div className="panel-header">…</div>
+  <div className="panel-tab-bar">…</div>
+  {tab === "a" && renderA()}
+  {tab === "b" && renderB()}
+</div>
+
+// ❌ WRONG — h2 and cards are direct children with no horizontal padding
+<div className="panel-container">
+  <h2>Dashboard</h2>
+  <div className="panel-card">…</div>
+</div>
+```
+
+Why this is a separate rule even though `.panel-body` already has padding: the `.panel-container > div:last-child` catchall in `App.css` gives unwrapped panels auto-scroll behavior but **does not** add padding. Panels that relied on the catchall ended up flush against the edges. The only way to guarantee 4-sided padding is to wrap content in `.panel-body` (or an equivalent padded wrapper).
+
+Exceptions:
+- `.panel-header` / `.panel-tab-bar` / `.panel-footer` are intentionally full-bleed — their border-bottom/top must span edge-to-edge. They each carry their own internal padding (`8px 12px`), so their content (title text, tab labels) stays inset.
+
+---
+
 ## Header Anatomy
 
 ```tsx

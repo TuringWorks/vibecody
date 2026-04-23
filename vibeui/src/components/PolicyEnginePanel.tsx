@@ -73,6 +73,8 @@ export default function PolicyEnginePanel() {
 
   return (
     <div className="panel-container">
+      {/* panel-body gives all 4-sided padding per design-system/components/panel.md */}
+      <div className="panel-body">
       <h2 style={headingStyle}>Policy Engine</h2>
       <div style={{ display: "flex", gap: 4, marginBottom: 12, flexWrap: "wrap" }}>
         {(["check", "policies", "test", "audit", "conflicts"] as Tab[]).map(t => (
@@ -167,6 +169,7 @@ export default function PolicyEnginePanel() {
           ))}
         </>
       )}
+      </div>
     </div>
   );
 }

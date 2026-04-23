@@ -37,20 +37,23 @@ A complete, token-based design system for VibeUI panels and components. Inspired
 
 ## Quick Reference
 
-### The 10 rules every panel must follow
+### The rules every panel must follow
 
 ```
 1.  Root: flex: 1, minHeight: 0            (never height: 100%)
 2.  Structure: container → header → body → footer
-3.  Colors: CSS vars only                  (never #4caf50, #fff, etc.)
-4.  Spacing: multiples of 4px              (4, 8, 12, 16, 20, 24, 32)
-5.  Buttons: panel-btn + panel-btn-{variant}
-6.  Empty state: className="panel-empty"
-7.  Loading: className="panel-loading"
-8.  Error: className="panel-error"
-9.  Cards: className="panel-card"
-10. Progress: className="progress-bar" + progress-bar-fill + progress-bar-{color}
-11. Tags: className="panel-tag panel-tag-{intent}"
+3.  4-sided margins: all scrollable content inside .panel-body
+    (NEVER put content as a direct sibling of .panel-container — it renders
+     flush against the edges. See design-system/components/panel.md § Margin Rule)
+4.  Colors: CSS vars only                  (never #4caf50, #fff, etc.)
+5.  Spacing: multiples of 4px              (4, 8, 12, 16, 20, 24, 32)
+6.  Buttons: panel-btn + panel-btn-{variant}
+7.  Empty state: className="panel-empty"
+8.  Loading: className="panel-loading"
+9.  Error: className="panel-error"
+10. Cards: className="panel-card"
+11. Progress: className="progress-bar" + progress-bar-fill + progress-bar-{color}
+12. Tags: className="panel-tag panel-tag-{intent}"
 ```
 
 ### Color quick-pick
