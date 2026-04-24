@@ -6521,6 +6521,7 @@ pub async fn diffcomplete_generate(
     after_context: String,
     instruction: String,
     provider: String,
+    additional_files: Option<Vec<vibe_ai::diffcomplete::AdditionalFile>>,
 ) -> Result<DiffCompleteResponseDto, String> {
     let request = vibe_ai::diffcomplete::DiffCompleteRequest {
         file_path,
@@ -6531,6 +6532,7 @@ pub async fn diffcomplete_generate(
         before_context,
         after_context,
         instruction,
+        additional_files: additional_files.unwrap_or_default(),
     };
 
     let active = {

@@ -23,6 +23,11 @@ use std::sync::Arc;
 ///
 /// `selection_text` is the user's explicitly-selected text. If `None`, the
 /// before/after context already contains everything the model needs.
+///
+/// `additional_files` is a user-selected list of related files to include as
+/// extra context. This is human-in-the-loop retrieval — files are added by
+/// the user via an explicit picker, never by automatic embedding search. That
+/// distinction keeps Phase 2 patent-distant from keystroke-driven RAG paths.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DiffCompleteRequest {
     pub file_path: String,
@@ -33,6 +38,15 @@ pub struct DiffCompleteRequest {
     pub before_context: String,
     pub after_context: String,
     pub instruction: String,
+    #[serde(default)]
+    pub additional_files: Vec<AdditionalFile>,
+}
+
+/// A single related file the user explicitly added as context.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdditionalFile {
+    pub path: String,
+    pub content: String,
 }
 
 /// The model's response, parsed into a unified-diff body and optional prose.
@@ -98,9 +112,20 @@ pub fn build_user_prompt(req: &DiffCompleteRequest) -> String {
 
     out.push_str("=== After selection ===\n");
     out.push_str(&req.after_context);
-    out.push_str("\n\n");
+    out.push_str("\n");
 
-    out.push_str("Instruction: ");
+    if !req.additional_files.is_empty() {
+        out.push_str("\n=== Additional files (user-supplied context) ===\n");
+        for file in &req.additional_files {
+            out.push_str("\n--- ");
+            out.push_str(&file.path);
+            out.push_str(" ---\n");
+            out.push_str(&file.content);
+            out.push_str("\n");
+        }
+    }
+
+    out.push_str("\nInstruction: ");
     out.push_str(&req.instruction);
     out
 }
@@ -208,6 +233,7 @@ mod tests {
             before_context: "fn main() {".to_string(),
             after_context: "}".to_string(),
             instruction: "rename x to count".to_string(),
+            additional_files: Vec::new(),
         }
     }
 
@@ -228,6 +254,40 @@ mod tests {
         let p = build_user_prompt(&req);
         assert!(!p.contains("=== Selected"));
         assert!(p.contains("=== Before selection ==="));
+    }
+
+    #[test]
+    fn user_prompt_omits_additional_files_section_when_empty() {
+        let p = build_user_prompt(&request_stub());
+        assert!(!p.contains("Additional files"));
+        assert!(!p.contains("(user-supplied context)"));
+    }
+
+    #[test]
+    fn user_prompt_renders_additional_files_when_populated() {
+        let req = DiffCompleteRequest {
+            additional_files: vec![
+                AdditionalFile {
+                    path: "src/helper.rs".to_string(),
+                    content: "pub fn helper() {}\n".to_string(),
+                },
+                AdditionalFile {
+                    path: "src/types.rs".to_string(),
+                    content: "pub struct Foo;\n".to_string(),
+                },
+            ],
+            ..request_stub()
+        };
+        let p = build_user_prompt(&req);
+        assert!(p.contains("=== Additional files (user-supplied context) ==="));
+        assert!(p.contains("--- src/helper.rs ---"));
+        assert!(p.contains("pub fn helper() {}"));
+        assert!(p.contains("--- src/types.rs ---"));
+        assert!(p.contains("pub struct Foo;"));
+        // Section appears before the trailing instruction.
+        let af_idx = p.find("Additional files").unwrap();
+        let instr_idx = p.find("Instruction:").unwrap();
+        assert!(af_idx < instr_idx);
     }
 
     #[test]

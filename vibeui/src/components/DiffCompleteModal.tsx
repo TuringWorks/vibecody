@@ -10,7 +10,13 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { DiffReviewPanel } from "./DiffReviewPanel";
+
+interface AdditionalFile {
+  path: string;
+  content: string;
+}
 
 export interface DiffCompleteModalProps {
   open: boolean;
@@ -47,6 +53,8 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
   const [error, setError] = useState<string>("");
   const [modified, setModified] = useState<string>("");
   const [explanation, setExplanation] = useState<string | null>(null);
+  const [additionalFiles, setAdditionalFiles] = useState<AdditionalFile[]>([]);
+  const [pickerBusy, setPickerBusy] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -56,9 +64,43 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
       setError("");
       setModified("");
       setExplanation(null);
+      setAdditionalFiles([]);
+      setPickerBusy(false);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
+
+  const addContextFiles = useCallback(async () => {
+    setPickerBusy(true);
+    try {
+      const selected = await openDialog({
+        multiple: true,
+        title: "Add files as context",
+      });
+      if (!selected) return;
+      const paths = Array.isArray(selected) ? selected : [selected];
+      const existing = new Set(additionalFiles.map(f => f.path));
+      const additions: AdditionalFile[] = [];
+      for (const path of paths) {
+        if (existing.has(path)) continue;
+        try {
+          const content = await invoke<string>("read_file_sandbox", { path });
+          additions.push({ path, content });
+        } catch (e) {
+          setError(`Failed to read "${path}": ${e}`);
+        }
+      }
+      if (additions.length) setAdditionalFiles(prev => [...prev, ...additions]);
+    } catch (e) {
+      console.error("File picker error:", e);
+    } finally {
+      setPickerBusy(false);
+    }
+  }, [additionalFiles]);
+
+  const removeContextFile = useCallback((path: string) => {
+    setAdditionalFiles(prev => prev.filter(f => f.path !== path));
+  }, []);
 
   const submit = useCallback(async () => {
     if (!instruction.trim()) return;
@@ -90,6 +132,7 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
         afterContext,
         instruction: instruction.trim(),
         provider,
+        additionalFiles: additionalFiles.length ? additionalFiles : null,
       });
 
       const applied = applyUnifiedDiff(originalContent, res.unified_diff);
@@ -106,7 +149,7 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
       setPhase("error");
     }
   }, [instruction, originalContent, selectionText, selectionStartLine,
-      selectionEndLine, filePath, language, provider]);
+      selectionEndLine, filePath, language, provider, additionalFiles]);
 
   const handleReviewApply = useCallback((result: string | null) => {
     onApply(result);
@@ -166,6 +209,49 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
               if (e.key === "Escape") { e.preventDefault(); onClose(); }
             }}
           />
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button
+                className="panel-btn panel-btn-secondary panel-btn-sm"
+                onClick={addContextFiles}
+                disabled={pickerBusy}
+                aria-label="Add files as context"
+              >
+                {pickerBusy ? "Adding…" : "+ Add file…"}
+              </button>
+              <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
+                {additionalFiles.length === 0
+                  ? "Optional: attach related files as extra context."
+                  : `${additionalFiles.length} file${additionalFiles.length === 1 ? "" : "s"} attached`}
+              </span>
+            </div>
+            {additionalFiles.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {additionalFiles.map(f => (
+                  <span
+                    key={f.path}
+                    className="panel-card"
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      padding: "2px 6px", fontSize: "var(--font-size-xs)",
+                      fontFamily: "var(--font-mono)",
+                    }}
+                    title={f.path}
+                  >
+                    {shortPath(f.path)}
+                    <button
+                      className="panel-btn panel-btn-secondary panel-btn-sm"
+                      style={{ padding: "0 4px", minHeight: 0, lineHeight: 1 }}
+                      onClick={() => removeContextFile(f.path)}
+                      aria-label={`Remove ${f.path}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <button className="panel-btn panel-btn-secondary" onClick={onClose}>Cancel</button>
             <button
@@ -216,6 +302,12 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
       </div>
     </div>
   );
+}
+
+function shortPath(p: string): string {
+  const parts = p.split(/[\\/]/).filter(Boolean);
+  if (parts.length <= 2) return p;
+  return `…/${parts.slice(-2).join("/")}`;
 }
 
 // ── Unified-diff applier ────────────────────────────────────────────────────

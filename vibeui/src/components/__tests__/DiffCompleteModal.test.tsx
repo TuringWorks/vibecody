@@ -6,6 +6,11 @@ vi.mock('@tauri-apps/api/core', () => ({
   invoke: (...args: unknown[]) => mockInvoke(...args),
 }));
 
+const mockOpen = vi.fn();
+vi.mock('@tauri-apps/plugin-dialog', () => ({
+  open: (...args: unknown[]) => mockOpen(...args),
+}));
+
 import { DiffCompleteModal, applyUnifiedDiff } from '../DiffCompleteModal';
 
 describe('applyUnifiedDiff', () => {
@@ -219,5 +224,122 @@ describe('DiffCompleteModal — flow', () => {
     render(<DiffCompleteModal {...baseProps} onClose={onClose} />);
     fireEvent.click(screen.getByLabelText('Close'));
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('attaches picked files as additionalFiles in the invoke payload', async () => {
+    mockOpen.mockResolvedValueOnce(["/abs/src/helper.rs", "/abs/src/types.rs"]);
+    mockInvoke.mockImplementation((cmd: string, args: { path?: string }) => {
+      if (cmd === "read_file_sandbox") {
+        if (args.path === "/abs/src/helper.rs") return Promise.resolve("pub fn helper() {}\n");
+        if (args.path === "/abs/src/types.rs") return Promise.resolve("pub struct Foo;\n");
+      }
+      if (cmd === "diffcomplete_generate") {
+        return Promise.resolve({
+          unified_diff: [
+            "--- a/src/lib.rs",
+            "+++ b/src/lib.rs",
+            "@@ -1,3 +1,3 @@",
+            " line 1",
+            "-line 2",
+            "+LINE TWO",
+            " line 3",
+          ].join("\n"),
+          explanation: null,
+          model_name: "mock",
+        });
+      }
+      return Promise.reject(new Error(`unexpected cmd: ${cmd}`));
+    });
+
+    render(<DiffCompleteModal {...baseProps} />);
+    fireEvent.click(screen.getByLabelText('Add files as context'));
+    await waitFor(() => {
+      expect(screen.getByText(/2 files attached/)).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText(/Describe the change/i), { target: { value: "x" } });
+    fireEvent.click(screen.getByText(/Generate diff/i));
+
+    await waitFor(() => {
+      const call = mockInvoke.mock.calls.find(c => c[0] === "diffcomplete_generate");
+      expect(call).toBeTruthy();
+      expect(call![1]).toMatchObject({
+        additionalFiles: [
+          { path: "/abs/src/helper.rs", content: "pub fn helper() {}\n" },
+          { path: "/abs/src/types.rs", content: "pub struct Foo;\n" },
+        ],
+      });
+    });
+  });
+
+  it('omits additionalFiles when none attached (sends null)', async () => {
+    mockInvoke.mockResolvedValueOnce({
+      unified_diff: [
+        "--- a/src/lib.rs",
+        "+++ b/src/lib.rs",
+        "@@ -1,3 +1,3 @@",
+        " line 1",
+        "-line 2",
+        "+LINE TWO",
+        " line 3",
+      ].join("\n"),
+      explanation: null,
+      model_name: "mock",
+    });
+
+    render(<DiffCompleteModal {...baseProps} />);
+    fireEvent.change(screen.getByPlaceholderText(/Describe the change/i), { target: { value: "x" } });
+    fireEvent.click(screen.getByText(/Generate diff/i));
+
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith("diffcomplete_generate", expect.objectContaining({
+        additionalFiles: null,
+      }));
+    });
+  });
+
+  it('removes a chip via its × button and drops it from the payload', async () => {
+    mockOpen.mockResolvedValueOnce(["/abs/src/helper.rs"]);
+    mockInvoke.mockImplementation((cmd: string, args: { path?: string }) => {
+      if (cmd === "read_file_sandbox" && args.path === "/abs/src/helper.rs") {
+        return Promise.resolve("pub fn helper() {}\n");
+      }
+      if (cmd === "diffcomplete_generate") {
+        return Promise.resolve({
+          unified_diff: [
+            "--- a/src/lib.rs",
+            "+++ b/src/lib.rs",
+            "@@ -1,3 +1,3 @@",
+            " line 1",
+            "-line 2",
+            "+LINE TWO",
+            " line 3",
+          ].join("\n"),
+          explanation: null,
+          model_name: "mock",
+        });
+      }
+      return Promise.reject(new Error(`unexpected cmd: ${cmd}`));
+    });
+
+    render(<DiffCompleteModal {...baseProps} />);
+    fireEvent.click(screen.getByLabelText('Add files as context'));
+    await waitFor(() => {
+      expect(screen.getByText(/1 file attached/)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByLabelText('Remove /abs/src/helper.rs'));
+    await waitFor(() => {
+      expect(screen.queryByText(/1 file attached/)).not.toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByPlaceholderText(/Describe the change/i), { target: { value: "x" } });
+    fireEvent.click(screen.getByText(/Generate diff/i));
+
+    await waitFor(() => {
+      const call = mockInvoke.mock.calls.find(c => c[0] === "diffcomplete_generate");
+      expect(call).toBeTruthy();
+      expect(call![1]).toMatchObject({ additionalFiles: null });
+    });
   });
 });
