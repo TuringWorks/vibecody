@@ -293,6 +293,7 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
               original={originalContent}
               modified={modified}
               filePath={filePath}
+              language={language}
               onApply={handleReviewApply}
             />
           </div>

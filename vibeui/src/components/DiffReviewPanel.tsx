@@ -17,6 +17,8 @@
 
 import React, { useState, useMemo, useEffect, useRef, Component } from "react";
 import { Check, X } from "lucide-react";
+import Editor from "@monaco-editor/react";
+import { detectLanguage } from "../utils/fileUtils";
 
 // ── Diff types ────────────────────────────────────────────────────────────────
 
@@ -204,11 +206,16 @@ interface DiffReviewPanelProps {
   * The panel closes itself after this call via the parent unmounting it.
   */
  onApply: (result: string | null) => void;
+ /**
+  * Monaco language id for the edit-before-applying buffer (e.g. "typescript").
+  * If omitted, inferred from `filePath` via `detectLanguage`.
+  */
+ language?: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffReviewPanelProps) {
+export function DiffReviewPanel({ original, modified, filePath, onApply, language }: DiffReviewPanelProps) {
  const originalLines = useMemo(() => (original ?? "").split("\n"), [original]);
  const modifiedLines = useMemo(() => (modified ?? "").split("\n"), [modified]);
  const allDiffed = useMemo(() => {
@@ -232,6 +239,20 @@ export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffR
  // Guard: prevent double-clicking Apply from submitting twice
  const applyingRef = useRef(false);
 
+ // ── Edit-before-apply mode ──
+ const [mode, setMode] = useState<"review" | "edit">("review");
+ const [editBuffer, setEditBuffer] = useState<string>("");
+ const [editDirty, setEditDirty] = useState(false);
+
+ // Reset edit mode whenever the input prop pair changes (new diff arrives).
+ useEffect(() => {
+   setMode("review");
+   setEditBuffer("");
+   setEditDirty(false);
+ }, [rawHunks]);
+
+ const resolvedLanguage = language ?? detectLanguage(filePath);
+
  const noChanges = hunks.length === 0;
  const acceptedCount = hunks.filter((h) => h.accepted).length;
 
@@ -244,9 +265,50 @@ export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffR
  const acceptAll = () => setHunks((prev) => prev.map((h) => ({ ...h, accepted: true })));
  const rejectAll = () => setHunks((prev) => prev.map((h) => ({ ...h, accepted: false })));
 
+ const enterEditMode = () => {
+   // Seed the edit buffer with the current candidate final content — respects
+   // the user's hunk accept/reject state so edits refine from there.
+   let seed: string;
+   try {
+     seed = noChanges || acceptedCount === 0
+       ? originalLines.join("\n")
+       : assembleFinal(originalLines, modifiedLines, hunks, allDiffed);
+   } catch (e) {
+     console.error("assembleFinal (enterEdit) crashed:", e);
+     seed = modified;
+   }
+   setEditBuffer(seed);
+   setEditDirty(false);
+   setMode("edit");
+ };
+
+ const exitEditMode = () => {
+   if (editDirty) {
+     const confirmed = typeof window !== "undefined" && typeof window.confirm === "function"
+       ? window.confirm("Discard your edits and return to hunk review?")
+       : true;
+     if (!confirmed) return;
+   }
+   setEditBuffer("");
+   setEditDirty(false);
+   setMode("review");
+ };
+
  const handleApply = () => {
  if (applyingRef.current) return; // prevent double-submit
  applyingRef.current = true;
+
+ if (mode === "edit") {
+   // In edit mode: apply whatever the user typed. If their edits equal the
+   // original byte-for-byte, treat as cancel.
+   const out = editBuffer;
+   if (out === (original ?? "")) {
+     onApply(null);
+     return;
+   }
+   onApply(out);
+   return;
+ }
 
  if (noChanges || acceptedCount === 0) {
    onApply(null);
@@ -267,10 +329,38 @@ export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffR
  <div className="panel-header" style={{ minHeight: 32 }}>
    {/* Action buttons — anchored left, always visible */}
    <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-     <button className="panel-btn" onClick={handleApply} style={btnStyle("var(--accent-primary, #6366f1)")}>Apply ({acceptedCount})</button>
-     <button className="panel-btn" onClick={acceptAll}   style={btnStyle("var(--success-color, #4ade80)")}>Accept All</button>
-     <button className="panel-btn" onClick={rejectAll}   style={btnStyle("var(--error-color, #f87171)")}>Reject All</button>
-     <button onClick={() => onApply(null)} style={btnStyle("var(--text-secondary, #888)")}>Cancel</button>
+     {mode === "review" ? (
+       <>
+         <button className="panel-btn" onClick={handleApply} style={btnStyle("var(--accent-primary, #6366f1)")}>Apply ({acceptedCount})</button>
+         <button className="panel-btn" onClick={acceptAll}   style={btnStyle("var(--success-color, #4ade80)")}>Accept All</button>
+         <button className="panel-btn" onClick={rejectAll}   style={btnStyle("var(--error-color, #f87171)")}>Reject All</button>
+         {!noChanges && (
+           <button
+             className="panel-btn"
+             onClick={enterEditMode}
+             style={btnStyle("var(--warning-color, #f59e0b)")}
+             aria-label="Edit before applying"
+             title="Edit the proposed output before writing it"
+           >
+             Edit ✎
+           </button>
+         )}
+         <button onClick={() => onApply(null)} style={btnStyle("var(--text-secondary, #888)")}>Cancel</button>
+       </>
+     ) : (
+       <>
+         <button
+           className="panel-btn"
+           onClick={exitEditMode}
+           style={btnStyle("var(--text-secondary, #888)")}
+           aria-label="Back to hunks"
+         >
+           ← Hunks
+         </button>
+         <button className="panel-btn" onClick={handleApply} style={btnStyle("var(--accent-primary, #6366f1)")}>Apply (edited)</button>
+         <button onClick={() => onApply(null)} style={btnStyle("var(--text-secondary, #888)")}>Cancel</button>
+       </>
+     )}
    </div>
    {/* Divider */}
    <span style={{ width: 1, height: 14, background: "var(--border-color)", flexShrink: 0 }} />
@@ -279,13 +369,35 @@ export function DiffReviewPanel({ original, modified, filePath, onApply }: DiffR
      <code style={{ color: "var(--text-primary)" }}>{filePath.split("/").pop()}</code>
    </span>
    <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", whiteSpace: "nowrap", marginLeft: "auto", flexShrink: 0 }}>
-     {acceptedCount}/{hunks.length} hunks
+     {mode === "edit"
+       ? (editDirty ? "editing (modified)" : "editing")
+       : `${acceptedCount}/${hunks.length} hunks`}
    </span>
  </div>
 
- {/* Diff body */}
- <div className="panel-body">
- {noChanges ? (
+ {/* Body — review hunks OR edit buffer */}
+ <div className="panel-body" style={mode === "edit" ? { padding: 0, minHeight: 320 } : undefined}>
+ {mode === "edit" ? (
+   <div data-testid="diff-edit-container" style={{ width: "100%", height: "100%", minHeight: 320 }}>
+     <Editor
+       value={editBuffer}
+       language={resolvedLanguage}
+       theme="vs-dark"
+       onChange={(value) => {
+         const next = value ?? "";
+         setEditBuffer(next);
+         if (!editDirty) setEditDirty(true);
+       }}
+       options={{
+         minimap: { enabled: false },
+         scrollBeyondLastLine: false,
+         fontSize: 13,
+         automaticLayout: true,
+         wordWrap: "on",
+       }}
+     />
+   </div>
+ ) : noChanges ? (
  <div style={{ padding: 24, textAlign: "center", color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>
  No changes detected.
  </div>

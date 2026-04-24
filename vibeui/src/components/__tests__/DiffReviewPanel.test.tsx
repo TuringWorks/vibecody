@@ -14,6 +14,29 @@
 import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// Mock Monaco editor with a lightweight textarea so edit-mode tests can drive
+// it with fireEvent.change. Preserves the (value, onChange) shape we use.
+vi.mock('@monaco-editor/react', () => ({
+  __esModule: true,
+  default: ({
+    value,
+    onChange,
+    language,
+  }: {
+    value: string;
+    onChange: (next: string | undefined) => void;
+    language?: string;
+  }) => (
+    <textarea
+      data-testid="monaco-mock"
+      data-language={language ?? ''}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  ),
+}));
+
 import { DiffReviewPanel, DiffReviewErrorBoundary } from '../DiffReviewPanel';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -311,6 +334,146 @@ describe('DiffReviewPanel — onApply timing (Apply button crash regression)', (
     fireEvent.click(btn);
 
     expect(onApply).toHaveBeenCalledOnce();
+  });
+});
+
+// ── Edit-before-apply mode ────────────────────────────────────────────────────
+
+describe('DiffReviewPanel — edit-before-apply', () => {
+  it('shows Edit button when there are hunks', () => {
+    renderPanel('a\n', 'b\n');
+    expect(screen.getByLabelText('Edit before applying')).toBeInTheDocument();
+  });
+
+  it('does not show Edit button when there are no changes', () => {
+    renderPanel('same\n', 'same\n');
+    expect(screen.queryByLabelText('Edit before applying')).not.toBeInTheDocument();
+  });
+
+  it('entering edit mode renders Monaco with assembled content seeded', () => {
+    renderPanel('alpha\nbeta\n', 'alpha\nBETA\n');
+    fireEvent.click(screen.getByLabelText('Edit before applying'));
+
+    const ta = screen.getByTestId('monaco-mock') as HTMLTextAreaElement;
+    expect(ta).toBeInTheDocument();
+    // Default: all hunks accepted, so seed = modified assembled content
+    expect(ta.value).toContain('BETA');
+    expect(ta.value).not.toContain('beta');
+  });
+
+  it('edit + Apply calls onApply with the edited buffer', () => {
+    const onApply = vi.fn();
+    renderPanel('one\ntwo\n', 'one\nTWO\n', onApply);
+
+    fireEvent.click(screen.getByLabelText('Edit before applying'));
+    const ta = screen.getByTestId('monaco-mock') as HTMLTextAreaElement;
+    fireEvent.change(ta, { target: { value: 'one\nTHREE\n' } });
+    fireEvent.click(screen.getByText(/Apply \(edited\)/));
+
+    expect(onApply).toHaveBeenCalledOnce();
+    expect(onApply).toHaveBeenCalledWith('one\nTHREE\n');
+  });
+
+  it('Apply in edit mode returns null if buffer equals original byte-for-byte', () => {
+    const onApply = vi.fn();
+    renderPanel('same\n', 'modified\n', onApply);
+
+    fireEvent.click(screen.getByLabelText('Edit before applying'));
+    const ta = screen.getByTestId('monaco-mock') as HTMLTextAreaElement;
+    fireEvent.change(ta, { target: { value: 'same\n' } });
+    fireEvent.click(screen.getByText(/Apply \(edited\)/));
+
+    expect(onApply).toHaveBeenCalledWith(null);
+  });
+
+  it('Back-to-hunks returns to review mode when no edits made (no confirm)', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderPanel('a\n', 'b\n');
+
+    fireEvent.click(screen.getByLabelText('Edit before applying'));
+    expect(screen.getByTestId('monaco-mock')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText('Back to hunks'));
+    expect(screen.queryByTestId('monaco-mock')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Edit before applying')).toBeInTheDocument();
+    expect(confirmSpy).not.toHaveBeenCalled();
+    confirmSpy.mockRestore();
+  });
+
+  it('Back-to-hunks with dirty edits asks confirm and discards on OK', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderPanel('a\n', 'b\n');
+
+    fireEvent.click(screen.getByLabelText('Edit before applying'));
+    const ta = screen.getByTestId('monaco-mock') as HTMLTextAreaElement;
+    fireEvent.change(ta, { target: { value: 'tweaked\n' } });
+
+    fireEvent.click(screen.getByLabelText('Back to hunks'));
+    expect(confirmSpy).toHaveBeenCalledOnce();
+    expect(screen.queryByTestId('monaco-mock')).not.toBeInTheDocument();
+
+    // Re-enter edit — seed should be fresh (not the tweaked buffer).
+    fireEvent.click(screen.getByLabelText('Edit before applying'));
+    const ta2 = screen.getByTestId('monaco-mock') as HTMLTextAreaElement;
+    expect(ta2.value).not.toBe('tweaked\n');
+    confirmSpy.mockRestore();
+  });
+
+  it('Back-to-hunks with dirty edits keeps edit mode when confirm is cancelled', () => {
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    renderPanel('a\n', 'b\n');
+
+    fireEvent.click(screen.getByLabelText('Edit before applying'));
+    const ta = screen.getByTestId('monaco-mock') as HTMLTextAreaElement;
+    fireEvent.change(ta, { target: { value: 'keep me\n' } });
+
+    fireEvent.click(screen.getByLabelText('Back to hunks'));
+    expect(confirmSpy).toHaveBeenCalledOnce();
+    // Still in edit mode with the edited value preserved.
+    const ta2 = screen.getByTestId('monaco-mock') as HTMLTextAreaElement;
+    expect(ta2.value).toBe('keep me\n');
+    confirmSpy.mockRestore();
+  });
+
+  it('edit-mode header shows "editing (modified)" indicator when dirty', () => {
+    renderPanel('a\n', 'b\n');
+    fireEvent.click(screen.getByLabelText('Edit before applying'));
+    expect(screen.getByText('editing')).toBeInTheDocument();
+
+    const ta = screen.getByTestId('monaco-mock') as HTMLTextAreaElement;
+    fireEvent.change(ta, { target: { value: 'zzz\n' } });
+    expect(screen.getByText(/editing \(modified\)/)).toBeInTheDocument();
+  });
+
+  it('passes language prop through to Monaco', () => {
+    render(
+      <DiffReviewPanel
+        original="a\n"
+        modified="b\n"
+        filePath="unknown"
+        onApply={vi.fn()}
+        language="rust"
+      />,
+    );
+    fireEvent.click(screen.getByLabelText('Edit before applying'));
+    const ta = screen.getByTestId('monaco-mock') as HTMLTextAreaElement;
+    expect(ta.getAttribute('data-language')).toBe('rust');
+  });
+
+  it('falls back to detectLanguage when language prop is omitted', () => {
+    renderPanel('a\n', 'b\n', vi.fn(), 'src/hello.py');
+    fireEvent.click(screen.getByLabelText('Edit before applying'));
+    const ta = screen.getByTestId('monaco-mock') as HTMLTextAreaElement;
+    // detectLanguage('*.py') is expected to return "python"; accept any non-empty value.
+    expect(ta.getAttribute('data-language')).not.toBe('');
+  });
+
+  it('edit-mode Cancel still calls onApply(null)', () => {
+    const onApply = vi.fn();
+    renderPanel('a\n', 'b\n', onApply);
+    fireEvent.click(screen.getByLabelText('Edit before applying'));
+    fireEvent.click(screen.getByText('Cancel'));
+    expect(onApply).toHaveBeenCalledWith(null);
   });
 });
 
