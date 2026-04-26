@@ -6,11 +6,11 @@ permalink: /fit-gap-analysis/
 
 # Fit-Gap Analysis — VibeCody vs the AI Coding Landscape
 
-**Originally published:** 2026-02-25 &middot; **Last refreshed:** 2026-04-17 (v0.5.5)
-**Scope:** Cumulative delta of 8 sequential iterations (v4 → v12) plus 5 topic-specific deep-dives (AgentOS, Pi-mono, RL-OS, Paperclip, Code-Review/Architecture) — **40+ competing AI coding products and frameworks analyzed**.
+**Originally published:** 2026-02-25 &middot; **Last refreshed:** 2026-04-26 (v0.5.6 in flight)
+**Scope:** Cumulative delta of 9 sequential iterations (v4 → v13) plus 5 topic-specific deep-dives (AgentOS, Pi-mono, RL-OS, Paperclip, Code-Review/Architecture) — **40+ competing AI coding products and frameworks analyzed**.
 **Companion document:** [Competitive Landscape & Roadmap](./roadmap/).
 
-> **Executive bottom line:** Across 142 cumulative gaps catalogued over 8 iterations and 5 topic deep-dives, **136 are closed as of v0.5.5**. The remaining 6 are long-horizon items tracked in the [roadmap](./roadmap/) (Devin-level hours-long autonomy, Cursor's proprietary Tab model, the Anthropic-curated MCP catalog, SWE-bench-leader parity, enterprise SSO/audit packaging, and polished BYOA adapters for Claude/Codex/Cursor agents).
+> **Executive bottom line (revised 2026-04-26):** Across approximately **159 cumulative gaps** (deduplicated) catalogued over 9 iterations and 5 topic deep-dives, **~106 are closed with real I/O**, **~36 are partial — design / type-system / panel exists but the I/O layer is not yet wired** (8 audit-flagged modules + 52 RL-OS entries sharing one deferred-training plan + 2 partial AgentOS items; see §16.2 audit reconciliation), and **~17 are open** — comprising the 6 long-horizon items already tracked plus the 11 new external-tool gaps surfaced by the v13 April-2026 trend survey (§16.1). The previous "136 closed of 142" framing conflated typed-and-tested with shipped-with-real-I/O; the audit at [docs/audit/05-fitgap-overstatements.md](./audit/05-fitgap-overstatements.md) is now reflected directly in the scoreboard. **Closed-with-real-I/O is the only number worth quoting externally** — the partial work continues to ship as the US-001…US-006 cadence proves real conversions are happening.
 
 ---
 
@@ -28,7 +28,8 @@ This document consolidates 13 prior files (now removed — `git log` preserves t
 | v10 | 2026-04-12 | Claude Code 1.x, Cursor 4.0, Copilot Workspace v2, Devin 2.0, Cody 6.0 | 20 | All closed |
 | v11 | 2026-04-14 | Agent-OS registry, workspace snapshots, multi-repo context, dev workflow | 20 | All closed |
 | v12 | 2026-04-14 | Reasoning infra, prompt-cache, design platform, computer use | 20 | All closed |
-| **Sequential total** | — | **40+ competitors** | **142 (unique after dedup)** | **136 closed** |
+| v13 | 2026-04-26 | Cursor 3.0/3.2, Copilot Cloud Agent, Devin 2.2, Claude Opus 4.7, Gemini CLI v0.38, Junie CLI Beta, Codex CLI Bedrock + Spark, MCP 2026 roadmap, ACP v0.11, Antigravity 1.22, Augment 72% | 17 | 6 near-shipped (existing infra covers), 11 open (§16.1) |
+| **Sequential total** | — | **40+ competitors** | **~159 (deduplicated)** | **~106 closed, ~36 partial, ~17 open (revised — see §3 + §16)** |
 
 Alongside the sequential sweeps, five topic-specific deep-dives were added when VibeCody pushed into new domains:
 
@@ -225,26 +226,36 @@ The 142 gaps discovered over 8 iterations resolve into nine cross-cutting themes
 
 ## 3. Gap status — cumulative scoreboard
 
-| Category | Identified | Closed | Partial | Open |
+Revised 2026-04-26 to reflect the audit at [docs/audit/05-fitgap-overstatements.md](./audit/05-fitgap-overstatements.md). "Closed" now requires real I/O (HTTP/process/FFI/external API) — modules that are typed, tested in-memory, and panel-wired but lack the I/O layer are reclassified as **Partial**.
+
+| Category | Identified | Closed (real I/O) | Partial (design-only) | Open |
 |----------|-----------:|-------:|--------:|-----:|
-| Agent architecture & orchestration | 22 | 22 | 0 | 0 |
-| Protocol & interoperability | 9 | 9 | 0 | 0 |
-| Code generation, review, refactoring | 19 | 19 | 0 | 0 |
+| Agent architecture & orchestration | 22 | 21 | 1 (`issue_triage` HTTP)¹ | 0 |
+| Protocol & interoperability | 9 | 8 | 1 (`langgraph_bridge` REST)¹ | 0 |
+| Code generation, review, refactoring | 19 | 17 | 2 (`linter_aggregator`, `mcts_repair` rollout)¹ | 0 |
 | Developer experience & UX | 20 | 20 | 0 | 0 |
-| Context, memory, indexing | 13 | 13 | 0 | 0 |
+| Context, memory, indexing | 13 | 12 | 1 (`semantic_index` AST)¹ | 0 |
 | Privacy, security, policy | 11 | 11 | 0 | 0 |
-| Enterprise & operations | 11 | 11 | 0 | 0 |
-| Emerging frontiers | 16 | 16 | 0 | 0 |
+| Enterprise & operations | 11 | 9 | 2 (`native_connectors`, `cost_router`)¹ | 0 |
+| Emerging frontiers | 16 | 15 | 1 (`sketch_canvas` 3D/WebGL)¹ | 0 |
 | Surface coverage | 9 | 9 | 0 | 0 |
 | AgentOS deep-dive | 8 | 6 | 2 | 0 |
 | Pi-mono deep-dive | 15 | 15 | 0 | 0 |
-| RL-OS deep-dive | 52 | 52 (type system) | 0 | GPU/TPU kernels deferred |
+| RL-OS deep-dive | 52 | 0 (real training)² | 52 (type system + orchestration) | 0 |
 | Paperclip deep-dive | 13 | 13 | 0 | 0 |
 | Code-Review / Architecture | 10 + 8 | 10 + 8 | 0 | 0 |
 | Long-horizon (tracked in roadmap) | 6 | 0 | — | 6 |
-| **Total (deduplicated)** | **142** | **136** | **2** | **6** |
+| **v13 trend delta (2026-04-26, identification-only)** | **17** | **0** | **0** | **17** |
+| **Per-category sum (pre-dedup)** | **259** | **174** | **62** | **23** |
+| **Total (deduplicated, approximate)** | **~159** | **~106** | **~36** | **~17** |
 
-The 6 open items are all competitive-frontier / business moves rather than engineering tasks — they live in the [roadmap](./roadmap/#93-where-we-still-have-parity-gaps-to-close).
+¹ Audit-flagged module that retains its design + tests + panel + REPL command but does not yet ship the I/O layer claimed in the original gap closure. Roadmap work is tracked in Phase 53.
+
+² The RL-OS subsystem (~31K lines across 8 `rl_*.rs` files) is honest about being a type-system + orchestration substrate; neural-net training, GPU/TPU kernels, and PyO3 bindings are explicitly deferred (already noted in §12). Counting the 52 entries as "Partial" rather than "Closed" matches that intent.
+
+The pre-dedup per-category sum is exact; the deduplicated total is approximate because the v4–v12 dedup math is opaque (the original "142 deduplicated of 242 raw" implied a 0.59 collapse ratio, applied here as a directional estimate). The audit-aware reclassification is what matters: **fewer items are "shipped with real I/O" than the prior scoreboard claimed, and the new ones are listed by name** so they can be tracked.
+
+The 6 long-horizon items remain competitive-frontier / business moves rather than engineering tasks — they live in the [roadmap](./roadmap/#93-where-we-still-have-parity-gaps-to-close). The 14 partial modules (8 individual + 52 RL-OS entries that share one conversion plan) and 11 open v13 items have a real-I/O conversion plan in [Phase 53](./roadmap/#appendix-d--phase-53-april-2026-trend-delta--audit-reconciliation) of the roadmap, modeled on the US-001…US-006 conversions that already shipped.
 
 ---
 
@@ -578,18 +589,90 @@ VibeCody matches all RBAC/ABAC/derived-roles/conditions/audit-trail features and
 
 ## 15. Remaining parity gaps (honest list)
 
-Six items remain open; none are engineering-blocked, and each is a conscious trade-off tracked in the [roadmap](./roadmap/).
+Six items remain open from the v4–v12 cycles; none are engineering-blocked, and each is a conscious trade-off tracked in the [roadmap](./roadmap/). Eleven additional items from the v13 April-2026 trend survey are listed in §16.1.
 
-1. **Cursor's proprietary Tab model** — next-edit prediction quality. We ship FIM completions via Ollama + cloud models; Cursor trains their own Behavior-Informed Completion model.
-2. **Devin-level hours-long autonomy** — Devin can chain hours of work in a cloud VM; our agent loop tops out at ~50 steps before compaction / re-plan.
-3. **Claude Code's 300+ community MCP servers** — our MCP client is spec-compliant and we ship a directory, but the Anthropic-curated server catalog is still the largest.
-4. **SWE-bench leaderboard position** — OpenHands (+188 contributors) currently leads; we track this in the benchmark panel but haven't pushed for #1.
-5. **Enterprise SSO / audit packaging** — Cody Enterprise and Copilot for Business are further along on SOC 2 Type II, SAML SSO, central policy distribution.
-6. **Polished BYOA adapters for Claude/Codex/Cursor** — covered today by the generic `HttpAdapter`; dedicated adapters arrive when upstream APIs stabilise.
+1. **Cursor's proprietary Tab model** — next-edit prediction quality. We ship FIM completions via Ollama + cloud models; Cursor trains their own Behavior-Informed Completion model. *(Note 2026-04-26: Cursor 3.0 added an Agents Window and Cursor 3.2 added async subagents — the Tab model itself is unchanged but the surrounding multi-agent UX has widened the gap; tracked separately as v13 items A8/A9.)*
+2. **Devin-level hours-long autonomy** — Devin 2.2 (Apr 2026) added computer-use self-verification + Linux-desktop access; our agent loop still tops out at ~50 steps before compaction / re-plan, and we don't run UI tests against our own output. **Cognition's 2025 acquisition of Windsurf** consolidated three previously-tracked competitors (Devin + Windsurf + Cascade) into one entity — competitive positioning §1 should treat them as a single "Cognition family" going forward.
+3. **Claude Code's MCP catalog** — our MCP client is spec-compliant and we ship a directory, but the Anthropic-curated server catalog continues to grow and now includes the **MCP Apps** extension (interactive UI in conversations) + **MCPB** bundle format from the [2026 MCP roadmap](https://blog.modelcontextprotocol.io/posts/2026-mcp-roadmap/). Tracked as v13 items A1–A4.
+4. **SWE-bench leaderboard position** — Augment Code now leads open agent systems at **72.0% pass@1 SWE-bench Verified** (April 2026), Claude Opus 4.7 hits **87.6% Verified / 64.3% Pro**, Claude Mythos Preview tops the provisional board at 93.9% Verified. We track this in the benchmark panel but haven't entered the leaderboard ourselves.
+5. **Enterprise SSO / audit packaging** — Cody Enterprise and Copilot for Business are further along on SOC 2 Type II, SAML SSO, central policy distribution. **MCP enterprise readiness is now a first-class roadmap workstream** for the protocol (audit/SSO/gateway as extensions, not core), opening a path for VibeCody to lead on open-source MCP enterprise tooling.
+6. **Polished BYOA adapters for Claude/Codex/Cursor** — covered today by the generic `HttpAdapter`; dedicated adapters arrive when upstream APIs stabilise. **JetBrains Junie CLI's "1-click migration from Claude Code, Codex"** (Mar 2026) is the bar for what users now expect; tracked as v13 item A17.
 
 ---
 
-## 16. Headline positioning
+## 16. v13 — April 2026 trend delta + audit reconciliation
+
+This iteration splits into two independent passes against the same fitgap. **§16.1** is the *external* delta — a survey of what shipped in the AI-coding ecosystem between the v0.5.5 refresh (2026-04-17) and today (2026-04-26). **§16.2** is the *internal* delta — a reclassification of previously-claimed gap closures against the audit at [docs/audit/05-fitgap-overstatements.md](./audit/05-fitgap-overstatements.md). Both feed into [Phase 53](./roadmap/#appendix-d--phase-53-april-2026-trend-delta--audit-reconciliation) of the roadmap.
+
+### 16.1 External delta — what the industry shipped
+
+Sources surveyed (web, 2026-04-26): Cursor changelog, Anthropic Claude Code changelog, GitHub Copilot blog, Cognition Devin blog, OpenAI Codex changelog, Google Antigravity changelog, Gemini CLI release notes, JetBrains Junie blog, MCP 2026 roadmap, ACP repo, A2A specification, SWE-bench leaderboards, sandbox provider coverage (E2B / Northflank / Cloudflare / Modal / Vercel / Docker).
+
+**Headline shifts in the eight days since v0.5.5:**
+
+- **Cursor 3.0 (Apr 2)** + **3.2 (Apr 24)** — Agents Window, Design Mode (UI-element annotation in browser), Agent Tabs (side-by-side / grid view), async subagents, multi-root workspaces, multi-repo agent context.
+- **GitHub Copilot Cloud Agent (Apr 1)** — formerly "Copilot coding agent" — no longer PR-only; can branch-only work; **CLI sessions remote-controllable from GitHub.com or GitHub Mobile**. Inline Agent Mode public preview in JetBrains IDEs (Apr 24). Claude Opus 4.7 GA on Copilot for Pro+/Business/Enterprise.
+- **Devin 2.2** — agent now has full Linux desktop, **tests its work via computer use, self-verifies, auto-fixes**. Cognition raising at $25B valuation; Windsurf folded into Cognition family.
+- **OpenAI Codex CLI (Apr 2026)** — **GPT-5.3-Codex-Spark** lightweight model at 1000+ TPS, hooks GA, plugin marketplace browsing, multi-environment app-server sessions, **Amazon Bedrock auth + AWS SigV4 signing** as a first-class provider.
+- **Claude Code** — `/agents` tabbed UI (Running / Library tabs with Run + View instance from Library), parallel MCP server reconnect, plugin-skill hot-reload, isolated-worktree subagent permission fix, YAML-list globs in skill paths, real-time skill progress display.
+- **Gemini CLI v0.38** — **Subagents** (delegating orchestrator pattern), **Chapters** (intent-grouped interactions), Context Compression Service, generalist agent task delegation.
+- **JetBrains Junie CLI (Beta, Mar 2026)** — LLM-agnostic, runs in IDE / terminal / CI/CD / GitHub / GitLab; connects to running JetBrains IDE for full code intelligence; **one-click migration from Claude Code + Codex configs**.
+- **Antigravity 1.20.3 → 1.22.2** — AGENTS.md fallback (in addition to GEMINI.md), Linux sandboxing, MCP authentication improvements, conversation load-time improvements, Auto-continue default-on (deprecated as setting).
+- **MCP 2026 roadmap** — stateless transport for horizontal scale, `.well-known` capability metadata, **MCP Apps** (interactive UI components in conversations), **MCPB** bundle distribution format, enterprise SSO/audit/gateway as extensions.
+- **ACP v0.11.0 (Mar 4)** — Zed + JetBrains official partnership Oct 2025; Anthropic, OpenAI, GitHub, Google all ship implementations; Gemini CLI is the reference implementation. JSON-RPC 2.0 over stdio; **>40% lower prompt response latency** vs. ad-hoc bridges per OpenClaw measurements.
+- **Augment Code SWE-bench Verified 72.0% pass@1** — highest open-system score, no best-of-N tricks.
+- **Sandbox infrastructure mainstreamed** — Cloudflare Sandboxes GA, Vercel/Ramp/Modal/Docker/E2B/Northflank/Together all shipped microVM AI-execution platforms in 2026; isolation tier (microVM > gVisor > containers) is now table-stakes for cloud agents.
+
+**Eleven new gaps surfaced by this delta** (none yet implemented in VibeCody):
+
+| # | Gap | Surfaced by | Notes |
+|---|-----|-------------|-------|
+| A1 | MCP Apps extension — interactive UI components in conversations | MCP 2026 roadmap | New extension; would render dashboards/forms/multi-step workflows directly inside the chat panel. |
+| A2 | MCPB bundle distribution format | MCP 2026 roadmap | Local-server packaging; analogous to VS Code `.vsix` for MCP. |
+| A3 | MCP `.well-known` capability discovery + stateless transport | MCP 2026 roadmap | Lets `vibecli serve` announce MCP endpoints without a live connection; required for horizontal scale. |
+| A4 | ACP server mode (Zed + JetBrains + Neovim editor protocol) | ACP v0.11 | VibeCLI/VibeUI as ACP servers callable from Zed/JetBrains/Neovim — different from being an ACP client. |
+| A5 | Async subagents (long-running, check-back-later) | Cursor 3.2 | Distinct from our current parallel-agent worktree pool, which assumes synchronous oversight. |
+| A6 | Multi-root workspace agent — agent that targets several working dirs per turn | Cursor 3.2, Codex CLI | Our `--add-dir` is read-only; this is *write* across roots in one agent invocation. |
+| A7 | Browser-native UI-element annotation Design Mode | Cursor 3.0 | Existing `design_mode.rs` annotates static screenshots; this is live DOM annotation in a controlled browser. |
+| A8 | Self-verifying agent loop (UI/desktop tests against own output, auto-fix) | Devin 2.2 | Closes the verification loop our `visual_verify.rs` opened — currently we screenshot-diff but don't feed failures back into the agent. |
+| A9 | Cloud-agent remote-control protocol (start local, resume from web/mobile) | Copilot Cloud Agent | VibeMobile pairs with a host but doesn't *resume an in-flight CLI session* the way Copilot's new flow does. |
+| A10 | Skills hot-reload + real-time progress display | Claude Code | Our skill loader requires restart for new skills; no streaming progress UI. |
+| A11 | One-click migration from Claude Code / Codex configs | Junie CLI | Read existing `CLAUDE.md`, `codex.toml`, MCP server lists → emit `VIBECLI.md` + `~/.vibecli/config.toml`. Lowers switching cost. |
+
+Six items from the same survey are **already in flight or partially shipped** and don't count as new gaps:
+
+- **Bedrock auth for our Claude provider** — `provider.rs` already accepts SigV4-signed bearer; needs explicit doc + `vibecli config provider claude --aws` UX.
+- **GPT-5.3-Codex-Spark-class fast inference** — covered by our existing routing layer; needs the model added to `useModelRegistry.ts` once OpenAI exposes it via API.
+- **Generalist routing layer** (Gemini CLI Chapters / generalist agent) — partially covered by our `cost_router.rs` (data-structure-only — see §16.2) and `next_task.rs`.
+- **AGENTS.md ↔ GEMINI.md fallback parser** — our `memory.rs` already reads AGENTS.md / VIBECLI.md / CLAUDE.md; adding `GEMINI.md` is one-line.
+- **Plugin marketplace listing** (Codex CLI) — our existing `plugin_marketplace.rs` covers this; needs remote browsing UX in VibeUI.
+- **Manager/Agents Window UI consolidation** — our `ManagerView.tsx` covers parallel agents; we should explicitly stay distant from Cursor 3's "Agents Window" and Antigravity's "Manager Surface" layout choices on patent grounds (ties to the patent-distance posture in [notes/PATENT_AUDIT_INLINE.md](../notes/PATENT_AUDIT_INLINE.md)).
+
+### 16.2 Internal delta — audit reconciliation
+
+The audit at [docs/audit/05-fitgap-overstatements.md](./audit/05-fitgap-overstatements.md) catalogued modules previously claimed as "closed" that ship data structures + in-memory tests + a panel + a REPL command but lack the I/O layer the gap closure implied. **Six of those have already been converted to real I/O (US-001 web grounding, US-002 A2A, US-003 worktree, US-004 MCP streamable, US-005 voice/whisper, US-006 proactive scanner)**. The remaining 8 modules + the RL-OS subsystem are reclassified as **Partial** in §3 and queued in roadmap Phase 53 for the same conversion treatment:
+
+| Module | Original gap | What's missing | Conversion approach |
+|--------|--------------|----------------|---------------------|
+| `issue_triage.rs` | v7 Gap 10 — autonomous issue classification with GitHub/Linear integration | No HTTP calls to GitHub/Linear | `octocrab` + Linear SDK; gate behind `VIBECLI_GITHUB_TOKEN` / `VIBECLI_LINEAR_TOKEN`; mock-server BDD harness like US-001. |
+| `native_connectors.rs` | v7 Gap 14 — connector trait + 20 service implementations + OAuth | Endpoint URL strings only; no `reqwest`, no async, no OAuth | Phase the 20 connectors; ship 4–5 first (Stripe, Slack, Linear, Notion, GitHub) with real OAuth + `oauth2` crate; defer the remaining 15 to a later slice. |
+| `langgraph_bridge.rs` | v7 Gap 19 — LangGraph-compatible REST API + checkpoint format interop | No HTTP/REST implementation | `axum` server exposing LangGraph's documented routes; checkpoint JSON schema validation; LangGraph Python SDK conformance test. |
+| `mcts_repair.rs` | v7 Gap 8 — MCTS with UCB1 + rollout via test execution | Has select/expand/backpropagate; rollout never runs actual tests | Wire rollout to `cargo test` / `pytest` / `npm test` per language; cap with per-rollout time budget; record outcome as the reward signal. |
+| `sketch_canvas.rs` | v7 Gap 20 — wireframe → React/HTML/SwiftUI; 3D scene export | Basic shape data; no WebGL, no three.js, no 3D | Defer 3D entirely; ship the 2D wireframe → React JSX path against tldraw or an existing OSS recognizer; mark 3D as out of scope. |
+| `cost_router.rs` | v7 — intelligent cost-aware request routing | Data structures only | Wire to `provider.rs` retry + circuit breaker; track per-(provider, model) latency/cost in `agent_analytics.rs`; routing decision becomes a real function of observed data. |
+| `semantic_index.rs` | v7 Gap 5 — AST-level codebase understanding + call graph + type hierarchy | Line-by-line regex (`trimmed.starts_with("pub fn")`); no tree-sitter; no call graph | Replace regex with `tree-sitter` + per-language grammars (Rust, TS, Python, Go); reuse the index from `vibe-core/src/index/symbol.rs` which already uses tree-sitter. |
+| `linter_aggregator` (in `ai_code_review.rs`) | cr/arch — 8 linters: clippy, eslint, pylint, … | `simulate_linter()` returns canned "Linter check passed" for every file | Spawn each linter as a subprocess; parse stdout; map findings to the existing `Finding` schema; the FP-filter LLM pass already exists. |
+| `rl_*.rs` (8 files, ~31K lines) | RL-OS deep-dive — 30+ algorithms, JIT GPU/TPU kernels, Python bindings | No tch/candle/onnxruntime; "gradient sync" is `Vec<f64>` averaging; no GPU compute; no PyO3 | Ship one algorithm end-to-end first (PPO with `candle` on CPU), then expose via PyO3; the 52 type-system entries become real once *one* training loop is real. |
+
+This is the same playbook that produced the US-001…US-006 conversions — design exists, tests exist, panel exists, REPL command exists; the conversion is purely "wire up the I/O layer + add a mock-server BDD harness". Phase 53 in the roadmap groups these as **US-007…US-015** for tracking parity with the prior conversions.
+
+### 16.3 Updated remaining-parity-gaps list
+
+Combining §15 (six long-horizon items, refreshed for v13) with §16.1 (eleven new external gaps), the **honest open-gaps total is 17**, not 6. The 14 partial items are tracked separately because they have shipped UX surface area — the work to complete them is well-scoped, not open-ended.
+
+---
+
+## 17. Headline positioning
 
 > **VibeCody closes the 136 gaps that matter across 40+ competing AI coding tools — and is the only project that ships competitive entries in every category (terminal, IDE, cloud daemon, review bot, completions, mobile, watch) from a shared Rust + TypeScript monorepo.**
 

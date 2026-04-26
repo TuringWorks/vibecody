@@ -6,10 +6,33 @@ permalink: /roadmap/
 
 # Fit-Gap Analysis & Feature Implementation Roadmap
 
-**Originally published:** February 2026 &middot; **Last refreshed:** 2026-04-17 (v0.5.5)
+**Originally published:** February 2026 &middot; **Last refreshed:** 2026-04-26 (v0.5.6 cycle, post-v13 fitgap)
 **Scope:** VibeCody compared against **30+** competing AI coding products across terminal, editor, cloud-agent, code-review, completions-only, and mobile/watch categories.
 
-> This is now the **single canonical roadmap** — earlier iterations (v5, v6) and the 13 deep-dive fit-gap files are absorbed here and in the companion **[Fit-Gap Analysis](./fit-gap-analysis/)**. The original five-competitor delta (Codex CLI, Claude Code, Antigravity, Cursor, Windsurf) is preserved as a historical record below; phases 23–39 are summarised in the **History appendices** at the end of this document.
+> This is now the **single canonical roadmap** — earlier iterations (v5, v6) and the 13 deep-dive fit-gap files are absorbed here and in the companion **[Fit-Gap Analysis](./fit-gap-analysis/)**. The original five-competitor delta (Codex CLI, Claude Code, Antigravity, Cursor, Windsurf) is preserved as a historical record below; phases 23–39 are summarised in the **History appendices** at the end of this document. The 2026-04-26 trend snapshot (§1bis) and the v13 audit-reconciliation work (Phase 53, [Appendix D](#appendix-d--phase-53-april-2026-trend-delta--audit-reconciliation)) are the freshest layer.
+
+## 1bis. Q2 2026 industry trend snapshot (added 2026-04-26)
+
+The eight days between the v0.5.5 fitgap refresh (2026-04-17) and today produced a denser-than-usual stream of AI-coding-tool releases. Headline shifts that the rest of this document does NOT yet absorb:
+
+| Date | Release | What changed | Impact on VibeCody positioning |
+|------|---------|--------------|--------------------------------|
+| 2025-07 | **Cognition acquires Windsurf** | Devin + Windsurf + Cascade are now one company | §1.2 + §1.3 should treat them as the **Cognition family** rather than three competitors. |
+| 2026-04-01 | **GitHub Copilot Cloud Agent expanded** | No longer PR-only; can branch-only work; CLI sessions controllable from web/mobile | New gap A9 — VibeMobile pairs with hosts but doesn't *resume* CLI sessions. |
+| 2026-04-02 | **Cursor 3.0** | Agents Window, Design Mode (live DOM annotation), Agent Tabs (grid view), multi-repo | New gaps A5–A7. The `await_tool` parity claim from v8 is unchanged but the surface around it widened. |
+| 2026-04-16 | **Claude Opus 4.7 GA** | 87.6% SWE-bench Verified (up from 80.8%); 64.3% SWE-bench Pro; 70% CursorBench | Refresh `useModelRegistry.ts` defaults; add to Counsel default panels. |
+| 2026-04-22 | **Devin 2.2** | Full Linux desktop access; agent self-verifies via computer use, auto-fixes | New gap A8 — `visual_verify.rs` doesn't yet feed failures back into the agent loop. |
+| 2026-04-24 | **Cursor 3.2** | Async subagents, multi-root workspaces | New gap A5 (async) + A6 (multi-root). |
+| 2026-04-24 | **Copilot Inline Agent in JetBrains** | Agent-mode inline chat in JetBrains IDEs | Our JetBrains plugin should match within one minor cycle. |
+| 2026-Q1–Q2 | **MCP 2026 roadmap published** | MCP Apps (interactive UI), MCPB bundle format, `.well-known` capability discovery, stateless transport, enterprise extensions | New gaps A1–A4. Largest single ecosystem shift this quarter. |
+| 2026-Mar | **JetBrains Junie CLI Beta** | LLM-agnostic; runs in IDE/CLI/CI/CD/GitHub/GitLab; **1-click migration from Claude Code + Codex configs** | New gap A11 — migration tooling. Junie sets the bar for switching cost. |
+| 2026-Q1 | **OpenAI Codex CLI v0.116+** | GPT-5.3-Codex-Spark (1000+ TPS), hooks GA, plugin marketplace, **AWS Bedrock auth + SigV4** | Bedrock partial; Spark drops in via existing routing layer. |
+| 2026-Mar | **ACP v0.11.0** | Zed + JetBrains official partnership Oct 2025; Anthropic, OpenAI, GitHub, Google all ship implementations | New gap A4 — VibeCLI/VibeUI as ACP **server**, not just client. |
+| 2026-Apr | **Antigravity 1.20.3 → 1.22.2** | AGENTS.md fallback, Linux sandboxing, MCP auth | One-line `memory.rs` addition for `GEMINI.md` fallback. |
+| 2026-Apr | **Augment Code 72.0% SWE-bench Verified pass@1** | Highest open-system score, no best-of-N tricks | Updates §1.4 / §9.3 SWE-bench callout. |
+| 2026-Q1 | **Sandbox infrastructure GA wave** | Cloudflare Sandboxes GA; E2B/Northflank/Modal/Vercel/Docker microVM platforms shipped | Optional roadmap track: VibeCLI `--cloud` provider for users without local sandboxing. |
+
+The 17 gaps surfaced by these releases (11 new + 6 covered by existing infra) are catalogued in §16.1 of the [Fit-Gap Analysis](./fit-gap-analysis/) and queued in [Phase 53](#appendix-d--phase-53-april-2026-trend-delta--audit-reconciliation) below.
 
 ## 1. Competitive Landscape Summary
 
@@ -1091,3 +1114,69 @@ Every competitor has a better story in *one* dimension; none of them ship a cohe
 ## Appendix C — Phases 40–52 and topic-specific deep-dives
 
 Iterations v10 (phases 40–43), v11 (phases 45–48), v12 (phases 49–52) and the five topic-specific fit-gaps (AgentOS, Pi-mono, RL-OS, Paperclip, Code-Review+Architecture) are fully absorbed into the [Fit-Gap Analysis](./fit-gap-analysis/). That document is the canonical source for the module-by-module ledger; this roadmap tracks competitive positioning and phase-level history only.
+
+---
+
+## Appendix D — Phase 53: April 2026 trend delta + audit reconciliation
+
+**Input:** §16 of the [Fit-Gap Analysis](./fit-gap-analysis/) — 11 newly-identified open gaps (A1–A11) from the 2026-04-26 industry trend survey, plus 8 audit-flagged modules + the RL-OS subsystem queued for real-I/O conversion (US-007…US-015) following the same playbook as the already-shipped US-001…US-006.
+
+**Outcome target:** v0.5.6 ships with all eight audit-flagged modules converted to real I/O (US-007…US-014), one RL-OS algorithm shipped end-to-end via candle (US-015), and at least 6 of the 11 v13 trend-delta gaps shipped (A1–A4 MCP work + A11 Junie-style migration tool + A6 multi-root agent). The remaining 5 v13 items (A5/A7/A8/A9/A10) are scheduled into v0.5.7 since they require larger UX work or new dependencies.
+
+**Why these are grouped into one phase rather than split:** the audit-reconciliation work and the new MCP/ACP work both need the same `axum` + `reqwest` + mock-server-BDD-harness scaffolding. Sequencing them lets each US-### conversion reuse the harness from the previous one — that's the productivity pattern that produced the US-001…US-006 cadence in 6 weeks.
+
+### 53.1 Audit reconciliation — real-I/O conversions (P0)
+
+Same playbook as US-001 (web grounding) → US-006 (proactive scanner). Each conversion adds an axum mock-server BDD harness identical in shape to the existing ones in `vibecli-cli/tests/`.
+
+- **US-007 — `issue_triage.rs` GitHub/Linear HTTP** — `octocrab` + Linear SDK; `VIBECLI_GITHUB_TOKEN` / `VIBECLI_LINEAR_TOKEN` env gating; mock server for issue listing + label updates + comment posting; 4 BDD scenarios.
+- **US-008 — `native_connectors.rs` first 5 connectors** — Stripe + Slack + Linear + Notion + GitHub with real `oauth2`-crate flow; the remaining 15 connectors stay endpoint-string-only and are explicitly marked **deferred**; 8 BDD scenarios across the 5 connectors.
+- **US-009 — `langgraph_bridge.rs` REST API** — `axum` server exposing LangGraph's documented routes (`/threads/{id}/runs`, `/threads/{id}/state`); checkpoint JSON schema validation; 5 BDD scenarios using the LangGraph Python SDK as the conformance test.
+- **US-010 — `mcts_repair.rs` real rollouts** — wire `rollout` to spawn `cargo test` / `pytest` / `npm test` per detected language; per-rollout time budget; reward = test exit code; 4 BDD scenarios on synthetic broken-test repos under `tests/fixtures/mcts/`.
+- **US-011 — `sketch_canvas.rs` 2D wireframe → React JSX** — defer 3D entirely (mark out-of-scope in the doc + scoreboard); ship the 2D path against tldraw's JSON schema or an OSS recognizer like `react-sketch-canvas`; 3 BDD scenarios.
+- **US-012 — `cost_router.rs` real routing** — wire to `provider.rs` retry + circuit breaker; track per-(provider, model) latency/cost in `agent_analytics.rs`; routing decisions become a real function of observed data; 4 BDD scenarios using a mock provider with controllable latency.
+- **US-013 — `semantic_index.rs` tree-sitter rewrite** — replace the `trimmed.starts_with("pub fn")` regex with `tree-sitter` + per-language grammars (Rust, TS, Python, Go); reuse the existing tree-sitter setup from `vibe-core/src/index/symbol.rs`; add call-graph extraction; 6 BDD scenarios.
+- **US-014 — `linter_aggregator` real linters** — replace `simulate_linter()` with subprocess spawn for clippy / eslint / pylint / golangci-lint / shellcheck / hadolint / yamllint / mypy; parse stdout into the existing `Finding` schema; the FP-filter LLM pass already exists; 8 BDD scenarios (one per linter).
+- **US-015 — RL-OS one real algorithm end-to-end** — ship PPO with `candle` on CPU as the proof-of-shape; expose via PyO3 bindings; the 52 type-system entries become "real" once *one* training loop is real and the others can follow incrementally. Test: `tests/rl_ppo_cartpole.rs` runs the loop on a small env and asserts reward improves over 100 episodes.
+
+### 53.2 v13 trend-delta items — new builds (P0/P1)
+
+Numbered to match §16.1 of the [Fit-Gap Analysis](./fit-gap-analysis/).
+
+**P0 (this cycle):**
+
+- **A1 — MCP Apps support** — render `application/vnd.mcp.app+json` payloads as embedded React in `AIChat.tsx`; security: same CSP as the WASM extension host; 4 BDD scenarios.
+- **A2 — MCPB bundle format** — `vibecli mcp install <bundle.mcpb>` extracts + verifies signature + registers the local server; round-trip with `vibecli mcp pack` for our own example servers; 3 BDD scenarios.
+- **A3 — MCP `.well-known` capability discovery** — `vibecli serve` exposes `GET /.well-known/mcp.json` listing tool/prompt/resource catalogs; capability advertisement without a live SSE connection; 3 BDD scenarios.
+- **A4 — ACP server mode** — VibeCLI as an ACP server callable from Zed/JetBrains/Neovim; reuse the JSON-RPC scaffolding from our existing MCP client; ship the matching JetBrains plugin update (the Neovim plugin already speaks ACP-shaped JSON-RPC); 5 BDD scenarios using the official ACP test harness.
+- **A6 — Multi-root workspace agent** — extend `--add-dir` from read-only to read+write; agent tool calls accept a `workspace_root: <path>` field; sandbox enforces per-root permissions; 4 BDD scenarios across 2-root and 3-root configurations.
+- **A11 — Migration tool from Claude Code / Codex configs** — `vibecli migrate from-claude-code` / `vibecli migrate from-codex`: read existing `CLAUDE.md`, `~/.claude.json`, `codex.toml`, MCP server lists; emit `VIBECLI.md` + `~/.vibecli/config.toml` + `~/.vibecli/mcp_servers.toml`; 6 BDD scenarios covering common config shapes.
+
+**P1 (next cycle, v0.5.7):**
+
+- **A5 — Async subagents** — extend `nested_agents.rs` with `await_later: bool`; long-running subagents persist state in SQLite, reachable via `/agents resume <id>`; UI surface in `NestedAgentsPanel.tsx` showing "running in background" + notification on completion.
+- **A7 — Browser-native UI-element annotation Design Mode** — extend `desktop_agent.rs` browser-control track with DOM-element click-to-annotate, generating natural-language instructions tied to specific selectors. **Patent-distance check required** — design must remain distant from Cursor 3's annotation UX; consult [notes/PATENT_AUDIT_INLINE.md](../notes/PATENT_AUDIT_INLINE.md) before building.
+- **A8 — Self-verifying agent loop** — feed `visual_verify.rs` failures back into the agent loop as `ToolResult { success: false, output: "<diff details>" }`; bound the auto-fix loop at 3 iterations; `desktop_agent.rs` tests the running app via real clicks/typing.
+- **A9 — Cloud-agent remote-control protocol** — extend the VibeMobile/VibeWatch pairing flow with a `/sessions/<id>/resume` endpoint; the server-side session state is already persisted in `~/.vibecli/sessions/`; needs a session-handoff UX in the watch + mobile clients.
+- **A10 — Skills hot-reload + real-time progress** — `notify`-based watcher on the skills directory; emit `SkillEvent::Reloaded` to all attached agents; UI streams skill execution events via the existing event bus.
+
+### 53.3 Patent-distance posture
+
+Three of the v13 items (A5 async subagents, A7 Design Mode, A10 manager-style UI consolidation hinted in §1bis) sit close to product surfaces that competitors have invested heavily in. Per the existing patent-distance posture for `diffcomplete` ([notes/PATENT_AUDIT_INLINE.md](../notes/PATENT_AUDIT_INLINE.md), gitignored working doc), each of these designs must:
+
+1. Pass a patent-distance check before implementation begins (consult Phase 1 + 2 diffcomplete protocol).
+2. Document the chosen design's distance from the nearest prior-art claim in a per-feature note inside `notes/`.
+3. Avoid copying the layout/interaction language used in the competitor's documentation or marketing.
+
+This is a deliberate choice to keep design freedom on AI-editing surfaces, not just a CYA posture — it's already shaped Phase 1 + Phase 2 of `diffcomplete` and was validated by the user as the right trade-off (memory: feedback_patent_distance_priority).
+
+### 53.4 Out-of-scope for Phase 53
+
+To keep the phase tractable, the following are **explicitly deferred**:
+
+- **Sketch Canvas 3D / WebGL / three.js** (US-011 ships only the 2D wireframe → JSX path). 3D scene export is removed from the gap list as a non-goal.
+- **The other 15 native connectors** in US-008 (only 5 ship with real OAuth this cycle).
+- **The remaining 30+ RL algorithms** in US-015 (only PPO ships end-to-end this cycle; the rest follow once the candle/PyO3 scaffolding is proven).
+- **Devin-level hours-long autonomy** (long-horizon item from §15 of the fitgap; not addressed here).
+- **Cursor's proprietary Tab model** (long-horizon; we continue to use Ollama/cloud FIM).
+- **Enterprise SSO / audit packaging** (long-horizon; tracked separately under MCP enterprise extensions in Phase 54).
