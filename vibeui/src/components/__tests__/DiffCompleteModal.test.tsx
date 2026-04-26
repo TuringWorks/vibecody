@@ -298,6 +298,140 @@ describe('DiffCompleteModal — flow', () => {
     });
   });
 
+  it('sends previousDiff and refinement as null on the first generate call', async () => {
+    mockInvoke.mockResolvedValueOnce({
+      unified_diff: [
+        "--- a/src/lib.rs",
+        "+++ b/src/lib.rs",
+        "@@ -1,3 +1,3 @@",
+        " line 1",
+        "-line 2",
+        "+LINE TWO",
+        " line 3",
+      ].join("\n"),
+      explanation: null,
+      model_name: "mock",
+    });
+
+    render(<DiffCompleteModal {...baseProps} />);
+    fireEvent.change(screen.getByPlaceholderText(/Describe the change/i), { target: { value: "x" } });
+    fireEvent.click(screen.getByText(/Generate diff/i));
+
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith("diffcomplete_generate", expect.objectContaining({
+        previousDiff: null,
+        refinement: null,
+      }));
+    });
+  });
+
+  it('refinement input is not shown until a diff arrives', () => {
+    render(<DiffCompleteModal {...baseProps} />);
+    expect(screen.queryByLabelText(/Regenerate with refinement/i)).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/tighten the error path/i)).not.toBeInTheDocument();
+  });
+
+  it('Regenerate sends previousDiff + refinement + the original instruction', async () => {
+    const firstDiff = [
+      "--- a/src/lib.rs",
+      "+++ b/src/lib.rs",
+      "@@ -1,3 +1,3 @@",
+      " line 1",
+      "-line 2",
+      "+LINE TWO",
+      " line 3",
+    ].join("\n");
+    const secondDiff = [
+      "--- a/src/lib.rs",
+      "+++ b/src/lib.rs",
+      "@@ -1,3 +1,3 @@",
+      " line 1",
+      "-line 2",
+      "+SECOND PASS",
+      " line 3",
+    ].join("\n");
+
+    mockInvoke
+      .mockResolvedValueOnce({ unified_diff: firstDiff, explanation: null, model_name: "mock" })
+      .mockResolvedValueOnce({ unified_diff: secondDiff, explanation: null, model_name: "mock" });
+
+    render(<DiffCompleteModal {...baseProps} />);
+    fireEvent.change(screen.getByPlaceholderText(/Describe the change/i), {
+      target: { value: "rename line 2" },
+    });
+    fireEvent.click(screen.getByText(/Generate diff/i));
+
+    const refineBox = await screen.findByPlaceholderText(/tighten the error path/i);
+    fireEvent.change(refineBox, { target: { value: "  use SECOND PASS instead  " } });
+    fireEvent.click(screen.getByLabelText(/Regenerate with refinement/i));
+
+    await waitFor(() => {
+      const calls = mockInvoke.mock.calls.filter(c => c[0] === "diffcomplete_generate");
+      expect(calls.length).toBe(2);
+      expect(calls[1][1]).toMatchObject({
+        instruction: "rename line 2",
+        previousDiff: firstDiff,
+        refinement: "use SECOND PASS instead",
+      });
+    });
+  });
+
+  it('clears the refinement field after Regenerate fires', async () => {
+    const firstDiff = [
+      "--- a/src/lib.rs",
+      "+++ b/src/lib.rs",
+      "@@ -1,3 +1,3 @@",
+      " line 1",
+      "-line 2",
+      "+LINE TWO",
+      " line 3",
+    ].join("\n");
+
+    mockInvoke
+      .mockResolvedValueOnce({ unified_diff: firstDiff, explanation: null, model_name: "mock" })
+      .mockResolvedValueOnce({ unified_diff: firstDiff, explanation: null, model_name: "mock" });
+
+    render(<DiffCompleteModal {...baseProps} />);
+    fireEvent.change(screen.getByPlaceholderText(/Describe the change/i), {
+      target: { value: "x" },
+    });
+    fireEvent.click(screen.getByText(/Generate diff/i));
+
+    const refineBox = await screen.findByPlaceholderText(/tighten the error path/i) as HTMLTextAreaElement;
+    fireEvent.change(refineBox, { target: { value: "more concise" } });
+    expect(refineBox.value).toBe("more concise");
+
+    fireEvent.click(screen.getByLabelText(/Regenerate with refinement/i));
+
+    await waitFor(() => {
+      const refreshed = screen.getByPlaceholderText(/tighten the error path/i) as HTMLTextAreaElement;
+      expect(refreshed.value).toBe("");
+    });
+  });
+
+  it('Regenerate button is disabled when refinement is empty', async () => {
+    mockInvoke.mockResolvedValueOnce({
+      unified_diff: [
+        "--- a/src/lib.rs",
+        "+++ b/src/lib.rs",
+        "@@ -1,3 +1,3 @@",
+        " line 1",
+        "-line 2",
+        "+LINE TWO",
+        " line 3",
+      ].join("\n"),
+      explanation: null,
+      model_name: "mock",
+    });
+
+    render(<DiffCompleteModal {...baseProps} />);
+    fireEvent.change(screen.getByPlaceholderText(/Describe the change/i), { target: { value: "x" } });
+    fireEvent.click(screen.getByText(/Generate diff/i));
+
+    const regen = await screen.findByLabelText(/Regenerate with refinement/i);
+    expect(regen).toBeDisabled();
+  });
+
   it('removes a chip via its × button and drops it from the payload', async () => {
     mockOpen.mockResolvedValueOnce(["/abs/src/helper.rs"]);
     mockInvoke.mockImplementation((cmd: string, args: { path?: string }) => {

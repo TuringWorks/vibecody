@@ -55,7 +55,10 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
   const [explanation, setExplanation] = useState<string | null>(null);
   const [additionalFiles, setAdditionalFiles] = useState<AdditionalFile[]>([]);
   const [pickerBusy, setPickerBusy] = useState(false);
+  const [lastDiff, setLastDiff] = useState<string>("");
+  const [refinement, setRefinement] = useState<string>("");
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const refineRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (open) {
@@ -66,6 +69,8 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
       setExplanation(null);
       setAdditionalFiles([]);
       setPickerBusy(false);
+      setLastDiff("");
+      setRefinement("");
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
@@ -102,7 +107,7 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
     setAdditionalFiles(prev => prev.filter(f => f.path !== path));
   }, []);
 
-  const submit = useCallback(async () => {
+  const runGenerate = useCallback(async (opts: { previousDiff?: string; refinement?: string } = {}) => {
     if (!instruction.trim()) return;
     setPhase("loading");
     setError("");
@@ -133,6 +138,8 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
         instruction: instruction.trim(),
         provider,
         additionalFiles: additionalFiles.length ? additionalFiles : null,
+        previousDiff: opts.previousDiff && opts.previousDiff.length ? opts.previousDiff : null,
+        refinement: opts.refinement && opts.refinement.trim().length ? opts.refinement.trim() : null,
       });
 
       const applied = applyUnifiedDiff(originalContent, res.unified_diff);
@@ -143,6 +150,7 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
       }
       setModified(applied);
       setExplanation(res.explanation);
+      setLastDiff(res.unified_diff);
       setPhase("review");
     } catch (e) {
       setError(String(e));
@@ -150,6 +158,16 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
     }
   }, [instruction, originalContent, selectionText, selectionStartLine,
       selectionEndLine, filePath, language, provider, additionalFiles]);
+
+  const submit = useCallback(() => runGenerate(), [runGenerate]);
+
+  const regenerate = useCallback(async () => {
+    if (!refinement.trim() || !lastDiff) return;
+    const refineNow = refinement.trim();
+    const prevNow = lastDiff;
+    setRefinement("");
+    await runGenerate({ previousDiff: prevNow, refinement: refineNow });
+  }, [refinement, lastDiff, runGenerate]);
 
   const handleReviewApply = useCallback((result: string | null) => {
     onApply(result);
@@ -288,6 +306,12 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
               {explanation}
             </div>
           )}
+          <div className="panel-card" style={{
+            padding: 8, fontSize: "var(--font-size-xs)", color: "var(--text-secondary)",
+            display: "flex", flexDirection: "column", gap: 2,
+          }}>
+            <div><strong>Original instruction:</strong> {instruction}</div>
+          </div>
           <div style={{ flex: 1, minHeight: 0 }}>
             <DiffReviewPanel
               original={originalContent}
@@ -296,6 +320,41 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
               language={language}
               onApply={handleReviewApply}
             />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <label
+              htmlFor="diffcomplete-refinement"
+              className="panel-label"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              Refine this diff (layered on the original instruction)
+            </label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <textarea
+                id="diffcomplete-refinement"
+                ref={refineRef}
+                className="panel-input panel-input-full panel-textarea"
+                style={{ minHeight: 60, fontFamily: "var(--font-sans)" }}
+                placeholder="e.g. tighten the error path, use the helper from utils"
+                value={refinement}
+                onChange={e => setRefinement(e.target.value)}
+                onKeyDown={e => {
+                  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                    e.preventDefault();
+                    void regenerate();
+                  }
+                }}
+              />
+              <button
+                className="panel-btn panel-btn-secondary"
+                disabled={!refinement.trim() || !lastDiff}
+                onClick={regenerate}
+                aria-label="Regenerate with refinement"
+                style={{ alignSelf: "flex-end" }}
+              >
+                Regenerate (⌘⏎)
+              </button>
+            </div>
           </div>
         </div>
       )}

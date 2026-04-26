@@ -40,6 +40,18 @@ pub struct DiffCompleteRequest {
     pub instruction: String,
     #[serde(default)]
     pub additional_files: Vec<AdditionalFile>,
+    /// The unified diff returned by the previous generate() call in this
+    /// review session, if the user is iterating. Rendered into the prompt as
+    /// a "Previous attempt" block so the model can refine rather than restart.
+    /// User-supplied chain — never auto-collected from edit history.
+    #[serde(default)]
+    pub previous_diff: Option<String>,
+    /// The user's natural-language refinement instruction for the previous
+    /// diff (e.g. "tighten the error path"). Layered on top of `instruction`,
+    /// not a replacement — keeping the chain visible is part of the explicit-
+    /// user-direction posture.
+    #[serde(default)]
+    pub refinement: Option<String>,
 }
 
 /// A single related file the user explicitly added as context.
@@ -123,6 +135,18 @@ pub fn build_user_prompt(req: &DiffCompleteRequest) -> String {
             out.push_str(&file.content);
             out.push_str("\n");
         }
+    }
+
+    if let Some(prev) = req.previous_diff.as_ref().filter(|s| !s.trim().is_empty()) {
+        out.push_str("\n=== Previous attempt (your last unified diff) ===\n");
+        out.push_str(prev);
+        out.push_str("\n");
+    }
+
+    if let Some(refine) = req.refinement.as_ref().filter(|s| !s.trim().is_empty()) {
+        out.push_str("\nRefinement: ");
+        out.push_str(refine);
+        out.push_str("\n");
     }
 
     out.push_str("\nInstruction: ");
@@ -234,6 +258,8 @@ mod tests {
             after_context: "}".to_string(),
             instruction: "rename x to count".to_string(),
             additional_files: Vec::new(),
+            previous_diff: None,
+            refinement: None,
         }
     }
 
@@ -288,6 +314,46 @@ mod tests {
         let af_idx = p.find("Additional files").unwrap();
         let instr_idx = p.find("Instruction:").unwrap();
         assert!(af_idx < instr_idx);
+    }
+
+    #[test]
+    fn user_prompt_omits_previous_attempt_when_absent() {
+        let p = build_user_prompt(&request_stub());
+        assert!(!p.contains("Previous attempt"));
+        assert!(!p.contains("Refinement:"));
+    }
+
+    #[test]
+    fn user_prompt_renders_previous_attempt_and_refinement() {
+        let req = DiffCompleteRequest {
+            previous_diff: Some(
+                "--- a/src/lib.rs\n+++ b/src/lib.rs\n@@ -10 +10 @@\n-let x = 1;\n+let count = 1;\n".to_string(),
+            ),
+            refinement: Some("also add a doc comment".to_string()),
+            ..request_stub()
+        };
+        let p = build_user_prompt(&req);
+        assert!(p.contains("=== Previous attempt (your last unified diff) ==="));
+        assert!(p.contains("+let count = 1;"));
+        assert!(p.contains("Refinement: also add a doc comment"));
+        // Order: previous attempt → refinement → instruction.
+        let prev_idx = p.find("Previous attempt").unwrap();
+        let refine_idx = p.find("Refinement:").unwrap();
+        let instr_idx = p.find("Instruction:").unwrap();
+        assert!(prev_idx < refine_idx);
+        assert!(refine_idx < instr_idx);
+    }
+
+    #[test]
+    fn user_prompt_treats_blank_refinement_as_absent() {
+        let req = DiffCompleteRequest {
+            previous_diff: Some("--- a/x\n+++ b/x\n".to_string()),
+            refinement: Some("   \n  ".to_string()),
+            ..request_stub()
+        };
+        let p = build_user_prompt(&req);
+        assert!(p.contains("Previous attempt"));
+        assert!(!p.contains("Refinement:"));
     }
 
     #[test]
