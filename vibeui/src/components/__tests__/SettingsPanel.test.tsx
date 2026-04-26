@@ -193,47 +193,4 @@ describe('SettingsPanel', () => {
     });
   });
 
-  // ── Inline completion toggle ──────────────────────────────────────────
-
-  describe('Inline completion toggle', () => {
-    beforeEach(() => {
-      localStorage.removeItem("vibeui-ai-inline-completion-enabled");
-    });
-
-    it('defaults to enabled when no setting stored', () => {
-      render(<SettingsPanel />);
-      fireEvent.click(screen.getAllByText('Appearance')[0]);
-      const label = screen.getByText('Inline completion (ghost text)');
-      const checkbox = label.closest('label')!.querySelector('input[type="checkbox"]') as HTMLInputElement;
-      expect(checkbox.checked).toBe(true);
-    });
-
-    it('reflects stored "false" value on mount', () => {
-      localStorage.setItem("vibeui-ai-inline-completion-enabled", "false");
-      render(<SettingsPanel />);
-      fireEvent.click(screen.getAllByText('Appearance')[0]);
-      const label = screen.getByText('Inline completion (ghost text)');
-      const checkbox = label.closest('label')!.querySelector('input[type="checkbox"]') as HTMLInputElement;
-      expect(checkbox.checked).toBe(false);
-    });
-
-    it('writes "false" to localStorage when toggled off', () => {
-      render(<SettingsPanel />);
-      fireEvent.click(screen.getAllByText('Appearance')[0]);
-      const label = screen.getByText('Inline completion (ghost text)');
-      const checkbox = label.closest('label')!.querySelector('input[type="checkbox"]') as HTMLInputElement;
-      fireEvent.click(checkbox);
-      expect(localStorage.getItem("vibeui-ai-inline-completion-enabled")).toBe("false");
-    });
-
-    it('writes "true" to localStorage when toggled back on', () => {
-      localStorage.setItem("vibeui-ai-inline-completion-enabled", "false");
-      render(<SettingsPanel />);
-      fireEvent.click(screen.getAllByText('Appearance')[0]);
-      const label = screen.getByText('Inline completion (ghost text)');
-      const checkbox = label.closest('label')!.querySelector('input[type="checkbox"]') as HTMLInputElement;
-      fireEvent.click(checkbox);
-      expect(localStorage.getItem("vibeui-ai-inline-completion-enabled")).toBe("true");
-    });
-  });
 });

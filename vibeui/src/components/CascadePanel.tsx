@@ -14,8 +14,7 @@ import { ChevronDown } from "lucide-react";
 
 const KIND_ICONS: Record<FlowEventKind, string> = {
  chat: "",
- inline_edit: "",
- inline_generate: "",
+ diffcomplete: "",
  agent_step: "",
  agent_complete: "",
  agent_partial: "",
@@ -25,8 +24,7 @@ const KIND_ICONS: Record<FlowEventKind, string> = {
 
 const KIND_LABELS: Record<FlowEventKind, string> = {
  chat: "Chat",
- inline_edit: "Inline Edit",
- inline_generate: "Generate",
+ diffcomplete: "DiffComplete",
  agent_step: "Agent Step",
  agent_complete: "Agent Done",
  agent_partial: "Agent Partial",
@@ -79,7 +77,7 @@ export function CascadePanel({ onInjectContext }: CascadePanelProps) {
  onInjectContext?.(text);
  }, [onInjectContext]);
 
- const filters: FilterKind[] = ["all", "chat", "inline_edit", "agent_step", "agent_complete", "terminal_cmd", "file_edit"];
+ const filters: FilterKind[] = ["all", "chat", "diffcomplete", "agent_step", "agent_complete", "terminal_cmd", "file_edit"];
 
  return (
  <div className="panel-container">

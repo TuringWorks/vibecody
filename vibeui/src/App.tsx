@@ -11,8 +11,6 @@ import Editor, { DiffEditor, OnMount } from "@monaco-editor/react";
 import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
 import { open } from "@tauri-apps/plugin-dialog";
-import { InlineChat } from "./components/InlineChat";
-import type { InlineChatSelection } from "./components/InlineChat";
 import { DiffCompleteModal } from "./components/DiffCompleteModal";
 import { Terminal } from "./components/Terminal";
 import { BrowserPanel } from "./components/BrowserPanel";
@@ -35,7 +33,6 @@ import ExtensionHostWorker from "./extensions/ExtensionHost?worker";
 import { DiffReviewPanel, DiffReviewErrorBoundary } from "./components/DiffReviewPanel";
 import { useCollab } from "./hooks/useCollab";
 import { flowContext } from "./utils/FlowContext";
-import { supercompleteEngine } from "./utils/SupercompleteEngine";
 import { OnboardingTour } from "./components/OnboardingTour";
 import { GroupedTabBar } from "./components/GroupedTabBar";
 import { MenuBar, MenuGroup } from "./components/MenuBar";
@@ -492,11 +489,6 @@ function App() {
 
   const cursorUpdateTimeoutRef = useRef<number | null>(null);
 
-  // Inline Chat (Cmd+K) state
-  const [inlineChat, setInlineChat] = useState<{
-    selection: InlineChatSelection;
-    position: { top: number; left: number };
-  } | null>(null);
   // DiffComplete (⌘.) state — explicit-trigger, diff-output AI edit
   const [diffComplete, setDiffComplete] = useState<{
     filePath: string;
@@ -511,14 +503,7 @@ function App() {
   const currentDirectoryRef = useRef(currentDirectory);
   currentDirectoryRef.current = currentDirectory;
 
-  // Recent edits buffer for next-edit prediction
-  const recentEditsRef = useRef<Array<{
-    line: number; col: number; old_text: string; new_text: string; elapsed_ms: number;
-  }>>([]);
-  const nextEditDebounceRef = useRef<number | null>(null);
-
   const handleEditorDidMount: OnMount = (editor, monaco) => {
-    // Store editor reference for Inline Chat
     editorRef.current = editor;
 
     // Register VibeUI theme with Monaco so the editor matches the app theme
@@ -551,41 +536,6 @@ function App() {
     }
 
     const getRootPath = () => workspaceFolders[0] || ""; // Simple assumption for MVP
-
-    // ── Cmd+K: Inline Chat (edit selection) or Generate Code (no selection) ──
-    editor.addCommand(
-      monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK,
-      () => {
-        const selection = editor.getSelection();
-        const model = editor.getModel();
-        if (!model) return;
-
-        const pos = editor.getPosition();
-        const lineNum = pos?.lineNumber ?? 1;
-        const lineTop = editor.getTopForLineNumber(lineNum);
-        const scrollTop = editor.getScrollTop();
-        const layoutInfo = editor.getLayoutInfo();
-        const editorDom = editor.getDomNode();
-        const rect = editorDom?.getBoundingClientRect() ?? { top: 0, left: 0 };
-
-        const hasSelection = selection && !selection.isEmpty();
-        const selectedText = hasSelection ? model.getValueInRange(selection) : "";
-
-        setInlineChat({
-          selection: {
-            text: selectedText,
-            startLine: hasSelection ? selection.startLineNumber - 1 : lineNum - 1,
-            endLine: hasSelection ? selection.endLineNumber - 1 : lineNum - 1,
-            filePath: activeFilePath ?? "",
-            language: model.getLanguageId(),
-          },
-          position: {
-            top: rect.top + lineTop - scrollTop + 20,
-            left: rect.left + layoutInfo.contentLeft + 20,
-          },
-        });
-      }
-    );
 
     // ── Cmd+. : DiffComplete (diff-mode AI edit) ──
     editor.addCommand(
@@ -720,106 +670,6 @@ function App() {
         } catch (e) {
           console.error("LSP Definition failed:", e);
           return null;
-        }
-      }
-    });
-
-    // Phase 3: Inline AI completions (ghost text / FIM)
-    // Gated by the `vibeui-ai-inline-completion-enabled` setting (Settings → Appearance → AI).
-    // When disabled, `provideInlineCompletions` returns empty so no model inference is triggered.
-    if (typeof (monaco.languages as any).registerInlineCompletionsProvider === 'function') {
-      (monaco.languages as any).registerInlineCompletionsProvider('*', {
-        provideInlineCompletions: async (model: any, position: any) => {
-          if (localStorage.getItem("vibeui-ai-inline-completion-enabled") === "false") return { items: [] };
-          const provider = selectedProviderRef.current;
-          if (!provider) return { items: [] };
-
-          const text = model.getValue() as string;
-          const offset = model.getOffsetAt(position) as number;
-          const prefix = text.slice(0, offset);
-          const suffix = text.slice(offset);
-          const language = model.getLanguageId() as string;
-          const filePath = model.uri.path as string;
-
-          // Try next-edit prediction first (debounced)
-          if (nextEditDebounceRef.current) {
-            window.clearTimeout(nextEditDebounceRef.current);
-          }
-          const nextEditPromise = new Promise<string | null>((resolve) => {
-            nextEditDebounceRef.current = window.setTimeout(async () => {
-              try {
-                const pred = await invoke<{
-                  target_line: number; target_col: number; suggested_text: string; confidence: number;
-                } | null>("predict_next_edit", {
-                  currentFile: filePath,
-                  content: text,
-                  cursorLine: position.lineNumber - 1,
-                  cursorCol: position.column - 1,
-                  recentEdits: recentEditsRef.current.slice(-5).map(e => ({ ...e, elapsed_ms: Date.now() - e.elapsed_ms })),
-                  provider,
-                });
-                resolve(pred && pred.confidence >= 0.5 ? pred.suggested_text : null);
-              } catch {
-                resolve(null);
-              }
-            }, 500);
-          });
-
-          // Also request FIM completion in parallel
-          const fimPromise = invoke<string>("request_inline_completion", {
-            prefix, suffix, language, provider,
-          }).catch(() => null);
-
-          // Supercomplete: cross-file context via embedding search (races alongside FIM+next-edit)
-          const supercompletePromise = supercompleteEngine.predict({
-            filePath,
-            prefix,
-            suffix,
-            language,
-            cursorLine: position.lineNumber - 1,
-            cursorCol: position.column - 1,
-            recentEdits: recentEditsRef.current.slice(-10).map(e => ({ ...e, elapsed_ms: Date.now() - e.elapsed_ms })),
-            provider,
-          }).catch(() => null);
-
-          const [nextEdit, fim, superResult] = await Promise.all([nextEditPromise, fimPromise, supercompletePromise]);
-          // Prefer supercomplete if it has high confidence, else next-edit, else FIM
-          const suggestion = (superResult && superResult.confidence >= 0.65)
-            ? superResult.insertText
-            : nextEdit ?? fim ?? null;
-          if (!suggestion) return { items: [] };
-          return { items: [{ insertText: suggestion }] };
-        },
-        freeInlineCompletions: () => {},
-      });
-    }
-
-    // Track content changes for next-edit prediction
-    editor.onDidChangeModelContent((event: any) => {
-      const model = editor.getModel();
-      if (!model) return;
-      const now = Date.now();
-      for (const change of event.changes) {
-        // old_text extraction is best-effort: after the model is updated,
-        // the old range may no longer be valid (e.g. bulk content replacement
-        // during diff apply). Wrap in try-catch to prevent crash.
-        let oldText = "";
-        if (change.rangeLength > 0) {
-          try {
-            oldText = model.getValueInRange(change.range).slice(0, 50);
-          } catch (_e) {
-            // Range out of bounds on the new model — expected during diff apply
-          }
-        }
-        recentEditsRef.current.push({
-          line: change.range.startLineNumber - 1,
-          col: change.range.startColumn - 1,
-          old_text: oldText,
-          new_text: change.text.slice(0, 50),
-          elapsed_ms: now, // store creation timestamp; converted to relative age at read time
-        });
-        if (recentEditsRef.current.length > 20) {
-          recentEditsRef.current.shift();
         }
       }
     });
@@ -2252,62 +2102,6 @@ function App() {
         onConfirm={modalConfig.onConfirm}
         onCancel={() => setModalOpen(false)}
       />
-      {/* Inline Chat Overlay (Cmd+K) */}
-      {inlineChat && (
-        <InlineChat
-          selection={inlineChat.selection}
-          position={inlineChat.position}
-          provider={selectedProvider}
-          fileContent={editorContent}
-          onAccept={(newText) => {
-            const editor = editorRef.current;
-            const isGenerate = !inlineChat.selection.text.trim();
-            if (editor) {
-              const model = editor.getModel();
-              if (model) {
-                const sel = inlineChat.selection;
-                if (isGenerate) {
-                  // Generate mode: insert at cursor line
-                  const insertLine = sel.startLine + 1;
-                  const col = model.getLineMaxColumn(insertLine);
-                  editor.executeEdits("inline-generate", [{
-                    range: { startLineNumber: insertLine, startColumn: col, endLineNumber: insertLine, endColumn: col },
-                    text: "\n" + newText,
-                    forceMoveMarkers: true,
-                  }]);
-                } else {
-                  // Edit mode: replace selection
-                  const range = {
-                    startLineNumber: sel.startLine + 1,
-                    startColumn: 1,
-                    endLineNumber: sel.endLine + 1,
-                    endColumn: model.getLineMaxColumn(sel.endLine + 1),
-                  };
-                  editor.executeEdits("inline-chat", [{
-                    range,
-                    text: newText,
-                    forceMoveMarkers: true,
-                  }]);
-                }
-              }
-            }
-            flowContext.add({
-              kind: isGenerate ? "inline_generate" : "inline_edit",
-              summary: isGenerate
-                ? `Generated code at line ${inlineChat.selection.startLine + 1} in ${inlineChat.selection.filePath.split("/").pop() ?? "file"}`
-                : `Inline edit in ${inlineChat.selection.filePath.split("/").pop() ?? "file"} (lines ${inlineChat.selection.startLine + 1}–${inlineChat.selection.endLine + 1})`,
-              detail: isGenerate
-                ? `Generated:\n${newText.slice(0, 400)}`
-                : `Original:\n${inlineChat.selection.text.slice(0, 400)}\n\nReplaced with:\n${newText.slice(0, 400)}`,
-              filePath: inlineChat.selection.filePath,
-            });
-            supercompleteEngine.invalidate();
-            setInlineChat(null);
-          }}
-          onReject={() => setInlineChat(null)}
-        />
-      )}
-
       {/* DiffComplete Modal (⌘.) — diff-mode AI edit */}
       {diffComplete && (
         <DiffCompleteModal
@@ -2332,7 +2126,7 @@ function App() {
               forceMoveMarkers: true,
             }]);
             flowContext.add({
-              kind: "inline_edit",
+              kind: "diffcomplete",
               summary: `DiffComplete applied to ${diffComplete.filePath.split("/").pop() ?? "file"}`,
               detail: diffComplete.selectionText
                 ? `Edited selection lines ${diffComplete.selectionStartLine}-${diffComplete.selectionEndLine}`

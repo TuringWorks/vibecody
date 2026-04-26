@@ -331,7 +331,6 @@ pub fn run() {
             commands::lsp_did_change,
             commands::lsp_did_save,
             commands::lsp_list_servers,
-            commands::request_inline_completion,
             commands::track_flow_event,
             commands::get_flow_context,
             // Phase 4 commands — Agent Mode
@@ -364,10 +363,6 @@ pub fn run() {
             commands::fork_session,
             commands::get_sandbox_status,
             commands::set_sandbox_enabled,
-            // Phase 7.3 commands — Next-Edit Prediction
-            commands::predict_next_edit,
-            commands::inline_edit,
-            commands::generate_code,
             commands::diffcomplete_generate,
             // Build System commands
             commands::list_workspace_subdirs,

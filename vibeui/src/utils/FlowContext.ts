@@ -10,8 +10,7 @@
 
 export type FlowEventKind =
   | "chat"          // user sent a chat message + received reply
-  | "inline_edit"   // Cmd+K inline AI edit was accepted
-  | "inline_generate" // Cmd+K code generation at cursor
+  | "diffcomplete"  // ⌘. diff-mode AI edit was applied
   | "agent_step"    // agent executed a tool call
   | "agent_complete"// agent finished a task
   | "agent_partial" // agent stopped with incomplete plan
