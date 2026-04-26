@@ -32,7 +32,7 @@ This is the same shape you already have in `docker_runtime.rs:99–136` (iptable
 ## Architecture
 
 ```
-                        ┌────────── vibe-broker (daemon-internal Rust process) ─────────────┐
+                        ┌────────── vibe-broker (daemon-internal Rust process) ────────────-─┐
                         │                                                                    │
 sandbox process ──IPC─▶ │  HTTP(S) accept   ┐                                                │
                         │     │             │                                                │
@@ -40,7 +40,7 @@ sandbox process ──IPC─▶ │  HTTP(S) accept   ┐                       
                         │  parse policy ────┘                                                │
                         │     │                                                              │
                         │     ▼                                                              │
-                        │  SSRF guard (bin: cloud-meta IPs, RFC1918, loopback)              │
+                        │  SSRF guard (bin: cloud-meta IPs, RFC1918, loopback)               │
                         │     │                                                              │
                         │     ▼                                                              │
                         │  hickory-dns resolve (or static cache)                             │

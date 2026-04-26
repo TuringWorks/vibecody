@@ -43,19 +43,19 @@ It's an **opt-in upgrade**, never the default. Linux only. Falls back transparen
 
 ```
 ┌──── vibe-sandbox-firecracker (in-daemon) ────────────────────────────┐
-│                                                                       │
-│   FirecrackerSandbox                                                  │
+│                                                                      │
+│   FirecrackerSandbox                                                 │
 │       ├── jailer process            ◀── seccomp + cgroups + ns-drop  │
 │       │      └── firecracker (VMM)                                   │
 │       │            └── KVM microVM                                   │
 │       │                ├── kernel (~3 MB minimal config)             │
 │       │                ├── rootfs (~10 MB BusyBox + bash)            │
 │       │                ├── virtio-fs of /work ──▶ host: bound folder │
-│       │                ├── virtio-vsock CID:guest ─▶ host broker    │
+│       │                ├── virtio-vsock CID:guest ─▶ host broker     │
 │       │                └── stdout/stderr → host pipes                │
-│       │                                                               │
+│       │                                                              │
 │       └── shutdown drain: SIGTERM jailer → firecracker → KVM exit    │
-│                                                                       │
+│                                                                      │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 

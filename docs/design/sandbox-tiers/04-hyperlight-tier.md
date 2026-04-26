@@ -39,20 +39,20 @@ It's an **opt-in upgrade**, not the default. Cross-platform — falls back trans
 ## Architecture
 
 ```
-┌──── vibe-extensions (existing) ─────────────────────────────────────────────┐
+┌──── vibe-extensions (existing) ─────────────────────────────────────────-────┐
 │                                                                              │
 │   ExtensionRegistry                                                          │
 │       └── load("path/to/ext.wasm")                                           │
 │                                                                              │
-│   ┌─ Tier-1 backend (default) ─┐    ┌─ Tier-2 backend (opt-in) ──────────┐  │
-│   │ wasmtime::Engine           │    │ hyperlight_host::UninitializedSandbox│ │
-│   │ wasmtime::Store<HostState> │    │   └── wasmtime guest binary         │ │
-│   │ wasmtime::Instance         │    │       (purpose-built; baked into    │ │
-│   │                             │    │        the daemon release)          │ │
-│   │ host_fn registration        │    │   └── host_fn calls cross the       │ │
-│   │   (in-process call)         │    │       partition boundary via        │ │
-│   │                             │    │       hyperlight's marshalling       │ │
-│   └─────────────────────────────┘    └──────────────────────────────────────┘ │
+│   ┌─ Tier-1 backend (default) ─-┐    ┌─ Tier-2 backend (opt-in) ────────--──┐│
+│   │ wasmtime::Engine            │    │ hyperlight_host::UninitializedSandbox││
+│   │ wasmtime::Store<HostState>  │    │   └── wasmtime guest binary          ││
+│   │ wasmtime::Instance          │    │       (purpose-built; baked into     ││
+│   │                             │    │        the daemon release)           ││
+│   │ host_fn registration        │    │   └── host_fn calls cross the        ││
+│   │   (in-process call)         │    │       partition boundary via         ││
+│   │                             │    │       hyperlight's marshalling       ││
+│   └─────────────────────────────┘    └──────────────────────────────────────┘│
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
