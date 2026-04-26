@@ -11,8 +11,7 @@ A modern, high-performance desktop code editor built with Rust + Tauri 2, featur
 - ✅ **Syntax Highlighting**: Monaco Editor with full language grammar support
 - ✅ **LSP Support**: Language Server Protocol client for completions, hover, go-to-definition
 - ✅ **Diff View**: Side-by-side diff viewer with Accept/Reject for agent edits
-- ✅ **Inline Chat (Cmd+K)**: Floating AI edit overlay — select code, describe change, apply instantly
-- ✅ **Next-Edit Prediction**: Tab-accepts ghost text powered by `predict_next_edit` (500ms debounce)
+- ✅ **DiffComplete (⌘.)**: Explicit-chord AI edit — select code, describe change, model returns a unified diff for modal review (per-hunk accept/reject, optional Monaco edit-before-apply, regenerate-with-refinement). Patent-distant alternative to keystroke-driven ghost text.
 - ✅ **Git Integration**: Branch display, file status indicators, diff view, commit UI
 - ✅ **Terminal**: Integrated PTY-backed terminal panel
 - ✅ **Browser Panel**: Embedded iframe browser for localhost previews (quick-launch: 3000/5173/8080)
@@ -83,7 +82,8 @@ vibeui/
 │       ├── AIChat.tsx          # Chat panel + voice input
 │       ├── ChatTabManager.tsx  # Multi-tab chat with per-tab provider
 │       ├── AgentPanel.tsx      # Agent runner (Turbo, approval, live events)
-│       ├── InlineChat.tsx      # Cmd+K floating edit overlay
+│       ├── DiffCompleteModal.tsx # ⌘. AI edit modal (diff-mode)
+│       ├── DiffReviewPanel.tsx # Per-hunk diff review with Monaco edit-before-apply
 │       ├── ContextPicker.tsx   # @ autocomplete menu
 │       ├── MemoryPanel.tsx     # ~/.vibecli/memory.md viewer
 │       ├── HistoryPanel.tsx    # Trace session browser
@@ -193,11 +193,10 @@ thinking_budget_tokens = 10000
 
 | Shortcut | Action |
 |----------|--------|
-| `Cmd/Ctrl+K` | Open Inline Chat on selected code |
+| `Cmd/Ctrl+.` | Open DiffComplete on selected code (or whole file) |
 | `Cmd/Ctrl+B` | Toggle sidebar |
 | `Cmd/Ctrl+P` / `Cmd/Ctrl+Shift+P` | Command Palette |
-| `Tab` | Accept inline AI suggestion (ghost text) |
-| `Esc` | Dismiss inline suggestion / close Inline Chat |
+| `Esc` | Close any modal |
 
 ---
 

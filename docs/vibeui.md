@@ -6,7 +6,7 @@ permalink: /vibeui/
 
 # VibeUI
 
-**AI-powered desktop code editor built with Tauri 2 and Monaco.** VibeUI provides a VS Code-like editing experience with a native Rust backend, Monaco Editor frontend, integrated AI chat, autonomous agent mode, inline completions, terminal, Git panel, code review, and a WASM extension system.
+**AI-powered desktop code editor built with Tauri 2 and Monaco.** VibeUI provides a VS Code-like editing experience with a native Rust backend, Monaco Editor frontend, integrated AI chat, autonomous agent mode, explicit-chord diff-mode AI editing (⌘.), terminal, Git panel, code review, and a WASM extension system.
 
 ### What's new in 0.5.5
 
@@ -90,9 +90,7 @@ The installer is placed in `src-tauri/target/release/bundle/`.
 - **Rope-based buffer** — built on `ropey` for efficient O(log n) edits on large files
 - **Batch edits** — `apply_batch_edits` for bulk insert/delete operations
 - **Multi-cursor** — `update_cursors` for synchronised cursor state
-- **Inline AI completions** — ghost-text suggestions via `request_inline_completion` (FIM for Ollama, chat prompt for cloud providers)
-- **Next-Edit Prediction** — `predict_next_edit` analyses recent edits to suggest the next likely change; wired as inline completions provider with 500ms debounce + Tab acceptance
-- **Inline Chat (Cmd+K)** — floating `InlineChat` overlay; select code, describe change, view streamed result, Accept to apply edit in-place
+- **DiffComplete (⌘.)** — explicit-chord AI editing surface; `DiffCompleteModal` collects an instruction (with optional user-picked extra files for context), `vibe_ai::diffcomplete::generate` returns a unified diff, `DiffReviewPanel` shows per-hunk accept/reject with optional Monaco edit-before-apply and a regenerate-with-refinement loop. Patent-distant alternative to keystroke-driven ghost text — there is no inline-completion / FIM / next-edit-prediction surface in VibeCody (those were removed in 2026-04-26; see `notes/PATENT_AUDIT_INLINE.md` if local).
 - **File watching** — auto-detects external changes using `notify`
 - **Multi-workspace** — open multiple folders simultaneously
 - **Language detection** — automatic language mode from file extension
@@ -551,7 +549,8 @@ The AI panel (toggle with **AI Chat** in the header) has **293 panel components 
 | `HooksPanel` | `src/components/HooksPanel.tsx` | Hooks configuration UI; event/handler/filter editor |
 | `ReviewPanel` | `src/components/ReviewPanel.tsx` | AI code review; issues, scores, suggestions |
 | `ChatTabManager` | `src/components/ChatTabManager.tsx` | Multi-tab chat manager with per-tab provider selection |
-| `InlineChat` | `src/components/InlineChat.tsx` | Cmd+K floating edit overlay with Accept/Cancel |
+| `DiffCompleteModal` | `src/components/DiffCompleteModal.tsx` | ⌘. AI edit modal — instruction + extra context, calls `diffcomplete_generate`, hands off to `DiffReviewPanel` |
+| `DiffReviewPanel` | `src/components/DiffReviewPanel.tsx` | Per-hunk accept/reject for unified diffs, with optional Monaco edit-before-apply |
 | `BackgroundJobsPanel` | `src/components/BackgroundJobsPanel.tsx` | VibeCLI daemon job queue with live SSE stream |
 | `BrowserPanel` | `src/components/BrowserPanel.tsx` | Embedded iframe browser with inspect mode (), element selection, Send to Chat |
 | `ArenaPanel` | `src/components/ArenaPanel.tsx` | Blind A/B model comparison with voting, leaderboard, and Send winner to Chat |
@@ -655,16 +654,12 @@ The React frontend communicates with the Rust backend using Tauri's `invoke()` I
 | Command | Description |
 |---------|-------------|
 | `send_chat_message(request)` | Send messages to AI provider; returns response + pending writes |
-| `request_ai_completion(request)` | Request AI code completion |
-| `request_inline_completion(prefix, suffix, language, provider)` | Inline ghost-text completion (FIM/chat) |
+| `diffcomplete_generate(...)` | ⌘. diff-mode AI edit — returns a unified diff for modal review (the only AI editing surface) |
 | `get_available_ai_providers()` | List configured AI providers |
-| `predict_next_edit(current_file, content, cursor_line, recent_edits, provider)` | AI-predicted next edit location + text |
 | `fetch_url_for_context(url)` | Fetch & strip a URL for AI context |
-| `inline_edit(file_path, language, selected_text, start_line, end_line, instruction, provider)` | AI-powered inline edit for Cmd+K overlay |
 | `get_provider_api_keys()` | Load BYOK API key settings |
 | `save_provider_api_keys(settings)` | Persist BYOK API keys to `~/.vibecli/profile_settings.db` (encrypted) |
 | `search_workspace_symbols(query, workspace_path)` | Regex-based symbol search across workspace |
-| `semantic_search_codebase(query, workspace_path)` | Semantic codebase search via `CodebaseIndex` |
 
 ### Agent Operations
 

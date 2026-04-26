@@ -213,9 +213,10 @@ fn looks_like_diff_header(next: Option<&str>) -> bool {
 /// Generate a diff for the given request using the supplied provider.
 ///
 /// The provider is invoked through its `chat` surface with a dedicated
-/// system prompt. This is deliberately separate from `CompletionEngine`
-/// (which is the FIM/inline path) so diffcomplete cannot be accidentally
-/// routed into keystroke-driven ghost-text flows.
+/// system prompt — diffcomplete deliberately does not use any FIM/inline-
+/// completion path (those have all been removed from VibeCody) so this
+/// surface cannot be accidentally routed into keystroke-driven ghost-text
+/// flows.
 pub async fn generate(
     provider: Arc<dyn AIProvider>,
     request: DiffCompleteRequest,

@@ -46,13 +46,13 @@ Five shared utility modules live in `vibeui/src/utils/`. They provide common fun
 
 ## FlowContext
 
-**Purpose**: In-memory chronological timeline of all AI interactions (chat, inline edits, agent steps, terminal commands, file edits). Provides context summaries for injection into AI prompts with a configurable token budget.
+**Purpose**: In-memory chronological timeline of all AI interactions (chat, ⌘. diffcomplete edits, agent steps, terminal commands, file edits). Provides context summaries for injection into AI prompts with a configurable token budget.
 
 **Key exports**:
 
 | Export | Description |
 |---|---|
-| `FlowEventKind` | Union type: `"chat"`, `"inline_edit"`, `"inline_generate"`, `"agent_step"`, `"agent_complete"`, `"agent_partial"`, `"terminal_cmd"`, `"file_edit"` |
+| `FlowEventKind` | Union type: `"chat"`, `"diffcomplete"`, `"agent_step"`, `"agent_complete"`, `"agent_partial"`, `"terminal_cmd"`, `"file_edit"` |
 | `FlowEvent` | Interface with `id`, `kind`, `summary`, `detail`, `timestamp`, optional `filePath`, `approxTokens` |
 | `flowContext` | Singleton `FlowContextManager` instance (import this, never construct directly) |
 
@@ -86,22 +86,6 @@ Five shared utility modules live in `vibeui/src/utils/`. They provide common fun
 
 ---
 
-## SupercompleteEngine
+## SupercompleteEngine — REMOVED 2026-04-26
 
-**Purpose**: Cross-file multi-line edit prediction. Extends inline completion by enriching prompts with semantically related code from the workspace embedding index. Activates only during active editing sessions (3+ edits in 30 seconds).
-
-**Key exports**:
-
-| Export | Description |
-|---|---|
-| `SupercompleteResult` | Interface: `insertText`, `contextFiles`, `confidence` (0-1) |
-| `supercompleteEngine` | Singleton engine instance |
-
-**SupercompleteEngine methods**:
-
-- `predict(params)` - Async - runs semantic search, builds enriched prompt, requests completion. Returns `null` if activation gate fails or no relevant cross-file context found.
-- `invalidate()` - Clear cached result (call on significant document changes)
-
-**Tauri commands used**: `semantic_search_codebase`, `request_inline_completion`
-
-**Used by**: `App.tsx`
+This engine and its supporting Tauri commands (`semantic_search_codebase`, `request_inline_completion`, `predict_next_edit`) were removed entirely as part of the inline-completion patent-distance work. There is no replacement — VibeCody's only AI editing surface is `DiffCompleteModal` (⌘.). See `notes/PATENT_AUDIT_INLINE.md` (gitignored) for the rationale.

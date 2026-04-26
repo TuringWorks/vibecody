@@ -61,8 +61,9 @@
 ### P2-8: ~~Fix provider count inconsistencies~~ RESOLVED
 - **Commit**: `d22dfb0e` — standardized on 22 providers, added 5 missing to architecture table
 
-### P2-9: ~~Remove ghost Tauri command registrations~~ RESOLVED (no action needed)
-- Both `inline_edit` (line 6099) and `record_purple_team_simulation` (line 25786) exist in commands.rs. Not ghosts.
+### P2-9: ~~Remove ghost Tauri command registrations~~ RESOLVED
+- `inline_edit` was removed entirely on 2026-04-26 along with the rest of the Path A / Path C inline-completion stack (patent-distance work; see `notes/PATENT_AUDIT_INLINE.md`).
+- `record_purple_team_simulation` exists in commands.rs (not a ghost).
 
 ### P2-10: ~~Fix semantic_index.rs claim about AST parsing~~ RESOLVED
 - **Commit**: `27534118` — changed "AST-level" to "regex-based declaration scanning" in FIT-GAP-v7 and ROADMAP-v5

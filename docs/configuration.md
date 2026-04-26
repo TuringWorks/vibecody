@@ -535,7 +535,7 @@ Uses your existing GitHub Copilot subscription.
 
 ### 11. LocalEdit — Local Code Editing Model
 
-A wrapper around Ollama optimized for fill-in-middle (FIM) code completion using local GGUF models. Used internally by VibeUI for inline completions.
+A wrapper around Ollama for local GGUF models. (Note: VibeUI no longer surfaces inline / FIM-style completion — DiffComplete (⌘.) is the only AI editing surface — but this provider remains available for chat and other code paths that route through the standard provider trait.)
 
    ```toml
    [ollama]

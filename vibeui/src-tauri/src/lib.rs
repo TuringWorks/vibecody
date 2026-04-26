@@ -297,7 +297,6 @@ pub fn run() {
             commands::insert_text,
             commands::delete_text,
             commands::save_file,
-            commands::request_ai_completion,
             commands::send_chat_message,
             commands::get_available_ai_providers,
             commands::search_files,
@@ -404,7 +403,6 @@ pub fn run() {
             commands::generate_commit_message,
             // Symbol + codebase search
             commands::search_workspace_symbols,
-            commands::semantic_search_codebase,
             // @docs context
             commands::fetch_doc_content,
             // Linter integration
@@ -479,8 +477,6 @@ pub fn run() {
             commands::run_bugbot,
             // Phase 29: Agent Browser Actions
             commands::agent_browser_action,
-            // Phase 31: Embedding index
-            commands::build_embedding_index,
             // Phase 41: Red Team
             commands::start_redteam_scan,
             commands::get_redteam_sessions,

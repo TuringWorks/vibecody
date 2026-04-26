@@ -1,7 +1,6 @@
 //! VibeUI AI - AI provider abstraction and integrations
 
 pub mod provider;
-pub mod completion;
 pub mod diffcomplete;
 pub mod chat;
 pub mod providers;
@@ -37,7 +36,6 @@ pub use providers::{
     VercelAIProvider, FailoverProvider,
 };
 pub use config::AIConfig;
-pub use completion::CompletionEngine;
 pub use tools::{ToolCall, ToolResult, parse_tool_calls, format_tool_result, TOOL_SYSTEM_PROMPT};
 pub use agent::{
     AgentLoop, AgentEvent, AgentStep, AgentContext, ApprovalPolicy, ToolExecutorTrait,

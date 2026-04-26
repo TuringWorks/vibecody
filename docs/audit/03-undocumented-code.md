@@ -19,7 +19,7 @@ The largest undocumented command groups:
 | `archspec_*` | 6 | `archspec_create_adr`, `archspec_generate` |
 | `turboquant_*` | 5 | `turboquant_benchmark`, `turboquant_insert` |
 
-**Ghost commands** (registered in `lib.rs` but function not defined): `inline_edit`, `record_purple_team_simulation`
+**Ghost commands** (registered in `lib.rs` but function not defined): `record_purple_team_simulation` (`inline_edit` was removed entirely on 2026-04-26 along with all other inline/ghost-text/FIM completion paths — see `notes/PATENT_AUDIT_INLINE.md`)
 
 ## Undocumented Rust Modules — 41 modules (62,696 lines)
 
@@ -104,5 +104,5 @@ Despite `docs/RL-OS-ARCHITECTURE.md` existing, none of these filenames appear in
 
 *`useModelRegistry` is mentioned in CLAUDE.md for provider setup but has no API docs.
 
-### Utils (5, none documented)
-`DocsResolver.ts`, `fileUtils.tsx`, `FlowContext.ts`, `LinterIntegration.ts`, `SupercompleteEngine.ts`
+### Utils (4, none documented)
+`DocsResolver.ts`, `fileUtils.tsx`, `FlowContext.ts`, `LinterIntegration.ts` (`SupercompleteEngine.ts` was deleted 2026-04-26)

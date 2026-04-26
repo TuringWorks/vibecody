@@ -49,7 +49,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use vibe_ai::{CodeContext, Message, ChatEngine};
+use vibe_ai::{Message, ChatEngine};
 use vibe_core::buffer::{Position, Range, Edit, Cursor};
 use vibe_core::file_system::FileEntry;
 
@@ -2150,69 +2150,6 @@ pub async fn lsp_goto_definition(
         .await
         .map_err(|e| e.to_string())?;
     client.goto_definition(params).await.map_err(|e| e.to_string())
-}
-
-/// AI operations
-
-#[derive(Serialize, Deserialize)]
-pub struct CompletionRequest {
-    pub context: CodeContext,
-}
-
-#[tauri::command]
-pub async fn request_ai_completion(
-    request: CompletionRequest,
-    state: tauri::State<'_, AppState>,
-) -> Result<String, String> {
-    let ctx = &request.context;
-    let language = &ctx.language;
-
-    let provider_name = {
-        let engine = state.chat_engine.lock().await;
-        engine
-            .active_provider()
-            .map(|p| p.name().to_string())
-            .unwrap_or_else(|| "unknown".to_string())
-    };
-
-    // FIM format for Ollama, chat-based for cloud providers
-    let prompt = if provider_name.to_lowercase().contains("ollama") {
-        format!(
-            "<|fim_prefix|>{}<|fim_suffix|>{}<|fim_middle|>",
-            ctx.prefix, ctx.suffix
-        )
-    } else {
-        let extra = if ctx.additional_context.is_empty() {
-            String::new()
-        } else {
-            format!("\n\nAdditional context:\n{}", ctx.additional_context.join("\n---\n"))
-        };
-        format!(
-            "Complete the following {} code. Return ONLY the inserted text, no explanations.\n\nPrefix:\n```{}\n{}\n```\n\nSuffix:\n```{}\n{}\n```{}",
-            language, language, ctx.prefix, language, ctx.suffix, extra
-        )
-    };
-
-    let messages = vec![Message {
-        role: vibe_ai::MessageRole::User,
-        content: prompt,
-    }];
-
-    let engine = state.chat_engine.lock().await;
-    let result = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
-
-    // Strip any markdown code fences the model may have added
-    // NOTE: Use strip_prefix (exact literal match), NOT trim_start_matches
-    // (which treats the &str as a character set and strips individual chars)
-    let mut clean = result.trim();
-    if let Some(rest) = clean.strip_prefix("```") {
-        clean = rest.strip_prefix(language.as_str()).unwrap_or(rest);
-    }
-    if let Some(rest) = clean.strip_suffix("```") {
-        clean = rest;
-    }
-    let clean = clean.trim().to_string();
-    Ok(clean)
 }
 
 /// A file/image/document attached to a chat message.
@@ -7964,111 +7901,6 @@ pub async fn search_workspace_symbols(
             .to_string_lossy().into_owned(),
         line: s.line,
     }).collect())
-}
-
-/// Semantic search over the workspace.
-///
-/// 1. If `.vibeui/embeddings/index.json` exists in the workspace root, loads the
-///    `EmbeddingIndex` and performs cosine-similarity search.
-/// 2. Otherwise falls back to fast keyword/symbol search via `CodebaseIndex`.
-#[tauri::command]
-pub async fn semantic_search_codebase(
-    query: String,
-    limit: Option<usize>,
-    state: tauri::State<'_, AppState>,
-) -> Result<Vec<SymbolResult>, String> {
-    let k = limit.unwrap_or(8).min(20);
-    let root = {
-        let ws = state.workspace.lock().await;
-        ws.folders().first().cloned().ok_or("No workspace folder open")?
-    };
-
-    // ── Try embedding search first ────────────────────────────────────────────
-    let index_path = root.join(".vibeui").join("embeddings").join("index.json");
-    if index_path.exists() {
-        use vibe_core::index::embeddings::EmbeddingIndex;
-        match EmbeddingIndex::load(&index_path) {
-            Ok(idx) => {
-                match idx.search(&query, k).await {
-                    Ok(hits) => {
-                        return Ok(hits.into_iter().map(|h| {
-                            let rel = h.file.strip_prefix(&root).unwrap_or(&h.file)
-                                .to_string_lossy().into_owned();
-                            SymbolResult {
-                                name: h.text.lines().next().unwrap_or("").trim()
-                                    .chars().take(80).collect(),
-                                kind: format!("snippet (score {:.2})", h.score),
-                                file: rel,
-                                line: h.chunk_start,
-                            }
-                        }).collect());
-                    }
-                    Err(e) => {
-                        eprintln!("[vibeui] EmbeddingIndex search failed ({}); falling back to keyword", e);
-                    }
-                }
-            }
-            Err(e) => {
-                eprintln!("[vibeui] Could not load embedding index ({}); falling back to keyword", e);
-            }
-        }
-    }
-
-    // ── Keyword/symbol fallback ───────────────────────────────────────────────
-    let mut idx2 = vibe_core::index::CodebaseIndex::new(root.clone());
-    idx2.build().map_err(|e| e.to_string())?;
-    let hits = idx2.search_symbols(&query);
-    Ok(hits.into_iter().take(k).map(|s| SymbolResult {
-        name: s.name,
-        kind: format!("{:?}", s.kind),
-        file: s.file.strip_prefix(&root).unwrap_or(&s.file).to_string_lossy().into_owned(),
-        line: s.line,
-    }).collect())
-}
-
-/// Build (or rebuild) the workspace embedding index.
-///
-/// Saves to `<workspace>/.vibeui/embeddings/index.json`.
-/// `provider`: `"ollama"` (default) or `"openai"`.
-/// `model`: embedding model name (default `"nomic-embed-text"` for Ollama).
-#[tauri::command]
-pub async fn build_embedding_index(
-    provider: Option<String>,
-    model: Option<String>,
-    state: tauri::State<'_, AppState>,
-) -> Result<String, String> {
-    use vibe_core::index::embeddings::{EmbeddingIndex, EmbeddingProvider};
-
-    let root = {
-        let ws = state.workspace.lock().await;
-        ws.folders().first().cloned().ok_or("No workspace folder open")?
-    };
-
-    let embedding_provider = match provider.as_deref().unwrap_or("ollama") {
-        "openai" => {
-            let key = std::env::var("OPENAI_API_KEY")
-                .map_err(|_| "OPENAI_API_KEY env var not set".to_string())?;
-            EmbeddingProvider::openai(key)
-        }
-        _ => EmbeddingProvider::ollama(
-            model.as_deref().unwrap_or("nomic-embed-text"),
-        ),
-    };
-
-    let idx = EmbeddingIndex::build(&root, &embedding_provider)
-        .await
-        .map_err(|e| e.to_string())?;
-
-    let chunk_count = idx.chunk_count();
-    let file_count = idx.file_count();
-
-    let index_path = root.join(".vibeui").join("embeddings").join("index.json");
-    idx.save(&index_path).map_err(|e| e.to_string())?;
-
-    Ok(format!(
-        "Built embedding index: {} files, {} chunks → {}",
-        file_count, chunk_count, index_path.display()
-    ))
 }
 
 // ── @docs context ─────────────────────────────────────────────────────────────
