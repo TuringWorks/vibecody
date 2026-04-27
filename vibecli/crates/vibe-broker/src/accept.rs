@@ -16,6 +16,9 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 
+use crate::audit::{
+    AuditSink, EgressOutcome, NullAuditSink, baseline_egress_request,
+};
 use crate::forward::{ForwardError, ForwardRequest, forward_plain_http};
 use crate::mitm::{InspectContext, default_upstream_roots, run_mitm};
 use crate::policy::{Decision, Policy, Request as PolicyRequest};
@@ -78,6 +81,13 @@ pub struct Broker {
     /// Defaults to an empty store (rules with injection still match, but
     /// the auth header isn't added).
     pub secrets: Arc<dyn SecretStore>,
+    /// Sink for structured audit events. Defaults to NullAuditSink (drops
+    /// every event); production wires a JSONL file sink, tests wire
+    /// MemoryAuditSink.
+    pub audit: Arc<dyn AuditSink>,
+    /// Tag every event with this policy id when no per-skill id is in
+    /// scope. Defaults to "broker".
+    pub policy_id: String,
 }
 
 impl Broker {
@@ -90,7 +100,22 @@ impl Broker {
             tls_ca: None,
             upstream_trust: None,
             secrets: Arc::new(EmptySecretStore),
+            audit: Arc::new(NullAuditSink),
+            policy_id: "broker".into(),
         }
+    }
+
+    /// Install an audit sink. Production callers point this at the
+    /// JSONL file sink (slice B5.3); tests use MemoryAuditSink.
+    pub fn with_audit_sink(mut self, sink: Arc<dyn AuditSink>) -> Self {
+        self.audit = sink;
+        self
+    }
+
+    /// Tag this broker's events with `policy_id`. Defaults to "broker".
+    pub fn with_policy_id(mut self, id: impl Into<String>) -> Self {
+        self.policy_id = id.into();
+        self
     }
 
     pub fn with_upstream(mut self) -> Self {
@@ -220,6 +245,11 @@ impl Broker {
         let parsed = match parse_request_head(raw) {
             Ok(p) => p,
             Err(_) => {
+                let mut event =
+                    baseline_egress_request("native", &self.policy_id, "?", "?", "?");
+                event.outcome = EgressOutcome::UpstreamError;
+                event.status = Some(400);
+                self.audit.record(event);
                 stream
                     .write_all(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
                     .await?;
@@ -235,9 +265,27 @@ impl Broker {
         // send absolute URIs (`GET http://host/path HTTP/1.1`); plain clients
         // send relative + Host: header.
         let url = absolute_url(&parsed);
+        let parsed_host = url::Url::parse(&url)
+            .ok()
+            .and_then(|u| u.host_str().map(|h| h.to_string()))
+            .unwrap_or_else(|| parsed.host.clone().unwrap_or_default());
+        let parsed_path = url::Url::parse(&url)
+            .map(|u| u.path().to_string())
+            .unwrap_or_else(|_| parsed.target.clone());
+
+        let mut event = baseline_egress_request(
+            "native",
+            &self.policy_id,
+            &parsed.method,
+            &parsed_host,
+            &parsed_path,
+        );
 
         let ssrf = self.ssrf.check(&url);
         if matches!(ssrf, SsrfVerdict::Block) {
+            event.outcome = EgressOutcome::SsrfBlocked;
+            event.status = Some(451);
+            self.audit.record(event);
             return write_denied(&mut stream, "ssrf_blocked").await;
         }
 
@@ -246,11 +294,35 @@ impl Broker {
             url: &url,
         });
         match decision {
-            Decision::Deny => write_denied(&mut stream, "policy_denied").await,
-            Decision::Allow { .. } if self.forward_upstream => {
-                self.do_forward(&mut stream, &parsed, &url).await
+            Decision::Deny => {
+                event.outcome = EgressOutcome::PolicyDenied;
+                event.status = Some(451);
+                self.audit.record(event);
+                write_denied(&mut stream, "policy_denied").await
             }
-            Decision::Allow { .. } => write_allow_stub(&mut stream).await,
+            Decision::Allow {
+                rule_index, inject, ..
+            } if self.forward_upstream => {
+                event.matched_rule_index = Some(rule_index);
+                event.inject = inject.type_name().to_string();
+                let result = self.do_forward(&mut stream, &parsed, &url).await;
+                event.outcome = match &result {
+                    Ok(()) => EgressOutcome::Ok,
+                    Err(_) => EgressOutcome::UpstreamError,
+                };
+                self.audit.record(event);
+                result
+            }
+            Decision::Allow {
+                rule_index, inject, ..
+            } => {
+                event.matched_rule_index = Some(rule_index);
+                event.inject = inject.type_name().to_string();
+                event.outcome = EgressOutcome::Ok;
+                event.status = Some(200);
+                self.audit.record(event);
+                write_allow_stub(&mut stream).await
+            }
         }
     }
 

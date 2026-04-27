@@ -73,3 +73,7 @@ harness = false
 [[test]]
 name = "broker_imds_bdd"
 harness = false
+
+[[test]]
+name = "broker_audit_bdd"
+harness = false

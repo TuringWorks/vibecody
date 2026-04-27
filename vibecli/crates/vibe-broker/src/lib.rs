@@ -17,7 +17,10 @@ pub mod ssrf;
 pub mod tls;
 
 pub use accept::{BoundAddr, Broker, BrokerHandle};
-pub use audit::{AuditEvent, EgressOutcome};
+pub use audit::{
+    AuditEvent, AuditSink, EgressOutcome, MemoryAuditSink, NullAuditSink,
+    baseline_egress_request,
+};
 pub use forward::{ForwardError, ForwardRequest, ForwardResponse, forward_plain_http};
 pub use imds::{ImdsHandle, ImdsServer};
 pub use mitm::{InspectContext, MitmError, default_upstream_roots, run_mitm};
