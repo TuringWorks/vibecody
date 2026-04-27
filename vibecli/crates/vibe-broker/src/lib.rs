@@ -9,6 +9,7 @@
 pub mod accept;
 pub mod audit;
 pub mod forward;
+pub mod imds;
 pub mod mitm;
 pub mod policy;
 pub mod secrets;
@@ -18,6 +19,7 @@ pub mod tls;
 pub use accept::{BoundAddr, Broker, BrokerHandle};
 pub use audit::{AuditEvent, EgressOutcome};
 pub use forward::{ForwardError, ForwardRequest, ForwardResponse, forward_plain_http};
+pub use imds::{ImdsHandle, ImdsServer};
 pub use mitm::{InspectContext, MitmError, default_upstream_roots, run_mitm};
 pub use policy::{Decision, Inject, Policy, Rule, RuleMatch, SecretRef};
 pub use secrets::{
