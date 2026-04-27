@@ -7,8 +7,9 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use vibe_broker::{
-    AuditEvent, BoundAddr, Broker, BrokerHandle, EgressOutcome, MemoryAuditSink, Policy, SsrfGuard,
-    policy::DefaultRule,
+    AuditEvent, AwsCredentials, BoundAddr, Broker, BrokerHandle, EgressOutcome, ImdsHandle,
+    ImdsServer, InMemorySecretStore, MemoryAuditSink, Policy, SecretStore, SsrfGuard,
+    policy::{DefaultRule, SecretRef},
 };
 
 #[derive(Default, World)]
@@ -17,6 +18,8 @@ pub struct AWorld {
     audit: Option<Arc<MemoryAuditSink>>,
     broker_addr: Option<std::net::SocketAddr>,
     broker_handle: Option<BrokerHandle>,
+    imds_addr: Option<std::net::SocketAddr>,
+    imds_handle: Option<ImdsHandle>,
 }
 
 impl std::fmt::Debug for AWorld {
@@ -158,6 +161,59 @@ fn method_is(world: &mut AWorld, idx: usize, expected: String) {
 #[then(expr = "the audit event {int} matched_rule_index is {int}")]
 fn matched_rule_idx(world: &mut AWorld, idx: usize, expected: usize) {
     assert_eq!(event_at(world, idx).matched_rule_index, Some(expected));
+}
+
+#[given(expr = "an IMDS faker with audit sink, role {string}, creds at {string}")]
+fn boot_imds_with_audit(world: &mut AWorld, role: String, key: String) {
+    let sink = Arc::new(MemoryAuditSink::new());
+    world.audit = Some(sink.clone());
+    let secrets = Arc::new(InMemorySecretStore::new());
+    secrets.set_aws(
+        key.clone(),
+        AwsCredentials {
+            access_key_id: "AKIAIOSFODNN7EXAMPLE".into(),
+            secret_access_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY".into(),
+            session_token: None,
+            region: "us-east-1".into(),
+            service: "s3".into(),
+        },
+    );
+    let store = secrets as Arc<dyn SecretStore>;
+    let server = ImdsServer::new(role, SecretRef(key), store).with_audit_sink(sink);
+    let rt = world.rt();
+    let handle = rt.block_on(async move { server.start("127.0.0.1:0").await.unwrap() });
+    world.imds_addr = Some(handle.addr);
+    world.imds_handle = Some(handle);
+}
+
+#[when(expr = "I PUT {string} against the IMDS faker")]
+fn imds_put(world: &mut AWorld, path: String) {
+    let addr = world.imds_addr.unwrap();
+    let req = format!(
+        "PUT {path} HTTP/1.1\r\nHost: 169.254.169.254\r\nx-aws-ec2-metadata-token-ttl-seconds: 21600\r\nConnection: close\r\n\r\n"
+    );
+    let rt = world.rt();
+    rt.block_on(async move {
+        let mut s = TcpStream::connect(addr).await.unwrap();
+        s.write_all(req.as_bytes()).await.unwrap();
+        let mut buf = Vec::new();
+        let _ = s.read_to_end(&mut buf).await;
+    });
+}
+
+#[when(expr = "I GET {string} against the IMDS faker without a token")]
+fn imds_get_no_token(world: &mut AWorld, path: String) {
+    let addr = world.imds_addr.unwrap();
+    let req = format!(
+        "GET {path} HTTP/1.1\r\nHost: 169.254.169.254\r\nConnection: close\r\n\r\n"
+    );
+    let rt = world.rt();
+    rt.block_on(async move {
+        let mut s = TcpStream::connect(addr).await.unwrap();
+        s.write_all(req.as_bytes()).await.unwrap();
+        let mut buf = Vec::new();
+        let _ = s.read_to_end(&mut buf).await;
+    });
 }
 
 fn main() {

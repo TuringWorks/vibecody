@@ -31,3 +31,17 @@ Feature: Audit emission for plain HTTP traffic (slice B5.1)
     When I send raw bytes "NOTHTTP\r\n\r\n" to the broker
     Then the audit sink recorded 1 event
     And the audit event 0 outcome is "upstream_error"
+
+  Scenario: IMDS token issuance emits an audit event
+    Given an IMDS faker with audit sink, role "vibe-broker-role", creds at "@workspace.aws_default"
+    When I PUT "/latest/api/token" against the IMDS faker
+    Then the audit sink recorded 1 event
+    And the audit event 0 outcome is "ok"
+    And the audit event 0 method is "PUT"
+    And the audit event 0 host is "169.254.169.254"
+
+  Scenario: IMDS request without token emits a PolicyDenied event
+    Given an IMDS faker with audit sink, role "vibe-broker-role", creds at "@workspace.aws_default"
+    When I GET "/latest/meta-data/iam/security-credentials/" against the IMDS faker without a token
+    Then the audit sink recorded 1 event
+    And the audit event 0 outcome is "policy_denied"

@@ -367,6 +367,8 @@ impl Broker {
             policy: &self.policy,
             ssrf: &self.ssrf,
             secrets: self.secrets.as_ref(),
+            audit: self.audit.as_ref(),
+            policy_id: &self.policy_id,
         };
         if let Err(e) =
             run_mitm(stream, &host, port, &ca, trust, self.upstream_timeout, inspect).await

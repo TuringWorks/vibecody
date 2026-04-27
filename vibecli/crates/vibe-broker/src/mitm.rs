@@ -23,6 +23,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_rustls::{TlsAcceptor, TlsConnector};
 
+use crate::audit::{AuditSink, EgressOutcome, baseline_egress_request};
 use crate::policy::{Decision, Inject, Policy, Request as PolicyRequest};
 use crate::secrets::SecretStore;
 use crate::ssrf::{SsrfGuard, SsrfVerdict};
@@ -51,6 +52,8 @@ pub struct InspectContext<'a> {
     pub policy: &'a Policy,
     pub ssrf: &'a SsrfGuard,
     pub secrets: &'a dyn SecretStore,
+    pub audit: &'a dyn AuditSink,
+    pub policy_id: &'a str,
 }
 
 /// Run MITM after CONNECT has already received `200 Connection Established`.
@@ -97,7 +100,18 @@ where
         "https://{host}:{port}{path}",
         path = parsed.target_path()
     );
+    let mut event = baseline_egress_request(
+        "native",
+        inspect.policy_id,
+        &parsed.method,
+        host,
+        parsed.target_path(),
+    );
+
     if matches!(inspect.ssrf.check(&absolute_url), SsrfVerdict::Block) {
+        event.outcome = EgressOutcome::SsrfBlocked;
+        event.status = Some(451);
+        inspect.audit.record(event);
         let _ = write_simple_response(&mut client_tls, 451, "Unavailable", "ssrf_blocked").await;
         return Ok(());
     }
@@ -105,13 +119,18 @@ where
         method: &parsed.method,
         url: &absolute_url,
     });
-    let inject = match decision {
+    let (inject, matched_idx) = match decision {
         Decision::Deny => {
+            event.outcome = EgressOutcome::PolicyDenied;
+            event.status = Some(451);
+            inspect.audit.record(event);
             let _ = write_simple_response(&mut client_tls, 451, "Unavailable", "policy_denied").await;
             return Ok(());
         }
-        Decision::Allow { inject, .. } => inject.clone(),
+        Decision::Allow { inject, rule_index, .. } => (inject.clone(), rule_index),
     };
+    event.matched_rule_index = Some(matched_idx);
+    event.inject = inject.type_name().to_string();
 
     // ---- 4. Open TCP + TLS-connect to the real upstream -----------
     let target = format!("{host}:{port}");
@@ -150,8 +169,13 @@ where
         .map_err(MitmError::Forwarding)?;
 
     // ---- 6. Stream upstream response back to client ----------------
-    let _ = tokio::io::copy(&mut upstream_tls, &mut client_tls).await;
+    let copy_result = tokio::io::copy(&mut upstream_tls, &mut client_tls).await;
     let _ = client_tls.shutdown().await;
+
+    event.bytes_request = req_bytes.len() as u64;
+    event.bytes_response = copy_result.unwrap_or(0);
+    event.outcome = EgressOutcome::Ok;
+    inspect.audit.record(event);
 
     Ok(())
 }

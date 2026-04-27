@@ -18,7 +18,7 @@ pub mod tls;
 
 pub use accept::{BoundAddr, Broker, BrokerHandle};
 pub use audit::{
-    AuditEvent, AuditSink, EgressOutcome, MemoryAuditSink, NullAuditSink,
+    AuditEvent, AuditSink, EgressOutcome, JsonlFileAuditSink, MemoryAuditSink, NullAuditSink,
     baseline_egress_request,
 };
 pub use forward::{ForwardError, ForwardRequest, ForwardResponse, forward_plain_http};

@@ -6,6 +6,9 @@
 //! (when the daemon is already configured for it). Broker hot paths
 //! call `sink.record(...)` synchronously after each decision.
 
+use std::fs::{File, OpenOptions};
+use std::io::{BufWriter, Write};
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
@@ -129,6 +132,80 @@ impl AuditSink for MemoryAuditSink {
     }
 }
 
+/// Append-only JSONL sink. Each `record` call serializes the event as one
+/// line in the configured file. Failures are logged via `tracing` and
+/// dropped — auditing must never block the data path.
+///
+/// Production callers use this; rotation (daily / size-bounded) lives in
+/// the daemon's audit-rotator (slice B5.4 if/when needed).
+pub struct JsonlFileAuditSink {
+    path: PathBuf,
+    writer: Mutex<BufWriter<File>>,
+}
+
+impl std::fmt::Debug for JsonlFileAuditSink {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("JsonlFileAuditSink")
+            .field("path", &self.path)
+            .finish()
+    }
+}
+
+impl JsonlFileAuditSink {
+    /// Open (or create) the file for append. Parent directory is created
+    /// if missing; `0700` on Unix.
+    pub fn open(path: impl AsRef<Path>) -> std::io::Result<Self> {
+        let path: PathBuf = path.as_ref().to_owned();
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o700));
+            }
+        }
+        let file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&path)?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
+        }
+        Ok(JsonlFileAuditSink {
+            path,
+            writer: Mutex::new(BufWriter::new(file)),
+        })
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl AuditSink for JsonlFileAuditSink {
+    fn record(&self, event: AuditEvent) {
+        let line = match serde_json::to_string(&event) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!("audit: serialize failed: {e}");
+                return;
+            }
+        };
+        let mut w = match self.writer.lock() {
+            Ok(w) => w,
+            Err(_) => return, // poisoned; ignore for v1
+        };
+        if let Err(e) = writeln!(w, "{line}") {
+            tracing::warn!("audit: write failed: {e}");
+        }
+        if let Err(e) = w.flush() {
+            tracing::debug!("audit: flush failed: {e}");
+        }
+    }
+}
+
 /// Helper for hot-path callers: build a baseline `egress.request` event,
 /// pre-filled with what we already know at parse time. Callers mutate
 /// `outcome`, `status`, byte counts before recording.
@@ -236,5 +313,29 @@ mod tests {
         assert_eq!(e.policy_id, "skill:foo");
         assert_eq!(e.tier, "native");
         assert!(e.ts.starts_with('2'));
+    }
+
+    #[test]
+    fn jsonl_file_sink_round_trips_lines() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("audit.jsonl");
+        let sink = JsonlFileAuditSink::open(&path).unwrap();
+        let mut a = baseline_egress_request("native", "skill:foo", "GET", "a.com", "/x");
+        a.outcome = EgressOutcome::Ok;
+        sink.record(a);
+        let mut b = baseline_egress_request("native", "skill:bar", "POST", "b.com", "/y");
+        b.outcome = EgressOutcome::PolicyDenied;
+        sink.record(b);
+        drop(sink);
+
+        let contents = std::fs::read_to_string(&path).unwrap();
+        let lines: Vec<&str> = contents.lines().collect();
+        assert_eq!(lines.len(), 2);
+        let parsed_a: AuditEvent = serde_json::from_str(lines[0]).unwrap();
+        let parsed_b: AuditEvent = serde_json::from_str(lines[1]).unwrap();
+        assert_eq!(parsed_a.host, "a.com");
+        assert_eq!(parsed_a.outcome, EgressOutcome::Ok);
+        assert_eq!(parsed_b.host, "b.com");
+        assert_eq!(parsed_b.outcome, EgressOutcome::PolicyDenied);
     }
 }

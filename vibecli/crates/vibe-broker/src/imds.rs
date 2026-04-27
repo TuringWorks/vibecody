@@ -24,6 +24,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::task::JoinHandle;
 
+use crate::audit::{AuditSink, EgressOutcome, NullAuditSink, baseline_egress_request};
 use crate::policy::SecretRef;
 use crate::secrets::SecretStore;
 
@@ -40,6 +41,8 @@ pub struct ImdsServer {
     /// Requests without a matching `X-aws-ec2-metadata-token` header get
     /// 401 (matches IMDSv2 enforcement).
     pub session_token: String,
+    /// Sink for structured audit events. Defaults to NullAuditSink.
+    pub audit: Arc<dyn AuditSink>,
 }
 
 pub struct ImdsHandle {
@@ -64,7 +67,13 @@ impl ImdsServer {
             secret_ref,
             secrets,
             session_token: random_token(),
+            audit: Arc::new(NullAuditSink),
         }
+    }
+
+    pub fn with_audit_sink(mut self, sink: Arc<dyn AuditSink>) -> Self {
+        self.audit = sink;
+        self
     }
 
     /// Bind on `addr` and start serving. Tests pass `127.0.0.1:0`; ops
@@ -101,15 +110,32 @@ impl ImdsServer {
         let parsed = match parse_request(raw) {
             Some(p) => p,
             None => {
+                let mut event =
+                    baseline_egress_request("imds", "broker:imds", "?", "169.254.169.254", "?");
+                event.outcome = EgressOutcome::UpstreamError;
+                event.status = Some(400);
+                self.audit.record(event);
                 return write_response(&mut stream, 400, "Bad Request", "text/plain", b"")
                     .await;
             }
         };
 
+        let mut event = baseline_egress_request(
+            "imds",
+            "broker:imds",
+            &parsed.method,
+            "169.254.169.254",
+            &parsed.path,
+        );
+        event.inject = "Imds".into();
+
         // PUT /latest/api/token: hand out the synthetic token.
         if parsed.method.eq_ignore_ascii_case("PUT")
             && parsed.path == "/latest/api/token"
         {
+            event.outcome = EgressOutcome::Ok;
+            event.status = Some(200);
+            self.audit.record(event);
             return write_response(
                 &mut stream,
                 200,
@@ -127,6 +153,9 @@ impl ImdsServer {
             .find(|(k, _)| k.eq_ignore_ascii_case("X-aws-ec2-metadata-token"))
             .map(|(_, v)| v.as_str());
         if presented_token != Some(self.session_token.as_str()) {
+            event.outcome = EgressOutcome::PolicyDenied;
+            event.status = Some(401);
+            self.audit.record(event);
             return write_response(&mut stream, 401, "Unauthorized", "text/plain", b"")
                 .await;
         }
@@ -135,6 +164,9 @@ impl ImdsServer {
             if parsed.path == "/latest/meta-data/iam/security-credentials/"
                 || parsed.path == "/latest/meta-data/iam/security-credentials"
             {
+                event.outcome = EgressOutcome::Ok;
+                event.status = Some(200);
+                self.audit.record(event);
                 return write_response(
                     &mut stream,
                     200,
@@ -147,13 +179,22 @@ impl ImdsServer {
             let prefix = "/latest/meta-data/iam/security-credentials/";
             if let Some(role) = parsed.path.strip_prefix(prefix) {
                 if role == self.role_name {
+                    event.outcome = EgressOutcome::Ok;
+                    event.status = Some(200);
+                    self.audit.record(event);
                     return self.serve_creds(&mut stream).await;
                 }
+                event.outcome = EgressOutcome::UpstreamError;
+                event.status = Some(404);
+                self.audit.record(event);
                 return write_response(&mut stream, 404, "Not Found", "text/plain", b"")
                     .await;
             }
         }
 
+        event.outcome = EgressOutcome::UpstreamError;
+        event.status = Some(404);
+        self.audit.record(event);
         write_response(&mut stream, 404, "Not Found", "text/plain", b"").await
     }
 
@@ -346,10 +387,13 @@ mod tests {
     fn iso8601_known_vector() {
         // Unix epoch = 1970-01-01T00:00:00Z.
         assert_eq!(format_iso8601(Duration::from_secs(0)), "1970-01-01T00:00:00Z");
-        // 2026-04-26T17:32:01Z = 1777656721.
+        // 86_400 seconds = exactly 1 day.
+        assert_eq!(format_iso8601(Duration::from_secs(86_400)), "1970-01-02T00:00:00Z");
+        // 2000-03-01T00:00:00Z — exercises the leap-year branch around
+        // the Y2K boundary in civil_from_days.
         assert_eq!(
-            format_iso8601(Duration::from_secs(1_777_656_721)),
-            "2026-04-26T17:32:01Z"
+            format_iso8601(Duration::from_secs(951_868_800)),
+            "2000-03-01T00:00:00Z"
         );
     }
 
