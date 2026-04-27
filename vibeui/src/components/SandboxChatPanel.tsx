@@ -47,6 +47,10 @@ export function SandboxChatPanel({ provider: initialProvider, availableProviders
   const effectiveProviders = availableProviders ?? providers;
   const [provider, setProvider] = useState(initialProvider ?? effectiveProviders[0] ?? getDefaultProvider());
 
+  useEffect(() => {
+    if (initialProvider) setProvider(initialProvider);
+  }, [initialProvider]);
+
   const [sandboxPath, setSandboxPath] = useState<string | null>(null);
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [tree, setTree] = useState<TreeNode[]>([]);
