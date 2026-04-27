@@ -10,6 +10,9 @@ description = "Tier-0 (native, kernel-enforced) Sandbox impls for VibeCody. See 
 vibe-sandbox = { path = "../vibe-sandbox" }
 thiserror = { workspace = true }
 
+[dev-dependencies.vibe-broker]
+path = "../vibe-broker"
+
 [target.'cfg(target_os = "linux")'.dependencies]
 # Wired in slice N1.x. Listed here so the cfg-gated module compiles cleanly.
 nix = { version = "0.29", features = ["fs", "process", "user", "signal"] }
@@ -21,6 +24,7 @@ nix = { version = "0.29", features = ["fs", "process", "user", "signal"] }
 cucumber = "0.21"
 tempfile = "3"
 futures = "0.3"
+tokio = { workspace = true, features = ["full"] }
 
 [[test]]
 name = "native_macos_bdd"
@@ -28,4 +32,8 @@ harness = false
 
 [[test]]
 name = "native_tier_bdd"
+harness = false
+
+[[test]]
+name = "e2e_sandbox_broker_bdd"
 harness = false
