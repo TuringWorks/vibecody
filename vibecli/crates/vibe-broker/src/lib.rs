@@ -20,7 +20,10 @@ pub use audit::{AuditEvent, EgressOutcome};
 pub use forward::{ForwardError, ForwardRequest, ForwardResponse, forward_plain_http};
 pub use mitm::{InspectContext, MitmError, default_upstream_roots, run_mitm};
 pub use policy::{Decision, Inject, Policy, Rule, RuleMatch, SecretRef};
-pub use secrets::{EmptySecretStore, InMemorySecretStore, SecretStore};
+pub use secrets::{
+    AwsCredentials, AzureAccessToken, EmptySecretStore, GcpAccessToken, InMemorySecretStore,
+    SecretStore,
+};
 pub use ssrf::{SsrfGuard, SsrfVerdict};
 pub use tls::{BrokerCa, LeafCert, TlsError};
 

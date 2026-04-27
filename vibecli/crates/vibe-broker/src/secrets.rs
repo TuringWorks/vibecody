@@ -23,6 +23,21 @@ pub struct AwsCredentials {
     pub service: String,
 }
 
+/// Pre-minted GCP OAuth2 access token. The token-mint flow (sign a JWT
+/// claim with the service-account key, exchange for an access token via
+/// `oauth2.googleapis.com`) is the daemon's job (slice B2.4); the broker
+/// just consumes the resulting Bearer string.
+#[derive(Debug, Clone)]
+pub struct GcpAccessToken {
+    pub token: String,
+}
+
+/// Pre-minted Azure Service Principal / Managed Identity access token.
+#[derive(Debug, Clone)]
+pub struct AzureAccessToken {
+    pub token: String,
+}
+
 pub trait SecretStore: Send + Sync {
     fn resolve(&self, secret: &SecretRef) -> Option<String>;
 
@@ -31,12 +46,22 @@ pub trait SecretStore: Send + Sync {
     fn resolve_aws(&self, _secret: &SecretRef) -> Option<AwsCredentials> {
         None
     }
+
+    fn resolve_gcp(&self, _secret: &SecretRef) -> Option<GcpAccessToken> {
+        None
+    }
+
+    fn resolve_azure(&self, _secret: &SecretRef) -> Option<AzureAccessToken> {
+        None
+    }
 }
 
 #[derive(Debug, Default)]
 pub struct InMemorySecretStore {
     map: RwLock<HashMap<String, String>>,
     aws: RwLock<HashMap<String, AwsCredentials>>,
+    gcp: RwLock<HashMap<String, GcpAccessToken>>,
+    azure: RwLock<HashMap<String, AzureAccessToken>>,
 }
 
 impl InMemorySecretStore {
@@ -50,6 +75,14 @@ impl InMemorySecretStore {
 
     pub fn set_aws(&self, key: impl Into<String>, creds: AwsCredentials) {
         self.aws.write().unwrap().insert(key.into(), creds);
+    }
+
+    pub fn set_gcp(&self, key: impl Into<String>, token: GcpAccessToken) {
+        self.gcp.write().unwrap().insert(key.into(), token);
+    }
+
+    pub fn set_azure(&self, key: impl Into<String>, token: AzureAccessToken) {
+        self.azure.write().unwrap().insert(key.into(), token);
     }
 
     pub fn from_pairs<I, K, V>(pairs: I) -> Self
@@ -73,6 +106,14 @@ impl SecretStore for InMemorySecretStore {
 
     fn resolve_aws(&self, secret: &SecretRef) -> Option<AwsCredentials> {
         self.aws.read().unwrap().get(&secret.0).cloned()
+    }
+
+    fn resolve_gcp(&self, secret: &SecretRef) -> Option<GcpAccessToken> {
+        self.gcp.read().unwrap().get(&secret.0).cloned()
+    }
+
+    fn resolve_azure(&self, secret: &SecretRef) -> Option<AzureAccessToken> {
+        self.azure.read().unwrap().get(&secret.0).cloned()
     }
 }
 

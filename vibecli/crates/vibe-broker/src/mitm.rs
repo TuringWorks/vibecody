@@ -320,9 +320,15 @@ fn resolve_injection(
                 .unwrap_or_default(),
             None => Vec::new(),
         },
-        Inject::GcpIam { .. } | Inject::AzureMsi { .. } | Inject::HeaderTemplate { .. } => {
-            Vec::new()
-        }
+        Inject::GcpIam { service_account } => match secrets.resolve_gcp(service_account) {
+            Some(token) => vec![("Authorization".into(), format!("Bearer {}", token.token))],
+            None => Vec::new(),
+        },
+        Inject::AzureMsi { client_id } => match secrets.resolve_azure(client_id) {
+            Some(token) => vec![("Authorization".into(), format!("Bearer {}", token.token))],
+            None => Vec::new(),
+        },
+        Inject::HeaderTemplate { .. } => Vec::new(),
     }
 }
 
@@ -340,7 +346,7 @@ fn sign_aws_v4(
     creds: &crate::secrets::AwsCredentials,
 ) -> Option<Vec<(String, String)>> {
     use hmac::{Hmac, Mac};
-    use sha2::{Digest, Sha256};
+    use sha2::Sha256;
     type HmacSha256 = Hmac<Sha256>;
 
     let now = chrono::Utc::now();

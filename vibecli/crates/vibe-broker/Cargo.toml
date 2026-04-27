@@ -65,3 +65,7 @@ harness = false
 [[test]]
 name = "broker_sigv4_bdd"
 harness = false
+
+[[test]]
+name = "broker_cloud_injection_bdd"
+harness = false
