@@ -177,6 +177,9 @@ pub mod context_assembler;
 // Memory-as-infrastructure redesign — Phase 6: USER.md / MEMORY.md
 // projections rendered from OpenMemory state.
 pub mod memory_projections;
+// Recap & Resume — Phase F1.1 foundation. Cross-cutting `Recap` shape
+// + Session-only heuristic generator. See docs/design/recap-resume/.
+pub mod recap;
 pub mod mem_benchmark;
 // FIT-GAP v11 — Phase 48: P3 Gaps (closed)
 pub mod token_dashboard;

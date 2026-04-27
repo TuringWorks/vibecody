@@ -202,6 +202,37 @@ impl SessionStore {
 
         self.backfill_fts_if_needed()?;
 
+        // Recap & Resume — Phase F1.1. New `recaps` table for Session
+        // recaps; Job and DiffChain recaps live in their own stores per
+        // the storage matrix in docs/design/recap-resume/README.md.
+        // Idempotent CREATE — safe to run on every open.
+        self.conn.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS recaps (
+                id                 TEXT PRIMARY KEY,
+                kind               TEXT NOT NULL DEFAULT 'session',
+                subject_id         TEXT NOT NULL,
+                last_message_id    INTEGER,
+                workspace          TEXT,
+                generated_at       TEXT NOT NULL,
+                generator_kind     TEXT NOT NULL,
+                generator_provider TEXT,
+                generator_model    TEXT,
+                headline           TEXT NOT NULL,
+                body_json          TEXT NOT NULL,
+                token_input        INTEGER,
+                token_output       INTEGER,
+                schema_version     INTEGER NOT NULL DEFAULT 1,
+                FOREIGN KEY (subject_id) REFERENCES sessions(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_recaps_subject ON recaps(subject_id);
+            CREATE INDEX IF NOT EXISTS idx_recaps_generated ON recaps(generated_at);
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_recaps_subject_last_msg
+                ON recaps(subject_id, last_message_id);
+            "#,
+        )?;
+
         Ok(())
     }
 
@@ -294,6 +325,173 @@ impl SessionStore {
     pub fn delete_session(&self, id: &str) -> Result<()> {
         self.conn
             .execute("DELETE FROM sessions WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    // ── Recap & Resume — Phase F1.1 CRUD ───────────────────────────────────
+
+    /// Insert a recap row, **idempotent** on `(subject_id, last_message_id)`.
+    /// If a recap already exists for that pair, the existing row is
+    /// returned unchanged — preserving the original `id` and
+    /// `generated_at`. To force a regeneration, call `delete_recap`
+    /// first or pass a different `last_message_id` (i.e. the session
+    /// has new messages since the prior recap).
+    ///
+    /// Returns the stored recap (which may differ from the input
+    /// when the idempotency rule fires).
+    pub fn insert_recap(
+        &self,
+        recap: &crate::recap::Recap,
+    ) -> Result<crate::recap::Recap> {
+        // Idempotency check first — same subject + last_message_id =>
+        // return the existing row. NULL equality in SQL: a stored
+        // NULL `last_message_id` matches an input None, an integer
+        // matches an equal integer.
+        if let Some(existing) = self.get_recap_by_subject_and_last_msg(
+            &recap.subject_id,
+            recap.last_message_id,
+        )? {
+            return Ok(existing);
+        }
+
+        let body = serde_json::to_string(&RecapBodyJson::from(recap))
+            .map_err(|e| anyhow::anyhow!("recap body serialize: {e}"))?;
+
+        let (gen_kind, gen_provider, gen_model) = match &recap.generator {
+            crate::recap::RecapGenerator::Heuristic => ("heuristic", None, None),
+            crate::recap::RecapGenerator::Llm { provider, model } => {
+                ("llm", Some(provider.as_str()), Some(model.as_str()))
+            }
+            crate::recap::RecapGenerator::UserEdited => ("user_edited", None, None),
+        };
+        let kind_str = match recap.kind {
+            crate::recap::RecapKind::Session => "session",
+            crate::recap::RecapKind::Job => "job",
+            crate::recap::RecapKind::DiffChain => "diff_chain",
+        };
+        let workspace_str = recap
+            .workspace
+            .as_ref()
+            .and_then(|p| p.to_str())
+            .map(str::to_string);
+        let generated_at_iso = recap.generated_at.to_rfc3339();
+        let token_in = recap.token_usage.map(|t| t.input as i64);
+        let token_out = recap.token_usage.map(|t| t.output as i64);
+
+        self.conn.execute(
+            "INSERT INTO recaps
+             (id, kind, subject_id, last_message_id, workspace, generated_at,
+              generator_kind, generator_provider, generator_model,
+              headline, body_json, token_input, token_output, schema_version)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+            params![
+                recap.id,
+                kind_str,
+                recap.subject_id,
+                recap.last_message_id,
+                workspace_str,
+                generated_at_iso,
+                gen_kind,
+                gen_provider,
+                gen_model,
+                recap.headline,
+                body,
+                token_in,
+                token_out,
+                recap.schema_version as i64,
+            ],
+        )?;
+
+        Ok(recap.clone())
+    }
+
+    /// Fetch a recap by ID. Returns `Ok(None)` if the row doesn't
+    /// exist (caller distinguishes from DB error).
+    pub fn get_recap_by_id(&self, id: &str) -> Result<Option<crate::recap::Recap>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, kind, subject_id, last_message_id, workspace, generated_at,
+                    generator_kind, generator_provider, generator_model,
+                    headline, body_json, token_input, token_output, schema_version
+             FROM recaps WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![id])?;
+        match rows.next()? {
+            Some(r) => Ok(Some(row_to_recap(r)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// Fetch the recap row for a given `(subject_id, last_message_id)`
+    /// pair. Used by `insert_recap` for idempotency and by callers
+    /// that want to know whether a fresh recap is needed.
+    pub fn get_recap_by_subject_and_last_msg(
+        &self,
+        subject_id: &str,
+        last_message_id: Option<i64>,
+    ) -> Result<Option<crate::recap::Recap>> {
+        let sql = match last_message_id {
+            Some(_) => "SELECT id, kind, subject_id, last_message_id, workspace, generated_at,
+                              generator_kind, generator_provider, generator_model,
+                              headline, body_json, token_input, token_output, schema_version
+                       FROM recaps WHERE subject_id = ?1 AND last_message_id = ?2",
+            None => "SELECT id, kind, subject_id, last_message_id, workspace, generated_at,
+                            generator_kind, generator_provider, generator_model,
+                            headline, body_json, token_input, token_output, schema_version
+                     FROM recaps WHERE subject_id = ?1 AND last_message_id IS NULL",
+        };
+        let mut stmt = self.conn.prepare(sql)?;
+        let mut rows = match last_message_id {
+            Some(id) => stmt.query(params![subject_id, id])?,
+            None => stmt.query(params![subject_id])?,
+        };
+        match rows.next()? {
+            Some(r) => Ok(Some(row_to_recap(r)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// List recaps for a subject, newest-first by `generated_at`.
+    /// `limit = 0` is treated as "no limit" — caller's responsibility
+    /// to set sane bounds for paginated UIs.
+    pub fn list_recaps_for_subject(
+        &self,
+        subject_id: &str,
+        limit: usize,
+    ) -> Result<Vec<crate::recap::Recap>> {
+        let sql = if limit == 0 {
+            "SELECT id, kind, subject_id, last_message_id, workspace, generated_at,
+                    generator_kind, generator_provider, generator_model,
+                    headline, body_json, token_input, token_output, schema_version
+             FROM recaps WHERE subject_id = ?1 ORDER BY generated_at DESC".to_string()
+        } else {
+            format!(
+                "SELECT id, kind, subject_id, last_message_id, workspace, generated_at,
+                        generator_kind, generator_provider, generator_model,
+                        headline, body_json, token_input, token_output, schema_version
+                 FROM recaps WHERE subject_id = ?1 ORDER BY generated_at DESC LIMIT {limit}"
+            )
+        };
+        let mut stmt = self.conn.prepare(&sql)?;
+        let rows = stmt.query_map(params![subject_id], |r| {
+            row_to_recap(r).map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    0,
+                    rusqlite::types::Type::Text,
+                    Box::new(std::io::Error::other(e.to_string())),
+                )
+            })
+        })?;
+        let mut out = Vec::new();
+        for r in rows {
+            out.push(r?);
+        }
+        Ok(out)
+    }
+
+    /// Delete a recap by ID. No-op if the row doesn't exist.
+    pub fn delete_recap(&self, id: &str) -> Result<()> {
+        self.conn
+            .execute("DELETE FROM recaps WHERE id = ?1", params![id])?;
         Ok(())
     }
 
@@ -613,6 +811,94 @@ impl SessionStore {
 
         Ok(())
     }
+}
+
+// ── Recap helpers (Phase F1.1) ────────────────────────────────────────────────
+
+/// JSON shape stored in `body_json` — the subset of `Recap` that
+/// doesn't have its own column. Keeping this separate from
+/// `crate::recap::Recap` lets us evolve the row schema without
+/// breaking the in-memory shape (and vice versa).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct RecapBodyJson {
+    bullets: Vec<String>,
+    next_actions: Vec<String>,
+    artifacts: Vec<crate::recap::RecapArtifact>,
+    resume_hint: Option<crate::recap::ResumeHint>,
+}
+
+impl From<&crate::recap::Recap> for RecapBodyJson {
+    fn from(r: &crate::recap::Recap) -> Self {
+        Self {
+            bullets: r.bullets.clone(),
+            next_actions: r.next_actions.clone(),
+            artifacts: r.artifacts.clone(),
+            resume_hint: r.resume_hint.clone(),
+        }
+    }
+}
+
+fn row_to_recap(row: &rusqlite::Row<'_>) -> Result<crate::recap::Recap> {
+    let id: String = row.get(0)?;
+    let kind_str: String = row.get(1)?;
+    let subject_id: String = row.get(2)?;
+    let last_message_id: Option<i64> = row.get(3)?;
+    let workspace: Option<String> = row.get(4)?;
+    let generated_at_iso: String = row.get(5)?;
+    let generator_kind: String = row.get(6)?;
+    let generator_provider: Option<String> = row.get(7)?;
+    let generator_model: Option<String> = row.get(8)?;
+    let headline: String = row.get(9)?;
+    let body_json: String = row.get(10)?;
+    let token_input: Option<i64> = row.get(11)?;
+    let token_output: Option<i64> = row.get(12)?;
+    let schema_version: i64 = row.get(13)?;
+
+    let kind = match kind_str.as_str() {
+        "session" => crate::recap::RecapKind::Session,
+        "job" => crate::recap::RecapKind::Job,
+        "diff_chain" => crate::recap::RecapKind::DiffChain,
+        other => anyhow::bail!("unknown recap kind in DB: {other:?}"),
+    };
+    let generator = match generator_kind.as_str() {
+        "heuristic" => crate::recap::RecapGenerator::Heuristic,
+        "llm" => {
+            let provider = generator_provider.unwrap_or_default();
+            let model = generator_model.unwrap_or_default();
+            crate::recap::RecapGenerator::Llm { provider, model }
+        }
+        "user_edited" => crate::recap::RecapGenerator::UserEdited,
+        other => anyhow::bail!("unknown generator_kind in DB: {other:?}"),
+    };
+    let body: RecapBodyJson = serde_json::from_str(&body_json)
+        .map_err(|e| anyhow::anyhow!("recap body deserialize: {e}"))?;
+    let generated_at = chrono::DateTime::parse_from_rfc3339(&generated_at_iso)
+        .map_err(|e| anyhow::anyhow!("recap generated_at parse: {e}"))?
+        .with_timezone(&chrono::Utc);
+    let token_usage = match (token_input, token_output) {
+        (Some(i), Some(o)) => Some(crate::recap::RecapTokenUsage {
+            input: i as u32,
+            output: o as u32,
+        }),
+        _ => None,
+    };
+
+    Ok(crate::recap::Recap {
+        id,
+        kind,
+        subject_id,
+        last_message_id,
+        workspace: workspace.map(std::path::PathBuf::from),
+        generated_at,
+        generator,
+        headline,
+        bullets: body.bullets,
+        next_actions: body.next_actions,
+        artifacts: body.artifacts,
+        resume_hint: body.resume_hint,
+        token_usage,
+        schema_version: schema_version as u16,
+    })
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -2279,6 +2565,156 @@ mod tests {
         let store = SessionStore::open(&path).unwrap();
         let hits = store.search_fts("persistent", SearchScope::All, 10).unwrap();
         assert_eq!(hits.len(), 1, "FTS entries must persist across open()");
+    }
+
+    // ── F1.1 recap CRUD ──────────────────────────────────────────────────
+
+    /// Build a heuristic recap against a fresh tempdir-scoped store
+    /// with one user message. Returns (store, session_id, recap).
+    fn store_with_recap_fixture() -> (SessionStore, String, crate::recap::Recap) {
+        let dir = tempfile::tempdir().unwrap();
+        let store = SessionStore::open(dir.path().join("sessions.db")).unwrap();
+        // Keep dir alive by leaking — tests are short-lived.
+        std::mem::forget(dir);
+        let sid = "F1-recap-test".to_string();
+        store
+            .insert_session_with_parent(&sid, "test task", "mock", "test-model", None, 0)
+            .unwrap();
+        store.insert_message(&sid, "user", "Refactor auth module").unwrap();
+        let detail = store
+            .get_session_detail(&sid)
+            .unwrap()
+            .expect("session must exist");
+        let recap = crate::recap::heuristic_recap(&detail);
+        (store, sid, recap)
+    }
+
+    #[test]
+    fn insert_recap_round_trips_full_shape() {
+        let (store, _sid, recap) = store_with_recap_fixture();
+        let stored = store.insert_recap(&recap).expect("insert");
+        let fetched = store
+            .get_recap_by_id(&recap.id)
+            .expect("fetch")
+            .expect("recap row must exist");
+        assert_eq!(fetched, stored);
+        assert_eq!(fetched.headline, recap.headline);
+        assert_eq!(fetched.bullets, recap.bullets);
+        assert_eq!(fetched.subject_id, recap.subject_id);
+    }
+
+    #[test]
+    fn insert_recap_idempotent_on_subject_and_last_message_id() {
+        // Pin: re-insert with the same (subject_id, last_message_id)
+        // returns the existing row, original `id` preserved. This is
+        // the behavior on which `POST /v1/recap` (F1.2) builds the
+        // "force=false ⇒ return current recap" semantics.
+        let (store, _sid, recap1) = store_with_recap_fixture();
+        let _ = store.insert_recap(&recap1).expect("first insert");
+        // Build a *different* recap shape against the same fixture
+        // (same subject_id + same last_message_id), then re-insert.
+        let mut recap2 = recap1.clone();
+        recap2.id = "different-id".to_string();
+        recap2.headline = "Different headline".to_string();
+        let stored2 = store.insert_recap(&recap2).expect("second insert");
+        // Idempotency: stored result is the *original* recap, not the
+        // new shape. Headline must match the first insert.
+        assert_eq!(stored2.id, recap1.id);
+        assert_eq!(stored2.headline, recap1.headline);
+        // And exactly one row exists for this subject.
+        let list = store
+            .list_recaps_for_subject(&recap1.subject_id, 10)
+            .expect("list");
+        assert_eq!(list.len(), 1, "idempotency must not produce duplicates");
+    }
+
+    #[test]
+    fn list_recaps_for_subject_orders_newest_first() {
+        let (store, sid, recap1) = store_with_recap_fixture();
+        let _ = store.insert_recap(&recap1).expect("insert 1");
+        // Add a new message so the next recap has a different
+        // last_message_id (escapes idempotency).
+        store.insert_message(&sid, "assistant", "ack").unwrap();
+        let detail = store.get_session_detail(&sid).unwrap().unwrap();
+        let mut recap2 = crate::recap::heuristic_recap(&detail);
+        // Force a *later* generated_at by bumping by 1s — small but
+        // deterministic for the ORDER BY assertion. Without this the
+        // two recaps could share a timestamp on fast hardware and the
+        // ORDER BY tie-break would be undefined.
+        recap2.generated_at =
+            recap1.generated_at + chrono::Duration::seconds(1);
+        let _ = store.insert_recap(&recap2).expect("insert 2");
+
+        let list = store.list_recaps_for_subject(&sid, 10).expect("list");
+        assert_eq!(list.len(), 2);
+        assert!(
+            list[0].generated_at > list[1].generated_at,
+            "list must be newest-first; got {:?} then {:?}",
+            list[0].generated_at,
+            list[1].generated_at
+        );
+    }
+
+    #[test]
+    fn delete_recap_removes_only_the_targeted_row() {
+        let (store, sid, recap1) = store_with_recap_fixture();
+        let _ = store.insert_recap(&recap1).expect("insert");
+        // Add a second recap on the same subject.
+        store.insert_message(&sid, "assistant", "ack").unwrap();
+        let detail = store.get_session_detail(&sid).unwrap().unwrap();
+        let mut recap2 = crate::recap::heuristic_recap(&detail);
+        recap2.generated_at = recap1.generated_at + chrono::Duration::seconds(1);
+        let _ = store.insert_recap(&recap2).expect("insert 2");
+
+        store.delete_recap(&recap1.id).expect("delete");
+        assert!(
+            store.get_recap_by_id(&recap1.id).unwrap().is_none(),
+            "deleted recap must be gone"
+        );
+        assert!(
+            store.get_recap_by_id(&recap2.id).unwrap().is_some(),
+            "untouched recap must still exist"
+        );
+    }
+
+    #[test]
+    fn get_recap_by_subject_and_last_msg_handles_null_last_message() {
+        // An empty session has no last_message_id (None). Inserting a
+        // recap with last_message_id = None must round-trip cleanly:
+        // the lookup uses `IS NULL` SQL semantics, not parameter
+        // binding, because `NULL = NULL` is FALSE in SQL.
+        let dir = tempfile::tempdir().unwrap();
+        let store = SessionStore::open(dir.path().join("sessions.db")).unwrap();
+        std::mem::forget(dir);
+        let sid = "empty-session".to_string();
+        store
+            .insert_session_with_parent(&sid, "task", "mock", "model", None, 0)
+            .unwrap();
+        let detail = store.get_session_detail(&sid).unwrap().unwrap();
+        let recap = crate::recap::heuristic_recap(&detail);
+        assert!(recap.last_message_id.is_none());
+
+        let _ = store.insert_recap(&recap).expect("insert");
+        let fetched = store
+            .get_recap_by_subject_and_last_msg(&sid, None)
+            .expect("query")
+            .expect("recap with NULL last_message_id must round-trip");
+        assert_eq!(fetched.id, recap.id);
+    }
+
+    #[test]
+    fn cascade_delete_session_removes_recaps() {
+        // Pin: deleting a session via FK cascade must take its recaps
+        // with it. UIs that "forget this session" rely on this so a
+        // forgotten session doesn't leak through the recaps list.
+        let (store, sid, recap) = store_with_recap_fixture();
+        let _ = store.insert_recap(&recap).unwrap();
+        store.delete_session(&sid).unwrap();
+        let list = store.list_recaps_for_subject(&sid, 10).unwrap();
+        assert!(
+            list.is_empty(),
+            "FK cascade must delete recaps; got: {list:?}"
+        );
     }
 }
 

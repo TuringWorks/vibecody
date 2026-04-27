@@ -2244,6 +2244,8 @@ mod auto_research;
 mod compressed_hnsw;
 #[allow(dead_code)]
 mod open_memory;
+// Recap & Resume — Phase F1.1 foundation (types + heuristic).
+mod recap;
 #[allow(dead_code)]
 mod vulnerability_db;
 #[allow(dead_code)]

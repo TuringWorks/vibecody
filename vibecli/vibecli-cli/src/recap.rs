@@ -1,0 +1,991 @@
+//! Recap & Resume — Phase F1.1 foundation.
+//!
+//! Per `docs/design/recap-resume/README.md`, a recap is a structured,
+//! on-demand summary of a unit of work. This module holds the
+//! cross-cutting `Recap` shape (Session / Job / DiffChain) plus the
+//! Session-only **heuristic generator** — the deterministic, offline
+//! algorithm that produces a usable recap without an LLM.
+//!
+//! F1.1 scope:
+//! - Types: `Recap`, `RecapKind`, `RecapGenerator`, `RecapArtifact`,
+//!   `ArtifactKind`, `ResumeHint`, `ResumeTarget`, `RecapTokenUsage`.
+//! - Heuristic generator over `SessionDetail` (already in
+//!   `session_store.rs`).
+//!
+//! F1.2 (separate slice) wires the `recaps` table CRUD and HTTP routes.
+//! F1.3 wires `/v1/resume`. This module deliberately has no
+//! database / HTTP code so it stays pure and trivially testable.
+//!
+//! See also: `01-session.md` for triggers, slicing, failure modes.
+//!
+//! ## Patent-distance note
+//!
+//! Recap is itself a context-trimming primitive — it shrinks context.
+//! The Session-kind generator does not predict future code, does not
+//! render inline, has no accept/reject UI on code, and runs only on
+//! explicit triggers. The five Path-D claim elements remain at
+//! distance. Diffcomplete-kind recaps (separate slice D1) require a
+//! per-slice patent re-audit before they ship.
+
+#![allow(dead_code)]
+
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+
+use crate::session_store::{MessageRow, SessionDetail, StepRow};
+
+/// Stable wire shape for a recap, mirrored across SQL row + REST JSON.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Recap {
+    pub id: String,
+    pub kind: RecapKind,
+    pub subject_id: String,
+    /// The last message ID included when the recap was generated. Acts
+    /// as the idempotency key together with `subject_id`: regenerating
+    /// a recap with the same `(subject_id, last_message_id)` returns
+    /// the existing row unchanged.
+    #[serde(default)]
+    pub last_message_id: Option<i64>,
+    pub workspace: Option<PathBuf>,
+    pub generated_at: DateTime<Utc>,
+    pub generator: RecapGenerator,
+    /// ≤ 80 chars, single line, plain prose. Trailing punctuation
+    /// stripped so UIs can append their own.
+    pub headline: String,
+    /// 3–7 short bullets describing what happened. Each ≤ 120 chars.
+    pub bullets: Vec<String>,
+    /// 0–3 imperative-form follow-ups; populates `seed_instruction` on
+    /// `ResumeHint` if non-empty.
+    pub next_actions: Vec<String>,
+    pub artifacts: Vec<RecapArtifact>,
+    pub resume_hint: Option<ResumeHint>,
+    pub token_usage: Option<RecapTokenUsage>,
+    /// Schema version for forward-compat. Start at 1; bump on
+    /// breaking field changes, not additive ones.
+    pub schema_version: u16,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum RecapKind {
+    Session,
+    Job,
+    DiffChain,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum RecapGenerator {
+    /// Deterministic, offline, < 50ms on 200-message session. Default.
+    Heuristic,
+    /// Routed to the user's currently selected provider — never a
+    /// silent fan-out (see `01-session.md` "LLM recap prompt").
+    Llm { provider: String, model: String },
+    /// User edited an LLM/heuristic recap via `/recap --edit`.
+    UserEdited,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RecapArtifact {
+    pub kind: ArtifactKind,
+    pub label: String,
+    pub locator: String,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ArtifactKind {
+    File,
+    Diff,
+    Job,
+    Url,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ResumeHint {
+    pub target: ResumeTarget,
+    /// Resume cursor for sessions; `None` = end of transcript.
+    pub from_message: Option<i64>,
+    pub from_step: Option<u32>,
+    pub from_diff_index: Option<u32>,
+    pub seed_instruction: Option<String>,
+    /// When `true`, resume forks a new `session_id`. Default `true`
+    /// when `from_message` is set (mid-conversation), `false` when
+    /// resuming from the tail.
+    #[serde(default)]
+    pub branch_on_resume: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ResumeTarget {
+    Session { id: String },
+    Job { id: String },
+    DiffChain { id: String },
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RecapTokenUsage {
+    pub input: u32,
+    pub output: u32,
+}
+
+// ── Heuristic generator ──────────────────────────────────────────────────────
+
+/// Generate a Session recap from a `SessionDetail` using only
+/// deterministic rules. No LLM, no network, no I/O. Designed to run
+/// in well under 50ms on a 200-message session — the contract pinned
+/// by `heuristic_recap_runs_in_well_under_one_second_on_large_session`.
+///
+/// Algorithm (per `01-session.md` "Heuristic recap algorithm"):
+/// 1. Headline: first prose user message (skip leading `/command`s),
+///    trimmed to ≤ 80 chars, trailing punctuation stripped.
+/// 2. Bullets: one per distinct tool name with count, plus a
+///    "Stopped: …" bullet when the session ended in failure.
+/// 3. next_actions: imperative-form sentences from the last 3
+///    assistant messages, capped at 3.
+/// 4. artifacts: unique file paths inferred from step input/output
+///    summaries.
+/// 5. resume_hint: `from_message = last_message_id`,
+///    `seed_instruction = next_actions[0]` if present;
+///    `branch_on_resume = false` (resume from tail).
+pub fn heuristic_recap(detail: &SessionDetail) -> Recap {
+    let headline = derive_headline(&detail.messages);
+    let bullets = derive_bullets(&detail.steps, &detail.session.status);
+    let next_actions = derive_next_actions(&detail.messages);
+    let artifacts = derive_artifacts(&detail.steps);
+
+    let last_message_id = detail.messages.last().map(|m| m.id);
+    let seed_instruction = next_actions.first().cloned();
+
+    let resume_hint = Some(ResumeHint {
+        target: ResumeTarget::Session {
+            id: detail.session.id.clone(),
+        },
+        from_message: last_message_id,
+        from_step: None,
+        from_diff_index: None,
+        seed_instruction,
+        // Tail resume: continue the same session_id, no fork.
+        branch_on_resume: false,
+    });
+
+    Recap {
+        id: new_recap_id(),
+        kind: RecapKind::Session,
+        subject_id: detail.session.id.clone(),
+        last_message_id,
+        workspace: detail
+            .session
+            .project_path
+            .as_ref()
+            .map(PathBuf::from),
+        generated_at: Utc::now(),
+        generator: RecapGenerator::Heuristic,
+        headline,
+        bullets,
+        next_actions,
+        artifacts,
+        resume_hint,
+        token_usage: None,
+        schema_version: 1,
+    }
+}
+
+/// Generate a fresh recap ID. UUIDv4 hex (32 chars, no dashes) — not
+/// a true ULID, but the sort order doesn't matter at the ID level
+/// because the SQL layer indexes `generated_at` for newest-first
+/// pagination. Switching to ULID/UUIDv7 later is a non-breaking
+/// change (still a TEXT PRIMARY KEY).
+fn new_recap_id() -> String {
+    uuid::Uuid::new_v4().simple().to_string()
+}
+
+fn derive_headline(messages: &[MessageRow]) -> String {
+    // Skip system messages and `/command` user messages — those don't
+    // describe what the user wanted from the conversation.
+    let first_prose = messages.iter().find(|m| {
+        m.role == "user" && !is_slash_command(&m.content)
+    });
+    let raw = match first_prose {
+        Some(m) => m.content.trim(),
+        None => return "(empty session)".to_string(),
+    };
+
+    // Take the first non-empty line so a multi-line message doesn't
+    // produce a multi-line "single line" headline.
+    let first_line = raw.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
+    let trimmed = first_line.trim();
+
+    // Trim to ≤ 80 chars at a UTF-8 char boundary. Split-on-char so
+    // we don't truncate mid-codepoint.
+    let truncated: String = trimmed.chars().take(80).collect();
+    let cleaned = truncated.trim_end_matches(|c: char| {
+        c == '.' || c == '!' || c == '?' || c == ';' || c == ',' || c == ':'
+    });
+    if cleaned.is_empty() {
+        "(empty session)".to_string()
+    } else {
+        cleaned.to_string()
+    }
+}
+
+fn is_slash_command(content: &str) -> bool {
+    content.trim_start().starts_with('/')
+}
+
+fn derive_bullets(steps: &[StepRow], status: &str) -> Vec<String> {
+    let mut counts: std::collections::BTreeMap<String, u32> =
+        std::collections::BTreeMap::new();
+    for s in steps {
+        *counts.entry(s.tool_name.clone()).or_insert(0) += 1;
+    }
+
+    let mut bullets: Vec<String> = counts
+        .into_iter()
+        .map(|(tool, count)| {
+            if count > 1 {
+                format!("Ran `{tool}` ({count}×)")
+            } else {
+                format!("Ran `{tool}`")
+            }
+        })
+        .collect();
+
+    // Failure tail: surface what stopped the agent. Tests pin that the
+    // bullet starts with "Stopped:" so UIs can render it differently.
+    if status == "failed" {
+        let last_failed_step = steps.iter().rev().find(|s| !s.success);
+        let reason = last_failed_step
+            .map(|s| {
+                let snippet = s.output.lines().next().unwrap_or("").trim();
+                if snippet.is_empty() {
+                    format!("`{}` failed", s.tool_name)
+                } else {
+                    format!("`{}` — {}", s.tool_name, truncate_chars(snippet, 100))
+                }
+            })
+            .unwrap_or_else(|| "agent ended in failure".to_string());
+        bullets.push(format!("Stopped: {reason}"));
+    }
+
+    // Cap at 7 to honor the README's "3–7 bullets" contract; if we
+    // have fewer than 3, that's fine — the contract says "3–7 short
+    // bullets, what happened" but the heuristic doesn't fabricate.
+    if bullets.len() > 7 {
+        bullets.truncate(7);
+    }
+    bullets
+}
+
+fn derive_next_actions(messages: &[MessageRow]) -> Vec<String> {
+    // Look at the last 3 assistant messages for imperative-form
+    // sentences. The cap-at-3 contract is enforced after collection.
+    let assistants: Vec<&MessageRow> = messages
+        .iter()
+        .rev()
+        .filter(|m| m.role == "assistant")
+        .take(3)
+        .collect();
+
+    let mut actions: Vec<String> = Vec::new();
+    for m in assistants.iter().rev() {
+        for sentence in split_sentences(&m.content) {
+            if let Some(action) = parse_imperative(&sentence) {
+                if !actions.iter().any(|a| a.eq_ignore_ascii_case(&action)) {
+                    actions.push(action);
+                    if actions.len() == 3 {
+                        return actions;
+                    }
+                }
+            }
+        }
+    }
+    actions
+}
+
+/// Split text into sentence-ish units. Naive but deterministic — we
+/// split on `.`, `!`, `?` followed by whitespace, plus newlines.
+/// Doesn't handle abbreviations (Mr. Mrs. etc.) but the heuristic
+/// recap tolerates noise; the LLM path does the real prose work.
+fn split_sentences(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut current = String::new();
+    let mut prev_was_terminator = false;
+    for c in text.chars() {
+        if c == '\n' {
+            if !current.trim().is_empty() {
+                out.push(current.trim().to_string());
+            }
+            current.clear();
+            prev_was_terminator = false;
+            continue;
+        }
+        current.push(c);
+        if c == '.' || c == '!' || c == '?' {
+            prev_was_terminator = true;
+        } else if prev_was_terminator && c.is_whitespace() {
+            if !current.trim().is_empty() {
+                out.push(current.trim().to_string());
+            }
+            current.clear();
+            prev_was_terminator = false;
+        } else if !c.is_whitespace() {
+            prev_was_terminator = false;
+        }
+    }
+    if !current.trim().is_empty() {
+        out.push(current.trim().to_string());
+    }
+    out
+}
+
+/// Pull an imperative-form action out of a sentence if one is
+/// recognizable. Returns the action stem (without leading
+/// "Next, " / "TODO: " / "Should also ") so UI can present it
+/// uniformly. Returns `None` for non-imperative sentences.
+fn parse_imperative(sentence: &str) -> Option<String> {
+    let s = sentence.trim();
+    if s.is_empty() {
+        return None;
+    }
+
+    // Bullet-list-style markers from chat output.
+    let lower = s.to_lowercase();
+    let prefixes: &[&str] = &[
+        "next,",
+        "next:",
+        "todo:",
+        "todo -",
+        "to do:",
+        "should also",
+        "should",
+        "we should",
+        "you should",
+        "let's",
+        "let's also",
+    ];
+    for p in prefixes {
+        if let Some(rest) = lower.strip_prefix(p) {
+            // Map back to the original case at the same byte offset.
+            let cut = s.len() - rest.len();
+            let raw = s[cut..].trim_start_matches(|c: char| {
+                c == ' ' || c == ',' || c == ':' || c == '-'
+            });
+            let trimmed = raw.trim_end_matches(|c: char| {
+                c == '.' || c == '!' || c == '?' || c == ';' || c == ','
+            });
+            if !trimmed.is_empty() {
+                return Some(capitalize_first(trimmed));
+            }
+        }
+    }
+
+    None
+}
+
+fn capitalize_first(s: &str) -> String {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(c) => c.to_uppercase().collect::<String>() + chars.as_str(),
+        None => String::new(),
+    }
+}
+
+fn truncate_chars(s: &str, max: usize) -> String {
+    if s.chars().count() <= max {
+        return s.to_string();
+    }
+    let mut out: String = s.chars().take(max).collect();
+    out.push('…');
+    out
+}
+
+fn derive_artifacts(steps: &[StepRow]) -> Vec<RecapArtifact> {
+    // Collect file-shaped paths from `input_summary`. Steps that look
+    // like file ops contribute one artifact each; we dedupe on locator.
+    let mut seen: std::collections::BTreeSet<String> =
+        std::collections::BTreeSet::new();
+    let mut out = Vec::new();
+    for s in steps {
+        for path in extract_file_paths(&s.input_summary) {
+            if seen.insert(path.clone()) {
+                let label = std::path::Path::new(&path)
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or(&path)
+                    .to_string();
+                out.push(RecapArtifact {
+                    kind: ArtifactKind::File,
+                    label,
+                    locator: path,
+                });
+            }
+        }
+    }
+    out
+}
+
+/// Extract path-like tokens from a free-form input summary. Conservative:
+/// we only accept tokens that contain at least one `/` or `\` and a
+/// `.` (extension), and that are bounded by whitespace or quotes.
+/// Handles quoted paths with spaces (e.g. `"src/foo bar.rs"`).
+fn extract_file_paths(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut current = String::new();
+    let mut in_quote: Option<char> = None;
+    for c in text.chars() {
+        match (in_quote, c) {
+            (None, '"') | (None, '\'') => in_quote = Some(c),
+            (Some(q), c) if c == q => {
+                if looks_like_path(&current) {
+                    out.push(current.clone());
+                }
+                current.clear();
+                in_quote = None;
+            }
+            (Some(_), c) => current.push(c),
+            (None, c) if c.is_whitespace() || c == ',' || c == ')' => {
+                if looks_like_path(&current) {
+                    out.push(current.clone());
+                }
+                current.clear();
+            }
+            (None, c) => current.push(c),
+        }
+    }
+    if looks_like_path(&current) {
+        out.push(current);
+    }
+    out
+}
+
+fn looks_like_path(s: &str) -> bool {
+    if s.is_empty() {
+        return false;
+    }
+    let has_sep = s.contains('/') || s.contains('\\');
+    let has_dot = s.contains('.');
+    has_sep && has_dot && !s.starts_with("http")
+}
+
+// ── Tests ────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::session_store::SessionRow;
+
+    fn fixture_session(id: &str, status: &str) -> SessionRow {
+        SessionRow {
+            id: id.to_string(),
+            task: "test".to_string(),
+            provider: "mock".to_string(),
+            model: "test-model".to_string(),
+            started_at: 0,
+            finished_at: None,
+            status: status.to_string(),
+            summary: None,
+            step_count: 0,
+            parent_session_id: None,
+            depth: 0,
+            project_path: None,
+        }
+    }
+
+    fn msg(id: i64, role: &str, content: &str) -> MessageRow {
+        MessageRow {
+            id,
+            session_id: "S".to_string(),
+            role: role.to_string(),
+            content: content.to_string(),
+            created_at: 0,
+        }
+    }
+
+    fn step(num: i64, tool: &str, input: &str, output: &str, ok: bool) -> StepRow {
+        StepRow {
+            id: num,
+            session_id: "S".to_string(),
+            step_num: num,
+            tool_name: tool.to_string(),
+            input_summary: input.to_string(),
+            output: output.to_string(),
+            success: ok,
+            created_at: 0,
+        }
+    }
+
+    fn detail(
+        session_id: &str,
+        status: &str,
+        messages: Vec<MessageRow>,
+        steps: Vec<StepRow>,
+    ) -> SessionDetail {
+        SessionDetail {
+            session: fixture_session(session_id, status),
+            messages,
+            steps,
+        }
+    }
+
+    // ── Headline ─────────────────────────────────────────────────────────
+
+    #[test]
+    fn heuristic_recap_extracts_headline_from_first_user_message() {
+        let d = detail(
+            "S",
+            "complete",
+            vec![
+                msg(1, "system", "you are a helpful assistant"),
+                msg(2, "user", "Refactor the auth middleware"),
+                msg(3, "assistant", "Sure, I'll start by reading auth.rs"),
+            ],
+            vec![],
+        );
+        let r = heuristic_recap(&d);
+        assert_eq!(r.headline, "Refactor the auth middleware");
+    }
+
+    #[test]
+    fn heuristic_recap_truncates_long_headline_to_80_chars() {
+        // 90-char message should truncate at 80 chars (no trailing
+        // punctuation in this fixture so the cap is the binding rule).
+        let long_msg = "a".repeat(90);
+        let d = detail(
+            "S",
+            "complete",
+            vec![msg(1, "user", &long_msg)],
+            vec![],
+        );
+        let r = heuristic_recap(&d);
+        assert_eq!(
+            r.headline.chars().count(),
+            80,
+            "headline must be exactly 80 chars after truncation"
+        );
+    }
+
+    #[test]
+    fn heuristic_recap_skips_slash_commands_for_headline() {
+        // `/command` style messages aren't prose — they shouldn't
+        // become the headline. The next prose user message wins.
+        let d = detail(
+            "S",
+            "complete",
+            vec![
+                msg(1, "user", "/init"),
+                msg(2, "user", "Implement the resume flow"),
+            ],
+            vec![],
+        );
+        let r = heuristic_recap(&d);
+        assert_eq!(r.headline, "Implement the resume flow");
+    }
+
+    #[test]
+    fn heuristic_recap_strips_trailing_punctuation_from_headline() {
+        // UIs append their own ellipsis / dot / etc. — we hand them
+        // a clean stem so they don't end up doubled.
+        let d = detail(
+            "S",
+            "complete",
+            vec![msg(1, "user", "Fix the auth bug.")],
+            vec![],
+        );
+        let r = heuristic_recap(&d);
+        assert_eq!(r.headline, "Fix the auth bug");
+    }
+
+    #[test]
+    fn heuristic_recap_handles_empty_session_gracefully() {
+        let d = detail("S", "complete", vec![], vec![]);
+        let r = heuristic_recap(&d);
+        assert_eq!(r.headline, "(empty session)");
+        assert!(r.bullets.is_empty());
+        assert!(r.next_actions.is_empty());
+        assert!(r.artifacts.is_empty());
+    }
+
+    #[test]
+    fn heuristic_recap_takes_first_line_for_multiline_headline() {
+        // A multiline first user message must produce a single-line
+        // headline. The contract is "single line"; subsequent lines
+        // belong in the conversation, not the recap header.
+        let d = detail(
+            "S",
+            "complete",
+            vec![msg(
+                1,
+                "user",
+                "Refactor the auth middleware\nspecifically validate_jwt",
+            )],
+            vec![],
+        );
+        let r = heuristic_recap(&d);
+        assert_eq!(r.headline, "Refactor the auth middleware");
+    }
+
+    // ── Bullets ──────────────────────────────────────────────────────────
+
+    #[test]
+    fn heuristic_recap_groups_tool_calls_by_name_with_count() {
+        // Multiple invocations of the same tool collapse to a single
+        // bullet with the count. Single invocations omit the count
+        // suffix entirely so the bullet reads naturally.
+        let d = detail(
+            "S",
+            "complete",
+            vec![msg(1, "user", "test")],
+            vec![
+                step(1, "bash", "cargo test", "ok", true),
+                step(2, "bash", "cargo test", "ok", true),
+                step(3, "bash", "cargo test", "ok", true),
+                step(4, "read_file", "src/lib.rs", "...", true),
+            ],
+        );
+        let r = heuristic_recap(&d);
+        assert!(
+            r.bullets.iter().any(|b| b == "Ran `bash` (3×)"),
+            "expected bash with count; got: {:?}",
+            r.bullets
+        );
+        assert!(
+            r.bullets.iter().any(|b| b == "Ran `read_file`"),
+            "expected single read_file without count; got: {:?}",
+            r.bullets
+        );
+    }
+
+    #[test]
+    fn heuristic_recap_includes_failure_bullet_when_session_failed() {
+        // The audit pins that a failed session produces a "Stopped:"
+        // bullet so UIs can render it visually distinct from
+        // success-path tool calls.
+        let d = detail(
+            "S",
+            "failed",
+            vec![msg(1, "user", "test")],
+            vec![
+                step(1, "bash", "cargo build", "ok", true),
+                step(2, "bash", "cargo test", "test failed: 3 errors", false),
+            ],
+        );
+        let r = heuristic_recap(&d);
+        assert!(
+            r.bullets.iter().any(|b| b.starts_with("Stopped: ")),
+            "expected Stopped: bullet on failed session; got: {:?}",
+            r.bullets
+        );
+    }
+
+    #[test]
+    fn heuristic_recap_no_failure_bullet_for_successful_session() {
+        let d = detail(
+            "S",
+            "complete",
+            vec![msg(1, "user", "test")],
+            vec![step(1, "bash", "cargo test", "ok", true)],
+        );
+        let r = heuristic_recap(&d);
+        assert!(
+            !r.bullets.iter().any(|b| b.starts_with("Stopped: ")),
+            "no Stopped: bullet on successful session; got: {:?}",
+            r.bullets
+        );
+    }
+
+    // ── next_actions ─────────────────────────────────────────────────────
+
+    #[test]
+    fn heuristic_recap_extracts_next_actions_from_imperatives() {
+        let d = detail(
+            "S",
+            "complete",
+            vec![
+                msg(1, "user", "test"),
+                msg(
+                    2,
+                    "assistant",
+                    "Done with auth.rs. Next, wire refresh-token rotation. TODO: open a PR.",
+                ),
+            ],
+            vec![],
+        );
+        let r = heuristic_recap(&d);
+        // Implementation capitalizes the first letter for nicer UI
+        // rendering; assertions are case-insensitive to pin the
+        // *content* contract without locking in capitalization.
+        assert!(
+            r.next_actions
+                .iter()
+                .any(|a| a.to_lowercase().contains("wire refresh-token rotation")),
+            "expected 'wire refresh-token rotation' in next_actions; got: {:?}",
+            r.next_actions
+        );
+        assert!(
+            r.next_actions.iter().any(|a| a.to_lowercase().contains("open a pr")),
+            "expected 'open a PR' in next_actions; got: {:?}",
+            r.next_actions
+        );
+    }
+
+    #[test]
+    fn heuristic_recap_caps_next_actions_at_three() {
+        let d = detail(
+            "S",
+            "complete",
+            vec![
+                msg(1, "user", "test"),
+                msg(
+                    2,
+                    "assistant",
+                    "Next, A. Next, B. Next, C. Next, D. Next, E.",
+                ),
+            ],
+            vec![],
+        );
+        let r = heuristic_recap(&d);
+        assert!(
+            r.next_actions.len() <= 3,
+            "next_actions must be capped at 3; got: {:?}",
+            r.next_actions
+        );
+    }
+
+    #[test]
+    fn heuristic_recap_dedupes_repeated_next_actions() {
+        let d = detail(
+            "S",
+            "complete",
+            vec![
+                msg(1, "user", "test"),
+                msg(
+                    2,
+                    "assistant",
+                    "Next, write tests. TODO: write tests. Should also write tests.",
+                ),
+            ],
+            vec![],
+        );
+        let r = heuristic_recap(&d);
+        let count = r
+            .next_actions
+            .iter()
+            .filter(|a| a.eq_ignore_ascii_case("Write tests"))
+            .count();
+        assert!(count <= 1, "duplicates not deduped; got: {:?}", r.next_actions);
+    }
+
+    // ── artifacts ────────────────────────────────────────────────────────
+
+    #[test]
+    fn heuristic_recap_collects_unique_file_artifacts_from_steps() {
+        let d = detail(
+            "S",
+            "complete",
+            vec![msg(1, "user", "test")],
+            vec![
+                step(1, "read_file", "src/auth.rs", "...", true),
+                // Same path again — dedupe.
+                step(2, "write_file", "src/auth.rs", "...", true),
+                step(3, "read_file", "src/lib.rs", "...", true),
+                // Non-path tokens — must NOT become artifacts.
+                step(4, "bash", "cargo test", "ok", true),
+            ],
+        );
+        let r = heuristic_recap(&d);
+        let locators: Vec<&str> = r.artifacts.iter().map(|a| a.locator.as_str()).collect();
+        assert!(
+            locators.contains(&"src/auth.rs"),
+            "expected src/auth.rs in artifacts; got: {locators:?}"
+        );
+        assert!(
+            locators.contains(&"src/lib.rs"),
+            "expected src/lib.rs in artifacts; got: {locators:?}"
+        );
+        assert_eq!(
+            locators.iter().filter(|p| **p == "src/auth.rs").count(),
+            1,
+            "duplicate paths must be deduped; got: {locators:?}"
+        );
+    }
+
+    #[test]
+    fn heuristic_recap_artifact_label_is_basename() {
+        let d = detail(
+            "S",
+            "complete",
+            vec![msg(1, "user", "test")],
+            vec![step(1, "read_file", "vibecli/src/recap.rs", "...", true)],
+        );
+        let r = heuristic_recap(&d);
+        assert_eq!(r.artifacts.len(), 1);
+        assert_eq!(r.artifacts[0].label, "recap.rs");
+        assert_eq!(r.artifacts[0].locator, "vibecli/src/recap.rs");
+    }
+
+    #[test]
+    fn heuristic_recap_extract_paths_skips_urls() {
+        // URLs contain `/` and `.` but are not file artifacts. The
+        // extractor must reject them so a recap of a session that
+        // mentioned a URL doesn't fabricate file paths.
+        let paths = extract_file_paths("see https://example.com/foo.html for details");
+        assert!(
+            paths.is_empty(),
+            "extract_file_paths must skip URLs; got: {paths:?}"
+        );
+    }
+
+    // ── resume_hint ──────────────────────────────────────────────────────
+
+    #[test]
+    fn heuristic_recap_resume_hint_points_at_last_message_id() {
+        let d = detail(
+            "S",
+            "complete",
+            vec![
+                msg(1, "user", "test"),
+                msg(2, "assistant", "ack"),
+                msg(42, "user", "follow up"),
+            ],
+            vec![],
+        );
+        let r = heuristic_recap(&d);
+        let hint = r.resume_hint.expect("resume_hint must be populated");
+        assert_eq!(hint.from_message, Some(42));
+        assert!(matches!(hint.target, ResumeTarget::Session { ref id } if id == "S"));
+    }
+
+    #[test]
+    fn heuristic_recap_resume_hint_seeds_with_first_next_action() {
+        let d = detail(
+            "S",
+            "complete",
+            vec![
+                msg(1, "user", "test"),
+                msg(2, "assistant", "Next, wire refresh tokens."),
+            ],
+            vec![],
+        );
+        let r = heuristic_recap(&d);
+        let hint = r.resume_hint.expect("resume_hint must be populated");
+        assert!(
+            hint.seed_instruction
+                .as_deref()
+                .map(|s| s.to_lowercase().contains("wire refresh tokens"))
+                .unwrap_or(false),
+            "seed_instruction should mirror first next_action; got: {:?}",
+            hint.seed_instruction
+        );
+    }
+
+    #[test]
+    fn heuristic_recap_resume_hint_branch_false_for_tail_resume() {
+        let d = detail(
+            "S",
+            "complete",
+            vec![msg(1, "user", "test"), msg(2, "assistant", "ack")],
+            vec![],
+        );
+        let r = heuristic_recap(&d);
+        let hint = r.resume_hint.expect("resume_hint must be populated");
+        assert!(
+            !hint.branch_on_resume,
+            "tail-resume must not branch; got branch_on_resume = true"
+        );
+    }
+
+    // ── shape ────────────────────────────────────────────────────────────
+
+    #[test]
+    fn heuristic_recap_marks_generator_as_heuristic() {
+        let d = detail("S", "complete", vec![msg(1, "user", "test")], vec![]);
+        let r = heuristic_recap(&d);
+        assert!(
+            matches!(r.generator, RecapGenerator::Heuristic),
+            "heuristic path must mark generator = Heuristic; got: {:?}",
+            r.generator
+        );
+    }
+
+    #[test]
+    fn heuristic_recap_starts_at_schema_version_one() {
+        let d = detail("S", "complete", vec![msg(1, "user", "test")], vec![]);
+        let r = heuristic_recap(&d);
+        assert_eq!(r.schema_version, 1);
+    }
+
+    #[test]
+    fn heuristic_recap_kind_is_session() {
+        let d = detail("S", "complete", vec![msg(1, "user", "test")], vec![]);
+        let r = heuristic_recap(&d);
+        assert!(matches!(r.kind, RecapKind::Session));
+    }
+
+    // ── perf ─────────────────────────────────────────────────────────────
+
+    #[test]
+    fn heuristic_recap_runs_in_well_under_one_second_on_large_session() {
+        // The design pins "<50ms on 200-message session" but unit
+        // tests run on shared CI hardware so we use a generous 1s
+        // ceiling here. Local dev typically lands under 5ms.
+        let mut messages = vec![msg(1, "user", "Implement feature X")];
+        for i in 2..=200 {
+            messages.push(msg(
+                i,
+                if i % 2 == 0 { "assistant" } else { "user" },
+                "lorem ipsum dolor sit amet, consectetur adipiscing elit",
+            ));
+        }
+        let mut steps = Vec::new();
+        for i in 1..=200 {
+            steps.push(step(
+                i,
+                if i % 3 == 0 { "bash" } else { "read_file" },
+                "src/lib.rs",
+                "ok",
+                true,
+            ));
+        }
+        let d = detail("S", "complete", messages, steps);
+        let start = std::time::Instant::now();
+        let _ = heuristic_recap(&d);
+        let elapsed = start.elapsed();
+        assert!(
+            elapsed.as_millis() < 1000,
+            "heuristic took {elapsed:?} on 200-message session; expected <1s"
+        );
+    }
+
+    // ── serde round-trip ─────────────────────────────────────────────────
+
+    #[test]
+    fn recap_round_trips_through_json() {
+        // Wire shape must survive serde so HTTP routes (F1.2) and
+        // JSONL telemetry (future) can rely on a stable round-trip.
+        let d = detail(
+            "S",
+            "complete",
+            vec![
+                msg(1, "user", "Refactor auth"),
+                msg(2, "assistant", "Next, write tests."),
+            ],
+            vec![step(1, "read_file", "src/auth.rs", "...", true)],
+        );
+        let r = heuristic_recap(&d);
+        let json = serde_json::to_string(&r).expect("serialize");
+        let back: Recap = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(r, back);
+    }
+
+    #[test]
+    fn recap_kind_serializes_as_snake_case() {
+        // Wire format pinning: `RecapKind::DiffChain` must serialize
+        // as `"diff_chain"`, not `"DiffChain"`. Mobile/watch clients
+        // depend on lowercase tags.
+        let s = serde_json::to_string(&RecapKind::DiffChain).unwrap();
+        assert_eq!(s, "\"diff_chain\"");
+    }
+}
