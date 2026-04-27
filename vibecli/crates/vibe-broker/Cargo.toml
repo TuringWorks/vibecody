@@ -14,6 +14,10 @@ toml = "0.8"
 url = "2"
 tracing = { workspace = true }
 tokio = { workspace = true }
+rcgen = { version = "0.13", features = ["pem", "x509-parser"] }
+rustls = { version = "0.23", default-features = false, features = ["std", "tls12", "ring"] }
+rustls-pemfile = "2"
+tokio-rustls = { version = "0.26", default-features = false, features = ["tls12", "ring"] }
 
 [dev-dependencies]
 cucumber = "0.21"
@@ -39,4 +43,8 @@ harness = false
 
 [[test]]
 name = "broker_uds_bdd"
+harness = false
+
+[[test]]
+name = "broker_tls_bdd"
 harness = false

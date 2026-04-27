@@ -19,6 +19,7 @@ use tokio::task::JoinHandle;
 use crate::forward::{ForwardError, ForwardRequest, forward_plain_http};
 use crate::policy::{Decision, Policy, Request as PolicyRequest};
 use crate::ssrf::{SsrfGuard, SsrfVerdict};
+use crate::tls::BrokerCa;
 
 /// Address the broker is bound to. Returned by `Broker::start_*`.
 #[derive(Debug, Clone)]
@@ -64,6 +65,10 @@ pub struct Broker {
     pub forward_upstream: bool,
     /// Per-request timeout when forwarding upstream.
     pub upstream_timeout: Duration,
+    /// When set, CONNECT is honored: matched hosts get 200 + MITM
+    /// handshake (B1.8); unmatched get 403. Without this, CONNECT is
+    /// treated as a malformed request and rejected with 400.
+    pub tls_ca: Option<Arc<BrokerCa>>,
 }
 
 impl Broker {
@@ -73,6 +78,7 @@ impl Broker {
             ssrf: Arc::new(ssrf),
             forward_upstream: false,
             upstream_timeout: Duration::from_secs(15),
+            tls_ca: None,
         }
     }
 
@@ -83,6 +89,14 @@ impl Broker {
 
     pub fn with_upstream_timeout(mut self, t: Duration) -> Self {
         self.upstream_timeout = t;
+        self
+    }
+
+    /// Enable CONNECT method handling backed by a per-broker root CA.
+    /// Slice B1.7 ships the CA + the CONNECT handshake response. The
+    /// actual TLS termination + plaintext forwarding lands in slice B1.8.
+    pub fn with_tls_ca(mut self, ca: Arc<BrokerCa>) -> Self {
+        self.tls_ca = Some(ca);
         self
     }
 
@@ -185,6 +199,10 @@ impl Broker {
             }
         };
 
+        if parsed.method.eq_ignore_ascii_case("CONNECT") {
+            return self.handle_connect(&mut stream, &parsed).await;
+        }
+
         // Build the URL the policy/SSRF want to see. Forward-proxy clients
         // send absolute URIs (`GET http://host/path HTTP/1.1`); plain clients
         // send relative + Host: header.
@@ -205,6 +223,48 @@ impl Broker {
                 self.do_forward(&mut stream, &parsed, &url).await
             }
             Decision::Allow { .. } => write_allow_stub(&mut stream).await,
+        }
+    }
+
+    async fn handle_connect<S>(
+        &self,
+        stream: &mut S,
+        parsed: &ParsedHead,
+    ) -> std::io::Result<()>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send,
+    {
+        if self.tls_ca.is_none() {
+            return write_connect_denied(stream, "tls_not_configured", 405).await;
+        }
+        let (host, _port) = match split_host_port(&parsed.target) {
+            Some(hp) => hp,
+            None => {
+                return write_connect_denied(stream, "policy_denied", 400).await;
+            }
+        };
+        // SSRF on the literal hostname (covers IP-literal attempts).
+        let synthetic = format!("https://{host}/");
+        if matches!(self.ssrf.check(&synthetic), SsrfVerdict::Block) {
+            return write_connect_denied(stream, "ssrf_blocked", 403).await;
+        }
+        // Policy match against synthetic CONNECT request.
+        let decision = self.policy.match_request(&PolicyRequest {
+            method: "CONNECT",
+            url: &synthetic,
+        });
+        match decision {
+            Decision::Deny => write_connect_denied(stream, "policy_denied", 403).await,
+            Decision::Allow { .. } => {
+                stream
+                    .write_all(b"HTTP/1.1 200 Connection Established\r\nConnection: close\r\n\r\n")
+                    .await?;
+                // Slice B1.8 will run the TLS handshake + decrypted-traffic
+                // pipeline here. For now, a passive 200 is enough to verify
+                // the policy + acceptor wiring; closing the connection
+                // immediately is acceptable behaviour for the slice.
+                Ok(())
+            }
         }
     }
 
@@ -382,6 +442,45 @@ where
     head.push_str("Connection: close\r\n\r\n");
     stream.write_all(head.as_bytes()).await?;
     stream.write_all(&resp.body).await
+}
+
+async fn write_connect_denied<S>(
+    stream: &mut S,
+    reason: &str,
+    code: u16,
+) -> std::io::Result<()>
+where
+    S: AsyncWrite + Unpin,
+{
+    let phrase = match code {
+        400 => "Bad Request",
+        403 => "Forbidden",
+        405 => "Method Not Allowed",
+        _ => "Forbidden",
+    };
+    let body = format!("CONNECT denied: {reason}\n");
+    let resp = format!(
+        "HTTP/1.1 {code} {phrase}\r\n\
+         X-Vibe-Broker-Reason: {reason}\r\n\
+         Content-Length: {}\r\n\
+         Connection: close\r\n\
+         \r\n{body}",
+        body.len()
+    );
+    stream.write_all(resp.as_bytes()).await
+}
+
+fn split_host_port(target: &str) -> Option<(String, u16)> {
+    if let Some(rest) = target.strip_prefix('[') {
+        let end = rest.find(']')?;
+        let host = rest[..end].to_string();
+        let port_str = rest[end + 1..].strip_prefix(':')?;
+        let port: u16 = port_str.parse().ok()?;
+        return Some((host, port));
+    }
+    let (h, p) = target.rsplit_once(':')?;
+    let port: u16 = p.parse().ok()?;
+    Some((h.to_string(), port))
 }
 
 async fn write_upstream_error<S>(

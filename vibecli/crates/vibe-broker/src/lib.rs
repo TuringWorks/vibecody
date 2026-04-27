@@ -11,12 +11,14 @@ pub mod audit;
 pub mod forward;
 pub mod policy;
 pub mod ssrf;
+pub mod tls;
 
 pub use accept::{BoundAddr, Broker, BrokerHandle};
 pub use audit::{AuditEvent, EgressOutcome};
 pub use forward::{ForwardError, ForwardRequest, ForwardResponse, forward_plain_http};
 pub use policy::{Decision, Inject, Policy, Rule, RuleMatch, SecretRef};
 pub use ssrf::{SsrfGuard, SsrfVerdict};
+pub use tls::{BrokerCa, LeafCert, TlsError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum BrokerError {
