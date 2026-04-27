@@ -19,6 +19,7 @@ tokio = { workspace = true }
 cucumber = "0.21"
 futures = "0.3"
 tokio = { workspace = true, features = ["full", "test-util"] }
+tempfile = "3"
 
 [[test]]
 name = "broker_policy_bdd"
@@ -34,4 +35,8 @@ harness = false
 
 [[test]]
 name = "broker_forward_bdd"
+harness = false
+
+[[test]]
+name = "broker_uds_bdd"
 harness = false

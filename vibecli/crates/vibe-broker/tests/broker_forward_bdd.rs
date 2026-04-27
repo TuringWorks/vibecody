@@ -7,7 +7,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime::Runtime;
 use tokio::task::JoinHandle;
-use vibe_broker::{Broker, Policy, SsrfGuard};
+use vibe_broker::{BoundAddr, Broker, BrokerHandle, Policy, SsrfGuard};
 
 #[derive(Default, World)]
 pub struct FWorld {
@@ -15,7 +15,7 @@ pub struct FWorld {
     upstream_addr: Option<std::net::SocketAddr>,
     upstream_handle: Option<JoinHandle<()>>,
     broker_addr: Option<std::net::SocketAddr>,
-    broker_handle: Option<JoinHandle<()>>,
+    broker_handle: Option<BrokerHandle>,
     response_status: Option<u16>,
     response_headers: Vec<(String, String)>,
     response_body: Vec<u8>,
@@ -111,18 +111,25 @@ fn ssrf_allowing_stub(host: &str) -> SsrfGuard {
     SsrfGuard::new().with_allow_host(host)
 }
 
+fn install_broker(world: &mut FWorld, broker: Broker) {
+    let rt = world.rt();
+    let handle = rt.block_on(async move {
+        broker.start_tcp("127.0.0.1:0").await.unwrap()
+    });
+    match handle.addr.clone() {
+        BoundAddr::Tcp(addr) => world.broker_addr = Some(addr),
+        other => panic!("expected TCP, got {other:?}"),
+    }
+    world.broker_handle = Some(handle);
+}
+
 #[given("a running broker with upstream forwarding and a rule for the stub host")]
 fn broker_forwarding(world: &mut FWorld) {
     let upstream = world.upstream_addr.unwrap();
     let host = upstream.ip().to_string();
     let policy = build_policy_for(&host);
     let broker = Broker::new(policy, ssrf_allowing_stub(&host)).with_upstream();
-    let rt = world.rt();
-    let (addr, handle) = rt.block_on(async move {
-        broker.start("127.0.0.1:0").await.unwrap()
-    });
-    world.broker_addr = Some(addr);
-    world.broker_handle = Some(handle);
+    install_broker(world, broker);
 }
 
 #[given(expr = "a running broker with upstream forwarding timeout {int} ms and a rule for the stub host")]
@@ -133,12 +140,7 @@ fn broker_forwarding_timeout(world: &mut FWorld, ms: u64) {
     let broker = Broker::new(policy, ssrf_allowing_stub(&host))
         .with_upstream()
         .with_upstream_timeout(Duration::from_millis(ms));
-    let rt = world.rt();
-    let (addr, handle) = rt.block_on(async move {
-        broker.start("127.0.0.1:0").await.unwrap()
-    });
-    world.broker_addr = Some(addr);
-    world.broker_handle = Some(handle);
+    install_broker(world, broker);
 }
 
 #[when(expr = "I send {string} through the broker to the stub")]

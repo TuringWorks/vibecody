@@ -1,21 +1,57 @@
-//! Broker accept loop (slice B1.4).
+//! Broker accept loop.
 //!
-//! Tokio-driven TCP listener that parses each incoming HTTP/1.1 request
-//! line + headers, routes through `SsrfGuard` then `Policy`, and returns
-//! 451 (denied) / 200 (allow stub) / 400 (malformed). Real upstream
-//! forwarding lands in slice B1.5.
+//! Tokio-driven listener that parses each incoming HTTP/1.1 request,
+//! routes through `SsrfGuard` then `Policy`, and either denies (451),
+//! forwards upstream (slice B1.5), or returns a stub 200.
+//!
+//! Slice B1.4: TCP listener. Slice B1.6: Unix-domain-socket listener
+//! (used to bind the broker into Tier-0 sandboxes on Linux/macOS).
+//! Both transports share the same handler — only the acceptor differs.
 
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
-
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream};
-use tokio::task::JoinHandle;
-
 use std::time::Duration;
+
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::net::TcpListener;
+use tokio::task::JoinHandle;
 
 use crate::forward::{ForwardError, ForwardRequest, forward_plain_http};
 use crate::policy::{Decision, Policy, Request as PolicyRequest};
 use crate::ssrf::{SsrfGuard, SsrfVerdict};
+
+/// Address the broker is bound to. Returned by `Broker::start_*`.
+#[derive(Debug, Clone)]
+pub enum BoundAddr {
+    Tcp(std::net::SocketAddr),
+    Unix(PathBuf),
+}
+
+/// Owns the listening socket so it's torn down on drop. For UDS, also
+/// removes the path on drop so a subsequent `start_uds` on the same path
+/// works without manual cleanup.
+pub struct BrokerHandle {
+    pub addr: BoundAddr,
+    pub join: JoinHandle<()>,
+    _cleanup: Option<UdsCleanup>,
+}
+
+impl BrokerHandle {
+    /// Abort the accept loop. Does not wait for in-flight connections.
+    pub fn abort(&self) {
+        self.join.abort();
+    }
+}
+
+struct UdsCleanup {
+    path: PathBuf,
+}
+
+impl Drop for UdsCleanup {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
 
 /// Compose the broker's request-handling pipeline. One per running broker.
 #[derive(Clone)]
@@ -50,13 +86,13 @@ impl Broker {
         self
     }
 
-    /// Start the broker on a bound TCP listener. Returns the bound address
-    /// and a JoinHandle for the accept loop. Drop the JoinHandle to stop
-    /// the loop (next accept will fail and the task exits).
-    pub async fn start(self, addr: &str) -> std::io::Result<(std::net::SocketAddr, JoinHandle<()>)> {
+    /// Start the broker on a TCP listener. Useful for tests, for vsock
+    /// bridging in Tier-3 (Firecracker), and as a fallback on hosts that
+    /// can't expose a UDS into the sandbox.
+    pub async fn start_tcp(self, addr: &str) -> std::io::Result<BrokerHandle> {
         let listener = TcpListener::bind(addr).await?;
         let bound = listener.local_addr()?;
-        let handle = tokio::spawn(async move {
+        let join = tokio::spawn(async move {
             loop {
                 match listener.accept().await {
                     Ok((stream, _peer)) => {
@@ -74,10 +110,67 @@ impl Broker {
                 }
             }
         });
-        Ok((bound, handle))
+        Ok(BrokerHandle {
+            addr: BoundAddr::Tcp(bound),
+            join,
+            _cleanup: None,
+        })
     }
 
-    async fn handle(&self, mut stream: TcpStream) -> std::io::Result<()> {
+    /// Start the broker on a Unix domain socket. The path is the canonical
+    /// transport for bind-mounting the broker into a Tier-0 sandbox on
+    /// Linux/macOS. The socket file is removed when the returned handle
+    /// is dropped.
+    #[cfg(unix)]
+    pub async fn start_uds(self, path: &Path) -> std::io::Result<BrokerHandle> {
+        // If a stale socket from a previous run is sitting at this path
+        // and no one is listening, remove it. We refuse to clobber a path
+        // that isn't a socket (avoids deleting unrelated files).
+        if let Ok(meta) = std::fs::metadata(path) {
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::FileTypeExt;
+                if !meta.file_type().is_socket() {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::AlreadyExists,
+                        format!("path is not a socket: {}", path.display()),
+                    ));
+                }
+            }
+            let _ = std::fs::remove_file(path);
+        }
+
+        let listener = tokio::net::UnixListener::bind(path)?;
+        let owned_path = path.to_path_buf();
+        let join = tokio::spawn(async move {
+            loop {
+                match listener.accept().await {
+                    Ok((stream, _peer)) => {
+                        let broker = self.clone();
+                        tokio::spawn(async move {
+                            if let Err(e) = broker.handle(stream).await {
+                                tracing::debug!("broker connection error: {e}");
+                            }
+                        });
+                    }
+                    Err(e) => {
+                        tracing::warn!("broker accept failed: {e}");
+                        break;
+                    }
+                }
+            }
+        });
+        Ok(BrokerHandle {
+            addr: BoundAddr::Unix(owned_path.clone()),
+            join,
+            _cleanup: Some(UdsCleanup { path: owned_path }),
+        })
+    }
+
+    async fn handle<S>(&self, mut stream: S) -> std::io::Result<()>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send,
+    {
         let mut buf = vec![0u8; 8 * 1024];
         let n = read_until_headers(&mut stream, &mut buf).await?;
         let raw = &buf[..n];
@@ -115,12 +208,15 @@ impl Broker {
         }
     }
 
-    async fn do_forward(
+    async fn do_forward<S>(
         &self,
-        stream: &mut TcpStream,
+        stream: &mut S,
         parsed: &ParsedHead,
         url_str: &str,
-    ) -> std::io::Result<()> {
+    ) -> std::io::Result<()>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send,
+    {
         let parsed_url = match url::Url::parse(url_str) {
             Ok(u) => u,
             Err(_) => return write_denied(stream, "policy_denied").await,
@@ -221,10 +317,10 @@ fn absolute_url(p: &ParsedHead) -> String {
     format!("{}://{}{}", p.scheme_hint, host, p.target)
 }
 
-async fn write_denied(
-    stream: &mut TcpStream,
-    reason: &str,
-) -> std::io::Result<()> {
+async fn write_denied<S>(stream: &mut S, reason: &str) -> std::io::Result<()>
+where
+    S: AsyncWrite + Unpin,
+{
     let body = format!("Denied: {reason}\n");
     let resp = format!(
         "HTTP/1.1 451 Unavailable For Legal Reasons\r\n\
@@ -237,7 +333,10 @@ async fn write_denied(
     stream.write_all(resp.as_bytes()).await
 }
 
-async fn write_allow_stub(stream: &mut TcpStream) -> std::io::Result<()> {
+async fn write_allow_stub<S>(stream: &mut S) -> std::io::Result<()>
+where
+    S: AsyncWrite + Unpin,
+{
     let body = b"vibe-broker stub: enable Broker::with_upstream() for live forwarding\n";
     let resp = format!(
         "HTTP/1.1 200 OK\r\n\
@@ -251,10 +350,13 @@ async fn write_allow_stub(stream: &mut TcpStream) -> std::io::Result<()> {
     stream.write_all(body).await
 }
 
-async fn write_forwarded(
-    stream: &mut TcpStream,
+async fn write_forwarded<S>(
+    stream: &mut S,
     resp: crate::forward::ForwardResponse,
-) -> std::io::Result<()> {
+) -> std::io::Result<()>
+where
+    S: AsyncWrite + Unpin,
+{
     let mut head = format!("HTTP/1.1 {} OK\r\n", resp.status);
     head.push_str("X-Vibe-Broker-Forwarded: true\r\n");
     let mut have_cl = false;
@@ -282,11 +384,14 @@ async fn write_forwarded(
     stream.write_all(&resp.body).await
 }
 
-async fn write_upstream_error(
-    stream: &mut TcpStream,
+async fn write_upstream_error<S>(
+    stream: &mut S,
     code: u16,
     reason: &str,
-) -> std::io::Result<()> {
+) -> std::io::Result<()>
+where
+    S: AsyncWrite + Unpin,
+{
     let phrase = match code {
         502 => "Bad Gateway",
         504 => "Gateway Timeout",
@@ -304,7 +409,10 @@ async fn write_upstream_error(
     stream.write_all(resp.as_bytes()).await
 }
 
-async fn read_until_headers(stream: &mut TcpStream, buf: &mut [u8]) -> std::io::Result<usize> {
+async fn read_until_headers<S>(stream: &mut S, buf: &mut [u8]) -> std::io::Result<usize>
+where
+    S: AsyncRead + Unpin,
+{
     let mut total = 0;
     loop {
         if total == buf.len() {

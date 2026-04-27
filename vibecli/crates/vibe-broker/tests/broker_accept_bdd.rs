@@ -6,17 +6,13 @@ use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
-use tokio::task::JoinHandle;
-use vibe_broker::{
-    Broker, Policy, SsrfGuard,
-    policy::DefaultRule,
-};
+use vibe_broker::{Broker, BrokerHandle, Policy, SsrfGuard, policy::DefaultRule};
 
 #[derive(Default, World)]
 pub struct AWorld {
     rt: Option<Arc<Runtime>>,
     broker_addr: Option<std::net::SocketAddr>,
-    broker_handle: Option<JoinHandle<()>>,
+    broker_handle: Option<BrokerHandle>,
     response_status: Option<u16>,
     response_headers: Vec<(String, String)>,
     raw_response: Vec<u8>,
@@ -41,8 +37,11 @@ impl AWorld {
     fn start_broker(&mut self, policy: Policy) {
         let rt = self.rt();
         let broker = Broker::new(policy, SsrfGuard::new());
-        let (addr, handle) = rt.block_on(async move { broker.start("127.0.0.1:0").await.unwrap() });
-        self.broker_addr = Some(addr);
+        let handle = rt.block_on(async move { broker.start_tcp("127.0.0.1:0").await.unwrap() });
+        match handle.addr.clone() {
+            vibe_broker::BoundAddr::Tcp(addr) => self.broker_addr = Some(addr),
+            other => panic!("expected TCP, got {other:?}"),
+        }
         self.broker_handle = Some(handle);
     }
 }
