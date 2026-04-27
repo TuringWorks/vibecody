@@ -13,10 +13,12 @@ thiserror = { workspace = true }
 toml = "0.8"
 url = "2"
 tracing = { workspace = true }
+tokio = { workspace = true }
 
 [dev-dependencies]
 cucumber = "0.21"
 futures = "0.3"
+tokio = { workspace = true, features = ["full", "test-util"] }
 
 [[test]]
 name = "broker_policy_bdd"
@@ -24,4 +26,12 @@ harness = false
 
 [[test]]
 name = "broker_ssrf_bdd"
+harness = false
+
+[[test]]
+name = "broker_accept_bdd"
+harness = false
+
+[[test]]
+name = "broker_forward_bdd"
 harness = false

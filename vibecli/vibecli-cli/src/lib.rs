@@ -213,6 +213,8 @@ pub mod focus_view;
 // FIT-GAP v12 — P0: auto-approval, bwrap sandbox, GitHub Actions, lazy MCP, ZDR
 pub mod auto_approve;
 pub mod sandbox_bwrap;
+// Sandbox-tiers (S0/N0+): vibe-sandbox stack entry point.
+pub mod sandbox_entry;
 pub mod github_action;
 pub mod mcp_tool_search;
 pub mod zdr_mode;

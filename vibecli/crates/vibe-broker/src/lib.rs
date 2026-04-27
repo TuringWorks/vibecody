@@ -6,11 +6,15 @@
 //! audit-event types. Hyper-based accept loop, rustls handshake, IMDS
 //! faker, and SigV4/Bearer injection runtime arrive in slices B1.4+.
 
+pub mod accept;
 pub mod audit;
+pub mod forward;
 pub mod policy;
 pub mod ssrf;
 
+pub use accept::Broker;
 pub use audit::{AuditEvent, EgressOutcome};
+pub use forward::{ForwardError, ForwardRequest, ForwardResponse, forward_plain_http};
 pub use policy::{Decision, Inject, Policy, Rule, RuleMatch, SecretRef};
 pub use ssrf::{SsrfGuard, SsrfVerdict};
 

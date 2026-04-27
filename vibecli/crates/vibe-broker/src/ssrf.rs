@@ -14,6 +14,11 @@ pub enum SsrfVerdict {
 pub struct SsrfGuard {
     pub allow_imds: bool,
     pub extra_blocked_hosts: Vec<String>,
+    /// Hosts (literal IPs or hostnames) that bypass the default block list.
+    /// Use sparingly: needed for cluster-internal endpoints reachable only
+    /// over RFC1918 (after a deliberate operator decision), and used by
+    /// tests that point at a loopback stub upstream.
+    pub allow_hosts: Vec<String>,
 }
 
 impl SsrfGuard {
@@ -23,6 +28,11 @@ impl SsrfGuard {
 
     pub fn with_imds_allowed(mut self) -> Self {
         self.allow_imds = true;
+        self
+    }
+
+    pub fn with_allow_host(mut self, host: impl Into<String>) -> Self {
+        self.allow_hosts.push(host.into());
         self
     }
 
@@ -49,6 +59,13 @@ impl SsrfGuard {
             .any(|h| h.eq_ignore_ascii_case(host))
         {
             return SsrfVerdict::Block;
+        }
+        if self
+            .allow_hosts
+            .iter()
+            .any(|h| h.eq_ignore_ascii_case(host))
+        {
+            return SsrfVerdict::Allow;
         }
         if let Ok(ip) = host.parse::<IpAddr>() {
             return self.check_ip(ip);

@@ -67,6 +67,9 @@ notify = { workspace = true }
 serde_yaml = "0.9"
 vibe-collab = { path = "../../vibeui/crates/vibe-collab" }
 vibe-infer = { path = "../../vibeui/crates/vibe-infer" }
+vibe-sandbox = { path = "../crates/vibe-sandbox" }
+vibe-sandbox-native = { path = "../crates/vibe-sandbox-native" }
+vibe-broker = { path = "../crates/vibe-broker" }
 sha2.workspace = true
 hmac.workspace = true
 p256.workspace = true
