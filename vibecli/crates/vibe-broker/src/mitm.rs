@@ -143,7 +143,7 @@ where
     };
 
     // ---- 5. Replay the request to upstream with optional injection -
-    let req_bytes = build_outbound_request(&parsed, &inject, inspect.secrets);
+    let req_bytes = build_outbound_request(&parsed, &inject, inspect.secrets, host, port);
     upstream_tls
         .write_all(&req_bytes)
         .await
@@ -234,17 +234,31 @@ fn build_outbound_request(
     parsed: &ParsedReq,
     inject: &Inject,
     secrets: &dyn SecretStore,
+    host: &str,
+    port: u16,
 ) -> Vec<u8> {
     let mut out = String::with_capacity(1024);
     out.push_str(&format!("{} {} HTTP/1.1\r\n", parsed.method, parsed.target));
 
-    let injected_auth = resolve_injection(inject, secrets);
+    let injected_headers = resolve_injection(
+        inject,
+        secrets,
+        &parsed.method,
+        host,
+        port,
+        &parsed.target,
+    );
+
+    // Strip any header the broker is about to inject so the sandbox can't
+    // smuggle a value in. Compare case-insensitively.
+    let injected_lc: std::collections::HashSet<String> = injected_headers
+        .iter()
+        .map(|(k, _)| k.to_ascii_lowercase())
+        .collect();
 
     let mut have_conn = false;
     for (k, v) in &parsed.headers {
         let lower = k.to_ascii_lowercase();
-        // Drop hop-by-hop and any pre-existing Authorization the sandbox
-        // tried to set — credentials only come from the broker.
         if matches!(
             lower.as_str(),
             "connection"
@@ -259,7 +273,7 @@ fn build_outbound_request(
         ) {
             continue;
         }
-        if injected_auth.is_some() && lower == "authorization" {
+        if injected_lc.contains(&lower) {
             continue;
         }
         if lower == "connection" {
@@ -267,8 +281,8 @@ fn build_outbound_request(
         }
         out.push_str(&format!("{k}: {v}\r\n"));
     }
-    if let Some(auth) = injected_auth {
-        out.push_str(&format!("Authorization: {auth}\r\n"));
+    for (k, v) in &injected_headers {
+        out.push_str(&format!("{k}: {v}\r\n"));
     }
     if !have_conn {
         out.push_str("Connection: close\r\n");
@@ -277,24 +291,215 @@ fn build_outbound_request(
     out.into_bytes()
 }
 
-fn resolve_injection(inject: &Inject, secrets: &dyn SecretStore) -> Option<String> {
+/// Returns the headers the broker should add to the outbound request.
+/// Bearer/Basic produce one Authorization header; SigV4 produces two or
+/// three (Authorization + X-Amz-Date + optional X-Amz-Security-Token).
+fn resolve_injection(
+    inject: &Inject,
+    secrets: &dyn SecretStore,
+    method: &str,
+    host: &str,
+    port: u16,
+    path_and_query: &str,
+) -> Vec<(String, String)> {
     match inject {
-        Inject::None => None,
-        Inject::Bearer { key } => {
-            let tok = secrets.resolve(key)?;
-            Some(format!("Bearer {tok}"))
+        Inject::None => Vec::new(),
+        Inject::Bearer { key } => match secrets.resolve(key) {
+            Some(tok) => vec![("Authorization".into(), format!("Bearer {tok}"))],
+            None => Vec::new(),
+        },
+        Inject::Basic { user, pass } => match (secrets.resolve(user), secrets.resolve(pass)) {
+            (Some(u), Some(p)) => vec![(
+                "Authorization".into(),
+                format!("Basic {}", base64ish::encode_basic(&u, &p)),
+            )],
+            _ => Vec::new(),
+        },
+        Inject::AwsSigV4 { profile } => match secrets.resolve_aws(profile) {
+            Some(creds) => sign_aws_v4(method, host, port, path_and_query, &creds)
+                .unwrap_or_default(),
+            None => Vec::new(),
+        },
+        Inject::GcpIam { .. } | Inject::AzureMsi { .. } | Inject::HeaderTemplate { .. } => {
+            Vec::new()
         }
-        Inject::Basic { user, pass } => {
-            let u = secrets.resolve(user)?;
-            let p = secrets.resolve(pass)?;
-            Some(format!("Basic {}", base64ish::encode_basic(&u, &p)))
-        }
-        // SigV4, GCP IAM, Azure MSI, header templates land in B2.2+
-        Inject::AwsSigV4 { .. }
-        | Inject::GcpIam { .. }
-        | Inject::AzureMsi { .. }
-        | Inject::HeaderTemplate { .. } => None,
     }
+}
+
+/// AWS Signature V4 signer — pure inline implementation against
+/// sha2 + hmac. No AWS SDK dependency. Returns the headers the broker
+/// should add: Authorization, X-Amz-Date, optionally X-Amz-Security-Token,
+/// and X-Amz-Content-Sha256 (always sent for clarity).
+///
+/// Spec: https://docs.aws.amazon.com/general/latest/gr/sigv4_signing.html
+fn sign_aws_v4(
+    method: &str,
+    host: &str,
+    port: u16,
+    path_and_query: &str,
+    creds: &crate::secrets::AwsCredentials,
+) -> Option<Vec<(String, String)>> {
+    use hmac::{Hmac, Mac};
+    use sha2::{Digest, Sha256};
+    type HmacSha256 = Hmac<Sha256>;
+
+    let now = chrono::Utc::now();
+    let amz_date = now.format("%Y%m%dT%H%M%SZ").to_string();
+    let date_stamp = now.format("%Y%m%d").to_string();
+
+    // Split path?query.
+    let (path, query) = match path_and_query.split_once('?') {
+        Some((p, q)) => (p.to_string(), q.to_string()),
+        None => (path_and_query.to_string(), String::new()),
+    };
+    let canonical_uri = if path.is_empty() {
+        "/".to_string()
+    } else {
+        path
+    };
+    let canonical_query = canonicalize_query(&query);
+
+    // Body hash. v1 only signs empty bodies (B1.8 doesn't read request
+    // bodies). aws_treats empty as the SHA256 of "".
+    let payload_hash = sha256_hex(&[]);
+
+    // Host header per SigV4: include port only if non-standard.
+    let host_header_value = if port == 443 || port == 80 {
+        host.to_string()
+    } else {
+        format!("{host}:{port}")
+    };
+
+    // Canonical headers — must be sorted by lowercased name. We sign
+    // `host` and `x-amz-date` (and security-token if present), plus
+    // `x-amz-content-sha256` for completeness.
+    let mut signed: Vec<(&str, String)> = vec![
+        ("host", host_header_value.clone()),
+        ("x-amz-content-sha256", payload_hash.clone()),
+        ("x-amz-date", amz_date.clone()),
+    ];
+    if let Some(token) = &creds.session_token {
+        signed.push(("x-amz-security-token", token.clone()));
+    }
+    signed.sort_by(|a, b| a.0.cmp(b.0));
+
+    let canonical_headers = signed
+        .iter()
+        .map(|(k, v)| format!("{k}:{}\n", v.trim()))
+        .collect::<String>();
+    let signed_headers = signed
+        .iter()
+        .map(|(k, _)| *k)
+        .collect::<Vec<_>>()
+        .join(";");
+
+    let canonical_request = format!(
+        "{method}\n{canonical_uri}\n{canonical_query}\n{canonical_headers}\n{signed_headers}\n{payload_hash}"
+    );
+
+    let credential_scope = format!(
+        "{date_stamp}/{region}/{service}/aws4_request",
+        region = creds.region,
+        service = creds.service
+    );
+    let string_to_sign = format!(
+        "AWS4-HMAC-SHA256\n{amz_date}\n{credential_scope}\n{}",
+        sha256_hex(canonical_request.as_bytes())
+    );
+
+    // Derive signing key.
+    let k_date = hmac_sha256(
+        format!("AWS4{}", creds.secret_access_key).as_bytes(),
+        date_stamp.as_bytes(),
+    );
+    let k_region = hmac_sha256(&k_date, creds.region.as_bytes());
+    let k_service = hmac_sha256(&k_region, creds.service.as_bytes());
+    let k_signing = hmac_sha256(&k_service, b"aws4_request");
+
+    let signature = {
+        let mut mac = HmacSha256::new_from_slice(&k_signing).ok()?;
+        mac.update(string_to_sign.as_bytes());
+        hex::encode(mac.finalize().into_bytes())
+    };
+
+    let auth_value = format!(
+        "AWS4-HMAC-SHA256 Credential={key}/{scope}, SignedHeaders={sh}, Signature={sig}",
+        key = creds.access_key_id,
+        scope = credential_scope,
+        sh = signed_headers,
+        sig = signature
+    );
+
+    let mut out = vec![
+        ("X-Amz-Date".to_string(), amz_date),
+        ("X-Amz-Content-Sha256".to_string(), payload_hash),
+        ("Authorization".to_string(), auth_value),
+    ];
+    if let Some(token) = &creds.session_token {
+        out.push(("X-Amz-Security-Token".to_string(), token.clone()));
+    }
+    Some(out)
+}
+
+fn sha256_hex(input: &[u8]) -> String {
+    use sha2::{Digest as _, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(input);
+    hex::encode(hasher.finalize())
+}
+
+fn hmac_sha256(key: &[u8], data: &[u8]) -> Vec<u8> {
+    use hmac::{Hmac, Mac};
+    use sha2::Sha256;
+    type HmacSha256 = Hmac<Sha256>;
+    let mut mac = HmacSha256::new_from_slice(key).expect("hmac key length valid");
+    mac.update(data);
+    mac.finalize().into_bytes().to_vec()
+}
+
+/// Canonicalize the query string per SigV4: sort by name, percent-encode
+/// each name and value with the unreserved-character set, join with `&`.
+/// v1 implementation handles the common no-query and simple `k=v&k2=v2`
+/// cases; complex cases (empty values, repeated keys) get correct ordering
+/// but conservative encoding.
+fn canonicalize_query(query: &str) -> String {
+    if query.is_empty() {
+        return String::new();
+    }
+    let mut pairs: Vec<(String, String)> = query
+        .split('&')
+        .map(|p| match p.split_once('=') {
+            Some((k, v)) => (
+                aws_uri_encode(k, false),
+                aws_uri_encode(v, false),
+            ),
+            None => (aws_uri_encode(p, false), String::new()),
+        })
+        .collect();
+    pairs.sort();
+    pairs
+        .into_iter()
+        .map(|(k, v)| format!("{k}={v}"))
+        .collect::<Vec<_>>()
+        .join("&")
+}
+
+/// AWS URI encoding: encode everything except `A-Z`, `a-z`, `0-9`, `-`,
+/// `_`, `.`, `~`. When `path=true`, also leave `/` unencoded.
+fn aws_uri_encode(input: &str, path: bool) -> String {
+    let mut out = String::with_capacity(input.len() * 3);
+    for &b in input.as_bytes() {
+        let unreserved = matches!(
+            b,
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~'
+        );
+        if unreserved || (path && b == b'/') {
+            out.push(b as char);
+        } else {
+            out.push_str(&format!("%{:02X}", b));
+        }
+    }
+    out
 }
 
 mod base64ish {
@@ -388,7 +593,7 @@ mod tests {
             ],
         };
         let store = crate::secrets::EmptySecretStore;
-        let req = build_outbound_request(&parsed, &Inject::None, &store);
+        let req = build_outbound_request(&parsed, &Inject::None, &store, "api.example.com", 443);
         let s = String::from_utf8(req).unwrap();
         assert!(!s.contains("keep-alive"));
         assert!(!s.contains("Transfer-Encoding"));
@@ -411,10 +616,42 @@ mod tests {
         let inject = Inject::Bearer {
             key: crate::policy::SecretRef("@profile.openai_key".into()),
         };
-        let req = build_outbound_request(&parsed, &inject, &store);
+        let req = build_outbound_request(&parsed, &inject, &store, "api.openai.com", 443);
         let s = String::from_utf8(req).unwrap();
         assert!(s.contains("Authorization: Bearer sk-real-token"));
         assert!(!s.contains("sandbox-fake"));
+    }
+
+    #[test]
+    fn sigv4_injection_adds_authorization_and_x_amz_date() {
+        let parsed = ParsedReq {
+            method: "GET".into(),
+            target: "/".into(),
+            headers: vec![("Host".into(), "127.0.0.1:443".into())],
+        };
+        let store = crate::secrets::InMemorySecretStore::new();
+        store.set_aws(
+            "@workspace.aws_default",
+            crate::secrets::AwsCredentials {
+                access_key_id: "AKIAIOSFODNN7EXAMPLE".into(),
+                secret_access_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY".into(),
+                session_token: None,
+                region: "us-east-1".into(),
+                service: "s3".into(),
+            },
+        );
+        let inject = Inject::AwsSigV4 {
+            profile: crate::policy::SecretRef("@workspace.aws_default".into()),
+        };
+        let req = build_outbound_request(&parsed, &inject, &store, "127.0.0.1", 443);
+        let s = String::from_utf8(req).unwrap();
+        assert!(
+            s.contains("Authorization: AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/"),
+            "missing SigV4 Authorization: {s}"
+        );
+        assert!(s.to_ascii_lowercase().contains("x-amz-date:"));
+        assert!(s.contains("SignedHeaders="));
+        assert!(s.contains("Signature="));
     }
 
     #[test]

@@ -12,13 +12,31 @@ use std::sync::RwLock;
 
 use crate::policy::SecretRef;
 
+#[derive(Debug, Clone)]
+pub struct AwsCredentials {
+    pub access_key_id: String,
+    pub secret_access_key: String,
+    pub session_token: Option<String>,
+    /// Default region used when the policy rule doesn't pin one.
+    pub region: String,
+    /// AWS service name (`s3`, `lambda`, `sts`, …). Required for signing.
+    pub service: String,
+}
+
 pub trait SecretStore: Send + Sync {
     fn resolve(&self, secret: &SecretRef) -> Option<String>;
+
+    /// Optional AWS-creds lookup. Default impl returns None; in-memory and
+    /// daemon-side impls override.
+    fn resolve_aws(&self, _secret: &SecretRef) -> Option<AwsCredentials> {
+        None
+    }
 }
 
 #[derive(Debug, Default)]
 pub struct InMemorySecretStore {
     map: RwLock<HashMap<String, String>>,
+    aws: RwLock<HashMap<String, AwsCredentials>>,
 }
 
 impl InMemorySecretStore {
@@ -28,6 +46,10 @@ impl InMemorySecretStore {
 
     pub fn set(&self, key: impl Into<String>, value: impl Into<String>) {
         self.map.write().unwrap().insert(key.into(), value.into());
+    }
+
+    pub fn set_aws(&self, key: impl Into<String>, creds: AwsCredentials) {
+        self.aws.write().unwrap().insert(key.into(), creds);
     }
 
     pub fn from_pairs<I, K, V>(pairs: I) -> Self
@@ -47,6 +69,10 @@ impl InMemorySecretStore {
 impl SecretStore for InMemorySecretStore {
     fn resolve(&self, secret: &SecretRef) -> Option<String> {
         self.map.read().unwrap().get(&secret.0).cloned()
+    }
+
+    fn resolve_aws(&self, secret: &SecretRef) -> Option<AwsCredentials> {
+        self.aws.read().unwrap().get(&secret.0).cloned()
     }
 }
 
