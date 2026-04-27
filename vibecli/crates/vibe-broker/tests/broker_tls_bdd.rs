@@ -162,8 +162,6 @@ fn send_connect(world: &mut TWorld, line: String) {
 }
 
 fn parse_response_into(world: &mut TWorld, resp: &[u8]) {
-    // The 200 path may not have full \r\n\r\n if the connection was idle.
-    // Locate the first \r\n and parse the status line.
     let split = resp
         .windows(2)
         .position(|w| w == b"\r\n")
@@ -178,7 +176,8 @@ fn parse_response_into(world: &mut TWorld, resp: &[u8]) {
         .windows(4)
         .position(|w| w == b"\r\n\r\n")
         .unwrap_or(resp.len());
-    let headers_text = String::from_utf8_lossy(&resp[split + 2..header_end]);
+    let header_start = (split + 2).min(header_end);
+    let headers_text = String::from_utf8_lossy(&resp[header_start..header_end]);
     for line in headers_text.split("\r\n") {
         if let Some((k, v)) = line.split_once(':') {
             world

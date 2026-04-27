@@ -17,9 +17,11 @@ use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 
 use crate::forward::{ForwardError, ForwardRequest, forward_plain_http};
+use crate::mitm::{default_upstream_roots, run_mitm};
 use crate::policy::{Decision, Policy, Request as PolicyRequest};
 use crate::ssrf::{SsrfGuard, SsrfVerdict};
 use crate::tls::BrokerCa;
+use rustls::RootCertStore;
 
 /// Address the broker is bound to. Returned by `Broker::start_*`.
 #[derive(Debug, Clone)]
@@ -65,10 +67,12 @@ pub struct Broker {
     pub forward_upstream: bool,
     /// Per-request timeout when forwarding upstream.
     pub upstream_timeout: Duration,
-    /// When set, CONNECT is honored: matched hosts get 200 + MITM
-    /// handshake (B1.8); unmatched get 403. Without this, CONNECT is
-    /// treated as a malformed request and rejected with 400.
+    /// When set, CONNECT is honored: matched hosts get 200 + the MITM
+    /// pipeline runs (B1.8). Unmatched CONNECTs get 403.
     pub tls_ca: Option<Arc<BrokerCa>>,
+    /// Roots used when verifying the real upstream during MITM. Defaults
+    /// to webpki-roots (Mozilla bundle); tests inject their own.
+    pub upstream_trust: Option<Arc<RootCertStore>>,
 }
 
 impl Broker {
@@ -79,6 +83,7 @@ impl Broker {
             forward_upstream: false,
             upstream_timeout: Duration::from_secs(15),
             tls_ca: None,
+            upstream_trust: None,
         }
     }
 
@@ -93,10 +98,19 @@ impl Broker {
     }
 
     /// Enable CONNECT method handling backed by a per-broker root CA.
-    /// Slice B1.7 ships the CA + the CONNECT handshake response. The
-    /// actual TLS termination + plaintext forwarding lands in slice B1.8.
+    /// Slice B1.7 added the CA + the CONNECT handshake response; slice
+    /// B1.8 added TLS termination + plaintext forwarding (now active
+    /// whenever `tls_ca` is set).
     pub fn with_tls_ca(mut self, ca: Arc<BrokerCa>) -> Self {
         self.tls_ca = Some(ca);
+        self
+    }
+
+    /// Override the upstream-trust RootCertStore used when MITMing. The
+    /// daemon default is webpki-roots; tests inject self-signed roots so
+    /// they can stand up real HTTPS servers without external deps.
+    pub fn with_upstream_trust(mut self, store: Arc<RootCertStore>) -> Self {
+        self.upstream_trust = Some(store);
         self
     }
 
@@ -183,7 +197,7 @@ impl Broker {
 
     async fn handle<S>(&self, mut stream: S) -> std::io::Result<()>
     where
-        S: AsyncRead + AsyncWrite + Unpin + Send,
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
         let mut buf = vec![0u8; 8 * 1024];
         let n = read_until_headers(&mut stream, &mut buf).await?;
@@ -200,7 +214,7 @@ impl Broker {
         };
 
         if parsed.method.eq_ignore_ascii_case("CONNECT") {
-            return self.handle_connect(&mut stream, &parsed).await;
+            return self.dispatch_connect(stream, &parsed).await;
         }
 
         // Build the URL the policy/SSRF want to see. Forward-proxy clients
@@ -226,46 +240,47 @@ impl Broker {
         }
     }
 
-    async fn handle_connect<S>(
+    async fn dispatch_connect<S>(
         &self,
-        stream: &mut S,
+        mut stream: S,
         parsed: &ParsedHead,
     ) -> std::io::Result<()>
     where
-        S: AsyncRead + AsyncWrite + Unpin + Send,
+        S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        if self.tls_ca.is_none() {
-            return write_connect_denied(stream, "tls_not_configured", 405).await;
-        }
-        let (host, _port) = match split_host_port(&parsed.target) {
+        let ca = match &self.tls_ca {
+            Some(ca) => ca.clone(),
+            None => return write_connect_denied(&mut stream, "tls_not_configured", 405).await,
+        };
+        let (host, port) = match split_host_port(&parsed.target) {
             Some(hp) => hp,
             None => {
-                return write_connect_denied(stream, "policy_denied", 400).await;
+                return write_connect_denied(&mut stream, "policy_denied", 400).await;
             }
         };
-        // SSRF on the literal hostname (covers IP-literal attempts).
         let synthetic = format!("https://{host}/");
         if matches!(self.ssrf.check(&synthetic), SsrfVerdict::Block) {
-            return write_connect_denied(stream, "ssrf_blocked", 403).await;
+            return write_connect_denied(&mut stream, "ssrf_blocked", 403).await;
         }
-        // Policy match against synthetic CONNECT request.
         let decision = self.policy.match_request(&PolicyRequest {
             method: "CONNECT",
             url: &synthetic,
         });
-        match decision {
-            Decision::Deny => write_connect_denied(stream, "policy_denied", 403).await,
-            Decision::Allow { .. } => {
-                stream
-                    .write_all(b"HTTP/1.1 200 Connection Established\r\nConnection: close\r\n\r\n")
-                    .await?;
-                // Slice B1.8 will run the TLS handshake + decrypted-traffic
-                // pipeline here. For now, a passive 200 is enough to verify
-                // the policy + acceptor wiring; closing the connection
-                // immediately is acceptable behaviour for the slice.
-                Ok(())
-            }
+        if matches!(decision, Decision::Deny) {
+            return write_connect_denied(&mut stream, "policy_denied", 403).await;
         }
+        stream
+            .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+            .await?;
+
+        let trust = self
+            .upstream_trust
+            .clone()
+            .unwrap_or_else(|| Arc::new(default_upstream_roots()));
+        if let Err(e) = run_mitm(stream, &host, port, &ca, trust, self.upstream_timeout).await {
+            tracing::debug!("mitm error: {e}");
+        }
+        Ok(())
     }
 
     async fn do_forward<S>(
