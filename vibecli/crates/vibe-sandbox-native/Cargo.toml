@@ -37,3 +37,7 @@ harness = false
 [[test]]
 name = "e2e_sandbox_broker_bdd"
 harness = false
+
+[[test]]
+name = "e2e_sandbox_imds_bdd"
+harness = false

@@ -19,6 +19,11 @@ pub struct SbProfile {
     deny_network: bool,
     allow_network: bool,
     broker_socket: Option<PathBuf>,
+    /// Loopback (`127.0.0.1`) TCP ports the sandbox is allowed to reach.
+    /// Used to expose the IMDS faker port without unblocking general
+    /// network access. Each entry becomes one
+    /// `(allow network-outbound (remote tcp "localhost:PORT"))` rule.
+    loopback_ports: Vec<u16>,
 }
 
 impl SbProfile {
@@ -43,6 +48,13 @@ impl SbProfile {
 
     pub fn allow_outbound_socket(&mut self, sock: &Path) {
         self.broker_socket = Some(sock.to_owned());
+    }
+
+    /// Permit outbound TCP to `127.0.0.1:port`. Used so the daemon's
+    /// loopback IMDS faker (and any other policy-bound local helper)
+    /// can be reached from the sandbox.
+    pub fn allow_loopback_tcp(&mut self, port: u16) {
+        self.loopback_ports.push(port);
     }
 
     pub fn deny_all_network(&mut self) {
@@ -106,6 +118,20 @@ impl SbProfile {
                 quote_scheme(sock)
             ));
         }
+        for port in &self.loopback_ports {
+            // Allow outbound TCP to localhost:PORT only.
+            out.push_str(&format!(
+                "(allow network-outbound (remote tcp \"localhost:{port}\"))\n"
+            ));
+            // Connecting clients also need DNS-style sysctl + AF_INET socket
+            // creation; granted broadly via the next rule scoped to TCP.
+        }
+        if !self.loopback_ports.is_empty() {
+            // sandbox-exec needs (allow system-socket) for the AF_INET
+            // socket() call itself; without this rule, the connect() to
+            // localhost is denied at socket creation time.
+            out.push_str("(allow system-socket)\n");
+        }
         if self.deny_network {
             out.push_str("(deny network*)\n");
         }
@@ -142,6 +168,12 @@ pub struct MacosSandbox {
     profile: SbProfile,
     _env: EnvPolicy,
     _limits: ResourceLimits,
+    /// Extra (key, value) pairs appended verbatim to the spawned process
+    /// env. Daemon callers populate this with broker-handoff variables
+    /// like `AWS_EC2_METADATA_SERVICE_ENDPOINT`, `HTTPS_PROXY`,
+    /// `SSL_CERT_FILE`. The values are not secrets — secrets stay in the
+    /// SecretStore, never in the sandbox env.
+    extra_env: Vec<(String, String)>,
 }
 
 impl MacosSandbox {
@@ -150,7 +182,25 @@ impl MacosSandbox {
             profile: SbProfile::new(),
             _env: EnvPolicy::default(),
             _limits: ResourceLimits::default(),
+            extra_env: Vec::new(),
         })
+    }
+
+    /// Add (or overwrite) an env var the sandboxed process will see.
+    pub fn set_env(&mut self, key: impl Into<String>, value: impl Into<String>) {
+        let k = key.into();
+        let v = value.into();
+        if let Some(slot) = self.extra_env.iter_mut().find(|(ek, _)| ek == &k) {
+            slot.1 = v;
+        } else {
+            self.extra_env.push((k, v));
+        }
+    }
+
+    /// Permit outbound TCP to `127.0.0.1:port` from inside the sandbox.
+    /// Used to expose broker helpers like the IMDS faker.
+    pub fn allow_loopback_tcp(&mut self, port: u16) {
+        self.profile.allow_loopback_tcp(port);
     }
 
     /// Diagnostic helper: returns the rendered profile string. Used by
@@ -166,6 +216,9 @@ impl MacosSandbox {
         let mut c = Command::new("sandbox-exec");
         c.arg("-p").arg(&profile).arg(cmd).args(args);
         c.current_dir(self.default_cwd());
+        for (k, v) in &self.extra_env {
+            c.env(k, v);
+        }
         c.stdout(Stdio::piped()).stderr(Stdio::piped());
         c.output()
     }
@@ -216,6 +269,9 @@ impl Sandbox for MacosSandbox {
         let mut c = Command::new("sandbox-exec");
         c.arg("-p").arg(&profile).arg(cmd).args(args);
         c.current_dir(self.default_cwd());
+        for (k, v) in &self.extra_env {
+            c.env(k, v);
+        }
         c.stdout(Stdio::piped()).stderr(Stdio::piped());
         c.spawn().map_err(SandboxError::Io)
     }
