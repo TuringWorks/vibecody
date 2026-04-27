@@ -8,6 +8,7 @@
 
 pub mod accept;
 pub mod audit;
+pub mod audit_summary;
 pub mod forward;
 pub mod imds;
 pub mod mitm;
@@ -21,6 +22,7 @@ pub use audit::{
     AuditEvent, AuditSink, EgressOutcome, JsonlFileAuditSink, MemoryAuditSink, NullAuditSink,
     baseline_egress_request,
 };
+pub use audit_summary::AuditSummary;
 pub use forward::{ForwardError, ForwardRequest, ForwardResponse, forward_plain_http};
 pub use imds::{ImdsHandle, ImdsServer};
 pub use mitm::{InspectContext, MitmError, default_upstream_roots, run_mitm};
