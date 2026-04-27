@@ -11,14 +11,16 @@ pub mod audit;
 pub mod forward;
 pub mod mitm;
 pub mod policy;
+pub mod secrets;
 pub mod ssrf;
 pub mod tls;
 
 pub use accept::{BoundAddr, Broker, BrokerHandle};
 pub use audit::{AuditEvent, EgressOutcome};
 pub use forward::{ForwardError, ForwardRequest, ForwardResponse, forward_plain_http};
-pub use mitm::{MitmError, default_upstream_roots, run_mitm};
+pub use mitm::{InspectContext, MitmError, default_upstream_roots, run_mitm};
 pub use policy::{Decision, Inject, Policy, Rule, RuleMatch, SecretRef};
+pub use secrets::{EmptySecretStore, InMemorySecretStore, SecretStore};
 pub use ssrf::{SsrfGuard, SsrfVerdict};
 pub use tls::{BrokerCa, LeafCert, TlsError};
 

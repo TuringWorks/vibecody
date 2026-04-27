@@ -17,8 +17,9 @@ use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 
 use crate::forward::{ForwardError, ForwardRequest, forward_plain_http};
-use crate::mitm::{default_upstream_roots, run_mitm};
+use crate::mitm::{InspectContext, default_upstream_roots, run_mitm};
 use crate::policy::{Decision, Policy, Request as PolicyRequest};
+use crate::secrets::{EmptySecretStore, SecretStore};
 use crate::ssrf::{SsrfGuard, SsrfVerdict};
 use crate::tls::BrokerCa;
 use rustls::RootCertStore;
@@ -73,6 +74,10 @@ pub struct Broker {
     /// Roots used when verifying the real upstream during MITM. Defaults
     /// to webpki-roots (Mozilla bundle); tests inject their own.
     pub upstream_trust: Option<Arc<RootCertStore>>,
+    /// Secret store consulted when a matched rule has an Inject directive.
+    /// Defaults to an empty store (rules with injection still match, but
+    /// the auth header isn't added).
+    pub secrets: Arc<dyn SecretStore>,
 }
 
 impl Broker {
@@ -84,6 +89,7 @@ impl Broker {
             upstream_timeout: Duration::from_secs(15),
             tls_ca: None,
             upstream_trust: None,
+            secrets: Arc::new(EmptySecretStore),
         }
     }
 
@@ -111,6 +117,14 @@ impl Broker {
     /// they can stand up real HTTPS servers without external deps.
     pub fn with_upstream_trust(mut self, store: Arc<RootCertStore>) -> Self {
         self.upstream_trust = Some(store);
+        self
+    }
+
+    /// Install the SecretStore consulted at egress time. Production
+    /// callers populate this from `ProfileStore` + `WorkspaceStore`;
+    /// tests use `InMemorySecretStore`.
+    pub fn with_secret_store(mut self, store: Arc<dyn SecretStore>) -> Self {
+        self.secrets = store;
         self
     }
 
@@ -277,7 +291,14 @@ impl Broker {
             .upstream_trust
             .clone()
             .unwrap_or_else(|| Arc::new(default_upstream_roots()));
-        if let Err(e) = run_mitm(stream, &host, port, &ca, trust, self.upstream_timeout).await {
+        let inspect = InspectContext {
+            policy: &self.policy,
+            ssrf: &self.ssrf,
+            secrets: self.secrets.as_ref(),
+        };
+        if let Err(e) =
+            run_mitm(stream, &host, port, &ca, trust, self.upstream_timeout, inspect).await
+        {
             tracing::debug!("mitm error: {e}");
         }
         Ok(())
