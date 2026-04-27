@@ -1,0 +1,27 @@
+[package]
+name = "vibe-broker"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Egress broker for VibeCody sandboxes — out-of-sandbox HTTP forward proxy with policy, credential injection, and audit. See docs/design/sandbox-tiers/02-egress-broker.md."
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+toml = "0.8"
+url = "2"
+tracing = { workspace = true }
+
+[dev-dependencies]
+cucumber = "0.21"
+futures = "0.3"
+
+[[test]]
+name = "broker_policy_bdd"
+harness = false
+
+[[test]]
+name = "broker_ssrf_bdd"
+harness = false

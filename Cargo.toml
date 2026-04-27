@@ -2,6 +2,9 @@
 resolver = "2"
 members = [
     "vibecli/vibecli-cli",
+    "vibecli/crates/vibe-sandbox",
+    "vibecli/crates/vibe-sandbox-native",
+    "vibecli/crates/vibe-broker",
     "vibeui/src-tauri",
     "vibeui/crates/vibe-core",
     "vibeui/crates/vibe-lsp",

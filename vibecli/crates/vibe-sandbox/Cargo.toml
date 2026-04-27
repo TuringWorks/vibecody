@@ -1,0 +1,20 @@
+[package]
+name = "vibe-sandbox"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Cross-platform sandbox trait + tier selection for VibeCody. See docs/design/sandbox-tiers/."
+
+[dependencies]
+thiserror = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+
+[dev-dependencies]
+cucumber = "0.21"
+tokio = { workspace = true }
+futures = "0.3"
+
+[[test]]
+name = "sandbox_trait_bdd"
+harness = false
