@@ -758,7 +758,7 @@ async fn call_tool(
             let tags: Vec<String> = args["tags"].as_array()
                 .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
                 .unwrap_or_default();
-            let mut store = crate::open_memory::project_scoped_store(workspace_root);
+            let mut store = crate::open_memory::project_scoped_store_with_refresh(workspace_root);
             let id = store.add_with_tags(content, tags, std::collections::HashMap::new());
             let sector = store.get(&id).map(|m| m.sector.to_string()).unwrap_or_default();
             let _ = store.save();
@@ -786,7 +786,7 @@ async fn call_tool(
             let subject = args["subject"].as_str().unwrap_or("").to_string();
             let predicate = args["predicate"].as_str().unwrap_or("").to_string();
             let object = args["object"].as_str().unwrap_or("").to_string();
-            let mut store = crate::open_memory::project_scoped_store(workspace_root);
+            let mut store = crate::open_memory::project_scoped_store_with_refresh(workspace_root);
             let id = store.add_fact(subject.clone(), predicate.clone(), object.clone());
             let _ = store.save();
             format!("Added fact: {} {} {} (id: {})", subject, predicate, object, id)

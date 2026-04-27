@@ -18,7 +18,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::compressed_hnsw::CompressedMemoryIndex;
@@ -1224,6 +1224,21 @@ pub struct OpenMemoryStore {
     /// Verbatim drawer store (MemPalace technique — raw storage, no summarization loss).
     /// Provides high-fidelity L3 retrieval to complement the cognitive store.
     drawer_store: DrawerStore,
+    /// When set, `save()` additionally refreshes the markdown projections
+    /// (`<workspace>/.vibecli/MEMORY.md` and optionally
+    /// `<home>/.vibecli/USER.md`). Best-effort — projection failures do
+    /// not surface as save failures. Phase 7 quick-win: keep the
+    /// human-readable memory window from going stale.
+    projection_targets: Option<ProjectionTargets>,
+}
+
+/// Target paths for the auto-refresh projection write that fires from
+/// `OpenMemoryStore::save()`. `home_dir` is optional so callers in
+/// headless or CI environments can refresh just the workspace tier.
+#[derive(Debug, Clone)]
+struct ProjectionTargets {
+    workspace: PathBuf,
+    home_dir: Option<PathBuf>,
 }
 
 impl OpenMemoryStore {
@@ -1246,7 +1261,32 @@ impl OpenMemoryStore {
             consolidation_threshold: 0.80,
             purge_threshold: 0.05,
             drawer_store: DrawerStore::new(),
+            projection_targets: None,
         }
+    }
+
+    /// Opt-in: every subsequent `save()` will also refresh
+    /// `<workspace>/.vibecli/MEMORY.md` and (when home is supplied)
+    /// `<home>/.vibecli/USER.md`. Failures are swallowed so save still
+    /// reports persistence success — projections are a best-effort
+    /// human-readable side-channel, not a source of truth.
+    pub fn enable_projection_refresh(
+        &mut self,
+        workspace: impl Into<PathBuf>,
+        home_dir: Option<PathBuf>,
+    ) {
+        self.projection_targets = Some(ProjectionTargets {
+            workspace: workspace.into(),
+            home_dir,
+        });
+    }
+
+    /// Inspect the configured projection targets, if any. Useful for
+    /// callers that want to confirm wiring before exercising save().
+    pub fn projection_targets(&self) -> Option<(&Path, Option<&Path>)> {
+        self.projection_targets
+            .as_ref()
+            .map(|t| (t.workspace.as_path(), t.home_dir.as_deref()))
     }
 
     /// Enable encryption with a passphrase.
@@ -1823,6 +1863,13 @@ impl OpenMemoryStore {
     // ── Persistence ──────────────────────────────────────────────────────
 
     /// Save entire store to disk as JSON.
+    ///
+    /// When projection refresh is enabled (`enable_projection_refresh`),
+    /// also rewrites the markdown projections under
+    /// `<workspace>/.vibecli/MEMORY.md` and `<home>/.vibecli/USER.md`.
+    /// Projection writes are best-effort: a failure there does NOT cause
+    /// `save()` to fail. Persistence is the contract; the human-readable
+    /// projections are a side-channel that must not block durability.
     pub fn save(&self) -> Result<()> {
         std::fs::create_dir_all(&self.data_dir)?;
 
@@ -1841,6 +1888,14 @@ impl OpenMemoryStore {
         std::fs::write(&facts_path, json)?;
 
         self.drawer_store.save(&self.data_dir.join("drawers.json"))?;
+
+        if let Some(targets) = &self.projection_targets {
+            let _ = crate::memory_projections::write_projections_from_store(
+                self,
+                targets.home_dir.as_deref(),
+                &targets.workspace,
+            );
+        }
 
         Ok(())
     }
@@ -2904,6 +2959,26 @@ pub fn project_scoped_store(workspace: &std::path::Path) -> OpenMemoryStore {
     if let Some(pid) = &project_id {
         store.set_project(pid);
     }
+    store
+}
+
+/// Same as [`project_scoped_store`], but also wires
+/// [`OpenMemoryStore::enable_projection_refresh`] so every subsequent
+/// `save()` rewrites `<workspace>/.vibecli/MEMORY.md` and (when
+/// `dirs::home_dir()` resolves) `<home>/.vibecli/USER.md`.
+///
+/// Use this from REPL/agent paths that mutate memory and want the
+/// human-readable projection files to stay in sync. Read-only callers
+/// can use [`project_scoped_store`] — projection refresh is a no-op
+/// without a `save()`, so the cost is exactly zero on the read path.
+pub fn project_scoped_store_with_refresh(
+    workspace: &std::path::Path,
+) -> OpenMemoryStore {
+    let mut store = project_scoped_store(workspace);
+    store.enable_projection_refresh(
+        workspace.to_path_buf(),
+        dirs::home_dir(),
+    );
     store
 }
 
@@ -5434,5 +5509,111 @@ mod tests {
             .expect("sync");
         // Project-tier facts still import even with no home provided.
         assert_eq!(n, 2);
+    }
+
+    // ── Phase 7 quick-win: projection auto-refresh on save() ─────────────
+
+    #[test]
+    fn save_does_not_write_projections_without_targets() {
+        // Default behavior is unchanged: a save with no projection target
+        // set must NOT touch any MEMORY.md / USER.md path.
+        let data_dir = tempfile::TempDir::new().unwrap();
+        let workspace = tempfile::TempDir::new().unwrap();
+        let mut store = OpenMemoryStore::new(data_dir.path(), "test-user");
+        store.set_project("phase7-baseline");
+        store.add("an unprojected fact");
+        store.save().expect("save");
+
+        let memory_md = workspace.path().join(".vibecli").join("MEMORY.md");
+        assert!(
+            !memory_md.exists(),
+            "MEMORY.md must not appear when projection refresh is not enabled"
+        );
+    }
+
+    #[test]
+    fn save_writes_projections_when_targets_enabled() {
+        // After enable_projection_refresh, every save() must (re)write the
+        // workspace projection AND the home projection. The body must
+        // reflect the in-memory store state at save time.
+        let data_dir = tempfile::TempDir::new().unwrap();
+        let workspace = tempfile::TempDir::new().unwrap();
+        let home = tempfile::TempDir::new().unwrap();
+
+        let mut store = OpenMemoryStore::new(data_dir.path(), "test-user");
+        store.set_project("phase7-refresh");
+        store.add("a fact about Rust ownership");
+
+        store.enable_projection_refresh(
+            workspace.path().to_path_buf(),
+            Some(home.path().to_path_buf()),
+        );
+        store.save().expect("save");
+
+        let memory_md = workspace.path().join(".vibecli").join("MEMORY.md");
+        let user_md = home.path().join(".vibecli").join("USER.md");
+        assert!(memory_md.exists(), "save() must write MEMORY.md");
+        assert!(user_md.exists(), "save() must write USER.md when home set");
+
+        let body = std::fs::read_to_string(&memory_md).expect("read MEMORY.md");
+        assert!(
+            body.contains("a fact about Rust ownership"),
+            "MEMORY.md must reflect the just-saved store state; got:\n{body}"
+        );
+    }
+
+    #[test]
+    fn save_projection_refresh_is_idempotent() {
+        // Two saves with no intermediate mutation must produce the same
+        // bytes — projections are deterministic for a given store state.
+        let data_dir = tempfile::TempDir::new().unwrap();
+        let workspace = tempfile::TempDir::new().unwrap();
+        let mut store = OpenMemoryStore::new(data_dir.path(), "test-user");
+        store.set_project("phase7-idempotent");
+        store.add("fact one");
+        store.add("fact two");
+        store.enable_projection_refresh(
+            workspace.path().to_path_buf(),
+            None,
+        );
+
+        store.save().expect("save 1");
+        let memory_md = workspace.path().join(".vibecli").join("MEMORY.md");
+        let bytes1 = std::fs::read(&memory_md).expect("read 1");
+
+        store.save().expect("save 2");
+        let bytes2 = std::fs::read(&memory_md).expect("read 2");
+
+        assert_eq!(
+            bytes1, bytes2,
+            "repeated saves with no mutation must produce identical projections"
+        );
+    }
+
+    #[test]
+    fn save_projection_failure_does_not_fail_save() {
+        // Projection write is best-effort — if the workspace path is
+        // unwritable (here: a regular file already squats at .vibecli so
+        // create_dir_all fails) save() must still succeed. Persistence is
+        // the contract; projections are a side-effect.
+        let data_dir = tempfile::TempDir::new().unwrap();
+        let workspace = tempfile::TempDir::new().unwrap();
+        // Squat a file at the .vibecli path so create_dir_all errors out.
+        let blocker = workspace.path().join(".vibecli");
+        std::fs::write(&blocker, "not a directory").expect("squat blocker");
+
+        let mut store = OpenMemoryStore::new(data_dir.path(), "test-user");
+        store.add("fact");
+        store.enable_projection_refresh(
+            workspace.path().to_path_buf(),
+            None,
+        );
+
+        let result = store.save();
+        assert!(
+            result.is_ok(),
+            "save must succeed despite projection failure: {:?}",
+            result.err()
+        );
     }
 }

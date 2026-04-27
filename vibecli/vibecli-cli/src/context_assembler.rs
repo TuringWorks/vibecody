@@ -80,6 +80,37 @@ impl Default for ContextBudget {
     }
 }
 
+/// Parse a wire-format agent kind string into the typed enum.
+///
+/// Used by both the Tauri panel-facing command (S1) and the HTTP
+/// `/agent` payload negotiation (S3) so the canonical valid-kind list
+/// lives in exactly one place. The `Err` value is a human-readable
+/// message that callers can echo back to clients verbatim.
+pub fn parse_agent_kind(s: &str) -> Result<AgentKind, String> {
+    match s {
+        "Chat" => Ok(AgentKind::Chat),
+        "CodingAgent" => Ok(AgentKind::CodingAgent),
+        "ResearchAgent" => Ok(AgentKind::ResearchAgent),
+        "BackgroundJob" => Ok(AgentKind::BackgroundJob),
+        other => Err(format!(
+            "unknown kind {other:?}; expected Chat | CodingAgent | ResearchAgent | BackgroundJob"
+        )),
+    }
+}
+
+/// Section names emitted by `assemble_context` for the various
+/// `ContextPolicy` flavors. Single source of truth so the
+/// `/v1/capabilities` advertisement and clients that consume it can
+/// agree on which keys may appear in the assembled response.
+pub const KNOWN_SECTION_NAMES: &[&str] = &[
+    "project_memory",
+    "orchestration",
+    "project_profile",
+    "task_files",
+    "open_memory",
+    "agent_scratchpad",
+];
+
 impl ContextBudget {
     /// Look up the effective cap for a named section, falling back to
     /// `max_section_chars` when no override is present.
@@ -445,6 +476,65 @@ mod tests {
             std::fs::create_dir_all(p).unwrap();
         }
         std::fs::write(path, content).unwrap();
+    }
+
+    // ── S3: parse_agent_kind contract ────────────────────────────────────
+
+    #[test]
+    fn parse_agent_kind_accepts_all_four_variants() {
+        // Pinning the wire-format spelling. Clients that hit
+        // `/v1/capabilities` get this exact list back; any drift here
+        // would silently break mobile/watch/IDE callers that hard-coded
+        // the strings against an earlier daemon version.
+        assert_eq!(parse_agent_kind("Chat").unwrap(), AgentKind::Chat);
+        assert_eq!(parse_agent_kind("CodingAgent").unwrap(), AgentKind::CodingAgent);
+        assert_eq!(parse_agent_kind("ResearchAgent").unwrap(), AgentKind::ResearchAgent);
+        assert_eq!(parse_agent_kind("BackgroundJob").unwrap(), AgentKind::BackgroundJob);
+    }
+
+    #[test]
+    fn parse_agent_kind_rejects_unknown_with_helpful_message() {
+        // The error must (a) echo the bad input back so the client can
+        // log it without re-encoding, and (b) list the valid alternatives
+        // so a human reading a log can spot the typo immediately.
+        let err = parse_agent_kind("Sycophant").unwrap_err();
+        assert!(
+            err.contains("Sycophant"),
+            "error must echo bad input; got: {err}"
+        );
+        assert!(
+            err.contains("Chat") && err.contains("BackgroundJob"),
+            "error must list valid kinds; got: {err}"
+        );
+    }
+
+    #[test]
+    fn parse_agent_kind_is_case_sensitive() {
+        // Pinning case sensitivity so a client passing lowercase or
+        // SHOUTY_SNAKE_CASE gets a clear error instead of silently
+        // falling back to a default kind.
+        assert!(parse_agent_kind("chat").is_err());
+        assert!(parse_agent_kind("CHAT").is_err());
+        assert!(parse_agent_kind("coding_agent").is_err());
+    }
+
+    #[test]
+    fn known_section_names_lists_every_assembler_emission() {
+        // Every section name produced by `assemble_context` (across
+        // both Chat and Agent policies) must appear in the public
+        // KNOWN_SECTION_NAMES list. If a future slice adds a new
+        // section but forgets to update this constant, /v1/capabilities
+        // advertises a stale shape and clients break.
+        let known: std::collections::HashSet<&str> =
+            KNOWN_SECTION_NAMES.iter().copied().collect();
+        for expected in
+            ["project_memory", "orchestration", "project_profile", "task_files", "open_memory", "agent_scratchpad"]
+        {
+            assert!(
+                known.contains(expected),
+                "KNOWN_SECTION_NAMES is missing {expected:?}"
+            );
+        }
     }
 
     #[test]

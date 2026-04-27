@@ -1558,10 +1558,142 @@ async fn run_worker_subcommand() -> Result<()> {
     }
 }
 
+/// Build the `AgentContext` for a subprocess worker run. Routes memory
+/// retrieval through `context_assembler::assemble_context` with the
+/// `Agent` policy and `CodingAgent` budget — same shape the REPL agent
+/// path at `main.rs:13631` uses, plus `jobs_db_path` so the durable
+/// scratchpad section is reachable for paused-job resumption.
+///
+/// Phase 7 quick-win: pure helper extracted so unit tests can drive
+/// it without standing up a subprocess / Noise channel / WorkerSession.
+/// Returns a fully-populated `AgentContext`; the caller is responsible
+/// for any field overrides (open_files, flow_context, …) that depend
+/// on subprocess-only state.
+fn build_worker_agent_context(
+    workspace_root: std::path::PathBuf,
+    task: &str,
+    job_id: Option<String>,
+    jobs_db_path: Option<std::path::PathBuf>,
+    git_branch: Option<String>,
+) -> AgentContext {
+    let policy = context_assembler::ContextPolicy::Agent {
+        task: task.to_string(),
+        job_id: job_id.clone(),
+    };
+    let budget = context_assembler::ContextBudget::for_kind(
+        context_assembler::AgentKind::CodingAgent,
+    );
+    let toggles = context_assembler::MemoryToggles {
+        jobs_db_path,
+        ..Default::default()
+    };
+    let assembled =
+        context_assembler::assemble_context(&workspace_root, &policy, &budget, &toggles);
+
+    let project_summary = assembled
+        .get("project_profile")
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+    // Combine open_memory and agent_scratchpad into a single
+    // memory_context payload so agent.rs's prompt builder
+    // (vibe-ai/src/agent.rs:1630) sees both under its
+    // "Relevant Memories (OpenMemory)" header. Sections are separated
+    // by a thematic break to keep them readable in the prompt.
+    let memory_pieces: Vec<&str> = ["open_memory", "agent_scratchpad"]
+        .into_iter()
+        .filter_map(|name| assembled.get(name).filter(|s| !s.is_empty()))
+        .collect();
+    let memory_context = if memory_pieces.is_empty() {
+        None
+    } else {
+        Some(memory_pieces.join("\n\n---\n\n"))
+    };
+
+    // Mirror the REPL agent path at main.rs:13655 — pull task-relevant
+    // file previews via `project_init::extract_relevant_files_for_task`
+    // and read up to 5 of them as `(path, 80-line preview)` pairs. The
+    // assembler's `task_files` section is a flat string and would lose
+    // the structured `Vec<(path, preview)>` shape that
+    // `vibe-ai/src/agent.rs:1673` consumes — so we deliberately do this
+    // structured read here rather than going through the assembler.
+    let relevant_paths =
+        crate::project_init::extract_relevant_files_for_task(&workspace_root, task);
+    let task_context_files: Vec<(String, String)> = relevant_paths
+        .iter()
+        .filter_map(|rel_path| {
+            let full_path = workspace_root.join(rel_path);
+            if full_path.is_file() {
+                std::fs::read_to_string(&full_path).ok().map(|content| {
+                    let preview: String =
+                        content.lines().take(80).collect::<Vec<_>>().join("\n");
+                    (rel_path.clone(), preview)
+                })
+            } else {
+                None
+            }
+        })
+        .take(5)
+        .collect();
+
+    AgentContext {
+        workspace_root,
+        open_files: vec![],
+        git_branch,
+        git_diff_summary: None,
+        flow_context: None,
+        approved_plan: None,
+        extra_skill_dirs: vec![],
+        parent_session_id: None,
+        depth: 0,
+        active_agent_counter: None,
+        team_bus: None,
+        team_agent_id: None,
+        project_summary,
+        task_context_files,
+        memory_context,
+        auto_commit: false,
+    }
+}
+
+/// Best-effort write to the durable agent scratchpad keyed by job_id.
+///
+/// Phase 7 follow-up S2: the worker loop calls this after every
+/// terminal AgentEvent (ToolCallExecuted, Complete, Error) so that a
+/// paused or restarted job can pick up where it left off. The read
+/// side is already in place — `MemoryToggles.jobs_db_path` →
+/// `context_assembler::render_scratchpad` → `agent_scratchpad` system
+/// prompt section (wired in QW4). Without this write side, that
+/// section was always empty in production.
+///
+/// Failures are swallowed: scratchpad is a side-channel, not the
+/// agent's source of truth, and a write hiccup must not crash the
+/// running agent. The helper is pure — it owns the JobsDb open + write
+/// in one call so unit tests can exercise both happy and failure
+/// paths against a tempdir.
+fn persist_to_scratchpad_best_effort(
+    db_path: &std::path::Path,
+    session_id: &str,
+    key: &str,
+    value: &str,
+) {
+    if let Ok(db) = crate::job_manager::JobsDb::open(db_path) {
+        let _ = db.scratchpad_set(session_id, key, value);
+    }
+}
+
 /// Real worker-side agent loop. Mirrors the in-process agent logic that
 /// previously lived inline in `serve.rs::start_agent`, but emits events
 /// as `DispatchFrame` over the Noise channel instead of pushing them
 /// into an in-process broadcast.
+///
+/// Phase 7 quick-win: previously the subprocess worker built `AgentContext`
+/// with every memory field hardcoded `None` — so background jobs and
+/// dispatched agents were *blind* to project memory and OpenMemory while
+/// the in-REPL agent path got the full assembler treatment. This loop
+/// now mirrors the REPL agent at `main.rs:13631` by routing memory
+/// retrieval through `context_assembler::assemble_context`, and threads
+/// the `job_id` from the `Run` frame into `MemoryToggles.jobs_db_path`
+/// so the durable scratchpad section can light up too.
 #[cfg(unix)]
 async fn run_real_worker_agent_loop(
     mut session: subprocess_dispatch::WorkerSession,
@@ -1570,14 +1702,15 @@ async fn run_real_worker_agent_loop(
     use subprocess_dispatch::DispatchFrame;
 
     // 1) Receive the Run frame.
-    let (task, provider_name, approval_str, workspace_root_str) = match session.recv().await {
+    let (job_id, task, provider_name, approval_str, workspace_root_str) = match session.recv().await {
         Some(DispatchFrame::Run {
+            job_id,
             task,
             provider,
             approval,
             workspace_root,
             ..
-        }) => (task, provider, approval, workspace_root),
+        }) => (job_id, task, provider, approval, workspace_root),
         Some(DispatchFrame::Cancel { reason }) => {
             session
                 .send(DispatchFrame::Error {
@@ -1615,24 +1748,13 @@ async fn run_real_worker_agent_loop(
     let agent = AgentLoop::new(provider, approval, executor);
 
     let git_branch = vibe_core::git::get_current_branch(&workspace_root).ok();
-    let context = AgentContext {
-        workspace_root: workspace_root.clone(),
-        open_files: vec![],
+    let context = build_worker_agent_context(
+        workspace_root.clone(),
+        &task,
+        Some(job_id.clone()),
+        Some(crate::job_manager::default_db_path()),
         git_branch,
-        git_diff_summary: None,
-        flow_context: None,
-        approved_plan: None,
-        extra_skill_dirs: vec![],
-        parent_session_id: None,
-        depth: 0,
-        active_agent_counter: None,
-        team_bus: None,
-        team_agent_id: None,
-        project_summary: None,
-        task_context_files: vec![],
-        memory_context: None,
-        auto_commit: false,
-    };
+    );
 
     session.send(DispatchFrame::Ready).await;
 
@@ -1643,6 +1765,11 @@ async fn run_real_worker_agent_loop(
     let agent_handle = tokio::spawn(async move {
         let _ = agent.run(&task_for_agent, context, event_tx).await;
     });
+
+    // Phase 7 S2: durable scratchpad path. We persist a small summary
+    // record under the same job_id keyspace the QW4 read path renders
+    // from. Computed once (cheap) and reused across the event loop.
+    let scratchpad_db_path = crate::job_manager::default_db_path();
 
     let mut completed = false;
     let mut cancelled = false;
@@ -1657,20 +1784,50 @@ async fn run_real_worker_agent_loop(
                             .await;
                     }
                     AgentEvent::ToolCallExecuted(step) => {
-                        session
-                            .send(DispatchFrame::Event(AgentEventPayload::step(
-                                step.step_num,
-                                step.tool_call.name(),
-                                step.tool_result.success,
-                            )))
-                            .await;
+                        let payload = AgentEventPayload::step(
+                            step.step_num,
+                            step.tool_call.name(),
+                            step.tool_result.success,
+                        );
+                        // S2: also persist a one-line summary so a
+                        // resuming agent sees its prior tool calls.
+                        // Zero-pad step_num so lexical key order matches
+                        // execution order for `scratchpad_list`.
+                        let key = format!("step_{:04}_{}", step.step_num, step.tool_call.name());
+                        let value = format!(
+                            "tool: {}\nsuccess: {}",
+                            step.tool_call.name(),
+                            step.tool_result.success,
+                        );
+                        persist_to_scratchpad_best_effort(
+                            &scratchpad_db_path,
+                            &job_id,
+                            &key,
+                            &value,
+                        );
+                        session.send(DispatchFrame::Event(payload)).await;
                     }
                     AgentEvent::Complete(summary) => {
+                        // S2: pin terminal state before reporting.
+                        persist_to_scratchpad_best_effort(
+                            &scratchpad_db_path,
+                            &job_id,
+                            "terminal_complete",
+                            &summary,
+                        );
                         session.send(DispatchFrame::Complete { summary }).await;
                         completed = true;
                         break;
                     }
                     AgentEvent::Error(msg) => {
+                        // S2: pin error so resume sees what failed last
+                        // and doesn't re-attempt the same broken step.
+                        persist_to_scratchpad_best_effort(
+                            &scratchpad_db_path,
+                            &job_id,
+                            "terminal_error",
+                            &msg,
+                        );
                         session.send(DispatchFrame::Error { message: msg }).await;
                         completed = true;
                         break;
@@ -2353,6 +2510,7 @@ mod mem_benchmark;
 // FIT-GAP v12 — P0
 #[allow(dead_code)] mod auto_approve;
 #[allow(dead_code)] mod sandbox_bwrap;
+#[allow(dead_code)] mod sandbox_entry;
 #[allow(dead_code)] mod github_action;
 #[allow(dead_code)] mod mcp_tool_search;
 #[allow(dead_code)] mod zdr_mode;
@@ -10577,7 +10735,7 @@ async fn main() -> Result<()> {
                                                 println!("Usage: /openmemory import {} <file.json>\n", format);
                                             } else {
                                                 let cwd = std::env::current_dir().unwrap_or_default();
-                                                let mut store = open_memory::project_scoped_store(&cwd);
+                                                let mut store = open_memory::project_scoped_store_with_refresh(&cwd);
                                                 let result = if format == "auto" {
                                                     open_memory::sync_auto_memories_for(
                                                         &mut store,
@@ -10613,7 +10771,7 @@ async fn main() -> Result<()> {
                                     }
                                 }
                                 "reflect" => {
-                                    let mut store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                    let mut store = open_memory::project_scoped_store_with_refresh(&std::env::current_dir().unwrap_or_default());
                                     match store.auto_reflect() {
                                         Some(text) => {
                                             let _ = store.save();
@@ -10627,7 +10785,7 @@ async fn main() -> Result<()> {
                                     println!("{}\n", store.user_summary());
                                 }
                                 "dedup" => {
-                                    let mut store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                    let mut store = open_memory::project_scoped_store_with_refresh(&std::env::current_dir().unwrap_or_default());
                                     let threshold = Config::load().map(|c| c.memory.openmemory.dedup_threshold).unwrap_or(0.8);
                                     let removed = store.remove_duplicates(threshold);
                                     let _ = store.save();
@@ -10667,7 +10825,7 @@ async fn main() -> Result<()> {
                                     } else {
                                         match std::fs::read_to_string(rest) {
                                             Ok(content) => {
-                                                let mut store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                                let mut store = open_memory::project_scoped_store_with_refresh(&std::env::current_dir().unwrap_or_default());
                                                 let chunks = store.ingest_document(&content, rest);
                                                 let _ = store.save();
                                                 println!("Ingested {} chunks from {}\n", chunks, rest);
@@ -10696,7 +10854,7 @@ async fn main() -> Result<()> {
                                     if rest.is_empty() {
                                         println!("Usage: /openmemory pin <id-prefix>\n");
                                     } else {
-                                        let mut store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                        let mut store = open_memory::project_scoped_store_with_refresh(&std::env::current_dir().unwrap_or_default());
                                         let id = store.list_memories(0, usize::MAX)
                                             .iter().find(|m| m.id.starts_with(rest)).map(|m| m.id.clone());
                                         match id {
@@ -10713,7 +10871,7 @@ async fn main() -> Result<()> {
                                     if rest.is_empty() {
                                         println!("Usage: /openmemory unpin <id-prefix>\n");
                                     } else {
-                                        let mut store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                        let mut store = open_memory::project_scoped_store_with_refresh(&std::env::current_dir().unwrap_or_default());
                                         let id = store.list_memories(0, usize::MAX)
                                             .iter().find(|m| m.id.starts_with(rest)).map(|m| m.id.clone());
                                         match id {
@@ -10730,7 +10888,7 @@ async fn main() -> Result<()> {
                                     if rest.is_empty() {
                                         println!("Usage: /openmemory delete <id-prefix>\n");
                                     } else {
-                                        let mut store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                        let mut store = open_memory::project_scoped_store_with_refresh(&std::env::current_dir().unwrap_or_default());
                                         let id = store.list_memories(0, usize::MAX)
                                             .iter().find(|m| m.id.starts_with(rest)).map(|m| m.id.clone());
                                         match id {
@@ -10785,7 +10943,7 @@ async fn main() -> Result<()> {
                                                 Some((rest.to_string(), "manual".to_string()))
                                             };
                                         if let Some((text, source)) = text_and_source {
-                                            let mut store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                            let mut store = open_memory::project_scoped_store_with_refresh(&std::env::current_dir().unwrap_or_default());
                                             let added = store.ingest_conversation_chunks(&text, &source);
                                             let _ = store.save();
                                             println!("Stored {} verbatim drawer(s) from \"{}\" (no summarization — raw recall).\n", added, source);
@@ -10840,7 +10998,7 @@ async fn main() -> Result<()> {
                                         let weight: f64 = parts.get(2)
                                             .and_then(|s| s.parse().ok())
                                             .unwrap_or(0.75);
-                                        let mut store = open_memory::project_scoped_store(&std::env::current_dir().unwrap_or_default());
+                                        let mut store = open_memory::project_scoped_store_with_refresh(&std::env::current_dir().unwrap_or_default());
                                         // Find full IDs by prefix
                                         let all_mems: Vec<String> = store.list_memories(0, usize::MAX)
                                             .iter().map(|m| m.id.clone()).collect();
@@ -13872,7 +14030,7 @@ async fn run_agent_repl_with_context(
                     let reflect_interval = config.memory.openmemory.auto_reflect_interval;
                     let dedup_threshold = config.memory.openmemory.dedup_threshold;
                     tokio::spawn(async move {
-                        let mut store = open_memory::project_scoped_store(&workspace_for_mem);
+                        let mut store = open_memory::project_scoped_store_with_refresh(&workspace_for_mem);
                         // Store session as episodic memory (dedup-safe, lossy LLM extraction path)
                         let content = format!("Session: {} — {}", task_for_mem, summary_for_mem);
                         store.add_dedup(content.clone(), dedup_threshold);
@@ -15728,6 +15886,323 @@ async fn fetch_and_strip_url(url: &str, max_chars: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── Phase 7 quick-win: worker AgentContext builds with memory ───────────
+
+    /// Helper for QW4 tests: re-run the assembler with the same args
+    /// the helper would use. Pins the contract that the helper is a
+    /// pure mirror of `assemble_context` for the relevant sections.
+    fn expected_assembled_for(
+        workspace: &std::path::Path,
+        task: &str,
+        job_id: Option<&str>,
+        jobs_db_path: Option<std::path::PathBuf>,
+    ) -> context_assembler::AssembledContext {
+        let policy = context_assembler::ContextPolicy::Agent {
+            task: task.to_string(),
+            job_id: job_id.map(str::to_string),
+        };
+        let budget = context_assembler::ContextBudget::for_kind(
+            context_assembler::AgentKind::CodingAgent,
+        );
+        let toggles = context_assembler::MemoryToggles {
+            jobs_db_path,
+            ..Default::default()
+        };
+        context_assembler::assemble_context(workspace, &policy, &budget, &toggles)
+    }
+
+    #[test]
+    fn build_worker_agent_context_mirrors_assembler_for_empty_workspace() {
+        // Pristine workspace. The assembler may still surface a small
+        // `project_profile` (the project_init scanner emits a default
+        // summary even when no manifest is found). The contract here
+        // is *mirroring*: whatever the assembler produces in the
+        // relevant sections must end up in the AgentContext fields
+        // we populate. Subprocess workers must not see fewer signals
+        // than the in-REPL agent path does for the same workspace.
+        let workspace = tempfile::TempDir::new().unwrap();
+        let ctx = build_worker_agent_context(
+            workspace.path().to_path_buf(),
+            "do something",
+            None,
+            None,
+            None,
+        );
+        let assembled = expected_assembled_for(
+            workspace.path(),
+            "do something",
+            None,
+            None,
+        );
+        let expected_profile = assembled
+            .get("project_profile")
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
+        assert_eq!(ctx.workspace_root, workspace.path());
+        assert_eq!(
+            ctx.project_summary, expected_profile,
+            "project_summary must mirror assembler `project_profile`"
+        );
+        assert!(
+            ctx.task_context_files.is_empty(),
+            "subprocess worker doesn't run project_init's relevance scanner yet"
+        );
+    }
+
+    #[test]
+    fn build_worker_agent_context_combines_open_memory_and_scratchpad() {
+        // When both `open_memory` and `agent_scratchpad` sections exist,
+        // memory_context joins them with a thematic break. When only
+        // one exists, memory_context is just that section. When neither
+        // exists, memory_context is None. The contract: helper output
+        // mirrors the assembler's per-section content for these two
+        // names. We exercise it on a real (Cargo) workspace so the
+        // assembler has at least one chance to emit a section.
+        let workspace = tempfile::TempDir::new().unwrap();
+        std::fs::write(
+            workspace.path().join("Cargo.toml"),
+            "[package]\nname = \"phase7worker\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+        )
+        .expect("write Cargo.toml");
+        std::fs::create_dir_all(workspace.path().join("src")).unwrap();
+        std::fs::write(workspace.path().join("src/lib.rs"), "// placeholder\n")
+            .expect("write src/lib.rs");
+
+        let ctx = build_worker_agent_context(
+            workspace.path().to_path_buf(),
+            "implement feature X",
+            None,
+            None,
+            None,
+        );
+        let assembled = expected_assembled_for(
+            workspace.path(),
+            "implement feature X",
+            None,
+            None,
+        );
+        // The OpenMemory store's deep-search returns ties (same salience
+        // + same score) in HashMap-iteration order, which is not stable
+        // across calls even on the same workspace. So compare *sets of
+        // lines*, not exact bytes — the contract we're pinning is
+        // "helper output mirrors the assembler's section content," and
+        // line-set equality captures that without depending on
+        // tie-break order.
+        let helper_present = ["open_memory", "agent_scratchpad"]
+            .into_iter()
+            .any(|n| assembled.get(n).is_some_and(|s| !s.is_empty()));
+        match (ctx.memory_context.as_deref(), helper_present) {
+            (None, false) => {} // both absent — fine
+            (Some(_), false) => panic!(
+                "helper produced memory_context but assembler had nothing to combine"
+            ),
+            (None, true) => panic!(
+                "helper dropped memory_context even though the assembler emitted sections"
+            ),
+            (Some(actual), true) => {
+                // Reassemble expected from the same sections the helper
+                // would have used, then compare line-sets so HashMap
+                // iteration order doesn't make this test flaky.
+                let mut expected_lines: Vec<&str> = ["open_memory", "agent_scratchpad"]
+                    .into_iter()
+                    .filter_map(|n| assembled.get(n).filter(|s| !s.is_empty()))
+                    .flat_map(|s| s.lines())
+                    .collect();
+                let mut actual_lines: Vec<&str> = actual.lines().collect();
+                expected_lines.sort_unstable();
+                actual_lines.sort_unstable();
+                assert_eq!(
+                    actual_lines, expected_lines,
+                    "memory_context must contain the same lines as the assembler's combined sections"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn build_worker_agent_context_populates_task_context_files_for_explicit_mention() {
+        // S4 (QW4 follow-up): when the task mentions a file path that
+        // exists in the workspace, `project_init::extract_relevant_files_for_task`
+        // should surface it, and the helper must read it (up to 80 lines)
+        // into the structured `Vec<(path, preview)>` agent.rs consumes.
+        // This brings subprocess workers to parity with the REPL agent
+        // path at main.rs:13655.
+        let workspace = tempfile::TempDir::new().unwrap();
+        std::fs::create_dir_all(workspace.path().join("src")).unwrap();
+        std::fs::write(
+            workspace.path().join("src/auth.rs"),
+            "pub fn login(u: &str) -> bool { true }\n",
+        )
+        .expect("write src/auth.rs");
+
+        let ctx = build_worker_agent_context(
+            workspace.path().to_path_buf(),
+            "fix the bug in src/auth.rs",
+            None,
+            None,
+            None,
+        );
+        assert!(
+            !ctx.task_context_files.is_empty(),
+            "task_context_files must be populated when the task mentions an existing file"
+        );
+        let (path, preview) = ctx
+            .task_context_files
+            .iter()
+            .find(|(p, _)| p == "src/auth.rs")
+            .expect("src/auth.rs preview must be present");
+        assert_eq!(path, "src/auth.rs");
+        assert!(
+            preview.contains("pub fn login"),
+            "preview must reflect file content; got: {preview}"
+        );
+    }
+
+    #[test]
+    fn build_worker_agent_context_caps_task_context_files_at_five() {
+        // The relevance scanner can return many candidates (e.g. for
+        // "test"-shaped tasks it returns several test directories).
+        // Pinning the same `take(5)` cap the REPL agent path uses so
+        // worker contexts stay bounded.
+        let workspace = tempfile::TempDir::new().unwrap();
+        // Create more than 5 candidate files that match the keyword
+        // "test" — the scanner's keyword map matches `tests/` etc.
+        for i in 0..8 {
+            let dir = workspace.path().join(format!("tests/feature_{i}"));
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(
+                dir.join("mod.rs"),
+                format!("// fixture {i}\n"),
+            )
+            .unwrap();
+        }
+        let ctx = build_worker_agent_context(
+            workspace.path().to_path_buf(),
+            "add tests for the new flow",
+            None,
+            None,
+            None,
+        );
+        assert!(
+            ctx.task_context_files.len() <= 5,
+            "must cap at 5; got {} entries",
+            ctx.task_context_files.len()
+        );
+    }
+
+    // ── S2: scratchpad write helper ──────────────────────────────────────
+
+    #[test]
+    fn persist_to_scratchpad_writes_value_when_db_path_valid() {
+        // Happy path: helper opens (or creates) the JobsDb at the given
+        // path and stores the (key, value) under the supplied session.
+        // The QW4 read path then sees this in the agent_scratchpad
+        // section on resume — pinning that the round-trip works
+        // end-to-end without going through the full subprocess loop.
+        let dir = tempfile::TempDir::new().unwrap();
+        let db_path = dir.path().join("jobs.db");
+        persist_to_scratchpad_best_effort(
+            &db_path,
+            "session-S2",
+            "step_0001_read_file",
+            "tool: read_file\nsuccess: true",
+        );
+
+        let db = crate::job_manager::JobsDb::open(&db_path).expect("open jobs.db");
+        let entries = db.scratchpad_list("session-S2").expect("list");
+        assert_eq!(
+            entries.len(),
+            1,
+            "expected exactly one scratchpad entry; got {entries:?}"
+        );
+        assert_eq!(entries[0].key, "step_0001_read_file");
+        assert_eq!(entries[0].value, "tool: read_file\nsuccess: true");
+    }
+
+    #[test]
+    fn persist_to_scratchpad_swallows_failures_silently() {
+        // Best-effort contract: the helper must not panic or error
+        // even when the DB cannot be opened (e.g. parent directory is
+        // a regular file, so create_dir_all fails). A failed
+        // scratchpad write must never bring down the agent loop.
+        let dir = tempfile::TempDir::new().unwrap();
+        let blocker = dir.path().join("blocker_file");
+        std::fs::write(&blocker, "not a directory").unwrap();
+        let unwritable_path = blocker.join("subdir").join("jobs.db");
+
+        // Before the call: blocker is still a file, no panic on path.
+        persist_to_scratchpad_best_effort(
+            &unwritable_path,
+            "session-S2",
+            "key",
+            "value",
+        );
+        // Just reaching here is the assertion — the helper returned
+        // without panicking despite the unwritable target.
+    }
+
+    #[test]
+    fn persist_to_scratchpad_overwrites_same_key() {
+        // `scratchpad_set` semantics: setting the same key twice should
+        // replace the prior value rather than accumulating. Pinning
+        // this so a long-running agent that updates "terminal_error"
+        // multiple times doesn't fill the scratchpad with stale rows.
+        let dir = tempfile::TempDir::new().unwrap();
+        let db_path = dir.path().join("jobs.db");
+        persist_to_scratchpad_best_effort(&db_path, "sess", "terminal_error", "first");
+        persist_to_scratchpad_best_effort(&db_path, "sess", "terminal_error", "second");
+
+        let db = crate::job_manager::JobsDb::open(&db_path).unwrap();
+        let entries = db.scratchpad_list("sess").unwrap();
+        assert_eq!(entries.len(), 1, "same-key writes must overwrite, not accumulate");
+        assert_eq!(entries[0].value, "second");
+    }
+
+    #[test]
+    fn persist_to_scratchpad_keeps_distinct_keys_separate() {
+        // Different keys (e.g. step_0001 vs step_0002 vs terminal_*)
+        // must coexist in the same session so resume reads the full
+        // history, not just the last write.
+        let dir = tempfile::TempDir::new().unwrap();
+        let db_path = dir.path().join("jobs.db");
+        persist_to_scratchpad_best_effort(&db_path, "sess", "step_0001", "first step");
+        persist_to_scratchpad_best_effort(&db_path, "sess", "step_0002", "second step");
+        persist_to_scratchpad_best_effort(&db_path, "sess", "terminal_complete", "done");
+
+        let db = crate::job_manager::JobsDb::open(&db_path).unwrap();
+        let entries = db.scratchpad_list("sess").unwrap();
+        assert_eq!(entries.len(), 3);
+        let keys: std::collections::HashSet<&str> =
+            entries.iter().map(|e| e.key.as_str()).collect();
+        assert!(keys.contains("step_0001"));
+        assert!(keys.contains("step_0002"));
+        assert!(keys.contains("terminal_complete"));
+    }
+
+    #[test]
+    fn build_worker_agent_context_passes_git_branch_through_unchanged() {
+        // git_branch is opaque to the assembler — it's passed straight
+        // through from the worker's `vibe_core::git::get_current_branch`
+        // probe. The contract: whatever the caller hands in shows up on
+        // the AgentContext verbatim. Pinning this so a future refactor
+        // doesn't accidentally drop the branch (agent prompts use it).
+        let workspace = tempfile::TempDir::new().unwrap();
+        let fake_jobs_db = workspace.path().join("nonexistent-jobs.db");
+        let ctx = build_worker_agent_context(
+            workspace.path().to_path_buf(),
+            "resume my work",
+            Some("job-abc-123".to_string()),
+            Some(fake_jobs_db),
+            Some("phase7-quick-wins".to_string()),
+        );
+        assert_eq!(
+            ctx.git_branch.as_deref(),
+            Some("phase7-quick-wins"),
+            "git_branch must pass through the helper untouched"
+        );
+        assert_eq!(ctx.workspace_root, workspace.path());
+    }
 
     // ── is_safe_name tests ───────────────────────────────────────────────────
 

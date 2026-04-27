@@ -9,11 +9,14 @@ use cucumber::{World, given, then, when};
 use std::path::PathBuf;
 use tempfile::TempDir;
 use vibecli_cli::memory_projections::{ProjectionPaths, write_projections};
+use vibecli_cli::open_memory::OpenMemoryStore;
 
 #[derive(Default, World)]
 pub struct ProjWorld {
     workspace: Option<TempDir>,
     home: Option<TempDir>,
+    data_dir: Option<TempDir>,
+    store: Option<OpenMemoryStore>,
     last_run_bytes: Vec<Vec<u8>>,
     last: Option<ProjectionPaths>,
 }
@@ -29,6 +32,11 @@ impl std::fmt::Debug for ProjWorld {
                 "home",
                 &self.home.as_ref().map(|t| t.path().to_owned()),
             )
+            .field(
+                "data_dir",
+                &self.data_dir.as_ref().map(|t| t.path().to_owned()),
+            )
+            .field("has_store", &self.store.is_some())
             .field("last_run_bytes_count", &self.last_run_bytes.len())
             .finish()
     }
@@ -139,6 +147,59 @@ fn then_bytes_match(w: &mut ProjWorld) {
     assert_eq!(
         w.last_run_bytes[0], w.last_run_bytes[1],
         "projection output diverged between runs"
+    );
+}
+
+// ── Phase 7: auto-refresh on save() ─────────────────────────────────────────
+
+#[given(regex = r"^a project-scoped open memory store$")]
+fn given_store(w: &mut ProjWorld) {
+    let dir = TempDir::new().expect("data_dir tempdir");
+    let mut store = OpenMemoryStore::new(dir.path(), "bdd-user");
+    store.set_project("bdd-project");
+    w.data_dir = Some(dir);
+    w.store = Some(store);
+}
+
+#[given(regex = r"^projection refresh is enabled with no home$")]
+fn given_refresh_no_home(w: &mut ProjWorld) {
+    let workspace = w.workspace_path();
+    let store = w
+        .store
+        .as_mut()
+        .expect("store not initialized — add a Given for store first");
+    store.enable_projection_refresh(workspace, None);
+}
+
+#[given(regex = r"^projection refresh is enabled with the home directory$")]
+fn given_refresh_with_home(w: &mut ProjWorld) {
+    let workspace = w.workspace_path();
+    let home = w.home_path();
+    let store = w
+        .store
+        .as_mut()
+        .expect("store not initialized — add a Given for store first");
+    store.enable_projection_refresh(workspace, Some(home));
+}
+
+#[when(expr = "a memory {string} is added")]
+fn when_memory_added(w: &mut ProjWorld, content: String) {
+    let store = w.store.as_mut().expect("store not initialized");
+    store.add(content);
+}
+
+#[when(regex = r"^the store is saved$")]
+fn when_store_saved(w: &mut ProjWorld) {
+    let store = w.store.as_ref().expect("store not initialized");
+    store.save().expect("save");
+}
+
+#[then(expr = "the file {string} does not exist in the workspace")]
+fn then_file_absent_workspace(w: &mut ProjWorld, rel: String) {
+    let path = w.workspace_path().join(&rel);
+    assert!(
+        !path.exists(),
+        "expected {path:?} to NOT exist, but it does"
     );
 }
 

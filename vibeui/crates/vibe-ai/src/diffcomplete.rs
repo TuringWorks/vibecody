@@ -52,6 +52,16 @@ pub struct DiffCompleteRequest {
     /// user-direction posture.
     #[serde(default)]
     pub refinement: Option<String>,
+    /// Author-authored project memory (VIBECLI.md / AGENTS.md / CLAUDE.md
+    /// hierarchy + `~/.vibecli/memory.md` scratch). Phase 7 quick-win
+    /// (slice 2026-04-26) — see `notes/PATENT_AUDIT_INLINE.md` "Slice
+    /// audit — 2026-04-26". Carried as a separate optional field rather
+    /// than spliced into `instruction` so it's emitted as a distinct
+    /// system message and can be audited / disabled at the wire layer.
+    /// **MUST NOT** carry auto-extracted state (OpenMemory, scratchpad,
+    /// orchestration lessons) — only files the user explicitly authored.
+    #[serde(default)]
+    pub project_memory: Option<String>,
 }
 
 /// A single related file the user explicitly added as context.
@@ -89,6 +99,40 @@ Rules:\n\
 - Use the file path given in the request for both a/ and b/ sides.\n\
 - Include at least one line of context above and below every hunk.\n\
 - Do not output any prose outside the diff block.";
+
+/// Build the full message list sent to the provider. Always emits the
+/// canonical SYSTEM_PROMPT first; when `request.project_memory` is
+/// `Some`, follows it with a second system message carrying the
+/// author-authored project memory verbatim under a clearly-labeled
+/// header. The user message comes last and never embeds the memory
+/// (memory is *context*, not *instruction* — keeping the layers
+/// distinct is part of the patent-distance posture, see
+/// `notes/PATENT_AUDIT_INLINE.md`).
+pub fn build_messages(request: &DiffCompleteRequest) -> Vec<Message> {
+    let mut messages = Vec::with_capacity(3);
+    messages.push(Message {
+        role: MessageRole::System,
+        content: SYSTEM_PROMPT.to_string(),
+    });
+    if let Some(mem) = request
+        .project_memory
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        messages.push(Message {
+            role: MessageRole::System,
+            content: format!(
+                "Project memory (author-authored, from VIBECLI.md / AGENTS.md / CLAUDE.md):\n\n{mem}"
+            ),
+        });
+    }
+    messages.push(Message {
+        role: MessageRole::User,
+        content: build_user_prompt(request),
+    });
+    messages
+}
 
 /// Build the user message for the provider.
 pub fn build_user_prompt(req: &DiffCompleteRequest) -> String {
@@ -225,10 +269,7 @@ pub async fn generate(
         anyhow::bail!("Provider {} is not available", provider.name());
     }
 
-    let messages = vec![
-        Message { role: MessageRole::System, content: SYSTEM_PROMPT.to_string() },
-        Message { role: MessageRole::User, content: build_user_prompt(&request) },
-    ];
+    let messages = build_messages(&request);
 
     let raw = provider.chat(&messages, None).await?;
     let (diff, prose) = extract_diff(&raw);
@@ -261,7 +302,92 @@ mod tests {
             additional_files: Vec::new(),
             previous_diff: None,
             refinement: None,
+            project_memory: None,
         }
+    }
+
+    // ── Phase 7 quick-win: project_memory wiring ─────────────────────────
+
+    #[test]
+    fn build_messages_emits_only_system_and_user_when_memory_absent() {
+        let msgs = build_messages(&request_stub());
+        assert_eq!(msgs.len(), 2, "no memory → exactly 2 messages");
+        assert_eq!(msgs[0].role, MessageRole::System);
+        assert!(msgs[0].content.starts_with("You are an expert code editor"));
+        assert_eq!(msgs[1].role, MessageRole::User);
+    }
+
+    #[test]
+    fn build_messages_inserts_memory_as_second_system_message() {
+        let req = DiffCompleteRequest {
+            project_memory: Some(
+                "## Project Instructions\n\nUse Rust edition 2021. Prefer `?` over `.unwrap()`.".to_string(),
+            ),
+            ..request_stub()
+        };
+        let msgs = build_messages(&req);
+        assert_eq!(msgs.len(), 3, "memory present → 3 messages (sys + memory + user)");
+        assert_eq!(msgs[0].role, MessageRole::System);
+        assert_eq!(msgs[1].role, MessageRole::System);
+        assert!(
+            msgs[1].content.contains("Project memory (author-authored"),
+            "memory message must declare its provenance; got: {}",
+            msgs[1].content
+        );
+        assert!(
+            msgs[1].content.contains("Rust edition 2021"),
+            "memory content must be carried verbatim; got: {}",
+            msgs[1].content
+        );
+        assert_eq!(msgs[2].role, MessageRole::User);
+    }
+
+    #[test]
+    fn build_messages_drops_blank_memory() {
+        // Whitespace-only memory must not produce a system message —
+        // there's nothing to add and an empty header would just confuse
+        // the model. This pins the same defensive trim/filter as the
+        // refinement field uses.
+        let req = DiffCompleteRequest {
+            project_memory: Some("   \n\t\n   ".to_string()),
+            ..request_stub()
+        };
+        let msgs = build_messages(&req);
+        assert_eq!(
+            msgs.len(),
+            2,
+            "blank memory should be ignored; got {} messages",
+            msgs.len()
+        );
+    }
+
+    #[test]
+    fn build_messages_keeps_memory_out_of_user_prompt() {
+        // Patent-distance pin (notes/PATENT_AUDIT_INLINE.md slice 2026-04-26):
+        // memory is system-level *context*, never spliced into the user's
+        // instruction. Verify the user message is identical with or
+        // without project_memory present.
+        let with_mem = DiffCompleteRequest {
+            project_memory: Some("Some project rules".to_string()),
+            ..request_stub()
+        };
+        let without_mem = request_stub();
+        let user_with = build_messages(&with_mem)
+            .into_iter()
+            .rev()
+            .find(|m| m.role == MessageRole::User)
+            .map(|m| m.content)
+            .expect("user msg with memory");
+        let user_without = build_messages(&without_mem)
+            .into_iter()
+            .rev()
+            .find(|m| m.role == MessageRole::User)
+            .map(|m| m.content)
+            .expect("user msg without memory");
+        assert_eq!(
+            user_with, user_without,
+            "project_memory must NOT leak into the user prompt"
+        );
     }
 
     #[test]

@@ -31,11 +31,20 @@ pub struct ProjectionPaths {
 /// within a sector are sorted by `created_at` (newest first), and the
 /// header records counts so callers can diff projections over time.
 pub fn render_markdown(store: &OpenMemoryStore, title: &str) -> String {
-    // Scope to the store's current project tier. When `project_id` is set,
-    // render only memories tagged for that project; when unset, render the
-    // user tier (memories without a project_id). This keeps USER.md and
-    // MEMORY.md disjoint even when they share the on-disk store.
-    let scope = store.project_id();
+    render_markdown_for_scope(store, store.project_id(), title)
+}
+
+/// Render the store's contents filtered to a specific scope. Pass
+/// `Some(project_id)` to render that project's tier; pass `None` to
+/// render the user tier (memories with no `project_id`). This lets a
+/// single in-memory store project both tiers in turn — useful for the
+/// auto-refresh path in `save()` where we don't want to re-load from
+/// disk just to render the alternate scope.
+pub fn render_markdown_for_scope(
+    store: &OpenMemoryStore,
+    scope: Option<&str>,
+    title: &str,
+) -> String {
     let all: Vec<&MemoryNode> = store
         .list_memories(0, usize::MAX)
         .into_iter()
@@ -161,6 +170,47 @@ pub fn write_projections(
         // User tier: open the default store without scoping to a project.
         let user_store = crate::open_memory::project_scoped_store(home);
         let body = render_markdown(&user_store, "User Memory");
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(&path, body)?;
+        Some(path)
+    } else {
+        None
+    };
+
+    Ok(ProjectionPaths { user_md, memory_md })
+}
+
+/// Auto-refresh path used by `OpenMemoryStore::save()` when projection
+/// targets are enabled. Renders both tiers from the **provided** in-memory
+/// store rather than re-loading from disk — the store at hand IS the
+/// freshly-saved state. Project tier is rendered with the store's own
+/// `project_id`; user tier is rendered with `scope = None` so memories
+/// without a project_id surface in `USER.md`.
+pub fn write_projections_from_store(
+    store: &OpenMemoryStore,
+    home_dir: Option<&Path>,
+    workspace: &Path,
+) -> Result<ProjectionPaths> {
+    let memory_md = workspace.join(".vibecli").join("MEMORY.md");
+    let project_title = format!(
+        "Project Memory — {}",
+        workspace
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("workspace")
+    );
+    let project_body =
+        render_markdown_for_scope(store, store.project_id(), &project_title);
+    if let Some(parent) = memory_md.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(&memory_md, project_body)?;
+
+    let user_md = if let Some(home) = home_dir {
+        let path = home.join(".vibecli").join("USER.md");
+        let body = render_markdown_for_scope(store, None, "User Memory");
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }

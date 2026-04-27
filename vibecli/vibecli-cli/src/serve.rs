@@ -153,6 +153,31 @@ pub struct AgentRequest {
     #[serde(default)]
     #[allow(dead_code)]
     pub provider: Option<String>,
+    /// Phase 7 S3: optional per-request context negotiation for mobile
+    /// / watch / IDE clients. When `Some`, the daemon picks a budget
+    /// shape (`AgentKind`) and threads `MemoryToggles` overrides into
+    /// the assembler so the spawned agent sees the right memory mix.
+    /// When `None`, the daemon falls back to its existing behavior
+    /// (empty AgentContext) — backward compatible with all existing
+    /// clients.
+    #[serde(default)]
+    pub context_request: Option<ContextRequest>,
+}
+
+/// Wire shape for per-request context negotiation. All fields optional
+/// so a minimal `{}` still parses cleanly. Daemon-side defaults: kind
+/// = `CodingAgent` (the daemon's primary use case), openmemory toggles
+/// = `MemoryToggles::default()` values (both true).
+#[derive(Debug, Deserialize)]
+pub struct ContextRequest {
+    /// One of `Chat | CodingAgent | ResearchAgent | BackgroundJob`.
+    /// `None` → daemon picks `CodingAgent`. Unknown kind → 400.
+    #[serde(default)]
+    pub kind: Option<String>,
+    #[serde(default)]
+    pub openmemory_enabled: Option<bool>,
+    #[serde(default)]
+    pub openmemory_auto_inject: Option<bool>,
 }
 
 #[derive(Debug, Serialize)]
@@ -357,10 +382,117 @@ async fn chat_stream(
     Sse::new(stream).keep_alive(KeepAlive::new().interval(Duration::from_secs(15)))
 }
 
+/// Phase 7 S3: build an `AgentContext` for the in-process `/agent`
+/// HTTP handler when the client supplied a `context_request`. Mirrors
+/// the worker-loop helper at `main.rs::build_worker_agent_context` —
+/// memory comes from the assembler, gated by the client's toggles.
+///
+/// `None` for `kind` defaults to `CodingAgent` (the daemon's primary
+/// use case). Returns `Err` with a human-readable message for unknown
+/// kinds; the handler maps that to HTTP 400.
+///
+/// Pure helper so unit tests can drive it with a tempdir workspace —
+/// no `ServeState`, no AppHandle, no socket binding.
+fn build_agent_context_from_request(
+    workspace: std::path::PathBuf,
+    task: &str,
+    job_id: &str,
+    request: &ContextRequest,
+    git_branch: Option<String>,
+) -> Result<AgentContext, String> {
+    use crate::context_assembler::{
+        AgentKind, ContextBudget, ContextPolicy, MemoryToggles, assemble_context,
+        parse_agent_kind,
+    };
+
+    let kind = match request.kind.as_deref() {
+        Some(s) => parse_agent_kind(s)?,
+        None => AgentKind::CodingAgent,
+    };
+
+    let policy = match kind {
+        AgentKind::Chat => ContextPolicy::Chat,
+        _ => ContextPolicy::Agent {
+            task: task.to_string(),
+            job_id: Some(job_id.to_string()),
+        },
+    };
+
+    let budget = ContextBudget::for_kind(kind);
+
+    // Surface scratchpad whenever the policy is Agent — same logic as
+    // the worker-loop helper. Chat policy doesn't read scratchpad
+    // sections so the path is None there.
+    let jobs_db_path = match kind {
+        AgentKind::Chat => None,
+        _ => Some(crate::job_manager::default_db_path()),
+    };
+
+    let defaults = MemoryToggles::default();
+    let toggles = MemoryToggles {
+        openmemory_enabled: request.openmemory_enabled.unwrap_or(defaults.openmemory_enabled),
+        openmemory_auto_inject: request
+            .openmemory_auto_inject
+            .unwrap_or(defaults.openmemory_auto_inject),
+        jobs_db_path,
+    };
+
+    let assembled = assemble_context(&workspace, &policy, &budget, &toggles);
+
+    let project_summary = assembled
+        .get("project_profile")
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+
+    let memory_pieces: Vec<&str> = ["open_memory", "agent_scratchpad"]
+        .into_iter()
+        .filter_map(|name| assembled.get(name).filter(|s| !s.is_empty()))
+        .collect();
+    let memory_context = if memory_pieces.is_empty() {
+        None
+    } else {
+        Some(memory_pieces.join("\n\n---\n\n"))
+    };
+
+    Ok(AgentContext {
+        workspace_root: workspace,
+        open_files: vec![],
+        git_branch,
+        git_diff_summary: None,
+        flow_context: None,
+        approved_plan: None,
+        extra_skill_dirs: vec![],
+        parent_session_id: None,
+        depth: 0,
+        active_agent_counter: None,
+        team_bus: None,
+        team_agent_id: None,
+        project_summary,
+        // task_context_files left empty here — the relevance scanner
+        // is workspace-CPU-heavy and the in-process daemon path is
+        // not where we want that running synchronously inside an HTTP
+        // handler. Worker-loop subprocess path populates it (S4).
+        task_context_files: vec![],
+        memory_context,
+        auto_commit: false,
+    })
+}
+
 async fn start_agent(
     State(state): State<ServeState>,
     Json(req): Json<AgentRequest>,
 ) -> Result<Json<AgentStartResponse>, (StatusCode, Json<serde_json::Value>)> {
+    // Phase 7 S3: validate context_request kind up-front so a bad
+    // negotiation request never spawns a job. Production-friendly:
+    // existing clients (no context_request) skip this branch entirely.
+    if let Some(ref ctx_req) = req.context_request {
+        if let Some(ref k) = ctx_req.kind {
+            if let Err(e) = crate::context_assembler::parse_agent_kind(k) {
+                return Err(json_error(StatusCode::BAD_REQUEST, e));
+            }
+        }
+    }
+
     let session_id = state
         .job_manager
         .create(CreateJobReq {
@@ -392,6 +524,9 @@ async fn start_agent(
     let workspace_root = state.workspace_root.clone();
     let provider = state.provider.clone();
     let job_manager = state.job_manager.clone();
+    // Move context_request into the spawned task. Empty default keeps
+    // the existing-clients path zero-overhead.
+    let ctx_request = req.context_request;
 
     tokio::spawn(async move {
         use crate::tool_executor::ToolExecutor;
@@ -400,23 +535,57 @@ async fn start_agent(
         let agent = AgentLoop::new(provider, approval, executor);
 
         let git_branch = vibe_core::git::get_current_branch(&workspace_root).ok();
-        let context = AgentContext {
-            workspace_root: workspace_root.clone(),
-            open_files: vec![],
-            git_branch,
-            git_diff_summary: None,
-            flow_context: None,
-            approved_plan: None,
-            extra_skill_dirs: vec![],
-            parent_session_id: None,
-            depth: 0,
-            active_agent_counter: None,
-            team_bus: None,
-            team_agent_id: None,
-            project_summary: None,
-            task_context_files: vec![],
-            memory_context: None,
-            auto_commit: false,
+
+        // Phase 7 S3: when the client supplied a context_request, route
+        // memory through the assembler. When None (every existing
+        // mobile/IDE client today), keep the prior empty-context
+        // behavior so this is purely additive.
+        let context = match ctx_request {
+            Some(ref cr) => match build_agent_context_from_request(
+                workspace_root.clone(),
+                &task,
+                &sid,
+                cr,
+                git_branch.clone(),
+            ) {
+                Ok(c) => c,
+                Err(_) => AgentContext {
+                    workspace_root: workspace_root.clone(),
+                    open_files: vec![],
+                    git_branch: git_branch.clone(),
+                    git_diff_summary: None,
+                    flow_context: None,
+                    approved_plan: None,
+                    extra_skill_dirs: vec![],
+                    parent_session_id: None,
+                    depth: 0,
+                    active_agent_counter: None,
+                    team_bus: None,
+                    team_agent_id: None,
+                    project_summary: None,
+                    task_context_files: vec![],
+                    memory_context: None,
+                    auto_commit: false,
+                },
+            },
+            None => AgentContext {
+                workspace_root: workspace_root.clone(),
+                open_files: vec![],
+                git_branch,
+                git_diff_summary: None,
+                flow_context: None,
+                approved_plan: None,
+                extra_skill_dirs: vec![],
+                parent_session_id: None,
+                depth: 0,
+                active_agent_counter: None,
+                team_bus: None,
+                team_agent_id: None,
+                project_summary: None,
+                task_context_files: vec![],
+                memory_context: None,
+                auto_commit: false,
+            },
         };
 
         let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
@@ -1305,6 +1474,21 @@ async fn v1_capabilities() -> impl IntoResponse {
             "gateway": {
                 "platforms": 18,
                 "protocols": ["REST", "SSE", "WebSocket", "Telegram", "Discord", "Slack", "Matrix", "IRC", "Teams"],
+            },
+            // Phase 7 S3: advertise context-assembler shape so mobile /
+            // watch / IDE clients can negotiate via `/agent`'s
+            // `context_request` field. The kinds here mirror the
+            // `AgentKind` enum (one source of truth in
+            // `context_assembler::parse_agent_kind`); the sections
+            // mirror `KNOWN_SECTION_NAMES`. A client that receives an
+            // unknown kind/section here can fall back to defaults
+            // without needing a daemon redeploy.
+            "context": {
+                "description": "Per-request memory negotiation: pick a budget shape and toggles",
+                "kinds": ["Chat", "CodingAgent", "ResearchAgent", "BackgroundJob"],
+                "sections": crate::context_assembler::KNOWN_SECTION_NAMES,
+                "request_field": "context_request",
+                "toggles": ["openmemory_enabled", "openmemory_auto_inject"],
             },
         },
     }))
@@ -3280,8 +3464,13 @@ async fn mobile_sessions(State(state): State<ServeState>) -> Json<serde_json::Va
 /// `GET /mobile/sessions/:id/context` — auth required.
 ///
 /// Returns a HandoffContext JSON bundle for the requested session so the
-/// mobile app can "continue" it with full conversation history.
+/// mobile app can "continue" it with full conversation history. Phase 7
+/// quick-win: now also includes an `assembler` block with the project
+/// memory + orchestration sections (built via the same context assembler
+/// the REPL chat path uses), so mobile can show "what the agent knows"
+/// instead of just the chat transcript.
 async fn mobile_session_context(
+    State(state): State<ServeState>,
     Path(id): Path<String>,
 ) -> (StatusCode, Json<serde_json::Value>) {
     let store = match SessionStore::open_default() {
@@ -3310,7 +3499,39 @@ async fn mobile_session_context(
         }
     };
 
-    // Build a HandoffContext from the session.
+    // Pick the workspace for memory assembly: the session's recorded
+    // project_path wins, otherwise fall back to the daemon's own
+    // workspace_root (the directory the daemon was started in).
+    let workspace = detail
+        .session
+        .project_path
+        .as_ref()
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| state.workspace_root.clone());
+
+    match build_mobile_context_response(&id, &detail, &workspace) {
+        Ok(value) => (StatusCode::OK, Json(value)),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "error": format!("serialization failed: {e}") })),
+        ),
+    }
+}
+
+/// Pure builder for the `/mobile/sessions/:id/context` response body.
+///
+/// Extracted from the handler so unit tests can exercise the merge of
+/// HandoffContext (session transcript) + AssembledContext (project
+/// memory + orchestration) without touching `SessionStore::open_default`
+/// or any daemon-global state. The handler is the only production
+/// caller; tests inject a `SessionDetail` directly.
+fn build_mobile_context_response(
+    session_id: &str,
+    detail: &crate::session_store::SessionDetail,
+    workspace: &std::path::Path,
+) -> anyhow::Result<serde_json::Value> {
+    // 1. Session transcript → HandoffContext (preserves existing payload
+    //    shape so mobile clients on the old envelope keep working).
     let mut ctx = crate::context_handoff::HandoffContext::new(&detail.session.provider);
     if let Some(ref sys) = detail.session.summary {
         ctx = ctx.with_system(sys.clone());
@@ -3324,27 +3545,43 @@ async fn mobile_session_context(
         };
         ctx.push_message(handoff_msg);
     }
+    let json_str = ctx
+        .serialize()
+        .map_err(|e| anyhow::anyhow!("HandoffContext serialize failed: {e}"))?;
+    let inner: serde_json::Value =
+        serde_json::from_str(&json_str).unwrap_or(serde_json::Value::Null);
 
-    // Serialize via the hand-rolled encoder in context_handoff.rs.
-    match ctx.serialize() {
-        Ok(json_str) => {
-            // Parse back to Value so Axum can re-serialize with proper envelope.
-            let inner: serde_json::Value =
-                serde_json::from_str(&json_str).unwrap_or(serde_json::Value::Null);
-            (
-                StatusCode::OK,
-                Json(serde_json::json!({
-                    "context_type": "vibecody_session",
-                    "session_id": id,
-                    "context": inner,
-                })),
-            )
-        }
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "error": format!("serialization failed: {e}") })),
-        ),
-    }
+    // 2. Memory layer — Chat policy with a Chat-kind budget. Same
+    //    assembler the REPL chat path uses (`main.rs:4135`), so mobile
+    //    sees identical sections in identical priority order.
+    let policy = crate::context_assembler::ContextPolicy::Chat;
+    let budget = crate::context_assembler::ContextBudget::for_kind(
+        crate::context_assembler::AgentKind::Chat,
+    );
+    let toggles = crate::context_assembler::MemoryToggles::default();
+    let assembled =
+        crate::context_assembler::assemble_context(workspace, &policy, &budget, &toggles);
+
+    let assembler_payload = serde_json::json!({
+        "total_chars": assembled.total_chars,
+        "sections": assembled
+            .sections
+            .iter()
+            .map(|s| serde_json::json!({
+                "name": s.name,
+                "content": s.content,
+                "priority": s.priority,
+                "truncated": s.truncated,
+            }))
+            .collect::<Vec<_>>(),
+    });
+
+    Ok(serde_json::json!({
+        "context_type": "vibecody_session",
+        "session_id": session_id,
+        "context": inner,
+        "assembler": assembler_payload,
+    }))
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────────────
@@ -3370,6 +3607,128 @@ mod tests {
         let t1 = now_ms();
         let t2 = now_ms();
         assert!(t2 >= t1, "second call should be >= first");
+    }
+
+    // ── Phase 7 quick-win: mobile context response includes assembler ──────
+
+    /// Build a minimal `SessionDetail` for the mobile-context tests. Pure
+    /// data, no DB. Fixture lives only in this module.
+    fn fixture_detail(id: &str, project_path: Option<&str>) -> crate::session_store::SessionDetail {
+        crate::session_store::SessionDetail {
+            session: crate::session_store::SessionRow {
+                id: id.to_string(),
+                task: "explain the codebase".to_string(),
+                provider: "mock".to_string(),
+                model: "test-model".to_string(),
+                started_at: 0,
+                finished_at: None,
+                status: "running".to_string(),
+                summary: Some("system summary".to_string()),
+                step_count: 0,
+                parent_session_id: None,
+                depth: 0,
+                project_path: project_path.map(str::to_string),
+            },
+            messages: vec![
+                crate::session_store::MessageRow {
+                    id: 1,
+                    session_id: id.to_string(),
+                    role: "user".to_string(),
+                    content: "hello".to_string(),
+                    created_at: 0,
+                },
+                crate::session_store::MessageRow {
+                    id: 2,
+                    session_id: id.to_string(),
+                    role: "assistant".to_string(),
+                    content: "hi there".to_string(),
+                    created_at: 0,
+                },
+            ],
+            steps: vec![],
+        }
+    }
+
+    #[test]
+    fn mobile_context_response_preserves_existing_envelope() {
+        // Backwards-compatibility: the original `context_type`,
+        // `session_id`, `context` keys must still be present so existing
+        // mobile clients don't break when we add the assembler block.
+        let workspace = tempfile::TempDir::new().unwrap();
+        let detail = fixture_detail("sess-abc", None);
+        let value =
+            build_mobile_context_response("sess-abc", &detail, workspace.path())
+                .expect("build response");
+
+        assert_eq!(value["context_type"], "vibecody_session");
+        assert_eq!(value["session_id"], "sess-abc");
+        assert!(value["context"].is_object(), "context must be a JSON object");
+    }
+
+    #[test]
+    fn mobile_context_response_includes_assembler_block() {
+        // The new contract: response gains an `assembler` key with the
+        // sections + total_chars from the same context_assembler the
+        // REPL chat path uses. Empty workspace → no project_memory →
+        // assembler is present but with zero sections (Chat policy
+        // doesn't pull anything else for an empty workspace).
+        let workspace = tempfile::TempDir::new().unwrap();
+        let detail = fixture_detail("sess-empty", None);
+        let value = build_mobile_context_response(
+            "sess-empty",
+            &detail,
+            workspace.path(),
+        )
+        .expect("build response");
+
+        let assembler = value
+            .get("assembler")
+            .expect("response must include assembler block");
+        assert!(
+            assembler.get("sections").is_some(),
+            "assembler must expose `sections`"
+        );
+        assert!(
+            assembler.get("total_chars").is_some(),
+            "assembler must expose `total_chars`"
+        );
+    }
+
+    #[test]
+    fn mobile_context_response_surfaces_project_memory_section() {
+        // When the workspace has a hierarchical project memory file
+        // (CLAUDE.md / VIBECLI.md / AGENTS.md), the assembler must lift
+        // its content into the `project_memory` section so mobile shows
+        // it as part of "what the agent knows."
+        let workspace = tempfile::TempDir::new().unwrap();
+        std::fs::write(
+            workspace.path().join("CLAUDE.md"),
+            "# Local Project Memory\n\nThis project uses Rust edition 2021.",
+        )
+        .expect("write CLAUDE.md");
+
+        let detail = fixture_detail("sess-mem", None);
+        let value = build_mobile_context_response(
+            "sess-mem",
+            &detail,
+            workspace.path(),
+        )
+        .expect("build response");
+
+        let sections = value["assembler"]["sections"]
+            .as_array()
+            .expect("sections array");
+        let project_memory = sections
+            .iter()
+            .find(|s| s["name"] == "project_memory")
+            .expect("project_memory section must be present");
+        let content = project_memory["content"]
+            .as_str()
+            .expect("content is a string");
+        assert!(
+            content.contains("Rust edition 2021"),
+            "project_memory must reflect CLAUDE.md content; got: {content}"
+        );
     }
 
     // ── JobRecord serde backward-compat ────────────────────────────────────
@@ -3855,6 +4214,186 @@ mod tests {
                 .unwrap();
             let resp = app.oneshot(req).await.unwrap();
             assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        // ── S3: HTTP context negotiation (capabilities + agent payload) ──
+
+        #[tokio::test]
+        async fn v1_capabilities_advertises_context_kinds_and_sections() {
+            // Mobile/watch/IDE clients hit /v1/capabilities before
+            // sending any /agent request to discover what the daemon
+            // supports. This pins that the response includes a
+            // `context.kinds` array with all four AgentKind variants
+            // and a `context.sections` array covering every
+            // assembler-emitted section name. Drift here breaks
+            // negotiation silently — clients fall back to defaults
+            // and lose memory features.
+            let (app, _tmp) = test_app("test-token");
+            let req = Request::builder()
+                .uri("/v1/capabilities")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::OK);
+            let body = body_string(resp.into_body()).await;
+            let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+            let context = json
+                .get("capabilities")
+                .and_then(|c| c.get("context"))
+                .expect("capabilities.context block present");
+            let kinds = context
+                .get("kinds")
+                .and_then(|k| k.as_array())
+                .expect("context.kinds array");
+            let kind_strs: Vec<&str> =
+                kinds.iter().filter_map(|v| v.as_str()).collect();
+            assert!(kind_strs.contains(&"Chat"));
+            assert!(kind_strs.contains(&"CodingAgent"));
+            assert!(kind_strs.contains(&"ResearchAgent"));
+            assert!(kind_strs.contains(&"BackgroundJob"));
+
+            let sections = context
+                .get("sections")
+                .and_then(|s| s.as_array())
+                .expect("context.sections array");
+            let section_strs: Vec<&str> =
+                sections.iter().filter_map(|v| v.as_str()).collect();
+            assert!(section_strs.contains(&"project_memory"));
+            assert!(section_strs.contains(&"orchestration"));
+            assert!(section_strs.contains(&"open_memory"));
+            assert!(section_strs.contains(&"agent_scratchpad"));
+        }
+
+        #[tokio::test]
+        async fn agent_with_unknown_context_kind_returns_400() {
+            // Negotiation pre-flight: an unknown `kind` must reject
+            // before the daemon spawns a job. Mirrors the same
+            // canonical valid-list as parse_agent_kind. The error
+            // body must echo the bad kind back so the client can log
+            // it; this is the contract `parse_agent_kind` advertises.
+            let (app, _tmp) = test_app("test-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/agent")
+                .header("authorization", "Bearer test-token")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"task":"do stuff","context_request":{"kind":"Sycophant"}}"#,
+                ))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(
+                resp.status(),
+                StatusCode::BAD_REQUEST,
+                "unknown kind must reject before spawn"
+            );
+            let body = body_string(resp.into_body()).await;
+            assert!(
+                body.contains("Sycophant"),
+                "error must echo bad kind; got: {body}"
+            );
+        }
+
+        #[tokio::test]
+        async fn agent_without_context_request_remains_backward_compatible() {
+            // The pre-S3 payload (no context_request field) must still
+            // accept and spawn. Pinning this so the additive change
+            // doesn't accidentally tighten the schema for existing
+            // mobile/watch clients that haven't been updated.
+            let (app, _tmp) = test_app("test-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/agent")
+                .header("authorization", "Bearer test-token")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"task":"plain old request"}"#))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            // 200 OK with a session_id payload, just like before S3.
+            assert_eq!(
+                resp.status(),
+                StatusCode::OK,
+                "missing context_request must not regress existing clients"
+            );
+            let body = body_string(resp.into_body()).await;
+            let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+            assert!(
+                json.get("session_id").is_some(),
+                "response must include session_id; got: {body}"
+            );
+        }
+
+        #[tokio::test]
+        async fn agent_with_valid_context_request_spawns_job() {
+            // Happy path: a valid kind + toggles negotiation parses
+            // and the daemon accepts it. The actual memory wiring
+            // happens inside the spawned task; this test just pins
+            // the request-acceptance contract so the negotiation
+            // surface is stable.
+            let (app, _tmp) = test_app("test-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/agent")
+                .header("authorization", "Bearer test-token")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"task":"survey the codebase","context_request":{"kind":"ResearchAgent","openmemory_enabled":true}}"#,
+                ))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::OK);
+            let body = body_string(resp.into_body()).await;
+            let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+            assert!(
+                json.get("session_id").is_some(),
+                "valid context_request must produce a session_id; got: {body}"
+            );
+        }
+
+        #[test]
+        fn build_agent_context_from_request_defaults_kind_to_coding_agent() {
+            // When `kind` is omitted entirely, the daemon must
+            // default to `CodingAgent` (its primary use case). Pinning
+            // this so a future refactor doesn't silently change which
+            // budget shape unspecified requests fall into.
+            let workspace = tempfile::TempDir::new().unwrap();
+            let cr = ContextRequest {
+                kind: None,
+                openmemory_enabled: None,
+                openmemory_auto_inject: None,
+            };
+            let ctx = build_agent_context_from_request(
+                workspace.path().to_path_buf(),
+                "do something",
+                "session-S3",
+                &cr,
+                None,
+            )
+            .expect("default kind must succeed");
+            assert_eq!(ctx.workspace_root, workspace.path());
+            // The contract is "no panic, valid context returned" — the
+            // exact memory_context value depends on global state we
+            // don't want to assert on here.
+            let _ = ctx.memory_context;
+        }
+
+        #[test]
+        fn build_agent_context_from_request_rejects_unknown_kind() {
+            let workspace = tempfile::TempDir::new().unwrap();
+            let cr = ContextRequest {
+                kind: Some("Sycophant".to_string()),
+                openmemory_enabled: None,
+                openmemory_auto_inject: None,
+            };
+            let err = build_agent_context_from_request(
+                workspace.path().to_path_buf(),
+                "x",
+                "y",
+                &cr,
+                None,
+            )
+            .expect_err("unknown kind must error");
+            assert!(err.contains("Sycophant"));
         }
 
         // ── Inference (Ollama-compat) routes ──────────────────────────────

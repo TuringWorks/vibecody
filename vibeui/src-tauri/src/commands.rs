@@ -249,6 +249,211 @@ fn set_active_workspace(path: &str) {
     let _ = std::fs::write(dir.join("active-workspace.txt"), path);
 }
 
+/// Read the active workspace path from the marker file. Returns `None`
+/// when no workspace is open (the marker is missing, empty, or points
+/// at a non-existent directory). Phase 7 quick-win: Tauri commands that
+/// want project memory call this to find the workspace root before
+/// invoking `vibecli_cli::context_assembler::assemble_context`.
+fn read_active_workspace_path() -> Option<std::path::PathBuf> {
+    let home = std::env::var("HOME").ok()?;
+    let marker =
+        std::path::PathBuf::from(&home).join(".vibeui").join("active-workspace.txt");
+    let raw = std::fs::read_to_string(&marker).ok()?;
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    let path = std::path::PathBuf::from(trimmed);
+    if path.is_dir() { Some(path) } else { None }
+}
+
+/// Build a system-message string from the assembler for `ContextPolicy::Chat`
+/// against the given workspace. Returns `None` when the workspace has
+/// nothing to inject (no CLAUDE.md / VIBECLI.md / AGENTS.md, no
+/// orchestration lessons, OpenMemory empty). Callers prepend the
+/// returned text to their LLM message list.
+///
+/// Pure function — no global state, no Tauri / app-handle access — so
+/// unit tests can drive it with a tempdir workspace.
+fn build_chat_memory_system_message(workspace: &std::path::Path) -> Option<String> {
+    use vibecli_cli::context_assembler::{
+        AgentKind, ContextBudget, ContextPolicy, MemoryToggles, assemble_context,
+    };
+    let policy = ContextPolicy::Chat;
+    let budget = ContextBudget::for_kind(AgentKind::Chat);
+    let toggles = MemoryToggles::default();
+    let assembled = assemble_context(workspace, &policy, &budget, &toggles);
+    assembled.combined()
+}
+
+/// Restricted-source variant for diffcomplete. Reads ONLY the
+/// hierarchical author-authored project memory (VIBECLI.md / AGENTS.md
+/// / CLAUDE.md at system / user / project / directory levels, plus
+/// `~/.vibecli/memory.md` scratch). Deliberately bypasses the context
+/// assembler so no auto-extracted state (OpenMemory facts, agent
+/// scratchpads, orchestration lessons) can leak into the diffcomplete
+/// prompt — see `notes/PATENT_AUDIT_INLINE.md` "Slice audit —
+/// 2026-04-26" for the patent-distance rationale.
+fn build_diffcomplete_project_memory(
+    workspace: &std::path::Path,
+) -> Option<String> {
+    vibecli_cli::memory::ProjectMemory::load(workspace).combined()
+}
+
+// ── Phase 7 follow-up S1: panel-facing assemble_context Tauri command ───────
+
+/// Wire shape for one section in the assembled context. Mirrors
+/// `vibecli_cli::context_assembler::ContextSection` but uses owned
+/// String for the `name` so it serializes cleanly across the Tauri IPC
+/// boundary (the Rust struct's `&'static str` cannot survive serde).
+#[derive(serde::Serialize, Debug, Clone)]
+pub struct AssembledSectionDto {
+    pub name: String,
+    pub content: String,
+    pub priority: u32,
+    pub truncated: bool,
+}
+
+/// Wire shape for the assembled context. Returned to the frontend
+/// when a panel calls `invoke('assemble_context', …)`.
+#[derive(serde::Serialize, Debug, Clone)]
+pub struct AssembledContextDto {
+    pub sections: Vec<AssembledSectionDto>,
+    pub total_chars: usize,
+}
+
+/// Pure helper that maps panel-friendly string parameters to the
+/// `vibecli_cli::context_assembler::assemble_context` call and lifts
+/// the result into wire-shaped DTOs. Extracted from the Tauri command
+/// so unit tests can exercise the parameter mapping without spinning
+/// up an `AppHandle` / `AppState`.
+///
+/// Parameters:
+/// - `workspace`: explicit path, or `None` to fall back to the
+///   `~/.vibeui/active-workspace.txt` marker.
+/// - `kind`: one of "Chat" | "CodingAgent" | "ResearchAgent" |
+///   "BackgroundJob" (case-sensitive). Selects the budget shape.
+/// - `task`: required when `kind` is anything but "Chat" — that's the
+///   policy flavor that needs a task description for the assembler's
+///   relevance scanners.
+/// - `job_id`: optional — when present, the helper passes
+///   `job_manager::default_db_path()` into `MemoryToggles.jobs_db_path`
+///   so the agent_scratchpad section becomes reachable for paused-job
+///   resumption.
+/// - `openmemory_enabled` / `openmemory_auto_inject`: panel overrides
+///   for the corresponding `MemoryToggles` fields. `None` keeps the
+///   defaults (both true).
+fn do_assemble_context_for_panel(
+    workspace: Option<std::path::PathBuf>,
+    kind: &str,
+    task: Option<String>,
+    job_id: Option<String>,
+    openmemory_enabled: Option<bool>,
+    openmemory_auto_inject: Option<bool>,
+) -> Result<AssembledContextDto, String> {
+    use vibecli_cli::context_assembler::{
+        AgentKind, ContextBudget, ContextPolicy, MemoryToggles, assemble_context,
+    };
+
+    let workspace_path = workspace
+        .or_else(read_active_workspace_path)
+        .ok_or_else(|| "no workspace open and no marker file".to_string())?;
+
+    let agent_kind = match kind {
+        "Chat" => AgentKind::Chat,
+        "CodingAgent" => AgentKind::CodingAgent,
+        "ResearchAgent" => AgentKind::ResearchAgent,
+        "BackgroundJob" => AgentKind::BackgroundJob,
+        other => {
+            return Err(format!(
+                "unknown kind {other:?}; expected Chat | CodingAgent | ResearchAgent | BackgroundJob"
+            ));
+        }
+    };
+
+    let policy = if matches!(agent_kind, AgentKind::Chat) {
+        ContextPolicy::Chat
+    } else {
+        let task_str = task.ok_or_else(|| {
+            format!("task is required for kind {kind:?} (Chat is the only kind that doesn't need a task)")
+        })?;
+        ContextPolicy::Agent {
+            task: task_str,
+            job_id: job_id.clone(),
+        }
+    };
+
+    let budget = ContextBudget::for_kind(agent_kind);
+
+    // Thread the JobsDb path when a job_id is present — without it the
+    // agent_scratchpad section is silently skipped even for resumable
+    // jobs. Mirrors the worker loop wiring at `main.rs::build_worker_agent_context`.
+    let jobs_db_path = if job_id.is_some() {
+        Some(vibecli_cli::job_manager::default_db_path())
+    } else {
+        None
+    };
+
+    let defaults = MemoryToggles::default();
+    let toggles = MemoryToggles {
+        openmemory_enabled: openmemory_enabled.unwrap_or(defaults.openmemory_enabled),
+        openmemory_auto_inject: openmemory_auto_inject
+            .unwrap_or(defaults.openmemory_auto_inject),
+        jobs_db_path,
+    };
+
+    let assembled = assemble_context(&workspace_path, &policy, &budget, &toggles);
+
+    Ok(AssembledContextDto {
+        sections: assembled
+            .sections
+            .iter()
+            .map(|s| AssembledSectionDto {
+                name: s.name.to_string(),
+                content: s.content.clone(),
+                priority: s.priority,
+                truncated: s.truncated,
+            })
+            .collect(),
+        total_chars: assembled.total_chars,
+    })
+}
+
+/// Tauri command: assemble project context for any panel.
+///
+/// This is the panel-facing wrapper around
+/// `vibecli_cli::context_assembler::assemble_context`. Before this
+/// command existed, every panel that wanted memory had to either
+/// hardcode its own helper (counsel, diffcomplete) or go without
+/// (most panels). With this in place, any panel can do:
+///
+/// ```ts
+/// const ctx = await invoke<AssembledContextDto>('assemble_context', {
+///   kind: 'ResearchAgent', task: 'investigate the auth flow',
+/// });
+/// ```
+///
+/// and pick whichever sections are relevant to its UX. See
+/// `do_assemble_context_for_panel` for parameter semantics.
+#[tauri::command]
+pub async fn assemble_context(
+    workspace: Option<String>,
+    kind: String,
+    task: Option<String>,
+    job_id: Option<String>,
+    openmemory_enabled: Option<bool>,
+    openmemory_auto_inject: Option<bool>,
+) -> Result<AssembledContextDto, String> {
+    do_assemble_context_for_panel(
+        workspace.map(std::path::PathBuf::from),
+        &kind,
+        task,
+        job_id,
+        openmemory_enabled,
+        openmemory_auto_inject,
+    )
+}
+
 /// Verify that `path` stays within the workspace root directories.
 ///
 /// Canonicalizes the path and checks it is a descendant of at least one
@@ -6251,6 +6456,14 @@ pub async fn diffcomplete_generate(
     previous_diff: Option<String>,
     refinement: Option<String>,
 ) -> Result<DiffCompleteResponseDto, String> {
+    // Phase 7 quick-win (slice 2026-04-26): inject project memory from
+    // author-authored sources only. See notes/PATENT_AUDIT_INLINE.md.
+    // `None` when no workspace is open or no memory files exist —
+    // diffcomplete falls back to its prior behavior in that case.
+    let project_memory = read_active_workspace_path()
+        .as_deref()
+        .and_then(build_diffcomplete_project_memory);
+
     let request = vibe_ai::diffcomplete::DiffCompleteRequest {
         file_path,
         language,
@@ -6263,6 +6476,7 @@ pub async fn diffcomplete_generate(
         additional_files: additional_files.unwrap_or_default(),
         previous_diff,
         refinement,
+        project_memory,
     };
 
     let active = {
@@ -13579,6 +13793,212 @@ pub async fn apply_autofix(workspace: String, apply: bool) -> Result<(), String>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── Phase 7 quick-win: chat memory helper for counsel + (later) diffcomplete
+
+    #[test]
+    fn build_chat_memory_always_emits_orchestration_block() {
+        // The assembler's `orchestration` section is *always* non-empty
+        // for chat policy — it carries the workflow rules header that
+        // every chat turn anchors against (workflow_orchestration.rs:707).
+        // So an empty workspace still produces Some(...), and the
+        // returned message contains the orchestration header. This test
+        // pins that contract so we notice if a future refactor makes
+        // chat blank when no project_memory exists.
+        let workspace = tempfile::TempDir::new().unwrap();
+        let msg = build_chat_memory_system_message(workspace.path())
+            .expect("chat policy must always emit at least the orchestration block");
+        assert!(
+            msg.contains("Workflow Orchestration Rules"),
+            "empty workspace should still surface orchestration rules; got:\n{msg}"
+        );
+        assert!(
+            !msg.contains("CLAUDE.md") && !msg.contains("VIBECLI.md"),
+            "empty workspace must NOT mention nonexistent project memory files"
+        );
+    }
+
+    #[test]
+    fn build_chat_memory_surfaces_claude_md_content() {
+        // When CLAUDE.md exists, its content must flow into the assembled
+        // system message. This is what makes counsel + diffcomplete
+        // project-aware without per-callsite plumbing.
+        let workspace = tempfile::TempDir::new().unwrap();
+        std::fs::write(
+            workspace.path().join("CLAUDE.md"),
+            "# Project Memory\n\nThis project pins Rust edition 2021.",
+        )
+        .expect("write CLAUDE.md");
+
+        let msg = build_chat_memory_system_message(workspace.path())
+            .expect("project memory must be present when CLAUDE.md exists");
+        assert!(
+            msg.contains("Rust edition 2021"),
+            "memory system message must reflect CLAUDE.md content; got: {msg}"
+        );
+    }
+
+    // ── Phase 7 QW3b: diffcomplete project_memory (audit-restricted) ─────
+
+    #[test]
+    fn build_diffcomplete_memory_returns_none_for_empty_workspace() {
+        // No author-authored memory files → no injection. This is the
+        // baseline patent-distance posture before the slice — adding
+        // memory must not change behavior on workspaces without one.
+        let workspace = tempfile::TempDir::new().unwrap();
+        assert!(
+            build_diffcomplete_project_memory(workspace.path()).is_none(),
+            "empty workspace must produce no project_memory for diffcomplete"
+        );
+    }
+
+    // ── S1: panel-facing assemble_context Tauri helper ───────────────────
+
+    #[test]
+    fn do_assemble_chat_returns_orchestration_section_for_empty_workspace() {
+        // Chat policy emits the always-on `orchestration` block from
+        // workflow_orchestration::orchestration_system_prompt — pinning
+        // that contract so panels get a consistent baseline regardless
+        // of whether the workspace has CLAUDE.md.
+        let workspace = tempfile::TempDir::new().unwrap();
+        let dto = do_assemble_context_for_panel(
+            Some(workspace.path().to_path_buf()),
+            "Chat",
+            None,
+            None,
+            None,
+            None,
+        )
+        .expect("Chat policy must succeed without a task");
+        assert!(
+            dto.sections.iter().any(|s| s.name == "orchestration"),
+            "Chat policy must surface the orchestration section; got: {:?}",
+            dto.sections.iter().map(|s| &s.name).collect::<Vec<_>>()
+        );
+        assert!(dto.total_chars > 0, "orchestration block is non-empty");
+    }
+
+    #[test]
+    fn do_assemble_unknown_kind_returns_explicit_error() {
+        let workspace = tempfile::TempDir::new().unwrap();
+        let err = do_assemble_context_for_panel(
+            Some(workspace.path().to_path_buf()),
+            "Sycophant",
+            None,
+            None,
+            None,
+            None,
+        )
+        .expect_err("unknown kind must error");
+        assert!(
+            err.contains("Sycophant"),
+            "error must echo the bad kind back; got: {err}"
+        );
+        assert!(
+            err.contains("Chat") && err.contains("CodingAgent"),
+            "error must list the valid kinds; got: {err}"
+        );
+    }
+
+    #[test]
+    fn do_assemble_agent_kind_without_task_errors() {
+        // Agent variants need a task — the policy literally embeds it
+        // into the relevance scanner. Surfacing this as an explicit
+        // error from the helper keeps the panel-side bug at the API
+        // boundary rather than silently producing an empty assembly.
+        let workspace = tempfile::TempDir::new().unwrap();
+        let err = do_assemble_context_for_panel(
+            Some(workspace.path().to_path_buf()),
+            "CodingAgent",
+            None,
+            None,
+            None,
+            None,
+        )
+        .expect_err("Agent kind without task must error");
+        assert!(
+            err.contains("task is required"),
+            "error must explain the missing task; got: {err}"
+        );
+    }
+
+    #[test]
+    fn do_assemble_respects_openmemory_disable_toggle() {
+        // When a panel passes `openmemory_enabled: Some(false)`, the
+        // helper must thread that through to MemoryToggles so the
+        // assembler skips the `open_memory` section. With openmemory
+        // disabled, no `open_memory` section may appear regardless of
+        // global state.
+        let workspace = tempfile::TempDir::new().unwrap();
+        let dto = do_assemble_context_for_panel(
+            Some(workspace.path().to_path_buf()),
+            "CodingAgent",
+            Some("test task".to_string()),
+            None,
+            Some(false),
+            None,
+        )
+        .expect("CodingAgent with openmemory disabled must still succeed");
+        assert!(
+            !dto.sections.iter().any(|s| s.name == "open_memory"),
+            "open_memory must be absent when openmemory_enabled=false; got: {:?}",
+            dto.sections.iter().map(|s| &s.name).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn do_assemble_uses_workspace_param_over_marker() {
+        // When a panel passes an explicit workspace, the helper must
+        // use it verbatim — not silently fall back to the marker file.
+        // Pinning this so a misconfigured marker (or no marker at all)
+        // doesn't override an explicit per-panel choice.
+        let workspace = tempfile::TempDir::new().unwrap();
+        std::fs::write(
+            workspace.path().join("CLAUDE.md"),
+            "# Param-wins marker\n\nThis content uniquely identifies the param workspace.",
+        )
+        .unwrap();
+        let dto = do_assemble_context_for_panel(
+            Some(workspace.path().to_path_buf()),
+            "Chat",
+            None,
+            None,
+            None,
+            None,
+        )
+        .expect("Chat with explicit workspace must succeed");
+        let project_memory = dto
+            .sections
+            .iter()
+            .find(|s| s.name == "project_memory")
+            .expect("project_memory section must reflect the param workspace's CLAUDE.md");
+        assert!(
+            project_memory.content.contains("Param-wins marker"),
+            "project_memory must reflect the param-supplied workspace; got: {}",
+            project_memory.content
+        );
+    }
+
+    #[test]
+    fn build_diffcomplete_memory_surfaces_author_authored_files() {
+        // A project-root AGENTS.md is author-authored — exactly what the
+        // slice audit (notes/PATENT_AUDIT_INLINE.md, 2026-04-26) green-
+        // lights for diffcomplete injection.
+        let workspace = tempfile::TempDir::new().unwrap();
+        std::fs::write(
+            workspace.path().join("AGENTS.md"),
+            "# AGENTS\n\nAlways prefer pure functions for new logic.",
+        )
+        .expect("write AGENTS.md");
+
+        let msg = build_diffcomplete_project_memory(workspace.path())
+            .expect("AGENTS.md must surface in diffcomplete project_memory");
+        assert!(
+            msg.contains("Always prefer pure functions"),
+            "AGENTS.md content must be carried verbatim; got: {msg}"
+        );
+    }
+
 
     // ── parse_rule_meta ───────────────────────────────────────────────────────
 
@@ -30860,6 +31280,15 @@ pub async fn counsel_run_round(
     let round_number = session.current_round();
     let mut responses = Vec::new();
 
+    // Phase 7 quick-win: assemble project memory once per round and
+    // prepend it as a system message to every participant. Built once
+    // (cheap retrieval but not free), reused across the participant
+    // loop. `None` means no workspace is open or no memory exists —
+    // counsel falls back to its prior behavior in that case.
+    let memory_system_message = read_active_workspace_path()
+        .as_deref()
+        .and_then(build_chat_memory_system_message);
+
     for i in 0..session.participants.len() {
         let messages = session.build_messages(i, round_number);
         let participant = &session.participants[i];
@@ -30868,12 +31297,19 @@ pub async fn counsel_run_round(
         let start = std::time::Instant::now();
 
         let (content, tokens) = if let Some(prov) = provider {
-            let ai_messages: Vec<vibe_ai::provider::Message> = messages.iter().map(|m| {
+            let mut ai_messages: Vec<vibe_ai::provider::Message> = Vec::new();
+            if let Some(ref mem) = memory_system_message {
+                ai_messages.push(vibe_ai::provider::Message {
+                    role: vibe_ai::provider::MessageRole::System,
+                    content: mem.clone(),
+                });
+            }
+            ai_messages.extend(messages.iter().map(|m| {
                 vibe_ai::provider::Message {
                     role: m.role.clone(),
                     content: m.content.clone(),
                 }
-            }).collect();
+            }));
 
             let _ = app.emit("counsel:chunk", serde_json::json!({
                 "session_id": session_id,

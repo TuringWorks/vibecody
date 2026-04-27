@@ -277,6 +277,7 @@ pub fn run() {
             daemon_process: Arc::new(Mutex::new(None)),
         })
         .invoke_handler(tauri::generate_handler![
+            commands::assemble_context,
             commands::read_file,
             commands::read_file_base64,
             commands::write_file,
