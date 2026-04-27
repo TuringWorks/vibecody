@@ -16,6 +16,7 @@ pub mod policy;
 pub mod secrets;
 pub mod ssrf;
 pub mod tls;
+pub mod token_mint;
 
 pub use accept::{BoundAddr, Broker, BrokerHandle};
 pub use audit::{
@@ -23,6 +24,10 @@ pub use audit::{
     baseline_egress_request,
 };
 pub use audit_summary::AuditSummary;
+pub use token_mint::{
+    AzureClientCredentialsMinter, CachedMinter, GcpServiceAccountMinter, MintError, MintedToken,
+    TokenMinter,
+};
 pub use forward::{ForwardError, ForwardRequest, ForwardResponse, forward_plain_http};
 pub use imds::{ImdsHandle, ImdsServer};
 pub use mitm::{InspectContext, MitmError, default_upstream_roots, run_mitm};
