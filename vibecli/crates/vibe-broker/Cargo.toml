@@ -89,3 +89,7 @@ harness = false
 [[test]]
 name = "broker_token_mint_bdd"
 harness = false
+
+[[test]]
+name = "broker_token_refresher_bdd"
+harness = false
