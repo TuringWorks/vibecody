@@ -9,6 +9,7 @@
 pub mod accept;
 pub mod audit;
 pub mod audit_summary;
+pub mod config;
 pub mod forward;
 pub mod imds;
 pub mod mitm;
@@ -25,6 +26,10 @@ pub use audit::{
     baseline_egress_request,
 };
 pub use audit_summary::AuditSummary;
+pub use config::{
+    AuditSection, AzureProfile, BrokerConfig, BrokerSection, ConfigError, GcpProfile,
+    ImdsSection, ListenerKind, PolicySection, RefresherSection,
+};
 pub use token_mint::{
     AzureClientCredentialsMinter, CachedMinter, GcpServiceAccountMinter, MintError, MintedToken,
     TokenMinter,

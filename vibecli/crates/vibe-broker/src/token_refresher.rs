@@ -183,6 +183,7 @@ mod tests {
 
     #[tokio::test]
     async fn first_tick_populates_store() {
+        use crate::secrets::SecretStore;
         let secrets = Arc::new(InMemorySecretStore::new());
         let refresher =
             TokenRefresher::new(secrets.clone(), Duration::from_millis(50));
@@ -197,7 +198,6 @@ mod tests {
             )
             .await;
         let handle = refresher.start();
-        // Wait long enough for the first tick.
         for _ in 0..50 {
             tokio::time::sleep(Duration::from_millis(20)).await;
             if let Some(t) = secrets.resolve_azure(&SecretRef("@workspace.azure_default".into()))
