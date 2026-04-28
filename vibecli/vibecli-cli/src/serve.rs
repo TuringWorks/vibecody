@@ -1424,6 +1424,367 @@ async fn v1_browse_intervene(
     }
 }
 
+// ── Recap & Resume — F1.2 HTTP surface ─────────────────────────────────────
+
+/// POST /v1/recap request body. F1.2 only honors `kind = "session"` and
+/// `generator = "heuristic"`. Other generators return 501 so clients
+/// can probe support without guessing — the LLM/auto path lands in
+/// its own slice with the prompt + provider routing.
+#[derive(Debug, Deserialize)]
+pub struct RecapRequest {
+    /// One of `session | job | diff_chain`. F1.2 only supports
+    /// `session`; the other two return 400 until their own slices land.
+    pub kind: String,
+    pub subject_id: String,
+    /// When `false` (default), an existing recap for the same
+    /// `(subject_id, last_message_id)` is returned unchanged. When
+    /// `true`, the existing row is dropped and a fresh recap is
+    /// generated.
+    #[serde(default)]
+    pub force: bool,
+    /// `heuristic` (default for F1.2) | `llm` | `auto`. Anything but
+    /// heuristic returns 501 in this slice.
+    #[serde(default = "default_generator")]
+    pub generator: String,
+    /// Reserved for future LLM slice; F1.2 ignores these but accepts
+    /// them so existing clients don't get rejected on field presence.
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub provider: Option<String>,
+    #[serde(default)]
+    #[allow(dead_code)]
+    pub model: Option<String>,
+}
+
+fn default_generator() -> String {
+    "heuristic".to_string()
+}
+
+/// PATCH /v1/recap/:id request body. All three fields required — a
+/// user edit replaces the prior heuristic/LLM output wholesale. The
+/// row's id, subject_id, last_message_id, generated_at, and artifacts
+/// are preserved by the daemon (artifacts are inferred from steps,
+/// not from the recap body — they don't belong in a "user-edited
+/// prose" surface).
+#[derive(Debug, Deserialize)]
+pub struct RecapPatch {
+    pub headline: String,
+    pub bullets: Vec<String>,
+    pub next_actions: Vec<String>,
+}
+
+/// GET /v1/recap query params. `kind` + `subject_id` together select
+/// the timeline for one subject; `limit` defaults to 20.
+#[derive(Debug, Deserialize)]
+pub struct RecapListQuery {
+    #[serde(default)]
+    pub kind: Option<String>,
+    #[serde(default)]
+    pub subject_id: Option<String>,
+    #[serde(default = "default_recap_limit")]
+    pub limit: usize,
+}
+
+fn default_recap_limit() -> usize {
+    20
+}
+
+// ── Pure helpers for the recap routes ───────────────────────────────────────
+//
+// Each handler is a thin shell that opens `SessionStore::open_default()`
+// and delegates to the matching `do_v1_recap_*` helper. The helpers take
+// a borrowed `SessionStore` so unit tests can drive them with a tempdir-
+// backed store — same pattern as QW2's `build_mobile_context_response`.
+
+/// Pure builder for `POST /v1/recap`. Returns `(status, body)` so the
+/// handler can `Json(...)` without re-implementing the error mapping.
+pub(crate) fn do_v1_recap_post(
+    store: &SessionStore,
+    req: &RecapRequest,
+) -> (StatusCode, serde_json::Value) {
+    if req.kind != "session" {
+        return (
+            StatusCode::BAD_REQUEST,
+            serde_json::json!({
+                "error": format!(
+                    "kind {:?} not supported in F1.2; only \"session\" is implemented",
+                    req.kind
+                )
+            }),
+        );
+    }
+    if req.generator != "heuristic" {
+        return (
+            StatusCode::NOT_IMPLEMENTED,
+            serde_json::json!({
+                "error": format!(
+                    "generator {:?} not implemented in F1.2; only \"heuristic\" is supported",
+                    req.generator
+                )
+            }),
+        );
+    }
+
+    let detail = match store.get_session_detail(&req.subject_id) {
+        Ok(Some(d)) => d,
+        Ok(None) => {
+            return (
+                StatusCode::NOT_FOUND,
+                serde_json::json!({
+                    "error": format!("session {:?} not found", req.subject_id)
+                }),
+            );
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                serde_json::json!({"error": format!("failed to load session: {e}")}),
+            );
+        }
+    };
+
+    // Idempotency / force=true logic. The (subject_id, last_message_id)
+    // pair is the unique key. F1.1 already enforces it on insert.
+    let last_message_id = detail.messages.last().map(|m| m.id);
+    if req.force {
+        // Drop any prior recap for this (subject, last_msg) so the
+        // INSERT can proceed. Without this, the unique index conflicts.
+        if let Ok(Some(existing)) =
+            store.get_recap_by_subject_and_last_msg(&req.subject_id, last_message_id)
+        {
+            let _ = store.delete_recap(&existing.id);
+        }
+    }
+
+    let recap = crate::recap::heuristic_recap(&detail);
+    match store.insert_recap(&recap) {
+        Ok(stored) => match serde_json::to_value(&stored) {
+            Ok(v) => (StatusCode::OK, v),
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                serde_json::json!({"error": format!("recap serialize: {e}")}),
+            ),
+        },
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            serde_json::json!({"error": format!("recap insert: {e}")}),
+        ),
+    }
+}
+
+pub(crate) fn do_v1_recap_get(
+    store: &SessionStore,
+    id: &str,
+) -> (StatusCode, serde_json::Value) {
+    match store.get_recap_by_id(id) {
+        Ok(Some(r)) => match serde_json::to_value(&r) {
+            Ok(v) => (StatusCode::OK, v),
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                serde_json::json!({"error": format!("serialize: {e}")}),
+            ),
+        },
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            serde_json::json!({"error": "recap not found"}),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            serde_json::json!({"error": format!("recap load: {e}")}),
+        ),
+    }
+}
+
+pub(crate) fn do_v1_recap_list(
+    store: &SessionStore,
+    q: &RecapListQuery,
+) -> (StatusCode, serde_json::Value) {
+    let kind = match q.kind.as_deref() {
+        Some(k) => k,
+        None => {
+            return (
+                StatusCode::BAD_REQUEST,
+                serde_json::json!({"error": "missing required query param `kind`"}),
+            );
+        }
+    };
+    if kind != "session" {
+        return (
+            StatusCode::BAD_REQUEST,
+            serde_json::json!({
+                "error": format!(
+                    "kind {kind:?} not supported in F1.2; only \"session\" is implemented"
+                )
+            }),
+        );
+    }
+    let subject_id = match q.subject_id.as_deref() {
+        Some(s) => s,
+        None => {
+            return (
+                StatusCode::BAD_REQUEST,
+                serde_json::json!({"error": "missing required query param `subject_id`"}),
+            );
+        }
+    };
+
+    match store.list_recaps_for_subject(subject_id, q.limit) {
+        Ok(rows) => {
+            let count = rows.len();
+            match serde_json::to_value(&rows) {
+                Ok(v) => (
+                    StatusCode::OK,
+                    serde_json::json!({"recaps": v, "count": count}),
+                ),
+                Err(e) => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    serde_json::json!({"error": format!("serialize: {e}")}),
+                ),
+            }
+        }
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            serde_json::json!({"error": format!("recap list: {e}")}),
+        ),
+    }
+}
+
+pub(crate) fn do_v1_recap_patch(
+    store: &SessionStore,
+    id: &str,
+    patch: &RecapPatch,
+) -> (StatusCode, serde_json::Value) {
+    // Load the prior row so we can preserve artifacts + resume_hint.
+    // PATCH only edits the prose surface (headline, bullets,
+    // next_actions); structured fields stay intact.
+    let prior = match store.get_recap_by_id(id) {
+        Ok(Some(r)) => r,
+        Ok(None) => {
+            return (
+                StatusCode::NOT_FOUND,
+                serde_json::json!({"error": "recap not found"}),
+            );
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                serde_json::json!({"error": format!("recap load: {e}")}),
+            );
+        }
+    };
+
+    match store.update_recap(
+        id,
+        &patch.headline,
+        &patch.bullets,
+        &patch.next_actions,
+        &prior.artifacts,
+        prior.resume_hint.as_ref(),
+    ) {
+        Ok(Some(updated)) => match serde_json::to_value(&updated) {
+            Ok(v) => (StatusCode::OK, v),
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                serde_json::json!({"error": format!("serialize: {e}")}),
+            ),
+        },
+        Ok(None) => (
+            // The pre-flight load above already 404'd on missing rows,
+            // so reaching here means the row vanished mid-write — surface
+            // it as a 404 too.
+            StatusCode::NOT_FOUND,
+            serde_json::json!({"error": "recap not found"}),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            serde_json::json!({"error": format!("recap update: {e}")}),
+        ),
+    }
+}
+
+pub(crate) fn do_v1_recap_delete(
+    store: &SessionStore,
+    id: &str,
+) -> (StatusCode, serde_json::Value) {
+    match store.delete_recap(id) {
+        Ok(()) => (StatusCode::NO_CONTENT, serde_json::json!({})),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            serde_json::json!({"error": format!("recap delete: {e}")}),
+        ),
+    }
+}
+
+// ── HTTP handlers (thin shells around the helpers) ─────────────────────────
+
+fn open_default_or_500(
+) -> Result<SessionStore, (StatusCode, Json<serde_json::Value>)> {
+    SessionStore::open_default().map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({
+                "error": format!("session store unavailable: {e}")
+            })),
+        )
+    })
+}
+
+async fn v1_recap_post(
+    Json(req): Json<RecapRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match open_default_or_500() {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let (status, body) = do_v1_recap_post(&store, &req);
+    (status, Json(body))
+}
+
+async fn v1_recap_get(
+    Path(id): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match open_default_or_500() {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let (status, body) = do_v1_recap_get(&store, &id);
+    (status, Json(body))
+}
+
+async fn v1_recap_list(
+    Query(q): Query<RecapListQuery>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match open_default_or_500() {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let (status, body) = do_v1_recap_list(&store, &q);
+    (status, Json(body))
+}
+
+async fn v1_recap_patch(
+    Path(id): Path<String>,
+    Json(patch): Json<RecapPatch>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match open_default_or_500() {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let (status, body) = do_v1_recap_patch(&store, &id, &patch);
+    (status, Json(body))
+}
+
+async fn v1_recap_delete(
+    Path(id): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match open_default_or_500() {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let (status, body) = do_v1_recap_delete(&store, &id);
+    (status, Json(body))
+}
+
 /// GET /v1/capabilities — Advertise agent framework capabilities.
 async fn v1_capabilities() -> impl IntoResponse {
     Json(serde_json::json!({
@@ -1580,6 +1941,12 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/v1/browse/:id", get(v1_get_browse))
         .route("/v1/browse/:id/screenshots", get(v1_browse_screenshots))
         .route("/v1/browse/:id/intervene", post(v1_browse_intervene))
+        // Recap & Resume v1 — F1.2 (Session-only, heuristic-only)
+        .route("/v1/recap", post(v1_recap_post))
+        .route("/v1/recap", get(v1_recap_list))
+        .route("/v1/recap/:id", get(v1_recap_get))
+        .route("/v1/recap/:id", axum::routing::patch(v1_recap_patch))
+        .route("/v1/recap/:id", axum::routing::delete(v1_recap_delete))
         // Mobile Gateway — machine registration & dispatch (iOS/Android remote management)
         .route("/mobile/machines", get(mobile_list_machines))
         .route("/mobile/machines", post(mobile_register_machine))
@@ -5111,6 +5478,43 @@ mod tests {
                 .expect("embedding_backend field present and string");
             assert_eq!(backend, "turboquant");
         }
+
+        // ── F1.2: /v1/recap auth enforcement ───────────────────────────────
+
+        #[tokio::test]
+        async fn recap_post_without_auth_returns_401() {
+            let (app, _tmp) = test_app("test-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/v1/recap")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"kind":"session","subject_id":"x"}"#))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        #[tokio::test]
+        async fn recap_get_without_auth_returns_401() {
+            let (app, _tmp) = test_app("test-token");
+            let req = Request::builder()
+                .uri("/v1/recap/some-id")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        #[tokio::test]
+        async fn recap_list_without_auth_returns_401() {
+            let (app, _tmp) = test_app("test-token");
+            let req = Request::builder()
+                .uri("/v1/recap?kind=session&subject_id=x")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
     }
 
     // ── json_error unit tests (non-async) ────────────────────────────────
@@ -5304,4 +5708,326 @@ mod tests {
         let result: Result<MemoryIdRequest, _> = serde_json::from_str(r#"{}"#);
         assert!(result.is_err(), "MemoryIdRequest with no id should fail");
     }
+
+    // ── F1.2: /v1/recap helpers ──────────────────────────────────────────
+
+    /// Build a tempdir-scoped SessionStore with one session + one
+    /// user message. Mirrors the F1.1 fixture in session_store::tests
+    /// but kept local so this module doesn't reach across the
+    /// `#[cfg(test)]` boundary.
+    fn recap_route_fixture() -> (
+        crate::session_store::SessionStore,
+        String,
+        tempfile::TempDir,
+    ) {
+        let dir = tempfile::tempdir().unwrap();
+        let store = crate::session_store::SessionStore::open(
+            dir.path().join("sessions.db"),
+        )
+        .unwrap();
+        let sid = "F12-route-test".to_string();
+        store
+            .insert_session_with_parent(
+                &sid,
+                "Refactor the auth middleware",
+                "mock",
+                "test-model",
+                None,
+                0,
+            )
+            .unwrap();
+        store
+            .insert_message(&sid, "user", "Refactor the auth middleware")
+            .unwrap();
+        (store, sid, dir)
+    }
+
+    #[test]
+    fn recap_post_session_heuristic_returns_recap_shape() {
+        // Happy path: kind=session, generator=heuristic. The store
+        // round-trips the recap and the response payload mirrors the
+        // F1.1 wire shape — schema_version=1, kind=session, generator
+        // discriminator type=heuristic.
+        let (store, sid, _dir) = recap_route_fixture();
+        let req = RecapRequest {
+            kind: "session".to_string(),
+            subject_id: sid.clone(),
+            force: false,
+            generator: "heuristic".to_string(),
+            provider: None,
+            model: None,
+        };
+        let (status, body) = do_v1_recap_post(&store, &req);
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["kind"], "session");
+        assert_eq!(body["subject_id"], sid);
+        assert_eq!(body["schema_version"], 1);
+        assert_eq!(body["generator"]["type"], "heuristic");
+        assert!(body["headline"].as_str().is_some_and(|h| !h.is_empty()));
+    }
+
+    #[test]
+    fn recap_post_idempotent_when_force_false() {
+        // Two POSTs with force=false against the same session must
+        // return the same recap id — the F1.1 idempotency rule
+        // surfaces through the route layer unchanged.
+        let (store, sid, _dir) = recap_route_fixture();
+        let req = RecapRequest {
+            kind: "session".to_string(),
+            subject_id: sid,
+            force: false,
+            generator: "heuristic".to_string(),
+            provider: None,
+            model: None,
+        };
+        let (s1, b1) = do_v1_recap_post(&store, &req);
+        let (s2, b2) = do_v1_recap_post(&store, &req);
+        assert_eq!(s1, StatusCode::OK);
+        assert_eq!(s2, StatusCode::OK);
+        assert_eq!(
+            b1["id"], b2["id"],
+            "force=false must return the same recap; got: {b1:?} vs {b2:?}"
+        );
+    }
+
+    #[test]
+    fn recap_post_force_true_replaces_prior_recap() {
+        // force=true must drop the prior row (same subject + same
+        // last_message_id) and insert a fresh one with a new id.
+        // Without the route's pre-delete, the unique index would
+        // conflict and the second insert would 500.
+        let (store, sid, _dir) = recap_route_fixture();
+        let mut req = RecapRequest {
+            kind: "session".to_string(),
+            subject_id: sid,
+            force: false,
+            generator: "heuristic".to_string(),
+            provider: None,
+            model: None,
+        };
+        let (_, b1) = do_v1_recap_post(&store, &req);
+        req.force = true;
+        let (s2, b2) = do_v1_recap_post(&store, &req);
+        assert_eq!(s2, StatusCode::OK);
+        assert_ne!(
+            b1["id"], b2["id"],
+            "force=true must produce a fresh recap id; got: {b1:?} vs {b2:?}"
+        );
+    }
+
+    #[test]
+    fn recap_post_unknown_kind_returns_400() {
+        let (store, sid, _dir) = recap_route_fixture();
+        let req = RecapRequest {
+            kind: "diff_chain".to_string(),
+            subject_id: sid,
+            force: false,
+            generator: "heuristic".to_string(),
+            provider: None,
+            model: None,
+        };
+        let (status, body) = do_v1_recap_post(&store, &req);
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(
+            body["error"].as_str().is_some_and(|s| s.contains("diff_chain")),
+            "error must echo the unsupported kind back; got: {body}"
+        );
+    }
+
+    #[test]
+    fn recap_post_llm_generator_returns_501() {
+        // F1.2 deliberately rejects the LLM path with 501 so clients
+        // can probe support without guessing. The LLM slice (its own
+        // task) flips this to 200.
+        let (store, sid, _dir) = recap_route_fixture();
+        let req = RecapRequest {
+            kind: "session".to_string(),
+            subject_id: sid,
+            force: false,
+            generator: "llm".to_string(),
+            provider: Some("anthropic".to_string()),
+            model: Some("claude-opus-4-7".to_string()),
+        };
+        let (status, body) = do_v1_recap_post(&store, &req);
+        assert_eq!(status, StatusCode::NOT_IMPLEMENTED);
+        assert!(
+            body["error"].as_str().is_some_and(|s| s.contains("llm")),
+            "error must mention the unsupported generator; got: {body}"
+        );
+    }
+
+    #[test]
+    fn recap_post_missing_session_returns_404() {
+        let (store, _sid, _dir) = recap_route_fixture();
+        let req = RecapRequest {
+            kind: "session".to_string(),
+            subject_id: "does-not-exist".to_string(),
+            force: false,
+            generator: "heuristic".to_string(),
+            provider: None,
+            model: None,
+        };
+        let (status, body) = do_v1_recap_post(&store, &req);
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert!(body["error"].as_str().is_some_and(|s| s.contains("does-not-exist")));
+    }
+
+    #[test]
+    fn recap_get_returns_stored_recap() {
+        let (store, sid, _dir) = recap_route_fixture();
+        let req = RecapRequest {
+            kind: "session".to_string(),
+            subject_id: sid,
+            force: false,
+            generator: "heuristic".to_string(),
+            provider: None,
+            model: None,
+        };
+        let (_, body) = do_v1_recap_post(&store, &req);
+        let id = body["id"].as_str().unwrap().to_string();
+        let (status, fetched) = do_v1_recap_get(&store, &id);
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(fetched["id"], id);
+    }
+
+    #[test]
+    fn recap_get_missing_id_returns_404() {
+        let (store, _sid, _dir) = recap_route_fixture();
+        let (status, body) = do_v1_recap_get(&store, "no-such-recap");
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(body["error"], "recap not found");
+    }
+
+    #[test]
+    fn recap_list_requires_kind_and_subject_id() {
+        // Both are mandatory — F1.2 doesn't support cross-subject
+        // browse. Pinning the explicit-required contract so a future
+        // refactor doesn't silently broaden the surface.
+        let (store, sid, _dir) = recap_route_fixture();
+        let q_no_kind = RecapListQuery {
+            kind: None,
+            subject_id: Some(sid.clone()),
+            limit: 20,
+        };
+        let (s1, b1) = do_v1_recap_list(&store, &q_no_kind);
+        assert_eq!(s1, StatusCode::BAD_REQUEST);
+        assert!(b1["error"].as_str().is_some_and(|s| s.contains("kind")));
+
+        let q_no_sid = RecapListQuery {
+            kind: Some("session".to_string()),
+            subject_id: None,
+            limit: 20,
+        };
+        let (s2, b2) = do_v1_recap_list(&store, &q_no_sid);
+        assert_eq!(s2, StatusCode::BAD_REQUEST);
+        assert!(b2["error"].as_str().is_some_and(|s| s.contains("subject_id")));
+    }
+
+    #[test]
+    fn recap_list_returns_count_and_recaps_array() {
+        let (store, sid, _dir) = recap_route_fixture();
+        // Empty path first.
+        let q = RecapListQuery {
+            kind: Some("session".to_string()),
+            subject_id: Some(sid.clone()),
+            limit: 20,
+        };
+        let (s_empty, b_empty) = do_v1_recap_list(&store, &q);
+        assert_eq!(s_empty, StatusCode::OK);
+        assert_eq!(b_empty["count"], 0);
+        assert!(b_empty["recaps"].as_array().is_some_and(|a| a.is_empty()));
+
+        // Now one row.
+        let req = RecapRequest {
+            kind: "session".to_string(),
+            subject_id: sid.clone(),
+            force: false,
+            generator: "heuristic".to_string(),
+            provider: None,
+            model: None,
+        };
+        let _ = do_v1_recap_post(&store, &req);
+        let (s_one, b_one) = do_v1_recap_list(&store, &q);
+        assert_eq!(s_one, StatusCode::OK);
+        assert_eq!(b_one["count"], 1);
+        assert_eq!(b_one["recaps"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn recap_patch_marks_generator_user_edited() {
+        let (store, sid, _dir) = recap_route_fixture();
+        let req = RecapRequest {
+            kind: "session".to_string(),
+            subject_id: sid,
+            force: false,
+            generator: "heuristic".to_string(),
+            provider: None,
+            model: None,
+        };
+        let (_, posted) = do_v1_recap_post(&store, &req);
+        let id = posted["id"].as_str().unwrap().to_string();
+        let patch = RecapPatch {
+            headline: "Hand-written headline".to_string(),
+            bullets: vec!["I edited this".to_string()],
+            next_actions: vec!["Ship it".to_string()],
+        };
+        let (status, body) = do_v1_recap_patch(&store, &id, &patch);
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["headline"], "Hand-written headline");
+        assert_eq!(body["generator"]["type"], "user_edited");
+        assert_eq!(
+            body["bullets"].as_array().unwrap().len(),
+            1,
+            "bullets must reflect the patch; got: {}",
+            body["bullets"]
+        );
+    }
+
+    #[test]
+    fn recap_patch_missing_id_returns_404() {
+        let (store, _sid, _dir) = recap_route_fixture();
+        let patch = RecapPatch {
+            headline: "x".to_string(),
+            bullets: vec![],
+            next_actions: vec![],
+        };
+        let (status, body) =
+            do_v1_recap_patch(&store, "no-such-recap", &patch);
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        assert_eq!(body["error"], "recap not found");
+    }
+
+    #[test]
+    fn recap_delete_returns_204_and_removes_row() {
+        let (store, sid, _dir) = recap_route_fixture();
+        let req = RecapRequest {
+            kind: "session".to_string(),
+            subject_id: sid,
+            force: false,
+            generator: "heuristic".to_string(),
+            provider: None,
+            model: None,
+        };
+        let (_, body) = do_v1_recap_post(&store, &req);
+        let id = body["id"].as_str().unwrap().to_string();
+
+        let (status, _) = do_v1_recap_delete(&store, &id);
+        assert_eq!(status, StatusCode::NO_CONTENT);
+
+        let (after, _) = do_v1_recap_get(&store, &id);
+        assert_eq!(after, StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn recap_delete_idempotent_on_unknown_id() {
+        // Pin: delete on a non-existent id is 204, not 404. Clients
+        // shouldn't have to swallow a 404 just because they retried
+        // (the design "Forget a recap" semantics).
+        let (store, _sid, _dir) = recap_route_fixture();
+        let (status, _) = do_v1_recap_delete(&store, "never-existed");
+        assert_eq!(status, StatusCode::NO_CONTENT);
+    }
+
+    // F1.2 HTTP auth tests live in `http_integration` (where `test_app`
+    // is defined). Pure helper tests above don't need it.
 }

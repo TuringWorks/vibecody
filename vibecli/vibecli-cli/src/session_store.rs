@@ -495,6 +495,49 @@ impl SessionStore {
         Ok(())
     }
 
+    /// Apply a user edit to a recap. Updates headline + the JSON body
+    /// (bullets, next_actions, artifacts, resume_hint) and flips
+    /// `generator_kind` to `'user_edited'`. The original `id`,
+    /// `subject_id`, `last_message_id`, and `generated_at` are
+    /// preserved so the recap keeps its place in the timeline. Returns
+    /// the updated row, or `Ok(None)` if no row matched the id.
+    pub fn update_recap(
+        &self,
+        id: &str,
+        headline: &str,
+        bullets: &[String],
+        next_actions: &[String],
+        artifacts: &[crate::recap::RecapArtifact],
+        resume_hint: Option<&crate::recap::ResumeHint>,
+    ) -> Result<Option<crate::recap::Recap>> {
+        // Load the existing row first so we can re-emit the full
+        // shape after the update — and so we 404 cleanly when the
+        // caller hits a stale id.
+        let Some(_existing) = self.get_recap_by_id(id)? else {
+            return Ok(None);
+        };
+        let body = RecapBodyJson {
+            bullets: bullets.to_vec(),
+            next_actions: next_actions.to_vec(),
+            artifacts: artifacts.to_vec(),
+            resume_hint: resume_hint.cloned(),
+        };
+        let body_str = serde_json::to_string(&body)
+            .map_err(|e| anyhow::anyhow!("recap body serialize: {e}"))?;
+
+        self.conn.execute(
+            "UPDATE recaps
+             SET headline = ?1,
+                 body_json = ?2,
+                 generator_kind = 'user_edited',
+                 generator_provider = NULL,
+                 generator_model = NULL
+             WHERE id = ?3",
+            params![headline, body_str, id],
+        )?;
+        self.get_recap_by_id(id)
+    }
+
     /// Mark a session complete (or failed) with an optional summary.
     pub fn finish_session(
         &self,
