@@ -53,7 +53,7 @@ toml = "0.8"
 async-trait.workspace = true
 thiserror = { workspace = true }
 regex.workspace = true
-reqwest = { workspace = true, features = ["multipart"] }
+reqwest = { workspace = true, features = ["multipart", "blocking"] }
 bytes = "1"
 urlencoding = "2.1"
 axum.workspace = true
@@ -87,19 +87,19 @@ snow = "0.9"
 libc = "0.2"
 whisper-rs = { version = "0.13", optional = true }
 
-# macOS: always pull in the Metal-accelerated mistral.rs backend. Cargo
-# unifies feature flags across multiple declarations of the same dep, so
-# this is additive on top of the workspace `vibe-infer` line above. Pair
-# with the `mistralrs_enabled` cfg emitted by `build.rs`.
-[target.'cfg(target_os = "macos")'.dependencies]
-vibe-infer = { path = "../../vibeui/crates/vibe-infer", features = ["mistralrs", "mistralrs-metal"] }
-
 # OpenTelemetry (OTLP/HTTP export)
 opentelemetry = { version = "0.27", features = ["trace"] }
 opentelemetry-otlp = { version = "0.27", features = ["http-proto", "reqwest-client"] }
 opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
 opentelemetry-semantic-conventions = "0.27"
 tracing-opentelemetry = "0.28"
+
+# macOS: always pull in the Metal-accelerated mistral.rs backend. Cargo
+# unifies feature flags across multiple declarations of the same dep, so
+# this is additive on top of the workspace `vibe-infer` line above. Pair
+# with the `mistralrs_enabled` cfg emitted by `build.rs`.
+[target.'cfg(target_os = "macos")'.dependencies]
+vibe-infer = { path = "../../vibeui/crates/vibe-infer", features = ["mistralrs", "mistralrs-metal"] }
 
 [dev-dependencies]
 tower.workspace = true

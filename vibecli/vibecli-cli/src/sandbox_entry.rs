@@ -75,7 +75,7 @@ pub fn run_in_sandbox(
     let cmd_os: std::ffi::OsString = cmd.into();
     let arg_owned: Vec<std::ffi::OsString> = args.iter().map(|a| (*a).into()).collect();
     let arg_refs: Vec<&std::ffi::OsStr> = arg_owned.iter().map(|s| s.as_os_str()).collect();
-    let mut child = sandbox
+    let child = sandbox
         .spawn(&cmd_os, &arg_refs)
         .map_err(|e| SandboxRunError::Spawn(e.to_string()))?;
     let output = child.wait_with_output()?;

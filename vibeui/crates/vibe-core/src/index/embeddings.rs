@@ -40,7 +40,7 @@ impl EmbeddingProvider {
     pub fn ollama(model: impl Into<String>) -> Self {
         Self::Ollama {
             model: model.into(),
-            api_url: "http://localhost:11434".to_string(),
+            api_url: "http://127.0.0.1:11434".to_string(),
         }
     }
 

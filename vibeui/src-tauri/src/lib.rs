@@ -74,7 +74,7 @@ pub fn run() {
                     provider_type: "ollama".to_string(),
                     api_key: ollama_conf.api_key,
                     model,
-                    api_url: ollama_conf.api_url.or_else(|| Some("http://localhost:11434".to_string())),
+                    api_url: ollama_conf.api_url.or_else(|| Some("http://127.0.0.1:11434".to_string())),
                     max_tokens: ollama_conf.max_tokens,
                     temperature: ollama_conf.temperature,
                     ..Default::default()
@@ -145,27 +145,77 @@ pub fn run() {
                 let app_handle2 = app.handle().clone();
                 let daemon_proc = app.state::<AppState>().daemon_process.clone();
                 tauri::async_runtime::spawn(async move {
+                    use tauri::Emitter;
                     // Give the main window time to render before we try to spawn.
                     tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                     // Skip if something is already listening on 7878.
                     let already_up = tokio::net::TcpStream::connect("127.0.0.1:7878").await.is_ok();
                     if already_up { return; }
-                    if let Some(binary) = crate::commands::find_vibecli_binary() {
-                        if let Ok(child) = tokio::process::Command::new(&binary)
-                            .args(["--serve", "--port", "7878"])
-                            .stdout(std::process::Stdio::null())
-                            .stderr(std::process::Stdio::null())
-                            .kill_on_drop(true)
-                            .spawn()
-                        {
-                            *daemon_proc.lock().await = Some(child);
-                            // Wait for it to come up, then notify the frontend.
-                            tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
-                            if tokio::net::TcpStream::connect("127.0.0.1:7878").await.is_ok() {
-                                use tauri::Emitter;
-                                let _ = app_handle2.emit("daemon:online", serde_json::json!({ "port": 7878, "auto": true }));
-                            }
+                    let Some(binary) = crate::commands::find_vibecli_binary() else {
+                        eprintln!("[daemon] vibecli binary not found — daemon will not auto-start");
+                        let _ = app_handle2.emit(
+                            "daemon:error",
+                            serde_json::json!({
+                                "stage": "find-binary",
+                                "message": "vibecli binary not found on PATH or in ~/.cargo/bin. \
+                                            Build with `cargo install --path vibecli/vibecli-cli` or set PATH.",
+                            }),
+                        );
+                        return;
+                    };
+                    let spawn_result = tokio::process::Command::new(&binary)
+                        .args(["--serve", "--port", "7878"])
+                        .stdout(std::process::Stdio::null())
+                        .stderr(std::process::Stdio::piped())
+                        .kill_on_drop(true)
+                        .spawn();
+                    let mut child = match spawn_result {
+                        Ok(c) => c,
+                        Err(e) => {
+                            eprintln!("[daemon] spawn failed for {}: {e}", binary.display());
+                            let _ = app_handle2.emit(
+                                "daemon:error",
+                                serde_json::json!({
+                                    "stage": "spawn",
+                                    "binary": binary.to_string_lossy(),
+                                    "message": e.to_string(),
+                                }),
+                            );
+                            return;
                         }
+                    };
+                    // Capture stderr so a crash-on-startup is visible in the
+                    // event stream instead of being swallowed.
+                    if let Some(stderr) = child.stderr.take() {
+                        let app_handle3 = app_handle2.clone();
+                        tauri::async_runtime::spawn(async move {
+                            use tokio::io::{AsyncBufReadExt, BufReader};
+                            let mut lines = BufReader::new(stderr).lines();
+                            while let Ok(Some(line)) = lines.next_line().await {
+                                eprintln!("[daemon] {line}");
+                                let _ = app_handle3.emit(
+                                    "daemon:stderr",
+                                    serde_json::json!({ "line": line }),
+                                );
+                            }
+                        });
+                    }
+                    *daemon_proc.lock().await = Some(child);
+                    // Wait for it to come up, then notify the frontend.
+                    tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
+                    if tokio::net::TcpStream::connect("127.0.0.1:7878").await.is_ok() {
+                        let _ = app_handle2.emit(
+                            "daemon:online",
+                            serde_json::json!({ "port": 7878, "auto": true }),
+                        );
+                    } else {
+                        let _ = app_handle2.emit(
+                            "daemon:error",
+                            serde_json::json!({
+                                "stage": "wait-for-listen",
+                                "message": "spawned vibecli but it did not start listening on 127.0.0.1:7878 within 2s",
+                            }),
+                        );
                     }
                 });
             }

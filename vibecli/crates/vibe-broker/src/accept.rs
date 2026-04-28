@@ -8,7 +8,9 @@
 //! (used to bind the broker into Tier-0 sandboxes on Linux/macOS).
 //! Both transports share the same handler — only the acceptor differs.
 
-use std::path::{Path, PathBuf};
+#[cfg(unix)]
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 

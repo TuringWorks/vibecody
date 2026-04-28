@@ -38,7 +38,7 @@ impl OllamaProxyBackend {
 
     /// Default — `http://localhost:11434`.
     pub fn local() -> Self {
-        Self::new("http://localhost:11434")
+        Self::new("http://127.0.0.1:11434")
     }
 
     /// Build the upstream URL for an Ollama API path.

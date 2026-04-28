@@ -74,7 +74,7 @@ impl OllamaProvider {
         let raw_url = config
             .api_url
             .clone()
-            .unwrap_or_else(|| "http://localhost:11434".to_string());
+            .unwrap_or_else(|| "http://127.0.0.1:11434".to_string());
         // Normalize: OLLAMA_HOST env var is often set without a scheme
         let base_url = if raw_url.starts_with("http://") || raw_url.starts_with("https://") {
             raw_url
@@ -145,7 +145,7 @@ impl OllamaProvider {
     ///
     /// Auth is sent only when `OLLAMA_API_KEY` is set.
     pub async fn list_models(base_url: Option<String>) -> Result<Vec<String>> {
-        let base_url = base_url.unwrap_or_else(|| "http://localhost:11434".to_string());
+        let base_url = base_url.unwrap_or_else(|| "http://127.0.0.1:11434".to_string());
         let api_key = std::env::var("OLLAMA_API_KEY").ok();
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(10))

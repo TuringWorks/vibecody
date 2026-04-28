@@ -1569,6 +1569,7 @@ async fn run_worker_subcommand() -> Result<()> {
 /// Returns a fully-populated `AgentContext`; the caller is responsible
 /// for any field overrides (open_files, flow_context, …) that depend
 /// on subprocess-only state.
+#[cfg(any(unix, test))]
 fn build_worker_agent_context(
     workspace_root: std::path::PathBuf,
     task: &str,
@@ -1670,6 +1671,7 @@ fn build_worker_agent_context(
 /// running agent. The helper is pure — it owns the JobsDb open + write
 /// in one call so unit tests can exercise both happy and failure
 /// paths against a tempdir.
+#[cfg(any(unix, test))]
 fn persist_to_scratchpad_best_effort(
     db_path: &std::path::Path,
     session_id: &str,
@@ -14374,7 +14376,7 @@ fn create_raw_provider(provider_name: &str, model: Option<String>, cfg: &Config)
             let api_url = {
                 let raw = cfg.ollama.as_ref().and_then(|c| c.api_url.clone())
                     .or_else(|| std::env::var("OLLAMA_HOST").ok())
-                    .unwrap_or_else(|| "http://localhost:11434".to_string());
+                    .unwrap_or_else(|| "http://127.0.0.1:11434".to_string());
                 // Normalize: OLLAMA_HOST is often set without a scheme (e.g. "127.0.0.1:11434")
                 if raw.starts_with("http://") || raw.starts_with("https://") {
                     raw
@@ -15113,14 +15115,14 @@ async fn run_doctor() -> Result<()> {
     let api_url = config.ollama.as_ref()
         .and_then(|o| o.api_url.clone())
         .or_else(|| std::env::var("OLLAMA_HOST").ok())
-        .unwrap_or_else(|| "http://localhost:11434".to_string());
+        .unwrap_or_else(|| "http://127.0.0.1:11434".to_string());
     // Extract host:port from URL
     let host_port = api_url
         .trim_start_matches("http://")
         .trim_start_matches("https://")
         .split('/')
         .next()
-        .unwrap_or("localhost:11434")
+        .unwrap_or("127.0.0.1:11434")
         .to_string();
     // Ensure port is present
     let host_port = if host_port.contains(':') {

@@ -71,7 +71,7 @@ fn create_raw_tui_provider(provider_name: &str, model: Option<String>) -> Result
         "ollama" => {
             let base_url = provider_config
                 .and_then(|c| c.api_url.clone())
-                .unwrap_or_else(|| "http://localhost:11434".to_string());
+                .unwrap_or_else(|| "http://127.0.0.1:11434".to_string());
             let model = model
                 .or_else(|| provider_config.and_then(|c| c.model.clone()))
                 .unwrap_or_else(|| "qwen3-coder:480b-cloud".to_string());

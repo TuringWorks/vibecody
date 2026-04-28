@@ -7,6 +7,8 @@
 //!
 //! See `docs/design/sandbox-tiers/01-native-tier.md`.
 
+#![allow(dead_code)] // capabilities/paths/BindAccessMode consumed by N3.2 wiring
+
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::Child;

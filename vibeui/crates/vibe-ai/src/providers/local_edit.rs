@@ -82,7 +82,7 @@ impl LocalEditProvider {
     /// * `model` — Ollama model name (e.g. `"deepseek-coder:6.7b"`, `"codellama:7b-code"`)
     /// * `api_url` — Base URL of the Ollama server; defaults to `http://localhost:11434`
     pub fn new(model: String, api_url: Option<String>) -> Self {
-        let api_url = api_url.unwrap_or_else(|| "http://localhost:11434".to_string());
+        let api_url = api_url.unwrap_or_else(|| "http://127.0.0.1:11434".to_string());
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(30))
             .connect_timeout(std::time::Duration::from_secs(10))

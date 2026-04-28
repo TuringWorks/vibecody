@@ -485,6 +485,8 @@ fn set_secure_permissions(path: &Path) {
         };
         let _ = std::fs::set_permissions(path, perms);
     }
+    #[cfg(not(unix))]
+    let _ = path;
 }
 
 // ─── Embedded Defaults ───────────────────────────────────────────────────────

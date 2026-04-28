@@ -4011,7 +4011,7 @@ pub async fn get_available_ai_providers(state: tauri::State<'_, AppState>) -> Re
                     provider_type: "ollama".to_string(),
                     api_key: None,
                     model: model.clone(),
-                    api_url: Some("http://localhost:11434".to_string()),
+                    api_url: Some("http://127.0.0.1:11434".to_string()),
                     max_tokens: None,
                     temperature: None,
                     ..Default::default()
@@ -9086,7 +9086,7 @@ pub async fn validate_api_key(provider: String, api_key: String, api_url: Option
         "ollama" => {
             let base = api_url
                 .filter(|u| !u.is_empty())
-                .unwrap_or_else(|| "http://localhost:11434".into());
+                .unwrap_or_else(|| "http://127.0.0.1:11434".into());
             let resp = client
                 .get(format!("{}/api/tags", base.trim_end_matches('/')))
                 .send()
@@ -22200,7 +22200,7 @@ pub async fn configure_local_edit_model(
     model: String,
     api_url: Option<String>,
 ) -> Result<String, String> {
-    let api_url = api_url.unwrap_or_else(|| "http://localhost:11434".to_string());
+    let api_url = api_url.unwrap_or_else(|| "http://127.0.0.1:11434".to_string());
 
     // Validate that Ollama is reachable at the given URL
     let client = reqwest::Client::builder()
@@ -44519,15 +44519,23 @@ pub(crate) fn find_vibecli_binary_with_home(home: Option<&str>) -> Option<std::p
         }
     }
 
-    // 2. ~/.cargo/bin (Rust installation default)
+    // 2. ~/.cargo/bin (Rust installation default). Windows needs the `.exe`
+    //    suffix or `Path::exists` returns false even when the binary is there.
     if let Some(h) = home {
-        let p = std::path::PathBuf::from(h).join(".cargo").join("bin").join("vibecli");
+        let bin_name = if cfg!(windows) { "vibecli.exe" } else { "vibecli" };
+        let p = std::path::PathBuf::from(h).join(".cargo").join("bin").join(bin_name);
         if p.exists() { return Some(p); }
     }
 
     // 3. Common system-wide prefixes
+    #[cfg(unix)]
     for prefix in &["/usr/local/bin/vibecli", "/opt/homebrew/bin/vibecli", "/usr/bin/vibecli"] {
         let p = std::path::PathBuf::from(prefix);
+        if p.exists() { return Some(p); }
+    }
+    #[cfg(windows)]
+    if let Some(h) = home {
+        let p = std::path::PathBuf::from(h).join("scoop").join("shims").join("vibecli.exe");
         if p.exists() { return Some(p); }
     }
 
