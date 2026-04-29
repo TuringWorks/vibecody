@@ -10,6 +10,7 @@ pub mod accept;
 pub mod audit;
 pub mod audit_summary;
 pub mod config;
+pub mod daemon;
 pub mod forward;
 pub mod imds;
 pub mod mitm;
@@ -30,6 +31,7 @@ pub use config::{
     AuditSection, AzureProfile, BrokerConfig, BrokerSection, ConfigError, GcpProfile,
     ImdsSection, ListenerKind, PolicySection, RefresherSection,
 };
+pub use daemon::{BrokerDaemon, DaemonError, DaemonHandle};
 pub use token_mint::{
     AzureClientCredentialsMinter, CachedMinter, GcpServiceAccountMinter, MintError, MintedToken,
     TokenMinter,
