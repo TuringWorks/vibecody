@@ -1785,6 +1785,36 @@ async fn v1_recap_delete(
     (status, Json(body))
 }
 
+// ── Recap & Resume — F1.3 /v1/resume routes ────────────────────────────────
+
+fn helper_outcome_to_response(
+    out: crate::resume::HelperOutcome,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let status = StatusCode::from_u16(out.status)
+        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+    (status, Json(out.body))
+}
+
+async fn v1_resume_post(
+    Json(req): Json<crate::resume::ResumeRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match open_default_or_500() {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let registry = crate::resume::global_registry();
+    let out = crate::resume::do_v1_resume_post(&store, registry, &req);
+    helper_outcome_to_response(out)
+}
+
+async fn v1_resume_get(
+    Path(handle): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let registry = crate::resume::global_registry();
+    let out = crate::resume::do_v1_resume_get(registry, &handle);
+    helper_outcome_to_response(out)
+}
+
 /// GET /v1/capabilities — Advertise agent framework capabilities.
 async fn v1_capabilities() -> impl IntoResponse {
     Json(serde_json::json!({
@@ -1947,6 +1977,9 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/v1/recap/:id", get(v1_recap_get))
         .route("/v1/recap/:id", axum::routing::patch(v1_recap_patch))
         .route("/v1/recap/:id", axum::routing::delete(v1_recap_delete))
+        // Recap & Resume v1 — F1.3 (resume handles)
+        .route("/v1/resume", post(v1_resume_post))
+        .route("/v1/resume/:handle", get(v1_resume_get))
         // Mobile Gateway — machine registration & dispatch (iOS/Android remote management)
         .route("/mobile/machines", get(mobile_list_machines))
         .route("/mobile/machines", post(mobile_register_machine))
@@ -5510,6 +5543,34 @@ mod tests {
             let (app, _tmp) = test_app("test-token");
             let req = Request::builder()
                 .uri("/v1/recap?kind=session&subject_id=x")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        // ── F1.3: /v1/resume auth enforcement ───────────────────────────
+
+        #[tokio::test]
+        async fn resume_post_without_auth_returns_401() {
+            let (app, _tmp) = test_app("test-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/v1/resume")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"from_subject_id":"x","kind":"session"}"#,
+                ))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        #[tokio::test]
+        async fn resume_get_without_auth_returns_401() {
+            let (app, _tmp) = test_app("test-token");
+            let req = Request::builder()
+                .uri("/v1/resume/some-handle")
                 .body(Body::empty())
                 .unwrap();
             let resp = app.oneshot(req).await.unwrap();

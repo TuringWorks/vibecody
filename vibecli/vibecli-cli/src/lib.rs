@@ -180,6 +180,9 @@ pub mod memory_projections;
 // Recap & Resume — Phase F1.1 foundation. Cross-cutting `Recap` shape
 // + Session-only heuristic generator. See docs/design/recap-resume/.
 pub mod recap;
+// Recap & Resume — Phase F1.3 resume surface (in-memory handle registry
+// + pure helpers consumed by the /v1/resume routes in serve.rs).
+pub mod resume;
 pub mod mem_benchmark;
 // FIT-GAP v11 — Phase 48: P3 Gaps (closed)
 pub mod token_dashboard;
@@ -358,6 +361,7 @@ pub mod rl_model_hub;
 pub mod rl_observe;
 pub mod rl_opti_os;
 pub mod rl_rlhf;
+pub mod rl_runs;
 pub mod rl_serve_os;
 pub mod rl_train_os;
 pub mod scheduler;

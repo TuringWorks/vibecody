@@ -2248,6 +2248,9 @@ mod compressed_hnsw;
 mod open_memory;
 // Recap & Resume — Phase F1.1 foundation (types + heuristic).
 mod recap;
+// Recap & Resume — Phase F1.3 resume routes (in-memory handle registry).
+#[allow(dead_code)]
+mod resume;
 #[allow(dead_code)]
 mod vulnerability_db;
 #[allow(dead_code)]
@@ -2551,6 +2554,7 @@ mod rl_serve_os;
 mod rl_rlhf;
 #[allow(dead_code)]
 mod rl_observe;
+mod rl_runs;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]
