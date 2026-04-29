@@ -193,4 +193,92 @@ describe('SettingsPanel', () => {
     });
   });
 
+  // ── Sessions section (F2.1) ───────────────────────────────────────────
+
+  describe('Sessions section', () => {
+    beforeEach(() => {
+      localStorage.clear();
+    });
+
+    it('shows the Sessions section button in the sidebar', () => {
+      render(<SettingsPanel />);
+      expect(screen.getByText('Sessions')).toBeInTheDocument();
+    });
+
+    it('renders four toggles when Sessions section is opened', () => {
+      render(<SettingsPanel />);
+      fireEvent.click(screen.getByText('Sessions'));
+      expect(screen.getByLabelText('Recap on tab close')).toBeInTheDocument();
+      expect(screen.getByLabelText('Recap on idle')).toBeInTheDocument();
+      expect(screen.getByLabelText('Generator: heuristic')).toBeInTheDocument();
+      expect(screen.getByLabelText('Generator: llm')).toBeInTheDocument();
+      expect(screen.getByLabelText('Auto-resume last session on startup')).toBeInTheDocument();
+    });
+
+    it('uses documented defaults when no localStorage entry exists', () => {
+      render(<SettingsPanel />);
+      fireEvent.click(screen.getByText('Sessions'));
+      expect(screen.getByLabelText('Recap on tab close')).toBeChecked();
+      expect(screen.getByLabelText('Recap on idle')).not.toBeChecked();
+      expect(screen.getByLabelText('Generator: heuristic')).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByLabelText('Generator: llm')).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByLabelText('Auto-resume last session on startup')).not.toBeChecked();
+    });
+
+    it('toggling "Recap on tab close" persists to localStorage', () => {
+      render(<SettingsPanel />);
+      fireEvent.click(screen.getByText('Sessions'));
+      const cb = screen.getByLabelText('Recap on tab close') as HTMLInputElement;
+      expect(cb.checked).toBe(true);
+      fireEvent.click(cb);
+      expect(cb.checked).toBe(false);
+      const stored = JSON.parse(localStorage.getItem('vibeui-sessions') || '{}');
+      expect(stored.recapOnTabClose).toBe(false);
+    });
+
+    it('selecting LLM generator persists to localStorage', () => {
+      render(<SettingsPanel />);
+      fireEvent.click(screen.getByText('Sessions'));
+      fireEvent.click(screen.getByLabelText('Generator: llm'));
+      const stored = JSON.parse(localStorage.getItem('vibeui-sessions') || '{}');
+      expect(stored.generator).toBe('llm');
+    });
+
+    it('idle-minutes input is disabled until "Recap on idle" is on', () => {
+      render(<SettingsPanel />);
+      fireEvent.click(screen.getByText('Sessions'));
+      const minutes = screen.getByLabelText('Idle minutes') as HTMLInputElement;
+      expect(minutes.disabled).toBe(true);
+      fireEvent.click(screen.getByLabelText('Recap on idle'));
+      expect(minutes.disabled).toBe(false);
+    });
+
+    it('hydrates initial state from localStorage', () => {
+      localStorage.setItem('vibeui-sessions', JSON.stringify({
+        recapOnTabClose: false,
+        recapOnIdle: true,
+        idleMinutes: 15,
+        generator: 'llm',
+        autoResumeLast: true,
+      }));
+      render(<SettingsPanel />);
+      fireEvent.click(screen.getByText('Sessions'));
+      expect(screen.getByLabelText('Recap on tab close')).not.toBeChecked();
+      expect(screen.getByLabelText('Recap on idle')).toBeChecked();
+      expect((screen.getByLabelText('Idle minutes') as HTMLInputElement).value).toBe('15');
+      expect(screen.getByLabelText('Generator: llm')).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByLabelText('Auto-resume last session on startup')).toBeChecked();
+    });
+
+    it('falls back to defaults when localStorage entry is corrupt', () => {
+      localStorage.setItem('vibeui-sessions', '{not json');
+      render(<SettingsPanel />);
+      fireEvent.click(screen.getByText('Sessions'));
+      // Defaults: tab-close on, idle off, heuristic, auto-resume off
+      expect(screen.getByLabelText('Recap on tab close')).toBeChecked();
+      expect(screen.getByLabelText('Recap on idle')).not.toBeChecked();
+      expect(screen.getByLabelText('Generator: heuristic')).toHaveAttribute('aria-pressed', 'true');
+    });
+  });
+
 });

@@ -21,7 +21,23 @@ import { THEMES, applyThemeById, type ThemeDef } from "../theme/themes";
 
 /* ── Types ──────────────────────────────────────────────────────────── */
 
-type SettingsSection = "profile" | "appearance" | "oauth" | "customizations" | "apikeys" | "integrations";
+type SettingsSection = "profile" | "appearance" | "oauth" | "customizations" | "apikeys" | "integrations" | "sessions";
+
+interface SessionsSettings {
+  recapOnTabClose: boolean;
+  recapOnIdle: boolean;
+  idleMinutes: number;
+  generator: "heuristic" | "llm";
+  autoResumeLast: boolean;
+}
+
+const SESSIONS_DEFAULTS: SessionsSettings = {
+  recapOnTabClose: true,
+  recapOnIdle: false,
+  idleMinutes: 30,
+  generator: "heuristic",
+  autoResumeLast: false,
+};
 
 interface UserProfile {
   displayName: string;
@@ -94,6 +110,7 @@ const STORAGE_KEYS = {
   density: "vibeui-density",
   oauth: "vibeui-oauth",
   customizations: "vibeui-customizations",
+  sessions: "vibeui-sessions",
 };
 
 /* ── Shared styles ─────────────────────────────────────────────────── */
@@ -1552,6 +1569,152 @@ function IntegrationsSection() {
   );
 }
 
+/* ── Sessions Section ──────────────────────────────────────────────── */
+//
+// F2.1 — recap & resume Settings surface. Toggles for when a session recap
+// is generated (tab close / idle), which generator is used, and whether
+// the daemon auto-resumes the last session on startup. All four values
+// persist to a single `vibeui-sessions` JSON blob in localStorage so a
+// future migration only has to read one key. Spec:
+// docs/design/recap-resume/01-session.md.
+
+function SessionsSection() {
+  const [settings, setSettings] = useState<SessionsSettings>(SESSIONS_DEFAULTS);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEYS.sessions);
+    if (!stored) return;
+    try {
+      const parsed = JSON.parse(stored) as Partial<SessionsSettings>;
+      setSettings({
+        recapOnTabClose: typeof parsed.recapOnTabClose === "boolean" ? parsed.recapOnTabClose : SESSIONS_DEFAULTS.recapOnTabClose,
+        recapOnIdle: typeof parsed.recapOnIdle === "boolean" ? parsed.recapOnIdle : SESSIONS_DEFAULTS.recapOnIdle,
+        idleMinutes: typeof parsed.idleMinutes === "number" && parsed.idleMinutes > 0 ? parsed.idleMinutes : SESSIONS_DEFAULTS.idleMinutes,
+        generator: parsed.generator === "llm" ? "llm" : "heuristic",
+        autoResumeLast: typeof parsed.autoResumeLast === "boolean" ? parsed.autoResumeLast : SESSIONS_DEFAULTS.autoResumeLast,
+      });
+    } catch {
+      // corrupt blob → keep defaults; do not throw at the user
+    }
+  }, []);
+
+  const update = useCallback(<K extends keyof SessionsSettings>(key: K, value: SessionsSettings[K]) => {
+    setSettings(prev => {
+      const next = { ...prev, [key]: value };
+      localStorage.setItem(STORAGE_KEYS.sessions, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const rowStyle: React.CSSProperties = {
+    display: "flex", justifyContent: "space-between", alignItems: "center",
+    padding: "12px 0", borderBottom: "1px solid var(--border-color)",
+  };
+  const labelStyle: React.CSSProperties = { fontSize: "var(--font-size-md)", color: "var(--text-primary)" };
+  const hintStyle: React.CSSProperties = { fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 2 };
+
+  return (
+    <div>
+      <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>Sessions</h3>
+      <p style={{ ...hintStyle, marginBottom: 16 }}>
+        Recap captures what each session accomplished so you can resume — or hand off — without re-reading the transcript.
+      </p>
+
+      {/* Recap on tab close */}
+      <div style={rowStyle}>
+        <div>
+          <div style={labelStyle}>Recap on tab close</div>
+          <div style={hintStyle}>Save a recap whenever you close a chat tab.</div>
+        </div>
+        <input
+          type="checkbox"
+          aria-label="Recap on tab close"
+          checked={settings.recapOnTabClose}
+          onChange={e => update("recapOnTabClose", e.target.checked)}
+          style={{ width: 18, height: 18, accentColor: "var(--accent-color)" }}
+        />
+      </div>
+
+      {/* Recap on idle */}
+      <div style={rowStyle}>
+        <div>
+          <div style={labelStyle}>Recap on idle</div>
+          <div style={hintStyle}>
+            After {settings.idleMinutes} min of inactivity, generate a recap in the background.
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <input
+            type="number"
+            min={1}
+            max={1440}
+            aria-label="Idle minutes"
+            value={settings.idleMinutes}
+            disabled={!settings.recapOnIdle}
+            onChange={e => {
+              const n = parseInt(e.target.value, 10);
+              if (Number.isFinite(n) && n > 0) update("idleMinutes", n);
+            }}
+            style={{
+              width: 64, padding: "4px 6px",
+              background: "var(--bg-secondary)", color: "var(--text-primary)",
+              border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm)",
+              opacity: settings.recapOnIdle ? 1 : 0.5,
+            }}
+          />
+          <input
+            type="checkbox"
+            aria-label="Recap on idle"
+            checked={settings.recapOnIdle}
+            onChange={e => update("recapOnIdle", e.target.checked)}
+            style={{ width: 18, height: 18, accentColor: "var(--accent-color)" }}
+          />
+        </div>
+      </div>
+
+      {/* Recap generator */}
+      <div style={rowStyle}>
+        <div>
+          <div style={labelStyle}>Recap generator</div>
+          <div style={hintStyle}>
+            Heuristic is instant and offline. LLM uses your currently selected provider.
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {(["heuristic", "llm"] as const).map(g => (
+            <button
+              key={g}
+              type="button"
+              aria-label={`Generator: ${g}`}
+              aria-pressed={settings.generator === g}
+              onClick={() => update("generator", g)}
+              className={`panel-tab ${settings.generator === g ? "active" : ""}`}
+              style={{ textTransform: "capitalize", minWidth: 96 }}
+            >
+              {g === "llm" ? "LLM" : "Heuristic"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Auto-resume last session */}
+      <div style={rowStyle}>
+        <div>
+          <div style={labelStyle}>Auto-resume last session on startup</div>
+          <div style={hintStyle}>Open the most recent session automatically when VibeUI launches.</div>
+        </div>
+        <input
+          type="checkbox"
+          aria-label="Auto-resume last session on startup"
+          checked={settings.autoResumeLast}
+          onChange={e => update("autoResumeLast", e.target.checked)}
+          style={{ width: 18, height: 18, accentColor: "var(--accent-color)" }}
+        />
+      </div>
+    </div>
+  );
+}
+
 /* ── Main Settings Panel ───────────────────────────────────────────── */
 
 const SECTIONS: { key: SettingsSection; label: string; icon: React.ReactNode }[] = [
@@ -1561,6 +1724,7 @@ const SECTIONS: { key: SettingsSection; label: string; icon: React.ReactNode }[]
   { key: "customizations", label: "Customizations", icon: <Save size={16} /> },
   { key: "apikeys", label: "API Keys", icon: <Key size={16} /> },
   { key: "integrations", label: "Integrations", icon: <Plug size={16} /> },
+  { key: "sessions", label: "Sessions", icon: <MessageSquare size={16} /> },
 ];
 
 export function SettingsPanel({ onClose }: { onClose?: () => void }) {
@@ -1598,6 +1762,7 @@ export function SettingsPanel({ onClose }: { onClose?: () => void }) {
         {section === "customizations" && <CustomizationsSection />}
         {section === "apikeys" && <ApiKeysSection />}
         {section === "integrations" && <IntegrationsSection />}
+        {section === "sessions" && <SessionsSection />}
       </div>
     </div>
   );
