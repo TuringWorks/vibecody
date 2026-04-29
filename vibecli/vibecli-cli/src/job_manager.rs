@@ -382,10 +382,86 @@ fn open_conn(path: &Path) -> Result<Connection, String> {
              PRIMARY KEY (session_id, key)
          );
          CREATE INDEX IF NOT EXISTS idx_job_scratchpad_sid_updated
-             ON job_scratchpad(session_id, updated_at DESC);",
+             ON job_scratchpad(session_id, updated_at DESC);
+
+         -- Recap & Resume — Phase J1.1. Job-kind recaps live on jobs.db
+         -- (matching the surrounding store's encryption posture). Headline
+         -- + body are encrypted because they frequently contain task
+         -- excerpts that are sensitive. Idempotency on
+         -- (subject_id, last_event_seq) — regenerating the same recap
+         -- with the same cursor returns the existing row unchanged.
+         CREATE TABLE IF NOT EXISTS recaps (
+             id                 TEXT PRIMARY KEY,
+             kind               TEXT NOT NULL DEFAULT 'job',
+             subject_id         TEXT NOT NULL,
+             last_event_seq     INTEGER,
+             workspace          TEXT,
+             generated_at       TEXT NOT NULL,
+             generator_kind     TEXT NOT NULL,
+             generator_provider TEXT,
+             generator_model    TEXT,
+             headline_enc       BLOB NOT NULL,
+             body_enc           BLOB NOT NULL,
+             token_input        INTEGER,
+             token_output       INTEGER,
+             cost_cents         INTEGER,
+             schema_version     INTEGER NOT NULL DEFAULT 1,
+             FOREIGN KEY (subject_id) REFERENCES jobs(session_id) ON DELETE CASCADE
+         );
+         CREATE INDEX IF NOT EXISTS idx_jobrecaps_subject ON recaps(subject_id);
+         CREATE UNIQUE INDEX IF NOT EXISTS uq_jobrecaps_subject_seq
+             ON recaps(subject_id, last_event_seq);",
     )
     .map_err(|e| e.to_string())?;
+
+    // Idempotent ALTER TABLE pattern for the resume-lineage columns.
+    // Errors with "duplicate column" code are swallowed; anything else
+    // surfaces. Mirrors the maybe_add_column helper in session_store.rs.
+    add_jobs_column_if_missing(&conn, "parent_job_id", "TEXT")?;
+    add_jobs_column_if_missing(&conn, "resumed_from_recap_id", "TEXT")?;
+    conn.execute_batch(
+        "CREATE INDEX IF NOT EXISTS idx_jobs_parent ON jobs(parent_job_id);",
+    )
+    .map_err(|e| e.to_string())?;
+
     Ok(conn)
+}
+
+fn add_jobs_column_if_missing(conn: &Connection, column: &str, ty: &str) -> Result<(), String> {
+    let sql = format!("ALTER TABLE jobs ADD COLUMN {column} {ty}");
+    match conn.execute(&sql, []) {
+        Ok(_) => Ok(()),
+        Err(rusqlite::Error::SqliteFailure(_, Some(msg)))
+            if msg.contains("duplicate column name") =>
+        {
+            Ok(())
+        }
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+/// JSON shape stored in the `recaps.body_enc` blob. Carries the parts of
+/// the cross-cutting `Recap` shape that aren't already split into
+/// dedicated columns. Headline + ids + cursor + generator metadata are
+/// columnar; bullets / next_actions / artifacts / resume_hint travel
+/// inside this JSON so the schema stays small.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct JobRecapBody {
+    bullets: Vec<String>,
+    next_actions: Vec<String>,
+    artifacts: Vec<crate::recap::RecapArtifact>,
+    resume_hint: Option<crate::recap::ResumeHint>,
+}
+
+impl From<&crate::recap::Recap> for JobRecapBody {
+    fn from(r: &crate::recap::Recap) -> Self {
+        JobRecapBody {
+            bullets: r.bullets.clone(),
+            next_actions: r.next_actions.clone(),
+            artifacts: r.artifacts.clone(),
+            resume_hint: r.resume_hint.clone(),
+        }
+    }
 }
 
 fn now_ms() -> u64 {
@@ -417,6 +493,229 @@ impl JobsDb {
         Ok(Self {
             conn: open_conn(path)?,
             key,
+        })
+    }
+
+    // ── Recap & Resume — Phase J1.1 ─────────────────────────────────────
+    //
+    // Persistence for job-kind recaps. Headline + body are encrypted to
+    // match the surrounding store's posture. Idempotency on
+    // (subject_id, last_event_seq): an upsert with the same cursor
+    // returns the existing row id unchanged.
+
+    /// Insert a job recap. If a recap already exists for the same
+    /// `(subject_id, last_event_seq)` pair, returns its existing id
+    /// (idempotent — no rewrite). The `recap.kind` must be `Job`.
+    pub fn insert_job_recap(
+        &self,
+        recap: &crate::recap::Recap,
+    ) -> Result<String, String> {
+        if !matches!(recap.kind, crate::recap::RecapKind::Job) {
+            return Err(format!(
+                "insert_job_recap expects RecapKind::Job, got {:?}",
+                recap.kind
+            ));
+        }
+        // Last-event-seq lives in the `last_message_id` slot on the
+        // shared Recap shape — for jobs the cursor is the event seq,
+        // for sessions it's the message id (matching the storage tables).
+        let seq = recap.last_message_id;
+
+        if let Some(existing) = self.get_job_recap_by_subject_and_seq(&recap.subject_id, seq)? {
+            return Ok(existing.id);
+        }
+
+        let body = serde_json::to_string(&JobRecapBody::from(recap))
+            .map_err(|e| format!("serialize recap body: {e}"))?;
+        let headline_blob = encrypt(&self.key, &recap.headline)?;
+        let body_blob = encrypt(&self.key, &body)?;
+        let (gen_kind, gen_provider, gen_model) = match &recap.generator {
+            crate::recap::RecapGenerator::Heuristic => ("heuristic".to_string(), None, None),
+            crate::recap::RecapGenerator::Llm { provider, model } => (
+                "llm".to_string(),
+                Some(provider.clone()),
+                Some(model.clone()),
+            ),
+            crate::recap::RecapGenerator::UserEdited => ("user_edited".to_string(), None, None),
+        };
+        let workspace = recap
+            .workspace
+            .as_ref()
+            .map(|p| p.to_string_lossy().into_owned());
+        let token_in = recap.token_usage.as_ref().map(|t| t.input as i64);
+        let token_out = recap.token_usage.as_ref().map(|t| t.output as i64);
+        self.conn
+            .execute(
+                "INSERT INTO recaps (id, kind, subject_id, last_event_seq, workspace,
+                                     generated_at, generator_kind, generator_provider,
+                                     generator_model, headline_enc, body_enc,
+                                     token_input, token_output, schema_version)
+                 VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)",
+                params![
+                    recap.id,
+                    "job",
+                    recap.subject_id,
+                    seq,
+                    workspace,
+                    recap.generated_at.to_rfc3339(),
+                    gen_kind,
+                    gen_provider,
+                    gen_model,
+                    headline_blob,
+                    body_blob,
+                    token_in,
+                    token_out,
+                    recap.schema_version as i64,
+                ],
+            )
+            .map_err(|e| e.to_string())?;
+        Ok(recap.id.clone())
+    }
+
+    pub fn get_job_recap_by_id(
+        &self,
+        id: &str,
+    ) -> Result<Option<crate::recap::Recap>, String> {
+        self.fetch_recap_one(
+            "SELECT id, subject_id, last_event_seq, workspace, generated_at,
+                    generator_kind, generator_provider, generator_model,
+                    headline_enc, body_enc, token_input, token_output, schema_version
+             FROM recaps WHERE id = ?1",
+            params![id],
+        )
+    }
+
+    pub fn get_job_recap_by_subject_and_seq(
+        &self,
+        subject_id: &str,
+        last_event_seq: Option<i64>,
+    ) -> Result<Option<crate::recap::Recap>, String> {
+        // SQLite NULL semantics: `WHERE last_event_seq = NULL` doesn't
+        // match. Use IS NULL when seq is None.
+        match last_event_seq {
+            Some(seq) => self.fetch_recap_one(
+                "SELECT id, subject_id, last_event_seq, workspace, generated_at,
+                        generator_kind, generator_provider, generator_model,
+                        headline_enc, body_enc, token_input, token_output, schema_version
+                 FROM recaps WHERE subject_id = ?1 AND last_event_seq = ?2",
+                params![subject_id, seq],
+            ),
+            None => self.fetch_recap_one(
+                "SELECT id, subject_id, last_event_seq, workspace, generated_at,
+                        generator_kind, generator_provider, generator_model,
+                        headline_enc, body_enc, token_input, token_output, schema_version
+                 FROM recaps WHERE subject_id = ?1 AND last_event_seq IS NULL",
+                params![subject_id],
+            ),
+        }
+    }
+
+    pub fn list_job_recaps_for_subject(
+        &self,
+        subject_id: &str,
+        limit: usize,
+    ) -> Result<Vec<crate::recap::Recap>, String> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT id, subject_id, last_event_seq, workspace, generated_at,
+                        generator_kind, generator_provider, generator_model,
+                        headline_enc, body_enc, token_input, token_output, schema_version
+                 FROM recaps
+                 WHERE subject_id = ?1
+                 ORDER BY generated_at DESC
+                 LIMIT ?2",
+            )
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map(params![subject_id, limit as i64], |row| Ok(self.row_to_recap(row)))
+            .map_err(|e| e.to_string())?;
+        let mut out = Vec::new();
+        for r in rows {
+            out.push(r.map_err(|e| e.to_string())?.map_err(|e| e)?);
+        }
+        Ok(out)
+    }
+
+    pub fn delete_job_recap(&self, id: &str) -> Result<(), String> {
+        self.conn
+            .execute("DELETE FROM recaps WHERE id = ?1", params![id])
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
+    fn fetch_recap_one(
+        &self,
+        sql: &str,
+        params: impl rusqlite::Params,
+    ) -> Result<Option<crate::recap::Recap>, String> {
+        let mut stmt = self.conn.prepare(sql).map_err(|e| e.to_string())?;
+        let row = stmt.query_row(params, |row| Ok(self.row_to_recap(row)));
+        match row {
+            Ok(Ok(r)) => Ok(Some(r)),
+            Ok(Err(e)) => Err(e),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e.to_string()),
+        }
+    }
+
+    fn row_to_recap(&self, row: &rusqlite::Row) -> Result<crate::recap::Recap, String> {
+        use chrono::{DateTime, Utc};
+        let id: String = row.get(0).map_err(|e| e.to_string())?;
+        let subject_id: String = row.get(1).map_err(|e| e.to_string())?;
+        let last_event_seq: Option<i64> = row.get(2).map_err(|e| e.to_string())?;
+        let workspace: Option<String> = row.get(3).map_err(|e| e.to_string())?;
+        let generated_at_str: String = row.get(4).map_err(|e| e.to_string())?;
+        let generator_kind: String = row.get(5).map_err(|e| e.to_string())?;
+        let generator_provider: Option<String> = row.get(6).map_err(|e| e.to_string())?;
+        let generator_model: Option<String> = row.get(7).map_err(|e| e.to_string())?;
+        let headline_enc: Vec<u8> = row.get(8).map_err(|e| e.to_string())?;
+        let body_enc: Vec<u8> = row.get(9).map_err(|e| e.to_string())?;
+        let token_input: Option<i64> = row.get(10).map_err(|e| e.to_string())?;
+        let token_output: Option<i64> = row.get(11).map_err(|e| e.to_string())?;
+        let schema_version: i64 = row.get(12).map_err(|e| e.to_string())?;
+
+        let headline = decrypt(&self.key, &headline_enc)?;
+        let body_json = decrypt(&self.key, &body_enc)?;
+        let body: JobRecapBody =
+            serde_json::from_str(&body_json).map_err(|e| format!("decode body: {e}"))?;
+
+        let generator = match generator_kind.as_str() {
+            "heuristic" => crate::recap::RecapGenerator::Heuristic,
+            "llm" => crate::recap::RecapGenerator::Llm {
+                provider: generator_provider.unwrap_or_default(),
+                model: generator_model.unwrap_or_default(),
+            },
+            "user_edited" => crate::recap::RecapGenerator::UserEdited,
+            other => return Err(format!("unknown generator_kind {other}")),
+        };
+        let generated_at = DateTime::parse_from_rfc3339(&generated_at_str)
+            .map_err(|e| format!("generated_at parse: {e}"))?
+            .with_timezone(&Utc);
+
+        let token_usage = match (token_input, token_output) {
+            (Some(i), Some(o)) => Some(crate::recap::RecapTokenUsage {
+                input: i as u32,
+                output: o as u32,
+            }),
+            _ => None,
+        };
+
+        Ok(crate::recap::Recap {
+            id,
+            kind: crate::recap::RecapKind::Job,
+            subject_id,
+            last_message_id: last_event_seq,
+            workspace: workspace.map(std::path::PathBuf::from),
+            generated_at,
+            generator,
+            headline,
+            bullets: body.bullets,
+            next_actions: body.next_actions,
+            artifacts: body.artifacts,
+            resume_hint: body.resume_hint,
+            token_usage,
+            schema_version: schema_version as u16,
         })
     }
 
@@ -2254,5 +2553,148 @@ mod tests {
             db.scratchpad_get("sid-B", "plan").unwrap().as_deref(),
             Some("beta-plan")
         );
+    }
+
+    // ── J1.1 job-recap CRUD ─────────────────────────────────────────────
+
+    fn fresh_db() -> (JobsDb, tempfile::TempDir) {
+        let tmp = tempdir().unwrap();
+        let db = JobsDb::open_with(&tmp.path().join("jobs.db"), [42u8; 32]).unwrap();
+        (db, tmp)
+    }
+
+    fn seed_job(db: &JobsDb, session_id: &str) {
+        let rec = JobRecord {
+            session_id: session_id.to_string(),
+            task: "test task".into(),
+            status: "complete".into(),
+            provider: "mock".into(),
+            started_at: 1,
+            finished_at: Some(2),
+            summary: Some("ok".into()),
+            priority: 5,
+            queued_at: 0,
+            webhook_url: None,
+            tags: vec![],
+            cancellation_reason: None,
+            steps_completed: 0,
+            tokens_used: 0,
+            cost_cents: 0,
+        };
+        db.insert(&rec, "/tmp/ws", "auto").unwrap();
+    }
+
+    fn job_recap(subject_id: &str, last_seq: Option<i64>, headline: &str) -> crate::recap::Recap {
+        crate::recap::Recap {
+            id: format!("recap-{}", uuid::Uuid::new_v4().simple()),
+            kind: crate::recap::RecapKind::Job,
+            subject_id: subject_id.to_string(),
+            last_message_id: last_seq,
+            workspace: None,
+            generated_at: chrono::Utc::now(),
+            generator: crate::recap::RecapGenerator::Heuristic,
+            headline: headline.to_string(),
+            bullets: vec!["did a thing".into()],
+            next_actions: vec![],
+            artifacts: vec![],
+            resume_hint: None,
+            token_usage: None,
+            schema_version: 1,
+        }
+    }
+
+    #[test]
+    fn job_recap_round_trips_via_jobsdb() {
+        let (db, _t) = fresh_db();
+        seed_job(&db, "job-A");
+        let recap = job_recap("job-A", Some(7), "Refactored the auth flow");
+        let id = db.insert_job_recap(&recap).unwrap();
+        let got = db.get_job_recap_by_id(&id).unwrap().expect("present");
+        assert_eq!(got.headline, "Refactored the auth flow");
+        assert_eq!(got.subject_id, "job-A");
+        assert_eq!(got.last_message_id, Some(7));
+        assert!(matches!(got.kind, crate::recap::RecapKind::Job));
+        assert!(matches!(got.generator, crate::recap::RecapGenerator::Heuristic));
+        assert_eq!(got.schema_version, 1);
+    }
+
+    #[test]
+    fn job_recap_insert_is_idempotent_on_subject_and_seq() {
+        let (db, _t) = fresh_db();
+        seed_job(&db, "job-A");
+        let first = job_recap("job-A", Some(7), "first headline");
+        let id1 = db.insert_job_recap(&first).unwrap();
+        // Re-insert with the SAME (subject_id, last_event_seq) but a
+        // different recap object — should return the original id, not
+        // overwrite.
+        let second = job_recap("job-A", Some(7), "second headline (ignored)");
+        let id2 = db.insert_job_recap(&second).unwrap();
+        assert_eq!(id1, id2);
+        let got = db.get_job_recap_by_id(&id1).unwrap().unwrap();
+        assert_eq!(got.headline, "first headline");
+    }
+
+    #[test]
+    fn job_recap_idempotency_treats_null_seq_distinctly() {
+        let (db, _t) = fresh_db();
+        seed_job(&db, "job-A");
+        let with_seq = job_recap("job-A", Some(7), "with seq");
+        let null_seq = job_recap("job-A", None, "null seq");
+        let id_with = db.insert_job_recap(&with_seq).unwrap();
+        let id_null = db.insert_job_recap(&null_seq).unwrap();
+        assert_ne!(id_with, id_null,
+            "null-seq recap should be a separate row");
+    }
+
+    #[test]
+    fn job_recap_list_returns_newest_first() {
+        let (db, _t) = fresh_db();
+        seed_job(&db, "job-A");
+        let mut a = job_recap("job-A", Some(1), "older");
+        a.generated_at = chrono::Utc::now() - chrono::Duration::seconds(60);
+        let mut b = job_recap("job-A", Some(2), "newer");
+        b.generated_at = chrono::Utc::now();
+        db.insert_job_recap(&a).unwrap();
+        db.insert_job_recap(&b).unwrap();
+        let list = db.list_job_recaps_for_subject("job-A", 10).unwrap();
+        assert_eq!(list.len(), 2);
+        assert_eq!(list[0].headline, "newer");
+        assert_eq!(list[1].headline, "older");
+    }
+
+    #[test]
+    fn job_recap_delete_removes_only_targeted_row() {
+        let (db, _t) = fresh_db();
+        seed_job(&db, "job-A");
+        let a = job_recap("job-A", Some(1), "keeper");
+        let b = job_recap("job-A", Some(2), "victim");
+        let id_a = db.insert_job_recap(&a).unwrap();
+        let id_b = db.insert_job_recap(&b).unwrap();
+        db.delete_job_recap(&id_b).unwrap();
+        assert!(db.get_job_recap_by_id(&id_a).unwrap().is_some());
+        assert!(db.get_job_recap_by_id(&id_b).unwrap().is_none());
+    }
+
+    #[test]
+    fn job_recap_rejects_session_kind() {
+        let (db, _t) = fresh_db();
+        seed_job(&db, "job-A");
+        let mut wrong = job_recap("job-A", Some(1), "x");
+        wrong.kind = crate::recap::RecapKind::Session;
+        let err = db.insert_job_recap(&wrong).unwrap_err();
+        assert!(err.contains("RecapKind::Job"), "got: {err}");
+    }
+
+    #[test]
+    fn job_recap_cascade_delete_removes_recaps_when_job_deleted() {
+        let (db, _t) = fresh_db();
+        seed_job(&db, "job-A");
+        let r = job_recap("job-A", Some(1), "doomed");
+        let id = db.insert_job_recap(&r).unwrap();
+        // Delete the parent job. With FK CASCADE, the recap row goes too.
+        db.conn
+            .execute("DELETE FROM jobs WHERE session_id = ?1", params!["job-A"])
+            .unwrap();
+        assert!(db.get_job_recap_by_id(&id).unwrap().is_none());
     }
 }
