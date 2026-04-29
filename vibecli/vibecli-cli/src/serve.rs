@@ -117,6 +117,9 @@ pub struct ServeState {
     /// handlers respond with 503 in that case so the rest of the daemon
     /// stays usable.
     pub inference_router: Option<Arc<crate::inference::Router>>,
+    /// RL-OS — per-workspace run/episode/metric/artifact store. Backed by the
+    /// same SQLite file as `WorkspaceStore` (slice 1: `docs/design/rl-os/01-persistence.md`).
+    pub rl_run_store: Arc<crate::rl_runs::RunStore>,
 }
 
 // ── Request / Response types ──────────────────────────────────────────────────
@@ -1885,6 +1888,182 @@ async fn v1_capabilities() -> impl IntoResponse {
     }))
 }
 
+// ── RL-OS: /v1/rl/runs ────────────────────────────────────────────────────────
+//
+// Slice 1 — see docs/design/rl-os/01-persistence.md. These handlers are thin
+// wrappers around `RunStore`: validate, call, map errors to HTTP. The
+// executor (slice 2) plugs in at `start_run`; until it ships, that handler
+// records a "no executor" failure on the run so the panel surfaces an
+// honest message instead of pretending to train.
+
+fn rl_err_to_http(e: crate::rl_runs::RunError) -> (StatusCode, Json<serde_json::Value>) {
+    use crate::rl_runs::RunError;
+    let status = match &e {
+        RunError::NotFound(_) => StatusCode::NOT_FOUND,
+        RunError::Invalid(_) => StatusCode::BAD_REQUEST,
+        RunError::IllegalTransition { .. } => StatusCode::CONFLICT,
+        RunError::DeleteWhileActive(_) => StatusCode::CONFLICT,
+        RunError::Storage(_) => StatusCode::INTERNAL_SERVER_ERROR,
+    };
+    json_error(status, e.to_string())
+}
+
+#[derive(Debug, Deserialize)]
+struct RlRunListQuery {
+    kind: Option<String>,
+    status: Option<String>,
+    algorithm: Option<String>,
+    limit: Option<i64>,
+}
+
+async fn rl_create_run(
+    State(state): State<ServeState>,
+    Json(req): Json<crate::rl_runs::CreateRunRequest>,
+) -> Result<Json<crate::rl_runs::Run>, (StatusCode, Json<serde_json::Value>)> {
+    state
+        .rl_run_store
+        .create(req)
+        .map(Json)
+        .map_err(rl_err_to_http)
+}
+
+async fn rl_list_runs_h(
+    State(state): State<ServeState>,
+    Query(q): Query<RlRunListQuery>,
+) -> Result<Json<Vec<crate::rl_runs::Run>>, (StatusCode, Json<serde_json::Value>)> {
+    let filter = crate::rl_runs::RunFilter {
+        kind: q.kind.as_deref().and_then(crate::rl_runs::RunKind::from_str),
+        status: q
+            .status
+            .as_deref()
+            .and_then(crate::rl_runs::RunStatus::from_str),
+        algorithm: q.algorithm,
+        limit: q.limit,
+    };
+    state
+        .rl_run_store
+        .list(filter)
+        .map(Json)
+        .map_err(rl_err_to_http)
+}
+
+async fn rl_get_run(
+    Path(id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<Json<crate::rl_runs::Run>, (StatusCode, Json<serde_json::Value>)> {
+    match state.rl_run_store.get(&id).map_err(rl_err_to_http)? {
+        Some(run) => Ok(Json(run)),
+        None => Err(json_error(
+            StatusCode::NOT_FOUND,
+            format!("run '{}' not found", sanitize_user_input(&id)),
+        )),
+    }
+}
+
+async fn rl_start_run(
+    Path(id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<Json<crate::rl_runs::Run>, (StatusCode, Json<serde_json::Value>)> {
+    // Slice 1: no executor. Record a clear failure so the dashboard doesn't
+    // pretend to train. Slice 2 replaces this with the real Python sidecar.
+    state
+        .rl_run_store
+        .no_executor_fail(&id)
+        .map(Json)
+        .map_err(rl_err_to_http)
+}
+
+async fn rl_stop_run(
+    Path(id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<Json<crate::rl_runs::Run>, (StatusCode, Json<serde_json::Value>)> {
+    use crate::rl_runs::RunStatus;
+    // Best-effort: Running → Stopping → Stopped. If the run isn't in a
+    // stoppable state, surface the IllegalTransition as a 409.
+    let store = state.rl_run_store.clone();
+    let stopping = store
+        .transition(&id, RunStatus::Stopping, None)
+        .map_err(rl_err_to_http)?;
+    if stopping.status == RunStatus::Stopping {
+        store
+            .transition(&id, RunStatus::Stopped, None)
+            .map(Json)
+            .map_err(rl_err_to_http)
+    } else {
+        Ok(Json(stopping))
+    }
+}
+
+async fn rl_cancel_run(
+    Path(id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<Json<crate::rl_runs::Run>, (StatusCode, Json<serde_json::Value>)> {
+    state
+        .rl_run_store
+        .transition(&id, crate::rl_runs::RunStatus::Cancelled, None)
+        .map(Json)
+        .map_err(rl_err_to_http)
+}
+
+async fn rl_delete_run(
+    Path(id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<StatusCode, (StatusCode, Json<serde_json::Value>)> {
+    state
+        .rl_run_store
+        .delete(&id)
+        .map(|_| StatusCode::NO_CONTENT)
+        .map_err(rl_err_to_http)
+}
+
+#[derive(Debug, Deserialize)]
+struct SinceTickQuery {
+    since: Option<i64>,
+    limit: Option<i64>,
+}
+
+async fn rl_get_metrics(
+    Path(id): Path<String>,
+    Query(q): Query<SinceTickQuery>,
+    State(state): State<ServeState>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let since = q.since.unwrap_or(0);
+    let metrics = state
+        .rl_run_store
+        .list_metrics(&id, since)
+        .map_err(rl_err_to_http)?;
+    Ok(Json(serde_json::json!({
+        "run_id": id,
+        "since": since,
+        "metrics": metrics,
+    })))
+}
+
+async fn rl_get_episodes(
+    Path(id): Path<String>,
+    Query(q): Query<SinceTickQuery>,
+    State(state): State<ServeState>,
+) -> Result<Json<Vec<crate::rl_runs::EpisodeRow>>, (StatusCode, Json<serde_json::Value>)> {
+    let since = q.since.unwrap_or(0);
+    let limit = q.limit.unwrap_or(500);
+    state
+        .rl_run_store
+        .list_episodes(&id, since, limit)
+        .map(Json)
+        .map_err(rl_err_to_http)
+}
+
+async fn rl_get_artifacts(
+    Path(id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<Json<Vec<crate::rl_runs::Artifact>>, (StatusCode, Json<serde_json::Value>)> {
+    state
+        .rl_run_store
+        .list_artifacts(&id)
+        .map(Json)
+        .map_err(rl_err_to_http)
+}
+
 // ── Server startup ────────────────────────────────────────────────────────────
 
 /// Build the full axum router with all middleware, CORS, auth, and routes.
@@ -1971,6 +2150,18 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/v1/browse/:id", get(v1_get_browse))
         .route("/v1/browse/:id/screenshots", get(v1_browse_screenshots))
         .route("/v1/browse/:id/intervene", post(v1_browse_intervene))
+        // RL-OS v1 — slice 1 (persistence + run lifecycle)
+        // See docs/design/rl-os/01-persistence.md
+        .route("/v1/rl/runs", post(rl_create_run))
+        .route("/v1/rl/runs", get(rl_list_runs_h))
+        .route("/v1/rl/runs/:id", get(rl_get_run))
+        .route("/v1/rl/runs/:id", axum::routing::delete(rl_delete_run))
+        .route("/v1/rl/runs/:id/start", post(rl_start_run))
+        .route("/v1/rl/runs/:id/stop", post(rl_stop_run))
+        .route("/v1/rl/runs/:id/cancel", post(rl_cancel_run))
+        .route("/v1/rl/runs/:id/metrics", get(rl_get_metrics))
+        .route("/v1/rl/runs/:id/episodes", get(rl_get_episodes))
+        .route("/v1/rl/runs/:id/artifacts", get(rl_get_artifacts))
         // Recap & Resume v1 — F1.2 (Session-only, heuristic-only)
         .route("/v1/recap", post(v1_recap_post))
         .route("/v1/recap", get(v1_recap_list))
@@ -2173,6 +2364,14 @@ pub async fn serve(
     let public_url_cache: Arc<std::sync::Mutex<Option<String>>> =
         Arc::new(std::sync::Mutex::new(None));
 
+    // RL-OS slice 1 — open the per-workspace run store. Same SQLite file as
+    // WorkspaceStore (`<workspace>/.vibecli/workspace.db`), separate connection.
+    // See docs/design/rl-os/01-persistence.md.
+    let rl_run_store = Arc::new(
+        crate::rl_runs::RunStore::open(&workspace_root)
+            .map_err(|e| anyhow::anyhow!("rl run store: {e}"))?,
+    );
+
     let state = ServeState {
         provider,
         approval,
@@ -2186,6 +2385,7 @@ pub async fn serve(
         started_at: std::time::Instant::now(),
         public_url_cache: Arc::clone(&public_url_cache),
         inference_router: Some(Arc::new(crate::inference::Router::from_env())),
+        rl_run_store,
     };
 
     // Background task: detect or start an ngrok / Tailscale Funnel tunnel and
@@ -4529,6 +4729,9 @@ mod tests {
                 started_at: std::time::Instant::now(),
                 public_url_cache: Arc::new(std::sync::Mutex::new(None)),
                 inference_router: None,
+                rl_run_store: Arc::new(
+                    crate::rl_runs::RunStore::open_with(&tmp_dir.path().join("rl.db")).unwrap(),
+                ),
             };
             (build_router(state, 7878), tmp_dir)
         }
@@ -4825,6 +5028,9 @@ mod tests {
                 inference_router: Some(Arc::new(crate::inference::Router::new(
                     crate::inference::backend::BackendKind::Ollama,
                 ))),
+                rl_run_store: Arc::new(
+                    crate::rl_runs::RunStore::open_with(&tmp_dir.path().join("rl.db")).unwrap(),
+                ),
             };
             (build_router(state, 7878), tmp_dir)
         }

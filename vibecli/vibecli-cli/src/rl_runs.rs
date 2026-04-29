@@ -216,6 +216,8 @@ pub struct EpisodeRow {
     pub duration_ms: i64,
 }
 
+/// Slice 2 (executor) constructs these as it writes checkpoints to disk.
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ArtifactRecord {
     pub kind: String, // 'checkpoint' | 'final' | 'onnx' | 'replay_buffer' | 'model_card'
@@ -415,6 +417,8 @@ pub const SIDECAR_VERSION_PLACEHOLDER: &str = "0.0.0-no-executor";
 /// either store at first open) lets multiple connections coexist.
 pub struct RunStore {
     conn: Mutex<Connection>,
+    /// Slice 2 reads this when materializing the artifact tree.
+    #[allow(dead_code)]
     workspace_path: PathBuf,
 }
 
@@ -428,6 +432,7 @@ impl RunStore {
     }
 
     /// Test-friendly: open against an arbitrary db path.
+    #[allow(dead_code)]
     pub fn open_with(db_path: &Path) -> Result<Self, RunError> {
         let workspace = db_path
             .parent()
@@ -449,6 +454,7 @@ impl RunStore {
         })
     }
 
+    #[allow(dead_code)]
     pub fn workspace_path(&self) -> &Path {
         &self.workspace_path
     }
@@ -628,6 +634,7 @@ impl RunStore {
 
     // ── Metrics + Episodes ────────────────────────────────────────────────────
 
+    #[allow(dead_code)] // Slice 2 executor calls this; tests already cover it.
     pub fn append_metrics(&self, run_id: &str, batch: &[MetricTick]) -> Result<(), RunError> {
         if batch.is_empty() {
             return Ok(());

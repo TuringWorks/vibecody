@@ -152,57 +152,110 @@ const stepBarItem = (active: boolean, done: boolean): React.CSSProperties => ({
 
 // ── Component ────────────────────────────────────────────────────────────
 
-export function RLTrainingDashboard(_props: { workspacePath?: string | null; provider?: string }) {
+export function RLTrainingDashboard(props: { workspacePath?: string | null; provider?: string }) {
+  const workspacePath = props.workspacePath ?? null;
   const [mode, setMode] = useState<"list" | "setup" | "monitor">("list");
   const [runs, setRuns] = useState<TrainingRun[]>([]);
+  const [runsState, setRunsState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+  const [runsError, setRunsError] = useState<string | null>(null);
   const [_selectedRun, setSelectedRun] = useState<string | null>(null);
   const [metrics, setMetrics] = useState<TrainingMetrics | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [metricsState, setMetricsState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+  const [metricsError, setMetricsError] = useState<string | null>(null);
+  const [activeRunStatus, setActiveRunStatus] = useState<string | null>(null);
+  const [activeRunErrorMessage, setActiveRunErrorMessage] = useState<string | null>(null);
   const [config, setConfig] = useState<TrainRunConfig>({ ...DEFAULT_CONFIG });
   const [step, setStep] = useState(0);
   const [launching, setLaunching] = useState(false);
+  const [launchError, setLaunchError] = useState<string | null>(null);
   const [envList, setEnvList] = useState<string[]>([]);
 
   const upd = (partial: Partial<TrainRunConfig>) => setConfig(c => ({ ...c, ...partial }));
 
   const fetchRuns = useCallback(async () => {
-    try { setRuns(await invoke<TrainingRun[]>("rl_list_training_runs")); } catch { /* backend not wired yet */ }
-  }, []);
+    if (!workspacePath) {
+      setRunsState("error");
+      setRunsError("Open a workspace before viewing RL training runs.");
+      setRuns([]);
+      return;
+    }
+    setRunsState("loading");
+    setRunsError(null);
+    try {
+      const list = await invoke<TrainingRun[]>("rl_list_training_runs", { workspacePath });
+      setRuns(list);
+      setRunsState("loaded");
+    } catch (e) {
+      setRunsError(String(e));
+      setRunsState("error");
+    }
+  }, [workspacePath]);
 
   const fetchEnvs = useCallback(async () => {
     try {
       const res = await invoke<{ name: string }[]>("rl_list_environments");
       setEnvList(res.map(e => e.name));
-    } catch { /* fallback */ }
+    } catch { /* SLICE_3_MOCK still in-process */ }
   }, []);
 
   useEffect(() => { fetchRuns(); fetchEnvs(); }, [fetchRuns, fetchEnvs]);
 
   const fetchMetrics = useCallback(async (runId: string) => {
-    setLoading(true);
-    try { setMetrics(await invoke<TrainingMetrics>("rl_get_training_metrics", { runId })); setSelectedRun(runId); } catch (e) { console.error(e); }
-    setLoading(false);
-  }, []);
+    if (!workspacePath) {
+      setMetricsError("Open a workspace before viewing run metrics.");
+      setMetricsState("error");
+      return;
+    }
+    setMetricsState("loading");
+    setMetricsError(null);
+    try {
+      const m = await invoke<TrainingMetrics & { status?: string; errorMessage?: string | null }>(
+        "rl_get_training_metrics",
+        { workspacePath, runId },
+      );
+      setMetrics(m);
+      setActiveRunStatus(m.status ?? null);
+      setActiveRunErrorMessage(m.errorMessage ?? null);
+      setSelectedRun(runId);
+      setMetricsState("loaded");
+    } catch (e) {
+      setMetricsError(String(e));
+      setMetricsState("error");
+    }
+  }, [workspacePath]);
 
   const handleAction = useCallback(async (action: "start" | "stop", runId: string) => {
+    if (!workspacePath) return;
     try {
-      if (action === "start") await invoke("rl_start_training", { runId });
-      else await invoke("rl_stop_training", { runId });
+      if (action === "start") await invoke("rl_start_training", { workspacePath, runId });
+      else await invoke("rl_stop_training", { workspacePath, runId });
       fetchRuns();
-    } catch (e) { console.error(e); }
-  }, [fetchRuns]);
+    } catch (e) {
+      // Surface the daemon's error string to the user — slice 1's start
+      // handler returns a "no executor wired" message on purpose.
+      console.error(e);
+      setRunsError(String(e));
+    }
+  }, [fetchRuns, workspacePath]);
 
   const handleLaunch = useCallback(async () => {
+    if (!workspacePath) {
+      setLaunchError("Open a workspace before creating a training run.");
+      return;
+    }
     setLaunching(true);
+    setLaunchError(null);
     try {
-      await invoke("rl_create_training_run", { config: JSON.stringify(config) });
+      await invoke("rl_create_training_run", { workspacePath, config: JSON.stringify(config) });
       setMode("list");
       setConfig({ ...DEFAULT_CONFIG });
       setStep(0);
       fetchRuns();
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      setLaunchError(String(e));
+    }
     setLaunching(false);
-  }, [config, fetchRuns]);
+  }, [config, fetchRuns, workspacePath]);
 
   // ── Setup Wizard ─────────────────────────────────────────────────
 
@@ -541,55 +594,91 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
     <>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <h2 style={{ margin: 0, fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>Training Monitor</h2>
-        <button className="panel-btn panel-btn-secondary" onClick={() => { setMode("list"); setSelectedRun(null); setMetrics(null); }}>Back to Runs</button>
+        <button className="panel-btn panel-btn-secondary" onClick={() => { setMode("list"); setSelectedRun(null); setMetrics(null); setActiveRunStatus(null); setActiveRunErrorMessage(null); setMetricsState("idle"); setMetricsError(null); }}>Back to Runs</button>
       </div>
-      {loading && <div className="panel-loading">Loading metrics...</div>}
-      {metrics && !loading && (
+      {metricsState === "loading" && <div className="panel-loading">Loading metrics...</div>}
+      {metricsState === "error" && (
+        <div className="panel-card" style={{ borderColor: "var(--error-color)" }}>
+          <div className="panel-label" style={{ color: "var(--error-color)" }}>Failed to load metrics</div>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{metricsError}</div>
+        </div>
+      )}
+      {metricsState === "loaded" && metrics && (
         <>
-          <div className="panel-card">
-            <div className="panel-label">Reward Curve ({metrics.rewards.length} points)</div>
-            <div style={{ display: "flex", alignItems: "flex-end", gap: 1, height: 80 }}>
-              {metrics.rewards.slice(-100).map((v, i, a) => {
-                const max = Math.max(...a, 1);
-                const min = Math.min(...a, 0);
-                const range = max - min || 1;
-                return <div key={i} style={{ flex: 1, background: v >= 0 ? "var(--accent-blue)" : "#dc3545", height: `${((v - min) / range) * 100}%`, borderRadius: "2px 2px 0 0", minHeight: 1 }} />;
-              })}
+          {(activeRunStatus === "failed" || activeRunStatus === "cancelled") && activeRunErrorMessage && (
+            <div className="panel-card" style={{ borderColor: "var(--warning-color)", background: "var(--warning-bg)" }}>
+              <div className="panel-label" style={{ color: "var(--warning-color)" }}>
+                Run {activeRunStatus} — {activeRunErrorMessage.includes("slice 2") ? "no executor wired" : "see message"}
+              </div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-primary)" }}>{activeRunErrorMessage}</div>
             </div>
-          </div>
-          <div className="panel-card">
-            <div className="panel-label">Loss Curve</div>
-            <div style={{ display: "flex", alignItems: "flex-end", gap: 1, height: 60 }}>
-              {metrics.losses.slice(-80).map((v, i, a) => {
-                const max = Math.max(...a, 0.01);
-                return <div key={i} style={{ flex: 1, background: "var(--warning-color)", height: `${(v / max) * 100}%`, borderRadius: "2px 2px 0 0", minHeight: 1 }} />;
-              })}
+          )}
+          {metrics.rewards.length === 0 && metrics.losses.length === 0 && (
+            <div className="panel-card">
+              <div className="panel-label">No metrics yet</div>
+              <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>
+                {activeRunStatus === "created" || activeRunStatus === "queued"
+                  ? "Start the run to begin training."
+                  : activeRunStatus === "failed"
+                    ? "This run did not produce metrics. See the error above."
+                    : "No metrics persisted for this run."}
+              </div>
             </div>
-          </div>
-          <div className="panel-card">
-            <div className="panel-label">GPU Utilization</div>
-            <div style={{ display: "flex", gap: 4 }}>
-              {metrics.gpuUtil.map((g, i) => (
-                <div key={i} style={{ flex: 1, textAlign: "center" }}>
-                  <div style={{ height: 40, background: "var(--bg-tertiary)", borderRadius: "var(--radius-xs-plus)", position: "relative", overflow: "hidden" }}>
-                    <div style={{ position: "absolute", bottom: 0, width: "100%", height: `${g}%`, background: g > 80 ? "var(--success-color)" : "var(--warning-color)", borderRadius: "var(--radius-xs-plus)" }} />
-                  </div>
-                  <div className="panel-label" style={{ marginTop: 2 }}>GPU{i}: {g}%</div>
+          )}
+          {metrics.rewards.length > 0 && (
+            <>
+              <div className="panel-card">
+                <div className="panel-label">Reward Curve ({metrics.rewards.length} points)</div>
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 1, height: 80 }}>
+                  {metrics.rewards.slice(-100).map((v, i, a) => {
+                    const max = Math.max(...a, 1);
+                    const min = Math.min(...a, 0);
+                    const range = max - min || 1;
+                    return <div key={i} style={{ flex: 1, background: v >= 0 ? "var(--accent-blue)" : "#dc3545", height: `${((v - min) / range) * 100}%`, borderRadius: "2px 2px 0 0", minHeight: 1 }} />;
+                  })}
                 </div>
-              ))}
-            </div>
-          </div>
-          <div className="panel-card">
-            <div className="panel-label">Recent Episodes</div>
-            <table style={tableStyle}>
-              <thead><tr><th style={thStyle}>Episode</th><th style={thStyle}>Reward</th><th style={thStyle}>Length</th><th style={thStyle}>Loss</th></tr></thead>
-              <tbody>
-                {metrics.episodeStats.slice(-10).map(s => (
-                  <tr key={s.episode}><td style={tdStyle}>{s.episode}</td><td style={tdStyle}>{s.reward.toFixed(2)}</td><td style={tdStyle}>{s.length}</td><td style={tdStyle}>{s.loss.toFixed(4)}</td></tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+              {metrics.losses.length > 0 && (
+                <div className="panel-card">
+                  <div className="panel-label">Loss Curve</div>
+                  <div style={{ display: "flex", alignItems: "flex-end", gap: 1, height: 60 }}>
+                    {metrics.losses.slice(-80).map((v, i, a) => {
+                      const max = Math.max(...a, 0.01);
+                      return <div key={i} style={{ flex: 1, background: "var(--warning-color)", height: `${(v / max) * 100}%`, borderRadius: "2px 2px 0 0", minHeight: 1 }} />;
+                    })}
+                  </div>
+                </div>
+              )}
+              {metrics.gpuUtil.length > 0 && (
+                <div className="panel-card">
+                  <div className="panel-label">GPU Utilization</div>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {metrics.gpuUtil.map((g, i) => (
+                      <div key={i} style={{ flex: 1, textAlign: "center" }}>
+                        <div style={{ height: 40, background: "var(--bg-tertiary)", borderRadius: "var(--radius-xs-plus)", position: "relative", overflow: "hidden" }}>
+                          <div style={{ position: "absolute", bottom: 0, width: "100%", height: `${g}%`, background: g > 80 ? "var(--success-color)" : "var(--warning-color)", borderRadius: "var(--radius-xs-plus)" }} />
+                        </div>
+                        <div className="panel-label" style={{ marginTop: 2 }}>GPU{i}: {g}%</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {metrics.episodeStats.length > 0 && (
+                <div className="panel-card">
+                  <div className="panel-label">Recent Episodes</div>
+                  <table style={tableStyle}>
+                    <thead><tr><th style={thStyle}>Episode</th><th style={thStyle}>Reward</th><th style={thStyle}>Length</th><th style={thStyle}>Loss</th></tr></thead>
+                    <tbody>
+                      {metrics.episodeStats.slice(-10).map(s => (
+                        <tr key={s.episode}><td style={tdStyle}>{s.episode}</td><td style={tdStyle}>{s.reward.toFixed(2)}</td><td style={tdStyle}>{s.length}</td><td style={tdStyle}>{(typeof s.loss === "number" ? s.loss : 0).toFixed(4)}</td></tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          )}
         </>
       )}
     </>
@@ -607,32 +696,53 @@ export function RLTrainingDashboard(_props: { workspacePath?: string | null; pro
         </div>
       </div>
 
+      {runsState === "error" && (
+        <div className="panel-card" style={{ borderColor: "var(--error-color)", marginBottom: 8 }}>
+          <div className="panel-label" style={{ color: "var(--error-color)" }}>Failed to load runs</div>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{runsError}</div>
+        </div>
+      )}
+      {launchError && (
+        <div className="panel-card" style={{ borderColor: "var(--error-color)", marginBottom: 8 }}>
+          <div className="panel-label" style={{ color: "var(--error-color)" }}>Last launch failed</div>
+          <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>{launchError}</div>
+        </div>
+      )}
       <div className="panel-card">
         <div className="panel-label">Training Runs</div>
-        <table style={tableStyle}>
-          <thead><tr><th style={thStyle}>Name</th><th style={thStyle}>Algorithm</th><th style={thStyle}>Environment</th><th style={thStyle}>Status</th><th style={thStyle}>Episodes</th><th style={thStyle}>Reward</th><th style={thStyle}>Actions</th></tr></thead>
-          <tbody>
-            {runs.map(r => (
-              <tr key={r.id} style={{ cursor: "pointer" }} onClick={() => { fetchMetrics(r.id); setMode("monitor"); }}>
-                <td style={tdStyle}>{r.name}</td>
-                <td style={tdStyle}><span style={{ background: "var(--bg-tertiary)", padding: "2px 6px", borderRadius: 3, fontSize: "var(--font-size-sm)" }}>{r.algorithm}</span></td>
-                <td style={tdStyle}>{r.environment}</td>
-                <td style={tdStyle}><span style={{ color: statusColor(r.status), fontWeight: 600 }}>{r.status}</span></td>
-                <td style={tdStyle}>{r.episodes.toLocaleString()}</td>
-                <td style={tdStyle}>{r.currentReward.toFixed(2)}</td>
-                <td style={tdStyle}>
-                  {r.status === "running"
-                    ? <button className="panel-btn panel-btn-danger" onClick={e => { e.stopPropagation(); handleAction("stop", r.id); }}>Stop</button>
-                    : <button className="panel-btn panel-btn-primary" onClick={e => { e.stopPropagation(); handleAction("start", r.id); }}>Start</button>}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {runs.length === 0 && (
+        {runsState === "loading" && <div className="panel-loading">Loading runs…</div>}
+        {runsState !== "loading" && (
+          <table style={tableStyle}>
+            <thead><tr><th style={thStyle}>Name</th><th style={thStyle}>Algorithm</th><th style={thStyle}>Environment</th><th style={thStyle}>Status</th><th style={thStyle}>Episodes</th><th style={thStyle}>Reward</th><th style={thStyle}>Actions</th></tr></thead>
+            <tbody>
+              {runs.map(r => (
+                <tr key={r.id} style={{ cursor: "pointer" }} onClick={() => { fetchMetrics(r.id); setMode("monitor"); }}>
+                  <td style={tdStyle}>{r.name}</td>
+                  <td style={tdStyle}><span style={{ background: "var(--bg-tertiary)", padding: "2px 6px", borderRadius: 3, fontSize: "var(--font-size-sm)" }}>{r.algorithm}</span></td>
+                  <td style={tdStyle}>{r.environment}</td>
+                  <td style={tdStyle}><span style={{ color: statusColor(r.status), fontWeight: 600 }}>{r.status}</span></td>
+                  <td style={tdStyle}>{r.episodes.toLocaleString()}</td>
+                  <td style={tdStyle}>{r.currentReward.toFixed(2)}</td>
+                  <td style={tdStyle}>
+                    {r.status === "running" || r.status === "stopping"
+                      ? <button className="panel-btn panel-btn-danger" onClick={e => { e.stopPropagation(); handleAction("stop", r.id); }}>Stop</button>
+                      : (r.status === "created" || r.status === "queued")
+                        ? <button className="panel-btn panel-btn-primary" onClick={e => { e.stopPropagation(); handleAction("start", r.id); }}>Start</button>
+                        : <button className="panel-btn panel-btn-secondary" disabled>{r.status}</button>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {runsState === "loaded" && runs.length === 0 && (
           <div style={{ textAlign: "center", padding: "24px 0" }}>
-            <div className="panel-empty" style={{ marginBottom: 8 }}>No training runs yet</div>
-            <button className="panel-btn panel-btn-primary" onClick={() => { setMode("setup"); setStep(0); setConfig({ ...DEFAULT_CONFIG }); }}>Create Your First Training Run</button>
+            <div className="panel-empty" style={{ marginBottom: 8 }}>
+              {workspacePath ? "No training runs yet" : "Open a workspace to view RL training runs"}
+            </div>
+            {workspacePath && (
+              <button className="panel-btn panel-btn-primary" onClick={() => { setMode("setup"); setStep(0); setConfig({ ...DEFAULT_CONFIG }); }}>Create Your First Training Run</button>
+            )}
           </div>
         )}
       </div>

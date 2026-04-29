@@ -15,8 +15,27 @@ export const RLOSComposite = createComposite(
     { id: "rlhf", label: "RLHF", importFn: () => import("../RLHFAlignmentDashboard"), exportName: "RLHFAlignmentDashboard" },
   ],
   {
+    // Slice 1 has shipped persistence + run lifecycle for the Training panel.
+    // The Training panel itself is no longer fully illustrative — runs are
+    // durable, but metrics are still empty because the executor (slice 2)
+    // hasn't shipped. Each slice in `docs/design/rl-os/` removes panels
+    // from this `covers` list as it productionizes them.
     banner: (
-      <SimulationModeBadge description="RL-OS panels show generated data while real training, evaluation, and deployment backends are still in progress. Numbers on these tabs are illustrative and do not reflect production runs." />
+      <SimulationModeBadge
+        description="RL-OS productionization is in progress. Panels listed below still render illustrative data while their respective slices land. Runs you create are durable; metrics will populate once the executor (slice 2) ships."
+        covers={[
+          "Training (metrics — durable run list, but no executor yet)",
+          "Environments",
+          "Evaluation",
+          "Optimization",
+          "Deployment",
+          "Compare",
+          "Lineage",
+          "Multi-Agent",
+          "Rewards",
+          "RLHF",
+        ]}
+      />
     ),
   }
 );

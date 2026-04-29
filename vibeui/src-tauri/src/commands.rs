@@ -41686,122 +41686,211 @@ pub async fn sis_status(
 }
 
 // ── RL-OS: Reinforcement Learning Lifecycle Platform ──────────────────
+//
+// Slice 1 (persistence + run lifecycle) — see docs/design/rl-os/01-persistence.md.
+// These commands are thin wrappers around `vibecli_cli::rl_runs::RunStore`.
+// The store opens its own SQLite connection against
+// `<workspace>/.vibecli/workspace.db` (the same file `WorkspaceStore` uses).
+//
+// Slice 2 plugs in the real Python sidecar executor at the start path; for now
+// `start` records a "no executor wired up" failure on the run so the dashboard
+// never pretends to train on slice 1 alone.
+//
+// 15 of the 20 RL-OS commands below this section are still illustrative and
+// marked `// SLICE_N_MOCK:` so we can grep the remaining mocks during the
+// productionization.
 
 use std::sync::Mutex as StdMutex;
 
-fn rl_runs() -> &'static StdMutex<Vec<serde_json::Value>> {
-    static RUNS: std::sync::OnceLock<StdMutex<Vec<serde_json::Value>>> = std::sync::OnceLock::new();
-    RUNS.get_or_init(|| StdMutex::new(Vec::new()))
+fn require_workspace(workspace_path: &str) -> Result<std::path::PathBuf, String> {
+    let trimmed = workspace_path.trim();
+    if trimmed.is_empty() {
+        return Err("workspace_path is required — open a workspace before launching a run".into());
+    }
+    Ok(std::path::PathBuf::from(trimmed))
 }
-fn rl_counter() -> &'static StdMutex<u64> {
-    static CTR: std::sync::OnceLock<StdMutex<u64>> = std::sync::OnceLock::new();
-    CTR.get_or_init(|| StdMutex::new(0))
+
+fn open_run_store(
+    workspace_path: &str,
+) -> Result<vibecli_cli::rl_runs::RunStore, String> {
+    let ws = require_workspace(workspace_path)?;
+    vibecli_cli::rl_runs::RunStore::open(&ws).map_err(|e| e.to_string())
+}
+
+/// Wire shape used by `RLTrainingDashboard.tsx`. Kept stable so the panel
+/// doesn't have to reshape the response. Maps from `vibecli_cli::rl_runs::Run`.
+fn run_to_wire(run: &vibecli_cli::rl_runs::Run) -> serde_json::Value {
+    serde_json::json!({
+        "id": run.run_id,
+        "name": run.name,
+        "status": match run.status {
+            vibecli_cli::rl_runs::RunStatus::Created => "created",
+            vibecli_cli::rl_runs::RunStatus::Queued => "queued",
+            vibecli_cli::rl_runs::RunStatus::Running => "running",
+            vibecli_cli::rl_runs::RunStatus::Stopping => "stopping",
+            vibecli_cli::rl_runs::RunStatus::Stopped => "stopped",
+            vibecli_cli::rl_runs::RunStatus::Cancelled => "cancelled",
+            vibecli_cli::rl_runs::RunStatus::Succeeded => "succeeded",
+            vibecli_cli::rl_runs::RunStatus::Failed => "failed",
+        },
+        "algorithm": run.algorithm,
+        "environment": run.environment_id,
+        // Frontend expects unix seconds (legacy mock used `as_secs()`).
+        "startedAt": run.started_at.unwrap_or(run.created_at) / 1000,
+        // Slice 1 has no episode count yet (slice 2 wires real episodes).
+        // Surface elapsed_steps so the dashboard can show progress, but keep
+        // `episodes` for back-compat with existing chart components.
+        "episodes": 0,
+        "elapsedSteps": run.elapsed_steps,
+        "totalTimesteps": run.total_timesteps,
+        "currentReward": run.last_reward_mean.unwrap_or(0.0),
+        "errorMessage": run.error_message,
+    })
 }
 
 #[tauri::command]
-pub async fn rl_create_training_run(config: String) -> Result<serde_json::Value, String> {
+pub async fn rl_create_training_run(
+    workspace_path: String,
+    config: String,
+) -> Result<serde_json::Value, String> {
+    use vibecli_cli::rl_runs::{CreateRunRequest, RunKind};
+
     let parsed: serde_json::Value = serde_json::from_str(&config)
         .map_err(|e| format!("Invalid config JSON: {}", e))?;
 
-    let mut counter = rl_counter().lock().map_err(|e| e.to_string())?;
-    *counter += 1;
-    let run_id = format!("run-{}", *counter);
-
-    let algo = parsed.get("algorithmId").and_then(|v| v.as_str()).unwrap_or("PPO");
-    let env_name = parsed.get("environmentName").and_then(|v| v.as_str()).unwrap_or("unknown");
-    let run_name = parsed.get("runName").and_then(|v| v.as_str()).unwrap_or("");
-    let name = if run_name.is_empty() {
-        format!("{}-{}-{}", algo.to_lowercase(), env_name, run_id)
+    let algo = parsed
+        .get("algorithmId")
+        .and_then(|v| v.as_str())
+        .unwrap_or("PPO")
+        .to_string();
+    let env_name = parsed
+        .get("environmentName")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown")
+        .to_string();
+    let run_name_input = parsed
+        .get("runName")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let total_timesteps = parsed
+        .get("totalTimesteps")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(1_000_000);
+    let seed = parsed
+        .get("seed")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(42);
+    let environment_id = if env_name.contains(':') {
+        env_name.clone()
     } else {
-        run_name.to_string()
+        // Slice 3 will introduce a proper env registry; for now stamp a
+        // best-effort env_id so runs are queryable by environment.
+        format!("custom:{}", env_name)
     };
-    let total_timesteps = parsed.get("totalTimesteps").and_then(|v| v.as_u64()).unwrap_or(1_000_000);
+    let name = if run_name_input.trim().is_empty() {
+        format!(
+            "{}-{}-{}",
+            algo.to_lowercase(),
+            env_name,
+            chrono::Utc::now().format("%Y%m%d-%H%M%S")
+        )
+    } else {
+        run_name_input
+    };
+    let config_yaml = serde_yaml::to_string(&parsed).map_err(|e| e.to_string())?;
 
-    let run = serde_json::json!({
-        "id": run_id,
-        "name": name,
-        "status": "running",
-        "algorithm": algo,
-        "environment": env_name,
-        "startedAt": std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs(),
-        "episodes": 0,
-        "currentReward": 0.0,
-        "totalTimesteps": total_timesteps,
-        "config": parsed,
-    });
+    let req = CreateRunRequest {
+        name,
+        kind: RunKind::Train,
+        algorithm: algo,
+        environment_id,
+        parent_run_id: None,
+        config_yaml,
+        seed,
+        total_timesteps,
+        workspace_path: workspace_path.clone(),
+        sidecar_version: None,
+    };
 
-    let mut runs = rl_runs().lock().map_err(|e| e.to_string())?;
-    runs.push(run.clone());
-
-    Ok(run)
+    let store = open_run_store(&workspace_path)?;
+    let run = store.create(req).map_err(|e| e.to_string())?;
+    Ok(run_to_wire(&run))
 }
 
 #[tauri::command]
-pub async fn rl_list_training_runs() -> Result<Vec<serde_json::Value>, String> {
-    let runs = rl_runs().lock().map_err(|e| e.to_string())?;
-    // Return simplified view for the list
-    Ok(runs.iter().map(|r| {
-        serde_json::json!({
-            "id": r["id"],
-            "name": r["name"],
-            "status": r["status"],
-            "algorithm": r["algorithm"],
-            "environment": r["environment"],
-            "startedAt": r["startedAt"],
-            "episodes": r["episodes"],
-            "currentReward": r["currentReward"],
-        })
-    }).collect())
+pub async fn rl_list_training_runs(
+    workspace_path: String,
+) -> Result<Vec<serde_json::Value>, String> {
+    use vibecli_cli::rl_runs::{RunFilter, RunKind};
+    let store = open_run_store(&workspace_path)?;
+    let filter = RunFilter {
+        kind: Some(RunKind::Train),
+        ..RunFilter::default()
+    };
+    let runs = store.list(filter).map_err(|e| e.to_string())?;
+    Ok(runs.iter().map(run_to_wire).collect())
 }
 
 #[tauri::command]
-pub async fn rl_get_training_metrics(run_id: String) -> Result<serde_json::Value, String> {
-    let runs = rl_runs().lock().map_err(|e| e.to_string())?;
-    let run = runs.iter().find(|r| r["id"].as_str() == Some(&run_id))
+pub async fn rl_get_training_metrics(
+    workspace_path: String,
+    run_id: String,
+) -> Result<serde_json::Value, String> {
+    let store = open_run_store(&workspace_path)?;
+    let run = store
+        .get(&run_id)
+        .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("Run {} not found", run_id))?;
 
-    let total = run["totalTimesteps"].as_u64().unwrap_or(1_000_000);
-    let num_episodes = std::cmp::min((total / 1000) as usize, 200);
+    // Slice 1 has no executor → no real metrics. Read whatever's persisted
+    // (likely empty) and return arrays of the same shape the panel already
+    // consumes. Slice 2 will populate these with real CleanRL training output.
+    let metrics = store.list_metrics(&run_id, 0).map_err(|e| e.to_string())?;
+    let episodes = store
+        .list_episodes(&run_id, 0, 5_000)
+        .map_err(|e| e.to_string())?;
 
-    // Generate simulated training metrics based on run config
-    let algo = run["algorithm"].as_str().unwrap_or("PPO");
-    let base_reward: f64 = match algo {
-        "PPO" | "A2C" => 50.0,
-        "SAC" | "TD3" => 80.0,
-        "DQN" => 30.0,
-        _ => 40.0,
-    };
-
-    let rewards: Vec<f64> = (0..num_episodes).map(|i| {
-        let progress = i as f64 / num_episodes as f64;
-        let noise = ((i * 7 + 3) % 20) as f64 / 10.0 - 1.0;
-        base_reward * progress + noise * (1.0 - progress * 0.5)
-    }).collect();
-
-    let losses: Vec<f64> = (0..num_episodes).map(|i| {
-        let progress = i as f64 / num_episodes as f64;
-        let noise = ((i * 13 + 5) % 15) as f64 / 100.0;
-        (1.0 - progress * 0.7).max(0.05) + noise
-    }).collect();
-
-    let gpu_util: Vec<f64> = (0..4).map(|g| {
-        70.0 + (g * 7 % 25) as f64
-    }).collect();
-
-    let episode_stats: Vec<serde_json::Value> = rewards.iter().enumerate().map(|(i, &r)| {
-        serde_json::json!({
-            "episode": i + 1,
-            "reward": r,
-            "length": 100 + (i * 3) % 200,
-            "loss": losses.get(i).copied().unwrap_or(0.1),
+    let rewards: Vec<f64> = episodes.iter().map(|e| e.reward_sum).collect();
+    let losses: Vec<f64> = metrics
+        .iter()
+        .filter_map(|t| t.payload.get("policy_loss").and_then(|v| v.as_f64()))
+        .collect();
+    let gpu_util: Vec<f64> = metrics
+        .iter()
+        .rev()
+        .find_map(|t| {
+            t.payload
+                .get("gpu_util")
+                .and_then(|v| v.as_array())
+                .map(|arr| arr.iter().filter_map(|x| x.as_f64()).collect())
         })
-    }).collect();
+        .unwrap_or_default();
+    let episode_stats: Vec<serde_json::Value> = episodes
+        .iter()
+        .map(|e| {
+            serde_json::json!({
+                "episode": e.episode_idx,
+                "reward": e.reward_sum,
+                "length": e.length,
+                "loss": serde_json::Value::Null,
+            })
+        })
+        .collect();
 
     Ok(serde_json::json!({
         "runId": run_id,
+        "status": match run.status {
+            vibecli_cli::rl_runs::RunStatus::Created => "created",
+            vibecli_cli::rl_runs::RunStatus::Queued => "queued",
+            vibecli_cli::rl_runs::RunStatus::Running => "running",
+            vibecli_cli::rl_runs::RunStatus::Stopping => "stopping",
+            vibecli_cli::rl_runs::RunStatus::Stopped => "stopped",
+            vibecli_cli::rl_runs::RunStatus::Cancelled => "cancelled",
+            vibecli_cli::rl_runs::RunStatus::Succeeded => "succeeded",
+            vibecli_cli::rl_runs::RunStatus::Failed => "failed",
+        },
+        "errorMessage": run.error_message,
         "rewards": rewards,
         "losses": losses,
         "gpuUtil": gpu_util,
@@ -41810,22 +41899,56 @@ pub async fn rl_get_training_metrics(run_id: String) -> Result<serde_json::Value
 }
 
 #[tauri::command]
-pub async fn rl_start_training(run_id: String) -> Result<(), String> {
-    let mut runs = rl_runs().lock().map_err(|e| e.to_string())?;
-    if let Some(run) = runs.iter_mut().find(|r| r["id"].as_str() == Some(&run_id)) {
-        run["status"] = serde_json::json!("running");
-    }
-    Ok(())
+pub async fn rl_start_training(
+    workspace_path: String,
+    run_id: String,
+) -> Result<serde_json::Value, String> {
+    let store = open_run_store(&workspace_path)?;
+    // Slice 1 has no executor. Record a clear failure on the run so the
+    // dashboard surfaces the honest status. Slice 2 replaces this with the
+    // Python sidecar.
+    let run = store.no_executor_fail(&run_id).map_err(|e| e.to_string())?;
+    Ok(run_to_wire(&run))
 }
 
 #[tauri::command]
-pub async fn rl_stop_training(run_id: String) -> Result<(), String> {
-    let mut runs = rl_runs().lock().map_err(|e| e.to_string())?;
-    if let Some(run) = runs.iter_mut().find(|r| r["id"].as_str() == Some(&run_id)) {
-        run["status"] = serde_json::json!("stopped");
-    }
-    Ok(())
+pub async fn rl_stop_training(
+    workspace_path: String,
+    run_id: String,
+) -> Result<serde_json::Value, String> {
+    use vibecli_cli::rl_runs::RunStatus;
+    let store = open_run_store(&workspace_path)?;
+    // Best-effort stop: Running → Stopping → Stopped. If the run isn't in a
+    // stoppable state we surface the IllegalTransition as a string error so
+    // the dashboard can show it.
+    let stopping = store
+        .transition(&run_id, RunStatus::Stopping, None)
+        .map_err(|e| e.to_string())?;
+    let final_run = if stopping.status == RunStatus::Stopping {
+        store
+            .transition(&run_id, RunStatus::Stopped, None)
+            .map_err(|e| e.to_string())?
+    } else {
+        stopping
+    };
+    Ok(run_to_wire(&final_run))
 }
+
+// ── RL-OS: Mock-data section ──────────────────────────────────────────────────
+//
+// The 15 commands below this header still serve illustrative data while their
+// respective slices are unfinished. Each is prefixed with a `// SLICE_N_MOCK:`
+// sentinel comment indicating which slice ships the real implementation:
+//
+//   SLICE_3_MOCK — environments (Gymnasium probe + custom envs)
+//   SLICE_4_MOCK — eval suites + comparison
+//   SLICE_5_MOCK — policy registry + lineage + reward decomposition (env-supplied)
+//   SLICE_6_MOCK — deployments + serving health
+//   SLICE_7_MOCK — optimization + multi-agent metrics + RLHF alignment
+//
+// To audit remaining mocks: `grep -n "SLICE_._MOCK:" commands.rs`.
+// `RLOSComposite.tsx` reads this same coverage list via the SimulationModeBadge
+// `covers` prop so the disclaimer banner shrinks panel-by-panel as slices ship.
 
 // ── RL-OS: Environments ──
 
@@ -41859,12 +41982,14 @@ fn rl_envs() -> &'static StdMutex<Vec<serde_json::Value>> {
     ]))
 }
 
+// SLICE_3_MOCK: Gymnasium / PettingZoo registry probe replaces this in slice 3.
 #[tauri::command]
 pub async fn rl_list_environments() -> Result<Vec<serde_json::Value>, String> {
     let envs = rl_envs().lock().map_err(|e| e.to_string())?;
     Ok(envs.clone())
 }
 
+// SLICE_3_MOCK: see slice 3 — env registry get/spec.
 #[tauri::command]
 pub async fn rl_get_environment(name: String) -> Result<serde_json::Value, String> {
     let envs = rl_envs().lock().map_err(|e| e.to_string())?;
@@ -41873,6 +41998,7 @@ pub async fn rl_get_environment(name: String) -> Result<serde_json::Value, Strin
         .ok_or_else(|| format!("Environment {} not found", name))
 }
 
+// SLICE_3_MOCK: see slice 3 — registers a custom Python env in the workspace.
 #[tauri::command]
 pub async fn rl_deploy_environment(config: String) -> Result<serde_json::Value, String> {
     let parsed: serde_json::Value = serde_json::from_str(&config)
@@ -41884,6 +42010,7 @@ pub async fn rl_deploy_environment(config: String) -> Result<serde_json::Value, 
 
 // ── RL-OS: Model Registry ──
 
+// SLICE_5_MOCK: Policy registry comes online in slice 5 (model hub + lineage).
 #[tauri::command]
 pub async fn rl_list_policies() -> Result<Vec<serde_json::Value>, String> {
     let runs = rl_runs().lock().map_err(|e| e.to_string())?;
@@ -41898,6 +42025,7 @@ pub async fn rl_list_policies() -> Result<Vec<serde_json::Value>, String> {
         .collect())
 }
 
+// SLICE_4_MOCK: Real paired-bootstrap comparison ships in slice 4.
 #[tauri::command]
 pub async fn rl_compare_policies(policy_a: String, policy_b: String) -> Result<serde_json::Value, String> {
     Ok(serde_json::json!({
@@ -41914,6 +42042,7 @@ pub async fn rl_compare_policies(policy_a: String, policy_b: String) -> Result<s
 
 // ── RL-OS: Evaluation ──
 
+// SLICE_4_MOCK: Real eval-suite registry comes online in slice 4.
 #[tauri::command]
 pub async fn rl_list_eval_suites() -> Result<Vec<serde_json::Value>, String> {
     Ok(vec![
@@ -41922,6 +42051,7 @@ pub async fn rl_list_eval_suites() -> Result<Vec<serde_json::Value>, String> {
     ])
 }
 
+// SLICE_4_MOCK: Real eval results + OPE estimators ship in slice 4.
 #[tauri::command]
 pub async fn rl_get_eval_results(suite_name: String) -> Result<serde_json::Value, String> {
     Ok(serde_json::json!({
@@ -41942,6 +42072,7 @@ pub async fn rl_get_eval_results(suite_name: String) -> Result<serde_json::Value
 
 // ── RL-OS: Optimization ──
 
+// SLICE_7_MOCK: Distill / quantize / prune pipelines ship in slice 7a.
 #[tauri::command]
 pub async fn rl_get_optimization_report() -> Result<serde_json::Value, String> {
     Ok(serde_json::json!({
@@ -41954,6 +42085,7 @@ pub async fn rl_get_optimization_report() -> Result<serde_json::Value, String> {
     }))
 }
 
+// SLICE_7_MOCK: Routes to slice-7a distill / quantize / prune executor.
 #[tauri::command]
 pub async fn rl_run_optimization(config: String) -> Result<serde_json::Value, String> {
     Ok(serde_json::json!({ "status": "started", "config": config }))
@@ -41961,11 +42093,13 @@ pub async fn rl_run_optimization(config: String) -> Result<serde_json::Value, St
 
 // ── RL-OS: Deployment ──
 
+// SLICE_6_MOCK: Real deployment listing comes online with the serving runtime in slice 6.
 #[tauri::command]
 pub async fn rl_list_deployments() -> Result<Vec<serde_json::Value>, String> {
     Ok(vec![])
 }
 
+// SLICE_6_MOCK: Real health metrics (tdigest percentiles, live SSE) ship in slice 6.
 #[tauri::command]
 pub async fn rl_get_deployment_health(deployment_id: String) -> Result<serde_json::Value, String> {
     Ok(serde_json::json!({
@@ -41981,6 +42115,7 @@ pub async fn rl_get_deployment_health(deployment_id: String) -> Result<serde_jso
 
 // ── RL-OS: Observability ──
 
+// SLICE_5_MOCK: Real lineage DAG ships with the model hub in slice 5.
 #[tauri::command]
 pub async fn rl_get_model_lineage(policy_id: String) -> Result<serde_json::Value, String> {
     Ok(serde_json::json!({
@@ -41994,6 +42129,7 @@ pub async fn rl_get_model_lineage(policy_id: String) -> Result<serde_json::Value
     }))
 }
 
+// SLICE_7_MOCK: Real MARL metrics (coordination, role specialization) ship in slice 7b.
 #[tauri::command]
 pub async fn rl_get_multi_agent_metrics() -> Result<serde_json::Value, String> {
     Ok(serde_json::json!({
@@ -42013,6 +42149,7 @@ pub async fn rl_get_multi_agent_metrics() -> Result<serde_json::Value, String> {
     }))
 }
 
+// SLICE_5_MOCK: Real per-component decomposition ships in slice 5 (env-supplied) + slice 7c (RLHF reward heads).
 #[tauri::command]
 pub async fn rl_get_reward_decomposition(run_id: String) -> Result<serde_json::Value, String> {
     Ok(serde_json::json!({
@@ -42025,6 +42162,7 @@ pub async fn rl_get_reward_decomposition(run_id: String) -> Result<serde_json::V
     }))
 }
 
+// SLICE_7_MOCK: Real RLHF alignment scores (TRL preference loop) ship in slice 7c.
 #[tauri::command]
 pub async fn rl_get_alignment_metrics() -> Result<serde_json::Value, String> {
     Ok(serde_json::json!({
