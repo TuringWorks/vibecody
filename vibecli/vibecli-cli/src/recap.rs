@@ -470,6 +470,94 @@ fn looks_like_path(s: &str) -> bool {
     has_sep && has_dot && !s.starts_with("http")
 }
 
+// ── F1.4: REPL surface helpers ──────────────────────────────────────────────
+
+/// Render a recap for stdout — headline first, then bullets, then a
+/// "Next:" block if `next_actions` is non-empty. Pure, deterministic;
+/// the REPL command and any future end-of-agent auto-print site share
+/// this so the user sees the same shape everywhere.
+///
+/// No ANSI / colors here — that's the REPL frontend's responsibility,
+/// and many wrappers (TUI, log capture) handle bare ASCII better.
+pub fn format_recap(recap: &Recap) -> String {
+    let mut out = String::new();
+    out.push_str(&format!("Recap: {}\n", recap.headline));
+    if !recap.bullets.is_empty() {
+        out.push('\n');
+        for b in &recap.bullets {
+            out.push_str(&format!("  • {b}\n"));
+        }
+    }
+    if !recap.next_actions.is_empty() {
+        out.push_str("\nNext:\n");
+        for a in &recap.next_actions {
+            out.push_str(&format!("  → {a}\n"));
+        }
+    }
+    if !recap.artifacts.is_empty() {
+        out.push_str("\nFiles:\n");
+        for a in &recap.artifacts {
+            out.push_str(&format!("  • {} ({})\n", a.label, a.locator));
+        }
+    }
+    let gen_label = match &recap.generator {
+        RecapGenerator::Heuristic => "heuristic".to_string(),
+        RecapGenerator::Llm { provider, model } => format!("llm: {provider}/{model}"),
+        RecapGenerator::UserEdited => "user-edited".to_string(),
+    };
+    out.push_str(&format!(
+        "\n[generator: {gen_label}, id: {}]\n",
+        &recap.id[..recap.id.len().min(8)]
+    ));
+    out
+}
+
+/// Load the most-recent stored recap for `subject_id`, or generate a
+/// fresh heuristic one and persist it via the F1.1 idempotency rule.
+/// The caller gets back the recap they should display — never `None`
+/// so REPL handlers don't have to branch.
+///
+/// Returns `Ok(None)` when the subject session itself is missing from
+/// the store; the REPL handler maps that to a "session not found"
+/// stderr line.
+pub fn load_or_generate_session_recap(
+    store: &crate::session_store::SessionStore,
+    subject_id: &str,
+) -> anyhow::Result<Option<Recap>> {
+    // Fast path: most recent stored recap wins. F1.1's
+    // list_recaps_for_subject sorts newest-first; limit=1 gives us the
+    // freshest row in one query.
+    if let Some(top) = store
+        .list_recaps_for_subject(subject_id, 1)?
+        .into_iter()
+        .next()
+    {
+        // If the session has new messages since this recap was made
+        // (last_message_id has advanced), regenerate so the REPL shows
+        // up-to-date content. F1.1's idempotency rule keeps the
+        // pre-existing row when nothing changed; otherwise the new
+        // (subject, last_msg) pair gets a fresh row with a new id.
+        let detail = match store.get_session_detail(subject_id)? {
+            Some(d) => d,
+            None => return Ok(None),
+        };
+        let current_last_msg = detail.messages.last().map(|m| m.id);
+        if top.last_message_id == current_last_msg {
+            return Ok(Some(top));
+        }
+        let fresh = heuristic_recap(&detail);
+        return Ok(Some(store.insert_recap(&fresh)?));
+    }
+
+    // No prior recap — generate, store, return.
+    let detail = match store.get_session_detail(subject_id)? {
+        Some(d) => d,
+        None => return Ok(None),
+    };
+    let recap = heuristic_recap(&detail);
+    Ok(Some(store.insert_recap(&recap)?))
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -987,5 +1075,224 @@ mod tests {
         // depend on lowercase tags.
         let s = serde_json::to_string(&RecapKind::DiffChain).unwrap();
         assert_eq!(s, "\"diff_chain\"");
+    }
+
+    // ── F1.4: format_recap + load_or_generate ───────────────────────────
+
+    fn fixture_recap_for_render() -> Recap {
+        Recap {
+            id: "abcd1234deadbeefdeadbeefdeadbeef".to_string(),
+            kind: RecapKind::Session,
+            subject_id: "S".to_string(),
+            last_message_id: Some(7),
+            workspace: None,
+            generated_at: chrono::Utc::now(),
+            generator: RecapGenerator::Heuristic,
+            headline: "Refactor the auth middleware".to_string(),
+            bullets: vec![
+                "Pulled validate_jwt into guards/jwt.rs".to_string(),
+                "Updated 3 call sites; tests green".to_string(),
+            ],
+            next_actions: vec!["Wire refresh-token rotation".to_string()],
+            artifacts: vec![RecapArtifact {
+                kind: ArtifactKind::File,
+                label: "auth.rs".to_string(),
+                locator: "src/auth.rs".to_string(),
+            }],
+            resume_hint: None,
+            token_usage: None,
+            schema_version: 1,
+        }
+    }
+
+    #[test]
+    fn format_recap_starts_with_headline_label() {
+        // Pin: stdout output begins with `Recap: <headline>` so users
+        // can scan terminal output for the keyword. The REPL command
+        // and any future auto-print site share this prefix.
+        let r = fixture_recap_for_render();
+        let out = format_recap(&r);
+        assert!(
+            out.starts_with("Recap: Refactor the auth middleware\n"),
+            "format_recap must lead with `Recap: <headline>`; got: {out:?}"
+        );
+    }
+
+    #[test]
+    fn format_recap_renders_bullets_with_dot_marker() {
+        let r = fixture_recap_for_render();
+        let out = format_recap(&r);
+        assert!(
+            out.contains("  • Pulled validate_jwt into guards/jwt.rs"),
+            "expected bullet marker `  • <bullet>`; got: {out}"
+        );
+        assert!(
+            out.contains("  • Updated 3 call sites; tests green"),
+            "second bullet missing; got: {out}"
+        );
+    }
+
+    #[test]
+    fn format_recap_renders_next_actions_with_arrow_marker() {
+        let r = fixture_recap_for_render();
+        let out = format_recap(&r);
+        assert!(
+            out.contains("Next:") && out.contains("  → Wire refresh-token rotation"),
+            "expected `Next:` block + `  → <action>`; got: {out}"
+        );
+    }
+
+    #[test]
+    fn format_recap_renders_artifacts_with_label_and_locator() {
+        let r = fixture_recap_for_render();
+        let out = format_recap(&r);
+        assert!(
+            out.contains("Files:") && out.contains("  • auth.rs (src/auth.rs)"),
+            "expected `Files:` block with `<label> (<locator>)`; got: {out}"
+        );
+    }
+
+    #[test]
+    fn format_recap_omits_empty_optional_blocks() {
+        // A recap with no bullets / next_actions / artifacts should
+        // render headline + generator footer only — no stray empty
+        // section labels.
+        let mut r = fixture_recap_for_render();
+        r.bullets.clear();
+        r.next_actions.clear();
+        r.artifacts.clear();
+        let out = format_recap(&r);
+        assert!(out.starts_with("Recap: "));
+        assert!(!out.contains("Next:"), "Next: must hide when empty");
+        assert!(!out.contains("Files:"), "Files: must hide when empty");
+        // Bullets render under no header — so an empty bullets block
+        // means the only `•` markers should be from artifacts (also
+        // empty), so no `•` should appear at all.
+        assert!(!out.contains("  •"), "no bullet markers when empty: {out}");
+    }
+
+    #[test]
+    fn format_recap_includes_truncated_id_in_footer() {
+        // Pin: footer shows the first 8 chars of the id so users can
+        // copy-paste it into `/recap <prefix>` without typing 32 chars.
+        let r = fixture_recap_for_render();
+        let out = format_recap(&r);
+        assert!(
+            out.contains("[generator: heuristic, id: abcd1234]"),
+            "footer must show generator + 8-char id prefix; got: {out}"
+        );
+    }
+
+    #[test]
+    fn format_recap_distinguishes_user_edited_generator() {
+        // UI cue for human-edited recaps so they don't look
+        // machine-generated. Pin the wire label.
+        let mut r = fixture_recap_for_render();
+        r.generator = RecapGenerator::UserEdited;
+        let out = format_recap(&r);
+        assert!(
+            out.contains("[generator: user-edited"),
+            "user-edited footer label drift; got: {out}"
+        );
+    }
+
+    #[test]
+    fn format_recap_distinguishes_llm_generator_with_provider_and_model() {
+        let mut r = fixture_recap_for_render();
+        r.generator = RecapGenerator::Llm {
+            provider: "anthropic".to_string(),
+            model: "claude-opus-4-7".to_string(),
+        };
+        let out = format_recap(&r);
+        assert!(
+            out.contains("[generator: llm: anthropic/claude-opus-4-7"),
+            "llm footer must include provider/model; got: {out}"
+        );
+    }
+
+    // ── load_or_generate_session_recap ──────────────────────────────────
+
+    fn load_fixture() -> (
+        crate::session_store::SessionStore,
+        String,
+        tempfile::TempDir,
+    ) {
+        let dir = tempfile::tempdir().unwrap();
+        let store = crate::session_store::SessionStore::open(
+            dir.path().join("sessions.db"),
+        )
+        .unwrap();
+        let sid = "F14-load-test".to_string();
+        store
+            .insert_session_with_parent(
+                &sid,
+                "Refactor the auth middleware",
+                "mock",
+                "test-model",
+                None,
+                0,
+            )
+            .unwrap();
+        store
+            .insert_message(&sid, "user", "Refactor the auth middleware")
+            .unwrap();
+        (store, sid, dir)
+    }
+
+    #[test]
+    fn load_or_generate_returns_none_for_missing_session() {
+        let (store, _sid, _dir) = load_fixture();
+        let out =
+            load_or_generate_session_recap(&store, "ghost-session").unwrap();
+        assert!(
+            out.is_none(),
+            "missing session must yield None so REPL can 404 cleanly"
+        );
+    }
+
+    #[test]
+    fn load_or_generate_creates_recap_on_first_call() {
+        // First call has no prior recap → generates + stores. The
+        // store must end up with exactly one row for this subject.
+        let (store, sid, _dir) = load_fixture();
+        let r = load_or_generate_session_recap(&store, &sid)
+            .unwrap()
+            .expect("session exists, recap must be Some");
+        assert_eq!(r.subject_id, sid);
+        let list = store.list_recaps_for_subject(&sid, 10).unwrap();
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].id, r.id);
+    }
+
+    #[test]
+    fn load_or_generate_reuses_recap_when_session_unchanged() {
+        // Second call without new messages must return the same id —
+        // the F1.1 idempotency rule plus our list-newest-first lookup
+        // means we never generate a duplicate row.
+        let (store, sid, _dir) = load_fixture();
+        let r1 = load_or_generate_session_recap(&store, &sid).unwrap().unwrap();
+        let r2 = load_or_generate_session_recap(&store, &sid).unwrap().unwrap();
+        assert_eq!(
+            r1.id, r2.id,
+            "no new messages → must reuse the prior recap, not duplicate"
+        );
+    }
+
+    #[test]
+    fn load_or_generate_regenerates_when_new_messages_exist() {
+        // Add a message after the first recap → load_or_generate
+        // must produce a fresh row keyed off the new last_message_id.
+        // This is the "REPL shows up-to-date content" contract: a
+        // user who runs `/recap` after sending more chat must see the
+        // new state, not a stale snapshot.
+        let (store, sid, _dir) = load_fixture();
+        let r1 = load_or_generate_session_recap(&store, &sid).unwrap().unwrap();
+        store.insert_message(&sid, "assistant", "ack").unwrap();
+        let r2 = load_or_generate_session_recap(&store, &sid).unwrap().unwrap();
+        assert_ne!(
+            r1.id, r2.id,
+            "new last_message_id must yield a new recap row"
+        );
+        assert_ne!(r1.last_message_id, r2.last_message_id);
     }
 }

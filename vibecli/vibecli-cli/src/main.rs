@@ -4687,6 +4687,76 @@ async fn main() -> Result<()> {
                                 _ => println!("Usage: /memory [show|edit]"),
                             }
                         }
+                        // Recap & Resume — F1.4 REPL surface. `/recap`
+                        // (no args) prints the most recent session's
+                        // recap, generating one if absent. `/recap
+                        // <prefix>` resolves a session by id-prefix
+                        // and does the same.
+                        "/recap" => {
+                            match SessionStore::open_default() {
+                                Ok(store) => {
+                                    let arg = args.trim();
+                                    let sid_resolved: Option<String> = if arg.is_empty() {
+                                        // No arg → most recent session.
+                                        match store.list_root_sessions(1) {
+                                            Ok(rows) => rows.into_iter().next().map(|r| r.id),
+                                            Err(e) => {
+                                                println!("Failed to list sessions: {e}\n");
+                                                None
+                                            }
+                                        }
+                                    } else {
+                                        // Arg → treat as id-prefix.
+                                        match store.list_root_sessions(50) {
+                                            Ok(rows) => rows
+                                                .into_iter()
+                                                .find(|r| r.id.starts_with(arg))
+                                                .map(|r| r.id),
+                                            Err(e) => {
+                                                println!("Failed to list sessions: {e}\n");
+                                                None
+                                            }
+                                        }
+                                    };
+
+                                    match sid_resolved {
+                                        None => {
+                                            if arg.is_empty() {
+                                                println!(
+                                                    "No sessions found in ~/.vibecli/sessions.db. \
+                                                     Run an agent task first, then `/recap`.\n"
+                                                );
+                                            } else {
+                                                println!(
+                                                    "No session matched prefix {arg:?}. \
+                                                     Try `/sessions` to list ids.\n"
+                                                );
+                                            }
+                                        }
+                                        Some(sid) => {
+                                            match recap::load_or_generate_session_recap(
+                                                &store, &sid,
+                                            ) {
+                                                Ok(Some(r)) => {
+                                                    print!("{}", recap::format_recap(&r));
+                                                }
+                                                Ok(None) => {
+                                                    println!(
+                                                        "Session {sid:?} resolved but its detail couldn't be loaded.\n"
+                                                    );
+                                                }
+                                                Err(e) => {
+                                                    println!("Failed to load recap: {e}\n");
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    println!("Failed to open session store: {e}\n");
+                                }
+                            }
+                        }
                         "/trace" => {
                             let trace_dir = dirs::home_dir()
                                 .unwrap_or_else(|| cwd.clone())
