@@ -275,6 +275,13 @@ impl From<rusqlite::Error> for RunError {
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 
+/// Slice 1 schema, exposed crate-internally so sibling stores
+/// (`EnvStore` etc.) can lazily ensure it on their own connections
+/// without depending on `RunStore` being opened first.
+pub(crate) fn ensure_schema(conn: &Connection) -> rusqlite::Result<()> {
+    conn.execute_batch(SCHEMA)
+}
+
 const SCHEMA: &str = r#"
 PRAGMA journal_mode=WAL;
 PRAGMA foreign_keys=ON;

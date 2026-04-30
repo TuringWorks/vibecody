@@ -15,21 +15,17 @@ export const RLOSComposite = createComposite(
     { id: "rlhf", label: "RLHF", importFn: () => import("../RLHFAlignmentDashboard"), exportName: "RLHFAlignmentDashboard" },
   ],
   {
-    // Slice 1 has shipped persistence + run lifecycle for the Training panel.
-    // The Training panel itself is no longer fully illustrative — runs are
-    // durable, but metrics are still empty because the executor (slice 2)
-    // hasn't shipped. Each slice in `docs/design/rl-os/` removes panels
-    // from this `covers` list as it productionizes them.
+    // Slices 1-4 shipped: persistence, run lifecycle, real Python-sidecar
+    // training (PPO on Gymnasium), env registry, and eval suites with
+    // bootstrap-CI metric storage + paired comparison. Eval rollout
+    // execution still requires the sidecar (slice 4.5 wires `eval`
+    // subcommand fully); slice 4 ships the storage + comparison surface.
     banner: (
       <SimulationModeBadge
-        description="RL-OS productionization is in progress. Panels listed below still render illustrative data while their respective slices land. Runs you create are durable; metrics will populate once the executor (slice 2) ships."
+        description="RL-OS productionization is in progress. Training, Environments, Evaluation, and Compare are real (vibe-rl-py sidecar); the panels listed below still render illustrative data while their slices land."
         covers={[
-          "Training (metrics — durable run list, but no executor yet)",
-          "Environments",
-          "Evaluation",
           "Optimization",
           "Deployment",
-          "Compare",
           "Lineage",
           "Multi-Agent",
           "Rewards",

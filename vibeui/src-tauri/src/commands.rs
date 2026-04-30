@@ -41700,8 +41700,6 @@ pub async fn sis_status(
 // marked `// SLICE_N_MOCK:` so we can grep the remaining mocks during the
 // productionization.
 
-use std::sync::Mutex as StdMutex;
-
 fn require_workspace(workspace_path: &str) -> Result<std::path::PathBuf, String> {
     let trimmed = workspace_path.trim();
     if trimmed.is_empty() {
@@ -41903,11 +41901,19 @@ pub async fn rl_start_training(
     workspace_path: String,
     run_id: String,
 ) -> Result<serde_json::Value, String> {
-    let store = open_run_store(&workspace_path)?;
-    // Slice 1 has no executor. Record a clear failure on the run so the
-    // dashboard surfaces the honest status. Slice 2 replaces this with the
-    // Python sidecar.
-    let run = store.no_executor_fail(&run_id).map_err(|e| e.to_string())?;
+    use std::sync::Arc;
+    use vibecli_cli::rl_executor::{ExecutorConfig, PythonExecutor, TrainingExecutor};
+
+    let store = Arc::new(open_run_store(&workspace_path)?);
+    let executor = PythonExecutor::new(ExecutorConfig::from_env(), store.clone());
+    executor
+        .start(&run_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    let run = store
+        .get(&run_id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Run {} not found after start", run_id))?;
     Ok(run_to_wire(&run))
 }
 
@@ -41917,10 +41923,15 @@ pub async fn rl_stop_training(
     run_id: String,
 ) -> Result<serde_json::Value, String> {
     use vibecli_cli::rl_runs::RunStatus;
+    // Slice 2 note: each Tauri command opens its own RunStore, so the
+    // PythonExecutor instance from the start path is no longer in scope
+    // here — its `Child` handle lives only inside that call's executor.
+    // For the in-process Tauri path we therefore fall back to a row-
+    // level transition; the daemon's HTTP path (`/v1/rl/runs/:id/stop`)
+    // is the canonical signal route where executor state is shared.
+    // Slice 2.5 will host a single executor in `AppState` so the
+    // Tauri path also delivers SIGTERM to the live child.
     let store = open_run_store(&workspace_path)?;
-    // Best-effort stop: Running → Stopping → Stopped. If the run isn't in a
-    // stoppable state we surface the IllegalTransition as a string error so
-    // the dashboard can show it.
     let stopping = store
         .transition(&run_id, RunStatus::Stopping, None)
         .map_err(|e| e.to_string())?;
@@ -41950,123 +41961,345 @@ pub async fn rl_stop_training(
 // `RLOSComposite.tsx` reads this same coverage list via the SimulationModeBadge
 // `covers` prop so the disclaimer banner shrinks panel-by-panel as slices ship.
 
-// ── RL-OS: Environments ──
+// ── RL-OS: Environments (slice 3 — productionized) ───────────────────────────
+//
+// EnvStore reads/writes the rl_environments table in workspace.db. First
+// `rl_list_environments` call on a fresh workspace seeds bundled defaults
+// so the panel is never empty even before `vibe-rl-py` is installed.
 
-fn rl_envs() -> &'static StdMutex<Vec<serde_json::Value>> {
-    static ENVS: std::sync::OnceLock<StdMutex<Vec<serde_json::Value>>> = std::sync::OnceLock::new();
-    ENVS.get_or_init(|| StdMutex::new(vec![
-        serde_json::json!({
-            "name": "CartPole-v1",
-            "version": "1.0.0",
-            "observationSpace": "Box(4,)",
-            "actionSpace": "Discrete(2)",
-            "rewardComponents": ["balance"],
-            "backend": "gymnasium",
-        }),
-        serde_json::json!({
-            "name": "trading-env",
-            "version": "2.3.1",
-            "observationSpace": "Dict(prices: Box(100,5), portfolio: Box(100,))",
-            "actionSpace": "Box(100,)",
-            "rewardComponents": ["sharpe_ratio", "max_drawdown_penalty", "turnover_cost"],
-            "backend": "custom",
-        }),
-        serde_json::json!({
-            "name": "franka-reach",
-            "version": "1.0.0",
-            "observationSpace": "Dict(joints: Box(7,), ee_pos: Box(3,), target: Box(3,))",
-            "actionSpace": "Box(7,)",
-            "rewardComponents": ["distance_to_target", "energy_penalty"],
-            "backend": "mujoco",
-        }),
-    ]))
+fn open_env_store(workspace_path: &str) -> Result<vibecli_cli::rl_envs::EnvStore, String> {
+    let ws = require_workspace(workspace_path)?;
+    vibecli_cli::rl_envs::EnvStore::open(&ws).map_err(|e| e.to_string())
 }
 
-// SLICE_3_MOCK: Gymnasium / PettingZoo registry probe replaces this in slice 3.
-#[tauri::command]
-pub async fn rl_list_environments() -> Result<Vec<serde_json::Value>, String> {
-    let envs = rl_envs().lock().map_err(|e| e.to_string())?;
-    Ok(envs.clone())
+fn env_to_wire(env: &vibecli_cli::rl_envs::Environment) -> serde_json::Value {
+    // Translate the rich `spec_json` into the keys the existing dashboard
+    // expects. Unknown shapes fall through as JSON-as-is so the panel can
+    // pretty-print them.
+    let obs_str = describe_space(env.spec_json.get("observation_space"));
+    let act_str = describe_space(env.spec_json.get("action_space"));
+    serde_json::json!({
+        "id": env.env_id,
+        "name": env.name,
+        "version": env.version,
+        "source": env.source,
+        "observationSpace": obs_str,
+        "actionSpace": act_str,
+        "rewardComponents": env.spec_json.get("reward_components")
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!([])),
+        "backend": match env.source.as_str() {
+            "gymnasium" => "gymnasium",
+            "pettingzoo" => "pettingzoo",
+            "custom_python" => "custom",
+            _ => "unknown",
+        },
+        "entryPoint": env.entry_point,
+        "filePath": env.file_path,
+        "parentEnvId": env.parent_env_id,
+        "spec": env.spec_json,
+    })
 }
 
-// SLICE_3_MOCK: see slice 3 — env registry get/spec.
-#[tauri::command]
-pub async fn rl_get_environment(name: String) -> Result<serde_json::Value, String> {
-    let envs = rl_envs().lock().map_err(|e| e.to_string())?;
-    envs.iter().find(|e| e["name"].as_str() == Some(&name))
-        .cloned()
-        .ok_or_else(|| format!("Environment {} not found", name))
+fn describe_space(v: Option<&serde_json::Value>) -> String {
+    let Some(v) = v else { return "Unknown".into() };
+    let kind = v.get("kind").and_then(|k| k.as_str()).unwrap_or("?");
+    match kind {
+        "box" => {
+            let shape = v.get("shape").and_then(|s| s.as_array())
+                .map(|arr| arr.iter().filter_map(|x| x.as_i64()).map(|i| i.to_string()).collect::<Vec<_>>().join(","))
+                .unwrap_or_default();
+            format!("Box({})", shape)
+        }
+        "discrete" => {
+            let n = v.get("n").and_then(|n| n.as_i64()).unwrap_or(0);
+            format!("Discrete({})", n)
+        }
+        "multi_discrete" => "MultiDiscrete".into(),
+        _ => kind.into(),
+    }
 }
 
-// SLICE_3_MOCK: see slice 3 — registers a custom Python env in the workspace.
 #[tauri::command]
-pub async fn rl_deploy_environment(config: String) -> Result<serde_json::Value, String> {
-    let parsed: serde_json::Value = serde_json::from_str(&config)
-        .map_err(|e| format!("Invalid config: {}", e))?;
-    let mut envs = rl_envs().lock().map_err(|e| e.to_string())?;
-    envs.push(parsed.clone());
-    Ok(parsed)
+pub async fn rl_list_environments(
+    workspace_path: Option<String>,
+) -> Result<Vec<serde_json::Value>, String> {
+    // Backwards-compat: pre-slice-3 callers omit `workspace_path`. When
+    // omitted, fall back to a seeded in-memory list so the panel still
+    // renders something. The dashboard now passes workspacePath, so this
+    // fallback only fires for legacy invocations.
+    let Some(ws) = workspace_path.as_deref() else {
+        return Ok(default_env_summary());
+    };
+    let store = open_env_store(ws)?;
+    if store.count("gymnasium").map_err(|e| e.to_string())? == 0 {
+        let _ = store.seed_defaults();
+    }
+    let envs = store
+        .list(vibecli_cli::rl_envs::EnvFilter::default())
+        .map_err(|e| e.to_string())?;
+    Ok(envs.iter().map(env_to_wire).collect())
+}
+
+fn default_env_summary() -> Vec<serde_json::Value> {
+    vec![serde_json::json!({
+        "name": "CartPole-v1",
+        "version": "gym-bundled",
+        "observationSpace": "Box(4)",
+        "actionSpace": "Discrete(2)",
+        "rewardComponents": [],
+        "backend": "gymnasium",
+    })]
+}
+
+#[tauri::command]
+pub async fn rl_get_environment(
+    workspace_path: String,
+    env_id: String,
+) -> Result<serde_json::Value, String> {
+    let store = open_env_store(&workspace_path)?;
+    let env = store
+        .get(&env_id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| format!("Environment {} not found", env_id))?;
+    Ok(env_to_wire(&env))
+}
+
+#[tauri::command]
+pub async fn rl_register_custom_environment(
+    workspace_path: String,
+    config: String,
+) -> Result<serde_json::Value, String> {
+    use vibecli_cli::rl_envs::CustomEnvRequest;
+    let parsed: serde_json::Value =
+        serde_json::from_str(&config).map_err(|e| format!("Invalid config: {}", e))?;
+    let req = CustomEnvRequest {
+        name: parsed
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("custom-env")
+            .to_string(),
+        version: parsed
+            .get("version")
+            .and_then(|v| v.as_str())
+            .unwrap_or("0.1.0")
+            .to_string(),
+        file_path: parsed
+            .get("filePath")
+            .or_else(|| parsed.get("file_path"))
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| "filePath required".to_string())?
+            .to_string(),
+        spec_json: parsed.get("spec").cloned(),
+    };
+    let store = open_env_store(&workspace_path)?;
+    let cfg = vibecli_cli::rl_executor::ExecutorConfig::from_env();
+    let env = store.register_custom(req, &cfg).map_err(|e| e.to_string())?;
+    Ok(env_to_wire(&env))
+}
+
+/// Deprecated alias for `rl_register_custom_environment`. Kept for one
+/// release so existing dashboard builds don't 404 mid-upgrade.
+#[tauri::command]
+pub async fn rl_deploy_environment(
+    workspace_path: Option<String>,
+    config: String,
+) -> Result<serde_json::Value, String> {
+    let ws = workspace_path
+        .ok_or_else(|| "workspace_path is required (call rl_register_custom_environment instead)".to_string())?;
+    rl_register_custom_environment(ws, config).await
+}
+
+#[tauri::command]
+pub async fn rl_refresh_environments(
+    workspace_path: String,
+) -> Result<serde_json::Value, String> {
+    let store = open_env_store(&workspace_path)?;
+    let cfg = vibecli_cli::rl_executor::ExecutorConfig::from_env();
+    let report = store
+        .refresh_from_sidecar(&cfg)
+        .map_err(|e| e.to_string())?;
+    Ok(serde_json::to_value(report).map_err(|e| e.to_string())?)
+}
+
+#[tauri::command]
+pub async fn rl_delete_environment(
+    workspace_path: String,
+    env_id: String,
+) -> Result<(), String> {
+    let store = open_env_store(&workspace_path)?;
+    store.delete(&env_id).map_err(|e| e.to_string())
 }
 
 // ── RL-OS: Model Registry ──
 
 // SLICE_5_MOCK: Policy registry comes online in slice 5 (model hub + lineage).
+// Slice 1 removed the in-memory `rl_runs()` mock state this previously
+// derived from; for now this returns an empty list so the panel renders an
+// honest "No policies yet" empty state. Slice 5 wires this against the
+// real `rl_policies` table.
 #[tauri::command]
 pub async fn rl_list_policies() -> Result<Vec<serde_json::Value>, String> {
-    let runs = rl_runs().lock().map_err(|e| e.to_string())?;
-    Ok(runs.iter().filter(|r| r["status"].as_str() == Some("stopped") || r["status"].as_str() == Some("completed"))
-        .map(|r| serde_json::json!({
-            "id": r["id"],
-            "name": r["name"],
-            "algorithm": r["algorithm"],
-            "environment": r["environment"],
-            "stage": "development",
-        }))
-        .collect())
+    Ok(Vec::new())
 }
 
-// SLICE_4_MOCK: Real paired-bootstrap comparison ships in slice 4.
+// ── RL-OS: Evaluation (slice 4 — productionized) ─────────────────────────────
+
+fn open_eval_store(workspace_path: &str) -> Result<vibecli_cli::rl_eval::EvalStore, String> {
+    let ws = require_workspace(workspace_path)?;
+    vibecli_cli::rl_eval::EvalStore::open(&ws).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
-pub async fn rl_compare_policies(policy_a: String, policy_b: String) -> Result<serde_json::Value, String> {
+pub async fn rl_compare_policies(
+    workspace_path: String,
+    run_a: String,
+    run_b: String,
+    suite_id: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let store = open_eval_store(&workspace_path)?;
+    let report = store
+        .compare(&run_a, &run_b, suite_id.as_deref())
+        .map_err(|e| e.to_string())?;
+    let metrics: Vec<serde_json::Value> = report
+        .rows
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "name": r.metric_name,
+                "valueA": r.value_a,
+                "valueB": r.value_b,
+                "difference": r.difference,
+                "improved": r.improved,
+                "effectSize": r.effect_size,
+                "nA": r.n_a,
+                "nB": r.n_b,
+            })
+        })
+        .collect();
+    let recommendation = if metrics.is_empty() {
+        format!("No overlapping eval metrics found for {} and {}", run_a, run_b)
+    } else if report.rows.iter().all(|r| r.improved) {
+        format!("Run {} improves on {} across {} metrics", run_b, run_a, metrics.len())
+    } else if report.rows.iter().any(|r| r.improved) {
+        format!(
+            "Mixed: {} improves on {} for {} of {} metrics",
+            run_b,
+            run_a,
+            report.rows.iter().filter(|r| r.improved).count(),
+            metrics.len()
+        )
+    } else {
+        format!("Run {} does not improve on {}", run_b, run_a)
+    };
     Ok(serde_json::json!({
-        "policyA": policy_a,
-        "policyB": policy_b,
-        "metrics": [
-            { "name": "mean_reward", "valueA": 45.2, "valueB": 52.8, "difference": 7.6, "improved": true },
-            { "name": "sharpe_ratio", "valueA": 1.2, "valueB": 1.5, "difference": 0.3, "improved": true },
-            { "name": "max_drawdown", "valueA": -0.15, "valueB": -0.12, "difference": 0.03, "improved": true },
-        ],
-        "recommendation": format!("{} shows improvement across all metrics vs {}", policy_b, policy_a),
+        "runA": run_a,
+        "runB": run_b,
+        "suiteId": report.suite_id,
+        "metrics": metrics,
+        "recommendation": recommendation,
     }))
 }
 
-// ── RL-OS: Evaluation ──
-
-// SLICE_4_MOCK: Real eval-suite registry comes online in slice 4.
 #[tauri::command]
-pub async fn rl_list_eval_suites() -> Result<Vec<serde_json::Value>, String> {
-    Ok(vec![
-        serde_json::json!({ "name": "safety-eval", "scenarios": 4, "lastRun": "2026-03-30" }),
-        serde_json::json!({ "name": "performance-eval", "scenarios": 3, "lastRun": "2026-03-30" }),
-    ])
+pub async fn rl_list_eval_suites(
+    workspace_path: String,
+) -> Result<Vec<serde_json::Value>, String> {
+    let store = open_eval_store(&workspace_path)?;
+    let suites = store.list_suites().map_err(|e| e.to_string())?;
+    Ok(suites
+        .into_iter()
+        .map(|s| {
+            serde_json::json!({
+                "id": s.suite_id,
+                "name": s.name,
+                "description": s.description,
+                "createdAt": s.created_at,
+                "configYaml": s.config_yaml,
+            })
+        })
+        .collect())
 }
 
-// SLICE_4_MOCK: Real eval results + OPE estimators ship in slice 4.
 #[tauri::command]
-pub async fn rl_get_eval_results(suite_name: String) -> Result<serde_json::Value, String> {
+pub async fn rl_create_eval_suite(
+    workspace_path: String,
+    name: String,
+    description: Option<String>,
+    config_yaml: String,
+) -> Result<serde_json::Value, String> {
+    use vibecli_cli::rl_eval::CreateSuiteRequest;
+    let store = open_eval_store(&workspace_path)?;
+    let suite = store
+        .create_suite(CreateSuiteRequest {
+            name,
+            description,
+            config_yaml,
+        })
+        .map_err(|e| e.to_string())?;
     Ok(serde_json::json!({
-        "suite": suite_name,
-        "passed": true,
-        "scenarios": [
-            { "name": "normal_market", "passed": true, "episodes": 100, "meanReward": 52.3, "metrics": { "sharpe": 1.5, "maxDrawdown": -0.08 } },
-            { "name": "flash_crash", "passed": true, "episodes": 50, "meanReward": 12.1, "metrics": { "sharpe": 0.3, "maxDrawdown": -0.18 } },
-            { "name": "adversarial", "passed": false, "episodes": 100, "meanReward": -2.5, "metrics": { "rewardDrop": 0.25 } },
-        ],
-        "gates": [
-            { "name": "min_sharpe", "threshold": 0.5, "value": 1.5, "passed": true },
-            { "name": "max_drawdown", "threshold": -0.20, "value": -0.18, "passed": true },
-            { "name": "adversarial_robustness", "threshold": 0.2, "value": 0.25, "passed": false },
-        ],
+        "id": suite.suite_id,
+        "name": suite.name,
+        "description": suite.description,
+        "createdAt": suite.created_at,
+    }))
+}
+
+#[tauri::command]
+pub async fn rl_delete_eval_suite(
+    workspace_path: String,
+    suite_id: String,
+) -> Result<(), String> {
+    let store = open_eval_store(&workspace_path)?;
+    store.delete_suite(&suite_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn rl_get_eval_results(
+    workspace_path: String,
+    run_id: Option<String>,
+    suite_id: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let store = open_eval_store(&workspace_path)?;
+    let rows = match (run_id.clone(), suite_id.clone()) {
+        (Some(r), _) => store.list_results_for_run(&r),
+        (None, Some(s)) => store.list_results_for_suite(&s),
+        (None, None) => return Err("either run_id or suite_id is required".into()),
+    }
+    .map_err(|e| e.to_string())?;
+
+    // Group rows by suite for the panel; each group exposes its metric
+    // rollups + (when present) quality-gate badges.
+    use std::collections::BTreeMap;
+    let mut by_suite: BTreeMap<String, Vec<serde_json::Value>> = BTreeMap::new();
+    for row in &rows {
+        by_suite
+            .entry(row.suite_id.clone())
+            .or_default()
+            .push(serde_json::json!({
+                "name": row.metric_name,
+                "value": row.value,
+                "ciLow": row.ci_low,
+                "ciHigh": row.ci_high,
+                "nEpisodes": row.n_episodes,
+                "extra": row.extra,
+            }));
+    }
+    let suites: Vec<serde_json::Value> = by_suite
+        .into_iter()
+        .map(|(suite_id, metrics)| {
+            serde_json::json!({
+                "suiteId": suite_id,
+                "metrics": metrics,
+            })
+        })
+        .collect();
+
+    Ok(serde_json::json!({
+        "runId": run_id,
+        "filterSuiteId": suite_id,
+        "suites": suites,
+        "totalMetrics": rows.len(),
     }))
 }
 

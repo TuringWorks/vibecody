@@ -120,6 +120,9 @@ pub struct ServeState {
     /// RL-OS — per-workspace run/episode/metric/artifact store. Backed by the
     /// same SQLite file as `WorkspaceStore` (slice 1: `docs/design/rl-os/01-persistence.md`).
     pub rl_run_store: Arc<crate::rl_runs::RunStore>,
+    /// RL-OS — training executor. Slice 2 ships the Python sidecar variant;
+    /// slice 7d swaps in a native runtime for inference workloads.
+    pub rl_executor: Arc<dyn crate::rl_executor::TrainingExecutor>,
 }
 
 // ── Request / Response types ──────────────────────────────────────────────────
@@ -1964,34 +1967,51 @@ async fn rl_start_run(
     Path(id): Path<String>,
     State(state): State<ServeState>,
 ) -> Result<Json<crate::rl_runs::Run>, (StatusCode, Json<serde_json::Value>)> {
-    // Slice 1: no executor. Record a clear failure so the dashboard doesn't
-    // pretend to train. Slice 2 replaces this with the real Python sidecar.
+    // Slice 2: spawn the Python sidecar. The executor flips the row
+    // through Created → Queued → Running on its `started` heartbeat; we
+    // return immediately with whatever the row looks like right after
+    // spawn (typically Queued; reader task takes it to Running on the
+    // first sidecar JSON-Line).
     state
+        .rl_executor
+        .start(&id)
+        .await
+        .map_err(rl_err_to_http)?;
+    let run = state
         .rl_run_store
-        .no_executor_fail(&id)
-        .map(Json)
-        .map_err(rl_err_to_http)
+        .get(&id)
+        .map_err(rl_err_to_http)?
+        .ok_or_else(|| {
+            json_error(
+                StatusCode::NOT_FOUND,
+                format!("run '{}' not found", sanitize_user_input(&id)),
+            )
+        })?;
+    Ok(Json(run))
 }
 
 async fn rl_stop_run(
     Path(id): Path<String>,
     State(state): State<ServeState>,
 ) -> Result<Json<crate::rl_runs::Run>, (StatusCode, Json<serde_json::Value>)> {
-    use crate::rl_runs::RunStatus;
-    // Best-effort: Running → Stopping → Stopped. If the run isn't in a
-    // stoppable state, surface the IllegalTransition as a 409.
-    let store = state.rl_run_store.clone();
-    let stopping = store
-        .transition(&id, RunStatus::Stopping, None)
+    // Executor sends SIGTERM and transitions through Stopping → Stopped
+    // when the sidecar's atexit handler emits the final `finished` line.
+    state
+        .rl_executor
+        .stop(&id)
+        .await
         .map_err(rl_err_to_http)?;
-    if stopping.status == RunStatus::Stopping {
-        store
-            .transition(&id, RunStatus::Stopped, None)
-            .map(Json)
-            .map_err(rl_err_to_http)
-    } else {
-        Ok(Json(stopping))
-    }
+    let run = state
+        .rl_run_store
+        .get(&id)
+        .map_err(rl_err_to_http)?
+        .ok_or_else(|| {
+            json_error(
+                StatusCode::NOT_FOUND,
+                format!("run '{}' not found", sanitize_user_input(&id)),
+            )
+        })?;
+    Ok(Json(run))
 }
 
 async fn rl_cancel_run(
@@ -1999,10 +2019,21 @@ async fn rl_cancel_run(
     State(state): State<ServeState>,
 ) -> Result<Json<crate::rl_runs::Run>, (StatusCode, Json<serde_json::Value>)> {
     state
+        .rl_executor
+        .cancel(&id)
+        .await
+        .map_err(rl_err_to_http)?;
+    let run = state
         .rl_run_store
-        .transition(&id, crate::rl_runs::RunStatus::Cancelled, None)
-        .map(Json)
-        .map_err(rl_err_to_http)
+        .get(&id)
+        .map_err(rl_err_to_http)?
+        .ok_or_else(|| {
+            json_error(
+                StatusCode::NOT_FOUND,
+                format!("run '{}' not found", sanitize_user_input(&id)),
+            )
+        })?;
+    Ok(Json(run))
 }
 
 async fn rl_delete_run(
@@ -2060,6 +2091,179 @@ async fn rl_get_artifacts(
     state
         .rl_run_store
         .list_artifacts(&id)
+        .map(Json)
+        .map_err(rl_err_to_http)
+}
+
+// ── RL-OS: /v1/rl/envs (slice 3) ─────────────────────────────────────────────
+//
+// See `docs/design/rl-os/03-environments.md`. Slice 3 reads + writes the
+// `rl_environments` table (created by slice 1's schema), seeds a small set
+// of bundled defaults so the panel is never empty, and exposes a refresh
+// endpoint that asks the sidecar to enumerate Gymnasium envs.
+
+#[derive(Debug, Deserialize)]
+struct RlEnvListQuery {
+    source: Option<String>,
+    search: Option<String>,
+    limit: Option<i64>,
+}
+
+fn open_env_store_from_state(state: &ServeState) -> Result<crate::rl_envs::EnvStore, (StatusCode, Json<serde_json::Value>)> {
+    crate::rl_envs::EnvStore::open(&state.workspace_root).map_err(rl_err_to_http)
+}
+
+async fn rl_list_envs_h(
+    State(state): State<ServeState>,
+    Query(q): Query<RlEnvListQuery>,
+) -> Result<Json<Vec<crate::rl_envs::Environment>>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_env_store_from_state(&state)?;
+    if store.count("gymnasium").unwrap_or(0) == 0 {
+        // First-touch seeding: drop a small set of bundled defaults so the
+        // panel renders something even before `vibe-rl-py` is installed.
+        let _ = store.seed_defaults();
+    }
+    store
+        .list(crate::rl_envs::EnvFilter {
+            source: q.source,
+            search: q.search,
+            limit: q.limit,
+        })
+        .map(Json)
+        .map_err(rl_err_to_http)
+}
+
+async fn rl_get_env_h(
+    Path(id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<Json<crate::rl_envs::Environment>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_env_store_from_state(&state)?;
+    match store.get(&id).map_err(rl_err_to_http)? {
+        Some(env) => Ok(Json(env)),
+        None => Err(json_error(
+            StatusCode::NOT_FOUND,
+            format!("environment '{}' not found", sanitize_user_input(&id)),
+        )),
+    }
+}
+
+async fn rl_refresh_envs_h(
+    State(state): State<ServeState>,
+) -> Result<Json<crate::rl_envs::RefreshReport>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_env_store_from_state(&state)?;
+    let cfg = crate::rl_executor::ExecutorConfig::from_env();
+    store
+        .refresh_from_sidecar(&cfg)
+        .map(Json)
+        .map_err(rl_err_to_http)
+}
+
+async fn rl_register_custom_env_h(
+    State(state): State<ServeState>,
+    Json(req): Json<crate::rl_envs::CustomEnvRequest>,
+) -> Result<Json<crate::rl_envs::Environment>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_env_store_from_state(&state)?;
+    let cfg = crate::rl_executor::ExecutorConfig::from_env();
+    store
+        .register_custom(req, &cfg)
+        .map(Json)
+        .map_err(rl_err_to_http)
+}
+
+async fn rl_delete_env_h(
+    Path(id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<StatusCode, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_env_store_from_state(&state)?;
+    store
+        .delete(&id)
+        .map(|_| StatusCode::NO_CONTENT)
+        .map_err(rl_err_to_http)
+}
+
+// ── RL-OS: /v1/rl/eval (slice 4) ──────────────────────────────────────────────
+
+fn open_eval_store_from_state(state: &ServeState) -> Result<crate::rl_eval::EvalStore, (StatusCode, Json<serde_json::Value>)> {
+    crate::rl_eval::EvalStore::open(&state.workspace_root).map_err(rl_err_to_http)
+}
+
+async fn rl_eval_create_suite(
+    State(state): State<ServeState>,
+    Json(req): Json<crate::rl_eval::CreateSuiteRequest>,
+) -> Result<Json<crate::rl_eval::EvalSuite>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_eval_store_from_state(&state)?;
+    store.create_suite(req).map(Json).map_err(rl_err_to_http)
+}
+
+async fn rl_eval_list_suites(
+    State(state): State<ServeState>,
+) -> Result<Json<Vec<crate::rl_eval::EvalSuite>>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_eval_store_from_state(&state)?;
+    store.list_suites().map(Json).map_err(rl_err_to_http)
+}
+
+async fn rl_eval_get_suite(
+    Path(suite_id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<Json<crate::rl_eval::EvalSuite>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_eval_store_from_state(&state)?;
+    match store.get_suite(&suite_id).map_err(rl_err_to_http)? {
+        Some(s) => Ok(Json(s)),
+        None => Err(json_error(
+            StatusCode::NOT_FOUND,
+            format!("eval suite '{}' not found", sanitize_user_input(&suite_id)),
+        )),
+    }
+}
+
+async fn rl_eval_delete_suite(
+    Path(suite_id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<StatusCode, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_eval_store_from_state(&state)?;
+    store
+        .delete_suite(&suite_id)
+        .map(|_| StatusCode::NO_CONTENT)
+        .map_err(rl_err_to_http)
+}
+
+#[derive(Debug, Deserialize)]
+struct EvalResultsQuery {
+    run_id: Option<String>,
+    suite_id: Option<String>,
+}
+
+async fn rl_eval_list_results(
+    State(state): State<ServeState>,
+    Query(q): Query<EvalResultsQuery>,
+) -> Result<Json<Vec<crate::rl_eval::EvalResult>>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_eval_store_from_state(&state)?;
+    let rows = match (q.run_id, q.suite_id) {
+        (Some(r), _) => store.list_results_for_run(&r),
+        (None, Some(s)) => store.list_results_for_suite(&s),
+        (None, None) => Err(crate::rl_runs::RunError::Invalid(
+            "either run_id or suite_id must be provided".into(),
+        )),
+    }
+    .map_err(rl_err_to_http)?;
+    Ok(Json(rows))
+}
+
+#[derive(Debug, Deserialize)]
+struct CompareRequest {
+    run_a: String,
+    run_b: String,
+    #[serde(default)]
+    suite_id: Option<String>,
+}
+
+async fn rl_eval_compare(
+    State(state): State<ServeState>,
+    Json(req): Json<CompareRequest>,
+) -> Result<Json<crate::rl_eval::ComparisonReport>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_eval_store_from_state(&state)?;
+    store
+        .compare(&req.run_a, &req.run_b, req.suite_id.as_deref())
         .map(Json)
         .map_err(rl_err_to_http)
 }
@@ -2162,6 +2366,19 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/v1/rl/runs/:id/metrics", get(rl_get_metrics))
         .route("/v1/rl/runs/:id/episodes", get(rl_get_episodes))
         .route("/v1/rl/runs/:id/artifacts", get(rl_get_artifacts))
+        // RL-OS slice 3 — environment registry
+        .route("/v1/rl/envs", get(rl_list_envs_h))
+        .route("/v1/rl/envs/:id", get(rl_get_env_h))
+        .route("/v1/rl/envs/:id", axum::routing::delete(rl_delete_env_h))
+        .route("/v1/rl/envs/refresh", post(rl_refresh_envs_h))
+        .route("/v1/rl/envs/custom", post(rl_register_custom_env_h))
+        // RL-OS slice 4 — eval suites + results + compare
+        .route("/v1/rl/eval/suites", post(rl_eval_create_suite))
+        .route("/v1/rl/eval/suites", get(rl_eval_list_suites))
+        .route("/v1/rl/eval/suites/:id", get(rl_eval_get_suite))
+        .route("/v1/rl/eval/suites/:id", axum::routing::delete(rl_eval_delete_suite))
+        .route("/v1/rl/eval/results", get(rl_eval_list_results))
+        .route("/v1/rl/eval/compare", post(rl_eval_compare))
         // Recap & Resume v1 — F1.2 (Session-only, heuristic-only)
         .route("/v1/recap", post(v1_recap_post))
         .route("/v1/recap", get(v1_recap_list))
@@ -2371,6 +2588,20 @@ pub async fn serve(
         crate::rl_runs::RunStore::open(&workspace_root)
             .map_err(|e| anyhow::anyhow!("rl run store: {e}"))?,
     );
+    // RL-OS slice 2 — Python-sidecar training executor.
+    // See docs/design/rl-os/02-training-executor.md.
+    let rl_python_executor = Arc::new(crate::rl_executor::PythonExecutor::new(
+        crate::rl_executor::ExecutorConfig::from_env(),
+        rl_run_store.clone(),
+    ));
+    // Sweep stale Running / Stopping rows from a prior daemon process so the
+    // dashboard never claims a long-dead run is still active.
+    if let Err(e) = rl_python_executor.recover_stale_runs().await {
+        eprintln!("[rl] recover_stale_runs: {e}");
+    }
+    // Unsizing coercion: `Arc<PythonExecutor>` → `Arc<dyn TrainingExecutor>`
+    // happens at the assignment to the type-annotated binding.
+    let rl_executor: Arc<dyn crate::rl_executor::TrainingExecutor> = rl_python_executor;
 
     let state = ServeState {
         provider,
@@ -2386,6 +2617,7 @@ pub async fn serve(
         public_url_cache: Arc::clone(&public_url_cache),
         inference_router: Some(Arc::new(crate::inference::Router::from_env())),
         rl_run_store,
+        rl_executor,
     };
 
     // Background task: detect or start an ngrok / Tailscale Funnel tunnel and
@@ -4729,9 +4961,20 @@ mod tests {
                 started_at: std::time::Instant::now(),
                 public_url_cache: Arc::new(std::sync::Mutex::new(None)),
                 inference_router: None,
-                rl_run_store: Arc::new(
-                    crate::rl_runs::RunStore::open_with(&tmp_dir.path().join("rl.db")).unwrap(),
-                ),
+                rl_run_store: {
+                    let s = Arc::new(
+                        crate::rl_runs::RunStore::open_with(&tmp_dir.path().join("rl.db"))
+                            .unwrap(),
+                    );
+                    s
+                },
+                rl_executor: Arc::new(crate::rl_executor::PythonExecutor::new(
+                    crate::rl_executor::ExecutorConfig::from_env(),
+                    Arc::new(
+                        crate::rl_runs::RunStore::open_with(&tmp_dir.path().join("rl_x.db"))
+                            .unwrap(),
+                    ),
+                )),
             };
             (build_router(state, 7878), tmp_dir)
         }
@@ -5031,6 +5274,15 @@ mod tests {
                 rl_run_store: Arc::new(
                     crate::rl_runs::RunStore::open_with(&tmp_dir.path().join("rl.db")).unwrap(),
                 ),
+                rl_executor: Arc::new(crate::rl_executor::PythonExecutor::new(
+                    crate::rl_executor::ExecutorConfig::from_env(),
+                    Arc::new(
+                        crate::rl_runs::RunStore::open_with(
+                            &tmp_dir.path().join("rl-exec.db"),
+                        )
+                        .unwrap(),
+                    ),
+                )),
             };
             (build_router(state, 7878), tmp_dir)
         }

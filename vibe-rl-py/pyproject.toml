@@ -1,0 +1,39 @@
+[project]
+name = "vibe-rl"
+version = "0.1.0"
+description = "VibeCody RL-OS Python sidecar — managed by the vibecli daemon. Spawns one process per training run, streams metrics over JSON-Lines on fd-3 / episodes on fd-4."
+requires-python = ">=3.11,<3.13"
+license = { text = "MIT" }
+readme = "README.md"
+authors = [{ name = "VibeCody" }]
+dependencies = [
+    "gymnasium>=0.29,<2.0",
+    "numpy>=1.26,<3.0",
+    "torch>=2.2,<3.0",
+    "pyyaml>=6.0,<7.0",        # config files from the daemon
+    "tyro>=0.7,<1.0",          # CleanRL's CLI parser of choice — light, typed
+    "tensorboardX>=2.6,<3.0",  # CleanRL writes here; we ignore the events
+]
+
+[project.optional-dependencies]
+mujoco = ["mujoco>=3.0", "gymnasium[mujoco]>=0.29"]
+atari = ["gymnasium[atari,accept-rom-license]>=0.29"]
+box2d = ["gymnasium[box2d]>=0.29", "swig"]
+onnx = ["onnx>=1.15", "onnxruntime>=1.16"]
+dev = ["pytest>=7", "pytest-timeout>=2"]
+
+[project.scripts]
+vibe-rl = "vibe_rl.cli:main"
+
+[tool.uv]
+# Slice 2: torch is the heavy dep; we accept the install-size hit on first
+# materialization and cache the venv at ~/.vibecli/python-envs/vibe-rl-py-<ver>.
+# CPU-only build is fine for the default install; users who want GPU swap to
+# torch+cu121 / torch+rocm via extras-index-url at install time.
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["vibe_rl"]
