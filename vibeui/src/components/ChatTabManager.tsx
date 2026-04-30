@@ -3,8 +3,10 @@ import { Icon } from "./Icon";
 import { invoke } from "@tauri-apps/api/core";
 import { AIChat, Message } from "./AIChat";
 import { ChatMemoryPanel } from "./ChatMemoryPanel";
+import { RecapCard } from "./RecapCard";
 import { useSessionMemory } from "../hooks/useSessionMemory";
 import { useWatchActiveSession } from "../hooks/useWatchSync";
+import type { Recap } from "../types/recap";
 
 interface ChatTab {
     id: string;
@@ -21,6 +23,10 @@ interface ChatSession {
     provider: string;
     messages: Message[];
     savedAt: number;
+    /** F2.2 — daemon-side `subject_id` for the matching `Recap` row.
+     * Optional: history entries created before recap-resume shipped
+     * won't have one, and the UI degrades to no-card. */
+    recapSubjectId?: string;
 }
 
 interface ChatTabManagerProps {
@@ -123,6 +129,11 @@ export function ChatTabManager({
     // first time it's saved (or when restored from history). Subsequent saves
     // update that same entry instead of stacking duplicates.
     const [tabHistoryIds, setTabHistoryIds] = useState<Record<string, string>>({});
+
+    // F2.2 — tab.id → currently-pinned Recap (or null). Set by restoreSession
+    // when the history entry has a `recapSubjectId`. Cleared when the user
+    // dismisses the card or resumes from it.
+    const [tabRecaps, setTabRecaps] = useState<Record<string, Recap | null>>({});
 
     // tab.id → agent-loop toggle. When true, AIChat routes sendMessage through
     // start_agent_task instead of stream_chat_message. Default off; opt-in only
@@ -286,7 +297,11 @@ export function ChatTabManager({
     };
 
     /** Restore a session from history into a new tab. The new tab is bound
-     * to the same history entry, so future saves update it in place. */
+     * to the same history entry, so future saves update it in place. If the
+     * history entry has a `recapSubjectId`, also fetch + pin the recap card
+     * above the transcript (F2.2). Recap fetch is best-effort: a daemon
+     * that doesn't yet expose `recap_get_for_session` simply leaves the
+     * tab without a card. */
     const restoreSession = (session: ChatSession) => {
         nextTabId++;
         const newTab: ChatTab = {
@@ -300,7 +315,28 @@ export function ChatTabManager({
         setTabHistoryIds(prev => ({ ...prev, [newTab.id]: session.id }));
         setActiveTabId(newTab.id);
         setShowHistory(false);
+
+        if (session.recapSubjectId) {
+            invoke<Recap | null>("recap_get_for_session", { subjectId: session.recapSubjectId })
+                .then(rcp => { if (rcp) setTabRecaps(prev => ({ ...prev, [newTab.id]: rcp })); })
+                .catch(() => { /* daemon offline or command absent — degrade silently */ });
+        }
     };
+
+    /** F2.2 — invoked by RecapCard's "Resume from here". Asks the daemon
+     * to materialise a primed session via /v1/resume, then dismisses the
+     * card. Failure is non-fatal: the user is already on the restored
+     * transcript, the resume just couldn't graft a fresh prompt. */
+    const resumeFromRecap = useCallback((tabId: string, recap: Recap) => {
+        invoke("recap_resume_session", { recapId: recap.id, branch: false })
+            .catch(() => { /* surfaced via separate toast in F2.3 */ });
+        setTabRecaps(prev => ({ ...prev, [tabId]: null }));
+    }, []);
+
+    const dismissRecap = useCallback((tabId: string) => {
+        setTabRecaps(prev => ({ ...prev, [tabId]: null }));
+    }, []);
+    void dismissRecap; // wired in F2.2b (close-button on the card)
 
     const deleteHistorySession = (sessionId: string, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -657,6 +693,12 @@ export function ChatTabManager({
                             height: "100%",
                         }}
                     >
+                        {tabRecaps[tab.id] && (
+                            <RecapCard
+                                recap={tabRecaps[tab.id]!}
+                                onResume={(r) => resumeFromRecap(tab.id, r)}
+                            />
+                        )}
                         <AIChat
                             provider={tab.provider}
                             context={context}

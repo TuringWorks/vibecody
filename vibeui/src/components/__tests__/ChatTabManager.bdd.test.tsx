@@ -47,6 +47,20 @@ vi.mock('../ChatMemoryPanel', () => ({
   ChatMemoryPanel: () => <div data-testid="memory-panel" />,
 }));
 
+vi.mock('../RecapCard', () => ({
+  RecapCard: ({ recap, onResume }: {
+    recap: { id: string; headline: string };
+    onResume?: (r: { id: string; headline: string }) => void;
+  }) => (
+    <div data-testid="recap-card">
+      <span data-testid="recap-headline">{recap.headline}</span>
+      <button type="button" data-testid="recap-resume" onClick={() => onResume?.(recap)}>
+        Resume from here
+      </button>
+    </div>
+  ),
+}));
+
 vi.mock('../../hooks/useSessionMemory', () => ({
   useSessionMemory: () => ({
     factsForTab: () => [],
@@ -351,5 +365,110 @@ describe('Given a session is restored from history into a new tab', () => {
     expect(after).toHaveLength(1);
     expect(after[0].id).toBe(seededId);
     expect(after[0].messages).toHaveLength(2);
+  });
+});
+
+// ── F2.2: Recap card pinned to a restored tab ───────────────────────────────────
+
+describe('Given a history entry has a recapSubjectId', () => {
+  function seedHistoryWithRecap(subjectId = 'sess_xyz') {
+    localStorage.setItem('vibecody:chat-history', JSON.stringify([{
+      id: 'session-seed-1',
+      title: 'Seeded',
+      provider: 'ollama',
+      messages: [{ role: 'user', content: 'original' }],
+      savedAt: 1700000000000,
+      recapSubjectId: subjectId,
+    }]));
+  }
+
+  function mockRecapInvoke(headline = 'Wired auth refresh-token rotation') {
+    mockInvoke.mockImplementation(async (cmd: string, args?: { subjectId?: string }) => {
+      if (cmd === 'get_adventure_names') return ['Alpha', 'Beta', 'Gamma'];
+      if (cmd === 'recap_get_for_session') {
+        return {
+          id: 'rcp_1',
+          kind: 'session',
+          subject_id: args?.subjectId ?? '',
+          generated_at: '2026-01-01T00:00:00Z',
+          generator: { type: 'heuristic' },
+          headline,
+          bullets: ['b1'],
+          next_actions: [],
+          artifacts: [],
+          schema_version: 1,
+        };
+      }
+      return null;
+    });
+  }
+
+  it('When the daemon returns a recap, Then a RecapCard renders with the headline', async () => {
+    seedHistoryWithRecap();
+    mockRecapInvoke('Wired auth refresh-token rotation');
+
+    renderManager();
+    fireEvent.click(screen.getByTitle('Session history'));
+    fireEvent.click(screen.getByTitle('Restore into new tab'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('recap-card')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('recap-headline').textContent).toBe('Wired auth refresh-token rotation');
+    expect(mockInvoke).toHaveBeenCalledWith('recap_get_for_session', { subjectId: 'sess_xyz' });
+  });
+
+  it('When the user clicks "Resume from here", Then recap_resume_session is invoked with the recap id', async () => {
+    seedHistoryWithRecap();
+    mockRecapInvoke();
+
+    renderManager();
+    fireEvent.click(screen.getByTitle('Session history'));
+    fireEvent.click(screen.getByTitle('Restore into new tab'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('recap-card')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('recap-resume'));
+
+    expect(mockInvoke).toHaveBeenCalledWith('recap_resume_session', { recapId: 'rcp_1', branch: false });
+  });
+
+  it('When the daemon command throws, Then no RecapCard renders and the tab still works', async () => {
+    seedHistoryWithRecap();
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_adventure_names') return ['Alpha', 'Beta', 'Gamma'];
+      if (cmd === 'recap_get_for_session') throw new Error('daemon offline');
+      return null;
+    });
+
+    renderManager();
+    fireEvent.click(screen.getByTitle('Session history'));
+    fireEvent.click(screen.getByTitle('Restore into new tab'));
+
+    // Allow the rejected promise to flush
+    await new Promise(r => setTimeout(r, 0));
+    expect(screen.queryByTestId('recap-card')).toBeNull();
+  });
+});
+
+describe('Given a restored history entry has no recapSubjectId', () => {
+  it('When the user restores it, Then no RecapCard renders and recap_get_for_session is not called', async () => {
+    localStorage.setItem('vibecody:chat-history', JSON.stringify([{
+      id: 'session-seed-1',
+      title: 'Seeded',
+      provider: 'ollama',
+      messages: [{ role: 'user', content: 'original' }],
+      savedAt: 1700000000000,
+      // recapSubjectId omitted on purpose
+    }]));
+
+    renderManager();
+    fireEvent.click(screen.getByTitle('Session history'));
+    fireEvent.click(screen.getByTitle('Restore into new tab'));
+
+    await new Promise(r => setTimeout(r, 0));
+    expect(screen.queryByTestId('recap-card')).toBeNull();
+    expect(mockInvoke).not.toHaveBeenCalledWith('recap_get_for_session', expect.anything());
   });
 });
