@@ -47967,3 +47967,137 @@ pub async fn team_onboarding_guide(
     .map_err(|e| e.to_string())?;
     Ok(guide)
 }
+
+// ── Recap & Resume — F2.2 + F2.3 daemon bridges ────────────────────────────
+//
+// Three thin Tauri wrappers around the daemon's `/v1/recap` and
+// `/v1/resume` HTTP routes (slice plan: docs/design/recap-resume/).
+// Each follows the same shape as `watch_get_active_session`: read
+// `~/.vibecli/daemon.token`, call `http://localhost:7878/...`, fall back
+// to a recognisable null/error JSON when the daemon isn't reachable so
+// the UI can degrade silently.
+
+async fn recap_daemon_token() -> Result<String, String> {
+    let path = dirs::home_dir()
+        .ok_or("HOME not found")?
+        .join(".vibecli")
+        .join("daemon.token");
+    let token = std::fs::read_to_string(&path)
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    Ok(token)
+}
+
+fn recap_http_client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .map_err(|e| e.to_string())
+}
+
+/// F2.2 — fetch the most recent recap for a session subject_id.
+/// Returns `null` (rather than an error) when the daemon is offline,
+/// the token is missing, or no recap exists yet, so the UI can mount
+/// without a card on first open.
+#[tauri::command]
+pub async fn recap_get_for_session(subject_id: String) -> Result<serde_json::Value, String> {
+    let token = recap_daemon_token().await?;
+    if token.is_empty() {
+        return Ok(serde_json::Value::Null);
+    }
+    let client = recap_http_client()?;
+    // subject_id is daemon-issued (UUID or tab-id format) — already
+    // URL-safe; use reqwest's query() helper to be defensive anyway.
+    let url = "http://localhost:7878/v1/recap";
+    match client
+        .get(url)
+        .query(&[
+            ("kind", "session"),
+            ("subject_id", subject_id.as_str()),
+            ("limit", "1"),
+        ])
+        .header("Authorization", format!("Bearer {}", token))
+        .send()
+        .await
+    {
+        Ok(resp) if resp.status().is_success() => {
+            let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+            // GET /v1/recap returns an array; pull the head if present.
+            let head = json
+                .as_array()
+                .and_then(|a| a.first())
+                .cloned()
+                .unwrap_or(serde_json::Value::Null);
+            Ok(head)
+        }
+        _ => Ok(serde_json::Value::Null),
+    }
+}
+
+/// F2.2 — POST /v1/resume with a recap id. `branch=false` resumes the
+/// source session in place; `branch=true` forks a new session_id so the
+/// user can revisit a prior moment without overwriting head.
+#[tauri::command]
+pub async fn recap_resume_session(
+    recap_id: String,
+    branch: Option<bool>,
+) -> Result<serde_json::Value, String> {
+    let token = recap_daemon_token().await?;
+    if token.is_empty() {
+        return Err("daemon not running".into());
+    }
+    let client = recap_http_client()?;
+    let body = serde_json::json!({
+        "from_recap_id": recap_id,
+        "branch": branch.unwrap_or(false),
+    });
+    let resp = client
+        .post("http://localhost:7878/v1/resume")
+        .header("Authorization", format!("Bearer {}", token))
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let status = resp.status();
+    let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    if !status.is_success() {
+        return Err(format!("daemon returned {}: {}", status, json));
+    }
+    Ok(json)
+}
+
+/// F2.3 — generate (or load idempotently) a session recap. Heuristic
+/// generator only in this slice; the LLM path lands later. Idempotent
+/// on `(subject_id, last_message_id)` so calling on every tab close is
+/// cheap when nothing has changed.
+#[tauri::command]
+pub async fn recap_generate(
+    subject_id: String,
+    force: Option<bool>,
+) -> Result<serde_json::Value, String> {
+    let token = recap_daemon_token().await?;
+    if token.is_empty() {
+        return Err("daemon not running".into());
+    }
+    let client = recap_http_client()?;
+    let body = serde_json::json!({
+        "kind": "session",
+        "subject_id": subject_id,
+        "force": force.unwrap_or(false),
+        "generator": "heuristic",
+    });
+    let resp = client
+        .post("http://localhost:7878/v1/recap")
+        .header("Authorization", format!("Bearer {}", token))
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let status = resp.status();
+    let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    if !status.is_success() {
+        return Err(format!("daemon returned {}: {}", status, json));
+    }
+    Ok(json)
+}
