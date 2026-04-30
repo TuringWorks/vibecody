@@ -248,13 +248,48 @@ export function ChatTabManager({
         return newId;
     };
 
+    /** F2.3 — read the user's "Recap on tab close" preference from
+     * the F2.1 localStorage blob. Defaults to true when the key is
+     * missing or corrupt so closing a tab still leaves a recap behind
+     * for users who never visited Settings → Sessions. */
+    const isRecapOnCloseEnabled = (): boolean => {
+        try {
+            const raw = localStorage.getItem("vibeui-sessions");
+            if (!raw) return true;
+            const parsed = JSON.parse(raw) as { recapOnTabClose?: boolean };
+            return typeof parsed.recapOnTabClose === "boolean" ? parsed.recapOnTabClose : true;
+        } catch {
+            return true;
+        }
+    };
+
     const closeTab = (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
         if (tabs.length === 1) return;
 
         // Save (or update) the tab's history entry on close so the latest
         // messages survive after the tab is gone.
-        persistTabToHistory(id, false);
+        const historyId = persistTabToHistory(id, false);
+        const msgsAtClose = tabMessages[id] ?? [];
+
+        // F2.3 — best-effort recap generation on close. Idempotent on
+        // (subject_id, last_message_id), so a no-change close is a cheap
+        // server-side no-op. Skipped when the user toggled it off in
+        // Settings → Sessions, or when there's nothing to recap.
+        if (historyId && msgsAtClose.length > 0 && isRecapOnCloseEnabled()) {
+            invoke("recap_generate", { subjectId: id })
+                .then(() => {
+                    // Write the recap subject back into the history entry so
+                    // a future restore can fetch the matching Recap via
+                    // recap_get_for_session (F2.2).
+                    setHistory(prev => {
+                        const next = prev.map(h => h.id === historyId ? { ...h, recapSubjectId: id } : h);
+                        saveHistory(next);
+                        return next;
+                    });
+                })
+                .catch(() => { /* daemon offline or session not in sessions.db — skip */ });
+        }
 
         // Clean up tab-scoped state
         setTabMessages(prev => {
@@ -263,6 +298,12 @@ export function ChatTabManager({
             return next;
         });
         setTabHistoryIds(prev => {
+            if (!(id in prev)) return prev;
+            const next = { ...prev };
+            delete next[id];
+            return next;
+        });
+        setTabRecaps(prev => {
             if (!(id in prev)) return prev;
             const next = { ...prev };
             delete next[id];

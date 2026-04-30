@@ -472,3 +472,122 @@ describe('Given a restored history entry has no recapSubjectId', () => {
     expect(mockInvoke).not.toHaveBeenCalledWith('recap_get_for_session', expect.anything());
   });
 });
+
+// ── F2.3: auto-recap on tab close ───────────────────────────────────────────────
+
+describe('Given a tab has messages and recap-on-close is enabled', () => {
+  function setRecapOnClose(enabled: boolean) {
+    localStorage.setItem('vibeui-sessions', JSON.stringify({ recapOnTabClose: enabled }));
+  }
+
+  function recapInvoke() {
+    const calls: Array<{ cmd: string; args: unknown }> = [];
+    mockInvoke.mockImplementation(async (cmd: string, args?: unknown) => {
+      calls.push({ cmd, args });
+      if (cmd === 'get_adventure_names') return ['Alpha', 'Beta', 'Gamma'];
+      if (cmd === 'recap_generate') return { id: 'rcp_42' };
+      return null;
+    });
+    return calls;
+  }
+
+  it('When the user closes a tab with messages, Then recap_generate is invoked with that tab id as subject_id', async () => {
+    setRecapOnClose(true);
+    const calls = recapInvoke();
+
+    renderManager();
+    // Open a second tab so the close-last-tab guard doesn't block
+    fireEvent.click(screen.getByTitle('New chat tab'));
+    // Send a message in the active (second) tab
+    const aiChats = screen.getAllByTestId('ai-chat');
+    const activeChat = aiChats.find(el => (el.parentElement as HTMLElement).style.display !== 'none')!;
+    fireEvent.click(activeChat.querySelector('[data-testid="mock-send"]')!);
+
+    // Close the active tab
+    const closeBtns = screen.getAllByTitle('Close tab');
+    fireEvent.click(closeBtns[closeBtns.length - 1]);
+
+    await new Promise(r => setTimeout(r, 0));
+    const generated = calls.filter(c => c.cmd === 'recap_generate');
+    expect(generated).toHaveLength(1);
+    expect((generated[0].args as { subjectId: string }).subjectId).toMatch(/^tab-\d+$/);
+  });
+
+  it('When the user closes an empty tab, Then recap_generate is NOT invoked', async () => {
+    setRecapOnClose(true);
+    const calls = recapInvoke();
+
+    renderManager();
+    fireEvent.click(screen.getByTitle('New chat tab'));
+    // Do NOT send a message in the new tab
+    const closeBtns = screen.getAllByTitle('Close tab');
+    fireEvent.click(closeBtns[closeBtns.length - 1]);
+
+    await new Promise(r => setTimeout(r, 0));
+    expect(calls.filter(c => c.cmd === 'recap_generate')).toHaveLength(0);
+  });
+
+  it('When recap-on-close is disabled in settings, Then recap_generate is NOT invoked even with messages', async () => {
+    setRecapOnClose(false);
+    const calls = recapInvoke();
+
+    renderManager();
+    fireEvent.click(screen.getByTitle('New chat tab'));
+    const aiChats = screen.getAllByTestId('ai-chat');
+    const activeChat = aiChats.find(el => (el.parentElement as HTMLElement).style.display !== 'none')!;
+    fireEvent.click(activeChat.querySelector('[data-testid="mock-send"]')!);
+
+    const closeBtns = screen.getAllByTitle('Close tab');
+    fireEvent.click(closeBtns[closeBtns.length - 1]);
+
+    await new Promise(r => setTimeout(r, 0));
+    expect(calls.filter(c => c.cmd === 'recap_generate')).toHaveLength(0);
+  });
+
+  it('When recap_generate succeeds, Then the history entry gains recapSubjectId equal to the closed tab id', async () => {
+    setRecapOnClose(true);
+    const calls = recapInvoke();
+
+    renderManager();
+    fireEvent.click(screen.getByTitle('New chat tab'));
+    const aiChats = screen.getAllByTestId('ai-chat');
+    const activeChat = aiChats.find(el => (el.parentElement as HTMLElement).style.display !== 'none')!;
+    fireEvent.click(activeChat.querySelector('[data-testid="mock-send"]')!);
+
+    const closeBtns = screen.getAllByTitle('Close tab');
+    fireEvent.click(closeBtns[closeBtns.length - 1]);
+
+    // Wait for the .then() to flush + setHistory writes localStorage
+    await waitFor(() => {
+      const raw = localStorage.getItem('vibecody:chat-history');
+      const entries = raw ? JSON.parse(raw) : [];
+      expect(entries[0]?.recapSubjectId).toBeDefined();
+    });
+    const subj = (calls.find(c => c.cmd === 'recap_generate')!.args as { subjectId: string }).subjectId;
+    const entries = JSON.parse(localStorage.getItem('vibecody:chat-history')!);
+    expect(entries[0].recapSubjectId).toBe(subj);
+  });
+
+  it('When recap_generate rejects, Then the close completes and no recapSubjectId is written', async () => {
+    setRecapOnClose(true);
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_adventure_names') return ['Alpha', 'Beta', 'Gamma'];
+      if (cmd === 'recap_generate') throw new Error('daemon offline');
+      return null;
+    });
+
+    renderManager();
+    fireEvent.click(screen.getByTitle('New chat tab'));
+    const aiChats = screen.getAllByTestId('ai-chat');
+    const activeChat = aiChats.find(el => (el.parentElement as HTMLElement).style.display !== 'none')!;
+    fireEvent.click(activeChat.querySelector('[data-testid="mock-send"]')!);
+
+    const closeBtns = screen.getAllByTitle('Close tab');
+    fireEvent.click(closeBtns[closeBtns.length - 1]);
+
+    await new Promise(r => setTimeout(r, 0));
+    const entries = JSON.parse(localStorage.getItem('vibecody:chat-history') || '[]');
+    expect(entries).toHaveLength(1);
+    expect(entries[0].recapSubjectId).toBeUndefined();
+  });
+});
