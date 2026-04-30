@@ -1606,6 +1606,63 @@ impl JobManager {
         events
     }
 
+    // ── J1.3: HTTP-side wrappers around the JobsDb job-recap CRUD ─────────
+
+    pub async fn insert_job_recap(
+        &self,
+        recap: &crate::recap::Recap,
+    ) -> Result<String, String> {
+        self.db.lock().await.insert_job_recap(recap)
+    }
+
+    pub async fn get_job_recap_by_id(
+        &self,
+        id: &str,
+    ) -> Result<Option<crate::recap::Recap>, String> {
+        self.db.lock().await.get_job_recap_by_id(id)
+    }
+
+    pub async fn get_job_recap_by_subject_and_seq(
+        &self,
+        subject_id: &str,
+        last_event_seq: Option<i64>,
+    ) -> Result<Option<crate::recap::Recap>, String> {
+        self.db
+            .lock()
+            .await
+            .get_job_recap_by_subject_and_seq(subject_id, last_event_seq)
+    }
+
+    pub async fn list_job_recaps_for_subject(
+        &self,
+        subject_id: &str,
+        limit: usize,
+    ) -> Result<Vec<crate::recap::Recap>, String> {
+        self.db
+            .lock()
+            .await
+            .list_job_recaps_for_subject(subject_id, limit)
+    }
+
+    pub async fn delete_job_recap(&self, id: &str) -> Result<(), String> {
+        self.db.lock().await.delete_job_recap(id)
+    }
+
+    /// Fetch the durable job record + replay its full event log. Used by
+    /// `/v1/recap kind=job` to feed the heuristic generator on demand.
+    pub async fn fetch_job_with_events(
+        &self,
+        sid: &str,
+    ) -> Result<Option<(JobRecord, Vec<(u64, AgentEventPayload)>)>, String> {
+        let db = self.db.lock().await;
+        let job = match db.get(sid)? {
+            Some(j) => j,
+            None => return Ok(None),
+        };
+        let events = db.list_events_since(sid, 0)?;
+        Ok(Some((job, events)))
+    }
+
     /// M5: run the webhook retry loop against a caller-supplied send
     /// closure, persist the final outcome, and return it. Generic over
     /// the sender so tests can exercise failure sequences without HTTP.

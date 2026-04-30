@@ -1735,36 +1735,239 @@ fn open_default_or_500(
     })
 }
 
+// ── J1.3: Pure helpers for `kind=job` recap routes ─────────────────────────
+//
+// Mirrors the F1.2 `do_v1_recap_*` helpers but routes through `JobManager`
+// instead of `SessionStore`. Same `(StatusCode, serde_json::Value)` return
+// shape so the HTTP shell can `.json()` the result without re-implementing
+// error mapping. Async because `JobManager` lives behind a tokio `Mutex`.
+
+pub(crate) async fn do_v1_recap_post_job(
+    jm: &JobManager,
+    req: &RecapRequest,
+) -> (StatusCode, serde_json::Value) {
+    if req.kind != "job" {
+        return (
+            StatusCode::BAD_REQUEST,
+            serde_json::json!({
+                "error": format!(
+                    "do_v1_recap_post_job called with kind {:?}; routing bug",
+                    req.kind
+                )
+            }),
+        );
+    }
+    if req.generator != "heuristic" {
+        return (
+            StatusCode::NOT_IMPLEMENTED,
+            serde_json::json!({
+                "error": format!(
+                    "generator {:?} not implemented in J1.3; only \"heuristic\" is supported",
+                    req.generator
+                )
+            }),
+        );
+    }
+
+    let (job, events) = match jm.fetch_job_with_events(&req.subject_id).await {
+        Ok(Some(pair)) => pair,
+        Ok(None) => {
+            return (
+                StatusCode::NOT_FOUND,
+                serde_json::json!({
+                    "error": format!("job {:?} not found", req.subject_id)
+                }),
+            );
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                serde_json::json!({"error": format!("failed to load job: {e}")}),
+            );
+        }
+    };
+
+    // Idempotency: J1.1's insert is upsert on (subject_id, last_event_seq).
+    // `force=true` deletes any prior recap for that (subject, seq) so a
+    // fresh row is generated.
+    let last_event_seq = events.last().map(|(s, _)| *s as i64);
+    if req.force {
+        if let Ok(Some(existing)) = jm
+            .get_job_recap_by_subject_and_seq(&req.subject_id, last_event_seq)
+            .await
+        {
+            let _ = jm.delete_job_recap(&existing.id).await;
+        }
+    }
+
+    let recap = crate::recap::heuristic_job_recap(&job, &events);
+    let stored_id = match jm.insert_job_recap(&recap).await {
+        Ok(id) => id,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                serde_json::json!({"error": format!("recap insert: {e}")}),
+            );
+        }
+    };
+    // Re-load via id so the response carries the persisted shape (the
+    // freshly-generated `recap.id` is replaced by the existing row's id
+    // when J1.1's idempotency hit).
+    match jm.get_job_recap_by_id(&stored_id).await {
+        Ok(Some(stored)) => match serde_json::to_value(&stored) {
+            Ok(v) => (StatusCode::OK, v),
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                serde_json::json!({"error": format!("recap serialize: {e}")}),
+            ),
+        },
+        Ok(None) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            serde_json::json!({"error": "recap vanished after insert"}),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            serde_json::json!({"error": format!("recap reload: {e}")}),
+        ),
+    }
+}
+
+pub(crate) async fn do_v1_recap_get_job(
+    jm: &JobManager,
+    id: &str,
+) -> (StatusCode, serde_json::Value) {
+    match jm.get_job_recap_by_id(id).await {
+        Ok(Some(r)) => match serde_json::to_value(&r) {
+            Ok(v) => (StatusCode::OK, v),
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                serde_json::json!({"error": format!("serialize: {e}")}),
+            ),
+        },
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            serde_json::json!({"error": "recap not found"}),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            serde_json::json!({"error": format!("recap load: {e}")}),
+        ),
+    }
+}
+
+pub(crate) async fn do_v1_recap_list_job(
+    jm: &JobManager,
+    q: &RecapListQuery,
+) -> (StatusCode, serde_json::Value) {
+    let subject_id = match q.subject_id.as_deref() {
+        Some(s) => s,
+        None => {
+            return (
+                StatusCode::BAD_REQUEST,
+                serde_json::json!({"error": "missing required query param `subject_id`"}),
+            );
+        }
+    };
+    match jm.list_job_recaps_for_subject(subject_id, q.limit).await {
+        Ok(rows) => {
+            let count = rows.len();
+            match serde_json::to_value(&rows) {
+                Ok(v) => (
+                    StatusCode::OK,
+                    serde_json::json!({"recaps": v, "count": count}),
+                ),
+                Err(e) => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    serde_json::json!({"error": format!("serialize: {e}")}),
+                ),
+            }
+        }
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            serde_json::json!({"error": format!("recap list: {e}")}),
+        ),
+    }
+}
+
+pub(crate) async fn do_v1_recap_delete_job(
+    jm: &JobManager,
+    id: &str,
+) -> (StatusCode, serde_json::Value) {
+    match jm.delete_job_recap(id).await {
+        Ok(()) => (StatusCode::NO_CONTENT, serde_json::json!({})),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            serde_json::json!({"error": format!("recap delete: {e}")}),
+        ),
+    }
+}
+
 async fn v1_recap_post(
+    State(state): State<ServeState>,
     Json(req): Json<RecapRequest>,
 ) -> (StatusCode, Json<serde_json::Value>) {
-    let store = match open_default_or_500() {
-        Ok(s) => s,
-        Err(e) => return e,
+    let (status, body) = match req.kind.as_str() {
+        "session" => {
+            let store = match open_default_or_500() {
+                Ok(s) => s,
+                Err(e) => return e,
+            };
+            do_v1_recap_post(&store, &req)
+        }
+        "job" => do_v1_recap_post_job(&state.job_manager, &req).await,
+        other => (
+            StatusCode::BAD_REQUEST,
+            serde_json::json!({
+                "error": format!(
+                    "kind {other:?} not supported; valid: \"session\" | \"job\""
+                )
+            }),
+        ),
     };
-    let (status, body) = do_v1_recap_post(&store, &req);
     (status, Json(body))
 }
 
 async fn v1_recap_get(
+    State(state): State<ServeState>,
     Path(id): Path<String>,
 ) -> (StatusCode, Json<serde_json::Value>) {
+    // Try session store first; if not found, fall through to JobsDb. Recap
+    // ids are UUIDs across both stores, so there is no collision risk.
     let store = match open_default_or_500() {
         Ok(s) => s,
         Err(e) => return e,
     };
     let (status, body) = do_v1_recap_get(&store, &id);
+    if status == StatusCode::NOT_FOUND {
+        let (status, body) = do_v1_recap_get_job(&state.job_manager, &id).await;
+        return (status, Json(body));
+    }
     (status, Json(body))
 }
 
 async fn v1_recap_list(
+    State(state): State<ServeState>,
     Query(q): Query<RecapListQuery>,
 ) -> (StatusCode, Json<serde_json::Value>) {
-    let store = match open_default_or_500() {
-        Ok(s) => s,
-        Err(e) => return e,
+    let kind = q.kind.as_deref().unwrap_or("session");
+    let (status, body) = match kind {
+        "session" => {
+            let store = match open_default_or_500() {
+                Ok(s) => s,
+                Err(e) => return e,
+            };
+            do_v1_recap_list(&store, &q)
+        }
+        "job" => do_v1_recap_list_job(&state.job_manager, &q).await,
+        other => (
+            StatusCode::BAD_REQUEST,
+            serde_json::json!({
+                "error": format!(
+                    "kind {other:?} not supported; valid: \"session\" | \"job\""
+                )
+            }),
+        ),
     };
-    let (status, body) = do_v1_recap_list(&store, &q);
     (status, Json(body))
 }
 
@@ -1781,14 +1984,23 @@ async fn v1_recap_patch(
 }
 
 async fn v1_recap_delete(
+    State(state): State<ServeState>,
     Path(id): Path<String>,
 ) -> (StatusCode, Json<serde_json::Value>) {
+    // Both stores have idempotent deletes and disjoint id spaces (UUIDs).
+    // Issue the delete to both; succeed if either store reports success.
     let store = match open_default_or_500() {
         Ok(s) => s,
         Err(e) => return e,
     };
-    let (status, body) = do_v1_recap_delete(&store, &id);
-    (status, Json(body))
+    let (s1, _) = do_v1_recap_delete(&store, &id);
+    let (s2, _) = do_v1_recap_delete_job(&state.job_manager, &id).await;
+    let final_status = if s1 == StatusCode::NO_CONTENT || s2 == StatusCode::NO_CONTENT {
+        StatusCode::NO_CONTENT
+    } else {
+        StatusCode::INTERNAL_SERVER_ERROR
+    };
+    (final_status, Json(serde_json::json!({})))
 }
 
 // ── Recap & Resume — F1.3 /v1/resume routes ────────────────────────────────
@@ -2268,6 +2480,277 @@ async fn rl_eval_compare(
         .map_err(rl_err_to_http)
 }
 
+// ── RL-OS: /v1/rl/policies (slice 5) ──────────────────────────────────────────
+
+fn open_policy_store_from_state(
+    state: &ServeState,
+) -> Result<crate::rl_policies::PolicyStore, (StatusCode, Json<serde_json::Value>)> {
+    crate::rl_policies::PolicyStore::open(&state.workspace_root).map_err(rl_err_to_http)
+}
+
+async fn rl_register_policy(
+    State(state): State<ServeState>,
+    Json(req): Json<crate::rl_policies::RegisterRequest>,
+) -> Result<Json<crate::rl_policies::Policy>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_policy_store_from_state(&state)?;
+    store
+        .register(req, state.rl_run_store.as_ref())
+        .map(Json)
+        .map_err(rl_err_to_http)
+}
+
+#[derive(Debug, Deserialize)]
+struct PolicyListQuery {
+    name: Option<String>,
+}
+
+async fn rl_list_policies_h(
+    State(state): State<ServeState>,
+    Query(q): Query<PolicyListQuery>,
+) -> Result<Json<Vec<crate::rl_policies::Policy>>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_policy_store_from_state(&state)?;
+    store
+        .list(q.name.as_deref())
+        .map(Json)
+        .map_err(rl_err_to_http)
+}
+
+async fn rl_get_policy(
+    Path(id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<Json<crate::rl_policies::Policy>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_policy_store_from_state(&state)?;
+    match store.get(&id).map_err(rl_err_to_http)? {
+        Some(p) => Ok(Json(p)),
+        None => Err(json_error(
+            StatusCode::NOT_FOUND,
+            format!("policy '{}' not found", sanitize_user_input(&id)),
+        )),
+    }
+}
+
+async fn rl_delete_policy(
+    Path(id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<StatusCode, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_policy_store_from_state(&state)?;
+    store
+        .delete(&id)
+        .map(|_| StatusCode::NO_CONTENT)
+        .map_err(rl_err_to_http)
+}
+
+#[derive(Debug, Deserialize)]
+struct LineageQuery {
+    depth: Option<usize>,
+}
+
+async fn rl_get_policy_lineage(
+    Path(id): Path<String>,
+    Query(q): Query<LineageQuery>,
+    State(state): State<ServeState>,
+) -> Result<Json<crate::rl_policies::LineageGraph>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_policy_store_from_state(&state)?;
+    let depth = q.depth.unwrap_or(3);
+    store.lineage(&id, depth).map(Json).map_err(rl_err_to_http)
+}
+
+async fn rl_get_policy_card(
+    Path(id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<axum::response::Response, (StatusCode, Json<serde_json::Value>)> {
+    use axum::response::IntoResponse;
+    let store = open_policy_store_from_state(&state)?;
+    let card = store.card(&id).map_err(rl_err_to_http)?;
+    Ok((
+        [(header::CONTENT_TYPE, "text/markdown; charset=utf-8")],
+        card,
+    )
+        .into_response())
+}
+
+async fn rl_get_reward_components(
+    Path(run_id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<Json<Vec<crate::rl_policies::RewardComponentRow>>, (StatusCode, Json<serde_json::Value>)> {
+    let rows = state
+        .rl_run_store
+        .reward_decomposition(&run_id)
+        .map_err(rl_err_to_http)?;
+    let report: Vec<crate::rl_policies::RewardComponentRow> = rows
+        .into_iter()
+        .map(|(component, mean, total, n)| crate::rl_policies::RewardComponentRow {
+            component,
+            mean,
+            total,
+            n_episodes: n,
+        })
+        .collect();
+    Ok(Json(report))
+}
+
+// ── RL-OS: /v1/rl/serve (slice 6 — deployment management) ────────────────────
+
+fn open_deploy_store_from_state(
+    state: &ServeState,
+) -> Result<crate::rl_deploy::DeploymentStore, (StatusCode, Json<serde_json::Value>)> {
+    crate::rl_deploy::DeploymentStore::open(&state.workspace_root).map_err(rl_err_to_http)
+}
+
+async fn rl_create_deployment(
+    State(state): State<ServeState>,
+    Json(req): Json<crate::rl_deploy::CreateDeploymentRequest>,
+) -> Result<Json<crate::rl_deploy::Deployment>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_deploy_store_from_state(&state)?;
+    store.create(req).map(Json).map_err(rl_err_to_http)
+}
+
+async fn rl_list_deployments_h(
+    State(state): State<ServeState>,
+) -> Result<Json<Vec<crate::rl_deploy::Deployment>>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_deploy_store_from_state(&state)?;
+    store.list().map(Json).map_err(rl_err_to_http)
+}
+
+async fn rl_get_deployment(
+    Path(id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<Json<crate::rl_deploy::Deployment>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_deploy_store_from_state(&state)?;
+    match store.get(&id).map_err(rl_err_to_http)? {
+        Some(d) => Ok(Json(d)),
+        None => Err(json_error(
+            StatusCode::NOT_FOUND,
+            format!("deployment '{}' not found", sanitize_user_input(&id)),
+        )),
+    }
+}
+
+async fn rl_promote_deployment(
+    Path(id): Path<String>,
+    State(state): State<ServeState>,
+    Json(req): Json<crate::rl_deploy::PromoteRequest>,
+) -> Result<Json<crate::rl_deploy::Deployment>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_deploy_store_from_state(&state)?;
+    store.promote(&id, req).map(Json).map_err(rl_err_to_http)
+}
+
+async fn rl_rollback_deployment(
+    Path(id): Path<String>,
+    State(state): State<ServeState>,
+    Json(req): Json<crate::rl_deploy::RollbackRequest>,
+) -> Result<Json<crate::rl_deploy::Deployment>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_deploy_store_from_state(&state)?;
+    store.rollback(&id, req).map(Json).map_err(rl_err_to_http)
+}
+
+async fn rl_stop_deployment(
+    Path(id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<Json<crate::rl_deploy::Deployment>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_deploy_store_from_state(&state)?;
+    store.stop(&id).map(Json).map_err(rl_err_to_http)
+}
+
+async fn rl_get_deployment_health_h(
+    Path(id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<Json<crate::rl_deploy::HealthSnapshot>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_deploy_store_from_state(&state)?;
+    store.health(&id).map(Json).map_err(rl_err_to_http)
+}
+
+/// Slice 6 stops at deployment management. The actual inference call
+/// requires a `PolicyRuntime` impl (slice 6.5) — either ONNX (`ort`
+/// crate, +5 MB binary, C++ build dep) or a long-lived Python sidecar
+/// in inference mode. Returning 501 with the explicit shape so the
+/// dashboard can render "deploy management is real, inference is not
+/// yet wired" without faking a response.
+async fn rl_serve_act(
+    Path(name): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    (
+        StatusCode::NOT_IMPLEMENTED,
+        Json(serde_json::json!({
+            "error": "inference runtime not yet wired",
+            "deployment": name,
+            "slice": "6.5",
+            "hint": "Slice 6 ships deployment management (lifecycle, traffic split, rollback). The act endpoint requires a PolicyRuntime — see docs/design/rl-os/06-deployment.md."
+        })),
+    )
+}
+
+// ── RL-OS: /v1/rl/rlhf, /v1/rl/optimization, /v1/rl/multi-agent (slice 7) ────
+
+fn open_pref_store_from_state(
+    state: &ServeState,
+) -> Result<crate::rl_advanced::PreferenceStore, (StatusCode, Json<serde_json::Value>)> {
+    crate::rl_advanced::PreferenceStore::open(&state.workspace_root).map_err(rl_err_to_http)
+}
+
+async fn rl_create_preference(
+    State(state): State<ServeState>,
+    Json(req): Json<crate::rl_advanced::CreatePreferenceRequest>,
+) -> Result<Json<crate::rl_advanced::Preference>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_pref_store_from_state(&state)?;
+    store.create(req).map(Json).map_err(rl_err_to_http)
+}
+
+async fn rl_judge_preference(
+    Path(pref_id): Path<String>,
+    State(state): State<ServeState>,
+    Json(req): Json<crate::rl_advanced::JudgePreferenceRequest>,
+) -> Result<Json<crate::rl_advanced::Preference>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_pref_store_from_state(&state)?;
+    store
+        .judge(&pref_id, req)
+        .map(Json)
+        .map_err(rl_err_to_http)
+}
+
+#[derive(Debug, Deserialize)]
+struct PreferenceListQuery {
+    suite_id: Option<String>,
+}
+
+async fn rl_list_preferences(
+    State(state): State<ServeState>,
+    Query(q): Query<PreferenceListQuery>,
+) -> Result<Json<Vec<crate::rl_advanced::Preference>>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_pref_store_from_state(&state)?;
+    store
+        .list(q.suite_id.as_deref())
+        .map(Json)
+        .map_err(rl_err_to_http)
+}
+
+async fn rl_alignment_metrics(
+    Path(run_id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<Json<Vec<crate::rl_advanced::AlignmentScoreRow>>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_pref_store_from_state(&state)?;
+    store
+        .alignment_scores(&run_id)
+        .map(Json)
+        .map_err(rl_err_to_http)
+}
+
+async fn rl_optimization_runs_h(
+    State(state): State<ServeState>,
+) -> Result<Json<Vec<crate::rl_advanced::OptimizationRunSummary>>, (StatusCode, Json<serde_json::Value>)> {
+    crate::rl_advanced::list_optimization_runs(state.rl_run_store.as_ref())
+        .map(Json)
+        .map_err(rl_err_to_http)
+}
+
+async fn rl_multi_agent_runs_h(
+    State(state): State<ServeState>,
+) -> Result<Json<Vec<crate::rl_advanced::MultiAgentRunSummary>>, (StatusCode, Json<serde_json::Value>)> {
+    crate::rl_advanced::list_multi_agent_runs(state.rl_run_store.as_ref())
+        .map(Json)
+        .map_err(rl_err_to_http)
+}
+
 // ── Server startup ────────────────────────────────────────────────────────────
 
 /// Build the full axum router with all middleware, CORS, auth, and routes.
@@ -2379,6 +2862,33 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/v1/rl/eval/suites/:id", axum::routing::delete(rl_eval_delete_suite))
         .route("/v1/rl/eval/results", get(rl_eval_list_results))
         .route("/v1/rl/eval/compare", post(rl_eval_compare))
+        // RL-OS slice 5 — policy registry + lineage + reward decomposition
+        .route("/v1/rl/policies", post(rl_register_policy))
+        .route("/v1/rl/policies", get(rl_list_policies_h))
+        .route("/v1/rl/policies/:id", get(rl_get_policy))
+        .route("/v1/rl/policies/:id", axum::routing::delete(rl_delete_policy))
+        .route("/v1/rl/policies/:id/lineage", get(rl_get_policy_lineage))
+        .route("/v1/rl/policies/:id/card", get(rl_get_policy_card))
+        .route(
+            "/v1/rl/runs/:id/reward-components",
+            get(rl_get_reward_components),
+        )
+        // RL-OS slice 6 — deployment management (inference wired in 6.5)
+        .route("/v1/rl/serve/deployments", post(rl_create_deployment))
+        .route("/v1/rl/serve/deployments", get(rl_list_deployments_h))
+        .route("/v1/rl/serve/deployments/:id", get(rl_get_deployment))
+        .route("/v1/rl/serve/deployments/:id/promote", post(rl_promote_deployment))
+        .route("/v1/rl/serve/deployments/:id/rollback", post(rl_rollback_deployment))
+        .route("/v1/rl/serve/deployments/:id/stop", post(rl_stop_deployment))
+        .route("/v1/rl/serve/deployments/:id/health", get(rl_get_deployment_health_h))
+        .route("/v1/rl/serve/:name/act", post(rl_serve_act))
+        // RL-OS slice 7 — RLHF + Optimization + Multi-Agent
+        .route("/v1/rl/rlhf/preferences", post(rl_create_preference))
+        .route("/v1/rl/rlhf/preferences", get(rl_list_preferences))
+        .route("/v1/rl/rlhf/preferences/:id/judge", post(rl_judge_preference))
+        .route("/v1/rl/rlhf/runs/:id/alignment", get(rl_alignment_metrics))
+        .route("/v1/rl/optimization/runs", get(rl_optimization_runs_h))
+        .route("/v1/rl/multi-agent/runs", get(rl_multi_agent_runs_h))
         // Recap & Resume v1 — F1.2 (Session-only, heuristic-only)
         .route("/v1/recap", post(v1_recap_post))
         .route("/v1/recap", get(v1_recap_list))
@@ -6545,6 +7055,220 @@ mod tests {
         let (store, _sid, _dir) = recap_route_fixture();
         let (status, _) = do_v1_recap_delete(&store, "never-existed");
         assert_eq!(status, StatusCode::NO_CONTENT);
+    }
+
+    // ── J1.3: kind=job recap-route helper tests ────────────────────────────
+
+    async fn job_route_fixture(
+        task: &str,
+    ) -> (Arc<crate::job_manager::JobManager>, String, tempfile::TempDir) {
+        let dir = tempfile::tempdir().unwrap();
+        let db = crate::job_manager::JobsDb::open_with(
+            &dir.path().join("jobs.db"),
+            [42u8; 32],
+        )
+        .unwrap();
+        let mgr = Arc::new(crate::job_manager::JobManager::new_with(db));
+        let sid = mgr
+            .create(crate::job_manager::CreateJobReq {
+                task: task.into(),
+                provider: "mock".into(),
+                approval: "auto".into(),
+                workspace_root: "/tmp/ws".into(),
+                priority: 5,
+                webhook_url: None,
+                tags: vec![],
+                quota_bucket: None,
+            })
+            .await
+            .unwrap();
+        // Seed a couple of step events so the heuristic produces bullets.
+        mgr.publish_event(
+            &sid,
+            crate::job_manager::AgentEventPayload::step(1, "shell", true),
+        )
+        .await;
+        mgr.publish_event(
+            &sid,
+            crate::job_manager::AgentEventPayload::step(2, "edit", true),
+        )
+        .await;
+        (mgr, sid, dir)
+    }
+
+    #[tokio::test]
+    async fn recap_post_job_heuristic_returns_recap_shape() {
+        let (mgr, sid, _dir) = job_route_fixture("Refactor SSRF guard").await;
+        let req = RecapRequest {
+            kind: "job".to_string(),
+            subject_id: sid.clone(),
+            force: false,
+            generator: "heuristic".to_string(),
+            provider: None,
+            model: None,
+        };
+        let (status, body) = do_v1_recap_post_job(&mgr, &req).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["kind"], "job");
+        assert_eq!(body["subject_id"], sid);
+        assert_eq!(body["schema_version"], 1);
+        assert_eq!(body["generator"]["type"], "heuristic");
+        assert!(body["headline"].as_str().unwrap().starts_with("Refactor"));
+    }
+
+    #[tokio::test]
+    async fn recap_post_job_returns_404_on_missing_subject() {
+        let (mgr, _sid, _dir) = job_route_fixture("Task").await;
+        let req = RecapRequest {
+            kind: "job".to_string(),
+            subject_id: "no-such-job".into(),
+            force: false,
+            generator: "heuristic".to_string(),
+            provider: None,
+            model: None,
+        };
+        let (status, _) = do_v1_recap_post_job(&mgr, &req).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn recap_post_job_idempotent_on_repeat() {
+        // J1.1's (subject_id, last_event_seq) upsert means a second POST
+        // with no new events returns the existing row id unchanged.
+        let (mgr, sid, _dir) = job_route_fixture("Same job").await;
+        let req = RecapRequest {
+            kind: "job".to_string(),
+            subject_id: sid,
+            force: false,
+            generator: "heuristic".to_string(),
+            provider: None,
+            model: None,
+        };
+        let (s1, b1) = do_v1_recap_post_job(&mgr, &req).await;
+        let (s2, b2) = do_v1_recap_post_job(&mgr, &req).await;
+        assert_eq!(s1, StatusCode::OK);
+        assert_eq!(s2, StatusCode::OK);
+        assert_eq!(
+            b1["id"], b2["id"],
+            "second POST must reuse the same recap row"
+        );
+    }
+
+    #[tokio::test]
+    async fn recap_post_job_force_drops_existing_and_regens() {
+        // force=true must produce a different recap id even when
+        // (subject, last_event_seq) is unchanged.
+        let (mgr, sid, _dir) = job_route_fixture("Forced regen").await;
+        let req_first = RecapRequest {
+            kind: "job".to_string(),
+            subject_id: sid.clone(),
+            force: false,
+            generator: "heuristic".to_string(),
+            provider: None,
+            model: None,
+        };
+        let (_, b1) = do_v1_recap_post_job(&mgr, &req_first).await;
+        let req_force = RecapRequest {
+            force: true,
+            ..req_first
+        };
+        let (s2, b2) = do_v1_recap_post_job(&mgr, &req_force).await;
+        assert_eq!(s2, StatusCode::OK);
+        assert_ne!(b1["id"], b2["id"], "force=true must produce a new id");
+    }
+
+    #[tokio::test]
+    async fn recap_post_job_rejects_llm_generator() {
+        let (mgr, sid, _dir) = job_route_fixture("Task").await;
+        let req = RecapRequest {
+            kind: "job".to_string(),
+            subject_id: sid,
+            force: false,
+            generator: "llm".to_string(),
+            provider: None,
+            model: None,
+        };
+        let (status, _) = do_v1_recap_post_job(&mgr, &req).await;
+        assert_eq!(status, StatusCode::NOT_IMPLEMENTED);
+    }
+
+    #[tokio::test]
+    async fn recap_get_job_returns_stored_row() {
+        let (mgr, sid, _dir) = job_route_fixture("Get me").await;
+        let req = RecapRequest {
+            kind: "job".to_string(),
+            subject_id: sid.clone(),
+            force: false,
+            generator: "heuristic".to_string(),
+            provider: None,
+            model: None,
+        };
+        let (_, b1) = do_v1_recap_post_job(&mgr, &req).await;
+        let id = b1["id"].as_str().unwrap();
+        let (status, b2) = do_v1_recap_get_job(&mgr, id).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(b1["id"], b2["id"]);
+    }
+
+    #[tokio::test]
+    async fn recap_get_job_returns_404_on_missing_id() {
+        let (mgr, _sid, _dir) = job_route_fixture("Task").await;
+        let (status, _) = do_v1_recap_get_job(&mgr, "no-such-recap").await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn recap_list_job_returns_recaps_for_subject() {
+        let (mgr, sid, _dir) = job_route_fixture("List me").await;
+        let post_req = RecapRequest {
+            kind: "job".to_string(),
+            subject_id: sid.clone(),
+            force: false,
+            generator: "heuristic".to_string(),
+            provider: None,
+            model: None,
+        };
+        let _ = do_v1_recap_post_job(&mgr, &post_req).await;
+        let q = RecapListQuery {
+            kind: Some("job".into()),
+            subject_id: Some(sid.clone()),
+            limit: 20,
+        };
+        let (status, body) = do_v1_recap_list_job(&mgr, &q).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["count"], 1);
+        assert_eq!(body["recaps"][0]["subject_id"], sid);
+    }
+
+    #[tokio::test]
+    async fn recap_list_job_400s_without_subject_id() {
+        let (mgr, _sid, _dir) = job_route_fixture("Task").await;
+        let q = RecapListQuery {
+            kind: Some("job".into()),
+            subject_id: None,
+            limit: 20,
+        };
+        let (status, _) = do_v1_recap_list_job(&mgr, &q).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn recap_delete_job_removes_row() {
+        let (mgr, sid, _dir) = job_route_fixture("Delete me").await;
+        let req = RecapRequest {
+            kind: "job".to_string(),
+            subject_id: sid,
+            force: false,
+            generator: "heuristic".to_string(),
+            provider: None,
+            model: None,
+        };
+        let (_, b) = do_v1_recap_post_job(&mgr, &req).await;
+        let id = b["id"].as_str().unwrap().to_string();
+        let (status, _) = do_v1_recap_delete_job(&mgr, &id).await;
+        assert_eq!(status, StatusCode::NO_CONTENT);
+        let (after, _) = do_v1_recap_get_job(&mgr, &id).await;
+        assert_eq!(after, StatusCode::NOT_FOUND);
     }
 
     // F1.2 HTTP auth tests live in `http_integration` (where `test_app`
