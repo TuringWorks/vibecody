@@ -558,6 +558,212 @@ pub fn load_or_generate_session_recap(
     Ok(Some(store.insert_recap(&recap)?))
 }
 
+// ── J1.2: Job-kind heuristic generator ──────────────────────────────────────
+//
+// Operates on `JobRecord` + replayed `(seq, AgentEventPayload)` events. The
+// shared `Recap` shape carries the result so the recaps table (J1.1), HTTP
+// surface (J1.3+), and UI consumers can reuse the same wire format used for
+// session recaps.
+//
+// Cursor convention: `last_message_id` carries the last event seq for jobs
+// (the storage layer in `JobsDb` reads it as `last_event_seq`). This mirrors
+// the session pattern where the same field carries the last message id.
+
+/// Generate a Job recap from the durable record + the full event replay.
+/// Pure, deterministic, no I/O. The caller is responsible for fetching
+/// the events (e.g. via `JobsDb::list_events_since(sid, 0)`).
+///
+/// Algorithm (mirrors the session heuristic, adapted for job events):
+/// 1. Headline: first non-empty line of `job.task`, ≤ 80 chars,
+///    trailing punctuation stripped.
+/// 2. Bullets: count of `step` events grouped by tool_name (sorted), plus
+///    a `Stopped: …` bullet when the job ended in failure or
+///    cancellation.
+/// 3. next_actions: imperative sentences pulled from the `complete`
+///    event's content (or `job.summary`), capped at 3.
+/// 4. artifacts: file-shaped paths inferred from step tool names and
+///    chunk events (light heuristic — the LLM path produces real
+///    artifact summaries).
+/// 5. resume_hint: `target=Job{id}`, `from_message=None`,
+///    `seed_instruction = next_actions[0]` if any,
+///    `branch_on_resume = false`.
+pub fn heuristic_job_recap(
+    job: &crate::job_manager::JobRecord,
+    events: &[(u64, crate::job_manager::AgentEventPayload)],
+) -> Recap {
+    let headline = derive_job_headline(&job.task);
+    let bullets = derive_job_bullets(events, &job.status, job.cancellation_reason.as_deref());
+    let next_actions = derive_job_next_actions(events, job.summary.as_deref());
+    let artifacts = derive_job_artifacts(events);
+
+    let last_event_seq: Option<i64> = events.last().map(|(s, _)| *s as i64);
+    let seed_instruction = next_actions.first().cloned();
+
+    let resume_hint = Some(ResumeHint {
+        target: ResumeTarget::Job {
+            id: job.session_id.clone(),
+        },
+        from_message: None,
+        from_step: None,
+        from_diff_index: None,
+        seed_instruction,
+        branch_on_resume: false,
+    });
+
+    Recap {
+        id: new_recap_id(),
+        kind: RecapKind::Job,
+        subject_id: job.session_id.clone(),
+        last_message_id: last_event_seq,
+        workspace: None,
+        generated_at: Utc::now(),
+        generator: RecapGenerator::Heuristic,
+        headline,
+        bullets,
+        next_actions,
+        artifacts,
+        resume_hint,
+        token_usage: None,
+        schema_version: 1,
+    }
+}
+
+fn derive_job_headline(task: &str) -> String {
+    let first_line = task.lines().find(|l| !l.trim().is_empty()).unwrap_or("");
+    let trimmed = first_line.trim();
+    let truncated: String = trimmed.chars().take(80).collect();
+    let cleaned = truncated.trim_end_matches(|c: char| {
+        c == '.' || c == '!' || c == '?' || c == ';' || c == ',' || c == ':'
+    });
+    if cleaned.is_empty() {
+        "(empty job)".to_string()
+    } else {
+        cleaned.to_string()
+    }
+}
+
+fn derive_job_bullets(
+    events: &[(u64, crate::job_manager::AgentEventPayload)],
+    status: &str,
+    cancellation_reason: Option<&str>,
+) -> Vec<String> {
+    let mut counts: std::collections::BTreeMap<String, u32> =
+        std::collections::BTreeMap::new();
+    for (_, ev) in events {
+        if ev.kind == "step" {
+            if let Some(tool) = &ev.tool_name {
+                *counts.entry(tool.clone()).or_insert(0) += 1;
+            }
+        }
+    }
+    let mut bullets: Vec<String> = counts
+        .into_iter()
+        .map(|(tool, count)| {
+            if count > 1 {
+                format!("Ran `{tool}` ({count}×)")
+            } else {
+                format!("Ran `{tool}`")
+            }
+        })
+        .collect();
+
+    match status {
+        "failed" => {
+            // Surface the last error event content if any, else the
+            // last failed step's tool name.
+            let last_error = events
+                .iter()
+                .rev()
+                .find(|(_, e)| e.kind == "error")
+                .and_then(|(_, e)| e.content.clone());
+            let last_failed_step = events
+                .iter()
+                .rev()
+                .find(|(_, e)| e.kind == "step" && e.success == Some(false))
+                .and_then(|(_, e)| e.tool_name.clone());
+            let reason = match (last_error, last_failed_step) {
+                (Some(msg), _) => truncate_chars(msg.lines().next().unwrap_or(&msg).trim(), 100),
+                (None, Some(tool)) => format!("`{tool}` failed"),
+                (None, None) => "agent ended in failure".to_string(),
+            };
+            bullets.push(format!("Stopped: {reason}"));
+        }
+        "cancelled" => {
+            let reason = cancellation_reason
+                .map(|s| s.trim())
+                .filter(|s| !s.is_empty())
+                .map(|s| truncate_chars(s, 100))
+                .unwrap_or_else(|| "user cancelled".to_string());
+            bullets.push(format!("Stopped: {reason}"));
+        }
+        _ => {}
+    }
+
+    if bullets.len() > 7 {
+        bullets.truncate(7);
+    }
+    bullets
+}
+
+fn derive_job_next_actions(
+    events: &[(u64, crate::job_manager::AgentEventPayload)],
+    summary_fallback: Option<&str>,
+) -> Vec<String> {
+    // Prefer the final `complete` event's content (carries the
+    // agent's summary). Fall back to `job.summary` if no complete
+    // event was emitted (e.g. failed before completion).
+    let source: Option<String> = events
+        .iter()
+        .rev()
+        .find(|(_, e)| e.kind == "complete")
+        .and_then(|(_, e)| e.content.clone())
+        .or_else(|| summary_fallback.map(|s| s.to_string()));
+
+    let text = match source {
+        Some(t) => t,
+        None => return Vec::new(),
+    };
+
+    let mut actions: Vec<String> = Vec::new();
+    for sentence in split_sentences(&text) {
+        if let Some(action) = parse_imperative(&sentence) {
+            if !actions.iter().any(|a| a.eq_ignore_ascii_case(&action)) {
+                actions.push(action);
+                if actions.len() == 3 {
+                    return actions;
+                }
+            }
+        }
+    }
+    actions
+}
+
+fn derive_job_artifacts(
+    events: &[(u64, crate::job_manager::AgentEventPayload)],
+) -> Vec<RecapArtifact> {
+    let mut seen: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    let mut out = Vec::new();
+    for (_, e) in events {
+        if let Some(content) = &e.content {
+            for path in extract_file_paths(content) {
+                if seen.insert(path.clone()) {
+                    let label = std::path::Path::new(&path)
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or(&path)
+                        .to_string();
+                    out.push(RecapArtifact {
+                        kind: ArtifactKind::File,
+                        label,
+                        locator: path,
+                    });
+                }
+            }
+        }
+    }
+    out
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -1294,5 +1500,166 @@ mod tests {
             "new last_message_id must yield a new recap row"
         );
         assert_ne!(r1.last_message_id, r2.last_message_id);
+    }
+
+    // ── J1.2: Job-kind heuristic generator ─────────────────────────────
+
+    use crate::job_manager::{AgentEventPayload, JobRecord};
+
+    fn fixture_job(sid: &str, task: &str, status: &str) -> JobRecord {
+        JobRecord {
+            session_id: sid.to_string(),
+            task: task.to_string(),
+            status: status.to_string(),
+            provider: "mock".to_string(),
+            started_at: 0,
+            finished_at: Some(1),
+            summary: None,
+            priority: 5,
+            queued_at: 0,
+            webhook_url: None,
+            tags: vec![],
+            cancellation_reason: None,
+            steps_completed: 0,
+            tokens_used: 0,
+            cost_cents: 0,
+        }
+    }
+
+    #[test]
+    fn job_recap_extracts_headline_from_task() {
+        let job = fixture_job("j1", "Refactor the broker SSRF guard.", "complete");
+        let r = heuristic_job_recap(&job, &[]);
+        assert_eq!(r.headline, "Refactor the broker SSRF guard");
+        assert_eq!(r.kind, RecapKind::Job);
+        assert_eq!(r.subject_id, "j1");
+    }
+
+    #[test]
+    fn job_recap_truncates_long_task_to_80_chars() {
+        let task = "a".repeat(120);
+        let job = fixture_job("j2", &task, "complete");
+        let r = heuristic_job_recap(&job, &[]);
+        assert_eq!(r.headline.chars().count(), 80);
+    }
+
+    #[test]
+    fn job_recap_takes_first_line_for_multiline_task() {
+        let job = fixture_job("j3", "First line\nSecond line\nThird", "complete");
+        let r = heuristic_job_recap(&job, &[]);
+        assert_eq!(r.headline, "First line");
+    }
+
+    #[test]
+    fn job_recap_handles_empty_task_gracefully() {
+        let job = fixture_job("j4", "   \n  ", "complete");
+        let r = heuristic_job_recap(&job, &[]);
+        assert_eq!(r.headline, "(empty job)");
+    }
+
+    #[test]
+    fn job_recap_groups_step_events_by_tool_with_count() {
+        let job = fixture_job("j5", "Do work", "complete");
+        let events = vec![
+            (1u64, AgentEventPayload::step(1, "shell", true)),
+            (2, AgentEventPayload::step(2, "shell", true)),
+            (3, AgentEventPayload::step(3, "edit", true)),
+            (4, AgentEventPayload::chunk("noise".into())), // ignored — not a step
+        ];
+        let r = heuristic_job_recap(&job, &events);
+        // Sorted alphabetically (BTreeMap), so `edit` before `shell`.
+        assert_eq!(r.bullets.len(), 2);
+        assert_eq!(r.bullets[0], "Ran `edit`");
+        assert_eq!(r.bullets[1], "Ran `shell` (2×)");
+    }
+
+    #[test]
+    fn job_recap_includes_stopped_bullet_for_failure() {
+        let job = fixture_job("j6", "Build", "failed");
+        let events = vec![
+            (1u64, AgentEventPayload::step(1, "shell", false)),
+            (2, AgentEventPayload::error("compile error: missing semicolon".into())),
+        ];
+        let r = heuristic_job_recap(&job, &events);
+        let stopped = r.bullets.iter().find(|b| b.starts_with("Stopped:"));
+        let stopped = stopped.expect("failed job must produce a Stopped bullet");
+        assert!(stopped.contains("compile error"), "got {stopped}");
+    }
+
+    #[test]
+    fn job_recap_uses_cancellation_reason_when_cancelled() {
+        let mut job = fixture_job("j7", "Long-running query", "cancelled");
+        job.cancellation_reason = Some("user pressed Esc".to_string());
+        let r = heuristic_job_recap(&job, &[]);
+        let stopped = r
+            .bullets
+            .iter()
+            .find(|b| b.starts_with("Stopped:"))
+            .expect("cancelled job must produce a Stopped bullet");
+        assert!(stopped.contains("user pressed Esc"));
+    }
+
+    #[test]
+    fn job_recap_no_stopped_bullet_for_complete() {
+        let job = fixture_job("j8", "OK", "complete");
+        let events = vec![(1u64, AgentEventPayload::step(1, "shell", true))];
+        let r = heuristic_job_recap(&job, &events);
+        assert!(
+            r.bullets.iter().all(|b| !b.starts_with("Stopped:")),
+            "complete job must not have a Stopped bullet: {:?}",
+            r.bullets
+        );
+    }
+
+    #[test]
+    fn job_recap_resume_hint_targets_job() {
+        let job = fixture_job("j9", "Task", "complete");
+        let r = heuristic_job_recap(&job, &[]);
+        let hint = r.resume_hint.expect("must populate resume_hint");
+        match hint.target {
+            ResumeTarget::Job { id } => assert_eq!(id, "j9"),
+            other => panic!("expected ResumeTarget::Job, got {other:?}"),
+        }
+        assert!(!hint.branch_on_resume);
+        assert_eq!(hint.from_message, None);
+    }
+
+    #[test]
+    fn job_recap_last_event_seq_tracks_final_event() {
+        let job = fixture_job("j10", "Task", "complete");
+        let events = vec![
+            (5u64, AgentEventPayload::step(1, "shell", true)),
+            (8, AgentEventPayload::complete("done".into())),
+        ];
+        let r = heuristic_job_recap(&job, &events);
+        assert_eq!(r.last_message_id, Some(8));
+    }
+
+    #[test]
+    fn job_recap_pulls_next_actions_from_complete_event() {
+        let job = fixture_job("j11", "Task", "complete");
+        let events = vec![
+            (1u64, AgentEventPayload::step(1, "shell", true)),
+            (
+                2,
+                AgentEventPayload::complete(
+                    "Done. Next, run the test suite. Also update the changelog.".into(),
+                ),
+            ),
+        ];
+        let r = heuristic_job_recap(&job, &events);
+        assert!(
+            !r.next_actions.is_empty(),
+            "expected at least one imperative action"
+        );
+    }
+
+    #[test]
+    fn job_recap_falls_back_to_summary_when_no_complete_event() {
+        let mut job = fixture_job("j12", "Task", "failed");
+        // Use a phrase the imperative parser recognises (matches "Next,").
+        job.summary = Some("Next, run cargo test to verify the fix.".to_string());
+        let r = heuristic_job_recap(&job, &[]);
+        assert!(!r.next_actions.is_empty(), "summary should seed actions");
     }
 }

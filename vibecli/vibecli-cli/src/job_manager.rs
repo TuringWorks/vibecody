@@ -1480,11 +1480,30 @@ impl JobManager {
         summary: Option<String>,
         reason: Option<String>,
     ) -> Result<bool, String> {
-        let changed = self
-            .db
-            .lock()
-            .await
-            .mark_terminal(sid, status, summary.as_deref(), reason.as_deref())?;
+        let db = self.db.lock().await;
+        let changed = db.mark_terminal(sid, status, summary.as_deref(), reason.as_deref())?;
+        if changed {
+            // J1.2: auto-generate a heuristic job recap so /v1/recap and
+            // BackgroundJobsPanel have something to render the moment the
+            // job lands in a terminal state. Best-effort: any failure here
+            // is logged but never aborts the terminal transition.
+            if let Ok(Some(job)) = db.get(sid) {
+                match db.list_events_since(sid, 0) {
+                    Ok(events) => {
+                        let recap = crate::recap::heuristic_job_recap(&job, &events);
+                        if let Err(e) = db.insert_job_recap(&recap) {
+                            eprintln!(
+                                "[recap] auto-recap on terminal failed for {sid}: {e}"
+                            );
+                        }
+                    }
+                    Err(e) => eprintln!(
+                        "[recap] auto-recap event replay failed for {sid}: {e}"
+                    ),
+                }
+            }
+        }
+        drop(db);
         if changed {
             use std::sync::atomic::Ordering::Relaxed;
             match status {
@@ -2696,5 +2715,93 @@ mod tests {
             .execute("DELETE FROM jobs WHERE session_id = ?1", params!["job-A"])
             .unwrap();
         assert!(db.get_job_recap_by_id(&id).unwrap().is_none());
+    }
+
+    // ── J1.2: auto-recap on terminal-state hook ──────────────────────────
+
+    async fn list_recaps_for(mgr: &JobManager, sid: &str) -> Vec<crate::recap::Recap> {
+        let db = mgr.db.lock().await;
+        db.list_job_recaps_for_subject(sid, 10).unwrap_or_default()
+    }
+
+    #[tokio::test]
+    async fn mark_terminal_persists_job_recap_on_complete() {
+        let (m, _t) = mgr();
+        let id = m.create(req("Refactor SSRF guard")).await.unwrap();
+        m.mark_running(&id).await.unwrap();
+        m.publish_event(&id, AgentEventPayload::step(1, "shell", true))
+            .await;
+        m.publish_event(&id, AgentEventPayload::step(2, "edit", true))
+            .await;
+        m.publish_event(&id, AgentEventPayload::complete("done".into()))
+            .await;
+        m.mark_terminal(&id, JobStatus::Complete, Some("ok".into()), None)
+            .await
+            .unwrap();
+
+        let recaps = list_recaps_for(&m, &id).await;
+        assert_eq!(recaps.len(), 1, "must auto-persist exactly one recap");
+        assert_eq!(recaps[0].subject_id, id);
+        assert_eq!(recaps[0].kind, crate::recap::RecapKind::Job);
+        assert!(
+            recaps[0].headline.starts_with("Refactor"),
+            "headline derived from task: got {}",
+            recaps[0].headline
+        );
+        // Three published events (2 steps + 1 complete) → seq cursor = 3.
+        assert_eq!(recaps[0].last_message_id, Some(3));
+    }
+
+    #[tokio::test]
+    async fn mark_terminal_persists_job_recap_with_stopped_bullet_on_failure() {
+        let (m, _t) = mgr();
+        let id = m.create(req("Build the binary")).await.unwrap();
+        m.mark_running(&id).await.unwrap();
+        m.publish_event(&id, AgentEventPayload::step(1, "shell", false))
+            .await;
+        m.publish_event(
+            &id,
+            AgentEventPayload::error("rustc: cannot find type `Foo`".into()),
+        )
+        .await;
+        m.mark_terminal(
+            &id,
+            JobStatus::Failed,
+            None,
+            Some("compile error".into()),
+        )
+        .await
+        .unwrap();
+
+        let recaps = list_recaps_for(&m, &id).await;
+        assert_eq!(recaps.len(), 1);
+        assert!(
+            recaps[0].bullets.iter().any(|b| b.starts_with("Stopped:")),
+            "failed job must have Stopped bullet: {:?}",
+            recaps[0].bullets
+        );
+    }
+
+    #[tokio::test]
+    async fn mark_terminal_idempotent_recap_on_repeat_call() {
+        let (m, _t) = mgr();
+        let id = m.create(req("Idempotency check")).await.unwrap();
+        m.mark_running(&id).await.unwrap();
+        m.publish_event(&id, AgentEventPayload::step(1, "shell", true))
+            .await;
+        m.mark_terminal(&id, JobStatus::Complete, None, None)
+            .await
+            .unwrap();
+        // Repeat call: mark_terminal returns Ok(false) because the row
+        // is already terminal. Either way, recap count must stay at 1.
+        let _ = m
+            .mark_terminal(&id, JobStatus::Complete, None, None)
+            .await;
+        let recaps = list_recaps_for(&m, &id).await;
+        assert_eq!(
+            recaps.len(),
+            1,
+            "repeat mark_terminal must not duplicate the recap row"
+        );
     }
 }
