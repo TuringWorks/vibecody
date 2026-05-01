@@ -2561,6 +2561,7 @@ mod rl_eval;
 mod rl_executor;
 mod rl_policies;
 mod rl_runs;
+mod rl_runtime;
 
 #[derive(Parser)]
 #[command(name = "vibecli")]

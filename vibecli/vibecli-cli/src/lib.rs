@@ -368,6 +368,7 @@ pub mod rl_eval;
 pub mod rl_executor;
 pub mod rl_policies;
 pub mod rl_runs;
+pub mod rl_runtime;
 pub mod rl_serve_os;
 pub mod rl_train_os;
 pub mod scheduler;

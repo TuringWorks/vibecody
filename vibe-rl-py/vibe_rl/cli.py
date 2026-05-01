@@ -41,6 +41,12 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("probe-gpu", help="emit one JSON line describing local accelerators")
     sub.add_parser("probe-envs", help="emit JSON describing installed Gymnasium envs")
 
+    p_inf = sub.add_parser(
+        "inference",
+        help="long-lived inference sidecar — reads obs on stdin, writes actions on stdout (slice 6.5)",
+    )
+    p_inf.add_argument("--checkpoint", required=True)
+
     args = parser.parse_args(argv)
 
     if args.cmd == "train":
@@ -51,6 +57,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_probe_gpu()
     if args.cmd == "probe-envs":
         return _cmd_probe_envs()
+    if args.cmd == "inference":
+        return _cmd_inference(args)
 
     parser.print_help()
     return 2
@@ -134,6 +142,12 @@ def _cmd_probe_envs() -> int:
 
     print(json.dumps(probe_gymnasium(), separators=(",", ":")))
     return 0
+
+
+def _cmd_inference(args: argparse.Namespace) -> int:
+    from vibe_rl.inference import main as inference_main
+
+    return inference_main(["--checkpoint", args.checkpoint])
 
 
 def _ppo_config_from_yaml(run_id: str, cfg: dict[str, Any]):  # type: ignore[no-untyped-def]

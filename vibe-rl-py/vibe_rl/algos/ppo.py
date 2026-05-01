@@ -229,6 +229,13 @@ def train(cfg: PPOConfig, streamer) -> dict[str, Any]:  # type: ignore[no-untype
     last_checkpoint_step = 0
     last_episode_returns: list[float] = []
     final_reward_mean: float | None = None
+    # The MonitorWrapper on env 0 captures full-episode returns by tracking
+    # `_reward_sum` between resets. We snapshot whatever it has flushed by
+    # episode terminal, building a sliding window for the per-tick reward
+    # aggregate. The wrapper itself emits the canonical episode JSON-Lines
+    # via the streamer; this list is purely for the convenience aggregate.
+    monitor = envs.envs[0]  # type: ignore[attr-defined]
+    last_seen_episode_idx = 0
 
     artifact_dir = Path(cfg.artifact_dir) if cfg.artifact_dir else Path(cfg.workspace_path) / ".vibecli" / "rl-artifacts" / cfg.run_id
     workspace_path_obj = Path(cfg.workspace_path)
@@ -355,7 +362,19 @@ def train(cfg: PPOConfig, streamer) -> dict[str, Any]:  # type: ignore[no-untype
 
         # Aggregate per-iteration metrics + emit a tick.
         sps = int(global_step / max(time.monotonic() - t0, 1e-6))
-        last_episode_returns = _recent_returns(envs, last_episode_returns)
+        # Pick up any episodes that completed since last tick. The monitor
+        # wrapper bumps `_episode_idx` and snapshots `_reward_sum` *just
+        # before* resetting, so reading after step() is safe.
+        current_idx = getattr(monitor, "_episode_idx", last_seen_episode_idx)
+        if current_idx > last_seen_episode_idx:
+            # We don't preserve a per-episode history on the wrapper, but
+            # we *do* see the rolling current return immediately before a
+            # done flips. The streamer-side episode rows are the canonical
+            # record; here we fall back to the wrapper's most recent
+            # observed reward sum as a one-sample approximation, which is
+            # still better than the pure-stub 0.0.
+            last_episode_returns.append(float(getattr(monitor, "_reward_sum", 0.0)))
+            last_seen_episode_idx = current_idx
         recent_mean = float(np.mean(last_episode_returns[-100:])) if last_episode_returns else 0.0
         final_reward_mean = recent_mean
 
