@@ -1,6 +1,6 @@
 # VibeCody — Claude Code Guidelines
 
-See **[AGENTS.md](./AGENTS.md)** for the full storage architecture, security rules, and Rust/Tauri API references that apply to all AI coding agents.
+See **[AGENTS.md](./AGENTS.md)** for the full storage architecture, security rules, and Rust/Tauri API references that apply to all AI coding agents. Pay special attention to [Zero-Config First](./AGENTS.md#zero-config-first--the-user-experience-contract) — every feature must work out of the box, with required values stored in the encrypted ProfileStore (never env vars or plaintext) and surfaced in the startup banner, `/health`, and `docs/`.
 
 See **[vibeui/design-system/README.md](./vibeui/design-system/README.md)** for the complete UI/UX design system — tokens, components, and patterns that all panels must follow.
 

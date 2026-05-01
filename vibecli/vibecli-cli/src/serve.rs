@@ -3141,6 +3141,40 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
 }
 
 /// Start the VibeCLI HTTP daemon. Blocks until shutdown.
+/// Hydrate `HF_TOKEN` from the encrypted ProfileStore so downstream libs
+/// (`hf-hub`, `candle`, mistralrs) pick it up without the user having to
+/// `export HF_TOKEN=...`. ProfileStore is the canonical store per
+/// AGENTS.md → Zero-Config First; env-var fallback is kept for
+/// compatibility with toolchains the user may already have configured.
+///
+/// Order of precedence — first match wins:
+///   1. Existing `HF_TOKEN` in env (developer override or system config).
+///   2. Value at `huggingface` in ProfileStore (`vibecli set-key huggingface ...`).
+///   3. Unset — daemon logs a startup advisory and the mistralrs backend
+///      auto-falls-back to an ungated model.
+fn hydrate_hf_token_from_profile_store() {
+    // Already set in env? Honour it — covers developer overrides and
+    // shells that source HF's own credential helpers.
+    if std::env::var("HF_TOKEN").map(|s| !s.is_empty()).unwrap_or(false) {
+        return;
+    }
+    let Ok(store) = crate::profile_store::ProfileStore::new() else {
+        // Store unavailable (first run, permission issue, etc.). The
+        // mistralrs fallback path will handle it gracefully.
+        return;
+    };
+    let Ok(Some(token)) = store.get_api_key("default", "huggingface") else {
+        return;
+    };
+    if token.is_empty() {
+        return;
+    }
+    std::env::set_var("HF_TOKEN", token);
+    tracing::info!(
+        "vibecli serve: HF_TOKEN hydrated from ProfileStore (vibecli set-key huggingface)"
+    );
+}
+
 pub async fn serve(
     provider: Arc<dyn AIProvider>,
     provider_name: String,
@@ -3149,6 +3183,12 @@ pub async fn serve(
     port: u16,
     host: String,
 ) -> Result<()> {
+    // Pull HF_TOKEN out of the encrypted store before anything that might
+    // need it spins up. Zero-config goal: a user who ran
+    // `vibecli set-key huggingface hf_...` shouldn't have to also export
+    // the env var. AGENTS.md → Zero-Config First.
+    hydrate_hf_token_from_profile_store();
+
     // Legacy jobs directory — kept for feedback/intervene side-car files and
     // one-shot migration. Job records themselves now live in
     // ~/.vibecli/jobs.db via `JobManager`.
@@ -3370,20 +3410,30 @@ pub async fn serve(
     eprintln!("[vibecli serve] Session viewer at http://{addr}/sessions");
 
     // mistralrs gating advisory — meta-llama/* repos require an HF token
-    // and license acceptance. Without HF_TOKEN, the picker default falls
-    // back to an Apache-2.0 ungated drop-in (see /health for the active
-    // recommendation) and gated-load failures are auto-substituted at
-    // request time. Surface this once at startup so users know.
+    // and license acceptance. By this point hydrate_hf_token_from_profile_store
+    // has already run, so a missing env value here means "not in env AND not
+    // in ProfileStore." Surface the canonical fix (encrypted store) first, env
+    // export second; gated-load failures are auto-substituted at request time
+    // either way.
     if std::env::var("HF_TOKEN").map(|s| s.is_empty()).unwrap_or(true) {
         eprintln!(
-            "[vibecli serve] HF_TOKEN not set — gated mistralrs models (meta-llama/*) cannot be pulled."
+            "[vibecli serve] HF_TOKEN not configured — gated mistralrs models (meta-llama/*) cannot be pulled."
         );
         eprintln!(
             "[vibecli serve]   Falling back to {} for the picker default.",
             crate::inference::mistralrs::UNGATED_FALLBACK_MODEL
         );
         eprintln!(
-            "[vibecli serve]   To enable Llama-3.x: accept the license at https://huggingface.co/meta-llama and `export HF_TOKEN=hf_...`"
+            "[vibecli serve]   To enable Llama-3.x:"
+        );
+        eprintln!(
+            "[vibecli serve]     1. Accept the license at https://huggingface.co/meta-llama"
+        );
+        eprintln!(
+            "[vibecli serve]     2. Run: vibecli set-key huggingface hf_...   (preferred — encrypted store)"
+        );
+        eprintln!(
+            "[vibecli serve]        OR: export HF_TOKEN=hf_...                  (env-var fallback)"
         );
     }
 

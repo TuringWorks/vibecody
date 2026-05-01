@@ -19,6 +19,10 @@ Every feature we build starts with a simple question: "How does this make the de
 
 Code understanding shouldn't be locked behind specific IDEs or platforms. Whether you're in VS Code, JetBrains, Neovim, the terminal, a desktop editor, a phone, a tablet, a web browser, an Apple Watch, or a Wear OS device — Vibecody is there, speaking the same protocol against the same Rust daemon.
 
+### **Works on Day One**
+
+Every feature must work the moment a user reaches it — no env vars to set, no config files to hand-edit, no README spelunking before the first useful response. When configuration is genuinely required, it lives in the encrypted ProfileStore, surfaces in the startup banner and `/health`, and is documented where users actually look. The bar isn't "configurable" — it's *zero-config by default, encrypted-and-discoverable when not*. See [`AGENTS.md` → Zero-Config First](./AGENTS.md#zero-config-first--the-user-experience-contract) for the engineering rules that follow from this.
+
 ## Our North Star
 
 > "To create a world where every line of code speaks clearly, every repository tells its story, and every developer feels understood."

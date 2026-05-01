@@ -201,6 +201,24 @@ invoke("workspace_secret_list",    { workspacePath })        // metadata only
 
 ---
 
+## Zero-Config First — the user-experience contract
+
+VibeCody is shipped to users (developers, integrators, operators) who want to *use* it, not configure it. Every feature must work the moment the user reaches it. If a feature genuinely needs a value the daemon can't infer (an API key, a license token, a remote endpoint), that value belongs in the encrypted ProfileStore — never in env vars, never in plaintext files — and the requirement must be visible in the daemon's startup log, the relevant `/health` field, and `docs/`.
+
+**The three rules.** Apply them when adding a feature, an integration, or a new third-party dependency:
+
+1. **Default to working.** If a feature needs a setting, the daemon picks a safe default and logs why. Examples done right: `vibecli serve` self-generates a bearer token; mistralrs falls back to an Apache-2.0 ungated model when `HF_TOKEN` is missing; daemon binds `127.0.0.1:7878` unless `--host` overrides. Examples done wrong (and to be fixed when found): a feature that prints `set FOO_TOKEN to use this` and exits non-zero.
+
+2. **Configuration goes through the encrypted ProfileStore.** Anything the user must supply — provider keys, OAuth tokens, integration secrets, license tokens, third-party `HF_TOKEN`-class values — is written via `ProfileStore::set_api_key()` (or the equivalent `set_provider_config`). The CLI surface for users is `vibecli set-key <provider> <value>` / `vibecli list-keys` / `vibecli unset-key <provider>`. Env vars are accepted only as a *fallback* read path for compatibility with existing toolchain expectations (`HF_TOKEN`, `OPENAI_API_KEY`); they are never the *only* way to set a value.
+
+3. **Every config knob is documented and discoverable.** A user must be able to find out *what* they need to set without reading source. Three places matter: the daemon startup banner (warns when something is missing and tells the user how to set it), the `/health` JSON (machine-readable signal of which features are configured), and `docs/` (human-readable explanation of every key). If a knob exists but is documented in none of those, it doesn't really exist — fix that before the PR.
+
+**When env-var-only is acceptable.** Build-time selection (`CARGO_FEATURES`, `RUSTFLAGS`) and developer-only knobs that change behavior during local debugging (`RUST_BACKTRACE`, `VIBE_INFER_KV_CACHE`, `VIBE_INFER_TURBOQUANT_BACKEND`) stay env-var-driven — they're not user-facing. The line is: **does a non-developer user ever need to set this?** If yes → ProfileStore. If no → env var is fine.
+
+**Existing code that violates this.** When you find one, fix it on the way past. Recent examples already corrected: plaintext `api_key = "..."` lines stripped from `~/.vibecli/config.toml`; `~/.vibeui/api_keys.json` deleted and migrated. Recent example pending: HF_TOKEN currently has no ProfileStore path — it should be settable as `vibecli set-key huggingface hf_...` and read back at daemon startup.
+
+---
+
 ## Rules for Agents
 
 ### DO
@@ -209,6 +227,8 @@ invoke("workspace_secret_list",    { workspacePath })        // metadata only
 - Read project secrets via `WorkspaceStore` or the `workspace_secret_*` Tauri commands.
 - Store any new sensitive value (token, credential, secret) in the appropriate encrypted store.
 - Check `workspace_settings` before falling back to global `profile_settings` for provider/model preferences.
+- **Make every new feature work zero-config** — pick a sane default, log the trade-off, document the override.
+- **Surface every required knob** in the daemon startup banner, `/health`, and `docs/`.
 - **Explain non-trivial changes with an ASCII architecture diagram before writing code** (see [Explaining Changes](#explaining-changes--diagrams-before-prose) below).
 
 ### DO NOT
@@ -219,6 +239,8 @@ invoke("workspace_secret_list",    { workspacePath })        // metadata only
 - Store company master keys in `~/.vibecli/keys/*.key` files — use `ProfileStore.set_master_key()`.
 - Hard-code API keys in source code, config files, or test fixtures.
 - Commit any file containing real credentials.
+- **Ship a feature that requires the user to `export FOO=...` before it works** — that value belongs in `ProfileStore` and must be settable via `vibecli set-key`. Env-var fallback is fine for compatibility; env-var-only is not.
+- **Fail silently when a configured value is missing** — log it at startup, surface it in `/health`, document the fix.
 
 ---
 

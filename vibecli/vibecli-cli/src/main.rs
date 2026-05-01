@@ -1143,6 +1143,11 @@ const KEY_PROVIDERS: &[&str] = &[
     "azure_openai", "mistral", "cerebras", "deepseek", "zhipu",
     "vercel_ai", "minimax", "perplexity", "together", "fireworks",
     "sambanova", "ollama",
+    // Third-party non-AI tokens that gate features the daemon ships.
+    // huggingface: required to pull gated meta-llama/* repos. Daemon
+    // reads from ProfileStore at startup and exports HF_TOKEN so
+    // hf-hub / candle pick it up without the user touching env vars.
+    "huggingface",
 ];
 
 fn run_keys_command(action: &str, args: &[String]) {
