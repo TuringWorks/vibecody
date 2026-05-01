@@ -1,21 +1,36 @@
 /**
  * Ollama chat models — static fallback list for when Ollama API is unreachable.
  *
- * Source: https://ollama.com/library?sort=newest
- * Last updated: 2026-04-21
+ * Source: https://ollama.com/library?sort=newest  (and ?c=cloud for cloud-hosted)
+ * Last updated: 2026-05-01
  *
  * Only chat / general-purpose models are included here.
  * Embedding models, vision-only models, and OCR models are excluded.
- * To refresh: visit the URL above and add new chat model IDs.
+ * To refresh: visit the URLs above and add new chat model IDs.
  */
 export const OLLAMA_CHAT_MODELS: string[] = [
-  // ── Latest / flagship ──────────────────────────────────────────────
+  // ── Cloud-hosted flagship · non-Chinese · tool-calling ─────────────
+  // These run on Ollama Cloud (no local pull needed when an API key is
+  // configured). Strong on coding, agentic loops, and `tools` JSON mode.
+  "devstral-2",          // Mistral · 123B · coding-agent flagship (default)
+  "devstral-small-2",    // Mistral · smaller, faster
+  "nemotron-3-super",    // NVIDIA · reasoning + tools
+  "nemotron-3-nano",     // NVIDIA · smaller
+  "cogito-2.1",          // DeepCogito · hybrid reasoning
+  "gemma4",              // Google
+  "ministral-3",         // Mistral · small
+  "rnj-1",
+  "gemini-3-flash-preview",
+
+  // ── Latest / flagship (mixed origin) ───────────────────────────────
   "qwen3-coder",
   "qwen3.6",
   "qwen3.5",
   "qwen3",
   "qwen3-next",
   "qwen3-coder-next",
+  "deepseek-v4-pro",
+  "deepseek-v4-flash",
   "deepseek-v3.2",
   "deepseek-v3",
   "deepseek-r1",
@@ -44,7 +59,6 @@ export const OLLAMA_CHAT_MODELS: string[] = [
   "kimi-k2.5",
   "kimi-k2",
   "kimi-k2-thinking",
-  "cogito-2.1",
   "cogito",
   "magistral",
   "exaone-deep",
@@ -64,8 +78,6 @@ export const OLLAMA_CHAT_MODELS: string[] = [
   "minimax-m2",
 
   // ── Coding-focused ─────────────────────────────────────────────────
-  "devstral-2",
-  "devstral-small-2",
   "devstral",
   "deepcoder",
   "codestral",

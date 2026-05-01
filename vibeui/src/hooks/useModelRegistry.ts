@@ -130,7 +130,7 @@ export const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
   azure_openai: "gpt-4o",
   bedrock:      "anthropic.claude-3-5-sonnet-20241022-v2:0",
   copilot:      "gpt-4o",
-  ollama:       "qwen3",
+  ollama:       "devstral-2",
   "vibecli-mistralrs": "Qwen/Qwen2.5-1.5B-Instruct",
   zhipu:        "glm-4-plus",
   vercel_ai:    "",
