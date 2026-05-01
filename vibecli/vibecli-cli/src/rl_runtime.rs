@@ -89,18 +89,35 @@ pub struct PythonRuntime {
 }
 
 impl PythonRuntime {
-    /// Spawn `python -m vibe_rl inference --checkpoint <path>` and read
-    /// the `ready` heartbeat. Returns once the policy is loaded.
+    /// Spawn `python -m vibe_rl <inference|onnx-inference>` and read
+    /// the `ready` heartbeat. The runtime kind selects:
+    ///
+    /// - `"python"` → `inference --checkpoint <path>` (PyTorch checkpoint)
+    /// - `"onnx"`   → `onnx-inference --model <path>` (ONNX file from
+    ///                slice 7a's quantize, or any FP32 .onnx export)
+    ///
+    /// Returns once the sidecar emits its `{"t":"ready", ...}` line.
     pub async fn spawn(
         cfg: &crate::rl_executor::ExecutorConfig,
         deployment_id: String,
         checkpoint_path: PathBuf,
+        runtime_kind: &str,
     ) -> Result<Self, RunError> {
+        let (subcommand, flag) = match runtime_kind {
+            "python" => ("inference", "--checkpoint"),
+            "onnx" => ("onnx-inference", "--model"),
+            other => {
+                return Err(RunError::Invalid(format!(
+                    "PythonRuntime::spawn doesn't handle runtime '{other}' — supports python | onnx"
+                )))
+            }
+        };
+
         let mut cmd = Command::new(&cfg.interpreter);
         cmd.arg("-m")
             .arg("vibe_rl")
-            .arg("inference")
-            .arg("--checkpoint")
+            .arg(subcommand)
+            .arg(flag)
             .arg(&checkpoint_path)
             .env("PYTHONPATH", &cfg.sidecar_root)
             .env("PYTHONUNBUFFERED", "1")
@@ -112,7 +129,7 @@ impl PythonRuntime {
 
         let mut child = cmd
             .spawn()
-            .map_err(|e| RunError::Storage(format!("spawn vibe-rl inference: {e}")))?;
+            .map_err(|e| RunError::Storage(format!("spawn vibe-rl {subcommand}: {e}")))?;
         let stdin = child
             .stdin
             .take()
@@ -301,13 +318,16 @@ impl RuntimePool {
     }
 
     /// Look up a live runtime by deployment id, or create one by spawning
-    /// a sidecar against the deployment's primary artifact path.
+    /// a sidecar against the deployment's primary artifact path. The
+    /// `runtime_kind` selects which sidecar entry point to spawn (see
+    /// `PythonRuntime::spawn`).
     pub async fn get_or_spawn(
         &self,
         cfg: &crate::rl_executor::ExecutorConfig,
         deployment_id: &str,
         checkpoint_rel_path: &str,
         workspace_root: &std::path::Path,
+        runtime_kind: &str,
     ) -> Result<Arc<dyn PolicyRuntime>, RunError> {
         // Fast path: already loaded.
         {
@@ -325,7 +345,8 @@ impl RuntimePool {
                 "checkpoint file not found at {abs:?} — deploy from a finished run + final artifact"
             )));
         }
-        let runtime = PythonRuntime::spawn(cfg, deployment_id.to_string(), abs).await?;
+        let runtime =
+            PythonRuntime::spawn(cfg, deployment_id.to_string(), abs, runtime_kind).await?;
         let arc: Arc<dyn PolicyRuntime> = Arc::new(runtime);
         let mut map = self.runtimes.lock().await;
         // Re-check in case a concurrent caller beat us to the spawn.
@@ -432,7 +453,7 @@ mod tests {
         // Use a non-existent checkpoint path; the cache hit should
         // short-circuit before the file is checked.
         let got = pool
-            .get_or_spawn(&cfg, "dep-1", "nope.pt", std::path::Path::new("/tmp"))
+            .get_or_spawn(&cfg, "dep-1", "nope.pt", std::path::Path::new("/tmp"), "python")
             .await
             .unwrap();
         // Same allocation reached via the cache.

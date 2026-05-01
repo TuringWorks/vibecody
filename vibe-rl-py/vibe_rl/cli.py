@@ -47,6 +47,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     p_inf.add_argument("--checkpoint", required=True)
 
+    p_onnx = sub.add_parser(
+        "onnx-inference",
+        help="long-lived ONNX inference sidecar — same protocol as `inference` but via onnxruntime",
+    )
+    p_onnx.add_argument("--model", required=True)
+
     args = parser.parse_args(argv)
 
     if args.cmd == "train":
@@ -59,6 +65,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_probe_envs()
     if args.cmd == "inference":
         return _cmd_inference(args)
+    if args.cmd == "onnx-inference":
+        return _cmd_onnx_inference(args)
 
     parser.print_help()
     return 2
@@ -415,6 +423,12 @@ def _cmd_inference(args: argparse.Namespace) -> int:
     from vibe_rl.inference import main as inference_main
 
     return inference_main(["--checkpoint", args.checkpoint])
+
+
+def _cmd_onnx_inference(args: argparse.Namespace) -> int:
+    from vibe_rl.onnx_inference import main as onnx_main
+
+    return onnx_main(["--model", args.model])
 
 
 def _ppo_config_from_yaml(run_id: str, cfg: dict[str, Any]):  # type: ignore[no-untyped-def]

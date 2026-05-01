@@ -2737,12 +2737,12 @@ async fn rl_serve_act(
             ),
         ));
     }
-    if deployment.runtime != "python" {
+    if !matches!(deployment.runtime.as_str(), "python" | "onnx") {
         return Err(json_error(
             StatusCode::NOT_IMPLEMENTED,
             format!(
-                "runtime '{}' is not yet wired in slice 6.5 (python only). \
-                 native_candle / onnx ship in slice 7d / a follow-on patch.",
+                "runtime '{}' is not yet wired (supports: python, onnx). \
+                 native_candle ships in slice 7d.",
                 deployment.runtime
             ),
         ));
@@ -2771,6 +2771,7 @@ async fn rl_serve_act(
             &deployment.deployment_id,
             &artifact.rel_path,
             &state.workspace_root,
+            &deployment.runtime,
         )
         .await
         .map_err(rl_err_to_http)?;
