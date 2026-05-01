@@ -1015,6 +1015,10 @@ onnx = [
     { name = "onnx" },
     { name = "onnxruntime" },
 ]
+opt = [
+    { name = "onnx" },
+    { name = "onnxruntime" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -1025,7 +1029,9 @@ requires-dist = [
     { name = "mujoco", marker = "extra == 'mujoco'", specifier = ">=3.0" },
     { name = "numpy", specifier = ">=1.26,<3.0" },
     { name = "onnx", marker = "extra == 'onnx'", specifier = ">=1.15" },
+    { name = "onnx", marker = "extra == 'opt'", specifier = ">=1.15" },
     { name = "onnxruntime", marker = "extra == 'onnx'", specifier = ">=1.16" },
+    { name = "onnxruntime", marker = "extra == 'opt'", specifier = ">=1.16" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7" },
     { name = "pytest-timeout", marker = "extra == 'dev'", specifier = ">=2" },
     { name = "pyyaml", specifier = ">=6.0,<7.0" },
@@ -1034,7 +1040,7 @@ requires-dist = [
     { name = "torch", specifier = ">=2.2,<3.0" },
     { name = "tyro", specifier = ">=0.7,<1.0" },
 ]
-provides-extras = ["mujoco", "atari", "box2d", "onnx", "dev"]
+provides-extras = ["mujoco", "atari", "box2d", "onnx", "opt", "dev"]
 
 [[package]]
 name = "zipp"

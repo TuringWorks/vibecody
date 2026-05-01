@@ -213,6 +213,22 @@ impl PythonExecutor {
                 serde_yaml::Value::String("algorithm".into()),
                 serde_yaml::Value::String(run.algorithm.clone()),
             );
+            // Slice 7a — sidecar dispatches by run kind. We always write
+            // it explicitly so the sidecar's `train` subcommand can route
+            // distill / quantize / prune / rlhf into the right algorithm
+            // module without re-deriving it from the algorithm field.
+            m.insert(
+                serde_yaml::Value::String("kind".into()),
+                serde_yaml::Value::String(run.kind.as_str().to_string()),
+            );
+            // Surface the parent_run_id (used by distill to find the
+            // teacher's checkpoint).
+            if let Some(parent) = run.parent_run_id.as_ref() {
+                m.insert(
+                    serde_yaml::Value::String("parent_run_id".into()),
+                    serde_yaml::Value::String(parent.clone()),
+                );
+            }
         }
         let cfg_dir = PathBuf::from(&run.workspace_path)
             .join(".vibecli")
