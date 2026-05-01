@@ -33,6 +33,15 @@ marl = [
     "supersuit>=3.9,<4.0",
     "mpe2>=1.0,<2.0",
 ]
+# Slice 7c — RLHF via DPO (Direct Preference Optimization, Rafailov et al.
+# 2023). Single-stage alignment: load base + frozen reference, compute
+# the DPO loss directly from preferences, save the aligned model. No TRL
+# dep — DPO loss is ~30 lines of math. Reward-model training (for PPO-
+# style alignment) is 7c-extras.
+rlhf = [
+    "transformers>=4.40,<5.0",
+    "accelerate>=0.27,<2.0",
+]
 dev = ["pytest>=7", "pytest-timeout>=2"]
 
 [project.scripts]
