@@ -71,6 +71,8 @@ sidebar:
     children:
       - title: Overview
         url: /providers/
+      - title: Model Comparison
+        url: /model-comparison/
       - title: Ollama
         url: /providers/ollama/
       - title: Claude
