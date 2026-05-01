@@ -314,6 +314,195 @@ pub fn do_v1_resume_get(
     }
 }
 
+// ── J1.3b: kind=job resume helper ──────────────────────────────────────────
+//
+// `POST /v1/resume` with kind=job spawns a *new* job whose lineage points at
+// the parent via `parent_job_id` + `resumed_from_recap_id` (J1.1's columns).
+// The parent job must be in a terminal status — running jobs return 409.
+//
+// Async because `JobManager` lives behind a tokio `Mutex`. The session-side
+// `do_v1_resume_post` stays sync and routes here when it sees a job recap;
+// the HTTP handler also reaches in directly when the request carries
+// `kind=job` without a recap id.
+
+/// Resolve the source for a job-kind resume. Returns the source job_id +
+/// the recap's resume_hint (if a recap was supplied) + the source recap id.
+async fn resolve_job_resume_source(
+    jm: &crate::job_manager::JobManager,
+    req: &ResumeRequest,
+) -> Result<
+    (
+        String,
+        Option<crate::recap::ResumeHint>,
+        Option<String>,
+    ),
+    HelperOutcome,
+> {
+    if let Some(recap_id) = &req.from_recap_id {
+        let recap = match jm.get_job_recap_by_id(recap_id).await {
+            Ok(Some(r)) => r,
+            Ok(None) => {
+                return Err(err(
+                    HTTP_NOT_FOUND,
+                    format!("recap {recap_id:?} not found"),
+                ));
+            }
+            Err(e) => return Err(err(HTTP_INTERNAL, format!("recap load: {e}"))),
+        };
+        if !matches!(recap.kind, crate::recap::RecapKind::Job) {
+            return Err(err(
+                HTTP_BAD_REQUEST,
+                format!(
+                    "recap kind {:?} mismatched; expected \"job\"",
+                    recap.kind
+                ),
+            ));
+        }
+        return Ok((
+            recap.subject_id.clone(),
+            recap.resume_hint.clone(),
+            Some(recap_id.clone()),
+        ));
+    }
+    if let Some(subject_id) = &req.from_subject_id {
+        return Ok((subject_id.clone(), None, None));
+    }
+    Err(err(
+        HTTP_BAD_REQUEST,
+        "either from_recap_id or from_subject_id is required".to_string(),
+    ))
+}
+
+/// `POST /v1/resume` (kind=job) — spawns a new job linked to the parent.
+pub async fn do_v1_resume_post_job(
+    jm: &crate::job_manager::JobManager,
+    registry: &ResumeRegistry,
+    req: &ResumeRequest,
+) -> HelperOutcome {
+    let (parent_job_id, recap_hint, source_recap_id) =
+        match resolve_job_resume_source(jm, req).await {
+            Ok(t) => t,
+            Err(e) => return e,
+        };
+
+    // Parent job must exist + be terminal — design `02-job.md` says
+    // running jobs return 409 to keep "Resume" idempotent.
+    let parent = match jm.get(&parent_job_id).await {
+        Some(j) => j,
+        None => {
+            return err(
+                HTTP_NOT_FOUND,
+                format!("job {parent_job_id:?} not found"),
+            );
+        }
+    };
+    let parent_status = match crate::job_manager::JobStatus::parse(&parent.status) {
+        Some(s) => s,
+        None => {
+            return err(
+                HTTP_INTERNAL,
+                format!(
+                    "parent job has unknown status {:?}",
+                    parent.status
+                ),
+            );
+        }
+    };
+    if !parent_status.is_terminal() {
+        return HelperOutcome {
+            status: 409,
+            body: serde_json::json!({
+                "error": format!(
+                    "parent job {parent_job_id:?} is in non-terminal status {:?}",
+                    parent.status
+                )
+            }),
+        };
+    }
+
+    let seed_instruction = req
+        .seed_instruction
+        .clone()
+        .or_else(|| recap_hint.as_ref().and_then(|h| h.seed_instruction.clone()));
+    let task = match seed_instruction.as_deref() {
+        Some(s) if !s.trim().is_empty() => s.to_string(),
+        _ => format!("Resume of {}", parent.task),
+    };
+
+    let (workspace_root, approval) = match jm
+        .get_workspace_and_approval(&parent_job_id)
+        .await
+    {
+        Ok(Some(pair)) => pair,
+        Ok(None) => {
+            return err(
+                HTTP_INTERNAL,
+                format!("parent job {parent_job_id:?} row vanished"),
+            );
+        }
+        Err(e) => return err(HTTP_INTERNAL, format!("parent ctx load: {e}")),
+    };
+
+    let new_req = crate::job_manager::CreateJobReq {
+        task: task.clone(),
+        provider: parent.provider.clone(),
+        approval,
+        workspace_root,
+        priority: parent.priority,
+        webhook_url: parent.webhook_url.clone(),
+        tags: parent.tags.clone(),
+        quota_bucket: None,
+    };
+    let new_id = match jm.create(new_req).await {
+        Ok(id) => id,
+        Err(e) => return err(HTTP_INTERNAL, format!("create resumed job: {e}")),
+    };
+
+    // Best-effort: link the new job to its parent + the source recap.
+    // A failure here doesn't abort the resume — the new job already
+    // exists and the user can re-link manually if needed.
+    let recap_id_for_link = source_recap_id.clone().unwrap_or_default();
+    if let Err(e) = jm
+        .set_parent_link(&new_id, &parent_job_id, &recap_id_for_link)
+        .await
+    {
+        eprintln!(
+            "[resume] set_parent_link failed for {new_id}: {e}"
+        );
+    }
+
+    let response = ResumeResponse {
+        handle: new_handle_id(),
+        resumed_session_id: new_id,
+        // Jobs don't have a "primed message count"; events stream live.
+        // Echo 0 so the field stays present for cross-kind clients.
+        primed_message_count: 0,
+        // Jobs are queued-on-create — `ready=true` mirrors the F1.3
+        // session-tail-resume semantics: the daemon has accepted the
+        // intent. Polling status on the new job_id reveals running.
+        ready: true,
+        branched: true, // every job-resume produces a fresh job_id
+        from_message: None,
+        seed_instruction,
+        created_at: Utc::now(),
+    };
+    let record = ResumeRecord {
+        response: response.clone(),
+        source_recap_id,
+        source_subject_id: parent_job_id,
+        client: req.client.clone(),
+    };
+    registry.insert(record);
+
+    match serde_json::to_value(&response) {
+        Ok(v) => HelperOutcome {
+            status: HTTP_OK,
+            body: v,
+        },
+        Err(e) => err(HTTP_INTERNAL, format!("serialize: {e}")),
+    }
+}
+
 fn err(status: u16, message: String) -> HelperOutcome {
     HelperOutcome {
         status,
@@ -670,5 +859,216 @@ mod tests {
             );
         }
         assert_eq!(reg.len(), 3);
+    }
+
+    // ── J1.3b: kind=job resume helper tests ────────────────────────────
+
+    use crate::job_manager::{
+        AgentEventPayload, CreateJobReq, JobManager, JobStatus, JobsDb,
+    };
+    use std::sync::Arc;
+
+    /// Build a JobManager with one terminal-state job and an auto-recap
+    /// produced by J1.2's terminal-state hook. Returns the manager, the
+    /// parent job_id, and the recap_id of the freshly persisted recap.
+    async fn job_resume_fixture(
+        task: &str,
+    ) -> (Arc<JobManager>, String, String, tempfile::TempDir) {
+        let dir = tempfile::tempdir().unwrap();
+        let db = JobsDb::open_with(&dir.path().join("jobs.db"), [42u8; 32]).unwrap();
+        let mgr = Arc::new(JobManager::new_with(db));
+        let sid = mgr
+            .create(CreateJobReq {
+                task: task.into(),
+                provider: "mock".into(),
+                approval: "auto".into(),
+                workspace_root: "/tmp/ws".into(),
+                priority: 5,
+                webhook_url: None,
+                tags: vec!["urgent".into()],
+                quota_bucket: None,
+            })
+            .await
+            .unwrap();
+        mgr.mark_running(&sid).await.unwrap();
+        mgr.publish_event(
+            &sid,
+            AgentEventPayload::complete("Next, run the test suite.".into()),
+        )
+        .await;
+        mgr.mark_terminal(&sid, JobStatus::Complete, Some("ok".into()), None)
+            .await
+            .unwrap();
+        // J1.2 auto-recap landed exactly one row.
+        let recap = mgr
+            .list_job_recaps_for_subject(&sid, 1)
+            .await
+            .unwrap()
+            .into_iter()
+            .next()
+            .expect("auto-recap should exist after mark_terminal");
+        (mgr, sid, recap.id, dir)
+    }
+
+    #[tokio::test]
+    async fn resume_job_post_creates_new_job_linked_to_parent() {
+        let (mgr, parent, recap_id, _dir) = job_resume_fixture("Refactor").await;
+        let req = ResumeRequest {
+            from_recap_id: Some(recap_id.clone()),
+            from_subject_id: None,
+            kind: Some("job".into()),
+            from_message: None,
+            seed_instruction: None,
+            branch: None,
+            client: None,
+        };
+        let registry = ResumeRegistry::default();
+        let out = do_v1_resume_post_job(&mgr, &registry, &req).await;
+        assert_eq!(out.status, HTTP_OK);
+        let new_id = out.body["resumed_session_id"].as_str().unwrap();
+        assert_ne!(new_id, parent, "resume must spawn a new job_id");
+        assert!(out.body["branched"].as_bool().unwrap());
+
+        // Verify the new job's parent_link columns point at the parent.
+        let (pid, rid) = mgr.get_parent_link(new_id).await.unwrap();
+        assert_eq!(pid.as_deref(), Some(parent.as_str()));
+        assert_eq!(rid.as_deref(), Some(recap_id.as_str()));
+    }
+
+    #[tokio::test]
+    async fn resume_job_post_404s_on_missing_recap() {
+        let (mgr, _parent, _recap_id, _dir) = job_resume_fixture("Task").await;
+        let req = ResumeRequest {
+            from_recap_id: Some("no-such-recap".into()),
+            from_subject_id: None,
+            kind: Some("job".into()),
+            from_message: None,
+            seed_instruction: None,
+            branch: None,
+            client: None,
+        };
+        let registry = ResumeRegistry::default();
+        let out = do_v1_resume_post_job(&mgr, &registry, &req).await;
+        assert_eq!(out.status, HTTP_NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn resume_job_post_uses_seed_from_recap_when_unspecified() {
+        let (mgr, _parent, recap_id, _dir) = job_resume_fixture("Refactor").await;
+        let req = ResumeRequest {
+            from_recap_id: Some(recap_id),
+            from_subject_id: None,
+            kind: Some("job".into()),
+            from_message: None,
+            seed_instruction: None,
+            branch: None,
+            client: None,
+        };
+        let registry = ResumeRegistry::default();
+        let out = do_v1_resume_post_job(&mgr, &registry, &req).await;
+        assert_eq!(out.status, HTTP_OK);
+        let seed = out.body["seed_instruction"].as_str();
+        assert!(
+            seed.is_some_and(|s| s.to_lowercase().contains("test")),
+            "expected seed pulled from recap.next_actions; got {seed:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resume_job_post_override_beats_recap_seed() {
+        let (mgr, _parent, recap_id, _dir) = job_resume_fixture("Task").await;
+        let req = ResumeRequest {
+            from_recap_id: Some(recap_id),
+            from_subject_id: None,
+            kind: Some("job".into()),
+            from_message: None,
+            seed_instruction: Some("Custom override".into()),
+            branch: None,
+            client: None,
+        };
+        let registry = ResumeRegistry::default();
+        let out = do_v1_resume_post_job(&mgr, &registry, &req).await;
+        assert_eq!(out.status, HTTP_OK);
+        assert_eq!(
+            out.body["seed_instruction"].as_str(),
+            Some("Custom override")
+        );
+    }
+
+    #[tokio::test]
+    async fn resume_job_post_409s_on_running_parent() {
+        let dir = tempfile::tempdir().unwrap();
+        let db = JobsDb::open_with(&dir.path().join("jobs.db"), [42u8; 32]).unwrap();
+        let mgr = Arc::new(JobManager::new_with(db));
+        let sid = mgr
+            .create(CreateJobReq {
+                task: "Running".into(),
+                provider: "mock".into(),
+                approval: "auto".into(),
+                workspace_root: "/tmp/ws".into(),
+                priority: 5,
+                webhook_url: None,
+                tags: vec![],
+                quota_bucket: None,
+            })
+            .await
+            .unwrap();
+        mgr.mark_running(&sid).await.unwrap();
+        // Don't mark terminal — parent stays running.
+        let req = ResumeRequest {
+            from_recap_id: None,
+            from_subject_id: Some(sid),
+            kind: Some("job".into()),
+            from_message: None,
+            seed_instruction: Some("Try again".into()),
+            branch: None,
+            client: None,
+        };
+        let registry = ResumeRegistry::default();
+        let out = do_v1_resume_post_job(&mgr, &registry, &req).await;
+        assert_eq!(out.status, 409);
+    }
+
+    #[tokio::test]
+    async fn resume_job_post_inherits_provider_and_tags() {
+        let (mgr, _parent, recap_id, _dir) = job_resume_fixture("Inherit").await;
+        let req = ResumeRequest {
+            from_recap_id: Some(recap_id),
+            from_subject_id: None,
+            kind: Some("job".into()),
+            from_message: None,
+            seed_instruction: Some("Continue".into()),
+            branch: None,
+            client: None,
+        };
+        let registry = ResumeRegistry::default();
+        let out = do_v1_resume_post_job(&mgr, &registry, &req).await;
+        let new_id = out.body["resumed_session_id"].as_str().unwrap();
+        let new_job = mgr.get(new_id).await.expect("new job exists");
+        assert_eq!(new_job.provider, "mock");
+        assert_eq!(new_job.tags, vec!["urgent"]);
+    }
+
+    #[tokio::test]
+    async fn resume_job_post_400s_on_session_recap_mismatch() {
+        // A recap id that doesn't exist in the jobs store should 404
+        // (not 400), because the helper can't tell whether the id is
+        // a session recap from a different store. The 400 path triggers
+        // when the id resolves to a recap whose `kind != Job` — which
+        // is impossible inside JobsDb (its insert rejects non-job kinds).
+        // So we only assert 404 for unknown ids.
+        let (mgr, _p, _r, _dir) = job_resume_fixture("Task").await;
+        let req = ResumeRequest {
+            from_recap_id: Some("session-recap-id".into()),
+            from_subject_id: None,
+            kind: Some("job".into()),
+            from_message: None,
+            seed_instruction: None,
+            branch: None,
+            client: None,
+        };
+        let registry = ResumeRegistry::default();
+        let out = do_v1_resume_post_job(&mgr, &registry, &req).await;
+        assert_eq!(out.status, HTTP_NOT_FOUND);
     }
 }

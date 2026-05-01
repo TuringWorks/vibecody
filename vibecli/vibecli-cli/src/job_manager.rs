@@ -767,6 +767,75 @@ impl JobsDb {
         Ok(n > 0)
     }
 
+    /// J1.3b: set the parent-job lineage columns on an existing job. Used
+    /// when `/v1/resume` (kind=job) spawns a fresh job so the new row's
+    /// `parent_job_id` and `resumed_from_recap_id` link back to the source.
+    /// Returns true when the row exists; false when the sid is unknown.
+    pub fn set_parent_link(
+        &self,
+        sid: &str,
+        parent_job_id: &str,
+        resumed_from_recap_id: &str,
+    ) -> Result<bool, String> {
+        let n = self
+            .conn
+            .execute(
+                "UPDATE jobs
+                    SET parent_job_id = ?1,
+                        resumed_from_recap_id = ?2
+                  WHERE session_id = ?3",
+                params![parent_job_id, resumed_from_recap_id, sid],
+            )
+            .map_err(|e| e.to_string())?;
+        Ok(n > 0)
+    }
+
+    /// J1.3b: read the workspace_root + approval string for a job. The
+    /// resume path needs both so the spawned job inherits the parent's
+    /// execution context (sandbox cwd + approval policy).
+    pub fn get_workspace_and_approval(
+        &self,
+        sid: &str,
+    ) -> Result<Option<(String, String)>, String> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT workspace_root, approval FROM jobs WHERE session_id = ?1")
+            .map_err(|e| e.to_string())?;
+        let mut rows = stmt.query(params![sid]).map_err(|e| e.to_string())?;
+        match rows.next().map_err(|e| e.to_string())? {
+            Some(row) => {
+                let ws: String = row.get(0).map_err(|e| e.to_string())?;
+                let ap: String = row.get(1).map_err(|e| e.to_string())?;
+                Ok(Some((ws, ap)))
+            }
+            None => Ok(None),
+        }
+    }
+
+    /// J1.3b: read back the parent-job lineage columns for `sid`. Returns
+    /// `(parent_job_id, resumed_from_recap_id)`; both are `None` when no
+    /// resume has linked the row, or when the row doesn't exist.
+    pub fn get_parent_link(
+        &self,
+        sid: &str,
+    ) -> Result<(Option<String>, Option<String>), String> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT parent_job_id, resumed_from_recap_id
+                   FROM jobs WHERE session_id = ?1",
+            )
+            .map_err(|e| e.to_string())?;
+        let mut rows = stmt.query(params![sid]).map_err(|e| e.to_string())?;
+        match rows.next().map_err(|e| e.to_string())? {
+            Some(row) => Ok((
+                row.get(0).map_err(|e| e.to_string())?,
+                row.get(1).map_err(|e| e.to_string())?,
+            )),
+            None => Ok((None, None)),
+        }
+    }
+
     pub fn mark_terminal(
         &self,
         sid: &str,
@@ -1661,6 +1730,32 @@ impl JobManager {
         };
         let events = db.list_events_since(sid, 0)?;
         Ok(Some((job, events)))
+    }
+
+    pub async fn set_parent_link(
+        &self,
+        sid: &str,
+        parent_job_id: &str,
+        resumed_from_recap_id: &str,
+    ) -> Result<bool, String> {
+        self.db
+            .lock()
+            .await
+            .set_parent_link(sid, parent_job_id, resumed_from_recap_id)
+    }
+
+    pub async fn get_workspace_and_approval(
+        &self,
+        sid: &str,
+    ) -> Result<Option<(String, String)>, String> {
+        self.db.lock().await.get_workspace_and_approval(sid)
+    }
+
+    pub async fn get_parent_link(
+        &self,
+        sid: &str,
+    ) -> Result<(Option<String>, Option<String>), String> {
+        self.db.lock().await.get_parent_link(sid)
     }
 
     /// M5: run the webhook retry loop against a caller-supplied send

@@ -2014,14 +2014,41 @@ fn helper_outcome_to_response(
 }
 
 async fn v1_resume_post(
+    State(state): State<ServeState>,
     Json(req): Json<crate::resume::ResumeRequest>,
 ) -> (StatusCode, Json<serde_json::Value>) {
-    let store = match open_default_or_500() {
-        Ok(s) => s,
-        Err(e) => return e,
-    };
     let registry = crate::resume::global_registry();
-    let out = crate::resume::do_v1_resume_post(&store, registry, &req);
+    // J1.3b: dispatch on `kind`. When the body says kind=job we route to
+    // the JobManager-backed helper. Default + explicit "session" stay on
+    // the F1.3 path. When kind is omitted but `from_recap_id` is set, we
+    // probe the job recap store first — a hit means it's a job recap and
+    // we route accordingly. This lets clients pass just a recap id
+    // without knowing which store owns it.
+    let routed_to_job = match req.kind.as_deref() {
+        Some("job") => true,
+        Some(_) => false,
+        None => {
+            if let Some(rid) = req.from_recap_id.as_deref() {
+                state
+                    .job_manager
+                    .get_job_recap_by_id(rid)
+                    .await
+                    .map(|opt| opt.is_some())
+                    .unwrap_or(false)
+            } else {
+                false
+            }
+        }
+    };
+    let out = if routed_to_job {
+        crate::resume::do_v1_resume_post_job(&state.job_manager, registry, &req).await
+    } else {
+        let store = match open_default_or_500() {
+            Ok(s) => s,
+            Err(e) => return e,
+        };
+        crate::resume::do_v1_resume_post(&store, registry, &req)
+    };
     helper_outcome_to_response(out)
 }
 
