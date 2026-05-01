@@ -56,6 +56,26 @@ final class WatchNetworkManager: NSObject, ObservableObject {
         return result.sessions.first { $0.session_id == sessionId }
     }
 
+    // MARK: - Recap (W1.1 — read-only)
+
+    /// Fetch the freshest recap for a session. Returns `nil` when the
+    /// daemon has no recap (older daemon, never generated, or 4xx).
+    /// Best-effort — never throws on network failure.
+    func loadRecap(sessionId: String) async -> WatchRecap? {
+        guard auth.isPaired, let token = try? await auth.validAccessToken() else {
+            return nil
+        }
+        guard let url = URL(string: "\(auth.endpoint)/watch/sessions/\(sessionId)/recap") else {
+            return nil
+        }
+        do {
+            let resp: WatchRecapEnvelope = try await getJSON(url: url, token: token)
+            return resp.recap
+        } catch {
+            return nil
+        }
+    }
+
     // MARK: - Messages for a session
 
     func loadMessages(sessionId: String) async throws -> [WatchMessage] {
@@ -281,6 +301,10 @@ extension WatchNetworkManager: WCSessionDelegate {
 
 private struct WatchSessionsResponse: Codable {
     let sessions: [WatchSessionSummary]
+}
+
+private struct WatchRecapEnvelope: Codable {
+    let recap: WatchRecap?
 }
 
 private struct WatchMessagesResponse: Codable {

@@ -26,6 +26,18 @@ struct SessionPickerView: View {
                         NavigationLink(destination: ConversationView(session: session)) {
                             SessionRowView(session: session)
                         }
+                        .contextMenu {
+                            // W1.1 — long-press on a session row to view
+                            // its recap without opening the conversation.
+                            NavigationLink {
+                                RecapView(
+                                    sessionId: session.session_id,
+                                    task_preview: session.task_preview
+                                )
+                            } label: {
+                                Label("Recap", systemImage: "doc.text.magnifyingglass")
+                            }
+                        }
                     }
                     .listStyle(.carousel)
                 }

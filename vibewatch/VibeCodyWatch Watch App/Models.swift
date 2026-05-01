@@ -158,6 +158,49 @@ struct WatchSandboxControlRequest: Codable {
     let timestamp: UInt64
 }
 
+// MARK: - Recap (W1.1 — read-only on watch)
+
+/// Mirrors the Rust `Recap` wire shape. Watch is display-only; recaps
+/// are produced on the desktop / mobile flows and the watch fetches
+/// the freshest one via GET /watch/sessions/:id/recap.
+struct WatchRecapArtifact: Codable, Hashable {
+    let kind: String      // "file" | "diff" | "job" | "url"
+    let label: String
+    let locator: String
+}
+
+/// Tag-based union for the generator field. The wire shape is
+/// `{"type": "heuristic"}` or `{"type": "llm", "provider": "...",
+/// "model": "..."}` or `{"type": "user_edited"}`.
+struct WatchRecapGenerator: Codable, Hashable {
+    let type: String      // "heuristic" | "llm" | "user_edited"
+    let provider: String?
+    let model: String?
+
+    var label: String {
+        switch type {
+        case "llm":
+            let p = provider ?? "?"
+            let m = model ?? "?"
+            return "LLM · \(p)/\(m)"
+        case "user_edited": return "user-edited"
+        default: return "heuristic"
+        }
+    }
+}
+
+struct WatchRecap: Codable, Identifiable {
+    let id: String
+    let kind: String              // "session" | "job" | "diff_chain"
+    let subject_id: String
+    let headline: String
+    let bullets: [String]
+    let next_actions: [String]
+    let artifacts: [WatchRecapArtifact]
+    let generator: WatchRecapGenerator
+    let schema_version: Int
+}
+
 // MARK: - Beacon
 
 struct WatchBeacon: Codable {

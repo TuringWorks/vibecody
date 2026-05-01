@@ -44,12 +44,31 @@ fun VibeCodyWearApp(activity: Activity) {
                 net = net,
                 onOpenSession = { id -> navController.navigate("conversation/$id") },
                 onNewSession = { navController.navigate("conversation/new") },
+                onOpenRecap = { id, preview ->
+                    val safe = java.net.URLEncoder.encode(preview, "UTF-8")
+                    navController.navigate("recap/$id/$safe")
+                },
             )
         }
         composable("conversation/{sessionId}") { back ->
             val sessionId = back.arguments?.getString("sessionId")
                 ?.takeIf { it != "new" }
             ConversationScreen(net = net, sessionId = sessionId)
+        }
+        composable("recap/{sessionId}/{taskPreview}") { back ->
+            val sid = back.arguments?.getString("sessionId").orEmpty()
+            val preview = java.net.URLDecoder.decode(
+                back.arguments?.getString("taskPreview").orEmpty(), "UTF-8"
+            )
+            RecapScreen(
+                net = net,
+                sessionId = sid,
+                taskPreview = preview,
+                onContinueOnPhone = { recap ->
+                    // Hand off to phone via Wearable Data Layer.
+                    WearDataLayerClient.handoffRecapToPhone(activity, recap)
+                },
+            )
         }
         composable("sandbox") {
             SandboxStatusScreen(

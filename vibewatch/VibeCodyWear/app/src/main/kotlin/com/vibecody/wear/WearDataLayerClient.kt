@@ -28,6 +28,28 @@ object WearDataLayerClient {
      * The phone's WearDataLayerService handles path [path] and replies on
      * /vibecody/response.
      */
+    /**
+     * W1.1 — hand off a recap to the paired phone so the user can resume
+     * the session on a keyboard surface. Fires-and-forgets; the phone's
+     * WearDataLayerService listens on /vibecody/recap_handoff and opens
+     * the chat screen with the seed prompt prefilled.
+     */
+    fun handoffRecapToPhone(context: Context, recap: WearRecap) {
+        val payload = JSONObject().apply {
+            put("session_id", recap.subjectId)
+            put("recap_id", recap.id)
+            put("headline", recap.headline)
+            put("seed", recap.nextActions.firstOrNull().orEmpty())
+        }.toString().toByteArray(Charsets.UTF_8)
+        sendMessage(
+            context,
+            "/vibecody/recap_handoff",
+            payload,
+            onResult = { /* fire-and-forget */ },
+            onError = { msg -> Log.w(TAG, "recap handoff failed: $msg") },
+        )
+    }
+
     fun sendMessage(
         context: Context,
         path: String,

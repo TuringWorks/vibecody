@@ -17,6 +17,7 @@ fun SessionListScreen(
     net: WearNetworkManager,
     onOpenSession: (String) -> Unit,
     onNewSession: () -> Unit,
+    onOpenRecap: (String, String) -> Unit = { _, _ -> },
 ) {
     val scope = rememberCoroutineScope()
     var sessions by remember { mutableStateOf<List<WearSession>>(emptyList()) }
@@ -70,21 +71,36 @@ fun SessionListScreen(
             }
             items(sessions.size) { i ->
                 val s = sessions[i]
-                Chip(
-                    label = {
-                        Text(s.preview, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    },
-                    secondaryLabel = {
-                        Text(
-                            s.status,
-                            color = if (s.status == "running") MaterialTheme.colors.primary
-                                    else MaterialTheme.colors.onSurfaceVariant,
-                        )
-                    },
-                    onClick = { onOpenSession(s.id) },
-                    colors = ChipDefaults.secondaryChipColors(),
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Chip(
+                        label = {
+                            Text(s.preview, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        },
+                        secondaryLabel = {
+                            Text(
+                                s.status,
+                                color = if (s.status == "running") MaterialTheme.colors.primary
+                                        else MaterialTheme.colors.onSurfaceVariant,
+                            )
+                        },
+                        onClick = { onOpenSession(s.id) },
+                        colors = ChipDefaults.secondaryChipColors(),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    // W1.1 — small "Recap" affordance per row. Wear's
+                    // Chip doesn't expose long-press, so an explicit
+                    // compact button stays usable on round screens
+                    // and keeps the recap path a tap rather than a
+                    // gesture the user has to discover.
+                    CompactChip(
+                        label = { Text("Recap") },
+                        onClick = { onOpenRecap(s.id, s.preview) },
+                        colors = ChipDefaults.secondaryChipColors(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 2.dp),
+                    )
+                }
             }
         }
     }

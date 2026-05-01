@@ -170,6 +170,7 @@ pub fn build_watch_router(state: WatchBridgeState) -> Router {
         .route("/wrist",            post(watch_wrist_event))
         .route("/sessions",         get(watch_list_sessions))
         .route("/sessions/:id/messages", get(watch_session_messages))
+        .route("/sessions/:id/recap", get(watch_session_recap))
         .route("/stream/:id",       get(watch_stream))
         .route("/dispatch",         post(watch_dispatch))
         .route("/active-session",   get(watch_get_active_session).put(watch_set_active_session))
@@ -406,6 +407,53 @@ async fn watch_session_messages(
         "total": total,
         "status": session_status,
     })).into_response()
+}
+
+/// GET /watch/sessions/:id/recap — read-only freshest recap for a session.
+///
+/// Returns `{"recap": <Recap json>}` when a recap exists, or
+/// `{"recap": null}` when none has been generated yet. Watch never
+/// triggers generation; the recap is produced on the desktop / mobile
+/// flows (F2.3, M1.1) and the watch only displays.
+async fn watch_session_recap(
+    State(state): State<WatchBridgeState>,
+    headers: axum::http::HeaderMap,
+    Path(session_id): Path<String>,
+) -> impl IntoResponse {
+    if let Err(e) = extract_any_auth(&state, &headers) {
+        return e.into_response();
+    }
+    let db_path = match &state.session_db_path {
+        Some(p) => p.clone(),
+        None => dirs::home_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join(".vibecli")
+            .join("sessions.db"),
+    };
+    let store = match crate::session_store::SessionStore::open(&db_path) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("watch_session_recap: cannot open session store: {e}");
+            return Json(serde_json::json!({"recap": serde_json::Value::Null}))
+                .into_response();
+        }
+    };
+    let recap = store
+        .list_recaps_for_subject(&session_id, 1)
+        .ok()
+        .and_then(|rows| rows.into_iter().next());
+    match recap {
+        Some(r) => match serde_json::to_value(&r) {
+            Ok(v) => Json(serde_json::json!({"recap": v})).into_response(),
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": format!("serialize: {e}")})),
+            )
+                .into_response(),
+        },
+        None => Json(serde_json::json!({"recap": serde_json::Value::Null}))
+            .into_response(),
+    }
 }
 
 /// GET /watch/stream/:id — SSE stream with Watch-optimised payloads.

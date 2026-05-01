@@ -100,6 +100,27 @@ class WearNetworkManager(
         JSONObject(resp.body?.string() ?: "{}")
     }
 
+    // ── Recap (W1.1 — read-only) ──────────────────────────────────────────────
+
+    /** Fetch the freshest recap for a session. Returns null on any failure
+     *  (older daemon, no recap yet, network error, 4xx). Watch never
+     *  generates recaps — this is purely a display fetch. */
+    suspend fun getSessionRecap(sessionId: String): WearRecap? = withContext(Dispatchers.IO) {
+        try {
+            val req = watchRequest("${auth.daemonUrl}/watch/sessions/$sessionId/recap")
+                .get()
+                .build()
+            val resp = client.newCall(req).awaitResponse()
+            if (!resp.isSuccessful) return@withContext null
+            val json = JSONObject(resp.body?.string() ?: "{}")
+            if (json.isNull("recap")) return@withContext null
+            WearRecap.fromJson(json.getJSONObject("recap"))
+        } catch (e: Exception) {
+            Log.w(TAG, "getSessionRecap failed: ${e.message}")
+            null
+        }
+    }
+
     // ── Active session (Google Docs-style sync) ───────────────────────────────
 
     /** Tell the daemon which session this device is currently viewing. */
