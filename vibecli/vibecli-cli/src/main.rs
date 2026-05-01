@@ -1132,6 +1132,104 @@ fn run_config_command(args: &[String]) {
     }
 }
 
+// ── set-key / unset-key / list-keys handler ───────────────────────────────────
+//
+// API keys are stored exclusively in the encrypted ProfileStore at
+// `~/.vibecli/profile_settings.db` (ChaCha20-Poly1305, machine-bound key).
+// No plaintext config files, no env vars — see AGENTS.md.
+
+const KEY_PROVIDERS: &[&str] = &[
+    "anthropic", "openai", "gemini", "grok", "groq", "openrouter",
+    "azure_openai", "mistral", "cerebras", "deepseek", "zhipu",
+    "vercel_ai", "minimax", "perplexity", "together", "fireworks",
+    "sambanova", "ollama",
+];
+
+fn run_keys_command(action: &str, args: &[String]) {
+    let positionals: Vec<&str> = args.iter().filter(|a| !a.starts_with('-')).map(String::as_str).collect();
+
+    let store = match crate::profile_store::ProfileStore::new() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("error: failed to open ProfileStore at ~/.vibecli/profile_settings.db: {e}");
+            std::process::exit(1);
+        }
+    };
+
+    match action {
+        "set" => {
+            let provider = match positionals.first().copied() {
+                Some(p) if !p.is_empty() => p,
+                _ => {
+                    eprintln!("Usage: vibecli set-key <provider> [<value>]");
+                    eprintln!("       (if value omitted, reads one line from stdin)");
+                    eprintln!("Providers: {}", KEY_PROVIDERS.join(", "));
+                    std::process::exit(1);
+                }
+            };
+            if !KEY_PROVIDERS.contains(&provider) {
+                eprintln!("error: unknown provider '{provider}'");
+                eprintln!("Providers: {}", KEY_PROVIDERS.join(", "));
+                std::process::exit(1);
+            }
+            let value = match positionals.get(1).copied() {
+                Some(v) if !v.is_empty() => v.to_string(),
+                _ => {
+                    use std::io::BufRead;
+                    let mut line = String::new();
+                    if std::io::stdin().lock().read_line(&mut line).is_err() || line.trim().is_empty() {
+                        eprintln!("error: no value provided (arg or stdin)");
+                        std::process::exit(1);
+                    }
+                    line.trim().to_string()
+                }
+            };
+            if let Err(e) = store.set_api_key("default", provider, &value) {
+                eprintln!("error: {e}");
+                std::process::exit(1);
+            }
+            let masked = if value.len() > 8 { format!("{}…{}", &value[..4], &value[value.len()-4..]) } else { "••••".to_string() };
+            println!("Stored {provider} key ({masked}) in ~/.vibecli/profile_settings.db");
+        }
+        "unset" => {
+            let provider = match positionals.first().copied() {
+                Some(p) if !p.is_empty() => p,
+                _ => {
+                    eprintln!("Usage: vibecli unset-key <provider>");
+                    std::process::exit(1);
+                }
+            };
+            if let Err(e) = store.delete_api_key("default", provider) {
+                eprintln!("error: {e}");
+                std::process::exit(1);
+            }
+            println!("Removed {provider} key from ProfileStore");
+        }
+        "list" => {
+            match store.list_api_key_providers("default") {
+                Ok(all) => {
+                    let providers: Vec<&String> = all.iter()
+                        .filter(|p| KEY_PROVIDERS.contains(&p.as_str()))
+                        .collect();
+                    if providers.is_empty() {
+                        println!("No AI provider keys stored. Use `vibecli set-key <provider> <value>` to add one.");
+                    } else {
+                        println!("AI provider keys in ProfileStore ({}):", providers.len());
+                        for p in providers {
+                            println!("  {p}");
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("error: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        _ => unreachable!("invalid action: {action}"),
+    }
+}
+
 // ── --script handler ──────────────────────────────────────────────────────────
 
 fn run_script_command(args: &[String]) {
@@ -2984,6 +3082,9 @@ async fn main() -> Result<()> {
             Some("--qavalidate") => { run_qavalidate_command(&argv[1..]); return Ok(()); }
             Some("--appbuilder") => { run_appbuilder_command(&argv[1..]); return Ok(()); }
             Some("--config")     => { run_config_command(&argv[1..]);     return Ok(()); }
+            Some("set-key")      => { run_keys_command("set",   &argv[1..]); return Ok(()); }
+            Some("unset-key")    => { run_keys_command("unset", &argv[1..]); return Ok(()); }
+            Some("list-keys")    => { run_keys_command("list",  &argv[1..]); return Ok(()); }
             Some("--script")        => { run_script_command(&argv[1..]);        return Ok(()); }
             Some("--proactive")     => { run_proactive_command(&argv[1..]);     return Ok(()); }
             Some("--mcts")          => { run_mcts_command(&argv[1..]);          return Ok(()); }
