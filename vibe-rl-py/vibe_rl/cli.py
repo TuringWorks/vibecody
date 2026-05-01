@@ -105,16 +105,7 @@ def _cmd_train(args: argparse.Namespace) -> int:
     if algorithm in {"QMIX", "VDN"}:
         return _dispatch_qmix(args.run_id, cfg, streamer, algorithm)
     if algorithm == "MADDPG":
-        streamer.started(sidecar_version=__version__, seed=int(cfg.get("seed", 42)), device="cpu")
-        streamer.finished(
-            reason="error",
-            error=(
-                "MADDPG (multi-agent DDPG, continuous actions) is not yet implemented — "
-                "different architecture from VDN/QMIX (replay buffer + soft target updates "
-                "+ deterministic policy gradient). Open an issue or implement on top."
-            ),
-        )
-        return 2
+        return _dispatch_maddpg(args.run_id, cfg, streamer)
     if algorithm not in {"PPO"}:
         streamer.started(sidecar_version=__version__, seed=int(cfg.get("seed", 42)), device="cpu")
         streamer.finished(
@@ -337,6 +328,48 @@ def _dispatch_rlhf(run_id: str, cfg: dict[str, Any], streamer) -> int:  # type: 
         ),
     )
     return 2
+
+
+def _dispatch_maddpg(run_id: str, cfg: dict[str, Any], streamer) -> int:  # type: ignore[no-untyped-def]
+    """Slice 7b-extras+1 — MADDPG continuous-action MARL."""
+    from vibe_rl.algos.maddpg import MADDPGConfig, train
+
+    def pick(*keys: str, default: Any = None) -> Any:
+        for k in keys:
+            if k in cfg and cfg[k] is not None:
+                return cfg[k]
+        return default
+
+    env_id = pick(
+        "environment_id", "environmentId", "environment", "environmentName",
+        default="mpe2:simple_spread_v3",
+    )
+    workspace = pick("workspace_path", "workspacePath", default=".")
+    artifact_dir = pick("artifact_dir", "artifactDir", default="")
+
+    maddpg_cfg = MADDPGConfig(
+        run_id=run_id,
+        env_id=str(env_id),
+        total_timesteps=int(pick("total_timesteps", "totalTimesteps", default=200_000)),
+        actor_lr=float(pick("actor_lr", "actorLr", default=1e-4)),
+        critic_lr=float(pick("critic_lr", "criticLr", default=1e-3)),
+        gamma=float(pick("gamma", default=0.95)),
+        tau=float(pick("tau", default=0.01)),
+        replay_capacity=int(pick("replay_capacity", "replayCapacity", default=100_000)),
+        batch_size=int(pick("batch_size", "batchSize", default=128)),
+        learn_starts=int(pick("learn_starts", "learnStarts", default=1_000)),
+        train_interval=int(pick("train_interval", "trainInterval", default=1)),
+        grad_norm_clip=float(pick("grad_norm_clip", "gradNormClip", default=0.5)),
+        exploration_noise_std=float(pick("exploration_noise_std", "explorationNoiseStd", default=0.1)),
+        seed=int(pick("seed", default=42)),
+        workspace_path=str(workspace),
+        artifact_dir=str(artifact_dir),
+        checkpoint_every_steps=int(pick("checkpoint_every_steps", "checkpointEverySteps", default=50_000)),
+    )
+    with report_errors(streamer):
+        result = train(maddpg_cfg, streamer)
+        streamer.finished(reason="done", final_reward_mean=float(result.get("final_reward_mean", 0.0)))
+    return 0
 
 
 def _dispatch_qmix(run_id: str, cfg: dict[str, Any], streamer, algorithm: str) -> int:  # type: ignore[no-untyped-def]
