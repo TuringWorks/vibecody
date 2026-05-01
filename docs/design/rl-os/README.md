@@ -1,9 +1,36 @@
 # RL-OS Productionization — Design Index
 
-**Status:** Draft · 2026-04-29
+**Status:** **✅ Shipped** · 2026-05-01 — every slice + named algorithm in this doc set is implemented, smoke-tested, and on `main`. The disclaimer banner is empty.
 **Scope:** vibecli daemon (Rust) + new `vibe-rl-py/` sidecar + vibeui RL-OS panels (10) + Tauri bridge (20 commands)
 **Owner:** TBD
-**Cross-references:** [AGENTS.md](../../../AGENTS.md) (storage rules, Product Matrix), [vibeui/design-system/README.md](../../../vibeui/design-system/README.md) (panel UX), [docs/RL-OS-ARCHITECTURE.md](../../RL-OS-ARCHITECTURE.md) (the original 1.0 spec these docs operationalize)
+**Cross-references:** [QUICKSTART.md](./QUICKSTART.md) (runnable end-to-end pipeline), [AGENTS.md](../../../AGENTS.md) (storage rules, Product Matrix), [vibeui/design-system/README.md](../../../vibeui/design-system/README.md) (panel UX), [docs/RL-OS-ARCHITECTURE.md](../../RL-OS-ARCHITECTURE.md) (the original 1.0 spec these docs operationalize)
+
+> **TL;DR:** start with [QUICKSTART.md](./QUICKSTART.md) for the runnable pipeline. The seven slice docs ([01-persistence.md](./01-persistence.md) … [07-advanced.md](./07-advanced.md)) cover the per-slice design rationale that this README enumerates.
+
+## Shipped status (per slice + named algorithm)
+
+| # | Slice | Commit | Notes |
+|---|---|---|---|
+| 1 | Persistence + run lifecycle | `7a530777` | 9-table SQL schema in `workspace.db`, encrypted via `WorkspaceStore` |
+| 2 | Python sidecar + PPO | `ad8eb43c` | CleanRL-style PPO, JSON-Lines on stdout, MPS/CUDA/CPU |
+| 3 | Env registry | `ad8eb43c` | Gymnasium probe + custom-Python envs + version DAG |
+| 4 | Eval suites | `ad8eb43c` | YAML suites, bootstrap CIs, paired comparison with Cohen's d |
+| 5 | Model hub + lineage | `a69a179d` | First-class Policy semver registry, lineage DAG, auto-generated model cards |
+| 6 | Deployment lifecycle | `a69a179d` | staging → canary → production / rolled_back / stopped, traffic split |
+| 6.5 | `/act` (Python ONNX path) | `beb25f3a` + `c19e5b7d` + `006d9df6` | `python -m vibe_rl inference` long-lived sidecar; runtime ∈ {python, onnx} |
+| 7 | RLHF/MARL/Opt management surface | `a69a179d` | PreferenceStore, optimization-run summaries, multi-agent classifier |
+| 7a | distill / quantize / prune | `3029841c` | PPO + KL teacher; ONNX dynamic INT8 (2.12× compression smoke); magnitude pruning |
+| 7b | MAPPO + PettingZoo | `ad0d341a` | Decentralized actors + centralized critic, mpe2 env resolver |
+| 7c | DPO RLHF | `a73cc585` | Direct preference optimization, no TRL dep, ~30 LOC of loss math |
+| 7b-extras | VDN + QMIX | `946d2a7e` | Value decomposition (linear sum + monotonic hypernet mixer) |
+| 7c-extras | ORPO + KTO + Reward Model | `5e6f74c8` | No-reference / unpaired / Bradley-Terry RM trainer |
+| 7c-extras+1 | PPO RLHF + GRPO | `f7b1b4b5` | Token-level PPO with value head + KL; GRPO group-relative advantages |
+| 7b-extras+1 | MADDPG | `28ca6772` (+ `13439b63`) | Continuous-action multi-agent DDPG, soft target updates |
+| 7d | Native Rust ONNX runtime | `0d0b7d4d` | Routing infrastructure + feature flag; `ort` dep deferred (smallvec/mistralrs collision documented) |
+
+**46+ unit tests** across the rl_* modules. Banner at `RLOSComposite.tsx` is `covers={[]}` — every panel reads real backend data.
+
+See [QUICKSTART.md](./QUICKSTART.md) for the runnable end-to-end pipeline.
 
 ---
 
