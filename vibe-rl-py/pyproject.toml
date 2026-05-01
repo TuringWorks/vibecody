@@ -24,6 +24,15 @@ onnx = ["onnx>=1.15", "onnxruntime>=1.16"]
 # (no extra dep). Quantize needs onnx + onnxruntime.quantization. Prune
 # uses torch.nn.utils.prune which is in core torch already.
 opt = ["onnx>=1.15", "onnxruntime>=1.16"]
+# Slice 7b — multi-agent. PettingZoo provides the env API; mpe2 is the
+# maintained replacement for PettingZoo's deprecated MPE suite (the
+# canonical cooperative-MARL benchmarks). supersuit gives us
+# pad_observations / vector wrappers when agent observation shapes differ.
+marl = [
+    "pettingzoo>=1.24,<2.0",
+    "supersuit>=3.9,<4.0",
+    "mpe2>=1.0,<2.0",
+]
 dev = ["pytest>=7", "pytest-timeout>=2"]
 
 [project.scripts]

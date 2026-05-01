@@ -98,15 +98,27 @@ def _cmd_train(args: argparse.Namespace) -> int:
         )
         return 2
 
-    # kind == "train" (or unset) → PPO baseline.
+    # kind == "train" (or unset) → dispatch by algorithm.
     algorithm = str(cfg.get("algorithmId") or cfg.get("algorithm") or "PPO").upper()
+    if algorithm == "MAPPO":
+        return _dispatch_mappo(args.run_id, cfg, streamer)
+    if algorithm in {"QMIX", "VDN", "MADDPG"}:
+        streamer.started(sidecar_version=__version__, seed=int(cfg.get("seed", 42)), device="cpu")
+        streamer.finished(
+            reason="error",
+            error=(
+                f"algorithm '{algorithm}' is not yet implemented. Slice 7b ships MAPPO; "
+                f"QMIX / VDN / MADDPG follow in 7b-extras (open an issue or implement on top)."
+            ),
+        )
+        return 2
     if algorithm not in {"PPO"}:
         streamer.started(sidecar_version=__version__, seed=int(cfg.get("seed", 42)), device="cpu")
         streamer.finished(
             reason="error",
             error=(
                 f"algorithm '{algorithm}' is not yet implemented in the slice-2 sidecar. "
-                f"Slice 2 ships PPO; SAC/DQN/TD3 follow."
+                f"Slice 2 ships PPO; SAC/DQN/TD3 follow. Multi-agent (slice 7b) ships MAPPO."
             ),
         )
         return 2
@@ -116,6 +128,46 @@ def _cmd_train(args: argparse.Namespace) -> int:
     ppo_cfg = _ppo_config_from_yaml(args.run_id, cfg)
     with report_errors(streamer):
         result = train(ppo_cfg, streamer)
+        streamer.finished(reason="done", final_reward_mean=float(result.get("final_reward_mean", 0.0)))
+    return 0
+
+
+def _dispatch_mappo(run_id: str, cfg: dict[str, Any], streamer) -> int:  # type: ignore[no-untyped-def]
+    from vibe_rl.algos.mappo import MAPPOConfig, train
+
+    def pick(*keys: str, default: Any = None) -> Any:
+        for k in keys:
+            if k in cfg and cfg[k] is not None:
+                return cfg[k]
+        return default
+
+    env_id = pick("environment_id", "environmentId", "environment", "environmentName", default="pettingzoo:simple_spread_v3")
+    workspace = pick("workspace_path", "workspacePath", default=".")
+    artifact_dir = pick("artifact_dir", "artifactDir", default="")
+
+    mappo_cfg = MAPPOConfig(
+        run_id=run_id,
+        env_id=str(env_id),
+        total_timesteps=int(pick("total_timesteps", "totalTimesteps", default=200_000)),
+        learning_rate=float(pick("learning_rate", "learningRate", default=3e-4)),
+        num_steps=int(pick("num_steps", "numSteps", default=128)),
+        anneal_lr=bool(pick("anneal_lr", "annealLr", default=True)),
+        gamma=float(pick("gamma", default=0.99)),
+        gae_lambda=float(pick("gae_lambda", "gaeLambda", default=0.95)),
+        num_minibatches=int(pick("num_minibatches", "numMinibatches", default=4)),
+        update_epochs=int(pick("update_epochs", "updateEpochs", default=4)),
+        clip_coef=float(pick("clip_coef", "clipCoef", default=0.2)),
+        ent_coef=float(pick("ent_coef", "entCoef", default=0.01)),
+        vf_coef=float(pick("vf_coef", "vfCoef", default=0.5)),
+        max_grad_norm=float(pick("max_grad_norm", "maxGradNorm", default=0.5)),
+        share_actor=bool(pick("share_actor", "shareActor", default=False)),
+        seed=int(pick("seed", default=42)),
+        workspace_path=str(workspace),
+        artifact_dir=str(artifact_dir),
+        checkpoint_every_steps=int(pick("checkpoint_every_steps", "checkpointEverySteps", default=50_000)),
+    )
+    with report_errors(streamer):
+        result = train(mappo_cfg, streamer)
         streamer.finished(reason="done", final_reward_mean=float(result.get("final_reward_mean", 0.0)))
     return 0
 
