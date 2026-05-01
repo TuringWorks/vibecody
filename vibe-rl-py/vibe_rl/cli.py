@@ -262,25 +262,78 @@ def _dispatch_rlhf(run_id: str, cfg: dict[str, Any], streamer) -> int:  # type: 
             streamer.finished(reason="done", final_reward_mean=float(result.get("best_accuracy", 0.0)))
         return 0
 
-    if algorithm in {"PPO", "GRPO"}:
-        streamer.started(sidecar_version=__version__, seed=seed, device="cpu")
-        streamer.finished(
-            reason="error",
-            error=(
-                f"RLHF algorithm '{algorithm}' is not yet wired. It requires "
-                f"a separately-trained reward model (set algorithm: REWARD_MODEL "
-                f"first), then a token-level PPO loop with KL penalty. Use "
-                f"algorithm: DPO / ORPO / KTO for single-stage alignment instead."
-            ),
+    if algorithm == "PPO":
+        from vibe_rl.algos.ppo_rlhf import PPORLHFConfig, train
+
+        rm_id = pick("reward_model_id", "rewardModelId", default="")
+        ppo_cfg = PPORLHFConfig(
+            run_id=run_id,
+            base_model_id=base_model,
+            reference_model_id=pick("reference_model_id", "referenceModelId", default=None),
+            reward_model_id=str(rm_id),
+            kl_coef=float(pick("kl_coef", "klCoef", default=0.05)),
+            clip_coef=float(pick("clip_coef", "clipCoef", default=0.2)),
+            value_coef=float(pick("value_coef", "valueCoef", default=0.5)),
+            entropy_coef=float(pick("entropy_coef", "entropyCoef", default=1e-3)),
+            learning_rate=lr,
+            max_new_tokens=int(pick("max_new_tokens", "maxNewTokens", default=32)),
+            max_prompt_len=int(pick("max_prompt_len", "maxPromptLen", default=128)),
+            batch_size=batch_size,
+            update_epochs=int(pick("update_epochs", "updateEpochs", default=2)),
+            num_iterations=int(pick("num_iterations", "numIterations", default=4)),
+            grad_accum_steps=grad_accum,
+            seed=seed,
+            suite_id=suite_id,
+            workspace_path=str(workspace),
+            artifact_dir=str(artifact_dir),
         )
-        return 2
+        with report_errors(streamer):
+            result = train(ppo_cfg, streamer)
+            streamer.finished(
+                reason="done",
+                final_reward_mean=float(result.get("best_terminal_reward", 0.0)),
+            )
+        return 0
+
+    if algorithm == "GRPO":
+        from vibe_rl.algos.grpo import GRPOConfig, train
+
+        rm_id = pick("reward_model_id", "rewardModelId", default="")
+        grpo_cfg = GRPOConfig(
+            run_id=run_id,
+            base_model_id=base_model,
+            reference_model_id=pick("reference_model_id", "referenceModelId", default=None),
+            reward_model_id=str(rm_id),
+            group_size=int(pick("group_size", "groupSize", default=4)),
+            kl_coef=float(pick("kl_coef", "klCoef", default=0.05)),
+            clip_coef=float(pick("clip_coef", "clipCoef", default=0.2)),
+            entropy_coef=float(pick("entropy_coef", "entropyCoef", default=1e-3)),
+            learning_rate=lr,
+            max_new_tokens=int(pick("max_new_tokens", "maxNewTokens", default=32)),
+            max_prompt_len=int(pick("max_prompt_len", "maxPromptLen", default=128)),
+            n_prompts_per_iter=int(pick("n_prompts_per_iter", "nPromptsPerIter", default=1)),
+            update_epochs=int(pick("update_epochs", "updateEpochs", default=2)),
+            num_iterations=int(pick("num_iterations", "numIterations", default=4)),
+            grad_accum_steps=grad_accum,
+            seed=seed,
+            suite_id=suite_id,
+            workspace_path=str(workspace),
+            artifact_dir=str(artifact_dir),
+        )
+        with report_errors(streamer):
+            result = train(grpo_cfg, streamer)
+            streamer.finished(
+                reason="done",
+                final_reward_mean=float(result.get("best_terminal_reward", 0.0)),
+            )
+        return 0
 
     streamer.started(sidecar_version=__version__, seed=seed, device="cpu")
     streamer.finished(
         reason="error",
         error=(
             f"unknown RLHF algorithm '{algorithm}'. "
-            f"Available: DPO, ORPO, KTO, REWARD_MODEL."
+            f"Available: DPO, ORPO, KTO, REWARD_MODEL, PPO, GRPO."
         ),
     )
     return 2
