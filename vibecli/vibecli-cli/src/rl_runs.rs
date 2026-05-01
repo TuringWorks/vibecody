@@ -862,6 +862,36 @@ impl RunStore {
         })
     }
 
+    /// Slice 6.5 — look up an artifact by id across all runs. The
+    /// deployment row stores `artifact_id` directly so the runtime pool
+    /// needs to resolve the file path without knowing which run produced
+    /// it.
+    pub fn find_artifact_by_id(&self, artifact_id: &str) -> Result<Option<Artifact>, RunError> {
+        let conn = self.conn.lock().expect("rl_runs mutex poisoned");
+        let mut stmt = conn.prepare(
+            "SELECT artifact_id, run_id, kind, timestep, rel_path, sha256, size_bytes,
+                    created_at, metadata_json
+             FROM rl_artifacts WHERE artifact_id = ?1",
+        )?;
+        match stmt.query_row(params![artifact_id], |r| {
+            Ok(Artifact {
+                artifact_id: r.get(0)?,
+                run_id: r.get(1)?,
+                kind: r.get(2)?,
+                timestep: r.get(3)?,
+                rel_path: r.get(4)?,
+                sha256: r.get(5)?,
+                size_bytes: r.get(6)?,
+                created_at: r.get(7)?,
+                metadata_json: r.get(8)?,
+            })
+        }) {
+            Ok(a) => Ok(Some(a)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
+
     pub fn list_artifacts(&self, run_id: &str) -> Result<Vec<Artifact>, RunError> {
         let conn = self.conn.lock().expect("rl_runs mutex poisoned");
         let mut stmt = conn.prepare(

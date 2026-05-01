@@ -123,6 +123,10 @@ pub struct ServeState {
     /// RL-OS — training executor. Slice 2 ships the Python sidecar variant;
     /// slice 7d swaps in a native runtime for inference workloads.
     pub rl_executor: Arc<dyn crate::rl_executor::TrainingExecutor>,
+    /// RL-OS slice 6.5 — pool of long-lived inference runtimes, one per
+    /// active deployment. Lazy-loaded on first /act call; explicit
+    /// `/stop` drops the runtime.
+    pub rl_runtime_pool: Arc<crate::rl_runtime::RuntimePool>,
 }
 
 // ── Request / Response types ──────────────────────────────────────────────────
@@ -2687,24 +2691,100 @@ async fn rl_get_deployment_health_h(
     store.health(&id).map(Json).map_err(rl_err_to_http)
 }
 
-/// Slice 6 stops at deployment management. The actual inference call
-/// requires a `PolicyRuntime` impl (slice 6.5) — either ONNX (`ort`
-/// crate, +5 MB binary, C++ build dep) or a long-lived Python sidecar
-/// in inference mode. Returning 501 with the explicit shape so the
-/// dashboard can render "deploy management is real, inference is not
-/// yet wired" without faking a response.
+/// Slice 6.5 — real inference path. Looks up the deployment by name
+/// (or by id; we accept both for the URL slug to keep the /act path
+/// stable across renames), resolves its primary artifact, lazy-spawns
+/// the inference sidecar in the runtime pool, and round-trips the obs.
+///
+/// Only deployments in `staging` / `canary` / `production` are
+/// servable; rolled-back / stopped slugs return 409.
 async fn rl_serve_act(
     Path(name): Path<String>,
-) -> (StatusCode, Json<serde_json::Value>) {
-    (
-        StatusCode::NOT_IMPLEMENTED,
-        Json(serde_json::json!({
-            "error": "inference runtime not yet wired",
-            "deployment": name,
-            "slice": "6.5",
-            "hint": "Slice 6 ships deployment management (lifecycle, traffic split, rollback). The act endpoint requires a PolicyRuntime — see docs/design/rl-os/06-deployment.md."
-        })),
-    )
+    State(state): State<ServeState>,
+    Json(req): Json<crate::rl_runtime::ActRequest>,
+) -> Result<Json<crate::rl_runtime::ActResponse>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_deploy_store_from_state(&state)?;
+    // Lookup: name OR id, since the panel may pass either.
+    let deployment = {
+        let by_id = store.get(&name).map_err(rl_err_to_http)?;
+        match by_id {
+            Some(d) => d,
+            None => store
+                .list()
+                .map_err(rl_err_to_http)?
+                .into_iter()
+                .find(|d| d.name == name)
+                .ok_or_else(|| {
+                    json_error(
+                        StatusCode::NOT_FOUND,
+                        format!("deployment '{}' not found", sanitize_user_input(&name)),
+                    )
+                })?,
+        }
+    };
+
+    use crate::rl_deploy::DeploymentStatus;
+    if matches!(
+        deployment.status,
+        DeploymentStatus::RolledBack | DeploymentStatus::Stopped
+    ) {
+        return Err(json_error(
+            StatusCode::CONFLICT,
+            format!(
+                "deployment '{}' is in status '{}' and cannot serve",
+                deployment.name,
+                deployment.status.as_str()
+            ),
+        ));
+    }
+    if deployment.runtime != "python" {
+        return Err(json_error(
+            StatusCode::NOT_IMPLEMENTED,
+            format!(
+                "runtime '{}' is not yet wired in slice 6.5 (python only). \
+                 native_candle / onnx ship in slice 7d / a follow-on patch.",
+                deployment.runtime
+            ),
+        ));
+    }
+
+    // Resolve the primary artifact's workspace-relative path.
+    let artifact = state
+        .rl_run_store
+        .find_artifact_by_id(&deployment.artifact_id)
+        .map_err(rl_err_to_http)?
+        .ok_or_else(|| {
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!(
+                    "deployment '{}' references artifact '{}' which is missing",
+                    deployment.name, deployment.artifact_id
+                ),
+            )
+        })?;
+
+    let cfg = crate::rl_executor::ExecutorConfig::from_env();
+    let runtime = state
+        .rl_runtime_pool
+        .get_or_spawn(
+            &cfg,
+            &deployment.deployment_id,
+            &artifact.rel_path,
+            &state.workspace_root,
+        )
+        .await
+        .map_err(rl_err_to_http)?;
+
+    let started = std::time::Instant::now();
+    let action = runtime.act(req.obs).await.map_err(rl_err_to_http)?;
+    let latency_ms = started.elapsed().as_secs_f64() * 1000.0;
+
+    Ok(Json(crate::rl_runtime::ActResponse {
+        action,
+        deployment: deployment.name,
+        policy_id: None,
+        latency_ms,
+    }))
 }
 
 // ── RL-OS: /v1/rl/rlhf, /v1/rl/optimization, /v1/rl/multi-agent (slice 7) ────
@@ -3155,6 +3235,7 @@ pub async fn serve(
         inference_router: Some(Arc::new(crate::inference::Router::from_env())),
         rl_run_store,
         rl_executor,
+        rl_runtime_pool: Arc::new(crate::rl_runtime::RuntimePool::new()),
     };
 
     // Background task: detect or start an ngrok / Tailscale Funnel tunnel and
@@ -5512,6 +5593,7 @@ mod tests {
                             .unwrap(),
                     ),
                 )),
+                rl_runtime_pool: Arc::new(crate::rl_runtime::RuntimePool::new()),
             };
             (build_router(state, 7878), tmp_dir)
         }
@@ -5820,6 +5902,7 @@ mod tests {
                         .unwrap(),
                     ),
                 )),
+                rl_runtime_pool: Arc::new(crate::rl_runtime::RuntimePool::new()),
             };
             (build_router(state, 7878), tmp_dir)
         }
