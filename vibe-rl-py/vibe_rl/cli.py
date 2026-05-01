@@ -133,32 +133,23 @@ def _cmd_train(args: argparse.Namespace) -> int:
 
 
 def _dispatch_rlhf(run_id: str, cfg: dict[str, Any], streamer) -> int:  # type: ignore[no-untyped-def]
-    """Slice 7c — RLHF dispatch. Defaults to DPO; PPO/KTO/ORPO/GRPO get
-    a structured 'not yet' response since DPO is the only single-stage
-    variant that doesn't require a separately-trained reward model.
+    """Slice 7c + 7c-extras — RLHF dispatch.
+
+    Single-stage methods (no separate reward-model stage):
+      - DPO    — paired preferences, frozen reference (slice 7c)
+      - ORPO   — paired preferences, NO reference model (extras)
+      - KTO    — unpaired desirable/undesirable, frozen reference (extras)
+
+    Reward-modeling stage:
+      - REWARD_MODEL — trains a scalar BCE-Bradley-Terry head over an LM
+                       backbone; produces a model usable for ranking or
+                       PPO RLHF (extras+1).
+
+    Reserved (require a separately-trained reward model — not yet wired):
+      - PPO    — classical InstructGPT-style RLHF over the RM
+      - GRPO   — GRPO from DeepSeek's R1 line of work
     """
     algorithm = str(cfg.get("algorithm") or cfg.get("algorithmId") or "DPO").upper()
-    if algorithm in {"PPO", "KTO", "ORPO", "GRPO"}:
-        streamer.started(sidecar_version=__version__, seed=int(cfg.get("seed", 42)), device="cpu")
-        streamer.finished(
-            reason="error",
-            error=(
-                f"RLHF algorithm '{algorithm}' is not yet wired (requires a "
-                f"separately-trained reward model — that's slice 7c-extras). "
-                f"Slice 7c ships DPO, which is single-stage and skips the "
-                f"reward model. Set algorithm: DPO in the run config."
-            ),
-        )
-        return 2
-    if algorithm != "DPO":
-        streamer.started(sidecar_version=__version__, seed=int(cfg.get("seed", 42)), device="cpu")
-        streamer.finished(
-            reason="error",
-            error=f"unknown RLHF algorithm '{algorithm}'. Slice 7c ships DPO.",
-        )
-        return 2
-
-    from vibe_rl.algos.dpo import DPOConfig, train
 
     def pick(*keys: str, default: Any = None) -> Any:
         for k in keys:
@@ -168,30 +159,128 @@ def _dispatch_rlhf(run_id: str, cfg: dict[str, Any], streamer) -> int:  # type: 
 
     workspace = pick("workspace_path", "workspacePath", default=".")
     artifact_dir = pick("artifact_dir", "artifactDir", default="")
-    dpo_cfg = DPOConfig(
-        run_id=run_id,
-        base_model_id=str(pick("base_model_id", "baseModelId", default="distilgpt2")),
-        reference_model_id=pick("reference_model_id", "referenceModelId", default=None),
-        beta=float(pick("beta", default=0.1)),
-        max_seq_len=int(pick("max_seq_len", "maxSeqLen", default=256)),
-        batch_size=int(pick("batch_size", "batchSize", default=4)),
-        learning_rate=float(pick("learning_rate", "learningRate", default=5e-6)),
-        num_epochs=int(pick("num_epochs", "numEpochs", default=1)),
-        grad_accum_steps=int(pick("grad_accum_steps", "gradAccumSteps", default=1)),
-        seed=int(pick("seed", default=42)),
-        suite_id=pick("suite_id", "suiteId", default=None),
-        workspace_path=str(workspace),
-        artifact_dir=str(artifact_dir),
-    )
-    with report_errors(streamer):
-        result = train(dpo_cfg, streamer)
-        # `final_reward_mean` for DPO is the best preference-classification
-        # accuracy seen during training.
-        streamer.finished(
-            reason="done",
-            final_reward_mean=float(result.get("best_accuracy", 0.0)),
+    base_model = str(pick("base_model_id", "baseModelId", default="distilgpt2"))
+    seed = int(pick("seed", default=42))
+    batch_size = int(pick("batch_size", "batchSize", default=4))
+    lr = float(pick("learning_rate", "learningRate", default=5e-6))
+    num_epochs = int(pick("num_epochs", "numEpochs", default=1))
+    grad_accum = int(pick("grad_accum_steps", "gradAccumSteps", default=1))
+    max_seq = int(pick("max_seq_len", "maxSeqLen", default=256))
+    suite_id = pick("suite_id", "suiteId", default=None)
+
+    if algorithm == "DPO":
+        from vibe_rl.algos.dpo import DPOConfig, train
+
+        dpo_cfg = DPOConfig(
+            run_id=run_id,
+            base_model_id=base_model,
+            reference_model_id=pick("reference_model_id", "referenceModelId", default=None),
+            beta=float(pick("beta", default=0.1)),
+            max_seq_len=max_seq,
+            batch_size=batch_size,
+            learning_rate=lr,
+            num_epochs=num_epochs,
+            grad_accum_steps=grad_accum,
+            seed=seed,
+            suite_id=suite_id,
+            workspace_path=str(workspace),
+            artifact_dir=str(artifact_dir),
         )
-    return 0
+        with report_errors(streamer):
+            result = train(dpo_cfg, streamer)
+            streamer.finished(reason="done", final_reward_mean=float(result.get("best_accuracy", 0.0)))
+        return 0
+
+    if algorithm == "ORPO":
+        from vibe_rl.algos.orpo import ORPOConfig, train
+
+        orpo_cfg = ORPOConfig(
+            run_id=run_id,
+            base_model_id=base_model,
+            lambda_=float(pick("lambda", "lambda_", default=0.1)),
+            max_seq_len=max_seq,
+            batch_size=batch_size,
+            learning_rate=lr,
+            num_epochs=num_epochs,
+            grad_accum_steps=grad_accum,
+            seed=seed,
+            suite_id=suite_id,
+            workspace_path=str(workspace),
+            artifact_dir=str(artifact_dir),
+        )
+        with report_errors(streamer):
+            result = train(orpo_cfg, streamer)
+            streamer.finished(reason="done", final_reward_mean=float(result.get("best_accuracy", 0.0)))
+        return 0
+
+    if algorithm == "KTO":
+        from vibe_rl.algos.kto import KTOConfig, train
+
+        kto_cfg = KTOConfig(
+            run_id=run_id,
+            base_model_id=base_model,
+            reference_model_id=pick("reference_model_id", "referenceModelId", default=None),
+            beta=float(pick("beta", default=0.1)),
+            lambda_d=float(pick("lambda_d", "lambdaD", default=1.0)),
+            lambda_u=float(pick("lambda_u", "lambdaU", default=1.0)),
+            max_seq_len=max_seq,
+            batch_size=batch_size,
+            learning_rate=lr,
+            num_epochs=num_epochs,
+            grad_accum_steps=grad_accum,
+            seed=seed,
+            suite_id=suite_id,
+            workspace_path=str(workspace),
+            artifact_dir=str(artifact_dir),
+        )
+        with report_errors(streamer):
+            result = train(kto_cfg, streamer)
+            streamer.finished(reason="done", final_reward_mean=float(result.get("best_accuracy", 0.0)))
+        return 0
+
+    if algorithm in {"REWARD_MODEL", "RM"}:
+        from vibe_rl.algos.reward_model import RewardModelConfig, train
+
+        rm_cfg = RewardModelConfig(
+            run_id=run_id,
+            base_model_id=base_model,
+            max_seq_len=max_seq,
+            batch_size=batch_size,
+            learning_rate=float(pick("learning_rate", "learningRate", default=1e-5)),
+            num_epochs=num_epochs,
+            grad_accum_steps=grad_accum,
+            seed=seed,
+            suite_id=suite_id,
+            workspace_path=str(workspace),
+            artifact_dir=str(artifact_dir),
+        )
+        with report_errors(streamer):
+            result = train(rm_cfg, streamer)
+            streamer.finished(reason="done", final_reward_mean=float(result.get("best_accuracy", 0.0)))
+        return 0
+
+    if algorithm in {"PPO", "GRPO"}:
+        streamer.started(sidecar_version=__version__, seed=seed, device="cpu")
+        streamer.finished(
+            reason="error",
+            error=(
+                f"RLHF algorithm '{algorithm}' is not yet wired. It requires "
+                f"a separately-trained reward model (set algorithm: REWARD_MODEL "
+                f"first), then a token-level PPO loop with KL penalty. Use "
+                f"algorithm: DPO / ORPO / KTO for single-stage alignment instead."
+            ),
+        )
+        return 2
+
+    streamer.started(sidecar_version=__version__, seed=seed, device="cpu")
+    streamer.finished(
+        reason="error",
+        error=(
+            f"unknown RLHF algorithm '{algorithm}'. "
+            f"Available: DPO, ORPO, KTO, REWARD_MODEL."
+        ),
+    )
+    return 2
 
 
 def _dispatch_mappo(run_id: str, cfg: dict[str, Any], streamer) -> int:  # type: ignore[no-untyped-def]
