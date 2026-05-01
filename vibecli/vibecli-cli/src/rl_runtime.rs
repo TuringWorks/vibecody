@@ -305,6 +305,97 @@ impl PolicyRuntime for PythonRuntime {
     }
 }
 
+// ── OnnxRustRuntime (slice 7d, feature-gated) ────────────────────────────────
+//
+// Native Rust ONNX inference via the `ort` crate. When the `rl-ort`
+// feature is enabled at build time, the routing logic in
+// `RuntimePool::get_or_spawn` directs `runtime: onnx` deployments here
+// instead of spawning the Python `onnx_inference` sidecar.
+//
+// Status: the routing path + struct + trait impl are in place. The
+// actual `ort` dep is *not yet declared* in `Cargo.toml` because
+// `ort 2.0-rc.10` pins `smallvec = =2.0.0-alpha.10` which collides
+// with mistralrs's smallvec ≥ alpha.12 requirement. Resolving wants
+// either:
+//   (a) a newer `ort` rc that doesn't pin smallvec exactly, or
+//   (b) a workspace-level [patch.crates-io] for smallvec that
+//       satisfies both constraints, or
+//   (c) bump ort to a version with the rc.12 API and adapt the
+//       `commit_from_file` / `inputs` field rename.
+//
+// Until then this struct returns a structured "dep deferred" error so
+// the gap is visible and the panel can surface a clear hint. Default
+// build (rl-ort off) is unaffected — `runtime: onnx` falls through to
+// the Python sidecar which works today.
+
+#[cfg(feature = "rl-ort")]
+pub struct OnnxRustRuntime {
+    deployment_id: String,
+    started_at: Instant,
+    model_path: PathBuf,
+    action_kind: String,
+}
+
+#[cfg(feature = "rl-ort")]
+impl OnnxRustRuntime {
+    pub async fn load(deployment_id: String, model_path: PathBuf) -> Result<Self, RunError> {
+        let metadata_path = model_path.with_extension("json");
+        let action_kind = if metadata_path.is_file() {
+            let raw = std::fs::read_to_string(&metadata_path)
+                .map_err(|e| RunError::Storage(format!("read onnx metadata: {e}")))?;
+            serde_json::from_str::<serde_json::Value>(&raw)
+                .ok()
+                .and_then(|v| {
+                    v.get("action_kind")
+                        .and_then(|x| x.as_str())
+                        .map(String::from)
+                })
+                .unwrap_or_else(|| "discrete".to_string())
+        } else {
+            "discrete".to_string()
+        };
+        Ok(Self {
+            deployment_id,
+            started_at: Instant::now(),
+            model_path,
+            action_kind,
+        })
+    }
+}
+
+#[cfg(feature = "rl-ort")]
+#[async_trait]
+impl PolicyRuntime for OnnxRustRuntime {
+    async fn act(&self, _obs: serde_json::Value) -> Result<serde_json::Value, RunError> {
+        Err(RunError::Invalid(format!(
+            "rl-ort feature compiled in but the `ort` dep itself is deferred — \
+             needs a smallvec patch to coexist with mistralrs (see Cargo.toml \
+             comment near `rl-ort = []`). Falling back: rebuild without \
+             --features rl-ort to use the Python `onnx_inference` sidecar, \
+             which serves {model_path} via Python onnxruntime.",
+            model_path = self.model_path.display()
+        )))
+    }
+
+    async fn health(&self) -> RuntimeHealth {
+        RuntimeHealth {
+            deployment_id: self.deployment_id.clone(),
+            framework: "onnx-rust (deferred)".into(),
+            action_kind: self.action_kind.clone(),
+            device: "n/a".into(),
+            checkpoint: self.model_path.display().to_string(),
+            uptime_seconds: self.started_at.elapsed().as_secs(),
+            requests_total: 0,
+            error_total: 0,
+            last_latency_ms: None,
+        }
+    }
+
+    async fn shutdown(&self) -> Result<(), RunError> {
+        Ok(())
+    }
+}
+
 // ── RuntimePool (one PythonRuntime per active deployment) ────────────────────
 
 #[derive(Default)]
@@ -319,8 +410,12 @@ impl RuntimePool {
 
     /// Look up a live runtime by deployment id, or create one by spawning
     /// a sidecar against the deployment's primary artifact path. The
-    /// `runtime_kind` selects which sidecar entry point to spawn (see
-    /// `PythonRuntime::spawn`).
+    /// `runtime_kind` selects which backend to use:
+    ///
+    /// - `"python"` → spawn `python -m vibe_rl inference` (PyTorch).
+    /// - `"onnx"`   → with `--features rl-ort`, load via `ort` in-process;
+    ///                without the feature, falls back to spawning
+    ///                `python -m vibe_rl onnx-inference`.
     pub async fn get_or_spawn(
         &self,
         cfg: &crate::rl_executor::ExecutorConfig,
@@ -336,18 +431,30 @@ impl RuntimePool {
                 return Ok(rt.clone());
             }
         }
-        // Slow path: spawn. The runtime trait isn't Clone, so we wrap in Arc.
-        // Resolve relative path against workspace root (artifact paths are
-        // workspace-relative per slice 1's `record_artifact` validator).
+        // Slow path. Resolve relative path against workspace root.
         let abs = workspace_root.join(checkpoint_rel_path);
         if !abs.is_file() {
             return Err(RunError::Invalid(format!(
                 "checkpoint file not found at {abs:?} — deploy from a finished run + final artifact"
             )));
         }
-        let runtime =
-            PythonRuntime::spawn(cfg, deployment_id.to_string(), abs, runtime_kind).await?;
-        let arc: Arc<dyn PolicyRuntime> = Arc::new(runtime);
+
+        // Slice 7d: native Rust ONNX path when `rl-ort` is enabled.
+        #[cfg(feature = "rl-ort")]
+        let arc: Arc<dyn PolicyRuntime> = if runtime_kind == "onnx" {
+            let runtime = OnnxRustRuntime::load(deployment_id.to_string(), abs).await?;
+            Arc::new(runtime)
+        } else {
+            let runtime =
+                PythonRuntime::spawn(cfg, deployment_id.to_string(), abs, runtime_kind).await?;
+            Arc::new(runtime)
+        };
+        #[cfg(not(feature = "rl-ort"))]
+        let arc: Arc<dyn PolicyRuntime> = {
+            let runtime =
+                PythonRuntime::spawn(cfg, deployment_id.to_string(), abs, runtime_kind).await?;
+            Arc::new(runtime)
+        };
         let mut map = self.runtimes.lock().await;
         // Re-check in case a concurrent caller beat us to the spawn.
         if let Some(existing) = map.get(deployment_id) {

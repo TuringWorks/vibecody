@@ -25,6 +25,22 @@ vibe-mistralrs = ["vibe-infer/mistralrs"]
 vibe-mistralrs-cuda = ["vibe-mistralrs", "vibe-infer/mistralrs-cuda"]
 vibe-mistralrs-metal = ["vibe-mistralrs", "vibe-infer/mistralrs-metal"]
 
+# Slice 7d (RL-OS) — native Rust ONNX inference via the `ort` crate.
+# When enabled, deployments with `runtime: onnx` serve through an
+# in-process `OnnxRustRuntime` instead of spawning the Python
+# `onnx_inference` sidecar. Saves the subprocess + Python interpreter
+# at serve time; useful for edge / no-Python deploys.
+#
+# Off by default. The actual `ort` dep declaration is gated on
+# resolving the smallvec conflict with mistralrs — see the ort comment
+# above. Until then, this feature flag wires the routing in
+# `RuntimePool::get_or_spawn` to prefer the in-process path when
+# enabled; the in-process path returns a structured 'ort dep deferred'
+# error to make the gap visible. When the feature is off (default),
+# `runtime: onnx` transparently uses the Python sidecar
+# (`onnx_inference.py`).
+rl-ort = []
+
 [lib]
 name = "vibecli_cli"
 path = "src/lib.rs"
@@ -86,6 +102,16 @@ socket2 = "0.5"
 snow = "0.9"
 libc = "0.2"
 whisper-rs = { version = "0.13", optional = true }
+
+# Slice 7d (RL-OS) — opt-in native Rust ONNX inference. The actual
+# `ort` dep is intentionally NOT declared here yet: ort 2.0-rc.10 pins
+# `smallvec=2.0.0-alpha.10`, which collides with mistralrs's smallvec
+# requirement (≥ alpha.12). Resolving needs either a newer ort rc with
+# the rc.10 API surface restored OR a workspace-level smallvec
+# override. The `rl-ort` feature flag below stays in place so the
+# infrastructure is ready; enabling it surfaces a structured 'feature
+# wired but ort dep deferred — follow-up needed' error from
+# `OnnxRustRuntime::load`. See docs/design/rl-os/06-deployment.md.
 
 # OpenTelemetry (OTLP/HTTP export)
 opentelemetry = { version = "0.27", features = ["trace"] }
