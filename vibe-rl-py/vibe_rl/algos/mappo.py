@@ -123,7 +123,7 @@ class _CentralizedCritic(nn.Module):
         return self.net(joint_obs)
 
 
-def _make_pettingzoo_env(env_id: str, seed: int):  # type: ignore[no-untyped-def]
+def _make_pettingzoo_env(env_id: str, seed: int, **env_kwargs):  # type: ignore[no-untyped-def]
     """Resolve a PettingZoo ParallelEnv from an env-id spec.
 
     PettingZoo 1.26 deprecated the MPE suite; the maintained replacement
@@ -136,6 +136,12 @@ def _make_pettingzoo_env(env_id: str, seed: int):  # type: ignore[no-untyped-def
       pettingzoo:sisl.pursuit_v4         → pettingzoo.sisl.pursuit_v4
       mpe2:simple_spread_v3              → mpe2.simple_spread_v3
       simple_spread_v3                   → tries mpe2 first
+
+    `env_kwargs` are forwarded to the env's parallel_env() factory. The
+    common case is `continuous_actions=True` for MADDPG-style algorithms
+    that need Box action spaces. We silently drop kwargs the env factory
+    rejects (e.g. SISL envs that don't take continuous_actions) — the
+    factory's TypeError gets retried with no kwargs.
     """
     import importlib
 
@@ -172,7 +178,11 @@ def _make_pettingzoo_env(env_id: str, seed: int):  # type: ignore[no-untyped-def
                 f"module '{candidate}' does not expose parallel_env()"
             )
             continue
-        env = mod.parallel_env()
+        try:
+            env = mod.parallel_env(**env_kwargs)
+        except TypeError:
+            # Factory doesn't accept these kwargs — try without.
+            env = mod.parallel_env()
         env.reset(seed=seed)
         return env
 
