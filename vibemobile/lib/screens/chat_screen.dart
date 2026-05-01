@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/recap.dart';
 import '../services/auth_service.dart';
 import '../services/api_client.dart';
 import '../theme/app_theme.dart';
+import '../widgets/recap_card.dart';
 
 /// Chat/dispatch screen — send messages or tasks to a selected machine.
 /// Pass [resumeMachineId], [resumeSessionId], and [resumeTask] to continue
@@ -30,16 +32,38 @@ class _ChatScreenState extends State<ChatScreen> {
   String? _selectedMachineId;
   bool _sending = false;
 
+  /// M1.1 — recap pinned above the transcript on resume. Null when
+  /// the daemon has no recap yet, the route returns non-2xx, or the
+  /// session is not a resume target.
+  Recap? _recap;
+
   @override
   void initState() {
     super.initState();
     if (widget.resumeMachineId != null) {
       _selectedMachineId = widget.resumeMachineId;
     }
-    // Load history after first frame so context is available.
+    // Load recap + history after first frame so context is available.
     if (widget.resumeSessionId != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _loadSessionHistory());
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        // Recap first — small, fast, idempotent. We render the card
+        // as soon as it lands; the transcript fills in underneath.
+        await _loadRecap();
+        await _loadSessionHistory();
+      });
     }
+  }
+
+  Future<void> _loadRecap() async {
+    if (widget.resumeSessionId == null) return;
+    final auth = context.read<AuthService>();
+    final api = context.read<ApiClient>();
+    final cred = auth.getCredential(widget.resumeMachineId ?? '');
+    if (cred == null) return;
+    final recap = await api.getSessionRecap(
+        cred.baseUrl, cred.token, widget.resumeSessionId!);
+    if (!mounted) return;
+    setState(() => _recap = recap);
   }
 
   Future<void> _loadSessionHistory() async {
@@ -135,6 +159,22 @@ class _ChatScreenState extends State<ChatScreen> {
                   _DispatchChip(label: 'Chat', selected: true, onTap: () {}),
                 ],
               ),
+            ),
+
+          // M1.1 — recap card pinned above the transcript on resume.
+          if (_recap != null)
+            RecapCard(
+              recap: _recap!,
+              onResume: () {
+                // Mobile only surfaces the prompt; actual /v1/resume
+                // happens server-side via the existing dispatch flow.
+                final seed = _recap!.nextActions.isNotEmpty
+                    ? _recap!.nextActions.first
+                    : null;
+                if (seed != null) {
+                  _controller.text = seed;
+                }
+              },
             ),
 
           // Messages list.

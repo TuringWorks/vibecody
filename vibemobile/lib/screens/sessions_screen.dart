@@ -51,6 +51,22 @@ class _SessionsScreenState extends State<SessionsScreen> {
       }
     }
 
+    // M1.1 — fetch the latest recap headline per session and stitch
+    // it into the row. Best-effort: a missing or 4xx recap leaves the
+    // row's existing preview untouched. Calls run in parallel within
+    // each machine so a slow daemon doesn't block the others.
+    await Future.wait(allJobs.map((job) async {
+      final sid = job['session_id'] ?? job['id'];
+      if (sid is! String || sid.isEmpty) return;
+      final baseUrl = job['_base_url'] as String?;
+      final token = job['_token'] as String?;
+      if (baseUrl == null || token == null) return;
+      final recap = await api.getSessionRecap(baseUrl, token, sid);
+      if (recap != null && recap.headline.isNotEmpty) {
+        job['_recap_headline'] = recap.headline;
+      }
+    }));
+
     allJobs.sort((a, b) => (b['started_at'] ?? 0).compareTo(a['started_at'] ?? 0));
 
     if (mounted) {
@@ -176,10 +192,13 @@ class _JobCard extends StatelessWidget {
                 ),
               ],
             ),
-            if ((job['last_message_preview'] ?? job['summary']) != null) ...[
+            if ((job['_recap_headline'] ?? job['last_message_preview'] ?? job['summary']) != null) ...[
               const SizedBox(height: 8),
               Text(
-                job['last_message_preview'] ?? job['summary'],
+                // M1.1 — recap headline wins when present; falls back
+                // to the previous preview/summary so rows from older
+                // daemons keep working.
+                job['_recap_headline'] ?? job['last_message_preview'] ?? job['summary'],
                 style: TextStyle(fontSize: 12, color: c.textSecondary),
                 maxLines: 2, overflow: TextOverflow.ellipsis,
               ),

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../models/machine.dart';
+import '../models/recap.dart';
 import 'auth_service.dart';
 
 /// HTTP client for the VibeCody daemon REST API.
@@ -294,6 +295,40 @@ class ApiClient {
     );
     if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
     return jsonDecode(resp.body);
+  }
+
+  // ── Recap (M1.1) ───────────────────────────────────────────
+  //
+  // M1.1 — read-only consumer of /v1/recap. Mobile never generates
+  // recaps; the daemon owns composition. ChatScreen calls this before
+  // /mobile/sessions/{id}/context so the recap card can render while
+  // the transcript is still streaming in.
+
+  /// Fetch the most recent session recap for [subjectId].
+  /// Returns `null` when the daemon has no recap yet, or when the
+  /// route returns a non-2xx — mobile degrades silently rather than
+  /// blocking the chat from opening.
+  Future<Recap?> getSessionRecap(
+      String baseUrl, String token, String subjectId) async {
+    try {
+      final uri = Uri.parse('$baseUrl/v1/recap').replace(queryParameters: {
+        'kind': 'session',
+        'subject_id': subjectId,
+        'limit': '1',
+      });
+      final resp = await _client
+          .get(uri, headers: _headers(token))
+          .timeout(const Duration(seconds: 5));
+      if (resp.statusCode != 200) return null;
+      final data = jsonDecode(resp.body);
+      // /v1/recap returns an array; take the head.
+      if (data is List && data.isNotEmpty) {
+        return Recap.fromJson(data.first as Map<String, dynamic>);
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
   }
 
   // ── Health Check ───────────────────────────────────────────
