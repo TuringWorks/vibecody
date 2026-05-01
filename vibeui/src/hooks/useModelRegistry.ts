@@ -99,13 +99,30 @@ export function getDefaultProvider(): string {
  * Pings the VibeCLI daemon's `/health` endpoint and caches the result. The
  * cached value is only read on the NEXT app launch (by `getDefaultProvider`),
  * so this never races with user selections in the current session.
+ *
+ * Also reads `mistralrs_recommended_default` from the response and mutates
+ * `PROVIDER_DEFAULT_MODEL["vibecli-mistralrs"]` in place — the daemon swaps
+ * the recommendation to an ungated Apache-2.0 model when `HF_TOKEN` is
+ * absent, so the picker doesn't pre-select a model that would 401 on load.
+ *
  * Call once on app mount.
  */
 export async function probeAndCacheDefaultProvider(): Promise<void> {
   let resolved = EMBEDDED_UNREACHABLE_FALLBACK;
   try {
     const res = await fetch(DAEMON_HEALTH_URL, { signal: AbortSignal.timeout(800) });
-    if (res.ok) resolved = DEFAULT_PROVIDER;
+    if (res.ok) {
+      resolved = DEFAULT_PROVIDER;
+      try {
+        const body = await res.json() as { mistralrs_recommended_default?: string };
+        const rec = body?.mistralrs_recommended_default;
+        if (typeof rec === "string" && rec.length > 0 && rec !== PROVIDER_DEFAULT_MODEL["vibecli-mistralrs"]) {
+          PROVIDER_DEFAULT_MODEL["vibecli-mistralrs"] = rec;
+        }
+      } catch {
+        // body wasn't JSON or didn't include the field — keep the static default
+      }
+    }
   } catch {
     // daemon unreachable — keep fallback
   }

@@ -212,7 +212,16 @@ fn sanitize_user_input(s: &str) -> String {
 // ── Route handlers ────────────────────────────────────────────────────────────
 
 async fn health() -> impl IntoResponse {
-    Json(serde_json::json!({ "status": "ok", "version": env!("CARGO_PKG_VERSION") }))
+    let hf_token_present = std::env::var("HF_TOKEN").map(|s| !s.is_empty()).unwrap_or(false);
+    Json(serde_json::json!({
+        "status": "ok",
+        "version": env!("CARGO_PKG_VERSION"),
+        // mistralrs picker default depends on whether the daemon can pull
+        // gated meta-llama/* repos. Frontend reads this and overrides
+        // PROVIDER_DEFAULT_MODEL["vibecli-mistralrs"] to skip the 401 path.
+        "hf_token_present": hf_token_present,
+        "mistralrs_recommended_default": crate::inference::mistralrs::recommended_default_model(),
+    }))
 }
 
 /// List available models from Ollama (if reachable) plus the daemon's active provider.
@@ -3359,6 +3368,24 @@ pub async fn serve(
     eprintln!("[vibecli serve] API token: {masked} (full token in ~/.vibecli/daemon.token)");
     eprintln!("[vibecli serve] Jobs persisted at ~/.vibecli/jobs/");
     eprintln!("[vibecli serve] Session viewer at http://{addr}/sessions");
+
+    // mistralrs gating advisory — meta-llama/* repos require an HF token
+    // and license acceptance. Without HF_TOKEN, the picker default falls
+    // back to an Apache-2.0 ungated drop-in (see /health for the active
+    // recommendation) and gated-load failures are auto-substituted at
+    // request time. Surface this once at startup so users know.
+    if std::env::var("HF_TOKEN").map(|s| s.is_empty()).unwrap_or(true) {
+        eprintln!(
+            "[vibecli serve] HF_TOKEN not set — gated mistralrs models (meta-llama/*) cannot be pulled."
+        );
+        eprintln!(
+            "[vibecli serve]   Falling back to {} for the picker default.",
+            crate::inference::mistralrs::UNGATED_FALLBACK_MODEL
+        );
+        eprintln!(
+            "[vibecli serve]   To enable Llama-3.x: accept the license at https://huggingface.co/meta-llama and `export HF_TOKEN=hf_...`"
+        );
+    }
 
     // Start zero-config mDNS announcer — announces _vibecli._tcp.local. so
     // the mobile app discovers this daemon on any LAN without special flags.

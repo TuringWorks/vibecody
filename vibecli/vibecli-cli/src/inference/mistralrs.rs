@@ -52,6 +52,47 @@ use vibe_infer::{
     GenerationRequest, InferenceError, TextGenerator,
 };
 
+/// Apache-2.0, ungated drop-in for gated `meta-llama/*` repos. When `HF_TOKEN`
+/// is missing or the user has not accepted Meta's community license, the first
+/// load of a Llama model fails with a 401/403; we substitute this and continue.
+/// Same ~7B class, native tool calling, no license acceptance required.
+pub const UNGATED_FALLBACK_MODEL: &str = "Qwen/Qwen2.5-Coder-7B-Instruct";
+
+/// True if the requested model id is a gated repo we know to substitute on
+/// auth failure. Currently meta-llama/* (Llama 3.x family). Other vendors
+/// gate too (some mistralai/* preview repos), but those aren't in our
+/// default picker — extend this when they are.
+fn is_gated_repo(model_id: &str) -> bool {
+    model_id.starts_with("meta-llama/")
+}
+
+/// True if the upstream error string looks like an HF gating / auth failure.
+/// HF Hub errors aren't typed at this layer (vibe-infer wraps them in
+/// `InferenceError::Upstream(String)`), so we string-match on stable
+/// fragments. Order: most specific first.
+fn looks_like_gated_error(err: &str) -> bool {
+    let lower = err.to_ascii_lowercase();
+    lower.contains("gatedrepoerror")
+        || lower.contains("gated repo")
+        || lower.contains("401")
+        || lower.contains("403")
+        || lower.contains("unauthorized")
+        || lower.contains("forbidden")
+        || lower.contains("access to model")
+        || lower.contains("must be authenticated")
+}
+
+/// Recommended default mistralrs model for the running daemon, taking
+/// `HF_TOKEN` presence into account. Surfaced via `/health` so the frontend
+/// can swap its picker default before a user hits the gated 401.
+pub fn recommended_default_model() -> &'static str {
+    if std::env::var("HF_TOKEN").map(|s| !s.is_empty()).unwrap_or(false) {
+        "meta-llama/Llama-3.1-8B-Instruct"
+    } else {
+        UNGATED_FALLBACK_MODEL
+    }
+}
+
 /// In-process text-generation backed by `vibe-infer::MistralGenerator`.
 pub struct MistralRsBackend {
     #[cfg(mistralrs_enabled)]
@@ -87,10 +128,26 @@ impl MistralRsBackend {
         tracing::info!(
             "vibecli inference: loading mistralrs model {model_id} (kv_cache={kv_mode:?})"
         );
-        let gen = MistralGenerator::load_with_kv_cache(model_id, kv_mode)
-            .await
-            .map_err(map_infer_err)?;
-        let arc = Arc::new(gen);
+        let arc = match MistralGenerator::load_with_kv_cache(model_id, kv_mode.clone()).await {
+            Ok(gen) => Arc::new(gen),
+            Err(e) if is_gated_repo(model_id) && looks_like_gated_error(&e.to_string()) => {
+                // Auth/gating failure on a known-gated repo. Fall back to the
+                // ungated drop-in so a no-HF_TOKEN user still gets inference.
+                // Cache under the *original* key so subsequent requests with the
+                // same model id are served from the substitute without retrying.
+                tracing::warn!(
+                    "vibecli inference: gated load failed for {model_id} ({e}). \
+                     Substituting {UNGATED_FALLBACK_MODEL}. \
+                     Set HF_TOKEN and accept license at \
+                     https://huggingface.co/{model_id} to enable Llama."
+                );
+                let gen = MistralGenerator::load_with_kv_cache(UNGATED_FALLBACK_MODEL, kv_mode)
+                    .await
+                    .map_err(map_infer_err)?;
+                Arc::new(gen)
+            }
+            Err(e) => return Err(map_infer_err(e)),
+        };
         self.cache
             .write()
             .await
@@ -360,5 +417,62 @@ impl Backend for MistralRsBackend {
     #[cfg(not(mistralrs_enabled))]
     async fn show(&self, name: &str) -> BackendResult<ModelInfo> {
         Err(BackendError::ModelNotFound(name.into()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn is_gated_repo_recognizes_meta_llama() {
+        assert!(is_gated_repo("meta-llama/Llama-3.1-8B-Instruct"));
+        assert!(is_gated_repo("meta-llama/Llama-3.2-3B-Instruct"));
+        assert!(!is_gated_repo("Qwen/Qwen2.5-Coder-7B-Instruct"));
+        assert!(!is_gated_repo("microsoft/Phi-3.5-mini-instruct"));
+        assert!(!is_gated_repo(""));
+    }
+
+    #[test]
+    fn looks_like_gated_error_matches_hf_auth_signatures() {
+        // Real HF Hub error fragments observed in the wild.
+        assert!(looks_like_gated_error("GatedRepoError: Cannot access gated repo"));
+        assert!(looks_like_gated_error("401 Client Error: Unauthorized"));
+        assert!(looks_like_gated_error("HTTP 403 Forbidden"));
+        assert!(looks_like_gated_error(
+            "Access to model meta-llama/Llama-3.1-8B-Instruct is restricted"
+        ));
+        assert!(looks_like_gated_error(
+            "you must be authenticated to access this resource"
+        ));
+        // Non-auth failures should not match.
+        assert!(!looks_like_gated_error("connection refused"));
+        assert!(!looks_like_gated_error("model file corrupt"));
+        assert!(!looks_like_gated_error("CUDA out of memory"));
+    }
+
+    #[test]
+    fn recommended_default_respects_hf_token() {
+        // Save and restore the env var so the test doesn't pollute siblings.
+        let prev = std::env::var("HF_TOKEN").ok();
+        // SAFETY: tests run single-threaded by default within this module;
+        // env mutation is acceptable for the duration of the test.
+        unsafe {
+            std::env::remove_var("HF_TOKEN");
+        }
+        assert_eq!(recommended_default_model(), UNGATED_FALLBACK_MODEL);
+
+        unsafe {
+            std::env::set_var("HF_TOKEN", "hf_test_dummy");
+        }
+        assert_eq!(recommended_default_model(), "meta-llama/Llama-3.1-8B-Instruct");
+
+        // Restore.
+        unsafe {
+            match prev {
+                Some(v) => std::env::set_var("HF_TOKEN", v),
+                None => std::env::remove_var("HF_TOKEN"),
+            }
+        }
     }
 }
