@@ -15,22 +15,20 @@ export const RLOSComposite = createComposite(
     { id: "rlhf", label: "RLHF", importFn: () => import("../RLHFAlignmentDashboard"), exportName: "RLHFAlignmentDashboard" },
   ],
   {
-    // Slices 1-4 shipped: persistence, run lifecycle, real Python-sidecar
-    // training (PPO on Gymnasium), env registry, and eval suites with
-    // bootstrap-CI metric storage + paired comparison. Eval rollout
-    // execution still requires the sidecar (slice 4.5 wires `eval`
-    // subcommand fully); slice 4 ships the storage + comparison surface.
+    // Slices 1-7 shipped: every panel reads from the real backend.
+    // Compute extensions still live behind opt-in sidecar extras for
+    // the slowest paths:
+    //   - 6.5 — deployment /act (ONNX runtime or Python inference)
+    //   - 7a-sidecar — distill / quantize / prune algorithms
+    //   - 7b-sidecar — MAPPO / QMIX / VDN / MADDPG (PettingZoo dep)
+    //   - 7c-sidecar — TRL preference loop (HuggingFace transformers)
+    // Empty `covers` collapses the badge to nothing — every panel is
+    // wired to real data, even if some require additional `uv sync
+    // --extra X` to populate.
     banner: (
       <SimulationModeBadge
-        description="RL-OS productionization is in progress. Training, Environments, Evaluation, and Compare are real (vibe-rl-py sidecar); the panels listed below still render illustrative data while their slices land."
-        covers={[
-          "Optimization",
-          "Deployment",
-          "Lineage",
-          "Multi-Agent",
-          "Rewards",
-          "RLHF",
-        ]}
+        description="Compute extensions for the heaviest workloads (real inference / RLHF / MARL / distillation algorithms) ship behind opt-in sidecar extras. The dashboard data below is real."
+        covers={[]}
       />
     ),
   }

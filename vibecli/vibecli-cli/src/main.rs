@@ -2554,9 +2554,12 @@ mod rl_serve_os;
 mod rl_rlhf;
 #[allow(dead_code)]
 mod rl_observe;
+mod rl_advanced;
+mod rl_deploy;
 mod rl_envs;
 mod rl_eval;
 mod rl_executor;
+mod rl_policies;
 mod rl_runs;
 
 #[derive(Parser)]

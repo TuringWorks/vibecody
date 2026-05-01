@@ -42133,14 +42133,87 @@ pub async fn rl_delete_environment(
 
 // ── RL-OS: Model Registry ──
 
-// SLICE_5_MOCK: Policy registry comes online in slice 5 (model hub + lineage).
-// Slice 1 removed the in-memory `rl_runs()` mock state this previously
-// derived from; for now this returns an empty list so the panel renders an
-// honest "No policies yet" empty state. Slice 5 wires this against the
-// real `rl_policies` table.
+// ── RL-OS: Model Hub (slice 5 — productionized) ──────────────────────────────
+
+fn open_policy_store(workspace_path: &str) -> Result<vibecli_cli::rl_policies::PolicyStore, String> {
+    let ws = require_workspace(workspace_path)?;
+    vibecli_cli::rl_policies::PolicyStore::open(&ws).map_err(|e| e.to_string())
+}
+
+fn policy_to_wire(p: &vibecli_cli::rl_policies::Policy) -> serde_json::Value {
+    serde_json::json!({
+        "id": p.policy_id,
+        "name": p.name,
+        "version": p.version,
+        "description": p.description,
+        "framework": p.framework,
+        "primaryArtifact": p.primary_artifact,
+        "onnxArtifact": p.onnx_artifact,
+        "obsSpace": p.obs_space_json,
+        "actSpace": p.act_space_json,
+        "createdAt": p.created_at,
+    })
+}
+
 #[tauri::command]
-pub async fn rl_list_policies() -> Result<Vec<serde_json::Value>, String> {
-    Ok(Vec::new())
+pub async fn rl_list_policies(
+    workspace_path: String,
+    name: Option<String>,
+) -> Result<Vec<serde_json::Value>, String> {
+    let store = open_policy_store(&workspace_path)?;
+    let rows = store.list(name.as_deref()).map_err(|e| e.to_string())?;
+    Ok(rows.iter().map(policy_to_wire).collect())
+}
+
+#[tauri::command]
+pub async fn rl_register_policy(
+    workspace_path: String,
+    name: String,
+    version: String,
+    run_id: String,
+    primary_artifact_id: String,
+    description: Option<String>,
+    onnx_artifact_id: Option<String>,
+    framework: Option<String>,
+) -> Result<serde_json::Value, String> {
+    use vibecli_cli::rl_policies::RegisterRequest;
+    use vibecli_cli::rl_runs::RunStore;
+    let ws = require_workspace(&workspace_path)?;
+    let runs = RunStore::open(&ws).map_err(|e| e.to_string())?;
+    let policies = open_policy_store(&workspace_path)?;
+    let p = policies
+        .register(
+            RegisterRequest {
+                name,
+                version,
+                description,
+                run_id,
+                primary_artifact_id,
+                onnx_artifact_id,
+                framework,
+            },
+            &runs,
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(policy_to_wire(&p))
+}
+
+#[tauri::command]
+pub async fn rl_delete_policy(
+    workspace_path: String,
+    policy_id: String,
+) -> Result<(), String> {
+    let store = open_policy_store(&workspace_path)?;
+    store.delete(&policy_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn rl_get_policy_card(
+    workspace_path: String,
+    policy_id: String,
+) -> Result<String, String> {
+    let store = open_policy_store(&workspace_path)?;
+    store.card(&policy_id).map_err(|e| e.to_string())
 }
 
 // ── RL-OS: Evaluation (slice 4 — productionized) ─────────────────────────────
@@ -42303,113 +42376,398 @@ pub async fn rl_get_eval_results(
     }))
 }
 
-// ── RL-OS: Optimization ──
+// ── RL-OS: Optimization (slice 7a — productionized management) ──────────────
+//
+// Distill / quantize / prune are stored as regular runs with `kind` in
+// {distill, quantize, prune}. The sidecar implementations (real PPO-distill,
+// onnxruntime-quantization, torch.nn.utils.prune) ship in slice 7a-sidecar
+// patches behind a `[opt]` extra. The management surface here lists the
+// runs + their config + their final metrics; the panel renders that.
 
-// SLICE_7_MOCK: Distill / quantize / prune pipelines ship in slice 7a.
 #[tauri::command]
-pub async fn rl_get_optimization_report() -> Result<serde_json::Value, String> {
+pub async fn rl_get_optimization_report(
+    workspace_path: String,
+) -> Result<serde_json::Value, String> {
+    use vibecli_cli::rl_advanced::list_optimization_runs;
+    use vibecli_cli::rl_runs::RunStore;
+    let ws = require_workspace(&workspace_path)?;
+    let runs = RunStore::open(&ws).map_err(|e| e.to_string())?;
+    let summaries = list_optimization_runs(&runs).map_err(|e| e.to_string())?;
     Ok(serde_json::json!({
-        "stages": [
-            { "name": "distill", "status": "completed", "compressionRatio": 10.2, "rewardRetention": 0.96, "latencyBefore": 5.2, "latencyAfter": 0.8 },
-            { "name": "quantize", "status": "completed", "compressionRatio": 3.8, "rewardRetention": 0.94, "latencyBefore": 0.8, "latencyAfter": 0.3 },
-            { "name": "export", "status": "completed", "formats": ["onnx", "wasm", "torchscript"] },
-        ],
-        "overall": { "originalParams": 2500000, "finalParams": 64000, "speedup": 17.3, "rewardRetention": 0.94 },
+        "runs": summaries,
+        "note": if summaries.is_empty() {
+            "No distill / quantize / prune runs yet. Slice 7a-sidecar (real algorithm implementations) ships behind a `[opt]` extra; install with `cd vibe-rl-py && uv sync --extra opt` once available."
+        } else {
+            "Optimization runs are stored as regular runs with kind in {distill, quantize, prune}. The sidecar's actual algorithm implementations land in slice 7a-sidecar."
+        },
     }))
 }
 
-// SLICE_7_MOCK: Routes to slice-7a distill / quantize / prune executor.
 #[tauri::command]
-pub async fn rl_run_optimization(config: String) -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "status": "started", "config": config }))
-}
-
-// ── RL-OS: Deployment ──
-
-// SLICE_6_MOCK: Real deployment listing comes online with the serving runtime in slice 6.
-#[tauri::command]
-pub async fn rl_list_deployments() -> Result<Vec<serde_json::Value>, String> {
-    Ok(vec![])
-}
-
-// SLICE_6_MOCK: Real health metrics (tdigest percentiles, live SSE) ship in slice 6.
-#[tauri::command]
-pub async fn rl_get_deployment_health(deployment_id: String) -> Result<serde_json::Value, String> {
+pub async fn rl_run_optimization(
+    workspace_path: String,
+    config: String,
+) -> Result<serde_json::Value, String> {
+    // Slice 7a — the management surface. We accept the config and create
+    // a kind=distill|quantize|prune run via the existing run-creation
+    // path. The sidecar-side execution is gated; until that ships the
+    // run will fail at start time with a clear message.
+    use vibecli_cli::rl_runs::{CreateRunRequest, RunKind, RunStore};
+    let parsed: serde_json::Value =
+        serde_json::from_str(&config).map_err(|e| format!("Invalid config: {}", e))?;
+    let kind_str = parsed
+        .get("kind")
+        .and_then(|v| v.as_str())
+        .unwrap_or("distill");
+    let kind = RunKind::from_str(kind_str)
+        .ok_or_else(|| format!("kind must be one of distill / quantize / prune — got {kind_str}"))?;
+    if !matches!(kind, RunKind::Distill | RunKind::Quantize | RunKind::Prune) {
+        return Err(format!("rl_run_optimization only accepts distill / quantize / prune — got {kind_str}"));
+    }
+    let name = parsed
+        .get("name")
+        .and_then(|v| v.as_str())
+        .map(String::from)
+        .unwrap_or_else(|| {
+            format!("{}-{}", kind_str, chrono::Utc::now().format("%Y%m%d-%H%M%S"))
+        });
+    let teacher_run = parsed
+        .get("teacherRunId")
+        .or_else(|| parsed.get("sourcePolicyId"))
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    let environment_id = parsed
+        .get("environmentId")
+        .and_then(|v| v.as_str())
+        .unwrap_or("gym:CartPole-v1:gym-bundled")
+        .to_string();
+    let total_timesteps = parsed
+        .get("totalTimesteps")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(50_000);
+    let algorithm = parsed
+        .get("algorithm")
+        .and_then(|v| v.as_str())
+        .unwrap_or("PPO")
+        .to_string();
+    let config_yaml = serde_yaml::to_string(&parsed).map_err(|e| e.to_string())?;
+    let req = CreateRunRequest {
+        name,
+        kind,
+        algorithm,
+        environment_id,
+        parent_run_id: teacher_run,
+        config_yaml,
+        seed: parsed.get("seed").and_then(|v| v.as_i64()).unwrap_or(42),
+        total_timesteps,
+        workspace_path: workspace_path.clone(),
+        sidecar_version: None,
+    };
+    let ws = require_workspace(&workspace_path)?;
+    let runs = RunStore::open(&ws).map_err(|e| e.to_string())?;
+    let run = runs.create(req).map_err(|e| e.to_string())?;
     Ok(serde_json::json!({
-        "deploymentId": deployment_id,
-        "status": "healthy",
-        "latencyP50": 1.2,
-        "latencyP95": 3.5,
-        "latencyP99": 8.1,
-        "rewardDrift": 0.02,
-        "requestsPerSec": 450,
+        "runId": run.run_id,
+        "kind": run.kind,
+        "status": run.status,
+        "note": "Optimization run created. Start it from the dashboard once the slice 7a-sidecar extension is installed.",
+    }))
+}
+
+// ── RL-OS: Deployment (slice 6 — productionized management) ──────────────────
+//
+// Lifecycle + traffic-split + rollback are real. The actual `act` endpoint
+// (real inference) is slice 6.5 — see docs/design/rl-os/06-deployment.md.
+
+fn open_deploy_store(workspace_path: &str) -> Result<vibecli_cli::rl_deploy::DeploymentStore, String> {
+    let ws = require_workspace(workspace_path)?;
+    vibecli_cli::rl_deploy::DeploymentStore::open(&ws).map_err(|e| e.to_string())
+}
+
+fn deployment_to_wire(d: &vibecli_cli::rl_deploy::Deployment) -> serde_json::Value {
+    serde_json::json!({
+        "id": d.deployment_id,
+        "name": d.name,
+        "artifactId": d.artifact_id,
+        "runtime": d.runtime,
+        "status": d.status,
+        "trafficPct": d.traffic_pct,
+        "config": d.config,
+        "createdAt": d.created_at,
+        "promotedAt": d.promoted_at,
+        "rolledBackAt": d.rolled_back_at,
+        "rollbackReason": d.rollback_reason,
+    })
+}
+
+#[tauri::command]
+pub async fn rl_list_deployments(
+    workspace_path: String,
+) -> Result<Vec<serde_json::Value>, String> {
+    let store = open_deploy_store(&workspace_path)?;
+    let rows = store.list().map_err(|e| e.to_string())?;
+    Ok(rows.iter().map(deployment_to_wire).collect())
+}
+
+#[tauri::command]
+pub async fn rl_create_deployment(
+    workspace_path: String,
+    name: String,
+    artifact_id: String,
+    runtime: Option<String>,
+    traffic_pct: Option<f64>,
+    config: Option<serde_json::Value>,
+) -> Result<serde_json::Value, String> {
+    use vibecli_cli::rl_deploy::CreateDeploymentRequest;
+    let store = open_deploy_store(&workspace_path)?;
+    let req = CreateDeploymentRequest {
+        name,
+        artifact_id,
+        runtime: runtime.unwrap_or_else(|| "python".into()),
+        traffic_pct: traffic_pct.unwrap_or(0.0),
+        config,
+    };
+    let d = store.create(req).map_err(|e| e.to_string())?;
+    Ok(deployment_to_wire(&d))
+}
+
+#[tauri::command]
+pub async fn rl_promote_deployment(
+    workspace_path: String,
+    deployment_id: String,
+    to: String,
+    traffic_pct: Option<f64>,
+) -> Result<serde_json::Value, String> {
+    use vibecli_cli::rl_deploy::PromoteRequest;
+    let store = open_deploy_store(&workspace_path)?;
+    let d = store
+        .promote(&deployment_id, PromoteRequest { to, traffic_pct })
+        .map_err(|e| e.to_string())?;
+    Ok(deployment_to_wire(&d))
+}
+
+#[tauri::command]
+pub async fn rl_rollback_deployment(
+    workspace_path: String,
+    deployment_id: String,
+    reason: String,
+) -> Result<serde_json::Value, String> {
+    use vibecli_cli::rl_deploy::RollbackRequest;
+    let store = open_deploy_store(&workspace_path)?;
+    let d = store
+        .rollback(&deployment_id, RollbackRequest { reason })
+        .map_err(|e| e.to_string())?;
+    Ok(deployment_to_wire(&d))
+}
+
+#[tauri::command]
+pub async fn rl_stop_deployment(
+    workspace_path: String,
+    deployment_id: String,
+) -> Result<serde_json::Value, String> {
+    let store = open_deploy_store(&workspace_path)?;
+    let d = store.stop(&deployment_id).map_err(|e| e.to_string())?;
+    Ok(deployment_to_wire(&d))
+}
+
+#[tauri::command]
+pub async fn rl_get_deployment_health(
+    workspace_path: String,
+    deployment_id: String,
+) -> Result<serde_json::Value, String> {
+    let store = open_deploy_store(&workspace_path)?;
+    let h = store
+        .health(&deployment_id)
+        .map_err(|e| e.to_string())?;
+    Ok(serde_json::json!({
+        "deploymentId": h.deployment_id,
+        "name": h.name,
+        "status": h.status,
+        "runtime": h.runtime,
+        "trafficPct": h.traffic_pct,
+        "uptimeSeconds": h.uptime_seconds,
+        "createdAt": h.created_at,
+        "promotedAt": h.promoted_at,
+        "rolledBackAt": h.rolled_back_at,
+        "rollbackReason": h.rollback_reason,
+        "note": h.note,
     }))
 }
 
 // ── RL-OS: Observability ──
 
-// SLICE_5_MOCK: Real lineage DAG ships with the model hub in slice 5.
+// Slice 5 — productionized lineage DAG.
 #[tauri::command]
-pub async fn rl_get_model_lineage(policy_id: String) -> Result<serde_json::Value, String> {
+pub async fn rl_get_model_lineage(
+    workspace_path: String,
+    policy_id: String,
+    depth: Option<usize>,
+) -> Result<serde_json::Value, String> {
+    let store = open_policy_store(&workspace_path)?;
+    let graph = store
+        .lineage(&policy_id, depth.unwrap_or(3))
+        .map_err(|e| e.to_string())?;
+    serde_json::to_value(graph).map_err(|e| e.to_string())
+}
+
+// Slice 7b — productionized multi-agent management surface. Lists training
+// runs whose algorithm is multi-agent (MAPPO/QMIX/VDN/MADDPG). Per-agent
+// coordination + ELO + comm-matrix metrics ship in the slice 7b-sidecar
+// extension behind a `[marl]` extra (PettingZoo + custom MAPPO impl).
+#[tauri::command]
+pub async fn rl_get_multi_agent_metrics(
+    workspace_path: String,
+) -> Result<serde_json::Value, String> {
+    use vibecli_cli::rl_advanced::list_multi_agent_runs;
+    use vibecli_cli::rl_runs::RunStore;
+    let ws = require_workspace(&workspace_path)?;
+    let runs = RunStore::open(&ws).map_err(|e| e.to_string())?;
+    let summaries = list_multi_agent_runs(&runs).map_err(|e| e.to_string())?;
     Ok(serde_json::json!({
-        "policyId": policy_id,
-        "nodes": [
-            { "id": "train-1", "type": "training", "label": "PPO Training", "algorithm": "PPO", "env": "trading-env@2.3.1" },
-            { "id": "distill-1", "type": "distillation", "label": "Distilled (10x)", "parent": "train-1" },
-            { "id": "quant-1", "type": "quantization", "label": "INT8 Quantized", "parent": "distill-1" },
-            { "id": "deploy-1", "type": "deployment", "label": "Production", "parent": "quant-1" },
-        ],
+        "runs": summaries,
+        "note": if summaries.is_empty() {
+            "No multi-agent runs yet. Create a Train run with algorithm in {MAPPO, QMIX, VDN, MADDPG}. Real MARL training requires the slice 7b-sidecar extension (`uv sync --extra marl` once available)."
+        } else {
+            "Per-agent coordination index, role specialization, and ELO rankings populate from the metrics tick stream once the slice 7b-sidecar runs the policy. Until then the panel shows the run summaries above."
+        },
     }))
 }
 
-// SLICE_7_MOCK: Real MARL metrics (coordination, role specialization) ship in slice 7b.
+// Slice 5 — productionized reward decomposition. Returns aggregated
+// per-component contributions for the run. The data is populated by the
+// sidecar's `MonitorWrapper` when the underlying env exposes
+// `info["reward_components"]`; envs that don't return an empty list and
+// the panel renders an honest "env did not expose components" empty
+// state. Slice 7c extends this for RLHF reward-head decomposition.
 #[tauri::command]
-pub async fn rl_get_multi_agent_metrics() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({
-        "agents": [
-            { "id": "market_maker_0", "name": "MarketMaker-0", "reward": 125.3, "episodes": 500, "winRate": 0.62, "messagesSent": 42, "messagesReceived": 38, "elo": 1520 },
-            { "id": "market_maker_1", "name": "MarketMaker-1", "reward": 118.7, "episodes": 500, "winRate": 0.58, "messagesSent": 39, "messagesReceived": 41, "elo": 1480 },
-            { "id": "trend_follower_0", "name": "TrendFollower-0", "reward": 85.2, "episodes": 500, "winRate": 0.45, "messagesSent": 15, "messagesReceived": 22, "elo": 1350 },
-        ],
-        "communicationMatrix": [[0, 12, 5], [10, 0, 3], [4, 2, 0]],
-        "coalitions": [{ "id": "coalition-1", "members": ["market_maker_0", "market_maker_1"], "groupReward": 244.0 }],
-        "eloRankings": [
-            { "agentId": "market_maker_0", "agentName": "MarketMaker-0", "elo": 1520, "wins": 310, "losses": 190 },
-            { "agentId": "market_maker_1", "agentName": "MarketMaker-1", "elo": 1480, "wins": 290, "losses": 210 },
-            { "agentId": "trend_follower_0", "agentName": "TrendFollower-0", "elo": 1350, "wins": 225, "losses": 275 },
-        ],
-        "socialWelfare": 329.2,
-    }))
-}
-
-// SLICE_5_MOCK: Real per-component decomposition ships in slice 5 (env-supplied) + slice 7c (RLHF reward heads).
-#[tauri::command]
-pub async fn rl_get_reward_decomposition(run_id: String) -> Result<serde_json::Value, String> {
+pub async fn rl_get_reward_decomposition(
+    workspace_path: String,
+    run_id: String,
+) -> Result<serde_json::Value, String> {
+    use vibecli_cli::rl_runs::RunStore;
+    let ws = require_workspace(&workspace_path)?;
+    let runs = RunStore::open(&ws).map_err(|e| e.to_string())?;
+    let rows = runs.reward_decomposition(&run_id).map_err(|e| e.to_string())?;
+    let components: Vec<serde_json::Value> = rows
+        .into_iter()
+        .map(|(component, mean, total, n)| {
+            serde_json::json!({
+                "name": component,
+                "mean": mean,
+                "total": total,
+                "nEpisodes": n,
+            })
+        })
+        .collect();
     Ok(serde_json::json!({
         "runId": run_id,
-        "components": [
-            { "name": "sharpe_ratio", "weight": 0.6, "values": [0.3, 0.5, 0.8, 1.0, 1.2, 1.4, 1.5] },
-            { "name": "drawdown_penalty", "weight": 0.3, "values": [-0.1, -0.08, -0.05, -0.03, -0.02, -0.01, -0.005] },
-            { "name": "turnover_cost", "weight": 0.1, "values": [-0.02, -0.015, -0.01, -0.008, -0.005, -0.003, -0.002] },
-        ],
+        "components": components,
     }))
 }
 
-// SLICE_7_MOCK: Real RLHF alignment scores (TRL preference loop) ship in slice 7c.
+// Slice 7c — productionized RLHF management surface. Preference collection
+// + judging are real (rl_preferences table). Reward model training, PPO/DPO
+// alignment, and the actual scoring loop ship in the slice 7c-sidecar
+// extension behind a `[rlhf]` extra (TRL pulls HuggingFace transformers,
+// ~GB of weights for any real run — opt-in by design).
+
+fn open_pref_store(workspace_path: &str) -> Result<vibecli_cli::rl_advanced::PreferenceStore, String> {
+    let ws = require_workspace(workspace_path)?;
+    vibecli_cli::rl_advanced::PreferenceStore::open(&ws).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
-pub async fn rl_get_alignment_metrics() -> Result<serde_json::Value, String> {
+pub async fn rl_create_preference(
+    workspace_path: String,
+    suite_id: Option<String>,
+    prompt: String,
+    completion_a: String,
+    completion_b: String,
+) -> Result<serde_json::Value, String> {
+    use vibecli_cli::rl_advanced::CreatePreferenceRequest;
+    let store = open_pref_store(&workspace_path)?;
+    let p = store
+        .create(CreatePreferenceRequest {
+            suite_id,
+            prompt,
+            completion_a,
+            completion_b,
+        })
+        .map_err(|e| e.to_string())?;
+    serde_json::to_value(p).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn rl_judge_preference(
+    workspace_path: String,
+    pref_id: String,
+    chosen: String,
+    rationale: Option<String>,
+    reviewer: Option<String>,
+) -> Result<serde_json::Value, String> {
+    use vibecli_cli::rl_advanced::JudgePreferenceRequest;
+    let store = open_pref_store(&workspace_path)?;
+    let p = store
+        .judge(
+            &pref_id,
+            JudgePreferenceRequest {
+                chosen,
+                rationale,
+                reviewer,
+            },
+        )
+        .map_err(|e| e.to_string())?;
+    serde_json::to_value(p).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn rl_list_preferences(
+    workspace_path: String,
+    suite_id: Option<String>,
+) -> Result<Vec<serde_json::Value>, String> {
+    let store = open_pref_store(&workspace_path)?;
+    let rows = store
+        .list(suite_id.as_deref())
+        .map_err(|e| e.to_string())?;
+    rows.into_iter()
+        .map(|p| serde_json::to_value(p).map_err(|e| e.to_string()))
+        .collect()
+}
+
+#[tauri::command]
+pub async fn rl_get_alignment_metrics(
+    workspace_path: String,
+    run_id: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let store = open_pref_store(&workspace_path)?;
+    // Aggregate counts of preferences as a always-available baseline.
+    let total_prefs = store.list(None).map_err(|e| e.to_string())?.len() as i64;
+    let judged_prefs = store
+        .list(None)
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .filter(|p| p.chosen.is_some())
+        .count() as i64;
+    let alignment_scores = match run_id.as_deref() {
+        Some(r) => store
+            .alignment_scores(r)
+            .map_err(|e| e.to_string())?,
+        None => Vec::new(),
+    };
     Ok(serde_json::json!({
-        "stage": "ppo",
-        "stages": [
-            { "name": "SFT", "status": "completed", "epochs": 3, "loss": 0.42 },
-            { "name": "Reward Model", "status": "completed", "accuracy": 0.78, "ensemble": 3 },
-            { "name": "PPO", "status": "running", "step": 15000, "totalSteps": 50000, "klDivergence": 0.023, "meanReward": 2.8 },
-            { "name": "Evaluation", "status": "pending" },
-        ],
-        "rewardModelAccuracy": [0.55, 0.62, 0.68, 0.72, 0.75, 0.78],
-        "klDivergence": [0.0, 0.005, 0.012, 0.018, 0.021, 0.023],
-        "alignmentTax": 0.03,
-        "safetyScore": 0.92,
+        "preferences": {
+            "total": total_prefs,
+            "judged": judged_prefs,
+        },
+        "runId": run_id,
+        "alignmentScores": alignment_scores,
+        "note": if alignment_scores.is_empty() && total_prefs == 0 {
+            "No RLHF data yet. Collect preferences via the panel; reward-model training + PPO/DPO alignment require the slice 7c-sidecar extension (`uv sync --extra rlhf`)."
+        } else if alignment_scores.is_empty() {
+            "Preference data is being collected. Alignment scores populate once an RLHF run completes via the slice 7c-sidecar extension."
+        } else {
+            "Alignment metrics from the slice 7c sidecar's RLHF run."
+        },
     }))
 }
 

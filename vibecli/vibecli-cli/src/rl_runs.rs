@@ -83,7 +83,7 @@ impl RunStatus {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RunKind {
     Train,
@@ -396,6 +396,66 @@ CREATE TABLE IF NOT EXISTS rl_lineage_edges (
     edge_kind      TEXT NOT NULL,
     weight         REAL,
     PRIMARY KEY (child_run_id, parent_run_id, edge_kind)
+);
+
+-- Slice 5 — model hub + lineage. Idempotent additions: existing slice-1
+-- workspaces upgrade transparently on next daemon launch.
+
+CREATE TABLE IF NOT EXISTS rl_policies (
+    policy_id        TEXT PRIMARY KEY,
+    name             TEXT NOT NULL,
+    version          TEXT NOT NULL,
+    description      TEXT,
+    primary_artifact TEXT NOT NULL REFERENCES rl_artifacts(artifact_id),
+    onnx_artifact    TEXT REFERENCES rl_artifacts(artifact_id),
+    model_card_md    TEXT NOT NULL,
+    framework        TEXT NOT NULL,
+    obs_space_json   TEXT NOT NULL,
+    act_space_json   TEXT NOT NULL,
+    obs_normalization_json TEXT,
+    act_normalization_json TEXT,
+    created_at       INTEGER NOT NULL,
+    UNIQUE(name, version)
+);
+CREATE INDEX IF NOT EXISTS rl_policies_name_idx ON rl_policies(name, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS rl_policy_runs (
+    policy_id TEXT NOT NULL REFERENCES rl_policies(policy_id) ON DELETE CASCADE,
+    run_id    TEXT NOT NULL REFERENCES rl_runs(run_id),
+    role      TEXT NOT NULL,
+    PRIMARY KEY (policy_id, run_id, role)
+);
+
+CREATE TABLE IF NOT EXISTS rl_reward_components (
+    run_id        TEXT NOT NULL REFERENCES rl_runs(run_id) ON DELETE CASCADE,
+    episode_idx   INTEGER NOT NULL,
+    component     TEXT NOT NULL,
+    contribution  REAL NOT NULL,
+    PRIMARY KEY (run_id, episode_idx, component)
+);
+
+-- Slice 7c — RLHF preferences + alignment scores. Idempotent, additive.
+
+CREATE TABLE IF NOT EXISTS rl_preferences (
+    pref_id        TEXT PRIMARY KEY,
+    suite_id       TEXT,
+    prompt         TEXT NOT NULL,
+    completion_a   TEXT NOT NULL,
+    completion_b   TEXT NOT NULL,
+    chosen         TEXT,
+    rationale      TEXT,
+    reviewer       TEXT,
+    created_at     INTEGER NOT NULL,
+    judged_at      INTEGER
+);
+CREATE INDEX IF NOT EXISTS rl_preferences_suite_idx ON rl_preferences(suite_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS rl_alignment_scores (
+    run_id         TEXT NOT NULL REFERENCES rl_runs(run_id) ON DELETE CASCADE,
+    metric         TEXT NOT NULL,
+    value          REAL NOT NULL,
+    timestep       INTEGER NOT NULL,
+    PRIMARY KEY (run_id, metric, timestep)
 );
 "#;
 
@@ -822,6 +882,65 @@ impl RunStore {
                     created_at: r.get(7)?,
                     metadata_json: r.get(8)?,
                 })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
+    /// Slice 5 — record per-component reward attribution for a single
+    /// episode. The sidecar's `MonitorWrapper` emits these alongside the
+    /// regular episode rows when the underlying env populates
+    /// `info["reward_components"]`. Idempotent on (run_id, episode_idx,
+    /// component): re-emitting the same component for the same episode
+    /// overwrites.
+    #[allow(dead_code)]
+    pub fn append_reward_components(
+        &self,
+        run_id: &str,
+        rows: &[(i64, &str, f64)],
+    ) -> Result<(), RunError> {
+        if rows.is_empty() {
+            return Ok(());
+        }
+        let mut conn = self.conn.lock().expect("rl_runs mutex poisoned");
+        let tx = conn.transaction()?;
+        {
+            let mut stmt = tx.prepare(
+                "INSERT INTO rl_reward_components (run_id, episode_idx, component, contribution)
+                 VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT(run_id, episode_idx, component)
+                 DO UPDATE SET contribution = excluded.contribution",
+            )?;
+            for (idx, comp, contrib) in rows {
+                stmt.execute(params![run_id, idx, comp, contrib])?;
+            }
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Read aggregated reward decomposition for a run. Returns one row
+    /// per component with `mean`, `total`, `n_episodes`. Used by
+    /// `RLRewardDecomposition` in slice 5.
+    #[allow(dead_code)]
+    pub fn reward_decomposition(
+        &self,
+        run_id: &str,
+    ) -> Result<Vec<(String, f64, f64, i64)>, RunError> {
+        let conn = self.conn.lock().expect("rl_runs mutex poisoned");
+        let mut stmt = conn.prepare(
+            "SELECT component,
+                    AVG(contribution) AS mean,
+                    SUM(contribution) AS total,
+                    COUNT(*)            AS n_episodes
+             FROM rl_reward_components
+             WHERE run_id = ?1
+             GROUP BY component
+             ORDER BY total DESC",
+        )?;
+        let rows = stmt
+            .query_map(params![run_id], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, f64>(1)?, r.get::<_, f64>(2)?, r.get::<_, i64>(3)?))
             })?
             .collect::<Result<Vec<_>, _>>()?;
         Ok(rows)
