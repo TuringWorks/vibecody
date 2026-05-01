@@ -44,15 +44,19 @@ export const STATIC_MODELS: Record<string, string[]> = {
   // vibecli-mistralrs talks to the local vibecli daemon (default :7878) and
   // pins the in-process mistralrs backend via X-VibeCLI-Backend. Models here
   // are repo ids that mistralrs can lazy-load from Hugging Face on first use.
+  // NOTE: meta-llama/* repos are gated — first-time download requires the
+  // user to accept Meta's community license on the model page and supply
+  // an HF_TOKEN. Qwen and Phi repos are fully open.
   "vibecli-mistralrs": [
-    "Qwen/Qwen2.5-0.5B-Instruct",
-    "Qwen/Qwen2.5-1.5B-Instruct",
-    "Qwen/Qwen2.5-3B-Instruct",
+    "meta-llama/Llama-3.1-8B-Instruct",
+    "meta-llama/Llama-3.2-3B-Instruct",
+    "meta-llama/Llama-3.2-1B-Instruct",
+    "Qwen/Qwen2.5-Coder-7B-Instruct",
     "Qwen/Qwen2.5-7B-Instruct",
     "Qwen/Qwen2.5-Coder-1.5B-Instruct",
-    "Qwen/Qwen2.5-Coder-7B-Instruct",
-    "meta-llama/Llama-3.2-1B-Instruct",
-    "meta-llama/Llama-3.2-3B-Instruct",
+    "Qwen/Qwen2.5-3B-Instruct",
+    "Qwen/Qwen2.5-1.5B-Instruct",
+    "Qwen/Qwen2.5-0.5B-Instruct",
     "microsoft/Phi-3.5-mini-instruct",
   ],
   zhipu: ["glm-4-plus", "glm-4-flash"],
@@ -131,7 +135,7 @@ export const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
   bedrock:      "anthropic.claude-3-5-sonnet-20241022-v2:0",
   copilot:      "gpt-4o",
   ollama:       "devstral-2",
-  "vibecli-mistralrs": "Qwen/Qwen2.5-1.5B-Instruct",
+  "vibecli-mistralrs": "meta-llama/Llama-3.1-8B-Instruct",
   zhipu:        "glm-4-plus",
   vercel_ai:    "",
   minimax:      "abab6.5s-chat",

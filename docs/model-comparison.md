@@ -11,6 +11,21 @@ permalink: /model-comparison/
 >
 > **Caveat**: model leaderboards shift weekly. Treat the strength/weakness blurbs as a *shape* of each model's bias (what it was trained for), not a final benchmark verdict. When in doubt, run the same prompt through two candidates side-by-side in VibeUI's MultiModel panel.
 
+## Where models run
+
+Three different execution shapes hide behind the model picker. Pick the row that matches your privacy / cost / capability needs:
+
+> **`vibecli-mistralrs` — runs on your machine.**
+> Weights cached at `~/.cache/huggingface/hub`, forward passes execute on your CPU / Metal / CUDA. Nothing leaves the host. Limited to ~7B-class models on a laptop. Default for the privacy path.
+>
+> **`ollama` — runs locally OR on Ollama Cloud.**
+> Without an `ollama` API key, only models you've `ollama pull`-ed run (locally). With an API key, large cloud-hosted models (`devstral-2:123b-cloud`, `nemotron-3-super`, etc.) route to Ollama Cloud transparently. Open-weights only, scales up to 100B+ MoE.
+>
+> **Cloud APIs (`claude`, `openai`, `gemini`, `grok`, `mistral`, `deepseek`, `cerebras`, `perplexity`, `together`, `fireworks`, `openrouter`, `azure_openai`, `bedrock`, `copilot`, `zhipu`, `vercel_ai`, `minimax`, `sambanova`) — runs on the provider's hardware.**
+> Closed-weights flagships live here. Inputs and outputs traverse the network; check each provider's data-handling terms.
+
+The daemon serves all three from the same HTTP surface (`:7878`), so a remote VibeUI / VibeMobile / VibeWatch client can use any of them. The choice of provider determines *where the model itself executes*, not how the client connects.
+
 ## Notation
 
 - **Ctx** — maximum context window (input tokens).
@@ -313,17 +328,24 @@ These are technically excellent but may conflict with data-residency rules. List
 
 Embedded-in-daemon inference. Talks to the local VibeCLI daemon (`:7878` by default) and pins the in-process mistralrs backend via `X-VibeCLI-Backend`. Models here are HuggingFace repo IDs that lazy-load on first use.
 
+VibeCody's default mistralrs model is **`meta-llama/Llama-3.1-8B-Instruct`** — Meta's most recent ~8B open-weights model with a 128k context window and tool-calling support.
+
 | Model | Ctx | Best for | Notes |
 |---|---|---|---|
-| Qwen/Qwen2.5-7B-Instruct | 32k | Privacy-default chat | Good general model, ~7B |
-| Qwen/Qwen2.5-Coder-7B-Instruct | 32k | Privacy-default coding | Coding-tuned |
-| Qwen/Qwen2.5-Coder-1.5B-Instruct | 32k | Edge / fast | Tiny but viable for completion |
-| Qwen/Qwen2.5-3B-Instruct | 32k | Mobile-class chat | |
-| meta-llama/Llama-3.2-3B-Instruct | 128k | General small | |
-| meta-llama/Llama-3.2-1B-Instruct | 128k | Tiniest viable | |
-| microsoft/Phi-3.5-mini-instruct | 128k | Smart-but-small | Strong reasoning per parameter |
+| **meta-llama/Llama-3.1-8B-Instruct** | 128k | **Privacy-default — general + tools** | Default. Gated (see below) |
+| meta-llama/Llama-3.2-3B-Instruct | 128k | Mid-tier general | Gated |
+| meta-llama/Llama-3.2-1B-Instruct | 128k | Tiniest Llama | Gated |
+| Qwen/Qwen2.5-Coder-7B-Instruct | 32k | Privacy-default coding | Apache-2.0, ungated |
+| Qwen/Qwen2.5-7B-Instruct | 32k | General ~7B alternative | Apache-2.0, ungated |
+| Qwen/Qwen2.5-Coder-1.5B-Instruct | 32k | Edge / fast coding | Apache-2.0 |
+| Qwen/Qwen2.5-3B-Instruct | 32k | Mobile-class chat | Apache-2.0 |
+| Qwen/Qwen2.5-1.5B-Instruct | 32k | Edge / fast general | Apache-2.0 |
+| Qwen/Qwen2.5-0.5B-Instruct | 32k | Tiniest viable | Apache-2.0 |
+| microsoft/Phi-3.5-mini-instruct | 128k | Smart-but-small reasoning | MIT, ungated |
 
-This is the **default provider** for VibeCody's privacy-preserving / no-API-key path. It's ~5× slower than Cerebras but every byte stays on your machine.
+**About gating** — Meta's Llama models are *gated repos* on HuggingFace: first-time download requires you to (a) accept Meta's community license at the model page on huggingface.co and (b) export an `HF_TOKEN` environment variable with read scope. Qwen (Apache-2.0) and Phi (MIT) repos are fully open and need no token. If `HF_TOKEN` isn't set, the daemon's first lazy-load of a Llama model fails with a 401/403 — switch to a Qwen or Phi model in the picker, or set up the token (see [Hugging Face access token docs](https://huggingface.co/docs/hub/security-tokens)).
+
+This is the **default provider** for VibeCody's privacy-preserving / no-API-key path. Inference is ~5× slower than Cerebras but every byte stays on your machine.
 
 ### Zhipu (`zhipu`)
 
@@ -374,6 +396,51 @@ Inference-only, similar shape to Cerebras (fast Llama runs).
 If your project needs to **run inference offline** or **prove no data left the machine**, only the open-weights column is viable — through Ollama (cloud or local) or the in-daemon mistralrs backend.
 
 ---
+
+## Model lifecycle policy
+
+Models in this picker are not equally durable. Open-weights models on HuggingFace, closed flagships behind a paid API, and inference-only marketplaces all age differently. Plan for it.
+
+### Two clocks: supply vs quality
+
+Every model has two deprecation timelines:
+
+- **Supply clock** — *will the model still be available?* For open weights from Meta, Microsoft, Mistral, Alibaba, Google, etc., the answer is essentially "forever." First-party releases from major labs are not yanked from HuggingFace. Closed APIs (`gpt-3.5-turbo`, older Claude versions) *do* get sunset on published timelines — typically 6-18 months notice.
+- **Quality clock** — *will the model still be the right pick?* This runs much faster. Small-model tier sees a new generation every 6-12 months: Llama-3.2 → 3.3 → 4, Phi-3.5 → 4 → 4-mini, Qwen-2.5 → 3 → 3.5. The previous version still works; it's just no longer competitive.
+
+In practice: **expect every model in this doc to be obsolete within 18 months, but expect open-weights models to keep working for as long as you have local copies.**
+
+### Cached-weights floor
+
+When mistralrs first uses a model, weights download once into `~/.cache/huggingface/hub`. From that point forward, the model keeps working *even if HuggingFace removed the upstream tomorrow*. Same applies to Ollama's local pulls (`~/.ollama/models/`). Cloud APIs have no equivalent floor — when Anthropic sunsets `claude-3-5-sonnet-20241022`, every client loses access on the same day.
+
+Practical implication: if reproducibility matters (audit trail, regulated environment), cache open-weights models on disk and avoid relying on closed APIs for the part of the pipeline that must reproduce identically.
+
+### Risk table
+
+| Risk | Likelihood | What breaks | Mitigation |
+|---|---|---|---|
+| Cloud API sunsets a model | High (planned, ~yearly) | Cloud-API jobs using that model | Track provider deprecation pages; fail over to a sibling model |
+| Open-weights repo renamed on HF | Low | First-time pulls; cached copies fine | Update the model id in `STATIC_MODELS` |
+| Open-weights repo removed | Very low for first-party | First-time pulls; cached copies fine | Same as above; preserve cache backups |
+| New generation released, old becomes "legacy" | Near-certain (6-12 mo) | Nothing breaks; competitive position erodes | Periodic registry refresh |
+| HF gating policy tightens | Low-Med | New downloads of gated models fail | Switch to ungated alternative (Qwen/Phi) |
+| License terms change | Low | Theoretical — already-released weights stay under their original license | Monitor license pages |
+| mistralrs drops architecture support | Low (Llama, Phi, Qwen are tier-1) | Models can't load with the latest mistralrs | Pin mistralrs version; upgrade selectively |
+
+### Hardening options for VibeCody
+
+If you ship VibeCody to users who need reproducibility (enterprise, regulated, research), there are three knobs you can turn beyond the defaults:
+
+1. **Pin commit SHAs in the registry.** mistralrs accepts HuggingFace revision specs — change `"meta-llama/Llama-3.1-8B-Instruct"` to `"meta-llama/Llama-3.1-8B-Instruct@<commit-sha>"` in `STATIC_MODELS`. This immunizes against silent re-uploads under the same tag. Cost: you have to manually bump the SHA when you want a newer revision.
+2. **Add a `MODEL_REPLACEMENT_MAP`.** When a model 404s on pull, the daemon can log "this model has been retired; suggested replacement: X" and either fail fast or auto-substitute. Not implemented today; ~30 lines if you want it.
+3. **Ship a snapshot mirror.** For closed environments without HuggingFace access, mirror the open-weights models you depend on into an internal artifact store (S3, Artifactory) and point `HF_ENDPOINT` at it. The daemon will pull from there.
+
+None of these are urgent. They become useful when you start *depending* on a specific model staying frozen.
+
+### What we update and when
+
+The lists in this doc and in `vibeui/src/hooks/useModelRegistry.ts` are refreshed on a roughly **quarterly** cadence — when a new flagship lands at one of the major providers, or when an existing model gets formally sunset. The "Last updated" date at the top of this page is authoritative; if it's more than 6 months old when you read this, treat the picks as historical and verify against the providers' current docs.
 
 ## How to set a different default
 
