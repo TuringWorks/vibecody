@@ -102,13 +102,16 @@ def _cmd_train(args: argparse.Namespace) -> int:
     algorithm = str(cfg.get("algorithmId") or cfg.get("algorithm") or "PPO").upper()
     if algorithm == "MAPPO":
         return _dispatch_mappo(args.run_id, cfg, streamer)
-    if algorithm in {"QMIX", "VDN", "MADDPG"}:
+    if algorithm in {"QMIX", "VDN"}:
+        return _dispatch_qmix(args.run_id, cfg, streamer, algorithm)
+    if algorithm == "MADDPG":
         streamer.started(sidecar_version=__version__, seed=int(cfg.get("seed", 42)), device="cpu")
         streamer.finished(
             reason="error",
             error=(
-                f"algorithm '{algorithm}' is not yet implemented. Slice 7b ships MAPPO; "
-                f"QMIX / VDN / MADDPG follow in 7b-extras (open an issue or implement on top)."
+                "MADDPG (multi-agent DDPG, continuous actions) is not yet implemented — "
+                "different architecture from VDN/QMIX (replay buffer + soft target updates "
+                "+ deterministic policy gradient). Open an issue or implement on top."
             ),
         )
         return 2
@@ -281,6 +284,55 @@ def _dispatch_rlhf(run_id: str, cfg: dict[str, Any], streamer) -> int:  # type: 
         ),
     )
     return 2
+
+
+def _dispatch_qmix(run_id: str, cfg: dict[str, Any], streamer, algorithm: str) -> int:  # type: ignore[no-untyped-def]
+    """Slice 7b-extras — VDN (mixer=sum) / QMIX (mixer=monotonic).
+
+    Same algorithm file under one config flag — VDN is QMIX with the
+    sum mixer, identical otherwise.
+    """
+    from vibe_rl.algos.qmix import QMIXConfig, train
+
+    def pick(*keys: str, default: Any = None) -> Any:
+        for k in keys:
+            if k in cfg and cfg[k] is not None:
+                return cfg[k]
+        return default
+
+    env_id = pick(
+        "environment_id", "environmentId", "environment", "environmentName",
+        default="pettingzoo:simple_spread_v3",
+    )
+    workspace = pick("workspace_path", "workspacePath", default=".")
+    artifact_dir = pick("artifact_dir", "artifactDir", default="")
+    # Algorithm name → mixer: VDN forces sum, QMIX forces monotonic.
+    mixer = "sum" if algorithm == "VDN" else "monotonic"
+    qmix_cfg = QMIXConfig(
+        run_id=run_id,
+        env_id=str(env_id),
+        mixer=mixer,
+        total_timesteps=int(pick("total_timesteps", "totalTimesteps", default=200_000)),
+        learning_rate=float(pick("learning_rate", "learningRate", default=5e-4)),
+        gamma=float(pick("gamma", default=0.99)),
+        epsilon_start=float(pick("epsilon_start", "epsilonStart", default=1.0)),
+        epsilon_end=float(pick("epsilon_end", "epsilonEnd", default=0.05)),
+        epsilon_decay_steps=int(pick("epsilon_decay_steps", "epsilonDecaySteps", default=50_000)),
+        replay_capacity=int(pick("replay_capacity", "replayCapacity", default=50_000)),
+        batch_size=int(pick("batch_size", "batchSize", default=128)),
+        learn_starts=int(pick("learn_starts", "learnStarts", default=1_000)),
+        target_update_interval=int(pick("target_update_interval", "targetUpdateInterval", default=200)),
+        train_interval=int(pick("train_interval", "trainInterval", default=1)),
+        grad_norm_clip=float(pick("grad_norm_clip", "gradNormClip", default=10.0)),
+        seed=int(pick("seed", default=42)),
+        workspace_path=str(workspace),
+        artifact_dir=str(artifact_dir),
+        checkpoint_every_steps=int(pick("checkpoint_every_steps", "checkpointEverySteps", default=50_000)),
+    )
+    with report_errors(streamer):
+        result = train(qmix_cfg, streamer)
+        streamer.finished(reason="done", final_reward_mean=float(result.get("final_reward_mean", 0.0)))
+    return 0
 
 
 def _dispatch_mappo(run_id: str, cfg: dict[str, Any], streamer) -> int:  # type: ignore[no-untyped-def]
