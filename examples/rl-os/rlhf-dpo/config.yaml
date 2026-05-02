@@ -1,0 +1,11 @@
+kind: rlhf
+algorithm: DPO
+base_model_id: distilgpt2
+beta: 0.1
+max_seq_len: 128
+batch_size: 2
+learning_rate: 5.0e-6
+num_epochs: 3
+grad_accum_steps: 1
+seed: 42
+suite_id: dpo-demo

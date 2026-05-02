@@ -1,0 +1,5 @@
+kind: quantize
+scheme: int8_dynamic
+# source_checkpoint is injected by run.sh — it points at the cartpole
+# example's final.pt under that example's workspace.
+seed: 42

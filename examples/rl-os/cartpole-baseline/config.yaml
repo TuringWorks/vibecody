@@ -1,0 +1,16 @@
+kind: train
+algorithm: PPO
+environment_id: CartPole-v1
+total_timesteps: 50000
+num_envs: 4
+num_steps: 128
+learning_rate: 0.0003
+gamma: 0.99
+gae_lambda: 0.95
+clip_coef: 0.2
+ent_coef: 0.01
+vf_coef: 0.5
+update_epochs: 4
+num_minibatches: 4
+seed: 42
+checkpoint_every_steps: 25000

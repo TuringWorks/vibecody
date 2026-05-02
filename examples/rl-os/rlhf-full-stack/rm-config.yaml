@@ -1,0 +1,10 @@
+kind: rlhf
+algorithm: REWARD_MODEL
+base_model_id: distilgpt2
+max_seq_len: 128
+batch_size: 2
+learning_rate: 1.0e-5
+num_epochs: 3
+grad_accum_steps: 1
+seed: 42
+suite_id: rlhf-demo

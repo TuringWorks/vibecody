@@ -1,0 +1,17 @@
+kind: rlhf
+algorithm: PPO
+base_model_id: distilgpt2
+# reward_model_id is injected by run.sh — points at the RM final.pt.
+kl_coef: 0.05
+clip_coef: 0.2
+value_coef: 0.5
+entropy_coef: 0.001
+learning_rate: 5.0e-6
+max_new_tokens: 24
+max_prompt_len: 96
+batch_size: 2
+update_epochs: 2
+num_iterations: 3
+grad_accum_steps: 1
+seed: 42
+suite_id: rlhf-demo

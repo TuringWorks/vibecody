@@ -1,0 +1,16 @@
+kind: train
+algorithm: MAPPO
+environment_id: mpe2:simple_spread_v3
+total_timesteps: 60000
+num_steps: 128
+learning_rate: 0.0003
+gamma: 0.99
+gae_lambda: 0.95
+clip_coef: 0.2
+ent_coef: 0.01
+vf_coef: 0.5
+update_epochs: 4
+num_minibatches: 4
+share_actor: false
+seed: 42
+checkpoint_every_steps: 30000
