@@ -40,6 +40,40 @@ function formatFileTree(entries: FileEntry[], sandboxPath: string): string {
   return lines.join("\n");
 }
 
+// Pure builder for the sandbox system prompt. Exported for unit tests.
+// The wording here is load-bearing: weak local models will produce
+// analysis-only responses ("here are the issues I'd fix…") unless told
+// explicitly that action via the tags is mandatory and that an agent
+// loop will continue the turn after each tool call.
+export function buildSandboxSystemPrompt(
+  sandboxPath: string,
+  entries: FileEntry[],
+): string {
+  const fileList = formatFileTree(entries, sandboxPath);
+  return [
+    `## Sandbox Access (active)`,
+    `Folder: ${sandboxPath}`,
+    ``,
+    `You are an autonomous coding agent with full read/write access to this folder.`,
+    ``,
+    `RULES:`,
+    `- Tasks like "add tests", "fix bug", "refactor", "increase coverage" require ACTION, not analysis.`,
+    `  Use the tags below to read and write files. Do NOT respond with a summary, plan, or list of`,
+    `  recommendations describing what you would do — DO it.`,
+    `- Always read the relevant files before writing. Do not invent file contents.`,
+    `- After tool tags execute, you will be re-invoked with the output. Continue the task across`,
+    `  turns until done. End with a brief summary only after all writes are complete.`,
+    ``,
+    `TAGS (the only way to take action):`,
+    `- <read_file path="${sandboxPath}/relative/path" />`,
+    `- <write_file path="${sandboxPath}/relative/path">…full file contents…</write_file>`,
+    `- Relative filenames also work (e.g. \`app.py\`); writes are applied automatically.`,
+    ``,
+    `**Current sandbox contents:**`,
+    fileList,
+  ].join("\n");
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function SandboxChatPanel({ provider: initialProvider, availableProviders }: SandboxChatPanelProps) {
@@ -150,20 +184,7 @@ export function SandboxChatPanel({ provider: initialProvider, availableProviders
 
   const pinnedMemory = useMemo(() => {
     if (!sandboxPath) return undefined;
-    const fileList = formatFileTree(entries, sandboxPath);
-    return [
-      `## Sandbox Access`,
-      `You have full read/write permissions inside the sandbox folder: **${sandboxPath}**`,
-      ``,
-      `**Capabilities:**`,
-      `- Read any file: use \`<read_file path="${sandboxPath}/filename" />\``,
-      `- Write/create files: use \`<write_file path="${sandboxPath}/filename">content</write_file>\``,
-      `- All writes are applied automatically — no confirmation needed`,
-      `- Use relative filenames (e.g. \`app.py\`) or full paths`,
-      ``,
-      `**Current sandbox contents:**`,
-      fileList,
-    ].join("\n");
+    return buildSandboxSystemPrompt(sandboxPath, entries);
   }, [sandboxPath, entries]);
 
   // ── Render ─────────────────────────────────────────────────────────────────

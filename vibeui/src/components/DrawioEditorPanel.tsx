@@ -8,9 +8,10 @@
  * - Templates: Architecture, flowchart, ERD, sequence, C4 templates
  * - MCP: drawio-mcp command builder for file operations
  */
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Icon } from "./Icon";
+import { extractFencedBlock, prepareDrawioXml } from "../utils/llmOutput";
 
 interface DrawioEditorPanelProps {
   workspacePath: string | null;
@@ -57,7 +58,15 @@ export function DrawioEditorPanel({ workspacePath, provider }: DrawioEditorPanel
   const [mcpResult, setMcpResult] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState("");
+  const [generateWarning, setGenerateWarning] = useState<string | null>(null);
   const editorRef = useRef<HTMLIFrameElement>(null);
+  // Tracks the XML to inject when the embedded editor sends `init`. We need
+  // a ref (not a closure over diagramXml) because the listener is attached
+  // once and the iframe re-mounts on every tab switch — closures would
+  // capture a stale value, and a per-state-change listener would leak
+  // multiple handlers (the cause of the previous "editor loads partial /
+  // wrong XML" bug).
+  const xmlToLoadRef = useRef<string>("");
 
   const showStatus = (msg: string) => {
     setStatusMsg(msg);
@@ -68,29 +77,59 @@ export function DrawioEditorPanel({ workspacePath, provider }: DrawioEditorPanel
 
   const editorSrc = "https://embed.diagrams.net/?embed=1&ui=dark&spin=1&proto=json&configure=1&noSaveBtn=1";
 
-  const handleEditorMessage = useCallback((event: MessageEvent) => {
-    if (!event.data || typeof event.data !== "string") return;
-    try {
-      const msg = JSON.parse(event.data);
-      if (msg.event === "init") {
-        // Load existing XML if any
-        editorRef.current?.contentWindow?.postMessage(
-          JSON.stringify({ action: "load", xml: diagramXml || "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/></root></mxGraphModel>" }),
-          "*"
-        );
-      } else if (msg.event === "save" || msg.event === "export") {
-        if (msg.xml) {
-          setDiagramXml(msg.xml);
-          setPreviewXml(msg.xml);
-          showStatus("Diagram saved");
-        }
-      } else if (msg.event === "autosave" && msg.xml) {
-        setDiagramXml(msg.xml);
-      }
-    } catch {
-      // ignore non-JSON messages
-    }
+  useEffect(() => {
+    xmlToLoadRef.current = diagramXml;
   }, [diagramXml]);
+
+  // Single, long-lived message listener. Only responds to messages from
+  // OUR editor iframe (event.source check) — otherwise the global listener
+  // would also intercept postMessages from unrelated iframes (preview,
+  // diagram template viewers, etc.).
+  useEffect(() => {
+    function onMessage(event: MessageEvent) {
+      if (event.source !== editorRef.current?.contentWindow) return;
+      if (!event.data || typeof event.data !== "string") return;
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.event === "configure") {
+          // The editor URL passes configure=1 — drawio sends a `configure`
+          // event and BLOCKS waiting for the host's reply before it will
+          // fire `init`. Without this branch, init never arrives and the
+          // editor stays blank. Empty config is fine; we just need to ack.
+          editorRef.current?.contentWindow?.postMessage(
+            JSON.stringify({ action: "configure", config: {} }),
+            "*"
+          );
+        } else if (msg.event === "init") {
+          const rawXml = xmlToLoadRef.current
+            || "<mxGraphModel><root><mxCell id='0'/><mxCell id='1' parent='0'/></root></mxGraphModel>";
+          // Wrap raw mxGraphModel in mxfile envelope; drawio's embed editor
+          // is happier with the file form for complex diagrams. We log on
+          // failure so the user can see WHY the editor stayed blank.
+          const prep = prepareDrawioXml(rawXml);
+          if (!prep.ok) {
+            console.warn("[Drawio] not loading XML:", prep.warning);
+          }
+          editorRef.current?.contentWindow?.postMessage(
+            JSON.stringify({ action: "load", xml: prep.prepared || rawXml }),
+            "*"
+          );
+        } else if (msg.event === "save" || msg.event === "export") {
+          if (msg.xml) {
+            setDiagramXml(msg.xml);
+            setPreviewXml(msg.xml);
+            showStatus("Diagram saved");
+          }
+        } else if (msg.event === "autosave" && msg.xml) {
+          setDiagramXml(msg.xml);
+        }
+      } catch {
+        // ignore non-JSON messages
+      }
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
 
   // ── AI generation ─────────────────────────────────────────────────────
 
@@ -98,13 +137,18 @@ export function DrawioEditorPanel({ workspacePath, provider }: DrawioEditorPanel
     if (!genDescription.trim()) return;
     setIsGenerating(true);
     setGeneratedXml("");
+    setGenerateWarning(null);
     try {
-      const result = await invoke<string>("generate_drawio_xml", {
+      const raw = await invoke<string>("generate_drawio_xml", {
         description: genDescription,
         kind: genKind,
         workspacePath,
         provider,
       }).catch(() => "");
+      // LLMs habitually wrap the XML in ```xml … ``` and bracket it with
+      // explanatory prose ("Since you haven't specified a project, …").
+      // Both break the diagram preview, which expects raw mxGraphModel XML.
+      const result = extractFencedBlock(raw);
       if (result) {
         setGeneratedXml(result);
         setPreviewXml(result);
@@ -117,12 +161,17 @@ export function DrawioEditorPanel({ workspacePath, provider }: DrawioEditorPanel
   };
 
   const loadGeneratedInEditor = () => {
+    // Validate before navigating — most "editor stays blank" reports trace
+    // back to truncated LLM output (max-token limit hit mid-XML). Tell the
+    // user explicitly instead of letting drawio silently reject the load.
+    const prep = prepareDrawioXml(generatedXml);
+    if (!prep.ok && prep.warning) {
+      setGenerateWarning(prep.warning);
+      return;
+    }
+    setGenerateWarning(null);
     setDiagramXml(generatedXml);
     setActiveTab("editor");
-    editorRef.current?.contentWindow?.postMessage(
-      JSON.stringify({ action: "load", xml: generatedXml }),
-      "*"
-    );
   };
 
   // ── Templates ─────────────────────────────────────────────────────────
@@ -202,9 +251,6 @@ export function DrawioEditorPanel({ workspacePath, provider }: DrawioEditorPanel
         ref={editorRef}
         src={editorSrc}
         title="Draw.io Editor"
-        onLoad={() => {
-          window.addEventListener("message", handleEditorMessage);
-        }}
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
         style={{ flex: 1, border: "none" }}
       />
@@ -233,8 +279,8 @@ export function DrawioEditorPanel({ workspacePath, provider }: DrawioEditorPanel
   );
 
   const renderGenerate = () => (
-    <div style={{ flex: 1, overflow: "auto", padding: 20, maxWidth: 600, margin: "0 auto" }}>
-      <div style={{ fontWeight: 600, fontSize: "var(--font-size-xl)", marginBottom: 16 }}>AI Diagram Generation</div>
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", padding: 20, gap: 12 }}>
+      <div style={{ fontWeight: 600, fontSize: "var(--font-size-xl)" }}>AI Diagram Generation</div>
       <label style={{ display: "block", fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4 }}>Diagram Type</label>
       <select
         value={genKind}
@@ -261,14 +307,48 @@ export function DrawioEditorPanel({ workspacePath, provider }: DrawioEditorPanel
         {isGenerating ? "Generating…" : "Generate Diagram"}
       </button>
       {generatedXml && (
-        <div style={{ marginTop: 16 }}>
-          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <button className="panel-btn panel-btn-secondary" onClick={() => setActiveTab("preview")} style={{ flex: 1 }}>View Preview</button>
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <button className="panel-btn panel-btn-secondary" onClick={() => { setPreviewXml(generatedXml); setActiveTab("preview"); }} style={{ flex: 1 }}>View Preview</button>
             <button className="panel-btn panel-btn-primary" onClick={loadGeneratedInEditor} style={{ flex: 1 }}>Open in Editor</button>
           </div>
-          <pre style={{ fontSize: "var(--font-size-sm)", overflow: "auto", maxHeight: 300, whiteSpace: "pre", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 10, border: "1px solid var(--border-color)", color: "var(--text-success)" }}>
-            {generatedXml.slice(0, 800)}{generatedXml.length > 800 ? "\n…" : ""}
-          </pre>
+          {generateWarning && (
+            <div
+              role="alert"
+              style={{
+                fontSize: "var(--font-size-sm)",
+                color: "var(--error-color, #e53e3e)",
+                background: "var(--bg-secondary)",
+                border: "1px solid var(--error-color, #e53e3e)",
+                borderRadius: "var(--radius-sm)",
+                padding: "8px 10px",
+                flexShrink: 0,
+              }}
+            >
+              ⚠ {generateWarning}
+            </div>
+          )}
+          <textarea
+            value={generatedXml}
+            onChange={(e) => setGeneratedXml(e.target.value)}
+            spellCheck={false}
+            style={{
+              width: "100%",
+              flex: 1,
+              minHeight: 200,
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+              fontSize: "var(--font-size-sm)",
+              color: "var(--text-primary)",
+              background: "var(--bg-secondary)",
+              borderRadius: "var(--radius-sm)",
+              padding: 10,
+              border: "1px solid var(--border-color)",
+              resize: "none",
+              boxSizing: "border-box",
+              whiteSpace: "pre",
+              tabSize: 2,
+            }}
+          />
         </div>
       )}
     </div>

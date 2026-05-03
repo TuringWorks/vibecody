@@ -47310,11 +47310,17 @@ pub async fn generate_drawio_xml(
 ) -> Result<String, String> {
     use vibe_ai::provider::{Message, MessageRole};
     let system = format!(
-        "You are a draw.io XML diagram generator. Generate valid draw.io XML for a {} diagram. \
-         Output only the raw XML starting with <mxGraphModel>.",
-        kind
+        "You are a draw.io XML diagram generator. Generate valid draw.io XML for a {kind} diagram.\n\
+         \n\
+         HARD REQUIREMENTS:\n\
+         - Output ONLY the raw XML, starting with <mxGraphModel> and ending with </mxGraphModel>.\n\
+         - No prose before or after. No markdown fences (no ```xml).\n\
+         - The XML MUST be complete: every opening tag has a matching close, including the\n\
+           final </mxGraphModel>. Do not truncate or stop early.\n\
+         - Keep the diagram focused (target ~10–15 cells max for sequence/flow). The drawio\n\
+           editor will not render incomplete XML, so brevity beats ambition.",
     );
-    let user_prompt = format!("Generate a {} draw.io XML diagram for:\n\n{}", kind, description);
+    let user_prompt = format!("Generate a {kind} draw.io XML diagram for:\n\n{description}");
     let _ = workspace_path;
     let mut engine = state.chat_engine.lock().await;
     if !provider.is_empty() { let _ = engine.set_provider_by_name(&provider); }

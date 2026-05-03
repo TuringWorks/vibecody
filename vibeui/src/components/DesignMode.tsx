@@ -37,6 +37,13 @@ function isBlockedUrl(url: string): boolean {
   return BLOCKED_PATTERNS.some((p) => p.test(url.trim()));
 }
 
+// LLM-output helpers live in utils/llmOutput so other panels (Drawio,
+// future generators) can share the same fence-extraction + module-stripping
+// behavior. Re-exported here under the legacy name for back-compat.
+import { extractFencedBlock, stripModuleSyntax } from "../utils/llmOutput";
+export { stripModuleSyntax };
+export const extractGeneratedCode = extractFencedBlock;
+
 /** Ensure URL has a protocol — bare "example.com" → "https://example.com" */
 function normalizeUrl(raw: string): string {
   const trimmed = raw.trim();
@@ -101,37 +108,33 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
 
   // Build an inline HTML document that renders the generated component
   const buildPreviewSrcdoc = useCallback((code: string) => {
-    let clean = code;
-    // Strip markdown code fences
-    clean = clean.replace(/^```[a-z]*\n?/gim, "").replace(/\n?```$/gm, "").trim();
-    // Strip import statements
-    clean = clean.replace(/^import\s+.*?['"].*?['"]\s*;?\s*$/gm, "");
-    // Strip TypeScript interface/type blocks (multiline)
-    clean = clean.replace(/^(export\s+)?(interface|type)\s+\w+[^{]*\{[^}]*\}\s*;?\s*$/gm, "");
-    // Strip single-line type aliases
-    clean = clean.replace(/^(export\s+)?type\s+\w+\s*=\s*[^;]+;\s*$/gm, "");
-    // Strip TS type annotations from function params and return types
-    clean = clean.replace(/:\s*React\.\w+(<[^>]*>)?/g, "");
-    clean = clean.replace(/:\s*\w+(\[\])?\s*(?=[,)=\n{])/g, "");
-    // Strip generic type params from hooks: useState<Foo> -> useState
-    clean = clean.replace(/(useState|useRef|useCallback|useMemo|useReducer)<[^>]+>/g, "$1");
-    // Strip 'as Type' casts
-    clean = clean.replace(/\s+as\s+\w+(\[\])?/g, "");
-    // Replace 'export default' with just the declaration
-    clean = clean.replace(/export\s+default\s+/g, "");
-    // Remove 'export' keyword from named exports
-    clean = clean.replace(/^export\s+(?=(?:const|function|class)\s)/gm, "");
+    // Defensive: extractGeneratedCode is also called at result-ingest time,
+    // but if a caller passes raw text we still want a working preview.
+    let clean = extractGeneratedCode(code);
+    // Module-system shims: there's no bundler in the iframe, so imports and
+    // re-exports must go. Everything else (TS types, JSX, generics, `as`
+    // casts) is handled by Babel's TypeScript preset below — do NOT try to
+    // pre-strip TS with regexes; that's what was producing "Script error.
+    // Line: 0" because the regexes corrupted the code and Babel's failure
+    // was hidden behind cross-origin scrubbing of window.onerror.
+    clean = stripModuleSyntax(clean);
 
-    const nameMatch = clean.match(/(?:const|function)\s+([A-Z]\w*)/);
+    // Find the top-level PascalCase component to mount.
+    const nameMatch = clean.match(/(?:const|function|class)\s+([A-Z]\w*)/);
     const componentName = nameMatch?.[1] ?? "App";
+
+    // JSON.stringify safely escapes the source for embedding in a JS string
+    // literal (handles backticks, backslashes, newlines, quotes, </script>).
+    const codeLiteral = JSON.stringify(clean);
+    const nameLiteral = JSON.stringify(componentName);
 
     return `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8"/>
-<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" crossorigin="anonymous"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; }
   body { margin: 0; padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #fff; color: #111; }
@@ -142,20 +145,92 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
 <div id="root"></div>
 <div id="error-display"></div>
 <script>
-window.onerror = function(msg, src, line, col, err) {
-  document.getElementById('error-display').textContent = 'Error: ' + msg + '\\nLine: ' + line;
-};
-</script>
-<script type="text/babel">
-const { useState, useEffect, useRef, useCallback, useMemo, useReducer, useContext, createContext, Fragment } = React;
-${clean}
+(function(){
+  function showError(label, e) {
+    var msg = (e && e.message) ? e.message : String(e);
+    var stack = (e && e.stack) ? '\\n\\n' + e.stack : '';
+    document.getElementById('error-display').textContent = label + ': ' + msg + stack;
+    if (window.console) console.error(label, e);
+  }
+  window.addEventListener('error', function(ev) {
+    showError('Runtime error', ev.error || ev.message);
+  });
+  window.addEventListener('unhandledrejection', function(ev) {
+    showError('Unhandled promise rejection', ev.reason);
+  });
 
-try {
-  const root = ReactDOM.createRoot(document.getElementById('root'));
-  root.render(React.createElement(${componentName}));
-} catch (e) {
-  document.getElementById('error-display').textContent = 'Render error: ' + e.message;
-}
+  if (typeof Babel === 'undefined') {
+    showError('Setup error', new Error('Babel failed to load from unpkg.com — check network access'));
+    return;
+  }
+
+  var source = ${codeLiteral};
+  var componentName = ${nameLiteral};
+
+  var transpiled;
+  try {
+    // Babel handles JSX *and* TypeScript — no regex-based TS stripping.
+    transpiled = Babel.transform(source, {
+      filename: 'component.tsx',
+      presets: [
+        ['react', { runtime: 'classic' }],
+        ['typescript', { allExtensions: true, isTSX: true, onlyRemoveTypeImports: false }]
+      ]
+    }).code;
+  } catch (e) {
+    showError('Compile error', e);
+    return;
+  }
+
+  var Comp;
+  try {
+    var body = 'const { useState, useEffect, useRef, useCallback, useMemo, useReducer, useContext, createContext, Fragment } = React;\\n'
+      + transpiled
+      + '\\nreturn (typeof ' + componentName + " !== 'undefined') ? " + componentName + ' : null;';
+    Comp = (new Function('React', 'ReactDOM', body))(React, ReactDOM);
+  } catch (e) {
+    showError('Evaluation error', e);
+    return;
+  }
+
+  if (!Comp) {
+    showError('Render error', new Error('Component "' + componentName + '" was not defined at the top level. Declare it as: const ' + componentName + ' = (...) => {...}  or  function ' + componentName + '(...) {...}'));
+    return;
+  }
+
+  // React 18's concurrent renderer queues work — a throw during render
+  // happens off the synchronous call stack and would escape any try/catch
+  // around .render(). Wrapping in an ErrorBoundary captures it WITH the
+  // real message + component stack, instead of letting it surface to
+  // window.onerror as a cross-origin-scrubbed "Script error.".
+  function PreviewBoundary(props) {
+    React.Component.call(this, props);
+    this.state = { error: null, info: null };
+  }
+  PreviewBoundary.prototype = Object.create(React.Component.prototype);
+  PreviewBoundary.prototype.constructor = PreviewBoundary;
+  PreviewBoundary.getDerivedStateFromError = function(error) { return { error: error }; };
+  PreviewBoundary.prototype.componentDidCatch = function(error, info) {
+    this.setState({ info: info });
+    var stack = (info && info.componentStack) ? '\\n\\nComponent stack:' + info.componentStack : '';
+    var msg = (error && error.message) ? error.message : String(error);
+    var errStack = (error && error.stack) ? '\\n\\n' + error.stack : '';
+    document.getElementById('error-display').textContent = 'Render error: ' + msg + errStack + stack;
+    if (window.console) console.error('Render error', error, info);
+  };
+  PreviewBoundary.prototype.render = function() {
+    if (this.state.error) return null;
+    return this.props.children;
+  };
+
+  try {
+    ReactDOM.createRoot(document.getElementById('root')).render(
+      React.createElement(PreviewBoundary, null, React.createElement(Comp))
+    );
+  } catch (e) {
+    showError('Render error', e);
+  }
+})();
 </script>
 </body>
 </html>`;
@@ -214,11 +289,14 @@ try {
     setGenerationResult("");
     setPreviewSrcdoc(null);
     try {
-      const result = await invoke<string>("generate_component", {
+      const raw = await invoke<string>("generate_component", {
         workspacePath,
         description: aiInstruction,
         provider,
       }).catch((e: unknown) => String(e));
+      // Strip markdown fences + surrounding prose once, here, so the editor
+      // shows clean code and the preview gets the same string the user sees.
+      const result = extractGeneratedCode(raw);
       setGenerationResult(result);
       // Try to preview any result that looks like it contains JSX or a component
       const looksLikeCode = result && (
@@ -367,20 +445,41 @@ try {
 
       {generationResult && (
         <div style={{ marginTop: 16 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, gap: 8 }}>
             <div style={{ fontWeight: 600, fontSize: "var(--font-size-md)" }}>Generated Code</div>
-            {previewSrcdoc && (
+            <div style={{ display: "flex", gap: 6 }}>
               <button
-                onClick={() => setActiveTab("preview")}
+                onClick={() => {
+                  setPreviewSrcdoc(buildPreviewSrcdoc(generationResult));
+                  setActiveTab("preview");
+                }}
                 style={{ background: "var(--accent-color)", color: "var(--text-primary)", border: "none", borderRadius: "var(--radius-xs-plus)", padding: "4px 10px", cursor: "pointer", fontSize: "var(--font-size-sm)", fontWeight: 600 }}
               >
-                View Preview
+                {previewSrcdoc ? "Refresh Preview" : "Preview"}
               </button>
-            )}
+            </div>
           </div>
-          <pre style={{ fontSize: "var(--font-size-base)", color: "var(--text-success)", overflow: "auto", maxHeight: 500, whiteSpace: "pre", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 12, border: "1px solid var(--border-color)" }}>
-            {generationResult}
-          </pre>
+          <textarea
+            value={generationResult}
+            onChange={(e) => setGenerationResult(e.target.value)}
+            spellCheck={false}
+            style={{
+              width: "100%",
+              minHeight: 320,
+              maxHeight: 600,
+              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+              fontSize: "var(--font-size-base)",
+              color: "var(--text-primary)",
+              background: "var(--bg-secondary)",
+              borderRadius: "var(--radius-sm)",
+              padding: 12,
+              border: "1px solid var(--border-color)",
+              resize: "vertical",
+              boxSizing: "border-box",
+              whiteSpace: "pre",
+              tabSize: 2,
+            }}
+          />
         </div>
       )}
     </div>
