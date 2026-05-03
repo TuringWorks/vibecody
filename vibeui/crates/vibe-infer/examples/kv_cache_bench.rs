@@ -153,6 +153,55 @@ fn run_distribution(
     print_row(&fidelity_int8(&tensor, num_heads, seq_len, head_dim, query_seed));
 }
 
+/// Throughput sweep across realistic context lengths. Reports prefill TPS
+/// (one-shot batch encode) and decode TPS (per-vector decode looped over
+/// every (head, token) — the autoregressive shape). The fp16 baseline has
+/// zero codec overhead by definition, so the absolute number here is the
+/// answer to "is the encode/decode cheap enough that the bandwidth saving
+/// from carrying ~0.44 B/el instead of 2 B/el is a net win?"
+///
+/// Default sweep stays under ~1s of work on a laptop. Bump seq_lens for
+/// long-context experiments.
+fn run_tps_sweep(num_heads: usize, head_dim: usize) {
+    println!("\n══ Throughput sweep (spiked input, single thread) ══");
+    println!(
+        "{:<10}  {:>13}  {:>13}  {:>11}  {:>11}",
+        "seq_len", "prefill_TPS", "decode_TPS", "encode_ms", "decode_ms"
+    );
+    println!("{}", "-".repeat(66));
+
+    let codec = KvCacheTurboQuant::new(head_dim, 42, None);
+    let seq_lens = [1024usize, 8192, 32768];
+    for &seq_len in &seq_lens {
+        let tensor = spike_tensor(num_heads, seq_len, head_dim, 42);
+
+        let t0 = Instant::now();
+        let layer = codec.encode_layer(&tensor, num_heads, seq_len);
+        let encode_ms = t0.elapsed().as_secs_f32() * 1000.0;
+        let prefill_tps = (seq_len as f32 / encode_ms) * 1000.0;
+
+        let mut slot = vec![0.0f32; head_dim];
+        let t0 = Instant::now();
+        for h in 0..num_heads {
+            for t in 0..seq_len {
+                codec.decode_one(&layer, h, t, &mut slot);
+            }
+        }
+        let decode_ms = t0.elapsed().as_secs_f32() * 1000.0;
+        let decode_tps = (seq_len as f32 / decode_ms) * 1000.0;
+
+        println!(
+            "{:>10}  {:>13.0}  {:>13.0}  {:>9.1} ms  {:>9.1} ms",
+            seq_len, prefill_tps, decode_tps, encode_ms, decode_ms
+        );
+    }
+    println!("\n  Prefill TPS  = seq_len encoded / encode_ms (one-shot batch).");
+    println!("  Decode TPS   = seq_len decoded / decode_ms (per-vector, all heads).");
+    println!("  fp16 baseline has zero codec overhead. Compare TPS against your");
+    println!("  device's HBM bandwidth: if TurboQuant TPS × bandwidth_saving > raw");
+    println!("  fp16 throughput, the codec is a net production win.");
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let num_heads = parse_usize(args.get(1), 8);
@@ -190,6 +239,8 @@ fn main() {
         seq_len,
         head_dim,
     );
+
+    run_tps_sweep(num_heads, head_dim);
 
     println!("\n── Phase 3 interpretation ──");
     println!("  • TurboQuant gives ~{:.1}× memory savings vs fp16 at head_dim={head_dim}.",

@@ -211,8 +211,15 @@ fn sanitize_user_input(s: &str) -> String {
 
 // ── Route handlers ────────────────────────────────────────────────────────────
 
+/// Cached TurboQuant codec probe — runs once at startup (see
+/// `serve()`). Reading from a static lets `/health` stay non-blocking
+/// and stay correct even when called every second by a load balancer.
+static CODEC_PROBE: std::sync::OnceLock<vibe_infer::kv_cache_tq::CodecProbeReport> =
+    std::sync::OnceLock::new();
+
 async fn health() -> impl IntoResponse {
     let hf_token_present = std::env::var("HF_TOKEN").map(|s| !s.is_empty()).unwrap_or(false);
+    let codec_probe = CODEC_PROBE.get();
     Json(serde_json::json!({
         "status": "ok",
         "version": env!("CARGO_PKG_VERSION"),
@@ -221,6 +228,12 @@ async fn health() -> impl IntoResponse {
         // PROVIDER_DEFAULT_MODEL["vibecli-mistralrs"] to skip the 401 path.
         "hf_token_present": hf_token_present,
         "mistralrs_recommended_default": crate::inference::mistralrs::recommended_default_model(),
+        // TurboQuant codec self-check — runs once at startup, cached. A
+        // failed probe means the codec is producing degraded output;
+        // operators should investigate before turning the codec on for
+        // a real model. Null if the probe didn't run (very early /health
+        // hit before serve() reached the probe call).
+        "kv_cache_codec_probe": codec_probe,
     }))
 }
 
@@ -3188,6 +3201,30 @@ pub async fn serve(
     // `vibecli set-key huggingface hf_...` shouldn't have to also export
     // the env var. AGENTS.md → Zero-Config First.
     hydrate_hf_token_from_profile_store();
+
+    // Run the TurboQuant codec self-check once. Surfaced via /health so
+    // operators can detect kernel regressions without needing to load a
+    // model. Probe takes microseconds; failure here is informational
+    // (we don't refuse to start) — the codec only matters when the user
+    // actively opts into TurboQuant via VIBE_INFER_KV_CACHE.
+    let probe = vibe_infer::kv_cache_tq::run_codec_probe();
+    if !probe.passed {
+        tracing::warn!(
+            "vibecli serve: TurboQuant codec probe FAILED \
+             (mean_cosine={:.4}, hash=0x{:08x}, {}µs) — codec output diverges from reference",
+            probe.mean_cosine, probe.output_hash, probe.elapsed_us,
+        );
+        eprintln!(
+            "[vibecli serve] kv-cache codec probe FAILED — see /health.kv_cache_codec_probe"
+        );
+    } else {
+        tracing::info!(
+            "vibecli serve: TurboQuant codec probe ok \
+             (mean_cosine={:.4}, hash=0x{:08x}, {}µs)",
+            probe.mean_cosine, probe.output_hash, probe.elapsed_us,
+        );
+    }
+    let _ = CODEC_PROBE.set(probe);
 
     // Legacy jobs directory — kept for feedback/intervene side-car files and
     // one-shot migration. Job records themselves now live in
