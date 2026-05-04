@@ -86,6 +86,9 @@ sidebar:
   - title: Configuration
     icon: settings
     url: /configuration/
+  - title: Diffcomplete (⌘.)
+    icon: edit-3
+    url: /diffcomplete/
   - title: Memory Guide
     icon: database
     url: /memory-guide/
