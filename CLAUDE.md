@@ -35,6 +35,18 @@ make build-all                 # what CI builds — Rust + Tauri + Mobile + Watc
 - Never write keys to `*.toml`, `*.json`, or any plaintext file
 - Never read from `~/.vibeui/api_keys.json` — deleted and migrated
 
+### Provider-agnostic panels — STRICT
+
+Every panel that calls an LLM MUST use the provider and model selected in the toolbar dropdown (`selectedProvider` / `selectedModel` in `vibeui/src/App.tsx`). **No panel may hard-code Anthropic** (or any single provider) as the LLM backend.
+
+- Pass `selectedProvider` (and `selectedModel`) as props into the panel, or read them from `useModelRegistry()` + the toolbar selectors.
+- Tauri commands that call an LLM take `provider` + `model` parameters and dispatch via `build_temp_provider()` in `vibeui/src-tauri/src/commands.rs` — never default to `"anthropic"`.
+- Daemon routes read provider/model from the request body, not from `config.toml`.
+- If the toolbar selection is empty, show a "select a model" empty state — do NOT silently call Anthropic.
+- Reference implementation: `vibeui/src/components/GitPanel.tsx` (accepts `selectedProvider`, forwards to AI git commands).
+
+Full rule + audit checklist: [AGENTS.md → Provider-Agnostic Panels — STRICT](./AGENTS.md#provider-agnostic-panels--strict).
+
 ### Tauri commands
 
 1,045+ commands registered via `tauri::generate_handler!` in `vibeui/src-tauri/src/lib.rs`. When adding a new Tauri command: implement in `commands.rs`, register in `tauri::generate_handler!` in `lib.rs`.

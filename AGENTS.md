@@ -229,6 +229,7 @@ VibeCody is shipped to users (developers, integrators, operators) who want to *u
 - Check `workspace_settings` before falling back to global `profile_settings` for provider/model preferences.
 - **Make every new feature work zero-config** — pick a sane default, log the trade-off, document the override.
 - **Surface every required knob** in the daemon startup banner, `/health`, and `docs/`.
+- **Honour the toolbar model dropdown in every panel that calls an LLM** — see [Provider-Agnostic Panels](#provider-agnostic-panels--strict) below.
 - **Explain non-trivial changes with an ASCII architecture diagram before writing code** (see [Explaining Changes](#explaining-changes--diagrams-before-prose) below).
 
 ### DO NOT
@@ -241,6 +242,39 @@ VibeCody is shipped to users (developers, integrators, operators) who want to *u
 - Commit any file containing real credentials.
 - **Ship a feature that requires the user to `export FOO=...` before it works** — that value belongs in `ProfileStore` and must be settable via `vibecli set-key`. Env-var fallback is fine for compatibility; env-var-only is not.
 - **Fail silently when a configured value is missing** — log it at startup, surface it in `/health`, document the fix.
+- **Hard-code Anthropic (or any single provider) as the LLM backend in a panel.** Every panel that talks to an LLM must route through the toolbar's selected provider/model — see [Provider-Agnostic Panels](#provider-agnostic-panels--strict) below.
+
+---
+
+## Provider-Agnostic Panels — STRICT
+
+**Every panel that calls an LLM MUST use the provider and model selected in the toolbar dropdown.** No panel may hard-code Anthropic, OpenAI, or any other provider as the only path to an LLM. This rule is non-negotiable: a user who has switched the toolbar to OpenAI / Gemini / Groq / Cerebras / Ollama / OpenRouter / a local mistralrs model expects every panel to obey, and a panel that ignores the selection is a bug.
+
+**What this means in practice:**
+
+1. **Source of truth.** The toolbar's `selectedProvider` and `selectedModel` state live in `vibeui/src/App.tsx` and are forwarded as props (or read from a shared hook). New panels must accept them as props or call `useModelRegistry()` + the toolbar selectors — never instantiate a provider client directly.
+
+2. **Forward into Tauri commands.** Every Tauri command that calls an LLM must take `provider: String` and `model: String` parameters and route through `build_temp_provider()` (or equivalent dispatch) in `vibeui/src-tauri/src/commands.rs`. No `commands.rs` handler may default to `"anthropic"` when the caller didn't specify — refuse the call instead.
+
+3. **Forward into the daemon.** HTTP routes that proxy to a provider must read the provider/model from the request body, NOT from `config.toml` defaults. The daemon's `/api/chat`-class routes already do this; preserve the contract.
+
+4. **No silent fallback to a hard-coded default.** If the toolbar provider/model is empty (e.g. very first launch), the panel must surface a "select a model" empty-state — it must not silently invoke Anthropic.
+
+5. **Reference implementation.** `vibeui/src/components/GitPanel.tsx` is the canonical example: it accepts `selectedProvider?: string` from `App.tsx`, forwards it to AI git commands, and degrades gracefully when unset. New panels with LLM calls must follow this pattern.
+
+**When auditing a panel for compliance:**
+
+- `grep -n "anthropic\|claude-" <panel>.tsx <related>.rs` — any literal that pins a provider/model is a bug.
+- Confirm the panel accepts `selectedProvider` (and `selectedModel` where relevant) as a prop, or reads it from a shared toolbar hook.
+- Confirm every Tauri command it calls forwards those values into the Rust provider dispatch.
+- Confirm the daemon route it ultimately hits reads provider/model from the request, not from a static config.
+
+**Exceptions** (narrow, must be documented in the panel header comment):
+
+- Panels whose entire purpose is one specific provider (e.g. a hypothetical "Anthropic Console" debug panel) — and even then, prefer a generic implementation.
+- Local-only inference paths that explicitly bypass cloud providers (e.g. mistralrs / Ollama-only panels) — must still respect the toolbar when the user picks one of those.
+
+If a feature genuinely cannot work without a specific provider's capability (e.g. computer-use), the panel must (a) surface that requirement in its empty-state, (b) gate the call so users on other providers see a clear "this feature requires provider X" message, not an opaque API error.
 
 ---
 
