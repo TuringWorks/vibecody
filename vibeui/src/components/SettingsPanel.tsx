@@ -1327,10 +1327,16 @@ const INTEGRATION_CATEGORIES: {
 }[] = [
   {
     id: "email", label: "Email", icon: <Mail size={14} strokeWidth={1.5} />,
-    description: "Gmail or Outlook access tokens for inbox, compose, and triage commands.",
+    description: "Gmail or Outlook access tokens for inbox, compose, and triage commands. Add the refresh token + OAuth client ID/secret to enable automatic token refresh — without these, the access token expires after ~60 minutes.",
     fields: [
       { key: "gmail_access_token", label: "Gmail Access Token", placeholder: "ya29.a0A..." },
+      { key: "gmail_refresh_token", label: "Gmail Refresh Token", placeholder: "1//0g..." },
+      { key: "gmail_oauth_client_id", label: "Gmail OAuth Client ID", placeholder: "xxxxx.apps.googleusercontent.com" },
+      { key: "gmail_oauth_client_secret", label: "Gmail OAuth Client Secret", placeholder: "GOCSPX-..." },
       { key: "outlook_access_token", label: "Outlook Access Token", placeholder: "eyJ0eXAi..." },
+      { key: "outlook_refresh_token", label: "Outlook Refresh Token", placeholder: "M.R3_BAY..." },
+      { key: "outlook_oauth_client_id", label: "Outlook OAuth Client ID", placeholder: "00000000-0000-0000-0000-000000000000" },
+      { key: "outlook_oauth_client_secret", label: "Outlook OAuth Client Secret", placeholder: "client secret value" },
     ],
   },
   {

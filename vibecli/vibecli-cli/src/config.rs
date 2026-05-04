@@ -513,7 +513,17 @@ pub struct EmailConfig {
     pub gmail_address: Option<String>,
     pub gmail_app_password: Option<String>,
     pub gmail_access_token: Option<String>,
+    /// Long-lived OAuth refresh token + client ID/secret. When all three
+    /// are set, EmailClient transparently refreshes the access token on a
+    /// 401 response — without them, the access token expires after ~60
+    /// minutes and Gmail starts returning 401 to every call.
+    pub gmail_refresh_token: Option<String>,
+    pub gmail_oauth_client_id: Option<String>,
+    pub gmail_oauth_client_secret: Option<String>,
     pub outlook_access_token: Option<String>,
+    pub outlook_refresh_token: Option<String>,
+    pub outlook_oauth_client_id: Option<String>,
+    pub outlook_oauth_client_secret: Option<String>,
 }
 
 impl EmailConfig {
@@ -1626,10 +1636,28 @@ impl Config {
         {
             let gmail_token   = get_int("email", "gmail_access_token");
             let outlook_token = get_int("email", "outlook_access_token");
-            if gmail_token.is_some() || outlook_token.is_some() {
+            // OAuth refresh credentials. Loaded alongside the access token
+            // so EmailClient can mint a fresh one on 401 instead of
+            // breaking once an hour.
+            let gmail_refresh = get_int("email", "gmail_refresh_token");
+            let gmail_oauth_id = get_int("email", "gmail_oauth_client_id");
+            let gmail_oauth_secret = get_int("email", "gmail_oauth_client_secret");
+            let outlook_refresh = get_int("email", "outlook_refresh_token");
+            let outlook_oauth_id = get_int("email", "outlook_oauth_client_id");
+            let outlook_oauth_secret = get_int("email", "outlook_oauth_client_secret");
+            let any_email_int = gmail_token.is_some() || outlook_token.is_some()
+                || gmail_refresh.is_some() || gmail_oauth_id.is_some() || gmail_oauth_secret.is_some()
+                || outlook_refresh.is_some() || outlook_oauth_id.is_some() || outlook_oauth_secret.is_some();
+            if any_email_int {
                 let ec = self.email.get_or_insert_with(EmailConfig::default);
-                if let Some(v) = gmail_token   { ec.gmail_access_token   = Some(v); }
-                if let Some(v) = outlook_token { ec.outlook_access_token = Some(v); }
+                if let Some(v) = gmail_token          { ec.gmail_access_token         = Some(v); }
+                if let Some(v) = outlook_token        { ec.outlook_access_token       = Some(v); }
+                if let Some(v) = gmail_refresh        { ec.gmail_refresh_token        = Some(v); }
+                if let Some(v) = gmail_oauth_id       { ec.gmail_oauth_client_id      = Some(v); }
+                if let Some(v) = gmail_oauth_secret   { ec.gmail_oauth_client_secret  = Some(v); }
+                if let Some(v) = outlook_refresh      { ec.outlook_refresh_token      = Some(v); }
+                if let Some(v) = outlook_oauth_id     { ec.outlook_oauth_client_id    = Some(v); }
+                if let Some(v) = outlook_oauth_secret { ec.outlook_oauth_client_secret = Some(v); }
             }
         }
 

@@ -2,8 +2,15 @@
 //!
 //! Configuration:
 //! - Gmail: `GMAIL_ACCESS_TOKEN` env or `email.gmail_access_token` in config,
-//!   or `GMAIL_APP_PASSWORD` + `GMAIL_ADDRESS` for app password auth
-//! - Outlook: `OUTLOOK_ACCESS_TOKEN` env or `email.outlook_access_token` in config
+//!   or `GMAIL_APP_PASSWORD` + `GMAIL_ADDRESS` for app password auth.
+//!   For automatic OAuth refresh (recommended — access tokens expire after
+//!   ~60 minutes), also configure `gmail_refresh_token`,
+//!   `gmail_oauth_client_id`, and `gmail_oauth_client_secret` (or the
+//!   matching `GMAIL_REFRESH_TOKEN` / `GMAIL_OAUTH_CLIENT_ID` /
+//!   `GMAIL_OAUTH_CLIENT_SECRET` env vars).
+//! - Outlook: `OUTLOOK_ACCESS_TOKEN` env or `email.outlook_access_token` in
+//!   config. For refresh: `outlook_refresh_token`,
+//!   `outlook_oauth_client_id`, `outlook_oauth_client_secret`.
 //!
 //! REPL commands:
 //! ```
@@ -21,10 +28,17 @@
 
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
+use std::sync::Mutex;
 use vibe_ai::{retry_async, RetryConfig};
 
 const GMAIL_API: &str = "https://gmail.googleapis.com/gmail/v1/users/me";
 const GRAPH_API: &str = "https://graph.microsoft.com/v1.0/me";
+const GOOGLE_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
+const MS_TOKEN_URL: &str = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
+// Standard Outlook/Graph mail scope; required when refreshing a Microsoft
+// access token via the OAuth refresh-token grant.
+const MS_DEFAULT_SCOPE: &str =
+    "https://graph.microsoft.com/Mail.ReadWrite https://graph.microsoft.com/Mail.Send offline_access";
 
 // ── Data types ───────────────────────────────────────────────────────────────
 
@@ -86,7 +100,14 @@ pub struct ProviderStatus {
 
 pub struct EmailClient {
     provider: EmailProvider,
-    access_token: String,
+    // Access token is wrapped in a Mutex so refresh() can mutate it without
+    // forcing every API method (and its callers) to take `&mut self`.
+    // Never await with the lock held — clone the String out and drop the
+    // guard immediately; refresh writes briefly after the network round-trip.
+    access_token: Mutex<String>,
+    refresh_token: Option<String>,
+    oauth_client_id: Option<String>,
+    oauth_client_secret: Option<String>,
     client: reqwest::Client,
 }
 
@@ -97,34 +118,95 @@ impl EmailClient {
             .timeout(std::time::Duration::from_secs(15))
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
-        Self { provider, access_token, client }
+        Self {
+            provider,
+            access_token: Mutex::new(access_token),
+            refresh_token: None,
+            oauth_client_id: None,
+            oauth_client_secret: None,
+            client,
+        }
+    }
+
+    /// Attach OAuth refresh credentials so the client can mint a fresh
+    /// access token automatically when the current one expires (Gmail
+    /// access tokens expire after ~60 minutes — without this, every call
+    /// fails with HTTP 401 until the user manually re-pastes a token).
+    pub fn with_refresh(
+        mut self,
+        refresh_token: Option<String>,
+        oauth_client_id: Option<String>,
+        oauth_client_secret: Option<String>,
+    ) -> Self {
+        // Treat empty strings as unset — saves callers from having to
+        // pre-filter blanks coming out of optional config fields.
+        self.refresh_token = refresh_token.filter(|s| !s.is_empty());
+        self.oauth_client_id = oauth_client_id.filter(|s| !s.is_empty());
+        self.oauth_client_secret = oauth_client_secret.filter(|s| !s.is_empty());
+        self
     }
 
     pub fn from_env_or_config() -> Option<Self> {
         // 1. ProfileStore (encrypted SQLite) — takes precedence over env/config
         if let Ok(store) = crate::profile_store::ProfileStore::new() {
             if let Ok(Some(tok)) = store.get_api_key("default", "integration.email.gmail_access_token") {
-                if !tok.is_empty() { return Some(Self::new(EmailProvider::Gmail, tok)); }
+                if !tok.is_empty() {
+                    let r = store.get_api_key("default", "integration.email.gmail_refresh_token").ok().flatten();
+                    let id = store.get_api_key("default", "integration.email.gmail_oauth_client_id").ok().flatten();
+                    let sec = store.get_api_key("default", "integration.email.gmail_oauth_client_secret").ok().flatten();
+                    return Some(Self::new(EmailProvider::Gmail, tok).with_refresh(r, id, sec));
+                }
             }
             if let Ok(Some(tok)) = store.get_api_key("default", "integration.email.outlook_access_token") {
-                if !tok.is_empty() { return Some(Self::new(EmailProvider::Outlook, tok)); }
+                if !tok.is_empty() {
+                    let r = store.get_api_key("default", "integration.email.outlook_refresh_token").ok().flatten();
+                    let id = store.get_api_key("default", "integration.email.outlook_oauth_client_id").ok().flatten();
+                    let sec = store.get_api_key("default", "integration.email.outlook_oauth_client_secret").ok().flatten();
+                    return Some(Self::new(EmailProvider::Outlook, tok).with_refresh(r, id, sec));
+                }
             }
         }
         // 2. Environment variables
         if let Ok(token) = std::env::var("GMAIL_ACCESS_TOKEN") {
-            if !token.is_empty() { return Some(Self::new(EmailProvider::Gmail, token)); }
+            if !token.is_empty() {
+                let r = std::env::var("GMAIL_REFRESH_TOKEN").ok();
+                let id = std::env::var("GMAIL_OAUTH_CLIENT_ID").ok();
+                let sec = std::env::var("GMAIL_OAUTH_CLIENT_SECRET").ok();
+                return Some(Self::new(EmailProvider::Gmail, token).with_refresh(r, id, sec));
+            }
         }
         if let Ok(token) = std::env::var("OUTLOOK_ACCESS_TOKEN") {
-            if !token.is_empty() { return Some(Self::new(EmailProvider::Outlook, token)); }
+            if !token.is_empty() {
+                let r = std::env::var("OUTLOOK_REFRESH_TOKEN").ok();
+                let id = std::env::var("OUTLOOK_OAUTH_CLIENT_ID").ok();
+                let sec = std::env::var("OUTLOOK_OAUTH_CLIENT_SECRET").ok();
+                return Some(Self::new(EmailProvider::Outlook, token).with_refresh(r, id, sec));
+            }
         }
         // 3. Config file (~/.vibecli/config.toml)
         if let Ok(cfg) = crate::config::Config::load() {
             if let Some(email_cfg) = cfg.email {
                 if let Some(token) = email_cfg.gmail_access_token {
-                    if !token.is_empty() { return Some(Self::new(EmailProvider::Gmail, token)); }
+                    if !token.is_empty() {
+                        return Some(
+                            Self::new(EmailProvider::Gmail, token).with_refresh(
+                                email_cfg.gmail_refresh_token,
+                                email_cfg.gmail_oauth_client_id,
+                                email_cfg.gmail_oauth_client_secret,
+                            ),
+                        );
+                    }
                 }
                 if let Some(token) = email_cfg.outlook_access_token {
-                    if !token.is_empty() { return Some(Self::new(EmailProvider::Outlook, token)); }
+                    if !token.is_empty() {
+                        return Some(
+                            Self::new(EmailProvider::Outlook, token).with_refresh(
+                                email_cfg.outlook_refresh_token,
+                                email_cfg.outlook_oauth_client_id,
+                                email_cfg.outlook_oauth_client_secret,
+                            ),
+                        );
+                    }
                 }
             }
         }
@@ -132,82 +214,190 @@ impl EmailClient {
     }
 
     fn auth_header(&self) -> String {
-        format!("Bearer {}", self.access_token)
+        // Brief lock — clone out and drop the guard before awaiting.
+        let tok = self.access_token.lock().expect("email access_token mutex poisoned").clone();
+        format!("Bearer {}", tok)
+    }
+
+    fn current_access_token(&self) -> String {
+        self.access_token.lock().expect("email access_token mutex poisoned").clone()
+    }
+
+    fn store_new_access_token(&self, new_token: &str) {
+        *self.access_token.lock().expect("email access_token mutex poisoned") = new_token.to_string();
+    }
+
+    fn can_refresh(&self) -> bool {
+        self.refresh_token.is_some()
+            && self.oauth_client_id.is_some()
+            && self.oauth_client_secret.is_some()
+    }
+
+    /// Mint a new access token using the stored refresh credentials, then
+    /// persist it back to the ProfileStore so the next process start picks
+    /// it up. Errors here are surfaced to the caller — typically as the
+    /// "expired and refresh failed" path of the API methods below.
+    async fn refresh_access_token(&self) -> Result<()> {
+        let refresh_token = self.refresh_token.as_deref().ok_or_else(|| {
+            anyhow!("Gmail/Outlook access token expired and no refresh token is configured. \
+                     Add a refresh token + OAuth client ID/secret in Settings → Integrations → Email.")
+        })?;
+        let client_id = self.oauth_client_id.as_deref().ok_or_else(|| {
+            anyhow!("Cannot refresh OAuth token: missing client_id")
+        })?;
+        let client_secret = self.oauth_client_secret.as_deref().ok_or_else(|| {
+            anyhow!("Cannot refresh OAuth token: missing client_secret")
+        })?;
+
+        // Build the form body. Microsoft requires a `scope` field on
+        // refresh; Google ignores it. Send it for both — harmless on Google.
+        let mut form: Vec<(&str, &str)> = vec![
+            ("client_id", client_id),
+            ("client_secret", client_secret),
+            ("refresh_token", refresh_token),
+            ("grant_type", "refresh_token"),
+        ];
+        if matches!(self.provider, EmailProvider::Outlook) {
+            form.push(("scope", MS_DEFAULT_SCOPE));
+        }
+        let url = match self.provider {
+            EmailProvider::Gmail => GOOGLE_TOKEN_URL,
+            EmailProvider::Outlook => MS_TOKEN_URL,
+        };
+
+        let resp = self.client.post(url).form(&form).send().await
+            .map_err(|e| anyhow!("OAuth refresh request failed: {}", e))?;
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        if !status.is_success() {
+            return Err(anyhow!("OAuth refresh failed ({}): {}", status, body));
+        }
+        let new_token = parse_oauth_refresh_response(&body)?;
+        self.store_new_access_token(&new_token);
+
+        // Best-effort persist. Failure here is non-fatal: the in-memory
+        // token is updated, so the current process keeps working — the
+        // next process will just get a 401 again and refresh again.
+        if let Ok(store) = crate::profile_store::ProfileStore::new() {
+            let key = match self.provider {
+                EmailProvider::Gmail => "integration.email.gmail_access_token",
+                EmailProvider::Outlook => "integration.email.outlook_access_token",
+            };
+            if let Err(e) = store.set_api_key("default", key, &new_token) {
+                tracing::warn!("Failed to persist refreshed email token to ProfileStore: {}", e);
+            }
+        }
+        Ok(())
     }
 
     async fn get_json(&self, url: &str) -> Result<serde_json::Value> {
-        let auth = self.auth_header();
-        let resp = retry_async(&RetryConfig::default(), "email-api", || {
-            let client = self.client.clone();
-            let url = url.to_string();
-            let auth = auth.clone();
-            async move {
-                client.get(&url)
-                    .header("Authorization", &auth)
-                    .send()
-                    .await
-                    .map_err(Into::into)
-            }
-        }).await?;
+        let mut refreshed = false;
+        loop {
+            let auth = self.auth_header();
+            let resp = retry_async(&RetryConfig::default(), "email-api", || {
+                let client = self.client.clone();
+                let url = url.to_string();
+                let auth = auth.clone();
+                async move {
+                    client.get(&url)
+                        .header("Authorization", &auth)
+                        .send()
+                        .await
+                        .map_err(Into::into)
+                }
+            }).await?;
 
-        if !resp.status().is_success() {
-            return Err(anyhow!("Email API error: {} {}", resp.status(), resp.text().await.unwrap_or_default()));
+            let status = resp.status();
+            if status == reqwest::StatusCode::UNAUTHORIZED && !refreshed && self.can_refresh() {
+                drop(resp);
+                refreshed = true;
+                self.refresh_access_token().await?;
+                continue;
+            }
+            if !status.is_success() {
+                let body = resp.text().await.unwrap_or_default();
+                return Err(format_email_api_error(status, &body));
+            }
+            return resp.json().await.map_err(Into::into);
         }
-        resp.json().await.map_err(Into::into)
     }
 
     async fn patch_json(&self, url: &str, body: serde_json::Value) -> Result<serde_json::Value> {
-        let auth = self.auth_header();
-        let resp = retry_async(&RetryConfig::default(), "email-api-patch", || {
-            let client = self.client.clone();
-            let url = url.to_string();
-            let auth = auth.clone();
-            let body = body.clone();
-            async move {
-                client.patch(&url)
-                    .header("Authorization", &auth)
-                    .header("Content-Type", "application/json")
-                    .json(&body)
-                    .send()
-                    .await
-                    .map_err(Into::into)
-            }
-        }).await?;
+        let mut refreshed = false;
+        loop {
+            let auth = self.auth_header();
+            let body_clone = body.clone();
+            let resp = retry_async(&RetryConfig::default(), "email-api-patch", || {
+                let client = self.client.clone();
+                let url = url.to_string();
+                let auth = auth.clone();
+                let body = body_clone.clone();
+                async move {
+                    client.patch(&url)
+                        .header("Authorization", &auth)
+                        .header("Content-Type", "application/json")
+                        .json(&body)
+                        .send()
+                        .await
+                        .map_err(Into::into)
+                }
+            }).await?;
 
-        if !resp.status().is_success() {
-            return Err(anyhow!("Email API error: {} {}", resp.status(), resp.text().await.unwrap_or_default()));
-        }
-        // PATCH may return empty body on Outlook; tolerate.
-        let text = resp.text().await.unwrap_or_default();
-        if text.trim().is_empty() {
-            Ok(serde_json::Value::Null)
-        } else {
-            serde_json::from_str(&text).map_err(Into::into)
+            let status = resp.status();
+            if status == reqwest::StatusCode::UNAUTHORIZED && !refreshed && self.can_refresh() {
+                drop(resp);
+                refreshed = true;
+                self.refresh_access_token().await?;
+                continue;
+            }
+            if !status.is_success() {
+                let body = resp.text().await.unwrap_or_default();
+                return Err(format_email_api_error(status, &body));
+            }
+            // PATCH may return empty body on Outlook; tolerate.
+            let text = resp.text().await.unwrap_or_default();
+            return if text.trim().is_empty() {
+                Ok(serde_json::Value::Null)
+            } else {
+                serde_json::from_str(&text).map_err(Into::into)
+            };
         }
     }
 
     async fn post_json(&self, url: &str, body: serde_json::Value) -> Result<serde_json::Value> {
-        let auth = self.auth_header();
-        let resp = retry_async(&RetryConfig::default(), "email-api-post", || {
-            let client = self.client.clone();
-            let url = url.to_string();
-            let auth = auth.clone();
-            let body = body.clone();
-            async move {
-                client.post(&url)
-                    .header("Authorization", &auth)
-                    .header("Content-Type", "application/json")
-                    .json(&body)
-                    .send()
-                    .await
-                    .map_err(Into::into)
-            }
-        }).await?;
+        let mut refreshed = false;
+        loop {
+            let auth = self.auth_header();
+            let body_clone = body.clone();
+            let resp = retry_async(&RetryConfig::default(), "email-api-post", || {
+                let client = self.client.clone();
+                let url = url.to_string();
+                let auth = auth.clone();
+                let body = body_clone.clone();
+                async move {
+                    client.post(&url)
+                        .header("Authorization", &auth)
+                        .header("Content-Type", "application/json")
+                        .json(&body)
+                        .send()
+                        .await
+                        .map_err(Into::into)
+                }
+            }).await?;
 
-        if !resp.status().is_success() {
-            return Err(anyhow!("Email API error: {} {}", resp.status(), resp.text().await.unwrap_or_default()));
+            let status = resp.status();
+            if status == reqwest::StatusCode::UNAUTHORIZED && !refreshed && self.can_refresh() {
+                drop(resp);
+                refreshed = true;
+                self.refresh_access_token().await?;
+                continue;
+            }
+            if !status.is_success() {
+                let body = resp.text().await.unwrap_or_default();
+                return Err(format_email_api_error(status, &body));
+            }
+            return resp.json().await.map_err(Into::into);
         }
-        resp.json().await.map_err(Into::into)
     }
 
     // ── Gmail operations ─────────────────────────────────────────────────────
@@ -494,6 +684,53 @@ impl EmailClient {
             }
         }
     }
+}
+
+/// Pull `access_token` out of an OAuth refresh response. Pure function so
+/// the JSON shape can be unit-tested without a live HTTP server.
+fn parse_oauth_refresh_response(body: &str) -> Result<String> {
+    let json: serde_json::Value = serde_json::from_str(body)
+        .map_err(|e| anyhow!("OAuth refresh: response body is not JSON: {} (body: {})", e, body))?;
+    if let Some(tok) = json["access_token"].as_str() {
+        if !tok.is_empty() {
+            return Ok(tok.to_string());
+        }
+    }
+    // Surface the provider's error description if present so the user can
+    // act on it ("invalid_grant" → re-authorize; "invalid_client" → wrong
+    // client_id/secret).
+    let err = json["error"].as_str().unwrap_or("unknown");
+    let desc = json["error_description"].as_str().unwrap_or("");
+    Err(anyhow!(
+        "OAuth refresh: response missing access_token (error: {}{})",
+        err,
+        if desc.is_empty() { String::new() } else { format!(" — {}", desc) }
+    ))
+}
+
+/// Format a non-success response from Gmail / Graph as a user-actionable
+/// error. The previous implementation dumped the raw provider JSON, which
+/// is several kilobytes of OAuth boilerplate the user can't act on.
+fn format_email_api_error(status: reqwest::StatusCode, body: &str) -> anyhow::Error {
+    if status == reqwest::StatusCode::UNAUTHORIZED {
+        return anyhow!(
+            "Email API 401 Unauthorized — your access token has expired or been revoked. \
+             Configure a refresh token + OAuth client credentials in Settings → \
+             Integrations → Email so VibeCLI can refresh tokens automatically."
+        );
+    }
+    if status == reqwest::StatusCode::FORBIDDEN {
+        return anyhow!(
+            "Email API 403 Forbidden — the access token does not grant the required scope. \
+             For Gmail you need https://www.googleapis.com/auth/gmail.modify; for Outlook \
+             you need Mail.ReadWrite (and Mail.Send for sending)."
+        );
+    }
+    // For other statuses, keep the body but trim it so logs / UI don't
+    // get a wall of nested JSON.
+    let trimmed: String = body.chars().take(400).collect();
+    let suffix = if body.len() > 400 { " …" } else { "" };
+    anyhow!("Email API error {}: {}{}", status, trimmed, suffix)
 }
 
 fn base64_url_encode(data: &[u8]) -> String {
@@ -825,6 +1062,82 @@ mod tests {
         // send with no args should return usage/error, not panic
         let out = handle_email_command("send").await;
         assert!(!out.is_empty());
+    }
+
+    #[test]
+    fn parse_oauth_refresh_response_extracts_access_token() {
+        let body = r#"{"access_token":"ya29.new","expires_in":3599,"token_type":"Bearer"}"#;
+        let tok = parse_oauth_refresh_response(body).unwrap();
+        assert_eq!(tok, "ya29.new");
+    }
+
+    #[test]
+    fn parse_oauth_refresh_response_rejects_non_json() {
+        let err = parse_oauth_refresh_response("not json").unwrap_err().to_string();
+        assert!(err.contains("not JSON"), "got: {err}");
+    }
+
+    #[test]
+    fn parse_oauth_refresh_response_surfaces_error_description() {
+        // Google's typical refresh failure body — "invalid_grant" means the
+        // user revoked access or the refresh token was rotated.
+        let body = r#"{"error":"invalid_grant","error_description":"Token has been expired or revoked."}"#;
+        let err = parse_oauth_refresh_response(body).unwrap_err().to_string();
+        assert!(err.contains("invalid_grant"), "got: {err}");
+        assert!(err.contains("expired or revoked"), "got: {err}");
+    }
+
+    #[test]
+    fn parse_oauth_refresh_response_rejects_empty_access_token() {
+        let body = r#"{"access_token":"","error":"invalid_request"}"#;
+        let err = parse_oauth_refresh_response(body).unwrap_err().to_string();
+        assert!(err.contains("invalid_request"), "got: {err}");
+    }
+
+    #[test]
+    fn format_email_api_error_401_is_actionable() {
+        let err = format_email_api_error(reqwest::StatusCode::UNAUTHORIZED, "ignored body").to_string();
+        assert!(err.contains("expired"), "got: {err}");
+        assert!(err.contains("refresh"), "got: {err}");
+        // The raw provider body should NOT leak through on 401 — it's
+        // multiple kilobytes of OAuth boilerplate the user can't act on.
+        assert!(!err.contains("ignored body"), "got: {err}");
+    }
+
+    #[test]
+    fn format_email_api_error_403_mentions_scope() {
+        let err = format_email_api_error(reqwest::StatusCode::FORBIDDEN, "").to_string();
+        assert!(err.contains("scope") || err.contains("Mail."), "got: {err}");
+    }
+
+    #[test]
+    fn format_email_api_error_other_truncates_long_bodies() {
+        let body = "x".repeat(2000);
+        let err = format_email_api_error(reqwest::StatusCode::BAD_GATEWAY, &body).to_string();
+        // Should include the leading chunk plus the truncation marker.
+        assert!(err.contains("502"), "got: {err}");
+        assert!(err.ends_with('…') || err.contains(" …"), "got: {err}");
+        assert!(err.len() < 600, "should not dump kilobytes; got len {}", err.len());
+    }
+
+    #[test]
+    fn with_refresh_treats_empty_strings_as_unset() {
+        let c = EmailClient::new(EmailProvider::Gmail, "tok".into())
+            .with_refresh(Some("".into()), Some("".into()), Some("".into()));
+        assert!(!c.can_refresh(), "empty refresh creds should not enable can_refresh");
+    }
+
+    #[test]
+    fn can_refresh_requires_all_three_fields() {
+        let only_token = EmailClient::new(EmailProvider::Gmail, "tok".into())
+            .with_refresh(Some("r".into()), None, None);
+        assert!(!only_token.can_refresh());
+        let two = EmailClient::new(EmailProvider::Gmail, "tok".into())
+            .with_refresh(Some("r".into()), Some("id".into()), None);
+        assert!(!two.can_refresh());
+        let all_three = EmailClient::new(EmailProvider::Gmail, "tok".into())
+            .with_refresh(Some("r".into()), Some("id".into()), Some("sec".into()));
+        assert!(all_three.can_refresh());
     }
 
     #[test]
