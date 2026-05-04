@@ -217,9 +217,28 @@ fn sanitize_user_input(s: &str) -> String {
 static CODEC_PROBE: std::sync::OnceLock<vibe_infer::kv_cache_tq::CodecProbeReport> =
     std::sync::OnceLock::new();
 
+/// Snapshot of which AI providers have a stored API key in the encrypted
+/// ProfileStore. Names only — never the values. Used by `/health` so any
+/// feature that depends on "an AI provider is configured" (chat,
+/// diffcomplete, recap LLM mode, …) inherits its readiness signal from
+/// one canonical source instead of probing per-feature. Read fresh on
+/// each call: ProfileStore is a local SQLite query, sub-millisecond.
+fn configured_provider_names() -> Vec<String> {
+    crate::profile_store::ProfileStore::new()
+        .ok()
+        .and_then(|s| s.list_api_key_providers("default").ok())
+        .map(|mut v| {
+            v.sort();
+            v
+        })
+        .unwrap_or_default()
+}
+
 async fn health() -> impl IntoResponse {
     let hf_token_present = std::env::var("HF_TOKEN").map(|s| !s.is_empty()).unwrap_or(false);
     let codec_probe = CODEC_PROBE.get();
+    let providers = configured_provider_names();
+    let provider_count = providers.len();
     Json(serde_json::json!({
         "status": "ok",
         "version": env!("CARGO_PKG_VERSION"),
@@ -234,6 +253,23 @@ async fn health() -> impl IntoResponse {
         // a real model. Null if the probe didn't run (very early /health
         // hit before serve() reached the probe call).
         "kv_cache_codec_probe": codec_probe,
+        // Configured AI providers (by ProfileStore key presence). Names
+        // only, never values. The canonical readiness signal for any
+        // provider-dependent feature.
+        "providers": {
+            "configured_count": provider_count,
+            "names": providers,
+        },
+        // Per-feature readiness. Each entry is { available, requires? }.
+        // `requires` names the prerequisite the feature inherits — e.g.
+        // diffcomplete needs at least one configured provider.
+        "features": {
+            "diffcomplete": {
+                "available": provider_count > 0,
+                "requires": "providers.configured_count > 0",
+                "transport": "tauri-desktop",
+            },
+        },
     }))
 }
 
@@ -5755,6 +5791,60 @@ mod tests {
                 .unwrap();
             let resp = app.oneshot(req).await.unwrap();
             assert_eq!(resp.status(), StatusCode::OK);
+        }
+
+        #[tokio::test]
+        async fn health_exposes_providers_block_with_count_and_names() {
+            let (app, _tmp) = test_app("test-token");
+            let req = Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            let body = body_string(resp.into_body()).await;
+            let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+            // The block must exist, even when no providers are configured.
+            // configured_count is the canonical readiness signal for any
+            // feature that depends on AI providers.
+            assert!(json["providers"].is_object(), "providers block missing");
+            assert!(
+                json["providers"]["configured_count"].is_u64(),
+                "providers.configured_count must be a non-negative integer"
+            );
+            assert!(
+                json["providers"]["names"].is_array(),
+                "providers.names must always be an array (empty when none)"
+            );
+        }
+
+        #[tokio::test]
+        async fn health_features_diffcomplete_inherits_from_providers() {
+            let (app, _tmp) = test_app("test-token");
+            let req = Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            let body = body_string(resp.into_body()).await;
+            let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+            let dc = &json["features"]["diffcomplete"];
+            assert!(dc.is_object(), "features.diffcomplete missing");
+            assert!(
+                dc["available"].is_boolean(),
+                "features.diffcomplete.available must be a boolean"
+            );
+            assert_eq!(
+                dc["transport"], "tauri-desktop",
+                "diffcomplete is desktop-only by current design"
+            );
+            // Availability must follow the providers count rule.
+            let count = json["providers"]["configured_count"].as_u64().unwrap();
+            let available = dc["available"].as_bool().unwrap();
+            assert_eq!(
+                available,
+                count > 0,
+                "features.diffcomplete.available must equal providers.configured_count > 0"
+            );
         }
 
         // ── Auth: unauthenticated requests to protected routes → 401 ──

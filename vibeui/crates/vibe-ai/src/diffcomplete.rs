@@ -265,23 +265,71 @@ pub async fn generate(
     provider: Arc<dyn AIProvider>,
     request: DiffCompleteRequest,
 ) -> Result<DiffCompleteResponse> {
+    let provider_name = provider.name().to_string();
+    let instruction_len = request.instruction.len();
+    let context_lines = request.before_context.lines().count() + request.after_context.lines().count();
+    let has_selection = request.selection_text.is_some();
+    let is_refinement = request.previous_diff.is_some();
+    let extra_files = request.additional_files.len();
+
+    tracing::debug!(
+        target: "vibecody::diffcomplete",
+        provider = %provider_name,
+        language = %request.language,
+        file_path = %request.file_path,
+        instruction_len,
+        context_lines,
+        has_selection,
+        is_refinement,
+        extra_files,
+        "diffcomplete request received"
+    );
+
     if !provider.is_available().await {
-        anyhow::bail!("Provider {} is not available", provider.name());
+        tracing::warn!(
+            target: "vibecody::diffcomplete",
+            provider = %provider_name,
+            "diffcomplete provider unavailable"
+        );
+        anyhow::bail!("Provider {} is not available", provider_name);
     }
 
     let messages = build_messages(&request);
 
-    let raw = provider.chat(&messages, None).await?;
+    let raw = provider.chat(&messages, None).await.map_err(|e| {
+        tracing::warn!(
+            target: "vibecody::diffcomplete",
+            provider = %provider_name,
+            error = %e,
+            "diffcomplete provider chat call failed"
+        );
+        e
+    })?;
+
     let (diff, prose) = extract_diff(&raw);
 
     if diff.trim().is_empty() {
+        tracing::warn!(
+            target: "vibecody::diffcomplete",
+            provider = %provider_name,
+            response_len = raw.len(),
+            "diffcomplete model returned no diff block"
+        );
         anyhow::bail!("Model response did not contain a diff block");
     }
+
+    tracing::info!(
+        target: "vibecody::diffcomplete",
+        provider = %provider_name,
+        diff_len = diff.len(),
+        had_explanation = prose.is_some(),
+        "diffcomplete generation succeeded"
+    );
 
     Ok(DiffCompleteResponse {
         unified_diff: diff,
         explanation: prose,
-        model_name: provider.name().to_string(),
+        model_name: provider_name,
     })
 }
 
