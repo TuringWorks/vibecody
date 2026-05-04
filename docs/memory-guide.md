@@ -558,6 +558,188 @@ Preview exactly what the agent will see before you ask.
 
 ---
 
+## Operations
+
+### Where memory lives on disk
+
+| Layer | Path |
+|---|---|
+| Auto-recording | `~/.vibecli/memory.md` |
+| OpenMemory store | `~/.local/share/vibecli/openmemory/` (Linux) / `~/Library/Application Support/vibecli/openmemory/` (macOS) / `%APPDATA%\vibecli\openmemory\` (Windows) |
+| Verbatim drawers | nested under the OpenMemory store directory |
+| Encryption passphrase | `~/.vibecli/profile_settings.db` (encrypted ProfileStore — never plaintext) |
+
+The OpenMemory directory contains JSON serializations of memories, facts, lineage edges, and the embedding index. It's safe to commit to a private backup, but **do not commit the ProfileStore** — that file is machine-bound by design.
+
+### Readiness signal — `/health.memory`
+
+The daemon's `/health` endpoint exposes a canonical memory readiness block. Use this from monitoring dashboards, scripts, or feature gates instead of probing each panel:
+
+```bash
+curl http://127.0.0.1:7878/health | jq '.memory'
+```
+
+```json
+{
+  "enabled": true,
+  "store_path": "/Users/me/Library/Application Support/vibecli/openmemory",
+  "total_memories": 1247,
+  "drawer_count": 38,
+  "encryption_enabled": true
+}
+```
+
+A feature that depends on "memory has data" should check `memory.enabled && memory.total_memories > N` rather than calling `/memory/list` directly.
+
+### Backup and restore
+
+The OpenMemory store is plain JSON files — copy them anywhere:
+
+```bash
+# Backup
+tar czf vibecli-memory-$(date +%F).tar.gz "$HOME/Library/Application Support/vibecli/openmemory"
+
+# Restore (overwrites existing memories)
+tar xzf vibecli-memory-2026-05-01.tar.gz -C "$HOME/Library/Application Support/vibecli/"
+```
+
+If the store is encrypted, you'll also need the passphrase. The passphrase lives in the encrypted ProfileStore; back it up via:
+
+```bash
+vibecli list-keys                                 # confirm openmemory_passphrase is set
+# Re-set the same passphrase on a new machine:
+vibecli set-key openmemory_passphrase '<your-passphrase>'
+```
+
+### Migration between machines
+
+```bash
+# On the old machine:
+curl http://127.0.0.1:7878/memory/export > memories.md       # human-readable
+curl http://127.0.0.1:7878/memory/list   > memories.json     # full snapshot
+
+# On the new machine — re-set the encryption passphrase first if any:
+vibecli set-key openmemory_passphrase '<your-passphrase>'
+# Then import:
+curl -X POST http://127.0.0.1:7878/memory/import \
+     -H 'content-type: application/json' \
+     -d "{\"format\":\"openmemory\",\"content\":$(cat memories.json | jq -Rs .)}"
+```
+
+### Export formats supported
+
+The `/memory/import` route accepts four formats. Use `format: "auto"` to detect:
+
+- **openmemory** — VibeCody's native JSON. Round-trip safe; preserves salience, pin state, encryption flags.
+- **mem0** — popular open-source memory format. Lossy — sector classification re-runs on import.
+- **zep** — temporal-knowledge-graph format. Imports as facts.
+- **markdown** — paste any markdown; each `## ` heading becomes a memory.
+
+---
+
+## Troubleshooting
+
+### "Memories I added aren't surfacing in agent context"
+
+The 4-layer retrieval combines L1 (working set), L2 (recent + reinforced), L3 (semantic recall), L4 (episodic). For a memory to surface in L3, it needs:
+- A non-zero similarity score to the query (run `/openmemory query <text>` to verify)
+- Effective salience above the recall threshold (default 0.1 — see `[memory.recall]` config)
+
+If the memory isn't in the query results: check the sector. Memories in `procedural` and `semantic` rank higher for technical questions; `episodic` ranks higher for "what did we do last week?".
+
+If the memory IS in query results but not in agent context: check the layer caps — L3 defaults to 5 memories. Increase `max_l3` in `[memory.context]` config.
+
+### "Layered context returns empty even with memories present"
+
+Check `/health.memory.enabled`. If `false`, the store didn't load — see permissions on the store directory.
+
+```bash
+curl -s http://127.0.0.1:7878/health | jq '.memory'
+```
+
+If `enabled: true` but `total_memories: 0`, you're looking at the wrong store. The store path is shown in `store_path` — check that it matches what your agent is reading.
+
+### "LongMemEval recall@K is lower than expected"
+
+Recall@K depends on the embedding backend, the corpus size, and the salience distribution. Common causes:
+
+- **Cold cache** — the first query after restart loads the index from disk. Run a few queries first, then benchmark.
+- **TurboQuant compression artifacts** — high compression ratios (>10×) can degrade recall by 1-3 percentage points. Fall back to `embedding_backend: "f32"` in config if accuracy matters more than RAM.
+- **Insufficient training memories** — recall@K below 0.6 with <50 memories is normal; the index needs density to discriminate.
+
+### "Encryption was enabled but reads return garbage"
+
+The passphrase changed since the store was last written. Recover by:
+
+1. Re-set the original passphrase: `vibecli set-key openmemory_passphrase '<original>'`
+2. Restart the daemon so `load_memory_store()` re-applies the passphrase.
+3. If the original passphrase is genuinely lost: the store is unrecoverable. Restore from backup, or delete the openmemory directory to start fresh.
+
+### "Permission denied on the store directory"
+
+The daemon couldn't write to `~/.local/share/vibecli/openmemory/` (Linux) or the equivalent on your platform. Fix:
+
+```bash
+# Linux
+chmod -R u+rw "$HOME/.local/share/vibecli"
+# macOS
+chmod -R u+rw "$HOME/Library/Application Support/vibecli"
+```
+
+If you're running the daemon under a different user (e.g. a systemd service), make sure the data directory is writable by that user.
+
+### "Disk full"
+
+Run `/openmemory decay` to purge low-salience memories. If that's not enough, export and re-import with a more aggressive salience threshold:
+
+```bash
+curl http://127.0.0.1:7878/memory/export > backup.md
+rm -rf "$HOME/Library/Application Support/vibecli/openmemory"
+# Re-import only the salient bits manually from backup.md.
+```
+
+---
+
+## FAQ
+
+**How long do memories persist?**
+Indefinitely, until you delete them or the salience-decay loop reclaims them. Decay runs once a day by default and only purges memories with `effective_salience < 0.05` that haven't been reinforced in 30+ days. Pinned memories are exempt.
+
+**Can I delete a specific memory?**
+Yes — via the OpenMemory panel's per-row Delete button, or `/openmemory delete <id>` in the REPL, or `POST /memory/delete` with `{ "id": "..." }`. Deletion is immediate and irreversible.
+
+**What's the encryption overhead?**
+The current implementation uses XOR-based stream encryption (lightweight, ~5% throughput overhead). AES-256-GCM is on the roadmap — when it lands, expect ~10-15% throughput overhead and no measurable recall impact.
+
+**Is memory available on mobile / watch?**
+No — by design. Memory authoring is a desktop / CLI workflow. Mobile and watch clients consume *generated* artifacts (recaps, sessions) but don't surface the memory store directly. The HTTP routes at `/memory/*` are available to any client that wants them, including IDE plugins and the Agent SDK.
+
+**How do I share memories across teammates?**
+The store is single-user by design. To share, export specific memories as markdown and check them into your repo as `docs/team-memory.md`. The auto-recording layer reads any `*.md` file in the workspace at agent-context build time.
+
+**Will my memories sync across devices?**
+Not automatically. The store is local-only (Zero-Config First — no cloud dependency). To sync manually, use the export/import flow above with a private file-share (Dropbox, iCloud, etc.) or a private git repo.
+
+**What happens if the JSON store gets corrupted?**
+On load failure, `load_memory_store()` falls back to a fresh empty store rather than crashing the daemon. You'll see `enabled: true, total_memories: 0` in `/health` even though you previously had memories. Restore from backup, or accept the loss and move on.
+
+---
+
+## Cross-client scope
+
+| Client | Memory access |
+|---|---|
+| **VibeUI (desktop, Tauri)** | Full UI: OpenMemoryPanel, ChatMemoryPanel, SessionMemoryPanel, MemoryProjectionsPanel, MemoryPanel |
+| **VibeCLI** | Full REPL: `/openmemory *` commands |
+| **VibeMobile** | None by current design |
+| **VibeWatch (watchOS / Wear OS)** | None by current design |
+| **VS Code / JetBrains / Neovim plugins** | HTTP via `/memory/*` routes (not surfaced in plugin UIs today) |
+| **Agent SDK** | HTTP via `/memory/*` routes |
+
+If you need a memory UI on a client where it's currently absent, file an issue — the daemon-side API is stable and complete; only the client-side surface is missing.
+
+---
+
 ## See Also
 
 - [Demo 48: OpenMemory Cognitive Engine](../demos/48-open-memory/) — Basic walkthrough
