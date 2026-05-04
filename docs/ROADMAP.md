@@ -6,7 +6,7 @@ permalink: /roadmap/
 
 # Fit-Gap Analysis & Feature Implementation Roadmap
 
-**Originally published:** February 2026 &middot; **Last refreshed:** 2026-04-26 (v0.5.6 cycle, post-v13 fitgap)
+**Originally published:** February 2026 &middot; **Last refreshed:** 2026-05-03 (v0.5.7 cycle, v14 industry delta on top of v13 fitgap)
 **Scope:** VibeCody compared against **30+** competing AI coding products across terminal, editor, cloud-agent, code-review, completions-only, and mobile/watch categories.
 
 > This is now the **single canonical roadmap** — earlier iterations (v5, v6) and the 13 deep-dive fit-gap files are absorbed here and in the companion **[Fit-Gap Analysis](./fit-gap-analysis/)**. The original five-competitor delta (Codex CLI, Claude Code, Antigravity, Cursor, Windsurf) is preserved as a historical record below; phases 23–39 are summarised in the **History appendices** at the end of this document. The 2026-04-26 trend snapshot (§1bis) and the v13 audit-reconciliation work (Phase 53, [Appendix D](#appendix-d--phase-53-april-2026-trend-delta--audit-reconciliation)) are the freshest layer.
@@ -33,6 +33,41 @@ The eight days between the v0.5.5 fitgap refresh (2026-04-17) and today produced
 | 2026-Q1 | **Sandbox infrastructure GA wave** | Cloudflare Sandboxes GA; E2B/Northflank/Modal/Vercel/Docker microVM platforms shipped | Optional roadmap track: VibeCLI `--cloud` provider for users without local sandboxing. |
 
 The 17 gaps surfaced by these releases (11 new + 6 covered by existing infra) are catalogued in §16.1 of the [Fit-Gap Analysis](./fit-gap-analysis/) and queued in [Phase 53](#appendix-d--phase-53-april-2026-trend-delta--audit-reconciliation) below.
+
+## 1ter. May 2026 weekly delta + missed-quarter items (added 2026-05-03)
+
+The seven days between the v13 snapshot (2026-04-26) and today shipped another dense wave; a handful of Q1-Q2 items v13 missed are folded in here as well. Sources surveyed: `cursor.com/changelog`, GitHub Copilot blog, Anthropic Claude Code releases, OpenAI Codex/ChatGPT release notes, Cognition Devin docs, `blog.modelcontextprotocol.io`, `a2a-protocol.org`, Linux Foundation press, JetBrains Junie + Air blogs, Ollama releases, `ggml-org/llama.cpp`, vLLM releases, SWE-bench leaderboards, sandbox provider coverage (E2B / Daytona / Modal / Blaxel / SmolVM), and OSS coding-agent repos (Cline / OpenHands / Aider / Continue).
+
+### 1ter.1 Headline shifts not yet absorbed elsewhere
+
+| Date | Release | What changed | Impact on VibeCody positioning |
+|------|---------|--------------|--------------------------------|
+| 2026-05-04 | **MCP `experimental-ext-skills`** | Skills discovery & distribution as MCP primitives (`modelcontextprotocol/experimental-ext-skills`) | New gap **B1** — VibeCody's 711 skill files could become MCP-discoverable across every host that speaks MCP. |
+| 2026-05-01 | **Cursor Plugin Marketplace v2** | Plugins bundle MCP servers + skills + subagents + rules + hooks; admin install policy (Default Off / Default On / Required); Team Marketplace decoupled from any specific repo | New gap **B2** — VibeCody plugins are still single-purpose; no bundle format with admin-policy tiers. |
+| 2026-04-30 | **Cursor Security Review (beta)** | Always-on Security Reviewer + Vulnerability Scanner agents on Teams + Enterprise plans | New gap **B3** — `/review` runs on demand; no always-on security-agent pattern. |
+| 2026-04-29 | **VS 2026 + VS Code Integrated Cloud Agent** | "Assign a task, close the IDE, get a PR" — Copilot Cloud Agent now controllable from inside the editor | Extends **A9** — cloud-agent remote-control is now IDE-native, not just web/mobile. |
+| 2026-04-23 | **OpenAI GPT-5.5 GA** | Recommended default Codex model (replaces 5.4); GPT-5 latency at higher intelligence; fewer tokens per Codex task; computer-use focus | Add to `useModelRegistry.ts`; route default Codex calls to 5.5. GPT-5.3-Codex-Spark from §1bis remains the latency tier. |
+| 2026-Apr | **Cursor SDK (TypeScript)** | Same agent runtime / harness / models as desktop, CLI, and web — exposed as a `@cursor/sdk` TS library | Direct competitor to `packages/agent-sdk/`; parity audit (subagents, hooks, plugins, skills, sandbox tiers). |
+| 2026-04-21 | **llama.cpp NVFP4 (PR #22196 reposted)** | Blackwell-native FP4 path merged; MXFP4 progressing in `ik_llama.cpp`; b8196+ runs MXFP4 MoE on Blackwell | TurboQuant target list: add **NVFP4** alongside MXFP4 + AWQ-Marlin. CubeCL/Burn ban scope unchanged. |
+| 2026-Apr | **Chinese frontier wave** | DeepSeek V4-Flash $0.14/$0.28 per 1M (~7.7× cheaper than Qwen 3.6-Plus on chatbot loads); Qwen 3.6-Plus + Qwen 3.6-35B-A3B (Apache 2.0); Kimi K2.6 long-horizon agentic; MiniMax M2.7; GLM-5.1 | Counsel default panels need an open-weight slot; `cost_router.rs` learns the new floor; `useModelRegistry.ts` Ollama defaults shift to Qwen 3.6-Coder family when released. |
+| 2026-Apr–May | **Ollama 0.22.x** | `/v1/messages` (Anthropic Messages API compat — Claude Code can drive Ollama-hosted open models); `ollama launch` registers Claude Desktop / Cowork / Code; Gemma 4 thinking + tool calls; MLX runner gains logprobs + fused top-P/K | Ollama-compat `/api/*` surface should mirror `/v1/messages`; existing routing layer absorbs this with one new route. |
+| 2026-Q1 | **A2A v1.2 (Linux Foundation Agentic AI Foundation)** | 150+ orgs in production; signed agent cards (cryptographic signatures for domain verification); GA across Google / Microsoft / AWS | Extends **A4** — VibeCody's A2A server façade needs P-256-signed agent cards at `/.well-known/agent.json`; aligns with watch-pairing's existing P-256 ECDSA constraint. |
+| 2026-Q1 | **ACP Registry live** | Built into Zed + JetBrains; lists Claude Code, Codex CLI, GitHub Copilot CLI, OpenCode, Gemini CLI | Concrete follow-through on **A4** — register VibeCLI as an ACP agent so Zed / JetBrains users discover it natively. |
+| 2026-Q1 | **SWE-bench Verified contamination disclosed** | OpenAI stopped reporting Verified scores; audit found **59.4% of hard tasks have flawed tests**; all frontier models contaminated | §9.3 leaderboard callout needs a contamination caveat; **SWE-bench Pro / SWE-rebench / SWE-bench-Live** become primary references. |
+| 2026-Q1 | **DAPO mainstreamed** | OpenRLHF, verl, NeMo-RL all ship DAPO as default reasoning-RL alongside PPO/GRPO; ByteDance paper open-sourced (50% fewer training steps for AIME-class tasks) | RL-OS slice 2 should make GRPO + DAPO peers, not roll-forward; current `vibe_rl/algos/ppo.py` is the only algo file with recent edits. |
+| 2026-Q1 | **Sandbox cold-start floor** | Blaxel 25 ms; Daytona 27–90 ms (Docker); E2B Firecracker microVMs ~150 ms; Modal gVisor; SmolVM debuted 2026-04-17 | Sandbox-tiers Firecracker tier should target ≤100 ms cold start; document the latency floor per backend in `docs/design/sandbox-tiers/`. |
+| 2026-05-19 (planned) | **Google I/O 2026 — Gemini 4 + Android 17 + Agentic Coding Dev Preview** | I/O keynote with agentic coding as a headline track; Gemini 3.1 Pro Preview already shipping ahead of it | Calendar item: prep `useModelRegistry.ts` Gemini 4 entry; Android 17 may move VibeMobile API floor — re-check `pubspec.yaml` `minSdkVersion` after I/O. |
+
+### 1ter.2 Context-only signals (positioning, not new gaps)
+
+- **Claude Sonnet 4.8 leaked** (Mar 2026) — Anthropic skips a 4.7 designation for the Sonnet tier; pricing held at $3 / $15 per 1M ([Anthropic source-code leak coverage](https://www.ainexusdaily.com/article/anthropic-source-leak-claude-sonnet-4-8-undercover-mode), unverified for exact GA week). Add to `useModelRegistry.ts` once the API exposes it.
+- **Cursor Interactive Canvases** (Apr 15, missed in v13) — agent responses render as dashboards / forms / charts inside the chat panel. Overlaps MCP Apps (A1 / SEP-1865); a single workstream now covers both surfaces.
+- **Copilot training-default opt-in** (Apr 2026) — GitHub flipped users' AI-training preference to opt-in by default; community backlash drove visible migration to Cline (58k stars), OpenHands (72k), Aider (27k). VibeCody's "no training on user code" stance becomes a measurable sales axis.
+- **JetBrains Air** (Mar 2026) — agentic IDE rebuilt on Fleet remnants; supports OpenAI Codex, Anthropic Claude Agent, Gemini CLI, and Junie as native agents. Adds to §1.2 IDE list as a watch item, not a direct VibeUI competitor today.
+- **Doe v. GitHub Copilot** (ongoing, 2026 status) — DMCA claims dismissed; license / contract claims still proceeding; reshaping AI-gen-code compliance standards. Reinforces (3) above; informs `/review`'s open-source-license-scan UX.
+- **Devin v3 API GA** (Q1 2026) — Cognition's v3 API is now the primary surface (out of beta); HTML/PDF/SVG inline rendering in session sidebar; focus mode. Devin-family parity continues to track A8 (self-verifying loop) more than UI ergonomics.
+
+The 6 new external gaps surfaced (B1–B6) plus the 9 informational rows are catalogued in §16.4 of the [Fit-Gap Analysis](./fit-gap-analysis/) and queued for **Phase 54** in [Appendix D](#appendix-d--phase-53-april-2026-trend-delta--audit-reconciliation). The §16.4 text also revises §15.4 (SWE-bench callout) to flag the contamination finding.
 
 ## 1. Competitive Landscape Summary
 
@@ -992,7 +1027,7 @@ The honest list (tracked in the consolidated [Fit-Gap Analysis](./fit-gap-analys
 - **Cursor's Tab model** — next-edit prediction quality is still best-in-class; we ship FIM completions but haven't matched their specialized model.
 - **Devin-level long-horizon autonomy** — Devin chains hours of work in a cloud VM; our agent loop tops out at ~50 steps.
 - **Claude Code's 300+ MCP servers** — we ship a compliant MCP client, but the community server catalog is still dominated by Anthropic.
-- **SWE-bench leaderboard** — OpenHands currently leads; we track this in the benchmark panel.
+- **SWE-bench leaderboard** — Claude Mythos Preview now leads SWE-bench Verified at 93.9% (Opus 4.7 87.6%, GPT-5.3-Codex 85%, Augment 72.0% open-system pass@1). **Caveat (2026-05-03):** OpenAI stopped reporting Verified scores after a contamination audit found 59.4% of hard tasks have flawed tests — SWE-bench Pro, SWE-rebench, and SWE-bench-Live are now the primary references. Tracked in the benchmark panel.
 - **Enterprise SSO / audit packaging** — Cody and Copilot for Business are further along on SOC 2, SSO, central policy.
 
 ### 9.4 Headline positioning
@@ -1180,3 +1215,48 @@ To keep the phase tractable, the following are **explicitly deferred**:
 - **Devin-level hours-long autonomy** (long-horizon item from §15 of the fitgap; not addressed here).
 - **Cursor's proprietary Tab model** (long-horizon; we continue to use Ollama/cloud FIM).
 - **Enterprise SSO / audit packaging** (long-horizon; tracked separately under MCP enterprise extensions in Phase 54).
+
+---
+
+## Appendix E — Phase 54: May 2026 weekly delta (B1–B6 + trivial closes)
+
+**Input:** [§1ter](#1ter-may-2026-weekly-delta--missed-quarter-items-added-2026-05-03) of this document + [Fit-Gap §16.4](./fit-gap-analysis/#164-v14--may-2026-weekly-delta--missed-quarter-items-added-2026-05-03).
+**Window:** v0.5.7 cycle (target completion: 2026-05-17).
+**Output:** Six new gap closures (B1–B6) + five trivial closes already enumerated in §16.4.
+
+### 54.1 New gap closures
+
+**P0 (this cycle):**
+
+- **B1 — Skills as MCP primitives** — expose each entry under `vibecli/vibecli-cli/skills/` via an MCP server's `list_skills` / `get_skill` resources; reuse `skill_loader.rs`; ship a single `vibecli-skills-mcp` binary registered with the daemon; 5 BDD scenarios. Highest-leverage item this cycle — every MCP host (Claude Code, Cursor, Cline, Zed, JetBrains, …) inherits all 711 skills with no per-host work.
+- **B2 — Plugin bundle format with admin install policies** — define `vibecli-plugin.toml` manifest bundling MCP servers + skills + subagents + rules + hooks; `vibecli plugin install <path-or-url>`; `WorkspaceStore` persists per-plugin policy (`Off` / `On` / `Required`); governance panel surfaces this; 6 BDD scenarios. Patent-distance check: avoid copying Cursor's marketplace layout/UX terminology.
+- **B5 — NVFP4 (Blackwell native) TurboQuant target** — add NVFP4 Metal+CUDA kernels to TurboQuant alongside existing MXFP4 + AWQ-Marlin paths; benchmark on RTX 5090 / B200 / GB200; CubeCL/Burn ban scope unchanged.
+- **B6 — A2A signed agent-card façade** — serve `/.well-known/agent.json` with a P-256 ECDSA signature reused from the watch-pairing key infrastructure; register VibeCLI as an A2A server in the LF Agentic AI Foundation registry; 4 BDD scenarios covering signature verification + task lifecycle.
+
+**P1 (next cycle, v0.5.8):**
+
+- **B3 — Always-on agent classes (security review, vuln scan)** — convert `/review` from on-demand to a daemon-resident agent class; trigger on file-watcher / pre-commit / CI; route findings to the existing `Finding` schema; UI surface in `SecurityPanel.tsx`. **Patent-distance check required** — design must remain distant from Cursor's Security Review UX.
+- **B4 — Cursor SDK parity audit** — compare `packages/agent-sdk/` to `@cursor/sdk` along: subagents, hooks, plugins, skills, sandbox tiers, recap/resume, multi-client (mobile/watch). Items where Cursor's surface is wider become roadmap entries (deferred until parity assessment is complete; this is research, not implementation).
+
+### 54.2 Trivial closes (one-line / one-route)
+
+- **Ollama `/v1/messages` route** — one route handler in `vibecli/vibecli-cli/src/serve.rs`; the existing Anthropic provider format already matches.
+- **GPT-5.5 / GPT-5.4 model entries** — append to `useModelRegistry.ts` `STATIC_MODELS.openai`.
+- **Sonnet 4.8 entry** (when Anthropic exposes it) — same one-file change.
+- **Qwen 3.6 / DeepSeek V4 / Kimi K2.6 entries** — append to the Ollama section of `useModelRegistry.ts` once GGUF / vLLM weights land.
+- **`GEMINI.md` fallback in `memory.rs`** — already noted in v13 as one-line; remains pending.
+
+### 54.3 ACP Registry follow-through
+
+A4 from Phase 53 (ACP server mode) has a concrete deliverable now that the ACP Registry is live: register VibeCLI in the registry once A4 ships so Zed + JetBrains users discover it natively. Coordinate with the JetBrains plugin update referenced in 53.2 P0.
+
+### 54.4 Patent-distance posture (carries forward)
+
+B2 (Plugin Marketplace) and B3 (Always-on Security Review) sit close to recently-shipped Cursor surfaces. Same protocol as 53.3 — patent-distance check before implementation begins, per-feature note in `notes/`, and avoid copying competitor layout/interaction language. The user-validated stance from the diffcomplete cycles applies (memory: `feedback_patent_distance_priority`).
+
+### 54.5 Out-of-scope for Phase 54
+
+- **MCP Apps generic UI host** (A1 from Phase 53 — already P0 there; B2 reuses the same React embedding work, no separate item).
+- **Long-horizon items from §15** of the fitgap (Tab model, Devin autonomy, MCP catalog breadth, SWE-bench leaderboard entry, enterprise SSO/audit, BYOA adapters) — none addressed here.
+- **Computer-use feedback into the agent loop beyond `desktop_agent.rs`** — A8 in Phase 53 covers it.
+- **Patent-audit working doc updates** — handled per-feature in `notes/PATENT_AUDIT_INLINE.md`, not here.
