@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { MemoryErrorCard } from './MemoryErrorCard';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -321,12 +322,7 @@ const OpenMemoryPanel: React.FC = () => {
 
   return (
     <div className="panel-container">
-      {/* Error */}
-      {error && (
-        <div className="panel-error">
-          {error}
-        </div>
-      )}
+      <MemoryErrorCard error={error} />
       {/* Toast */}
       {toast && (
         <div style={{
@@ -337,9 +333,20 @@ const OpenMemoryPanel: React.FC = () => {
       )}
 
       {/* Tab Bar */}
-      <div className="panel-tab-bar">
+      <div className="panel-tab-bar" role="tablist" aria-label="OpenMemory sections">
         {tabs.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} className={`panel-tab ${tab === t.key ? 'active' : ''}`}>{t.label}</button>
+          <button
+            key={t.key}
+            role="tab"
+            aria-selected={tab === t.key}
+            aria-controls={`openmemory-panel-${t.key}`}
+            id={`openmemory-tab-${t.key}`}
+            tabIndex={tab === t.key ? 0 : -1}
+            onClick={() => setTab(t.key)}
+            className={`panel-tab ${tab === t.key ? 'active' : ''}`}
+          >
+            {t.label}
+          </button>
         ))}
       </div>
 
@@ -457,15 +464,27 @@ const OpenMemoryPanel: React.FC = () => {
 
         {/* ─── Memories List ────────────────────────────────────────── */}
         {tab === 'memories' && (
-          <div>
+          <div role="region" aria-label="Memory list">
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              <select value={sectorFilter} onChange={e => setSectorFilter(e.target.value)} className="panel-select">
+              <select
+                value={sectorFilter}
+                onChange={e => setSectorFilter(e.target.value)}
+                className="panel-select"
+                aria-label="Filter memories by sector"
+              >
                 <option value="all">All Sectors</option>
                 {Object.keys(SECTOR_COLORS).map(s => (
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
-              <button className="panel-btn" onClick={loadMemories} style={actionBtnStyle}>Refresh</button>
+              <button
+                className="panel-btn"
+                onClick={loadMemories}
+                style={actionBtnStyle}
+                aria-label="Refresh memory list"
+              >
+                Refresh
+              </button>
             </div>
 
             {memories.length === 0 ? (

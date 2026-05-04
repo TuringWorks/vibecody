@@ -174,10 +174,28 @@ export function SessionMemoryPanel() {
         </div>
       )}
 
-      <div className="panel-tab-bar" style={{ marginBottom: 12 }}>
-        <button className={`panel-tab ${tab === "health" ? "active" : ""}`} onClick={() => setTab("health")}>Health</button>
-        <button className={`panel-tab ${tab === "samples" ? "active" : ""}`} onClick={() => setTab("samples")}>Samples</button>
-        <button className={`panel-tab ${tab === "alerts" ? "active" : ""}`} onClick={() => setTab("alerts")}>Alerts ({activeAlerts.length})</button>
+      <div className="panel-tab-bar" style={{ marginBottom: 12 }} role="tablist" aria-label="Session memory views">
+        <button
+          role="tab"
+          aria-selected={tab === "health"}
+          tabIndex={tab === "health" ? 0 : -1}
+          className={`panel-tab ${tab === "health" ? "active" : ""}`}
+          onClick={() => setTab("health")}
+        >Health</button>
+        <button
+          role="tab"
+          aria-selected={tab === "samples"}
+          tabIndex={tab === "samples" ? 0 : -1}
+          className={`panel-tab ${tab === "samples" ? "active" : ""}`}
+          onClick={() => setTab("samples")}
+        >Samples</button>
+        <button
+          role="tab"
+          aria-selected={tab === "alerts"}
+          tabIndex={tab === "alerts" ? 0 : -1}
+          className={`panel-tab ${tab === "alerts" ? "active" : ""}`}
+          onClick={() => setTab("alerts")}
+        >Alerts ({activeAlerts.length})</button>
       </div>
 
       {tab === "health" && (
@@ -229,7 +247,14 @@ export function SessionMemoryPanel() {
 
       {tab === "samples" && (
         <div>
-          {samples.length === 0 && <div className="panel-empty">No memory samples recorded yet.</div>}
+          {samples.length === 0 && (
+            <div className="panel-empty" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div>No memory samples recorded yet.</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
+                Sampling is automatic — the daemon snapshots heap + context-token usage every minute. Samples will appear here once the daemon has been running for a few minutes.
+              </div>
+            </div>
+          )}
           {samples.length > 0 && (
             <>
               <div className="panel-card">
@@ -286,7 +311,14 @@ export function SessionMemoryPanel() {
 
       {tab === "alerts" && (
         <div>
-          {alerts.length === 0 && <div className="panel-empty">No memory alerts recorded.</div>}
+          {alerts.length === 0 && (
+            <div className="panel-empty" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div>No memory alerts recorded.</div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
+                Alerts fire when heap exceeds the configured threshold or context tokens approach the model's limit. An empty list is the healthy state.
+              </div>
+            </div>
+          )}
           {activeAlerts.length === 0 && alerts.length > 0 && <div className="panel-card" style={{ color: "var(--success-color)" }}>All alerts resolved.</div>}
           {alerts.map((a) => (
             <div key={a.id} className="panel-card" style={{ opacity: a.resolved ? 0.5 : 1 }}>

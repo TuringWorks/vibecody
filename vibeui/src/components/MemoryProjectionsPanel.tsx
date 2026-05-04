@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { MarkdownPreview } from "./MarkdownPreview";
+import { MemoryErrorCard } from "./MemoryErrorCard";
 
 interface MemoryProjectionsPanelProps {
   workspacePath?: string | null;
@@ -129,17 +130,27 @@ export function MemoryProjectionsPanel({
           color: "var(--text-primary)",
         }}
       >
-        {error && (
-          <div className="panel-error" style={{ marginBottom: 12 }}>
-            {error}
-          </div>
-        )}
+        <MemoryErrorCard error={error} />
         {!error && activeBody && <MarkdownPreview content={activeBody} />}
         {!error && !activeBody && !loading && (
-          <div className="panel-empty">
-            {tier === "user" && !canShowUser
-              ? "No home directory available — USER.md not generated."
-              : "No memory content yet. Facts extracted by agents or imported via /openmemory will appear here."}
+          <div className="panel-empty" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {tier === "user" && !canShowUser ? (
+              <>
+                <div>No home directory available — USER.md not generated.</div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
+                  USER.md projections require a writable HOME directory. Set the HOME environment variable and restart the daemon.
+                </div>
+              </>
+            ) : (
+              <>
+                <div>{tier === "user" ? "USER.md is empty." : "No project memory yet."}</div>
+                <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)" }}>
+                  {tier === "user"
+                    ? "Cross-project facts will appear here once agents extract them. To seed manually, add to ~/.vibecli/USER.md."
+                    : "Project-scoped facts populate here automatically as agents work. To seed manually, add a memory via the OpenMemory panel or the /openmemory REPL command."}
+                </div>
+              </>
+            )}
           </div>
         )}
         {activePath && (

@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { useToast } from "../hooks/useToast";
 import { Toaster } from "./Toaster";
 import { Pin } from "lucide-react";
+import { MemoryErrorCard } from "./MemoryErrorCard";
 
 interface MemoryPanelProps {
  workspacePath?: string | null;
@@ -176,11 +177,7 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  </div>
  )}
 
- {error && (
- <div style={{ fontSize: "var(--font-size-base)", color: "var(--error-color)", padding: "8px 8px", background: "color-mix(in srgb, var(--accent-rose) 15%, transparent)", borderRadius: "var(--radius-xs-plus)" }}>
- {error}
- </div>
- )}
+ <MemoryErrorCard error={error} />
 
  {/* New rule form */}
  {creating && (
@@ -230,7 +227,15 @@ function DirRulesTab({ workspacePath }: { workspacePath?: string | null }) {
  {files.map((f) => (
  <div role="button" tabIndex={0}
  key={f.filename}
+ aria-label={`Select rule file ${f.name}`}
+ aria-pressed={selected === f.filename}
  onClick={() => selectFile(f.filename)}
+ onKeyDown={(e) => {
+   if (e.key === "Enter" || e.key === " ") {
+     e.preventDefault();
+     selectFile(f.filename);
+   }
+ }}
  style={{
  padding: "8px 8px",
  cursor: "pointer",
