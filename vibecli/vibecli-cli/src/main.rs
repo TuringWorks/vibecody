@@ -1148,6 +1148,12 @@ const KEY_PROVIDERS: &[&str] = &[
     // reads from ProfileStore at startup and exports HF_TOKEN so
     // hf-hub / candle pick it up without the user touching env vars.
     "huggingface",
+    // openmemory_passphrase: encrypts memory content at rest. Stored
+    // here so the daemon can apply it on every load_memory_store()
+    // call without the user retyping the passphrase. ProfileStore is
+    // itself encrypted (machine-bound key) so the passphrase is never
+    // at rest in plaintext.
+    "openmemory_passphrase",
 ];
 
 fn run_keys_command(action: &str, args: &[String]) {

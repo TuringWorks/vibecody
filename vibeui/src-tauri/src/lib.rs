@@ -1287,6 +1287,7 @@ pub fn run() {
             commands::openmemory_consolidate,
             commands::openmemory_export,
             commands::openmemory_enable_encryption,
+            commands::openmemory_disable_encryption,
             commands::openmemory_layered_context,
             commands::openmemory_drawer_stats,
             commands::openmemory_benchmark,

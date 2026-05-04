@@ -1294,6 +1294,13 @@ impl OpenMemoryStore {
         self.encryption = Some(MemoryEncryption::from_passphrase(passphrase));
     }
 
+    /// True when the store is encrypting writes. Public accessor so
+    /// `/health` can expose it as a readiness signal without leaking
+    /// the passphrase or the encryption struct itself.
+    pub fn encryption_enabled(&self) -> bool {
+        self.encryption.is_some()
+    }
+
     /// Compression ratio of the backing embedding index — raw f32 bytes /
     /// compressed bytes. With the TurboQuant-backed index this lands ≥ 8×.
     pub fn embedding_compression_ratio(&self) -> f64 {

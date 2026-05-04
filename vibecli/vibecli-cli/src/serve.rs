@@ -234,6 +234,44 @@ fn configured_provider_names() -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// Snapshot of the OpenMemory store's readiness for `/health`. Loads the
+/// store fresh (sub-millisecond JSON read) and reports counts + flags. No
+/// content ever leaves this function — only shapes. Returns a neutral
+/// `enabled: false` shape when the store can't be loaded so `/health`
+/// stays a 200 even on a fresh / broken install.
+fn memory_health_block() -> serde_json::Value {
+    let store_dir = openmemory_dir();
+    let mut store = match crate::open_memory::OpenMemoryStore::load(&store_dir, "default") {
+        Ok(s) => s,
+        Err(_) => {
+            return serde_json::json!({
+                "enabled": false,
+                "store_path": store_dir.display().to_string(),
+                "total_memories": 0,
+                "drawer_count": 0,
+                "encryption_enabled": false,
+            });
+        }
+    };
+    // Apply the configured passphrase so encryption_enabled reflects user
+    // intent, not just whether load happened to deserialize an encrypted
+    // store. Same Zero-Config First pattern as load_memory_store().
+    if let Ok(profile_store) = crate::profile_store::ProfileStore::new() {
+        if let Ok(Some(passphrase)) = profile_store.get_api_key("default", "openmemory_passphrase") {
+            if !passphrase.is_empty() {
+                store.enable_encryption(&passphrase);
+            }
+        }
+    }
+    serde_json::json!({
+        "enabled": true,
+        "store_path": store_dir.display().to_string(),
+        "total_memories": store.total_memories(),
+        "drawer_count": store.drawer_store().len(),
+        "encryption_enabled": store.encryption_enabled(),
+    })
+}
+
 async fn health() -> impl IntoResponse {
     let hf_token_present = std::env::var("HF_TOKEN").map(|s| !s.is_empty()).unwrap_or(false);
     let codec_probe = CODEC_PROBE.get();
@@ -269,7 +307,17 @@ async fn health() -> impl IntoResponse {
                 "requires": "providers.configured_count > 0",
                 "transport": "tauri-desktop",
             },
+            "memory": {
+                "available": true,
+                "transport": "daemon-http",
+                "routes_prefix": "/memory/",
+            },
         },
+        // OpenMemory store readiness — counts + flags only, never content.
+        // Consumed by Settings panel + ops dashboards so a feature that
+        // depends on "memory has data" can read one canonical signal
+        // instead of probing /memory/list.
+        "memory": memory_health_block(),
     }))
 }
 
@@ -3881,9 +3929,24 @@ fn openmemory_dir() -> PathBuf {
         .join("openmemory")
 }
 
+/// Load the OpenMemory store and apply the user-configured encryption
+/// passphrase from ProfileStore (if any). Hydrating from ProfileStore on
+/// every load means a freshly-spawned worker process picks up the
+/// passphrase without re-prompting the user — same Zero-Config First
+/// pattern as `hydrate_hf_token_from_profile_store`. ProfileStore reads
+/// are sub-millisecond local SQLite queries so the per-call cost is
+/// negligible.
 fn load_memory_store() -> crate::open_memory::OpenMemoryStore {
-    crate::open_memory::OpenMemoryStore::load(openmemory_dir(), "default")
-        .unwrap_or_else(|_| crate::open_memory::OpenMemoryStore::new(openmemory_dir(), "default"))
+    let mut store = crate::open_memory::OpenMemoryStore::load(openmemory_dir(), "default")
+        .unwrap_or_else(|_| crate::open_memory::OpenMemoryStore::new(openmemory_dir(), "default"));
+    if let Ok(profile_store) = crate::profile_store::ProfileStore::new() {
+        if let Ok(Some(passphrase)) = profile_store.get_api_key("default", "openmemory_passphrase") {
+            if !passphrase.is_empty() {
+                store.enable_encryption(&passphrase);
+            }
+        }
+    }
+    store
 }
 
 #[derive(Deserialize)]
@@ -3914,12 +3977,28 @@ async fn memory_add(
     _state: State<ServeState>,
     Json(req): Json<MemoryAddRequest>,
 ) -> (StatusCode, Json<serde_json::Value>) {
+    let content_len = req.content.len();
+    let tag_count = req.tags.len();
     let mut store = load_memory_store();
     let id = store.add_with_tags(req.content, req.tags, std::collections::HashMap::new());
     let sector = store.get(&id).map(|m| m.sector.to_string()).unwrap_or_default();
     match store.save() {
-        Ok(_) => (StatusCode::CREATED, Json(serde_json::json!({ "id": id, "sector": sector }))),
-        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("save failed: {e}")),
+        Ok(_) => {
+            tracing::info!(
+                target: "vibecody::memory",
+                id = %id, sector = %sector, content_len, tag_count,
+                "memory.add: persisted"
+            );
+            (StatusCode::CREATED, Json(serde_json::json!({ "id": id, "sector": sector })))
+        }
+        Err(e) => {
+            tracing::warn!(
+                target: "vibecody::memory",
+                id = %id, error = %e,
+                "memory.add: save failed (memory not durable)"
+            );
+            json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("save failed: {e}"))
+        }
     }
 }
 
@@ -3927,9 +4006,16 @@ async fn memory_query(
     _state: State<ServeState>,
     Json(req): Json<MemoryQueryRequest>,
 ) -> Json<serde_json::Value> {
+    let query_len = req.text.len();
+    let limit = req.limit;
     let store = load_memory_store();
     let sector_filter = req.sector.as_deref().and_then(|s| s.parse().ok());
     let results = store.query_with_filters(&req.text, req.limit, sector_filter, None);
+    tracing::debug!(
+        target: "vibecody::memory",
+        query_len, limit, sector = ?req.sector, returned = results.len(),
+        "memory.query"
+    );
 
     let items: Vec<serde_json::Value> = results.iter().map(|r| {
         serde_json::json!({
@@ -3997,8 +4083,14 @@ async fn memory_add_fact(
     let mut store = load_memory_store();
     let id = store.add_fact(req.subject, req.predicate, req.object);
     match store.save() {
-        Ok(_) => (StatusCode::CREATED, Json(serde_json::json!({ "id": id }))),
-        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("save failed: {e}")),
+        Ok(_) => {
+            tracing::info!(target: "vibecody::memory", id = %id, "memory.add_fact: persisted");
+            (StatusCode::CREATED, Json(serde_json::json!({ "id": id })))
+        }
+        Err(e) => {
+            tracing::warn!(target: "vibecody::memory", id = %id, error = %e, "memory.add_fact: save failed");
+            json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("save failed: {e}"))
+        }
     }
 }
 
@@ -4021,20 +4113,33 @@ async fn memory_facts(_state: State<ServeState>) -> Json<serde_json::Value> {
 async fn memory_decay(_state: State<ServeState>) -> Json<serde_json::Value> {
     let mut store = load_memory_store();
     let purged = store.run_decay();
-    let _ = store.save();
-    Json(serde_json::json!({ "purged": purged, "remaining": store.total_memories() }))
+    let remaining = store.total_memories();
+    if let Err(e) = store.save() {
+        tracing::warn!(target: "vibecody::memory", error = %e, purged, remaining, "memory.decay: save failed");
+    } else {
+        tracing::info!(target: "vibecody::memory", purged, remaining, "memory.decay: completed");
+    }
+    Json(serde_json::json!({ "purged": purged, "remaining": remaining }))
 }
 
 async fn memory_consolidate(_state: State<ServeState>) -> Json<serde_json::Value> {
     let mut store = load_memory_store();
     let results = store.consolidate();
-    let _ = store.save();
-    Json(serde_json::json!({ "consolidated": results.len(), "remaining": store.total_memories() }))
+    let consolidated = results.len();
+    let remaining = store.total_memories();
+    if let Err(e) = store.save() {
+        tracing::warn!(target: "vibecody::memory", error = %e, consolidated, remaining, "memory.consolidate: save failed");
+    } else {
+        tracing::info!(target: "vibecody::memory", consolidated, remaining, "memory.consolidate: completed");
+    }
+    Json(serde_json::json!({ "consolidated": consolidated, "remaining": remaining }))
 }
 
 async fn memory_export(_state: State<ServeState>) -> (StatusCode, String) {
     let store = load_memory_store();
-    (StatusCode::OK, store.export_markdown())
+    let body = store.export_markdown();
+    tracing::info!(target: "vibecody::memory", bytes = body.len(), "memory.export: produced markdown");
+    (StatusCode::OK, body)
 }
 
 #[derive(Deserialize)]
@@ -4048,9 +4153,14 @@ async fn memory_pin(
 ) -> (StatusCode, Json<serde_json::Value>) {
     let mut store = load_memory_store();
     if store.pin(&req.id) {
-        let _ = store.save();
+        if let Err(e) = store.save() {
+            tracing::warn!(target: "vibecody::memory", id = %req.id, error = %e, "memory.pin: save failed");
+        } else {
+            tracing::info!(target: "vibecody::memory", id = %req.id, "memory.pin");
+        }
         (StatusCode::OK, Json(serde_json::json!({ "pinned": true, "id": req.id })))
     } else {
+        tracing::debug!(target: "vibecody::memory", id = %req.id, "memory.pin: id not found or already pinned");
         json_error(StatusCode::NOT_FOUND, format!("memory '{}' not found or already pinned", req.id))
     }
 }
@@ -4061,9 +4171,14 @@ async fn memory_unpin(
 ) -> (StatusCode, Json<serde_json::Value>) {
     let mut store = load_memory_store();
     if store.unpin(&req.id) {
-        let _ = store.save();
+        if let Err(e) = store.save() {
+            tracing::warn!(target: "vibecody::memory", id = %req.id, error = %e, "memory.unpin: save failed");
+        } else {
+            tracing::info!(target: "vibecody::memory", id = %req.id, "memory.unpin");
+        }
         (StatusCode::OK, Json(serde_json::json!({ "pinned": false, "id": req.id })))
     } else {
+        tracing::debug!(target: "vibecody::memory", id = %req.id, "memory.unpin: id not found or not pinned");
         json_error(StatusCode::NOT_FOUND, format!("memory '{}' not found or not pinned", req.id))
     }
 }
@@ -4074,9 +4189,14 @@ async fn memory_delete(
 ) -> (StatusCode, Json<serde_json::Value>) {
     let mut store = load_memory_store();
     if store.delete(&req.id) {
-        let _ = store.save();
+        if let Err(e) = store.save() {
+            tracing::warn!(target: "vibecody::memory", id = %req.id, error = %e, "memory.delete: save failed");
+        } else {
+            tracing::info!(target: "vibecody::memory", id = %req.id, "memory.delete");
+        }
         (StatusCode::OK, Json(serde_json::json!({ "deleted": true, "id": req.id })))
     } else {
+        tracing::debug!(target: "vibecody::memory", id = %req.id, "memory.delete: id not found");
         json_error(StatusCode::NOT_FOUND, format!("memory '{}' not found", req.id))
     }
 }
@@ -4108,14 +4228,21 @@ async fn memory_import(
     };
     match result {
         Ok(imported) => {
-            let _ = store.save();
+            if let Err(e) = store.save() {
+                tracing::warn!(target: "vibecody::memory", format = %req.format, imported, error = %e, "memory.import: save failed after parse");
+            } else {
+                tracing::info!(target: "vibecody::memory", format = %req.format, imported, total = store.total_memories(), "memory.import: completed");
+            }
             (StatusCode::OK, Json(serde_json::json!({
                 "imported": imported,
                 "total_memories": store.total_memories(),
                 "format_used": req.format,
             })))
         }
-        Err(e) => json_error(StatusCode::BAD_REQUEST, format!("import failed: {e}")),
+        Err(e) => {
+            tracing::warn!(target: "vibecody::memory", format = %req.format, error = %e, "memory.import: parse failed");
+            json_error(StatusCode::BAD_REQUEST, format!("import failed: {e}"))
+        }
     }
 }
 
@@ -5815,6 +5942,35 @@ mod tests {
                 json["providers"]["names"].is_array(),
                 "providers.names must always be an array (empty when none)"
             );
+        }
+
+        #[tokio::test]
+        async fn health_exposes_memory_block_with_counts_and_flags() {
+            let (app, _tmp) = test_app("test-token");
+            let req = Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            let body = body_string(resp.into_body()).await;
+            let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+            // The memory block must always exist — `enabled: false` when
+            // the store can't load (fresh install, broken JSON, etc.)
+            // rather than the field being missing.
+            assert!(json["memory"].is_object(), "memory block missing from /health");
+            assert!(json["memory"]["enabled"].is_boolean(), "memory.enabled must be a boolean");
+            assert!(json["memory"]["total_memories"].is_u64(), "memory.total_memories must be a non-negative integer");
+            assert!(json["memory"]["drawer_count"].is_u64(), "memory.drawer_count must be a non-negative integer");
+            assert!(json["memory"]["encryption_enabled"].is_boolean(), "memory.encryption_enabled must be a boolean");
+            assert!(json["memory"]["store_path"].is_string(), "memory.store_path must be a string");
+            // Features summary mirrors the per-feature shape used by
+            // diffcomplete; memory's transport differs (daemon HTTP vs.
+            // tauri-desktop) but the shape is consistent.
+            let mem = &json["features"]["memory"];
+            assert!(mem.is_object(), "features.memory missing");
+            assert_eq!(mem["available"], true);
+            assert_eq!(mem["transport"], "daemon-http");
+            assert_eq!(mem["routes_prefix"], "/memory/");
         }
 
         #[tokio::test]

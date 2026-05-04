@@ -38281,10 +38281,40 @@ pub async fn openmemory_export() -> Result<String, String> {
 }
 
 /// Enable encryption for new memories.
+///
+/// Persists the passphrase via the encrypted ProfileStore (key:
+/// `openmemory_passphrase`) so the daemon's `load_memory_store()` can
+/// hydrate it on every request. Equivalent to running
+/// `vibecli set-key openmemory_passphrase <value>` from the terminal.
+/// The legacy `config.json` flag is still written for backward compat
+/// with older clients that read it directly, but the canonical store
+/// is now ProfileStore — see AGENTS.md → Zero-Config First.
 #[tauri::command]
 pub async fn openmemory_enable_encryption(passphrase: String) -> Result<serde_json::Value, String> {
-    // Store a flag indicating encryption is enabled (actual encryption in Rust core)
-    let config = serde_json::json!({ "encryption_enabled": true, "key_hash": format!("{:x}", passphrase.len()) });
+    if passphrase.is_empty() {
+        return Err("passphrase cannot be empty".to_string());
+    }
+    let store = vibecli_cli::profile_store::ProfileStore::new()
+        .map_err(|e| format!("open profile store: {e}"))?;
+    store
+        .set_api_key("default", "openmemory_passphrase", &passphrase)
+        .map_err(|e| format!("persist passphrase: {e}"))?;
+    // Legacy flag for the in-process panel that reads config.json — does
+    // NOT carry the passphrase or any hash of it.
+    let config = serde_json::json!({ "encryption_enabled": true });
+    openmemory_write_json("config.json", &config)?;
+    Ok(serde_json::json!({ "ok": true, "stored_in": "profile_store" }))
+}
+
+/// Disable memory encryption and remove the persisted passphrase.
+#[tauri::command]
+pub async fn openmemory_disable_encryption() -> Result<serde_json::Value, String> {
+    let store = vibecli_cli::profile_store::ProfileStore::new()
+        .map_err(|e| format!("open profile store: {e}"))?;
+    // Best-effort: ignore "not found" since the user may be calling this
+    // before ever enabling.
+    let _ = store.delete_api_key("default", "openmemory_passphrase");
+    let config = serde_json::json!({ "encryption_enabled": false });
     openmemory_write_json("config.json", &config)?;
     Ok(serde_json::json!({ "ok": true }))
 }
