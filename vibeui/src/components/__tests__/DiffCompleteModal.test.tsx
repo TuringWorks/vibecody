@@ -11,7 +11,120 @@ vi.mock('@tauri-apps/plugin-dialog', () => ({
   open: (...args: unknown[]) => mockOpen(...args),
 }));
 
-import { DiffCompleteModal, applyUnifiedDiff } from '../DiffCompleteModal';
+import { DiffCompleteModal, applyUnifiedDiff, classifyDiffCompleteError, trapFocusInside } from '../DiffCompleteModal';
+
+// ── Pure-function unit tests ────────────────────────────────────────────
+
+describe('classifyDiffCompleteError', () => {
+  it('attaches a Settings-pointer hint for "no active AI provider"', () => {
+    const r = classifyDiffCompleteError("No active AI provider configured");
+    expect(r.hint).toMatch(/Settings → API Keys/i);
+  });
+
+  it('attaches a format-hint for "did not contain a diff"', () => {
+    const r = classifyDiffCompleteError("Model response did not contain a diff block");
+    expect(r.hint).toMatch(/unified diff/i);
+  });
+
+  it('attaches a regenerate-hint for "could not be applied cleanly"', () => {
+    const r = classifyDiffCompleteError("Model returned a diff that could not be applied cleanly.");
+    expect(r.hint).toMatch(/Regenerate/i);
+    // Avoid the literal "try again" copy — collides with the button label.
+    expect(r.hint).not.toMatch(/try again/i);
+  });
+
+  it('attaches a connection-hint for network-class errors', () => {
+    expect(classifyDiffCompleteError("network unreachable").hint).toMatch(/internet/i);
+    expect(classifyDiffCompleteError("connection refused").hint).toMatch(/internet/i);
+    expect(classifyDiffCompleteError("request timeout").hint).toMatch(/internet/i);
+  });
+
+  it('attaches a rate-limit hint for 429s and quota errors', () => {
+    expect(classifyDiffCompleteError("429 Too Many Requests").hint).toMatch(/rate limit/i);
+    expect(classifyDiffCompleteError("quota exceeded").hint).toMatch(/rate limit/i);
+  });
+
+  it('attaches an api-key hint for 401 / unauthorized', () => {
+    expect(classifyDiffCompleteError("401 Unauthorized").hint).toMatch(/API key/i);
+    expect(classifyDiffCompleteError("Invalid API key").hint).toMatch(/API key/i);
+  });
+
+  it('returns no hint for unclassified errors', () => {
+    const r = classifyDiffCompleteError("Some unique never-seen failure");
+    expect(r.message).toBe("Some unique never-seen failure");
+    expect(r.hint).toBeUndefined();
+  });
+
+  it('always echoes the original message verbatim', () => {
+    const raw = "Model response did not contain a diff block";
+    expect(classifyDiffCompleteError(raw).message).toBe(raw);
+  });
+});
+
+describe('trapFocusInside', () => {
+  function setupContainer(html: string): HTMLDivElement {
+    const c = document.createElement('div');
+    c.innerHTML = html;
+    document.body.appendChild(c);
+    return c;
+  }
+
+  function makeKey(key: string, shift = false): KeyboardEvent {
+    const e = new KeyboardEvent("keydown", { key, shiftKey: shift, bubbles: true, cancelable: true });
+    return e;
+  }
+
+  it('does nothing for non-Tab keys', () => {
+    const c = setupContainer('<button id="a">A</button><button id="b">B</button>');
+    const a = c.querySelector<HTMLElement>('#a')!;
+    a.focus();
+    const e = makeKey("Enter");
+    expect(trapFocusInside(c, e)).toBe(false);
+    expect(e.defaultPrevented).toBe(false);
+    c.remove();
+  });
+
+  it('cycles forward from last to first focusable', () => {
+    const c = setupContainer('<button id="a">A</button><button id="b">B</button>');
+    const a = c.querySelector<HTMLElement>('#a')!;
+    const b = c.querySelector<HTMLElement>('#b')!;
+    b.focus();
+    const e = makeKey("Tab");
+    expect(trapFocusInside(c, e)).toBe(true);
+    expect(e.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(a);
+    c.remove();
+  });
+
+  it('cycles backward from first to last on Shift+Tab', () => {
+    const c = setupContainer('<button id="a">A</button><button id="b">B</button>');
+    const a = c.querySelector<HTMLElement>('#a')!;
+    const b = c.querySelector<HTMLElement>('#b')!;
+    a.focus();
+    const e = makeKey("Tab", true);
+    expect(trapFocusInside(c, e)).toBe(true);
+    expect(document.activeElement).toBe(b);
+    c.remove();
+  });
+
+  it('does not trap when there are no focusables', () => {
+    const c = setupContainer('<span>no buttons</span>');
+    const e = makeKey("Tab");
+    expect(trapFocusInside(c, e)).toBe(false);
+    c.remove();
+  });
+
+  it('skips disabled buttons when computing focus targets', () => {
+    const c = setupContainer('<button id="a">A</button><button id="b" disabled>B</button>');
+    const a = c.querySelector<HTMLElement>('#a')!;
+    a.focus();
+    // Only `a` is focusable; Tab should cycle back to itself.
+    const e = makeKey("Tab");
+    expect(trapFocusInside(c, e)).toBe(true);
+    expect(document.activeElement).toBe(a);
+    c.remove();
+  });
+});
 
 describe('applyUnifiedDiff', () => {
   it('applies a simple one-line change', () => {
@@ -430,6 +543,65 @@ describe('DiffCompleteModal — flow', () => {
 
     const regen = await screen.findByLabelText(/Regenerate with refinement/i);
     expect(regen).toBeDisabled();
+  });
+
+  // ── Empty state when no provider is configured ─────────────────────────
+
+  it('shows the no-provider empty state when /health reports no providers', async () => {
+    const fetchMock = vi.fn(async () => new Response(
+      JSON.stringify({ features: { diffcomplete: { available: false } } }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    ));
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as unknown as typeof globalThis.fetch;
+    try {
+      // Empty provider prop forces the modal to probe /health.
+      render(<DiffCompleteModal {...baseProps} provider="" />);
+      await waitFor(() => {
+        expect(screen.getByText(/No AI provider configured/i)).toBeInTheDocument();
+      });
+      // The Generate button should not be on screen — empty state replaces
+      // the prompt UI, not augments it.
+      expect(screen.queryByText(/Generate diff/i)).toBeNull();
+      // Exact, user-facing pointer to the fix.
+      expect(screen.getByText(/Settings → API Keys/i)).toBeInTheDocument();
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  it('renders prompt UI when provider prop is set, even before /health fires', () => {
+    // baseProps has provider="mock" — the modal must trust the parent
+    // and not gate the prompt UI on a /health roundtrip.
+    render(<DiffCompleteModal {...baseProps} />);
+    expect(screen.getByPlaceholderText(/Describe the change/i)).toBeInTheDocument();
+    expect(screen.queryByText(/No AI provider configured/i)).toBeNull();
+  });
+
+  // ── Error classification + hints ────────────────────────────────────────
+
+  it('renders the error hint card alongside the error message', async () => {
+    mockInvoke.mockRejectedValueOnce("No active AI provider configured");
+    render(<DiffCompleteModal {...baseProps} />);
+    fireEvent.change(screen.getByPlaceholderText(/Describe the change/i), { target: { value: "x" } });
+    fireEvent.click(screen.getByText(/Generate diff/i));
+    await waitFor(() => {
+      expect(screen.getByText(/No active AI provider configured/i)).toBeInTheDocument();
+    });
+    // The hint matches what classifyDiffCompleteError emits for this fragment.
+    expect(screen.getByTestId("diffcomplete-error-hint")).toBeInTheDocument();
+    expect(screen.getByTestId("diffcomplete-error-hint")).toHaveTextContent(/Settings → API Keys/i);
+  });
+
+  it('shows no hint card for an unclassified error', async () => {
+    mockInvoke.mockRejectedValueOnce("Some weird never-seen-before fault");
+    render(<DiffCompleteModal {...baseProps} />);
+    fireEvent.change(screen.getByPlaceholderText(/Describe the change/i), { target: { value: "x" } });
+    fireEvent.click(screen.getByText(/Generate diff/i));
+    await waitFor(() => {
+      expect(screen.getByText(/Some weird never-seen-before fault/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("diffcomplete-error-hint")).toBeNull();
   });
 
   it('removes a chip via its × button and drops it from the payload', async () => {

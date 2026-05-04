@@ -8,7 +8,7 @@
  * The modal is never opened automatically — only via Monaco's ⌘. chord or
  * the equivalent command-palette entry.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { DiffReviewPanel } from "./DiffReviewPanel";
@@ -16,6 +16,104 @@ import { DiffReviewPanel } from "./DiffReviewPanel";
 interface AdditionalFile {
   path: string;
   content: string;
+}
+
+/**
+ * Classify a raw error string into a user-actionable message + hint.
+ *
+ * The backend surfaces failures as plain strings (Tauri command boundary —
+ * we don't carry typed errors across the IPC). This mapper inspects
+ * stable substrings and attaches a short next-step hint so users see
+ * "what do I do about this" instead of just a stack-trace line.
+ *
+ * Exported for testing.
+ */
+export function classifyDiffCompleteError(raw: string): { message: string; hint?: string } {
+  const lower = raw.toLowerCase();
+  if (lower.includes("no active ai provider")) {
+    return {
+      message: raw,
+      hint: "Open Settings → API Keys and add a provider key. Diffcomplete needs at least one configured provider.",
+    };
+  }
+  if (lower.includes("did not contain a diff")) {
+    return {
+      message: raw,
+      hint: "The model didn't return a unified diff. Try a different provider or simplify your instruction.",
+    };
+  }
+  if (lower.includes("could not be applied cleanly")) {
+    return {
+      message: raw,
+      // Avoid the phrase "try again" so the hint copy doesn't collide
+      // with the "Try again" button label in the same view (would cause
+      // tests using getByText(/Try again/) to find two matches).
+      hint: "The diff didn't match your file. Use Regenerate with a refinement to nudge the model.",
+    };
+  }
+  if (
+    lower.includes("not available") ||
+    lower.includes("network") ||
+    lower.includes("connection") ||
+    lower.includes("timeout")
+  ) {
+    return {
+      message: raw,
+      hint: "Check your internet connection or switch to a different provider.",
+    };
+  }
+  if (lower.includes("rate limit") || lower.includes("quota") || lower.includes("429")) {
+    return {
+      message: raw,
+      hint: "Provider rate limit hit — wait a moment, or switch to a different provider.",
+    };
+  }
+  if (lower.includes("401") || lower.includes("unauthorized") || lower.includes("invalid api key")) {
+    return {
+      message: raw,
+      hint: "The provider rejected the API key. Check it in Settings → API Keys.",
+    };
+  }
+  return { message: raw };
+}
+
+/**
+ * Cycle focus among the modal's focusable elements when Tab/Shift+Tab
+ * would otherwise leave the modal. Keeps keyboard users inside the
+ * dialog until they explicitly close it (Escape or click backdrop).
+ *
+ * Exported for testing.
+ */
+export function trapFocusInside(container: HTMLElement, e: KeyboardEvent | React.KeyboardEvent): boolean {
+  if (e.key !== "Tab") return false;
+  // Selector covers the standard focusable elements. We deliberately don't
+  // filter by offsetParent / getClientRects — jsdom returns null/empty for
+  // both even on visible elements, breaking tests. The modal renders a
+  // controlled set of focusables so visibility filtering would be
+  // redundant in practice.
+  const focusables = Array.from(
+    container.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )
+  );
+  if (focusables.length === 0) return false;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  const active = document.activeElement as HTMLElement | null;
+  if (e.shiftKey) {
+    if (active === first || !container.contains(active)) {
+      e.preventDefault();
+      last.focus();
+      return true;
+    }
+  } else {
+    if (active === last) {
+      e.preventDefault();
+      first.focus();
+      return true;
+    }
+  }
+  return false;
 }
 
 export interface DiffCompleteModalProps {
@@ -43,6 +141,7 @@ interface BackendResponse {
 }
 
 type Phase = "prompt" | "loading" | "review" | "error";
+type ProviderStatus = "unknown" | "ready" | "no_providers";
 
 export function DiffCompleteModal(props: DiffCompleteModalProps) {
   const { open, onClose, filePath, language, originalContent, selectionText,
@@ -57,8 +156,17 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
   const [pickerBusy, setPickerBusy] = useState(false);
   const [lastDiff, setLastDiff] = useState<string>("");
   const [refinement, setRefinement] = useState<string>("");
+  const [providerStatus, setProviderStatus] = useState<ProviderStatus>("unknown");
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const refineRef = useRef<HTMLTextAreaElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Memoize the classified error so we don't re-classify on every render
+  // and so the message + hint stay stable for the aria-live announcer.
+  const classifiedError = useMemo(
+    () => (error ? classifyDiffCompleteError(error) : null),
+    [error]
+  );
 
   useEffect(() => {
     if (open) {
@@ -71,9 +179,44 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
       setPickerBusy(false);
       setLastDiff("");
       setRefinement("");
+      setProviderStatus("unknown");
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
+
+  // Empty-state probe: when the modal opens, confirm at least one AI
+  // provider is configured. If the parent passed a non-empty `provider`
+  // prop we trust it; otherwise we ask the daemon's `/health` endpoint
+  // which exposes `features.diffcomplete.available` as the canonical
+  // signal (see serve.rs `health()`). Failure → assume no providers and
+  // render the empty-state — better than letting submit fail with a
+  // bare "No active AI provider configured" string.
+  useEffect(() => {
+    if (!open) return;
+    if (provider && provider.length > 0) {
+      setProviderStatus("ready");
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("http://127.0.0.1:7878/health", {
+          signal: AbortSignal.timeout(800),
+        });
+        if (cancelled) return;
+        if (!res.ok) {
+          setProviderStatus("no_providers");
+          return;
+        }
+        const body = await res.json() as { features?: { diffcomplete?: { available?: boolean } } };
+        const ok = body?.features?.diffcomplete?.available === true;
+        setProviderStatus(ok ? "ready" : "no_providers");
+      } catch {
+        if (!cancelled) setProviderStatus("no_providers");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, provider]);
 
   const addContextFiles = useCallback(async () => {
     setPickerBusy(true);
@@ -176,18 +319,51 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
 
   if (!open) return null;
 
+  // aria-live announcer text — describes the current phase for screen
+  // readers. Using `polite` avoids interrupting longer announcements.
+  // Errors are NOT announced here: the visible error block uses
+  // role="alert" which is implicitly aria-live=assertive and gets read
+  // automatically. Duplicating it here would also break tests that use
+  // getByText(/error message/) by producing two matching nodes.
+  const liveMessage = (() => {
+    if (phase === "loading") return "Generating diff…";
+    if (phase === "review") return "Diff ready for review.";
+    if (phase === "prompt" && providerStatus === "no_providers") {
+      return "No AI provider is configured. Open Settings to add one.";
+    }
+    return "";
+  })();
+
   return (
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-label="AI edit (diff)"
-      onKeyDown={e => { if (e.key === "Escape") { e.preventDefault(); onClose(); } }}
+      onKeyDown={e => {
+        if (e.key === "Escape") { e.preventDefault(); onClose(); return; }
+        if (dialogRef.current) trapFocusInside(dialogRef.current, e);
+      }}
       style={{
         position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
         zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center",
       }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
+      {/* Screen-reader-only live region — visually hidden but announced
+          on every state change. Keeps blind users in sync with phase
+          transitions without forcing focus changes. */}
+      <div
+        aria-live="polite"
+        aria-atomic="true"
+        style={{
+          position: "absolute", width: 1, height: 1,
+          margin: -1, padding: 0, overflow: "hidden",
+          clip: "rect(0,0,0,0)", whiteSpace: "nowrap", border: 0,
+        }}
+      >
+        {liveMessage}
+      </div>
       <div
         style={{
           background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
@@ -208,7 +384,33 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
           </button>
         </div>
         <div style={{ flex: 1, minHeight: 0, overflow: "auto", padding: 16 }}>
-      {phase === "prompt" && (
+      {phase === "prompt" && providerStatus === "no_providers" && (
+        <div
+          className="panel-card"
+          style={{ display: "flex", flexDirection: "column", gap: 12, padding: 20 }}
+        >
+          <h4 style={{ margin: 0, color: "var(--text-primary)" }}>
+            No AI provider configured
+          </h4>
+          <p style={{ margin: 0, color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>
+            Diffcomplete needs at least one AI provider with an API key.
+          </p>
+          <p style={{ margin: 0, color: "var(--text-secondary)", fontSize: "var(--font-size-sm)" }}>
+            Open <strong>Settings → API Keys</strong> in the app, or run
+            <code style={{ marginLeft: 6, padding: "2px 6px", background: "var(--bg-tertiary)", borderRadius: 4 }}>
+              vibecli set-key &lt;provider&gt; &lt;value&gt;
+            </code>
+            in your terminal.
+          </p>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            <button className="panel-btn panel-btn-primary" onClick={onClose} autoFocus>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {phase === "prompt" && providerStatus !== "no_providers" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div className="panel-label" style={{ color: "var(--text-secondary)" }}>
             {selectionText
@@ -291,10 +493,26 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
 
       {phase === "error" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div className="panel-error">{error}</div>
+          <div className="panel-error" role="alert">{classifiedError?.message ?? error}</div>
+          {classifiedError?.hint && (
+            <div
+              data-testid="diffcomplete-error-hint"
+              style={{
+                color: "var(--text-secondary)",
+                fontSize: "var(--font-size-sm)",
+                fontStyle: "italic",
+                padding: "6px 10px",
+                background: "var(--bg-tertiary)",
+                borderRadius: "var(--radius-sm)",
+                borderLeft: "3px solid var(--accent-color)",
+              }}
+            >
+              <strong>Hint:</strong> {classifiedError.hint}
+            </div>
+          )}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <button className="panel-btn panel-btn-secondary" onClick={onClose}>Close</button>
-            <button className="panel-btn panel-btn-primary" onClick={() => setPhase("prompt")}>Try again</button>
+            <button className="panel-btn panel-btn-primary" onClick={() => setPhase("prompt")} autoFocus>Try again</button>
           </div>
         </div>
       )}
