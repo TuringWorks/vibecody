@@ -92,6 +92,9 @@ sidebar:
   - title: Diffcomplete (⌘.)
     icon: edit-3
     url: /diffcomplete/
+  - title: Recap & Resume
+    icon: rotate-ccw
+    url: /recap/
   - title: Memory Guide
     icon: database
     url: /memory-guide/

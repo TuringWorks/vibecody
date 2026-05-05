@@ -312,6 +312,17 @@ async fn health() -> impl IntoResponse {
                 "transport": "daemon-http",
                 "routes_prefix": "/memory/",
             },
+            "recap": {
+                "available": true,
+                "transport": "daemon-http",
+                "routes_prefix": "/v1/recap",
+                // GA generators ship today; LLM remains explicit-experimental
+                // until F2.4 wires it. Clients must not pre-select an
+                // experimental generator without a feature flag.
+                "generators_ga": ["heuristic"],
+                "generators_experimental": ["llm"],
+                "kinds": ["session", "job"],
+            },
         },
         // OpenMemory store readiness — counts + flags only, never content.
         // Consumed by Settings panel + ops dashboards so a feature that
@@ -1675,16 +1686,43 @@ pub(crate) fn do_v1_recap_post(
     let recap = crate::recap::heuristic_recap(&detail);
     match store.insert_recap(&recap) {
         Ok(stored) => match serde_json::to_value(&stored) {
-            Ok(v) => (StatusCode::OK, v),
-            Err(e) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                serde_json::json!({"error": format!("recap serialize: {e}")}),
-            ),
+            Ok(v) => {
+                tracing::info!(
+                    target: "vibecody::recap",
+                    subject_id = %req.subject_id,
+                    recap_id = %stored.id,
+                    bullets = stored.bullets.len(),
+                    next_actions = stored.next_actions.len(),
+                    artifacts = stored.artifacts.len(),
+                    "recap.post: persisted heuristic session recap"
+                );
+                (StatusCode::OK, v)
+            }
+            Err(e) => {
+                tracing::warn!(
+                    target: "vibecody::recap",
+                    subject_id = %req.subject_id,
+                    error = %e,
+                    "recap.post: serialize failed"
+                );
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    serde_json::json!({"error": format!("recap serialize: {e}")}),
+                )
+            }
         },
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            serde_json::json!({"error": format!("recap insert: {e}")}),
-        ),
+        Err(e) => {
+            tracing::warn!(
+                target: "vibecody::recap",
+                subject_id = %req.subject_id,
+                error = %e,
+                "recap.post: insert failed"
+            );
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                serde_json::json!({"error": format!("recap insert: {e}")}),
+            )
+        }
     }
 }
 
