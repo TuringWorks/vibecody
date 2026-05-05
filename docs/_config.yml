@@ -95,6 +95,9 @@ sidebar:
   - title: Recap & Resume
     icon: rotate-ccw
     url: /recap/
+  - title: Background Jobs
+    icon: clock
+    url: /background-jobs/
   - title: Memory Guide
     icon: database
     url: /memory-guide/

@@ -323,6 +323,16 @@ async fn health() -> impl IntoResponse {
                 "generators_experimental": ["llm"],
                 "kinds": ["session", "job"],
             },
+            "background_jobs": {
+                "available": true,
+                "transport": "daemon-http",
+                "routes_prefix": "/jobs",
+                // Live counts (queued / running / completed / failed) live
+                // at /v1/metrics/jobs — clients pull from there for the
+                // dashboard, /health only declares the feature exists.
+                "metrics_route": "/v1/metrics/jobs",
+                "store_path": "~/.vibecli/jobs.db",
+            },
         },
         // OpenMemory store readiness — counts + flags only, never content.
         // Consumed by Settings panel + ops dashboards so a feature that

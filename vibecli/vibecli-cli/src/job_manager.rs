@@ -1535,11 +1535,23 @@ impl JobManager {
         self.metrics
             .jobs_created
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        tracing::info!(
+            target: "vibecody::jobs",
+            sid = %session_id,
+            provider = %record.provider,
+            priority = record.priority,
+            tag_count = record.tags.len(),
+            "job.create: queued"
+        );
         Ok(session_id)
     }
 
     pub async fn mark_running(&self, sid: &str) -> Result<bool, String> {
-        self.db.lock().await.mark_running(sid)
+        let changed = self.db.lock().await.mark_running(sid)?;
+        if changed {
+            tracing::info!(target: "vibecody::jobs", sid = %sid, "job.mark_running");
+        }
+        Ok(changed)
     }
 
     pub async fn mark_terminal(
@@ -1587,6 +1599,14 @@ impl JobManager {
                 }
                 _ => {}
             }
+            tracing::info!(
+                target: "vibecody::jobs",
+                sid = %sid,
+                status = %status.as_str(),
+                has_summary = summary.is_some(),
+                has_reason = reason.is_some(),
+                "job.mark_terminal"
+            );
         }
         Ok(changed)
     }
