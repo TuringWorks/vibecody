@@ -83,6 +83,9 @@ sidebar:
         url: /providers/gemini/
       - title: DeepSeek
         url: /providers/deepseek/
+  - title: Settings
+    icon: sliders
+    url: /settings/
   - title: Configuration
     icon: settings
     url: /configuration/

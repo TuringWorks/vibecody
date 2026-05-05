@@ -8841,13 +8841,57 @@ pub async fn save_provider_api_keys(
     settings: ApiKeySettings,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<String>, String> {
+    // Count which keys are non-empty so the log entry tells operators
+    // *what changed* without leaking the values themselves.
+    let configured_count = count_configured_provider_keys(&settings);
+
     // Persist encrypted to profile_settings.db
-    save_api_key_settings_to_store(&settings)?;
+    if let Err(e) = save_api_key_settings_to_store(&settings) {
+        tracing::warn!(
+            target: "vibecody::settings",
+            configured_count,
+            error = %e,
+            "settings.api_keys: persist failed (changes not saved)"
+        );
+        return Err(e);
+    }
 
     // Re-register cloud providers
     let mut engine = state.chat_engine.lock().await;
     register_cloud_providers(&mut engine, &settings);
-    Ok(engine.get_provider_names())
+    let providers = engine.get_provider_names();
+    tracing::info!(
+        target: "vibecody::settings",
+        configured_count,
+        active_providers = providers.len(),
+        "settings.api_keys: persisted and re-registered cloud providers"
+    );
+    Ok(providers)
+}
+
+/// Count non-empty provider keys in a settings struct. Used for logging
+/// — names only, never values.
+fn count_configured_provider_keys(s: &ApiKeySettings) -> usize {
+    let mut n = 0;
+    if !s.anthropic_api_key.is_empty() { n += 1; }
+    if !s.openai_api_key.is_empty()    { n += 1; }
+    if !s.gemini_api_key.is_empty()    { n += 1; }
+    if !s.grok_api_key.is_empty()      { n += 1; }
+    if !s.groq_api_key.is_empty()      { n += 1; }
+    if !s.openrouter_api_key.is_empty(){ n += 1; }
+    if !s.azure_openai_api_key.is_empty() { n += 1; }
+    if !s.mistral_api_key.is_empty()   { n += 1; }
+    if !s.cerebras_api_key.is_empty()  { n += 1; }
+    if !s.deepseek_api_key.is_empty()  { n += 1; }
+    if !s.zhipu_api_key.is_empty()     { n += 1; }
+    if !s.vercel_ai_api_key.is_empty() { n += 1; }
+    if !s.minimax_api_key.is_empty()   { n += 1; }
+    if !s.perplexity_api_key.is_empty(){ n += 1; }
+    if !s.together_api_key.is_empty()  { n += 1; }
+    if !s.fireworks_api_key.is_empty() { n += 1; }
+    if !s.sambanova_api_key.is_empty() { n += 1; }
+    if !s.ollama_api_key.is_empty()    { n += 1; }
+    n
 }
 
 /// Validate a single provider API key by sending a minimal request.

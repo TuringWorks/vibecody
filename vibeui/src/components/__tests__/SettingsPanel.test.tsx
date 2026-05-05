@@ -193,6 +193,61 @@ describe('SettingsPanel', () => {
     });
   });
 
+  it('round-trips a typed API key through save_provider_api_keys', async () => {
+    // Mock get_provider_api_keys → empty initial settings.
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_provider_api_keys') return { ...mockApiKeySettings, anthropic_api_key: "" };
+      if (cmd === 'save_provider_api_keys') return ['claude-3-5-sonnet-latest'];
+      if (cmd === 'validate_all_api_keys') return [];
+      if (cmd === 'validate_api_key') return { provider: 'anthropic', valid: true, latency_ms: 42 };
+      return null;
+    });
+
+    render(<SettingsPanel />);
+    fireEvent.click(screen.getByText('API Keys'));
+
+    // Wait for the load to finish and the field to be available.
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('get_provider_api_keys');
+    });
+
+    // Find the Anthropic key input by placeholder (sk-ant-...) and type.
+    const inputs = await screen.findAllByPlaceholderText(/sk-ant/i);
+    fireEvent.change(inputs[0], { target: { value: 'sk-ant-fake-test-key-1234' } });
+
+    // Auto-save fires after a 1s debounce — wait for it.
+    await waitFor(() => {
+      const saveCall = mockInvoke.mock.calls.find(c => c[0] === 'save_provider_api_keys');
+      expect(saveCall).toBeTruthy();
+      expect(saveCall![1]).toMatchObject({
+        settings: expect.objectContaining({ anthropic_api_key: 'sk-ant-fake-test-key-1234' }),
+      });
+    }, { timeout: 2000 });
+  });
+
+  it('surfaces a save failure as an error message in the panel', async () => {
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_provider_api_keys') return { ...mockApiKeySettings, anthropic_api_key: "" };
+      if (cmd === 'save_provider_api_keys') {
+        throw new Error('Permission denied (os error 13)');
+      }
+      if (cmd === 'validate_all_api_keys') return [];
+      return null;
+    });
+
+    render(<SettingsPanel />);
+    fireEvent.click(screen.getByText('API Keys'));
+    await waitFor(() => expect(mockInvoke).toHaveBeenCalledWith('get_provider_api_keys'));
+
+    const inputs = await screen.findAllByPlaceholderText(/sk-ant/i);
+    fireEvent.change(inputs[0], { target: { value: 'sk-ant-x' } });
+
+    // Wait for the auto-save error to surface.
+    await waitFor(() => {
+      expect(screen.getByText(/Permission denied/i)).toBeInTheDocument();
+    }, { timeout: 2000 });
+  });
+
   // ── Sessions section (F2.1) ───────────────────────────────────────────
 
   describe('Sessions section', () => {
