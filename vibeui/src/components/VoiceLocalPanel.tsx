@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { ExperimentalBadge } from "./ExperimentalBadge";
 
 interface VoiceModel {
   name: string;
@@ -76,6 +77,11 @@ export function VoiceLocalPanel() {
 
   return (
     <div className="panel-container">
+      <ExperimentalBadge
+        as="banner"
+        feature="Local voice"
+        tooltip="Whisper / faster-whisper local STT. Models must be pulled before first use; the surface and model list may change."
+      />
       <div className="panel-tab-bar">
         {["record", "models", "history", "config"].map((t) => (
           <button key={t} className={`panel-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>

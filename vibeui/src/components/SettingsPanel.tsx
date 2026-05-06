@@ -18,6 +18,7 @@ import {
   Mail, CalendarDays, ClipboardList, MessageSquare, Search, Mic, Home, Server,
 } from "lucide-react";
 import { THEMES, applyThemeById, type ThemeDef } from "../theme/themes";
+import { ExperimentalBadge } from "./ExperimentalBadge";
 
 /* ── Types ──────────────────────────────────────────────────────────── */
 
@@ -1686,19 +1687,26 @@ function SessionsSection() {
             Heuristic is instant and offline. LLM uses your currently selected provider.
           </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {(["heuristic", "llm"] as const).map(g => (
-            <button
-              key={g}
-              type="button"
-              aria-label={`Generator: ${g}`}
-              aria-pressed={settings.generator === g}
-              onClick={() => update("generator", g)}
-              className={`panel-tab ${settings.generator === g ? "active" : ""}`}
-              style={{ textTransform: "capitalize", minWidth: 96 }}
-            >
-              {g === "llm" ? "LLM" : "Heuristic"}
-            </button>
+            <span key={g} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <button
+                type="button"
+                aria-label={`Generator: ${g}`}
+                aria-pressed={settings.generator === g}
+                onClick={() => update("generator", g)}
+                className={`panel-tab ${settings.generator === g ? "active" : ""}`}
+                style={{ textTransform: "capitalize", minWidth: 96 }}
+              >
+                {g === "llm" ? "LLM" : "Heuristic"}
+              </button>
+              {g === "llm" && (
+                <ExperimentalBadge
+                  feature="Recap LLM generator"
+                  tooltip="Daemon currently returns 501 for the LLM generator (F2.4 not yet shipped). Heuristic is the GA path."
+                />
+              )}
+            </span>
           ))}
         </div>
       </div>

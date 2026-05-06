@@ -1,5 +1,5 @@
 import { createComposite } from "./createComposite";
-import { SimulationModeBadge } from "../SimulationModeBadge";
+import { ExperimentalBadge } from "../ExperimentalBadge";
 
 export const RLOSComposite = createComposite(
   [
@@ -22,13 +22,17 @@ export const RLOSComposite = createComposite(
     //   - 7a-sidecar — distill / quantize / prune algorithms
     //   - 7b-sidecar — MAPPO / QMIX / VDN / MADDPG (PettingZoo dep)
     //   - 7c-sidecar — TRL preference loop (HuggingFace transformers)
-    // Empty `covers` collapses the badge to nothing — every panel is
-    // wired to real data, even if some require additional `uv sync
-    // --extra X` to populate.
+    // The ExperimentalBadge replaces the previous SimulationModeBadge:
+    // panels are no longer illustrative, but the workstream is still
+    // experimental — semver may break, sidecar extras may shift, and
+    // real production training pipelines shouldn't depend on this
+    // surface yet. See `docs/design/feature-flags/README.md` for the
+    // GA promotion criteria (`composite.rl_os` flag).
     banner: (
-      <SimulationModeBadge
-        description="Compute extensions for the heaviest workloads (real inference / RLHF / MARL / distillation algorithms) ship behind opt-in sidecar extras. The dashboard data below is real."
-        covers={[]}
+      <ExperimentalBadge
+        as="banner"
+        feature="RL-OS dashboard"
+        tooltip="Backend is real but the workstream is still maturing — heavy compute (RLHF / MARL / distillation) needs `uv sync --extra X` and the API may shift before GA."
       />
     ),
   }

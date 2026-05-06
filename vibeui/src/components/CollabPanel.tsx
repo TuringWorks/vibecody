@@ -7,6 +7,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { ExperimentalBadge } from "./ExperimentalBadge";
 
 interface CollabSessionInfo {
   room_id: string;
@@ -216,7 +217,14 @@ export function CollabPanel({
   // Disconnected state — create or join
   return (
     <div style={{ padding: "12px", fontSize: "var(--font-size-md)", flex: 1, minHeight: 0, overflow: "auto" }}>
-      <div style={{ fontWeight: 600, marginBottom: "12px" }}>Multiplayer Collaboration</div>
+      <ExperimentalBadge
+        as="banner"
+        feature="Multiplayer collaboration"
+        tooltip="CRDT-based collaborative editing. The transport, presence model, and persistence story may shift before GA."
+      />
+      <div style={{ fontWeight: 600, marginBottom: "12px", display: "flex", alignItems: "center", gap: 8 }}>
+        Multiplayer Collaboration
+      </div>
       <p style={{ color: "var(--text-secondary)", marginBottom: "16px", fontSize: "var(--font-size-base)" }}>
         Real-time collaborative editing powered by CRDTs. Create a new session or join an existing
         one by Room ID.

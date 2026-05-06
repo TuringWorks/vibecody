@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { ExperimentalBadge } from "./ExperimentalBadge";
 
 type SubTab = "setup" | "monitor" | "history" | "safety";
 
@@ -71,6 +72,11 @@ export function ObserveActPanel() {
 
   return (
     <div className="panel-container" style={{ fontSize: "var(--font-size-md)" }}>
+      <ExperimentalBadge
+        as="banner"
+        feature="Observe & Act"
+        tooltip="Autonomous observe-then-act agent loop. Safety guardrails are still being tightened — review every action before approving."
+      />
       <div className="panel-tab-bar">
         {(["setup", "monitor", "history", "safety"] as const).map(t => (
           <button key={t} className={`panel-tab ${tab === t ? "active" : ""}`} onClick={() => setTab(t)} style={{ textTransform: "capitalize" }}>{t}</button>
