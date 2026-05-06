@@ -19,9 +19,12 @@ type Filter = "inbox" | "unread" | "search";
 
 interface Props {
   initialEmailId?: string;
+  /** Provider from the toolbar dropdown — forwarded to EmailComposer for the
+   *  AI-draft-reply feature. When unset, AI Draft is disabled with a hint. */
+  provider?: string;
 }
 
-export function EmailTab({ initialEmailId }: Props = {}) {
+export function EmailTab({ initialEmailId, provider }: Props = {}) {
   const [filter, setFilter] = useState<Filter>(initialEmailId ? "unread" : "inbox");
   const [searchTerm, setSearchTerm] = useState("");
   const [emails, setEmails] = useState<Email[]>([]);
@@ -241,6 +244,7 @@ export function EmailTab({ initialEmailId }: Props = {}) {
             onClose={() => setSelectedId(null)}
             onArchived={handleArchived}
             onReadChanged={handleReadChanged}
+            provider={provider}
           />
         )}
       </div>
@@ -249,6 +253,7 @@ export function EmailTab({ initialEmailId }: Props = {}) {
         <EmailComposer
           onClose={() => setComposing(false)}
           onSent={() => fetchEmails(filter, searchTerm)}
+          provider={provider}
         />
       )}
 

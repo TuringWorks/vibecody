@@ -2,6 +2,7 @@ import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Loader2, Send, Sparkles } from "lucide-react";
 import { ComposeModal } from "./ComposeModal";
+import { PROVIDER_DEFAULT_MODEL } from "../../hooks/useModelRegistry";
 
 interface DraftReplyResult {
   draft: string;
@@ -18,6 +19,9 @@ interface Props {
   initialBody?: string;
   /** When set, enables the "AI draft" button that calls productivity_draft_reply. */
   replyToId?: string;
+  /** Provider from the toolbar dropdown — required for the AI-draft path.
+   *  When unset, the AI Draft button is disabled with a hint. */
+  provider?: string;
 }
 
 export function EmailComposer({
@@ -27,6 +31,7 @@ export function EmailComposer({
   initialSubject = "",
   initialBody = "",
   replyToId,
+  provider,
 }: Props) {
   const [to, setTo] = useState(initialTo);
   const [subject, setSubject] = useState(initialSubject);
@@ -38,14 +43,23 @@ export function EmailComposer({
   const [drafting, setDrafting] = useState(false);
   const [draftMeta, setDraftMeta] = useState<string | null>(null);
 
+  const draftModel = provider ? PROVIDER_DEFAULT_MODEL[provider] : undefined;
+  const canDraft = !!replyToId && !!provider && !!draftModel;
+
   async function aiDraft() {
     if (!replyToId) return;
+    if (!provider || !draftModel) {
+      setErr("Pick a provider/model from the toolbar dropdown first.");
+      return;
+    }
     setDrafting(true);
     setErr(null);
     try {
       const r = await invoke<DraftReplyResult>("productivity_draft_reply", {
         emailId: replyToId,
         instructions: instructions.trim() || null,
+        provider,
+        model: draftModel,
       });
       const quoted = initialBody.trim() ? `\n\n${initialBody}` : "";
       setBody(`${r.draft}${quoted}`);
@@ -183,7 +197,12 @@ export function EmailComposer({
               <button
                 className="panel-btn panel-btn-primary"
                 onClick={aiDraft}
-                disabled={drafting}
+                disabled={drafting || !canDraft}
+                title={
+                  canDraft
+                    ? `Draft using ${provider} · ${draftModel}`
+                    : "Pick a provider/model from the toolbar dropdown first"
+                }
                 style={{ display: "flex", alignItems: "center", gap: 4 }}
               >
                 {drafting ? (

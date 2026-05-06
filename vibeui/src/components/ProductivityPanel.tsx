@@ -251,7 +251,14 @@ function TabContent({ tab }: { tab: CommandTab }) {
 }
 
 /* ── Main export ──────────────────────────────────────────────────────────── */
-export function ProductivityPanel() {
+interface ProductivityPanelProps {
+  /** Provider name from the toolbar dropdown — forwarded to AI calls (Plan
+   *  my day, AI draft reply) so they use the user's selection instead of a
+   *  hard-coded default. See AGENTS.md → Provider-Agnostic Panels. */
+  provider?: string;
+}
+
+export function ProductivityPanel({ provider }: ProductivityPanelProps = {}) {
   const [activeTab, setActiveTab] = useState<Tab>("today");
   const [initialEmailId, setInitialEmailId] = useState<string | undefined>(undefined);
   const [initialEventId, setInitialEventId] = useState<string | undefined>(undefined);
@@ -293,9 +300,9 @@ export function ProductivityPanel() {
         ))}
       </div>
       {activeTab === "today" ? (
-        <TodayTab onNavigate={handleTodayNav} />
+        <TodayTab onNavigate={handleTodayNav} provider={provider} />
       ) : activeTab === "email" ? (
-        <EmailTab initialEmailId={initialEmailId} />
+        <EmailTab initialEmailId={initialEmailId} provider={provider} />
       ) : activeTab === "calendar" ? (
         <CalendarTab initialEventId={initialEventId} />
       ) : activeTab === "tasks" ? (

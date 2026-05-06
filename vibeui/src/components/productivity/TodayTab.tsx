@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { PROVIDER_DEFAULT_MODEL } from "../../hooks/useModelRegistry";
 import {
   Bot,
   Calendar as CalendarIcon,
@@ -32,6 +33,9 @@ export type TodayNavTarget =
 
 interface Props {
   onNavigate: (target: TodayNavTarget) => void;
+  /** Provider from the toolbar dropdown — required for "Plan my day". When
+   *  unset, the Plan button is disabled with a hint. */
+  provider?: string;
 }
 
 interface PlanMyDayResult {
@@ -70,7 +74,7 @@ function priorityIcon(p: number) {
   return <span style={{ color: "var(--text-secondary)", width: 11, textAlign: "center" }}>·</span>;
 }
 
-export function TodayTab({ onNavigate }: Props) {
+export function TodayTab({ onNavigate, provider }: Props) {
   const [data, setData] = useState<TodayData>({
     emails: [],
     events: [],
@@ -88,11 +92,21 @@ export function TodayTab({ onNavigate }: Props) {
   const [planLoading, setPlanLoading] = useState(false);
   const [planErr, setPlanErr] = useState<string | null>(null);
 
+  const model = provider ? PROVIDER_DEFAULT_MODEL[provider] : undefined;
+  const canPlan = !!provider && !!model;
+
   async function planMyDay() {
+    if (!provider || !model) {
+      setPlanErr("Pick a provider/model from the toolbar dropdown first.");
+      return;
+    }
     setPlanLoading(true);
     setPlanErr(null);
     try {
-      const r = await invoke<PlanMyDayResult>("productivity_plan_my_day");
+      const r = await invoke<PlanMyDayResult>("productivity_plan_my_day", {
+        provider,
+        model,
+      });
       setPlan(r);
     } catch (e) {
       setPlanErr(String(e));
@@ -178,8 +192,12 @@ export function TodayTab({ onNavigate }: Props) {
         <button
           className="panel-btn panel-btn-primary"
           onClick={planMyDay}
-          disabled={planLoading}
-          title="Let AI synthesize a plan from your emails, events, and tasks"
+          disabled={planLoading || !canPlan}
+          title={
+            canPlan
+              ? `Plan today using ${provider} · ${model}`
+              : "Pick a provider/model from the toolbar dropdown first"
+          }
           style={{ display: "flex", alignItems: "center", gap: 4 }}
         >
           {planLoading ? (

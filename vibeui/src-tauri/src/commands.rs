@@ -43185,9 +43185,11 @@ pub async fn productivity_home_status() -> vibecli_cli::email_client::ProviderSt
 
 // ── AI triage: "Plan my day" ────────────────────────────────────────────────
 //
-// Pulls today's emails/events/tasks, composes a compact context, and asks an
-// AI provider to return a prioritized plan. Uses the first available provider
-// from a short preference list so it works in any configured environment.
+// Pulls today's emails/events/tasks, composes a compact context, and asks the
+// user's selected AI provider/model (from the toolbar dropdown) to return a
+// prioritized plan. Per AGENTS.md → Provider-Agnostic Panels (STRICT), this
+// command never falls back to a hard-coded provider — the caller must pass
+// the toolbar selection through.
 
 #[derive(serde::Serialize)]
 pub struct PlanMyDayResult {
@@ -43198,28 +43200,26 @@ pub struct PlanMyDayResult {
     pub context_summary: String,
 }
 
-fn pick_triage_provider() -> Option<(&'static str, &'static str)> {
-    let candidates: &[(&str, &str)] = &[
-        ("claude",     "claude-sonnet-4-6"),
-        ("openai",     "gpt-4o"),
-        ("gemini",     "gemini-2.5-flash"),
-        ("groq",       "llama-3.3-70b-versatile"),
-        ("cerebras",   "llama-3.3-70b"),
-        ("deepseek",   "deepseek-chat"),
-        ("mistral",    "mistral-large-latest"),
-        ("openrouter", "anthropic/claude-3.5-sonnet"),
-        ("ollama",     "qwen3"),
-    ];
-    for (prov, model) in candidates {
-        if build_temp_provider(prov, model).is_some() {
-            return Some((*prov, *model));
-        }
+fn ensure_provider_configured(provider: &str, model: &str) -> Result<(), String> {
+    if provider.trim().is_empty() || model.trim().is_empty() {
+        return Err(
+            "No provider/model selected. Pick one from the toolbar dropdown.".to_string(),
+        );
     }
-    None
+    if build_temp_provider(provider, model).is_none() {
+        return Err(format!(
+            "Provider '{provider}' is not configured. \
+             Add an API key in Settings (or pick a different provider in the toolbar)."
+        ));
+    }
+    Ok(())
 }
 
 #[tauri::command]
-pub async fn productivity_plan_my_day() -> Result<PlanMyDayResult, String> {
+pub async fn productivity_plan_my_day(
+    provider: String,
+    model: String,
+) -> Result<PlanMyDayResult, String> {
     let (emails, events, tasks) = tokio::join!(
         vibecli_cli::email_client::ui_list("is:unread", 10),
         vibecli_cli::calendar_client::ui_today(),
@@ -43278,8 +43278,7 @@ pub async fn productivity_plan_my_day() -> Result<PlanMyDayResult, String> {
 
     let summary = format!("{n_events} events · {n_tasks} tasks · {n_emails} unread");
 
-    let (provider, model) = pick_triage_provider()
-        .ok_or_else(|| "No AI provider configured. Add an API key in Settings.".to_string())?;
+    ensure_provider_configured(&provider, &model)?;
 
     let prompt = format!(
         "You are a focused productivity assistant. Given today's context below, produce a short \
@@ -43288,15 +43287,15 @@ pub async fn productivity_plan_my_day() -> Result<PlanMyDayResult, String> {
          'Top priority today' line.\n\n{ctx}"
     );
 
-    let resp = call_provider(provider, model, &prompt).await;
+    let resp = call_provider(&provider, &model, &prompt).await;
     if let Some(err) = resp.error {
         return Err(err);
     }
 
     Ok(PlanMyDayResult {
         plan: resp.content,
-        provider: provider.to_string(),
-        model: model.to_string(),
+        provider,
+        model,
         duration_ms: resp.duration_ms,
         context_summary: summary,
     })
@@ -43314,11 +43313,12 @@ pub struct DraftReplyResult {
 pub async fn productivity_draft_reply(
     email_id: String,
     instructions: Option<String>,
+    provider: String,
+    model: String,
 ) -> Result<DraftReplyResult, String> {
-    let body = vibecli_cli::email_client::ui_read(&email_id).await?;
+    ensure_provider_configured(&provider, &model)?;
 
-    let (provider, model) = pick_triage_provider()
-        .ok_or_else(|| "No AI provider configured. Add an API key in Settings.".to_string())?;
+    let body = vibecli_cli::email_client::ui_read(&email_id).await?;
 
     let instr = instructions
         .as_deref()
@@ -43349,15 +43349,15 @@ pub async fn productivity_draft_reply(
         original = original_trimmed,
     );
 
-    let resp = call_provider(provider, model, &prompt).await;
+    let resp = call_provider(&provider, &model, &prompt).await;
     if let Some(err) = resp.error {
         return Err(err);
     }
 
     Ok(DraftReplyResult {
         draft: resp.content.trim().to_string(),
-        provider: provider.to_string(),
-        model: model.to_string(),
+        provider,
+        model,
         duration_ms: resp.duration_ms,
     })
 }

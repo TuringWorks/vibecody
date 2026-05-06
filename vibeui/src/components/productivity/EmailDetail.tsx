@@ -17,6 +17,9 @@ interface Props {
   onClose: () => void;
   onArchived: (id: string) => void;
   onReadChanged: (id: string, read: boolean) => void;
+  /** Provider from the toolbar dropdown — forwarded to the reply composer
+   *  so AI Draft uses the user's selected model. */
+  provider?: string;
 }
 
 const EMAIL_RE = /<([^>]+)>/;
@@ -41,7 +44,7 @@ function quoteBody(body: EmailBody): string {
   return header + quoted;
 }
 
-export function EmailDetail({ id, onClose, onArchived, onReadChanged }: Props) {
+export function EmailDetail({ id, onClose, onArchived, onReadChanged, provider }: Props) {
   const [body, setBody] = useState<EmailBody | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -173,6 +176,7 @@ export function EmailDetail({ id, onClose, onArchived, onReadChanged }: Props) {
           initialTo={extractAddress(body.from)}
           initialSubject={replySubject(body.subject)}
           initialBody={quoteBody(body)}
+          provider={provider}
         />
       )}
 
