@@ -98,6 +98,9 @@ sidebar:
   - title: Background Jobs
     icon: clock
     url: /background-jobs/
+  - title: Sandbox
+    icon: shield
+    url: /sandbox/
   - title: Memory Guide
     icon: database
     url: /memory-guide/

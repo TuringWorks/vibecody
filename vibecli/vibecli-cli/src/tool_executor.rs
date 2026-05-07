@@ -369,12 +369,30 @@ impl ToolExecutor {
             let escaped = command.replace('\'', "'\\''");
             if cfg!(target_os = "macos") {
                 // macOS Seatbelt: sandbox-exec with the built-in "no-network" profile
+                tracing::info!(
+                    target: "vibecody::sandbox",
+                    tier = "native",
+                    os = "macos",
+                    backend = "sandbox-exec",
+                    network_isolation = true,
+                    cmd_len = command.len(),
+                    "sandbox.spawn: macOS Seatbelt no-network"
+                );
                 std::borrow::Cow::Owned(format!(
                     "sandbox-exec -n no-network sh -c '{}'",
                     escaped
                 ))
             } else {
                 // Linux: unshare(1) creates a new network namespace with no interfaces
+                tracing::info!(
+                    target: "vibecody::sandbox",
+                    tier = "native",
+                    os = "linux",
+                    backend = "unshare",
+                    network_isolation = true,
+                    cmd_len = command.len(),
+                    "sandbox.spawn: Linux netns"
+                );
                 std::borrow::Cow::Owned(format!(
                     "unshare --net sh -c '{}'",
                     escaped

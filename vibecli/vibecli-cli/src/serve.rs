@@ -458,12 +458,24 @@ async fn health() -> impl IntoResponse {
                 "metrics_route": "/v1/metrics/jobs",
                 "store_path": "~/.vibecli/jobs.db",
             },
+            "sandbox": {
+                "available": true,
+                "transport": "in-process",
+                // The active tier and its honest capabilities live in the
+                // top-level `sandbox` block (deeper detail). This entry
+                // is the boolean availability signal for feature gates.
+                "tier": "native",
+            },
         },
         // OpenMemory store readiness — counts + flags only, never content.
         // Consumed by Settings panel + ops dashboards so a feature that
         // depends on "memory has data" can read one canonical signal
         // instead of probing /memory/list.
         "memory": memory_health_block(),
+        // Sandbox readiness — active tier + per-OS capabilities + the
+        // explicit deferred list. Honest about limits so dashboards and
+        // marketing pages can't claim something the code doesn't deliver.
+        "sandbox": sandbox_health_block(),
         // Per-integration readiness. `unconfigured` lists integration
         // names with no credential anywhere (ProfileStore or env). UIs
         // show a "needs configuration" badge for each. Add new
@@ -6139,6 +6151,32 @@ mod tests {
             assert_eq!(mem["available"], true);
             assert_eq!(mem["transport"], "daemon-http");
             assert_eq!(mem["routes_prefix"], "/memory/");
+        }
+
+        #[tokio::test]
+        async fn health_exposes_sandbox_block_with_active_tier_and_deferred_list() {
+            let (app, _tmp) = test_app("test-token");
+            let req = Request::builder().uri("/health").body(Body::empty()).unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            let body = body_string(resp.into_body()).await;
+            let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+            let sb = &json["sandbox"];
+            assert!(sb.is_object(), "sandbox block missing");
+            assert_eq!(sb["active_tier"], "native");
+            assert!(sb["tiers"]["native"]["available"].is_boolean());
+            // Honest reporting: WASI / Hyperlight / Firecracker are stubs.
+            assert_eq!(sb["tiers"]["wasi"]["available"], false);
+            assert_eq!(sb["tiers"]["hyperlight"]["available"], false);
+            assert_eq!(sb["tiers"]["firecracker"]["available"], false);
+            assert_eq!(sb["egress_broker"]["available"], false);
+            // The deferred list must be a non-empty array — operators
+            // need to see what *isn't* shipping.
+            let deferred = sb["deferred"].as_array().unwrap();
+            assert!(!deferred.is_empty(), "deferred list must be non-empty");
+            // features.sandbox is the boolean availability summary that
+            // feature gates read.
+            assert_eq!(json["features"]["sandbox"]["available"], true);
+            assert_eq!(json["features"]["sandbox"]["tier"], "native");
         }
 
         #[tokio::test]
