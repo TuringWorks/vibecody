@@ -1510,10 +1510,11 @@ impl Default for BedrockConfig {
 
 /// GitHub Copilot provider configuration.
 ///
-/// The OAuth token is resolved from (in order):
-/// 1. `COPILOT_TOKEN` environment variable
-/// 2. `~/.config/github-copilot/hosts.json` (written by the official VS Code extension)
-/// 3. This config's `token` field
+/// The OAuth token is resolved from (in order, per AGENTS.md → Zero-Config First):
+/// 1. ProfileStore `copilot` key (`vibecli set-key copilot <token>`)
+/// 2. `COPILOT_TOKEN` environment variable
+/// 3. `~/.config/github-copilot/hosts.json` (written by the official VS Code extension)
+/// 4. This config's `token` field
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CopilotConfig {
     /// Whether this provider is active.
@@ -1529,9 +1530,21 @@ pub struct CopilotConfig {
 impl CopilotConfig {
     fn default_model() -> String { "gpt-4o".to_string() }
 
-    /// Resolve the Copilot token from env → hosts.json → config field.
+    /// Resolve the Copilot token from ProfileStore → env → hosts.json → config field.
+    ///
+    /// ProfileStore wins for two reasons: (1) the encrypted store is the
+    /// canonical home per AGENTS.md → Zero-Config First, and (2) putting it
+    /// before the hosts.json read avoids a stale-token surprise when a
+    /// user explicitly rotated via `vibecli set-key copilot ...` but left
+    /// the VS Code extension's old token on disk.
     #[allow(dead_code)]
     pub fn resolve_token(&self) -> Option<String> {
+        // 0. ProfileStore (encrypted SQLite)
+        if let Ok(store) = crate::profile_store::ProfileStore::new() {
+            if let Ok(Some(t)) = store.get_api_key("default", "copilot") {
+                if !t.is_empty() { return Some(t); }
+            }
+        }
         // 1. Environment variable
         if let Ok(t) = std::env::var("COPILOT_TOKEN") {
             return Some(t);

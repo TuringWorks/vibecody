@@ -22,6 +22,23 @@ use vibe_ai::{retry_async, RetryConfig};
 const NOTION_API: &str = "https://api.notion.com/v1";
 const TODOIST_API: &str = "https://api.todoist.com/rest/v2";
 
+/// Read an integration secret from the encrypted ProfileStore. The short
+/// `vibecli set-key <name>` keys (notion, todoist, jira_url, jira_email,
+/// jira_api_token) are checked first, falling back to the legacy
+/// `integration.productivity.*` keys that the VibeUI Settings flow has
+/// historically used. Returns None when the store is unavailable, the key
+/// is missing, or the stored value is empty.
+fn store_lookup(short: &str, legacy: &str) -> Option<String> {
+    let store = crate::profile_store::ProfileStore::new().ok()?;
+    if let Ok(Some(v)) = store.get_api_key("default", short) {
+        if !v.is_empty() { return Some(v); }
+    }
+    if let Ok(Some(v)) = store.get_api_key("default", legacy) {
+        if !v.is_empty() { return Some(v); }
+    }
+    None
+}
+
 // ── Data types ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -85,7 +102,11 @@ struct NotionClient {
 
 impl NotionClient {
     fn from_env_or_config() -> Option<Self> {
-        let key = std::env::var("NOTION_API_KEY").ok()
+        // ProfileStore (encrypted) → env → config.toml. Per
+        // AGENTS.md → Zero-Config First, the encrypted store is the
+        // canonical home for any user-supplied secret.
+        let key = store_lookup("notion", "integration.productivity.notion_api_key")
+            .or_else(|| std::env::var("NOTION_API_KEY").ok())
             .or_else(|| {
                 crate::config::Config::load().ok()
                     .and_then(|c| c.notion_api_key)
@@ -262,7 +283,8 @@ struct TodoistClient {
 
 impl TodoistClient {
     fn from_env_or_config() -> Option<Self> {
-        let key = std::env::var("TODOIST_API_KEY").ok()
+        let key = store_lookup("todoist", "integration.productivity.todoist_api_key")
+            .or_else(|| std::env::var("TODOIST_API_KEY").ok())
             .or_else(|| {
                 crate::config::Config::load().ok()
                     .and_then(|c| c.todoist_api_key)
@@ -437,17 +459,20 @@ struct JiraClient {
 
 impl JiraClient {
     fn from_env_or_config() -> Option<Self> {
-        let url = std::env::var("JIRA_URL").ok()
+        let url = store_lookup("jira_url", "integration.productivity.jira_url")
+            .or_else(|| std::env::var("JIRA_URL").ok())
             .or_else(|| {
                 crate::config::Config::load().ok()
                     .and_then(|c| c.jira.as_ref().and_then(|j| j.url.clone()))
             })?;
-        let email = std::env::var("JIRA_EMAIL").ok()
+        let email = store_lookup("jira_email", "integration.productivity.jira_email")
+            .or_else(|| std::env::var("JIRA_EMAIL").ok())
             .or_else(|| {
                 crate::config::Config::load().ok()
                     .and_then(|c| c.jira.as_ref().and_then(|j| j.email.clone()))
             })?;
-        let token = std::env::var("JIRA_API_TOKEN").ok()
+        let token = store_lookup("jira_api_token", "integration.productivity.jira_api_token")
+            .or_else(|| std::env::var("JIRA_API_TOKEN").ok())
             .or_else(|| {
                 crate::config::Config::load().ok()
                     .and_then(|c| c.jira.as_ref().and_then(|j| j.api_token.clone()))

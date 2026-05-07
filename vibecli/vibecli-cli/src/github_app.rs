@@ -65,11 +65,19 @@ impl Default for GithubAppConfig {
 }
 
 impl GithubAppConfig {
-    /// Resolve the webhook secret from config or GITHUB_APP_WEBHOOK_SECRET env.
+    /// Resolve the webhook secret. Order (per AGENTS.md → Zero-Config First):
+    ///   0. ProfileStore key `github_app_webhook_secret` (encrypted)
+    ///   1. `webhook_secret` field on this struct (config.toml)
+    ///   2. `GITHUB_APP_WEBHOOK_SECRET` env var (compat fallback)
     pub fn resolve_webhook_secret(&self) -> Option<String> {
+        if let Ok(store) = crate::profile_store::ProfileStore::new() {
+            if let Ok(Some(s)) = store.get_api_key("default", "github_app_webhook_secret") {
+                if !s.is_empty() { return Some(s); }
+            }
+        }
         self.webhook_secret
             .clone()
-            .or_else(|| std::env::var("GITHUB_APP_WEBHOOK_SECRET").ok())
+            .or_else(|| std::env::var("GITHUB_APP_WEBHOOK_SECRET").ok().filter(|s| !s.is_empty()))
     }
 }
 
@@ -244,8 +252,23 @@ pub async fn review_pull_request(
 
 // ── GitHub API helpers ───────────────────────────────────────────────────────
 
-fn resolve_github_token() -> Option<String> {
-    std::env::var("GITHUB_TOKEN").ok()
+/// Single source of truth for resolving a GitHub OAuth / PAT token.
+///
+/// Order (per AGENTS.md → Zero-Config First):
+///   0. ProfileStore key `github` — `vibecli set-key github gh_pat_...`
+///   1. `GITHUB_TOKEN` env var
+///   2. `GH_TOKEN` env var (gh CLI compatibility)
+///
+/// Public so `bugbot.rs` and `vulnerability_db.rs` route through here
+/// instead of each re-implementing their own env-only resolution.
+pub fn resolve_github_token() -> Option<String> {
+    if let Ok(store) = crate::profile_store::ProfileStore::new() {
+        if let Ok(Some(t)) = store.get_api_key("default", "github") {
+            if !t.is_empty() { return Some(t); }
+        }
+    }
+    std::env::var("GITHUB_TOKEN").ok().filter(|s| !s.is_empty())
+        .or_else(|| std::env::var("GH_TOKEN").ok().filter(|s| !s.is_empty()))
 }
 
 /// Fetch the unified diff of a PR.

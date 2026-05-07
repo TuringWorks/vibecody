@@ -259,7 +259,9 @@ pub struct BugBot {
 
 impl BugBot {
     pub fn new(llm: Arc<dyn LLMProvider>) -> Self {
-        Self { llm, gh_token: std::env::var("GITHUB_TOKEN").ok() }
+        // Route through the canonical resolver so ProfileStore wins
+        // over env. AGENTS.md → Zero-Config First.
+        Self { llm, gh_token: crate::github_app::resolve_github_token() }
     }
 
     pub fn with_gh_token(mut self, token: impl Into<String>) -> Self {
