@@ -217,6 +217,58 @@ fn sanitize_user_input(s: &str) -> String {
 static CODEC_PROBE: std::sync::OnceLock<vibe_infer::kv_cache_tq::CodecProbeReport> =
     std::sync::OnceLock::new();
 
+/// True if `short` is set in ProfileStore (non-empty) OR any of `env_vars`
+/// resolves to a non-empty value. Used by `unconfigured_integrations`
+/// below so `/health` can surface integrations the daemon would 401 on.
+fn integration_configured(short: &str, env_vars: &[&str]) -> bool {
+    if let Ok(store) = crate::profile_store::ProfileStore::new() {
+        if let Ok(Some(v)) = store.get_api_key("default", short) {
+            if !v.is_empty() { return true; }
+        }
+    }
+    env_vars.iter().any(|v| std::env::var(v).map(|s| !s.is_empty()).unwrap_or(false))
+}
+
+/// Names of integrations that have no credential anywhere — neither a
+/// ProfileStore key nor an env var. Per AGENTS.md → Zero-Config First,
+/// every required value must be discoverable; this is the machine-readable
+/// side of that rule. UIs / CLI / dashboards consume this to show a
+/// "needs configuration" badge per surface without users hunting docs.
+fn unconfigured_integrations() -> Vec<&'static str> {
+    let mut out = Vec::new();
+    if !integration_configured("huggingface", &["HF_TOKEN"]) { out.push("huggingface"); }
+    if !integration_configured("notion", &["NOTION_API_KEY"]) { out.push("notion"); }
+    if !integration_configured("todoist", &["TODOIST_API_KEY"]) { out.push("todoist"); }
+    let jira_ok = integration_configured("jira_url", &["JIRA_URL"])
+        && integration_configured("jira_email", &["JIRA_EMAIL"])
+        && integration_configured("jira_api_token", &["JIRA_API_TOKEN"]);
+    if !jira_ok { out.push("jira"); }
+    if !integration_configured("linear", &["LINEAR_API_KEY"]) { out.push("linear"); }
+    if !integration_configured("copilot", &["COPILOT_TOKEN"]) { out.push("copilot"); }
+    if !integration_configured("github", &["GH_TOKEN", "GITHUB_TOKEN"]) { out.push("github"); }
+    out
+}
+
+/// Stable machine identifier used by Watch JWT claims (so watch tokens
+/// survive daemon restarts) and by the mDNS announcer (so mobile clients
+/// recognize the same daemon across reboots). Per AGENTS.md → Zero-Config
+/// First, the encrypted ProfileStore is the canonical source; env is only
+/// honored for test harnesses that need a deterministic override.
+fn resolve_machine_id() -> String {
+    if let Ok(store) = crate::profile_store::ProfileStore::new() {
+        if let Ok(Some(id)) = store.get_api_key("default", "watch.machine_id") {
+            if !id.is_empty() { return id; }
+        }
+        let id = format!("{:016x}", rand::rng().random::<u64>());
+        let _ = store.set_api_key("default", "watch.machine_id", &id);
+        return id;
+    }
+    if let Ok(env) = std::env::var("VIBECLI_MACHINE_ID") {
+        if !env.is_empty() { return env; }
+    }
+    format!("{:016x}", rand::rng().random::<u64>())
+}
+
 /// Snapshot of which AI providers have a stored API key in the encrypted
 /// ProfileStore. Names only — never the values. Used by `/health` so any
 /// feature that depends on "an AI provider is configured" (chat,
@@ -239,6 +291,78 @@ fn configured_provider_names() -> Vec<String> {
 /// content ever leaves this function — only shapes. Returns a neutral
 /// `enabled: false` shape when the store can't be loaded so `/health`
 /// stays a 200 even on a fresh / broken install.
+/// Honest /health.sandbox block. Reports the *active* sandbox tier, the
+/// capabilities it actually delivers on the host OS, and the deferred
+/// items so dashboards / docs can surface limits accurately. Per
+/// AGENTS.md → Zero-Config First, the daemon picks safe defaults; this
+/// block tells operators what those defaults amount to.
+///
+/// Tier-0 (native) is the only tier shipping today:
+///   - Linux:   `bwrap` (bubblewrap) — filesystem isolation when the
+///              binary is on PATH, network isolation via `unshare --net`.
+///              Landlock + seccomp are deferred (slices N1.2 / N1.3).
+///   - macOS:   `sandbox-exec -n no-network` — network isolation only.
+///              Filesystem isolation via Seatbelt profile is deferred.
+///   - Windows: AppContainer + Restricted Token + Job Object — present
+///              but lightly tested in production.
+///
+/// Tiers 1-3 (WASI, Hyperlight, Firecracker) are stubs that return
+/// `TierUnsupported`. The egress broker is designed but not wired.
+/// All four are reported as `available: false` so feature gates and
+/// marketing pages don't claim something the code doesn't deliver.
+fn sandbox_health_block() -> serde_json::Value {
+    let bwrap_available = std::process::Command::new("bwrap")
+        .arg("--version")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+
+    let active_tier = if cfg!(target_os = "linux") || cfg!(target_os = "macos") || cfg!(target_os = "windows") {
+        "native"
+    } else {
+        "none"
+    };
+
+    // Per-OS capabilities the *current* shipping path delivers. These
+    // are deliberately conservative — only set true when the code path
+    // is wired (not just designed).
+    #[cfg(target_os = "linux")]
+    let (network_isolation, filesystem_isolation) = (true, bwrap_available);
+    #[cfg(target_os = "macos")]
+    let (network_isolation, filesystem_isolation) = (true, false);
+    #[cfg(target_os = "windows")]
+    let (network_isolation, filesystem_isolation) = (true, true);
+    #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+    let (network_isolation, filesystem_isolation) = (false, false);
+
+    serde_json::json!({
+        "active_tier": active_tier,
+        "tiers": {
+            "native": {
+                "available": active_tier == "native",
+                "network_isolation": network_isolation,
+                "filesystem_isolation": filesystem_isolation,
+                "landlock_active": false,
+                "seccomp_active": false,
+                "bwrap_binary_available": bwrap_available,
+            },
+            "wasi":        { "available": false, "status": "stub" },
+            "hyperlight":  { "available": false, "status": "stub" },
+            "firecracker": { "available": false, "status": "stub" },
+        },
+        "egress_broker": { "available": false, "status": "designed-not-wired" },
+        "deferred": [
+            "landlock-rules-on-linux",
+            "seccomp-bpf-filter",
+            "macos-seatbelt-fs-profile",
+            "egress-broker-wiring",
+            "wasi/hyperlight/firecracker-tiers",
+        ],
+    })
+}
+
 fn memory_health_block() -> serde_json::Value {
     let store_dir = openmemory_dir();
     let mut store = match crate::open_memory::OpenMemoryStore::load(&store_dir, "default") {
@@ -277,6 +401,7 @@ async fn health() -> impl IntoResponse {
     let codec_probe = CODEC_PROBE.get();
     let providers = configured_provider_names();
     let provider_count = providers.len();
+    let unconfigured = unconfigured_integrations();
     Json(serde_json::json!({
         "status": "ok",
         "version": env!("CARGO_PKG_VERSION"),
@@ -339,6 +464,13 @@ async fn health() -> impl IntoResponse {
         // depends on "memory has data" can read one canonical signal
         // instead of probing /memory/list.
         "memory": memory_health_block(),
+        // Per-integration readiness. `unconfigured` lists integration
+        // names with no credential anywhere (ProfileStore or env). UIs
+        // show a "needs configuration" badge for each. Add new
+        // integrations to `unconfigured_integrations()` above.
+        "integrations": {
+            "unconfigured": unconfigured,
+        },
     }))
 }
 
@@ -3207,21 +3339,9 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .unwrap_or_else(|| std::path::PathBuf::from("."))
         .join(".vibecli")
         .join("sessions.db");
-    // machine_id must be stable across restarts so Watch JWTs (which embed it)
-    // remain valid after daemon restarts. Load from ProfileStore, generate once.
-    let watch_machine_id = std::env::var("VIBECLI_MACHINE_ID").unwrap_or_else(|_| {
-        crate::profile_store::ProfileStore::new()
-            .ok()
-            .and_then(|s| s.get_api_key("default", "watch.machine_id").ok().flatten())
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| {
-                let id = format!("{:016x}", rand::rng().random::<u64>());
-                if let Ok(s) = crate::profile_store::ProfileStore::new() {
-                    let _ = s.set_api_key("default", "watch.machine_id", &id);
-                }
-                id
-            })
-    });
+    // Stable across restarts so Watch JWTs (which embed it) remain valid.
+    // ProfileStore-primary; see resolve_machine_id() for the policy.
+    let watch_machine_id = resolve_machine_id();
     let watch_router = crate::watch_bridge::WatchBridgeState::new(
         state.api_token.clone(),
         Arc::new(std::sync::Mutex::new(std::collections::HashMap::new())),
@@ -3608,10 +3728,10 @@ pub async fn serve(
 
     // Start zero-config mDNS announcer — announces _vibecli._tcp.local. so
     // the mobile app discovers this daemon on any LAN without special flags.
+    // Same machine_id as the watch JWT so clients recognize the same
+    // daemon across reboots; resolve_machine_id() persists in ProfileStore.
     {
-        let machine_id = std::env::var("VIBECLI_MACHINE_ID")
-            .unwrap_or_else(|_| format!("{:016x}", rand::rng().random::<u64>()));
-        crate::mdns_announce::start(port, machine_id);
+        crate::mdns_announce::start(port, resolve_machine_id());
         eprintln!("[vibecli serve] mDNS announcing _vibecli._tcp.local. on port {port}");
     }
 

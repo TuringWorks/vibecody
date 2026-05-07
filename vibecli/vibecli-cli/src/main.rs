@@ -1148,6 +1148,21 @@ const KEY_PROVIDERS: &[&str] = &[
     // reads from ProfileStore at startup and exports HF_TOKEN so
     // hf-hub / candle pick it up without the user touching env vars.
     "huggingface",
+    // Productivity integrations (productivity.rs). Each consults
+    // ProfileStore via store_lookup() before falling back to env.
+    "notion",
+    "todoist",
+    "jira_url",
+    "jira_email",
+    "jira_api_token",
+    // Linear is read by linear.rs which already does ProfileStore-first;
+    // exposing here so users can `vibecli set-key linear ...` directly.
+    "linear",
+    // GitHub token shared by bugbot.rs / vulnerability_db.rs / github_app.rs.
+    "github",
+    // Copilot OAuth token. CopilotConfig::resolve_token() consults this
+    // first. `vibecli --copilot-login` runs the device flow and writes here.
+    "copilot",
     // openmemory_passphrase: encrypts memory content at rest. Stored
     // here so the daemon can apply it on every load_memory_store()
     // call without the user retyping the passphrase. ProfileStore is

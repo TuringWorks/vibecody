@@ -47,7 +47,7 @@ These five files read integration tokens directly from env without consulting Pr
 | `vibecli/vibecli-cli/src/productivity.rs` | `LINEAR_API_KEY`, `NOTION_API_KEY`, `JIRA_*`, `TODOIST_API_KEY` | High | Five separate integration tokens, none in ProfileStore. User-visible feature surface (`/v1/productivity/*`) — most likely env-only path users hit |
 | `vibecli/vibecli-cli/src/vulnerability_db.rs` | `GH_TOKEN` | Low | Internal scanner; could fall back to `bugbot.rs`'s GitHub creds path once that's compliant |
 | `vibeui/crates/vibe-ai/src/providers/copilot.rs` | `COPILOT_TOKEN` | Med | Unlike other AI providers, this one bypasses `overlay_from_store`; the Tauri `commands.rs` `build_temp_provider` match arm needs to consult ProfileStore |
-| `vibeui/crates/vibe-ai/src/providers/native_connectors.rs` | several integration vars | Med | Sampled earlier; same shape as `productivity.rs` |
+| ~~`vibeui/crates/vibe-ai/src/providers/native_connectors.rs`~~ | (false positive — file is at `vibecli/vibecli-cli/src/native_connectors.rs` and only references `LINEAR_API_KEY` etc. in a *workspace `.env` auto-discover* test, not a production read path) | — | Resolved on reread 2026-05-04 |
 
 ### Discoverability gap
 
