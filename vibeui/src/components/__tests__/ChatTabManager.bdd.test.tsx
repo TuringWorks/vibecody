@@ -94,7 +94,12 @@ function renderManager(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  localStorage.clear();
+  // Reset only the keys ChatTabManager touches. Some jsdom/vitest combos
+  // expose a localStorage proxy without a `clear()` method, which used to
+  // make this beforeEach throw and skip every test in the file.
+  for (const key of ["vibecody:chat-history", "vibecody:chat-sessions", "vibeui-sessions"]) {
+    try { localStorage.removeItem(key); } catch { /* localStorage unavailable */ }
+  }
   // Default: get_adventure_names returns backend list; get_adventure_names is called on mount
   mockInvoke.mockImplementation(async (cmd: string) => {
     if (cmd === 'get_adventure_names') return ['Alpha', 'Beta', 'Gamma'];
@@ -111,10 +116,8 @@ afterEach(() => {
 describe('Given the ChatTabManager renders for the first time', () => {
   it('When it mounts, Then the first tab has a non-empty title from the pool', () => {
     renderManager();
-    // The tab strip renders all tab titles; the first one should be from the 30-name pool
-    // (exact name depends on random start index, but it must be non-empty)
-    const tabBar = screen.getByRole('button', { name: '+' }).closest('div')!.parentElement!;
-    // Tab titles appear as spans before the "×" close buttons
+    // The tablist is the canonical ARIA container for the tab strip.
+    const tabBar = screen.getByRole('tablist', { name: /chat sessions/i });
     const allText = tabBar.textContent ?? '';
     // The adventure pool names are distinct non-empty strings
     expect(allText.length).toBeGreaterThan(0);
@@ -589,5 +592,95 @@ describe('Given a tab has messages and recap-on-close is enabled', () => {
     const entries = JSON.parse(localStorage.getItem('vibecody:chat-history') || '[]');
     expect(entries).toHaveLength(1);
     expect(entries[0].recapSubjectId).toBeUndefined();
+  });
+});
+
+// ── A11y: tablist + tab roles + keyboard navigation ─────────────────────────────
+
+describe('Given the tab strip renders', () => {
+  it('When a sighted user opens the panel, Then the strip is exposed as a tablist with one tab per chat', () => {
+    renderManager();
+    const list = screen.getByRole('tablist', { name: /chat sessions/i });
+    expect(list).toBeInTheDocument();
+    expect(screen.getAllByRole('tab')).toHaveLength(1);
+  });
+
+  it('When a second tab is added, Then exactly one tab has aria-selected="true"', () => {
+    renderManager();
+    fireEvent.click(screen.getByTitle('New chat tab'));
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs).toHaveLength(2);
+    const selected = tabs.filter(t => t.getAttribute('aria-selected') === 'true');
+    expect(selected).toHaveLength(1);
+    // The newly added tab is the active one
+    expect(selected[0]).toBe(tabs[1]);
+  });
+
+  it('When the user presses ArrowRight on the active tab, Then focus and selection move to the next tab', () => {
+    renderManager();
+    fireEvent.click(screen.getByTitle('New chat tab'));
+    const tabs = screen.getAllByRole('tab');
+    // Active is tabs[1]; ArrowRight should wrap to tabs[0]
+    fireEvent.keyDown(tabs[1], { key: 'ArrowRight' });
+    const after = screen.getAllByRole('tab');
+    expect(after[0].getAttribute('aria-selected')).toBe('true');
+    expect(after[1].getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('When the user presses Home, Then the first tab becomes selected', () => {
+    renderManager();
+    fireEvent.click(screen.getByTitle('New chat tab'));
+    fireEvent.click(screen.getByTitle('New chat tab'));
+    const tabs = screen.getAllByRole('tab');
+    fireEvent.keyDown(tabs[2], { key: 'Home' });
+    expect(screen.getAllByRole('tab')[0].getAttribute('aria-selected')).toBe('true');
+  });
+});
+
+// ── Error UX: recap-resume failure surfaces an inline alert ─────────────────────
+
+describe('Given a recap is pinned and recap_resume_session fails', () => {
+  it('When the user clicks "Resume from here", Then an alert banner appears', async () => {
+    localStorage.setItem('vibecody:chat-history', JSON.stringify([{
+      id: 'session-seed-1',
+      title: 'Seeded',
+      provider: 'ollama',
+      messages: [{ role: 'user', content: 'original' }],
+      savedAt: 1700000000000,
+      recapSubjectId: 'sess_xyz',
+    }]));
+    mockInvoke.mockImplementation(async (cmd: string, args?: { subjectId?: string }) => {
+      if (cmd === 'get_adventure_names') return ['Alpha', 'Beta', 'Gamma'];
+      if (cmd === 'recap_get_for_session') {
+        return {
+          id: 'rcp_1',
+          kind: 'session',
+          subject_id: args?.subjectId ?? '',
+          generated_at: '2026-01-01T00:00:00Z',
+          generator: { type: 'heuristic' },
+          headline: 'h',
+          bullets: ['b1'],
+          next_actions: [],
+          artifacts: [],
+          schema_version: 1,
+        };
+      }
+      if (cmd === 'recap_resume_session') throw new Error('daemon offline');
+      return null;
+    });
+
+    renderManager();
+    fireEvent.click(screen.getByTitle('Session history'));
+    fireEvent.click(screen.getByTitle('Restore into new tab'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('recap-card')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('recap-resume'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('alert').textContent).toMatch(/couldn['’]t resume/i);
   });
 });

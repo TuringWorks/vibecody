@@ -466,6 +466,17 @@ async fn health() -> impl IntoResponse {
                 // is the boolean availability signal for feature gates.
                 "tier": "native",
             },
+            // Chat tab manager is a desktop UI feature. The history is
+            // client-side localStorage (key `vibecody:chat-history`,
+            // capped at 50 entries) — no daemon-side store today, so the
+            // declaration is the surface contract for cross-client
+            // consistency rather than a state probe.
+            "chat_tabs": {
+                "available": true,
+                "transport": "tauri-desktop",
+                "history_key": "vibecody:chat-history",
+                "history_cap": 50,
+            },
         },
         // OpenMemory store readiness — counts + flags only, never content.
         // Consumed by Settings panel + ops dashboards so a feature that

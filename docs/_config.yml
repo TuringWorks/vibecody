@@ -95,6 +95,9 @@ sidebar:
   - title: Recap & Resume
     icon: rotate-ccw
     url: /recap/
+  - title: Chat Tabs
+    icon: message-square
+    url: /chat-tabs/
   - title: Background Jobs
     icon: clock
     url: /background-jobs/

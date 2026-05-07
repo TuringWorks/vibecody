@@ -8,6 +8,14 @@ import { useSessionMemory } from "../hooks/useSessionMemory";
 import { useWatchActiveSession } from "../hooks/useWatchSync";
 import type { Recap } from "../types/recap";
 
+/** Last error surfaced to the user — recap-resume failure messages, etc.
+ * Cleared automatically after 6s or when the user dismisses. Only one
+ * banner at a time; new errors replace the previous one. */
+interface InlineError {
+    id: number;
+    message: string;
+}
+
 interface ChatTab {
     id: string;
     title: string;
@@ -119,6 +127,22 @@ export function ChatTabManager({
     const [showHistory, setShowHistory] = useState(false);
     const [showMemoryDialog, setShowMemoryDialog] = useState(false);
     const [history, setHistory] = useState<ChatSession[]>(loadHistory);
+    const [inlineError, setInlineError] = useState<InlineError | null>(null);
+    const errorIdRef = useRef(0);
+
+    /** Show a transient error banner. Auto-dismisses after 6s.
+     * Wired into recap-generate / recap-resume failure paths so users
+     * actually see when the daemon is offline instead of silently losing
+     * the action. */
+    const showError = useCallback((message: string) => {
+        const id = ++errorIdRef.current;
+        setInlineError({ id, message });
+        setTimeout(() => {
+            setInlineError(prev => (prev && prev.id === id ? null : prev));
+        }, 6000);
+    }, []);
+
+    const dismissError = useCallback(() => setInlineError(null), []);
 
     // Per-tab message storage (lifted from AIChat). Lives in React state for
     // the lifetime of the panel — not persisted to localStorage. Closed tabs
@@ -366,13 +390,14 @@ export function ChatTabManager({
 
     /** F2.2 — invoked by RecapCard's "Resume from here". Asks the daemon
      * to materialise a primed session via /v1/resume, then dismisses the
-     * card. Failure is non-fatal: the user is already on the restored
-     * transcript, the resume just couldn't graft a fresh prompt. */
+     * card. Failure surfaces an inline error banner so the user knows
+     * the resume didn't graft a fresh prompt — the underlying transcript
+     * is already restored, only the resume step failed. */
     const resumeFromRecap = useCallback((tabId: string, recap: Recap) => {
         invoke("recap_resume_session", { recapId: recap.id, branch: false })
-            .catch(() => { /* surfaced via separate toast in F2.3 */ });
+            .catch(() => showError("Couldn't resume from recap — the daemon may be offline. Your messages are still here."));
         setTabRecaps(prev => ({ ...prev, [tabId]: null }));
-    }, []);
+    }, [showError]);
 
     const dismissRecap = useCallback((tabId: string) => {
         setTabRecaps(prev => ({ ...prev, [tabId]: null }));
@@ -462,17 +487,53 @@ export function ChatTabManager({
             d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     };
 
+    /** Keyboard navigation for the tab strip. Left/Right cycle tabs;
+     * Home/End jump to first/last. Mirrors the WAI-ARIA tablist pattern.
+     * Called from each tab's onKeyDown so focus stays where the user is. */
+    const handleTabKeyDown = (e: React.KeyboardEvent, tabId: string) => {
+        if (editingTabId === tabId) return; // rename input owns the keys
+        const idx = tabs.findIndex(t => t.id === tabId);
+        if (idx < 0) return;
+        let next = idx;
+        if (e.key === "ArrowRight") next = (idx + 1) % tabs.length;
+        else if (e.key === "ArrowLeft") next = (idx - 1 + tabs.length) % tabs.length;
+        else if (e.key === "Home") next = 0;
+        else if (e.key === "End") next = tabs.length - 1;
+        else return;
+        e.preventDefault();
+        const nextTab = tabs[next];
+        setActiveTabId(nextTab.id);
+        setShowHistory(false);
+        // Defer focus to after re-render
+        requestAnimationFrame(() => {
+            const el = document.querySelector<HTMLElement>(`[data-tab-id="${nextTab.id}"]`);
+            el?.focus();
+        });
+    };
+
     return (
         <div className="panel-container">
-            {/* Tab strip */}
-            <div className="panel-tab-bar" style={{ alignItems: "center", gap: "1px", overflowX: "auto", minHeight: "32px" }}>
+            {/* Tab strip — proper WAI-ARIA tablist with arrow-key navigation */}
+            <div
+                className="panel-tab-bar"
+                role="tablist"
+                aria-label="Chat sessions"
+                style={{ alignItems: "center", gap: "1px", overflowX: "auto", minHeight: "32px" }}
+            >
                 {tabs.map((tab) => {
                     const msgCount = (tabMessages[tab.id] ?? []).length;
+                    const isActive = activeTabId === tab.id && !showHistory;
                     return (
                         <div
                             key={tab.id}
+                            data-tab-id={tab.id}
+                            role="tab"
+                            aria-selected={isActive}
+                            aria-controls={`chat-tab-panel-${tab.id}`}
+                            tabIndex={isActive ? 0 : -1}
                             onClick={() => { if (editingTabId !== tab.id) { setActiveTabId(tab.id); setShowHistory(false); } }}
-                            className={`panel-tab ${activeTabId === tab.id && !showHistory ? "active" : ""}`}
+                            onKeyDown={(e) => handleTabKeyDown(e, tab.id)}
+                            className={`panel-tab ${isActive ? "active" : ""}`}
                             style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0, userSelect: "none" }}
                         >
                             {editingTabId === tab.id ? (
@@ -516,6 +577,7 @@ export function ChatTabManager({
                                         display: "flex", alignItems: "center",
                                     }}
                                     title="Close tab"
+                                    aria-label={`Close ${tab.title}`}
                                 >
                                     <Icon name="x" size={12} />
                                 </button>
@@ -526,6 +588,7 @@ export function ChatTabManager({
                 <button
                     onClick={addTab}
                     title="New chat tab"
+                    aria-label="New chat tab"
                     style={{
                         background: "none", border: "none", color: "var(--text-secondary)",
                         cursor: "pointer", padding: "4px 8px", fontSize: "16px",
@@ -539,6 +602,8 @@ export function ChatTabManager({
                 <button
                     onClick={() => setShowHistory(prev => !prev)}
                     title="Session history"
+                    aria-pressed={showHistory}
+                    aria-label={`Session history${history.length > 0 ? ` — ${history.length} saved` : ""}`}
                     style={{
                         background: showHistory ? "var(--bg-primary)" : "none",
                         border: "none", color: showHistory ? "var(--accent-color)" : "var(--text-secondary)",
@@ -559,6 +624,8 @@ export function ChatTabManager({
                         <button
                             onClick={() => setShowMemoryDialog(true)}
                             title="Chat memory"
+                            aria-pressed={showMemoryDialog}
+                            aria-label={`Chat memory${total > 0 ? ` — ${total} fact${total === 1 ? "" : "s"}${pinned > 0 ? `, ${pinned} pinned` : ""}` : ""}`}
                             style={{
                                 background: showMemoryDialog ? "var(--bg-primary)" : "none",
                                 border: "none",
@@ -723,11 +790,49 @@ export function ChatTabManager({
                 </div>
             )}
 
+            {/* Inline error banner — recap-resume failure, etc. role="alert"
+                so AT announces the message immediately. The transcript is
+                always still intact below; this banner only signals that an
+                async background action couldn't be completed. */}
+            {inlineError && (
+                <div
+                    role="alert"
+                    style={{
+                        margin: "6px 12px 0",
+                        padding: "8px 12px",
+                        background: "var(--error-bg, #5b1a1a)",
+                        border: "1px solid var(--accent-rose, #ef4444)",
+                        borderRadius: "var(--radius-xs-plus)",
+                        color: "var(--text-primary)",
+                        fontSize: "var(--font-size-sm)",
+                        display: "flex", justifyContent: "space-between", alignItems: "center",
+                        gap: 8,
+                    }}
+                >
+                    <span>{inlineError.message}</span>
+                    <button
+                        type="button"
+                        onClick={dismissError}
+                        aria-label="Dismiss error"
+                        style={{
+                            background: "none", border: "none", color: "inherit",
+                            cursor: "pointer", padding: "2px 6px", fontSize: "var(--font-size-sm)",
+                        }}
+                    >
+                        Dismiss
+                    </button>
+                </div>
+            )}
+
             {/* Tab content — render all tabs but only show active, preserving state */}
             <div style={{ flex: 1, overflow: "hidden", display: showHistory ? "none" : "block" }}>
                 {tabs.map((tab) => (
                     <div
                         key={tab.id}
+                        id={`chat-tab-panel-${tab.id}`}
+                        role="tabpanel"
+                        aria-label={tab.title}
+                        hidden={activeTabId !== tab.id}
                         style={{
                             display: activeTabId === tab.id ? "flex" : "none",
                             flexDirection: "column",
