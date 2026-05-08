@@ -1778,16 +1778,83 @@ pub async fn rename_item(
 
 /// Workspace operations
 
+/// Path to the recents file — single JSON array of absolute paths,
+/// most-recent-first, capped at 10. Lives in the same `~/.vibeui/`
+/// directory as other panel state so a `~/.vibeui` backup captures
+/// recents alongside everything else.
+fn recent_workspaces_path() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".vibeui").join("recent-workspaces.json")
+}
+
+const MAX_RECENT_WORKSPACES: usize = 10;
+
+fn load_recent_workspaces() -> Vec<String> {
+    std::fs::read_to_string(recent_workspaces_path())
+        .ok()
+        .and_then(|s| serde_json::from_str::<Vec<String>>(&s).ok())
+        .unwrap_or_default()
+}
+
+fn save_recent_workspaces(list: &[String]) -> Result<(), String> {
+    let path = recent_workspaces_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let json = serde_json::to_string_pretty(list).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub async fn add_workspace_folder(
     path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
+    // Validate before mutating state — a non-existent or
+    // non-directory path stored as the active workspace breaks every
+    // panel that reads it. Easier to refuse here than to recover later.
+    let pb = PathBuf::from(&path);
+    if !pb.exists() {
+        tracing::warn!(
+            target: "vibecody::workspace",
+            path = %path,
+            "workspace.add.rejected: path does not exist"
+        );
+        return Err(format!("Path does not exist: {}", path));
+    }
+    if !pb.is_dir() {
+        tracing::warn!(
+            target: "vibecody::workspace",
+            path = %path,
+            "workspace.add.rejected: not a directory"
+        );
+        return Err(format!("Path is not a directory: {}", path));
+    }
+
     set_active_workspace(&path);
-    let mut workspace = state.workspace.lock().await;
-    workspace
-        .add_folder(PathBuf::from(path))
-        .map_err(|e| e.to_string())
+    {
+        let mut workspace = state.workspace.lock().await;
+        workspace
+            .add_folder(pb.clone())
+            .map_err(|e| e.to_string())?;
+    }
+
+    // Update recents — move-to-front (LRU). Idempotent on the same
+    // path: re-opening a recent moves it to position 0 without
+    // duplicating.
+    let mut recents = load_recent_workspaces();
+    recents.retain(|p| p != &path);
+    recents.insert(0, path.clone());
+    recents.truncate(MAX_RECENT_WORKSPACES);
+    let _ = save_recent_workspaces(&recents);
+
+    tracing::info!(
+        target: "vibecody::workspace",
+        path = %path,
+        recent_count = recents.len(),
+        "workspace.add"
+    );
+    Ok(())
 }
 
 #[tauri::command]
@@ -1798,6 +1865,39 @@ pub async fn get_workspace_folders(state: tauri::State<'_, AppState>) -> Result<
         .iter()
         .map(|p| p.to_string_lossy().to_string())
         .collect())
+}
+
+/// List recent workspaces, most-recent-first. Returns whatever's in
+/// `~/.vibeui/recent-workspaces.json` — entries that no longer exist
+/// on disk are filtered out so the list never resurfaces a broken path.
+#[tauri::command]
+pub async fn list_recent_workspaces() -> Result<Vec<String>, String> {
+    let recents = load_recent_workspaces();
+    let alive: Vec<String> = recents
+        .into_iter()
+        .filter(|p| std::path::Path::new(p).is_dir())
+        .collect();
+    Ok(alive)
+}
+
+/// Remove a single recent workspace entry. Used by the "x" button on
+/// each recents row in the UI when a project moves or is deleted.
+#[tauri::command]
+pub async fn remove_recent_workspace(path: String) -> Result<(), String> {
+    let mut recents = load_recent_workspaces();
+    let before = recents.len();
+    recents.retain(|p| p != &path);
+    if recents.len() == before {
+        return Err(format!("Recent workspace not found: {}", path));
+    }
+    save_recent_workspaces(&recents)?;
+    tracing::info!(
+        target: "vibecody::workspace",
+        path = %path,
+        remaining = recents.len(),
+        "workspace.recent.remove"
+    );
+    Ok(())
 }
 
 #[tauri::command]

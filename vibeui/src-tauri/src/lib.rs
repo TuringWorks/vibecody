@@ -344,6 +344,8 @@ pub fn run() {
             commands::rename_item,
             commands::add_workspace_folder,
             commands::get_workspace_folders,
+            commands::list_recent_workspaces,
+            commands::remove_recent_workspace,
             commands::open_file_in_workspace,
             commands::insert_text,
             commands::delete_text,

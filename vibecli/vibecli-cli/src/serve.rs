@@ -566,6 +566,17 @@ async fn health() -> impl IntoResponse {
                 "store_path": "~/.vibeui/usage-metering.json",
                 "budget_periods": ["daily", "weekly", "monthly"],
             },
+            // Workspace switcher — folder picker + LRU recents capped
+            // at 10. add_workspace_folder validates the path exists +
+            // is a directory before mutating state. Recents
+            // self-prune entries that no longer exist on disk.
+            "workspace": {
+                "available": true,
+                "transport": "tauri-desktop",
+                "recents_path": "~/.vibeui/recent-workspaces.json",
+                "recents_cap": 10,
+                "validates": ["exists", "is_directory"],
+            },
         },
         // OpenMemory store readiness — counts + flags only, never content.
         // Consumed by Settings panel + ops dashboards so a feature that

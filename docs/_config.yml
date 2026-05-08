@@ -25,6 +25,9 @@ sidebar:
   - title: Quickstart
     icon: zap
     url: /quickstart/
+  - title: Workspace
+    icon: folder-open
+    url: /workspace/
   - title: Guides
     icon: map
     url: /guides/
