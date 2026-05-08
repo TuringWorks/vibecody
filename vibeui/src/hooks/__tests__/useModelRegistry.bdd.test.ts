@@ -233,3 +233,27 @@ describe('Given a slow backend response', () => {
     expect(result.current.loading).toBe(false);
   });
 });
+
+// ── Scenario 13 (C3): May 2026 model wave is reflected in the registry ────────
+
+describe('Given the May 2026 industry delta', () => {
+  it('When inspecting STATIC_MODELS.openai, Then GPT-5.5 / 5.4 / 5.3-Codex are listed', () => {
+    expect(STATIC_MODELS.openai).toContain('gpt-5.5');
+    expect(STATIC_MODELS.openai).toContain('gpt-5.4');
+    expect(STATIC_MODELS.openai).toContain('gpt-5.3-codex');
+  });
+
+  it('When inspecting STATIC_MODELS.claude, Then Opus 4.7 is listed', () => {
+    expect(STATIC_MODELS.claude).toContain('claude-opus-4-7');
+  });
+
+  it('When inspecting STATIC_MODELS.gemini, Then Gemini 3 / 3.1-Pro are listed', () => {
+    expect(STATIC_MODELS.gemini).toContain('gemini-3-pro');
+    expect(STATIC_MODELS.gemini).toContain('gemini-3.1-pro');
+  });
+
+  it('When inspecting PROVIDER_DEFAULT_MODEL, Then OpenAI defaults to GPT-5.5 and Claude to Opus 4.7', () => {
+    expect(PROVIDER_DEFAULT_MODEL.openai).toBe('gpt-5.5');
+    expect(PROVIDER_DEFAULT_MODEL.claude).toBe('claude-opus-4-7');
+  });
+});

@@ -201,6 +201,31 @@ struct WatchRecap: Codable, Identifiable {
     let schema_version: Int
 }
 
+/// W1.2 — slim job summary for the Smart Stack tile / job picker.
+/// Mirrors the daemon's `/watch/jobs` response shape.
+struct WatchJobSummary: Codable, Identifiable {
+    var id: String { session_id }
+    let session_id: String
+    let task_preview: String
+    let status: String           // "queued" | "running" | "complete" | "failed" | "cancelled"
+    let provider: String
+    let started_at: TimeInterval
+    let finished_at: TimeInterval?
+
+    var isTerminal: Bool {
+        status == "complete" || status == "failed" || status == "cancelled"
+    }
+    var statusIcon: String {
+        switch status {
+        case "running":   return "⚡"
+        case "complete":  return "✓"
+        case "failed":    return "✗"
+        case "cancelled": return "⊘"
+        default:          return "○"
+        }
+    }
+}
+
 // MARK: - Beacon
 
 struct WatchBeacon: Codable {

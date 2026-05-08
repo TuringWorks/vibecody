@@ -385,6 +385,27 @@ fn sandbox_health_block() -> serde_json::Value {
     })
 }
 
+fn mcp_features_block() -> serde_json::Value {
+    // ~/.vibeui/mcp.json — server list managed by the VibeUI Tauri panel.
+    // The daemon doesn't own the file, but probing it lets /health report
+    // whether MCP servers have been configured at all (a deciding signal
+    // for clients that gate MCP-dependent features).
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let cfg_path = std::path::PathBuf::from(home).join(".vibeui").join("mcp.json");
+    let server_count = std::fs::read_to_string(&cfg_path)
+        .ok()
+        .and_then(|s| serde_json::from_str::<Vec<serde_json::Value>>(&s).ok())
+        .map(|v| v.len())
+        .unwrap_or(0);
+    serde_json::json!({
+        "available": true,
+        "transport": "tauri-desktop",
+        "config_path": "~/.vibeui/mcp.json",
+        "server_count": server_count,
+        "configured": server_count > 0,
+    })
+}
+
 fn memory_health_block() -> serde_json::Value {
     let store_dir = openmemory_dir();
     let mut store = match crate::open_memory::OpenMemoryStore::load(&store_dir, "default") {
@@ -510,6 +531,74 @@ async fn health() -> impl IntoResponse {
                 "requires": "providers.configured_count >= 2 (for non-trivial battles)",
                 "votes_path": "~/.vibeui/arena-votes.json",
             },
+            // Session browser (list / search / delete / replay / fork).
+            // Reads .vibecli/traces/ inside the user's workspace — one
+            // .jsonl per session plus optional sidecar -messages.json /
+            // -context.json files. No daemon-side store; the workspace
+            // path is the source of truth.
+            "sessions": {
+                "available": true,
+                "transport": "tauri-desktop",
+                "trace_dir": ".vibecli/traces/",
+            },
+            // MCP (Model Context Protocol). Server config lives at
+            // ~/.vibeui/mcp.json (Tauri-managed); install registry at
+            // ~/.vibeui/mcp-installed.json. The boolean is a runtime
+            // probe of the config file, not a fixed declaration.
+            "mcp": mcp_features_block(),
+            // Agent loop UI — plan-then-act with approval gates and
+            // optional parallel-chunk execution via worktree isolation.
+            // Inherits provider availability from the providers block.
+            "agent_panel": {
+                "available": provider_count > 0,
+                "transport": "tauri-desktop",
+                "requires": "providers.configured_count > 0",
+                "approval_policies": ["suggest", "auto-edit", "full-auto"],
+                "parallel_isolation": "git-worktree",
+            },
+            // Device pairing — bearer-token bootstrap for mobile, watch,
+            // IDE plugins, and second-shell clients. Tokens are 128-bit
+            // hex from the OS CSPRNG. The `/pair` route advertises a URL
+            // back to whatever Host: header the client used, so LAN
+            // clients get a LAN-reachable URL automatically.
+            "pairing": {
+                "available": true,
+                "transport": "daemon-http",
+                "endpoint": "/pair",
+                "token_bits": 128,
+                "rng": "os-csprng",
+            },
+            // Counsel — multi-LLM debate / synthesis panel. Sessions are
+            // persisted to ~/.vibeui/counsel-sessions.json. Inherits
+            // provider availability — needs at least 2 different
+            // providers configured to make a useful panel.
+            "counsel": {
+                "available": provider_count > 0,
+                "transport": "tauri-desktop",
+                "requires": "providers.configured_count >= 2 (for diverse debate)",
+                "store_path": "~/.vibeui/counsel-sessions.json",
+            },
+            // Usage metering — per-provider/model/task spend, budgets,
+            // and alerts. Always available (no provider dependency —
+            // metering is observed from the daemon's own request log,
+            // not from probing providers). Store is plain JSON.
+            "usage_metering": {
+                "available": true,
+                "transport": "tauri-desktop",
+                "store_path": "~/.vibeui/usage-metering.json",
+                "budget_periods": ["daily", "weekly", "monthly"],
+            },
+            // Workspace switcher — folder picker + LRU recents capped
+            // at 10. add_workspace_folder validates the path exists +
+            // is a directory before mutating state. Recents
+            // self-prune entries that no longer exist on disk.
+            "workspace": {
+                "available": true,
+                "transport": "tauri-desktop",
+                "recents_path": "~/.vibeui/recent-workspaces.json",
+                "recents_cap": 10,
+                "validates": ["exists", "is_directory"],
+            },
         },
         // OpenMemory store readiness — counts + flags only, never content.
         // Consumed by Settings panel + ops dashboards so a feature that
@@ -603,8 +692,33 @@ async fn skill_webhook_handler(
 }
 
 /// Device pairing endpoint — generates a one-time pairing URL.
-async fn pairing_handler() -> impl IntoResponse {
-    let (url, token) = crate::pairing::generate_pairing_url("localhost", 7878);
+///
+/// The `host` advertised in the URL is whatever the client used to reach
+/// us — taken from the `Host:` header. This means a phone on the LAN
+/// hitting `192.168.1.42:7878/pair` gets back a pairing URL that resolves
+/// from the LAN, not a useless `http://localhost:...` that only works
+/// from the daemon host. Falls back to `localhost` when the header is
+/// missing or malformed.
+async fn pairing_handler(headers: axum::http::HeaderMap) -> impl IntoResponse {
+    let host_header = headers
+        .get(axum::http::header::HOST)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("localhost:7878");
+    // Parse "<host>:<port>" or just "<host>" — used verbatim as the URL
+    // authority. Tokens are generated via the OS CSPRNG (see pairing.rs).
+    let (host, port_opt) = match host_header.rsplit_once(':') {
+        Some((h, p)) => (h, p.parse::<u16>().ok()),
+        None => (host_header, None),
+    };
+    let port = port_opt.unwrap_or(7878);
+    let (url, token) = crate::pairing::generate_pairing_url(host, port);
+    tracing::info!(
+        target: "vibecody::pairing",
+        host = %host,
+        port,
+        token_len = token.len(),
+        "pairing.url.generated"
+    );
     Json(serde_json::json!({
         "url": url,
         "token": token,
@@ -2853,6 +2967,35 @@ async fn rl_eval_compare(
         .map_err(rl_err_to_http)
 }
 
+#[derive(Debug, Deserialize)]
+struct EvalResultsUpsertQuery {
+    suite_id: String,
+}
+
+#[derive(Debug, Serialize)]
+struct EvalResultsUpsertResponse {
+    upserted: usize,
+}
+
+/// POST `/v1/rl/eval/runs/:run_id/results?suite_id=<id>` — record one or
+/// more eval metrics for `run_id` under `suite_id`. Idempotent: re-posting
+/// the same `(run_id, suite_id, metric_name)` overwrites the previous row.
+/// External eval harnesses (the sidecar's `eval` command, CI scripts,
+/// ad-hoc rollouts) push results back into the daemon for the
+/// `rl_eval_compare` endpoint to consume.
+async fn rl_eval_upsert_results(
+    Path(run_id): Path<String>,
+    Query(q): Query<EvalResultsUpsertQuery>,
+    State(state): State<ServeState>,
+    Json(rows): Json<Vec<crate::rl_eval::ResultUpsert>>,
+) -> Result<Json<EvalResultsUpsertResponse>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_eval_store_from_state(&state)?;
+    store
+        .upsert_results(&run_id, &q.suite_id, &rows)
+        .map_err(rl_err_to_http)?;
+    Ok(Json(EvalResultsUpsertResponse { upserted: rows.len() }))
+}
+
 // ── RL-OS: /v1/rl/policies (slice 5) ──────────────────────────────────────────
 
 fn open_policy_store_from_state(
@@ -3014,7 +3157,12 @@ async fn rl_rollback_deployment(
     Json(req): Json<crate::rl_deploy::RollbackRequest>,
 ) -> Result<Json<crate::rl_deploy::Deployment>, (StatusCode, Json<serde_json::Value>)> {
     let store = open_deploy_store_from_state(&state)?;
-    store.rollback(&id, req).map(Json).map_err(rl_err_to_http)
+    let deployment = store.rollback(&id, req).map_err(rl_err_to_http)?;
+    // Rolled-back deployments must stop serving — drop the sidecar so a
+    // racing `/act` call gets a clean "deployment is rolled back" 409
+    // instead of stale traffic.
+    let _ = state.rl_runtime_pool.drop_runtime(&id).await;
+    Ok(Json(deployment))
 }
 
 async fn rl_stop_deployment(
@@ -3022,15 +3170,36 @@ async fn rl_stop_deployment(
     State(state): State<ServeState>,
 ) -> Result<Json<crate::rl_deploy::Deployment>, (StatusCode, Json<serde_json::Value>)> {
     let store = open_deploy_store_from_state(&state)?;
-    store.stop(&id).map(Json).map_err(rl_err_to_http)
+    let deployment = store.stop(&id).map_err(rl_err_to_http)?;
+    // Evict any live inference sidecar so stop ≠ "row says stopped, sidecar
+    // still alive". Best-effort: if the runtime wasn't loaded, nothing to do.
+    let _ = state.rl_runtime_pool.drop_runtime(&id).await;
+    Ok(Json(deployment))
+}
+
+/// Combined deployment + runtime health response. The deployment-side
+/// snapshot is always present (it's just a database read); the
+/// `runtime` field is `Some` only when an inference sidecar has actually
+/// been spawned for this deployment (i.e. someone has called `/act`
+/// against it since daemon start).
+#[derive(Debug, Serialize)]
+struct DeploymentHealthResponse {
+    #[serde(flatten)]
+    deployment: crate::rl_deploy::HealthSnapshot,
+    /// Live metrics from the inference sidecar — `requests_total`,
+    /// `error_total`, `last_latency_ms`, `framework`, `device`,
+    /// `checkpoint`. Null when no sidecar is loaded.
+    runtime: Option<crate::rl_runtime::RuntimeHealth>,
 }
 
 async fn rl_get_deployment_health_h(
     Path(id): Path<String>,
     State(state): State<ServeState>,
-) -> Result<Json<crate::rl_deploy::HealthSnapshot>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<DeploymentHealthResponse>, (StatusCode, Json<serde_json::Value>)> {
     let store = open_deploy_store_from_state(&state)?;
-    store.health(&id).map(Json).map_err(rl_err_to_http)
+    let deployment = store.health(&id).map_err(rl_err_to_http)?;
+    let runtime = state.rl_runtime_pool.peek_runtime_health(&id).await;
+    Ok(Json(DeploymentHealthResponse { deployment, runtime }))
 }
 
 /// Slice 6.5 — real inference path. Looks up the deployment by name
@@ -3311,6 +3480,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/v1/rl/eval/suites/:id", get(rl_eval_get_suite))
         .route("/v1/rl/eval/suites/:id", axum::routing::delete(rl_eval_delete_suite))
         .route("/v1/rl/eval/results", get(rl_eval_list_results))
+        .route("/v1/rl/eval/runs/:run_id/results", post(rl_eval_upsert_results))
         .route("/v1/rl/eval/compare", post(rl_eval_compare))
         // RL-OS slice 5 — policy registry + lineage + reward decomposition
         .route("/v1/rl/policies", post(rl_register_policy))
@@ -6277,6 +6447,23 @@ mod tests {
             // feature gates read.
             assert_eq!(json["features"]["sandbox"]["available"], true);
             assert_eq!(json["features"]["sandbox"]["tier"], "native");
+        }
+
+        #[tokio::test]
+        async fn health_features_mcp_block_reports_server_count_and_configured_flag() {
+            let (app, _tmp) = test_app("test-token");
+            let req = Request::builder().uri("/health").body(Body::empty()).unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            let body = body_string(resp.into_body()).await;
+            let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+            let mcp = &json["features"]["mcp"];
+            assert_eq!(mcp["available"], true);
+            assert_eq!(mcp["transport"], "tauri-desktop");
+            assert!(mcp["server_count"].is_u64());
+            // configured must be a strict reflection of server_count > 0
+            let count = mcp["server_count"].as_u64().unwrap();
+            assert_eq!(mcp["configured"], count > 0);
+            assert_eq!(mcp["config_path"], "~/.vibeui/mcp.json");
         }
 
         #[tokio::test]

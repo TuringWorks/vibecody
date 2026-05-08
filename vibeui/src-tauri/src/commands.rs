@@ -1778,16 +1778,83 @@ pub async fn rename_item(
 
 /// Workspace operations
 
+/// Path to the recents file — single JSON array of absolute paths,
+/// most-recent-first, capped at 10. Lives in the same `~/.vibeui/`
+/// directory as other panel state so a `~/.vibeui` backup captures
+/// recents alongside everything else.
+fn recent_workspaces_path() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".vibeui").join("recent-workspaces.json")
+}
+
+const MAX_RECENT_WORKSPACES: usize = 10;
+
+fn load_recent_workspaces() -> Vec<String> {
+    std::fs::read_to_string(recent_workspaces_path())
+        .ok()
+        .and_then(|s| serde_json::from_str::<Vec<String>>(&s).ok())
+        .unwrap_or_default()
+}
+
+fn save_recent_workspaces(list: &[String]) -> Result<(), String> {
+    let path = recent_workspaces_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let json = serde_json::to_string_pretty(list).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub async fn add_workspace_folder(
     path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
+    // Validate before mutating state — a non-existent or
+    // non-directory path stored as the active workspace breaks every
+    // panel that reads it. Easier to refuse here than to recover later.
+    let pb = PathBuf::from(&path);
+    if !pb.exists() {
+        tracing::warn!(
+            target: "vibecody::workspace",
+            path = %path,
+            "workspace.add.rejected: path does not exist"
+        );
+        return Err(format!("Path does not exist: {}", path));
+    }
+    if !pb.is_dir() {
+        tracing::warn!(
+            target: "vibecody::workspace",
+            path = %path,
+            "workspace.add.rejected: not a directory"
+        );
+        return Err(format!("Path is not a directory: {}", path));
+    }
+
     set_active_workspace(&path);
-    let mut workspace = state.workspace.lock().await;
-    workspace
-        .add_folder(PathBuf::from(path))
-        .map_err(|e| e.to_string())
+    {
+        let mut workspace = state.workspace.lock().await;
+        workspace
+            .add_folder(pb.clone())
+            .map_err(|e| e.to_string())?;
+    }
+
+    // Update recents — move-to-front (LRU). Idempotent on the same
+    // path: re-opening a recent moves it to position 0 without
+    // duplicating.
+    let mut recents = load_recent_workspaces();
+    recents.retain(|p| p != &path);
+    recents.insert(0, path.clone());
+    recents.truncate(MAX_RECENT_WORKSPACES);
+    let _ = save_recent_workspaces(&recents);
+
+    tracing::info!(
+        target: "vibecody::workspace",
+        path = %path,
+        recent_count = recents.len(),
+        "workspace.add"
+    );
+    Ok(())
 }
 
 #[tauri::command]
@@ -1798,6 +1865,39 @@ pub async fn get_workspace_folders(state: tauri::State<'_, AppState>) -> Result<
         .iter()
         .map(|p| p.to_string_lossy().to_string())
         .collect())
+}
+
+/// List recent workspaces, most-recent-first. Returns whatever's in
+/// `~/.vibeui/recent-workspaces.json` — entries that no longer exist
+/// on disk are filtered out so the list never resurfaces a broken path.
+#[tauri::command]
+pub async fn list_recent_workspaces() -> Result<Vec<String>, String> {
+    let recents = load_recent_workspaces();
+    let alive: Vec<String> = recents
+        .into_iter()
+        .filter(|p| std::path::Path::new(p).is_dir())
+        .collect();
+    Ok(alive)
+}
+
+/// Remove a single recent workspace entry. Used by the "x" button on
+/// each recents row in the UI when a project moves or is deleted.
+#[tauri::command]
+pub async fn remove_recent_workspace(path: String) -> Result<(), String> {
+    let mut recents = load_recent_workspaces();
+    let before = recents.len();
+    recents.retain(|p| p != &path);
+    if recents.len() == before {
+        return Err(format!("Recent workspace not found: {}", path));
+    }
+    save_recent_workspaces(&recents)?;
+    tracing::info!(
+        target: "vibecody::workspace",
+        path = %path,
+        remaining = recents.len(),
+        "workspace.recent.remove"
+    );
+    Ok(())
 }
 
 #[tauri::command]
@@ -4260,10 +4360,29 @@ pub async fn start_agent_task(
     use vibe_ai::{AgentLoop, AgentContext, ApprovalPolicy, AgentEvent};
     use crate::agent_executor::TauriToolExecutor;
 
+    // Task contents are NOT logged — only length + provider + policy +
+    // tab routing. Operator dashboards aggregate these to spot abuse
+    // patterns without seeing user prompts.
+    tracing::info!(
+        target: "vibecody::agent",
+        provider = %provider,
+        approval_policy = %approval_policy,
+        task_len = task.len(),
+        tab_id = tab_id.as_deref().unwrap_or("(global)"),
+        "agent.task.start"
+    );
+
     // Get the AI provider
     let provider_arc = {
         let mut engine = state.chat_engine.lock().await;
-        engine.set_provider_by_name(&provider).map_err(|e| e.to_string())?;
+        engine.set_provider_by_name(&provider).map_err(|e| {
+            tracing::warn!(
+                target: "vibecody::agent",
+                provider = %provider,
+                "agent.task.provider_unavailable"
+            );
+            e.to_string()
+        })?;
         engine.active_provider().ok_or("No active provider")?.clone()
     };
 
@@ -4590,6 +4709,7 @@ pub async fn stop_agent_task(
         let mut slot = state.agent_abort_handle.lock().await;
         slot.take()
     };
+    let was_running = handle.is_some();
     if let Some(h) = handle {
         h.abort();
     }
@@ -4608,6 +4728,11 @@ pub async fn stop_agent_task(
         }
     }
     let _ = app_handle.emit("agent:error", "Agent stopped by user");
+    tracing::info!(
+        target: "vibecody::agent",
+        was_running,
+        "agent.task.stop"
+    );
     Ok(())
 }
 
@@ -5035,6 +5160,13 @@ pub async fn respond_to_agent_approval(
         return Err("No pending agent approval".to_string());
     };
 
+    tracing::info!(
+        target: "vibecody::agent",
+        approved,
+        tool = %call.name(),
+        "agent.approval.respond"
+    );
+
     if approved {
         let workspace_root = {
             let ws = state.workspace.lock().await;
@@ -5373,7 +5505,14 @@ pub async fn save_mcp_servers(servers: Vec<serde_json::Value>) -> Result<(), Str
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     let text = serde_json::to_string_pretty(&servers).map_err(|e| e.to_string())?;
-    std::fs::write(&path, text).map_err(|e| e.to_string())
+    let count = servers.len();
+    std::fs::write(&path, text).map_err(|e| e.to_string())?;
+    tracing::info!(
+        target: "vibecody::mcp",
+        server_count = count,
+        "mcp.servers.save"
+    );
+    Ok(())
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
@@ -5387,17 +5526,40 @@ pub struct McpToolInfo {
 pub async fn test_mcp_server(server: serde_json::Value) -> Result<Vec<McpToolInfo>, String> {
     let cfg: vibe_ai::mcp::McpServerConfig =
         serde_json::from_value(server).map_err(|e| format!("Invalid server config: {}", e))?;
-    tokio::task::spawn_blocking(move || {
+    let server_name = cfg.name.clone();
+    let started = std::time::Instant::now();
+    tracing::info!(
+        target: "vibecody::mcp",
+        server_name = %server_name,
+        "mcp.server.test.start"
+    );
+    let result = tokio::task::spawn_blocking(move || {
         let mut client =
             vibe_ai::mcp::McpClient::connect(&cfg).map_err(|e| format!("Connect failed: {:#}", e))?;
         let tools = client.list_tools().map_err(|e| format!("list_tools failed: {:#}", e))?;
-        Ok(tools
+        Ok::<Vec<McpToolInfo>, String>(tools
             .into_iter()
             .map(|t| McpToolInfo { name: t.name, description: t.description })
             .collect())
     })
     .await
-    .map_err(|e| format!("Task error: {}", e))?
+    .map_err(|e| format!("Task error: {}", e))?;
+    match &result {
+        Ok(tools) => tracing::info!(
+            target: "vibecody::mcp",
+            server_name = %server_name,
+            tool_count = tools.len(),
+            elapsed_ms = started.elapsed().as_millis() as u64,
+            "mcp.server.test.ok"
+        ),
+        Err(_) => tracing::warn!(
+            target: "vibecody::mcp",
+            server_name = %server_name,
+            elapsed_ms = started.elapsed().as_millis() as u64,
+            "mcp.server.test.failed"
+        ),
+    }
+    result
 }
 
 // ─── MCP OAuth Commands ────────────────────────────────────────────────────────
@@ -7631,6 +7793,11 @@ pub async fn delete_session(
     let dir = vibecli_trace_dir(&workspace);
     // Prevent path traversal
     if session_id.contains("..") || session_id.contains('/') || session_id.contains('\\') {
+        tracing::warn!(
+            target: "vibecody::sessions",
+            session_id = %session_id,
+            "session.delete.rejected: path traversal"
+        );
         return Err("Invalid session ID".to_string());
     }
     let jsonl = dir.join(format!("{}.jsonl", session_id));
@@ -7639,9 +7806,16 @@ pub async fn delete_session(
     if !jsonl.exists() {
         return Err(format!("Session {} not found", session_id));
     }
+    let trace_size = std::fs::metadata(&jsonl).map(|m| m.len()).unwrap_or(0);
     let _ = std::fs::remove_file(&jsonl);
     let _ = std::fs::remove_file(&messages);
     let _ = std::fs::remove_file(&context);
+    tracing::info!(
+        target: "vibecody::sessions",
+        session_id = %session_id,
+        trace_size,
+        "session.delete"
+    );
     Ok(())
 }
 
@@ -7679,6 +7853,12 @@ pub async fn fork_session(
         let dst_context = dir.join(format!("{}-context.json", new_id));
         let _ = std::fs::copy(&src_context, &dst_context);
     }
+    tracing::info!(
+        target: "vibecody::sessions",
+        parent_id = %session_id,
+        new_id = %new_id,
+        "session.fork"
+    );
     Ok(new_id)
 }
 
@@ -26098,6 +26278,7 @@ pub async fn install_mcp_plugin(id: String) -> Result<serde_json::Value, String>
     let catalog = mcp_directory_catalog();
     let exists = catalog.iter().any(|p| p.get("id").and_then(|v| v.as_str()) == Some(id.as_str()));
     if !exists {
+        tracing::warn!(target: "vibecody::mcp", plugin_id = %id, "mcp.plugin.install.not_found");
         return Ok(serde_json::json!({ "success": false, "message": format!("Plugin '{}' not found in directory", id) }));
     }
     let mut installed = read_mcp_installed();
@@ -26106,6 +26287,12 @@ pub async fn install_mcp_plugin(id: String) -> Result<serde_json::Value, String>
     }
     installed.insert(id.clone());
     write_mcp_installed(&installed)?;
+    tracing::info!(
+        target: "vibecody::mcp",
+        plugin_id = %id,
+        installed_total = installed.len(),
+        "mcp.plugin.install"
+    );
     Ok(serde_json::json!({ "success": true, "message": format!("Plugin '{}' installed successfully", id) }))
 }
 
@@ -26116,6 +26303,12 @@ pub async fn uninstall_mcp_plugin(id: String) -> Result<serde_json::Value, Strin
         return Ok(serde_json::json!({ "success": false, "message": "Plugin is not installed" }));
     }
     write_mcp_installed(&installed)?;
+    tracing::info!(
+        target: "vibecody::mcp",
+        plugin_id = %id,
+        installed_total = installed.len(),
+        "mcp.plugin.uninstall"
+    );
     Ok(serde_json::json!({ "success": true, "message": format!("Plugin '{}' uninstalled successfully", id) }))
 }
 
@@ -26240,16 +26433,47 @@ pub async fn create_usage_budget(name: String, limit: f64, period: String) -> Re
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis()),
-        name,
+        name: name.clone(),
         limit,
         used: 0.0,
-        period,
+        period: period.clone(),
     };
     let result = serde_json::to_value(&budget).map_err(|e| e.to_string())?;
+    let new_id = budget.id.clone();
     data.budgets.push(budget);
     data.active_budgets = data.budgets.len() as u32;
     save_usage_metering(&data)?;
+    tracing::info!(
+        target: "vibecody::usage",
+        id = %new_id,
+        name = %name,
+        limit,
+        period = %period,
+        total_budgets = data.budgets.len(),
+        "usage.budget.create"
+    );
     Ok(result)
+}
+
+/// Delete a budget by id. The frontend used to mutate a local copy
+/// without persisting; this restored a deleted budget on every reload.
+#[tauri::command]
+pub async fn delete_usage_budget(id: String) -> Result<(), String> {
+    let mut data = load_usage_metering();
+    let before = data.budgets.len();
+    data.budgets.retain(|b| b.id != id);
+    if data.budgets.len() == before {
+        return Err(format!("Budget '{}' not found", id));
+    }
+    data.active_budgets = data.budgets.len() as u32;
+    save_usage_metering(&data)?;
+    tracing::info!(
+        target: "vibecody::usage",
+        id = %id,
+        remaining = data.budgets.len(),
+        "usage.budget.delete"
+    );
+    Ok(())
 }
 
 #[tauri::command]
@@ -26267,6 +26491,11 @@ pub async fn dismiss_usage_alert(id: String) -> Result<serde_json::Value, String
         return Err(format!("Alert '{}' not found", id));
     }
     save_usage_metering(&data)?;
+    tracing::info!(
+        target: "vibecody::usage",
+        id = %id,
+        "usage.alert.dismiss"
+    );
     Ok(serde_json::json!({ "success": true }))
 }
 
@@ -31337,12 +31566,25 @@ pub async fn counsel_create_session(
         }
     }).collect();
 
+    let participant_count = parsed.len();
+    let providers_used: Vec<String> = parsed.iter().map(|p| p.provider_name.clone()).collect();
+
     let session = CounselSession::new(topic, parsed, moderator_idx);
     let session_json = serde_json::to_value(&session).map_err(|e| e.to_string())?;
+    let session_id = session_json.get("id").and_then(|v| v.as_str()).unwrap_or("(unknown)").to_string();
 
     let mut sessions = counsel_read_sessions();
     sessions.push(session_json.clone());
     counsel_write_sessions(&sessions)?;
+
+    tracing::info!(
+        target: "vibecody::counsel",
+        session_id = %session_id,
+        participant_count,
+        moderator_idx,
+        providers = ?providers_used,
+        "counsel.session.create"
+    );
 
     Ok(session_json)
 }
@@ -31378,6 +31620,7 @@ pub async fn counsel_run_round(
 ) -> Result<serde_json::Value, String> {
     use vibecli_cli::counsel::{CounselSession, CounselResponse};
 
+    let started = std::time::Instant::now();
     let mut sessions = counsel_read_sessions();
     let pos = sessions.iter().position(|s| {
         s.get("id").and_then(|v| v.as_str()) == Some(&session_id)
@@ -31387,6 +31630,13 @@ pub async fn counsel_run_round(
         .map_err(|e| e.to_string())?;
 
     let round_number = session.current_round();
+    tracing::info!(
+        target: "vibecody::counsel",
+        session_id = %session_id,
+        round = round_number,
+        participant_count = session.participants.len(),
+        "counsel.round.start"
+    );
     let mut responses = Vec::new();
 
     // Phase 7 quick-win: assemble project memory once per round and
@@ -31452,10 +31702,20 @@ pub async fn counsel_run_round(
         });
     }
 
+    let response_count = responses.len();
     session.add_round(responses);
     let updated = serde_json::to_value(&session).map_err(|e| e.to_string())?;
     sessions[pos] = updated.clone();
     counsel_write_sessions(&sessions)?;
+
+    tracing::info!(
+        target: "vibecody::counsel",
+        session_id = %session_id,
+        round = round_number,
+        response_count,
+        elapsed_ms = started.elapsed().as_millis() as u64,
+        "counsel.round.complete"
+    );
 
     // Return just the latest round
     let round_json = updated.get("rounds")
@@ -31568,7 +31828,14 @@ pub async fn counsel_delete_session(session_id: String) -> Result<(), String> {
     if sessions.len() == before {
         return Err("Session not found".into());
     }
-    counsel_write_sessions(&sessions)
+    counsel_write_sessions(&sessions)?;
+    tracing::info!(
+        target: "vibecody::counsel",
+        session_id = %session_id,
+        remaining = sessions.len(),
+        "counsel.session.delete"
+    );
+    Ok(())
 }
 
 /// Update a participant's provider/model in an active session (between rounds).
@@ -31624,19 +31891,49 @@ pub async fn superbrain_query(
 ) -> Result<serde_json::Value, String> {
     use vibecli_cli::superbrain::*;
 
+    // Per AGENTS.md → Provider-Agnostic Panels (STRICT): never silently fall
+    // back to a hard-coded provider. The frontend (SuperBrainPanel) always
+    // sets provider+model from useModelRegistry — if a row is missing them,
+    // surface an error instead of routing to a default.
     let provider_entries: Vec<ProviderEntry> = providers.get("list")
         .and_then(|v| v.as_array())
-        .map(|arr| arr.iter().map(|p| ProviderEntry {
-            provider: p.get("provider").and_then(|v| v.as_str()).unwrap_or("ollama").to_string(),
-            model: p.get("model").and_then(|v| v.as_str()).unwrap_or("llama3.2").to_string(),
-        }).collect())
+        .map(|arr| arr.iter().enumerate().map(|(i, p)| {
+            let provider = p.get("provider").and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| format!(
+                    "providers.list[{i}].provider is missing — pick a provider in the toolbar"
+                ))?;
+            let model = p.get("model").and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| format!(
+                    "providers.list[{i}].model is missing — pick a model in the toolbar"
+                ))?;
+            Ok::<ProviderEntry, String>(ProviderEntry {
+                provider: provider.to_string(),
+                model: model.to_string(),
+            })
+        }).collect::<Result<Vec<_>, _>>())
+        .transpose()?
         .unwrap_or_default();
 
     let judge_entry: Option<ProviderEntry> = providers.get("judge")
-        .map(|j| ProviderEntry {
-            provider: j.get("provider").and_then(|v| v.as_str()).unwrap_or("claude").to_string(),
-            model: j.get("model").and_then(|v| v.as_str()).unwrap_or("claude-3.5-sonnet").to_string(),
-        });
+        .map(|j| {
+            let provider = j.get("provider").and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| {
+                    "providers.judge.provider is missing — pick a judge model in the toolbar".to_string()
+                })?;
+            let model = j.get("model").and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| {
+                    "providers.judge.model is missing — pick a judge model in the toolbar".to_string()
+                })?;
+            Ok::<ProviderEntry, String>(ProviderEntry {
+                provider: provider.to_string(),
+                model: model.to_string(),
+            })
+        })
+        .transpose()?;
 
     let total_start = std::time::Instant::now();
     let mut total_tokens: usize = 0;

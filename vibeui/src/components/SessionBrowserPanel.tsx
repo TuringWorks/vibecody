@@ -68,8 +68,16 @@ const SessionBrowserPanel: React.FC = () => {
   const [messagesError, setMessagesError] = useState<string | null>(null);
   const [replayIndex, setReplayIndex] = useState(0);
 
-  // Status banner
-  const [status, setStatus] = useState<string | null>(null);
+  // Status banner — `kind` controls aria-live (errors are role="alert",
+  // info is role="status" so AT users hear destructive failures
+  // immediately and routine confirmations get a polite announcement).
+  const [status, setStatus] = useState<{ message: string; kind: "info" | "error" } | null>(null);
+
+  // Pending delete — second-click confirmation. We don't pop a modal
+  // because the panel is already focused and the row is right there;
+  // a single re-click within 5s is enough confirmation, the button
+  // copy switches to "Confirm delete?" so the intent is unambiguous.
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   // -- Data fetching ----------------------------------------------------------
 
@@ -107,7 +115,7 @@ const SessionBrowserPanel: React.FC = () => {
     [workspace],
   );
 
-  const deleteSession = useCallback(
+  const performDelete = useCallback(
     async (sessionId: string) => {
       try {
         await invoke("delete_session", { workspace, sessionId });
@@ -117,24 +125,43 @@ const SessionBrowserPanel: React.FC = () => {
           setMessages([]);
           setTab("Sessions");
         }
-        setStatus("Session deleted");
+        setStatus({ message: "Session deleted", kind: "info" });
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        setStatus(`Delete failed: ${msg}`);
+        setStatus({ message: `Delete failed: ${msg}`, kind: "error" });
+      } finally {
+        setPendingDelete(null);
       }
     },
     [workspace, selectedSession],
+  );
+
+  // First click arms the delete; second click within 5s commits. Click
+  // anywhere else cancels. This is the same pattern Settings → Memory uses
+  // for "Disable encryption" and is preferred over a modal in compact panels.
+  const requestDelete = useCallback(
+    (sessionId: string) => {
+      if (pendingDelete === sessionId) {
+        performDelete(sessionId);
+        return;
+      }
+      setPendingDelete(sessionId);
+      setTimeout(() => {
+        setPendingDelete(prev => (prev === sessionId ? null : prev));
+      }, 5000);
+    },
+    [pendingDelete, performDelete],
   );
 
   const forkSession = useCallback(
     async (sessionId: string) => {
       try {
         const newId = await invoke<string>("fork_session", { workspace, sessionId });
-        setStatus(`Forked → ${newId}`);
+        setStatus({ message: `Forked → ${newId}`, kind: "info" });
         await loadSessions();
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        setStatus(`Fork failed: ${msg}`);
+        setStatus({ message: `Fork failed: ${msg}`, kind: "error" });
       }
     },
     [workspace, loadSessions],
@@ -144,6 +171,17 @@ const SessionBrowserPanel: React.FC = () => {
   useEffect(() => {
     loadSessions();
   }, [loadSessions]);
+
+  // Cancel pending delete on Escape — backup escape hatch alongside the
+  // 5s auto-cancel and the click-elsewhere implicit cancel.
+  useEffect(() => {
+    if (!pendingDelete) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPendingDelete(null);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [pendingDelete]);
 
   // -- Derived data -----------------------------------------------------------
 
@@ -185,21 +223,25 @@ const SessionBrowserPanel: React.FC = () => {
 
       {status && (
         <div
+          role={status.kind === "error" ? "alert" : "status"}
+          aria-live={status.kind === "error" ? "assertive" : "polite"}
           style={{
             padding: "8px 12px",
             marginBottom: 10,
             borderRadius: "var(--radius-xs-plus)",
-            background: "var(--bg-tertiary)",
+            background: status.kind === "error" ? "var(--error-bg, #5b1a1a)" : "var(--bg-tertiary)",
             color: "var(--text-primary)",
             fontSize: "var(--font-size-base)",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            border: status.kind === "error" ? "1px solid var(--accent-rose, #ef4444)" : "none",
           }}
         >
-          <span>{status}</span>
+          <span>{status.message}</span>
           <button
             onClick={() => setStatus(null)}
+            aria-label="Dismiss status"
             style={{
               background: "none",
               border: "none",
@@ -280,15 +322,20 @@ const SessionBrowserPanel: React.FC = () => {
                     className="panel-btn panel-btn-danger panel-btn-xs"
                     onClick={(e) => {
                       e.stopPropagation();
-                      deleteSession(s.id);
+                      requestDelete(s.id);
                     }}
-                    aria-label={`Delete session ${s.id}`}
-                    title="Delete session"
+                    aria-label={
+                      pendingDelete === s.id
+                        ? `Confirm delete session ${s.id} — second click commits`
+                        : `Delete session ${s.id} (requires second click to confirm)`
+                    }
+                    title={pendingDelete === s.id ? "Click again to confirm" : "Delete session"}
                   >
-                    Delete
+                    {pendingDelete === s.id ? "Confirm?" : "Delete"}
                   </button>
                 </div>
                 <div role="button" tabIndex={0}
+                  aria-label={`Replay session ${s.id} — ${s.message_count} messages, ${formatFileSize(s.file_size)}`}
                   style={{
                     display: "flex",
                     gap: 12,
@@ -302,6 +349,16 @@ const SessionBrowserPanel: React.FC = () => {
                     setMessages([]);
                     loadSessionDetail(s.id);
                     setTab("Replay");
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setSelectedSession(s);
+                      setReplayIndex(0);
+                      setMessages([]);
+                      loadSessionDetail(s.id);
+                      setTab("Replay");
+                    }
                   }}
                 >
                   <span>{s.message_count} msgs</span>

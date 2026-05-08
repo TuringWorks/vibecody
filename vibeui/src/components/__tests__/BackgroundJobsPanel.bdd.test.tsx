@@ -364,3 +364,111 @@ describe('Given a custom daemonUrl is provided', () => {
     });
   });
 });
+
+// ── J1.4: Job recap row + Resume button ──────────────────────────────────────
+
+const jobRecap = {
+  id: 'rcp_job_1',
+  kind: 'job',
+  subject_id: 'job-2',
+  generated_at: '2026-05-07T17:00:00Z',
+  generator: { type: 'heuristic' },
+  headline: 'Wrote 12 tests for utils',
+  bullets: ['Added utils.test.ts', 'All 12 pass'],
+  next_actions: ['Open a PR'],
+  artifacts: [],
+  schema_version: 1,
+};
+
+function mockFetchWithRecap(opts: { hasRecap: boolean; resumeOk?: boolean } = { hasRecap: true }) {
+  const calls: { url: string; method: string; body?: string }[] = [];
+  const fn = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+    const method = init?.method ?? 'GET';
+    calls.push({ url: String(url), method, body: init?.body as string | undefined });
+    const u = String(url);
+    if (method === 'GET' && u.endsWith('/jobs')) {
+      return { ok: true, json: async () => [completedJob] };
+    }
+    if (method === 'GET' && u.includes('/v1/recap')) {
+      return {
+        ok: true,
+        json: async () => ({ recaps: opts.hasRecap ? [jobRecap] : [], count: opts.hasRecap ? 1 : 0 }),
+      };
+    }
+    if (method === 'POST' && u.endsWith('/v1/resume')) {
+      if (opts.resumeOk === false) {
+        return { ok: false, text: async () => 'boom' };
+      }
+      return { ok: true, json: async () => ({ resumed_session_id: 'job-resumed-3', handle: 'h1', ready: true }) };
+    }
+    return { ok: true, json: async () => ({}) };
+  });
+  vi.stubGlobal('fetch', fn);
+  return { fn, calls };
+}
+
+describe('Given a completed job has a recap', () => {
+  it('When the user expands the row, Then GET /v1/recap is called with kind=job', async () => {
+    const { calls } = mockFetchWithRecap({ hasRecap: true });
+    render(<BackgroundJobsPanel daemonUrl="http://localhost:7878" />);
+    await waitFor(() => screen.getByText('Write unit tests for utils'));
+    fireEvent.click(screen.getByText('Write unit tests for utils'));
+
+    await waitFor(() => {
+      const recapCall = calls.find((c) => c.method === 'GET' && c.url.includes('/v1/recap'));
+      expect(recapCall).toBeDefined();
+      expect(recapCall!.url).toContain('kind=job');
+      expect(recapCall!.url).toContain('subject_id=job-2');
+    });
+  });
+
+  it('When the recap loads, Then the headline replaces the bare summary', async () => {
+    mockFetchWithRecap({ hasRecap: true });
+    render(<BackgroundJobsPanel daemonUrl="http://localhost:7878" />);
+    await waitFor(() => screen.getByText('Write unit tests for utils'));
+    fireEvent.click(screen.getByText('Write unit tests for utils'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Wrote 12 tests for utils')).toBeInTheDocument();
+      expect(screen.getByText('Added utils.test.ts')).toBeInTheDocument();
+      expect(screen.getByText('Open a PR')).toBeInTheDocument();
+    });
+  });
+
+  it('When the recap loads, Then the heuristic generator badge is shown', async () => {
+    mockFetchWithRecap({ hasRecap: true });
+    render(<BackgroundJobsPanel daemonUrl="http://localhost:7878" />);
+    await waitFor(() => screen.getByText('Write unit tests for utils'));
+    fireEvent.click(screen.getByText('Write unit tests for utils'));
+    await waitFor(() => {
+      expect(screen.getByText('heuristic')).toBeInTheDocument();
+    });
+  });
+
+  it('When the daemon returns no recap, Then the legacy summary is shown', async () => {
+    mockFetchWithRecap({ hasRecap: false });
+    render(<BackgroundJobsPanel daemonUrl="http://localhost:7878" />);
+    await waitFor(() => screen.getByText('Write unit tests for utils'));
+    fireEvent.click(screen.getByText('Write unit tests for utils'));
+    await waitFor(() => {
+      expect(screen.getByText(/Added 12 tests/i)).toBeInTheDocument();
+    });
+  });
+
+  it('When Resume is clicked, Then POST /v1/resume is called with from_recap_id', async () => {
+    const { calls } = mockFetchWithRecap({ hasRecap: true });
+    render(<BackgroundJobsPanel daemonUrl="http://localhost:7878" />);
+    await waitFor(() => screen.getByText('Write unit tests for utils'));
+    fireEvent.click(screen.getByText('Write unit tests for utils'));
+    await waitFor(() => screen.getByTestId('resume-btn-job-2'));
+    fireEvent.click(screen.getByTestId('resume-btn-job-2'));
+
+    await waitFor(() => {
+      const resumeCall = calls.find((c) => c.method === 'POST' && c.url.endsWith('/v1/resume'));
+      expect(resumeCall).toBeDefined();
+      const body = JSON.parse(resumeCall!.body!);
+      expect(body.from_recap_id).toBe('rcp_job_1');
+      expect(body.client).toBe('vibeui-jobs');
+    });
+  });
+});

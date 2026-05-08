@@ -308,9 +308,9 @@ export function McpPanel() {
         </p>
 
         {error && (
-          <div className="panel-error" style={{ marginBottom: 8 }}>
+          <div role="alert" aria-live="assertive" className="panel-error" style={{ marginBottom: 8 }}>
             <span>{error}</span>
-            <button onClick={() => setError(null)}>Dismiss</button>
+            <button onClick={() => setError(null)} aria-label="Dismiss error">Dismiss</button>
           </div>
         )}
 

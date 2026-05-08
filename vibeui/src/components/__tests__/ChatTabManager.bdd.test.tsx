@@ -684,3 +684,57 @@ describe('Given a recap is pinned and recap_resume_session fails', () => {
     expect(screen.getByRole('alert').textContent).toMatch(/couldn['’]t resume/i);
   });
 });
+
+// ── F3.1: Auto-resume last session on launch ────────────────────────────────────
+
+describe("F3.1 — auto-resume the last session on launch", () => {
+  function seedHistory() {
+    localStorage.setItem("vibecody:chat-history", JSON.stringify([{
+      id: "session-seed-1",
+      title: "Last session",
+      provider: "ollama",
+      messages: [{ role: "user", content: "previous turn" }],
+      savedAt: 1700000000000,
+    }]));
+  }
+
+  it("Given autoResumeLast=true and history is non-empty, When the manager mounts, Then a second tab is restored", () => {
+    seedHistory();
+    localStorage.setItem("vibeui-sessions", JSON.stringify({ autoResumeLast: true }));
+
+    renderManager();
+
+    // Default empty tab + restored tab = 2 tabs (close buttons visible).
+    expect(screen.getAllByTitle("Close tab")).toHaveLength(2);
+  });
+
+  it("Given autoResumeLast=false, When the manager mounts, Then no auto-restore happens", () => {
+    seedHistory();
+    localStorage.setItem("vibeui-sessions", JSON.stringify({ autoResumeLast: false }));
+
+    renderManager();
+
+    // Only the default tab; no close buttons.
+    expect(screen.queryByTitle("Close tab")).not.toBeInTheDocument();
+  });
+
+  it("Given the setting is missing, When the manager mounts, Then no auto-restore happens (default off)", () => {
+    seedHistory();
+    // No vibeui-sessions key.
+    renderManager();
+    expect(screen.queryByTitle("Close tab")).not.toBeInTheDocument();
+  });
+
+  it("Given autoResumeLast=true but history is empty, When the manager mounts, Then only the default tab exists", () => {
+    localStorage.setItem("vibeui-sessions", JSON.stringify({ autoResumeLast: true }));
+    renderManager();
+    expect(screen.queryByTitle("Close tab")).not.toBeInTheDocument();
+  });
+
+  it("Given the setting blob is corrupt, When the manager mounts, Then the default tab is unaffected", () => {
+    seedHistory();
+    localStorage.setItem("vibeui-sessions", "{not json");
+    renderManager();
+    expect(screen.queryByTitle("Close tab")).not.toBeInTheDocument();
+  });
+});

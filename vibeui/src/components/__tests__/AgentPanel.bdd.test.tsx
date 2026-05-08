@@ -370,3 +370,48 @@ describe('Given a task is entered', () => {
     });
   });
 });
+
+// ── A11y: aria-pressed on toggles, role="log" on feed, alertdialog on approval ─
+
+describe('Given the Turbo and Parallel toggles render', () => {
+  it('When idle, Then both expose aria-pressed="false"', async () => {
+    renderPanel('ollama');
+    await waitFor(() => expect(eventHandlers['agent:complete']).toBeDefined());
+    const turbo = screen.getByRole('button', { name: /Turbo Mode off/i });
+    const parallel = screen.getByRole('button', { name: /Parallel Mode off/i });
+    expect(turbo.getAttribute('aria-pressed')).toBe('false');
+    expect(parallel.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('When the user clicks Turbo, Then aria-pressed flips to "true"', async () => {
+    renderPanel('ollama');
+    await waitFor(() => expect(eventHandlers['agent:complete']).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: /Turbo Mode off/i }));
+    expect(screen.getByRole('button', { name: /Turbo Mode on/i }).getAttribute('aria-pressed')).toBe('true');
+  });
+});
+
+describe('Given the agent step feed renders', () => {
+  it('Then it is exposed as role="log" with a polite aria-live', async () => {
+    renderPanel('ollama');
+    await waitFor(() => expect(eventHandlers['agent:complete']).toBeDefined());
+    const log = screen.getByRole('log', { name: /Agent step feed/i });
+    expect(log).toBeInTheDocument();
+    expect(log.getAttribute('aria-live')).toBe('polite');
+  });
+});
+
+describe('Given a non-destructive approval is pending', () => {
+  it('Then it renders as role="alertdialog" with the right aria wiring', async () => {
+    renderPanel('ollama');
+    await waitFor(() => expect(eventHandlers['agent:pending']).toBeDefined());
+    act(() => {
+      eventHandlers['agent:pending']({ name: 'read_file', summary: 'Read README.md', is_destructive: false });
+    });
+    const dialog = await waitFor(() => screen.getByRole('alertdialog'));
+    expect(dialog.getAttribute('aria-labelledby')).toBe('agent-approval-title');
+    expect(dialog.getAttribute('aria-describedby')).toBe('agent-approval-summary');
+    expect(document.getElementById('agent-approval-title')?.textContent).toMatch(/approve\?/i);
+    expect(document.getElementById('agent-approval-summary')?.textContent).toMatch(/Read README\.md/);
+  });
+});

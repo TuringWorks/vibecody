@@ -56,16 +56,29 @@ final class WatchNetworkManager: NSObject, ObservableObject {
         return result.sessions.first { $0.session_id == sessionId }
     }
 
-    // MARK: - Recap (W1.1 — read-only)
+    // MARK: - Recap (W1.1 / W1.2 — read-only)
 
     /// Fetch the freshest recap for a session. Returns `nil` when the
     /// daemon has no recap (older daemon, never generated, or 4xx).
     /// Best-effort — never throws on network failure.
     func loadRecap(sessionId: String) async -> WatchRecap? {
+        await loadRecap(subjectId: sessionId, kind: "session")
+    }
+
+    /// W1.2 — Fetch the freshest recap for a background-agent job.
+    /// Read-only; daemon's J1.2 hook owns generation.
+    func loadJobRecap(jobId: String) async -> WatchRecap? {
+        await loadRecap(subjectId: jobId, kind: "job")
+    }
+
+    private func loadRecap(subjectId: String, kind: String) async -> WatchRecap? {
         guard auth.isPaired, let token = try? await auth.validAccessToken() else {
             return nil
         }
-        guard let url = URL(string: "\(auth.endpoint)/watch/sessions/\(sessionId)/recap") else {
+        let path = kind == "job"
+            ? "/watch/jobs/\(subjectId)/recap"
+            : "/watch/sessions/\(subjectId)/recap"
+        guard let url = URL(string: "\(auth.endpoint)\(path)") else {
             return nil
         }
         do {
@@ -73,6 +86,25 @@ final class WatchNetworkManager: NSObject, ObservableObject {
             return resp.recap
         } catch {
             return nil
+        }
+    }
+
+    /// W1.2 — list of recent jobs for the Smart Stack tile / job
+    /// picker. Returns the head of /watch/jobs (cap 25 server-side).
+    @Published var jobs: [WatchJobSummary] = []
+    @Published var isLoadingJobs = false
+
+    func loadJobs() async {
+        guard auth.isPaired else { return }
+        isLoadingJobs = true
+        defer { isLoadingJobs = false }
+        do {
+            let token = try await auth.validAccessToken()
+            let url = URL(string: "\(auth.endpoint)/watch/jobs")!
+            let result: WatchJobsResponse = try await getJSON(url: url, token: token)
+            jobs = result.jobs
+        } catch {
+            // Best-effort — leave the prior list visible.
         }
     }
 
@@ -301,6 +333,10 @@ extension WatchNetworkManager: WCSessionDelegate {
 
 private struct WatchSessionsResponse: Codable {
     let sessions: [WatchSessionSummary]
+}
+
+private struct WatchJobsResponse: Codable {
+    let jobs: [WatchJobSummary]
 }
 
 private struct WatchRecapEnvelope: Codable {

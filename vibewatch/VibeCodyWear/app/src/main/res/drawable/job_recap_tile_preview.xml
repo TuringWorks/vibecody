@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- W1.2 — placeholder preview shown in the Wear OS tile picker. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+    <path
+        android:fillColor="#1F2937"
+        android:pathData="M0,0 H200 V200 H0 Z" />
+    <path
+        android:fillColor="#3B82F6"
+        android:pathData="M40,80 L160,80 L160,90 L40,90 Z M40,100 L130,100 L130,110 L40,110 Z M40,120 L150,120 L150,130 L40,130 Z" />
+    <path
+        android:fillColor="#9CA3AF"
+        android:pathData="M40,60 L80,60 L80,70 L40,70 Z" />
+</vector>
