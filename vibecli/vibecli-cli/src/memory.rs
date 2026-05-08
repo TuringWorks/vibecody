@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 
 // ── Memory File Names ─────────────────────────────────────────────────────────
 
-const REPO_CANDIDATES: &[&str] = &["VIBECLI.md", "AGENTS.md", "CLAUDE.md", ".vibecli.md"];
+const REPO_CANDIDATES: &[&str] = &["VIBECLI.md", "AGENTS.md", "CLAUDE.md", "GEMINI.md", ".vibecli.md"];
 
 // ── MemoryLevel ───────────────────────────────────────────────────────────────
 
