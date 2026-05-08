@@ -5337,7 +5337,14 @@ pub async fn save_mcp_servers(servers: Vec<serde_json::Value>) -> Result<(), Str
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     let text = serde_json::to_string_pretty(&servers).map_err(|e| e.to_string())?;
-    std::fs::write(&path, text).map_err(|e| e.to_string())
+    let count = servers.len();
+    std::fs::write(&path, text).map_err(|e| e.to_string())?;
+    tracing::info!(
+        target: "vibecody::mcp",
+        server_count = count,
+        "mcp.servers.save"
+    );
+    Ok(())
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
@@ -5351,17 +5358,40 @@ pub struct McpToolInfo {
 pub async fn test_mcp_server(server: serde_json::Value) -> Result<Vec<McpToolInfo>, String> {
     let cfg: vibe_ai::mcp::McpServerConfig =
         serde_json::from_value(server).map_err(|e| format!("Invalid server config: {}", e))?;
-    tokio::task::spawn_blocking(move || {
+    let server_name = cfg.name.clone();
+    let started = std::time::Instant::now();
+    tracing::info!(
+        target: "vibecody::mcp",
+        server_name = %server_name,
+        "mcp.server.test.start"
+    );
+    let result = tokio::task::spawn_blocking(move || {
         let mut client =
             vibe_ai::mcp::McpClient::connect(&cfg).map_err(|e| format!("Connect failed: {:#}", e))?;
         let tools = client.list_tools().map_err(|e| format!("list_tools failed: {:#}", e))?;
-        Ok(tools
+        Ok::<Vec<McpToolInfo>, String>(tools
             .into_iter()
             .map(|t| McpToolInfo { name: t.name, description: t.description })
             .collect())
     })
     .await
-    .map_err(|e| format!("Task error: {}", e))?
+    .map_err(|e| format!("Task error: {}", e))?;
+    match &result {
+        Ok(tools) => tracing::info!(
+            target: "vibecody::mcp",
+            server_name = %server_name,
+            tool_count = tools.len(),
+            elapsed_ms = started.elapsed().as_millis() as u64,
+            "mcp.server.test.ok"
+        ),
+        Err(_) => tracing::warn!(
+            target: "vibecody::mcp",
+            server_name = %server_name,
+            elapsed_ms = started.elapsed().as_millis() as u64,
+            "mcp.server.test.failed"
+        ),
+    }
+    result
 }
 
 // ─── MCP OAuth Commands ────────────────────────────────────────────────────────
@@ -26080,6 +26110,7 @@ pub async fn install_mcp_plugin(id: String) -> Result<serde_json::Value, String>
     let catalog = mcp_directory_catalog();
     let exists = catalog.iter().any(|p| p.get("id").and_then(|v| v.as_str()) == Some(id.as_str()));
     if !exists {
+        tracing::warn!(target: "vibecody::mcp", plugin_id = %id, "mcp.plugin.install.not_found");
         return Ok(serde_json::json!({ "success": false, "message": format!("Plugin '{}' not found in directory", id) }));
     }
     let mut installed = read_mcp_installed();
@@ -26088,6 +26119,12 @@ pub async fn install_mcp_plugin(id: String) -> Result<serde_json::Value, String>
     }
     installed.insert(id.clone());
     write_mcp_installed(&installed)?;
+    tracing::info!(
+        target: "vibecody::mcp",
+        plugin_id = %id,
+        installed_total = installed.len(),
+        "mcp.plugin.install"
+    );
     Ok(serde_json::json!({ "success": true, "message": format!("Plugin '{}' installed successfully", id) }))
 }
 
@@ -26098,6 +26135,12 @@ pub async fn uninstall_mcp_plugin(id: String) -> Result<serde_json::Value, Strin
         return Ok(serde_json::json!({ "success": false, "message": "Plugin is not installed" }));
     }
     write_mcp_installed(&installed)?;
+    tracing::info!(
+        target: "vibecody::mcp",
+        plugin_id = %id,
+        installed_total = installed.len(),
+        "mcp.plugin.uninstall"
+    );
     Ok(serde_json::json!({ "success": true, "message": format!("Plugin '{}' uninstalled successfully", id) }))
 }
 

@@ -363,6 +363,27 @@ fn sandbox_health_block() -> serde_json::Value {
     })
 }
 
+fn mcp_features_block() -> serde_json::Value {
+    // ~/.vibeui/mcp.json — server list managed by the VibeUI Tauri panel.
+    // The daemon doesn't own the file, but probing it lets /health report
+    // whether MCP servers have been configured at all (a deciding signal
+    // for clients that gate MCP-dependent features).
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    let cfg_path = std::path::PathBuf::from(home).join(".vibeui").join("mcp.json");
+    let server_count = std::fs::read_to_string(&cfg_path)
+        .ok()
+        .and_then(|s| serde_json::from_str::<Vec<serde_json::Value>>(&s).ok())
+        .map(|v| v.len())
+        .unwrap_or(0);
+    serde_json::json!({
+        "available": true,
+        "transport": "tauri-desktop",
+        "config_path": "~/.vibeui/mcp.json",
+        "server_count": server_count,
+        "configured": server_count > 0,
+    })
+}
+
 fn memory_health_block() -> serde_json::Value {
     let store_dir = openmemory_dir();
     let mut store = match crate::open_memory::OpenMemoryStore::load(&store_dir, "default") {
@@ -498,6 +519,11 @@ async fn health() -> impl IntoResponse {
                 "transport": "tauri-desktop",
                 "trace_dir": ".vibecli/traces/",
             },
+            // MCP (Model Context Protocol). Server config lives at
+            // ~/.vibeui/mcp.json (Tauri-managed); install registry at
+            // ~/.vibeui/mcp-installed.json. The boolean is a runtime
+            // probe of the config file, not a fixed declaration.
+            "mcp": mcp_features_block(),
         },
         // OpenMemory store readiness — counts + flags only, never content.
         // Consumed by Settings panel + ops dashboards so a feature that
@@ -2839,6 +2865,35 @@ async fn rl_eval_compare(
         .compare(&req.run_a, &req.run_b, req.suite_id.as_deref())
         .map(Json)
         .map_err(rl_err_to_http)
+}
+
+#[derive(Debug, Deserialize)]
+struct EvalResultsUpsertQuery {
+    suite_id: String,
+}
+
+#[derive(Debug, Serialize)]
+struct EvalResultsUpsertResponse {
+    upserted: usize,
+}
+
+/// POST `/v1/rl/eval/runs/:run_id/results?suite_id=<id>` — record one or
+/// more eval metrics for `run_id` under `suite_id`. Idempotent: re-posting
+/// the same `(run_id, suite_id, metric_name)` overwrites the previous row.
+/// External eval harnesses (the sidecar's `eval` command, CI scripts,
+/// ad-hoc rollouts) push results back into the daemon for the
+/// `rl_eval_compare` endpoint to consume.
+async fn rl_eval_upsert_results(
+    Path(run_id): Path<String>,
+    Query(q): Query<EvalResultsUpsertQuery>,
+    State(state): State<ServeState>,
+    Json(rows): Json<Vec<crate::rl_eval::ResultUpsert>>,
+) -> Result<Json<EvalResultsUpsertResponse>, (StatusCode, Json<serde_json::Value>)> {
+    let store = open_eval_store_from_state(&state)?;
+    store
+        .upsert_results(&run_id, &q.suite_id, &rows)
+        .map_err(rl_err_to_http)?;
+    Ok(Json(EvalResultsUpsertResponse { upserted: rows.len() }))
 }
 
 // ── RL-OS: /v1/rl/policies (slice 5) ──────────────────────────────────────────
@@ -6209,6 +6264,23 @@ mod tests {
             // feature gates read.
             assert_eq!(json["features"]["sandbox"]["available"], true);
             assert_eq!(json["features"]["sandbox"]["tier"], "native");
+        }
+
+        #[tokio::test]
+        async fn health_features_mcp_block_reports_server_count_and_configured_flag() {
+            let (app, _tmp) = test_app("test-token");
+            let req = Request::builder().uri("/health").body(Body::empty()).unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            let body = body_string(resp.into_body()).await;
+            let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+            let mcp = &json["features"]["mcp"];
+            assert_eq!(mcp["available"], true);
+            assert_eq!(mcp["transport"], "tauri-desktop");
+            assert!(mcp["server_count"].is_u64());
+            // configured must be a strict reflection of server_count > 0
+            let count = mcp["server_count"].as_u64().unwrap();
+            assert_eq!(mcp["configured"], count > 0);
+            assert_eq!(mcp["config_path"], "~/.vibeui/mcp.json");
         }
 
         #[tokio::test]

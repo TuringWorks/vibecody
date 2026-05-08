@@ -110,6 +110,9 @@ sidebar:
   - title: Sandbox
     icon: shield
     url: /sandbox/
+  - title: MCP
+    icon: package
+    url: /mcp/
   - title: Memory Guide
     icon: database
     url: /memory-guide/
