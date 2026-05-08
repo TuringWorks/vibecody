@@ -31394,12 +31394,25 @@ pub async fn counsel_create_session(
         }
     }).collect();
 
+    let participant_count = parsed.len();
+    let providers_used: Vec<String> = parsed.iter().map(|p| p.provider_name.clone()).collect();
+
     let session = CounselSession::new(topic, parsed, moderator_idx);
     let session_json = serde_json::to_value(&session).map_err(|e| e.to_string())?;
+    let session_id = session_json.get("id").and_then(|v| v.as_str()).unwrap_or("(unknown)").to_string();
 
     let mut sessions = counsel_read_sessions();
     sessions.push(session_json.clone());
     counsel_write_sessions(&sessions)?;
+
+    tracing::info!(
+        target: "vibecody::counsel",
+        session_id = %session_id,
+        participant_count,
+        moderator_idx,
+        providers = ?providers_used,
+        "counsel.session.create"
+    );
 
     Ok(session_json)
 }
@@ -31435,6 +31448,7 @@ pub async fn counsel_run_round(
 ) -> Result<serde_json::Value, String> {
     use vibecli_cli::counsel::{CounselSession, CounselResponse};
 
+    let started = std::time::Instant::now();
     let mut sessions = counsel_read_sessions();
     let pos = sessions.iter().position(|s| {
         s.get("id").and_then(|v| v.as_str()) == Some(&session_id)
@@ -31444,6 +31458,13 @@ pub async fn counsel_run_round(
         .map_err(|e| e.to_string())?;
 
     let round_number = session.current_round();
+    tracing::info!(
+        target: "vibecody::counsel",
+        session_id = %session_id,
+        round = round_number,
+        participant_count = session.participants.len(),
+        "counsel.round.start"
+    );
     let mut responses = Vec::new();
 
     // Phase 7 quick-win: assemble project memory once per round and
@@ -31509,10 +31530,20 @@ pub async fn counsel_run_round(
         });
     }
 
+    let response_count = responses.len();
     session.add_round(responses);
     let updated = serde_json::to_value(&session).map_err(|e| e.to_string())?;
     sessions[pos] = updated.clone();
     counsel_write_sessions(&sessions)?;
+
+    tracing::info!(
+        target: "vibecody::counsel",
+        session_id = %session_id,
+        round = round_number,
+        response_count,
+        elapsed_ms = started.elapsed().as_millis() as u64,
+        "counsel.round.complete"
+    );
 
     // Return just the latest round
     let round_json = updated.get("rounds")
@@ -31625,7 +31656,14 @@ pub async fn counsel_delete_session(session_id: String) -> Result<(), String> {
     if sessions.len() == before {
         return Err("Session not found".into());
     }
-    counsel_write_sessions(&sessions)
+    counsel_write_sessions(&sessions)?;
+    tracing::info!(
+        target: "vibecody::counsel",
+        session_id = %session_id,
+        remaining = sessions.len(),
+        "counsel.session.delete"
+    );
+    Ok(())
 }
 
 /// Update a participant's provider/model in an active session (between rounds).
@@ -31681,19 +31719,49 @@ pub async fn superbrain_query(
 ) -> Result<serde_json::Value, String> {
     use vibecli_cli::superbrain::*;
 
+    // Per AGENTS.md → Provider-Agnostic Panels (STRICT): never silently fall
+    // back to a hard-coded provider. The frontend (SuperBrainPanel) always
+    // sets provider+model from useModelRegistry — if a row is missing them,
+    // surface an error instead of routing to a default.
     let provider_entries: Vec<ProviderEntry> = providers.get("list")
         .and_then(|v| v.as_array())
-        .map(|arr| arr.iter().map(|p| ProviderEntry {
-            provider: p.get("provider").and_then(|v| v.as_str()).unwrap_or("ollama").to_string(),
-            model: p.get("model").and_then(|v| v.as_str()).unwrap_or("llama3.2").to_string(),
-        }).collect())
+        .map(|arr| arr.iter().enumerate().map(|(i, p)| {
+            let provider = p.get("provider").and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| format!(
+                    "providers.list[{i}].provider is missing — pick a provider in the toolbar"
+                ))?;
+            let model = p.get("model").and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| format!(
+                    "providers.list[{i}].model is missing — pick a model in the toolbar"
+                ))?;
+            Ok::<ProviderEntry, String>(ProviderEntry {
+                provider: provider.to_string(),
+                model: model.to_string(),
+            })
+        }).collect::<Result<Vec<_>, _>>())
+        .transpose()?
         .unwrap_or_default();
 
     let judge_entry: Option<ProviderEntry> = providers.get("judge")
-        .map(|j| ProviderEntry {
-            provider: j.get("provider").and_then(|v| v.as_str()).unwrap_or("claude").to_string(),
-            model: j.get("model").and_then(|v| v.as_str()).unwrap_or("claude-3.5-sonnet").to_string(),
-        });
+        .map(|j| {
+            let provider = j.get("provider").and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| {
+                    "providers.judge.provider is missing — pick a judge model in the toolbar".to_string()
+                })?;
+            let model = j.get("model").and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| {
+                    "providers.judge.model is missing — pick a judge model in the toolbar".to_string()
+                })?;
+            Ok::<ProviderEntry, String>(ProviderEntry {
+                provider: provider.to_string(),
+                model: model.to_string(),
+            })
+        })
+        .transpose()?;
 
     let total_start = std::time::Instant::now();
     let mut total_tokens: usize = 0;

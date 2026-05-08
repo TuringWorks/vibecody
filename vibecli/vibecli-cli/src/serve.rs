@@ -546,6 +546,16 @@ async fn health() -> impl IntoResponse {
                 "token_bits": 128,
                 "rng": "os-csprng",
             },
+            // Counsel — multi-LLM debate / synthesis panel. Sessions are
+            // persisted to ~/.vibeui/counsel-sessions.json. Inherits
+            // provider availability — needs at least 2 different
+            // providers configured to make a useful panel.
+            "counsel": {
+                "available": provider_count > 0,
+                "transport": "tauri-desktop",
+                "requires": "providers.configured_count >= 2 (for diverse debate)",
+                "store_path": "~/.vibeui/counsel-sessions.json",
+            },
         },
         // OpenMemory store readiness — counts + flags only, never content.
         // Consumed by Settings panel + ops dashboards so a feature that
@@ -3104,7 +3114,12 @@ async fn rl_rollback_deployment(
     Json(req): Json<crate::rl_deploy::RollbackRequest>,
 ) -> Result<Json<crate::rl_deploy::Deployment>, (StatusCode, Json<serde_json::Value>)> {
     let store = open_deploy_store_from_state(&state)?;
-    store.rollback(&id, req).map(Json).map_err(rl_err_to_http)
+    let deployment = store.rollback(&id, req).map_err(rl_err_to_http)?;
+    // Rolled-back deployments must stop serving — drop the sidecar so a
+    // racing `/act` call gets a clean "deployment is rolled back" 409
+    // instead of stale traffic.
+    let _ = state.rl_runtime_pool.drop_runtime(&id).await;
+    Ok(Json(deployment))
 }
 
 async fn rl_stop_deployment(
@@ -3112,15 +3127,36 @@ async fn rl_stop_deployment(
     State(state): State<ServeState>,
 ) -> Result<Json<crate::rl_deploy::Deployment>, (StatusCode, Json<serde_json::Value>)> {
     let store = open_deploy_store_from_state(&state)?;
-    store.stop(&id).map(Json).map_err(rl_err_to_http)
+    let deployment = store.stop(&id).map_err(rl_err_to_http)?;
+    // Evict any live inference sidecar so stop ≠ "row says stopped, sidecar
+    // still alive". Best-effort: if the runtime wasn't loaded, nothing to do.
+    let _ = state.rl_runtime_pool.drop_runtime(&id).await;
+    Ok(Json(deployment))
+}
+
+/// Combined deployment + runtime health response. The deployment-side
+/// snapshot is always present (it's just a database read); the
+/// `runtime` field is `Some` only when an inference sidecar has actually
+/// been spawned for this deployment (i.e. someone has called `/act`
+/// against it since daemon start).
+#[derive(Debug, Serialize)]
+struct DeploymentHealthResponse {
+    #[serde(flatten)]
+    deployment: crate::rl_deploy::HealthSnapshot,
+    /// Live metrics from the inference sidecar — `requests_total`,
+    /// `error_total`, `last_latency_ms`, `framework`, `device`,
+    /// `checkpoint`. Null when no sidecar is loaded.
+    runtime: Option<crate::rl_runtime::RuntimeHealth>,
 }
 
 async fn rl_get_deployment_health_h(
     Path(id): Path<String>,
     State(state): State<ServeState>,
-) -> Result<Json<crate::rl_deploy::HealthSnapshot>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<DeploymentHealthResponse>, (StatusCode, Json<serde_json::Value>)> {
     let store = open_deploy_store_from_state(&state)?;
-    store.health(&id).map(Json).map_err(rl_err_to_http)
+    let deployment = store.health(&id).map_err(rl_err_to_http)?;
+    let runtime = state.rl_runtime_pool.peek_runtime_health(&id).await;
+    Ok(Json(DeploymentHealthResponse { deployment, runtime }))
 }
 
 /// Slice 6.5 — real inference path. Looks up the deployment by name
@@ -3401,6 +3437,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/v1/rl/eval/suites/:id", get(rl_eval_get_suite))
         .route("/v1/rl/eval/suites/:id", axum::routing::delete(rl_eval_delete_suite))
         .route("/v1/rl/eval/results", get(rl_eval_list_results))
+        .route("/v1/rl/eval/runs/:run_id/results", post(rl_eval_upsert_results))
         .route("/v1/rl/eval/compare", post(rl_eval_compare))
         // RL-OS slice 5 — policy registry + lineage + reward decomposition
         .route("/v1/rl/policies", post(rl_register_policy))
