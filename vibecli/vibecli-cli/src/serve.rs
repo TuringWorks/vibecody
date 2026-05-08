@@ -6751,6 +6751,48 @@ mod tests {
         }
 
         #[tokio::test]
+        async fn v1_messages_without_auth_returns_401() {
+            // C1 — daemon should expose POST /v1/messages (Anthropic Messages
+            // API shape, mirroring Ollama 0.22.x). Mounted under the same
+            // bearer-auth + rate-limit stack as /api/chat, so an unauthenticated
+            // request must return 401 once the route is wired. Before the
+            // route lands axum's fallback returns 404 — this assertion is
+            // the red signal.
+            let (app, _tmp) = test_app_with_inference("secret-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/v1/messages")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"model":"qwen2.5:0.5b","max_tokens":16,"messages":[{"role":"user","content":"hi"}]}"#,
+                ))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        #[tokio::test]
+        async fn v1_messages_streaming_returns_501_when_authed() {
+            // C1 — streaming for /v1/messages requires Anthropic-shaped SSE
+            // event stream that is intentionally out of scope for this
+            // slice. Until that ships, the handler must reject stream:true
+            // with 501 Not Implemented rather than silently degrade to
+            // non-streaming (which would surprise SDK clients).
+            let (app, _tmp) = test_app_with_inference("secret-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/v1/messages")
+                .header("authorization", "Bearer secret-token")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"model":"qwen2.5:0.5b","max_tokens":16,"stream":true,"messages":[{"role":"user","content":"hi"}]}"#,
+                ))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::NOT_IMPLEMENTED);
+        }
+
+        #[tokio::test]
         async fn chat_with_wrong_token_returns_401() {
             let (app, _tmp) = test_app("correct-token");
             let req = Request::builder()
