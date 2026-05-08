@@ -132,6 +132,8 @@ mod inference_routes;
 #[allow(dead_code)]
 mod inference_server;
 #[allow(dead_code)]
+mod skill_catalog;
+#[allow(dead_code)]
 mod distributed_training;
 #[allow(dead_code)]
 mod infinite_context;
