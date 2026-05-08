@@ -171,6 +171,8 @@ pub fn build_watch_router(state: WatchBridgeState) -> Router {
         .route("/sessions",         get(watch_list_sessions))
         .route("/sessions/:id/messages", get(watch_session_messages))
         .route("/sessions/:id/recap", get(watch_session_recap))
+        .route("/jobs",             get(watch_list_jobs))
+        .route("/jobs/:id/recap",   get(watch_job_recap))
         .route("/stream/:id",       get(watch_stream))
         .route("/dispatch",         post(watch_dispatch))
         .route("/active-session",   get(watch_get_active_session).put(watch_set_active_session))
@@ -440,6 +442,82 @@ async fn watch_session_recap(
     };
     let recap = store
         .list_recaps_for_subject(&session_id, 1)
+        .ok()
+        .and_then(|rows| rows.into_iter().next());
+    match recap {
+        Some(r) => match serde_json::to_value(&r) {
+            Ok(v) => Json(serde_json::json!({"recap": v})).into_response(),
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": format!("serialize: {e}")})),
+            )
+                .into_response(),
+        },
+        None => Json(serde_json::json!({"recap": serde_json::Value::Null}))
+            .into_response(),
+    }
+}
+
+/// W1.2 — GET /watch/jobs — slim list of background-agent jobs for
+/// the watch's Smart Stack tile / complication. Same field shape as
+/// /watch/sessions: just enough to render a one-line glance and to
+/// drive a deep-link into the recap. Newest first, capped at 25.
+async fn watch_list_jobs(
+    State(state): State<WatchBridgeState>,
+    headers: axum::http::HeaderMap,
+) -> impl IntoResponse {
+    if let Err(e) = extract_any_auth(&state, &headers) {
+        return e.into_response();
+    }
+    let db_path = crate::job_manager::default_db_path();
+    let db = match crate::job_manager::JobsDb::open(&db_path) {
+        Ok(d) => d,
+        Err(e) => {
+            tracing::warn!("watch_list_jobs: cannot open jobs.db: {e}");
+            return Json(serde_json::json!({"jobs": []})).into_response();
+        }
+    };
+    let jobs = db.list().unwrap_or_default();
+    let slim: Vec<serde_json::Value> = jobs
+        .into_iter()
+        .take(25)
+        .map(|j| {
+            serde_json::json!({
+                "session_id": j.session_id,
+                "task_preview": j.task.chars().take(60).collect::<String>(),
+                "status": j.status,
+                "provider": j.provider,
+                "started_at": j.started_at,
+                "finished_at": j.finished_at,
+            })
+        })
+        .collect();
+    Json(serde_json::json!({"jobs": slim})).into_response()
+}
+
+/// W1.2 — GET /watch/jobs/:id/recap — read-only freshest job recap.
+/// Mirrors `watch_session_recap` but reads from `jobs.db` (J1.1
+/// schema, decrypted on read). Watch never generates recaps; the
+/// daemon's J1.2 terminal-state hook owns generation.
+async fn watch_job_recap(
+    State(state): State<WatchBridgeState>,
+    headers: axum::http::HeaderMap,
+    Path(job_id): Path<String>,
+) -> impl IntoResponse {
+    if let Err(e) = extract_any_auth(&state, &headers) {
+        return e.into_response();
+    }
+    let db_path = crate::job_manager::default_db_path();
+    let db = match crate::job_manager::JobsDb::open(&db_path) {
+        Ok(d) => d,
+        Err(e) => {
+            tracing::warn!("watch_job_recap: cannot open jobs.db: {e}");
+            return Json(serde_json::json!({"recap": serde_json::Value::Null}))
+                .into_response();
+        }
+    };
+    let recap = db
+        .list_job_recaps_for_subject(&job_id, 1)
         .ok()
         .and_then(|rows| rows.into_iter().next());
     match recap {

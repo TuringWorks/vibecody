@@ -22,12 +22,16 @@ struct ContentView: View {
                     .tag(0)
                     .tabItem { Label("Sessions", systemImage: "bubble.left.and.bubble.right") }
 
-                SandboxStatusView()
+                JobPickerView()
                     .tag(1)
+                    .tabItem { Label("Jobs", systemImage: "briefcase") }
+
+                SandboxStatusView()
+                    .tag(2)
                     .tabItem { Label("Sandbox", systemImage: "shippingbox") }
 
                 SettingsView()
-                    .tag(2)
+                    .tag(3)
                     .tabItem { Label("Settings", systemImage: "gear") }
             }
         } else {
