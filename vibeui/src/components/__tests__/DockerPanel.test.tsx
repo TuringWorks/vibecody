@@ -21,6 +21,7 @@ vi.mock('lucide-react', () => {
     CheckCircle2: icon('CheckCircle2'), XCircle: icon('XCircle'),
     PauseCircle: icon('PauseCircle'), MinusCircle: icon('MinusCircle'),
     Package: icon('Package'),
+    RefreshCw: icon('RefreshCw'), X: icon('X'),
     // StatusMessage dependencies
     AlertTriangle: icon('AlertTriangle'), Loader2: icon('Loader2'),
     Inbox: icon('Inbox'), CheckCircle: icon('CheckCircle'),
@@ -128,14 +129,14 @@ describe('DockerPanel', () => {
   it('shows refresh button on containers tab', async () => {
     render(<DockerPanel workspacePath="/workspace" />);
     await waitFor(() => {
-      expect(screen.getByText('↻ Refresh')).toBeInTheDocument();
+      expect(screen.getByText('Refresh')).toBeInTheDocument();
     });
   });
 
   it('clicking refresh reloads containers', async () => {
     render(<DockerPanel workspacePath="/workspace" />);
-    await waitFor(() => screen.getByText('↻ Refresh'));
-    fireEvent.click(screen.getByText('↻ Refresh'));
+    await waitFor(() => screen.getByText('Refresh'));
+    fireEvent.click(screen.getByText('Refresh'));
     await waitFor(() => {
       // Called once on mount, once on refresh
       const calls = mockInvoke.mock.calls.filter(c => c[0] === 'list_docker_containers');

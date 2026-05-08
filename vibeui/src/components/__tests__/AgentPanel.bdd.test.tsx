@@ -38,9 +38,26 @@ vi.mock('@tauri-apps/api/event', () => ({
   }),
 }));
 
+// Mock every lucide-react icon AgentPanel imports as an inert span. Keep
+// in sync with the import list at the top of AgentPanel.tsx.
 vi.mock('lucide-react', () => {
-  const icon = (name: string) => () => <span data-testid={`icon-${name}`} />;
-  return { Bot: icon('bot'), Loader2: icon('loader'), Square: icon('square'), Zap: icon('zap') };
+  const icon = (name: string) => () => <span data-testid={`icon-${name.toLowerCase()}`} />;
+  return {
+    Bot: icon('bot'),
+    GitBranch: icon('gitbranch'),
+    Loader2: icon('loader'),
+    Square: icon('square'),
+    Zap: icon('zap'),
+    ShieldCheck: icon('shieldcheck'),
+    ListOrdered: icon('listordered'),
+    Play: icon('play'),
+    RotateCcw: icon('rotateccw'),
+    Check: icon('check'),
+    X: icon('x'),
+    Copy: icon('copy'),
+    ChevronDown: icon('chevrondown'),
+    ChevronUp: icon('chevronup'),
+  };
 });
 
 vi.mock('../../utils/FlowContext', () => ({

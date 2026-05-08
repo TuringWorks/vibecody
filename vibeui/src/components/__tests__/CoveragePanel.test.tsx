@@ -23,6 +23,8 @@ vi.mock('lucide-react', () => {
     FlaskConical: icon('flask'),
     Loader2: icon('loader'),
     Play: icon('play'),
+    ChevronDown: icon('chevrondown'),
+    ChevronRight: icon('chevronright'),
   };
 });
 

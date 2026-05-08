@@ -17,11 +17,12 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
-// Mock SettingsPanel's getPairedTheme and applyThemeById
+// Mock theme/themes' getPairedTheme and applyThemeById (these moved from
+// SettingsPanel during the theme refactor).
 const mockApplyThemeById = vi.fn();
 const mockGetPairedTheme = vi.fn();
 
-vi.mock('../SettingsPanel', () => ({
+vi.mock('../../theme/themes', () => ({
   getPairedTheme: (...args: unknown[]) => mockGetPairedTheme(...args),
   applyThemeById: (...args: unknown[]) => mockApplyThemeById(...args),
 }));
@@ -49,14 +50,18 @@ function mockStorage(mode: 'dark' | 'light' | null, id: string | null = null) {
 }
 
 function mockMatchMedia(prefersDark: boolean) {
-  vi.stubGlobal('window', {
-    ...window,
-    matchMedia: (query: string) => ({
-      matches: query.includes('dark') ? prefersDark : !prefersDark,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    }),
-  });
+  // Stub only matchMedia, not the whole window — spreading window drops
+  // prototype methods like dispatchEvent, which applyThemeById relies on.
+  vi.stubGlobal('matchMedia', (query: string) => ({
+    matches: query.includes('dark') ? prefersDark : !prefersDark,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
 }
 
 // ── beforeEach / afterEach ────────────────────────────────────────────────────
