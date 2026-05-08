@@ -5,7 +5,7 @@ import { AIChat, Message } from "./AIChat";
 import { ChatMemoryPanel } from "./ChatMemoryPanel";
 import { RecapCard } from "./RecapCard";
 import { useSessionMemory } from "../hooks/useSessionMemory";
-import { useWatchActiveSession } from "../hooks/useWatchSync";
+import { useWatchActiveSession, useMobileActiveSession } from "../hooks/useWatchSync";
 import type { Recap } from "../types/recap";
 
 /** Last error surfaced to the user — recap-resume failure messages, etc.
@@ -121,6 +121,17 @@ export function ChatTabManager({
         // Only switch if the session exists as a tab
         if (tabs.some(t => t.id === watchSessionId)) {
             setActiveTabId(watchSessionId);
+        }
+    });
+
+    // F3.x — Mobile counterpart. When the phone claims a session, follow
+    // it on the desktop just like we do for the watch. The `_label` is
+    // available for a future "Active on Ravi's iPhone" badge; we drop
+    // it here because the existing tab-strip is still the source of
+    // visual truth and adding a new chip would be a separate slice.
+    useMobileActiveSession((mobileSessionId, _label) => {
+        if (tabs.some(t => t.id === mobileSessionId)) {
+            setActiveTabId(mobileSessionId);
         }
     });
 

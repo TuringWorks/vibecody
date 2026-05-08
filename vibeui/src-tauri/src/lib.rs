@@ -1100,6 +1100,7 @@ pub fn run() {
             commands::revoke_watch_device,
             commands::watch_get_session_messages,
             commands::watch_get_active_session,
+            commands::mobile_get_active_session,
             commands::watch_get_sandbox_chat_session,
             commands::watch_set_sandbox_chat_session,
             commands::recap_get_for_session,

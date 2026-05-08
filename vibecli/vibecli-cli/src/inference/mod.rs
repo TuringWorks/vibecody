@@ -65,6 +65,7 @@
 //! that produced the diagram above.
 
 pub mod backend;
+pub mod backend_override;
 pub mod mistralrs;
 pub mod ollama;
 pub mod router;

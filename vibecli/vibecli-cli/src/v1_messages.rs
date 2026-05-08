@@ -29,9 +29,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::inference::backend::{BackendError, BackendKind, ChatMessage, ChatRequest};
+use crate::inference::backend_override::override_kind;
 use crate::serve::ServeState;
-
-const HEADER_BACKEND: &str = "x-vibecli-backend";
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct MessagesRequest {
@@ -106,23 +105,6 @@ pub struct Usage {
     pub output_tokens: u32,
 }
 
-fn parse_kind(s: &str) -> Option<BackendKind> {
-    match s.trim().to_ascii_lowercase().as_str() {
-        "mistralrs" => Some(BackendKind::Mistralrs),
-        "ollama" => Some(BackendKind::Ollama),
-        _ => None,
-    }
-}
-
-fn override_kind(headers: &HeaderMap, body_kind: Option<BackendKind>) -> Option<BackendKind> {
-    if let Some(v) = headers.get(HEADER_BACKEND) {
-        if let Ok(s) = v.to_str() {
-            return parse_kind(s).or(body_kind);
-        }
-    }
-    body_kind
-}
-
 fn err_response(e: BackendError) -> Response {
     let (status, msg) = match &e {
         BackendError::ModelNotFound(_) => (StatusCode::NOT_FOUND, e.to_string()),
@@ -177,13 +159,32 @@ pub async fn messages(
         });
     }
 
+    // Forward `max_tokens` into the Ollama-shape options blob so
+    // `inference::mistralrs::sampler_from_options` and
+    // `inference::ollama::OllamaProxyBackend` both pick it up via the
+    // existing `num_predict` key. Without this the Anthropic spec field
+    // is silently dropped, which surprises clients that rely on it as
+    // an output cap (Copilot review comment #2 on PR #8).
+    let options = req.max_tokens.map(|n| {
+        serde_json::json!({ "num_predict": n })
+    });
+
     let chat_req = ChatRequest {
         model: req.model.clone(),
         messages: chat_messages,
         stream: Some(false),
-        options: None,
+        options,
         backend: req.backend,
     };
+
+    // Total input chars across system + every message content. Used as
+    // the denominator in the char-based fallback estimate when the
+    // backend doesn't report `prompt_tokens` itself.
+    let input_chars: usize = chat_req
+        .messages
+        .iter()
+        .map(|m| m.content.chars().count())
+        .sum();
 
     let backend = router.resolve(&chat_req.model, override_kind(&headers, chat_req.backend));
     let mut stream = match backend.chat(chat_req).await {
@@ -194,6 +195,8 @@ pub async fn messages(
     let mut combined = String::new();
     let mut last_model = req.model;
     let mut done_reason: Option<String> = None;
+    let mut backend_prompt_tokens: Option<u32> = None;
+    let mut backend_completion_tokens: Option<u32> = None;
     while let Some(item) = stream.next().await {
         match item {
             Ok(chunk) => {
@@ -201,6 +204,8 @@ pub async fn messages(
                 combined.push_str(&chunk.message.content);
                 if chunk.done {
                     done_reason = chunk.done_reason;
+                    backend_prompt_tokens = chunk.prompt_tokens;
+                    backend_completion_tokens = chunk.completion_tokens;
                 }
             }
             Err(e) => return err_response(e),
@@ -208,6 +213,12 @@ pub async fn messages(
     }
 
     let stop_reason = done_reason.unwrap_or_else(|| "end_turn".to_string());
+    let usage = Usage::resolve(
+        backend_prompt_tokens,
+        backend_completion_tokens,
+        input_chars,
+        combined.chars().count(),
+    );
     let resp = MessagesResponse {
         id: format!("msg_{}", Uuid::new_v4().simple()),
         kind: "message",
@@ -216,10 +227,75 @@ pub async fn messages(
         model: last_model,
         stop_reason,
         stop_sequence: None,
-        usage: Usage {
-            input_tokens: 0,
-            output_tokens: 0,
-        },
+        usage,
     };
     (StatusCode::OK, Json(resp)).into_response()
+}
+
+impl Usage {
+    /// Build a `usage` block for the response, preferring real backend
+    /// counts when present (mistralrs always reports them) and falling
+    /// back to a coarse char/4 estimate when the backend doesn't.
+    ///
+    /// Rationale (Copilot review comment #3 on PR #8): the Anthropic
+    /// Messages spec marks `usage` as required and downstream clients
+    /// gate budgeting / telemetry on it. Returning `0`s is worse than a
+    /// rough estimate because callers can't distinguish "we don't know"
+    /// from "the prompt was empty." chars/4 is the standard heuristic
+    /// for English; non-Latin scripts will under-count, but a finger-in-
+    /// the-air number is better than a misleading zero.
+    fn resolve(
+        backend_prompt_tokens: Option<u32>,
+        backend_completion_tokens: Option<u32>,
+        input_chars: usize,
+        output_chars: usize,
+    ) -> Self {
+        fn estimate(chars: usize) -> u32 {
+            // Round up so a 1-char input doesn't report 0 tokens.
+            let est = (chars as u64 + 3) / 4;
+            u32::try_from(est).unwrap_or(u32::MAX)
+        }
+        Usage {
+            input_tokens: backend_prompt_tokens.unwrap_or_else(|| estimate(input_chars)),
+            output_tokens: backend_completion_tokens.unwrap_or_else(|| estimate(output_chars)),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn usage_prefers_backend_counts_when_present() {
+        let u = Usage::resolve(Some(123), Some(45), 999_999, 999_999);
+        assert_eq!(u.input_tokens, 123);
+        assert_eq!(u.output_tokens, 45);
+    }
+
+    #[test]
+    fn usage_falls_back_to_char_estimate_when_backend_silent() {
+        // 16 chars / 4 = 4 tokens; 8 chars / 4 = 2 tokens.
+        let u = Usage::resolve(None, None, 16, 8);
+        assert_eq!(u.input_tokens, 4);
+        assert_eq!(u.output_tokens, 2);
+    }
+
+    #[test]
+    fn usage_estimate_rounds_up_so_short_inputs_arent_zero() {
+        // A 1-character input would round down to 0 tokens with a naive
+        // /4 — round up so callers always see at least 1 token.
+        let u = Usage::resolve(None, None, 1, 1);
+        assert_eq!(u.input_tokens, 1);
+        assert_eq!(u.output_tokens, 1);
+    }
+
+    #[test]
+    fn usage_mixed_backend_count_and_estimate() {
+        // Backend gave us prompt_tokens but not completion_tokens —
+        // mix and match per side.
+        let u = Usage::resolve(Some(50), None, 999, 100);
+        assert_eq!(u.input_tokens, 50);
+        assert_eq!(u.output_tokens, 25); // 100/4
+    }
 }
