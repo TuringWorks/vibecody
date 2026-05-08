@@ -297,6 +297,59 @@ class ApiClient {
     return jsonDecode(resp.body);
   }
 
+  // ── Active session (F3.x — cross-device handoff) ───────────
+
+  /// Claim a session as "active on this device" so VibeUI can follow
+  /// (mirrors the W1.1 watch path). Best-effort: failures are logged
+  /// but do not block opening the chat.
+  Future<void> setActiveSession(
+    String baseUrl,
+    String token, {
+    required String sessionId,
+    String? deviceId,
+    String? deviceLabel,
+  }) async {
+    try {
+      await _client
+          .put(
+            Uri.parse(_url(baseUrl, '/mobile/active-session')),
+            headers: _headers(token),
+            body: jsonEncode({
+              'session_id': sessionId,
+              if (deviceId != null) 'device_id': deviceId,
+              if (deviceLabel != null) 'device_label': deviceLabel,
+            }),
+          )
+          .timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // Best-effort — never block the UI on a failed sync.
+    }
+  }
+
+  /// Read the daemon's currently-claimed mobile active session. Used
+  /// by SessionsScreen to show an "Active on $device" badge so the
+  /// user knows which row VibeUI is following.
+  Future<Map<String, dynamic>?> getActiveSession(
+      String baseUrl, String token) async {
+    try {
+      final resp = await _client
+          .get(
+            Uri.parse(_url(baseUrl, '/mobile/active-session')),
+            headers: _headers(token),
+          )
+          .timeout(const Duration(seconds: 5));
+      if (resp.statusCode != 200) return null;
+      final data = jsonDecode(resp.body);
+      if (data is Map<String, dynamic>) {
+        final cur = data['active_session'];
+        return cur is Map<String, dynamic> ? cur : null;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   // ── Recap (M1.1) ───────────────────────────────────────────
   //
   // M1.1 — read-only consumer of /v1/recap. Mobile never generates

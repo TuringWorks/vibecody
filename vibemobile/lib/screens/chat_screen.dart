@@ -50,8 +50,30 @@ class _ChatScreenState extends State<ChatScreen> {
         // as soon as it lands; the transcript fills in underneath.
         await _loadRecap();
         await _loadSessionHistory();
+        // F3.x — claim this session as "active on this device" so
+        // VibeUI follows and the user gets a single-active-session
+        // experience across phone + desktop.
+        await _claimActiveSession();
       });
     }
+  }
+
+  /// F3.x — Tell the daemon this session is now active on the phone.
+  /// Best-effort; silent on failure so a flaky network never blocks
+  /// the chat from rendering.
+  Future<void> _claimActiveSession() async {
+    if (widget.resumeSessionId == null) return;
+    final auth = context.read<AuthService>();
+    final api = context.read<ApiClient>();
+    final cred = auth.getCredential(widget.resumeMachineId ?? '');
+    if (cred == null) return;
+    await api.setActiveSession(
+      cred.baseUrl,
+      cred.token,
+      sessionId: widget.resumeSessionId!,
+      deviceId: auth.deviceId,
+      deviceLabel: 'Mobile',
+    );
   }
 
   Future<void> _loadRecap() async {

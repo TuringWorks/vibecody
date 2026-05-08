@@ -12,7 +12,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useWatchSync, useWatchActiveSession } from '../useWatchSync';
+import { useWatchSync, useWatchActiveSession, useMobileActiveSession } from '../useWatchSync';
 import type { WatchMessage } from '../useWatchSync';
 
 // ── Mock @tauri-apps/api/core ─────────────────────────────────────────────────
@@ -388,5 +388,95 @@ describe('useWatchActiveSession', () => {
     });
 
     expect(mockInvoke.mock.calls.length).toBe(callsBefore);
+  });
+});
+
+// ── F3.x: useMobileActiveSession ──────────────────────────────────────────────
+
+describe('useMobileActiveSession — F3.x cross-device follow', () => {
+  it('fires onSessionChange when the daemon reports a new mobile claim', async () => {
+    let calls = 0;
+    mockInvoke.mockImplementation(async () => {
+      calls += 1;
+      return { active_session: { session_id: SESSION_A, device_label: 'iPhone' } };
+    });
+
+    const onChange = vi.fn();
+    renderHook(() => useMobileActiveSession(onChange));
+
+    await act(async () => {
+      vi.advanceTimersByTime(2100);
+    });
+    await act(async () => {});
+
+    expect(calls).toBeGreaterThan(0);
+    expect(onChange).toHaveBeenCalledWith(SESSION_A, 'iPhone');
+  });
+
+  it('does NOT fire when the same session_id repeats', async () => {
+    mockInvoke.mockResolvedValue({
+      active_session: { session_id: SESSION_A, device_label: 'iPhone' },
+    });
+
+    const onChange = vi.fn();
+    renderHook(() => useMobileActiveSession(onChange));
+
+    await act(async () => {
+      vi.advanceTimersByTime(6000); // 3 ticks
+    });
+    await act(async () => {});
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('fires twice when the mobile claim flips between two sessions', async () => {
+    let n = 0;
+    mockInvoke.mockImplementation(async () => {
+      n += 1;
+      return n <= 1
+        ? { active_session: { session_id: SESSION_A } }
+        : { active_session: { session_id: SESSION_B } };
+    });
+
+    const onChange = vi.fn();
+    renderHook(() => useMobileActiveSession(onChange));
+
+    await act(async () => {
+      vi.advanceTimersByTime(4200); // two ticks
+    });
+    await act(async () => {});
+
+    expect(onChange).toHaveBeenNthCalledWith(1, SESSION_A, undefined);
+    expect(onChange).toHaveBeenNthCalledWith(2, SESSION_B, undefined);
+  });
+
+  it('does NOT fire when active_session is null', async () => {
+    mockInvoke.mockResolvedValue({ active_session: null });
+
+    const onChange = vi.fn();
+    renderHook(() => useMobileActiveSession(onChange));
+
+    await act(async () => {
+      vi.advanceTimersByTime(4200);
+    });
+    await act(async () => {});
+
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('silently swallows errors from mobile_get_active_session', async () => {
+    mockInvoke.mockRejectedValue(new Error('command not found'));
+
+    const onChange = vi.fn();
+    expect(() => {
+      renderHook(() => useMobileActiveSession(onChange));
+    }).not.toThrow();
+
+    await act(async () => {
+      vi.advanceTimersByTime(2100);
+    });
+    await act(async () => {});
+
+    expect(onChange).not.toHaveBeenCalled();
   });
 });

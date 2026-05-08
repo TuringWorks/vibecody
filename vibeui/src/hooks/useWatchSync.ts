@@ -107,3 +107,45 @@ export function useWatchActiveSession(
     return () => clearInterval(interval);
   }, []);
 }
+
+// ── Mobile active-session hook (F3.x) ────────────────────────────────────────
+// Polls /mobile/active-session through the Tauri command and fires
+// onSessionChange whenever a different session_id appears. Mirrors
+// useWatchActiveSession; payload is wrapped in `active_session.{...}` so
+// the daemon can carry device metadata alongside the id without breaking
+// the watch-side response shape.
+
+export interface MobileActiveSession {
+  active_session: {
+    session_id: string;
+    device_id?: string;
+    device_label?: string;
+    set_at_ms?: number;
+  } | null;
+}
+
+export function useMobileActiveSession(
+  onSessionChange: (sessionId: string, deviceLabel: string | undefined) => void,
+) {
+  const lastSessionRef = useRef<string | null>(null);
+  const onChangeRef = useRef(onSessionChange);
+  onChangeRef.current = onSessionChange;
+
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const result = await invoke<MobileActiveSession>('mobile_get_active_session');
+        const claim = result.active_session;
+        if (claim && claim.session_id && claim.session_id !== lastSessionRef.current) {
+          lastSessionRef.current = claim.session_id;
+          onChangeRef.current(claim.session_id, claim.device_label);
+        }
+      } catch {
+        // Daemon offline or command absent — silent.
+      }
+    };
+
+    const interval = setInterval(poll, ACTIVE_SESSION_POLL_MS);
+    return () => clearInterval(interval);
+  }, []);
+}

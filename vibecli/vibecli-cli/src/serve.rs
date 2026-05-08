@@ -127,6 +127,28 @@ pub struct ServeState {
     /// active deployment. Lazy-loaded on first /act call; explicit
     /// `/stop` drops the runtime.
     pub rl_runtime_pool: Arc<crate::rl_runtime::RuntimePool>,
+    /// F3.x — currently active session as last claimed by a mobile
+    /// client. VibeUI polls `/mobile/active-session` and follows the
+    /// claim, mirroring how W1.1 made VibeUI follow the watch's
+    /// active session. `None` until the first PUT lands.
+    pub mobile_active_session: Arc<std::sync::Mutex<Option<MobileActiveSession>>>,
+}
+
+/// F3.x — payload tracked on `ServeState.mobile_active_session`.
+/// The daemon stores who claimed which session and when; clients
+/// can decide whether the claim is fresh enough to follow.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct MobileActiveSession {
+    pub session_id: String,
+    /// Optional device identifier from the mobile client.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_id: Option<String>,
+    /// Optional human-readable label ("Ravi's iPhone") so VibeUI can
+    /// surface a "Active on Ravi's iPhone" badge instead of a UUID.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_label: Option<String>,
+    /// Unix-millis. Lets clients age out stale claims.
+    pub set_at_ms: u64,
 }
 
 // ── Request / Response types ──────────────────────────────────────────────────
@@ -3349,6 +3371,11 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/mobile/stats", get(mobile_stats))
         .route("/mobile/sessions", get(mobile_sessions))
         .route("/mobile/sessions/:id/context", get(mobile_session_context))
+        // F3.x — cross-device active session. Mobile claims with PUT;
+        // VibeUI polls GET to follow the claim. Mirrors the
+        // /watch/active-session pattern from W1.1.
+        .route("/mobile/active-session", get(mobile_get_active_session)
+                                          .put(mobile_set_active_session))
         .route_layer(middleware::from_fn_with_state(limiter, rate_limit))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
@@ -3609,6 +3636,7 @@ pub async fn serve(
         rl_run_store,
         rl_executor,
         rl_runtime_pool: Arc::new(crate::rl_runtime::RuntimePool::new()),
+        mobile_active_session: Arc::new(std::sync::Mutex::new(None)),
     };
 
     // Background task: detect or start an ngrok / Tailscale Funnel tunnel and
@@ -5449,6 +5477,55 @@ async fn mobile_session_context(
 }
 
 /// Pure builder for the `/mobile/sessions/:id/context` response body.
+// ── F3.x: cross-device active session ───────────────────────────────────────
+
+/// `PUT /mobile/active-session` request body.
+#[derive(Debug, Deserialize)]
+struct SetMobileActiveSessionRequest {
+    session_id: String,
+    #[serde(default)]
+    device_id: Option<String>,
+    #[serde(default)]
+    device_label: Option<String>,
+}
+
+/// `GET /mobile/active-session` — returns the session that a mobile
+/// client most recently claimed. VibeUI polls this so the desktop
+/// can follow the user's mobile context, mirroring how W1.1 made
+/// VibeUI follow the watch's claim.
+async fn mobile_get_active_session(
+    State(state): State<ServeState>,
+) -> Json<serde_json::Value> {
+    let cur = state
+        .mobile_active_session
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+    Json(serde_json::json!({ "active_session": cur }))
+}
+
+/// `PUT /mobile/active-session` — mobile claims a session as
+/// "active on this device". Bearer-authed (`require_auth` middleware
+/// is applied by the parent router); we don't gate by device-id
+/// because the bearer token already proves the caller is the
+/// daemon's owner.
+async fn mobile_set_active_session(
+    State(state): State<ServeState>,
+    Json(req): Json<SetMobileActiveSessionRequest>,
+) -> Json<serde_json::Value> {
+    let claim = MobileActiveSession {
+        session_id: req.session_id.clone(),
+        device_id: req.device_id,
+        device_label: req.device_label,
+        set_at_ms: now_ms(),
+    };
+    *state
+        .mobile_active_session
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = Some(claim.clone());
+    Json(serde_json::json!({ "ok": true, "active_session": claim }))
+}
+
 ///
 /// Extracted from the handler so unit tests can exercise the merge of
 /// HandoffContext (session transcript) + AssembledContext (project
@@ -6074,6 +6151,7 @@ mod tests {
                     ),
                 )),
                 rl_runtime_pool: Arc::new(crate::rl_runtime::RuntimePool::new()),
+                mobile_active_session: Arc::new(std::sync::Mutex::new(None)),
             };
             (build_router(state, 7878), tmp_dir)
         }
@@ -6492,6 +6570,7 @@ mod tests {
                     ),
                 )),
                 rl_runtime_pool: Arc::new(crate::rl_runtime::RuntimePool::new()),
+                mobile_active_session: Arc::new(std::sync::Mutex::new(None)),
             };
             (build_router(state, 7878), tmp_dir)
         }
