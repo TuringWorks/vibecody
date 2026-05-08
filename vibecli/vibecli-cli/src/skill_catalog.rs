@@ -18,12 +18,13 @@
 //! Numbered guidance the agent follows when the skill is active...
 //! ```
 //!
-//! Red commit: types + signatures + tests. Impl bodies `todo!()` so the
-//! tests panic at runtime — TDD red. Green commit fills in the bodies.
+//! Catalog construction is lazy and read-only — callers load a directory
+//! and query it. Reload is just constructing a new `SkillCatalog`; this
+//! module does not cache or watch the filesystem.
 
 use std::path::{Path, PathBuf};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -45,8 +46,17 @@ pub struct Skill {
 }
 
 impl Skill {
+    /// First non-empty line of the body, stripped of any leading `#` so it
+    /// reads as a one-line summary in list views.
     pub fn summary(&self) -> String {
-        todo!("B1: first non-empty line of body, leading hashes stripped");
+        for line in self.body.lines() {
+            let t = line.trim();
+            if t.is_empty() {
+                continue;
+            }
+            return t.trim_start_matches('#').trim().to_string();
+        }
+        String::new()
     }
 }
 
@@ -60,8 +70,25 @@ impl SkillCatalog {
         Self { skills }
     }
 
-    pub fn load_from(_dir: impl AsRef<Path>) -> Result<Self> {
-        todo!("B1: scan dir for *.md, parse each, sort by name");
+    /// Load all `*.md` files in `dir` (non-recursive). Files that fail to
+    /// parse are skipped — a single bad skill should not poison the rest
+    /// of the catalog.
+    pub fn load_from(dir: impl AsRef<Path>) -> Result<Self> {
+        let dir = dir.as_ref();
+        let entries = std::fs::read_dir(dir)
+            .with_context(|| format!("read_dir {}", dir.display()))?;
+        let mut skills: Vec<Skill> = Vec::new();
+        for entry in entries.flatten() {
+            let p = entry.path();
+            if p.extension().and_then(|e| e.to_str()) != Some("md") {
+                continue;
+            }
+            if let Ok(skill) = parse_skill_file(&p) {
+                skills.push(skill);
+            }
+        }
+        skills.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(Self { skills })
     }
 
     pub fn len(&self) -> usize {
@@ -76,21 +103,105 @@ impl SkillCatalog {
         &self.skills
     }
 
-    pub fn list(&self, _category: Option<&str>, _query: Option<&str>) -> Vec<&Skill> {
-        todo!("B1: filter by category exact-match + free-text substring across name/triggers/body");
+    /// List skills, optionally filtered by category (exact, case-sensitive)
+    /// and free-text query (case-insensitive substring across name,
+    /// triggers, and body).
+    pub fn list(&self, category: Option<&str>, query: Option<&str>) -> Vec<&Skill> {
+        let q = query.map(|s| s.to_ascii_lowercase());
+        self.skills
+            .iter()
+            .filter(|s| match category {
+                Some(c) => s.frontmatter.category.as_deref() == Some(c),
+                None => true,
+            })
+            .filter(|s| match &q {
+                Some(q) => skill_matches_query(s, q),
+                None => true,
+            })
+            .collect()
     }
 
-    pub fn get(&self, _name: &str) -> Option<&Skill> {
-        todo!("B1: find skill by file-stem name");
+    /// Lookup by skill name (file stem). Case-sensitive.
+    pub fn get(&self, name: &str) -> Option<&Skill> {
+        self.skills.iter().find(|s| s.name == name)
     }
 
+    /// Distinct categories present in the catalog, sorted.
     pub fn categories(&self) -> Vec<String> {
-        todo!("B1: distinct sorted category list, skipping unset");
+        let mut cs: Vec<String> = self
+            .skills
+            .iter()
+            .filter_map(|s| s.frontmatter.category.clone())
+            .collect();
+        cs.sort();
+        cs.dedup();
+        cs
     }
 }
 
-pub fn parse_skill_file(_path: &Path) -> Result<Skill> {
-    todo!("B1: read file, split frontmatter, parse YAML, return Skill");
+fn skill_matches_query(s: &Skill, q_lower: &str) -> bool {
+    if s.name.to_ascii_lowercase().contains(q_lower) {
+        return true;
+    }
+    if s.frontmatter
+        .triggers
+        .iter()
+        .any(|t| t.to_ascii_lowercase().contains(q_lower))
+    {
+        return true;
+    }
+    if s.body.to_ascii_lowercase().contains(q_lower) {
+        return true;
+    }
+    false
+}
+
+/// Parse a single `*.md` skill file. Frontmatter is optional — a file with
+/// no `---` fence is treated as having empty frontmatter and the whole
+/// file as the body.
+pub fn parse_skill_file(path: &Path) -> Result<Skill> {
+    let raw = std::fs::read_to_string(path)
+        .with_context(|| format!("read_to_string {}", path.display()))?;
+    let (frontmatter_src, body) = split_frontmatter(&raw);
+    let frontmatter: SkillFrontmatter = if frontmatter_src.is_empty() {
+        SkillFrontmatter::default()
+    } else {
+        serde_yaml::from_str(frontmatter_src).unwrap_or_default()
+    };
+    let name = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_string();
+    Ok(Skill {
+        name,
+        path: path.to_path_buf(),
+        frontmatter,
+        body: body.trim_start().to_string(),
+    })
+}
+
+/// Split a Markdown source into (frontmatter, body) using the Jekyll /
+/// Hugo / Obsidian `---\n…\n---\n` convention. If the source does not
+/// start with `---`, frontmatter is empty and the whole input is the
+/// body.
+fn split_frontmatter(src: &str) -> (&str, &str) {
+    let s = src.strip_prefix('\u{FEFF}').unwrap_or(src);
+    if !s.starts_with("---") {
+        return ("", s);
+    }
+    let after_open = match s.find('\n') {
+        Some(i) => &s[i + 1..],
+        None => return ("", s),
+    };
+    if let Some(idx) = after_open.find("\n---") {
+        let fm = &after_open[..idx];
+        let rest = &after_open[idx + 1..];
+        let rest = rest.strip_prefix("---").unwrap_or(rest);
+        let rest = rest.trim_start_matches('\n');
+        return (fm, rest);
+    }
+    ("", s)
 }
 
 #[cfg(test)]

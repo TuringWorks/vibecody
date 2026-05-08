@@ -634,6 +634,31 @@ fn tool_defs() -> Vec<Value> {
                 "temperature": { "type": "number", "description": "Target temperature (Fahrenheit or Celsius per HA config)" }
             }, "required": ["entity", "temperature"]}
         }),
+
+        // ── B1: Skills as MCP primitives ──────────────────────────────────
+        json!({
+            "name": "list_skills",
+            "description": "List VibeCody skills available to the agent. Skills are Markdown guidance files (YAML frontmatter + body) that condition agent behaviour for specific domains. Optional category and free-text filters; returns name + category + triggers + first-line summary for each match.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "category": { "type": "string", "description": "Exact category match (e.g. 'agent', 'design', 'web', 'language')" },
+                    "query":    { "type": "string", "description": "Case-insensitive substring searched across name, triggers, and body" }
+                },
+                "required": []
+            }
+        }),
+        json!({
+            "name": "get_skill",
+            "description": "Fetch the full body of a VibeCody skill by name (file stem, e.g. '3d-modeling-cad'). Returns the parsed frontmatter (category, triggers, tools_allowed) plus the Markdown body sans frontmatter.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": { "type": "string", "description": "Skill identifier (file stem of the .md, no extension)" }
+                },
+                "required": ["name"]
+            }
+        }),
     ]
 }
 
@@ -1121,10 +1146,93 @@ async fn call_tool(
             crate::home_assistant::handle_ha_command(&format!("climate {} {}", entity, temp)).await
         }
 
+        // ── B1: Skills as MCP primitives ──────────────────────────────────
+        // Exposes the bundled `vibecli/vibecli-cli/skills/*.md` catalog (and
+        // any plugin-installed skills routed through the same directory) as
+        // two MCP tools, so any host that speaks MCP — Claude Code, Cursor,
+        // Cline, Zed, JetBrains — sees the catalog without per-host plugin
+        // work. Catalog directory is selected by skills_dir_default() (env
+        // override + CARGO_MANIFEST_DIR fallback).
+        "list_skills" => {
+            let category = args["category"].as_str();
+            let query = args["query"].as_str();
+            let cat = crate::skill_catalog::SkillCatalog::load_from(skills_dir_default())
+                .map_err(|e| anyhow::anyhow!("list_skills: {e}"))?;
+            let entries: Vec<serde_json::Value> = cat
+                .list(category, query)
+                .into_iter()
+                .map(|s| {
+                    json!({
+                        "name": s.name,
+                        "category": s.frontmatter.category,
+                        "triggers": s.frontmatter.triggers,
+                        "summary": s.summary(),
+                    })
+                })
+                .collect();
+            serde_json::to_string_pretty(&json!({
+                "total": entries.len(),
+                "skills": entries,
+            }))
+            .unwrap_or_else(|_| "[]".to_string())
+        }
+
+        "get_skill" => {
+            let skill_name = args["name"].as_str().unwrap_or("");
+            if skill_name.is_empty() {
+                return Err(anyhow::anyhow!("get_skill: name is required"));
+            }
+            let cat = crate::skill_catalog::SkillCatalog::load_from(skills_dir_default())
+                .map_err(|e| anyhow::anyhow!("get_skill: {e}"))?;
+            let s = cat
+                .get(skill_name)
+                .ok_or_else(|| anyhow::anyhow!("get_skill: '{skill_name}' not found"))?;
+            serde_json::to_string_pretty(&json!({
+                "name": s.name,
+                "category": s.frontmatter.category,
+                "triggers": s.frontmatter.triggers,
+                "tools_allowed": s.frontmatter.tools_allowed,
+                "body": s.body,
+            }))
+            .unwrap_or_else(|_| "{}".to_string())
+        }
+
         _ => return Err(anyhow::anyhow!("Unknown tool: {}", name)),
     };
 
     Ok(json!({ "content": [{ "type": "text", "text": text }] }))
+}
+
+/// Resolve the directory the skill catalog should load from.
+///
+/// Precedence:
+///   1. `VIBECLI_SKILLS_DIR` env var — explicit override (used in tests
+///      and by operators who install bundled skills outside the binary).
+///   2. `${CARGO_MANIFEST_DIR}/skills` — works for `cargo run` /
+///      `cargo test` from the workspace.
+///   3. `${exe_dir}/../share/vibecli/skills` — convention for packaged
+///      installs (deb / homebrew / msi).
+fn skills_dir_default() -> PathBuf {
+    if let Ok(p) = std::env::var("VIBECLI_SKILLS_DIR") {
+        if !p.is_empty() {
+            return PathBuf::from(p);
+        }
+    }
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("skills");
+    if manifest_dir.is_dir() {
+        return manifest_dir;
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let candidate = dir.join("../share/vibecli/skills");
+            if candidate.is_dir() {
+                return candidate;
+            }
+        }
+    }
+    // Last resort — return the manifest path even if missing; the catalog
+    // load will surface a clear "directory does not exist" error.
+    manifest_dir
 }
 
 // ── Agent runner ──────────────────────────────────────────────────────────────
@@ -1407,6 +1515,248 @@ mod tests {
         let required = write["inputSchema"]["required"].as_array().unwrap();
         assert!(required.iter().any(|v| v == "path"));
         assert!(required.iter().any(|v| v == "content"));
+    }
+
+    // ── B1: list_skills + get_skill ──────────────────────────────────────────
+
+    #[test]
+    fn tool_defs_includes_skills_primitives() {
+        let defs = tool_defs();
+        let names: Vec<&str> = defs.iter().map(|d| d["name"].as_str().unwrap()).collect();
+        assert!(names.contains(&"list_skills"), "list_skills missing from tool_defs");
+        assert!(names.contains(&"get_skill"), "get_skill missing from tool_defs");
+    }
+
+    #[test]
+    fn tool_defs_get_skill_requires_name() {
+        let defs = tool_defs();
+        let get = defs.iter().find(|d| d["name"] == "get_skill").unwrap();
+        let required = get["inputSchema"]["required"].as_array().unwrap();
+        assert!(required.iter().any(|v| v == "name"));
+    }
+
+    #[test]
+    fn tool_defs_list_skills_has_optional_filters() {
+        let defs = tool_defs();
+        let list = defs.iter().find(|d| d["name"] == "list_skills").unwrap();
+        let props = list["inputSchema"]["properties"].as_object().unwrap();
+        assert!(props.contains_key("category"));
+        assert!(props.contains_key("query"));
+        let required = list["inputSchema"]["required"].as_array().unwrap();
+        // Both filters are optional.
+        assert!(required.is_empty());
+    }
+
+    // End-to-end dispatch — uses VIBECLI_SKILLS_DIR to point the catalog at
+    // a temp fixture so we exercise the full call_tool path without
+    // depending on the bundled skills directory.
+
+    fn write_skill(dir: &std::path::Path, name: &str, contents: &str) {
+        std::fs::write(dir.join(format!("{name}.md")), contents).unwrap();
+    }
+
+    const FIXTURE_AGENT: &str = "---
+triggers: [\"agent\", \"planning\"]
+category: agent
+---
+
+# Agent loops
+
+Plan, act, observe.
+";
+
+    const FIXTURE_DESIGN: &str = "---
+triggers: [\"3D\", \"CAD\"]
+category: design
+---
+
+# 3D Modeling
+
+Pick parametric tools.
+";
+
+    /// Minimal AIProvider impl that satisfies the trait but never contacts
+    /// a real LLM. The `list_skills` / `get_skill` dispatch never reaches
+    /// the provider — this exists only to satisfy `call_tool`'s signature.
+    struct MockProvider;
+
+    #[async_trait::async_trait]
+    impl AIProvider for MockProvider {
+        fn name(&self) -> &str { "mock" }
+        async fn is_available(&self) -> bool { true }
+        async fn complete(
+            &self,
+            _ctx: &vibe_ai::provider::CodeContext,
+        ) -> anyhow::Result<vibe_ai::provider::CompletionResponse> {
+            Ok(vibe_ai::provider::CompletionResponse {
+                text: "mock".into(),
+                model: "mock".into(),
+                usage: None,
+            })
+        }
+        async fn stream_complete(
+            &self,
+            _ctx: &vibe_ai::provider::CodeContext,
+        ) -> anyhow::Result<vibe_ai::provider::CompletionStream> {
+            let s = futures::stream::once(async { Ok("mock".to_string()) });
+            Ok(Box::pin(s))
+        }
+        async fn chat(
+            &self,
+            _messages: &[vibe_ai::provider::Message],
+            _context: Option<String>,
+        ) -> anyhow::Result<String> {
+            Ok("mock".into())
+        }
+        async fn stream_chat(
+            &self,
+            _messages: &[vibe_ai::provider::Message],
+        ) -> anyhow::Result<vibe_ai::provider::CompletionStream> {
+            let s = futures::stream::once(async { Ok("mock".to_string()) });
+            Ok(Box::pin(s))
+        }
+    }
+
+    fn provider_for_test() -> Arc<dyn AIProvider> {
+        Arc::new(MockProvider)
+    }
+
+    #[tokio::test]
+    async fn list_skills_dispatch_returns_total_and_entries() {
+        let dir = tempfile::tempdir().unwrap();
+        write_skill(dir.path(), "agent-loops", FIXTURE_AGENT);
+        write_skill(dir.path(), "design-cad", FIXTURE_DESIGN);
+        std::env::set_var("VIBECLI_SKILLS_DIR", dir.path());
+
+        let provider = provider_for_test();
+        let res = call_tool(
+            "list_skills",
+            json!({}),
+            &PathBuf::from("/"),
+            &provider,
+            ApprovalPolicy::Suggest,
+            false,
+        )
+        .await
+        .unwrap();
+        let text = res["content"][0]["text"].as_str().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(text).unwrap();
+        assert_eq!(parsed["total"], 2);
+        let names: Vec<&str> = parsed["skills"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| s["name"].as_str().unwrap())
+            .collect();
+        assert!(names.contains(&"agent-loops"));
+        assert!(names.contains(&"design-cad"));
+
+        std::env::remove_var("VIBECLI_SKILLS_DIR");
+    }
+
+    #[tokio::test]
+    async fn list_skills_dispatch_filters_by_category_and_query() {
+        let dir = tempfile::tempdir().unwrap();
+        write_skill(dir.path(), "agent-loops", FIXTURE_AGENT);
+        write_skill(dir.path(), "design-cad", FIXTURE_DESIGN);
+        std::env::set_var("VIBECLI_SKILLS_DIR", dir.path());
+        let provider = provider_for_test();
+
+        // Category filter
+        let by_cat = call_tool(
+            "list_skills",
+            json!({"category": "design"}),
+            &PathBuf::from("/"),
+            &provider,
+            ApprovalPolicy::Suggest,
+            false,
+        )
+        .await
+        .unwrap();
+        let text = by_cat["content"][0]["text"].as_str().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(text).unwrap();
+        assert_eq!(parsed["total"], 1);
+        assert_eq!(parsed["skills"][0]["name"], "design-cad");
+
+        // Query filter (case-insensitive trigger match)
+        let by_q = call_tool(
+            "list_skills",
+            json!({"query": "PLAN"}),
+            &PathBuf::from("/"),
+            &provider,
+            ApprovalPolicy::Suggest,
+            false,
+        )
+        .await
+        .unwrap();
+        let text = by_q["content"][0]["text"].as_str().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(text).unwrap();
+        assert_eq!(parsed["total"], 1);
+        assert_eq!(parsed["skills"][0]["name"], "agent-loops");
+
+        std::env::remove_var("VIBECLI_SKILLS_DIR");
+    }
+
+    #[tokio::test]
+    async fn get_skill_dispatch_returns_body_and_frontmatter() {
+        let dir = tempfile::tempdir().unwrap();
+        write_skill(dir.path(), "agent-loops", FIXTURE_AGENT);
+        std::env::set_var("VIBECLI_SKILLS_DIR", dir.path());
+        let provider = provider_for_test();
+
+        let res = call_tool(
+            "get_skill",
+            json!({"name": "agent-loops"}),
+            &PathBuf::from("/"),
+            &provider,
+            ApprovalPolicy::Suggest,
+            false,
+        )
+        .await
+        .unwrap();
+        let text = res["content"][0]["text"].as_str().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(text).unwrap();
+        assert_eq!(parsed["name"], "agent-loops");
+        assert_eq!(parsed["category"], "agent");
+        assert_eq!(parsed["triggers"], json!(["agent", "planning"]));
+        let body = parsed["body"].as_str().unwrap();
+        assert!(body.starts_with("# Agent loops"));
+        assert!(body.contains("Plan, act, observe"));
+
+        std::env::remove_var("VIBECLI_SKILLS_DIR");
+    }
+
+    #[tokio::test]
+    async fn get_skill_dispatch_errors_when_name_missing_or_unknown() {
+        let dir = tempfile::tempdir().unwrap();
+        std::env::set_var("VIBECLI_SKILLS_DIR", dir.path());
+        let provider = provider_for_test();
+
+        // Empty name — explicit error
+        let res = call_tool(
+            "get_skill",
+            json!({"name": ""}),
+            &PathBuf::from("/"),
+            &provider,
+            ApprovalPolicy::Suggest,
+            false,
+        )
+        .await;
+        assert!(res.is_err());
+
+        // Unknown skill — explicit error
+        let res = call_tool(
+            "get_skill",
+            json!({"name": "does-not-exist"}),
+            &PathBuf::from("/"),
+            &provider,
+            ApprovalPolicy::Suggest,
+            false,
+        )
+        .await;
+        assert!(res.is_err());
+
+        std::env::remove_var("VIBECLI_SKILLS_DIR");
     }
 
     // ── RpcOk / RpcErr serialization ─────────────────────────────────────────
