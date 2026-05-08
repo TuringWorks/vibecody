@@ -76,13 +76,28 @@ pub struct ChatChunk {
     pub done_reason: Option<String>,
     /// Token counts. Populated on the final (`done: true`) frame when the
     /// backend reports them — mistralrs always does, ollama-proxy passes
-    /// through upstream's `prompt_eval_count`/`eval_count` when present.
-    /// Routes that need to expose `usage` (notably `/v1/messages`) read
-    /// from here; routes mirroring `/api/chat` keep them in the body for
-    /// backwards-compat with Ollama's wire format.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// through upstream's `prompt_eval_count`/`eval_count` automatically
+    /// thanks to the rename below.
+    ///
+    /// Wire serialization uses Ollama's field names (`prompt_eval_count`,
+    /// `eval_count`) for compatibility with `/api/chat` clients; the
+    /// `prompt_tokens`/`completion_tokens` aliases keep the deserializer
+    /// accepting OpenAI/Anthropic-shaped counts as well. Routes that need
+    /// to expose `usage` (notably `/v1/messages`) read these fields by
+    /// their Rust names regardless of how the wire was tagged.
+    #[serde(
+        default,
+        rename = "prompt_eval_count",
+        alias = "prompt_tokens",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub prompt_tokens: Option<u32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        rename = "eval_count",
+        alias = "completion_tokens",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub completion_tokens: Option<u32>,
 }
 
@@ -212,4 +227,88 @@ pub trait Backend: Send + Sync {
     /// `/api/show` — metadata for a single model. `BackendError::ModelNotFound`
     /// if the backend doesn't know the model.
     async fn show(&self, name: &str) -> BackendResult<ModelInfo>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn empty_chunk() -> ChatChunk {
+        ChatChunk {
+            model: "m".into(),
+            created_at: "2026-01-01T00:00:00Z".into(),
+            message: ChatMessage {
+                role: "assistant".into(),
+                content: String::new(),
+                images: None,
+            },
+            done: true,
+            done_reason: None,
+            prompt_tokens: None,
+            completion_tokens: None,
+        }
+    }
+
+    #[test]
+    fn chat_chunk_serializes_using_ollama_field_names() {
+        // mistralrs / ollama-proxy populate the done frame with token counts.
+        // /api/chat clients expect Ollama's wire spelling
+        // (prompt_eval_count / eval_count). Confirm the rename is wired.
+        let mut chunk = empty_chunk();
+        chunk.prompt_tokens = Some(50);
+        chunk.completion_tokens = Some(12);
+        let json = serde_json::to_string(&chunk).unwrap();
+        assert!(
+            json.contains("\"prompt_eval_count\":50"),
+            "expected Ollama-shaped prompt_eval_count, got {json}"
+        );
+        assert!(
+            json.contains("\"eval_count\":12"),
+            "expected Ollama-shaped eval_count, got {json}"
+        );
+        // OpenAI/Anthropic-shaped names are deserialize-only aliases —
+        // they must not appear in the serialized output.
+        assert!(!json.contains("prompt_tokens"));
+        assert!(!json.contains("completion_tokens"));
+    }
+
+    #[test]
+    fn chat_chunk_deserializes_ollama_field_names() {
+        // ollama-proxy yields raw upstream NDJSON. Confirm we pick up
+        // the Ollama-shaped names without translation.
+        let raw = r#"{
+            "model":"m","created_at":"2026-01-01T00:00:00Z",
+            "message":{"role":"assistant","content":""},
+            "done":true,"prompt_eval_count":50,"eval_count":12
+        }"#;
+        let chunk: ChatChunk = serde_json::from_str(raw).unwrap();
+        assert_eq!(chunk.prompt_tokens, Some(50));
+        assert_eq!(chunk.completion_tokens, Some(12));
+    }
+
+    #[test]
+    fn chat_chunk_deserializes_openai_aliases() {
+        // Backwards-compat with the pre-rename shape: anything that
+        // serialized prompt_tokens/completion_tokens (e.g. clients we
+        // shipped before this change) still round-trips into a chunk
+        // via the alias.
+        let raw = r#"{
+            "model":"m","created_at":"2026-01-01T00:00:00Z",
+            "message":{"role":"assistant","content":""},
+            "done":true,"prompt_tokens":7,"completion_tokens":3
+        }"#;
+        let chunk: ChatChunk = serde_json::from_str(raw).unwrap();
+        assert_eq!(chunk.prompt_tokens, Some(7));
+        assert_eq!(chunk.completion_tokens, Some(3));
+    }
+
+    #[test]
+    fn chat_chunk_omits_token_fields_when_none() {
+        // Streaming content frames send None for both. The skip_serializing_if
+        // keeps the wire shape clean — no useless null/0 fields.
+        let chunk = empty_chunk();
+        let json = serde_json::to_string(&chunk).unwrap();
+        assert!(!json.contains("prompt_eval_count"));
+        assert!(!json.contains("eval_count"));
+    }
 }
