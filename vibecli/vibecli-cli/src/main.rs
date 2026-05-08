@@ -9,6 +9,104 @@ fn safe_exit(code: i32) -> ! {
     let _ = std::io::stderr().flush();
     std::process::exit(code);
 }
+
+/// J1.6 — Display a job recap from `~/.vibecli/jobs.db`. Receives the
+/// `args` substring after `/recap job` (may be empty for "latest job"
+/// or an id-prefix). Pure side effect: prints to stdout. The CLI is
+/// display-only; recap generation is the daemon's terminal-state
+/// hook (J1.2).
+fn handle_recap_job_repl(arg: &str) {
+    use crate::job_manager::{default_db_path, JobsDb};
+    let db = match JobsDb::open(&default_db_path()) {
+        Ok(d) => d,
+        Err(e) => {
+            println!("Failed to open jobs.db: {e}\n");
+            return;
+        }
+    };
+    let jobs = match db.list() {
+        Ok(j) => j,
+        Err(e) => {
+            println!("Failed to list jobs: {e}\n");
+            return;
+        }
+    };
+    let resolved: Option<String> = if arg.is_empty() {
+        // Latest terminal job preferred (running jobs may have no recap yet).
+        jobs.iter()
+            .find(|j| matches!(j.status.as_str(), "complete" | "failed" | "cancelled"))
+            .or_else(|| jobs.first())
+            .map(|j| j.session_id.clone())
+    } else {
+        jobs.iter()
+            .find(|j| j.session_id.starts_with(arg))
+            .map(|j| j.session_id.clone())
+    };
+    let sid = match resolved {
+        Some(s) => s,
+        None => {
+            if arg.is_empty() {
+                println!("No jobs found in ~/.vibecli/jobs.db. Run a /agent task first.\n");
+            } else {
+                println!("No job matched prefix {arg:?}.\n");
+            }
+            return;
+        }
+    };
+    match db.list_job_recaps_for_subject(&sid, 1) {
+        Ok(rows) => match rows.into_iter().next() {
+            Some(r) => print!("{}", crate::recap::format_recap(&r)),
+            None => println!(
+                "Job {sid:?} has no recap yet. Auto-recap fires on terminal state \
+                 (complete | failed | cancelled).\n"
+            ),
+        },
+        Err(e) => println!("Failed to load job recap: {e}\n"),
+    }
+}
+
+/// J1.6 — Resolve a job by id-prefix and return its task as the seed
+/// instruction for a fresh agent run. Returns `None` if no job
+/// matched (the caller should not start a run). Display-only side
+/// effect prints what's about to be re-run.
+fn handle_resume_job_repl(arg: &str) -> Option<String> {
+    use crate::job_manager::{default_db_path, JobsDb};
+    if arg.is_empty() {
+        println!("Usage: /resume job <id_prefix>\n");
+        return None;
+    }
+    let db = match JobsDb::open(&default_db_path()) {
+        Ok(d) => d,
+        Err(e) => {
+            println!("Failed to open jobs.db: {e}\n");
+            return None;
+        }
+    };
+    let jobs = match db.list() {
+        Ok(j) => j,
+        Err(e) => {
+            println!("Failed to list jobs: {e}\n");
+            return None;
+        }
+    };
+    let job = match jobs.into_iter().find(|j| j.session_id.starts_with(arg)) {
+        Some(j) => j,
+        None => {
+            println!("No job matched prefix {arg:?}.\n");
+            return None;
+        }
+    };
+    // Prefer the recap's first next_action when present (matches the
+    // /v1/resume seed_instruction default); fall back to the original
+    // job task so resume always has *something* to execute.
+    let seed = db.list_job_recaps_for_subject(&job.session_id, 1)
+        .ok()
+        .and_then(|rows| rows.into_iter().next())
+        .and_then(|r| r.next_actions.into_iter().next())
+        .unwrap_or_else(|| job.task.clone());
+    println!("Resuming job {} with seed: {seed}\n", &job.session_id[..job.session_id.len().min(8)]);
+    Some(seed)
+}
 use crate::syntax::highlight_code_blocks;
 use vibe_ai::provider::{AIProvider as LLMProvider, ImageAttachment, Message, MessageRole, ProviderConfig, TokenUsage};
 use vibe_ai::providers::ollama::OllamaProvider;
@@ -4756,6 +4854,25 @@ async fn main() -> Result<()> {
                             ).await?;
                         }
                         "/resume" => {
+                            // J1.6 — `/resume job <prefix>` re-runs a
+                            // background job's task as a fresh agent
+                            // run in this REPL. The CLI does the
+                            // surface-only equivalent of
+                            // `POST /v1/resume kind=job` from the
+                            // daemon side; lineage is recorded only
+                            // when running through the daemon.
+                            let trimmed = args.trim();
+                            if trimmed == "job" || trimmed.starts_with("job ") {
+                                let job_arg = trimmed.strip_prefix("job").unwrap_or("").trim();
+                                if let Some(seed) = handle_resume_job_repl(job_arg) {
+                                    run_agent_repl_with_context(
+                                        llm.clone(), &seed, &approval_policy, None, true, false, None,
+                                        &active_provider, active_model.as_deref().unwrap_or(""),
+                                        no_network,
+                                    ).await?;
+                                }
+                                continue;
+                            }
                             let trace_dir = dirs::home_dir()
                                 .unwrap_or_else(|| cwd.clone())
                                 .join(".vibecli")
@@ -4821,13 +4938,25 @@ async fn main() -> Result<()> {
                                 _ => println!("Usage: /memory [show|edit]"),
                             }
                         }
-                        // Recap & Resume — F1.4 REPL surface. `/recap`
-                        // (no args) prints the most recent session's
-                        // recap, generating one if absent. `/recap
-                        // <prefix>` resolves a session by id-prefix
-                        // and does the same.
+                        // Recap & Resume — F1.4 / J1.6 REPL surface.
+                        // `/recap` (no args) prints the most recent
+                        // session's recap, generating one if absent.
+                        // `/recap <prefix>` resolves a session by
+                        // id-prefix. `/recap job [<prefix>]` is the
+                        // job-kind variant: the latest stored job
+                        // recap for the matching subject is loaded
+                        // from `jobs.db` (J1.1 schema, decrypted on
+                        // read). The CLI never *generates* a job
+                        // recap — that's the daemon's terminal-state
+                        // hook (J1.2); CLI display only.
                         "/recap" => {
-                            match SessionStore::open_default() {
+                            // Job-kind branch first so `job` doesn't
+                            // get mis-resolved as a session prefix.
+                            let trimmed = args.trim();
+                            if trimmed == "job" || trimmed.starts_with("job ") {
+                                let job_arg = trimmed.strip_prefix("job").unwrap_or("").trim();
+                                handle_recap_job_repl(job_arg);
+                            } else { match SessionStore::open_default() {
                                 Ok(store) => {
                                     let arg = args.trim();
                                     let sid_resolved: Option<String> = if arg.is_empty() {
@@ -4889,7 +5018,7 @@ async fn main() -> Result<()> {
                                 Err(e) => {
                                     println!("Failed to open session store: {e}\n");
                                 }
-                            }
+                            } }
                         }
                         "/trace" => {
                             let trace_dir = dirs::home_dir()
