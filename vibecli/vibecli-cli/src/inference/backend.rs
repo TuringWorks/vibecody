@@ -74,6 +74,16 @@ pub struct ChatChunk {
     pub done: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub done_reason: Option<String>,
+    /// Token counts. Populated on the final (`done: true`) frame when the
+    /// backend reports them — mistralrs always does, ollama-proxy passes
+    /// through upstream's `prompt_eval_count`/`eval_count` when present.
+    /// Routes that need to expose `usage` (notably `/v1/messages`) read
+    /// from here; routes mirroring `/api/chat` keep them in the body for
+    /// backwards-compat with Ollama's wire format.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prompt_tokens: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub completion_tokens: Option<u32>,
 }
 
 /// `/api/generate` request body (raw prompt, no chat template).

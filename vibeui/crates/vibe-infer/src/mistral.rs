@@ -269,10 +269,12 @@ async fn send(
     };
 
     let tokens_generated = response.usage.completion_tokens as usize;
+    let prompt_tokens = response.usage.prompt_tokens as usize;
 
     Ok(GenerationResponse {
         text,
         tokens_generated,
+        prompt_tokens,
         finish_reason: finish,
     })
 }

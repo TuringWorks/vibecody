@@ -253,6 +253,13 @@ impl Backend for MistralRsBackend {
 
         let model = req.model.clone();
         let now = chrono::Utc::now().to_rfc3339();
+        // vibe_infer::GenerationResponse already carries prompt + completion
+        // counts; surface them on the done frame so /v1/messages can populate
+        // its required `usage` block. Saturating cast on the off-chance the
+        // underlying value overflows u32 — usage is informational, not a
+        // billing primitive at this layer.
+        let prompt_tokens = u32::try_from(resp.prompt_tokens).unwrap_or(u32::MAX);
+        let completion_tokens = u32::try_from(resp.tokens_generated).unwrap_or(u32::MAX);
         let content_frame = ChatChunk {
             model: model.clone(),
             created_at: now.clone(),
@@ -263,6 +270,8 @@ impl Backend for MistralRsBackend {
             },
             done: false,
             done_reason: None,
+            prompt_tokens: None,
+            completion_tokens: None,
         };
         let done_frame = ChatChunk {
             model,
@@ -274,6 +283,8 @@ impl Backend for MistralRsBackend {
             },
             done: true,
             done_reason: Some(finish_label(resp.finish_reason).to_string()),
+            prompt_tokens: Some(prompt_tokens),
+            completion_tokens: Some(completion_tokens),
         };
         Ok(Box::pin(stream::iter(vec![Ok(content_frame), Ok(done_frame)])))
     }
