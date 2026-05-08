@@ -13269,9 +13269,29 @@ pub async fn compare_models(
     provider_b: String,
     model_b: String,
 ) -> Result<CompareResult, String> {
+    let prompt_len = prompt.len();
+    tracing::info!(
+        target: "vibecody::arena",
+        provider_a = %provider_a,
+        model_a = %model_a,
+        provider_b = %provider_b,
+        model_b = %model_b,
+        prompt_len,
+        "arena.battle.start"
+    );
+    let started = std::time::Instant::now();
     let (a, b) = tokio::join!(
         call_provider(&provider_a, &model_a, &prompt),
         call_provider(&provider_b, &model_b, &prompt),
+    );
+    tracing::info!(
+        target: "vibecody::arena",
+        provider_a = %provider_a,
+        provider_b = %provider_b,
+        a_ok = a.error.is_none(),
+        b_ok = b.error.is_none(),
+        elapsed_ms = started.elapsed().as_millis() as u64,
+        "arena.battle.complete"
     );
     Ok(CompareResult { a, b })
 }
@@ -13425,6 +13445,15 @@ pub async fn save_arena_vote(vote: ArenaVote) -> Result<(), String> {
     } else {
         Vec::new()
     };
+    let total_votes = votes.len() + 1;
+    tracing::info!(
+        target: "vibecody::arena",
+        winner = %vote.winner,
+        provider_a = %vote.provider_a,
+        provider_b = %vote.provider_b,
+        total_votes,
+        "arena.vote.save"
+    );
     votes.push(vote);
     let json = serde_json::to_string_pretty(&votes).map_err(|e| e.to_string())?;
     std::fs::write(&path, json).map_err(|e| e.to_string())?;

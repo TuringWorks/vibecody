@@ -477,6 +477,17 @@ async fn health() -> impl IntoResponse {
                 "history_key": "vibecody:chat-history",
                 "history_cap": 50,
             },
+            // Arena (blind A/B model comparison + voting). Inherits provider
+            // count from the providers block — needs at least 2 to make a
+            // useful battle, but the panel still renders with 0/1 and
+            // surfaces the configuration gap inline. Vote history lives in
+            // ~/.vibeui/arena-votes.json (plain JSON; non-secret).
+            "arena": {
+                "available": true,
+                "transport": "tauri-desktop",
+                "requires": "providers.configured_count >= 2 (for non-trivial battles)",
+                "votes_path": "~/.vibeui/arena-votes.json",
+            },
         },
         // OpenMemory store readiness — counts + flags only, never content.
         // Consumed by Settings panel + ops dashboards so a feature that

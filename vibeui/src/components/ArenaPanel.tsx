@@ -132,6 +132,9 @@ export function ArenaPanel() {
   const [voted, setVoted] = useState(false);
   const [voteChoice, setVoteChoice] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
+  // Transient note when vote save fails — surfaced inline so users know
+  // the leaderboard won't reflect this vote without retrying.
+  const [voteSaveError, setVoteSaveError] = useState<string | null>(null);
 
   // Leaderboard
   const [history, setHistory] = useState<ArenaVote[]>([]);
@@ -182,6 +185,7 @@ export function ArenaPanel() {
     setVoted(true);
     setVoteChoice(choice);
     setRevealed(true);
+    setVoteSaveError(null);
 
     const vote: ArenaVote = {
       timestamp: new Date().toISOString(),
@@ -197,6 +201,7 @@ export function ArenaPanel() {
       await loadHistory();
     } catch (e: unknown) {
       console.error("Failed to save arena vote:", e);
+      setVoteSaveError("Couldn't save your vote — the leaderboard won't reflect this battle. Try voting again.");
     }
   };
 
@@ -261,7 +266,7 @@ export function ArenaPanel() {
       </button>
 
       {error && (
-        <div className="panel-error">{error}</div>
+        <div role="alert" className="panel-error">{error}</div>
       )}
 
       {/* Side-by-side blind responses */}
@@ -282,23 +287,37 @@ export function ArenaPanel() {
 
       {/* Vote buttons -- shown after responses arrive, before reveal */}
       {result && !voted && (
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-          <span style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", alignSelf: "center" }}>Vote:</span>
-          <button onClick={() => handleVote("a")} style={voteBtnStyle("var(--info-color)")}>A is better</button>
-          <button onClick={() => handleVote("b")} style={voteBtnStyle("var(--accent-color)")}>B is better</button>
-          <button onClick={() => handleVote("tie")} style={voteBtnStyle("var(--warning-color)")}>Tie</button>
-          <button onClick={() => handleVote("both_bad")} style={voteBtnStyle("var(--error-color)")}>Both bad</button>
+        <div role="group" aria-label="Cast your vote" style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          <span id="arena-vote-label" style={{ color: "var(--text-secondary)", fontSize: "var(--font-size-base)", alignSelf: "center" }}>Vote:</span>
+          <button onClick={() => handleVote("a")} aria-label="Vote: A is better" style={voteBtnStyle("var(--info-color)")}>A is better</button>
+          <button onClick={() => handleVote("b")} aria-label="Vote: B is better" style={voteBtnStyle("var(--accent-color)")}>B is better</button>
+          <button onClick={() => handleVote("tie")} aria-label="Vote: Tie" style={voteBtnStyle("var(--warning-color)")}>Tie</button>
+          <button onClick={() => handleVote("both_bad")} aria-label="Vote: Both bad" style={voteBtnStyle("var(--error-color)")}>Both bad</button>
         </div>
       )}
 
-      {/* Reveal panel -- shown after voting */}
+      {/* Vote-save failure banner — non-blocking, the reveal still shows. */}
+      {voteSaveError && (
+        <div role="alert" className="panel-error">
+          {voteSaveError}
+        </div>
+      )}
+
+      {/* Reveal panel -- shown after voting. aria-live polite so AT users
+          hear the win announcement when revealed without interrupting
+          their current focus. */}
       {revealed && result && (
-        <div style={{
-          border: "1px solid var(--border-color)",
-          borderRadius: "var(--radius-sm)",
-          padding: "12px 16px",
-          background: "var(--bg-secondary)",
-        }}>
+        <div
+          role="region"
+          aria-label="Battle reveal"
+          aria-live="polite"
+          style={{
+            border: "1px solid var(--border-color)",
+            borderRadius: "var(--radius-sm)",
+            padding: "12px 16px",
+            background: "var(--bg-secondary)",
+          }}
+        >
           <div style={{ fontWeight: "bold", marginBottom: "8px" }}>
             Reveal
             {voteChoice === "a" && " -- Model A wins!"}
