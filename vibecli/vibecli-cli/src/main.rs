@@ -2535,6 +2535,7 @@ mod proactive_agent;
 mod proactive_scanner;
 mod a2a_protocol;
 mod a2a_http;
+mod signed_agent_card;
 #[allow(dead_code)]
 mod semantic_index;
 #[allow(dead_code)]
