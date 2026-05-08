@@ -16,13 +16,14 @@ import {
   Sun, Moon, Eye, EyeOff, ChevronRight, CheckCircle, MinusCircle, AlertCircle,
   Loader2, Zap, Plug,
   Mail, CalendarDays, ClipboardList, MessageSquare, Search, Mic, Home, Server,
+  Briefcase,
 } from "lucide-react";
 import { THEMES, applyThemeById, type ThemeDef } from "../theme/themes";
 import { ExperimentalBadge } from "./ExperimentalBadge";
 
 /* ── Types ──────────────────────────────────────────────────────────── */
 
-type SettingsSection = "profile" | "appearance" | "oauth" | "customizations" | "apikeys" | "integrations" | "sessions";
+type SettingsSection = "profile" | "appearance" | "oauth" | "customizations" | "apikeys" | "integrations" | "sessions" | "jobs";
 
 interface SessionsSettings {
   recapOnTabClose: boolean;
@@ -38,6 +39,21 @@ const SESSIONS_DEFAULTS: SessionsSettings = {
   idleMinutes: 30,
   generator: "heuristic",
   autoResumeLast: false,
+};
+
+// J1.5 — Jobs settings mirror Sessions but apply to background-agent jobs.
+// `autoRecapOnTerminal` controls whether the daemon auto-generates a recap
+// on `complete | failed | cancelled` (the J1.2 hook honors this); `generator`
+// chooses heuristic vs LLM. We persist as a single JSON blob under
+// `vibeui-jobs` to keep storage migrations single-key.
+interface JobsSettings {
+  autoRecapOnTerminal: boolean;
+  generator: "heuristic" | "llm";
+}
+
+const JOBS_DEFAULTS: JobsSettings = {
+  autoRecapOnTerminal: true,
+  generator: "heuristic",
 };
 
 interface UserProfile {
@@ -112,6 +128,7 @@ const STORAGE_KEYS = {
   oauth: "vibeui-oauth",
   customizations: "vibeui-customizations",
   sessions: "vibeui-sessions",
+  jobs: "vibeui-jobs",
 };
 
 /* ── Shared styles ─────────────────────────────────────────────────── */
@@ -1729,6 +1746,109 @@ function SessionsSection() {
   );
 }
 
+/* ── Jobs Section (J1.5) ───────────────────────────────────────────── */
+//
+// Background-agent recap controls. Mirrors SessionsSection's storage
+// pattern (single JSON blob under STORAGE_KEYS.jobs) so migrations stay
+// single-key. The daemon's J1.2 terminal-state hook reads these via the
+// /v1/recap endpoints — there's no daemon push for these; they take
+// effect on the next request the panel makes.
+
+function JobsSection() {
+  const [settings, setSettings] = useState<JobsSettings>(JOBS_DEFAULTS);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEYS.jobs);
+    if (!stored) return;
+    try {
+      const parsed = JSON.parse(stored) as Partial<JobsSettings>;
+      setSettings({
+        autoRecapOnTerminal:
+          typeof parsed.autoRecapOnTerminal === "boolean"
+            ? parsed.autoRecapOnTerminal
+            : JOBS_DEFAULTS.autoRecapOnTerminal,
+        generator: parsed.generator === "llm" ? "llm" : "heuristic",
+      });
+    } catch {
+      // corrupt blob → keep defaults
+    }
+  }, []);
+
+  const update = useCallback(<K extends keyof JobsSettings>(key: K, value: JobsSettings[K]) => {
+    setSettings(prev => {
+      const next = { ...prev, [key]: value };
+      localStorage.setItem(STORAGE_KEYS.jobs, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const rowStyle: React.CSSProperties = {
+    display: "flex", justifyContent: "space-between", alignItems: "center",
+    padding: "12px 0", borderBottom: "1px solid var(--border-color)",
+  };
+  const labelStyle: React.CSSProperties = { fontSize: "var(--font-size-md)", color: "var(--text-primary)" };
+  const hintStyle: React.CSSProperties = { fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", marginTop: 2 };
+
+  return (
+    <div>
+      <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>
+        Background Jobs
+      </h3>
+      <p style={{ ...hintStyle, marginBottom: 16 }}>
+        Recap captures what each completed job produced — bullets, next actions, artifacts — so you can
+        Resume from the same starting point.
+      </p>
+
+      <div style={rowStyle}>
+        <div>
+          <div style={labelStyle}>Auto-recap on terminal state</div>
+          <div style={hintStyle}>
+            When a job ends (complete, failed, cancelled), generate a recap row automatically.
+          </div>
+        </div>
+        <input
+          type="checkbox"
+          aria-label="Auto-recap on terminal state"
+          checked={settings.autoRecapOnTerminal}
+          onChange={e => update("autoRecapOnTerminal", e.target.checked)}
+          style={{ width: 18, height: 18, accentColor: "var(--accent-color)" }}
+        />
+      </div>
+
+      <div style={rowStyle}>
+        <div>
+          <div style={labelStyle}>Recap generator</div>
+          <div style={hintStyle}>
+            Heuristic is instant and offline. LLM uses your currently selected provider.
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {(["heuristic", "llm"] as const).map(g => (
+            <span key={g} style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <button
+                type="button"
+                aria-label={`Job generator: ${g}`}
+                aria-pressed={settings.generator === g}
+                onClick={() => update("generator", g)}
+                className={`panel-tab ${settings.generator === g ? "active" : ""}`}
+                style={{ textTransform: "capitalize", minWidth: 96 }}
+              >
+                {g === "llm" ? "LLM" : "Heuristic"}
+              </button>
+              {g === "llm" && (
+                <ExperimentalBadge
+                  feature="Job recap LLM generator"
+                  tooltip="Daemon currently returns 501 for the LLM generator on jobs. Heuristic is the GA path."
+                />
+              )}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Main Settings Panel ───────────────────────────────────────────── */
 
 const SECTIONS: { key: SettingsSection; label: string; icon: React.ReactNode }[] = [
@@ -1739,6 +1859,7 @@ const SECTIONS: { key: SettingsSection; label: string; icon: React.ReactNode }[]
   { key: "apikeys", label: "API Keys", icon: <Key size={16} /> },
   { key: "integrations", label: "Integrations", icon: <Plug size={16} /> },
   { key: "sessions", label: "Sessions", icon: <MessageSquare size={16} /> },
+  { key: "jobs", label: "Background Jobs", icon: <Briefcase size={16} /> },
 ];
 
 export function SettingsPanel({ onClose }: { onClose?: () => void }) {
@@ -1777,6 +1898,7 @@ export function SettingsPanel({ onClose }: { onClose?: () => void }) {
         {section === "apikeys" && <ApiKeysSection />}
         {section === "integrations" && <IntegrationsSection />}
         {section === "sessions" && <SessionsSection />}
+        {section === "jobs" && <JobsSection />}
       </div>
     </div>
   );
