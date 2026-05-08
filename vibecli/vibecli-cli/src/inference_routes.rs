@@ -364,5 +364,10 @@ pub fn build_routes() -> axum::Router<ServeState> {
         .route("/api/tags", get(tags))
         .route("/api/pull", post(pull))
         .route("/api/show", post(show))
+        // C1: Anthropic Messages API-compatible sibling of /api/chat,
+        // mirroring Ollama 0.22.x. Lives here so it inherits the
+        // bearer-auth + rate-limit layers applied to the rest of the
+        // inference subtree by the caller.
+        .route("/v1/messages", post(crate::v1_messages::messages))
 }
 
