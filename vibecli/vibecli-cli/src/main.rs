@@ -802,6 +802,86 @@ fn run_batch_command(args: &[String]) {
     }
 }
 
+// ── --migrate handler ─────────────────────────────────────────────────────────
+//
+// `vibecli --migrate from-claude-code` / `vibecli --migrate from-codex`
+// turn an existing Claude Code or Codex CLI installation into a VibeCody
+// one. Mirrors JetBrains Junie CLI's "1-click migration from Claude Code
+// + Codex configs" — surfaced as A11 in the v13 fitgap.
+
+fn run_migrate_command(args: &[String]) {
+    use migrate::{migrate, MigrationOptions, MigrationSource};
+
+    let positionals: Vec<&str> = args
+        .iter()
+        .filter(|a| !a.starts_with('-'))
+        .map(String::as_str)
+        .collect();
+    let subcmd = positionals.first().copied().unwrap_or("");
+
+    let force = args.iter().any(|a| a == "--force" || a == "-f");
+
+    let source = match subcmd {
+        "from-claude-code" => MigrationSource::ClaudeCode,
+        "from-codex" => MigrationSource::Codex,
+        other => {
+            eprintln!(
+                "vibecli --migrate: unknown source '{}'. Available: from-claude-code, from-codex.",
+                other
+            );
+            safe_exit(2);
+        }
+    };
+
+    let home_dir = match dirs::home_dir() {
+        Some(h) => h,
+        None => {
+            eprintln!("vibecli --migrate: could not resolve home directory");
+            safe_exit(1);
+        }
+    };
+    let source_home = match source {
+        MigrationSource::ClaudeCode => home_dir.join(".claude"),
+        MigrationSource::Codex => home_dir.join(".codex"),
+    };
+    let dest_dir = home_dir.join(".vibecli");
+
+    println!(
+        "vibecli --migrate {}\n  source: {}\n  dest:   {}\n  force:  {}\n",
+        subcmd,
+        source_home.display(),
+        dest_dir.display(),
+        force,
+    );
+
+    match migrate(source, &source_home, &dest_dir, &MigrationOptions { force }) {
+        Ok(report) => {
+            println!("Sources read   : {}", report.sources_read.len());
+            for p in &report.sources_read {
+                println!("  + {}", p.display());
+            }
+            println!("Files written  : {}", report.written.len());
+            for p in &report.written {
+                println!("  + {}", p.display());
+            }
+            if !report.skipped.is_empty() {
+                println!(
+                    "Skipped (exists, no --force): {}",
+                    report.skipped.len()
+                );
+                for p in &report.skipped {
+                    println!("  ! {}", p.display());
+                }
+            }
+            println!("MCP servers    : {}", report.mcp_servers_translated);
+        }
+        Err(e) => {
+            eprintln!("vibecli --migrate: {}", e);
+            safe_exit(1);
+        }
+    }
+}
+
 // ── --legacymigrate handler ───────────────────────────────────────────────────
 
 fn run_legacymigrate_command(args: &[String]) {
@@ -3107,6 +3187,7 @@ async fn main() -> Result<()> {
             Some("--benchmark")  => { run_benchmark_command(&argv[1..]);  return Ok(()); }
             Some("--batch")      => { run_batch_command(&argv[1..]);      return Ok(()); }
             Some("--legacymigrate") => { run_legacymigrate_command(&argv[1..]); return Ok(()); }
+            Some("--migrate")    => { run_migrate_command(&argv[1..]); return Ok(()); }
             Some("--qavalidate") => { run_qavalidate_command(&argv[1..]); return Ok(()); }
             Some("--appbuilder") => { run_appbuilder_command(&argv[1..]); return Ok(()); }
             Some("--config")     => { run_config_command(&argv[1..]);     return Ok(()); }

@@ -20,13 +20,13 @@
 //! is non-destructive by default: pre-existing targets are not
 //! overwritten unless `MigrationOptions::force = true`.
 //!
-//! Red commit: types + signatures + 6 BDD scenarios. Impl bodies
-//! `todo!()` so tests panic at runtime — TDD red. Green commit fills
-//! in the bodies.
+//! Both functions are non-destructive by default: `MigrationOptions::force`
+//! must be set to overwrite a pre-existing target.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
 /// What kind of source to migrate from.
@@ -71,8 +71,8 @@ pub struct McpServerEntry {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub args: Vec<String>,
     /// Environment variables to set when spawning the server.
-    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
-    pub env: std::collections::BTreeMap<String, String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub env: BTreeMap<String, String>,
 }
 
 /// Migrate a Claude Code installation into VibeCody form.
@@ -82,20 +82,254 @@ pub struct McpServerEntry {
 /// Both are passed explicitly so the function is testable without
 /// touching the real home directory.
 pub fn migrate_from_claude_code(
-    _source_home: &Path,
-    _dest_dir: &Path,
-    _opts: &MigrationOptions,
+    source_home: &Path,
+    dest_dir: &Path,
+    opts: &MigrationOptions,
 ) -> Result<MigrationReport> {
-    todo!("A11: read CLAUDE.md / mcp.json / settings.json, emit VIBECLI.md + mcp_servers.toml + config.toml")
+    std::fs::create_dir_all(dest_dir)
+        .with_context(|| format!("create_dir_all {}", dest_dir.display()))?;
+    let mut report = MigrationReport::default();
+
+    // ── CLAUDE.md → VIBECLI.md ────────────────────────────────────────────
+    let claude_md = source_home.join("CLAUDE.md");
+    if claude_md.is_file() {
+        report.sources_read.push(claude_md.clone());
+        let target = dest_dir.join("VIBECLI.md");
+        copy_text(&claude_md, &target, opts.force, &mut report)?;
+    }
+
+    // ── mcp.json → mcp_servers.toml ───────────────────────────────────────
+    let mcp_json = source_home.join("mcp.json");
+    if mcp_json.is_file() {
+        report.sources_read.push(mcp_json.clone());
+        let entries = parse_claude_mcp_json(&mcp_json)?;
+        let target = dest_dir.join("mcp_servers.toml");
+        write_mcp_servers_toml(&target, &entries, opts.force, &mut report)?;
+        report.mcp_servers_translated += entries.len();
+    }
+
+    Ok(report)
 }
 
 /// Migrate a Codex CLI installation into VibeCody form.
 pub fn migrate_from_codex(
-    _source_home: &Path,
-    _dest_dir: &Path,
-    _opts: &MigrationOptions,
+    source_home: &Path,
+    dest_dir: &Path,
+    opts: &MigrationOptions,
 ) -> Result<MigrationReport> {
-    todo!("A11: read AGENTS.md / config.toml, emit VIBECLI.md + config.toml + mcp_servers.toml")
+    std::fs::create_dir_all(dest_dir)
+        .with_context(|| format!("create_dir_all {}", dest_dir.display()))?;
+    let mut report = MigrationReport::default();
+
+    // ── AGENTS.md → VIBECLI.md ────────────────────────────────────────────
+    let agents_md = source_home.join("AGENTS.md");
+    if agents_md.is_file() {
+        report.sources_read.push(agents_md.clone());
+        let target = dest_dir.join("VIBECLI.md");
+        copy_text(&agents_md, &target, opts.force, &mut report)?;
+    }
+
+    // ── config.toml → config.toml + mcp_servers.toml ──────────────────────
+    let cfg_path = source_home.join("config.toml");
+    if cfg_path.is_file() {
+        report.sources_read.push(cfg_path.clone());
+        let entries = parse_codex_config_mcp(&cfg_path)?;
+        let target = dest_dir.join("mcp_servers.toml");
+        write_mcp_servers_toml(&target, &entries, opts.force, &mut report)?;
+        report.mcp_servers_translated += entries.len();
+    }
+
+    Ok(report)
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/// Copy a UTF-8 file, respecting the `force` flag.
+fn copy_text(
+    src: &Path,
+    dest: &Path,
+    force: bool,
+    report: &mut MigrationReport,
+) -> Result<()> {
+    if dest.exists() && !force {
+        report.skipped.push(dest.to_path_buf());
+        return Ok(());
+    }
+    let body = std::fs::read_to_string(src)
+        .with_context(|| format!("read_to_string {}", src.display()))?;
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+    std::fs::write(dest, body)
+        .with_context(|| format!("write {}", dest.display()))?;
+    report.written.push(dest.to_path_buf());
+    Ok(())
+}
+
+/// Parse Claude Code's `~/.claude/mcp.json` into a sorted vector of
+/// `McpServerEntry`. Sorting keeps the output `mcp_servers.toml` stable
+/// across runs, which makes diffs and tests deterministic.
+fn parse_claude_mcp_json(path: &Path) -> Result<Vec<McpServerEntry>> {
+    let raw = std::fs::read_to_string(path)
+        .with_context(|| format!("read_to_string {}", path.display()))?;
+    let v: serde_json::Value = serde_json::from_str(&raw)
+        .with_context(|| format!("parse JSON {}", path.display()))?;
+    let map = v
+        .get("mcpServers")
+        .and_then(|m| m.as_object())
+        .cloned()
+        .unwrap_or_default();
+    let mut out: Vec<McpServerEntry> = map
+        .into_iter()
+        .map(|(name, val)| {
+            let command = val
+                .get("command")
+                .and_then(|c| c.as_str())
+                .unwrap_or("")
+                .to_string();
+            let args: Vec<String> = val
+                .get("args")
+                .and_then(|a| a.as_array())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let env: BTreeMap<String, String> = val
+                .get("env")
+                .and_then(|e| e.as_object())
+                .map(|m| {
+                    m.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect()
+                })
+                .unwrap_or_default();
+            McpServerEntry {
+                name,
+                command,
+                args,
+                env,
+            }
+        })
+        .collect();
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(out)
+}
+
+/// Parse Codex's `~/.codex/config.toml` into a sorted vector of
+/// `McpServerEntry`. Reads `[mcp_servers.NAME]` tables.
+fn parse_codex_config_mcp(path: &Path) -> Result<Vec<McpServerEntry>> {
+    let raw = std::fs::read_to_string(path)
+        .with_context(|| format!("read_to_string {}", path.display()))?;
+    let v: toml::Value = raw
+        .parse()
+        .with_context(|| format!("parse TOML {}", path.display()))?;
+    let table = v
+        .get("mcp_servers")
+        .and_then(|t| t.as_table())
+        .cloned()
+        .unwrap_or_default();
+    let mut out: Vec<McpServerEntry> = table
+        .into_iter()
+        .map(|(name, val)| {
+            let command = val
+                .get("command")
+                .and_then(|c| c.as_str())
+                .unwrap_or("")
+                .to_string();
+            let args: Vec<String> = val
+                .get("args")
+                .and_then(|a| a.as_array())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                        .collect()
+                })
+                .unwrap_or_default();
+            let env: BTreeMap<String, String> = val
+                .get("env")
+                .and_then(|e| e.as_table())
+                .map(|m| {
+                    m.iter()
+                        .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                        .collect()
+                })
+                .unwrap_or_default();
+            McpServerEntry {
+                name,
+                command,
+                args,
+                env,
+            }
+        })
+        .collect();
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(out)
+}
+
+/// Write the merged MCP-server list to a TOML file. Each entry becomes
+/// a top-level `[NAME]` table — schema designed to round-trip cleanly
+/// through both Claude Code and Codex consumers.
+fn write_mcp_servers_toml(
+    dest: &Path,
+    entries: &[McpServerEntry],
+    force: bool,
+    report: &mut MigrationReport,
+) -> Result<()> {
+    if dest.exists() && !force {
+        report.skipped.push(dest.to_path_buf());
+        return Ok(());
+    }
+    let mut out = String::new();
+    out.push_str("# vibecli mcp_servers.toml — emitted by `vibecli --migrate`.\n");
+    out.push_str("# Each [NAME] block is one MCP server entry.\n\n");
+    for e in entries {
+        out.push_str(&format!("[{}]\n", e.name));
+        out.push_str(&format!("command = {}\n", toml_string(&e.command)));
+        if !e.args.is_empty() {
+            let args_toml = e
+                .args
+                .iter()
+                .map(|s| toml_string(s))
+                .collect::<Vec<_>>()
+                .join(", ");
+            out.push_str(&format!("args = [{args_toml}]\n"));
+        }
+        if !e.env.is_empty() {
+            out.push_str(&format!("\n[{}.env]\n", e.name));
+            for (k, v) in &e.env {
+                out.push_str(&format!("{k} = {}\n", toml_string(v)));
+            }
+        }
+        out.push('\n');
+    }
+    if let Some(parent) = dest.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+    std::fs::write(dest, out)
+        .with_context(|| format!("write {}", dest.display()))?;
+    report.written.push(dest.to_path_buf());
+    Ok(())
+}
+
+/// Encode a string as a TOML basic string with the necessary escapes.
+fn toml_string(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('"');
+    for c in s.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
 }
 
 /// Top-level entry point — pick the source kind and dispatch.
