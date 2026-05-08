@@ -93,18 +93,24 @@ data class WearRecap(
 
 // ── Screen ────────────────────────────────────────────────────────────────
 
+enum class WearRecapKind { Session, Job }
+
 @Composable
 fun RecapScreen(
     net: WearNetworkManager,
     sessionId: String,
     taskPreview: String,
     onContinueOnPhone: (WearRecap) -> Unit,
+    kind: WearRecapKind = WearRecapKind.Session,
 ) {
     var recap by remember { mutableStateOf<WearRecap?>(null) }
     var loading by remember { mutableStateOf(true) }
 
-    LaunchedEffect(sessionId) {
-        recap = net.getSessionRecap(sessionId)
+    LaunchedEffect(sessionId, kind) {
+        recap = when (kind) {
+            WearRecapKind.Session -> net.getSessionRecap(sessionId)
+            WearRecapKind.Job     -> net.getJobRecap(sessionId)
+        }
         loading = false
     }
 

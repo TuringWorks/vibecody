@@ -64,6 +64,18 @@ class NotificationService extends ChangeNotifier {
   }
 }
 
+/// M1.2 — well-known notification category strings. Push-side senders
+/// (the daemon) and client-side handlers agree on these constants so a
+/// notification with `category == NotificationCategories.jobRecap` and
+/// a `taskId` can deep-link straight into JobRecapScreen.
+class NotificationCategories {
+  static const String jobRecap = 'job_recap';
+  static const String jobComplete = 'job_complete';
+  static const String jobFailed = 'job_failed';
+  static const String dispatch = 'dispatch';
+  static const String pairing = 'pairing';
+}
+
 class AppNotification {
   final String id;
   final String title;

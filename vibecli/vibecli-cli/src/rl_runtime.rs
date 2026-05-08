@@ -479,6 +479,18 @@ impl RuntimePool {
         }
         Ok(())
     }
+
+    /// Return the live runtime's health snapshot if one is loaded for
+    /// `deployment_id`, else None. Read-only — does not spawn. Used by
+    /// `/v1/rl/serve/deployments/:id/health` so the UI can show
+    /// per-runtime metrics (requests/errors/last_latency_ms) without
+    /// triggering a cold-start.
+    pub async fn peek_runtime_health(&self, deployment_id: &str) -> Option<RuntimeHealth> {
+        let map = self.runtimes.lock().await;
+        let rt = map.get(deployment_id)?.clone();
+        drop(map);
+        Some(rt.health().await)
+    }
 }
 
 #[cfg(test)]

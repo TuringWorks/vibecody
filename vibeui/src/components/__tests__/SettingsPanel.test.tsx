@@ -26,7 +26,7 @@ vi.mock('lucide-react', () => {
     'RotateCcw', 'Sun', 'Moon', 'Eye', 'EyeOff', 'ChevronRight', 'CheckCircle',
     'MinusCircle', 'AlertCircle', 'Loader2', 'Zap', 'Plug', 'Mail', 'CalendarDays',
     'ClipboardList', 'MessageSquare', 'Search', 'Mic', 'Home', 'Server',
-    'AlertTriangle', 'Inbox',
+    'AlertTriangle', 'Inbox', 'Briefcase',
   ];
   return Object.fromEntries(names.map(n => [n, icon(n)]));
 });
@@ -333,6 +333,69 @@ describe('SettingsPanel', () => {
       expect(screen.getByLabelText('Recap on tab close')).toBeChecked();
       expect(screen.getByLabelText('Recap on idle')).not.toBeChecked();
       expect(screen.getByLabelText('Generator: heuristic')).toHaveAttribute('aria-pressed', 'true');
+    });
+  });
+
+  describe('Background Jobs section (J1.5)', () => {
+    beforeEach(() => {
+      localStorage.clear();
+    });
+
+    it('shows the Background Jobs section button in the sidebar', () => {
+      render(<SettingsPanel />);
+      expect(screen.getByText('Background Jobs')).toBeInTheDocument();
+    });
+
+    it('renders job-recap controls when opened', () => {
+      render(<SettingsPanel />);
+      fireEvent.click(screen.getByText('Background Jobs'));
+      expect(screen.getByLabelText('Auto-recap on terminal state')).toBeInTheDocument();
+      expect(screen.getByLabelText('Job generator: heuristic')).toBeInTheDocument();
+      expect(screen.getByLabelText('Job generator: llm')).toBeInTheDocument();
+    });
+
+    it('uses documented defaults when no localStorage entry exists', () => {
+      render(<SettingsPanel />);
+      fireEvent.click(screen.getByText('Background Jobs'));
+      expect(screen.getByLabelText('Auto-recap on terminal state')).toBeChecked();
+      expect(screen.getByLabelText('Job generator: heuristic')).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByLabelText('Job generator: llm')).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('toggling auto-recap persists under vibeui-jobs', () => {
+      render(<SettingsPanel />);
+      fireEvent.click(screen.getByText('Background Jobs'));
+      const cb = screen.getByLabelText('Auto-recap on terminal state') as HTMLInputElement;
+      fireEvent.click(cb);
+      const stored = JSON.parse(localStorage.getItem('vibeui-jobs') || '{}');
+      expect(stored.autoRecapOnTerminal).toBe(false);
+    });
+
+    it('selecting LLM job generator persists under vibeui-jobs', () => {
+      render(<SettingsPanel />);
+      fireEvent.click(screen.getByText('Background Jobs'));
+      fireEvent.click(screen.getByLabelText('Job generator: llm'));
+      const stored = JSON.parse(localStorage.getItem('vibeui-jobs') || '{}');
+      expect(stored.generator).toBe('llm');
+    });
+
+    it('hydrates initial state from localStorage', () => {
+      localStorage.setItem('vibeui-jobs', JSON.stringify({
+        autoRecapOnTerminal: false,
+        generator: 'llm',
+      }));
+      render(<SettingsPanel />);
+      fireEvent.click(screen.getByText('Background Jobs'));
+      expect(screen.getByLabelText('Auto-recap on terminal state')).not.toBeChecked();
+      expect(screen.getByLabelText('Job generator: llm')).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('falls back to defaults when vibeui-jobs is corrupt', () => {
+      localStorage.setItem('vibeui-jobs', '{not json');
+      render(<SettingsPanel />);
+      fireEvent.click(screen.getByText('Background Jobs'));
+      expect(screen.getByLabelText('Auto-recap on terminal state')).toBeChecked();
+      expect(screen.getByLabelText('Job generator: heuristic')).toHaveAttribute('aria-pressed', 'true');
     });
   });
 

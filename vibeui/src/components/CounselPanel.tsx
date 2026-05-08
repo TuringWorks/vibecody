@@ -282,7 +282,19 @@ export function CounselPanel() {
             style={{ ...S.sidebarItem(activeSession?.id === s.id), display: "flex", alignItems: "center", gap: 4 }}
             title={s.topic}
           >
-            <div role="button" tabIndex={0} style={{ flex: 1, minWidth: 0, cursor: "pointer" }} onClick={() => loadSession(s.id)}>
+            <div
+              role="button"
+              tabIndex={0}
+              aria-label={`Open session: ${s.topic} — ${s.round_count} rounds, ${s.participant_count} participants`}
+              style={{ flex: 1, minWidth: 0, cursor: "pointer" }}
+              onClick={() => loadSession(s.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  loadSession(s.id);
+                }
+              }}
+            >
               <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis" }}>{s.topic.slice(0, 28)}{s.topic.length > 28 ? "..." : ""}</div>
               <div style={{ fontSize: "var(--font-size-xs)", opacity: 0.7 }}>
                 {s.round_count} rounds, {s.participant_count} participants
@@ -291,6 +303,7 @@ export function CounselPanel() {
             <button
               onClick={(e) => { e.stopPropagation(); deleteSession(s.id); }}
               title="Delete session"
+              aria-label={`Delete session: ${s.topic}`}
               style={{ flexShrink: 0, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", fontSize: "var(--font-size-base)", padding: "2px 4px", opacity: 0.6 }}
             >
               x
@@ -312,9 +325,9 @@ export function CounselPanel() {
             <h2 style={S.h2}>New Counsel Session</h2>
 
             {error && (
-              <div className="panel-error" style={{ marginBottom: 12 }}>
+              <div role="alert" aria-live="assertive" className="panel-error" style={{ marginBottom: 12 }}>
                 <span>{error}</span>
-                <button onClick={() => setError(null)} style={{ float: "right", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>x</button>
+                <button onClick={() => setError(null)} aria-label="Dismiss error" style={{ float: "right", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>x</button>
               </div>
             )}
 
@@ -396,9 +409,9 @@ export function CounselPanel() {
             </div>
 
             {error && (
-              <div className="panel-error" style={{ marginBottom: 12 }}>
+              <div role="alert" aria-live="assertive" className="panel-error" style={{ marginBottom: 12 }}>
                 <span>{error}</span>
-                <button onClick={() => setError(null)} style={{ float: "right", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>x</button>
+                <button onClick={() => setError(null)} aria-label="Dismiss error" style={{ float: "right", background: "none", border: "none", color: "inherit", cursor: "pointer", fontWeight: 600 }}>x</button>
               </div>
             )}
 

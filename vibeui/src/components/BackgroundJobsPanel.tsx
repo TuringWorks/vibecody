@@ -3,6 +3,7 @@ import { Clock, CircleCheck, CircleX, Square } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import { Toaster } from './Toaster';
 import { useModelRegistry } from '../hooks/useModelRegistry';
+import type { Recap } from '../types/recap';
 
 interface JobRecord {
  session_id: string;
@@ -55,6 +56,10 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  const [provider, setProvider] = useState('ollama');
  const [approval, setApproval] = useState('suggest');
  const [submitting, setSubmitting] = useState(false);
+ // J1.4 — recap row + Resume button. Fetched lazily when a terminal
+ // job is expanded; null = "we already looked and the daemon has none".
+ const [recapsByJobId, setRecapsByJobId] = useState<Record<string, Recap | null>>({});
+ const [resumingId, setResumingId] = useState<string | null>(null);
  const esRefs = useRef<Record<string, EventSource>>({});
 
  const fetchJobs = async () => {
@@ -138,6 +143,51 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  toast.error(`Failed to submit job: ${e}`);
  } finally {
  setSubmitting(false);
+ }
+ };
+
+ // J1.4 — lazy-fetch the freshest recap for a terminal job. The daemon
+ // auto-recaps on terminal-state hook (J1.2), so for `complete | failed |
+ // cancelled` jobs there is normally a row waiting; for jobs from older
+ // daemons or in-flight recap generation the response lists none and we
+ // record `null` so we don't refetch on every expand toggle.
+ const fetchRecap = async (jobId: string) => {
+ if (jobId in recapsByJobId) return;
+ try {
+  const url = `${daemonUrl}/v1/recap?kind=job&subject_id=${encodeURIComponent(jobId)}&limit=1`;
+  const res = await fetch(url);
+  if (!res.ok) { setRecapsByJobId((prev) => ({ ...prev, [jobId]: null })); return; }
+  const body = await res.json();
+  const recap: Recap | undefined = Array.isArray(body?.recaps) ? body.recaps[0] : undefined;
+  setRecapsByJobId((prev) => ({ ...prev, [jobId]: recap ?? null }));
+ } catch {
+  setRecapsByJobId((prev) => ({ ...prev, [jobId]: null }));
+ }
+ };
+
+ // J1.4 — Resume a job from its recap. Server creates a new job (the
+ // J1.3b parent-link columns track lineage). We surface the new
+ // session_id via toast and refresh the list so the new row appears.
+ const resumeFromRecap = async (recap: Recap) => {
+ setResumingId(recap.id);
+ try {
+  const res = await fetch(`${daemonUrl}/v1/resume`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+   from_recap_id: recap.id,
+   branch: false,
+   client: 'vibeui-jobs',
+  }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  toast.success(`Resumed as ${data.resumed_session_id ?? 'new job'}`);
+  await fetchJobs();
+ } catch (e) {
+  toast.error(`Failed to resume: ${e}`);
+ } finally {
+  setResumingId(null);
  }
  };
 
@@ -283,7 +333,11 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  }}>
  {/* Job row */}
  <div role="button" tabIndex={0}
- onClick={() => setExpandedId(expandedId === job.session_id ? null : job.session_id)}
+ onClick={() => {
+ const next = expandedId === job.session_id ? null : job.session_id;
+ setExpandedId(next);
+ if (next && job.status !== 'running') fetchRecap(job.session_id);
+ }}
  style={{ padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: '8px' }}
  >
  <span style={{ fontSize: '14px', flexShrink: 0 }}>{STATUS_ICONS[job.status] ?? '?'}</span>
@@ -308,7 +362,16 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  {/* Expanded detail */}
  {expandedId === job.session_id && (
  <div style={{ borderTop: '1px solid var(--border-color)', padding: '8px 12px' }}>
- {job.summary && (
+ {/* J1.4 — recap row replaces the bare "Done" summary when the
+  daemon has a recap. We still keep `job.summary` as a fallback
+  for older daemons / jobs that haven't generated a recap yet. */}
+ {recapsByJobId[job.session_id] ? (
+ <JobRecapRow
+ recap={recapsByJobId[job.session_id]!}
+ onResume={() => resumeFromRecap(recapsByJobId[job.session_id]!)}
+ resuming={resumingId === recapsByJobId[job.session_id]!.id}
+ />
+ ) : job.summary && (
  <div style={{ fontSize: '11px', marginBottom: '8px', whiteSpace: 'pre-wrap' }}>
  <strong>Summary:</strong> {job.summary}
  </div>
@@ -339,6 +402,93 @@ export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: Bac
  </div>
  </div>
  <Toaster toasts={toasts} onDismiss={dismiss} />
+ </div>
+ );
+}
+
+// ── J1.4: per-row recap render ───────────────────────────────────────────────
+
+interface JobRecapRowProps {
+ recap: Recap;
+ onResume: () => void;
+ resuming: boolean;
+}
+
+function JobRecapRow({ recap, onResume, resuming }: JobRecapRowProps) {
+ const generatorLabel =
+ recap.generator.type === 'llm'
+ ? `LLM · ${recap.generator.provider}/${recap.generator.model}`
+ : recap.generator.type === 'user_edited'
+ ? 'user-edited'
+ : 'heuristic';
+
+ return (
+ <div
+ data-testid={`recap-row-${recap.subject_id}`}
+ style={{
+ fontSize: '11px',
+ marginBottom: '8px',
+ padding: '8px',
+ borderRadius: '4px',
+ background: 'var(--bg-tertiary)',
+ border: '1px solid var(--border-color)',
+ }}
+ >
+ <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+ <strong style={{ flex: 1, lineHeight: 1.3 }}>{recap.headline}</strong>
+ <span
+ style={{
+ fontSize: '9px',
+ padding: '1px 6px',
+ borderRadius: '8px',
+ background: 'var(--bg-secondary)',
+ color: 'var(--text-secondary)',
+ whiteSpace: 'nowrap',
+ }}
+ >
+ {generatorLabel}
+ </span>
+ </div>
+
+ {recap.bullets.length > 0 && (
+ <ul style={{ margin: '6px 0 0 0', paddingLeft: '14px', color: 'var(--text-secondary)' }}>
+ {recap.bullets.slice(0, 3).map((b, i) => (
+ <li key={i} style={{ marginBottom: '2px' }}>{b}</li>
+ ))}
+ </ul>
+ )}
+
+ {recap.next_actions.length > 0 && (
+ <div style={{ marginTop: '6px' }}>
+ <div style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.5px', color: 'var(--text-secondary)' }}>
+ NEXT
+ </div>
+ <ul style={{ margin: '2px 0 0 0', paddingLeft: '14px' }}>
+ {recap.next_actions.slice(0, 2).map((a, i) => (
+ <li key={i} style={{ marginBottom: '2px' }}>{a}</li>
+ ))}
+ </ul>
+ </div>
+ )}
+
+ <div style={{ marginTop: '8px', textAlign: 'right' }}>
+ <button
+ data-testid={`resume-btn-${recap.subject_id}`}
+ onClick={onResume}
+ disabled={resuming}
+ style={{
+ fontSize: '11px',
+ padding: '3px 10px',
+ border: '1px solid var(--border-color)',
+ borderRadius: '3px',
+ background: 'none',
+ color: 'var(--accent-blue)',
+ cursor: resuming ? 'wait' : 'pointer',
+ }}
+ >
+ {resuming ? 'Resuming…' : '▶ Resume'}
+ </button>
+ </div>
  </div>
  );
 }

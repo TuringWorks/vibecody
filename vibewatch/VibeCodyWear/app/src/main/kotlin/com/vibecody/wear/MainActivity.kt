@@ -17,14 +17,23 @@ import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // W1.2 — `vibecody.deeplink=jobs` opens the Jobs tab on
+        // launch. The Tile uses this when the user taps the recap
+        // tile so they land on the job list instead of Sessions.
+        val deeplink = intent?.getStringExtra("vibecody.deeplink")
         setContent {
-            VibeCodyWearApp(this)
+            VibeCodyWearApp(this, startDestination = startDestinationFor(deeplink))
         }
     }
 }
 
+private fun startDestinationFor(deeplink: String?): String = when (deeplink) {
+    "jobs" -> "jobs"
+    else -> "sessions"
+}
+
 @Composable
-fun VibeCodyWearApp(activity: Activity) {
+fun VibeCodyWearApp(activity: Activity, startDestination: String = "sessions") {
     val auth = remember { WearAuthManager(activity) }
     val net = remember { WearNetworkManager(activity, auth) }
     val navController = rememberSwipeDismissableNavController()
@@ -38,7 +47,7 @@ fun VibeCodyWearApp(activity: Activity) {
         return
     }
 
-    SwipeDismissableNavHost(navController = navController, startDestination = "sessions") {
+    SwipeDismissableNavHost(navController = navController, startDestination = startDestination) {
         composable("sessions") {
             SessionListScreen(
                 net = net,
@@ -66,6 +75,31 @@ fun VibeCodyWearApp(activity: Activity) {
                 taskPreview = preview,
                 onContinueOnPhone = { recap ->
                     // Hand off to phone via Wearable Data Layer.
+                    WearDataLayerClient.handoffRecapToPhone(activity, recap)
+                },
+            )
+        }
+        // W1.2 — Jobs list + job-recap routes mirror the session pair.
+        composable("jobs") {
+            JobListScreen(
+                net = net,
+                onOpenRecap = { id, preview ->
+                    val safe = java.net.URLEncoder.encode(preview, "UTF-8")
+                    navController.navigate("job-recap/$id/$safe")
+                },
+            )
+        }
+        composable("job-recap/{jobId}/{taskPreview}") { back ->
+            val sid = back.arguments?.getString("jobId").orEmpty()
+            val preview = java.net.URLDecoder.decode(
+                back.arguments?.getString("taskPreview").orEmpty(), "UTF-8"
+            )
+            RecapScreen(
+                net = net,
+                sessionId = sid,
+                taskPreview = preview,
+                kind = WearRecapKind.Job,
+                onContinueOnPhone = { recap ->
                     WearDataLayerClient.handoffRecapToPhone(activity, recap)
                 },
             )

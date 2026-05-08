@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../services/api_client.dart';
 import '../theme/app_theme.dart';
+import 'job_recap_screen.dart';
 
 /// Shows active and historical agent sessions across all paired machines.
 class SessionsScreen extends StatefulWidget {
@@ -35,33 +36,40 @@ class _SessionsScreenState extends State<SessionsScreen> {
           session['_machine_name'] = cred.machineName;
           session['_base_url'] = cred.baseUrl;
           session['_token'] = cred.token;
+          session['_recap_kind'] = 'session';
         }
         allJobs.addAll(sessions);
       } catch (_) {
         // Fall back to listJobs if /mobile/sessions not available.
+        // Rows from /jobs are background-agent jobs and use the
+        // job-recap path (M1.2).
         try {
           final jobs = await api.listJobs(cred.baseUrl, cred.token);
           for (final job in jobs) {
             job['_machine_name'] = cred.machineName;
             job['_base_url'] = cred.baseUrl;
             job['_token'] = cred.token;
+            job['_recap_kind'] = 'job';
           }
           allJobs.addAll(jobs);
         } catch (_) {}
       }
     }
 
-    // M1.1 — fetch the latest recap headline per session and stitch
-    // it into the row. Best-effort: a missing or 4xx recap leaves the
-    // row's existing preview untouched. Calls run in parallel within
-    // each machine so a slow daemon doesn't block the others.
+    // M1.1 + M1.2 — fetch the latest recap headline per row and
+    // stitch it in. Session rows go to /v1/recap?kind=session, job
+    // rows to kind=job. Best-effort: a missing or 4xx recap leaves
+    // the row's existing preview untouched. Calls run in parallel.
     await Future.wait(allJobs.map((job) async {
       final sid = job['session_id'] ?? job['id'];
       if (sid is! String || sid.isEmpty) return;
       final baseUrl = job['_base_url'] as String?;
       final token = job['_token'] as String?;
       if (baseUrl == null || token == null) return;
-      final recap = await api.getSessionRecap(baseUrl, token, sid);
+      final kind = job['_recap_kind'] as String? ?? 'session';
+      final recap = kind == 'job'
+          ? await api.getJobRecap(baseUrl, token, sid)
+          : await api.getSessionRecap(baseUrl, token, sid);
       if (recap != null && recap.headline.isNotEmpty) {
         job['_recap_headline'] = recap.headline;
       }
@@ -106,10 +114,34 @@ class _SessionsScreenState extends State<SessionsScreen> {
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: _jobs.length,
-                    itemBuilder: (_, i) => _JobCard(job: _jobs[i], onCancel: () => _cancelJob(_jobs[i])),
+                    itemBuilder: (_, i) => _JobCard(
+                      job: _jobs[i],
+                      onCancel: () => _cancelJob(_jobs[i]),
+                      onOpenRecap: () => _openJobRecap(_jobs[i]),
+                    ),
                   ),
                 ),
     );
+  }
+
+  /// M1.2 — open the JobRecapScreen for a terminal background-agent
+  /// job. Only fires for rows tagged `_recap_kind == 'job'`; session
+  /// rows ignore the gesture (their tap-target is the chat screen,
+  /// not implemented here).
+  void _openJobRecap(Map<String, dynamic> job) {
+    if (job['_recap_kind'] != 'job') return;
+    final sid = job['session_id'] ?? job['id'];
+    final baseUrl = job['_base_url'];
+    final token = job['_token'];
+    if (sid is! String || baseUrl is! String || token is! String) return;
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => JobRecapScreen(
+        baseUrl: baseUrl,
+        token: token,
+        jobId: sid,
+        taskPreview: job['task'] ?? job['_recap_headline'] ?? '',
+      ),
+    ));
   }
 
   Future<void> _cancelJob(Map<String, dynamic> job) async {
@@ -130,8 +162,19 @@ class _SessionsScreenState extends State<SessionsScreen> {
 class _JobCard extends StatelessWidget {
   final Map<String, dynamic> job;
   final VoidCallback onCancel;
+  final VoidCallback onOpenRecap;
 
-  const _JobCard({required this.job, required this.onCancel});
+  const _JobCard({
+    required this.job,
+    required this.onCancel,
+    required this.onOpenRecap,
+  });
+
+  bool get _isJobKind => job['_recap_kind'] == 'job';
+  bool get _isTerminal {
+    final s = job['status'];
+    return s == 'complete' || s == 'failed' || s == 'cancelled';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -152,9 +195,17 @@ class _JobCard extends StatelessWidget {
       _ => Icons.hourglass_top_rounded,
     };
 
+    // M1.2 — terminal job rows are tappable; the tap opens the
+    // JobRecapScreen so the user can review what happened and Resume.
+    final tappable = _isJobKind && _isTerminal;
+
     return Card(
+      key: Key('job-card-${job['session_id'] ?? job['id'] ?? ''}'),
       margin: const EdgeInsets.only(bottom: 10),
-      child: Padding(
+      child: InkWell(
+        onTap: tappable ? onOpenRecap : null,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -203,7 +254,21 @@ class _JobCard extends StatelessWidget {
                 maxLines: 2, overflow: TextOverflow.ellipsis,
               ),
             ],
+            if (tappable) ...[
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(Icons.chevron_right_rounded, size: 14, color: c.textSecondary),
+                  const SizedBox(width: 2),
+                  Text(
+                    'View recap',
+                    style: TextStyle(fontSize: 11, color: c.accentBlue),
+                  ),
+                ],
+              ),
+            ],
           ],
+        ),
         ),
       ),
     );

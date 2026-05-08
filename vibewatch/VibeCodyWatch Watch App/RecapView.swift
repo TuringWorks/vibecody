@@ -10,9 +10,18 @@
 import SwiftUI
 import WatchConnectivity
 
+enum RecapKind {
+    case session
+    case job
+}
+
 struct RecapView: View {
     let sessionId: String
     let task_preview: String
+    /// W1.2 — when `.job`, fetches via /watch/jobs/:id/recap and the
+    /// "No recap yet" copy reflects the J1.2 terminal-state hook
+    /// instead of the F2.3 close hook.
+    var kind: RecapKind = .session
 
     @State private var recap: WatchRecap?
     @State private var isLoading = true
@@ -136,7 +145,12 @@ struct RecapView: View {
     private func load() async {
         isLoading = true
         defer { isLoading = false }
-        recap = await network.loadRecap(sessionId: sessionId)
+        switch kind {
+        case .session:
+            recap = await network.loadRecap(sessionId: sessionId)
+        case .job:
+            recap = await network.loadJobRecap(jobId: sessionId)
+        }
     }
 
     private func generatorTint(_ g: WatchRecapGenerator) -> Color {
