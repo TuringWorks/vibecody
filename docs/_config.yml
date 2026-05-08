@@ -89,6 +89,9 @@ sidebar:
   - title: Configuration
     icon: settings
     url: /configuration/
+  - title: Agent Panel
+    icon: cpu
+    url: /agent-panel/
   - title: Diffcomplete (⌘.)
     icon: edit-3
     url: /diffcomplete/

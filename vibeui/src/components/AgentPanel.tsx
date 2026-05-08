@@ -45,6 +45,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
  const [copiedStep, setCopiedStep] = useState<number | null>(null);
  const feedEndRef = useRef<HTMLDivElement>(null);
+ const approveBtnRef = useRef<HTMLButtonElement>(null);
 
  // ── Streaming metrics ─────────────────────────────────────────────────────
  // Track tokens-per-second and time-to-first-token during LLM streaming.
@@ -67,6 +68,16 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  useEffect(() => {
  feedEndRef.current?.scrollIntoView({ behavior: "smooth" });
  }, [steps, streaming, pending]);
+
+ // Auto-focus the Approve button when a pending approval appears so
+ // keyboard-only users can press Enter without hunting for it. Skipped
+ // for destructive actions — those should require an explicit pointer
+ // click to defend against muscle-memory Enters.
+ useEffect(() => {
+ if (pending && !pending.is_destructive) {
+ approveBtnRef.current?.focus();
+ }
+ }, [pending]);
 
  // Register Tauri event listeners
  useEffect(() => {
@@ -404,6 +415,8 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  <button className="panel-btn"
  onClick={toggleTurbo}
  disabled={isRunning}
+ aria-pressed={turboMode}
+ aria-label={turboMode ? "Turbo Mode on — full-auto approvals enabled" : "Turbo Mode off — approvals required"}
  title={turboMode ? "Turbo Mode ON — click to disable full-auto" : "Turbo Mode OFF — click to enable full-auto (no approval prompts)"}
  style={{
  padding: "4px 8px",
@@ -425,6 +438,8 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  <button
  onClick={() => setParallelMode(!parallelMode)}
  disabled={isRunning}
+ aria-pressed={parallelMode}
+ aria-label={parallelMode ? "Parallel Mode on — split task into chunks executed concurrently on worktrees" : "Parallel Mode off — single sequential agent"}
  title={parallelMode ? "Parallel Mode ON — task will be split into chunks and run concurrently" : "Parallel Mode OFF — single agent executes sequentially"}
  style={{
  padding: "4px 8px",
@@ -542,8 +557,14 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  </div>
  )}
 
- {/* Step feed */}
+ {/* Step feed — role="log" with aria-live="polite" so AT users hear
+     each step as the agent makes progress, without yanking focus from
+     whatever the user is doing in the textarea or toolbar. */}
  <div
+ role="log"
+ aria-live="polite"
+ aria-atomic="false"
+ aria-label="Agent step feed"
  style={{
  flex: 1,
  overflowY: "auto",
@@ -680,9 +701,16 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  );
  })()}
 
- {/* Approval prompt */}
+ {/* Approval prompt — role="alertdialog" so AT users get the same
+     "this needs your attention NOW" affordance as a sighted user
+     seeing the bordered card. aria-live="assertive" because the
+     agent is BLOCKED until the user responds. */}
  {pending && (
  <div
+ role="alertdialog"
+ aria-live="assertive"
+ aria-labelledby="agent-approval-title"
+ aria-describedby="agent-approval-summary"
  style={{
  background: "var(--bg-secondary)",
  border: "1px solid var(--accent-color)",
@@ -690,10 +718,11 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  padding: "12px",
  }}
  >
- <div style={{ fontWeight: 600, marginBottom: "4px" }}>
+ <div id="agent-approval-title" style={{ fontWeight: 600, marginBottom: "4px" }}>
  {pending.is_destructive ? "Destructive action — approve?" : "Action — approve?"}
  </div>
  <code
+ id="agent-approval-summary"
  style={{
  display: "block",
  background: "var(--bg-tertiary)",
@@ -708,8 +737,10 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  </code>
  <div style={{ display: "flex", gap: "8px" }}>
  <button
+ ref={approveBtnRef}
  className="panel-btn btn-primary"
  onClick={approve}
+ aria-label={pending.is_destructive ? "Approve destructive action" : "Approve action"}
  style={{ background: "var(--success-color)" }}
  >
  <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}><Check size={12} /> Approve</span>

@@ -4224,10 +4224,29 @@ pub async fn start_agent_task(
     use vibe_ai::{AgentLoop, AgentContext, ApprovalPolicy, AgentEvent};
     use crate::agent_executor::TauriToolExecutor;
 
+    // Task contents are NOT logged — only length + provider + policy +
+    // tab routing. Operator dashboards aggregate these to spot abuse
+    // patterns without seeing user prompts.
+    tracing::info!(
+        target: "vibecody::agent",
+        provider = %provider,
+        approval_policy = %approval_policy,
+        task_len = task.len(),
+        tab_id = tab_id.as_deref().unwrap_or("(global)"),
+        "agent.task.start"
+    );
+
     // Get the AI provider
     let provider_arc = {
         let mut engine = state.chat_engine.lock().await;
-        engine.set_provider_by_name(&provider).map_err(|e| e.to_string())?;
+        engine.set_provider_by_name(&provider).map_err(|e| {
+            tracing::warn!(
+                target: "vibecody::agent",
+                provider = %provider,
+                "agent.task.provider_unavailable"
+            );
+            e.to_string()
+        })?;
         engine.active_provider().ok_or("No active provider")?.clone()
     };
 
@@ -4554,6 +4573,7 @@ pub async fn stop_agent_task(
         let mut slot = state.agent_abort_handle.lock().await;
         slot.take()
     };
+    let was_running = handle.is_some();
     if let Some(h) = handle {
         h.abort();
     }
@@ -4572,6 +4592,11 @@ pub async fn stop_agent_task(
         }
     }
     let _ = app_handle.emit("agent:error", "Agent stopped by user");
+    tracing::info!(
+        target: "vibecody::agent",
+        was_running,
+        "agent.task.stop"
+    );
     Ok(())
 }
 
@@ -4998,6 +5023,13 @@ pub async fn respond_to_agent_approval(
     let Some(PendingAgentCall { call, result_tx }) = pending else {
         return Err("No pending agent approval".to_string());
     };
+
+    tracing::info!(
+        target: "vibecody::agent",
+        approved,
+        tool = %call.name(),
+        "agent.approval.respond"
+    );
 
     if approved {
         let workspace_root = {

@@ -524,6 +524,16 @@ async fn health() -> impl IntoResponse {
             // ~/.vibeui/mcp-installed.json. The boolean is a runtime
             // probe of the config file, not a fixed declaration.
             "mcp": mcp_features_block(),
+            // Agent loop UI — plan-then-act with approval gates and
+            // optional parallel-chunk execution via worktree isolation.
+            // Inherits provider availability from the providers block.
+            "agent_panel": {
+                "available": provider_count > 0,
+                "transport": "tauri-desktop",
+                "requires": "providers.configured_count > 0",
+                "approval_policies": ["suggest", "auto-edit", "full-auto"],
+                "parallel_isolation": "git-worktree",
+            },
         },
         // OpenMemory store readiness — counts + flags only, never content.
         // Consumed by Settings panel + ops dashboards so a feature that
