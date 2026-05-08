@@ -98,6 +98,9 @@ sidebar:
   - title: Chat Tabs
     icon: message-square
     url: /chat-tabs/
+  - title: Sessions
+    icon: folder
+    url: /sessions/
   - title: Arena Mode
     icon: zap
     url: /arena/

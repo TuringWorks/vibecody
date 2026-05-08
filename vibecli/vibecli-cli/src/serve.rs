@@ -488,6 +488,16 @@ async fn health() -> impl IntoResponse {
                 "requires": "providers.configured_count >= 2 (for non-trivial battles)",
                 "votes_path": "~/.vibeui/arena-votes.json",
             },
+            // Session browser (list / search / delete / replay / fork).
+            // Reads .vibecli/traces/ inside the user's workspace — one
+            // .jsonl per session plus optional sidecar -messages.json /
+            // -context.json files. No daemon-side store; the workspace
+            // path is the source of truth.
+            "sessions": {
+                "available": true,
+                "transport": "tauri-desktop",
+                "trace_dir": ".vibecli/traces/",
+            },
         },
         // OpenMemory store readiness — counts + flags only, never content.
         // Consumed by Settings panel + ops dashboards so a feature that

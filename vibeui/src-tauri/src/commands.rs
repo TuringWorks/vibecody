@@ -7595,6 +7595,11 @@ pub async fn delete_session(
     let dir = vibecli_trace_dir(&workspace);
     // Prevent path traversal
     if session_id.contains("..") || session_id.contains('/') || session_id.contains('\\') {
+        tracing::warn!(
+            target: "vibecody::sessions",
+            session_id = %session_id,
+            "session.delete.rejected: path traversal"
+        );
         return Err("Invalid session ID".to_string());
     }
     let jsonl = dir.join(format!("{}.jsonl", session_id));
@@ -7603,9 +7608,16 @@ pub async fn delete_session(
     if !jsonl.exists() {
         return Err(format!("Session {} not found", session_id));
     }
+    let trace_size = std::fs::metadata(&jsonl).map(|m| m.len()).unwrap_or(0);
     let _ = std::fs::remove_file(&jsonl);
     let _ = std::fs::remove_file(&messages);
     let _ = std::fs::remove_file(&context);
+    tracing::info!(
+        target: "vibecody::sessions",
+        session_id = %session_id,
+        trace_size,
+        "session.delete"
+    );
     Ok(())
 }
 
@@ -7643,6 +7655,12 @@ pub async fn fork_session(
         let dst_context = dir.join(format!("{}-context.json", new_id));
         let _ = std::fs::copy(&src_context, &dst_context);
     }
+    tracing::info!(
+        target: "vibecody::sessions",
+        parent_id = %session_id,
+        new_id = %new_id,
+        "session.fork"
+    );
     Ok(new_id)
 }
 
