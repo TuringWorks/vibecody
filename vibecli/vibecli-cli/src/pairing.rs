@@ -13,22 +13,24 @@ pub fn generate_pairing_url(host: &str, port: u16) -> (String, String) {
 }
 
 /// Generate a cryptographically random 128-bit token as hex string.
+///
+/// **Security note** — this token is a bearer credential. Anyone who
+/// possesses it can connect to the daemon. It MUST be sourced from the
+/// OS CSPRNG (rand::rng() ≡ ThreadRng, internally seeded from
+/// getrandom). The previous implementation used `RandomState` which is
+/// NOT cryptographically secure — it's HashMap DoS resistance only and
+/// the seed is roughly `hash(unix_nanos) ^ hash(pid)`, predictable to
+/// an attacker who can probe the pairing endpoint with timing.
 fn generate_random_token() -> String {
-    use std::collections::hash_map::RandomState;
-    use std::hash::{BuildHasher, Hasher};
-
-    // Use two random hashers for 128 bits of randomness
-    let s1 = RandomState::new();
-    let s2 = RandomState::new();
-    let mut h1 = s1.build_hasher();
-    h1.write_u64(std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_nanos() as u64);
-    let mut h2 = s2.build_hasher();
-    h2.write_u64(std::process::id() as u64);
-
-    format!("{:016x}{:016x}", h1.finish(), h2.finish())
+    use rand::Rng;
+    let mut rng = rand::rng();
+    let bytes: [u8; 16] = rng.random();
+    let mut hex = String::with_capacity(32);
+    for b in &bytes {
+        use std::fmt::Write;
+        let _ = write!(hex, "{:02x}", b);
+    }
+    hex
 }
 
 /// Render a URL as an ASCII QR code for terminal display.
@@ -185,5 +187,56 @@ mod tests {
         let (url2, _) = generate_pairing_url("host", 443);
         assert!(url1.contains(":80/"));
         assert!(url2.contains(":443/"));
+    }
+
+    /// Statistical check: across 1000 tokens, every hex nibble should
+    /// appear at roughly equal frequency. The previous RandomState-based
+    /// implementation skewed heavily because the seed was hash(time_nanos),
+    /// so neighbouring tokens shared most of their bytes. A proper CSPRNG
+    /// keeps every nibble within ~30% of the expected count (1000*32/16 = 2000).
+    /// This is a regression guard, not a NIST-grade test.
+    #[test]
+    fn token_entropy_is_well_distributed() {
+        let mut nibble_counts = [0u32; 16];
+        for _ in 0..1000 {
+            let (_, token) = generate_pairing_url("h", 1);
+            for c in token.chars() {
+                let n = c.to_digit(16).unwrap() as usize;
+                nibble_counts[n] += 1;
+            }
+        }
+        // Expected = 1000 * 32 / 16 = 2000 per nibble.
+        // Allow generous slack — anything below 1400 or above 2600 is a
+        // strong signal the RNG is broken.
+        for (n, &count) in nibble_counts.iter().enumerate() {
+            assert!(
+                count > 1400 && count < 2600,
+                "Nibble 0x{:x} appeared {} times — RNG may be broken",
+                n,
+                count
+            );
+        }
+    }
+
+    /// Critical security regression guard: the first 16 hex chars of two
+    /// tokens generated back-to-back should diverge in MULTIPLE positions.
+    /// The previous RandomState implementation seeded from time_nanos,
+    /// so two tokens generated within microseconds shared their first
+    /// 8+ bytes. With a proper CSPRNG, the probability of any single
+    /// hex char matching is 1/16 → expected matches in 16 chars = 1.
+    #[test]
+    fn back_to_back_tokens_diverge_quickly() {
+        for _ in 0..100 {
+            let (_, t1) = generate_pairing_url("h", 1);
+            let (_, t2) = generate_pairing_url("h", 1);
+            let matching_prefix = t1.chars().zip(t2.chars()).take_while(|(a, b)| a == b).count();
+            // It should be EXTREMELY unlikely for the first 8+ chars to match.
+            // Probability of 8-char match by chance = 1/16^8 ~= 2e-10.
+            assert!(
+                matching_prefix < 8,
+                "Two consecutive tokens share {} hex chars — RNG is broken: {} vs {}",
+                matching_prefix, t1, t2
+            );
+        }
     }
 }

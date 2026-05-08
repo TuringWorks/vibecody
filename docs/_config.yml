@@ -66,6 +66,9 @@ sidebar:
   - title: Connectivity
     icon: wifi
     url: /connectivity/
+  - title: Pairing
+    icon: link
+    url: /pairing/
   - title: Providers
     icon: cloud
     children:

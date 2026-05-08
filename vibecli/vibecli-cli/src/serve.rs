@@ -534,6 +534,18 @@ async fn health() -> impl IntoResponse {
                 "approval_policies": ["suggest", "auto-edit", "full-auto"],
                 "parallel_isolation": "git-worktree",
             },
+            // Device pairing — bearer-token bootstrap for mobile, watch,
+            // IDE plugins, and second-shell clients. Tokens are 128-bit
+            // hex from the OS CSPRNG. The `/pair` route advertises a URL
+            // back to whatever Host: header the client used, so LAN
+            // clients get a LAN-reachable URL automatically.
+            "pairing": {
+                "available": true,
+                "transport": "daemon-http",
+                "endpoint": "/pair",
+                "token_bits": 128,
+                "rng": "os-csprng",
+            },
         },
         // OpenMemory store readiness — counts + flags only, never content.
         // Consumed by Settings panel + ops dashboards so a feature that
@@ -627,8 +639,33 @@ async fn skill_webhook_handler(
 }
 
 /// Device pairing endpoint — generates a one-time pairing URL.
-async fn pairing_handler() -> impl IntoResponse {
-    let (url, token) = crate::pairing::generate_pairing_url("localhost", 7878);
+///
+/// The `host` advertised in the URL is whatever the client used to reach
+/// us — taken from the `Host:` header. This means a phone on the LAN
+/// hitting `192.168.1.42:7878/pair` gets back a pairing URL that resolves
+/// from the LAN, not a useless `http://localhost:...` that only works
+/// from the daemon host. Falls back to `localhost` when the header is
+/// missing or malformed.
+async fn pairing_handler(headers: axum::http::HeaderMap) -> impl IntoResponse {
+    let host_header = headers
+        .get(axum::http::header::HOST)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("localhost:7878");
+    // Parse "<host>:<port>" or just "<host>" — used verbatim as the URL
+    // authority. Tokens are generated via the OS CSPRNG (see pairing.rs).
+    let (host, port_opt) = match host_header.rsplit_once(':') {
+        Some((h, p)) => (h, p.parse::<u16>().ok()),
+        None => (host_header, None),
+    };
+    let port = port_opt.unwrap_or(7878);
+    let (url, token) = crate::pairing::generate_pairing_url(host, port);
+    tracing::info!(
+        target: "vibecody::pairing",
+        host = %host,
+        port,
+        token_len = token.len(),
+        "pairing.url.generated"
+    );
     Json(serde_json::json!({
         "url": url,
         "token": token,
