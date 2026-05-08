@@ -110,6 +110,9 @@ sidebar:
   - title: Arena Mode
     icon: zap
     url: /arena/
+  - title: Counsel
+    icon: users
+    url: /counsel/
   - title: Background Jobs
     icon: clock
     url: /background-jobs/
