@@ -26297,16 +26297,47 @@ pub async fn create_usage_budget(name: String, limit: f64, period: String) -> Re
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis()),
-        name,
+        name: name.clone(),
         limit,
         used: 0.0,
-        period,
+        period: period.clone(),
     };
     let result = serde_json::to_value(&budget).map_err(|e| e.to_string())?;
+    let new_id = budget.id.clone();
     data.budgets.push(budget);
     data.active_budgets = data.budgets.len() as u32;
     save_usage_metering(&data)?;
+    tracing::info!(
+        target: "vibecody::usage",
+        id = %new_id,
+        name = %name,
+        limit,
+        period = %period,
+        total_budgets = data.budgets.len(),
+        "usage.budget.create"
+    );
     Ok(result)
+}
+
+/// Delete a budget by id. The frontend used to mutate a local copy
+/// without persisting; this restored a deleted budget on every reload.
+#[tauri::command]
+pub async fn delete_usage_budget(id: String) -> Result<(), String> {
+    let mut data = load_usage_metering();
+    let before = data.budgets.len();
+    data.budgets.retain(|b| b.id != id);
+    if data.budgets.len() == before {
+        return Err(format!("Budget '{}' not found", id));
+    }
+    data.active_budgets = data.budgets.len() as u32;
+    save_usage_metering(&data)?;
+    tracing::info!(
+        target: "vibecody::usage",
+        id = %id,
+        remaining = data.budgets.len(),
+        "usage.budget.delete"
+    );
+    Ok(())
 }
 
 #[tauri::command]
@@ -26324,6 +26355,11 @@ pub async fn dismiss_usage_alert(id: String) -> Result<serde_json::Value, String
         return Err(format!("Alert '{}' not found", id));
     }
     save_usage_metering(&data)?;
+    tracing::info!(
+        target: "vibecody::usage",
+        id = %id,
+        "usage.alert.dismiss"
+    );
     Ok(serde_json::json!({ "success": true }))
 }
 

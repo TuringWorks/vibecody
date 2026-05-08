@@ -556,6 +556,16 @@ async fn health() -> impl IntoResponse {
                 "requires": "providers.configured_count >= 2 (for diverse debate)",
                 "store_path": "~/.vibeui/counsel-sessions.json",
             },
+            // Usage metering — per-provider/model/task spend, budgets,
+            // and alerts. Always available (no provider dependency —
+            // metering is observed from the daemon's own request log,
+            // not from probing providers). Store is plain JSON.
+            "usage_metering": {
+                "available": true,
+                "transport": "tauri-desktop",
+                "store_path": "~/.vibeui/usage-metering.json",
+                "budget_periods": ["daily", "weekly", "monthly"],
+            },
         },
         // OpenMemory store readiness — counts + flags only, never content.
         // Consumed by Settings panel + ops dashboards so a feature that

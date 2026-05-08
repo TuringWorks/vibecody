@@ -121,8 +121,17 @@ export function UsageMeteringPanel() {
     }
   };
 
-  const deleteBudget = (id: string) => {
-    setBudgets((prev) => prev.filter((b) => b.id !== id));
+  const deleteBudget = async (id: string) => {
+    try {
+      await invoke("delete_usage_budget", { id });
+      // Optimistic local update — backend mutation is durable, so a
+      // reload would re-fetch the same state. Kept the local trim so
+      // the UI updates immediately rather than waiting for loadData.
+      setBudgets((prev) => prev.filter((b) => b.id !== id));
+      await loadData();
+    } catch (e) {
+      setError(`Failed to delete budget: ${String(e)}`);
+    }
   };
 
   const dismissAlert = async (id: string) => {
@@ -173,16 +182,16 @@ export function UsageMeteringPanel() {
       <h2 style={{ margin: "0 0 12px", fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>Usage Metering</h2>
 
       {error && (
-        <div className="panel-error" style={{ marginBottom: 12 }}>
+        <div role="alert" aria-live="assertive" className="panel-error" style={{ marginBottom: 12 }}>
           {error}
         </div>
       )}
 
-      <div className="panel-tab-bar" style={{ marginBottom: 12 }}>
-        <button className={`panel-tab ${tab === "dashboard" ? "active" : ""}`} onClick={() => setTab("dashboard")}>Dashboard</button>
-        <button className={`panel-tab ${tab === "budgets" ? "active" : ""}`} onClick={() => setTab("budgets")}>Budgets</button>
-        <button className={`panel-tab ${tab === "reports" ? "active" : ""}`} onClick={() => setTab("reports")}>Reports</button>
-        <button className={`panel-tab ${tab === "alerts" ? "active" : ""}`} onClick={() => setTab("alerts")}>Alerts ({alerts.filter((a) => !a.dismissed).length})</button>
+      <div className="panel-tab-bar" role="tablist" aria-label="Usage views" style={{ marginBottom: 12 }}>
+        <button role="tab" aria-selected={tab === "dashboard"} className={`panel-tab ${tab === "dashboard" ? "active" : ""}`} onClick={() => setTab("dashboard")}>Dashboard</button>
+        <button role="tab" aria-selected={tab === "budgets"} className={`panel-tab ${tab === "budgets" ? "active" : ""}`} onClick={() => setTab("budgets")}>Budgets</button>
+        <button role="tab" aria-selected={tab === "reports"} className={`panel-tab ${tab === "reports" ? "active" : ""}`} onClick={() => setTab("reports")}>Reports</button>
+        <button role="tab" aria-selected={tab === "alerts"} className={`panel-tab ${tab === "alerts" ? "active" : ""}`} onClick={() => setTab("alerts")}>Alerts ({alerts.filter((a) => !a.dismissed).length})</button>
       </div>
 
       {tab === "dashboard" && (
@@ -233,9 +242,16 @@ export function UsageMeteringPanel() {
                     <span style={{ fontWeight: 600 }}>{b.name}</span>
                     <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginLeft: 6 }}>{b.period}</span>
                   </div>
-                  <button className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-xs)", padding: "3px 8px" }} onClick={() => deleteBudget(b.id)}>Remove</button>
+                  <button className="panel-btn panel-btn-secondary" aria-label={`Remove budget: ${b.name}`} style={{ fontSize: "var(--font-size-xs)", padding: "3px 8px" }} onClick={() => deleteBudget(b.id)}>Remove</button>
                 </div>
-                <div style={barBg}>
+                <div
+                  style={barBg}
+                  role="progressbar"
+                  aria-valuenow={Math.round(pct)}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`${b.name} budget — ${b.used.toFixed(2)} used of ${b.limit.toFixed(2)} ${b.period}, ${pct.toFixed(0)} percent`}
+                >
                   <div style={barFill(pct, budgetBarColor(pct))} />
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 4 }}>

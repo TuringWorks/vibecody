@@ -810,6 +810,7 @@ pub fn run() {
             commands::get_usage_by_model,
             commands::get_usage_alerts,
             commands::create_usage_budget,
+            commands::delete_usage_budget,
             commands::dismiss_usage_alert,
             commands::swe_bench_list_runs,
             commands::swe_bench_get_suites,
