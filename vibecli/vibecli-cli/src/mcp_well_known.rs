@@ -22,9 +22,10 @@
 //! }
 //! ```
 //!
-//! Red commit: types + signatures + 5 BDD scenarios. Impl bodies
-//! `todo!()` so tests panic at runtime — TDD red. Green commit fills
-//! in the bodies.
+//! Pure function — no IO. Hosts call `GET /.well-known/mcp.json` and
+//! the route handler emits whatever this returns; the daemon's
+//! `mcp_server::tool_defs()` provides the source of truth that
+//! `tools_from_mcp_defs` translates.
 
 use serde::Serialize;
 use serde_json::Value;
@@ -75,14 +76,28 @@ pub struct WellKnownMcp {
 }
 
 /// Build the well-known descriptor from the daemon's configured tool
-/// list. Pure function — no IO. Hosts call `GET /.well-known/mcp.json`
-/// and the route handler emits whatever this returns.
+/// list.
 pub fn build_well_known(
-    _server_name: &str,
-    _server_version: &str,
-    _tools: Vec<ToolDescriptor>,
+    server_name: &str,
+    server_version: &str,
+    tools: Vec<ToolDescriptor>,
 ) -> WellKnownMcp {
-    todo!("A3: assemble protocolVersion + default transports + provided tools, leave prompts/resources empty");
+    WellKnownMcp {
+        name: server_name.to_string(),
+        version: server_version.to_string(),
+        // Matches the version mcp_server::dispatch advertises in
+        // initialize. Bumped lockstep with the upstream MCP spec.
+        protocol_version: "2024-11-05".to_string(),
+        transports: vec![
+            McpTransport::Stdio,
+            McpTransport::Http,
+            McpTransport::Sse,
+            McpTransport::StreamableHttp,
+        ],
+        tools,
+        prompts: Vec::new(),
+        resources: Vec::new(),
+    }
 }
 
 /// Translate the existing `mcp_server::tool_defs()` JSON shape (Vec<Value>)
