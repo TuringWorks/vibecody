@@ -14,9 +14,10 @@
 //! lets the state-machine logic stay pure-Rust + unit-testable while
 //! the persistence half tracks the broader session_store work.
 //!
-//! Red commit: types + signatures + 6 BDD scenarios. Impl bodies
-//! `todo!()` so tests panic at runtime — TDD red. Green commit fills
-//! in the bodies.
+//! Transitions:
+//!   Pending  → Running | Cancelled
+//!   Running  → Completed | Failed | Cancelled
+//!   *terminal*  → no further transitions allowed
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
@@ -99,39 +100,127 @@ impl AsyncSubagentRegistry {
         Self::default()
     }
 
-    /// Register a new subagent in `Pending` state. Returns its id.
-    pub fn register(&self, _task: &str) -> Result<String> {
-        todo!("A5: bump next_seq, build SubagentRecord with Pending, insert and return id");
+    pub fn register(&self, task: &str) -> Result<String> {
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|e| anyhow::anyhow!("registry lock poisoned: {e}"))?;
+        state.next_seq += 1;
+        let id = format!("subagent-{:08x}", state.next_seq);
+        let now = now_unix();
+        state.records.insert(
+            id.clone(),
+            SubagentRecord {
+                id: id.clone(),
+                task: task.to_string(),
+                state: SubagentState::Pending,
+                created_at_unix: now,
+                updated_at_unix: now,
+                result: None,
+                error: None,
+            },
+        );
+        Ok(id)
     }
 
-    /// Transition Pending → Running. No-op (Ok) if already Running.
-    pub fn mark_running(&self, _id: &str) -> std::result::Result<(), TransitionError> {
-        todo!("A5: only Pending → Running is allowed");
+    pub fn mark_running(&self, id: &str) -> std::result::Result<(), TransitionError> {
+        self.transition(id, |rec| {
+            if rec.state == SubagentState::Pending {
+                rec.state = SubagentState::Running;
+                Ok(())
+            } else {
+                Err(SubagentState::Running)
+            }
+        })
     }
 
-    /// Transition any non-terminal state → Completed and stash result.
-    pub fn mark_completed(&self, _id: &str, _result: String) -> std::result::Result<(), TransitionError> {
-        todo!("A5: only non-terminal states may complete");
+    pub fn mark_completed(
+        &self,
+        id: &str,
+        result: String,
+    ) -> std::result::Result<(), TransitionError> {
+        self.transition(id, |rec| {
+            if rec.state.is_terminal() {
+                Err(SubagentState::Completed)
+            } else {
+                rec.state = SubagentState::Completed;
+                rec.result = Some(result);
+                Ok(())
+            }
+        })
     }
 
-    /// Transition any non-terminal state → Failed and stash error.
-    pub fn mark_failed(&self, _id: &str, _error: String) -> std::result::Result<(), TransitionError> {
-        todo!("A5: only non-terminal states may fail");
+    pub fn mark_failed(
+        &self,
+        id: &str,
+        error: String,
+    ) -> std::result::Result<(), TransitionError> {
+        self.transition(id, |rec| {
+            if rec.state.is_terminal() {
+                Err(SubagentState::Failed)
+            } else {
+                rec.state = SubagentState::Failed;
+                rec.error = Some(error);
+                Ok(())
+            }
+        })
     }
 
-    /// Transition any non-terminal state → Cancelled.
-    pub fn cancel(&self, _id: &str) -> std::result::Result<(), TransitionError> {
-        todo!("A5: only non-terminal states may cancel");
+    pub fn cancel(&self, id: &str) -> std::result::Result<(), TransitionError> {
+        self.transition(id, |rec| {
+            if rec.state.is_terminal() {
+                Err(SubagentState::Cancelled)
+            } else {
+                rec.state = SubagentState::Cancelled;
+                Ok(())
+            }
+        })
     }
 
-    /// Read the current record. Returns None if id is unknown.
-    pub fn poll(&self, _id: &str) -> Option<SubagentRecord> {
-        todo!("A5: lookup id in records, clone");
+    pub fn poll(&self, id: &str) -> Option<SubagentRecord> {
+        self.state
+            .lock()
+            .ok()
+            .and_then(|s| s.records.get(id).cloned())
     }
 
-    /// All non-terminal records — what `/agents resume` would list.
     pub fn pending_or_running(&self) -> Vec<SubagentRecord> {
-        todo!("A5: filter records by !state.is_terminal");
+        self.state
+            .lock()
+            .map(|s| {
+                s.records
+                    .values()
+                    .filter(|r| !r.state.is_terminal())
+                    .cloned()
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn transition<F>(&self, id: &str, mutator: F) -> std::result::Result<(), TransitionError>
+    where
+        F: FnOnce(&mut SubagentRecord) -> std::result::Result<(), SubagentState>,
+    {
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|e| TransitionError::Unknown(format!("lock poisoned: {e}")))?;
+        let rec = state
+            .records
+            .get_mut(id)
+            .ok_or_else(|| TransitionError::Unknown(id.to_string()))?;
+        let from = rec.state;
+        match mutator(rec) {
+            Ok(()) => {
+                rec.updated_at_unix = now_unix();
+                Ok(())
+            }
+            Err(to) => Err(TransitionError::InvalidTransition {
+                id: id.to_string(),
+                from,
+                to,
+            }),
+        }
     }
 }
 
