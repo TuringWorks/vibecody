@@ -20,15 +20,21 @@
 //!   `paths` field carries every distinct path touched in the window.
 //! - Drops the [`SkillWatcher`] to stop watching.
 //!
-//! Red commit: types + signatures + 6 BDD scenarios. Impl bodies
-//! `todo!()` so tests panic at runtime — TDD red. Green commit fills in
-//! the bodies.
+//! Architecture: a single dispatcher thread sits between `notify`'s raw
+//! event channel and the public batched channel. It buffers every
+//! relevant raw event into a `HashSet<PathBuf>`, restarts a debounce
+//! timer, and flushes the set as one [`SkillEvent::SkillsChanged`]
+//! frame after the configured idle window. Drop semantics: dropping
+//! the [`SkillWatcher`] sets a stop flag and the dispatcher exits its
+//! recv loop after the next deadline.
 
-use std::path::PathBuf;
-use std::sync::mpsc::Receiver;
-use std::time::Duration;
+use std::collections::BTreeSet;
+use std::path::{Path, PathBuf};
+use std::sync::mpsc::{channel, Receiver, RecvTimeoutError};
+use std::time::{Duration, Instant};
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SkillEvent {
@@ -56,13 +62,15 @@ impl Default for SkillWatcherConfig {
 /// The channel returned by [`SkillWatcher::start`] receives debounced
 /// [`SkillEvent`] frames.
 pub struct SkillWatcher {
-    /// Background dispatcher thread join handle. Unused publicly; kept
-    /// alive while the watcher is owned. Joined on drop.
+    /// Background dispatcher thread join handle. Detached on drop —
+    /// the notify watcher's close drives the dispatcher's recv loop
+    /// to return.
     _dispatcher: std::thread::JoinHandle<()>,
-    /// Underlying notify watcher; dropped before `_dispatcher` so the
-    /// raw-event channel closes and the dispatcher exits its recv loop.
-    _inner: Box<dyn std::any::Any + Send>,
-    /// Signal the dispatcher to exit (set on drop).
+    /// Underlying notify watcher; dropped after `_dispatcher` per
+    /// declaration order, but the stop flag short-circuits the
+    /// dispatcher first so neither order produces a deadlock.
+    _inner: RecommendedWatcher,
+    /// Signal the dispatcher to exit (set in [`Drop`]).
     stop_flag: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
@@ -71,11 +79,121 @@ impl SkillWatcher {
     /// (caller holds for its lifetime) and a receiver for batched
     /// events.
     pub fn start(
-        _dir: &std::path::Path,
-        _config: SkillWatcherConfig,
+        dir: &Path,
+        config: SkillWatcherConfig,
     ) -> Result<(Self, Receiver<SkillEvent>)> {
-        todo!("A10: spawn notify watcher + debouncer thread + channel");
+        let (raw_tx, raw_rx) = channel::<notify::Result<Event>>();
+        let mut watcher = notify::recommended_watcher(move |res| {
+            // notify guarantees the channel survives the watcher
+            // dropping it; ignore send errors which only happen after
+            // the dispatcher exits.
+            let _ = raw_tx.send(res);
+        })
+        .context("notify::recommended_watcher")?;
+        watcher
+            .watch(dir, RecursiveMode::NonRecursive)
+            .with_context(|| format!("watch {}", dir.display()))?;
+
+        let (out_tx, out_rx) = channel::<SkillEvent>();
+        let stop_flag = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let stop_flag_thread = stop_flag.clone();
+        let debounce = config.debounce;
+
+        let dispatcher = std::thread::Builder::new()
+            .name("skill-watcher-dispatcher".to_string())
+            .spawn(move || {
+                run_dispatcher(raw_rx, out_tx, debounce, stop_flag_thread);
+            })
+            .context("spawn skill-watcher dispatcher thread")?;
+
+        Ok((
+            Self {
+                _dispatcher: dispatcher,
+                _inner: watcher,
+                stop_flag,
+            },
+            out_rx,
+        ))
     }
+}
+
+/// Pull raw notify events, keep a rolling debounce deadline, and flush
+/// one [`SkillEvent::SkillsChanged`] when the channel idles for the
+/// configured window.
+fn run_dispatcher(
+    raw_rx: std::sync::mpsc::Receiver<notify::Result<Event>>,
+    out_tx: std::sync::mpsc::Sender<SkillEvent>,
+    debounce: Duration,
+    stop_flag: std::sync::Arc<std::sync::atomic::AtomicBool>,
+) {
+    let mut pending: BTreeSet<PathBuf> = BTreeSet::new();
+    let mut deadline: Option<Instant> = None;
+
+    loop {
+        if stop_flag.load(std::sync::atomic::Ordering::SeqCst) {
+            return;
+        }
+
+        let timeout = match deadline {
+            Some(d) => d
+                .checked_duration_since(Instant::now())
+                .unwrap_or(Duration::from_millis(0)),
+            None => Duration::from_millis(100),
+        };
+
+        match raw_rx.recv_timeout(timeout) {
+            Ok(Ok(event)) => {
+                if !is_relevant(&event) {
+                    continue;
+                }
+                for p in event.paths {
+                    if is_markdown(&p) {
+                        pending.insert(p);
+                    }
+                }
+                if !pending.is_empty() {
+                    deadline = Some(Instant::now() + debounce);
+                }
+            }
+            Ok(Err(_)) => {
+                // notify error: keep pumping. Permanent failures
+                // (e.g. inotify limit hit) surface as a closed
+                // channel; the next iteration's Disconnected branch
+                // exits cleanly.
+                continue;
+            }
+            Err(RecvTimeoutError::Timeout) => {
+                // Either the debounce window elapsed (pending is
+                // non-empty → flush) or there's nothing to do (pending
+                // is empty → spin-wait for the stop flag). The
+                // 100ms idle timeout above bounds the latter.
+                if !pending.is_empty()
+                    && deadline.map(|d| Instant::now() >= d).unwrap_or(true)
+                {
+                    let paths = std::mem::take(&mut pending).into_iter().collect();
+                    if out_tx.send(SkillEvent::SkillsChanged { paths }).is_err() {
+                        return;
+                    }
+                    deadline = None;
+                }
+            }
+            Err(RecvTimeoutError::Disconnected) => return,
+        }
+    }
+}
+
+/// Filter notify events to the kinds that change skill content.
+/// Access (read-only stat) and metadata-only events don't matter for
+/// reload semantics; they would otherwise produce noisy frames.
+fn is_relevant(event: &Event) -> bool {
+    matches!(
+        event.kind,
+        EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
+    )
+}
+
+fn is_markdown(p: &Path) -> bool {
+    p.extension().and_then(|e| e.to_str()) == Some("md")
 }
 
 impl Drop for SkillWatcher {
