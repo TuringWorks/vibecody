@@ -161,6 +161,23 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
   const refineRef = useRef<HTMLTextAreaElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
+  // D1.2 — autosave bookkeeping. The daemon assigns a UUID on the
+  // first POST; we hang on to it so subsequent regenerations append
+  // to the same chain rather than spawning a new row each time.
+  // `nextStepIndexRef` is the 0-based index for the *next* successful
+  // generate. Cleared every time the modal opens fresh.
+  // Patent posture: these refs are only read inside discrete event
+  // handlers (regenerate-success, Apply, Cancel/Close) — never on a
+  // timer, never on keystroke. See top-of-file Patent re-audit note.
+  const chainIdRef = useRef<string | null>(null);
+  const nextStepIndexRef = useRef<number>(0);
+  const lastInstructionRef = useRef<string>("");
+  const originalSelectionRef = useRef<string>("");
+  // Track whether the chain has at least one step so we know whether
+  // a Cancel/Close should send a final-state. A length-0 chain (modal
+  // opened but never generated) doesn't need a row at all.
+  const chainStartedRef = useRef<boolean>(false);
+
   // Memoize the classified error so we don't re-classify on every render
   // and so the message + hint stay stable for the aria-live announcer.
   const classifiedError = useMemo(
@@ -180,6 +197,14 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
       setLastDiff("");
       setRefinement("");
       setProviderStatus("unknown");
+      // D1.2 — reset autosave bookkeeping every time the modal opens.
+      // A fresh chain id is allocated by the daemon on the first
+      // successful generate (we omit chain_id on first POST).
+      chainIdRef.current = null;
+      nextStepIndexRef.current = 0;
+      lastInstructionRef.current = "";
+      originalSelectionRef.current = "";
+      chainStartedRef.current = false;
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [open]);
@@ -295,6 +320,63 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
       setExplanation(res.explanation);
       setLastDiff(res.unified_diff);
       setPhase("review");
+
+      // D1.2 — autosave the just-completed step. Fired only after a
+      // successful regenerate (a discrete user-initiated event); never
+      // on idle or on typing. Failures don't surface to the user — the
+      // modal works whether or not the daemon is online.
+      // Patent re-audit: PASS (elements 1–5 unchanged).
+      const stepIndex = nextStepIndexRef.current;
+      const isFirstStep = stepIndex === 0;
+      const stepInstruction = isFirstStep
+        ? instruction.trim()
+        : (lastInstructionRef.current || instruction.trim());
+      if (isFirstStep) {
+        lastInstructionRef.current = stepInstruction;
+        originalSelectionRef.current = selectionText.length > 0
+          ? selectionText
+          : originalContent;
+      }
+      const stepBody = {
+        index: stepIndex,
+        instruction: stepInstruction,
+        refinement: opts.refinement && opts.refinement.trim().length
+          ? opts.refinement.trim()
+          : null,
+        additional_files: additionalFiles.map(f => ({
+          path: f.path,
+          language,
+          content_excerpt: f.content.slice(0, 4_000),
+        })),
+        diff: res.unified_diff,
+        provider,
+        model: res.model_name,
+        tokens_input: 0,
+        tokens_output: 0,
+      };
+      const requestBody = {
+        chain_id: chainIdRef.current,
+        file_path: filePath,
+        language,
+        selection_start: selectionStartLine,
+        selection_end: selectionEndLine,
+        original_text: originalSelectionRef.current,
+        step: stepBody,
+        final_state: null,
+      };
+      void invoke<{ chain_id: string; step_index: number | null }>(
+        "diffcomplete_chain_autosave",
+        { request: requestBody }
+      ).then(out => {
+        if (out?.chain_id) {
+          chainIdRef.current = out.chain_id;
+          chainStartedRef.current = true;
+          nextStepIndexRef.current = stepIndex + 1;
+        }
+      }).catch(() => {
+        // Daemon offline / unreachable — degrade silently. Local edit
+        // flow keeps working; the chain just won't appear in history.
+      });
     } catch (e) {
       setError(String(e));
       setPhase("error");
@@ -312,10 +394,63 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
     await runGenerate({ previousDiff: prevNow, refinement: refineNow });
   }, [refinement, lastDiff, runGenerate]);
 
+  // D1.2 — Best-effort POST a final_state. Used by Apply / Cancel /
+  // modal-close paths. Never throws; the modal's existing UX is
+  // unaffected by autosave failures.
+  const writeFinalState = useCallback(
+    (final: { type: "applied"; applied_step: number; applied_at: string }
+           | { type: "cancelled"; reason: "user_cancel" | "modal_closed" | "error";
+               cancelled_at: string }) => {
+      if (!chainStartedRef.current || !chainIdRef.current) return;
+      const requestBody = {
+        chain_id: chainIdRef.current,
+        file_path: filePath,
+        language,
+        selection_start: selectionStartLine,
+        selection_end: selectionEndLine,
+        original_text: originalSelectionRef.current,
+        step: null,
+        final_state: final,
+      };
+      void invoke("diffcomplete_chain_autosave", { request: requestBody })
+        .catch(() => { /* daemon offline — silent */ });
+    },
+    [filePath, language, selectionStartLine, selectionEndLine]
+  );
+
   const handleReviewApply = useCallback((result: string | null) => {
+    // D1.2 — record Apply as the chain's final state. The
+    // applied_step is whatever was last appended (the step the user
+    // saw + clicked Apply on).
+    if (result !== null) {
+      writeFinalState({
+        type: "applied",
+        applied_step: Math.max(0, nextStepIndexRef.current - 1),
+        applied_at: new Date().toISOString(),
+      });
+    } else {
+      writeFinalState({
+        type: "cancelled",
+        reason: "user_cancel",
+        cancelled_at: new Date().toISOString(),
+      });
+    }
     onApply(result);
     onClose();
-  }, [onApply, onClose]);
+  }, [onApply, onClose, writeFinalState]);
+
+  // D1.2 — Wrap the parent's onClose so any "X" / Esc / outside-click
+  // path also writes a final_state when a chain is in flight. The
+  // modal already calls `onClose` from these spots; we intercept once
+  // and forward.
+  const closeWithFinalState = useCallback(() => {
+    writeFinalState({
+      type: "cancelled",
+      reason: "modal_closed",
+      cancelled_at: new Date().toISOString(),
+    });
+    onClose();
+  }, [onClose, writeFinalState]);
 
   if (!open) return null;
 
@@ -341,14 +476,14 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
       aria-modal="true"
       aria-label="AI edit (diff)"
       onKeyDown={e => {
-        if (e.key === "Escape") { e.preventDefault(); onClose(); return; }
+        if (e.key === "Escape") { e.preventDefault(); closeWithFinalState(); return; }
         if (dialogRef.current) trapFocusInside(dialogRef.current, e);
       }}
       style={{
         position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
         zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center",
       }}
-      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={e => { if (e.target === e.currentTarget) closeWithFinalState(); }}
     >
       {/* Screen-reader-only live region — visually hidden but announced
           on every state change. Keeps blind users in sync with phase
@@ -377,7 +512,7 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
           <button
             className="panel-btn panel-btn-secondary panel-btn-sm"
             style={{ marginLeft: "auto" }}
-            onClick={onClose}
+            onClick={closeWithFinalState}
             aria-label="Close"
           >
             ✕
