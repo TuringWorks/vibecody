@@ -38,6 +38,8 @@ pub mod mcp_streamable;
 pub mod mcp_http;
 pub mod mcts_repair;
 pub mod visual_verify;
+// A9 — cloud-agent session resume protocol.
+pub mod session_resume_protocol;
 pub mod next_task;
 pub mod langgraph_bridge;
 pub mod context_protocol;
