@@ -27,15 +27,19 @@
 //! `manifest.json` bytes — used by `vibecli mcp install <bundle>` to
 //! pin the manifest the user reviewed against subsequent extracts.
 //!
-//! Red commit: types + signatures + 6 BDD scenarios. Impl bodies
-//! `todo!()` so tests panic at runtime — TDD red. Green commit fills
-//! in the bodies.
+//! Implementation note: archive entries are stored without compression
+//! (`CompressionMethod::Stored`) so the manifest digest stays stable
+//! across zip implementations / versions. Bundles are typically tiny
+//! (a few hundred KB) and compression here costs more in
+//! reproducibility than it saves in size.
 
 use std::collections::BTreeMap;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BundleManifest {
@@ -51,27 +55,149 @@ pub struct BundleManifest {
 }
 
 /// Pack `src_dir` (which must contain a `manifest.json`) into an MCPB
-/// archive at `dest_path`. Files are stored without compression so the
-/// digest stays stable across zip implementations.
-pub fn pack_bundle(_src_dir: &Path, _dest_path: &Path) -> Result<BundleManifest> {
-    todo!("A2: read manifest.json, build ZIP archive with all files in src_dir, write to dest_path");
+/// archive at `dest_path`. Returns the parsed manifest for the
+/// caller's convenience (so they don't immediately re-open the bundle).
+pub fn pack_bundle(src_dir: &Path, dest_path: &Path) -> Result<BundleManifest> {
+    let manifest_path = src_dir.join("manifest.json");
+    if !manifest_path.is_file() {
+        return Err(anyhow!(
+            "pack_bundle: manifest.json missing from {}",
+            src_dir.display()
+        ));
+    }
+    let manifest_bytes = std::fs::read(&manifest_path)
+        .with_context(|| format!("read {}", manifest_path.display()))?;
+    let manifest: BundleManifest = serde_json::from_slice(&manifest_bytes)
+        .with_context(|| format!("parse {}", manifest_path.display()))?;
+
+    let f = std::fs::File::create(dest_path)
+        .with_context(|| format!("create {}", dest_path.display()))?;
+    let mut zw = zip::ZipWriter::new(f);
+    let opts: zip::write::SimpleFileOptions = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Stored);
+
+    // Walk src_dir, adding every file. Sort entries by relative path
+    // so the archive layout is deterministic.
+    let entries = walk(src_dir)?;
+    for rel in entries {
+        let abs = src_dir.join(&rel);
+        if !abs.is_file() {
+            continue;
+        }
+        let body = std::fs::read(&abs).with_context(|| format!("read {}", abs.display()))?;
+        let name = rel.to_string_lossy().replace('\\', "/");
+        zw.start_file(name, opts).context("start_file")?;
+        zw.write_all(&body).context("write_all")?;
+    }
+    zw.finish().context("zip finish")?;
+    Ok(manifest)
 }
 
-/// Extract `bundle_path` into `dest_dir` and return the parsed
-/// manifest. `dest_dir` is created if missing.
-pub fn extract_bundle(_bundle_path: &Path, _dest_dir: &Path) -> Result<BundleManifest> {
-    todo!("A2: open ZIP, parse manifest.json, extract every file under dest_dir");
+/// Extract `bundle_path` into `dest_dir` and return the parsed manifest.
+pub fn extract_bundle(bundle_path: &Path, dest_dir: &Path) -> Result<BundleManifest> {
+    let f = std::fs::File::open(bundle_path)
+        .with_context(|| format!("open {}", bundle_path.display()))?;
+    let mut zr = zip::ZipArchive::new(f).context("ZipArchive::new")?;
+
+    std::fs::create_dir_all(dest_dir)
+        .with_context(|| format!("create_dir_all {}", dest_dir.display()))?;
+
+    let mut manifest_bytes: Option<Vec<u8>> = None;
+    for i in 0..zr.len() {
+        let mut entry = zr.by_index(i).context("zip entry")?;
+        let name = entry.name().to_string();
+        let safe = sanitise_archive_path(&name)?;
+        let out_path = dest_dir.join(&safe);
+        if entry.is_dir() {
+            std::fs::create_dir_all(&out_path)
+                .with_context(|| format!("create_dir_all {}", out_path.display()))?;
+            continue;
+        }
+        if let Some(parent) = out_path.parent() {
+            std::fs::create_dir_all(parent)
+                .with_context(|| format!("create_dir_all {}", parent.display()))?;
+        }
+        let mut body = Vec::with_capacity(entry.size() as usize);
+        entry.read_to_end(&mut body).context("read entry")?;
+        if name == "manifest.json" {
+            manifest_bytes = Some(body.clone());
+        }
+        std::fs::write(&out_path, &body)
+            .with_context(|| format!("write {}", out_path.display()))?;
+    }
+
+    let bytes = manifest_bytes
+        .ok_or_else(|| anyhow!("extract_bundle: manifest.json missing from archive"))?;
+    serde_json::from_slice(&bytes).context("parse manifest.json")
 }
 
 /// SHA-256 hex digest of the bundle's `manifest.json` content.
-pub fn compute_manifest_digest(_bundle_path: &Path) -> Result<String> {
-    todo!("A2: open ZIP, read manifest.json, hash bytes, hex-encode");
+pub fn compute_manifest_digest(bundle_path: &Path) -> Result<String> {
+    let f = std::fs::File::open(bundle_path)
+        .with_context(|| format!("open {}", bundle_path.display()))?;
+    let mut zr = zip::ZipArchive::new(f).context("ZipArchive::new")?;
+    let mut entry = zr
+        .by_name("manifest.json")
+        .context("manifest.json not in archive")?;
+    let mut bytes = Vec::with_capacity(entry.size() as usize);
+    entry.read_to_end(&mut bytes).context("read manifest")?;
+    let digest = Sha256::digest(&bytes);
+    Ok(format!("{:x}", digest))
 }
 
-/// List the entries in a bundle without extracting (for inspection /
-/// install preview UX).
-pub fn list_bundle_entries(_bundle_path: &Path) -> Result<Vec<PathBuf>> {
-    todo!("A2: open ZIP, return entry names sorted");
+/// List entries in a bundle without extracting.
+pub fn list_bundle_entries(bundle_path: &Path) -> Result<Vec<PathBuf>> {
+    let f = std::fs::File::open(bundle_path)
+        .with_context(|| format!("open {}", bundle_path.display()))?;
+    let mut zr = zip::ZipArchive::new(f).context("ZipArchive::new")?;
+    let mut out: Vec<PathBuf> = Vec::with_capacity(zr.len());
+    for i in 0..zr.len() {
+        let entry = zr.by_index(i).context("zip entry")?;
+        out.push(PathBuf::from(entry.name()));
+    }
+    out.sort();
+    Ok(out)
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+fn walk(dir: &Path) -> Result<Vec<PathBuf>> {
+    let mut out: Vec<PathBuf> = Vec::new();
+    walk_inner(dir, dir, &mut out)?;
+    out.sort();
+    Ok(out)
+}
+
+fn walk_inner(root: &Path, dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
+    for entry in std::fs::read_dir(dir).with_context(|| format!("read_dir {}", dir.display()))? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            walk_inner(root, &path, out)?;
+        } else {
+            let rel = path.strip_prefix(root).unwrap_or(&path);
+            out.push(rel.to_path_buf());
+        }
+    }
+    Ok(())
+}
+
+/// Reject zip-slip style paths (`../`, absolute paths). Returns the
+/// path unchanged if safe.
+fn sanitise_archive_path(name: &str) -> Result<PathBuf> {
+    let p = PathBuf::from(name);
+    for comp in p.components() {
+        match comp {
+            std::path::Component::ParentDir => {
+                return Err(anyhow!("archive entry contains '..': {}", name));
+            }
+            std::path::Component::RootDir | std::path::Component::Prefix(_) => {
+                return Err(anyhow!("archive entry is absolute: {}", name));
+            }
+            _ => {}
+        }
+    }
+    Ok(p)
 }
 
 #[cfg(test)]
