@@ -36,6 +36,8 @@ pub mod rlcef_loop;
 pub mod sketch_canvas;
 pub mod mcp_streamable;
 pub mod mcp_http;
+// A5 — async subagent state machine.
+pub mod async_subagent;
 pub mod mcts_repair;
 pub mod visual_verify;
 pub mod next_task;
