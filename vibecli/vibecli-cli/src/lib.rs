@@ -322,6 +322,7 @@ pub mod image_gen_agent;
 pub mod inference;
 pub mod inference_routes;
 pub mod inference_server;
+pub mod skill_catalog;
 pub mod v1_messages;
 pub mod infinite_context;
 pub mod jetbrains_hooks;
