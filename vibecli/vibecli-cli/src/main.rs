@@ -126,6 +126,7 @@ mod syntax;
 mod diff_viewer;
 mod tool_executor;
 mod memory;
+mod workspace_roots;
 mod memory_recorder;
 mod context_assembler;
 mod memory_projections;
