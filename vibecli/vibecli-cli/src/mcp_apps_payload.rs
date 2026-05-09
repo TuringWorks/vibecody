@@ -23,11 +23,16 @@
 //! follow-up tracked separately — keeping the two halves independent
 //! lets either one ship first without blocking the other.
 //!
-//! Red commit: types + signatures + 6 BDD scenarios. Impl bodies
-//! `todo!()` so tests panic at runtime — TDD red. Green commit fills
-//! in the bodies.
+//! Validation rules:
+//!   - `type` must equal `"mcp.app"` exactly
+//!   - non-empty `title` and `component`
+//!   - action ids must be unique within the payload
+//!   - CSP `allowScript` cannot contain `"*"` — the gate would be a
+//!     pure ceremony and we'd rather error than mislead operators
 
-use anyhow::Result;
+use std::collections::HashSet;
+
+use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 
 pub const MIME_TYPE: &str = "application/vnd.mcp.app+json";
@@ -68,15 +73,43 @@ pub struct McpAppCsp {
 
 /// Parse a raw byte string carrying `application/vnd.mcp.app+json`.
 /// Returns the typed payload or an error explaining why it was rejected.
-pub fn parse(_bytes: &[u8]) -> Result<McpAppPayload> {
-    todo!("A1: serde_json::from_slice into McpAppPayload, then validate()");
+pub fn parse(bytes: &[u8]) -> Result<McpAppPayload> {
+    let payload: McpAppPayload =
+        serde_json::from_slice(bytes).context("parse MCP Apps JSON")?;
+    validate(&payload)?;
+    Ok(payload)
 }
 
-/// Validate a parsed payload. Catches missing required fields, wrong
-/// `type`, and CSP shapes that are obviously malformed (e.g.
-/// `allowScript` containing `"*"` which would defeat the gate).
-pub fn validate(_payload: &McpAppPayload) -> Result<()> {
-    todo!("A1: enforce kind == APP_TYPE, non-empty title/component, action ids unique, CSP wildcards rejected");
+/// Validate a parsed payload.
+pub fn validate(payload: &McpAppPayload) -> Result<()> {
+    if payload.kind != APP_TYPE {
+        return Err(anyhow!(
+            "type must be \"{APP_TYPE}\", got \"{}\"",
+            payload.kind
+        ));
+    }
+    if payload.title.trim().is_empty() {
+        return Err(anyhow!("title must not be empty"));
+    }
+    if payload.component.trim().is_empty() {
+        return Err(anyhow!("component must not be empty"));
+    }
+    let mut seen: HashSet<&str> = HashSet::new();
+    for action in &payload.actions {
+        if !seen.insert(action.id.as_str()) {
+            return Err(anyhow!("duplicate action id: {}", action.id));
+        }
+    }
+    if let Some(csp) = &payload.csp {
+        for src in &csp.allow_script {
+            if src.trim() == "*" {
+                return Err(anyhow!(
+                    "CSP allowScript cannot contain wildcard \"*\""
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
