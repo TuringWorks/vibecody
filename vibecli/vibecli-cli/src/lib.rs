@@ -168,6 +168,8 @@ pub mod cursor_overlay;
 pub mod plugin_marketplace;
 // MemPalace techniques — LongMemEval benchmark
 pub mod open_memory;
+// A10 — skills hot-reload watcher (companion to B1 SkillCatalog).
+pub mod skill_watcher;
 // Memory-as-infrastructure redesign — Phase 2: single context assembler
 // (depends on memory, workflow_orchestration, project_init below).
 pub mod memory;
