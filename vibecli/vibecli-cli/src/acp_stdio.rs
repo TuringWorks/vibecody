@@ -30,9 +30,9 @@
 //!     with `MethodNotImplemented` (-32601 with a clear message) so
 //!     hosts can surface the partial-implementation state honestly.
 //!
-//! Red commit: types + signatures + 5 BDD scenarios. Impl bodies
-//! `todo!()` so tests panic at runtime — TDD red. Green commit fills in
-//! the bodies.
+//! State is held in `Arc<Mutex<…>>` so handlers can be cloned without
+//! lifetime gymnastics. Sessions are in-memory for this slice; persistence
+//! ties into [`crate::session_store`] in a follow-up.
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
@@ -153,37 +153,141 @@ impl AcpServer {
     /// always return a response. Parse errors are the caller's
     /// responsibility (see [`parse_request`]).
     pub fn dispatch(&self, req: AcpRequest) -> Result<Option<AcpResponse>> {
-        let _ = req;
-        todo!("A4: route method → handler, build AcpResponse for requests, None for notifications");
+        // Notifications carry no id and expect no reply (per JSON-RPC 2.0
+        // §4.1). The handler still runs for side effects, but we drop
+        // the response.
+        let id = match req.id.clone() {
+            Some(id) => id,
+            None => {
+                let _ = self.run_method(&req.method, req.params);
+                return Ok(None);
+            }
+        };
+
+        let result = match self.run_method(&req.method, req.params) {
+            Ok(value) => AcpResponse::ok(id, value),
+            Err(handler_err) => match handler_err {
+                HandlerError::MethodNotFound => {
+                    AcpResponse::err(id, errors::METHOD_NOT_FOUND, format!("Method not found: {}", req.method))
+                }
+                HandlerError::MethodNotImplemented(msg) => {
+                    AcpResponse::err(id, errors::METHOD_NOT_IMPLEMENTED, msg)
+                }
+                HandlerError::SessionNotFound(sid) => AcpResponse::err(
+                    id,
+                    errors::SESSION_NOT_FOUND,
+                    format!("Session not found: {sid}"),
+                ),
+                HandlerError::InvalidParams(msg) => {
+                    AcpResponse::err(id, errors::INVALID_PARAMS, msg)
+                }
+                HandlerError::Internal(msg) => {
+                    AcpResponse::err(id, errors::INTERNAL_ERROR, msg)
+                }
+            },
+        };
+        Ok(Some(result))
+    }
+
+    fn run_method(&self, method: &str, params: Option<Value>) -> std::result::Result<Value, HandlerError> {
+        match method {
+            "initialize" => self.handle_initialize(params),
+            "authenticate" => self.handle_authenticate(params),
+            "newSession" => self.handle_new_session(params),
+            "loadSession" => self.handle_load_session(params),
+            "cancel" => self.handle_cancel(params),
+            // Methods we know about but haven't shipped yet — surface
+            // partial-implementation honestly so the host doesn't think
+            // a network error happened.
+            "prompt" | "setSessionMode" => Err(HandlerError::MethodNotImplemented(format!(
+                "ACP method '{method}' is recognised but not yet implemented in this build"
+            ))),
+            _ => Err(HandlerError::MethodNotFound),
+        }
     }
 
     /// `initialize` handshake — server advertises its capabilities.
-    pub fn handle_initialize(&self, _params: Option<Value>) -> Result<Value> {
-        todo!("A4: return protocolVersion + agentCapabilities + serverInfo");
+    pub fn handle_initialize(&self, _params: Option<Value>) -> std::result::Result<Value, HandlerError> {
+        Ok(json!({
+            "protocolVersion": ACP_PROTOCOL_VERSION,
+            "agentCapabilities": {
+                "loadSession": true,
+                "promptCapabilities": {
+                    "image": false,
+                    "audio": false,
+                    "embeddedContext": true,
+                },
+                "mcpCapabilities": {
+                    "http": true,
+                    "sse": true,
+                },
+            },
+            "serverInfo": {
+                "name": "vibecli",
+                "version": env!("CARGO_PKG_VERSION"),
+            }
+        }))
     }
 
     /// `authenticate` — VibeCLI requires no auth; advertise so hosts
     /// can skip the prompt.
-    pub fn handle_authenticate(&self, _params: Option<Value>) -> Result<Value> {
-        todo!("A4: return { authenticated: true } stub");
+    pub fn handle_authenticate(&self, _params: Option<Value>) -> std::result::Result<Value, HandlerError> {
+        Ok(json!({ "authenticated": true }))
     }
 
     /// `newSession` — create a new session and return its id.
-    pub fn handle_new_session(&self, _params: Option<Value>) -> Result<Value> {
-        todo!("A4: insert into sessions, return { sessionId: ... }");
+    pub fn handle_new_session(&self, _params: Option<Value>) -> std::result::Result<Value, HandlerError> {
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|e| HandlerError::Internal(format!("session lock poisoned: {e}")))?;
+        state.next_session_seq += 1;
+        let id = format!("vibecli-acp-{:016x}", state.next_session_seq);
+        state.sessions.insert(
+            id.clone(),
+            AcpSession {
+                id: id.clone(),
+                mode: "default".to_string(),
+            },
+        );
+        Ok(json!({ "sessionId": id }))
     }
 
     /// `loadSession` — return existing session or SESSION_NOT_FOUND.
-    pub fn handle_load_session(&self, _params: Option<Value>) -> Result<Value> {
-        todo!("A4: lookup session id, error if missing");
+    pub fn handle_load_session(&self, params: Option<Value>) -> std::result::Result<Value, HandlerError> {
+        let sid = params
+            .as_ref()
+            .and_then(|p| p.get("sessionId"))
+            .and_then(|s| s.as_str())
+            .ok_or_else(|| HandlerError::InvalidParams("loadSession requires sessionId".into()))?
+            .to_string();
+        let state = self
+            .state
+            .lock()
+            .map_err(|e| HandlerError::Internal(format!("session lock poisoned: {e}")))?;
+        if !state.sessions.contains_key(&sid) {
+            return Err(HandlerError::SessionNotFound(sid));
+        }
+        Ok(json!({ "sessionId": sid }))
     }
 
     /// `cancel` — best-effort cancel for an in-flight prompt. Stub
     /// returns success; the prompt slice will hook this into the agent
     /// loop's cancellation token.
-    pub fn handle_cancel(&self, _params: Option<Value>) -> Result<Value> {
-        todo!("A4: ack the cancel; full hookup arrives with prompt");
+    pub fn handle_cancel(&self, _params: Option<Value>) -> std::result::Result<Value, HandlerError> {
+        Ok(json!({ "cancelled": true }))
     }
+}
+
+/// Internal handler error — translated into a JSON-RPC error envelope
+/// at the dispatch boundary.
+#[derive(Debug)]
+pub enum HandlerError {
+    MethodNotFound,
+    MethodNotImplemented(String),
+    SessionNotFound(String),
+    InvalidParams(String),
+    Internal(String),
 }
 
 /// Parse a single JSON-RPC line from stdin. Returns the typed envelope
