@@ -7,11 +7,10 @@
 //! roots, which root it belongs to, and what permission tier the root
 //! carries.
 //!
-//! Red commit: types + signatures + 6 BDD scenarios. Impl bodies
-//! `todo!()` so tests panic at runtime — TDD red. Green commit fills
-//! in the bodies.
+//! Path normalisation collapses `.` and `..` without touching the
+//! filesystem — defensive against `add_dir + ../../etc/passwd` probes.
 
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
@@ -51,8 +50,12 @@ impl std::fmt::Display for ResolveError {
 impl std::error::Error for ResolveError {}
 
 impl WorkspaceRoots {
-    pub fn new(_roots: Vec<WorkspaceRoot>) -> Self {
-        todo!("A6: sort roots by path length descending so longest-prefix wins");
+    pub fn new(roots: Vec<WorkspaceRoot>) -> Self {
+        // Sort by path length descending so longest-prefix wins for
+        // nested roots.
+        let mut roots = roots;
+        roots.sort_by(|a, b| b.path.as_os_str().len().cmp(&a.path.as_os_str().len()));
+        Self { roots }
     }
     pub fn len(&self) -> usize {
         self.roots.len()
@@ -63,15 +66,40 @@ impl WorkspaceRoots {
     pub fn all(&self) -> &[WorkspaceRoot] {
         &self.roots
     }
-    pub fn resolve(&self, _path: &Path) -> Result<&WorkspaceRoot, ResolveError> {
-        todo!("A6: normalise path, find longest-prefix root, return OutOfScope on miss");
+    pub fn resolve(&self, path: &Path) -> Result<&WorkspaceRoot, ResolveError> {
+        let normalised = normalise(path);
+        for root in &self.roots {
+            let root_n = normalise(&root.path);
+            if normalised.starts_with(&root_n) {
+                return Ok(root);
+            }
+        }
+        Err(ResolveError::OutOfScope(path.to_path_buf()))
     }
-    pub fn check_write(&self, _path: &Path) -> Result<(), ResolveError> {
-        todo!("A6: resolve + reject when root is ReadOnly");
+    pub fn check_write(&self, path: &Path) -> Result<(), ResolveError> {
+        let root = self.resolve(path)?;
+        match root.permission {
+            WorkspaceRootPermission::ReadWrite => Ok(()),
+            WorkspaceRootPermission::ReadOnly => Err(ResolveError::ReadOnly(root.path.clone())),
+        }
     }
-    pub fn check_read(&self, _path: &Path) -> Result<(), ResolveError> {
-        todo!("A6: resolve, succeed if any root matches");
+    pub fn check_read(&self, path: &Path) -> Result<(), ResolveError> {
+        self.resolve(path).map(|_| ())
     }
+}
+
+fn normalise(p: &Path) -> PathBuf {
+    let mut out = PathBuf::new();
+    for comp in p.components() {
+        match comp {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                let _ = out.pop();
+            }
+            other => out.push(other.as_os_str()),
+        }
+    }
+    out
 }
 
 #[cfg(test)]
