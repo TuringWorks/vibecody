@@ -183,6 +183,10 @@ pub mod recap;
 // Recap & Resume — Phase F1.3 resume surface (in-memory handle registry
 // + pure helpers consumed by the /v1/resume routes in serve.rs).
 pub mod resume;
+// Recap & Resume — Phase D1.1: diffcomplete chain types + encrypted
+// store on workspace.db. Patent re-audit: PASS (1–5 unchanged).
+pub mod diff_chain;
+pub mod diff_chain_store;
 pub mod mem_benchmark;
 // FIT-GAP v11 — Phase 48: P3 Gaps (closed)
 pub mod token_dashboard;
