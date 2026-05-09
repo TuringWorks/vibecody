@@ -36,6 +36,8 @@ pub mod rlcef_loop;
 pub mod sketch_canvas;
 pub mod mcp_streamable;
 pub mod mcp_http;
+// A1 — MCP Apps payload parser/validator (SEP-1865).
+pub mod mcp_apps_payload;
 pub mod mcts_repair;
 pub mod visual_verify;
 pub mod next_task;
