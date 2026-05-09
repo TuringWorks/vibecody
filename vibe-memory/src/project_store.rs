@@ -8,7 +8,7 @@ use crate::{
 use rusqlite::{params, Connection};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::Mutex;
 use tracing::{debug, info};
 
 pub struct ProjectMemStore {
@@ -17,7 +17,7 @@ pub struct ProjectMemStore {
 
 struct Inner {
     path: PathBuf,
-    conn: RwLock<Connection>,
+    conn: Mutex<Connection>,
     ext_manager: ExtensionManager,
 }
 
@@ -35,7 +35,7 @@ impl ProjectMemStore {
         Ok(Self {
             inner: Arc::new(Inner {
                 path: db_path,
-                conn: RwLock::new(conn),
+                conn: Mutex::new(conn),
                 ext_manager,
             }),
         })
@@ -50,7 +50,7 @@ impl ProjectMemStore {
         let sector = classify_sector(content);
         let entry = self.create_entry(content, sector.as_str(), meta.pinned, meta.tags, meta.project_id, meta.session_id, None)?;
         
-        let conn = self.inner.conn.write().await;
+        let conn = self.inner.conn.lock().await;
         conn.execute(
             r#"INSERT INTO memory_entries (id, content, content_text, sector, salience, decay_lambda, 
                created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding)
@@ -72,7 +72,7 @@ impl ProjectMemStore {
     pub async fn store_with_sector(&self, content: &str, sector: &str) -> Result<MemoryEntry> {
         let entry = self.create_entry(content, sector, false, vec![], None, None, None)?;
         
-        let conn = self.inner.conn.write().await;
+        let conn = self.inner.conn.lock().await;
         conn.execute(
             r#"INSERT INTO memory_entries (id, content, content_text, sector, salience, decay_lambda, 
                created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding)
@@ -94,7 +94,7 @@ impl ProjectMemStore {
         let expires_at = epoch_secs() + ttl_seconds as i64;
         let entry = self.create_entry(content, "episodic", false, vec![], None, None, Some(expires_at))?;
         
-        let conn = self.inner.conn.write().await;
+        let conn = self.inner.conn.lock().await;
         conn.execute(
             r#"INSERT INTO memory_entries (id, content, content_text, sector, salience, decay_lambda, 
                created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding)
@@ -115,7 +115,7 @@ impl ProjectMemStore {
     pub async fn search(&self, query: &str, top_k: usize, min_score: Option<f64>) -> Result<Vec<SearchResult>> {
         let query_embedding = self.generate_embedding(query);
         
-        let conn = self.inner.conn.read().await;
+        let conn = self.inner.conn.lock().await;
         let mut stmt = conn.prepare(
             "SELECT id, content, sector, salience, tags, embedding FROM memory_entries ORDER BY created_at DESC LIMIT 100"
         ).map_err(MemoryError::Sqlite)?;
@@ -177,7 +177,7 @@ impl ProjectMemStore {
     }
 
     pub async fn get(&self, id: &str) -> Result<Option<MemoryEntry>> {
-        let conn = self.inner.conn.read().await;
+        let conn = self.inner.conn.lock().await;
         let result = conn.query_row(
             "SELECT id, content, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding FROM memory_entries WHERE id = ?1",
             params![id],
@@ -192,14 +192,14 @@ impl ProjectMemStore {
     }
 
     pub async fn delete(&self, id: &str) -> Result<()> {
-        let conn = self.inner.conn.write().await;
+        let conn = self.inner.conn.lock().await;
         conn.execute("DELETE FROM memory_entries WHERE id = ?1", params![id]).map_err(MemoryError::Sqlite)?;
         debug!("Deleted memory entry: {}", id);
         Ok(())
     }
 
     pub async fn list(&self, sector: Option<&str>, limit: Option<usize>) -> Result<Vec<MemoryEntry>> {
-        let conn = self.inner.conn.read().await;
+        let conn = self.inner.conn.lock().await;
         
         let sql = match (sector, limit) {
             (Some(s), Some(l)) => format!("SELECT id, content, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding FROM memory_entries WHERE sector = '{}' ORDER BY created_at DESC LIMIT {}", s, l),
@@ -214,7 +214,7 @@ impl ProjectMemStore {
     }
 
     pub async fn add_waypoint(&self, src_id: &str, dst_id: &str, weight: f64) -> Result<()> {
-        let conn = self.inner.conn.write().await;
+        let conn = self.inner.conn.lock().await;
         let id = generate_id();
         let now = epoch_secs();
         conn.execute("INSERT INTO waypoints (id, src_id, dst_id, weight, cross_project, created_at) VALUES (?1, ?2, ?3, ?4, 0, ?5)", params![id, src_id, dst_id, weight, now]).map_err(MemoryError::Sqlite)?;
@@ -222,7 +222,7 @@ impl ProjectMemStore {
     }
 
     pub async fn add_waypoint_cross_project(&self, src_id: &str, dst_id: &str, weight: f64) -> Result<()> {
-        let conn = self.inner.conn.write().await;
+        let conn = self.inner.conn.lock().await;
         let id = generate_id();
         let now = epoch_secs();
         conn.execute("INSERT INTO waypoints (id, src_id, dst_id, weight, cross_project, created_at) VALUES (?1, ?2, ?3, ?4, 1, ?5)", params![id, src_id, dst_id, weight, now]).map_err(MemoryError::Sqlite)?;
@@ -230,7 +230,7 @@ impl ProjectMemStore {
     }
 
     pub async fn get_waypoints(&self, src_id: &str) -> Result<Vec<Waypoint>> {
-        let conn = self.inner.conn.read().await;
+        let conn = self.inner.conn.lock().await;
         let mut stmt = conn.prepare("SELECT id, src_id, dst_id, weight, cross_project, created_at FROM waypoints WHERE src_id = ?1").map_err(MemoryError::Sqlite)?;
         let rows = stmt.query_map(params![src_id], |row| {
             Ok(Waypoint { id: row.get(0)?, src_id: row.get(1)?, dst_id: row.get(2)?, weight: row.get(3)?, cross_project: row.get::<_, i32>(4)? != 0, created_at: row.get(5)? })
@@ -240,7 +240,7 @@ impl ProjectMemStore {
 
     pub async fn apply_decay(&self) -> Result<usize> {
         let now = epoch_secs();
-        let conn = self.inner.conn.write().await;
+        let conn = self.inner.conn.lock().await;
         let mut stmt = conn.prepare("SELECT id, salience, decay_lambda, created_at, pinned FROM memory_entries").map_err(MemoryError::Sqlite)?;
         let rows: Vec<(String, f64, f64, i64, bool)> = stmt.query_map([], |row| {
             Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get::<_, i32>(4)? != 0))
@@ -261,27 +261,27 @@ impl ProjectMemStore {
     }
 
     pub async fn purge(&self, threshold: f64) -> Result<usize> {
-        let conn = self.inner.conn.write().await;
+        let conn = self.inner.conn.lock().await;
         let purged = conn.execute("DELETE FROM memory_entries WHERE salience < ?1 AND pinned = 0", params![threshold]).map_err(MemoryError::Sqlite)?;
         debug!("Purged {} entries below threshold {}", purged, threshold);
         Ok(purged as usize)
     }
 
     pub async fn backdate(&self, id: &str, timestamp: i64) -> Result<()> {
-        let conn = self.inner.conn.write().await;
+        let conn = self.inner.conn.lock().await;
         conn.execute("UPDATE memory_entries SET created_at = ?1, updated_at = ?1 WHERE id = ?2", params![timestamp, id]).map_err(MemoryError::Sqlite)?;
         Ok(())
     }
 
     pub async fn cleanup_expired(&self) -> Result<usize> {
         let now = epoch_secs();
-        let conn = self.inner.conn.write().await;
+        let conn = self.inner.conn.lock().await;
         let purged = conn.execute("DELETE FROM memory_entries WHERE ttl_expires_at IS NOT NULL AND ttl_expires_at < ?1", params![now]).map_err(MemoryError::Sqlite)?;
         Ok(purged as usize)
     }
 
     pub async fn clear(&self) -> Result<usize> {
-        let conn = self.inner.conn.write().await;
+        let conn = self.inner.conn.lock().await;
         let count = conn.execute("DELETE FROM memory_entries", []).map_err(MemoryError::Sqlite)?;
         debug!("Cleared {} entries", count);
         Ok(count as usize)
