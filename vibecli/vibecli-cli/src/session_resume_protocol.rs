@@ -22,12 +22,18 @@
 //! shipped under B6 (PR #14). One curve across the daemon keeps key
 //! management coherent.
 //!
-//! Red commit: types + signatures + 6 BDD scenarios. Impl bodies
-//! `todo!()` so tests panic at runtime — TDD red. Green commit fills
-//! in the bodies.
+//! Canonical bytes signed = JSON object with the `signature` field
+//! omitted, keys sorted lexicographically. The receiver re-derives
+//! these bytes deterministically before ECDSA-verify.
 
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
+use base64::Engine;
+use p256::ecdsa::{
+    signature::{Signer, Verifier},
+    Signature, SigningKey, VerifyingKey,
+};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 pub const PROTOCOL_VERSION: u32 = 1;
 /// Default validity window — 5 minutes from issue. Mobile/watch
@@ -77,29 +83,110 @@ impl std::error::Error for VerifyError {}
 
 /// Sign a handoff envelope. Mutates the supplied envelope to populate
 /// `signature` over the canonical JSON of every other field.
-pub fn sign_handoff(_envelope: &mut ResumeHandoff, _signing_key_bytes: &[u8]) -> Result<()> {
-    todo!("A9: canonical-JSON minus signature, SHA-256, ECDSA-sign with P-256, base64url");
+pub fn sign_handoff(envelope: &mut ResumeHandoff, signing_key_bytes: &[u8]) -> Result<()> {
+    let signing_key = SigningKey::from_slice(signing_key_bytes)
+        .context("sign: signing_key_bytes not a valid P-256 secret")?;
+    let canonical = canonical_unsigned_bytes(envelope)?;
+    let digest = Sha256::digest(&canonical);
+    let sig: Signature = signing_key.sign(&digest);
+    envelope.signature = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(sig.to_bytes());
+    Ok(())
 }
 
 /// Verify the envelope: structural fields, time window, and signature.
 /// `now_unix` is passed explicitly so tests don't depend on wall clock.
 pub fn verify_handoff(
-    _envelope: &ResumeHandoff,
-    _public_key_sec1: &[u8],
-    _now_unix: u64,
+    envelope: &ResumeHandoff,
+    public_key_sec1: &[u8],
+    now_unix: u64,
 ) -> std::result::Result<(), VerifyError> {
-    todo!("A9: version, time window, non-empty fields, base64url decode, ECDSA verify");
+    if envelope.v != PROTOCOL_VERSION {
+        return Err(VerifyError::UnsupportedVersion(envelope.v));
+    }
+    if envelope.session_id.trim().is_empty() {
+        return Err(VerifyError::EmptyField("sessionId"));
+    }
+    if envelope.host_url.trim().is_empty() {
+        return Err(VerifyError::EmptyField("hostUrl"));
+    }
+    if envelope.nonce.trim().is_empty() {
+        return Err(VerifyError::EmptyField("nonce"));
+    }
+    if now_unix < envelope.issued_at {
+        return Err(VerifyError::NotYetValid {
+            now: now_unix,
+            issued_at: envelope.issued_at,
+        });
+    }
+    if now_unix > envelope.expires_at {
+        return Err(VerifyError::Expired {
+            now: now_unix,
+            expires_at: envelope.expires_at,
+        });
+    }
+    let sig_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(envelope.signature.as_bytes())
+        .map_err(|e| VerifyError::BadSignatureEncoding(e.to_string()))?;
+    let signature = Signature::from_slice(&sig_bytes)
+        .map_err(|e| VerifyError::BadSignatureEncoding(e.to_string()))?;
+    let verifying_key = VerifyingKey::from_sec1_bytes(public_key_sec1)
+        .map_err(|e| VerifyError::BadSignatureEncoding(format!("public key: {e}")))?;
+    let canonical = canonical_unsigned_bytes(envelope)
+        .map_err(|e| VerifyError::BadSignatureEncoding(e.to_string()))?;
+    let digest = Sha256::digest(&canonical);
+    verifying_key
+        .verify(&digest, &signature)
+        .map_err(|_| VerifyError::SignatureMismatch)
 }
 
 /// Helper for callers that want a fresh handoff with sane defaults.
 pub fn build_handoff(
-    _session_id: &str,
-    _host_url: &str,
-    _issued_at_unix: u64,
-    _ttl_secs: u64,
-    _nonce_b64url: String,
+    session_id: &str,
+    host_url: &str,
+    issued_at_unix: u64,
+    ttl_secs: u64,
+    nonce_b64url: String,
 ) -> ResumeHandoff {
-    todo!("A9: assemble ResumeHandoff with empty signature, caller signs");
+    ResumeHandoff {
+        v: PROTOCOL_VERSION,
+        session_id: session_id.to_string(),
+        host_url: host_url.to_string(),
+        issued_at: issued_at_unix,
+        expires_at: issued_at_unix + ttl_secs,
+        nonce: nonce_b64url,
+        signature: String::new(),
+    }
+}
+
+/// Canonical JSON bytes of the envelope with `signature` zeroed out
+/// before signing. Sorted-key serialization makes the input
+/// deterministic across platforms.
+fn canonical_unsigned_bytes(envelope: &ResumeHandoff) -> Result<Vec<u8>> {
+    let mut e = envelope.clone();
+    e.signature = String::new();
+    let v = serde_json::to_value(&e).context("serialize handoff")?;
+    let sorted = sort_value(v);
+    serde_json::to_vec(&sorted)
+        .map_err(|e| anyhow!("emit canonical bytes: {e}"))
+}
+
+fn sort_value(v: serde_json::Value) -> serde_json::Value {
+    match v {
+        serde_json::Value::Object(map) => {
+            let mut entries: Vec<(String, serde_json::Value)> =
+                map.into_iter().map(|(k, v)| (k, sort_value(v))).collect();
+            entries.sort_by(|a, b| a.0.cmp(&b.0));
+            let mut out = serde_json::Map::with_capacity(entries.len());
+            for (k, v) in entries {
+                out.insert(k, v);
+            }
+            serde_json::Value::Object(out)
+        }
+        serde_json::Value::Array(items) => {
+            serde_json::Value::Array(items.into_iter().map(sort_value).collect())
+        }
+        other => other,
+    }
 }
 
 #[cfg(test)]
