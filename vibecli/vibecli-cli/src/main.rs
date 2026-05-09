@@ -2477,6 +2477,12 @@ mod recap;
 // Recap & Resume — Phase F1.3 resume routes (in-memory handle registry).
 #[allow(dead_code)]
 mod resume;
+// Recap & Resume — Phase D1.1: diffcomplete chain types + encrypted
+// store on workspace.db. Patent re-audit: PASS (1–5 unchanged).
+#[allow(dead_code)]
+mod diff_chain;
+#[allow(dead_code)]
+mod diff_chain_store;
 #[allow(dead_code)]
 mod vulnerability_db;
 #[allow(dead_code)]
