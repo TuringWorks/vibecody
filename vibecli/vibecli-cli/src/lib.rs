@@ -168,6 +168,8 @@ pub mod cursor_overlay;
 pub mod plugin_marketplace;
 // MemPalace techniques — LongMemEval benchmark
 pub mod open_memory;
+// A4 — ACP server mode (Zed/JetBrains/Neovim, JSON-RPC over stdio).
+pub mod acp_stdio;
 // Memory-as-infrastructure redesign — Phase 2: single context assembler
 // (depends on memory, workflow_orchestration, project_init below).
 pub mod memory;
