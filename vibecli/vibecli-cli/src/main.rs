@@ -126,6 +126,7 @@ mod syntax;
 mod diff_viewer;
 mod tool_executor;
 mod memory;
+mod mcp_well_known;
 mod memory_recorder;
 mod context_assembler;
 mod memory_projections;

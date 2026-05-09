@@ -36,6 +36,8 @@ pub mod rlcef_loop;
 pub mod sketch_canvas;
 pub mod mcp_streamable;
 pub mod mcp_http;
+// A3 — /.well-known/mcp.json capability discovery.
+pub mod mcp_well_known;
 pub mod mcts_repair;
 pub mod visual_verify;
 pub mod next_task;
