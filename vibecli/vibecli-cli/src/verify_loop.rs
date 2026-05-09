@@ -13,9 +13,17 @@
 //! ships only the bounded-loop scaffold so it can be unit-tested
 //! independently.
 //!
-//! Red commit: types + signatures + 5 BDD scenarios. Impl bodies
-//! `todo!()` so tests panic at runtime — TDD red. Green commit fills
-//! in the bodies.
+//! Loop shape:
+//!
+//!   loop iteration 1..=max:
+//!     verdict = verify(candidate)
+//!     if Pass:                           → Success
+//!     if iteration == max:               → MaxIterations(diag)
+//!     repair_outcome = repair(candidate, diag)
+//!     if Cancelled:                      → Cancelled
+//!     candidate = repair_outcome
+//!
+//! Errors from verify or repair propagate as `anyhow::Error`.
 
 use anyhow::Result;
 
@@ -65,16 +73,53 @@ impl Default for LoopConfig {
 /// failing diagnostic, producing a new candidate, and the next
 /// iteration begins.
 pub fn run_loop<T, V, R>(
-    _initial: T,
-    _config: &LoopConfig,
-    _verify: V,
-    _repair: R,
+    initial: T,
+    config: &LoopConfig,
+    verify: V,
+    mut repair: R,
 ) -> Result<Outcome<T>>
 where
     V: Fn(&T) -> Result<Verdict>,
     R: FnMut(&T, &str) -> Result<RepairOutcome<T>>,
 {
-    todo!("A8: loop verify → repair, cap at max_iterations, surface MaxIterations / Cancelled cleanly");
+    let max = config.max_iterations.max(1);
+    let mut candidate = initial;
+    let mut iterations_used = 0usize;
+    let mut last_diagnostic = String::new();
+
+    loop {
+        iterations_used += 1;
+        let verdict = verify(&candidate)?;
+        match verdict {
+            Verdict::Pass => {
+                return Ok(Outcome::Success {
+                    candidate,
+                    iterations_used,
+                });
+            }
+            Verdict::Fail(d) => {
+                last_diagnostic = d;
+            }
+        }
+        if iterations_used >= max {
+            return Ok(Outcome::MaxIterations {
+                candidate,
+                last_diagnostic,
+                iterations_used,
+            });
+        }
+        match repair(&candidate, &last_diagnostic)? {
+            RepairOutcome::Updated(next) => {
+                candidate = next;
+            }
+            RepairOutcome::Cancelled(c) => {
+                return Ok(Outcome::Cancelled {
+                    candidate: c,
+                    iterations_used,
+                });
+            }
+        }
+    }
 }
 
 /// What the repair function returned.
