@@ -1122,6 +1122,14 @@ pub fn run() {
             commands::workspace_secret_get,
             commands::workspace_secret_delete,
             commands::workspace_secret_list,
+            // VibeMemory — Per-Project and Global SQLite Vector Memory
+            commands::vibememory_store,
+            commands::vibememory_search,
+            commands::vibememory_context,
+            commands::vibememory_list,
+            commands::vibememory_stats,
+            commands::vibememory_consolidate,
+            commands::vibememory_delete,
             // Sub-Agent Management
             commands::list_sub_agents,
             commands::spawn_sub_agent,

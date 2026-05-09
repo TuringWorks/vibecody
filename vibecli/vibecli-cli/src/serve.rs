@@ -3441,6 +3441,13 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/memory/auto-tunnel", post(memory_auto_tunnel))
         .route("/memory/context", post(memory_context))
         .route("/memory/benchmark", get(memory_benchmark))
+        // VibeMemory — per-project and global SQLite vector store
+        .route("/vibememory/store", post(vibememory_store))
+        .route("/vibememory/search", post(vibememory_search))
+        .route("/vibememory/context", post(vibememory_context))
+        .route("/vibememory/list", get(vibememory_list))
+        .route("/vibememory/stats", get(vibememory_stats))
+        .route("/vibememory/consolidate", post(vibememory_consolidate))
         // Vulnerability Scanner — industry-grade SCA + SAST
         .route("/vulnscan/scan", post(vulnscan_scan))
         .route("/vulnscan/file", post(vulnscan_file))
@@ -8280,4 +8287,235 @@ mod tests {
 
     // F1.2 HTTP auth tests live in `http_integration` (where `test_app`
     // is defined). Pure helper tests above don't need it.
+}
+
+// ── VibeMemory routes (vibe-memory crate integration) ─────────────────────────
+
+use vibe_memory::{MemoryContextHub, ProjectMemStore, GlobalMemStore};
+
+#[derive(serde::Deserialize)]
+struct VibeMemoryStoreRequest {
+    content: String,
+    workspace: Option<String>,
+    #[serde(default)]
+    tags: Vec<String>,
+    #[serde(default)]
+    pinned: bool,
+}
+
+async fn vibememory_store(
+    _state: State<ServeState>,
+    Json(req): Json<VibeMemoryStoreRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    // Store in project context if workspace provided, otherwise global
+    if let Some(workspace) = req.workspace {
+        let path = std::path::PathBuf::from(&workspace);
+        let store = match ProjectMemStore::open(&path) {
+            Ok(s) => s,
+            Err(e) => return json_error(StatusCode::BAD_REQUEST, format!("Failed to open store: {e}")),
+        };
+        let entry = store.store(&req.content, Some(vibe_memory::MemoryMeta {
+            tags: req.tags,
+            pinned: req.pinned,
+            ..Default::default()
+        })).await;
+        match entry {
+            Ok(e) => (StatusCode::CREATED, Json(serde_json::json!({
+                "id": e.id,
+                "sector": e.sector,
+                "store": "project"
+            }))),
+            Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("Store failed: {e}")),
+        }
+    } else {
+        let store = match GlobalMemStore::open() {
+            Ok(s) => s,
+            Err(e) => return json_error(StatusCode::BAD_REQUEST, format!("Failed to open store: {e}")),
+        };
+        let entry = store.store(&req.content, Some(vibe_memory::MemoryMeta {
+            tags: req.tags,
+            pinned: req.pinned,
+            ..Default::default()
+        })).await;
+        match entry {
+            Ok(e) => (StatusCode::CREATED, Json(serde_json::json!({
+                "id": e.id,
+                "sector": e.sector,
+                "store": "global"
+            }))),
+            Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("Store failed: {e}")),
+        }
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct VibeMemorySearchRequest {
+    query: String,
+    workspace: Option<String>,
+    #[serde(default = "default_top_k")]
+    top_k: usize,
+    min_score: Option<f64>,
+}
+
+fn default_top_k() -> usize { 8 }
+
+async fn vibememory_search(
+    _state: State<ServeState>,
+    Json(req): Json<VibeMemorySearchRequest>,
+) -> Json<serde_json::Value> {
+    let hub = MemoryContextHub::new();
+    let workspace = req.workspace
+        .map(PathBuf::from)
+        .unwrap_or_else(|| std::env::temp_dir());
+    
+    let results = hub.search_context(&workspace, &req.query, req.top_k, req.min_score).await;
+    
+    match results {
+        Ok(r) => {
+            let items: Vec<serde_json::Value> = r.iter().map(|item| {
+                serde_json::json!({
+                    "id": item.id,
+                    "content": item.content,
+                    "sector": item.sector,
+                    "score": item.score,
+                    "store": item.store.as_str(),
+                    "tags": item.tags,
+                })
+            }).collect();
+            Json(serde_json::json!({ "results": items, "count": items.len() }))
+        }
+        Err(e) => Json(serde_json::json!({ "error": e.to_string(), "results": [], "count": 0 })),
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct VibeMemoryContextRequest {
+    query: String,
+    workspace: String,
+    #[serde(default = "default_budget")]
+    budget: usize,
+}
+
+fn default_budget() -> usize { 4096 }
+
+async fn vibememory_context(
+    _state: State<ServeState>,
+    Json(req): Json<VibeMemoryContextRequest>,
+) -> Json<serde_json::Value> {
+    let hub = MemoryContextHub::new();
+    let workspace = PathBuf::from(&req.workspace);
+    
+    let context = hub.assemble_context(&workspace, &req.query, req.budget).await;
+    
+    match context {
+        Ok(c) => Json(serde_json::json!({ "context": c })),
+        Err(e) => Json(serde_json::json!({ "context": "", "error": e.to_string() })),
+    }
+}
+
+async fn vibememory_list(
+    _state: State<ServeState>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Json<serde_json::Value> {
+    let sector = params.get("sector").map(|s| s.as_str());
+    let limit = params.get("limit").and_then(|s| s.parse().ok());
+    let store_type = params.get("store").map(|s| s.as_str()).unwrap_or("global");
+    
+    if store_type == "project" {
+        if let Some(workspace) = params.get("workspace") {
+            let path = PathBuf::from(workspace);
+            let store = match ProjectMemStore::open(&path) {
+                Ok(s) => s,
+                Err(e) => return Json(serde_json::json!({ "error": e.to_string(), "memories": [] })),
+            };
+            let entries = store.list(sector, limit).await;
+            match entries {
+                Ok(mems) => {
+                    let items: Vec<serde_json::Value> = mems.iter().map(|m| {
+                        serde_json::json!({
+                            "id": m.id,
+                            "content": m.content,
+                            "sector": m.sector,
+                            "salience": m.salience,
+                            "tags": m.tags,
+                            "pinned": m.pinned,
+                            "created_at": m.created_at,
+                        })
+                    }).collect();
+                    return Json(serde_json::json!({ "memories": items, "count": items.len(), "store": "project" }));
+                }
+                Err(e) => return Json(serde_json::json!({ "error": e.to_string(), "memories": [], "store": "project" })),
+            }
+        }
+    }
+    
+    let store = match GlobalMemStore::open() {
+        Ok(s) => s,
+        Err(e) => return Json(serde_json::json!({ "error": e.to_string(), "memories": [], "store": "global" })),
+    };
+    let entries = store.list(sector, limit).await;
+    match entries {
+        Ok(mems) => {
+            let items: Vec<serde_json::Value> = mems.iter().map(|m| {
+                serde_json::json!({
+                    "id": m.id,
+                    "content": m.content,
+                    "sector": m.sector,
+                    "salience": m.salience,
+                    "tags": m.tags,
+                    "pinned": m.pinned,
+                    "created_at": m.created_at,
+                })
+            }).collect();
+            Json(serde_json::json!({ "memories": items, "count": items.len(), "store": "global" }))
+        }
+        Err(e) => Json(serde_json::json!({ "error": e.to_string(), "memories": [], "store": "global" })),
+    }
+}
+
+async fn vibememory_stats(
+    _state: State<ServeState>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Json<serde_json::Value> {
+    let hub = MemoryContextHub::new();
+    let workspace = params.get("workspace")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| std::env::temp_dir());
+    
+    let stats = hub.get_stats(&workspace).await;
+    
+    match stats {
+        Ok(s) => Json(serde_json::json!({
+            "project_count": s.project_count,
+            "global_count": s.global_count,
+            "project_db_size": s.project_db_size,
+            "global_db_size": s.global_db_size,
+        })),
+        Err(e) => Json(serde_json::json!({ "error": e.to_string() })),
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct VibeMemoryConsolidateRequest {
+    workspace: String,
+}
+
+async fn vibememory_consolidate(
+    _state: State<ServeState>,
+    Json(req): Json<VibeMemoryConsolidateRequest>,
+) -> Json<serde_json::Value> {
+    let hub = MemoryContextHub::new();
+    let workspace = PathBuf::from(&req.workspace);
+    
+    let report = hub.consolidate(&workspace).await;
+    
+    match report {
+        Ok(r) => Json(serde_json::json!({
+            "entries_purged": r.entries_purged,
+            "entries_decayed": r.entries_decayed,
+            "project_store": r.project_store,
+            "global_store": r.global_store,
+        })),
+        Err(e) => Json(serde_json::json!({ "error": e.to_string() })),
+    }
 }

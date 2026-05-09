@@ -253,6 +253,59 @@ Key parameters:
 
 **LongMemEval benchmark** — built-in recall@K evaluation across 20 probe cases spanning all 5 sectors. Available as `/openmemory benchmark [k]` (REPL), `GET /memory/benchmark?k=5` (HTTP daemon), and in the VibeUI **Drawers** tab.
 
+### VibeMemory — SQLite Vector Store (`vibe-memory/` crate)
+
+**Local SQLite vector memory** for per-project and per-machine context, using rusqlite with ChaCha20-Poly1305 encryption. Zero external dependencies, no API keys, no network.
+
+**Storage layout:**
+```
+~/.vibecli/
+├── memory/
+│   ├── global.db          ← computer-scoped store (all projects share)
+│   └── workspaces/
+│       └── {workspace-hash}/
+│           └── memory.db  ← project-scoped store
+```
+
+**Key derivation:**
+- Global key: `SHA-256("vibememory-global-v1:" + $HOME + ":" + $USER)`
+- Project key: `SHA-256("vibememory-project-v1:" + $HOME + ":" + $USER + ":" + workspace_path)`
+
+**API endpoints** (VibeCLI daemon):
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/vibememory/store` | POST | Store memory (project or global) |
+| `/vibememory/search` | POST | Semantic search with cosine similarity |
+| `/vibememory/context` | POST | Assemble layered context for LLM injection |
+| `/vibememory/list` | GET | List memories with optional sector filter |
+| `/vibememory/stats` | GET | Store statistics (counts, sizes) |
+| `/vibememory/consolidate` | POST | Apply decay + purge low-salience entries |
+
+**Tauri commands** (VibeUI):
+| Command | Purpose |
+|---------|---------|
+| `vibememory_store` | Store memory entry |
+| `vibememory_search` | Search by semantic similarity |
+| `vibememory_context` | Get context string for LLM |
+| `vibememory_list` | List all memories |
+| `vibememory_stats` | Get store statistics |
+| `vibememory_consolidate` | Run decay + purge |
+| `vibememory_delete` | Delete entry by ID |
+
+**Sector classification** — ML-lite keyword matching:
+| Sector | Signals |
+|--------|---------|
+| Episodic | yesterday, today, session, happened, meeting |
+| Semantic | means, defined, fact, concept, api, protocol |
+| Procedural | step, how to, command, process, workflow, run |
+| Emotional | frustrated, happy, love, hate, great, terrible |
+| Reflective | realize, insight, pattern, lesson, principle |
+
+**Consolidation** — periodic decay + purge:
+- Decay applies per-sector lambda (episodic: 0.015/day, emotional: 0.020/day)
+- Pinned memories immune to decay and purge
+- Default purge threshold: salience < 0.1
+
 ### Workspace Rules
 
 Rules are loaded in priority order:

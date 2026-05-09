@@ -48901,3 +48901,224 @@ pub async fn recap_generate(
     }
     Ok(json)
 }
+
+// ── VibeMemory Tauri commands ─────────────────────────────────────────────────
+
+/// Store a memory entry in project or global context.
+#[tauri::command]
+pub async fn vibememory_store(
+    content: String,
+    workspace_path: Option<String>,
+    tags: Option<Vec<String>>,
+    pinned: Option<bool>,
+) -> Result<serde_json::Value, String> {
+    use std::path::PathBuf;
+    
+    if let Some(workspace) = workspace_path {
+        let path = PathBuf::from(&workspace);
+        let store = vibe_memory::ProjectMemStore::open(&path)
+            .map_err(|e| e.to_string())?;
+        let entry = store.store(&content, Some(vibe_memory::MemoryMeta {
+            tags: tags.unwrap_or_default(),
+            pinned: pinned.unwrap_or(false),
+            ..Default::default()
+        })).await;
+        match entry {
+            Ok(e) => Ok(serde_json::json!({
+                "id": e.id,
+                "sector": e.sector,
+                "store": "project"
+            })),
+            Err(e) => Err(e.to_string()),
+        }
+    } else {
+        let store = vibe_memory::GlobalMemStore::open()
+            .map_err(|e| e.to_string())?;
+        let entry = store.store(&content, Some(vibe_memory::MemoryMeta {
+            tags: tags.unwrap_or_default(),
+            pinned: pinned.unwrap_or(false),
+            ..Default::default()
+        })).await;
+        match entry {
+            Ok(e) => Ok(serde_json::json!({
+                "id": e.id,
+                "sector": e.sector,
+                "store": "global"
+            })),
+            Err(e) => Err(e.to_string()),
+        }
+    }
+}
+
+/// Search memory entries by semantic similarity.
+#[tauri::command]
+pub async fn vibememory_search(
+    query: String,
+    workspace_path: Option<String>,
+    top_k: Option<usize>,
+    min_score: Option<f64>,
+) -> Result<serde_json::Value, String> {
+    use std::path::PathBuf;
+    
+    let hub = vibe_memory::MemoryContextHub::new();
+    let workspace = workspace_path
+        .map(PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir);
+    
+    let results = hub.search_context(&workspace, &query, top_k.unwrap_or(8), min_score).await
+        .map_err(|e| e.to_string())?;
+    
+    let items: Vec<serde_json::Value> = results.iter().map(|r| {
+        serde_json::json!({
+            "id": r.id,
+            "content": r.content,
+            "sector": r.sector,
+            "score": r.score,
+            "store": r.store.as_str(),
+            "tags": r.tags,
+        })
+    }).collect();
+    
+    Ok(serde_json::json!({ "results": items, "count": items.len() }))
+}
+
+/// Assemble layered context for LLM injection.
+#[tauri::command]
+pub async fn vibememory_context(
+    query: String,
+    workspace_path: String,
+    budget: Option<usize>,
+) -> Result<serde_json::Value, String> {
+    use std::path::PathBuf;
+    
+    let hub = vibe_memory::MemoryContextHub::new();
+    let workspace = PathBuf::from(&workspace_path);
+    
+    let context = hub.assemble_context(&workspace, &query, budget.unwrap_or(4096)).await
+        .map_err(|e| e.to_string())?;
+    
+    Ok(serde_json::json!({ "context": context }))
+}
+
+/// List memory entries with optional filtering.
+#[tauri::command]
+pub async fn vibememory_list(
+    store_type: Option<String>,
+    workspace_path: Option<String>,
+    sector: Option<String>,
+    limit: Option<usize>,
+) -> Result<serde_json::Value, String> {
+    use std::path::PathBuf;
+    
+    let store_type = store_type.unwrap_or_else(|| "global".to_string());
+    
+    if store_type == "project" {
+        if let Some(workspace) = workspace_path {
+            let path = PathBuf::from(&workspace);
+            let store = vibe_memory::ProjectMemStore::open(&path)
+                .map_err(|e| e.to_string())?;
+            let entries = store.list(sector.as_deref(), limit).await
+                .map_err(|e| e.to_string())?;
+            let items: Vec<serde_json::Value> = entries.iter().map(|m| {
+                serde_json::json!({
+                    "id": m.id,
+                    "content": m.content,
+                    "sector": m.sector,
+                    "salience": m.salience,
+                    "tags": m.tags,
+                    "pinned": m.pinned,
+                    "created_at": m.created_at,
+                })
+            }).collect();
+            return Ok(serde_json::json!({ "memories": items, "count": items.len(), "store": "project" }));
+        }
+    }
+    
+    let store = vibe_memory::GlobalMemStore::open()
+        .map_err(|e| e.to_string())?;
+    let entries = store.list(sector.as_deref(), limit).await
+        .map_err(|e| e.to_string())?;
+    let items: Vec<serde_json::Value> = entries.iter().map(|m| {
+        serde_json::json!({
+            "id": m.id,
+            "content": m.content,
+            "sector": m.sector,
+            "salience": m.salience,
+            "tags": m.tags,
+            "pinned": m.pinned,
+            "created_at": m.created_at,
+        })
+    }).collect();
+    Ok(serde_json::json!({ "memories": items, "count": items.len(), "store": "global" }))
+}
+
+/// Get memory store statistics.
+#[tauri::command]
+pub async fn vibememory_stats(
+    workspace_path: Option<String>,
+) -> Result<serde_json::Value, String> {
+    use std::path::PathBuf;
+    
+    let hub = vibe_memory::MemoryContextHub::new();
+    let workspace = workspace_path
+        .map(PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir);
+    
+    let stats = hub.get_stats(&workspace).await
+        .map_err(|e| e.to_string())?;
+    
+    Ok(serde_json::json!({
+        "project_count": stats.project_count,
+        "global_count": stats.global_count,
+        "project_db_size": stats.project_db_size,
+        "global_db_size": stats.global_db_size,
+    }))
+}
+
+/// Consolidate memory (apply decay + purge).
+#[tauri::command]
+pub async fn vibememory_consolidate(
+    workspace_path: String,
+) -> Result<serde_json::Value, String> {
+    use std::path::PathBuf;
+    
+    let hub = vibe_memory::MemoryContextHub::new();
+    let workspace = PathBuf::from(&workspace_path);
+    
+    let report = hub.consolidate(&workspace).await
+        .map_err(|e| e.to_string())?;
+    
+    Ok(serde_json::json!({
+        "entries_purged": report.entries_purged,
+        "entries_decayed": report.entries_decayed,
+        "project_store": report.project_store,
+        "global_store": report.global_store,
+    }))
+}
+
+/// Delete a memory entry by ID.
+#[tauri::command]
+pub async fn vibememory_delete(
+    id: String,
+    store_type: Option<String>,
+    workspace_path: Option<String>,
+) -> Result<bool, String> {
+    use std::path::PathBuf;
+    
+    let store_type = store_type.unwrap_or_else(|| "global".to_string());
+    
+    if store_type == "project" {
+        if let Some(workspace) = workspace_path {
+            let path = PathBuf::from(&workspace);
+            let store = vibe_memory::ProjectMemStore::open(&path)
+                .map_err(|e| e.to_string())?;
+            store.delete(&id).await.map_err(|e| e.to_string())?;
+            return Ok(true);
+        }
+    }
+    
+    let store = vibe_memory::GlobalMemStore::open()
+        .map_err(|e| e.to_string())?;
+    store.delete(&id).await.map_err(|e| e.to_string())?;
+    Ok(true)
+}

@@ -14,6 +14,7 @@ members = [
     "vibeui/crates/vibe-collab",
     "vibeapp/src-tauri",
     "vibe-indexer",
+    "vibe-memory",
 ]
 
 [workspace.package]

@@ -86,6 +86,7 @@ vibe-infer = { path = "../../vibeui/crates/vibe-infer" }
 vibe-sandbox = { path = "../crates/vibe-sandbox" }
 vibe-sandbox-native = { path = "../crates/vibe-sandbox-native" }
 vibe-broker = { path = "../crates/vibe-broker" }
+vibe-memory = { path = "../../vibe-memory" }
 sha2.workspace = true
 hmac.workspace = true
 p256.workspace = true
