@@ -44,6 +44,9 @@ logs/
 # VibeCLI local data (auto-generated, user-specific)
 .vibecli/
 
+# Claude Code runtime state (per-session, not for upstream)
+.claude/scheduled_tasks.lock
+
 # Local-only working notes (internal triage, not for upstream)
 notes/
 docs/Gemfile.lock
