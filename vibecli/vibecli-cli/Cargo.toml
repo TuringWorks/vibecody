@@ -80,7 +80,7 @@ rand = "0.9"
 walkdir = { workspace = true }
 rusqlite = { workspace = true }
 notify = { workspace = true }
-serde_yaml = "0.9"
+serde_yaml = "0.9.34"
 vibe-collab = { path = "../../vibeui/crates/vibe-collab" }
 vibe-infer = { path = "../../vibeui/crates/vibe-infer" }
 vibe-sandbox = { path = "../crates/vibe-sandbox" }
