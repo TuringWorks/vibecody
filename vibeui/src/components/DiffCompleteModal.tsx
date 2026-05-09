@@ -364,19 +364,21 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
         step: stepBody,
         final_state: null,
       };
-      void invoke<{ chain_id: string; step_index: number | null }>(
-        "diffcomplete_chain_autosave",
-        { request: requestBody }
-      ).then(out => {
-        if (out?.chain_id) {
-          chainIdRef.current = out.chain_id;
-          chainStartedRef.current = true;
-          nextStepIndexRef.current = stepIndex + 1;
+      void (async () => {
+        try {
+          const out = await invoke<{ chain_id: string; step_index: number | null }>(
+            "diffcomplete_chain_autosave",
+            { request: requestBody }
+          );
+          if (out?.chain_id) {
+            chainIdRef.current = out.chain_id;
+            chainStartedRef.current = true;
+            nextStepIndexRef.current = stepIndex + 1;
+          }
+        } catch {
+          // Daemon offline / unreachable — degrade silently.
         }
-      }).catch(() => {
-        // Daemon offline / unreachable — degrade silently. Local edit
-        // flow keeps working; the chain just won't appear in history.
-      });
+      })();
     } catch (e) {
       setError(String(e));
       setPhase("error");
@@ -412,8 +414,13 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
         step: null,
         final_state: final,
       };
-      void invoke("diffcomplete_chain_autosave", { request: requestBody })
-        .catch(() => { /* daemon offline — silent */ });
+      void (async () => {
+        try {
+          await invoke("diffcomplete_chain_autosave", { request: requestBody });
+        } catch {
+          // Daemon offline — silent.
+        }
+      })();
     },
     [filePath, language, selectionStartLine, selectionEndLine]
   );
@@ -608,7 +615,7 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
             )}
           </div>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button className="panel-btn panel-btn-secondary" onClick={onClose}>Cancel</button>
+            <button className="panel-btn panel-btn-secondary" onClick={closeWithFinalState}>Cancel</button>
             <button
               className="panel-btn panel-btn-primary"
               disabled={!instruction.trim()}
@@ -646,7 +653,7 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
             </div>
           )}
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button className="panel-btn panel-btn-secondary" onClick={onClose}>Close</button>
+            <button className="panel-btn panel-btn-secondary" onClick={closeWithFinalState}>Close</button>
             <button className="panel-btn panel-btn-primary" onClick={() => setPhase("prompt")} autoFocus>Try again</button>
           </div>
         </div>
