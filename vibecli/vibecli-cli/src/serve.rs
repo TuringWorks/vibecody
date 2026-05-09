@@ -2520,6 +2520,125 @@ async fn v1_resume_get(
     helper_outcome_to_response(out)
 }
 
+// ── Recap & Resume — D1.1 /v1/diffcomplete/chains autosave route ───────────
+//
+// Persistence is *append-on-event* only. The modal posts here when a
+// regenerate succeeds (one POST per appended step) and again with a
+// final_state on Apply / Cancel / modal-closed. There is no idle
+// timer, no continuous keystroke listener, no editor-buffer overlay.
+// Patent re-audit: PASS (elements 1–5 unchanged).
+
+#[derive(Debug, Deserialize)]
+struct DiffCompleteChainStepWire {
+    index: u32,
+    instruction: String,
+    #[serde(default)]
+    refinement: Option<String>,
+    #[serde(default)]
+    additional_files: Vec<crate::diff_chain::AdditionalFile>,
+    diff: String,
+    provider: String,
+    model: String,
+    #[serde(default)]
+    tokens_input: u32,
+    #[serde(default)]
+    tokens_output: u32,
+}
+
+#[derive(Debug, Deserialize)]
+struct DiffCompleteChainsRequest {
+    /// Omit on the first POST for a chain; daemon assigns one.
+    #[serde(default)]
+    chain_id: Option<String>,
+    file_path: String,
+    language: String,
+    selection_start: u32,
+    selection_end: u32,
+    original_text: String,
+    /// One step per request — the modal posts incrementally as each
+    /// regenerate finishes. `None` is allowed for a final-state-only
+    /// update on an existing chain.
+    #[serde(default)]
+    step: Option<DiffCompleteChainStepWire>,
+    #[serde(default)]
+    final_state: Option<crate::diff_chain::DiffChainFinal>,
+    #[serde(default)]
+    parent_chain_id: Option<String>,
+}
+
+async fn v1_diffcomplete_chains_post(
+    State(state): State<ServeState>,
+    Json(req): Json<DiffCompleteChainsRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match crate::diff_chain_store::DiffChainStore::open(&state.workspace_root) {
+        Ok(s) => s,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("open chain store: {e}") })),
+            );
+        }
+    };
+    let chain_id = req
+        .chain_id
+        .clone()
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+
+    if let Some(step_in) = req.step {
+        let step = crate::diff_chain::DiffChainStep {
+            index: step_in.index,
+            instruction: step_in.instruction,
+            refinement: step_in.refinement,
+            additional_files: step_in.additional_files,
+            diff: step_in.diff,
+            provider: step_in.provider,
+            model: step_in.model,
+            tokens_input: step_in.tokens_input,
+            tokens_output: step_in.tokens_output,
+            generated_at: chrono::Utc::now(),
+        };
+        match store.upsert_step(
+            &chain_id,
+            &req.file_path,
+            &req.language,
+            req.selection_start,
+            req.selection_end,
+            &req.original_text,
+            &step,
+            req.parent_chain_id.as_deref(),
+        ) {
+            Ok(_chain) => {}
+            Err(e) => {
+                return (
+                    StatusCode::CONFLICT,
+                    Json(serde_json::json!({ "error": e })),
+                );
+            }
+        }
+    }
+
+    if let Some(fs) = req.final_state {
+        if let Err(e) = store.set_final_state(&chain_id, &fs) {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({ "error": e })),
+            );
+        }
+    }
+
+    let step_index = match store.get(&chain_id) {
+        Ok(Some(c)) => c.steps.last().map(|s| s.index),
+        _ => None,
+    };
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "chain_id": chain_id,
+            "step_index": step_index,
+        })),
+    )
+}
+
 /// GET /v1/capabilities — Advertise agent framework capabilities.
 async fn v1_capabilities() -> impl IntoResponse {
     Json(serde_json::json!({
@@ -3525,6 +3644,10 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         // Recap & Resume v1 — F1.3 (resume handles)
         .route("/v1/resume", post(v1_resume_post))
         .route("/v1/resume/:handle", get(v1_resume_get))
+        // Recap & Resume v1 — D1.1 (diffcomplete chain autosave).
+        // Patent re-audit: PASS (1–5 unchanged). Writes happen only
+        // on discrete user-driven events posted by the modal.
+        .route("/v1/diffcomplete/chains", post(v1_diffcomplete_chains_post))
         // Mobile Gateway — machine registration & dispatch (iOS/Android remote management)
         .route("/mobile/machines", get(mobile_list_machines))
         .route("/mobile/machines", post(mobile_register_machine))

@@ -48902,6 +48902,42 @@ pub async fn recap_generate(
     Ok(json)
 }
 
+// ── D1.1: diffcomplete chain autosave ──────────────────────────────────────
+//
+// Thin wrapper around POST /v1/diffcomplete/chains. Patent posture
+// matches the daemon side: the modal is the only caller, and it only
+// fires this on a regenerate-success or final-state-change event.
+// No timer, no editor-buffer overlay, no accept/reject decoration.
+//
+// Patent re-audit: PASS (elements 1–5 unchanged).
+
+/// D1.1 — Autosave a diffcomplete chain step (and optionally the
+/// final state). The modal POSTs once per regenerate plus once at
+/// final state. Idempotent on `(chain_id, step.index)`.
+#[tauri::command]
+pub async fn diffcomplete_chain_autosave(
+    request: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    let token = recap_daemon_token().await?;
+    if token.is_empty() {
+        return Err("daemon not running".into());
+    }
+    let client = recap_http_client()?;
+    let resp = client
+        .post("http://localhost:7878/v1/diffcomplete/chains")
+        .header("Authorization", format!("Bearer {}", token))
+        .json(&request)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let status = resp.status();
+    let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    if !status.is_success() {
+        return Err(format!("daemon returned {}: {}", status, json));
+    }
+    Ok(json)
+}
+
 // ── VibeMemory Tauri commands ─────────────────────────────────────────────────
 
 /// Store a memory entry in project or global context.

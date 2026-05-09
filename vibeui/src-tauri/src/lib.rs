@@ -1106,6 +1106,7 @@ pub fn run() {
             commands::recap_get_for_session,
             commands::recap_resume_session,
             commands::recap_generate,
+            commands::diffcomplete_chain_autosave,
             commands::profile_provider_config_set,
             commands::profile_provider_config_get,
             commands::profile_provider_config_get_all,
