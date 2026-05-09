@@ -7,7 +7,7 @@ permalink: /model-comparison/
 # Model Comparison
 
 > A practical guide to picking the right model for the job across every provider VibeCody supports.
-> Last updated: **2026-05-01**.
+> Last updated: **2026-05-08**.
 >
 > **Caveat**: model leaderboards shift weekly. Treat the strength/weakness blurbs as a *shape* of each model's bias (what it was trained for), not a final benchmark verdict. When in doubt, run the same prompt through two candidates side-by-side in VibeUI's MultiModel panel.
 
@@ -44,23 +44,23 @@ The "right" pick depends on what you're doing. Use this matrix as a starting poi
 
 | Tier | Cloud-hosted | Open-weights (Ollama Cloud) | Local pull |
 |---|---|---|---|
-| **Flagship** | Claude Sonnet 4.6 | devstral-2 (123B) | devstral-small-2 |
-| **Strong** | GPT-4.1, gpt-5 (when avail.) | qwen3-coder | qwen2.5-coder:7b |
-| **Cheap/fast** | Claude Haiku 4.5, gpt-4.1-mini | ministral-3, devstral-small-2 | qwen2.5-coder:1.5b |
+| **Flagship** | Claude Sonnet 4.6, gpt-5.3-codex | devstral-2 (123B) | devstral-small-2 |
+| **Strong** | gpt-5.5, GPT-4.1 | qwen3-coder | qwen2.5-coder:7b |
+| **Cheap/fast** | Claude Haiku 4.5, gpt-5.3-codex-spark, gpt-4.1-mini | ministral-3, devstral-small-2 | qwen2.5-coder:1.5b |
 
 ### One-shot reasoning, math, hard algorithms
 
 | Tier | Cloud-hosted | Open-weights | Local pull |
 |---|---|---|---|
-| **Flagship** | Claude Opus 4.6, o3 | nemotron-3-super, deepseek-v4-pro | deepseek-r1:14b |
-| **Strong** | gpt-4.1, Gemini 2.5 Pro | glm-5.1, magistral | qwq:32b |
+| **Flagship** | Claude Opus 4.7, gpt-5.5, o3 | nemotron-3-super, deepseek-v4-pro | deepseek-r1:14b |
+| **Strong** | Gemini 3.1 Pro, gpt-4.1 | glm-5.1, magistral | qwq:32b |
 | **Cheap** | o4-mini, gpt-4.1-mini | nemotron-3-nano | phi4-reasoning |
 
 ### Long context (≥200k tokens)
 
 | Tier | Provider · Model |
 |---|---|
-| **Flagship** | Gemini 2.5 Pro (1M+), Claude Sonnet 4.6 (200k) |
+| **Flagship** | Gemini 3.1 Pro (1M+), gpt-5.5 (1M), Claude Sonnet 4.6 (200k) |
 | **Strong** | gpt-4.1 (1M), Grok-3 (256k) |
 | **Open** | qwen3-next, llama4 (variable) |
 
@@ -68,8 +68,8 @@ The "right" pick depends on what you're doing. Use this matrix as a starting poi
 
 | Tier | Provider · Model |
 |---|---|
-| **Flagship** | Claude Sonnet 4.6, GPT-4o, Gemini 2.5 Pro |
-| **Strong** | Grok-3, gpt-4.1 |
+| **Flagship** | Gemini 3.1 Pro, gpt-5.5, Claude Sonnet 4.6 |
+| **Strong** | GPT-4o, Grok-3, gpt-4.1 |
 | **Open** | qwen3-coder (vision variant), llama4 vision |
 | **Local** | llama3.2-vision, gemma3 |
 
@@ -77,7 +77,7 @@ The "right" pick depends on what you're doing. Use this matrix as a starting poi
 
 | Tier | Provider · Model |
 |---|---|
-| **Cloud** | Claude Haiku 4.5, gpt-4.1-mini, Gemini 2.5 Flash, Grok-3-mini |
+| **Cloud** | Claude Haiku 4.5, gpt-5.3-codex-spark, gpt-4.1-mini, Gemini 2.5 Flash, Grok-3-mini |
 | **Open cloud** | ministral-3, devstral-small-2, gemma4 |
 | **Local** | phi4-mini, llama3.2:3b, qwen2.5:1.5b |
 
@@ -93,7 +93,7 @@ The "right" pick depends on what you're doing. Use this matrix as a starting poi
 | Tier | Provider · Model |
 |---|---|
 | **Native** | Perplexity Sonar Pro, Sonar Reasoning |
-| **With tools** | gpt-4.1 + browser tool, Claude Sonnet 4.6 + web tool |
+| **With tools** | gpt-4.1 + browser tool, Claude Sonnet 4.7 + web tool |
 
 ---
 
@@ -103,17 +103,18 @@ Below: every provider VibeCody ships, the models we expose in the picker, and wh
 
 ### Anthropic Claude (`claude`)
 
-Three-tier family — Opus (deepest reasoning), Sonnet (balanced workhorse), Haiku (fast/cheap). All three support tool calling, vision, and extended thinking. Default in VibeCody is `claude-opus-4-6`.
+Three-tier family — Opus (deepest reasoning), Sonnet (balanced workhorse), Haiku (fast/cheap). All three support tool calling, vision, and extended thinking. Default in VibeCody is `claude-opus-4-7`.
 
 | Model | Ctx | Tools | Vision | Reasoning | Notes |
 |---|---|---|---|---|---|
-| claude-opus-4-6 | 200k | ✅ | ✅ | ✅ | Flagship reasoning + agent default |
-| claude-sonnet-4-6 | 200k | ✅ | ✅ | ✅ | Best-bang-for-buck coding agent |
-| claude-haiku-4-5 | 200k | ✅ | ✅ | ✅ | Cheap/fast tool calls + classification |
+| claude-opus-4-7 | 200k | ✅ | ✅ | ✅ | Flagship reasoning + agent default |
+| claude-sonnet-4-6 | 200k | ✅ | ✅ | ✅ | Current Sonnet — best-bang-for-buck coding agent |
+| claude-haiku-4-5 | 200k | ✅ | ✅ | ✅ | Current Haiku — cheap/fast tool calls + classification |
+| claude-opus-4-6 | 200k | ✅ | ✅ | ✅ | Previous-gen flagship |
 | claude-sonnet-4-5 | 200k | ✅ | ✅ | ✅ | Previous-gen Sonnet |
 | claude-3-5-sonnet-20241022 | 200k | ✅ | ✅ | ❌ | Legacy 3.5 — kept for reproducibility |
 
-**claude-opus-4-6** — Strongest at sustained agentic loops with many tools and many turns. It rarely loses the plot on long sessions and is willing to push back on bad instructions. Most expensive of the three. Use when latency doesn't matter and the work is hard.
+**claude-opus-4-7** — Strongest at sustained agentic loops with many tools and many turns. It rarely loses the plot on long sessions and is willing to push back on bad instructions. Most expensive of the three. Use when latency doesn't matter and the work is hard.
 
 **claude-sonnet-4-6** — The model most VibeCody users will actually run. Roughly Opus-level coding quality on common tasks, ~3-4× cheaper, ~2× faster. Default for the VibeUI Code panel.
 
@@ -121,44 +122,57 @@ Three-tier family — Opus (deepest reasoning), Sonnet (balanced workhorse), Hai
 
 ### `claude-code` (local Claude Code CLI passthrough)
 
-Same three Anthropic models, but billed against the user's Claude.ai Pro/Max/Team/Enterprise plan instead of API credits. Same capabilities; payment shape differs.
+Same Anthropic models (Opus 4.7, Sonnet 4.6, Haiku 4.5), but billed against the user's Claude.ai Free/Pro/Max/Team/Enterprise plan instead of API credits. Same capabilities; payment shape differs.
 
 ### OpenAI (`openai`)
 
-Two parallel lines: the **GPT line** (gpt-4o, gpt-4.1) is the general-purpose chat/agent family; the **o-line** (o3, o4-mini) is the explicit-reasoning family that thinks before answering.
+Three parallel lines as of May 2026: the **GPT-5 line** (gpt-5, gpt-5.3, gpt-5.4, gpt-5.5) is the current general-purpose flagship family with built-in adaptive reasoning; the **GPT-5 codex variants** (gpt-5.3-codex, gpt-5.3-codex-spark) are coding-tuned for agent loops; the **GPT-4 line** (gpt-4o, gpt-4.1) remains for compatibility and long-context cases; the **o-line** (o3, o4-mini) is the older explicit-reasoning family. VibeCody's default is `gpt-5.5`.
 
 | Model | Ctx | Tools | Vision | Reasoning | Notes |
 |---|---|---|---|---|---|
+| gpt-5.5 | 1M | ✅ | ✅ | ✅ | Current flagship — default in VibeCody |
+| gpt-5.4 | 1M | ✅ | ✅ | ✅ | Previous flagship; cheaper than 5.5 |
+| gpt-5.3-codex | 200k | ✅ | ❌ | ✅ | Coding-tuned, agent-loop optimised |
+| gpt-5.3-codex-spark | 200k | ✅ | ❌ | ⚠️ | Faster/cheaper codex variant for IDE flows |
+| gpt-5 | 1M | ✅ | ✅ | ✅ | First GPT-5 release; kept for reproducibility |
 | gpt-4o | 128k | ✅ | ✅ | ❌ | Workhorse multimodal, omni input/output |
 | gpt-4o-mini | 128k | ✅ | ✅ | ❌ | Fast/cheap variant |
 | gpt-4-turbo | 128k | ✅ | ✅ | ❌ | Older; kept for reproducibility |
-| gpt-4.1 | 1M | ✅ | ✅ | ❌ | Long-context flagship |
+| gpt-4.1 | 1M | ✅ | ✅ | ❌ | Long-context GPT-4 flagship |
 | gpt-4.1-mini | 1M | ✅ | ✅ | ❌ | Fast long-context |
 | gpt-4.1-nano | 1M | ✅ | ❌ | ❌ | Very cheap classification/extract |
-| o3 | 200k | ✅ | ✅ | ✅ | Hard reasoning flagship |
+| o3 | 200k | ✅ | ✅ | ✅ | Hard reasoning, pre-GPT-5 |
 | o3-mini | 200k | ✅ | ❌ | ✅ | Cheaper reasoning |
 | o4-mini | 200k | ✅ | ✅ | ✅ | Reasoning + vision; replaces o3-mini for most use |
 
-**gpt-4.1** — Drop-in successor to gpt-4o for most coding/agent tasks, plus a 1M-token context window that actually retrieves well (not just claimed). Tool calling is rock-solid. Use this when the codebase is large.
+**gpt-5.5** — OpenAI's current general-purpose flagship. 1M-token context with strong long-range retrieval, built-in adaptive reasoning (the model decides per-prompt how much "thinking" to spend), native vision, rock-solid tool calling. Default in VibeCody for the OpenAI provider.
 
-**o3** — When a problem rewards "thinking longer" — algorithm design, math proofs, debugging weird race conditions — o3 is the strongest in the OpenAI lineup. It's slow and expensive; not the right pick for chat or routine edits.
+**gpt-5.3-codex** — Coding-specialised GPT-5 variant; tuned for multi-step file edits, run-and-fix loops, and tool-heavy agent flows. Pick this over `gpt-5.5` when the workload is overwhelmingly code-editing. The `-spark` variant trades some quality for sub-second latency — good for inline completions and quick IDE actions.
+
+**gpt-4.1** — Still useful when you need a non-reasoning baseline at low cost or want to A/B against GPT-5 outputs. 1M-token context retrieves well. For new work, default to a GPT-5 entry instead.
+
+**o3** — Pre-GPT-5 reasoning flagship. GPT-5.5 generally matches or beats it on most benches now, but o3 is still useful where you want the older reasoning style for reproducibility.
 
 **o4-mini** — A reasonable middle ground when you want some explicit reasoning but not o3 cost. Good for code review and architecture sketches.
 
 ### Google Gemini (`gemini`)
 
-Long context is the headline (1M+ on Pro). The 2.5 generation is competitive with GPT-4-class models on most general tasks and dominates anything where you want to feed it an entire codebase or a 200-page PDF.
+Long context is the headline (1M+ on Pro). The Gemini 3 generation (released Q1 2026) is competitive with GPT-5-class models on most general tasks and remains best-in-class for long-context retrieval. The 2.5 line stays in the picker for cost-sensitive workloads. VibeCody's default is `gemini-3.1-pro`.
 
 | Model | Ctx | Tools | Vision | Reasoning | Notes |
 |---|---|---|---|---|---|
-| gemini-2.5-pro | 1M | ✅ | ✅ | ✅ | Long-context flagship |
-| gemini-2.5-flash | 1M | ✅ | ✅ | ⚠️ | Cheap workhorse, default |
+| gemini-3.1-pro | 1M+ | ✅ | ✅ | ✅ | Current flagship — default in VibeCody |
+| gemini-3-pro | 1M+ | ✅ | ✅ | ✅ | Initial Gemini 3 release; kept for reproducibility |
+| gemini-2.5-pro | 1M | ✅ | ✅ | ✅ | Previous-gen long-context flagship |
+| gemini-2.5-flash | 1M | ✅ | ✅ | ⚠️ | Cheap workhorse |
 | gemini-2.0-flash | 1M | ✅ | ✅ | ❌ | Previous-gen flash |
 | gemini-2.0-flash-lite | 1M | ✅ | ❌ | ❌ | Cheapest tier |
 
-**gemini-2.5-pro** — When you need a model to actually *understand* a million-token context (not just accept it), Pro 2.5 is the strongest. Tool calling has improved substantially over 2.0; still occasionally hallucinates argument shapes for complex tools.
+**gemini-3.1-pro** — Google's current flagship. Strongest model in the picker for genuine 1M+ token comprehension (not just acceptance), with native multimodal handling and adaptive reasoning. Tool calling caught up to Claude/GPT-5 with the 3.x line; argument-shape hallucinations on complex tools have largely cleared. Default in VibeCody for the Gemini provider.
 
-**gemini-2.5-flash** — VibeCody's default Gemini pick. Sub-second time-to-first-token, supports tools and vision, costs roughly 10× less than Pro. Good for chat-style use; use Pro when you need depth.
+**gemini-2.5-pro** — Still a strong long-context option at lower cost than 3.1 Pro. Use when you need depth on a long input but don't need the latest reasoning quality.
+
+**gemini-2.5-flash** — Sub-second time-to-first-token, supports tools and vision, costs roughly 10× less than Pro. Good for chat-style use and high-volume tool-calling agents.
 
 ### xAI Grok (`grok`)
 
@@ -244,9 +258,11 @@ Aggregator front-end — one API key, hundreds of models routed to the cheapest/
 
 | Model | Ctx | Tools | Vision | Reasoning | Notes |
 |---|---|---|---|---|---|
-| anthropic/claude-3.5-sonnet | 200k | ✅ | ✅ | ❌ | Default in VibeCody |
+| anthropic/claude-3.5-sonnet | 200k | ✅ | ✅ | ❌ | Stable Claude route via OpenRouter |
 | openai/gpt-4o | 128k | ✅ | ✅ | ❌ | OpenAI passthrough |
 | google/gemini-2.0-flash-001 | 1M | ✅ | ✅ | ❌ | Cheap long context |
+
+OpenRouter's `STATIC_MODELS` keeps a deliberately small, stable list — extend it in `useModelRegistry.ts` if you need the latest Sonnet 4.6 / Opus 4.7 / GPT-5 / Gemini 3.1 routes. Most flagships are exposed under their canonical OpenRouter slugs (`anthropic/claude-opus-4-7`, `openai/gpt-5.5`, `google/gemini-3.1-pro`).
 
 ### Azure OpenAI (`azure_openai`)
 
@@ -259,12 +275,14 @@ Enterprise Azure-region-pinned OpenAI deployments. Same models as `openai` but b
 
 ### Amazon Bedrock (`bedrock`)
 
-AWS-region-pinned Anthropic Claude (and others). Same models, AWS billing, IAM-gated.
+AWS-region-pinned Anthropic Claude (and others). Same models, AWS billing, IAM-gated. Bedrock typically lags the Anthropic API by 1-2 generations on the Sonnet/Haiku slugs that have shipped to the Bedrock catalog.
 
 | Model | Notes |
 |---|---|
-| anthropic.claude-3-5-sonnet-20241022-v2:0 | Sonnet 3.5 on Bedrock |
-| anthropic.claude-3-haiku-20240307-v1:0 | Haiku 3 on Bedrock |
+| anthropic.claude-3-5-sonnet-20241022-v2:0 | Stable Sonnet route on Bedrock |
+| anthropic.claude-3-haiku-20240307-v1:0 | Stable Haiku route on Bedrock |
+
+To use the latest Anthropic models (Opus 4.7, Sonnet 4.6, Haiku 4.5) on Bedrock, add their Bedrock-side model IDs to `useModelRegistry.ts:STATIC_MODELS.bedrock` once AWS lists them in your region.
 
 ### GitHub Copilot (`copilot`)
 
@@ -448,8 +466,9 @@ Per-provider default lives in `vibeui/src/hooks/useModelRegistry.ts`:
 
 ```ts
 export const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
-  claude:       "claude-opus-4-6",
-  openai:       "gpt-4o",
+  claude:       "claude-opus-4-7",
+  openai:       "gpt-5.5",
+  gemini:       "gemini-3.1-pro",
   // ...
   ollama:       "devstral-2",     // ← change here
   // ...
