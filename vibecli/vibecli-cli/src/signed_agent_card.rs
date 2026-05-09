@@ -38,7 +38,6 @@ use p256::ecdsa::{
     signature::{Signer, Verifier},
     Signature, SigningKey, VerifyingKey,
 };
-use p256::elliptic_curve::sec1::ToEncodedPoint;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -202,8 +201,6 @@ mod tests {
     use super::*;
     use crate::a2a_protocol::AgentCard;
     use p256::ecdsa::SigningKey;
-    use p256::elliptic_curve::sec1::ToEncodedPoint;
-    use rand::rngs::OsRng;
 
     fn fixture_card() -> AgentCard {
         AgentCard::new(
@@ -215,7 +212,11 @@ mod tests {
     }
 
     fn fixture_key() -> SigningKey {
-        SigningKey::random(&mut OsRng)
+        // Match watch_auth.rs — `p256` re-exports the `rand_core` whose
+        // `OsRng` actually implements the `CryptoRngCore` bound `ecdsa`
+        // expects. Workspace `rand` is on a newer `rand_core` and
+        // doesn't satisfy that bound directly.
+        SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng)
     }
 
     #[test]
