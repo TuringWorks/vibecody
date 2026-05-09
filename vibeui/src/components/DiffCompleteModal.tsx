@@ -561,7 +561,7 @@ export function DiffCompleteModal(props: DiffCompleteModalProps) {
             onChange={e => setInstruction(e.target.value)}
             onKeyDown={e => {
               if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); submit(); }
-              if (e.key === "Escape") { e.preventDefault(); onClose(); }
+              if (e.key === "Escape") { e.preventDefault(); closeWithFinalState(); }
             }}
           />
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
