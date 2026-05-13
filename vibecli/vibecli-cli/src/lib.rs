@@ -3,6 +3,7 @@
 // per-crate dead_code lint. Silence at crate level rather than per-item.
 #![allow(dead_code)]
 
+pub mod auth_util;
 pub mod diff_review;
 pub mod cost_router;
 pub mod agent_skills_compat;
