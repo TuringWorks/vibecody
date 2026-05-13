@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useModelRegistry } from "../hooks/useModelRegistry";
 
 /** Extract a human-readable message from raw API error strings. */
 function parseApiError(raw: string): string {
@@ -39,11 +38,13 @@ const FRAMEWORKS = [
 ];
 
 export function ScreenshotToApp({ workspacePath, provider: propProvider }: { workspacePath: string | null; provider?: string }) {
-  const { providers: PROVIDERS } = useModelRegistry();
   const [framework, setFramework] = useState("react");
-  // Local provider override — defaults to prop but can be changed in-panel
-  const [selectedProvider, setSelectedProvider] = useState(propProvider || "claude");
+  // Provider follows the toolbar selection (no local override — CLAUDE.md rule:
+  // panels must use the toolbar's selected provider, and never silently default
+  // to Anthropic when the toolbar selection is empty).
+  const selectedProvider = propProvider ?? "";
   const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [imageMime, setImageMime] = useState<string>("image/png");
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [files, setFiles] = useState<GeneratedFile[]>([]);
@@ -63,6 +64,8 @@ export function ScreenshotToApp({ workspacePath, provider: propProvider }: { wor
     setError(null);
     setFiles([]);
     setWriteStatus({});
+    // Normalize jpg → jpeg; backend mime list mirrors the provider trait's accepted types.
+    setImageMime(file.type === "image/jpg" ? "image/jpeg" : file.type);
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result as string;
@@ -94,6 +97,17 @@ export function ScreenshotToApp({ workspacePath, provider: propProvider }: { wor
 
   const handleGenerate = async () => {
     if (!imageBase64) return;
+    if (!selectedProvider) {
+      setError("No provider selected. Pick one in the toolbar dropdown.");
+      return;
+    }
+    if (!isVisionCapable(selectedProvider)) {
+      setError(
+        `"${selectedProvider}" can't read images. Switch the toolbar provider to ` +
+        `Claude, GPT-4o, or Gemini before generating.`
+      );
+      return;
+    }
     setGenerating(true);
     setError(null);
     setFiles([]);
@@ -102,8 +116,9 @@ export function ScreenshotToApp({ workspacePath, provider: propProvider }: { wor
     try {
       const result = await invoke<GeneratedFile[]>("generate_app_from_image", {
         imageBase64,
+        mediaType: imageMime,
         framework,
-        provider: selectedProvider || null,
+        provider: selectedProvider,
       });
       setFiles(result);
       if (result.length > 0) setExpandedIdx(0);
@@ -242,21 +257,23 @@ export function ScreenshotToApp({ workspacePath, provider: propProvider }: { wor
         />
       </div>
 
-      {/* Provider + framework row */}
+      {/* Provider row — follows the toolbar selection (read-only here) */}
       <div style={{ display: "flex", gap: "8px", marginBottom: "10px", alignItems: "center", flexWrap: "wrap" }}>
-        <select
-          className="panel-select"
-          value={selectedProvider}
-          onChange={e => setSelectedProvider(e.target.value)}
-          title="AI provider — must support vision/image input"
-        >
-          {PROVIDERS.map(p => (
-            <option key={p} value={p}>{p}</option>
-          ))}
-        </select>
-        {!isVisionCapable(selectedProvider) && (
+        <span style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>Provider:</span>
+        <span style={{
+          fontSize: "var(--font-size-sm)", color: "var(--text-primary)",
+          padding: "2px 8px", borderRadius: "var(--radius-xs-plus)",
+          background: "var(--bg-secondary)", border: "1px solid var(--border-color)",
+        }}>
+          {selectedProvider || "(none selected)"}
+        </span>
+        {!selectedProvider ? (
           <span style={{ fontSize: "var(--font-size-xs)", color: "var(--warning-color)" }}>
-            ⚠ Select a vision-capable provider (Claude, GPT-4o, Gemini)
+            ⚠ Pick a provider in the toolbar dropdown.
+          </span>
+        ) : !isVisionCapable(selectedProvider) && (
+          <span style={{ fontSize: "var(--font-size-xs)", color: "var(--warning-color)" }}>
+            ⚠ Toolbar provider isn't vision-capable. Switch to Claude, GPT-4o, or Gemini.
           </span>
         )}
       </div>
@@ -292,7 +309,7 @@ export function ScreenshotToApp({ workspacePath, provider: propProvider }: { wor
       {/* Generate button */}
       <button
         onClick={handleGenerate}
-        disabled={!imageBase64 || generating}
+        disabled={!imageBase64 || generating || !selectedProvider || !isVisionCapable(selectedProvider)}
         style={{
           width: "100%", padding: "10px",
           background: !imageBase64 ? "var(--bg-secondary)" : generating ? "var(--bg-tertiary)" : "var(--accent-color)",
