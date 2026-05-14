@@ -1868,6 +1868,7 @@ export function SettingsPanel({ onClose }: { onClose?: () => void }) {
   return (
     <div className="panel-container" style={{
       flexDirection: "row",
+      background: "var(--bg-primary)",
       borderRadius: "var(--radius-lg)", border: "1px solid var(--border-color)",
       boxShadow: "var(--elevation-3)",
     }}>

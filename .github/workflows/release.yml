@@ -22,6 +22,11 @@ env:
 
 jobs:
   # ─── Security audit ───────────────────────────────────────────────────
+  # Release-time gate. The broader per-PR security suite lives in
+  # .github/workflows/security.yml (cargo-deny, npm audit, gitleaks, semgrep).
+  # Here we keep a minimal blocking `cargo audit` so a tag push cannot ship
+  # a binary built against a crate with a known RUSTSEC advisory.
+  # See docs/security/threat-model.md §7 item #4.
   audit:
     name: Security Audit
     runs-on: ubuntu-latest
@@ -34,8 +39,12 @@ jobs:
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
 
+      - name: Generate Cargo.lock (gitignored)
+        run: cargo generate-lockfile
+
+      # No `|| true`. Suppressions go in deny.toml [advisories.ignore].
       - name: Run cargo audit
-        run: cargo audit || true
+        run: cargo audit --deny warnings
 
   # ─── VibeCLI binary (5 platforms) ──────────────────────────────────────
   build-cli:
