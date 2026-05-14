@@ -37,6 +37,8 @@ pub mod rlcef_loop;
 pub mod sketch_canvas;
 pub mod mcp_streamable;
 pub mod mcp_http;
+// A2 — MCPB bundle format pack/extract/verify.
+pub mod mcpb_bundle;
 pub mod mcts_repair;
 pub mod visual_verify;
 pub mod next_task;
