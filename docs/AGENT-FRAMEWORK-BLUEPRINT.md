@@ -375,7 +375,7 @@ API Enhancements
 
 ```
                     ┌──────────────────────────────────────────┐
-                    │            VibeCody Agent Framework       │
+                    │            VibeCody Agent Framework      │
                     ├──────────────────────────────────────────┤
                     │                                          │
   External API ────>│  serve.rs (REST/SSE)                     │
@@ -392,28 +392,28 @@ API Enhancements
                     │  ┌────┘   │   └────┐                     │
                     │  ▼        ▼        ▼                     │
                     │ Tools   Browser   Desktop                │
-                    │ (11)    Agent*    Agent*                  │
-                    │  │      (CDP)    (GUI)                    │
-                    │  │        │        │                      │
-                    │  ▼        ▼        ▼                      │
-                    │ ┌──────────────────────┐                 │
-                    │ │  Observe-Act Loop*    │                 │
-                    │ │  (screenshot→LLM→act) │                 │
-                    │ └──────────────────────┘                 │
+                    │ (11)    Agent*    Agent*                 │
+                    │  │      (CDP)    (GUI)                   │
+                    │  │        │        │                     │
+                    │  ▼        ▼        ▼                     │
+                    │ ┌───────────────────────┐                │
+                    │ │  Observe-Act Loop*    │                │
+                    │ │  (screenshot→LLM→act) │                │
+                    │ └───────────────────────┘                │
                     │         │                                │
                     │  ┌──────┴──────────┐                     │
-                    │  ▼                 ▼                      │
-                    │ Sandbox          Multi-Agent              │
-                    │ (Docker/         (teams, roles,           │
-                    │  Podman/          sub-agents)             │
-                    │  OS-level)                                │
+                    │  ▼                 ▼                     │
+                    │ Sandbox          Multi-Agent             │
+                    │ (Docker/         (teams, roles,          │
+                    │  Podman/          sub-agents)            │
+                    │  OS-level)                               │
                     │         │                                │
                     │  ┌──────┴──────────┐                     │
-                    │  ▼                 ▼                      │
-                    │ Memory            Providers               │
-                    │ (OpenMemory,      (18 LLMs +              │
-                    │  Infinite Ctx,     failover +              │
-                    │  Session Store)    health tracker)         │
+                    │  ▼                 ▼                     │
+                    │ Memory            Providers              │
+                    │ (OpenMemory,      (18 LLMs +             │
+                    │  Infinite Ctx,     failover +            │
+                    │  Session Store)    health tracker)       │
                     │                                          │
                     └──────────────────────────────────────────┘
 

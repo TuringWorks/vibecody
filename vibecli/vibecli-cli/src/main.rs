@@ -122,6 +122,7 @@ use std::sync::Arc;
 
 mod auth_util;
 mod redact;
+mod tainted;
 mod config;
 mod schema;
 mod syntax;

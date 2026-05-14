@@ -15,40 +15,65 @@ rules:
       include:
         - "vibeui/src-tauri/src/**"
     message: >-
-      `safe_resolve_path()` (and `safe_resolve_path_in()`) is `#[must_use]` — the
-      returned PathBuf is the canonicalized, in-workspace-bounds path. Discarding
-      it with `safe_resolve_path(...)?;` and passing the original `path` String
-      to `std::fs::*` / `tokio::fs::*` / `workspace.file_system().*` reintroduces
-      the path-traversal bug this helper exists to prevent. See
-      docs/security/threat-model.md §7 item #2.
+      `safe_resolve_path()` (and `safe_resolve_path_in()` / `reject_sensitive_path()`)
+      is `#[must_use]` — the returned PathBuf is the canonicalized,
+      in-workspace-bounds path. Discarding it with `safe_resolve_path(...)?;`
+      and passing the original `path` String to `std::fs::*` / `tokio::fs::*` /
+      `workspace.file_system().*` reintroduces the path-traversal bug this
+      helper exists to prevent. See docs/security/threat-model.md §7 item #2.
     patterns:
       - pattern-either:
           - pattern: |
               safe_resolve_path($WS, $PATH)?;
           - pattern: |
               safe_resolve_path_in($FS, $PATH)?;
+          - pattern: |
+              reject_sensitive_path($PATH)?;
 
   - id: tauri-command-path-string-without-resolve
     languages: [rust]
-    severity: WARNING
+    severity: ERROR
     paths:
       include:
         - "vibeui/src-tauri/src/**"
     message: >-
       Tauri command accepts a `path: String` argument and performs a filesystem
-      operation. Validate the path with `safe_resolve_path()` and use the
-      returned `PathBuf` for the FS call. See
-      docs/security/threat-model.md §7 item #2.
+      operation on it. Validate the path with `safe_resolve_path()` (for
+      workspace-scoped paths) or `reject_sensitive_path()` (for legitimately
+      off-workspace paths like file pickers / exports) and use the returned
+      `PathBuf` for the FS call. See docs/security/threat-model.md §7 item #2.
     patterns:
       - pattern-either:
-          # std::fs writes/deletes accepting an unsanitized string-derived path
+          # std::fs writes / deletes
           - pattern: std::fs::write(&PathBuf::from($PATH), ...)
           - pattern: std::fs::write(&$PATH, ...)
           - pattern: std::fs::remove_file(&PathBuf::from($PATH))
           - pattern: std::fs::remove_dir_all(&PathBuf::from($PATH))
+          - pattern: std::fs::create_dir_all(&PathBuf::from($PATH))
+          - pattern: std::fs::rename(&PathBuf::from($PATH), ...)
+          - pattern: std::fs::copy(&PathBuf::from($PATH), ...)
+          # std::fs reads / metadata (info-disclosure primitives)
+          - pattern: std::fs::read(&PathBuf::from($PATH))
+          - pattern: std::fs::read(&$PATH)
+          - pattern: std::fs::read_to_string(&PathBuf::from($PATH))
+          - pattern: std::fs::read_to_string(&$PATH)
+          - pattern: std::fs::metadata(&PathBuf::from($PATH))
+          - pattern: std::fs::read_dir(&PathBuf::from($PATH))
+          # tokio::fs equivalents
           - pattern: tokio::fs::write(&PathBuf::from($PATH), ...)
+          - pattern: tokio::fs::write(&$PATH, ...)
           - pattern: tokio::fs::remove_file(&PathBuf::from($PATH))
           - pattern: tokio::fs::remove_dir_all(&PathBuf::from($PATH))
+          - pattern: tokio::fs::create_dir_all(&PathBuf::from($PATH))
+          - pattern: tokio::fs::rename(&PathBuf::from($PATH), ...)
+          - pattern: tokio::fs::copy(&PathBuf::from($PATH), ...)
+          - pattern: tokio::fs::read(&PathBuf::from($PATH))
+          - pattern: tokio::fs::read(&$PATH)
+          - pattern: tokio::fs::read_to_string(&PathBuf::from($PATH))
+          - pattern: tokio::fs::read_to_string(&$PATH)
+          - pattern: tokio::fs::metadata(&PathBuf::from($PATH))
+          - pattern: tokio::fs::read_dir(&PathBuf::from($PATH))
+          - pattern: tokio::fs::read_dir(&$PATH)
       - pattern-inside: |
           #[tauri::command]
           $VIS async fn $FN(..., $PATH: String, ...) -> $RET {
@@ -66,3 +91,50 @@ rules:
               let $RESOLVED = safe_resolve_path_in(...)?;
               ...
           }
+      - pattern-not-inside: |
+          {
+              ...
+              let $RESOLVED = reject_sensitive_path(...)?;
+              ...
+          }
+
+  - id: tauri-command-path-string-passed-to-process
+    languages: [rust]
+    severity: WARNING
+    paths:
+      include:
+        - "vibeui/src-tauri/src/**"
+    message: >-
+      Tauri command accepts a `path: String` argument and passes it to a
+      subprocess (`Command::new(...).arg($PATH)` or `.current_dir($PATH)`).
+      A WebView compromise could pass `/Users/$USER/.vibecli` as a working
+      directory or `~/.ssh/id_rsa` as a git target. Validate with
+      `reject_sensitive_path()` first and pass the returned `PathBuf`
+      (`.arg(&resolved)` / `.current_dir(&resolved)`). DREAD #2 category 3.
+    patterns:
+      - pattern-either:
+          - pattern: $CMD.arg(&$PATH)
+          - pattern: $CMD.arg($PATH)
+          - pattern: $CMD.current_dir(&$PATH)
+          - pattern: $CMD.current_dir($PATH)
+      - pattern-inside: |
+          #[tauri::command]
+          $VIS async fn $FN(..., $PATH: String, ...) -> $RET {
+              ...
+          }
+      - pattern-not-inside: |
+          {
+              ...
+              let $RESOLVED = safe_resolve_path(...)?;
+              ...
+          }
+      - pattern-not-inside: |
+          {
+              ...
+              let $RESOLVED = reject_sensitive_path(...)?;
+              ...
+          }
+      # Don't fire when the arg is a static string literal or non-path value.
+      - metavariable-regex:
+          metavariable: $PATH
+          regex: "^(path|file_path|dir|directory|folder|repo|repo_path|root|target|workspace_path|cwd|output_dir)$"

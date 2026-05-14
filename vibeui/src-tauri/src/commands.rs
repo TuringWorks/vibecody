@@ -671,29 +671,23 @@ pub async fn list_directory_sandbox(path: String) -> Result<Vec<vibe_core::file_
 
 #[tauri::command]
 pub async fn read_file_sandbox(path: String) -> Result<String, String> {
-    if path.contains("..") {
-        return Err("Path traversal blocked".to_string());
-    }
-    let path_buf = std::path::PathBuf::from(&path);
-    if !path_buf.is_absolute() {
+    if !std::path::Path::new(&path).is_absolute() {
         return Err("Sandbox path must be absolute".to_string());
     }
-    tokio::fs::read_to_string(&path_buf).await.map_err(|e| e.to_string())
+    let resolved = reject_sensitive_path(&path)?;
+    tokio::fs::read_to_string(&resolved).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub async fn write_file_sandbox(path: String, content: String) -> Result<(), String> {
-    if path.contains("..") {
-        return Err("Path traversal blocked".to_string());
-    }
-    let path_buf = std::path::PathBuf::from(&path);
-    if !path_buf.is_absolute() {
+    if !std::path::Path::new(&path).is_absolute() {
         return Err("Sandbox path must be absolute".to_string());
     }
-    if let Some(parent) = path_buf.parent() {
+    let resolved = reject_sensitive_path(&path)?;
+    if let Some(parent) = resolved.parent() {
         tokio::fs::create_dir_all(parent).await.map_err(|e| e.to_string())?;
     }
-    tokio::fs::write(&path_buf, content).await.map_err(|e| e.to_string())
+    tokio::fs::write(&resolved, content).await.map_err(|e| e.to_string())
 }
 
 // ── Sandbox Gateway: messaging apps → AI + sandbox ───────────────────────────
@@ -2351,20 +2345,37 @@ pub async fn git_diff(
 }
 
 #[tauri::command]
-pub async fn git_list_branches(path: String) -> Result<Vec<String>, String> {
-    vibe_core::git::list_branches(&PathBuf::from(path))
-        .map_err(|e| e.to_string())
+pub async fn git_list_branches(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<String>, String> {
+    let workspace = state.workspace.lock().await;
+    let resolved = safe_resolve_path(&workspace, &path)?;
+    vibe_core::git::list_branches(&resolved).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn git_switch_branch(path: String, branch: String) -> Result<(), String> {
-    vibe_core::git::switch_branch(&PathBuf::from(path), &branch)
-        .map_err(|e| e.to_string())
+pub async fn git_switch_branch(
+    path: String,
+    branch: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let workspace = state.workspace.lock().await;
+    let resolved = safe_resolve_path(&workspace, &path)?;
+    vibe_core::git::switch_branch(&resolved, &branch).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn get_git_config(path: String) -> Result<serde_json::Value, String> {
-    let repo_path = PathBuf::from(&path);
+pub async fn get_git_config(
+    path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    // git commands spawn the `git` subprocess with `current_dir(repo_path)`.
+    // Without workspace bounding, the WebView could probe any directory's
+    // git config (and the remote URL, which carries the username and the
+    // host for any private repo on this machine). DREAD #2 follow-up.
+    let workspace = state.workspace.lock().await;
+    let repo_path = safe_resolve_path(&workspace, &path)?;
 
     // Read user.name and user.email
     let user_name = std::process::Command::new("git")
@@ -2405,8 +2416,14 @@ pub async fn get_git_config(path: String) -> Result<serde_json::Value, String> {
 }
 
 #[tauri::command]
-pub async fn set_git_config(path: String, user_name: String, user_email: String) -> Result<(), String> {
-    let repo_path = PathBuf::from(&path);
+pub async fn set_git_config(
+    path: String,
+    user_name: String,
+    user_email: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let workspace = state.workspace.lock().await;
+    let repo_path = safe_resolve_path(&workspace, &path)?;
 
     if !user_name.is_empty() {
         std::process::Command::new("git")
@@ -2476,21 +2493,39 @@ pub async fn store_git_credentials(url: String, username: String, token: String)
 }
 
 #[tauri::command]
-pub async fn git_get_history(path: String, limit: usize) -> Result<Vec<vibe_core::git::CommitInfo>, String> {
-    vibe_core::git::get_history(&PathBuf::from(path), limit)
-        .map_err(|e| e.to_string())
+pub async fn git_get_history(
+    path: String,
+    limit: usize,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<vibe_core::git::CommitInfo>, String> {
+    let workspace = state.workspace.lock().await;
+    let resolved = safe_resolve_path(&workspace, &path)?;
+    vibe_core::git::get_history(&resolved, limit).map_err(|e| e.to_string())
 }
 
 /// Return the files changed in a given commit (by partial or full SHA hash).
 #[tauri::command]
-pub async fn git_get_commit_files(path: String, hash: String) -> Result<Vec<String>, String> {
-    vibe_core::git::get_commit_files(&PathBuf::from(path), &hash)
-        .map_err(|e| e.to_string())
+pub async fn git_get_commit_files(
+    path: String,
+    hash: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<String>, String> {
+    let workspace = state.workspace.lock().await;
+    let resolved = safe_resolve_path(&workspace, &path)?;
+    vibe_core::git::get_commit_files(&resolved, &hash).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn git_discard_changes(path: String, file_path: String) -> Result<(), String> {
-    vibe_core::git::discard_changes(&PathBuf::from(path), &file_path)
+pub async fn git_discard_changes(
+    path: String,
+    file_path: String,
+    state: tauri::State<'_, AppState>,
+) -> Result<(), String> {
+    let workspace = state.workspace.lock().await;
+    let resolved = safe_resolve_path(&workspace, &path)?;
+    // `file_path` is the file to discard *within* the repo — also bound it.
+    let resolved_file = safe_resolve_path(&workspace, &file_path)?;
+    vibe_core::git::discard_changes(&resolved, &resolved_file.to_string_lossy())
         .map_err(|e| e.to_string())
 }
 
@@ -28736,15 +28771,24 @@ pub async fn fullstack_generate(spec: FullStackSpec) -> Result<FullStackResult, 
 
 #[tauri::command]
 pub async fn fullstack_read_file(path: String) -> Result<String, String> {
-    std::fs::read_to_string(&path).map_err(|e| format!("Failed to read {}: {}", path, e))
+    // Reads outside the workspace are intentional (the fullstack generator
+    // shows the user files it's about to produce), but reading credential
+    // stores would let the WebView base64-leak them via the next chat turn.
+    // DREAD #2.
+    let resolved = reject_sensitive_path(&path)?;
+    std::fs::read_to_string(&resolved).map_err(|e| format!("Failed to read {}: {}", path, e))
 }
 
 #[tauri::command]
 pub async fn fullstack_write_file(path: String, content: String) -> Result<(), String> {
-    if let Some(parent) = std::path::Path::new(&path).parent() {
+    // Pre-existing fullstack_* commands deliberately write outside the
+    // workspace (the user typically picks an output directory via the save
+    // dialog). Still block writes into credential dirs / files. DREAD #2.
+    let resolved = reject_sensitive_path(&path)?;
+    if let Some(parent) = resolved.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    std::fs::write(&path, &content).map_err(|e| format!("Failed to write {}: {}", path, e))
+    std::fs::write(&resolved, &content).map_err(|e| format!("Failed to write {}: {}", path, e))
 }
 
 /// Write raw bytes to an absolute path, decoding from base64.
@@ -28753,13 +28797,14 @@ pub async fn fullstack_write_file(path: String, content: String) -> Result<(), S
 #[tauri::command]
 pub async fn fullstack_write_binary(path: String, base64_content: String) -> Result<(), String> {
     use base64::Engine;
+    let resolved = reject_sensitive_path(&path)?;
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(base64_content.as_bytes())
         .map_err(|e| format!("Invalid base64: {}", e))?;
-    if let Some(parent) = std::path::Path::new(&path).parent() {
+    if let Some(parent) = resolved.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    std::fs::write(&path, &bytes).map_err(|e| format!("Failed to write {}: {}", path, e))
+    std::fs::write(&resolved, &bytes).map_err(|e| format!("Failed to write {}: {}", path, e))
 }
 
 // ── Security Scanner ────────────────────────────────────────────────────────
