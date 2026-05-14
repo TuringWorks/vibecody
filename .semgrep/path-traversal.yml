@@ -1,0 +1,68 @@
+# VibeCody — path-traversal SAST rules.
+#
+# These rules prevent regression of DREAD #2 in docs/security/threat-model.md.
+# Loaded by .github/workflows/security.yml (the workflow auto-discovers files
+# under .semgrep/).
+#
+# Run locally:
+#   semgrep --config .semgrep/path-traversal.yml vibeui/src-tauri/src/
+
+rules:
+  - id: discarded-safe-resolve-path
+    languages: [rust]
+    severity: ERROR
+    paths:
+      include:
+        - "vibeui/src-tauri/src/**"
+    message: >-
+      `safe_resolve_path()` (and `safe_resolve_path_in()`) is `#[must_use]` — the
+      returned PathBuf is the canonicalized, in-workspace-bounds path. Discarding
+      it with `safe_resolve_path(...)?;` and passing the original `path` String
+      to `std::fs::*` / `tokio::fs::*` / `workspace.file_system().*` reintroduces
+      the path-traversal bug this helper exists to prevent. See
+      docs/security/threat-model.md §7 item #2.
+    patterns:
+      - pattern-either:
+          - pattern: |
+              safe_resolve_path($WS, $PATH)?;
+          - pattern: |
+              safe_resolve_path_in($FS, $PATH)?;
+
+  - id: tauri-command-path-string-without-resolve
+    languages: [rust]
+    severity: WARNING
+    paths:
+      include:
+        - "vibeui/src-tauri/src/**"
+    message: >-
+      Tauri command accepts a `path: String` argument and performs a filesystem
+      operation. Validate the path with `safe_resolve_path()` and use the
+      returned `PathBuf` for the FS call. See
+      docs/security/threat-model.md §7 item #2.
+    patterns:
+      - pattern-either:
+          # std::fs writes/deletes accepting an unsanitized string-derived path
+          - pattern: std::fs::write(&PathBuf::from($PATH), ...)
+          - pattern: std::fs::write(&$PATH, ...)
+          - pattern: std::fs::remove_file(&PathBuf::from($PATH))
+          - pattern: std::fs::remove_dir_all(&PathBuf::from($PATH))
+          - pattern: tokio::fs::write(&PathBuf::from($PATH), ...)
+          - pattern: tokio::fs::remove_file(&PathBuf::from($PATH))
+          - pattern: tokio::fs::remove_dir_all(&PathBuf::from($PATH))
+      - pattern-inside: |
+          #[tauri::command]
+          $VIS async fn $FN(..., $PATH: String, ...) -> $RET {
+              ...
+          }
+      - pattern-not-inside: |
+          {
+              ...
+              let $RESOLVED = safe_resolve_path(...)?;
+              ...
+          }
+      - pattern-not-inside: |
+          {
+              ...
+              let $RESOLVED = safe_resolve_path_in(...)?;
+              ...
+          }

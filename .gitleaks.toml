@@ -1,0 +1,72 @@
+# gitleaks config — https://github.com/gitleaks/gitleaks
+#
+# Run locally:  gitleaks detect --config .gitleaks.toml --no-git -v
+# CI enforces:  .github/workflows/security.yml
+#
+# Strategy: start from the upstream default rules, layer VibeCody-specific
+# allowlist for test fixtures and example tokens that are not real secrets.
+
+[extend]
+useDefault = true
+
+# ── VibeCody-specific extra rules ─────────────────────────────────────────────
+
+[[rules]]
+id = "vibecli-bearer-literal"
+description = "Hardcoded VibeCLI bearer token in source"
+regex = '''(?i)(api_token|bearer_token|VIBECLI_TOKEN)\s*[:=]\s*['"][A-Za-z0-9_\-]{32,}['"]'''
+tags = ["vibecli", "token"]
+
+[[rules]]
+id = "vibecli-anthropic-key"
+description = "Anthropic API key literal"
+regex = '''sk-ant-[A-Za-z0-9_\-]{20,}'''
+tags = ["llm", "anthropic"]
+
+[[rules]]
+id = "vibecli-openai-key"
+description = "OpenAI API key literal"
+regex = '''sk-(proj-)?[A-Za-z0-9_\-]{20,}'''
+tags = ["llm", "openai"]
+
+[[rules]]
+id = "vibecli-hf-token"
+description = "Hugging Face token literal"
+regex = '''hf_[A-Za-z0-9]{30,}'''
+tags = ["llm", "huggingface"]
+
+# ── Allowlist: known-safe locations ──────────────────────────────────────────
+
+[allowlist]
+description = "Paths and patterns that legitimately contain key-shaped strings"
+
+paths = [
+    # Test fixtures use deterministic fake keys.
+    '''(^|/)tests/.*''',
+    '''(^|/)test_data/.*''',
+    '''(^|/)testdata/.*''',
+    '''(^|/)fixtures/.*''',
+    # Docs frequently include example tokens in code blocks.
+    '''^docs/.*\.md$''',
+    # OWASP review guide PDF and similar reference material.
+    '''.*\.pdf$''',
+    # Lockfiles regenerated in CI; allow gitleaks to skip.
+    '''^Cargo\.lock$''',
+    '''package-lock\.json$''',
+    # Gitleaks's own config.
+    '''^\.gitleaks\.toml$''',
+]
+
+regexes = [
+    # Placeholder/sample tokens used in documentation.
+    '''sk-(your|YOUR|example|EXAMPLE|placeholder|PLACEHOLDER|test|TEST)[-_]''',
+    '''sk-ant-(example|test|placeholder)[-_]''',
+    '''hf_(example|test|placeholder)''',
+    # Test-only encryption key constants — these are deliberately weak and only
+    # used with ProfileStore::open_with / WorkspaceStore::open_with per CLAUDE.md.
+    '''\[42u8;\s*32\]''',
+    '''\[0u8;\s*32\]''',
+]
+
+# Per-rule commit allowlists (for false positives we've reviewed). Add with care.
+commits = []

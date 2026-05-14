@@ -3,6 +3,7 @@
 // per-crate dead_code lint. Silence at crate level rather than per-item.
 #![allow(dead_code)]
 
+pub mod auth_util;
 pub mod diff_review;
 pub mod cost_router;
 pub mod agent_skills_compat;
@@ -38,6 +39,8 @@ pub mod mcp_streamable;
 pub mod mcp_http;
 // A3 — /.well-known/mcp.json capability discovery.
 pub mod mcp_well_known;
+// A2 — MCPB bundle format pack/extract/verify.
+pub mod mcpb_bundle;
 pub mod mcts_repair;
 pub mod visual_verify;
 pub mod next_task;
@@ -171,6 +174,12 @@ pub mod cursor_overlay;
 pub mod plugin_marketplace;
 // MemPalace techniques — LongMemEval benchmark
 pub mod open_memory;
+// A6 — multi-root workspace permission resolver.
+pub mod workspace_roots;
+// A4 — ACP server mode (Zed/JetBrains/Neovim, JSON-RPC over stdio).
+pub mod acp_stdio;
+// A10 — skills hot-reload watcher (companion to B1 SkillCatalog).
+pub mod skill_watcher;
 // Memory-as-infrastructure redesign — Phase 2: single context assembler
 // (depends on memory, workflow_orchestration, project_init below).
 pub mod memory;
