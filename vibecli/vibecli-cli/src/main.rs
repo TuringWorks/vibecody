@@ -127,6 +127,7 @@ mod syntax;
 mod diff_viewer;
 mod tool_executor;
 mod memory;
+mod workspace_roots;
 mod acp_stdio;
 mod skill_watcher;
 mod memory_recorder;
