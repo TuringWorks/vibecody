@@ -75,11 +75,13 @@ impl Default for LoopConfig {
 pub fn run_loop<T, V, R>(
     initial: T,
     config: &LoopConfig,
-    verify: V,
+    mut verify: V,
     mut repair: R,
 ) -> Result<Outcome<T>>
 where
-    V: Fn(&T) -> Result<Verdict>,
+    // FnMut, not Fn — call sites need to mutate captured state (e.g. an
+    // iteration counter in tests). Symmetric with `repair: FnMut` below.
+    V: FnMut(&T) -> Result<Verdict>,
     R: FnMut(&T, &str) -> Result<RepairOutcome<T>>,
 {
     let max = config.max_iterations.max(1);

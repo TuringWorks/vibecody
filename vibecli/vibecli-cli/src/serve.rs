@@ -6673,6 +6673,7 @@ mod tests {
                 jobs_dir: tmp_dir.path().to_path_buf(),
                 provider_name: "mock".to_string(),
                 api_token: token.to_string(),
+                api_token_minted_at_unix: 0,
                 collab_server: Arc::new(CollabServer::new(5)),
                 github_app_config: crate::github_app::GithubAppConfig::default(),
                 started_at: std::time::Instant::now(),
@@ -7109,6 +7110,7 @@ mod tests {
                 jobs_dir: tmp_dir.path().to_path_buf(),
                 provider_name: "mock".to_string(),
                 api_token: token.to_string(),
+                api_token_minted_at_unix: 0,
                 collab_server: Arc::new(CollabServer::new(5)),
                 github_app_config: crate::github_app::GithubAppConfig::default(),
                 started_at: std::time::Instant::now(),
@@ -7650,6 +7652,41 @@ mod tests {
             );
             let version = json["version"].as_str().unwrap();
             assert!(!version.is_empty(), "version should not be empty");
+        }
+
+        /// DREAD #20 — `/health.api_token` is the documented freshness
+        /// signal. The block must exist, must contain `minted_at_unix` +
+        /// `age_seconds`, and must **never** contain the token itself.
+        #[tokio::test]
+        async fn health_exposes_api_token_freshness_signal() {
+            let secret_token = "this-secret-must-never-appear-in-health-body";
+            let (app, _tmp) = test_app(secret_token);
+            let req = Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            let body = body_string(resp.into_body()).await;
+            assert!(
+                !body.contains(secret_token),
+                "/health MUST NOT leak the bearer token in any field; body was: {body}"
+            );
+            let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+            let api_token = json
+                .get("api_token")
+                .unwrap_or_else(|| panic!("missing api_token block; body: {body}"));
+            assert!(
+                api_token.get("minted_at_unix").is_some(),
+                "missing minted_at_unix in api_token block: {api_token}"
+            );
+            assert!(
+                api_token.get("age_seconds").is_some(),
+                "missing age_seconds in api_token block: {api_token}"
+            );
+            assert!(
+                api_token.get("rotation_doc").is_some(),
+                "missing rotation_doc in api_token block: {api_token}"
+            );
         }
 
         // ── 404 fallback returns JSON ────────────────────────────────
