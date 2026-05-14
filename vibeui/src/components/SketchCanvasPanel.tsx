@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { save } from "@tauri-apps/plugin-dialog";
 
 interface RecognizedComponent {
   shape: string;
@@ -31,6 +32,22 @@ const toolBtnStyle = (active: boolean): React.CSSProperties => ({
 });
 
 const COLORS = ["#4f8ff7", "var(--error-color)", "var(--success-color)", "var(--warning-color)", "#9c27b0", "#607d8b"];
+
+// Canvas 2D and detached SVG don't resolve `var(--…)` — pre-resolve to the
+// computed value from :root so strokes, fills, and exports get a real color.
+function resolveColor(c: string): string {
+  if (!c.startsWith("var(") || typeof window === "undefined") return c;
+  const name = c.match(/var\(\s*(--[^,)\s]+)/)?.[1];
+  if (!name) return c;
+  const resolved = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return resolved || c;
+}
+
+// Append an alpha byte to a #rrggbb hex; otherwise fall through to the color
+// itself (callers handle missing tint by using globalAlpha).
+function hexWithAlpha(c: string, alphaHex: string): string {
+  return /^#[0-9a-fA-F]{6}$/.test(c) ? c + alphaHex : c;
+}
 
 export function SketchCanvasPanel() {
   const [tab, setTab] = useState("canvas");
@@ -68,8 +85,9 @@ export function SketchCanvasPanel() {
   /* ── Canvas drawing ──────────────────────────────────────────────── */
 
   const drawShape = useCallback((ctx: CanvasRenderingContext2D, s: DrawnShape, selected?: boolean) => {
-    ctx.strokeStyle = s.color;
-    ctx.fillStyle = s.color + "22";
+    const color = resolveColor(s.color);
+    ctx.strokeStyle = color;
+    ctx.fillStyle = hexWithAlpha(color, "22");
     ctx.lineWidth = 2;
 
     switch (s.tool) {
@@ -112,7 +130,7 @@ export function SketchCanvasPanel() {
         break;
       }
       case "text":
-        ctx.fillStyle = s.color;
+        ctx.fillStyle = color;
         ctx.font = "14px var(--font-family, sans-serif)";
         ctx.fillText(s.text || "Text", s.x, s.y + 16);
         break;
@@ -321,30 +339,31 @@ export function SketchCanvasPanel() {
   const buildSvgString = () => {
     const lines: string[] = ['<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" style="background:#1e1e2e">'];
     for (const s of shapes) {
-      const fill = s.color + "22";
+      const color = resolveColor(s.color);
+      const fill = hexWithAlpha(color, "22");
       switch (s.tool) {
         case "rect":
-          lines.push(`  <rect x="${s.x}" y="${s.y}" width="${Math.abs(s.w)}" height="${Math.abs(s.h)}" fill="${fill}" stroke="${s.color}" stroke-width="2" rx="2" />`);
+          lines.push(`  <rect x="${s.x}" y="${s.y}" width="${Math.abs(s.w)}" height="${Math.abs(s.h)}" fill="${fill}" stroke="${color}" stroke-width="2" rx="2" />`);
           break;
         case "circle": {
           const rx = Math.abs(s.w) / 2, ry = Math.abs(s.h) / 2;
-          lines.push(`  <ellipse cx="${s.x + s.w / 2}" cy="${s.y + s.h / 2}" rx="${rx}" ry="${ry}" fill="${fill}" stroke="${s.color}" stroke-width="2" />`);
+          lines.push(`  <ellipse cx="${s.x + s.w / 2}" cy="${s.y + s.h / 2}" rx="${rx}" ry="${ry}" fill="${fill}" stroke="${color}" stroke-width="2" />`);
           break;
         }
         case "line":
-          lines.push(`  <line x1="${s.x}" y1="${s.y}" x2="${s.x + s.w}" y2="${s.y + s.h}" stroke="${s.color}" stroke-width="2" />`);
+          lines.push(`  <line x1="${s.x}" y1="${s.y}" x2="${s.x + s.w}" y2="${s.y + s.h}" stroke="${color}" stroke-width="2" />`);
           break;
         case "arrow": {
           const ex = s.x + s.w, ey = s.y + s.h;
           const angle = Math.atan2(s.h, s.w), hl = 12;
           const ax1 = ex - hl * Math.cos(angle - 0.4), ay1 = ey - hl * Math.sin(angle - 0.4);
           const ax2 = ex - hl * Math.cos(angle + 0.4), ay2 = ey - hl * Math.sin(angle + 0.4);
-          lines.push(`  <line x1="${s.x}" y1="${s.y}" x2="${ex}" y2="${ey}" stroke="${s.color}" stroke-width="2" />`);
-          lines.push(`  <polygon points="${ex},${ey} ${ax1},${ay1} ${ax2},${ay2}" fill="${s.color}" />`);
+          lines.push(`  <line x1="${s.x}" y1="${s.y}" x2="${ex}" y2="${ey}" stroke="${color}" stroke-width="2" />`);
+          lines.push(`  <polygon points="${ex},${ey} ${ax1},${ay1} ${ax2},${ay2}" fill="${color}" />`);
           break;
         }
         case "text":
-          lines.push(`  <text x="${s.x}" y="${s.y + 16}" fill="${s.color}" font-size="14" font-family="sans-serif">${s.text ?? "Text"}</text>`);
+          lines.push(`  <text x="${s.x}" y="${s.y + 16}" fill="${color}" font-size="14" font-family="sans-serif">${s.text ?? "Text"}</text>`);
           break;
       }
     }
@@ -352,50 +371,63 @@ export function SketchCanvasPanel() {
     return lines.join("\n");
   };
 
-  const downloadFile = (content: string, filename: string, mime: string) => {
-    const blob = new Blob([content], { type: mime });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
+  // PNG path: render the SVG into an offscreen canvas, then read it back as a Blob.
+  const renderSvgToPngBlob = (svgStr: string): Promise<Blob> =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      const svgBlob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(svgBlob);
+      img.onload = () => {
+        const offscreen = document.createElement("canvas");
+        offscreen.width = 800;
+        offscreen.height = 400;
+        const ctx = offscreen.getContext("2d")!;
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        offscreen.toBlob((blob) => {
+          if (!blob) reject(new Error("PNG encode failed"));
+          else resolve(blob);
+        }, "image/png");
+      };
+      img.onerror = (e) => {
+        URL.revokeObjectURL(url);
+        reject(e instanceof Error ? e : new Error("SVG load failed"));
+      };
+      img.src = url;
+    });
+
+  const blobToBase64 = (blob: Blob): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        const idx = dataUrl.indexOf(",");
+        resolve(idx >= 0 ? dataUrl.slice(idx + 1) : dataUrl);
+      };
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
 
   const handleExport = async (format: string) => {
     if (shapes.length === 0) return;
     setExporting(true);
     try {
       if (format === "svg") {
-        downloadFile(buildSvgString(), "sketch.svg", "image/svg+xml");
+        const path = await save({
+          defaultPath: "sketch.svg",
+          filters: [{ name: "SVG image", extensions: ["svg"] }],
+        });
+        if (!path) return; // user cancelled
+        await invoke("fullstack_write_file", { path, content: buildSvgString() });
       } else if (format === "png") {
-        // Render SVG to a temporary canvas for PNG export
-        const svgStr = buildSvgString();
-        const img = new Image();
-        const svgBlob = new Blob([svgStr], { type: "image/svg+xml;charset=utf-8" });
-        const url = URL.createObjectURL(svgBlob);
-        img.onload = () => {
-          const offscreen = document.createElement("canvas");
-          offscreen.width = 800;
-          offscreen.height = 400;
-          const ctx = offscreen.getContext("2d")!;
-          ctx.drawImage(img, 0, 0);
-          URL.revokeObjectURL(url);
-          offscreen.toBlob((blob) => {
-            if (!blob) return;
-            const pngUrl = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = pngUrl;
-            a.download = "sketch.png";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(pngUrl);
-          }, "image/png");
-        };
-        img.src = url;
+        const blob = await renderSvgToPngBlob(buildSvgString());
+        const base64 = await blobToBase64(blob);
+        const path = await save({
+          defaultPath: "sketch.png",
+          filters: [{ name: "PNG image", extensions: ["png"] }],
+        });
+        if (!path) return;
+        await invoke("fullstack_write_binary", { path, base64Content: base64 });
       }
     } catch (e) {
       console.error("Failed to export:", e);
