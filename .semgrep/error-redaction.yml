@@ -1,0 +1,42 @@
+# VibeCody — error-body redaction SAST rules.
+#
+# Blocks DREAD #21: leaking `io::Error` / `sqlx::Error` / `anyhow::Error`
+# Display strings into HTTP response bodies. The displays often contain
+# filesystem paths to the workspace SQLite DBs, the secret-store, or the
+# user's home dir — useful for reconnaissance.
+#
+# Use `internal_error(context, &e)` for handlers returning
+# `(StatusCode, Json<Value>)` or `impl IntoResponse`; use
+# `internal_error_value(context, &e)` for the pure recap/resume helpers
+# that return `(StatusCode, serde_json::Value)`.
+#
+# See docs/security/threat-model.md §7 item #21.
+
+rules:
+  - id: error-body-leaks-display
+    languages: [rust]
+    severity: WARNING
+    paths:
+      include:
+        - "vibecli/vibecli-cli/src/serve.rs"
+        - "vibecli/vibecli-cli/src/watch_bridge.rs"
+    message: >-
+      This 500 response embeds the Display of an error value in the JSON
+      body. If `e` is an io::Error, sqlx::Error, or anyhow::Error chain,
+      the body will contain filesystem paths (workspace DBs, $HOME,
+      ~/.vibecli) which is a reconnaissance leak (DREAD #21).
+      Use `internal_error("context", &e)` (or `internal_error_value` for
+      Value-returning helpers) — it logs the full detail server-side
+      and returns an opaque `{"error":"internal","correlation_id":"..."}`
+      response.
+    patterns:
+      - pattern-either:
+          - pattern: |
+              serde_json::json!({"error": format!($FMT, ..., e = $E, ...)})
+          - pattern: |
+              serde_json::json!({"error": format!("...{$E}...", ...)})
+          - pattern: |
+              serde_json::json!({ "error": format!("...{$E}...", ...) })
+      - metavariable-regex:
+          metavariable: $E
+          regex: "^[a-z_]?e[a-z_0-9]*$"

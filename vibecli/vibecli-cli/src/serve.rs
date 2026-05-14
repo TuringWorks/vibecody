@@ -229,6 +229,54 @@ fn json_error(status: StatusCode, msg: impl Into<String>) -> (StatusCode, Json<s
     (status, Json(serde_json::json!({ "error": msg.into() })))
 }
 
+/// 500 Internal Server Error helper that **does not leak the underlying error
+/// detail to the client**. Full detail goes to `tracing::error!` with a short
+/// correlation ID; the response body just says `internal` + the same
+/// correlation ID so operators can grep the daemon log.
+///
+/// Use this for any error whose `Display` impl might contain filesystem paths,
+/// database internals, or other host-state (the common case for
+/// `std::io::Error`, `sqlx::Error`, and `anyhow::Error` chains). Direct
+/// `format!("…: {e}")` into a JSON body is a workspace-path-disclosure
+/// surface (DREAD #21 in docs/security/threat-model.md) and the semgrep
+/// rule in `.semgrep/error-redaction.yml` blocks it.
+///
+/// Example:
+/// ```ignore
+/// match store.load(id) {
+///     Ok(rec) => Json(rec).into_response(),
+///     Err(e) => internal_error("recap load", &e).into_response(),
+/// }
+/// ```
+fn internal_error(context: &str, err: &dyn std::fmt::Display) -> (StatusCode, Json<serde_json::Value>) {
+    let (status, value) = internal_error_value(context, err);
+    (status, Json(value))
+}
+
+/// Same as [`internal_error`] but returns the body as a raw
+/// `serde_json::Value`. Used by handlers that return `(StatusCode, Value)`
+/// (e.g. the recap/resume pure helpers in this file).
+fn internal_error_value(context: &str, err: &dyn std::fmt::Display) -> (StatusCode, serde_json::Value) {
+    // Short, log-greppable correlation ID. 8 hex chars of entropy is plenty
+    // for matching a single request to a log line; not a security boundary.
+    use rand::Rng;
+    let correlation_id = format!("{:08x}", rand::rng().random::<u32>());
+    tracing::error!(
+        target: "vibecody::http",
+        correlation_id = %correlation_id,
+        context = %context,
+        error = %err,
+        "internal_error responded to client"
+    );
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        serde_json::json!({
+            "error": "internal",
+            "correlation_id": correlation_id,
+        }),
+    )
+}
+
 /// Sanitize user-supplied input before echoing it in error messages.
 /// Strips HTML/control characters and truncates to 200 chars.
 fn sanitize_user_input(s: &str) -> String {
@@ -2052,10 +2100,7 @@ pub(crate) fn do_v1_recap_post(
             );
         }
         Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                serde_json::json!({"error": format!("failed to load session: {e}")}),
-            );
+            return internal_error_value("recap.load_session", &e);
         }
     };
 
@@ -2094,10 +2139,7 @@ pub(crate) fn do_v1_recap_post(
                     error = %e,
                     "recap.post: serialize failed"
                 );
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    serde_json::json!({"error": format!("recap serialize: {e}")}),
-                )
+                internal_error_value("recap.serialize", &e)
             }
         },
         Err(e) => {
@@ -2107,10 +2149,7 @@ pub(crate) fn do_v1_recap_post(
                 error = %e,
                 "recap.post: insert failed"
             );
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                serde_json::json!({"error": format!("recap insert: {e}")}),
-            )
+            internal_error_value("recap.insert", &e)
         }
     }
 }
@@ -2122,19 +2161,13 @@ pub(crate) fn do_v1_recap_get(
     match store.get_recap_by_id(id) {
         Ok(Some(r)) => match serde_json::to_value(&r) {
             Ok(v) => (StatusCode::OK, v),
-            Err(e) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                serde_json::json!({"error": format!("serialize: {e}")}),
-            ),
+            Err(e) => internal_error_value("recap.serialize", &e),
         },
         Ok(None) => (
             StatusCode::NOT_FOUND,
             serde_json::json!({"error": "recap not found"}),
         ),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            serde_json::json!({"error": format!("recap load: {e}")}),
-        ),
+        Err(e) => internal_error_value("recap.load", &e),
     }
 }
 
@@ -2179,16 +2212,10 @@ pub(crate) fn do_v1_recap_list(
                     StatusCode::OK,
                     serde_json::json!({"recaps": v, "count": count}),
                 ),
-                Err(e) => (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    serde_json::json!({"error": format!("serialize: {e}")}),
-                ),
+                Err(e) => internal_error_value("recap.serialize", &e),
             }
         }
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            serde_json::json!({"error": format!("recap list: {e}")}),
-        ),
+        Err(e) => internal_error_value("recap.list", &e),
     }
 }
 
@@ -2209,10 +2236,7 @@ pub(crate) fn do_v1_recap_patch(
             );
         }
         Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                serde_json::json!({"error": format!("recap load: {e}")}),
-            );
+            return internal_error_value("recap.load", &e);
         }
     };
 
@@ -2226,10 +2250,7 @@ pub(crate) fn do_v1_recap_patch(
     ) {
         Ok(Some(updated)) => match serde_json::to_value(&updated) {
             Ok(v) => (StatusCode::OK, v),
-            Err(e) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                serde_json::json!({"error": format!("serialize: {e}")}),
-            ),
+            Err(e) => internal_error_value("recap.serialize", &e),
         },
         Ok(None) => (
             // The pre-flight load above already 404'd on missing rows,
@@ -2238,10 +2259,7 @@ pub(crate) fn do_v1_recap_patch(
             StatusCode::NOT_FOUND,
             serde_json::json!({"error": "recap not found"}),
         ),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            serde_json::json!({"error": format!("recap update: {e}")}),
-        ),
+        Err(e) => internal_error_value("recap.update", &e),
     }
 }
 
@@ -2251,10 +2269,7 @@ pub(crate) fn do_v1_recap_delete(
 ) -> (StatusCode, serde_json::Value) {
     match store.delete_recap(id) {
         Ok(()) => (StatusCode::NO_CONTENT, serde_json::json!({})),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            serde_json::json!({"error": format!("recap delete: {e}")}),
-        ),
+        Err(e) => internal_error_value("recap.delete", &e),
     }
 }
 
@@ -2341,10 +2356,7 @@ pub(crate) async fn do_v1_recap_post_job(
     let stored_id = match jm.insert_job_recap(&recap).await {
         Ok(id) => id,
         Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                serde_json::json!({"error": format!("recap insert: {e}")}),
-            );
+            return internal_error_value("recap.insert", &e);
         }
     };
     // Re-load via id so the response carries the persisted shape (the
@@ -2353,19 +2365,13 @@ pub(crate) async fn do_v1_recap_post_job(
     match jm.get_job_recap_by_id(&stored_id).await {
         Ok(Some(stored)) => match serde_json::to_value(&stored) {
             Ok(v) => (StatusCode::OK, v),
-            Err(e) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                serde_json::json!({"error": format!("recap serialize: {e}")}),
-            ),
+            Err(e) => internal_error_value("recap.serialize", &e),
         },
         Ok(None) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             serde_json::json!({"error": "recap vanished after insert"}),
         ),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            serde_json::json!({"error": format!("recap reload: {e}")}),
-        ),
+        Err(e) => internal_error_value("recap.reload", &e),
     }
 }
 
@@ -2376,19 +2382,13 @@ pub(crate) async fn do_v1_recap_get_job(
     match jm.get_job_recap_by_id(id).await {
         Ok(Some(r)) => match serde_json::to_value(&r) {
             Ok(v) => (StatusCode::OK, v),
-            Err(e) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                serde_json::json!({"error": format!("serialize: {e}")}),
-            ),
+            Err(e) => internal_error_value("recap.serialize", &e),
         },
         Ok(None) => (
             StatusCode::NOT_FOUND,
             serde_json::json!({"error": "recap not found"}),
         ),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            serde_json::json!({"error": format!("recap load: {e}")}),
-        ),
+        Err(e) => internal_error_value("recap.load", &e),
     }
 }
 
@@ -2413,16 +2413,10 @@ pub(crate) async fn do_v1_recap_list_job(
                     StatusCode::OK,
                     serde_json::json!({"recaps": v, "count": count}),
                 ),
-                Err(e) => (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    serde_json::json!({"error": format!("serialize: {e}")}),
-                ),
+                Err(e) => internal_error_value("recap.serialize", &e),
             }
         }
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            serde_json::json!({"error": format!("recap list: {e}")}),
-        ),
+        Err(e) => internal_error_value("recap.list", &e),
     }
 }
 
@@ -2432,10 +2426,7 @@ pub(crate) async fn do_v1_recap_delete_job(
 ) -> (StatusCode, serde_json::Value) {
     match jm.delete_job_recap(id).await {
         Ok(()) => (StatusCode::NO_CONTENT, serde_json::json!({})),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            serde_json::json!({"error": format!("recap delete: {e}")}),
-        ),
+        Err(e) => internal_error_value("recap.delete", &e),
     }
 }
 
