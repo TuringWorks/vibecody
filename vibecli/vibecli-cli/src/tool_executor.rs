@@ -150,6 +150,14 @@ pub struct ToolExecutor {
     /// return errors, and shell commands are wrapped in OS-level network
     /// isolation (`sandbox-exec -n no-network` on macOS, `unshare --net` on Linux).
     pub network_disabled: bool,
+    /// DREAD #1 Slice B — when true, `ToolCall::Bash` constructed from LLM
+    /// output is gated through `tainted::confirm_shell_command` and rejected
+    /// in headless / interactive-stub modes. When false (the default during
+    /// the rollout window), the gate runs in **warn-only** mode: the
+    /// decision is emitted to tracing but the command still executes. Flip
+    /// to true once existing tool-executor tests have been audited for
+    /// tainted-friendly assertions and Slice G's modal UI lands.
+    pub tainted_strict: bool,
 }
 
 impl ToolExecutor {
@@ -164,7 +172,19 @@ impl ToolExecutor {
             provider: None,
             parent_context: None,
             network_disabled: false,
+            tainted_strict: false,
         }
+    }
+
+    /// Opt into DREAD #1 Slice B hard-gating — `shell.exec` invocations
+    /// originating from LLM tool calls are rejected when the
+    /// `tainted::confirm_shell_command` gate rejects (which today is
+    /// always, by design — until Slice G wires the interactive modal).
+    /// In warn-mode (the default), the gate runs and logs but still
+    /// executes the command.
+    pub fn with_tainted_strict(mut self, yes: bool) -> Self {
+        self.tainted_strict = yes;
+        self
     }
 
     pub fn with_env_policy(mut self, policy: ShellEnvPolicy) -> Self {
@@ -212,13 +232,13 @@ impl ToolExecutorTrait for ToolExecutor {
             ToolCall::ReadFile { path } => self.read_file(path).await,
             ToolCall::WriteFile { path, content } => self.write_file(path, content).await,
             ToolCall::ApplyPatch { path, patch } => self.apply_patch(path, patch).await,
-            ToolCall::Bash { command } => self.run_bash(command).await,
+            ToolCall::Bash { command } => self.dispatch_bash_tool_call(command).await,
             ToolCall::SearchFiles { query, glob } => self.search(query, glob.as_deref()).await,
             ToolCall::ListDirectory { path } => self.list_dir(path).await,
             ToolCall::WebSearch { query, num_results } => {
                 self.web_search(query, *num_results).await
             }
-            ToolCall::FetchUrl { url } => self.fetch_url(url).await,
+            ToolCall::FetchUrl { url } => self.dispatch_fetch_url_tool_call(url).await,
             ToolCall::TaskComplete { summary } => {
                 ToolResult::ok("task_complete", format!("Task complete: {}", summary))
             }
@@ -338,6 +358,131 @@ impl ToolExecutor {
         match tokio::fs::write(&resolved, &patched).await {
             Ok(_) => ToolResult::ok("apply_patch", format!("Patch applied to {}", resolved.display())),
             Err(e) => ToolResult::err("apply_patch", format!("Cannot write patched file: {}", e)),
+        }
+    }
+
+    /// DREAD #1 Slice B — entrypoint for `ToolCall::Bash` dispatched from
+    /// the LLM tool-call loop. The string came from a T5 source (model
+    /// output), so we wrap it in `Tainted<String>` and route through the
+    /// `tainted::confirm_shell_command` gate.
+    ///
+    /// In **warn-only** mode (`tainted_strict = false`, the rollout
+    /// default), the gate's decision is emitted to tracing but the
+    /// command still executes — preserving existing behavior while the
+    /// audit trail accumulates.
+    ///
+    /// In **strict** mode (`tainted_strict = true`), a gate rejection
+    /// becomes a `ToolResult::err` that the agent loop surfaces back to
+    /// the model as a `user_rejected` tool result. The model can retry
+    /// with a different approach (see design §10 q2).
+    ///
+    /// Direct callers (CLI, tests, `--legacymigrate`) that invoke
+    /// `run_bash` directly bypass this gate — those paths are T1 by
+    /// definition and don't need provenance tracking.
+    async fn dispatch_bash_tool_call(&self, command: &str) -> ToolResult {
+        use crate::tainted::{confirm_shell_command, ConfirmMode, Provenance, Tainted};
+
+        // Provenance: when the executor was built with a provider Arc,
+        // record its name. Otherwise classify as External — Slice C
+        // plumbs full provider/model/request_id through.
+        let origin = match self.provider.as_ref() {
+            Some(p) => Provenance::LlmResponse {
+                provider: p.name().to_string(),
+                model: "unknown".to_string(),
+                request_id: "n/a".to_string(),
+            },
+            None => Provenance::External {
+                reason: "tool-call from unspecified source".into(),
+            },
+        };
+        let tainted = Tainted::new(command.to_string(), origin);
+
+        // Run the gate. Slice A's `confirm_shell_command` always rejects
+        // (Headless / InteractiveStub) — Slice G replaces the
+        // Interactive branch with a real modal.
+        let gate = confirm_shell_command(&tainted, ConfirmMode::Interactive);
+        match (gate, self.tainted_strict) {
+            (Ok(_confirmation), _) => {
+                // Approved (won't happen until Slice G; defensive arm).
+                self.run_bash(command).await
+            }
+            (Err(reason), true) => {
+                tracing::warn!(
+                    target: "vibecody::tainted::shell_gate",
+                    decision = "block",
+                    reason = %reason,
+                    origin = %tainted.origin().kind(),
+                    "shell.exec rejected by tainted gate (strict mode)",
+                );
+                ToolResult::err(
+                    "bash",
+                    format!("Tool call rejected by tainted gate: {reason}"),
+                )
+            }
+            (Err(reason), false) => {
+                tracing::warn!(
+                    target: "vibecody::tainted::shell_gate",
+                    decision = "warn",
+                    reason = %reason,
+                    origin = %tainted.origin().kind(),
+                    "shell.exec gate rejected but executing anyway (warn-only mode \
+                     — set tainted_strict=true to enforce)",
+                );
+                self.run_bash(command).await
+            }
+        }
+    }
+
+    /// DREAD #1 Slice C — entrypoint for `ToolCall::FetchUrl` dispatched
+    /// from the LLM tool-call loop. The URL came from a T5 source (model
+    /// output), so we wrap it in `Tainted<String>` and route through the
+    /// `tainted::confirm_http_outbound` gate.
+    ///
+    /// Same warn-vs-strict semantics as `dispatch_bash_tool_call`. Direct
+    /// callers (`fetch_url` invoked from CLI / tests) bypass this gate —
+    /// those paths are T1 by definition.
+    async fn dispatch_fetch_url_tool_call(&self, url: &str) -> ToolResult {
+        use crate::tainted::{confirm_http_outbound, ConfirmMode, Provenance, Tainted};
+
+        let origin = match self.provider.as_ref() {
+            Some(p) => Provenance::LlmResponse {
+                provider: p.name().to_string(),
+                model: "unknown".to_string(),
+                request_id: "n/a".to_string(),
+            },
+            None => Provenance::External {
+                reason: "tool-call from unspecified source".into(),
+            },
+        };
+        let tainted = Tainted::new(url.to_string(), origin);
+
+        let gate = confirm_http_outbound(&tainted, ConfirmMode::Interactive);
+        match (gate, self.tainted_strict) {
+            (Ok(_confirmation), _) => self.fetch_url(url).await,
+            (Err(reason), true) => {
+                tracing::warn!(
+                    target: "vibecody::tainted::http_gate",
+                    decision = "block",
+                    reason = %reason,
+                    origin = %tainted.origin().kind(),
+                    "http.outbound rejected by tainted gate (strict mode)",
+                );
+                ToolResult::err(
+                    "fetch_url",
+                    format!("Tool call rejected by tainted gate: {reason}"),
+                )
+            }
+            (Err(reason), false) => {
+                tracing::warn!(
+                    target: "vibecody::tainted::http_gate",
+                    decision = "warn",
+                    reason = %reason,
+                    origin = %tainted.origin().kind(),
+                    "http.outbound gate rejected but executing anyway (warn-only mode \
+                     — set tainted_strict=true to enforce)",
+                );
+                self.fetch_url(url).await
+            }
         }
     }
 
@@ -1882,6 +2027,84 @@ mod tests {
         assert!(!result.success);
         assert!(result.output.contains("Command blocked"));
 
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    // ── DREAD #1 Slice B — tainted-gate dispatch tests ─────────────────
+
+    #[tokio::test]
+    async fn dispatch_bash_tool_call_warn_mode_executes_and_logs() {
+        // Default mode: tainted_strict = false. The gate runs, logs,
+        // and the command still executes. This preserves existing
+        // behavior during the rollout.
+        let tmp = std::env::temp_dir().join(format!("vibe_warn_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let executor = ToolExecutor::new(tmp.clone(), false);
+        assert!(!executor.tainted_strict, "default must be warn-only");
+
+        let result = executor.dispatch_bash_tool_call("echo slice-b-warn").await;
+        // Should execute — output contains the echoed string.
+        assert!(result.success || result.output.contains("slice-b-warn"));
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[tokio::test]
+    async fn dispatch_bash_tool_call_strict_mode_rejects() {
+        // tainted_strict = true: the gate rejects (Slice A always
+        // rejects in interactive-stub mode) and the dispatch returns
+        // a ToolResult::err instead of executing.
+        let tmp = std::env::temp_dir().join(format!("vibe_strict_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let executor = ToolExecutor::new(tmp.clone(), false).with_tainted_strict(true);
+        assert!(executor.tainted_strict);
+
+        let result = executor
+            .dispatch_bash_tool_call("echo slice-b-strict-should-never-run")
+            .await;
+        assert!(!result.success, "strict mode must reject");
+        assert!(
+            result.output.contains("rejected by tainted gate"),
+            "got: {}",
+            result.output,
+        );
+        // The command must not have been executed — no `echo` output.
+        assert!(
+            !result.output.contains("slice-b-strict-should-never-run"),
+            "strict mode leaked output: {}",
+            result.output,
+        );
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[tokio::test]
+    async fn direct_run_bash_bypasses_gate() {
+        // Direct callers (CLI, tests, --legacymigrate) are T1 by
+        // definition. Calling `run_bash` directly must work even with
+        // tainted_strict=true — the gate only fires for ToolCall::Bash
+        // dispatched from `execute`.
+        let tmp = std::env::temp_dir().join(format!("vibe_direct_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let executor = ToolExecutor::new(tmp.clone(), false).with_tainted_strict(true);
+
+        let result = executor.run_bash("echo direct-call").await;
+        // Should execute — direct call bypasses the gate.
+        assert!(result.success || result.output.contains("direct-call"));
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[tokio::test]
+    async fn with_tainted_strict_builder_toggles_field() {
+        let tmp = std::env::temp_dir().join(format!("vibe_builder_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let off = ToolExecutor::new(tmp.clone(), false);
+        assert!(!off.tainted_strict);
+        let on = off.clone().with_tainted_strict(true);
+        assert!(on.tainted_strict);
+        let off_again = on.with_tainted_strict(false);
+        assert!(!off_again.tainted_strict);
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }

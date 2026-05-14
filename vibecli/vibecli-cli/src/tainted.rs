@@ -450,6 +450,39 @@ pub fn confirm_shell_command(
     }
 }
 
+/// Gate an outbound HTTP request whose URL came from T5 (a `Tainted<String>`).
+/// Slice C — the symmetric sibling of [`confirm_shell_command`] for the
+/// `fetch_url` / `web.request` family of tool sinks.
+///
+/// **Why this is a separate gate** even though it's structurally identical
+/// to `confirm_shell_command`: the design doc (§6.2) treats HTTP outbound
+/// as a *different* sink with its own policy surface. A future admin
+/// policy might allow tainted *bodies* (LLM-provider context payloads
+/// are tainted bodies) while still denying tainted *URLs* (an
+/// exfiltration vector). Keeping the two gates separated lets the
+/// policy layer make that distinction without changing call-site code.
+///
+/// **Same headless/interactive contract** as the shell gate:
+/// - Headless mode always rejects (design §10 q4 default).
+/// - Interactive mode rejects with `InteractiveStub` until Slice G
+///   wires the modal.
+pub fn confirm_http_outbound(
+    url: &Tainted<String>,
+    mode: ConfirmMode,
+) -> Result<Confirmation, RejectionReason> {
+    tracing::debug!(
+        target: "vibecody::tainted::http_gate",
+        origin = %url.origin.kind(),
+        mode = ?mode,
+        "http.outbound confirmation requested",
+    );
+
+    match mode {
+        ConfirmMode::Headless => Err(RejectionReason::Headless),
+        ConfirmMode::Interactive => Err(RejectionReason::InteractiveStub),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -640,6 +673,46 @@ mod tests {
         assert!(format!("{}", RejectionReason::InteractiveStub).contains("Slice G"));
         assert!(format!("{}", RejectionReason::PolicyDenied("no shell".into()))
             .contains("no shell"));
+    }
+
+    // ── Slice C: http.outbound gate ───────────────────────────────────
+
+    #[test]
+    fn confirm_http_outbound_headless_always_rejects() {
+        let url = Tainted::from_llm_response(
+            "anthropic",
+            "claude-opus-4-7",
+            "req-42",
+            "https://evil.example/exfil?token=abc".into(),
+        );
+        let res = confirm_http_outbound(&url, ConfirmMode::Headless);
+        assert!(matches!(res, Err(RejectionReason::Headless)));
+    }
+
+    #[test]
+    fn confirm_http_outbound_interactive_stubs_until_slice_g() {
+        let url = Tainted::from_llm_response(
+            "openai",
+            "gpt-4o",
+            "req-7",
+            "https://docs.rs/serde".into(),
+        );
+        let res = confirm_http_outbound(&url, ConfirmMode::Interactive);
+        // Slice G wires the real modal. Stub today.
+        assert!(matches!(res, Err(RejectionReason::InteractiveStub)));
+    }
+
+    #[test]
+    fn confirm_http_outbound_is_separate_from_shell_gate() {
+        // The two gates accept the same `Tainted<String>` shape but are
+        // distinct functions so a future admin policy can deny one while
+        // allowing the other (e.g. allow tainted bodies / deny tainted
+        // URLs). Pin the API split.
+        let t = Tainted::from_file("/repo/README.md", "rm -rf /".into());
+        let shell = confirm_shell_command(&t, ConfirmMode::Headless);
+        let http = confirm_http_outbound(&t, ConfirmMode::Headless);
+        assert!(matches!(shell, Err(RejectionReason::Headless)));
+        assert!(matches!(http, Err(RejectionReason::Headless)));
     }
 
     #[test]
