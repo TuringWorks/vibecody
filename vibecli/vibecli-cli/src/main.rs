@@ -127,6 +127,7 @@ mod syntax;
 mod diff_viewer;
 mod tool_executor;
 mod memory;
+mod session_resume_protocol;
 mod verify_loop;
 mod async_subagent;
 mod mcp_apps_payload;

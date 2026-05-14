@@ -47,6 +47,8 @@ pub mod mcp_well_known;
 pub mod mcpb_bundle;
 pub mod mcts_repair;
 pub mod visual_verify;
+// A9 — cloud-agent session resume protocol.
+pub mod session_resume_protocol;
 // A8 — self-verifying agent loop with bounded iterations.
 pub mod verify_loop;
 pub mod next_task;
