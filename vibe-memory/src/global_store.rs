@@ -9,7 +9,7 @@ use rusqlite::{params, Connection};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::RwLock;
+use tokio::sync::Mutex;
 use tracing::debug;
 
 pub struct GlobalMemStore {
@@ -18,7 +18,7 @@ pub struct GlobalMemStore {
 
 struct Inner {
     path: PathBuf,
-    conn: RwLock<Connection>,
+    conn: Mutex<Connection>,
     ext_manager: ExtensionManager,
 }
 
@@ -38,7 +38,7 @@ impl GlobalMemStore {
         let ext_manager = ExtensionManager::new(768);
         
         Ok(Self {
-            inner: Arc::new(Inner { path: db_path, conn: RwLock::new(conn), ext_manager }),
+            inner: Arc::new(Inner { path: db_path, conn: Mutex::new(conn), ext_manager }),
         })
     }
 
@@ -52,7 +52,7 @@ impl GlobalMemStore {
         let ext_manager = ExtensionManager::new(768);
         
         Ok(Self {
-            inner: Arc::new(Inner { path: db_path, conn: RwLock::new(conn), ext_manager }),
+            inner: Arc::new(Inner { path: db_path, conn: Mutex::new(conn), ext_manager }),
         })
     }
 
@@ -86,7 +86,7 @@ impl GlobalMemStore {
 
     pub async fn search(&self, query: &str, top_k: usize, min_score: Option<f64>) -> Result<Vec<SearchResult>> {
         let query_embedding = self.generate_embedding(query);
-        let conn = self.inner.conn.read().await;
+        let conn = self.inner.conn.lock().await;
         let mut stmt = conn.prepare("SELECT id, content, sector, salience, tags, project_id, embedding FROM memory_entries ORDER BY created_at DESC LIMIT 200").map_err(MemoryError::Sqlite)?;
         
         let rows = stmt.query_map([], |row| {
@@ -124,7 +124,7 @@ impl GlobalMemStore {
     }
 
     pub async fn get(&self, id: &str) -> Result<Option<MemoryEntry>> {
-        let conn = self.inner.conn.read().await;
+        let conn = self.inner.conn.lock().await;
         let result = conn.query_row(
             "SELECT id, content, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding FROM memory_entries WHERE id = ?1",
             params![id],
@@ -134,14 +134,14 @@ impl GlobalMemStore {
     }
 
     pub async fn delete(&self, id: &str) -> Result<()> {
-        let conn = self.inner.conn.write().await;
+        let conn = self.inner.conn.lock().await;
         conn.execute("DELETE FROM memory_entries WHERE id = ?1", params![id]).map_err(MemoryError::Sqlite)?;
         debug!("Deleted global memory entry: {}", id);
         Ok(())
     }
 
     pub async fn list(&self, sector: Option<&str>, limit: Option<usize>) -> Result<Vec<MemoryEntry>> {
-        let conn = self.inner.conn.read().await;
+        let conn = self.inner.conn.lock().await;
         let sql = match (sector, limit) {
             (Some(s), Some(l)) => format!("SELECT id, content, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding FROM memory_entries WHERE sector = '{}' ORDER BY created_at DESC LIMIT {}", s, l),
             (None, Some(l)) => format!("SELECT id, content, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding FROM memory_entries ORDER BY created_at DESC LIMIT {}", l),
@@ -154,14 +154,14 @@ impl GlobalMemStore {
     }
 
     pub async fn list_by_project(&self, project_id: &str) -> Result<Vec<MemoryEntry>> {
-        let conn = self.inner.conn.read().await;
+        let conn = self.inner.conn.lock().await;
         let mut stmt = conn.prepare("SELECT id, content, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding FROM memory_entries WHERE project_id = ?1 ORDER BY created_at DESC").map_err(MemoryError::Sqlite)?;
         let rows = stmt.query_map(params![project_id], |row| self.row_to_entry(row)).map_err(MemoryError::Sqlite)?;
         Ok(rows.filter_map(|r| r.ok()).collect())
     }
 
     pub async fn sector_stats(&self) -> Result<HashMap<String, usize>> {
-        let conn = self.inner.conn.read().await;
+        let conn = self.inner.conn.lock().await;
         let mut stmt = conn.prepare("SELECT sector, COUNT(*) FROM memory_entries GROUP BY sector").map_err(MemoryError::Sqlite)?;
         let rows = stmt.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)? as usize))).map_err(MemoryError::Sqlite)?;
         let mut stats = HashMap::new();
@@ -170,7 +170,7 @@ impl GlobalMemStore {
     }
 
     pub async fn add_waypoint(&self, src_id: &str, dst_id: &str, weight: f64) -> Result<()> {
-        let conn = self.inner.conn.write().await;
+        let conn = self.inner.conn.lock().await;
         let id = generate_id();
         let now = epoch_secs();
         conn.execute("INSERT INTO waypoints (id, src_id, dst_id, weight, cross_project, created_at) VALUES (?1, ?2, ?3, ?4, 0, ?5)", params![id, src_id, dst_id, weight, now]).map_err(MemoryError::Sqlite)?;
@@ -178,7 +178,7 @@ impl GlobalMemStore {
     }
 
     pub async fn get_waypoints(&self, src_id: &str) -> Result<Vec<Waypoint>> {
-        let conn = self.inner.conn.read().await;
+        let conn = self.inner.conn.lock().await;
         let mut stmt = conn.prepare("SELECT id, src_id, dst_id, weight, cross_project, created_at FROM waypoints WHERE src_id = ?1").map_err(MemoryError::Sqlite)?;
         let rows = stmt.query_map(params![src_id], |row| {
             Ok(Waypoint { id: row.get(0)?, src_id: row.get(1)?, dst_id: row.get(2)?, weight: row.get(3)?, cross_project: row.get::<_, i32>(4)? != 0, created_at: row.get(5)? })
@@ -193,7 +193,7 @@ impl GlobalMemStore {
 
     pub async fn apply_decay(&self) -> Result<usize> {
         let now = epoch_secs();
-        let conn = self.inner.conn.write().await;
+        let conn = self.inner.conn.lock().await;
         let mut stmt = conn.prepare("SELECT id, salience, decay_lambda, created_at, pinned FROM memory_entries").map_err(MemoryError::Sqlite)?;
         let rows: Vec<(String, f64, f64, i64, bool)> = stmt.query_map([], |row| {
             Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get::<_, i32>(4)? != 0))
@@ -214,7 +214,7 @@ impl GlobalMemStore {
     }
 
     pub async fn purge(&self, threshold: f64) -> Result<usize> {
-        let conn = self.inner.conn.write().await;
+        let conn = self.inner.conn.lock().await;
         let purged = conn.execute("DELETE FROM memory_entries WHERE salience < ?1 AND pinned = 0", params![threshold]).map_err(MemoryError::Sqlite)?;
         debug!("Purged {} global entries", purged);
         Ok(purged as usize)
@@ -222,13 +222,13 @@ impl GlobalMemStore {
 
     pub async fn cleanup_expired(&self) -> Result<usize> {
         let now = epoch_secs();
-        let conn = self.inner.conn.write().await;
+        let conn = self.inner.conn.lock().await;
         let purged = conn.execute("DELETE FROM memory_entries WHERE ttl_expires_at IS NOT NULL AND ttl_expires_at < ?1", params![now]).map_err(MemoryError::Sqlite)?;
         Ok(purged as usize)
     }
 
     pub async fn clear(&self) -> Result<usize> {
-        let conn = self.inner.conn.write().await;
+        let conn = self.inner.conn.lock().await;
         let count = conn.execute("DELETE FROM memory_entries", []).map_err(MemoryError::Sqlite)?;
         debug!("Cleared {} global entries", count);
         Ok(count as usize)
@@ -247,7 +247,7 @@ impl GlobalMemStore {
     }
 
     async fn insert_entry(&self, entry: MemoryEntry) -> Result<MemoryEntry> {
-        let conn = self.inner.conn.write().await;
+        let conn = self.inner.conn.lock().await;
         conn.execute(
             "INSERT INTO memory_entries (id, content, content_text, sector, salience, decay_lambda, created_at, updated_at, last_seen_at, version, pinned, tags, metadata, project_id, session_id, embedding) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
             params![

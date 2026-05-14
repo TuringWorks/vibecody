@@ -6,6 +6,8 @@ permalink: /memory-guide/
 
 Complete reference for all memory systems in VibeCLI and VibeUI — from the simple auto-recording file to the full cognitive engine with verbatim drawers, cross-project tunnels, and recall benchmarking.
 
+> **For system architecture details**, see [`memory-architecture.md`](./memory-architecture.md) — includes detailed ASCII diagrams of the five memory stores, Context Assembler pipeline, storage security model, and Recap/Resume architecture.
+
 ---
 
 ## Overview — Three Memory Layers

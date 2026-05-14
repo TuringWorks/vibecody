@@ -649,3 +649,156 @@ describe('DiffCompleteModal — flow', () => {
     });
   });
 });
+
+// ── D1.2: chain autosave on regenerate / Apply / Cancel ────────────────────
+
+describe('DiffCompleteModal — D1.2 autosave hooks', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const baseProps = {
+    open: true,
+    onClose: vi.fn(),
+    filePath: "src/lib.rs",
+    language: "rust",
+    originalContent: "line 1\nline 2\nline 3\n",
+    selectionText: "line 2",
+    selectionStartLine: 2,
+    selectionEndLine: 2,
+    provider: "mock",
+    onApply: vi.fn(),
+  };
+
+  function mockGenerateOnce(diffBody: string, model = "mock") {
+    return mockInvoke.mockImplementation(async (cmd: string, args: unknown) => {
+      if (cmd === "diffcomplete_generate") {
+        return {
+          unified_diff: diffBody,
+          explanation: "ok",
+          model_name: model,
+        };
+      }
+      if (cmd === "diffcomplete_chain_autosave") {
+        // Return a deterministic chain id so subsequent posts are
+        // recognized as appends rather than fresh chains.
+        const req = (args as { request: { chain_id: string | null } }).request;
+        return {
+          chain_id: req.chain_id ?? "chain-mock-1",
+          step_index: 0,
+        };
+      }
+      return null;
+    });
+  }
+
+  const cleanDiff = [
+    "--- a/src/lib.rs",
+    "+++ b/src/lib.rs",
+    "@@ -1,3 +1,3 @@",
+    " line 1",
+    "-line 2",
+    "+LINE TWO",
+    " line 3",
+  ].join("\n");
+
+  it('posts diffcomplete_chain_autosave with step on first successful generate', async () => {
+    mockGenerateOnce(cleanDiff);
+    render(<DiffCompleteModal {...baseProps} />);
+    fireEvent.change(screen.getByPlaceholderText(/Describe the change/i), { target: { value: "rename" } });
+    fireEvent.click(screen.getByText(/Generate diff/i));
+
+    await waitFor(() => {
+      const call = mockInvoke.mock.calls.find(c => c[0] === "diffcomplete_chain_autosave");
+      expect(call).toBeTruthy();
+      const req = call![1] as { request: { chain_id: string | null; step: { index: number; instruction: string; refinement: string | null } } };
+      expect(req.request.chain_id).toBeNull();
+      expect(req.request.step.index).toBe(0);
+      expect(req.request.step.instruction).toBe("rename");
+      expect(req.request.step.refinement).toBeNull();
+    });
+  });
+
+  it('writes final_state=applied when the user clicks Apply', async () => {
+    mockGenerateOnce(cleanDiff);
+    render(<DiffCompleteModal {...baseProps} />);
+    fireEvent.change(screen.getByPlaceholderText(/Describe the change/i), { target: { value: "rename" } });
+    fireEvent.click(screen.getByText(/Generate diff/i));
+
+    // Wait for autosave to land so chainId is populated before Apply.
+    await waitFor(() => {
+      expect(mockInvoke.mock.calls.some(c => c[0] === "diffcomplete_chain_autosave")).toBe(true);
+    });
+
+    // DiffReviewPanel labels its primary action "Apply (N)".
+    const applyBtn = await screen.findByRole('button', { name: /^Apply\s*\(\d+\)/i });
+    fireEvent.click(applyBtn);
+
+    await waitFor(() => {
+      const finalCall = mockInvoke.mock.calls
+        .filter(c => c[0] === "diffcomplete_chain_autosave")
+        .map(c => c[1] as { request: { final_state: { type?: string } | null } })
+        .find(c => c.request.final_state?.type === "applied");
+      expect(finalCall).toBeTruthy();
+    });
+  });
+
+  it('writes final_state=cancelled when Cancel is clicked in prompt phase', async () => {
+    mockGenerateOnce(cleanDiff);
+    render(<DiffCompleteModal {...baseProps} />);
+    fireEvent.change(screen.getByPlaceholderText(/Describe the change/i), { target: { value: "rename" } });
+    fireEvent.click(screen.getByText(/Generate diff/i));
+    await waitFor(() => {
+      expect(mockInvoke.mock.calls.some(c => c[0] === "diffcomplete_chain_autosave")).toBe(true);
+    });
+    // Reset to prompt phase via the Try-again-style path is complex;
+    // instead, simulate a Close/Cancel from review by pressing Esc.
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+
+    await waitFor(() => {
+      const finalCall = mockInvoke.mock.calls
+        .filter(c => c[0] === "diffcomplete_chain_autosave")
+        .map(c => c[1] as { request: { final_state: { type?: string; reason?: string } | null } })
+        .find(c => c.request.final_state?.type === "cancelled");
+      expect(finalCall).toBeTruthy();
+      expect(finalCall!.request.final_state!.reason).toMatch(/modal_closed|user_cancel/);
+    });
+  });
+
+  it('does NOT write final_state when modal is closed before any generate', async () => {
+    mockGenerateOnce(cleanDiff);
+    render(<DiffCompleteModal {...baseProps} />);
+    fireEvent.click(screen.getByText(/^Cancel$/));
+
+    // Give the (non-)autosave call a chance to land.
+    await new Promise(r => setTimeout(r, 50));
+    const autosaveCalls = mockInvoke.mock.calls.filter(c => c[0] === "diffcomplete_chain_autosave");
+    expect(autosaveCalls).toHaveLength(0);
+  });
+
+  it('reuses chain_id across regenerations (idempotent chain)', async () => {
+    mockGenerateOnce(cleanDiff);
+    render(<DiffCompleteModal {...baseProps} />);
+    fireEvent.change(screen.getByPlaceholderText(/Describe the change/i), { target: { value: "first" } });
+    fireEvent.click(screen.getByText(/Generate diff/i));
+
+    await waitFor(() => {
+      expect(mockInvoke.mock.calls.some(c => c[0] === "diffcomplete_chain_autosave")).toBe(true);
+    });
+
+    // Second autosave (refinement) — drive it through the refinement path.
+    const refineInput = screen.getByPlaceholderText(/tighten the error path/i);
+    fireEvent.change(refineInput, { target: { value: "tighten error path" } });
+    const regenBtn = screen.getByLabelText('Regenerate with refinement') as HTMLButtonElement;
+    fireEvent.click(regenBtn);
+
+    await waitFor(() => {
+      const calls = mockInvoke.mock.calls.filter(c => c[0] === "diffcomplete_chain_autosave");
+      expect(calls.length).toBeGreaterThanOrEqual(2);
+      const second = calls[1][1] as { request: { chain_id: string | null; step: { index: number; refinement: string | null } } };
+      expect(second.request.chain_id).toBe("chain-mock-1");
+      expect(second.request.step.index).toBe(1);
+      expect(second.request.step.refinement).toBe("tighten error path");
+    });
+  });
+});

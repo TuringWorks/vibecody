@@ -59,8 +59,9 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::{
     convert::Infallible,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
-    sync::Arc,
+    sync::{atomic::{AtomicUsize, Ordering}, Arc},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use rand::Rng;
@@ -68,7 +69,7 @@ use tower_http::cors::CorsLayer;
 use tower_http::set_header::SetResponseHeaderLayer;
 
 use axum::extract::ws::{Message as WsMessage, WebSocket, WebSocketUpgrade};
-use axum::extract::Query;
+use axum::extract::{ConnectInfo, Query};
 use vibe_ai::{AgentContext, AgentEvent, AgentLoop, ApprovalPolicy, Message, MessageRole};
 use vibe_ai::provider::AIProvider;
 use vibe_collab::{CollabMessage, CollabServer, PeerInfo, SyncBroadcast};
@@ -1196,65 +1197,120 @@ async fn require_auth(
         .get(header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok());
 
-    let expected = format!("Bearer {}", state.api_token);
-    match auth_header {
-        Some(val) if val == expected => {
-            next.run(req).await.into_response()
-        }
-        _ => (
+    if crate::auth_util::bearer_matches(auth_header, &state.api_token) {
+        next.run(req).await.into_response()
+    } else {
+        (
             StatusCode::UNAUTHORIZED,
             [("content-type", "application/json")],
             r#"{"error":"Missing or invalid Authorization: Bearer <token>"}"#,
         )
-            .into_response(),
+            .into_response()
     }
 }
 
 // ── Rate limiting middleware ─────────────────────────────────────────────────
 
-/// Simple sliding-window rate limiter: max `limit` requests per `window`.
-/// Shared across all clients (single-daemon deployment).
+/// Per-IP sliding-window rate limiter: max `limit` requests per `window` per
+/// remote `IpAddr`.
+///
+/// Originally a single global counter — that meant one noisy client could lock
+/// out everyone (DREAD #8 in docs/security/threat-model.md). Now each remote
+/// IP has its own bucket; an attacker only DoS's themselves.
+///
+/// Memory is bounded by lazy pruning: every `PRUNE_EVERY` checks, buckets whose
+/// timestamps have all expired are dropped from the map. No background task,
+/// no scheduler — the cost is amortized into the request that triggers the
+/// prune. Worst-case unique-IP storage between prunes ≈ `PRUNE_EVERY * sizeof(bucket)`.
 struct RateLimiter {
-    /// Ring buffer of request timestamps (unix millis).
-    timestamps: std::sync::Mutex<Vec<u64>>,
+    /// One bucket of request timestamps (unix millis) per remote IP.
+    buckets: dashmap::DashMap<IpAddr, Vec<u64>>,
+    /// Counter for lazy global prune; checks since last prune.
+    checks_since_prune: AtomicUsize,
     limit: usize,
     window_ms: u64,
 }
 
+/// How many `check_for` calls before we sweep expired buckets out of the map.
+/// 1024 is a balance: small enough to bound the map between prunes, large
+/// enough that the prune is amortized to ~free per request.
+const PRUNE_EVERY: usize = 1024;
+
+/// The synthetic "unknown remote" IP used when `ConnectInfo<SocketAddr>` is
+/// not available (e.g. in `tower::ServiceExt::oneshot` tests, or any future
+/// transport that doesn't set the extension). Keying every unknown caller into
+/// the same bucket is *strictly less permissive* than per-key — it preserves
+/// the old global-limiter behavior for test paths.
+const UNKNOWN_IP: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
+
 impl RateLimiter {
     fn new(limit: usize, window: Duration) -> Self {
         Self {
-            timestamps: std::sync::Mutex::new(Vec::with_capacity(limit)),
+            buckets: dashmap::DashMap::new(),
+            checks_since_prune: AtomicUsize::new(0),
             limit,
             window_ms: window.as_millis() as u64,
         }
     }
 
-    /// Returns true if the request should be allowed.
+    /// Backwards-compatible single-bucket check. New code should call
+    /// [`check_for`] with the caller's remote `IpAddr`.
     fn check(&self) -> bool {
+        self.check_for(UNKNOWN_IP)
+    }
+
+    /// Returns true if a request from `key` should be allowed under the
+    /// configured limit. Each `key` gets its own sliding window.
+    fn check_for(&self, key: IpAddr) -> bool {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as u64;
-        let mut ts = self.timestamps.lock().unwrap_or_else(|e| e.into_inner());
         let cutoff = now.saturating_sub(self.window_ms);
-        ts.retain(|&t| t > cutoff);
-        if ts.len() >= self.limit {
+
+        // Amortized prune of empty/expired buckets.
+        if self.checks_since_prune.fetch_add(1, Ordering::Relaxed) >= PRUNE_EVERY {
+            self.checks_since_prune.store(0, Ordering::Relaxed);
+            self.prune_expired(cutoff);
+        }
+
+        let mut bucket = self.buckets.entry(key).or_default();
+        bucket.retain(|&t| t > cutoff);
+        if bucket.len() >= self.limit {
             false
         } else {
-            ts.push(now);
+            bucket.push(now);
             true
         }
     }
+
+    fn prune_expired(&self, cutoff: u64) {
+        self.buckets.retain(|_, vec| {
+            vec.retain(|&t| t > cutoff);
+            !vec.is_empty()
+        });
+    }
 }
 
-/// Axum middleware that enforces a global request rate limit.
+/// Axum middleware that enforces a per-IP request rate limit.
+///
+/// Extracts the remote `IpAddr` from the request's `ConnectInfo<SocketAddr>`
+/// extension (set by `into_make_service_with_connect_info::<SocketAddr>()`
+/// at the serve-call site). When the extension is missing — e.g. in oneshot
+/// tests — falls back to `UNKNOWN_IP`, preserving the old global behavior on
+/// that path.
 async fn rate_limit(
     State(limiter): State<Arc<RateLimiter>>,
     req: Request,
     next: Next,
 ) -> impl IntoResponse {
-    if limiter.check() {
+    let key = req
+        .extensions()
+        .get::<ConnectInfo<SocketAddr>>()
+        .map(|c| c.0.ip())
+        .unwrap_or(UNKNOWN_IP);
+
+    if limiter.check_for(key) {
         next.run(req).await.into_response()
     } else {
         (
@@ -2520,6 +2576,125 @@ async fn v1_resume_get(
     helper_outcome_to_response(out)
 }
 
+// ── Recap & Resume — D1.1 /v1/diffcomplete/chains autosave route ───────────
+//
+// Persistence is *append-on-event* only. The modal posts here when a
+// regenerate succeeds (one POST per appended step) and again with a
+// final_state on Apply / Cancel / modal-closed. There is no idle
+// timer, no continuous keystroke listener, no editor-buffer overlay.
+// Patent re-audit: PASS (elements 1–5 unchanged).
+
+#[derive(Debug, Deserialize)]
+struct DiffCompleteChainStepWire {
+    index: u32,
+    instruction: String,
+    #[serde(default)]
+    refinement: Option<String>,
+    #[serde(default)]
+    additional_files: Vec<crate::diff_chain::AdditionalFile>,
+    diff: String,
+    provider: String,
+    model: String,
+    #[serde(default)]
+    tokens_input: u32,
+    #[serde(default)]
+    tokens_output: u32,
+}
+
+#[derive(Debug, Deserialize)]
+struct DiffCompleteChainsRequest {
+    /// Omit on the first POST for a chain; daemon assigns one.
+    #[serde(default)]
+    chain_id: Option<String>,
+    file_path: String,
+    language: String,
+    selection_start: u32,
+    selection_end: u32,
+    original_text: String,
+    /// One step per request — the modal posts incrementally as each
+    /// regenerate finishes. `None` is allowed for a final-state-only
+    /// update on an existing chain.
+    #[serde(default)]
+    step: Option<DiffCompleteChainStepWire>,
+    #[serde(default)]
+    final_state: Option<crate::diff_chain::DiffChainFinal>,
+    #[serde(default)]
+    parent_chain_id: Option<String>,
+}
+
+async fn v1_diffcomplete_chains_post(
+    State(state): State<ServeState>,
+    Json(req): Json<DiffCompleteChainsRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match crate::diff_chain_store::DiffChainStore::open(&state.workspace_root) {
+        Ok(s) => s,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("open chain store: {e}") })),
+            );
+        }
+    };
+    let chain_id = req
+        .chain_id
+        .clone()
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+
+    if let Some(step_in) = req.step {
+        let step = crate::diff_chain::DiffChainStep {
+            index: step_in.index,
+            instruction: step_in.instruction,
+            refinement: step_in.refinement,
+            additional_files: step_in.additional_files,
+            diff: step_in.diff,
+            provider: step_in.provider,
+            model: step_in.model,
+            tokens_input: step_in.tokens_input,
+            tokens_output: step_in.tokens_output,
+            generated_at: chrono::Utc::now(),
+        };
+        match store.upsert_step(
+            &chain_id,
+            &req.file_path,
+            &req.language,
+            req.selection_start,
+            req.selection_end,
+            &req.original_text,
+            &step,
+            req.parent_chain_id.as_deref(),
+        ) {
+            Ok(_chain) => {}
+            Err(e) => {
+                return (
+                    StatusCode::CONFLICT,
+                    Json(serde_json::json!({ "error": e })),
+                );
+            }
+        }
+    }
+
+    if let Some(fs) = req.final_state {
+        if let Err(e) = store.set_final_state(&chain_id, &fs) {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({ "error": e })),
+            );
+        }
+    }
+
+    let step_index = match store.get(&chain_id) {
+        Ok(Some(c)) => c.steps.last().map(|s| s.index),
+        _ => None,
+    };
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "chain_id": chain_id,
+            "step_index": step_index,
+        })),
+    )
+}
+
 /// GET /v1/capabilities — Advertise agent framework capabilities.
 async fn v1_capabilities() -> impl IntoResponse {
     Json(serde_json::json!({
@@ -3525,6 +3700,10 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         // Recap & Resume v1 — F1.3 (resume handles)
         .route("/v1/resume", post(v1_resume_post))
         .route("/v1/resume/:handle", get(v1_resume_get))
+        // Recap & Resume v1 — D1.1 (diffcomplete chain autosave).
+        // Patent re-audit: PASS (1–5 unchanged). Writes happen only
+        // on discrete user-driven events posted by the modal.
+        .route("/v1/diffcomplete/chains", post(v1_diffcomplete_chains_post))
         // Mobile Gateway — machine registration & dispatch (iOS/Android remote management)
         .route("/mobile/machines", get(mobile_list_machines))
         .route("/mobile/machines", post(mobile_register_machine))
@@ -3676,6 +3855,51 @@ fn hydrate_hf_token_from_profile_store() {
     tracing::info!(
         "vibecli serve: HF_TOKEN hydrated from ProfileStore (vibecli set-key huggingface)"
     );
+}
+
+/// Returns `true` if `host` is a loopback address.
+///
+/// Accepts the IP literals `127.0.0.0/8` and `::1`, plus the well-known
+/// hostname `localhost`. Anything else — including external IPs, hostnames
+/// that resolve elsewhere, and the wildcard `0.0.0.0` / `::` — is treated as
+/// public-facing for safety.
+///
+/// We deliberately do not perform DNS resolution: an unknown hostname could
+/// resolve to a public IP later, and warning unconditionally on unknowns is
+/// the safer default. (Users who genuinely need a custom hostname can silence
+/// the warning by binding `127.0.0.1` and proxying.)
+fn is_loopback_host(host: &str) -> bool {
+    let h = host.trim().trim_start_matches('[').trim_end_matches(']');
+    if h.eq_ignore_ascii_case("localhost") {
+        return true;
+    }
+    h.parse::<IpAddr>().map(|ip| ip.is_loopback()).unwrap_or(false)
+}
+
+/// Prints a multi-line stderr warning when the daemon is about to bind to a
+/// non-loopback interface. The warning is purely informational — we do not
+/// abort, because the documented `--host 0.0.0.0` flow for mobile direct-LAN
+/// access has shipped for many releases. The goal is to surface the security
+/// implication to anyone who arrives at this flag without realizing it.
+fn emit_public_bind_warning(host: &str, port: u16) {
+    eprintln!();
+    eprintln!("┌─ WARNING: non-loopback bind ─────────────────────────────────────────────┐");
+    eprintln!("│ The daemon is binding to {host}:{port} — *not* a loopback address.");
+    eprintln!("│ Any device that can reach this machine on the network can now talk to it.");
+    eprintln!("│");
+    eprintln!("│ Anyone with the bearer token (~/.vibecli/daemon.token) can:");
+    eprintln!("│   • spawn agent jobs that read/write your workspace");
+    eprintln!("│   • call any configured LLM provider using your API keys");
+    eprintln!("│   • drive the browser-automation surface");
+    eprintln!("│");
+    eprintln!("│ Safer alternatives if you only need remote access:");
+    eprintln!("│   • Tailscale:   vibecli --serve --tailscale         (still binds 127.0.0.1)");
+    eprintln!("│   • ngrok:       vibecli --serve --ngrok             (still binds 127.0.0.1)");
+    eprintln!("│   • SSH tunnel:  ssh -L 7878:127.0.0.1:7878 <host>   (no daemon change)");
+    eprintln!("│");
+    eprintln!("│ See docs/security/threat-model.md §7 item #7 and docs/connectivity.md.");
+    eprintln!("└──────────────────────────────────────────────────────────────────────────┘");
+    eprintln!();
 }
 
 pub async fn serve(
@@ -3918,6 +4142,14 @@ pub async fn serve(
         }
     });
 
+    // Loud warning when binding to a non-loopback interface. See
+    // docs/security/threat-model.md §7 item #7. Many users typing
+    // `--host 0.0.0.0` for mobile-app access don't realize the daemon
+    // becomes reachable from every device on the LAN.
+    if !is_loopback_host(&host) {
+        emit_public_bind_warning(&host, port);
+    }
+
     let addr = format!("{host}:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     eprintln!("[vibecli serve] Listening on http://{addr}");
@@ -3974,7 +4206,10 @@ pub async fn serve(
         eprintln!("[vibecli serve] mDNS announcing _vibecli._tcp.local. on port {port}");
     }
 
-    axum::serve(listener, app)
+    // Plumb `ConnectInfo<SocketAddr>` into request extensions so the per-IP
+    // rate-limit middleware can key on the remote IP. Handlers that don't
+    // consume `ConnectInfo` are unaffected by this change.
+    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
         .with_graceful_shutdown(shutdown_signal())
         .await?;
     eprintln!("[vibecli serve] Shutting down gracefully");
@@ -4035,8 +4270,8 @@ async fn ws_collab_handler(
     State(state): State<ServeState>,
     ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
-    // Authenticate via query param token
-    if params.token != state.api_token {
+    // Authenticate via query param token (constant-time compare).
+    if !crate::auth_util::token_matches(&params.token, &state.api_token) {
         return (StatusCode::UNAUTHORIZED, "Invalid token").into_response();
     }
 
@@ -6077,8 +6312,110 @@ mod tests {
         let rl = RateLimiter::new(10, Duration::from_secs(30));
         assert_eq!(rl.limit, 10);
         assert_eq!(rl.window_ms, 30_000);
-        let ts = rl.timestamps.lock().unwrap();
-        assert!(ts.is_empty());
+        assert!(rl.buckets.is_empty(), "no buckets allocated until first check");
+    }
+
+    // ── Per-IP behavior (DREAD #8) ──────────────────────────────────────
+
+    /// One noisy IP must not lock out another IP. This is the core
+    /// invariant of the per-IP rewrite — pre-fix this would fail because
+    /// both clients drew from the same global counter.
+    #[test]
+    fn rate_limiter_per_ip_isolation() {
+        let rl = RateLimiter::new(2, Duration::from_secs(60));
+        let attacker: IpAddr = "10.0.0.1".parse().unwrap();
+        let victim: IpAddr = "10.0.0.2".parse().unwrap();
+
+        // Attacker burns through their quota.
+        assert!(rl.check_for(attacker));
+        assert!(rl.check_for(attacker));
+        assert!(!rl.check_for(attacker), "attacker hit their own limit");
+
+        // Victim still has a full bucket.
+        assert!(rl.check_for(victim), "victim must not be locked out");
+        assert!(rl.check_for(victim));
+        assert!(!rl.check_for(victim), "victim hits their own limit independently");
+    }
+
+    #[test]
+    fn rate_limiter_unknown_ip_falls_back_to_shared_bucket() {
+        // When no ConnectInfo extension is present (e.g. tower-oneshot tests),
+        // requests all key into UNKNOWN_IP. That preserves the *old* global
+        // behavior for test paths — strictly less permissive than per-key.
+        let rl = RateLimiter::new(2, Duration::from_secs(60));
+        // The deprecated `check()` and an explicit UNKNOWN_IP call must
+        // share the same bucket.
+        assert!(rl.check());
+        assert!(rl.check_for(UNKNOWN_IP));
+        assert!(!rl.check(), "shared bucket fills with 2 hits");
+    }
+
+    #[test]
+    fn rate_limiter_prune_drops_empty_buckets() {
+        let rl = RateLimiter::new(2, Duration::from_millis(1));
+        let ip1: IpAddr = "10.0.0.1".parse().unwrap();
+        let ip2: IpAddr = "10.0.0.2".parse().unwrap();
+
+        rl.check_for(ip1);
+        rl.check_for(ip2);
+        assert_eq!(rl.buckets.len(), 2);
+
+        // Let entries expire.
+        std::thread::sleep(Duration::from_millis(5));
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+        rl.prune_expired(now.saturating_sub(rl.window_ms));
+        assert_eq!(rl.buckets.len(), 0, "expired buckets are dropped");
+    }
+
+    // ── Loopback-host detection (DREAD #7) ──────────────────────────────
+
+    #[test]
+    fn is_loopback_host_accepts_ipv4_loopback() {
+        assert!(is_loopback_host("127.0.0.1"));
+        assert!(is_loopback_host("127.0.0.42"), "any 127/8 is loopback");
+    }
+
+    #[test]
+    fn is_loopback_host_accepts_ipv6_loopback() {
+        assert!(is_loopback_host("::1"));
+        assert!(is_loopback_host("[::1]"), "bracketed form");
+    }
+
+    #[test]
+    fn is_loopback_host_accepts_localhost_name() {
+        assert!(is_loopback_host("localhost"));
+        assert!(is_loopback_host("LOCALHOST"), "case-insensitive");
+        assert!(is_loopback_host("  localhost  "), "trims whitespace");
+    }
+
+    #[test]
+    fn is_loopback_host_rejects_unspecified_wildcard() {
+        assert!(!is_loopback_host("0.0.0.0"), "0.0.0.0 is the wildcard bind, not loopback");
+        assert!(!is_loopback_host("::"), "IPv6 unspecified");
+    }
+
+    #[test]
+    fn is_loopback_host_rejects_public_and_private_ranges() {
+        assert!(!is_loopback_host("192.168.1.5"));
+        assert!(!is_loopback_host("10.0.0.1"));
+        assert!(!is_loopback_host("8.8.8.8"));
+    }
+
+    #[test]
+    fn is_loopback_host_rejects_unknown_hostnames() {
+        // Conservative default: unrecognized hostnames warn (we don't resolve DNS).
+        assert!(!is_loopback_host("my-server.local"));
+        assert!(!is_loopback_host("example.com"));
+    }
+
+    #[test]
+    fn rate_limiter_prune_keeps_active_buckets() {
+        let rl = RateLimiter::new(5, Duration::from_secs(60));
+        let ip: IpAddr = "10.0.0.1".parse().unwrap();
+        rl.check_for(ip);
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+        rl.prune_expired(now.saturating_sub(rl.window_ms));
+        assert_eq!(rl.buckets.len(), 1, "in-window buckets survive prune");
     }
 
     #[test]

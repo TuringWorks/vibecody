@@ -46,7 +46,7 @@ fn re_at_jira() -> &'static regex::Regex {
 }
 
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use vibe_ai::{Message, ChatEngine};
@@ -454,55 +454,82 @@ pub async fn assemble_context(
     )
 }
 
-/// Verify that `path` stays within the workspace root directories.
+/// Canonicalize `path`, even if it does not yet exist.
 ///
-/// Canonicalizes the path and checks it is a descendant of at least one
-/// workspace folder.  Returns the validated `PathBuf` on success or a
-/// human-readable error string on path-traversal attempts.
+/// Walks up to the deepest existing ancestor, canonicalizes that, then
+/// re-appends the non-existent tail. This lets us validate write/create
+/// operations against paths that the caller is about to bring into existence
+/// — without skipping canonicalization (which is what `..` and symlink
+/// confusion attacks rely on).
+fn canonicalize_lenient(path: &Path) -> Result<PathBuf, std::io::Error> {
+    if let Ok(canonical) = path.canonicalize() {
+        return Ok(canonical);
+    }
+    let mut existing = path.to_path_buf();
+    let mut tail: Vec<std::ffi::OsString> = Vec::new();
+    while !existing.exists() {
+        let Some(file_name) = existing.file_name().map(|n| n.to_os_string()) else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "path has no existing ancestor",
+            ));
+        };
+        tail.push(file_name);
+        if !existing.pop() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "walked past filesystem root without finding an existing ancestor",
+            ));
+        }
+    }
+    let mut result = existing.canonicalize()?;
+    for segment in tail.into_iter().rev() {
+        result.push(segment);
+    }
+    Ok(result)
+}
+
+/// Resolve `path` against the workspace folders and assert it stays inside
+/// at least one of them.
+///
+/// **Returns the canonicalized absolute path** — callers MUST use the returned
+/// `PathBuf` for the actual filesystem operation. Passing the original `path`
+/// string through to `std::fs::*` / `tokio::fs::*` defeats the check, because
+/// the validated path and the path actually opened can differ (relative vs.
+/// absolute, symlink resolution, `..` collapsing).
+///
+/// The function is `#[must_use]` so dropping the result trips a lint.
+///
+/// Documented in `docs/security/threat-model.md` §7 item #2.
+#[must_use = "use the returned PathBuf for filesystem operations — discarding it reintroduces the path-traversal bug this helper exists to prevent"]
+fn safe_resolve_path_in(folders: &[PathBuf], path: &str) -> Result<PathBuf, String> {
+    let candidate = if Path::new(path).is_absolute() {
+        PathBuf::from(path)
+    } else if let Some(root) = folders.first() {
+        root.join(path)
+    } else {
+        return Err(format!("No workspace folder open — cannot resolve '{path}'"));
+    };
+
+    let canonical_candidate = canonicalize_lenient(&candidate)
+        .map_err(|e| format!("Cannot resolve '{path}': {e}"))?;
+
+    for folder in folders {
+        let canonical_folder = folder.canonicalize().unwrap_or_else(|_| folder.clone());
+        if canonical_candidate.starts_with(&canonical_folder) {
+            return Ok(canonical_candidate);
+        }
+    }
+    Err(format!(
+        "Path traversal blocked: '{path}' resolves outside workspace boundaries"
+    ))
+}
+
+/// Convenience wrapper over [`safe_resolve_path_in`] for the common case of
+/// validating against `&Workspace`.
+#[must_use = "use the returned PathBuf for filesystem operations — discarding it reintroduces the path-traversal bug this helper exists to prevent"]
 fn safe_resolve_path(workspace: &Workspace, path: &str) -> Result<PathBuf, String> {
-    let path_buf = PathBuf::from(path);
-
-    // Reject traversal via a `..` path COMPONENT (not a substring match —
-    // "some..file.md" and drive names like "/Volumes/Backup..2025" are legal).
-    if path_buf
-        .components()
-        .any(|c| matches!(c, std::path::Component::ParentDir))
-    {
-        return Err(format!("Path traversal blocked: '{}' contains '..'", path));
-    }
-
-    // If the path is already absolute, validate it's inside a workspace folder.
-    //
-    // macOS external drives (`/Volumes/...`) and network mounts can canonicalize
-    // asymmetrically: the file may resolve to `/private/var/automount/...`
-    // while the workspace root stays `/Volumes/...` (or vice-versa). Compare
-    // raw paths first — that handles the common case without touching the
-    // filesystem — then fall back to canonicalizing both sides consistently.
-    if path_buf.is_absolute() {
-        for folder in workspace.folders() {
-            if path_buf.starts_with(folder) {
-                return Ok(path_buf);
-            }
-            let canonical_path = path_buf.canonicalize().unwrap_or_else(|_| path_buf.clone());
-            let canonical_root = folder.canonicalize().unwrap_or_else(|_| folder.clone());
-            if canonical_path.starts_with(&canonical_root) {
-                return Ok(path_buf);
-            }
-        }
-        return Err(format!("Path traversal blocked: '{}' is outside workspace boundaries", path));
-    }
-
-    // Relative path — resolve against the first workspace folder
-    if let Some(root) = workspace.folders().first() {
-        let resolved = root.join(&path_buf);
-        // Create parent directories for new files
-        if let Some(parent) = resolved.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
-        return Ok(resolved);
-    }
-
-    Err(format!("No workspace folder open — cannot write '{}'", path))
+    safe_resolve_path_in(workspace.folders(), path)
 }
 
 /// File operations
@@ -510,10 +537,10 @@ fn safe_resolve_path(workspace: &Workspace, path: &str) -> Result<PathBuf, Strin
 #[tauri::command]
 pub async fn read_file(path: String, state: tauri::State<'_, AppState>) -> Result<String, String> {
     let workspace = state.workspace.lock().await;
-    safe_resolve_path(&workspace, &path)?;
+    let resolved = safe_resolve_path(&workspace, &path)?;
     workspace
         .file_system()
-        .read_file(&PathBuf::from(path))
+        .read_file(&resolved)
         .await
         .map_err(|e| e.to_string())
 }
@@ -524,8 +551,8 @@ pub async fn read_file(path: String, state: tauri::State<'_, AppState>) -> Resul
 pub async fn read_file_base64(path: String, state: tauri::State<'_, AppState>) -> Result<String, String> {
     use base64::Engine;
     let workspace = state.workspace.lock().await;
-    safe_resolve_path(&workspace, &path)?;
-    let bytes = tokio::fs::read(&path).await.map_err(|e| e.to_string())?;
+    let resolved = safe_resolve_path(&workspace, &path)?;
+    let bytes = tokio::fs::read(&resolved).await.map_err(|e| e.to_string())?;
     Ok(base64::engine::general_purpose::STANDARD.encode(&bytes))
 }
 
@@ -536,10 +563,10 @@ pub async fn write_file(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let workspace = state.workspace.lock().await;
-    safe_resolve_path(&workspace, &path)?;
+    let resolved = safe_resolve_path(&workspace, &path)?;
     workspace
         .file_system()
-        .write_file(&PathBuf::from(path), &content)
+        .write_file(&resolved, &content)
         .await
         .map_err(|e| e.to_string())
 }
@@ -550,10 +577,10 @@ pub async fn list_directory(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<FileEntry>, String> {
     let workspace = state.workspace.lock().await;
-    safe_resolve_path(&workspace, &path)?;
+    let resolved = safe_resolve_path(&workspace, &path)?;
     workspace
         .file_system()
-        .list_directory(&PathBuf::from(path))
+        .list_directory(&resolved)
         .await
         .map_err(|e| e.to_string())
 }
@@ -1723,10 +1750,10 @@ pub async fn create_directory(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let workspace = state.workspace.lock().await;
-    safe_resolve_path(&workspace, &path)?;
+    let resolved = safe_resolve_path(&workspace, &path)?;
     workspace
         .file_system()
-        .create_directory(&PathBuf::from(path))
+        .create_directory(&resolved)
         .await
         .map_err(|e| e.to_string())
 }
@@ -1737,18 +1764,17 @@ pub async fn delete_item(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let workspace = state.workspace.lock().await;
-    safe_resolve_path(&workspace, &path)?;
-    let path_buf = PathBuf::from(path);
-    if path_buf.is_dir() {
+    let resolved = safe_resolve_path(&workspace, &path)?;
+    if resolved.is_dir() {
         workspace
             .file_system()
-            .delete_directory(&path_buf)
+            .delete_directory(&resolved)
             .await
             .map_err(|e| e.to_string())
     } else {
         workspace
             .file_system()
-            .delete_file(&path_buf)
+            .delete_file(&resolved)
             .await
             .map_err(|e| e.to_string())
     }
@@ -1761,17 +1787,16 @@ pub async fn rename_item(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let workspace = state.workspace.lock().await;
-    safe_resolve_path(&workspace, &path)?;
-    let from_path = PathBuf::from(&path);
-    let parent = from_path.parent()
+    let from_resolved = safe_resolve_path(&workspace, &path)?;
+    let parent = from_resolved.parent()
         .ok_or_else(|| "Cannot rename a root-level path".to_string())?;
-    let to_path = parent.join(&new_name);
-    // Also verify destination stays in workspace
-    safe_resolve_path(&workspace, &to_path.to_string_lossy())?;
+    let to_candidate = parent.join(&new_name);
+    // Re-validate the destination so `new_name = "../../etc/passwd"` is rejected.
+    let to_resolved = safe_resolve_path(&workspace, &to_candidate.to_string_lossy())?;
 
     workspace
         .file_system()
-        .rename_item(&from_path, &to_path)
+        .rename_item(&from_resolved, &to_resolved)
         .await
         .map_err(|e| e.to_string())
 }
@@ -14083,6 +14108,111 @@ pub async fn apply_autofix(workspace: String, apply: bool) -> Result<(), String>
 mod tests {
     use super::*;
 
+    // ── Path-traversal regression tests for `safe_resolve_path` ──────────────
+    //
+    // See docs/security/threat-model.md §7 item #2. The helper used to validate
+    // a path then discard the result, letting callers pass the un-canonicalized
+    // string to the FS layer. These tests assert that:
+    //   1) the helper returns a canonical absolute PathBuf, not the raw input
+    //   2) `..` that escapes the workspace is rejected after canonicalization
+    //   3) absolute paths outside the workspace are rejected
+    //   4) `..` that stays inside the workspace is *allowed* (canonicalizes in)
+    //   5) symlinks pointing outside the workspace are followed and rejected
+    //   6) writes to a not-yet-existing file canonicalize via the parent
+
+    /// Helper: a single-folder workspace for tests, expressed as a `Vec<PathBuf>`.
+    ///
+    /// We test `safe_resolve_path_in` directly rather than going through
+    /// `Workspace::add_folder`, which would start a `notify` watcher and
+    /// require a Tokio runtime — not needed for path-validation logic.
+    fn folders(root: &Path) -> Vec<PathBuf> {
+        vec![root.to_path_buf()]
+    }
+
+    #[test]
+    fn safe_resolve_path_returns_canonical_path_not_raw_input() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        std::fs::write(root.join("ok.txt"), "hi").unwrap();
+
+        let resolved = safe_resolve_path_in(&folders(&root), "ok.txt").expect("legit relative");
+        assert!(resolved.is_absolute(), "must return absolute path");
+        assert_eq!(resolved, root.join("ok.txt"));
+    }
+
+    #[test]
+    fn safe_resolve_path_rejects_relative_dotdot_escape() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        // `../../etc/passwd` from inside the workspace canonicalizes well
+        // outside it — must be rejected.
+        let err = safe_resolve_path_in(&folders(&root), "../../etc/passwd").unwrap_err();
+        assert!(err.contains("outside workspace"), "got: {err}");
+    }
+
+    #[test]
+    fn safe_resolve_path_rejects_absolute_outside_workspace() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let err = safe_resolve_path_in(&folders(&root), "/etc/passwd").unwrap_err();
+        assert!(err.contains("outside workspace"), "got: {err}");
+    }
+
+    #[test]
+    fn safe_resolve_path_allows_dotdot_that_stays_inside() {
+        // `foo/../bar.txt` canonicalizes to `<root>/bar.txt` — inside, allowed.
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        std::fs::create_dir(root.join("foo")).unwrap();
+        std::fs::write(root.join("bar.txt"), "ok").unwrap();
+
+        let resolved =
+            safe_resolve_path_in(&folders(&root), "foo/../bar.txt").expect("in-workspace");
+        assert_eq!(resolved, root.join("bar.txt"));
+    }
+
+    #[test]
+    fn safe_resolve_path_allows_write_to_nonexistent_path() {
+        // For new files (write_file, create_directory), the leaf does not yet
+        // exist — the helper must still canonicalize via the parent and accept.
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+
+        let resolved =
+            safe_resolve_path_in(&folders(&root), "newfile.txt").expect("new file allowed");
+        assert_eq!(resolved, root.join("newfile.txt"));
+    }
+
+    #[test]
+    fn safe_resolve_path_rejects_write_outside_via_nonexistent_path() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        // Relative path that would escape — even with leaf non-existent.
+        let err =
+            safe_resolve_path_in(&folders(&root), "../../tmp/evil-new.txt").unwrap_err();
+        assert!(err.contains("outside workspace"), "got: {err}");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn safe_resolve_path_rejects_symlink_escape() {
+        use std::os::unix::fs::symlink;
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+
+        // A symlink inside the workspace pointing at /etc must be followed by
+        // canonicalize() and rejected — it's the classic confused-deputy attack.
+        symlink("/etc", root.join("escape")).unwrap();
+        let err = safe_resolve_path_in(&folders(&root), "escape/hosts").unwrap_err();
+        assert!(err.contains("outside workspace"), "got: {err}");
+    }
+
+    #[test]
+    fn safe_resolve_path_rejects_when_no_workspace_open() {
+        let err = safe_resolve_path_in(&[], "any.txt").unwrap_err();
+        assert!(err.contains("No workspace"), "got: {err}");
+    }
+
     // ── Phase 7 quick-win: chat memory helper for counsel + (later) diffcomplete
 
     #[test]
@@ -22276,11 +22406,12 @@ pub struct GeneratedFile {
 #[tauri::command]
 pub async fn generate_app_from_image(
     image_base64: String,
+    media_type: Option<String>,
     framework: String,
     provider: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<GeneratedFile>, String> {
-    use vibe_ai::provider::{Message, MessageRole};
+    use vibe_ai::provider::{ImageAttachment, Message, MessageRole};
 
     if let Some(ref p) = provider {
         let mut engine = state.chat_engine.lock().await;
@@ -22297,11 +22428,11 @@ pub async fn generate_app_from_image(
     };
 
     let prompt = format!(
-        "You are a full-stack app generator. I am providing you with a screenshot/design image (base64-encoded below). \
-        Analyze the visual layout, colors, typography, spacing, and component structure in this design.\n\n\
+        "You are a full-stack app generator. The user has attached a screenshot/design image. \
+        Look carefully at the visual layout, colors, typography, spacing, and component structure in the attached image.\n\n\
         {fw_instructions}\n\n\
         IMPORTANT RULES:\n\
-        - Reproduce the design as faithfully as possible\n\
+        - Reproduce the design in the image as faithfully as possible\n\
         - Use the exact colors, fonts, and spacing visible in the screenshot\n\
         - Make the app responsive\n\
         - Each file must be in its own fenced code block\n\
@@ -22311,16 +22442,33 @@ pub async fn generate_app_from_image(
           ```tsx\n\
           // code here\n\
           ```\n\n\
-        IMAGE (base64):\n{image_base64}\n\n\
         Generate the complete app now."
     );
 
-    let messages = vec![
-        Message { role: MessageRole::User, content: prompt },
-    ];
+    let messages = vec![Message { role: MessageRole::User, content: prompt }];
+    let images = vec![ImageAttachment {
+        base64: image_base64,
+        media_type: media_type.unwrap_or_else(|| "image/png".to_string()),
+    }];
 
-    let engine = state.chat_engine.lock().await;
-    let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+    // Hold the engine lock only long enough to clone the active provider Arc.
+    let active = {
+        let engine = state.chat_engine.lock().await;
+        engine
+            .active_provider()
+            .ok_or_else(|| "No active AI provider".to_string())?
+            .clone()
+    };
+    if !active.supports_vision() {
+        return Err(format!(
+            "Provider \"{}\" doesn't support image input. Switch the toolbar provider to Claude, GPT-4o, or Gemini.",
+            active.name()
+        ));
+    }
+    let raw = active
+        .chat_with_images(&messages, &images, None)
+        .await
+        .map_err(|e| e.to_string())?;
 
     // Parse the AI response to extract file blocks.
     parse_generated_files(&raw)
@@ -28468,6 +28616,21 @@ pub async fn fullstack_write_file(path: String, content: String) -> Result<(), S
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     std::fs::write(&path, &content).map_err(|e| format!("Failed to write {}: {}", path, e))
+}
+
+/// Write raw bytes to an absolute path, decoding from base64.
+/// The WebView's `<a download>` flow doesn't trigger a save dialog inside
+/// Tauri, so binary exports (PNG, etc.) round-trip through this command.
+#[tauri::command]
+pub async fn fullstack_write_binary(path: String, base64_content: String) -> Result<(), String> {
+    use base64::Engine;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(base64_content.as_bytes())
+        .map_err(|e| format!("Invalid base64: {}", e))?;
+    if let Some(parent) = std::path::Path::new(&path).parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&path, &bytes).map_err(|e| format!("Failed to write {}: {}", path, e))
 }
 
 // ── Security Scanner ────────────────────────────────────────────────────────
@@ -48891,6 +49054,42 @@ pub async fn recap_generate(
         .post("http://localhost:7878/v1/recap")
         .header("Authorization", format!("Bearer {}", token))
         .json(&body)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let status = resp.status();
+    let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    if !status.is_success() {
+        return Err(format!("daemon returned {}: {}", status, json));
+    }
+    Ok(json)
+}
+
+// ── D1.1: diffcomplete chain autosave ──────────────────────────────────────
+//
+// Thin wrapper around POST /v1/diffcomplete/chains. Patent posture
+// matches the daemon side: the modal is the only caller, and it only
+// fires this on a regenerate-success or final-state-change event.
+// No timer, no editor-buffer overlay, no accept/reject decoration.
+//
+// Patent re-audit: PASS (elements 1–5 unchanged).
+
+/// D1.1 — Autosave a diffcomplete chain step (and optionally the
+/// final state). The modal POSTs once per regenerate plus once at
+/// final state. Idempotent on `(chain_id, step.index)`.
+#[tauri::command]
+pub async fn diffcomplete_chain_autosave(
+    request: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    let token = recap_daemon_token().await?;
+    if token.is_empty() {
+        return Err("daemon not running".into());
+    }
+    let client = recap_http_client()?;
+    let resp = client
+        .post("http://localhost:7878/v1/diffcomplete/chains")
+        .header("Authorization", format!("Bearer {}", token))
+        .json(&request)
         .send()
         .await
         .map_err(|e| e.to_string())?;

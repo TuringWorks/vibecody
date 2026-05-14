@@ -864,6 +864,7 @@ pub fn run() {
             commands::fullstack_generate,
             commands::fullstack_read_file,
             commands::fullstack_write_file,
+            commands::fullstack_write_binary,
             // Clarifying Questions
             commands::get_clarify_questions,
             commands::get_clarify_plan,
@@ -1106,6 +1107,7 @@ pub fn run() {
             commands::recap_get_for_session,
             commands::recap_resume_session,
             commands::recap_generate,
+            commands::diffcomplete_chain_autosave,
             commands::profile_provider_config_set,
             commands::profile_provider_config_get,
             commands::profile_provider_config_get_all,
