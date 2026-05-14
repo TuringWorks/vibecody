@@ -1,14 +1,23 @@
 //! Device pairing — QR code generation for connecting mobile devices to VibeCLI daemon.
 //!
-//! Generates a one-time pairing URL with a secure token, rendered as a QR code
+//! Generates a one-time pairing URL plus a separate token, rendered together
 //! in the terminal using ASCII/Unicode block characters.
 
-/// Generate a pairing URL with a one-time token.
+/// Generate a pairing URL and a paired bearer token.
 ///
-/// Returns (url, token).
+/// Returns `(url, token)` — the URL is what the user pastes/scans into a
+/// browser or mobile app to discover the daemon; the token is entered
+/// separately as the bearer credential.
+///
+/// **The token is NOT embedded in the URL.** Pre-2026-05-13 this returned
+/// `http://host:port/pair?token=<32-hex>`, which leaked the credential into
+/// every place the URL is recorded: browser history, paste buffers, screen
+/// recordings, proxy/Tailscale/ngrok access logs, screenshot uploads, … and
+/// no consumer ever actually parsed the token out of the URL. See
+/// `docs/security/threat-model.md` §7 item #12 (DREAD 6.4).
 pub fn generate_pairing_url(host: &str, port: u16) -> (String, String) {
     let token = generate_random_token();
-    let url = format!("http://{}:{}/pair?token={}", host, port, token);
+    let url = format!("http://{host}:{port}/pair");
     (url, token)
 }
 
@@ -69,9 +78,28 @@ mod tests {
     #[test]
     fn pairing_url_format() {
         let (url, token) = generate_pairing_url("192.168.1.100", 7878);
-        assert!(url.starts_with("http://192.168.1.100:7878/pair?token="));
+        assert_eq!(url, "http://192.168.1.100:7878/pair");
         assert_eq!(token.len(), 32); // 128-bit hex = 32 chars
-        assert!(url.contains(&token));
+    }
+
+    /// Regression guard for DREAD #12. The pre-fix implementation embedded
+    /// the bearer token in the URL as `?token=<hex>`. That string is recorded
+    /// in browser history, proxy/Tailscale/ngrok access logs, paste buffers,
+    /// and anywhere screenshots end up. Anybody who recovers the URL
+    /// recovers the bearer. The URL must NEVER contain the token again.
+    #[test]
+    fn url_does_not_leak_token() {
+        for _ in 0..50 {
+            let (url, token) = generate_pairing_url("host", 7878);
+            assert!(
+                !url.contains(&token),
+                "pairing URL must not embed the bearer token: url={url} token={token}"
+            );
+            assert!(
+                !url.contains("token="),
+                "pairing URL must not contain a `token=` query parameter: {url}"
+            );
+        }
     }
 
     #[test]
@@ -105,7 +133,7 @@ mod tests {
     #[test]
     fn pairing_url_with_localhost() {
         let (url, _) = generate_pairing_url("localhost", 8080);
-        assert!(url.starts_with("http://localhost:8080/pair?token="));
+        assert_eq!(url, "http://localhost:8080/pair");
     }
 
     #[test]
@@ -113,7 +141,10 @@ mod tests {
         let (url, token) = generate_pairing_url("::1", 3000);
         assert!(url.contains("::1"));
         assert!(url.contains("3000"));
-        assert!(url.contains(&token));
+        // Token is NOT in the URL (DREAD #12) — verified separately via
+        // url_does_not_leak_token. Here we only check the URL is shaped right.
+        assert_eq!(url, "http://::1:3000/pair");
+        assert_eq!(token.len(), 32);
     }
 
     #[test]
@@ -185,8 +216,8 @@ mod tests {
     fn pairing_url_different_ports() {
         let (url1, _) = generate_pairing_url("host", 80);
         let (url2, _) = generate_pairing_url("host", 443);
-        assert!(url1.contains(":80/"));
-        assert!(url2.contains(":443/"));
+        assert_eq!(url1, "http://host:80/pair");
+        assert_eq!(url2, "http://host:443/pair");
     }
 
     /// Statistical check: across 1000 tokens, every hex nibble should
