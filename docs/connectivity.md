@@ -188,6 +188,43 @@ See the [VibeMobile setup guide](/vibemobile/#ios-sideloading) for building and 
 
 ---
 
+## Security: which bind address to pick
+
+The `--host` flag controls *which interface* the daemon listens on. It does **not** control authentication — every state-mutating route still requires a bearer token regardless of bind address. But the choice of bind address determines who can *reach* the daemon and try to brute-force that bearer.
+
+Threat-model reference: [`docs/security/threat-model.md`](./security/threat-model.md) §7 items #7 and #18.
+
+| `--host` value | Reachable from | When to use | Risk |
+|---|---|---|---|
+| **default (no flag)** / `127.0.0.1` / `localhost` | This machine only | Single-device editing | None — loopback is unreachable off-box. |
+| `100.x.x.x` (your Tailscale IP) | Your tailnet | Paired phone / watch / second laptop on Tailscale | Low — Tailscale ACLs gate who can reach the IP. |
+| `192.168.x.x` / `10.x.x.x` / `172.16.x.x` (your LAN IP) | Anyone on the LAN | Phone on the same Wi-Fi without Tailscale | **Medium** — every device on the LAN can probe `/health` and attempt bearer brute-force. Coffee-shop, conference, hotel Wi-Fi are all hostile LANs. Pair with a host firewall or a strong (≥128-bit) bearer. |
+| `0.0.0.0` / `::` (wildcard) | Anyone reachable via any interface | Demos with no Tailscale option | **High** — equivalent to "all of the above". If the LAN is publicly routed (some hotel networks), this is reachable from the internet. |
+
+The daemon **prints a stderr warning** on any non-loopback bind ([`serve.rs::emit_public_bind_warning`](https://github.com/TuringWorks/vibecody/blob/main/vibecli/vibecli-cli/src/serve.rs)). The warning is informational — we don't hard-fail because `--host 0.0.0.0` is a legitimate mobile-LAN flow — but it's a deliberate cue to add a firewall rule.
+
+### Mental model
+
+mDNS, Tailscale, and ngrok are **transports** — they all reach the same daemon. They do not change the bind address. If your daemon is bound to `127.0.0.1`:
+
+- mDNS announcements still go out, but mobile clients can't connect (the daemon refuses).
+- Tailscale routes packets to your machine, but the daemon ignores them.
+- ngrok forwards public traffic to localhost, and the daemon serves it. **This is the safest "public" path** because ngrok itself is the trust boundary, not the LAN.
+
+If you need phone/watch access without Tailscale, the typical pairing is:
+
+```bash
+vibecli serve --host 192.168.1.42   # bind your LAN interface explicitly, not 0.0.0.0
+```
+
+…with a host firewall rule that allows port 7878 only from the LAN subnet.
+
+### Bearer-token rotation
+
+Every `vibecli serve` start mints a fresh 128-bit bearer token. Restarting the daemon is the rotation procedure. See [`docs/security/key-rotation.md`](./security/key-rotation.md) for the full procedure (what survives rotation, what doesn't, and how to verify via `/health.api_token.minted_at_unix`).
+
+---
+
 ## Troubleshooting
 
 **App says "No machines found" on the same Wi-Fi**
