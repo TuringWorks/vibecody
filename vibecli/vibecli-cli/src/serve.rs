@@ -3896,7 +3896,8 @@ fn emit_public_bind_warning(host: &str, port: u16) {
     eprintln!("│   • ngrok:       vibecli --serve --ngrok             (still binds 127.0.0.1)");
     eprintln!("│   • SSH tunnel:  ssh -L 7878:127.0.0.1:7878 <host>   (no daemon change)");
     eprintln!("│");
-    eprintln!("│ See docs/security/threat-model.md §7 item #7 and docs/connectivity.md.");
+    eprintln!("│ See docs/security/threat-model.md §7 item #7 / #18 and");
+    eprintln!("│ docs/connectivity.md#verifying-bind for the safety checklist.");
     eprintln!("└──────────────────────────────────────────────────────────────────────────┘");
     eprintln!();
 }

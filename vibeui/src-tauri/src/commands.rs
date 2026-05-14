@@ -532,6 +532,62 @@ fn safe_resolve_path(workspace: &Workspace, path: &str) -> Result<PathBuf, Strin
     safe_resolve_path_in(workspace.folders(), path)
 }
 
+/// Deny-list helper for Tauri commands that **legitimately accept paths outside
+/// the workspace** (file pickers, attachment readers, ad-hoc linters). These
+/// can't use [`safe_resolve_path`] because the whole point is to read a file
+/// the user just selected from `~/Downloads` or `~/Desktop`. But they still
+/// need to refuse traversal into the daemon's own credential stores.
+///
+/// Mirrors the bwrap deny-list from `vibe-sandbox-native::validate_path` —
+/// any path that descends through `.vibecli` / `.vibeui` / `.claude` or whose
+/// final filename is a known credential artifact is rejected, regardless of
+/// the rest of the path. Also denies `.ssh`, `.aws`, `.gnupg` because attachment
+/// readers can encode the file contents and return them to the WebView, where
+/// they'd be visible to any LLM the user is chatting with (DREAD #2 + #11).
+///
+/// Returns the (lenient-canonicalized) path on success — callers should use
+/// the returned `PathBuf`, not the original input string, for the same reason
+/// `safe_resolve_path` is `#[must_use]`.
+#[must_use = "use the returned PathBuf for the filesystem call — passing the original string defeats the deny-list check (see safe_resolve_path docstring)"]
+fn reject_sensitive_path(path: &str) -> Result<PathBuf, String> {
+    const DENIED_SEGMENTS: &[&str] = &[
+        ".vibecli", ".vibeui", ".claude",
+        ".ssh", ".aws", ".gnupg",
+    ];
+    const DENIED_FILENAMES: &[&str] = &[
+        "daemon.token", "profile_settings.db", "workspace.db",
+        // SSH + cloud + GPG private keys that a careless attach would otherwise
+        // leak verbatim into the next LLM turn.
+        "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519",
+        "credentials", "config.json",
+    ];
+    let p = PathBuf::from(path);
+    let canonical = canonicalize_lenient(&p).unwrap_or(p);
+
+    for component in canonical.components() {
+        if let std::path::Component::Normal(seg) = component {
+            let s = seg.to_string_lossy();
+            for denied in DENIED_SEGMENTS {
+                if s.eq_ignore_ascii_case(denied) {
+                    return Err(format!(
+                        "Access denied: '{path}' traverses sensitive directory '{denied}'"
+                    ));
+                }
+            }
+        }
+    }
+    if let Some(name) = canonical.file_name().and_then(|n| n.to_str()) {
+        for denied in DENIED_FILENAMES {
+            if name.eq_ignore_ascii_case(denied) {
+                return Err(format!(
+                    "Access denied: '{path}' targets sensitive file '{denied}'"
+                ));
+            }
+        }
+    }
+    Ok(canonical)
+}
+
 /// File operations
 
 #[tauri::command]
@@ -7543,7 +7599,14 @@ pub async fn get_all_trace_entries() -> Result<Vec<TrustTraceEntry>, String> {
 /// Handles images, text files, PDFs, and other documents.
 #[tauri::command]
 pub async fn read_attachment(path: String) -> Result<ChatAttachment, String> {
-    let file_path = std::path::Path::new(&path);
+    // Attachments come from the native file picker — i.e. user-elevated, so
+    // we don't bound to the workspace. But the WebView could still call this
+    // command directly with `~/.vibecli/profile_settings.db` and base64-leak
+    // the encrypted ProfileStore (or `~/.ssh/id_ed25519`) into the next LLM
+    // turn. Deny-list those before reading. DREAD #2 follow-up; mirrors
+    // vibe-sandbox-native::validate_path.
+    let resolved = reject_sensitive_path(&path)?;
+    let file_path: &std::path::Path = resolved.as_path();
     if !file_path.exists() {
         return Err(format!("File not found: {}", path));
     }
@@ -8433,7 +8496,14 @@ pub struct LintResultOut {
 pub async fn run_linter(file_path: String, linter: String) -> Result<LintResultOut, String> {
     use std::process::Command;
 
-    let path = std::path::Path::new(&file_path);
+    // Linters spawn an external program with `current_dir(dir)` where `dir` is
+    // the parent of `file_path`. A path like `~/.vibecli/profile_settings.db`
+    // would have `cargo check` running inside `~/.vibecli/`, which is a
+    // reconnaissance surface even though it won't compile. Deny the same set
+    // of credential dirs as `read_attachment` for symmetry (DREAD #2 follow-up).
+    let resolved = reject_sensitive_path(&file_path)?;
+    let path = resolved.as_path();
+    let file_path: String = path.to_string_lossy().into_owned();
     let dir  = path.parent().unwrap_or(std::path::Path::new("."));
 
     let (prog, args, parse_mode) = match linter.as_str() {
@@ -14211,6 +14281,65 @@ mod tests {
     fn safe_resolve_path_rejects_when_no_workspace_open() {
         let err = safe_resolve_path_in(&[], "any.txt").unwrap_err();
         assert!(err.contains("No workspace"), "got: {err}");
+    }
+
+    // ── Sensitive-path deny-list regression tests for `reject_sensitive_path` ─
+    //
+    // See docs/security/threat-model.md §7 item #2 (follow-up). The helper
+    // protects commands that legitimately accept out-of-workspace paths
+    // (read_attachment, run_linter) from being weaponized by WebView XSS or a
+    // careless template to read credential stores.
+
+    #[test]
+    fn reject_sensitive_path_blocks_vibecli_segment() {
+        let err = reject_sensitive_path("/Users/test/.vibecli/profile_settings.db").unwrap_err();
+        assert!(err.contains(".vibecli") || err.contains("profile_settings.db"), "got: {err}");
+    }
+
+    #[test]
+    fn reject_sensitive_path_blocks_claude_segment() {
+        let err = reject_sensitive_path("/Users/test/.claude/projects/foo.json").unwrap_err();
+        assert!(err.contains(".claude"), "got: {err}");
+    }
+
+    #[test]
+    fn reject_sensitive_path_blocks_ssh_dir() {
+        let err = reject_sensitive_path("/Users/test/.ssh/id_ed25519").unwrap_err();
+        assert!(err.contains(".ssh") || err.contains("id_ed25519"), "got: {err}");
+    }
+
+    #[test]
+    fn reject_sensitive_path_blocks_daemon_token_anywhere() {
+        // Even if the path is outside the deny-listed dirs, a filename of
+        // `daemon.token` is suspicious — block it.
+        let err = reject_sensitive_path("/Users/test/Downloads/daemon.token").unwrap_err();
+        assert!(err.contains("daemon.token"), "got: {err}");
+    }
+
+    #[test]
+    fn reject_sensitive_path_blocks_case_insensitive() {
+        // Match on case-insensitive segment names — macOS HFS+ is
+        // case-insensitive by default and we shouldn't allow a bypass via
+        // `.VIBECLI/profile_settings.db`.
+        let err = reject_sensitive_path("/Users/test/.VIBECLI/profile_settings.db").unwrap_err();
+        assert!(err.contains("sensitive"), "got: {err}");
+    }
+
+    #[test]
+    fn reject_sensitive_path_allows_normal_user_files() {
+        // `~/Downloads/foo.pdf` is the legitimate attach-from-file-picker case
+        // — must pass through.
+        let p = reject_sensitive_path("/Users/test/Downloads/photo.png").unwrap();
+        assert!(p.to_string_lossy().ends_with("photo.png"));
+    }
+
+    #[test]
+    fn reject_sensitive_path_allows_workspace_files() {
+        // Paths inside a project directory that *happens* to contain a
+        // `.vibecli` segment as part of the project name shouldn't false-fire
+        // — only the exact `.vibecli` segment matches.
+        let p = reject_sensitive_path("/Users/test/code/myrepo-vibecli/src/main.rs").unwrap();
+        assert!(p.to_string_lossy().ends_with("main.rs"));
     }
 
     // ── Phase 7 quick-win: chat memory helper for counsel + (later) diffcomplete

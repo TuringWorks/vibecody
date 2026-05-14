@@ -223,6 +223,66 @@ vibecli serve --host 192.168.1.42   # bind your LAN interface explicitly, not 0.
 
 Every `vibecli serve` start mints a fresh 128-bit bearer token. Restarting the daemon is the rotation procedure. See [`docs/security/key-rotation.md`](./security/key-rotation.md) for the full procedure (what survives rotation, what doesn't, and how to verify via `/health.api_token.minted_at_unix`).
 
+### Verifying your bind is safe { #verifying-bind }
+
+After `vibecli serve` starts, confirm the daemon is only reachable where you intended. The stderr warning fires on any non-loopback bind, but it's informational — these commands turn it into a yes/no check.
+
+**1. What is the daemon actually listening on?**
+
+```bash
+# macOS / Linux
+lsof -nP -iTCP:7878 -sTCP:LISTEN
+# or
+ss -ltnp 'sport = :7878'        # Linux
+```
+
+```powershell
+# Windows
+netstat -ano -p TCP | findstr :7878
+```
+
+You want to see `127.0.0.1:7878` (loopback-only) or a specific interface IP (`192.168.x.x`, `100.x.x.x`), **not** `*.7878` / `0.0.0.0:7878` / `[::]:7878` unless you intentionally chose `--host 0.0.0.0` for a documented mobile-LAN flow.
+
+**2. Can another machine on the LAN reach you?**
+
+From a second device on the same Wi-Fi:
+
+```bash
+# Quick probe — should connection-refuse if you're loopback-bound
+curl -m 3 http://<your-lan-ip>:7878/health
+# or
+nc -zv <your-lan-ip> 7878
+```
+
+- Connection refused / timeout ⇒ safe (firewalled or loopback-bound).
+- HTTP 401 / 200 ⇒ the daemon is reachable; review §"Security: which bind address to pick" above.
+
+**3. Is the port reachable from the public internet?**
+
+If you're on a residential ISP with double-NAT, this is almost certainly *no* — but coffee-shop / hotel / conference networks sometimes route public IPs directly to clients. Worst-case verification:
+
+```bash
+# From any phone on cellular (off-Wi-Fi):
+curl -m 5 http://<your-public-ip-from-whatismyip>:7878/health
+```
+
+If that returns anything other than connection refused/timeout, your `--host 0.0.0.0` bind is internet-reachable. Mitigations, in order of preference:
+
+1. **Switch to `--host 127.0.0.1` + ngrok or Tailscale Funnel** — moves the trust boundary to the tunnel provider and keeps the daemon socket loopback-only.
+2. **Add a host firewall rule** that allows port 7878 only from your LAN subnet (e.g. `pf` on macOS, `ufw allow from 192.168.0.0/16 to any port 7878` on Linux).
+3. **Bind the LAN interface explicitly** (`--host 192.168.1.42` instead of `0.0.0.0`) so you don't accidentally listen on a future-added interface.
+
+### Pre-bind checklist { #pre-bind-checklist }
+
+Before running `vibecli serve --host 0.0.0.0` (or any non-loopback host):
+
+- [ ] Are you on a trusted LAN (home, office)? Coffee-shop / hotel / conference Wi-Fi count as **hostile** even though they look benign.
+- [ ] Does your host firewall block port 7878 from anything other than your LAN?
+- [ ] Could the LAN itself bridge to the public internet without NAT? (See verification step 3.)
+- [ ] Have you considered ngrok / Tailscale / SSH-tunnel? They're typically the safer answer when "phone on the same Wi-Fi" is the actual requirement.
+
+If any answer is "no" or "I'm not sure", default to loopback + a tunnel.
+
 ---
 
 ## Troubleshooting
