@@ -103,6 +103,12 @@ pub struct ServeState {
     /// Bearer token required on all non-health/non-viewer endpoints.
     /// Generated randomly on daemon startup and printed to stderr.
     pub api_token: String,
+    /// Wall-clock time (unix seconds) when `api_token` was minted. Surfaced
+    /// via `/health` so clients can detect a fresh daemon restart (the token
+    /// rotates with it) and to give operators a "how stale is the current
+    /// token" signal. See docs/security/key-rotation.md and threat-model.md
+    /// §7 item #20 (DREAD 7.0).
+    pub api_token_minted_at_unix: u64,
     /// CRDT collaboration server for multiplayer editing.
     pub collab_server: Arc<CollabServer>,
     /// GitHub App webhook config for CI/CD review bot.
@@ -440,15 +446,30 @@ fn memory_health_block() -> serde_json::Value {
     })
 }
 
-async fn health() -> impl IntoResponse {
+async fn health(State(state): State<ServeState>) -> impl IntoResponse {
     let hf_token_present = std::env::var("HF_TOKEN").map(|s| !s.is_empty()).unwrap_or(false);
     let codec_probe = CODEC_PROBE.get();
     let providers = configured_provider_names();
     let provider_count = providers.len();
     let unconfigured = unconfigured_integrations();
+    let now_unix = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(state.api_token_minted_at_unix);
+    let token_age_seconds = now_unix.saturating_sub(state.api_token_minted_at_unix);
     Json(serde_json::json!({
         "status": "ok",
         "version": env!("CARGO_PKG_VERSION"),
+        // Bearer token freshness signal. The daemon mints a fresh token on
+        // every `vibecli serve` start; this lets clients detect a daemon
+        // restart (and operators monitor how long the current token has been
+        // live) without ever exposing the token itself. See
+        // docs/security/key-rotation.md and threat-model.md §7 item #20.
+        "api_token": {
+            "minted_at_unix": state.api_token_minted_at_unix,
+            "age_seconds": token_age_seconds,
+            "rotation_doc": "docs/security/key-rotation.md",
+        },
         // mistralrs picker default depends on whether the daemon can pull
         // gated meta-llama/* repos. Frontend reads this and overrides
         // PROVIDER_DEFAULT_MODEL["vibecli-mistralrs"] to skip the 401 path.
@@ -3974,8 +3995,14 @@ pub async fn serve(
         Err(e) => eprintln!("[jobs] recovery warning: {e}"),
     }
 
-    // Generate a random bearer token for this daemon session
+    // Generate a random bearer token for this daemon session — implicit
+    // rotation: a new token every time `vibecli serve` starts. See
+    // docs/security/key-rotation.md for the documented rotation procedure.
     let api_token = format!("{:032x}", rand::rng().random::<u128>());
+    let api_token_minted_at_unix = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
 
     let collab_server = Arc::new(CollabServer::new(20));
 
@@ -4029,6 +4056,7 @@ pub async fn serve(
         jobs_dir,
         provider_name,
         api_token: api_token.clone(),
+        api_token_minted_at_unix,
         collab_server,
         github_app_config: gh_app_config,
         started_at: std::time::Instant::now(),
