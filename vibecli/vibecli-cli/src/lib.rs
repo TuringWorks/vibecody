@@ -349,6 +349,7 @@ pub mod jetbrains_hooks;
 pub mod knowledge_graph;
 pub mod large_codebase_bench;
 pub mod legacy_migration;
+pub mod migrate;
 pub mod linear;
 pub mod marketplace;
 pub mod mcp_apps;
