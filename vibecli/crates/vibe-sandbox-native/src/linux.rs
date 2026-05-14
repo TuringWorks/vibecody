@@ -147,12 +147,52 @@ impl Sandbox for LinuxSandbox {
     }
 }
 
+/// Directory names whose contents are the daemon's secret state — never safe
+/// to expose to a sandboxed process. A future caller mistakenly passing
+/// `~/.vibecli` (the encrypted ProfileStore live there) or a workspace's
+/// `.vibecli/` (WorkspaceStore + jobs.db) would let arbitrary sandboxed
+/// code read the bearer token, API keys for every configured provider, OAuth
+/// refresh tokens, and the workspace job/recap history. See
+/// `docs/security/threat-model.md` §7 item #11 (DREAD 7.2).
+const DENIED_SEGMENTS: &[&str] = &[".vibecli", ".vibeui", ".claude"];
+
+/// Specific filenames that name credential blobs, regardless of parent dir.
+/// `daemon.token` is written by `vibecli serve`; the others are sqlx databases
+/// holding encrypted state.
+const DENIED_FILENAMES: &[&str] = &["daemon.token", "profile_settings.db", "workspace.db"];
+
 fn validate_path(p: &Path) -> Result<()> {
     if p.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
         return Err(SandboxError::Setup(format!(
             "path traversal not allowed in sandbox path: {}",
             p.display()
         )));
+    }
+    // Reject paths that descend through a VibeCody secret-state directory.
+    // Segment-match, not prefix-match — `foo/.vibecli-docs/bar` is unrelated
+    // and stays legal; `~/work/.vibecli/jobs.db` is denied.
+    for c in p.components() {
+        if let std::path::Component::Normal(seg) = c {
+            if let Some(seg) = seg.to_str() {
+                if DENIED_SEGMENTS.contains(&seg) {
+                    return Err(SandboxError::Setup(format!(
+                        "refuses to bind a VibeCody secret-state directory into the sandbox: {} \
+                         (contains a '{seg}' segment — would expose the daemon's keychain to \
+                         sandboxed code)",
+                        p.display()
+                    )));
+                }
+            }
+        }
+    }
+    if let Some(name) = p.file_name().and_then(|s| s.to_str()) {
+        if DENIED_FILENAMES.contains(&name) {
+            return Err(SandboxError::Setup(format!(
+                "refuses to bind a VibeCody credential file into the sandbox: {} \
+                 (file name '{name}' is a known credential blob)",
+                p.display()
+            )));
+        }
     }
     Ok(())
 }
@@ -236,6 +276,69 @@ mod tests {
     #[test]
     fn validate_path_rejects_traversal() {
         assert!(validate_path(Path::new("/tmp/../etc")).is_err());
+    }
+
+    // ── DREAD #11 regression guards ─────────────────────────────────────
+
+    #[test]
+    fn validate_path_rejects_user_vibecli_state_dir() {
+        let err = validate_path(Path::new("/home/alice/.vibecli")).unwrap_err();
+        assert!(format!("{err}").contains(".vibecli"));
+    }
+
+    #[test]
+    fn validate_path_rejects_workspace_vibecli_state_dir() {
+        let err = validate_path(Path::new("/home/alice/code/myrepo/.vibecli")).unwrap_err();
+        assert!(format!("{err}").contains(".vibecli"));
+    }
+
+    #[test]
+    fn validate_path_rejects_path_descending_through_vibecli() {
+        // Even if the leaf isn't the .vibecli dir itself, descending through
+        // it is denied — that's how `~/.vibecli/profile_settings.db` would
+        // sneak in past a leaf-only filter.
+        let err = validate_path(Path::new("/home/alice/.vibecli/profile_settings.db")).unwrap_err();
+        assert!(format!("{err}").contains(".vibecli"));
+    }
+
+    #[test]
+    fn validate_path_rejects_user_vibeui_state_dir() {
+        let err = validate_path(Path::new("/home/alice/.vibeui")).unwrap_err();
+        assert!(format!("{err}").contains(".vibeui"));
+    }
+
+    #[test]
+    fn validate_path_rejects_daemon_token_filename() {
+        // Even if a future caller built a path that doesn't go through a
+        // `.vibecli` dir (e.g. user symlinked the token elsewhere), the
+        // filename itself is denied.
+        let err = validate_path(Path::new("/tmp/exported/daemon.token")).unwrap_err();
+        assert!(format!("{err}").contains("daemon.token"));
+    }
+
+    #[test]
+    fn validate_path_rejects_profile_settings_db() {
+        let err = validate_path(Path::new("/tmp/backup/profile_settings.db")).unwrap_err();
+        assert!(format!("{err}").contains("profile_settings.db"));
+    }
+
+    #[test]
+    fn validate_path_allows_lookalike_names() {
+        // Segment match, not prefix match — these are *not* VibeCody state
+        // dirs and must remain legal sandbox binds.
+        assert!(validate_path(Path::new("/home/alice/code/.vibecli-docs/notes.md")).is_ok());
+        assert!(validate_path(Path::new("/home/alice/vibecli/work")).is_ok());
+        assert!(validate_path(Path::new("/home/alice/code/myproject/.git")).is_ok());
+    }
+
+    #[test]
+    fn bind_rw_rejects_vibecli_state_dir() {
+        // End-to-end: the public API must surface the validation error.
+        let mut sb = LinuxSandbox::new().unwrap();
+        let err = sb
+            .bind_rw(Path::new("/home/alice/.vibecli"), Path::new("/work"))
+            .unwrap_err();
+        assert!(format!("{err}").contains(".vibecli"));
     }
 
     #[test]
