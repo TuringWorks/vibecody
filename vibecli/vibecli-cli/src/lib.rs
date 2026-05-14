@@ -37,6 +37,8 @@ pub mod rlcef_loop;
 pub mod sketch_canvas;
 pub mod mcp_streamable;
 pub mod mcp_http;
+// A5 — async subagent state machine.
+pub mod async_subagent;
 // A1 — MCP Apps payload parser/validator (SEP-1865).
 pub mod mcp_apps_payload;
 // A3 — /.well-known/mcp.json capability discovery.
