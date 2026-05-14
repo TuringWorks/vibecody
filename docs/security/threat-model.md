@@ -205,7 +205,7 @@ Scores 1–10 per dimension; total = mean. Ranked descending. **Bold rows are P0
 | 21 | **`io::Error` displays leak workspace paths to HTTP error bodies** — e.g. `format!("recap insert: {e}")` returns "Permission denied: /Users/<user>/code/<repo>/.vibecli/recap.db" to the client. 15+ such sites in `serve.rs`. | 5 | 10 | 8 | 5 | 7 | 7.0 | error-redaction sweep |
 | 18 | `--host 0.0.0.0` + no firewall + no Tailscale → daemon reachable from internet on misconfigured LAN | 10 | 4 | 5 | 8 | 5 | 6.4 | banner + docs |
 | 19 | ~~mDNS TXT records may include workspace path / user name → LAN reconnaissance~~ — **audited 2026-05-13**: TXT records carry only opaque `machine_id` + `version`. The OS hostname appears in the SRV record but that's an OS-level fact also leaked by SMB / AirDrop / Bonjour-printers / etc. No VibeCody-controlled data in the broadcast. | 4 | 10 | 9 | 6 | 9 | 7.6 | ✅ (audit cleared) |
-| 20 | Bearer token rotation: no documented procedure → tokens persist across machine lifetime | 6 | 9 | 7 | 7 | 6 | 7.0 | `profile_store.rs` + docs |
+| 20 | ~~Bearer token rotation: no documented procedure → tokens persist across machine lifetime~~ — **fixed 2026-05-13**. Audit found the original framing was incorrect: `serve.rs::serve` mints a fresh 128-bit token on every daemon start (line 3978) — implicit rotation already happens at every restart. Real gaps were (a) no documentation, (b) no freshness signal. Both now closed: `/health` exposes `api_token: { minted_at_unix, age_seconds, rotation_doc }` (token itself never in the body), and `docs/security/key-rotation.md` documents the procedure + scope-limits. | 6 | 9 | 7 | 7 | 6 | 7.0 | ✅ |
 
 ---
 
@@ -235,7 +235,7 @@ Mapping each threat to a countermeasure. ✅ = already enforced; 🟡 = partial;
 | 21 | HTTP error handlers must map `io::Error`/`anyhow::Error` to opaque `{"error":"internal"}` responses; full detail in `tracing::error!` server-side only. 15+ sites in `serve.rs` need a `json_internal_error(e)` helper that redacts before reply. | 🔴 — pending sweep |
 | 18 | Same as #7 + docs page on `connectivity.md` linking the right configuration | 🟡 — partial in `docs/connectivity.md` |
 | 19 | mDNS TXT must contain only protocol-version + service-name; never user-identifying strings | ✅ audited 2026-05-13 — `mdns_announce.rs` `build_announce()` lines 140–147 emit only `machine_id=…` + `version=…`. No workspace, no user, no token. Hostname in SRV record is OS-level leak (out of scope). |
-| 20 | `vibecli auth rotate` subcommand + scheduled-rotation suggestion in `/health` | 🔴 |
+| 20 | Bearer freshness signal in `/health`; documented rotation procedure | ✅ shipped 2026-05-13 — `ServeState.api_token_minted_at_unix` + `/health.api_token` JSON block; `docs/security/key-rotation.md` covers when/why/how. Hot rotation (no daemon restart) declined as out-of-scope for the single-user model — pkill-and-restart is sub-second. |
 
 ---
 
@@ -264,5 +264,6 @@ Mapping each threat to a countermeasure. ✅ = already enforced; 🟡 = partial;
 | 2026-05-13 | #14 fixed | CycloneDX SBOMs generated at release time across Rust/JS/Python and attached to the GitHub release alongside binaries + SHA256SUMS. |
 | 2026-05-13 | #11 fixed | `LinuxSandbox::validate_path` now rejects host paths that descend through `.vibecli`/`.vibeui`/`.claude` or end in a known credential filename. Default mount set was already fail-closed. |
 | 2026-05-13 | #12 fixed | Pairing URL no longer embeds `?token=`. Token returned + displayed separately; URL is opaque. |
+| 2026-05-13 | #20 fixed | Audit found implicit rotation already happens at every daemon restart. Added `/health.api_token` freshness signal (minted_at_unix, age_seconds) and `docs/security/key-rotation.md`. |
 
 When you change a high-risk surface (anything in §6 boundaries B1, B4, B5, B6), update this document **in the same PR**. The PR review checklist in `review-checklist.md` will remind you.
