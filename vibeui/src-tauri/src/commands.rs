@@ -646,14 +646,14 @@ pub async fn list_directory(
 
 #[tauri::command]
 pub async fn list_directory_sandbox(path: String) -> Result<Vec<vibe_core::file_system::FileEntry>, String> {
-    if path.contains("..") {
-        return Err("Path traversal blocked".to_string());
-    }
-    let path_buf = std::path::PathBuf::from(&path);
-    if !path_buf.is_absolute() {
+    if !std::path::Path::new(&path).is_absolute() {
         return Err("Sandbox path must be absolute".to_string());
     }
-    let mut rd = tokio::fs::read_dir(&path_buf).await.map_err(|e| e.to_string())?;
+    // `reject_sensitive_path` canonicalizes (so `..` is resolved through the
+    // filesystem instead of by a string scan) and applies the credential-dir
+    // deny-list. DREAD #2 + #11.
+    let resolved = reject_sensitive_path(&path)?;
+    let mut rd = tokio::fs::read_dir(&resolved).await.map_err(|e| e.to_string())?;
     let mut entries: Vec<vibe_core::file_system::FileEntry> = Vec::new();
     while let Some(entry) = rd.next_entry().await.map_err(|e| e.to_string())? {
         let meta = entry.metadata().await.map_err(|e| e.to_string())?;
