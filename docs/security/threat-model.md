@@ -198,7 +198,7 @@ Scores 1–10 per dimension; total = mean. Ranked descending. **Bold rows are P0
 | 11 | Sandbox process can read `~/.vibecli/*` if home dir is mounted into namespace | 10 | 8 | 5 | 9 | 4 | 7.2 | bwrap profile |
 | 12 | Pairing-URL bearer in query string → logged in nginx/ngrok/Tailscale-relay access logs | 9 | 7 | 4 | 7 | 5 | 6.4 | `pairing.rs` audit |
 | 13 | No `cargo deny` for license/source/yanked-crate policy | 5 | 10 | 10 | 6 | 9 | 8.0 | CI gate (Phase 3) |
-| 14 | No SBOM generated/attached to releases (supply-chain attestation gap) | 6 | 10 | 9 | 8 | 8 | 8.2 | CI gate (Phase 3) |
+| 14 | ~~No SBOM generated/attached to releases~~ — **fixed 2026-05-13**: new `sbom` job in `release.yml` produces one CycloneDX 1.4 JSON per ecosystem (Rust via `cargo sbom`, JS via `@cyclonedx/cdxgen`, Python via `cyclonedx-py`); all `.cdx.json` files attached to the GitHub release alongside binaries + SHA256SUMS. | 6 | 10 | 9 | 8 | 8 | 8.2 | ✅ |
 | 15 | No `gitleaks`/secret-scanning pre-commit or CI | 7 | 10 | 10 | 7 | 9 | 8.6 | CI gate (Phase 3) |
 | 16 | `tracing::info!` may log full prompt body → user-pasted secrets in plaintext log file | 8 | 8 | 6 | 7 | 5 | 6.8 | `tracing` redaction audit |
 | 17 | ~~`RUST_BACKTRACE=1` → backtraces leak filesystem paths to HTTP responses~~ — **audited 2026-05-13, misclassified**: `RUST_BACKTRACE=1` lives in `.claude/settings.json` (Claude Code shell only, not the daemon runtime). All daemon error sites use `Display`/`{e}` not `:#?` / `.backtrace()`; backtraces are never in HTTP bodies. **But** see new entry #21. | 4 | 10 | 8 | 5 | 6 | 6.6 | ✅ (recategorized → #21) |
@@ -228,7 +228,7 @@ Mapping each threat to a countermeasure. ✅ = already enforced; 🟡 = partial;
 | 11 | bwrap profile asserts `--ro-bind /home/$USER/.vibecli /dev/null` or omits the mount entirely | 🟡 — verify |
 | 12 | Pairing token in `Authorization` header only; URL form uses an opaque pair-ID + separate token | 🔴 — audit |
 | 13 | `deny.toml` with `[advisories] vulnerability = "deny"`, `[licenses] copyleft = "warn"`, `[sources]` allowlist | 🔴 — Phase 3 |
-| 14 | `cargo sbom` + `cyclonedx-npm`; attach `.cdx.json` to GitHub releases | 🔴 — Phase 3 |
+| 14 | `cargo sbom` + JS/Python SBOM generators; attach `.cdx.json` to GitHub releases | ✅ shipped 2026-05-13 — release.yml `sbom` job covers Rust workspace + JS (vibeui/vibeapp/agent-sdk) + Python (vibe-rl-py); 5 CycloneDX 1.4 JSONs attached per release. |
 | 15 | `gitleaks` pre-commit hook + CI step with `.gitleaks.toml` allowlisting test fixtures | 🔴 — Phase 3 |
 | 16 | Newtype `Redact<T>` for keys/tokens with `Debug`/`Display` that prints `[redacted]`; CI grep rule forbids bare `{api_key}` in `tracing::` format strings | 🔴 |
 | 17 | ~~Release builds set `RUST_BACKTRACE=0`~~ → no-op, `RUST_BACKTRACE` is only set in `.claude/settings.json` for editor sessions. The underlying concern is now tracked as #21. | ✅ (audit cleared) |
@@ -261,5 +261,6 @@ Mapping each threat to a countermeasure. ✅ = already enforced; 🟡 = partial;
 | 2026-05-13 | #19 audited | mDNS TXT records confirmed to carry only `machine_id` + `version`. No fix needed; entry closed. |
 | 2026-05-13 | #17 reclassified → #21 | Audit found backtraces don't reach HTTP (all sites use `Display`). The real adjacent issue (FS paths in `io::Error` displays leaking via error bodies) split out as new top-20 item #21. |
 | 2026-05-13 | #9 fixed | Audit of all 19 `/watch/*` handlers. Fixed `GET /watch/events` (was unauth; now bearer) and `PUT /watch/sandbox/chat-session` (was bearer-or-Watch-Token; now bearer-only per doc-stated intent). |
+| 2026-05-13 | #14 fixed | CycloneDX SBOMs generated at release time across Rust/JS/Python and attached to the GitHub release alongside binaries + SHA256SUMS. |
 
 When you change a high-risk surface (anything in §6 boundaries B1, B4, B5, B6), update this document **in the same PR**. The PR review checklist in `review-checklist.md` will remind you.
