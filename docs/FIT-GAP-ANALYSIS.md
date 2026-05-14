@@ -729,3 +729,29 @@ Combining §15 (six long-horizon items), §16.1 (eleven v13 external gaps A1–A
 > **VibeCody closes the 136 gaps that matter across 40+ competing AI coding tools — and is the only project that ships competitive entries in every category (terminal, IDE, cloud daemon, review bot, completions, mobile, watch) from a shared Rust + TypeScript monorepo.**
 
 See [**Competitive Landscape & Roadmap**](./roadmap/) for the forward plan, surface-by-surface feature inventory, and differentiators.
+
+## 18. Patent-distance posture for unshipped UX surfaces (B2 / B3 / A7) — 2026-05-09
+
+Three v14 gaps — **B2** (Plugin Marketplace v2), **B3** (Always-on Security Review), **A7** (Design Mode) — are queued behind a patent-distance audit before any UX work begins. The competitor surfaces (Cursor) are recent enough that filed-or-likely-to-file claims are a real risk; shipping in the same shape would re-introduce the exposure that motivated removing Paths A and C of the inline-completion stack on 2026-04-26.
+
+The audit itself is internal triage, not legal advice, and lives in `notes/PATENT_AUDIT_INLINE.md` (gitignored). What's public-facing is the **posture** — the principles each eventual implementation must honor:
+
+1. **No telemetry-driven personalization.** Plugin / skill / agent discovery surfaces are query + category, never "for-you" lists fed by usage analytics. *(Applies to B2.)*
+2. **Policy enforcement is client-side and admin-authored** in `WorkspaceStore`. No server can flip a workspace plugin or agent class from Off to Required. *(B2, B3.)*
+3. **Bundle format is open MCPB.** The artifact format is the open MCP-spec bundle already shipped in PR #18 / A2 (`mcpb_bundle.rs`); lineage to VS Code `.vsix` and MetaPK keeps prior-art clear. No proprietary container. *(B2.)*
+4. **Trust roots are per-publisher P-256 ECDSA keys.** Same key infrastructure as the A2A signed agent cards (PR #14 / B6) and watch pairing. The user explicitly trusts a publisher key; no opaque chain. *(B2.)*
+5. **Always-on is opt-in per workspace, default off.** The trigger is a user-configured file-watcher rule; the daemon ships no system-imposed always-on default. *(B3.)*
+6. **Findings flow through the existing generic `Finding` schema** alongside clippy / eslint / semgrep. The LLM is one finding source among many; the UI does not single it out as a privileged "security agent" class with an interactive canvas or one-click apply-fix gesture. To act on a finding the user invokes diffcomplete (⌘.) explicitly — same chord, same modal as Path D. *(B3.)*
+7. **No agent-controlled browser, no live DOM mutation by the agent.** The user attaches their existing browser via WebDriver / CDP they have authorized; the agent emits a CSS / HTML unified diff into a `DiffReviewPanel` and the user applies via the existing diffcomplete mechanism. *(A7.)*
+8. **No closed-loop hidden iteration.** Each refinement is an explicit user chord (the diffcomplete `regenerate-with-refinement` pattern from Phase 7), not an automatic screenshot-diff retry loop. *(A7.)*
+9. **No agent-side hidden state from the source tree** beyond what the user explicitly selects or attaches. No automatic embedding RAG, no cross-file taint inference, no scratchpad in the prompt. *(B3, A7.)*
+
+These principles are gating, not polish. B2 / B3 / A7 stay deferred until a design that satisfies all applicable principles ships as a proposal on this branch and clears the corresponding slice audit in `notes/PATENT_AUDIT_INLINE.md`.
+
+The shape that **does** clear the audit, sketched (full breakdown in the gitignored doc):
+
+- **B2** — federated plugin index served over HTTPS / Git, MCPB bundles, per-publisher signature keys, query+category UI, policy stored in `WorkspaceStore`. `plugin_marketplace.rs` already targets this topology.
+- **B3** — opt-in workspace flag → file-watcher rule → LLM call → `Finding` records → existing `ReviewPanel` list → user invokes diffcomplete (⌘.) to act. Every component already exists; the work is wiring, not new claim-evocative surfaces.
+- **A7** — diffcomplete extended to the rendered DOM. User clicks an element in their own browser, types an instruction, presses ⌘.; agent emits a CSS / HTML unified diff in `DiffReviewPanel`; user reviews and applies. Same Path D claim-element posture, same prior-art lineage.
+
+Cross-cutting takeaway: the patent-distance discipline isn't a tax on shipping these gaps — it's the only way they ship without re-creating the Path A / Path C exposure we deliberately deleted in April. Items that look like fast follows in competitor announcements often need a different *shape* on the VibeCody side; the audit is what produces that shape.

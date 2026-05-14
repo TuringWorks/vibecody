@@ -90,6 +90,11 @@ vibe-memory = { path = "../../vibe-memory" }
 sha2.workspace = true
 hmac.workspace = true
 p256.workspace = true
+# Constant-time equality for bearer-token / device-token comparison.
+# Used by src/auth_util.rs; see docs/security/threat-model.md §7 item #6.
+subtle = "2.5"
+# Per-IP rate-limiter bucket map. See docs/security/threat-model.md §7 item #8.
+dashmap = "6"
 hex.workspace = true
 uuid.workspace = true
 base64 = "0.22"
