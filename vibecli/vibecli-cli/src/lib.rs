@@ -47,6 +47,8 @@ pub mod mcp_well_known;
 pub mod mcpb_bundle;
 pub mod mcts_repair;
 pub mod visual_verify;
+// A8 — self-verifying agent loop with bounded iterations.
+pub mod verify_loop;
 pub mod next_task;
 pub mod langgraph_bridge;
 pub mod context_protocol;
