@@ -609,11 +609,16 @@ function Section({
             color: "var(--text-secondary)",
             fontSize: "var(--font-size-sm)",
             display: "flex",
-            alignItems: "center",
-            gap: 6,
+            flexDirection: "column",
+            gap: 4,
           }}
         >
-          Not connected{status?.message ? ` — ${status.message.slice(0, 80)}` : ""}
+          <strong style={{ color: "var(--text-primary)", fontWeight: 600 }}>Not connected</strong>
+          {status?.message && (
+            <span style={{ whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.45 }}>
+              {status.message}
+            </span>
+          )}
         </div>
       ) : err ? (
         <div

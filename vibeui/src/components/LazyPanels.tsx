@@ -39,6 +39,7 @@ function KeepAlivePanel({ active, children }: { active: boolean; children: React
 
 // Standalone panels
 const MarketplacePanel = lazy(() => import("./MarketplacePanel").then(m => ({ default: m.MarketplacePanel })));
+const SandboxChatPanel = lazy(() => import("./SandboxChatPanel").then(m => ({ default: m.SandboxChatPanel })));
 
 // Composite panels
 const ChatComposite = lazy(() => import("./composite/ChatComposite").then(m => ({ default: m.ChatComposite })));
@@ -152,6 +153,7 @@ export function PanelHost(props: PanelHostProps) {
     "architecture", "company",
     "agent-intelligence", "enterprise-governance",
     "watch",
+    "sandbox-chat",
   ];
 
   return (
@@ -164,6 +166,7 @@ export function PanelHost(props: PanelHostProps) {
       {panel("ai-context", <LazyPanel Component={AiContextComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("ai-generation", <LazyPanel Component={AiGenerationComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("marketplace", <LazyPanel Component={MarketplacePanel} props={{}} />)}
+      {panel("sandbox-chat", <LazyPanel Component={SandboxChatPanel} props={{ provider: selectedProvider, availableProviders }} />)}
 
       {/* --- Project --- */}
       {panel("project-hub", <LazyPanel Component={ProjectHubComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
