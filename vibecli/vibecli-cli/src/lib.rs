@@ -4,6 +4,7 @@
 #![allow(dead_code)]
 
 pub mod auth_util;
+pub mod redact;
 pub mod diff_review;
 pub mod cost_router;
 pub mod agent_skills_compat;

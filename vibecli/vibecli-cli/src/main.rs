@@ -121,6 +121,7 @@ use std::io::{self, Write};
 use std::sync::Arc;
 
 mod auth_util;
+mod redact;
 mod config;
 mod schema;
 mod syntax;
