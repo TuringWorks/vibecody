@@ -92,6 +92,13 @@ pub struct GenerationRequest {
 pub struct GenerationResponse {
     pub text: String,
     pub tokens_generated: usize,
+    /// Prompt-side token count. Populated when the underlying backend
+    /// reports it (mistralrs always does); 0 when unknown. Surfaced via
+    /// `ChatChunk` so HTTP routes (e.g. `/v1/messages`) can populate
+    /// `usage.input_tokens` instead of returning 0 — Anthropic clients
+    /// that gate on usage telemetry need a real number, not a sentinel.
+    #[serde(default)]
+    pub prompt_tokens: usize,
     pub finish_reason: FinishReason,
 }
 

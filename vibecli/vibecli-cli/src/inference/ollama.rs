@@ -298,3 +298,91 @@ where
     }
 }
 
+#[cfg(test)]
+mod tests {
+    //! End-to-end check that ollama-proxy actually surfaces upstream
+    //! `prompt_eval_count` / `eval_count` as `ChatChunk.prompt_tokens` /
+    //! `ChatChunk.completion_tokens`. The serde rename on the field type
+    //! is unit-tested in `inference::backend`, but Copilot (rightly) asked
+    //! whether the proxy round-trip preserves it. This test wires a real
+    //! TCP listener pretending to be `ollama serve` and asserts the
+    //! values come through `Backend::chat`.
+    use super::*;
+    use crate::inference::backend::{ChatMessage, ChatRequest};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+
+    /// Spawn a one-shot mock that accepts a single connection, drains the
+    /// request headers + body, then replies with a fixed HTTP body and
+    /// closes the socket. `Connection: close` (and no Content-Length)
+    /// makes reqwest read until EOF, which keeps the mock minimal.
+    async fn mock_ollama_one_shot(body: &'static str) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let (mut sock, _) = listener.accept().await.unwrap();
+            // Drain just enough to consume the request — we don't need to
+            // parse it, but we do need to read past it so the client sees
+            // a clean response on the same connection.
+            let mut buf = [0u8; 4096];
+            // Best-effort: one read is plenty for the small ChatRequest
+            // payload these tests send.
+            let _ = sock.read(&mut buf).await;
+            let resp = format!(
+                "HTTP/1.1 200 OK\r\n\
+                 Content-Type: application/x-ndjson\r\n\
+                 Connection: close\r\n\
+                 \r\n\
+                 {body}"
+            );
+            let _ = sock.write_all(resp.as_bytes()).await;
+            let _ = sock.shutdown().await;
+        });
+        format!("http://{addr}")
+    }
+
+    #[tokio::test]
+    async fn ollama_proxy_round_trips_prompt_eval_count_and_eval_count() {
+        // One streaming-content frame followed by the done frame ollama
+        // actually emits — token counts are only on the latter.
+        let ndjson = "\
+            {\"model\":\"m\",\"created_at\":\"2026-01-01T00:00:00Z\",\
+             \"message\":{\"role\":\"assistant\",\"content\":\"hi\"},\"done\":false}\n\
+            {\"model\":\"m\",\"created_at\":\"2026-01-01T00:00:01Z\",\
+             \"message\":{\"role\":\"assistant\",\"content\":\"\"},\"done\":true,\
+             \"prompt_eval_count\":42,\"eval_count\":7}\n";
+        let base = mock_ollama_one_shot(ndjson).await;
+
+        let backend = OllamaProxyBackend::new(base);
+        let mut stream = backend
+            .chat(ChatRequest {
+                model: "m".into(),
+                messages: vec![ChatMessage {
+                    role: "user".into(),
+                    content: "hi".into(),
+                    images: None,
+                }],
+                stream: None,
+                options: None,
+                backend: None,
+            })
+            .await
+            .expect("chat() should succeed against the mock");
+
+        let mut chunks: Vec<ChatChunk> = Vec::new();
+        while let Some(item) = stream.next().await {
+            chunks.push(item.expect("chunk parse"));
+        }
+        assert_eq!(chunks.len(), 2, "expected content + done frame");
+        // Streaming content frame: no token counts.
+        assert!(!chunks[0].done);
+        assert_eq!(chunks[0].prompt_tokens, None);
+        assert_eq!(chunks[0].completion_tokens, None);
+        // Done frame: upstream's prompt_eval_count / eval_count must
+        // land on prompt_tokens / completion_tokens via the serde rename.
+        assert!(chunks[1].done);
+        assert_eq!(chunks[1].prompt_tokens, Some(42));
+        assert_eq!(chunks[1].completion_tokens, Some(7));
+    }
+}
+

@@ -84,10 +84,20 @@ impl ExecutorConfig {
                 }
                 PathBuf::from("vibe-rl-py")
             });
+        // Optional per-run wall-clock cap. Operator-facing knob; env-only is
+        // fine here (developer/SRE setting, not user-facing). When set,
+        // run_reader_loop SIGKILLs the sidecar and marks the run Failed
+        // with a "exceeded run_timeout" message after this many seconds.
+        let run_timeout = std::env::var("VIBE_RL_RUN_TIMEOUT_SECS")
+            .ok()
+            .and_then(|s| s.parse::<u64>().ok())
+            .filter(|n| *n > 0)
+            .map(Duration::from_secs);
+
         Self {
             interpreter,
             sidecar_root,
-            run_timeout: None,
+            run_timeout,
             batch_flush_size: 50,
             batch_flush_interval: Duration::from_millis(250),
         }
@@ -391,7 +401,21 @@ async fn run_reader_loop(
     let flush_interval = cfg.batch_flush_interval;
     let mut flush_at = tokio::time::Instant::now() + flush_interval;
 
+    // run_timeout: when set, fire a one-shot deadline that kills the child
+    // and ends the loop with a "timeout" finished_reason. None = unbounded.
+    let run_started_at = tokio::time::Instant::now();
+    let timeout_at = cfg.run_timeout.map(|d| run_started_at + d);
+
     loop {
+        // sleep_until on a far-future Instant when no timeout is configured;
+        // tokio::select! requires both arms to be evaluable each iteration.
+        let timeout_branch = async {
+            match timeout_at {
+                Some(t) => tokio::time::sleep_until(t).await,
+                None => std::future::pending::<()>().await,
+            }
+        };
+
         tokio::select! {
             line = reader.next_line() => match line {
                 Ok(Some(line)) => {
@@ -434,6 +458,21 @@ async fn run_reader_loop(
                     episode_batch.clear();
                 }
                 flush_at = tokio::time::Instant::now() + flush_interval;
+            }
+            _ = timeout_branch, if timeout_at.is_some() => {
+                // Deadline elapsed. Kill the child and surface a clear
+                // "timeout" reason so the run row reads as Failed with
+                // an actionable message.
+                {
+                    let mut c = child_arc.lock().await;
+                    let _ = c.start_kill();
+                }
+                let secs = cfg.run_timeout.map(|d| d.as_secs()).unwrap_or(0);
+                finished_reason.get_or_insert("error".into());
+                finished_error.get_or_insert_with(|| {
+                    format!("run exceeded run_timeout ({secs}s) — sidecar was killed")
+                });
+                break;
             }
         }
     }

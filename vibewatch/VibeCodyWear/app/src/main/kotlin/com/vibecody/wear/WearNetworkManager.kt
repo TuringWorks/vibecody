@@ -94,29 +94,41 @@ class WearNetworkManager(
         JSONObject(resp.body?.string() ?: "{}")
     }
 
+    /** W1.2 — list recent background-agent jobs (slim payload). */
+    suspend fun listJobs(): JSONObject = withContext(Dispatchers.IO) {
+        val req = watchRequest("${auth.daemonUrl}/watch/jobs").get().build()
+        val resp = client.newCall(req).awaitResponse()
+        JSONObject(resp.body?.string() ?: "{}")
+    }
+
     suspend fun getMessages(sessionId: String): JSONObject = withContext(Dispatchers.IO) {
         val req = watchRequest("${auth.daemonUrl}/watch/sessions/$sessionId/messages").get().build()
         val resp = client.newCall(req).awaitResponse()
         JSONObject(resp.body?.string() ?: "{}")
     }
 
-    // ── Recap (W1.1 — read-only) ──────────────────────────────────────────────
+    // ── Recap (W1.1 / W1.2 — read-only) ───────────────────────────────────────
 
     /** Fetch the freshest recap for a session. Returns null on any failure
      *  (older daemon, no recap yet, network error, 4xx). Watch never
      *  generates recaps — this is purely a display fetch. */
-    suspend fun getSessionRecap(sessionId: String): WearRecap? = withContext(Dispatchers.IO) {
+    suspend fun getSessionRecap(sessionId: String): WearRecap? =
+        fetchRecap(path = "/watch/sessions/$sessionId/recap")
+
+    /** W1.2 — Fetch the freshest recap for a background-agent job. */
+    suspend fun getJobRecap(jobId: String): WearRecap? =
+        fetchRecap(path = "/watch/jobs/$jobId/recap")
+
+    private suspend fun fetchRecap(path: String): WearRecap? = withContext(Dispatchers.IO) {
         try {
-            val req = watchRequest("${auth.daemonUrl}/watch/sessions/$sessionId/recap")
-                .get()
-                .build()
+            val req = watchRequest("${auth.daemonUrl}$path").get().build()
             val resp = client.newCall(req).awaitResponse()
             if (!resp.isSuccessful) return@withContext null
             val json = JSONObject(resp.body?.string() ?: "{}")
             if (json.isNull("recap")) return@withContext null
             WearRecap.fromJson(json.getJSONObject("recap"))
         } catch (e: Exception) {
-            Log.w(TAG, "getSessionRecap failed: ${e.message}")
+            Log.w(TAG, "fetchRecap($path) failed: ${e.message}")
             null
         }
     }

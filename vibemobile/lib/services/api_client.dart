@@ -297,12 +297,69 @@ class ApiClient {
     return jsonDecode(resp.body);
   }
 
-  // ── Recap (M1.1) ───────────────────────────────────────────
+  // ── Active session (F3.x — cross-device handoff) ───────────
+
+  /// Claim a session as "active on this device" so VibeUI can follow
+  /// (mirrors the W1.1 watch path). Best-effort: failures are logged
+  /// but do not block opening the chat.
+  Future<void> setActiveSession(
+    String baseUrl,
+    String token, {
+    required String sessionId,
+    String? deviceId,
+    String? deviceLabel,
+  }) async {
+    try {
+      await _client
+          .put(
+            Uri.parse(_url(baseUrl, '/mobile/active-session')),
+            headers: _headers(token),
+            body: jsonEncode({
+              'session_id': sessionId,
+              if (deviceId != null) 'device_id': deviceId,
+              if (deviceLabel != null) 'device_label': deviceLabel,
+            }),
+          )
+          .timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // Best-effort — never block the UI on a failed sync.
+    }
+  }
+
+  /// Read the daemon's currently-claimed mobile active session. Used
+  /// by SessionsScreen to show an "Active on $device" badge so the
+  /// user knows which row VibeUI is following.
+  Future<Map<String, dynamic>?> getActiveSession(
+      String baseUrl, String token) async {
+    try {
+      final resp = await _client
+          .get(
+            Uri.parse(_url(baseUrl, '/mobile/active-session')),
+            headers: _headers(token),
+          )
+          .timeout(const Duration(seconds: 5));
+      if (resp.statusCode != 200) return null;
+      final data = jsonDecode(resp.body);
+      if (data is Map<String, dynamic>) {
+        final cur = data['active_session'];
+        return cur is Map<String, dynamic> ? cur : null;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // ── Recap (M1.1 + M1.2) ────────────────────────────────────
   //
-  // M1.1 — read-only consumer of /v1/recap. Mobile never generates
-  // recaps; the daemon owns composition. ChatScreen calls this before
-  // /mobile/sessions/{id}/context so the recap card can render while
-  // the transcript is still streaming in.
+  // M1.1 — read-only consumer of /v1/recap (kind=session). M1.2
+  // extends this with kind=job and a /v1/resume helper. Mobile
+  // never generates recaps; the daemon owns composition.
+  //
+  // The /v1/recap list endpoint wraps results in
+  //   {"recaps": [...], "count": N}
+  // so we unwrap `data['recaps']` here. (Earlier M1.1 code expected a
+  // bare array; that path always returned null and is fixed below.)
 
   /// Fetch the most recent session recap for [subjectId].
   /// Returns `null` when the daemon has no recap yet, or when the
@@ -310,9 +367,28 @@ class ApiClient {
   /// blocking the chat from opening.
   Future<Recap?> getSessionRecap(
       String baseUrl, String token, String subjectId) async {
+    return _getRecapByKind(baseUrl, token, kind: 'session', subjectId: subjectId);
+  }
+
+  /// M1.2 — Fetch the most recent job recap for [jobId]. Same wire
+  /// shape as session recaps; the daemon's J1.1 schema lives on
+  /// `jobs.db` and is decrypted on read. Returns `null` for jobs
+  /// that have no terminal recap yet (daemon's J1.2 hook is
+  /// auto-recap-on-terminal; in-flight jobs land here as null).
+  Future<Recap?> getJobRecap(
+      String baseUrl, String token, String jobId) async {
+    return _getRecapByKind(baseUrl, token, kind: 'job', subjectId: jobId);
+  }
+
+  Future<Recap?> _getRecapByKind(
+    String baseUrl,
+    String token, {
+    required String kind,
+    required String subjectId,
+  }) async {
     try {
       final uri = Uri.parse('$baseUrl/v1/recap').replace(queryParameters: {
-        'kind': 'session',
+        'kind': kind,
         'subject_id': subjectId,
         'limit': '1',
       });
@@ -321,9 +397,48 @@ class ApiClient {
           .timeout(const Duration(seconds: 5));
       if (resp.statusCode != 200) return null;
       final data = jsonDecode(resp.body);
-      // /v1/recap returns an array; take the head.
-      if (data is List && data.isNotEmpty) {
-        return Recap.fromJson(data.first as Map<String, dynamic>);
+      if (data is Map<String, dynamic>) {
+        final list = data['recaps'];
+        if (list is List && list.isNotEmpty) {
+          return Recap.fromJson(list.first as Map<String, dynamic>);
+        }
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// M1.2 — Trigger a `/v1/resume` from a stored recap. Returns the
+  /// new `resumed_session_id` on success or null on any failure.
+  /// Mobile only ever surfaces the result via toast / banner; the
+  /// actual job execution stays on the daemon side.
+  Future<String?> resumeFromRecap(
+    String baseUrl,
+    String token, {
+    required String recapId,
+    bool branch = false,
+  }) async {
+    try {
+      final resp = await _client
+          .post(
+            Uri.parse('$baseUrl/v1/resume'),
+            headers: {
+              ..._headers(token),
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({
+              'from_recap_id': recapId,
+              'branch': branch,
+              'client': 'vibemobile',
+            }),
+          )
+          .timeout(const Duration(seconds: 8));
+      if (resp.statusCode != 200) return null;
+      final data = jsonDecode(resp.body);
+      if (data is Map<String, dynamic>) {
+        final sid = data['resumed_session_id'];
+        if (sid is String && sid.isNotEmpty) return sid;
       }
       return null;
     } catch (_) {

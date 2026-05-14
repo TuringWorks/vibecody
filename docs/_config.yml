@@ -25,6 +25,9 @@ sidebar:
   - title: Quickstart
     icon: zap
     url: /quickstart/
+  - title: Workspace
+    icon: folder-open
+    url: /workspace/
   - title: Guides
     icon: map
     url: /guides/
@@ -66,6 +69,9 @@ sidebar:
   - title: Connectivity
     icon: wifi
     url: /connectivity/
+  - title: Pairing
+    icon: link
+    url: /pairing/
   - title: Providers
     icon: cloud
     children:
@@ -107,6 +113,12 @@ sidebar:
   - title: Arena Mode
     icon: zap
     url: /arena/
+  - title: Counsel
+    icon: users
+    url: /counsel/
+  - title: Usage Metering
+    icon: dollar-sign
+    url: /usage-metering/
   - title: Background Jobs
     icon: clock
     url: /background-jobs/

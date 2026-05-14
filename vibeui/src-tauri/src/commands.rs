@@ -46,7 +46,7 @@ fn re_at_jira() -> &'static regex::Regex {
 }
 
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use vibe_ai::{Message, ChatEngine};
@@ -454,55 +454,82 @@ pub async fn assemble_context(
     )
 }
 
-/// Verify that `path` stays within the workspace root directories.
+/// Canonicalize `path`, even if it does not yet exist.
 ///
-/// Canonicalizes the path and checks it is a descendant of at least one
-/// workspace folder.  Returns the validated `PathBuf` on success or a
-/// human-readable error string on path-traversal attempts.
+/// Walks up to the deepest existing ancestor, canonicalizes that, then
+/// re-appends the non-existent tail. This lets us validate write/create
+/// operations against paths that the caller is about to bring into existence
+/// — without skipping canonicalization (which is what `..` and symlink
+/// confusion attacks rely on).
+fn canonicalize_lenient(path: &Path) -> Result<PathBuf, std::io::Error> {
+    if let Ok(canonical) = path.canonicalize() {
+        return Ok(canonical);
+    }
+    let mut existing = path.to_path_buf();
+    let mut tail: Vec<std::ffi::OsString> = Vec::new();
+    while !existing.exists() {
+        let Some(file_name) = existing.file_name().map(|n| n.to_os_string()) else {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "path has no existing ancestor",
+            ));
+        };
+        tail.push(file_name);
+        if !existing.pop() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "walked past filesystem root without finding an existing ancestor",
+            ));
+        }
+    }
+    let mut result = existing.canonicalize()?;
+    for segment in tail.into_iter().rev() {
+        result.push(segment);
+    }
+    Ok(result)
+}
+
+/// Resolve `path` against the workspace folders and assert it stays inside
+/// at least one of them.
+///
+/// **Returns the canonicalized absolute path** — callers MUST use the returned
+/// `PathBuf` for the actual filesystem operation. Passing the original `path`
+/// string through to `std::fs::*` / `tokio::fs::*` defeats the check, because
+/// the validated path and the path actually opened can differ (relative vs.
+/// absolute, symlink resolution, `..` collapsing).
+///
+/// The function is `#[must_use]` so dropping the result trips a lint.
+///
+/// Documented in `docs/security/threat-model.md` §7 item #2.
+#[must_use = "use the returned PathBuf for filesystem operations — discarding it reintroduces the path-traversal bug this helper exists to prevent"]
+fn safe_resolve_path_in(folders: &[PathBuf], path: &str) -> Result<PathBuf, String> {
+    let candidate = if Path::new(path).is_absolute() {
+        PathBuf::from(path)
+    } else if let Some(root) = folders.first() {
+        root.join(path)
+    } else {
+        return Err(format!("No workspace folder open — cannot resolve '{path}'"));
+    };
+
+    let canonical_candidate = canonicalize_lenient(&candidate)
+        .map_err(|e| format!("Cannot resolve '{path}': {e}"))?;
+
+    for folder in folders {
+        let canonical_folder = folder.canonicalize().unwrap_or_else(|_| folder.clone());
+        if canonical_candidate.starts_with(&canonical_folder) {
+            return Ok(canonical_candidate);
+        }
+    }
+    Err(format!(
+        "Path traversal blocked: '{path}' resolves outside workspace boundaries"
+    ))
+}
+
+/// Convenience wrapper over [`safe_resolve_path_in`] for the common case of
+/// validating against `&Workspace`.
+#[must_use = "use the returned PathBuf for filesystem operations — discarding it reintroduces the path-traversal bug this helper exists to prevent"]
 fn safe_resolve_path(workspace: &Workspace, path: &str) -> Result<PathBuf, String> {
-    let path_buf = PathBuf::from(path);
-
-    // Reject traversal via a `..` path COMPONENT (not a substring match —
-    // "some..file.md" and drive names like "/Volumes/Backup..2025" are legal).
-    if path_buf
-        .components()
-        .any(|c| matches!(c, std::path::Component::ParentDir))
-    {
-        return Err(format!("Path traversal blocked: '{}' contains '..'", path));
-    }
-
-    // If the path is already absolute, validate it's inside a workspace folder.
-    //
-    // macOS external drives (`/Volumes/...`) and network mounts can canonicalize
-    // asymmetrically: the file may resolve to `/private/var/automount/...`
-    // while the workspace root stays `/Volumes/...` (or vice-versa). Compare
-    // raw paths first — that handles the common case without touching the
-    // filesystem — then fall back to canonicalizing both sides consistently.
-    if path_buf.is_absolute() {
-        for folder in workspace.folders() {
-            if path_buf.starts_with(folder) {
-                return Ok(path_buf);
-            }
-            let canonical_path = path_buf.canonicalize().unwrap_or_else(|_| path_buf.clone());
-            let canonical_root = folder.canonicalize().unwrap_or_else(|_| folder.clone());
-            if canonical_path.starts_with(&canonical_root) {
-                return Ok(path_buf);
-            }
-        }
-        return Err(format!("Path traversal blocked: '{}' is outside workspace boundaries", path));
-    }
-
-    // Relative path — resolve against the first workspace folder
-    if let Some(root) = workspace.folders().first() {
-        let resolved = root.join(&path_buf);
-        // Create parent directories for new files
-        if let Some(parent) = resolved.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
-        return Ok(resolved);
-    }
-
-    Err(format!("No workspace folder open — cannot write '{}'", path))
+    safe_resolve_path_in(workspace.folders(), path)
 }
 
 /// File operations
@@ -510,10 +537,10 @@ fn safe_resolve_path(workspace: &Workspace, path: &str) -> Result<PathBuf, Strin
 #[tauri::command]
 pub async fn read_file(path: String, state: tauri::State<'_, AppState>) -> Result<String, String> {
     let workspace = state.workspace.lock().await;
-    safe_resolve_path(&workspace, &path)?;
+    let resolved = safe_resolve_path(&workspace, &path)?;
     workspace
         .file_system()
-        .read_file(&PathBuf::from(path))
+        .read_file(&resolved)
         .await
         .map_err(|e| e.to_string())
 }
@@ -524,8 +551,8 @@ pub async fn read_file(path: String, state: tauri::State<'_, AppState>) -> Resul
 pub async fn read_file_base64(path: String, state: tauri::State<'_, AppState>) -> Result<String, String> {
     use base64::Engine;
     let workspace = state.workspace.lock().await;
-    safe_resolve_path(&workspace, &path)?;
-    let bytes = tokio::fs::read(&path).await.map_err(|e| e.to_string())?;
+    let resolved = safe_resolve_path(&workspace, &path)?;
+    let bytes = tokio::fs::read(&resolved).await.map_err(|e| e.to_string())?;
     Ok(base64::engine::general_purpose::STANDARD.encode(&bytes))
 }
 
@@ -536,10 +563,10 @@ pub async fn write_file(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let workspace = state.workspace.lock().await;
-    safe_resolve_path(&workspace, &path)?;
+    let resolved = safe_resolve_path(&workspace, &path)?;
     workspace
         .file_system()
-        .write_file(&PathBuf::from(path), &content)
+        .write_file(&resolved, &content)
         .await
         .map_err(|e| e.to_string())
 }
@@ -550,10 +577,10 @@ pub async fn list_directory(
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<FileEntry>, String> {
     let workspace = state.workspace.lock().await;
-    safe_resolve_path(&workspace, &path)?;
+    let resolved = safe_resolve_path(&workspace, &path)?;
     workspace
         .file_system()
-        .list_directory(&PathBuf::from(path))
+        .list_directory(&resolved)
         .await
         .map_err(|e| e.to_string())
 }
@@ -1723,10 +1750,10 @@ pub async fn create_directory(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let workspace = state.workspace.lock().await;
-    safe_resolve_path(&workspace, &path)?;
+    let resolved = safe_resolve_path(&workspace, &path)?;
     workspace
         .file_system()
-        .create_directory(&PathBuf::from(path))
+        .create_directory(&resolved)
         .await
         .map_err(|e| e.to_string())
 }
@@ -1737,18 +1764,17 @@ pub async fn delete_item(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let workspace = state.workspace.lock().await;
-    safe_resolve_path(&workspace, &path)?;
-    let path_buf = PathBuf::from(path);
-    if path_buf.is_dir() {
+    let resolved = safe_resolve_path(&workspace, &path)?;
+    if resolved.is_dir() {
         workspace
             .file_system()
-            .delete_directory(&path_buf)
+            .delete_directory(&resolved)
             .await
             .map_err(|e| e.to_string())
     } else {
         workspace
             .file_system()
-            .delete_file(&path_buf)
+            .delete_file(&resolved)
             .await
             .map_err(|e| e.to_string())
     }
@@ -1761,33 +1787,99 @@ pub async fn rename_item(
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
     let workspace = state.workspace.lock().await;
-    safe_resolve_path(&workspace, &path)?;
-    let from_path = PathBuf::from(&path);
-    let parent = from_path.parent()
+    let from_resolved = safe_resolve_path(&workspace, &path)?;
+    let parent = from_resolved.parent()
         .ok_or_else(|| "Cannot rename a root-level path".to_string())?;
-    let to_path = parent.join(&new_name);
-    // Also verify destination stays in workspace
-    safe_resolve_path(&workspace, &to_path.to_string_lossy())?;
+    let to_candidate = parent.join(&new_name);
+    // Re-validate the destination so `new_name = "../../etc/passwd"` is rejected.
+    let to_resolved = safe_resolve_path(&workspace, &to_candidate.to_string_lossy())?;
 
     workspace
         .file_system()
-        .rename_item(&from_path, &to_path)
+        .rename_item(&from_resolved, &to_resolved)
         .await
         .map_err(|e| e.to_string())
 }
 
 /// Workspace operations
 
+/// Path to the recents file — single JSON array of absolute paths,
+/// most-recent-first, capped at 10. Lives in the same `~/.vibeui/`
+/// directory as other panel state so a `~/.vibeui` backup captures
+/// recents alongside everything else.
+fn recent_workspaces_path() -> PathBuf {
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".vibeui").join("recent-workspaces.json")
+}
+
+const MAX_RECENT_WORKSPACES: usize = 10;
+
+fn load_recent_workspaces() -> Vec<String> {
+    std::fs::read_to_string(recent_workspaces_path())
+        .ok()
+        .and_then(|s| serde_json::from_str::<Vec<String>>(&s).ok())
+        .unwrap_or_default()
+}
+
+fn save_recent_workspaces(list: &[String]) -> Result<(), String> {
+    let path = recent_workspaces_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let json = serde_json::to_string_pretty(list).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub async fn add_workspace_folder(
     path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
+    // Validate before mutating state — a non-existent or
+    // non-directory path stored as the active workspace breaks every
+    // panel that reads it. Easier to refuse here than to recover later.
+    let pb = PathBuf::from(&path);
+    if !pb.exists() {
+        tracing::warn!(
+            target: "vibecody::workspace",
+            path = %path,
+            "workspace.add.rejected: path does not exist"
+        );
+        return Err(format!("Path does not exist: {}", path));
+    }
+    if !pb.is_dir() {
+        tracing::warn!(
+            target: "vibecody::workspace",
+            path = %path,
+            "workspace.add.rejected: not a directory"
+        );
+        return Err(format!("Path is not a directory: {}", path));
+    }
+
     set_active_workspace(&path);
-    let mut workspace = state.workspace.lock().await;
-    workspace
-        .add_folder(PathBuf::from(path))
-        .map_err(|e| e.to_string())
+    {
+        let mut workspace = state.workspace.lock().await;
+        workspace
+            .add_folder(pb.clone())
+            .map_err(|e| e.to_string())?;
+    }
+
+    // Update recents — move-to-front (LRU). Idempotent on the same
+    // path: re-opening a recent moves it to position 0 without
+    // duplicating.
+    let mut recents = load_recent_workspaces();
+    recents.retain(|p| p != &path);
+    recents.insert(0, path.clone());
+    recents.truncate(MAX_RECENT_WORKSPACES);
+    let _ = save_recent_workspaces(&recents);
+
+    tracing::info!(
+        target: "vibecody::workspace",
+        path = %path,
+        recent_count = recents.len(),
+        "workspace.add"
+    );
+    Ok(())
 }
 
 #[tauri::command]
@@ -1798,6 +1890,39 @@ pub async fn get_workspace_folders(state: tauri::State<'_, AppState>) -> Result<
         .iter()
         .map(|p| p.to_string_lossy().to_string())
         .collect())
+}
+
+/// List recent workspaces, most-recent-first. Returns whatever's in
+/// `~/.vibeui/recent-workspaces.json` — entries that no longer exist
+/// on disk are filtered out so the list never resurfaces a broken path.
+#[tauri::command]
+pub async fn list_recent_workspaces() -> Result<Vec<String>, String> {
+    let recents = load_recent_workspaces();
+    let alive: Vec<String> = recents
+        .into_iter()
+        .filter(|p| std::path::Path::new(p).is_dir())
+        .collect();
+    Ok(alive)
+}
+
+/// Remove a single recent workspace entry. Used by the "x" button on
+/// each recents row in the UI when a project moves or is deleted.
+#[tauri::command]
+pub async fn remove_recent_workspace(path: String) -> Result<(), String> {
+    let mut recents = load_recent_workspaces();
+    let before = recents.len();
+    recents.retain(|p| p != &path);
+    if recents.len() == before {
+        return Err(format!("Recent workspace not found: {}", path));
+    }
+    save_recent_workspaces(&recents)?;
+    tracing::info!(
+        target: "vibecody::workspace",
+        path = %path,
+        remaining = recents.len(),
+        "workspace.recent.remove"
+    );
+    Ok(())
 }
 
 #[tauri::command]
@@ -3602,6 +3727,42 @@ fn write_to_session_store(
     }
     // Keep session as "running" so Watch shows it as active
     let _ = store.finish_session(&sid, "complete", None);
+}
+
+/// F3.x — Read which session a mobile client most recently claimed
+/// as "active on this device". Returns
+/// `{"active_session": {"session_id": "...", "device_label": "..."} | null}`.
+/// Used by ChatTabManager's useMobileActiveSession hook so VibeUI
+/// follows the user's phone, mirroring the W1.1 watch sync.
+#[tauri::command]
+pub async fn mobile_get_active_session() -> Result<serde_json::Value, String> {
+    let token_path = dirs::home_dir()
+        .ok_or("HOME not found")?
+        .join(".vibecli")
+        .join("daemon.token");
+    let token = std::fs::read_to_string(&token_path)
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    if token.is_empty() {
+        return Ok(serde_json::json!({"active_session": null}));
+    }
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(2))
+        .build()
+        .map_err(|e| e.to_string())?;
+    match client
+        .get("http://localhost:7878/mobile/active-session")
+        .header("Authorization", format!("Bearer {}", token))
+        .send()
+        .await
+    {
+        Ok(resp) if resp.status().is_success() => {
+            let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+            Ok(json)
+        }
+        _ => Ok(serde_json::json!({"active_session": null})),
+    }
 }
 
 /// Query the running vibecli daemon for which session the Watch is viewing.
@@ -13947,6 +14108,111 @@ pub async fn apply_autofix(workspace: String, apply: bool) -> Result<(), String>
 mod tests {
     use super::*;
 
+    // ── Path-traversal regression tests for `safe_resolve_path` ──────────────
+    //
+    // See docs/security/threat-model.md §7 item #2. The helper used to validate
+    // a path then discard the result, letting callers pass the un-canonicalized
+    // string to the FS layer. These tests assert that:
+    //   1) the helper returns a canonical absolute PathBuf, not the raw input
+    //   2) `..` that escapes the workspace is rejected after canonicalization
+    //   3) absolute paths outside the workspace are rejected
+    //   4) `..` that stays inside the workspace is *allowed* (canonicalizes in)
+    //   5) symlinks pointing outside the workspace are followed and rejected
+    //   6) writes to a not-yet-existing file canonicalize via the parent
+
+    /// Helper: a single-folder workspace for tests, expressed as a `Vec<PathBuf>`.
+    ///
+    /// We test `safe_resolve_path_in` directly rather than going through
+    /// `Workspace::add_folder`, which would start a `notify` watcher and
+    /// require a Tokio runtime — not needed for path-validation logic.
+    fn folders(root: &Path) -> Vec<PathBuf> {
+        vec![root.to_path_buf()]
+    }
+
+    #[test]
+    fn safe_resolve_path_returns_canonical_path_not_raw_input() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        std::fs::write(root.join("ok.txt"), "hi").unwrap();
+
+        let resolved = safe_resolve_path_in(&folders(&root), "ok.txt").expect("legit relative");
+        assert!(resolved.is_absolute(), "must return absolute path");
+        assert_eq!(resolved, root.join("ok.txt"));
+    }
+
+    #[test]
+    fn safe_resolve_path_rejects_relative_dotdot_escape() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        // `../../etc/passwd` from inside the workspace canonicalizes well
+        // outside it — must be rejected.
+        let err = safe_resolve_path_in(&folders(&root), "../../etc/passwd").unwrap_err();
+        assert!(err.contains("outside workspace"), "got: {err}");
+    }
+
+    #[test]
+    fn safe_resolve_path_rejects_absolute_outside_workspace() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        let err = safe_resolve_path_in(&folders(&root), "/etc/passwd").unwrap_err();
+        assert!(err.contains("outside workspace"), "got: {err}");
+    }
+
+    #[test]
+    fn safe_resolve_path_allows_dotdot_that_stays_inside() {
+        // `foo/../bar.txt` canonicalizes to `<root>/bar.txt` — inside, allowed.
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        std::fs::create_dir(root.join("foo")).unwrap();
+        std::fs::write(root.join("bar.txt"), "ok").unwrap();
+
+        let resolved =
+            safe_resolve_path_in(&folders(&root), "foo/../bar.txt").expect("in-workspace");
+        assert_eq!(resolved, root.join("bar.txt"));
+    }
+
+    #[test]
+    fn safe_resolve_path_allows_write_to_nonexistent_path() {
+        // For new files (write_file, create_directory), the leaf does not yet
+        // exist — the helper must still canonicalize via the parent and accept.
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+
+        let resolved =
+            safe_resolve_path_in(&folders(&root), "newfile.txt").expect("new file allowed");
+        assert_eq!(resolved, root.join("newfile.txt"));
+    }
+
+    #[test]
+    fn safe_resolve_path_rejects_write_outside_via_nonexistent_path() {
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+        // Relative path that would escape — even with leaf non-existent.
+        let err =
+            safe_resolve_path_in(&folders(&root), "../../tmp/evil-new.txt").unwrap_err();
+        assert!(err.contains("outside workspace"), "got: {err}");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn safe_resolve_path_rejects_symlink_escape() {
+        use std::os::unix::fs::symlink;
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path().canonicalize().unwrap();
+
+        // A symlink inside the workspace pointing at /etc must be followed by
+        // canonicalize() and rejected — it's the classic confused-deputy attack.
+        symlink("/etc", root.join("escape")).unwrap();
+        let err = safe_resolve_path_in(&folders(&root), "escape/hosts").unwrap_err();
+        assert!(err.contains("outside workspace"), "got: {err}");
+    }
+
+    #[test]
+    fn safe_resolve_path_rejects_when_no_workspace_open() {
+        let err = safe_resolve_path_in(&[], "any.txt").unwrap_err();
+        assert!(err.contains("No workspace"), "got: {err}");
+    }
+
     // ── Phase 7 quick-win: chat memory helper for counsel + (later) diffcomplete
 
     #[test]
@@ -22140,11 +22406,12 @@ pub struct GeneratedFile {
 #[tauri::command]
 pub async fn generate_app_from_image(
     image_base64: String,
+    media_type: Option<String>,
     framework: String,
     provider: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<GeneratedFile>, String> {
-    use vibe_ai::provider::{Message, MessageRole};
+    use vibe_ai::provider::{ImageAttachment, Message, MessageRole};
 
     if let Some(ref p) = provider {
         let mut engine = state.chat_engine.lock().await;
@@ -22161,11 +22428,11 @@ pub async fn generate_app_from_image(
     };
 
     let prompt = format!(
-        "You are a full-stack app generator. I am providing you with a screenshot/design image (base64-encoded below). \
-        Analyze the visual layout, colors, typography, spacing, and component structure in this design.\n\n\
+        "You are a full-stack app generator. The user has attached a screenshot/design image. \
+        Look carefully at the visual layout, colors, typography, spacing, and component structure in the attached image.\n\n\
         {fw_instructions}\n\n\
         IMPORTANT RULES:\n\
-        - Reproduce the design as faithfully as possible\n\
+        - Reproduce the design in the image as faithfully as possible\n\
         - Use the exact colors, fonts, and spacing visible in the screenshot\n\
         - Make the app responsive\n\
         - Each file must be in its own fenced code block\n\
@@ -22175,16 +22442,33 @@ pub async fn generate_app_from_image(
           ```tsx\n\
           // code here\n\
           ```\n\n\
-        IMAGE (base64):\n{image_base64}\n\n\
         Generate the complete app now."
     );
 
-    let messages = vec![
-        Message { role: MessageRole::User, content: prompt },
-    ];
+    let messages = vec![Message { role: MessageRole::User, content: prompt }];
+    let images = vec![ImageAttachment {
+        base64: image_base64,
+        media_type: media_type.unwrap_or_else(|| "image/png".to_string()),
+    }];
 
-    let engine = state.chat_engine.lock().await;
-    let raw = engine.chat(&messages, None).await.map_err(|e| e.to_string())?;
+    // Hold the engine lock only long enough to clone the active provider Arc.
+    let active = {
+        let engine = state.chat_engine.lock().await;
+        engine
+            .active_provider()
+            .ok_or_else(|| "No active AI provider".to_string())?
+            .clone()
+    };
+    if !active.supports_vision() {
+        return Err(format!(
+            "Provider \"{}\" doesn't support image input. Switch the toolbar provider to Claude, GPT-4o, or Gemini.",
+            active.name()
+        ));
+    }
+    let raw = active
+        .chat_with_images(&messages, &images, None)
+        .await
+        .map_err(|e| e.to_string())?;
 
     // Parse the AI response to extract file blocks.
     parse_generated_files(&raw)
@@ -26297,16 +26581,47 @@ pub async fn create_usage_budget(name: String, limit: f64, period: String) -> Re
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis()),
-        name,
+        name: name.clone(),
         limit,
         used: 0.0,
-        period,
+        period: period.clone(),
     };
     let result = serde_json::to_value(&budget).map_err(|e| e.to_string())?;
+    let new_id = budget.id.clone();
     data.budgets.push(budget);
     data.active_budgets = data.budgets.len() as u32;
     save_usage_metering(&data)?;
+    tracing::info!(
+        target: "vibecody::usage",
+        id = %new_id,
+        name = %name,
+        limit,
+        period = %period,
+        total_budgets = data.budgets.len(),
+        "usage.budget.create"
+    );
     Ok(result)
+}
+
+/// Delete a budget by id. The frontend used to mutate a local copy
+/// without persisting; this restored a deleted budget on every reload.
+#[tauri::command]
+pub async fn delete_usage_budget(id: String) -> Result<(), String> {
+    let mut data = load_usage_metering();
+    let before = data.budgets.len();
+    data.budgets.retain(|b| b.id != id);
+    if data.budgets.len() == before {
+        return Err(format!("Budget '{}' not found", id));
+    }
+    data.active_budgets = data.budgets.len() as u32;
+    save_usage_metering(&data)?;
+    tracing::info!(
+        target: "vibecody::usage",
+        id = %id,
+        remaining = data.budgets.len(),
+        "usage.budget.delete"
+    );
+    Ok(())
 }
 
 #[tauri::command]
@@ -26324,6 +26639,11 @@ pub async fn dismiss_usage_alert(id: String) -> Result<serde_json::Value, String
         return Err(format!("Alert '{}' not found", id));
     }
     save_usage_metering(&data)?;
+    tracing::info!(
+        target: "vibecody::usage",
+        id = %id,
+        "usage.alert.dismiss"
+    );
     Ok(serde_json::json!({ "success": true }))
 }
 
@@ -28296,6 +28616,21 @@ pub async fn fullstack_write_file(path: String, content: String) -> Result<(), S
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     std::fs::write(&path, &content).map_err(|e| format!("Failed to write {}: {}", path, e))
+}
+
+/// Write raw bytes to an absolute path, decoding from base64.
+/// The WebView's `<a download>` flow doesn't trigger a save dialog inside
+/// Tauri, so binary exports (PNG, etc.) round-trip through this command.
+#[tauri::command]
+pub async fn fullstack_write_binary(path: String, base64_content: String) -> Result<(), String> {
+    use base64::Engine;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(base64_content.as_bytes())
+        .map_err(|e| format!("Invalid base64: {}", e))?;
+    if let Some(parent) = std::path::Path::new(&path).parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&path, &bytes).map_err(|e| format!("Failed to write {}: {}", path, e))
 }
 
 // ── Security Scanner ────────────────────────────────────────────────────────
@@ -31394,12 +31729,25 @@ pub async fn counsel_create_session(
         }
     }).collect();
 
+    let participant_count = parsed.len();
+    let providers_used: Vec<String> = parsed.iter().map(|p| p.provider_name.clone()).collect();
+
     let session = CounselSession::new(topic, parsed, moderator_idx);
     let session_json = serde_json::to_value(&session).map_err(|e| e.to_string())?;
+    let session_id = session_json.get("id").and_then(|v| v.as_str()).unwrap_or("(unknown)").to_string();
 
     let mut sessions = counsel_read_sessions();
     sessions.push(session_json.clone());
     counsel_write_sessions(&sessions)?;
+
+    tracing::info!(
+        target: "vibecody::counsel",
+        session_id = %session_id,
+        participant_count,
+        moderator_idx,
+        providers = ?providers_used,
+        "counsel.session.create"
+    );
 
     Ok(session_json)
 }
@@ -31435,6 +31783,7 @@ pub async fn counsel_run_round(
 ) -> Result<serde_json::Value, String> {
     use vibecli_cli::counsel::{CounselSession, CounselResponse};
 
+    let started = std::time::Instant::now();
     let mut sessions = counsel_read_sessions();
     let pos = sessions.iter().position(|s| {
         s.get("id").and_then(|v| v.as_str()) == Some(&session_id)
@@ -31444,6 +31793,13 @@ pub async fn counsel_run_round(
         .map_err(|e| e.to_string())?;
 
     let round_number = session.current_round();
+    tracing::info!(
+        target: "vibecody::counsel",
+        session_id = %session_id,
+        round = round_number,
+        participant_count = session.participants.len(),
+        "counsel.round.start"
+    );
     let mut responses = Vec::new();
 
     // Phase 7 quick-win: assemble project memory once per round and
@@ -31509,10 +31865,20 @@ pub async fn counsel_run_round(
         });
     }
 
+    let response_count = responses.len();
     session.add_round(responses);
     let updated = serde_json::to_value(&session).map_err(|e| e.to_string())?;
     sessions[pos] = updated.clone();
     counsel_write_sessions(&sessions)?;
+
+    tracing::info!(
+        target: "vibecody::counsel",
+        session_id = %session_id,
+        round = round_number,
+        response_count,
+        elapsed_ms = started.elapsed().as_millis() as u64,
+        "counsel.round.complete"
+    );
 
     // Return just the latest round
     let round_json = updated.get("rounds")
@@ -31625,7 +31991,14 @@ pub async fn counsel_delete_session(session_id: String) -> Result<(), String> {
     if sessions.len() == before {
         return Err("Session not found".into());
     }
-    counsel_write_sessions(&sessions)
+    counsel_write_sessions(&sessions)?;
+    tracing::info!(
+        target: "vibecody::counsel",
+        session_id = %session_id,
+        remaining = sessions.len(),
+        "counsel.session.delete"
+    );
+    Ok(())
 }
 
 /// Update a participant's provider/model in an active session (between rounds).
@@ -31681,19 +32054,49 @@ pub async fn superbrain_query(
 ) -> Result<serde_json::Value, String> {
     use vibecli_cli::superbrain::*;
 
+    // Per AGENTS.md → Provider-Agnostic Panels (STRICT): never silently fall
+    // back to a hard-coded provider. The frontend (SuperBrainPanel) always
+    // sets provider+model from useModelRegistry — if a row is missing them,
+    // surface an error instead of routing to a default.
     let provider_entries: Vec<ProviderEntry> = providers.get("list")
         .and_then(|v| v.as_array())
-        .map(|arr| arr.iter().map(|p| ProviderEntry {
-            provider: p.get("provider").and_then(|v| v.as_str()).unwrap_or("ollama").to_string(),
-            model: p.get("model").and_then(|v| v.as_str()).unwrap_or("llama3.2").to_string(),
-        }).collect())
+        .map(|arr| arr.iter().enumerate().map(|(i, p)| {
+            let provider = p.get("provider").and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| format!(
+                    "providers.list[{i}].provider is missing — pick a provider in the toolbar"
+                ))?;
+            let model = p.get("model").and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| format!(
+                    "providers.list[{i}].model is missing — pick a model in the toolbar"
+                ))?;
+            Ok::<ProviderEntry, String>(ProviderEntry {
+                provider: provider.to_string(),
+                model: model.to_string(),
+            })
+        }).collect::<Result<Vec<_>, _>>())
+        .transpose()?
         .unwrap_or_default();
 
     let judge_entry: Option<ProviderEntry> = providers.get("judge")
-        .map(|j| ProviderEntry {
-            provider: j.get("provider").and_then(|v| v.as_str()).unwrap_or("claude").to_string(),
-            model: j.get("model").and_then(|v| v.as_str()).unwrap_or("claude-3.5-sonnet").to_string(),
-        });
+        .map(|j| {
+            let provider = j.get("provider").and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| {
+                    "providers.judge.provider is missing — pick a judge model in the toolbar".to_string()
+                })?;
+            let model = j.get("model").and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .ok_or_else(|| {
+                    "providers.judge.model is missing — pick a judge model in the toolbar".to_string()
+                })?;
+            Ok::<ProviderEntry, String>(ProviderEntry {
+                provider: provider.to_string(),
+                model: model.to_string(),
+            })
+        })
+        .transpose()?;
 
     let total_start = std::time::Instant::now();
     let mut total_tokens: usize = 0;
@@ -48660,4 +49063,261 @@ pub async fn recap_generate(
         return Err(format!("daemon returned {}: {}", status, json));
     }
     Ok(json)
+}
+
+// ── D1.1: diffcomplete chain autosave ──────────────────────────────────────
+//
+// Thin wrapper around POST /v1/diffcomplete/chains. Patent posture
+// matches the daemon side: the modal is the only caller, and it only
+// fires this on a regenerate-success or final-state-change event.
+// No timer, no editor-buffer overlay, no accept/reject decoration.
+//
+// Patent re-audit: PASS (elements 1–5 unchanged).
+
+/// D1.1 — Autosave a diffcomplete chain step (and optionally the
+/// final state). The modal POSTs once per regenerate plus once at
+/// final state. Idempotent on `(chain_id, step.index)`.
+#[tauri::command]
+pub async fn diffcomplete_chain_autosave(
+    request: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    let token = recap_daemon_token().await?;
+    if token.is_empty() {
+        return Err("daemon not running".into());
+    }
+    let client = recap_http_client()?;
+    let resp = client
+        .post("http://localhost:7878/v1/diffcomplete/chains")
+        .header("Authorization", format!("Bearer {}", token))
+        .json(&request)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let status = resp.status();
+    let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    if !status.is_success() {
+        return Err(format!("daemon returned {}: {}", status, json));
+    }
+    Ok(json)
+}
+
+// ── VibeMemory Tauri commands ─────────────────────────────────────────────────
+
+/// Store a memory entry in project or global context.
+#[tauri::command]
+pub async fn vibememory_store(
+    content: String,
+    workspace_path: Option<String>,
+    tags: Option<Vec<String>>,
+    pinned: Option<bool>,
+) -> Result<serde_json::Value, String> {
+    use std::path::PathBuf;
+    
+    if let Some(workspace) = workspace_path {
+        let path = PathBuf::from(&workspace);
+        let store = vibe_memory::ProjectMemStore::open(&path)
+            .map_err(|e| e.to_string())?;
+        let entry = store.store(&content, Some(vibe_memory::MemoryMeta {
+            tags: tags.unwrap_or_default(),
+            pinned: pinned.unwrap_or(false),
+            ..Default::default()
+        })).await;
+        match entry {
+            Ok(e) => Ok(serde_json::json!({
+                "id": e.id,
+                "sector": e.sector,
+                "store": "project"
+            })),
+            Err(e) => Err(e.to_string()),
+        }
+    } else {
+        let store = vibe_memory::GlobalMemStore::open()
+            .map_err(|e| e.to_string())?;
+        let entry = store.store(&content, Some(vibe_memory::MemoryMeta {
+            tags: tags.unwrap_or_default(),
+            pinned: pinned.unwrap_or(false),
+            ..Default::default()
+        })).await;
+        match entry {
+            Ok(e) => Ok(serde_json::json!({
+                "id": e.id,
+                "sector": e.sector,
+                "store": "global"
+            })),
+            Err(e) => Err(e.to_string()),
+        }
+    }
+}
+
+/// Search memory entries by semantic similarity.
+#[tauri::command]
+pub async fn vibememory_search(
+    query: String,
+    workspace_path: Option<String>,
+    top_k: Option<usize>,
+    min_score: Option<f64>,
+) -> Result<serde_json::Value, String> {
+    use std::path::PathBuf;
+    
+    let hub = vibe_memory::MemoryContextHub::new();
+    let workspace = workspace_path
+        .map(PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir);
+    
+    let results = hub.search_context(&workspace, &query, top_k.unwrap_or(8), min_score).await
+        .map_err(|e| e.to_string())?;
+    
+    let items: Vec<serde_json::Value> = results.iter().map(|r| {
+        serde_json::json!({
+            "id": r.id,
+            "content": r.content,
+            "sector": r.sector,
+            "score": r.score,
+            "store": r.store.as_str(),
+            "tags": r.tags,
+        })
+    }).collect();
+    
+    Ok(serde_json::json!({ "results": items, "count": items.len() }))
+}
+
+/// Assemble layered context for LLM injection.
+#[tauri::command]
+pub async fn vibememory_context(
+    query: String,
+    workspace_path: String,
+    budget: Option<usize>,
+) -> Result<serde_json::Value, String> {
+    use std::path::PathBuf;
+    
+    let hub = vibe_memory::MemoryContextHub::new();
+    let workspace = PathBuf::from(&workspace_path);
+    
+    let context = hub.assemble_context(&workspace, &query, budget.unwrap_or(4096)).await
+        .map_err(|e| e.to_string())?;
+    
+    Ok(serde_json::json!({ "context": context }))
+}
+
+/// List memory entries with optional filtering.
+#[tauri::command]
+pub async fn vibememory_list(
+    store_type: Option<String>,
+    workspace_path: Option<String>,
+    sector: Option<String>,
+    limit: Option<usize>,
+) -> Result<serde_json::Value, String> {
+    use std::path::PathBuf;
+    
+    let store_type = store_type.unwrap_or_else(|| "global".to_string());
+    
+    if store_type == "project" {
+        if let Some(workspace) = workspace_path {
+            let path = PathBuf::from(&workspace);
+            let store = vibe_memory::ProjectMemStore::open(&path)
+                .map_err(|e| e.to_string())?;
+            let entries = store.list(sector.as_deref(), limit).await
+                .map_err(|e| e.to_string())?;
+            let items: Vec<serde_json::Value> = entries.iter().map(|m| {
+                serde_json::json!({
+                    "id": m.id,
+                    "content": m.content,
+                    "sector": m.sector,
+                    "salience": m.salience,
+                    "tags": m.tags,
+                    "pinned": m.pinned,
+                    "created_at": m.created_at,
+                })
+            }).collect();
+            return Ok(serde_json::json!({ "memories": items, "count": items.len(), "store": "project" }));
+        }
+    }
+    
+    let store = vibe_memory::GlobalMemStore::open()
+        .map_err(|e| e.to_string())?;
+    let entries = store.list(sector.as_deref(), limit).await
+        .map_err(|e| e.to_string())?;
+    let items: Vec<serde_json::Value> = entries.iter().map(|m| {
+        serde_json::json!({
+            "id": m.id,
+            "content": m.content,
+            "sector": m.sector,
+            "salience": m.salience,
+            "tags": m.tags,
+            "pinned": m.pinned,
+            "created_at": m.created_at,
+        })
+    }).collect();
+    Ok(serde_json::json!({ "memories": items, "count": items.len(), "store": "global" }))
+}
+
+/// Get memory store statistics.
+#[tauri::command]
+pub async fn vibememory_stats(
+    workspace_path: Option<String>,
+) -> Result<serde_json::Value, String> {
+    use std::path::PathBuf;
+    
+    let hub = vibe_memory::MemoryContextHub::new();
+    let workspace = workspace_path
+        .map(PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir);
+    
+    let stats = hub.get_stats(&workspace).await
+        .map_err(|e| e.to_string())?;
+    
+    Ok(serde_json::json!({
+        "project_count": stats.project_count,
+        "global_count": stats.global_count,
+        "project_db_size": stats.project_db_size,
+        "global_db_size": stats.global_db_size,
+    }))
+}
+
+/// Consolidate memory (apply decay + purge).
+#[tauri::command]
+pub async fn vibememory_consolidate(
+    workspace_path: String,
+) -> Result<serde_json::Value, String> {
+    use std::path::PathBuf;
+    
+    let hub = vibe_memory::MemoryContextHub::new();
+    let workspace = PathBuf::from(&workspace_path);
+    
+    let report = hub.consolidate(&workspace).await
+        .map_err(|e| e.to_string())?;
+    
+    Ok(serde_json::json!({
+        "entries_purged": report.entries_purged,
+        "entries_decayed": report.entries_decayed,
+        "project_store": report.project_store,
+        "global_store": report.global_store,
+    }))
+}
+
+/// Delete a memory entry by ID.
+#[tauri::command]
+pub async fn vibememory_delete(
+    id: String,
+    store_type: Option<String>,
+    workspace_path: Option<String>,
+) -> Result<bool, String> {
+    use std::path::PathBuf;
+    
+    let store_type = store_type.unwrap_or_else(|| "global".to_string());
+    
+    if store_type == "project" {
+        if let Some(workspace) = workspace_path {
+            let path = PathBuf::from(&workspace);
+            let store = vibe_memory::ProjectMemStore::open(&path)
+                .map_err(|e| e.to_string())?;
+            store.delete(&id).await.map_err(|e| e.to_string())?;
+            return Ok(true);
+        }
+    }
+    
+    let store = vibe_memory::GlobalMemStore::open()
+        .map_err(|e| e.to_string())?;
+    store.delete(&id).await.map_err(|e| e.to_string())?;
+    Ok(true)
 }

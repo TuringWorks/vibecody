@@ -3,6 +3,7 @@
 // per-crate dead_code lint. Silence at crate level rather than per-item.
 #![allow(dead_code)]
 
+pub mod auth_util;
 pub mod diff_review;
 pub mod cost_router;
 pub mod agent_skills_compat;
@@ -14,6 +15,7 @@ pub mod counsel;
 pub mod superbrain;
 pub mod a2a_protocol;
 pub mod a2a_http;
+pub mod signed_agent_card;
 pub mod issue_triage;
 pub mod web_grounding;
 pub mod web_grounding_backend;
@@ -35,8 +37,20 @@ pub mod rlcef_loop;
 pub mod sketch_canvas;
 pub mod mcp_streamable;
 pub mod mcp_http;
+// A5 — async subagent state machine.
+pub mod async_subagent;
+// A1 — MCP Apps payload parser/validator (SEP-1865).
+pub mod mcp_apps_payload;
+// A3 — /.well-known/mcp.json capability discovery.
+pub mod mcp_well_known;
+// A2 — MCPB bundle format pack/extract/verify.
+pub mod mcpb_bundle;
 pub mod mcts_repair;
 pub mod visual_verify;
+// A9 — cloud-agent session resume protocol.
+pub mod session_resume_protocol;
+// A8 — self-verifying agent loop with bounded iterations.
+pub mod verify_loop;
 pub mod next_task;
 pub mod langgraph_bridge;
 pub mod context_protocol;
@@ -168,6 +182,12 @@ pub mod cursor_overlay;
 pub mod plugin_marketplace;
 // MemPalace techniques — LongMemEval benchmark
 pub mod open_memory;
+// A6 — multi-root workspace permission resolver.
+pub mod workspace_roots;
+// A4 — ACP server mode (Zed/JetBrains/Neovim, JSON-RPC over stdio).
+pub mod acp_stdio;
+// A10 — skills hot-reload watcher (companion to B1 SkillCatalog).
+pub mod skill_watcher;
 // Memory-as-infrastructure redesign — Phase 2: single context assembler
 // (depends on memory, workflow_orchestration, project_init below).
 pub mod memory;
@@ -183,6 +203,10 @@ pub mod recap;
 // Recap & Resume — Phase F1.3 resume surface (in-memory handle registry
 // + pure helpers consumed by the /v1/resume routes in serve.rs).
 pub mod resume;
+// Recap & Resume — Phase D1.1: diffcomplete chain types + encrypted
+// store on workspace.db. Patent re-audit: PASS (1–5 unchanged).
+pub mod diff_chain;
+pub mod diff_chain_store;
 pub mod mem_benchmark;
 // FIT-GAP v11 — Phase 48: P3 Gaps (closed)
 pub mod token_dashboard;
@@ -318,6 +342,8 @@ pub mod image_gen_agent;
 pub mod inference;
 pub mod inference_routes;
 pub mod inference_server;
+pub mod skill_catalog;
+pub mod v1_messages;
 pub mod infinite_context;
 pub mod jetbrains_hooks;
 pub mod knowledge_graph;

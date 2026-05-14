@@ -30,27 +30,8 @@ use crate::inference::backend::{
     BackendError, BackendKind, ChatChunk, ChatMessage, ChatRequest, GenerateChunk,
     GenerateRequest, ModelInfo, PullProgress, PullRequest,
 };
+use crate::inference::backend_override::override_kind;
 use crate::serve::ServeState;
-
-const HEADER_BACKEND: &str = "x-vibecli-backend";
-
-/// Resolve an explicit backend choice from header + body, with header winning.
-fn override_kind(headers: &HeaderMap, body_kind: Option<BackendKind>) -> Option<BackendKind> {
-    if let Some(v) = headers.get(HEADER_BACKEND) {
-        if let Ok(s) = v.to_str() {
-            return parse_kind(s).or(body_kind);
-        }
-    }
-    body_kind
-}
-
-fn parse_kind(s: &str) -> Option<BackendKind> {
-    match s.trim().to_ascii_lowercase().as_str() {
-        "mistralrs" => Some(BackendKind::Mistralrs),
-        "ollama" => Some(BackendKind::Ollama),
-        _ => None,
-    }
-}
 
 /// Map [`BackendError`] to an HTTP status + JSON body.
 fn err_response(e: BackendError) -> Response {
@@ -134,6 +115,8 @@ async fn collapse_chat(
     let mut last_model = String::new();
     let mut last_created_at = String::new();
     let mut done_reason: Option<String> = None;
+    let mut prompt_tokens: Option<u32> = None;
+    let mut completion_tokens: Option<u32> = None;
     while let Some(item) = stream.next().await {
         match item {
             Ok(chunk) => {
@@ -142,6 +125,8 @@ async fn collapse_chat(
                 combined.push_str(&chunk.message.content);
                 if chunk.done {
                     done_reason = chunk.done_reason;
+                    prompt_tokens = chunk.prompt_tokens;
+                    completion_tokens = chunk.completion_tokens;
                 }
             }
             Err(e) => return err_response(e),
@@ -157,6 +142,8 @@ async fn collapse_chat(
         },
         done: true,
         done_reason,
+        prompt_tokens,
+        completion_tokens,
     };
     (StatusCode::OK, Json(final_chunk)).into_response()
 }
@@ -364,5 +351,10 @@ pub fn build_routes() -> axum::Router<ServeState> {
         .route("/api/tags", get(tags))
         .route("/api/pull", post(pull))
         .route("/api/show", post(show))
+        // C1: Anthropic Messages API-compatible sibling of /api/chat,
+        // mirroring Ollama 0.22.x. Lives here so it inherits the
+        // bearer-auth + rate-limit layers applied to the rest of the
+        // inference subtree by the caller.
+        .route("/v1/messages", post(crate::v1_messages::messages))
 }
 

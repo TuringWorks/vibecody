@@ -310,14 +310,20 @@ Prose alone is fine for single-file edits, bug fixes, or scoped refactors. The r
 ├── profile_settings.db   ← encrypted: API keys, panel settings, global config, master keys
 ├── company.db            ← company orchestration data (unencrypted)
 ├── sessions.db           ← agent session history (unencrypted)
+├── jobs.db               ← encrypted: async job records + scratchpad
+├── openmemory/           ← cognitive memory store (encrypted at rest option)
 └── config.toml           ← CLI feature flags, provider enable/disable (no keys here)
 
 <workspace>/
 └── .vibecli/
-    └── workspace.db      ← encrypted: project settings + project secrets
+    ├── workspace.db      ← encrypted: project settings + project secrets
+    ├── MEMORY.md         ← auto-generated from OpenMemory (project tier)
+    └── openmemory/       ← project-scoped memory (optional)
 ```
 
 `config.toml` is for non-sensitive configuration only (enabling providers, setting model names, feature flags). API keys belong in `profile_settings.db`.
+
+For detailed architecture including the five memory stores, Context Assembler, and storage security model, see [`docs/memory-architecture.md`](./docs/memory-architecture.md).
 
 ---
 

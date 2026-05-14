@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 
 // ── Memory File Names ─────────────────────────────────────────────────────────
 
-const REPO_CANDIDATES: &[&str] = &["VIBECLI.md", "AGENTS.md", "CLAUDE.md", ".vibecli.md"];
+const REPO_CANDIDATES: &[&str] = &["VIBECLI.md", "AGENTS.md", "CLAUDE.md", "GEMINI.md", ".vibecli.md"];
 
 // ── MemoryLevel ───────────────────────────────────────────────────────────────
 
@@ -408,5 +408,25 @@ mod tests {
         assert!(!mem.is_empty());
         let combined = mem.combined().unwrap();
         assert!(combined.contains("claude instructions"));
+    }
+
+    #[test]
+    fn test_load_with_gemini_md() {
+        // C2 — Gemini CLI and Google Antigravity write project context to
+        // GEMINI.md, the way Claude Code / Anthropic ecosystems write
+        // CLAUDE.md and the OpenAI ecosystem writes AGENTS.md. VibeCody
+        // should pick GEMINI.md up when no higher-precedence repo file
+        // exists. Surfaced in the v13 fitgap as a one-line addition to
+        // REPO_CANDIDATES.
+        let dir = tempfile::tempdir().unwrap();
+        let git_dir = dir.path().join(".git");
+        fs::create_dir(&git_dir).unwrap();
+        let md = dir.path().join("GEMINI.md");
+        fs::write(&md, "gemini context\n").unwrap();
+
+        let mem = ProjectMemory::load(dir.path());
+        assert!(!mem.is_empty());
+        let combined = mem.combined().unwrap();
+        assert!(combined.contains("gemini context"));
     }
 }

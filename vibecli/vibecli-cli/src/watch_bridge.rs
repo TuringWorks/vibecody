@@ -150,9 +150,8 @@ fn extract_any_auth(
 ) -> Result<String, (StatusCode, Json<serde_json::Value>)> {
     let hdr = headers
         .get("Authorization")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
-    if hdr == format!("Bearer {}", state.api_token) {
+        .and_then(|v| v.to_str().ok());
+    if crate::auth_util::bearer_matches(hdr, &state.api_token) {
         return Ok("bearer".to_string());
     }
     extract_watch_auth(state, headers)
@@ -171,6 +170,8 @@ pub fn build_watch_router(state: WatchBridgeState) -> Router {
         .route("/sessions",         get(watch_list_sessions))
         .route("/sessions/:id/messages", get(watch_session_messages))
         .route("/sessions/:id/recap", get(watch_session_recap))
+        .route("/jobs",             get(watch_list_jobs))
+        .route("/jobs/:id/recap",   get(watch_job_recap))
         .route("/stream/:id",       get(watch_stream))
         .route("/dispatch",         post(watch_dispatch))
         .route("/active-session",   get(watch_get_active_session).put(watch_set_active_session))
@@ -282,9 +283,8 @@ async fn watch_wrist_event(
         Err(_) => {
             let bearer = headers
                 .get("Authorization")
-                .and_then(|v| v.to_str().ok())
-                .unwrap_or("");
-            if bearer != format!("Bearer {}", state.api_token) {
+                .and_then(|v| v.to_str().ok());
+            if !crate::auth_util::bearer_matches(bearer, &state.api_token) {
                 return (StatusCode::UNAUTHORIZED,
                     Json(serde_json::json!({"error": "Auth required"})));
             }
@@ -440,6 +440,82 @@ async fn watch_session_recap(
     };
     let recap = store
         .list_recaps_for_subject(&session_id, 1)
+        .ok()
+        .and_then(|rows| rows.into_iter().next());
+    match recap {
+        Some(r) => match serde_json::to_value(&r) {
+            Ok(v) => Json(serde_json::json!({"recap": v})).into_response(),
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": format!("serialize: {e}")})),
+            )
+                .into_response(),
+        },
+        None => Json(serde_json::json!({"recap": serde_json::Value::Null}))
+            .into_response(),
+    }
+}
+
+/// W1.2 — GET /watch/jobs — slim list of background-agent jobs for
+/// the watch's Smart Stack tile / complication. Same field shape as
+/// /watch/sessions: just enough to render a one-line glance and to
+/// drive a deep-link into the recap. Newest first, capped at 25.
+async fn watch_list_jobs(
+    State(state): State<WatchBridgeState>,
+    headers: axum::http::HeaderMap,
+) -> impl IntoResponse {
+    if let Err(e) = extract_any_auth(&state, &headers) {
+        return e.into_response();
+    }
+    let db_path = crate::job_manager::default_db_path();
+    let db = match crate::job_manager::JobsDb::open(&db_path) {
+        Ok(d) => d,
+        Err(e) => {
+            tracing::warn!("watch_list_jobs: cannot open jobs.db: {e}");
+            return Json(serde_json::json!({"jobs": []})).into_response();
+        }
+    };
+    let jobs = db.list().unwrap_or_default();
+    let slim: Vec<serde_json::Value> = jobs
+        .into_iter()
+        .take(25)
+        .map(|j| {
+            serde_json::json!({
+                "session_id": j.session_id,
+                "task_preview": j.task.chars().take(60).collect::<String>(),
+                "status": j.status,
+                "provider": j.provider,
+                "started_at": j.started_at,
+                "finished_at": j.finished_at,
+            })
+        })
+        .collect();
+    Json(serde_json::json!({"jobs": slim})).into_response()
+}
+
+/// W1.2 — GET /watch/jobs/:id/recap — read-only freshest job recap.
+/// Mirrors `watch_session_recap` but reads from `jobs.db` (J1.1
+/// schema, decrypted on read). Watch never generates recaps; the
+/// daemon's J1.2 terminal-state hook owns generation.
+async fn watch_job_recap(
+    State(state): State<WatchBridgeState>,
+    headers: axum::http::HeaderMap,
+    Path(job_id): Path<String>,
+) -> impl IntoResponse {
+    if let Err(e) = extract_any_auth(&state, &headers) {
+        return e.into_response();
+    }
+    let db_path = crate::job_manager::default_db_path();
+    let db = match crate::job_manager::JobsDb::open(&db_path) {
+        Ok(d) => d,
+        Err(e) => {
+            tracing::warn!("watch_job_recap: cannot open jobs.db: {e}");
+            return Json(serde_json::json!({"recap": serde_json::Value::Null}))
+                .into_response();
+        }
+    };
+    let recap = db
+        .list_job_recaps_for_subject(&job_id, 1)
         .ok()
         .and_then(|rows| rows.into_iter().next());
     match recap {
@@ -643,9 +719,10 @@ async fn watch_get_active_session(
 ) -> impl IntoResponse {
     // Allow both Watch-Token and Bearer auth so VibeUI can poll this too
     let authed = extract_watch_auth(&state, &headers).is_ok()
-        || headers.get("Authorization")
-               .and_then(|v| v.to_str().ok())
-               .is_some_and(|v| v == format!("Bearer {}", state.api_token));
+        || crate::auth_util::bearer_matches(
+            headers.get("Authorization").and_then(|v| v.to_str().ok()),
+            &state.api_token,
+        );
     if !authed {
         return (StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({"error": "Auth required"}))).into_response();
@@ -676,11 +753,27 @@ async fn watch_set_active_session(
 }
 
 /// GET /watch/events — SSE stream of real-time session events.
+///
 /// VibeUI Tauri backend subscribes here so it gets instant push when Watch
-/// sends a message or changes session. No auth required (daemon-local use).
+/// sends a message or changes session. Auth: Bearer only — the daemon-local
+/// caller is VibeUI, and on a `--host 0.0.0.0` deployment an unauthed SSE
+/// stream would let any LAN peer subscribe to real-time session activity
+/// (DREAD #9 in docs/security/threat-model.md).
 async fn watch_session_events_sse(
     State(state): State<WatchBridgeState>,
+    headers: axum::http::HeaderMap,
 ) -> impl IntoResponse {
+    let bearer = headers
+        .get("Authorization")
+        .and_then(|v| v.to_str().ok());
+    if !crate::auth_util::bearer_matches(bearer, &state.api_token) {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "Bearer token required"})),
+        )
+            .into_response();
+    }
+
     use std::convert::Infallible;
     let rx = state.session_events.subscribe();
     let stream = tokio_stream::wrappers::BroadcastStream::new(rx)
@@ -711,9 +804,10 @@ async fn watch_get_sandbox_chat_session(
     headers: axum::http::HeaderMap,
 ) -> impl IntoResponse {
     let authed = extract_watch_auth(&state, &headers).is_ok()
-        || headers.get("Authorization")
-               .and_then(|v| v.to_str().ok())
-               .is_some_and(|v| v == format!("Bearer {}", state.api_token));
+        || crate::auth_util::bearer_matches(
+            headers.get("Authorization").and_then(|v| v.to_str().ok()),
+            &state.api_token,
+        );
     if !authed {
         return (StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({"error": "Auth required"}))).into_response();
@@ -735,14 +829,13 @@ async fn watch_set_sandbox_chat_session(
 ) -> impl IntoResponse {
     let bearer = headers
         .get("Authorization")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
-    // Accept both Bearer (VibeUI) and Watch-Token (Watch UI) so either surface can set it
-    let authed = bearer == format!("Bearer {}", state.api_token)
-        || extract_watch_auth(&state, &headers).is_ok();
-    if !authed {
+        .and_then(|v| v.to_str().ok());
+    // Bearer only — the doc-comment above declares this is "VibeUI sets, Watch
+    // reads." Watch should not be able to redirect VibeUI's sandbox session
+    // pointer (DREAD #9 in docs/security/threat-model.md).
+    if !crate::auth_util::bearer_matches(bearer, &state.api_token) {
         return (StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({"error": "Auth required"}))).into_response();
+            Json(serde_json::json!({"error": "Bearer token required"}))).into_response();
     }
     *state.sandbox_chat_session.lock().unwrap_or_else(|e| e.into_inner()) = req.session_id.clone();
     let _ = state.session_events.send(serde_json::json!({
@@ -759,9 +852,8 @@ async fn watch_list_devices(
 ) -> impl IntoResponse {
     let bearer = headers
         .get("Authorization")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
-    if bearer != format!("Bearer {}", state.api_token) {
+        .and_then(|v| v.to_str().ok());
+    if !crate::auth_util::bearer_matches(bearer, &state.api_token) {
         return (StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({"error": "Bearer token required"}))).into_response();
     }
@@ -792,9 +884,8 @@ async fn watch_revoke_device(
 ) -> impl IntoResponse {
     let bearer = headers
         .get("Authorization")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
-    if bearer != format!("Bearer {}", state.api_token) {
+        .and_then(|v| v.to_str().ok());
+    if !crate::auth_util::bearer_matches(bearer, &state.api_token) {
         return (StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({"error": "Bearer token required"}))).into_response();
     }

@@ -67,7 +67,7 @@ After looking at the three credible compute backends, the chosen path is:
 ## Architecture (target state)
 
 ```text
-┌────────────────────── vibeui (Tauri 2 + React) ──────────────────────┐
+┌────────────────────── vibeui (Tauri 2 + React) ────────────────────-──┐
 │  RLOSComposite.tsx → 10 panels                                        │
 └───────────────────────────────┬───────────────────────────────────────┘
                                 │ Tauri commands (20)
@@ -81,20 +81,20 @@ After looking at the three credible compute backends, the chosen path is:
 │  serve.rs: /v1/rl/runs · /metrics · /envs · /eval · /models · /deploy │
 │  rl_train_os.rs · rl_eval_os.rs · rl_env_os.rs · rl_serve_os.rs       │
 │  rl_opti_os.rs · rl_model_hub.rs · rl_rlhf.rs · rl_observe.rs         │
-│  Persistence: WorkspaceStore (workspace.db, encrypted)                 │
+│  Persistence: WorkspaceStore (workspace.db, encrypted)                │
 └──────────┬─────────────────────────────────────────┬──────────────────┘
            │ spawn + JSON-Lines (Phase A)            │ in-process (Phase C)
            ▼                                          ▼
 ┌──── vibe-rl-py/ (Python sidecar) ─────┐  ┌── candle / burn / cubecl ──┐
 │  CleanRL · Gymnasium · TRL · PettingZ │  │  Phase B/C native kernels  │
 │  vec envs · checkpointing · ONNX exp  │  │  inference + hot training  │
-└────────────────────────────────────────┘  └────────────────────────────┘
+└───────────────────────────────────────┘  └────────────────────-───────┘
                                                          │
                                                          ▼
                                           ┌── Inference / serving ──────┐
                                           │  ONNX Runtime · WASI        │
                                           │  edge deploy (no Python)    │
-                                          └──────────────────────────────┘
+                                          └─────────────────────────────┘
 ```
 
 The daemon stays the single source of truth (per CLAUDE.md cross-cutting invariants). Tauri commands and panels never bypass it. The sidecar is a managed child process; it never speaks directly to the UI.

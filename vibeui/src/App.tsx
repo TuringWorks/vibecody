@@ -83,6 +83,7 @@ function App() {
   const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
   const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
   const [workspaceFolders, setWorkspaceFolders] = useState<string[]>([]);
+  const [recentWorkspaces, setRecentWorkspaces] = useState<string[]>([]);
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [aiProviders, setAiProviders] = useState<string[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>("");
@@ -208,6 +209,12 @@ function App() {
       .then(setWorkspaceFolders)
       .catch(console.error);
 
+    // Load recent workspaces — surfaced in the empty-state so users
+    // can re-open without re-picking via the system folder dialog.
+    invoke<string[]>("list_recent_workspaces")
+      .then(setRecentWorkspaces)
+      .catch(() => { /* file may not exist on first launch */ });
+
     // Load app version from Tauri
     getVersion().then(setAppVersion).catch(() => {});
 
@@ -301,6 +308,28 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /** Open a known folder path — shared between the system picker
+   * (openFolder) and the recents list. Returns true on success. */
+  const openWorkspacePath = async (path: string): Promise<boolean> => {
+    try {
+      await invoke("add_workspace_folder", { path });
+      setWorkspaceFolders([path]);
+      setOpenFiles([]);
+      setActiveFilePath(null);
+      loadDirectory(path);
+      localStorage.setItem("vibeui_workspace", path);
+      window.dispatchEvent(new CustomEvent("vibeui:workspace-changed", { detail: path }));
+      // Refresh recents so the just-opened path bubbles to the top.
+      invoke<string[]>("list_recent_workspaces")
+        .then(setRecentWorkspaces)
+        .catch(() => {});
+      return true;
+    } catch (error) {
+      toast.error(`Failed to open folder: ${error}`);
+      return false;
+    }
+  };
+
   const openFolder = async () => {
     try {
       const selected = await open({
@@ -308,21 +337,21 @@ function App() {
         multiple: false,
         title: "Open Folder",
       });
-
       if (selected && typeof selected === 'string') {
-        await invoke("add_workspace_folder", { path: selected });
-        setWorkspaceFolders([selected]);
-        setOpenFiles([]);
-        setActiveFilePath(null);
-        loadDirectory(selected);
-        // Store workspace for panels that read it from localStorage
-        localStorage.setItem("vibeui_workspace", selected);
-        // Notify chat to reset context for the new workspace
-        window.dispatchEvent(new CustomEvent("vibeui:workspace-changed", { detail: selected }));
+        await openWorkspacePath(selected);
       }
     } catch (error) {
       console.error("Failed to open folder:", error);
       toast.error(`Failed to open folder: ${error}`);
+    }
+  };
+
+  const removeRecentWorkspace = async (path: string) => {
+    try {
+      await invoke("remove_recent_workspace", { path });
+      setRecentWorkspaces(prev => prev.filter(p => p !== path));
+    } catch (e) {
+      toast.error(`Failed to remove from recents: ${e}`);
     }
   };
 
@@ -1368,9 +1397,44 @@ function App() {
                   {workspaceFolders.length === 0 ? (
                     <div className="empty-state">
                       <p>No folder opened</p>
-                      <button className="btn-secondary" onClick={openFolder}>
+                      <button className="btn-secondary" onClick={openFolder} aria-label="Open folder via system picker">
                         Open Folder
                       </button>
+                      {recentWorkspaces.length > 0 && (
+                        <div role="region" aria-label="Recent workspaces" style={{ marginTop: 12, width: "100%" }}>
+                          <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginBottom: 6, fontWeight: 600 }}>
+                            Recent
+                          </div>
+                          {recentWorkspaces.map((p) => {
+                            const label = p.split("/").filter(Boolean).pop() || p;
+                            return (
+                              <div
+                                key={p}
+                                style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 6px", borderRadius: 4, fontSize: "var(--font-size-sm)" }}
+                              >
+                                <button
+                                  onClick={() => openWorkspacePath(p)}
+                                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openWorkspacePath(p); } }}
+                                  aria-label={`Open recent workspace: ${p}`}
+                                  title={p}
+                                  style={{ flex: 1, minWidth: 0, textAlign: "left", background: "none", border: "none", color: "var(--text-primary)", cursor: "pointer", padding: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                                >
+                                  <span style={{ fontWeight: 600 }}>{label}</span>
+                                  <span style={{ color: "var(--text-secondary)", marginLeft: 6, fontSize: "var(--font-size-xs)" }}>{p}</span>
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); removeRecentWorkspace(p); }}
+                                  aria-label={`Remove ${p} from recents`}
+                                  title="Remove from recents"
+                                  style={{ flexShrink: 0, background: "none", border: "none", color: "var(--text-secondary)", cursor: "pointer", padding: "2px 4px", opacity: 0.6 }}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div>

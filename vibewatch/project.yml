@@ -30,6 +30,8 @@ targets:
       - sdk: AVFoundation.framework
       - sdk: WatchKit.framework
       - sdk: CryptoKit.framework
+      - target: VibeCodyWatchComplication
+        embed: true
     info:
       path: "VibeCodyWatch Watch App/Info.plist"
       properties:
@@ -43,3 +45,35 @@ targets:
         NSFaceIDUsageDescription: "Used for secure authentication"
         NSMicrophoneUsageDescription: "Used for voice commands to VibeCody"
         NSSpeechRecognitionUsageDescription: "Used to dictate commands to VibeCody"
+
+  # W1.2 — WidgetKit Smart Stack tile + complication for the latest
+  # background-agent job recap. The widget extension is bundled into
+  # the watch app via the `embed: true` dependency above; iOS treats
+  # bundled widget extensions as both Smart Stack candidates and
+  # complication families on watchOS 10+.
+  VibeCodyWatchComplication:
+    type: app-extension
+    platform: watchOS
+    deploymentTarget: "10.0"
+    sources:
+      - path: "VibeCodyWatchComplication"
+        excludes:
+          - "**/.DS_Store"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.turingworks.vibecody.watch.complication
+        INFOPLIST_FILE: "VibeCodyWatchComplication/Info.plist"
+        SWIFT_EMIT_LOC_STRINGS: YES
+        SKIP_INSTALL: YES
+    dependencies:
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+    info:
+      path: "VibeCodyWatchComplication/Info.plist"
+      properties:
+        CFBundleName: VibeCody
+        CFBundleDisplayName: Job Recap
+        CFBundleShortVersionString: "1.0"
+        CFBundleVersion: "1"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension

@@ -5,7 +5,7 @@ import { AIChat, Message } from "./AIChat";
 import { ChatMemoryPanel } from "./ChatMemoryPanel";
 import { RecapCard } from "./RecapCard";
 import { useSessionMemory } from "../hooks/useSessionMemory";
-import { useWatchActiveSession } from "../hooks/useWatchSync";
+import { useWatchActiveSession, useMobileActiveSession } from "../hooks/useWatchSync";
 import type { Recap } from "../types/recap";
 
 /** Last error surfaced to the user — recap-resume failure messages, etc.
@@ -121,6 +121,17 @@ export function ChatTabManager({
         // Only switch if the session exists as a tab
         if (tabs.some(t => t.id === watchSessionId)) {
             setActiveTabId(watchSessionId);
+        }
+    });
+
+    // F3.x — Mobile counterpart. When the phone claims a session, follow
+    // it on the desktop just like we do for the watch. The `_label` is
+    // available for a future "Active on Ravi's iPhone" badge; we drop
+    // it here because the existing tab-strip is still the source of
+    // visual truth and adding a new chip would be a separate slice.
+    useMobileActiveSession((mobileSessionId, _label) => {
+        if (tabs.some(t => t.id === mobileSessionId)) {
+            setActiveTabId(mobileSessionId);
         }
     });
 
@@ -387,6 +398,35 @@ export function ChatTabManager({
                 .catch(() => { /* daemon offline or command absent — degrade silently */ });
         }
     };
+
+    // F3.1 — Auto-resume the last session on app launch. Toggle lives
+    // in the SettingsPanel "Sessions" section as `autoResumeLast`,
+    // persisted under the `vibeui-sessions` JSON blob. Reads the
+    // setting once on mount; later toggle changes take effect on the
+    // next launch (deliberate — we don't want a checkbox click to
+    // suddenly graft a tab into the running session). When enabled,
+    // we restore the head of history; when there's no history yet
+    // we leave the default empty tab as-is.
+    const autoResumedRef = useRef(false);
+    useEffect(() => {
+        if (autoResumedRef.current) return;
+        let raw: string | null = null;
+        try { raw = localStorage.getItem("vibeui-sessions"); } catch { /* private browsing */ }
+        if (!raw) return;
+        let auto = false;
+        try {
+            const parsed = JSON.parse(raw) as { autoResumeLast?: boolean };
+            auto = parsed.autoResumeLast === true;
+        } catch {
+            return;
+        }
+        if (!auto) return;
+        const head = history[0];
+        if (!head) return;
+        autoResumedRef.current = true;
+        restoreSession(head);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     /** F2.2 — invoked by RecapCard's "Resume from here". Asks the daemon
      * to materialise a primed session via /v1/resume, then dismisses the

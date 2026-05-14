@@ -976,23 +976,6 @@ impl RunStore {
         Ok(rows)
     }
 
-    /// Slice 2 will plug in the real Python-sidecar executor here. Until
-    /// then, `start` records a clear "no executor" failure on the run so
-    /// the panel surfaces an honest message instead of pretending to train.
-    pub fn no_executor_fail(&self, run_id: &str) -> Result<Run, RunError> {
-        // Created → Queued is required first so the row visibly leaves the
-        // "Created" state, then Queued → Failed records the reason.
-        let _ = self.transition(run_id, RunStatus::Queued, None)?;
-        self.transition(
-            run_id,
-            RunStatus::Failed,
-            Some(
-                "RL training executor not yet wired up — slice 2 (Python sidecar) ships this. \
-                 The run was created and persisted; no metrics will be produced until then."
-                    .into(),
-            ),
-        )
-    }
 }
 
 // ── Row mapping ───────────────────────────────────────────────────────────────
@@ -1242,15 +1225,6 @@ mod tests {
         store.transition(&run.run_id, RunStatus::Stopped, None).unwrap();
         store.delete(&run.run_id).unwrap();
         assert!(store.get(&run.run_id).unwrap().is_none());
-    }
-
-    #[test]
-    fn no_executor_fail_records_reason() {
-        let (tmp, store) = open_tmp_store();
-        let run = store.create(req("r", &tmp.path().to_string_lossy())).unwrap();
-        let failed = store.no_executor_fail(&run.run_id).unwrap();
-        assert_eq!(failed.status, RunStatus::Failed);
-        assert!(failed.error_message.unwrap().contains("slice 2"));
     }
 
     #[test]

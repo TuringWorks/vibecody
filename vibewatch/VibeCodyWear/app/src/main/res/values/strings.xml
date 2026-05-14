@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">VibeCody</string>
+    <string name="job_recap_tile_label">VibeCody · Job Recap</string>
 </resources>

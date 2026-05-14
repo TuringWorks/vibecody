@@ -59,8 +59,9 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use std::{
     convert::Infallible,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
-    sync::Arc,
+    sync::{atomic::{AtomicUsize, Ordering}, Arc},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use rand::Rng;
@@ -68,7 +69,7 @@ use tower_http::cors::CorsLayer;
 use tower_http::set_header::SetResponseHeaderLayer;
 
 use axum::extract::ws::{Message as WsMessage, WebSocket, WebSocketUpgrade};
-use axum::extract::Query;
+use axum::extract::{ConnectInfo, Query};
 use vibe_ai::{AgentContext, AgentEvent, AgentLoop, ApprovalPolicy, Message, MessageRole};
 use vibe_ai::provider::AIProvider;
 use vibe_collab::{CollabMessage, CollabServer, PeerInfo, SyncBroadcast};
@@ -127,6 +128,28 @@ pub struct ServeState {
     /// active deployment. Lazy-loaded on first /act call; explicit
     /// `/stop` drops the runtime.
     pub rl_runtime_pool: Arc<crate::rl_runtime::RuntimePool>,
+    /// F3.x — currently active session as last claimed by a mobile
+    /// client. VibeUI polls `/mobile/active-session` and follows the
+    /// claim, mirroring how W1.1 made VibeUI follow the watch's
+    /// active session. `None` until the first PUT lands.
+    pub mobile_active_session: Arc<std::sync::Mutex<Option<MobileActiveSession>>>,
+}
+
+/// F3.x — payload tracked on `ServeState.mobile_active_session`.
+/// The daemon stores who claimed which session and when; clients
+/// can decide whether the claim is fresh enough to follow.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct MobileActiveSession {
+    pub session_id: String,
+    /// Optional device identifier from the mobile client.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_id: Option<String>,
+    /// Optional human-readable label ("Ravi's iPhone") so VibeUI can
+    /// surface a "Active on Ravi's iPhone" badge instead of a UUID.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub device_label: Option<String>,
+    /// Unix-millis. Lets clients age out stale claims.
+    pub set_at_ms: u64,
 }
 
 // ── Request / Response types ──────────────────────────────────────────────────
@@ -534,6 +557,49 @@ async fn health() -> impl IntoResponse {
                 "approval_policies": ["suggest", "auto-edit", "full-auto"],
                 "parallel_isolation": "git-worktree",
             },
+            // Device pairing — bearer-token bootstrap for mobile, watch,
+            // IDE plugins, and second-shell clients. Tokens are 128-bit
+            // hex from the OS CSPRNG. The `/pair` route advertises a URL
+            // back to whatever Host: header the client used, so LAN
+            // clients get a LAN-reachable URL automatically.
+            "pairing": {
+                "available": true,
+                "transport": "daemon-http",
+                "endpoint": "/pair",
+                "token_bits": 128,
+                "rng": "os-csprng",
+            },
+            // Counsel — multi-LLM debate / synthesis panel. Sessions are
+            // persisted to ~/.vibeui/counsel-sessions.json. Inherits
+            // provider availability — needs at least 2 different
+            // providers configured to make a useful panel.
+            "counsel": {
+                "available": provider_count > 0,
+                "transport": "tauri-desktop",
+                "requires": "providers.configured_count >= 2 (for diverse debate)",
+                "store_path": "~/.vibeui/counsel-sessions.json",
+            },
+            // Usage metering — per-provider/model/task spend, budgets,
+            // and alerts. Always available (no provider dependency —
+            // metering is observed from the daemon's own request log,
+            // not from probing providers). Store is plain JSON.
+            "usage_metering": {
+                "available": true,
+                "transport": "tauri-desktop",
+                "store_path": "~/.vibeui/usage-metering.json",
+                "budget_periods": ["daily", "weekly", "monthly"],
+            },
+            // Workspace switcher — folder picker + LRU recents capped
+            // at 10. add_workspace_folder validates the path exists +
+            // is a directory before mutating state. Recents
+            // self-prune entries that no longer exist on disk.
+            "workspace": {
+                "available": true,
+                "transport": "tauri-desktop",
+                "recents_path": "~/.vibeui/recent-workspaces.json",
+                "recents_cap": 10,
+                "validates": ["exists", "is_directory"],
+            },
         },
         // OpenMemory store readiness — counts + flags only, never content.
         // Consumed by Settings panel + ops dashboards so a feature that
@@ -627,8 +693,33 @@ async fn skill_webhook_handler(
 }
 
 /// Device pairing endpoint — generates a one-time pairing URL.
-async fn pairing_handler() -> impl IntoResponse {
-    let (url, token) = crate::pairing::generate_pairing_url("localhost", 7878);
+///
+/// The `host` advertised in the URL is whatever the client used to reach
+/// us — taken from the `Host:` header. This means a phone on the LAN
+/// hitting `192.168.1.42:7878/pair` gets back a pairing URL that resolves
+/// from the LAN, not a useless `http://localhost:...` that only works
+/// from the daemon host. Falls back to `localhost` when the header is
+/// missing or malformed.
+async fn pairing_handler(headers: axum::http::HeaderMap) -> impl IntoResponse {
+    let host_header = headers
+        .get(axum::http::header::HOST)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("localhost:7878");
+    // Parse "<host>:<port>" or just "<host>" — used verbatim as the URL
+    // authority. Tokens are generated via the OS CSPRNG (see pairing.rs).
+    let (host, port_opt) = match host_header.rsplit_once(':') {
+        Some((h, p)) => (h, p.parse::<u16>().ok()),
+        None => (host_header, None),
+    };
+    let port = port_opt.unwrap_or(7878);
+    let (url, token) = crate::pairing::generate_pairing_url(host, port);
+    tracing::info!(
+        target: "vibecody::pairing",
+        host = %host,
+        port,
+        token_len = token.len(),
+        "pairing.url.generated"
+    );
     Json(serde_json::json!({
         "url": url,
         "token": token,
@@ -1106,65 +1197,120 @@ async fn require_auth(
         .get(header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok());
 
-    let expected = format!("Bearer {}", state.api_token);
-    match auth_header {
-        Some(val) if val == expected => {
-            next.run(req).await.into_response()
-        }
-        _ => (
+    if crate::auth_util::bearer_matches(auth_header, &state.api_token) {
+        next.run(req).await.into_response()
+    } else {
+        (
             StatusCode::UNAUTHORIZED,
             [("content-type", "application/json")],
             r#"{"error":"Missing or invalid Authorization: Bearer <token>"}"#,
         )
-            .into_response(),
+            .into_response()
     }
 }
 
 // ── Rate limiting middleware ─────────────────────────────────────────────────
 
-/// Simple sliding-window rate limiter: max `limit` requests per `window`.
-/// Shared across all clients (single-daemon deployment).
+/// Per-IP sliding-window rate limiter: max `limit` requests per `window` per
+/// remote `IpAddr`.
+///
+/// Originally a single global counter — that meant one noisy client could lock
+/// out everyone (DREAD #8 in docs/security/threat-model.md). Now each remote
+/// IP has its own bucket; an attacker only DoS's themselves.
+///
+/// Memory is bounded by lazy pruning: every `PRUNE_EVERY` checks, buckets whose
+/// timestamps have all expired are dropped from the map. No background task,
+/// no scheduler — the cost is amortized into the request that triggers the
+/// prune. Worst-case unique-IP storage between prunes ≈ `PRUNE_EVERY * sizeof(bucket)`.
 struct RateLimiter {
-    /// Ring buffer of request timestamps (unix millis).
-    timestamps: std::sync::Mutex<Vec<u64>>,
+    /// One bucket of request timestamps (unix millis) per remote IP.
+    buckets: dashmap::DashMap<IpAddr, Vec<u64>>,
+    /// Counter for lazy global prune; checks since last prune.
+    checks_since_prune: AtomicUsize,
     limit: usize,
     window_ms: u64,
 }
 
+/// How many `check_for` calls before we sweep expired buckets out of the map.
+/// 1024 is a balance: small enough to bound the map between prunes, large
+/// enough that the prune is amortized to ~free per request.
+const PRUNE_EVERY: usize = 1024;
+
+/// The synthetic "unknown remote" IP used when `ConnectInfo<SocketAddr>` is
+/// not available (e.g. in `tower::ServiceExt::oneshot` tests, or any future
+/// transport that doesn't set the extension). Keying every unknown caller into
+/// the same bucket is *strictly less permissive* than per-key — it preserves
+/// the old global-limiter behavior for test paths.
+const UNKNOWN_IP: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
+
 impl RateLimiter {
     fn new(limit: usize, window: Duration) -> Self {
         Self {
-            timestamps: std::sync::Mutex::new(Vec::with_capacity(limit)),
+            buckets: dashmap::DashMap::new(),
+            checks_since_prune: AtomicUsize::new(0),
             limit,
             window_ms: window.as_millis() as u64,
         }
     }
 
-    /// Returns true if the request should be allowed.
+    /// Backwards-compatible single-bucket check. New code should call
+    /// [`check_for`] with the caller's remote `IpAddr`.
     fn check(&self) -> bool {
+        self.check_for(UNKNOWN_IP)
+    }
+
+    /// Returns true if a request from `key` should be allowed under the
+    /// configured limit. Each `key` gets its own sliding window.
+    fn check_for(&self, key: IpAddr) -> bool {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as u64;
-        let mut ts = self.timestamps.lock().unwrap_or_else(|e| e.into_inner());
         let cutoff = now.saturating_sub(self.window_ms);
-        ts.retain(|&t| t > cutoff);
-        if ts.len() >= self.limit {
+
+        // Amortized prune of empty/expired buckets.
+        if self.checks_since_prune.fetch_add(1, Ordering::Relaxed) >= PRUNE_EVERY {
+            self.checks_since_prune.store(0, Ordering::Relaxed);
+            self.prune_expired(cutoff);
+        }
+
+        let mut bucket = self.buckets.entry(key).or_default();
+        bucket.retain(|&t| t > cutoff);
+        if bucket.len() >= self.limit {
             false
         } else {
-            ts.push(now);
+            bucket.push(now);
             true
         }
     }
+
+    fn prune_expired(&self, cutoff: u64) {
+        self.buckets.retain(|_, vec| {
+            vec.retain(|&t| t > cutoff);
+            !vec.is_empty()
+        });
+    }
 }
 
-/// Axum middleware that enforces a global request rate limit.
+/// Axum middleware that enforces a per-IP request rate limit.
+///
+/// Extracts the remote `IpAddr` from the request's `ConnectInfo<SocketAddr>`
+/// extension (set by `into_make_service_with_connect_info::<SocketAddr>()`
+/// at the serve-call site). When the extension is missing — e.g. in oneshot
+/// tests — falls back to `UNKNOWN_IP`, preserving the old global behavior on
+/// that path.
 async fn rate_limit(
     State(limiter): State<Arc<RateLimiter>>,
     req: Request,
     next: Next,
 ) -> impl IntoResponse {
-    if limiter.check() {
+    let key = req
+        .extensions()
+        .get::<ConnectInfo<SocketAddr>>()
+        .map(|c| c.0.ip())
+        .unwrap_or(UNKNOWN_IP);
+
+    if limiter.check_for(key) {
         next.run(req).await.into_response()
     } else {
         (
@@ -2430,6 +2576,125 @@ async fn v1_resume_get(
     helper_outcome_to_response(out)
 }
 
+// ── Recap & Resume — D1.1 /v1/diffcomplete/chains autosave route ───────────
+//
+// Persistence is *append-on-event* only. The modal posts here when a
+// regenerate succeeds (one POST per appended step) and again with a
+// final_state on Apply / Cancel / modal-closed. There is no idle
+// timer, no continuous keystroke listener, no editor-buffer overlay.
+// Patent re-audit: PASS (elements 1–5 unchanged).
+
+#[derive(Debug, Deserialize)]
+struct DiffCompleteChainStepWire {
+    index: u32,
+    instruction: String,
+    #[serde(default)]
+    refinement: Option<String>,
+    #[serde(default)]
+    additional_files: Vec<crate::diff_chain::AdditionalFile>,
+    diff: String,
+    provider: String,
+    model: String,
+    #[serde(default)]
+    tokens_input: u32,
+    #[serde(default)]
+    tokens_output: u32,
+}
+
+#[derive(Debug, Deserialize)]
+struct DiffCompleteChainsRequest {
+    /// Omit on the first POST for a chain; daemon assigns one.
+    #[serde(default)]
+    chain_id: Option<String>,
+    file_path: String,
+    language: String,
+    selection_start: u32,
+    selection_end: u32,
+    original_text: String,
+    /// One step per request — the modal posts incrementally as each
+    /// regenerate finishes. `None` is allowed for a final-state-only
+    /// update on an existing chain.
+    #[serde(default)]
+    step: Option<DiffCompleteChainStepWire>,
+    #[serde(default)]
+    final_state: Option<crate::diff_chain::DiffChainFinal>,
+    #[serde(default)]
+    parent_chain_id: Option<String>,
+}
+
+async fn v1_diffcomplete_chains_post(
+    State(state): State<ServeState>,
+    Json(req): Json<DiffCompleteChainsRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match crate::diff_chain_store::DiffChainStore::open(&state.workspace_root) {
+        Ok(s) => s,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("open chain store: {e}") })),
+            );
+        }
+    };
+    let chain_id = req
+        .chain_id
+        .clone()
+        .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+
+    if let Some(step_in) = req.step {
+        let step = crate::diff_chain::DiffChainStep {
+            index: step_in.index,
+            instruction: step_in.instruction,
+            refinement: step_in.refinement,
+            additional_files: step_in.additional_files,
+            diff: step_in.diff,
+            provider: step_in.provider,
+            model: step_in.model,
+            tokens_input: step_in.tokens_input,
+            tokens_output: step_in.tokens_output,
+            generated_at: chrono::Utc::now(),
+        };
+        match store.upsert_step(
+            &chain_id,
+            &req.file_path,
+            &req.language,
+            req.selection_start,
+            req.selection_end,
+            &req.original_text,
+            &step,
+            req.parent_chain_id.as_deref(),
+        ) {
+            Ok(_chain) => {}
+            Err(e) => {
+                return (
+                    StatusCode::CONFLICT,
+                    Json(serde_json::json!({ "error": e })),
+                );
+            }
+        }
+    }
+
+    if let Some(fs) = req.final_state {
+        if let Err(e) = store.set_final_state(&chain_id, &fs) {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({ "error": e })),
+            );
+        }
+    }
+
+    let step_index = match store.get(&chain_id) {
+        Ok(Some(c)) => c.steps.last().map(|s| s.index),
+        _ => None,
+    };
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "chain_id": chain_id,
+            "step_index": step_index,
+        })),
+    )
+}
+
 /// GET /v1/capabilities — Advertise agent framework capabilities.
 async fn v1_capabilities() -> impl IntoResponse {
     Json(serde_json::json!({
@@ -3067,7 +3332,12 @@ async fn rl_rollback_deployment(
     Json(req): Json<crate::rl_deploy::RollbackRequest>,
 ) -> Result<Json<crate::rl_deploy::Deployment>, (StatusCode, Json<serde_json::Value>)> {
     let store = open_deploy_store_from_state(&state)?;
-    store.rollback(&id, req).map(Json).map_err(rl_err_to_http)
+    let deployment = store.rollback(&id, req).map_err(rl_err_to_http)?;
+    // Rolled-back deployments must stop serving — drop the sidecar so a
+    // racing `/act` call gets a clean "deployment is rolled back" 409
+    // instead of stale traffic.
+    let _ = state.rl_runtime_pool.drop_runtime(&id).await;
+    Ok(Json(deployment))
 }
 
 async fn rl_stop_deployment(
@@ -3075,15 +3345,36 @@ async fn rl_stop_deployment(
     State(state): State<ServeState>,
 ) -> Result<Json<crate::rl_deploy::Deployment>, (StatusCode, Json<serde_json::Value>)> {
     let store = open_deploy_store_from_state(&state)?;
-    store.stop(&id).map(Json).map_err(rl_err_to_http)
+    let deployment = store.stop(&id).map_err(rl_err_to_http)?;
+    // Evict any live inference sidecar so stop ≠ "row says stopped, sidecar
+    // still alive". Best-effort: if the runtime wasn't loaded, nothing to do.
+    let _ = state.rl_runtime_pool.drop_runtime(&id).await;
+    Ok(Json(deployment))
+}
+
+/// Combined deployment + runtime health response. The deployment-side
+/// snapshot is always present (it's just a database read); the
+/// `runtime` field is `Some` only when an inference sidecar has actually
+/// been spawned for this deployment (i.e. someone has called `/act`
+/// against it since daemon start).
+#[derive(Debug, Serialize)]
+struct DeploymentHealthResponse {
+    #[serde(flatten)]
+    deployment: crate::rl_deploy::HealthSnapshot,
+    /// Live metrics from the inference sidecar — `requests_total`,
+    /// `error_total`, `last_latency_ms`, `framework`, `device`,
+    /// `checkpoint`. Null when no sidecar is loaded.
+    runtime: Option<crate::rl_runtime::RuntimeHealth>,
 }
 
 async fn rl_get_deployment_health_h(
     Path(id): Path<String>,
     State(state): State<ServeState>,
-) -> Result<Json<crate::rl_deploy::HealthSnapshot>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<DeploymentHealthResponse>, (StatusCode, Json<serde_json::Value>)> {
     let store = open_deploy_store_from_state(&state)?;
-    store.health(&id).map(Json).map_err(rl_err_to_http)
+    let deployment = store.health(&id).map_err(rl_err_to_http)?;
+    let runtime = state.rl_runtime_pool.peek_runtime_health(&id).await;
+    Ok(Json(DeploymentHealthResponse { deployment, runtime }))
 }
 
 /// Slice 6.5 — real inference path. Looks up the deployment by name
@@ -3325,6 +3616,13 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/memory/auto-tunnel", post(memory_auto_tunnel))
         .route("/memory/context", post(memory_context))
         .route("/memory/benchmark", get(memory_benchmark))
+        // VibeMemory — per-project and global SQLite vector store
+        .route("/vibememory/store", post(vibememory_store))
+        .route("/vibememory/search", post(vibememory_search))
+        .route("/vibememory/context", post(vibememory_context))
+        .route("/vibememory/list", get(vibememory_list))
+        .route("/vibememory/stats", get(vibememory_stats))
+        .route("/vibememory/consolidate", post(vibememory_consolidate))
         // Vulnerability Scanner — industry-grade SCA + SAST
         .route("/vulnscan/scan", post(vulnscan_scan))
         .route("/vulnscan/file", post(vulnscan_file))
@@ -3364,6 +3662,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/v1/rl/eval/suites/:id", get(rl_eval_get_suite))
         .route("/v1/rl/eval/suites/:id", axum::routing::delete(rl_eval_delete_suite))
         .route("/v1/rl/eval/results", get(rl_eval_list_results))
+        .route("/v1/rl/eval/runs/:run_id/results", post(rl_eval_upsert_results))
         .route("/v1/rl/eval/compare", post(rl_eval_compare))
         // RL-OS slice 5 — policy registry + lineage + reward decomposition
         .route("/v1/rl/policies", post(rl_register_policy))
@@ -3401,6 +3700,10 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         // Recap & Resume v1 — F1.3 (resume handles)
         .route("/v1/resume", post(v1_resume_post))
         .route("/v1/resume/:handle", get(v1_resume_get))
+        // Recap & Resume v1 — D1.1 (diffcomplete chain autosave).
+        // Patent re-audit: PASS (1–5 unchanged). Writes happen only
+        // on discrete user-driven events posted by the modal.
+        .route("/v1/diffcomplete/chains", post(v1_diffcomplete_chains_post))
         // Mobile Gateway — machine registration & dispatch (iOS/Android remote management)
         .route("/mobile/machines", get(mobile_list_machines))
         .route("/mobile/machines", post(mobile_register_machine))
@@ -3424,6 +3727,11 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/mobile/stats", get(mobile_stats))
         .route("/mobile/sessions", get(mobile_sessions))
         .route("/mobile/sessions/:id/context", get(mobile_session_context))
+        // F3.x — cross-device active session. Mobile claims with PUT;
+        // VibeUI polls GET to follow the claim. Mirrors the
+        // /watch/active-session pattern from W1.1.
+        .route("/mobile/active-session", get(mobile_get_active_session)
+                                          .put(mobile_set_active_session))
         .route_layer(middleware::from_fn_with_state(limiter, rate_limit))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
@@ -3547,6 +3855,51 @@ fn hydrate_hf_token_from_profile_store() {
     tracing::info!(
         "vibecli serve: HF_TOKEN hydrated from ProfileStore (vibecli set-key huggingface)"
     );
+}
+
+/// Returns `true` if `host` is a loopback address.
+///
+/// Accepts the IP literals `127.0.0.0/8` and `::1`, plus the well-known
+/// hostname `localhost`. Anything else — including external IPs, hostnames
+/// that resolve elsewhere, and the wildcard `0.0.0.0` / `::` — is treated as
+/// public-facing for safety.
+///
+/// We deliberately do not perform DNS resolution: an unknown hostname could
+/// resolve to a public IP later, and warning unconditionally on unknowns is
+/// the safer default. (Users who genuinely need a custom hostname can silence
+/// the warning by binding `127.0.0.1` and proxying.)
+fn is_loopback_host(host: &str) -> bool {
+    let h = host.trim().trim_start_matches('[').trim_end_matches(']');
+    if h.eq_ignore_ascii_case("localhost") {
+        return true;
+    }
+    h.parse::<IpAddr>().map(|ip| ip.is_loopback()).unwrap_or(false)
+}
+
+/// Prints a multi-line stderr warning when the daemon is about to bind to a
+/// non-loopback interface. The warning is purely informational — we do not
+/// abort, because the documented `--host 0.0.0.0` flow for mobile direct-LAN
+/// access has shipped for many releases. The goal is to surface the security
+/// implication to anyone who arrives at this flag without realizing it.
+fn emit_public_bind_warning(host: &str, port: u16) {
+    eprintln!();
+    eprintln!("┌─ WARNING: non-loopback bind ─────────────────────────────────────────────┐");
+    eprintln!("│ The daemon is binding to {host}:{port} — *not* a loopback address.");
+    eprintln!("│ Any device that can reach this machine on the network can now talk to it.");
+    eprintln!("│");
+    eprintln!("│ Anyone with the bearer token (~/.vibecli/daemon.token) can:");
+    eprintln!("│   • spawn agent jobs that read/write your workspace");
+    eprintln!("│   • call any configured LLM provider using your API keys");
+    eprintln!("│   • drive the browser-automation surface");
+    eprintln!("│");
+    eprintln!("│ Safer alternatives if you only need remote access:");
+    eprintln!("│   • Tailscale:   vibecli --serve --tailscale         (still binds 127.0.0.1)");
+    eprintln!("│   • ngrok:       vibecli --serve --ngrok             (still binds 127.0.0.1)");
+    eprintln!("│   • SSH tunnel:  ssh -L 7878:127.0.0.1:7878 <host>   (no daemon change)");
+    eprintln!("│");
+    eprintln!("│ See docs/security/threat-model.md §7 item #7 and docs/connectivity.md.");
+    eprintln!("└──────────────────────────────────────────────────────────────────────────┘");
+    eprintln!();
 }
 
 pub async fn serve(
@@ -3684,6 +4037,7 @@ pub async fn serve(
         rl_run_store,
         rl_executor,
         rl_runtime_pool: Arc::new(crate::rl_runtime::RuntimePool::new()),
+        mobile_active_session: Arc::new(std::sync::Mutex::new(None)),
     };
 
     // Background task: detect or start an ngrok / Tailscale Funnel tunnel and
@@ -3788,6 +4142,14 @@ pub async fn serve(
         }
     });
 
+    // Loud warning when binding to a non-loopback interface. See
+    // docs/security/threat-model.md §7 item #7. Many users typing
+    // `--host 0.0.0.0` for mobile-app access don't realize the daemon
+    // becomes reachable from every device on the LAN.
+    if !is_loopback_host(&host) {
+        emit_public_bind_warning(&host, port);
+    }
+
     let addr = format!("{host}:{port}");
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     eprintln!("[vibecli serve] Listening on http://{addr}");
@@ -3844,7 +4206,10 @@ pub async fn serve(
         eprintln!("[vibecli serve] mDNS announcing _vibecli._tcp.local. on port {port}");
     }
 
-    axum::serve(listener, app)
+    // Plumb `ConnectInfo<SocketAddr>` into request extensions so the per-IP
+    // rate-limit middleware can key on the remote IP. Handlers that don't
+    // consume `ConnectInfo` are unaffected by this change.
+    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
         .with_graceful_shutdown(shutdown_signal())
         .await?;
     eprintln!("[vibecli serve] Shutting down gracefully");
@@ -3905,8 +4270,8 @@ async fn ws_collab_handler(
     State(state): State<ServeState>,
     ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
-    // Authenticate via query param token
-    if params.token != state.api_token {
+    // Authenticate via query param token (constant-time compare).
+    if !crate::auth_util::token_matches(&params.token, &state.api_token) {
         return (StatusCode::UNAUTHORIZED, "Invalid token").into_response();
     }
 
@@ -5524,6 +5889,55 @@ async fn mobile_session_context(
 }
 
 /// Pure builder for the `/mobile/sessions/:id/context` response body.
+// ── F3.x: cross-device active session ───────────────────────────────────────
+
+/// `PUT /mobile/active-session` request body.
+#[derive(Debug, Deserialize)]
+struct SetMobileActiveSessionRequest {
+    session_id: String,
+    #[serde(default)]
+    device_id: Option<String>,
+    #[serde(default)]
+    device_label: Option<String>,
+}
+
+/// `GET /mobile/active-session` — returns the session that a mobile
+/// client most recently claimed. VibeUI polls this so the desktop
+/// can follow the user's mobile context, mirroring how W1.1 made
+/// VibeUI follow the watch's claim.
+async fn mobile_get_active_session(
+    State(state): State<ServeState>,
+) -> Json<serde_json::Value> {
+    let cur = state
+        .mobile_active_session
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
+    Json(serde_json::json!({ "active_session": cur }))
+}
+
+/// `PUT /mobile/active-session` — mobile claims a session as
+/// "active on this device". Bearer-authed (`require_auth` middleware
+/// is applied by the parent router); we don't gate by device-id
+/// because the bearer token already proves the caller is the
+/// daemon's owner.
+async fn mobile_set_active_session(
+    State(state): State<ServeState>,
+    Json(req): Json<SetMobileActiveSessionRequest>,
+) -> Json<serde_json::Value> {
+    let claim = MobileActiveSession {
+        session_id: req.session_id.clone(),
+        device_id: req.device_id,
+        device_label: req.device_label,
+        set_at_ms: now_ms(),
+    };
+    *state
+        .mobile_active_session
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = Some(claim.clone());
+    Json(serde_json::json!({ "ok": true, "active_session": claim }))
+}
+
 ///
 /// Extracted from the handler so unit tests can exercise the merge of
 /// HandoffContext (session transcript) + AssembledContext (project
@@ -5898,8 +6312,110 @@ mod tests {
         let rl = RateLimiter::new(10, Duration::from_secs(30));
         assert_eq!(rl.limit, 10);
         assert_eq!(rl.window_ms, 30_000);
-        let ts = rl.timestamps.lock().unwrap();
-        assert!(ts.is_empty());
+        assert!(rl.buckets.is_empty(), "no buckets allocated until first check");
+    }
+
+    // ── Per-IP behavior (DREAD #8) ──────────────────────────────────────
+
+    /// One noisy IP must not lock out another IP. This is the core
+    /// invariant of the per-IP rewrite — pre-fix this would fail because
+    /// both clients drew from the same global counter.
+    #[test]
+    fn rate_limiter_per_ip_isolation() {
+        let rl = RateLimiter::new(2, Duration::from_secs(60));
+        let attacker: IpAddr = "10.0.0.1".parse().unwrap();
+        let victim: IpAddr = "10.0.0.2".parse().unwrap();
+
+        // Attacker burns through their quota.
+        assert!(rl.check_for(attacker));
+        assert!(rl.check_for(attacker));
+        assert!(!rl.check_for(attacker), "attacker hit their own limit");
+
+        // Victim still has a full bucket.
+        assert!(rl.check_for(victim), "victim must not be locked out");
+        assert!(rl.check_for(victim));
+        assert!(!rl.check_for(victim), "victim hits their own limit independently");
+    }
+
+    #[test]
+    fn rate_limiter_unknown_ip_falls_back_to_shared_bucket() {
+        // When no ConnectInfo extension is present (e.g. tower-oneshot tests),
+        // requests all key into UNKNOWN_IP. That preserves the *old* global
+        // behavior for test paths — strictly less permissive than per-key.
+        let rl = RateLimiter::new(2, Duration::from_secs(60));
+        // The deprecated `check()` and an explicit UNKNOWN_IP call must
+        // share the same bucket.
+        assert!(rl.check());
+        assert!(rl.check_for(UNKNOWN_IP));
+        assert!(!rl.check(), "shared bucket fills with 2 hits");
+    }
+
+    #[test]
+    fn rate_limiter_prune_drops_empty_buckets() {
+        let rl = RateLimiter::new(2, Duration::from_millis(1));
+        let ip1: IpAddr = "10.0.0.1".parse().unwrap();
+        let ip2: IpAddr = "10.0.0.2".parse().unwrap();
+
+        rl.check_for(ip1);
+        rl.check_for(ip2);
+        assert_eq!(rl.buckets.len(), 2);
+
+        // Let entries expire.
+        std::thread::sleep(Duration::from_millis(5));
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+        rl.prune_expired(now.saturating_sub(rl.window_ms));
+        assert_eq!(rl.buckets.len(), 0, "expired buckets are dropped");
+    }
+
+    // ── Loopback-host detection (DREAD #7) ──────────────────────────────
+
+    #[test]
+    fn is_loopback_host_accepts_ipv4_loopback() {
+        assert!(is_loopback_host("127.0.0.1"));
+        assert!(is_loopback_host("127.0.0.42"), "any 127/8 is loopback");
+    }
+
+    #[test]
+    fn is_loopback_host_accepts_ipv6_loopback() {
+        assert!(is_loopback_host("::1"));
+        assert!(is_loopback_host("[::1]"), "bracketed form");
+    }
+
+    #[test]
+    fn is_loopback_host_accepts_localhost_name() {
+        assert!(is_loopback_host("localhost"));
+        assert!(is_loopback_host("LOCALHOST"), "case-insensitive");
+        assert!(is_loopback_host("  localhost  "), "trims whitespace");
+    }
+
+    #[test]
+    fn is_loopback_host_rejects_unspecified_wildcard() {
+        assert!(!is_loopback_host("0.0.0.0"), "0.0.0.0 is the wildcard bind, not loopback");
+        assert!(!is_loopback_host("::"), "IPv6 unspecified");
+    }
+
+    #[test]
+    fn is_loopback_host_rejects_public_and_private_ranges() {
+        assert!(!is_loopback_host("192.168.1.5"));
+        assert!(!is_loopback_host("10.0.0.1"));
+        assert!(!is_loopback_host("8.8.8.8"));
+    }
+
+    #[test]
+    fn is_loopback_host_rejects_unknown_hostnames() {
+        // Conservative default: unrecognized hostnames warn (we don't resolve DNS).
+        assert!(!is_loopback_host("my-server.local"));
+        assert!(!is_loopback_host("example.com"));
+    }
+
+    #[test]
+    fn rate_limiter_prune_keeps_active_buckets() {
+        let rl = RateLimiter::new(5, Duration::from_secs(60));
+        let ip: IpAddr = "10.0.0.1".parse().unwrap();
+        rl.check_for(ip);
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+        rl.prune_expired(now.saturating_sub(rl.window_ms));
+        assert_eq!(rl.buckets.len(), 1, "in-window buckets survive prune");
     }
 
     #[test]
@@ -6149,6 +6665,7 @@ mod tests {
                     ),
                 )),
                 rl_runtime_pool: Arc::new(crate::rl_runtime::RuntimePool::new()),
+                mobile_active_session: Arc::new(std::sync::Mutex::new(None)),
             };
             (build_router(state, 7878), tmp_dir)
         }
@@ -6584,6 +7101,7 @@ mod tests {
                     ),
                 )),
                 rl_runtime_pool: Arc::new(crate::rl_runtime::RuntimePool::new()),
+                mobile_active_session: Arc::new(std::sync::Mutex::new(None)),
             };
             (build_router(state, 7878), tmp_dir)
         }
@@ -6653,6 +7171,48 @@ mod tests {
             // through to the canned "feature off" path.
             #[cfg(mistralrs_enabled)]
             assert_ne!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
+        }
+
+        #[tokio::test]
+        async fn v1_messages_without_auth_returns_401() {
+            // C1 — daemon should expose POST /v1/messages (Anthropic Messages
+            // API shape, mirroring Ollama 0.22.x). Mounted under the same
+            // bearer-auth + rate-limit stack as /api/chat, so an unauthenticated
+            // request must return 401 once the route is wired. Before the
+            // route lands axum's fallback returns 404 — this assertion is
+            // the red signal.
+            let (app, _tmp) = test_app_with_inference("secret-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/v1/messages")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"model":"qwen2.5:0.5b","max_tokens":16,"messages":[{"role":"user","content":"hi"}]}"#,
+                ))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+        }
+
+        #[tokio::test]
+        async fn v1_messages_streaming_returns_501_when_authed() {
+            // C1 — streaming for /v1/messages requires Anthropic-shaped SSE
+            // event stream that is intentionally out of scope for this
+            // slice. Until that ships, the handler must reject stream:true
+            // with 501 Not Implemented rather than silently degrade to
+            // non-streaming (which would surprise SDK clients).
+            let (app, _tmp) = test_app_with_inference("secret-token");
+            let req = Request::builder()
+                .method("POST")
+                .uri("/v1/messages")
+                .header("authorization", "Bearer secret-token")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"model":"qwen2.5:0.5b","max_tokens":16,"stream":true,"messages":[{"role":"user","content":"hi"}]}"#,
+                ))
+                .unwrap();
+            let resp = app.oneshot(req).await.unwrap();
+            assert_eq!(resp.status(), StatusCode::NOT_IMPLEMENTED);
         }
 
         #[tokio::test]
@@ -8064,4 +8624,235 @@ mod tests {
 
     // F1.2 HTTP auth tests live in `http_integration` (where `test_app`
     // is defined). Pure helper tests above don't need it.
+}
+
+// ── VibeMemory routes (vibe-memory crate integration) ─────────────────────────
+
+use vibe_memory::{MemoryContextHub, ProjectMemStore, GlobalMemStore};
+
+#[derive(serde::Deserialize)]
+struct VibeMemoryStoreRequest {
+    content: String,
+    workspace: Option<String>,
+    #[serde(default)]
+    tags: Vec<String>,
+    #[serde(default)]
+    pinned: bool,
+}
+
+async fn vibememory_store(
+    _state: State<ServeState>,
+    Json(req): Json<VibeMemoryStoreRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    // Store in project context if workspace provided, otherwise global
+    if let Some(workspace) = req.workspace {
+        let path = std::path::PathBuf::from(&workspace);
+        let store = match ProjectMemStore::open(&path) {
+            Ok(s) => s,
+            Err(e) => return json_error(StatusCode::BAD_REQUEST, format!("Failed to open store: {e}")),
+        };
+        let entry = store.store(&req.content, Some(vibe_memory::MemoryMeta {
+            tags: req.tags,
+            pinned: req.pinned,
+            ..Default::default()
+        })).await;
+        match entry {
+            Ok(e) => (StatusCode::CREATED, Json(serde_json::json!({
+                "id": e.id,
+                "sector": e.sector,
+                "store": "project"
+            }))),
+            Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("Store failed: {e}")),
+        }
+    } else {
+        let store = match GlobalMemStore::open() {
+            Ok(s) => s,
+            Err(e) => return json_error(StatusCode::BAD_REQUEST, format!("Failed to open store: {e}")),
+        };
+        let entry = store.store(&req.content, Some(vibe_memory::MemoryMeta {
+            tags: req.tags,
+            pinned: req.pinned,
+            ..Default::default()
+        })).await;
+        match entry {
+            Ok(e) => (StatusCode::CREATED, Json(serde_json::json!({
+                "id": e.id,
+                "sector": e.sector,
+                "store": "global"
+            }))),
+            Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("Store failed: {e}")),
+        }
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct VibeMemorySearchRequest {
+    query: String,
+    workspace: Option<String>,
+    #[serde(default = "default_top_k")]
+    top_k: usize,
+    min_score: Option<f64>,
+}
+
+fn default_top_k() -> usize { 8 }
+
+async fn vibememory_search(
+    _state: State<ServeState>,
+    Json(req): Json<VibeMemorySearchRequest>,
+) -> Json<serde_json::Value> {
+    let hub = MemoryContextHub::new();
+    let workspace = req.workspace
+        .map(PathBuf::from)
+        .unwrap_or_else(|| std::env::temp_dir());
+    
+    let results = hub.search_context(&workspace, &req.query, req.top_k, req.min_score).await;
+    
+    match results {
+        Ok(r) => {
+            let items: Vec<serde_json::Value> = r.iter().map(|item| {
+                serde_json::json!({
+                    "id": item.id,
+                    "content": item.content,
+                    "sector": item.sector,
+                    "score": item.score,
+                    "store": item.store.as_str(),
+                    "tags": item.tags,
+                })
+            }).collect();
+            Json(serde_json::json!({ "results": items, "count": items.len() }))
+        }
+        Err(e) => Json(serde_json::json!({ "error": e.to_string(), "results": [], "count": 0 })),
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct VibeMemoryContextRequest {
+    query: String,
+    workspace: String,
+    #[serde(default = "default_budget")]
+    budget: usize,
+}
+
+fn default_budget() -> usize { 4096 }
+
+async fn vibememory_context(
+    _state: State<ServeState>,
+    Json(req): Json<VibeMemoryContextRequest>,
+) -> Json<serde_json::Value> {
+    let hub = MemoryContextHub::new();
+    let workspace = PathBuf::from(&req.workspace);
+    
+    let context = hub.assemble_context(&workspace, &req.query, req.budget).await;
+    
+    match context {
+        Ok(c) => Json(serde_json::json!({ "context": c })),
+        Err(e) => Json(serde_json::json!({ "context": "", "error": e.to_string() })),
+    }
+}
+
+async fn vibememory_list(
+    _state: State<ServeState>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Json<serde_json::Value> {
+    let sector = params.get("sector").map(|s| s.as_str());
+    let limit = params.get("limit").and_then(|s| s.parse().ok());
+    let store_type = params.get("store").map(|s| s.as_str()).unwrap_or("global");
+    
+    if store_type == "project" {
+        if let Some(workspace) = params.get("workspace") {
+            let path = PathBuf::from(workspace);
+            let store = match ProjectMemStore::open(&path) {
+                Ok(s) => s,
+                Err(e) => return Json(serde_json::json!({ "error": e.to_string(), "memories": [] })),
+            };
+            let entries = store.list(sector, limit).await;
+            match entries {
+                Ok(mems) => {
+                    let items: Vec<serde_json::Value> = mems.iter().map(|m| {
+                        serde_json::json!({
+                            "id": m.id,
+                            "content": m.content,
+                            "sector": m.sector,
+                            "salience": m.salience,
+                            "tags": m.tags,
+                            "pinned": m.pinned,
+                            "created_at": m.created_at,
+                        })
+                    }).collect();
+                    return Json(serde_json::json!({ "memories": items, "count": items.len(), "store": "project" }));
+                }
+                Err(e) => return Json(serde_json::json!({ "error": e.to_string(), "memories": [], "store": "project" })),
+            }
+        }
+    }
+    
+    let store = match GlobalMemStore::open() {
+        Ok(s) => s,
+        Err(e) => return Json(serde_json::json!({ "error": e.to_string(), "memories": [], "store": "global" })),
+    };
+    let entries = store.list(sector, limit).await;
+    match entries {
+        Ok(mems) => {
+            let items: Vec<serde_json::Value> = mems.iter().map(|m| {
+                serde_json::json!({
+                    "id": m.id,
+                    "content": m.content,
+                    "sector": m.sector,
+                    "salience": m.salience,
+                    "tags": m.tags,
+                    "pinned": m.pinned,
+                    "created_at": m.created_at,
+                })
+            }).collect();
+            Json(serde_json::json!({ "memories": items, "count": items.len(), "store": "global" }))
+        }
+        Err(e) => Json(serde_json::json!({ "error": e.to_string(), "memories": [], "store": "global" })),
+    }
+}
+
+async fn vibememory_stats(
+    _state: State<ServeState>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> Json<serde_json::Value> {
+    let hub = MemoryContextHub::new();
+    let workspace = params.get("workspace")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| std::env::temp_dir());
+    
+    let stats = hub.get_stats(&workspace).await;
+    
+    match stats {
+        Ok(s) => Json(serde_json::json!({
+            "project_count": s.project_count,
+            "global_count": s.global_count,
+            "project_db_size": s.project_db_size,
+            "global_db_size": s.global_db_size,
+        })),
+        Err(e) => Json(serde_json::json!({ "error": e.to_string() })),
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct VibeMemoryConsolidateRequest {
+    workspace: String,
+}
+
+async fn vibememory_consolidate(
+    _state: State<ServeState>,
+    Json(req): Json<VibeMemoryConsolidateRequest>,
+) -> Json<serde_json::Value> {
+    let hub = MemoryContextHub::new();
+    let workspace = PathBuf::from(&req.workspace);
+    
+    let report = hub.consolidate(&workspace).await;
+    
+    match report {
+        Ok(r) => Json(serde_json::json!({
+            "entries_purged": r.entries_purged,
+            "entries_decayed": r.entries_decayed,
+            "project_store": r.project_store,
+            "global_store": r.global_store,
+        })),
+        Err(e) => Json(serde_json::json!({ "error": e.to_string() })),
+    }
 }

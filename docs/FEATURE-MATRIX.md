@@ -252,6 +252,9 @@
 | Open Memory (cognitive engine) | ✅ | ✅ | Semantic search, decay, encryption |
 | Chat memory panel | ❌ | ✅ | Per-tab extracted facts |
 | Pin facts to system prompt | ❌ | ✅ | Persists to localStorage |
+| **VibeMemory (SQLite vector store)** | ✅ | ✅ | Per-project + per-machine stores, sector classification |
+| VibeMemory `/vibememory/*` API | ✅ | ✅ | Store, search, context, consolidate endpoints |
+| VibeMemory Tauri commands | ❌ | ✅ | `vibememory_store`, `vibememory_search`, etc. |
 | Workspace hints (`.vibehints`) | ✅ | ✅ | Always-active context |
 | Rules directory (`.vibecli/rules/`) | ✅ | ✅ | Path-gated context injection |
 

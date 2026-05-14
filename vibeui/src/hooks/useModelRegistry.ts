@@ -24,10 +24,10 @@ const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 export const STATIC_MODELS: Record<string, string[]> = {
   // claude-code uses the local Claude Code CLI — works with Free, Pro, Max, Team, and Enterprise plans
   // without consuming Anthropic API credits.
-  "claude-code": ["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5"],
-  claude: ["claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5", "claude-sonnet-4-5", "claude-3-5-sonnet-20241022"],
-  openai: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o4-mini", "o3", "o3-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
-  gemini: ["gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"],
+  "claude-code": ["claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5"],
+  claude: ["claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5", "claude-sonnet-4-5", "claude-3-5-sonnet-20241022"],
+  openai: ["gpt-5.5", "gpt-5.4", "gpt-5.3-codex", "gpt-5.3-codex-spark", "gpt-5", "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o4-mini", "o3", "o3-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
+  gemini: ["gemini-3.1-pro", "gemini-3-pro", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"],
   groq: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"],
   grok: ["grok-3", "grok-3-mini", "grok-2"],
   mistral: ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest", "codestral-latest"],
@@ -135,10 +135,10 @@ export async function probeAndCacheDefaultProvider(): Promise<void> {
 
 /** Default model to pre-select when a provider is chosen in a dropdown. */
 export const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
-  "claude-code": "claude-sonnet-4-6",
-  claude:       "claude-sonnet-4-6",
-  openai:       "gpt-4o",
-  gemini:       "gemini-2.5-flash",
+  "claude-code": "claude-opus-4-7",
+  claude:       "claude-opus-4-7",
+  openai:       "gpt-5.5",
+  gemini:       "gemini-3.1-pro",
   groq:         "llama-3.3-70b-versatile",
   grok:         "grok-3-mini",
   mistral:      "mistral-large-latest",
