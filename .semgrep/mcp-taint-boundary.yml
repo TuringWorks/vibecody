@@ -1,0 +1,50 @@
+# VibeCody — MCP-client taint boundary SAST rule.
+#
+# DREAD #1 Slice D in docs/security/threat-model.md.
+#
+# `vibe_ai::mcp::McpClient::call_tool` is the raw transport: it returns
+# `Result<String>` from an external MCP server (T5). Every consumer in
+# `vibecli-cli` must wrap that result in `Tainted<String>` so the
+# downstream tool-call dispatchers (slice B `confirm_shell_command`,
+# slice C `confirm_http_outbound`) see the right `Provenance::Mcp`
+# attribution.
+#
+# The boundary helper `crate::mcp_taint::call_tool_tainted` does this
+# wrapping. Direct `client.call_tool(...)` calls in vibecli-cli/src/
+# bypass the taint and are forbidden.
+#
+# Escape hatch: `// nosemgrep: mcp-call-tool-needs-taint-boundary` with
+# a written safety argument. Expected to be empty in production code.
+
+rules:
+  - id: mcp-call-tool-needs-taint-boundary
+    languages: [rust]
+    severity: ERROR
+    paths:
+      include:
+        - "vibecli/vibecli-cli/src/**/*.rs"
+      exclude:
+        - "vibecli/vibecli-cli/src/mcp_taint.rs"
+        - "vibecli/vibecli-cli/src/acp_protocol.rs"
+        - "**/tests/**"
+        - "**/*_test.rs"
+        - "**/*_bdd.rs"
+    message: >-
+      Direct `McpClient::call_tool(...)` invocation bypasses the
+      DREAD #1 Slice D taint boundary. External MCP servers are T5
+      (attacker-controlled); their `text` return value can carry a
+      prompt-injection payload. Wrap the call with
+      `crate::mcp_taint::call_tool_tainted(&mut client, server, tool, args)`
+      which returns `Tainted<String>` with `Provenance::Mcp` populated.
+      See docs/security/tainted-data-flow.md §5 entry #3.
+    patterns:
+      - pattern-either:
+          - pattern: $CLIENT.call_tool($NAME, $ARGS)
+          - pattern: $CLIENT.call_tool($NAME, $ARGS)?
+      - metavariable-regex:
+          metavariable: $CLIENT
+          # Heuristic: any binding whose name contains `client` or `mcp`.
+          # The boundary helper takes `&mut McpClient` so its own
+          # invocation (which is the only legal call site) is excluded
+          # via `paths.exclude: mcp_taint.rs`.
+          regex: "^[a-z_]*(client|mcp)[a-z_0-9]*$"

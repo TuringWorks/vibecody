@@ -978,6 +978,9 @@ impl ToolExecutor {
             provider: self.provider.clone(),
             parent_context: Some(child_context.clone()),
             network_disabled: self.network_disabled,
+            // Child agents inherit the parent's tainted-strict setting so a
+            // sub-agent can't elevate past the parent's gate (DREAD #1 Slice B/C).
+            tainted_strict: self.tainted_strict,
         });
 
         let mut agent = AgentLoop::new(provider, ApprovalPolicy::FullAuto, child_executor);
