@@ -77,24 +77,30 @@ pub fn call_tool_tainted(
     );
 
     let raw = client.call_tool(&tool, arguments)?;
+    let tainted = Tainted::new(
+        raw,
+        Provenance::Mcp {
+            server: server.clone(),
+            tool: tool.clone(),
+            call_id: call_id.clone(),
+        },
+    );
 
+    // Slice F: surface the per-payload fingerprint at the boundary so
+    // downstream `shell_gate` / `http_gate` rejection lines can be
+    // correlated to *this* MCP response in the audit log (`grep
+    // fingerprint=[tainted/mcp/abcdef12]`).
     tracing::debug!(
         target: "vibecody::tainted::mcp_boundary",
         server = %server,
         tool = %tool,
         call_id = %call_id,
-        bytes = raw.len(),
+        bytes = tainted.byte_len(),
+        fingerprint = %tainted.log_fingerprint(),
         "mcp.call_tool returned (wrapping with Provenance::Mcp)",
     );
 
-    Ok(Tainted::new(
-        raw,
-        Provenance::Mcp {
-            server,
-            tool,
-            call_id,
-        },
-    ))
+    Ok(tainted)
 }
 
 /// Per-MCP-server admin policy hook — surfaces the boundary to the
@@ -116,6 +122,7 @@ pub fn audit_mcp_response(
                 server = %server,
                 tool = %tool,
                 call_id = %call_id,
+                fingerprint = %response.log_fingerprint(),
                 "mcp.response audited (slice D policy hook — no-op until slice G ships admin policy)",
             );
             Ok(())

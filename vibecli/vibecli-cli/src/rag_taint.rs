@@ -149,6 +149,7 @@ pub fn audit_rag_hit(hit: &TaintedRagHit) -> std::result::Result<(), String> {
                 index = %index,
                 doc_id = %doc_id,
                 score,
+                fingerprint = %hit.text.log_fingerprint(),
                 "rag.hit audited (slice E policy hook — no-op until slice G ships admin policy)",
             );
             Ok(())

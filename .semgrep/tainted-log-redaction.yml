@@ -1,0 +1,79 @@
+# VibeCody — Tainted log-redaction SAST rule.
+#
+# DREAD #1 Slice F in docs/security/threat-model.md.
+#
+# `Tainted<T>::Display`/`Debug` already redact (prints `[tainted/<kind>]`,
+# never the bytes). But a developer could still bypass the redaction by:
+#
+#   tracing::info!("got {}", t.expose_for(Reason::LogLine));
+#   tracing::warn!(payload = ?t.expose_for(Reason::LogLine), "x");
+#
+# That writes the *raw* payload to the daemon log file, which is exactly
+# what Slice F exists to prevent (the log file would become a prompt-
+# injection corpus).
+#
+# The correct shape:
+#
+#   tracing::info!(
+#       target: "vibecody::chat",
+#       fingerprint = %tainted.log_fingerprint(),
+#       audit_id = %tainted.audit_id(),
+#       summary = %tainted.audit_summary(),
+#       "displayed tainted bytes to user",
+#   );
+#
+# `log_fingerprint()` / `audit_id()` / `audit_summary()` are all bounded,
+# never include the payload, and are safe for the log surface.
+#
+# Escape hatch: `// nosemgrep: tainted-log-leaks-payload` with a written
+# safety argument (expected to be empty in production code).
+
+rules:
+  - id: tainted-log-leaks-payload
+    languages: [rust]
+    severity: ERROR
+    paths:
+      include:
+        - "vibecli/vibecli-cli/src/**/*.rs"
+      exclude:
+        - "vibecli/vibecli-cli/src/tainted.rs"
+        - "**/tests/**"
+        - "**/*_test.rs"
+        - "**/*_bdd.rs"
+    message: >-
+      This `tracing::*!` call exposes a `Tainted<T>` value via
+      `expose_for(Reason::LogLine)` — the resulting `&T` will be
+      formatted into the daemon log file as raw bytes, defeating the
+      Slice F redaction. Use `tainted.log_fingerprint()`,
+      `tainted.audit_id()`, or `tainted.audit_summary()` as the
+      tracing field value instead; all three are bounded and never
+      include the payload. See docs/security/tainted-data-flow.md §6.3.
+    patterns:
+      - pattern-either:
+          - pattern: tracing::info!($...ARGS, $X.expose_for(Reason::LogLine), $...REST)
+          - pattern: tracing::warn!($...ARGS, $X.expose_for(Reason::LogLine), $...REST)
+          - pattern: tracing::error!($...ARGS, $X.expose_for(Reason::LogLine), $...REST)
+          - pattern: tracing::debug!($...ARGS, $X.expose_for(Reason::LogLine), $...REST)
+          - pattern: tracing::trace!($...ARGS, $X.expose_for(Reason::LogLine), $...REST)
+
+  - id: tainted-format-leaks-payload
+    languages: [rust]
+    severity: WARNING
+    paths:
+      include:
+        - "vibecli/vibecli-cli/src/**/*.rs"
+      exclude:
+        - "vibecli/vibecli-cli/src/tainted.rs"
+        - "**/tests/**"
+    message: >-
+      `expose_for(Reason::LogLine)` returns the raw inner value. When
+      combined with `format!` / `println!` / `eprintln!`, the payload
+      is rendered as plaintext at the call site. If the resulting
+      string flows back into a logger this defeats Slice F. Prefer
+      `tainted.log_fingerprint()` or `tainted.audit_summary()` for
+      identifying the value in log lines.
+    patterns:
+      - pattern-either:
+          - pattern: format!($...ARGS, $X.expose_for(Reason::LogLine), $...REST)
+          - pattern: println!($...ARGS, $X.expose_for(Reason::LogLine), $...REST)
+          - pattern: eprintln!($...ARGS, $X.expose_for(Reason::LogLine), $...REST)
