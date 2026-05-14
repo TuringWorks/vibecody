@@ -1,0 +1,53 @@
+# VibeCody — RAG/semantic-index taint boundary SAST rule.
+#
+# DREAD #1 Slice E in docs/security/threat-model.md.
+#
+# `vibe_core::index::embeddings::EmbeddingIndex::search(query, k)` is the
+# raw retrieval API. It returns `Vec<SearchHit>` where each hit carries
+# the indexed `text: String` — that text originates in workspace files
+# (T5: file contents) and must be wrapped in `Tainted<String>` before
+# any consumer in `vibecli-cli` feeds it into an LLM prompt or a
+# tool-call argument.
+#
+# The boundary helper `crate::rag_taint::search_tainted(index, name,
+# query, k)` does this wrapping. Direct `index.search(query, k).await`
+# calls in vibecli-cli/src/ outside the helper bypass the taint and
+# are warned.
+#
+# Severity is WARNING (not ERROR) for the rollout window because the
+# existing call sites in `main.rs` haven't been migrated yet. Promote
+# to ERROR after the migration lands.
+
+rules:
+  - id: rag-search-needs-taint-boundary
+    languages: [rust]
+    severity: WARNING
+    paths:
+      include:
+        - "vibecli/vibecli-cli/src/**/*.rs"
+      exclude:
+        - "vibecli/vibecli-cli/src/rag_taint.rs"
+        - "**/tests/**"
+        - "**/*_test.rs"
+        - "**/*_bdd.rs"
+    message: >-
+      Direct `EmbeddingIndex::search(...)` consumption bypasses the
+      DREAD #1 Slice E taint boundary. Retrieval hits originate from
+      indexed files (T5) and the `text` field can carry a prompt-
+      injection payload. Wrap the call with
+      `crate::rag_taint::search_tainted(&index, "<index-name>",
+      query, k).await` which returns `Vec<TaintedRagHit>` whose `text`
+      field is `Tainted<String>` with `Provenance::Rag` populated.
+      See docs/security/tainted-data-flow.md §5 entry #4.
+    patterns:
+      - pattern-either:
+          - pattern: $INDEX.search($QUERY, $K).await
+          - pattern: $INDEX.search($QUERY, $K).await?
+      - metavariable-regex:
+          metavariable: $INDEX
+          # Heuristic: bindings named *index* / *idx* / *registry* are the
+          # common naming patterns for EmbeddingIndex / SemanticIndex
+          # holders. The boundary helper takes the typed reference
+          # explicitly so its own invocation is excluded via
+          # `paths.exclude: rag_taint.rs`.
+          regex: "^[a-z_]*(index|idx|registry)[a-z_0-9]*$"

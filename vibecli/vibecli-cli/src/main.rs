@@ -124,6 +124,7 @@ mod auth_util;
 mod redact;
 mod tainted;
 mod mcp_taint;
+mod rag_taint;
 mod config;
 mod schema;
 mod syntax;

