@@ -46,6 +46,87 @@ jobs:
       - name: Run cargo audit
         run: cargo audit --deny warnings
 
+  # ─── Software Bill of Materials (SBOM, CycloneDX) ─────────────────────
+  # Per-release attestation of the dependency tree across all three
+  # ecosystems we ship. See docs/security/threat-model.md §7 item #14.
+  # The .cdx.json artifacts ride along on the GitHub release so consumers
+  # (and auditors) can cross-reference against published advisories at any
+  # future date without re-running the build.
+  sbom:
+    name: Generate SBOMs (CycloneDX)
+    needs: audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+
+      - name: Install cargo-sbom
+        run: cargo install cargo-sbom --locked
+
+      - name: Generate Cargo.lock (gitignored)
+        run: cargo generate-lockfile
+
+      - name: Rust SBOM
+        run: cargo sbom --output-format cyclone_dx_json_1_4 > vibecody-rust.cdx.json
+
+      # TODO: pin to a verified SHA during Phase 3 hardening.
+      - name: Setup Node
+        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: "20"
+
+      - name: Install cdxgen
+        run: npm install -g @cyclonedx/cdxgen
+
+      - name: JS SBOMs (vibeui, vibeapp, agent-sdk)
+        run: |
+          set -euo pipefail
+          for dir in vibeui vibeapp packages/agent-sdk; do
+            if [ -f "$dir/package.json" ]; then
+              ( cd "$dir" && npm install --package-lock-only --ignore-scripts )
+              out="$(basename "$dir")-js.cdx.json"
+              cdxgen --type js --output "$out" -p "$dir"
+              echo "wrote $out"
+            else
+              echo "skip $dir (no package.json)"
+            fi
+          done
+
+      # TODO: pin to a verified SHA during Phase 3 hardening.
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Python SBOM (vibe-rl-py)
+        # Same uv-export gotchas as the pip-audit job: --no-emit-project
+        # drops the editable self-ref, --no-hashes works around the
+        # uv↔pip hash-format mismatch under --require-hashes.
+        run: |
+          pip install --upgrade uv cyclonedx-bom
+          (
+            cd vibe-rl-py
+            uv export --frozen --no-emit-project --no-hashes \
+              --format requirements-txt --output-file /tmp/vibe-rl-py-requirements.txt
+          )
+          cyclonedx-py requirements \
+            -i /tmp/vibe-rl-py-requirements.txt \
+            -o vibe-rl-py.cdx.json
+
+      - name: Upload SBOMs
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: sboms
+          path: |
+            vibecody-rust.cdx.json
+            vibeui-js.cdx.json
+            vibeapp-js.cdx.json
+            agent-sdk-js.cdx.json
+            vibe-rl-py.cdx.json
+          if-no-files-found: error
+
   # ─── VibeCLI binary (5 platforms) ──────────────────────────────────────
   build-cli:
     name: CLI · ${{ matrix.target }}
@@ -710,7 +791,7 @@ jobs:
   # ─── Publish GitHub Release ────────────────────────────────────────────
   release:
     name: Publish GitHub Release
-    needs: [build-cli, build-vibeui, build-vibeapp, build-android, build-ios, build-wear, build-watchos, build-docker]
+    needs: [sbom, build-cli, build-vibeui, build-vibeapp, build-android, build-ios, build-wear, build-watchos, build-docker]
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-latest
     steps:
@@ -863,4 +944,5 @@ jobs:
             artifacts/**/*.apk
             artifacts/**/*.aab
             artifacts/**/*.ipa
+            artifacts/**/*.cdx.json
             artifacts/**/SHA256SUMS.txt
