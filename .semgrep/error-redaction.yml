@@ -15,7 +15,7 @@
 rules:
   - id: error-body-leaks-display
     languages: [rust]
-    severity: WARNING
+    severity: ERROR
     paths:
       include:
         - "vibecli/vibecli-cli/src/serve.rs"

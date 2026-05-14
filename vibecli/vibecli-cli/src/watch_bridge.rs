@@ -445,10 +445,7 @@ async fn watch_session_recap(
     match recap {
         Some(r) => match serde_json::to_value(&r) {
             Ok(v) => Json(serde_json::json!({"recap": v})).into_response(),
-            Err(e) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": format!("serialize: {e}")})),
-            )
+            Err(e) => crate::serve::internal_error("watch.session_recap.serialize", &e)
                 .into_response(),
         },
         None => Json(serde_json::json!({"recap": serde_json::Value::Null}))
@@ -521,10 +518,7 @@ async fn watch_job_recap(
     match recap {
         Some(r) => match serde_json::to_value(&r) {
             Ok(v) => Json(serde_json::json!({"recap": v})).into_response(),
-            Err(e) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": format!("serialize: {e}")})),
-            )
+            Err(e) => crate::serve::internal_error("watch.job_recap.serialize", &e)
                 .into_response(),
         },
         None => Json(serde_json::json!({"recap": serde_json::Value::Null}))
@@ -630,8 +624,8 @@ async fn watch_dispatch(
     // Open store and create/continue session
     let store = match crate::session_store::SessionStore::open(&db_path) {
         Ok(s) => s,
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({"error": format!("session store: {}", e)}))).into_response(),
+        Err(e) => return crate::serve::internal_error("watch.session_store.open", &e)
+            .into_response(),
     };
     if req.session_id.is_none() {
         let _ = store.insert_session(&session_id, &content, &state.provider_name, "");

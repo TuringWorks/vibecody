@@ -248,7 +248,7 @@ fn json_error(status: StatusCode, msg: impl Into<String>) -> (StatusCode, Json<s
 ///     Err(e) => internal_error("recap load", &e).into_response(),
 /// }
 /// ```
-fn internal_error(context: &str, err: &dyn std::fmt::Display) -> (StatusCode, Json<serde_json::Value>) {
+pub(crate) fn internal_error(context: &str, err: &dyn std::fmt::Display) -> (StatusCode, Json<serde_json::Value>) {
     let (status, value) = internal_error_value(context, err);
     (status, Json(value))
 }
@@ -256,7 +256,7 @@ fn internal_error(context: &str, err: &dyn std::fmt::Display) -> (StatusCode, Js
 /// Same as [`internal_error`] but returns the body as a raw
 /// `serde_json::Value`. Used by handlers that return `(StatusCode, Value)`
 /// (e.g. the recap/resume pure helpers in this file).
-fn internal_error_value(context: &str, err: &dyn std::fmt::Display) -> (StatusCode, serde_json::Value) {
+pub(crate) fn internal_error_value(context: &str, err: &dyn std::fmt::Display) -> (StatusCode, serde_json::Value) {
     // Short, log-greppable correlation ID. 8 hex chars of entropy is plenty
     // for matching a single request to a log line; not a security boundary.
     use rand::Rng;
@@ -2277,14 +2277,7 @@ pub(crate) fn do_v1_recap_delete(
 
 fn open_default_or_500(
 ) -> Result<SessionStore, (StatusCode, Json<serde_json::Value>)> {
-    SessionStore::open_default().map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({
-                "error": format!("session store unavailable: {e}")
-            })),
-        )
-    })
+    SessionStore::open_default().map_err(|e| internal_error("session.store.open", &e))
 }
 
 // ── J1.3: Pure helpers for `kind=job` recap routes ─────────────────────────
@@ -2332,10 +2325,7 @@ pub(crate) async fn do_v1_recap_post_job(
             );
         }
         Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                serde_json::json!({"error": format!("failed to load job: {e}")}),
-            );
+            return internal_error_value("job.fetch_with_events", &e);
         }
     };
 
@@ -2641,10 +2631,7 @@ async fn v1_diffcomplete_chains_post(
     let store = match crate::diff_chain_store::DiffChainStore::open(&state.workspace_root) {
         Ok(s) => s,
         Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "error": format!("open chain store: {e}") })),
-            );
+            return internal_error("diffcomplete.chain_store.open", &e);
         }
     };
     let chain_id = req
@@ -5865,10 +5852,7 @@ async fn mobile_session_context(
     let store = match SessionStore::open_default() {
         Ok(s) => s,
         Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "error": format!("session store unavailable: {e}") })),
-            );
+            return internal_error("session.store.open", &e);
         }
     };
 
@@ -5881,10 +5865,7 @@ async fn mobile_session_context(
             );
         }
         Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({ "error": format!("failed to load session: {e}") })),
-            );
+            return internal_error("session.detail.load", &e);
         }
     };
 
@@ -5900,10 +5881,7 @@ async fn mobile_session_context(
 
     match build_mobile_context_response(&id, &detail, &workspace) {
         Ok(value) => (StatusCode::OK, Json(value)),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "error": format!("serialization failed: {e}") })),
-        ),
+        Err(e) => internal_error("mobile.session.context.serialize", &e),
     }
 }
 
