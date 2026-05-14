@@ -864,6 +864,7 @@ pub fn run() {
             commands::fullstack_generate,
             commands::fullstack_read_file,
             commands::fullstack_write_file,
+            commands::fullstack_write_binary,
             // Clarifying Questions
             commands::get_clarify_questions,
             commands::get_clarify_plan,

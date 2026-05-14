@@ -150,9 +150,8 @@ fn extract_any_auth(
 ) -> Result<String, (StatusCode, Json<serde_json::Value>)> {
     let hdr = headers
         .get("Authorization")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
-    if hdr == format!("Bearer {}", state.api_token) {
+        .and_then(|v| v.to_str().ok());
+    if crate::auth_util::bearer_matches(hdr, &state.api_token) {
         return Ok("bearer".to_string());
     }
     extract_watch_auth(state, headers)
@@ -284,9 +283,8 @@ async fn watch_wrist_event(
         Err(_) => {
             let bearer = headers
                 .get("Authorization")
-                .and_then(|v| v.to_str().ok())
-                .unwrap_or("");
-            if bearer != format!("Bearer {}", state.api_token) {
+                .and_then(|v| v.to_str().ok());
+            if !crate::auth_util::bearer_matches(bearer, &state.api_token) {
                 return (StatusCode::UNAUTHORIZED,
                     Json(serde_json::json!({"error": "Auth required"})));
             }
@@ -721,9 +719,10 @@ async fn watch_get_active_session(
 ) -> impl IntoResponse {
     // Allow both Watch-Token and Bearer auth so VibeUI can poll this too
     let authed = extract_watch_auth(&state, &headers).is_ok()
-        || headers.get("Authorization")
-               .and_then(|v| v.to_str().ok())
-               .is_some_and(|v| v == format!("Bearer {}", state.api_token));
+        || crate::auth_util::bearer_matches(
+            headers.get("Authorization").and_then(|v| v.to_str().ok()),
+            &state.api_token,
+        );
     if !authed {
         return (StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({"error": "Auth required"}))).into_response();
@@ -789,9 +788,10 @@ async fn watch_get_sandbox_chat_session(
     headers: axum::http::HeaderMap,
 ) -> impl IntoResponse {
     let authed = extract_watch_auth(&state, &headers).is_ok()
-        || headers.get("Authorization")
-               .and_then(|v| v.to_str().ok())
-               .is_some_and(|v| v == format!("Bearer {}", state.api_token));
+        || crate::auth_util::bearer_matches(
+            headers.get("Authorization").and_then(|v| v.to_str().ok()),
+            &state.api_token,
+        );
     if !authed {
         return (StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({"error": "Auth required"}))).into_response();
@@ -813,10 +813,9 @@ async fn watch_set_sandbox_chat_session(
 ) -> impl IntoResponse {
     let bearer = headers
         .get("Authorization")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
+        .and_then(|v| v.to_str().ok());
     // Accept both Bearer (VibeUI) and Watch-Token (Watch UI) so either surface can set it
-    let authed = bearer == format!("Bearer {}", state.api_token)
+    let authed = crate::auth_util::bearer_matches(bearer, &state.api_token)
         || extract_watch_auth(&state, &headers).is_ok();
     if !authed {
         return (StatusCode::UNAUTHORIZED,
@@ -837,9 +836,8 @@ async fn watch_list_devices(
 ) -> impl IntoResponse {
     let bearer = headers
         .get("Authorization")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
-    if bearer != format!("Bearer {}", state.api_token) {
+        .and_then(|v| v.to_str().ok());
+    if !crate::auth_util::bearer_matches(bearer, &state.api_token) {
         return (StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({"error": "Bearer token required"}))).into_response();
     }
@@ -870,9 +868,8 @@ async fn watch_revoke_device(
 ) -> impl IntoResponse {
     let bearer = headers
         .get("Authorization")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
-    if bearer != format!("Bearer {}", state.api_token) {
+        .and_then(|v| v.to_str().ok());
+    if !crate::auth_util::bearer_matches(bearer, &state.api_token) {
         return (StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({"error": "Bearer token required"}))).into_response();
     }

@@ -1,0 +1,93 @@
+# cargo-deny config — see https://embarkstudios.github.io/cargo-deny/
+#
+# Run locally:   cargo deny check
+# CI enforces:   .github/workflows/security.yml
+#
+# Policy:
+#   advisories  → vulnerability = "deny"; ignore list is timestamped + reviewed quarterly
+#   licenses    → permissive allowlist + explicit copyleft policy
+#   bans        → no duplicate major versions, no banned crates
+#   sources     → only crates.io + a small list of explicitly trusted git remotes
+
+[graph]
+# Audit every target the workspace can build for. Keep aligned with release.yml matrix.
+targets = [
+    { triple = "aarch64-apple-darwin" },
+    { triple = "x86_64-apple-darwin" },
+    { triple = "x86_64-unknown-linux-musl" },
+    { triple = "aarch64-unknown-linux-musl" },
+    { triple = "x86_64-pc-windows-msvc" },
+]
+all-features = false
+no-default-features = false
+
+[advisories]
+db-path = "$CARGO_HOME/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+version = 2
+yanked = "warn"
+ignore = [
+    # Format: { id = "RUSTSEC-YYYY-NNNN", reason = "...", expiration = "YYYY-MM-DD" }
+    # Every entry MUST have a reason and an expiration. Quarterly review.
+]
+
+[licenses]
+version = 2
+# Permissive licenses we accept without further review.
+# Additions require a one-line rationale (in this file or the PR description).
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "0BSD",                  # Zero-clause BSD; permissive (doctest-file, recvmsg, …)
+    "ISC",
+    "Unicode-DFS-2016",
+    "Unicode-3.0",
+    "Zlib",
+    "CC0-1.0",
+    "MPL-2.0",               # weak copyleft — file-level, acceptable for libraries
+    "OpenSSL",
+    "BSL-1.0",               # Boost Software License; permissive (clipboard-win, error-code)
+    "CDLA-Permissive-2.0",   # Permissive; used by webpki-roots
+]
+confidence-threshold = 0.93
+# Crates with non-SPDX or hand-rolled license text — review and pin explicitly.
+exceptions = [
+    # { allow = ["MIT"], name = "some-crate", version = "*" },
+]
+
+[bans]
+# Today: 30+ transitive duplicates (zbus v3/v5 from Tauri stack, async-* across
+# the workspace, …). Tightening to "warn" without `skip`-listing each one would
+# spam every PR. Start at "allow" so the gate lands; tighten after a sweep.
+# Tracked in docs/security/threat-model.md (Phase 3 follow-up).
+multiple-versions = "allow"
+# Intent: catch literal `version = "*"` in dependencies. cargo-deny also flags
+# intra-workspace path deps and rev-pinned git deps as wildcards because the
+# workspace member crates aren't marked `publish = false`. That's a separate
+# cleanup; for now `warn` records the signal without blocking. Tighten to
+# `deny` after marking application crates as non-publishable.
+wildcards = "warn"
+allow-wildcard-paths = true
+highlight = "all"
+# Crates we will not ship.
+deny = [
+    # Examples — fill in as we find issues:
+    # { name = "openssl", reason = "use rustls-tls; openssl pulls system libs and complicates cross-compile" },
+]
+# Skip multiple-version checks for crates known to legitimately appear at multiple versions
+# (typically because two of our deps disagree on a major). Document the reason.
+skip = []
+skip-tree = []
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = [
+    # mistral.rs fork pinned to a TuringWorks branch with quant/Metal patches
+    # for the TurboQuant work. The rev is pinned in Cargo.toml.
+    "https://github.com/TuringWorks/mistral.rs",
+]

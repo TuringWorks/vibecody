@@ -33,6 +33,7 @@ All surfaces are backed by a shared set of Rust crates for AI providers, text ed
 | [Design System](./design-system/) | Token-based UI system — colors, spacing, typography, components |
 | [Configuration Guide](./configuration/) | All configuration options for providers and UI |
 | [Memory Guide](./memory-guide/) | All memory layers — auto-recording, cognitive store, verbatim drawers, benchmarking |
+| [Memory Architecture](./memory-architecture/) | Detailed architecture: five stores, Context Assembler, Recap/Resume, storage security |
 | [Architecture](./architecture/) | Crate structure, data flow, and design decisions |
 | [Roadmap](./roadmap/) | Competitive landscape, phase-level history (1–39), and positioning |
 | [Plugin Development](./plugin-development/) | Build plugins, skills, hooks, WASM extensions, and MCP integrations |

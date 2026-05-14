@@ -120,6 +120,7 @@ use vibe_core::index::embeddings::{EmbeddingIndex, EmbeddingProvider};
 use std::io::{self, Write};
 use std::sync::Arc;
 
+mod auth_util;
 mod config;
 mod schema;
 mod syntax;
@@ -127,6 +128,8 @@ mod diff_viewer;
 mod tool_executor;
 mod memory;
 mod workspace_roots;
+mod acp_stdio;
+mod skill_watcher;
 mod memory_recorder;
 mod context_assembler;
 mod memory_projections;
@@ -2546,6 +2549,7 @@ mod proactive_agent;
 mod proactive_scanner;
 mod a2a_protocol;
 mod a2a_http;
+mod signed_agent_card;
 #[allow(dead_code)]
 mod semantic_index;
 #[allow(dead_code)]

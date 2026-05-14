@@ -5,7 +5,7 @@ permalink: /architecture/
 ---
 
 
-VibeCody is a Rust workspace (monorepo) with 9 crate members: three binary applications, five shared library crates, and a standalone indexing service, plus editor plugins, an agent SDK, a skills library, a Flutter mobile companion, and native Apple Watch + Wear OS watch clients.
+VibeCody is a Rust workspace (monorepo) with 10 crate members: three binary applications, six shared library crates, and a standalone indexing service, plus editor plugins, an agent SDK, a skills library, a Flutter mobile companion, and native Apple Watch + Wear OS watch clients.
 
 ## Architecture Diagram
 
@@ -37,6 +37,9 @@ vibecody/                          ← Cargo workspace root
 │   ├── VibeCodyWear/              ← Wear OS (Kotlin/Compose, Wear OS 3+)
 │   └── VibeCodyWearCompanion/     ← Android Wearable Data Layer service
 ├── vibe-indexer/                  ← Standalone indexing service
+├── vibe-memory/                   ← Library: SQLite vector memory with cognitive sectors
+│   ├── src/                       ← Global store, project store, hub, schema
+│   └── tests/                     ← BDD / integration tests
 ├── vscode-extension/              ← VS Code extension
 ├── jetbrains-plugin/              ← JetBrains IDE plugin (Gradle)
 ├── neovim-plugin/                 ← Neovim plugin
@@ -55,6 +58,8 @@ vibe-ui (Tauri) ───────-───────┤
                                ▼
                          vibe-core ── ropey, git2, notify, walkdir,
                                │      portable-pty, similar, regex
+                               │
+                         vibe-memory ── rusqlite, serde, bincode
                                │
                          vibe-lsp ── lsp-types, jsonrpc-core, tokio-util
                                │
@@ -522,6 +527,83 @@ async fn ai_chat(
     engine.chat(&messages, None).await.map_err(|e| e.to_string())
 }
 ```
+
+## Memory & Context Architecture
+
+VibeCody uses a multi-layer memory system to provide relevant context to AI agents across large codebases and long-running sessions.
+
+### The Five Memory Stores
+
+Each store is specialized for different content types — they are not duplicates:
+
+| Store | Content Type | Location | Role |
+|-------|-------------|----------|------|
+| **ProjectMemory** | Static docs (`CLAUDE.md`, `AGENTS.md`) | Hierarchical (system/user/project/dir) | Constant context floor |
+| **OpenMemory** | Extracted facts, preferences | `~/.vibecli/openmemory/` | Fact retriever (TF-IDF + sectors) |
+| **SessionStore** | Conversation transcripts | `~/.vibecli/sessions.db` | History retriever (FTS5) |
+| **JobManager** | Agent job state, scratchpad | `~/.vibecli/jobs.db` | Durable working state |
+| **vibe-indexer** | Code + symbols | Project `.vibecli/index/` | Code retriever (HNSW) |
+
+### Storage Security
+
+| Store | Encryption | Key Derivation |
+|-------|------------|----------------|
+| `profile_settings.db` | ChaCha20-Poly1305 | SHA-256("vibecli-profile-store-v1:" + HOME + ":" + USER) |
+| `workspace.db` | ChaCha20-Poly1305 | SHA-256("vibecli-workspace-store-v1:" + HOME + ":" + USER + ":" + workspace_path) |
+| `jobs.db` | ChaCha20-Poly1305 | Profile key (machine-bound) |
+| `sessions.db` | None (file-perm) | — |
+
+### Context Assembler
+
+The Context Assembler (`vibecli/vibecli-cli/src/context_assembler.rs`) is the single entry point for building system context under a policy-driven budget:
+
+```
+Workspace + Policy + Budget + Toggles
+              │
+              ▼
+    ┌─────────────────────┐
+    │  Context Assembler  │
+    └─────────────────────┘
+              │
+              ▼
+    ┌───────────────────────────────┐
+    │         Sections              │
+    │  • project_memory             │
+    │  • orchestration              │
+    │  • project_profile            │
+    │  • task_files                 │
+    │  • open_memory                │
+    │  • agent_scratchpad           │
+    └───────────────────────────────┘
+```
+
+### Agent Kind Budgets
+
+Different agent types get different budget allocations:
+
+| AgentKind | Total Chars | Primary Section |
+|-----------|-------------|-----------------|
+| Chat | 32,000 | project_memory (16k), orchestration (8k) |
+| CodingAgent | 128,000 | task_files (96k), open_memory (16k) |
+| ResearchAgent | 128,000 | open_memory (64k), task_files (16k) |
+| BackgroundJob | 48,000 | agent_scratchpad (40k) |
+
+### Recap & Resume
+
+Recap & Resume provide cross-client session continuity:
+
+- **Recap**: Structured summary of a unit of work (session, job, diff chain)
+- **Resume**: Pick up where you left off on any client
+
+| Scope | Storage | Table |
+|-------|---------|-------|
+| Session | `sessions.db` | `recaps` |
+| Job | `jobs.db` | `recaps` |
+| DiffChain | `workspace.db` | `diff_chain_recaps` |
+
+See [`memory-architecture.md`](./memory-architecture.md) for complete documentation.
+
+---
 
 ## Testing Strategy
 
