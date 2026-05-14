@@ -16,6 +16,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import DOMPurify from "dompurify";
 import { FileText, ChevronRight, ChevronLeft, AlertTriangle } from "lucide-react";
 import "./DocumentViewer.css";
 
@@ -140,7 +141,14 @@ function PdfViewer({ filePath, base64Data }: DocumentViewerProps) {
 
 interface EpubChapter {
   title: string;
+  /**
+   * Either DOMPurify-sanitized HTML (real EPUB extracted chapters) or a plain
+   * text body (placeholder/fallback rows). `isPlaceholder=true` switches the
+   * renderer from `dangerouslySetInnerHTML` to pure React JSX so the value can
+   * include user-controlled filenames without an XSS risk.
+   */
   content: string;
+  isPlaceholder?: boolean;
 }
 
 function EpubViewer({ filePath, base64Data }: DocumentViewerProps) {
@@ -180,18 +188,13 @@ function EpubViewer({ filePath, base64Data }: DocumentViewerProps) {
         if (extractedChapters.length > 0) {
           setChapters(extractedChapters);
         } else {
-          // Fallback: show raw content info
+          // Fallback: structured placeholder rendered with React JSX (no HTML
+          // injection — fileName is user-controlled and would otherwise need
+          // escaping before interpolation).
           setChapters([{
             title: fileName,
-            content: `<div class="epub-info">
-              <h2>${fileName}</h2>
-              <p>EPUB file loaded (${formatSize(bytes.length)})</p>
-              <p>To view this EPUB with full formatting, open it in a dedicated
-              e-book reader application.</p>
-              <hr/>
-              <p style="opacity:0.7">EPUB is a ZIP archive containing XHTML chapters,
-              stylesheets, and media. The content has been loaded successfully.</p>
-            </div>`
+            content: `EPUB file loaded (${formatSize(bytes.length)}). To view this EPUB with full formatting, open it in a dedicated e-book reader application.`,
+            isPlaceholder: true,
           }]);
         }
         setLoading(false);
@@ -311,10 +314,26 @@ function EpubViewer({ filePath, base64Data }: DocumentViewerProps) {
           {chapter && (
             <>
               <div className="epub-chapter-title">{chapter.title}</div>
-              <div
-                className="epub-chapter-body"
-                dangerouslySetInnerHTML={{ __html: chapter.content }}
-              />
+              {chapter.isPlaceholder ? (
+                <div className="epub-chapter-body epub-info">
+                  <p>{chapter.content}</p>
+                  <hr />
+                  <p style={{ opacity: 0.7 }}>
+                    EPUB is a ZIP archive containing XHTML chapters, stylesheets, and media. The content has been loaded successfully.
+                  </p>
+                </div>
+              ) : (
+                // Defense-in-depth: chapter.content was already sanitized at
+                // extract time, but we re-run sanitizeEpubHtml() here so the
+                // safety argument is co-located with the DOM sink and the
+                // semgrep `dom-sink-needs-sanitizer` rule (.semgrep/dom-sinks.yml)
+                // sees the call syntactically. DOMPurify is idempotent on its
+                // own output, so the cost is negligible.
+                <div
+                  className="epub-chapter-body"
+                  dangerouslySetInnerHTML={{ __html: sanitizeEpubHtml(chapter.content) }}
+                />
+              )}
             </>
           )}
         </div>
@@ -582,16 +601,63 @@ function stripHtmlTags(html: string): string {
   return html.replace(/<[^>]*>/g, "").replace(/&[^;]+;/g, " ").trim();
 }
 
-/** Sanitize EPUB HTML for safe rendering */
+// DOMPurify configuration for EPUB chapter HTML.
+//
+// EPUB content is T5 (attacker-controlled) per docs/security/threat-model.md —
+// the user opened a file off disk that originated elsewhere on the internet.
+// The earlier ad-hoc regex sanitizer missed common bypasses (javascript: URLs,
+// <iframe>/<object>/<embed>/<base>/<meta http-equiv=refresh>, unquoted on*
+// handlers, style imports), so route everything through DOMPurify with an
+// explicit allow-list of presentational tags + attributes.
+//
+// FORBID rather than relying on the default deny: tags we explicitly know are
+// dangerous (script/iframe/object/embed/link/meta/base/form/input/button)
+// stay banned even if a future EPUB extension legitimizes them.
+const EPUB_SANITIZE_CONFIG = {
+  ALLOWED_TAGS: [
+    "a", "abbr", "address", "article", "aside",
+    "b", "blockquote", "br",
+    "caption", "cite", "code", "col", "colgroup",
+    "dd", "details", "dfn", "div", "dl", "dt",
+    "em",
+    "figcaption", "figure", "footer",
+    "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr",
+    "i", "img",
+    "kbd",
+    "li",
+    "main", "mark",
+    "nav",
+    "ol",
+    "p", "pre",
+    "q",
+    "s", "samp", "section", "small", "span", "strong", "sub", "summary", "sup",
+    "table", "tbody", "td", "tfoot", "th", "thead", "time", "tr",
+    "u", "ul",
+    "var",
+    // Inline SVG common for typographic ornaments
+    "svg", "g", "path", "circle", "rect", "line", "polyline", "polygon", "text", "tspan", "title", "desc",
+  ],
+  ALLOWED_ATTR: [
+    "alt", "class", "colspan", "datetime", "dir", "id", "lang", "rowspan", "src", "title",
+    // SVG-specific
+    "cx", "cy", "d", "fill", "height", "points", "r", "rx", "ry", "stroke", "transform", "viewBox", "width", "x", "x1", "x2", "y", "y1", "y2",
+  ],
+  // Belt-and-suspenders against the bypasses the prior regex missed.
+  FORBID_TAGS: ["script", "iframe", "object", "embed", "link", "meta", "base", "form", "input", "button", "textarea", "select", "option", "style"],
+  FORBID_ATTR: ["style", "srcset", "formaction", "action"],
+  // Strip href="javascript:…" / src="javascript:…" / data: URIs (DOMPurify
+  // does this by default for href/xlink:href, but make it explicit).
+  ALLOW_DATA_ATTR: false,
+  // Disallow <a target="_blank"> from popping a new context window etc. —
+  // EPUB renders inline; we don't need rich link semantics.
+  ADD_ATTR: [],
+  // Remove on*= handlers entirely (default, but explicit).
+  USE_PROFILES: { html: true },
+};
+
+/** Sanitize EPUB HTML for safe rendering (DREAD #10). */
 function sanitizeEpubHtml(html: string): string {
-  // Remove script tags
-  let clean = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "");
-  // Remove on* event handlers
-  clean = clean.replace(/\s+on\w+="[^"]*"/gi, "");
-  clean = clean.replace(/\s+on\w+='[^']*'/gi, "");
-  // Remove style tags (we apply our own styling)
-  // clean = clean.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "");
-  return clean;
+  return DOMPurify.sanitize(html, EPUB_SANITIZE_CONFIG);
 }
 
 /** Format byte size */

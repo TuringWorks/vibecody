@@ -1,0 +1,73 @@
+# VibeCody — DOM injection SAST rules.
+#
+# Blocks DREAD #10: WebView XSS via dangerouslySetInnerHTML / Element.innerHTML.
+#
+# Why this is severe in VibeCody: the Tauri command surface is flat — any
+# JavaScript running in the WebView can invoke any of the 1,045+ registered
+# Tauri commands (write_file, run_command, profile-store reads, …) without
+# additional auth. A single LLM-rendered markdown injection that lands in a
+# `dangerouslySetInnerHTML` is therefore a pivot to full host-FS read/write.
+# See docs/security/threat-model.md §6 B2 and §7 item #10.
+#
+# Source-of-truth safe sinks:
+#   - `DOMPurify.sanitize(html, …)`           (the canonical sanitizer)
+#   - `sanitizeEpubHtml(html)`                (project wrapper around DOMPurify)
+#
+# If you need a new safe sink, name the function `sanitize*` and have it
+# return the output of `DOMPurify.sanitize(...)`.
+#
+# Escape hatch: add `// nosemgrep: dom-sink-needs-sanitizer` on the line above
+# the sink, with a comment explaining why the value is safe (e.g. test fixture,
+# build-time constant).
+
+rules:
+  - id: dom-sink-needs-sanitizer
+    languages: [typescript, javascript]
+    severity: ERROR
+    paths:
+      include:
+        - "vibeui/src/"
+        - "vibeapp/src/"
+        - "packages/agent-sdk/src/"
+      exclude:
+        - "**/__tests__/**"
+        - "**/*.test.ts"
+        - "**/*.test.tsx"
+    message: >-
+      `dangerouslySetInnerHTML` is a DREAD #10 pivot to the full 1,045-cmd
+      Tauri surface via WebView XSS. The `__html` value must be the output
+      of `DOMPurify.sanitize(...)` or a project sanitizer wrapper named
+      `sanitize*()`. If the value is already sanitized upstream, refactor
+      to inline the sanitize call at the JSX site OR add
+      `// nosemgrep: dom-sink-needs-sanitizer` with a written safety
+      argument (e.g. "only assigned from sanitizeEpubHtml() — see line N").
+    patterns:
+      - pattern: dangerouslySetInnerHTML={{ __html: $X }}
+      - pattern-not: dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(...) }}
+      - pattern-not: dangerouslySetInnerHTML={{ __html: $SANITIZER(...) }}
+      # Note: the second pattern-not captures any call expression. The rule
+      # name `sanitize*` is a convention — reviewers should verify the
+      # callee's body actually sanitizes.
+
+  - id: innerhtml-assignment-needs-sanitizer
+    languages: [typescript, javascript]
+    severity: ERROR
+    paths:
+      include:
+        - "vibeui/src/"
+        - "vibeapp/src/"
+        - "packages/agent-sdk/src/"
+      exclude:
+        - "**/__tests__/**"
+        - "**/*.test.ts"
+        - "**/*.test.tsx"
+    message: >-
+      `Element.innerHTML = x` and `Element.outerHTML = x` are DREAD #10
+      sinks. Either set `.textContent` (escaped) or assign the result of
+      `DOMPurify.sanitize(x, …)`.
+    patterns:
+      - pattern-either:
+          - pattern: $EL.innerHTML = $X
+          - pattern: $EL.outerHTML = $X
+      - pattern-not: $EL.innerHTML = DOMPurify.sanitize(...)
+      - pattern-not: $EL.outerHTML = DOMPurify.sanitize(...)
