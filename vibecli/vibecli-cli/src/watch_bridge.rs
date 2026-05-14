@@ -150,9 +150,8 @@ fn extract_any_auth(
 ) -> Result<String, (StatusCode, Json<serde_json::Value>)> {
     let hdr = headers
         .get("Authorization")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
-    if hdr == format!("Bearer {}", state.api_token) {
+        .and_then(|v| v.to_str().ok());
+    if crate::auth_util::bearer_matches(hdr, &state.api_token) {
         return Ok("bearer".to_string());
     }
     extract_watch_auth(state, headers)
@@ -284,9 +283,8 @@ async fn watch_wrist_event(
         Err(_) => {
             let bearer = headers
                 .get("Authorization")
-                .and_then(|v| v.to_str().ok())
-                .unwrap_or("");
-            if bearer != format!("Bearer {}", state.api_token) {
+                .and_then(|v| v.to_str().ok());
+            if !crate::auth_util::bearer_matches(bearer, &state.api_token) {
                 return (StatusCode::UNAUTHORIZED,
                     Json(serde_json::json!({"error": "Auth required"})));
             }
@@ -721,9 +719,10 @@ async fn watch_get_active_session(
 ) -> impl IntoResponse {
     // Allow both Watch-Token and Bearer auth so VibeUI can poll this too
     let authed = extract_watch_auth(&state, &headers).is_ok()
-        || headers.get("Authorization")
-               .and_then(|v| v.to_str().ok())
-               .is_some_and(|v| v == format!("Bearer {}", state.api_token));
+        || crate::auth_util::bearer_matches(
+            headers.get("Authorization").and_then(|v| v.to_str().ok()),
+            &state.api_token,
+        );
     if !authed {
         return (StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({"error": "Auth required"}))).into_response();
@@ -754,11 +753,27 @@ async fn watch_set_active_session(
 }
 
 /// GET /watch/events — SSE stream of real-time session events.
+///
 /// VibeUI Tauri backend subscribes here so it gets instant push when Watch
-/// sends a message or changes session. No auth required (daemon-local use).
+/// sends a message or changes session. Auth: Bearer only — the daemon-local
+/// caller is VibeUI, and on a `--host 0.0.0.0` deployment an unauthed SSE
+/// stream would let any LAN peer subscribe to real-time session activity
+/// (DREAD #9 in docs/security/threat-model.md).
 async fn watch_session_events_sse(
     State(state): State<WatchBridgeState>,
+    headers: axum::http::HeaderMap,
 ) -> impl IntoResponse {
+    let bearer = headers
+        .get("Authorization")
+        .and_then(|v| v.to_str().ok());
+    if !crate::auth_util::bearer_matches(bearer, &state.api_token) {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "Bearer token required"})),
+        )
+            .into_response();
+    }
+
     use std::convert::Infallible;
     let rx = state.session_events.subscribe();
     let stream = tokio_stream::wrappers::BroadcastStream::new(rx)
@@ -789,9 +804,10 @@ async fn watch_get_sandbox_chat_session(
     headers: axum::http::HeaderMap,
 ) -> impl IntoResponse {
     let authed = extract_watch_auth(&state, &headers).is_ok()
-        || headers.get("Authorization")
-               .and_then(|v| v.to_str().ok())
-               .is_some_and(|v| v == format!("Bearer {}", state.api_token));
+        || crate::auth_util::bearer_matches(
+            headers.get("Authorization").and_then(|v| v.to_str().ok()),
+            &state.api_token,
+        );
     if !authed {
         return (StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({"error": "Auth required"}))).into_response();
@@ -813,14 +829,13 @@ async fn watch_set_sandbox_chat_session(
 ) -> impl IntoResponse {
     let bearer = headers
         .get("Authorization")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
-    // Accept both Bearer (VibeUI) and Watch-Token (Watch UI) so either surface can set it
-    let authed = bearer == format!("Bearer {}", state.api_token)
-        || extract_watch_auth(&state, &headers).is_ok();
-    if !authed {
+        .and_then(|v| v.to_str().ok());
+    // Bearer only — the doc-comment above declares this is "VibeUI sets, Watch
+    // reads." Watch should not be able to redirect VibeUI's sandbox session
+    // pointer (DREAD #9 in docs/security/threat-model.md).
+    if !crate::auth_util::bearer_matches(bearer, &state.api_token) {
         return (StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({"error": "Auth required"}))).into_response();
+            Json(serde_json::json!({"error": "Bearer token required"}))).into_response();
     }
     *state.sandbox_chat_session.lock().unwrap_or_else(|e| e.into_inner()) = req.session_id.clone();
     let _ = state.session_events.send(serde_json::json!({
@@ -837,9 +852,8 @@ async fn watch_list_devices(
 ) -> impl IntoResponse {
     let bearer = headers
         .get("Authorization")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
-    if bearer != format!("Bearer {}", state.api_token) {
+        .and_then(|v| v.to_str().ok());
+    if !crate::auth_util::bearer_matches(bearer, &state.api_token) {
         return (StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({"error": "Bearer token required"}))).into_response();
     }
@@ -870,9 +884,8 @@ async fn watch_revoke_device(
 ) -> impl IntoResponse {
     let bearer = headers
         .get("Authorization")
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
-    if bearer != format!("Bearer {}", state.api_token) {
+        .and_then(|v| v.to_str().ok());
+    if !crate::auth_util::bearer_matches(bearer, &state.api_token) {
         return (StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({"error": "Bearer token required"}))).into_response();
     }
