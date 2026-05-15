@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/handoff_banner.dart';
+import '../widgets/tainted_confirmation_sheet.dart';
 import 'machines_screen.dart';
 import 'watch_chat_screen.dart';
 import 'sandbox_chat_screen.dart';
@@ -34,9 +35,18 @@ class _HomeScreenState extends State<HomeScreen> {
     final c = context.vibeColors;
 
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
+      body: Stack(
+        children: [
+          IndexedStack(
+            index: _currentIndex,
+            children: _screens,
+          ),
+          // DREAD #1 Slice G part 3 — tainted-argument confirmation
+          // sheet overlays the active tab when the daemon enqueues a
+          // pending prompt. The widget returns SizedBox.shrink when
+          // idle, so this is zero-cost while no prompt is pending.
+          const TaintedConfirmationSheet(),
+        ],
       ),
       bottomNavigationBar: Column(
         mainAxisSize: MainAxisSize.min,

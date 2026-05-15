@@ -232,7 +232,7 @@ Wire the confirmation UI in VibeUI, CLI REPL, and mobile. ~1 week (the design is
 
 | Platform | Renderer | Auth | Notes |
 |---|---|---|---|
-| VibeMobile (Flutter) | `TaintedConfirmationSheet` modal sheet on `MainScreen` | existing pairing bearer in `ApiClient` | Mobile clients race transports (mDNS → Tailscale → ngrok); SSE rides whichever is connected. |
+| VibeMobile (Flutter) | `TaintedConfirmationSheet` modal sheet on `HomeScreen` (shipped 2026-05-15) | existing pairing bearer in `ApiClient` | Mobile clients race transports (mDNS → Tailscale → ngrok); SSE rides whichever is connected. `TaintedService` (ChangeNotifierProxyProvider2 in `main.dart`) follows `AuthService.machines.first`; exponential backoff reconnect (1s → 30s). 14 unit tests across `TaintedPrompt`/`TaintedService` (model parsing, FIFO ordering, de-dup, fail-safe-deny on POST failure, idempotent re-emit). |
 | VibeCodyWatch (SwiftUI) | Glanceable notification → tap-to-confirm | watch's P-256 signed nonce, same as `WatchNetworkManager` | Watch's small screen renders only `sink` + first ~80 chars of `summary`; full summary on tap. |
 | VibeCodyWear (Compose) | Tile + confirmation activity | watch's P-256 signed nonce | Mirrors watchOS UX. |
 

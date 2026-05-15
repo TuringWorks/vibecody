@@ -460,6 +460,90 @@ class ApiClient {
     }
   }
 
+  // ── DREAD #1 Slice G part 3 — tainted-argument confirmation bridge ──
+  //
+  // Same daemon endpoints as the VibeUI WebView modal. Mobile renders
+  // through `TaintedConfirmationSheet`; the underlying tainted bytes
+  // never leave the daemon — only `audit_summary` (kind / origin /
+  // audit_id) crosses the wire. See
+  // `docs/security/tainted-data-flow.md` §9 part 3.
+
+  /// Subscribe to `GET /v1/tainted/pending` (SSE) and yield each
+  /// `PendingPromptEvent` JSON map as the daemon emits it.
+  ///
+  /// Daemon-side de-dupes by request_id when the same prompt appears
+  /// in both the initial snapshot and a subsequent notification; the
+  /// caller is responsible for filtering by `request_id` if they
+  /// surface every event.
+  Stream<Map<String, dynamic>> taintedPendingStream(
+    String baseUrl,
+    String token,
+  ) async* {
+    final request = http.Request(
+      'GET',
+      Uri.parse(_url(baseUrl, '/v1/tainted/pending')),
+    );
+    request.headers.addAll(_headers(token));
+
+    final response = await _client.send(request);
+    if (response.statusCode != 200) {
+      throw ApiException(response.statusCode, 'pending stream rejected');
+    }
+
+    // Standard SSE framing: blank-line-separated records, each made
+    // of `field: value` lines. We forward only `data:` payloads that
+    // belong to the `pending` event type.
+    String? currentEvent;
+    final dataBuffer = StringBuffer();
+    await for (final chunk in response.stream
+        .transform(utf8.decoder)
+        .transform(const LineSplitter())) {
+      if (chunk.isEmpty) {
+        if (currentEvent == 'pending' && dataBuffer.isNotEmpty) {
+          try {
+            yield jsonDecode(dataBuffer.toString());
+          } catch (_) {
+            // Malformed event — skip; daemon owns the schema.
+          }
+        }
+        currentEvent = null;
+        dataBuffer.clear();
+        continue;
+      }
+      if (chunk.startsWith('event: ')) {
+        currentEvent = chunk.substring(7).trim();
+      } else if (chunk.startsWith('data: ')) {
+        if (dataBuffer.isNotEmpty) dataBuffer.write('\n');
+        dataBuffer.write(chunk.substring(6));
+      }
+      // `id:` / `retry:` / `:comment` lines ignored — daemon does not
+      // currently emit them on this stream.
+    }
+  }
+
+  /// Resolve a pending tainted-argument prompt. Returns `true` when
+  /// the daemon successfully matched and resolved the `request_id`;
+  /// `false` when the id is unknown or already-resolved (the daemon
+  /// will time the prompt out on its end either way — fail-safe deny).
+  Future<bool> taintedRespond(
+    String baseUrl,
+    String token,
+    String requestId,
+    bool approve,
+  ) async {
+    final resp = await _client.post(
+      Uri.parse(_url(baseUrl, '/v1/tainted/respond')),
+      headers: _headers(token),
+      body: jsonEncode({'request_id': requestId, 'approve': approve}),
+    );
+    if (resp.statusCode == 200) {
+      final data = jsonDecode(resp.body);
+      return data['resolved'] == true;
+    }
+    if (resp.statusCode == 404) return false;
+    throw ApiException(resp.statusCode, resp.body);
+  }
+
   void dispose() {
     _client.close();
   }
