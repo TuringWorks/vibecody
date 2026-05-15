@@ -55,3 +55,4 @@ docs/Gemfile.lock
 /jetbrains-plugin/bin
 *.class
 /vibewatch/VibeCodyWear/.gradle
+/.obsidian
