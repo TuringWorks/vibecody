@@ -462,31 +462,12 @@ pub async fn assemble_context(
 /// — without skipping canonicalization (which is what `..` and symlink
 /// confusion attacks rely on).
 fn canonicalize_lenient(path: &Path) -> Result<PathBuf, std::io::Error> {
-    if let Ok(canonical) = path.canonicalize() {
-        return Ok(canonical);
-    }
-    let mut existing = path.to_path_buf();
-    let mut tail: Vec<std::ffi::OsString> = Vec::new();
-    while !existing.exists() {
-        let Some(file_name) = existing.file_name().map(|n| n.to_os_string()) else {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "path has no existing ancestor",
-            ));
-        };
-        tail.push(file_name);
-        if !existing.pop() {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                "walked past filesystem root without finding an existing ancestor",
-            ));
-        }
-    }
-    let mut result = existing.canonicalize()?;
-    for segment in tail.into_iter().rev() {
-        result.push(segment);
-    }
-    Ok(result)
+    // Canonical implementation lives in `vibe_core::path_guard`. This
+    // local wrapper keeps the `safe_resolve_path` call-site name stable
+    // while ensuring the canonicalize / leniency semantics never drift
+    // between the workspace-bounded check (here) and the deny-list
+    // check (`reject_sensitive_path` → also vibe-core).
+    vibe_core::path_guard::canonicalize_lenient(path)
 }
 
 /// Resolve `path` against the workspace folders and assert it stays inside
