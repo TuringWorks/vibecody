@@ -142,6 +142,23 @@ impl SbProfile {
     }
 }
 
+/// Directory names whose contents are the daemon's secret state — never safe
+/// to expose to a sandboxed process. Matches the Linux backend's deny-list
+/// (see `linux.rs::DENIED_SEGMENTS`) plus `.ssh`, `.aws`, `.gnupg` which
+/// cover the macOS-relevant credential stores. See
+/// `docs/security/threat-model.md` §7 item #11.
+const DENIED_SEGMENTS: &[&str] = &[
+    ".vibecli", ".vibeui", ".claude",
+    ".ssh", ".aws", ".gnupg",
+];
+
+/// Specific filenames that name credential blobs, regardless of parent dir.
+const DENIED_FILENAMES: &[&str] = &[
+    "daemon.token", "profile_settings.db", "workspace.db",
+    "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519",
+    "credentials",
+];
+
 fn validate_subpath(p: &Path) -> Result<()> {
     if p.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
         return Err(SandboxError::Setup(format!(
@@ -154,6 +171,37 @@ fn validate_subpath(p: &Path) -> Result<()> {
             "sandbox subpath must be absolute: {}",
             p.display()
         )));
+    }
+    // Reject paths that descend through a VibeCody secret-state directory.
+    // Segment-match (case-insensitive — APFS is case-insensitive by
+    // default), not prefix-match: `foo/.vibecli-docs/bar` stays legal;
+    // `~/work/.vibecli/jobs.db` is denied.
+    for c in p.components() {
+        if let std::path::Component::Normal(seg) = c {
+            if let Some(seg) = seg.to_str() {
+                for denied in DENIED_SEGMENTS {
+                    if seg.eq_ignore_ascii_case(denied) {
+                        return Err(SandboxError::Setup(format!(
+                            "refuses to bind a VibeCody secret-state directory into the sandbox: {} \
+                             (contains a '{denied}' segment — would expose the daemon's keychain to \
+                             sandboxed code)",
+                            p.display()
+                        )));
+                    }
+                }
+            }
+        }
+    }
+    if let Some(name) = p.file_name().and_then(|s| s.to_str()) {
+        for denied in DENIED_FILENAMES {
+            if name.eq_ignore_ascii_case(denied) {
+                return Err(SandboxError::Setup(format!(
+                    "refuses to bind a VibeCody credential file into the sandbox: {} \
+                     (file name '{denied}' is a known credential blob)",
+                    p.display()
+                )));
+            }
+        }
     }
     Ok(())
 }

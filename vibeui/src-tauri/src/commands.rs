@@ -10887,7 +10887,17 @@ pub struct QueryResult {
 /// Find SQLite database files in the workspace.
 #[tauri::command]
 pub async fn find_sqlite_files(workspace_path: String) -> Vec<String> {
-    walkdir::WalkDir::new(&workspace_path)
+    // DREAD #2 — `workspace_path` is WebView-controlled. Without the
+    // deny-list, an attacker passing `~/.vibecli` would get back
+    // `profile_settings.db` + `workspace.db` paths — directly feeding
+    // the next read primitive. Return an empty list (not an error)
+    // because the caller expects a `Vec<String>` signature; a denied
+    // scan looks the same as "no databases found".
+    let root = match reject_sensitive_path(&workspace_path) {
+        Ok(p) => p,
+        Err(_) => return Vec::new(),
+    };
+    walkdir::WalkDir::new(&root)
         .max_depth(3)
         .into_iter()
         .filter_map(|e| e.ok())
@@ -12324,19 +12334,30 @@ pub async fn get_github_sync_status(workspace_path: String) -> Result<GitHubSync
 
 #[tauri::command]
 pub async fn github_sync_push(workspace_path: String, commit_message: String) -> Result<(), String> {
+    // DREAD #2 category-3 — `workspace_path` is WebView-controlled and
+    // fed to `git -C`. Without validation, `git add -A` on `~/.vibecli`
+    // would stage `profile_settings.db`, and the subsequent `push`
+    // would exfiltrate it to whatever remote that directory was
+    // configured with. The deny-list refuses credential-store paths
+    // categorically.
+    let repo = reject_sensitive_path(&workspace_path)?;
+    let repo_str = repo
+        .to_str()
+        .ok_or_else(|| "workspace path is not valid UTF-8".to_string())?;
+
     // git add -A && git commit -m ... && git push
     let status = std::process::Command::new("git")
-        .args(["-C", &workspace_path, "add", "-A"])
+        .args(["-C", repo_str, "add", "-A"])
         .status().map_err(|e| e.to_string())?;
     if !status.success() { return Err("git add failed".to_string()); }
 
     let status = std::process::Command::new("git")
-        .args(["-C", &workspace_path, "commit", "-m", &commit_message])
+        .args(["-C", repo_str, "commit", "-m", &commit_message])
         .status().map_err(|e| e.to_string())?;
     if !status.success() { return Err("git commit failed (nothing to commit?)".to_string()); }
 
     let out = std::process::Command::new("git")
-        .args(["-C", &workspace_path, "push"])
+        .args(["-C", repo_str, "push"])
         .output().map_err(|e| e.to_string())?;
     if !out.status.success() {
         return Err(String::from_utf8_lossy(&out.stderr).to_string());
@@ -12346,8 +12367,13 @@ pub async fn github_sync_push(workspace_path: String, commit_message: String) ->
 
 #[tauri::command]
 pub async fn github_sync_pull(workspace_path: String) -> Result<(), String> {
+    // DREAD #2 — see github_sync_push for the deny-list rationale.
+    let repo = reject_sensitive_path(&workspace_path)?;
+    let repo_str = repo
+        .to_str()
+        .ok_or_else(|| "workspace path is not valid UTF-8".to_string())?;
     let out = std::process::Command::new("git")
-        .args(["-C", &workspace_path, "pull", "--ff-only"])
+        .args(["-C", repo_str, "pull", "--ff-only"])
         .output().map_err(|e| e.to_string())?;
     if !out.status.success() {
         return Err(String::from_utf8_lossy(&out.stderr).to_string());
@@ -22439,6 +22465,23 @@ pub async fn list_installed_plugins() -> Result<Vec<String>, String> {
 
 #[tauri::command]
 pub async fn install_marketplace_plugin(name: String, repo_url: String) -> Result<String, String> {
+    // DREAD #2 — `name` is WebView-controlled and becomes a directory
+    // segment under `~/.vibecli/plugins/`. Without validation,
+    // `name = "../../../etc/cron.d/evil"` would write under `/etc/cron.d/`.
+    // Restrict to a conservative plugin-name shape: alphanumerics,
+    // hyphen, underscore, dot — and explicitly reject leading-dot
+    // (would resolve to a hidden dir) and `..` (parent traversal).
+    if name.is_empty()
+        || name.len() > 64
+        || name.starts_with('.')
+        || name == ".."
+        || !name.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
+    {
+        return Err(format!(
+            "Invalid plugin name '{name}': must be 1-64 ASCII alphanumeric / `-` / `_` / `.` characters and must not start with `.`"
+        ));
+    }
+
     // Install by cloning the git repo into ~/.vibecli/plugins/<name>
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
     let plugins_dir = std::path::PathBuf::from(home).join(".vibecli").join("plugins");
@@ -22855,24 +22898,47 @@ pub async fn get_local_edit_config() -> Result<Option<LocalEditConfig>, String> 
 /// Take a screenshot using platform-native tools and return its path + timestamp.
 #[tauri::command]
 pub async fn take_screenshot(output_dir: String) -> Result<serde_json::Value, String> {
-    let dir = std::path::PathBuf::from(&output_dir);
+    // DREAD #2 — `output_dir` is WebView-controlled. Route through the
+    // deny-list so an attacker can't pick `~/.vibecli` / `~/.ssh` /
+    // `~/.aws` as the output directory (would let the screenshot tool
+    // overwrite credential files via a crafted filename collision, and
+    // historically the result was passed into a shell command for
+    // interpolation — see the prior `sh -c "screencapture -x {path}"`
+    // shape that's now removed).
+    let dir = reject_sensitive_path(&output_dir)?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let ts = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
     let path = dir.join(format!("screenshot-{ts}.png"));
-    let cmd = if cfg!(target_os = "macos") {
-        format!("screencapture -x {}", path.display())
+    let path_str = path.to_str().ok_or_else(|| {
+        "screenshot output path is not valid UTF-8".to_string()
+    })?;
+
+    // DREAD #2 category-3 — pass the path as a separate argv entry to
+    // avoid `sh -c "<tool> {path}"` interpolation. The previous
+    // `format!("scrot {}", path)` shape was a shell-injection vector if
+    // `output_dir` contained shell metacharacters; switching to direct
+    // argv invocation eliminates that.
+    let output = if cfg!(target_os = "macos") {
+        std::process::Command::new("screencapture")
+            .args(["-x", path_str])
+            .output()
     } else if cfg!(target_os = "linux") {
-        format!("scrot {}", path.display())
+        std::process::Command::new("scrot")
+            .arg(path_str)
+            .output()
     } else {
-        "powershell -command \"Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Screen]::PrimaryScreen\"".to_string()
-    };
-    let output = std::process::Command::new("sh")
-        .args(["-c", &cmd])
-        .output()
-        .map_err(|e| format!("Screenshot failed: {e}"))?;
+        // Windows is not yet wired with a real screenshot path; preserve
+        // the prior placeholder behavior but without any `output_dir`
+        // interpolation.
+        std::process::Command::new("powershell")
+            .args(["-NoProfile", "-Command", "Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Screen]::PrimaryScreen"])
+            .output()
+    }
+    .map_err(|e| format!("Screenshot failed: {e}"))?;
+
     if !output.status.success() {
         return Err(format!(
             "Screenshot command failed: {}",
@@ -25062,7 +25128,7 @@ pub async fn soul_scan(workspace_path: String) -> Result<SoulSignals, String> {
     let workspace = if workspace_path.is_empty() {
         std::env::current_dir().map_err(|e| e.to_string())?
     } else {
-        std::path::PathBuf::from(&workspace_path)
+        reject_sensitive_path(&workspace_path)?
     };
 
     if !workspace.exists() {
@@ -25211,7 +25277,7 @@ pub async fn soul_generate(workspace_path: String, custom_context: String) -> Re
     let workspace = if workspace_path.is_empty() {
         std::env::current_dir().map_err(|e| e.to_string())?
     } else {
-        std::path::PathBuf::from(&workspace_path)
+        reject_sensitive_path(&workspace_path)?
     };
 
     // Check if already exists

@@ -248,65 +248,107 @@ fn resource_limits_round_trip_through_sandbox_limits() {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-//  CATEGORY 5: Credential-directory deny-list (GAP)
+//  CATEGORY 5: Credential-directory deny-list
 // ────────────────────────────────────────────────────────────────────────────
 //
-// Same asymmetry as the macOS harness. The Windows backend's
-// `validate_path` rejects `..` traversal but does not yet have the
-// `.vibecli` / `.vibeui` / `.claude` deny-list that Linux has. These
-// `#[ignore]`d tests encode the expected behavior so a future PR can
-// un-ignore them as part of closing the gap.
+// The Linux `DENIED_SEGMENTS` deny-list was ported to Windows on
+// 2026-05-14. The Windows deny-list also includes `Credentials` /
+// `Vault` (case-insensitive) so bindings under `%APPDATA%\Microsoft\…`
+// are rejected without needing a full `AppData\Roaming\Microsoft\…`
+// prefix match. These tests guard the same promise as the Linux
+// backend plus the Windows-specific credential-store extension.
 
 #[test]
-#[ignore = "documents the Windows↔Linux asymmetry — close in follow-up by porting the Linux DENIED_SEGMENTS deny-list"]
-fn windows_should_reject_user_vibecli_state_dir() {
+fn windows_rejects_user_vibecli_state_dir() {
     let mut sb = fresh();
-    let result = sb.bind_rw(
-        Path::new(r"C:\Users\alice\.vibecli"),
-        Path::new(r"C:\work"),
-    );
-    assert!(
-        result.is_err(),
-        "if this passes, the deny-list landed — un-ignore the test"
-    );
+    let err = sb
+        .bind_rw(
+            Path::new(r"C:\Users\alice\.vibecli"),
+            Path::new(r"C:\work"),
+        )
+        .unwrap_err();
+    assert!(format!("{err}").contains(".vibecli"));
 }
 
 #[test]
-#[ignore = "documents the Windows↔Linux asymmetry — close in follow-up"]
-fn windows_should_reject_workspace_vibecli_state_dir() {
+fn windows_rejects_workspace_vibecli_state_dir() {
     let mut sb = fresh();
-    let result = sb.bind_ro(
-        Path::new(r"C:\Users\alice\code\myrepo\.vibecli"),
-        Path::new(r"C:\repo\.vibecli"),
-    );
-    assert!(result.is_err());
+    let err = sb
+        .bind_ro(
+            Path::new(r"C:\Users\alice\code\myrepo\.vibecli"),
+            Path::new(r"C:\repo\.vibecli"),
+        )
+        .unwrap_err();
+    assert!(format!("{err}").contains(".vibecli"));
 }
 
 #[test]
-#[ignore = "documents the Windows↔Linux asymmetry — close in follow-up"]
-fn windows_should_reject_user_claude_state_dir() {
+fn windows_rejects_user_claude_state_dir() {
     let mut sb = fresh();
-    let result = sb.bind_rw(
-        Path::new(r"C:\Users\alice\.claude"),
-        Path::new(r"C:\work"),
-    );
-    assert!(result.is_err());
+    let err = sb
+        .bind_rw(
+            Path::new(r"C:\Users\alice\.claude"),
+            Path::new(r"C:\work"),
+        )
+        .unwrap_err();
+    assert!(format!("{err}").contains(".claude"));
 }
 
-/// Windows has its own credential surface beyond the Linux deny-list:
-/// `%APPDATA%\Microsoft\Credentials`, `%APPDATA%\Microsoft\Vault`,
-/// `%LOCALAPPDATA%\Microsoft\Credentials`. The eventual cross-platform
-/// deny-list should include these. Tracked as the Windows-specific
-/// extension to the shared deny-list.
+/// `%APPDATA%\Microsoft\Credentials` (the Windows Credential Manager
+/// backing store) and `Vault` (DPAPI-secured credential store) must
+/// be rejected. Matches via segment, not full prefix, so any
+/// subdirectory under one is also denied.
 #[test]
-#[ignore = "documents the Windows-specific credential-store deny-list — landing alongside the cross-platform port"]
-fn windows_should_reject_appdata_credentials_dir() {
+fn windows_rejects_appdata_credentials_dir() {
     let mut sb = fresh();
-    let result = sb.bind_rw(
-        Path::new(r"C:\Users\alice\AppData\Roaming\Microsoft\Credentials"),
-        Path::new(r"C:\creds"),
-    );
-    assert!(result.is_err());
+    let err = sb
+        .bind_rw(
+            Path::new(r"C:\Users\alice\AppData\Roaming\Microsoft\Credentials"),
+            Path::new(r"C:\creds"),
+        )
+        .unwrap_err();
+    assert!(format!("{err}").contains("Credentials"));
+}
+
+#[test]
+fn windows_rejects_appdata_vault_dir() {
+    let mut sb = fresh();
+    let err = sb
+        .bind_ro(
+            Path::new(r"C:\Users\alice\AppData\Roaming\Microsoft\Vault"),
+            Path::new(r"C:\vault"),
+        )
+        .unwrap_err();
+    assert!(format!("{err}").contains("Vault"));
+}
+
+/// Case-insensitive segment match — NTFS is case-insensitive by
+/// default. An attacker / typo shouldn't bypass via casing.
+#[test]
+fn windows_rejects_case_variant_of_vibecli_segment() {
+    let mut sb = fresh();
+    let err = sb
+        .bind_rw(
+            Path::new(r"C:\Users\alice\.VibeCli\profile_settings.db"),
+            Path::new(r"C:\work"),
+        )
+        .unwrap_err();
+    let s = format!("{err}");
+    assert!(s.contains(".vibecli") || s.contains("profile_settings.db"));
+}
+
+/// Filename-only match: even outside a deny-listed parent, the known
+/// credential filenames are rejected.
+#[test]
+fn windows_rejects_daemon_token_filename_anywhere() {
+    let mut sb = fresh();
+    let err = sb
+        .bind_rw(
+            Path::new(r"C:\tmp\exports\daemon.token"),
+            Path::new(r"C:\t"),
+        )
+        .unwrap_err();
+    assert!(format!("{err}").contains("daemon.token"));
 }
 
 // ────────────────────────────────────────────────────────────────────────────

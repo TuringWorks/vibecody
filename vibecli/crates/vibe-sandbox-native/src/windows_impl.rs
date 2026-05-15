@@ -121,12 +121,68 @@ impl Sandbox for WindowsSandbox {
     }
 }
 
+/// Directory names whose contents are the daemon's secret state — never safe
+/// to expose to a sandboxed process. Matches the Linux backend's deny-list
+/// (see `linux.rs::DENIED_SEGMENTS`) plus the Windows-specific credential
+/// stores under `AppData\Roaming\Microsoft\Credentials` / `Vault` and
+/// `AppData\Local\Microsoft\Credentials`. The match is segment-based and
+/// case-insensitive (NTFS is case-insensitive by default).
+///
+/// See `docs/security/threat-model.md` §7 item #11.
+const DENIED_SEGMENTS: &[&str] = &[
+    // Cross-platform VibeCody / Claude state.
+    ".vibecli", ".vibeui", ".claude",
+    // Unix-shaped credential dirs (some users keep `.ssh` / `.aws` on
+    // Windows under their home).
+    ".ssh", ".aws", ".gnupg",
+    // Windows credential-manager backing stores.
+    "Credentials", "Vault",
+];
+
+/// Specific filenames that name credential blobs, regardless of parent dir.
+const DENIED_FILENAMES: &[&str] = &[
+    "daemon.token", "profile_settings.db", "workspace.db",
+    "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519",
+    "credentials",
+];
+
 fn validate_path(p: &Path) -> Result<()> {
     if p.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
         return Err(SandboxError::Setup(format!(
             "path traversal not allowed in sandbox path: {}",
             p.display()
         )));
+    }
+    // Reject paths that descend through a VibeCody secret-state directory
+    // or a Windows credential-store directory. Case-insensitive on each
+    // segment — NTFS is case-insensitive and an attacker / typo shouldn't
+    // bypass the deny-list by casing alone.
+    for c in p.components() {
+        if let std::path::Component::Normal(seg) = c {
+            if let Some(seg) = seg.to_str() {
+                for denied in DENIED_SEGMENTS {
+                    if seg.eq_ignore_ascii_case(denied) {
+                        return Err(SandboxError::Setup(format!(
+                            "refuses to bind a VibeCody / Windows credential directory into the sandbox: {} \
+                             (contains a '{denied}' segment — would expose the daemon's keychain or the \
+                             user's Windows credential store to sandboxed code)",
+                            p.display()
+                        )));
+                    }
+                }
+            }
+        }
+    }
+    if let Some(name) = p.file_name().and_then(|s| s.to_str()) {
+        for denied in DENIED_FILENAMES {
+            if name.eq_ignore_ascii_case(denied) {
+                return Err(SandboxError::Setup(format!(
+                    "refuses to bind a VibeCody credential file into the sandbox: {} \
+                     (file name '{denied}' is a known credential blob)",
+                    p.display()
+                )));
+            }
+        }
     }
     Ok(())
 }

@@ -236,49 +236,81 @@ fn allow_outbound_socket_overwrites_prior_value() {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
-//  CATEGORY 4: Credential-directory deny-list (GAP)
+//  CATEGORY 4: Credential-directory deny-list
 // ────────────────────────────────────────────────────────────────────────────
 //
-// These tests document a known asymmetry vs the Linux backend. They
-// are `#[ignore]`d so they don't fail CI today, but they encode the
-// expected behavior so a future PR can `un-ignore` them as part of
-// closing the gap.
+// The Linux `DENIED_SEGMENTS` deny-list was ported to macOS on
+// 2026-05-14 — the tests below are now active. They guard the same
+// promise as the Linux backend: no bind path may descend through a
+// VibeCody secret-state directory (`.vibecli`, `.vibeui`, `.claude`)
+// or a user-credential directory (`.ssh`, `.aws`, `.gnupg`).
 
-/// macOS should reject binds whose `subpath` descends through
-/// `~/.vibecli/` — same as Linux. Currently passes (accepted).
 #[test]
-#[ignore = "documents the macOS↔Linux asymmetry — close in follow-up by porting the Linux DENIED_SEGMENTS deny-list"]
-fn macos_should_reject_user_vibecli_state_dir() {
+fn macos_rejects_user_vibecli_state_dir() {
     let mut p = fresh_profile();
-    let result = p.allow_rw_subpath(Path::new("/Users/alice/.vibecli"));
-    assert!(
-        result.is_err(),
-        "if this passes, the deny-list landed — un-ignore the test"
-    );
+    let err = p
+        .allow_rw_subpath(Path::new("/Users/alice/.vibecli"))
+        .unwrap_err();
+    assert!(format!("{err}").contains(".vibecli"));
 }
 
 #[test]
-#[ignore = "documents the macOS↔Linux asymmetry — close in follow-up"]
-fn macos_should_reject_workspace_vibecli_state_dir() {
+fn macos_rejects_workspace_vibecli_state_dir() {
     let mut p = fresh_profile();
-    let result = p.allow_ro_subpath(Path::new("/Users/alice/code/myrepo/.vibecli"));
-    assert!(result.is_err());
+    let err = p
+        .allow_ro_subpath(Path::new("/Users/alice/code/myrepo/.vibecli"))
+        .unwrap_err();
+    assert!(format!("{err}").contains(".vibecli"));
 }
 
 #[test]
-#[ignore = "documents the macOS↔Linux asymmetry — close in follow-up"]
-fn macos_should_reject_user_claude_state_dir() {
+fn macos_rejects_user_claude_state_dir() {
     let mut p = fresh_profile();
-    let result = p.allow_rw_subpath(Path::new("/Users/alice/.claude"));
-    assert!(result.is_err());
+    let err = p
+        .allow_rw_subpath(Path::new("/Users/alice/.claude"))
+        .unwrap_err();
+    assert!(format!("{err}").contains(".claude"));
 }
 
 #[test]
-#[ignore = "documents the macOS↔Linux asymmetry — close in follow-up"]
-fn macos_should_reject_user_ssh_dir() {
+fn macos_rejects_user_ssh_dir() {
     let mut p = fresh_profile();
-    let result = p.allow_ro_subpath(Path::new("/Users/alice/.ssh"));
-    assert!(result.is_err());
+    let err = p
+        .allow_ro_subpath(Path::new("/Users/alice/.ssh"))
+        .unwrap_err();
+    assert!(format!("{err}").contains(".ssh"));
+}
+
+/// Case-insensitive segment match — APFS is case-insensitive by
+/// default and an attacker shouldn't bypass via casing.
+#[test]
+fn macos_rejects_case_variant_of_vibecli_segment() {
+    let mut p = fresh_profile();
+    let err = p
+        .allow_rw_subpath(Path::new("/Users/alice/.VIBECLI/profile_settings.db"))
+        .unwrap_err();
+    let s = format!("{err}");
+    assert!(s.contains(".vibecli") || s.contains("profile_settings.db"));
+}
+
+/// Lookalike-name guard — `vibecli-docs` (no leading dot) is a
+/// legitimate project name and must remain bindable.
+#[test]
+fn macos_allows_vibecli_lookalike_directory_names() {
+    let mut p = fresh_profile();
+    p.allow_rw_subpath(Path::new("/Users/alice/code/.vibecli-docs"))
+        .expect("lookalike name without exact segment match must be allowed");
+}
+
+/// Filename-only match: even outside a deny-listed parent dir, the
+/// known credential filenames are rejected.
+#[test]
+fn macos_rejects_daemon_token_filename_anywhere() {
+    let mut p = fresh_profile();
+    let err = p
+        .allow_rw_subpath(Path::new("/tmp/exports/daemon.token"))
+        .unwrap_err();
+    assert!(format!("{err}").contains("daemon.token"));
 }
 
 // ────────────────────────────────────────────────────────────────────────────
