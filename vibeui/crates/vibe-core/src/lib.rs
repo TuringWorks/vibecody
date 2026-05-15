@@ -10,6 +10,7 @@ pub mod diff;
 pub mod executor;
 pub mod index;
 pub mod context;
+pub mod path_guard;
 
 pub use buffer::TextBuffer as Buffer;
 pub use file_system::FileSystem;

@@ -33,6 +33,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 use tracing::{info, warn};
 use vibe_core::index::embeddings::{EmbeddingIndex, EmbeddingProvider, SearchHit};
+use vibe_core::path_guard::reject_sensitive_path;
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -113,6 +114,19 @@ async fn start_index(
     State(state): State<Arc<AppState>>,
     Json(req): Json<IndexRequest>,
 ) -> impl IntoResponse {
+    // DREAD #2 — refuse to index credential directories. Without this
+    // gate, `POST /index` with `workspace = "/Users/x/.aws"` would walk
+    // every file under that path and ship the contents to the configured
+    // embedding model.
+    if let Err(e) = reject_sensitive_path(&req.workspace) {
+        warn!("rejected index request for sensitive workspace: {}", e);
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": e })),
+        )
+            .into_response();
+    }
+
     let job_id = uuid::Uuid::new_v4().to_string();
     let workspace = req.workspace.clone();
     let now = unix_ms();
@@ -186,6 +200,7 @@ async fn start_index(
         job_id,
         message: format!("Indexing started for workspace: {}", req.workspace),
     })
+    .into_response()
 }
 
 /// GET /index/status/:id — poll a job.
@@ -211,6 +226,19 @@ async fn search(
     State(state): State<Arc<AppState>>,
     Json(req): Json<SearchRequest>,
 ) -> impl IntoResponse {
+    // DREAD #2 — defense in depth. The `start_index` gate already
+    // means the workspace key won't be in the map for a credential
+    // dir, but re-checking here avoids leaking the index-existence
+    // signal in error messages and stops a future cache-poisoning
+    // bug from turning into a search-of-credentials primitive.
+    if let Err(e) = reject_sensitive_path(&req.workspace) {
+        warn!("rejected search request for sensitive workspace: {}", e);
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "error": e })),
+        );
+    }
+
     let indexes = state.indexes.read().await;
     let index = match indexes.get(&req.workspace) {
         Some(idx) => idx,

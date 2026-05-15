@@ -674,14 +674,16 @@ async fn call_tool(
 ) -> Result<Value> {
     let text: String = match name {
         "read_file" => {
-            let path = resolve(workspace_root, args["path"].as_str().unwrap_or(""));
+            let raw = args["path"].as_str().unwrap_or("");
+            let path = guard_mcp_path(workspace_root, raw)?;
             tokio::fs::read_to_string(&path)
                 .await
                 .map_err(|e| anyhow::anyhow!("read_file {}: {}", path.display(), e))?
         }
 
         "write_file" => {
-            let path = resolve(workspace_root, args["path"].as_str().unwrap_or(""));
+            let raw = args["path"].as_str().unwrap_or("");
+            let path = guard_mcp_path(workspace_root, raw)?;
             let content = args["content"].as_str().unwrap_or("");
             if let Some(parent) = path.parent() {
                 tokio::fs::create_dir_all(parent).await?;
@@ -694,7 +696,7 @@ async fn call_tool(
 
         "list_directory" => {
             let raw = args["path"].as_str().unwrap_or(".");
-            let path = resolve(workspace_root, raw);
+            let path = guard_mcp_path(workspace_root, raw)?;
             let mut rd = tokio::fs::read_dir(&path)
                 .await
                 .map_err(|e| anyhow::anyhow!("list_directory {}: {}", path.display(), e))?;
@@ -1336,6 +1338,28 @@ fn resolve(root: &Path, path: &str) -> PathBuf {
     } else {
         root.join(p)
     }
+}
+
+/// Path-traversal gate for MCP-tool-supplied paths (DREAD #2).
+///
+/// `resolve` happily accepts absolute paths verbatim — so a malicious
+/// or compromised MCP client calling `read_file` / `write_file` /
+/// `list_directory` with `path: "/Users/x/.aws/credentials"` would
+/// otherwise reach the filesystem unmodified. This thin wrapper
+/// resolves the MCP-supplied path against the workspace root and
+/// then delegates to [`vibe_core::path_guard::reject_sensitive_path`]
+/// — the canonical implementation lives in `vibe-core` so every
+/// surface (Tauri commands, daemon HTTP routes, vibe-indexer, and
+/// this MCP server) shares one deny-list.
+///
+/// Returns `Err(anyhow)` so the MCP tool dispatch surfaces a normal
+/// tool-call error (visible to the calling model, recorded in the
+/// audit log below).
+fn guard_mcp_path(root: &Path, raw: &str) -> Result<PathBuf> {
+    let resolved = resolve(root, raw);
+    let resolved_str = resolved.to_string_lossy();
+    vibe_core::path_guard::reject_sensitive_path(&resolved_str)
+        .map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 // ── Audit log ─────────────────────────────────────────────────────────────────

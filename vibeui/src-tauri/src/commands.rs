@@ -550,42 +550,10 @@ fn safe_resolve_path(workspace: &Workspace, path: &str) -> Result<PathBuf, Strin
 /// `safe_resolve_path` is `#[must_use]`.
 #[must_use = "use the returned PathBuf for the filesystem call — passing the original string defeats the deny-list check (see safe_resolve_path docstring)"]
 fn reject_sensitive_path(path: &str) -> Result<PathBuf, String> {
-    const DENIED_SEGMENTS: &[&str] = &[
-        ".vibecli", ".vibeui", ".claude",
-        ".ssh", ".aws", ".gnupg",
-    ];
-    const DENIED_FILENAMES: &[&str] = &[
-        "daemon.token", "profile_settings.db", "workspace.db",
-        // SSH + cloud + GPG private keys that a careless attach would otherwise
-        // leak verbatim into the next LLM turn.
-        "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519",
-        "credentials", "config.json",
-    ];
-    let p = PathBuf::from(path);
-    let canonical = canonicalize_lenient(&p).unwrap_or(p);
-
-    for component in canonical.components() {
-        if let std::path::Component::Normal(seg) = component {
-            let s = seg.to_string_lossy();
-            for denied in DENIED_SEGMENTS {
-                if s.eq_ignore_ascii_case(denied) {
-                    return Err(format!(
-                        "Access denied: '{path}' traverses sensitive directory '{denied}'"
-                    ));
-                }
-            }
-        }
-    }
-    if let Some(name) = canonical.file_name().and_then(|n| n.to_str()) {
-        for denied in DENIED_FILENAMES {
-            if name.eq_ignore_ascii_case(denied) {
-                return Err(format!(
-                    "Access denied: '{path}' targets sensitive file '{denied}'"
-                ));
-            }
-        }
-    }
-    Ok(canonical)
+    // Canonical implementation lives in `vibe_core::path_guard`. This
+    // wrapper exists so every Tauri call site (~60 of them) can keep
+    // calling `reject_sensitive_path(&path)` without a module change.
+    vibe_core::path_guard::reject_sensitive_path(path)
 }
 
 /// File operations
