@@ -158,6 +158,14 @@ pub struct ToolExecutor {
     /// to true once existing tool-executor tests have been audited for
     /// tainted-friendly assertions and Slice G's modal UI lands.
     pub tainted_strict: bool,
+    /// DREAD #1 Slice G part 1 — when true (and `tainted_strict` is also
+    /// true), the dispatcher routes tainted-argument confirmation through
+    /// `tainted_prompter::CliPrompter` instead of the slice-A/B
+    /// `InteractiveStub` rejection. The prompter writes to stderr and
+    /// reads from stdin; in a non-interactive context the prompter
+    /// fails on EOF and the gate denies. Default false — opt-in so
+    /// existing tests don't block on stdin.
+    pub use_cli_prompter: bool,
 }
 
 impl ToolExecutor {
@@ -173,6 +181,7 @@ impl ToolExecutor {
             parent_context: None,
             network_disabled: false,
             tainted_strict: false,
+            use_cli_prompter: false,
         }
     }
 
@@ -184,6 +193,16 @@ impl ToolExecutor {
     /// executes the command.
     pub fn with_tainted_strict(mut self, yes: bool) -> Self {
         self.tainted_strict = yes;
+        self
+    }
+
+    /// Opt into DREAD #1 Slice G part 1 — route tainted-argument
+    /// confirmation through a stdin/stderr `CliPrompter` instead of
+    /// rejecting with `RejectionReason::InteractiveStub`. Requires
+    /// `tainted_strict=true` to have any effect; warn-mode still
+    /// executes regardless of the prompter outcome.
+    pub fn with_cli_prompter(mut self, yes: bool) -> Self {
+        self.use_cli_prompter = yes;
         self
     }
 
@@ -397,13 +416,21 @@ impl ToolExecutor {
         };
         let tainted = Tainted::new(command.to_string(), origin);
 
-        // Run the gate. Slice A's `confirm_shell_command` always rejects
-        // (Headless / InteractiveStub) — Slice G replaces the
-        // Interactive branch with a real modal.
-        let gate = confirm_shell_command(&tainted, ConfirmMode::Interactive);
+        // Run the gate. Slice A/B path: confirm_shell_command always
+        // rejects (Headless / InteractiveStub). Slice G part 1 path:
+        // route through the CLI prompter for a real user decision.
+        let gate = if self.use_cli_prompter {
+            use crate::tainted::Reason;
+            use crate::tainted_prompter::{confirm_with_prompter, CliPrompter};
+            let mut prompter = CliPrompter::new_real();
+            confirm_with_prompter(&tainted, Reason::ToolCallArgument, &mut prompter)
+        } else {
+            confirm_shell_command(&tainted, ConfirmMode::Interactive)
+        };
         match (gate, self.tainted_strict) {
             (Ok(_confirmation), _) => {
-                // Approved (won't happen until Slice G; defensive arm).
+                // Approved by the prompter (Slice G) or — defensive arm —
+                // a future policy engine that decides without asking.
                 self.run_bash(command).await
             }
             (Err(reason), true) => {
@@ -458,7 +485,15 @@ impl ToolExecutor {
         };
         let tainted = Tainted::new(url.to_string(), origin);
 
-        let gate = confirm_http_outbound(&tainted, ConfirmMode::Interactive);
+        // Slice G part 1 — route through the CLI prompter when opted in.
+        let gate = if self.use_cli_prompter {
+            use crate::tainted::Reason;
+            use crate::tainted_prompter::{confirm_with_prompter, CliPrompter};
+            let mut prompter = CliPrompter::new_real();
+            confirm_with_prompter(&tainted, Reason::ToolCallArgument, &mut prompter)
+        } else {
+            confirm_http_outbound(&tainted, ConfirmMode::Interactive)
+        };
         match (gate, self.tainted_strict) {
             (Ok(_confirmation), _) => self.fetch_url(url).await,
             (Err(reason), true) => {
@@ -985,6 +1020,10 @@ impl ToolExecutor {
             // Child agents inherit the parent's tainted-strict setting so a
             // sub-agent can't elevate past the parent's gate (DREAD #1 Slice B/C).
             tainted_strict: self.tainted_strict,
+            // Slice G — child agents inherit the parent's prompter
+            // choice. A sub-agent should not silently downgrade to
+            // the stub gate.
+            use_cli_prompter: self.use_cli_prompter,
         });
 
         let mut agent = AgentLoop::new(provider, ApprovalPolicy::FullAuto, child_executor);
@@ -2112,6 +2151,33 @@ mod tests {
         assert!(on.tainted_strict);
         let off_again = on.with_tainted_strict(false);
         assert!(!off_again.tainted_strict);
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    // ── DREAD #1 Slice G part 1 — CLI-prompter builder + inheritance ─
+
+    #[tokio::test]
+    async fn with_cli_prompter_builder_toggles_field() {
+        let tmp = std::env::temp_dir().join(format!("vibe_prompter_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let off = ToolExecutor::new(tmp.clone(), false);
+        assert!(!off.use_cli_prompter);
+        let on = off.clone().with_cli_prompter(true);
+        assert!(on.use_cli_prompter);
+        let off_again = on.with_cli_prompter(false);
+        assert!(!off_again.use_cli_prompter);
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// Default `use_cli_prompter` is false — slice-A/B behavior
+    /// (InteractiveStub rejection) remains unchanged for existing
+    /// callers. This is the rollout-safety contract: opt-in only.
+    #[tokio::test]
+    async fn use_cli_prompter_default_is_false() {
+        let tmp = std::env::temp_dir().join(format!("vibe_prompter_default_{}", std::process::id()));
+        std::fs::create_dir_all(&tmp).unwrap();
+        let ex = ToolExecutor::new(tmp.clone(), false);
+        assert!(!ex.use_cli_prompter);
         let _ = std::fs::remove_dir_all(&tmp);
     }
 

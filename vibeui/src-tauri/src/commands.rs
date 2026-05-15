@@ -9645,6 +9645,7 @@ fn save_spec_file(workspace_path: &str, spec: &SpecDto) -> Result<(), String> {
 /// List all specs in the workspace `.vibecli/specs/` directory.
 #[tauri::command]
 pub async fn list_specs(workspace_path: String) -> Result<Vec<SpecDto>, String> {
+    let _ = reject_sensitive_path(&workspace_path)?;
     let dir = specs_dir(&workspace_path);
     if !dir.is_dir() {
         return Ok(vec![]);
@@ -9662,6 +9663,7 @@ pub async fn list_specs(workspace_path: String) -> Result<Vec<SpecDto>, String> 
 /// Get a single spec by name.
 #[tauri::command]
 pub async fn get_spec(workspace_path: String, name: String) -> Result<SpecDto, String> {
+    let _ = reject_sensitive_path(&workspace_path)?;
     let path = specs_dir(&workspace_path).join(format!("{}.md", name));
     parse_spec_file(&path).ok_or_else(|| format!("Spec '{}' not found", name))
 }
@@ -9990,6 +9992,7 @@ fn workflow_now_ts() -> String {
 /// List all workflows in the workspace.
 #[tauri::command]
 pub async fn list_workflows(workspace_path: String) -> Result<Vec<WorkflowDto>, String> {
+    let _ = reject_sensitive_path(&workspace_path)?;
     let dir = workflows_dir(&workspace_path);
     if !dir.is_dir() {
         return Ok(vec![]);
@@ -10007,6 +10010,7 @@ pub async fn list_workflows(workspace_path: String) -> Result<Vec<WorkflowDto>, 
 /// Get a single workflow by name.
 #[tauri::command]
 pub async fn get_workflow(workspace_path: String, name: String) -> Result<WorkflowDto, String> {
+    let _ = reject_sensitive_path(&workspace_path)?;
     let path = workflows_dir(&workspace_path).join(format!("{}.md", name));
     parse_workflow_file(&path).ok_or_else(|| format!("Workflow '{}' not found", name))
 }
@@ -11460,7 +11464,8 @@ pub async fn db_save_profile(
     profile: DbSavedProfile,
 ) -> Result<String, String> {
     use vibecli_cli::workspace_store::WorkspaceStore;
-    let store = WorkspaceStore::open(std::path::Path::new(&workspace_path))?;
+    let workspace = reject_sensitive_path(&workspace_path)?;
+    let store = WorkspaceStore::open(&workspace)?;
     let key = format!("db:profile:{}", profile.id);
     let value = serde_json::to_string(&profile).map_err(|e| e.to_string())?;
     store.setting_set(&key, &value)?;
@@ -11471,7 +11476,8 @@ pub async fn db_save_profile(
 #[tauri::command]
 pub async fn db_list_profiles(workspace_path: String) -> Result<Vec<DbSavedProfile>, String> {
     use vibecli_cli::workspace_store::WorkspaceStore;
-    let store = WorkspaceStore::open(std::path::Path::new(&workspace_path))?;
+    let workspace = reject_sensitive_path(&workspace_path)?;
+    let store = WorkspaceStore::open(&workspace)?;
     let entries = store.setting_list()?;
     let mut profiles = Vec::new();
     for entry in entries {
@@ -11493,8 +11499,9 @@ pub async fn db_list_profiles(workspace_path: String) -> Result<Vec<DbSavedProfi
 #[tauri::command]
 pub async fn db_delete_profile(workspace_path: String, profile_id: String) -> Result<(), String> {
     use vibecli_cli::workspace_store::WorkspaceStore;
+    let workspace = reject_sensitive_path(&workspace_path)?;
     let key = format!("db:profile:{}", profile_id);
-    WorkspaceStore::open(std::path::Path::new(&workspace_path))?.setting_delete(&key).map(|_| ())
+    WorkspaceStore::open(&workspace)?.setting_delete(&key).map(|_| ())
 }
 
 // ── Per-driver helper functions ──────────────────────────────────────────────
@@ -11982,7 +11989,11 @@ fn parse_pipe_result(text: &str) -> Result<QueryResult, String> {
 /// Find SQLite and DuckDB database files in the workspace.
 #[tauri::command]
 pub async fn db_find_local_files(workspace_path: String) -> Vec<serde_json::Value> {
-    walkdir::WalkDir::new(&workspace_path)
+    let root = match reject_sensitive_path(&workspace_path) {
+        Ok(p) => p,
+        Err(_) => return Vec::new(),
+    };
+    walkdir::WalkDir::new(&root)
         .max_depth(4)
         .into_iter()
         .filter_map(|e| e.ok())
@@ -12009,7 +12020,8 @@ pub struct SupabaseConfig {
 
 #[tauri::command]
 pub async fn get_supabase_config(workspace_path: String) -> Result<SupabaseConfig, String> {
-    let path = std::path::PathBuf::from(&workspace_path).join(".vibeui").join("supabase.json");
+    let workspace = reject_sensitive_path(&workspace_path)?;
+    let path = workspace.join(".vibeui").join("supabase.json");
     if path.exists() {
         let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
         serde_json::from_str(&text).map_err(|e| e.to_string())
@@ -12020,7 +12032,8 @@ pub async fn get_supabase_config(workspace_path: String) -> Result<SupabaseConfi
 
 #[tauri::command]
 pub async fn save_supabase_config(workspace_path: String, url: String, anon_key: String) -> Result<(), String> {
-    let dir = std::path::PathBuf::from(&workspace_path).join(".vibeui");
+    let workspace = reject_sensitive_path(&workspace_path)?;
+    let dir = workspace.join(".vibeui");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let cfg = SupabaseConfig { url, anon_key };
     let json = serde_json::to_string_pretty(&cfg).map_err(|e| e.to_string())?;
@@ -12275,12 +12288,14 @@ fn load_github_token(workspace_path: &str) -> Option<String> {
 
 #[tauri::command]
 pub async fn has_github_token(workspace_path: String) -> Result<bool, String> {
+    let _ = reject_sensitive_path(&workspace_path)?;
     Ok(load_github_token(&workspace_path).is_some())
 }
 
 #[tauri::command]
 pub async fn save_github_token(workspace_path: String, token: String) -> Result<(), String> {
-    let dir = std::path::PathBuf::from(&workspace_path).join(".vibeui");
+    let workspace = reject_sensitive_path(&workspace_path)?;
+    let dir = workspace.join(".vibeui");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     std::fs::write(dir.join("github_token"), token.trim()).map_err(|e| e.to_string())
 }
@@ -12288,7 +12303,7 @@ pub async fn save_github_token(workspace_path: String, token: String) -> Result<
 #[tauri::command]
 pub async fn get_github_sync_status(workspace_path: String) -> Result<GitHubSyncStatus, String> {
     use vibe_core::git;
-    let ws = std::path::PathBuf::from(&workspace_path);
+    let ws = reject_sensitive_path(&workspace_path)?;
     if !git::is_git_repo(&ws) {
         return Ok(GitHubSyncStatus { repo_url: None, branch: "main".to_string(), ahead: 0, behind: 0, has_remote: false, last_synced: None });
     }
@@ -12392,6 +12407,7 @@ pub struct RepoInfo {
 
 #[tauri::command]
 pub async fn list_github_repos(workspace_path: String) -> Result<Vec<RepoInfo>, String> {
+    let _ = reject_sensitive_path(&workspace_path)?;
     let token = load_github_token(&workspace_path)
         .ok_or("GITHUB_TOKEN not set")?;
     let client = reqwest::Client::new();
@@ -12424,6 +12440,7 @@ pub async fn github_create_repo(
     #[allow(non_snake_case)]
     private: bool,
 ) -> Result<String, String> {
+    let _ = reject_sensitive_path(&workspace_path)?;
     let token = load_github_token(&workspace_path)
         .ok_or("GITHUB_TOKEN not set")?;
     let client = reqwest::Client::new();
@@ -25297,7 +25314,7 @@ pub async fn soul_regenerate(workspace_path: String, custom_context: String) -> 
     let workspace = if workspace_path.is_empty() {
         std::env::current_dir().map_err(|e| e.to_string())?
     } else {
-        std::path::PathBuf::from(&workspace_path)
+        reject_sensitive_path(&workspace_path)?
     };
 
     let content = build_soul_content(&workspace, &custom_context);
@@ -25312,7 +25329,7 @@ pub async fn soul_read(workspace_path: String) -> Result<Option<String>, String>
     let workspace = if workspace_path.is_empty() {
         std::env::current_dir().map_err(|e| e.to_string())?
     } else {
-        std::path::PathBuf::from(&workspace_path)
+        reject_sensitive_path(&workspace_path)?
     };
 
     let soul_path = workspace.join("SOUL.md");
@@ -25334,7 +25351,7 @@ pub async fn soul_save(workspace_path: String, content: String) -> Result<(), St
     let workspace = if workspace_path.is_empty() {
         std::env::current_dir().map_err(|e| e.to_string())?
     } else {
-        std::path::PathBuf::from(&workspace_path)
+        reject_sensitive_path(&workspace_path)?
     };
     let soul_path = workspace.join("SOUL.md");
     std::fs::write(&soul_path, &content).map_err(|e| format!("Write error: {e}"))
@@ -40898,7 +40915,7 @@ pub async fn docsync_get_alerts(state: tauri::State<'_, AppState>) -> Result<ser
 
 #[tauri::command]
 pub async fn docsync_get_links(workspace_path: String) -> Result<serde_json::Value, String> {
-    let root = std::path::PathBuf::from(&workspace_path);
+    let root = reject_sensitive_path(&workspace_path)?;
     let mut links: Vec<serde_json::Value> = Vec::new();
 
     // Known doc→code pairs
@@ -40957,7 +40974,7 @@ pub async fn docsync_get_links(workspace_path: String) -> Result<serde_json::Val
 #[tauri::command]
 pub async fn docsync_get_sections(workspace_path: String) -> Result<serde_json::Value, String> {
     use std::time::UNIX_EPOCH;
-    let root = std::path::PathBuf::from(&workspace_path);
+    let root = reject_sensitive_path(&workspace_path)?;
     let now = std::time::SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -44428,6 +44445,7 @@ fn archspec_save_to_store(wp: &std::path::Path, spec: &vibecli_cli::architecture
 /// Load the full ArchitectureSpec for a workspace.
 #[tauri::command]
 pub async fn archspec_load(workspace_path: String) -> Result<serde_json::Value, String> {
+    let _ = reject_sensitive_path(&workspace_path)?;
     tokio::task::spawn_blocking(move || {
         let spec = archspec_load_from_store(std::path::Path::new(&workspace_path))?;
         serde_json::to_value(&spec).map_err(|e| e.to_string())

@@ -123,6 +123,7 @@ use std::sync::Arc;
 mod auth_util;
 mod redact;
 mod tainted;
+mod tainted_prompter;
 mod mcp_taint;
 mod rag_taint;
 mod config;
