@@ -23793,7 +23793,7 @@ pub async fn transcribe_audio(audio_path: String) -> Result<String, String> {
         .or_else(|| std::env::var("GROQ_API_KEY").ok().filter(|v| !v.is_empty()))
         .ok_or_else(|| "Groq API key not set — add it in Settings → API Keys → Groq".to_string())?;
 
-    let path = std::path::Path::new(&audio_path);
+    let path = reject_sensitive_path(&audio_path)?;
     if !path.exists() {
         return Err(format!("Audio file not found: {}", audio_path));
     }
@@ -37578,7 +37578,8 @@ pub async fn create_app_project(template_id: String, project_name: String, targe
     if !project_name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
         return Err(format!("Invalid project name: {project_name}"));
     }
-    let project_dir = PathBuf::from(&target_dir).join(&project_name);
+    let target = reject_sensitive_path(&target_dir)?;
+    let project_dir = target.join(&project_name);
     tokio::fs::create_dir_all(&project_dir).await.map_err(|e| format!("Failed to create project directory: {e}"))?;
     let files: Vec<(&str, String)> = match template_id.as_str() {
         "react-spa" => vec![
@@ -42246,9 +42247,10 @@ pub async fn turboquant_clear(
 
 #[tauri::command]
 pub async fn healthscore_scan(path: String) -> Result<serde_json::Value, String> {
+    let root = reject_sensitive_path(&path)?;
     let config = vibecli_cli::health_score::HealthConfig::default();
     let mut engine = vibecli_cli::health_score::HealthEngine::new(config);
-    let snapshot = engine.scan(&path, 0); // 0 = let scan() walk the real filesystem
+    let snapshot = engine.scan(&root.to_string_lossy(), 0); // 0 = let scan() walk the real filesystem
     let overall = vibecli_cli::health_score::HealthEngine::overall_score(&snapshot);
     let dims: Vec<serde_json::Value> = snapshot.dimensions.iter().map(|d| {
         serde_json::json!({
@@ -42268,9 +42270,10 @@ pub async fn healthscore_scan(path: String) -> Result<serde_json::Value, String>
 
 #[tauri::command]
 pub async fn healthscore_remediate(path: String) -> Result<serde_json::Value, String> {
+    let root = reject_sensitive_path(&path)?;
     let config = vibecli_cli::health_score::HealthConfig::default();
     let mut engine = vibecli_cli::health_score::HealthEngine::new(config);
-    let snapshot = engine.scan(&path, 0); // 0 = let scan() walk the real filesystem
+    let snapshot = engine.scan(&root.to_string_lossy(), 0); // 0 = let scan() walk the real filesystem
     let rems = engine.suggest_remediations(&snapshot);
     let items: Vec<serde_json::Value> = rems.iter().map(|r| {
         serde_json::json!({
@@ -44461,6 +44464,7 @@ pub async fn archspec_set_artifact_status(
     artifact_id: String,
     status: String,
 ) -> Result<serde_json::Value, String> {
+    let _ = reject_sensitive_path(&workspace_path)?;
     tokio::task::spawn_blocking(move || {
         use vibecli_cli::architecture_spec::ArtifactStatus;
         let wp = std::path::Path::new(&workspace_path);
@@ -44491,6 +44495,7 @@ pub async fn archspec_set_artifact_status(
 /// Scan the workspace codebase and generate draft TOGAF artifacts, then persist.
 #[tauri::command]
 pub async fn archspec_generate(workspace_path: String) -> Result<serde_json::Value, String> {
+    let _ = reject_sensitive_path(&workspace_path)?;
     tokio::task::spawn_blocking(move || {
         use vibecli_cli::architecture_spec::{ArchitectureSpec, TogafArtifact, TogafPhase, ArtifactType};
         let wp = std::path::Path::new(&workspace_path);
@@ -45366,6 +45371,7 @@ pub async fn archspec_generate(workspace_path: String) -> Result<serde_json::Val
 /// List all archived architecture spec scans for a workspace.
 #[tauri::command]
 pub async fn archspec_list_scans(workspace_path: String) -> Result<serde_json::Value, String> {
+    let _ = reject_sensitive_path(&workspace_path)?;
     tokio::task::spawn_blocking(move || {
         let wp = std::path::Path::new(&workspace_path);
         let store = vibecli_cli::workspace_store::WorkspaceStore::open(wp)?;
@@ -45421,6 +45427,7 @@ pub async fn archspec_list_scans(workspace_path: String) -> Result<serde_json::V
 /// Load a specific historical architecture spec scan.
 #[tauri::command]
 pub async fn archspec_load_scan(workspace_path: String, timestamp: u64) -> Result<serde_json::Value, String> {
+    let _ = reject_sensitive_path(&workspace_path)?;
     tokio::task::spawn_blocking(move || {
         let wp = std::path::Path::new(&workspace_path);
         let history_key = format!("archspec_history_{}", timestamp);
@@ -45440,6 +45447,7 @@ pub async fn archspec_load_scan(workspace_path: String, timestamp: u64) -> Resul
 /// Delete all archived architecture scan history for a workspace.
 #[tauri::command]
 pub async fn archspec_clear_history(workspace_path: String) -> Result<serde_json::Value, String> {
+    let _ = reject_sensitive_path(&workspace_path)?;
     tokio::task::spawn_blocking(move || {
         let wp = std::path::Path::new(&workspace_path);
         let store = vibecli_cli::workspace_store::WorkspaceStore::open(wp)?;
@@ -45465,6 +45473,7 @@ pub async fn archspec_set_adr_status(
     adr_id: String,
     status: String,
 ) -> Result<serde_json::Value, String> {
+    let _ = reject_sensitive_path(&workspace_path)?;
     tokio::task::spawn_blocking(move || {
         let wp = std::path::Path::new(&workspace_path);
         let mut spec = archspec_load_from_store(wp)?;
@@ -45495,6 +45504,7 @@ pub async fn archspec_create_adr(
     consequences: Vec<String>,
     tags: Vec<String>,
 ) -> Result<serde_json::Value, String> {
+    let _ = reject_sensitive_path(&workspace_path)?;
     tokio::task::spawn_blocking(move || {
         use vibecli_cli::architecture_spec::Adr;
         let wp = std::path::Path::new(&workspace_path);
@@ -45518,6 +45528,7 @@ pub async fn archspec_save(
     workspace_path: String,
     spec_json: String,
 ) -> Result<serde_json::Value, String> {
+    let _ = reject_sensitive_path(&workspace_path)?;
     tokio::task::spawn_blocking(move || {
         use vibecli_cli::architecture_spec::ArchitectureSpec;
         let wp = std::path::Path::new(&workspace_path);
@@ -45796,13 +45807,15 @@ pub async fn company_heartbeat_history(agent_id: String) -> Result<String, Strin
 
 #[tauri::command]
 pub async fn company_export(output_path: String) -> Result<String, String> {
-    let args = format!("export {}", output_path);
+    let resolved = reject_sensitive_path(&output_path)?;
+    let args = format!("export {}", resolved.display());
     Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 
 #[tauri::command]
 pub async fn company_import(input_path: String, new_name: Option<String>) -> Result<String, String> {
-    let args = format!("import {}{}", input_path, new_name.map(|n| format!(" {}", n)).unwrap_or_default());
+    let resolved = reject_sensitive_path(&input_path)?;
+    let args = format!("import {}{}", resolved.display(), new_name.map(|n| format!(" {}", n)).unwrap_or_default());
     Ok(vibecli_cli::company_cmd::handle_company_cmd_once(&args).await)
 }
 

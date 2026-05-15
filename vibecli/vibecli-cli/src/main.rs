@@ -3011,6 +3011,23 @@ struct Cli {
     #[arg(long, default_value = "127.0.0.1")]
     host: String,
 
+    /// DREAD #1 Slice G — enable interactive tainted-argument prompter on
+    /// the daemon's tool executor. When set, `ToolCall::Bash` and
+    /// `ToolCall::FetchUrl` invocations originating from LLM tool calls
+    /// are paused and the operator is prompted on stdin/stderr to
+    /// approve. Implies `--tainted-strict`. Off by default —
+    /// non-interactive contexts (CI, headless daemons) would block on
+    /// stdin if it were on. See docs/security/tainted-data-flow.md §8.2.
+    #[arg(long)]
+    tainted_prompt: bool,
+
+    /// DREAD #1 Slice B/C — enable hard-block tainted-gate enforcement
+    /// without the interactive prompter. Tainted tool-call arguments
+    /// from LLM output are rejected outright; the model sees the
+    /// rejection and adapts. Implied by `--tainted-prompt`.
+    #[arg(long)]
+    tainted_strict: bool,
+
     // ── MCP server mode ───────────────────────────────────────────────────────
 
     /// Run as an MCP (Model Context Protocol) server over stdio.
@@ -3540,7 +3557,29 @@ async fn main() -> Result<()> {
         let llm = create_provider(&effective_provider, effective_model.clone())?;
         let cwd = std::env::current_dir()?;
         let approval = ApprovalPolicy::from_str(&approval_policy);
-        return serve::serve(llm, effective_provider.clone(), approval, cwd, cli.port, cli.host.clone()).await;
+        // DREAD #1 Slice B/C/G — surface the CLI flags into the daemon's
+        // TaintedDaemonFlags. `--tainted-prompt` implies `--tainted-strict`:
+        // the prompter is no-op without strict, since strict is what
+        // makes the dispatcher route the gate decision into a rejection
+        // instead of just logging it.
+        let tainted_flags = serve::TaintedDaemonFlags {
+            strict: cli.tainted_strict || cli.tainted_prompt,
+            prompt: cli.tainted_prompt,
+        };
+        if tainted_flags.prompt {
+            eprintln!(
+                "[vibecli] DREAD #1 Slice G: interactive tainted-argument prompter enabled \
+                 — LLM tool-call arguments derived from T5 sources will pause the agent loop \
+                 for stdin confirmation. See docs/security/tainted-data-flow.md."
+            );
+        } else if tainted_flags.strict {
+            eprintln!(
+                "[vibecli] DREAD #1 Slice B/C: tainted-argument enforcement strict mode \
+                 — LLM tool-call arguments derived from T5 sources will be rejected with \
+                 a typed reason the model can adapt to."
+            );
+        }
+        return serve::serve(llm, effective_provider.clone(), approval, cwd, cli.port, cli.host.clone(), tainted_flags).await;
     }
 
     // MCP server mode: vibecli --mcp-server

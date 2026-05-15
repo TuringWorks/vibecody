@@ -139,6 +139,11 @@ pub struct ServeState {
     /// claim, mirroring how W1.1 made VibeUI follow the watch's
     /// active session. `None` until the first PUT lands.
     pub mobile_active_session: Arc<std::sync::Mutex<Option<MobileActiveSession>>>,
+    /// DREAD #1 Slice B/C/G — tainted-argument enforcement flags read
+    /// from the daemon's CLI surface and propagated to every
+    /// `ToolExecutor` constructed for an agent run. See
+    /// `docs/security/tainted-data-flow.md` and threat-model §8 #1.
+    pub tainted: TaintedDaemonFlags,
 }
 
 /// F3.x — payload tracked on `ServeState.mobile_active_session`.
@@ -1036,11 +1041,19 @@ async fn start_agent(
     // Move context_request into the spawned task. Empty default keeps
     // the existing-clients path zero-overhead.
     let ctx_request = req.context_request;
+    // DREAD #1 — propagate the daemon's tainted-strict / prompter
+    // flags into every executor the agent loop uses. Extracted by
+    // value (Copy) so the spawn closure doesn't capture `state`.
+    let tainted_flags = state.tainted;
 
     tokio::spawn(async move {
         use crate::tool_executor::ToolExecutor;
 
-        let executor = Arc::new(ToolExecutor::new(workspace_root.clone(), false));
+        let executor = Arc::new(
+            ToolExecutor::new(workspace_root.clone(), false)
+                .with_tainted_strict(tainted_flags.strict)
+                .with_cli_prompter(tainted_flags.prompt),
+        );
         let agent = AgentLoop::new(provider, approval, executor);
 
         let git_branch = vibe_core::git::get_current_branch(&workspace_root).ok();
@@ -1499,13 +1512,16 @@ async fn acp_create_task(
     let sid = session_id.clone();
     let job_manager = state.job_manager.clone();
 
+    let tainted_flags = state.tainted;
     tokio::spawn(async move {
         let _ = job_manager.mark_running(&sid).await;
 
         let executor = crate::tool_executor::ToolExecutor::new(
             std::path::PathBuf::from(&workspace),
             false,
-        );
+        )
+        .with_tainted_strict(tainted_flags.strict)
+        .with_cli_prompter(tainted_flags.prompt);
         let context = vibe_ai::AgentContext {
             workspace_root: std::path::PathBuf::from(&workspace),
             ..Default::default()
@@ -1656,6 +1672,25 @@ async fn v1_create_task(
         .clone()
         .unwrap_or_else(|| state.workspace_root.to_string_lossy().to_string());
 
+    // DREAD #2 — a client-supplied workspace cannot resolve into a
+    // credential directory (`~/.vibecli`, `~/.ssh`, `~/.aws`, ...).
+    // The server-default path (state.workspace_root) is trusted, but
+    // an external caller overriding `workspace` could otherwise spawn
+    // an agent rooted at a sensitive dir.
+    if let Err(e) = crate::path_guard::reject_sensitive_path(&workspace) {
+        tracing::warn!(
+            target: "vibecody::serve::v1",
+            workspace = %workspace,
+            error = %e,
+            "v1_create_task: rejected sensitive workspace path",
+        );
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": e})),
+        )
+            .into_response();
+    }
+
     let session_id = match state
         .job_manager
         .create(CreateJobReq {
@@ -1687,6 +1722,7 @@ async fn v1_create_task(
     let job_manager = state.job_manager.clone();
     let webhook_url = req.webhook_url.clone();
     let timeout = req.timeout_secs.unwrap_or(300);
+    let tainted_flags = state.tainted;
 
     tokio::spawn(async move {
         let _ = job_manager.mark_running(&sid).await;
@@ -1694,7 +1730,9 @@ async fn v1_create_task(
         let executor = crate::tool_executor::ToolExecutor::new(
             std::path::PathBuf::from(&workspace),
             false,
-        );
+        )
+        .with_tainted_strict(tainted_flags.strict)
+        .with_cli_prompter(tainted_flags.prompt);
         let context = vibe_ai::AgentContext {
             workspace_root: std::path::PathBuf::from(&workspace),
             ..Default::default()
@@ -3902,6 +3940,19 @@ fn emit_public_bind_warning(host: &str, port: u16) {
     eprintln!();
 }
 
+/// DREAD #1 Slice B/C/G flags surfaced to the daemon CLI. Combined here
+/// (rather than as two free parameters) so future tainted-related flags
+/// — `--tainted-policy <path>`, `--tainted-allow <reason-list>`, etc. —
+/// can land without changing every `serve::serve` call site again.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct TaintedDaemonFlags {
+    /// Hard-block tainted-argument tool calls. Slice B/C semantics.
+    pub strict: bool,
+    /// Use the CLI prompter (stdin/stderr) to ask the operator for
+    /// approval. Implies `strict` (the prompter is no-op without it).
+    pub prompt: bool,
+}
+
 pub async fn serve(
     provider: Arc<dyn AIProvider>,
     provider_name: String,
@@ -3909,6 +3960,7 @@ pub async fn serve(
     workspace_root: PathBuf,
     port: u16,
     host: String,
+    tainted: TaintedDaemonFlags,
 ) -> Result<()> {
     // Pull HF_TOKEN out of the encrypted store before anything that might
     // need it spins up. Zero-config goal: a user who ran
@@ -4045,6 +4097,7 @@ pub async fn serve(
         rl_executor,
         rl_runtime_pool: Arc::new(crate::rl_runtime::RuntimePool::new()),
         mobile_active_session: Arc::new(std::sync::Mutex::new(None)),
+        tainted,
     };
 
     // Background task: detect or start an ngrok / Tailscale Funnel tunnel and
@@ -6665,6 +6718,7 @@ mod tests {
                 )),
                 rl_runtime_pool: Arc::new(crate::rl_runtime::RuntimePool::new()),
                 mobile_active_session: Arc::new(std::sync::Mutex::new(None)),
+                tainted: TaintedDaemonFlags::default(),
             };
             (build_router(state, 7878), tmp_dir)
         }
@@ -7102,6 +7156,7 @@ mod tests {
                 )),
                 rl_runtime_pool: Arc::new(crate::rl_runtime::RuntimePool::new()),
                 mobile_active_session: Arc::new(std::sync::Mutex::new(None)),
+                tainted: TaintedDaemonFlags::default(),
             };
             (build_router(state, 7878), tmp_dir)
         }
@@ -8681,7 +8736,12 @@ async fn vibememory_store(
 ) -> (StatusCode, Json<serde_json::Value>) {
     // Store in project context if workspace provided, otherwise global
     if let Some(workspace) = req.workspace {
-        let path = std::path::PathBuf::from(&workspace);
+        // DREAD #2 — refuse to open a project memory store rooted in
+        // a credential dir.
+        let path = match crate::path_guard::reject_sensitive_path(&workspace) {
+            Ok(p) => p,
+            Err(e) => return json_error(StatusCode::BAD_REQUEST, e),
+        };
         let store = match ProjectMemStore::open(&path) {
             Ok(s) => s,
             Err(e) => return json_error(StatusCode::BAD_REQUEST, format!("Failed to open store: {e}")),
@@ -8736,9 +8796,15 @@ async fn vibememory_search(
     Json(req): Json<VibeMemorySearchRequest>,
 ) -> Json<serde_json::Value> {
     let hub = MemoryContextHub::new();
-    let workspace = req.workspace
-        .map(PathBuf::from)
-        .unwrap_or_else(|| std::env::temp_dir());
+    // DREAD #2 — same as vibememory_store: a request-supplied
+    // workspace cannot resolve into a credential dir.
+    let workspace = match req.workspace.as_deref() {
+        Some(w) => match crate::path_guard::reject_sensitive_path(w) {
+            Ok(p) => p,
+            Err(e) => return Json(serde_json::json!({ "error": e, "results": [], "count": 0 })),
+        },
+        None => std::env::temp_dir(),
+    };
     
     let results = hub.search_context(&workspace, &req.query, req.top_k, req.min_score).await;
     
@@ -8775,8 +8841,12 @@ async fn vibememory_context(
     Json(req): Json<VibeMemoryContextRequest>,
 ) -> Json<serde_json::Value> {
     let hub = MemoryContextHub::new();
-    let workspace = PathBuf::from(&req.workspace);
-    
+    // DREAD #2 — reject sensitive-dir workspace inputs.
+    let workspace = match crate::path_guard::reject_sensitive_path(&req.workspace) {
+        Ok(p) => p,
+        Err(e) => return Json(serde_json::json!({ "context": "", "error": e })),
+    };
+
     let context = hub.assemble_context(&workspace, &req.query, req.budget).await;
     
     match context {
@@ -8795,7 +8865,11 @@ async fn vibememory_list(
     
     if store_type == "project" {
         if let Some(workspace) = params.get("workspace") {
-            let path = PathBuf::from(workspace);
+            // DREAD #2 — gate the project-store path.
+            let path = match crate::path_guard::reject_sensitive_path(workspace) {
+                Ok(p) => p,
+                Err(e) => return Json(serde_json::json!({ "error": e, "memories": [] })),
+            };
             let store = match ProjectMemStore::open(&path) {
                 Ok(s) => s,
                 Err(e) => return Json(serde_json::json!({ "error": e.to_string(), "memories": [] })),
@@ -8850,9 +8924,14 @@ async fn vibememory_stats(
     axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> Json<serde_json::Value> {
     let hub = MemoryContextHub::new();
-    let workspace = params.get("workspace")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| std::env::temp_dir());
+    // DREAD #2 — gate the workspace query param if provided.
+    let workspace = match params.get("workspace") {
+        Some(w) => match crate::path_guard::reject_sensitive_path(w) {
+            Ok(p) => p,
+            Err(e) => return Json(serde_json::json!({ "error": e })),
+        },
+        None => std::env::temp_dir(),
+    };
     
     let stats = hub.get_stats(&workspace).await;
     
@@ -8877,8 +8956,12 @@ async fn vibememory_consolidate(
     Json(req): Json<VibeMemoryConsolidateRequest>,
 ) -> Json<serde_json::Value> {
     let hub = MemoryContextHub::new();
-    let workspace = PathBuf::from(&req.workspace);
-    
+    // DREAD #2 — gate consolidate workspace.
+    let workspace = match crate::path_guard::reject_sensitive_path(&req.workspace) {
+        Ok(p) => p,
+        Err(e) => return Json(serde_json::json!({ "error": e })),
+    };
+
     let report = hub.consolidate(&workspace).await;
     
     match report {
