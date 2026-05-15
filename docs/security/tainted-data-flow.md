@@ -217,6 +217,27 @@ Update `tracing::*!` sites that log raw model output to use the audit-trail `.ex
 
 Wire the confirmation UI in VibeUI, CLI REPL, and mobile. ~1 week (the design is in §8, but each surface has its own UI plumbing).
 
+**Part 1 (shipped)** — `tainted_prompter::CliPrompter` reads stdin / writes stderr; gated on `--tainted-prompt`. Banner shows `audit_summary()` (truncated, payload-free). Used by the CLI REPL and any daemon started with a TTY attached.
+
+**Part 1.5 (shipped)** — `TaintedDaemonFlags { strict, prompt, http_prompt }` on `ServeState`; flags propagate to every `ToolExecutor` constructed for a session.
+
+**Part 2 (shipped)** — `tainted_http_bridge::{HttpPromptQueue, HttpBridgePrompter}` cross-process bridge.
+- Daemon side: `MAX_PENDING = 32`, `RESPONSE_TIMEOUT = 300s`, `block_in_place + Handle::current().block_on(timeout(rx))` to bridge the sync `Prompter` trait to async HTTP.
+- HTTP surface: `GET /v1/tainted/pending` (SSE — snapshot + live; events typed `pending`) and `POST /v1/tainted/respond` (JSON body `{ request_id, approve }`). Both authed via bearer-or-`?token=` query param (the EventSource API can't set custom headers, same fallback `ws_collab_handler` already uses).
+- CLI flag: `--tainted-http-prompt` (implies `--tainted-strict`; mutually exclusive with `--tainted-prompt` via `conflicts_with`).
+- VibeUI: `TaintedConfirmationModal.tsx` mounted in `App.tsx`. Subscribes to the SSE, head-of-queue render, exponential-backoff reconnect, dispatches `respond` POST on click. Gated on `VITE_TAINTED_HTTP_PROMPT=1` until token plumbing lands.
+- Fail-safe ordering: queue saturation → deny; timeout → deny; oneshot drop → deny; only explicit `approve=true` from UI executes.
+
+**Part 3 (mobile / watch — design)** — VibeMobile (Flutter) and VibeWatch / VibeWear (Swift / Kotlin) consume the **same** `GET /v1/tainted/pending` SSE + `POST /v1/tainted/respond` endpoints. They authenticate with their existing pairing bearer (mobile) / signed-nonce (watch — P-256 ECDSA via Secure Enclave / Strongbox; never Ed25519). The render surface is platform-specific:
+
+| Platform | Renderer | Auth | Notes |
+|---|---|---|---|
+| VibeMobile (Flutter) | `TaintedConfirmationSheet` modal sheet on `MainScreen` | existing pairing bearer in `ApiClient` | Mobile clients race transports (mDNS → Tailscale → ngrok); SSE rides whichever is connected. |
+| VibeCodyWatch (SwiftUI) | Glanceable notification → tap-to-confirm | watch's P-256 signed nonce, same as `WatchNetworkManager` | Watch's small screen renders only `sink` + first ~80 chars of `summary`; full summary on tap. |
+| VibeCodyWear (Compose) | Tile + confirmation activity | watch's P-256 signed nonce | Mirrors watchOS UX. |
+
+In all three cases the **payload bytes never leave the daemon** — only `audit_summary` (kind / origin / `audit_id`) crosses the wire. Mobile / watch slices ship in their own PRs (not in part 2). The contract is already stable.
+
 **Total**: ~3 working weeks if done serially, ~2 weeks with parallelization across slices. The first slice (A) is independently valuable and could ship within the next batch.
 
 ---

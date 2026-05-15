@@ -124,6 +124,7 @@ mod auth_util;
 mod redact;
 mod tainted;
 mod tainted_prompter;
+mod tainted_http_bridge;
 mod mcp_taint;
 mod rag_taint;
 mod config;
@@ -3028,6 +3029,17 @@ struct Cli {
     #[arg(long)]
     tainted_strict: bool,
 
+    /// DREAD #1 Slice G part 2 — expose the tainted-argument
+    /// confirmation bridge over HTTP. The daemon publishes pending
+    /// prompts on `GET /v1/tainted/pending` (SSE) and accepts
+    /// decisions on `POST /v1/tainted/respond`. VibeUI WebView,
+    /// VibeMobile, and VibeWatch consume the same endpoints.
+    /// Implies `--tainted-strict`. Mutually exclusive with
+    /// `--tainted-prompt` (one decision surface per process).
+    /// Off by default — opt in when running a daemon paired with a UI.
+    #[arg(long, conflicts_with = "tainted_prompt")]
+    tainted_http_prompt: bool,
+
     // ── MCP server mode ───────────────────────────────────────────────────────
 
     /// Run as an MCP (Model Context Protocol) server over stdio.
@@ -3558,15 +3570,24 @@ async fn main() -> Result<()> {
         let cwd = std::env::current_dir()?;
         let approval = ApprovalPolicy::from_str(&approval_policy);
         // DREAD #1 Slice B/C/G — surface the CLI flags into the daemon's
-        // TaintedDaemonFlags. `--tainted-prompt` implies `--tainted-strict`:
-        // the prompter is no-op without strict, since strict is what
-        // makes the dispatcher route the gate decision into a rejection
-        // instead of just logging it.
+        // TaintedDaemonFlags. `--tainted-prompt` and `--tainted-http-prompt`
+        // both imply `--tainted-strict` (the prompter is a no-op without
+        // strict, since strict is what makes the dispatcher route the gate
+        // decision into a rejection instead of just logging it). The two
+        // prompters are mutually exclusive at the clap layer.
         let tainted_flags = serve::TaintedDaemonFlags {
-            strict: cli.tainted_strict || cli.tainted_prompt,
+            strict: cli.tainted_strict || cli.tainted_prompt || cli.tainted_http_prompt,
             prompt: cli.tainted_prompt,
+            http_prompt: cli.tainted_http_prompt,
         };
-        if tainted_flags.prompt {
+        if tainted_flags.http_prompt {
+            eprintln!(
+                "[vibecli] DREAD #1 Slice G part 2: HTTP tainted-argument bridge enabled \
+                 — LLM tool-call arguments derived from T5 sources will pause the agent loop \
+                 and surface on GET /v1/tainted/pending (SSE). Decisions arrive via \
+                 POST /v1/tainted/respond. See docs/security/tainted-data-flow.md §8."
+            );
+        } else if tainted_flags.prompt {
             eprintln!(
                 "[vibecli] DREAD #1 Slice G: interactive tainted-argument prompter enabled \
                  — LLM tool-call arguments derived from T5 sources will pause the agent loop \

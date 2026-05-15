@@ -75,6 +75,7 @@ use vibe_ai::provider::AIProvider;
 use vibe_collab::{CollabMessage, CollabServer, PeerInfo, SyncBroadcast};
 use crate::session_store::{SessionStore, render_session_html, render_sessions_index_html};
 use crate::job_manager::{JobManager, CreateJobReq, JobStatus};
+use crate::tainted_http_bridge::{PromptResponse, PromptResponseResult};
 // Re-export so external callers that imported these via `crate::serve::*`
 // keep compiling. `JobManager` owns the canonical definitions now.
 pub use crate::job_manager::{JobRecord, AgentEventPayload};
@@ -144,6 +145,12 @@ pub struct ServeState {
     /// `ToolExecutor` constructed for an agent run. See
     /// `docs/security/tainted-data-flow.md` and threat-model §8 #1.
     pub tainted: TaintedDaemonFlags,
+    /// DREAD #1 Slice G part 2 — shared HTTP prompt queue powering the
+    /// `/v1/tainted/pending` SSE stream and `/v1/tainted/respond`
+    /// endpoint. Always allocated, even when `tainted.http_prompt` is
+    /// off, so the routes have a queue to read (it will simply stay
+    /// empty when no executor is configured to enqueue into it).
+    pub tainted_http_queue: Arc<crate::tainted_http_bridge::HttpPromptQueue>,
 }
 
 /// F3.x — payload tracked on `ServeState.mobile_active_session`.
@@ -1045,15 +1052,18 @@ async fn start_agent(
     // flags into every executor the agent loop uses. Extracted by
     // value (Copy) so the spawn closure doesn't capture `state`.
     let tainted_flags = state.tainted;
+    let tainted_http_queue = state.tainted_http_queue.clone();
 
     tokio::spawn(async move {
         use crate::tool_executor::ToolExecutor;
 
-        let executor = Arc::new(
-            ToolExecutor::new(workspace_root.clone(), false)
-                .with_tainted_strict(tainted_flags.strict)
-                .with_cli_prompter(tainted_flags.prompt),
-        );
+        let mut exec = ToolExecutor::new(workspace_root.clone(), false)
+            .with_tainted_strict(tainted_flags.strict)
+            .with_cli_prompter(tainted_flags.prompt);
+        if tainted_flags.http_prompt {
+            exec = exec.with_http_prompter(tainted_http_queue);
+        }
+        let executor = Arc::new(exec);
         let agent = AgentLoop::new(provider, approval, executor);
 
         let git_branch = vibe_core::git::get_current_branch(&workspace_root).ok();
@@ -1268,7 +1278,19 @@ async fn stream_agent(
 // ── Auth middleware ───────────────────────────────────────────────────────────
 
 /// Axum middleware that enforces bearer-token authentication.
-/// Rejects requests that don't carry the correct `Authorization: Bearer <token>`.
+/// Rejects requests that don't carry the correct
+/// `Authorization: Bearer <token>` header, *or* (as a fallback for
+/// surfaces that cannot set custom headers — notably the browser's
+/// `EventSource` API used by `TaintedConfirmationModal` and the watch
+/// SSE bridge) a `?token=<token>` query parameter.
+///
+/// Query-param tokens are accepted because they're functionally
+/// equivalent to header tokens against a per-process secret bound to
+/// 127.0.0.1 by default. Slice F log-redaction already strips
+/// `token=` from request lines, and the daemon mints a fresh token
+/// every start (see `docs/security/key-rotation.md`). The same
+/// fallback is already in use by `ws_collab_handler` for WebSocket
+/// upgrades, which have the same header constraint.
 async fn require_auth(
     State(state): State<ServeState>,
     req: Request,
@@ -1280,15 +1302,33 @@ async fn require_auth(
         .and_then(|v| v.to_str().ok());
 
     if crate::auth_util::bearer_matches(auth_header, &state.api_token) {
-        next.run(req).await.into_response()
-    } else {
-        (
-            StatusCode::UNAUTHORIZED,
-            [("content-type", "application/json")],
-            r#"{"error":"Missing or invalid Authorization: Bearer <token>"}"#,
-        )
-            .into_response()
+        return next.run(req).await.into_response();
     }
+
+    // Fallback: `?token=…` query param. Same constant-time compare as
+    // the header path (`token_matches`).
+    if let Some(query) = req.uri().query() {
+        for pair in query.split('&') {
+            if let Some(value) = pair.strip_prefix("token=") {
+                // URI-decoded token. `urlencoding` is already in the
+                // dep graph via several other handlers; if we can't
+                // decode it, fall through to the 401.
+                let decoded = urlencoding::decode(value).map(|c| c.into_owned());
+                if let Ok(tok) = decoded {
+                    if crate::auth_util::token_matches(&tok, &state.api_token) {
+                        return next.run(req).await.into_response();
+                    }
+                }
+            }
+        }
+    }
+
+    (
+        StatusCode::UNAUTHORIZED,
+        [("content-type", "application/json")],
+        r#"{"error":"Missing or invalid Authorization: Bearer <token>"}"#,
+    )
+        .into_response()
 }
 
 // ── Rate limiting middleware ─────────────────────────────────────────────────
@@ -1475,6 +1515,22 @@ async fn acp_create_task(
         .and_then(|c| c.workspace_root.clone())
         .unwrap_or_else(|| state.workspace_root.to_string_lossy().to_string());
 
+    // DREAD #2 — ACP `context.workspace_root` from the client also
+    // can't resolve into a credential dir. Same shape as /v1/tasks.
+    if let Err(e) = crate::path_guard::reject_sensitive_path(&workspace) {
+        tracing::warn!(
+            target: "vibecody::serve::acp",
+            workspace = %workspace,
+            error = %e,
+            "acp_create_task: rejected sensitive workspace path",
+        );
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": e})),
+        )
+            .into_response();
+    }
+
     let session_id = match state
         .job_manager
         .create(CreateJobReq {
@@ -1513,15 +1569,19 @@ async fn acp_create_task(
     let job_manager = state.job_manager.clone();
 
     let tainted_flags = state.tainted;
+    let tainted_http_queue = state.tainted_http_queue.clone();
     tokio::spawn(async move {
         let _ = job_manager.mark_running(&sid).await;
 
-        let executor = crate::tool_executor::ToolExecutor::new(
+        let mut executor = crate::tool_executor::ToolExecutor::new(
             std::path::PathBuf::from(&workspace),
             false,
         )
         .with_tainted_strict(tainted_flags.strict)
         .with_cli_prompter(tainted_flags.prompt);
+        if tainted_flags.http_prompt {
+            executor = executor.with_http_prompter(tainted_http_queue);
+        }
         let context = vibe_ai::AgentContext {
             workspace_root: std::path::PathBuf::from(&workspace),
             ..Default::default()
@@ -1723,16 +1783,20 @@ async fn v1_create_task(
     let webhook_url = req.webhook_url.clone();
     let timeout = req.timeout_secs.unwrap_or(300);
     let tainted_flags = state.tainted;
+    let tainted_http_queue = state.tainted_http_queue.clone();
 
     tokio::spawn(async move {
         let _ = job_manager.mark_running(&sid).await;
 
-        let executor = crate::tool_executor::ToolExecutor::new(
+        let mut executor = crate::tool_executor::ToolExecutor::new(
             std::path::PathBuf::from(&workspace),
             false,
         )
         .with_tainted_strict(tainted_flags.strict)
         .with_cli_prompter(tainted_flags.prompt);
+        if tainted_flags.http_prompt {
+            executor = executor.with_http_prompter(tainted_http_queue);
+        }
         let context = vibe_ai::AgentContext {
             workspace_root: std::path::PathBuf::from(&workspace),
             ..Default::default()
@@ -2023,6 +2087,99 @@ async fn v1_browse_intervene(
             (StatusCode::OK, Json(serde_json::json!({"status": "intervention_recorded", "id": id}))).into_response()
         }
         None => (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Browse task not found"}))).into_response(),
+    }
+}
+
+// ── DREAD #1 Slice G part 2 — tainted-argument bridge ─────────────────────
+//
+// The daemon publishes pending prompts on `GET /v1/tainted/pending` (SSE)
+// and accepts decisions on `POST /v1/tainted/respond`. Any client that
+// can hold a bearer token (VibeUI WebView, VibeMobile, VibeWatch
+// companion) renders the modal from the SSE event and posts back.
+//
+// Threat-model invariant: the SSE payload carries only the audit summary
+// — `kind=… audit_id=… origin={…}` — never the underlying tainted
+// bytes. See `docs/security/tainted-data-flow.md` §8.
+
+/// `GET /v1/tainted/pending` — SSE stream of `PendingPromptEvent`s.
+/// Emits a snapshot of currently-queued prompts so a late-joining UI
+/// still sees pending work, then forwards every subsequent enqueue.
+/// Clients de-dupe by `request_id` because the same id can be
+/// re-emitted between snapshot and live phases.
+/// Bearer-token authed via the parent router.
+async fn v1_tainted_pending(
+    State(state): State<ServeState>,
+) -> Sse<impl futures::Stream<Item = Result<Event, Infallible>>> {
+    use tokio_stream::wrappers::ReceiverStream;
+
+    let queue = state.tainted_http_queue.clone();
+    // Bounded channel — keeps the producer from running ahead of a
+    // slow SSE consumer. Backpressure is fine here: any prompt the
+    // consumer can't keep up with is still resident in the queue, and
+    // the consumer will pick it up on its next snapshot when it
+    // reconnects.
+    let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, Infallible>>(64);
+
+    // Push initial snapshot inline, before spawning the watcher, so
+    // ordering is deterministic.
+    for ev in queue.snapshot() {
+        let json = serde_json::to_string(&ev).unwrap_or_default();
+        let _ = tx
+            .send(Ok(Event::default().event("pending").data(json)))
+            .await;
+    }
+
+    // Background task: forward every enqueue notification until the
+    // consumer drops the channel.
+    tokio::spawn(async move {
+        loop {
+            queue.wait_for_event().await;
+            for ev in queue.snapshot() {
+                let json = serde_json::to_string(&ev).unwrap_or_default();
+                if tx
+                    .send(Ok(Event::default().event("pending").data(json)))
+                    .await
+                    .is_err()
+                {
+                    return;
+                }
+            }
+        }
+    });
+
+    Sse::new(ReceiverStream::new(rx))
+        .keep_alive(KeepAlive::new().interval(Duration::from_secs(15)))
+}
+
+/// `POST /v1/tainted/respond` — body is `PromptResponse`, response is
+/// `PromptResponseResult`. Resolving an unknown `request_id` returns
+/// 404 with `resolved=false` and a `reason` field; the daemon will
+/// eventually time the prompt out on its end either way.
+async fn v1_tainted_respond(
+    State(state): State<ServeState>,
+    Json(req): Json<PromptResponse>,
+) -> impl IntoResponse {
+    let resolved = state
+        .tainted_http_queue
+        .resolve(&req.request_id, req.approve);
+    if resolved {
+        (
+            StatusCode::OK,
+            Json(PromptResponseResult {
+                resolved: true,
+                reason: None,
+            }),
+        )
+            .into_response()
+    } else {
+        (
+            StatusCode::NOT_FOUND,
+            Json(PromptResponseResult {
+                resolved: false,
+                reason: Some("unknown or already-resolved request_id".into()),
+            }),
+        )
+            .into_response()
     }
 }
 
@@ -3675,6 +3832,11 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/v1/browse/:id", get(v1_get_browse))
         .route("/v1/browse/:id/screenshots", get(v1_browse_screenshots))
         .route("/v1/browse/:id/intervene", post(v1_browse_intervene))
+        // DREAD #1 Slice G part 2 — tainted-argument confirmation bridge.
+        // SSE stream of pending prompts; POST a decision to resolve one.
+        // See docs/security/tainted-data-flow.md §8.
+        .route("/v1/tainted/pending", get(v1_tainted_pending))
+        .route("/v1/tainted/respond", post(v1_tainted_respond))
         // RL-OS v1 — slice 1 (persistence + run lifecycle)
         // See docs/design/rl-os/01-persistence.md
         .route("/v1/rl/runs", post(rl_create_run))
@@ -3951,6 +4113,12 @@ pub struct TaintedDaemonFlags {
     /// Use the CLI prompter (stdin/stderr) to ask the operator for
     /// approval. Implies `strict` (the prompter is no-op without it).
     pub prompt: bool,
+    /// Slice G part 2 — expose `/v1/tainted/pending` (SSE) and
+    /// `/v1/tainted/respond` (POST) so a remote surface (WebView,
+    /// mobile, watch) can render the confirmation modal. Implies
+    /// `strict`. Mutually exclusive with `prompt` (CLI vs HTTP — one
+    /// surface decides per daemon process).
+    pub http_prompt: bool,
 }
 
 pub async fn serve(
@@ -4079,6 +4247,8 @@ pub async fn serve(
     // happens at the assignment to the type-annotated binding.
     let rl_executor: Arc<dyn crate::rl_executor::TrainingExecutor> = rl_python_executor;
 
+    let tainted_http_queue =
+        Arc::new(crate::tainted_http_bridge::HttpPromptQueue::new());
     let state = ServeState {
         provider,
         approval,
@@ -4098,6 +4268,7 @@ pub async fn serve(
         rl_runtime_pool: Arc::new(crate::rl_runtime::RuntimePool::new()),
         mobile_active_session: Arc::new(std::sync::Mutex::new(None)),
         tainted,
+        tainted_http_queue,
     };
 
     // Background task: detect or start an ngrok / Tailscale Funnel tunnel and
@@ -6719,6 +6890,9 @@ mod tests {
                 rl_runtime_pool: Arc::new(crate::rl_runtime::RuntimePool::new()),
                 mobile_active_session: Arc::new(std::sync::Mutex::new(None)),
                 tainted: TaintedDaemonFlags::default(),
+                tainted_http_queue: Arc::new(
+                    crate::tainted_http_bridge::HttpPromptQueue::new(),
+                ),
             };
             (build_router(state, 7878), tmp_dir)
         }
@@ -7157,6 +7331,9 @@ mod tests {
                 rl_runtime_pool: Arc::new(crate::rl_runtime::RuntimePool::new()),
                 mobile_active_session: Arc::new(std::sync::Mutex::new(None)),
                 tainted: TaintedDaemonFlags::default(),
+                tainted_http_queue: Arc::new(
+                    crate::tainted_http_bridge::HttpPromptQueue::new(),
+                ),
             };
             (build_router(state, 7878), tmp_dir)
         }

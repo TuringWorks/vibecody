@@ -40,6 +40,7 @@ import "./components/GroupedTabBar.css";
 import { PanelHost } from "./components/LazyPanels";
 import { useEditorTheme } from "./hooks/useEditorTheme";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { TaintedConfirmationModal } from "./components/TaintedConfirmationModal";
 import { ALL_TABS } from "./constants/tabGroups";
 import { TAB_META, DEFAULT_TAB_META } from "./constants/tabMeta";
 
@@ -2165,6 +2166,16 @@ function App() {
         placeholder={modalConfig.placeholder}
         onConfirm={modalConfig.onConfirm}
         onCancel={() => setModalOpen(false)}
+      />
+      {/* DREAD #1 Slice G part 2 — tainted-argument confirmation bridge.
+          Enabled only when the daemon was started with --tainted-http-prompt;
+          the daemon will simply never emit pending events otherwise, so the
+          modal stays invisible. Token plumbing arrives in a follow-up slice
+          (today VibeUI talks to a loopback daemon without a header). */}
+      <TaintedConfirmationModal
+        daemonUrl={(import.meta.env.VITE_DAEMON_URL as string | undefined) ?? "http://localhost:7878"}
+        apiToken={(import.meta.env.VITE_DAEMON_TOKEN as string | undefined) ?? ""}
+        enabled={(import.meta.env.VITE_TAINTED_HTTP_PROMPT as string | undefined) === "1"}
       />
       {/* DiffComplete Modal (⌘.) — diff-mode AI edit */}
       {diffComplete && (

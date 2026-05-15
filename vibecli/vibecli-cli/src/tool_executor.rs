@@ -166,6 +166,14 @@ pub struct ToolExecutor {
     /// fails on EOF and the gate denies. Default false — opt-in so
     /// existing tests don't block on stdin.
     pub use_cli_prompter: bool,
+    /// DREAD #1 Slice G part 2 — when set, the dispatcher routes
+    /// tainted-argument confirmation through an HTTP bridge prompter
+    /// that publishes pending prompts on `GET /v1/tainted/pending`
+    /// (SSE) and accepts decisions on `POST /v1/tainted/respond`.
+    /// Used by VibeUI WebView, VibeMobile, and VibeWatch. Takes
+    /// precedence over `use_cli_prompter`. See
+    /// `docs/security/tainted-data-flow.md` §8 and `tainted_http_bridge`.
+    pub http_prompter_queue: Option<Arc<crate::tainted_http_bridge::HttpPromptQueue>>,
 }
 
 impl ToolExecutor {
@@ -182,6 +190,7 @@ impl ToolExecutor {
             network_disabled: false,
             tainted_strict: false,
             use_cli_prompter: false,
+            http_prompter_queue: None,
         }
     }
 
@@ -203,6 +212,19 @@ impl ToolExecutor {
     /// executes regardless of the prompter outcome.
     pub fn with_cli_prompter(mut self, yes: bool) -> Self {
         self.use_cli_prompter = yes;
+        self
+    }
+
+    /// Opt into DREAD #1 Slice G part 2 — route tainted-argument
+    /// confirmation through the daemon's HTTP bridge so a remote
+    /// surface (WebView / mobile / watch) can render the modal and
+    /// respond. Takes precedence over `with_cli_prompter` when both
+    /// are configured. Requires `tainted_strict=true` to enforce.
+    pub fn with_http_prompter(
+        mut self,
+        queue: Arc<crate::tainted_http_bridge::HttpPromptQueue>,
+    ) -> Self {
+        self.http_prompter_queue = Some(queue);
         self
     }
 
@@ -419,7 +441,18 @@ impl ToolExecutor {
         // Run the gate. Slice A/B path: confirm_shell_command always
         // rejects (Headless / InteractiveStub). Slice G part 1 path:
         // route through the CLI prompter for a real user decision.
-        let gate = if self.use_cli_prompter {
+        // Slice G part 2 path: route through the HTTP bridge so a
+        // remote UI (WebView / mobile / watch) can decide. HTTP takes
+        // precedence when both prompters are configured — a daemon
+        // running both CLI and WebView still wants one consistent
+        // surface.
+        let gate = if let Some(queue) = self.http_prompter_queue.as_ref() {
+            use crate::tainted::Reason;
+            use crate::tainted_http_bridge::HttpBridgePrompter;
+            use crate::tainted_prompter::confirm_with_prompter;
+            let mut prompter = HttpBridgePrompter::new(queue.clone());
+            confirm_with_prompter(&tainted, Reason::ToolCallArgument, &mut prompter)
+        } else if self.use_cli_prompter {
             use crate::tainted::Reason;
             use crate::tainted_prompter::{confirm_with_prompter, CliPrompter};
             let mut prompter = CliPrompter::new_real();
@@ -486,7 +519,15 @@ impl ToolExecutor {
         let tainted = Tainted::new(url.to_string(), origin);
 
         // Slice G part 1 — route through the CLI prompter when opted in.
-        let gate = if self.use_cli_prompter {
+        // Slice G part 2 — HTTP bridge wins when configured (see the
+        // bash dispatch site for the precedence rationale).
+        let gate = if let Some(queue) = self.http_prompter_queue.as_ref() {
+            use crate::tainted::Reason;
+            use crate::tainted_http_bridge::HttpBridgePrompter;
+            use crate::tainted_prompter::confirm_with_prompter;
+            let mut prompter = HttpBridgePrompter::new(queue.clone());
+            confirm_with_prompter(&tainted, Reason::ToolCallArgument, &mut prompter)
+        } else if self.use_cli_prompter {
             use crate::tainted::Reason;
             use crate::tainted_prompter::{confirm_with_prompter, CliPrompter};
             let mut prompter = CliPrompter::new_real();
@@ -1024,6 +1065,10 @@ impl ToolExecutor {
             // choice. A sub-agent should not silently downgrade to
             // the stub gate.
             use_cli_prompter: self.use_cli_prompter,
+            // Slice G part 2 — share the same HTTP queue so a child
+            // agent's tool-call prompts surface on the same modal /
+            // mobile / watch surface as the parent.
+            http_prompter_queue: self.http_prompter_queue.clone(),
         });
 
         let mut agent = AgentLoop::new(provider, ApprovalPolicy::FullAuto, child_executor);

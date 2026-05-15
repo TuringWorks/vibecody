@@ -7,6 +7,7 @@ pub mod auth_util;
 pub mod redact;
 pub mod tainted;
 pub mod tainted_prompter;
+pub mod tainted_http_bridge;
 pub mod mcp_taint;
 pub mod rag_taint;
 pub mod diff_review;
