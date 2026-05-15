@@ -467,6 +467,7 @@ impl ToolExecutor {
                     decision = "block",
                     reason = %reason,
                     origin = %tainted.origin().kind(),
+                    fingerprint = %tainted.log_fingerprint(),
                     "http.outbound rejected by tainted gate (strict mode)",
                 );
                 ToolResult::err(
@@ -480,6 +481,7 @@ impl ToolExecutor {
                     decision = "warn",
                     reason = %reason,
                     origin = %tainted.origin().kind(),
+                    fingerprint = %tainted.log_fingerprint(),
                     "http.outbound gate rejected but executing anyway (warn-only mode \
                      — set tainted_strict=true to enforce)",
                 );
