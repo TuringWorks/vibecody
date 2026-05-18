@@ -271,6 +271,10 @@ impl SessionStore {
                 ON goal_links(goal_id, kind);
             CREATE INDEX IF NOT EXISTS idx_goal_links_target
                 ON goal_links(target_id);
+
+            -- G3.2 — index for parent_goal_id tree queries.
+            CREATE INDEX IF NOT EXISTS idx_goals_parent
+                ON goals(parent_goal_id);
             "#,
         )?;
 
@@ -739,6 +743,10 @@ impl SessionStore {
                 .clone()
                 .and_then(|p| p.to_str().map(str::to_string)),
         };
+        let new_parent_goal_id = match &patch.parent_goal_id {
+            Some(opt) => opt.clone(),
+            None => existing.parent_goal_id.clone(),
+        };
 
         let invalidate_plan = new_statement != existing.statement
             || new_criteria != existing.success_criteria;
@@ -765,8 +773,9 @@ impl SessionStore {
                  success_criteria = ?5,
                  tags = ?6,
                  updated_at = ?7,
-                 current_plan_json = ?8
-             WHERE id = ?9",
+                 current_plan_json = ?8,
+                 parent_goal_id = ?9
+             WHERE id = ?10",
             params![
                 new_workspace,
                 new_title,
@@ -776,6 +785,7 @@ impl SessionStore {
                 tags_json,
                 now_iso,
                 plan_json,
+                new_parent_goal_id,
                 id,
             ],
         )?;
@@ -810,6 +820,37 @@ impl SessionStore {
             .conn
             .execute("DELETE FROM goals WHERE id = ?1", params![id])?;
         Ok(n > 0)
+    }
+
+    /// G3.2 — list direct children of a goal (one level only). Ordered
+    /// newest-updated-first to match `list_goals`. Returns an empty
+    /// vec when the parent has no children, never errors on missing
+    /// parent (the route layer 404s on its own lookup).
+    pub fn list_children_goals(
+        &self,
+        parent_goal_id: &str,
+    ) -> Result<Vec<crate::exec_goal::Goal>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, workspace, title, statement, status, success_criteria,
+                    tags, created_at, updated_at, parent_goal_id,
+                    current_plan_json, schema_version
+             FROM goals WHERE parent_goal_id = ?1
+             ORDER BY updated_at DESC",
+        )?;
+        let rows = stmt.query_map(params![parent_goal_id], |r| {
+            row_to_goal(r).map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    0,
+                    rusqlite::types::Type::Text,
+                    Box::new(std::io::Error::other(e.to_string())),
+                )
+            })
+        })?;
+        let mut out = Vec::new();
+        for r in rows {
+            out.push(r?);
+        }
+        Ok(out)
     }
 
     /// Insert a new goal_link row. Caller validates that the linked
@@ -1303,6 +1344,10 @@ pub struct GoalPatch {
     pub success_criteria: Option<Vec<String>>,
     pub tags: Option<Vec<String>>,
     pub workspace: Option<Option<String>>,
+    /// Same double-`Option` shape as `workspace`. `Some(None)` clears
+    /// the parent (promotes the goal to a root); `Some(Some(id))` sets
+    /// or moves under a new parent; omitted entirely leaves it alone.
+    pub parent_goal_id: Option<Option<String>>,
 }
 
 fn row_to_goal(

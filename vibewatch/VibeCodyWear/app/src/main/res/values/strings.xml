@@ -2,4 +2,5 @@
 <resources>
     <string name="app_name">VibeCody</string>
     <string name="job_recap_tile_label">VibeCody · Job Recap</string>
+    <string name="goals_tile_label">VibeCody · Goal</string>
 </resources>

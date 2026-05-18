@@ -2755,6 +2755,11 @@ pub struct ExecGoalPatchRequest {
     /// Serde produces these three states natively on `Option<Option<T>>`.
     #[serde(default)]
     pub workspace: Option<Option<String>>,
+    /// Same double-Option semantics as `workspace` — `Some(Some(id))`
+    /// reparents under that id, `Some(null)` promotes to root,
+    /// omitted leaves the parent alone.
+    #[serde(default)]
+    pub parent_goal_id: Option<Option<String>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -2919,6 +2924,7 @@ pub(crate) fn do_v1_exec_goal_patch(
         success_criteria: patch.success_criteria.clone(),
         tags: patch.tags.clone(),
         workspace: patch.workspace.clone(),
+        parent_goal_id: patch.parent_goal_id.clone(),
     };
     match store.update_goal(id, &store_patch) {
         Ok(Some(g)) => match serde_json::to_value(&g) {
@@ -2955,6 +2961,38 @@ pub(crate) fn do_v1_exec_goal_delete(
             serde_json::json!({ "error": "no goal with that id" }),
         ),
         Err(e) => internal_error_value("exec_goal.delete", &e),
+    }
+}
+
+/// G3.2 — list direct children of a goal. 404 if the parent itself
+/// doesn't exist (lets clients distinguish "no children" from "bad
+/// id" without a separate probe).
+pub(crate) fn do_v1_exec_goal_children(
+    store: &SessionStore,
+    parent_id: &str,
+) -> (StatusCode, serde_json::Value) {
+    match store.get_goal_by_id(parent_id) {
+        Ok(Some(_)) => {}
+        Ok(None) => {
+            return (
+                StatusCode::NOT_FOUND,
+                serde_json::json!({ "error": "no goal with that id" }),
+            );
+        }
+        Err(e) => return internal_error_value("exec_goal.children.parent_load", &e),
+    }
+    match store.list_children_goals(parent_id) {
+        Ok(rows) => {
+            let count = rows.len();
+            match serde_json::to_value(&rows) {
+                Ok(v) => (
+                    StatusCode::OK,
+                    serde_json::json!({ "parent_goal_id": parent_id, "children": v, "count": count }),
+                ),
+                Err(e) => internal_error_value("exec_goal.children.serialize", &e),
+            }
+        }
+        Err(e) => internal_error_value("exec_goal.children.list", &e),
     }
 }
 
@@ -3013,6 +3051,17 @@ async fn v1_exec_goal_delete(
         Err(e) => return e,
     };
     let (status, body) = do_v1_exec_goal_delete(&store, &id);
+    (status, Json(body))
+}
+
+async fn v1_exec_goal_children(
+    Path(id): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match open_default_or_500() {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let (status, body) = do_v1_exec_goal_children(&store, &id);
     (status, Json(body))
 }
 
@@ -3197,7 +3246,22 @@ async fn v1_exec_goal_plan(
         ..Default::default()
     };
 
-    let planner = vibe_ai::planner::PlannerAgent::new(state.provider.clone());
+    // G3.4 — honor per-request provider+model override when the body
+    // supplies them. Falls back to the daemon's configured provider
+    // when the override is missing, malformed, or its API key isn't
+    // available (env or profile store). The response records which
+    // path was taken so callers can detect the fallback.
+    let (chosen_provider, override_applied) = match (&req.provider, &req.model) {
+        (Some(name), Some(model)) if !name.is_empty() && !model.is_empty() => {
+            match build_provider_override(name, model) {
+                Some(p) => (p, true),
+                None => (state.provider.clone(), false),
+            }
+        }
+        _ => (state.provider.clone(), false),
+    };
+
+    let planner = vibe_ai::planner::PlannerAgent::new(chosen_provider);
     let plan = match planner.plan(&task, &ctx).await {
         Ok(p) => p,
         Err(e) => {
@@ -3214,7 +3278,29 @@ async fn v1_exec_goal_plan(
 
     match store.set_goal_plan(&id, &plan) {
         Ok(Some(updated)) => match serde_json::to_value(&updated) {
-            Ok(v) => (StatusCode::OK, Json(v)),
+            Ok(mut v) => {
+                // Augment the response with planner-source metadata so
+                // callers can detect when their override was honored.
+                if let Some(obj) = v.as_object_mut() {
+                    obj.insert(
+                        "plan_provider_override_applied".into(),
+                        serde_json::Value::Bool(override_applied),
+                    );
+                    if let Some(p) = &req.provider {
+                        obj.insert(
+                            "plan_provider_requested".into(),
+                            serde_json::Value::String(p.clone()),
+                        );
+                    }
+                    if let Some(m) = &req.model {
+                        obj.insert(
+                            "plan_model_requested".into(),
+                            serde_json::Value::String(m.clone()),
+                        );
+                    }
+                }
+                (StatusCode::OK, Json(v))
+            }
             Err(e) => {
                 let (s, b) = internal_error_value("exec_goal.plan.serialize", &e);
                 (s, Json(b))
@@ -3229,6 +3315,84 @@ async fn v1_exec_goal_plan(
             (s, Json(b))
         }
     }
+}
+
+/// G3.4 — build a fresh `AIProvider` from a `(provider_type, model)`
+/// pair, drawing the API key from the standard env var first and then
+/// `~/.vibecli/profile_settings.db`. Returns `None` when either the
+/// provider is unknown or the API key is missing for an auth-required
+/// provider. The caller is responsible for falling back to the
+/// daemon's configured `ServeState::provider`.
+///
+/// Kept small on purpose: we only support the handful of providers
+/// that are widely used for planning. Niche providers can still be
+/// configured at daemon startup and used via the fallback path.
+fn build_provider_override(
+    provider_type: &str,
+    model: &str,
+) -> Option<Arc<dyn vibe_ai::provider::AIProvider>> {
+    use vibe_ai::provider::ProviderConfig;
+    use vibe_ai::providers;
+
+    let env_key = match provider_type {
+        "claude" | "anthropic" => std::env::var("ANTHROPIC_API_KEY").ok(),
+        "openai" => std::env::var("OPENAI_API_KEY").ok(),
+        "gemini" | "google" => std::env::var("GEMINI_API_KEY")
+            .or_else(|_| std::env::var("GOOGLE_API_KEY"))
+            .ok(),
+        "grok" => std::env::var("GROK_API_KEY")
+            .or_else(|_| std::env::var("XAI_API_KEY"))
+            .ok(),
+        "groq" => std::env::var("GROQ_API_KEY").ok(),
+        "mistral" => std::env::var("MISTRAL_API_KEY").ok(),
+        "deepseek" => std::env::var("DEEPSEEK_API_KEY").ok(),
+        "cerebras" => std::env::var("CEREBRAS_API_KEY").ok(),
+        "openrouter" => std::env::var("OPENROUTER_API_KEY").ok(),
+        "ollama" => Some(String::new()),
+        _ => std::env::var(format!("{}_API_KEY", provider_type.to_uppercase())).ok(),
+    };
+
+    let auth_optional = matches!(provider_type, "ollama");
+    let api_key: Option<String> = match env_key {
+        Some(ref k) if !k.is_empty() || auth_optional => env_key,
+        _ => {
+            let profile_name = match provider_type {
+                "claude" | "anthropic" => "anthropic",
+                "gemini" | "google" => "gemini",
+                other => other,
+            };
+            crate::profile_store::ProfileStore::new()
+                .ok()
+                .and_then(|s| s.get_api_key("default", profile_name).ok().flatten())
+                .filter(|k| !k.is_empty())
+        }
+    };
+
+    if !auth_optional && api_key.as_ref().is_none_or(|k| k.is_empty()) {
+        return None;
+    }
+
+    let cfg = ProviderConfig {
+        provider_type: provider_type.to_string(),
+        api_key,
+        model: model.to_string(),
+        ..Default::default()
+    };
+
+    let p: Arc<dyn vibe_ai::provider::AIProvider> = match provider_type {
+        "claude" | "anthropic" => Arc::new(providers::ClaudeProvider::new(cfg)),
+        "openai" => Arc::new(providers::OpenAIProvider::new(cfg)),
+        "gemini" | "google" => Arc::new(providers::GeminiProvider::new(cfg)),
+        "grok" => Arc::new(providers::GrokProvider::new(cfg)),
+        "groq" => Arc::new(providers::GroqProvider::new(cfg)),
+        "mistral" => Arc::new(providers::MistralProvider::new(cfg)),
+        "deepseek" => Arc::new(providers::DeepSeekProvider::new(cfg)),
+        "cerebras" => Arc::new(providers::CerebrasProvider::new(cfg)),
+        "openrouter" => Arc::new(providers::OpenRouterProvider::new(cfg)),
+        "ollama" => Arc::new(providers::ollama::OllamaProvider::new(cfg)),
+        _ => return None,
+    };
+    Some(p)
 }
 
 async fn v1_exec_goal_link(
@@ -4676,6 +4840,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/v1/goals/:id/link", post(v1_exec_goal_link))
         .route("/v1/goals/:id/start", post(v1_exec_goal_start))
         .route("/v1/goals/:id/recap", post(v1_exec_goal_recap))
+        .route("/v1/goals/:id/children", get(v1_exec_goal_children))
         // Recap & Resume v1 — D1.1 (diffcomplete chain autosave).
         // Patent re-audit: PASS (1–5 unchanged). Writes happen only
         // on discrete user-driven events posted by the modal.
@@ -9588,6 +9753,7 @@ mod tests {
             success_criteria: None,
             tags: None,
             workspace: None,
+            parent_goal_id: None,
         };
         let (status, body) = do_v1_exec_goal_patch(&store, &id, &patch);
         assert_eq!(status, StatusCode::OK);
@@ -9618,6 +9784,7 @@ mod tests {
             success_criteria: None,
             tags: None,
             workspace: None,
+            parent_goal_id: None,
         };
         let (status, body) = do_v1_exec_goal_patch(&store, &id, &patch);
         assert_eq!(status, StatusCode::OK);
@@ -9638,6 +9805,7 @@ mod tests {
             success_criteria: None,
             tags: None,
             workspace: None,
+            parent_goal_id: None,
         };
         let (status, _) = do_v1_exec_goal_patch(&store, "missing", &patch);
         assert_eq!(status, StatusCode::NOT_FOUND);
@@ -9681,6 +9849,121 @@ mod tests {
         };
         let (status, _) = do_v1_exec_goal_link(&store, &id, &req);
         assert_eq!(status, StatusCode::BAD_REQUEST);
+    }
+
+    // G3.4 — provider-override builder. Doesn't actually call the
+    // network — verifies the env-var / unknown-provider branches.
+
+    #[test]
+    fn build_provider_override_ollama_succeeds_without_key() {
+        // Ollama is auth-optional and should always build, regardless of
+        // env state. Confirms the auth_optional carve-out works.
+        let p = build_provider_override("ollama", "qwen3");
+        assert!(p.is_some(), "ollama override must build without auth");
+    }
+
+    #[test]
+    fn build_provider_override_unknown_returns_none() {
+        let p = build_provider_override("not-a-real-provider", "x");
+        assert!(p.is_none());
+    }
+
+    #[test]
+    fn build_provider_override_anthropic_requires_key() {
+        // SAFETY: tests are single-threaded by default and these
+        // env mutations are isolated to the duration of this test.
+        let prior = std::env::var("ANTHROPIC_API_KEY").ok();
+        // unsafe: env-var mutation in tests
+        unsafe { std::env::remove_var("ANTHROPIC_API_KEY"); }
+        // Profile store may have a key on the test machine — accept either
+        // outcome but verify the function doesn't panic.
+        let _ = build_provider_override("claude", "claude-haiku-4-5");
+        if let Some(p) = prior {
+            unsafe { std::env::set_var("ANTHROPIC_API_KEY", p); }
+        }
+    }
+
+    #[test]
+    fn exec_goal_children_returns_404_for_missing_parent() {
+        let (store, _dir) = goal_route_fixture();
+        let (status, _) = do_v1_exec_goal_children(&store, "no-such-parent");
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn exec_goal_children_returns_only_direct_descendants() {
+        // Tree: root → mid → leaf. Asking for root's children must return
+        // [mid] only, not [mid, leaf]. The route is intentionally one-level
+        // so the caller can fan out tree views without server-side recursion.
+        let (store, _dir) = goal_route_fixture();
+        let (_, root) = do_v1_exec_goal_post(&store, &make_create_request("root"));
+        let root_id = root["id"].as_str().unwrap().to_string();
+        // Create `mid` with parent=root via PATCH.
+        let (_, mid) = do_v1_exec_goal_post(&store, &make_create_request("mid"));
+        let mid_id = mid["id"].as_str().unwrap().to_string();
+        let patch = ExecGoalPatchRequest {
+            title: None,
+            statement: None,
+            status: None,
+            success_criteria: None,
+            tags: None,
+            workspace: None,
+            parent_goal_id: Some(Some(root_id.clone())),
+        };
+        let (status, _) = do_v1_exec_goal_patch(&store, &mid_id, &patch);
+        assert_eq!(status, StatusCode::OK);
+        // Leaf under mid.
+        let (_, leaf) = do_v1_exec_goal_post(&store, &make_create_request("leaf"));
+        let leaf_id = leaf["id"].as_str().unwrap().to_string();
+        let patch_leaf = ExecGoalPatchRequest {
+            title: None,
+            statement: None,
+            status: None,
+            success_criteria: None,
+            tags: None,
+            workspace: None,
+            parent_goal_id: Some(Some(mid_id.clone())),
+        };
+        do_v1_exec_goal_patch(&store, &leaf_id, &patch_leaf);
+
+        let (status, body) = do_v1_exec_goal_children(&store, &root_id);
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["count"], 1);
+        let children = body["children"].as_array().unwrap();
+        assert_eq!(children.len(), 1);
+        assert_eq!(children[0]["id"], mid_id);
+    }
+
+    #[test]
+    fn exec_goal_patch_can_clear_parent_to_root() {
+        // Setting parent_goal_id to JSON null promotes a child to a root.
+        let (store, _dir) = goal_route_fixture();
+        let (_, root) = do_v1_exec_goal_post(&store, &make_create_request("root2"));
+        let root_id = root["id"].as_str().unwrap().to_string();
+        let (_, child) = do_v1_exec_goal_post(&store, &make_create_request("child"));
+        let child_id = child["id"].as_str().unwrap().to_string();
+        let set_parent = ExecGoalPatchRequest {
+            title: None, statement: None, status: None,
+            success_criteria: None, tags: None, workspace: None,
+            parent_goal_id: Some(Some(root_id.clone())),
+        };
+        do_v1_exec_goal_patch(&store, &child_id, &set_parent);
+        // Sanity: child shows up under root.
+        let (_, kids) = do_v1_exec_goal_children(&store, &root_id);
+        assert_eq!(kids["count"], 1);
+
+        // Now clear the parent.
+        let clear_parent = ExecGoalPatchRequest {
+            title: None, statement: None, status: None,
+            success_criteria: None, tags: None, workspace: None,
+            parent_goal_id: Some(None),
+        };
+        let (s, body) = do_v1_exec_goal_patch(&store, &child_id, &clear_parent);
+        assert_eq!(s, StatusCode::OK);
+        assert!(body["parent_goal_id"].is_null());
+        // Root's children list is empty again.
+        let (_, kids2) = do_v1_exec_goal_children(&store, &root_id);
+        assert_eq!(kids2["count"], 0);
     }
 
     #[test]

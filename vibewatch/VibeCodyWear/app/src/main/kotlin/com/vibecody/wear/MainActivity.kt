@@ -111,19 +111,22 @@ fun VibeCodyWearApp(activity: Activity, startDestination: String = "sessions") {
                 onOpenSession = { id -> navController.navigate("conversation/$id") },
             )
         }
-        // G2.3 — Goals list (display-only on Wear v1). Apple Watch has
-        // a detail + start-session view; Wear matches its read-mostly
-        // surface today and defers the start path to a follow-up. The
-        // user always has VibeUI / mobile / CLI for actions.
+        // G2.3 — Goals list. G3.6 added a detail screen behind a tap;
+        // mutations still happen via VibeUI / mobile / CLI.
         composable("goals") {
             GoalsScreen(
                 net = net,
-                onOpenGoal = { _id, _title ->
-                    // No-op for v1 — the row tap is a placeholder for the
-                    // future detail screen. Goals stay strictly read-only
-                    // on Wear until there's a UX need.
+                onOpenGoal = { id, _title ->
+                    val safe = java.net.URLEncoder.encode(id, "UTF-8")
+                    navController.navigate("goal-detail/$safe")
                 },
             )
+        }
+        composable("goal-detail/{goalId}") { back ->
+            val goalId = java.net.URLDecoder.decode(
+                back.arguments?.getString("goalId").orEmpty(), "UTF-8"
+            )
+            GoalDetailScreen(net = net, goalId = goalId)
         }
         composable("settings") {
             SettingsScreen(auth = auth) {

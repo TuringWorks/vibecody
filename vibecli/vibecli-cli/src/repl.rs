@@ -184,7 +184,7 @@ static WORKFLOW_SUBS: &[&str] = &["new", "list", "show", "advance", "check", "ge
 
 /// Sub-commands for `/goal <sub>` — durable execution intent.
 pub static GOAL_SUBS: &[&str] = &[
-    "new", "list", "show", "status", "link", "start", "delete",
+    "new", "list", "show", "status", "link", "start", "children", "reparent", "delete",
 ];
 
 /// Sub-commands for `/orchestrate <sub>`
@@ -426,7 +426,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/sessions" => Some("[<id_prefix>]  — list recent agent sessions from history (SQLite)"),
         "/share"    => Some("<session_id>  — print shareable URL for a session (requires vibecli serve)"),
         "/workflow" => Some("[new <name>|list|show <n>|advance <n>|check <n> <id>|generate <n>]  — Code Complete workflow"),
-        "/goal"     => Some("[new <title>|list [status]|show <id>|status <id> <s>|link <id> <kind> <target>|start <id> [task]|delete <id>]  — durable execution intent"),
+        "/goal"     => Some("[new <title>|list [status]|show <id>|status <id> <s>|link <id> <kind> <target>|start <id> [task]|children <id>|reparent <id> <parent>|delete <id>]  — durable execution intent"),
         "/redteam"  => Some("[scan <url>|list|show <id>|report <id>|config]  — autonomous security scanning"),
         "/voice"    => Some("[transcribe <file>|speak <text>]  — voice transcription (Whisper) & TTS (ElevenLabs)"),
         "/discover" => Some("— discover VibeCLI peers on the local network"),

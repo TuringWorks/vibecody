@@ -1768,6 +1768,23 @@ export function AIChat({
     const text = overrideInput ?? input;
     if (!text.trim() && attachments.length === 0) return;
     const messageText = text.trim() || (attachments.length > 0 ? `[Attached ${attachments.length} file(s) — please review]` : "");
+
+    // G3.3 — chat-submit hybrid for `/goal <text>`. If the user types
+    // the slash command directly (without picking from the palette)
+    // and hits Enter, route into the Goals panel instead of sending it
+    // as a chat message. Bare `/goal` opens the panel; `/goal <text>`
+    // seeds the New Goal modal. Mirrors the palette-action branch in
+    // handleSlashSelect so both entry-points behave the same.
+    const goalMatch = messageText.match(/^\/goals?\s*(.*)$/i);
+    if (goalMatch) {
+      const seed = goalMatch[1].trim() || undefined;
+      onSwitchToGoals?.(seed);
+      setInput("");
+      setAttachments([]);
+      setSlashQuery(null);
+      return;
+    }
+
     if (!provider) {
       setMessages(prev => [...prev, {
         role: "assistant",

@@ -32,6 +32,7 @@ pub enum CurrentScreen {
     DiffView,
     Agent,
     VimEditor,
+    Goals,
 }
 
 use crate::tui::components::agent_view::AgentViewComponent;
@@ -39,6 +40,7 @@ use crate::tui::components::diagnostics::DiagnosticsComponent;
 use crate::tui::components::file_tree::FileTreeComponent;
 use crate::tui::components::diff_view::DiffViewComponent;
 use crate::tui::components::vim_editor::VimEditorComponent;
+use crate::tui::components::goals::GoalsComponent;
 
 /// Holds a pending tool-call approval: the call to show the user and the
 /// channel to send the approved result (or None for rejection) back to the agent.
@@ -56,6 +58,7 @@ pub struct App {
     pub diff_view: DiffViewComponent,
     pub agent_view: AgentViewComponent,
     pub vim_editor: VimEditorComponent,
+    pub goals: GoalsComponent,
     pub exit_pending: bool,
     pub scroll_offset: u16,
     /// Pending approval for the current tool call (Suggest mode).
@@ -120,6 +123,7 @@ impl App {
             diff_view: DiffViewComponent::new(),
             agent_view: AgentViewComponent::new(),
             vim_editor: VimEditorComponent::new(),
+            goals: GoalsComponent::new(),
             exit_pending: false,
             scroll_offset: 0,
             pending_approval: None,

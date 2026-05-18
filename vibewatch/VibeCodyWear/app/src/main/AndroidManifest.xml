@@ -53,6 +53,20 @@
                 android:resource="@drawable/job_recap_tile_preview" />
         </service>
 
+        <!-- G3.6 — Wear OS Tile for the freshest active goal.
+             Mirrors the JobRecap tile shape; tapping deep-links into
+             the in-app Goals screen. -->
+        <service
+            android:name=".GoalsTileService"
+            android:label="@string/goals_tile_label"
+            android:icon="@mipmap/ic_launcher"
+            android:exported="true"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+        </service>
+
     </application>
 
 </manifest>

@@ -127,6 +127,16 @@ In REPL mode, the following slash commands are available:
 | `/workflow advance <name>` | Mark current stage complete and advance to the next |
 | `/workflow check <name> <id>` | Toggle a checklist item in the current stage |
 | `/workflow generate <name>` | AI-generate a checklist for the current stage |
+| `/goal new <title>` | Create a new durable execution-intent goal in the current workspace |
+| `/goal list [status]` | List goals (filter: `active` \| `paused` \| `done` \| `abandoned`) |
+| `/goal show <id-prefix>` | Show a goal's full detail (statement, plan, success criteria, links) |
+| `/goal status <id> <status>` | Update status (`active` \| `paused` \| `done` \| `abandoned`) |
+| `/goal link <id> <kind> <target>` | Attach a session / job / recap / note to a goal |
+| `/goal start <id> [task]` | Spawn a new session linked to a goal |
+| `/goal children <id>` | List direct child goals (one-level tree query) |
+| `/goal reparent <id> <parent-id\|none>` | Move a goal under a new parent, or promote to root |
+| `/goal delete <id>` | Hard-delete a goal (links cascade) |
+| `/goal plan <id>` | Generate / refresh an `ExecutionPlan` (requires `vibecli serve`) |
 | `/redteam scan <url>` | Start an autonomous red team scan against a target URL |
 | `/redteam list` | List all red team sessions |
 | `/redteam show <id>` | Display findings for a session |

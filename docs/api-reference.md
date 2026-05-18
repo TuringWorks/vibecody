@@ -724,3 +724,31 @@ curl http://localhost:7878/pair
   "instructions": "Open this URL in your device's browser to pair with this VibeCLI instance."
 }
 ```
+
+---
+
+## Goals — `/v1/goals/*`
+
+Durable execution-intent primitive. See [design/goal/README.md](./design/goal/README.md) for the full data model + cross-client surface table.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/v1/goals` | Create. Body: `{ title, statement?, workspace?, success_criteria?, tags?, parent_goal_id? }`. Returns 201 + `Goal`. 409 on `(workspace, title)` conflict. |
+| `GET` | `/v1/goals` | List. Query: `status`, `workspace`, `tag`, `limit` (default 50). Returns `{ goals, count }`. |
+| `GET` | `/v1/goals/:id` | Detail. Returns `{ goal, links }`. |
+| `PATCH` | `/v1/goals/:id` | Partial update. `workspace` and `parent_goal_id` use double-`Option` semantics (omit / `null` / value). Editing `statement` or `success_criteria` auto-clears `current_plan`. |
+| `DELETE` | `/v1/goals/:id` | Hard delete; links cascade. |
+| `POST` | `/v1/goals/:id/plan` | Generate `ExecutionPlan` via `PlannerAgent`. Body: `{ provider?, model? }`. Per-request override honored when both are present and the API key resolves (env or `profile_settings.db`); otherwise falls back to the daemon's configured provider. Response carries `plan_provider_override_applied`, `plan_provider_requested`, `plan_model_requested`. |
+| `POST` | `/v1/goals/:id/link` | Attach a session / job / recap / note. Body: `{ kind, target_id, note? }`. |
+| `POST` | `/v1/goals/:id/start` | Spawn a session bound to this goal. Body: `{ task?, provider?, model? }`. Returns `{ session_id, link_id, goal_id }`. |
+| `POST` | `/v1/goals/:id/recap` | Cross-store aggregate recap (heuristic — no new LLM call). Folds the freshest per-target recaps via two-phase store split. |
+| `GET` | `/v1/goals/:id/children` | One-level tree query. Returns `{ parent_goal_id, children, count }`. Walk iteratively for a full tree. |
+
+### Watch (curated proxies)
+
+The Apple Watch / Wear OS never hits `/v1/*` directly. Use the curated read-only `/watch/goals` pair instead.
+
+| Method | Path | Notes |
+|---|---|---|
+| `GET` | `/watch/goals` | Active goals only, ≤25, slim payload (`{ id, title, status, workspace_label, updated_at }`). |
+| `GET` | `/watch/goals/:id` | Full `{ goal, links }` (same shape as `/v1/goals/:id`). |

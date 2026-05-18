@@ -386,6 +386,103 @@ pub fn handle_goal_start(args: &str) {
     );
 }
 
+/// `/goal children <id>` — list direct children of a goal (one level).
+pub fn handle_goal_children(args: &str) {
+    let store = match SessionStore::open_default() {
+        Ok(s) => s,
+        Err(e) => {
+            println!("Failed to open session store: {e}\n");
+            return;
+        }
+    };
+    let Some(parent_id) = resolve_goal_id(&store, args.trim()) else {
+        return;
+    };
+    let parent = match store.get_goal_by_id(&parent_id) {
+        Ok(Some(g)) => g,
+        _ => {
+            println!("Parent vanished mid-lookup.\n");
+            return;
+        }
+    };
+    let kids = match store.list_children_goals(&parent_id) {
+        Ok(k) => k,
+        Err(e) => {
+            println!("Failed to list children: {e}\n");
+            return;
+        }
+    };
+    if kids.is_empty() {
+        println!(
+            "Goal {} ({}) has no children. Use `/goal reparent` to attach one.\n",
+            short(&parent_id),
+            parent.title,
+        );
+        return;
+    }
+    println!("\n{} children of {}\n", kids.len(), parent.title);
+    for g in &kids {
+        println!(
+            "  {} [{}] {}",
+            short(&g.id),
+            g.status.as_str(),
+            g.title,
+        );
+    }
+    println!();
+}
+
+/// `/goal reparent <id> <parent-id>` — set a goal's parent. Use the
+/// literal `none` (or `-`) as `<parent-id>` to promote the goal to a
+/// root.
+pub fn handle_goal_reparent(args: &str) {
+    let mut parts = args.trim().splitn(2, char::is_whitespace);
+    let id_prefix = parts.next().unwrap_or("").trim();
+    let parent_arg = parts.next().unwrap_or("").trim();
+    if id_prefix.is_empty() || parent_arg.is_empty() {
+        println!("Usage: /goal reparent <child-id> <parent-id|none>\n");
+        return;
+    }
+    let store = match SessionStore::open_default() {
+        Ok(s) => s,
+        Err(e) => {
+            println!("Failed to open session store: {e}\n");
+            return;
+        }
+    };
+    let Some(child_id) = resolve_goal_id(&store, id_prefix) else {
+        return;
+    };
+    let new_parent: Option<String> = if parent_arg == "none" || parent_arg == "-" {
+        None
+    } else {
+        match resolve_goal_id(&store, parent_arg) {
+            Some(p) if p == child_id => {
+                println!("A goal cannot be its own parent.\n");
+                return;
+            }
+            Some(p) => Some(p),
+            None => return,
+        }
+    };
+    let patch = crate::session_store::GoalPatch {
+        parent_goal_id: Some(new_parent.clone()),
+        ..Default::default()
+    };
+    match store.update_goal(&child_id, &patch) {
+        Ok(Some(_)) => match &new_parent {
+            Some(p) => println!(
+                "Reparented {} under {}\n",
+                short(&child_id),
+                short(p),
+            ),
+            None => println!("Promoted {} to a root.\n", short(&child_id)),
+        },
+        Ok(None) => println!("Child goal not found.\n"),
+        Err(e) => println!("Failed to reparent: {e}\n"),
+    }
+}
+
 /// `/goal delete <id>` — hard-delete a goal and (via FK cascade) its
 /// links. Confirms by id-prefix only; the user must paste an unambiguous
 /// prefix.

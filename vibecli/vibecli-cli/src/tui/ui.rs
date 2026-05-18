@@ -36,6 +36,7 @@ pub fn draw(f: &mut Frame, app: &App) {
         CurrentScreen::DiffView => draw_diff_view(f, app, chunks[0]),
         CurrentScreen::FileTree => draw_file_tree(f, app, chunks[0]),
         CurrentScreen::Agent => draw_agent_view(f, app, chunks[0]),
+        CurrentScreen::Goals => draw_goals(f, app, chunks[0]),
         CurrentScreen::VimEditor => {
             // Vim editor renders itself into the full available area (no input strip)
             app.vim_editor.render(f, chunks[0]);
@@ -144,6 +145,75 @@ fn draw_file_tree(f: &mut Frame, app: &App, area: Rect) {
     }
 
     let paragraph = Paragraph::new(items).scroll((0, 0));
+    f.render_widget(paragraph, inner_area);
+}
+
+/// G3.1 — render the Goals list. Read-only display today; mutations
+/// happen via the REPL or VibeUI. Cycle status filter with `f`,
+/// arrow keys for selection, `r` to refresh.
+fn draw_goals(f: &mut Frame, app: &App, area: Rect) {
+    let t = &app.theme;
+    let title = format!(
+        " Goals — filter: {} ({} shown) — f: cycle filter, r: refresh, ESC: back ",
+        app.goals.status_filter.label(),
+        app.goals.items.len(),
+    );
+    let block = Block::default().borders(Borders::ALL).title(title);
+    let inner_area = block.inner(area);
+    f.render_widget(block, area);
+
+    if let Some(err) = &app.goals.last_error {
+        let line = Line::from(Span::styled(
+            format!("⚠ {err}"),
+            Style::default().fg(t.error).add_modifier(Modifier::BOLD),
+        ));
+        f.render_widget(Paragraph::new(line), inner_area);
+        return;
+    }
+
+    if app.goals.items.is_empty() {
+        let line = Line::from(Span::styled(
+            "No goals match the current filter. Try `/goal new <title>` first.",
+            Style::default().fg(t.dim).add_modifier(Modifier::ITALIC),
+        ));
+        f.render_widget(Paragraph::new(line), inner_area);
+        return;
+    }
+
+    let mut lines: Vec<Line> = Vec::new();
+    for (i, row) in app.goals.items.iter().enumerate() {
+        let short_id = &row.id[..row.id.len().min(8)];
+        let status_color = match row.status.as_str() {
+            "active" => t.success,
+            "paused" => t.primary,
+            "done" => t.dim,
+            "abandoned" => t.warning,
+            _ => t.text,
+        };
+        let row_style = if i == app.goals.selected_index {
+            Style::default()
+                .fg(t.selection_fg)
+                .bg(t.selection_bg)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(t.text)
+        };
+        let prefix_spans = vec![
+            Span::styled(format!("{short_id} "), Style::default().fg(t.dim)),
+            Span::styled(
+                format!("[{}] ", row.status),
+                Style::default().fg(status_color),
+            ),
+            Span::styled(
+                format!("[{}] ", row.workspace_label),
+                Style::default().fg(t.dim),
+            ),
+            Span::styled(row.title.clone(), row_style),
+        ];
+        lines.push(Line::from(prefix_spans));
+    }
+
+    let paragraph = Paragraph::new(lines);
     f.render_widget(paragraph, inner_area);
 }
 

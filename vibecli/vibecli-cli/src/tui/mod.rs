@@ -296,6 +296,7 @@ async fn run_app<B: ratatui::backend::Backend>(
                             CurrentScreen::DiffView => app.diff_view.scroll_up(),
                             CurrentScreen::FileTree => app.file_tree.previous(),
                             CurrentScreen::Agent => app.agent_view.scroll_up(),
+                            CurrentScreen::Goals => app.goals.previous(),
                             CurrentScreen::VimEditor => {}
                         },
                         event::MouseEventKind::ScrollDown => match app.current_screen {
@@ -305,6 +306,7 @@ async fn run_app<B: ratatui::backend::Backend>(
                             CurrentScreen::DiffView => app.diff_view.scroll_down(),
                             CurrentScreen::FileTree => app.file_tree.next(),
                             CurrentScreen::Agent => app.agent_view.scroll_down(),
+                            CurrentScreen::Goals => app.goals.next(),
                             CurrentScreen::VimEditor => {}
                         },
                         _ => {}
@@ -463,8 +465,16 @@ async fn run_app<B: ratatui::backend::Backend>(
                         }
                         KeyCode::Char(c) => {
                             app.exit_pending = false;
-                            if let CurrentScreen::Chat = app.current_screen {
-                                app.on_key(c);
+                            match app.current_screen {
+                                CurrentScreen::Chat => app.on_key(c),
+                                CurrentScreen::Goals => match c {
+                                    'f' => app.goals.cycle_filter(),
+                                    'r' => app.goals.refresh(),
+                                    'j' => app.goals.next(),
+                                    'k' => app.goals.previous(),
+                                    _ => {}
+                                },
+                                _ => {}
                             }
                         }
                         KeyCode::Backspace => match app.current_screen {
@@ -476,12 +486,14 @@ async fn run_app<B: ratatui::backend::Backend>(
                             CurrentScreen::FileTree => app.file_tree.previous(),
                             CurrentScreen::DiffView => app.diff_view.scroll_up(),
                             CurrentScreen::Agent => app.agent_view.scroll_up(),
+                            CurrentScreen::Goals => app.goals.previous(),
                             _ => {}
                         },
                         KeyCode::Down => match app.current_screen {
                             CurrentScreen::FileTree => app.file_tree.next(),
                             CurrentScreen::DiffView => app.diff_view.scroll_down(),
                             CurrentScreen::Agent => app.agent_view.scroll_down(),
+                            CurrentScreen::Goals => app.goals.next(),
                             _ => {}
                         },
                         KeyCode::PageUp => {
@@ -648,6 +660,13 @@ async fn handle_chat_input(
             "/quit" | "/exit" => app.should_quit = true,
             "/chat" => app.current_screen = CurrentScreen::Chat,
             "/files" => app.current_screen = CurrentScreen::FileTree,
+            "/goal" | "/goals" => {
+                // Open the Goals screen — read-only browse. Use the
+                // CLI REPL (`vibecli` interactive) for new/show/edit
+                // mutations; this is a one-glance overview.
+                app.goals.refresh();
+                app.current_screen = CurrentScreen::Goals;
+            }
             "/help" => {
                 app.messages.push(TuiMessage::System("Use ? for shortcuts".to_string()));
             }
