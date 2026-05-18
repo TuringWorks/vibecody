@@ -1041,12 +1041,16 @@ async fn start_agent(
     // mobile / watch / VS Code never blocks on a missing pin.
     // G6.3 — surface the attribution onto the agent stream so SDK /
     // VibeUI / CLI consumers can render an "attributed to <goal>" badge.
-    if let Some((goal_id, goal_title)) =
-        auto_link_to_pinned_goal(&state.workspace_root, &session_id)
-    {
-        let id_prefix = goal_id.chars().take(8).collect::<String>();
+    // G7.1 — keep the full Goal so we can also inject a context
+    // preamble (title + statement + criteria + plan) below, making
+    // the agent goal-aware instead of just metadata-attributed.
+    let pinned_goal =
+        auto_link_to_pinned_goal(&state.workspace_root, &session_id);
+    if let Some(ref goal) = pinned_goal {
+        let id_prefix = goal.id.chars().take(8).collect::<String>();
         let msg = format!(
-            "Auto-linked to pinned goal {id_prefix}: {goal_title}"
+            "Auto-linked to pinned goal {id_prefix}: {}",
+            goal.title
         );
         let _ = state
             .job_manager
@@ -1091,7 +1095,7 @@ async fn start_agent(
         // memory through the assembler. When None (every existing
         // mobile/IDE client today), keep the prior empty-context
         // behavior so this is purely additive.
-        let context = match ctx_request {
+        let mut context = match ctx_request {
             Some(ref cr) => match build_agent_context_from_request(
                 workspace_root.clone(),
                 &task,
@@ -1138,6 +1142,19 @@ async fn start_agent(
                 auto_commit: false,
             },
         };
+
+        // G7.1 — inject a pinned-goal preamble (title + statement +
+        // success criteria + current plan) into `approved_plan` when
+        // the caller hasn't already supplied one. The context_request
+        // path (Phase 7 S3) populates approved_plan from its own logic
+        // when it's relevant, so we never clobber it; we only fill the
+        // empty slot. Result: the agent runs goal-aware instead of
+        // just goal-attributed.
+        if context.approved_plan.is_none() {
+            if let Some(ref goal) = pinned_goal {
+                context.approved_plan = Some(goal_to_agent_preamble(goal));
+            }
+        }
 
         let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
 
@@ -3334,14 +3351,20 @@ async fn v1_exec_goal_current_delete(
 /// pin lookup or DB issues. The session row already exists in
 /// `JobsDb` when this runs; the link goes into `SessionStore.goal_links`.
 ///
-/// G6.3 — returns `Some((goal_id, goal_title))` when a link was actually
-/// inserted, so callers can advertise the attribution downstream (e.g.,
-/// pushing a `system` event onto the agent stream). Returns `None` when
-/// nothing was pinned or an error occurred (errors are logged).
+/// G6.3 — returns the linked `Goal` so callers can advertise the
+/// attribution downstream (e.g., pushing a `system` event onto the
+/// agent stream). Returns `None` when nothing was pinned or an error
+/// occurred (errors are logged).
+///
+/// G7.1 — returns the **full** goal struct (not just id + title) so the
+/// caller can also synthesize a context preamble from `statement` +
+/// `success_criteria` + `current_plan` and inject it into the agent's
+/// `AgentContext.approved_plan`, making the agent goal-aware instead
+/// of just metadata-attributed.
 pub(crate) fn auto_link_to_pinned_goal(
     workspace: &std::path::Path,
     session_id: &str,
-) -> Option<(String, String)> {
+) -> Option<crate::exec_goal::Goal> {
     let ws_str = workspace.to_string_lossy().into_owned();
     let store = match crate::session_store::SessionStore::open_default() {
         Ok(s) => s,
@@ -3377,18 +3400,69 @@ pub(crate) fn auto_link_to_pinned_goal(
         tracing::debug!(error = %e, "auto_link: insert_goal_link failed");
         return None;
     }
-    // Look up the title so the caller can publish a meaningful
-    // attribution event. If the goal vanished mid-race (deleted before
-    // we read the title) treat it as "linked with unknown title" — the
-    // link itself was cascaded away by the FK, but we still tell the
-    // caller something happened so they can refresh.
-    let title = store
-        .get_goal_by_id(&goal_id)
-        .ok()
-        .flatten()
-        .map(|g| g.title)
-        .unwrap_or_else(|| "(deleted)".to_string());
-    Some((goal_id, title))
+    // Re-load the goal so the caller has fields like statement +
+    // success_criteria + current_plan to synthesize an agent preamble.
+    // If the goal vanished mid-race (deleted between the pin lookup
+    // and now) the link will be FK-cascaded away too; we return None
+    // and the caller skips both attribution and preamble injection.
+    match store.get_goal_by_id(&goal_id) {
+        Ok(Some(g)) => Some(g),
+        Ok(None) => {
+            tracing::debug!("auto_link: goal {goal_id} vanished mid-race");
+            None
+        }
+        Err(e) => {
+            tracing::debug!(error = %e, "auto_link: goal reload failed");
+            None
+        }
+    }
+}
+
+/// G7.1 — synthesize a context preamble for an agent run that was
+/// auto-linked to a pinned goal. The output is a compact, model-
+/// readable markdown block intended to populate
+/// `AgentContext.approved_plan`. We intentionally omit metadata the
+/// agent doesn't need (`schema_version`, `tags`, `parent_goal_id`,
+/// timestamps); the goal of this preamble is to *tell the model what
+/// it's working toward*, not to dump the row.
+///
+/// Sections rendered:
+/// - `# Pinned goal: <title>` always (anchors the model on what's pinned)
+/// - statement paragraph (skipped when blank)
+/// - `## Success criteria` bullets (skipped when none)
+/// - `## Current plan` numbered steps with `[tool]` tag (skipped when no plan)
+pub(crate) fn goal_to_agent_preamble(goal: &crate::exec_goal::Goal) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
+    let _ = writeln!(out, "# Pinned goal: {}", goal.title);
+    let stmt = goal.statement.trim();
+    if !stmt.is_empty() {
+        let _ = writeln!(out);
+        let _ = writeln!(out, "{stmt}");
+    }
+    if !goal.success_criteria.is_empty() {
+        let _ = writeln!(out);
+        let _ = writeln!(out, "## Success criteria");
+        for c in &goal.success_criteria {
+            let _ = writeln!(out, "- {c}");
+        }
+    }
+    if let Some(plan) = &goal.current_plan {
+        if !plan.steps.is_empty() {
+            let _ = writeln!(out);
+            let _ = writeln!(out, "## Current plan");
+            for (i, step) in plan.steps.iter().enumerate() {
+                let _ = writeln!(
+                    out,
+                    "{}. [{}] {}",
+                    i + 1,
+                    step.tool,
+                    step.description
+                );
+            }
+        }
+    }
+    out
 }
 
 // ── /goal — G1.3 plan / link / start routes ────────────────────────────────
@@ -10945,11 +11019,13 @@ mod tests {
             std::path::Path::new("/tmp/wsAUTO"),
             "sess-autolink-1",
         );
-        assert_eq!(
-            result,
-            Some((goal_id.clone(), goal_title.clone())),
-            "auto_link should return the linked goal's id + title"
-        );
+        // G7.1 — auto_link now returns the full Goal struct (not just
+        // id + title) so the caller can synthesize a context preamble.
+        // Goal doesn't derive PartialEq (ExecutionPlan doesn't either),
+        // so check fields directly.
+        let returned = result.expect("auto_link should return the linked goal");
+        assert_eq!(returned.id, goal_id);
+        assert_eq!(returned.title, goal_title);
 
         let store = crate::session_store::SessionStore::open_default().unwrap();
         let links = store.list_goal_links(&goal_id).unwrap();
@@ -10976,12 +11052,95 @@ mod tests {
             std::path::Path::new("/tmp/wsEMPTY"),
             "sess-empty-1",
         );
-        assert_eq!(result, None);
+        // Goal doesn't impl PartialEq, so `result == None` won't
+        // compile; check `is_none()` instead.
+        assert!(result.is_none(), "auto_link should return None without a pin");
 
         match prior_home {
             Some(v) => unsafe { std::env::set_var("HOME", v); },
             None => unsafe { std::env::remove_var("HOME"); },
         }
+    }
+
+    #[test]
+    fn preamble_bare_goal_renders_only_title() {
+        // Title-only goal (empty statement, no criteria, no plan) is
+        // the freshly-created `/goal new <title>` state. Preamble must
+        // still anchor the model with the title.
+        let goal = crate::exec_goal::Goal::new("Ship the auth refactor".to_string());
+        let preamble = goal_to_agent_preamble(&goal);
+        assert!(preamble.starts_with("# Pinned goal: Ship the auth refactor"));
+        assert!(!preamble.contains("## Success criteria"));
+        assert!(!preamble.contains("## Current plan"));
+    }
+
+    #[test]
+    fn preamble_includes_statement_when_present() {
+        let mut goal = crate::exec_goal::Goal::new("Feature X".to_string());
+        goal.statement = "We must replace the legacy JWT with PASETO.".to_string();
+        let preamble = goal_to_agent_preamble(&goal);
+        assert!(preamble.contains("# Pinned goal: Feature X"));
+        assert!(preamble.contains("We must replace the legacy JWT with PASETO."));
+    }
+
+    #[test]
+    fn preamble_renders_success_criteria_as_bullets() {
+        let mut goal = crate::exec_goal::Goal::new("Refactor logging".to_string());
+        goal.success_criteria = vec![
+            "All log lines structured".to_string(),
+            "p99 < 1 ms".to_string(),
+        ];
+        let preamble = goal_to_agent_preamble(&goal);
+        assert!(preamble.contains("## Success criteria"));
+        assert!(preamble.contains("- All log lines structured"));
+        assert!(preamble.contains("- p99 < 1 ms"));
+    }
+
+    #[test]
+    fn preamble_renders_current_plan_steps_with_tool_tag() {
+        use vibe_ai::planner::{ExecutionPlan, PlanStep, PlanStepStatus};
+        let mut goal = crate::exec_goal::Goal::new("Cut release v0.6".to_string());
+        goal.current_plan = Some(ExecutionPlan {
+            goal: "Cut release v0.6".to_string(),
+            steps: vec![
+                PlanStep {
+                    id: 1,
+                    description: "Bump workspace version".to_string(),
+                    tool: "edit_file".to_string(),
+                    estimated_path: Some("Cargo.toml".to_string()),
+                    status: PlanStepStatus::Pending,
+                },
+                PlanStep {
+                    id: 2,
+                    description: "Tag and push".to_string(),
+                    tool: "shell".to_string(),
+                    estimated_path: None,
+                    status: PlanStepStatus::Pending,
+                },
+            ],
+            estimated_files: vec![],
+            risks: vec![],
+        });
+        let preamble = goal_to_agent_preamble(&goal);
+        assert!(preamble.contains("## Current plan"));
+        assert!(preamble.contains("1. [edit_file] Bump workspace version"));
+        assert!(preamble.contains("2. [shell] Tag and push"));
+    }
+
+    #[test]
+    fn preamble_skips_plan_section_when_steps_are_empty() {
+        // A goal could have a plan struct with no steps (legacy / edge);
+        // don't render an empty `## Current plan` header.
+        use vibe_ai::planner::ExecutionPlan;
+        let mut goal = crate::exec_goal::Goal::new("Empty plan goal".to_string());
+        goal.current_plan = Some(ExecutionPlan {
+            goal: "Empty plan goal".to_string(),
+            steps: vec![],
+            estimated_files: vec![],
+            risks: vec![],
+        });
+        let preamble = goal_to_agent_preamble(&goal);
+        assert!(!preamble.contains("## Current plan"));
     }
 
     #[test]
