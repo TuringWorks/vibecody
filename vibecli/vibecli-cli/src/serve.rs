@@ -1039,7 +1039,20 @@ async fn start_agent(
     // pinned for the daemon's workspace (or globally). Best-effort:
     // session creation succeeds regardless of pin-lookup outcome, so
     // mobile / watch / VS Code never blocks on a missing pin.
-    auto_link_to_pinned_goal(&state.workspace_root, &session_id);
+    // G6.3 — surface the attribution onto the agent stream so SDK /
+    // VibeUI / CLI consumers can render an "attributed to <goal>" badge.
+    if let Some((goal_id, goal_title)) =
+        auto_link_to_pinned_goal(&state.workspace_root, &session_id)
+    {
+        let id_prefix = goal_id.chars().take(8).collect::<String>();
+        let msg = format!(
+            "Auto-linked to pinned goal {id_prefix}: {goal_title}"
+        );
+        let _ = state
+            .job_manager
+            .publish_event(&session_id, AgentEventPayload::system(msg))
+            .await;
+    }
 
     let approval = match &req.approval {
         Some(s) => ApprovalPolicy::from_str(s),
@@ -3320,13 +3333,21 @@ async fn v1_exec_goal_current_delete(
 /// is logged at debug level and swallowed so `/agent` never blocks on
 /// pin lookup or DB issues. The session row already exists in
 /// `JobsDb` when this runs; the link goes into `SessionStore.goal_links`.
-pub(crate) fn auto_link_to_pinned_goal(workspace: &std::path::Path, session_id: &str) {
+///
+/// G6.3 — returns `Some((goal_id, goal_title))` when a link was actually
+/// inserted, so callers can advertise the attribution downstream (e.g.,
+/// pushing a `system` event onto the agent stream). Returns `None` when
+/// nothing was pinned or an error occurred (errors are logged).
+pub(crate) fn auto_link_to_pinned_goal(
+    workspace: &std::path::Path,
+    session_id: &str,
+) -> Option<(String, String)> {
     let ws_str = workspace.to_string_lossy().into_owned();
     let store = match crate::session_store::SessionStore::open_default() {
         Ok(s) => s,
         Err(e) => {
             tracing::debug!(error = %e, "auto_link: session_store open failed");
-            return;
+            return None;
         }
     };
     let pin = match store.get_pinned_goal(Some(&ws_str)) {
@@ -3343,10 +3364,10 @@ pub(crate) fn auto_link_to_pinned_goal(workspace: &std::path::Path, session_id: 
             None
         }
     };
-    let Some((goal_id, _)) = pin else { return };
+    let (goal_id, _) = pin?;
     let link = crate::exec_goal::GoalLink {
         id: crate::exec_goal::new_goal_link_id(),
-        goal_id,
+        goal_id: goal_id.clone(),
         kind: crate::exec_goal::GoalLinkKind::Session,
         target_id: session_id.to_string(),
         linked_at: chrono::Utc::now(),
@@ -3354,7 +3375,20 @@ pub(crate) fn auto_link_to_pinned_goal(workspace: &std::path::Path, session_id: 
     };
     if let Err(e) = store.insert_goal_link(&link) {
         tracing::debug!(error = %e, "auto_link: insert_goal_link failed");
+        return None;
     }
+    // Look up the title so the caller can publish a meaningful
+    // attribution event. If the goal vanished mid-race (deleted before
+    // we read the title) treat it as "linked with unknown title" — the
+    // link itself was cascaded away by the FK, but we still tell the
+    // caller something happened so they can refresh.
+    let title = store
+        .get_goal_by_id(&goal_id)
+        .ok()
+        .flatten()
+        .map(|g| g.title)
+        .unwrap_or_else(|| "(deleted)".to_string());
+    Some((goal_id, title))
 }
 
 // ── /goal — G1.3 plan / link / start routes ────────────────────────────────
@@ -10881,6 +10915,73 @@ mod tests {
         assert_eq!(body["removed"], true);
         let (_, after) = do_v1_exec_goal_current_get(&store, &PinnedGoalQuery::default());
         assert!(after["goal_id"].is_null());
+    }
+
+    #[test]
+    fn auto_link_helper_inserts_goal_link_via_default_store() {
+        // G6.4 — exercises the actual `auto_link_to_pinned_goal` helper
+        // end-to-end. Redirects HOME to a tempdir so `open_default()`
+        // hits a clean sessions.db, creates a goal, pins it, runs the
+        // helper, and asserts a goal_links row exists. Mirrors the
+        // HOME-redirect pattern from G4.1's router-level e2e test.
+        let tmp_home = tempfile::tempdir().unwrap();
+        let prior_home = std::env::var("HOME").ok();
+        // unsafe: env-var mutation in tests
+        unsafe { std::env::set_var("HOME", tmp_home.path()); }
+
+        // Bootstrap: open the default store (creates ~/.vibecli/sessions.db
+        // under our tempdir) and seed a pinned goal.
+        let store = crate::session_store::SessionStore::open_default().unwrap();
+        let goal = crate::exec_goal::Goal::new("autolink target".to_string());
+        let goal_id = goal.id.clone();
+        let goal_title = goal.title.clone();
+        store.insert_goal(&goal).unwrap();
+        store.pin_goal(Some("/tmp/wsAUTO"), &goal_id).unwrap();
+        // Drop the store so the helper's `open_default()` gets a fresh
+        // handle (mirrors how the agent path runs).
+        drop(store);
+
+        let result = auto_link_to_pinned_goal(
+            std::path::Path::new("/tmp/wsAUTO"),
+            "sess-autolink-1",
+        );
+        assert_eq!(
+            result,
+            Some((goal_id.clone(), goal_title.clone())),
+            "auto_link should return the linked goal's id + title"
+        );
+
+        let store = crate::session_store::SessionStore::open_default().unwrap();
+        let links = store.list_goal_links(&goal_id).unwrap();
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].target_id, "sess-autolink-1");
+        assert_eq!(links[0].kind, crate::exec_goal::GoalLinkKind::Session);
+
+        match prior_home {
+            Some(v) => unsafe { std::env::set_var("HOME", v); },
+            None => unsafe { std::env::remove_var("HOME"); },
+        }
+    }
+
+    #[test]
+    fn auto_link_helper_returns_none_with_no_pin() {
+        // Mirror of the assertion the helper makes for clients: no pin
+        // means no link is inserted and no event needs to be published.
+        let tmp_home = tempfile::tempdir().unwrap();
+        let prior_home = std::env::var("HOME").ok();
+        unsafe { std::env::set_var("HOME", tmp_home.path()); }
+
+        // No goals, no pins — fresh tempdir.
+        let result = auto_link_to_pinned_goal(
+            std::path::Path::new("/tmp/wsEMPTY"),
+            "sess-empty-1",
+        );
+        assert_eq!(result, None);
+
+        match prior_home {
+            Some(v) => unsafe { std::env::set_var("HOME", v); },
+            None => unsafe { std::env::remove_var("HOME"); },
+        }
     }
 
     #[test]

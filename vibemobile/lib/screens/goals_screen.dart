@@ -40,12 +40,31 @@ class _GoalsScreenState extends State<GoalsScreen> {
           status: _statusFilter == 'all' ? null : _statusFilter,
         );
         final goals = (resp['goals'] as List?) ?? const [];
+        // G6.2 — gather the set of workspaces present in this machine's
+        // goal list so we can fetch one pin per workspace + the global
+        // slot, and tag every goal with `_pinned: true/false`.
+        final wsSet = <String?>{};
+        for (final g in goals) {
+          if (g is! Map) continue;
+          wsSet.add(g['workspace'] as String?);
+        }
+        final pinned = <String?, String?>{}; // workspace → pinned goal_id
+        for (final ws in wsSet) {
+          try {
+            final pin = await api.getCurrentGoal(cred.baseUrl, cred.token, workspace: ws);
+            pinned[ws] = pin['goal_id'] as String?;
+          } catch (_) {
+            pinned[ws] = null;
+          }
+        }
         for (final g in goals) {
           if (g is! Map) continue;
           final map = Map<String, dynamic>.from(g);
           map['_machine_name'] = cred.machineName;
           map['_base_url'] = cred.baseUrl;
           map['_token'] = cred.token;
+          final ws = map['workspace'] as String?;
+          map['_pinned'] = pinned[ws] == map['id'];
           all.add(map);
         }
       } catch (_) {
@@ -186,6 +205,7 @@ class _GoalCard extends StatelessWidget {
     final ws = goal['workspace'] as String?;
     final id = (goal['id'] ?? '') as String;
     final short = id.length > 8 ? id.substring(0, 8) : id;
+    final isPinned = goal['_pinned'] == true;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -230,7 +250,22 @@ class _GoalCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 6),
-              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              Row(
+                children: [
+                  if (isPinned) ...[
+                    Icon(
+                      Icons.star_rounded,
+                      size: 14,
+                      color: Theme.of(context).colorScheme.primary,
+                      semanticLabel: 'pinned current goal',
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                  Expanded(
+                    child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+                  ),
+                ],
+              ),
               if (machine.isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Text(
@@ -261,6 +296,11 @@ class _GoalDetailSheetState extends State<_GoalDetailSheet> {
   List<Map<String, dynamic>> _links = [];
   bool _loading = true;
   bool _starting = false;
+  // G6.2 — pin state for this goal. `_isPinned` is the workspace-local
+  // pin (matching the goal's own `workspace` field); the global slot
+  // isn't exposed in the mobile detail sheet today.
+  bool _isPinned = false;
+  bool _pinning = false;
 
   @override
   void initState() {
@@ -275,6 +315,13 @@ class _GoalDetailSheetState extends State<_GoalDetailSheet> {
     final id = widget.goalSummary['id'] as String;
     try {
       final resp = await api.getGoal(baseUrl, token, id);
+      // Best-effort pin lookup — failure leaves `_isPinned = false`.
+      String? pinnedId;
+      try {
+        final ws = widget.goalSummary['workspace'] as String?;
+        final pin = await api.getCurrentGoal(baseUrl, token, workspace: ws);
+        pinnedId = pin['goal_id'] as String?;
+      } catch (_) {}
       if (mounted) {
         setState(() {
           _goal = resp['goal'] as Map<String, dynamic>?;
@@ -282,11 +329,46 @@ class _GoalDetailSheetState extends State<_GoalDetailSheet> {
               .whereType<Map>()
               .map((m) => Map<String, dynamic>.from(m))
               .toList();
+          _isPinned = pinnedId == id;
           _loading = false;
         });
       }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _togglePin() async {
+    setState(() => _pinning = true);
+    final api = context.read<ApiClient>();
+    final baseUrl = widget.goalSummary['_base_url'] as String;
+    final token = widget.goalSummary['_token'] as String;
+    final id = widget.goalSummary['id'] as String;
+    final ws = widget.goalSummary['workspace'] as String?;
+    try {
+      if (_isPinned) {
+        await api.unpinGoal(baseUrl, token, workspace: ws);
+      } else {
+        await api.pinGoal(baseUrl, token, id, workspace: ws);
+      }
+      if (mounted) {
+        setState(() {
+          _isPinned = !_isPinned;
+          _pinning = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_isPinned ? 'Pinned as current goal' : 'Pin cleared'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _pinning = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Pin update failed: $e')),
+        );
+      }
     }
   }
 
@@ -387,10 +469,22 @@ class _GoalDetailSheetState extends State<_GoalDetailSheet> {
                         : null,
                   ),
               const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: _starting ? null : _start,
-                icon: const Icon(Icons.play_arrow_rounded),
-                label: Text(_starting ? 'Starting…' : 'Start a session on this goal'),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: _starting ? null : _start,
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: Text(_starting ? 'Starting…' : 'Start a session on this goal'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: _pinning ? null : _togglePin,
+                    icon: Icon(_isPinned ? Icons.star_rounded : Icons.star_outline_rounded),
+                    label: Text(_isPinned ? 'Pinned' : 'Pin'),
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
             ],

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Target, Plus, Play, Link2, Trash2, RefreshCw, Tag, ListTree, FileText } from 'lucide-react';
+import { Target, Plus, Play, Link2, Trash2, RefreshCw, Tag, ListTree, FileText, Star } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import { Toaster } from './Toaster';
 
@@ -310,6 +310,31 @@ export function GoalPanel({
     }
   };
 
+  // G6.1 — toggle pin for the active workspace (or global slot when
+  // none). Pin replaces any prior pin; unpin clears unconditionally.
+  const togglePin = async () => {
+    if (!detail) return;
+    setPinning(true);
+    try {
+      if (pinnedGoalId === detail.goal.id) {
+        await invoke('exec_goal_unpin', { workspace: workspacePath || null });
+        setPinnedGoalId(null);
+        toast.success('Pin cleared');
+      } else {
+        await invoke('exec_goal_pin', {
+          id: detail.goal.id,
+          workspace: workspacePath || null,
+        });
+        setPinnedGoalId(detail.goal.id);
+        toast.success(`Pinned ${detail.goal.title} as current goal`);
+      }
+    } catch (e) {
+      toast.error('Pin update failed: ' + String(e));
+    } finally {
+      setPinning(false);
+    }
+  };
+
   const runAggregateRecap = async () => {
     if (!detail) return;
     setRecapping(true);
@@ -445,7 +470,17 @@ export function GoalPanel({
                         {workspaceLabel(g.workspace)}
                       </span>
                     </div>
-                    <div style={{ fontSize: 'var(--font-size-md)' }}>{g.title}</div>
+                    <div style={{ fontSize: 'var(--font-size-md)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {pinnedGoalId === g.id && (
+                        <Star
+                          size={12}
+                          fill="currentColor"
+                          style={{ color: 'var(--accent-primary)', flexShrink: 0 }}
+                          aria-label="current pinned goal"
+                        />
+                      )}
+                      <span>{g.title}</span>
+                    </div>
                     <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--text-tertiary)' }}>
                       {short(g.id)} · updated {new Date(g.updated_at).toLocaleDateString()}
                     </div>
@@ -475,6 +510,23 @@ export function GoalPanel({
                   {detail.goal.workspace ? ` · ${workspaceLabel(detail.goal.workspace)}` : ' · global'}
                 </div>
               </div>
+              <button
+                type="button"
+                className={`panel-btn ${pinnedGoalId === detail.goal.id ? 'panel-btn-primary' : ''}`}
+                onClick={togglePin}
+                disabled={pinning}
+                title={
+                  pinnedGoalId === detail.goal.id
+                    ? 'Unpin — new /agent sessions won\'t auto-link to this goal'
+                    : 'Pin as current — new /agent sessions auto-link to this goal'
+                }
+              >
+                <Star
+                  size={14}
+                  fill={pinnedGoalId === detail.goal.id ? 'currentColor' : 'none'}
+                />
+                {pinnedGoalId === detail.goal.id ? 'Pinned' : 'Pin'}
+              </button>
               <button
                 type="button"
                 className="panel-btn"

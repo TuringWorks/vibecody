@@ -158,6 +158,20 @@ impl AgentEventPayload {
             success: None,
         }
     }
+
+    /// G6.3 — daemon-issued advisory message that isn't a model token,
+    /// tool step, completion, or error. Used today for surfacing the
+    /// pinned-goal auto-link confirmation onto the agent stream so SDK
+    /// / VibeUI / CLI consumers can render an attribution badge.
+    pub fn system(msg: String) -> Self {
+        Self {
+            kind: "system".into(),
+            content: Some(msg),
+            step_num: None,
+            tool_name: None,
+            success: None,
+        }
+    }
 }
 
 #[derive(Debug)]
