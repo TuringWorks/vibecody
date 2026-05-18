@@ -249,6 +249,11 @@ pub mod plugin_bundle;
 // bundle. Outer container is `mcpb_bundle.rs` (A2); this defines the
 // VibeCody-specific schema with publisher JWK + component lists.
 pub mod plugin_manifest;
+// B2.2 — detached P-256 ECDSA signing for `vibecli-plugin.toml`.
+// Signature lives in a sibling `vibecli-plugin.sig` next to the
+// manifest inside the extracted bundle. Verifier uses the publisher
+// key embedded in the manifest itself (TOFU).
+pub mod plugin_signing;
 // FIT-GAP v12 — P3: long sessions, Windows sandbox, dispatch, focus
 pub mod long_session;
 pub mod sandbox_windows;

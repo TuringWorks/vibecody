@@ -142,6 +142,9 @@ mod mcpb_bundle;
 // B2.1 — `vibecli-plugin.toml` inner manifest. See lib.rs comment.
 #[allow(dead_code)]
 mod plugin_manifest;
+// B2.2 — detached P-256 ECDSA signing for plugin manifests. See lib.rs.
+#[allow(dead_code)]
+mod plugin_signing;
 mod workspace_roots;
 mod acp_stdio;
 mod skill_watcher;
