@@ -245,6 +245,10 @@ pub mod app_server;
 pub mod computer_use;
 pub mod task_scheduler;
 pub mod plugin_bundle;
+// B2.1 — `vibecli-plugin.toml` inner manifest carried inside an MCPB
+// bundle. Outer container is `mcpb_bundle.rs` (A2); this defines the
+// VibeCody-specific schema with publisher JWK + component lists.
+pub mod plugin_manifest;
 // FIT-GAP v12 — P3: long sessions, Windows sandbox, dispatch, focus
 pub mod long_session;
 pub mod sandbox_windows;

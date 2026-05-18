@@ -139,6 +139,9 @@ mod async_subagent;
 mod mcp_apps_payload;
 mod mcp_well_known;
 mod mcpb_bundle;
+// B2.1 — `vibecli-plugin.toml` inner manifest. See lib.rs comment.
+#[allow(dead_code)]
+mod plugin_manifest;
 mod workspace_roots;
 mod acp_stdio;
 mod skill_watcher;
