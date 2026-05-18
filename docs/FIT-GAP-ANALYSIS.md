@@ -307,6 +307,7 @@ A flattened version of the v4/v5 feature parity matrix, carried forward through 
 | **ALSO** Flutter mobile + native watch clients | Yes | — |
 | **ALSO** 22 providers + Ollama first-class | Yes | — |
 | **ALSO** Design platform (Draw.io / Penpot / Pencil / AI diagrams) | Yes | — |
+| **ALSO** Durable execution intent (`/goal`) — tree, current-pin, LLM recap, /agent auto-link | Yes | — |
 
 Similar parity tables exist for **Codex CLI**, **Cursor 4.1**, **Windsurf 2.0**, **Devin 2.1**, **Copilot Workspace v3**, **Cody 6.1**, **Kiro**, **Zed**, **Gemini CLI** — the roadmap's §9.1 renders the flattened 14-competitor matrix.
 

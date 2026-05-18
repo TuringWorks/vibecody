@@ -207,6 +207,30 @@
 
 ---
 
+## Goals — Durable Execution Intent
+
+| Feature | VibeCLI | VibeUI | Notes |
+|---|:---:|:---:|---|
+| Persistent goal record (intent + statement + criteria) | ✅ | ✅ | `goals` + `goal_links` in `~/.vibecli/sessions.db` |
+| Lifecycle: Active / Paused / Done / Abandoned | ✅ | ✅ | `/goal status <id> <s>` |
+| `ExecutionPlan` decomposition (PlannerAgent) | ✅ | ✅ | `POST /v1/goals/:id/plan`; per-request `{provider, model}` override |
+| Link graph (sessions / jobs / recaps / notes) | ✅ | ✅ | `/goal link` and panel "Linked sessions" |
+| Aggregate recap (LLM synthesis + heuristic fallback) | ✅ | ✅ | `POST /v1/goals/:id/recap`; response carries `recap_synthesizer` |
+| Hierarchy (parent / children / reparent) | ✅ | ✅ | `/goal children`, `/goal reparent`; tree-view toggle |
+| Recursive subtree walk (cycle-safe, depth-clamped) | ✅ | ✅ | `GET /v1/goals/:id/tree?depth=N` (1..10) |
+| Per-workspace "current pin" + global slot | ✅ | ✅ | `GET/PUT/DELETE /v1/goals/current` |
+| `/agent` auto-link to pinned goal | ✅ | ✅ | Silent best-effort |
+| Read-only TUI Goals screen | ✅ | n/a | `/goal` from chat opens; `f` cycles filter |
+| Slash hybrid in chat input | n/a | ✅ | AIChat `/goal <text>` opens panel + seeds modal |
+| REPL subcommands | ✅ | n/a | `new`, `list`, `show`, `status`, `link`, `start`, `children`, `reparent`, `pin`, `unpin`, `current`, `delete`, `plan` |
+| Mobile remote control (Flutter) | ✅ | n/a | `listGoals`, `getGoal`, `startGoal`, `getGoalTree`, `getCurrentGoal`, `pinGoal`, `unpinGoal` |
+| Apple Watch (curated `/watch/goals`) | ✅ | n/a | `loadGoals`, `fetchGoal`, `startGoal` |
+| Wear OS (curated `/watch/goals`) | ✅ | n/a | `listGoals`, `getGoal`, `startGoal`; `GoalDetailScreen` + `GoalsTileService` Tile |
+| VS Code sidebar tree-view | ✅ | n/a | `vibecli.goalsView` (`goals-tree.ts`) with refresh + context-menu actions |
+| Agent SDK namespace | ✅ | n/a | `agent.goals.{list,get,create,update,delete,plan,start,link,tree,pin,unpin,current,recap}` |
+
+---
+
 ## Terminal & Shell
 
 | Feature | VibeCLI | VibeUI | Notes |

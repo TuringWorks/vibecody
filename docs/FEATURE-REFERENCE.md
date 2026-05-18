@@ -26,6 +26,8 @@
 18. [Daemon & API Mode](#18-daemon--api-mode)
 19. [RL-OS (Advanced Training)](#19-rl-os)
 20. [UI Panels (VibeUI)](#20-ui-panels-vibeui)
+21. [Advanced Runtime Capabilities (FIT-GAP v12)](#21-advanced-runtime-capabilities-fit-gap-v12)
+22. [Goals — Durable Execution Intent](#22-goals--durable-execution-intent)
 
 ---
 
@@ -891,6 +893,88 @@ Modules added in the v12 gap-closure wave, targeting Devin 2.0, Claude Code 1.x,
 > /plugins validate ./my-plugin-bundle.json
   ✓ Bundle valid: 3 plugins, 0 missing deps, 0 duplicate IDs
 ```
+
+---
+
+## 22. Goals — Durable Execution Intent
+
+A persistent, cross-session record of **what the user is working toward**. Forward-looking sibling of Recap (backward-looking) and Resume (cursor + seed). See [design/goal/README.md](./design/goal/README.md) for the full design.
+
+### Data shape
+
+Goals + their link graph live in `~/.vibecli/sessions.db` (same store as sessions and recaps, so JOINs are cheap). Workspace is nullable — `None` = global goal visible from anywhere; `Some(path)` = workspace-bound. A plan-invalidation rule clears `current_plan` when `statement` or `success_criteria` changes; a stale plan against a re-stated goal is worse than no plan.
+
+```rust
+pub struct Goal {
+    pub id: String,
+    pub workspace: Option<PathBuf>,
+    pub title: String,
+    pub statement: String,
+    pub status: GoalStatus,           // Active | Paused | Done | Abandoned
+    pub success_criteria: Vec<String>,
+    pub tags: Vec<String>,
+    pub parent_goal_id: Option<String>,
+    pub current_plan: Option<ExecutionPlan>,
+    // + timestamps + schema_version
+}
+```
+
+### HTTP surface (under `authed_routes`)
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST`/`GET`/`PATCH`/`DELETE` | `/v1/goals[/:id]` | CRUD |
+| `POST` | `/v1/goals/:id/plan` | Generate `ExecutionPlan`; honors per-request `{provider, model}` when key resolves |
+| `POST` | `/v1/goals/:id/start` | Spawn session linked to this goal |
+| `POST` | `/v1/goals/:id/link` | Attach session / job / recap / note |
+| `POST` | `/v1/goals/:id/recap` | Aggregate recap; LLM synthesis when `{provider, model}` supplied, heuristic fallback; `recap_synthesizer` returned |
+| `GET` | `/v1/goals/:id/children` | One-level tree query |
+| `GET` | `/v1/goals/:id/tree?depth=N` | Recursive subtree walk (clamped 1..10, default 3, cycle-safe) |
+| `GET`/`PUT`/`DELETE` | `/v1/goals/current` | Per-workspace "current pin" (empty workspace = global slot) |
+
+### Watch surface (curated)
+
+| Method | Path | Notes |
+|---|---|---|
+| `GET` | `/watch/goals` | Active only, ≤25, slim payload |
+| `GET` | `/watch/goals/:id` | Full goal + links |
+| `POST` | `/watch/goals/:id/start` | Wrapper for `do_v1_exec_goal_start` |
+
+### REPL
+
+```bash
+/goal new <title>             # create
+/goal list [status]           # filter: active|paused|done|abandoned
+/goal show <id>               # full detail
+/goal status <id> <status>    # transition lifecycle
+/goal link <id> <kind> <tgt>  # attach session/job/recap/note
+/goal start <id> [task]       # spawn linked session
+/goal children <id>           # direct children only
+/goal reparent <id> <parent|none>
+/goal pin <id> [--global]     # set as current for workspace
+/goal unpin [--global]
+/goal current [--global]
+/goal delete <id>             # cascade-deletes links
+/goal plan <id>               # via `vibecli serve`
+```
+
+### Per-client surface
+
+| Client | What it shipped |
+|---|---|
+| **VibeCLI TUI** | Read-only `Goals` screen — `/goal` from chat opens it; `f` cycles status filter, `j/k` scroll, `r` refresh |
+| **VibeUI** | `GoalPanel` (tab `goals`) — list + detail + status switcher + Generate Plan + Start session + Linked sessions; tree-view toggle; Aggregate recap routed through toolbar `selectedProvider` + `selectedModel` |
+| **VibeUI slash palette + AIChat** | `/goal` opens the panel; `/goal <text>` seeds the New Goal modal |
+| **VibeMobile** | `listGoals`, `getGoal`, `startGoal`, `getGoalTree`, `getCurrentGoal`, `pinGoal`, `unpinGoal` |
+| **Apple Watch** | `loadGoals`, `fetchGoal`, `startGoal` |
+| **Wear OS** | `listGoals`, `getGoal`, `startGoal` + `GoalDetailScreen` + `GoalsTileService` Tile (freshest active goal) |
+| **VS Code** | `vibecli.goalsView` sidebar tree-view (`goals-tree.ts`) with refresh + per-row context-menu actions; `listGoals`, `createGoal`, `startGoal` |
+| **Agent SDK (TypeScript)** | `agent.goals.{list,get,create,update,delete,plan,start,link,tree,pin,unpin,current,recap}` |
+| **`/agent`** | New sessions auto-link to the pinned goal for the daemon's workspace (or the global slot) — silent best-effort, never blocks session creation |
+
+### Why `exec_goal_*`?
+
+VibeUI already has `CompanyGoalsPanel` (company strategy goals via `company_cmd "goal …"`) and `AgilePanel` (sprint goals). The HTTP path stays friendly (`/v1/goals`) but the Rust module is `exec_goal.rs` and the Tauri commands are `exec_goal_*` so future maintainers reading `commands.rs` see no ambiguity.
 
 ---
 
