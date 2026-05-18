@@ -49541,3 +49541,241 @@ pub async fn vibememory_delete(
     store.delete(&id).await.map_err(|e| e.to_string())?;
     Ok(true)
 }
+
+// ── /goal — G1.5 Tauri command surface ─────────────────────────────────────
+//
+// Thin proxies to the daemon's `/v1/goals` routes. Uses the existing
+// `recap_daemon_token` + `recap_http_client` helpers so we don't
+// duplicate auth/client config. Naming prefix is `exec_goal_*` to avoid
+// confusion with the existing `company_cmd "goal …"` surface
+// (CompanyGoalsPanel — strategy goals, different domain).
+
+const EXEC_GOAL_BASE: &str = "http://localhost:7878";
+
+async fn exec_goal_authed_get(
+    path: &str,
+    query: Option<&[(&str, String)]>,
+) -> Result<serde_json::Value, String> {
+    let token = recap_daemon_token().await?;
+    if token.is_empty() {
+        return Err("daemon not running".into());
+    }
+    let client = recap_http_client()?;
+    let mut req = client
+        .get(format!("{}{}", EXEC_GOAL_BASE, path))
+        .header("Authorization", format!("Bearer {}", token));
+    if let Some(q) = query {
+        req = req.query(q);
+    }
+    let resp = req.send().await.map_err(|e| e.to_string())?;
+    let status = resp.status();
+    let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    if !status.is_success() {
+        return Err(format!("daemon returned {}: {}", status, json));
+    }
+    Ok(json)
+}
+
+async fn exec_goal_authed_json(
+    method: reqwest::Method,
+    path: &str,
+    body: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    let token = recap_daemon_token().await?;
+    if token.is_empty() {
+        return Err("daemon not running".into());
+    }
+    let client = recap_http_client()?;
+    let resp = client
+        .request(method, format!("{}{}", EXEC_GOAL_BASE, path))
+        .header("Authorization", format!("Bearer {}", token))
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let status = resp.status();
+    if status == reqwest::StatusCode::NO_CONTENT {
+        return Ok(serde_json::json!({ "deleted": true }));
+    }
+    let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    if !status.is_success() {
+        return Err(format!("daemon returned {}: {}", status, json));
+    }
+    Ok(json)
+}
+
+#[tauri::command]
+pub async fn exec_goal_create(
+    title: String,
+    statement: Option<String>,
+    workspace: Option<String>,
+    success_criteria: Option<Vec<String>>,
+    tags: Option<Vec<String>>,
+    parent_goal_id: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let body = serde_json::json!({
+        "title": title,
+        "statement": statement.unwrap_or_default(),
+        "workspace": workspace,
+        "success_criteria": success_criteria.unwrap_or_default(),
+        "tags": tags.unwrap_or_default(),
+        "parent_goal_id": parent_goal_id,
+    });
+    exec_goal_authed_json(reqwest::Method::POST, "/v1/goals", body).await
+}
+
+#[tauri::command]
+pub async fn exec_goal_list(
+    status: Option<String>,
+    workspace: Option<String>,
+    tag: Option<String>,
+    limit: Option<u32>,
+) -> Result<serde_json::Value, String> {
+    let mut q: Vec<(&str, String)> = Vec::new();
+    if let Some(s) = status {
+        q.push(("status", s));
+    }
+    if let Some(w) = workspace {
+        q.push(("workspace", w));
+    }
+    if let Some(t) = tag {
+        q.push(("tag", t));
+    }
+    if let Some(l) = limit {
+        q.push(("limit", l.to_string()));
+    }
+    exec_goal_authed_get("/v1/goals", Some(&q)).await
+}
+
+#[tauri::command]
+pub async fn exec_goal_get(id: String) -> Result<serde_json::Value, String> {
+    exec_goal_authed_get(&format!("/v1/goals/{}", id), None).await
+}
+
+#[tauri::command]
+pub async fn exec_goal_update(
+    id: String,
+    title: Option<String>,
+    statement: Option<String>,
+    status: Option<String>,
+    success_criteria: Option<Vec<String>>,
+    tags: Option<Vec<String>>,
+    workspace: Option<serde_json::Value>,
+) -> Result<serde_json::Value, String> {
+    let mut body = serde_json::Map::new();
+    if let Some(t) = title {
+        body.insert("title".into(), serde_json::Value::String(t));
+    }
+    if let Some(s) = statement {
+        body.insert("statement".into(), serde_json::Value::String(s));
+    }
+    if let Some(s) = status {
+        body.insert("status".into(), serde_json::Value::String(s));
+    }
+    if let Some(sc) = success_criteria {
+        body.insert("success_criteria".into(), serde_json::to_value(sc).unwrap());
+    }
+    if let Some(t) = tags {
+        body.insert("tags".into(), serde_json::to_value(t).unwrap());
+    }
+    // workspace is double-Option semantics — pass the raw JSON through
+    // so the caller can send `null` (clear) vs omit (leave alone).
+    if let Some(w) = workspace {
+        body.insert("workspace".into(), w);
+    }
+    exec_goal_authed_json(
+        reqwest::Method::PATCH,
+        &format!("/v1/goals/{}", id),
+        serde_json::Value::Object(body),
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn exec_goal_delete(id: String) -> Result<serde_json::Value, String> {
+    exec_goal_authed_json(
+        reqwest::Method::DELETE,
+        &format!("/v1/goals/{}", id),
+        serde_json::json!({}),
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn exec_goal_plan(
+    id: String,
+    provider: Option<String>,
+    model: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let body = serde_json::json!({
+        "provider": provider,
+        "model": model,
+    });
+    exec_goal_authed_json(
+        reqwest::Method::POST,
+        &format!("/v1/goals/{}/plan", id),
+        body,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn exec_goal_link(
+    id: String,
+    kind: String,
+    target_id: String,
+    note: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let body = serde_json::json!({
+        "kind": kind,
+        "target_id": target_id,
+        "note": note,
+    });
+    exec_goal_authed_json(
+        reqwest::Method::POST,
+        &format!("/v1/goals/{}/link", id),
+        body,
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn exec_goal_start(
+    id: String,
+    task: Option<String>,
+    provider: Option<String>,
+    model: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let body = serde_json::json!({
+        "task": task,
+        "provider": provider,
+        "model": model,
+    });
+    exec_goal_authed_json(
+        reqwest::Method::POST,
+        &format!("/v1/goals/{}/start", id),
+        body,
+    )
+    .await
+}
+
+/// Aggregate-recap landed in G1.6; this is the stable command shape so
+/// the frontend doesn't have to re-bind later. Returns a placeholder
+/// JSON until the daemon route exists.
+#[tauri::command]
+pub async fn exec_goal_recap(
+    id: String,
+    provider: Option<String>,
+    model: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let body = serde_json::json!({
+        "provider": provider,
+        "model": model,
+    });
+    exec_goal_authed_json(
+        reqwest::Method::POST,
+        &format!("/v1/goals/{}/recap", id),
+        body,
+    )
+    .await
+}

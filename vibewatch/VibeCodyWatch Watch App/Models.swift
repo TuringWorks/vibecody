@@ -226,6 +226,28 @@ struct WatchJobSummary: Codable, Identifiable {
     }
 }
 
+// MARK: - /goal — durable execution intent (G1.6)
+
+/// Slim goal summary for the watch list + tile. Mirrors daemon's
+/// `/watch/goals` payload (curated, not `/v1/goals`).
+struct WatchGoalSummary: Codable, Identifiable {
+    let id: String
+    let title: String
+    let status: String           // active | paused | done | abandoned
+    let workspace_label: String  // basename or "global"
+    let updated_at: String
+
+    var statusIcon: String {
+        switch status {
+        case "active":    return "●"
+        case "paused":    return "⏸"
+        case "done":      return "✓"
+        case "abandoned": return "⊘"
+        default:          return "○"
+        }
+    }
+}
+
 // MARK: - Beacon
 
 struct WatchBeacon: Codable {

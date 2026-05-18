@@ -44,6 +44,7 @@ pub static COMMANDS: &[&str] = &[
     "/model",
     "/notebook",
     "/plan",
+    "/goal",
     "/plugin",
     "/profile",
     "/profiler",
@@ -180,6 +181,11 @@ static SCHEDULE_SUBS: &[&str] = &["every", "list", "cancel"];
 
 /// Sub-commands for `/workflow <sub>`
 static WORKFLOW_SUBS: &[&str] = &["new", "list", "show", "advance", "check", "generate"];
+
+/// Sub-commands for `/goal <sub>` — durable execution intent.
+pub static GOAL_SUBS: &[&str] = &[
+    "new", "list", "show", "status", "link", "start", "delete",
+];
 
 /// Sub-commands for `/orchestrate <sub>`
 static ORCHESTRATE_SUBS: &[&str] = &["status", "lessons", "lesson", "todo", "verify", "reset"];
@@ -420,6 +426,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/sessions" => Some("[<id_prefix>]  — list recent agent sessions from history (SQLite)"),
         "/share"    => Some("<session_id>  — print shareable URL for a session (requires vibecli serve)"),
         "/workflow" => Some("[new <name>|list|show <n>|advance <n>|check <n> <id>|generate <n>]  — Code Complete workflow"),
+        "/goal"     => Some("[new <title>|list [status]|show <id>|status <id> <s>|link <id> <kind> <target>|start <id> [task]|delete <id>]  — durable execution intent"),
         "/redteam"  => Some("[scan <url>|list|show <id>|report <id>|config]  — autonomous security scanning"),
         "/voice"    => Some("[transcribe <file>|speak <text>]  — voice transcription (Whisper) & TTS (ElevenLabs)"),
         "/discover" => Some("— discover VibeCLI peers on the local network"),
@@ -547,6 +554,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/sandbox"  => Some(SANDBOX_SUBS),
                 "/schedule" => Some(SCHEDULE_SUBS),
                 "/workflow" => Some(WORKFLOW_SUBS),
+                "/goal"     => Some(GOAL_SUBS),
                 "/orchestrate" => Some(ORCHESTRATE_SUBS),
                 "/redteam"  => Some(REDTEAM_SUBS),
                 "/compliance" => Some(COMPLIANCE_SUBS),
@@ -1042,6 +1050,7 @@ mod tests {
             ("/sandbox", SANDBOX_SUBS),
             ("/schedule", SCHEDULE_SUBS),
             ("/workflow", WORKFLOW_SUBS),
+            ("/goal", GOAL_SUBS),
             ("/orchestrate", ORCHESTRATE_SUBS),
             ("/redteam", REDTEAM_SUBS),
             ("/compliance", COMPLIANCE_SUBS),
@@ -1081,7 +1090,7 @@ mod tests {
             "/cost", "/context", "/status", "/fork", "/rewind", "/spec",
             "/agents", "/team", "/test", "/theme", "/snippet", "/linear",
             "/remind", "/schedule", "/jobs", "/sessions", "/share",
-            "/workflow", "/redteam", "/voice", "/discover", "/pair",
+            "/workflow", "/goal", "/redteam", "/voice", "/discover", "/pair",
             "/sandbox", "/verify", "/handoff", "/orient", "/research",
         ];
         for cmd in hinted {

@@ -238,7 +238,7 @@ where
         use sha2::{Digest, Sha256};
         let mut h = Sha256::new();
         h.update(self.value.as_ref());
-        h.into()
+        h.finalize().into()
     }
 
     /// Byte length of the wrapped value, untainted. Rule #5: a

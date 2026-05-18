@@ -2716,6 +2716,773 @@ async fn v1_recap_delete(
     (final_status, Json(serde_json::json!({})))
 }
 
+// ── /goal — G1.2 daemon HTTP CRUD ──────────────────────────────────────────
+//
+// Routes registered in `authed_routes` below: POST/GET/PATCH/DELETE
+// `/v1/goals` + `/v1/goals/:id`. Plan/link/start/recap routes added in
+// G1.3 / G1.6. All work happens in `pub(crate) do_v1_exec_goal_*`
+// helpers so they're unit-testable without spinning up a server.
+
+#[derive(Debug, Deserialize)]
+pub struct ExecGoalCreateRequest {
+    pub title: String,
+    #[serde(default)]
+    pub statement: String,
+    #[serde(default)]
+    pub workspace: Option<String>,
+    #[serde(default)]
+    pub success_criteria: Vec<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default)]
+    pub parent_goal_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ExecGoalPatchRequest {
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub statement: Option<String>,
+    #[serde(default)]
+    pub status: Option<String>,
+    #[serde(default)]
+    pub success_criteria: Option<Vec<String>>,
+    #[serde(default)]
+    pub tags: Option<Vec<String>>,
+    /// `Some(Some("..."))` sets workspace; `Some(None)` (JSON `null`)
+    /// clears it (sets to global); omitted entirely leaves it alone.
+    /// Serde produces these three states natively on `Option<Option<T>>`.
+    #[serde(default)]
+    pub workspace: Option<Option<String>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ExecGoalListQuery {
+    #[serde(default)]
+    pub status: Option<String>,
+    #[serde(default)]
+    pub workspace: Option<String>,
+    #[serde(default)]
+    pub tag: Option<String>,
+    #[serde(default = "default_goal_limit")]
+    pub limit: usize,
+}
+
+fn default_goal_limit() -> usize {
+    50
+}
+
+pub(crate) fn do_v1_exec_goal_post(
+    store: &SessionStore,
+    req: &ExecGoalCreateRequest,
+) -> (StatusCode, serde_json::Value) {
+    let mut goal = crate::exec_goal::Goal::new(req.title.clone());
+    goal.statement = req.statement.clone();
+    goal.workspace = req.workspace.as_ref().map(std::path::PathBuf::from);
+    goal.success_criteria = req.success_criteria.clone();
+    goal.tags = req.tags.clone();
+    goal.parent_goal_id = req.parent_goal_id.clone();
+
+    if let Err(e) = goal.validate() {
+        return (
+            StatusCode::BAD_REQUEST,
+            serde_json::json!({ "error": e.to_string() }),
+        );
+    }
+
+    match store.insert_goal(&goal) {
+        Ok(stored) => match serde_json::to_value(&stored) {
+            Ok(v) => (StatusCode::CREATED, v),
+            Err(e) => internal_error_value("exec_goal.serialize", &e),
+        },
+        Err(e) => {
+            let msg = e.to_string();
+            // SQLite UNIQUE constraint surfaces here. Translate to 409
+            // so the client can offer "open existing goal" instead of
+            // double-creating.
+            if msg.contains("UNIQUE constraint failed") {
+                return (
+                    StatusCode::CONFLICT,
+                    serde_json::json!({
+                        "error": "a goal with that (workspace, title) already exists"
+                    }),
+                );
+            }
+            internal_error_value("exec_goal.insert", &e)
+        }
+    }
+}
+
+pub(crate) fn do_v1_exec_goal_get(
+    store: &SessionStore,
+    id: &str,
+) -> (StatusCode, serde_json::Value) {
+    match store.get_goal_by_id(id) {
+        Ok(Some(g)) => {
+            let links = store.list_goal_links(id).unwrap_or_default();
+            (
+                StatusCode::OK,
+                serde_json::json!({ "goal": g, "links": links }),
+            )
+        }
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            serde_json::json!({ "error": "no goal with that id" }),
+        ),
+        Err(e) => internal_error_value("exec_goal.load", &e),
+    }
+}
+
+pub(crate) fn do_v1_exec_goal_list(
+    store: &SessionStore,
+    q: &ExecGoalListQuery,
+) -> (StatusCode, serde_json::Value) {
+    let status = match q.status.as_deref() {
+        Some(s) => match crate::exec_goal::GoalStatus::from_str(s) {
+            Some(st) => Some(st),
+            None => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    serde_json::json!({
+                        "error": format!("unknown status {s:?}; valid: active|paused|done|abandoned")
+                    }),
+                );
+            }
+        },
+        None => None,
+    };
+    let filter = crate::session_store::GoalListFilter {
+        status,
+        workspace: q.workspace.clone(),
+        tag: q.tag.clone(),
+        limit: q.limit,
+    };
+    match store.list_goals(&filter) {
+        Ok(rows) => {
+            let count = rows.len();
+            match serde_json::to_value(&rows) {
+                Ok(v) => (
+                    StatusCode::OK,
+                    serde_json::json!({ "goals": v, "count": count }),
+                ),
+                Err(e) => internal_error_value("exec_goal.serialize", &e),
+            }
+        }
+        Err(e) => internal_error_value("exec_goal.list", &e),
+    }
+}
+
+pub(crate) fn do_v1_exec_goal_patch(
+    store: &SessionStore,
+    id: &str,
+    patch: &ExecGoalPatchRequest,
+) -> (StatusCode, serde_json::Value) {
+    let status = match patch.status.as_deref() {
+        Some(s) => match crate::exec_goal::GoalStatus::from_str(s) {
+            Some(st) => Some(st),
+            None => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    serde_json::json!({
+                        "error": format!("unknown status {s:?}; valid: active|paused|done|abandoned")
+                    }),
+                );
+            }
+        },
+        None => None,
+    };
+
+    if let Some(t) = &patch.title {
+        if t.trim().is_empty() {
+            return (
+                StatusCode::BAD_REQUEST,
+                serde_json::json!({ "error": "title must not be empty" }),
+            );
+        }
+        if t.chars().count() > crate::exec_goal::TITLE_MAX_LEN {
+            return (
+                StatusCode::BAD_REQUEST,
+                serde_json::json!({
+                    "error": format!(
+                        "title exceeds {} chars", crate::exec_goal::TITLE_MAX_LEN
+                    )
+                }),
+            );
+        }
+    }
+
+    let store_patch = crate::session_store::GoalPatch {
+        title: patch.title.clone(),
+        statement: patch.statement.clone(),
+        status,
+        success_criteria: patch.success_criteria.clone(),
+        tags: patch.tags.clone(),
+        workspace: patch.workspace.clone(),
+    };
+    match store.update_goal(id, &store_patch) {
+        Ok(Some(g)) => match serde_json::to_value(&g) {
+            Ok(v) => (StatusCode::OK, v),
+            Err(e) => internal_error_value("exec_goal.serialize", &e),
+        },
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            serde_json::json!({ "error": "no goal with that id" }),
+        ),
+        Err(e) => {
+            let msg = e.to_string();
+            if msg.contains("UNIQUE constraint failed") {
+                return (
+                    StatusCode::CONFLICT,
+                    serde_json::json!({
+                        "error": "another goal already uses that (workspace, title)"
+                    }),
+                );
+            }
+            internal_error_value("exec_goal.update", &e)
+        }
+    }
+}
+
+pub(crate) fn do_v1_exec_goal_delete(
+    store: &SessionStore,
+    id: &str,
+) -> (StatusCode, serde_json::Value) {
+    match store.delete_goal(id) {
+        Ok(true) => (StatusCode::NO_CONTENT, serde_json::json!({})),
+        Ok(false) => (
+            StatusCode::NOT_FOUND,
+            serde_json::json!({ "error": "no goal with that id" }),
+        ),
+        Err(e) => internal_error_value("exec_goal.delete", &e),
+    }
+}
+
+// ── HTTP handlers (thin shells) ────────────────────────────────────────────
+
+async fn v1_exec_goal_post(
+    Json(req): Json<ExecGoalCreateRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match open_default_or_500() {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let (status, body) = do_v1_exec_goal_post(&store, &req);
+    (status, Json(body))
+}
+
+async fn v1_exec_goal_get(
+    Path(id): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match open_default_or_500() {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let (status, body) = do_v1_exec_goal_get(&store, &id);
+    (status, Json(body))
+}
+
+async fn v1_exec_goal_list(
+    Query(q): Query<ExecGoalListQuery>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match open_default_or_500() {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let (status, body) = do_v1_exec_goal_list(&store, &q);
+    (status, Json(body))
+}
+
+async fn v1_exec_goal_patch(
+    Path(id): Path<String>,
+    Json(patch): Json<ExecGoalPatchRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match open_default_or_500() {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let (status, body) = do_v1_exec_goal_patch(&store, &id, &patch);
+    (status, Json(body))
+}
+
+async fn v1_exec_goal_delete(
+    Path(id): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match open_default_or_500() {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let (status, body) = do_v1_exec_goal_delete(&store, &id);
+    (status, Json(body))
+}
+
+// ── /goal — G1.3 plan / link / start routes ────────────────────────────────
+//
+// `plan` invokes the daemon's currently-configured AIProvider via
+// `PlannerAgent`. Honoring a per-request provider/model override is a
+// follow-up — the body fields are recorded in the response so callers
+// can detect when the daemon's provider differs from what they asked
+// for, mirroring how `RecapRequest` accepts forward-compat fields it
+// doesn't yet act on.
+
+#[derive(Debug, Deserialize)]
+pub struct ExecGoalPlanRequest {
+    #[serde(default)]
+    pub provider: Option<String>,
+    #[serde(default)]
+    pub model: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ExecGoalLinkRequest {
+    pub kind: String,
+    pub target_id: String,
+    #[serde(default)]
+    pub note: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ExecGoalStartRequest {
+    #[serde(default)]
+    pub task: Option<String>,
+    #[serde(default)]
+    pub provider: Option<String>,
+    #[serde(default)]
+    pub model: Option<String>,
+}
+
+pub(crate) fn do_v1_exec_goal_link(
+    store: &SessionStore,
+    goal_id: &str,
+    req: &ExecGoalLinkRequest,
+) -> (StatusCode, serde_json::Value) {
+    let kind = match crate::exec_goal::GoalLinkKind::from_str(&req.kind) {
+        Some(k) => k,
+        None => {
+            return (
+                StatusCode::BAD_REQUEST,
+                serde_json::json!({
+                    "error": format!("unknown link kind {:?}; valid: session|job|recap|note", req.kind)
+                }),
+            );
+        }
+    };
+    if req.target_id.trim().is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            serde_json::json!({ "error": "target_id must not be empty" }),
+        );
+    }
+    match store.get_goal_by_id(goal_id) {
+        Ok(Some(_)) => {}
+        Ok(None) => {
+            return (
+                StatusCode::NOT_FOUND,
+                serde_json::json!({ "error": "no goal with that id" }),
+            );
+        }
+        Err(e) => return internal_error_value("exec_goal.load", &e),
+    }
+    let link = crate::exec_goal::GoalLink {
+        id: crate::exec_goal::new_goal_link_id(),
+        goal_id: goal_id.to_string(),
+        kind,
+        target_id: req.target_id.clone(),
+        linked_at: chrono::Utc::now(),
+        note: req.note.clone(),
+    };
+    match store.insert_goal_link(&link) {
+        Ok(stored) => match serde_json::to_value(&stored) {
+            Ok(v) => (StatusCode::CREATED, v),
+            Err(e) => internal_error_value("exec_goal.link.serialize", &e),
+        },
+        Err(e) => internal_error_value("exec_goal.link.insert", &e),
+    }
+}
+
+pub(crate) fn do_v1_exec_goal_start(
+    store: &SessionStore,
+    goal_id: &str,
+    req: &ExecGoalStartRequest,
+) -> (StatusCode, serde_json::Value) {
+    let goal = match store.get_goal_by_id(goal_id) {
+        Ok(Some(g)) => g,
+        Ok(None) => {
+            return (
+                StatusCode::NOT_FOUND,
+                serde_json::json!({ "error": "no goal with that id" }),
+            );
+        }
+        Err(e) => return internal_error_value("exec_goal.load", &e),
+    };
+
+    let session_id = uuid::Uuid::new_v4().simple().to_string();
+    let task = req
+        .task
+        .clone()
+        .unwrap_or_else(|| format!("Goal: {}", goal.title));
+    let provider = req.provider.clone().unwrap_or_default();
+    let model = req.model.clone().unwrap_or_default();
+
+    let insert_result = match goal.workspace.as_ref().and_then(|p| p.to_str()) {
+        Some(ws) => store.insert_session_with_project(
+            &session_id,
+            &task,
+            &provider,
+            &model,
+            ws,
+        ),
+        None => store.insert_session(&session_id, &task, &provider, &model),
+    };
+    if let Err(e) = insert_result {
+        return internal_error_value("exec_goal.start.insert_session", &e);
+    }
+
+    let link = crate::exec_goal::GoalLink {
+        id: crate::exec_goal::new_goal_link_id(),
+        goal_id: goal_id.to_string(),
+        kind: crate::exec_goal::GoalLinkKind::Session,
+        target_id: session_id.clone(),
+        linked_at: chrono::Utc::now(),
+        note: Some("auto-linked via /v1/goals/:id/start".to_string()),
+    };
+    let link_id = link.id.clone();
+    if let Err(e) = store.insert_goal_link(&link) {
+        return internal_error_value("exec_goal.start.link", &e);
+    }
+    (
+        StatusCode::CREATED,
+        serde_json::json!({
+            "session_id": session_id,
+            "link_id": link_id,
+            "goal_id": goal_id,
+        }),
+    )
+}
+
+async fn v1_exec_goal_plan(
+    State(state): State<ServeState>,
+    Path(id): Path<String>,
+    Json(req): Json<ExecGoalPlanRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match open_default_or_500() {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let goal = match store.get_goal_by_id(&id) {
+        Ok(Some(g)) => g,
+        Ok(None) => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({ "error": "no goal with that id" })),
+            );
+        }
+        Err(e) => {
+            let (s, b) = internal_error_value("exec_goal.load", &e);
+            return (s, Json(b));
+        }
+    };
+
+    let task = if goal.statement.trim().is_empty() {
+        goal.title.clone()
+    } else {
+        format!("{}\n\n{}", goal.title, goal.statement)
+    };
+    let workspace_root = goal.workspace.clone().unwrap_or_else(|| {
+        std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))
+    });
+    let ctx = vibe_ai::AgentContext {
+        workspace_root,
+        approved_plan: Some(goal.statement.clone()),
+        ..Default::default()
+    };
+
+    let planner = vibe_ai::planner::PlannerAgent::new(state.provider.clone());
+    let plan = match planner.plan(&task, &ctx).await {
+        Ok(p) => p,
+        Err(e) => {
+            return (
+                StatusCode::BAD_GATEWAY,
+                Json(serde_json::json!({
+                    "error": format!("planner failed: {e}"),
+                    "provider_requested": req.provider,
+                    "model_requested": req.model,
+                })),
+            );
+        }
+    };
+
+    match store.set_goal_plan(&id, &plan) {
+        Ok(Some(updated)) => match serde_json::to_value(&updated) {
+            Ok(v) => (StatusCode::OK, Json(v)),
+            Err(e) => {
+                let (s, b) = internal_error_value("exec_goal.plan.serialize", &e);
+                (s, Json(b))
+            }
+        },
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "error": "goal vanished mid-plan" })),
+        ),
+        Err(e) => {
+            let (s, b) = internal_error_value("exec_goal.plan.store", &e);
+            (s, Json(b))
+        }
+    }
+}
+
+async fn v1_exec_goal_link(
+    Path(id): Path<String>,
+    Json(req): Json<ExecGoalLinkRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match open_default_or_500() {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let (status, body) = do_v1_exec_goal_link(&store, &id, &req);
+    (status, Json(body))
+}
+
+async fn v1_exec_goal_start(
+    Path(id): Path<String>,
+    Json(req): Json<ExecGoalStartRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match open_default_or_500() {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let (status, body) = do_v1_exec_goal_start(&store, &id, &req);
+    (status, Json(body))
+}
+
+// ── /goal — G2.5 cross-store aggregate recap ──────────────────────────────
+//
+// Walks the goal's `goal_links`, fans out to `SessionStore` (kind=session
+// and kind=recap) and `JobManager` (kind=job), and folds the collected
+// recaps into a single aggregate shape:
+//
+//   {
+//     "goal_id": "...",
+//     "title": "...",
+//     "headline": "Aggregate across N linked recaps",
+//     "bullets":      [<deduped, capped at 7>],
+//     "next_actions": [<deduped, capped at 3>],
+//     "artifacts":    [<union of unique (kind, locator)>],
+//     "sources":      [{ "recap_id", "kind", "target_id" }]
+//   }
+//
+// This is `kind=goal` recap conceptually; we don't extend `RecapKind`
+// (which is wire-stable across the recap-resume v1 design) — instead the
+// aggregator returns a freeform JSON that the UI can render alongside
+// per-session recaps without conflating schemas.
+
+#[derive(Debug, Deserialize)]
+pub struct ExecGoalRecapRequest {
+    #[serde(default)]
+    pub provider: Option<String>,
+    #[serde(default)]
+    pub model: Option<String>,
+}
+
+/// Phase-1 (sync) work for the aggregate recap. Pulls everything the
+/// SessionStore owns and returns the collected data plus the
+/// outstanding JobManager lookups. The caller drops the `&SessionStore`
+/// before invoking phase-2.
+#[derive(Debug)]
+pub(crate) struct ExecGoalRecapPhase1 {
+    pub goal: crate::exec_goal::Goal,
+    pub collected: Vec<(crate::recap::Recap, crate::exec_goal::GoalLinkKind, String)>,
+    pub pending_job_targets: Vec<String>,
+    pub pending_recap_lookups: Vec<String>,
+}
+
+pub(crate) fn do_v1_exec_goal_recap_phase1(
+    store: &SessionStore,
+    goal_id: &str,
+) -> Result<ExecGoalRecapPhase1, (StatusCode, serde_json::Value)> {
+    let goal = match store.get_goal_by_id(goal_id) {
+        Ok(Some(g)) => g,
+        Ok(None) => {
+            return Err((
+                StatusCode::NOT_FOUND,
+                serde_json::json!({ "error": "no goal with that id" }),
+            ));
+        }
+        Err(e) => return Err(internal_error_value("exec_goal.recap.load", &e)),
+    };
+    let links = match store.list_goal_links(goal_id) {
+        Ok(l) => l,
+        Err(e) => {
+            return Err(internal_error_value("exec_goal.recap.links", &e));
+        }
+    };
+
+    let mut collected: Vec<(
+        crate::recap::Recap,
+        crate::exec_goal::GoalLinkKind,
+        String,
+    )> = Vec::new();
+    let mut pending_job_targets: Vec<String> = Vec::new();
+    let mut pending_recap_lookups: Vec<String> = Vec::new();
+    for link in &links {
+        match link.kind {
+            crate::exec_goal::GoalLinkKind::Session => {
+                if let Ok(rows) =
+                    store.list_recaps_for_subject(&link.target_id, 1)
+                {
+                    if let Some(r) = rows.into_iter().next() {
+                        collected.push((r, link.kind, link.target_id.clone()));
+                    }
+                }
+            }
+            crate::exec_goal::GoalLinkKind::Job => {
+                pending_job_targets.push(link.target_id.clone());
+            }
+            crate::exec_goal::GoalLinkKind::Recap => {
+                if let Ok(Some(r)) = store.get_recap_by_id(&link.target_id) {
+                    collected.push((r, link.kind, link.target_id.clone()));
+                } else {
+                    pending_recap_lookups.push(link.target_id.clone());
+                }
+            }
+            crate::exec_goal::GoalLinkKind::Note => {
+                // Freeform — no recap to fold.
+            }
+        }
+    }
+
+    Ok(ExecGoalRecapPhase1 {
+        goal,
+        collected,
+        pending_job_targets,
+        pending_recap_lookups,
+    })
+}
+
+pub(crate) async fn do_v1_exec_goal_recap_phase2(
+    phase1: ExecGoalRecapPhase1,
+    job_manager: &JobManager,
+) -> (StatusCode, serde_json::Value) {
+    let ExecGoalRecapPhase1 {
+        goal,
+        mut collected,
+        pending_job_targets,
+        pending_recap_lookups,
+    } = phase1;
+
+    // SessionStore is gone by this point; safe to cross `.await`
+    // boundaries against JobManager now.
+    for target in &pending_job_targets {
+        if let Ok(rows) =
+            job_manager.list_job_recaps_for_subject(target, 1).await
+        {
+            if let Some(r) = rows.into_iter().next() {
+                collected.push((
+                    r,
+                    crate::exec_goal::GoalLinkKind::Job,
+                    target.clone(),
+                ));
+            }
+        }
+    }
+    for target in &pending_recap_lookups {
+        if let Ok(Some(r)) = job_manager.get_job_recap_by_id(target).await {
+            collected.push((
+                r,
+                crate::exec_goal::GoalLinkKind::Recap,
+                target.clone(),
+            ));
+        }
+    }
+
+    // Fold: dedupe bullets / next_actions case-insensitively; union
+    // artifacts on (kind, locator). Cap bullets at 7 to honor the
+    // recap design contract, next_actions at 3.
+    let mut bullets: Vec<String> = Vec::new();
+    let mut next_actions: Vec<String> = Vec::new();
+    let mut artifacts: Vec<crate::recap::RecapArtifact> = Vec::new();
+    let mut sources: Vec<serde_json::Value> = Vec::new();
+    for (r, kind, target_id) in &collected {
+        for b in &r.bullets {
+            if bullets.len() >= 7 {
+                break;
+            }
+            if !bullets.iter().any(|x| x.eq_ignore_ascii_case(b)) {
+                bullets.push(b.clone());
+            }
+        }
+        for a in &r.next_actions {
+            if next_actions.len() >= 3 {
+                break;
+            }
+            if !next_actions.iter().any(|x| x.eq_ignore_ascii_case(a)) {
+                next_actions.push(a.clone());
+            }
+        }
+        for art in &r.artifacts {
+            if !artifacts
+                .iter()
+                .any(|x| x.kind == art.kind && x.locator == art.locator)
+            {
+                artifacts.push(art.clone());
+            }
+        }
+        sources.push(serde_json::json!({
+            "recap_id": r.id,
+            "kind": kind.as_str(),
+            "target_id": target_id,
+        }));
+    }
+
+    let headline = if collected.is_empty() {
+        format!("No linked recaps yet for: {}", goal.title)
+    } else {
+        format!(
+            "Aggregate across {} linked recap{} for: {}",
+            collected.len(),
+            if collected.len() == 1 { "" } else { "s" },
+            goal.title,
+        )
+    };
+
+    (
+        StatusCode::OK,
+        serde_json::json!({
+            "goal_id": goal.id,
+            "title": goal.title,
+            "headline": headline,
+            "bullets": bullets,
+            "next_actions": next_actions,
+            "artifacts": artifacts,
+            "sources": sources,
+            "generated_at": chrono::Utc::now().to_rfc3339(),
+        }),
+    )
+}
+
+async fn v1_exec_goal_recap(
+    State(state): State<ServeState>,
+    Path(id): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    // Two-phase: SessionStore (rusqlite Connection is !Send) is fully
+    // consumed sync, then dropped before any `.await` against JobManager.
+    // The Handler trait's Send bound requires this split.
+    let phase1 = {
+        let store = match open_default_or_500() {
+            Ok(s) => s,
+            Err(e) => return e,
+        };
+        match do_v1_exec_goal_recap_phase1(&store, &id) {
+            Ok(p) => p,
+            Err((status, body)) => return (status, Json(body)),
+        }
+        // `store` drops here.
+    };
+    let (status, body) =
+        do_v1_exec_goal_recap_phase2(phase1, &state.job_manager).await;
+    (status, Json(body))
+}
+
 // ── Recap & Resume — F1.3 /v1/resume routes ────────────────────────────────
 
 fn helper_outcome_to_response(
@@ -3899,6 +4666,16 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         // Recap & Resume v1 — F1.3 (resume handles)
         .route("/v1/resume", post(v1_resume_post))
         .route("/v1/resume/:handle", get(v1_resume_get))
+        // /goal — G1.2 CRUD + G1.3 plan/link/start.
+        .route("/v1/goals", post(v1_exec_goal_post))
+        .route("/v1/goals", get(v1_exec_goal_list))
+        .route("/v1/goals/:id", get(v1_exec_goal_get))
+        .route("/v1/goals/:id", axum::routing::patch(v1_exec_goal_patch))
+        .route("/v1/goals/:id", axum::routing::delete(v1_exec_goal_delete))
+        .route("/v1/goals/:id/plan", post(v1_exec_goal_plan))
+        .route("/v1/goals/:id/link", post(v1_exec_goal_link))
+        .route("/v1/goals/:id/start", post(v1_exec_goal_start))
+        .route("/v1/goals/:id/recap", post(v1_exec_goal_recap))
         // Recap & Resume v1 — D1.1 (diffcomplete chain autosave).
         // Patent re-audit: PASS (1–5 unchanged). Writes happen only
         // on discrete user-driven events posted by the modal.
@@ -8673,6 +9450,316 @@ mod tests {
         let (store, _sid, _dir) = recap_route_fixture();
         let (status, _) = do_v1_recap_delete(&store, "never-existed");
         assert_eq!(status, StatusCode::NO_CONTENT);
+    }
+
+    // ── G1.2 / G1.3: /v1/goals helper tests ────────────────────────────────
+
+    fn goal_route_fixture() -> (
+        crate::session_store::SessionStore,
+        tempfile::TempDir,
+    ) {
+        let dir = tempfile::tempdir().unwrap();
+        let store = crate::session_store::SessionStore::open(
+            dir.path().join("sessions.db"),
+        )
+        .unwrap();
+        (store, dir)
+    }
+
+    fn make_create_request(title: &str) -> ExecGoalCreateRequest {
+        ExecGoalCreateRequest {
+            title: title.to_string(),
+            statement: String::new(),
+            workspace: None,
+            success_criteria: Vec::new(),
+            tags: Vec::new(),
+            parent_goal_id: None,
+        }
+    }
+
+    #[test]
+    fn exec_goal_post_creates_and_returns_active_goal() {
+        let (store, _dir) = goal_route_fixture();
+        let req = make_create_request("Ship the /goal feature");
+        let (status, body) = do_v1_exec_goal_post(&store, &req);
+        assert_eq!(status, StatusCode::CREATED);
+        assert_eq!(body["title"], "Ship the /goal feature");
+        assert_eq!(body["status"], "active");
+        assert_eq!(body["schema_version"], 1);
+        assert!(body["id"].as_str().is_some_and(|s| !s.is_empty()));
+        assert!(body["current_plan"].is_null());
+    }
+
+    #[test]
+    fn exec_goal_post_rejects_empty_title() {
+        let (store, _dir) = goal_route_fixture();
+        let req = make_create_request("   ");
+        let (status, body) = do_v1_exec_goal_post(&store, &req);
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(body["error"].as_str().is_some_and(|s| s.contains("empty")));
+    }
+
+    #[test]
+    fn exec_goal_post_returns_409_on_duplicate_workspace_title() {
+        let (store, _dir) = goal_route_fixture();
+        let mut req = make_create_request("Same title");
+        req.workspace = Some("/tmp/proj".to_string());
+        let (status, _) = do_v1_exec_goal_post(&store, &req);
+        assert_eq!(status, StatusCode::CREATED);
+        let (status2, body2) = do_v1_exec_goal_post(&store, &req);
+        assert_eq!(status2, StatusCode::CONFLICT);
+        assert!(body2["error"].as_str().is_some_and(|s| s.contains("already")));
+    }
+
+    #[test]
+    fn exec_goal_get_returns_goal_with_links_array() {
+        let (store, _dir) = goal_route_fixture();
+        let (_, created) = do_v1_exec_goal_post(&store, &make_create_request("g"));
+        let id = created["id"].as_str().unwrap();
+        let (status, body) = do_v1_exec_goal_get(&store, id);
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["goal"]["id"], id);
+        assert!(body["links"].is_array());
+        assert_eq!(body["links"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn exec_goal_get_missing_id_returns_404() {
+        let (store, _dir) = goal_route_fixture();
+        let (status, _) = do_v1_exec_goal_get(&store, "deadbeef");
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn exec_goal_list_filters_by_status() {
+        let (store, _dir) = goal_route_fixture();
+        do_v1_exec_goal_post(&store, &make_create_request("a"));
+        do_v1_exec_goal_post(&store, &make_create_request("b"));
+        let q = ExecGoalListQuery {
+            status: Some("active".into()),
+            workspace: None,
+            tag: None,
+            limit: 50,
+        };
+        let (status, body) = do_v1_exec_goal_list(&store, &q);
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["count"], 2);
+        assert!(body["goals"].as_array().unwrap().iter().all(|g| g["status"] == "active"));
+    }
+
+    #[test]
+    fn exec_goal_list_unknown_status_returns_400() {
+        let (store, _dir) = goal_route_fixture();
+        let q = ExecGoalListQuery {
+            status: Some("nope".into()),
+            workspace: None,
+            tag: None,
+            limit: 50,
+        };
+        let (status, _) = do_v1_exec_goal_list(&store, &q);
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn exec_goal_patch_clears_plan_when_statement_changes() {
+        // Pin the plan-invalidation rule: editing `statement` (or
+        // `success_criteria`) clears any cached `current_plan` so callers
+        // are forced to re-plan against the new direction.
+        let (store, _dir) = goal_route_fixture();
+        let (_, created) = do_v1_exec_goal_post(&store, &make_create_request("x"));
+        let id = created["id"].as_str().unwrap().to_string();
+
+        // Inject a fake plan directly via the store helper.
+        let plan = vibe_ai::planner::ExecutionPlan {
+            goal: "x".into(),
+            steps: vec![],
+            estimated_files: vec![],
+            risks: vec![],
+        };
+        store.set_goal_plan(&id, &plan).unwrap();
+        let with_plan = store.get_goal_by_id(&id).unwrap().unwrap();
+        assert!(with_plan.current_plan.is_some(), "fixture should have a plan");
+
+        // PATCH the statement → plan must clear.
+        let patch = ExecGoalPatchRequest {
+            title: None,
+            statement: Some("new direction".into()),
+            status: None,
+            success_criteria: None,
+            tags: None,
+            workspace: None,
+        };
+        let (status, body) = do_v1_exec_goal_patch(&store, &id, &patch);
+        assert_eq!(status, StatusCode::OK);
+        assert!(
+            body["current_plan"].is_null(),
+            "plan should have been cleared on statement edit; got {body}"
+        );
+    }
+
+    #[test]
+    fn exec_goal_patch_keeps_plan_when_only_status_changes() {
+        // Inverse of the rule above: flipping status alone must NOT
+        // discard the plan (the work plan is still valid).
+        let (store, _dir) = goal_route_fixture();
+        let (_, created) = do_v1_exec_goal_post(&store, &make_create_request("y"));
+        let id = created["id"].as_str().unwrap().to_string();
+        let plan = vibe_ai::planner::ExecutionPlan {
+            goal: "y".into(),
+            steps: vec![],
+            estimated_files: vec![],
+            risks: vec![],
+        };
+        store.set_goal_plan(&id, &plan).unwrap();
+        let patch = ExecGoalPatchRequest {
+            title: None,
+            statement: None,
+            status: Some("paused".into()),
+            success_criteria: None,
+            tags: None,
+            workspace: None,
+        };
+        let (status, body) = do_v1_exec_goal_patch(&store, &id, &patch);
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["status"], "paused");
+        assert!(
+            !body["current_plan"].is_null(),
+            "plan must survive a status-only edit; got {body}"
+        );
+    }
+
+    #[test]
+    fn exec_goal_patch_missing_id_returns_404() {
+        let (store, _dir) = goal_route_fixture();
+        let patch = ExecGoalPatchRequest {
+            title: Some("a".into()),
+            statement: None,
+            status: None,
+            success_criteria: None,
+            tags: None,
+            workspace: None,
+        };
+        let (status, _) = do_v1_exec_goal_patch(&store, "missing", &patch);
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn exec_goal_delete_cascades_links() {
+        let (store, _dir) = goal_route_fixture();
+        let (_, created) = do_v1_exec_goal_post(&store, &make_create_request("z"));
+        let id = created["id"].as_str().unwrap().to_string();
+        let link = crate::exec_goal::GoalLink {
+            id: crate::exec_goal::new_goal_link_id(),
+            goal_id: id.clone(),
+            kind: crate::exec_goal::GoalLinkKind::Note,
+            target_id: "note-1".into(),
+            linked_at: chrono::Utc::now(),
+            note: None,
+        };
+        store.insert_goal_link(&link).unwrap();
+        assert_eq!(store.list_goal_links(&id).unwrap().len(), 1);
+
+        let (status, _) = do_v1_exec_goal_delete(&store, &id);
+        assert_eq!(status, StatusCode::NO_CONTENT);
+        assert!(store.get_goal_by_id(&id).unwrap().is_none());
+        assert_eq!(
+            store.list_goal_links(&id).unwrap().len(),
+            0,
+            "FK cascade must remove links"
+        );
+    }
+
+    #[test]
+    fn exec_goal_link_rejects_unknown_kind() {
+        let (store, _dir) = goal_route_fixture();
+        let (_, created) = do_v1_exec_goal_post(&store, &make_create_request("p"));
+        let id = created["id"].as_str().unwrap().to_string();
+        let req = ExecGoalLinkRequest {
+            kind: "spaceship".into(),
+            target_id: "sess-1".into(),
+            note: None,
+        };
+        let (status, _) = do_v1_exec_goal_link(&store, &id, &req);
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+    }
+
+    #[test]
+    fn exec_goal_recap_phase1_returns_404_for_missing_goal() {
+        let (store, _dir) = goal_route_fixture();
+        let res = do_v1_exec_goal_recap_phase1(&store, "no-such-goal");
+        assert!(res.is_err());
+        let (status, _) = res.unwrap_err();
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn exec_goal_recap_phase1_collects_session_recaps_for_links() {
+        let (store, _dir) = goal_route_fixture();
+        // Create a goal.
+        let (_, created) = do_v1_exec_goal_post(&store, &make_create_request("ship feature"));
+        let goal_id = created["id"].as_str().unwrap().to_string();
+
+        // Insert a session, a recap for that session, and link it.
+        let sid = "test-session-1".to_string();
+        store.insert_session(&sid, "first task", "mock", "test-model").unwrap();
+        store.insert_message(&sid, "user", "fix the bug").unwrap();
+        let recap = crate::recap::Recap {
+            id: uuid::Uuid::new_v4().simple().to_string(),
+            kind: crate::recap::RecapKind::Session,
+            subject_id: sid.clone(),
+            last_message_id: Some(1),
+            workspace: None,
+            generated_at: chrono::Utc::now(),
+            generator: crate::recap::RecapGenerator::Heuristic,
+            headline: "Worked on bug fix".into(),
+            bullets: vec!["Ran `read`".into(), "Ran `edit`".into()],
+            next_actions: vec!["Add a regression test".into()],
+            artifacts: vec![],
+            resume_hint: None,
+            token_usage: None,
+            schema_version: 1,
+        };
+        store.insert_recap(&recap).unwrap();
+        // Link the goal to the session.
+        let link_req = ExecGoalLinkRequest {
+            kind: "session".into(),
+            target_id: sid.clone(),
+            note: None,
+        };
+        let (link_status, _) = do_v1_exec_goal_link(&store, &goal_id, &link_req);
+        assert_eq!(link_status, StatusCode::CREATED);
+
+        // Phase 1 should now find the session recap.
+        let phase1 = do_v1_exec_goal_recap_phase1(&store, &goal_id).expect("phase1 ok");
+        assert_eq!(phase1.collected.len(), 1);
+        assert_eq!(phase1.collected[0].0.headline, "Worked on bug fix");
+        assert!(phase1.pending_job_targets.is_empty());
+    }
+
+    #[test]
+    fn exec_goal_start_creates_session_and_link() {
+        let (store, _dir) = goal_route_fixture();
+        let mut create = make_create_request("Refactor auth");
+        create.workspace = Some("/tmp/proj".to_string());
+        let (_, created) = do_v1_exec_goal_post(&store, &create);
+        let id = created["id"].as_str().unwrap().to_string();
+
+        let req = ExecGoalStartRequest {
+            task: Some("Specifically the JWT path".to_string()),
+            provider: None,
+            model: None,
+        };
+        let (status, body) = do_v1_exec_goal_start(&store, &id, &req);
+        assert_eq!(status, StatusCode::CREATED);
+        let session_id = body["session_id"].as_str().unwrap();
+        // Session row exists with the task.
+        let session = store.get_session(session_id).unwrap().unwrap();
+        assert_eq!(session.task, "Specifically the JWT path");
+        // And the link row connects them.
+        let links = store.list_goal_links(&id).unwrap();
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].kind, crate::exec_goal::GoalLinkKind::Session);
+        assert_eq!(links[0].target_id, session_id);
     }
 
     // ── J1.3: kind=job recap-route helper tests ────────────────────────────

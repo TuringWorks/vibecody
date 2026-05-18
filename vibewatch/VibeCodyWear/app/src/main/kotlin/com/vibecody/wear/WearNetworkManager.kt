@@ -101,6 +101,27 @@ class WearNetworkManager(
         JSONObject(resp.body?.string() ?: "{}")
     }
 
+    /** G1.6 — list active execution goals (curated /watch/goals). */
+    suspend fun listGoals(): JSONObject = withContext(Dispatchers.IO) {
+        val req = watchRequest("${auth.daemonUrl}/watch/goals").get().build()
+        val resp = client.newCall(req).awaitResponse()
+        JSONObject(resp.body?.string() ?: "{}")
+    }
+
+    /** G1.6 — full detail (goal + links) for a single goal. Returns null on
+     *  any failure so the caller can degrade gracefully. */
+    suspend fun getGoal(id: String): JSONObject? = withContext(Dispatchers.IO) {
+        try {
+            val req = watchRequest("${auth.daemonUrl}/watch/goals/$id").get().build()
+            val resp = client.newCall(req).awaitResponse()
+            if (!resp.isSuccessful) return@withContext null
+            JSONObject(resp.body?.string() ?: "{}")
+        } catch (e: Exception) {
+            Log.w(TAG, "getGoal($id) failed: ${e.message}")
+            null
+        }
+    }
+
     suspend fun getMessages(sessionId: String): JSONObject = withContext(Dispatchers.IO) {
         val req = watchRequest("${auth.daemonUrl}/watch/sessions/$sessionId/messages").get().build()
         val resp = client.newCall(req).awaitResponse()

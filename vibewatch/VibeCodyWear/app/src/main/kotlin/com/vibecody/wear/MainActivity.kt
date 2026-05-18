@@ -29,6 +29,7 @@ class MainActivity : ComponentActivity() {
 
 private fun startDestinationFor(deeplink: String?): String = when (deeplink) {
     "jobs" -> "jobs"
+    "goals" -> "goals"
     else -> "sessions"
 }
 
@@ -108,6 +109,20 @@ fun VibeCodyWearApp(activity: Activity, startDestination: String = "sessions") {
             SandboxStatusScreen(
                 net = net,
                 onOpenSession = { id -> navController.navigate("conversation/$id") },
+            )
+        }
+        // G2.3 — Goals list (display-only on Wear v1). Apple Watch has
+        // a detail + start-session view; Wear matches its read-mostly
+        // surface today and defers the start path to a follow-up. The
+        // user always has VibeUI / mobile / CLI for actions.
+        composable("goals") {
+            GoalsScreen(
+                net = net,
+                onOpenGoal = { _id, _title ->
+                    // No-op for v1 — the row tap is a placeholder for the
+                    // future detail screen. Goals stay strictly read-only
+                    // on Wear until there's a UX need.
+                },
             )
         }
         composable("settings") {

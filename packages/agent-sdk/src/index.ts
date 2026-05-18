@@ -91,6 +91,61 @@ export interface JobRecord {
  * }
  * ```
  */
+// ── /goal — durable execution intent (G1.7) ────────────────────────────────
+
+export type GoalStatus = 'active' | 'paused' | 'done' | 'abandoned';
+export type GoalLinkKind = 'session' | 'job' | 'recap' | 'note';
+
+export interface Goal {
+  id: string;
+  title: string;
+  statement: string;
+  status: GoalStatus;
+  workspace?: string | null;
+  success_criteria: string[];
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+  parent_goal_id?: string | null;
+  /** `ExecutionPlan` mirror — left loose so the SDK doesn't bind the
+   *  full vibe-ai planner schema. */
+  current_plan?: Record<string, unknown> | null;
+  schema_version: number;
+}
+
+export interface GoalLink {
+  id: string;
+  goal_id: string;
+  kind: GoalLinkKind;
+  target_id: string;
+  linked_at: string;
+  note?: string | null;
+}
+
+export interface GoalDetail {
+  goal: Goal;
+  links: GoalLink[];
+}
+
+export interface GoalCreateInput {
+  title: string;
+  statement?: string;
+  workspace?: string | null;
+  success_criteria?: string[];
+  tags?: string[];
+  parent_goal_id?: string | null;
+}
+
+export interface GoalPatch {
+  title?: string;
+  statement?: string;
+  status?: GoalStatus;
+  success_criteria?: string[];
+  tags?: string[];
+  /** `null` clears the workspace (sets to global); omit to leave alone. */
+  workspace?: string | null;
+}
+
 export class VibeCLIAgent {
   private baseUrl: string;
   private approval: string;
@@ -214,6 +269,84 @@ export class VibeCLIAgent {
       throw new AgentError(`cancelJob failed: ${res.status} ${await res.text()}`);
     }
   }
+
+  // ── /goal — durable execution intent (G1.7) ──────────────────────────────
+  //
+  // Exposed as `agent.goals.*` so SDK consumers can read/write goals without
+  // bumping the public surface on `VibeCLIAgent` itself. Each method is a
+  // thin proxy to /v1/goals; richer fields (plan, criteria) round-trip
+  // verbatim through `Record<string, unknown>`.
+
+  readonly goals = {
+    list: async (filter?: { status?: string; workspace?: string; tag?: string; limit?: number }): Promise<Goal[]> => {
+      const qs = new URLSearchParams();
+      if (filter?.status)    qs.set('status', filter.status);
+      if (filter?.workspace) qs.set('workspace', filter.workspace);
+      if (filter?.tag)       qs.set('tag', filter.tag);
+      if (filter?.limit)     qs.set('limit', String(filter.limit));
+      const url = `${this.baseUrl}/v1/goals${qs.size ? `?${qs}` : ''}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new AgentError(`goals.list failed: ${res.status} ${await res.text()}`);
+      const data = (await res.json()) as { goals?: Goal[] };
+      return data.goals ?? [];
+    },
+    get: async (id: string): Promise<GoalDetail> => {
+      const res = await fetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(id)}`);
+      if (!res.ok) throw new AgentError(`goals.get failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<GoalDetail>;
+    },
+    create: async (body: GoalCreateInput): Promise<Goal> => {
+      const res = await fetch(`${this.baseUrl}/v1/goals`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new AgentError(`goals.create failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<Goal>;
+    },
+    update: async (id: string, patch: GoalPatch): Promise<Goal> => {
+      const res = await fetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new AgentError(`goals.update failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<Goal>;
+    },
+    delete: async (id: string): Promise<void> => {
+      const res = await fetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      if (!res.ok && res.status !== 404) {
+        throw new AgentError(`goals.delete failed: ${res.status} ${await res.text()}`);
+      }
+    },
+    plan: async (id: string, provider?: string, model?: string): Promise<Goal> => {
+      const res = await fetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(id)}/plan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: provider ?? null, model: model ?? null }),
+      });
+      if (!res.ok) throw new AgentError(`goals.plan failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<Goal>;
+    },
+    start: async (id: string, task?: string): Promise<{ session_id: string; link_id: string; goal_id: string }> => {
+      const res = await fetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(id)}/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task: task ?? null }),
+      });
+      if (!res.ok) throw new AgentError(`goals.start failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<{ session_id: string; link_id: string; goal_id: string }>;
+    },
+    link: async (id: string, kind: 'session' | 'job' | 'recap' | 'note', target_id: string, note?: string): Promise<GoalLink> => {
+      const res = await fetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(id)}/link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind, target_id, note: note ?? null }),
+      });
+      if (!res.ok) throw new AgentError(`goals.link failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<GoalLink>;
+    },
+  };
 
   /**
    * Check if the daemon is reachable.

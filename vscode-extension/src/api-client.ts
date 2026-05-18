@@ -42,6 +42,19 @@ export interface JobRecord {
   summary?: string;
 }
 
+/** Durable execution intent (G1.7). Subset of the daemon's full `Goal` —
+ *  rich fields (plan, criteria, tags) are accessible via the raw JSON path
+ *  for clients that want them. */
+export interface ExecGoalSummary {
+  id: string;
+  title: string;
+  status: 'active' | 'paused' | 'done' | 'abandoned';
+  workspace?: string | null;
+  statement: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export class VibeCLIClient {
   private baseUrl: string;
 
@@ -116,6 +129,49 @@ export class VibeCLIClient {
   /** Cancel a running job. */
   async cancelJob(sessionId: string): Promise<void> {
     await fetch(`${this.baseUrl}/jobs/${sessionId}/cancel`, { method: 'POST' });
+  }
+
+  // ── /goal — durable execution intent (G1.7) ──────────────────
+
+  /** List goals, optionally filtered by status. Returns `[]` on any failure
+   *  so VS Code can render an empty list without a notification storm. */
+  async listGoals(status?: ExecGoalSummary['status']): Promise<ExecGoalSummary[]> {
+    try {
+      const qs = status ? `?status=${encodeURIComponent(status)}` : '';
+      const res = await fetch(`${this.baseUrl}/v1/goals${qs}`);
+      if (!res.ok) return [];
+      const data = (await res.json()) as { goals?: ExecGoalSummary[] };
+      return data.goals ?? [];
+    } catch {
+      return [];
+    }
+  }
+
+  /** Create a goal. Title is required; statement and workspace are optional. */
+  async createGoal(title: string, statement?: string, workspace?: string): Promise<ExecGoalSummary> {
+    const res = await fetch(`${this.baseUrl}/v1/goals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, statement: statement ?? '', workspace: workspace ?? null }),
+    });
+    if (!res.ok) {
+      throw new Error(`Goal create failed: ${res.status} ${await res.text()}`);
+    }
+    return (await res.json()) as ExecGoalSummary;
+  }
+
+  /** Start a new session bound to a goal. Returns the new session id. */
+  async startGoal(goalId: string, task?: string): Promise<{ sessionId: string }> {
+    const res = await fetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(goalId)}/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task: task ?? null }),
+    });
+    if (!res.ok) {
+      throw new Error(`Goal start failed: ${res.status} ${await res.text()}`);
+    }
+    const data = await res.json() as { session_id: string };
+    return { sessionId: data.session_id };
   }
 
   /** Stream agent events for a running session. */

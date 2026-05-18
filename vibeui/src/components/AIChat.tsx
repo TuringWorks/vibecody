@@ -269,15 +269,32 @@ interface AIChatProps {
  useAgentLoop?: boolean;
  /** Called when the user toggles the agent-loop switch in the chat header. */
  onUseAgentLoopChange?: (on: boolean) => void;
+ /** /goal slash command — switch to Goals panel (and optionally seed the New Goal modal). */
+ onSwitchToGoals?: (seed?: string) => void;
 }
 
 // ── Slash commands ───────────────────────────────────────────────────────────
+
+/**
+ * Slash command shape. Two kinds:
+ *  - `prefix` (default): selecting the command replaces the input with the prefix string.
+ *  - `action`: selecting the command runs a side-effect (e.g. switch tab, open modal)
+ *    and clears the input. Used by `/goal` to open the Goals panel.
+ *
+ * The `kind` field is optional for backward compatibility — entries without
+ * it default to `prefix` semantics.
+ */
+type SlashCommandAction =
+  | "switch-to-goals";
 
 interface SlashCommand {
   command: string;
   label: string;
   description: string;
-  prefix: string;
+  /** Text to insert into the input when selected (default behavior). */
+  prefix?: string;
+  /** When set, the command triggers a side-effect instead of a prefix. */
+  action?: SlashCommandAction;
 }
 
 const SLASH_COMMANDS: SlashCommand[] = [
@@ -288,6 +305,7 @@ const SLASH_COMMANDS: SlashCommand[] = [
   { command: "/refactor", label: "Refactor",   description: "Refactor code",                     prefix: "Refactor the following code for better readability, performance, and maintainability:\n" },
   { command: "/review",   label: "Review",     description: "Code review",                       prefix: "Perform a thorough code review of:\n" },
   { command: "/compact",  label: "Compact",    description: "Summarize conversation",            prefix: "Summarize our conversation so far into key points and action items:\n" },
+  { command: "/goal",     label: "Goal",       description: "Open the Goals panel (durable execution intent)", action: "switch-to-goals" },
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -868,6 +886,7 @@ export function AIChat({
   sessionTitle,
   useAgentLoop = false,
   onUseAgentLoopChange,
+  onSwitchToGoals,
 }: AIChatProps) {
   const [agentMode, setAgentMode] = useState<AgentMode>("chat");
   const [localMessages, setLocalMessages] = useState<Message[]>([]);
@@ -1977,7 +1996,19 @@ export function AIChat({
   };
 
   const handleSlashSelect = (cmd: SlashCommand) => {
-    setInput(cmd.prefix);
+    if (cmd.action === "switch-to-goals") {
+      // Hybrid UX: any text the user already typed after `/goal` becomes
+      // the seed for the New Goal modal. With the palette open, slashQuery
+      // captures only the leading `/goal` token, so for now the seed is
+      // empty — the user types their goal in the modal. The chat-submit
+      // path (intercepting `/goal <text>\n`) is a future enhancement.
+      const seed = input.replace(/^\/goal\s*/i, "").trim() || undefined;
+      onSwitchToGoals?.(seed);
+      setInput("");
+      setSlashQuery(null);
+      return;
+    }
+    setInput(cmd.prefix ?? "");
     setSlashQuery(null);
     setTimeout(() => textareaRef.current?.focus(), 0);
   };

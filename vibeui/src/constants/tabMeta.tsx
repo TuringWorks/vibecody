@@ -10,6 +10,7 @@ import {
   Binary, Regex, PenTool,
   Settings, Plug, UserCog, DollarSign, Package, Building2,
   Zap, ShieldCheck,
+  Target,
 } from "lucide-react";
 
 export interface TabMeta {
@@ -32,6 +33,7 @@ export const TAB_META: Record<string, TabMeta> = {
   // --- Project ---
   "project-hub":   { icon: ClipboardList,  label: "Project Hub",       aliases: ["projects", "workmanagement", "work management", "dashboard", "steering", "soul", "memory", "rules", "discuss"] },
   planning:        { icon: Ruler,          label: "Planning",          aliases: ["specs", "plandoc", "workflow", "orchestration", "clarify", "codesearch"] },
+  goals:           { icon: Target,         label: "Goals",             aliases: ["goal", "exec goal", "execution goals", "objective", "intent", "north star"] },
   observability:   { icon: Activity,       label: "Observability",     aliases: ["traces", "recording", "demo"] },
   design:          { icon: Palette,        label: "Design",            aliases: ["remotecontrol", "remote control", "img2app", "screenshot to app", "sketch"] },
 

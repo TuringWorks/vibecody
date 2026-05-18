@@ -233,6 +233,47 @@ impl SessionStore {
             "#,
         )?;
 
+        // /goal — durable execution intent (G1.1). Workspace is
+        // nullable (NULL = global, visible from mobile/watch/any
+        // project). Unique on (workspace, title) so users get clean
+        // dedup per project; multiple workspaces may share a title.
+        self.conn.execute_batch(
+            r#"
+            CREATE TABLE IF NOT EXISTS goals (
+                id                 TEXT PRIMARY KEY,
+                workspace          TEXT,
+                title              TEXT NOT NULL,
+                statement          TEXT NOT NULL DEFAULT '',
+                status             TEXT NOT NULL DEFAULT 'active',
+                success_criteria   TEXT NOT NULL DEFAULT '[]',
+                tags               TEXT NOT NULL DEFAULT '[]',
+                created_at         TEXT NOT NULL,
+                updated_at         TEXT NOT NULL,
+                parent_goal_id     TEXT,
+                current_plan_json  TEXT,
+                schema_version     INTEGER NOT NULL DEFAULT 1
+            );
+
+            CREATE UNIQUE INDEX IF NOT EXISTS uq_goals_workspace_title
+                ON goals(IFNULL(workspace, ''), title);
+            CREATE INDEX IF NOT EXISTS idx_goals_status ON goals(status);
+            CREATE INDEX IF NOT EXISTS idx_goals_updated ON goals(updated_at DESC);
+
+            CREATE TABLE IF NOT EXISTS goal_links (
+                id           TEXT PRIMARY KEY,
+                goal_id      TEXT NOT NULL REFERENCES goals(id) ON DELETE CASCADE,
+                kind         TEXT NOT NULL,
+                target_id    TEXT NOT NULL,
+                linked_at    TEXT NOT NULL,
+                note         TEXT
+            );
+            CREATE INDEX IF NOT EXISTS idx_goal_links_goal
+                ON goal_links(goal_id, kind);
+            CREATE INDEX IF NOT EXISTS idx_goal_links_target
+                ON goal_links(target_id);
+            "#,
+        )?;
+
         Ok(())
     }
 
@@ -536,6 +577,297 @@ impl SessionStore {
             params![headline, body_str, id],
         )?;
         self.get_recap_by_id(id)
+    }
+
+    // ── /goal — Phase G1.1 CRUD ────────────────────────────────────────────
+
+    /// Insert a new goal row. Returns the stored goal (clone of input
+    /// on success). UNIQUE on `(workspace, title)` — the daemon should
+    /// translate the SQLite constraint error into a clean HTTP 409.
+    pub fn insert_goal(
+        &self,
+        goal: &crate::exec_goal::Goal,
+    ) -> Result<crate::exec_goal::Goal> {
+        let workspace_str = goal
+            .workspace
+            .as_ref()
+            .and_then(|p| p.to_str())
+            .map(str::to_string);
+        let criteria_json = serde_json::to_string(&goal.success_criteria)
+            .map_err(|e| anyhow::anyhow!("goal criteria serialize: {e}"))?;
+        let tags_json = serde_json::to_string(&goal.tags)
+            .map_err(|e| anyhow::anyhow!("goal tags serialize: {e}"))?;
+        let plan_json = match &goal.current_plan {
+            Some(p) => Some(
+                serde_json::to_string(p)
+                    .map_err(|e| anyhow::anyhow!("goal plan serialize: {e}"))?,
+            ),
+            None => None,
+        };
+
+        self.conn.execute(
+            "INSERT INTO goals
+             (id, workspace, title, statement, status, success_criteria, tags,
+              created_at, updated_at, parent_goal_id, current_plan_json, schema_version)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            params![
+                goal.id,
+                workspace_str,
+                goal.title,
+                goal.statement,
+                goal.status.as_str(),
+                criteria_json,
+                tags_json,
+                goal.created_at.to_rfc3339(),
+                goal.updated_at.to_rfc3339(),
+                goal.parent_goal_id,
+                plan_json,
+                goal.schema_version as i64,
+            ],
+        )?;
+        Ok(goal.clone())
+    }
+
+    /// Fetch a goal by id. `Ok(None)` for a missing row.
+    pub fn get_goal_by_id(
+        &self,
+        id: &str,
+    ) -> Result<Option<crate::exec_goal::Goal>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, workspace, title, statement, status, success_criteria,
+                    tags, created_at, updated_at, parent_goal_id,
+                    current_plan_json, schema_version
+             FROM goals WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![id])?;
+        match rows.next()? {
+            Some(r) => Ok(Some(row_to_goal(r)?)),
+            None => Ok(None),
+        }
+    }
+
+    /// List goals with optional filters. Newest-updated first. `limit
+    /// = 0` means no limit.
+    pub fn list_goals(
+        &self,
+        filter: &GoalListFilter,
+    ) -> Result<Vec<crate::exec_goal::Goal>> {
+        let mut where_parts: Vec<String> = Vec::new();
+        let mut bind: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+        if let Some(s) = &filter.status {
+            where_parts.push("status = ?".to_string());
+            bind.push(Box::new(s.as_str().to_string()));
+        }
+        if let Some(w) = &filter.workspace {
+            where_parts.push("workspace = ?".to_string());
+            bind.push(Box::new(w.clone()));
+        }
+        let where_clause = if where_parts.is_empty() {
+            String::new()
+        } else {
+            format!(" WHERE {}", where_parts.join(" AND "))
+        };
+        let limit_clause = if filter.limit == 0 {
+            String::new()
+        } else {
+            format!(" LIMIT {}", filter.limit)
+        };
+        let sql = format!(
+            "SELECT id, workspace, title, statement, status, success_criteria,
+                    tags, created_at, updated_at, parent_goal_id,
+                    current_plan_json, schema_version
+             FROM goals{} ORDER BY updated_at DESC{}",
+            where_clause, limit_clause,
+        );
+        let mut stmt = self.conn.prepare(&sql)?;
+        let bind_refs: Vec<&dyn rusqlite::ToSql> =
+            bind.iter().map(|b| b.as_ref()).collect();
+        let rows = stmt.query_map(rusqlite::params_from_iter(bind_refs), |r| {
+            row_to_goal(r).map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    0,
+                    rusqlite::types::Type::Text,
+                    Box::new(std::io::Error::other(e.to_string())),
+                )
+            })
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            let g = row?;
+            // Tag filter applied in-memory — tags is a JSON array
+            // column, so a SQL LIKE would be both ugly and incorrect
+            // for substrings inside other tags.
+            if let Some(t) = &filter.tag {
+                if !g.tags.iter().any(|gt| gt == t) {
+                    continue;
+                }
+            }
+            out.push(g);
+        }
+        Ok(out)
+    }
+
+    /// Apply a partial update to a goal. If `statement` or
+    /// `success_criteria` changed, the cached `current_plan_json` is
+    /// cleared in the same statement — a plan generated against an
+    /// older statement is misleading. Returns the updated row or
+    /// `Ok(None)` if no row matched.
+    pub fn update_goal(
+        &self,
+        id: &str,
+        patch: &GoalPatch,
+    ) -> Result<Option<crate::exec_goal::Goal>> {
+        let Some(existing) = self.get_goal_by_id(id)? else {
+            return Ok(None);
+        };
+
+        let new_title = patch.title.clone().unwrap_or(existing.title.clone());
+        let new_statement = patch
+            .statement
+            .clone()
+            .unwrap_or(existing.statement.clone());
+        let new_status = patch.status.unwrap_or(existing.status);
+        let new_criteria = patch
+            .success_criteria
+            .clone()
+            .unwrap_or(existing.success_criteria.clone());
+        let new_tags = patch.tags.clone().unwrap_or(existing.tags.clone());
+        let new_workspace = match &patch.workspace {
+            Some(opt) => opt.clone(),
+            None => existing
+                .workspace
+                .clone()
+                .and_then(|p| p.to_str().map(str::to_string)),
+        };
+
+        let invalidate_plan = new_statement != existing.statement
+            || new_criteria != existing.success_criteria;
+
+        let plan_json: Option<String> = if invalidate_plan {
+            None
+        } else {
+            match &existing.current_plan {
+                Some(p) => Some(serde_json::to_string(p)?),
+                None => None,
+            }
+        };
+
+        let criteria_json = serde_json::to_string(&new_criteria)?;
+        let tags_json = serde_json::to_string(&new_tags)?;
+        let now_iso = chrono::Utc::now().to_rfc3339();
+
+        self.conn.execute(
+            "UPDATE goals
+             SET workspace = ?1,
+                 title = ?2,
+                 statement = ?3,
+                 status = ?4,
+                 success_criteria = ?5,
+                 tags = ?6,
+                 updated_at = ?7,
+                 current_plan_json = ?8
+             WHERE id = ?9",
+            params![
+                new_workspace,
+                new_title,
+                new_statement,
+                new_status.as_str(),
+                criteria_json,
+                tags_json,
+                now_iso,
+                plan_json,
+                id,
+            ],
+        )?;
+        self.get_goal_by_id(id)
+    }
+
+    /// Replace the goal's `current_plan` with `plan`. Bumps
+    /// `updated_at` but does not modify any other field.
+    pub fn set_goal_plan(
+        &self,
+        id: &str,
+        plan: &vibe_ai::planner::ExecutionPlan,
+    ) -> Result<Option<crate::exec_goal::Goal>> {
+        if self.get_goal_by_id(id)?.is_none() {
+            return Ok(None);
+        }
+        let plan_json = serde_json::to_string(plan)?;
+        let now_iso = chrono::Utc::now().to_rfc3339();
+        self.conn.execute(
+            "UPDATE goals
+             SET current_plan_json = ?1, updated_at = ?2
+             WHERE id = ?3",
+            params![plan_json, now_iso, id],
+        )?;
+        self.get_goal_by_id(id)
+    }
+
+    /// Delete a goal and (via FK cascade) all its links. Returns
+    /// whether a row was actually deleted.
+    pub fn delete_goal(&self, id: &str) -> Result<bool> {
+        let n = self
+            .conn
+            .execute("DELETE FROM goals WHERE id = ?1", params![id])?;
+        Ok(n > 0)
+    }
+
+    /// Insert a new goal_link row. Caller validates that the linked
+    /// target id exists (cross-store, so we can't FK it).
+    pub fn insert_goal_link(
+        &self,
+        link: &crate::exec_goal::GoalLink,
+    ) -> Result<crate::exec_goal::GoalLink> {
+        self.conn.execute(
+            "INSERT INTO goal_links
+             (id, goal_id, kind, target_id, linked_at, note)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                link.id,
+                link.goal_id,
+                link.kind.as_str(),
+                link.target_id,
+                link.linked_at.to_rfc3339(),
+                link.note,
+            ],
+        )?;
+        Ok(link.clone())
+    }
+
+    /// List all links attached to a goal, newest first.
+    pub fn list_goal_links(
+        &self,
+        goal_id: &str,
+    ) -> Result<Vec<crate::exec_goal::GoalLink>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, goal_id, kind, target_id, linked_at, note
+             FROM goal_links WHERE goal_id = ?1
+             ORDER BY linked_at DESC",
+        )?;
+        let rows = stmt.query_map(params![goal_id], |r| {
+            row_to_goal_link(r).map_err(|e| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    0,
+                    rusqlite::types::Type::Text,
+                    Box::new(std::io::Error::other(e.to_string())),
+                )
+            })
+        })?;
+        let mut out = Vec::new();
+        for r in rows {
+            out.push(r?);
+        }
+        Ok(out)
+    }
+
+    /// Delete a single goal_link by id. Returns whether a row was
+    /// removed.
+    pub fn delete_goal_link(&self, id: &str) -> Result<bool> {
+        let n = self.conn.execute(
+            "DELETE FROM goal_links WHERE id = ?1",
+            params![id],
+        )?;
+        Ok(n > 0)
     }
 
     /// Mark a session complete (or failed) with an optional summary.
@@ -941,6 +1273,113 @@ fn row_to_recap(row: &rusqlite::Row<'_>) -> Result<crate::recap::Recap> {
         resume_hint: body.resume_hint,
         token_usage,
         schema_version: schema_version as u16,
+    })
+}
+
+// ── /goal helpers ─────────────────────────────────────────────────────────────
+
+/// Filter args for [`SessionStore::list_goals`].
+#[derive(Debug, Clone, Default)]
+pub struct GoalListFilter {
+    pub status: Option<crate::exec_goal::GoalStatus>,
+    /// Exact-match on the stored workspace path. Use `None` to skip
+    /// the filter (returns globals + all workspaces).
+    pub workspace: Option<String>,
+    /// In-memory tag membership filter (single tag).
+    pub tag: Option<String>,
+    /// `0` means "no limit".
+    pub limit: usize,
+}
+
+/// Partial-update payload for [`SessionStore::update_goal`]. A `None`
+/// field leaves the existing value alone; a `Some(_)` field replaces.
+/// For `workspace`, the inner `Option<String>` distinguishes "set to
+/// global" (`Some(None)`) from "leave alone" (outer `None`).
+#[derive(Debug, Clone, Default)]
+pub struct GoalPatch {
+    pub title: Option<String>,
+    pub statement: Option<String>,
+    pub status: Option<crate::exec_goal::GoalStatus>,
+    pub success_criteria: Option<Vec<String>>,
+    pub tags: Option<Vec<String>>,
+    pub workspace: Option<Option<String>>,
+}
+
+fn row_to_goal(
+    row: &rusqlite::Row<'_>,
+) -> Result<crate::exec_goal::Goal> {
+    let id: String = row.get(0)?;
+    let workspace: Option<String> = row.get(1)?;
+    let title: String = row.get(2)?;
+    let statement: String = row.get(3)?;
+    let status_str: String = row.get(4)?;
+    let criteria_json: String = row.get(5)?;
+    let tags_json: String = row.get(6)?;
+    let created_at_iso: String = row.get(7)?;
+    let updated_at_iso: String = row.get(8)?;
+    let parent_goal_id: Option<String> = row.get(9)?;
+    let plan_json: Option<String> = row.get(10)?;
+    let schema_version: i64 = row.get(11)?;
+
+    let status = crate::exec_goal::GoalStatus::from_str(&status_str)
+        .ok_or_else(|| anyhow::anyhow!("unknown goal status in DB: {status_str:?}"))?;
+    let success_criteria: Vec<String> = serde_json::from_str(&criteria_json)
+        .map_err(|e| anyhow::anyhow!("goal criteria deserialize: {e}"))?;
+    let tags: Vec<String> = serde_json::from_str(&tags_json)
+        .map_err(|e| anyhow::anyhow!("goal tags deserialize: {e}"))?;
+    let current_plan = match plan_json {
+        Some(j) => Some(
+            serde_json::from_str::<vibe_ai::planner::ExecutionPlan>(&j)
+                .map_err(|e| anyhow::anyhow!("goal plan deserialize: {e}"))?,
+        ),
+        None => None,
+    };
+    let created_at = chrono::DateTime::parse_from_rfc3339(&created_at_iso)
+        .map_err(|e| anyhow::anyhow!("goal created_at parse: {e}"))?
+        .with_timezone(&chrono::Utc);
+    let updated_at = chrono::DateTime::parse_from_rfc3339(&updated_at_iso)
+        .map_err(|e| anyhow::anyhow!("goal updated_at parse: {e}"))?
+        .with_timezone(&chrono::Utc);
+
+    Ok(crate::exec_goal::Goal {
+        id,
+        workspace: workspace.map(std::path::PathBuf::from),
+        title,
+        statement,
+        status,
+        success_criteria,
+        tags,
+        created_at,
+        updated_at,
+        parent_goal_id,
+        current_plan,
+        schema_version: schema_version as u16,
+    })
+}
+
+fn row_to_goal_link(
+    row: &rusqlite::Row<'_>,
+) -> Result<crate::exec_goal::GoalLink> {
+    let id: String = row.get(0)?;
+    let goal_id: String = row.get(1)?;
+    let kind_str: String = row.get(2)?;
+    let target_id: String = row.get(3)?;
+    let linked_at_iso: String = row.get(4)?;
+    let note: Option<String> = row.get(5)?;
+
+    let kind = crate::exec_goal::GoalLinkKind::from_str(&kind_str)
+        .ok_or_else(|| anyhow::anyhow!("unknown goal_link kind in DB: {kind_str:?}"))?;
+    let linked_at = chrono::DateTime::parse_from_rfc3339(&linked_at_iso)
+        .map_err(|e| anyhow::anyhow!("goal_link linked_at parse: {e}"))?
+        .with_timezone(&chrono::Utc);
+
+    Ok(crate::exec_goal::GoalLink {
+        id,
+        goal_id,
+        kind,
+        target_id,
+        linked_at,
+        note,
     })
 }
 

@@ -19,7 +19,10 @@
       { "command": "vibecli.startDaemon",    "title": "VibeCLI: Start Daemon" },
       { "command": "vibecli.inlineEdit",     "title": "VibeCLI: Inline Edit (selection)" },
       { "command": "vibecli.viewJobs",       "title": "VibeCLI: View Background Jobs" },
-      { "command": "vibecli.sendSelection",  "title": "VibeCLI: Send Selection to Agent" }
+      { "command": "vibecli.sendSelection",  "title": "VibeCLI: Send Selection to Agent" },
+      { "command": "vibecli.newGoal",        "title": "VibeCLI: New Goal" },
+      { "command": "vibecli.listGoals",      "title": "VibeCLI: List Goals" },
+      { "command": "vibecli.startGoal",      "title": "VibeCLI: Start Session on a Goal" }
     ],
     "keybindings": [
       {

@@ -86,6 +86,8 @@ const AgentIntelligenceComposite = lazy(() => import("./composite/AgentIntellige
 const EnterpriseGovernanceComposite = lazy(() => import("./composite/EnterpriseGovernanceComposite").then(m => ({ default: m.EnterpriseGovernanceComposite })));
 // Apple Watch
 const WatchManagementPanel = lazy(() => import("./WatchManagementPanel").then(m => ({ default: m.WatchManagementPanel })));
+// /goal — durable execution intent (G1.5).
+const GoalPanel = lazy(() => import("./GoalPanel").then(m => ({ default: m.GoalPanel })));
 
 // --- Props interfaces ---
 
@@ -100,6 +102,12 @@ interface PanelHostProps {
   onPendingWrite: (path: string, content: string) => void;
   onInjectContext: (text: string) => void;
   onOpenFile?: (path: string, line?: number) => void;
+  /** /goal slash command — forwarded into ChatComposite → AIChat. */
+  onSwitchToGoals?: (seed?: string) => void;
+  /** Pre-fill text for the Goal panel's New Goal modal. Cleared once consumed. */
+  newGoalSeed?: string | null;
+  /** Called by GoalPanel once newGoalSeed has been applied. */
+  onNewGoalSeedConsumed?: () => void;
   collab: {
     connected: boolean;
     roomId: string | null;
@@ -123,7 +131,7 @@ interface PanelHostProps {
  * can use the `usePersistentState` hook or `usePanelSettings`.
  */
 export function PanelHost(props: PanelHostProps) {
-  const { tab, selectedProvider, availableProviders, editorContent, fileTree, currentFile, workspacePath, onPendingWrite, onOpenFile } = props;
+  const { tab, selectedProvider, availableProviders, editorContent, fileTree, currentFile, workspacePath, onPendingWrite, onOpenFile, onSwitchToGoals, newGoalSeed, onNewGoalSeedConsumed } = props;
   const wp = workspacePath;
 
   // Track which tabs have been visited so we only mount them once they're first opened.
@@ -154,12 +162,13 @@ export function PanelHost(props: PanelHostProps) {
     "agent-intelligence", "enterprise-governance",
     "watch",
     "sandbox-chat",
+    "goals",
   ];
 
   return (
     <>
       {/* --- AI --- */}
-      {panel("chat", <LazyPanel Component={ChatComposite} props={{ defaultProvider: selectedProvider, availableProviders, context: editorContent, fileTree, currentFile, onPendingWrite }} />)}
+      {panel("chat", <LazyPanel Component={ChatComposite} props={{ defaultProvider: selectedProvider, availableProviders, context: editorContent, fileTree, currentFile, onPendingWrite, onSwitchToGoals }} />)}
       {panel("agent-os", <LazyPanel Component={AgentOSComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("ai-teams", <LazyPanel Component={AiTeamsComposite} props={{ provider: selectedProvider }} />)}
       {panel("ai-playground", <LazyPanel Component={AiPlaygroundComposite} props={{ provider: selectedProvider }} />)}
@@ -171,6 +180,7 @@ export function PanelHost(props: PanelHostProps) {
       {/* --- Project --- */}
       {panel("project-hub", <LazyPanel Component={ProjectHubComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
       {panel("planning", <LazyPanel Component={PlanningComposite} props={{ workspacePath: wp, provider: selectedProvider, onOpenFile }} />)}
+      {panel("goals", <LazyPanel Component={GoalPanel} props={{ workspacePath: wp, selectedProvider, newGoalSeed, onSeedConsumed: onNewGoalSeedConsumed }} />)}
       {panel("observability", <LazyPanel Component={ObservabilityComposite} props={{ provider: selectedProvider }} />)}
       {panel("design", <LazyPanel Component={DesignComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
 

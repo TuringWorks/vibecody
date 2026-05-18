@@ -4,6 +4,7 @@ import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/handoff_banner.dart';
 import '../widgets/tainted_confirmation_sheet.dart';
+import 'goals_screen.dart';
 import 'machines_screen.dart';
 import 'watch_chat_screen.dart';
 import 'sandbox_chat_screen.dart';
@@ -26,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
     WatchChatScreen(),
     SandboxChatScreen(),
     SessionsScreen(),
+    GoalsScreen(),
     SettingsScreen(),
   ];
 
@@ -85,6 +87,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Icon(Icons.history_rounded, color: c.accentBlue),
                 ),
                 label: 'Sessions',
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.track_changes_rounded),
+                selectedIcon: Icon(Icons.track_changes_rounded, color: c.accentBlue),
+                label: 'Goals',
               ),
               NavigationDestination(
                 icon: const Icon(Icons.settings_rounded),

@@ -172,6 +172,8 @@ pub fn build_watch_router(state: WatchBridgeState) -> Router {
         .route("/sessions/:id/recap", get(watch_session_recap))
         .route("/jobs",             get(watch_list_jobs))
         .route("/jobs/:id/recap",   get(watch_job_recap))
+        .route("/goals",            get(watch_list_goals))
+        .route("/goals/:id",        get(watch_get_goal))
         .route("/stream/:id",       get(watch_stream))
         .route("/dispatch",         post(watch_dispatch))
         .route("/active-session",   get(watch_get_active_session).put(watch_set_active_session))
@@ -888,6 +890,119 @@ async fn watch_revoke_device(
         Ok(()) => Json(serde_json::json!({"ok": true, "device_id": device_id})).into_response(),
         Err(e) => (StatusCode::NOT_FOUND,
             Json(serde_json::json!({"error": e.to_string()}))).into_response(),
+    }
+}
+
+// ── /goal — Watch curated routes (G1.6) ──────────────────────────────────────
+//
+// `/watch/goals` returns a compact summary list (id, title, status,
+// workspace short-name) so the watch tile/picker can render without
+// pulling full plan/link payloads. `/watch/goals/:id` returns the full
+// goal + links — same shape as `/v1/goals/:id` since the watch detail
+// view shows everything anyway.
+
+#[derive(serde::Serialize)]
+struct WatchGoalSummary {
+    id: String,
+    title: String,
+    status: String,
+    /// Workspace `basename` only (full path is too long for the watch).
+    workspace_label: String,
+    updated_at: String,
+}
+
+async fn watch_list_goals(
+    State(state): State<WatchBridgeState>,
+    headers: axum::http::HeaderMap,
+) -> impl IntoResponse {
+    if let Err(e) = extract_any_auth(&state, &headers) {
+        return e.into_response();
+    }
+    let db_path = state
+        .session_db_path
+        .clone()
+        .unwrap_or_else(|| {
+            dirs::home_dir()
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .join(".vibecli")
+                .join("sessions.db")
+        });
+    let store = match crate::session_store::SessionStore::open(&db_path) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("watch_list_goals: cannot open store: {e}");
+            return Json(serde_json::json!({"goals": []})).into_response();
+        }
+    };
+    let goals = store
+        .list_goals(&crate::session_store::GoalListFilter {
+            status: Some(crate::exec_goal::GoalStatus::Active),
+            limit: 25,
+            ..Default::default()
+        })
+        .unwrap_or_default();
+    let summaries: Vec<WatchGoalSummary> = goals
+        .into_iter()
+        .map(|g| WatchGoalSummary {
+            id: g.id,
+            title: g.title,
+            status: g.status.as_str().to_string(),
+            workspace_label: g
+                .workspace
+                .as_ref()
+                .and_then(|p| p.file_name())
+                .and_then(|n| n.to_str())
+                .unwrap_or("global")
+                .to_string(),
+            updated_at: g.updated_at.to_rfc3339(),
+        })
+        .collect();
+    Json(serde_json::json!({ "goals": summaries })).into_response()
+}
+
+async fn watch_get_goal(
+    State(state): State<WatchBridgeState>,
+    headers: axum::http::HeaderMap,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    if let Err(e) = extract_any_auth(&state, &headers) {
+        return e.into_response();
+    }
+    let db_path = state
+        .session_db_path
+        .clone()
+        .unwrap_or_else(|| {
+            dirs::home_dir()
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .join(".vibecli")
+                .join("sessions.db")
+        });
+    let store = match crate::session_store::SessionStore::open(&db_path) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("watch_get_goal: cannot open store: {e}");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": e.to_string()})),
+            )
+                .into_response();
+        }
+    };
+    match store.get_goal_by_id(&id) {
+        Ok(Some(g)) => {
+            let links = store.list_goal_links(&id).unwrap_or_default();
+            Json(serde_json::json!({ "goal": g, "links": links })).into_response()
+        }
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": "no goal with that id"})),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 

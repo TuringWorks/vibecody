@@ -2575,6 +2575,11 @@ mod recap;
 // Recap & Resume — Phase F1.3 resume routes (in-memory handle registry).
 #[allow(dead_code)]
 mod resume;
+// /goal — durable execution intent.
+#[allow(dead_code)]
+mod exec_goal;
+#[allow(dead_code)]
+mod exec_goal_repl;
 // Recap & Resume — Phase D1.1: diffcomplete chain types + encrypted
 // store on workspace.db. Patent re-audit: PASS (1–5 unchanged).
 #[allow(dead_code)]
@@ -5188,6 +5193,39 @@ async fn main() -> Result<()> {
                                     println!("Failed to open session store: {e}\n");
                                 }
                             } }
+                        }
+                        // ── /goal — durable execution intent (G1.4) ────────────
+                        // Sub-commands: new, list, show, status, link, start, delete.
+                        // Daemon-side /v1/goals/:id/plan is the canonical path for
+                        // LLM plan generation; the REPL `plan` arm prints a pointer
+                        // because it needs ServeState's AIProvider.
+                        "/goal" => {
+                            let trimmed = args.trim();
+                            let (sub, rest) = match trimmed.split_once(char::is_whitespace) {
+                                Some((s, r)) => (s, r.trim_start()),
+                                None => (trimmed, ""),
+                            };
+                            match sub {
+                                "" | "list" => exec_goal_repl::handle_goal_list(rest),
+                                "new"    => exec_goal_repl::handle_goal_new(rest),
+                                "show"   => exec_goal_repl::handle_goal_show(rest),
+                                "status" => exec_goal_repl::handle_goal_status(rest),
+                                "link"   => exec_goal_repl::handle_goal_link(rest),
+                                "start"  => exec_goal_repl::handle_goal_start(rest),
+                                "delete" => exec_goal_repl::handle_goal_delete(rest),
+                                "plan"   => {
+                                    println!(
+                                        "Plan generation needs the daemon (LLM call). Start `vibecli serve`\n\
+                                         then POST to /v1/goals/{rest}/plan, or open VibeUI → Goals.\n"
+                                    );
+                                }
+                                other => {
+                                    println!(
+                                        "Unknown /goal subcommand {other:?}. \
+                                         Try: new, list, show, status, link, start, plan, delete.\n"
+                                    );
+                                }
+                            }
                         }
                         "/trace" => {
                             let trace_dir = dirs::home_dir()

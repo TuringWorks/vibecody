@@ -108,6 +108,45 @@ final class WatchNetworkManager: NSObject, ObservableObject {
         }
     }
 
+    // MARK: - Goals (G1.6 — read-only, curated /watch/goals)
+
+    @Published var goals: [WatchGoalSummary] = []
+    @Published var isLoadingGoals = false
+
+    /// Load the active goals from the curated `/watch/goals` endpoint.
+    /// Best-effort: failures leave the prior list visible.
+    func loadGoals() async {
+        guard auth.isPaired else { return }
+        isLoadingGoals = true
+        defer { isLoadingGoals = false }
+        do {
+            let token = try await auth.validAccessToken()
+            let url = URL(string: "\(auth.endpoint)/watch/goals")!
+            let result: WatchGoalsResponse = try await getJSON(url: url, token: token)
+            goals = result.goals
+        } catch {
+            // Silent — same precedent as loadJobs.
+        }
+    }
+
+    /// Fetch a single goal's detail envelope. The watch detail view
+    /// renders `title` / `status` / `statement` from the embedded goal
+    /// object; richer fields are ignored in v1.
+    func fetchGoal(id: String) async -> WatchGoalDetailEnvelope? {
+        guard auth.isPaired, let token = try? await auth.validAccessToken() else {
+            return nil
+        }
+        guard let url = URL(string: "\(auth.endpoint)/watch/goals/\(id)") else {
+            return nil
+        }
+        do {
+            let env: WatchGoalDetailEnvelope = try await getJSON(url: url, token: token)
+            return env
+        } catch {
+            return nil
+        }
+    }
+
     // MARK: - Messages for a session
 
     func loadMessages(sessionId: String) async throws -> [WatchMessage] {
@@ -337,6 +376,41 @@ private struct WatchSessionsResponse: Codable {
 
 private struct WatchJobsResponse: Codable {
     let jobs: [WatchJobSummary]
+}
+
+private struct WatchGoalsResponse: Codable {
+    let goals: [WatchGoalSummary]
+}
+
+private struct WatchGoalDetailEnvelope: Codable {
+    let goal: [String: AnyCodable]?
+    let links: [[String: AnyCodable]]?
+}
+
+/// Minimal `AnyCodable` so the watch can deserialize the heterogeneous
+/// goal detail payload without binding the full vibe-ai `ExecutionPlan`
+/// shape. The Watch detail view renders the title/statement/status from
+/// fixed keys and skips the rest for v1.
+struct AnyCodable: Codable {
+    let value: Any?
+    init(from decoder: Decoder) throws {
+        let c = try decoder.singleValueContainer()
+        if c.decodeNil() { value = nil }
+        else if let v = try? c.decode(String.self) { value = v }
+        else if let v = try? c.decode(Bool.self)   { value = v }
+        else if let v = try? c.decode(Double.self) { value = v }
+        else if let v = try? c.decode([String: AnyCodable].self) {
+            value = v.mapValues { $0.value }
+        }
+        else if let v = try? c.decode([AnyCodable].self) {
+            value = v.map { $0.value }
+        }
+        else { value = nil }
+    }
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.singleValueContainer()
+        if value == nil { try c.encodeNil() } else { try c.encodeNil() }
+    }
 }
 
 private struct WatchRecapEnvelope: Codable {

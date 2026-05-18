@@ -544,6 +544,67 @@ class ApiClient {
     throw ApiException(resp.statusCode, resp.body);
   }
 
+  // ── /goal — durable execution intent (G1.6) ──────────────────
+  //
+  // Read-mostly surface. Mobile lists goals across all workspaces
+  // (grouped by workspace in the UI) and can start a session bound to
+  // a goal. Plan/link/aggregate-recap stay on richer clients.
+
+  /// List goals across all workspaces. Filter by status if given.
+  /// Returns the raw JSON payload `{ goals: [...], count: N }` so the
+  /// caller can pull out either piece.
+  Future<Map<String, dynamic>> listGoals(
+    String baseUrl,
+    String token, {
+    String? status,
+    String? workspace,
+    int limit = 50,
+  }) async {
+    final qp = <String, String>{'limit': '$limit'};
+    if (status != null) qp['status'] = status;
+    if (workspace != null) qp['workspace'] = workspace;
+    final uri = Uri.parse(_url(baseUrl, '/v1/goals'))
+        .replace(queryParameters: qp);
+    final resp = await _client.get(uri, headers: _headers(token));
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+    return Map<String, dynamic>.from(jsonDecode(resp.body));
+  }
+
+  /// Fetch a single goal with its links.
+  Future<Map<String, dynamic>> getGoal(
+    String baseUrl,
+    String token,
+    String goalId,
+  ) async {
+    final resp = await _client.get(
+      Uri.parse(_url(baseUrl, '/v1/goals/$goalId')),
+      headers: _headers(token),
+    );
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+    return Map<String, dynamic>.from(jsonDecode(resp.body));
+  }
+
+  /// Start a new session bound to a goal. Returns the new session id.
+  Future<String> startGoal(
+    String baseUrl,
+    String token,
+    String goalId, {
+    String? task,
+  }) async {
+    final resp = await _client.post(
+      Uri.parse(_url(baseUrl, '/v1/goals/$goalId/start')),
+      headers: _headers(token),
+      body: jsonEncode({
+        if (task != null) 'task': task,
+      }),
+    );
+    if (resp.statusCode != 201 && resp.statusCode != 200) {
+      throw ApiException(resp.statusCode, resp.body);
+    }
+    final data = jsonDecode(resp.body);
+    return data['session_id'] as String;
+  }
+
   void dispose() {
     _client.close();
   }

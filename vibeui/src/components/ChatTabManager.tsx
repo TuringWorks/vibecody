@@ -44,6 +44,8 @@ interface ChatTabManagerProps {
     fileTree?: string[];
     currentFile?: string | null;
     onPendingWrite?: (path: string, content: string) => void;
+    /** /goal slash command → forwarded to AIChat. */
+    onSwitchToGoals?: (seed?: string) => void;
 }
 
 const LEGACY_SESSIONS_KEY = "vibecody:chat-sessions";
@@ -98,6 +100,7 @@ export function ChatTabManager({
     fileTree,
     currentFile,
     onPendingWrite,
+    onSwitchToGoals,
 }: ChatTabManagerProps) {
     // Refresh adventure names from backend once on mount (non-blocking).
     // Also drop the legacy per-tab message blob — we no longer auto-restore
@@ -904,6 +907,7 @@ export function ChatTabManager({
                             sessionTitle={tab.title}
                             useAgentLoop={!!tabAgentLoop[tab.id]}
                             onUseAgentLoopChange={(on) => setAgentLoopForTab(tab.id, on)}
+                            onSwitchToGoals={onSwitchToGoals}
                         />
                     </div>
                 ))}

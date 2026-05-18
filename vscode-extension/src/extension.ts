@@ -41,6 +41,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand('vibecli.inlineEdit', handleInlineEdit),
     vscode.commands.registerCommand('vibecli.viewJobs', handleViewJobs),
     vscode.commands.registerCommand('vibecli.sendSelection', handleSendSelection),
+    // /goal — durable execution intent (G2.4)
+    vscode.commands.registerCommand('vibecli.newGoal', handleNewGoal),
+    vscode.commands.registerCommand('vibecli.listGoals', handleListGoals),
+    vscode.commands.registerCommand('vibecli.startGoal', handleStartGoal),
   );
 
   // Register inline completion provider
@@ -288,6 +292,121 @@ async function handleViewJobs(): Promise<void> {
       language: 'markdown',
     });
     vscode.window.showTextDocument(doc, { preview: true });
+  }
+}
+
+// ── /goal — durable execution intent (G2.4) ──────────────────────────────────
+
+async function handleNewGoal(): Promise<void> {
+  if (!daemonConnected) {
+    vscode.window.showWarningMessage('VibeCLI daemon not connected.');
+    return;
+  }
+  const title = await vscode.window.showInputBox({
+    title: 'New Goal',
+    prompt: 'What are we working toward?',
+    placeHolder: 'e.g. Ship the auth middleware refactor',
+    validateInput: (s: string) => (s.trim().length === 0 ? 'Title is required' : null),
+  });
+  if (!title) return;
+
+  const statement = await vscode.window.showInputBox({
+    title: 'Goal statement (optional)',
+    prompt: 'A longer description, success criteria, constraints…',
+    placeHolder: 'Optional — can be edited later in VibeUI.',
+  });
+  const workspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  try {
+    const created = await client.createGoal(title.trim(), statement?.trim() || undefined, workspace);
+    vscode.window.showInformationMessage(
+      `Goal created: ${created.title} (${created.id.slice(0, 8)})`,
+    );
+  } catch (err) {
+    vscode.window.showErrorMessage(`Failed to create goal: ${String(err)}`);
+  }
+}
+
+async function handleListGoals(): Promise<void> {
+  if (!daemonConnected) {
+    vscode.window.showWarningMessage('VibeCLI daemon not connected.');
+    return;
+  }
+  const goals = await client.listGoals();
+  if (goals.length === 0) {
+    vscode.window.showInformationMessage('No goals yet. Use "VibeCLI: New Goal" to create one.');
+    return;
+  }
+  const statusIcon = (s: string) =>
+    s === 'active' ? '●' : s === 'paused' ? '⏸' : s === 'done' ? '✓' : '⊘';
+  const picks = goals.map((g) => ({
+    label: `${statusIcon(g.status)} ${g.title}`,
+    description: g.status,
+    detail: g.statement
+      ? g.statement.slice(0, 120) + (g.statement.length > 120 ? '…' : '')
+      : `Goal ${g.id.slice(0, 8)}`,
+    goal: g,
+  }));
+  const selected = await vscode.window.showQuickPick(picks, {
+    title: `VibeCLI Goals (${goals.length})`,
+    placeHolder: 'Pick a goal to view or start a session on',
+    matchOnDetail: true,
+  });
+  if (!selected) return;
+  const action = await vscode.window.showQuickPick(
+    ['Start session on this goal', 'Show details', 'Dismiss'],
+    { title: selected.goal.title },
+  );
+  if (action === 'Start session on this goal') {
+    await startSessionOnGoal(selected.goal.id, selected.goal.title);
+  } else if (action === 'Show details') {
+    const md = [
+      `# ${selected.goal.title}`,
+      '',
+      `Status: **${selected.goal.status}** · id \`${selected.goal.id}\``,
+      '',
+      selected.goal.statement || '_No statement yet._',
+    ].join('\n');
+    const doc = await vscode.workspace.openTextDocument({ content: md, language: 'markdown' });
+    vscode.window.showTextDocument(doc, { preview: true });
+  }
+}
+
+async function handleStartGoal(): Promise<void> {
+  if (!daemonConnected) {
+    vscode.window.showWarningMessage('VibeCLI daemon not connected.');
+    return;
+  }
+  const goals = await client.listGoals('active');
+  if (goals.length === 0) {
+    vscode.window.showInformationMessage('No active goals. Use "VibeCLI: New Goal" first.');
+    return;
+  }
+  const picks = goals.map((g) => ({
+    label: g.title,
+    description: g.status,
+    detail: `${g.id.slice(0, 8)}`,
+    goal: g,
+  }));
+  const selected = await vscode.window.showQuickPick(picks, {
+    title: 'Start session on goal',
+    placeHolder: 'Pick a goal',
+  });
+  if (!selected) return;
+  await startSessionOnGoal(selected.goal.id, selected.goal.title);
+}
+
+async function startSessionOnGoal(goalId: string, title: string): Promise<void> {
+  const task = await vscode.window.showInputBox({
+    title: `Start session: ${title}`,
+    prompt: 'Optional first task for this session — leave blank to seed with the goal title.',
+  });
+  try {
+    const { sessionId } = await client.startGoal(goalId, task?.trim() || undefined);
+    vscode.window.showInformationMessage(
+      `Session ${sessionId.slice(0, 8)} started, linked to ${title}`,
+    );
+  } catch (err) {
+    vscode.window.showErrorMessage(`Failed to start session: ${String(err)}`);
   }
 }
 

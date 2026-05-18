@@ -209,6 +209,10 @@ pub mod recap;
 // Recap & Resume — Phase F1.3 resume surface (in-memory handle registry
 // + pure helpers consumed by the /v1/resume routes in serve.rs).
 pub mod resume;
+// /goal — durable execution intent. See docs/design/goal/.
+pub mod exec_goal;
+// /goal — REPL handlers (display + direct-DB CRUD).
+pub mod exec_goal_repl;
 // Recap & Resume — Phase D1.1: diffcomplete chain types + encrypted
 // store on workspace.db. Patent re-audit: PASS (1–5 unchanged).
 pub mod diff_chain;

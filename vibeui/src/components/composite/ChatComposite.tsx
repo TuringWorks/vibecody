@@ -20,6 +20,8 @@ export interface ChatCompositeProps {
   fileTree?: string[];
   currentFile?: string | null;
   onPendingWrite?: (path: string, content: string) => void;
+  /** /goal slash command → forwarded down to AIChat. */
+  onSwitchToGoals?: (seed?: string) => void;
 }
 
 export function ChatComposite({
@@ -29,6 +31,7 @@ export function ChatComposite({
   fileTree,
   currentFile,
   onPendingWrite,
+  onSwitchToGoals,
 }: ChatCompositeProps) {
   const [activeTab, setActiveTab] = useState("chat");
 
@@ -58,6 +61,7 @@ export function ChatComposite({
                 fileTree={fileTree}
                 currentFile={currentFile}
                 onPendingWrite={onPendingWrite}
+                onSwitchToGoals={onSwitchToGoals}
               />
             </Suspense>
           ),

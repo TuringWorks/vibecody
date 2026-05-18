@@ -26,12 +26,16 @@ struct ContentView: View {
                     .tag(1)
                     .tabItem { Label("Jobs", systemImage: "briefcase") }
 
-                SandboxStatusView()
+                GoalsView()
                     .tag(2)
+                    .tabItem { Label("Goals", systemImage: "target") }
+
+                SandboxStatusView()
+                    .tag(3)
                     .tabItem { Label("Sandbox", systemImage: "shippingbox") }
 
                 SettingsView()
-                    .tag(3)
+                    .tag(4)
                     .tabItem { Label("Settings", systemImage: "gear") }
             }
         } else {
