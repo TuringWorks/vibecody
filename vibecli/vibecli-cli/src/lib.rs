@@ -254,6 +254,9 @@ pub mod plugin_manifest;
 // manifest inside the extracted bundle. Verifier uses the publisher
 // key embedded in the manifest itself (TOFU).
 pub mod plugin_signing;
+// B2.4 — core install function for signed MCPB plugin bundles.
+// Brings B2.1 (manifest), B2.2 (verify), B2.3 (policy) together.
+pub mod plugin_install;
 // FIT-GAP v12 — P3: long sessions, Windows sandbox, dispatch, focus
 pub mod long_session;
 pub mod sandbox_windows;

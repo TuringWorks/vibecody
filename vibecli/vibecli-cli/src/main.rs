@@ -145,6 +145,9 @@ mod plugin_manifest;
 // B2.2 — detached P-256 ECDSA signing for plugin manifests. See lib.rs.
 #[allow(dead_code)]
 mod plugin_signing;
+// B2.4 — core install function for signed MCPB bundles. See lib.rs.
+#[allow(dead_code)]
+mod plugin_install;
 mod workspace_roots;
 mod acp_stdio;
 mod skill_watcher;
