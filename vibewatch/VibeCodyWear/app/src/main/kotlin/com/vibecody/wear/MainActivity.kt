@@ -9,7 +9,11 @@ import android.app.Activity
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.wear.compose.navigation.SwipeDismissableNavHost
 import androidx.wear.compose.navigation.composable
 import androidx.wear.compose.navigation.rememberSwipeDismissableNavController
@@ -48,6 +52,10 @@ fun VibeCodyWearApp(activity: Activity, startDestination: String = "sessions") {
         return
     }
 
+    // DREAD #1 Slice G part 3 — tainted-confirmation overlay sits on
+    // top of the nav host so every screen surfaces a pending prompt
+    // when one is queued. Renders nothing when idle (zero overhead).
+    Box(modifier = Modifier.fillMaxSize()) {
     SwipeDismissableNavHost(navController = navController, startDestination = startDestination) {
         composable("sessions") {
             SessionListScreen(
@@ -133,6 +141,10 @@ fun VibeCodyWearApp(activity: Activity, startDestination: String = "sessions") {
                 // After unpair, restart
                 isRegistered.value = false
             }
+        }
+    }
+        Box(modifier = Modifier.align(Alignment.BottomCenter)) {
+            TaintedConfirmationOverlay(net = net)
         }
     }
 }

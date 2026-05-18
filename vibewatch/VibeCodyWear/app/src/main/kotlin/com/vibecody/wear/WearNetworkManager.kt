@@ -327,6 +327,84 @@ class WearNetworkManager(
         }
     }
 
+    // ── DREAD #1 Slice G part 3 (watch) — tainted-argument bridge ─────────────
+    //
+    // Watch consumes the same `HttpPromptQueue` as the desktop modal
+    // and mobile sheet via Watch-Token-authed `/watch/tainted/*`. The
+    // SSE stream emits typed `pending` events whose payload is only
+    // `audit_summary` (kind / origin / audit_id) — never the
+    // underlying tainted bytes.
+
+    /** Subscribe to `/watch/tainted/pending` (SSE). Same callback
+     *  shape as `openStream`. The returned `EventSource` should be
+     *  cancelled when the screen leaves composition. */
+    suspend fun openTaintedPendingStream(
+        onEvent: (JSONObject) -> Unit,
+        onError: (Throwable) -> Unit,
+        onComplete: () -> Unit,
+    ): EventSource {
+        val token = validToken()
+        val req = Request.Builder()
+            .url("${auth.daemonUrl}/watch/tainted/pending")
+            .header("Authorization", "Watch-Token $token")
+            .header("Accept", "text/event-stream")
+            .build()
+
+        val factory = EventSources.createFactory(client)
+        return factory.newEventSource(req, object : EventSourceListener() {
+            override fun onEvent(
+                eventSource: EventSource,
+                id: String?,
+                type: String?,
+                data: String,
+            ) {
+                // Filter on event type so we ignore any future
+                // events the daemon may multiplex over the same stream.
+                if (type != null && type != "pending") return
+                try {
+                    onEvent(JSONObject(data))
+                } catch (e: Exception) {
+                    Log.w(TAG, "Bad tainted SSE JSON: $data", e)
+                }
+            }
+
+            override fun onFailure(
+                eventSource: EventSource,
+                t: Throwable?,
+                response: Response?,
+            ) {
+                if (t != null) onError(t) else onComplete()
+            }
+
+            override fun onClosed(eventSource: EventSource) = onComplete()
+        })
+    }
+
+    /** POST a decision on a pending tainted prompt. Returns true
+     *  when the daemon resolved it; false on 404 (already resolved
+     *  or unknown — daemon-side timeout will deny). */
+    suspend fun taintedRespond(requestId: String, approve: Boolean): Boolean =
+        withContext(Dispatchers.IO) {
+            val bodyJson = JSONObject().apply {
+                put("request_id", requestId)
+                put("approve", approve)
+            }.toString()
+            val req = watchRequest("${auth.daemonUrl}/watch/tainted/respond")
+                .post(bodyJson.toRequestBody("application/json".toMediaType()))
+                .build()
+            val resp = client.newCall(req).awaitResponse()
+            if (resp.isSuccessful) {
+                try {
+                    val json = JSONObject(resp.body?.string() ?: "{}")
+                    json.optBoolean("resolved", false)
+                } catch (_: Exception) {
+                    false
+                }
+            } else {
+                false
+            }
+        }
+
     // ── Data Layer relay (offline fallback) ───────────────────────────────────
 
     fun relayDispatchViaPhone(

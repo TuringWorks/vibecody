@@ -233,8 +233,8 @@ Wire the confirmation UI in VibeUI, CLI REPL, and mobile. ~1 week (the design is
 | Platform | Renderer | Auth | Notes |
 |---|---|---|---|
 | VibeMobile (Flutter) | `TaintedConfirmationSheet` modal sheet on `HomeScreen` (shipped 2026-05-15) | existing pairing bearer in `ApiClient` | Mobile clients race transports (mDNS → Tailscale → ngrok); SSE rides whichever is connected. `TaintedService` (ChangeNotifierProxyProvider2 in `main.dart`) follows `AuthService.machines.first`; exponential backoff reconnect (1s → 30s). 14 unit tests across `TaintedPrompt`/`TaintedService` (model parsing, FIFO ordering, de-dup, fail-safe-deny on POST failure, idempotent re-emit). |
-| VibeCodyWatch (SwiftUI) | Glanceable notification → tap-to-confirm | watch's P-256 signed nonce, same as `WatchNetworkManager` | Watch's small screen renders only `sink` + first ~80 chars of `summary`; full summary on tap. |
-| VibeCodyWear (Compose) | Tile + confirmation activity | watch's P-256 signed nonce | Mirrors watchOS UX. |
+| VibeCodyWatch (SwiftUI) | `TaintedConfirmationOverlay` rendered on `ContentView` (shipped 2026-05-18) | Watch-Token JWT via `WatchAuthManager.validAccessToken()` | New `GET /watch/tainted/pending` + `POST /watch/tainted/respond` routes share the same `HttpPromptQueue` as `/v1/tainted/*`. `TaintedConfirmationQueue` (MainActor `ObservableObject`) drives the FIFO + de-dup; head-of-queue card renders `sink` + monospace `summary` + audit_id; exponential backoff (1s → 30s). |
+| VibeCodyWear (Compose) | `TaintedConfirmationOverlay` rendered on `MainActivity` `Box` (shipped 2026-05-18) | Watch-Token JWT via `WearAuthManager` | OkHttp `EventSource` consumes the same `/watch/tainted/pending` route; `WearNetworkManager.openTaintedPendingStream` filters on the `pending` event type. Mirrors watchOS UX. |
 
 In all three cases the **payload bytes never leave the daemon** — only `audit_summary` (kind / origin / `audit_id`) crosses the wire. Mobile / watch slices ship in their own PRs (not in part 2). The contract is already stable.
 

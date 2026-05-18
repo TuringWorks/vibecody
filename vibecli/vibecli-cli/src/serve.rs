@@ -5492,6 +5492,10 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         Some(state.provider.clone()),
         state.provider_name.clone(),
     )
+    // DREAD #1 Slice G part 3 — share the same `HttpPromptQueue` so
+    // `/watch/tainted/*` and `/v1/tainted/*` surface the same prompts
+    // on whichever paired client (desktop / mobile / watch) is online.
+    .map(|s| s.with_tainted_queue(state.tainted_http_queue.clone()))
     .map(|s| crate::watch_bridge::build_watch_router(s).with_state(()))
     .unwrap_or_else(|e| {
         eprintln!("[watch] Failed to init WatchBridgeState: {e}");

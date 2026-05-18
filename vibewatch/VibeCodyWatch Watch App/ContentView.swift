@@ -38,6 +38,12 @@ struct ContentView: View {
                     .tag(4)
                     .tabItem { Label("Settings", systemImage: "gear") }
             }
+            // DREAD #1 Slice G part 3 — tainted-confirmation overlay
+            // sits on top of every tab; it only shows when the daemon
+            // has a pending prompt queued for this watch.
+            .overlay(alignment: .bottom) {
+                TaintedConfirmationOverlay()
+            }
         } else {
             PairingView()
         }
