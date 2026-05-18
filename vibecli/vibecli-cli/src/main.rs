@@ -148,6 +148,9 @@ mod plugin_signing;
 // B2.4 — core install function for signed MCPB bundles. See lib.rs.
 #[allow(dead_code)]
 mod plugin_install;
+// B2.5 — runtime view: per-policy filtered component enumeration.
+#[allow(dead_code)]
+mod plugin_runtime;
 mod workspace_roots;
 mod acp_stdio;
 mod skill_watcher;

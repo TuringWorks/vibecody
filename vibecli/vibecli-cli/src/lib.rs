@@ -257,6 +257,11 @@ pub mod plugin_signing;
 // B2.4 — core install function for signed MCPB plugin bundles.
 // Brings B2.1 (manifest), B2.2 (verify), B2.3 (policy) together.
 pub mod plugin_install;
+// B2.5 — runtime view: walks the install dir, applies per-plugin
+// policy, returns only the components that should actually load.
+// Consumed by skill_catalog / mcp_governance / hook_abort / rules
+// loader as a filtered input list (per-loader wiring is a follow-up).
+pub mod plugin_runtime;
 // FIT-GAP v12 — P3: long sessions, Windows sandbox, dispatch, focus
 pub mod long_session;
 pub mod sandbox_windows;
