@@ -1118,6 +1118,11 @@ pub fn run() {
             commands::exec_goal_link,
             commands::exec_goal_start,
             commands::exec_goal_recap,
+            // G5.3 — tree + pin Tauri proxies
+            commands::exec_goal_tree,
+            commands::exec_goal_current,
+            commands::exec_goal_pin,
+            commands::exec_goal_unpin,
             commands::profile_provider_config_set,
             commands::profile_provider_config_get,
             commands::profile_provider_config_get_all,

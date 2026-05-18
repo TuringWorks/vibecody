@@ -483,6 +483,109 @@ pub fn handle_goal_reparent(args: &str) {
     }
 }
 
+/// `/goal pin <id-prefix>` — mark a goal as the "current" pin for this
+/// workspace (cwd) so the daemon can auto-link new sessions to it.
+/// Passing the literal `--global` flag pins to the cross-workspace
+/// slot used by mobile and watch clients.
+pub fn handle_goal_pin(args: &str) {
+    let mut global = false;
+    let mut rest = args.trim().to_string();
+    if let Some(stripped) = rest.strip_prefix("--global").map(|s| s.trim_start().to_string()) {
+        global = true;
+        rest = stripped;
+    }
+    let store = match SessionStore::open_default() {
+        Ok(s) => s,
+        Err(e) => {
+            println!("Failed to open session store: {e}\n");
+            return;
+        }
+    };
+    let Some(id) = resolve_goal_id(&store, rest.trim()) else {
+        return;
+    };
+    let ws_str = if global {
+        None
+    } else {
+        match std::env::current_dir() {
+            Ok(p) => Some(p.to_string_lossy().into_owned()),
+            Err(_) => None,
+        }
+    };
+    match store.pin_goal(ws_str.as_deref(), &id) {
+        Ok(()) => {
+            let scope = ws_str
+                .as_deref()
+                .map(|s| format!("workspace {s}"))
+                .unwrap_or_else(|| "global slot".to_string());
+            println!("Pinned {} as current goal ({scope}).\n", short(&id));
+        }
+        Err(e) => println!("Failed to pin: {e}\n"),
+    }
+}
+
+/// `/goal unpin` — clear the current pin for the cwd workspace (or the
+/// global slot with `--global`).
+pub fn handle_goal_unpin(args: &str) {
+    let global = args.trim() == "--global";
+    let store = match SessionStore::open_default() {
+        Ok(s) => s,
+        Err(e) => {
+            println!("Failed to open session store: {e}\n");
+            return;
+        }
+    };
+    let ws_str = if global {
+        None
+    } else {
+        std::env::current_dir()
+            .ok()
+            .map(|p| p.to_string_lossy().into_owned())
+    };
+    match store.unpin_goal(ws_str.as_deref()) {
+        Ok(true) => println!("Cleared pinned goal.\n"),
+        Ok(false) => println!("No goal was pinned for that scope.\n"),
+        Err(e) => println!("Failed to unpin: {e}\n"),
+    }
+}
+
+/// `/goal current` — print the currently pinned goal for the cwd
+/// workspace, or `--global` for the cross-workspace slot.
+pub fn handle_goal_current(args: &str) {
+    let global = args.trim() == "--global";
+    let store = match SessionStore::open_default() {
+        Ok(s) => s,
+        Err(e) => {
+            println!("Failed to open session store: {e}\n");
+            return;
+        }
+    };
+    let ws_str = if global {
+        None
+    } else {
+        std::env::current_dir()
+            .ok()
+            .map(|p| p.to_string_lossy().into_owned())
+    };
+    match store.get_pinned_goal(ws_str.as_deref()) {
+        Ok(Some((goal_id, pinned_at))) => match store.get_goal_by_id(&goal_id) {
+            Ok(Some(goal)) => {
+                println!(
+                    "Current goal: {} — {} ({}, pinned {})\n",
+                    short(&goal.id),
+                    goal.title,
+                    goal.status.as_str(),
+                    pinned_at,
+                );
+            }
+            Ok(None) => println!("Pinned goal {goal_id} no longer exists.\n"),
+            Err(e) => println!("Failed to load pinned goal: {e}\n"),
+        },
+        Ok(None) => println!("No goal is currently pinned.\n"),
+        Err(e) => println!("Failed to read pin: {e}\n"),
+    }
+}
+
 /// `/goal delete <id>` — hard-delete a goal and (via FK cascade) its
 /// links. Confirms by id-prefix only; the user must paste an unambiguous
 /// prefix.

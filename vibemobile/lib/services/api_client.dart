@@ -605,6 +605,78 @@ class ApiClient {
     return data['session_id'] as String;
   }
 
+  // G5.3 — tree + pin + recap-LLM coverage.
+
+  /// Recursive subtree walk. `depth` is clamped server-side to `[1, 10]`
+  /// (default 3). Returns `{ root, depth, tree }` where each node has
+  /// `{ goal, children, [truncated, direct_child_count, cycle] }`.
+  Future<Map<String, dynamic>> getGoalTree(
+    String baseUrl,
+    String token,
+    String goalId, {
+    int? depth,
+  }) async {
+    final qp = <String, String>{};
+    if (depth != null) qp['depth'] = '$depth';
+    final uri = Uri.parse(_url(baseUrl, '/v1/goals/$goalId/tree'))
+        .replace(queryParameters: qp.isEmpty ? null : qp);
+    final resp = await _client.get(uri, headers: _headers(token));
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+    return Map<String, dynamic>.from(jsonDecode(resp.body));
+  }
+
+  /// Read the pinned goal for a workspace (empty/null = global slot).
+  /// Returns `{ workspace, goal_id, pinned_at?, goal? }`; `goal_id`
+  /// is `null` when nothing is pinned.
+  Future<Map<String, dynamic>> getCurrentGoal(
+    String baseUrl,
+    String token, {
+    String? workspace,
+  }) async {
+    final qp = <String, String>{};
+    if (workspace != null && workspace.isNotEmpty) qp['workspace'] = workspace;
+    final uri = Uri.parse(_url(baseUrl, '/v1/goals/current'))
+        .replace(queryParameters: qp.isEmpty ? null : qp);
+    final resp = await _client.get(uri, headers: _headers(token));
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+    return Map<String, dynamic>.from(jsonDecode(resp.body));
+  }
+
+  /// Pin a goal as the current execution intent for a workspace
+  /// (omit `workspace` to pin in the cross-workspace global slot).
+  Future<void> pinGoal(
+    String baseUrl,
+    String token,
+    String goalId, {
+    String? workspace,
+  }) async {
+    final resp = await _client.put(
+      Uri.parse(_url(baseUrl, '/v1/goals/current')),
+      headers: _headers(token),
+      body: jsonEncode({
+        'goal_id': goalId,
+        if (workspace != null) 'workspace': workspace,
+      }),
+    );
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+  }
+
+  /// Clear the pin for a workspace (or the global slot).
+  Future<bool> unpinGoal(
+    String baseUrl,
+    String token, {
+    String? workspace,
+  }) async {
+    final qp = <String, String>{};
+    if (workspace != null && workspace.isNotEmpty) qp['workspace'] = workspace;
+    final uri = Uri.parse(_url(baseUrl, '/v1/goals/current'))
+        .replace(queryParameters: qp.isEmpty ? null : qp);
+    final resp = await _client.delete(uri, headers: _headers(token));
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+    final data = jsonDecode(resp.body);
+    return data['removed'] == true;
+  }
+
   void dispose() {
     _client.close();
   }

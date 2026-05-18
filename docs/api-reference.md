@@ -741,8 +741,12 @@ Durable execution-intent primitive. See [design/goal/README.md](./design/goal/RE
 | `POST` | `/v1/goals/:id/plan` | Generate `ExecutionPlan` via `PlannerAgent`. Body: `{ provider?, model? }`. Per-request override honored when both are present and the API key resolves (env or `profile_settings.db`); otherwise falls back to the daemon's configured provider. Response carries `plan_provider_override_applied`, `plan_provider_requested`, `plan_model_requested`. |
 | `POST` | `/v1/goals/:id/link` | Attach a session / job / recap / note. Body: `{ kind, target_id, note? }`. |
 | `POST` | `/v1/goals/:id/start` | Spawn a session bound to this goal. Body: `{ task?, provider?, model? }`. Returns `{ session_id, link_id, goal_id }`. |
-| `POST` | `/v1/goals/:id/recap` | Cross-store aggregate recap (heuristic — no new LLM call). Folds the freshest per-target recaps via two-phase store split. |
+| `POST` | `/v1/goals/:id/recap` | Cross-store aggregate recap. Body: `{ provider?, model? }`. When both fields are supplied and the named provider is reachable, the daemon synthesizes the headline + bullets via LLM and sets `recap_synthesizer: "llm"`. Otherwise the heuristic fold runs and `recap_synthesizer: "heuristic"` is returned. Per-target recaps are still collected via two-phase store split. |
 | `GET` | `/v1/goals/:id/children` | One-level tree query. Returns `{ parent_goal_id, children, count }`. Walk iteratively for a full tree. |
+| `GET` | `/v1/goals/:id/tree` | Recursive subtree walk. Query: `depth` (default 3, clamped to 1..10). Returns `{ root, depth, tree: { goal, children, [truncated, direct_child_count, cycle] } }`. Re-visited nodes set `cycle: true` so clients don't recurse. |
+| `GET` | `/v1/goals/current` | Look up the pinned goal. Query: `workspace?` (empty / absent = global slot). Returns `{ workspace, goal_id, pinned_at, goal }` or `{ workspace, goal_id: null }`. |
+| `PUT` | `/v1/goals/current` | Pin or replace the current goal. Body: `{ goal_id, workspace? }`. 404 if `goal_id` is unknown. |
+| `DELETE` | `/v1/goals/current` | Clear the pin. Query: `workspace?`. Returns `{ workspace, removed }`. |
 
 ### Watch (curated proxies)
 
@@ -752,3 +756,4 @@ The Apple Watch / Wear OS never hits `/v1/*` directly. Use the curated read-only
 |---|---|---|
 | `GET` | `/watch/goals` | Active goals only, ≤25, slim payload (`{ id, title, status, workspace_label, updated_at }`). |
 | `GET` | `/watch/goals/:id` | Full `{ goal, links }` (same shape as `/v1/goals/:id`). |
+| `POST` | `/watch/goals/:id/start` | Curated wrapper for `do_v1_exec_goal_start`. Body: `{ task? }`. Returns `{ session_id, link_id, goal_id }`. |

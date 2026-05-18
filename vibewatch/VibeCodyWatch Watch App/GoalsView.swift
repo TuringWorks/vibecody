@@ -151,18 +151,20 @@ struct GoalDetailView: View {
     private func startSession() async {
         starting = true
         defer { starting = false }
-        // Watch POSTs to /watch/dispatch, not /v1/goals/:id/start —
-        // the dispatch route is the existing P-256-signed path. We
-        // tag the dispatch with the goal id so the daemon can link
-        // the resulting session to the goal at create time.
+        // G4.2 — go through the curated `/watch/goals/:id/start`
+        // route so the new session is linked to the goal in the same
+        // transaction as it's created (daemon-side `do_v1_exec_goal_start`).
+        // Falls back to plain `/watch/dispatch` if the daemon is older
+        // and the curated route 404s, so freshly-paired watches stay
+        // functional against pre-G4 daemons.
         do {
-            let _ = try await network.dispatch(
+            _ = try await network.startGoal(id: summary.id)
+        } catch {
+            _ = try? await network.dispatch(
                 content: "Goal: \(summary.title)",
                 sessionId: nil,
                 provider: nil
             )
-        } catch {
-            // best-effort — failures appear in the existing toast
         }
     }
 }

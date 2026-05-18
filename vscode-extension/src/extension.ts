@@ -8,11 +8,13 @@
  */
 
 import * as vscode from 'vscode';
-import { VibeCLIClient, type AgentEvent, type JobRecord } from './api-client';
+import { VibeCLIClient, type AgentEvent, type ExecGoalSummary, type JobRecord } from './api-client';
+import { GoalsTreeProvider, GoalTreeItem } from './goals-tree';
 
 let client: VibeCLIClient;
 let statusBarItem: vscode.StatusBarItem;
 let daemonConnected = false;
+let goalsProvider: GoalsTreeProvider | undefined;
 
 // ── Activation ────────────────────────────────────────────────────────────────
 
@@ -42,9 +44,32 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand('vibecli.viewJobs', handleViewJobs),
     vscode.commands.registerCommand('vibecli.sendSelection', handleSendSelection),
     // /goal — durable execution intent (G2.4)
-    vscode.commands.registerCommand('vibecli.newGoal', handleNewGoal),
+    vscode.commands.registerCommand('vibecli.newGoal', wrapWithGoalsRefresh(handleNewGoal)),
     vscode.commands.registerCommand('vibecli.listGoals', handleListGoals),
     vscode.commands.registerCommand('vibecli.startGoal', handleStartGoal),
+    // G4.6 — Goals tree-view + per-row context-menu actions.
+    vscode.commands.registerCommand('vibecli.refreshGoals', () => goalsProvider?.refresh()),
+    vscode.commands.registerCommand(
+      'vibecli.goalStartSession',
+      async (item: GoalTreeItem) => {
+        if (item?.goal) {
+          await startSessionOnGoal(item.goal.id, item.goal.title);
+        }
+      },
+    ),
+    vscode.commands.registerCommand(
+      'vibecli.goalShowDetails',
+      async (item: GoalTreeItem) => {
+        if (item?.goal) await showGoalDetails(item.goal);
+      },
+    ),
+  );
+
+  // Register the Goals tree-view. Refresh on every daemon-status change
+  // so the tree picks up new goals created from CLI / VibeUI / mobile.
+  goalsProvider = new GoalsTreeProvider(client);
+  context.subscriptions.push(
+    vscode.window.registerTreeDataProvider('vibecli.goalsView', goalsProvider),
   );
 
   // Register inline completion provider
@@ -405,9 +430,34 @@ async function startSessionOnGoal(goalId: string, title: string): Promise<void> 
     vscode.window.showInformationMessage(
       `Session ${sessionId.slice(0, 8)} started, linked to ${title}`,
     );
+    goalsProvider?.refresh();
   } catch (err) {
     vscode.window.showErrorMessage(`Failed to start session: ${String(err)}`);
   }
+}
+
+/// G4.6 — open a markdown preview of a goal pulled from a tree row.
+async function showGoalDetails(goal: ExecGoalSummary): Promise<void> {
+  const md = [
+    `# ${goal.title}`,
+    '',
+    `Status: **${goal.status}** · id \`${goal.id}\``,
+    '',
+    goal.statement || '_No statement yet._',
+  ].join('\n');
+  const doc = await vscode.workspace.openTextDocument({ content: md, language: 'markdown' });
+  vscode.window.showTextDocument(doc, { preview: true });
+}
+
+/// Wrap a goal-mutating command so the tree-view refreshes on success.
+function wrapWithGoalsRefresh<T extends (...args: never[]) => Promise<unknown>>(
+  fn: T,
+): (...args: Parameters<T>) => Promise<unknown> {
+  return async (...args: Parameters<T>) => {
+    const out = await fn(...args);
+    goalsProvider?.refresh();
+    return out;
+  };
 }
 
 // ── Send Selection to Agent ───────────────────────────────────────────────────

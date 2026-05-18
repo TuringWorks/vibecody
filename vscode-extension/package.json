@@ -22,8 +22,36 @@
       { "command": "vibecli.sendSelection",  "title": "VibeCLI: Send Selection to Agent" },
       { "command": "vibecli.newGoal",        "title": "VibeCLI: New Goal" },
       { "command": "vibecli.listGoals",      "title": "VibeCLI: List Goals" },
-      { "command": "vibecli.startGoal",      "title": "VibeCLI: Start Session on a Goal" }
+      { "command": "vibecli.startGoal",      "title": "VibeCLI: Start Session on a Goal" },
+      { "command": "vibecli.refreshGoals",   "title": "VibeCLI: Refresh Goals",          "icon": "$(refresh)" },
+      { "command": "vibecli.goalStartSession", "title": "Start session on this goal",   "icon": "$(play)" },
+      { "command": "vibecli.goalShowDetails",  "title": "Show goal details" }
     ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "vibecli.refreshGoals",
+          "when": "view == vibecli.goalsView",
+          "group": "navigation"
+        },
+        {
+          "command": "vibecli.newGoal",
+          "when": "view == vibecli.goalsView",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "vibecli.goalStartSession",
+          "when": "view == vibecli.goalsView && viewItem == vibecliGoal",
+          "group": "inline"
+        },
+        {
+          "command": "vibecli.goalShowDetails",
+          "when": "view == vibecli.goalsView && viewItem == vibecliGoal"
+        }
+      ]
+    },
     "keybindings": [
       {
         "command": "vibecli.inlineEdit",
@@ -80,6 +108,10 @@
           "type": "webview",
           "id": "vibecli.chatView",
           "name": "Chat"
+        },
+        {
+          "id": "vibecli.goalsView",
+          "name": "Goals"
         }
       ]
     }

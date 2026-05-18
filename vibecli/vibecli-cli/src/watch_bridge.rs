@@ -174,6 +174,7 @@ pub fn build_watch_router(state: WatchBridgeState) -> Router {
         .route("/jobs/:id/recap",   get(watch_job_recap))
         .route("/goals",            get(watch_list_goals))
         .route("/goals/:id",        get(watch_get_goal))
+        .route("/goals/:id/start",  post(watch_start_goal))
         .route("/stream/:id",       get(watch_stream))
         .route("/dispatch",         post(watch_dispatch))
         .route("/active-session",   get(watch_get_active_session).put(watch_set_active_session))
@@ -1004,6 +1005,50 @@ async fn watch_get_goal(
         )
             .into_response(),
     }
+}
+
+/// G4.2 — start a session bound to a goal from the watch. Wraps
+/// `crate::serve::do_v1_exec_goal_start` so the watch goes through
+/// the same path as VibeUI / mobile. Body shape is forward-compat:
+/// `{ task?, provider?, model? }` — providers + model are accepted
+/// for future hand-off scenarios but ignored today (the watch never
+/// drives an LLM directly).
+async fn watch_start_goal(
+    State(state): State<WatchBridgeState>,
+    headers: axum::http::HeaderMap,
+    Path(id): Path<String>,
+    body: Option<Json<crate::serve::ExecGoalStartRequest>>,
+) -> impl IntoResponse {
+    if let Err(e) = extract_any_auth(&state, &headers) {
+        return e.into_response();
+    }
+    let db_path = state
+        .session_db_path
+        .clone()
+        .unwrap_or_else(|| {
+            dirs::home_dir()
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .join(".vibecli")
+                .join("sessions.db")
+        });
+    let store = match crate::session_store::SessionStore::open(&db_path) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("watch_start_goal: cannot open store: {e}");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": e.to_string()})),
+            )
+                .into_response();
+        }
+    };
+    let req = body.map(|Json(b)| b).unwrap_or(crate::serve::ExecGoalStartRequest {
+        task: None,
+        provider: None,
+        model: None,
+    });
+    let (status, body) = crate::serve::do_v1_exec_goal_start(&store, &id, &req);
+    (status, Json(body)).into_response()
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

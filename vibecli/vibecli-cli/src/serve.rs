@@ -1035,6 +1035,12 @@ async fn start_agent(
     // replay with `?since_seq=N`.
     let _ = state.job_manager.open_stream(&session_id).await;
 
+    // G5.2 — auto-link the new session to the pinned goal, if one is
+    // pinned for the daemon's workspace (or globally). Best-effort:
+    // session creation succeeds regardless of pin-lookup outcome, so
+    // mobile / watch / VS Code never blocks on a missing pin.
+    auto_link_to_pinned_goal(&state.workspace_root, &session_id);
+
     let approval = match &req.approval {
         Some(s) => ApprovalPolicy::from_str(s),
         None => state.approval.clone(),
@@ -2996,6 +3002,98 @@ pub(crate) fn do_v1_exec_goal_children(
     }
 }
 
+/// G4.3 — recursive subtree walk for goal hierarchies.
+///
+/// `depth` is clamped to `[1, TREE_DEPTH_MAX]`; absent or invalid →
+/// `TREE_DEPTH_DEFAULT`. Returns
+/// `{ root: <goal-id>, depth: N, tree: { goal, children: [...] } }`.
+/// Each subtree node carries `goal` (full row) and `children` (array
+/// of subtree nodes); `truncated: true` is set on a node whose own
+/// children were not expanded because the depth budget ran out.
+///
+/// A visited-set guards against cycles (`parent_goal_id` is free-form
+/// text — nothing in the schema prevents A→B→A loops if a client posts
+/// the wrong ids). A revisited node is rendered as a leaf with
+/// `cycle: true`, so clients can still draw it but won't recurse.
+#[derive(Debug, Deserialize, Default)]
+pub struct ExecGoalTreeQuery {
+    #[serde(default)]
+    pub depth: Option<u32>,
+}
+
+pub(crate) const TREE_DEPTH_DEFAULT: u32 = 3;
+pub(crate) const TREE_DEPTH_MAX: u32 = 10;
+
+fn build_goal_subtree(
+    store: &SessionStore,
+    goal: crate::exec_goal::Goal,
+    remaining_depth: u32,
+    visited: &mut std::collections::HashSet<String>,
+) -> anyhow::Result<serde_json::Value> {
+    let id = goal.id.clone();
+    if !visited.insert(id.clone()) {
+        return Ok(serde_json::json!({
+            "goal": goal,
+            "children": [],
+            "cycle": true,
+        }));
+    }
+    if remaining_depth == 0 {
+        let direct_count = store.list_children_goals(&id)?.len();
+        if direct_count == 0 {
+            return Ok(serde_json::json!({ "goal": goal, "children": [] }));
+        }
+        return Ok(serde_json::json!({
+            "goal": goal,
+            "children": [],
+            "truncated": true,
+            "direct_child_count": direct_count,
+        }));
+    }
+    let kids = store.list_children_goals(&id)?;
+    let mut child_nodes = Vec::with_capacity(kids.len());
+    for child in kids {
+        child_nodes.push(build_goal_subtree(store, child, remaining_depth - 1, visited)?);
+    }
+    Ok(serde_json::json!({
+        "goal": goal,
+        "children": child_nodes,
+    }))
+}
+
+pub(crate) fn do_v1_exec_goal_tree(
+    store: &SessionStore,
+    root_id: &str,
+    q: &ExecGoalTreeQuery,
+) -> (StatusCode, serde_json::Value) {
+    let depth = q
+        .depth
+        .unwrap_or(TREE_DEPTH_DEFAULT)
+        .clamp(1, TREE_DEPTH_MAX);
+    let root = match store.get_goal_by_id(root_id) {
+        Ok(Some(g)) => g,
+        Ok(None) => {
+            return (
+                StatusCode::NOT_FOUND,
+                serde_json::json!({ "error": "no goal with that id" }),
+            );
+        }
+        Err(e) => return internal_error_value("exec_goal.tree.root_load", &e),
+    };
+    let mut visited = std::collections::HashSet::new();
+    match build_goal_subtree(store, root, depth - 1, &mut visited) {
+        Ok(tree) => (
+            StatusCode::OK,
+            serde_json::json!({
+                "root": root_id,
+                "depth": depth,
+                "tree": tree,
+            }),
+        ),
+        Err(e) => internal_error_value("exec_goal.tree.walk", &e),
+    }
+}
+
 // ── HTTP handlers (thin shells) ────────────────────────────────────────────
 
 async fn v1_exec_goal_post(
@@ -3063,6 +3161,200 @@ async fn v1_exec_goal_children(
     };
     let (status, body) = do_v1_exec_goal_children(&store, &id);
     (status, Json(body))
+}
+
+async fn v1_exec_goal_tree(
+    Path(id): Path<String>,
+    Query(q): Query<ExecGoalTreeQuery>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match open_default_or_500() {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let (status, body) = do_v1_exec_goal_tree(&store, &id, &q);
+    (status, Json(body))
+}
+
+// ── G4.4 pin current goal ──────────────────────────────────────────────────
+//
+// `/v1/goals/current` is the pin endpoint. Workspace is passed in the
+// query string (`?workspace=<path>`); absent → the global slot. The
+// daemon never deduces the workspace from anything ambient — clients
+// always state it. Mobile / watch (no workspace) use the global pin.
+
+#[derive(Debug, Deserialize, Default)]
+pub struct PinnedGoalQuery {
+    #[serde(default)]
+    pub workspace: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PinnedGoalSetRequest {
+    pub goal_id: String,
+    #[serde(default)]
+    pub workspace: Option<String>,
+}
+
+fn normalize_workspace_query(v: &Option<String>) -> Option<&str> {
+    v.as_deref().filter(|s| !s.is_empty())
+}
+
+pub(crate) fn do_v1_exec_goal_current_get(
+    store: &SessionStore,
+    q: &PinnedGoalQuery,
+) -> (StatusCode, serde_json::Value) {
+    let ws = normalize_workspace_query(&q.workspace);
+    match store.get_pinned_goal(ws) {
+        Ok(Some((goal_id, pinned_at))) => match store.get_goal_by_id(&goal_id) {
+            Ok(Some(goal)) => match serde_json::to_value(&goal) {
+                Ok(v) => (
+                    StatusCode::OK,
+                    serde_json::json!({
+                        "workspace": ws,
+                        "goal_id": goal_id,
+                        "pinned_at": pinned_at,
+                        "goal": v,
+                    }),
+                ),
+                Err(e) => internal_error_value("exec_goal.current.serialize", &e),
+            },
+            // FK on pinned_goals cascades on goal delete, so this is
+            // only reachable mid-race. Treat as no-pin.
+            Ok(None) => (
+                StatusCode::OK,
+                serde_json::json!({ "workspace": ws, "goal_id": null }),
+            ),
+            Err(e) => internal_error_value("exec_goal.current.load", &e),
+        },
+        Ok(None) => (
+            StatusCode::OK,
+            serde_json::json!({ "workspace": ws, "goal_id": null }),
+        ),
+        Err(e) => internal_error_value("exec_goal.current.read", &e),
+    }
+}
+
+pub(crate) fn do_v1_exec_goal_current_put(
+    store: &SessionStore,
+    req: &PinnedGoalSetRequest,
+) -> (StatusCode, serde_json::Value) {
+    let ws = normalize_workspace_query(&req.workspace);
+    if req.goal_id.trim().is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            serde_json::json!({ "error": "goal_id must not be empty" }),
+        );
+    }
+    match store.get_goal_by_id(&req.goal_id) {
+        Ok(Some(_)) => {}
+        Ok(None) => {
+            return (
+                StatusCode::NOT_FOUND,
+                serde_json::json!({ "error": "no goal with that id" }),
+            );
+        }
+        Err(e) => return internal_error_value("exec_goal.current.put.load", &e),
+    }
+    match store.pin_goal(ws, &req.goal_id) {
+        Ok(()) => (
+            StatusCode::OK,
+            serde_json::json!({
+                "workspace": ws,
+                "goal_id": req.goal_id,
+            }),
+        ),
+        Err(e) => internal_error_value("exec_goal.current.put.write", &e),
+    }
+}
+
+pub(crate) fn do_v1_exec_goal_current_delete(
+    store: &SessionStore,
+    q: &PinnedGoalQuery,
+) -> (StatusCode, serde_json::Value) {
+    let ws = normalize_workspace_query(&q.workspace);
+    match store.unpin_goal(ws) {
+        Ok(removed) => (
+            StatusCode::OK,
+            serde_json::json!({ "workspace": ws, "removed": removed }),
+        ),
+        Err(e) => internal_error_value("exec_goal.current.delete", &e),
+    }
+}
+
+async fn v1_exec_goal_current_get(
+    Query(q): Query<PinnedGoalQuery>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match open_default_or_500() {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let (status, body) = do_v1_exec_goal_current_get(&store, &q);
+    (status, Json(body))
+}
+
+async fn v1_exec_goal_current_put(
+    Json(req): Json<PinnedGoalSetRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match open_default_or_500() {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let (status, body) = do_v1_exec_goal_current_put(&store, &req);
+    (status, Json(body))
+}
+
+async fn v1_exec_goal_current_delete(
+    Query(q): Query<PinnedGoalQuery>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let store = match open_default_or_500() {
+        Ok(s) => s,
+        Err(e) => return e,
+    };
+    let (status, body) = do_v1_exec_goal_current_delete(&store, &q);
+    (status, Json(body))
+}
+
+/// G5.2 — auto-attribute a freshly-created session to the goal that
+/// the user has pinned for this workspace (or the global slot, if the
+/// workspace-specific slot is empty). Silent best-effort: any failure
+/// is logged at debug level and swallowed so `/agent` never blocks on
+/// pin lookup or DB issues. The session row already exists in
+/// `JobsDb` when this runs; the link goes into `SessionStore.goal_links`.
+pub(crate) fn auto_link_to_pinned_goal(workspace: &std::path::Path, session_id: &str) {
+    let ws_str = workspace.to_string_lossy().into_owned();
+    let store = match crate::session_store::SessionStore::open_default() {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::debug!(error = %e, "auto_link: session_store open failed");
+            return;
+        }
+    };
+    let pin = match store.get_pinned_goal(Some(&ws_str)) {
+        Ok(Some(p)) => Some(p),
+        Ok(None) => match store.get_pinned_goal(None) {
+            Ok(p) => p,
+            Err(e) => {
+                tracing::debug!(error = %e, "auto_link: global pin read failed");
+                None
+            }
+        },
+        Err(e) => {
+            tracing::debug!(error = %e, "auto_link: workspace pin read failed");
+            None
+        }
+    };
+    let Some((goal_id, _)) = pin else { return };
+    let link = crate::exec_goal::GoalLink {
+        id: crate::exec_goal::new_goal_link_id(),
+        goal_id,
+        kind: crate::exec_goal::GoalLinkKind::Session,
+        target_id: session_id.to_string(),
+        linked_at: chrono::Utc::now(),
+        note: Some("auto-linked via pinned-goal hook".to_string()),
+    };
+    if let Err(e) = store.insert_goal_link(&link) {
+        tracing::debug!(error = %e, "auto_link: insert_goal_link failed");
+    }
 }
 
 // ── /goal — G1.3 plan / link / start routes ────────────────────────────────
@@ -3440,7 +3732,12 @@ async fn v1_exec_goal_start(
 // aggregator returns a freeform JSON that the UI can render alongside
 // per-session recaps without conflating schemas.
 
-#[derive(Debug, Deserialize)]
+/// G4.5 — body for `POST /v1/goals/:id/recap`. Both fields default to
+/// `None`; when both are present (and the named provider is reachable)
+/// the daemon synthesizes the headline + bullets with the LLM and tags
+/// the response `recap_synthesizer: "llm"`. Otherwise the heuristic
+/// fold runs and `recap_synthesizer: "heuristic"` is returned.
+#[derive(Debug, Deserialize, Default)]
 pub struct ExecGoalRecapRequest {
     #[serde(default)]
     pub provider: Option<String>,
@@ -3526,6 +3823,8 @@ pub(crate) fn do_v1_exec_goal_recap_phase1(
 pub(crate) async fn do_v1_exec_goal_recap_phase2(
     phase1: ExecGoalRecapPhase1,
     job_manager: &JobManager,
+    daemon_provider: Option<std::sync::Arc<dyn vibe_ai::provider::AIProvider>>,
+    req: &ExecGoalRecapRequest,
 ) -> (StatusCode, serde_json::Value) {
     let ExecGoalRecapPhase1 {
         goal,
@@ -3598,7 +3897,7 @@ pub(crate) async fn do_v1_exec_goal_recap_phase2(
         }));
     }
 
-    let headline = if collected.is_empty() {
+    let heuristic_headline = if collected.is_empty() {
         format!("No linked recaps yet for: {}", goal.title)
     } else {
         format!(
@@ -3609,24 +3908,188 @@ pub(crate) async fn do_v1_exec_goal_recap_phase2(
         )
     };
 
-    (
-        StatusCode::OK,
-        serde_json::json!({
-            "goal_id": goal.id,
-            "title": goal.title,
-            "headline": headline,
-            "bullets": bullets,
-            "next_actions": next_actions,
-            "artifacts": artifacts,
-            "sources": sources,
-            "generated_at": chrono::Utc::now().to_rfc3339(),
-        }),
-    )
+    // G4.5 — LLM synthesis. Both provider and model must be supplied;
+    // the override must build successfully OR we fall back to the
+    // daemon's configured provider (when present). Empty `collected`
+    // also short-circuits to heuristic since there's nothing to fold.
+    let (synth_provider, override_applied): (
+        Option<std::sync::Arc<dyn vibe_ai::provider::AIProvider>>,
+        bool,
+    ) = match (&req.provider, &req.model) {
+        (Some(name), Some(model)) if !name.is_empty() && !model.is_empty() => {
+            match build_provider_override(name, model) {
+                Some(p) => (Some(p), true),
+                None => (daemon_provider.clone(), false),
+            }
+        }
+        _ => (daemon_provider.clone(), false),
+    };
+
+    let try_llm = synth_provider.is_some() && !collected.is_empty();
+    let (final_headline, final_bullets, synthesizer, llm_error): (
+        String,
+        Vec<String>,
+        &'static str,
+        Option<String>,
+    ) = if try_llm {
+        let prompt = build_aggregate_recap_prompt(&goal, &collected, &bullets, &next_actions);
+        let messages = vec![
+            vibe_ai::Message {
+                role: vibe_ai::MessageRole::System,
+                content:
+                    "You are summarizing progress against a durable execution goal. \
+                     Produce a tight JSON object: \
+                     {\"headline\": <≤120 chars>, \"bullets\": [≤7 strings, each ≤140 chars]}. \
+                     Output ONLY the JSON object, no prose. Bullets must be concrete \
+                     accomplishments or in-flight work pulled from the inputs."
+                        .to_string(),
+            },
+            vibe_ai::Message {
+                role: vibe_ai::MessageRole::User,
+                content: prompt,
+            },
+        ];
+        let provider = synth_provider.expect("checked is_some");
+        match provider.chat(&messages, None).await {
+            Ok(text) => match parse_aggregate_recap_llm(&text) {
+                Some((h, b)) => (h, b, "llm", None),
+                None => (
+                    heuristic_headline.clone(),
+                    bullets.clone(),
+                    "heuristic",
+                    Some("llm returned unparseable JSON".to_string()),
+                ),
+            },
+            Err(e) => (
+                heuristic_headline.clone(),
+                bullets.clone(),
+                "heuristic",
+                Some(format!("llm call failed: {e}")),
+            ),
+        }
+    } else {
+        (heuristic_headline.clone(), bullets.clone(), "heuristic", None)
+    };
+
+    let mut body = serde_json::json!({
+        "goal_id": goal.id,
+        "title": goal.title,
+        "headline": final_headline,
+        "bullets": final_bullets,
+        "next_actions": next_actions,
+        "artifacts": artifacts,
+        "sources": sources,
+        "generated_at": chrono::Utc::now().to_rfc3339(),
+        "recap_synthesizer": synthesizer,
+        "recap_provider_override_applied": override_applied,
+    });
+    if let Some(p) = &req.provider {
+        body["recap_provider_requested"] = serde_json::Value::String(p.clone());
+    }
+    if let Some(m) = &req.model {
+        body["recap_model_requested"] = serde_json::Value::String(m.clone());
+    }
+    if let Some(e) = llm_error {
+        body["recap_llm_error"] = serde_json::Value::String(e);
+    }
+    let _ = job_manager;
+    (StatusCode::OK, body)
+}
+
+/// Builds the user-side prompt for LLM aggregate-recap synthesis. The
+/// system prompt (in the call site) frames the task and demands JSON;
+/// this function just hands the model the data.
+fn build_aggregate_recap_prompt(
+    goal: &crate::exec_goal::Goal,
+    collected: &[(crate::recap::Recap, crate::exec_goal::GoalLinkKind, String)],
+    heuristic_bullets: &[String],
+    heuristic_next_actions: &[String],
+) -> String {
+    use std::fmt::Write;
+    let mut out = String::new();
+    let _ = writeln!(out, "Goal: {}", goal.title);
+    if !goal.statement.trim().is_empty() {
+        let _ = writeln!(out, "\nStatement:\n{}", goal.statement.trim());
+    }
+    let _ = writeln!(out, "\nStatus: {}", goal.status.as_str());
+    let _ = writeln!(out, "\nLinked recaps ({}):", collected.len());
+    for (recap, kind, target_id) in collected {
+        let _ = writeln!(
+            out,
+            "\n— {} {} ({})",
+            kind.as_str(),
+            target_id,
+            recap.headline
+        );
+        for b in &recap.bullets {
+            let _ = writeln!(out, "  • {b}");
+        }
+        if !recap.next_actions.is_empty() {
+            let _ = writeln!(out, "  next:");
+            for n in &recap.next_actions {
+                let _ = writeln!(out, "  → {n}");
+            }
+        }
+    }
+    if !heuristic_bullets.is_empty() {
+        let _ = writeln!(out, "\nHeuristic dedupe (already merged):");
+        for b in heuristic_bullets {
+            let _ = writeln!(out, "  - {b}");
+        }
+    }
+    if !heuristic_next_actions.is_empty() {
+        let _ = writeln!(out, "\nPending next actions:");
+        for n in heuristic_next_actions {
+            let _ = writeln!(out, "  - {n}");
+        }
+    }
+    let _ = writeln!(
+        out,
+        "\nRespond with JSON: {{\"headline\": \"...\", \"bullets\": [\"...\"]}}"
+    );
+    out
+}
+
+/// Parse the LLM's JSON response into `(headline, bullets)`. Strips
+/// ```json fences when present and tolerates trailing prose. Returns
+/// `None` if the JSON is malformed or required fields are missing.
+fn parse_aggregate_recap_llm(text: &str) -> Option<(String, Vec<String>)> {
+    let trimmed = text.trim();
+    let stripped = trimmed
+        .strip_prefix("```json")
+        .or_else(|| trimmed.strip_prefix("```"))
+        .map(|s| s.trim_start_matches('\n'))
+        .unwrap_or(trimmed);
+    let body = stripped
+        .strip_suffix("```")
+        .map(|s| s.trim_end_matches('\n'))
+        .unwrap_or(stripped);
+    let start = body.find('{')?;
+    let end = body.rfind('}')?;
+    if end <= start {
+        return None;
+    }
+    let v: serde_json::Value = serde_json::from_str(&body[start..=end]).ok()?;
+    let headline = v.get("headline")?.as_str()?.trim().to_string();
+    if headline.is_empty() {
+        return None;
+    }
+    let bullets_v = v.get("bullets")?.as_array()?;
+    let mut bullets: Vec<String> = bullets_v
+        .iter()
+        .filter_map(|x| x.as_str().map(|s| s.trim().to_string()))
+        .filter(|s| !s.is_empty())
+        .collect();
+    if bullets.len() > 7 {
+        bullets.truncate(7);
+    }
+    Some((headline, bullets))
 }
 
 async fn v1_exec_goal_recap(
     State(state): State<ServeState>,
     Path(id): Path<String>,
+    body: Option<Json<ExecGoalRecapRequest>>,
 ) -> (StatusCode, Json<serde_json::Value>) {
     // Two-phase: SessionStore (rusqlite Connection is !Send) is fully
     // consumed sync, then dropped before any `.await` against JobManager.
@@ -3642,8 +4105,14 @@ async fn v1_exec_goal_recap(
         }
         // `store` drops here.
     };
-    let (status, body) =
-        do_v1_exec_goal_recap_phase2(phase1, &state.job_manager).await;
+    let req = body.map(|Json(b)| b).unwrap_or_default();
+    let (status, body) = do_v1_exec_goal_recap_phase2(
+        phase1,
+        &state.job_manager,
+        Some(state.provider.clone()),
+        &req,
+    )
+    .await;
     (status, Json(body))
 }
 
@@ -4833,6 +5302,11 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         // /goal — G1.2 CRUD + G1.3 plan/link/start.
         .route("/v1/goals", post(v1_exec_goal_post))
         .route("/v1/goals", get(v1_exec_goal_list))
+        // G4.4 — register `/v1/goals/current` before the `/v1/goals/:id`
+        // parameterized routes so axum's matchit picks the static path.
+        .route("/v1/goals/current", get(v1_exec_goal_current_get))
+        .route("/v1/goals/current", axum::routing::put(v1_exec_goal_current_put))
+        .route("/v1/goals/current", axum::routing::delete(v1_exec_goal_current_delete))
         .route("/v1/goals/:id", get(v1_exec_goal_get))
         .route("/v1/goals/:id", axum::routing::patch(v1_exec_goal_patch))
         .route("/v1/goals/:id", axum::routing::delete(v1_exec_goal_delete))
@@ -4841,6 +5315,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/v1/goals/:id/start", post(v1_exec_goal_start))
         .route("/v1/goals/:id/recap", post(v1_exec_goal_recap))
         .route("/v1/goals/:id/children", get(v1_exec_goal_children))
+        .route("/v1/goals/:id/tree", get(v1_exec_goal_tree))
         // Recap & Resume v1 — D1.1 (diffcomplete chain autosave).
         // Patent re-audit: PASS (1–5 unchanged). Writes happen only
         // on discrete user-driven events posted by the modal.
@@ -8921,6 +9396,229 @@ mod tests {
             );
         }
 
+        // ── G4.1 /v1/goals end-to-end flow ──────────────────────────
+        //
+        // Drives the full lifecycle through the real router with bearer
+        // auth — create → get → patch → link → start → children → recap.
+        // HOME is pointed at a tempdir so `open_default_or_500()` writes
+        // to a per-test sessions.db. Single test (not split) to avoid
+        // touching HOME from multiple in-process tests.
+
+        async fn send(
+            app: &Router,
+            method: &str,
+            uri: &str,
+            token: &str,
+            body: Option<serde_json::Value>,
+        ) -> (StatusCode, serde_json::Value) {
+            let mut req = Request::builder()
+                .method(method)
+                .uri(uri)
+                .header("authorization", format!("Bearer {token}"));
+            if body.is_some() {
+                req = req.header("content-type", "application/json");
+            }
+            let body_bytes = body
+                .map(|v| Body::from(serde_json::to_vec(&v).unwrap()))
+                .unwrap_or_else(Body::empty);
+            let resp = app
+                .clone()
+                .oneshot(req.body(body_bytes).unwrap())
+                .await
+                .unwrap();
+            let status = resp.status();
+            // 204 has no body
+            if status == StatusCode::NO_CONTENT {
+                return (status, serde_json::Value::Null);
+            }
+            let s = body_string(resp.into_body()).await;
+            let json: serde_json::Value =
+                serde_json::from_str(&s).unwrap_or(serde_json::Value::Null);
+            (status, json)
+        }
+
+        #[tokio::test]
+        async fn goals_v1_full_lifecycle_through_router() {
+            let tmp_home = tempfile::tempdir().unwrap();
+            // SAFETY: tests in this module run multi-threaded by default,
+            // but no other test touches HOME, and `open_default_or_500`
+            // reads HOME on each call (not cached). If a concurrent test
+            // ever needs HOME set differently this must move to a
+            // serial test.
+            let prior_home = std::env::var("HOME").ok();
+            unsafe { std::env::set_var("HOME", tmp_home.path()); }
+
+            let (app, _tmp) = test_app("e2e-tok");
+            let tok = "e2e-tok";
+
+            // 1. Authed routes reject missing bearer.
+            let (status, _) = send(&app, "GET", "/v1/goals", "wrong", None).await;
+            assert_eq!(
+                status,
+                StatusCode::UNAUTHORIZED,
+                "wrong bearer should 401"
+            );
+
+            // 2. Empty list before any creates.
+            let (status, body) = send(&app, "GET", "/v1/goals", tok, None).await;
+            assert_eq!(status, StatusCode::OK);
+            assert_eq!(body["count"], 0);
+            assert!(body["goals"].as_array().unwrap().is_empty());
+
+            // 3. POST /v1/goals — create.
+            let create = serde_json::json!({
+                "title": "Ship the /goal feature",
+                "statement": "Land all G1–G3 slices.",
+                "success_criteria": ["all tests green"],
+                "tags": ["meta"]
+            });
+            let (status, body) =
+                send(&app, "POST", "/v1/goals", tok, Some(create)).await;
+            assert_eq!(status, StatusCode::CREATED);
+            let goal_id = body["id"].as_str().unwrap().to_string();
+            assert_eq!(body["status"], "active");
+            assert_eq!(body["title"], "Ship the /goal feature");
+            assert!(body["current_plan"].is_null());
+
+            // 4. Duplicate (workspace, title) → 409.
+            let dup = serde_json::json!({ "title": "Ship the /goal feature" });
+            let (status, _) =
+                send(&app, "POST", "/v1/goals", tok, Some(dup)).await;
+            assert_eq!(status, StatusCode::CONFLICT);
+
+            // 5. GET /v1/goals/:id — detail + links.
+            let (status, body) =
+                send(&app, "GET", &format!("/v1/goals/{goal_id}"), tok, None).await;
+            assert_eq!(status, StatusCode::OK);
+            assert_eq!(body["goal"]["id"], goal_id);
+            assert!(body["links"].as_array().unwrap().is_empty());
+
+            // 6. PATCH — flip status.
+            let patch =
+                serde_json::json!({ "status": "paused", "tags": ["meta", "phase-1"] });
+            let (status, body) =
+                send(&app, "PATCH", &format!("/v1/goals/{goal_id}"), tok, Some(patch))
+                    .await;
+            assert_eq!(status, StatusCode::OK);
+            assert_eq!(body["status"], "paused");
+            assert_eq!(body["tags"].as_array().unwrap().len(), 2);
+
+            // 7. POST /start — create a session bound to this goal.
+            let start = serde_json::json!({ "task": "Investigate edge cases" });
+            let (status, body) = send(
+                &app,
+                "POST",
+                &format!("/v1/goals/{goal_id}/start"),
+                tok,
+                Some(start),
+            )
+            .await;
+            assert_eq!(status, StatusCode::CREATED);
+            assert_eq!(body["goal_id"], goal_id);
+            let session_id = body["session_id"].as_str().unwrap();
+            assert!(!session_id.is_empty());
+
+            // 8. GET again — links now has one entry (the started session).
+            let (_, body) =
+                send(&app, "GET", &format!("/v1/goals/{goal_id}"), tok, None).await;
+            let links = body["links"].as_array().unwrap();
+            assert_eq!(links.len(), 1);
+            assert_eq!(links[0]["kind"], "session");
+            assert_eq!(links[0]["target_id"], session_id);
+
+            // 9. POST /link — attach a freeform note.
+            let link = serde_json::json!({
+                "kind": "note",
+                "target_id": "design-note-1",
+                "note": "see docs/design/goal/README.md"
+            });
+            let (status, _) = send(
+                &app,
+                "POST",
+                &format!("/v1/goals/{goal_id}/link"),
+                tok,
+                Some(link),
+            )
+            .await;
+            assert_eq!(status, StatusCode::CREATED);
+
+            // 10. Create a child goal, reparent it under our goal,
+            //     and confirm GET /:id/children returns just it.
+            let (_, child_body) = send(
+                &app,
+                "POST",
+                "/v1/goals",
+                tok,
+                Some(serde_json::json!({ "title": "Child goal" })),
+            )
+            .await;
+            let child_id = child_body["id"].as_str().unwrap();
+            let reparent = serde_json::json!({ "parent_goal_id": goal_id });
+            let (_, _) = send(
+                &app,
+                "PATCH",
+                &format!("/v1/goals/{child_id}"),
+                tok,
+                Some(reparent),
+            )
+            .await;
+            let (status, body) = send(
+                &app,
+                "GET",
+                &format!("/v1/goals/{goal_id}/children"),
+                tok,
+                None,
+            )
+            .await;
+            assert_eq!(status, StatusCode::OK);
+            assert_eq!(body["count"], 1);
+            assert_eq!(
+                body["children"].as_array().unwrap()[0]["id"],
+                child_id
+            );
+
+            // 11. POST /recap — heuristic aggregate. No recaps exist yet
+            //     so the headline reflects that; no LLM hit.
+            let (status, body) = send(
+                &app,
+                "POST",
+                &format!("/v1/goals/{goal_id}/recap"),
+                tok,
+                Some(serde_json::json!({})),
+            )
+            .await;
+            assert_eq!(status, StatusCode::OK);
+            assert_eq!(body["goal_id"], goal_id);
+            assert!(
+                body["headline"].as_str().unwrap().contains(
+                    "No linked recaps yet"
+                ),
+                "expected the empty-recap headline; got {body}"
+            );
+            assert!(body["sources"].as_array().unwrap().is_empty());
+
+            // 12. DELETE — soft-after: list count drops to one (child remains).
+            let (status, _) = send(
+                &app,
+                "DELETE",
+                &format!("/v1/goals/{goal_id}"),
+                tok,
+                None,
+            )
+            .await;
+            assert_eq!(status, StatusCode::NO_CONTENT);
+            let (_, body) = send(&app, "GET", "/v1/goals", tok, None).await;
+            // The child remains, but its FK parent is gone (cascade dropped
+            // links but didn't touch the child row — that's intentional).
+            assert_eq!(body["count"], 1);
+
+            // Restore HOME so other tests in the same process aren't poisoned.
+            match prior_home {
+                Some(v) => unsafe { std::env::set_var("HOME", v); },
+                None => unsafe { std::env::remove_var("HOME"); },
+            }
+        }
+
         // ── GET /jobs/:id 404 body contains error message ───────────
 
         #[tokio::test]
@@ -9932,6 +10630,357 @@ mod tests {
         let children = body["children"].as_array().unwrap();
         assert_eq!(children.len(), 1);
         assert_eq!(children[0]["id"], mid_id);
+    }
+
+    #[test]
+    fn exec_goal_tree_404s_for_missing_root() {
+        let (store, _dir) = goal_route_fixture();
+        let (status, _) =
+            do_v1_exec_goal_tree(&store, "no-such-root", &ExecGoalTreeQuery::default());
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn exec_goal_tree_default_depth_walks_three_levels() {
+        let (store, _dir) = goal_route_fixture();
+        let (_, root) = do_v1_exec_goal_post(&store, &make_create_request("root"));
+        let root_id = root["id"].as_str().unwrap().to_string();
+        let (_, mid) = do_v1_exec_goal_post(&store, &make_create_request("mid"));
+        let mid_id = mid["id"].as_str().unwrap().to_string();
+        let (_, leaf) = do_v1_exec_goal_post(&store, &make_create_request("leaf"));
+        let leaf_id = leaf["id"].as_str().unwrap().to_string();
+        do_v1_exec_goal_patch(
+            &store,
+            &mid_id,
+            &ExecGoalPatchRequest {
+                title: None, statement: None, status: None,
+                success_criteria: None, tags: None, workspace: None,
+                parent_goal_id: Some(Some(root_id.clone())),
+            },
+        );
+        do_v1_exec_goal_patch(
+            &store,
+            &leaf_id,
+            &ExecGoalPatchRequest {
+                title: None, statement: None, status: None,
+                success_criteria: None, tags: None, workspace: None,
+                parent_goal_id: Some(Some(mid_id.clone())),
+            },
+        );
+        let (status, body) =
+            do_v1_exec_goal_tree(&store, &root_id, &ExecGoalTreeQuery::default());
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["root"], root_id);
+        assert_eq!(body["depth"], TREE_DEPTH_DEFAULT);
+        let tree = &body["tree"];
+        assert_eq!(tree["goal"]["id"], root_id);
+        let mid_node = &tree["children"][0];
+        assert_eq!(mid_node["goal"]["id"], mid_id);
+        let leaf_node = &mid_node["children"][0];
+        assert_eq!(leaf_node["goal"]["id"], leaf_id);
+        // Leaf has no children of its own — no truncated flag.
+        assert!(leaf_node["children"].as_array().unwrap().is_empty());
+        assert!(leaf_node.get("truncated").is_none());
+    }
+
+    #[test]
+    fn exec_goal_tree_depth_one_marks_root_truncated_when_children_exist() {
+        let (store, _dir) = goal_route_fixture();
+        let (_, root) = do_v1_exec_goal_post(&store, &make_create_request("t1_root"));
+        let root_id = root["id"].as_str().unwrap().to_string();
+        let (_, child) = do_v1_exec_goal_post(&store, &make_create_request("t1_child"));
+        let child_id = child["id"].as_str().unwrap().to_string();
+        do_v1_exec_goal_patch(
+            &store,
+            &child_id,
+            &ExecGoalPatchRequest {
+                title: None, statement: None, status: None,
+                success_criteria: None, tags: None, workspace: None,
+                parent_goal_id: Some(Some(root_id.clone())),
+            },
+        );
+        let (status, body) = do_v1_exec_goal_tree(
+            &store,
+            &root_id,
+            &ExecGoalTreeQuery { depth: Some(1) },
+        );
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["depth"], 1);
+        let tree = &body["tree"];
+        assert_eq!(tree["truncated"], true);
+        assert_eq!(tree["direct_child_count"], 1);
+        assert!(tree["children"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn exec_goal_tree_clamps_oversized_depth() {
+        // Caller passes 99 → server clamps to TREE_DEPTH_MAX (10).
+        let (store, _dir) = goal_route_fixture();
+        let (_, root) = do_v1_exec_goal_post(&store, &make_create_request("clamp_root"));
+        let root_id = root["id"].as_str().unwrap().to_string();
+        let (status, body) = do_v1_exec_goal_tree(
+            &store,
+            &root_id,
+            &ExecGoalTreeQuery { depth: Some(99) },
+        );
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["depth"], TREE_DEPTH_MAX);
+    }
+
+    #[test]
+    fn parse_aggregate_recap_llm_accepts_bare_json() {
+        let txt = r#"{"headline":"Shipped feature X","bullets":["A","B"]}"#;
+        let parsed = parse_aggregate_recap_llm(txt).unwrap();
+        assert_eq!(parsed.0, "Shipped feature X");
+        assert_eq!(parsed.1, vec!["A".to_string(), "B".to_string()]);
+    }
+
+    #[test]
+    fn parse_aggregate_recap_llm_strips_code_fence_and_trailing_prose() {
+        let txt = "```json\n{\"headline\":\"Done\",\"bullets\":[\"x\"]}\n```\nThanks!";
+        let parsed = parse_aggregate_recap_llm(txt).unwrap();
+        assert_eq!(parsed.0, "Done");
+        assert_eq!(parsed.1, vec!["x".to_string()]);
+    }
+
+    #[test]
+    fn parse_aggregate_recap_llm_truncates_overlong_bullet_list() {
+        let bullets: Vec<String> =
+            (0..12).map(|i| format!("\"b{i}\"")).collect();
+        let txt = format!(
+            "{{\"headline\":\"H\",\"bullets\":[{}]}}",
+            bullets.join(",")
+        );
+        let parsed = parse_aggregate_recap_llm(&txt).unwrap();
+        assert_eq!(parsed.1.len(), 7);
+    }
+
+    #[test]
+    fn parse_aggregate_recap_llm_rejects_missing_headline() {
+        let txt = r#"{"bullets":["a"]}"#;
+        assert!(parse_aggregate_recap_llm(txt).is_none());
+    }
+
+    #[tokio::test]
+    async fn exec_goal_recap_falls_back_to_heuristic_without_provider() {
+        // No `daemon_provider`, no override → heuristic path always.
+        let (store, _dir) = goal_route_fixture();
+        let (_, created) = do_v1_exec_goal_post(&store, &make_create_request("heuristic-only"));
+        let goal_id = created["id"].as_str().unwrap().to_string();
+        let phase1 = do_v1_exec_goal_recap_phase1(&store, &goal_id).expect("phase1");
+        // Drop store before phase2 to mirror handler behavior.
+        drop(store);
+        let jobs_tmp = tempfile::tempdir().unwrap();
+        let db = crate::job_manager::JobsDb::open_with(
+            &jobs_tmp.path().join("jobs.db"),
+            [42u8; 32],
+        )
+        .unwrap();
+        let jm = JobManager::new_with(db);
+        let (status, body) = do_v1_exec_goal_recap_phase2(
+            phase1,
+            &jm,
+            None,
+            &ExecGoalRecapRequest::default(),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["recap_synthesizer"], "heuristic");
+        assert_eq!(body["recap_provider_override_applied"], false);
+    }
+
+    #[test]
+    fn exec_goal_current_get_empty_when_unpinned() {
+        let (store, _dir) = goal_route_fixture();
+        let (status, body) = do_v1_exec_goal_current_get(&store, &PinnedGoalQuery::default());
+        assert_eq!(status, StatusCode::OK);
+        assert!(body["goal_id"].is_null());
+    }
+
+    #[test]
+    fn exec_goal_current_put_rejects_unknown_goal() {
+        let (store, _dir) = goal_route_fixture();
+        let req = PinnedGoalSetRequest {
+            goal_id: "nope".to_string(),
+            workspace: None,
+        };
+        let (status, _) = do_v1_exec_goal_current_put(&store, &req);
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn exec_goal_current_put_then_get_roundtrips() {
+        let (store, _dir) = goal_route_fixture();
+        let (_, created) =
+            do_v1_exec_goal_post(&store, &make_create_request("pin me"));
+        let id = created["id"].as_str().unwrap().to_string();
+        let put_req = PinnedGoalSetRequest {
+            goal_id: id.clone(),
+            workspace: None,
+        };
+        let (status, _) = do_v1_exec_goal_current_put(&store, &put_req);
+        assert_eq!(status, StatusCode::OK);
+
+        let (status, body) =
+            do_v1_exec_goal_current_get(&store, &PinnedGoalQuery::default());
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["goal_id"], id);
+        assert_eq!(body["goal"]["id"], id);
+    }
+
+    #[test]
+    fn exec_goal_current_pin_is_workspace_scoped() {
+        // Pin two different goals to two different workspaces; verify
+        // each workspace reads back its own pin and global stays empty.
+        let (store, _dir) = goal_route_fixture();
+        let (_, g1) = do_v1_exec_goal_post(&store, &make_create_request("a"));
+        let id1 = g1["id"].as_str().unwrap().to_string();
+        let (_, g2) = do_v1_exec_goal_post(&store, &make_create_request("b"));
+        let id2 = g2["id"].as_str().unwrap().to_string();
+        do_v1_exec_goal_current_put(
+            &store,
+            &PinnedGoalSetRequest {
+                goal_id: id1.clone(),
+                workspace: Some("/tmp/ws-a".to_string()),
+            },
+        );
+        do_v1_exec_goal_current_put(
+            &store,
+            &PinnedGoalSetRequest {
+                goal_id: id2.clone(),
+                workspace: Some("/tmp/ws-b".to_string()),
+            },
+        );
+
+        let (_, ws_a) = do_v1_exec_goal_current_get(
+            &store,
+            &PinnedGoalQuery { workspace: Some("/tmp/ws-a".to_string()) },
+        );
+        assert_eq!(ws_a["goal_id"], id1);
+        let (_, ws_b) = do_v1_exec_goal_current_get(
+            &store,
+            &PinnedGoalQuery { workspace: Some("/tmp/ws-b".to_string()) },
+        );
+        assert_eq!(ws_b["goal_id"], id2);
+        let (_, global) = do_v1_exec_goal_current_get(&store, &PinnedGoalQuery::default());
+        assert!(global["goal_id"].is_null());
+    }
+
+    #[test]
+    fn exec_goal_current_delete_clears_pin() {
+        let (store, _dir) = goal_route_fixture();
+        let (_, g) = do_v1_exec_goal_post(&store, &make_create_request("clear me"));
+        let id = g["id"].as_str().unwrap().to_string();
+        do_v1_exec_goal_current_put(
+            &store,
+            &PinnedGoalSetRequest { goal_id: id.clone(), workspace: None },
+        );
+        let (status, body) =
+            do_v1_exec_goal_current_delete(&store, &PinnedGoalQuery::default());
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["removed"], true);
+        let (_, after) = do_v1_exec_goal_current_get(&store, &PinnedGoalQuery::default());
+        assert!(after["goal_id"].is_null());
+    }
+
+    #[test]
+    fn auto_link_silent_no_op_without_pin() {
+        // No pin → no link inserted, no panic. We can't directly call
+        // `auto_link_to_pinned_goal` (it opens the real default
+        // SessionStore), so this test instead exercises the same code
+        // path via the pin helpers it uses.
+        let (store, _dir) = goal_route_fixture();
+        // No row in pinned_goals.
+        assert!(store.get_pinned_goal(Some("/tmp/wsX")).unwrap().is_none());
+        assert!(store.get_pinned_goal(None).unwrap().is_none());
+    }
+
+    #[test]
+    fn auto_link_helper_resolves_workspace_then_global() {
+        // Pin once for a specific workspace, once globally; verify the
+        // workspace-specific pin wins. (This mirrors the resolution
+        // order in `auto_link_to_pinned_goal`.)
+        let (store, _dir) = goal_route_fixture();
+        let (_, g1) = do_v1_exec_goal_post(&store, &make_create_request("workspace-goal"));
+        let g1_id = g1["id"].as_str().unwrap().to_string();
+        let (_, g2) = do_v1_exec_goal_post(&store, &make_create_request("global-goal"));
+        let g2_id = g2["id"].as_str().unwrap().to_string();
+        store.pin_goal(Some("/tmp/wsP"), &g1_id).unwrap();
+        store.pin_goal(None, &g2_id).unwrap();
+
+        // Workspace-specific pin found first → g1.
+        let chosen = store
+            .get_pinned_goal(Some("/tmp/wsP"))
+            .unwrap()
+            .or_else(|| store.get_pinned_goal(None).unwrap());
+        assert_eq!(chosen.unwrap().0, g1_id);
+
+        // Different workspace → falls back to global → g2.
+        let chosen = store
+            .get_pinned_goal(Some("/tmp/wsOTHER"))
+            .unwrap()
+            .or_else(|| store.get_pinned_goal(None).unwrap());
+        assert_eq!(chosen.unwrap().0, g2_id);
+    }
+
+    #[test]
+    fn exec_goal_current_pin_cascade_clears_on_goal_delete() {
+        // Deleting the underlying goal must cascade through pinned_goals.
+        let (store, _dir) = goal_route_fixture();
+        let (_, g) = do_v1_exec_goal_post(&store, &make_create_request("cascade"));
+        let id = g["id"].as_str().unwrap().to_string();
+        do_v1_exec_goal_current_put(
+            &store,
+            &PinnedGoalSetRequest { goal_id: id.clone(), workspace: None },
+        );
+        let (status, _) = do_v1_exec_goal_delete(&store, &id);
+        assert_eq!(status, StatusCode::NO_CONTENT);
+        let (_, after) = do_v1_exec_goal_current_get(&store, &PinnedGoalQuery::default());
+        assert!(after["goal_id"].is_null());
+    }
+
+    #[test]
+    fn exec_goal_tree_breaks_cycle_at_revisited_node() {
+        // Force a cycle root→child→root by patching the root's parent
+        // back onto the child. The walk must short-circuit with
+        // `cycle: true` instead of recursing forever.
+        let (store, _dir) = goal_route_fixture();
+        let (_, root) = do_v1_exec_goal_post(&store, &make_create_request("cyc_root"));
+        let root_id = root["id"].as_str().unwrap().to_string();
+        let (_, child) = do_v1_exec_goal_post(&store, &make_create_request("cyc_child"));
+        let child_id = child["id"].as_str().unwrap().to_string();
+        do_v1_exec_goal_patch(
+            &store,
+            &child_id,
+            &ExecGoalPatchRequest {
+                title: None, statement: None, status: None,
+                success_criteria: None, tags: None, workspace: None,
+                parent_goal_id: Some(Some(root_id.clone())),
+            },
+        );
+        // The illegal step — point root's parent at child.
+        do_v1_exec_goal_patch(
+            &store,
+            &root_id,
+            &ExecGoalPatchRequest {
+                title: None, statement: None, status: None,
+                success_criteria: None, tags: None, workspace: None,
+                parent_goal_id: Some(Some(child_id.clone())),
+            },
+        );
+        let (status, body) = do_v1_exec_goal_tree(
+            &store,
+            &root_id,
+            &ExecGoalTreeQuery { depth: Some(5) },
+        );
+        assert_eq!(status, StatusCode::OK);
+        // Walk: root (depth 4) → child (depth 3) → root again → cycle leaf.
+        let tree = &body["tree"];
+        let child_node = &tree["children"][0];
+        assert_eq!(child_node["goal"]["id"], child_id);
+        let cycle_leaf = &child_node["children"][0];
+        assert_eq!(cycle_leaf["goal"]["id"], root_id);
+        assert_eq!(cycle_leaf["cycle"], true);
     }
 
     #[test]

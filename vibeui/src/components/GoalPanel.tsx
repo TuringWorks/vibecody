@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { invoke } from '@tauri-apps/api/core';
-import { Target, Plus, Play, Link2, Trash2, RefreshCw, Tag } from 'lucide-react';
+import { Target, Plus, Play, Link2, Trash2, RefreshCw, Tag, ListTree, FileText } from 'lucide-react';
 import { useToast } from '../hooks/useToast';
 import { Toaster } from './Toaster';
 
@@ -51,6 +51,18 @@ interface GoalLink {
 interface GoalDetailResponse {
   goal: Goal;
   links: GoalLink[];
+}
+
+// G5.4 — aggregate-recap response (heuristic or LLM-synthesized).
+interface GoalRecap {
+  goal_id: string;
+  title: string;
+  headline: string;
+  bullets: string[];
+  next_actions: string[];
+  sources: Array<{ recap_id: string; kind: string; target_id: string }>;
+  recap_synthesizer: 'heuristic' | 'llm';
+  recap_llm_error?: string;
 }
 
 interface GoalPanelProps {
@@ -118,6 +130,43 @@ export function GoalPanel({
   const [showNewModal, setShowNewModal] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newStatement, setNewStatement] = useState('');
+  // G5.4 — tree-view + aggregate-recap state.
+  const [viewMode, setViewMode] = useState<'list' | 'tree'>('list');
+  const [recapResult, setRecapResult] = useState<GoalRecap | null>(null);
+  const [recapping, setRecapping] = useState(false);
+  // G6.1 — current-pin state. `pinnedGoalId` is null when nothing is
+  // pinned for the active workspace (or the global slot when workspace
+  // is empty). Refreshed alongside the goal list.
+  const [pinnedGoalId, setPinnedGoalId] = useState<string | null>(null);
+  const [pinning, setPinning] = useState(false);
+
+  // Re-order the flat goal list into parent → children sequence with
+  // a per-row `depth` so the renderer can indent. Roots are goals whose
+  // `parent_goal_id` is either null or not present in the current list
+  // (a parent filtered out by the status filter is treated as a root).
+  const orderedGoals = useMemo(() => {
+    if (viewMode === 'list') {
+      return goals.map((g) => ({ goal: g, depth: 0 }));
+    }
+    const byParent = new Map<string | null, Goal[]>();
+    const idSet = new Set(goals.map((g) => g.id));
+    for (const g of goals) {
+      const p = g.parent_goal_id && idSet.has(g.parent_goal_id) ? g.parent_goal_id : null;
+      const arr = byParent.get(p) ?? [];
+      arr.push(g);
+      byParent.set(p, arr);
+    }
+    const out: Array<{ goal: Goal; depth: number }> = [];
+    const walk = (parent: string | null, depth: number) => {
+      const kids = byParent.get(parent) ?? [];
+      for (const k of kids) {
+        out.push({ goal: k, depth });
+        walk(k.id, depth + 1);
+      }
+    };
+    walk(null, 0);
+    return out;
+  }, [goals, viewMode]);
 
   const refreshList = useCallback(async () => {
     setLoading(true);
@@ -149,7 +198,21 @@ export function GoalPanel({
     }
   }, [toast]);
 
+  // G6.1 — refresh which goal is pinned for the active workspace.
+  // Silent on failure (no toast) — pin is an optional convenience.
+  const refreshPin = useCallback(async () => {
+    try {
+      const resp = (await invoke('exec_goal_current', {
+        workspace: workspacePath || null,
+      })) as { goal_id?: string | null };
+      setPinnedGoalId(resp.goal_id ?? null);
+    } catch {
+      setPinnedGoalId(null);
+    }
+  }, [workspacePath]);
+
   useEffect(() => { refreshList(); }, [refreshList]);
+  useEffect(() => { refreshPin(); }, [refreshPin]);
 
   useEffect(() => {
     if (selectedId) {
@@ -247,6 +310,30 @@ export function GoalPanel({
     }
   };
 
+  const runAggregateRecap = async () => {
+    if (!detail) return;
+    setRecapping(true);
+    setRecapResult(null);
+    try {
+      // Pass provider + model so the daemon takes the LLM-synthesis
+      // path when both are populated (CLAUDE.md provider-agnostic rule);
+      // omit both → heuristic fold.
+      const resp = (await invoke('exec_goal_recap', {
+        id: detail.goal.id,
+        provider: selectedProvider || null,
+        model: selectedModel || null,
+      })) as GoalRecap;
+      setRecapResult(resp);
+      if (resp.recap_llm_error) {
+        toast.warn(`LLM synthesis failed; showed heuristic. ${resp.recap_llm_error}`);
+      }
+    } catch (e) {
+      toast.error('Failed to aggregate recap: ' + String(e));
+    } finally {
+      setRecapping(false);
+    }
+  };
+
   const deleteGoal = async () => {
     if (!detail) return;
     if (!window.confirm(`Delete goal "${detail.goal.title}"? Links cascade.`)) return;
@@ -296,6 +383,14 @@ export function GoalPanel({
           <button
             type="button"
             className="panel-btn"
+            onClick={() => setViewMode(viewMode === 'list' ? 'tree' : 'list')}
+            title={viewMode === 'tree' ? 'Switch to flat list' : 'Switch to tree view'}
+          >
+            <ListTree size={14} />
+          </button>
+          <button
+            type="button"
+            className="panel-btn"
             onClick={refreshList}
             title="Refresh"
             disabled={loading}
@@ -325,7 +420,7 @@ export function GoalPanel({
             </div>
           ) : (
             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {goals.map((g) => {
+              {orderedGoals.map(({ goal: g, depth }) => {
                 const isSelected = g.id === selectedId;
                 return (
                   <li
@@ -333,6 +428,7 @@ export function GoalPanel({
                     onClick={() => setSelectedId(g.id)}
                     style={{
                       padding: '10px 12px',
+                      paddingLeft: 12 + depth * 16,
                       cursor: 'pointer',
                       borderBottom: '1px solid var(--border-subtle)',
                       background: isSelected ? 'var(--bg-selected)' : 'transparent',
@@ -500,6 +596,64 @@ export function GoalPanel({
                     <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--text-warning)' }}>
                       Risks: {detail.goal.current_plan.risks.join('; ')}
                     </p>
+                  )}
+                </div>
+              )}
+            </section>
+
+            {/* G5.4 — Aggregate recap */}
+            <section style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <h3 style={{ margin: 0 }}>
+                  <FileText size={14} style={{ verticalAlign: 'middle' }} /> Aggregate recap
+                </h3>
+                <button
+                  type="button"
+                  className="panel-btn panel-btn-primary"
+                  onClick={runAggregateRecap}
+                  disabled={recapping}
+                  style={{ marginLeft: 'auto' }}
+                  title={
+                    selectedProvider && selectedModel
+                      ? 'Synthesize via LLM (uses toolbar provider+model)'
+                      : 'Heuristic fold — select provider+model for LLM synthesis'
+                  }
+                >
+                  <RefreshCw size={14} className={recapping ? 'spin' : ''} />
+                  {recapping ? 'Generating…' : 'Generate recap'}
+                </button>
+              </div>
+              {recapResult && (
+                <div className="panel-card" style={{ padding: 12 }}>
+                  <div
+                    style={{
+                      fontSize: 'var(--font-size-xs)',
+                      color: 'var(--text-tertiary)',
+                      marginBottom: 6,
+                    }}
+                  >
+                    Synthesizer: <strong>{recapResult.recap_synthesizer}</strong>
+                    {' · '}
+                    {recapResult.sources.length} source
+                    {recapResult.sources.length === 1 ? '' : 's'}
+                  </div>
+                  <h4 style={{ margin: '4px 0 8px 0' }}>{recapResult.headline}</h4>
+                  {recapResult.bullets.length > 0 && (
+                    <ul style={{ paddingLeft: 20, marginBottom: 8 }}>
+                      {recapResult.bullets.map((b, i) => (
+                        <li key={i}>{b}</li>
+                      ))}
+                    </ul>
+                  )}
+                  {recapResult.next_actions.length > 0 && (
+                    <>
+                      <h5 style={{ margin: '8px 0 4px 0' }}>Next actions</h5>
+                      <ul style={{ paddingLeft: 20 }}>
+                        {recapResult.next_actions.map((n, i) => (
+                          <li key={i}>{n}</li>
+                        ))}
+                      </ul>
+                    </>
                   )}
                 </div>
               )}

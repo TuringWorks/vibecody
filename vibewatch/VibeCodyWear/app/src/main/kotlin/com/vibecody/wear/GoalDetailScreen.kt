@@ -1,11 +1,11 @@
-// GoalDetailScreen.kt — G3.6 Wear OS goal detail.
+// GoalDetailScreen.kt — G3.6 Wear OS goal detail (G5.1 added Start).
 //
 // Mirrors RecapScreen's read-only ScalingLazyColumn pattern. Pulls
 // `/watch/goals/:id` (curated route — watch never hits `/v1/*` direct)
 // and renders title + status + statement + linked-session count.
-// Action surface stays minimal: tile/list → detail → done. Mutations
-// (status flip, link, plan, start) all happen via the daemon REPL,
-// VibeUI, or the Apple Watch detail view.
+// G5.1 added a `Start session` chip that POSTs to the curated
+// `/watch/goals/:id/start` route. Other mutations (status flip, link,
+// plan, reparent) still happen via the daemon REPL or VibeUI.
 
 package com.vibecody.wear
 
@@ -17,6 +17,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.wear.compose.material.*
+import kotlinx.coroutines.launch
 
 @Composable
 fun GoalDetailScreen(
@@ -29,6 +30,9 @@ fun GoalDetailScreen(
     var statement by remember { mutableStateOf("") }
     var linkCount by remember { mutableStateOf(0) }
     var error by remember { mutableStateOf<String?>(null) }
+    var starting by remember { mutableStateOf(false) }
+    var startResult by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(goalId) {
         val json = net.getGoal(goalId)
@@ -106,6 +110,46 @@ fun GoalDetailScreen(
                         style = MaterialTheme.typography.caption2,
                         color = MaterialTheme.colors.onSurfaceVariant,
                     )
+                }
+                item { Spacer(modifier = Modifier.height(4.dp)) }
+                item {
+                    Chip(
+                        label = {
+                            Text(
+                                if (starting) "Starting…" else "Start session",
+                                style = MaterialTheme.typography.button,
+                            )
+                        },
+                        onClick = {
+                            if (!starting) {
+                                starting = true
+                                scope.launch {
+                                    val sid = net.startGoal(goalId)
+                                    starting = false
+                                    startResult = if (sid != null) {
+                                        "Started ${sid.take(8)}"
+                                    } else {
+                                        "Start failed"
+                                    }
+                                }
+                            }
+                        },
+                        enabled = !starting,
+                        colors = ChipDefaults.primaryChipColors(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                    )
+                }
+                if (startResult != null) {
+                    item {
+                        Text(
+                            startResult!!,
+                            style = MaterialTheme.typography.caption2,
+                            color = MaterialTheme.colors.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
                 }
             }
         }

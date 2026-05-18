@@ -147,6 +147,25 @@ final class WatchNetworkManager: NSObject, ObservableObject {
         }
     }
 
+    /// G4.2 — start a session bound to a goal via the curated
+    /// `/watch/goals/:id/start` route, which wraps the daemon's
+    /// canonical `do_v1_exec_goal_start` helper. The resulting session
+    /// is auto-linked through `goal_links` at create time. Returns the
+    /// new session id on success.
+    func startGoal(id: String, task: String? = nil) async throws -> String {
+        let token = try await auth.validAccessToken()
+        guard let url = URL(string: "\(auth.endpoint)/watch/goals/\(id)/start") else {
+            throw WatchAuthError.networkError("bad goal-start URL")
+        }
+        struct Body: Encodable { let task: String? }
+        let resp: StartGoalResponse = try await postJSON(
+            url: url,
+            body: Body(task: task),
+            token: token
+        )
+        return resp.session_id
+    }
+
     // MARK: - Messages for a session
 
     func loadMessages(sessionId: String) async throws -> [WatchMessage] {
@@ -382,7 +401,11 @@ private struct WatchGoalsResponse: Codable {
     let goals: [WatchGoalSummary]
 }
 
-private struct WatchGoalDetailEnvelope: Codable {
+private struct StartGoalResponse: Decodable {
+    let session_id: String
+}
+
+struct WatchGoalDetailEnvelope: Codable {
     let goal: [String: AnyCodable]?
     let links: [[String: AnyCodable]]?
 }

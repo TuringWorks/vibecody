@@ -144,6 +144,51 @@ export interface GoalPatch {
   tags?: string[];
   /** `null` clears the workspace (sets to global); omit to leave alone. */
   workspace?: string | null;
+  /** `null` clears the parent (promotes to root); omit to leave alone. */
+  parent_goal_id?: string | null;
+}
+
+// G5.3 — recursive subtree response from `/v1/goals/:id/tree`.
+export interface GoalTreeNode {
+  goal: Goal;
+  children: GoalTreeNode[];
+  /** Set when the depth budget cut off this node's descendants. */
+  truncated?: boolean;
+  /** Direct-child count when `truncated` is set. */
+  direct_child_count?: number;
+  /** Set when this node was re-visited via a cycle in `parent_goal_id`. */
+  cycle?: boolean;
+}
+
+export interface GoalTreeResponse {
+  root: string;
+  depth: number;
+  tree: GoalTreeNode;
+}
+
+// G5.3 — pin lookup response shape.
+export interface GoalCurrentResponse {
+  workspace: string | null;
+  goal_id: string | null;
+  pinned_at?: string;
+  goal?: Goal;
+}
+
+// G5.3 — aggregate recap response (heuristic or LLM-synthesized).
+export interface GoalRecapResponse {
+  goal_id: string;
+  title: string;
+  headline: string;
+  bullets: string[];
+  next_actions: string[];
+  artifacts: Array<Record<string, unknown>>;
+  sources: Array<{ recap_id: string; kind: string; target_id: string }>;
+  generated_at: string;
+  recap_synthesizer: 'heuristic' | 'llm';
+  recap_provider_override_applied?: boolean;
+  recap_provider_requested?: string;
+  recap_model_requested?: string;
+  recap_llm_error?: string;
 }
 
 export class VibeCLIAgent {
@@ -345,6 +390,67 @@ export class VibeCLIAgent {
       });
       if (!res.ok) throw new AgentError(`goals.link failed: ${res.status} ${await res.text()}`);
       return res.json() as Promise<GoalLink>;
+    },
+
+    // G5.3 — tree + pin + recap-LLM surface, mirroring the new
+    // `/v1/goals/:id/tree` and `/v1/goals/current` endpoints.
+
+    /** Recursive subtree walk. `depth` is clamped server-side to [1, 10]
+     *  (default 3). Re-visited nodes carry `cycle: true`; nodes whose
+     *  descendants weren't expanded carry `truncated: true`. */
+    tree: async (id: string, depth?: number): Promise<GoalTreeResponse> => {
+      const qs = depth ? `?depth=${depth}` : '';
+      const res = await fetch(
+        `${this.baseUrl}/v1/goals/${encodeURIComponent(id)}/tree${qs}`,
+      );
+      if (!res.ok) throw new AgentError(`goals.tree failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<GoalTreeResponse>;
+    },
+
+    /** Pin a goal as the "current" execution intent for a workspace
+     *  (empty/absent `workspace` → cross-workspace global slot). 404
+     *  on unknown goal id; otherwise 200. */
+    pin: async (id: string, workspace?: string): Promise<{ workspace: string | null; goal_id: string }> => {
+      const res = await fetch(`${this.baseUrl}/v1/goals/current`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ goal_id: id, workspace: workspace ?? null }),
+      });
+      if (!res.ok) throw new AgentError(`goals.pin failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<{ workspace: string | null; goal_id: string }>;
+    },
+
+    /** Clear the pin for a workspace (or the global slot). */
+    unpin: async (workspace?: string): Promise<{ workspace: string | null; removed: boolean }> => {
+      const qs = workspace ? `?workspace=${encodeURIComponent(workspace)}` : '';
+      const res = await fetch(`${this.baseUrl}/v1/goals/current${qs}`, { method: 'DELETE' });
+      if (!res.ok) throw new AgentError(`goals.unpin failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<{ workspace: string | null; removed: boolean }>;
+    },
+
+    /** Look up the pinned goal. `goal_id: null` when nothing is pinned. */
+    current: async (workspace?: string): Promise<GoalCurrentResponse> => {
+      const qs = workspace ? `?workspace=${encodeURIComponent(workspace)}` : '';
+      const res = await fetch(`${this.baseUrl}/v1/goals/current${qs}`);
+      if (!res.ok) throw new AgentError(`goals.current failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<GoalCurrentResponse>;
+    },
+
+    /** Cross-store aggregate recap. Pass `provider` + `model` to get
+     *  LLM synthesis (response carries `recap_synthesizer: "llm"`);
+     *  omit both for the heuristic fold (`"heuristic"`). */
+    recap: async (
+      id: string,
+      opts?: { provider?: string; model?: string },
+    ): Promise<GoalRecapResponse> => {
+      const body = opts ? { provider: opts.provider ?? null, model: opts.model ?? null } : {};
+      const res = await fetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(id)}/recap`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new AgentError(`goals.recap failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<GoalRecapResponse>;
     },
   };
 

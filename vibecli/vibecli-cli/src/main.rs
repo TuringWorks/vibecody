@@ -5214,6 +5214,9 @@ async fn main() -> Result<()> {
                                 "start"  => exec_goal_repl::handle_goal_start(rest),
                                 "children" => exec_goal_repl::handle_goal_children(rest),
                                 "reparent" => exec_goal_repl::handle_goal_reparent(rest),
+                                "pin"     => exec_goal_repl::handle_goal_pin(rest),
+                                "unpin"   => exec_goal_repl::handle_goal_unpin(rest),
+                                "current" => exec_goal_repl::handle_goal_current(rest),
                                 "delete" => exec_goal_repl::handle_goal_delete(rest),
                                 "plan"   => {
                                     println!(
@@ -5224,7 +5227,8 @@ async fn main() -> Result<()> {
                                 other => {
                                     println!(
                                         "Unknown /goal subcommand {other:?}. \
-                                         Try: new, list, show, status, link, start, plan, children, reparent, delete.\n"
+                                         Try: new, list, show, status, link, start, plan, \
+                                         children, reparent, pin, unpin, current, delete.\n"
                                     );
                                 }
                             }

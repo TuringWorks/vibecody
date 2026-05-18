@@ -275,6 +275,16 @@ impl SessionStore {
             -- G3.2 — index for parent_goal_id tree queries.
             CREATE INDEX IF NOT EXISTS idx_goals_parent
                 ON goals(parent_goal_id);
+
+            -- G4.4 — `current goal` pin per workspace. One row per
+            -- workspace (empty string = global pin, used by mobile and
+            -- watch clients that aren't workspace-scoped). When the
+            -- pinned goal is deleted the cascade clears the pin row.
+            CREATE TABLE IF NOT EXISTS pinned_goals (
+                workspace TEXT PRIMARY KEY,
+                goal_id   TEXT NOT NULL REFERENCES goals(id) ON DELETE CASCADE,
+                pinned_at TEXT NOT NULL
+            );
             "#,
         )?;
 
@@ -907,6 +917,57 @@ impl SessionStore {
         let n = self.conn.execute(
             "DELETE FROM goal_links WHERE id = ?1",
             params![id],
+        )?;
+        Ok(n > 0)
+    }
+
+    // ── G4.4 pinned-goals helpers ────────────────────────────────────────
+    //
+    // `workspace` is normalized: `None` → empty string (the global pin
+    // slot). This lets `pinned_goals` use a NOT NULL PRIMARY KEY and
+    // still expose a "pin for everyone, regardless of workspace" lane
+    // for mobile / watch clients.
+
+    /// Set or replace the current-goal pin for a workspace. The goal
+    /// must already exist; SQLite's FK enforces this.
+    pub fn pin_goal(&self, workspace: Option<&str>, goal_id: &str) -> Result<()> {
+        let ws = workspace.unwrap_or("");
+        let now = chrono::Utc::now().to_rfc3339();
+        self.conn.execute(
+            "INSERT INTO pinned_goals (workspace, goal_id, pinned_at)
+             VALUES (?1, ?2, ?3)
+             ON CONFLICT(workspace) DO UPDATE SET
+                 goal_id = excluded.goal_id,
+                 pinned_at = excluded.pinned_at",
+            params![ws, goal_id, now],
+        )?;
+        Ok(())
+    }
+
+    /// Look up the pinned goal id + when it was pinned for a workspace.
+    pub fn get_pinned_goal(
+        &self,
+        workspace: Option<&str>,
+    ) -> Result<Option<(String, String)>> {
+        let ws = workspace.unwrap_or("");
+        let row = self
+            .conn
+            .query_row(
+                "SELECT goal_id, pinned_at FROM pinned_goals WHERE workspace = ?1",
+                params![ws],
+                |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)),
+            )
+            .ok();
+        Ok(row)
+    }
+
+    /// Clear the pin for a workspace. Returns whether a row was
+    /// removed (`false` = nothing was pinned).
+    pub fn unpin_goal(&self, workspace: Option<&str>) -> Result<bool> {
+        let ws = workspace.unwrap_or("");
+        let n = self.conn.execute(
+            "DELETE FROM pinned_goals WHERE workspace = ?1",
+            params![ws],
         )?;
         Ok(n > 0)
     }

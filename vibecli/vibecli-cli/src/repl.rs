@@ -184,7 +184,8 @@ static WORKFLOW_SUBS: &[&str] = &["new", "list", "show", "advance", "check", "ge
 
 /// Sub-commands for `/goal <sub>` — durable execution intent.
 pub static GOAL_SUBS: &[&str] = &[
-    "new", "list", "show", "status", "link", "start", "children", "reparent", "delete",
+    "new", "list", "show", "status", "link", "start", "children", "reparent",
+    "pin", "unpin", "current", "delete",
 ];
 
 /// Sub-commands for `/orchestrate <sub>`

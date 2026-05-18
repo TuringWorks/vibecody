@@ -122,6 +122,28 @@ class WearNetworkManager(
         }
     }
 
+    /** G5.1 — start a session bound to a goal via the curated
+     *  `/watch/goals/:id/start` route (daemon-side wrapper for
+     *  `do_v1_exec_goal_start`). Returns the new session id on success,
+     *  null on any failure so the caller can fall back to `dispatch`. */
+    suspend fun startGoal(id: String, task: String? = null): String? = withContext(Dispatchers.IO) {
+        try {
+            val bodyJson = JSONObject().apply {
+                if (task != null) put("task", task)
+            }.toString()
+            val req = watchRequest("${auth.daemonUrl}/watch/goals/$id/start")
+                .post(bodyJson.toRequestBody("application/json".toMediaType()))
+                .build()
+            val resp = client.newCall(req).awaitResponse()
+            if (!resp.isSuccessful) return@withContext null
+            val json = JSONObject(resp.body?.string() ?: "{}")
+            json.optString("session_id").takeIf { it.isNotEmpty() }
+        } catch (e: Exception) {
+            Log.w(TAG, "startGoal($id) failed: ${e.message}")
+            null
+        }
+    }
+
     suspend fun getMessages(sessionId: String): JSONObject = withContext(Dispatchers.IO) {
         val req = watchRequest("${auth.daemonUrl}/watch/sessions/$sessionId/messages").get().build()
         val resp = client.newCall(req).awaitResponse()

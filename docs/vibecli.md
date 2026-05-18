@@ -135,6 +135,9 @@ In REPL mode, the following slash commands are available:
 | `/goal start <id> [task]` | Spawn a new session linked to a goal |
 | `/goal children <id>` | List direct child goals (one-level tree query) |
 | `/goal reparent <id> <parent-id\|none>` | Move a goal under a new parent, or promote to root |
+| `/goal pin <id> [--global]` | Pin a goal as the "current" execution intent for this workspace (or global slot) |
+| `/goal unpin [--global]` | Clear the current pin for this workspace (or global slot) |
+| `/goal current [--global]` | Print the currently pinned goal for this workspace |
 | `/goal delete <id>` | Hard-delete a goal (links cascade) |
 | `/goal plan <id>` | Generate / refresh an `ExecutionPlan` (requires `vibecli serve`) |
 | `/redteam scan <url>` | Start an autonomous red team scan against a target URL |

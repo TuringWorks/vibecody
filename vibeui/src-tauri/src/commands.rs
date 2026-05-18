@@ -23753,7 +23753,7 @@ pub async fn transcribe_audio(audio_path: String) -> Result<String, String> {
         .build()
         .map_err(|e| e.to_string())?;
 
-    let file_bytes = tokio::fs::read(path).await.map_err(|e| e.to_string())?;
+    let file_bytes = tokio::fs::read(&path).await.map_err(|e| e.to_string())?;
     let file_name = path.file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("audio.wav")
@@ -49778,4 +49778,80 @@ pub async fn exec_goal_recap(
         body,
     )
     .await
+}
+
+// G5.3 — Tauri proxies for the tree + pin endpoints. Query strings go
+// through `exec_goal_authed_get`'s reqwest builder so the workspace
+// path is URL-encoded automatically (no urlencoding crate needed).
+
+#[tauri::command]
+pub async fn exec_goal_tree(
+    id: String,
+    depth: Option<u32>,
+) -> Result<serde_json::Value, String> {
+    let path = format!("/v1/goals/{}/tree", id);
+    let query: Vec<(&str, String)> = match depth {
+        Some(d) => vec![("depth", d.to_string())],
+        None => vec![],
+    };
+    exec_goal_authed_get(&path, if query.is_empty() { None } else { Some(&query) }).await
+}
+
+fn workspace_query(workspace: &Option<String>) -> Vec<(&'static str, String)> {
+    match workspace.as_deref().filter(|s| !s.is_empty()) {
+        Some(w) => vec![("workspace", w.to_string())],
+        None => vec![],
+    }
+}
+
+#[tauri::command]
+pub async fn exec_goal_current(
+    workspace: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let q = workspace_query(&workspace);
+    exec_goal_authed_get(
+        "/v1/goals/current",
+        if q.is_empty() { None } else { Some(&q) },
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn exec_goal_pin(
+    id: String,
+    workspace: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let body = serde_json::json!({
+        "goal_id": id,
+        "workspace": workspace,
+    });
+    exec_goal_authed_json(reqwest::Method::PUT, "/v1/goals/current", body).await
+}
+
+#[tauri::command]
+pub async fn exec_goal_unpin(
+    workspace: Option<String>,
+) -> Result<serde_json::Value, String> {
+    // DELETE — pass the workspace via reqwest's query builder so we
+    // don't have to URL-encode by hand. `exec_goal_authed_json` doesn't
+    // accept query params, so build the request inline.
+    let token = recap_daemon_token().await?;
+    if token.is_empty() {
+        return Err("daemon not running".into());
+    }
+    let client = recap_http_client()?;
+    let q = workspace_query(&workspace);
+    let mut req = client
+        .delete(format!("{}{}", EXEC_GOAL_BASE, "/v1/goals/current"))
+        .header("Authorization", format!("Bearer {}", token));
+    if !q.is_empty() {
+        req = req.query(&q);
+    }
+    let resp = req.send().await.map_err(|e| e.to_string())?;
+    let status = resp.status();
+    let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    if !status.is_success() {
+        return Err(format!("daemon returned {}: {}", status, json));
+    }
+    Ok(json)
 }
