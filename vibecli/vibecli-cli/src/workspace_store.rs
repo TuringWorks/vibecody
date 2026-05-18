@@ -20,8 +20,8 @@ use chacha20poly1305::{
 };
 use rand::Rng;
 use rusqlite::{params, Connection};
-use sha2::{Digest, Sha256};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -115,7 +115,19 @@ fn open_conn(path: &Path) -> Result<Connection, String> {
              created_at      INTEGER NOT NULL,
              updated_at      INTEGER NOT NULL
          );
-         CREATE INDEX IF NOT EXISTS idx_ws_secrets_key ON workspace_secrets(key_name);",
+         CREATE INDEX IF NOT EXISTS idx_ws_secrets_key ON workspace_secrets(key_name);
+
+         -- B2.3: per-plugin install policy.
+         -- Policies aren't secrets — they're admin-set workspace-policy
+         -- decisions, so no encryption. `set_by` lets us enforce that a
+         -- `required` policy can only be lowered by an admin (fit-gap
+         -- §18 principle #2: client-side, admin-authored).
+         CREATE TABLE IF NOT EXISTS plugin_policies (
+             plugin_name TEXT    PRIMARY KEY,
+             policy      TEXT    NOT NULL,
+             set_by      TEXT    NOT NULL,
+             updated_at  INTEGER NOT NULL
+         );",
     )
     .map_err(|e| e.to_string())?;
     Ok(conn)
@@ -144,6 +156,119 @@ impl WorkspaceSecretMeta {
     }
 }
 
+// ── Plugin policy types (B2.3) ────────────────────────────────────────────────
+
+/// Runtime plugin policy. Same shape as `plugin_manifest::DefaultPolicy`
+/// (kept independent so `workspace_store` doesn't depend on the plugin
+/// stack — invertible direction). Wire form: lowercase strings
+/// `"off" | "on" | "required"`.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum PluginPolicy {
+    /// Components disabled at runtime.
+    Off,
+    /// Components enabled at runtime in this workspace.
+    On,
+    /// Admin-pinned — components enabled and cannot be lowered to
+    /// `Off` except by `PolicySetter::Admin`.
+    Required,
+}
+
+/// Who set the policy. Used by `set_plugin_policy` to enforce the
+/// "Required cannot be lowered to Off without admin" rule.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum PolicySetter {
+    /// Policy authored by the workspace admin. Can do anything.
+    Admin,
+    /// Policy set automatically at install time, e.g. from the
+    /// manifest's `default_policy`.
+    Install,
+    /// Policy set interactively by the workspace user.
+    User,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PluginPolicyEntry {
+    pub plugin_name: String,
+    pub policy: PluginPolicy,
+    pub set_by: PolicySetter,
+    pub updated_at: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PolicyError {
+    /// Tried to lower a `Required` policy without admin authority.
+    RequiredCannotBeLoweredByNonAdmin {
+        plugin_name: String,
+        attempted: PluginPolicy,
+        attempted_by: PolicySetter,
+    },
+    /// Database error (forwarded as a string for ergonomic `?`
+    /// chaining without importing rusqlite errors at every call site).
+    Db(String),
+}
+
+impl std::fmt::Display for PolicyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::RequiredCannotBeLoweredByNonAdmin {
+                plugin_name,
+                attempted,
+                attempted_by,
+            } => write!(
+                f,
+                "plugin `{}` is policy=Required; cannot be set to {:?} by {:?} \
+                 (only PolicySetter::Admin can lower a Required pin)",
+                plugin_name, attempted, attempted_by
+            ),
+            Self::Db(s) => write!(f, "db: {s}"),
+        }
+    }
+}
+
+impl std::error::Error for PolicyError {}
+
+impl From<String> for PolicyError {
+    fn from(s: String) -> Self {
+        Self::Db(s)
+    }
+}
+
+fn policy_to_str(p: PluginPolicy) -> &'static str {
+    match p {
+        PluginPolicy::Off => "off",
+        PluginPolicy::On => "on",
+        PluginPolicy::Required => "required",
+    }
+}
+
+fn setter_to_str(s: PolicySetter) -> &'static str {
+    match s {
+        PolicySetter::Admin => "admin",
+        PolicySetter::Install => "install",
+        PolicySetter::User => "user",
+    }
+}
+
+fn policy_from_str(s: &str) -> Result<PluginPolicy, String> {
+    match s {
+        "off" => Ok(PluginPolicy::Off),
+        "on" => Ok(PluginPolicy::On),
+        "required" => Ok(PluginPolicy::Required),
+        other => Err(format!("unknown plugin policy `{other}`")),
+    }
+}
+
+fn setter_from_str(s: &str) -> Result<PolicySetter, String> {
+    match s {
+        "admin" => Ok(PolicySetter::Admin),
+        "install" => Ok(PolicySetter::Install),
+        "user" => Ok(PolicySetter::User),
+        other => Err(format!("unknown policy setter `{other}`")),
+    }
+}
+
 // ── WorkspaceStore ────────────────────────────────────────────────────────────
 
 pub struct WorkspaceStore {
@@ -161,7 +286,11 @@ impl WorkspaceStore {
         let path = db_path(&canonical);
         let key = derive_key(&canonical.to_string_lossy());
         let conn = open_conn(&path)?;
-        Ok(Self { conn, key, workspace_path: canonical })
+        Ok(Self {
+            conn,
+            key,
+            workspace_path: canonical,
+        })
     }
 
     /// For tests: open against an arbitrary path with a custom key.
@@ -185,8 +314,7 @@ impl WorkspaceStore {
             .conn
             .prepare("SELECT encrypted_value FROM workspace_settings WHERE key=?1")
             .map_err(|e| e.to_string())?;
-        let result: rusqlite::Result<Vec<u8>> =
-            stmt.query_row(params![key], |r| r.get(0));
+        let result: rusqlite::Result<Vec<u8>> = stmt.query_row(params![key], |r| r.get(0));
         match result {
             Ok(blob) => Ok(Some(decrypt(&self.key, &blob)?)),
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
@@ -212,10 +340,7 @@ impl WorkspaceStore {
     pub fn setting_delete(&self, key: &str) -> Result<bool, String> {
         let n = self
             .conn
-            .execute(
-                "DELETE FROM workspace_settings WHERE key=?1",
-                params![key],
-            )
+            .execute("DELETE FROM workspace_settings WHERE key=?1", params![key])
             .map_err(|e| e.to_string())?;
         Ok(n > 0)
     }
@@ -245,12 +370,9 @@ impl WorkspaceStore {
     pub fn secret_get(&self, key_name: &str) -> Result<Option<String>, String> {
         let mut stmt = self
             .conn
-            .prepare(
-                "SELECT encrypted_value FROM workspace_secrets WHERE key_name=?1",
-            )
+            .prepare("SELECT encrypted_value FROM workspace_secrets WHERE key_name=?1")
             .map_err(|e| e.to_string())?;
-        let result: rusqlite::Result<Vec<u8>> =
-            stmt.query_row(params![key_name], |r| r.get(0));
+        let result: rusqlite::Result<Vec<u8>> = stmt.query_row(params![key_name], |r| r.get(0));
         match result {
             Ok(blob) => Ok(Some(decrypt(&self.key, &blob)?)),
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
@@ -286,7 +408,8 @@ impl WorkspaceStore {
                     params![blob, version + 1, now, id],
                 )
                 .map_err(|e| e.to_string())?;
-            self.secret_meta(key_name)?.ok_or_else(|| "secret not found after update".into())
+            self.secret_meta(key_name)?
+                .ok_or_else(|| "secret not found after update".into())
         } else {
             let id = new_id();
             self.conn
@@ -297,7 +420,8 @@ impl WorkspaceStore {
                     params![id, key_name, blob, created_by, now],
                 )
                 .map_err(|e| e.to_string())?;
-            self.secret_meta(key_name)?.ok_or_else(|| "secret not found after insert".into())
+            self.secret_meta(key_name)?
+                .ok_or_else(|| "secret not found after insert".into())
         }
     }
 
@@ -343,6 +467,171 @@ impl WorkspaceStore {
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
             Err(e) => Err(e.to_string()),
         }
+    }
+
+    // ── Plugin policies (B2.3) ────────────────────────────────────────────────
+
+    /// Fetch the current policy entry for a plugin. Returns `None`
+    /// when no row exists; callers should treat that as `Off` (the
+    /// safe default — components from an unknown plugin never run).
+    pub fn get_plugin_policy(
+        &self,
+        plugin_name: &str,
+    ) -> Result<Option<PluginPolicyEntry>, PolicyError> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT plugin_name, policy, set_by, updated_at
+                 FROM plugin_policies WHERE plugin_name=?1",
+            )
+            .map_err(|e| PolicyError::Db(e.to_string()))?;
+        let row = stmt.query_row(params![plugin_name], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, i64>(3)?,
+            ))
+        });
+        match row {
+            Ok((name, p, s, ts)) => Ok(Some(PluginPolicyEntry {
+                plugin_name: name,
+                policy: policy_from_str(&p)?,
+                set_by: setter_from_str(&s)?,
+                updated_at: ts,
+            })),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(PolicyError::Db(e.to_string())),
+        }
+    }
+
+    /// Resolve a plugin's effective policy. Unknown plugin → `Off`.
+    /// Convenience wrapper for the runtime hot path where callers
+    /// don't care who set the policy or when.
+    pub fn effective_plugin_policy(&self, plugin_name: &str) -> Result<PluginPolicy, PolicyError> {
+        Ok(self
+            .get_plugin_policy(plugin_name)?
+            .map(|e| e.policy)
+            .unwrap_or(PluginPolicy::Off))
+    }
+
+    /// Set (or replace) a plugin's policy.
+    ///
+    /// Enforces fit-gap §18 principle #2: a `Required` pin can only
+    /// be lowered to `Off` by `PolicySetter::Admin`. Anyone may raise
+    /// a policy (Off → On → Required); only admin may lower a
+    /// Required pin. Setting `Required` from `On` is also admin-only
+    /// because it changes the lower-bound the user can pick. Same-
+    /// policy no-op writes always succeed.
+    pub fn set_plugin_policy(
+        &self,
+        plugin_name: &str,
+        policy: PluginPolicy,
+        set_by: PolicySetter,
+    ) -> Result<PluginPolicyEntry, PolicyError> {
+        let existing = self.get_plugin_policy(plugin_name)?;
+        if let Some(existing) = &existing {
+            let admin = matches!(set_by, PolicySetter::Admin);
+            let same = existing.policy == policy;
+            let lowering_required =
+                existing.policy == PluginPolicy::Required && policy != PluginPolicy::Required;
+            let raising_to_required =
+                existing.policy != PluginPolicy::Required && policy == PluginPolicy::Required;
+            if !same && !admin && (lowering_required || raising_to_required) {
+                return Err(PolicyError::RequiredCannotBeLoweredByNonAdmin {
+                    plugin_name: plugin_name.to_string(),
+                    attempted: policy,
+                    attempted_by: set_by,
+                });
+            }
+        }
+        let now = now_ms();
+        self.conn
+            .execute(
+                "INSERT INTO plugin_policies (plugin_name, policy, set_by, updated_at)
+                 VALUES (?1, ?2, ?3, ?4)
+                 ON CONFLICT(plugin_name) DO UPDATE SET
+                     policy = excluded.policy,
+                     set_by = excluded.set_by,
+                     updated_at = excluded.updated_at",
+                params![
+                    plugin_name,
+                    policy_to_str(policy),
+                    setter_to_str(set_by),
+                    now
+                ],
+            )
+            .map_err(|e| PolicyError::Db(e.to_string()))?;
+        Ok(PluginPolicyEntry {
+            plugin_name: plugin_name.to_string(),
+            policy,
+            set_by,
+            updated_at: now,
+        })
+    }
+
+    /// Delete a plugin's policy row. Admin-only because deletion is
+    /// observationally equivalent to lowering to `Off` (the
+    /// "no row → Off" fallback in `effective_plugin_policy`).
+    pub fn delete_plugin_policy(
+        &self,
+        plugin_name: &str,
+        set_by: PolicySetter,
+    ) -> Result<bool, PolicyError> {
+        if !matches!(set_by, PolicySetter::Admin) {
+            // Defer to the same check as `set_plugin_policy(Off, …)`
+            // so the error shape matches.
+            if let Some(existing) = self.get_plugin_policy(plugin_name)? {
+                if existing.policy == PluginPolicy::Required {
+                    return Err(PolicyError::RequiredCannotBeLoweredByNonAdmin {
+                        plugin_name: plugin_name.to_string(),
+                        attempted: PluginPolicy::Off,
+                        attempted_by: set_by,
+                    });
+                }
+            }
+        }
+        let n = self
+            .conn
+            .execute(
+                "DELETE FROM plugin_policies WHERE plugin_name=?1",
+                params![plugin_name],
+            )
+            .map_err(|e| PolicyError::Db(e.to_string()))?;
+        Ok(n > 0)
+    }
+
+    /// List all plugin policy entries, ordered by plugin name. Used by
+    /// the B2.6 governance panel and the `vibecli plugin list` command.
+    pub fn list_plugin_policies(&self) -> Result<Vec<PluginPolicyEntry>, PolicyError> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT plugin_name, policy, set_by, updated_at
+                 FROM plugin_policies ORDER BY plugin_name",
+            )
+            .map_err(|e| PolicyError::Db(e.to_string()))?;
+        let rows = stmt
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, i64>(3)?,
+                ))
+            })
+            .map_err(|e| PolicyError::Db(e.to_string()))?;
+        let mut out = Vec::new();
+        for r in rows {
+            let (name, p, s, ts) = r.map_err(|e| PolicyError::Db(e.to_string()))?;
+            out.push(PluginPolicyEntry {
+                plugin_name: name,
+                policy: policy_from_str(&p)?,
+                set_by: setter_from_str(&s)?,
+                updated_at: ts,
+            });
+        }
+        Ok(out)
     }
 }
 
@@ -441,7 +730,8 @@ mod tests {
     #[test]
     fn secret_set_and_get() {
         let s = temp_store();
-        s.secret_set("DB_URL", "postgres://localhost/mydb", None).unwrap();
+        s.secret_set("DB_URL", "postgres://localhost/mydb", None)
+            .unwrap();
         assert_eq!(
             s.secret_get("DB_URL").unwrap(),
             Some("postgres://localhost/mydb".into())
@@ -488,7 +778,8 @@ mod tests {
     #[test]
     fn secret_list_shows_metadata_only() {
         let s = temp_store();
-        s.secret_set("DB_URL", "postgres://...", Some("agent-1")).unwrap();
+        s.secret_set("DB_URL", "postgres://...", Some("agent-1"))
+            .unwrap();
         s.secret_set("API_KEY", "sk-...", None).unwrap();
         let list = s.secret_list().unwrap();
         assert_eq!(list.len(), 2);
@@ -527,5 +818,148 @@ mod tests {
         let k2 = derive_key("/project-beta");
         let ct = encrypt(&k1, "secret").unwrap();
         assert!(decrypt(&k2, &ct).is_err());
+    }
+
+    // ── plugin policies (B2.3) ────────────────────────────────────────────────
+
+    #[test]
+    fn plugin_policy_default_is_none_resolves_to_off() {
+        let s = temp_store();
+        assert_eq!(s.get_plugin_policy("ghost").unwrap(), None);
+        assert_eq!(
+            s.effective_plugin_policy("ghost").unwrap(),
+            PluginPolicy::Off
+        );
+    }
+
+    #[test]
+    fn plugin_policy_install_can_set_on() {
+        let s = temp_store();
+        let entry = s
+            .set_plugin_policy("p1", PluginPolicy::On, PolicySetter::Install)
+            .unwrap();
+        assert_eq!(entry.policy, PluginPolicy::On);
+        assert_eq!(entry.set_by, PolicySetter::Install);
+        assert_eq!(s.effective_plugin_policy("p1").unwrap(), PluginPolicy::On);
+    }
+
+    #[test]
+    fn plugin_policy_user_can_raise_from_off_to_on() {
+        let s = temp_store();
+        s.set_plugin_policy("p1", PluginPolicy::Off, PolicySetter::User)
+            .unwrap();
+        s.set_plugin_policy("p1", PluginPolicy::On, PolicySetter::User)
+            .unwrap();
+        assert_eq!(s.effective_plugin_policy("p1").unwrap(), PluginPolicy::On);
+    }
+
+    #[test]
+    fn plugin_policy_user_cannot_raise_to_required() {
+        let s = temp_store();
+        s.set_plugin_policy("p1", PluginPolicy::On, PolicySetter::User)
+            .unwrap();
+        let err = s
+            .set_plugin_policy("p1", PluginPolicy::Required, PolicySetter::User)
+            .unwrap_err();
+        assert!(matches!(
+            err,
+            PolicyError::RequiredCannotBeLoweredByNonAdmin { .. }
+        ));
+    }
+
+    #[test]
+    fn plugin_policy_admin_can_pin_required() {
+        let s = temp_store();
+        s.set_plugin_policy("p1", PluginPolicy::On, PolicySetter::User)
+            .unwrap();
+        s.set_plugin_policy("p1", PluginPolicy::Required, PolicySetter::Admin)
+            .unwrap();
+        assert_eq!(
+            s.effective_plugin_policy("p1").unwrap(),
+            PluginPolicy::Required
+        );
+    }
+
+    #[test]
+    fn plugin_policy_user_cannot_lower_required_to_off() {
+        let s = temp_store();
+        s.set_plugin_policy("p1", PluginPolicy::Required, PolicySetter::Admin)
+            .unwrap();
+        let err = s
+            .set_plugin_policy("p1", PluginPolicy::Off, PolicySetter::User)
+            .unwrap_err();
+        assert!(matches!(
+            err,
+            PolicyError::RequiredCannotBeLoweredByNonAdmin {
+                attempted: PluginPolicy::Off,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn plugin_policy_admin_can_lower_required_to_off() {
+        let s = temp_store();
+        s.set_plugin_policy("p1", PluginPolicy::Required, PolicySetter::Admin)
+            .unwrap();
+        s.set_plugin_policy("p1", PluginPolicy::Off, PolicySetter::Admin)
+            .unwrap();
+        assert_eq!(s.effective_plugin_policy("p1").unwrap(), PluginPolicy::Off);
+    }
+
+    #[test]
+    fn plugin_policy_no_op_same_policy_succeeds_for_anyone() {
+        let s = temp_store();
+        s.set_plugin_policy("p1", PluginPolicy::Required, PolicySetter::Admin)
+            .unwrap();
+        // User re-setting same Required value must succeed (no
+        // state change to gate).
+        s.set_plugin_policy("p1", PluginPolicy::Required, PolicySetter::User)
+            .unwrap();
+        assert_eq!(
+            s.effective_plugin_policy("p1").unwrap(),
+            PluginPolicy::Required
+        );
+    }
+
+    #[test]
+    fn plugin_policy_user_cannot_delete_required() {
+        let s = temp_store();
+        s.set_plugin_policy("p1", PluginPolicy::Required, PolicySetter::Admin)
+            .unwrap();
+        let err = s
+            .delete_plugin_policy("p1", PolicySetter::User)
+            .unwrap_err();
+        assert!(matches!(
+            err,
+            PolicyError::RequiredCannotBeLoweredByNonAdmin { .. }
+        ));
+    }
+
+    #[test]
+    fn plugin_policy_admin_can_delete_required() {
+        let s = temp_store();
+        s.set_plugin_policy("p1", PluginPolicy::Required, PolicySetter::Admin)
+            .unwrap();
+        assert!(s.delete_plugin_policy("p1", PolicySetter::Admin).unwrap());
+        assert_eq!(s.effective_plugin_policy("p1").unwrap(), PluginPolicy::Off);
+    }
+
+    #[test]
+    fn plugin_policy_list_returns_sorted_entries() {
+        let s = temp_store();
+        s.set_plugin_policy("zeta", PluginPolicy::On, PolicySetter::User)
+            .unwrap();
+        s.set_plugin_policy("alpha", PluginPolicy::Off, PolicySetter::User)
+            .unwrap();
+        s.set_plugin_policy("mid", PluginPolicy::Required, PolicySetter::Admin)
+            .unwrap();
+        let list = s.list_plugin_policies().unwrap();
+        assert_eq!(list.len(), 3);
+        assert_eq!(list[0].plugin_name, "alpha");
+        assert_eq!(list[1].plugin_name, "mid");
+        assert_eq!(list[2].plugin_name, "zeta");
+        assert_eq!(list[1].policy, PluginPolicy::Required);
+        assert_eq!(list[1].set_by, PolicySetter::Admin);
     }
 }
