@@ -50210,7 +50210,7 @@ pub async fn security_posture_scan(
     let result = tokio::task::spawn_blocking(move || {
         use vibecli_cli::security_posture::{run_all_scanners, Scanner};
         use vibecli_cli::security_posture_adapters::{
-            HealthScannerAdapter, VulnerabilityScannerAdapter,
+            HealthScannerAdapter, SonarScannerAdapter, VulnerabilityScannerAdapter,
         };
         use vibecli_cli::security_posture_license::LicenseClashScanner;
         use vibecli_cli::security_posture_secrets::SecretLeakScanner;
@@ -50219,6 +50219,7 @@ pub async fn security_posture_scan(
             Box::new(VulnerabilityScannerAdapter),
             Box::new(SecretLeakScanner),
             Box::new(LicenseClashScanner),
+            Box::new(SonarScannerAdapter),
             Box::new(TaintScanner),    // stub — full tree-sitter impl in next slice
             Box::new(HealthScannerAdapter),
         ];

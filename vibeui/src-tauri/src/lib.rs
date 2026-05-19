@@ -7,7 +7,11 @@ mod agent_executor;
 mod memory;
 mod panel_store;
 pub mod shadow_workspace;
-pub mod sonar_rules;
+// `sonar_rules` moved to `vibe-core` 2026-05-19 — re-export the
+// public path so any in-tree consumer that hasn't updated yet
+// keeps compiling. New code should use `vibe_core::sonar_rules`
+// directly.
+pub use vibe_core::sonar_rules;
 
 use commands::AppState;
 use std::sync::Arc;

@@ -11,6 +11,11 @@ pub mod executor;
 pub mod index;
 pub mod context;
 pub mod path_guard;
+// SonarQube-compatible rule engine — promoted from vibeui/src-tauri
+// 2026-05-19 so the Security Posture sonar adapter (in vibecli-cli)
+// can import it. SQLite-backed rule store is included; vibe-core
+// already depends on git2 so the rusqlite add is small.
+pub mod sonar_rules;
 
 pub use buffer::TextBuffer as Buffer;
 pub use file_system::FileSystem;

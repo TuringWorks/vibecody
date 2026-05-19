@@ -285,6 +285,149 @@ fn map_vulndb_severity(s: &crate::vulnerability_db::Severity) -> Severity {
     }
 }
 
+// ── sonar_rules adapter ─────────────────────────────────────────────
+
+/// Wraps `vibe_core::sonar_rules::scan_content` into a `Scanner`.
+///
+/// Walks the workspace (respecting the standard skip-dirs) and runs
+/// each source file through Sonar's regex-based rule engine. Each
+/// `SonarIssue` becomes one `SecurityFinding`.
+///
+/// Severity mapping (per scanners.md §2):
+/// `BLOCKER → Critical`, `CRITICAL → High`, `MAJOR → Medium`,
+/// `MINOR → Low`, `INFO → Info`.
+///
+/// Category mapping: `VULNERABILITY` and `SECURITY_HOTSPOT` issues
+/// land in `Sast`; `BUG` and `CODE_SMELL` land in `CodeHealth`.
+pub struct SonarScannerAdapter;
+
+impl Scanner for SonarScannerAdapter {
+    fn name(&self) -> &'static str {
+        "sonar"
+    }
+
+    fn scan(&self, workspace: &Path) -> Result<Vec<SecurityFinding>> {
+        let mut findings = Vec::new();
+
+        for entry in walkdir::WalkDir::new(workspace)
+            .max_depth(8)
+            .follow_links(false)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if !entry.file_type().is_file() {
+                continue;
+            }
+            let path = entry.path();
+
+            // Skip the same noise dirs the other scanners do, so
+            // we don't re-scan node_modules / target / .git.
+            let skip = path.ancestors().any(|a| {
+                a.file_name()
+                    .and_then(|n| n.to_str())
+                    .map(|n| {
+                        matches!(
+                            n,
+                            "node_modules"
+                                | "target"
+                                | ".git"
+                                | "vendor"
+                                | ".venv"
+                                | "venv"
+                                | "__pycache__"
+                                | "dist"
+                                | "build"
+                                | ".next"
+                        )
+                    })
+                    .unwrap_or(false)
+            });
+            if skip {
+                continue;
+            }
+
+            // Sonar rules cover ts / js / rs primarily; only feed
+            // files those rules will actually match. Skip everything
+            // else to keep the scan fast.
+            let ext = match path.extension().and_then(|e| e.to_str()) {
+                Some(e) => e,
+                None => continue,
+            };
+            if !matches!(
+                ext,
+                "ts" | "tsx" | "js" | "jsx" | "rs" | "py" | "java" | "go" | "cs"
+            ) {
+                continue;
+            }
+
+            let content = match std::fs::read_to_string(path) {
+                Ok(c) if c.len() < 1_048_576 => c, // 1 MiB cap
+                _ => continue,
+            };
+            let rel = path.strip_prefix(workspace).unwrap_or(path);
+            let rel_str = rel.to_string_lossy().to_string();
+            let result = vibe_core::sonar_rules::scan_content(&rel_str, &content);
+
+            for issue in result.issues {
+                findings.push(sonar_issue_to_finding(&issue, rel));
+            }
+        }
+
+        Ok(findings)
+    }
+}
+
+fn sonar_issue_to_finding(
+    issue: &vibe_core::sonar_rules::SonarIssue,
+    rel: &Path,
+) -> SecurityFinding {
+    let severity = map_sonar_severity(&issue.severity);
+    let category = match issue.issue_type.as_str() {
+        "VULNERABILITY" | "SECURITY_HOTSPOT" => Category::Sast,
+        _ => Category::CodeHealth, // BUG / CODE_SMELL
+    };
+    // Sonar's `code_snippet` field is the matched line content.
+    // Bound it to the snippet cap via SecurityFinding::new's
+    // truncation — `SNIPPET_MAX_BYTES` enforced there.
+    let snippet = if issue.code_snippet.is_empty() {
+        None
+    } else {
+        Some(issue.code_snippet.clone())
+    };
+    let remediation = if issue.how_to_fix.is_empty() {
+        None
+    } else {
+        Some(issue.how_to_fix.clone())
+    };
+    SecurityFinding::new(
+        "sonar",
+        severity,
+        category,
+        rel.to_path_buf(),
+        Some(issue.line),
+        Some(issue.col_start),
+        snippet,
+        format!("sonar:{}", issue.rule_key),
+        issue.rule_name.clone(),
+        remediation,
+        Vec::new(),
+    )
+}
+
+/// Map Sonar's severity-string vocabulary into our 5-bucket enum.
+/// Unknown values default to Medium — surfacing on the panel is
+/// better than silently dropping.
+fn map_sonar_severity(s: &str) -> Severity {
+    match s {
+        "BLOCKER" => Severity::Critical,
+        "CRITICAL" => Severity::High,
+        "MAJOR" => Severity::Medium,
+        "MINOR" => Severity::Low,
+        "INFO" => Severity::Info,
+        _ => Severity::Medium,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -316,6 +459,79 @@ mod tests {
     #[test]
     fn vuln_scanner_name_stable() {
         assert_eq!(VulnerabilityScannerAdapter.name(), "vulnerability_db");
+    }
+
+    #[test]
+    fn sonar_scanner_name_stable() {
+        assert_eq!(SonarScannerAdapter.name(), "sonar");
+    }
+
+    #[test]
+    fn map_sonar_severity_known_values() {
+        assert_eq!(map_sonar_severity("BLOCKER"), Severity::Critical);
+        assert_eq!(map_sonar_severity("CRITICAL"), Severity::High);
+        assert_eq!(map_sonar_severity("MAJOR"), Severity::Medium);
+        assert_eq!(map_sonar_severity("MINOR"), Severity::Low);
+        assert_eq!(map_sonar_severity("INFO"), Severity::Info);
+    }
+
+    #[test]
+    fn map_sonar_severity_unknown_defaults_medium() {
+        // Surfacing on the panel is better than dropping; a future
+        // Sonar severity variant should still show up.
+        assert_eq!(map_sonar_severity("WHATEVER"), Severity::Medium);
+        assert_eq!(map_sonar_severity(""), Severity::Medium);
+    }
+
+    #[test]
+    fn sonar_vulnerability_issue_lands_in_sast() {
+        let issue = vibe_core::sonar_rules::SonarIssue {
+            rule_key: "rust:S2068".into(),
+            rule_name: "Hardcoded credential".into(),
+            file: "src/x.rs".into(),
+            line: 10,
+            end_line: 10,
+            col_start: 0,
+            message: String::new(),
+            severity: "BLOCKER".into(),
+            issue_type: "VULNERABILITY".into(),
+            code_snippet: String::new(),
+            context_before: String::new(),
+            context_after: String::new(),
+            why: String::new(),
+            how_to_fix: String::new(),
+            effort: String::new(),
+        };
+        let f = sonar_issue_to_finding(&issue, Path::new("src/x.rs"));
+        assert_eq!(f.scanner, "sonar");
+        assert_eq!(f.severity, Severity::Critical);
+        assert_eq!(f.category, Category::Sast);
+        assert_eq!(f.rule_id, "sonar:rust:S2068");
+        assert_eq!(f.line, Some(10));
+    }
+
+    #[test]
+    fn sonar_code_smell_lands_in_code_health() {
+        let issue = vibe_core::sonar_rules::SonarIssue {
+            rule_key: "ts:S1192".into(),
+            rule_name: "Duplicate string literals".into(),
+            file: "x.ts".into(),
+            line: 5,
+            end_line: 5,
+            col_start: 0,
+            message: String::new(),
+            severity: "MINOR".into(),
+            issue_type: "CODE_SMELL".into(),
+            code_snippet: String::new(),
+            context_before: String::new(),
+            context_after: String::new(),
+            why: String::new(),
+            how_to_fix: String::new(),
+            effort: String::new(),
+        };
+        let f = sonar_issue_to_finding(&issue, Path::new("x.ts"));
+        assert_eq!(f.category, Category::CodeHealth);
+        assert_eq!(f.severity, Severity::Low);
     }
 
     // Full-scan tests need a fixture workspace; deferred to the
