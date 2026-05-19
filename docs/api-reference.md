@@ -754,6 +754,6 @@ The Apple Watch / Wear OS never hits `/v1/*` directly. Use the curated read-only
 
 | Method | Path | Notes |
 |---|---|---|
-| `GET` | `/watch/goals` | Active goals only, ≤25, slim payload (`{ id, title, status, workspace_label, updated_at }`). |
+| `GET` | `/watch/goals` | Active goals only, ≤25, slim payload (`{ id, title, status, workspace_label, updated_at, pinned }`). `pinned` is `true` when the row is the workspace-specific OR global current pin (G11.2). Older daemons that lack the field decode cleanly on the watch side. |
 | `GET` | `/watch/goals/:id` | Full `{ goal, links }` (same shape as `/v1/goals/:id`). |
 | `POST` | `/watch/goals/:id/start` | Curated wrapper for `do_v1_exec_goal_start`. Body: `{ task? }`. Returns `{ session_id, link_id, goal_id }`. |

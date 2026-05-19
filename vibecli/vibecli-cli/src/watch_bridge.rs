@@ -935,6 +935,10 @@ struct WatchGoalSummary {
     /// Workspace `basename` only (full path is too long for the watch).
     workspace_label: String,
     updated_at: String,
+    /// G11.2 — true when this goal is the workspace-specific OR
+    /// global current pin. The watch renders a ★ in front of the
+    /// title so users see which goal new /agent runs auto-link to.
+    pinned: bool,
 }
 
 async fn watch_list_goals(
@@ -967,20 +971,52 @@ async fn watch_list_goals(
             ..Default::default()
         })
         .unwrap_or_default();
+
+    // G11.2 — fetch the global pin once, plus one workspace-specific
+    // pin per distinct workspace seen in the active goal set. With
+    // limit=25 above and most users having ≤3 workspaces in flight
+    // this is a handful of point lookups.
+    let global_pin: Option<String> = store
+        .get_pinned_goal(None)
+        .unwrap_or(None)
+        .map(|(id, _)| id);
+    let mut workspace_pins: std::collections::HashMap<String, Option<String>> =
+        std::collections::HashMap::new();
+    for g in &goals {
+        if let Some(ws) = g.workspace.as_ref().map(|p| p.to_string_lossy().into_owned()) {
+            workspace_pins
+                .entry(ws.clone())
+                .or_insert_with(|| store.get_pinned_goal(Some(&ws)).unwrap_or(None).map(|(id, _)| id));
+        }
+    }
+
     let summaries: Vec<WatchGoalSummary> = goals
         .into_iter()
-        .map(|g| WatchGoalSummary {
-            id: g.id,
-            title: g.title,
-            status: g.status.as_str().to_string(),
-            workspace_label: g
+        .map(|g| {
+            let ws_str = g
                 .workspace
                 .as_ref()
-                .and_then(|p| p.file_name())
-                .and_then(|n| n.to_str())
-                .unwrap_or("global")
-                .to_string(),
-            updated_at: g.updated_at.to_rfc3339(),
+                .map(|p| p.to_string_lossy().into_owned());
+            let ws_pin = ws_str
+                .as_ref()
+                .and_then(|w| workspace_pins.get(w))
+                .and_then(|opt| opt.as_deref());
+            let pinned =
+                ws_pin == Some(g.id.as_str()) || global_pin.as_deref() == Some(g.id.as_str());
+            WatchGoalSummary {
+                id: g.id,
+                title: g.title,
+                status: g.status.as_str().to_string(),
+                workspace_label: g
+                    .workspace
+                    .as_ref()
+                    .and_then(|p| p.file_name())
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("global")
+                    .to_string(),
+                updated_at: g.updated_at.to_rfc3339(),
+                pinned,
+            }
         })
         .collect();
     Json(serde_json::json!({ "goals": summaries })).into_response()

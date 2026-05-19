@@ -37,6 +37,10 @@ fun GoalsScreen(
                             title = g.optString("title", "(untitled)").take(80),
                             status = g.optString("status", "active"),
                             workspaceLabel = g.optString("workspace_label", "global"),
+                            // G11.2 — optBoolean returns false when the
+                            // field is absent (pre-G11.2 daemons), which
+                            // is exactly the fallback we want.
+                            pinned = g.optBoolean("pinned", false),
                         )
                     )
                 }
@@ -75,7 +79,14 @@ fun GoalsScreen(
                 val g = goals[i]
                 Chip(
                     label = {
-                        Text(g.title, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        // G11.2 — prefix the title with a ★ when this
+                        // goal is the workspace-specific or global pin,
+                        // so users see what new /agent runs auto-link to.
+                        Text(
+                            if (g.pinned) "★ ${g.title}" else g.title,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                     },
                     secondaryLabel = {
                         Text(
@@ -98,4 +109,8 @@ data class WearGoal(
     val title: String,
     val status: String,
     val workspaceLabel: String,
+    /// G11.2 — workspace-specific OR global current pin. False on
+    /// pre-G11.2 daemons (the field is absent and optBoolean returns
+    /// the default).
+    val pinned: Boolean,
 )

@@ -16,6 +16,36 @@ pub struct GoalRow {
     pub status: String,
     pub workspace_label: String,
     pub updated_at: String,
+    /// G11.1 — parent for tree-mode ordering. `None` in list mode and
+    /// for true roots.
+    pub parent_goal_id: Option<String>,
+    /// G11.1 — depth in tree mode (0 = root). Always 0 in list mode.
+    pub depth: u8,
+}
+
+/// G11.1 — TUI Goals layout. `List` is the flat chronological view
+/// (default); `Tree` indents children under parents using a client-
+/// side BFS over `parent_goal_id`, mirroring VibeUI's `orderedGoals`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ViewMode {
+    List,
+    Tree,
+}
+
+impl ViewMode {
+    pub fn label(self) -> &'static str {
+        match self {
+            ViewMode::List => "list",
+            ViewMode::Tree => "tree",
+        }
+    }
+
+    pub fn toggle(self) -> Self {
+        match self {
+            ViewMode::List => ViewMode::Tree,
+            ViewMode::Tree => ViewMode::List,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -63,6 +93,7 @@ pub struct GoalsComponent {
     pub items: Vec<GoalRow>,
     pub selected_index: usize,
     pub status_filter: StatusFilter,
+    pub view_mode: ViewMode,
     pub last_error: Option<String>,
 }
 
@@ -72,6 +103,7 @@ impl GoalsComponent {
             items: Vec::new(),
             selected_index: 0,
             status_filter: StatusFilter::Active,
+            view_mode: ViewMode::List,
             last_error: None,
         };
         c.refresh();
@@ -96,7 +128,7 @@ impl GoalsComponent {
         };
         match store.list_goals(&filter) {
             Ok(rows) => {
-                self.items = rows
+                let goal_rows: Vec<GoalRow> = rows
                     .into_iter()
                     .map(|g| GoalRow {
                         id: g.id,
@@ -110,8 +142,14 @@ impl GoalsComponent {
                             .unwrap_or("global")
                             .to_string(),
                         updated_at: g.updated_at.to_rfc3339(),
+                        parent_goal_id: g.parent_goal_id,
+                        depth: 0,
                     })
                     .collect();
+                self.items = match self.view_mode {
+                    ViewMode::List => goal_rows,
+                    ViewMode::Tree => order_as_tree(goal_rows),
+                };
                 self.last_error = None;
                 if self.selected_index >= self.items.len() {
                     self.selected_index = self.items.len().saturating_sub(1);
@@ -119,6 +157,13 @@ impl GoalsComponent {
             }
             Err(e) => self.last_error = Some(format!("list: {e}")),
         }
+    }
+
+    /// G11.1 — flip between flat list and tree layout.
+    pub fn toggle_view_mode(&mut self) {
+        self.view_mode = self.view_mode.toggle();
+        self.selected_index = 0;
+        self.refresh();
     }
 
     pub fn next(&mut self) {
@@ -154,6 +199,48 @@ impl Default for GoalsComponent {
     }
 }
 
+/// G11.1 — re-order a flat goal list into parent → children sequence
+/// with per-row `depth` so the renderer can indent. Roots are goals
+/// whose `parent_goal_id` is either `None` or refers to a goal that
+/// isn't in the current list (a parent filtered out by the status
+/// filter is treated as a root so its children remain reachable).
+/// Mirrors `orderedGoals` in `vibeui/src/components/GoalPanel.tsx`.
+fn order_as_tree(rows: Vec<GoalRow>) -> Vec<GoalRow> {
+    use std::collections::HashMap;
+    if rows.is_empty() {
+        return rows;
+    }
+    let id_set: std::collections::HashSet<String> =
+        rows.iter().map(|r| r.id.clone()).collect();
+    let mut by_parent: HashMap<Option<String>, Vec<GoalRow>> = HashMap::new();
+    for r in rows {
+        let key = r
+            .parent_goal_id
+            .clone()
+            .filter(|p| id_set.contains(p));
+        by_parent.entry(key).or_default().push(r);
+    }
+    let mut out: Vec<GoalRow> = Vec::new();
+    walk_tree(&mut by_parent, None, 0, &mut out);
+    out
+}
+
+fn walk_tree(
+    by_parent: &mut std::collections::HashMap<Option<String>, Vec<GoalRow>>,
+    parent: Option<String>,
+    depth: u8,
+    out: &mut Vec<GoalRow>,
+) {
+    if let Some(kids) = by_parent.remove(&parent) {
+        for mut kid in kids {
+            kid.depth = depth;
+            let id = kid.id.clone();
+            out.push(kid);
+            walk_tree(by_parent, Some(id), depth.saturating_add(1), out);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -186,6 +273,55 @@ mod tests {
         assert_eq!(c.selected_index, 0);
     }
 
+    fn row(id: &str, parent: Option<&str>) -> GoalRow {
+        GoalRow {
+            id: id.into(),
+            title: id.into(),
+            status: "active".into(),
+            workspace_label: "global".into(),
+            updated_at: "now".into(),
+            parent_goal_id: parent.map(str::to_string),
+            depth: 0,
+        }
+    }
+
+    #[test]
+    fn order_as_tree_indents_children_under_parents() {
+        // Two roots; root-A has one child; root-B has a grand-child
+        // chain. Output order: A, A1, B, B1, B1a, with depths 0 1 0 1 2.
+        let input = vec![
+            row("A", None),
+            row("A1", Some("A")),
+            row("B", None),
+            row("B1", Some("B")),
+            row("B1a", Some("B1")),
+        ];
+        let out = order_as_tree(input);
+        let ordered: Vec<(&str, u8)> = out.iter().map(|r| (r.id.as_str(), r.depth)).collect();
+        assert_eq!(
+            ordered,
+            vec![("A", 0), ("A1", 1), ("B", 0), ("B1", 1), ("B1a", 2)],
+        );
+    }
+
+    #[test]
+    fn order_as_tree_treats_orphan_parent_as_root() {
+        // The parent_goal_id `MISSING` isn't in the list (filtered out
+        // by status, say). The child must still render, as a root.
+        let input = vec![row("orphan", Some("MISSING"))];
+        let out = order_as_tree(input);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].id, "orphan");
+        assert_eq!(out[0].depth, 0);
+    }
+
+    #[test]
+    fn view_mode_toggle_round_trips() {
+        let m = ViewMode::List;
+        assert_eq!(m.toggle(), ViewMode::Tree);
+        assert_eq!(m.toggle().toggle(), ViewMode::List);
+    }
+
     #[test]
     fn next_wraps_around() {
         let mut c = GoalsComponent {
@@ -196,6 +332,8 @@ mod tests {
                     status: "active".into(),
                     workspace_label: "global".into(),
                     updated_at: "now".into(),
+                    parent_goal_id: None,
+                    depth: 0,
                 },
                 GoalRow {
                     id: "b".into(),
@@ -203,6 +341,8 @@ mod tests {
                     status: "active".into(),
                     workspace_label: "global".into(),
                     updated_at: "now".into(),
+                    parent_goal_id: None,
+                    depth: 0,
                 },
             ],
             selected_index: 1,

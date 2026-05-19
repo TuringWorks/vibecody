@@ -236,6 +236,10 @@ struct WatchGoalSummary: Codable, Identifiable {
     let status: String           // active | paused | done | abandoned
     let workspace_label: String  // basename or "global"
     let updated_at: String
+    /// G11.2 — true when this goal is the workspace-specific OR global
+    /// current pin (new /agent runs auto-link to it). Optional in JSON
+    /// so older daemons that don't emit the field still decode cleanly.
+    let pinned: Bool?
 
     var statusIcon: String {
         switch status {
@@ -246,6 +250,10 @@ struct WatchGoalSummary: Codable, Identifiable {
         default:          return "○"
         }
     }
+
+    /// `true` when the daemon marked this goal as pinned. Defaults to
+    /// `false` when the field is absent (pre-G11.2 daemons).
+    var isPinned: Bool { pinned == true }
 }
 
 // MARK: - Beacon

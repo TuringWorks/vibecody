@@ -470,6 +470,8 @@ async fn run_app<B: ratatui::backend::Backend>(
                                 CurrentScreen::Goals => match c {
                                     'f' => app.goals.cycle_filter(),
                                     'r' => app.goals.refresh(),
+                                    // G11.1 — toggle flat list ↔ tree layout
+                                    't' => app.goals.toggle_view_mode(),
                                     'j' => app.goals.next(),
                                     'k' => app.goals.previous(),
                                     _ => {}

@@ -64,6 +64,14 @@ struct GoalRowView: View {
             HStack {
                 Text(goal.statusIcon)
                     .font(.caption2)
+                // G11.2 — show the workspace-pin marker so the user
+                // sees which goal new /agent runs will auto-link to.
+                if goal.isPinned {
+                    Image(systemName: "star.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.yellow)
+                        .accessibilityLabel("current pinned goal")
+                }
                 Text(goal.title)
                     .font(.caption)
                     .fontWeight(.medium)

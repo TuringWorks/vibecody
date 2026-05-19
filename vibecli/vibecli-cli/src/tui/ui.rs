@@ -154,8 +154,9 @@ fn draw_file_tree(f: &mut Frame, app: &App, area: Rect) {
 fn draw_goals(f: &mut Frame, app: &App, area: Rect) {
     let t = &app.theme;
     let title = format!(
-        " Goals — filter: {} ({} shown) — f: cycle filter, r: refresh, ESC: back ",
+        " Goals — filter: {} · view: {} ({} shown) — f: filter, t: tree, r: refresh, ESC: back ",
         app.goals.status_filter.label(),
+        app.goals.view_mode.label(),
         app.goals.items.len(),
     );
     let block = Block::default().borders(Borders::ALL).title(title);
@@ -198,8 +199,11 @@ fn draw_goals(f: &mut Frame, app: &App, area: Rect) {
         } else {
             Style::default().fg(t.text)
         };
+        // G11.1 — tree mode indents children under parents. depth=0
+        // produces no indent so list mode renders unchanged.
+        let indent = "  ".repeat(row.depth as usize);
         let prefix_spans = vec![
-            Span::styled(format!("{short_id} "), Style::default().fg(t.dim)),
+            Span::styled(format!("{indent}{short_id} "), Style::default().fg(t.dim)),
             Span::styled(
                 format!("[{}] ", row.status),
                 Style::default().fg(status_color),
