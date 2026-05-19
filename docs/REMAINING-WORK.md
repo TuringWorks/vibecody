@@ -4,7 +4,7 @@
 > Items are ordered by priority (P0 first) then by effort.
 > For the phase-by-phase ledger see [ROADMAP.md](./ROADMAP.md) (especially Appendices D + E). For competitive analysis see [FIT-GAP-ANALYSIS.md](./FIT-GAP-ANALYSIS.md).
 >
-> Last verified: 2026-05-19
+> Last verified: 2026-05-19 (VS Code hook parity closed)
 
 ---
 
@@ -79,7 +79,7 @@ No P0 items. **A1 MCP Apps React host closed 2026-05-19**; **B2 plugin bundle fo
 ### 9. VS Code Extension Full Compatibility
 
 - **Source**: ROADMAP v4, FIT-GAP v6
-- **Current State**: `extension_compat.rs` covers high-value subset of VS Code extensions.
+- **Current State**: `extension_compat.rs` covers high-value subset of VS Code extensions. **VS Code hook protocol parity shipped 2026-05-19** (`aeae6c83`) — `vscode-extension/src/hook-executor.ts` mirrors `vibecli-cli/src/hook_abort.rs` and JetBrains `HookExecutor` exactly, `UserPromptSubmit` gated at `startAgent` / `chat` / `inlineEdit` / `sendSelection` / chat-webview entry points, `vibecli.hooks` in the configuration schema.
 - **Effort**: Very high (ongoing, diminishing returns)
 - **Decision**: Partial coverage is sufficient for most use cases; not pursuing full parity.
 
