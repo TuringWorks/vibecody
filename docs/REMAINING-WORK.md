@@ -86,9 +86,9 @@ No P0 items. **A1 MCP Apps React host closed 2026-05-19**; **B2 plugin bundle fo
 ### 10. JetBrains Agent Hooks Deep Integration
 
 - **Source**: FIT-GAP v5
-- **Current State**: JetBrains plugin exists; agent hooks (pre/post-tool-use) are not deeply integrated.
-- **What's Needed**: Hook system parity with CLI/Tauri in JetBrains.
-- **Effort**: Medium (~2 weeks plugin extension)
+- **Current State**: **Foundation shipped 2026-05-19** (`7709bc0b` + `1ebe79c4`). `HookExecutor` service mirrors the CLI hook protocol (`hook_abort.rs`): subprocess invocation, exit-code semantics (0 allow / 2 block), structured JSON-decision stdout override, 30 s timeout, multi-hook chains. Settings table under IDE Settings → Tools → VibeCLI with Name / Event / Command / Enabled columns. `UserPromptSubmit` wired into `AgentPanel.startAgent` as the meaningful gate event — BLOCK prevents the agent from starting and surfaces the hook reason. The seven event kinds match `plugin_manifest::ALLOWED_HOOK_EVENTS`.
+- **What's Needed**: Advisory firings for SSE-arriving events (`PreToolUse` / `PostToolUse` / `Stop` / `Notification`), `InlineEditAction` integration, optional per-project scoping (currently APP-level), and JUnit test harness for the executor. None of these are blocking; the foundation is usable today for users who want to gate task submissions.
+- **Effort**: Remaining work is ~1 wk of plugin polish + targeted edits per call site.
 
 ---
 
