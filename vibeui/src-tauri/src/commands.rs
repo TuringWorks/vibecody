@@ -32940,16 +32940,20 @@ fn setter_for(is_admin: bool) -> PolicySetter {
 /// Install a signed MCPB bundle from a local file path. Returns the
 /// installed-plugin DTO. Re-install of an existing plugin requires
 /// `force=true`; a Required pin survives the re-install.
+///
+/// Both `workspace_path` and `bundle_path` are gated through
+/// `reject_sensitive_path` (DREAD #2) so a webview can't redirect
+/// the install dir or the source bundle into a credential directory.
 #[tauri::command]
 pub async fn plugin_install_from_file(
     workspace_path: String,
     bundle_path: String,
     force: bool,
 ) -> Result<serde_json::Value, String> {
-    let workspace = std::path::Path::new(&workspace_path);
-    let store = WorkspaceStore::open(workspace)?;
-    let bundle = std::path::Path::new(&bundle_path);
-    let installed = plugin_install::install_from_file(workspace, &store, bundle, force)
+    let workspace = reject_sensitive_path(&workspace_path)?;
+    let bundle = reject_sensitive_path(&bundle_path)?;
+    let store = WorkspaceStore::open(&workspace)?;
+    let installed = plugin_install::install_from_file(&workspace, &store, &bundle, force)
         .map_err(|e| e.to_string())?;
     Ok(installed_plugin_to_json(&installed))
 }
@@ -32961,9 +32965,9 @@ pub async fn plugin_install_from_file(
 pub async fn plugin_list_installed(
     workspace_path: String,
 ) -> Result<serde_json::Value, String> {
-    let workspace = std::path::Path::new(&workspace_path);
-    let store = WorkspaceStore::open(workspace)?;
-    let list = plugin_install::list_installed(workspace, &store).map_err(|e| e.to_string())?;
+    let workspace = reject_sensitive_path(&workspace_path)?;
+    let store = WorkspaceStore::open(&workspace)?;
+    let list = plugin_install::list_installed(&workspace, &store).map_err(|e| e.to_string())?;
     Ok(serde_json::Value::Array(
         list.iter().map(installed_plugin_to_json).collect(),
     ))
@@ -32978,9 +32982,9 @@ pub async fn plugin_uninstall(
     name: String,
     is_admin: bool,
 ) -> Result<bool, String> {
-    let workspace = std::path::Path::new(&workspace_path);
-    let store = WorkspaceStore::open(workspace)?;
-    plugin_install::uninstall(workspace, &store, &name, setter_for(is_admin))
+    let workspace = reject_sensitive_path(&workspace_path)?;
+    let store = WorkspaceStore::open(&workspace)?;
+    plugin_install::uninstall(&workspace, &store, &name, setter_for(is_admin))
         .map_err(|e| e.to_string())
 }
 
@@ -32991,8 +32995,8 @@ pub async fn plugin_get_policy(
     workspace_path: String,
     name: String,
 ) -> Result<serde_json::Value, String> {
-    let workspace = std::path::Path::new(&workspace_path);
-    let store = WorkspaceStore::open(workspace)?;
+    let workspace = reject_sensitive_path(&workspace_path)?;
+    let store = WorkspaceStore::open(&workspace)?;
     let entry = store.get_plugin_policy(&name).map_err(|e| e.to_string())?;
     Ok(match entry {
         None => serde_json::Value::Null,
@@ -33024,8 +33028,8 @@ pub async fn plugin_set_policy(
     policy: String,
     is_admin: bool,
 ) -> Result<serde_json::Value, String> {
-    let workspace = std::path::Path::new(&workspace_path);
-    let store = WorkspaceStore::open(workspace)?;
+    let workspace = reject_sensitive_path(&workspace_path)?;
+    let store = WorkspaceStore::open(&workspace)?;
     let entry = store
         .set_plugin_policy(&name, parse_policy(&policy)?, setter_for(is_admin))
         .map_err(|e| e.to_string())?;

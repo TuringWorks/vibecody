@@ -1139,6 +1139,12 @@ pub fn run() {
             commands::workspace_secret_get,
             commands::workspace_secret_delete,
             commands::workspace_secret_list,
+            // B2.6 — Plugin Governance (signed MCPB bundles)
+            commands::plugin_install_from_file,
+            commands::plugin_list_installed,
+            commands::plugin_uninstall,
+            commands::plugin_get_policy,
+            commands::plugin_set_policy,
             // VibeMemory — Per-Project and Global SQLite Vector Memory
             commands::vibememory_store,
             commands::vibememory_search,
