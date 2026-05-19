@@ -1834,6 +1834,11 @@ pub async fn add_workspace_folder(
     path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
+    // DREAD #2 — refuse to set a credential dir as the active
+    // workspace. Every downstream panel reads files relative to this
+    // root, so accepting `~/.aws` would expose credentials to every
+    // tool-call surface.
+    let _ = reject_sensitive_path(&path)?;
     // Validate before mutating state — a non-existent or
     // non-directory path stored as the active workspace breaks every
     // panel that reads it. Easier to refuse here than to recover later.
@@ -1929,6 +1934,10 @@ pub async fn open_file_in_workspace(
     path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
+    // DREAD #2 — refuse to open credential files into a workspace
+    // buffer. The buffer is reachable from every subsequent
+    // `read_file` / `save_file` Tauri command.
+    let _ = reject_sensitive_path(&path)?;
     let mut workspace = state.workspace.lock().await;
     let buffer = workspace
         .open_file(PathBuf::from(path))
@@ -2254,6 +2263,8 @@ pub async fn git_commit(
     author_name: Option<String>,
     author_email: Option<String>,
 ) -> Result<(), String> {
+    // DREAD #2 — refuse git ops in credential dirs.
+    let _ = reject_sensitive_path(&path)?;
     vibe_core::git::commit(
         &PathBuf::from(path),
         &message,
@@ -2270,6 +2281,7 @@ pub async fn git_push(
     remote: String,
     branch: String,
 ) -> Result<(), String> {
+    let _ = reject_sensitive_path(&path)?;
     vibe_core::git::push(&PathBuf::from(path), &remote, &branch)
         .map_err(|e| e.to_string())
 }
@@ -2280,6 +2292,7 @@ pub async fn git_pull(
     remote: String,
     branch: String,
 ) -> Result<(), String> {
+    let _ = reject_sensitive_path(&path)?;
     vibe_core::git::pull(&PathBuf::from(path), &remote, &branch)
         .map_err(|e| e.to_string())
 }
@@ -2289,6 +2302,7 @@ pub async fn git_diff(
     path: String,
     file_path: String,
 ) -> Result<String, String> {
+    let _ = reject_sensitive_path(&path)?;
     vibe_core::git::get_diff(&PathBuf::from(path), &file_path)
         .map_err(|e| e.to_string())
 }
@@ -4239,6 +4253,7 @@ pub async fn git_stash_create(
     name: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> {
+    let _ = reject_sensitive_path(&path)?;
     let workspace = state.workspace.lock().await;
     let root = workspace.folders().first().cloned().unwrap_or_else(|| PathBuf::from(&path));
     drop(workspace);
@@ -4251,6 +4266,7 @@ pub async fn git_stash_pop(
     path: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
+    let _ = reject_sensitive_path(&path)?;
     let workspace = state.workspace.lock().await;
     let root = workspace.folders().first().cloned().unwrap_or_else(|| PathBuf::from(&path));
     drop(workspace);
@@ -4266,6 +4282,10 @@ pub async fn lsp_did_open(
     text: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
+    // DREAD #2 — refuse to spawn an LSP server rooted in a
+    // credential dir. The server would otherwise index `.ssh` /
+    // `.aws` etc. and surface contents back to the WebView.
+    let _ = reject_sensitive_path(&root_path)?;
     use lsp_types::{DidOpenTextDocumentParams, TextDocumentItem};
     let mut manager = state.lsp_manager.lock().await;
     let client = manager
@@ -4296,6 +4316,7 @@ pub async fn lsp_did_change(
     version: i32,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
+    let _ = reject_sensitive_path(&root_path)?;
     use lsp_types::{DidChangeTextDocumentParams, VersionedTextDocumentIdentifier, TextDocumentContentChangeEvent};
     let mut manager = state.lsp_manager.lock().await;
     let client = manager
@@ -4324,6 +4345,7 @@ pub async fn lsp_did_save(
     uri: String,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
+    let _ = reject_sensitive_path(&root_path)?;
     use lsp_types::{DidSaveTextDocumentParams, TextDocumentIdentifier};
     let mut manager = state.lsp_manager.lock().await;
     let client = manager
@@ -7811,6 +7833,11 @@ pub async fn get_session_detail(
     workspace: String,
     session_id: String,
 ) -> Result<Vec<SessionMessage>, String> {
+    // DREAD #2 — `vibecli_trace_dir` is `workspace.join(".vibecli/trace")`,
+    // and `.vibecli` is itself on the deny-list (catches a literal
+    // `~/.vibecli` workspace). Still cheap to apply the gate up
+    // front for symmetry with the other workspace handlers.
+    let _ = reject_sensitive_path(&workspace)?;
     let dir = vibecli_trace_dir(&workspace);
     // Prefer messages sidecar
     let messages_path = dir.join(format!("{}-messages.json", session_id));
@@ -7866,6 +7893,7 @@ pub async fn delete_session(
     workspace: String,
     session_id: String,
 ) -> Result<(), String> {
+    let _ = reject_sensitive_path(&workspace)?;
     let dir = vibecli_trace_dir(&workspace);
     // Prevent path traversal
     if session_id.contains("..") || session_id.contains('/') || session_id.contains('\\') {
@@ -7903,6 +7931,7 @@ pub async fn fork_session(
     workspace: String,
     session_id: String,
 ) -> Result<String, String> {
+    let _ = reject_sensitive_path(&workspace)?;
     if session_id.contains("..") || session_id.contains('/') || session_id.contains('\\') {
         return Err("Invalid session ID".to_string());
     }
@@ -8253,6 +8282,10 @@ pub async fn run_code_review(
     target_ref: Option<String>,
     provider: Option<String>,
 ) -> Result<serde_json::Value, String> {
+    // DREAD #2 — code review spawns git + ships the diff into the
+    // LLM. Refuse to feed a credential dir's history into a remote
+    // provider.
+    let _ = reject_sensitive_path(&workspace_path)?;
     let workspace = PathBuf::from(&workspace_path);
 
     // Get git diff
@@ -10344,13 +10377,17 @@ pub async fn import_figma(
         });
 
     // Optionally write files to workspace
-    for file in &files {
-        if let (Some(path), Some(content)) = (file["path"].as_str(), file["content"].as_str()) {
-            let full_path = std::path::Path::new(&workspace_path).join(path);
-            if let Some(parent) = full_path.parent() {
-                let _ = std::fs::create_dir_all(parent);
+    if !workspace_path.is_empty() {
+        // DREAD #2 — refuse Figma import into a credential dir.
+        let _ = reject_sensitive_path(&workspace_path)?;
+        for file in &files {
+            if let (Some(path), Some(content)) = (file["path"].as_str(), file["content"].as_str()) {
+                let full_path = std::path::Path::new(&workspace_path).join(path);
+                if let Some(parent) = full_path.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+                let _ = std::fs::write(&full_path, content);
             }
-            let _ = std::fs::write(&full_path, content);
         }
     }
 
@@ -10585,6 +10622,12 @@ pub async fn run_deploy(
     };
 
     let _ = app_handle.emit("deploy:log", format!("Running: {}", deploy_cmd));
+
+    // DREAD #2 — refuse to spawn `sh -c <deploy cmd>` with cwd in a
+    // credential dir; the AWS / GCP / Firebase CLIs all read
+    // credentials relative to the process's HOME and current dir, and
+    // running them inside `~/.aws` would pick up unintended secrets.
+    let _ = reject_sensitive_path(&workspace)?;
 
     let output = std::process::Command::new("sh")
         .arg("-c")
@@ -12154,6 +12197,10 @@ pub async fn write_auth_scaffold(
     code: String,
     framework: String,
 ) -> Result<(), String> {
+    // DREAD #2 — workspace-bounded resolution below guards against `..`
+    // traversal *inside* the workspace, but not against a workspace root
+    // that's itself a credential dir.
+    let _ = reject_sensitive_path(&workspace_path)?;
     let workspace_root = std::fs::canonicalize(&workspace_path)
         .map_err(|e| format!("Invalid workspace path: {}", e))?;
     let dir = workspace_root.join(&target_path);
@@ -12572,6 +12619,9 @@ pub async fn run_bugbot(
     model: Option<String>,
     state: tauri::State<'_, AppState>,
 ) -> Result<Vec<BugReport>, String> {
+    // DREAD #2 — bugbot walks the workspace and ships source into an
+    // LLM. Refuse credential dirs.
+    let _ = reject_sensitive_path(&workspace_path)?;
     // Collect files to scan
     let root = std::path::PathBuf::from(&workspace_path);
     let mut code_snippets: Vec<(String, String)> = Vec::new(); // (path, snippet)
@@ -13274,6 +13324,10 @@ pub async fn run_coverage(
     workspace: String,
     tool: String,
 ) -> Result<CoverageResult, String> {
+    // DREAD #2 — coverage tools spawn child processes with cwd =
+    // workspace and may pick up tool-specific config files from
+    // there. Refuse to run inside a credential dir.
+    let _ = reject_sensitive_path(&workspace)?;
     let ws = PathBuf::from(&workspace);
     let (prog, args): (&str, &[&str]) = match tool.as_str() {
         "cargo-llvm-cov" => ("cargo", &["llvm-cov", "--lcov", "--output-path", "coverage.lcov"]),
@@ -16798,6 +16852,9 @@ pub async fn generate_cicd_config(
     platform: String,
     build_type: String,
 ) -> Result<String, String> {
+    // DREAD #2 — refuse to scaffold `.gitlab-ci.yml` / `.github/...`
+    // into a credential dir.
+    let _ = reject_sensitive_path(&workspace)?;
     let content = build_cicd_template(&platform, &build_type);
     let (dir, filename) = cicd_output_path(&platform);
     let output_path = std::path::Path::new(&workspace).join(dir).join(filename);
@@ -16815,6 +16872,9 @@ pub async fn generate_release_workflow(
     build_type: String,
     targets: Vec<String>,
 ) -> Result<String, String> {
+    // DREAD #2 — refuse to write `.github/workflows/release.yml`
+    // into a credential dir.
+    let _ = reject_sensitive_path(&workspace)?;
     let matrix_entries: Vec<String> = targets.iter().map(|t| {
         let (os, target_triple, artifact) = match t.as_str() {
             "linux-x64"   => ("ubuntu-latest",  "x86_64-unknown-linux-musl",   "app-linux-x64"),
@@ -18089,6 +18149,11 @@ pub async fn read_env_file(
     filename: String,
     reveal: Option<bool>,
 ) -> Result<Vec<EnvEntry>, String> {
+    // DREAD #2 — deny-list the workspace root first; the existing
+    // workspace-bounded check below catches `..` traversal inside
+    // the workspace but NOT a workspace whose root is itself a
+    // credential dir (e.g. `~/.aws` — every `.env` inside passes).
+    let _ = reject_sensitive_path(&workspace)?;
     let path = std::path::PathBuf::from(&workspace).join(&filename);
     if !path.is_file() {
         return Ok(Vec::new());
@@ -18101,6 +18166,9 @@ pub async fn read_env_file(
     if !canonical.starts_with(&ws_canonical) {
         return Err("Path traversal not allowed".to_string());
     }
+    // Also deny-list the canonical file path so a workspace-relative
+    // symlink that points at `.ssh/id_rsa` is refused.
+    let _ = reject_sensitive_path(&canonical.to_string_lossy())?;
     let content = std::fs::read_to_string(&canonical).map_err(|e| e.to_string())?;
     Ok(parse_env_content(&content, reveal.unwrap_or(false)))
 }
@@ -18112,6 +18180,8 @@ pub async fn save_env_file(
     filename: String,
     entries: Vec<EnvEntry>,
 ) -> Result<(), String> {
+    // DREAD #2 — refuse `.env`-style writes into a credential dir.
+    let _ = reject_sensitive_path(&workspace)?;
     let path = std::path::PathBuf::from(&workspace).join(&filename);
     // Prevent path traversal
     let ws_canonical = std::path::PathBuf::from(&workspace)
@@ -18186,6 +18256,8 @@ pub async fn delete_env_var(
     filename: String,
     key: String,
 ) -> Result<(), String> {
+    // DREAD #2 — refuse env-edits in credential dirs.
+    let _ = reject_sensitive_path(&workspace)?;
     let path = std::path::PathBuf::from(&workspace).join(&filename);
     if !path.is_file() {
         return Err(format!("File not found: {}", filename));
@@ -18234,6 +18306,9 @@ pub async fn set_active_environment(
     workspace: String,
     environment: String,
 ) -> Result<(), String> {
+    // DREAD #2 — refuse to write `.vibeui/active-env.txt` into a
+    // credential dir.
+    let _ = reject_sensitive_path(&workspace)?;
     let vibeui_dir = std::path::PathBuf::from(&workspace).join(".vibeui");
     std::fs::create_dir_all(&vibeui_dir).map_err(|e| e.to_string())?;
     let path = vibeui_dir.join("active-env.txt");
@@ -18358,6 +18433,9 @@ pub async fn run_profiler(
     tool: String,
     target: Option<String>,
 ) -> Result<ProfileResult, String> {
+    // DREAD #2 — profilers spawn child processes with cwd = workspace
+    // and write flamegraph/perf data into it. Refuse credential dirs.
+    let _ = reject_sensitive_path(&workspace)?;
     let ws = std::path::PathBuf::from(&workspace);
     let target_str = target.unwrap_or_default();
     let start = std::time::Instant::now();
@@ -18674,6 +18752,10 @@ pub async fn docker_compose_action(
         return Err(format!("Unknown compose action: {action}"));
     }
 
+    // DREAD #2 — refuse to spawn docker-compose inside a credential
+    // dir; the compose file there could mount the directory into
+    // containers, exfiltrating its contents.
+    let _ = reject_sensitive_path(&workspace)?;
     let ws = std::path::PathBuf::from(&workspace);
 
     // Detect compose file
@@ -19169,6 +19251,10 @@ pub async fn run_migration_action(
     action: String,
     extra: Option<String>,
 ) -> Result<String, String> {
+    // DREAD #2 — migrations spawn child processes that read DB
+    // connection strings from `.env` / `prisma/schema.prisma` etc.
+    // relative to the cwd. Refuse credential dirs.
+    let _ = reject_sensitive_path(&workspace)?;
     let ws = std::path::PathBuf::from(&workspace);
 
     const ALLOWED_ACTIONS: &[&str] = &["migrate", "rollback", "generate", "status", "reset"];
@@ -19368,6 +19454,11 @@ pub async fn tail_log_file(
             + &String::from_utf8_lossy(&out.stderr);
         text.lines().map(|l| l.to_string()).collect()
     } else {
+        // DREAD #2 — refuse to tail logs from credential dirs.
+        let _ = reject_sensitive_path(&workspace)
+            .map_err(|e| format!("Invalid workspace: {e}"))?;
+        let _ = reject_sensitive_path(&source)
+            .map_err(|e| format!("Invalid source: {e}"))?;
         let ws = std::path::Path::new(&workspace).canonicalize()
             .map_err(|e| format!("Invalid workspace: {e}"))?;
         let file_path = std::path::Path::new(&source).canonicalize()
@@ -19787,6 +19878,10 @@ pub async fn execute_notebook_cell(
     if code.trim().is_empty() {
         return Err("Empty cell".to_string());
     }
+
+    // DREAD #2 — notebook spawns a child interpreter with cwd =
+    // workspace; refuse credential dirs.
+    let _ = reject_sensitive_path(&workspace)?;
 
     let tmp_dir = std::env::temp_dir().join(format!("vibe-notebook-{}", std::process::id()));
     tokio::fs::create_dir_all(&tmp_dir).await.map_err(|e| format!("Temp dir: {e}"))?;
@@ -20641,6 +20736,9 @@ pub async fn generate_mocks_from_spec(
     state: tauri::State<'_, AppState>,
     spec_path: String,
 ) -> Result<Vec<MockRoute>, String> {
+    // DREAD #2 — refuse to ship a credential file into the LLM
+    // prompt under the guise of an OpenAPI spec.
+    let _ = reject_sensitive_path(&spec_path)?;
     let content = tokio::fs::read_to_string(&spec_path)
         .await
         .map_err(|e| format!("Failed to read spec: {e}"))?;
@@ -23375,7 +23473,11 @@ app.listen(3000, () => console.log("Server on http://localhost:3000"));
 
     // Write files to output_dir if it is non-empty
     if !output_dir.is_empty() {
-        let root = std::path::PathBuf::from(&output_dir);
+        // DREAD #2 — refuse to scaffold into a credential dir. Without
+        // this gate, a webview caller could pick `output_dir =
+        // "~/.aws"` and (because scaffold filenames are template-
+        // driven, not caller-driven) trample `~/.aws/credentials`.
+        let root = reject_sensitive_path(&output_dir)?;
         for f in &result.files {
             let dest = root.join(&f.path);
             if let Some(parent) = dest.parent() {
@@ -25955,11 +26057,11 @@ pub async fn cloud_provider_scan(workspace: String) -> Result<serde_json::Value,
     let mut seen_global: std::collections::HashMap<(String, String), usize> = std::collections::HashMap::new();
     let scan_extensions = ["rs", "ts", "tsx", "js", "jsx", "py", "go", "java", "toml", "json", "yaml", "yml"];
     let mut files = Vec::new();
-    walk_dir_for_cloud_scan(ws_path, &scan_extensions, 500, &mut files);
+    walk_dir_for_cloud_scan(&ws_path, &scan_extensions, 500, &mut files);
     for file_path in &files {
         let content = match std::fs::read_to_string(file_path) { Ok(c) => c, Err(_) => continue };
         let content_slice = if content.len() > 10240 { &content[..10240] } else { &content };
-        let relative = file_path.strip_prefix(ws_path).unwrap_or(file_path).to_string_lossy().to_string();
+        let relative = file_path.strip_prefix(&ws_path).unwrap_or(file_path).to_string_lossy().to_string();
         let file_services = scan_file_for_cloud_services(content_slice, &relative, &patterns);
         for svc in file_services {
             let key = (svc["provider"].as_str().unwrap_or("").to_string(), svc["service"].as_str().unwrap_or("").to_string());
@@ -32954,6 +33056,25 @@ pub async fn plugin_install_from_file(
     let bundle = reject_sensitive_path(&bundle_path)?;
     let store = WorkspaceStore::open(&workspace)?;
     let installed = plugin_install::install_from_file(&workspace, &store, &bundle, force)
+        .map_err(|e| e.to_string())?;
+    Ok(installed_plugin_to_json(&installed))
+}
+
+/// B2.12 — install a signed MCPB bundle from an HTTPS URL.
+///
+/// Thin wrapper over `plugin_install::install_from_url`. The workspace
+/// path is sensitive-path-gated; the URL itself must be `https://`
+/// (validated inside the install function — TLS keeps the first
+/// install honest even before the P-256 publisher signature verifies).
+#[tauri::command]
+pub async fn plugin_install_from_url(
+    workspace_path: String,
+    url: String,
+    force: bool,
+) -> Result<serde_json::Value, String> {
+    let workspace = reject_sensitive_path(&workspace_path)?;
+    let store = WorkspaceStore::open(&workspace)?;
+    let installed = plugin_install::install_from_url(&workspace, &store, &url, force)
         .map_err(|e| e.to_string())?;
     Ok(installed_plugin_to_json(&installed))
 }
@@ -48350,6 +48471,9 @@ pub async fn get_drawio_template(template_id: String, workspace_path: String) ->
 /// Save draw.io XML to a file in the workspace.
 #[tauri::command]
 pub async fn save_drawio_file(xml: String, workspace_path: String) -> Result<(), String> {
+    // DREAD #2 — refuse to scaffold `diagrams/diagram.drawio` into
+    // a credential dir.
+    let _ = reject_sensitive_path(&workspace_path)?;
     let path = std::path::Path::new(&workspace_path).join("diagrams").join("diagram.drawio");
     if let Some(parent) = path.parent() { std::fs::create_dir_all(parent).map_err(|e| e.to_string())?; }
     std::fs::write(&path, xml).map_err(|e| e.to_string())
@@ -48512,6 +48636,8 @@ pub async fn generate_diagram(
 /// Save a generated diagram file to the workspace.
 #[tauri::command]
 pub async fn save_diagram_file(content: String, filename: String, workspace_path: String) -> Result<(), String> {
+    // DREAD #2 — refuse to write a diagram into a credential dir.
+    let _ = reject_sensitive_path(&workspace_path)?;
     let path = std::path::Path::new(&workspace_path).join("diagrams").join(&filename);
     if let Some(parent) = path.parent() { std::fs::create_dir_all(parent).map_err(|e| e.to_string())?; }
     std::fs::write(path, content).map_err(|e| e.to_string())
