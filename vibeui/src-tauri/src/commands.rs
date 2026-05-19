@@ -50212,8 +50212,14 @@ pub async fn security_posture_scan(
         use vibecli_cli::security_posture_adapters::{
             HealthScannerAdapter, VulnerabilityScannerAdapter,
         };
+        use vibecli_cli::security_posture_license::LicenseClashScanner;
+        use vibecli_cli::security_posture_secrets::SecretLeakScanner;
+        use vibecli_cli::security_posture_taint::TaintScanner;
         let scanners: Vec<Box<dyn Scanner>> = vec![
             Box::new(VulnerabilityScannerAdapter),
+            Box::new(SecretLeakScanner),
+            Box::new(LicenseClashScanner),
+            Box::new(TaintScanner),    // stub — full tree-sitter impl in next slice
             Box::new(HealthScannerAdapter),
         ];
         run_all_scanners(&workspace_for_scan, &scanners)

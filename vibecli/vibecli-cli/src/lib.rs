@@ -296,7 +296,10 @@ pub mod path_guard;
 // `docs/design/security-posture/`.
 pub mod security_posture;
 pub mod security_posture_adapters;
+pub mod security_posture_license;
+pub mod security_posture_secrets;
 pub mod security_posture_store;
+pub mod security_posture_taint;
 pub mod event_bus;
 pub mod pod_manager;
 // Tailscale + ngrok connectivity (exposed for BDD test harnesses)

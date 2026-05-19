@@ -279,12 +279,13 @@ fields, not from a `Display` impl.
 
 | Slice | Scope | Status |
 |---|---|---|
-| Foundation | Design doc, finding shape, scanner trait, aggregator skeleton, persistence | in flight 2026-05-18 |
-| Adapters | vulnerability_db, sonar_rules, health_score wrapped as Scanner impls | in flight 2026-05-18 |
-| Panel | `SecurityPosturePanel.tsx` skeleton + first wired scanner | in flight 2026-05-18 |
-| Goal bridge | `security_posture_create_goal` ↔ Goals system | next session |
-| Secret-leak scanner | regex set + entropy heuristic | next session |
-| License clash scanner | dependency parsing + classify_license bridge | next session |
-| TS / Python taint scanner | tree-sitter intra-procedural source→sink | next session |
+| Foundation | Design doc, finding shape, scanner trait, aggregator skeleton, persistence | ✅ shipped 2026-05-18 |
+| Adapters | vulnerability_db + health_score wrapped as Scanner impls (sonar adapter deferred — sonar_rules lives Tauri-side, needs promotion to vibe-core first) | ✅ shipped 2026-05-18 |
+| Panel | `SecurityPosturePanel.tsx` — two-pane layout, severity-grouped feed, filters, detail pane, suppress / unsuppress / create-goal action wiring | ✅ shipped 2026-05-18 |
+| Secret-leak scanner | 30+ regex rules (AWS, GH, OpenAI, Anthropic, Slack, Stripe, GCP, Cloudflare, Twilio, SendGrid, Mailgun, npm, PyPI, Azure, JWT, private keys, hardcoded passwords) + redaction (`KeepPrefix` / `KeepIssuerPrefix` / `Hidden`) + dedup + `// nosecpost:` inline opt-out + test-fixture skip + 17 unit tests | ✅ shipped 2026-05-18 |
+| License clash scanner | Manifest license parsing (Cargo / package.json / pyproject) + direct-dep walk + clash rules over `classify_license` (Permissive+GPL = Critical, AGPL = High always, Unknown = High, missing project license = skip) + 11 unit tests | ✅ shipped 2026-05-18 |
+| TS / Python taint scanner | Module + Scanner trait impl shipped as fail-safe stub (returns empty findings); tree-sitter intra-procedural source→sink algorithm sketched in `scanners.md` §6 | 🟡 stub shipped 2026-05-18; real impl next slice |
+| Goal bridge | `security_posture_create_goal` ↔ Goals system | 🟡 stub returning NotImplemented shipped; full wiring next slice |
+| Sonar adapter | Promote `sonar_rules` from `vibeui/src-tauri/src/` to `vibe-core` and wrap as a Scanner impl | next slice |
 
 Promotion gates between slices are tracked in `scanners.md`.
