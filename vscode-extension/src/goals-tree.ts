@@ -29,9 +29,14 @@ const STATUS_ICON: Record<ExecGoalSummary['status'], string> = {
 };
 
 export class GoalTreeItem extends vscode.TreeItem {
-  constructor(public readonly goal: ExecGoalSummary) {
+  constructor(public readonly goal: ExecGoalSummary, pinned: boolean = false) {
+    // G13.1 — prefix the title with ★ when the goal is the current pin
+    // (in this workspace or the global slot), matching VibeUI / Watch /
+    // Wear / Mobile / TUI. Pin marker comes before the status glyph so
+    // it's the first thing the eye lands on.
+    const star = pinned ? '★ ' : '';
     super(
-      `${STATUS_ICON[goal.status] ?? '·'} ${goal.title}`,
+      `${star}${STATUS_ICON[goal.status] ?? '·'} ${goal.title}`,
       vscode.TreeItemCollapsibleState.Collapsed,
     );
     this.id = goal.id;
@@ -40,8 +45,10 @@ export class GoalTreeItem extends vscode.TreeItem {
       ? `${goal.title}\n\n${goal.statement}`
       : goal.title;
     // contextValue gates the per-row context-menu entries in package.json
-    // (`view/item/context` → `when: viewItem == vibecliGoal`).
-    this.contextValue = 'vibecliGoal';
+    // (`view/item/context` → `when: viewItem == vibecliGoal`). Pinned
+    // rows get a distinct value so package.json can hide "Pin" and
+    // show "Unpin" if we add those menu entries later.
+    this.contextValue = pinned ? 'vibecliGoalPinned' : 'vibecliGoal';
   }
 }
 
@@ -62,6 +69,9 @@ export class GoalsTreeProvider implements vscode.TreeDataProvider<GoalTreeItem> 
   }
 
   async getChildren(element?: GoalTreeItem): Promise<GoalTreeItem[]> {
+    // G13.1 — fetch the pin set once per refresh and pass it into both
+    // the roots and the children branches so ★ shows up at every depth.
+    const pinned = new Set(await this.fetchPinnedIds());
     if (!element) {
       // Top-level: all goals, filtered to roots client-side. The
       // daemon's GET /v1/goals doesn't have a `parent_goal_id IS NULL`
@@ -74,17 +84,27 @@ export class GoalsTreeProvider implements vscode.TreeDataProvider<GoalTreeItem> 
           .parent_goal_id;
         return !parent || !ids.has(parent);
       });
-      // Sort: active first, then by updated_at desc.
+      // Sort: pinned first, then active, then by updated_at desc. ★
+      // lives at the top of the tree to match the "what am I working
+      // on now" framing the watch tile uses.
       roots.sort((a, b) => {
+        const ap = pinned.has(a.id) ? 1 : 0;
+        const bp = pinned.has(b.id) ? 1 : 0;
+        if (ap !== bp) return bp - ap;
         if (a.status !== b.status) {
           return a.status === 'active' ? -1 : b.status === 'active' ? 1 : 0;
         }
         return (b.updated_at ?? '').localeCompare(a.updated_at ?? '');
       });
-      return roots.map((g) => new GoalTreeItem(g));
+      return roots.map((g) => new GoalTreeItem(g, pinned.has(g.id)));
     }
     const kids = await this.fetchChildren(element.goal.id);
-    return kids.map((g) => new GoalTreeItem(g));
+    return kids.map((g) => new GoalTreeItem(g, pinned.has(g.id)));
+  }
+
+  private async fetchPinnedIds(): Promise<string[]> {
+    const ws = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    return this.client.getPinnedGoalIds(ws);
   }
 
   private async fetchChildren(parentId: string): Promise<ExecGoalSummary[]> {

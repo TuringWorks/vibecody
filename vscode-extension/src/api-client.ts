@@ -164,6 +164,30 @@ export class VibeCLIClient {
     return (await res.json()) as ExecGoalSummary;
   }
 
+  /** G13.1 — pinned-goal ids visible from VS Code. Returns the union
+   *  of the global pin and the optional workspace pin so the goals
+   *  tree can ★-mark either case without two round-trips at every
+   *  refresh. Empty list on any failure (keeps the tree quiet). */
+  async getPinnedGoalIds(workspace?: string): Promise<string[]> {
+    const ids = new Set<string>();
+    const fetchOne = async (qs: string) => {
+      try {
+        const res = await fetch(`${this.baseUrl}/v1/goals/current${qs}`);
+        if (!res.ok) return;
+        const data = (await res.json()) as { goal_id?: string | null };
+        if (data.goal_id) ids.add(data.goal_id);
+      } catch {
+        /* silent — empty pin set is the right fallback for the tree */
+      }
+    };
+    // Global pin (workspace=""): the most common case mobile/watch hit.
+    await fetchOne('');
+    if (workspace) {
+      await fetchOne(`?workspace=${encodeURIComponent(workspace)}`);
+    }
+    return [...ids];
+  }
+
   /** Start a new session bound to a goal. Returns the new session id. */
   async startGoal(goalId: string, task?: string): Promise<{ sessionId: string }> {
     const res = await fetch(`${this.baseUrl}/v1/goals/${encodeURIComponent(goalId)}/start`, {
