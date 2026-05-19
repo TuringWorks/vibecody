@@ -37,12 +37,31 @@ pub struct SkillFrontmatter {
     pub category: Option<String>,
 }
 
+/// Where a skill came from. Surfaced in the MCP `list_skills` payload
+/// and the governance UI so the user can tell at a glance whether a
+/// skill is a built-in or an opt-in plugin contribution. Defaults to
+/// `Builtin` so existing callers don't need to change.
+#[derive(Debug, Clone, Serialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case", tag = "kind", content = "plugin")]
+pub enum SkillSource {
+    #[default]
+    Builtin,
+    /// Skill came from a plugin's `vibecli-plugin.toml` `[[components.skills]]`
+    /// entry. The string is the owning plugin's name.
+    Plugin(String),
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Skill {
     pub name: String,
     pub path: PathBuf,
     pub frontmatter: SkillFrontmatter,
     pub body: String,
+    /// B2.7 — provenance. `Builtin` for skills loaded from the
+    /// VibeCody bundled tree, `Plugin(name)` for skills contributed
+    /// by an installed plugin via `vibecli-plugin.toml`.
+    #[serde(default)]
+    pub source: SkillSource,
 }
 
 impl Skill {
@@ -72,11 +91,12 @@ impl SkillCatalog {
 
     /// Load all `*.md` files in `dir` (non-recursive). Files that fail to
     /// parse are skipped — a single bad skill should not poison the rest
-    /// of the catalog.
+    /// of the catalog. Skills loaded this way are tagged
+    /// `SkillSource::Builtin`.
     pub fn load_from(dir: impl AsRef<Path>) -> Result<Self> {
         let dir = dir.as_ref();
-        let entries = std::fs::read_dir(dir)
-            .with_context(|| format!("read_dir {}", dir.display()))?;
+        let entries =
+            std::fs::read_dir(dir).with_context(|| format!("read_dir {}", dir.display()))?;
         let mut skills: Vec<Skill> = Vec::new();
         for entry in entries.flatten() {
             let p = entry.path();
@@ -89,6 +109,61 @@ impl SkillCatalog {
         }
         skills.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(Self { skills })
+    }
+
+    /// B2.7 — load built-in skills from `builtin_dir` AND every skill
+    /// contributed by an installed plugin whose policy is `On` or
+    /// `Required` in the given workspace. Plugin skills carry
+    /// `SkillSource::Plugin(plugin_name)` so the governance UI and MCP
+    /// `list_skills` payload can show provenance.
+    ///
+    /// Failures parsing a plugin skill file are silently skipped —
+    /// same conservatism as the built-in loader. Policy enforcement
+    /// happens in `plugin_runtime::enabled_skills`; this loader trusts
+    /// that whatever it gets back is already permitted.
+    ///
+    /// Name collisions: plugin skills are appended AFTER built-ins,
+    /// so a built-in with the same name as a plugin contribution
+    /// shadows the plugin's. This is deliberate — built-ins should be
+    /// stable while a workspace adds and removes plugins.
+    pub fn load_from_with_plugins(
+        builtin_dir: impl AsRef<Path>,
+        workspace: &Path,
+        store: &crate::workspace_store::WorkspaceStore,
+    ) -> Result<Self> {
+        let mut cat = Self::load_from(builtin_dir)?;
+        let existing_names: std::collections::HashSet<String> =
+            cat.skills.iter().map(|s| s.name.clone()).collect();
+        match crate::plugin_runtime::enabled_skills(workspace, store) {
+            Ok(plugin_skills) => {
+                for c in plugin_skills {
+                    if existing_names.contains(&c.spec.name) {
+                        // Built-in wins; plugin's contribution with the
+                        // same name is silently dropped.
+                        continue;
+                    }
+                    if let Ok(mut s) = parse_skill_file(&c.absolute_path) {
+                        // Use the plugin's declared skill name, not the
+                        // file stem — manifest is authoritative.
+                        s.name = c.spec.name.clone();
+                        // Respect the manifest's category hint when the
+                        // skill file itself doesn't set one.
+                        if s.frontmatter.category.is_none() {
+                            s.frontmatter.category = c.spec.category.clone();
+                        }
+                        s.source = SkillSource::Plugin(c.plugin_name.clone());
+                        cat.skills.push(s);
+                    }
+                }
+            }
+            Err(_) => {
+                // Workspace store unavailable (e.g. no .vibecli/ yet)
+                // is a benign condition — return the built-in catalog
+                // unchanged rather than failing the whole load.
+            }
+        }
+        cat.skills.sort_by(|a, b| a.name.cmp(&b.name));
+        Ok(cat)
     }
 
     pub fn len(&self) -> usize {
@@ -178,6 +253,7 @@ pub fn parse_skill_file(path: &Path) -> Result<Skill> {
         path: path.to_path_buf(),
         frontmatter,
         body: body.trim_start().to_string(),
+        source: SkillSource::default(),
     })
 }
 
@@ -405,5 +481,284 @@ Just markdown body.
         let cat = SkillCatalog::load_from(dir.path()).unwrap();
         let cats = cat.categories();
         assert_eq!(cats, vec!["agent".to_string(), "design".to_string()]);
+    }
+
+    // ── B2.7: plugin-sourced skills ──────────────────────────────────────────
+
+    /// End-to-end: install a signed plugin bundle that ships a single
+    /// skill; load `SkillCatalog` with the workspace + store; confirm
+    /// the plugin's skill appears alongside the built-in and carries
+    /// `SkillSource::Plugin(name)`.
+    ///
+    /// This test exercises the full B2.1–B2.5 stack through the
+    /// public install API, which is the cheapest way to get a real
+    /// `InstalledPlugin` row with a matching on-disk file.
+    #[test]
+    fn load_from_with_plugins_includes_enabled_plugin_skills() {
+        use crate::mcpb_bundle;
+        use crate::plugin_install::install_from_file;
+        use crate::plugin_manifest::{
+            Components, DefaultPolicy, PluginManifest, Publisher, SkillComponent,
+        };
+        use crate::plugin_signing::{sign_manifest, MANIFEST_FILENAME, SIGNATURE_FILENAME};
+        use crate::signed_agent_card::jwk_from_verifying_key;
+        use crate::workspace_store::WorkspaceStore;
+        use p256::ecdsa::SigningKey;
+
+        // Built-in catalog has one skill.
+        let builtin = tempdir().unwrap();
+        write_skill(builtin.path(), "agent-loops", SAMPLE_AGENT);
+
+        // Workspace + store.
+        let ws = tempdir().unwrap();
+        let db = ws.path().join(".vibecli").join("workspace.db");
+        std::fs::create_dir_all(db.parent().unwrap()).unwrap();
+        let store = WorkspaceStore::open_with(&db, [11u8; 32]).unwrap();
+
+        // Build + sign a plugin bundle that ships one skill.
+        let key = SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+        let manifest = PluginManifest {
+            name: "demo".into(),
+            version: "1.0.0".into(),
+            publisher: Publisher {
+                name: "Demo Co".into(),
+                url: None,
+                key: jwk_from_verifying_key(key.verifying_key()),
+            },
+            description: "demo".into(),
+            components: Components {
+                skills: vec![SkillComponent {
+                    name: "demo-skill".into(),
+                    path: "skills/demo.md".into(),
+                    category: Some("demo".into()),
+                }],
+                ..Default::default()
+            },
+            min_vibecli_version: None,
+            default_policy: DefaultPolicy::On,
+        };
+        let sig = sign_manifest(&manifest, &key, "k").unwrap();
+
+        let bundle_src = tempdir().unwrap();
+        // MCPB outer.
+        let outer = mcpb_bundle::BundleManifest {
+            name: "demo".into(),
+            version: "1.0.0".into(),
+            command: "noop".into(),
+            args: vec![],
+            env: Default::default(),
+            description: None,
+        };
+        std::fs::write(
+            bundle_src.path().join("manifest.json"),
+            serde_json::to_string(&outer).unwrap(),
+        )
+        .unwrap();
+        std::fs::write(
+            bundle_src.path().join(MANIFEST_FILENAME),
+            toml::to_string(&manifest).unwrap(),
+        )
+        .unwrap();
+        std::fs::write(
+            bundle_src.path().join(SIGNATURE_FILENAME),
+            serde_json::to_string(&sig).unwrap(),
+        )
+        .unwrap();
+        // The skill file itself, addressed by the manifest.
+        std::fs::create_dir_all(bundle_src.path().join("skills")).unwrap();
+        std::fs::write(
+            bundle_src.path().join("skills/demo.md"),
+            "---\ntriggers: [\"demo\"]\n---\n\n# Demo skill\n\nBody.\n",
+        )
+        .unwrap();
+
+        let bundle_dest = tempdir().unwrap().path().join("demo.mcpb");
+        std::fs::create_dir_all(bundle_dest.parent().unwrap()).unwrap();
+        mcpb_bundle::pack_bundle(bundle_src.path(), &bundle_dest).unwrap();
+
+        install_from_file(ws.path(), &store, &bundle_dest, false).unwrap();
+
+        let cat = SkillCatalog::load_from_with_plugins(builtin.path(), ws.path(), &store).unwrap();
+        assert_eq!(cat.len(), 2, "built-in + plugin skill");
+        let demo = cat.get("demo-skill").expect("plugin skill present");
+        assert_eq!(demo.source, SkillSource::Plugin("demo".into()));
+        assert_eq!(demo.frontmatter.category.as_deref(), Some("demo"));
+
+        let builtin_skill = cat.get("agent-loops").expect("built-in skill present");
+        assert_eq!(builtin_skill.source, SkillSource::Builtin);
+    }
+
+    #[test]
+    fn load_from_with_plugins_skips_off_plugins() {
+        use crate::mcpb_bundle;
+        use crate::plugin_install::install_from_file;
+        use crate::plugin_manifest::{
+            Components, DefaultPolicy, PluginManifest, Publisher, SkillComponent,
+        };
+        use crate::plugin_signing::{sign_manifest, MANIFEST_FILENAME, SIGNATURE_FILENAME};
+        use crate::signed_agent_card::jwk_from_verifying_key;
+        use crate::workspace_store::WorkspaceStore;
+        use p256::ecdsa::SigningKey;
+
+        let builtin = tempdir().unwrap();
+        let ws = tempdir().unwrap();
+        let db = ws.path().join(".vibecli").join("workspace.db");
+        std::fs::create_dir_all(db.parent().unwrap()).unwrap();
+        let store = WorkspaceStore::open_with(&db, [22u8; 32]).unwrap();
+
+        let key = SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+        let manifest = PluginManifest {
+            name: "muted".into(),
+            version: "1.0.0".into(),
+            publisher: Publisher {
+                name: "M".into(),
+                url: None,
+                key: jwk_from_verifying_key(key.verifying_key()),
+            },
+            description: "muted".into(),
+            components: Components {
+                skills: vec![SkillComponent {
+                    name: "muted-skill".into(),
+                    path: "skills/m.md".into(),
+                    category: None,
+                }],
+                ..Default::default()
+            },
+            min_vibecli_version: None,
+            // Default Off — installed but its skill must NOT appear.
+            default_policy: DefaultPolicy::Off,
+        };
+        let sig = sign_manifest(&manifest, &key, "k").unwrap();
+
+        let bundle_src = tempdir().unwrap();
+        let outer = mcpb_bundle::BundleManifest {
+            name: "muted".into(),
+            version: "1.0.0".into(),
+            command: "noop".into(),
+            args: vec![],
+            env: Default::default(),
+            description: None,
+        };
+        std::fs::write(
+            bundle_src.path().join("manifest.json"),
+            serde_json::to_string(&outer).unwrap(),
+        )
+        .unwrap();
+        std::fs::write(
+            bundle_src.path().join(MANIFEST_FILENAME),
+            toml::to_string(&manifest).unwrap(),
+        )
+        .unwrap();
+        std::fs::write(
+            bundle_src.path().join(SIGNATURE_FILENAME),
+            serde_json::to_string(&sig).unwrap(),
+        )
+        .unwrap();
+        std::fs::create_dir_all(bundle_src.path().join("skills")).unwrap();
+        std::fs::write(bundle_src.path().join("skills/m.md"), "# Muted").unwrap();
+
+        let dest_dir = tempdir().unwrap();
+        let bundle_dest = dest_dir.path().join("muted.mcpb");
+        mcpb_bundle::pack_bundle(bundle_src.path(), &bundle_dest).unwrap();
+        install_from_file(ws.path(), &store, &bundle_dest, false).unwrap();
+
+        let cat = SkillCatalog::load_from_with_plugins(builtin.path(), ws.path(), &store).unwrap();
+        assert_eq!(cat.len(), 0, "Off plugin's skill must be filtered out");
+        assert!(cat.get("muted-skill").is_none());
+    }
+
+    #[test]
+    fn load_from_with_plugins_builtin_wins_on_name_collision() {
+        // A built-in `agent-loops` and a plugin contribution named
+        // `agent-loops` collide; the built-in wins.
+        use crate::mcpb_bundle;
+        use crate::plugin_install::install_from_file;
+        use crate::plugin_manifest::{
+            Components, DefaultPolicy, PluginManifest, Publisher, SkillComponent,
+        };
+        use crate::plugin_signing::{sign_manifest, MANIFEST_FILENAME, SIGNATURE_FILENAME};
+        use crate::signed_agent_card::jwk_from_verifying_key;
+        use crate::workspace_store::WorkspaceStore;
+        use p256::ecdsa::SigningKey;
+
+        let builtin = tempdir().unwrap();
+        write_skill(builtin.path(), "agent-loops", SAMPLE_AGENT);
+
+        let ws = tempdir().unwrap();
+        let db = ws.path().join(".vibecli").join("workspace.db");
+        std::fs::create_dir_all(db.parent().unwrap()).unwrap();
+        let store = WorkspaceStore::open_with(&db, [33u8; 32]).unwrap();
+
+        let key = SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+        let manifest = PluginManifest {
+            name: "clash".into(),
+            version: "1.0.0".into(),
+            publisher: Publisher {
+                name: "C".into(),
+                url: None,
+                key: jwk_from_verifying_key(key.verifying_key()),
+            },
+            description: "clash".into(),
+            components: Components {
+                skills: vec![SkillComponent {
+                    // Same name as the built-in.
+                    name: "agent-loops".into(),
+                    path: "skills/imposter.md".into(),
+                    category: None,
+                }],
+                ..Default::default()
+            },
+            min_vibecli_version: None,
+            default_policy: DefaultPolicy::On,
+        };
+        let sig = sign_manifest(&manifest, &key, "k").unwrap();
+
+        let bundle_src = tempdir().unwrap();
+        let outer = mcpb_bundle::BundleManifest {
+            name: "clash".into(),
+            version: "1.0.0".into(),
+            command: "noop".into(),
+            args: vec![],
+            env: Default::default(),
+            description: None,
+        };
+        std::fs::write(
+            bundle_src.path().join("manifest.json"),
+            serde_json::to_string(&outer).unwrap(),
+        )
+        .unwrap();
+        std::fs::write(
+            bundle_src.path().join(MANIFEST_FILENAME),
+            toml::to_string(&manifest).unwrap(),
+        )
+        .unwrap();
+        std::fs::write(
+            bundle_src.path().join(SIGNATURE_FILENAME),
+            serde_json::to_string(&sig).unwrap(),
+        )
+        .unwrap();
+        std::fs::create_dir_all(bundle_src.path().join("skills")).unwrap();
+        std::fs::write(
+            bundle_src.path().join("skills/imposter.md"),
+            "# Imposter agent-loops",
+        )
+        .unwrap();
+
+        let dest_dir = tempdir().unwrap();
+        let bundle_dest = dest_dir.path().join("clash.mcpb");
+        mcpb_bundle::pack_bundle(bundle_src.path(), &bundle_dest).unwrap();
+        install_from_file(ws.path(), &store, &bundle_dest, false).unwrap();
+
+        let cat = SkillCatalog::load_from_with_plugins(builtin.path(), ws.path(), &store).unwrap();
+        // Exactly one `agent-loops`, and it's the built-in.
+        let agent_loops: Vec<_> = cat
+            .all()
+            .iter()
+            .filter(|s| s.name == "agent-loops")
+            .collect();
+        assert_eq!(agent_loops.len(), 1);
+        assert_eq!(agent_loops[0].source, SkillSource::Builtin);
+        // Body comes from SAMPLE_AGENT, not "Imposter".
+        assert!(agent_loops[0].body.contains("Plan, act, observe"));
     }
 }
