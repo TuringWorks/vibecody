@@ -5,6 +5,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { useToast } from "../hooks/useToast";
 import { useWatchSync, WatchMessage as WatchSyncMessage } from "../hooks/useWatchSync";
 import { ContextPicker } from "./ContextPicker";
+import { McpAppEmbed, type McpAppPayload } from "./McpAppEmbed";
 import { flowContext } from "../utils/FlowContext";
 import { Mic, User, Paperclip, X, FileText, Loader2, Download, ZoomIn } from "lucide-react";
 import "./AIChat.css";
@@ -659,15 +660,46 @@ function StreamingCodeBlock({ language, code }: { language: string; code: string
   );
 }
 
-/** Render message content: parse code blocks, file references, plain text. */
+/** A1 — try to parse an MCP App fence body into an embed. Returns
+ * null when the JSON or schema doesn't validate, so the caller can
+ * fall back to a CodeBlock and the user can see the raw payload. */
+function renderMcpAppFence(body: string, key: number): React.ReactNode | null {
+  try {
+    const parsed = JSON.parse(body);
+    if (
+      !parsed ||
+      typeof parsed !== "object" ||
+      parsed.type !== "mcp.app" ||
+      typeof parsed.title !== "string" ||
+      typeof parsed.component !== "string" ||
+      typeof parsed.version !== "string"
+    ) {
+      return null;
+    }
+    return <McpAppEmbed key={key} payload={parsed as McpAppPayload} />;
+  } catch {
+    return null;
+  }
+}
+
+/** Render message content: parse code blocks, file references, plain text.
+ *
+ * A1 — MCP App payloads (SEP-1865): a fenced code block whose language
+ * tag is `mcp.app`, `mcp-app`, or `application/vnd.mcp.app+json`
+ * renders as a McpAppEmbed (typed React card with actions) instead of
+ * a plain CodeBlock. Malformed payloads fall back to a CodeBlock so the
+ * raw bytes are still visible.
+ */
 function renderContent(
   content: string,
   onApply?: (code: string, filename: string) => void,
 ): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
-  // Split by code fences: ```lang [filename]\n...\n```
-  // Group 1: language, Group 2: optional filename on same line, Group 3: code
-  const fenceRegex = /```(\w*)(?:[^\S\n]+(\S+))?\n([\s\S]*?)```/g;
+  // Fence regex updated to allow dots, slashes, plus signs and `@` in
+  // the language tag so MCP-Apps MIME-like tags can be matched. The
+  // original `\w*` only matched [A-Za-z0-9_], which would have dropped
+  // `application/vnd.mcp.app+json`.
+  const fenceRegex = /```([\w.+/@-]*)(?:[^\S\n]+(\S+))?\n([\s\S]*?)```/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   let key = 0;
@@ -677,6 +709,22 @@ function renderContent(
     if (match.index > lastIndex) {
       const textBefore = content.slice(lastIndex, match.index);
       parts.push(<TextSegment key={key++} text={textBefore} />);
+    }
+    const lang = (match[1] || "").toLowerCase();
+    const isMcpApp =
+      lang === "mcp.app" ||
+      lang === "mcp-app" ||
+      lang === "application/vnd.mcp.app+json";
+    if (isMcpApp) {
+      const embed = renderMcpAppFence(match[3], key);
+      if (embed) {
+        parts.push(embed);
+        lastIndex = match.index + match[0].length;
+        key++;
+        continue;
+      }
+      // Fall through to CodeBlock when the payload doesn't parse —
+      // user still sees the raw bytes so the failure is visible.
     }
     parts.push(
       <CodeBlock

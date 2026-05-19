@@ -50315,13 +50315,151 @@ pub async fn security_posture_create_goal(
     workspace_path: String,
     finding_id: String,
 ) -> Result<String, String> {
-    let _ = reject_sensitive_path(&workspace_path)?;
-    let _ = finding_id;
-    Err(
-        "security_posture_create_goal: not yet wired to the Goals system — coming in the next slice. \
-         See docs/design/security-posture/README.md status table."
-            .to_string(),
-    )
+    let workspace = reject_sensitive_path(&workspace_path)?;
+    let finding_id_for_lookup = finding_id.clone();
+    let finding_id_for_link = finding_id.clone();
+    let workspace_for_store = workspace.clone();
+    let workspace_for_goal = workspace.clone();
+
+    // Step 1 — load the finding from the per-workspace store. We
+    // need named fields (title / severity / file / rule_id / etc.)
+    // for the goal context. We deliberately do NOT pass the whole
+    // SecurityFinding through Display — the snippet may carry
+    // secret material that must not reach a goal description
+    // visible to the next LLM turn.
+    let finding = tokio::task::spawn_blocking(move || {
+        use vibecli_cli::security_posture_store::get_finding;
+        use vibecli_cli::workspace_store::WorkspaceStore;
+        let store = WorkspaceStore::open(&workspace_for_store)?;
+        get_finding(&store, &finding_id_for_lookup)?.ok_or_else(|| {
+            format!("finding {finding_id_for_lookup} not found in workspace store")
+        })
+    })
+    .await
+    .map_err(|e| format!("finding-lookup join error: {e}"))??;
+
+    // Step 2 — mint a Goal from named fields ONLY. The statement +
+    // success criteria + tags reference the metadata, never the
+    // snippet bytes. This is the named-fields-only invariant from
+    // README §threat-model-touchpoints.
+    let goal_id = vibecli_cli::exec_goal::new_goal_id();
+    let now = chrono::Utc::now();
+    let title = truncate_title(&format!(
+        "[{}] {}",
+        severity_tag(&finding.severity),
+        finding.title
+    ));
+    let location = match finding.line {
+        Some(line) => format!("{}:{}", finding.file.display(), line),
+        None => finding.file.display().to_string(),
+    };
+    let statement = format!(
+        "Resolve security finding `{rule_id}` from scanner `{scanner}` in `{location}`. \
+         Severity: {severity}. Category: {category}.\n\n\
+         {remediation_section}\n\n\
+         Source: VibeCody Security Posture panel (finding id {finding_id}).",
+        rule_id = finding.rule_id,
+        scanner = finding.scanner,
+        location = location,
+        severity = severity_tag(&finding.severity),
+        category = finding.category.as_str(),
+        remediation_section = finding
+            .remediation
+            .as_deref()
+            .map(|r| format!("Remediation:\n{r}"))
+            .unwrap_or_else(|| "No automated remediation hint available; see references below.".to_string()),
+        finding_id = finding.id,
+    );
+
+    let mut success_criteria: Vec<String> = vec![
+        format!("`{}` no longer appears in the next Security Posture scan.", finding.rule_id),
+    ];
+    if !finding.references.is_empty() {
+        success_criteria.push(format!(
+            "Confirm remediation against references: {}",
+            finding.references.join(", ")
+        ));
+    }
+
+    let tags: Vec<String> = vec![
+        "security".to_string(),
+        format!("severity:{}", severity_tag(&finding.severity)),
+        format!("scanner:{}", finding.scanner),
+        format!("category:{}", finding.category.as_str()),
+    ];
+
+    let goal = vibecli_cli::exec_goal::Goal {
+        id: goal_id.clone(),
+        workspace: Some(workspace_for_goal),
+        title,
+        statement,
+        status: vibecli_cli::exec_goal::GoalStatus::Active,
+        success_criteria,
+        tags,
+        created_at: now,
+        updated_at: now,
+        parent_goal_id: None,
+        current_plan: None,
+        schema_version: 1,
+    };
+
+    // Step 3 — persist the goal into the session store.
+    let goal_for_insert = goal.clone();
+    let goal_id_for_insert = goal_id.clone();
+    tokio::task::spawn_blocking(move || -> Result<(), String> {
+        use vibecli_cli::session_store::SessionStore;
+        let store = SessionStore::open_default().map_err(|e| e.to_string())?;
+        store
+            .insert_goal(&goal_for_insert)
+            .map_err(|e| format!("insert_goal: {e}"))?;
+        Ok(())
+    })
+    .await
+    .map_err(|e| format!("insert_goal join error: {e}"))??;
+
+    // Step 4 — flip the finding's status to GoalLinked so the
+    // panel surfaces the linkage immediately.
+    let workspace_for_link = workspace.clone();
+    tokio::task::spawn_blocking(move || -> Result<(), String> {
+        use vibecli_cli::security_posture_store::link_goal;
+        use vibecli_cli::workspace_store::WorkspaceStore;
+        let store = WorkspaceStore::open(&workspace_for_link)?;
+        link_goal(&store, &finding_id_for_link, &goal_id_for_insert)
+    })
+    .await
+    .map_err(|e| format!("link_goal join error: {e}"))??;
+
+    Ok(goal_id)
+}
+
+/// Map our 5-bucket severity to a short uppercase tag for goal
+/// titles + tag prefixes. Kept here (not on the Severity enum) so
+/// the goal-side display vocabulary can evolve independently.
+fn severity_tag(s: &vibecli_cli::security_posture::Severity) -> &'static str {
+    use vibecli_cli::security_posture::Severity;
+    match s {
+        Severity::Critical => "CRITICAL",
+        Severity::High => "HIGH",
+        Severity::Medium => "MEDIUM",
+        Severity::Low => "LOW",
+        Severity::Info => "INFO",
+    }
+}
+
+/// Truncate to `Goal::TITLE_MAX_LEN` — `insert_goal` doesn't
+/// validate, the daemon's HTTP route does. We mirror it here so a
+/// long-titled finding doesn't sneak through the Tauri channel and
+/// surface as a UI error later.
+fn truncate_title(s: &str) -> String {
+    let max = vibecli_cli::exec_goal::TITLE_MAX_LEN;
+    if s.len() <= max {
+        return s.to_string();
+    }
+    let mut cut = max - 1;
+    while cut > 0 && !s.is_char_boundary(cut) {
+        cut -= 1;
+    }
+    format!("{}…", &s[..cut])
 }
 
 /// Return the most recent decision-log entries (newest first).
