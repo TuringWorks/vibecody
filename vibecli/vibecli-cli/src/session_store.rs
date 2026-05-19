@@ -676,6 +676,19 @@ impl SessionStore {
             where_parts.push("workspace = ?".to_string());
             bind.push(Box::new(w.clone()));
         }
+        // G10.1 — case-insensitive substring search across title +
+        // statement. The empty / whitespace-only case is treated as
+        // "no filter" so a UI input that's been cleared returns
+        // unfiltered results.
+        if let Some(raw) = &filter.q {
+            let trimmed = raw.trim();
+            if !trimmed.is_empty() {
+                let like = format!("%{}%", trimmed.to_lowercase());
+                where_parts.push("(LOWER(title) LIKE ? OR LOWER(statement) LIKE ?)".to_string());
+                bind.push(Box::new(like.clone()));
+                bind.push(Box::new(like));
+            }
+        }
         let where_clause = if where_parts.is_empty() {
             String::new()
         } else {
@@ -1389,6 +1402,9 @@ pub struct GoalListFilter {
     pub workspace: Option<String>,
     /// In-memory tag membership filter (single tag).
     pub tag: Option<String>,
+    /// G10.1 — case-insensitive substring search over `title` and
+    /// `statement`. Empty / whitespace input skips the filter.
+    pub q: Option<String>,
     /// `0` means "no limit".
     pub limit: usize,
 }

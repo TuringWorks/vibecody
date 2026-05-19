@@ -124,6 +124,11 @@ export function GoalPanel({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<GoalDetailResponse | null>(null);
   const [statusFilter, setStatusFilter] = useState<GoalStatus | 'all'>('active');
+  // G10.1 — debounced keyword search across title + statement. The
+  // `searchInput` is what the user types; `searchQuery` is debounced
+  // and fed to the daemon's ?q= filter.
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [planning, setPlanning] = useState(false);
   const [starting, setStarting] = useState(false);
@@ -134,6 +139,9 @@ export function GoalPanel({
   const [viewMode, setViewMode] = useState<'list' | 'tree'>('list');
   const [recapResult, setRecapResult] = useState<GoalRecap | null>(null);
   const [recapping, setRecapping] = useState(false);
+  // G10.2 — local input for adding a new tag chip. Bound to the
+  // inline input in the Tags section; cleared on submit.
+  const [newTagInput, setNewTagInput] = useState('');
   // G6.1 — current-pin state. `pinnedGoalId` is null when nothing is
   // pinned for the active workspace (or the global slot when workspace
   // is empty). Refreshed alongside the goal list.
@@ -173,6 +181,7 @@ export function GoalPanel({
     try {
       const args: Record<string, unknown> = {};
       if (statusFilter !== 'all') args.status = statusFilter;
+      if (searchQuery.trim().length > 0) args.q = searchQuery.trim();
       const resp = (await invoke('exec_goal_list', args)) as
         | { goals?: Goal[] }
         | Goal[];
@@ -186,7 +195,15 @@ export function GoalPanel({
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, selectedId, toast]);
+  }, [statusFilter, searchQuery, selectedId, toast]);
+
+  // G10.1 — debounce the search input by 200 ms so each keystroke
+  // doesn't fire an exec_goal_list invoke. 200 ms is small enough to
+  // feel instant on a typing rhythm without thrashing the daemon.
+  useEffect(() => {
+    const t = setTimeout(() => setSearchQuery(searchInput), 200);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   const refreshDetail = useCallback(async (id: string) => {
     try {
@@ -362,6 +379,44 @@ export function GoalPanel({
     }
   };
 
+  // G10.2 — tag mutation helpers. Both replace the full tags array
+  // on the server via exec_goal_update so the optimistic update is
+  // safe to roll back to the previous state on error.
+  const addTag = async () => {
+    if (!detail) return;
+    const raw = newTagInput.trim();
+    if (!raw) return;
+    if (detail.goal.tags.includes(raw)) {
+      setNewTagInput('');
+      return;
+    }
+    const next = [...detail.goal.tags, raw];
+    setNewTagInput('');
+    try {
+      const updated = (await invoke('exec_goal_update', {
+        id: detail.goal.id,
+        tags: next,
+      })) as Goal;
+      setDetail({ goal: updated, links: detail.links });
+    } catch (e) {
+      toast.error('Failed to add tag: ' + String(e));
+    }
+  };
+
+  const removeTag = async (t: string) => {
+    if (!detail) return;
+    const next = detail.goal.tags.filter((x) => x !== t);
+    try {
+      const updated = (await invoke('exec_goal_update', {
+        id: detail.goal.id,
+        tags: next,
+      })) as Goal;
+      setDetail({ goal: updated, links: detail.links });
+    } catch (e) {
+      toast.error('Failed to remove tag: ' + String(e));
+    }
+  };
+
   const deleteGoal = async () => {
     if (!detail) return;
     if (!window.confirm(`Delete goal "${detail.goal.title}"? Links cascade.`)) return;
@@ -439,6 +494,29 @@ export function GoalPanel({
               {s === 'all' ? 'All' : STATUS_LABEL[s]}
             </button>
           ))}
+        </div>
+
+        {/* G10.1 — keyword search across title + statement. Debounced
+            client-side; the daemon ANDs `?q=` with the status filter
+            above so the two work together. */}
+        <div style={{ padding: '0 12px 8px' }}>
+          <input
+            type="search"
+            value={searchInput}
+            placeholder="Search title or statement…"
+            onChange={(e) => setSearchInput(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '4px 8px',
+              fontSize: 'var(--font-size-sm)',
+              background: 'var(--bg-default)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-default)',
+              borderRadius: 4,
+              outline: 'none',
+            }}
+            aria-label="Search goals"
+          />
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto' }}>
@@ -566,31 +644,78 @@ export function GoalPanel({
               </p>
             </section>
 
-            {/* Tags + criteria */}
-            {(detail.goal.tags.length > 0 || detail.goal.success_criteria.length > 0) && (
-              <section style={{ marginBottom: 16 }}>
-                {detail.goal.tags.length > 0 && (
-                  <div style={{ marginBottom: 8 }}>
-                    <strong>Tags:</strong>{' '}
-                    {detail.goal.tags.map((t) => (
-                      <span key={t} className="panel-tag" style={{ marginRight: 4 }}>
-                        <Tag size={10} /> {t}
-                      </span>
+            {/* Tags + criteria — G10.2 made Tags inline-editable. */}
+            <section style={{ marginBottom: 16 }}>
+              <div style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <strong style={{ marginRight: 4 }}>Tags:</strong>
+                {detail.goal.tags.map((t) => (
+                  <span
+                    key={t}
+                    className="panel-tag"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      paddingRight: 4,
+                    }}
+                  >
+                    <Tag size={10} /> {t}
+                    <button
+                      type="button"
+                      onClick={() => removeTag(t)}
+                      title={`Remove tag "${t}"`}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0,
+                        color: 'inherit',
+                        opacity: 0.7,
+                        fontSize: 'var(--font-size-xs)',
+                      }}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                <input
+                  type="text"
+                  value={newTagInput}
+                  placeholder={detail.goal.tags.length === 0 ? 'add tag…' : '+ tag'}
+                  onChange={(e) => setNewTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addTag();
+                    }
+                  }}
+                  onBlur={() => {
+                    if (newTagInput.trim().length > 0) addTag();
+                  }}
+                  style={{
+                    width: 90,
+                    padding: '2px 6px',
+                    fontSize: 'var(--font-size-xs)',
+                    background: 'var(--bg-default)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 4,
+                    outline: 'none',
+                  }}
+                  aria-label="Add tag"
+                />
+              </div>
+              {detail.goal.success_criteria.length > 0 && (
+                <div>
+                  <strong>Success criteria:</strong>
+                  <ul style={{ marginTop: 4 }}>
+                    {detail.goal.success_criteria.map((c, i) => (
+                      <li key={i}>{c}</li>
                     ))}
-                  </div>
-                )}
-                {detail.goal.success_criteria.length > 0 && (
-                  <div>
-                    <strong>Success criteria:</strong>
-                    <ul style={{ marginTop: 4 }}>
-                      {detail.goal.success_criteria.map((c, i) => (
-                        <li key={i}>{c}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </section>
-            )}
+                  </ul>
+                </div>
+              )}
+            </section>
 
             {/* Plan */}
             <section style={{ marginBottom: 16 }}>

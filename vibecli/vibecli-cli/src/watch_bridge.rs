@@ -1252,7 +1252,7 @@ mod tests {
             _x: Option<Arc<crate::tainted_http_bridge::HttpPromptQueue>>,
         ) {
         }
-        _assert_optional(None);
+        _assert_optional::<()>(None);
     }
 
     #[test]

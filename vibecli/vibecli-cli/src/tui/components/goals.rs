@@ -91,9 +91,8 @@ impl GoalsComponent {
         };
         let filter = GoalListFilter {
             status: self.status_filter.as_goal_status(),
-            workspace: None,
-            tag: None,
             limit: 100,
+            ..Default::default()
         };
         match store.list_goals(&filter) {
             Ok(rows) => {

@@ -2806,6 +2806,10 @@ pub struct ExecGoalListQuery {
     pub workspace: Option<String>,
     #[serde(default)]
     pub tag: Option<String>,
+    /// G10.1 — case-insensitive substring search over title +
+    /// statement. Empty / absent skips the filter.
+    #[serde(default)]
+    pub q: Option<String>,
     #[serde(default = "default_goal_limit")]
     pub limit: usize,
 }
@@ -2897,6 +2901,7 @@ pub(crate) fn do_v1_exec_goal_list(
         status,
         workspace: q.workspace.clone(),
         tag: q.tag.clone(),
+        q: q.q.clone(),
         limit: q.limit,
     };
     match store.list_goals(&filter) {
@@ -10514,6 +10519,7 @@ mod tests {
             status: Some("active".into()),
             workspace: None,
             tag: None,
+            q: None,
             limit: 50,
         };
         let (status, body) = do_v1_exec_goal_list(&store, &q);
@@ -10523,12 +10529,72 @@ mod tests {
     }
 
     #[test]
+    fn exec_goal_list_q_matches_title_and_statement_case_insensitive() {
+        // G10.1 — three goals; query "auth" must match the one whose
+        // title contains it AND the one whose statement contains it,
+        // regardless of case. The third goal mentions neither and is
+        // excluded.
+        let (store, _dir) = goal_route_fixture();
+        do_v1_exec_goal_post(&store, &make_create_request("Refactor AUTH middleware"));
+        let req2 = ExecGoalCreateRequest {
+            title: "Cut release".to_string(),
+            statement: "Touches the auth path".to_string(),
+            workspace: None,
+            success_criteria: vec![],
+            tags: vec![],
+            parent_goal_id: None,
+        };
+        do_v1_exec_goal_post(&store, &req2);
+        do_v1_exec_goal_post(&store, &make_create_request("Tune logging"));
+
+        let q = ExecGoalListQuery {
+            status: None,
+            workspace: None,
+            tag: None,
+            q: Some("auth".to_string()),
+            limit: 50,
+        };
+        let (status, body) = do_v1_exec_goal_list(&store, &q);
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["count"], 2);
+        let titles: Vec<&str> = body["goals"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|g| g["title"].as_str())
+            .collect();
+        assert!(titles.contains(&"Refactor AUTH middleware"));
+        assert!(titles.contains(&"Cut release"));
+        assert!(!titles.contains(&"Tune logging"));
+    }
+
+    #[test]
+    fn exec_goal_list_q_whitespace_only_returns_all() {
+        // Empty/whitespace `q` is treated as "no filter" — easy default
+        // when a UI clears its search input.
+        let (store, _dir) = goal_route_fixture();
+        do_v1_exec_goal_post(&store, &make_create_request("a"));
+        do_v1_exec_goal_post(&store, &make_create_request("b"));
+        let q = ExecGoalListQuery {
+            status: None,
+            workspace: None,
+            tag: None,
+            q: Some("   ".to_string()),
+            limit: 50,
+        };
+        let (status, body) = do_v1_exec_goal_list(&store, &q);
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body["count"], 2);
+    }
+
+    #[test]
     fn exec_goal_list_unknown_status_returns_400() {
         let (store, _dir) = goal_route_fixture();
         let q = ExecGoalListQuery {
             status: Some("nope".into()),
             workspace: None,
             tag: None,
+            q: None,
             limit: 50,
         };
         let (status, _) = do_v1_exec_goal_list(&store, &q);
