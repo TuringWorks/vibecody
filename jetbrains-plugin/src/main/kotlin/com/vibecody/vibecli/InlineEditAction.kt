@@ -40,6 +40,31 @@ class InlineEditAction : AnAction() {
         )?.trim()
         if (instruction.isNullOrEmpty()) return
 
+        // ── Hook gate (UserPromptSubmit) ───────────────────────────────────
+        // Same gate as AgentPanel.startAgent — a BLOCK decision halts the
+        // inline edit before any prompt is sent to the daemon and surfaces
+        // the hook's reason in an error dialog. ALLOW (the default when
+        // no hooks are configured) passes through with zero overhead.
+        val gate = HookExecutor.getInstance().fire(
+            event = "UserPromptSubmit",
+            payloadJson = com.google.gson.Gson().toJson(
+                mapOf(
+                    "event" to "UserPromptSubmit",
+                    "source" to "inline-edit",
+                    "prompt" to instruction,
+                ),
+            ),
+        )
+        if (gate.action == HookExecutor.HookAction.BLOCK) {
+            val reason = gate.reason?.takeIf { it.isNotBlank() } ?: "policy"
+            Messages.showWarningDialog(
+                project,
+                "Inline edit blocked by hook: $reason",
+                "VibeCLI: Inline Edit",
+            )
+            return
+        }
+
         // ── Build prompt ───────────────────────────────────────────────────
         val selectionModel = editor.selectionModel
         val hasSelection   = selectionModel.hasSelection()
