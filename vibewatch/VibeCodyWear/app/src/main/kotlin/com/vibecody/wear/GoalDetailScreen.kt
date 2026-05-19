@@ -29,6 +29,8 @@ fun GoalDetailScreen(
     var status by remember { mutableStateOf("") }
     var statement by remember { mutableStateOf("") }
     var linkCount by remember { mutableStateOf(0) }
+    // G12.1 — envelope-level `pinned` flag from `/watch/goals/:id`.
+    var pinned by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var starting by remember { mutableStateOf(false) }
     var startResult by remember { mutableStateOf<String?>(null) }
@@ -51,6 +53,8 @@ fun GoalDetailScreen(
         status = goal.optString("status", "active")
         statement = goal.optString("statement", "")
         linkCount = json.optJSONArray("links")?.length() ?: 0
+        // G12.1 — envelope-level flag, absent on pre-G12.1 daemons.
+        pinned = json.optBoolean("pinned", false)
         loading = false
     }
 
@@ -72,8 +76,11 @@ fun GoalDetailScreen(
             }
             else -> {
                 item {
+                    // G12.1 — prefix the title with ★ when the daemon
+                    // marked this goal as the current pin. Same glyph
+                    // the goal list uses for cross-surface consistency.
                     Text(
-                        title,
+                        if (pinned) "★ $title" else title,
                         style = MaterialTheme.typography.body1,
                         textAlign = TextAlign.Center,
                         overflow = TextOverflow.Ellipsis,

@@ -105,9 +105,19 @@ struct GoalDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
-                Text(summary.title)
-                    .font(.headline)
-                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 4) {
+                    // G12.1 — surface the pin marker on the detail
+                    // header too so the ★ is consistent with the list
+                    // row the user just tapped.
+                    if summary.isPinned {
+                        Image(systemName: "star.fill")
+                            .foregroundStyle(.yellow)
+                            .accessibilityLabel("current pinned goal")
+                    }
+                    Text(summary.title)
+                        .font(.headline)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 HStack {
                     Text(summary.status)
                         .font(.caption2)

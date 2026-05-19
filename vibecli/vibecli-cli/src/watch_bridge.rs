@@ -1053,7 +1053,31 @@ async fn watch_get_goal(
     match store.get_goal_by_id(&id) {
         Ok(Some(g)) => {
             let links = store.list_goal_links(&id).unwrap_or_default();
-            Json(serde_json::json!({ "goal": g, "links": links })).into_response()
+            // G12.1 — surface the pin status at the envelope level so
+            // the Wear OS detail screen can render the ★ without a
+            // second `/v1/goals/current` lookup (watch never hits /v1).
+            // Workspace-specific pin wins; falls back to global slot.
+            let ws_str = g
+                .workspace
+                .as_ref()
+                .map(|p| p.to_string_lossy().into_owned());
+            let workspace_pin = ws_str
+                .as_deref()
+                .and_then(|w| store.get_pinned_goal(Some(w)).ok().flatten())
+                .map(|(pid, _)| pid);
+            let global_pin = store
+                .get_pinned_goal(None)
+                .ok()
+                .flatten()
+                .map(|(pid, _)| pid);
+            let pinned = workspace_pin.as_deref() == Some(g.id.as_str())
+                || global_pin.as_deref() == Some(g.id.as_str());
+            Json(serde_json::json!({
+                "goal": g,
+                "links": links,
+                "pinned": pinned,
+            }))
+            .into_response()
         }
         Ok(None) => (
             StatusCode::NOT_FOUND,

@@ -90,11 +90,23 @@ class GoalsTileService : TileService() {
             val resp = net.listGoals()
             val arr = resp.optJSONArray("goals") ?: return GoalTileState.Empty
             if (arr.length() == 0) return GoalTileState.Empty
-            val g = arr.getJSONObject(0)
+            // G12.1 — prefer the pinned goal when one exists in the
+            // list, otherwise fall back to the freshest. "What am I
+            // working on" is much more useful than "what did I touch
+            // most recently" when both are answerable.
+            var picked = arr.getJSONObject(0)
+            for (i in 0 until arr.length()) {
+                val candidate = arr.getJSONObject(i)
+                if (candidate.optBoolean("pinned", false)) {
+                    picked = candidate
+                    break
+                }
+            }
             GoalTileState.Ready(
-                title = g.optString("title", "(untitled)").take(80),
-                workspaceLabel = g.optString("workspace_label", "global"),
-                status = g.optString("status", "active"),
+                title = picked.optString("title", "(untitled)").take(80),
+                workspaceLabel = picked.optString("workspace_label", "global"),
+                status = picked.optString("status", "active"),
+                pinned = picked.optBoolean("pinned", false),
             )
         } catch (e: Exception) {
             Log.w(GOAL_TAG, "fetchFreshestGoal failed: ${e.message}")
@@ -105,7 +117,8 @@ class GoalsTileService : TileService() {
     private fun layoutFor(state: GoalTileState): LayoutElementBuilders.LayoutElement {
         val (title, body) = when (state) {
             is GoalTileState.Ready ->
-                "Goal · ${state.workspaceLabel}" to state.title
+                "Goal · ${state.workspaceLabel}" to
+                    (if (state.pinned) "★ ${state.title}" else state.title)
             GoalTileState.Empty -> "VibeCody" to "No active goals"
             GoalTileState.NotPaired -> "VibeCody" to "Pair on the phone"
         }
@@ -181,6 +194,9 @@ class GoalsTileService : TileService() {
             val title: String,
             val workspaceLabel: String,
             val status: String,
+            /// G12.1 — true when this goal is the current pin. Tile
+            /// prefixes the title with ★ to match the list + detail.
+            val pinned: Boolean,
         ) : GoalTileState()
         object Empty : GoalTileState()
         object NotPaired : GoalTileState()
