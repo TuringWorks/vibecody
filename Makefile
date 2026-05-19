@@ -241,3 +241,13 @@ docker: ## Build Docker image (VibeCLI static binary)
 
 docker-run: ## Run VibeCLI in Docker with Ollama sidecar
 	docker compose up -d
+
+# ── Sandbox tiers (rootfs builder for Firecracker Tier-3) ─────────────────────
+
+.PHONY: rootfs-firecracker rootfs-firecracker-clean
+
+rootfs-firecracker: ## Build the Firecracker Tier-3 rootfs (BusyBox + bash, ≤20 MiB)
+	@bash scripts/build-rootfs-firecracker.sh
+
+rootfs-firecracker-clean: ## Remove built Firecracker rootfs image
+	rm -rf target/firecracker-rootfs
