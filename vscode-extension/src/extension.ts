@@ -516,6 +516,11 @@ function formatEventToOutput(channel: vscode.OutputChannel, event: AgentEvent): 
     case 'step':
       channel.appendLine(`\n[step ${(event.step_num ?? 0) + 1}] ${event.tool_name} → ${event.success ? '✔' : '✘'}`);
       break;
+    case 'system':
+      // G8.1 — daemon-issued advisory (currently the goal auto-link
+      // attribution). Distinct prefix so it's clearly not model output.
+      channel.appendLine(`\n[goal] ${event.content ?? ''}`);
+      break;
     case 'complete':
       channel.appendLine(`\n[done] ${event.content}`);
       break;

@@ -34,7 +34,13 @@ export interface AgentOptions {
   host?: string;
 }
 
-export type AgentEventType = 'chunk' | 'step' | 'complete' | 'error';
+// G6.3 / G7.1 — `system` is a daemon-issued advisory message that's
+// not a model token, tool step, completion, or error. Today it carries
+// the "Auto-linked to pinned goal …" attribution emitted by
+// `auto_link_to_pinned_goal` so SDK / VibeUI / CLI consumers can
+// render it as a distinct attribution chip before the model's first
+// token.
+export type AgentEventType = 'chunk' | 'step' | 'complete' | 'error' | 'system';
 
 export interface AgentEvent {
   type: AgentEventType;

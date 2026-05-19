@@ -25,7 +25,11 @@ export interface ChatMessage {
 }
 
 export interface AgentEvent {
-  type: 'chunk' | 'step' | 'complete' | 'error';
+  // G6.3 / G7.1 — `system` is a daemon-issued advisory message that
+  // isn't a model token, tool step, completion, or error. Today it
+  // carries the "Auto-linked to pinned goal …" attribution emitted
+  // by `auto_link_to_pinned_goal`.
+  type: 'chunk' | 'step' | 'complete' | 'error' | 'system';
   content?: string;
   step_num?: number;
   tool_name?: string;
