@@ -289,7 +289,7 @@ For users who *must* have Firecracker on macOS/Windows, the path is "use vibe-in
 
 | Slice | What | Touches | Tests |
 |---|---|---|---|
-| **F0** | New crate `vibe-sandbox-firecracker` (Linux-cfg-gated) + impl skeleton, panics in `spawn` | new crate | compile gates |
+| **F0** ✅ shipped 2026-05-18 | New crate `vibe-sandbox-firecracker` (Linux-cfg-gated) + state-tracking `FirecrackerSandbox` impl + bind deny-list parity + workspace + vibecli dep registration. `spawn()` returns `SandboxError::NotSupported("F1.B microVM lifecycle gated")` (fail-closed; never silently falls through to host execution). 14 unit tests on Linux + 2 cross-platform tests. | new crate `vibecli/crates/vibe-sandbox-firecracker/`, workspace `Cargo.toml`, `vibecli/vibecli-cli/Cargo.toml` | compile clean on macOS dev host (`cargo check -p vibe-sandbox-firecracker` 2m42s, 1 warning resolved); `cargo test -p vibe-sandbox-firecracker` 2/2 pass on macOS (12 more cfg-gated for Linux) |
 | **F1** | Rootfs builder CI job + signed-release artifact + version detection | `.github/workflows/release.yml`, `Makefile`, daemon download/verify path | release artifacts present, signature verifies |
 | **F2** | Boot-once-per-call: jailer + firecracker + minimal kernel + rootfs + tmpfs overlay; no folder bind, no broker | crate | integration: `bash -c "echo hi"` returns "hi" via stdout |
 | **F3** | virtio-fs bind via virtiofsd; folder rw works | crate | integration: write `/work/out`, host sees it |
