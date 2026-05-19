@@ -35,6 +35,7 @@
 //!   process; the in-guest workload talks back to the daemon via
 //!   the vsock control plane.
 
+pub mod api;
 pub mod rootfs;
 
 use std::ffi::OsStr;
