@@ -20,6 +20,14 @@ class VibeCLISettings : PersistentStateComponent<VibeCLISettings.State> {
         var model: String = "qwen2.5-coder:7b",
         var approvalMode: String = "suggest",   // suggest | auto-edit | full-auto
         var streamingEnabled: Boolean = true,
+        /**
+         * Subprocess hooks fired by [HookExecutor] on agent lifecycle
+         * events. Parity with `.claude/settings.json` hook protocol
+         * (`vibecli-cli/src/hook_abort.rs`). XML-serialized as a list
+         * of `HookConfig` rows; the Settings UI is the only authoring
+         * surface today.
+         */
+        var hooks: MutableList<HookConfig> = mutableListOf(),
     )
 
     private var myState = State()
