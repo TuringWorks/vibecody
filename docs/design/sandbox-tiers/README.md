@@ -207,19 +207,22 @@ Cold path total: < 50 ms on Linux/macOS, < 80 ms on Windows. No images. No GB. T
 
 ## Sequencing
 
-| Phase | What | Crate(s) | Blocker for |
-|---|---|---|---|
-| **S0** | Workspace skeleton: `vibe-sandbox` trait + `SandboxTier`/`NetPolicy`/`EnvPolicy`/`ResourceLimits` types + `select()` + platform stubs | `vibe-sandbox` | everything |
-| **S1.1** | Tier-0 Linux: bwrap invocation + Landlock layer + seccomp filter | `vibe-sandbox-native/linux` | S2 |
-| **S1.2** | Tier-0 macOS: `.sb` profile generator + sandbox-exec invocation | `vibe-sandbox-native/macos` | S2 |
-| **S1.3** | Tier-0 Windows: AppContainer + Restricted Token + Job Object via `windows-rs` | `vibe-sandbox-native/windows` | S2 |
-| **S2** | Egress broker: `hyper` + `rustls` + `rcgen` + `hickory-dns` + policy DSL | `vibe-broker` | S3 |
-| **S3** | Wire tool_executor → vibe-sandbox; remove the dead-code attribute on `sandbox_bwrap` | `vibecli-cli` integration | S4+ |
-| **S4** | Audit log → recap integration (cross-references `docs/design/recap-resume/02-job.md`) | `vibe-broker` + recap | release |
-| **T2.1** | Tier-2 Hyperlight backend on Linux+Windows, behind cfg | `vibe-sandbox-hyperlight` | parallel with S2-S4 |
-| **T3.1** | Tier-3 Firecracker backend on Linux, with minimal BusyBox+bash rootfs builder | `vibe-sandbox-firecracker` | parallel with S2-S4 |
-| **T3.2** | `CloudSandbox` slot uses Firecracker backend | `vibecli-cli/cloud_sandbox.rs` | T3.1 |
-| **R** | Release: docs in `docs/release.md` + `docs/CHANGELOG.md` + `docs/security.md` posture update | release | — |
+| Phase | What | Crate(s) | Blocker for | Status |
+|---|---|---|---|---|
+| **S0** | Workspace skeleton: `vibe-sandbox` trait + `SandboxTier`/`NetPolicy`/`EnvPolicy`/`ResourceLimits` types + `select()` + platform stubs | `vibe-sandbox` | everything | ✅ shipped |
+| **S1.1** | Tier-0 Linux: bwrap invocation + Landlock layer + seccomp filter | `vibe-sandbox-native/linux` | S2 | ✅ shipped (bwrap); Landlock + seccomp pending |
+| **S1.2** | Tier-0 macOS: `.sb` profile generator + sandbox-exec invocation | `vibe-sandbox-native/macos` | S2 | ✅ shipped |
+| **S1.3** | Tier-0 Windows: AppContainer + Restricted Token + Job Object via `windows-rs` | `vibe-sandbox-native/windows` | S2 | ✅ shipped (AppContainer + Job Object); Restricted Token + WFP pending |
+| **S2** | Egress broker: `hyper` + `rustls` + `rcgen` + `hickory-dns` + policy DSL | `vibe-broker` | S3 | ✅ shipped |
+| **S3** | Wire tool_executor → vibe-sandbox; remove the dead-code attribute on `sandbox_bwrap` | `vibecli-cli` integration | S4+ | ✅ shipped 2026-05-18 — `run_in_native_sandbox` routes shell tool through `Box<dyn Sandbox>`; legacy `sandbox_bwrap` kept (has BDD tests) but no longer the production path |
+| **S4** | Audit log → recap integration (cross-references `docs/design/recap-resume/02-job.md`) | `vibe-broker` + recap | release | pending |
+| **T2.1 / H0** | Tier-2 Hyperlight crate scaffold + state-tracking impl, behind cfg | `vibe-sandbox-hyperlight` | parallel with S2-S4 | ✅ shipped 2026-05-18 |
+| **T2.5 / H5** | Tier-1 hardening — Wasmtime fuel + epoch on `vibe-extensions` | `vibe-extensions` | independent | ✅ shipped 2026-05-18 |
+| **T3.1 / F0** | Tier-3 Firecracker crate scaffold + state-tracking impl | `vibe-sandbox-firecracker` | parallel with S2-S4 | ✅ shipped 2026-05-18 |
+| **T3.1 / F1** | Minimal BusyBox+bash rootfs builder + Makefile target + CI publish + cosign keyless attestation | `scripts/`, `Makefile`, `release.yml`, `vibe-sandbox-firecracker` tests | T3.1.B | ✅ shipped 2026-05-19 |
+| **T3.1.B / F2–F8** | microVM lifecycle, virtio-fs, vsock broker bridge, VM pool, toolchain layers, `CloudSandbox` wiring | `vibe-sandbox-firecracker` | depends on Linux+KVM hardware in CI | pending |
+| **T2 / H1–H4, H6** | Wasmtime-on-Hyperlight guest binary release pipeline, FS + broker host functions, `vibe-extensions` Tier selector, `vibecli doctor` Tier-2 reporting | `vibe-sandbox-hyperlight`, `vibe-extensions`, `vibecli-cli` | depends on Linux+KVM or Windows+WHP CI runner | pending |
+| **R** | Release: docs in `docs/release.md` + `docs/CHANGELOG.md` + `docs/security.md` posture update | release | — | ongoing |
 
 S0–S4 are the critical path for the user's stated goal. T2 and T3 can land in parallel without blocking.
 

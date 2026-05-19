@@ -251,3 +251,11 @@ rootfs-firecracker: ## Build the Firecracker Tier-3 rootfs (BusyBox + bash, ≤2
 
 rootfs-firecracker-clean: ## Remove built Firecracker rootfs image
 	rm -rf target/firecracker-rootfs
+
+.PHONY: sandbox-doctor sandbox-doctor-json
+
+sandbox-doctor: ## Probe the host for sandbox-tier availability (Native/WASI/Hyperlight/Firecracker)
+	@bash scripts/check-sandbox-tiers.sh
+
+sandbox-doctor-json: ## Same as sandbox-doctor, but emit JSON for tooling
+	@bash scripts/check-sandbox-tiers.sh --json
