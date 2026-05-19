@@ -241,6 +241,27 @@ private class AgentPanel(private val project: Project) : JPanel(BorderLayout()) 
     private fun startAgent() {
         val task = input.text.trim()
         if (task.isEmpty()) return
+
+        // JB-hooks gate: fire UserPromptSubmit before anything else.
+        // A BLOCK decision prevents the agent from even starting and
+        // surfaces the hook's reason in the output pane. Advisory
+        // hooks (no settings → no-op ALLOW) skip this path entirely.
+        val gate = HookExecutor.getInstance().fire(
+            event = "UserPromptSubmit",
+            payloadJson = com.google.gson.Gson().toJson(
+                mapOf("event" to "UserPromptSubmit", "prompt" to task),
+            ),
+        )
+        if (gate.action == HookExecutor.HookAction.BLOCK) {
+            output.text = ""
+            output.append("Task: $task\n${"─".repeat(60)}\n\n")
+            output.append("🚫 Blocked by hook")
+            gate.reason?.takeIf { it.isNotBlank() }?.let { output.append(": $it") }
+            output.append("\n")
+            setStatus("Blocked by hook", ERROR)
+            return
+        }
+
         input.text = ""
         runBtn.isEnabled = false
         stopBtn.isEnabled = true
