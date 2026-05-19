@@ -49,9 +49,20 @@ class HookExecutor {
      * order. Returns the first non-ALLOW decision, or
      * `HookDecision(ALLOW)` when every hook permitted the action.
      */
-    fun fire(event: String, payloadJson: String): HookDecision {
-        val settings = VibeCLISettings.getInstance().state
-        val configured = settings.hooks.filter { it.enabled && it.event == event }
+    fun fire(event: String, payloadJson: String): HookDecision =
+        fireChain(VibeCLISettings.getInstance().state.hooks, event, payloadJson)
+
+    /**
+     * Same as [fire] but takes an explicit hook list instead of
+     * reading from [VibeCLISettings]. Exposed for unit testing — the
+     * production path goes through [fire] and the settings service.
+     */
+    internal fun fireChain(
+        all: List<HookConfig>,
+        event: String,
+        payloadJson: String,
+    ): HookDecision {
+        val configured = all.filter { it.enabled && it.event == event }
         if (configured.isEmpty()) return HookDecision(HookAction.ALLOW)
 
         for (hook in configured) {
