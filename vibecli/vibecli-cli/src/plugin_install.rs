@@ -59,6 +59,9 @@ pub enum InstallError {
     /// override a Required pin without admin).
     Policy(PolicyError),
     Io(std::io::Error),
+    /// HTTPS fetch failed (network, non-2xx status, oversized body,
+    /// non-https scheme). B2.12.
+    Url(String),
 }
 
 impl std::fmt::Display for InstallError {
@@ -75,6 +78,7 @@ impl std::fmt::Display for InstallError {
             ),
             Self::Policy(e) => write!(f, "policy: {e}"),
             Self::Io(e) => write!(f, "io: {e}"),
+            Self::Url(s) => write!(f, "url: {s}"),
         }
     }
 }
@@ -203,6 +207,78 @@ pub fn install_from_file(
         policy,
     })
 }
+
+/// B2.12 — install a signed MCPB plugin bundle from an HTTPS URL.
+///
+/// Thin wrapper: GET the URL into a temp file, then call
+/// `install_from_file` for the actual extract / verify / register /
+/// policy flow. The download is bounded by `MAX_BUNDLE_BYTES` to
+/// keep a hostile redirect target from filling the disk.
+///
+/// Only `https://` URLs are accepted — plaintext HTTP would let a
+/// network attacker swap the bundle bytes before signature verify
+/// has a chance to fire. The publisher P-256 signature is still the
+/// authoritative trust anchor (TOFU); TLS just keeps the *first*
+/// install honest about what the publisher actually served.
+pub fn install_from_url(
+    workspace: &Path,
+    store: &WorkspaceStore,
+    url: &str,
+    force: bool,
+) -> Result<InstalledPlugin, InstallError> {
+    if !url.starts_with("https://") {
+        return Err(InstallError::Url(format!(
+            "only https:// URLs are accepted, got `{}`",
+            url.split(':').next().unwrap_or("")
+        )));
+    }
+
+    // Download into a temp file. `tempfile::NamedTempFile` gives us
+    // an unlinked-on-drop path that survives until we hand it off to
+    // install_from_file (which has its own staging guarantee).
+    let mut tmp =
+        tempfile::NamedTempFile::new().map_err(|e| InstallError::Url(format!("temp file: {e}")))?;
+
+    let resp = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(60))
+        .build()
+        .map_err(|e| InstallError::Url(format!("client: {e}")))?
+        .get(url)
+        .send()
+        .map_err(|e| InstallError::Url(format!("GET {url}: {e}")))?;
+
+    if !resp.status().is_success() {
+        return Err(InstallError::Url(format!(
+            "GET {url} returned status {}",
+            resp.status()
+        )));
+    }
+
+    // Bounded copy. We can't trust Content-Length (hostile servers
+    // can lie), so we cap by what we actually receive.
+    let body = resp
+        .bytes()
+        .map_err(|e| InstallError::Url(format!("body: {e}")))?;
+    if body.len() > MAX_BUNDLE_BYTES {
+        return Err(InstallError::Url(format!(
+            "bundle exceeds {} byte limit (got {})",
+            MAX_BUNDLE_BYTES,
+            body.len()
+        )));
+    }
+    use std::io::Write;
+    tmp.write_all(&body)
+        .map_err(|e| InstallError::Url(format!("write: {e}")))?;
+    tmp.flush()
+        .map_err(|e| InstallError::Url(format!("flush: {e}")))?;
+
+    install_from_file(workspace, store, tmp.path(), force)
+}
+
+/// Maximum on-the-wire bundle size — 50 MB. Picked to comfortably
+/// accommodate plugins shipping bundled MCP server binaries while
+/// still bounding how much disk a hostile URL can burn through.
+pub const MAX_BUNDLE_BYTES: usize = 50 * 1024 * 1024;
 
 /// Scan the workspace's install dir and return every plugin whose
 /// manifest can be re-parsed. Skip — but don't error on — entries
@@ -617,5 +693,47 @@ mod tests {
         let (ws_dir, store) = temp_workspace();
         let removed = uninstall(ws_dir.path(), &store, "ghost", PolicySetter::Admin).unwrap();
         assert!(!removed);
+    }
+
+    // ── B2.12: install_from_url scheme guard ────────────────────────────────
+
+    #[test]
+    fn install_from_url_rejects_http_scheme() {
+        let (ws_dir, store) = temp_workspace();
+        let err = install_from_url(ws_dir.path(), &store, "http://example.com/x.mcpb", false)
+            .unwrap_err();
+        match err {
+            InstallError::Url(msg) => {
+                assert!(
+                    msg.contains("only https://"),
+                    "expected https-only error, got `{msg}`"
+                );
+            }
+            other => panic!("expected InstallError::Url, got {other}"),
+        }
+    }
+
+    #[test]
+    fn install_from_url_rejects_unknown_scheme() {
+        let (ws_dir, store) = temp_workspace();
+        let err =
+            install_from_url(ws_dir.path(), &store, "ftp://example.com/x.mcpb", false).unwrap_err();
+        assert!(matches!(err, InstallError::Url(_)));
+    }
+
+    #[test]
+    fn install_from_url_rejects_scheme_less_path() {
+        let (ws_dir, store) = temp_workspace();
+        let err = install_from_url(ws_dir.path(), &store, "/local/path.mcpb", false).unwrap_err();
+        assert!(matches!(err, InstallError::Url(_)));
+    }
+
+    #[test]
+    fn max_bundle_bytes_is_reasonable_for_cli_plugins() {
+        // Sanity check the bound — large enough for plugins shipping
+        // small server binaries (Node script + a couple of native
+        // tools), small enough that a hostile URL can't fill a disk.
+        assert!(MAX_BUNDLE_BYTES >= 10 * 1024 * 1024);
+        assert!(MAX_BUNDLE_BYTES <= 100 * 1024 * 1024);
     }
 }

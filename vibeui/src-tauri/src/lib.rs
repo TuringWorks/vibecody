@@ -1141,6 +1141,7 @@ pub fn run() {
             commands::workspace_secret_list,
             // B2.6 — Plugin Governance (signed MCPB bundles)
             commands::plugin_install_from_file,
+            commands::plugin_install_from_url,
             commands::plugin_list_installed,
             commands::plugin_uninstall,
             commands::plugin_get_policy,

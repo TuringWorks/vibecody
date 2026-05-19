@@ -63,6 +63,8 @@ export function PluginGovernancePanel({ workspacePath }: Props) {
   const [installPath, setInstallPath] = useState("");
   const [installForce, setInstallForce] = useState(false);
   const [installMsg, setInstallMsg] = useState<string | null>(null);
+  const [installMode, setInstallMode] = useState<"file" | "url">("file");
+  const [installUrl, setInstallUrl] = useState("");
 
   const load = useCallback(async () => {
     if (!workspacePath) return;
@@ -151,6 +153,27 @@ export function PluginGovernancePanel({ workspacePath }: Props) {
     }
   }
 
+  async function installFromUrl() {
+    if (!installUrl.trim()) return;
+    setInstallMsg(null);
+    try {
+      const installed = await invoke<InstalledPlugin>("plugin_install_from_url", {
+        workspacePath,
+        url: installUrl.trim(),
+        force: installForce,
+      });
+      setInstallMsg(
+        `Installed ${installed.name} v${installed.version} from ${installed.publisher.name} ` +
+          `(key ${installed.publisher.key_fingerprint}…) — policy: ${installed.policy}`,
+      );
+      setInstallUrl("");
+      setInstallForce(false);
+      await load();
+    } catch (e) {
+      setInstallMsg(`Error: ${e}`);
+    }
+  }
+
   // Policy options the current row can transition to. Required ↔
   // anything-else needs the `As admin` toggle; the policy buttons
   // below are still rendered, but the click is gated by `isAdmin`
@@ -192,18 +215,41 @@ export function PluginGovernancePanel({ workspacePath }: Props) {
       <div className="panel-body" style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         {error && <div className="panel-error"><span>{error}</span></div>}
 
-        {/* Install from local MCPB bundle. URL fetch lives in a follow-up slice. */}
+        {/* Install signed MCPB bundle — local file or HTTPS URL. */}
         <section style={{ background: "var(--bg-secondary)", border: "1px solid var(--border-color)", borderRadius: "var(--radius-sm-alt)", padding: 14 }}>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>Install signed MCPB bundle</div>
-          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-            <input
-              value={installPath}
-              onChange={(e) => setInstallPath(e.target.value)}
-              placeholder="/path/to/plugin.mcpb"
-              style={{ flex: 1, padding: "8px 12px", borderRadius: "var(--radius-sm)", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}
-            />
-            <button className="panel-btn panel-btn-secondary" onClick={pickBundle}>Browse…</button>
+          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+            {(["file", "url"] as const).map((m) => (
+              <button
+                key={m}
+                className={`panel-btn ${installMode === m ? "" : "panel-btn-secondary"}`}
+                onClick={() => { setInstallMode(m); setInstallMsg(null); }}
+                style={{ padding: "4px 12px", borderRadius: "var(--radius-sm)", fontSize: "var(--font-size-sm)", fontWeight: installMode === m ? 600 : 400 }}
+              >
+                {m === "file" ? "Local file" : "HTTPS URL"}
+              </button>
+            ))}
           </div>
+          {installMode === "file" ? (
+            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              <input
+                value={installPath}
+                onChange={(e) => setInstallPath(e.target.value)}
+                placeholder="/path/to/plugin.mcpb"
+                style={{ flex: 1, padding: "8px 12px", borderRadius: "var(--radius-sm)", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}
+              />
+              <button className="panel-btn panel-btn-secondary" onClick={pickBundle}>Browse…</button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+              <input
+                value={installUrl}
+                onChange={(e) => setInstallUrl(e.target.value)}
+                placeholder="https://publisher.example/plugin.mcpb"
+                style={{ flex: 1, padding: "8px 12px", borderRadius: "var(--radius-sm)", background: "var(--bg-primary)", color: "var(--text-primary)", border: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" }}
+              />
+            </div>
+          )}
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "var(--font-size-sm)", color: "var(--text-muted)" }}>
               <input type="checkbox" checked={installForce} onChange={(e) => setInstallForce(e.target.checked)} />
@@ -211,8 +257,8 @@ export function PluginGovernancePanel({ workspacePath }: Props) {
             </label>
             <button
               className="panel-btn"
-              onClick={installFromFile}
-              disabled={!installPath.trim()}
+              onClick={installMode === "file" ? installFromFile : installFromUrl}
+              disabled={installMode === "file" ? !installPath.trim() : !installUrl.trim()}
               style={{ padding: "8px 16px", borderRadius: "var(--radius-sm)", background: "var(--accent-color)", color: "var(--btn-primary-fg, #fff)", border: "none", fontWeight: 600 }}
             >
               Install
