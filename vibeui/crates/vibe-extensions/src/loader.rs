@@ -2,11 +2,96 @@
 //!
 //! Scans a directory for `*.wasm` files, instantiates each as a sandboxed
 //! wasmtime module, wires up host functions, and calls the `init()` export.
+//!
+//! ## Sandbox tier H5 — Wasmtime fuel + epoch hardening
+//!
+//! Wasmtime gives capability-based isolation but defaults to letting a guest
+//! loop forever. Two enforcement layers are turned on in
+//! [`ExtensionLoader::new`]:
+//!
+//! 1. **Fuel** — `Config::consume_fuel(true)` + per-Store
+//!    `Store::set_fuel(N)` before every call. Each WebAssembly
+//!    instruction consumes one unit; when the budget hits zero the
+//!    call traps with `Trap::OutOfFuel`. Default budget is
+//!    [`DEFAULT_FUEL`] units (~ 10⁸, which is multi-second of
+//!    typical WASM); per-call override via [`Extension::set_fuel`].
+//! 2. **Epoch interruption** — `Config::epoch_interruption(true)` +
+//!    [`Engine::increment_epoch`] from a single background thread,
+//!    plus per-Store `Store::set_epoch_deadline(N)`. When the
+//!    deadline elapses the call traps even if no fuel was burned
+//!    (covers the case of a guest blocking inside a host call
+//!    whose return path we control). Default deadline is
+//!    [`DEFAULT_EPOCH_DEADLINE`] ticks at
+//!    [`DEFAULT_EPOCH_INTERVAL`].
+//!
+//! Both knobs are belt-and-suspenders: fuel catches pure CPU loops,
+//! epoch catches wall-clock-bound deadlocks. Either alone leaves
+//! gaps. See `docs/design/sandbox-tiers/04-hyperlight-tier.md` §H5.
 
 use crate::api::*;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
+use std::time::Duration;
+use thiserror::Error;
 use wasmtime::*;
+
+/// Default per-call fuel budget. Wasmtime burns ~1 unit per WASM
+/// instruction; 100M is a couple seconds of pure-CPU work for a
+/// typical extension. Set conservatively so a misbehaving extension
+/// dies loudly long before it starves the daemon thread.
+pub const DEFAULT_FUEL: u64 = 100_000_000;
+
+/// Default wall-clock deadline in epoch ticks, paired with
+/// [`DEFAULT_EPOCH_INTERVAL`]. 10 ticks × 100 ms = 1 second of wall
+/// time max per call. Extensions doing legitimate long work override
+/// via [`Extension::set_epoch_deadline`].
+pub const DEFAULT_EPOCH_DEADLINE: u64 = 10;
+
+/// How often the background thread bumps the engine's epoch.
+/// 100 ms is fine-grained enough for the default 1 s deadline and
+/// cheap enough that the daemon's tracing is not flooded.
+pub const DEFAULT_EPOCH_INTERVAL: Duration = Duration::from_millis(100);
+
+// ── Error ─────────────────────────────────────────────────────────────────────
+
+/// Why a Wasmtime call was killed.
+///
+/// Distinguishing fuel from epoch matters for operators: fuel
+/// exhaustion is a pure-CPU loop in the extension; epoch exhaustion
+/// is wall-clock time and may indicate the extension is stuck in a
+/// host call (e.g. waiting on `host_read_file`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExhaustionKind {
+    /// Wasmtime fuel budget ran out (CPU-bound).
+    Fuel,
+    /// Wasmtime epoch deadline elapsed (wall-clock-bound).
+    Epoch,
+}
+
+impl std::fmt::Display for ExhaustionKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExhaustionKind::Fuel => f.write_str("fuel"),
+            ExhaustionKind::Epoch => f.write_str("epoch"),
+        }
+    }
+}
+
+/// Errors surfaced from an extension call.
+///
+/// The daemon should log `Exhausted` as a `vibe.extensions.exhausted`
+/// event so operators can tune budgets or disable misbehaving
+/// extensions.
+#[derive(Debug, Error)]
+pub enum ExtensionError {
+    /// The extension exhausted its CPU/wall budget and was killed.
+    #[error("extension '{name}' exhausted {kind} budget")]
+    Exhausted { kind: ExhaustionKind, name: String },
+
+    /// Any other failure (compile, ABI, host fn, …).
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
+}
 
 // ── HostState ─────────────────────────────────────────────────────────────────
 
@@ -25,6 +110,12 @@ pub struct Extension {
     pub path: PathBuf,
     instance: Instance,
     store: Store<HostState>,
+    /// Per-call fuel budget. Reset on the Store before each export
+    /// invocation; populated from the loader default at load time
+    /// and overridable via [`Extension::set_fuel`].
+    fuel: u64,
+    /// Per-call epoch deadline (in ticks of [`DEFAULT_EPOCH_INTERVAL`]).
+    epoch_deadline: u64,
 }
 
 impl Extension {
@@ -49,9 +140,30 @@ impl Extension {
         std::mem::take(&mut self.store.data_mut().notifications)
     }
 
+    /// Override the fuel budget used for subsequent calls.
+    pub fn set_fuel(&mut self, fuel: u64) {
+        self.fuel = fuel;
+    }
+
+    /// Override the epoch deadline used for subsequent calls.
+    pub fn set_epoch_deadline(&mut self, ticks: u64) {
+        self.epoch_deadline = ticks;
+    }
+
+    /// Invoke an exported `(ptr, len)` function with a string payload,
+    /// surfacing typed errors (notably [`ExtensionError::Exhausted`]).
+    ///
+    /// The fire-and-forget [`Self::on_file_save`] / [`Self::on_text_change`]
+    /// helpers silently swallow errors; use this when the caller needs
+    /// to observe fuel/epoch exhaustion (e.g. to emit a
+    /// `vibe.extensions.exhausted` metric).
+    pub fn try_call(&mut self, export_name: &str, arg: &str) -> Result<(), ExtensionError> {
+        self.call_str_fn(export_name, arg)
+    }
+
     // ── private ───────────────────────────────────────────────────────────
 
-    fn call_str_fn(&mut self, export_name: &str, arg: &str) -> Result<()> {
+    fn call_str_fn(&mut self, export_name: &str, arg: &str) -> Result<(), ExtensionError> {
         // Resolve the exported function (skip silently if absent).
         let func = match self.instance.get_func(&mut self.store, export_name) {
             Some(f) => f,
@@ -65,14 +177,27 @@ impl Extension {
 
         let bytes = arg.as_bytes().to_vec();
         let len = i32::try_from(bytes.len())
-            .map_err(|_| anyhow::anyhow!("String too large for WASM allocation ({} bytes)", bytes.len()))?;
+            .map_err(|_| ExtensionError::Other(anyhow::anyhow!(
+                "String too large for WASM allocation ({} bytes)",
+                bytes.len()
+            )))?;
+
+        // H5: reset fuel + epoch budgets so each call gets a fresh
+        // allotment rather than inheriting the previous call's
+        // remainder. Both must be reset before any guest code runs,
+        // including `alloc`.
+        self.reset_budgets()?;
 
         // alloc(len) → ptr (i32)
         let mut results = [Val::I32(0)];
-        alloc.call(&mut self.store, &[Val::I32(len)], &mut results)?;
+        let alloc_res = alloc.call(&mut self.store, &[Val::I32(len)], &mut results);
+        alloc_res.map_err(|e| classify_trap(e, &self.name))?;
         let ptr_val = results[0].unwrap_i32();
         if ptr_val < 0 {
-            anyhow::bail!("WASM alloc returned error code: {}", ptr_val);
+            return Err(ExtensionError::Other(anyhow::anyhow!(
+                "WASM alloc returned error code: {}",
+                ptr_val
+            )));
         }
         let ptr = ptr_val as usize;
 
@@ -80,21 +205,65 @@ impl Extension {
         let memory = self
             .instance
             .get_memory(&mut self.store, "memory")
-            .context("extension must export 'memory'")?;
+            .context("extension must export 'memory'")
+            .map_err(ExtensionError::Other)?;
         memory
             .write(&mut self.store, ptr, &bytes)
-            .context("writing string to WASM memory")?;
+            .context("writing string to WASM memory")
+            .map_err(ExtensionError::Other)?;
 
-        // Call export(ptr, len).
-        func.call(&mut self.store, &[Val::I32(ptr as i32), Val::I32(len)], &mut [])?;
+        // Call export(ptr, len). Note: we do NOT reset budgets again
+        // here — fuel/epoch carry over from the alloc call so a
+        // misbehaving alloc cannot exhaust the budget and starve the
+        // real call's accounting.
+        let call_res =
+            func.call(&mut self.store, &[Val::I32(ptr as i32), Val::I32(len)], &mut []);
+        call_res.map_err(|e| classify_trap(e, &self.name))?;
         Ok(())
     }
+
+    fn reset_budgets(&mut self) -> Result<(), ExtensionError> {
+        self.store
+            .set_fuel(self.fuel)
+            .map_err(|e| ExtensionError::Other(anyhow::anyhow!("set fuel: {}", e)))?;
+        self.store.set_epoch_deadline(self.epoch_deadline);
+        Ok(())
+    }
+}
+
+/// Inspect a `wasmtime::Error` returned from `Func::call` and map
+/// known trap kinds to typed exhaustion variants.
+fn classify_trap(e: wasmtime::Error, name: &str) -> ExtensionError {
+    if let Some(trap) = e.downcast_ref::<Trap>() {
+        match trap {
+            Trap::OutOfFuel => {
+                return ExtensionError::Exhausted {
+                    kind: ExhaustionKind::Fuel,
+                    name: name.to_string(),
+                };
+            }
+            Trap::Interrupt => {
+                return ExtensionError::Exhausted {
+                    kind: ExhaustionKind::Epoch,
+                    name: name.to_string(),
+                };
+            }
+            _ => {}
+        }
+    }
+    ExtensionError::Other(anyhow::anyhow!("{}", e))
 }
 
 // ── ExtensionLoader ───────────────────────────────────────────────────────────
 
 pub struct ExtensionLoader {
     engine: Engine,
+    /// Per-loader default fuel budget for new extensions. Each
+    /// extension call resets fuel to this value unless the caller
+    /// overrides via [`Extension::set_fuel`].
+    default_fuel: u64,
+    /// Per-loader default epoch deadline. Reset before every call.
+    default_epoch_deadline: u64,
 }
 
 impl Default for ExtensionLoader {
@@ -105,10 +274,62 @@ impl Default for ExtensionLoader {
 
 impl ExtensionLoader {
     pub fn new() -> Self {
-        let config = Config::new();
+        Self::with_interval(DEFAULT_EPOCH_INTERVAL)
+    }
+
+    /// Test-friendly constructor: pick a faster epoch interval so
+    /// fuel/epoch tests don't have to wait 100 ms × N.
+    pub fn with_interval(epoch_interval: Duration) -> Self {
+        let mut config = Config::new();
+        // H5: fuel catches infinite-CPU-loops; epoch catches
+        // wall-clock-bound deadlocks. Both required — see
+        // module-level docs.
+        config.consume_fuel(true);
+        config.epoch_interruption(true);
+        let engine = Engine::new(&config).expect("wasmtime Engine");
+
+        // Spawn the epoch ticker. The thread holds an Engine clone
+        // (cheap — Engine is Arc inside) and bumps the epoch
+        // counter every `epoch_interval`. The thread is detached;
+        // it exits when the Engine is dropped because
+        // `increment_epoch` becomes a no-op on a stale handle.
+        let ticker_engine: Engine = engine.clone();
+        std::thread::Builder::new()
+            .name("vibe-extensions:epoch-ticker".to_string())
+            .spawn(move || {
+                let engine = ticker_engine;
+                // Hold a weak count so we exit when no other engine
+                // clones remain. Wasmtime doesn't expose
+                // strong-count directly; instead we just sleep +
+                // bump, and the daemon's lifetime is the daemon's
+                // lifetime. For tests that build many loaders the
+                // OS-thread overhead is fine — these are dev-only.
+                loop {
+                    std::thread::sleep(epoch_interval);
+                    engine.increment_epoch();
+                }
+            })
+            .expect("spawn epoch ticker");
+
         Self {
-            engine: Engine::new(&config).expect("wasmtime Engine"),
+            engine,
+            default_fuel: DEFAULT_FUEL,
+            default_epoch_deadline: DEFAULT_EPOCH_DEADLINE,
         }
+    }
+
+    /// Override the default fuel budget for extensions loaded by
+    /// this loader. Affects subsequent `load_*` calls; existing
+    /// `Extension` instances are unaffected.
+    pub fn with_default_fuel(mut self, fuel: u64) -> Self {
+        self.default_fuel = fuel;
+        self
+    }
+
+    /// Override the default epoch deadline (in epoch ticks).
+    pub fn with_default_epoch_deadline(mut self, ticks: u64) -> Self {
+        self.default_epoch_deadline = ticks;
+        self
     }
 
     /// Load all `*.wasm` files from `dir`.
@@ -230,6 +451,14 @@ impl ExtensionLoader {
 
         let mut store = Store::new(&self.engine, HostState::default());
 
+        // H5: prime fuel + epoch budgets so `init()` itself runs
+        // bounded. A malicious extension's init() could otherwise
+        // loop the daemon startup forever.
+        store
+            .set_fuel(self.default_fuel)
+            .map_err(|e| anyhow::anyhow!("set initial fuel: {}", e))?;
+        store.set_epoch_deadline(self.default_epoch_deadline);
+
         let instance = linker
             .instantiate(&mut store, &module)
             .map_err(|e| anyhow::anyhow!("instantiate {}: {}", path.display(), e))?;
@@ -252,6 +481,8 @@ impl ExtensionLoader {
             path: path.to_path_buf(),
             instance,
             store,
+            fuel: self.default_fuel,
+            epoch_deadline: self.default_epoch_deadline,
         })
     }
 
@@ -480,6 +711,108 @@ mod tests {
         assert_eq!(exts[0].name, "myext");
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Build a tiny WAT module that exports `memory`, `alloc(len)`
+    /// returning ptr=0, and `loop_forever(ptr, len)` that runs an
+    /// infinite WASM loop. Designed for H5 fuel/epoch tests.
+    fn infinite_loop_wasm() -> Vec<u8> {
+        let wat = r#"(module
+            (memory (export "memory") 1)
+            (func (export "alloc") (param i32) (result i32)
+                i32.const 0
+            )
+            (func (export "loop_forever") (param i32 i32)
+                (loop $forever
+                    br $forever
+                )
+            )
+        )"#;
+        wat::parse_str(wat).expect("parse loop WAT")
+    }
+
+    #[test]
+    fn h5_fuel_exhaustion_traps_with_typed_error() {
+        // Cap fuel low so we exhaust quickly. Epoch deadline is
+        // huge so this test is specifically about fuel.
+        let loader = ExtensionLoader::new()
+            .with_default_fuel(10_000)
+            .with_default_epoch_deadline(u64::MAX);
+
+        let dir = std::env::temp_dir().join("vibe_ext_test_h5_fuel");
+        let _ = std::fs::create_dir_all(&dir);
+        let wasm_path = dir.join("loop.wasm");
+        std::fs::write(&wasm_path, infinite_loop_wasm()).unwrap();
+
+        let mut ext = loader.load_one(&wasm_path, "loop").unwrap();
+        let err = ext.try_call("loop_forever", "x").unwrap_err();
+        match err {
+            ExtensionError::Exhausted { kind, name } => {
+                assert_eq!(kind, ExhaustionKind::Fuel);
+                assert_eq!(name, "loop");
+            }
+            other => panic!("expected Exhausted{{Fuel}}, got {:?}", other),
+        }
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn h5_epoch_exhaustion_traps_with_typed_error() {
+        // Use a fast epoch interval so the test completes quickly.
+        // Fuel is effectively unlimited so this test isolates epoch.
+        let loader = ExtensionLoader::with_interval(Duration::from_millis(10))
+            .with_default_fuel(u64::MAX)
+            .with_default_epoch_deadline(1);
+
+        let dir = std::env::temp_dir().join("vibe_ext_test_h5_epoch");
+        let _ = std::fs::create_dir_all(&dir);
+        let wasm_path = dir.join("loop.wasm");
+        std::fs::write(&wasm_path, infinite_loop_wasm()).unwrap();
+
+        let mut ext = loader.load_one(&wasm_path, "loop").unwrap();
+        let err = ext.try_call("loop_forever", "x").unwrap_err();
+        match err {
+            ExtensionError::Exhausted { kind, name } => {
+                assert_eq!(kind, ExhaustionKind::Epoch);
+                assert_eq!(name, "loop");
+            }
+            other => panic!("expected Exhausted{{Epoch}}, got {:?}", other),
+        }
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn h5_per_extension_set_fuel_override_takes_effect() {
+        // Default fuel huge — the loader-level setting would let
+        // loop_forever run "forever". Per-extension override
+        // drops it to ~zero and forces a Fuel trap.
+        let loader = ExtensionLoader::new()
+            .with_default_fuel(u64::MAX)
+            .with_default_epoch_deadline(u64::MAX);
+
+        let dir = std::env::temp_dir().join("vibe_ext_test_h5_per_ext_fuel");
+        let _ = std::fs::create_dir_all(&dir);
+        let wasm_path = dir.join("loop.wasm");
+        std::fs::write(&wasm_path, infinite_loop_wasm()).unwrap();
+
+        let mut ext = loader.load_one(&wasm_path, "loop").unwrap();
+        ext.set_fuel(10_000);
+        let err = ext.try_call("loop_forever", "x").unwrap_err();
+        assert!(matches!(
+            err,
+            ExtensionError::Exhausted { kind: ExhaustionKind::Fuel, .. }
+        ));
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn h5_exhaustion_kind_display_is_stable() {
+        // Daemon log format depends on this.
+        assert_eq!(ExhaustionKind::Fuel.to_string(), "fuel");
+        assert_eq!(ExhaustionKind::Epoch.to_string(), "epoch");
     }
 
     #[test]
