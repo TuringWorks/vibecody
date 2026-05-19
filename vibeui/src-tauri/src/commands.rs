@@ -6301,7 +6301,10 @@ pub struct TestRunResult {
 /// Detect which test framework the workspace uses.
 #[tauri::command]
 pub async fn detect_test_framework(workspace: String) -> String {
-    let ws = std::path::Path::new(&workspace);
+    let ws = match reject_sensitive_path(&workspace) {
+        Ok(p) => p,
+        Err(_) => return String::new(),
+    };
     if ws.join("Cargo.toml").exists() { return "cargo test".to_string(); }
     // Check package.json for test script
     if let Ok(txt) = std::fs::read_to_string(ws.join("package.json")) {
@@ -6835,7 +6838,7 @@ pub struct BuildResult {
 /// List subdirectories (up to 2 levels deep) for the build directory picker.
 #[tauri::command]
 pub async fn list_workspace_subdirs(workspace: String) -> Result<Vec<String>, String> {
-    let root = std::path::Path::new(&workspace);
+    let root = reject_sensitive_path(&workspace)?;
     if !root.is_dir() { return Ok(Vec::new()); }
     let mut dirs = Vec::new();
     let Ok(entries) = std::fs::read_dir(root) else { return Ok(dirs); };
@@ -6864,7 +6867,7 @@ pub async fn list_workspace_subdirs(workspace: String) -> Result<Vec<String>, St
 
 #[tauri::command]
 pub async fn detect_build_system(workspace: String) -> Result<Vec<BuildSystem>, String> {
-    let path = std::path::PathBuf::from(&workspace);
+    let path = reject_sensitive_path(&workspace)?;
     let mut systems = Vec::new();
 
     // ── 1. Check for build config files (project-level build systems) ──
@@ -7745,6 +7748,7 @@ fn vibecli_trace_dir(workspace: &str) -> std::path::PathBuf {
 /// List all sessions in the workspace's `.vibecli/traces/` directory.
 #[tauri::command]
 pub async fn list_sessions(workspace: String) -> Result<Vec<SessionBrowserEntry>, String> {
+    let _ = reject_sensitive_path(&workspace)?;
     let dir = vibecli_trace_dir(&workspace);
     let entries = match std::fs::read_dir(&dir) {
         Ok(e) => e,
@@ -10388,7 +10392,8 @@ pub struct DeployRecord {
 /// Detect project type and recommend a deploy target.
 #[tauri::command]
 pub async fn detect_deploy_target(workspace: String) -> Result<DeployTarget, String> {
-    let pkg_path = std::path::Path::new(&workspace).join("package.json");
+    let ws_root = reject_sensitive_path(&workspace)?;
+    let pkg_path = ws_root.join("package.json");
     let pkg: serde_json::Value = if pkg_path.exists() {
         std::fs::read_to_string(&pkg_path)
             .ok()
@@ -13238,7 +13243,7 @@ pub struct CoverageResult {
 /// Detect which coverage tool the project uses.
 #[tauri::command]
 pub async fn detect_coverage_tool(workspace: String) -> Result<String, String> {
-    let ws = PathBuf::from(&workspace);
+    let ws = reject_sensitive_path(&workspace)?;
     if ws.join("Cargo.toml").exists() {
         return Ok("cargo-llvm-cov".to_string());
     }
@@ -13716,7 +13721,7 @@ pub async fn discover_api_endpoints(workspace: String) -> Result<Vec<String>, St
         .filter_map(|p| regex::Regex::new(p).ok())
         .collect();
 
-    let ws = PathBuf::from(&workspace);
+    let ws = reject_sensitive_path(&workspace)?;
     let mut endpoints = Vec::new();
 
     for entry in walkdir::WalkDir::new(&ws)
@@ -14113,7 +14118,7 @@ pub struct AutofixResult {
 /// Run the linter in auto-fix mode and return the resulting diff.
 #[tauri::command]
 pub async fn run_autofix(workspace: String, framework: Option<String>) -> Result<AutofixResult, String> {
-    let ws = PathBuf::from(&workspace);
+    let ws = reject_sensitive_path(&workspace)?;
 
     // Auto-detect framework if not specified
     let fw = match framework.as_deref() {
@@ -14175,7 +14180,7 @@ pub async fn run_autofix(workspace: String, framework: Option<String>) -> Result
 /// Apply or revert an autofix: stage all changes (apply) or restore (revert).
 #[tauri::command]
 pub async fn apply_autofix(workspace: String, apply: bool) -> Result<(), String> {
-    let ws = PathBuf::from(&workspace);
+    let ws = reject_sensitive_path(&workspace)?;
     let args: &[&str] = if apply {
         &["add", "-u"]
     } else {
@@ -16414,7 +16419,7 @@ pub async fn kill_process(pid: u32) -> Result<(), String> {
 /// Detect build type from workspace files.
 #[tauri::command]
 pub async fn detect_build_type(workspace: String) -> Result<String, String> {
-    let path = std::path::Path::new(&workspace);
+    let path = reject_sensitive_path(&workspace)?;
     if path.join("Cargo.toml").exists() {
         return Ok("rust".to_string());
     }
@@ -18031,7 +18036,7 @@ fn parse_env_content(content: &str, reveal: bool) -> Vec<EnvEntry> {
 /// List all .env* files in a workspace.
 #[tauri::command]
 pub async fn get_env_files(workspace: String) -> Result<Vec<EnvFileInfo>, String> {
-    let ws = std::path::PathBuf::from(&workspace);
+    let ws = reject_sensitive_path(&workspace)?;
     if !ws.is_dir() {
         return Err("Workspace directory not found".to_string());
     }
@@ -18259,7 +18264,7 @@ pub struct ProfileResult {
 /// Auto-detect the appropriate profiling tool for the workspace.
 #[tauri::command]
 pub async fn detect_profiler_tool(workspace: String) -> Result<String, String> {
-    let ws = std::path::PathBuf::from(&workspace);
+    let ws = reject_sensitive_path(&workspace)?;
     if ws.join("Cargo.toml").exists() {
         return Ok("cargo-flamegraph".to_string());
     }
@@ -18778,7 +18783,7 @@ pub struct DepsResult {
 /// Auto-detect the package manager for the workspace.
 #[tauri::command]
 pub async fn detect_package_manager(workspace: String) -> Result<String, String> {
-    let ws = std::path::PathBuf::from(&workspace);
+    let ws = reject_sensitive_path(&workspace)?;
     if ws.join("package.json").exists() {
         if ws.join("pnpm-lock.yaml").exists() { return Ok("pnpm".to_string()); }
         if ws.join("yarn.lock").exists() { return Ok("yarn".to_string()); }
@@ -18875,7 +18880,7 @@ fn parse_cargo_dry_run(output: &str) -> Vec<DepInfo> {
 /// Scan dependencies for the workspace.
 #[tauri::command]
 pub async fn scan_dependencies(workspace: String, manager: String) -> Result<DepsResult, String> {
-    let ws = std::path::PathBuf::from(&workspace);
+    let ws = reject_sensitive_path(&workspace)?;
     let timeout_dur = std::time::Duration::from_secs(60);
 
     match manager.as_str() {
@@ -18968,7 +18973,7 @@ pub async fn scan_dependencies(workspace: String, manager: String) -> Result<Dep
 /// Upgrade a specific dependency.
 #[tauri::command]
 pub async fn upgrade_dependency(workspace: String, manager: String, package: String, version: Option<String>) -> Result<String, String> {
-    let ws = std::path::PathBuf::from(&workspace);
+    let ws = reject_sensitive_path(&workspace)?;
     if package.is_empty() { return Err("Package name required".to_string()); }
     if package.chars().any(|c| matches!(c, ';' | '&' | '|' | '$' | '`' | '\n' | '\r')) { return Err("Invalid package name".to_string()); }
 
@@ -19100,7 +19105,7 @@ fn parse_diesel_status(output: &str) -> (Vec<MigrationEntry>, Vec<MigrationEntry
 /// Detect migration tool and return current migration status.
 #[tauri::command]
 pub async fn get_migration_status(workspace: String) -> Result<MigrationStatus, String> {
-    let ws = std::path::PathBuf::from(&workspace);
+    let ws = reject_sensitive_path(&workspace)?;
     let tool = detect_migration_tool(&ws);
 
     if tool == "unknown" {
@@ -19303,7 +19308,7 @@ fn level_priority(level: &str) -> u8 {
 
 #[tauri::command]
 pub async fn discover_log_sources(workspace: String) -> Result<Vec<LogSource>, String> {
-    let ws = std::path::Path::new(&workspace);
+    let ws = reject_sensitive_path(&workspace)?;
     if !ws.is_dir() {
         return Err("Workspace is not a directory".to_string());
     }
@@ -19469,9 +19474,7 @@ pub struct ScriptRunResult {
 /// Detect all runnable scripts/tasks in the workspace.
 #[tauri::command]
 pub async fn detect_project_scripts(workspace: String) -> Result<ScriptCategories, String> {
-    let ws = std::path::Path::new(&workspace)
-        .canonicalize()
-        .map_err(|e| format!("Invalid workspace: {e}"))?;
+    let ws = reject_sensitive_path(&workspace)?;
 
     let mut scripts: Vec<ProjectScript> = Vec::new();
     let mut detected_tools: Vec<String> = Vec::new();
@@ -20085,7 +20088,7 @@ const SOURCE_EXTENSIONS: &[&str] = &[
 
 #[tauri::command]
 pub async fn scan_code_markers(workspace: String) -> Result<Vec<CodeMarker>, String> {
-    let ws = PathBuf::from(&workspace);
+    let ws = reject_sensitive_path(&workspace)?;
     if !ws.is_dir() {
         return Err("Workspace directory not found".to_string());
     }
@@ -20234,6 +20237,7 @@ async fn run_git_cmd(workspace: &str, args: &[&str]) -> Result<String, String> {
 
 #[tauri::command]
 pub async fn git_bisect_start(workspace: String, bad: String, good: String) -> Result<String, String> {
+    let _ = reject_sensitive_path(&workspace)?;
     validate_git_ref(&bad)?;
     validate_git_ref(&good)?;
     run_git_cmd(&workspace, &["bisect", "start", &bad, &good]).await
@@ -20241,6 +20245,7 @@ pub async fn git_bisect_start(workspace: String, bad: String, good: String) -> R
 
 #[tauri::command]
 pub async fn git_bisect_step(workspace: String, verdict: String) -> Result<BisectStepResult, String> {
+    let _ = reject_sensitive_path(&workspace)?;
     if !["good", "bad", "skip"].contains(&verdict.as_str()) {
         return Err("Verdict must be 'good', 'bad', or 'skip'".to_string());
     }
@@ -20285,11 +20290,13 @@ pub async fn git_bisect_step(workspace: String, verdict: String) -> Result<Bisec
 
 #[tauri::command]
 pub async fn git_bisect_reset(workspace: String) -> Result<String, String> {
+    let _ = reject_sensitive_path(&workspace)?;
     run_git_cmd(&workspace, &["bisect", "reset"]).await
 }
 
 #[tauri::command]
 pub async fn git_bisect_log(workspace: String) -> Result<String, String> {
+    let _ = reject_sensitive_path(&workspace)?;
     let log = run_git_cmd(&workspace, &["bisect", "log"]).await?;
     Ok(log.chars().take(10_000).collect())
 }
@@ -20971,9 +20978,7 @@ fn line_is_comment(line: &str, ext: &str) -> bool {
 pub async fn analyze_code_metrics(workspace: String) -> Result<CodeMetrics, String> {
     use std::collections::HashMap;
 
-    let ws = std::path::Path::new(&workspace)
-        .canonicalize()
-        .map_err(|e| format!("Invalid workspace: {e}"))?;
+    let ws = reject_sensitive_path(&workspace)?;
 
     const SKIP_DIRS: &[&str] = &[
         "node_modules", ".git", "target", "dist", "build", ".next",
@@ -22013,7 +22018,7 @@ pub struct TransformExecResult {
 
 #[tauri::command]
 pub async fn detect_transform(workspace: String) -> Result<Vec<String>, String> {
-    let ws = std::path::PathBuf::from(&workspace);
+    let ws = reject_sensitive_path(&workspace)?;
     let mut transforms = Vec::new();
 
     // Collect all extensions present in the workspace (max depth 4)
@@ -23560,7 +23565,7 @@ pub async fn scan_css_variables(workspace: String) -> Result<Vec<ColorToken>, St
     use std::io::BufRead;
     let re = regex::Regex::new(r"--([a-zA-Z0-9_-]+)\s*:\s*(#[0-9a-fA-F]{3,8}|rgb[a]?\([^)]+\))")
         .map_err(|e| e.to_string())?;
-    let root = std::path::Path::new(&workspace);
+    let root = reject_sensitive_path(&workspace)?;
     let mut tokens: Vec<ColorToken> = Vec::new();
     let mut seen = std::collections::HashSet::new();
 
@@ -23627,9 +23632,9 @@ pub struct MarkdownFile {
 /// List all .md and .mdx files in the workspace (max depth 8, skips node_modules/target)
 #[tauri::command]
 pub async fn list_markdown_files(workspace: String) -> Result<Vec<MarkdownFile>, String> {
-    let root = std::path::Path::new(&workspace);
+    let root = reject_sensitive_path(&workspace)?;
     let mut files = Vec::new();
-    for entry in walkdir::WalkDir::new(root).max_depth(8).into_iter().filter_map(|e| e.ok()) {
+    for entry in walkdir::WalkDir::new(&root).max_depth(8).into_iter().filter_map(|e| e.ok()) {
         let path = entry.path();
         let lossy = path.to_string_lossy();
         if lossy.contains("node_modules") || lossy.contains("/target/") || lossy.contains("/.git/") {
@@ -25941,7 +25946,7 @@ fn walk_dir_for_cloud_scan(dir: &std::path::Path, extensions: &[&str], max_files
 
 #[tauri::command]
 pub async fn cloud_provider_scan(workspace: String) -> Result<serde_json::Value, String> {
-    let ws_path = std::path::Path::new(&workspace);
+    let ws_path = reject_sensitive_path(&workspace)?;
     if !ws_path.is_dir() {
         return Err(format!("Workspace path '{}' is not a directory", workspace));
     }
@@ -32859,6 +32864,179 @@ pub async fn workspace_secret_list(
     Ok(serde_json::Value::Array(items))
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// B2.6 — Plugin Governance (signed MCPB plugin bundles)
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// Tauri bridge into the B2.1–B2.5 plugin stack. The panel
+// (PluginGovernancePanel.tsx) is the only frontend consumer.
+//
+// Patent-distance discipline (fit-gap §18):
+//   - principle #1 (no telemetry-driven personalization): no "for-you"
+//     surface, no usage logging here.
+//   - principle #2 (client-side admin-authored policy): the
+//     `is_admin` flag on set/uninstall is the only privilege gate;
+//     no server endpoint can flip it.
+//   - principle #3 (open MCPB lineage): bundle parsing reuses
+//     `mcpb_bundle` shipped in A2.
+//   - principle #4 (per-publisher P-256 trust roots): verification
+//     reuses `signed_agent_card` JWK + ECDSA from B6.
+
+use vibecli_cli::plugin_install::{self, InstalledPlugin};
+use vibecli_cli::workspace_store::{PluginPolicy, PolicySetter};
+
+fn installed_plugin_to_json(p: &InstalledPlugin) -> serde_json::Value {
+    serde_json::json!({
+        "name": p.manifest.name,
+        "version": p.manifest.version,
+        "publisher": {
+            "name": p.manifest.publisher.name,
+            "url": p.manifest.publisher.url,
+            // The full JWK is intentionally not surfaced — only the
+            // x-coordinate's first 16 chars (a stable, human-readable
+            // fingerprint) so the panel can show "trusted publisher
+            // key" without giving the user a wall of base64.
+            "key_fingerprint": &p.manifest.publisher.key.x[..16.min(p.manifest.publisher.key.x.len())],
+        },
+        "description": p.manifest.description,
+        "install_dir": p.install_dir.to_string_lossy(),
+        "components": {
+            "mcp_servers": p.manifest.components.mcp_servers.len(),
+            "skills": p.manifest.components.skills.len(),
+            "subagents": p.manifest.components.subagents.len(),
+            "rules": p.manifest.components.rules.len(),
+            "hooks": p.manifest.components.hooks.len(),
+        },
+        "policy": match p.policy {
+            PluginPolicy::Off => "off",
+            PluginPolicy::On => "on",
+            PluginPolicy::Required => "required",
+        },
+        "signature": {
+            "kid": p.signature.kid,
+            "algorithm": p.signature.algorithm,
+            "manifest_digest": p.signature.manifest_digest,
+        },
+    })
+}
+
+fn parse_policy(s: &str) -> Result<PluginPolicy, String> {
+    match s {
+        "off" => Ok(PluginPolicy::Off),
+        "on" => Ok(PluginPolicy::On),
+        "required" => Ok(PluginPolicy::Required),
+        other => Err(format!("unknown policy `{other}` (expected off|on|required)")),
+    }
+}
+
+fn setter_for(is_admin: bool) -> PolicySetter {
+    if is_admin {
+        PolicySetter::Admin
+    } else {
+        PolicySetter::User
+    }
+}
+
+/// Install a signed MCPB bundle from a local file path. Returns the
+/// installed-plugin DTO. Re-install of an existing plugin requires
+/// `force=true`; a Required pin survives the re-install.
+#[tauri::command]
+pub async fn plugin_install_from_file(
+    workspace_path: String,
+    bundle_path: String,
+    force: bool,
+) -> Result<serde_json::Value, String> {
+    let workspace = std::path::Path::new(&workspace_path);
+    let store = WorkspaceStore::open(workspace)?;
+    let bundle = std::path::Path::new(&bundle_path);
+    let installed = plugin_install::install_from_file(workspace, &store, bundle, force)
+        .map_err(|e| e.to_string())?;
+    Ok(installed_plugin_to_json(&installed))
+}
+
+/// List every installed plugin in the workspace, sorted by name.
+/// Corrupted installs are silently skipped (same conservatism as the
+/// REPL list — one bad install must not break the view).
+#[tauri::command]
+pub async fn plugin_list_installed(
+    workspace_path: String,
+) -> Result<serde_json::Value, String> {
+    let workspace = std::path::Path::new(&workspace_path);
+    let store = WorkspaceStore::open(workspace)?;
+    let list = plugin_install::list_installed(workspace, &store).map_err(|e| e.to_string())?;
+    Ok(serde_json::Value::Array(
+        list.iter().map(installed_plugin_to_json).collect(),
+    ))
+}
+
+/// Remove a plugin's install dir and policy row. `is_admin=true` is
+/// required to tear down a `Required` pin; otherwise the call fails
+/// with the workspace-store guard error.
+#[tauri::command]
+pub async fn plugin_uninstall(
+    workspace_path: String,
+    name: String,
+    is_admin: bool,
+) -> Result<bool, String> {
+    let workspace = std::path::Path::new(&workspace_path);
+    let store = WorkspaceStore::open(workspace)?;
+    plugin_install::uninstall(workspace, &store, &name, setter_for(is_admin))
+        .map_err(|e| e.to_string())
+}
+
+/// Look up a plugin's policy entry. Returns `null` when no row exists
+/// (treat as `Off` — the safe default).
+#[tauri::command]
+pub async fn plugin_get_policy(
+    workspace_path: String,
+    name: String,
+) -> Result<serde_json::Value, String> {
+    let workspace = std::path::Path::new(&workspace_path);
+    let store = WorkspaceStore::open(workspace)?;
+    let entry = store.get_plugin_policy(&name).map_err(|e| e.to_string())?;
+    Ok(match entry {
+        None => serde_json::Value::Null,
+        Some(e) => serde_json::json!({
+            "plugin_name": e.plugin_name,
+            "policy": match e.policy {
+                PluginPolicy::Off => "off",
+                PluginPolicy::On => "on",
+                PluginPolicy::Required => "required",
+            },
+            "set_by": match e.set_by {
+                PolicySetter::Admin => "admin",
+                PolicySetter::Install => "install",
+                PolicySetter::User => "user",
+            },
+            "updated_at": e.updated_at,
+        }),
+    })
+}
+
+/// Set a plugin's policy. `is_admin=true` is required to raise
+/// anything to `Required` or to lower a `Required` pin; the
+/// workspace-store guard returns
+/// `PolicyError::RequiredCannotBeLoweredByNonAdmin` otherwise.
+#[tauri::command]
+pub async fn plugin_set_policy(
+    workspace_path: String,
+    name: String,
+    policy: String,
+    is_admin: bool,
+) -> Result<serde_json::Value, String> {
+    let workspace = std::path::Path::new(&workspace_path);
+    let store = WorkspaceStore::open(workspace)?;
+    let entry = store
+        .set_plugin_policy(&name, parse_policy(&policy)?, setter_for(is_admin))
+        .map_err(|e| e.to_string())?;
+    Ok(serde_json::json!({
+        "plugin_name": entry.plugin_name,
+        "policy": policy,
+        "set_by": if is_admin { "admin" } else { "user" },
+        "updated_at": entry.updated_at,
+    }))
+}
+
 // ── Sub-Agent Management ────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33107,7 +33285,7 @@ pub struct CiCheckConfig {
 /// Detect CI configuration files in the workspace and return check suites.
 #[tauri::command]
 pub async fn get_ci_status(workspace: String) -> Result<Vec<CiCheckSuite>, String> {
-    let ws = std::path::Path::new(&workspace);
+    let ws = reject_sensitive_path(&workspace)?;
     let mut suites = Vec::new();
 
     // Get current branch and commit from git
@@ -33197,7 +33375,7 @@ pub async fn get_ci_status(workspace: String) -> Result<Vec<CiCheckSuite>, Strin
 /// List individual check items derived from CI configuration files.
 #[tauri::command]
 pub async fn get_ci_checks(workspace: String) -> Result<Vec<CiCheck>, String> {
-    let ws = std::path::Path::new(&workspace);
+    let ws = reject_sensitive_path(&workspace)?;
     let mut checks = Vec::new();
     let mut idx = 0u32;
     let mut suite_idx = 0u32;
@@ -33327,7 +33505,7 @@ pub async fn get_ci_checks(workspace: String) -> Result<Vec<CiCheck>, String> {
 /// Return CI configuration summary (default checks that can be toggled).
 #[tauri::command]
 pub async fn get_ci_config(workspace: String) -> Result<Vec<CiCheckConfig>, String> {
-    let ws = std::path::Path::new(&workspace);
+    let ws = reject_sensitive_path(&workspace)?;
 
     // Build a list of detected and common check configs
     let mut configs = Vec::new();
@@ -34418,18 +34596,21 @@ fn compute_kg_stats(nodes: &[KgNode], edges: &[KgEdge]) -> KgStats {
 
 #[tauri::command]
 pub async fn get_knowledge_graph(workspace: String) -> Result<KgGraph, String> {
+    let _ = reject_sensitive_path(&workspace)?;
     let (nodes, edges) = build_knowledge_graph(&workspace).await?;
     Ok(KgGraph { nodes, edges })
 }
 
 #[tauri::command]
 pub async fn get_knowledge_graph_stats(workspace: String) -> Result<KgStats, String> {
+    let _ = reject_sensitive_path(&workspace)?;
     let (nodes, edges) = build_knowledge_graph(&workspace).await?;
     Ok(compute_kg_stats(&nodes, &edges))
 }
 
 #[tauri::command]
 pub async fn search_knowledge_graph(workspace: String, query: String) -> Result<Vec<KgNode>, String> {
+    let _ = reject_sensitive_path(&workspace)?;
     let (nodes, _edges) = build_knowledge_graph(&workspace).await?;
     let q = query.to_lowercase();
     let results: Vec<KgNode> = nodes.into_iter()
@@ -34444,6 +34625,7 @@ pub async fn search_knowledge_graph(workspace: String, query: String) -> Result<
 
 #[tauri::command]
 pub async fn refresh_knowledge_graph(workspace: String) -> Result<KgGraph, String> {
+    let _ = reject_sensitive_path(&workspace)?;
     let (nodes, edges) = build_knowledge_graph(&workspace).await?;
     Ok(KgGraph { nodes, edges })
 }
@@ -36225,9 +36407,7 @@ pub async fn fast_context_search(
 /// Scan workspace and return index statistics.
 #[tauri::command]
 pub async fn fast_context_index_stats(workspace: String) -> Result<FastContextIndexStats, String> {
-    let ws = std::path::Path::new(&workspace)
-        .canonicalize()
-        .map_err(|e| format!("Invalid workspace: {e}"))?;
+    let ws = reject_sensitive_path(&workspace)?;
 
     const SKIP_DIRS: &[&str] = &[
         "node_modules", ".git", "target", "dist", "build", ".next",
@@ -36290,9 +36470,7 @@ pub async fn fast_context_index_stats(workspace: String) -> Result<FastContextIn
 /// Return cache hit/miss stats from a persisted JSON file in the workspace.
 #[tauri::command]
 pub async fn fast_context_cache_stats(workspace: String) -> Result<FastContextCacheStats, String> {
-    let ws = std::path::Path::new(&workspace)
-        .canonicalize()
-        .map_err(|e| format!("Invalid workspace: {e}"))?;
+    let ws = reject_sensitive_path(&workspace)?;
 
     let cache_file = ws.join(".vibeui").join("fast_context_cache.json");
 
@@ -36317,9 +36495,7 @@ pub async fn fast_context_cache_stats(workspace: String) -> Result<FastContextCa
 pub async fn fast_context_reindex(workspace: String) -> Result<FastContextIndexStats, String> {
     let stats = fast_context_index_stats(workspace.clone()).await?;
 
-    let ws = std::path::Path::new(&workspace)
-        .canonicalize()
-        .map_err(|e| format!("Invalid workspace: {e}"))?;
+    let ws = reject_sensitive_path(&workspace)?;
     let cache_dir = ws.join(".vibeui");
     tokio::fs::create_dir_all(&cache_dir).await
         .map_err(|e| format!("Failed to create cache dir: {e}"))?;
@@ -36418,7 +36594,7 @@ fn save_ft_store(store: &FtStore) -> Result<(), String> {
 pub async fn get_fine_tuning_stats(workspace: String) -> Result<FtDatasetStats, String> {
     use std::collections::HashMap;
 
-    let ws = std::path::Path::new(&workspace);
+    let ws = reject_sensitive_path(&workspace)?;
     let mut example_count: u64 = 0;
     let mut total_tokens: u64 = 0;
     let mut max_tokens: u64 = 0;
@@ -37001,7 +37177,7 @@ fn extract_declarations(source: &str, language: &str) -> Vec<AstNode> {
 /// Scan workspace for source files and extract simplified AST nodes.
 #[tauri::command]
 pub async fn get_ast_files(workspace: String) -> Result<Vec<AstFile>, String> {
-    let ws_path = std::path::Path::new(&workspace);
+    let ws_path = reject_sensitive_path(&workspace)?;
     if !ws_path.is_dir() {
         return Err(format!("Workspace path is not a directory: {workspace}"));
     }
@@ -37223,9 +37399,7 @@ fn icontext_epoch_days_to_ymd(days: i64) -> (i64, i64, i64) {
 /// Scan workspace source files and return context chunks with token estimates.
 #[tauri::command]
 pub async fn get_context_chunks(workspace: String) -> Result<Vec<InfiniteContextChunk>, String> {
-    let ws = std::path::Path::new(&workspace)
-        .canonicalize()
-        .map_err(|e| format!("Invalid workspace: {e}"))?;
+    let ws = reject_sensitive_path(&workspace)?;
 
     let now = std::time::SystemTime::now();
     let mut chunks = Vec::new();
@@ -37303,9 +37477,7 @@ pub async fn get_context_chunks(workspace: String) -> Result<Vec<InfiniteContext
 /// Walk workspace and build a nested file tree with token estimates per file.
 #[tauri::command]
 pub async fn get_project_file_tree(workspace: String) -> Result<Vec<InfiniteContextProjectFile>, String> {
-    let ws = std::path::Path::new(&workspace)
-        .canonicalize()
-        .map_err(|e| format!("Invalid workspace: {e}"))?;
+    let ws = reject_sensitive_path(&workspace)?;
 
     fn build_tree(
         dir: &std::path::Path,
@@ -48182,9 +48354,13 @@ pub async fn save_drawio_file(xml: String, workspace_path: String) -> Result<(),
 /// Execute a drawio-mcp bridge command.
 #[tauri::command]
 pub async fn execute_drawio_mcp(command: String, file_path: String, content: Option<String>) -> Result<String, String> {
+    // DREAD #2 — `read_file`/`write_file` branches feed `file_path`
+    // directly into `std::fs::*`. Without this gate, the drawio bridge
+    // doubles as an arbitrary-FS-read/write primitive.
+    let resolved = reject_sensitive_path(&file_path)?;
     match command.as_str() {
         "read_file" | "list_pages" => {
-            match std::fs::read_to_string(&file_path) {
+            match std::fs::read_to_string(&resolved) {
                 Ok(xml) => {
                     let pages = xml.matches("<diagram").count().max(1);
                     let vertices = xml.matches("vertex=\"1\"").count();
@@ -48198,7 +48374,7 @@ pub async fn execute_drawio_mcp(command: String, file_path: String, content: Opt
             }
         }
         "write_file" => {
-            std::fs::write(&file_path, content.unwrap_or_default()).map_err(|e| e.to_string())?;
+            std::fs::write(&resolved, content.unwrap_or_default()).map_err(|e| e.to_string())?;
             Ok(serde_json::json!({ "command": "write_file", "file": file_path, "ok": true }).to_string())
         }
         _ => Ok(serde_json::json!({ "command": command, "file": file_path, "status": "queued" }).to_string()),
