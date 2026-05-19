@@ -12,6 +12,7 @@ use vibe_ai::WorktreeManager;
 use std::path::Path as StdPath; // used in search() glob filter
 use vibe_core::executor::CommandExecutor;
 use vibe_core::search::search_files;
+use vibe_sandbox::NetPolicy;
 
 /// Commands that are too dangerous for autonomous agent execution.
 const BLOCKED_COMMANDS: &[&str] = &[
@@ -566,6 +567,58 @@ impl ToolExecutor {
         }
     }
 
+    /// S3: run the command through `vibe-sandbox-native::native()` so the
+    /// shell-tool path goes through the same `Sandbox` trait as Tier-1/2/3
+    /// (currently a no-op for them, but the wiring is now in place). On
+    /// Linux this is bwrap+Landlock; on macOS sandbox-exec with a
+    /// `(deny default)` profile; on Windows AppContainer. Returns
+    /// `anyhow::Result<Output>` so the caller can fall back to the
+    /// legacy `CommandExecutor::execute_sandboxed` if the backend
+    /// cannot be constructed (e.g. bwrap not installed).
+    ///
+    /// Note: the command runs under `sh -c "<command>"` so existing
+    /// shell semantics (pipes, redirects, env-var expansion) work.
+    /// Workspace is bound rw; network policy is `NetPolicy::None`
+    /// when `self.network_disabled`, else `NetPolicy::Direct`.
+    fn run_in_native_sandbox(
+        &self,
+        command: &str,
+        cwd: &Path,
+    ) -> Result<std::process::Output> {
+        use std::ffi::OsStr;
+
+        let mut sandbox = vibe_sandbox_native::native()
+            .map_err(|e| anyhow::anyhow!("native sandbox construct: {}", e))?;
+        sandbox
+            .bind_rw(cwd, cwd)
+            .map_err(|e| anyhow::anyhow!("bind_rw workspace: {}", e))?;
+        sandbox.network(if self.network_disabled {
+            NetPolicy::None
+        } else {
+            NetPolicy::Direct
+        });
+
+        tracing::info!(
+            target: "vibecody::sandbox",
+            tier = "Native",
+            cwd = %cwd.display(),
+            net = if self.network_disabled { "none" } else { "direct" },
+            cmd_len = command.len(),
+            "sandbox.spawn",
+        );
+
+        let cmd_arg: &OsStr = OsStr::new("sh");
+        let dash_c: &OsStr = OsStr::new("-c");
+        let cmd_str: &OsStr = OsStr::new(command);
+        let child = sandbox
+            .spawn(cmd_arg, &[dash_c, cmd_str])
+            .map_err(|e| anyhow::anyhow!("sandbox spawn: {}", e))?;
+        let output = child
+            .wait_with_output()
+            .map_err(|e| anyhow::anyhow!("wait_with_output: {}", e))?;
+        Ok(output)
+    }
+
     async fn run_bash(&self, command: &str) -> ToolResult {
         // ── Security: command length check ────────────────────────────────
         if command.len() > MAX_COMMAND_LENGTH {
@@ -628,7 +681,24 @@ impl ToolExecutor {
         };
 
         let output = if self.sandbox {
-            CommandExecutor::execute_sandboxed(&effective_command, cwd, cwd)
+            // S3: route through the unified `Sandbox` trait. The Tier-0
+            // native backend (`vibe-sandbox-native`) is bwrap+Landlock on
+            // Linux, sandbox-exec on macOS, AppContainer on Windows.
+            // Falls back to `CommandExecutor::execute_sandboxed` on the
+            // (rare) case the native backend cannot be constructed —
+            // logged as a downgrade.
+            match self.run_in_native_sandbox(&effective_command, cwd) {
+                Ok(out) => Ok(out),
+                Err(e) => {
+                    tracing::warn!(
+                        target: "vibecody::sandbox",
+                        tier = "Native",
+                        backend_error = %e,
+                        "sandbox.downgrade: native backend unavailable — using execute_sandboxed fallback",
+                    );
+                    CommandExecutor::execute_sandboxed(&effective_command, cwd, cwd)
+                }
+            }
         } else if let Some(env) = custom_env {
             // Execute with custom environment
             use std::process::Command;
