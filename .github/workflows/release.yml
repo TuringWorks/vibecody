@@ -788,10 +788,74 @@ jobs:
           name: vibecli-docker
           path: vibecli-docker-*.tar.gz
 
+  # ─── Firecracker Tier-3 rootfs ─────────────────────────────────────────
+  # Builds the BusyBox + bash ext4 image consumed by the Tier-3 microVM
+  # sandbox (slice F1 — see docs/design/sandbox-tiers/03-firecracker-tier.md).
+  # The image is content-addressed via SHA256; the daemon verifies on
+  # download before mounting. Cosign keyless attestation is added so a
+  # third party can confirm the image was built from this commit + this
+  # workflow run, not pushed by a compromised maintainer key.
+  build-firecracker-rootfs:
+    name: Firecracker Tier-3 Rootfs
+    needs: audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write    # required for cosign keyless OIDC
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@d7d6bc7722e3daa8354c50bcb52f4837da5e9b6a # v3.8.1
+
+      - name: Build rootfs.ext4
+        run: |
+          make rootfs-firecracker
+          test -f target/firecracker-rootfs/rootfs.ext4
+          test -f target/firecracker-rootfs/rootfs.ext4.sha256
+          # Tag the artifact filename with the release version so it
+          # doesn't collide with other releases in the same Releases page.
+          TAG="${{ github.ref_name || github.event.inputs.tag }}"
+          mkdir -p artifacts-rootfs
+          cp target/firecracker-rootfs/rootfs.ext4 \
+             "artifacts-rootfs/vibecody-firecracker-rootfs-${TAG}.ext4"
+          cp target/firecracker-rootfs/rootfs.ext4.sha256 \
+             "artifacts-rootfs/vibecody-firecracker-rootfs-${TAG}.ext4.sha256"
+          ls -lh artifacts-rootfs/
+
+      - name: Cosign keyless attest (Sigstore)
+        env:
+          COSIGN_EXPERIMENTAL: "true"
+        run: |
+          TAG="${{ github.ref_name || github.event.inputs.tag }}"
+          IMG="artifacts-rootfs/vibecody-firecracker-rootfs-${TAG}.ext4"
+          # `cosign sign-blob` issues a Fulcio cert from the GitHub Actions
+          # OIDC token (no long-lived keys) and writes the signature +
+          # cert next to the blob. `cosign verify-blob` on a downloader's
+          # machine will then check the bundle against the Rekor transparency
+          # log and the Fulcio root.
+          cosign sign-blob --yes \
+            --bundle "${IMG}.cosign.bundle" \
+            "${IMG}"
+          ls -lh "${IMG}.cosign.bundle"
+
+      - name: Run F1 artifact-contract tests
+        run: |
+          cargo test -p vibe-sandbox-firecracker --test f1_rootfs_artifact
+
+      - name: Upload Firecracker rootfs artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: vibecody-firecracker-rootfs
+          path: artifacts-rootfs/*
+
   # ─── Publish GitHub Release ────────────────────────────────────────────
   release:
     name: Publish GitHub Release
-    needs: [sbom, build-cli, build-vibeui, build-vibeapp, build-android, build-ios, build-wear, build-watchos, build-docker]
+    needs: [sbom, build-cli, build-vibeui, build-vibeapp, build-android, build-ios, build-wear, build-watchos, build-docker, build-firecracker-rootfs]
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
     runs-on: ubuntu-latest
     steps:
@@ -873,6 +937,14 @@ jobs:
             | watchOS (Simulator .app, unsigned) | `VibeCody-WatchOS-*.app.zip` |
             | Wear OS (APK) | `VibeCody-Wear-*.apk` |
             | Wear OS (AAB) | `VibeCody-Wear-*.aab` |
+
+            #### Sandbox — Firecracker Tier-3 rootfs (optional)
+
+            | Artifact | Purpose |
+            |----------|---------|
+            | `vibecody-firecracker-rootfs-*.ext4` | BusyBox + bash microVM rootfs (20 MiB), consumed by `FirecrackerSandbox` on Linux + KVM |
+            | `vibecody-firecracker-rootfs-*.ext4.sha256` | Content-addressed integrity check |
+            | `vibecody-firecracker-rootfs-*.ext4.cosign.bundle` | Sigstore keyless attestation (verifies build provenance via Rekor) |
 
             ---
 
