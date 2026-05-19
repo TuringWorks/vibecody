@@ -10,6 +10,7 @@
 import * as vscode from 'vscode';
 import { VibeCLIClient, type AgentEvent, type ExecGoalSummary, type JobRecord } from './api-client';
 import { GoalsTreeProvider, GoalTreeItem } from './goals-tree';
+import { gatePromptSubmission } from './hook-executor';
 
 let client: VibeCLIClient;
 let statusBarItem: vscode.StatusBarItem;
@@ -161,6 +162,10 @@ async function handleStartAgent(): Promise<void> {
   });
   if (!task) return;
 
+  // Same gate as JetBrains AgentToolWindow.startAgent — a BLOCK decision halts
+  // before any prompt is sent to the daemon and surfaces the hook's reason.
+  if (!(await gatePromptSubmission(task, 'agent'))) return;
+
   const config = vscode.workspace.getConfiguration('vibecli');
   const approval = config.get<string>('approval', 'suggest');
 
@@ -195,6 +200,8 @@ async function handleChat(): Promise<void> {
     placeHolder: 'e.g. How does this function work?',
   });
   if (!question) return;
+
+  if (!(await gatePromptSubmission(question, 'chat'))) return;
 
   // Include selected text as context
   const editor = vscode.window.activeTextEditor;
@@ -236,6 +243,8 @@ async function handleInlineEdit(): Promise<void> {
     placeHolder: 'e.g. Add error handling, Rename to camelCase, Add JSDoc',
   });
   if (!instruction) return;
+
+  if (!(await gatePromptSubmission(instruction, 'inline-edit'))) return;
 
   const task = selection
     ? `File: ${filePath}\n\`\`\`${lang}\n${selection}\n\`\`\`\n\nInstruction: ${instruction}`
@@ -489,6 +498,8 @@ async function handleSendSelection(): Promise<void> {
   });
   if (!question) return;
 
+  if (!(await gatePromptSubmission(question, 'send-selection'))) return;
+
   const task = `File: ${filePath}\n\`\`\`${lang}\n${selection}\n\`\`\`\n\nTask: ${question}`;
   const config = vscode.workspace.getConfiguration('vibecli');
   const approval = config.get<string>('approval', 'suggest');
@@ -601,6 +612,14 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
       if (msg.type !== 'send') return;
       if (!daemonConnected) {
         webviewView.webview.postMessage({ type: 'error', content: 'Daemon not connected.' });
+        return;
+      }
+
+      if (!(await gatePromptSubmission(msg.content, 'chat-webview'))) {
+        webviewView.webview.postMessage({
+          type: 'error',
+          content: 'Blocked by hook',
+        });
         return;
       }
 

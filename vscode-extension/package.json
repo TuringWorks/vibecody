@@ -90,6 +90,21 @@
           "type": "boolean",
           "default": true,
           "description": "Enable inline (ghost text) completions"
+        },
+        "vibecli.hooks": {
+          "type": "array",
+          "default": [],
+          "description": "Hook chain run on agent events. Same protocol as the CLI / JetBrains plugin: exit 0 = allow, exit 2 = block, structured JSON on stdout overrides.",
+          "items": {
+            "type": "object",
+            "required": ["name", "event", "command"],
+            "properties": {
+              "name":    { "type": "string", "description": "Display name for logs and errors." },
+              "event":   { "type": "string", "enum": ["PreToolUse", "PostToolUse", "UserPromptSubmit", "Stop", "SubagentStop", "Notification", "PreCompact"] },
+              "command": { "type": "string", "description": "Shell command to run. Event payload is piped on stdin as JSON." },
+              "enabled": { "type": "boolean", "default": true }
+            }
+          }
         }
       }
     },
