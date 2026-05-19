@@ -1158,7 +1158,7 @@ async fn call_tool(
         "list_skills" => {
             let category = args["category"].as_str();
             let query = args["query"].as_str();
-            let cat = crate::skill_catalog::SkillCatalog::load_from(skills_dir_default())
+            let cat = crate::skill_catalog::SkillCatalog::load_from_with_cwd_plugins(skills_dir_default())
                 .map_err(|e| anyhow::anyhow!("list_skills: {e}"))?;
             let entries: Vec<serde_json::Value> = cat
                 .list(category, query)
@@ -1169,6 +1169,12 @@ async fn call_tool(
                         "category": s.frontmatter.category,
                         "triggers": s.frontmatter.triggers,
                         "summary": s.summary(),
+                        // B2.7 — surface provenance so MCP hosts can
+                        // tell users which plugin a skill came from
+                        // (`{"kind": "builtin"}` for VibeCody bundled,
+                        // `{"kind": "plugin", "plugin": "<name>"}`
+                        // for plugin-contributed).
+                        "source": s.source,
                     })
                 })
                 .collect();
@@ -1184,7 +1190,7 @@ async fn call_tool(
             if skill_name.is_empty() {
                 return Err(anyhow::anyhow!("get_skill: name is required"));
             }
-            let cat = crate::skill_catalog::SkillCatalog::load_from(skills_dir_default())
+            let cat = crate::skill_catalog::SkillCatalog::load_from_with_cwd_plugins(skills_dir_default())
                 .map_err(|e| anyhow::anyhow!("get_skill: {e}"))?;
             let s = cat
                 .get(skill_name)
@@ -1195,6 +1201,8 @@ async fn call_tool(
                 "triggers": s.frontmatter.triggers,
                 "tools_allowed": s.frontmatter.tools_allowed,
                 "body": s.body,
+                // B2.7 — same provenance tag as list_skills.
+                "source": s.source,
             }))
             .unwrap_or_else(|_| "{}".to_string())
         }

@@ -126,6 +126,23 @@ impl SkillCatalog {
     /// so a built-in with the same name as a plugin contribution
     /// shadows the plugin's. This is deliberate — built-ins should be
     /// stable while a workspace adds and removes plugins.
+    /// Convenience for call sites that don't carry an explicit
+    /// workspace + store: detect the workspace from `std::env::current_dir()`
+    /// and, if a `<workspace>/.vibecli/workspace.db` exists or can be
+    /// created, load plugin skills too. Falls back to built-ins-only
+    /// when cwd has no workspace store yet — keeps the daemon
+    /// runnable in scratch directories where no plugins are installed.
+    pub fn load_from_with_cwd_plugins(builtin_dir: impl AsRef<Path>) -> Result<Self> {
+        let workspace = match std::env::current_dir() {
+            Ok(d) => d,
+            Err(_) => return Self::load_from(builtin_dir),
+        };
+        match crate::workspace_store::WorkspaceStore::open(&workspace) {
+            Ok(store) => Self::load_from_with_plugins(builtin_dir, &workspace, &store),
+            Err(_) => Self::load_from(builtin_dir),
+        }
+    }
+
     pub fn load_from_with_plugins(
         builtin_dir: impl AsRef<Path>,
         workspace: &Path,
