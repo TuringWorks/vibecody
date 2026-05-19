@@ -86,9 +86,9 @@ No P0 items. **A1 MCP Apps React host closed 2026-05-19**; **B2 plugin bundle fo
 ### 10. JetBrains Agent Hooks Deep Integration
 
 - **Source**: FIT-GAP v5
-- **Current State**: **Foundation shipped 2026-05-19** (`7709bc0b` + `1ebe79c4`). `HookExecutor` service mirrors the CLI hook protocol (`hook_abort.rs`): subprocess invocation, exit-code semantics (0 allow / 2 block), structured JSON-decision stdout override, 30 s timeout, multi-hook chains. Settings table under IDE Settings → Tools → VibeCLI with Name / Event / Command / Enabled columns. `UserPromptSubmit` wired into `AgentPanel.startAgent` as the meaningful gate event — BLOCK prevents the agent from starting and surfaces the hook reason. The seven event kinds match `plugin_manifest::ALLOWED_HOOK_EVENTS`.
-- **What's Needed**: Advisory firings for SSE-arriving events (`PreToolUse` / `PostToolUse` / `Stop` / `Notification`), `InlineEditAction` integration, optional per-project scoping (currently APP-level), and JUnit test harness for the executor. None of these are blocking; the foundation is usable today for users who want to gate task submissions.
-- **Effort**: Remaining work is ~1 wk of plugin polish + targeted edits per call site.
+- **Current State**: **Meaningful gate coverage shipped 2026-05-19** across four commits — `HookExecutor` service with CLI-parity protocol (`7709bc0b`), `UserPromptSubmit` wired into `AgentPanel.startAgent` (`1ebe79c4`), 14 JUnit tests covering decision semantics / structured-JSON override / chain short-circuit / payload-on-stdin / event allow-list (`a9170448`), and `UserPromptSubmit` wired into `InlineEditAction` (`080bf920`). Both user-driven prompt-submission paths now gate through the configured hook chain; settings table under IDE Settings → Tools → VibeCLI authors hooks per event.
+- **What's Needed (nice-to-have polish, not blocking)**: Advisory firings on SSE-arriving `PreToolUse` / `PostToolUse` / `Stop` / `Notification` (the daemon has already run its own pre/post chain by the time these arrive — would double-fire; deferred until a concrete audit-trail use case emerges). Per-project hook scoping on top of the current APP-level scope. Windows PowerShell variant for the `sh -c` invocation. None blocking.
+- **Effort**: Closed for the meaningful-parity scope; further work is targeted ~1-day edits when a concrete demand arrives.
 
 ---
 
