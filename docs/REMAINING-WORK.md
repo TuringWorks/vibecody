@@ -4,17 +4,17 @@
 > Items are ordered by priority (P0 first) then by effort.
 > For the phase-by-phase ledger see [ROADMAP.md](./ROADMAP.md) (especially Appendices D + E). For competitive analysis see [FIT-GAP-ANALYSIS.md](./FIT-GAP-ANALYSIS.md).
 >
-> Last verified: 2026-05-18
+> Last verified: 2026-05-19
 
 ---
 
 ## P0 — In-flight
 
-No P0 items. **B2 (plugin bundle format) closed 2026-05-18** — see "Recently Closed" below. Highest-leverage next code item is **A1 MCP Apps generic React host** (~3-5 days, P1 #5 below).
+No P0 items. **A1 MCP Apps React host closed 2026-05-19**; **B2 plugin bundle format closed 2026-05-18** — see "Recently Closed" below. The two patent-gated P1 items (A7, B3) remain queued for the next cycle pending design-distance proposals.
 
 ---
 
-## P1 — High Priority (4 items)
+## P1 — High Priority (3 items)
 
 ### 1. Hosted Plugin / Model Hub
 
@@ -46,12 +46,6 @@ No P0 items. **B2 (plugin bundle format) closed 2026-05-18** — see "Recently C
 - **What's Needed**: Convert `/review` to a daemon-resident agent class; trigger on file-watcher / pre-commit / CI; route findings to the existing `Finding` schema; UI surface in `SecurityPanel.tsx`.
 - **Effort**: Medium-high (3-4 weeks, patent-distance gated)
 
-### 5. A1 — MCP Apps generic React embedding host
-
-- **Source**: Phase 53 P0 (carry-over)
-- **Current State**: Payload parser shipped (`647b58de`). Generic React UI host for rendering `application/vnd.mcp.app+json` payloads in `AIChat.tsx` not yet wired.
-- **What's Needed**: React embed component sharing the WASM extension host's CSP; 4 BDD scenarios.
-- **Effort**: Low-medium (3-5 days)
 
 ---
 
@@ -135,7 +129,7 @@ No P0 items. **B2 (plugin bundle format) closed 2026-05-18** — see "Recently C
 | c1 — Ollama `/v1/messages` route | `serve.rs` | PR #8 |
 | c2 — `GEMINI.md` fallback in `REPO_CANDIDATES` | `memory.rs` | PR #9 |
 
-**B2 — Plugin bundle format with admin install policies (shipped 2026-05-18):**
+**B2 — Plugin bundle format with admin install policies (shipped 2026-05-18 → 2026-05-19):**
 
 | Slice | Surface | Commit |
 |---|---|---|
@@ -146,8 +140,18 @@ No P0 items. **B2 (plugin bundle format) closed 2026-05-18** — see "Recently C
 | B2.5 — Runtime view filtered by policy | `plugin_runtime.rs` | `82d4a00b` |
 | B2.6 — Governance panel + 5 Tauri commands | `PluginGovernancePanel.tsx`, `commands.rs` | `fb9b80b6` |
 | B2.7 — Skill-loader activation (MCP list_skills) | `skill_catalog.rs`, `mcp_server.rs` | `9c0ac982` + `32793d4d` |
+| B2.8 — MCP-server registration helper (`register_plugin_servers`) | `mcp_governance.rs` | `16da6354` |
+| B2.12 — URL install (`plugin_install_from_url`, `vibecli plugin install <https://…>`) | `plugin_install.rs`, panel | `b7e7f988` |
 
-All four patent-distance §18 principles anchored: no telemetry (#1), client-side admin-authored policy (#2), open MCPB lineage (#3), per-publisher P-256 trust roots (#4). Remaining loader activations (mcp_governance, hook_abort, rules, subagent) follow the same B2.7 pattern but are not strictly required to ship a working plugin install path.
+All four patent-distance §18 principles anchored: no telemetry (#1), client-side admin-authored policy (#2), open MCPB lineage (#3), per-publisher P-256 trust roots (#4). Remaining loader activations (hook_abort, rules, subagent) are not strictly required for a working install path; the `plugin_runtime::enabled_*` API is the contract their consumer code can adopt when those init paths are next being refactored.
+
+**A1 — MCP Apps generic React embedding host (shipped 2026-05-19):**
+
+| Slice | Surface | Commit |
+|---|---|---|
+| A1 — `McpAppEmbed.tsx` + `mcp_apps_parse` Tauri command + AIChat fence detection | `McpAppEmbed.tsx`, `commands.rs`, `AIChat.tsx` | `39e95b17` |
+
+Backend parser (`647b58de`) is the authoritative validator. Frontend host renders fenced ```mcp.app blocks via a typed React card with action buttons that dispatch `vibeui:mcp-app-action` window events. Component allow-list (`react@18`, `react@19`, `json-view`, `list`, `card`) — unknown components render a warning, never arbitrary JSX. Future iframe-sandboxed renderer honoring `payload.csp` is the next iteration; current host surfaces CSP declarations informationally.
 
 **`/goal` durable execution intent (entire feature shipped end-to-end):**
 
@@ -185,10 +189,10 @@ All prior roadmap and fit-gap iterations have been merged into exactly **two can
 
 ## Summary
 
-**Open code items**: 5 (0 P0 + 3 P1 + 2 P2 — minus #3/#4 patent-gated). The single highest-leverage next code item is now **A1 (MCP Apps generic React host)** — payload parser already shipped, ~3-5 days to wire the React embedding component.
+**Open code items**: 4 (0 P0 + 2 P1 + 2 P2 — both P1 are patent-gated A7/B3). With A1 shipped, the next-cycle code work depends on the patent-distance audits clearing for A7 / B3, plus the discretionary P2 items (managed hosting, 100M+ benchmarking) and the non-code roadmap items.
 
 **Open non-code items**: 4 (SOC 2 cert, managed hosting domain, frontier model, VS Code full compat) — all infrastructure / business-process / explicit-design-choice items.
 
 **Parked**: 1 (B5 NVFP4 — hardware-blocked).
 
-**Bottom line**: Phase 53 (A1–A11) is 10-of-11 closed; Phase 54 P0 (B1, B2, B6 + trivial closes c1, c2) is closed; only **A7** (P1, patent-gated) and **B3** (P1 v0.5.8, patent-gated) remain queued for the next cycle. Three large design tracks (RL-OS productionization, Recap & Resume, Sandbox tiers) are landing slice-by-slice and tracked in their own design docs rather than here.
+**Bottom line**: Phase 53 (A1–A11) is now **fully closed** (A1 React host shipped 2026-05-19); Phase 54 P0 (B1, B2, B6 + trivial closes c1, c2) is closed; only **A7** (P1, patent-gated) and **B3** (P1 v0.5.8, patent-gated) remain queued for the next cycle. Three large design tracks (RL-OS productionization, Recap & Resume, Sandbox tiers) are landing slice-by-slice and tracked in their own design docs rather than here.
