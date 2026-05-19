@@ -1052,7 +1052,14 @@ impl AgentLoop {
                         session_id: session_id.clone(),
                     }).await;
                 }
-                tracing::info!(step = step, summary = %summary, "Agent task complete");
+                // DREAD #16 — `summary` is model-generated and may echo
+                // user-pasted content. Log length only; the full summary
+                // still flows through the event channel to the UI.
+                tracing::info!(
+                    step = step,
+                    summary_len = summary.len(),
+                    "Agent task complete",
+                );
                 let _ = event_tx.send(AgentEvent::Complete(summary)).await;
                 return Ok(());
             }
