@@ -222,7 +222,7 @@ Existing extensions should test on Tier-2 in CI; we expect ≥ 95% to pass with 
 
 | Slice | What | Touches | Tests |
 |---|---|---|---|
-| **H0** | New crate `vibe-sandbox-hyperlight` (Linux+Windows cfg-gated) + impl skeleton; `spawn` returns `TierUnsupportedOperation` | new crate | compile gates |
+| **H0** ✅ shipped 2026-05-18 | New crate `vibe-sandbox-hyperlight` (Linux + Windows cfg-gated) + state-tracking `HyperlightSandbox` impl + bind deny-list parity. `spawn()` permanently returns `SandboxError::NotSupported("Hyperlight runs WASM extensions, not OS processes — integrate via vibe-extensions::call() instead")` — Hyperlight is fundamentally a WASM-extension backend, not a shell one; the future `vibe-extensions` integration goes through a different ABI (slice H4). macOS: `new()` returns `SandboxError::TierUnsupported(Hyperlight)`. 12 cfg-gated host tests + 2 cross-platform tests pass on macOS. | new crate `vibecli/crates/vibe-sandbox-hyperlight/`, workspace `Cargo.toml`, `vibecli/vibecli-cli/Cargo.toml` | `cargo check -p vibe-sandbox-hyperlight` clean; `cargo test -p vibe-sandbox-hyperlight` 2/2 pass on macOS host |
 | **H1** | Wasmtime-on-hyperlight guest binary + release pipeline (signed, cached) | new build job + crate | integration: trivial extension call returns expected output |
 | **H2** | FS host functions (read/write/open/readdir) bound to `bind_rw` / `bind_ro` paths | crate | integration: extension reads `/work/foo.txt` and host sees the path-checked read |
 | **H3** | Broker host function `vibe_egress_request` | crate + `vibe-broker` | integration: extension HTTPS call lands in broker audit log |

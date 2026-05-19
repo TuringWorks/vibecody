@@ -1,0 +1,16 @@
+[package]
+name = "vibe-sandbox-hyperlight"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Tier-2 (Hyperlight hypervisor partition) Sandbox impl for VibeCody. Linux + Windows; see docs/design/sandbox-tiers/04-hyperlight-tier.md."
+
+[dependencies]
+vibe-sandbox = { path = "../vibe-sandbox" }
+thiserror = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

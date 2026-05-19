@@ -5,6 +5,7 @@ members = [
     "vibecli/crates/vibe-sandbox",
     "vibecli/crates/vibe-sandbox-native",
     "vibecli/crates/vibe-sandbox-firecracker",
+    "vibecli/crates/vibe-sandbox-hyperlight",
     "vibecli/crates/vibe-broker",
     "vibeui/src-tauri",
     "vibeui/crates/vibe-core",
