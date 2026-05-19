@@ -292,10 +292,7 @@ impl GatewayPolicy {
             return PolicyDecision {
                 allowed,
                 matched_rule_id: Some(rule.rule_id.clone()),
-                reason: format!(
-                    "matched rule '{}': {:?}",
-                    rule.rule_id, rule.effect
-                ),
+                reason: format!("matched rule '{}': {:?}", rule.rule_id, rule.effect),
             };
         }
         PolicyDecision {
@@ -364,7 +361,10 @@ impl ConfigPortability {
     /// Register a server. Returns `Err` if `server_id` already exists.
     pub fn register(&mut self, config: McpServerConfig) -> Result<(), String> {
         if self.servers.contains_key(&config.server_id) {
-            return Err(format!("server_id already registered: {}", config.server_id));
+            return Err(format!(
+                "server_id already registered: {}",
+                config.server_id
+            ));
         }
         self.servers.insert(config.server_id.clone(), config);
         Ok(())
@@ -372,6 +372,61 @@ impl ConfigPortability {
 
     pub fn get(&self, server_id: &str) -> Option<&McpServerConfig> {
         self.servers.get(server_id)
+    }
+
+    /// B2.8 — register every MCP server contributed by an installed
+    /// plugin whose policy is `On` or `Required` in the given workspace.
+    ///
+    /// Server IDs are namespaced as `plugin:<plugin-name>:<component-name>`
+    /// to avoid collisions with user-configured servers (which are
+    /// flat). Existing entries with the same namespaced ID are
+    /// overwritten — re-registration is idempotent and survives
+    /// `policy on → off → on` cycles cleanly.
+    ///
+    /// Returns the count of plugin servers registered. Workspace
+    /// store unavailable (no `.vibecli/` yet) returns 0 silently —
+    /// matches the conservatism of `SkillCatalog::load_from_with_cwd_plugins`.
+    pub fn register_plugin_servers(
+        &mut self,
+        workspace: &std::path::Path,
+        store: &crate::workspace_store::WorkspaceStore,
+    ) -> usize {
+        let plugin_servers = match crate::plugin_runtime::enabled_mcp_servers(workspace, store) {
+            Ok(v) => v,
+            Err(_) => return 0,
+        };
+        let mut count = 0;
+        for c in plugin_servers {
+            let server_id = format!("plugin:{}:{}", c.plugin_name, c.spec.name);
+            let config = McpServerConfig {
+                server_id: server_id.clone(),
+                name: format!("{} (plugin: {})", c.spec.name, c.plugin_name),
+                command: c.absolute_path.to_string_lossy().to_string(),
+                args: c.spec.args.clone(),
+                env: HashMap::new(),
+                version: String::new(),
+            };
+            // Overwrite — same id ⇒ the plugin is re-installing or the
+            // policy is flipping back on. The flat user-configured id
+            // space can never collide with `plugin:` prefixed ids.
+            self.servers.insert(server_id, config);
+            count += 1;
+        }
+        count
+    }
+
+    /// Convenience for callers without explicit workspace context:
+    /// detect via `std::env::current_dir()` and open WorkspaceStore.
+    /// Returns the count of plugin servers registered, or 0 when no
+    /// workspace store is reachable.
+    pub fn register_plugin_servers_from_cwd(&mut self) -> usize {
+        let Ok(workspace) = std::env::current_dir() else {
+            return 0;
+        };
+        let Ok(store) = crate::workspace_store::WorkspaceStore::open(&workspace) else {
+            return 0;
+        };
+        self.register_plugin_servers(&workspace, &store)
     }
 
     /// Serialize all servers to a JSON array string.
@@ -432,7 +487,13 @@ mod tests {
 
     // ── AuditStore ────────────────────────────────────────────────────────
 
-    fn make_event(id: &str, tool: &str, caller: &str, ts: u64, outcome: AuditOutcome) -> AuditEvent {
+    fn make_event(
+        id: &str,
+        tool: &str,
+        caller: &str,
+        ts: u64,
+        outcome: AuditOutcome,
+    ) -> AuditEvent {
         AuditEvent {
             event_id: id.to_string(),
             tool_name: tool.to_string(),
@@ -454,16 +515,40 @@ mod tests {
     #[test]
     fn audit_record_increments_count() {
         let mut store = AuditStore::new();
-        store.record(make_event("e1", "read_file", "alice", 1000, AuditOutcome::Success));
+        store.record(make_event(
+            "e1",
+            "read_file",
+            "alice",
+            1000,
+            AuditOutcome::Success,
+        ));
         assert_eq!(store.total_count(), 1);
     }
 
     #[test]
     fn audit_query_by_tool() {
         let mut store = AuditStore::new();
-        store.record(make_event("e1", "read_file", "alice", 1000, AuditOutcome::Success));
-        store.record(make_event("e2", "write_file", "bob", 2000, AuditOutcome::Success));
-        store.record(make_event("e3", "read_file", "carol", 3000, AuditOutcome::Success));
+        store.record(make_event(
+            "e1",
+            "read_file",
+            "alice",
+            1000,
+            AuditOutcome::Success,
+        ));
+        store.record(make_event(
+            "e2",
+            "write_file",
+            "bob",
+            2000,
+            AuditOutcome::Success,
+        ));
+        store.record(make_event(
+            "e3",
+            "read_file",
+            "carol",
+            3000,
+            AuditOutcome::Success,
+        ));
         let results = store.query_by_tool("read_file");
         assert_eq!(results.len(), 2);
         assert!(results.iter().all(|e| e.tool_name == "read_file"));
@@ -472,16 +557,40 @@ mod tests {
     #[test]
     fn audit_query_by_tool_none() {
         let mut store = AuditStore::new();
-        store.record(make_event("e1", "read_file", "alice", 1000, AuditOutcome::Success));
+        store.record(make_event(
+            "e1",
+            "read_file",
+            "alice",
+            1000,
+            AuditOutcome::Success,
+        ));
         assert!(store.query_by_tool("nonexistent").is_empty());
     }
 
     #[test]
     fn audit_query_by_caller() {
         let mut store = AuditStore::new();
-        store.record(make_event("e1", "read_file", "alice", 1000, AuditOutcome::Success));
-        store.record(make_event("e2", "write_file", "bob", 2000, AuditOutcome::Success));
-        store.record(make_event("e3", "delete_file", "alice", 3000, AuditOutcome::Blocked("policy".to_string())));
+        store.record(make_event(
+            "e1",
+            "read_file",
+            "alice",
+            1000,
+            AuditOutcome::Success,
+        ));
+        store.record(make_event(
+            "e2",
+            "write_file",
+            "bob",
+            2000,
+            AuditOutcome::Success,
+        ));
+        store.record(make_event(
+            "e3",
+            "delete_file",
+            "alice",
+            3000,
+            AuditOutcome::Blocked("policy".to_string()),
+        ));
         let results = store.query_by_caller("alice");
         assert_eq!(results.len(), 2);
     }
@@ -506,7 +615,13 @@ mod tests {
     #[test]
     fn audit_export_cef_success() {
         let mut store = AuditStore::new();
-        store.record(make_event("evt1", "read_file", "alice", 1000, AuditOutcome::Success));
+        store.record(make_event(
+            "evt1",
+            "read_file",
+            "alice",
+            1000,
+            AuditOutcome::Success,
+        ));
         let cef = store.export_cef();
         assert!(cef.contains("CEF:0|VibeCody|MCPGateway|1.0|SUCCESS"));
         assert!(cef.contains("eventId=evt1"));
@@ -516,7 +631,13 @@ mod tests {
     #[test]
     fn audit_export_cef_error() {
         let mut store = AuditStore::new();
-        store.record(make_event("e2", "write_file", "bob", 2000, AuditOutcome::Error("io error".to_string())));
+        store.record(make_event(
+            "e2",
+            "write_file",
+            "bob",
+            2000,
+            AuditOutcome::Error("io error".to_string()),
+        ));
         let cef = store.export_cef();
         assert!(cef.contains("ERROR"));
     }
@@ -524,7 +645,13 @@ mod tests {
     #[test]
     fn audit_export_cef_blocked() {
         let mut store = AuditStore::new();
-        store.record(make_event("e3", "exec", "eve", 3000, AuditOutcome::Blocked("policy rule 1".to_string())));
+        store.record(make_event(
+            "e3",
+            "exec",
+            "eve",
+            3000,
+            AuditOutcome::Blocked("policy rule 1".to_string()),
+        ));
         let cef = store.export_cef();
         assert!(cef.contains("BLOCKED"));
     }
@@ -686,13 +813,15 @@ mod tests {
     #[test]
     fn policy_add_allow_rule() {
         let mut policy = GatewayPolicy::new();
-        policy.add_rule(PolicyRule {
-            rule_id: "r1".to_string(),
-            tool_pattern: "*".to_string(),
-            caller_group: None,
-            effect: PolicyEffect::Allow,
-            rate_limit: None,
-        }).unwrap();
+        policy
+            .add_rule(PolicyRule {
+                rule_id: "r1".to_string(),
+                tool_pattern: "*".to_string(),
+                caller_group: None,
+                effect: PolicyEffect::Allow,
+                rate_limit: None,
+            })
+            .unwrap();
         let d = policy.evaluate("anything", None);
         assert!(d.allowed);
         assert_eq!(d.matched_rule_id.as_deref(), Some("r1"));
@@ -701,13 +830,15 @@ mod tests {
     #[test]
     fn policy_add_deny_rule() {
         let mut policy = GatewayPolicy::new();
-        policy.add_rule(PolicyRule {
-            rule_id: "r1".to_string(),
-            tool_pattern: "*".to_string(),
-            caller_group: None,
-            effect: PolicyEffect::Deny,
-            rate_limit: None,
-        }).unwrap();
+        policy
+            .add_rule(PolicyRule {
+                rule_id: "r1".to_string(),
+                tool_pattern: "*".to_string(),
+                caller_group: None,
+                effect: PolicyEffect::Deny,
+                rate_limit: None,
+            })
+            .unwrap();
         let d = policy.evaluate("read_file", None);
         assert!(!d.allowed);
         assert_eq!(d.matched_rule_id.as_deref(), Some("r1"));
@@ -716,13 +847,15 @@ mod tests {
     #[test]
     fn policy_glob_prefix_match() {
         let mut policy = GatewayPolicy::new();
-        policy.add_rule(PolicyRule {
-            rule_id: "r1".to_string(),
-            tool_pattern: "read_*".to_string(),
-            caller_group: None,
-            effect: PolicyEffect::Allow,
-            rate_limit: None,
-        }).unwrap();
+        policy
+            .add_rule(PolicyRule {
+                rule_id: "r1".to_string(),
+                tool_pattern: "read_*".to_string(),
+                caller_group: None,
+                effect: PolicyEffect::Allow,
+                rate_limit: None,
+            })
+            .unwrap();
         assert!(policy.evaluate("read_file", None).allowed);
         assert!(policy.evaluate("read_dir", None).allowed);
         assert!(!policy.evaluate("write_file", None).allowed);
@@ -731,13 +864,15 @@ mod tests {
     #[test]
     fn policy_glob_suffix_match() {
         let mut policy = GatewayPolicy::new();
-        policy.add_rule(PolicyRule {
-            rule_id: "r1".to_string(),
-            tool_pattern: "*_file".to_string(),
-            caller_group: None,
-            effect: PolicyEffect::Allow,
-            rate_limit: None,
-        }).unwrap();
+        policy
+            .add_rule(PolicyRule {
+                rule_id: "r1".to_string(),
+                tool_pattern: "*_file".to_string(),
+                caller_group: None,
+                effect: PolicyEffect::Allow,
+                rate_limit: None,
+            })
+            .unwrap();
         assert!(policy.evaluate("read_file", None).allowed);
         assert!(policy.evaluate("write_file", None).allowed);
         assert!(!policy.evaluate("read_dir", None).allowed);
@@ -746,13 +881,15 @@ mod tests {
     #[test]
     fn policy_exact_match() {
         let mut policy = GatewayPolicy::new();
-        policy.add_rule(PolicyRule {
-            rule_id: "r1".to_string(),
-            tool_pattern: "exec_shell".to_string(),
-            caller_group: None,
-            effect: PolicyEffect::Allow,
-            rate_limit: None,
-        }).unwrap();
+        policy
+            .add_rule(PolicyRule {
+                rule_id: "r1".to_string(),
+                tool_pattern: "exec_shell".to_string(),
+                caller_group: None,
+                effect: PolicyEffect::Allow,
+                rate_limit: None,
+            })
+            .unwrap();
         assert!(policy.evaluate("exec_shell", None).allowed);
         assert!(!policy.evaluate("exec_shell_safe", None).allowed);
     }
@@ -760,20 +897,24 @@ mod tests {
     #[test]
     fn policy_first_rule_wins_allow_then_deny() {
         let mut policy = GatewayPolicy::new();
-        policy.add_rule(PolicyRule {
-            rule_id: "allow-all".to_string(),
-            tool_pattern: "*".to_string(),
-            caller_group: None,
-            effect: PolicyEffect::Allow,
-            rate_limit: None,
-        }).unwrap();
-        policy.add_rule(PolicyRule {
-            rule_id: "deny-all".to_string(),
-            tool_pattern: "*".to_string(),
-            caller_group: None,
-            effect: PolicyEffect::Deny,
-            rate_limit: None,
-        }).unwrap();
+        policy
+            .add_rule(PolicyRule {
+                rule_id: "allow-all".to_string(),
+                tool_pattern: "*".to_string(),
+                caller_group: None,
+                effect: PolicyEffect::Allow,
+                rate_limit: None,
+            })
+            .unwrap();
+        policy
+            .add_rule(PolicyRule {
+                rule_id: "deny-all".to_string(),
+                tool_pattern: "*".to_string(),
+                caller_group: None,
+                effect: PolicyEffect::Deny,
+                rate_limit: None,
+            })
+            .unwrap();
         let d = policy.evaluate("anything", None);
         assert!(d.allowed);
         assert_eq!(d.matched_rule_id.as_deref(), Some("allow-all"));
@@ -782,20 +923,24 @@ mod tests {
     #[test]
     fn policy_first_rule_wins_deny_then_allow() {
         let mut policy = GatewayPolicy::new();
-        policy.add_rule(PolicyRule {
-            rule_id: "deny-all".to_string(),
-            tool_pattern: "*".to_string(),
-            caller_group: None,
-            effect: PolicyEffect::Deny,
-            rate_limit: None,
-        }).unwrap();
-        policy.add_rule(PolicyRule {
-            rule_id: "allow-all".to_string(),
-            tool_pattern: "*".to_string(),
-            caller_group: None,
-            effect: PolicyEffect::Allow,
-            rate_limit: None,
-        }).unwrap();
+        policy
+            .add_rule(PolicyRule {
+                rule_id: "deny-all".to_string(),
+                tool_pattern: "*".to_string(),
+                caller_group: None,
+                effect: PolicyEffect::Deny,
+                rate_limit: None,
+            })
+            .unwrap();
+        policy
+            .add_rule(PolicyRule {
+                rule_id: "allow-all".to_string(),
+                tool_pattern: "*".to_string(),
+                caller_group: None,
+                effect: PolicyEffect::Allow,
+                rate_limit: None,
+            })
+            .unwrap();
         let d = policy.evaluate("anything", None);
         assert!(!d.allowed);
     }
@@ -803,13 +948,15 @@ mod tests {
     #[test]
     fn policy_caller_group_filter() {
         let mut policy = GatewayPolicy::new();
-        policy.add_rule(PolicyRule {
-            rule_id: "admin-only".to_string(),
-            tool_pattern: "*".to_string(),
-            caller_group: Some("admin".to_string()),
-            effect: PolicyEffect::Allow,
-            rate_limit: None,
-        }).unwrap();
+        policy
+            .add_rule(PolicyRule {
+                rule_id: "admin-only".to_string(),
+                tool_pattern: "*".to_string(),
+                caller_group: Some("admin".to_string()),
+                effect: PolicyEffect::Allow,
+                rate_limit: None,
+            })
+            .unwrap();
         assert!(policy.evaluate("tool", Some("admin")).allowed);
         assert!(!policy.evaluate("tool", Some("devs")).allowed);
         assert!(!policy.evaluate("tool", None).allowed);
@@ -818,13 +965,15 @@ mod tests {
     #[test]
     fn policy_duplicate_rule_id_rejected() {
         let mut policy = GatewayPolicy::new();
-        policy.add_rule(PolicyRule {
-            rule_id: "r1".to_string(),
-            tool_pattern: "*".to_string(),
-            caller_group: None,
-            effect: PolicyEffect::Allow,
-            rate_limit: None,
-        }).unwrap();
+        policy
+            .add_rule(PolicyRule {
+                rule_id: "r1".to_string(),
+                tool_pattern: "*".to_string(),
+                caller_group: None,
+                effect: PolicyEffect::Allow,
+                rate_limit: None,
+            })
+            .unwrap();
         let result = policy.add_rule(PolicyRule {
             rule_id: "r1".to_string(),
             tool_pattern: "*".to_string(),
@@ -838,13 +987,15 @@ mod tests {
     #[test]
     fn policy_remove_rule() {
         let mut policy = GatewayPolicy::new();
-        policy.add_rule(PolicyRule {
-            rule_id: "r1".to_string(),
-            tool_pattern: "*".to_string(),
-            caller_group: None,
-            effect: PolicyEffect::Allow,
-            rate_limit: None,
-        }).unwrap();
+        policy
+            .add_rule(PolicyRule {
+                rule_id: "r1".to_string(),
+                tool_pattern: "*".to_string(),
+                caller_group: None,
+                effect: PolicyEffect::Allow,
+                rate_limit: None,
+            })
+            .unwrap();
         assert_eq!(policy.rule_count(), 1);
         assert!(policy.remove_rule("r1"));
         assert_eq!(policy.rule_count(), 0);
@@ -860,13 +1011,15 @@ mod tests {
     #[test]
     fn policy_rate_limit_field_stored() {
         let mut policy = GatewayPolicy::new();
-        policy.add_rule(PolicyRule {
-            rule_id: "r1".to_string(),
-            tool_pattern: "*".to_string(),
-            caller_group: None,
-            effect: PolicyEffect::Allow,
-            rate_limit: Some(100),
-        }).unwrap();
+        policy
+            .add_rule(PolicyRule {
+                rule_id: "r1".to_string(),
+                tool_pattern: "*".to_string(),
+                caller_group: None,
+                effect: PolicyEffect::Allow,
+                rate_limit: Some(100),
+            })
+            .unwrap();
         assert_eq!(policy.rules[0].rate_limit, Some(100));
     }
 
@@ -959,7 +1112,9 @@ mod tests {
         cp1.register(make_server("s1", "Old")).unwrap();
         let cp2 = ConfigPortability::new();
         let diff = cp1.diff(&cp2);
-        assert!(diff.iter().any(|l| l.contains("removed") && l.contains("s1")));
+        assert!(diff
+            .iter()
+            .any(|l| l.contains("removed") && l.contains("s1")));
     }
 
     #[test]
@@ -971,7 +1126,9 @@ mod tests {
         changed.version = "2.0.0".to_string();
         cp2.register(changed).unwrap();
         let diff = cp1.diff(&cp2);
-        assert!(diff.iter().any(|l| l.contains("changed") && l.contains("s1")));
+        assert!(diff
+            .iter()
+            .any(|l| l.contains("changed") && l.contains("s1")));
     }
 
     #[test]
@@ -989,5 +1146,168 @@ mod tests {
         let json = cp.export_json();
         let v: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert!(v.is_array());
+    }
+
+    // ── B2.8: register_plugin_servers ────────────────────────────────────────
+
+    /// Build a signed MCPB bundle that ships one MCP-server component
+    /// and install it. Helper shared by the three plugin-server tests.
+    fn install_plugin_with_one_server(
+        ws: &std::path::Path,
+        store: &crate::workspace_store::WorkspaceStore,
+        plugin_name: &str,
+        component_name: &str,
+        policy: crate::plugin_manifest::DefaultPolicy,
+    ) {
+        use crate::mcpb_bundle;
+        use crate::plugin_install::install_from_file;
+        use crate::plugin_manifest::{Components, McpServerComponent, PluginManifest, Publisher};
+        use crate::plugin_signing::{sign_manifest, MANIFEST_FILENAME, SIGNATURE_FILENAME};
+        use crate::signed_agent_card::jwk_from_verifying_key;
+        use p256::ecdsa::SigningKey;
+        use tempfile::tempdir;
+
+        let key = SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+        let manifest = PluginManifest {
+            name: plugin_name.into(),
+            version: "1.0.0".into(),
+            publisher: Publisher {
+                name: "Test".into(),
+                url: None,
+                key: jwk_from_verifying_key(key.verifying_key()),
+            },
+            description: format!("{plugin_name} fixture"),
+            components: Components {
+                mcp_servers: vec![McpServerComponent {
+                    name: component_name.into(),
+                    path: "bin/srv".into(),
+                    args: vec!["--port".into(), "0".into()],
+                }],
+                ..Default::default()
+            },
+            min_vibecli_version: None,
+            default_policy: policy,
+        };
+        let sig = sign_manifest(&manifest, &key, "k").unwrap();
+        let src = tempdir().unwrap();
+        let outer = mcpb_bundle::BundleManifest {
+            name: plugin_name.into(),
+            version: "1.0.0".into(),
+            command: "noop".into(),
+            args: vec![],
+            env: Default::default(),
+            description: None,
+        };
+        std::fs::write(
+            src.path().join("manifest.json"),
+            serde_json::to_string(&outer).unwrap(),
+        )
+        .unwrap();
+        std::fs::write(
+            src.path().join(MANIFEST_FILENAME),
+            toml::to_string(&manifest).unwrap(),
+        )
+        .unwrap();
+        std::fs::write(
+            src.path().join(SIGNATURE_FILENAME),
+            serde_json::to_string(&sig).unwrap(),
+        )
+        .unwrap();
+        std::fs::create_dir_all(src.path().join("bin")).unwrap();
+        std::fs::write(src.path().join("bin/srv"), "#!/bin/sh\nexit 0").unwrap();
+
+        let dest = tempdir().unwrap();
+        let bundle = dest.path().join(format!("{plugin_name}.mcpb"));
+        mcpb_bundle::pack_bundle(src.path(), &bundle).unwrap();
+        install_from_file(ws, store, &bundle, false).unwrap();
+    }
+
+    fn temp_ws_store() -> (tempfile::TempDir, crate::workspace_store::WorkspaceStore) {
+        let dir = tempfile::tempdir().unwrap();
+        let db = dir.path().join(".vibecli").join("workspace.db");
+        std::fs::create_dir_all(db.parent().unwrap()).unwrap();
+        let store = crate::workspace_store::WorkspaceStore::open_with(&db, [42u8; 32]).unwrap();
+        (dir, store)
+    }
+
+    #[test]
+    fn register_plugin_servers_includes_enabled_plugin() {
+        let (ws, store) = temp_ws_store();
+        install_plugin_with_one_server(
+            ws.path(),
+            &store,
+            "demo",
+            "srv",
+            crate::plugin_manifest::DefaultPolicy::On,
+        );
+
+        let mut cp = ConfigPortability::new();
+        let count = cp.register_plugin_servers(ws.path(), &store);
+        assert_eq!(count, 1);
+        let server = cp
+            .get("plugin:demo:srv")
+            .expect("namespaced plugin server registered");
+        assert!(server.name.contains("plugin: demo"));
+        assert!(server.args.contains(&"--port".to_string()));
+    }
+
+    #[test]
+    fn register_plugin_servers_skips_off_plugins() {
+        let (ws, store) = temp_ws_store();
+        install_plugin_with_one_server(
+            ws.path(),
+            &store,
+            "muted",
+            "srv",
+            crate::plugin_manifest::DefaultPolicy::Off,
+        );
+
+        let mut cp = ConfigPortability::new();
+        let count = cp.register_plugin_servers(ws.path(), &store);
+        assert_eq!(count, 0);
+        assert!(cp.get("plugin:muted:srv").is_none());
+    }
+
+    #[test]
+    fn register_plugin_servers_namespace_does_not_collide_with_user_ids() {
+        // A user-configured server with a flat id `srv` must coexist
+        // with a plugin-contributed `plugin:demo:srv` — different ids,
+        // different rows.
+        let (ws, store) = temp_ws_store();
+        install_plugin_with_one_server(
+            ws.path(),
+            &store,
+            "demo",
+            "srv",
+            crate::plugin_manifest::DefaultPolicy::On,
+        );
+
+        let mut cp = ConfigPortability::new();
+        cp.register(make_server("srv", "User Server")).unwrap();
+        cp.register_plugin_servers(ws.path(), &store);
+        assert!(cp.get("srv").is_some(), "user server preserved");
+        assert!(
+            cp.get("plugin:demo:srv").is_some(),
+            "plugin server registered"
+        );
+    }
+
+    #[test]
+    fn register_plugin_servers_is_idempotent_on_repeat_call() {
+        let (ws, store) = temp_ws_store();
+        install_plugin_with_one_server(
+            ws.path(),
+            &store,
+            "demo",
+            "srv",
+            crate::plugin_manifest::DefaultPolicy::On,
+        );
+
+        let mut cp = ConfigPortability::new();
+        let c1 = cp.register_plugin_servers(ws.path(), &store);
+        let c2 = cp.register_plugin_servers(ws.path(), &store);
+        assert_eq!(c1, 1);
+        assert_eq!(c2, 1, "second call overwrites — same count, no duplicates");
+        assert!(cp.get("plugin:demo:srv").is_some());
     }
 }
