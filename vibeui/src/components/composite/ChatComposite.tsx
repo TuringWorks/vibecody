@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState } from "react";
 import { TabbedPanel } from "../TabbedPanel";
 import { useWatchActiveSession } from "../../hooks/useWatchSync";
+import { PinnedGoalBanner } from "../PinnedGoalBanner";
 
 const Loading = () => (
   <div style={{ padding: 16, color: "var(--text-secondary)", fontSize: "var(--font-size-md)" }}>Loading...</div>
@@ -22,6 +23,9 @@ export interface ChatCompositeProps {
   onPendingWrite?: (path: string, content: string) => void;
   /** /goal slash command → forwarded down to AIChat. */
   onSwitchToGoals?: (seed?: string) => void;
+  /** G9.1 — workspace this VibeUI instance is rooted in. Used by the
+   *  PinnedGoalBanner to look up the right `current` pin row. */
+  workspacePath?: string | null;
 }
 
 export function ChatComposite({
@@ -32,6 +36,7 @@ export function ChatComposite({
   currentFile,
   onPendingWrite,
   onSwitchToGoals,
+  workspacePath,
 }: ChatCompositeProps) {
   const [activeTab, setActiveTab] = useState("chat");
 
@@ -45,10 +50,13 @@ export function ChatComposite({
   });
 
   return (
-    <TabbedPanel
-      activeTab={activeTab}
-      onTabChange={setActiveTab}
-      tabs={[
+    <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+      <PinnedGoalBanner workspacePath={workspacePath ?? null} />
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <TabbedPanel
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          tabs={[
         {
           id: "chat",
           label: "Chat",
@@ -79,6 +87,8 @@ export function ChatComposite({
           ),
         },
       ]}
-    />
+        />
+      </div>
+    </div>
   );
 }

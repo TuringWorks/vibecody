@@ -312,6 +312,8 @@ export function GoalPanel({
 
   // G6.1 — toggle pin for the active workspace (or global slot when
   // none). Pin replaces any prior pin; unpin clears unconditionally.
+  // G9.1 — emit `vibeui:pin-changed` so the chat-tab PinnedGoalBanner
+  // picks up the change immediately without waiting for its 15 s poll.
   const togglePin = async () => {
     if (!detail) return;
     setPinning(true);
@@ -328,6 +330,7 @@ export function GoalPanel({
         setPinnedGoalId(detail.goal.id);
         toast.success(`Pinned ${detail.goal.title} as current goal`);
       }
+      window.dispatchEvent(new CustomEvent('vibeui:pin-changed'));
     } catch (e) {
       toast.error('Pin update failed: ' + String(e));
     } finally {

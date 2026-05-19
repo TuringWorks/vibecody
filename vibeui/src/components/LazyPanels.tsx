@@ -168,7 +168,7 @@ export function PanelHost(props: PanelHostProps) {
   return (
     <>
       {/* --- AI --- */}
-      {panel("chat", <LazyPanel Component={ChatComposite} props={{ defaultProvider: selectedProvider, availableProviders, context: editorContent, fileTree, currentFile, onPendingWrite, onSwitchToGoals }} />)}
+      {panel("chat", <LazyPanel Component={ChatComposite} props={{ defaultProvider: selectedProvider, availableProviders, context: editorContent, fileTree, currentFile, onPendingWrite, onSwitchToGoals, workspacePath: wp }} />)}
       {panel("agent-os", <LazyPanel Component={AgentOSComposite} props={{ workspacePath: wp, provider: selectedProvider }} />)}
       {panel("ai-teams", <LazyPanel Component={AiTeamsComposite} props={{ provider: selectedProvider }} />)}
       {panel("ai-playground", <LazyPanel Component={AiPlaygroundComposite} props={{ provider: selectedProvider }} />)}
