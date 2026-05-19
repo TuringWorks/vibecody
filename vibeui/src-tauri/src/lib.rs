@@ -1146,6 +1146,16 @@ pub fn run() {
             commands::plugin_uninstall,
             commands::plugin_get_policy,
             commands::plugin_set_policy,
+            // Security Posture — unified scanner aggregator + findings UI.
+            // Design: docs/design/security-posture/.
+            commands::security_posture_scan,
+            commands::security_posture_findings,
+            commands::security_posture_suppress,
+            commands::security_posture_unsuppress,
+            commands::security_posture_create_goal,
+            commands::security_posture_decisions_log,
+            // A1 — MCP Apps payload parser (frontend bridge).
+            commands::mcp_apps_parse,
             // VibeMemory — Per-Project and Global SQLite Vector Memory
             commands::vibememory_store,
             commands::vibememory_search,

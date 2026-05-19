@@ -33162,6 +33162,30 @@ pub async fn plugin_set_policy(
     }))
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// A1 — MCP Apps payload parser (frontend bridge)
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// Exposes `mcp_apps_payload::parse` to the React host so the renderer
+// can validate before reaching into the payload. The backend has the
+// authoritative validation — even if a host calls into the renderer
+// directly, the payload still has to satisfy the spec because the
+// renderer refuses unknown component references (defence in depth).
+
+use vibecli_cli::mcp_apps_payload;
+
+/// Parse + validate an `application/vnd.mcp.app+json` payload. Returns
+/// the typed payload as JSON (re-serialised) on success; the error
+/// string carries the validation failure reason on rejection.
+///
+/// The payload itself is plain JSON (already crossed the daemon ↔
+/// webview boundary as text), so no sensitive-path gate applies.
+#[tauri::command]
+pub async fn mcp_apps_parse(payload: String) -> Result<serde_json::Value, String> {
+    let parsed = mcp_apps_payload::parse(payload.as_bytes()).map_err(|e| e.to_string())?;
+    serde_json::to_value(&parsed).map_err(|e| e.to_string())
+}
+
 // ── Sub-Agent Management ────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50160,4 +50184,156 @@ pub async fn exec_goal_unpin(
         return Err(format!("daemon returned {}: {}", status, json));
     }
     Ok(json)
+}
+
+// ── Security Posture ─────────────────────────────────────────────────
+//
+// Six Tauri commands backing the SecurityPosturePanel. All take a
+// `workspace_path` from the WebView and gate it through
+// `reject_sensitive_path` so the panel can't be hijacked into
+// scanning a credential directory.
+//
+// See `docs/design/security-posture/README.md` for the design.
+
+/// Run every registered scanner over the workspace, persist the
+/// findings (preserving suppression + goal-link state), and return
+/// the aggregated result. The `errors` field surfaces per-scanner
+/// failures without blocking the rest of the findings.
+#[tauri::command]
+pub async fn security_posture_scan(
+    workspace_path: String,
+) -> Result<vibecli_cli::security_posture::AggregatorResult, String> {
+    let workspace = reject_sensitive_path(&workspace_path)?;
+    let workspace_for_store = workspace.clone();
+    let workspace_for_scan = workspace.clone();
+
+    let result = tokio::task::spawn_blocking(move || {
+        use vibecli_cli::security_posture::{run_all_scanners, Scanner};
+        use vibecli_cli::security_posture_adapters::{
+            HealthScannerAdapter, VulnerabilityScannerAdapter,
+        };
+        let scanners: Vec<Box<dyn Scanner>> = vec![
+            Box::new(VulnerabilityScannerAdapter),
+            Box::new(HealthScannerAdapter),
+        ];
+        run_all_scanners(&workspace_for_scan, &scanners)
+    })
+    .await
+    .map_err(|e| format!("scan join error: {e}"))?;
+
+    let result_for_persist = result.clone();
+    tokio::task::spawn_blocking(move || -> Result<(), String> {
+        use vibecli_cli::security_posture_store::upsert_many;
+        use vibecli_cli::workspace_store::WorkspaceStore;
+        let store = WorkspaceStore::open(&workspace_for_store)?;
+        upsert_many(&store, result_for_persist.findings)
+    })
+    .await
+    .map_err(|e| format!("persist join error: {e}"))??;
+
+    Ok(result)
+}
+
+/// List the cached findings (no scan). Used on panel mount so the
+/// UI shows the most-recent results immediately; the user can hit
+/// "Rescan" if they want fresh data.
+#[tauri::command]
+pub async fn security_posture_findings(
+    workspace_path: String,
+) -> Result<Vec<vibecli_cli::security_posture::SecurityFinding>, String> {
+    let workspace = reject_sensitive_path(&workspace_path)?;
+    tokio::task::spawn_blocking(move || {
+        use vibecli_cli::security_posture_store::list_findings;
+        use vibecli_cli::workspace_store::WorkspaceStore;
+        let store = WorkspaceStore::open(&workspace)?;
+        list_findings(&store)
+    })
+    .await
+    .map_err(|e| format!("findings join error: {e}"))?
+}
+
+/// Suppress a finding with a required reason. The reason is
+/// preserved verbatim in the decision log.
+#[tauri::command]
+pub async fn security_posture_suppress(
+    workspace_path: String,
+    finding_id: String,
+    reason: String,
+) -> Result<(), String> {
+    if reason.trim().is_empty() {
+        return Err("suppression reason cannot be empty".to_string());
+    }
+    let workspace = reject_sensitive_path(&workspace_path)?;
+    tokio::task::spawn_blocking(move || {
+        use vibecli_cli::security_posture_store::suppress;
+        use vibecli_cli::workspace_store::WorkspaceStore;
+        let store = WorkspaceStore::open(&workspace)?;
+        suppress(&store, &finding_id, &reason)
+    })
+    .await
+    .map_err(|e| format!("suppress join error: {e}"))?
+}
+
+/// Lift a previous suppression. If the finding has a goal link,
+/// the status falls back to GoalLinked rather than Open.
+#[tauri::command]
+pub async fn security_posture_unsuppress(
+    workspace_path: String,
+    finding_id: String,
+) -> Result<(), String> {
+    let workspace = reject_sensitive_path(&workspace_path)?;
+    tokio::task::spawn_blocking(move || {
+        use vibecli_cli::security_posture_store::unsuppress;
+        use vibecli_cli::workspace_store::WorkspaceStore;
+        let store = WorkspaceStore::open(&workspace)?;
+        unsuppress(&store, &finding_id)
+    })
+    .await
+    .map_err(|e| format!("unsuppress join error: {e}"))?
+}
+
+/// Promote a finding into a Goal in the existing Goals system.
+///
+/// **Stub — returns NotImplemented until the goal-bridge slice
+/// lands.** When wired, this mints a Goal with finding metadata
+/// (severity, file, CWE, title, remediation) as the goal context
+/// and calls `link_goal` so the finding's status flips to
+/// GoalLinked.
+///
+/// The bridge is deliberately named-fields-only — never `Display`
+/// the whole SecurityFinding into the goal context, since that
+/// would leak the snippet bytes (which may carry secret material)
+/// into the next LLM turn.
+#[tauri::command]
+pub async fn security_posture_create_goal(
+    workspace_path: String,
+    finding_id: String,
+) -> Result<String, String> {
+    let _ = reject_sensitive_path(&workspace_path)?;
+    let _ = finding_id;
+    Err(
+        "security_posture_create_goal: not yet wired to the Goals system — coming in the next slice. \
+         See docs/design/security-posture/README.md status table."
+            .to_string(),
+    )
+}
+
+/// Return the most recent decision-log entries (newest first).
+/// Used by the panel's "view audit log" drawer.
+#[tauri::command]
+pub async fn security_posture_decisions_log(
+    workspace_path: String,
+    limit: usize,
+) -> Result<Vec<vibecli_cli::security_posture::DecisionLogEntry>, String> {
+    let workspace = reject_sensitive_path(&workspace_path)?;
+    tokio::task::spawn_blocking(move || {
+        use vibecli_cli::security_posture_store::read_decision_log;
+        use vibecli_cli::workspace_store::WorkspaceStore;
+        let store = WorkspaceStore::open(&workspace)?;
+        let mut log = read_decision_log(&store)?;
+        log.truncate(limit.min(1000));
+        Ok::<_, String>(log)
+    })
+    .await
+    .map_err(|e| format!("decisions_log join error: {e}"))?
 }

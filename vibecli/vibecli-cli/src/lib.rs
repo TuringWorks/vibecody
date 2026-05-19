@@ -291,6 +291,12 @@ pub mod session_share;
 pub mod rpc_mode;
 pub mod paste_guard;
 pub mod path_guard;
+// Security Posture — unified scanner aggregator + finding shape +
+// adapters for existing scanners + new scanners. See
+// `docs/design/security-posture/`.
+pub mod security_posture;
+pub mod security_posture_adapters;
+pub mod security_posture_store;
 pub mod event_bus;
 pub mod pod_manager;
 // Tailscale + ngrok connectivity (exposed for BDD test harnesses)
