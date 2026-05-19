@@ -8,29 +8,23 @@
 
 ---
 
-## P0 — In-flight (1 code item)
+## P0 — In-flight
 
-### 1. B2 — Plugin bundle format with admin install policies
-
-- **Source**: Phase 54 P0 (Appendix E of ROADMAP)
-- **Current State**: Patent-distance posture documented in fit-gap §18 (`403ea1c2`). No implementation yet. The `B2.x` broker commits in git log are unrelated (sandbox egress broker).
-- **What's Needed**: `vibecli-plugin.toml` manifest (MCP servers + skills + subagents + rules + hooks); `vibecli plugin install <path-or-url>`; `WorkspaceStore` per-plugin policy (`Off` / `On` / `Required`); governance-panel surface; 6 BDD scenarios.
-- **Effort**: Medium (1-2 weeks)
-- **Blocking**: Patent-distance check passed; cleared to start. Must avoid Cursor marketplace layout/UX terminology.
+No P0 items. **B2 (plugin bundle format) closed 2026-05-18** — see "Recently Closed" below. Highest-leverage next code item is **A1 MCP Apps generic React host** (~3-5 days, P1 #5 below).
 
 ---
 
-## P1 — High Priority (5 items)
+## P1 — High Priority (4 items)
 
-### 2. Hosted Plugin / Model Hub
+### 1. Hosted Plugin / Model Hub
 
 - **Source**: FIT-GAP v4, COMPETITIVE-ANALYSIS (Continue Hub)
-- **Current State**: `marketplace.rs` provides local plugin management; no hosted web hub for discovery/sharing (equivalent to `hub.continue.dev` or VS Code Marketplace).
-- **What's Needed**: Web-hosted registry with search, ratings, verified publishers, one-click install.
+- **Current State**: `marketplace.rs` provides local plugin management; **B2 signed MCPB bundle format shipped 2026-05-18** (`cea41606`..`32793d4d`). What's still missing is a hosted web hub for discovery/sharing (equivalent to `hub.continue.dev` or VS Code Marketplace) that serves signed bundles.
+- **What's Needed**: Web-hosted registry with search, ratings, verified publishers, one-click install. With B2 bundle format and per-publisher P-256 signatures in place, the registry is now an infrastructure concern only.
 - **Effort**: Medium (2-3 weeks infrastructure + hosting)
-- **Blocking**: Distribution/adoption concern — local marketplace works. Pairs naturally with item #1 (B2 bundle format) once that lands.
+- **Blocking**: Distribution/adoption concern — local install works (`PluginGovernancePanel.tsx`).
 
-### 3. SOC 2 Type II Certification
+### 2. SOC 2 Type II Certification
 
 - **Source**: FIT-GAP v4, COMPETITIVE-ANALYSIS (Devin has SOC 2 Type II)
 - **Current State**: `compliance_controls.rs` implements technical controls (audit trail, PII redaction, retention policies). Missing: formal certification.
@@ -38,21 +32,21 @@
 - **Effort**: External process (3-6 months, auditor engagement)
 - **Note**: Technical controls complete; this is a business/compliance process.
 
-### 4. A7 — Browser-native UI-element annotation (Design Mode)
+### 3. A7 — Browser-native UI-element annotation (Design Mode)
 
 - **Source**: Phase 53 P1, FIT-GAP §16
 - **Current State**: Patent-distance posture documented in fit-gap §18 (`403ea1c2`). No implementation yet — must remain distant from Cursor 3 annotation UX.
 - **What's Needed**: Extend `desktop_agent.rs` browser-control track with DOM-element click-to-annotate, generating natural-language instructions tied to specific selectors. Per-feature note in `notes/`.
 - **Effort**: Medium-high (2 wk design + 3 wk impl, patent-distance gated)
 
-### 5. B3 — Always-on security-review agent class
+### 4. B3 — Always-on security-review agent class
 
 - **Source**: Phase 54 P1 (v0.5.8)
 - **Current State**: `/review` exists as on-demand command. Patent-distance posture documented (close to Cursor Security Review UX).
 - **What's Needed**: Convert `/review` to a daemon-resident agent class; trigger on file-watcher / pre-commit / CI; route findings to the existing `Finding` schema; UI surface in `SecurityPanel.tsx`.
 - **Effort**: Medium-high (3-4 weeks, patent-distance gated)
 
-### 6. A1 — MCP Apps generic React embedding host
+### 5. A1 — MCP Apps generic React embedding host
 
 - **Source**: Phase 53 P0 (carry-over)
 - **Current State**: Payload parser shipped (`647b58de`). Generic React UI host for rendering `application/vnd.mcp.app+json` payloads in `AIChat.tsx` not yet wired.
@@ -63,14 +57,14 @@
 
 ## P2 — Medium Priority (2 items)
 
-### 7. Built-In Managed Hosting Domain
+### 6. Built-In Managed Hosting Domain
 
 - **Source**: FIT-GAP v4 (Bolt → `.bolt.host`, Lovable → `.lovable.app`)
 - **Current State**: `managed_deploy.rs` supports Docker / K8s / cloud providers; no VibeCody-hosted domain.
 - **What's Needed**: `*.vibecody.app` domain with one-click deploy for generated apps.
 - **Effort**: Medium (hosting infrastructure, DNS management, billing)
 
-### 8. 100M+ Line Codebase Benchmarking
+### 7. 100M+ Line Codebase Benchmarking
 
 - **Source**: FIT-GAP v4 (Blitzy handles 100M+ lines)
 - **Current State**: `infinite_context.rs` + `batch_builder.rs` handle large codebases but not benchmarked at 100M+ lines.
@@ -81,21 +75,21 @@
 
 ## P3 — Low Priority / By Design (3 items)
 
-### 9. Proprietary Frontier Coding Model
+### 8. Proprietary Frontier Coding Model
 
 - **Source**: FIT-GAP v4 (Windsurf SWE-1.5, Cursor custom model)
 - **Current State**: VibeCody is provider-agnostic (22+ providers).
 - **Effort**: Very high (months of ML training)
 - **Note**: Architectural choice — provider-agnostic approach is a strength, not a weakness. Not on the roadmap.
 
-### 10. VS Code Extension Full Compatibility
+### 9. VS Code Extension Full Compatibility
 
 - **Source**: ROADMAP v4, FIT-GAP v6
 - **Current State**: `extension_compat.rs` covers high-value subset of VS Code extensions.
 - **Effort**: Very high (ongoing, diminishing returns)
 - **Decision**: Partial coverage is sufficient for most use cases; not pursuing full parity.
 
-### 11. JetBrains Agent Hooks Deep Integration
+### 10. JetBrains Agent Hooks Deep Integration
 
 - **Source**: FIT-GAP v5
 - **Current State**: JetBrains plugin exists; agent hooks (pre/post-tool-use) are not deeply integrated.
@@ -141,6 +135,20 @@
 | c1 — Ollama `/v1/messages` route | `serve.rs` | PR #8 |
 | c2 — `GEMINI.md` fallback in `REPO_CANDIDATES` | `memory.rs` | PR #9 |
 
+**B2 — Plugin bundle format with admin install policies (shipped 2026-05-18):**
+
+| Slice | Surface | Commit |
+|---|---|---|
+| B2.1 — `vibecli-plugin.toml` manifest format + validator | `plugin_manifest.rs` | `cea41606` |
+| B2.2 — Detached P-256 ECDSA signing (`vibecli-plugin.sig`) | `plugin_signing.rs` | `6275cf06` |
+| B2.3 — `WorkspaceStore` per-plugin policy (Off / On / Required) | `workspace_store.rs` | `eb7dcbfe` |
+| B2.4 — Core install function (atomic stage→swap) | `plugin_install.rs` | `2d52bb4e` |
+| B2.5 — Runtime view filtered by policy | `plugin_runtime.rs` | `82d4a00b` |
+| B2.6 — Governance panel + 5 Tauri commands | `PluginGovernancePanel.tsx`, `commands.rs` | `fb9b80b6` |
+| B2.7 — Skill-loader activation (MCP list_skills) | `skill_catalog.rs`, `mcp_server.rs` | `9c0ac982` + `32793d4d` |
+
+All four patent-distance §18 principles anchored: no telemetry (#1), client-side admin-authored policy (#2), open MCPB lineage (#3), per-publisher P-256 trust roots (#4). Remaining loader activations (mcp_governance, hook_abort, rules, subagent) follow the same B2.7 pattern but are not strictly required to ship a working plugin install path.
+
 **`/goal` durable execution intent (entire feature shipped end-to-end):**
 
 | Slice | Surface | Commit |
@@ -177,10 +185,10 @@ All prior roadmap and fit-gap iterations have been merged into exactly **two can
 
 ## Summary
 
-**Open code items**: 6 (1 P0 + 4 P1 + 2 P2 — minus #4/#5/#6 patent-gated). The single highest-leverage next item is **B2 (plugin bundle format)** — patent-distance posture cleared, ~1-2 weeks of code work, unblocks #2 (hosted plugin hub) distribution.
+**Open code items**: 5 (0 P0 + 3 P1 + 2 P2 — minus #3/#4 patent-gated). The single highest-leverage next code item is now **A1 (MCP Apps generic React host)** — payload parser already shipped, ~3-5 days to wire the React embedding component.
 
 **Open non-code items**: 4 (SOC 2 cert, managed hosting domain, frontier model, VS Code full compat) — all infrastructure / business-process / explicit-design-choice items.
 
 **Parked**: 1 (B5 NVFP4 — hardware-blocked).
 
-**Bottom line**: Phase 53 (A1–A11) is 10-of-11 closed; Phase 54 (B1, B4, B6 + c1, c2) is closed; only **B2** remains as the cycle's in-flight code work. Three large design tracks (RL-OS productionization, Recap & Resume, Sandbox tiers) are landing slice-by-slice and tracked in their own design docs rather than here.
+**Bottom line**: Phase 53 (A1–A11) is 10-of-11 closed; Phase 54 P0 (B1, B2, B6 + trivial closes c1, c2) is closed; only **A7** (P1, patent-gated) and **B3** (P1 v0.5.8, patent-gated) remain queued for the next cycle. Three large design tracks (RL-OS productionization, Recap & Resume, Sandbox tiers) are landing slice-by-slice and tracked in their own design docs rather than here.

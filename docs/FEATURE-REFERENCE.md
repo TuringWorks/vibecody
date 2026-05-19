@@ -28,6 +28,7 @@
 20. [UI Panels (VibeUI)](#20-ui-panels-vibeui)
 21. [Advanced Runtime Capabilities (FIT-GAP v12)](#21-advanced-runtime-capabilities-fit-gap-v12)
 22. [Goals — Durable Execution Intent](#22-goals--durable-execution-intent)
+23. [Plugin Governance (signed MCPB bundles)](#23-plugin-governance-signed-mcpb-bundles)
 
 ---
 
@@ -975,6 +976,121 @@ pub struct Goal {
 ### Why `exec_goal_*`?
 
 VibeUI already has `CompanyGoalsPanel` (company strategy goals via `company_cmd "goal …"`) and `AgilePanel` (sprint goals). The HTTP path stays friendly (`/v1/goals`) but the Rust module is `exec_goal.rs` and the Tauri commands are `exec_goal_*` so future maintainers reading `commands.rs` see no ambiguity.
+
+---
+
+## 23. Plugin Governance (signed MCPB bundles)
+
+Phase 54 P0 (B2). Installs and runs third-party plugins as **signed MCPB bundles** carrying an inner `vibecli-plugin.toml` manifest. Components — MCP servers, skills, subagents, rules, hooks — register into VibeCody's existing surfaces, gated by a per-workspace policy.
+
+### Bundle layout
+
+An MCPB bundle (`.mcpb`, the A2 open format) carrying VibeCody plugins includes two extra files at its root:
+
+```
+my-plugin.mcpb (ZIP)
+├── manifest.json            ← MCPB outer (A2)
+├── vibecli-plugin.toml      ← B2.1 inner manifest
+├── vibecli-plugin.sig       ← B2.2 detached P-256 ECDSA signature
+└── …skills/, hooks/, rules/, agents/, server bins…
+```
+
+### Inner manifest (`vibecli-plugin.toml`)
+
+```toml
+name = "my-plugin"               # kebab-case, lowercase
+version = "1.0.0"                # semver-shaped
+description = "What it does"     # ≤ 500 B
+
+[publisher]
+name = "Publisher Inc"
+url  = "https://publisher.example"
+
+[publisher.key]                  # P-256 ECDSA, JWK (RFC 7517/7518)
+kty = "EC"
+crv = "P-256"
+x   = "<base64url>"
+y   = "<base64url>"
+
+default_policy = "off"           # off | on | required
+
+[[components.mcp_servers]]
+name = "my-srv"
+path = "bin/srv"
+
+[[components.skills]]
+name = "my-skill"
+path = "skills/my.md"
+category = "tools"
+
+# subagents, rules, hooks follow the same shape
+```
+
+### Detached signature (`vibecli-plugin.sig`)
+
+```json
+{
+  "kid":             "publisher-default",
+  "algorithm":       "ES256",
+  "value":           "<base64url(ECDSA(SHA-256(canonical_json(manifest))))>",
+  "manifest_digest": "<sha256-hex>"
+}
+```
+
+Verification anchors trust to the `publisher.key` embedded in the manifest (TOFU — the user explicitly trusts a key the first time they install). No opaque trust chain.
+
+### Per-workspace install policy
+
+| Policy | Runtime behavior | Who can set |
+|---|---|---|
+| `off`  | Components not enumerated, never run | Anyone |
+| `on`   | Components active in this workspace | Anyone |
+| `required` | Components active; cannot be lowered to `off` except by admin | Admin only |
+
+Stored unencrypted in `<workspace>/.vibecli/workspace.db` `plugin_policies` table. Unknown plugin (no row) resolves to `off` — the safe default.
+
+### Install layout
+
+```
+<workspace>/.vibecli/plugins/<plugin-name>/
+  ├── vibecli-plugin.toml
+  ├── vibecli-plugin.sig
+  └── …component payload (skills, hooks, MCP server bins, …)
+```
+
+Atomic: bundle extracts to `.staging.<pid>.<uuid>/`; only renamed into the final `<name>/` slot once signature verification AND policy write both succeed. RAII guard auto-cleans staging on any failure.
+
+### REPL / CLI / panel surface
+
+| Surface | Entry point |
+|---|---|
+| **REPL** (today) | Existing `/plugin install <url-or-git>` registry path unchanged. Signed-MCPB install lands via VibeUI panel; REPL parity is a follow-up. |
+| **Tauri commands** | `plugin_install_from_file(workspace_path, bundle_path, force)`, `plugin_list_installed(workspace_path)`, `plugin_uninstall(workspace_path, name, is_admin)`, `plugin_get_policy(workspace_path, name)`, `plugin_set_policy(workspace_path, name, policy, is_admin)` — all sensitive-path-gated. |
+| **VibeUI** | `PluginGovernancePanel.tsx` under **Enterprise Governance** → **Plugin Governance**. Install form + per-plugin row with publisher fingerprint + policy buttons + Uninstall. |
+| **MCP** | `list_skills` / `get_skill` already return enabled-plugin skills alongside built-ins, tagged with provenance: `{"kind": "builtin"}` or `{"kind": "plugin", "plugin": "<name>"}`. |
+
+### Patent-distance anchors (fit-gap §18)
+
+1. **No telemetry-driven personalization.** No "for-you" surface, no usage analytics. Panel shows installed plugins for THIS workspace and nothing else.
+2. **Policy enforcement is client-side and admin-authored.** No remote endpoint can flip a workspace plugin from Off to Required.
+3. **Bundle format is open MCPB.** Lineage to `.vsix` + MetaPK keeps prior art clear; no proprietary wrapping.
+4. **Trust roots are per-publisher P-256 ECDSA keys.** Same key infra as A2A signed agent cards (B6) and watch pairing.
+
+### Module map
+
+| Module | Role |
+|---|---|
+| `plugin_manifest.rs` (B2.1) | `vibecli-plugin.toml` schema + validator |
+| `plugin_signing.rs` (B2.2) | Detached P-256 ECDSA sign / verify |
+| `workspace_store.rs::plugin_*` (B2.3) | `plugin_policies` table + Required-pin guard |
+| `plugin_install.rs` (B2.4) | Atomic install / list / uninstall |
+| `plugin_runtime.rs` (B2.5) | Policy-filtered component enumeration |
+| `PluginGovernancePanel.tsx` + 5 Tauri commands (B2.6) | VibeUI surface |
+| `skill_catalog.rs::load_from_with_plugins` (B2.7) | First per-loader activation; `mcp_server.rs` consumes it |
+
+### Remaining wiring (not blocking ship)
+
+`mcp_governance`, `hook_abort`, rules loader, subagent loader still call their built-in loaders directly. Each gets policy-aware skills via `plugin_runtime::enabled_*` once converted — same pattern as B2.7.
 
 ---
 

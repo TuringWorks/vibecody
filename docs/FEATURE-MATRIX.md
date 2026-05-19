@@ -207,6 +207,27 @@
 
 ---
 
+## Plugin Governance (signed MCPB bundles)
+
+| Feature | VibeCLI | VibeUI | Notes |
+|---|:---:|:---:|---|
+| `vibecli-plugin.toml` inner manifest schema | ✅ | ✅ | name + version + publisher (P-256 JWK) + components |
+| Per-publisher P-256 ECDSA signing | ✅ | ✅ | Detached `vibecli-plugin.sig` (B6 key infra) |
+| MCPB outer container (A2) | ✅ | ✅ | Open lineage to `.vsix` / MetaPK |
+| Tampered-bundle rejection at install | ✅ | ✅ | Digest mismatch / signature mismatch / wrong key |
+| Per-workspace install policy (Off / On / Required) | ✅ | ✅ | `plugin_policies` table in `workspace.db` |
+| Required-pin admin guard | ✅ | ✅ | Only `PolicySetter::Admin` can raise to / lower from Required |
+| Atomic install (stage → swap) | ✅ | ✅ | RAII cleanup on failure |
+| Required-pin survives force re-install | ✅ | ✅ | Admin pin not lowered by re-install |
+| Runtime view filtered by policy | ✅ | n/a | `plugin_runtime::enabled_*` |
+| Component-source provenance | ✅ | ✅ | Skill / hook / rule tagged `Builtin` or `Plugin(name)` |
+| MCP `list_skills` / `get_skill` honors policy | ✅ | n/a | Built-in + enabled-plugin skills only |
+| Governance panel (Plugin Governance) | n/a | ✅ | Install + per-row policy buttons + publisher fingerprint |
+| Tauri commands | n/a | ✅ | `plugin_install_from_file`, `plugin_list_installed`, `plugin_uninstall`, `plugin_get_policy`, `plugin_set_policy` |
+| Sensitive-path gating on install paths | n/a | ✅ | `reject_sensitive_path` on workspace + bundle |
+
+---
+
 ## Goals — Durable Execution Intent
 
 | Feature | VibeCLI | VibeUI | Notes |
