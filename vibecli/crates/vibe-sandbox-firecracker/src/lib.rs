@@ -35,6 +35,8 @@
 //!   process; the in-guest workload talks back to the daemon via
 //!   the vsock control plane.
 
+pub mod rootfs;
+
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::Child;
