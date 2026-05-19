@@ -91,6 +91,15 @@ class _GoalsScreenState extends State<GoalsScreen> {
       appBar: AppBar(
         title: const Text('Goals'),
         actions: [
+          // G8.2 — surface a "+ new goal" action so mobile is no
+          // longer read-mostly. Tap opens a small modal sheet picking
+          // a paired machine + title + optional statement, then POSTs
+          // to /v1/goals.
+          IconButton(
+            icon: const Icon(Icons.add_rounded),
+            tooltip: 'New goal',
+            onPressed: _openNewGoalSheet,
+          ),
           IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: _refresh),
         ],
         bottom: PreferredSize(
@@ -132,8 +141,14 @@ class _GoalsScreenState extends State<GoalsScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Create one from VibeUI or the CLI (`/goal new`).',
+                        'Tap + to create one, or use VibeUI / CLI (`/goal new`).',
                         style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton.icon(
+                        onPressed: _openNewGoalSheet,
+                        icon: const Icon(Icons.add_rounded),
+                        label: const Text('New goal'),
                       ),
                     ],
                   ),
@@ -163,6 +178,33 @@ class _GoalsScreenState extends State<GoalsScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Session started on the goal')),
           );
+        },
+      ),
+    );
+  }
+
+  /// G8.2 — open the New Goal modal. Disabled when there's no paired
+  /// machine to create against (snackbar guidance).
+  void _openNewGoalSheet() {
+    final auth = context.read<AuthService>();
+    if (auth.machines.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pair a machine first — Settings → Pair new machine.'),
+        ),
+      );
+      return;
+    }
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _NewGoalSheet(
+        onCreated: (machineName, title) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Created "$title" on $machineName')),
+          );
+          _refresh();
         },
       ),
     );
@@ -491,6 +533,153 @@ class _GoalDetailSheetState extends State<_GoalDetailSheet> {
           ),
         );
       },
+    );
+  }
+}
+
+/// G8.2 — `New Goal` modal sheet. Title is required; statement is
+/// optional. The user picks one paired machine to host the goal on
+/// (we always create against /v1/goals on that machine — no global-
+/// across-fleet fan-out). Workspace defaults to the machine-global
+/// slot since phone keyboards aren't well-suited to typing absolute
+/// project paths; richer workspace targeting stays on VibeUI / CLI.
+class _NewGoalSheet extends StatefulWidget {
+  const _NewGoalSheet({required this.onCreated});
+
+  /// Fires with (machineName, title) when the daemon returns 201.
+  final void Function(String machineName, String title) onCreated;
+
+  @override
+  State<_NewGoalSheet> createState() => _NewGoalSheetState();
+}
+
+class _NewGoalSheetState extends State<_NewGoalSheet> {
+  final _titleCtrl = TextEditingController();
+  final _stmtCtrl = TextEditingController();
+  int _machineIndex = 0;
+  bool _submitting = false;
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _stmtCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final title = _titleCtrl.text.trim();
+    if (title.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Title is required')),
+      );
+      return;
+    }
+    setState(() => _submitting = true);
+    final auth = context.read<AuthService>();
+    final api = context.read<ApiClient>();
+    if (_machineIndex >= auth.machines.length) {
+      setState(() => _submitting = false);
+      return;
+    }
+    final cred = auth.machines[_machineIndex];
+    try {
+      await api.createGoal(
+        cred.baseUrl,
+        cred.token,
+        title: title,
+        statement: _stmtCtrl.text.trim().isEmpty ? null : _stmtCtrl.text.trim(),
+      );
+      if (!mounted) return;
+      widget.onCreated(cred.machineName, title);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      // 409 = duplicate (workspace, title); other 4xx = validation.
+      final msg = e.statusCode == 409
+          ? 'A goal with that title already exists'
+          : 'Failed (${e.statusCode}): ${e.body}';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Create failed: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthService>();
+    final machines = auth.machines;
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('New goal', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
+          if (machines.length > 1) ...[
+            DropdownButtonFormField<int>(
+              value: _machineIndex,
+              decoration: const InputDecoration(labelText: 'Machine'),
+              items: [
+                for (int i = 0; i < machines.length; i++)
+                  DropdownMenuItem(value: i, child: Text(machines[i].machineName)),
+              ],
+              onChanged: (v) => setState(() => _machineIndex = v ?? 0),
+            ),
+            const SizedBox(height: 12),
+          ],
+          TextField(
+            controller: _titleCtrl,
+            autofocus: true,
+            maxLength: 120,
+            decoration: const InputDecoration(
+              labelText: 'Title',
+              hintText: 'e.g. Ship the auth refactor',
+            ),
+            textInputAction: TextInputAction.next,
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _stmtCtrl,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              labelText: 'Statement (optional)',
+              hintText: 'Why this matters, success criteria, constraints…',
+              alignLabelWithHint: true,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              const Spacer(),
+              TextButton(
+                onPressed: _submitting ? null : () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.icon(
+                onPressed: _submitting ? null : _submit,
+                icon: _submitting
+                    ? const SizedBox(
+                        width: 14, height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check_rounded),
+                label: Text(_submitting ? 'Creating…' : 'Create'),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

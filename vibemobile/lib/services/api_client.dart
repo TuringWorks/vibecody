@@ -570,6 +570,36 @@ class ApiClient {
     return Map<String, dynamic>.from(jsonDecode(resp.body));
   }
 
+  /// G8.2 — create a new goal. `title` is required (≤120 chars,
+  /// enforced server-side; we don't pre-check). `statement` defaults
+  /// to empty; `workspace` is the absolute project path the goal
+  /// belongs to, or null for the global slot. Returns the created
+  /// `Goal` row from the daemon (with `id`, `created_at`, etc.).
+  Future<Map<String, dynamic>> createGoal(
+    String baseUrl,
+    String token, {
+    required String title,
+    String? statement,
+    String? workspace,
+  }) async {
+    final body = <String, dynamic>{
+      'title': title,
+      'statement': statement ?? '',
+    };
+    if (workspace != null && workspace.isNotEmpty) {
+      body['workspace'] = workspace;
+    }
+    final resp = await _client.post(
+      Uri.parse(_url(baseUrl, '/v1/goals')),
+      headers: _headers(token),
+      body: jsonEncode(body),
+    );
+    if (resp.statusCode != 201 && resp.statusCode != 200) {
+      throw ApiException(resp.statusCode, resp.body);
+    }
+    return Map<String, dynamic>.from(jsonDecode(resp.body));
+  }
+
   /// Fetch a single goal with its links.
   Future<Map<String, dynamic>> getGoal(
     String baseUrl,
