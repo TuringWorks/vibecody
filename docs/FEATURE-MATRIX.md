@@ -222,9 +222,15 @@
 | Runtime view filtered by policy | ✅ | n/a | `plugin_runtime::enabled_*` |
 | Component-source provenance | ✅ | ✅ | Skill / hook / rule tagged `Builtin` or `Plugin(name)` |
 | MCP `list_skills` / `get_skill` honors policy | ✅ | n/a | Built-in + enabled-plugin skills only |
+| MCP server components register under policy | ✅ | n/a | `mcp_governance::register_plugin_servers` namespaces `plugin:<plugin>:<component>` |
+| Plugin hooks fire on CLI agent path | ✅ | n/a | `merge_with_plugin_hooks` (B2.9) — orchestrator + REPL |
+| Plugin hooks fire on daemon agent path | ✅ | n/a | `serve.rs` `/v1/agent` + ACP + timed-task (B2.9.daemon) |
+| Plugin rules land in system context | ✅ | n/a | `collect_plugin_rules` → `plugin_rules` ContextSection at priority 1 (B2.10) |
+| HTTPS install (`vibecli plugin install <url>`) | ✅ | ✅ | 60 s timeout, 50 MB cap, scheme guard (B2.12) |
 | Governance panel (Plugin Governance) | n/a | ✅ | Install + per-row policy buttons + publisher fingerprint |
-| Tauri commands | n/a | ✅ | `plugin_install_from_file`, `plugin_list_installed`, `plugin_uninstall`, `plugin_get_policy`, `plugin_set_policy` |
+| Tauri commands | n/a | ✅ | `plugin_install_from_file`, `plugin_install_from_url`, `plugin_list_installed`, `plugin_uninstall`, `plugin_get_policy`, `plugin_set_policy` |
 | Sensitive-path gating on install paths | n/a | ✅ | `reject_sensitive_path` on workspace + bundle |
+| Plugin subagents (B2.11) | ⏳ | ⏳ | Deferred — no existing file-based subagent loader to plug into |
 
 ---
 

@@ -1087,10 +1087,15 @@ Atomic: bundle extracts to `.staging.<pid>.<uuid>/`; only renamed into the final
 | `plugin_runtime.rs` (B2.5) | Policy-filtered component enumeration |
 | `PluginGovernancePanel.tsx` + 5 Tauri commands (B2.6) | VibeUI surface |
 | `skill_catalog.rs::load_from_with_plugins` (B2.7) | First per-loader activation; `mcp_server.rs` consumes it |
+| `mcp_governance::register_plugin_servers` (B2.8) | MCP-server components registered as `plugin:<plugin>:<component>` |
+| `plugin_install::install_from_url` (B2.12) | HTTPS install (`vibecli plugin install <https://…>`), 60 s timeout, 50 MB cap |
+| `plugin_runtime::merge_with_plugin_hooks` (B2.9) | Plugin hooks fire on CLI agent path (orchestrator + REPL) |
+| `serve.rs::start_agent` etc. (B2.9.daemon) | Plugin hooks fire on `/v1/agent` + ACP + timed-task paths |
+| `context_assembler::collect_plugin_rules` (B2.10) | Plugin rules land in chat + agent system context as `plugin_rules` section |
 
 ### Remaining wiring (not blocking ship)
 
-`mcp_governance`, `hook_abort`, rules loader, subagent loader still call their built-in loaders directly. Each gets policy-aware skills via `plugin_runtime::enabled_*` once converted — same pattern as B2.7.
+Plugin **subagents** (B2.11) — no built-in file-based subagent loader to plug into. `sub_agents.rs` uses a hardcoded `SubAgentRole` enum; wiring plugin-defined subagents requires designing a registry / dispatch layer first.
 
 ---
 
