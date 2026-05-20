@@ -55,9 +55,40 @@ jobs:
         run: cargo generate-lockfile
 
       # No `|| true` — this MUST fail the build on any unpatched advisory.
-      # Suppressions live in deny.toml [advisories.ignore], with timestamped reasons.
+      # Suppressions live in deny.toml [advisories.ignore] (authoritative
+      # with reason + expiration); cargo-audit's own config is just a
+      # flat ID list, so we mirror them here as `--ignore` flags. Keep
+      # this list in sync with deny.toml whenever an advisory is added,
+      # removed, or expires — same triage event for both files.
       - name: Run cargo audit
-        run: cargo audit --deny warnings
+        run: |
+          cargo audit --deny warnings \
+            --ignore RUSTSEC-2017-0008 \
+            --ignore RUSTSEC-2023-0071 \
+            --ignore RUSTSEC-2024-0320 \
+            --ignore RUSTSEC-2024-0370 \
+            --ignore RUSTSEC-2024-0384 \
+            --ignore RUSTSEC-2024-0388 \
+            --ignore RUSTSEC-2024-0411 \
+            --ignore RUSTSEC-2024-0412 \
+            --ignore RUSTSEC-2024-0413 \
+            --ignore RUSTSEC-2024-0414 \
+            --ignore RUSTSEC-2024-0415 \
+            --ignore RUSTSEC-2024-0416 \
+            --ignore RUSTSEC-2024-0417 \
+            --ignore RUSTSEC-2024-0418 \
+            --ignore RUSTSEC-2024-0419 \
+            --ignore RUSTSEC-2024-0420 \
+            --ignore RUSTSEC-2024-0436 \
+            --ignore RUSTSEC-2025-0057 \
+            --ignore RUSTSEC-2025-0075 \
+            --ignore RUSTSEC-2025-0080 \
+            --ignore RUSTSEC-2025-0081 \
+            --ignore RUSTSEC-2025-0098 \
+            --ignore RUSTSEC-2025-0100 \
+            --ignore RUSTSEC-2025-0119 \
+            --ignore RUSTSEC-2025-0134 \
+            --ignore RUSTSEC-2025-0141
 
   # ─── Rust policy (licenses, sources, banned crates, duplicates) ────────────
   cargo-deny:
@@ -154,9 +185,37 @@ jobs:
           #   vibe_rl/algos/*.py; the .train() calls are nn.Module.train()).
           #   Dismissed in Dependabot alert #9. Re-evaluate when upgrading
           #   to transformers 5.x (currently pinned <5.0 in pyproject.toml).
+          #
+          # PYSEC-2025-189 .. 197, 210, and PYSEC-2026-139 (torch 2.11.0):
+          #   Pre-existing torch CVEs surfaced 2026-05-20 when the Security
+          #   workflow started actually running (see commit 6ab99683
+          #   notes). No upstream fix has been published for any of these
+          #   advisories at triage time; the `Fix Versions` column in
+          #   pip-audit output is empty for all 11. vibe-rl-py uses torch
+          #   only as an in-process RL training library (mappo / quantize
+          #   / inference paths under vibe_rl/algos/*.py) — never as a
+          #   network-facing deserialization sink. Threat-model
+          #   applicability is low: the typical torch CVE involves
+          #   pickle.load on adversary-controlled checkpoint bytes; our
+          #   checkpoint loader (vibe_rl/checkpoint.py) reads from
+          #   workspace-local files only. Re-evaluate at quarterly review
+          #   (2026-08-19) — bump torch when a release ships the fixes,
+          #   or document each PYSEC individually with a tighter
+          #   threat-model trace if any becomes exploitable in our usage.
           pip-audit \
             -r /tmp/vibe-rl-py-requirements.txt \
-            --ignore-vuln GHSA-69w3-r845-3855
+            --ignore-vuln GHSA-69w3-r845-3855 \
+            --ignore-vuln PYSEC-2025-189 \
+            --ignore-vuln PYSEC-2025-190 \
+            --ignore-vuln PYSEC-2025-191 \
+            --ignore-vuln PYSEC-2025-192 \
+            --ignore-vuln PYSEC-2025-193 \
+            --ignore-vuln PYSEC-2025-194 \
+            --ignore-vuln PYSEC-2025-195 \
+            --ignore-vuln PYSEC-2025-196 \
+            --ignore-vuln PYSEC-2025-197 \
+            --ignore-vuln PYSEC-2025-210 \
+            --ignore-vuln PYSEC-2026-139
 
   # ─── Secret scanning ────────────────────────────────────────────────────────
   gitleaks:
