@@ -218,10 +218,18 @@ Cold path total: < 50 ms on Linux/macOS, < 80 ms on Windows. No images. No GB. T
 | **S4** | Audit log → recap integration (cross-references `docs/design/recap-resume/02-job.md`) | `vibe-broker` + recap | release | pending |
 | **T2.1 / H0** | Tier-2 Hyperlight crate scaffold + state-tracking impl, behind cfg | `vibe-sandbox-hyperlight` | parallel with S2-S4 | ✅ shipped 2026-05-18 |
 | **T2.5 / H5** | Tier-1 hardening — Wasmtime fuel + epoch on `vibe-extensions` | `vibe-extensions` | independent | ✅ shipped 2026-05-18 |
+| **T2 / H6 preview** | `make sandbox-doctor` standalone host probe — Tier-0/1/2/3 availability + Firecracker rootfs presence + JSON contract | `scripts/check-sandbox-tiers.sh`, `vibe-sandbox/tests/sandbox_doctor_probe.rs` | independent | ✅ shipped 2026-05-19 |
 | **T3.1 / F0** | Tier-3 Firecracker crate scaffold + state-tracking impl | `vibe-sandbox-firecracker` | parallel with S2-S4 | ✅ shipped 2026-05-18 |
-| **T3.1 / F1** | Minimal BusyBox+bash rootfs builder + Makefile target + CI publish + cosign keyless attestation | `scripts/`, `Makefile`, `release.yml`, `vibe-sandbox-firecracker` tests | T3.1.B | ✅ shipped 2026-05-19 |
-| **T3.1.B / F2–F8** | microVM lifecycle, virtio-fs, vsock broker bridge, VM pool, toolchain layers, `CloudSandbox` wiring | `vibe-sandbox-firecracker` | depends on Linux+KVM hardware in CI | pending |
-| **T2 / H1–H4, H6** | Wasmtime-on-Hyperlight guest binary release pipeline, FS + broker host functions, `vibe-extensions` Tier selector, `vibecli doctor` Tier-2 reporting | `vibe-sandbox-hyperlight`, `vibe-extensions`, `vibecli-cli` | depends on Linux+KVM or Windows+WHP CI runner | pending |
+| **T3.1 / F1** | Minimal BusyBox+bash rootfs builder + Makefile target + CI publish + cosign keyless attestation + daemon-side `RootfsManager` (verify + content-addressed cache + cosign passthrough) | `scripts/`, `Makefile`, `release.yml`, `vibe-sandbox-firecracker::rootfs` | T3.1.B | ✅ shipped 2026-05-19 (incl. F1.5 daemon-side) |
+| **T3.1 / F2.1** | Firecracker REST API request shapes (`/boot-source`, `/machine-config`, `/drives`, `/vsock`, `/actions`) + ordered `boot_sequence()` | `vibe-sandbox-firecracker::api` | T3.1.B | ✅ shipped 2026-05-19 |
+| **T3.1 / F2.2-A** | HTTP-over-UDS client for Firecracker API socket (sync, std-only, no hyper) | `vibe-sandbox-firecracker::api_client` | T3.1.B | ✅ shipped 2026-05-19 |
+| **T3.1 / F2.2-B** | firecracker + jailer argv builders (vm-id validation, log-level, cgroup syntax) | `vibe-sandbox-firecracker::process` | T3.1.B | ✅ shipped 2026-05-19 |
+| **T3.1 / F3.1** | virtio-fs share + virtiofsd argv builder (deny-list re-validation at construction) | `vibe-sandbox-firecracker::virtiofs` | T3.1.B | ✅ shipped 2026-05-19 |
+| **T3.1 / F4.1** | vsock broker bridge config + daemon↔broker handshake (`PolicyHandshake` / `BridgeAttachResponse`) + kernel env-vars + cmdline fragment | `vibe-sandbox-firecracker::bridge` | T3.1.B | ✅ shipped 2026-05-19 |
+| **T3.1 / F8** | Per-skill `SkillSandboxPolicy` schema (composes F2.1 + F3.1 + F4.1 + env + boot args + wall-clock timeout, validates at load time, composes `VmConfig`) | `vibe-sandbox-firecracker::skill_policy` | skill-manifest integration | ✅ shipped 2026-05-19 |
+| **T3.1.B / F2.2-C, F3.2, F4.2, F5, F6, F7** | microVM process spawn orchestration, virtiofsd process spawn, vsock listener + in-guest shim, VM warm-pool, toolchain layers, `CloudSandbox` wiring | `vibe-sandbox-firecracker` (Linux-only) | depends on Linux+KVM hardware in CI runner + firecracker/virtiofsd binaries | pending |
+| **T2 / H1–H4** | Wasmtime-on-Hyperlight guest binary release pipeline, FS + broker host functions, `vibe-extensions` Tier selector | `vibe-sandbox-hyperlight`, `vibe-extensions` | depends on Linux+KVM/mshv or Windows+WHP CI runner | pending |
+| **T2 / H6 daemon-side** | `vibecli doctor` integration — port the sandbox-doctor probe into `main.rs` so the daemon's own health endpoint reports tier availability | `vibecli-cli/main.rs` | currently blocked by the local Metal-toolchain `cargo check -p vibecli` failure (pre-existing dev env issue) | pending |
 | **R** | Release: docs in `docs/release.md` + `docs/CHANGELOG.md` + `docs/security.md` posture update | release | — | ongoing |
 
 S0–S4 are the critical path for the user's stated goal. T2 and T3 can land in parallel without blocking.
