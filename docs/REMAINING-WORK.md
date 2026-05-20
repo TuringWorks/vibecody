@@ -4,7 +4,7 @@
 > Items are ordered by priority (P0 first) then by effort.
 > For the phase-by-phase ledger see [ROADMAP.md](./ROADMAP.md) (especially Appendices D + E). For competitive analysis see [FIT-GAP-ANALYSIS.md](./FIT-GAP-ANALYSIS.md).
 >
-> Last verified: 2026-05-19 (VS Code hook parity closed)
+> Last verified: 2026-05-19 (B2.9 + B2.9.daemon + B2.10 closed — plugin hooks + rules now actually run)
 
 ---
 
