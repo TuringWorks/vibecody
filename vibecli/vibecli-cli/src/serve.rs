@@ -1087,7 +1087,21 @@ async fn start_agent(
             exec = exec.with_http_prompter(tainted_http_queue);
         }
         let executor = Arc::new(exec);
-        let agent = AgentLoop::new(provider, approval, executor);
+        // B2.9.daemon — plugin hooks (admin policy On/Required) fire on
+        // the daemon agent path too, not only on `vibecli agent`. User
+        // hooks remain CLI-only by design (mobile/watch/VibeUI clients
+        // don't share the local `config.hooks` shape). Best-effort: a
+        // store/loader error falls through with empty hooks.
+        let plugin_hooks = crate::plugin_runtime::merge_with_plugin_hooks(
+            &workspace_root,
+            Vec::new(),
+        );
+        let agent = if plugin_hooks.is_empty() {
+            AgentLoop::new(provider, approval, executor)
+        } else {
+            AgentLoop::new(provider, approval, executor)
+                .with_hooks(vibe_ai::hooks::HookRunner::new(plugin_hooks))
+        };
 
         let git_branch = vibe_core::git::get_current_branch(&workspace_root).ok();
 
@@ -1623,11 +1637,21 @@ async fn acp_create_task(
             ..Default::default()
         };
         let (event_tx, _event_rx) = tokio::sync::mpsc::channel(256);
+        // B2.9.daemon — plugin hooks on the ACP path.
+        let plugin_hooks = crate::plugin_runtime::merge_with_plugin_hooks(
+            std::path::Path::new(&workspace),
+            Vec::new(),
+        );
         let agent = vibe_ai::AgentLoop::new(
             provider.clone(),
             vibe_ai::ApprovalPolicy::FullAuto,
             Arc::new(executor) as Arc<dyn vibe_ai::ToolExecutorTrait>,
         );
+        let agent = if plugin_hooks.is_empty() {
+            agent
+        } else {
+            agent.with_hooks(vibe_ai::hooks::HookRunner::new(plugin_hooks))
+        };
         let _ = agent.run(&task, context, event_tx).await;
 
         let _ = job_manager
@@ -1838,11 +1862,21 @@ async fn v1_create_task(
             ..Default::default()
         };
         let (event_tx, _event_rx) = tokio::sync::mpsc::channel(256);
+        // B2.9.daemon — plugin hooks on the timed-task path.
+        let plugin_hooks = crate::plugin_runtime::merge_with_plugin_hooks(
+            std::path::Path::new(&workspace),
+            Vec::new(),
+        );
         let agent = vibe_ai::AgentLoop::new(
             provider.clone(),
             vibe_ai::ApprovalPolicy::FullAuto,
             Arc::new(executor) as Arc<dyn vibe_ai::ToolExecutorTrait>,
         );
+        let agent = if plugin_hooks.is_empty() {
+            agent
+        } else {
+            agent.with_hooks(vibe_ai::hooks::HookRunner::new(plugin_hooks))
+        };
 
         let result = tokio::time::timeout(
             std::time::Duration::from_secs(timeout),
