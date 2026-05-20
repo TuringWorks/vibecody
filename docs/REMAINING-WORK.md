@@ -94,6 +94,15 @@ No P0 items. **A1 MCP Apps React host closed 2026-05-19**; **B2 plugin bundle fo
 
 ## Parked (1 item)
 
+### Security CI advisory backlog — triage queue
+
+- **Source**: Surfaced 2026-05-20 by `6ab99683` (cargo-deny-action bump that re-enabled the `cargo metadata` parser). Until that commit, the Security workflow was failing at the install step on every push, so cargo-deny / cargo-audit silently never reached the actual checks. Other security jobs (gitleaks, pip-audit) were also red for separate pre-existing reasons (gitleaks org-license requirement; torch 2.11.0 has 11 PYSEC advisories with no upstream fix).
+- **Current State**: Run [26178130526](https://github.com/TuringWorks/vibecody/actions/runs/26178130526) shows 27 distinct RUSTSEC IDs across `cargo deny` + `cargo audit` (mostly unmaintained transitives — `derivative`, `instant`, `paste`, `proc-macro-error`, `rustls-pemfile`, gtk-rs GTK3, `unic-*`, `yaml-rust` — plus one unsound `Buf` and one Marvin-Attack vulnerability). All pre-existing; none introduced by recent commits.
+- **What's Needed**: Per-advisory triage decisions in `deny.toml [advisories.ignore]` per the policy already documented there (`reason` + 90-day `expiration`). Quarterly review per the threat-model. Separately: decide whether to license gitleaks ($ org-tier) or migrate to GitHub's native secret scanning.
+- **Effort**: 1-2 days of focused triage + dep upgrades where viable.
+
+---
+
 ### B5 — NVFP4 (Blackwell native) TurboQuant target
 
 - **Source**: Phase 54 P0
