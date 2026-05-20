@@ -14092,8 +14092,11 @@ async fn run_parallel_agents(
         .with_worktree_manager(manager)
         .with_max_agents(n);
 
-    if !config.hooks.is_empty() {
-        orchestrator = orchestrator.with_hooks(HookRunner::new(config.hooks));
+    // B2.9 — merge plugin hooks (admin policy On/Required) with user hooks.
+    // Plugin hooks always go AFTER user hooks so user veto wins on Block.
+    let merged_hooks = crate::plugin_runtime::merge_with_plugin_hooks(&workspace, config.hooks);
+    if !merged_hooks.is_empty() {
+        orchestrator = orchestrator.with_hooks(HookRunner::new(merged_hooks));
     }
 
     let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<OrchestratorEvent>(128);
@@ -14187,10 +14190,13 @@ async fn run_agent_repl_with_context(
     let executor: Arc<dyn vibe_ai::agent::ToolExecutorTrait> = Arc::new(te);
 
     // Build hooks from config; wire LLM provider so `handler = { llm = "..." }` hooks work.
-    let hook_runner = if config.hooks.is_empty() {
+    // B2.9 — append plugin hooks (admin policy On/Required) after user hooks.
+    let merged_hooks =
+        crate::plugin_runtime::merge_with_plugin_hooks(&workspace, config.hooks.clone());
+    let hook_runner = if merged_hooks.is_empty() {
         HookRunner::empty()
     } else {
-        HookRunner::new(config.hooks.clone()).with_llm_provider(llm.clone())
+        HookRunner::new(merged_hooks).with_llm_provider(llm.clone())
     };
     let agent = AgentLoop::new(llm.clone(), approval.clone(), executor.clone())
         .with_hooks(hook_runner);

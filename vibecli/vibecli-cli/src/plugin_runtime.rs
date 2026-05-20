@@ -139,6 +139,80 @@ pub fn enabled_subagents(
     Ok(enabled_components(workspace, store)?.subagents)
 }
 
+/// Convert plugin-bundle hooks into a `vibe_ai::hooks::HookConfig`
+/// list and append them to user-configured hooks. The result is
+/// suitable for `HookRunner::new(...)` and respects the same admin
+/// policy table the rest of `enabled_*` honor.
+///
+/// Best-effort: a `WorkspaceStore` open failure or `enabled_hooks`
+/// error leaves the user list unchanged (logged at `warn`). Admin
+/// policy must never be able to break the CLI agent path — only to
+/// extend it.
+///
+/// Plugin hooks always appear AFTER user hooks in the merged list, so
+/// `HookRunner::aggregate` sees user policy first and plugin policy
+/// as supplementary. The order matters for `Block` semantics: the
+/// first BLOCK wins, so user hooks retain veto power over plugin
+/// hooks for the same event.
+pub fn merge_with_plugin_hooks(
+    workspace: &Path,
+    user_hooks: Vec<vibe_ai::hooks::HookConfig>,
+) -> Vec<vibe_ai::hooks::HookConfig> {
+    let store = match WorkspaceStore::open(workspace) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!(
+                "plugin hooks: workspace store unavailable ({}), continuing with user hooks only",
+                e
+            );
+            return user_hooks;
+        }
+    };
+    merge_with_plugin_hooks_using(workspace, user_hooks, &store)
+}
+
+/// Same as [`merge_with_plugin_hooks`] but uses a caller-supplied
+/// store. Useful for tests (which derive a custom key via
+/// `WorkspaceStore::open_with`) and for callers that already hold an
+/// open handle.
+pub fn merge_with_plugin_hooks_using(
+    workspace: &Path,
+    user_hooks: Vec<vibe_ai::hooks::HookConfig>,
+    store: &WorkspaceStore,
+) -> Vec<vibe_ai::hooks::HookConfig> {
+    let plugin_hooks = match enabled_hooks(workspace, store) {
+        Ok(h) => h,
+        Err(e) => {
+            tracing::warn!(
+                "plugin hooks: enabled_hooks failed ({:?}), continuing with user hooks only",
+                e
+            );
+            return user_hooks;
+        }
+    };
+    let mut merged = user_hooks;
+    for pc in plugin_hooks {
+        merged.push(plugin_hook_to_config(pc));
+    }
+    merged
+}
+
+/// Convert one plugin `HookComponent` into a vibe-ai `HookConfig` with
+/// a `Command` handler pointing at the absolute path that resolves
+/// under the plugin install dir. Tool / path filters are left empty —
+/// the plugin author scopes via the script itself.
+fn plugin_hook_to_config(pc: PluginComponent<HookComponent>) -> vibe_ai::hooks::HookConfig {
+    vibe_ai::hooks::HookConfig {
+        event: pc.spec.event,
+        tools: None,
+        paths: None,
+        handler: vibe_ai::hooks::HookHandler::Command {
+            shell: pc.absolute_path.to_string_lossy().into_owned(),
+        },
+        async_exec: false,
+    }
+}
+
 /// `On` and `Required` both mean "active". `Off` does not. Centralised
 /// so a future policy variant (e.g. `Suspended`) has one place to
 /// declare its activity.
@@ -389,6 +463,84 @@ mod tests {
         let (ws_dir, store) = temp_workspace();
         let enabled = enabled_components(ws_dir.path(), &store).unwrap();
         assert_eq!(enabled.total(), 0);
+    }
+
+    #[test]
+    fn merge_with_plugin_hooks_appends_after_user_hooks() {
+        // Two plugins each contribute one hook; one is On, one Off.
+        // The merged list must:
+        //   - keep the user hook first (veto precedence on Block)
+        //   - include only the On plugin's hook
+        //   - drop the Off plugin's hook
+        let (ws_dir, store) = temp_workspace();
+        let tmp = tempdir().unwrap();
+        let b_on = build_full_bundle(tmp.path(), "on-plugin", DefaultPolicy::On);
+        let b_off = build_full_bundle(tmp.path(), "off-plugin", DefaultPolicy::Off);
+        install_from_file(ws_dir.path(), &store, &b_on, false).unwrap();
+        install_from_file(ws_dir.path(), &store, &b_off, false).unwrap();
+
+        let user_hook = vibe_ai::hooks::HookConfig {
+            event: "PreToolUse".into(),
+            tools: None,
+            paths: None,
+            handler: vibe_ai::hooks::HookHandler::Command {
+                shell: "exit 0".into(),
+            },
+            async_exec: false,
+        };
+
+        let merged = merge_with_plugin_hooks_using(ws_dir.path(), vec![user_hook], &store);
+        assert_eq!(merged.len(), 2, "user + on-plugin only");
+
+        // User hook first.
+        match &merged[0].handler {
+            vibe_ai::hooks::HookHandler::Command { shell } => assert_eq!(shell, "exit 0"),
+            other => panic!("expected user Command handler, got {other:?}"),
+        }
+
+        // Plugin hook second — should resolve to the installed
+        // hooks/h.sh under the 'on-plugin' install dir.
+        match &merged[1].handler {
+            vibe_ai::hooks::HookHandler::Command { shell } => {
+                assert!(
+                    shell.contains("on-plugin"),
+                    "plugin hook path should reference its install dir: {shell}"
+                );
+                assert!(
+                    shell.ends_with("hooks/h.sh"),
+                    "plugin hook path should resolve under the install dir: {shell}"
+                );
+                assert!(
+                    !shell.contains("off-plugin"),
+                    "Off-policy plugin must NOT contribute: {shell}"
+                );
+            }
+            other => panic!("expected plugin Command handler, got {other:?}"),
+        }
+        assert_eq!(merged[1].event, "PreToolUse");
+    }
+
+    #[test]
+    fn merge_with_plugin_hooks_no_plugins_returns_user_hooks_unchanged() {
+        let (ws_dir, store) = temp_workspace();
+        let user = vec![
+            vibe_ai::hooks::HookConfig {
+                event: "PreToolUse".into(),
+                tools: None,
+                paths: None,
+                handler: vibe_ai::hooks::HookHandler::Command { shell: "a".into() },
+                async_exec: false,
+            },
+            vibe_ai::hooks::HookConfig {
+                event: "PostToolUse".into(),
+                tools: None,
+                paths: None,
+                handler: vibe_ai::hooks::HookHandler::Command { shell: "b".into() },
+                async_exec: false,
+            },
+        ];
+        let merged = merge_with_plugin_hooks_using(ws_dir.path(), user.clone(), &store);
+        assert_eq!(merged.len(), user.len(), "no plugins installed → identity");
     }
 
     #[test]
