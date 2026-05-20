@@ -36,6 +36,7 @@
 //!   the vsock control plane.
 
 pub mod api;
+pub mod bridge;
 pub mod rootfs;
 pub mod virtiofs;
 
