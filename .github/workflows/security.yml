@@ -70,7 +70,11 @@ jobs:
         uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
 
       - name: Install cargo-deny
-        uses: EmbarkStudios/cargo-deny-action@e2f4ede4a4e60ea15ff31bc0647485d80c66cfba # v2.0.4
+        # v2.0.4 → v2.0.18: v2.0.5 added Cargo 1.85 / edition2024 support
+        # via tame-index 0.18.0 (release notes). Stuck on v2.0.4 made
+        # the job fail on any transitive dep that declared
+        # `edition = "2024"` — globset 0.4.18 in this repo, since 2026-04-xx.
+        uses: EmbarkStudios/cargo-deny-action@6c8f9facfa5047ec02d8485b6bf52b587b7777d1 # v2.0.18
         with:
           command: check
           arguments: --all-features
