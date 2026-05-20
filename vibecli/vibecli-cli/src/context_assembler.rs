@@ -104,6 +104,7 @@ pub fn parse_agent_kind(s: &str) -> Result<AgentKind, String> {
 /// agree on which keys may appear in the assembled response.
 pub const KNOWN_SECTION_NAMES: &[&str] = &[
     "project_memory",
+    "plugin_rules",
     "orchestration",
     "project_profile",
     "task_files",
@@ -281,6 +282,14 @@ fn collect_chat_sections(workspace: &Path) -> Vec<ContextSection> {
         });
     }
 
+    // 1.5) Plugin rules — B2.10. Admin-approved plugins (policy On or
+    //      Required) contribute Markdown rules that land alongside the
+    //      project memory. Same priority lane (1) as orchestration so
+    //      both compete fairly for the chat budget.
+    if let Some(section) = collect_plugin_rules(workspace) {
+        out.push(section);
+    }
+
     // 2) Orchestration rules + saved lessons + active task.
     let lessons_store =
         crate::workflow_orchestration::LessonsStore::for_workspace(workspace);
@@ -340,6 +349,12 @@ fn collect_agent_sections(
         });
     }
 
+    // 2.5) Plugin rules — B2.10. Same enabled-by-admin-policy filtering as
+    //      the chat collector, injected as a system-prompt-style section.
+    if let Some(section) = collect_plugin_rules(workspace) {
+        out.push(section);
+    }
+
     // 3) Task-relevant files (preview, max 5 files / 80 lines each).
     let relevant =
         crate::project_init::extract_relevant_files_for_task(workspace, task);
@@ -388,6 +403,60 @@ fn collect_agent_sections(
     }
 
     out
+}
+
+/// B2.10 — assemble a `plugin_rules` section from the rule files of
+/// every admin-policy-active plugin (`On` or `Required`). Rules from
+/// disabled or unknown plugins are silently skipped.
+///
+/// Returns `None` when no plugins contribute (the assembler then
+/// emits no section at all, so empty-plugin-state callers see the
+/// pre-B2.10 layout exactly). Best-effort: a `WorkspaceStore` open
+/// failure (e.g. first run, before B2.3 schema bootstraps) or an
+/// unreadable rule file are treated as "no contribution" rather than
+/// errors — plugin policy must extend the agent's context, never
+/// break the assembler.
+///
+/// Each rule appears as `### {plugin_name}/{rule_name}` followed by
+/// the file body, separated by blank lines. The whole section is
+/// budget-bounded by `ContextBudget` like every other section.
+fn collect_plugin_rules(workspace: &Path) -> Option<ContextSection> {
+    let store = crate::workspace_store::WorkspaceStore::open(workspace).ok()?;
+    let rules = crate::plugin_runtime::enabled_rules(workspace, &store).ok()?;
+    if rules.is_empty() {
+        return None;
+    }
+
+    let mut body = String::new();
+    body.push_str("=== Plugin Rules (admin-approved) ===\n\n");
+    let mut any_loaded = false;
+    for rule in &rules {
+        let content = match std::fs::read_to_string(&rule.absolute_path) {
+            Ok(c) => c,
+            Err(_) => continue,
+        };
+        if !any_loaded {
+            any_loaded = true;
+        } else {
+            body.push_str("\n\n");
+        }
+        body.push_str(&format!(
+            "### {}/{}\n\n{}",
+            rule.plugin_name,
+            rule.spec.name,
+            content.trim_end()
+        ));
+    }
+
+    if !any_loaded {
+        return None;
+    }
+    Some(ContextSection {
+        name: "plugin_rules",
+        content: body,
+        priority: 1,
+        truncated: false,
+    })
 }
 
 /// Render the agent scratchpad for a session as a human-readable block,
@@ -527,9 +596,15 @@ mod tests {
         // advertises a stale shape and clients break.
         let known: std::collections::HashSet<&str> =
             KNOWN_SECTION_NAMES.iter().copied().collect();
-        for expected in
-            ["project_memory", "orchestration", "project_profile", "task_files", "open_memory", "agent_scratchpad"]
-        {
+        for expected in [
+            "project_memory",
+            "plugin_rules",
+            "orchestration",
+            "project_profile",
+            "task_files",
+            "open_memory",
+            "agent_scratchpad",
+        ] {
             assert!(
                 known.contains(expected),
                 "KNOWN_SECTION_NAMES is missing {expected:?}"
@@ -886,6 +961,140 @@ mod tests {
             ctx.get("agent_scratchpad")
                 .unwrap()
                 .contains("PLAN-MARKER")
+        );
+    }
+
+    // ── B2.10 — plugin_rules section ─────────────────────────────────────
+
+    /// Install a single-rule plugin into `ws` under the given default
+    /// policy, returning the rule body so the test can assert it lands
+    /// (or doesn't) in the assembled context.
+    fn install_one_rule_plugin(
+        ws: &std::path::Path,
+        name: &str,
+        rule_body: &str,
+        policy: crate::plugin_manifest::DefaultPolicy,
+    ) {
+        use crate::plugin_manifest::{
+            Components, McpServerComponent, Publisher, RuleComponent, SkillComponent,
+            SubagentComponent, HookComponent,
+        };
+        use crate::plugin_signing::{sign_manifest, MANIFEST_FILENAME, SIGNATURE_FILENAME};
+        use crate::signed_agent_card::jwk_from_verifying_key;
+        use p256::ecdsa::SigningKey;
+
+        // Use the workspace's per-path-derived key (the production
+        // path) so the freshly-opened WorkspaceStore inside
+        // collect_plugin_rules sees the same DB.
+        fs::create_dir_all(ws.join(".vibecli")).unwrap();
+        let store = crate::workspace_store::WorkspaceStore::open(ws).unwrap();
+
+        let tmp = tempfile::tempdir().unwrap();
+        let src = tmp.path().join(name);
+        fs::create_dir_all(src.join("rules")).unwrap();
+        fs::write(src.join("rules/r.md"), rule_body).unwrap();
+
+        let key = SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng);
+        let manifest = crate::plugin_manifest::PluginManifest {
+            name: name.to_string(),
+            version: "1.0.0".into(),
+            publisher: Publisher {
+                name: "Test".into(),
+                url: None,
+                key: jwk_from_verifying_key(key.verifying_key()),
+            },
+            description: format!("{name} rule fixture"),
+            components: Components {
+                mcp_servers: vec![] as Vec<McpServerComponent>,
+                skills: vec![] as Vec<SkillComponent>,
+                subagents: vec![] as Vec<SubagentComponent>,
+                rules: vec![RuleComponent {
+                    name: "house-rule".to_string(),
+                    path: "rules/r.md".into(),
+                }],
+                hooks: vec![] as Vec<HookComponent>,
+            },
+            min_vibecli_version: None,
+            default_policy: policy,
+        };
+        let sig = sign_manifest(&manifest, &key).unwrap();
+        let outer = crate::mcpb_bundle::BundleManifest {
+            name: name.to_string(),
+            version: "1.0.0".into(),
+            command: "noop".into(),
+            args: vec![],
+            env: Default::default(),
+            description: None,
+        };
+        fs::write(
+            src.join("manifest.json"),
+            serde_json::to_string(&outer).unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            src.join(MANIFEST_FILENAME),
+            toml::to_string(&manifest).unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            src.join(SIGNATURE_FILENAME),
+            serde_json::to_string(&sig).unwrap(),
+        )
+        .unwrap();
+        let bundle = tmp.path().join(format!("{name}-1.0.0.mcpb"));
+        crate::mcpb_bundle::pack_bundle(&src, &bundle).unwrap();
+        crate::plugin_install::install_from_file(ws, &store, &bundle, false).unwrap();
+    }
+
+    use std::fs;
+
+    #[test]
+    fn plugin_rules_section_includes_on_plugin_rule_body() {
+        let tmp = TempDir::new().unwrap();
+        install_one_rule_plugin(
+            tmp.path(),
+            "ruler",
+            "NEVER push to main without review.",
+            crate::plugin_manifest::DefaultPolicy::On,
+        );
+        let ctx = assemble_context(
+            tmp.path(),
+            &ContextPolicy::Chat,
+            &ContextBudget::default(),
+            &MemoryToggles::default(),
+        );
+        let section = ctx
+            .get("plugin_rules")
+            .expect("On-policy plugin rule must appear in plugin_rules section");
+        assert!(
+            section.contains("NEVER push to main"),
+            "rule body must be embedded; got: {section}"
+        );
+        assert!(
+            section.contains("ruler/house-rule"),
+            "rule header must identify plugin + name; got: {section}"
+        );
+    }
+
+    #[test]
+    fn plugin_rules_section_absent_when_only_off_plugins_installed() {
+        let tmp = TempDir::new().unwrap();
+        install_one_rule_plugin(
+            tmp.path(),
+            "muted",
+            "This rule should never appear.",
+            crate::plugin_manifest::DefaultPolicy::Off,
+        );
+        let ctx = assemble_context(
+            tmp.path(),
+            &ContextPolicy::Chat,
+            &ContextBudget::default(),
+            &MemoryToggles::default(),
+        );
+        assert!(
+            ctx.get("plugin_rules").is_none(),
+            "Off-policy plugins must not contribute; sections: {:?}",
+            ctx.sections.iter().map(|s| s.name).collect::<Vec<_>>()
         );
     }
 }
