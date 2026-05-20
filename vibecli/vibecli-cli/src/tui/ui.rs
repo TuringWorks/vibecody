@@ -154,7 +154,7 @@ fn draw_file_tree(f: &mut Frame, app: &App, area: Rect) {
 fn draw_goals(f: &mut Frame, app: &App, area: Rect) {
     let t = &app.theme;
     let title = format!(
-        " Goals — filter: {} · view: {} ({} shown) — f: filter, t: tree, r: refresh, ESC: back ",
+        " Goals — filter: {} · view: {} ({} shown) — f: filter, t: tree, p: pin, r: refresh, ESC: back ",
         app.goals.status_filter.label(),
         app.goals.view_mode.label(),
         app.goals.items.len(),
@@ -202,7 +202,7 @@ fn draw_goals(f: &mut Frame, app: &App, area: Rect) {
         // G11.1 — tree mode indents children under parents. depth=0
         // produces no indent so list mode renders unchanged.
         let indent = "  ".repeat(row.depth as usize);
-        let prefix_spans = vec![
+        let mut prefix_spans = vec![
             Span::styled(format!("{indent}{short_id} "), Style::default().fg(t.dim)),
             Span::styled(
                 format!("[{}] ", row.status),
@@ -212,8 +212,16 @@ fn draw_goals(f: &mut Frame, app: &App, area: Rect) {
                 format!("[{}] ", row.workspace_label),
                 Style::default().fg(t.dim),
             ),
-            Span::styled(row.title.clone(), row_style),
         ];
+        // G13.1 — yellow ★ on rows pinned anywhere. Same glyph the
+        // watch, mobile, VibeUI, and VS Code surfaces use.
+        if row.pinned {
+            prefix_spans.push(Span::styled(
+                "★ ",
+                Style::default().fg(t.warning).add_modifier(Modifier::BOLD),
+            ));
+        }
+        prefix_spans.push(Span::styled(row.title.clone(), row_style));
         lines.push(Line::from(prefix_spans));
     }
 

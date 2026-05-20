@@ -15,12 +15,18 @@ pub struct GoalRow {
     pub title: String,
     pub status: String,
     pub workspace_label: String,
+    /// G13.1 — raw workspace path (used as the pin key when toggling).
+    /// `None` = global, mirroring `Goal::workspace`.
+    pub workspace: Option<String>,
     pub updated_at: String,
     /// G11.1 — parent for tree-mode ordering. `None` in list mode and
     /// for true roots.
     pub parent_goal_id: Option<String>,
     /// G11.1 — depth in tree mode (0 = root). Always 0 in list mode.
     pub depth: u8,
+    /// G13.1 — this goal id appears in `pinned_goals` for some
+    /// workspace (or the global slot). UI shows ★ on the row.
+    pub pinned: bool,
 }
 
 /// G11.1 — TUI Goals layout. `List` is the flat chronological view
@@ -126,11 +132,13 @@ impl GoalsComponent {
             limit: 100,
             ..Default::default()
         };
+        let pinned_ids = store.list_all_pinned_goal_ids().unwrap_or_default();
         match store.list_goals(&filter) {
             Ok(rows) => {
                 let goal_rows: Vec<GoalRow> = rows
                     .into_iter()
                     .map(|g| GoalRow {
+                        pinned: pinned_ids.contains(&g.id),
                         id: g.id,
                         title: g.title,
                         status: g.status.as_str().to_string(),
@@ -141,6 +149,11 @@ impl GoalsComponent {
                             .and_then(|n| n.to_str())
                             .unwrap_or("global")
                             .to_string(),
+                        workspace: g
+                            .workspace
+                            .as_ref()
+                            .and_then(|p| p.to_str())
+                            .map(|s| s.to_string()),
                         updated_at: g.updated_at.to_rfc3339(),
                         parent_goal_id: g.parent_goal_id,
                         depth: 0,
@@ -157,6 +170,43 @@ impl GoalsComponent {
             }
             Err(e) => self.last_error = Some(format!("list: {e}")),
         }
+    }
+
+    /// G13.1 — flip the pin state of the currently selected row. If
+    /// the row is pinned anywhere we unpin every workspace slot that
+    /// holds it (covers the rare both-workspace-and-global case). If
+    /// it isn't pinned we pin it under its own workspace (or globally
+    /// if the goal has no workspace) — matching how the watch/mobile
+    /// pin flows scope their writes. Best-effort: errors are stashed.
+    pub fn toggle_pin_current(&mut self) {
+        let Some(row) = self.selected().cloned() else {
+            return;
+        };
+        let store = match SessionStore::open_default() {
+            Ok(s) => s,
+            Err(e) => {
+                self.last_error = Some(format!("open store: {e}"));
+                return;
+            }
+        };
+        let res = if row.pinned {
+            match store.list_pin_workspaces_for_goal(&row.id) {
+                Ok(workspaces) => {
+                    for ws in workspaces {
+                        let ws_opt = if ws.is_empty() { None } else { Some(ws.as_str()) };
+                        let _ = store.unpin_goal(ws_opt);
+                    }
+                    Ok(())
+                }
+                Err(e) => Err(e),
+            }
+        } else {
+            store.pin_goal(row.workspace.as_deref(), &row.id)
+        };
+        if let Err(e) = res {
+            self.last_error = Some(format!("pin toggle: {e}"));
+        }
+        self.refresh();
     }
 
     /// G11.1 — flip between flat list and tree layout.
@@ -266,6 +316,7 @@ mod tests {
             items: Vec::new(),
             selected_index: 0,
             status_filter: StatusFilter::Active,
+            view_mode: ViewMode::List,
             last_error: None,
         };
         c.next();
@@ -279,9 +330,11 @@ mod tests {
             title: id.into(),
             status: "active".into(),
             workspace_label: "global".into(),
+            workspace: None,
             updated_at: "now".into(),
             parent_goal_id: parent.map(str::to_string),
             depth: 0,
+            pinned: false,
         }
     }
 
@@ -331,22 +384,27 @@ mod tests {
                     title: "a".into(),
                     status: "active".into(),
                     workspace_label: "global".into(),
+                    workspace: None,
                     updated_at: "now".into(),
                     parent_goal_id: None,
                     depth: 0,
+                    pinned: false,
                 },
                 GoalRow {
                     id: "b".into(),
                     title: "b".into(),
                     status: "active".into(),
                     workspace_label: "global".into(),
+                    workspace: None,
                     updated_at: "now".into(),
                     parent_goal_id: None,
                     depth: 0,
+                    pinned: false,
                 },
             ],
             selected_index: 1,
             status_filter: StatusFilter::Active,
+            view_mode: ViewMode::List,
             last_error: None,
         };
         c.next();

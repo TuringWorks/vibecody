@@ -985,6 +985,34 @@ impl SessionStore {
         Ok(n > 0)
     }
 
+    /// G13.1 — collect every goal id that has a pin in any workspace
+    /// (including the global "" slot). Used by surfaces like the TUI
+    /// that list goals across workspaces and want to mark each row
+    /// with ★ without firing one query per goal.
+    pub fn list_all_pinned_goal_ids(&self) -> Result<std::collections::HashSet<String>> {
+        let mut stmt = self.conn.prepare("SELECT DISTINCT goal_id FROM pinned_goals")?;
+        let ids = stmt
+            .query_map([], |r| r.get::<_, String>(0))?
+            .filter_map(|r| r.ok())
+            .collect();
+        Ok(ids)
+    }
+
+    /// G13.1 — find every workspace slot that pins this goal. The
+    /// global slot is represented as an empty string. Surfaces that
+    /// want a single "unpin everywhere" call can iterate the result
+    /// and feed each entry back into `unpin_goal`.
+    pub fn list_pin_workspaces_for_goal(&self, goal_id: &str) -> Result<Vec<String>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT workspace FROM pinned_goals WHERE goal_id = ?1")?;
+        let out = stmt
+            .query_map(params![goal_id], |r| r.get::<_, String>(0))?
+            .filter_map(|r| r.ok())
+            .collect();
+        Ok(out)
+    }
+
     /// Mark a session complete (or failed) with an optional summary.
     pub fn finish_session(
         &self,
