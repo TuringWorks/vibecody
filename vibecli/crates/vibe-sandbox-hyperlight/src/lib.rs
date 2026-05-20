@@ -23,6 +23,8 @@
 //! integration is via the `vibe-extensions` crate which speaks a
 //! different host-function ABI — covered in slice T2.1.A.
 
+pub mod host_abi;
+
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::Child;
