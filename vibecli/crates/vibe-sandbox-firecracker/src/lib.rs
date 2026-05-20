@@ -41,6 +41,7 @@ pub mod api_client;
 pub mod bridge;
 pub mod process;
 pub mod rootfs;
+pub mod skill_policy;
 pub mod virtiofs;
 
 use std::ffi::OsStr;
