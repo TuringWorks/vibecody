@@ -39,6 +39,7 @@ pub mod api;
 #[cfg(unix)]
 pub mod api_client;
 pub mod bridge;
+pub mod process;
 pub mod rootfs;
 pub mod virtiofs;
 
