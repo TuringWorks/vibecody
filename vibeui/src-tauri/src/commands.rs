@@ -50220,7 +50220,7 @@ pub async fn security_posture_scan(
             Box::new(SecretLeakScanner),
             Box::new(LicenseClashScanner),
             Box::new(SonarScannerAdapter),
-            Box::new(TaintScanner),    // stub — full tree-sitter impl in next slice
+            Box::new(TaintScanner),    // regex-based intra-procedural; tree-sitter upgrade tracked
             Box::new(HealthScannerAdapter),
         ];
         run_all_scanners(&workspace_for_scan, &scanners)
