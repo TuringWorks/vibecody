@@ -27,8 +27,11 @@ db-urls = ["https://github.com/rustsec/advisory-db"]
 version = 2
 yanked = "warn"
 ignore = [
-    # Format: { id = "RUSTSEC-YYYY-NNNN", reason = "...", expiration = "YYYY-MM-DD" }
-    # Every entry MUST have a reason and an expiration. Quarterly review.
+    # Format: { id = "RUSTSEC-YYYY-NNNN", reason = "... [review-by YYYY-MM-DD]" }
+    # cargo-deny v2 ignore schema only accepts `id` and `reason` — the
+    # review-by date is embedded at the tail of the reason string in
+    # `[review-by YYYY-MM-DD]` form so triage scripts and humans can
+    # grep for stale suppressions. Default cadence is quarterly.
     #
     # Triage baseline 2026-05-20 (commit 7b82e68b → this commit): the
     # Security workflow had been failing at the cargo-deny install step
@@ -45,45 +48,45 @@ ignore = [
     # can't unilaterally cut.
 
     # ── Real vulnerability ────────────────────────────────────────────
-    { id = "RUSTSEC-2023-0071", reason = "Marvin Attack timing sidechannel in `rsa` 0.9 — no upstream fix yet. Used only by vibe-broker token_mint.rs::GcpServiceAccountMinter::build_signed_jwt for outbound JWT signing (RSASSA-PKCS1v15 with RandomizedSigner + OsRng). Attack requires network-observable timing of our private-key operations; threat model doesn't apply because the broker signs locally and emits the result in an outbound HTTPS request. Re-evaluate when the RustCrypto/RSA constant-time port lands.", expiration = "2026-08-19" },
+    { id = "RUSTSEC-2023-0071", reason = "Marvin Attack timing sidechannel in `rsa` 0.9 — no upstream fix yet. Used only by vibe-broker token_mint.rs::GcpServiceAccountMinter::build_signed_jwt for outbound JWT signing (RSASSA-PKCS1v15 with RandomizedSigner + OsRng). Attack requires network-observable timing of our private-key operations; threat model doesn't apply because the broker signs locally and emits the result in an outbound HTTPS request. Re-evaluate when the RustCrypto/RSA constant-time port lands. [review-by 2026-08-19]" },
 
     # ── Tauri 2.x Linux stack (gtk3 bindings family) ──────────────────
     # All ten of these are gtk-rs GTK3 transitives pulled in by
     # tauri 2.11.2 → tray-icon / muda / tao / webkit2gtk / wry / rfd /
     # libappindicator on Linux. Tauri's roadmap moves to gtk4 +
     # webkit2gtk-6.0; until that lands upstream we can't cut these.
-    { id = "RUSTSEC-2024-0411", reason = "gtk-rs GTK3 unmaintained — Tauri 2.x Linux dep (transitive via tauri/tray-icon/wry). Tracked in https://github.com/tauri-apps/tauri/issues — awaits Tauri's gtk4 migration.", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2024-0412", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411.", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2024-0413", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411.", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2024-0414", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411.", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2024-0415", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411.", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2024-0416", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411.", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2024-0417", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411.", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2024-0418", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411.", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2024-0419", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411.", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2024-0420", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411.", expiration = "2026-08-19" },
+    { id = "RUSTSEC-2024-0411", reason = "gtk-rs GTK3 unmaintained — Tauri 2.x Linux dep (transitive via tauri/tray-icon/wry). Tracked in https://github.com/tauri-apps/tauri/issues — awaits Tauri's gtk4 migration. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2024-0412", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2024-0413", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2024-0414", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2024-0415", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2024-0416", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2024-0417", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2024-0418", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2024-0419", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2024-0420", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]" },
 
     # ── unic-* family ─────────────────────────────────────────────────
     # All transitive from a single upstream Unicode handler chain. Five
     # separate IDs because each unic-* subcrate has its own advisory.
     # Replacement candidate is icu4x; not a 1:1 drop-in.
-    { id = "RUSTSEC-2025-0075", reason = "unic-char-range unmaintained — transitive Unicode. Replacement candidate is icu4x. Single root cause covers 2025-0075/0080/0081/0098/0100.", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2025-0080", reason = "unic-common unmaintained — same root cause as 2025-0075.", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2025-0081", reason = "unic-char-property unmaintained — same root cause as 2025-0075.", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2025-0098", reason = "unic-ucd-version unmaintained — same root cause as 2025-0075.", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2025-0100", reason = "unic-ucd-ident unmaintained — same root cause as 2025-0075.", expiration = "2026-08-19" },
+    { id = "RUSTSEC-2025-0075", reason = "unic-char-range unmaintained — transitive Unicode. Replacement candidate is icu4x. Single root cause covers 2025-0075/0080/0081/0098/0100. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2025-0080", reason = "unic-common unmaintained — same root cause as 2025-0075. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2025-0081", reason = "unic-char-property unmaintained — same root cause as 2025-0075. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2025-0098", reason = "unic-ucd-version unmaintained — same root cause as 2025-0075. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2025-0100", reason = "unic-ucd-ident unmaintained — same root cause as 2025-0075. [review-by 2026-08-19]" },
 
     # ── Common transitive unmaintained crates ─────────────────────────
-    { id = "RUSTSEC-2017-0008", reason = "`serial` unmaintained — transitive; project does not call into it directly. Investigate at quarterly review whether the parent dep still needs serial port support.", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2024-0320", reason = "yaml-rust unmaintained — transitive. Replacement candidate is yaml-rust2 or serde_yaml. Owning dep needs to migrate.", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2024-0370", reason = "proc-macro-error 1.x unmaintained (also drags syn 1.x duplicate). Replacement is proc-macro-error2. Transitive through several proc-macro deps; no direct project use.", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2024-0384", reason = "instant unmaintained — transitive time crate, web_time / std::time::Instant are the modern replacements. Owning dep needs to migrate.", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2024-0388", reason = "derivative unmaintained — transitive via keyring → secret-service → zbus 3.x. Tied to the keyring dep upgrade.", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2024-0436", reason = "paste unmaintained — widely-transitive macro helper. No direct project use; no security implications beyond maintenance status.", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2025-0057", reason = "fxhash unmaintained — transitive via mistralrs-core → bm25. Pinned through the TuringWorks/mistral.rs fork; bump on next fork sync.", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2025-0119", reason = "number_prefix unmaintained — transitive (likely via a progress-bar lib).", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2025-0134", reason = "rustls-pemfile unmaintained — superseded by rustls-pki-types. Transitive; tied to the broader rustls ecosystem upgrade.", expiration = "2026-08-19" },
-    { id = "RUSTSEC-2025-0141", reason = "bincode 1.x unmaintained — transitive via syntect 5.3 and vibe-memory. bincode 2.x is a non-trivial API rewrite; track syntect's migration.", expiration = "2026-08-19" },
+    { id = "RUSTSEC-2017-0008", reason = "`serial` unmaintained — transitive; project does not call into it directly. Investigate at quarterly review whether the parent dep still needs serial port support. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2024-0320", reason = "yaml-rust unmaintained — transitive. Replacement candidate is yaml-rust2 or serde_yaml. Owning dep needs to migrate. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2024-0370", reason = "proc-macro-error 1.x unmaintained (also drags syn 1.x duplicate). Replacement is proc-macro-error2. Transitive through several proc-macro deps; no direct project use. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2024-0384", reason = "instant unmaintained — transitive time crate, web_time / std::time::Instant are the modern replacements. Owning dep needs to migrate. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2024-0388", reason = "derivative unmaintained — transitive via keyring → secret-service → zbus 3.x. Tied to the keyring dep upgrade. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2024-0436", reason = "paste unmaintained — widely-transitive macro helper. No direct project use; no security implications beyond maintenance status. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2025-0057", reason = "fxhash unmaintained — transitive via mistralrs-core → bm25. Pinned through the TuringWorks/mistral.rs fork; bump on next fork sync. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2025-0119", reason = "number_prefix unmaintained — transitive (likely via a progress-bar lib). [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2025-0134", reason = "rustls-pemfile unmaintained — superseded by rustls-pki-types. Transitive; tied to the broader rustls ecosystem upgrade. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2025-0141", reason = "bincode 1.x unmaintained — transitive via syntect 5.3 and vibe-memory. bincode 2.x is a non-trivial API rewrite; track syntect's migration. [review-by 2026-08-19]" },
 ]
 
 [licenses]
