@@ -165,7 +165,9 @@ impl VirtioFsShare {
     /// We use a structured key=value scheme so the in-guest init can
     /// parse it without ambiguity:
     ///
-    ///     vibe.virtiofs=<tag>:<mount-point>:<ro|rw>
+    /// ```text
+    /// vibe.virtiofs=<tag>:<mount-point>:<ro|rw>
+    /// ```
     pub fn kernel_cmdline_fragment(&self, mount_point: &str) -> String {
         format!(
             "vibe.virtiofs={}:{}:{}",
