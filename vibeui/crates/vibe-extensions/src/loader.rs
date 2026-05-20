@@ -52,6 +52,72 @@ pub const DEFAULT_EPOCH_DEADLINE: u64 = 10;
 /// cheap enough that the daemon's tracing is not flooded.
 pub const DEFAULT_EPOCH_INTERVAL: Duration = Duration::from_millis(100);
 
+// ── Tier preference ──────────────────────────────────────────────────────────
+
+/// Which backend should run an extension.
+///
+/// Slice H4 — the structural piece of the future Hyperlight migration.
+/// Today only the Wasmtime backend is wired in (`vibe-sandbox-hyperlight`
+/// returns `NotSupported` for `spawn` and the WASI-on-Hyperlight guest
+/// binary release pipeline H1 is pending). Once H1–H3 land, callers
+/// pick the desired tier via [`ExtensionLoader::with_tier_preference`]
+/// and the loader either routes to Hyperlight or transparently falls
+/// back to Wasmtime, emitting a structured `extension.tier.downgrade`
+/// trace event so the recap pipeline sees the chosen tier.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExtensionTier {
+    /// Run in-process via Wasmtime. The current behavior; available
+    /// on every supported platform.
+    Wasmtime,
+    /// Try Hyperlight (KVM/mshv on Linux, WHP on Windows). If the
+    /// host doesn't support Hyperlight or the H1 guest binary isn't
+    /// installed yet, transparently fall back to Wasmtime.
+    HyperlightIfAvailable,
+}
+
+impl Default for ExtensionTier {
+    fn default() -> Self {
+        ExtensionTier::Wasmtime
+    }
+}
+
+impl std::fmt::Display for ExtensionTier {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExtensionTier::Wasmtime => f.write_str("wasmtime"),
+            ExtensionTier::HyperlightIfAvailable => f.write_str("hyperlight-if-available"),
+        }
+    }
+}
+
+/// Reports whether the host can actually run Hyperlight today.
+///
+/// Returns `false` everywhere right now — slice H1 is pending. Once
+/// the H1 guest binary release pipeline + the `vibe-sandbox-hyperlight`
+/// runtime binding land, this returns `true` on Linux/Windows where
+/// KVM/mshv/WHP is available.
+pub fn hyperlight_available() -> bool {
+    // Stub for H4 — flip to a real probe (e.g. dlopen of the guest
+    // binary + cap check) when H1 is ready.
+    false
+}
+
+/// Resolve a preference to the backend that will actually run.
+/// Pure function so the daemon can preview the choice without
+/// loading any extension.
+pub fn resolve_tier(pref: ExtensionTier) -> ExtensionTier {
+    match pref {
+        ExtensionTier::Wasmtime => ExtensionTier::Wasmtime,
+        ExtensionTier::HyperlightIfAvailable => {
+            if hyperlight_available() {
+                ExtensionTier::HyperlightIfAvailable
+            } else {
+                ExtensionTier::Wasmtime
+            }
+        }
+    }
+}
+
 // ── Error ─────────────────────────────────────────────────────────────────────
 
 /// Why a Wasmtime call was killed.
@@ -116,6 +182,11 @@ pub struct Extension {
     fuel: u64,
     /// Per-call epoch deadline (in ticks of [`DEFAULT_EPOCH_INTERVAL`]).
     epoch_deadline: u64,
+    /// H4: which backend ended up serving this load. Currently
+    /// always [`ExtensionTier::Wasmtime`] because H1-H3 are pending,
+    /// but the field is plumbed so the recap pipeline can correlate
+    /// tier with extension once Hyperlight is live.
+    tier: ExtensionTier,
 }
 
 impl Extension {
@@ -148,6 +219,12 @@ impl Extension {
     /// Override the epoch deadline used for subsequent calls.
     pub fn set_epoch_deadline(&mut self, ticks: u64) {
         self.epoch_deadline = ticks;
+    }
+
+    /// H4: which backend served this load. Today always
+    /// [`ExtensionTier::Wasmtime`] because slice H1 is pending.
+    pub fn tier(&self) -> ExtensionTier {
+        self.tier
     }
 
     /// Invoke an exported `(ptr, len)` function with a string payload,
@@ -264,6 +341,12 @@ pub struct ExtensionLoader {
     default_fuel: u64,
     /// Per-loader default epoch deadline. Reset before every call.
     default_epoch_deadline: u64,
+    /// H4: which backend the loader should *prefer* for new
+    /// extensions. The *resolved* tier (after the
+    /// `hyperlight_available()` probe) is stored on each
+    /// `Extension` so callers can inspect which backend actually
+    /// served the load.
+    tier_preference: ExtensionTier,
 }
 
 impl Default for ExtensionLoader {
@@ -315,6 +398,7 @@ impl ExtensionLoader {
             engine,
             default_fuel: DEFAULT_FUEL,
             default_epoch_deadline: DEFAULT_EPOCH_DEADLINE,
+            tier_preference: ExtensionTier::default(),
         }
     }
 
@@ -330,6 +414,21 @@ impl ExtensionLoader {
     pub fn with_default_epoch_deadline(mut self, ticks: u64) -> Self {
         self.default_epoch_deadline = ticks;
         self
+    }
+
+    /// H4: choose which backend extensions loaded by this loader
+    /// should run on. Today the only fully-wired backend is
+    /// Wasmtime; `HyperlightIfAvailable` resolves to Wasmtime via
+    /// [`resolve_tier`] until slice H1 ships the guest binary.
+    pub fn with_tier_preference(mut self, pref: ExtensionTier) -> Self {
+        self.tier_preference = pref;
+        self
+    }
+
+    /// Inspect what tier the loader will actually use given the
+    /// configured preference + host capabilities.
+    pub fn effective_tier(&self) -> ExtensionTier {
+        resolve_tier(self.tier_preference)
     }
 
     /// Load all `*.wasm` files from `dir`.
@@ -476,6 +575,22 @@ impl ExtensionLoader {
             tracing::info!("[ext:{}:init] {}", name, msg);
         }
 
+        // H4: resolve the configured preference; if Hyperlight was
+        // requested but isn't actually available, emit a structured
+        // downgrade trace so the recap pipeline picks it up.
+        let resolved = resolve_tier(self.tier_preference);
+        if self.tier_preference == ExtensionTier::HyperlightIfAvailable
+            && resolved == ExtensionTier::Wasmtime
+        {
+            tracing::warn!(
+                target: "vibe.extensions.tier.downgrade",
+                extension = %name,
+                requested = %self.tier_preference,
+                effective = %resolved,
+                "Hyperlight tier requested but not available on this host — falling back to Wasmtime"
+            );
+        }
+
         Ok(Extension {
             name: name.to_string(),
             path: path.to_path_buf(),
@@ -483,6 +598,7 @@ impl ExtensionLoader {
             store,
             fuel: self.default_fuel,
             epoch_deadline: self.default_epoch_deadline,
+            tier: resolved,
         })
     }
 
@@ -813,6 +929,90 @@ mod tests {
         // Daemon log format depends on this.
         assert_eq!(ExhaustionKind::Fuel.to_string(), "fuel");
         assert_eq!(ExhaustionKind::Epoch.to_string(), "epoch");
+    }
+
+    // ── H4 — Tier selector ───────────────────────────────────────────────
+
+    #[test]
+    fn h4_default_tier_is_wasmtime() {
+        assert_eq!(ExtensionTier::default(), ExtensionTier::Wasmtime);
+    }
+
+    #[test]
+    fn h4_resolve_wasmtime_is_identity() {
+        assert_eq!(
+            resolve_tier(ExtensionTier::Wasmtime),
+            ExtensionTier::Wasmtime
+        );
+    }
+
+    #[test]
+    fn h4_resolve_hyperlight_falls_back_to_wasmtime_today() {
+        // H1 not shipped → hyperlight_available() returns false.
+        // Until then, HyperlightIfAvailable must resolve to Wasmtime
+        // so loaders don't silently fail when callers opt in early.
+        assert!(!hyperlight_available());
+        assert_eq!(
+            resolve_tier(ExtensionTier::HyperlightIfAvailable),
+            ExtensionTier::Wasmtime
+        );
+    }
+
+    #[test]
+    fn h4_loader_effective_tier_defaults_to_wasmtime() {
+        let l = ExtensionLoader::new();
+        assert_eq!(l.effective_tier(), ExtensionTier::Wasmtime);
+    }
+
+    #[test]
+    fn h4_loader_with_hyperlight_preference_still_resolves_to_wasmtime() {
+        let l = ExtensionLoader::new()
+            .with_tier_preference(ExtensionTier::HyperlightIfAvailable);
+        assert_eq!(l.effective_tier(), ExtensionTier::Wasmtime);
+    }
+
+    #[test]
+    fn h4_loaded_extension_reports_its_tier() {
+        let loader = ExtensionLoader::new();
+        let dir = std::env::temp_dir().join("vibe_ext_test_h4_tier");
+        let _ = std::fs::create_dir_all(&dir);
+        let wat = r#"(module (memory (export "memory") 1))"#;
+        let wasm = wat::parse_str(wat).unwrap();
+        let wasm_path = dir.join("ext.wasm");
+        std::fs::write(&wasm_path, &wasm).unwrap();
+
+        let ext = loader.load_one(&wasm_path, "h4-test").unwrap();
+        assert_eq!(ext.tier(), ExtensionTier::Wasmtime);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn h4_loaded_extension_with_hyperlight_pref_still_reports_wasmtime() {
+        // When H1 lands, this test flips: with the preference set
+        // and the host supporting Hyperlight, tier() returns
+        // HyperlightIfAvailable. Until then it's Wasmtime.
+        let loader = ExtensionLoader::new()
+            .with_tier_preference(ExtensionTier::HyperlightIfAvailable);
+        let dir = std::env::temp_dir().join("vibe_ext_test_h4_pref");
+        let _ = std::fs::create_dir_all(&dir);
+        let wat = r#"(module (memory (export "memory") 1))"#;
+        let wasm = wat::parse_str(wat).unwrap();
+        let wasm_path = dir.join("ext.wasm");
+        std::fs::write(&wasm_path, &wasm).unwrap();
+
+        let ext = loader.load_one(&wasm_path, "h4-pref").unwrap();
+        assert_eq!(ext.tier(), ExtensionTier::Wasmtime);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn h4_tier_display_is_stable() {
+        // Daemon log + audit-event format depends on this.
+        assert_eq!(ExtensionTier::Wasmtime.to_string(), "wasmtime");
+        assert_eq!(
+            ExtensionTier::HyperlightIfAvailable.to_string(),
+            "hyperlight-if-available"
+        );
     }
 
     #[test]
