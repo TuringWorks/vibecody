@@ -37,6 +37,7 @@
 
 pub mod api;
 pub mod rootfs;
+pub mod virtiofs;
 
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
