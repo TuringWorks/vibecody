@@ -65,6 +65,7 @@ ignore = [
     { id = "RUSTSEC-2024-0418", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]" },
     { id = "RUSTSEC-2024-0419", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]" },
     { id = "RUSTSEC-2024-0420", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]" },
+    { id = "RUSTSEC-2024-0429", reason = "glib 0.18.5 unsound `VariantStrIter` Iterator/DoubleEndedIterator impls. Transitive via webkit2gtk → wry / tauri 2.x; same gtk4-migration gate as 2024-0411..0420. [review-by 2026-08-19]" },
 
     # ── unic-* family ─────────────────────────────────────────────────
     # All transitive from a single upstream Unicode handler chain. Five
@@ -87,6 +88,12 @@ ignore = [
     { id = "RUSTSEC-2025-0119", reason = "number_prefix unmaintained — transitive (likely via a progress-bar lib). [review-by 2026-08-19]" },
     { id = "RUSTSEC-2025-0134", reason = "rustls-pemfile unmaintained — superseded by rustls-pki-types. Transitive; tied to the broader rustls ecosystem upgrade. [review-by 2026-08-19]" },
     { id = "RUSTSEC-2025-0141", reason = "bincode 1.x unmaintained — transitive via syntect 5.3 and vibe-memory. bincode 2.x is a non-trivial API rewrite; track syntect's migration. [review-by 2026-08-19]" },
+
+    # ── Unsound transitives caught by cargo-audit only ────────────────
+    # cargo-audit and cargo-deny use the same RustSec advisory DB but
+    # differ in which advisory kinds they flag; these came back from
+    # cargo-audit alone. Mirror them here for consistency.
+    { id = "RUSTSEC-2026-0002", reason = "lru 0.12.5 `IterMut` violates Stacked Borrows by invalidating an internal pointer. Transitive via ratatui 0.29. Triggered only when callers use IterMut (the TUI consumes lru via Get/Put, not IterMut). [review-by 2026-08-19]" },
 ]
 
 [licenses]
@@ -109,6 +116,7 @@ allow = [
     "OpenSSL",
     "BSL-1.0",               # Boost Software License; permissive (clipboard-win, error-code)
     "CDLA-Permissive-2.0",   # Permissive; used by webpki-roots
+    "Unlicense",             # Public-domain dedication; more permissive than MIT/Apache (whisper-rs, whisper-rs-sys)
 ]
 confidence-threshold = 0.93
 # Crates with non-SPDX or hand-rolled license text — review and pin explicitly.
