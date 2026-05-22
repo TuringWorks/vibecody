@@ -23,7 +23,7 @@ use crate::mcpb_bundle;
 use crate::plugin_manifest::{DefaultPolicy, ManifestError, PluginManifest};
 use crate::plugin_signing::{
     self, read_manifest_from_extracted, read_signature_from_extracted, PluginSignature,
-    SignatureError, MANIFEST_FILENAME, SIGNATURE_FILENAME,
+    SignatureError,
 };
 use crate::workspace_store::{PluginPolicy, PolicyError, PolicySetter, WorkspaceStore};
 
@@ -379,7 +379,7 @@ impl Drop for StagingGuard {
 mod tests {
     use super::*;
     use crate::plugin_manifest::{Components, Publisher};
-    use crate::plugin_signing::{sign_manifest, MANIFEST_FILENAME as _};
+    use crate::plugin_signing::{sign_manifest, MANIFEST_FILENAME, SIGNATURE_FILENAME};
     use crate::signed_agent_card::jwk_from_verifying_key;
     use p256::ecdsa::SigningKey;
     use std::fs;

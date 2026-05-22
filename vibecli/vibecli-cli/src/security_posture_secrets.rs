@@ -19,7 +19,7 @@
 use crate::security_posture::{Category, Scanner, SecurityFinding, Severity};
 use anyhow::Result;
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::OnceLock;
 
 /// Per-rule severity / id / human title.

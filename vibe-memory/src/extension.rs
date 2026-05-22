@@ -5,9 +5,7 @@
 //! - **sqlite-vector**: SIMD-accelerated for x86_64
 //! - **vectorlite**: HNSW-based for large-scale (>100K entries)
 
-use crate::error::{MemoryError, Result};
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 use tracing::{debug, info, warn};
 
 /// Vector extension selection strategy.

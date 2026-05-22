@@ -87,7 +87,7 @@ where
     let max = config.max_iterations.max(1);
     let mut candidate = initial;
     let mut iterations_used = 0usize;
-    let mut last_diagnostic = String::new();
+    let mut last_diagnostic;
 
     loop {
         iterations_used += 1;

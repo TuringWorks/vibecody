@@ -16484,7 +16484,7 @@ pub async fn detect_build_type(workspace: String) -> Result<String, String> {
         return Ok("java".to_string());
     }
     // Check for .csproj files
-    if let Ok(entries) = std::fs::read_dir(path) {
+    if let Ok(entries) = std::fs::read_dir(&path) {
         for entry in entries.flatten() {
             if entry.path().extension().map(|e| e == "csproj").unwrap_or(false) {
                 return Ok("dotnet".to_string());
@@ -36811,7 +36811,7 @@ pub async fn get_fine_tuning_stats(workspace: String) -> Result<FtDatasetStats, 
     }
 
     if ws.exists() {
-        walk_dir(ws, &training_extensions, &mut example_count, &mut total_tokens, &mut max_tokens, &mut languages, &mut invalid_count);
+        walk_dir(&ws, &training_extensions, &mut example_count, &mut total_tokens, &mut max_tokens, &mut languages, &mut invalid_count);
     }
 
     let avg = if example_count > 0 { total_tokens / example_count } else { 0 };
@@ -37369,7 +37369,7 @@ pub async fn get_ast_files(workspace: String) -> Result<Vec<AstFile>, String> {
         }
     }
 
-    walk_dir(ws_path, ws_path, extensions, &mut files, 0);
+    walk_dir(&ws_path, &ws_path, extensions, &mut files, 0);
     files.sort_by(|a, b| a.path.cmp(&b.path));
     files.truncate(200);
     Ok(files)
