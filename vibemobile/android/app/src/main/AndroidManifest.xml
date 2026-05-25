@@ -1,8 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Needed by the Wear OS phone-relay (WearDataLayerService forwards
+         watch requests to the VibeCody daemon over the phone's network). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="vibecody_mobile"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -30,6 +34,19 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- Apple-Watch-style phone-relay for Wear OS. Listens on the
+             Wearable Data Layer for /vibecody/* paths and forwards
+             requests to the VibeCody daemon over the phone's network.
+             See dev/vibecody/vibecody_mobile/wear/WearDataLayerService.kt -->
+        <service
+            android:name=".wear.WearDataLayerService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED"/>
+                <data android:scheme="wear" android:host="*" android:pathPrefix="/vibecody/"/>
+            </intent-filter>
+        </service>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

@@ -26,6 +26,16 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<!-- Allow plain HTTP to LAN-local daemon URLs (192.168.x.x, 10.x.x.x,
+		     *.local) so the Apple Watch phone-relay can reach VibeCody on a
+		     user's home network. HTTPS is still required for public hosts. -->
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>VibeCody connects to your desktop on the local network for AI sessions and to relay requests from your Apple Watch.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

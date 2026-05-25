@@ -42,3 +42,12 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Wear OS Data Layer — receives relay requests from VibeCodyWear when
+    // the watch has no direct network. See:
+    //   vibemobile/android/app/src/main/kotlin/.../wear/WearDataLayerService.kt
+    implementation("com.google.android.gms:play-services-wearable:18.2.0")
+    // OkHttp powers the relay HTTP forwarding inside WearDataLayerService.
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+}

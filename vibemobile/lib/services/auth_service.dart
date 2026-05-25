@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'relay_bridge.dart';
+
 /// Stores paired machine credentials securely.
 class MachineCredential {
   final String baseUrl;
@@ -147,5 +149,24 @@ class AuthService extends ChangeNotifier {
   Future<void> _persist() async {
     final json = jsonEncode(_machines.map((m) => m.toJson()).toList());
     await _secureStorage.write(key: _storageKey, value: json);
+    await _publishActiveToRelay();
+  }
+
+  /// Push the most-recently-paired machine to the native phone-relay
+  /// companion (iOS Keychain / Android SharedPreferences) so the watch
+  /// can fall back to phone-relay when it has no direct internet.
+  /// See `relay_bridge.dart` for the cross-platform key contract.
+  Future<void> _publishActiveToRelay() async {
+    if (_machines.isEmpty) {
+      await RelayBridge.clearActiveMachine();
+      return;
+    }
+    final active = _machines.last;
+    await RelayBridge.setActiveMachine(
+      baseUrl: active.baseUrl,
+      bearerToken: active.token,
+      deviceId: active.deviceId,
+      machineId: active.machineId,
+    );
   }
 }

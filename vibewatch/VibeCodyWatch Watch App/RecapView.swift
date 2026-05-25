@@ -172,8 +172,8 @@ struct RecapView: View {
     }
 
     /// Hand off to paired iPhone via WatchConnectivity so the user can
-    /// resume on a keyboard surface. The phone listens on
-    /// WatchConnectivityBridge in VibeCodyWatchCompanion.
+    /// resume on a keyboard surface. No-op until VibeMobile registers a
+    /// WCSession handler — direct daemon HTTP is the v1 path.
     private func handoffToPhone(recap r: WatchRecap) {
         guard WCSession.isSupported() else { return }
         let session = WCSession.default
