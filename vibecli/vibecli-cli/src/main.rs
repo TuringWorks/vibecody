@@ -162,6 +162,7 @@ mod review;
 mod serve;
 mod mdns_announce;
 mod mcp_server;
+mod path_guard;
 mod otel_init;
 mod plugin;
 use plugin::PluginLoader;

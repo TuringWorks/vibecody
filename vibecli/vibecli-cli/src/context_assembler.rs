@@ -1017,7 +1017,7 @@ mod tests {
             min_vibecli_version: None,
             default_policy: policy,
         };
-        let sig = sign_manifest(&manifest, &key).unwrap();
+        let sig = sign_manifest(&manifest, &key, "test").unwrap();
         let outer = crate::mcpb_bundle::BundleManifest {
             name: name.to_string(),
             version: "1.0.0".into(),

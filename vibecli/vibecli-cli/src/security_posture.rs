@@ -241,10 +241,10 @@ fn truncate_snippet(s: String) -> String {
     if s.len() <= SNIPPET_MAX_BYTES {
         return s;
     }
-    // Truncate at a char boundary ≤ SNIPPET_MAX_BYTES - 1 to leave
-    // room for the ellipsis. `floor_char_boundary` is unstable so
-    // we walk back manually.
-    let mut cut = SNIPPET_MAX_BYTES - 1;
+    // Truncate at a char boundary ≤ SNIPPET_MAX_BYTES - 3 to leave
+    // room for the ellipsis (U+2026 = 3 bytes in UTF-8).
+    // `floor_char_boundary` is unstable so we walk back manually.
+    let mut cut = SNIPPET_MAX_BYTES - '…'.len_utf8();
     while cut > 0 && !s.is_char_boundary(cut) {
         cut -= 1;
     }
