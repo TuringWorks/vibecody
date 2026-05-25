@@ -56,3 +56,4 @@ docs/Gemfile.lock
 *.class
 /vibewatch/VibeCodyWear/.gradle
 /.obsidian
+/.codex
