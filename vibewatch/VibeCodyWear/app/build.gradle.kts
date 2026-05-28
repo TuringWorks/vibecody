@@ -12,8 +12,8 @@ android {
         applicationId = "com.vibecody.wear"
         minSdk = 30          // Wear OS 3.0
         targetSdk = 36       // Android 16 / Wear OS 6
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "0.5.6"
     }
 
     buildTypes {

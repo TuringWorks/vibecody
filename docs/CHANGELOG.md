@@ -10,6 +10,8 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+## [0.5.6]
+
 ### Added
 
 - **B2.9.daemon — Plugin hooks fire on the daemon agent path too** (`41c6382e`) — Closes the parallel gap to B2.9 on the daemon side: every `AgentLoop::new` in `serve.rs` (`/v1/agent` start, ACP submit-task, timed-task path) now calls `plugin_runtime::merge_with_plugin_hooks(workspace, vec![])` and attaches the resulting HookRunner before `agent.run`. Plugin hooks were previously silently bypassed on the most-used path (mobile, watch, VibeUI, VS Code, JetBrains all go through `/v1/agent`); admin policy now reaches them. User hooks remain CLI-only by design — turning on user-hook dispatch from remote clients is a separate decision.
