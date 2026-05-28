@@ -46,6 +46,18 @@ paths = [
     '''(^|/)test_data/.*''',
     '''(^|/)testdata/.*''',
     '''(^|/)fixtures/.*''',
+    # Source files that only contain fake/test keys in unit tests or
+    # pattern-matchers — these are deliberately not real credentials.
+    '''vibecli/vibecli-cli/src/bugbot\.rs$''',
+    '''vibecli/vibecli-cli/src/ci_gates\.rs$''',
+    '''vibecli/vibecli-cli/src/oauth_login\.rs$''',
+    '''vibecli/vibecli-cli/src/ai_code_review\.rs$''',
+    '''vibecli/vibecli-cli/src/security_posture_secrets\.rs$''',
+    '''vibecli/vibecli-cli/src/security_scan\.rs$''',
+    '''vibecli/vibecli-cli/src/session_sharing\.rs$''',
+    '''vibecli/vibecli-cli/src/warp_features\.rs$''',
+    '''vibeui/crates/vibe-ai/src/trace\.rs$''',
+    '''vibeui/src/components/__tests__/SettingsPanel\.test\.tsx$''',
     # Docs frequently include example tokens in code blocks.
     '''^docs/.*\.md$''',
     # OWASP review guide PDF and similar reference material.
