@@ -875,7 +875,16 @@ jobs:
   release:
     name: Publish GitHub Release
     needs: [sbom, build-cli, build-vibeui, build-vibeapp, build-android, build-ios, build-wear, build-watchos, build-docker, build-firecracker-rootfs]
-    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
+    # Publish even if optional jobs (mobile, watch, docker, SBOM) fail.
+    # Critical: CLI, VibeUI, VibeApp, Firecracker rootfs must succeed.
+    if: >-
+      ${{
+        !cancelled() &&
+        needs.build-cli.result == 'success' &&
+        needs.build-vibeui.result == 'success' &&
+        needs.build-vibeapp.result == 'success' &&
+        needs.build-firecracker-rootfs.result == 'success'
+      }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
