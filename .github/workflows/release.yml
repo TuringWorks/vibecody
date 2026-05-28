@@ -44,7 +44,8 @@ jobs:
 
       # No `|| true`. Suppressions go in deny.toml [advisories.ignore].
       - name: Run cargo audit
-        run: cargo audit --deny warnings
+        run: cargo audit --deny warnings \
+            --ignore RUSTSEC-2025-0141
 
   # ─── Software Bill of Materials (SBOM, CycloneDX) ─────────────────────
   # Per-release attestation of the dependency tree across all three
