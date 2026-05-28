@@ -60,6 +60,8 @@ paths = [
     '''vibeui/src/components/__tests__/SettingsPanel\.test\.tsx$''',
     # Docs frequently include example tokens in code blocks.
     '''^docs/.*\.md$''',
+    '''docs/demos/.*''',
+    '''docs/development\.md''',
     # OWASP review guide PDF and similar reference material.
     '''.*\.pdf$''',
     # Lockfiles regenerated in CI; allow gitleaks to skip.
