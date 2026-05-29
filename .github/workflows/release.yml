@@ -112,7 +112,7 @@ jobs:
               --format requirements-txt --output-file /tmp/vibe-rl-py-requirements.txt
           )
           cyclonedx-py requirements \
-            -i /tmp/vibe-rl-py-requirements.txt \
+            /tmp/vibe-rl-py-requirements.txt \
             -o vibe-rl-py.cdx.json
 
       - name: Upload SBOMs
