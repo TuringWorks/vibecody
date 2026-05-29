@@ -30,6 +30,8 @@ curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.s
 - **TurboQuant memory index** — 8× smaller on disk; `/memory/stats` telemetry; `vibe-infer` crate with opt-in candle backend
 - **Dependency refresh** — Rust (tauri 2.11.2, reqwest 0.13.4, hyper 1.10), npm (106 packages), Flutter (shared_preferences, path_provider)
 
+> **Note:** the iOS `.ipa`, watchOS `.app.zip`, Wear OS `.apk`/`.aab`, and Docker tarball did not build for v0.5.6. Tracking issues: [#29](https://github.com/TuringWorks/vibecody/issues/29) (iOS), [#30](https://github.com/TuringWorks/vibecody/issues/30) (watchOS), [#31](https://github.com/TuringWorks/vibecody/issues/31) (Wear OS), [#32](https://github.com/TuringWorks/vibecody/issues/32) (Docker), [#28](https://github.com/TuringWorks/vibecody/issues/28) (SBOMs). These artifacts are still available from [v0.5.5](#v055).
+
 ### VibeCLI — Terminal AI Assistant
 
 | Platform | Download |
@@ -39,7 +41,6 @@ curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.s
 | Linux x86_64 (musl) | [vibecli-x86_64-linux.tar.gz](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/vibecli-x86_64-linux.tar.gz) |
 | Linux ARM64 (musl) | [vibecli-aarch64-linux.tar.gz](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/vibecli-aarch64-linux.tar.gz) |
 | Windows x64 | [vibecli-x86_64-windows.zip](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/vibecli-x86_64-windows.zip) |
-| Docker | [vibecli-docker-v0.5.6.tar.gz](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/vibecli-docker-v0.5.6.tar.gz) |
 
 ### VibeUI — Desktop Code Editor
 
@@ -50,38 +51,33 @@ curl -fsSL https://raw.githubusercontent.com/TuringWorks/vibecody/main/install.s
 | macOS (Apple Silicon, .app) | [VibeUI-macOS-arm64.app.zip](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeUI-macOS-arm64.app.zip) |
 | macOS (Intel, .app) | [VibeUI-macOS-x64.app.zip](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeUI-macOS-x64.app.zip) |
 | Linux x64 (.deb) | [VibeUI_0.5.6_amd64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeUI_0.5.6_amd64.deb) |
+| Linux arm64 (.deb) | [VibeUI_0.5.6_arm64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeUI_0.5.6_arm64.deb) |
 | Linux x64 (.AppImage) | [VibeUI_0.5.6_amd64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeUI_0.5.6_amd64.AppImage) |
+| Linux arm64 (.AppImage) | [VibeUI_0.5.6_aarch64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeUI_0.5.6_aarch64.AppImage) |
 | Windows x64 (.msi) | [VibeUI_0.5.6_x64_en-US.msi](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeUI_0.5.6_x64_en-US.msi) |
 | Windows x64 (.exe) | [VibeUI_0.5.6_x64-setup.exe](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeUI_0.5.6_x64-setup.exe) |
 
 ### VibeCLI App — Desktop AI Assistant
 
+Tauri bundles ship as `Vibe.App_*` (productName "Vibe App").
+
 | Platform | Download |
 |----------|----------|
-| macOS (Apple Silicon) | [VibeCLI_0.5.6_aarch64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeCLI_0.5.6_aarch64.dmg) |
-| macOS (Intel) | [VibeCLI_0.5.6_x64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeCLI_0.5.6_x64.dmg) |
-| Linux x64 (.deb) | [VibeCLI_0.5.6_amd64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeCLI_0.5.6_amd64.deb) |
-| Linux x64 (.AppImage) | [VibeCLI_0.5.6_amd64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeCLI_0.5.6_amd64.AppImage) |
-| Windows x64 (.msi) | [VibeCLI_0.5.6_x64_en-US.msi](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeCLI_0.5.6_x64_en-US.msi) |
-| Windows x64 (.exe) | [VibeCLI_0.5.6_x64-setup.exe](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeCLI_0.5.6_x64-setup.exe) |
+| macOS (Apple Silicon) | [Vibe.App_0.5.6_aarch64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/Vibe.App_0.5.6_aarch64.dmg) |
+| macOS (Intel) | [Vibe.App_0.5.6_x64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/Vibe.App_0.5.6_x64.dmg) |
+| Linux x64 (.deb) | [Vibe.App_0.5.6_amd64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/Vibe.App_0.5.6_amd64.deb) |
+| Linux arm64 (.deb) | [Vibe.App_0.5.6_arm64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/Vibe.App_0.5.6_arm64.deb) |
+| Linux x64 (.AppImage) | [Vibe.App_0.5.6_amd64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/Vibe.App_0.5.6_amd64.AppImage) |
+| Linux arm64 (.AppImage) | [Vibe.App_0.5.6_aarch64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/Vibe.App_0.5.6_aarch64.AppImage) |
+| Windows x64 (.msi) | [Vibe.App_0.5.6_x64_en-US.msi](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/Vibe.App_0.5.6_x64_en-US.msi) |
+| Windows x64 (.exe) | [Vibe.App_0.5.6_x64-setup.exe](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/Vibe.App_0.5.6_x64-setup.exe) |
 
 ### VibeMobile — Flutter Companion
 
 | Platform | Download |
 |----------|----------|
-| iOS (unsigned `.ipa` — sideload via AltStore/Sideloadly) | [VibeMobile-iOS.ipa](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeMobile-iOS.ipa) |
-| Android (`.apk`) | [VibeMobile-android.apk](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeMobile-android.apk) |
-| Android (`.aab`) | [VibeMobile-android.aab](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeMobile-android.aab) |
-
-### VibeWatch — Apple Watch & Wear OS
-
-| Platform | Download |
-|----------|----------|
-| watchOS 10+ (unsigned `.app.zip` — sideload via Xcode) | [VibeCodyWatch-watchOS.app.zip](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeCodyWatch-watchOS.app.zip) |
-| Wear OS 3+ (`.apk`) | [VibeCodyWear-wearos.apk](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeCodyWear-wearos.apk) |
-| Wear OS 3+ (`.aab`) | [VibeCodyWear-wearos.aab](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeCodyWear-wearos.aab) |
-
-Install the companion desktop/phone app first — pair the watch from the **Watch Devices** panel in VibeUI (`Governance → Watch Devices`) or the Machine detail screen in VibeMobile. See [Watch Integration](/vibecody/watch-integration/) for the full architecture.
+| Android (`.apk`) | [VibeCody-Mobile-v0.5.6-android.apk](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeCody-Mobile-v0.5.6-android.apk) |
+| Android (`.aab`) | [VibeCody-Mobile-v0.5.6-android.aab](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/VibeCody-Mobile-v0.5.6-android.aab) |
 
 [SHA256SUMS.txt](https://github.com/TuringWorks/vibecody/releases/download/v0.5.6/SHA256SUMS.txt)
 
@@ -142,30 +138,32 @@ Apple Watch + Wear OS native clients, Apple-Handoff-style session continuity, ze
 
 ### VibeCLI App — Desktop AI Assistant
 
+Tauri bundles ship as `Vibe.App_*` (productName "Vibe App").
+
 | Platform | Download |
 |----------|----------|
-| macOS (Apple Silicon) | [VibeCLI_0.5.5_aarch64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCLI_0.5.5_aarch64.dmg) |
-| macOS (Intel) | [VibeCLI_0.5.5_x64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCLI_0.5.5_x64.dmg) |
-| Linux x64 (.deb) | [VibeCLI_0.5.5_amd64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCLI_0.5.5_amd64.deb) |
-| Linux x64 (.AppImage) | [VibeCLI_0.5.5_amd64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCLI_0.5.5_amd64.AppImage) |
-| Windows x64 (.msi) | [VibeCLI_0.5.5_x64_en-US.msi](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCLI_0.5.5_x64_en-US.msi) |
-| Windows x64 (.exe) | [VibeCLI_0.5.5_x64-setup.exe](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCLI_0.5.5_x64-setup.exe) |
+| macOS (Apple Silicon) | [Vibe.App_0.5.5_aarch64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/Vibe.App_0.5.5_aarch64.dmg) |
+| macOS (Intel) | [Vibe.App_0.5.5_x64.dmg](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/Vibe.App_0.5.5_x64.dmg) |
+| Linux x64 (.deb) | [Vibe.App_0.5.5_amd64.deb](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/Vibe.App_0.5.5_amd64.deb) |
+| Linux x64 (.AppImage) | [Vibe.App_0.5.5_amd64.AppImage](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/Vibe.App_0.5.5_amd64.AppImage) |
+| Windows x64 (.msi) | [Vibe.App_0.5.5_x64_en-US.msi](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/Vibe.App_0.5.5_x64_en-US.msi) |
+| Windows x64 (.exe) | [Vibe.App_0.5.5_x64-setup.exe](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/Vibe.App_0.5.5_x64-setup.exe) |
 
 ### VibeMobile — Flutter Companion
 
 | Platform | Download |
 |----------|----------|
-| iOS (unsigned `.ipa` — sideload via AltStore/Sideloadly) | [VibeMobile-iOS.ipa](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeMobile-iOS.ipa) |
-| Android (`.apk`) | [VibeMobile-android.apk](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeMobile-android.apk) |
-| Android (`.aab`) | [VibeMobile-android.aab](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeMobile-android.aab) |
+| iOS (unsigned `.ipa` — sideload via AltStore/Sideloadly) | [VibeCody-Mobile-v0.5.5-ios.ipa](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCody-Mobile-v0.5.5-ios.ipa) |
+| Android (`.apk`) | [VibeCody-Mobile-v0.5.5-android.apk](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCody-Mobile-v0.5.5-android.apk) |
+| Android (`.aab`) | [VibeCody-Mobile-v0.5.5-android.aab](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCody-Mobile-v0.5.5-android.aab) |
 
 ### VibeWatch — Apple Watch & Wear OS *(new in v0.5.5)*
 
 | Platform | Download |
 |----------|----------|
-| watchOS 10+ (unsigned `.app.zip` — sideload via Xcode) | [VibeCodyWatch-watchOS.app.zip](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCodyWatch-watchOS.app.zip) |
-| Wear OS 3+ (`.apk`) | [VibeCodyWear-wearos.apk](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCodyWear-wearos.apk) |
-| Wear OS 3+ (`.aab`) | [VibeCodyWear-wearos.aab](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCodyWear-wearos.aab) |
+| watchOS 10+ (unsigned `.app.zip` — sideload via Xcode) | [VibeCody-WatchOS-v0.5.5.app.zip](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCody-WatchOS-v0.5.5.app.zip) |
+| Wear OS 3+ (`.apk`) | [VibeCody-Wear-v0.5.5.apk](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCody-Wear-v0.5.5.apk) |
+| Wear OS 3+ (`.aab`) | [VibeCody-Wear-v0.5.5.aab](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCody-Wear-v0.5.5.aab) |
 
 Install the companion desktop/phone app first — pair the watch from the **Watch Devices** panel in VibeUI (`Governance → Watch Devices`) or the Machine detail screen in VibeMobile. See [Watch Integration](/vibecody/watch-integration/) for the full architecture.
 

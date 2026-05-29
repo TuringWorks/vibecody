@@ -45,9 +45,9 @@ See the [Releases page](/vibecody/release/) for the current build. For v0.5.5:
 
 | Platform | Artifact |
 |----------|----------|
-| iOS | [`VibeMobile-iOS.ipa`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeMobile-iOS.ipa) (unsigned — sideload via AltStore / Sideloadly) |
-| Android APK | [`VibeMobile-android.apk`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeMobile-android.apk) |
-| Android AAB | [`VibeMobile-android.aab`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeMobile-android.aab) |
+| iOS | [`VibeCody-Mobile-v0.5.5-ios.ipa`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCody-Mobile-v0.5.5-ios.ipa) (unsigned — sideload via AltStore / Sideloadly) |
+| Android APK | [`VibeCody-Mobile-v0.5.5-android.apk`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCody-Mobile-v0.5.5-android.apk) |
+| Android AAB | [`VibeCody-Mobile-v0.5.5-android.aab`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCody-Mobile-v0.5.5-android.aab) |
 
 ### From source
 

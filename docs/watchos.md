@@ -43,8 +43,8 @@ Introduced in **v0.5.5**. Shares the `/watch/*` backend with the Wear OS client.
 Download the unsigned `.app.zip` from the [Releases page](/vibecody/release/):
 
 ```bash
-curl -LO https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCodyWatch-watchOS.app.zip
-unzip VibeCodyWatch-watchOS.app.zip
+curl -LO https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCody-WatchOS-v0.5.5.app.zip
+unzip VibeCody-WatchOS-v0.5.5.app.zip
 ```
 
 In Xcode: **Window → Devices and Simulators → Apple Watch → +** → select the extracted `.app`. Trust the developer profile on the watch (**Settings → General → VPN & Device Management**).

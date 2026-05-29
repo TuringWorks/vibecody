@@ -41,9 +41,9 @@ Introduced in **v0.5.5**.
 Download from the [Releases page](/vibecody/release/):
 
 ```bash
-curl -LO https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCodyWear-wearos.apk
+curl -LO https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCody-Wear-v0.5.5.apk
 adb connect <watch-ip>:5555          # enable ADB debugging first
-adb -s <watch-ip>:5555 install VibeCodyWear-wearos.apk
+adb -s <watch-ip>:5555 install VibeCody-Wear-v0.5.5.apk
 ```
 
 Enable ADB debugging on the watch:
@@ -51,7 +51,7 @@ Enable ADB debugging on the watch:
 
 ### Option 2 — Play Store AAB
 
-Upload `VibeCodyWear-wearos.aab` to the Play Console's internal-testing track. Once approved, install directly from the watch's Play Store.
+Upload [`VibeCody-Wear-v0.5.5.aab`](https://github.com/TuringWorks/vibecody/releases/download/v0.5.5/VibeCody-Wear-v0.5.5.aab) to the Play Console's internal-testing track. Once approved, install directly from the watch's Play Store.
 
 ### Option 3 — build from source
 
