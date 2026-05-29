@@ -2,7 +2,7 @@ import Flutter
 import UIKit
 
 @main
-@objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
+@objc class AppDelegate: FlutterAppDelegate {
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -11,12 +11,10 @@ import UIKit
     // from VibeCodyWatch arrive whenever the iPhone app is running.
     WatchConnectivityBridge.shared.activate()
 
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
-  }
+    GeneratedPluginRegistrant.register(with: self)
+    registerRelayCredentialsChannel(with: self)
 
-  func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
-    GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
-    registerRelayCredentialsChannel(with: engineBridge.pluginRegistry)
+    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
   /// MethodChannel "vibecody.relay/credentials" — receives active-machine
