@@ -60,12 +60,15 @@ RUN mkdir -p vibecli/vibecli-cli/src && echo 'fn main() {}' > vibecli/vibecli-cl
 # Pre-build dependencies (cached layer)
 RUN cargo build --release --package vibecli --target x86_64-unknown-linux-musl 2>/dev/null || true
 
-# Now copy actual source
+# Now copy actual source over the stubs.
+# IMPORTANT: any workspace member listed above must have its real
+# src/ copied here, otherwise vibecli imports against the empty stub.
 COPY vibecli/ vibecli/
 COPY vibeui/crates/ vibeui/crates/
 COPY vibeui/src-tauri/src/ vibeui/src-tauri/src/
 COPY vibeapp/src-tauri/src/ vibeapp/src-tauri/src/
 COPY vibe-indexer/src/ vibe-indexer/src/
+COPY vibe-memory/src/ vibe-memory/src/
 
 # Build the real binary
 RUN cargo build --release --package vibecli --target x86_64-unknown-linux-musl && \
