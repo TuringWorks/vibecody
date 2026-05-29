@@ -27,6 +27,11 @@ coroutinesPlayServices = "1.8.1"
 # Security crypto
 securityCrypto = "1.1.0-alpha06"
 
+# Tiles support — async + preview
+guava = "33.4.0-android"
+concurrentFutures = "1.2.0"
+composeUiToolingPreview = "1.7.6"
+
 [libraries]
 # Activity
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
@@ -59,6 +64,11 @@ kotlinx-coroutines-play-services = { group = "org.jetbrains.kotlinx", name = "ko
 
 # Security
 androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
+
+# Tile services — Futures + Preview annotation
+guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
+androidx-concurrent-futures = { group = "androidx.concurrent", name = "concurrent-futures", version.ref = "concurrentFutures" }
+androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview", version.ref = "composeUiToolingPreview" }
 
 # Speech (on-device; maps to SpeechRecognizer system API — no extra dep needed)
 # Alias kept for build.gradle.kts reference; actual dep not needed

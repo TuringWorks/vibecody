@@ -39,6 +39,11 @@ dependencies {
     // Tiles + Complications
     implementation(libs.androidx.wear.tiles)
     implementation(libs.androidx.wear.tiles.material)
+    // Tile services return ListenableFuture and use CallbackToFutureAdapter
+    implementation(libs.guava)
+    implementation(libs.androidx.concurrent.futures)
+    // @Preview annotation used by RecapScreen
+    implementation(libs.androidx.compose.ui.tooling.preview)
 
     // Activity + Lifecycle
     implementation(libs.androidx.activity.compose)
