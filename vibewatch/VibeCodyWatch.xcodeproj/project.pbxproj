@@ -19,6 +19,10 @@
 		BBA0AA16DFE0B076269441EB /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D07206583247B730A3AD026 /* Models.swift */; };
 		C92DC748300926C835015A3E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 039D0536936F28F9C493B3D8 /* Assets.xcassets */; };
 		DAA20FB43FC84635A043CE6E /* VibeCodyWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D44DDFC24E59A9919BE4700 /* VibeCodyWatchApp.swift */; };
+		E1A0B2C3D4E5F60718293A4B /* GoalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1A0B2C3D4E5F60718293A4C /* GoalsView.swift */; };
+		E2A0B2C3D4E5F60718293A4B /* JobPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2A0B2C3D4E5F60718293A4C /* JobPickerView.swift */; };
+		E3A0B2C3D4E5F60718293A4B /* RecapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3A0B2C3D4E5F60718293A4C /* RecapView.swift */; };
+		E4A0B2C3D4E5F60718293A4B /* TaintedConfirmationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4A0B2C3D4E5F60718293A4C /* TaintedConfirmationView.swift */; };
 		F0A0F574F48AC86655946CE0 /* CryptoKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A690BF0A70416D196912375A /* CryptoKit.framework */; };
 /* End PBXBuildFile section */
 
@@ -37,6 +41,10 @@
 		B5475ABA033425FF3BF0C3CA /* SandboxStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SandboxStatusView.swift; sourceTree = "<group>"; };
 		C8B0D8FAD1D248DB545F4995 /* WatchAuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchAuthManager.swift; sourceTree = "<group>"; };
 		D4B90E1E5125CE0F141F0B0F /* SessionPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionPickerView.swift; sourceTree = "<group>"; };
+		E1A0B2C3D4E5F60718293A4C /* GoalsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalsView.swift; sourceTree = "<group>"; };
+		E2A0B2C3D4E5F60718293A4C /* JobPickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobPickerView.swift; sourceTree = "<group>"; };
+		E3A0B2C3D4E5F60718293A4C /* RecapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecapView.swift; sourceTree = "<group>"; };
+		E4A0B2C3D4E5F60718293A4C /* TaintedConfirmationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaintedConfirmationView.swift; sourceTree = "<group>"; };
 		F082D34943FEC9B3E219CD8E /* VoiceInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInputView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -87,10 +95,14 @@
 				039D0536936F28F9C493B3D8 /* Assets.xcassets */,
 				8A09B80FFB463A2177F32453 /* ContentView.swift */,
 				A059DE4BD832164F8E372EAB /* ConversationView.swift */,
+				E1A0B2C3D4E5F60718293A4C /* GoalsView.swift */,
 				37E7D34694471C76451FF971 /* Info.plist */,
+				E2A0B2C3D4E5F60718293A4C /* JobPickerView.swift */,
 				4D07206583247B730A3AD026 /* Models.swift */,
+				E3A0B2C3D4E5F60718293A4C /* RecapView.swift */,
 				B5475ABA033425FF3BF0C3CA /* SandboxStatusView.swift */,
 				D4B90E1E5125CE0F141F0B0F /* SessionPickerView.swift */,
+				E4A0B2C3D4E5F60718293A4C /* TaintedConfirmationView.swift */,
 				4D44DDFC24E59A9919BE4700 /* VibeCodyWatchApp.swift */,
 				F082D34943FEC9B3E219CD8E /* VoiceInputView.swift */,
 				C8B0D8FAD1D248DB545F4995 /* WatchAuthManager.swift */,
@@ -169,9 +181,13 @@
 			files = (
 				7C2A0A23ABAD1526845A29F5 /* ContentView.swift in Sources */,
 				9C0FDC24B7829A5FF7BEFB79 /* ConversationView.swift in Sources */,
+				E1A0B2C3D4E5F60718293A4B /* GoalsView.swift in Sources */,
+				E2A0B2C3D4E5F60718293A4B /* JobPickerView.swift in Sources */,
 				BBA0AA16DFE0B076269441EB /* Models.swift in Sources */,
+				E3A0B2C3D4E5F60718293A4B /* RecapView.swift in Sources */,
 				96BDBB3D38DEF4A2A9D2F657 /* SandboxStatusView.swift in Sources */,
 				B9E4F585ED4B79D6B51EDA26 /* SessionPickerView.swift in Sources */,
+				E4A0B2C3D4E5F60718293A4B /* TaintedConfirmationView.swift in Sources */,
 				DAA20FB43FC84635A043CE6E /* VibeCodyWatchApp.swift in Sources */,
 				81CA0728E69E773A0B269417 /* VoiceInputView.swift in Sources */,
 				7C32D176CE08067ACDA9C194 /* WatchAuthManager.swift in Sources */,
