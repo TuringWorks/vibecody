@@ -10,6 +10,22 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+## [0.5.7]
+
+Release-engineering patch — restores the artifacts that didn't build for v0.5.6.
+
+### Fixed
+
+- **CycloneDX SBOM job** (`a6d670bf`) — `cyclonedx-py requirements` accepts the requirements path positionally, not as `-i FILE`; the bad flag caused the tool to fall back to looking for `./requirements.txt` and emit `CRITICAL | CDX > Could not open requirements file`. Drop the `-i` so `vibe-rl-py.cdx.json` is produced. Closes [#28](https://github.com/TuringWorks/vibecody/issues/28).
+- **Mobile · iOS build** (`b8d95e0f`) — `vibemobile/ios/Runner/AppDelegate.swift` referenced `FlutterImplicitEngineDelegate` and `FlutterImplicitEngineBridge`, both of which were introduced in Flutter 3.38 for the UIScene rework; the CI Flutter SDK is pinned to 3.29.3, so the swift-frontend reported `Cannot find type 'FlutterImplicitEngineBridge' in scope`. Rewrite to the Flutter 3.29-compatible `GeneratedPluginRegistrant.register(with: self)` pattern and register the relay-credentials method channel synchronously in `didFinishLaunchingWithOptions`. Closes [#29](https://github.com/TuringWorks/vibecody/issues/29).
+- **Watch · watchOS build** (`014f5cce`) — `GoalsView.swift`, `JobPickerView.swift`, `RecapView.swift`, and `TaintedConfirmationView.swift` were on disk and referenced by `ContentView.swift` / `SessionPickerView.swift` but never added to `VibeCodyWatch.xcodeproj`'s `PBXSourcesBuildPhase`. The Swift compiler reported four `cannot find … in scope` errors and the watchOS simulator app build exited 65. Register each as a `PBXFileReference` + `PBXBuildFile`, add to the group and sources phase (`plutil -lint` passes). Closes [#30](https://github.com/TuringWorks/vibecody/issues/30).
+- **Watch · Wear OS build** (`6193920a`) — `JobRecapTileService.kt` and `GoalsTileService.kt` import `androidx.concurrent.futures.CallbackToFutureAdapter` and `com.google.common.util.concurrent.{Futures, ListenableFuture}`, and `RecapScreen.kt` uses `androidx.compose.ui.tooling.preview.Preview`; none were declared as dependencies, so `:app:compileReleaseKotlin` failed. Add `guava` (33.4.0-android), `androidx-concurrent-futures` (1.2.0), and `androidx-compose-ui-tooling-preview` (1.7.6) to `libs.versions.toml` and `implementation` them in `app/build.gradle.kts`. Closes [#31](https://github.com/TuringWorks/vibecody/issues/31).
+- **Docker image build** (`99d8adfe` + `f922536b`) — the Dockerfile's two-phase cargo cache (copy manifests → stub sources → prebuild deps → copy real sources) had drifted from `[workspace]` members. Seven members added since March (`vibecli/crates/vibe-sandbox{,-native,-firecracker,-hyperlight}`, `vibecli/crates/vibe-broker`, `vibeui/crates/vibe-infer`, `vibe-memory`) had no manifest COPY, so cargo refused to resolve the workspace. After the manifest sync, the real cargo build then failed because `vibe-memory/src/` was never copied over the empty stub, leaving `vibecli` unable to find `MemoryContextHub`, `ProjectMemStore`, `GlobalMemStore`, `MemoryMeta`. Add the missing manifests + stubs + real-source COPY. Closes [#32](https://github.com/TuringWorks/vibecody/issues/32).
+
+### Docs
+
+- **docs/release.md, docs/vibemobile.md, docs/watchos.md, docs/wearos.md** (`41f189eb`) — fix the download links to match the actual Tauri/Flutter output filenames: `Vibe.App_*` (not `VibeCLI_*`), `VibeCody-Mobile-vX.Y.Z-{ios,android}.*`, `VibeCody-WatchOS-vX.Y.Z.app.zip`, `VibeCody-Wear-vX.Y.Z.*`. Surface the new `aarch64.AppImage` and `arm64.deb` artifacts that landed in v0.5.6.
+
 ## [0.5.6]
 
 ### Added
