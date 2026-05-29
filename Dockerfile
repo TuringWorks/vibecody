@@ -18,28 +18,44 @@ RUN apt-get update -qq && \
 
 WORKDIR /build
 
-# Cache dependency builds: copy only manifests first
+# Cache dependency builds: copy only manifests first.
+# IMPORTANT: keep this list in sync with [workspace] members in /Cargo.toml —
+# cargo refuses to resolve the workspace if any declared member is missing.
 COPY Cargo.toml ./
 COPY vibecli/vibecli-cli/Cargo.toml vibecli/vibecli-cli/Cargo.toml
+COPY vibecli/crates/vibe-sandbox/Cargo.toml vibecli/crates/vibe-sandbox/Cargo.toml
+COPY vibecli/crates/vibe-sandbox-native/Cargo.toml vibecli/crates/vibe-sandbox-native/Cargo.toml
+COPY vibecli/crates/vibe-sandbox-firecracker/Cargo.toml vibecli/crates/vibe-sandbox-firecracker/Cargo.toml
+COPY vibecli/crates/vibe-sandbox-hyperlight/Cargo.toml vibecli/crates/vibe-sandbox-hyperlight/Cargo.toml
+COPY vibecli/crates/vibe-broker/Cargo.toml vibecli/crates/vibe-broker/Cargo.toml
 COPY vibeui/crates/vibe-core/Cargo.toml vibeui/crates/vibe-core/Cargo.toml
 COPY vibeui/crates/vibe-ai/Cargo.toml vibeui/crates/vibe-ai/Cargo.toml
+COPY vibeui/crates/vibe-infer/Cargo.toml vibeui/crates/vibe-infer/Cargo.toml
 COPY vibeui/crates/vibe-lsp/Cargo.toml vibeui/crates/vibe-lsp/Cargo.toml
 COPY vibeui/crates/vibe-extensions/Cargo.toml vibeui/crates/vibe-extensions/Cargo.toml
 COPY vibeui/crates/vibe-collab/Cargo.toml vibeui/crates/vibe-collab/Cargo.toml
 COPY vibeui/src-tauri/Cargo.toml vibeui/src-tauri/Cargo.toml
 COPY vibeapp/src-tauri/Cargo.toml vibeapp/src-tauri/Cargo.toml
 COPY vibe-indexer/Cargo.toml vibe-indexer/Cargo.toml
+COPY vibe-memory/Cargo.toml vibe-memory/Cargo.toml
 
 # Create stub lib.rs / main.rs for each crate so cargo can resolve the dep graph
 RUN mkdir -p vibecli/vibecli-cli/src && echo 'fn main() {}' > vibecli/vibecli-cli/src/main.rs && \
+    mkdir -p vibecli/crates/vibe-sandbox/src && echo '' > vibecli/crates/vibe-sandbox/src/lib.rs && \
+    mkdir -p vibecli/crates/vibe-sandbox-native/src && echo '' > vibecli/crates/vibe-sandbox-native/src/lib.rs && \
+    mkdir -p vibecli/crates/vibe-sandbox-firecracker/src && echo '' > vibecli/crates/vibe-sandbox-firecracker/src/lib.rs && \
+    mkdir -p vibecli/crates/vibe-sandbox-hyperlight/src && echo '' > vibecli/crates/vibe-sandbox-hyperlight/src/lib.rs && \
+    mkdir -p vibecli/crates/vibe-broker/src && echo '' > vibecli/crates/vibe-broker/src/lib.rs && \
     mkdir -p vibeui/crates/vibe-core/src && echo '' > vibeui/crates/vibe-core/src/lib.rs && \
     mkdir -p vibeui/crates/vibe-ai/src && echo '' > vibeui/crates/vibe-ai/src/lib.rs && \
+    mkdir -p vibeui/crates/vibe-infer/src && echo '' > vibeui/crates/vibe-infer/src/lib.rs && \
     mkdir -p vibeui/crates/vibe-lsp/src && echo '' > vibeui/crates/vibe-lsp/src/lib.rs && \
     mkdir -p vibeui/crates/vibe-extensions/src && echo '' > vibeui/crates/vibe-extensions/src/lib.rs && \
     mkdir -p vibeui/crates/vibe-collab/src && echo '' > vibeui/crates/vibe-collab/src/lib.rs && \
     mkdir -p vibeui/src-tauri/src && echo '' > vibeui/src-tauri/src/lib.rs && \
     mkdir -p vibeapp/src-tauri/src && echo '' > vibeapp/src-tauri/src/lib.rs && \
-    mkdir -p vibe-indexer/src && echo 'fn main() {}' > vibe-indexer/src/main.rs
+    mkdir -p vibe-indexer/src && echo 'fn main() {}' > vibe-indexer/src/main.rs && \
+    mkdir -p vibe-memory/src && echo '' > vibe-memory/src/lib.rs
 
 # Pre-build dependencies (cached layer)
 RUN cargo build --release --package vibecli --target x86_64-unknown-linux-musl 2>/dev/null || true
