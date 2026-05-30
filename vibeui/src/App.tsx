@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "./hooks/useToast";
 import { useNotifications } from "./hooks/useNotifications";
 import { useApiKeyMonitor } from "./hooks/useApiKeyMonitor";
@@ -86,6 +86,10 @@ function App() {
   const [workspaceFolders, setWorkspaceFolders] = useState<string[]>([]);
   const [recentWorkspaces, setRecentWorkspaces] = useState<string[]>([]);
   const [files, setFiles] = useState<FileEntry[]>([]);
+  // VS Code-style tree explorer: which dirs are expanded, and a per-dir
+  // children cache so we can render the tree without re-fetching.
+  const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
+  const [dirContents, setDirContents] = useState<Map<string, FileEntry[]>>(new Map());
   const [aiProviders, setAiProviders] = useState<string[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>("");
   const [showSidebar, setShowSidebar] = useState(true);
@@ -363,11 +367,92 @@ function App() {
       const entries = await invoke<FileEntry[]>("list_directory", { path });
       setFiles(entries);
       setCurrentDirectory(path);
+      // Seed the tree-explorer cache and auto-expand the new root so its
+      // children show without an extra click.
+      setDirContents(prev => {
+        const next = new Map(prev);
+        next.set(path, entries);
+        return next;
+      });
+      setExpandedDirs(new Set([path]));
       // Fetch git status when directory loads
       fetchGitStatus();
     } catch (error) {
       console.error("Failed to load directory:", error);
     }
+  };
+
+  // Lazy-load a directory's children for the tree explorer. Returns the
+  // entries (also writing them into the cache) so callers can chain.
+  const ensureDirContents = async (path: string): Promise<FileEntry[] | null> => {
+    const cached = dirContents.get(path);
+    if (cached) return cached;
+    try {
+      const entries = await invoke<FileEntry[]>("list_directory", { path });
+      setDirContents(prev => {
+        const next = new Map(prev);
+        next.set(path, entries);
+        return next;
+      });
+      return entries;
+    } catch (e) {
+      console.error("Failed to load directory:", e);
+      return null;
+    }
+  };
+
+  const toggleDir = async (path: string) => {
+    if (expandedDirs.has(path)) {
+      setExpandedDirs(prev => {
+        const next = new Set(prev);
+        next.delete(path);
+        return next;
+      });
+      return;
+    }
+    const loaded = await ensureDirContents(path);
+    if (loaded === null) {
+      toast.error("Failed to open directory");
+      return;
+    }
+    setExpandedDirs(prev => {
+      const next = new Set(prev);
+      next.add(path);
+      return next;
+    });
+  };
+
+  const collapseAll = () => {
+    setExpandedDirs(currentDirectory ? new Set([currentDirectory]) : new Set());
+  };
+
+  // Auto-reveal: when a file becomes active (from any source — palette,
+  // search, git diff), expand the chain of parents so the file is visible
+  // in the tree. No-op if the file isn't under the open workspace.
+  const revealFile = async (filePath: string) => {
+    if (!currentDirectory) return;
+    const sep = currentDirectory.includes("\\") ? "\\" : "/";
+    const root = currentDirectory.endsWith(sep) ? currentDirectory.slice(0, -1) : currentDirectory;
+    if (!filePath.startsWith(root + sep) && filePath !== root) return;
+    const relative = filePath.slice(root.length + 1);
+    const parts = relative.split(sep);
+    parts.pop(); // drop filename
+    const chain: string[] = [root];
+    let cur = root;
+    for (const part of parts) {
+      cur = cur + sep + part;
+      chain.push(cur);
+    }
+    // Lazy-load every dir on the chain. ensureDirContents is a no-op when
+    // already cached, so this is cheap on a hot path.
+    for (const dir of chain) {
+      await ensureDirContents(dir);
+    }
+    setExpandedDirs(prev => {
+      const next = new Set(prev);
+      for (const dir of chain) next.add(dir);
+      return next;
+    });
   };
 
   const fetchGitStatus = async () => {
@@ -396,18 +481,10 @@ function App() {
     }
   };
 
-  const handleGoUp = () => {
-    if (!currentDirectory) return;
-    const separator = currentDirectory.includes('\\') ? '\\' : '/';
-    const parts = currentDirectory.split(separator);
-    // Handle trailing slash if present
-    if (parts[parts.length - 1] === '') parts.pop();
-    parts.pop();
-    const parentPath = parts.join(separator) || separator;
-    loadDirectory(parentPath);
-  };
-
   const openFile = async (path: string) => {
+    // VS Code "reveal in explorer": expand parents in the tree no matter
+    // how the open was triggered (palette, search, git diff, recents).
+    revealFile(path);
     // Check if already open
     if (openFiles.some(f => f.path === path)) {
       setActiveFilePath(path);
@@ -807,8 +884,29 @@ function App() {
     return () => window.removeEventListener('keydown', handleMaximize);
   }, [showAIChat, panelsMaximized]);
 
-  const handleNewFile = () => {
-    if (!currentDirectory) {
+  // Refresh a directory's children in the tree cache after a mutation
+  // (new file, new folder, delete, rename) so the tree updates in place
+  // without collapsing other branches.
+  const refreshDir = async (path: string) => {
+    try {
+      const entries = await invoke<FileEntry[]>("list_directory", { path });
+      setDirContents(prev => {
+        const next = new Map(prev);
+        next.set(path, entries);
+        return next;
+      });
+      // Keep the top-level `files` array in sync when the workspace root
+      // is the one being refreshed (covers the toolbar buttons).
+      if (path === currentDirectory) setFiles(entries);
+    } catch (e) {
+      console.error("Failed to refresh directory:", e);
+    }
+    fetchGitStatus();
+  };
+
+  const handleNewFile = (parentDir?: string) => {
+    const targetDir = parentDir ?? currentDirectory;
+    if (!targetDir) {
       toast.warn("Please open a folder first.");
       return;
     }
@@ -821,13 +919,19 @@ function App() {
         if (!name) return;
 
         // Fix path construction to avoid issues
-        const separator = currentDirectory.includes('\\') ? '\\' : '/';
-        const cleanDir = currentDirectory.endsWith(separator) ? currentDirectory : currentDirectory + separator;
+        const separator = targetDir.includes('\\') ? '\\' : '/';
+        const cleanDir = targetDir.endsWith(separator) ? targetDir : targetDir + separator;
         const path = cleanDir + name;
 
         try {
           await invoke("write_file", { path, content: "" });
-          loadDirectory(currentDirectory);
+          await refreshDir(targetDir);
+          // Make sure the parent shows the new file
+          setExpandedDirs(prev => {
+            const next = new Set(prev);
+            next.add(targetDir);
+            return next;
+          });
           // Optionally open the new file
           openFile(path);
         } catch (error) {
@@ -839,8 +943,9 @@ function App() {
     setModalOpen(true);
   };
 
-  const handleNewFolder = () => {
-    if (!currentDirectory) {
+  const handleNewFolder = (parentDir?: string) => {
+    const targetDir = parentDir ?? currentDirectory;
+    if (!targetDir) {
       toast.warn("Please open a folder first.");
       return;
     }
@@ -852,13 +957,18 @@ function App() {
         setModalOpen(false);
         if (!name) return;
 
-        const separator = currentDirectory.includes('\\') ? '\\' : '/';
-        const cleanDir = currentDirectory.endsWith(separator) ? currentDirectory : currentDirectory + separator;
+        const separator = targetDir.includes('\\') ? '\\' : '/';
+        const cleanDir = targetDir.endsWith(separator) ? targetDir : targetDir + separator;
         const path = cleanDir + name;
 
         try {
           await invoke("create_directory", { path });
-          loadDirectory(currentDirectory);
+          await refreshDir(targetDir);
+          setExpandedDirs(prev => {
+            const next = new Set(prev);
+            next.add(targetDir);
+            return next;
+          });
         } catch (error) {
           console.error("Failed to create folder:", error);
           toast.error("Failed to create folder: " + error);
@@ -1114,7 +1224,11 @@ function App() {
         if (!newName || newName === file.name) return;
         try {
           await invoke('rename_item', { path: file.path, newName });
-          if (currentDirectory) loadDirectory(currentDirectory);
+          // Refresh just the parent folder so the rest of the tree stays
+          // expanded as the user left it.
+          const sep = file.path.includes("\\") ? "\\" : "/";
+          const parent = file.path.substring(0, file.path.lastIndexOf(sep)) || sep;
+          await refreshDir(parent);
           // If active file was renamed, we might want to close it or update its path
           // For now, let's just close it to avoid confusion
           if (openFiles.some(f => f.path === file.path)) {
@@ -1143,7 +1257,22 @@ function App() {
     setPendingDeleteFile(null);
     try {
       await invoke('delete_item', { path });
-      if (currentDirectory) loadDirectory(currentDirectory);
+      const sep = path.includes("\\") ? "\\" : "/";
+      const parent = path.substring(0, path.lastIndexOf(sep)) || sep;
+      await refreshDir(parent);
+      // Drop the deleted entry from caches/expansion so the tree doesn't
+      // hold a phantom reference if the user re-expands its parent later.
+      setDirContents(prev => {
+        const next = new Map(prev);
+        next.delete(path);
+        return next;
+      });
+      setExpandedDirs(prev => {
+        if (!prev.has(path)) return prev;
+        const next = new Set(prev);
+        next.delete(path);
+        return next;
+      });
       if (openFiles.some(f => f.path === path)) {
         closeFile(path);
       }
@@ -1245,6 +1374,54 @@ function App() {
       window.removeEventListener('mouseup', stopResizing);
     };
   }, [isResizing, resize]);
+
+  // Recursive renderer for the VS Code-style tree explorer. Depth controls
+  // the indent (workspace root = 0, its children = 1, etc.). Folder click
+  // toggles expansion; file click opens it.
+  const renderTreeNode = (entry: FileEntry, depth: number): React.ReactNode => {
+    const isExpanded = entry.is_directory && expandedDirs.has(entry.path);
+    const isActive = !entry.is_directory && activeFilePath === entry.path;
+    const children = isExpanded ? dirContents.get(entry.path) : undefined;
+    const gitChar = gitStatus
+      ? Object.entries(gitStatus.file_statuses).find(([p]) => entry.path.endsWith(p))?.[1].charAt(0)
+      : undefined;
+    return (
+      <React.Fragment key={entry.path}>
+        <div
+          className={`file-item ${entry.is_directory ? "directory" : "file"}${isActive ? " active" : ""}`}
+          role="button"
+          tabIndex={0}
+          style={{ paddingLeft: `${depth * 12 + 8}px` }}
+          title={entry.path}
+          onClick={() => entry.is_directory ? toggleDir(entry.path) : openFile(entry.path)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              if (entry.is_directory) toggleDir(entry.path);
+              else openFile(entry.path);
+            }
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setContextMenu({ x: e.clientX, y: e.clientY, file: entry });
+          }}
+        >
+          {entry.is_directory ? (
+            <Icon name={isExpanded ? "chevron-down" : "chevron-right"} size={12} />
+          ) : (
+            <span style={{ display: "inline-block", width: 12, flexShrink: 0 }} />
+          )}
+          <span className="file-icon">{getFileIcon(entry.name, entry.is_directory)}</span>
+          <span className="file-name" style={{ color: getFileColor(entry.path) }}>{entry.name}</span>
+          {gitChar && (
+            <span style={{ marginLeft: "auto", fontSize: "10px", color: getFileColor(entry.path) }}>
+              {gitChar}
+            </span>
+          )}
+        </div>
+        {children && children.map(child => renderTreeNode(child, depth + 1))}
+      </React.Fragment>
+    );
+  };
 
   return (
     <div className="app" onMouseUp={stopResizing}>
@@ -1376,27 +1553,24 @@ function App() {
               <>
                 <div className="sidebar-header sidebar-header--compact">
                   <div className="sidebar-actions">
-                    <button className="btn-icon" onClick={handleNewFile} title="New File" disabled={!currentDirectory}>
+                    <button className="btn-icon" onClick={() => handleNewFile()} title="New File" disabled={!currentDirectory}>
                       <Icon name="file-plus" size={16} />
                     </button>
-                    <button className="btn-icon" onClick={handleNewFolder} title="New Folder" disabled={!currentDirectory}>
+                    <button className="btn-icon" onClick={() => handleNewFolder()} title="New Folder" disabled={!currentDirectory}>
                       <Icon name="folder-plus" size={16} />
                     </button>
                     <button className="btn-icon" onClick={openFolder} title="Open Folder">
                       <Icon name="folder-open" size={16} />
                     </button>
-                    <button className="btn-icon" onClick={() => { if (currentDirectory) loadDirectory(currentDirectory); }} title="Refresh" disabled={!currentDirectory}>
+                    <button className="btn-icon" onClick={() => { if (currentDirectory) refreshDir(currentDirectory); }} title="Refresh" disabled={!currentDirectory}>
                       <Icon name="refresh-cw" size={16} />
+                    </button>
+                    <button className="btn-icon" onClick={collapseAll} title="Collapse All" disabled={!currentDirectory}>
+                      <Icon name="chevron-up" size={16} />
                     </button>
                   </div>
                 </div>
                 <div className="file-tree">
-                  {currentDirectory && (
-                    <div className="file-item directory" onClick={handleGoUp} onKeyDown={e => e.key === "Enter" && handleGoUp()} role="button" tabIndex={0} title="Go to Parent">
-                      <span className="file-icon"><Icon name="folder-open" size={14} /></span>
-                      <span className="file-name">..</span>
-                    </div>
-                  )}
                   {workspaceFolders.length === 0 ? (
                     <div className="empty-state">
                       <p>No folder opened</p>
@@ -1439,44 +1613,37 @@ function App() {
                         </div>
                       )}
                     </div>
-                  ) : (
+                  ) : currentDirectory ? (
                     <div>
-                      {files.map((file) => <div
-                        key={file.path}
-                        className={`file-item ${file.is_directory ? "directory" : "file"}`}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => {
-                          if (file.is_directory) {
-                            loadDirectory(file.path);
-                          } else {
-                            openFile(file.path);
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            if (file.is_directory) loadDirectory(file.path);
-                            else openFile(file.path);
-                          }
-                        }}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          setContextMenu({ x: e.clientX, y: e.clientY, file });
-                        }}
-                      >
-                        <span className="file-icon">
-                          {getFileIcon(file.name, file.is_directory)}
-                        </span>
-                        <span className="file-name" style={{ color: getFileColor(file.path) }}>{file.name}</span>
-                        {gitStatus && Object.entries(gitStatus.file_statuses).some(([p]) => file.path.endsWith(p)) && (
-                          <span style={{ marginLeft: 'auto', fontSize: '10px', color: getFileColor(file.path) }}>
-                            {Object.entries(gitStatus.file_statuses).find(([p]) => file.path.endsWith(p))?.[1].charAt(0)}
-                          </span>
-                        )}
-                      </div>
-                      )}
+                      {/* Workspace root header — click to toggle the whole tree. */}
+                      {(() => {
+                        const rootName = currentDirectory.split(/[/\\]/).filter(Boolean).pop() || currentDirectory;
+                        const isRootExpanded = expandedDirs.has(currentDirectory);
+                        return (
+                          <div
+                            className="file-item workspace-root-header"
+                            role="button"
+                            tabIndex={0}
+                            title={currentDirectory}
+                            onClick={() => toggleDir(currentDirectory)}
+                            onKeyDown={(e) => { if (e.key === "Enter") toggleDir(currentDirectory); }}
+                            onContextMenu={(e) => {
+                              e.preventDefault();
+                              setContextMenu({
+                                x: e.clientX,
+                                y: e.clientY,
+                                file: { name: rootName, path: currentDirectory, is_directory: true },
+                              });
+                            }}
+                          >
+                            <Icon name={isRootExpanded ? "chevron-down" : "chevron-right"} size={12} />
+                            <span className="file-name workspace-root-label">{rootName}</span>
+                          </div>
+                        );
+                      })()}
+                      {expandedDirs.has(currentDirectory) && files.map(f => renderTreeNode(f, 1))}
                     </div>
-                  )}
+                  ) : null}
                 </div>
               </>
             )}
@@ -2297,27 +2464,72 @@ function App() {
             padding: '4px 0',
             zIndex: 1000,
             boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-            minWidth: '120px',
+            minWidth: '160px',
           }}
         >
+          {contextMenu.file.is_directory && (
+            <>
+              <div
+                className="context-menu-item"
+                onClick={(e) => { e.stopPropagation(); const dir = contextMenu.file.path; setContextMenu(null); handleNewFile(dir); }}
+                style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-tertiary)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                New File
+              </div>
+              <div
+                className="context-menu-item"
+                onClick={(e) => { e.stopPropagation(); const dir = contextMenu.file.path; setContextMenu(null); handleNewFolder(dir); }}
+                style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-tertiary)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                New Folder
+              </div>
+              <div style={{ height: 1, background: 'var(--border-color)', margin: '4px 0' }} />
+            </>
+          )}
           <div
             className="context-menu-item"
-            onClick={(e) => { e.stopPropagation(); handleRename(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigator.clipboard.writeText(contextMenu.file.path).then(
+                () => toast.info('Path copied to clipboard'),
+                () => toast.error('Failed to copy path'),
+              );
+              setContextMenu(null);
+            }}
             style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}
             onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-tertiary)'}
             onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
           >
-            Rename
+            Copy Path
           </div>
-          <div
-            className="context-menu-item"
-            onClick={(e) => { e.stopPropagation(); handleDelete(); }}
-            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-danger, #ff4d4f)' }}
-            onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-tertiary)'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-          >
-            Delete
-          </div>
+          {/* Workspace root can't be renamed or deleted from the explorer.
+              Anything else gets the standard mutation actions. */}
+          {contextMenu.file.path !== currentDirectory && (
+            <>
+              <div
+                className="context-menu-item"
+                onClick={(e) => { e.stopPropagation(); handleRename(); }}
+                style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-primary)' }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-tertiary)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                Rename
+              </div>
+              <div
+                className="context-menu-item"
+                onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+                style={{ padding: '8px 12px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-danger, #ff4d4f)' }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-tertiary)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+              >
+                Delete
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

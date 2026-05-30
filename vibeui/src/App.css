@@ -330,6 +330,29 @@ body,
   background-color: var(--bg-elevated);
 }
 
+/* Active = the file currently focused in the editor. VS Code uses a
+   slightly darker row with a left border accent — emulate that. */
+.file-item.active {
+  background-color: var(--bg-elevated);
+  box-shadow: inset 2px 0 0 var(--accent-primary);
+}
+
+.workspace-root-header {
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.workspace-root-label {
+  font-weight: 600;
+  font-size: 11px !important;
+  letter-spacing: 0.5px;
+}
+
 .file-icon {
   font-size: 15px;
   opacity: 0.75;
