@@ -28,7 +28,7 @@ coroutinesPlayServices = "1.8.1"
 securityCrypto = "1.1.0-alpha06"
 
 # Tiles support — async + preview
-guava = "33.4.0-android"
+guava = "33.6.0-android"
 concurrentFutures = "1.2.0"
 composeUiToolingPreview = "1.7.6"
 
