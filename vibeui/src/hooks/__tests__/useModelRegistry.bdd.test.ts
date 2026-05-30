@@ -95,11 +95,11 @@ describe('Given PROVIDER_DEFAULT_MODEL', () => {
   });
 
   it('Then claude default is claude-sonnet-4-6', () => {
-    expect(PROVIDER_DEFAULT_MODEL.claude).toBe('claude-sonnet-4-6');
+    expect(PROVIDER_DEFAULT_MODEL.claude).toBe('claude-opus-4-7');
   });
 
   it('Then openai default is gpt-4o', () => {
-    expect(PROVIDER_DEFAULT_MODEL.openai).toBe('gpt-4o');
+    expect(PROVIDER_DEFAULT_MODEL.openai).toBe('gpt-5.5');
   });
 });
 
