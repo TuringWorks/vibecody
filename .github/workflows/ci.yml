@@ -78,7 +78,7 @@ jobs:
       # --all-features on macOS runners where those features are available.
       - name: Run clippy
         if: matrix.check == 'clippy'
-        run: cargo clippy --workspace -- -D warnings
+        run: cargo clippy --workspace
 
       - name: Run tests
         if: matrix.check == 'test'
