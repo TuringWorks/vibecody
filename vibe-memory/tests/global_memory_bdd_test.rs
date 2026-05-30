@@ -162,7 +162,7 @@ async fn global_memory_merge_with_project() {
     // Create hub and query
     let hub = MemoryContextHub::new();
     let context = hub
-        .assemble_context("api design", 500)
+        .assemble_context(std::path::Path::new("."), "api design", 500)
         .await
         .expect("assemble");
 
@@ -186,10 +186,10 @@ async fn computer_level_encryption() {
         .store("machine-wide preference", None)
         .await
         .expect("store");
+    let path = store.path();
     drop(store);
 
     // Check that DB exists
-    let path = store.path();
     assert!(path.exists(), "Global store DB should exist");
 
     // Compare with project store key derivation

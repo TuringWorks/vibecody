@@ -570,7 +570,7 @@ mod tests {
     fn url_default_when_none() {
         let config = ProviderConfig::new("ollama".to_string(), "codellama".to_string());
         let provider = OllamaProvider::new(config);
-        assert_eq!(provider.base_url, "http://localhost:11434");
+        assert_eq!(provider.base_url, "http://127.0.0.1:11434");
     }
 
     #[test]

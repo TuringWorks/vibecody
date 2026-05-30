@@ -325,7 +325,7 @@ mod tests {
     #[test]
     fn test_local_edit_default_url() {
         let provider = LocalEditProvider::new("codellama:7b-code".into(), None);
-        assert_eq!(provider.api_url, "http://localhost:11434");
+        assert_eq!(provider.api_url, "http://127.0.0.1:11434");
     }
 
     #[test]
