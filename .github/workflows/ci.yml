@@ -41,6 +41,7 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      # Tauri system deps — required by vibe-ui / vibeapp crates on Linux.
       - name: Install Linux system dependencies
         if: matrix.check == 'clippy'
         run: |
@@ -69,9 +70,13 @@ jobs:
         if: matrix.check == 'fmt'
         run: cargo fmt --all -- --check
 
+      # NOTE: --all-features is intentionally omitted. Several workspace
+      # features (candle-metal, mistralrs-metal) require macOS/Apple
+      # platforms and won't compile on Linux. The release workflow uses
+      # --all-features on macOS runners where those features are available.
       - name: Run clippy
         if: matrix.check == 'clippy'
-        run: cargo clippy --workspace --all-features -- -D warnings
+        run: cargo clippy --workspace -- -D warnings
 
       - name: Run tests
         if: matrix.check == 'test'
