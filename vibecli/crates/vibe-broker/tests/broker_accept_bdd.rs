@@ -1,12 +1,12 @@
 //! End-to-end BDD: spin up a real broker on a localhost port and send
 //! HTTP through it.
 
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
-use vibe_broker::{Broker, BrokerHandle, Policy, SsrfGuard, policy::DefaultRule};
+use vibe_broker::{policy::DefaultRule, Broker, BrokerHandle, Policy, SsrfGuard};
 
 #[derive(Default, World)]
 pub struct AWorld {
@@ -90,9 +90,8 @@ fn send_request(world: &mut AWorld, req: String) {
 
     let addr = world.broker_addr.expect("broker started");
     let rt = world.rt();
-    let raw = format!(
-        "{method} {path_and_query} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
-    );
+    let raw =
+        format!("{method} {path_and_query} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n");
 
     let resp = rt.block_on(async move {
         let mut stream = TcpStream::connect(addr).await.expect("connect");
@@ -151,8 +150,12 @@ fn parse_response_into_world(world: &mut AWorld, resp: &[u8]) {
 
 #[then(expr = "the broker response status is {int}")]
 fn status_is(world: &mut AWorld, expected: u16) {
-    assert_eq!(world.response_status, Some(expected),
-        "raw response was: {:?}", String::from_utf8_lossy(&world.raw_response));
+    assert_eq!(
+        world.response_status,
+        Some(expected),
+        "raw response was: {:?}",
+        String::from_utf8_lossy(&world.raw_response)
+    );
 }
 
 #[then(expr = "the broker response header {string} is {string}")]
@@ -163,7 +166,12 @@ fn header_is(world: &mut AWorld, name: String, value: String) {
         .iter()
         .find(|(n, _)| n == &lower)
         .map(|(_, v)| v.as_str());
-    assert_eq!(actual, Some(value.as_str()), "headers: {:?}", world.response_headers);
+    assert_eq!(
+        actual,
+        Some(value.as_str()),
+        "headers: {:?}",
+        world.response_headers
+    );
 }
 
 #[then(expr = "the broker raw response starts with {string}")]
@@ -177,7 +185,5 @@ fn raw_starts_with(world: &mut AWorld, expected: String) {
 }
 
 fn main() {
-    futures::executor::block_on(AWorld::run(
-        "tests/features/broker_accept.feature",
-    ));
+    futures::executor::block_on(AWorld::run("tests/features/broker_accept.feature"));
 }

@@ -95,9 +95,7 @@ pub async fn start_tunnel(port: u16, auth_token: Option<&str>) -> Result<String>
 
         // Blocking I/O moved off the async executor.
         let port_copy = port;
-        if let Ok(Some(url)) =
-            tokio::task::spawn_blocking(move || detect_tunnel(port_copy)).await
-        {
+        if let Ok(Some(url)) = tokio::task::spawn_blocking(move || detect_tunnel(port_copy)).await {
             return Ok(url);
         }
 
@@ -124,7 +122,9 @@ mod tests {
         let tunnels = json["tunnels"].as_array()?;
         let port_str = port.to_string();
         for tunnel in tunnels {
-            if tunnel["proto"].as_str() != Some("https") { continue; }
+            if tunnel["proto"].as_str() != Some("https") {
+                continue;
+            }
             let addr = tunnel["config"]["addr"].as_str().unwrap_or("");
             if addr.contains(&port_str) {
                 if let Some(url) = tunnel["public_url"].as_str() {
@@ -140,7 +140,10 @@ mod tests {
     #[test]
     fn parse_api_returns_https_url_for_matching_port() {
         let body = r#"{"tunnels":[{"proto":"https","public_url":"https://abc.ngrok.io","config":{"addr":"localhost:7878"}}]}"#;
-        assert_eq!(parse_api(body, 7878), Some("https://abc.ngrok.io".to_string()));
+        assert_eq!(
+            parse_api(body, 7878),
+            Some("https://abc.ngrok.io".to_string())
+        );
     }
 
     #[test]
@@ -177,16 +180,22 @@ mod tests {
             {"proto":"http","public_url":"http://a.ngrok.io","config":{"addr":"localhost:7878"}},
             {"proto":"https","public_url":"https://b.ngrok.io","config":{"addr":"localhost:7878"}}
         ]}"#;
-        assert_eq!(parse_api(body, 7878), Some("https://b.ngrok.io".to_string()));
+        assert_eq!(
+            parse_api(body, 7878),
+            Some("https://b.ngrok.io".to_string())
+        );
     }
 
     // ── TunnelConfig serde (local test struct mirrors config::TunnelConfig) ──────
 
     #[derive(Debug, Default, serde::Serialize, serde::Deserialize, PartialEq)]
     struct TunnelCfg {
-        #[serde(default)] tailscale_funnel: bool,
-        #[serde(default)] ngrok_auto_start: bool,
-        #[serde(default)] ngrok_auth_token: Option<String>,
+        #[serde(default)]
+        tailscale_funnel: bool,
+        #[serde(default)]
+        ngrok_auto_start: bool,
+        #[serde(default)]
+        ngrok_auth_token: Option<String>,
     }
 
     #[test]

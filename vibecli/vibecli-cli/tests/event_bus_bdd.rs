@@ -27,7 +27,10 @@ pub struct EbWorld {
 // ---------------------------------------------------------------------------
 
 fn bus(world: &EbWorld) -> &EventBus {
-    world.bus.as_ref().expect("EventBus not initialised — use 'Given a fresh EventBus'")
+    world
+        .bus
+        .as_ref()
+        .expect("EventBus not initialised — use 'Given a fresh EventBus'")
 }
 
 // ---------------------------------------------------------------------------
@@ -57,7 +60,9 @@ fn subscribe_with_filter(world: &mut EbWorld, filter_spec: String, priority: i32
 #[given(expr = "I subscribe a blocking handler with reason {string} at priority {int}")]
 fn subscribe_blocking(world: &mut EbWorld, reason: String, priority: i32) {
     let id = bus(world).subscribe(EventFilter::All, priority, move |_| {
-        HandlerDecision::Block { reason: reason.clone() }
+        HandlerDecision::Block {
+            reason: reason.clone(),
+        }
     });
     world.last_subscription_id = id;
 }
@@ -79,17 +84,21 @@ fn subscribe_priority_recorder(world: &mut EbWorld, priority: i32) {
 fn emit_turn_event(world: &mut EbWorld, event_type: String, turn: u32) {
     let event = match event_type.as_str() {
         "agent_start" => BusEvent::AgentStart { turn },
-        "agent_end"   => BusEvent::AgentEnd { turn, tool_calls_made: 0 },
+        "agent_end" => BusEvent::AgentEnd {
+            turn,
+            tool_calls_made: 0,
+        },
         other => panic!("Unknown turn event type: {}", other),
     };
     let decision = bus(world).emit(event);
     world.last_decision = Some(decision);
 }
 
-
 #[when("I emit a \"user_input\" event")]
 fn emit_user_input(world: &mut EbWorld) {
-    let decision = bus(world).emit(BusEvent::UserInput { content: "test input".into() });
+    let decision = bus(world).emit(BusEvent::UserInput {
+        content: "test input".into(),
+    });
     world.last_decision = Some(decision);
 }
 
@@ -113,12 +122,14 @@ fn emit_tool_event(world: &mut EbWorld, event_type: String, tool: String) {
     world.last_decision = Some(decision);
 }
 
-
 #[when(expr = "I emit a {string} event with key {string}")]
 fn emit_memory_event(world: &mut EbWorld, event_type: String, key: String) {
     let event = match event_type.as_str() {
-        "memory_write"  => BusEvent::MemoryWrite  { key, value_preview: "...".into() },
-        "memory_read"   => BusEvent::MemoryRead   { key },
+        "memory_write" => BusEvent::MemoryWrite {
+            key,
+            value_preview: "...".into(),
+        },
+        "memory_read" => BusEvent::MemoryRead { key },
         "memory_delete" => BusEvent::MemoryDelete { key },
         other => panic!("Unknown memory event type: {}", other),
     };
@@ -163,7 +174,11 @@ fn received_event_type(world: &mut EbWorld, expected: String) {
 
 #[then(expr = "the emit result should be blocked with reason {string}")]
 fn emit_result_blocked(world: &mut EbWorld, reason: String) {
-    match world.last_decision.as_ref().expect("no emit decision recorded") {
+    match world
+        .last_decision
+        .as_ref()
+        .expect("no emit decision recorded")
+    {
         HandlerDecision::Block { reason: r } => {
             assert_eq!(r, &reason, "block reason mismatch");
         }

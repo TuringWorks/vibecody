@@ -15,9 +15,14 @@ use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }
-fn new_id() -> String { uuid::Uuid::new_v4().to_string() }
+fn new_id() -> String {
+    uuid::Uuid::new_v4().to_string()
+}
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
 
@@ -96,10 +101,13 @@ pub struct HeartbeatStore<'a> {
 }
 
 impl<'a> HeartbeatStore<'a> {
-    pub fn new(conn: &'a Connection) -> Self { Self { conn } }
+    pub fn new(conn: &'a Connection) -> Self {
+        Self { conn }
+    }
 
     pub fn ensure_schema(&self) -> Result<()> {
-        self.conn.execute_batch(r#"
+        self.conn.execute_batch(
+            r#"
             CREATE TABLE IF NOT EXISTS heartbeat_runs (
                 id          TEXT PRIMARY KEY,
                 company_id  TEXT NOT NULL,
@@ -114,7 +122,8 @@ impl<'a> HeartbeatStore<'a> {
             CREATE INDEX IF NOT EXISTS idx_hb_company ON heartbeat_runs(company_id);
             CREATE INDEX IF NOT EXISTS idx_hb_agent ON heartbeat_runs(agent_id);
             CREATE INDEX IF NOT EXISTS idx_hb_status ON heartbeat_runs(agent_id, status);
-        "#)?;
+        "#,
+        )?;
         Ok(())
     }
 
@@ -156,7 +165,8 @@ impl<'a> HeartbeatStore<'a> {
             "UPDATE heartbeat_runs SET status = 'completed', finished_at = ?1, summary = ?2 WHERE id = ?3",
             params![now as i64, summary, id],
         )?;
-        self.get(id)?.ok_or_else(|| anyhow!("heartbeat run not found"))
+        self.get(id)?
+            .ok_or_else(|| anyhow!("heartbeat run not found"))
     }
 
     /// Fail a heartbeat run.
@@ -166,7 +176,8 @@ impl<'a> HeartbeatStore<'a> {
             "UPDATE heartbeat_runs SET status = 'failed', finished_at = ?1, summary = ?2 WHERE id = ?3",
             params![now as i64, error, id],
         )?;
-        self.get(id)?.ok_or_else(|| anyhow!("heartbeat run not found"))
+        self.get(id)?
+            .ok_or_else(|| anyhow!("heartbeat run not found"))
     }
 
     pub fn get(&self, id: &str) -> Result<Option<HeartbeatRun>> {
@@ -184,7 +195,8 @@ impl<'a> HeartbeatStore<'a> {
             "SELECT id, company_id, agent_id, trigger, status, session_id, started_at, finished_at, summary
              FROM heartbeat_runs WHERE agent_id = ?1 ORDER BY started_at DESC LIMIT ?2",
         )?;
-        let rows = stmt.query_map(params![agent_id, limit], row_to_run)?
+        let rows = stmt
+            .query_map(params![agent_id, limit], row_to_run)?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(rows)
     }
@@ -195,7 +207,8 @@ impl<'a> HeartbeatStore<'a> {
             "SELECT id, company_id, agent_id, trigger, status, session_id, started_at, finished_at, summary
              FROM heartbeat_runs WHERE company_id = ?1 ORDER BY started_at DESC LIMIT ?2",
         )?;
-        let rows = stmt.query_map(params![company_id, limit], row_to_run)?
+        let rows = stmt
+            .query_map(params![company_id, limit], row_to_run)?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(rows)
     }
@@ -211,7 +224,11 @@ impl<'a> HeartbeatStore<'a> {
     }
 
     /// Return heartbeat history as JSON values. If `agent_id` is None, returns all runs.
-    pub fn history_json(&self, agent_id: Option<&str>, limit: i64) -> Result<Vec<serde_json::Value>> {
+    pub fn history_json(
+        &self,
+        agent_id: Option<&str>,
+        limit: i64,
+    ) -> Result<Vec<serde_json::Value>> {
         let runs = if let Some(aid) = agent_id {
             self.history(aid, limit)?
         } else {
@@ -223,7 +240,8 @@ impl<'a> HeartbeatStore<'a> {
             let collected: Vec<_> = mapped.collect::<rusqlite::Result<Vec<_>>>()?;
             collected
         };
-        Ok(runs.into_iter()
+        Ok(runs
+            .into_iter()
             .map(|r| serde_json::to_value(&r).unwrap_or(serde_json::Value::Null))
             .collect())
     }
@@ -235,11 +253,7 @@ impl<'a> HeartbeatStore<'a> {
     }
 
     /// Manual trigger: start a heartbeat run for an agent immediately.
-    pub fn trigger_manual(
-        &self,
-        company_id: &str,
-        agent_id: &str,
-    ) -> Result<HeartbeatRun> {
+    pub fn trigger_manual(&self, company_id: &str, agent_id: &str) -> Result<HeartbeatRun> {
         self.start(company_id, agent_id, HeartbeatTrigger::Manual, None)
     }
 }
@@ -276,7 +290,9 @@ mod tests {
         let conn = make_conn();
         let store = HeartbeatStore::new(&conn);
         store.ensure_schema().unwrap();
-        let run = store.start("co1", "ag1", HeartbeatTrigger::Manual, None).unwrap();
+        let run = store
+            .start("co1", "ag1", HeartbeatTrigger::Manual, None)
+            .unwrap();
         assert_eq!(run.status, HeartbeatStatus::Running);
         assert_eq!(run.trigger, HeartbeatTrigger::Manual);
         assert!(run.finished_at.is_none());
@@ -288,7 +304,9 @@ mod tests {
         let conn = make_conn();
         let store = HeartbeatStore::new(&conn);
         store.ensure_schema().unwrap();
-        let run = store.start("co1", "ag1", HeartbeatTrigger::Scheduled, Some("sess-1")).unwrap();
+        let run = store
+            .start("co1", "ag1", HeartbeatTrigger::Scheduled, Some("sess-1"))
+            .unwrap();
         assert_eq!(run.trigger, HeartbeatTrigger::Scheduled);
         assert_eq!(run.session_id.as_deref(), Some("sess-1"));
     }
@@ -300,7 +318,9 @@ mod tests {
         let conn = make_conn();
         let store = HeartbeatStore::new(&conn);
         store.ensure_schema().unwrap();
-        let run = store.start("co1", "ag1", HeartbeatTrigger::Manual, None).unwrap();
+        let run = store
+            .start("co1", "ag1", HeartbeatTrigger::Manual, None)
+            .unwrap();
         let done = store.complete(&run.id, Some("All good")).unwrap();
         assert_eq!(done.status, HeartbeatStatus::Completed);
         assert!(done.finished_at.is_some());
@@ -312,7 +332,9 @@ mod tests {
         let conn = make_conn();
         let store = HeartbeatStore::new(&conn);
         store.ensure_schema().unwrap();
-        let run = store.start("co1", "ag1", HeartbeatTrigger::Event, None).unwrap();
+        let run = store
+            .start("co1", "ag1", HeartbeatTrigger::Event, None)
+            .unwrap();
         store.complete(&run.id, None).unwrap();
         let fetched = store.get(&run.id).unwrap().unwrap();
         assert!(fetched.finished_at.is_some());
@@ -325,7 +347,9 @@ mod tests {
         let conn = make_conn();
         let store = HeartbeatStore::new(&conn);
         store.ensure_schema().unwrap();
-        let run = store.start("co1", "ag1", HeartbeatTrigger::Scheduled, None).unwrap();
+        let run = store
+            .start("co1", "ag1", HeartbeatTrigger::Scheduled, None)
+            .unwrap();
         let failed = store.fail(&run.id, "timeout error").unwrap();
         assert_eq!(failed.status, HeartbeatStatus::Failed);
         assert!(failed.finished_at.is_some());
@@ -339,7 +363,9 @@ mod tests {
         let conn = make_conn();
         let store = HeartbeatStore::new(&conn);
         store.ensure_schema().unwrap();
-        let run = store.start("co1", "ag1", HeartbeatTrigger::Manual, None).unwrap();
+        let run = store
+            .start("co1", "ag1", HeartbeatTrigger::Manual, None)
+            .unwrap();
         let fetched = store.get(&run.id).unwrap();
         assert!(fetched.is_some());
         assert_eq!(fetched.unwrap().id, run.id);
@@ -362,7 +388,9 @@ mod tests {
         let store = HeartbeatStore::new(&conn);
         store.ensure_schema().unwrap();
         for _ in 0..5 {
-            store.start("co1", "ag1", HeartbeatTrigger::Scheduled, None).unwrap();
+            store
+                .start("co1", "ag1", HeartbeatTrigger::Scheduled, None)
+                .unwrap();
         }
         let history = store.history("ag1", 3).unwrap();
         assert_eq!(history.len(), 3);
@@ -373,8 +401,12 @@ mod tests {
         let conn = make_conn();
         let store = HeartbeatStore::new(&conn);
         store.ensure_schema().unwrap();
-        store.start("co1", "ag1", HeartbeatTrigger::Manual, None).unwrap();
-        store.start("co1", "ag2", HeartbeatTrigger::Manual, None).unwrap();
+        store
+            .start("co1", "ag1", HeartbeatTrigger::Manual, None)
+            .unwrap();
+        store
+            .start("co1", "ag2", HeartbeatTrigger::Manual, None)
+            .unwrap();
         let history = store.history("ag1", 10).unwrap();
         assert_eq!(history.len(), 1);
         assert_eq!(history[0].agent_id, "ag1");
@@ -387,9 +419,15 @@ mod tests {
         let conn = make_conn();
         let store = HeartbeatStore::new(&conn);
         store.ensure_schema().unwrap();
-        store.start("co1", "ag1", HeartbeatTrigger::Scheduled, None).unwrap();
-        store.start("co1", "ag2", HeartbeatTrigger::Scheduled, None).unwrap();
-        store.start("co2", "ag3", HeartbeatTrigger::Manual, None).unwrap();
+        store
+            .start("co1", "ag1", HeartbeatTrigger::Scheduled, None)
+            .unwrap();
+        store
+            .start("co1", "ag2", HeartbeatTrigger::Scheduled, None)
+            .unwrap();
+        store
+            .start("co2", "ag3", HeartbeatTrigger::Manual, None)
+            .unwrap();
         let history = store.company_history("co1", 10).unwrap();
         assert_eq!(history.len(), 2);
     }
@@ -401,8 +439,12 @@ mod tests {
         let conn = make_conn();
         let store = HeartbeatStore::new(&conn);
         store.ensure_schema().unwrap();
-        store.start("co1", "ag1", HeartbeatTrigger::Manual, None).unwrap();
-        store.start("co1", "ag1", HeartbeatTrigger::Event, None).unwrap();
+        store
+            .start("co1", "ag1", HeartbeatTrigger::Manual, None)
+            .unwrap();
+        store
+            .start("co1", "ag1", HeartbeatTrigger::Event, None)
+            .unwrap();
         assert_eq!(store.running_count("ag1").unwrap(), 2);
     }
 
@@ -411,8 +453,12 @@ mod tests {
         let conn = make_conn();
         let store = HeartbeatStore::new(&conn);
         store.ensure_schema().unwrap();
-        let r1 = store.start("co1", "ag1", HeartbeatTrigger::Manual, None).unwrap();
-        let _r2 = store.start("co1", "ag1", HeartbeatTrigger::Event, None).unwrap();
+        let r1 = store
+            .start("co1", "ag1", HeartbeatTrigger::Manual, None)
+            .unwrap();
+        let _r2 = store
+            .start("co1", "ag1", HeartbeatTrigger::Event, None)
+            .unwrap();
         assert_eq!(store.running_count("ag1").unwrap(), 2);
         store.complete(&r1.id, None).unwrap();
         assert_eq!(store.running_count("ag1").unwrap(), 1);
@@ -449,13 +495,19 @@ impl HeartbeatRun {
         let duration = match self.finished_at {
             Some(end) => {
                 let ms = end.saturating_sub(self.started_at);
-                if ms < 1000 { format!("{}ms", ms) } else { format!("{:.1}s", ms as f64 / 1000.0) }
+                if ms < 1000 {
+                    format!("{}ms", ms)
+                } else {
+                    format!("{:.1}s", ms as f64 / 1000.0)
+                }
             }
             None => "running".to_string(),
         };
         format!(
             "{} [{}] {}  agent:{}  {}  [{}]",
-            status_icon, self.trigger.as_str(), duration,
+            status_icon,
+            self.trigger.as_str(),
+            duration,
             &self.agent_id[..8.min(self.agent_id.len())],
             self.summary.as_deref().unwrap_or(""),
             &self.id[..8.min(self.id.len())]

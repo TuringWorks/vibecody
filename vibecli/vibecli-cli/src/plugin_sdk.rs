@@ -22,7 +22,7 @@ pub enum PluginKind {
     Theme,
     SkillPack,
     Workflow,
-    Extension,  // WASM extension
+    Extension, // WASM extension
 }
 
 /// Supported hook events plugins can subscribe to
@@ -62,7 +62,10 @@ pub enum PluginCapability {
 
 impl PluginCapability {
     pub fn is_dangerous(&self) -> bool {
-        matches!(self, Self::FileWrite | Self::NetworkAccess | Self::ProcessExec | Self::DatabaseAccess)
+        matches!(
+            self,
+            Self::FileWrite | Self::NetworkAccess | Self::ProcessExec | Self::DatabaseAccess
+        )
     }
 
     pub fn safe_defaults() -> Vec<Self> {
@@ -92,14 +95,14 @@ pub struct PluginManifestV2 {
     pub keywords: Vec<String>,
     pub icon: Option<String>,
     pub screenshots: Vec<String>,
-    pub platforms: Vec<String>,  // "macos", "linux", "windows", "all"
+    pub platforms: Vec<String>, // "macos", "linux", "windows", "all"
 }
 
 /// Plugin dependency
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginDependency {
     pub name: String,
-    pub version: String,  // semver range: ">=1.0.0, <2.0.0"
+    pub version: String, // semver range: ">=1.0.0, <2.0.0"
     pub optional: bool,
 }
 
@@ -107,9 +110,9 @@ pub struct PluginDependency {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginHookDef {
     pub event: PluginEvent,
-    pub handler: String,  // relative path to script or WASM export
-    pub filter: Option<HashMap<String, String>>,  // e.g., {"tool": "bash", "file_ext": ".rs"}
-    pub priority: i32,     // lower runs first, default 100
+    pub handler: String, // relative path to script or WASM export
+    pub filter: Option<HashMap<String, String>>, // e.g., {"tool": "bash", "file_ext": ".rs"}
+    pub priority: i32,   // lower runs first, default 100
     pub async_exec: bool,
 }
 
@@ -118,7 +121,7 @@ pub struct PluginHookDef {
 pub struct PluginCommandDef {
     pub name: String,
     pub description: String,
-    pub handler: String,  // relative path to script
+    pub handler: String, // relative path to script
     pub args: Vec<PluginArgDef>,
 }
 
@@ -147,7 +150,7 @@ pub enum SettingType {
     String,
     Number,
     Boolean,
-    Secret,    // stored encrypted
+    Secret, // stored encrypted
     FilePath,
     Enum(Vec<std::string::String>),
 }
@@ -181,7 +184,10 @@ impl PluginScaffold {
         std::fs::write(plugin_dir.join("hooks/example.sh"), hook)?;
 
         // Write .gitignore
-        std::fs::write(plugin_dir.join(".gitignore"), "*.wasm\n.vibecli-dev/\nnode_modules/\ntarget/\n")?;
+        std::fs::write(
+            plugin_dir.join(".gitignore"),
+            "*.wasm\n.vibecli-dev/\nnode_modules/\ntarget/\n",
+        )?;
 
         // Kind-specific files
         match kind {
@@ -232,7 +238,11 @@ pub fn validate_manifest(manifest: &PluginManifestV2) -> Vec<String> {
     if manifest.name.is_empty() {
         errors.push("Plugin name is required".to_string());
     }
-    if !manifest.name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+    if !manifest
+        .name
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+    {
         errors.push("Plugin name must contain only alphanumeric, hyphens, underscores".to_string());
     }
     if manifest.version.is_empty() {
@@ -251,11 +261,15 @@ pub fn validate_manifest(manifest: &PluginManifestV2) -> Vec<String> {
     }
 
     // Check for dangerous capabilities without justification
-    let dangerous: Vec<_> = manifest.capabilities.iter()
+    let dangerous: Vec<_> = manifest
+        .capabilities
+        .iter()
         .filter(|c| c.is_dangerous())
         .collect();
     if !dangerous.is_empty() && manifest.description.len() < 20 {
-        errors.push("Plugins requesting dangerous capabilities need detailed descriptions".to_string());
+        errors.push(
+            "Plugins requesting dangerous capabilities need detailed descriptions".to_string(),
+        );
     }
 
     errors

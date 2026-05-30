@@ -41,18 +41,21 @@ use std::path::{Path, PathBuf};
 
 /// Directories that hold credentials or daemon state. Any normalized
 /// component matching one of these (case-insensitively) is denied.
-pub const DENIED_SEGMENTS: &[&str] = &[
-    ".vibecli", ".vibeui", ".claude",
-    ".ssh", ".aws", ".gnupg",
-];
+pub const DENIED_SEGMENTS: &[&str] = &[".vibecli", ".vibeui", ".claude", ".ssh", ".aws", ".gnupg"];
 
 /// Filenames that hold credentials directly. Any path whose final
 /// component matches one of these (case-insensitively) is denied,
 /// even if the parent directory looks neutral.
 pub const DENIED_FILENAMES: &[&str] = &[
-    "daemon.token", "profile_settings.db", "workspace.db",
-    "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519",
-    "credentials", "config.json",
+    "daemon.token",
+    "profile_settings.db",
+    "workspace.db",
+    "id_rsa",
+    "id_dsa",
+    "id_ecdsa",
+    "id_ed25519",
+    "credentials",
+    "config.json",
 ];
 
 /// Canonicalize a path even if its leaf doesn't exist.
@@ -135,13 +138,20 @@ mod tests {
     fn accepts_neutral_cwd() {
         let cwd = std::env::current_dir().expect("cwd");
         let result = reject_sensitive_path(cwd.to_str().unwrap());
-        assert!(result.is_ok(), "neutral cwd should be allowed: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "neutral cwd should be allowed: {:?}",
+            result
+        );
     }
 
     #[test]
     fn rejects_dot_vibecli_segment() {
         let err = reject_sensitive_path("/tmp/.vibecli").unwrap_err();
-        assert!(err.contains(".vibecli"), "expected mention of .vibecli: {err}");
+        assert!(
+            err.contains(".vibecli"),
+            "expected mention of .vibecli: {err}"
+        );
     }
 
     #[test]
@@ -169,10 +179,7 @@ mod tests {
     #[test]
     fn rejects_dot_ssh_segment() {
         let err = reject_sensitive_path("/tmp/.ssh/id_rsa").unwrap_err();
-        assert!(
-            err.contains(".ssh") || err.contains("id_rsa"),
-            "got: {err}"
-        );
+        assert!(err.contains(".ssh") || err.contains("id_rsa"), "got: {err}");
     }
 
     #[test]
@@ -202,10 +209,7 @@ mod tests {
     #[test]
     fn case_insensitive_segment_match() {
         let err = reject_sensitive_path("/tmp/.SSH/id_rsa").unwrap_err();
-        assert!(
-            err.contains(".ssh") || err.contains("id_rsa"),
-            "got: {err}"
-        );
+        assert!(err.contains(".ssh") || err.contains("id_rsa"), "got: {err}");
     }
 
     #[test]

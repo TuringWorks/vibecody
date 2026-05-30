@@ -164,10 +164,7 @@ impl JsonlFileAuditSink {
                 let _ = std::fs::set_permissions(parent, std::fs::Permissions::from_mode(0o700));
             }
         }
-        let file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&path)?;
+        let file = OpenOptions::new().create(true).append(true).open(&path)?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;

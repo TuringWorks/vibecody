@@ -731,7 +731,8 @@ impl CanaryDeployment {
         if self.canary_count < 10 {
             return false;
         }
-        let reward_ok = self.canary_mean_reward() >= self.baseline_mean_reward() * self.reward_threshold;
+        let reward_ok =
+            self.canary_mean_reward() >= self.baseline_mean_reward() * self.reward_threshold;
         let error_ok = self.canary_error_rate() <= self.error_rate_threshold;
         reward_ok && error_ok
     }
@@ -741,7 +742,8 @@ impl CanaryDeployment {
             return false;
         }
         self.canary_error_rate() > self.error_rate_threshold * 2.0
-            || (self.canary_mean_reward() < self.baseline_mean_reward() * 0.5 && self.canary_count >= 10)
+            || (self.canary_mean_reward() < self.baseline_mean_reward() * 0.5
+                && self.canary_count >= 10)
     }
 
     pub fn promote(&mut self) -> bool {
@@ -1126,7 +1128,12 @@ pub struct Deployment {
 }
 
 impl Deployment {
-    pub fn new(deployment_id: &str, policy_id: &str, version: &str, target: DeploymentTarget) -> Self {
+    pub fn new(
+        deployment_id: &str,
+        policy_id: &str,
+        version: &str,
+        target: DeploymentTarget,
+    ) -> Self {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -1798,9 +1805,7 @@ impl ABTestingController {
         }
 
         let selected = match &self.strategy {
-            TrafficStrategy::WeightedSplit(weights) => {
-                self.select_weighted(request_id, weights)
-            }
+            TrafficStrategy::WeightedSplit(weights) => self.select_weighted(request_id, weights),
             TrafficStrategy::ThompsonSampling => self.select_thompson(),
             TrafficStrategy::Ucb => self.select_ucb(),
             TrafficStrategy::Interleaving => self.select_interleaving(request_id),
@@ -2107,7 +2112,8 @@ impl RequestRouter {
         let start = Instant::now();
 
         // Preprocess
-        let processed = ObservationPreprocessor::preprocess(&request.observation, &policy.preprocessing);
+        let processed =
+            ObservationPreprocessor::preprocess(&request.observation, &policy.preprocessing);
 
         // Execute
         let raw_action = PolicyExecutor::execute(&processed, &policy);
@@ -2119,7 +2125,10 @@ impl RequestRouter {
         let confidence = if final_values.is_empty() {
             0.0
         } else {
-            let max_val = final_values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+            let max_val = final_values
+                .iter()
+                .cloned()
+                .fold(f64::NEG_INFINITY, f64::max);
             max_val.tanh().abs()
         };
 
@@ -2136,10 +2145,7 @@ impl RequestRouter {
         })
     }
 
-    pub fn route_batch(
-        &mut self,
-        batch: &BatchInferenceRequest,
-    ) -> BatchInferenceResponse {
+    pub fn route_batch(&mut self, batch: &BatchInferenceRequest) -> BatchInferenceResponse {
         let start = Instant::now();
         let mut responses = Vec::with_capacity(batch.requests.len());
 
@@ -2221,8 +2227,12 @@ impl ModelHotSwapManager {
 
         // Validate new config
         if new_config.observation_dim == 0 || new_config.action_dim == 0 {
-            let record =
-                ModelSwapRecord::failure(policy_id, &old_version, &new_version, "Invalid dimensions");
+            let record = ModelSwapRecord::failure(
+                policy_id,
+                &old_version,
+                &new_version,
+                "Invalid dimensions",
+            );
             self.swap_history.push(record.clone());
             return Err("Invalid dimensions".to_string());
         }
@@ -2235,8 +2245,7 @@ impl ModelHotSwapManager {
             .insert(policy_id.to_string(), new_version.clone());
 
         // Remove from pending
-        self.pending_swaps
-            .retain(|(pid, _)| pid != policy_id);
+        self.pending_swaps.retain(|(pid, _)| pid != policy_id);
 
         let record = ModelSwapRecord::success(policy_id, &old_version, &new_version, duration);
         self.swap_history.push(record.clone());
@@ -2380,9 +2389,7 @@ impl TradingEngine {
             .iter()
             .filter(|e| e.side == "buy")
             .map(|e| e.price)
-            .fold(None, |acc, p| {
-                Some(acc.map_or(p, |a: f64| a.max(p)))
-            })
+            .fold(None, |acc, p| Some(acc.map_or(p, |a: f64| a.max(p))))
     }
 
     pub fn best_ask(&self) -> Option<f64> {
@@ -2390,9 +2397,7 @@ impl TradingEngine {
             .iter()
             .filter(|e| e.side == "sell")
             .map(|e| e.price)
-            .fold(None, |acc, p| {
-                Some(acc.map_or(p, |a: f64| a.min(p)))
-            })
+            .fold(None, |acc, p| Some(acc.map_or(p, |a: f64| a.min(p))))
     }
 
     pub fn spread(&self) -> Option<f64> {
@@ -2406,8 +2411,7 @@ impl TradingEngine {
         if self.tick_latencies_us.is_empty() {
             0.0
         } else {
-            self.tick_latencies_us.iter().sum::<u64>() as f64
-                / self.tick_latencies_us.len() as f64
+            self.tick_latencies_us.iter().sum::<u64>() as f64 / self.tick_latencies_us.len() as f64
         }
     }
 
@@ -2668,17 +2672,17 @@ impl DeploymentManager {
         reward_threshold: f64,
         error_threshold: f64,
     ) {
-        let cd = CanaryDeployment::new(deployment_id, baseline, canary, reward_threshold, error_threshold);
+        let cd = CanaryDeployment::new(
+            deployment_id,
+            baseline,
+            canary,
+            reward_threshold,
+            error_threshold,
+        );
         self.canaries.insert(deployment_id.to_string(), cd);
     }
 
-    pub fn setup_autoscaler(
-        &mut self,
-        deployment_id: &str,
-        min: u32,
-        max: u32,
-        target_rps: f64,
-    ) {
+    pub fn setup_autoscaler(&mut self, deployment_id: &str, min: u32, max: u32, target_rps: f64) {
         let asc = AutoscaleConfig::new(deployment_id, min, max, target_rps);
         self.autoscalers.insert(deployment_id.to_string(), asc);
     }
@@ -2756,10 +2760,19 @@ impl RlServeOs {
         strategy: TrafficStrategy,
         policy_ids: &[&str],
     ) {
-        self.ab_controller = Some(ABTestingController::new(experiment_id, strategy, policy_ids));
+        self.ab_controller = Some(ABTestingController::new(
+            experiment_id,
+            strategy,
+            policy_ids,
+        ));
     }
 
-    pub fn setup_circuit_breaker(&mut self, policy_id: &str, failure_threshold: u64, cooldown_ms: u64) {
+    pub fn setup_circuit_breaker(
+        &mut self,
+        policy_id: &str,
+        failure_threshold: u64,
+        cooldown_ms: u64,
+    ) {
         let cb = CircuitBreaker::new(policy_id, failure_threshold, cooldown_ms);
         self.circuit_breakers.insert(policy_id.to_string(), cb);
     }
@@ -2828,7 +2841,9 @@ impl RlServeOs {
                 }
 
                 // Record to session
-                let session = self.sessions.get_or_create(&req.session_id, &req.session_id);
+                let session = self
+                    .sessions
+                    .get_or_create(&req.session_id, &req.session_id);
                 session.record_step(req.observation.clone(), resp.action.clone());
 
                 // Circuit breaker success
@@ -2871,8 +2886,13 @@ impl RlServeOs {
         self.feedback.capture_feedback(record);
     }
 
-    pub fn hot_swap_policy(&mut self, policy_id: &str, new_config: PolicyConfig) -> Result<ModelSwapRecord, String> {
-        self.hot_swap.execute_swap(&mut self.router, policy_id, new_config)
+    pub fn hot_swap_policy(
+        &mut self,
+        policy_id: &str,
+        new_config: PolicyConfig,
+    ) -> Result<ModelSwapRecord, String> {
+        self.hot_swap
+            .execute_swap(&mut self.router, policy_id, new_config)
     }
 
     pub fn check_health(&mut self) -> (HealthCheckResult, HealthCheckResult, HealthCheckResult) {
@@ -2896,14 +2916,35 @@ impl RlServeOs {
 
     pub fn summary(&self) -> HashMap<String, String> {
         let mut m = HashMap::new();
-        m.insert("total_inferences".to_string(), self.total_inferences.to_string());
+        m.insert(
+            "total_inferences".to_string(),
+            self.total_inferences.to_string(),
+        );
         m.insert("total_errors".to_string(), self.total_errors.to_string());
-        m.insert("error_rate".to_string(), format!("{:.4}", self.error_rate()));
-        m.insert("active_sessions".to_string(), self.sessions.active_count().to_string());
-        m.insert("registered_policies".to_string(), self.router.policy_count().to_string());
-        m.insert("deployments".to_string(), self.deployments.deployment_count().to_string());
-        m.insert("hot_swaps".to_string(), self.hot_swap.swap_count().to_string());
-        m.insert("replay_store_size".to_string(), self.feedback.replay_size().to_string());
+        m.insert(
+            "error_rate".to_string(),
+            format!("{:.4}", self.error_rate()),
+        );
+        m.insert(
+            "active_sessions".to_string(),
+            self.sessions.active_count().to_string(),
+        );
+        m.insert(
+            "registered_policies".to_string(),
+            self.router.policy_count().to_string(),
+        );
+        m.insert(
+            "deployments".to_string(),
+            self.deployments.deployment_count().to_string(),
+        );
+        m.insert(
+            "hot_swaps".to_string(),
+            self.hot_swap.swap_count().to_string(),
+        );
+        m.insert(
+            "replay_store_size".to_string(),
+            self.feedback.replay_size().to_string(),
+        );
         m
     }
 }
@@ -2997,7 +3038,10 @@ mod tests {
 
     #[test]
     fn test_traffic_strategy_labels() {
-        assert_eq!(TrafficStrategy::ThompsonSampling.label(), "ThompsonSampling");
+        assert_eq!(
+            TrafficStrategy::ThompsonSampling.label(),
+            "ThompsonSampling"
+        );
         assert_eq!(TrafficStrategy::Ucb.label(), "UCB");
         assert_eq!(TrafficStrategy::Interleaving.label(), "Interleaving");
     }
@@ -3015,7 +3059,10 @@ mod tests {
     fn test_canary_stage_next() {
         assert_eq!(CanaryStage::Pending.next(), Some(CanaryStage::Stage1Pct));
         assert_eq!(CanaryStage::Stage1Pct.next(), Some(CanaryStage::Stage5Pct));
-        assert_eq!(CanaryStage::Stage25Pct.next(), Some(CanaryStage::Stage100Pct));
+        assert_eq!(
+            CanaryStage::Stage25Pct.next(),
+            Some(CanaryStage::Stage100Pct)
+        );
         assert_eq!(CanaryStage::Stage100Pct.next(), None);
         assert_eq!(CanaryStage::RolledBack.next(), None);
     }
@@ -3045,7 +3092,10 @@ mod tests {
 
     #[test]
     fn test_scale_trigger_labels() {
-        let t = ScaleTrigger::RequestRate { rps: 100.0, threshold: 50.0 };
+        let t = ScaleTrigger::RequestRate {
+            rps: 100.0,
+            threshold: 50.0,
+        };
         assert_eq!(t.label(), "RequestRate");
         let t2 = ScaleTrigger::Manual { target_replicas: 3 };
         assert_eq!(t2.label(), "Manual");
@@ -3093,7 +3143,11 @@ mod tests {
 
     #[test]
     fn test_lstm_hidden_zero_layers() {
-        let h = LstmHiddenState { h: Vec::new(), c: Vec::new(), layer_count: 0 };
+        let h = LstmHiddenState {
+            h: Vec::new(),
+            c: Vec::new(),
+            layer_count: 0,
+        };
         assert_eq!(h.dim(), 0);
     }
 
@@ -3195,8 +3249,8 @@ mod tests {
     #[test]
     fn test_preprocess_normalization() {
         let obs = Observation::new(vec![10.0, 20.0]);
-        let config = PreprocessConfig::default()
-            .with_normalization(vec![5.0, 10.0], vec![5.0, 5.0]);
+        let config =
+            PreprocessConfig::default().with_normalization(vec![5.0, 10.0], vec![5.0, 5.0]);
         let result = ObservationPreprocessor::preprocess(&obs, &config);
         assert!((result[0] - 1.0).abs() < 1e-8);
         assert!((result[1] - 2.0).abs() < 1e-8);
@@ -3236,7 +3290,10 @@ mod tests {
 
     #[test]
     fn test_postprocess_scale() {
-        let config = PostprocessConfig { scale: 2.0, ..Default::default() };
+        let config = PostprocessConfig {
+            scale: 2.0,
+            ..Default::default()
+        };
         let result = ActionPostprocessor::postprocess(&[1.0, 3.0], &config);
         assert_eq!(result, vec![2.0, 6.0]);
     }
@@ -3336,8 +3393,20 @@ mod tests {
         let req_grpc = sample_request().with_protocol(ServeProtocol::Grpc);
         let _ = router.route(&req_rest);
         let _ = router.route(&req_grpc);
-        assert_eq!(*router.protocol_stats.get(&ServeProtocol::Rest).unwrap_or(&0), 1);
-        assert_eq!(*router.protocol_stats.get(&ServeProtocol::Grpc).unwrap_or(&0), 1);
+        assert_eq!(
+            *router
+                .protocol_stats
+                .get(&ServeProtocol::Rest)
+                .unwrap_or(&0),
+            1
+        );
+        assert_eq!(
+            *router
+                .protocol_stats
+                .get(&ServeProtocol::Grpc)
+                .unwrap_or(&0),
+            1
+        );
     }
 
     #[test]
@@ -3398,8 +3467,7 @@ mod tests {
 
     #[test]
     fn test_circuit_breaker_half_open_recovers() {
-        let mut cb = CircuitBreaker::new("p1", 1, 0)
-            .with_half_open_config(2, 5);
+        let mut cb = CircuitBreaker::new("p1", 1, 0).with_half_open_config(2, 5);
         cb.record_failure(); // open
         cb.try_half_open();
         cb.record_success();
@@ -3567,10 +3635,7 @@ mod tests {
     fn test_ab_weighted_split() {
         let mut ab = ABTestingController::new(
             "exp1",
-            TrafficStrategy::WeightedSplit(vec![
-                ("p1".to_string(), 0.5),
-                ("p2".to_string(), 0.5),
-            ]),
+            TrafficStrategy::WeightedSplit(vec![("p1".to_string(), 0.5), ("p2".to_string(), 0.5)]),
             &["p1", "p2"],
         );
         let selected = ab.select_policy("request-abc");
@@ -3581,11 +3646,8 @@ mod tests {
 
     #[test]
     fn test_ab_thompson() {
-        let mut ab = ABTestingController::new(
-            "exp1",
-            TrafficStrategy::ThompsonSampling,
-            &["p1", "p2"],
-        );
+        let mut ab =
+            ABTestingController::new("exp1", TrafficStrategy::ThompsonSampling, &["p1", "p2"]);
         // Initially both arms equal, selection should work
         let selected = ab.select_policy("req-1");
         assert!(selected.is_some());
@@ -3593,33 +3655,22 @@ mod tests {
 
     #[test]
     fn test_ab_ucb() {
-        let mut ab = ABTestingController::new(
-            "exp1",
-            TrafficStrategy::Ucb,
-            &["p1", "p2"],
-        );
+        let mut ab = ABTestingController::new("exp1", TrafficStrategy::Ucb, &["p1", "p2"]);
         let selected = ab.select_policy("req-1");
         assert!(selected.is_some());
     }
 
     #[test]
     fn test_ab_interleaving() {
-        let mut ab = ABTestingController::new(
-            "exp1",
-            TrafficStrategy::Interleaving,
-            &["p1", "p2"],
-        );
+        let mut ab = ABTestingController::new("exp1", TrafficStrategy::Interleaving, &["p1", "p2"]);
         let selected = ab.select_policy("req-1");
         assert!(selected.is_some());
     }
 
     #[test]
     fn test_ab_record_reward() {
-        let mut ab = ABTestingController::new(
-            "exp1",
-            TrafficStrategy::ThompsonSampling,
-            &["p1", "p2"],
-        );
+        let mut ab =
+            ABTestingController::new("exp1", TrafficStrategy::ThompsonSampling, &["p1", "p2"]);
         ab.record_reward("p1", 1.0, true);
         ab.record_reward("p1", 0.5, true);
         ab.record_reward("p2", 0.2, false);
@@ -3629,11 +3680,7 @@ mod tests {
 
     #[test]
     fn test_ab_best_policy() {
-        let mut ab = ABTestingController::new(
-            "exp1",
-            TrafficStrategy::Ucb,
-            &["p1", "p2"],
-        );
+        let mut ab = ABTestingController::new("exp1", TrafficStrategy::Ucb, &["p1", "p2"]);
         ab.record_reward("p1", 10.0, true);
         ab.record_reward("p2", 2.0, true);
         // p1 has higher reward but no pulls, so mean_reward is tracked in total_reward
@@ -4146,8 +4193,8 @@ mod tests {
         router.register_policy(sample_policy(4, 2));
         hsm.register_active("test-policy", "v1");
 
-        let new_config = PolicyConfig::new("test-policy", "v2", 4, 2)
-            .with_weights(vec![2.0; 8], vec![0.0; 2]);
+        let new_config =
+            PolicyConfig::new("test-policy", "v2", 4, 2).with_weights(vec![2.0; 8], vec![0.0; 2]);
         let result = hsm.execute_swap(&mut router, "test-policy", new_config);
         assert!(result.is_ok());
         let record = result.unwrap();
@@ -4292,8 +4339,7 @@ mod tests {
     #[test]
     fn test_serve_os_with_ab_test() {
         let mut os = make_serve_os();
-        let p2 = PolicyConfig::new("p2", "v1", 4, 2)
-            .with_weights(vec![0.5; 8], vec![0.0; 2]);
+        let p2 = PolicyConfig::new("p2", "v1", 4, 2).with_weights(vec![0.5; 8], vec![0.0; 2]);
         os.register_policy(p2);
         os.setup_ab_test(
             "exp1",
@@ -4327,8 +4373,8 @@ mod tests {
     #[test]
     fn test_serve_os_hot_swap() {
         let mut os = make_serve_os();
-        let new_config = PolicyConfig::new("test-policy", "v2", 4, 2)
-            .with_weights(vec![3.0; 8], vec![1.0; 2]);
+        let new_config =
+            PolicyConfig::new("test-policy", "v2", 4, 2).with_weights(vec![3.0; 8], vec![1.0; 2]);
         let result = os.hot_swap_policy("test-policy", new_config);
         assert!(result.is_ok());
     }
@@ -4356,7 +4402,11 @@ mod tests {
         let mut os = make_serve_os();
         os.setup_rollback_monitor("test-policy", 5, 0.2, "v1");
         os.record_feedback(FeedbackRecord::new("r1", "s1", "test-policy", 1.0));
-        assert!(!os.rollback_monitors.get("test-policy").unwrap().check_regression());
+        assert!(!os
+            .rollback_monitors
+            .get("test-policy")
+            .unwrap()
+            .check_regression());
     }
 
     #[test]
@@ -4407,11 +4457,8 @@ mod tests {
 
     #[test]
     fn test_batch_inference_request() {
-        let batch = BatchInferenceRequest::new(
-            "b1",
-            vec![sample_request(), sample_request()],
-            50_000,
-        );
+        let batch =
+            BatchInferenceRequest::new("b1", vec![sample_request(), sample_request()], 50_000);
         assert_eq!(batch.size(), 2);
     }
 

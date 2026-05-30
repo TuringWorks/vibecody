@@ -1,9 +1,9 @@
 //! VibeUI - AI-Powered Code Editor
 #![recursion_limit = "512"]
 
+mod agent_executor;
 mod commands;
 mod flow;
-mod agent_executor;
 mod memory;
 mod panel_store;
 pub mod shadow_workspace;
@@ -14,14 +14,14 @@ pub mod shadow_workspace;
 pub use vibe_core::sonar_rules;
 
 use commands::AppState;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::Manager;
 use tokio::sync::Mutex;
-use vibe_core::Workspace;
-use vibe_ai::{ChatEngine, providers, AIConfig};
 use vibe_ai::provider::ProviderConfig;
-use std::path::PathBuf;
+use vibe_ai::{providers, AIConfig, ChatEngine};
 use vibe_core::terminal::TerminalManager;
+use vibe_core::Workspace;
 use vibe_lsp::manager::LspManager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -32,13 +32,17 @@ pub fn run() {
     // nvm, etc. We source the user's login shell to get the real PATH.
     #[cfg(target_os = "macos")]
     {
-        if let Ok(shell) = std::env::var("SHELL").or_else(|_| Ok::<String, std::env::VarError>("/bin/zsh".to_string())) {
+        if let Ok(shell) = std::env::var("SHELL")
+            .or_else(|_| Ok::<String, std::env::VarError>("/bin/zsh".to_string()))
+        {
             if let Ok(output) = std::process::Command::new(&shell)
                 .args(["-l", "-c", "echo __PATH_START__${PATH}__PATH_END__"])
                 .output()
             {
                 let stdout = String::from_utf8_lossy(&output.stdout);
-                if let (Some(start), Some(end)) = (stdout.find("__PATH_START__"), stdout.find("__PATH_END__")) {
+                if let (Some(start), Some(end)) =
+                    (stdout.find("__PATH_START__"), stdout.find("__PATH_END__"))
+                {
                     let shell_path = &stdout[start + 14..end];
                     // Merge: prepend shell-derived paths to current PATH
                     let current = std::env::var("PATH").unwrap_or_default();
@@ -48,7 +52,9 @@ pub fn run() {
                         format!("{shell_path}:{current}")
                     };
                     // SAFETY: Called before the async runtime starts, so no other threads are running.
-                    unsafe { std::env::set_var("PATH", &merged); }
+                    unsafe {
+                        std::env::set_var("PATH", &merged);
+                    }
                 }
             }
         }
@@ -78,7 +84,9 @@ pub fn run() {
                     provider_type: "ollama".to_string(),
                     api_key: ollama_conf.api_key,
                     model,
-                    api_url: ollama_conf.api_url.or_else(|| Some("http://127.0.0.1:11434".to_string())),
+                    api_url: ollama_conf
+                        .api_url
+                        .or_else(|| Some("http://127.0.0.1:11434".to_string())),
                     max_tokens: ollama_conf.max_tokens,
                     temperature: ollama_conf.temperature,
                     ..Default::default()
@@ -106,7 +114,10 @@ pub fn run() {
     let terminal_buffer = Arc::new(Mutex::new(Vec::<String>::new()));
     let agent_abort_handle = Arc::new(Mutex::new(None));
     let chat_abort_handle = Arc::new(Mutex::new(None));
-    let provider_health = Arc::new(vibe_ai::ProviderHealthTracker::new(100, std::time::Duration::from_secs(3600)));
+    let provider_health = Arc::new(vibe_ai::ProviderHealthTracker::new(
+        100,
+        std::time::Duration::from_secs(3600),
+    ));
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -1854,8 +1865,8 @@ mod tests {
     fn ai_config_load_missing_file_returns_default() {
         use std::path::PathBuf;
         use vibe_ai::AIConfig;
-        let config = AIConfig::load_from_file(&PathBuf::from("/nonexistent/vibe.toml"))
-            .unwrap_or_default();
+        let config =
+            AIConfig::load_from_file(&PathBuf::from("/nonexistent/vibe.toml")).unwrap_or_default();
         // Default config should have no ollama section
         assert!(config.ollama.is_none());
     }

@@ -63,7 +63,11 @@ pub fn render_mermaid(source: &str) -> String {
     if first_lower.starts_with("sequencediagram") {
         render_sequence(trimmed)
     } else if first_lower.starts_with("graph") || first_lower.starts_with("flowchart") {
-        let direction = if first_lower.contains("lr") { Direction::LR } else { Direction::TD };
+        let direction = if first_lower.contains("lr") {
+            Direction::LR
+        } else {
+            Direction::TD
+        };
         render_graph(trimmed, direction)
     } else {
         // Unknown diagram type — return as-is
@@ -104,9 +108,9 @@ struct Edge {
 
 #[derive(Debug, Clone)]
 enum EdgeStyle {
-    Arrow,  // -->
-    Line,   // ---
-    Thick,  // ==>
+    Arrow, // -->
+    Line,  // ---
+    Thick, // ==>
 }
 
 fn parse_graph(source: &str) -> (Vec<Node>, Vec<Edge>) {
@@ -115,7 +119,11 @@ fn parse_graph(source: &str) -> (Vec<Node>, Vec<Edge>) {
 
     for line in source.lines().skip(1) {
         let line = line.trim();
-        if line.is_empty() || line.starts_with("%%") || line.starts_with("style") || line.starts_with("class") {
+        if line.is_empty()
+            || line.starts_with("%%")
+            || line.starts_with("style")
+            || line.starts_with("class")
+        {
             continue;
         }
 
@@ -170,11 +178,14 @@ fn parse_graph(source: &str) -> (Vec<Node>, Vec<Edge>) {
 
 fn ensure_node(nodes: &mut HashMap<String, Node>, id: &str) {
     if !nodes.contains_key(id) {
-        nodes.insert(id.to_string(), Node {
-            id: id.to_string(),
-            label: id.to_string(),
-            shape: NodeShape::Rect,
-        });
+        nodes.insert(
+            id.to_string(),
+            Node {
+                id: id.to_string(),
+                label: id.to_string(),
+                shape: NodeShape::Rect,
+            },
+        );
     }
 }
 
@@ -191,13 +202,13 @@ fn try_parse_node_def(s: &str) -> Option<Node> {
 
     let rest = &s[id_end..];
     let (label, shape) = if rest.starts_with("((") && rest.ends_with("))") {
-        (rest[2..rest.len()-2].to_string(), NodeShape::Circle)
+        (rest[2..rest.len() - 2].to_string(), NodeShape::Circle)
     } else if rest.starts_with('[') && rest.ends_with(']') {
-        (rest[1..rest.len()-1].to_string(), NodeShape::Rect)
+        (rest[1..rest.len() - 1].to_string(), NodeShape::Rect)
     } else if rest.starts_with('{') && rest.ends_with('}') {
-        (rest[1..rest.len()-1].to_string(), NodeShape::Diamond)
+        (rest[1..rest.len() - 1].to_string(), NodeShape::Diamond)
     } else if rest.starts_with('(') && rest.ends_with(')') {
-        (rest[1..rest.len()-1].to_string(), NodeShape::Round)
+        (rest[1..rest.len() - 1].to_string(), NodeShape::Round)
     } else {
         return None;
     };
@@ -241,12 +252,16 @@ fn try_parse_edge_with_parts(s: &str) -> Option<(Edge, &str, String)> {
             let to_id = extract_node_id(&to_part);
 
             if !from_id.is_empty() && !to_id.is_empty() {
-                return Some((Edge {
-                    from: from_id,
-                    to: to_id,
-                    label,
-                    style: style.clone(),
-                }, left, to_part));
+                return Some((
+                    Edge {
+                        from: from_id,
+                        to: to_id,
+                        label,
+                        style: style.clone(),
+                    },
+                    left,
+                    to_part,
+                ));
             }
         }
     }
@@ -297,7 +312,7 @@ fn render_box(label: &str, shape: &NodeShape) -> Vec<String> {
             vec![
                 format!("{}/\\{}", " ".repeat(half), " ".repeat(half)),
                 format!("<  {}  >", label),
-                format!("{}\\/{}",  " ".repeat(half), " ".repeat(half)),
+                format!("{}\\/{}", " ".repeat(half), " ".repeat(half)),
             ]
         }
         NodeShape::Circle => {
@@ -391,21 +406,27 @@ fn render_lr(nodes: &[Node], edges: &[Edge]) -> String {
         // Horizontal arrow
         let label = edge.label.as_deref().unwrap_or("");
         let arrow = match edge.style {
-            EdgeStyle::Arrow => if label.is_empty() {
-                " ──▶ ".to_string()
-            } else {
-                format!(" ─{}─▶ ", label)
-            },
-            EdgeStyle::Thick => if label.is_empty() {
-                " ══▶ ".to_string()
-            } else {
-                format!(" ═{}═▶ ", label)
-            },
-            EdgeStyle::Line => if label.is_empty() {
-                " ─── ".to_string()
-            } else {
-                format!(" ─{}── ", label)
-            },
+            EdgeStyle::Arrow => {
+                if label.is_empty() {
+                    " ──▶ ".to_string()
+                } else {
+                    format!(" ─{}─▶ ", label)
+                }
+            }
+            EdgeStyle::Thick => {
+                if label.is_empty() {
+                    " ══▶ ".to_string()
+                } else {
+                    format!(" ═{}═▶ ", label)
+                }
+            }
+            EdgeStyle::Line => {
+                if label.is_empty() {
+                    " ─── ".to_string()
+                } else {
+                    format!(" ─{}── ", label)
+                }
+            }
         };
         let aw = arrow.len();
         row_top.push_str(&" ".repeat(aw));
@@ -486,7 +507,13 @@ fn render_sequence(source: &str) -> String {
         return "[Empty sequence diagram]".to_string();
     }
 
-    let col_width = participants.iter().map(|p| p.len()).max().unwrap_or(6).max(8) + 4;
+    let col_width = participants
+        .iter()
+        .map(|p| p.len())
+        .max()
+        .unwrap_or(6)
+        .max(8)
+        + 4;
     let mut lines: Vec<String> = Vec::new();
 
     // Header: participant names
@@ -508,7 +535,8 @@ fn render_sequence(source: &str) -> String {
         let from_idx = participants.iter().position(|p| p == from).unwrap_or(0);
         let to_idx = participants.iter().position(|p| p == to).unwrap_or(0);
 
-        let mut msg_line: Vec<String> = participants.iter().map(|_| " ".repeat(col_width)).collect();
+        let mut msg_line: Vec<String> =
+            participants.iter().map(|_| " ".repeat(col_width)).collect();
 
         if from_idx < to_idx {
             // Left to right arrow
@@ -521,9 +549,17 @@ fn render_sequence(source: &str) -> String {
             let padded = pad_with_dashes(&arrow_body, span.saturating_sub(2));
             msg_line[from_idx] = format!("{:^width$}", padded, width = span);
             // Flatten
-            let flat: String = msg_line.iter().take(from_idx).map(|s| s.as_str()).collect::<String>()
+            let flat: String = msg_line
+                .iter()
+                .take(from_idx)
+                .map(|s| s.as_str())
+                .collect::<String>()
                 + &msg_line[from_idx]
-                + &msg_line.iter().skip(to_idx + 1).map(|s| s.as_str()).collect::<String>();
+                + &msg_line
+                    .iter()
+                    .skip(to_idx + 1)
+                    .map(|s| s.as_str())
+                    .collect::<String>();
             lines.push(flat);
         } else if to_idx < from_idx {
             // Right to left arrow
@@ -535,13 +571,26 @@ fn render_sequence(source: &str) -> String {
             };
             let padded = pad_with_dashes(&arrow_body, span.saturating_sub(2));
             msg_line[to_idx] = format!("{:^width$}", padded, width = span);
-            let flat: String = msg_line.iter().take(to_idx).map(|s| s.as_str()).collect::<String>()
+            let flat: String = msg_line
+                .iter()
+                .take(to_idx)
+                .map(|s| s.as_str())
+                .collect::<String>()
                 + &msg_line[to_idx]
-                + &msg_line.iter().skip(from_idx + 1).map(|s| s.as_str()).collect::<String>();
+                + &msg_line
+                    .iter()
+                    .skip(from_idx + 1)
+                    .map(|s| s.as_str())
+                    .collect::<String>();
             lines.push(flat);
         } else {
             // Self-message
-            lines.push(format!("{:>width$}↻ {}", "", label, width = from_idx * col_width + col_width / 2));
+            lines.push(format!(
+                "{:>width$}↻ {}",
+                "",
+                label,
+                width = from_idx * col_width + col_width / 2
+            ));
         }
 
         lines.push(vline.clone());
@@ -564,7 +613,10 @@ fn try_parse_seq_message(line: &str) -> Option<(String, String, String, bool)> {
             let rest = rest.trim_start_matches('+').trim_start_matches('-');
 
             let (to, label) = if let Some(colon) = rest.find(':') {
-                (rest[..colon].trim().to_string(), rest[colon + 1..].trim().to_string())
+                (
+                    rest[..colon].trim().to_string(),
+                    rest[colon + 1..].trim().to_string(),
+                )
             } else {
                 (rest.trim().to_string(), String::new())
             };
@@ -748,7 +800,8 @@ mod tests {
 
     #[test]
     fn sequence_with_participants() {
-        let src = "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hi";
+        let src =
+            "sequenceDiagram\n    participant A as Alice\n    participant B as Bob\n    A->>B: Hi";
         let result = render_mermaid(src);
         assert!(result.contains("Alice"));
         assert!(result.contains("Bob"));

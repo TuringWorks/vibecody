@@ -116,8 +116,9 @@ impl Scanner for TaintScanner {
             }
 
             let lang = match path.extension().and_then(|e| e.to_str()) {
-                Some("ts") | Some("tsx") | Some("js") | Some("jsx") | Some("mjs")
-                | Some("cjs") => Language::Js,
+                Some("ts") | Some("tsx") | Some("js") | Some("jsx") | Some("mjs") | Some("cjs") => {
+                    Language::Js
+                }
                 Some("py") => Language::Python,
                 _ => continue,
             };
@@ -377,7 +378,7 @@ fn sanitizer_patterns(lang: Language) -> &'static [regex::Regex] {
         Language::Python => PY.get_or_init(|| {
             [
                 r"\bhtml\.escape\s*\(",
-                r"\bquote\s*\(",  // urllib.parse.quote
+                r"\bquote\s*\(", // urllib.parse.quote
                 r"\bquote_plus\s*\(",
                 r"\bshlex\.quote\s*\(",
                 r"\bos\.path\.normpath\s*\(",
@@ -411,7 +412,9 @@ fn assignment_var_name(line: &str, lang: Language) -> Option<String> {
                 .expect("hardcoded Py assign regex compiles")
         }),
     };
-    re.captures(line).and_then(|c| c.get(1)).map(|m| m.as_str().to_string())
+    re.captures(line)
+        .and_then(|c| c.get(1))
+        .map(|m| m.as_str().to_string())
 }
 
 /// `function name(...)`, `(...)  =>`, `const foo = (...) =>`, `class M {`,
@@ -427,7 +430,9 @@ fn looks_like_function_boundary(line: &str, lang: Language) -> bool {
                 || t.contains("function(")
                 || t.contains("function (")
         }
-        Language::Python => t.starts_with("def ") || t.starts_with("async def ") || t.starts_with("class "),
+        Language::Python => {
+            t.starts_with("def ") || t.starts_with("async def ") || t.starts_with("class ")
+        }
     }
 }
 
@@ -541,8 +546,7 @@ fn line_contains_variable_use(line: &str, var: &str) -> bool {
                 && line.as_bytes()[abs - 1] != b'_';
         let after = abs + var.len();
         let after_ok = after >= line.len()
-            || !line.as_bytes()[after].is_ascii_alphanumeric()
-                && line.as_bytes()[after] != b'_';
+            || !line.as_bytes()[after].is_ascii_alphanumeric() && line.as_bytes()[after] != b'_';
         if before_ok && after_ok {
             return true;
         }
@@ -670,7 +674,8 @@ function unrelated_helper(x) {
         // — function boundary should have cleared the caller's
         // tainted set, so no finding for the readFile line.
         assert!(
-            !f.iter().any(|f| f.line == Some(6) && f.rule_id.contains("path-traversal")),
+            !f.iter()
+                .any(|f| f.line == Some(6) && f.rule_id.contains("path-traversal")),
             "function boundary should isolate taint, got: {f:?}"
         );
     }
@@ -702,7 +707,10 @@ def handler():
     fn js_no_finding_for_eval_of_literal() {
         // eval of a literal is still bad practice but no taint.
         let f = scan_js(r#"eval("1 + 1");"#);
-        assert!(f.is_empty(), "literal eval has no source, no taint, got: {f:?}");
+        assert!(
+            f.is_empty(),
+            "literal eval has no source, no taint, got: {f:?}"
+        );
     }
 
     #[test]
@@ -720,7 +728,10 @@ def handler():
             .iter()
             .filter(|f| f.rule_id.contains("code-injection"))
             .count();
-        assert!(code_injection_count <= 1, "dedup expected, got {code_injection_count}");
+        assert!(
+            code_injection_count <= 1,
+            "dedup expected, got {code_injection_count}"
+        );
     }
 
     // ── Variable-use word-boundary ──

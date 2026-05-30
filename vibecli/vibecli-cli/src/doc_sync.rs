@@ -296,9 +296,7 @@ impl DocSyncEngine {
             }
             for file in &link.code_files {
                 let already_exists = self.alerts.iter().any(|a| {
-                    a.spec_section_id == link.spec_section
-                        && a.code_file == *file
-                        && !a.resolved
+                    a.spec_section_id == link.spec_section && a.code_file == *file && !a.resolved
                 });
                 if already_exists {
                     continue;
@@ -342,9 +340,10 @@ impl DocSyncEngine {
             if alert.resolved {
                 continue;
             }
-            let already = self.actions.iter().any(|a| {
-                a.spec_section_id == alert.spec_section_id && !a.applied
-            });
+            let already = self
+                .actions
+                .iter()
+                .any(|a| a.spec_section_id == alert.spec_section_id && !a.applied);
             if already {
                 continue;
             }
@@ -352,24 +351,37 @@ impl DocSyncEngine {
             let (action_type, desc, auto_applicable) = if alert.drift_score >= 80.0 {
                 (
                     SyncActionType::MarkStale,
-                    format!("Mark section '{}' as stale (drift {:.1})", alert.spec_section_id, alert.drift_score),
+                    format!(
+                        "Mark section '{}' as stale (drift {:.1})",
+                        alert.spec_section_id, alert.drift_score
+                    ),
                     auto,
                 )
             } else if alert.drift_score >= 50.0 {
                 (
                     SyncActionType::RequestReview,
-                    format!("Request review for section '{}' (drift {:.1})", alert.spec_section_id, alert.drift_score),
+                    format!(
+                        "Request review for section '{}' (drift {:.1})",
+                        alert.spec_section_id, alert.drift_score
+                    ),
                     false,
                 )
             } else {
                 (
                     SyncActionType::UpdateSpec,
-                    format!("Update spec section '{}' (drift {:.1})", alert.spec_section_id, alert.drift_score),
+                    format!(
+                        "Update spec section '{}' (drift {:.1})",
+                        alert.spec_section_id, alert.drift_score
+                    ),
                     auto,
                 )
             };
 
-            let action_id = format!("action-{}-{}", alert.spec_section_id, self.actions.len() + pending.len());
+            let action_id = format!(
+                "action-{}-{}",
+                alert.spec_section_id,
+                self.actions.len() + pending.len()
+            );
             pending.push(SyncAction {
                 id: action_id,
                 action_type,
@@ -450,7 +462,11 @@ impl DocSyncEngine {
                 .iter()
                 .filter(|l| l.spec_section == *id)
                 .flat_map(|l| &l.code_files)
-                .filter(|f| self.changes.iter().any(|c| c.file_path == **f && c.timestamp > last_synced))
+                .filter(|f| {
+                    self.changes
+                        .iter()
+                        .any(|c| c.file_path == **f && c.timestamp > last_synced)
+                })
                 .count() as u32;
 
             entries.push(SectionFreshness {
@@ -577,7 +593,10 @@ mod tests {
         let mut e = DocSyncEngine::new();
         let mut s = make_section("x");
         s.id = String::new();
-        assert!(e.add_spec_section(s).unwrap_err().contains("must not be empty"));
+        assert!(e
+            .add_spec_section(s)
+            .unwrap_err()
+            .contains("must not be empty"));
     }
 
     #[test]
@@ -619,7 +638,10 @@ mod tests {
     fn test_add_link_no_files() {
         let mut e = DocSyncEngine::new();
         let l = make_link("s1", vec![], 100);
-        assert!(e.add_link(l).unwrap_err().contains("at least one code file"));
+        assert!(e
+            .add_link(l)
+            .unwrap_err()
+            .contains("at least one code file"));
     }
 
     // --- Code change recording ---
@@ -663,7 +685,8 @@ mod tests {
         e.add_spec_section(make_section("s1")).unwrap();
         e.add_link(make_link("s1", vec!["a.rs"], 100)).unwrap();
         // Change 2 days after last sync.
-        e.record_code_change(make_change("a.rs", 100 + 86400 * 2)).unwrap();
+        e.record_code_change(make_change("a.rs", 100 + 86400 * 2))
+            .unwrap();
         let drifted = e.check_drift();
         // drift = 2 * 5.0 = 10.0, below default threshold 20.0
         assert_eq!(drifted, 0);
@@ -677,7 +700,8 @@ mod tests {
         e.add_spec_section(make_section("s1")).unwrap();
         e.add_link(make_link("s1", vec!["a.rs"], 100)).unwrap();
         // 5 days => drift 25.0 > threshold 20.0
-        e.record_code_change(make_change("a.rs", 100 + 86400 * 5)).unwrap();
+        e.record_code_change(make_change("a.rs", 100 + 86400 * 5))
+            .unwrap();
         assert_eq!(e.check_drift(), 1);
     }
 
@@ -687,7 +711,8 @@ mod tests {
         e.add_spec_section(make_section("s1")).unwrap();
         e.add_link(make_link("s1", vec!["a.rs"], 0)).unwrap();
         // 30 days => 150.0, capped at 100
-        e.record_code_change(make_change("a.rs", 86400 * 30)).unwrap();
+        e.record_code_change(make_change("a.rs", 86400 * 30))
+            .unwrap();
         e.check_drift();
         assert_eq!(e.links[0].drift_score, 100.0);
         assert_eq!(e.sections["s1"].freshness, 0.0);
@@ -701,7 +726,8 @@ mod tests {
         e.add_link(make_link("s1", vec!["a.rs"], 100)).unwrap();
         e.add_link(make_link("s2", vec!["b.rs"], 100)).unwrap();
         // s1: 2 days drift=10, s2: no change drift=0
-        e.record_code_change(make_change("a.rs", 100 + 86400 * 2)).unwrap();
+        e.record_code_change(make_change("a.rs", 100 + 86400 * 2))
+            .unwrap();
         e.check_drift();
         assert!((e.metrics.avg_drift - 5.0).abs() < 0.01);
     }
@@ -721,7 +747,8 @@ mod tests {
         let mut e = DocSyncEngine::new();
         e.add_spec_section(make_section("s1")).unwrap();
         e.add_link(make_link("s1", vec!["a.rs"], 100)).unwrap();
-        e.record_code_change(make_change("a.rs", 100 + 86400 * 5)).unwrap();
+        e.record_code_change(make_change("a.rs", 100 + 86400 * 5))
+            .unwrap();
         e.check_drift();
         assert_eq!(e.generate_alerts(), 1);
         assert_eq!(e.alerts.len(), 1);
@@ -734,7 +761,8 @@ mod tests {
         let mut e = DocSyncEngine::new();
         e.add_spec_section(make_section("s1")).unwrap();
         e.add_link(make_link("s1", vec!["a.rs"], 100)).unwrap();
-        e.record_code_change(make_change("a.rs", 100 + 86400 * 5)).unwrap();
+        e.record_code_change(make_change("a.rs", 100 + 86400 * 5))
+            .unwrap();
         e.check_drift();
         e.generate_alerts();
         // Call again — should not duplicate.
@@ -747,7 +775,8 @@ mod tests {
         let mut e = DocSyncEngine::new();
         e.add_spec_section(make_section("s1")).unwrap();
         e.add_link(make_link("s1", vec!["a.rs"], 100)).unwrap();
-        e.record_code_change(make_change("a.rs", 100 + 86400 * 5)).unwrap();
+        e.record_code_change(make_change("a.rs", 100 + 86400 * 5))
+            .unwrap();
         e.check_drift();
         e.generate_alerts();
         e.mark_resolved(&e.alerts[0].id.clone()).unwrap();
@@ -764,7 +793,8 @@ mod tests {
         e.add_spec_section(make_section("s1")).unwrap();
         e.add_link(make_link("s1", vec!["a.rs"], 100)).unwrap();
         // drift ~25 => UpdateSpec action
-        e.record_code_change(make_change("a.rs", 100 + 86400 * 5)).unwrap();
+        e.record_code_change(make_change("a.rs", 100 + 86400 * 5))
+            .unwrap();
         e.check_drift();
         e.generate_alerts();
         assert_eq!(e.generate_sync_actions(), 1);
@@ -777,7 +807,8 @@ mod tests {
         e.add_spec_section(make_section("s1")).unwrap();
         e.add_link(make_link("s1", vec!["a.rs"], 100)).unwrap();
         // 11 days => drift 55 => RequestReview
-        e.record_code_change(make_change("a.rs", 100 + 86400 * 11)).unwrap();
+        e.record_code_change(make_change("a.rs", 100 + 86400 * 11))
+            .unwrap();
         e.check_drift();
         e.generate_alerts();
         e.generate_sync_actions();
@@ -791,7 +822,8 @@ mod tests {
         e.add_spec_section(make_section("s1")).unwrap();
         e.add_link(make_link("s1", vec!["a.rs"], 100)).unwrap();
         // 17 days => drift 85 => MarkStale
-        e.record_code_change(make_change("a.rs", 100 + 86400 * 17)).unwrap();
+        e.record_code_change(make_change("a.rs", 100 + 86400 * 17))
+            .unwrap();
         e.check_drift();
         e.generate_alerts();
         e.generate_sync_actions();
@@ -803,7 +835,8 @@ mod tests {
         let mut e = DocSyncEngine::new();
         e.add_spec_section(make_section("s1")).unwrap();
         e.add_link(make_link("s1", vec!["a.rs"], 100)).unwrap();
-        e.record_code_change(make_change("a.rs", 100 + 86400 * 5)).unwrap();
+        e.record_code_change(make_change("a.rs", 100 + 86400 * 5))
+            .unwrap();
         e.check_drift();
         e.generate_alerts();
         e.generate_sync_actions();
@@ -818,7 +851,8 @@ mod tests {
         e.config.auto_reconcile = true;
         e.add_spec_section(make_section("s1")).unwrap();
         e.add_link(make_link("s1", vec!["a.rs"], 100)).unwrap();
-        e.record_code_change(make_change("a.rs", 100 + 86400 * 5)).unwrap();
+        e.record_code_change(make_change("a.rs", 100 + 86400 * 5))
+            .unwrap();
         e.check_drift();
         e.generate_alerts();
         e.generate_sync_actions();
@@ -837,7 +871,8 @@ mod tests {
         e.config.auto_reconcile = false;
         e.add_spec_section(make_section("s1")).unwrap();
         e.add_link(make_link("s1", vec!["a.rs"], 100)).unwrap();
-        e.record_code_change(make_change("a.rs", 100 + 86400 * 5)).unwrap();
+        e.record_code_change(make_change("a.rs", 100 + 86400 * 5))
+            .unwrap();
         e.check_drift();
         e.generate_alerts();
         e.generate_sync_actions();
@@ -851,7 +886,8 @@ mod tests {
         let mut e = DocSyncEngine::new();
         e.add_spec_section(make_section("s1")).unwrap();
         e.add_link(make_link("s1", vec!["a.rs"], 100)).unwrap();
-        e.record_code_change(make_change("a.rs", 100 + 86400 * 5)).unwrap();
+        e.record_code_change(make_change("a.rs", 100 + 86400 * 5))
+            .unwrap();
         e.check_drift();
         e.generate_alerts();
         let id = e.alerts[0].id.clone();
@@ -894,7 +930,8 @@ mod tests {
         let mut e = DocSyncEngine::new();
         e.add_spec_section(make_section("s1")).unwrap();
         e.add_link(make_link("s1", vec!["a.rs"], 100)).unwrap();
-        e.record_code_change(make_change("a.rs", 100 + 86400 * 15)).unwrap();
+        e.record_code_change(make_change("a.rs", 100 + 86400 * 15))
+            .unwrap();
         e.check_drift();
         let r = e.get_freshness_report();
         assert_eq!(r.total_sections, 1);
@@ -989,7 +1026,8 @@ mod tests {
         e.config.auto_reconcile = true;
         e.add_spec_section(make_section("s1")).unwrap();
         e.add_link(make_link("s1", vec!["a.rs"], 100)).unwrap();
-        e.record_code_change(make_change("a.rs", 100 + 86400 * 5)).unwrap();
+        e.record_code_change(make_change("a.rs", 100 + 86400 * 5))
+            .unwrap();
         e.check_drift();
         e.generate_alerts();
         e.generate_sync_actions();
@@ -1007,8 +1045,10 @@ mod tests {
     fn test_multiple_files_per_link() {
         let mut e = DocSyncEngine::new();
         e.add_spec_section(make_section("s1")).unwrap();
-        e.add_link(make_link("s1", vec!["a.rs", "b.rs"], 100)).unwrap();
-        e.record_code_change(make_change("b.rs", 100 + 86400 * 5)).unwrap();
+        e.add_link(make_link("s1", vec!["a.rs", "b.rs"], 100))
+            .unwrap();
+        e.record_code_change(make_change("b.rs", 100 + 86400 * 5))
+            .unwrap();
         e.check_drift();
         assert!(e.links[0].drift_score > 0.0);
     }
@@ -1018,7 +1058,8 @@ mod tests {
         let mut e = DocSyncEngine::new();
         e.add_spec_section(make_section("s1")).unwrap();
         e.add_link(make_link("s1", vec!["a.rs"], 100)).unwrap();
-        e.record_code_change(make_change("unrelated.rs", 100 + 86400 * 50)).unwrap();
+        e.record_code_change(make_change("unrelated.rs", 100 + 86400 * 50))
+            .unwrap();
         assert_eq!(e.check_drift(), 0);
         assert_eq!(e.links[0].drift_score, 0.0);
     }

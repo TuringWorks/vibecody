@@ -1,5 +1,5 @@
 use ratatui::{
-    layout::{Constraint, Direction, Layout, Rect, Alignment},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Wrap},
@@ -23,12 +23,15 @@ pub fn draw(f: &mut Frame, app: &App) {
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Min(1),
-            Constraint::Length(diag_height),
-            Constraint::Length(metrics_height),
-            Constraint::Length(3),
-        ].as_ref())
+        .constraints(
+            [
+                Constraint::Min(1),
+                Constraint::Length(diag_height),
+                Constraint::Length(metrics_height),
+                Constraint::Length(3),
+            ]
+            .as_ref(),
+        )
         .split(f.area());
 
     match app.current_screen {
@@ -77,13 +80,17 @@ pub(crate) fn draw_metrics_strip(
     spans.push(Span::styled("Q=", Style::default().fg(t.dim)));
     spans.push(Span::styled(
         m.queued.to_string(),
-        Style::default().fg(col(t.text)).add_modifier(Modifier::BOLD),
+        Style::default()
+            .fg(col(t.text))
+            .add_modifier(Modifier::BOLD),
     ));
     spans.push(Span::raw("  "));
     spans.push(Span::styled("R=", Style::default().fg(t.dim)));
     spans.push(Span::styled(
         m.running.to_string(),
-        Style::default().fg(col(t.warning)).add_modifier(Modifier::BOLD),
+        Style::default()
+            .fg(col(t.warning))
+            .add_modifier(Modifier::BOLD),
     ));
     spans.push(Span::raw("  "));
     spans.push(Span::styled(
@@ -137,11 +144,17 @@ fn draw_file_tree(f: &mut Frame, app: &App, area: Rect) {
         let file_name = path.file_name().unwrap_or_default().to_string_lossy();
         let icon = if path.is_dir() { "📁" } else { "📄" };
         let style = if i == app.file_tree.selected_index {
-            Style::default().fg(t.selection_fg).bg(t.selection_bg).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(t.selection_fg)
+                .bg(t.selection_bg)
+                .add_modifier(Modifier::BOLD)
         } else {
             Style::default().fg(t.text)
         };
-        items.push(Line::from(Span::styled(format!("{} {}", icon, file_name), style)));
+        items.push(Line::from(Span::styled(
+            format!("{} {}", icon, file_name),
+            style,
+        )));
     }
 
     let paragraph = Paragraph::new(items).scroll((0, 0));
@@ -231,10 +244,11 @@ fn draw_goals(f: &mut Frame, app: &App, area: Rect) {
 
 fn draw_diff_view(f: &mut Frame, app: &App, area: Rect) {
     let mode_label = app.diff_view.view_mode.label();
-    let title = format!(" Diff View [{}] (Press ESC or /chat to return) ", mode_label);
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(title);
+    let title = format!(
+        " Diff View [{}] (Press ESC or /chat to return) ",
+        mode_label
+    );
+    let block = Block::default().borders(Borders::ALL).title(title);
     let inner_area = block.inner(area);
     f.render_widget(block, area);
 
@@ -255,9 +269,9 @@ pub fn draw_agent_view(f: &mut Frame, app: &App, area: Rect) {
     };
     let status_style = match &av.status {
         AgentStatus::WaitingApproval => Style::default().fg(t.warning).add_modifier(Modifier::BOLD),
-        AgentStatus::Complete(_)     => Style::default().fg(t.success).add_modifier(Modifier::BOLD),
-        AgentStatus::Error(_)        => Style::default().fg(t.error).add_modifier(Modifier::BOLD),
-        AgentStatus::Running         => Style::default().fg(t.primary).add_modifier(Modifier::BOLD),
+        AgentStatus::Complete(_) => Style::default().fg(t.success).add_modifier(Modifier::BOLD),
+        AgentStatus::Error(_) => Style::default().fg(t.error).add_modifier(Modifier::BOLD),
+        AgentStatus::Running => Style::default().fg(t.primary).add_modifier(Modifier::BOLD),
     };
 
     let block = Block::default()
@@ -290,8 +304,14 @@ pub fn draw_agent_view(f: &mut Frame, app: &App, area: Rect) {
             Style::default().fg(t.warning),
         )));
         lines.push(Line::from(vec![
-            Span::styled(" Tool: ", Style::default().fg(t.warning).add_modifier(Modifier::BOLD)),
-            Span::styled(call.name(), Style::default().fg(t.text).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                " Tool: ",
+                Style::default().fg(t.warning).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                call.name(),
+                Style::default().fg(t.text).add_modifier(Modifier::BOLD),
+            ),
         ]));
         lines.push(Line::from(vec![
             Span::styled(" Call: ", Style::default().fg(t.warning)),
@@ -333,7 +353,11 @@ pub fn draw_agent_view(f: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_step(lines: &mut Vec<Line>, step: &AgentStep, t: &crate::tui::theme::Theme) {
-    let icon = if step.tool_result.success { "✅" } else { "❌" };
+    let icon = if step.tool_result.success {
+        "✅"
+    } else {
+        "❌"
+    };
     lines.push(Line::from(vec![
         Span::styled(
             format!(" {} Step {} — ", icon, step.step_num + 1),
@@ -359,21 +383,59 @@ fn draw_main_area(f: &mut Frame, app: &App, area: Rect) {
 
     if app.messages.is_empty() {
         let logo_text = vec![
-            Line::from(Span::styled("Welcome back User!", Style::default().add_modifier(Modifier::BOLD))),
+            Line::from(Span::styled(
+                "Welcome back User!",
+                Style::default().add_modifier(Modifier::BOLD),
+            )),
             Line::from(""),
-            Line::from(Span::styled("  o              o     o      o                       ", Style::default().fg(t.logo))),
-            Line::from(Span::styled(" <|>            <|>  _<|>_   <|>                      ", Style::default().fg(t.logo))),
-            Line::from(Span::styled(" < >            < >          / >                      ", Style::default().fg(t.logo))),
-            Line::from(Span::styled("  \\o            o/     o    \\o__ __o       o__  __o  ", Style::default().fg(t.logo))),
-            Line::from(Span::styled("   v\\          /v     <|>    |     v\\     /v      |> ", Style::default().fg(t.logo))),
-            Line::from(Span::styled("    <\\        />      / \\   / \\     <\\   />      //  ", Style::default().fg(t.logo))),
-            Line::from(Span::styled("      \\o    o/        \\o/   \\o/      /   \\o    o/    ", Style::default().fg(t.logo))),
-            Line::from(Span::styled("       v\\  /v          |     |      o     v\\  /v __o ", Style::default().fg(t.logo))),
-            Line::from(Span::styled("        <\\/>          / \\   / \\  __/>      <\\/> __/> ", Style::default().fg(t.logo))),
+            Line::from(Span::styled(
+                "  o              o     o      o                       ",
+                Style::default().fg(t.logo),
+            )),
+            Line::from(Span::styled(
+                " <|>            <|>  _<|>_   <|>                      ",
+                Style::default().fg(t.logo),
+            )),
+            Line::from(Span::styled(
+                " < >            < >          / >                      ",
+                Style::default().fg(t.logo),
+            )),
+            Line::from(Span::styled(
+                "  \\o            o/     o    \\o__ __o       o__  __o  ",
+                Style::default().fg(t.logo),
+            )),
+            Line::from(Span::styled(
+                "   v\\          /v     <|>    |     v\\     /v      |> ",
+                Style::default().fg(t.logo),
+            )),
+            Line::from(Span::styled(
+                "    <\\        />      / \\   / \\     <\\   />      //  ",
+                Style::default().fg(t.logo),
+            )),
+            Line::from(Span::styled(
+                "      \\o    o/        \\o/   \\o/      /   \\o    o/    ",
+                Style::default().fg(t.logo),
+            )),
+            Line::from(Span::styled(
+                "       v\\  /v          |     |      o     v\\  /v __o ",
+                Style::default().fg(t.logo),
+            )),
+            Line::from(Span::styled(
+                "        <\\/>          / \\   / \\  __/>      <\\/> __/> ",
+                Style::default().fg(t.logo),
+            )),
             Line::from(""),
-            Line::from(Span::styled("Vibe Model • Vibe Max", Style::default().fg(t.dim))),
+            Line::from(Span::styled(
+                "Vibe Model • Vibe Max",
+                Style::default().fg(t.dim),
+            )),
             Line::from(""),
-            Line::from(Span::styled("Tips for getting started", Style::default().fg(t.secondary).add_modifier(Modifier::BOLD))),
+            Line::from(Span::styled(
+                "Tips for getting started",
+                Style::default()
+                    .fg(t.secondary)
+                    .add_modifier(Modifier::BOLD),
+            )),
             Line::from("Run /init to initialize project configuration"),
             Line::from("Run /help to see available commands"),
             Line::from("Run /agent <task> to start the coding agent"),
@@ -386,7 +448,10 @@ fn draw_main_area(f: &mut Frame, app: &App, area: Rect) {
         match msg {
             crate::tui::app::TuiMessage::User(content) => {
                 lines.push(Line::from(vec![
-                    Span::styled(" > ", Style::default().fg(t.text).add_modifier(Modifier::BOLD)),
+                    Span::styled(
+                        " > ",
+                        Style::default().fg(t.text).add_modifier(Modifier::BOLD),
+                    ),
                     Span::raw(content),
                 ]));
                 lines.push(Line::from(""));
@@ -415,7 +480,9 @@ fn draw_main_area(f: &mut Frame, app: &App, area: Rect) {
             crate::tui::app::TuiMessage::System(content) => {
                 lines.push(Line::from(Span::styled(
                     " Sys: ",
-                    Style::default().fg(t.secondary).add_modifier(Modifier::BOLD),
+                    Style::default()
+                        .fg(t.secondary)
+                        .add_modifier(Modifier::BOLD),
                 )));
                 for line in content.lines() {
                     lines.push(Line::from(Span::styled(
@@ -431,10 +498,7 @@ fn draw_main_area(f: &mut Frame, app: &App, area: Rect) {
                     Style::default().fg(t.success),
                 )));
                 for line in output.lines() {
-                    lines.push(Line::from(Span::styled(
-                        line,
-                        Style::default().fg(t.dim),
-                    )));
+                    lines.push(Line::from(Span::styled(line, Style::default().fg(t.dim))));
                 }
                 lines.push(Line::from(""));
             }
@@ -507,10 +571,8 @@ fn draw_input_area(f: &mut Frame, app: &App, area: Rect) {
         .split(chunks[1]);
 
     let hints = match app.current_screen {
-        CurrentScreen::Agent => {
-            Paragraph::new(" y=approve  n=reject  a=approve-all  ESC=chat")
-                .style(Style::default().fg(t.warning))
-        }
+        CurrentScreen::Agent => Paragraph::new(" y=approve  n=reject  a=approve-all  ESC=chat")
+            .style(Style::default().fg(t.warning)),
         _ => Paragraph::new(" ? for shortcuts").style(Style::default().fg(t.dim)),
     };
     f.render_widget(hints, status_chunks[0]);
@@ -556,7 +618,11 @@ pub(crate) fn classify_diff_line(line: &str) -> &'static str {
 /// Compute the diagnostics panel height: 4 lines when items exist, 0
 /// otherwise.
 pub(crate) fn diag_panel_height(item_count: usize) -> u16 {
-    if item_count == 0 { 0 } else { 4 }
+    if item_count == 0 {
+        0
+    } else {
+        4
+    }
 }
 
 fn draw_diagnostics_panel(f: &mut Frame, app: &App, area: Rect) {
@@ -571,7 +637,11 @@ fn draw_diagnostics_panel(f: &mut Frame, app: &App, area: Rect) {
     let block = Block::default()
         .borders(Borders::TOP)
         .title(title)
-        .title_style(Style::default().fg(t.secondary).add_modifier(Modifier::BOLD));
+        .title_style(
+            Style::default()
+                .fg(t.secondary)
+                .add_modifier(Modifier::BOLD),
+        );
     let inner = block.inner(area);
     f.render_widget(block, area);
 
@@ -580,9 +650,9 @@ fn draw_diagnostics_panel(f: &mut Frame, app: &App, area: Rect) {
         .iter()
         .map(|d| {
             let (icon, color) = match d.severity {
-                DiagSeverity::Error   => ("E", Color::Red),
+                DiagSeverity::Error => ("E", Color::Red),
                 DiagSeverity::Warning => ("W", Color::Yellow),
-                DiagSeverity::Info    => ("I", Color::Cyan),
+                DiagSeverity::Info => ("I", Color::Cyan),
             };
             let loc = if d.line > 0 {
                 format!("{}:{}", d.file, d.line)
@@ -736,7 +806,8 @@ mod tests {
         term.draw(|f| {
             let area = f.area();
             draw_metrics_strip(f, &app, area, MetricsFreshness::Fresh);
-        }).unwrap();
+        })
+        .unwrap();
 
         let buf = term.backend().buffer();
         let rendered: String = (0..buf.area.width)
@@ -773,7 +844,8 @@ mod tests {
         term.draw(|f| {
             let area = f.area();
             draw_metrics_strip(f, &app, area, MetricsFreshness::Fresh);
-        }).unwrap();
+        })
+        .unwrap();
 
         let buf = term.backend().buffer();
         let rendered: String = (0..buf.area.width)
@@ -804,7 +876,8 @@ mod tests {
         term.draw(|f| {
             let area = f.area();
             draw_metrics_strip(f, &app, area, MetricsFreshness::Stale);
-        }).unwrap();
+        })
+        .unwrap();
 
         let buf = term.backend().buffer();
         let rendered: String = (0..buf.area.width)
@@ -819,7 +892,10 @@ mod tests {
         // Find the column after "R=" in the rendered string.
         let r_pos = rendered.find("R=").expect("R= present") + 2;
         let cell = &buf[(r_pos as u16, 0)];
-        assert_eq!(cell.fg, app.theme.dim, "R= value should render dim when stale");
+        assert_eq!(
+            cell.fg, app.theme.dim,
+            "R= value should render dim when stale"
+        );
     }
 
     #[test]

@@ -2,9 +2,9 @@
  * BDD tests for config_layers (Subsystem B — three-level JSON deep-merge).
  * Run with: cargo test --test config_layers_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use serde_json::{json, Value};
-use vibecli_cli::config_layers::{ConfigLayer, ConfigError, LayeredConfig};
+use vibecli_cli::config_layers::{ConfigError, ConfigLayer, LayeredConfig};
 
 #[derive(Debug, Default, World)]
 pub struct ClWorld {
@@ -61,16 +61,13 @@ fn merge(world: &mut ClWorld) {
 #[when("I validate the project layer")]
 fn validate_project(world: &mut ClWorld) {
     if let Some(v) = &world.validate_layer_value {
-        world.validation_errors =
-            LayeredConfig::validate_schema(v, &ConfigLayer::Project);
+        world.validation_errors = LayeredConfig::validate_schema(v, &ConfigLayer::Project);
     }
 }
 
 #[then(expr = "the merged model should be {string}")]
 fn check_model(world: &mut ClWorld, expected: String) {
-    let model = world.merged.as_ref().unwrap()["model"]
-        .as_str()
-        .unwrap();
+    let model = world.merged.as_ref().unwrap()["model"].as_str().unwrap();
     assert_eq!(model, expected.as_str());
 }
 
@@ -105,7 +102,5 @@ fn check_error_layer(world: &mut ClWorld, layer_name: String) {
 }
 
 fn main() {
-    futures::executor::block_on(
-        ClWorld::run("tests/features/config_layers.feature"),
-    );
+    futures::executor::block_on(ClWorld::run("tests/features/config_layers.feature"));
 }

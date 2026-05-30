@@ -1,4 +1,3 @@
-
 use std::time::{Duration, SystemTime};
 
 /// VS Code session browser — list all VibeCLI sessions in VS Code sidebar;
@@ -418,7 +417,13 @@ mod tests {
     use super::*;
 
     fn make_session(title: &str, workspace: &str) -> VsCodeSession {
-        VsCodeSession::new(title, SessionType::Chat, workspace, "anthropic", "claude-opus-4-6")
+        VsCodeSession::new(
+            title,
+            SessionType::Chat,
+            workspace,
+            "anthropic",
+            "claude-opus-4-6",
+        )
     }
 
     #[test]

@@ -260,7 +260,10 @@ pub enum RunError {
     #[error("invalid request: {0}")]
     Invalid(String),
     #[error("illegal transition: {from} → {to}")]
-    IllegalTransition { from: &'static str, to: &'static str },
+    IllegalTransition {
+        from: &'static str,
+        to: &'static str,
+    },
     #[error("cannot delete run in status {0}")]
     DeleteWhileActive(&'static str),
     #[error("storage: {0}")]
@@ -633,9 +636,8 @@ impl RunStore {
                 rusqlite::Error::QueryReturnedNoRows => RunError::NotFound(run_id.to_string()),
                 other => RunError::from(other),
             })?;
-        let from = RunStatus::from_str(&current).ok_or_else(|| {
-            RunError::Storage(format!("unknown stored status: {current}"))
-        })?;
+        let from = RunStatus::from_str(&current)
+            .ok_or_else(|| RunError::Storage(format!("unknown stored status: {current}")))?;
 
         if !from.can_transition_to(to) {
             return Err(RunError::IllegalTransition {
@@ -970,12 +972,16 @@ impl RunStore {
         )?;
         let rows = stmt
             .query_map(params![run_id], |r| {
-                Ok((r.get::<_, String>(0)?, r.get::<_, f64>(1)?, r.get::<_, f64>(2)?, r.get::<_, i64>(3)?))
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, f64>(1)?,
+                    r.get::<_, f64>(2)?,
+                    r.get::<_, i64>(3)?,
+                ))
             })?
             .collect::<Result<Vec<_>, _>>()?;
         Ok(rows)
     }
-
 }
 
 // ── Row mapping ───────────────────────────────────────────────────────────────
@@ -1046,7 +1052,9 @@ mod tests {
     #[test]
     fn create_then_get_then_list_roundtrips() {
         let (tmp, store) = open_tmp_store();
-        let run = store.create(req("ppo-run", &tmp.path().to_string_lossy())).unwrap();
+        let run = store
+            .create(req("ppo-run", &tmp.path().to_string_lossy()))
+            .unwrap();
         assert_eq!(run.status, RunStatus::Created);
         assert_eq!(run.algorithm, "PPO");
         let fetched = store.get(&run.run_id).unwrap().unwrap();
@@ -1069,10 +1077,16 @@ mod tests {
     #[test]
     fn legal_transitions_persist() {
         let (tmp, store) = open_tmp_store();
-        let run = store.create(req("r", &tmp.path().to_string_lossy())).unwrap();
-        let queued = store.transition(&run.run_id, RunStatus::Queued, None).unwrap();
+        let run = store
+            .create(req("r", &tmp.path().to_string_lossy()))
+            .unwrap();
+        let queued = store
+            .transition(&run.run_id, RunStatus::Queued, None)
+            .unwrap();
         assert_eq!(queued.status, RunStatus::Queued);
-        let running = store.transition(&run.run_id, RunStatus::Running, None).unwrap();
+        let running = store
+            .transition(&run.run_id, RunStatus::Running, None)
+            .unwrap();
         assert_eq!(running.status, RunStatus::Running);
         assert!(running.started_at.is_some());
         let done = store
@@ -1085,9 +1099,13 @@ mod tests {
     #[test]
     fn illegal_transitions_rejected() {
         let (tmp, store) = open_tmp_store();
-        let run = store.create(req("r", &tmp.path().to_string_lossy())).unwrap();
+        let run = store
+            .create(req("r", &tmp.path().to_string_lossy()))
+            .unwrap();
         // Created → Running is illegal (must go through Queued)
-        let err = store.transition(&run.run_id, RunStatus::Running, None).unwrap_err();
+        let err = store
+            .transition(&run.run_id, RunStatus::Running, None)
+            .unwrap_err();
         assert!(matches!(err, RunError::IllegalTransition { .. }));
     }
 
@@ -1097,9 +1115,15 @@ mod tests {
         use std::thread;
 
         let (tmp, store) = open_tmp_store();
-        let run = store.create(req("r", &tmp.path().to_string_lossy())).unwrap();
-        store.transition(&run.run_id, RunStatus::Queued, None).unwrap();
-        store.transition(&run.run_id, RunStatus::Running, None).unwrap();
+        let run = store
+            .create(req("r", &tmp.path().to_string_lossy()))
+            .unwrap();
+        store
+            .transition(&run.run_id, RunStatus::Queued, None)
+            .unwrap();
+        store
+            .transition(&run.run_id, RunStatus::Running, None)
+            .unwrap();
         let store = Arc::new(store);
         let run_id = run.run_id.clone();
         let s1 = store.clone();
@@ -1117,13 +1141,18 @@ mod tests {
         };
         let final_status = ok.unwrap().status;
         assert!(final_status == RunStatus::Succeeded || final_status == RunStatus::Failed);
-        assert!(matches!(err.unwrap_err(), RunError::IllegalTransition { .. }));
+        assert!(matches!(
+            err.unwrap_err(),
+            RunError::IllegalTransition { .. }
+        ));
     }
 
     #[test]
     fn metrics_and_episodes_roundtrip() {
         let (tmp, store) = open_tmp_store();
-        let run = store.create(req("r", &tmp.path().to_string_lossy())).unwrap();
+        let run = store
+            .create(req("r", &tmp.path().to_string_lossy()))
+            .unwrap();
 
         let metrics = vec![
             MetricTick {
@@ -1172,7 +1201,9 @@ mod tests {
     #[test]
     fn artifact_path_must_be_relative() {
         let (tmp, store) = open_tmp_store();
-        let run = store.create(req("r", &tmp.path().to_string_lossy())).unwrap();
+        let run = store
+            .create(req("r", &tmp.path().to_string_lossy()))
+            .unwrap();
         let bad_abs = ArtifactRecord {
             kind: "checkpoint".into(),
             timestep: Some(100),
@@ -1195,7 +1226,9 @@ mod tests {
             metadata_json: None,
         };
         assert!(matches!(
-            store.record_artifact(&run.run_id, bad_traversal).unwrap_err(),
+            store
+                .record_artifact(&run.run_id, bad_traversal)
+                .unwrap_err(),
             RunError::Invalid(_)
         ));
 
@@ -1215,14 +1248,24 @@ mod tests {
     #[test]
     fn delete_blocks_active_runs() {
         let (tmp, store) = open_tmp_store();
-        let run = store.create(req("r", &tmp.path().to_string_lossy())).unwrap();
-        store.transition(&run.run_id, RunStatus::Queued, None).unwrap();
-        store.transition(&run.run_id, RunStatus::Running, None).unwrap();
+        let run = store
+            .create(req("r", &tmp.path().to_string_lossy()))
+            .unwrap();
+        store
+            .transition(&run.run_id, RunStatus::Queued, None)
+            .unwrap();
+        store
+            .transition(&run.run_id, RunStatus::Running, None)
+            .unwrap();
         let err = store.delete(&run.run_id).unwrap_err();
         assert!(matches!(err, RunError::DeleteWhileActive(_)));
 
-        store.transition(&run.run_id, RunStatus::Stopping, None).unwrap();
-        store.transition(&run.run_id, RunStatus::Stopped, None).unwrap();
+        store
+            .transition(&run.run_id, RunStatus::Stopping, None)
+            .unwrap();
+        store
+            .transition(&run.run_id, RunStatus::Stopped, None)
+            .unwrap();
         store.delete(&run.run_id).unwrap();
         assert!(store.get(&run.run_id).unwrap().is_none());
     }

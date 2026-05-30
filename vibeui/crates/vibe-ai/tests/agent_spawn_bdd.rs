@@ -5,7 +5,10 @@
 
 use cucumber::{given, then, when, World};
 use std::path::PathBuf;
-use std::sync::{Arc, atomic::{AtomicU32, Ordering}};
+use std::sync::{
+    atomic::{AtomicU32, Ordering},
+    Arc,
+};
 use vibe_ai::agent::{AgentContext, ApprovalPolicy};
 
 // ── World ─────────────────────────────────────────────────────────────────────
@@ -82,11 +85,15 @@ fn approval_policy_string(world: &mut SpawnWorld, policy_str: String) {
 #[when("a child context is created from it")]
 fn create_child_from_context(world: &mut SpawnWorld) {
     let parent = world.context.as_ref().expect("parent context must be set");
-    let counter = parent.active_agent_counter.clone()
+    let counter = parent
+        .active_agent_counter
+        .clone()
         .unwrap_or_else(|| Arc::new(AtomicU32::new(0)));
     world.child_context = Some(AgentContext {
         workspace_root: parent.workspace_root.clone(),
-        parent_session_id: parent.parent_session_id.clone()
+        parent_session_id: parent
+            .parent_session_id
+            .clone()
             .or_else(|| Some("root".to_string())),
         depth: parent.depth + 1,
         active_agent_counter: Some(counter),
@@ -126,7 +133,10 @@ fn depth_is_zero(world: &mut SpawnWorld) {
 
 #[then(regex = r"the child depth is (\d+)")]
 fn child_depth_is(world: &mut SpawnWorld, expected: u32) {
-    let child = world.child_context.as_ref().expect("child context must be set");
+    let child = world
+        .child_context
+        .as_ref()
+        .expect("child context must be set");
     assert_eq!(child.depth, expected, "child depth mismatch");
 }
 
@@ -135,21 +145,27 @@ fn effective_depth_limit(world: &mut SpawnWorld, expected: u32) {
     let requested = world.requested_limit.unwrap_or(3);
     // Mirror the production logic: requested.min(5)
     let effective = requested.min(5);
-    assert_eq!(effective, expected,
-        "effective limit {effective} != expected {expected}");
+    assert_eq!(
+        effective, expected,
+        "effective limit {effective} != expected {expected}"
+    );
 }
 
 #[then("the active agent counter is absent")]
 fn counter_absent(world: &mut SpawnWorld) {
     let ctx = world.context.as_ref().expect("context must be set");
-    assert!(ctx.active_agent_counter.is_none(),
-        "root context should have no active_agent_counter");
+    assert!(
+        ctx.active_agent_counter.is_none(),
+        "root context should have no active_agent_counter"
+    );
 }
 
 #[then(regex = r"the child context counter reads (\d+)")]
 fn child_counter_reads(world: &mut SpawnWorld, expected: u32) {
     let child = world.child_context.as_ref().expect("child must be set");
-    let counter = child.active_agent_counter.as_ref()
+    let counter = child
+        .active_agent_counter
+        .as_ref()
         .expect("child should have a counter");
     assert_eq!(counter.load(Ordering::Relaxed), expected);
 }
@@ -157,15 +173,19 @@ fn child_counter_reads(world: &mut SpawnWorld, expected: u32) {
 #[then(regex = r"the counter is at or above the global limit of (\d+)")]
 fn counter_at_limit(world: &mut SpawnWorld, limit: u32) {
     let counter = world.counter.as_ref().expect("counter must be set");
-    assert!(counter.load(Ordering::Relaxed) >= limit,
-        "expected counter >= {limit}");
+    assert!(
+        counter.load(Ordering::Relaxed) >= limit,
+        "expected counter >= {limit}"
+    );
 }
 
 #[then(regex = r"the counter is below the global limit of (\d+)")]
 fn counter_below_limit(world: &mut SpawnWorld, limit: u32) {
     let counter = world.counter.as_ref().expect("counter must be set");
-    assert!(counter.load(Ordering::Relaxed) < limit,
-        "expected counter < {limit}");
+    assert!(
+        counter.load(Ordering::Relaxed) < limit,
+        "expected counter < {limit}"
+    );
 }
 
 #[then(regex = r"the deserialised depth is (\d+)")]
@@ -177,8 +197,10 @@ fn roundtrip_depth(world: &mut SpawnWorld, expected: u32) {
 #[then(regex = r#"the JSON does not contain "([^"]+)""#)]
 fn json_not_contains(world: &mut SpawnWorld, key: String) {
     let json = world.json.as_ref().expect("json must be set");
-    assert!(!json.contains(&key),
-        "JSON should not contain '{key}' but it does:\n{json}");
+    assert!(
+        !json.contains(&key),
+        "JSON should not contain '{key}' but it does:\n{json}"
+    );
 }
 
 #[then("the policy is FullAuto")]

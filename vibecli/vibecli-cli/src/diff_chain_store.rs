@@ -320,11 +320,7 @@ impl DiffChainStore {
         }
     }
 
-    pub fn list_for_file(
-        &self,
-        file_path: &str,
-        limit: usize,
-    ) -> Result<Vec<DiffChain>, String> {
+    pub fn list_for_file(&self, file_path: &str, limit: usize) -> Result<Vec<DiffChain>, String> {
         let mut stmt = self
             .conn
             .prepare(
@@ -621,16 +617,7 @@ mod tests {
         let store = open_store(&tmp);
         let secret = "MARKER_DO_NOT_LEAK_TO_DISK";
         store
-            .upsert_step(
-                "c1",
-                "f.rs",
-                "rust",
-                0,
-                0,
-                secret,
-                &step(0, "x"),
-                None,
-            )
+            .upsert_step("c1", "f.rs", "rust", 0, 0, secret, &step(0, "x"), None)
             .unwrap();
         // Reopen the raw connection — the blob bytes must not contain
         // the plaintext marker.

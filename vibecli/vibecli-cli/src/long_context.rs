@@ -256,9 +256,18 @@ impl DocumentChunker {
                     current.clear();
                 }
                 // Split the big paragraph into fixed-size sub-chunks
-                let sub_chunks = self.split_by_tokens(para, &overlap_tail, byte_cursor, source_id, ChunkBoundary::Fixed(self.target_chunk_tokens as usize));
+                let sub_chunks = self.split_by_tokens(
+                    para,
+                    &overlap_tail,
+                    byte_cursor,
+                    source_id,
+                    ChunkBoundary::Fixed(self.target_chunk_tokens as usize),
+                );
                 byte_cursor += para.len() as u64 + 2; // +2 for "\n\n"
-                overlap_tail = sub_chunks.last().map(|c: &DocumentChunk| self.tail_chars(&c.content, self.overlap_tokens)).unwrap_or_default();
+                overlap_tail = sub_chunks
+                    .last()
+                    .map(|c: &DocumentChunk| self.tail_chars(&c.content, self.overlap_tokens))
+                    .unwrap_or_default();
                 chunks.extend(sub_chunks);
                 continue;
             }
@@ -313,9 +322,7 @@ impl DocumentChunker {
 
         for line in source.lines() {
             let trimmed = line.trim();
-            let is_boundary = boundary_markers
-                .iter()
-                .any(|m| trimmed.starts_with(m));
+            let is_boundary = boundary_markers.iter().any(|m| trimmed.starts_with(m));
 
             if is_boundary && !current_segment.is_empty() {
                 segments.push((current_segment.clone(), current_boundary.clone()));
@@ -353,13 +360,28 @@ impl DocumentChunker {
                 // Oversized segment — emit current first, then split
                 if !current.is_empty() {
                     let start = byte_cursor.saturating_sub(current.len() as u64);
-                    chunks.push(self.make_chunk(&current, start, byte_cursor, boundary_type.clone(), source_id));
+                    chunks.push(self.make_chunk(
+                        &current,
+                        start,
+                        byte_cursor,
+                        boundary_type.clone(),
+                        source_id,
+                    ));
                     overlap_tail = self.tail_chars(&current, self.overlap_tokens);
                     current.clear();
                 }
-                let sub = self.split_by_tokens(seg, &overlap_tail, byte_cursor, source_id, seg_boundary.clone());
+                let sub = self.split_by_tokens(
+                    seg,
+                    &overlap_tail,
+                    byte_cursor,
+                    source_id,
+                    seg_boundary.clone(),
+                );
                 byte_cursor += seg.len() as u64;
-                overlap_tail = sub.last().map(|c| self.tail_chars(&c.content, self.overlap_tokens)).unwrap_or_default();
+                overlap_tail = sub
+                    .last()
+                    .map(|c| self.tail_chars(&c.content, self.overlap_tokens))
+                    .unwrap_or_default();
                 chunks.extend(sub);
                 continue;
             }
@@ -367,7 +389,13 @@ impl DocumentChunker {
             let would_be_tokens = estimate_tokens(&current) + seg_tokens;
             if would_be_tokens > self.target_chunk_tokens && !current.is_empty() {
                 let start = byte_cursor.saturating_sub(current.len() as u64);
-                chunks.push(self.make_chunk(&current, start, byte_cursor, boundary_type.clone(), source_id));
+                chunks.push(self.make_chunk(
+                    &current,
+                    start,
+                    byte_cursor,
+                    boundary_type.clone(),
+                    source_id,
+                ));
                 overlap_tail = self.tail_chars(&current, self.overlap_tokens);
                 current = format!("{}{}", overlap_tail, seg);
             } else {
@@ -432,7 +460,11 @@ impl DocumentChunker {
         let mut first = true;
 
         while pos < chars.len() {
-            let prefix = if first { overlap_prefix.to_string() } else { String::new() };
+            let prefix = if first {
+                overlap_prefix.to_string()
+            } else {
+                String::new()
+            };
             first = false;
 
             let available = chunk_chars.saturating_sub(prefix.chars().count());
@@ -749,7 +781,7 @@ mod tests {
     fn test_session_total_tokens() {
         let mut session = IngestionSession::new("s1");
         session.add_chunk(make_chunk("abcdefgh")); // 2 tokens
-        session.add_chunk(make_chunk("abcd"));     // 1 token
+        session.add_chunk(make_chunk("abcd")); // 1 token
         assert_eq!(session.total_tokens(), 3);
     }
 

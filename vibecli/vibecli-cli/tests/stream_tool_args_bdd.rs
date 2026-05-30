@@ -2,10 +2,10 @@
  * BDD tests for stream_tool_args using Cucumber.
  * Run with: cargo test --test stream_tool_args_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::stream_tool_args::{
-    PartialParseResult, StreamingToolCallManager, ToolArgAccumulator, ToolCallDelta,
-    render_partial_hint,
+    render_partial_hint, PartialParseResult, StreamingToolCallManager, ToolArgAccumulator,
+    ToolCallDelta,
 };
 
 // ---------------------------------------------------------------------------
@@ -49,7 +49,10 @@ fn new_manager(world: &mut StaWorld) {
 
 #[when(expr = "I push the fragment {string}")]
 fn push_fragment(world: &mut StaWorld, fragment: String) {
-    let acc = world.accumulator.as_mut().expect("accumulator not initialised");
+    let acc = world
+        .accumulator
+        .as_mut()
+        .expect("accumulator not initialised");
     world.last_result = Some(acc.push(&fragment));
 }
 
@@ -113,11 +116,7 @@ fn keys_exclude(world: &mut StaWorld, key: String) {
 fn finalize_ok(world: &mut StaWorld) {
     let acc = world.accumulator.as_ref().expect("no accumulator");
     let result = acc.finalize();
-    assert!(
-        result.is_ok(),
-        "finalize failed: {:?}",
-        result.err()
-    );
+    assert!(result.is_ok(), "finalize failed: {:?}", result.err());
     world.finalize_result = Some(result);
 }
 
@@ -195,7 +194,5 @@ fn completing_call_ok(world: &mut StaWorld, call_id: String) {
 // ---------------------------------------------------------------------------
 
 fn main() {
-    futures::executor::block_on(StaWorld::run(
-        "tests/features/stream_tool_args.feature",
-    ));
+    futures::executor::block_on(StaWorld::run("tests/features/stream_tool_args.feature"));
 }

@@ -5,7 +5,7 @@
  *   cargo test --test circuit_breaker_bdd
  */
 
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibe_ai::agent::{AgentHealthState, CircuitBreaker};
 use vibe_ai::tools::{ToolCall, ToolResult};
 
@@ -28,23 +28,40 @@ impl CbWorld {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn ok(tool: &str) -> ToolResult {
-    ToolResult { tool_name: tool.to_string(), output: "ok".to_string(), success: true, truncated: false }
+    ToolResult {
+        tool_name: tool.to_string(),
+        output: "ok".to_string(),
+        success: true,
+        truncated: false,
+    }
 }
 
 fn err_msg(tool: &str, msg: &str) -> ToolResult {
-    ToolResult { tool_name: tool.to_string(), output: msg.to_string(), success: false, truncated: false }
+    ToolResult {
+        tool_name: tool.to_string(),
+        output: msg.to_string(),
+        success: false,
+        truncated: false,
+    }
 }
 
 fn think() -> ToolCall {
-    ToolCall::Think { thought: "pondering".into() }
+    ToolCall::Think {
+        thought: "pondering".into(),
+    }
 }
 
 fn write_file() -> ToolCall {
-    ToolCall::WriteFile { path: "out.rs".into(), content: "fn f(){}".into() }
+    ToolCall::WriteFile {
+        path: "out.rs".into(),
+        content: "fn f(){}".into(),
+    }
 }
 
 fn bash(cmd: &str) -> ToolCall {
-    ToolCall::Bash { command: cmd.into() }
+    ToolCall::Bash {
+        command: cmd.into(),
+    }
 }
 
 // ── Given steps ──────────────────────────────────────────────────────────────
@@ -56,22 +73,37 @@ fn fresh_default(world: &mut CbWorld) {
 
 #[given(expr = "a CircuitBreaker with stall_threshold {int}")]
 fn with_stall_threshold(world: &mut CbWorld, threshold: u32) {
-    world.cb = CircuitBreaker { stall_threshold: threshold, ..Default::default() };
+    world.cb = CircuitBreaker {
+        stall_threshold: threshold,
+        ..Default::default()
+    };
 }
 
 #[given(expr = "a CircuitBreaker with spin_threshold {int} and stall_threshold {int}")]
 fn with_spin_and_stall(world: &mut CbWorld, spin: u32, stall: u32) {
-    world.cb = CircuitBreaker { spin_threshold: spin, stall_threshold: stall, ..Default::default() };
+    world.cb = CircuitBreaker {
+        spin_threshold: spin,
+        stall_threshold: stall,
+        ..Default::default()
+    };
 }
 
 #[given(expr = "a CircuitBreaker with stall_threshold {int} and max_rotations {int}")]
 fn with_stall_and_max_rotations(world: &mut CbWorld, stall: u32, max_rot: u32) {
-    world.cb = CircuitBreaker { stall_threshold: stall, max_rotations: max_rot, ..Default::default() };
+    world.cb = CircuitBreaker {
+        stall_threshold: stall,
+        max_rotations: max_rot,
+        ..Default::default()
+    };
 }
 
 #[given(expr = "a CircuitBreaker with stall_threshold {int} and degradation_pct {float}")]
 fn with_stall_and_degradation(world: &mut CbWorld, stall: u32, pct: f64) {
-    world.cb = CircuitBreaker { stall_threshold: stall, degradation_pct: pct, ..Default::default() };
+    world.cb = CircuitBreaker {
+        stall_threshold: stall,
+        degradation_pct: pct,
+        ..Default::default()
+    };
 }
 
 #[given(expr = "a health state of {string}")]
@@ -155,7 +187,8 @@ fn assert_state(world: &mut CbWorld, expected: String) {
     let want = parse_state(&expected);
     assert_eq!(
         world.cb.state, want,
-        "expected {:?} but got {:?}", want, world.cb.state
+        "expected {:?} but got {:?}",
+        want, world.cb.state
     );
 }
 
@@ -163,7 +196,8 @@ fn assert_state(world: &mut CbWorld, expected: String) {
 fn assert_stall_counter(world: &mut CbWorld, expected: u32) {
     assert_eq!(
         world.cb.steps_since_file_change, expected,
-        "stall counter: expected {} got {}", expected, world.cb.steps_since_file_change
+        "stall counter: expected {} got {}",
+        expected, world.cb.steps_since_file_change
     );
 }
 
@@ -171,7 +205,8 @@ fn assert_stall_counter(world: &mut CbWorld, expected: u32) {
 fn assert_error_hashes_empty(world: &mut CbWorld) {
     assert!(
         world.cb.recent_error_hashes.is_empty(),
-        "expected empty error hashes but got {:?}", world.cb.recent_error_hashes
+        "expected empty error hashes but got {:?}",
+        world.cb.recent_error_hashes
     );
 }
 
@@ -179,7 +214,8 @@ fn assert_error_hashes_empty(world: &mut CbWorld) {
 fn assert_rotations(world: &mut CbWorld, expected: u32) {
     assert_eq!(
         world.cb.approach_rotations, expected,
-        "approach_rotations: expected {} got {}", expected, world.cb.approach_rotations
+        "approach_rotations: expected {} got {}",
+        expected, world.cb.approach_rotations
     );
 }
 
@@ -188,15 +224,20 @@ fn assert_rotation_hint_contains(world: &mut CbWorld, fragment: String) {
     let hint = world.cb.rotation_hint();
     assert!(
         hint.contains(&fragment),
-        "rotation hint {:?} does not contain {:?}", hint, fragment
+        "rotation hint {:?} does not contain {:?}",
+        hint,
+        fragment
     );
 }
 
 #[then(expr = "its display string should be {string}")]
 fn assert_display_string(world: &mut CbWorld, expected: String) {
     assert_eq!(
-        world.cb.state.to_string(), expected,
-        "display: expected {:?} got {:?}", expected, world.cb.state.to_string()
+        world.cb.state.to_string(),
+        expected,
+        "display: expected {:?} got {:?}",
+        expected,
+        world.cb.state.to_string()
     );
 }
 
@@ -204,12 +245,12 @@ fn assert_display_string(world: &mut CbWorld, expected: String) {
 
 fn parse_state(s: &str) -> AgentHealthState {
     match s {
-        "PROGRESS"  => AgentHealthState::Progress,
-        "STALLED"   => AgentHealthState::Stalled,
-        "SPINNING"  => AgentHealthState::Spinning,
-        "DEGRADED"  => AgentHealthState::Degraded,
-        "BLOCKED"   => AgentHealthState::Blocked,
-        other       => panic!("Unknown AgentHealthState: {other}"),
+        "PROGRESS" => AgentHealthState::Progress,
+        "STALLED" => AgentHealthState::Stalled,
+        "SPINNING" => AgentHealthState::Spinning,
+        "DEGRADED" => AgentHealthState::Degraded,
+        "BLOCKED" => AgentHealthState::Blocked,
+        other => panic!("Unknown AgentHealthState: {other}"),
     }
 }
 

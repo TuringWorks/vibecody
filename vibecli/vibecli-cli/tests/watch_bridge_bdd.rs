@@ -2,7 +2,7 @@
  * BDD tests for watch_bridge — Axum router state, response structures, replay.
  * Run with: cargo test --test watch_bridge_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::watch_bridge::{WatchBridgeState, WatchEventStreams};
 use vibecli_cli::watch_session_relay::{
     NonceRegistry, WatchDispatchRequest, WatchDispatchResponse, WatchSandboxControlRequest,
@@ -117,7 +117,11 @@ fn when_insert_sender(world: &mut BridgeWorld, session_id: String) {
 #[when(expr = "I record nonce {string}")]
 fn when_record_nonce(world: &mut BridgeWorld, nonce: String) {
     let ts = world.current_ts;
-    let result = world.nonce_reg.as_ref().unwrap().check_and_record(&nonce, ts);
+    let result = world
+        .nonce_reg
+        .as_ref()
+        .unwrap()
+        .check_and_record(&nonce, ts);
     world.record_error = result.err().map(|e| e.to_string());
     world.last_nonce = nonce;
 }
@@ -145,15 +149,23 @@ fn when_check_size(world: &mut BridgeWorld) {
 #[then(expr = "the streaming_url should contain {string}")]
 fn then_streaming_url_contains(world: &mut BridgeWorld, needle: String) {
     let resp = world.dispatch_response.as_ref().unwrap();
-    assert!(resp.streaming_url.contains(&needle),
-        "streaming_url '{}' does not contain '{}'", resp.streaming_url, needle);
+    assert!(
+        resp.streaming_url.contains(&needle),
+        "streaming_url '{}' does not contain '{}'",
+        resp.streaming_url,
+        needle
+    );
 }
 
 #[then(expr = "the streaming_url should start with {string}")]
 fn then_streaming_url_starts_with(world: &mut BridgeWorld, prefix: String) {
     let resp = world.dispatch_response.as_ref().unwrap();
-    assert!(resp.streaming_url.starts_with(&prefix),
-        "streaming_url '{}' does not start with '{}'", resp.streaming_url, prefix);
+    assert!(
+        resp.streaming_url.starts_with(&prefix),
+        "streaming_url '{}' does not start with '{}'",
+        resp.streaming_url,
+        prefix
+    );
 }
 
 #[then("the map should be empty")]
@@ -179,21 +191,37 @@ fn then_replay_fails(world: &mut BridgeWorld, needle: String) {
     // Try recording the same nonce a second time — must fail
     let ts = world.current_ts;
     let nonce = world.last_nonce.clone();
-    let result = world.nonce_reg.as_ref().unwrap().check_and_record(&nonce, ts);
+    let result = world
+        .nonce_reg
+        .as_ref()
+        .unwrap()
+        .check_and_record(&nonce, ts);
     let err = result.err().expect("expected replay error");
-    assert!(err.to_string().contains(&needle),
-        "expected '{}' in: {}", needle, err);
+    assert!(
+        err.to_string().contains(&needle),
+        "expected '{}' in: {}",
+        needle,
+        err
+    );
 }
 
 #[then("both should succeed")]
 fn then_both_succeed(world: &mut BridgeWorld) {
-    assert!(world.record_error.is_none(), "expected no error: {:?}", world.record_error);
+    assert!(
+        world.record_error.is_none(),
+        "expected no error: {:?}",
+        world.record_error
+    );
 }
 
 #[then(expr = "the JSON should contain {string}")]
 fn then_json_contains(world: &mut BridgeWorld, needle: String) {
-    assert!(world.json.contains(&needle),
-        "JSON '{}' does not contain '{}'", world.json, needle);
+    assert!(
+        world.json.contains(&needle),
+        "JSON '{}' does not contain '{}'",
+        world.json,
+        needle
+    );
 }
 
 #[then(expr = "deserialising should produce action {string}")]
@@ -204,13 +232,25 @@ fn then_deserialise_action(world: &mut BridgeWorld, expected: String) {
 
 #[then("session_id should be null")]
 fn then_session_id_null(world: &mut BridgeWorld) {
-    assert!(world.dispatch_request.as_ref().unwrap().session_id.is_none());
+    assert!(world
+        .dispatch_request
+        .as_ref()
+        .unwrap()
+        .session_id
+        .is_none());
 }
 
 #[then(expr = "session_id should be {string}")]
 fn then_session_id_value(world: &mut BridgeWorld, expected: String) {
-    assert_eq!(world.dispatch_request.as_ref().unwrap().session_id.as_deref(),
-        Some(expected.as_str()));
+    assert_eq!(
+        world
+            .dispatch_request
+            .as_ref()
+            .unwrap()
+            .session_id
+            .as_deref(),
+        Some(expected.as_str())
+    );
 }
 
 #[then("the size should be greater than zero")]
@@ -221,7 +261,5 @@ fn then_size_nonzero(world: &mut BridgeWorld) {
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 fn main() {
-    futures::executor::block_on(BridgeWorld::run(
-        "tests/features/watch_bridge.feature",
-    ));
+    futures::executor::block_on(BridgeWorld::run("tests/features/watch_bridge.feature"));
 }

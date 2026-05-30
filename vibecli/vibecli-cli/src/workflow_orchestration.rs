@@ -65,7 +65,11 @@ impl fmt::Display for Lesson {
             f,
             "#{}: [{}] {} → {}",
             self.id,
-            if self.category.is_empty() { "general" } else { &self.category },
+            if self.category.is_empty() {
+                "general"
+            } else {
+                &self.category
+            },
             self.pattern,
             self.rule
         )
@@ -224,7 +228,9 @@ impl OrchestrationState {
                 "{}/{} tasks done ({:.0}%)",
                 self.completed(),
                 self.todos.len(),
-                if self.todos.is_empty() { 0.0 } else {
+                if self.todos.is_empty() {
+                    0.0
+                } else {
                     (self.completed() as f64 / self.todos.len() as f64) * 100.0
                 }
             )
@@ -381,7 +387,10 @@ impl LessonsStore {
                                 (String::new(), remainder.to_string())
                             }
                         } else {
-                            (String::new(), remainder.trim_start_matches(':').trim().to_string())
+                            (
+                                String::new(),
+                                remainder.trim_start_matches(':').trim().to_string(),
+                            )
                         };
 
                         // Split on → for pattern/rule
@@ -481,9 +490,9 @@ impl TodoStore {
 
     /// Add a todo item and save.
     pub fn add_todo(&self, description: &str) -> Result<OrchestrationState> {
-        let mut state = self.load().unwrap_or_else(|| {
-            OrchestrationState::new("Unnamed task", TaskComplexity::Moderate)
-        });
+        let mut state = self
+            .load()
+            .unwrap_or_else(|| OrchestrationState::new("Unnamed task", TaskComplexity::Moderate));
         let next_id = state.todos.iter().map(|t| t.id).max().unwrap_or(0) + 1;
         state.todos.push(TodoItem::new(next_id, description));
         self.save(&state)?;
@@ -492,7 +501,8 @@ impl TodoStore {
 
     /// Mark a todo item as done.
     pub fn complete_todo(&self, id: u32) -> Result<OrchestrationState> {
-        let mut state = self.load()
+        let mut state = self
+            .load()
             .ok_or_else(|| anyhow::anyhow!("No active task — use `/orchestrate todo add` first"))?;
         if let Some(item) = state.todos.iter_mut().find(|t| t.id == id) {
             item.done = true;
@@ -505,7 +515,8 @@ impl TodoStore {
 
     /// Mark the task as verified.
     pub fn mark_verified(&self) -> Result<OrchestrationState> {
-        let mut state = self.load()
+        let mut state = self
+            .load()
             .ok_or_else(|| anyhow::anyhow!("No active task"))?;
         state.verified = true;
         self.save(&state)?;
@@ -514,7 +525,8 @@ impl TodoStore {
 
     /// Mark the task as planned.
     pub fn mark_planned(&self) -> Result<OrchestrationState> {
-        let mut state = self.load()
+        let mut state = self
+            .load()
             .ok_or_else(|| anyhow::anyhow!("No active task"))?;
         state.planned = true;
         self.save(&state)?;
@@ -564,7 +576,9 @@ impl TodoStore {
                 continue;
             };
 
-            if rest.is_empty() { continue; }
+            if rest.is_empty() {
+                continue;
+            }
 
             // Parse #ID prefix
             let (id, desc_part) = if let Some(after_hash) = rest.strip_prefix('#') {
@@ -629,12 +643,20 @@ impl TodoStore {
         out.push_str("<!-- Auto-maintained by VibeCLI workflow orchestration -->\n\n");
         out.push_str(&format!("**Goal:** {}\n", state.goal));
         out.push_str(&format!("**Complexity:** {}\n", state.complexity));
-        out.push_str(&format!("**Planned:** {}\n", if state.planned { "yes" } else { "no" }));
-        out.push_str(&format!("**Verified:** {}\n", if state.verified { "yes" } else { "no" }));
+        out.push_str(&format!(
+            "**Planned:** {}\n",
+            if state.planned { "yes" } else { "no" }
+        ));
+        out.push_str(&format!(
+            "**Verified:** {}\n",
+            if state.verified { "yes" } else { "no" }
+        ));
         out.push('\n');
 
         if state.todos.is_empty() {
-            out.push_str("_No tasks yet — add tasks with `/orchestrate todo add <description>`._\n");
+            out.push_str(
+                "_No tasks yet — add tasks with `/orchestrate todo add <description>`._\n",
+            );
         } else {
             out.push_str("## Tasks\n\n");
             for item in &state.todos {
@@ -663,16 +685,32 @@ pub fn estimate_complexity(task_description: &str) -> TaskComplexity {
 
     // Complex indicators
     let complex_keywords = [
-        "refactor", "architect", "redesign", "migrate", "rewrite",
-        "implement", "add feature", "new system", "integrate",
-        "across multiple", "end-to-end", "full-stack",
+        "refactor",
+        "architect",
+        "redesign",
+        "migrate",
+        "rewrite",
+        "implement",
+        "add feature",
+        "new system",
+        "integrate",
+        "across multiple",
+        "end-to-end",
+        "full-stack",
     ];
     let has_complex = complex_keywords.iter().any(|k| lower.contains(k));
 
     // Trivial indicators
     let trivial_keywords = [
-        "typo", "rename", "fix import", "update version", "bump",
-        "add comment", "fix lint", "format", "whitespace",
+        "typo",
+        "rename",
+        "fix import",
+        "update version",
+        "bump",
+        "add comment",
+        "fix lint",
+        "format",
+        "whitespace",
     ];
     let has_trivial = trivial_keywords.iter().any(|k| lower.contains(k));
 
@@ -692,7 +730,10 @@ pub fn should_plan(complexity: TaskComplexity) -> bool {
 
 /// Determine if elegance review should be triggered.
 pub fn should_review_elegance(complexity: TaskComplexity) -> bool {
-    matches!(complexity, TaskComplexity::Complex | TaskComplexity::Moderate)
+    matches!(
+        complexity,
+        TaskComplexity::Complex | TaskComplexity::Moderate
+    )
 }
 
 // ── System Prompt Injection ─────────────────────────────────────────────────
@@ -708,13 +749,19 @@ pub fn orchestration_system_prompt(
 
     // Core principles
     prompt.push_str("CORE PRINCIPLES:\n");
-    prompt.push_str("- Simplicity First: make every change as simple as possible. Minimal code impact.\n");
-    prompt.push_str("- No Laziness: find root causes. No temporary fixes. Senior developer standards.\n");
+    prompt.push_str(
+        "- Simplicity First: make every change as simple as possible. Minimal code impact.\n",
+    );
+    prompt.push_str(
+        "- No Laziness: find root causes. No temporary fixes. Senior developer standards.\n",
+    );
     prompt.push_str("- Minimal Impact: changes should only touch what's necessary.\n\n");
 
     // Planning rule
     prompt.push_str("PLANNING:\n");
-    prompt.push_str("- For non-trivial tasks (3+ steps or architectural decisions), plan before building.\n");
+    prompt.push_str(
+        "- For non-trivial tasks (3+ steps or architectural decisions), plan before building.\n",
+    );
     prompt.push_str("- If something goes sideways, STOP and re-plan — don't keep pushing.\n\n");
 
     // Subagent strategy
@@ -731,15 +778,24 @@ pub fn orchestration_system_prompt(
 
     // Bug fixing
     prompt.push_str("BUG FIXING:\n");
-    prompt.push_str("- When given a bug: just fix it. Point at logs/errors/failing tests, then resolve.\n");
+    prompt.push_str(
+        "- When given a bug: just fix it. Point at logs/errors/failing tests, then resolve.\n",
+    );
     prompt.push_str("- Go fix failing CI tests without being told how.\n\n");
 
     // Lessons
     if !lessons.is_empty() {
         prompt.push_str("LESSONS LEARNED (avoid these patterns):\n");
         for lesson in lessons {
-            let cat = if lesson.category.is_empty() { "general" } else { &lesson.category };
-            prompt.push_str(&format!("- [{}] {} → {}\n", cat, lesson.pattern, lesson.rule));
+            let cat = if lesson.category.is_empty() {
+                "general"
+            } else {
+                &lesson.category
+            };
+            prompt.push_str(&format!(
+                "- [{}] {} → {}\n",
+                cat, lesson.pattern, lesson.rule
+            ));
         }
         prompt.push('\n');
     }
@@ -747,12 +803,15 @@ pub fn orchestration_system_prompt(
     // Current task context
     if let Some(task) = current_task {
         prompt.push_str(&format!("CURRENT TASK: {}\n", task.goal));
-        prompt.push_str(&format!("Complexity: {} | Planned: {} | Verified: {}\n",
+        prompt.push_str(&format!(
+            "Complexity: {} | Planned: {} | Verified: {}\n",
             task.complexity,
             if task.planned { "yes" } else { "no" },
             if task.verified { "yes" } else { "no" },
         ));
-        let pending: Vec<String> = task.todos.iter()
+        let pending: Vec<String> = task
+            .todos
+            .iter()
             .filter(|t| !t.done)
             .map(|t| format!("  - #{} ({}) {}", t.id, t.step_type, t.description))
             .collect();
@@ -830,7 +889,9 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let store = LessonsStore::for_workspace(tmp.path());
 
-        let lesson = store.add("Missing error handling", "Always handle Result with ?").unwrap();
+        let lesson = store
+            .add("Missing error handling", "Always handle Result with ?")
+            .unwrap();
         assert_eq!(lesson.id, 1);
 
         let loaded = store.load();
@@ -844,7 +905,9 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let store = LessonsStore::for_workspace(tmp.path());
 
-        let lesson = store.add_categorized("SQL injection", "Use parameterized queries", "security").unwrap();
+        let lesson = store
+            .add_categorized("SQL injection", "Use parameterized queries", "security")
+            .unwrap();
         assert_eq!(lesson.category, "security");
 
         let loaded = store.load();
@@ -915,7 +978,9 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let store = TodoStore::for_workspace(tmp.path());
 
-        let state = store.create("Build auth system", TaskComplexity::Complex).unwrap();
+        let state = store
+            .create("Build auth system", TaskComplexity::Complex)
+            .unwrap();
         assert_eq!(state.goal, "Build auth system");
         assert_eq!(state.complexity, TaskComplexity::Complex);
         assert!(!state.planned);
@@ -1001,21 +1066,36 @@ mod tests {
     #[test]
     fn orchestration_state_ready_to_close_trivial() {
         let mut state = OrchestrationState::new("Fix typo", TaskComplexity::Trivial);
-        state.todos.push(TodoItem { id: 1, description: "Fix it".into(), done: true, step_type: StepType::Build });
+        state.todos.push(TodoItem {
+            id: 1,
+            description: "Fix it".into(),
+            done: true,
+            step_type: StepType::Build,
+        });
         assert!(state.ready_to_close()); // trivial doesn't require verification
     }
 
     #[test]
     fn orchestration_state_ready_to_close_complex_unverified() {
         let mut state = OrchestrationState::new("Refactor auth", TaskComplexity::Complex);
-        state.todos.push(TodoItem { id: 1, description: "Step 1".into(), done: true, step_type: StepType::Build });
+        state.todos.push(TodoItem {
+            id: 1,
+            description: "Step 1".into(),
+            done: true,
+            step_type: StepType::Build,
+        });
         assert!(!state.ready_to_close()); // complex requires verification
     }
 
     #[test]
     fn orchestration_state_ready_to_close_complex_verified() {
         let mut state = OrchestrationState::new("Refactor auth", TaskComplexity::Complex);
-        state.todos.push(TodoItem { id: 1, description: "Step 1".into(), done: true, step_type: StepType::Build });
+        state.todos.push(TodoItem {
+            id: 1,
+            description: "Step 1".into(),
+            done: true,
+            step_type: StepType::Build,
+        });
         state.verified = true;
         assert!(state.ready_to_close());
     }
@@ -1023,8 +1103,18 @@ mod tests {
     #[test]
     fn orchestration_state_not_ready_with_pending() {
         let mut state = OrchestrationState::new("Task", TaskComplexity::Trivial);
-        state.todos.push(TodoItem { id: 1, description: "Done".into(), done: true, step_type: StepType::Build });
-        state.todos.push(TodoItem { id: 2, description: "Pending".into(), done: false, step_type: StepType::Build });
+        state.todos.push(TodoItem {
+            id: 1,
+            description: "Done".into(),
+            done: true,
+            step_type: StepType::Build,
+        });
+        state.todos.push(TodoItem {
+            id: 2,
+            description: "Pending".into(),
+            done: false,
+            step_type: StepType::Build,
+        });
         assert!(!state.ready_to_close());
     }
 
@@ -1032,7 +1122,9 @@ mod tests {
     fn status_summary_format() {
         let mut state = OrchestrationState::new("Build X", TaskComplexity::Complex);
         state.planned = true;
-        state.todos.push(TodoItem::new(1, "Step one").with_type(StepType::Plan));
+        state
+            .todos
+            .push(TodoItem::new(1, "Step one").with_type(StepType::Plan));
         state.todos.push(TodoItem::new(2, "Step two"));
 
         let summary = state.status_summary();
@@ -1046,9 +1138,18 @@ mod tests {
 
     #[test]
     fn estimate_complexity_trivial() {
-        assert_eq!(estimate_complexity("fix typo in readme"), TaskComplexity::Trivial);
-        assert_eq!(estimate_complexity("rename variable"), TaskComplexity::Trivial);
-        assert_eq!(estimate_complexity("fix lint warning"), TaskComplexity::Trivial);
+        assert_eq!(
+            estimate_complexity("fix typo in readme"),
+            TaskComplexity::Trivial
+        );
+        assert_eq!(
+            estimate_complexity("rename variable"),
+            TaskComplexity::Trivial
+        );
+        assert_eq!(
+            estimate_complexity("fix lint warning"),
+            TaskComplexity::Trivial
+        );
     }
 
     #[test]
@@ -1065,8 +1166,14 @@ mod tests {
 
     #[test]
     fn estimate_complexity_moderate() {
-        assert_eq!(estimate_complexity("add a new endpoint for user profiles"), TaskComplexity::Moderate);
-        assert_eq!(estimate_complexity("fix the login bug"), TaskComplexity::Moderate);
+        assert_eq!(
+            estimate_complexity("add a new endpoint for user profiles"),
+            TaskComplexity::Moderate
+        );
+        assert_eq!(
+            estimate_complexity("fix the login bug"),
+            TaskComplexity::Moderate
+        );
     }
 
     // ── Plan mode decision tests ──
@@ -1098,9 +1205,7 @@ mod tests {
 
     #[test]
     fn orchestration_system_prompt_with_lessons() {
-        let lessons = vec![
-            Lesson::new(1, "Used unwrap()", "Use ? operator"),
-        ];
+        let lessons = vec![Lesson::new(1, "Used unwrap()", "Use ? operator")];
         let prompt = orchestration_system_prompt(&lessons, None);
         assert!(prompt.contains("LESSONS LEARNED"));
         assert!(prompt.contains("unwrap()"));
@@ -1127,14 +1232,11 @@ mod tests {
 
     #[test]
     fn lessons_markdown_roundtrip() {
-        let lessons = vec![
-            Lesson::new(1, "Pattern A", "Rule A"),
-            {
-                let mut l = Lesson::new(2, "Pattern B", "Rule B");
-                l.category = "security".to_string();
-                l
-            },
-        ];
+        let lessons = vec![Lesson::new(1, "Pattern A", "Rule A"), {
+            let mut l = Lesson::new(2, "Pattern B", "Rule B");
+            l.category = "security".to_string();
+            l
+        }];
         let rendered = LessonsStore::render(&lessons);
         let parsed = LessonsStore::parse(&rendered);
         assert_eq!(parsed.len(), 2);
@@ -1146,9 +1248,18 @@ mod tests {
     fn todo_markdown_roundtrip() {
         let mut state = OrchestrationState::new("My Goal", TaskComplexity::Complex);
         state.planned = true;
-        state.todos.push(TodoItem::new(1, "First step").with_type(StepType::Plan));
-        state.todos.push(TodoItem { id: 2, description: "Done step".into(), done: true, step_type: StepType::Build });
-        state.todos.push(TodoItem::new(3, "Verify").with_type(StepType::Verify));
+        state
+            .todos
+            .push(TodoItem::new(1, "First step").with_type(StepType::Plan));
+        state.todos.push(TodoItem {
+            id: 2,
+            description: "Done step".into(),
+            done: true,
+            step_type: StepType::Build,
+        });
+        state
+            .todos
+            .push(TodoItem::new(3, "Verify").with_type(StepType::Verify));
 
         let rendered = TodoStore::render(&state);
         let parsed = TodoStore::parse(&rendered).unwrap();
@@ -1235,7 +1346,8 @@ mod tests {
 
     #[test]
     fn lessons_parse_simple_format() {
-        let content = "- Missing tests → Always add unit tests\n- Bad naming → Use descriptive names\n";
+        let content =
+            "- Missing tests → Always add unit tests\n- Bad naming → Use descriptive names\n";
         let parsed = LessonsStore::parse(content);
         assert_eq!(parsed.len(), 2);
         assert_eq!(parsed[0].pattern, "Missing tests");
@@ -1313,8 +1425,18 @@ mod tests {
     #[test]
     fn status_summary_all_done() {
         let mut state = OrchestrationState::new("Finished", TaskComplexity::Moderate);
-        state.todos.push(TodoItem { id: 1, description: "A".into(), done: true, step_type: StepType::Build });
-        state.todos.push(TodoItem { id: 2, description: "B".into(), done: true, step_type: StepType::Test });
+        state.todos.push(TodoItem {
+            id: 1,
+            description: "A".into(),
+            done: true,
+            step_type: StepType::Build,
+        });
+        state.todos.push(TodoItem {
+            id: 2,
+            description: "B".into(),
+            done: true,
+            step_type: StepType::Test,
+        });
         state.verified = true;
         let summary = state.status_summary();
         assert!(summary.contains("2/2"));
@@ -1355,8 +1477,15 @@ mod tests {
 
         let mut state = OrchestrationState::new("Secure the app", TaskComplexity::Complex);
         state.planned = true;
-        state.todos.push(TodoItem::new(1, "Audit secrets").with_type(StepType::Research));
-        state.todos.push(TodoItem { id: 2, description: "Fix leaks".into(), done: true, step_type: StepType::Build });
+        state
+            .todos
+            .push(TodoItem::new(1, "Audit secrets").with_type(StepType::Research));
+        state.todos.push(TodoItem {
+            id: 2,
+            description: "Fix leaks".into(),
+            done: true,
+            step_type: StepType::Build,
+        });
 
         let prompt = orchestration_system_prompt(&lessons, Some(&state));
         assert!(prompt.contains("LESSONS LEARNED"));
@@ -1372,7 +1501,12 @@ mod tests {
     #[test]
     fn orchestration_prompt_no_pending_tasks() {
         let mut state = OrchestrationState::new("Done task", TaskComplexity::Trivial);
-        state.todos.push(TodoItem { id: 1, description: "All done".into(), done: true, step_type: StepType::Build });
+        state.todos.push(TodoItem {
+            id: 1,
+            description: "All done".into(),
+            done: true,
+            step_type: StepType::Build,
+        });
         let prompt = orchestration_system_prompt(&[], Some(&state));
         assert!(prompt.contains("CURRENT TASK: Done task"));
         assert!(!prompt.contains("Pending tasks:"));

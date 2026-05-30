@@ -16,15 +16,19 @@ pub enum TestLanguage {
 impl TestLanguage {
     pub fn from_ext(ext: &str) -> Option<Self> {
         match ext {
-            "rs"  => Some(Self::Rust),
+            "rs" => Some(Self::Rust),
             "ts" | "tsx" => Some(Self::TypeScript),
-            "py"  => Some(Self::Python),
+            "py" => Some(Self::Python),
             _ => None,
         }
     }
 
     pub fn file_ext(&self) -> &'static str {
-        match self { Self::Rust => "rs", Self::TypeScript => "ts", Self::Python => "py" }
+        match self {
+            Self::Rust => "rs",
+            Self::TypeScript => "ts",
+            Self::Python => "py",
+        }
     }
 }
 
@@ -39,12 +43,26 @@ pub struct GherkinScenario {
 
 impl GherkinScenario {
     pub fn new(title: impl Into<String>) -> Self {
-        Self { title: title.into(), given: vec![], when: vec![], then: vec![] }
+        Self {
+            title: title.into(),
+            given: vec![],
+            when: vec![],
+            then: vec![],
+        }
     }
 
-    pub fn with_given(mut self, s: impl Into<String>) -> Self { self.given.push(s.into()); self }
-    pub fn with_when(mut self, s: impl Into<String>) -> Self  { self.when.push(s.into()); self }
-    pub fn with_then(mut self, s: impl Into<String>) -> Self  { self.then.push(s.into()); self }
+    pub fn with_given(mut self, s: impl Into<String>) -> Self {
+        self.given.push(s.into());
+        self
+    }
+    pub fn with_when(mut self, s: impl Into<String>) -> Self {
+        self.when.push(s.into());
+        self
+    }
+    pub fn with_then(mut self, s: impl Into<String>) -> Self {
+        self.then.push(s.into());
+        self
+    }
 }
 
 /// A parsed Gherkin feature.
@@ -57,7 +75,11 @@ pub struct GherkinFeature {
 
 impl GherkinFeature {
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), description: None, scenarios: vec![] }
+        Self {
+            name: name.into(),
+            description: None,
+            scenarios: vec![],
+        }
     }
 
     pub fn with_scenario(mut self, s: GherkinScenario) -> Self {
@@ -92,7 +114,9 @@ impl GherkinParser {
             if let Some(rest) = line.strip_prefix("Feature:") {
                 feature.name = rest.trim().to_string();
             } else if line.starts_with("Scenario:") || line.starts_with("Scenario Outline:") {
-                if let Some(sc) = current.take() { feature.scenarios.push(sc); }
+                if let Some(sc) = current.take() {
+                    feature.scenarios.push(sc);
+                }
                 let title = if let Some(rest) = line.strip_prefix("Scenario Outline:") {
                     rest.trim().to_string()
                 } else {
@@ -105,11 +129,17 @@ impl GherkinParser {
                 } else if let Some(rest) = line.strip_prefix("When") {
                     sc.when.push(rest.trim().to_string());
                 } else if line.starts_with("Then") || line.starts_with("And") {
-                    sc.then.push(line[line.find(' ').map(|i| i+1).unwrap_or(line.len())..].trim().to_string());
+                    sc.then.push(
+                        line[line.find(' ').map(|i| i + 1).unwrap_or(line.len())..]
+                            .trim()
+                            .to_string(),
+                    );
                 }
             }
         }
-        if let Some(sc) = current { feature.scenarios.push(sc); }
+        if let Some(sc) = current {
+            feature.scenarios.push(sc);
+        }
         feature
     }
 }
@@ -120,7 +150,13 @@ impl GherkinParser {
 
 fn to_snake(s: &str) -> String {
     s.chars()
-        .map(|c| if c.is_alphanumeric() { c.to_ascii_lowercase() } else { '_' })
+        .map(|c| {
+            if c.is_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '_'
+            }
+        })
         .collect::<String>()
         .split('_')
         .filter(|p| !p.is_empty())
@@ -134,13 +170,15 @@ pub struct SpecToTestGenerator {
 }
 
 impl SpecToTestGenerator {
-    pub fn new(language: TestLanguage) -> Self { Self { language } }
+    pub fn new(language: TestLanguage) -> Self {
+        Self { language }
+    }
 
     pub fn generate(&self, feature: &GherkinFeature) -> TestStub {
         let content = match self.language {
-            TestLanguage::Rust       => self.gen_rust(feature),
+            TestLanguage::Rust => self.gen_rust(feature),
             TestLanguage::TypeScript => self.gen_typescript(feature),
-            TestLanguage::Python     => self.gen_python(feature),
+            TestLanguage::Python => self.gen_python(feature),
         };
         let mod_name = to_snake(&feature.name);
         let filename = format!("{}_spec.{}", mod_name, self.language.file_ext());
@@ -153,13 +191,22 @@ impl SpecToTestGenerator {
     }
 
     fn gen_rust(&self, feature: &GherkinFeature) -> String {
-        let mut out = format!("//! Generated stubs for: {}\n\n#[cfg(test)]\nmod tests {{\n    use super::*;\n\n", feature.name);
+        let mut out = format!(
+            "//! Generated stubs for: {}\n\n#[cfg(test)]\nmod tests {{\n    use super::*;\n\n",
+            feature.name
+        );
         for sc in &feature.scenarios {
             let fn_name = to_snake(&sc.title);
             out.push_str(&format!("    #[test]\n    fn test_{}() {{\n", fn_name));
-            for g in &sc.given { out.push_str(&format!("        // Given {}\n", g)); }
-            for w in &sc.when  { out.push_str(&format!("        // When {}\n", w)); }
-            for t in &sc.then  { out.push_str(&format!("        // Then {}\n", t)); }
+            for g in &sc.given {
+                out.push_str(&format!("        // Given {}\n", g));
+            }
+            for w in &sc.when {
+                out.push_str(&format!("        // When {}\n", w));
+            }
+            for t in &sc.then {
+                out.push_str(&format!("        // Then {}\n", t));
+            }
             out.push_str("        todo!(\"implement test\")\n    }\n\n");
         }
         out.push_str("}\n");
@@ -167,13 +214,22 @@ impl SpecToTestGenerator {
     }
 
     fn gen_typescript(&self, feature: &GherkinFeature) -> String {
-        let mut out = format!("// Generated stubs for: {}\nimport {{ describe, it }} from 'vitest';\n\n", feature.name);
+        let mut out = format!(
+            "// Generated stubs for: {}\nimport {{ describe, it }} from 'vitest';\n\n",
+            feature.name
+        );
         out.push_str(&format!("describe('{}', () => {{\n", feature.name));
         for sc in &feature.scenarios {
             out.push_str(&format!("  it('{}', () => {{\n", sc.title));
-            for g in &sc.given { out.push_str(&format!("    // Given {}\n", g)); }
-            for w in &sc.when  { out.push_str(&format!("    // When {}\n", w)); }
-            for t in &sc.then  { out.push_str(&format!("    // Then {}\n", t)); }
+            for g in &sc.given {
+                out.push_str(&format!("    // Given {}\n", g));
+            }
+            for w in &sc.when {
+                out.push_str(&format!("    // When {}\n", w));
+            }
+            for t in &sc.then {
+                out.push_str(&format!("    // Then {}\n", t));
+            }
             out.push_str("    throw new Error('not implemented');\n  });\n\n");
         }
         out.push_str("});\n");
@@ -185,9 +241,15 @@ impl SpecToTestGenerator {
         for sc in &feature.scenarios {
             let fn_name = to_snake(&sc.title);
             out.push_str(&format!("def test_{}():\n", fn_name));
-            for g in &sc.given { out.push_str(&format!("    # Given {}\n", g)); }
-            for w in &sc.when  { out.push_str(&format!("    # When {}\n", w)); }
-            for t in &sc.then  { out.push_str(&format!("    # Then {}\n", t)); }
+            for g in &sc.given {
+                out.push_str(&format!("    # Given {}\n", g));
+            }
+            for w in &sc.when {
+                out.push_str(&format!("    # When {}\n", w));
+            }
+            for t in &sc.then {
+                out.push_str(&format!("    # Then {}\n", t));
+            }
             out.push_str("    raise NotImplementedError\n\n");
         }
         out
@@ -284,8 +346,8 @@ mod tests {
         let f = GherkinParser::parse(text);
         let sc = &f.scenarios[0];
         assert_eq!(sc.given, vec!["a user exists"]);
-        assert_eq!(sc.when,  vec!["they log in"]);
-        assert_eq!(sc.then,  vec!["they are authenticated"]);
+        assert_eq!(sc.when, vec!["they log in"]);
+        assert_eq!(sc.then, vec!["they are authenticated"]);
     }
 
     #[test]

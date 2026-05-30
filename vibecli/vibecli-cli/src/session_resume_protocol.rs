@@ -70,11 +70,17 @@ impl std::fmt::Display for VerifyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             VerifyError::UnsupportedVersion(v) => write!(f, "unsupported handoff version: {v}"),
-            VerifyError::Expired { now, expires_at } => write!(f, "handoff expired: now={now} expiresAt={expires_at}"),
-            VerifyError::NotYetValid { now, issued_at } => write!(f, "handoff not yet valid: now={now} issuedAt={issued_at}"),
+            VerifyError::Expired { now, expires_at } => {
+                write!(f, "handoff expired: now={now} expiresAt={expires_at}")
+            }
+            VerifyError::NotYetValid { now, issued_at } => {
+                write!(f, "handoff not yet valid: now={now} issuedAt={issued_at}")
+            }
             VerifyError::EmptyField(name) => write!(f, "{name} must not be empty"),
             VerifyError::BadSignatureEncoding(e) => write!(f, "signature is not base64url: {e}"),
-            VerifyError::SignatureMismatch => write!(f, "signature did not verify against expected key"),
+            VerifyError::SignatureMismatch => {
+                write!(f, "signature did not verify against expected key")
+            }
         }
     }
 }
@@ -166,8 +172,7 @@ fn canonical_unsigned_bytes(envelope: &ResumeHandoff) -> Result<Vec<u8>> {
     e.signature = String::new();
     let v = serde_json::to_value(&e).context("serialize handoff")?;
     let sorted = sort_value(v);
-    serde_json::to_vec(&sorted)
-        .map_err(|e| anyhow!("emit canonical bytes: {e}"))
+    serde_json::to_vec(&sorted).map_err(|e| anyhow!("emit canonical bytes: {e}"))
 }
 
 fn sort_value(v: serde_json::Value) -> serde_json::Value {
@@ -203,7 +208,11 @@ mod tests {
     fn keypair() -> (Vec<u8>, Vec<u8>) {
         let sk = SigningKey::random(&mut OsRng);
         let sk_bytes = sk.to_bytes().to_vec();
-        let pk_sec1 = sk.verifying_key().to_encoded_point(false).as_bytes().to_vec();
+        let pk_sec1 = sk
+            .verifying_key()
+            .to_encoded_point(false)
+            .as_bytes()
+            .to_vec();
         (sk_bytes, pk_sec1)
     }
 

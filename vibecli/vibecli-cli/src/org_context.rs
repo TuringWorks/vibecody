@@ -520,10 +520,7 @@ impl OrgContextEngine {
     }
 
     /// Return conventions filtered by category.
-    pub fn get_conventions_by_category(
-        &self,
-        category: &ConventionCategory,
-    ) -> Vec<&Convention> {
+    pub fn get_conventions_by_category(&self, category: &ConventionCategory) -> Vec<&Convention> {
         self.conventions
             .iter()
             .filter(|c| &c.category == category)
@@ -837,9 +834,15 @@ mod tests {
 
     #[test]
     fn test_pattern_type_as_str() {
-        assert_eq!(PatternType::ArchitecturePattern.as_str(), "architecture_pattern");
+        assert_eq!(
+            PatternType::ArchitecturePattern.as_str(),
+            "architecture_pattern"
+        );
         assert_eq!(PatternType::NamingConvention.as_str(), "naming_convention");
-        assert_eq!(PatternType::BuildConfiguration.as_str(), "build_configuration");
+        assert_eq!(
+            PatternType::BuildConfiguration.as_str(),
+            "build_configuration"
+        );
         assert_eq!(PatternType::CodeOrganization.as_str(), "code_organization");
     }
 
@@ -1190,10 +1193,7 @@ mod tests {
         assert_eq!(format!("{err}"), "repository not found: test");
 
         let err = OrgError::MaxReposExceeded(50);
-        assert_eq!(
-            format!("{err}"),
-            "maximum number of repos exceeded: 50"
-        );
+        assert_eq!(format!("{err}"), "maximum number of repos exceeded: 50");
 
         let err = OrgError::DuplicateRepo("dup".to_string());
         assert_eq!(format!("{err}"), "duplicate repository: dup");

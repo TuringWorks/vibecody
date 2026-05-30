@@ -42,10 +42,16 @@ impl std::fmt::Display for GateCriterion {
 // ─── Gate Evaluation ──────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum GateOutcome { Pass, Fail { reason: String }, Skipped }
+pub enum GateOutcome {
+    Pass,
+    Fail { reason: String },
+    Skipped,
+}
 
 impl GateOutcome {
-    pub fn passed(&self) -> bool { matches!(self, Self::Pass) }
+    pub fn passed(&self) -> bool {
+        matches!(self, Self::Pass)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,7 +79,9 @@ pub struct TaskEvidence {
 }
 
 impl TaskEvidence {
-    pub fn all_tests_pass(&self) -> bool { self.tests_failed == 0 && self.tests_total > 0 }
+    pub fn all_tests_pass(&self) -> bool {
+        self.tests_failed == 0 && self.tests_total > 0
+    }
 }
 
 // ─── Quality Gate Evaluator ───────────────────────────────────────────────────
@@ -87,75 +95,122 @@ pub struct QualityGate {
 
 impl QualityGate {
     pub fn new(name: impl Into<String>, blocking: bool) -> Self {
-        Self { name: name.into(), criteria: Vec::new(), blocking }
+        Self {
+            name: name.into(),
+            criteria: Vec::new(),
+            blocking,
+        }
     }
 
-    pub fn require(mut self, c: GateCriterion) -> Self { self.criteria.push(c); self }
+    pub fn require(mut self, c: GateCriterion) -> Self {
+        self.criteria.push(c);
+        self
+    }
 
     pub fn evaluate(&self, evidence: &TaskEvidence) -> Vec<GateResult> {
-        self.criteria.iter().map(|criterion| {
-            let outcome = match criterion {
-                GateCriterion::TestsPass => {
-                    if evidence.tests_total == 0 {
-                        GateOutcome::Skipped
-                    } else if evidence.all_tests_pass() {
-                        GateOutcome::Pass
-                    } else {
-                        GateOutcome::Fail { reason: format!("{} tests failed", evidence.tests_failed) }
+        self.criteria
+            .iter()
+            .map(|criterion| {
+                let outcome = match criterion {
+                    GateCriterion::TestsPass => {
+                        if evidence.tests_total == 0 {
+                            GateOutcome::Skipped
+                        } else if evidence.all_tests_pass() {
+                            GateOutcome::Pass
+                        } else {
+                            GateOutcome::Fail {
+                                reason: format!("{} tests failed", evidence.tests_failed),
+                            }
+                        }
                     }
-                }
-                GateCriterion::CoverageAbove { min_pct } => {
-                    if evidence.coverage_pct >= *min_pct {
-                        GateOutcome::Pass
-                    } else {
-                        GateOutcome::Fail { reason: format!("coverage {:.1}% < {min_pct}%", evidence.coverage_pct) }
+                    GateCriterion::CoverageAbove { min_pct } => {
+                        if evidence.coverage_pct >= *min_pct {
+                            GateOutcome::Pass
+                        } else {
+                            GateOutcome::Fail {
+                                reason: format!(
+                                    "coverage {:.1}% < {min_pct}%",
+                                    evidence.coverage_pct
+                                ),
+                            }
+                        }
                     }
-                }
-                GateCriterion::ClippyClean => {
-                    if evidence.clippy_errors == 0 {
-                        GateOutcome::Pass
-                    } else {
-                        GateOutcome::Fail { reason: format!("{} clippy errors", evidence.clippy_errors) }
+                    GateCriterion::ClippyClean => {
+                        if evidence.clippy_errors == 0 {
+                            GateOutcome::Pass
+                        } else {
+                            GateOutcome::Fail {
+                                reason: format!("{} clippy errors", evidence.clippy_errors),
+                            }
+                        }
                     }
-                }
-                GateCriterion::NoSecurityFindings => {
-                    if evidence.security_high + evidence.security_critical == 0 {
-                        GateOutcome::Pass
-                    } else {
-                        GateOutcome::Fail { reason: format!("{} high/{} critical findings", evidence.security_high, evidence.security_critical) }
+                    GateCriterion::NoSecurityFindings => {
+                        if evidence.security_high + evidence.security_critical == 0 {
+                            GateOutcome::Pass
+                        } else {
+                            GateOutcome::Fail {
+                                reason: format!(
+                                    "{} high/{} critical findings",
+                                    evidence.security_high, evidence.security_critical
+                                ),
+                            }
+                        }
                     }
-                }
-                GateCriterion::Compiles => {
-                    if evidence.compilation_ok { GateOutcome::Pass }
-                    else { GateOutcome::Fail { reason: "compilation failed".into() } }
-                }
-                GateCriterion::LintWarningsBelow { max } => {
-                    if evidence.clippy_warnings <= *max {
-                        GateOutcome::Pass
-                    } else {
-                        GateOutcome::Fail { reason: format!("{} warnings > max {max}", evidence.clippy_warnings) }
+                    GateCriterion::Compiles => {
+                        if evidence.compilation_ok {
+                            GateOutcome::Pass
+                        } else {
+                            GateOutcome::Fail {
+                                reason: "compilation failed".into(),
+                            }
+                        }
                     }
-                }
-                GateCriterion::Custom { name } => {
-                    match evidence.custom_gates.get(name) {
+                    GateCriterion::LintWarningsBelow { max } => {
+                        if evidence.clippy_warnings <= *max {
+                            GateOutcome::Pass
+                        } else {
+                            GateOutcome::Fail {
+                                reason: format!(
+                                    "{} warnings > max {max}",
+                                    evidence.clippy_warnings
+                                ),
+                            }
+                        }
+                    }
+                    GateCriterion::Custom { name } => match evidence.custom_gates.get(name) {
                         None => GateOutcome::Skipped,
                         Some(true) => GateOutcome::Pass,
-                        Some(false) => GateOutcome::Fail { reason: format!("custom gate '{name}' failed") },
-                    }
+                        Some(false) => GateOutcome::Fail {
+                            reason: format!("custom gate '{name}' failed"),
+                        },
+                    },
+                };
+                GateResult {
+                    criterion: criterion.clone(),
+                    outcome,
                 }
-            };
-            GateResult { criterion: criterion.clone(), outcome }
-        }).collect()
+            })
+            .collect()
     }
 
     /// True if all blocking criteria pass (or skipped).
     pub fn allows_completion(&self, evidence: &TaskEvidence) -> bool {
-        if !self.blocking { return true; }
-        self.evaluate(evidence).iter().all(|r| r.outcome != GateOutcome::Fail { reason: String::new() } || !matches!(r.outcome, GateOutcome::Fail { .. }))
+        if !self.blocking {
+            return true;
+        }
+        self.evaluate(evidence).iter().all(|r| {
+            r.outcome
+                != GateOutcome::Fail {
+                    reason: String::new(),
+                }
+                || !matches!(r.outcome, GateOutcome::Fail { .. })
+        })
     }
 
     pub fn is_passing(&self, evidence: &TaskEvidence) -> bool {
-        self.evaluate(evidence).iter().all(|r| r.outcome.passed() || matches!(r.outcome, GateOutcome::Skipped))
+        self.evaluate(evidence)
+            .iter()
+            .all(|r| r.outcome.passed() || matches!(r.outcome, GateOutcome::Skipped))
     }
 }
 
@@ -176,9 +231,15 @@ mod tests {
 
     fn passing_evidence() -> TaskEvidence {
         TaskEvidence {
-            tests_total: 100, tests_passed: 100, tests_failed: 0,
-            coverage_pct: 85.0, clippy_errors: 0, clippy_warnings: 2,
-            security_high: 0, security_critical: 0, compilation_ok: true,
+            tests_total: 100,
+            tests_passed: 100,
+            tests_failed: 0,
+            coverage_pct: 85.0,
+            clippy_errors: 0,
+            clippy_warnings: 2,
+            security_high: 0,
+            security_critical: 0,
+            compilation_ok: true,
             custom_gates: std::collections::HashMap::new(),
         }
     }
@@ -202,21 +263,26 @@ mod tests {
     #[test]
     fn test_tests_skipped_when_no_tests() {
         let gate = QualityGate::new("g", true).require(GateCriterion::TestsPass);
-        let ev = TaskEvidence { tests_total: 0, ..Default::default() };
+        let ev = TaskEvidence {
+            tests_total: 0,
+            ..Default::default()
+        };
         let results = gate.evaluate(&ev);
         assert_eq!(results[0].outcome, GateOutcome::Skipped);
     }
 
     #[test]
     fn test_coverage_pass() {
-        let gate = QualityGate::new("g", true).require(GateCriterion::CoverageAbove { min_pct: 80.0 });
+        let gate =
+            QualityGate::new("g", true).require(GateCriterion::CoverageAbove { min_pct: 80.0 });
         let results = gate.evaluate(&passing_evidence());
         assert_eq!(results[0].outcome, GateOutcome::Pass);
     }
 
     #[test]
     fn test_coverage_fail() {
-        let gate = QualityGate::new("g", true).require(GateCriterion::CoverageAbove { min_pct: 90.0 });
+        let gate =
+            QualityGate::new("g", true).require(GateCriterion::CoverageAbove { min_pct: 90.0 });
         let results = gate.evaluate(&passing_evidence());
         assert!(matches!(results[0].outcome, GateOutcome::Fail { .. }));
     }
@@ -256,7 +322,10 @@ mod tests {
     #[test]
     fn test_compiles_pass() {
         let gate = QualityGate::new("g", true).require(GateCriterion::Compiles);
-        assert_eq!(gate.evaluate(&passing_evidence())[0].outcome, GateOutcome::Pass);
+        assert_eq!(
+            gate.evaluate(&passing_evidence())[0].outcome,
+            GateOutcome::Pass
+        );
     }
 
     #[test]
@@ -264,24 +333,35 @@ mod tests {
         let gate = QualityGate::new("g", true).require(GateCriterion::Compiles);
         let mut ev = passing_evidence();
         ev.compilation_ok = false;
-        assert!(matches!(gate.evaluate(&ev)[0].outcome, GateOutcome::Fail { .. }));
+        assert!(matches!(
+            gate.evaluate(&ev)[0].outcome,
+            GateOutcome::Fail { .. }
+        ));
     }
 
     #[test]
     fn test_lint_warnings_pass() {
         let gate = QualityGate::new("g", true).require(GateCriterion::LintWarningsBelow { max: 5 });
-        assert_eq!(gate.evaluate(&passing_evidence())[0].outcome, GateOutcome::Pass);
+        assert_eq!(
+            gate.evaluate(&passing_evidence())[0].outcome,
+            GateOutcome::Pass
+        );
     }
 
     #[test]
     fn test_lint_warnings_fail() {
         let gate = QualityGate::new("g", true).require(GateCriterion::LintWarningsBelow { max: 1 });
-        assert!(matches!(gate.evaluate(&passing_evidence())[0].outcome, GateOutcome::Fail { .. }));
+        assert!(matches!(
+            gate.evaluate(&passing_evidence())[0].outcome,
+            GateOutcome::Fail { .. }
+        ));
     }
 
     #[test]
     fn test_custom_gate_pass() {
-        let gate = QualityGate::new("g", true).require(GateCriterion::Custom { name: "integration".into() });
+        let gate = QualityGate::new("g", true).require(GateCriterion::Custom {
+            name: "integration".into(),
+        });
         let mut ev = passing_evidence();
         ev.custom_gates.insert("integration".into(), true);
         assert_eq!(gate.evaluate(&ev)[0].outcome, GateOutcome::Pass);
@@ -289,16 +369,26 @@ mod tests {
 
     #[test]
     fn test_custom_gate_fail() {
-        let gate = QualityGate::new("g", true).require(GateCriterion::Custom { name: "integration".into() });
+        let gate = QualityGate::new("g", true).require(GateCriterion::Custom {
+            name: "integration".into(),
+        });
         let mut ev = passing_evidence();
         ev.custom_gates.insert("integration".into(), false);
-        assert!(matches!(gate.evaluate(&ev)[0].outcome, GateOutcome::Fail { .. }));
+        assert!(matches!(
+            gate.evaluate(&ev)[0].outcome,
+            GateOutcome::Fail { .. }
+        ));
     }
 
     #[test]
     fn test_custom_gate_skipped_when_absent() {
-        let gate = QualityGate::new("g", true).require(GateCriterion::Custom { name: "missing".into() });
-        assert_eq!(gate.evaluate(&passing_evidence())[0].outcome, GateOutcome::Skipped);
+        let gate = QualityGate::new("g", true).require(GateCriterion::Custom {
+            name: "missing".into(),
+        });
+        assert_eq!(
+            gate.evaluate(&passing_evidence())[0].outcome,
+            GateOutcome::Skipped
+        );
     }
 
     #[test]
@@ -318,7 +408,10 @@ mod tests {
     #[test]
     fn test_criterion_display() {
         assert_eq!(GateCriterion::TestsPass.to_string(), "tests_pass");
-        assert_eq!(GateCriterion::CoverageAbove { min_pct: 80.0 }.to_string(), "coverage>=80%");
+        assert_eq!(
+            GateCriterion::CoverageAbove { min_pct: 80.0 }.to_string(),
+            "coverage>=80%"
+        );
     }
 
     #[test]
@@ -379,9 +472,14 @@ pub enum GreenOutcome {
 }
 
 impl GreenOutcome {
-    pub fn is_pass(&self) -> bool { matches!(self, Self::Pass) }
+    pub fn is_pass(&self) -> bool {
+        matches!(self, Self::Pass)
+    }
     pub fn reason(&self) -> Option<&str> {
-        match self { Self::Fail(r) => Some(r), _ => None }
+        match self {
+            Self::Fail(r) => Some(r),
+            _ => None,
+        }
     }
 }
 
@@ -512,7 +610,10 @@ mod green_contract_tests {
     #[test]
     fn evaluate_fail_with_reason_when_tests_fail() {
         let contract = GreenContract::new(QualityLevel::TargetedTests);
-        let results = CheckResults { tests_passed: false, ..Default::default() };
+        let results = CheckResults {
+            tests_passed: false,
+            ..Default::default()
+        };
         let outcome = contract.evaluate(&results);
         assert!(matches!(outcome, GreenOutcome::Fail(_)));
         assert!(outcome.reason().unwrap().contains("tests"));
@@ -523,8 +624,11 @@ mod green_contract_tests {
         let contract = GreenContract::new(QualityLevel::MergeReady);
         // All passing except merge_checks
         let results = CheckResults {
-            tests_passed: true, package_build: true, workspace_build: true,
-            lint_clean: true, merge_checks: false,
+            tests_passed: true,
+            package_build: true,
+            workspace_build: true,
+            lint_clean: true,
+            merge_checks: false,
         };
         let outcome = contract.evaluate(&results);
         assert!(matches!(outcome, GreenOutcome::Fail(_)));

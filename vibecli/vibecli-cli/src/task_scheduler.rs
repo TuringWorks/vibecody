@@ -163,8 +163,8 @@ impl Scheduler {
 // Legacy priority-based scheduler — retained for BDD harness compatibility
 // ---------------------------------------------------------------------------
 
-use std::collections::BinaryHeap;
 use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 
 /// Priority level for scheduled tasks (higher value = higher priority).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -187,7 +187,12 @@ pub struct ScheduledTask {
 
 impl ScheduledTask {
     pub fn new(id: impl Into<String>, label: impl Into<String>, priority: TaskPriority) -> Self {
-        Self { id: id.into(), label: label.into(), priority, run_after: 0 }
+        Self {
+            id: id.into(),
+            label: label.into(),
+            priority,
+            run_after: 0,
+        }
     }
 
     pub fn with_run_after(mut self, ts: u64) -> Self {
@@ -205,13 +210,16 @@ struct HeapEntry {
 
 impl Ord for HeapEntry {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.priority.cmp(&other.priority)
+        self.priority
+            .cmp(&other.priority)
             .then_with(|| other.run_after.cmp(&self.run_after))
     }
 }
 
 impl PartialOrd for HeapEntry {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> { Some(self.cmp(other)) }
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 /// BinaryHeap-based priority scheduler.
@@ -221,10 +229,16 @@ pub struct TaskScheduler {
 }
 
 impl TaskScheduler {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn push(&mut self, task: ScheduledTask) {
-        self.heap.push(HeapEntry { priority: task.priority, run_after: task.run_after, task });
+        self.heap.push(HeapEntry {
+            priority: task.priority,
+            run_after: task.run_after,
+            task,
+        });
     }
 
     /// Dequeue the highest-priority task that is eligible at `now`.
@@ -237,8 +251,12 @@ impl TaskScheduler {
         None
     }
 
-    pub fn len(&self) -> usize { self.heap.len() }
-    pub fn is_empty(&self) -> bool { self.heap.is_empty() }
+    pub fn len(&self) -> usize {
+        self.heap.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.heap.is_empty()
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -298,8 +316,20 @@ mod tests {
     #[test]
     fn test_scheduler_due_tasks() {
         let mut sched = Scheduler::new();
-        sched.add(CronTask::new("a", "A", "cmd", Schedule::Interval { secs: 5 }, 0));
-        sched.add(CronTask::new("b", "B", "cmd", Schedule::Interval { secs: 100 }, 0));
+        sched.add(CronTask::new(
+            "a",
+            "A",
+            "cmd",
+            Schedule::Interval { secs: 5 },
+            0,
+        ));
+        sched.add(CronTask::new(
+            "b",
+            "B",
+            "cmd",
+            Schedule::Interval { secs: 100 },
+            0,
+        ));
         let due = sched.due_tasks(10);
         assert_eq!(due.len(), 1);
         assert_eq!(due[0].id, "a");
@@ -308,8 +338,20 @@ mod tests {
     #[test]
     fn test_scheduler_tick_returns_ids() {
         let mut sched = Scheduler::new();
-        sched.add(CronTask::new("x", "X", "cmd", Schedule::Interval { secs: 1 }, 0));
-        sched.add(CronTask::new("y", "Y", "cmd", Schedule::Interval { secs: 1000 }, 0));
+        sched.add(CronTask::new(
+            "x",
+            "X",
+            "cmd",
+            Schedule::Interval { secs: 1 },
+            0,
+        ));
+        sched.add(CronTask::new(
+            "y",
+            "Y",
+            "cmd",
+            Schedule::Interval { secs: 1000 },
+            0,
+        ));
         let ids = sched.tick(5);
         assert_eq!(ids, vec!["x"]);
     }
@@ -317,7 +359,13 @@ mod tests {
     #[test]
     fn test_scheduler_remove() {
         let mut sched = Scheduler::new();
-        sched.add(CronTask::new("r1", "R1", "cmd", Schedule::Interval { secs: 1 }, 0));
+        sched.add(CronTask::new(
+            "r1",
+            "R1",
+            "cmd",
+            Schedule::Interval { secs: 1 },
+            0,
+        ));
         assert_eq!(sched.task_count(), 1);
         assert!(sched.remove("r1"));
         assert_eq!(sched.task_count(), 0);

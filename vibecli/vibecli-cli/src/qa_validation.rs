@@ -547,7 +547,9 @@ impl QaPipeline {
             None => 1,
         };
         self.active_round = Some(QaRound::new(round_number));
-        self.active_round.as_mut().expect("just created active_round")
+        self.active_round
+            .as_mut()
+            .expect("just created active_round")
     }
 
     pub fn run_cross_validation(&self, round: &QaRound) -> Vec<CrossValidationResult> {
@@ -644,7 +646,11 @@ impl QaPipeline {
         if all.is_empty() {
             return pass_rate;
         }
-        let total_severity: u32 = all.iter().filter(|f| !f.resolved).map(|f| f.severity_score()).sum();
+        let total_severity: u32 = all
+            .iter()
+            .filter(|f| !f.resolved)
+            .map(|f| f.severity_score())
+            .sum();
         let max_possible = all.len() as u32 * 10; // worst case: all critical
         let severity_penalty = if max_possible > 0 {
             (total_severity as f64 / max_possible as f64) * 50.0
@@ -669,9 +675,7 @@ impl QaPipeline {
                 QaRecommendation::ApproveWithWarnings(critical_count)
             }
         } else if score >= self.config.min_pass_score * 0.75 {
-            QaRecommendation::RequestChanges(
-                ((self.config.min_pass_score - score).ceil()) as usize,
-            )
+            QaRecommendation::RequestChanges(((self.config.min_pass_score - score).ceil()) as usize)
         } else {
             QaRecommendation::Reject(format!("Score {:.1} is below minimum threshold", score))
         }
@@ -681,7 +685,10 @@ impl QaPipeline {
         if round.round_number >= self.config.max_rounds {
             return false;
         }
-        round.needs_another_round(self.config.min_pass_score, self.config.require_zero_critical)
+        round.needs_another_round(
+            self.config.min_pass_score,
+            self.config.require_zero_critical,
+        )
     }
 
     pub fn spawn_standard_agents(&self) -> Vec<QaAgent> {
@@ -1342,7 +1349,10 @@ mod tests {
         let mut p = QaPipeline::new();
         p.create_round();
         p.create_round();
-        assert_eq!(p.active_round.as_ref().expect("active round").round_number, 2);
+        assert_eq!(
+            p.active_round.as_ref().expect("active round").round_number,
+            2
+        );
     }
 
     #[test]
@@ -1722,11 +1732,17 @@ mod tests {
         let by_file = report.findings_by_file();
         assert_eq!(by_file.len(), 2);
         assert_eq!(
-            by_file.get(&PathBuf::from("src/main.rs")).expect("main.rs findings").len(),
+            by_file
+                .get(&PathBuf::from("src/main.rs"))
+                .expect("main.rs findings")
+                .len(),
             1
         );
         assert_eq!(
-            by_file.get(&PathBuf::from("src/lib.rs")).expect("lib.rs findings").len(),
+            by_file
+                .get(&PathBuf::from("src/lib.rs"))
+                .expect("lib.rs findings")
+                .len(),
             1
         );
     }
@@ -1811,6 +1827,9 @@ mod tests {
         assert_eq!(QaAgentType::CompileChecker.label(), "compile-checker");
         assert_eq!(QaAgentType::TestRunner.label(), "test-runner");
         assert_eq!(QaAgentType::SecurityAuditor.label(), "security-auditor");
-        assert_eq!(QaAgentType::PerformanceAnalyzer.label(), "performance-analyzer");
+        assert_eq!(
+            QaAgentType::PerformanceAnalyzer.label(),
+            "performance-analyzer"
+        );
     }
 }

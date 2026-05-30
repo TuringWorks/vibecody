@@ -129,7 +129,14 @@ impl FineTuneLibrary {
     }
 
     pub fn all() -> Vec<Self> {
-        vec![Self::Unsloth, Self::Axolotl, Self::LlamaFactory, Self::DeepSpeed, Self::HuggingFaceTRL, Self::Peft]
+        vec![
+            Self::Unsloth,
+            Self::Axolotl,
+            Self::LlamaFactory,
+            Self::DeepSpeed,
+            Self::HuggingFaceTRL,
+            Self::Peft,
+        ]
     }
 }
 
@@ -200,7 +207,14 @@ impl NotebookEnvironment {
     }
 
     pub fn all() -> Vec<Self> {
-        vec![Self::GoogleColab, Self::KaggleNotebook, Self::SageMakerStudio, Self::LightningStudio, Self::GradioSpaces, Self::LocalJupyter]
+        vec![
+            Self::GoogleColab,
+            Self::KaggleNotebook,
+            Self::SageMakerStudio,
+            Self::LightningStudio,
+            Self::GradioSpaces,
+            Self::LocalJupyter,
+        ]
     }
 }
 
@@ -305,7 +319,15 @@ impl RlEnvironment {
     }
 
     pub fn all() -> Vec<Self> {
-        vec![Self::NeMoGym, Self::Gymnasium, Self::ReasoningGym, Self::SweBench, Self::LmsysArena, Self::TrlPpo, Self::Aviary]
+        vec![
+            Self::NeMoGym,
+            Self::Gymnasium,
+            Self::ReasoningGym,
+            Self::SweBench,
+            Self::LmsysArena,
+            Self::TrlPpo,
+            Self::Aviary,
+        ]
     }
 }
 
@@ -368,7 +390,13 @@ impl DocumentProcessor {
     }
 
     pub fn all() -> Vec<Self> {
-        vec![Self::MinerU, Self::Docling, Self::Unstructured, Self::LlamaParse, Self::BuiltIn]
+        vec![
+            Self::MinerU,
+            Self::Docling,
+            Self::Unstructured,
+            Self::LlamaParse,
+            Self::BuiltIn,
+        ]
     }
 }
 
@@ -419,14 +447,21 @@ impl TrainingExample {
     /// Rough token count (words * 1.3).
     pub fn estimated_tokens(&self) -> usize {
         let mut chars = 0;
-        if let Some(s) = &self.system { chars += s.len(); }
-        for (_, content) in &self.messages { chars += content.len(); }
+        if let Some(s) = &self.system {
+            chars += s.len();
+        }
+        for (_, content) in &self.messages {
+            chars += content.len();
+        }
         (chars as f64 / 4.0) as usize // ~4 chars per token
     }
 
     pub fn is_valid(&self) -> bool {
         !self.messages.is_empty()
-            && self.messages.iter().all(|(role, content)| !role.is_empty() && !content.is_empty())
+            && self
+                .messages
+                .iter()
+                .all(|(role, content)| !role.is_empty() && !content.is_empty())
     }
 }
 
@@ -471,11 +506,15 @@ impl Dataset {
             .filter_map(|e| e.ok())
         {
             let p = entry.path();
-            if p.is_dir() { continue; }
+            if p.is_dir() {
+                continue;
+            }
 
             let path_str = p.to_string_lossy();
-            if path_str.contains("/.") || path_str.contains("/node_modules/")
-                || path_str.contains("/target/") {
+            if path_str.contains("/.")
+                || path_str.contains("/node_modules/")
+                || path_str.contains("/target/")
+            {
                 continue;
             }
 
@@ -490,7 +529,9 @@ impl Dataset {
             };
 
             if let Some(filter) = language_filter {
-                if lang != filter { continue; }
+                if lang != filter {
+                    continue;
+                }
             }
 
             let content = match std::fs::read_to_string(p) {
@@ -506,9 +547,14 @@ impl Dataset {
                 metadata.insert("file".to_string(), p.display().to_string());
 
                 examples.push(TrainingExample {
-                    system: Some("You are a coding assistant. Implement the described function.".to_string()),
+                    system: Some(
+                        "You are a coding assistant. Implement the described function.".to_string(),
+                    ),
                     messages: vec![
-                        ("user".to_string(), format!("{}\n\nImplement: {}", doc, signature)),
+                        (
+                            "user".to_string(),
+                            format!("{}\n\nImplement: {}", doc, signature),
+                        ),
                         ("assistant".to_string(), body),
                     ],
                     metadata,
@@ -517,7 +563,10 @@ impl Dataset {
         }
 
         Ok(Dataset {
-            name: format!("codebase-{}", path.file_name().unwrap_or_default().to_string_lossy()),
+            name: format!(
+                "codebase-{}",
+                path.file_name().unwrap_or_default().to_string_lossy()
+            ),
             examples,
             format: DatasetFormat::ChatML,
         })
@@ -526,7 +575,13 @@ impl Dataset {
     /// Extract commit message + diff pairs from git history.
     pub fn from_git_history(repo: &Path, max_commits: usize) -> Result<Self> {
         let output = std::process::Command::new("git")
-            .args(["log", "--oneline", "-n", &max_commits.to_string(), "--format=%H %s"])
+            .args([
+                "log",
+                "--oneline",
+                "-n",
+                &max_commits.to_string(),
+                "--format=%H %s",
+            ])
             .current_dir(repo)
             .output()
             .context("failed to run git log")?;
@@ -536,7 +591,9 @@ impl Dataset {
 
         for line in log_output.lines().take(max_commits) {
             let parts: Vec<&str> = line.splitn(2, ' ').collect();
-            if parts.len() < 2 { continue; }
+            if parts.len() < 2 {
+                continue;
+            }
             let (hash, message) = (parts[0], parts[1]);
 
             let diff_output = std::process::Command::new("git")
@@ -549,7 +606,9 @@ impl Dataset {
                 Err(_) => continue,
             };
 
-            if diff.trim().is_empty() { continue; }
+            if diff.trim().is_empty() {
+                continue;
+            }
 
             let mut metadata = HashMap::new();
             metadata.insert("commit".to_string(), hash.to_string());
@@ -565,7 +624,10 @@ impl Dataset {
         }
 
         Ok(Dataset {
-            name: format!("git-history-{}", repo.file_name().unwrap_or_default().to_string_lossy()),
+            name: format!(
+                "git-history-{}",
+                repo.file_name().unwrap_or_default().to_string_lossy()
+            ),
             examples,
             format: DatasetFormat::ChatML,
         })
@@ -573,12 +635,13 @@ impl Dataset {
 
     /// Load from saved agent conversations (JSONL format).
     pub fn from_conversations(path: &Path) -> Result<Self> {
-        let content = std::fs::read_to_string(path)
-            .context("failed to read conversations file")?;
+        let content = std::fs::read_to_string(path).context("failed to read conversations file")?;
 
         let mut examples = Vec::new();
         for line in content.lines() {
-            if line.trim().is_empty() { continue; }
+            if line.trim().is_empty() {
+                continue;
+            }
             match serde_json::from_str::<TrainingExample>(line) {
                 Ok(ex) => examples.push(ex),
                 Err(_) => continue,
@@ -586,7 +649,10 @@ impl Dataset {
         }
 
         Ok(Dataset {
-            name: format!("conversations-{}", path.file_name().unwrap_or_default().to_string_lossy()),
+            name: format!(
+                "conversations-{}",
+                path.file_name().unwrap_or_default().to_string_lossy()
+            ),
             examples,
             format: DatasetFormat::ChatML,
         })
@@ -595,8 +661,7 @@ impl Dataset {
     /// Export as OpenAI-compatible JSONL.
     pub fn to_jsonl(&self, path: &Path) -> Result<()> {
         use std::io::Write;
-        let mut file = std::fs::File::create(path)
-            .context("failed to create JSONL file")?;
+        let mut file = std::fs::File::create(path).context("failed to create JSONL file")?;
 
         for example in &self.examples {
             let mut messages = Vec::new();
@@ -653,7 +718,11 @@ impl Dataset {
                 }
             }
             if ex.estimated_tokens() > 8192 {
-                issues.push(format!("Example {} exceeds 8192 tokens (~{})", i, ex.estimated_tokens()));
+                issues.push(format!(
+                    "Example {} exceeds 8192 tokens (~{})",
+                    i,
+                    ex.estimated_tokens()
+                ));
             }
         }
 
@@ -666,16 +735,16 @@ impl Dataset {
             return DatasetStats::default();
         }
 
-        let token_counts: Vec<usize> = self.examples.iter()
-            .map(|e| e.estimated_tokens())
-            .collect();
+        let token_counts: Vec<usize> = self.examples.iter().map(|e| e.estimated_tokens()).collect();
 
         let total: usize = token_counts.iter().sum();
         let mut languages: HashMap<String, usize> = HashMap::new();
         let mut invalid = 0;
 
         for ex in &self.examples {
-            if !ex.is_valid() { invalid += 1; }
+            if !ex.is_valid() {
+                invalid += 1;
+            }
             if let Some(lang) = ex.metadata.get("language") {
                 *languages.entry(lang.clone()).or_default() += 1;
             }
@@ -696,8 +765,15 @@ impl Dataset {
     pub fn filter_by_language(&self, lang: &str) -> Dataset {
         Dataset {
             name: format!("{}-{}", self.name, lang),
-            examples: self.examples.iter()
-                .filter(|e| e.metadata.get("language").map(|l| l == lang).unwrap_or(false))
+            examples: self
+                .examples
+                .iter()
+                .filter(|e| {
+                    e.metadata
+                        .get("language")
+                        .map(|l| l == lang)
+                        .unwrap_or(false)
+                })
                 .cloned()
                 .collect(),
             format: self.format.clone(),
@@ -723,8 +799,12 @@ impl Dataset {
         }
     }
 
-    pub fn len(&self) -> usize { self.examples.len() }
-    pub fn is_empty(&self) -> bool { self.examples.is_empty() }
+    pub fn len(&self) -> usize {
+        self.examples.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.examples.is_empty()
+    }
 }
 
 fn simple_hash(messages: &[(String, String)]) -> u64 {
@@ -765,7 +845,8 @@ fn extract_documented_functions(content: &str, lang: &str) -> Vec<(String, Strin
             }
             // Check if next non-empty line is a function
             if i < lines.len() && fn_re.is_match(lines[i]) {
-                let doc: String = lines[doc_start..i].iter()
+                let doc: String = lines[doc_start..i]
+                    .iter()
                     .map(|l| l.trim().trim_start_matches(doc_prefix).trim())
                     .collect::<Vec<_>>()
                     .join("\n");
@@ -887,10 +968,17 @@ pub struct FineTuneManager {
 
 impl FineTuneManager {
     pub fn new() -> Self {
-        Self { jobs: Vec::new(), next_job_num: 1 }
+        Self {
+            jobs: Vec::new(),
+            next_job_num: 1,
+        }
     }
 
-    pub fn create_job(&mut self, config: FineTuneConfig, dataset: &Dataset) -> Result<&FineTuneJob> {
+    pub fn create_job(
+        &mut self,
+        config: FineTuneConfig,
+        dataset: &Dataset,
+    ) -> Result<&FineTuneJob> {
         let issues = dataset.validate();
         if issues.iter().any(|i| i.contains("empty")) {
             anyhow::bail!("Dataset has critical validation issues: {:?}", issues);
@@ -932,12 +1020,17 @@ impl FineTuneManager {
     }
 
     pub fn cancel_job(&mut self, id: &str) -> Result<()> {
-        let job = self.jobs.iter_mut()
+        let job = self
+            .jobs
+            .iter_mut()
             .find(|j| j.id == id)
             .context("job not found")?;
 
         if job.status.is_terminal() {
-            anyhow::bail!("Cannot cancel job in terminal state: {}", job.status.as_str());
+            anyhow::bail!(
+                "Cannot cancel job in terminal state: {}",
+                job.status.as_str()
+            );
         }
 
         job.status = JobStatus::Cancelled;
@@ -945,9 +1038,12 @@ impl FineTuneManager {
     }
 
     pub fn estimate_cost(&self, config: &FineTuneConfig, dataset: &Dataset) -> CostEstimate {
-        let total_tokens: u64 = dataset.examples.iter()
+        let total_tokens: u64 = dataset
+            .examples
+            .iter()
             .map(|e| e.estimated_tokens() as u64)
-            .sum::<u64>() * config.n_epochs as u64;
+            .sum::<u64>()
+            * config.n_epochs as u64;
 
         let cost = (total_tokens as f64 / 1000.0) * config.provider.cost_per_1k_tokens();
         let duration = total_tokens as f64 / 50_000.0; // ~50k tokens/min
@@ -960,11 +1056,15 @@ impl FineTuneManager {
         }
     }
 
-    pub fn job_count(&self) -> usize { self.jobs.len() }
+    pub fn job_count(&self) -> usize {
+        self.jobs.len()
+    }
 }
 
 impl Default for FineTuneManager {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // ── SWE-Bench Evaluation ─────────────────────────────────────────────────────
@@ -1005,12 +1105,14 @@ impl SWEBenchEval {
 
     /// Load SWE-bench tasks from a JSONL file.
     pub fn load_tasks(path: &Path) -> Result<Self> {
-        let content = std::fs::read_to_string(path)
-            .context("failed to read SWE-bench tasks file")?;
+        let content =
+            std::fs::read_to_string(path).context("failed to read SWE-bench tasks file")?;
 
         let mut tasks = Vec::new();
         for line in content.lines() {
-            if line.trim().is_empty() { continue; }
+            if line.trim().is_empty() {
+                continue;
+            }
             match serde_json::from_str::<SWEBenchTask>(line) {
                 Ok(task) => tasks.push(task),
                 Err(e) => eprintln!("Skipping invalid task: {}", e),
@@ -1033,8 +1135,13 @@ impl SWEBenchEval {
 
     /// Compare multiple evaluation results.
     pub fn compare_models(results: &[EvalResults]) -> ComparisonReport {
-        let winner = results.iter()
-            .max_by(|a, b| a.resolution_rate.partial_cmp(&b.resolution_rate).unwrap_or(std::cmp::Ordering::Equal))
+        let winner = results
+            .iter()
+            .max_by(|a, b| {
+                a.resolution_rate
+                    .partial_cmp(&b.resolution_rate)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
             .map(|r| r.model_name.clone())
             .unwrap_or_default();
 
@@ -1045,11 +1152,15 @@ impl SWEBenchEval {
         }
     }
 
-    pub fn task_count(&self) -> usize { self.tasks.len() }
+    pub fn task_count(&self) -> usize {
+        self.tasks.len()
+    }
 }
 
 impl Default for SWEBenchEval {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // ── LoRA Adapter ─────────────────────────────────────────────────────────────
@@ -1082,8 +1193,13 @@ impl LoraAdapter {
                     let config_str = std::fs::read_to_string(&config_path)?;
                     if let Ok(config) = serde_json::from_str::<serde_json::Value>(&config_str) {
                         adapters.push(LoraAdapter {
-                            name: path.file_name().unwrap_or_default().to_string_lossy().to_string(),
-                            base_model: config.get("base_model_name_or_path")
+                            name: path
+                                .file_name()
+                                .unwrap_or_default()
+                                .to_string_lossy()
+                                .to_string(),
+                            base_model: config
+                                .get("base_model_name_or_path")
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("unknown")
                                 .to_string(),
@@ -1127,8 +1243,14 @@ mod tests {
 
     fn sample_example() -> TrainingExample {
         TrainingExample::new(vec![
-            ("user".to_string(), "Write a hello world function".to_string()),
-            ("assistant".to_string(), "fn hello() { println!(\"Hello!\"); }".to_string()),
+            (
+                "user".to_string(),
+                "Write a hello world function".to_string(),
+            ),
+            (
+                "assistant".to_string(),
+                "fn hello() { println!(\"Hello!\"); }".to_string(),
+            ),
         ])
     }
 
@@ -1137,7 +1259,10 @@ mod tests {
         ds.examples.push(sample_example());
         ds.examples.push(TrainingExample::new(vec![
             ("user".to_string(), "Write a sort function".to_string()),
-            ("assistant".to_string(), "fn sort(v: &mut Vec<i32>) { v.sort(); }".to_string()),
+            (
+                "assistant".to_string(),
+                "fn sort(v: &mut Vec<i32>) { v.sort(); }".to_string(),
+            ),
         ]));
         ds
     }
@@ -1227,9 +1352,10 @@ mod tests {
     #[test]
     fn test_dataset_validate_empty_message() {
         let mut ds = Dataset::new("test", DatasetFormat::ChatML);
-        ds.examples.push(TrainingExample::new(vec![
-            ("user".to_string(), "".to_string()),
-        ]));
+        ds.examples.push(TrainingExample::new(vec![(
+            "user".to_string(),
+            "".to_string(),
+        )]));
         let issues = ds.validate();
         assert!(!issues.is_empty());
     }
@@ -1273,8 +1399,12 @@ mod tests {
     #[test]
     fn test_dataset_filter_by_language() {
         let mut ds = sample_dataset();
-        ds.examples[0].metadata.insert("language".to_string(), "rust".to_string());
-        ds.examples[1].metadata.insert("language".to_string(), "python".to_string());
+        ds.examples[0]
+            .metadata
+            .insert("language".to_string(), "rust".to_string());
+        ds.examples[1]
+            .metadata
+            .insert("language".to_string(), "python".to_string());
 
         let rust_only = ds.filter_by_language("rust");
         assert_eq!(rust_only.len(), 1);
@@ -1332,7 +1462,11 @@ mod tests {
     fn test_job_status_terminal() {
         assert!(!JobStatus::Pending.is_terminal());
         assert!(!JobStatus::Validating.is_terminal());
-        assert!(!JobStatus::Running { epoch: 1, loss: 0.5 }.is_terminal());
+        assert!(!JobStatus::Running {
+            epoch: 1,
+            loss: 0.5
+        }
+        .is_terminal());
         assert!(JobStatus::Completed.is_terminal());
         assert!(JobStatus::Failed("error".to_string()).is_terminal());
         assert!(JobStatus::Cancelled.is_terminal());
@@ -1341,7 +1475,14 @@ mod tests {
     #[test]
     fn test_job_status_as_str() {
         assert_eq!(JobStatus::Pending.as_str(), "pending");
-        assert_eq!(JobStatus::Running { epoch: 1, loss: 0.5 }.as_str(), "running");
+        assert_eq!(
+            JobStatus::Running {
+                epoch: 1,
+                loss: 0.5
+            }
+            .as_str(),
+            "running"
+        );
     }
 
     // ── Manager tests ────────────────────────────────────────────────────
@@ -1418,7 +1559,10 @@ mod tests {
     fn test_cost_estimate() {
         let mgr = FineTuneManager::new();
         let ds = sample_dataset();
-        let config = FineTuneConfig { n_epochs: 3, ..Default::default() };
+        let config = FineTuneConfig {
+            n_epochs: 3,
+            ..Default::default()
+        };
         let estimate = mgr.estimate_cost(&config, &ds);
         assert!(estimate.estimated_cost_usd >= 0.0);
         assert!(estimate.tokens_total > 0);

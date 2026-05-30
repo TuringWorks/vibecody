@@ -2,12 +2,12 @@
  * BDD tests for diagram_generator using Cucumber.
  * Run with: cargo test --test diagram_generator_bdd
  */
-use cucumber::{World, given, then, when};
-use vibecli_cli::diagram_generator::{
-    build_system_prompt, build_user_prompt, post_process_diagram_output,
-    make_mermaid_doc, C4Templates, DiagramRequest, MermaidTemplates, PlantUmlTemplates,
-};
+use cucumber::{given, then, when, World};
 use vibecli_cli::design_providers::{DiagramFormat, DiagramKind};
+use vibecli_cli::diagram_generator::{
+    build_system_prompt, build_user_prompt, make_mermaid_doc, post_process_diagram_output,
+    C4Templates, DiagramRequest, MermaidTemplates, PlantUmlTemplates,
+};
 
 #[derive(Debug, Default, World)]
 pub struct DgWorld {
@@ -51,12 +51,17 @@ fn given_c4_template(world: &mut DgWorld, system: String) {
 
 #[given(expr = "a PlantUML component template for {string} with component {string} as {string}")]
 fn given_plantuml_template(world: &mut DgWorld, system: String, comp: String, tech: String) {
-    world.template_output = PlantUmlTemplates::component_diagram(&system, &[(comp.as_str(), tech.as_str())]);
+    world.template_output =
+        PlantUmlTemplates::component_diagram(&system, &[(comp.as_str(), tech.as_str())]);
 }
 
 #[given(expr = "I create a Mermaid diagram doc titled {string}")]
 fn given_mermaid_doc(world: &mut DgWorld, title: String) {
-    world.doc = Some(make_mermaid_doc(&title, DiagramKind::Flowchart, "flowchart TD\nA-->B"));
+    world.doc = Some(make_mermaid_doc(
+        &title,
+        DiagramKind::Flowchart,
+        "flowchart TD\nA-->B",
+    ));
 }
 
 // ── When ───────────────────────────────────────────────────────────────────
@@ -101,13 +106,21 @@ fn when_override_format(world: &mut DgWorld, fmt: String) {
 
 #[then(expr = "the prompt should contain {string}")]
 fn then_prompt_contains(world: &mut DgWorld, s: String) {
-    let text = if !world.system_prompt.is_empty() { &world.system_prompt } else { &world.user_prompt };
+    let text = if !world.system_prompt.is_empty() {
+        &world.system_prompt
+    } else {
+        &world.user_prompt
+    };
     assert!(text.contains(s.as_str()), "Prompt missing: {s}");
 }
 
 #[then("the result should be OK")]
 fn then_result_ok(world: &mut DgWorld) {
-    assert!(world.post_result.as_ref().unwrap().is_ok(), "Expected OK, got: {:?}", world.post_result);
+    assert!(
+        world.post_result.as_ref().unwrap().is_ok(),
+        "Expected OK, got: {:?}",
+        world.post_result
+    );
 }
 
 #[then("the result should be an error")]
@@ -129,12 +142,18 @@ fn then_output_not_contains(world: &mut DgWorld, s: String) {
 
 #[then(expr = "the template should contain {string}")]
 fn then_template_contains(world: &mut DgWorld, s: String) {
-    assert!(world.template_output.contains(s.as_str()), "Template missing: {s}");
+    assert!(
+        world.template_output.contains(s.as_str()),
+        "Template missing: {s}"
+    );
 }
 
 #[then(expr = "the DSL should contain {string}")]
 fn then_dsl_contains(world: &mut DgWorld, s: String) {
-    assert!(world.template_output.contains(s.as_str()), "DSL missing: {s}");
+    assert!(
+        world.template_output.contains(s.as_str()),
+        "DSL missing: {s}"
+    );
 }
 
 #[then(expr = "the doc provider should be {string}")]
@@ -145,14 +164,18 @@ fn then_doc_provider(world: &mut DgWorld, provider: String) {
 
 #[then(expr = "the doc format should be {string}")]
 fn then_doc_format(world: &mut DgWorld, fmt: String) {
-    let f = format!("{:?}", world.doc.as_ref().unwrap().format).to_lowercase().replace('_', "");
+    let f = format!("{:?}", world.doc.as_ref().unwrap().format)
+        .to_lowercase()
+        .replace('_', "");
     let e = fmt.replace('_', "");
     assert_eq!(f, e, "Format mismatch: {f} vs {e}");
 }
 
 #[then(expr = "the request format should be {string}")]
 fn then_request_format(world: &mut DgWorld, fmt: String) {
-    let f = format!("{:?}", world.request.as_ref().unwrap().format).to_lowercase().replace('_', "");
+    let f = format!("{:?}", world.request.as_ref().unwrap().format)
+        .to_lowercase()
+        .replace('_', "");
     let e = fmt.replace('_', "");
     assert_eq!(f, e);
 }

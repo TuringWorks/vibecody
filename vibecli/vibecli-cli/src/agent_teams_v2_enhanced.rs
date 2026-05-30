@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -374,7 +373,11 @@ mod tests {
     #[test]
     fn test_agent_capabilities() {
         let mut mgr = AgentTeamManager::new();
-        let id = mgr.add_agent("Alice", AgentRole::Lead, vec!["rust".into(), "python".into()]);
+        let id = mgr.add_agent(
+            "Alice",
+            AgentRole::Lead,
+            vec!["rust".into(), "python".into()],
+        );
         let agent = mgr.get_agent(&id).unwrap();
         assert_eq!(agent.capabilities.len(), 2);
         assert!(agent.capabilities.contains(&"rust".to_string()));

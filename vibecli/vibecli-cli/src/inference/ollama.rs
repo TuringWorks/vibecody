@@ -65,7 +65,10 @@ impl OllamaProxyBackend {
             .await
             .map_err(unavailable)?;
         if !resp.status().is_success() {
-            return Err(map_status(resp.status(), resp.text().await.unwrap_or_default()));
+            return Err(map_status(
+                resp.status(),
+                resp.text().await.unwrap_or_default(),
+            ));
         }
 
         // bytes_stream → split on '\n' → parse each as T.
@@ -138,7 +141,10 @@ impl Backend for OllamaProxyBackend {
             .await
             .map_err(unavailable)?;
         if !resp.status().is_success() {
-            return Err(map_status(resp.status(), resp.text().await.unwrap_or_default()));
+            return Err(map_status(
+                resp.status(),
+                resp.text().await.unwrap_or_default(),
+            ));
         }
         let tags: Tags = resp.json().await.map_err(upstream)?;
         Ok(tags
@@ -192,7 +198,10 @@ impl Backend for OllamaProxyBackend {
             return Err(BackendError::ModelNotFound(name.to_string()));
         }
         if !resp.status().is_success() {
-            return Err(map_status(resp.status(), resp.text().await.unwrap_or_default()));
+            return Err(map_status(
+                resp.status(),
+                resp.text().await.unwrap_or_default(),
+            ));
         }
         let show: ShowResp = resp.json().await.map_err(upstream)?;
         Ok(ModelInfo {
@@ -385,4 +394,3 @@ mod tests {
         assert_eq!(chunks[1].completion_tokens, Some(7));
     }
 }
-

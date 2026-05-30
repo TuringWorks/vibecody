@@ -36,7 +36,12 @@ fn any_file_with_ext(root: &Path, ext: &str) -> bool {
             d.find(|e| {
                 e.as_ref()
                     .ok()
-                    .and_then(|e| e.path().extension().and_then(|x| x.to_str()).map(|x| x == ext))
+                    .and_then(|e| {
+                        e.path()
+                            .extension()
+                            .and_then(|x| x.to_str())
+                            .map(|x| x == ext)
+                    })
                     .unwrap_or(false)
             })
         })
@@ -111,9 +116,7 @@ pub fn detect_extensions(workspace_root: &Path) -> Vec<ExtensionHint> {
 
     // ── Frameworks ────────────────────────────────────────────────────────────
 
-    if file_exists(workspace_root, "tauri.conf.json")
-        || workspace_root.join("src-tauri").exists()
-    {
+    if file_exists(workspace_root, "tauri.conf.json") || workspace_root.join("src-tauri").exists() {
         hints.push(ExtensionHint {
             label: "Tauri".into(),
             skill: "tauri-dev".into(),
@@ -177,7 +180,9 @@ pub fn detect_extensions(workspace_root: &Path) -> Vec<ExtensionHint> {
 /// Print workspace extension hints to stdout (called at session start).
 pub fn print_extension_hints(workspace_root: &Path) {
     let hints = detect_extensions(workspace_root);
-    if hints.is_empty() { return; }
+    if hints.is_empty() {
+        return;
+    }
 
     println!("\x1b[1;36m🔍 Workspace detected:\x1b[0m");
     for h in &hints {
@@ -198,7 +203,10 @@ pub fn handle_workspace_detect_command() -> String {
     }
     let mut out = format!("🔍 Workspace extensions detected ({}):\n", hints.len());
     for h in &hints {
-        out.push_str(&format!("  {} — skill: {}  ({})\n", h.label, h.skill, h.reason));
+        out.push_str(&format!(
+            "  {} — skill: {}  ({})\n",
+            h.label, h.skill, h.reason
+        ));
     }
     out
 }
@@ -211,7 +219,9 @@ mod tests {
     use std::fs;
     use tempfile::TempDir;
 
-    fn tmp() -> TempDir { tempfile::tempdir().unwrap() }
+    fn tmp() -> TempDir {
+        tempfile::tempdir().unwrap()
+    }
 
     #[test]
     fn test_detects_rust() {

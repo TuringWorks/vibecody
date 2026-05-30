@@ -372,7 +372,10 @@ mod tests {
             let d = s.delay(i);
             // With full exponential at attempt i, delay should be <= 2^i seconds
             let max_expected = Duration::from_secs_f64(2f64.powi(i as i32).min(60.0));
-            assert!(d <= max_expected, "delay {d:?} > max {max_expected:?} at attempt {i}");
+            assert!(
+                d <= max_expected,
+                "delay {d:?} > max {max_expected:?} at attempt {i}"
+            );
         }
     }
 

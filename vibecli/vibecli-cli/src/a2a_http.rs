@@ -20,11 +20,11 @@
 
 use crate::a2a_protocol::{A2aEvent, A2aServer, A2aTask, AgentCard, TaskInput};
 use axum::{
-    Json, Router,
     extract::{Path, State},
     http::StatusCode,
-    response::{IntoResponse, Sse, sse::Event as SseEvent},
+    response::{sse::Event as SseEvent, IntoResponse, Sse},
     routing::{get, post},
+    Json, Router,
 };
 use futures::stream::{Stream, StreamExt};
 use serde::Deserialize;
@@ -33,7 +33,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
-use tokio::sync::{Mutex, broadcast};
+use tokio::sync::{broadcast, Mutex};
 
 type Shared = Arc<Mutex<A2aServer>>;
 
@@ -117,15 +117,11 @@ async fn submit_task(
             )
                 .into_response()
         }
-        Err(e) => (StatusCode::CONFLICT, Json(serde_json::json!({"error": e})))
-            .into_response(),
+        Err(e) => (StatusCode::CONFLICT, Json(serde_json::json!({"error": e}))).into_response(),
     }
 }
 
-async fn get_task(
-    State(s): State<HttpState>,
-    Path(id): Path<String>,
-) -> impl IntoResponse {
+async fn get_task(State(s): State<HttpState>, Path(id): Path<String>) -> impl IntoResponse {
     let agent = s.agent.lock().await;
     match agent.active_tasks.iter().find(|t| t.id == id) {
         Some(task) => (StatusCode::OK, Json(task.clone())).into_response(),
@@ -145,9 +141,14 @@ async fn sse_events(
         agent.get_events().all_events().to_vec()
     };
     let live = tokio_stream::wrappers::BroadcastStream::new(s.bus.subscribe());
-    let replay = futures::stream::iter(snapshot.into_iter().map(Ok::<_, broadcast::error::RecvError>));
+    let replay = futures::stream::iter(
+        snapshot
+            .into_iter()
+            .map(Ok::<_, broadcast::error::RecvError>),
+    );
 
-    let merged = replay.chain(live.map(|r| r.map_err(|_| broadcast::error::RecvError::Closed)))
+    let merged = replay
+        .chain(live.map(|r| r.map_err(|_| broadcast::error::RecvError::Closed)))
         .filter_map(|r| async move { r.ok() })
         .map(|ev| {
             let kind = format!("{:?}", ev.event_type);
@@ -157,9 +158,8 @@ async fn sse_events(
                 .unwrap_or_else(|_| SseEvent::default()))
         });
 
-    Sse::new(merged).keep_alive(
-        axum::response::sse::KeepAlive::new().interval(Duration::from_secs(30)),
-    )
+    Sse::new(merged)
+        .keep_alive(axum::response::sse::KeepAlive::new().interval(Duration::from_secs(30)))
 }
 
 // ── Client ──────────────────────────────────────────────────────────────────
@@ -195,11 +195,7 @@ impl A2aHttpClient {
     }
 
     /// POST `/a2a/tasks` with a [`TaskInput`] body, returning the server-issued task id.
-    pub async fn submit_task(
-        &self,
-        base_url: &str,
-        input: TaskInput,
-    ) -> Result<String, String> {
+    pub async fn submit_task(&self, base_url: &str, input: TaskInput) -> Result<String, String> {
         #[derive(Deserialize)]
         struct Resp {
             task_id: String,

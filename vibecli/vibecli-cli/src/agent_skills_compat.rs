@@ -181,7 +181,9 @@ impl SkillParser {
         if let Some(end_idx) = after_first.find("\n---") {
             let fm_block = &after_first[..end_idx];
             let body_start = end_idx + 4; // skip \n---
-            let body = after_first[body_start..].trim_start_matches('\n').to_string();
+            let body = after_first[body_start..]
+                .trim_start_matches('\n')
+                .to_string();
 
             let mut map = HashMap::new();
             for line in fm_block.lines() {
@@ -212,7 +214,10 @@ impl SkillParser {
 
         let (fm, body) = Self::extract_frontmatter(content);
 
-        let mut metadata = SkillMetadata { format: SkillFormat::Standard, ..Default::default() };
+        let mut metadata = SkillMetadata {
+            format: SkillFormat::Standard,
+            ..Default::default()
+        };
 
         if let Some(name) = fm.get("name") {
             metadata.name = name.clone();
@@ -230,16 +235,32 @@ impl SkillParser {
             metadata.difficulty = SkillDifficulty::parse(diff);
         }
         if let Some(tags) = fm.get("tags") {
-            metadata.tags = tags.split(',').map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).collect();
+            metadata.tags = tags
+                .split(',')
+                .map(|t| t.trim().to_string())
+                .filter(|t| !t.is_empty())
+                .collect();
         }
         if let Some(deps) = fm.get("dependencies") {
-            metadata.dependencies = deps.split(',').map(|d| d.trim().to_string()).filter(|d| !d.is_empty()).collect();
+            metadata.dependencies = deps
+                .split(',')
+                .map(|d| d.trim().to_string())
+                .filter(|d| !d.is_empty())
+                .collect();
         }
         if let Some(input) = fm.get("input_types") {
-            metadata.input_types = input.split(',').map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).collect();
+            metadata.input_types = input
+                .split(',')
+                .map(|t| t.trim().to_string())
+                .filter(|t| !t.is_empty())
+                .collect();
         }
         if let Some(output) = fm.get("output_types") {
-            metadata.output_types = output.split(',').map(|t| t.trim().to_string()).filter(|t| !t.is_empty()).collect();
+            metadata.output_types = output
+                .split(',')
+                .map(|t| t.trim().to_string())
+                .filter(|t| !t.is_empty())
+                .collect();
         }
         if let Some(created) = fm.get("created_at") {
             metadata.created_at = created.parse().unwrap_or(0);
@@ -285,7 +306,10 @@ impl SkillParser {
         }
 
         let (fm, body) = Self::extract_frontmatter(content);
-        let mut metadata = SkillMetadata { format: SkillFormat::VibeCody, ..Default::default() };
+        let mut metadata = SkillMetadata {
+            format: SkillFormat::VibeCody,
+            ..Default::default()
+        };
 
         // Apply any frontmatter overrides
         if let Some(name) = fm.get("name") {
@@ -445,16 +469,20 @@ impl SkillValidator {
         }
 
         if skill.content.len() > 100_000 {
-            warnings.push("Skill content exceeds 100KB — may be too large for some tools".to_string());
+            warnings
+                .push("Skill content exceeds 100KB — may be too large for some tools".to_string());
         }
 
         if skill.examples.is_empty() {
-            warnings.push("No examples provided — examples improve skill discoverability".to_string());
+            warnings
+                .push("No examples provided — examples improve skill discoverability".to_string());
         }
 
         // Description length
         if skill.metadata.description.len() > 200 {
-            warnings.push("Description exceeds 200 characters — may be truncated in some tools".to_string());
+            warnings.push(
+                "Description exceeds 200 characters — may be truncated in some tools".to_string(),
+            );
         }
 
         // Compute compatibility score
@@ -491,7 +519,10 @@ impl SkillValidator {
         if !meta.version.is_empty() {
             let parts: Vec<&str> = meta.version.split('.').collect();
             if parts.len() < 2 || parts.len() > 3 {
-                errors.push(format!("Version '{}' is not valid semver (expected X.Y or X.Y.Z)", meta.version));
+                errors.push(format!(
+                    "Version '{}' is not valid semver (expected X.Y or X.Y.Z)",
+                    meta.version
+                ));
             } else {
                 for p in &parts {
                     if p.parse::<u32>().is_err() {
@@ -563,19 +594,22 @@ impl SkillValidator {
             }
             SkillFormat::VibeCody => {
                 // VibeCody format prefers ## sections
-                if skill.content.contains("## When to Use") || skill.content.contains("## Commands") {
+                if skill.content.contains("## When to Use") || skill.content.contains("## Commands")
+                {
                     score += 1.0;
                 }
             }
             SkillFormat::ClaudeCode => {
                 // Claude Code prefers structured examples and input/output types
-                if !skill.metadata.input_types.is_empty() && !skill.metadata.output_types.is_empty() {
+                if !skill.metadata.input_types.is_empty() && !skill.metadata.output_types.is_empty()
+                {
                     score += 1.0;
                 }
             }
             SkillFormat::Cursor => {
                 // Cursor prefers rule-style content
-                if skill.content.contains("## Best Practices") || skill.content.contains("## Rules") {
+                if skill.content.contains("## Best Practices") || skill.content.contains("## Rules")
+                {
                     score += 1.0;
                 }
             }
@@ -621,25 +655,38 @@ impl SkillConverter {
 
         // Ensure frontmatter has all metadata fields
         if !converted.frontmatter.contains_key("name") && !converted.metadata.name.is_empty() {
-            converted.frontmatter.insert("name".to_string(), converted.metadata.name.clone());
+            converted
+                .frontmatter
+                .insert("name".to_string(), converted.metadata.name.clone());
             changes.push("Added name to frontmatter".to_string());
         }
-        if !converted.frontmatter.contains_key("description") && !converted.metadata.description.is_empty() {
-            converted.frontmatter.insert("description".to_string(), converted.metadata.description.clone());
+        if !converted.frontmatter.contains_key("description")
+            && !converted.metadata.description.is_empty()
+        {
+            converted.frontmatter.insert(
+                "description".to_string(),
+                converted.metadata.description.clone(),
+            );
             changes.push("Added description to frontmatter".to_string());
         }
         if !converted.frontmatter.contains_key("version") {
-            converted.frontmatter.insert("version".to_string(), converted.metadata.version.clone());
+            converted
+                .frontmatter
+                .insert("version".to_string(), converted.metadata.version.clone());
             changes.push("Added version to frontmatter".to_string());
         }
         if !converted.frontmatter.contains_key("tags") && !converted.metadata.tags.is_empty() {
-            converted.frontmatter.insert("tags".to_string(), converted.metadata.tags.join(", "));
+            converted
+                .frontmatter
+                .insert("tags".to_string(), converted.metadata.tags.join(", "));
             changes.push("Added tags to frontmatter".to_string());
         }
 
         // Warn if no examples
         if converted.examples.is_empty() {
-            warnings.push("No examples found — standard format recommends at least one example".to_string());
+            warnings.push(
+                "No examples found — standard format recommends at least one example".to_string(),
+            );
         }
 
         // Ensure updated_at is set
@@ -692,7 +739,9 @@ impl SkillConverter {
                 ));
                 changes.push("Added ## When to Use section".to_string());
             } else {
-                warnings.push("No description available to generate ## When to Use section".to_string());
+                warnings.push(
+                    "No description available to generate ## When to Use section".to_string(),
+                );
             }
         }
 
@@ -712,14 +761,20 @@ impl SkillConverter {
                 // Claude Code format: standard with input/output type annotations
                 let mut result = Self::to_standard(skill);
                 result.skill.metadata.format = SkillFormat::ClaudeCode;
-                result.changes_made.push("Set format to claude_code".to_string());
+                result
+                    .changes_made
+                    .push("Set format to claude_code".to_string());
                 if result.skill.metadata.input_types.is_empty() {
                     result.skill.metadata.input_types.push("text".to_string());
-                    result.changes_made.push("Added default input_type 'text'".to_string());
+                    result
+                        .changes_made
+                        .push("Added default input_type 'text'".to_string());
                 }
                 if result.skill.metadata.output_types.is_empty() {
                     result.skill.metadata.output_types.push("text".to_string());
-                    result.changes_made.push("Added default output_type 'text'".to_string());
+                    result
+                        .changes_made
+                        .push("Added default output_type 'text'".to_string());
                 }
                 result
             }
@@ -728,22 +783,33 @@ impl SkillConverter {
                 result.skill.metadata.format = SkillFormat::Cursor;
                 result.changes_made.push("Set format to cursor".to_string());
                 // Cursor prefers rules-style content
-                if !result.skill.content.contains("## Rules") && !result.skill.content.contains("## Best Practices") {
-                    result.warnings.push("Cursor format typically uses ## Rules or ## Best Practices sections".to_string());
+                if !result.skill.content.contains("## Rules")
+                    && !result.skill.content.contains("## Best Practices")
+                {
+                    result.warnings.push(
+                        "Cursor format typically uses ## Rules or ## Best Practices sections"
+                            .to_string(),
+                    );
                 }
                 result
             }
             SkillFormat::GeminiCLI => {
                 let mut result = Self::to_standard(skill);
                 result.skill.metadata.format = SkillFormat::GeminiCLI;
-                result.changes_made.push("Set format to gemini_cli".to_string());
+                result
+                    .changes_made
+                    .push("Set format to gemini_cli".to_string());
                 result
             }
             SkillFormat::Custom(name) => {
                 let mut result = Self::to_standard(skill);
                 result.skill.metadata.format = SkillFormat::Custom(name.clone());
-                result.changes_made.push(format!("Set format to custom({})", name));
-                result.warnings.push("Custom format may require additional manual adjustments".to_string());
+                result
+                    .changes_made
+                    .push(format!("Set format to custom({})", name));
+                result
+                    .warnings
+                    .push("Custom format may require additional manual adjustments".to_string());
                 result
             }
         }
@@ -806,7 +872,11 @@ impl SkillRegistry {
     /// Return top-rated entries, sorted descending by rating.
     pub fn top_rated(&self, limit: usize) -> Vec<&SkillRegistryEntry> {
         let mut sorted: Vec<&SkillRegistryEntry> = self.entries.iter().collect();
-        sorted.sort_by(|a, b| b.rating.partial_cmp(&a.rating).unwrap_or(std::cmp::Ordering::Equal));
+        sorted.sort_by(|a, b| {
+            b.rating
+                .partial_cmp(&a.rating)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         sorted.truncate(limit);
         sorted
     }
@@ -839,16 +909,28 @@ impl SkillExporter {
         if !skill.metadata.tags.is_empty() {
             output.push_str(&format!("tags: {}\n", skill.metadata.tags.join(", ")));
         }
-        output.push_str(&format!("difficulty: {}\n", skill.metadata.difficulty.as_str()));
+        output.push_str(&format!(
+            "difficulty: {}\n",
+            skill.metadata.difficulty.as_str()
+        ));
         output.push_str(&format!("format: {}\n", skill.metadata.format.as_str()));
         if !skill.metadata.input_types.is_empty() {
-            output.push_str(&format!("input_types: {}\n", skill.metadata.input_types.join(", ")));
+            output.push_str(&format!(
+                "input_types: {}\n",
+                skill.metadata.input_types.join(", ")
+            ));
         }
         if !skill.metadata.output_types.is_empty() {
-            output.push_str(&format!("output_types: {}\n", skill.metadata.output_types.join(", ")));
+            output.push_str(&format!(
+                "output_types: {}\n",
+                skill.metadata.output_types.join(", ")
+            ));
         }
         if !skill.metadata.dependencies.is_empty() {
-            output.push_str(&format!("dependencies: {}\n", skill.metadata.dependencies.join(", ")));
+            output.push_str(&format!(
+                "dependencies: {}\n",
+                skill.metadata.dependencies.join(", ")
+            ));
         }
         if skill.metadata.created_at > 0 {
             output.push_str(&format!("created_at: {}\n", skill.metadata.created_at));
@@ -943,7 +1025,10 @@ impl SkillImporter {
     }
 
     /// Import a skill from a string with explicit format.
-    pub fn import_from_string(content: &str, format: &SkillFormat) -> Result<StandardSkill, String> {
+    pub fn import_from_string(
+        content: &str,
+        format: &SkillFormat,
+    ) -> Result<StandardSkill, String> {
         match format {
             SkillFormat::VibeCody => SkillParser::parse_vibecody(content),
             SkillFormat::Standard => SkillParser::parse(content),
@@ -1067,10 +1152,7 @@ mod tests {
         );
         assert_eq!(SkillDifficulty::parse("hard"), SkillDifficulty::Advanced);
         assert_eq!(SkillDifficulty::parse("guru"), SkillDifficulty::Expert);
-        assert_eq!(
-            SkillDifficulty::parse("xyz"),
-            SkillDifficulty::Intermediate
-        );
+        assert_eq!(SkillDifficulty::parse("xyz"), SkillDifficulty::Intermediate);
     }
 
     // -- SkillParser tests --

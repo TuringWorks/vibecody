@@ -17,7 +17,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub struct PeerId(pub String);
 
 impl PeerId {
-    pub fn new(id: impl Into<String>) -> Self { Self(id.into()) }
+    pub fn new(id: impl Into<String>) -> Self {
+        Self(id.into())
+    }
 }
 
 impl std::fmt::Display for PeerId {
@@ -31,14 +33,18 @@ impl std::fmt::Display for PeerId {
 pub struct CursorColor(pub String);
 
 impl CursorColor {
-    pub fn from_hex(hex: impl Into<String>) -> Self { Self(hex.into()) }
+    pub fn from_hex(hex: impl Into<String>) -> Self {
+        Self(hex.into())
+    }
     /// Assign a deterministic colour from a peer ID hash.
     pub fn from_peer_id(peer: &PeerId) -> Self {
-        let hash: u32 = peer.0.bytes().fold(0u32, |acc, b| acc.wrapping_mul(31).wrapping_add(b as u32));
+        let hash: u32 = peer
+            .0
+            .bytes()
+            .fold(0u32, |acc, b| acc.wrapping_mul(31).wrapping_add(b as u32));
         // Map to a palette of 8 distinct colours
         let palette = [
-            "#e06c75", "#98c379", "#e5c07b", "#61afef",
-            "#c678dd", "#56b6c2", "#d19a66", "#abb2bf",
+            "#e06c75", "#98c379", "#e5c07b", "#61afef", "#c678dd", "#56b6c2", "#d19a66", "#abb2bf",
         ];
         Self(palette[(hash as usize) % palette.len()].to_string())
     }
@@ -54,7 +60,9 @@ pub struct CursorPosition {
 }
 
 impl CursorPosition {
-    pub fn new(line: usize, col: usize) -> Self { Self { line, col } }
+    pub fn new(line: usize, col: usize) -> Self {
+        Self { line, col }
+    }
 }
 
 /// Optional text selection range.
@@ -65,7 +73,9 @@ pub struct Selection {
 }
 
 impl Selection {
-    pub fn is_empty(&self) -> bool { self.start == self.end }
+    pub fn is_empty(&self) -> bool {
+        self.start == self.end
+    }
 }
 
 /// The full state of a peer's cursor as rendered in the overlay.
@@ -132,23 +142,29 @@ impl CursorOverlay {
     /// Apply a cursor update from a remote peer.
     pub fn apply_update(&mut self, update: CursorUpdate) {
         // Don't track our own cursor in the overlay
-        if update.peer_id == self.local_peer { return; }
+        if update.peer_id == self.local_peer {
+            return;
+        }
 
         let color = CursorColor::from_peer_id(&update.peer_id);
-        let display_name = update.display_name
+        let display_name = update
+            .display_name
             .clone()
             .unwrap_or_else(|| update.peer_id.0.clone());
 
-        self.cursors.insert(update.peer_id.clone(), PeerCursor {
-            peer_id: update.peer_id,
-            display_name,
-            color,
-            position: update.position,
-            selection: update.selection,
-            file_path: update.file_path,
-            last_seen_ms: update.timestamp_ms,
-            is_typing: update.is_typing,
-        });
+        self.cursors.insert(
+            update.peer_id.clone(),
+            PeerCursor {
+                peer_id: update.peer_id,
+                display_name,
+                color,
+                position: update.position,
+                selection: update.selection,
+                file_path: update.file_path,
+                last_seen_ms: update.timestamp_ms,
+                is_typing: update.is_typing,
+            },
+        );
     }
 
     /// Remove a peer (disconnected).
@@ -158,24 +174,31 @@ impl CursorOverlay {
 
     /// Get all active (non-stale) cursors.
     pub fn active_cursors(&self) -> Vec<&PeerCursor> {
-        self.cursors.values()
+        self.cursors
+            .values()
             .filter(|c| !c.is_stale(self.stale_timeout_ms))
             .collect()
     }
 
     /// Get cursors for a specific file.
     pub fn cursors_in_file(&self, file_path: &str) -> Vec<&PeerCursor> {
-        self.cursors.values()
+        self.cursors
+            .values()
             .filter(|c| {
-                c.file_path.as_deref() == Some(file_path) &&
-                !c.is_stale(self.stale_timeout_ms)
+                c.file_path.as_deref() == Some(file_path) && !c.is_stale(self.stale_timeout_ms)
             })
             .collect()
     }
 
     /// Get cursors near a given line (within `radius` lines).
-    pub fn cursors_near_line(&self, file_path: &str, line: usize, radius: usize) -> Vec<&PeerCursor> {
-        self.cursors_in_file(file_path).into_iter()
+    pub fn cursors_near_line(
+        &self,
+        file_path: &str,
+        line: usize,
+        radius: usize,
+    ) -> Vec<&PeerCursor> {
+        self.cursors_in_file(file_path)
+            .into_iter()
             .filter(|c| {
                 let diff = c.position.line.abs_diff(line);
                 diff <= radius
@@ -207,16 +230,19 @@ impl CursorOverlay {
     /// Serialize cursors as minimal JSON for IPC.
     pub fn to_json(&self) -> String {
         let active = self.active_cursors();
-        let items: Vec<String> = active.iter().map(|c| {
-            format!(
-                "{{\"peer\":\"{}\",\"name\":\"{}\",\"color\":\"{}\",\"line\":{},\"col\":{}}}",
-                c.peer_id.0,
-                c.display_name.replace('"', "\\\""),
-                c.color.0,
-                c.position.line,
-                c.position.col
-            )
-        }).collect();
+        let items: Vec<String> = active
+            .iter()
+            .map(|c| {
+                format!(
+                    "{{\"peer\":\"{}\",\"name\":\"{}\",\"color\":\"{}\",\"line\":{},\"col\":{}}}",
+                    c.peer_id.0,
+                    c.display_name.replace('"', "\\\""),
+                    c.color.0,
+                    c.position.line,
+                    c.position.col
+                )
+            })
+            .collect();
         format!("[{}]", items.join(","))
     }
 }
@@ -370,7 +396,10 @@ mod tests {
     #[test]
     fn test_selection_is_empty() {
         let pos = CursorPosition::new(5, 3);
-        let sel = Selection { start: pos, end: pos };
+        let sel = Selection {
+            start: pos,
+            end: pos,
+        };
         assert!(sel.is_empty());
     }
 }

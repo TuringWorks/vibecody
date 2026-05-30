@@ -28,9 +28,7 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
 
-use crate::rl_runs::{
-    ArtifactRecord, EpisodeRow, MetricTick, RunError, RunStatus, RunStore,
-};
+use crate::rl_runs::{ArtifactRecord, EpisodeRow, MetricTick, RunError, RunStatus, RunStore};
 
 // ── Configuration ─────────────────────────────────────────────────────────────
 
@@ -174,9 +172,7 @@ impl PythonExecutor {
             ..RunFilter::default()
         })?;
         for run in stopping {
-            let _ = self
-                .store
-                .transition(&run.run_id, RunStatus::Stopped, None);
+            let _ = self.store.transition(&run.run_id, RunStatus::Stopped, None);
         }
         Ok(())
     }
@@ -185,10 +181,7 @@ impl PythonExecutor {
     /// the same `config_yaml` blob the daemon already has on the run
     /// row (the dashboard's `TrainRunConfig` serialized verbatim) plus
     /// a few daemon-supplied overrides.
-    fn write_config_yaml(
-        &self,
-        run: &crate::rl_runs::Run,
-    ) -> Result<PathBuf, std::io::Error> {
+    fn write_config_yaml(&self, run: &crate::rl_runs::Run) -> Result<PathBuf, std::io::Error> {
         // Parse the run's existing config_yaml so we can patch overrides
         // in (workspace_path, artifact_dir, total_timesteps when they
         // got changed at create time, …).
@@ -335,8 +328,7 @@ impl TrainingExecutor for PythonExecutor {
     async fn stop(&self, run_id: &str) -> Result<(), RunError> {
         // Move the row into Stopping first so the reader knows what
         // terminal state to land on if the child exits cleanly.
-        self.store
-            .transition(run_id, RunStatus::Stopping, None)?;
+        self.store.transition(run_id, RunStatus::Stopping, None)?;
 
         let child_arc = {
             let map = self.children.lock().await;
@@ -364,8 +356,7 @@ impl TrainingExecutor for PythonExecutor {
         // Allow Created → Cancelled OR (via Stopping) Running → Cancelled
         // depending on where the row currently is. We do a best-effort
         // direct transition; if it's illegal, surface the error.
-        self.store
-            .transition(run_id, RunStatus::Cancelled, None)?;
+        self.store.transition(run_id, RunStatus::Cancelled, None)?;
         Ok(())
     }
 }
@@ -660,11 +651,7 @@ fn handle_line(
                 payload: serde_json::json!({"gpu_util": util, "gpu_mem_mb": mem_mb}),
             });
         }
-        SidecarLine::Finished {
-            reason,
-            error,
-            ..
-        } => {
+        SidecarLine::Finished { reason, error, .. } => {
             *finished_reason = Some(reason);
             *finished_error = error;
         }
@@ -817,9 +804,6 @@ mod tests {
 
         let updated = store.get(&run.run_id).unwrap().unwrap();
         assert_eq!(updated.status, RunStatus::Failed);
-        assert!(updated
-            .error_message
-            .unwrap()
-            .contains("daemon restart"));
+        assert!(updated.error_message.unwrap().contains("daemon restart"));
     }
 }

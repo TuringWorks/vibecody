@@ -132,7 +132,10 @@ impl VerificationReport {
                     CheckStatus::Skip => "⏭️",
                     CheckStatus::NotApplicable => "➖",
                 };
-                md.push_str(&format!("- {} **{}**: {}\n", icon, check.name, check.description));
+                md.push_str(&format!(
+                    "- {} **{}**: {}\n",
+                    icon, check.name, check.description
+                ));
                 if !check.evidence.is_empty() {
                     md.push_str(&format!("  - Evidence: {}\n", check.evidence));
                 }
@@ -290,7 +293,8 @@ pub async fn run_verification(
         let messages = vec![
             Message {
                 role: MessageRole::System,
-                content: "You are a code verification auditor. Respond only with valid JSON.".to_string(),
+                content: "You are a code verification auditor. Respond only with valid JSON."
+                    .to_string(),
             },
             Message {
                 role: MessageRole::User,
@@ -317,13 +321,14 @@ pub async fn run_verification(
     }
 
     // Compute scores
-    let (total_pass, total_applicable) = all_checks.iter().fold((0usize, 0usize), |(p, a), c| {
-        match c.status {
-            CheckStatus::Pass => (p + 1, a + 1),
-            CheckStatus::Fail => (p, a + 1),
-            _ => (p, a),
-        }
-    });
+    let (total_pass, total_applicable) =
+        all_checks
+            .iter()
+            .fold((0usize, 0usize), |(p, a), c| match c.status {
+                CheckStatus::Pass => (p + 1, a + 1),
+                CheckStatus::Fail => (p, a + 1),
+                _ => (p, a),
+            });
 
     let pass_rate = if total_applicable > 0 {
         (total_pass as f32 / total_applicable as f32) * 100.0
@@ -335,10 +340,22 @@ pub async fn run_verification(
         .iter()
         .map(|cat| {
             let cat_checks: Vec<_> = all_checks.iter().filter(|c| c.category == *cat).collect();
-            let pass = cat_checks.iter().filter(|c| c.status == CheckStatus::Pass).count();
-            let fail = cat_checks.iter().filter(|c| c.status == CheckStatus::Fail).count();
-            let skip = cat_checks.iter().filter(|c| c.status == CheckStatus::Skip).count();
-            let na = cat_checks.iter().filter(|c| c.status == CheckStatus::NotApplicable).count();
+            let pass = cat_checks
+                .iter()
+                .filter(|c| c.status == CheckStatus::Pass)
+                .count();
+            let fail = cat_checks
+                .iter()
+                .filter(|c| c.status == CheckStatus::Fail)
+                .count();
+            let skip = cat_checks
+                .iter()
+                .filter(|c| c.status == CheckStatus::Skip)
+                .count();
+            let na = cat_checks
+                .iter()
+                .filter(|c| c.status == CheckStatus::NotApplicable)
+                .count();
             let applicable = pass + fail;
             let cat_score = if applicable > 0 {
                 (pass as f32 / applicable as f32) * 100.0
@@ -417,7 +434,10 @@ fn gather_workspace_info(workspace: &Path) -> String {
     info
 }
 
-pub fn parse_checklist_response(response: &str, category: VerificationCategory) -> Vec<VerificationCheck> {
+pub fn parse_checklist_response(
+    response: &str,
+    category: VerificationCategory,
+) -> Vec<VerificationCheck> {
     let raw = response.trim();
     let json_str = if raw.starts_with("```") {
         raw.lines()
@@ -444,8 +464,8 @@ pub fn parse_checklist_response(response: &str, category: VerificationCategory) 
         evidence: String,
     }
 
-    let parsed: RawResponse = serde_json::from_str(&json_str)
-        .unwrap_or(RawResponse { checks: vec![] });
+    let parsed: RawResponse =
+        serde_json::from_str(&json_str).unwrap_or(RawResponse { checks: vec![] });
 
     parsed
         .checks
@@ -509,9 +529,15 @@ mod tests {
 
     #[test]
     fn category_display() {
-        assert_eq!(format!("{}", VerificationCategory::CodeQuality), "Code Quality");
+        assert_eq!(
+            format!("{}", VerificationCategory::CodeQuality),
+            "Code Quality"
+        );
         assert_eq!(format!("{}", VerificationCategory::ApiDesign), "API Design");
-        assert_eq!(format!("{}", VerificationCategory::VersionControl), "Version Control");
+        assert_eq!(
+            format!("{}", VerificationCategory::VersionControl),
+            "Version Control"
+        );
     }
 
     #[test]
@@ -578,11 +604,19 @@ mod tests {
             categories_summary: vec![
                 CategorySummary {
                     category: VerificationCategory::CodeQuality,
-                    pass: 1, fail: 0, skip: 0, na: 0, score: 100.0,
+                    pass: 1,
+                    fail: 0,
+                    skip: 0,
+                    na: 0,
+                    score: 100.0,
                 },
                 CategorySummary {
                     category: VerificationCategory::Security,
-                    pass: 0, fail: 1, skip: 0, na: 0, score: 0.0,
+                    pass: 0,
+                    fail: 1,
+                    skip: 0,
+                    na: 0,
+                    score: 0.0,
                 },
             ],
         };
@@ -622,7 +656,10 @@ mod tests {
 
     #[test]
     fn category_display_all_ten() {
-        let displays: Vec<String> = VerificationCategory::ALL.iter().map(|c| format!("{}", c)).collect();
+        let displays: Vec<String> = VerificationCategory::ALL
+            .iter()
+            .map(|c| format!("{}", c))
+            .collect();
         assert_eq!(displays.len(), 10);
         assert!(displays.contains(&"Testing".to_string()));
         assert!(displays.contains(&"Security".to_string()));
@@ -635,7 +672,12 @@ mod tests {
 
     #[test]
     fn check_status_serde_roundtrip() {
-        for status in [CheckStatus::Pass, CheckStatus::Fail, CheckStatus::Skip, CheckStatus::NotApplicable] {
+        for status in [
+            CheckStatus::Pass,
+            CheckStatus::Fail,
+            CheckStatus::Skip,
+            CheckStatus::NotApplicable,
+        ] {
             let json = serde_json::to_string(&status).unwrap();
             let back: CheckStatus = serde_json::from_str(&json).unwrap();
             assert_eq!(back, status);
@@ -703,7 +745,11 @@ mod tests {
     fn stage_checklist_prompt_all_categories_have_checks() {
         for cat in VerificationCategory::ALL {
             let prompt = stage_checklist_prompt(*cat, "test workspace");
-            assert!(prompt.contains("1."), "Category {:?} should have numbered checks", cat);
+            assert!(
+                prompt.contains("1."),
+                "Category {:?} should have numbered checks",
+                cat
+            );
             assert!(prompt.contains("test workspace"));
         }
     }

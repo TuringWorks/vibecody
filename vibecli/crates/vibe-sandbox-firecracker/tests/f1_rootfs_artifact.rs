@@ -86,7 +86,8 @@ fn rootfs_artifact_when_present_is_valid_ext4() {
             sha.len()
         );
         assert!(
-            sha.chars().all(|c| c.is_ascii_hexdigit() && (c.is_ascii_digit() || c.is_ascii_lowercase())),
+            sha.chars()
+                .all(|c| c.is_ascii_hexdigit() && (c.is_ascii_digit() || c.is_ascii_lowercase())),
             "rootfs.ext4.sha256 contains non-lowercase-hex chars"
         );
     } else {

@@ -3,7 +3,7 @@
 
 #[cfg(target_os = "macos")]
 mod macos_run {
-    use cucumber::{World, given, then, when};
+    use cucumber::{given, then, when, World};
     use std::path::PathBuf;
     use tempfile::TempDir;
     use vibe_sandbox::Sandbox;
@@ -78,7 +78,9 @@ mod macos_run {
             .as_ref()
             .map(|d| d.path().to_string_lossy().into_owned())
             .unwrap_or_default();
-        let inner = inner.replace("$WORKDIR", &workdir).replace("$RODIR", &rodir);
+        let inner = inner
+            .replace("$WORKDIR", &workdir)
+            .replace("$RODIR", &rodir);
 
         let sandbox = world.sandbox.as_ref().unwrap();
         let out = sandbox.run_capture("/bin/sh", &["-c", &inner]).unwrap();
@@ -98,17 +100,25 @@ mod macos_run {
 
     #[then(expr = "the spawn exit code is {int}")]
     fn exit_code(world: &mut MWorld, expected: i32) {
-        assert_eq!(world.last_exit, Some(expected),
-            "stdout was: {:?}", world.last_stdout);
+        assert_eq!(
+            world.last_exit,
+            Some(expected),
+            "stdout was: {:?}",
+            world.last_stdout
+        );
     }
 
     #[then(expr = "the host file {string} inside the bound dir contains {string}")]
     fn file_contains(world: &mut MWorld, name: String, expected: String) {
         let path = world.rw_dir.as_ref().unwrap().path().join(&name);
         let contents = std::fs::read_to_string(&path).expect("file exists");
-        assert!(contents.contains(&expected),
+        assert!(
+            contents.contains(&expected),
             "{} contained {:?}, expected to contain {:?}",
-            path.display(), contents, expected);
+            path.display(),
+            contents,
+            expected
+        );
     }
 
     #[then(expr = "the spawn stdout matches {string}")]

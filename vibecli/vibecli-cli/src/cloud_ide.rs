@@ -1,4 +1,3 @@
-
 use std::collections::HashMap;
 use std::time::{Duration, SystemTime};
 
@@ -85,9 +84,7 @@ impl ResourceTier {
                 cpu_cores,
                 memory_gb,
                 ..
-            } => {
-                (*cpu_cores as f64) * 0.03 + (*memory_gb as f64) * 0.01
-            }
+            } => (*cpu_cores as f64) * 0.03 + (*memory_gb as f64) * 0.01,
         }
     }
 }
@@ -142,10 +139,15 @@ pub struct CloudIdeInstance {
 impl CloudIdeInstance {
     pub fn new(name: &str, tier: ResourceTier) -> Self {
         let cost = tier.cost_per_hour();
-        let id = format!("ide-{}-{}", name.replace(' ', "-").to_lowercase(), SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or(Duration::from_secs(0))
-            .as_millis() % 100_000);
+        let id = format!(
+            "ide-{}-{}",
+            name.replace(' ', "-").to_lowercase(),
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap_or(Duration::from_secs(0))
+                .as_millis()
+                % 100_000
+        );
         Self {
             id,
             name: name.to_string(),
@@ -231,9 +233,9 @@ impl CloudIdeInstance {
 
     pub fn elapsed_running(&self) -> Duration {
         match (&self.status, self.started_at) {
-            (CloudIdeStatus::Running, Some(started)) => {
-                SystemTime::now().duration_since(started).unwrap_or(Duration::ZERO)
-            }
+            (CloudIdeStatus::Running, Some(started)) => SystemTime::now()
+                .duration_since(started)
+                .unwrap_or(Duration::ZERO),
             (_, Some(started)) => {
                 if let Some(stopped) = self.stopped_at {
                     stopped.duration_since(started).unwrap_or(Duration::ZERO)
@@ -370,9 +372,7 @@ impl CloudIdeManager {
             .ok_or_else(|| format!("Instance not found: {}", id))?;
         match &instance.status {
             CloudIdeStatus::Running => return Err("Instance is already running".to_string()),
-            CloudIdeStatus::Failed(e) => {
-                return Err(format!("Instance is in failed state: {}", e))
-            }
+            CloudIdeStatus::Failed(e) => return Err(format!("Instance is in failed state: {}", e)),
             _ => {}
         }
         instance.start();
@@ -590,7 +590,10 @@ mod tests {
         let mut inst = CloudIdeInstance::new("test", ResourceTier::Micro);
         inst.start();
         inst.fail("OOM killed");
-        assert_eq!(inst.status, CloudIdeStatus::Failed("OOM killed".to_string()));
+        assert_eq!(
+            inst.status,
+            CloudIdeStatus::Failed("OOM killed".to_string())
+        );
         assert!(inst.url.is_none());
     }
 
@@ -619,7 +622,10 @@ mod tests {
     fn test_instance_set_git() {
         let mut inst = CloudIdeInstance::new("test", ResourceTier::Micro);
         inst.set_git("https://github.com/user/repo.git", "main");
-        assert_eq!(inst.git_repo.as_deref(), Some("https://github.com/user/repo.git"));
+        assert_eq!(
+            inst.git_repo.as_deref(),
+            Some("https://github.com/user/repo.git")
+        );
         assert_eq!(inst.git_branch.as_deref(), Some("main"));
     }
 

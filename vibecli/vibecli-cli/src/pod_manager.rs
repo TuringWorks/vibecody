@@ -841,7 +841,7 @@ mod tests {
     fn preflight_fails_with_insufficient_vram() {
         let pm = PodManager::new();
         let model = ModelConfig::for_model("Qwen/Qwen2.5-72B-Instruct"); // needs 140 GB
-        // T4 16 GB total — nowhere near enough
+                                                                         // T4 16 GB total — nowhere near enough
         let spec = PodSpec {
             gpu_tier: GpuTier::T4_16GB,
             gpu_count: 1,
@@ -853,7 +853,10 @@ mod tests {
             extra_flags: vec![],
         };
         let result = pm.preflight(&spec);
-        assert!(!result.is_ok(), "preflight should fail for 16 GB vs 140 GB model");
+        assert!(
+            !result.is_ok(),
+            "preflight should fail for 16 GB vs 140 GB model"
+        );
         assert!(!result.errors.is_empty());
     }
 
@@ -918,7 +921,10 @@ mod tests {
         };
         let cmd = pm.build_launch_command(&spec);
         let joined = cmd.join(" ");
-        assert!(joined.contains("9000"), "port 9000 should appear in command");
+        assert!(
+            joined.contains("9000"),
+            "port 9000 should appear in command"
+        );
     }
 
     #[test]
@@ -1072,7 +1078,10 @@ mod tests {
     #[test]
     fn vllm_build_docker_images() {
         assert_eq!(VllmBuild::Release.docker_image(), "vllm/vllm-openai:latest");
-        assert_eq!(VllmBuild::Nightly.docker_image(), "vllm/vllm-openai:nightly");
+        assert_eq!(
+            VllmBuild::Nightly.docker_image(),
+            "vllm/vllm-openai:nightly"
+        );
         assert_eq!(VllmBuild::GptOss.docker_image(), "vllm/vllm-openai:gpt-oss");
     }
 

@@ -474,7 +474,10 @@ mod tests {
     #[test]
     fn test_build_from_imports() {
         let items = vec![
-            (PathBuf::from("src/lib.rs"), vec!["src/utils.rs".to_string()]),
+            (
+                PathBuf::from("src/lib.rs"),
+                vec!["src/utils.rs".to_string()],
+            ),
             (PathBuf::from("src/utils.rs"), vec![]),
         ];
         let g = build_from_imports(&items);

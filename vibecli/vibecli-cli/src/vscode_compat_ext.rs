@@ -223,7 +223,10 @@ pub fn check_compatibility(manifest: &ExtensionManifest) -> CompatibilityReport 
                         supported.push(format!("{} ({} items)", $name, items.len()));
                     } else if score >= 0.5 {
                         supported.push(format!("{} (partial, {} items)", $name, items.len()));
-                        notes.push(format!("{}: partial support — some features may not work", $name));
+                        notes.push(format!(
+                            "{}: partial support — some features may not work",
+                            $name
+                        ));
                     } else {
                         unsupported.push(format!("{} ({} items)", $name, items.len()));
                         notes.push(format!("{}: limited support in VibeCody", $name));
@@ -284,40 +287,127 @@ pub fn check_compatibility(manifest: &ExtensionManifest) -> CompatibilityReport 
 /// Return all supported APIs with human-readable descriptions.
 pub fn supported_apis() -> Vec<(SupportedApi, &'static str)> {
     vec![
-        (SupportedApi::WorkspaceGetConfig, "Read workspace configuration values"),
-        (SupportedApi::WorkspaceFindFiles, "Glob-search files in the workspace"),
-        (SupportedApi::WorkspaceOpenTextDocument, "Open a text document by URI"),
-        (SupportedApi::WorkspaceApplyEdit, "Apply a workspace edit (multi-file)"),
-        (SupportedApi::WorkspaceGetWorkspaceFolders, "List workspace root folders"),
-        (SupportedApi::WorkspaceOnDidChangeConfig, "Listen for configuration changes"),
-        (SupportedApi::WorkspaceCreateFileSystemWatcher, "Watch filesystem for changes"),
-        (SupportedApi::WindowShowMessage, "Show an information/warning/error message"),
-        (SupportedApi::WindowShowQuickPick, "Show a quick-pick selection list"),
+        (
+            SupportedApi::WorkspaceGetConfig,
+            "Read workspace configuration values",
+        ),
+        (
+            SupportedApi::WorkspaceFindFiles,
+            "Glob-search files in the workspace",
+        ),
+        (
+            SupportedApi::WorkspaceOpenTextDocument,
+            "Open a text document by URI",
+        ),
+        (
+            SupportedApi::WorkspaceApplyEdit,
+            "Apply a workspace edit (multi-file)",
+        ),
+        (
+            SupportedApi::WorkspaceGetWorkspaceFolders,
+            "List workspace root folders",
+        ),
+        (
+            SupportedApi::WorkspaceOnDidChangeConfig,
+            "Listen for configuration changes",
+        ),
+        (
+            SupportedApi::WorkspaceCreateFileSystemWatcher,
+            "Watch filesystem for changes",
+        ),
+        (
+            SupportedApi::WindowShowMessage,
+            "Show an information/warning/error message",
+        ),
+        (
+            SupportedApi::WindowShowQuickPick,
+            "Show a quick-pick selection list",
+        ),
         (SupportedApi::WindowShowInputBox, "Show a text input box"),
-        (SupportedApi::WindowCreateTerminal, "Create an integrated terminal instance"),
-        (SupportedApi::WindowCreateOutputChannel, "Create an output channel for logging"),
-        (SupportedApi::WindowShowTextDocument, "Show a text document in the editor"),
-        (SupportedApi::WindowActiveTextEditor, "Get the currently active text editor"),
-        (SupportedApi::WindowOnDidChangeActiveEditor, "Listen for active editor changes"),
+        (
+            SupportedApi::WindowCreateTerminal,
+            "Create an integrated terminal instance",
+        ),
+        (
+            SupportedApi::WindowCreateOutputChannel,
+            "Create an output channel for logging",
+        ),
+        (
+            SupportedApi::WindowShowTextDocument,
+            "Show a text document in the editor",
+        ),
+        (
+            SupportedApi::WindowActiveTextEditor,
+            "Get the currently active text editor",
+        ),
+        (
+            SupportedApi::WindowOnDidChangeActiveEditor,
+            "Listen for active editor changes",
+        ),
         (SupportedApi::CommandsRegister, "Register a command handler"),
-        (SupportedApi::CommandsExecute, "Execute a registered command"),
-        (SupportedApi::CommandsGetCommands, "List all registered commands"),
-        (SupportedApi::LanguagesRegisterCompletion, "Register a completion provider"),
-        (SupportedApi::LanguagesRegisterHover, "Register a hover provider"),
-        (SupportedApi::LanguagesRegisterDefinition, "Register a go-to-definition provider"),
-        (SupportedApi::LanguagesRegisterCodeActions, "Register a code action provider"),
-        (SupportedApi::LanguagesRegisterFormatting, "Register a document formatting provider"),
-        (SupportedApi::LanguagesGetDiagnostics, "Get diagnostics for a document"),
-        (SupportedApi::LanguagesCreateDiagnosticCollection, "Create a diagnostic collection"),
-        (SupportedApi::ExtensionsGetExtension, "Get an extension by its identifier"),
+        (
+            SupportedApi::CommandsExecute,
+            "Execute a registered command",
+        ),
+        (
+            SupportedApi::CommandsGetCommands,
+            "List all registered commands",
+        ),
+        (
+            SupportedApi::LanguagesRegisterCompletion,
+            "Register a completion provider",
+        ),
+        (
+            SupportedApi::LanguagesRegisterHover,
+            "Register a hover provider",
+        ),
+        (
+            SupportedApi::LanguagesRegisterDefinition,
+            "Register a go-to-definition provider",
+        ),
+        (
+            SupportedApi::LanguagesRegisterCodeActions,
+            "Register a code action provider",
+        ),
+        (
+            SupportedApi::LanguagesRegisterFormatting,
+            "Register a document formatting provider",
+        ),
+        (
+            SupportedApi::LanguagesGetDiagnostics,
+            "Get diagnostics for a document",
+        ),
+        (
+            SupportedApi::LanguagesCreateDiagnosticCollection,
+            "Create a diagnostic collection",
+        ),
+        (
+            SupportedApi::ExtensionsGetExtension,
+            "Get an extension by its identifier",
+        ),
         (SupportedApi::ExtensionsAll, "List all installed extensions"),
         (SupportedApi::EnvAppName, "Get the application name"),
-        (SupportedApi::EnvLanguage, "Get the display language (locale)"),
-        (SupportedApi::EnvMachineId, "Get a unique machine identifier"),
-        (SupportedApi::EnvUriScheme, "Get the URI scheme for the editor"),
+        (
+            SupportedApi::EnvLanguage,
+            "Get the display language (locale)",
+        ),
+        (
+            SupportedApi::EnvMachineId,
+            "Get a unique machine identifier",
+        ),
+        (
+            SupportedApi::EnvUriScheme,
+            "Get the URI scheme for the editor",
+        ),
         (SupportedApi::DebugStartDebugging, "Start a debug session"),
-        (SupportedApi::DebugRegisterDebugAdapterProvider, "Register a debug adapter provider"),
-        (SupportedApi::TasksRegisterTaskProvider, "Register a task provider"),
+        (
+            SupportedApi::DebugRegisterDebugAdapterProvider,
+            "Register a debug adapter provider",
+        ),
+        (
+            SupportedApi::TasksRegisterTaskProvider,
+            "Register a task provider",
+        ),
     ]
 }
 
@@ -788,7 +878,11 @@ mod tests {
         let m = parse_manifest(theme_only_manifest_json()).unwrap();
         let report = check_compatibility(&m);
         assert_eq!(report.extension_name, "themer.pretty-theme");
-        assert!(report.compatibility_score >= 0.95, "Theme score should be ~1.0, got {}", report.compatibility_score);
+        assert!(
+            report.compatibility_score >= 0.95,
+            "Theme score should be ~1.0, got {}",
+            report.compatibility_score
+        );
         assert!(report.can_install);
         assert!(!report.supported_features.is_empty());
         assert!(report.unsupported_features.is_empty());
@@ -798,7 +892,11 @@ mod tests {
     fn test_compat_webview_extension_low_score() {
         let m = parse_manifest(webview_heavy_manifest_json()).unwrap();
         let report = check_compatibility(&m);
-        assert!(report.compatibility_score <= 0.4, "Webview-heavy score should be low, got {}", report.compatibility_score);
+        assert!(
+            report.compatibility_score <= 0.4,
+            "Webview-heavy score should be low, got {}",
+            report.compatibility_score
+        );
         assert!(!report.unsupported_features.is_empty());
     }
 
@@ -832,7 +930,10 @@ mod tests {
     fn test_compat_report_has_main_note() {
         let m = parse_manifest(full_manifest_json()).unwrap();
         let report = check_compatibility(&m);
-        assert!(report.migration_notes.iter().any(|n| n.contains("main entry point")));
+        assert!(report
+            .migration_notes
+            .iter()
+            .any(|n| n.contains("main entry point")));
     }
 
     // --- Score for category tests ---
@@ -875,9 +976,25 @@ mod tests {
 
     #[test]
     fn test_score_bounds() {
-        for cat in &["themes", "snippets", "languages", "commands", "keybindings", "grammars", "configuration", "debuggers", "views", "other"] {
+        for cat in &[
+            "themes",
+            "snippets",
+            "languages",
+            "commands",
+            "keybindings",
+            "grammars",
+            "configuration",
+            "debuggers",
+            "views",
+            "other",
+        ] {
             let s = compatibility_score_for_category(cat);
-            assert!(s >= 0.0 && s <= 1.0, "Score for {} out of bounds: {}", cat, s);
+            assert!(
+                s >= 0.0 && s <= 1.0,
+                "Score for {} out of bounds: {}",
+                cat,
+                s
+            );
         }
     }
 
@@ -886,7 +1003,11 @@ mod tests {
     #[test]
     fn test_supported_apis_count() {
         let apis = supported_apis();
-        assert!(apis.len() >= 30, "Expected at least 30 APIs, got {}", apis.len());
+        assert!(
+            apis.len() >= 30,
+            "Expected at least 30 APIs, got {}",
+            apis.len()
+        );
     }
 
     #[test]
@@ -938,7 +1059,11 @@ mod tests {
         for (api, _) in supported_apis() {
             let shim = generate_shim(&api);
             assert!(!shim.is_empty(), "Empty shim for {:?}", api);
-            assert!(shim.contains("vscode"), "Shim for {:?} missing vscode reference", api);
+            assert!(
+                shim.contains("vscode"),
+                "Shim for {:?} missing vscode reference",
+                api
+            );
         }
     }
 

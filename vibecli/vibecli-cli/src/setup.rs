@@ -54,7 +54,15 @@ impl PlatformInfo {
             }
         };
 
-        Self { os, arch, ram_gb, gpu, is_raspberry_pi, pi_model, hostname }
+        Self {
+            os,
+            arch,
+            ram_gb,
+            gpu,
+            is_raspberry_pi,
+            pi_model,
+            hostname,
+        }
     }
 
     fn display_name(&self) -> &str {
@@ -70,21 +78,34 @@ impl PlatformInfo {
     }
 
     fn recommended_tier(&self) -> &str {
-        if self.ram_gb >= 16.0 { "max" }
-        else if self.ram_gb >= 8.0 { "pro" }
-        else { "lite" }
+        if self.ram_gb >= 16.0 {
+            "max"
+        } else if self.ram_gb >= 8.0 {
+            "pro"
+        } else {
+            "lite"
+        }
     }
 
     fn recommended_model(&self) -> &str {
         if self.is_raspberry_pi {
-            if self.ram_gb < 2.0 { return "tinyllama:1.1b"; }
-            if self.ram_gb < 6.0 { return "phi:2.7b"; }
+            if self.ram_gb < 2.0 {
+                return "tinyllama:1.1b";
+            }
+            if self.ram_gb < 6.0 {
+                return "phi:2.7b";
+            }
             return "mistral:7b";
         }
-        if self.ram_gb >= 32.0 { "qwen3-coder:480b-cloud" }
-        else if self.ram_gb >= 16.0 { "codellama:13b" }
-        else if self.ram_gb >= 8.0 { "codellama:7b" }
-        else { "qwen3-coder:480b-cloud" }
+        if self.ram_gb >= 32.0 {
+            "qwen3-coder:480b-cloud"
+        } else if self.ram_gb >= 16.0 {
+            "codellama:13b"
+        } else if self.ram_gb >= 8.0 {
+            "codellama:7b"
+        } else {
+            "qwen3-coder:480b-cloud"
+        }
     }
 }
 
@@ -208,7 +229,9 @@ fn prompt_line(message: &str) -> String {
 fn prompt_yn(message: &str, default_yes: bool) -> bool {
     let hint = if default_yes { "[Y/n]" } else { "[y/N]" };
     let answer = prompt_line(&format!("{message} {DIM}{hint}{RESET}"));
-    if answer.is_empty() { return default_yes; }
+    if answer.is_empty() {
+        return default_yes;
+    }
     matches!(answer.to_lowercase().as_str(), "y" | "yes")
 }
 
@@ -219,10 +242,18 @@ fn prompt_choice(message: &str, options: &[(&str, &str)], default: usize) -> usi
         println!("  {marker} {BOLD}{}{RESET}  {DIM}{}{RESET}", label, desc);
     }
     loop {
-        let answer = prompt_line(&format!("Enter choice (1-{}, default {}):", options.len(), default + 1));
-        if answer.is_empty() { return default; }
+        let answer = prompt_line(&format!(
+            "Enter choice (1-{}, default {}):",
+            options.len(),
+            default + 1
+        ));
+        if answer.is_empty() {
+            return default;
+        }
         if let Ok(n) = answer.parse::<usize>() {
-            if n >= 1 && n <= options.len() { return n - 1; }
+            if n >= 1 && n <= options.len() {
+                return n - 1;
+            }
         }
         println!("  Please enter a number between 1 and {}.", options.len());
     }
@@ -232,23 +263,41 @@ fn prompt_choice(message: &str, options: &[(&str, &str)], default: usize) -> usi
 
 fn step_detect(info: &PlatformInfo) {
     println!("\n{BOLD}┌─ VibeCody Setup Wizard ─────────────────────────────────┐{RESET}");
-    println!("{BOLD}│{RESET}                                                          {BOLD}│{RESET}");
-    println!("{BOLD}│{RESET}  {GREEN}✓{RESET} Platform:  {BOLD}{}{RESET} ({}){}",
+    println!(
+        "{BOLD}│{RESET}                                                          {BOLD}│{RESET}"
+    );
+    println!(
+        "{BOLD}│{RESET}  {GREEN}✓{RESET} Platform:  {BOLD}{}{RESET} ({}){}",
         info.display_name(),
         info.arch,
         if info.is_raspberry_pi {
             format!(" — {}", info.pi_model.as_deref().unwrap_or("unknown model"))
-        } else { String::new() },
+        } else {
+            String::new()
+        },
     );
-    println!("{BOLD}│{RESET}  {GREEN}✓{RESET} Memory:    {BOLD}{:.1} GB{RESET}", info.ram_gb);
+    println!(
+        "{BOLD}│{RESET}  {GREEN}✓{RESET} Memory:    {BOLD}{:.1} GB{RESET}",
+        info.ram_gb
+    );
     if let Some(gpu) = &info.gpu {
         println!("{BOLD}│{RESET}  {GREEN}✓{RESET} GPU:       {BOLD}{gpu}{RESET}");
     } else {
-        println!("{BOLD}│{RESET}  {YELLOW}○{RESET} GPU:       {DIM}Not detected (CPU inference){RESET}");
+        println!(
+            "{BOLD}│{RESET}  {YELLOW}○{RESET} GPU:       {DIM}Not detected (CPU inference){RESET}"
+        );
     }
-    println!("{BOLD}│{RESET}  {GREEN}✓{RESET} Hostname:  {BOLD}{}{RESET}", info.hostname);
-    println!("{BOLD}│{RESET}  {GREEN}✓{RESET} Tier:      {BOLD}{}{RESET} (recommended)", info.recommended_tier());
-    println!("{BOLD}│{RESET}                                                          {BOLD}│{RESET}");
+    println!(
+        "{BOLD}│{RESET}  {GREEN}✓{RESET} Hostname:  {BOLD}{}{RESET}",
+        info.hostname
+    );
+    println!(
+        "{BOLD}│{RESET}  {GREEN}✓{RESET} Tier:      {BOLD}{}{RESET} (recommended)",
+        info.recommended_tier()
+    );
+    println!(
+        "{BOLD}│{RESET}                                                          {BOLD}│{RESET}"
+    );
     println!("{BOLD}└──────────────────────────────────────────────────────────┘{RESET}");
 }
 
@@ -258,8 +307,8 @@ fn step_provider(info: &PlatformInfo) -> Result<(String, Option<String>)> {
         ("claude", "Anthropic Claude — best for complex coding tasks"),
         ("openai", "OpenAI GPT — widely used, fast"),
         ("gemini", "Google Gemini — good free tier"),
-        ("grok",   "xAI Grok — fast, generous rate limits"),
-        ("groq",   "Groq — ultra-fast inference for open models"),
+        ("grok", "xAI Grok — fast, generous rate limits"),
+        ("groq", "Groq — ultra-fast inference for open models"),
     ];
 
     let default = 0; // ollama
@@ -297,7 +346,12 @@ fn step_provider(info: &PlatformInfo) -> Result<(String, Option<String>)> {
             .map(|o| o.status.success())
             .unwrap_or(false);
 
-        if !model_exists && prompt_yn(&format!("Pull {model} now? (this may take a few minutes)"), true) {
+        if !model_exists
+            && prompt_yn(
+                &format!("Pull {model} now? (this may take a few minutes)"),
+                true,
+            )
+        {
             println!("  {DIM}Running: ollama pull {model}{RESET}");
             let _ = std::process::Command::new("ollama")
                 .args(["pull", &model])
@@ -319,11 +373,18 @@ fn step_provider(info: &PlatformInfo) -> Result<(String, Option<String>)> {
 
     let existing = std::env::var(env_var).ok();
     if let Some(key) = &existing {
-        let masked = format!("{}...{}", &key[..6.min(key.len())], &key[key.len().saturating_sub(4)..]);
+        let masked = format!(
+            "{}...{}",
+            &key[..6.min(key.len())],
+            &key[key.len().saturating_sub(4)..]
+        );
         println!("\n  {GREEN}✓{RESET} Found {BOLD}{env_var}{RESET} = {DIM}{masked}{RESET}");
     } else {
         println!("\n  {YELLOW}⚠{RESET}  {BOLD}{env_var}{RESET} is not set.");
-        let key = prompt_line(&format!("Enter your {} API key (or press Enter to skip):", provider));
+        let key = prompt_line(&format!(
+            "Enter your {} API key (or press Enter to skip):",
+            provider
+        ));
         if !key.is_empty() {
             // Write to config.toml
             let config_dir = dirs::home_dir()
@@ -341,7 +402,10 @@ fn step_provider(info: &PlatformInfo) -> Result<(String, Option<String>)> {
 
             // Also hint about shell rc
             println!("  {DIM}Tip: add to your shell profile for future sessions:{RESET}");
-            println!("  {DIM}  export {env_var}=\"{}...\"{RESET}", &key[..6.min(key.len())]);
+            println!(
+                "  {DIM}  export {env_var}=\"{}...\"{RESET}",
+                &key[..6.min(key.len())]
+            );
         }
     }
 
@@ -349,7 +413,10 @@ fn step_provider(info: &PlatformInfo) -> Result<(String, Option<String>)> {
 }
 
 fn step_always_on(info: &PlatformInfo) -> Result<bool> {
-    if !prompt_yn("\nEnable always-on mode (run VibeCody as a background service)?", false) {
+    if !prompt_yn(
+        "\nEnable always-on mode (run VibeCody as a background service)?",
+        false,
+    ) {
         return Ok(false);
     }
 
@@ -360,7 +427,8 @@ fn step_always_on(info: &PlatformInfo) -> Result<bool> {
 
     match info.os.as_str() {
         "macos" => {
-            let plist = format!(r#"<?xml version="1.0" encoding="UTF-8"?>
+            let plist = format!(
+                r#"<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -388,7 +456,10 @@ fn step_always_on(info: &PlatformInfo) -> Result<bool> {
     </dict>
 </dict>
 </plist>"#,
-                dirs::home_dir().unwrap_or_default().join(".local/bin").display(),
+                dirs::home_dir()
+                    .unwrap_or_default()
+                    .join(".local/bin")
+                    .display(),
                 config_dir.display(),
                 config_dir.display(),
             );
@@ -402,10 +473,13 @@ fn step_always_on(info: &PlatformInfo) -> Result<bool> {
             let _ = std::process::Command::new("launchctl")
                 .args(["load", &plist_path.to_string_lossy()])
                 .status();
-            println!("  {GREEN}✓{RESET} Service loaded — VibeCody is running at http://localhost:7878");
+            println!(
+                "  {GREEN}✓{RESET} Service loaded — VibeCody is running at http://localhost:7878"
+            );
         }
         "linux" => {
-            let service = format!(r#"[Unit]
+            let service = format!(
+                r#"[Unit]
 Description=VibeCody AI Coding Assistant
 After=network.target
 
@@ -420,7 +494,10 @@ WorkingDirectory=%h
 [Install]
 WantedBy=default.target
 "#,
-                dirs::home_dir().unwrap_or_default().join(".local/bin").display(),
+                dirs::home_dir()
+                    .unwrap_or_default()
+                    .join(".local/bin")
+                    .display(),
             );
 
             let service_dir = dirs::home_dir()
@@ -437,16 +514,23 @@ WantedBy=default.target
             let _ = std::process::Command::new("systemctl")
                 .args(["--user", "enable", "--now", "vibecody.service"])
                 .status();
-            println!("  {GREEN}✓{RESET} Service enabled — VibeCody is running at http://localhost:7878");
+            println!(
+                "  {GREEN}✓{RESET} Service enabled — VibeCody is running at http://localhost:7878"
+            );
         }
         "windows" => {
-            println!("  {YELLOW}⚠{RESET}  Windows Service setup requires Administrator privileges.");
+            println!(
+                "  {YELLOW}⚠{RESET}  Windows Service setup requires Administrator privileges."
+            );
             println!("  Run this in an elevated PowerShell:");
             println!("    {DIM}New-Service -Name VibeCody -BinaryPathName \"%LOCALAPPDATA%\\VibeCody\\vibecli.exe serve --port 7878\" -StartupType Automatic{RESET}");
             println!("    {DIM}Start-Service VibeCody{RESET}");
         }
         _ => {
-            println!("  {YELLOW}⚠{RESET}  Automatic service setup is not available for {}.", info.os);
+            println!(
+                "  {YELLOW}⚠{RESET}  Automatic service setup is not available for {}.",
+                info.os
+            );
             println!("  You can run VibeCody manually: vibecli --serve --port 7878");
         }
     }
@@ -480,14 +564,24 @@ fn step_health_check() -> bool {
 
 fn step_summary(info: &PlatformInfo, provider: &str, model: Option<&str>, always_on: bool) {
     println!("\n{BOLD}┌─ Setup Complete ────────────────────────────────────────┐{RESET}");
-    println!("{BOLD}│{RESET}                                                         {BOLD}│{RESET}");
-    println!("{BOLD}│{RESET}  {GREEN}✓{RESET} Platform:  {BOLD}{}{RESET} ({})", info.display_name(), info.arch);
-    println!("{BOLD}│{RESET}  {GREEN}✓{RESET} Provider:  {BOLD}{provider}{RESET}{}",
-        model.map(|m| format!(" ({m})")).unwrap_or_default());
+    println!(
+        "{BOLD}│{RESET}                                                         {BOLD}│{RESET}"
+    );
+    println!(
+        "{BOLD}│{RESET}  {GREEN}✓{RESET} Platform:  {BOLD}{}{RESET} ({})",
+        info.display_name(),
+        info.arch
+    );
+    println!(
+        "{BOLD}│{RESET}  {GREEN}✓{RESET} Provider:  {BOLD}{provider}{RESET}{}",
+        model.map(|m| format!(" ({m})")).unwrap_or_default()
+    );
     if always_on {
         println!("{BOLD}│{RESET}  {GREEN}✓{RESET} Always-on: {BOLD}http://localhost:7878{RESET}");
     }
-    println!("{BOLD}│{RESET}                                                         {BOLD}│{RESET}");
+    println!(
+        "{BOLD}│{RESET}                                                         {BOLD}│{RESET}"
+    );
     println!("{BOLD}│{RESET}  {CYAN}Next steps:{RESET}                                           {BOLD}│{RESET}");
     println!("{BOLD}│{RESET}    vibecli                    {DIM}# Start chatting{RESET}           {BOLD}│{RESET}");
     println!("{BOLD}│{RESET}    vibecli --agent \"fix bugs\" {DIM}# Run an agent{RESET}            {BOLD}│{RESET}");
@@ -495,10 +589,14 @@ fn step_summary(info: &PlatformInfo, provider: &str, model: Option<&str>, always
     if !always_on {
         println!("{BOLD}│{RESET}    vibecli --serve            {DIM}# Start daemon{RESET}             {BOLD}│{RESET}");
     }
-    println!("{BOLD}│{RESET}                                                         {BOLD}│{RESET}");
+    println!(
+        "{BOLD}│{RESET}                                                         {BOLD}│{RESET}"
+    );
     println!("{BOLD}│{RESET}  {DIM}Docs: https://vibecody.github.io/vibecody/setup/{RESET}       {BOLD}│{RESET}");
     println!("{BOLD}│{RESET}  {DIM}Use cases: https://vibecody.github.io/vibecody/use-cases/{RESET}{BOLD}│{RESET}");
-    println!("{BOLD}│{RESET}                                                         {BOLD}│{RESET}");
+    println!(
+        "{BOLD}│{RESET}                                                         {BOLD}│{RESET}"
+    );
     println!("{BOLD}└─────────────────────────────────────────────────────────┘{RESET}");
 }
 
@@ -539,9 +637,13 @@ pub fn service_start() -> Result<()> {
     match info.os.as_str() {
         "macos" => {
             let _ = std::process::Command::new("launchctl")
-                .args(["load", &dirs::home_dir().unwrap_or_default()
-                    .join("Library/LaunchAgents/com.vibecody.vibecli.plist")
-                    .to_string_lossy()])
+                .args([
+                    "load",
+                    &dirs::home_dir()
+                        .unwrap_or_default()
+                        .join("Library/LaunchAgents/com.vibecody.vibecli.plist")
+                        .to_string_lossy(),
+                ])
                 .status();
             println!("{GREEN}✓{RESET} VibeCody service started");
         }
@@ -561,9 +663,13 @@ pub fn service_stop() -> Result<()> {
     match info.os.as_str() {
         "macos" => {
             let _ = std::process::Command::new("launchctl")
-                .args(["unload", &dirs::home_dir().unwrap_or_default()
-                    .join("Library/LaunchAgents/com.vibecody.vibecli.plist")
-                    .to_string_lossy()])
+                .args([
+                    "unload",
+                    &dirs::home_dir()
+                        .unwrap_or_default()
+                        .join("Library/LaunchAgents/com.vibecody.vibecli.plist")
+                        .to_string_lossy(),
+                ])
                 .status();
             println!("{GREEN}✓{RESET} VibeCody service stopped");
         }
@@ -643,11 +749,27 @@ mod tests {
     #[test]
     fn test_recommended_tier_thresholds() {
         // Tier: >=16 GB = max, >=8 GB = pro, <8 GB = lite
-        let base = PlatformInfo { os: "linux".into(), arch: "x86_64".into(), ram_gb: 0.0,
-            gpu: None, is_raspberry_pi: false, pi_model: None, hostname: "h".into() };
-        let lite = PlatformInfo { ram_gb: 4.0, ..base.clone() };
-        let pro  = PlatformInfo { ram_gb: 8.0, ..base.clone() };
-        let max  = PlatformInfo { ram_gb: 16.0, ..base.clone() };
+        let base = PlatformInfo {
+            os: "linux".into(),
+            arch: "x86_64".into(),
+            ram_gb: 0.0,
+            gpu: None,
+            is_raspberry_pi: false,
+            pi_model: None,
+            hostname: "h".into(),
+        };
+        let lite = PlatformInfo {
+            ram_gb: 4.0,
+            ..base.clone()
+        };
+        let pro = PlatformInfo {
+            ram_gb: 8.0,
+            ..base.clone()
+        };
+        let max = PlatformInfo {
+            ram_gb: 16.0,
+            ..base.clone()
+        };
         assert_eq!(lite.recommended_tier(), "lite");
         assert_eq!(pro.recommended_tier(), "pro");
         assert_eq!(max.recommended_tier(), "max");

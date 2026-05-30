@@ -158,7 +158,12 @@ impl SubAgentRegistry {
         }
     }
 
-    pub fn spawn(&mut self, role: AgentRole, context_files: Vec<String>, extra_instructions: Option<String>) -> String {
+    pub fn spawn(
+        &mut self,
+        role: AgentRole,
+        context_files: Vec<String>,
+        extra_instructions: Option<String>,
+    ) -> String {
         self.agent_counter += 1;
         let id = format!("subagent-{}", self.agent_counter);
         let config = self.role_configs.get(&role).cloned().unwrap_or(RoleConfig {
@@ -183,7 +188,14 @@ impl SubAgentRegistry {
         self.agents.iter().find(|a| a.id == id)
     }
 
-    pub fn complete_agent(&mut self, id: &str, output: &str, findings: Vec<AgentFinding>, files_modified: Vec<String>, turns: usize) -> bool {
+    pub fn complete_agent(
+        &mut self,
+        id: &str,
+        output: &str,
+        findings: Vec<AgentFinding>,
+        files_modified: Vec<String>,
+        turns: usize,
+    ) -> bool {
         if let Some(agent) = self.agents.iter().find(|a| a.id == id) {
             let result = SubAgentResult {
                 agent_id: id.to_string(),
@@ -228,7 +240,10 @@ impl SubAgentRegistry {
     }
 
     pub fn all_findings(&self) -> Vec<&AgentFinding> {
-        self.results.iter().flat_map(|r| r.findings.iter()).collect()
+        self.results
+            .iter()
+            .flat_map(|r| r.findings.iter())
+            .collect()
     }
 
     pub fn configure_role(&mut self, role: AgentRole, config: RoleConfig) {
@@ -256,26 +271,42 @@ impl Default for SubAgentRegistry {
 
 fn default_role_configs() -> HashMap<AgentRole, RoleConfig> {
     let mut configs = HashMap::new();
-    configs.insert(AgentRole::CodeReviewer, RoleConfig {
-        default_tools: vec!["read_file".into(), "grep".into(), "glob".into()],
-        max_turns: 5,
-        auto_spawn_on: vec!["pull_request".into()],
-    });
-    configs.insert(AgentRole::TestWriter, RoleConfig {
-        default_tools: vec!["read_file".into(), "write_file".into(), "run_command".into()],
-        max_turns: 15,
-        auto_spawn_on: vec!["new_function".into()],
-    });
-    configs.insert(AgentRole::SecurityReviewer, RoleConfig {
-        default_tools: vec!["read_file".into(), "grep".into()],
-        max_turns: 8,
-        auto_spawn_on: vec!["security_sensitive_change".into()],
-    });
-    configs.insert(AgentRole::Debugger, RoleConfig {
-        default_tools: vec!["read_file".into(), "run_command".into(), "grep".into()],
-        max_turns: 20,
-        auto_spawn_on: vec!["test_failure".into()],
-    });
+    configs.insert(
+        AgentRole::CodeReviewer,
+        RoleConfig {
+            default_tools: vec!["read_file".into(), "grep".into(), "glob".into()],
+            max_turns: 5,
+            auto_spawn_on: vec!["pull_request".into()],
+        },
+    );
+    configs.insert(
+        AgentRole::TestWriter,
+        RoleConfig {
+            default_tools: vec![
+                "read_file".into(),
+                "write_file".into(),
+                "run_command".into(),
+            ],
+            max_turns: 15,
+            auto_spawn_on: vec!["new_function".into()],
+        },
+    );
+    configs.insert(
+        AgentRole::SecurityReviewer,
+        RoleConfig {
+            default_tools: vec!["read_file".into(), "grep".into()],
+            max_turns: 8,
+            auto_spawn_on: vec!["security_sensitive_change".into()],
+        },
+    );
+    configs.insert(
+        AgentRole::Debugger,
+        RoleConfig {
+            default_tools: vec!["read_file".into(), "run_command".into(), "grep".into()],
+            max_turns: 20,
+            auto_spawn_on: vec!["test_failure".into()],
+        },
+    );
     configs
 }
 
@@ -342,7 +373,13 @@ mod tests {
             message: "Missing edge case test".into(),
             suggestion: Some("Add test for empty input".into()),
         };
-        assert!(reg.complete_agent(&id, "Added 5 tests", vec![finding], vec!["src/lib_test.rs".into()], 3));
+        assert!(reg.complete_agent(
+            &id,
+            "Added 5 tests",
+            vec![finding],
+            vec!["src/lib_test.rs".into()],
+            3
+        ));
         let result = reg.get_result(&id).unwrap();
         assert_eq!(result.status, SubAgentStatus::Completed);
         assert_eq!(result.turns_used, 3);
@@ -380,8 +417,20 @@ mod tests {
         let mut reg = SubAgentRegistry::new();
         let id1 = reg.spawn(AgentRole::SecurityReviewer, vec![], None);
         let id2 = reg.spawn(AgentRole::CodeReviewer, vec![], None);
-        let f1 = AgentFinding { file: "a.rs".into(), line: Some(1), severity: FindingSeverity::Error, message: "vuln".into(), suggestion: None };
-        let f2 = AgentFinding { file: "b.rs".into(), line: Some(2), severity: FindingSeverity::Warning, message: "style".into(), suggestion: None };
+        let f1 = AgentFinding {
+            file: "a.rs".into(),
+            line: Some(1),
+            severity: FindingSeverity::Error,
+            message: "vuln".into(),
+            suggestion: None,
+        };
+        let f2 = AgentFinding {
+            file: "b.rs".into(),
+            line: Some(2),
+            severity: FindingSeverity::Warning,
+            message: "style".into(),
+            suggestion: None,
+        };
         reg.complete_agent(&id1, "", vec![f1], vec![], 1);
         reg.complete_agent(&id2, "", vec![f2], vec![], 1);
         assert_eq!(reg.all_findings().len(), 2);
@@ -390,11 +439,14 @@ mod tests {
     #[test]
     fn test_configure_role() {
         let mut reg = SubAgentRegistry::new();
-        reg.configure_role(AgentRole::Architect, RoleConfig {
-            default_tools: vec!["read_file".into()],
-            max_turns: 30,
-            auto_spawn_on: vec![],
-        });
+        reg.configure_role(
+            AgentRole::Architect,
+            RoleConfig {
+                default_tools: vec!["read_file".into()],
+                max_turns: 30,
+                auto_spawn_on: vec![],
+            },
+        );
         let id = reg.spawn(AgentRole::Architect, vec![], None);
         assert_eq!(reg.get_agent(&id).unwrap().max_turns, 30);
     }
@@ -402,7 +454,11 @@ mod tests {
     #[test]
     fn test_spawn_custom_role() {
         let mut reg = SubAgentRegistry::new();
-        let id = reg.spawn(AgentRole::Custom("api_designer".into()), vec![], Some("Design REST APIs".into()));
+        let id = reg.spawn(
+            AgentRole::Custom("api_designer".into()),
+            vec![],
+            Some("Design REST APIs".into()),
+        );
         let agent = reg.get_agent(&id).unwrap();
         assert_eq!(agent.role, AgentRole::Custom("api_designer".into()));
         assert_eq!(agent.extra_instructions, Some("Design REST APIs".into()));

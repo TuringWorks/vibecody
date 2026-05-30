@@ -15,9 +15,9 @@ pub enum DocumentFormat {
     Json,
     Csv,
     Xml,
-    Rst,         // reStructuredText
+    Rst, // reStructuredText
     Latex,
-    CodeFile,    // source code (auto-detected by extension)
+    CodeFile, // source code (auto-detected by extension)
 }
 
 impl DocumentFormat {
@@ -103,7 +103,7 @@ pub struct IngestedDocument {
 pub struct DocumentSection {
     pub title: Option<String>,
     pub content: String,
-    pub level: usize,  // heading level (1-6) or 0 for no heading
+    pub level: usize, // heading level (1-6) or 0 for no heading
     pub start_offset: usize,
 }
 
@@ -114,7 +114,9 @@ pub struct DocumentIngestor {
 
 impl DocumentIngestor {
     pub fn new() -> Self {
-        Self { config: ChunkingConfig::default() }
+        Self {
+            config: ChunkingConfig::default(),
+        }
     }
 
     pub fn with_config(config: ChunkingConfig) -> Self {
@@ -126,7 +128,10 @@ impl DocumentIngestor {
         let content = std::fs::read_to_string(path)?;
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("txt");
         let format = DocumentFormat::from_extension(ext);
-        let title = path.file_stem().and_then(|s| s.to_str()).map(|s| s.to_string());
+        let title = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .map(|s| s.to_string());
 
         let metadata = DocumentMetadata {
             title,
@@ -145,11 +150,21 @@ impl DocumentIngestor {
 
         let sections = self.extract_sections(&content, &format);
 
-        Ok(IngestedDocument { content, metadata, sections })
+        Ok(IngestedDocument {
+            content,
+            metadata,
+            sections,
+        })
     }
 
     /// Ingest raw text content with metadata
-    pub fn ingest_text(&self, content: &str, title: Option<&str>, source_url: Option<&str>, format: DocumentFormat) -> IngestedDocument {
+    pub fn ingest_text(
+        &self,
+        content: &str,
+        title: Option<&str>,
+        source_url: Option<&str>,
+        format: DocumentFormat,
+    ) -> IngestedDocument {
         let metadata = DocumentMetadata {
             title: title.map(|s| s.to_string()),
             author: None,
@@ -167,7 +182,11 @@ impl DocumentIngestor {
 
         let sections = self.extract_sections(content, &format);
 
-        IngestedDocument { content: content.to_string(), metadata, sections }
+        IngestedDocument {
+            content: content.to_string(),
+            metadata,
+            sections,
+        }
     }
 
     /// Ingest HTML content, stripping tags and extracting text
@@ -180,7 +199,9 @@ impl DocumentIngestor {
     /// Extract sections from document based on format
     fn extract_sections(&self, content: &str, format: &DocumentFormat) -> Vec<DocumentSection> {
         match format {
-            DocumentFormat::Markdown | DocumentFormat::Rst => self.extract_markdown_sections(content),
+            DocumentFormat::Markdown | DocumentFormat::Rst => {
+                self.extract_markdown_sections(content)
+            }
             DocumentFormat::Html => self.extract_markdown_sections(&strip_html_tags(content)),
             DocumentFormat::Latex => self.extract_latex_sections(content),
             _ => {
@@ -250,19 +271,28 @@ impl DocumentIngestor {
         let mut current_start = 0usize;
 
         for (offset, line) in content.lines().enumerate() {
-            if line.trim().starts_with("\\section{") || line.trim().starts_with("\\subsection{") || line.trim().starts_with("\\chapter{") {
+            if line.trim().starts_with("\\section{")
+                || line.trim().starts_with("\\subsection{")
+                || line.trim().starts_with("\\chapter{")
+            {
                 if !current_content.trim().is_empty() {
                     sections.push(DocumentSection {
                         title: current_title.take(),
                         content: current_content.trim().to_string(),
-                        level: if line.contains("chapter") { 1 } else if line.contains("subsection") { 3 } else { 2 },
+                        level: if line.contains("chapter") {
+                            1
+                        } else if line.contains("subsection") {
+                            3
+                        } else {
+                            2
+                        },
                         start_offset: current_start,
                     });
                 }
                 // Extract title from \section{Title}
                 if let Some(start) = line.find('{') {
                     if let Some(end) = line.rfind('}') {
-                        current_title = Some(line[start+1..end].to_string());
+                        current_title = Some(line[start + 1..end].to_string());
                     }
                 }
                 current_content = String::new();
@@ -343,12 +373,16 @@ impl DocumentIngestor {
                     text.clone()
                 };
 
-                let chunk_id = format!("{}-{}",
-                    doc.metadata.source_url.as_deref()
+                let chunk_id = format!(
+                    "{}-{}",
+                    doc.metadata
+                        .source_url
+                        .as_deref()
                         .or(doc.metadata.source_path.as_deref())
                         .or(doc.metadata.title.as_deref())
                         .unwrap_or("unknown"),
-                    chunk_index);
+                    chunk_index
+                );
 
                 chunks.push(DocumentChunk {
                     id: chunk_id,
@@ -403,7 +437,11 @@ impl DocumentIngestor {
                 let mut best = end;
                 for i in (start + min_words..end).rev() {
                     let word = words[i];
-                    if word.ends_with('.') || word.ends_with('!') || word.ends_with('?') || word.ends_with(':') {
+                    if word.ends_with('.')
+                        || word.ends_with('!')
+                        || word.ends_with('?')
+                        || word.ends_with(':')
+                    {
                         best = i + 1;
                         break;
                     }
@@ -432,7 +470,11 @@ impl DocumentIngestor {
     }
 
     /// Ingest a directory of documents recursively
-    pub fn ingest_directory(&self, dir: &Path, extensions: &[&str]) -> anyhow::Result<Vec<IngestedDocument>> {
+    pub fn ingest_directory(
+        &self,
+        dir: &Path,
+        extensions: &[&str],
+    ) -> anyhow::Result<Vec<IngestedDocument>> {
         let mut docs = Vec::new();
 
         if !dir.is_dir() {
@@ -443,8 +485,22 @@ impl DocumentIngestor {
         Ok(docs)
     }
 
-    fn walk_directory(&self, dir: &Path, extensions: &[&str], docs: &mut Vec<IngestedDocument>) -> anyhow::Result<()> {
-        let skip_dirs = [".git", "node_modules", "target", "dist", "build", "__pycache__", ".venv", "venv"];
+    fn walk_directory(
+        &self,
+        dir: &Path,
+        extensions: &[&str],
+        docs: &mut Vec<IngestedDocument>,
+    ) -> anyhow::Result<()> {
+        let skip_dirs = [
+            ".git",
+            "node_modules",
+            "target",
+            "dist",
+            "build",
+            "__pycache__",
+            ".venv",
+            "venv",
+        ];
 
         for entry in std::fs::read_dir(dir)? {
             let entry = entry?;
@@ -513,8 +569,13 @@ fn strip_html_tags(html: &str) -> String {
                 in_style = false;
             }
             // Convert <br>, <p>, <div>, <li>, <tr> to newlines
-            if remaining.starts_with("<br") || remaining.starts_with("<p") || remaining.starts_with("<div")
-                || remaining.starts_with("<li") || remaining.starts_with("<tr") || remaining.starts_with("</p") {
+            if remaining.starts_with("<br")
+                || remaining.starts_with("<p")
+                || remaining.starts_with("<div")
+                || remaining.starts_with("<li")
+                || remaining.starts_with("<tr")
+                || remaining.starts_with("</p")
+            {
                 result.push('\n');
             }
         } else if in_tag && chars[i] == '>' {
@@ -576,7 +637,11 @@ fn extract_html_title(html: &str) -> Option<String> {
     let end = lower[start..].find("</title>")?;
     let title = &html[start + 7..start + end];
     let trimmed = title.trim();
-    if trimmed.is_empty() { None } else { Some(trimmed.to_string()) }
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
 }
 
 fn now_iso() -> String {
@@ -593,13 +658,22 @@ mod tests {
 
     #[test]
     fn test_document_format_from_extension() {
-        assert_eq!(DocumentFormat::from_extension("md"), DocumentFormat::Markdown);
+        assert_eq!(
+            DocumentFormat::from_extension("md"),
+            DocumentFormat::Markdown
+        );
         assert_eq!(DocumentFormat::from_extension("html"), DocumentFormat::Html);
-        assert_eq!(DocumentFormat::from_extension("txt"), DocumentFormat::PlainText);
+        assert_eq!(
+            DocumentFormat::from_extension("txt"),
+            DocumentFormat::PlainText
+        );
         assert_eq!(DocumentFormat::from_extension("pdf"), DocumentFormat::Pdf);
         assert_eq!(DocumentFormat::from_extension("json"), DocumentFormat::Json);
         assert_eq!(DocumentFormat::from_extension("csv"), DocumentFormat::Csv);
-        assert_eq!(DocumentFormat::from_extension("rs"), DocumentFormat::CodeFile);
+        assert_eq!(
+            DocumentFormat::from_extension("rs"),
+            DocumentFormat::CodeFile
+        );
         assert_eq!(DocumentFormat::from_extension("tex"), DocumentFormat::Latex);
     }
 
@@ -618,20 +692,27 @@ mod tests {
         assert_eq!(strip_html_tags("<p>Hello</p>"), "Hello");
         assert_eq!(strip_html_tags("<b>bold</b> text"), "bold text");
         assert_eq!(strip_html_tags("no tags"), "no tags");
-        assert_eq!(strip_html_tags("<script>alert('x')</script>visible"), "visible");
+        assert_eq!(
+            strip_html_tags("<script>alert('x')</script>visible"),
+            "visible"
+        );
         assert_eq!(strip_html_tags("&amp; &lt; &gt;"), "& < >");
     }
 
     #[test]
     fn test_extract_html_title() {
-        assert_eq!(extract_html_title("<html><title>My Page</title></html>"), Some("My Page".to_string()));
+        assert_eq!(
+            extract_html_title("<html><title>My Page</title></html>"),
+            Some("My Page".to_string())
+        );
         assert_eq!(extract_html_title("<html></html>"), None);
     }
 
     #[test]
     fn test_ingest_text() {
         let ingestor = DocumentIngestor::new();
-        let doc = ingestor.ingest_text("Hello world", Some("test"), None, DocumentFormat::PlainText);
+        let doc =
+            ingestor.ingest_text("Hello world", Some("test"), None, DocumentFormat::PlainText);
         assert_eq!(doc.metadata.word_count, 2);
         assert_eq!(doc.metadata.char_count, 11);
         assert!(doc.metadata.title.as_deref() == Some("test"));
@@ -651,7 +732,8 @@ mod tests {
     #[test]
     fn test_chunk_small_document() {
         let ingestor = DocumentIngestor::new();
-        let doc = ingestor.ingest_text("Small text.", Some("test"), None, DocumentFormat::PlainText);
+        let doc =
+            ingestor.ingest_text("Small text.", Some("test"), None, DocumentFormat::PlainText);
         let chunks = ingestor.chunk(&doc);
         assert_eq!(chunks.len(), 1);
         assert_eq!(chunks[0].chunk_index, 0);
@@ -667,7 +749,10 @@ mod tests {
             respect_boundaries: false,
             include_metadata: false,
         });
-        let text = (0..100).map(|i| format!("word{}", i)).collect::<Vec<_>>().join(" ");
+        let text = (0..100)
+            .map(|i| format!("word{}", i))
+            .collect::<Vec<_>>()
+            .join(" ");
         let doc = ingestor.ingest_text(&text, Some("test"), None, DocumentFormat::PlainText);
         let chunks = ingestor.chunk(&doc);
         assert!(chunks.len() > 1);
@@ -697,7 +782,10 @@ mod tests {
         assert!(doc.content.contains("World"));
         assert!(!doc.content.contains("evil"));
         assert_eq!(doc.metadata.title.as_deref(), Some("Test"));
-        assert_eq!(doc.metadata.source_url.as_deref(), Some("https://example.com"));
+        assert_eq!(
+            doc.metadata.source_url.as_deref(),
+            Some("https://example.com")
+        );
     }
 
     #[test]

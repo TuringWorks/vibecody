@@ -122,7 +122,12 @@ impl EditState {
         } else {
             self.recent_actions.join(",")
         };
-        format!("{}:{}:{}", self.file_type, recent, self.line_context.len() % 10)
+        format!(
+            "{}:{}:{}",
+            self.file_type,
+            recent,
+            self.line_context.len() % 10
+        )
     }
 }
 
@@ -163,7 +168,8 @@ impl RlModel {
     pub fn update(&mut self, state: &str, action: &str, reward: f64, next_state: &str) {
         let max_next = self.max_q_value(next_state);
         let current = self.get_q_value(state, action);
-        let new_value = current + self.learning_rate * (reward + self.discount_factor * max_next - current);
+        let new_value =
+            current + self.learning_rate * (reward + self.discount_factor * max_next - current);
 
         self.q_table
             .entry(state.to_string())
@@ -301,7 +307,8 @@ impl EditPredictor {
         let reward = outcome.reward();
         let state_key = state.state_key();
         let next_state_key = state_key.clone(); // simplified: same state for now
-        self.model.update(&state_key, action, reward, &next_state_key);
+        self.model
+            .update(&state_key, action, reward, &next_state_key);
 
         if outcome == PredictionOutcome::Accepted {
             self.predictions_accepted += 1;
@@ -344,11 +351,19 @@ impl EditPredictor {
             return;
         }
         let recent: Vec<_> = self.history.iter().rev().take(5).collect();
-        let action_seq: Vec<String> = recent.iter().rev().map(|e| e.action.as_str().to_string()).collect();
+        let action_seq: Vec<String> = recent
+            .iter()
+            .rev()
+            .map(|e| e.action.as_str().to_string())
+            .collect();
 
         // Check if this sequence matches an existing pattern
         for pattern in &mut self.patterns {
-            let pat_seq: Vec<String> = pattern.sequence.iter().map(|a| a.as_str().to_string()).collect();
+            let pat_seq: Vec<String> = pattern
+                .sequence
+                .iter()
+                .map(|a| a.as_str().to_string())
+                .collect();
             if action_seq.ends_with(&pat_seq) {
                 pattern.frequency += 1;
                 pattern.last_seen = now();
@@ -362,7 +377,8 @@ impl EditPredictor {
             let count = count_subsequence_occurrences(&self.history, sub);
             if count >= 2 {
                 self.pattern_counter += 1;
-                let actions: Vec<EditAction> = sub.iter().map(|s| action_str_to_edit_action(s)).collect();
+                let actions: Vec<EditAction> =
+                    sub.iter().map(|s| action_str_to_edit_action(s)).collect();
                 self.patterns.push(EditPattern {
                     id: format!("pat-{}", self.pattern_counter),
                     name: format!("pattern-{}", sub.join("-")),
@@ -377,13 +393,16 @@ impl EditPredictor {
 
     fn find_matching_pattern(&self, state: &EditState) -> Option<&EditPattern> {
         let recent: Vec<String> = state.recent_actions.to_vec();
-        self.patterns.iter().max_by(|a, b| {
-            let a_match = pattern_matches(&a.sequence, &recent);
-            let b_match = pattern_matches(&b.sequence, &recent);
-            let a_score = a_match as u64 * a.frequency;
-            let b_score = b_match as u64 * b.frequency;
-            a_score.cmp(&b_score)
-        }).filter(|p| pattern_matches(&p.sequence, &recent))
+        self.patterns
+            .iter()
+            .max_by(|a, b| {
+                let a_match = pattern_matches(&a.sequence, &recent);
+                let b_match = pattern_matches(&b.sequence, &recent);
+                let a_score = a_match as u64 * a.frequency;
+                let b_score = b_match as u64 * b.frequency;
+                a_score.cmp(&b_score)
+            })
+            .filter(|p| pattern_matches(&p.sequence, &recent))
     }
 }
 
@@ -419,7 +438,10 @@ fn count_subsequence_occurrences(history: &[EditEvent], subseq: &[String]) -> us
     if subseq.is_empty() || history.len() < subseq.len() {
         return 0;
     }
-    let actions: Vec<String> = history.iter().map(|e| e.action.as_str().to_string()).collect();
+    let actions: Vec<String> = history
+        .iter()
+        .map(|e| e.action.as_str().to_string())
+        .collect();
     let mut count = 0;
     for window in actions.windows(subseq.len()) {
         if window == subseq {
@@ -447,7 +469,10 @@ fn pattern_matches(pattern: &[EditAction], recent: &[String]) -> bool {
 
 fn now() -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
 }
 
 // ---------------------------------------------------------------------------
@@ -487,7 +512,10 @@ mod tests {
         assert_eq!(EditAction::Delete(5).as_str(), "delete");
         assert_eq!(EditAction::Undo.as_str(), "undo");
         assert_eq!(EditAction::Save.as_str(), "save");
-        assert_eq!(EditAction::RunCommand("test".into()).as_str(), "run_command");
+        assert_eq!(
+            EditAction::RunCommand("test".into()).as_str(),
+            "run_command"
+        );
     }
 
     // -- PredictionOutcome tests --
@@ -750,7 +778,10 @@ mod tests {
 
     #[test]
     fn test_count_subsequence_empty() {
-        assert_eq!(count_subsequence_occurrences(&[], &["insert".to_string()]), 0);
+        assert_eq!(
+            count_subsequence_occurrences(&[], &["insert".to_string()]),
+            0
+        );
         let events = vec![make_event("a.rs", 1, EditAction::Insert("x".into()))];
         assert_eq!(count_subsequence_occurrences(&events, &[]), 0);
     }

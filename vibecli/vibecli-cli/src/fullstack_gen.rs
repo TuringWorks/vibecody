@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -237,7 +236,10 @@ fn database_schema_template(db: &DatabaseType) -> Vec<(&'static str, &'static st
     }
 }
 
-fn auth_middleware_template(auth: &AuthStrategy, backend: &BackendFramework) -> Option<(&'static str, &'static str, FileType)> {
+fn auth_middleware_template(
+    auth: &AuthStrategy,
+    backend: &BackendFramework,
+) -> Option<(&'static str, &'static str, FileType)> {
     match (auth, backend) {
         (AuthStrategy::None, _) => None,
         (AuthStrategy::Jwt, BackendFramework::Express) => Some((
@@ -502,7 +504,11 @@ impl FullStackGenerator {
             .get(&self.spec.backend)
             .map_or(0, |t| t.len());
         let db = database_schema_template(&self.spec.database).len();
-        let auth_file: usize = if self.spec.auth != AuthStrategy::None { 1 } else { 0 };
+        let auth_file: usize = if self.spec.auth != AuthStrategy::None {
+            1
+        } else {
+            0
+        };
         let infra = 4; // Dockerfile, compose, CI, .env.example
         let tests = 2; // frontend + backend test
         let docs = 1; // README
@@ -595,8 +601,7 @@ mod tests {
     fn test_spec_serialization() {
         let spec = sample_spec();
         let json = serde_json::to_string(&spec).expect("should serialize");
-        let deserialized: ProjectSpec =
-            serde_json::from_str(&json).expect("should deserialize");
+        let deserialized: ProjectSpec = serde_json::from_str(&json).expect("should deserialize");
         assert_eq!(deserialized.name, "my-app");
         assert_eq!(deserialized.frontend, FrontendFramework::React);
     }

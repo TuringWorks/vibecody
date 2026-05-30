@@ -11,7 +11,7 @@
 use std::path::Path;
 use std::process::Output;
 
-use vibe_sandbox::{NetPolicy, ResourceLimits, SandboxTier, SelectOptions, select};
+use vibe_sandbox::{select, NetPolicy, ResourceLimits, SandboxTier, SelectOptions};
 
 #[derive(Debug, thiserror::Error)]
 pub enum SandboxRunError {
@@ -102,7 +102,11 @@ mod tests {
             policy_id: "test:echo",
         };
         let out = run_in_sandbox("/bin/sh", &["-c", "echo hello"], opts).unwrap();
-        assert!(out.status.success(), "stderr: {}", String::from_utf8_lossy(&out.stderr));
+        assert!(
+            out.status.success(),
+            "stderr: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
         assert_eq!(String::from_utf8_lossy(&out.stdout).trim(), "hello");
     }
 }

@@ -4,7 +4,10 @@
 //! API key format: "<id>.<secret>" — JWT is generated from the secret half.
 
 use super::openai_compat::{self, ChatRequest};
-use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message, ProviderConfig};
+use crate::provider::{
+    AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message,
+    ProviderConfig,
+};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 
@@ -31,7 +34,10 @@ impl ZhipuProvider {
     }
 
     fn base_url(&self) -> String {
-        self.config.api_url.clone().unwrap_or_else(|| ZHIPU_BASE_URL.to_string())
+        self.config
+            .api_url
+            .clone()
+            .unwrap_or_else(|| ZHIPU_BASE_URL.to_string())
     }
 
     fn chat_url(&self) -> String {
@@ -40,11 +46,20 @@ impl ZhipuProvider {
 
     /// Returns a JWT token derived from the API key (format: "id.secret").
     fn api_key(&self) -> Result<String> {
-        let raw_key = self.config.api_key.as_ref().context("Zhipu API key not set (ZHIPU_API_KEY)")?;
+        let raw_key = self
+            .config
+            .api_key
+            .as_ref()
+            .context("Zhipu API key not set (ZHIPU_API_KEY)")?;
         self.generate_token(raw_key)
     }
 
-    fn make_request(&self, messages: &[Message], context: Option<String>, stream: bool) -> ChatRequest {
+    fn make_request(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+        stream: bool,
+    ) -> ChatRequest {
         ChatRequest {
             model: self.config.model.clone(),
             messages: openai_compat::build_messages(messages, context),
@@ -71,9 +86,14 @@ impl ZhipuProvider {
             .as_secs();
         let exp = now + 3600; // 1 hour expiry
 
-        let header = base64_url_encode(r#"{"alg":"HS256","sign_type":"SIGN","typ":"JWT"}"#.as_bytes());
+        let header =
+            base64_url_encode(r#"{"alg":"HS256","sign_type":"SIGN","typ":"JWT"}"#.as_bytes());
         let payload = base64_url_encode(
-            format!(r#"{{"api_key":"{}","exp":{},"timestamp":{}}}"#, id, exp, now).as_bytes()
+            format!(
+                r#"{{"api_key":"{}","exp":{},"timestamp":{}}}"#,
+                id, exp, now
+            )
+            .as_bytes(),
         );
 
         let signing_input = format!("{}.{}", header, payload);
@@ -121,7 +141,7 @@ impl HmacSha256 {
 /// SHA-256 hash helper (used by JWT signing for Zhipu API authentication).
 #[allow(dead_code)]
 fn sha256(data: &[u8]) -> [u8; 32] {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(data);
     let result = hasher.finalize();
@@ -152,9 +172,13 @@ fn base64_url_encode(data: &[u8]) -> String {
 
 #[async_trait]
 impl AIProvider for ZhipuProvider {
-    fn name(&self) -> &str { &self.display_name }
+    fn name(&self) -> &str {
+        &self.display_name
+    }
 
-    async fn is_available(&self) -> bool { self.config.api_key.is_some() }
+    async fn is_available(&self) -> bool {
+        self.config.api_key.is_some()
+    }
 
     async fn complete(&self, context: &CodeContext) -> Result<CompletionResponse> {
         let prompt = format!(
@@ -162,8 +186,14 @@ impl AIProvider for ZhipuProvider {
             context.language, context.prefix, context.suffix
         );
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "You are a helpful coding assistant.".to_string() },
-            Message { role: crate::provider::MessageRole::User, content: prompt },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "You are a helpful coding assistant.".to_string(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: prompt,
+            },
         ];
         self.chat_response(&messages, None).await
     }
@@ -174,16 +204,27 @@ impl AIProvider for ZhipuProvider {
             context.language, context.prefix, context.suffix
         );
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "You are a helpful coding assistant.".to_string() },
-            Message { role: crate::provider::MessageRole::User, content: prompt },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "You are a helpful coding assistant.".to_string(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: prompt,
+            },
         ];
         self.stream_chat(&messages).await
     }
 
-    async fn chat_response(&self, messages: &[Message], context: Option<String>) -> Result<CompletionResponse> {
+    async fn chat_response(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+    ) -> Result<CompletionResponse> {
         let token = self.api_key()?;
         let request = self.make_request(messages, context, false);
-        openai_compat::send_chat_request(&self.client, &self.chat_url(), &token, &request, "Zhipu").await
+        openai_compat::send_chat_request(&self.client, &self.chat_url(), &token, &request, "Zhipu")
+            .await
     }
 
     async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String> {
@@ -193,10 +234,22 @@ impl AIProvider for ZhipuProvider {
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
         let token = self.api_key()?;
         let request = self.make_request(messages, None, true);
-        openai_compat::send_stream_request(&self.client, &self.chat_url(), &token, &request, "Zhipu").await
+        openai_compat::send_stream_request(
+            &self.client,
+            &self.chat_url(),
+            &token,
+            &request,
+            "Zhipu",
+        )
+        .await
     }
 
-    async fn chat_with_images(&self, messages: &[Message], _images: &[ImageAttachment], context: Option<String>) -> Result<String> {
+    async fn chat_with_images(
+        &self,
+        messages: &[Message],
+        _images: &[ImageAttachment],
+        context: Option<String>,
+    ) -> Result<String> {
         self.chat(messages, context).await
     }
 }
@@ -204,7 +257,7 @@ impl AIProvider for ZhipuProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use openai_compat::{ChatResponse, ChatMessage, StreamResponse, ChatRequest};
+    use openai_compat::{ChatMessage, ChatRequest, ChatResponse, StreamResponse};
 
     fn test_config() -> ProviderConfig {
         ProviderConfig {
@@ -284,8 +337,14 @@ mod tests {
     fn build_messages_maps_roles() {
         use crate::provider::MessageRole;
         let messages = vec![
-            Message { role: MessageRole::System, content: "sys".into() },
-            Message { role: MessageRole::User, content: "q".into() },
+            Message {
+                role: MessageRole::System,
+                content: "sys".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "q".into(),
+            },
         ];
         let result = openai_compat::build_messages(&messages, None);
         assert_eq!(result[0].role, "system");
@@ -296,9 +355,10 @@ mod tests {
     #[test]
     fn build_messages_appends_context() {
         use crate::provider::MessageRole;
-        let messages = vec![
-            Message { role: MessageRole::User, content: "query".into() },
-        ];
+        let messages = vec![Message {
+            role: MessageRole::User,
+            content: "query".into(),
+        }];
         let result = openai_compat::build_messages(&messages, Some("background".into()));
         assert!(result[0].content.contains("Context:"));
         assert!(result[0].content.contains("background"));
@@ -309,7 +369,10 @@ mod tests {
     fn zhipu_request_serializes_correctly() {
         let req = ChatRequest {
             model: "glm-4".into(),
-            messages: vec![ChatMessage { role: "user".into(), content: "hi".into() }],
+            messages: vec![ChatMessage {
+                role: "user".into(),
+                content: "hi".into(),
+            }],
             temperature: Some(0.5),
             max_tokens: None,
             stream: false,
@@ -364,8 +427,14 @@ mod tests {
         let req = ChatRequest {
             model: "glm-4-flash".into(),
             messages: vec![
-                ChatMessage { role: "system".into(), content: "sys".into() },
-                ChatMessage { role: "user".into(), content: "q".into() },
+                ChatMessage {
+                    role: "system".into(),
+                    content: "sys".into(),
+                },
+                ChatMessage {
+                    role: "user".into(),
+                    content: "q".into(),
+                },
             ],
             temperature: Some(0.5),
             max_tokens: Some(2048),
@@ -383,7 +452,10 @@ mod tests {
     fn zhipu_request_serde_minimal() {
         let req = ChatRequest {
             model: "glm-3-turbo".into(),
-            messages: vec![ChatMessage { role: "user".into(), content: "hi".into() }],
+            messages: vec![ChatMessage {
+                role: "user".into(),
+                content: "hi".into(),
+            }],
             temperature: None,
             max_tokens: None,
             stream: false,
@@ -398,7 +470,10 @@ mod tests {
 
     #[test]
     fn zhipu_message_roundtrip() {
-        let msg = ChatMessage { role: "user".into(), content: "测试数据".into() };
+        let msg = ChatMessage {
+            role: "user".into(),
+            content: "测试数据".into(),
+        };
         let json = serde_json::to_string(&msg).unwrap();
         let msg2: ChatMessage = serde_json::from_str(&json).unwrap();
         assert_eq!(msg.role, msg2.role);
@@ -423,9 +498,18 @@ mod tests {
     fn build_messages_context_only_affects_last_user() {
         use crate::provider::MessageRole;
         let messages = vec![
-            Message { role: MessageRole::User, content: "first".into() },
-            Message { role: MessageRole::Assistant, content: "mid".into() },
-            Message { role: MessageRole::User, content: "second".into() },
+            Message {
+                role: MessageRole::User,
+                content: "first".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "mid".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "second".into(),
+            },
         ];
         let result = openai_compat::build_messages(&messages, Some("bg".into()));
         assert_eq!(result[0].content, "first");
@@ -437,8 +521,14 @@ mod tests {
     fn build_messages_context_skipped_when_last_is_assistant() {
         use crate::provider::MessageRole;
         let messages = vec![
-            Message { role: MessageRole::User, content: "q".into() },
-            Message { role: MessageRole::Assistant, content: "a".into() },
+            Message {
+                role: MessageRole::User,
+                content: "q".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "a".into(),
+            },
         ];
         let result = openai_compat::build_messages(&messages, Some("should be ignored".into()));
         assert_eq!(result[1].content, "a");
@@ -449,9 +539,18 @@ mod tests {
     fn build_messages_all_roles_mapped() {
         use crate::provider::MessageRole;
         let messages = vec![
-            Message { role: MessageRole::System, content: "s".into() },
-            Message { role: MessageRole::User, content: "u".into() },
-            Message { role: MessageRole::Assistant, content: "a".into() },
+            Message {
+                role: MessageRole::System,
+                content: "s".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "u".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "a".into(),
+            },
         ];
         let result = openai_compat::build_messages(&messages, None);
         assert_eq!(result[0].role, "system");
@@ -549,8 +648,11 @@ mod tests {
         let result = base64_url_encode(&[0xfb, 0xef, 0xbe]);
         // Should only contain URL-safe characters
         for c in result.chars() {
-            assert!(c.is_ascii_alphanumeric() || c == '-' || c == '_',
-                "Unexpected char: {}", c);
+            assert!(
+                c.is_ascii_alphanumeric() || c == '-' || c == '_',
+                "Unexpected char: {}",
+                c
+            );
         }
     }
 
@@ -588,7 +690,10 @@ mod tests {
 
     #[test]
     fn zhipu_message_unicode_cjk_roundtrip() {
-        let msg = ChatMessage { role: "user".into(), content: "你好世界 Hello 日本語".into() };
+        let msg = ChatMessage {
+            role: "user".into(),
+            content: "你好世界 Hello 日本語".into(),
+        };
         let json = serde_json::to_string(&msg).unwrap();
         let msg2: ChatMessage = serde_json::from_str(&json).unwrap();
         assert_eq!(msg2.content, "你好世界 Hello 日本語");
@@ -680,9 +785,10 @@ mod tests {
     #[test]
     fn build_messages_single_system_context_not_injected() {
         use crate::provider::MessageRole;
-        let messages = vec![
-            Message { role: MessageRole::System, content: "sys".into() },
-        ];
+        let messages = vec![Message {
+            role: MessageRole::System,
+            content: "sys".into(),
+        }];
         let result = openai_compat::build_messages(&messages, Some("ctx".into()));
         // Last message is "system", not "user", so context should NOT be injected
         assert_eq!(result[0].content, "sys");

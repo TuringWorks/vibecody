@@ -2,7 +2,7 @@
  * BDD tests for rpc_mode using Cucumber.
  * Run with: cargo test --test rpc_mode_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::rpc_mode::{MemoryTransport, RpcFrame, RpcReader};
 
 // ---------------------------------------------------------------------------
@@ -194,9 +194,7 @@ fn given_empty_transport(world: &mut RpcWorld) {
 fn when_write_pong(world: &mut RpcWorld, id: String) {
     let transport = world.transport.as_ref().expect("no transport");
     let mut writer = transport.writer();
-    writer
-        .send(&RpcFrame::pong(&id))
-        .expect("send failed");
+    writer.send(&RpcFrame::pong(&id)).expect("send failed");
 }
 
 #[when("I flush the transport writer")]
@@ -218,10 +216,7 @@ fn then_outbound_count(world: &mut RpcWorld, expected: usize) {
 fn then_first_popped_type(world: &mut RpcWorld, expected: String) {
     let transport = world.transport.as_ref().expect("no transport");
     world.popped = transport.pop_outbound();
-    assert!(
-        !world.popped.is_empty(),
-        "no outbound frames to pop"
-    );
+    assert!(!world.popped.is_empty(), "no outbound frames to pop");
     assert_eq!(world.popped[0].msg_type, expected);
 }
 

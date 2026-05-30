@@ -37,8 +37,20 @@ pub struct BranchLock {
 }
 
 impl BranchLock {
-    pub fn new(branch: impl Into<String>, session_id: impl Into<String>, at_ms: u64, ttl_ms: u64, reason: impl Into<String>) -> Self {
-        Self { branch: branch.into(), session_id: session_id.into(), acquired_at_ms: at_ms, ttl_ms, reason: reason.into() }
+    pub fn new(
+        branch: impl Into<String>,
+        session_id: impl Into<String>,
+        at_ms: u64,
+        ttl_ms: u64,
+        reason: impl Into<String>,
+    ) -> Self {
+        Self {
+            branch: branch.into(),
+            session_id: session_id.into(),
+            acquired_at_ms: at_ms,
+            ttl_ms,
+            reason: reason.into(),
+        }
     }
 
     /// True if the lock has expired at `now_ms`.
@@ -71,33 +83,58 @@ pub struct BranchLockRegistry {
 }
 
 impl BranchLockRegistry {
-    pub fn new(default_ttl_ms: u64) -> Self { Self { locks: HashMap::new(), default_ttl_ms } }
+    pub fn new(default_ttl_ms: u64) -> Self {
+        Self {
+            locks: HashMap::new(),
+            default_ttl_ms,
+        }
+    }
 
     /// Try to acquire a lock on `branch` for `session_id`.
-    pub fn acquire(&mut self, branch: &str, session_id: &str, now_ms: u64, reason: &str) -> LockResult {
+    pub fn acquire(
+        &mut self,
+        branch: &str,
+        session_id: &str,
+        now_ms: u64,
+        reason: &str,
+    ) -> LockResult {
         // Expire stale lock first
         if let Some(existing) = self.locks.get(branch) {
             if existing.is_expired(now_ms) {
                 let prev = existing.session_id.clone();
                 self.locks.remove(branch);
                 // Fall through to acquire
-                self.locks.insert(branch.to_string(),
-                    BranchLock::new(branch, session_id, now_ms, self.default_ttl_ms, reason));
-                return LockResult::Expired { previous_holder: prev };
+                self.locks.insert(
+                    branch.to_string(),
+                    BranchLock::new(branch, session_id, now_ms, self.default_ttl_ms, reason),
+                );
+                return LockResult::Expired {
+                    previous_holder: prev,
+                };
             }
             if existing.session_id == session_id {
                 return LockResult::AlreadyOwned;
             }
-            return LockResult::Denied { held_by: existing.session_id.clone(), age_seconds: existing.age_seconds(now_ms) };
+            return LockResult::Denied {
+                held_by: existing.session_id.clone(),
+                age_seconds: existing.age_seconds(now_ms),
+            };
         }
-        self.locks.insert(branch.to_string(),
-            BranchLock::new(branch, session_id, now_ms, self.default_ttl_ms, reason));
+        self.locks.insert(
+            branch.to_string(),
+            BranchLock::new(branch, session_id, now_ms, self.default_ttl_ms, reason),
+        );
         LockResult::Acquired
     }
 
     /// Release lock if held by `session_id`.
     pub fn release(&mut self, branch: &str, session_id: &str) -> bool {
-        if self.locks.get(branch).map(|l| l.session_id == session_id).unwrap_or(false) {
+        if self
+            .locks
+            .get(branch)
+            .map(|l| l.session_id == session_id)
+            .unwrap_or(false)
+        {
             self.locks.remove(branch);
             true
         } else {
@@ -122,29 +159,43 @@ impl BranchLockRegistry {
     }
 
     pub fn is_locked(&self, branch: &str, now_ms: u64) -> bool {
-        self.locks.get(branch).map(|l| !l.is_expired(now_ms)).unwrap_or(false)
+        self.locks
+            .get(branch)
+            .map(|l| !l.is_expired(now_ms))
+            .unwrap_or(false)
     }
 
-    pub fn lock_info(&self, branch: &str) -> Option<&BranchLock> { self.locks.get(branch) }
+    pub fn lock_info(&self, branch: &str) -> Option<&BranchLock> {
+        self.locks.get(branch)
+    }
 
     /// All active (non-expired) locks at `now_ms`.
     pub fn active_locks(&self, now_ms: u64) -> Vec<&BranchLock> {
-        self.locks.values().filter(|l| !l.is_expired(now_ms)).collect()
+        self.locks
+            .values()
+            .filter(|l| !l.is_expired(now_ms))
+            .collect()
     }
 
     /// Release all locks held by a session (cleanup on session end).
     pub fn release_all_for_session(&mut self, session_id: &str) -> Vec<String> {
-        let to_remove: Vec<String> = self.locks.iter()
+        let to_remove: Vec<String> = self
+            .locks
+            .iter()
             .filter(|(_, l)| l.session_id == session_id)
             .map(|(b, _)| b.clone())
             .collect();
-        for b in &to_remove { self.locks.remove(b); }
+        for b in &to_remove {
+            self.locks.remove(b);
+        }
         to_remove
     }
 }
 
 impl Default for BranchLockRegistry {
-    fn default() -> Self { Self::new(300_000) } // 5 min default TTL
+    fn default() -> Self {
+        Self::new(300_000)
+    } // 5 min default TTL
 }
 
 // ── CollisionType ─────────────────────────────────────────────────────────────
@@ -295,8 +346,7 @@ impl CollisionRegistry {
             .map(|c| c.existing_lock.branch.clone())
             .collect();
         collisions.retain(|c| {
-            c.collision_type == CollisionType::Exact
-                || !has_exact.contains(&c.existing_lock.branch)
+            c.collision_type == CollisionType::Exact || !has_exact.contains(&c.existing_lock.branch)
         });
         collisions
     }
@@ -369,7 +419,9 @@ impl CollisionRegistry {
 mod tests {
     use super::*;
 
-    fn reg() -> BranchLockRegistry { BranchLockRegistry::new(60_000) }
+    fn reg() -> BranchLockRegistry {
+        BranchLockRegistry::new(60_000)
+    }
 
     #[test]
     fn test_acquire_success() {
@@ -381,7 +433,10 @@ mod tests {
     fn test_acquire_same_session_already_owned() {
         let mut r = reg();
         r.acquire("main", "s1", 0, "feat");
-        assert_eq!(r.acquire("main", "s1", 1000, "feat"), LockResult::AlreadyOwned);
+        assert_eq!(
+            r.acquire("main", "s1", 1000, "feat"),
+            LockResult::AlreadyOwned
+        );
     }
 
     #[test]
@@ -397,7 +452,9 @@ mod tests {
         let mut r = BranchLockRegistry::new(5_000); // 5s TTL
         r.acquire("main", "s1", 0, "feat");
         let result = r.acquire("main", "s2", 6_000, "new");
-        assert!(matches!(result, LockResult::Expired { previous_holder } if previous_holder == "s1"));
+        assert!(
+            matches!(result, LockResult::Expired { previous_holder } if previous_holder == "s1")
+        );
     }
 
     #[test]
@@ -430,7 +487,7 @@ mod tests {
         let mut r = BranchLockRegistry::new(5_000);
         r.acquire("main", "s1", 0, "feat");
         r.renew("main", "s1", 4_000); // renew at 4s
-        // Without renewal would have expired at 5s; with renewal, not expired at 8s
+                                      // Without renewal would have expired at 5s; with renewal, not expired at 8s
         assert!(!r.lock_info("main").unwrap().is_expired(8_000));
     }
 
@@ -507,14 +564,19 @@ mod tests {
     #[test]
     fn acquire_succeeds_on_empty_registry() {
         let reg = CollisionRegistry::new();
-        assert!(reg.acquire("feature/auth", "lane-1", LockIntent::Write).is_ok());
+        assert!(reg
+            .acquire("feature/auth", "lane-1", LockIntent::Write)
+            .is_ok());
     }
 
     #[test]
     fn acquire_fails_on_exact_collision() {
         let reg = CollisionRegistry::new();
-        reg.acquire("feature/auth", "lane-1", LockIntent::Write).unwrap();
-        let err = reg.acquire("feature/auth", "lane-2", LockIntent::Write).unwrap_err();
+        reg.acquire("feature/auth", "lane-1", LockIntent::Write)
+            .unwrap();
+        let err = reg
+            .acquire("feature/auth", "lane-2", LockIntent::Write)
+            .unwrap_err();
         assert_eq!(err.len(), 1);
         assert_eq!(err[0].collision_type, CollisionType::Exact);
     }
@@ -523,28 +585,44 @@ mod tests {
     fn detect_parent_child_collision() {
         let reg = CollisionRegistry::new();
         reg.acquire("feature", "lane-1", LockIntent::Write).unwrap();
-        let err = reg.acquire("feature/login", "lane-2", LockIntent::Write).unwrap_err();
-        assert!(err.iter().any(|c| c.collision_type == CollisionType::ParentChild
-            || c.collision_type == CollisionType::NestedModule));
+        let err = reg
+            .acquire("feature/login", "lane-2", LockIntent::Write)
+            .unwrap_err();
+        assert!(err
+            .iter()
+            .any(|c| c.collision_type == CollisionType::ParentChild
+                || c.collision_type == CollisionType::NestedModule));
     }
 
     #[test]
     fn detect_nested_module_collision() {
         let reg = CollisionRegistry::new();
-        reg.acquire("src/auth", "lane-1", LockIntent::Write).unwrap();
-        let err = reg.acquire("src/auth/oauth", "lane-2", LockIntent::Write).unwrap_err();
+        reg.acquire("src/auth", "lane-1", LockIntent::Write)
+            .unwrap();
+        let err = reg
+            .acquire("src/auth/oauth", "lane-2", LockIntent::Write)
+            .unwrap_err();
         assert!(!err.is_empty());
     }
 
     #[test]
     fn is_parent_child_recognizes_hierarchy() {
-        assert!(CollisionRegistry::is_parent_child("feature", "feature/login"));
-        assert!(CollisionRegistry::is_parent_child("feature/login", "feature"));
+        assert!(CollisionRegistry::is_parent_child(
+            "feature",
+            "feature/login"
+        ));
+        assert!(CollisionRegistry::is_parent_child(
+            "feature/login",
+            "feature"
+        ));
     }
 
     #[test]
     fn is_parent_child_rejects_sibling() {
-        assert!(!CollisionRegistry::is_parent_child("feature/auth", "feature/ui"));
+        assert!(!CollisionRegistry::is_parent_child(
+            "feature/auth",
+            "feature/ui"
+        ));
     }
 
     #[test]

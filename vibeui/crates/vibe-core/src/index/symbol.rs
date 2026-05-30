@@ -106,8 +106,12 @@ impl SymbolInfo {
 pub fn extract_symbols(path: &Path, content: &str, language: &Language) -> Vec<SymbolInfo> {
     match language {
         Language::Rust => extract_with_patterns(path, content, Language::Rust, RUST_PATTERNS),
-        Language::TypeScript => extract_with_patterns(path, content, Language::TypeScript, TS_PATTERNS),
-        Language::JavaScript => extract_with_patterns(path, content, Language::JavaScript, TS_PATTERNS),
+        Language::TypeScript => {
+            extract_with_patterns(path, content, Language::TypeScript, TS_PATTERNS)
+        }
+        Language::JavaScript => {
+            extract_with_patterns(path, content, Language::JavaScript, TS_PATTERNS)
+        }
         Language::Python => extract_with_patterns(path, content, Language::Python, PYTHON_PATTERNS),
         Language::Go => extract_with_patterns(path, content, Language::Go, GO_PATTERNS),
         Language::Unknown => vec![],
@@ -165,26 +169,17 @@ static RUST_PATTERNS: &[(&str, SymbolKind)] = &[
         r"^(?:pub(?:\([^)]*\))?\s+)?struct\s+(\w+)",
         SymbolKind::Struct,
     ),
-    (
-        r"^(?:pub(?:\([^)]*\))?\s+)?enum\s+(\w+)",
-        SymbolKind::Enum,
-    ),
+    (r"^(?:pub(?:\([^)]*\))?\s+)?enum\s+(\w+)", SymbolKind::Enum),
     (
         r"^(?:pub(?:\([^)]*\))?\s+)?trait\s+(\w+)",
         SymbolKind::Trait,
     ),
-    (
-        r"^(?:pub(?:\([^)]*\))?\s+)?type\s+(\w+)",
-        SymbolKind::Type,
-    ),
+    (r"^(?:pub(?:\([^)]*\))?\s+)?type\s+(\w+)", SymbolKind::Type),
     (
         r"^(?:pub(?:\([^)]*\))?\s+)?const\s+(\w+)",
         SymbolKind::Constant,
     ),
-    (
-        r"^(?:pub(?:\([^)]*\))?\s+)?mod\s+(\w+)",
-        SymbolKind::Module,
-    ),
+    (r"^(?:pub(?:\([^)]*\))?\s+)?mod\s+(\w+)", SymbolKind::Module),
 ];
 
 static TS_PATTERNS: &[(&str, SymbolKind)] = &[
@@ -196,22 +191,13 @@ static TS_PATTERNS: &[(&str, SymbolKind)] = &[
         r"^(?:export\s+)?(?:default\s+)?class\s+(\w+)",
         SymbolKind::Class,
     ),
-    (
-        r"^(?:export\s+)?interface\s+(\w+)",
-        SymbolKind::Interface,
-    ),
-    (
-        r"^(?:export\s+)?type\s+(\w+)\s*=",
-        SymbolKind::Type,
-    ),
+    (r"^(?:export\s+)?interface\s+(\w+)", SymbolKind::Interface),
+    (r"^(?:export\s+)?type\s+(\w+)\s*=", SymbolKind::Type),
     (
         r"^(?:export\s+)?(?:const|let|var)\s+(\w+)\s*[:=]",
         SymbolKind::Variable,
     ),
-    (
-        r"^\s+(?:async\s+)?(\w+)\s*\(",
-        SymbolKind::Method,
-    ),
+    (r"^\s+(?:async\s+)?(\w+)\s*\(", SymbolKind::Method),
 ];
 
 static PYTHON_PATTERNS: &[(&str, SymbolKind)] = &[

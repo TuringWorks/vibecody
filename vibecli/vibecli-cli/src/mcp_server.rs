@@ -634,7 +634,6 @@ fn tool_defs() -> Vec<Value> {
                 "temperature": { "type": "number", "description": "Target temperature (Fahrenheit or Celsius per HA config)" }
             }, "required": ["entity", "temperature"]}
         }),
-
         // ── B1: Skills as MCP primitives ──────────────────────────────────
         json!({
             "name": "list_skills",
@@ -745,9 +744,7 @@ async fn call_tool(
         "search_files" => {
             let query = args["query"].as_str().unwrap_or("").to_string();
             let case_sensitive = args["case_sensitive"].as_bool().unwrap_or(false);
-            let results =
-                search_files(workspace_root, &query, case_sensitive)
-                    .unwrap_or_default();
+            let results = search_files(workspace_root, &query, case_sensitive).unwrap_or_default();
             if results.is_empty() {
                 format!("No matches for '{}'", query)
             } else {
@@ -782,12 +779,20 @@ async fn call_tool(
         // ── OpenMemory MCP tool handlers ─────────────────────────────────
         "memory_add" => {
             let content = args["content"].as_str().unwrap_or("").to_string();
-            let tags: Vec<String> = args["tags"].as_array()
-                .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            let tags: Vec<String> = args["tags"]
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
                 .unwrap_or_default();
             let mut store = crate::open_memory::project_scoped_store_with_refresh(workspace_root);
             let id = store.add_with_tags(content, tags, std::collections::HashMap::new());
-            let sector = store.get(&id).map(|m| m.sector.to_string()).unwrap_or_default();
+            let sector = store
+                .get(&id)
+                .map(|m| m.sector.to_string())
+                .unwrap_or_default();
             let _ = store.save();
             format!("Stored memory {} (sector: {})", id, sector)
         }
@@ -801,11 +806,19 @@ async fn call_tool(
             if results.is_empty() {
                 "No matching memories found.".to_string()
             } else {
-                results.iter().map(|r| {
-                    format!("[{} | score:{:.2} | sal:{:.0}%] {}",
-                        r.memory.sector, r.score, r.effective_salience * 100.0,
-                        &r.memory.content[..r.memory.content.len().min(200)])
-                }).collect::<Vec<_>>().join("\n")
+                results
+                    .iter()
+                    .map(|r| {
+                        format!(
+                            "[{} | score:{:.2} | sal:{:.0}%] {}",
+                            r.memory.sector,
+                            r.score,
+                            r.effective_salience * 100.0,
+                            &r.memory.content[..r.memory.content.len().min(200)]
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
             }
         }
 
@@ -816,30 +829,48 @@ async fn call_tool(
             let mut store = crate::open_memory::project_scoped_store_with_refresh(workspace_root);
             let id = store.add_fact(subject.clone(), predicate.clone(), object.clone());
             let _ = store.save();
-            format!("Added fact: {} {} {} (id: {})", subject, predicate, object, id)
+            format!(
+                "Added fact: {} {} {} (id: {})",
+                subject, predicate, object, id
+            )
         }
 
         "memory_facts" => {
             let store = crate::open_memory::project_scoped_store(workspace_root);
             let subject_filter = args["subject"].as_str();
             let facts = store.query_current_facts();
-            let filtered: Vec<_> = facts.iter()
+            let filtered: Vec<_> = facts
+                .iter()
                 .filter(|f| subject_filter.is_none_or(|s| f.subject == s))
                 .collect();
             if filtered.is_empty() {
                 "No current temporal facts.".to_string()
             } else {
-                filtered.iter().map(|f| {
-                    format!("{} {} {} (conf: {:.0}%)", f.subject, f.predicate, f.object, f.confidence * 100.0)
-                }).collect::<Vec<_>>().join("\n")
+                filtered
+                    .iter()
+                    .map(|f| {
+                        format!(
+                            "{} {} {} (conf: {:.0}%)",
+                            f.subject,
+                            f.predicate,
+                            f.object,
+                            f.confidence * 100.0
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
             }
         }
 
         "memory_stats" => {
             let store = crate::open_memory::project_scoped_store(workspace_root);
             let stats = store.sector_stats();
-            let mut lines = vec![format!("Memories: {} | Waypoints: {} | Facts: {}",
-                store.total_memories(), store.total_waypoints(), store.total_facts())];
+            let mut lines = vec![format!(
+                "Memories: {} | Waypoints: {} | Facts: {}",
+                store.total_memories(),
+                store.total_waypoints(),
+                store.total_facts()
+            )];
             lines.push(format!(
                 "Index: TurboQuant {}-dim, ~{:.1}× compression",
                 store.embedding_dim(),
@@ -847,8 +878,13 @@ async fn call_tool(
             ));
             for s in &stats {
                 if s.count > 0 {
-                    lines.push(format!("  {} — {} memories, avg sal {:.0}%, {} pinned",
-                        s.sector, s.count, s.avg_salience * 100.0, s.pinned_count));
+                    lines.push(format!(
+                        "  {} — {} memories, avg sal {:.0}%, {} pinned",
+                        s.sector,
+                        s.count,
+                        s.avg_salience * 100.0,
+                        s.pinned_count
+                    ));
                 }
             }
             lines.join("\n")
@@ -856,7 +892,10 @@ async fn call_tool(
 
         // ── Security Scanner MCP tool handlers ─────────────────────────
         "code_scan" => {
-            let file_path = args["file_path"].as_str().unwrap_or("unknown.txt").to_string();
+            let file_path = args["file_path"]
+                .as_str()
+                .unwrap_or("unknown.txt")
+                .to_string();
             let content = args["content"].as_str().unwrap_or("").to_string();
             let mut scanner = crate::vulnerability_db::VulnerabilityScanner::new();
             let count = scanner.scan_file(&file_path, &content);
@@ -866,9 +905,14 @@ async fn call_tool(
                 let mut lines = vec![format!("{} findings in {}:", count, file_path)];
                 for f in scanner.active_findings().iter().take(25) {
                     let line = f.line.map(|l| format!(":{}", l)).unwrap_or_default();
-                    lines.push(format!("  {} [{}] {}{} — {}",
-                        f.severity, f.cwe_id.as_deref().unwrap_or(""),
-                        f.file_path.as_deref().unwrap_or(&file_path), line, f.title));
+                    lines.push(format!(
+                        "  {} [{}] {}{} — {}",
+                        f.severity,
+                        f.cwe_id.as_deref().unwrap_or(""),
+                        f.file_path.as_deref().unwrap_or(&file_path),
+                        line,
+                        f.title
+                    ));
                     lines.push(format!("    Fix: {}", f.remediation));
                 }
                 lines.join("\n")
@@ -886,19 +930,40 @@ async fn call_tool(
                 scanner.scan_dependencies(&deps);
                 let s = scanner.summary();
                 let mut lines = vec![
-                    format!("{} packages scanned, {} vulnerabilities found", deps.len(), s.total_findings),
-                    format!("Critical: {} | High: {} | Medium: {} | Low: {}", s.critical, s.high, s.medium, s.low),
+                    format!(
+                        "{} packages scanned, {} vulnerabilities found",
+                        deps.len(),
+                        s.total_findings
+                    ),
+                    format!(
+                        "Critical: {} | High: {} | Medium: {} | Low: {}",
+                        s.critical, s.high, s.medium, s.low
+                    ),
                 ];
                 if s.exploit_available_count > 0 {
-                    lines.push(format!("{} with known public exploit (EPSS avg: {:.0}%)", s.exploit_available_count, s.mean_epss * 100.0));
+                    lines.push(format!(
+                        "{} with known public exploit (EPSS avg: {:.0}%)",
+                        s.exploit_available_count,
+                        s.mean_epss * 100.0
+                    ));
                 }
                 lines.push(String::new());
                 for f in scanner.active_findings().iter().take(30) {
                     let fix = f.fixed_version.as_deref().unwrap_or("no fix");
-                    let exploit = if f.exploit_available { " [EXPLOIT]" } else { "" };
-                    lines.push(format!("  {} {} {}@{} → {}{}", f.severity,
-                        f.cve_id.as_deref().unwrap_or(""), f.package.as_deref().unwrap_or(""),
-                        f.installed_version.as_deref().unwrap_or("?"), fix, exploit));
+                    let exploit = if f.exploit_available {
+                        " [EXPLOIT]"
+                    } else {
+                        ""
+                    };
+                    lines.push(format!(
+                        "  {} {} {}@{} → {}{}",
+                        f.severity,
+                        f.cve_id.as_deref().unwrap_or(""),
+                        f.package.as_deref().unwrap_or(""),
+                        f.installed_version.as_deref().unwrap_or("?"),
+                        fix,
+                        exploit
+                    ));
                 }
                 lines.join("\n")
             }
@@ -915,8 +980,14 @@ async fn call_tool(
                 let mut lines = vec![format!("{} IaC findings in {}:", count, file_path)];
                 for f in scanner.active_findings() {
                     let line = f.line.map(|l| format!(":{}", l)).unwrap_or_default();
-                    lines.push(format!("  {} [{}] {}{} — {}", f.severity,
-                        f.cwe_id.as_deref().unwrap_or(""), file_path, line, f.title));
+                    lines.push(format!(
+                        "  {} [{}] {}{} — {}",
+                        f.severity,
+                        f.cwe_id.as_deref().unwrap_or(""),
+                        file_path,
+                        line,
+                        f.title
+                    ));
                     lines.push(format!("    Fix: {}", f.remediation));
                 }
                 lines.join("\n")
@@ -929,8 +1000,15 @@ async fn call_tool(
             let mut scanner = crate::vulnerability_db::VulnerabilityScanner::new();
             // Use SAST rules filtered to secret category
             let _count = scanner.scan_file(&file_path, &content);
-            let secrets: Vec<_> = scanner.active_findings().into_iter()
-                .filter(|f| f.cwe_id.as_deref() == Some("CWE-798") || f.title.to_lowercase().contains("secret") || f.title.to_lowercase().contains("password") || f.title.to_lowercase().contains("key"))
+            let secrets: Vec<_> = scanner
+                .active_findings()
+                .into_iter()
+                .filter(|f| {
+                    f.cwe_id.as_deref() == Some("CWE-798")
+                        || f.title.to_lowercase().contains("secret")
+                        || f.title.to_lowercase().contains("password")
+                        || f.title.to_lowercase().contains("key")
+                })
                 .collect();
             if secrets.is_empty() {
                 "No hardcoded secrets detected.".to_string()
@@ -938,7 +1016,10 @@ async fn call_tool(
                 let mut lines = vec![format!("{} potential secrets found:", secrets.len())];
                 for f in &secrets {
                     let line = f.line.map(|l| format!(":{}", l)).unwrap_or_default();
-                    lines.push(format!("  {} {}{} — {}", f.severity, file_path, line, f.title));
+                    lines.push(format!(
+                        "  {} {}{} — {}",
+                        f.severity, file_path, line, f.title
+                    ));
                     lines.push(format!("    Fix: {}", f.remediation));
                 }
                 lines.join("\n")
@@ -952,7 +1033,7 @@ async fn call_tool(
             // Scan lockfile if provided
             if let (Some(lf_name), Some(lf_content)) = (
                 args["lockfile_name"].as_str(),
-                args["lockfile_content"].as_str()
+                args["lockfile_content"].as_str(),
             ) {
                 let deps = crate::vulnerability_db::parse_lockfile(lf_name, lf_content);
                 scanner.scan_dependencies(&deps);
@@ -973,7 +1054,8 @@ async fn call_tool(
             match format {
                 "sarif" => {
                     let sarif = scanner.to_sarif();
-                    serde_json::to_string_pretty(&sarif).unwrap_or_else(|_| "SARIF generation failed".to_string())
+                    serde_json::to_string_pretty(&sarif)
+                        .unwrap_or_else(|_| "SARIF generation failed".to_string())
                 }
                 _ => scanner.to_markdown(),
             }
@@ -982,7 +1064,7 @@ async fn call_tool(
         "vuln_db_status" => {
             let scanner = crate::vulnerability_db::VulnerabilityScanner::new();
             let snapshot = crate::vulnerability_db::OsvSnapshotDb::new(
-                crate::vulnerability_db::OsvSnapshotDb::default_path()
+                crate::vulnerability_db::OsvSnapshotDb::default_path(),
             );
             let mut lines = vec![
                 format!("VibeCody Vulnerability Scanner"),
@@ -994,9 +1076,11 @@ async fn call_tool(
                 format!("  Output: SARIF v2.1.0, Markdown"),
             ];
             if snapshot.exists() {
-                lines.push(format!("  Local snapshot: {} advisories (age: {:.0}h)",
+                lines.push(format!(
+                    "  Local snapshot: {} advisories (age: {:.0}h)",
                     snapshot.advisory_count(),
-                    snapshot.age_hours().unwrap_or(0.0)));
+                    snapshot.age_hours().unwrap_or(0.0)
+                ));
             } else {
                 lines.push("  Local snapshot: not downloaded".to_string());
             }
@@ -1017,10 +1101,11 @@ async fn call_tool(
             crate::email_client::handle_email_command(&format!("read {}", id)).await
         }
         "email_send" => {
-            let to      = args["to"].as_str().unwrap_or("");
+            let to = args["to"].as_str().unwrap_or("");
             let subject = args["subject"].as_str().unwrap_or("");
-            let body    = args["body"].as_str().unwrap_or("");
-            crate::email_client::handle_email_command(&format!("send {} {} {}", to, subject, body)).await
+            let body = args["body"].as_str().unwrap_or("");
+            crate::email_client::handle_email_command(&format!("send {} {} {}", to, subject, body))
+                .await
         }
         "email_search" => {
             let query = args["query"].as_str().unwrap_or("");
@@ -1029,20 +1114,18 @@ async fn call_tool(
         }
 
         // ── Calendar ─────────────────────────────────────────────────────────
-        "calendar_today" => {
-            crate::calendar_client::handle_calendar_command("today").await
-        }
-        "calendar_week" => {
-            crate::calendar_client::handle_calendar_command("week").await
-        }
+        "calendar_today" => crate::calendar_client::handle_calendar_command("today").await,
+        "calendar_week" => crate::calendar_client::handle_calendar_command("week").await,
         "calendar_create" => {
             let title = args["title"].as_str().unwrap_or("");
             let start = args["start"].as_str().unwrap_or("");
-            let end   = args["end"].as_str().unwrap_or("");
-            let desc  = args["description"].as_str().unwrap_or("");
-            crate::calendar_client::handle_calendar_command(
-                &format!("create {} {} {} {}", title, start, end, desc)
-            ).await
+            let end = args["end"].as_str().unwrap_or("");
+            let desc = args["description"].as_str().unwrap_or("");
+            crate::calendar_client::handle_calendar_command(&format!(
+                "create {} {} {} {}",
+                title, start, end, desc
+            ))
+            .await
         }
         "calendar_free" => {
             let date = args["date"].as_str().unwrap_or("today");
@@ -1055,16 +1138,16 @@ async fn call_tool(
             let cmd = format!("todo list {}", project);
             crate::productivity::handle_productivity_command(cmd.trim()).await
         }
-        "todoist_today" => {
-            crate::productivity::handle_productivity_command("todo today").await
-        }
+        "todoist_today" => crate::productivity::handle_productivity_command("todo today").await,
         "todoist_add" => {
-            let content  = args["content"].as_str().unwrap_or("");
-            let due      = args["due"].as_str().unwrap_or("");
+            let content = args["content"].as_str().unwrap_or("");
+            let due = args["due"].as_str().unwrap_or("");
             let priority = args["priority"].as_u64().unwrap_or(4);
-            crate::productivity::handle_productivity_command(
-                &format!("todo add {} due:{} p:{}", content, due, priority)
-            ).await
+            crate::productivity::handle_productivity_command(&format!(
+                "todo add {} due:{} p:{}",
+                content, due, priority
+            ))
+            .await
         }
         "todoist_close" => {
             let id = args["id"].as_str().unwrap_or("");
@@ -1074,18 +1157,22 @@ async fn call_tool(
         // ── Notion ───────────────────────────────────────────────────────────
         "notion_search" => {
             let query = args["query"].as_str().unwrap_or("");
-            crate::productivity::handle_productivity_command(&format!("notion search {}", query)).await
+            crate::productivity::handle_productivity_command(&format!("notion search {}", query))
+                .await
         }
         "notion_get" => {
             let page_id = args["page_id"].as_str().unwrap_or("");
-            crate::productivity::handle_productivity_command(&format!("notion get {}", page_id)).await
+            crate::productivity::handle_productivity_command(&format!("notion get {}", page_id))
+                .await
         }
         "notion_append" => {
             let page_id = args["page_id"].as_str().unwrap_or("");
-            let text    = args["text"].as_str().unwrap_or("");
-            crate::productivity::handle_productivity_command(
-                &format!("notion append {} {}", page_id, text)
-            ).await
+            let text = args["text"].as_str().unwrap_or("");
+            crate::productivity::handle_productivity_command(&format!(
+                "notion append {} {}",
+                page_id, text
+            ))
+            .await
         }
 
         // ── Jira ─────────────────────────────────────────────────────────────
@@ -1099,43 +1186,49 @@ async fn call_tool(
             crate::productivity::handle_productivity_command(&format!("jira get {}", key)).await
         }
         "jira_create" => {
-            let project     = args["project"].as_str().unwrap_or("");
-            let summary     = args["summary"].as_str().unwrap_or("");
+            let project = args["project"].as_str().unwrap_or("");
+            let summary = args["summary"].as_str().unwrap_or("");
             let description = args["description"].as_str().unwrap_or("");
-            crate::productivity::handle_productivity_command(
-                &format!("jira create {} {} {}", project, summary, description)
-            ).await
+            crate::productivity::handle_productivity_command(&format!(
+                "jira create {} {} {}",
+                project, summary, description
+            ))
+            .await
         }
         "jira_comment" => {
-            let key  = args["key"].as_str().unwrap_or("");
+            let key = args["key"].as_str().unwrap_or("");
             let text = args["text"].as_str().unwrap_or("");
-            crate::productivity::handle_productivity_command(
-                &format!("jira comment {} {}", key, text)
-            ).await
+            crate::productivity::handle_productivity_command(&format!(
+                "jira comment {} {}",
+                key, text
+            ))
+            .await
         }
         "jira_search" => {
-            let jql   = args["jql"].as_str().unwrap_or("");
+            let jql = args["jql"].as_str().unwrap_or("");
             let limit = args["limit"].as_u64().unwrap_or(20);
-            crate::productivity::handle_productivity_command(
-                &format!("jira search {} limit:{}", jql, limit)
-            ).await
+            crate::productivity::handle_productivity_command(&format!(
+                "jira search {} limit:{}",
+                jql, limit
+            ))
+            .await
         }
 
         // ── Home Assistant ───────────────────────────────────────────────────
-        "ha_status" => {
-            crate::home_assistant::handle_ha_command("status").await
-        }
+        "ha_status" => crate::home_assistant::handle_ha_command("status").await,
         "ha_control" => {
-            let entity    = args["entity"].as_str().unwrap_or("");
-            let action    = args["action"].as_str().unwrap_or("toggle");
+            let entity = args["entity"].as_str().unwrap_or("");
+            let action = args["action"].as_str().unwrap_or("toggle");
             let attribute = args["attribute"].as_str().unwrap_or("");
-            let value     = args["value"].as_str().unwrap_or("");
+            let value = args["value"].as_str().unwrap_or("");
             if attribute.is_empty() {
                 crate::home_assistant::handle_ha_command(&format!("{} {}", action, entity)).await
             } else {
-                crate::home_assistant::handle_ha_command(
-                    &format!("set {} {} {}", entity, attribute, value)
-                ).await
+                crate::home_assistant::handle_ha_command(&format!(
+                    "set {} {} {}",
+                    entity, attribute, value
+                ))
+                .await
             }
         }
         "ha_scene" => {
@@ -1144,7 +1237,7 @@ async fn call_tool(
         }
         "ha_climate" => {
             let entity = args["entity"].as_str().unwrap_or("");
-            let temp   = args["temperature"].as_f64().unwrap_or(70.0);
+            let temp = args["temperature"].as_f64().unwrap_or(70.0);
             crate::home_assistant::handle_ha_command(&format!("climate {} {}", entity, temp)).await
         }
 
@@ -1158,8 +1251,10 @@ async fn call_tool(
         "list_skills" => {
             let category = args["category"].as_str();
             let query = args["query"].as_str();
-            let cat = crate::skill_catalog::SkillCatalog::load_from_with_cwd_plugins(skills_dir_default())
-                .map_err(|e| anyhow::anyhow!("list_skills: {e}"))?;
+            let cat = crate::skill_catalog::SkillCatalog::load_from_with_cwd_plugins(
+                skills_dir_default(),
+            )
+            .map_err(|e| anyhow::anyhow!("list_skills: {e}"))?;
             let entries: Vec<serde_json::Value> = cat
                 .list(category, query)
                 .into_iter()
@@ -1190,8 +1285,10 @@ async fn call_tool(
             if skill_name.is_empty() {
                 return Err(anyhow::anyhow!("get_skill: name is required"));
             }
-            let cat = crate::skill_catalog::SkillCatalog::load_from_with_cwd_plugins(skills_dir_default())
-                .map_err(|e| anyhow::anyhow!("get_skill: {e}"))?;
+            let cat = crate::skill_catalog::SkillCatalog::load_from_with_cwd_plugins(
+                skills_dir_default(),
+            )
+            .map_err(|e| anyhow::anyhow!("get_skill: {e}"))?;
             let s = cat
                 .get(skill_name)
                 .ok_or_else(|| anyhow::anyhow!("get_skill: '{skill_name}' not found"))?;
@@ -1258,8 +1355,8 @@ async fn run_agent(
     use crate::tool_executor::ToolExecutor;
 
     let executor = Arc::new(ToolExecutor::new(workspace_root.clone(), sandbox));
-    let agent = AgentLoop::new(Arc::clone(provider), approval, executor)
-        .with_policy(&workspace_root);
+    let agent =
+        AgentLoop::new(Arc::clone(provider), approval, executor).with_policy(&workspace_root);
 
     let context = AgentContext {
         workspace_root: workspace_root.clone(),
@@ -1284,7 +1381,11 @@ async fn run_agent(
     while let Some(event) = rx.recv().await {
         match event {
             AgentEvent::ToolCallExecuted(step) => {
-                let icon = if step.tool_result.success { "✅" } else { "❌" };
+                let icon = if step.tool_result.success {
+                    "✅"
+                } else {
+                    "❌"
+                };
                 let snippet: String = step.tool_result.output.chars().take(300).collect();
                 log.push(format!(
                     "{} Step {}: {}\n   {}",
@@ -1318,7 +1419,12 @@ async fn run_agent(
                     break;
                 }
             }
-            AgentEvent::Partial { summary, steps_completed, steps_planned, remaining_plan } => {
+            AgentEvent::Partial {
+                summary,
+                steps_completed,
+                steps_planned,
+                remaining_plan,
+            } => {
                 log.push(format!(
                     "\n⚠ Partial ({}/{}): {}",
                     steps_completed, steps_planned, summary
@@ -1366,8 +1472,7 @@ fn resolve(root: &Path, path: &str) -> PathBuf {
 fn guard_mcp_path(root: &Path, raw: &str) -> Result<PathBuf> {
     let resolved = resolve(root, raw);
     let resolved_str = resolved.to_string_lossy();
-    vibe_core::path_guard::reject_sensitive_path(&resolved_str)
-        .map_err(|e| anyhow::anyhow!("{e}"))
+    vibe_core::path_guard::reject_sensitive_path(&resolved_str).map_err(|e| anyhow::anyhow!("{e}"))
 }
 
 // ── Audit log ─────────────────────────────────────────────────────────────────
@@ -1388,7 +1493,9 @@ pub fn audit_log_path() -> PathBuf {
 const AUDIT_LOG_MAX_BYTES: u64 = 10 * 1024 * 1024;
 
 fn maybe_rotate_audit_log(path: &Path) {
-    let Ok(meta) = std::fs::metadata(path) else { return };
+    let Ok(meta) = std::fs::metadata(path) else {
+        return;
+    };
     if meta.len() < AUDIT_LOG_MAX_BYTES {
         return;
     }
@@ -1474,7 +1581,11 @@ mod tests {
         let defs = tool_defs();
         // Count grows as new MCP tools are added; verify we have all categories:
         // 6 core + 5 memory + 6 security + 5 email + 4 calendar + 4 todoist + 3 notion + 5 jira + 4 ha = 42+
-        assert!(defs.len() >= 42, "Expected at least 42 MCP tool definitions, got {}", defs.len());
+        assert!(
+            defs.len() >= 42,
+            "Expected at least 42 MCP tool definitions, got {}",
+            defs.len()
+        );
     }
 
     #[test]
@@ -1487,14 +1598,22 @@ mod tests {
     #[test]
     fn tool_defs_all_have_description() {
         for def in tool_defs() {
-            assert!(def["description"].is_string(), "tool missing description: {:?}", def);
+            assert!(
+                def["description"].is_string(),
+                "tool missing description: {:?}",
+                def
+            );
         }
     }
 
     #[test]
     fn tool_defs_all_have_input_schema() {
         for def in tool_defs() {
-            assert!(def["inputSchema"].is_object(), "tool missing inputSchema: {:?}", def);
+            assert!(
+                def["inputSchema"].is_object(),
+                "tool missing inputSchema: {:?}",
+                def
+            );
             assert_eq!(def["inputSchema"]["type"].as_str(), Some("object"));
         }
     }
@@ -1555,8 +1674,14 @@ mod tests {
     fn tool_defs_includes_skills_primitives() {
         let defs = tool_defs();
         let names: Vec<&str> = defs.iter().map(|d| d["name"].as_str().unwrap()).collect();
-        assert!(names.contains(&"list_skills"), "list_skills missing from tool_defs");
-        assert!(names.contains(&"get_skill"), "get_skill missing from tool_defs");
+        assert!(
+            names.contains(&"list_skills"),
+            "list_skills missing from tool_defs"
+        );
+        assert!(
+            names.contains(&"get_skill"),
+            "get_skill missing from tool_defs"
+        );
     }
 
     #[test]
@@ -1614,8 +1739,12 @@ Pick parametric tools.
 
     #[async_trait::async_trait]
     impl AIProvider for MockProvider {
-        fn name(&self) -> &str { "mock" }
-        async fn is_available(&self) -> bool { true }
+        fn name(&self) -> &str {
+            "mock"
+        }
+        async fn is_available(&self) -> bool {
+            true
+        }
         async fn complete(
             &self,
             _ctx: &vibe_ai::provider::CodeContext,
@@ -1810,7 +1939,10 @@ Pick parametric tools.
         let err = RpcErr {
             jsonrpc: "2.0",
             id: json!(42),
-            error: ErrObj { code: -32600, message: "Invalid Request".to_string() },
+            error: ErrObj {
+                code: -32600,
+                message: "Invalid Request".to_string(),
+            },
         };
         let s = serde_json::to_string(&err).unwrap();
         assert!(s.contains("-32600"));

@@ -51,7 +51,10 @@ pub struct SimpleMessage {
 
 impl SimpleMessage {
     pub fn new(role: SimpleMessageRole, content: impl Into<String>) -> Self {
-        Self { role, content: content.into() }
+        Self {
+            role,
+            content: content.into(),
+        }
     }
 }
 
@@ -83,7 +86,11 @@ pub struct CompactionConfig {
 
 impl Default for CompactionConfig {
     fn default() -> Self {
-        Self { keep_recent: 10, summary_max_chars: 1200, summary_max_lines: 24 }
+        Self {
+            keep_recent: 10,
+            summary_max_chars: 1200,
+            summary_max_lines: 24,
+        }
     }
 }
 
@@ -157,7 +164,9 @@ impl CompactionEngine {
             // Extract file-like words
             for word in msg.content.split_whitespace() {
                 // Strip common punctuation from the word boundary
-                let word = word.trim_matches(|c: char| !c.is_alphanumeric() && c != '.' && c != '/' && c != '_' && c != '-');
+                let word = word.trim_matches(|c: char| {
+                    !c.is_alphanumeric() && c != '.' && c != '/' && c != '_' && c != '-'
+                });
                 if file_exts.iter().any(|ext| word.ends_with(ext)) {
                     file_set.insert(word.to_string());
                 }
@@ -213,7 +222,10 @@ impl CompactionEngine {
         }
 
         if !summary.pending_keywords.is_empty() {
-            lines.push(format!("- Pending: {}", summary.pending_keywords.join(", ")));
+            lines.push(format!(
+                "- Pending: {}",
+                summary.pending_keywords.join(", ")
+            ));
         }
 
         if !summary.key_files.is_empty() {
@@ -300,7 +312,13 @@ pub struct Message {
 
 impl Message {
     pub fn text(id: u32, role: MessageRole, content: impl Into<String>, tokens: u32) -> Self {
-        Self { id, role, content: content.into(), kind: ContentKind::Text, tokens }
+        Self {
+            id,
+            role,
+            content: content.into(),
+            kind: ContentKind::Text,
+            tokens,
+        }
     }
 
     pub fn tool_use(
@@ -315,7 +333,10 @@ impl Message {
             id,
             role: MessageRole::Assistant,
             content: content.into(),
-            kind: ContentKind::ToolUse { tool_id: tid, tool_name: name.into() },
+            kind: ContentKind::ToolUse {
+                tool_id: tid,
+                tool_name: name.into(),
+            },
             tokens,
         }
     }
@@ -332,7 +353,10 @@ impl Message {
             id,
             role: MessageRole::Tool,
             content: content.into(),
-            kind: ContentKind::ToolResult { tool_id: tid, is_error },
+            kind: ContentKind::ToolResult {
+                tool_id: tid,
+                is_error,
+            },
             tokens,
         }
     }
@@ -395,7 +419,12 @@ impl Default for CompactionPolicy {
         Self {
             target_free_tokens: 8_000,
             truncate_result_above: 2_000,
-            droppable_tools: vec!["Read".into(), "Glob".into(), "Grep".into(), "WebSearch".into()],
+            droppable_tools: vec![
+                "Read".into(),
+                "Glob".into(),
+                "Grep".into(),
+                "WebSearch".into(),
+            ],
         }
     }
 }
@@ -412,7 +441,9 @@ impl CompactionPolicy {
             return CompactionStrategy::Drop;
         }
         if pair.result_tokens > self.truncate_result_above {
-            return CompactionStrategy::Truncate { max_tokens: self.truncate_result_above / 2 };
+            return CompactionStrategy::Truncate {
+                max_tokens: self.truncate_result_above / 2,
+            };
         }
         CompactionStrategy::Keep
     }
@@ -555,7 +586,13 @@ mod tests {
     #[test]
     fn safe_boundary_unchanged_at_user_message() {
         let msgs: Vec<SimpleMessage> = (0..5)
-            .map(|i| if i % 2 == 0 { user("q") } else { assistant("a") })
+            .map(|i| {
+                if i % 2 == 0 {
+                    user("q")
+                } else {
+                    assistant("a")
+                }
+            })
             .collect();
         let boundary = CompactionEngine::find_safe_boundary(&msgs, 3);
         assert_eq!(boundary, 3);
@@ -567,7 +604,7 @@ mod tests {
             user("q"),
             assistant("a"),
             tool_use("read"),
-            tool_result("r"), // indices 2,3
+            tool_result("r"),  // indices 2,3
             tool_use("write"), // index 4 — ToolUse at boundary-1
         ];
         // raw_boundary=5, msg[4]=ToolUse → step back to 4
@@ -578,8 +615,13 @@ mod tests {
 
     #[test]
     fn summarize_counts_roles_correctly() {
-        let msgs =
-            vec![user("q"), user("q2"), assistant("a"), system("sys"), tool_use("t")];
+        let msgs = vec![
+            user("q"),
+            user("q2"),
+            assistant("a"),
+            system("sys"),
+            tool_use("t"),
+        ];
         let s = CompactionEngine::summarize(&msgs);
         assert_eq!(s.user_count, 2);
         assert_eq!(s.assistant_count, 1);
@@ -589,8 +631,11 @@ mod tests {
 
     #[test]
     fn summarize_extracts_tool_names_deduped() {
-        let msgs =
-            vec![tool_use("read_file"), tool_use("read_file"), tool_use("write_file")];
+        let msgs = vec![
+            tool_use("read_file"),
+            tool_use("read_file"),
+            tool_use("write_file"),
+        ];
         let s = CompactionEngine::summarize(&msgs);
         assert_eq!(s.tool_names.len(), 2);
         assert!(s.tool_names.contains(&"read_file".to_string()));
@@ -599,8 +644,7 @@ mod tests {
 
     #[test]
     fn summarize_captures_last_3_user_requests() {
-        let msgs: Vec<SimpleMessage> =
-            (0..6).map(|i| user(&format!("request {i}"))).collect();
+        let msgs: Vec<SimpleMessage> = (0..6).map(|i| user(&format!("request {i}"))).collect();
         let s = CompactionEngine::summarize(&msgs);
         assert_eq!(s.last_user_requests.len(), 3);
         assert!(s
@@ -636,16 +680,21 @@ mod tests {
 
     #[test]
     fn synthetic_continuation_is_assistant_role() {
-        let summary =
-            CompactionSummary { user_count: 2, assistant_count: 1, ..Default::default() };
+        let summary = CompactionSummary {
+            user_count: 2,
+            assistant_count: 1,
+            ..Default::default()
+        };
         let msg = CompactionEngine::synthetic_continuation(&summary);
         assert_eq!(msg.role, SimpleMessageRole::Assistant);
     }
 
     #[test]
     fn compact_preserves_tool_pairs() {
-        let engine =
-            CompactionEngine::new(CompactionConfig { keep_recent: 2, ..Default::default() });
+        let engine = CompactionEngine::new(CompactionConfig {
+            keep_recent: 2,
+            ..Default::default()
+        });
         let msgs = vec![
             user("u1"),
             user("u2"),
@@ -657,16 +706,17 @@ mod tests {
         // Examine all messages after the synthetic header for orphaned ToolUse
         let tail: Vec<&SimpleMessage> = compacted.iter().skip(1).collect();
         let has_orphan = tail.windows(2).any(|w| {
-            w[0].role == SimpleMessageRole::ToolUse
-                && w[1].role != SimpleMessageRole::ToolResult
+            w[0].role == SimpleMessageRole::ToolUse && w[1].role != SimpleMessageRole::ToolResult
         });
         assert!(!has_orphan, "found orphaned tool-use without tool-result");
     }
 
     #[test]
     fn compact_noop_when_under_keep_recent() {
-        let engine =
-            CompactionEngine::new(CompactionConfig { keep_recent: 10, ..Default::default() });
+        let engine = CompactionEngine::new(CompactionConfig {
+            keep_recent: 10,
+            ..Default::default()
+        });
         let msgs = vec![user("a"), user("b")];
         let compacted = engine.compact(&msgs);
         assert_eq!(compacted.len(), msgs.len());
@@ -813,7 +863,10 @@ mod tests {
             use_tokens: 50,
             result_tokens: 3000,
         };
-        assert_eq!(policy.strategy_for(&pair, false), CompactionStrategy::Summarise);
+        assert_eq!(
+            policy.strategy_for(&pair, false),
+            CompactionStrategy::Summarise
+        );
     }
 
     #[test]

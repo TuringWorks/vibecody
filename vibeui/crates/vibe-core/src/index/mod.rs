@@ -4,14 +4,18 @@
 //! extracts symbols via regex-based heuristics, and caches file content
 //! by modification time for fast incremental updates.
 
-pub mod symbol;
 pub mod embeddings;
 pub mod remote;
+pub mod symbol;
 pub mod turboquant;
 
+pub use embeddings::{
+    cosine_similarity, EmbeddingDoc, EmbeddingIndex, EmbeddingProvider, SearchHit,
+};
 pub use symbol::{Language, SymbolInfo, SymbolKind};
-pub use embeddings::{EmbeddingIndex, EmbeddingProvider, EmbeddingDoc, SearchHit, cosine_similarity};
-pub use turboquant::{TurboQuantIndex, TurboQuantConfig, TurboQuantStats, TurboQuantSearchResult, compress_batch};
+pub use turboquant::{
+    compress_batch, TurboQuantConfig, TurboQuantIndex, TurboQuantSearchResult, TurboQuantStats,
+};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -119,12 +123,21 @@ impl CodebaseIndex {
 
             self.files.insert(
                 path_buf,
-                FileEntry { modified, symbols, language, line_count },
+                FileEntry {
+                    modified,
+                    symbols,
+                    language,
+                    line_count,
+                },
             );
         }
 
         // Rebuild flat symbol table
-        self.symbols = self.files.values().flat_map(|f| f.symbols.clone()).collect();
+        self.symbols = self
+            .files
+            .values()
+            .flat_map(|f| f.symbols.clone())
+            .collect();
 
         stats.total_files = self.files.len();
         stats.total_symbols = self.symbols.len();
@@ -151,7 +164,12 @@ impl CodebaseIndex {
                     let line_count = content.lines().count();
                     self.files.insert(
                         path.clone(),
-                        FileEntry { modified, symbols, language, line_count },
+                        FileEntry {
+                            modified,
+                            symbols,
+                            language,
+                            line_count,
+                        },
                     );
                 }
                 Err(_) => {
@@ -161,7 +179,11 @@ impl CodebaseIndex {
             }
         }
         // Rebuild symbol table
-        self.symbols = self.files.values().flat_map(|f| f.symbols.clone()).collect();
+        self.symbols = self
+            .files
+            .values()
+            .flat_map(|f| f.symbols.clone())
+            .collect();
         Ok(())
     }
 
@@ -174,7 +196,11 @@ impl CodebaseIndex {
             .filter_map(|s| {
                 let name_lower = s.name.to_lowercase();
                 let score = score_symbol(&name_lower, &q);
-                if score > 0.0 { Some((score, s)) } else { None }
+                if score > 0.0 {
+                    Some((score, s))
+                } else {
+                    None
+                }
             })
             .collect();
         scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
@@ -280,13 +306,29 @@ fn tokenize(text: &str) -> Vec<String> {
 
 fn should_skip(path: &Path) -> bool {
     const SKIP_DIRS: &[&str] = &[
-        ".git", ".svn", "node_modules", "target", "dist", "build",
-        "__pycache__", ".venv", "venv", ".tox", ".mypy_cache",
-        ".pytest_cache", "vendor", ".cargo",
+        ".git",
+        ".svn",
+        "node_modules",
+        "target",
+        "dist",
+        "build",
+        "__pycache__",
+        ".venv",
+        "venv",
+        ".tox",
+        ".mypy_cache",
+        ".pytest_cache",
+        "vendor",
+        ".cargo",
     ];
     const SKIP_PATTERNS: &[&str] = &[
-        ".min.js", ".min.css", ".bundle.js", "package-lock.json",
-        "yarn.lock", "Cargo.lock", ".d.ts",
+        ".min.js",
+        ".min.css",
+        ".bundle.js",
+        "package-lock.json",
+        "yarn.lock",
+        "Cargo.lock",
+        ".d.ts",
     ];
 
     let path_str = path.to_string_lossy();
@@ -333,8 +375,8 @@ pub struct IndexStats {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::symbol::{extract_symbols, Language};
+    use super::*;
 
     #[test]
     fn test_rust_symbol_extraction() {
@@ -349,7 +391,8 @@ mod tests {
 
     #[test]
     fn test_python_symbol_extraction() {
-        let content = "def hello():\n    pass\nclass MyClass:\n    def method(self):\n        pass\n";
+        let content =
+            "def hello():\n    pass\nclass MyClass:\n    def method(self):\n        pass\n";
         let path = PathBuf::from("test.py");
         let symbols = extract_symbols(&path, content, &Language::Python);
         let names: Vec<_> = symbols.iter().map(|s| s.name.as_str()).collect();
@@ -501,7 +544,8 @@ mod tests {
         std::fs::write(
             dir.join("src/lib.rs"),
             "pub fn hello() {}\npub struct World;\n",
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut idx = CodebaseIndex::new(dir.clone());
         let stats = idx.build().unwrap();
@@ -522,7 +566,8 @@ mod tests {
         std::fs::write(
             dir.join("src/lib.rs"),
             "pub fn authenticate() {}\npub fn get_config() {}\n",
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut idx = CodebaseIndex::new(dir.clone());
         idx.build().unwrap();
@@ -632,7 +677,8 @@ mod tests {
         std::fs::write(
             dir.join("src/lib.rs"),
             "pub fn authenticate() {}\npub fn render_ui() {}\n",
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut idx = CodebaseIndex::new(dir.clone());
         idx.build().unwrap();

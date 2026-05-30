@@ -8,8 +8,8 @@
 //!                amazon.titan-text-express-v1
 
 use crate::provider::{
-    AIProvider, CodeContext, CompletionResponse, CompletionStream,
-    ImageAttachment, Message, MessageRole, ProviderConfig, TokenUsage,
+    AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message,
+    MessageRole, ProviderConfig, TokenUsage,
 };
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
@@ -25,8 +25,7 @@ fn sha256_hex(data: &[u8]) -> String {
 }
 
 fn hmac_sha256(key: &[u8], data: &[u8]) -> Vec<u8> {
-    let mut mac =
-        <Hmac<Sha256>>::new_from_slice(key).expect("HMAC accepts any key length");
+    let mut mac = <Hmac<Sha256>>::new_from_slice(key).expect("HMAC accepts any key length");
     mac.update(data);
     mac.finalize().into_bytes().to_vec()
 }
@@ -168,12 +167,11 @@ impl BedrockProvider {
     }
 
     fn region(&self) -> String {
-        self.config
-            .api_url
-            .clone()
-            .unwrap_or_else(|| std::env::var("AWS_REGION")
+        self.config.api_url.clone().unwrap_or_else(|| {
+            std::env::var("AWS_REGION")
                 .or_else(|_| std::env::var("AWS_DEFAULT_REGION"))
-                .unwrap_or_else(|_| "us-east-1".to_string()))
+                .unwrap_or_else(|_| "us-east-1".to_string())
+        })
     }
 
     fn access_key(&self) -> String {
@@ -182,7 +180,9 @@ impl BedrockProvider {
 
     fn secret_key(&self) -> String {
         // api_key field doubles as AWS_SECRET_ACCESS_KEY when set in config
-        self.config.api_key.clone()
+        self.config
+            .api_key
+            .clone()
             .or_else(|| std::env::var("AWS_SECRET_ACCESS_KEY").ok())
             .unwrap_or_default()
     }
@@ -200,7 +200,7 @@ impl BedrockProvider {
         let m = (secs / 60) % 60;
         let h = (secs / 3600) % 24;
         let days = secs / 86400; // days since 1970-01-01
-        // Gregorian calendar
+                                 // Gregorian calendar
         let (y, mo, d) = epoch_days_to_ymd(days);
         format!("{:04}{:02}{:02}T{:02}{:02}{:02}Z", y, mo, d, h, m, s)
     }
@@ -216,7 +216,9 @@ impl BedrockProvider {
         for msg in messages {
             match msg.role {
                 MessageRole::System => {
-                    system_blocks.push(SystemBlock { text: msg.content.clone() });
+                    system_blocks.push(SystemBlock {
+                        text: msg.content.clone(),
+                    });
                 }
                 MessageRole::User => {
                     let text = if let Some(ref ctx) = context {
@@ -232,7 +234,9 @@ impl BedrockProvider {
                 MessageRole::Assistant => {
                     chat_msgs.push(ConverseMessage {
                         role: "assistant".to_string(),
-                        content: vec![ContentBlock { text: msg.content.clone() }],
+                        content: vec![ContentBlock {
+                            text: msg.content.clone(),
+                        }],
                     });
                 }
             }
@@ -240,7 +244,11 @@ impl BedrockProvider {
 
         ConverseRequest {
             messages: chat_msgs,
-            system: if system_blocks.is_empty() { None } else { Some(system_blocks) },
+            system: if system_blocks.is_empty() {
+                None
+            } else {
+                Some(system_blocks)
+            },
             inference_config: Some(InferenceConfig {
                 max_tokens: self.config.max_tokens,
                 temperature: self.config.temperature,
@@ -248,20 +256,26 @@ impl BedrockProvider {
         }
     }
 
-    async fn converse(&self, messages: &[Message], context: Option<String>) -> Result<ConverseResponse> {
+    async fn converse(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+    ) -> Result<ConverseResponse> {
         let region = self.region();
         let model_id = &self.config.model;
         let host = format!("bedrock-runtime.{}.amazonaws.com", region);
         // Percent-encode the model ID (colons become %3A, slashes become %2F)
-        let encoded_model: String = model_id.chars().map(|c| match c {
-            ':' => "%3A".to_string(),
-            '/' => "%2F".to_string(),
-            c => c.to_string(),
-        }).collect();
+        let encoded_model: String = model_id
+            .chars()
+            .map(|c| match c {
+                ':' => "%3A".to_string(),
+                '/' => "%2F".to_string(),
+                c => c.to_string(),
+            })
+            .collect();
         let path = format!("/model/{}/converse", encoded_model);
 
-        let body =
-            serde_json::to_vec(&self.build_converse_request(messages, context))?;
+        let body = serde_json::to_vec(&self.build_converse_request(messages, context))?;
 
         let datetime = Self::utc_datetime();
         let access_key = self.access_key();
@@ -275,7 +289,13 @@ impl BedrockProvider {
         }
 
         let auth = sigv4_auth_header(
-            &access_key, &secret_key, &region, &host, &path, &body, &datetime,
+            &access_key,
+            &secret_key,
+            &region,
+            &host,
+            &path,
+            &body,
+            &datetime,
         );
 
         let url = format!("https://{}{}", host, path);
@@ -296,7 +316,9 @@ impl BedrockProvider {
             bail!("Bedrock API error {}: {}", status, text);
         }
 
-        resp.json::<ConverseResponse>().await.context("Failed to parse Bedrock response")
+        resp.json::<ConverseResponse>()
+            .await
+            .context("Failed to parse Bedrock response")
     }
 }
 
@@ -317,7 +339,9 @@ fn epoch_days_to_ymd(z: u64) -> (u32, u32, u32) {
 
 #[async_trait]
 impl AIProvider for BedrockProvider {
-    fn name(&self) -> &str { &self.display_name }
+    fn name(&self) -> &str {
+        &self.display_name
+    }
 
     async fn is_available(&self) -> bool {
         !self.access_key().is_empty() && !self.secret_key().is_empty()
@@ -340,9 +364,16 @@ impl AIProvider for BedrockProvider {
         Ok(Box::pin(stream::once(async move { Ok(resp.text) })))
     }
 
-    async fn chat_response(&self, messages: &[Message], context: Option<String>) -> Result<CompletionResponse> {
+    async fn chat_response(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+    ) -> Result<CompletionResponse> {
         let resp = self.converse(messages, context).await?;
-        let text = resp.output.message.content
+        let text = resp
+            .output
+            .message
+            .content
             .iter()
             .filter_map(|c| c.text.clone())
             .collect::<Vec<_>>()
@@ -351,7 +382,11 @@ impl AIProvider for BedrockProvider {
             prompt_tokens: u.input_tokens.unwrap_or(0),
             completion_tokens: u.output_tokens.unwrap_or(0),
         });
-        Ok(CompletionResponse { text, model: self.config.model.clone(), usage })
+        Ok(CompletionResponse {
+            text,
+            model: self.config.model.clone(),
+            usage,
+        })
     }
 
     async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String> {
@@ -364,7 +399,12 @@ impl AIProvider for BedrockProvider {
         Ok(Box::pin(stream::once(async move { Ok(text) })))
     }
 
-    async fn chat_with_images(&self, messages: &[Message], _images: &[ImageAttachment], context: Option<String>) -> Result<String> {
+    async fn chat_with_images(
+        &self,
+        messages: &[Message],
+        _images: &[ImageAttachment],
+        context: Option<String>,
+    ) -> Result<String> {
         // Claude-on-Bedrock supports images via the Converse API, but we skip for now
         self.chat(messages, context).await
     }
@@ -380,13 +420,19 @@ mod tests {
     fn sha256_hex_empty() {
         // SHA-256 of empty string is well-known
         let h = sha256_hex(b"");
-        assert_eq!(h, "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+        assert_eq!(
+            h,
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
     }
 
     #[test]
     fn sha256_hex_hello() {
         let h = sha256_hex(b"hello");
-        assert_eq!(h, "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
+        assert_eq!(
+            h,
+            "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+        );
     }
 
     // ── hmac_sha256 ──────────────────────────────────────────────────────
@@ -479,15 +525,47 @@ mod tests {
 
     #[test]
     fn sigv4_auth_header_deterministic() {
-        let a = sigv4_auth_header("AK", "SK", "us-east-1", "h", "/p", b"{}", "20240101T120000Z");
-        let b = sigv4_auth_header("AK", "SK", "us-east-1", "h", "/p", b"{}", "20240101T120000Z");
+        let a = sigv4_auth_header(
+            "AK",
+            "SK",
+            "us-east-1",
+            "h",
+            "/p",
+            b"{}",
+            "20240101T120000Z",
+        );
+        let b = sigv4_auth_header(
+            "AK",
+            "SK",
+            "us-east-1",
+            "h",
+            "/p",
+            b"{}",
+            "20240101T120000Z",
+        );
         assert_eq!(a, b);
     }
 
     #[test]
     fn sigv4_auth_header_differs_by_payload() {
-        let a = sigv4_auth_header("AK", "SK", "us-east-1", "h", "/p", b"{}", "20240101T120000Z");
-        let b = sigv4_auth_header("AK", "SK", "us-east-1", "h", "/p", b"{\"x\":1}", "20240101T120000Z");
+        let a = sigv4_auth_header(
+            "AK",
+            "SK",
+            "us-east-1",
+            "h",
+            "/p",
+            b"{}",
+            "20240101T120000Z",
+        );
+        let b = sigv4_auth_header(
+            "AK",
+            "SK",
+            "us-east-1",
+            "h",
+            "/p",
+            b"{\"x\":1}",
+            "20240101T120000Z",
+        );
         assert_ne!(a, b);
     }
 
@@ -543,7 +621,12 @@ mod tests {
         // Must be exactly 16 characters: YYYYMMDDTHHMMSSZ
         assert_eq!(dt.len(), 16, "utc_datetime should be 16 chars: {}", dt);
         assert!(dt.ends_with('Z'), "utc_datetime should end with Z: {}", dt);
-        assert_eq!(&dt[8..9], "T", "utc_datetime should have T at position 8: {}", dt);
+        assert_eq!(
+            &dt[8..9],
+            "T",
+            "utc_datetime should have T at position 8: {}",
+            dt
+        );
         // All chars except T and Z should be digits
         for (i, c) in dt.chars().enumerate() {
             if i == 8 {
@@ -551,7 +634,12 @@ mod tests {
             } else if i == 15 {
                 assert_eq!(c, 'Z');
             } else {
-                assert!(c.is_ascii_digit(), "char at position {} should be a digit, got '{}'", i, c);
+                assert!(
+                    c.is_ascii_digit(),
+                    "char at position {} should be a digit, got '{}'",
+                    i,
+                    c
+                );
             }
         }
     }
@@ -560,7 +648,11 @@ mod tests {
     fn utc_datetime_year_is_reasonable() {
         let dt = BedrockProvider::utc_datetime();
         let year: u32 = dt[..4].parse().unwrap();
-        assert!(year >= 2024 && year <= 2100, "year {} seems unreasonable", year);
+        assert!(
+            year >= 2024 && year <= 2100,
+            "year {} seems unreasonable",
+            year
+        );
     }
 
     // ── model ID percent-encoding ───────────────────────────────────────
@@ -568,11 +660,14 @@ mod tests {
     #[test]
     fn model_id_colon_percent_encoding() {
         let model_id = "anthropic.claude-3-sonnet-20240229-v1:0";
-        let encoded: String = model_id.chars().map(|c| match c {
-            ':' => "%3A".to_string(),
-            '/' => "%2F".to_string(),
-            c => c.to_string(),
-        }).collect();
+        let encoded: String = model_id
+            .chars()
+            .map(|c| match c {
+                ':' => "%3A".to_string(),
+                '/' => "%2F".to_string(),
+                c => c.to_string(),
+            })
+            .collect();
         assert_eq!(encoded, "anthropic.claude-3-sonnet-20240229-v1%3A0");
         assert!(!encoded.contains(':'));
     }
@@ -580,11 +675,14 @@ mod tests {
     #[test]
     fn model_id_slash_percent_encoding() {
         let model_id = "us.meta/llama3-8b-instruct-v1:0";
-        let encoded: String = model_id.chars().map(|c| match c {
-            ':' => "%3A".to_string(),
-            '/' => "%2F".to_string(),
-            c => c.to_string(),
-        }).collect();
+        let encoded: String = model_id
+            .chars()
+            .map(|c| match c {
+                ':' => "%3A".to_string(),
+                '/' => "%2F".to_string(),
+                c => c.to_string(),
+            })
+            .collect();
         assert_eq!(encoded, "us.meta%2Fllama3-8b-instruct-v1%3A0");
         assert!(!encoded.contains(':'));
         assert!(!encoded.contains('/'));
@@ -593,11 +691,14 @@ mod tests {
     #[test]
     fn model_id_no_special_chars_unchanged() {
         let model_id = "amazon.titan-text-express-v1";
-        let encoded: String = model_id.chars().map(|c| match c {
-            ':' => "%3A".to_string(),
-            '/' => "%2F".to_string(),
-            c => c.to_string(),
-        }).collect();
+        let encoded: String = model_id
+            .chars()
+            .map(|c| match c {
+                ':' => "%3A".to_string(),
+                '/' => "%2F".to_string(),
+                c => c.to_string(),
+            })
+            .collect();
         assert_eq!(encoded, model_id);
     }
 
@@ -620,8 +721,14 @@ mod tests {
     fn build_converse_request_system_message_placement() {
         let provider = BedrockProvider::new(test_bedrock_config());
         let messages = vec![
-            Message { role: MessageRole::System, content: "You are helpful.".into() },
-            Message { role: MessageRole::User, content: "Hello".into() },
+            Message {
+                role: MessageRole::System,
+                content: "You are helpful.".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "Hello".into(),
+            },
         ];
         let req = provider.build_converse_request(&messages, None);
 
@@ -640,22 +747,28 @@ mod tests {
     #[test]
     fn build_converse_request_context_injection() {
         let provider = BedrockProvider::new(test_bedrock_config());
-        let messages = vec![
-            Message { role: MessageRole::User, content: "What is this?".into() },
-        ];
+        let messages = vec![Message {
+            role: MessageRole::User,
+            content: "What is this?".into(),
+        }];
         let req = provider.build_converse_request(&messages, Some("file: main.rs".into()));
 
         assert_eq!(req.messages.len(), 1);
-        assert!(req.messages[0].content[0].text.starts_with("Context:\nfile: main.rs"));
-        assert!(req.messages[0].content[0].text.contains("User: What is this?"));
+        assert!(req.messages[0].content[0]
+            .text
+            .starts_with("Context:\nfile: main.rs"));
+        assert!(req.messages[0].content[0]
+            .text
+            .contains("User: What is this?"));
     }
 
     #[test]
     fn build_converse_request_no_context_leaves_message_intact() {
         let provider = BedrockProvider::new(test_bedrock_config());
-        let messages = vec![
-            Message { role: MessageRole::User, content: "Hello".into() },
-        ];
+        let messages = vec![Message {
+            role: MessageRole::User,
+            content: "Hello".into(),
+        }];
         let req = provider.build_converse_request(&messages, None);
 
         assert_eq!(req.messages[0].content[0].text, "Hello");
@@ -665,8 +778,14 @@ mod tests {
     fn build_converse_request_no_system_messages_yields_none() {
         let provider = BedrockProvider::new(test_bedrock_config());
         let messages = vec![
-            Message { role: MessageRole::User, content: "Hi".into() },
-            Message { role: MessageRole::Assistant, content: "Hello".into() },
+            Message {
+                role: MessageRole::User,
+                content: "Hi".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "Hello".into(),
+            },
         ];
         let req = provider.build_converse_request(&messages, None);
 
@@ -677,9 +796,18 @@ mod tests {
     fn build_converse_request_multiple_system_messages() {
         let provider = BedrockProvider::new(test_bedrock_config());
         let messages = vec![
-            Message { role: MessageRole::System, content: "Rule 1".into() },
-            Message { role: MessageRole::System, content: "Rule 2".into() },
-            Message { role: MessageRole::User, content: "Go".into() },
+            Message {
+                role: MessageRole::System,
+                content: "Rule 1".into(),
+            },
+            Message {
+                role: MessageRole::System,
+                content: "Rule 2".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "Go".into(),
+            },
         ];
         let req = provider.build_converse_request(&messages, None);
 
@@ -693,9 +821,18 @@ mod tests {
     fn build_converse_request_assistant_role_mapping() {
         let provider = BedrockProvider::new(test_bedrock_config());
         let messages = vec![
-            Message { role: MessageRole::User, content: "Hi".into() },
-            Message { role: MessageRole::Assistant, content: "Hello!".into() },
-            Message { role: MessageRole::User, content: "How?".into() },
+            Message {
+                role: MessageRole::User,
+                content: "Hi".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "Hello!".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "How?".into(),
+            },
         ];
         let req = provider.build_converse_request(&messages, None);
 
@@ -709,9 +846,10 @@ mod tests {
     #[test]
     fn build_converse_request_inference_config() {
         let provider = BedrockProvider::new(test_bedrock_config());
-        let messages = vec![
-            Message { role: MessageRole::User, content: "test".into() },
-        ];
+        let messages = vec![Message {
+            role: MessageRole::User,
+            content: "test".into(),
+        }];
         let req = provider.build_converse_request(&messages, None);
 
         let ic = req.inference_config.as_ref().unwrap();
@@ -723,8 +861,14 @@ mod tests {
     fn build_converse_request_serializes_to_valid_json() {
         let provider = BedrockProvider::new(test_bedrock_config());
         let messages = vec![
-            Message { role: MessageRole::System, content: "Be helpful".into() },
-            Message { role: MessageRole::User, content: "Hello".into() },
+            Message {
+                role: MessageRole::System,
+                content: "Be helpful".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "Hello".into(),
+            },
         ];
         let req = provider.build_converse_request(&messages, Some("ctx".into()));
         let json = serde_json::to_string(&req).unwrap();
@@ -741,7 +885,10 @@ mod tests {
     #[test]
     fn bedrock_provider_name() {
         let provider = BedrockProvider::new(test_bedrock_config());
-        assert_eq!(provider.name(), "Bedrock (anthropic.claude-3-sonnet-20240229-v1:0)");
+        assert_eq!(
+            provider.name(),
+            "Bedrock (anthropic.claude-3-sonnet-20240229-v1:0)"
+        );
     }
 
     // ── ConverseResponse deserialization ─────────────────────────────────
@@ -760,7 +907,10 @@ mod tests {
             }
         }"#;
         let resp: ConverseResponse = serde_json::from_str(json).unwrap();
-        assert_eq!(resp.output.message.content[0].text.as_ref().unwrap(), "Hello world");
+        assert_eq!(
+            resp.output.message.content[0].text.as_ref().unwrap(),
+            "Hello world"
+        );
         let usage = resp.usage.unwrap();
         assert_eq!(usage.input_tokens.unwrap(), 10);
         assert_eq!(usage.output_tokens.unwrap(), 5);
@@ -790,7 +940,10 @@ mod tests {
         }"#;
         let resp: ConverseResponse = serde_json::from_str(json).unwrap();
         assert_eq!(resp.output.message.content.len(), 2);
-        assert_eq!(resp.output.message.content[1].text.as_ref().unwrap(), "part2");
+        assert_eq!(
+            resp.output.message.content[1].text.as_ref().unwrap(),
+            "part2"
+        );
     }
 
     // ── converse response edge cases ──────────────────────────────────
@@ -879,22 +1032,70 @@ mod tests {
 
     #[test]
     fn sigv4_auth_header_differs_by_region() {
-        let a = sigv4_auth_header("AK", "SK", "us-east-1", "h", "/p", b"{}", "20240101T120000Z");
-        let b = sigv4_auth_header("AK", "SK", "eu-west-1", "h", "/p", b"{}", "20240101T120000Z");
+        let a = sigv4_auth_header(
+            "AK",
+            "SK",
+            "us-east-1",
+            "h",
+            "/p",
+            b"{}",
+            "20240101T120000Z",
+        );
+        let b = sigv4_auth_header(
+            "AK",
+            "SK",
+            "eu-west-1",
+            "h",
+            "/p",
+            b"{}",
+            "20240101T120000Z",
+        );
         assert_ne!(a, b);
     }
 
     #[test]
     fn sigv4_auth_header_differs_by_datetime() {
-        let a = sigv4_auth_header("AK", "SK", "us-east-1", "h", "/p", b"{}", "20240101T120000Z");
-        let b = sigv4_auth_header("AK", "SK", "us-east-1", "h", "/p", b"{}", "20240102T120000Z");
+        let a = sigv4_auth_header(
+            "AK",
+            "SK",
+            "us-east-1",
+            "h",
+            "/p",
+            b"{}",
+            "20240101T120000Z",
+        );
+        let b = sigv4_auth_header(
+            "AK",
+            "SK",
+            "us-east-1",
+            "h",
+            "/p",
+            b"{}",
+            "20240102T120000Z",
+        );
         assert_ne!(a, b);
     }
 
     #[test]
     fn sigv4_auth_header_differs_by_access_key() {
-        let a = sigv4_auth_header("AK1", "SK", "us-east-1", "h", "/p", b"{}", "20240101T120000Z");
-        let b = sigv4_auth_header("AK2", "SK", "us-east-1", "h", "/p", b"{}", "20240101T120000Z");
+        let a = sigv4_auth_header(
+            "AK1",
+            "SK",
+            "us-east-1",
+            "h",
+            "/p",
+            b"{}",
+            "20240101T120000Z",
+        );
+        let b = sigv4_auth_header(
+            "AK2",
+            "SK",
+            "us-east-1",
+            "h",
+            "/p",
+            b"{}",
+            "20240101T120000Z",
+        );
         assert_ne!(a, b);
         assert!(a.contains("AK1"));
         assert!(b.contains("AK2"));

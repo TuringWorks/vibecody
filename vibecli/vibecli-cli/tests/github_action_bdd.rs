@@ -2,7 +2,7 @@
  * BDD tests for github_action using Cucumber.
  * Run with: cargo test --test github_action_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::github_action::{ActionGenerator, ActionTrigger, WorkflowConfig};
 
 #[derive(Debug, Default, World)]
@@ -59,13 +59,16 @@ fn when_validate(world: &mut GaWorld) {
 #[then(expr = "the workflow should have trigger {string}")]
 fn then_has_trigger(world: &mut GaWorld, trigger_name: String) {
     let wf = world.workflow.as_ref().unwrap();
-    let found = wf.triggers.iter().any(|t| match (t, trigger_name.as_str()) {
-        (ActionTrigger::PullRequest, "pull_request") => true,
-        (ActionTrigger::IssueComment { .. }, "issue_comment") => true,
-        (ActionTrigger::Push { .. }, "push") => true,
-        (ActionTrigger::WorkflowDispatch, "workflow_dispatch") => true,
-        _ => false,
-    });
+    let found = wf
+        .triggers
+        .iter()
+        .any(|t| match (t, trigger_name.as_str()) {
+            (ActionTrigger::PullRequest, "pull_request") => true,
+            (ActionTrigger::IssueComment { .. }, "issue_comment") => true,
+            (ActionTrigger::Push { .. }, "push") => true,
+            (ActionTrigger::WorkflowDispatch, "workflow_dispatch") => true,
+            _ => false,
+        });
     assert!(found, "No trigger '{}' in workflow", trigger_name);
 }
 
@@ -91,7 +94,10 @@ fn then_yaml_contains(world: &mut GaWorld, expected: String) {
 fn then_has_warnings(world: &mut GaWorld) {
     let wf = world.workflow.as_ref().unwrap();
     let warnings = wf.validate();
-    assert!(!warnings.is_empty(), "Expected at least one validation warning");
+    assert!(
+        !warnings.is_empty(),
+        "Expected at least one validation warning"
+    );
 }
 
 #[then(expr = "at least one warning should mention {string}")]

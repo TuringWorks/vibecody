@@ -1,7 +1,6 @@
-
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
 // ---------------------------------------------------------------------------
@@ -543,11 +542,7 @@ mod tests {
     #[test]
     fn test_optimize_frame_contiguous_merge() {
         let mut opt = RenderOptimizer::new(80, 24);
-        let f1 = make_frame_styled(
-            &[("a", 0), ("b", 1), ("c", 2), ("d", 3), ("e", 4)],
-            80,
-            24,
-        );
+        let f1 = make_frame_styled(&[("a", 0), ("b", 1), ("c", 2), ("d", 3), ("e", 4)], 80, 24);
         opt.update_cache(&f1);
 
         let mut f2 = f1.clone();
@@ -580,11 +575,7 @@ mod tests {
     #[test]
     fn test_optimize_frame_reduction_pct() {
         let mut opt = RenderOptimizer::new(80, 24);
-        let f1 = make_frame_styled(
-            &[("a", 0), ("b", 1), ("c", 2), ("d", 3)],
-            80,
-            24,
-        );
+        let f1 = make_frame_styled(&[("a", 0), ("b", 1), ("c", 2), ("d", 3)], 80, 24);
         opt.update_cache(&f1);
         let mut f2 = f1.clone();
         f2.lines[0] = RenderLine::new("X", 77);

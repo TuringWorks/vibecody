@@ -1,12 +1,11 @@
 //! BDD: AuditSummary primitive — drives synthetic events into a builder
 //! / a JSONL file, then asserts the rolled-up shape recap will read.
 
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use std::path::PathBuf;
 use tempfile::TempDir;
 use vibe_broker::{
-    AuditEvent, AuditSummary, EgressOutcome, JsonlFileAuditSink,
-    audit::baseline_egress_request,
+    audit::baseline_egress_request, AuditEvent, AuditSummary, EgressOutcome, JsonlFileAuditSink,
 };
 
 #[derive(Default, World)]
@@ -60,7 +59,9 @@ fn summarize_n(world: &mut SWorld, _n: usize) {
     world.summary = Some(AuditSummary::from_events(&world.events));
 }
 
-#[when(expr = "I record an Ok event for host {string} with bytes_request {int} and bytes_response {int}")]
+#[when(
+    expr = "I record an Ok event for host {string} with bytes_request {int} and bytes_response {int}"
+)]
 fn record_ok_with_bytes(world: &mut SWorld, host: String, req: u64, resp: u64) {
     let mut e = baseline_egress_request("native", "skill:test", "GET", &host, "/x");
     e.outcome = EgressOutcome::Ok;
@@ -90,7 +91,9 @@ fn summarize_recorded(world: &mut SWorld) {
     world.summary = Some(AuditSummary::from_events(&world.events));
 }
 
-#[when(expr = "I record an Ok event for host {string} with bytes_request {int} and bytes_response {int} to the sink")]
+#[when(
+    expr = "I record an Ok event for host {string} with bytes_request {int} and bytes_response {int} to the sink"
+)]
 fn record_to_sink(world: &mut SWorld, host: String, req: u64, resp: u64) {
     let mut e = baseline_egress_request("native", "skill:test", "GET", &host, "/x");
     e.outcome = EgressOutcome::Ok;
@@ -148,8 +151,12 @@ fn by_outcome_named(world: &mut SWorld, name: String, expected: u64) {
         "upstream_error" => "upstream_error",
         other => panic!("unknown outcome key: {other}"),
     };
-    assert_eq!(s(world).by_outcome.get(key).copied().unwrap_or(0), expected,
-        "outcome {key} expected {expected} got {:?}", s(world).by_outcome.get(key));
+    assert_eq!(
+        s(world).by_outcome.get(key).copied().unwrap_or(0),
+        expected,
+        "outcome {key} expected {expected} got {:?}",
+        s(world).by_outcome.get(key)
+    );
 }
 
 #[then(expr = "the summary by_host {string} count is {int}")]
@@ -159,7 +166,10 @@ fn by_host_named(world: &mut SWorld, host: String, expected: u64) {
 
 #[then(expr = "the summary by_inject {string} count is {int}")]
 fn by_inject_named(world: &mut SWorld, inject: String, expected: u64) {
-    assert_eq!(s(world).by_inject.get(&inject).copied().unwrap_or(0), expected);
+    assert_eq!(
+        s(world).by_inject.get(&inject).copied().unwrap_or(0),
+        expected
+    );
 }
 
 #[then(expr = "the summary bytes_request_total is {int}")]
@@ -173,7 +183,5 @@ fn bytes_resp(world: &mut SWorld, expected: u64) {
 }
 
 fn main() {
-    futures::executor::block_on(SWorld::run(
-        "tests/features/broker_audit_summary.feature",
-    ));
+    futures::executor::block_on(SWorld::run("tests/features/broker_audit_summary.feature"));
 }

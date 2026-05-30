@@ -190,7 +190,10 @@ impl QjlCode {
         let mut signs = vec![0u8; packed];
 
         if residual_norm < 1e-10 {
-            return Self { residual_norm: 0.0, signs };
+            return Self {
+                residual_norm: 0.0,
+                signs,
+            };
         }
 
         for i in 0..proj_dim {
@@ -202,7 +205,10 @@ impl QjlCode {
                 signs[i >> 3] |= 1 << (i & 0b111);
             }
         }
-        Self { residual_norm, signs }
+        Self {
+            residual_norm,
+            signs,
+        }
     }
 
     fn decode_add(&self, projection: &[f32], proj_dim: usize, dim: usize, out: &mut [f32]) {
@@ -213,7 +219,11 @@ impl QjlCode {
         for i in 0..proj_dim {
             let byte = i >> 3;
             let bit = i & 0b111;
-            let sign = if (self.signs[byte] >> bit) & 1 == 1 { 1.0f32 } else { -1.0f32 };
+            let sign = if (self.signs[byte] >> bit) & 1 == 1 {
+                1.0f32
+            } else {
+                -1.0f32
+            };
             let s = sign * scale;
             for j in 0..dim {
                 out[j] += s * projection[i * dim + j];
@@ -292,7 +302,12 @@ impl KvCacheTurboQuant {
         // orthonormal basis that we then truncate to the projection shape
         // during encode/decode. Matches vibe-core's construction.
         let projection = gram_schmidt_rotation(proj_dim.max(head_dim), seed.wrapping_add(1));
-        Self { head_dim, proj_dim, rotation, projection }
+        Self {
+            head_dim,
+            proj_dim,
+            rotation,
+            projection,
+        }
     }
 
     pub fn head_dim(&self) -> usize {
@@ -327,7 +342,12 @@ impl KvCacheTurboQuant {
     /// Encode a row-major `[num_heads, seq_len, head_dim]` tensor.
     ///
     /// Tensor layout: `tensor[h * seq_len * head_dim + t * head_dim + d]`.
-    pub fn encode_layer(&self, tensor: &[f32], num_heads: usize, seq_len: usize) -> CompressedKvLayer {
+    pub fn encode_layer(
+        &self,
+        tensor: &[f32],
+        num_heads: usize,
+        seq_len: usize,
+    ) -> CompressedKvLayer {
         assert_eq!(
             tensor.len(),
             num_heads * seq_len * self.head_dim,
@@ -373,7 +393,13 @@ impl KvCacheTurboQuant {
     }
 
     /// Decode a single `[head_dim]` slice at position `(head, token)`.
-    pub fn decode_one(&self, layer: &CompressedKvLayer, head: usize, token: usize, out: &mut [f32]) {
+    pub fn decode_one(
+        &self,
+        layer: &CompressedKvLayer,
+        head: usize,
+        token: usize,
+        out: &mut [f32],
+    ) {
         assert_eq!(out.len(), self.head_dim);
         let idx = head * layer.seq_len + token;
         let mut rotated = vec![0.0f32; self.head_dim];
@@ -437,7 +463,11 @@ fn cosine(a: &[f32], b: &[f32]) -> f32 {
         nb += y * y;
     }
     let denom = na.sqrt() * nb.sqrt();
-    if denom < 1e-10 { 0.0 } else { (dot / denom).clamp(-1.0, 1.0) }
+    if denom < 1e-10 {
+        0.0
+    } else {
+        (dot / denom).clamp(-1.0, 1.0)
+    }
 }
 
 fn softmax(scores: &mut [f32]) {
@@ -502,7 +532,11 @@ pub fn fidelity_fp8(
 ) -> FidelityReport {
     // E4M3 has a max representable of ~448.0 and ~256 distinct levels in the
     // normal range. Simulate via per-tensor scale + round-to-nearest-of-8bit.
-    let max_abs = tensor.iter().copied().fold(0.0f32, |a, b| a.max(b.abs())).max(1e-9);
+    let max_abs = tensor
+        .iter()
+        .copied()
+        .fold(0.0f32, |a, b| a.max(b.abs()))
+        .max(1e-9);
     let scale = max_abs / 448.0;
     let reconstructed: Vec<f32> = tensor
         .iter()
@@ -537,7 +571,11 @@ pub fn fidelity_int8(
         for t in 0..seq_len {
             let off = h * seq_len * head_dim + t * head_dim;
             let slice = &tensor[off..off + head_dim];
-            let max_abs = slice.iter().copied().fold(0.0f32, |a, b| a.max(b.abs())).max(1e-9);
+            let max_abs = slice
+                .iter()
+                .copied()
+                .fold(0.0f32, |a, b| a.max(b.abs()))
+                .max(1e-9);
             let scale = max_abs / 127.0;
             for (d, &v) in slice.iter().enumerate() {
                 let q = (v / scale).round().clamp(-127.0, 127.0);
@@ -633,7 +671,13 @@ fn argmax(scores: &[f32]) -> usize {
     scores
         .iter()
         .enumerate()
-        .fold((0usize, f32::NEG_INFINITY), |(bi, bv), (i, &v)| if v > bv { (i, v) } else { (bi, bv) })
+        .fold((0usize, f32::NEG_INFINITY), |(bi, bv), (i, &v)| {
+            if v > bv {
+                (i, v)
+            } else {
+                (bi, bv)
+            }
+        })
         .0
 }
 
@@ -789,7 +833,10 @@ mod tests {
         let mut out = vec![0.0f32; head_dim];
         codec.decode_one(&layer, 2, 5, &mut out);
         assert_eq!(out.len(), head_dim);
-        assert!(out.iter().any(|&x| x.abs() > 1e-6), "decoded vector should be non-trivial");
+        assert!(
+            out.iter().any(|&x| x.abs() > 1e-6),
+            "decoded vector should be non-trivial"
+        );
     }
 
     #[test]
@@ -836,10 +883,16 @@ mod tests {
         let layer = codec.encode_layer(&tensor, num_heads, seq_len);
 
         let ratio = layer.ratio_vs_fp16();
-        assert!(ratio > 4.4 && ratio < 4.8, "ratio outside [4.4, 4.8]: {ratio:.3}×");
+        assert!(
+            ratio > 4.4 && ratio < 4.8,
+            "ratio outside [4.4, 4.8]: {ratio:.3}×"
+        );
         let bpe = codec.bytes_per_element(&layer);
         // Theoretical floor for head_dim=128: 2b polar + 1b qjl + 8B/128dim = 0.4375 B/el.
-        assert!(bpe > 0.40 && bpe < 0.50, "bytes/element outside [0.40, 0.50]: {bpe:.4}");
+        assert!(
+            bpe > 0.40 && bpe < 0.50,
+            "bytes/element outside [0.40, 0.50]: {bpe:.4}"
+        );
     }
 
     #[test]
@@ -853,7 +906,11 @@ mod tests {
         let rep = fidelity_turboquant(&codec, &tensor, num_heads, seq_len, 99);
 
         assert_eq!(rep.method, "turboquant");
-        assert!(rep.mean_cosine > 0.5, "mean cosine too low: {:.3}", rep.mean_cosine);
+        assert!(
+            rep.mean_cosine > 0.5,
+            "mean cosine too low: {:.3}",
+            rep.mean_cosine
+        );
         // On fully random data, even fp8 only gets partial top-1 agreement;
         // this is a sanity floor, not a fidelity claim.
         assert!(rep.top1_agreement >= 0.0);
@@ -867,7 +924,11 @@ mod tests {
         let head_dim = 64;
         let tensor = synthetic_tensor(num_heads, seq_len, head_dim, 5);
         let rep = fidelity_fp8(&tensor, num_heads, seq_len, head_dim, 7);
-        assert!(rep.mean_cosine > 0.999, "fp8 should be ≥0.999 cosine: {}", rep.mean_cosine);
+        assert!(
+            rep.mean_cosine > 0.999,
+            "fp8 should be ≥0.999 cosine: {}",
+            rep.mean_cosine
+        );
         assert!(rep.top1_agreement > 0.9);
     }
 
@@ -900,7 +961,11 @@ mod tests {
     #[test]
     fn probe_passes_on_reference_codec() {
         let r = run_codec_probe();
-        assert!(r.passed, "probe failed: cosine={} hash={:x}", r.mean_cosine, r.output_hash);
+        assert!(
+            r.passed,
+            "probe failed: cosine={} hash={:x}",
+            r.mean_cosine, r.output_hash
+        );
         assert!(r.mean_cosine >= 0.85, "mean_cosine={}", r.mean_cosine);
         // Probe is bounded — anything more than 100ms on a CI runner is suspicious.
         assert!(r.elapsed_us < 100_000, "probe took {}µs", r.elapsed_us);

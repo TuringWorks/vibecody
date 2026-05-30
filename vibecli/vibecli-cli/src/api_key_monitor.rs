@@ -88,7 +88,10 @@ impl Drop for ApiKeyMonitor {
 }
 
 /// Build a provider from a provider config entry.
-fn build_provider(name: &str, pc: &CfgProviderConfig) -> Option<Arc<dyn vibe_ai::provider::AIProvider>> {
+fn build_provider(
+    name: &str,
+    pc: &CfgProviderConfig,
+) -> Option<Arc<dyn vibe_ai::provider::AIProvider>> {
     let api_key = pc.api_key.clone().or_else(|| resolve_env_key(name));
     let config = vibe_ai::provider::ProviderConfig {
         provider_type: name.to_string(),
@@ -100,24 +103,60 @@ fn build_provider(name: &str, pc: &CfgProviderConfig) -> Option<Arc<dyn vibe_ai:
         ..Default::default()
     };
     match name {
-        "anthropic" | "claude" => Some(Arc::new(vibe_ai::providers::claude::ClaudeProvider::new(config))),
-        "openai" => Some(Arc::new(vibe_ai::providers::openai::OpenAIProvider::new(config))),
-        "gemini" => Some(Arc::new(vibe_ai::providers::gemini::GeminiProvider::new(config))),
-        "grok" => Some(Arc::new(vibe_ai::providers::grok::GrokProvider::new(config))),
-        "groq" => Some(Arc::new(vibe_ai::providers::groq::GroqProvider::new(config))),
-        "openrouter" => Some(Arc::new(vibe_ai::providers::openrouter::OpenRouterProvider::new(config))),
-        "azure_openai" | "azure" => Some(Arc::new(vibe_ai::providers::azure_openai::AzureOpenAIProvider::new(config))),
-        "mistral" => Some(Arc::new(vibe_ai::providers::mistral::MistralProvider::new(config))),
-        "cerebras" => Some(Arc::new(vibe_ai::providers::cerebras::CerebrasProvider::new(config))),
-        "deepseek" => Some(Arc::new(vibe_ai::providers::deepseek::DeepSeekProvider::new(config))),
-        "zhipu" | "glm" => Some(Arc::new(vibe_ai::providers::zhipu::ZhipuProvider::new(config))),
-        "vercel_ai" | "vercel" => Some(Arc::new(vibe_ai::providers::vercel_ai::VercelAIProvider::new(config))),
-        "minimax" => Some(Arc::new(vibe_ai::providers::minimax::MiniMaxProvider::new(config))),
-        "perplexity" => Some(Arc::new(vibe_ai::providers::perplexity::PerplexityProvider::new(config))),
-        "together" => Some(Arc::new(vibe_ai::providers::together::TogetherProvider::new(config))),
-        "fireworks" => Some(Arc::new(vibe_ai::providers::fireworks::FireworksProvider::new(config))),
-        "sambanova" => Some(Arc::new(vibe_ai::providers::sambanova::SambaNovaProvider::new(config))),
-        "ollama" => Some(Arc::new(vibe_ai::providers::ollama::OllamaProvider::new(config))),
+        "anthropic" | "claude" => Some(Arc::new(vibe_ai::providers::claude::ClaudeProvider::new(
+            config,
+        ))),
+        "openai" => Some(Arc::new(vibe_ai::providers::openai::OpenAIProvider::new(
+            config,
+        ))),
+        "gemini" => Some(Arc::new(vibe_ai::providers::gemini::GeminiProvider::new(
+            config,
+        ))),
+        "grok" => Some(Arc::new(vibe_ai::providers::grok::GrokProvider::new(
+            config,
+        ))),
+        "groq" => Some(Arc::new(vibe_ai::providers::groq::GroqProvider::new(
+            config,
+        ))),
+        "openrouter" => Some(Arc::new(
+            vibe_ai::providers::openrouter::OpenRouterProvider::new(config),
+        )),
+        "azure_openai" | "azure" => Some(Arc::new(
+            vibe_ai::providers::azure_openai::AzureOpenAIProvider::new(config),
+        )),
+        "mistral" => Some(Arc::new(vibe_ai::providers::mistral::MistralProvider::new(
+            config,
+        ))),
+        "cerebras" => Some(Arc::new(
+            vibe_ai::providers::cerebras::CerebrasProvider::new(config),
+        )),
+        "deepseek" => Some(Arc::new(
+            vibe_ai::providers::deepseek::DeepSeekProvider::new(config),
+        )),
+        "zhipu" | "glm" => Some(Arc::new(vibe_ai::providers::zhipu::ZhipuProvider::new(
+            config,
+        ))),
+        "vercel_ai" | "vercel" => Some(Arc::new(
+            vibe_ai::providers::vercel_ai::VercelAIProvider::new(config),
+        )),
+        "minimax" => Some(Arc::new(vibe_ai::providers::minimax::MiniMaxProvider::new(
+            config,
+        ))),
+        "perplexity" => Some(Arc::new(
+            vibe_ai::providers::perplexity::PerplexityProvider::new(config),
+        )),
+        "together" => Some(Arc::new(
+            vibe_ai::providers::together::TogetherProvider::new(config),
+        )),
+        "fireworks" => Some(Arc::new(
+            vibe_ai::providers::fireworks::FireworksProvider::new(config),
+        )),
+        "sambanova" => Some(Arc::new(
+            vibe_ai::providers::sambanova::SambaNovaProvider::new(config),
+        )),
+        "ollama" => Some(Arc::new(vibe_ai::providers::ollama::OllamaProvider::new(
+            config,
+        ))),
         "vibecli_mistralrs" | "vibecli-mistralrs" => Some(Arc::new(
             vibe_ai::providers::vibecli_mistralrs::VibeCliMistralRsProvider::new(config),
         )),
@@ -154,10 +193,25 @@ fn resolve_env_key(name: &str) -> Option<String> {
 /// Collect every configured provider from the config.
 fn configured_providers(cfg: &Config) -> Vec<(String, Arc<dyn vibe_ai::provider::AIProvider>)> {
     let all_names = [
-        "anthropic", "openai", "gemini", "grok", "groq", "openrouter",
-        "azure_openai", "mistral", "cerebras", "deepseek", "zhipu",
-        "vercel_ai", "minimax", "perplexity", "together", "fireworks",
-        "sambanova", "ollama", "vibecli_mistralrs",
+        "anthropic",
+        "openai",
+        "gemini",
+        "grok",
+        "groq",
+        "openrouter",
+        "azure_openai",
+        "mistral",
+        "cerebras",
+        "deepseek",
+        "zhipu",
+        "vercel_ai",
+        "minimax",
+        "perplexity",
+        "together",
+        "fireworks",
+        "sambanova",
+        "ollama",
+        "vibecli_mistralrs",
     ];
     let mut providers = Vec::new();
     for name in &all_names {
@@ -194,7 +248,11 @@ pub async fn check_all_providers(cfg: &Config) -> Vec<ProviderHealthResult> {
         results.push(ProviderHealthResult {
             provider: name,
             available,
-            error: if available { None } else { Some("not available".to_string()) },
+            error: if available {
+                None
+            } else {
+                Some("not available".to_string())
+            },
             latency_ms,
         });
     }
@@ -202,7 +260,11 @@ pub async fn check_all_providers(cfg: &Config) -> Vec<ProviderHealthResult> {
 }
 
 /// Background loop that periodically checks provider health.
-async fn monitor_loop(interval: Duration, initial_delay: Duration, mut stop_rx: watch::Receiver<bool>) {
+async fn monitor_loop(
+    interval: Duration,
+    initial_delay: Duration,
+    mut stop_rx: watch::Receiver<bool>,
+) {
     // Wait for initial delay (let REPL boot up)
     tokio::select! {
         _ = tokio::time::sleep(initial_delay) => {},
@@ -219,9 +281,13 @@ async fn monitor_loop(interval: Duration, initial_delay: Duration, mut stop_rx: 
 
         if is_first {
             // First run: report any currently-failing keys
-            let failing: Vec<&ProviderHealthResult> = results.iter().filter(|r| !r.available).collect();
+            let failing: Vec<&ProviderHealthResult> =
+                results.iter().filter(|r| !r.available).collect();
             if !failing.is_empty() {
-                let names: Vec<&str> = failing.iter().map(|r| provider_label(&r.provider)).collect();
+                let names: Vec<&str> = failing
+                    .iter()
+                    .map(|r| provider_label(&r.provider))
+                    .collect();
                 eprintln!(
                     "\x1b[33m[vibecli] API key health check: {} provider(s) unavailable: {}\x1b[0m",
                     failing.len(),
@@ -238,7 +304,10 @@ async fn monitor_loop(interval: Duration, initial_delay: Duration, mut stop_rx: 
                         eprintln!(
                             "\x1b[31m[vibecli] {} API key is no longer working{}\x1b[0m",
                             provider_label(&r.provider),
-                            r.error.as_deref().map(|e| format!(" ({})", e)).unwrap_or_default()
+                            r.error
+                                .as_deref()
+                                .map(|e| format!(" ({})", e))
+                                .unwrap_or_default()
                         );
                     }
                     (Some(false), true) => {
@@ -330,7 +399,8 @@ mod tests {
         // Verify that creating and immediately dropping a monitor doesn't panic.
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-            let monitor = ApiKeyMonitor::start(Duration::from_secs(3600), Duration::from_secs(3600));
+            let monitor =
+                ApiKeyMonitor::start(Duration::from_secs(3600), Duration::from_secs(3600));
             monitor.stop();
         });
     }
@@ -353,16 +423,37 @@ mod tests {
             ..Default::default()
         };
         // Known providers should return Some
-        for name in &["anthropic", "openai", "gemini", "grok", "groq", "ollama",
-                       "mistral", "cerebras", "deepseek", "zhipu", "minimax",
-                       "perplexity", "together", "fireworks", "sambanova"] {
-            assert!(build_provider(name, &pc).is_some(), "Failed to build provider: {}", name);
+        for name in &[
+            "anthropic",
+            "openai",
+            "gemini",
+            "grok",
+            "groq",
+            "ollama",
+            "mistral",
+            "cerebras",
+            "deepseek",
+            "zhipu",
+            "minimax",
+            "perplexity",
+            "together",
+            "fireworks",
+            "sambanova",
+        ] {
+            assert!(
+                build_provider(name, &pc).is_some(),
+                "Failed to build provider: {}",
+                name
+            );
         }
     }
 
     #[test]
     fn test_build_provider_unknown() {
-        let pc = CfgProviderConfig { enabled: true, ..Default::default() };
+        let pc = CfgProviderConfig {
+            enabled: true,
+            ..Default::default()
+        };
         assert!(build_provider("nonexistent_provider", &pc).is_none());
     }
 }

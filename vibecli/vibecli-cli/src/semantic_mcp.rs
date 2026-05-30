@@ -144,35 +144,81 @@ pub fn semantic_mcp_tools() -> Vec<McpTool> {
     vec![
         McpTool {
             name: "search_codebase".into(),
-            description: "Semantic search across all indexed files using natural language query".into(),
+            description: "Semantic search across all indexed files using natural language query"
+                .into(),
             parameters: vec![
-                McpParam { name: "query".into(), param_type: "string".into(), description: "Natural language search query".into(), required: true },
-                McpParam { name: "limit".into(), param_type: "number".into(), description: "Max results (default 10)".into(), required: false },
-                McpParam { name: "language".into(), param_type: "string".into(), description: "Filter by language".into(), required: false },
+                McpParam {
+                    name: "query".into(),
+                    param_type: "string".into(),
+                    description: "Natural language search query".into(),
+                    required: true,
+                },
+                McpParam {
+                    name: "limit".into(),
+                    param_type: "number".into(),
+                    description: "Max results (default 10)".into(),
+                    required: false,
+                },
+                McpParam {
+                    name: "language".into(),
+                    param_type: "string".into(),
+                    description: "Filter by language".into(),
+                    required: false,
+                },
             ],
         },
         McpTool {
             name: "find_related_files".into(),
             description: "Find files semantically related to a given file".into(),
             parameters: vec![
-                McpParam { name: "file".into(), param_type: "string".into(), description: "Path to the reference file".into(), required: true },
-                McpParam { name: "limit".into(), param_type: "number".into(), description: "Max results (default 5)".into(), required: false },
+                McpParam {
+                    name: "file".into(),
+                    param_type: "string".into(),
+                    description: "Path to the reference file".into(),
+                    required: true,
+                },
+                McpParam {
+                    name: "limit".into(),
+                    param_type: "number".into(),
+                    description: "Max results (default 5)".into(),
+                    required: false,
+                },
             ],
         },
         McpTool {
             name: "explain_symbol".into(),
             description: "Get documentation, signature, and usage context for a symbol".into(),
             parameters: vec![
-                McpParam { name: "symbol".into(), param_type: "string".into(), description: "Symbol name to look up".into(), required: true },
-                McpParam { name: "file".into(), param_type: "string".into(), description: "Optional file hint".into(), required: false },
+                McpParam {
+                    name: "symbol".into(),
+                    param_type: "string".into(),
+                    description: "Symbol name to look up".into(),
+                    required: true,
+                },
+                McpParam {
+                    name: "file".into(),
+                    param_type: "string".into(),
+                    description: "Optional file hint".into(),
+                    required: false,
+                },
             ],
         },
         McpTool {
             name: "dependency_graph".into(),
             description: "Show import/dependency graph for a file or module".into(),
             parameters: vec![
-                McpParam { name: "file".into(), param_type: "string".into(), description: "File or module path".into(), required: true },
-                McpParam { name: "depth".into(), param_type: "number".into(), description: "Max depth (default 2)".into(), required: false },
+                McpParam {
+                    name: "file".into(),
+                    param_type: "string".into(),
+                    description: "File or module path".into(),
+                    required: true,
+                },
+                McpParam {
+                    name: "depth".into(),
+                    param_type: "number".into(),
+                    description: "Max depth (default 2)".into(),
+                    required: false,
+                },
             ],
         },
         McpTool {
@@ -183,9 +229,12 @@ pub fn semantic_mcp_tools() -> Vec<McpTool> {
         McpTool {
             name: "reindex".into(),
             description: "Trigger re-indexing of changed files".into(),
-            parameters: vec![
-                McpParam { name: "path".into(), param_type: "string".into(), description: "Optional path to reindex (default: entire project)".into(), required: false },
-            ],
+            parameters: vec![McpParam {
+                name: "path".into(),
+                param_type: "string".into(),
+                description: "Optional path to reindex (default: entire project)".into(),
+                required: false,
+            }],
         },
     ]
 }
@@ -241,11 +290,7 @@ impl SemanticIndexServer {
     }
 
     pub fn languages(&self) -> Vec<String> {
-        let mut langs: Vec<String> = self
-            .entries
-            .values()
-            .map(|e| e.language.clone())
-            .collect();
+        let mut langs: Vec<String> = self.entries.values().map(|e| e.language.clone()).collect();
         langs.sort();
         langs.dedup();
         langs
@@ -271,10 +316,7 @@ impl SemanticIndexServer {
                     }
                 }
                 if score > 0.0 {
-                    let snippet = symbol
-                        .signature
-                        .as_deref()
-                        .unwrap_or(&symbol.name);
+                    let snippet = symbol.signature.as_deref().unwrap_or(&symbol.name);
                     results.push(
                         SearchResult::new(&entry.path, score, snippet)
                             .with_line(symbol.line)
@@ -284,7 +326,11 @@ impl SemanticIndexServer {
             }
         }
 
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         results.truncate(limit);
         results
     }
@@ -327,7 +373,11 @@ impl SemanticIndexServer {
             }
         }
 
-        related.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap_or(std::cmp::Ordering::Equal));
+        related.sort_by(|a, b| {
+            b.similarity
+                .partial_cmp(&a.similarity)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         related.truncate(limit);
         related
     }
@@ -434,12 +484,18 @@ mod tests {
         server.add_entry(test_entry(
             "src/main.rs",
             "rust",
-            vec![("main", SymbolKind::Function), ("Config", SymbolKind::Struct)],
+            vec![
+                ("main", SymbolKind::Function),
+                ("Config", SymbolKind::Struct),
+            ],
         ));
         server.add_entry(test_entry(
             "src/lib.rs",
             "rust",
-            vec![("process", SymbolKind::Function), ("Config", SymbolKind::Struct)],
+            vec![
+                ("process", SymbolKind::Function),
+                ("Config", SymbolKind::Struct),
+            ],
         ));
         server.add_entry(test_entry(
             "src/utils.ts",
@@ -595,8 +651,14 @@ mod tests {
     fn test_mcp_tools_params() {
         let tools = semantic_mcp_tools();
         let search = tools.iter().find(|t| t.name == "search_codebase").unwrap();
-        assert!(search.parameters.iter().any(|p| p.name == "query" && p.required));
-        assert!(search.parameters.iter().any(|p| p.name == "limit" && !p.required));
+        assert!(search
+            .parameters
+            .iter()
+            .any(|p| p.name == "query" && p.required));
+        assert!(search
+            .parameters
+            .iter()
+            .any(|p| p.name == "limit" && !p.required));
     }
 
     #[test]

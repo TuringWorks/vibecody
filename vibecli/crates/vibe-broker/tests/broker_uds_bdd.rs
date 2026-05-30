@@ -2,14 +2,14 @@
 
 #[cfg(unix)]
 mod uds_run {
-    use cucumber::{World, given, then, when};
+    use cucumber::{given, then, when, World};
     use std::path::PathBuf;
     use std::sync::Arc;
     use tempfile::TempDir;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::UnixStream;
     use tokio::runtime::Runtime;
-    use vibe_broker::{BoundAddr, Broker, BrokerHandle, Policy, SsrfGuard, policy::DefaultRule};
+    use vibe_broker::{policy::DefaultRule, BoundAddr, Broker, BrokerHandle, Policy, SsrfGuard};
 
     #[derive(Default, World)]
     pub struct UWorld {
@@ -102,9 +102,8 @@ match.require_tls = false
             parsed.path(),
             parsed.query().map(|q| format!("?{q}")).unwrap_or_default()
         );
-        let raw = format!(
-            "{method} {path_q} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
-        );
+        let raw =
+            format!("{method} {path_q} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n");
         let sock = world.sock_path.clone().unwrap();
         let rt = world.rt();
         let resp = rt.block_on(async move {
@@ -154,8 +153,12 @@ match.require_tls = false
 
     #[then(expr = "the UDS broker response status is {int}")]
     fn status_is(world: &mut UWorld, expected: u16) {
-        assert_eq!(world.response_status, Some(expected),
-            "headers: {:?}", world.response_headers);
+        assert_eq!(
+            world.response_status,
+            Some(expected),
+            "headers: {:?}",
+            world.response_headers
+        );
     }
 
     #[then(expr = "the UDS broker response header {string} is {string}")]
@@ -166,7 +169,12 @@ match.require_tls = false
             .iter()
             .find(|(n, _)| n == &lower)
             .map(|(_, v)| v.as_str());
-        assert_eq!(actual, Some(value.as_str()), "headers: {:?}", world.response_headers);
+        assert_eq!(
+            actual,
+            Some(value.as_str()),
+            "headers: {:?}",
+            world.response_headers
+        );
     }
 
     #[then("the UDS path no longer exists")]

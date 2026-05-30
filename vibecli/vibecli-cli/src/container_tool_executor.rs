@@ -77,7 +77,10 @@ impl ToolExecutorTrait for ContainerToolExecutor {
                     .write_file(&self.container_id, path, content)
                     .await
                 {
-                    Ok(()) => ToolResult::ok("write_file", format!("Wrote {} bytes to {path}", content.len())),
+                    Ok(()) => ToolResult::ok(
+                        "write_file",
+                        format!("Wrote {} bytes to {path}", content.len()),
+                    ),
                     Err(e) => ToolResult::err("write_file", e.to_string()),
                 }
             }
@@ -113,11 +116,7 @@ impl ToolExecutorTrait for ContainerToolExecutor {
             }
 
             ToolCall::Bash { command } => {
-                match self
-                    .runtime
-                    .exec(&self.container_id, command, None)
-                    .await
-                {
+                match self.runtime.exec(&self.container_id, command, None).await {
                     Ok(result) => {
                         let mut output = result.stdout;
                         if !result.stderr.is_empty() {
@@ -135,11 +134,7 @@ impl ToolExecutorTrait for ContainerToolExecutor {
 
             ToolCall::SearchFiles { query, glob: _ } => {
                 let cmd = format!("grep -rn --include='*' '{query}' . 2>/dev/null | head -50");
-                match self
-                    .runtime
-                    .exec(&self.container_id, &cmd, None)
-                    .await
-                {
+                match self.runtime.exec(&self.container_id, &cmd, None).await {
                     Ok(result) => ToolResult::ok("search_files", result.stdout),
                     Err(e) => ToolResult::err("search_files", e.to_string()),
                 }
@@ -161,30 +156,29 @@ impl ToolExecutorTrait for ContainerToolExecutor {
                 }
             }
 
-            ToolCall::TaskComplete { summary } => {
-                ToolResult::ok("task_complete", summary.clone())
-            }
+            ToolCall::TaskComplete { summary } => ToolResult::ok("task_complete", summary.clone()),
 
-            ToolCall::SpawnAgent { task, max_steps, max_depth: _ } => {
+            ToolCall::SpawnAgent {
+                task,
+                max_steps,
+                max_depth: _,
+            } => {
                 // In container mode, sub-agents reuse the same container
                 let cmd = format!(
                     "echo 'Sub-agent task: {}' (max_steps: {})",
                     task.replace('\'', "'\\''"),
                     max_steps.unwrap_or(10)
                 );
-                match self
-                    .runtime
-                    .exec(&self.container_id, &cmd, None)
-                    .await
-                {
+                match self.runtime.exec(&self.container_id, &cmd, None).await {
                     Ok(result) => ToolResult::ok("spawn_agent", result.stdout),
                     Err(e) => ToolResult::err("spawn_agent", e.to_string()),
                 }
             }
 
-            ToolCall::Think { thought } => {
-                ToolResult::ok("think", format!("Reasoning noted ({} chars).", thought.len()))
-            }
+            ToolCall::Think { thought } => ToolResult::ok(
+                "think",
+                format!("Reasoning noted ({} chars).", thought.len()),
+            ),
 
             ToolCall::PlanTask { steps } => {
                 ToolResult::ok("plan_task", format!("Plan recorded:\n{}", steps))
@@ -240,20 +234,37 @@ mod tests {
     fn tool_call_names_match() {
         assert_eq!(ToolCall::ReadFile { path: "x".into() }.name(), "read_file");
         assert_eq!(
-            ToolCall::WriteFile { path: "x".into(), content: "c".into() }.name(),
+            ToolCall::WriteFile {
+                path: "x".into(),
+                content: "c".into()
+            }
+            .name(),
             "write_file"
         );
-        assert_eq!(ToolCall::Bash { command: "ls".into() }.name(), "bash");
+        assert_eq!(
+            ToolCall::Bash {
+                command: "ls".into()
+            }
+            .name(),
+            "bash"
+        );
         assert_eq!(
             ToolCall::ListDirectory { path: ".".into() }.name(),
             "list_directory"
         );
         assert_eq!(
-            ToolCall::SearchFiles { query: "q".into(), glob: None }.name(),
+            ToolCall::SearchFiles {
+                query: "q".into(),
+                glob: None
+            }
+            .name(),
             "search_files"
         );
         assert_eq!(
-            ToolCall::TaskComplete { summary: "done".into() }.name(),
+            ToolCall::TaskComplete {
+                summary: "done".into()
+            }
+            .name(),
             "task_complete"
         );
     }
@@ -261,7 +272,11 @@ mod tests {
     #[test]
     fn apply_patch_tool_name() {
         assert_eq!(
-            ToolCall::ApplyPatch { path: "f.rs".into(), patch: "diff".into() }.name(),
+            ToolCall::ApplyPatch {
+                path: "f.rs".into(),
+                patch: "diff".into()
+            }
+            .name(),
             "apply_patch"
         );
     }
@@ -269,7 +284,11 @@ mod tests {
     #[test]
     fn web_search_tool_name() {
         assert_eq!(
-            ToolCall::WebSearch { query: "rust".into(), num_results: 5 }.name(),
+            ToolCall::WebSearch {
+                query: "rust".into(),
+                num_results: 5
+            }
+            .name(),
             "web_search"
         );
     }
@@ -277,7 +296,10 @@ mod tests {
     #[test]
     fn fetch_url_tool_name() {
         assert_eq!(
-            ToolCall::FetchUrl { url: "https://example.com".into() }.name(),
+            ToolCall::FetchUrl {
+                url: "https://example.com".into()
+            }
+            .name(),
             "fetch_url"
         );
     }
@@ -285,7 +307,12 @@ mod tests {
     #[test]
     fn spawn_agent_tool_name() {
         assert_eq!(
-            ToolCall::SpawnAgent { task: "t".into(), max_steps: None, max_depth: None }.name(),
+            ToolCall::SpawnAgent {
+                task: "t".into(),
+                max_steps: None,
+                max_depth: None
+            }
+            .name(),
             "spawn_agent"
         );
     }
@@ -325,29 +352,60 @@ mod tests {
 
     #[test]
     fn tool_call_is_destructive() {
-        assert!(ToolCall::WriteFile { path: "a".into(), content: "b".into() }.is_destructive());
-        assert!(ToolCall::ApplyPatch { path: "a".into(), patch: "p".into() }.is_destructive());
-        assert!(ToolCall::Bash { command: "rm -rf /".into() }.is_destructive());
+        assert!(ToolCall::WriteFile {
+            path: "a".into(),
+            content: "b".into()
+        }
+        .is_destructive());
+        assert!(ToolCall::ApplyPatch {
+            path: "a".into(),
+            patch: "p".into()
+        }
+        .is_destructive());
+        assert!(ToolCall::Bash {
+            command: "rm -rf /".into()
+        }
+        .is_destructive());
         assert!(!ToolCall::ReadFile { path: "a".into() }.is_destructive());
     }
 
     #[test]
     fn tool_call_is_terminal() {
-        assert!(ToolCall::TaskComplete { summary: "done".into() }.is_terminal());
+        assert!(ToolCall::TaskComplete {
+            summary: "done".into()
+        }
+        .is_terminal());
         assert!(!ToolCall::ReadFile { path: "a".into() }.is_terminal());
-        assert!(!ToolCall::Bash { command: "ls".into() }.is_terminal());
+        assert!(!ToolCall::Bash {
+            command: "ls".into()
+        }
+        .is_terminal());
     }
 
     #[test]
     fn tool_call_summary_read_file() {
-        let s = ToolCall::ReadFile { path: "/tmp/foo.rs".into() }.summary();
-        assert!(s.contains("foo.rs"), "summary should contain filename, got: {}", s);
+        let s = ToolCall::ReadFile {
+            path: "/tmp/foo.rs".into(),
+        }
+        .summary();
+        assert!(
+            s.contains("foo.rs"),
+            "summary should contain filename, got: {}",
+            s
+        );
     }
 
     #[test]
     fn tool_call_summary_bash() {
-        let s = ToolCall::Bash { command: "cargo test".into() }.summary();
-        assert!(s.contains("cargo test"), "summary should contain command, got: {}", s);
+        let s = ToolCall::Bash {
+            command: "cargo test".into(),
+        }
+        .summary();
+        assert!(
+            s.contains("cargo test"),
+            "summary should contain command, got: {}",
+            s
+        );
     }
 
     #[test]

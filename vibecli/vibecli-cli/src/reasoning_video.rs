@@ -28,7 +28,11 @@ pub struct Frame {
 
 /// Frame encoding format.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum FrameFormat { Png, Jpeg, WebP }
+pub enum FrameFormat {
+    Png,
+    Jpeg,
+    WebP,
+}
 
 /// Frame data source.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,11 +46,13 @@ pub enum FrameSource {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FrameAnnotation {
     pub kind: AnnotationKind,
-    pub x: f32, pub y: f32,       // 0.0 – 1.0 relative position
-    pub w: f32, pub h: f32,       // relative dimensions
+    pub x: f32,
+    pub y: f32, // 0.0 – 1.0 relative position
+    pub w: f32,
+    pub h: f32, // relative dimensions
     pub text: String,
-    pub color: String,            // CSS hex colour
-    pub confidence: f32,          // 0.0 – 1.0
+    pub color: String,   // CSS hex colour
+    pub confidence: f32, // 0.0 – 1.0
 }
 
 /// Types of overlay annotation.
@@ -85,21 +91,21 @@ pub enum ThoughtPhase {
 impl ThoughtPhase {
     pub fn color(&self) -> &'static str {
         match self {
-            Self::Planning   => "#4A90D9",
-            Self::Executing  => "#27AE60",
-            Self::Verifying  => "#F39C12",
+            Self::Planning => "#4A90D9",
+            Self::Executing => "#27AE60",
+            Self::Verifying => "#F39C12",
             Self::Reflecting => "#8E44AD",
-            Self::Error      => "#E74C3C",
+            Self::Error => "#E74C3C",
         }
     }
 
     pub fn label(&self) -> &'static str {
         match self {
-            Self::Planning   => "Planning",
-            Self::Executing  => "Executing",
-            Self::Verifying  => "Verifying",
+            Self::Planning => "Planning",
+            Self::Executing => "Executing",
+            Self::Verifying => "Verifying",
             Self::Reflecting => "Reflecting",
-            Self::Error      => "Error",
+            Self::Error => "Error",
         }
     }
 }
@@ -118,10 +124,10 @@ pub enum SessionState {
 /// Export format for a completed session.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ExportFormat {
-    AnnotatedMp4,    // video with burned-in overlays
-    JsonlThoughts,   // line-delimited thought log
-    SvgManifest,     // per-frame SVG overlay specs
-    MarkdownReport,  // timestamped markdown summary
+    AnnotatedMp4,   // video with burned-in overlays
+    JsonlThoughts,  // line-delimited thought log
+    SvgManifest,    // per-frame SVG overlay specs
+    MarkdownReport, // timestamped markdown summary
 }
 
 // ─── Reasoning Video Session ──────────────────────────────────────────────────
@@ -158,35 +164,47 @@ impl ReasoningVideoSession {
         if self.state == SessionState::Idle || self.state == SessionState::Paused {
             self.state = SessionState::Recording;
             true
-        } else { false }
+        } else {
+            false
+        }
     }
 
     pub fn pause(&mut self) -> bool {
         if self.state == SessionState::Recording {
             self.state = SessionState::Paused;
             true
-        } else { false }
+        } else {
+            false
+        }
     }
 
     pub fn resume(&mut self) -> bool {
         if self.state == SessionState::Paused {
             self.state = SessionState::Recording;
             true
-        } else { false }
+        } else {
+            false
+        }
     }
 
     pub fn stop(&mut self) -> bool {
         if self.state == SessionState::Recording || self.state == SessionState::Paused {
             self.state = SessionState::Stopped;
             true
-        } else { false }
+        } else {
+            false
+        }
     }
 
-    pub fn state(&self) -> &SessionState { &self.state }
+    pub fn state(&self) -> &SessionState {
+        &self.state
+    }
 
     /// Capture a frame (placeholder in test mode).
     pub fn capture_frame(&mut self, timestamp_ms: u64) -> Option<u64> {
-        if self.state != SessionState::Recording { return None; }
+        if self.state != SessionState::Recording {
+            return None;
+        }
         let idx = self.frame_counter;
         self.frame_counter += 1;
         self.frames.push(Frame {
@@ -202,12 +220,25 @@ impl ReasoningVideoSession {
     }
 
     /// Ingest a thought token and link it to the nearest frame.
-    pub fn ingest_thought(&mut self, text: &str, phase: ThoughtPhase, confidence: f32, timestamp_ms: u64) -> String {
+    pub fn ingest_thought(
+        &mut self,
+        text: &str,
+        phase: ThoughtPhase,
+        confidence: f32,
+        timestamp_ms: u64,
+    ) -> String {
         self.thought_counter += 1;
         let id = format!("tht-{:05}", self.thought_counter);
         // Link to the most recent frame within 2 frame intervals
-        let frame_interval = if self.fps > 0 { 1000 / self.fps as u64 } else { 33 };
-        let linked = self.frames.iter().rev()
+        let frame_interval = if self.fps > 0 {
+            1000 / self.fps as u64
+        } else {
+            33
+        };
+        let linked = self
+            .frames
+            .iter()
+            .rev()
             .find(|f| timestamp_ms.saturating_sub(f.timestamp_ms) <= frame_interval * 2)
             .map(|f| f.index);
         self.thoughts.push(ThoughtToken {
@@ -223,7 +254,8 @@ impl ReasoningVideoSession {
 
     /// Generate overlay annotations for a specific frame from linked thoughts.
     pub fn overlays_for_frame(&self, frame_idx: u64) -> Vec<FrameAnnotation> {
-        self.thoughts.iter()
+        self.thoughts
+            .iter()
             .filter(|t| t.linked_frame == Some(frame_idx))
             .map(|t| FrameAnnotation {
                 kind: AnnotationKind::ThoughtBubble,
@@ -240,22 +272,36 @@ impl ReasoningVideoSession {
 
     /// Seek to a timestamp and return all thoughts up to that point.
     pub fn seek(&self, timestamp_ms: u64) -> Vec<&ThoughtToken> {
-        self.thoughts.iter().filter(|t| t.timestamp_ms <= timestamp_ms).collect()
+        self.thoughts
+            .iter()
+            .filter(|t| t.timestamp_ms <= timestamp_ms)
+            .collect()
     }
 
     /// Export as a JSONL thoughts log (serialized lines).
     pub fn export_thoughts_jsonl(&self) -> Vec<String> {
-        self.thoughts.iter()
+        self.thoughts
+            .iter()
             .map(|t| serde_json::to_string(t).unwrap_or_default())
             .collect()
     }
 
     /// Build a markdown report of the session.
     pub fn export_markdown(&self) -> String {
-        let mut md = format!("# Reasoning Session: {}\n\nAgent: `{}`\n\nFrames: {}\nThoughts: {}\n\n",
-            self.id, self.agent_id, self.frames.len(), self.thoughts.len());
+        let mut md = format!(
+            "# Reasoning Session: {}\n\nAgent: `{}`\n\nFrames: {}\nThoughts: {}\n\n",
+            self.id,
+            self.agent_id,
+            self.frames.len(),
+            self.thoughts.len()
+        );
         for t in &self.thoughts {
-            md.push_str(&format!("- **[{}ms] {}**: {}\n", t.timestamp_ms, t.phase.label(), t.text));
+            md.push_str(&format!(
+                "- **[{}ms] {}**: {}\n",
+                t.timestamp_ms,
+                t.phase.label(),
+                t.text
+            ));
         }
         md
     }
@@ -265,10 +311,18 @@ impl ReasoningVideoSession {
         self.frames.last().map(|f| f.timestamp_ms).unwrap_or(0)
     }
 
-    pub fn frame_count(&self) -> usize { self.frames.len() }
-    pub fn thought_count(&self) -> usize { self.thoughts.len() }
-    pub fn frames(&self) -> &[Frame] { &self.frames }
-    pub fn thoughts(&self) -> &[ThoughtToken] { &self.thoughts }
+    pub fn frame_count(&self) -> usize {
+        self.frames.len()
+    }
+    pub fn thought_count(&self) -> usize {
+        self.thoughts.len()
+    }
+    pub fn frames(&self) -> &[Frame] {
+        &self.frames
+    }
+    pub fn thoughts(&self) -> &[ThoughtToken] {
+        &self.thoughts
+    }
 
     /// Phase distribution of thoughts.
     pub fn phase_distribution(&self) -> HashMap<String, usize> {
@@ -294,8 +348,13 @@ mod tests {
 
     #[test]
     fn test_phase_colors_are_hex() {
-        for p in [ThoughtPhase::Planning, ThoughtPhase::Executing, ThoughtPhase::Verifying,
-                  ThoughtPhase::Reflecting, ThoughtPhase::Error] {
+        for p in [
+            ThoughtPhase::Planning,
+            ThoughtPhase::Executing,
+            ThoughtPhase::Verifying,
+            ThoughtPhase::Reflecting,
+            ThoughtPhase::Error,
+        ] {
             assert!(p.color().starts_with('#'));
             assert_eq!(p.color().len(), 7);
         }
@@ -303,7 +362,11 @@ mod tests {
 
     #[test]
     fn test_phase_labels_non_empty() {
-        for p in [ThoughtPhase::Planning, ThoughtPhase::Executing, ThoughtPhase::Error] {
+        for p in [
+            ThoughtPhase::Planning,
+            ThoughtPhase::Executing,
+            ThoughtPhase::Error,
+        ] {
             assert!(!p.label().is_empty());
         }
     }
@@ -326,7 +389,8 @@ mod tests {
     #[test]
     fn test_session_cannot_start_when_stopped() {
         let mut s = make_session();
-        s.start(); s.stop();
+        s.start();
+        s.stop();
         assert!(!s.start());
     }
 
@@ -420,7 +484,7 @@ mod tests {
     fn test_ingest_thought_links_to_nearby_frame() {
         let mut s = make_session();
         s.start();
-        s.capture_frame(0);  // frame 0 at t=0ms
+        s.capture_frame(0); // frame 0 at t=0ms
         s.ingest_thought("plan", ThoughtPhase::Planning, 0.9, 20); // within 2 frame intervals at 30fps (~66ms)
         let t = &s.thoughts()[0];
         assert_eq!(t.linked_frame, Some(0));
@@ -430,7 +494,7 @@ mod tests {
     fn test_ingest_thought_no_link_if_far_from_frame() {
         let mut s = make_session();
         s.start();
-        s.capture_frame(0);  // frame 0 at t=0ms
+        s.capture_frame(0); // frame 0 at t=0ms
         s.ingest_thought("late thought", ThoughtPhase::Reflecting, 0.5, 5000); // 5 seconds later
         let t = &s.thoughts()[0];
         assert!(t.linked_frame.is_none());

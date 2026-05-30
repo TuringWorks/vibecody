@@ -132,10 +132,20 @@ impl std::fmt::Display for PipelineStage {
 /// Model merge strategy for combining aligned models.
 #[derive(Debug, Clone, PartialEq)]
 pub enum MergeStrategy {
-    Linear { weights: Vec<f64> },
-    Slerp { interpolation_factor: f64 },
-    Ties { density: f64, majority_sign_method: MajoritySignMethod },
-    Dare { density: f64, rescale: bool },
+    Linear {
+        weights: Vec<f64>,
+    },
+    Slerp {
+        interpolation_factor: f64,
+    },
+    Ties {
+        density: f64,
+        majority_sign_method: MajoritySignMethod,
+    },
+    Dare {
+        density: f64,
+        rescale: bool,
+    },
 }
 
 impl MergeStrategy {
@@ -338,7 +348,10 @@ impl AlignmentBenchmark {
     }
 
     pub fn is_safety(&self) -> bool {
-        matches!(self, Self::Harmfulness | Self::Toxicity | Self::SafetyRefusal)
+        matches!(
+            self,
+            Self::Harmfulness | Self::Toxicity | Self::SafetyRefusal
+        )
     }
 }
 
@@ -488,7 +501,8 @@ impl PpoConfig {
         let mut total = 0.0;
         for i in 0..n {
             let unclipped = ratios[i] * advantages[i];
-            let clipped = ratios[i].clamp(1.0 - self.clip_range, 1.0 + self.clip_range) * advantages[i];
+            let clipped =
+                ratios[i].clamp(1.0 - self.clip_range, 1.0 + self.clip_range) * advantages[i];
             total += unclipped.min(clipped);
         }
         -(total / n as f64)
@@ -574,7 +588,8 @@ impl PpoConfig {
             .count();
         let clip_fraction = clip_count as f64 / ratios.len().max(1) as f64;
         let adv_mean = adv.iter().sum::<f64>() / adv.len().max(1) as f64;
-        let adv_var = adv.iter().map(|a| (a - adv_mean).powi(2)).sum::<f64>() / adv.len().max(1) as f64;
+        let adv_var =
+            adv.iter().map(|a| (a - adv_mean).powi(2)).sum::<f64>() / adv.len().max(1) as f64;
 
         PpoStepResult {
             policy_loss,
@@ -692,9 +707,14 @@ impl DpoConfig {
     }
 
     /// Compute per-example implicit rewards from log-ratios.
-    pub fn compute_rewards(&self, chosen_logratios: &[f64], rejected_logratios: &[f64]) -> (Vec<f64>, Vec<f64>) {
+    pub fn compute_rewards(
+        &self,
+        chosen_logratios: &[f64],
+        rejected_logratios: &[f64],
+    ) -> (Vec<f64>, Vec<f64>) {
         let chosen_rewards: Vec<f64> = chosen_logratios.iter().map(|lr| self.beta * lr).collect();
-        let rejected_rewards: Vec<f64> = rejected_logratios.iter().map(|lr| self.beta * lr).collect();
+        let rejected_rewards: Vec<f64> =
+            rejected_logratios.iter().map(|lr| self.beta * lr).collect();
         (chosen_rewards, rejected_rewards)
     }
 
@@ -782,7 +802,10 @@ impl KtoConfig {
 
     /// Count desirable/undesirable split in a set of examples.
     pub fn count_splits(&self, kinds: &[KtoExampleKind]) -> (usize, usize) {
-        let desirable = kinds.iter().filter(|k| **k == KtoExampleKind::Desirable).count();
+        let desirable = kinds
+            .iter()
+            .filter(|k| **k == KtoExampleKind::Desirable)
+            .count();
         let undesirable = kinds.len() - desirable;
         (desirable, undesirable)
     }
@@ -827,8 +850,10 @@ impl OrpoConfig {
             // SFT loss: negative log-likelihood of chosen
             let sft_loss = -chosen_logprobs[i];
             // Odds ratio: odds(chosen) / odds(rejected)
-            let odds_chosen = chosen_logprobs[i].exp() / (1.0 - chosen_logprobs[i].exp()).max(1e-10);
-            let odds_rejected = rejected_logprobs[i].exp() / (1.0 - rejected_logprobs[i].exp()).max(1e-10);
+            let odds_chosen =
+                chosen_logprobs[i].exp() / (1.0 - chosen_logprobs[i].exp()).max(1e-10);
+            let odds_rejected =
+                rejected_logprobs[i].exp() / (1.0 - rejected_logprobs[i].exp()).max(1e-10);
             let log_odds_ratio = (odds_chosen / odds_rejected.max(1e-10)).ln();
             let or_loss = -log_sigmoid(log_odds_ratio);
             total += sft_loss + self.lambda * or_loss;
@@ -903,7 +928,8 @@ impl GrpoConfig {
         let mut policy_loss = 0.0;
         for i in 0..n {
             let unclipped = ratios[i] * advantages[i];
-            let clipped = ratios[i].clamp(1.0 - self.clip_range, 1.0 + self.clip_range) * advantages[i];
+            let clipped =
+                ratios[i].clamp(1.0 - self.clip_range, 1.0 + self.clip_range) * advantages[i];
             policy_loss += unclipped.min(clipped);
         }
         policy_loss = -(policy_loss / n as f64);
@@ -1067,8 +1093,9 @@ pub struct RewardModelEnsemble {
 impl RewardModelEnsemble {
     pub fn new(num_models: usize, aggregation: EnsembleAggregation) -> Self {
         let models: Vec<RewardModelConfig> = (0..num_models)
-            .map(|i| {
-                RewardModelConfig { model_name: format!("reward-model-{}", i), ..Default::default() }
+            .map(|i| RewardModelConfig {
+                model_name: format!("reward-model-{}", i),
+                ..Default::default()
             })
             .collect();
         let weights = vec![1.0 / num_models as f64; num_models];
@@ -1086,9 +1113,7 @@ impl RewardModelEnsemble {
             return 0.0;
         }
         match &self.aggregation {
-            EnsembleAggregation::Mean => {
-                scores.iter().sum::<f64>() / scores.len() as f64
-            }
+            EnsembleAggregation::Mean => scores.iter().sum::<f64>() / scores.len() as f64,
             EnsembleAggregation::Median => {
                 let mut sorted = scores.to_vec();
                 sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
@@ -1103,14 +1128,14 @@ impl RewardModelEnsemble {
                 let n = scores.len().min(self.weights.len());
                 let weighted_sum: f64 = (0..n).map(|i| scores[i] * self.weights[i]).sum();
                 let weight_sum: f64 = self.weights[..n].iter().sum();
-                if weight_sum > 0.0 { weighted_sum / weight_sum } else { 0.0 }
+                if weight_sum > 0.0 {
+                    weighted_sum / weight_sum
+                } else {
+                    0.0
+                }
             }
-            EnsembleAggregation::Min => {
-                scores.iter().cloned().fold(f64::INFINITY, f64::min)
-            }
-            EnsembleAggregation::Max => {
-                scores.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
-            }
+            EnsembleAggregation::Min => scores.iter().cloned().fold(f64::INFINITY, f64::min),
+            EnsembleAggregation::Max => scores.iter().cloned().fold(f64::NEG_INFINITY, f64::max),
         }
     }
 
@@ -1238,12 +1263,18 @@ impl ProcessRewardModel {
 
     /// Fraction of steps marked correct.
     pub fn correctness_ratio(&self) -> f64 {
-        let annotated: Vec<&ProcessRewardStep> =
-            self.steps.iter().filter(|s| s.is_correct.is_some()).collect();
+        let annotated: Vec<&ProcessRewardStep> = self
+            .steps
+            .iter()
+            .filter(|s| s.is_correct.is_some())
+            .collect();
         if annotated.is_empty() {
             return 0.0;
         }
-        let correct = annotated.iter().filter(|s| s.is_correct == Some(true)).count();
+        let correct = annotated
+            .iter()
+            .filter(|s| s.is_correct == Some(true))
+            .count();
         correct as f64 / annotated.len() as f64
     }
 }
@@ -1325,10 +1356,7 @@ impl ConstitutionalAiEngine {
             .map(|p| CritiqueRevisionResult {
                 principle_id: p.id.clone(),
                 original: response.to_string(),
-                critique: format!(
-                    "[Critique per '{}'] Checking: {}",
-                    p.name, p.description
-                ),
+                critique: format!("[Critique per '{}'] Checking: {}", p.name, p.description),
                 revised: response.to_string(), // placeholder
                 improvement_score: 0.0,
             })
@@ -1505,8 +1533,8 @@ impl RewardHackingDetector {
         if self.history.len() < 2 {
             return None;
         }
-        let hist_mean = self.history.iter().map(|s| s.mean_reward).sum::<f64>()
-            / self.history.len() as f64;
+        let hist_mean =
+            self.history.iter().map(|s| s.mean_reward).sum::<f64>() / self.history.len() as f64;
         let hist_var = self
             .history
             .iter()
@@ -1640,7 +1668,11 @@ impl AlignmentEvaluator {
     }
 
     /// Compute alignment tax: degradation in helpfulness relative to unaligned baseline.
-    pub fn compute_alignment_tax(&self, baseline_helpfulness: f64, aligned_helpfulness: f64) -> f64 {
+    pub fn compute_alignment_tax(
+        &self,
+        baseline_helpfulness: f64,
+        aligned_helpfulness: f64,
+    ) -> f64 {
         if baseline_helpfulness <= 0.0 {
             return 0.0;
         }
@@ -1893,8 +1925,16 @@ impl PipelineConfig {
             self.name,
             self.algorithm,
             self.current_stage,
-            if self.needs_reward_model() { "yes" } else { "no" },
-            if self.needs_reference_model() { "yes" } else { "no" },
+            if self.needs_reward_model() {
+                "yes"
+            } else {
+                "no"
+            },
+            if self.needs_reference_model() {
+                "yes"
+            } else {
+                "no"
+            },
         )
     }
 }
@@ -2017,11 +2057,23 @@ impl ModelMerger {
         for j in 0..len {
             let pos_sum: f64 = trimmed
                 .iter()
-                .map(|tv| if j < tv.len() && tv[j] > 0.0 { tv[j] } else { 0.0 })
+                .map(|tv| {
+                    if j < tv.len() && tv[j] > 0.0 {
+                        tv[j]
+                    } else {
+                        0.0
+                    }
+                })
                 .sum();
             let neg_sum: f64 = trimmed
                 .iter()
-                .map(|tv| if j < tv.len() && tv[j] < 0.0 { tv[j].abs() } else { 0.0 })
+                .map(|tv| {
+                    if j < tv.len() && tv[j] < 0.0 {
+                        tv[j].abs()
+                    } else {
+                        0.0
+                    }
+                })
                 .sum();
             let elected_sign = if pos_sum >= neg_sum { 1.0 } else { -1.0 };
 
@@ -2151,10 +2203,7 @@ impl DistributedConfig {
             "zero_optimization.offload_optimizer.device".to_string(),
             if self.cpu_offload { "cpu" } else { "none" }.to_string(),
         );
-        config.insert(
-            "gradient_clipping".to_string(),
-            "1.0".to_string(),
-        );
+        config.insert("gradient_clipping".to_string(), "1.0".to_string());
         config
     }
 }
@@ -2226,8 +2275,7 @@ mod tests {
     fn test_pipeline_stage_order() {
         assert!(PipelineStage::Sft.order() > PipelineStage::DataCollection.order());
         assert!(
-            PipelineStage::PolicyOptimization.order()
-                > PipelineStage::RewardModelTraining.order()
+            PipelineStage::PolicyOptimization.order() > PipelineStage::RewardModelTraining.order()
         );
     }
 
@@ -2447,11 +2495,7 @@ mod tests {
     #[test]
     fn test_kto_compute_loss_desirable() {
         let cfg = KtoConfig::default();
-        let loss = cfg.compute_loss(
-            &[1.0],
-            &[KtoExampleKind::Desirable],
-            0.0,
-        );
+        let loss = cfg.compute_loss(&[1.0], &[KtoExampleKind::Desirable], 0.0);
         // 1 - sigma(0.1 * (1.0 - 0.0)) = 1 - sigma(0.1)
         let expected = 1.0 - sigmoid(0.1);
         assert!((loss - expected).abs() < 1e-6);
@@ -2460,11 +2504,7 @@ mod tests {
     #[test]
     fn test_kto_compute_loss_undesirable() {
         let cfg = KtoConfig::default();
-        let loss = cfg.compute_loss(
-            &[-1.0],
-            &[KtoExampleKind::Undesirable],
-            0.0,
-        );
+        let loss = cfg.compute_loss(&[-1.0], &[KtoExampleKind::Undesirable], 0.0);
         // 1 - sigma(0.1 * (0.0 - (-1.0))) = 1 - sigma(0.1)
         let expected = 1.0 - sigmoid(0.1);
         assert!((loss - expected).abs() < 1e-6);
@@ -3476,7 +3516,9 @@ mod tests {
     #[test]
     fn test_model_merge_config_new() {
         let cfg = ModelMergeConfig::new(
-            MergeStrategy::Linear { weights: vec![0.5, 0.5] },
+            MergeStrategy::Linear {
+                weights: vec![0.5, 0.5],
+            },
             vec!["model-a".to_string(), "model-b".to_string()],
             "/output/merged",
         );
@@ -3542,7 +3584,9 @@ mod tests {
         };
         let ds_cfg = cfg.to_deepspeed_config();
         assert_eq!(
-            ds_cfg.get("zero_optimization.offload_optimizer.device").unwrap(),
+            ds_cfg
+                .get("zero_optimization.offload_optimizer.device")
+                .unwrap(),
             "cpu"
         );
     }
@@ -3584,7 +3628,13 @@ mod tests {
         for x in [-5.0, -1.0, 0.0, 1.0, 5.0] {
             let ls = log_sigmoid(x);
             let direct = sigmoid(x).ln();
-            assert!((ls - direct).abs() < 1e-8, "Mismatch at x={}: {} vs {}", x, ls, direct);
+            assert!(
+                (ls - direct).abs() < 1e-8,
+                "Mismatch at x={}: {} vs {}",
+                x,
+                ls,
+                direct
+            );
         }
     }
 
@@ -3594,7 +3644,10 @@ mod tests {
     fn test_merge_strategy_labels() {
         assert_eq!(MergeStrategy::Linear { weights: vec![] }.label(), "Linear");
         assert_eq!(
-            MergeStrategy::Slerp { interpolation_factor: 0.5 }.label(),
+            MergeStrategy::Slerp {
+                interpolation_factor: 0.5
+            }
+            .label(),
             "SLERP"
         );
         assert_eq!(
@@ -3606,7 +3659,11 @@ mod tests {
             "TIES"
         );
         assert_eq!(
-            MergeStrategy::Dare { density: 0.5, rescale: true }.label(),
+            MergeStrategy::Dare {
+                density: 0.5,
+                rescale: true
+            }
+            .label(),
             "DARE"
         );
     }
@@ -3633,7 +3690,9 @@ mod tests {
 
     #[test]
     fn test_hacking_signal_severity() {
-        assert!(HackingSignal::RewardCollapse.severity() > HackingSignal::LengthExploitation.severity());
+        assert!(
+            HackingSignal::RewardCollapse.severity() > HackingSignal::LengthExploitation.severity()
+        );
     }
 
     #[test]
@@ -3653,7 +3712,10 @@ mod tests {
     #[test]
     fn test_fsdp_sharding_strategy_display() {
         assert_eq!(format!("{}", FsdpShardingStrategy::FullShard), "FULL_SHARD");
-        assert_eq!(format!("{}", FsdpShardingStrategy::HybridShard), "HYBRID_SHARD");
+        assert_eq!(
+            format!("{}", FsdpShardingStrategy::HybridShard),
+            "HYBRID_SHARD"
+        );
     }
 
     #[test]

@@ -72,12 +72,16 @@ impl GithubAppConfig {
     pub fn resolve_webhook_secret(&self) -> Option<String> {
         if let Ok(store) = crate::profile_store::ProfileStore::new() {
             if let Ok(Some(s)) = store.get_api_key("default", "github_app_webhook_secret") {
-                if !s.is_empty() { return Some(s); }
+                if !s.is_empty() {
+                    return Some(s);
+                }
             }
         }
-        self.webhook_secret
-            .clone()
-            .or_else(|| std::env::var("GITHUB_APP_WEBHOOK_SECRET").ok().filter(|s| !s.is_empty()))
+        self.webhook_secret.clone().or_else(|| {
+            std::env::var("GITHUB_APP_WEBHOOK_SECRET")
+                .ok()
+                .filter(|s| !s.is_empty())
+        })
     }
 }
 
@@ -182,9 +186,13 @@ pub async fn review_pull_request(
     // 1. Post pending status check
     if let Some(ref tok) = token {
         let _ = post_status_check(
-            &full_name, head_sha, "pending",
-            "VibeCody is reviewing this PR...", tok,
-        ).await;
+            &full_name,
+            head_sha,
+            "pending",
+            "VibeCody is reviewing this PR...",
+            tok,
+        )
+        .await;
     }
 
     // 2. Fetch the PR diff
@@ -220,13 +228,19 @@ pub async fn review_pull_request(
 
     // 6. Post review comments to PR
     if !reports.is_empty() {
-        let _ = bugbot.post_github_review(owner, repo, pr_number, &reports, head_sha).await;
+        let _ = bugbot
+            .post_github_review(owner, repo, pr_number, &reports, head_sha)
+            .await;
     }
 
     // 7. Post final status check
     let summary = format!(
         "VibeCody found {} issue(s): {} critical, {} high, {} medium, {} low",
-        reports.len(), counts.critical, counts.high, counts.medium, counts.low
+        reports.len(),
+        counts.critical,
+        counts.high,
+        counts.medium,
+        counts.low
     );
 
     if let Some(ref tok) = token {
@@ -264,10 +278,14 @@ pub async fn review_pull_request(
 pub fn resolve_github_token() -> Option<String> {
     if let Ok(store) = crate::profile_store::ProfileStore::new() {
         if let Ok(Some(t)) = store.get_api_key("default", "github") {
-            if !t.is_empty() { return Some(t); }
+            if !t.is_empty() {
+                return Some(t);
+            }
         }
     }
-    std::env::var("GITHUB_TOKEN").ok().filter(|s| !s.is_empty())
+    std::env::var("GITHUB_TOKEN")
+        .ok()
+        .filter(|s| !s.is_empty())
         .or_else(|| std::env::var("GH_TOKEN").ok().filter(|s| !s.is_empty()))
 }
 
@@ -299,7 +317,11 @@ async fn fetch_pr_diff(
 
     let resp = req.send().await?;
     if !resp.status().is_success() {
-        anyhow::bail!("GitHub API returned {}: {}", resp.status(), resp.text().await.unwrap_or_default());
+        anyhow::bail!(
+            "GitHub API returned {}: {}",
+            resp.status(),
+            resp.text().await.unwrap_or_default()
+        );
     }
 
     Ok(resp.text().await?)
@@ -339,10 +361,7 @@ async fn post_status_check(
         .await?;
 
     if !resp.status().is_success() {
-        eprintln!(
-            "[github-app] Status check POST failed: {}",
-            resp.status()
-        );
+        eprintln!("[github-app] Status check POST failed: {}", resp.status());
     }
 
     Ok(())
@@ -379,8 +398,12 @@ pub async fn handle_webhook(
         _ => return Ok(None),
     }
 
-    let pr = webhook.pull_request.ok_or_else(|| anyhow::anyhow!("Missing pull_request"))?;
-    let repo = webhook.repository.ok_or_else(|| anyhow::anyhow!("Missing repository"))?;
+    let pr = webhook
+        .pull_request
+        .ok_or_else(|| anyhow::anyhow!("Missing pull_request"))?;
+    let repo = webhook
+        .repository
+        .ok_or_else(|| anyhow::anyhow!("Missing repository"))?;
 
     let parts: Vec<&str> = repo.full_name.split('/').collect();
     if parts.len() != 2 {
@@ -416,7 +439,11 @@ mod tests {
         mac.update(payload);
         let sig = hex::encode(mac.finalize().into_bytes());
 
-        assert!(verify_signature(secret, payload, &format!("sha256={}", sig)));
+        assert!(verify_signature(
+            secret,
+            payload,
+            &format!("sha256={}", sig)
+        ));
     }
 
     #[test]
@@ -456,7 +483,10 @@ mod tests {
     #[test]
     fn severity_counts_default() {
         let counts = SeverityCounts::default();
-        assert_eq!(counts.critical + counts.high + counts.medium + counts.low + counts.info, 0);
+        assert_eq!(
+            counts.critical + counts.high + counts.medium + counts.low + counts.info,
+            0
+        );
     }
 
     #[test]
@@ -515,7 +545,11 @@ mod tests {
         let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).unwrap();
         mac.update(payload);
         let sig = hex::encode(mac.finalize().into_bytes());
-        assert!(verify_signature(secret, payload, &format!("sha256={}", sig)));
+        assert!(verify_signature(
+            secret,
+            payload,
+            &format!("sha256={}", sig)
+        ));
     }
 
     #[test]
@@ -525,7 +559,11 @@ mod tests {
         let mut mac = HmacSha256::new_from_slice(secret.as_bytes()).unwrap();
         mac.update(payload);
         let sig = hex::encode(mac.finalize().into_bytes());
-        assert!(verify_signature(secret, payload, &format!("sha256={}", sig)));
+        assert!(verify_signature(
+            secret,
+            payload,
+            &format!("sha256={}", sig)
+        ));
     }
 
     #[test]
@@ -549,7 +587,10 @@ mod tests {
             webhook_secret: Some("inline-secret".into()),
             ..Default::default()
         };
-        assert_eq!(cfg.resolve_webhook_secret(), Some("inline-secret".to_string()));
+        assert_eq!(
+            cfg.resolve_webhook_secret(),
+            Some("inline-secret".to_string())
+        );
     }
 
     #[test]

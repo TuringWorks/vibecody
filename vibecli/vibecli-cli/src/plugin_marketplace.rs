@@ -23,15 +23,28 @@ pub struct SemVer {
 }
 
 impl SemVer {
-    pub fn new(major: u32, minor: u32, patch: u32) -> Self { Self { major, minor, patch } }
+    pub fn new(major: u32, minor: u32, patch: u32) -> Self {
+        Self {
+            major,
+            minor,
+            patch,
+        }
+    }
 
     pub fn parse(s: &str) -> Result<Self, String> {
         let parts: Vec<&str> = s.trim_start_matches('v').split('.').collect();
         if parts.len() != 3 {
             return Err(format!("Invalid semver: {}", s));
         }
-        let parse = |p: &str| p.parse::<u32>().map_err(|_| format!("Invalid number: {}", p));
-        Ok(Self::new(parse(parts[0])?, parse(parts[1])?, parse(parts[2])?))
+        let parse = |p: &str| {
+            p.parse::<u32>()
+                .map_err(|_| format!("Invalid number: {}", p))
+        };
+        Ok(Self::new(
+            parse(parts[0])?,
+            parse(parts[1])?,
+            parse(parts[2])?,
+        ))
     }
 }
 
@@ -104,14 +117,21 @@ pub struct PluginManifest {
 
 impl PluginManifest {
     pub fn rating_label(&self) -> &'static str {
-        if self.rating >= 4.5 { "★★★★★" }
-        else if self.rating >= 3.5 { "★★★★☆" }
-        else if self.rating >= 2.5 { "★★★☆☆" }
-        else { "★★☆☆☆" }
+        if self.rating >= 4.5 {
+            "★★★★★"
+        } else if self.rating >= 3.5 {
+            "★★★★☆"
+        } else if self.rating >= 2.5 {
+            "★★★☆☆"
+        } else {
+            "★★☆☆☆"
+        }
     }
 
     pub fn is_high_privilege(&self) -> bool {
-        self.permissions.iter().any(|p| matches!(p, Permission::ProcessSpawn | Permission::NetworkAccess))
+        self.permissions
+            .iter()
+            .any(|p| matches!(p, Permission::ProcessSpawn | Permission::NetworkAccess))
     }
 }
 
@@ -133,9 +153,15 @@ impl Default for PluginRegistry {
 }
 
 impl PluginRegistry {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
-    pub fn empty() -> Self { Self { plugins: HashMap::new() } }
+    pub fn empty() -> Self {
+        Self {
+            plugins: HashMap::new(),
+        }
+    }
 
     pub fn register(&mut self, manifest: PluginManifest) {
         self.plugins.insert(manifest.id.clone(), manifest);
@@ -152,30 +178,36 @@ impl PluginRegistry {
     }
 
     pub fn by_category(&self, category: &PluginCategory) -> Vec<&PluginManifest> {
-        self.all().into_iter()
+        self.all()
+            .into_iter()
             .filter(|p| &p.category == category)
             .collect()
     }
 
     pub fn search(&self, query: &str) -> Vec<&PluginManifest> {
         let q = query.to_lowercase();
-        self.all().into_iter()
+        self.all()
+            .into_iter()
             .filter(|p| {
                 p.name.to_lowercase().contains(&q)
-                || p.description.to_lowercase().contains(&q)
-                || p.tags.iter().any(|t| t.to_lowercase().contains(&q))
+                    || p.description.to_lowercase().contains(&q)
+                    || p.tags.iter().any(|t| t.to_lowercase().contains(&q))
             })
             .collect()
     }
 
-    pub fn total_count(&self) -> usize { self.plugins.len() }
+    pub fn total_count(&self) -> usize {
+        self.plugins.len()
+    }
 
     fn seed_demo_plugins(&mut self) {
         self.register(PluginManifest {
             id: "vibe-rust-extras".into(),
             name: "Rust Extras".into(),
             version: SemVer::new(1, 2, 0),
-            description: "Enhanced Rust code analysis, macro expansion previews, and clippy integration".into(),
+            description:
+                "Enhanced Rust code analysis, macro expansion previews, and clippy integration"
+                    .into(),
             author: "VibeTeam".into(),
             category: PluginCategory::LanguageSupport,
             tags: vec!["rust".into(), "analysis".into(), "macros".into()],
@@ -195,7 +227,11 @@ impl PluginRegistry {
             author: "CommunityPlugins".into(),
             category: PluginCategory::Formatting,
             tags: vec!["prettier".into(), "format".into(), "typescript".into()],
-            permissions: vec![Permission::ReadFiles, Permission::WriteFiles, Permission::ProcessSpawn],
+            permissions: vec![
+                Permission::ReadFiles,
+                Permission::WriteFiles,
+                Permission::ProcessSpawn,
+            ],
             wasm_url: "https://plugins.vibecody.dev/prettier-3.0.1.wasm".into(),
             sha256: "def456".into(),
             downloads: 95_000,
@@ -263,7 +299,9 @@ pub struct InstallManager {
 }
 
 impl InstallManager {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     /// Simulate one-click install: validates, (stub) downloads, registers.
     pub fn install(&mut self, manifest: PluginManifest, clock_ms: u64) -> Result<(), String> {
@@ -280,30 +318,38 @@ impl InstallManager {
             return Err("Plugin has no checksum — refusing to install".into());
         }
 
-        self.installed.insert(manifest.id.clone(), InstalledPlugin {
-            manifest,
-            installed_at_ms: clock_ms,
-            status: InstallStatus::Installed,
-            enabled: true,
-        });
+        self.installed.insert(
+            manifest.id.clone(),
+            InstalledPlugin {
+                manifest,
+                installed_at_ms: clock_ms,
+                status: InstallStatus::Installed,
+                enabled: true,
+            },
+        );
 
         Ok(())
     }
 
     pub fn uninstall(&mut self, id: &str) -> Result<(), String> {
-        self.installed.remove(id)
+        self.installed
+            .remove(id)
             .ok_or_else(|| format!("Plugin `{}` is not installed", id))?;
         Ok(())
     }
 
     pub fn enable(&mut self, id: &str, enabled: bool) -> Result<(), String> {
-        let plugin = self.installed.get_mut(id)
+        let plugin = self
+            .installed
+            .get_mut(id)
             .ok_or_else(|| format!("Plugin `{}` not found", id))?;
         plugin.enabled = enabled;
         Ok(())
     }
 
-    pub fn is_installed(&self, id: &str) -> bool { self.installed.contains_key(id) }
+    pub fn is_installed(&self, id: &str) -> bool {
+        self.installed.contains_key(id)
+    }
 
     pub fn list_installed(&self) -> Vec<&InstalledPlugin> {
         let mut v: Vec<&InstalledPlugin> = self.installed.values().collect();

@@ -254,8 +254,7 @@ impl WorktreePool {
         let duration = agent.updated_at.saturating_sub(agent.created_at) as f64;
         let total_completed = self.metrics.completed as f64;
         self.metrics.avg_duration_secs =
-            (self.metrics.avg_duration_secs * (total_completed - 1.0) + duration)
-                / total_completed;
+            (self.metrics.avg_duration_secs * (total_completed - 1.0) + duration) / total_completed;
         Ok(())
     }
 
@@ -318,11 +317,7 @@ impl WorktreePool {
     }
 
     /// Simulate merging an agent's branch into a target branch.
-    pub fn merge_agent(
-        &mut self,
-        id: &str,
-        target_branch: &str,
-    ) -> Result<MergeResult, String> {
+    pub fn merge_agent(&mut self, id: &str, target_branch: &str) -> Result<MergeResult, String> {
         let agent = self
             .agents
             .get_mut(id)
@@ -618,9 +613,7 @@ mod tests {
         let mut pool = pool_with_max(2);
         pool.spawn_agent("Task A", AgentType::VibeCody).unwrap();
         pool.spawn_agent("Task B", AgentType::VibeCody).unwrap();
-        let err = pool
-            .spawn_agent("Task C", AgentType::VibeCody)
-            .unwrap_err();
+        let err = pool.spawn_agent("Task C", AgentType::VibeCody).unwrap_err();
         assert!(err.contains("Max worktree limit reached"));
     }
 
@@ -651,9 +644,7 @@ mod tests {
     #[test]
     fn test_spawn_agent_sets_running_status() {
         let mut pool = default_pool();
-        let id = pool
-            .spawn_agent("Some task", AgentType::VibeCody)
-            .unwrap();
+        let id = pool.spawn_agent("Some task", AgentType::VibeCody).unwrap();
         let agent = pool.get_agent(&id).unwrap();
         assert_eq!(agent.status, WorktreeStatus::Running);
         assert_eq!(agent.progress_pct, 0);

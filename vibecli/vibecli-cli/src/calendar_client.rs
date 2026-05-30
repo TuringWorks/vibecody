@@ -153,11 +153,19 @@ impl CalendarClient {
     pub fn from_env_or_config() -> Option<Self> {
         // 0. ProfileStore (encrypted SQLite) — highest priority
         if let Ok(store) = crate::profile_store::ProfileStore::new() {
-            if let Ok(Some(tok)) = store.get_api_key("default", "integration.calendar.google_access_token") {
-                if !tok.is_empty() { return Some(Self::new(CalendarProvider::Google, tok)); }
+            if let Ok(Some(tok)) =
+                store.get_api_key("default", "integration.calendar.google_access_token")
+            {
+                if !tok.is_empty() {
+                    return Some(Self::new(CalendarProvider::Google, tok));
+                }
             }
-            if let Ok(Some(tok)) = store.get_api_key("default", "integration.calendar.outlook_access_token") {
-                if !tok.is_empty() { return Some(Self::new(CalendarProvider::Outlook, tok)); }
+            if let Ok(Some(tok)) =
+                store.get_api_key("default", "integration.calendar.outlook_access_token")
+            {
+                if !tok.is_empty() {
+                    return Some(Self::new(CalendarProvider::Outlook, tok));
+                }
             }
         }
         // 1. Google Calendar — env
@@ -360,21 +368,13 @@ impl CalendarClient {
             .as_array()
             .map(|arr| {
                 arr.iter()
-                    .filter_map(|a| {
-                        a["emailAddress"]["address"]
-                            .as_str()
-                            .map(String::from)
-                    })
+                    .filter_map(|a| a["emailAddress"]["address"].as_str().map(String::from))
                     .collect()
             })
             .unwrap_or_default();
         let status = if v["isCancelled"].as_bool().unwrap_or(false) {
             "cancelled".to_string()
-        } else if v["responseStatus"]["response"]
-            .as_str()
-            .unwrap_or("")
-            == "tentativelyAccepted"
-        {
+        } else if v["responseStatus"]["response"].as_str().unwrap_or("") == "tentativelyAccepted" {
             "tentative".to_string()
         } else {
             "confirmed".to_string()
@@ -511,11 +511,7 @@ impl CalendarClient {
     pub async fn delete_event(&self, event_id: &str) -> Result<()> {
         let url = match self.provider {
             CalendarProvider::Google => {
-                format!(
-                    "{}/calendars/primary/events/{}",
-                    self.base_url(),
-                    event_id
-                )
+                format!("{}/calendars/primary/events/{}", self.base_url(), event_id)
             }
             CalendarProvider::Outlook => {
                 format!("{}/events/{}", self.base_url(), event_id)
@@ -525,11 +521,7 @@ impl CalendarClient {
     }
 
     /// Move/reschedule an event to a new start time (keeps same duration).
-    pub async fn move_event(
-        &self,
-        event_id: &str,
-        new_start: &str,
-    ) -> Result<CalendarEvent> {
+    pub async fn move_event(&self, event_id: &str, new_start: &str) -> Result<CalendarEvent> {
         // We need the original event to compute duration.
         let events = self.list_upcoming(50).await?;
         let original = events
@@ -544,19 +536,14 @@ impl CalendarClient {
             .unwrap_or_else(|_| chrono::Utc::now().into());
         let duration = orig_end - orig_start;
 
-        let new_start_dt =
-            chrono::DateTime::parse_from_rfc3339(new_start)
-                .map_err(|e| anyhow!("Invalid datetime '{}': {}", new_start, e))?;
+        let new_start_dt = chrono::DateTime::parse_from_rfc3339(new_start)
+            .map_err(|e| anyhow!("Invalid datetime '{}': {}", new_start, e))?;
         let new_end_dt = new_start_dt + duration;
         let new_end = new_end_dt.to_rfc3339();
 
         let (url, payload) = match self.provider {
             CalendarProvider::Google => {
-                let url = format!(
-                    "{}/calendars/primary/events/{}",
-                    self.base_url(),
-                    event_id
-                );
+                let url = format!("{}/calendars/primary/events/{}", self.base_url(), event_id);
                 let payload = serde_json::json!({
                     "start": { "dateTime": new_start },
                     "end": { "dateTime": new_end },
@@ -697,7 +684,10 @@ pub fn compute_free_slots(events: &[CalendarEvent], date: chrono::NaiveDate) -> 
         .unwrap();
 
     // Collect busy intervals, clamped to work hours.
-    let mut busy: Vec<(chrono::DateTime<chrono::FixedOffset>, chrono::DateTime<chrono::FixedOffset>)> = Vec::new();
+    let mut busy: Vec<(
+        chrono::DateTime<chrono::FixedOffset>,
+        chrono::DateTime<chrono::FixedOffset>,
+    )> = Vec::new();
     for event in events {
         if event.status == "cancelled" {
             continue;
@@ -717,7 +707,10 @@ pub fn compute_free_slots(events: &[CalendarEvent], date: chrono::NaiveDate) -> 
     busy.sort_by_key(|(s, _)| *s);
 
     // Merge overlapping intervals.
-    let mut merged: Vec<(chrono::DateTime<chrono::FixedOffset>, chrono::DateTime<chrono::FixedOffset>)> = Vec::new();
+    let mut merged: Vec<(
+        chrono::DateTime<chrono::FixedOffset>,
+        chrono::DateTime<chrono::FixedOffset>,
+    )> = Vec::new();
     for (s, e) in &busy {
         if let Some(last) = merged.last_mut() {
             if *s <= last.1 {
@@ -992,8 +985,7 @@ pub async fn handle_calendar_command(args: &str) -> String {
             Err(e) => format!("❌ Calendar error: {}\n", e),
         },
 
-        _ => {
-            "Usage:\n  \
+        _ => "Usage:\n  \
              /calendar today          — Show today's events\n  \
              /calendar week           — Show this week's events\n  \
              /calendar list [N]       — List next N events (default 10)\n  \
@@ -1003,8 +995,7 @@ pub async fn handle_calendar_command(args: &str) -> String {
              /calendar move <id> --to <datetime>\n  \
              /calendar next           — Show next upcoming event\n  \
              /calendar remind         — 5-min reminder for next event\n"
-                .to_string()
-        }
+            .to_string(),
     }
 }
 
@@ -1058,7 +1049,13 @@ mod tests {
 
     #[test]
     fn format_line_includes_summary() {
-        let ev = make_event("1", "Team Standup", "2026-04-04T10:00:00Z", "2026-04-04T10:30:00Z", "confirmed");
+        let ev = make_event(
+            "1",
+            "Team Standup",
+            "2026-04-04T10:00:00Z",
+            "2026-04-04T10:30:00Z",
+            "confirmed",
+        );
         let line = ev.format_line();
         assert!(line.contains("Team Standup"));
         assert!(line.contains("✅"));
@@ -1066,7 +1063,13 @@ mod tests {
 
     #[test]
     fn format_line_with_location() {
-        let mut ev = make_event("1", "Lunch", "2026-04-04T12:00:00Z", "2026-04-04T13:00:00Z", "confirmed");
+        let mut ev = make_event(
+            "1",
+            "Lunch",
+            "2026-04-04T12:00:00Z",
+            "2026-04-04T13:00:00Z",
+            "confirmed",
+        );
         ev.location = Some("Cafe".to_string());
         let line = ev.format_line();
         assert!(line.contains("📍 Cafe"));
@@ -1174,8 +1177,18 @@ mod tests {
     fn free_slots_cancelled_events_ignored() {
         let date = chrono::NaiveDate::from_ymd_opt(2026, 4, 6).unwrap();
         let tz = chrono::Local::now().timezone();
-        let s = date.and_hms_opt(10, 0, 0).unwrap().and_local_timezone(tz).unwrap().to_rfc3339();
-        let e = date.and_hms_opt(11, 0, 0).unwrap().and_local_timezone(tz).unwrap().to_rfc3339();
+        let s = date
+            .and_hms_opt(10, 0, 0)
+            .unwrap()
+            .and_local_timezone(tz)
+            .unwrap()
+            .to_rfc3339();
+        let e = date
+            .and_hms_opt(11, 0, 0)
+            .unwrap()
+            .and_local_timezone(tz)
+            .unwrap()
+            .to_rfc3339();
         let events = vec![make_event("1", "Cancelled", &s, &e, "cancelled")];
         let slots = compute_free_slots(&events, date);
         assert_eq!(slots.len(), 1, "Cancelled event should be ignored");
@@ -1185,8 +1198,18 @@ mod tests {
     fn free_slots_one_event_two_gaps() {
         let date = chrono::NaiveDate::from_ymd_opt(2026, 4, 6).unwrap();
         let tz = chrono::Local::now().timezone();
-        let s = date.and_hms_opt(12, 0, 0).unwrap().and_local_timezone(tz).unwrap().to_rfc3339();
-        let e = date.and_hms_opt(13, 0, 0).unwrap().and_local_timezone(tz).unwrap().to_rfc3339();
+        let s = date
+            .and_hms_opt(12, 0, 0)
+            .unwrap()
+            .and_local_timezone(tz)
+            .unwrap()
+            .to_rfc3339();
+        let e = date
+            .and_hms_opt(13, 0, 0)
+            .unwrap()
+            .and_local_timezone(tz)
+            .unwrap()
+            .to_rfc3339();
         let events = vec![make_event("1", "Lunch", &s, &e, "confirmed")];
         let slots = compute_free_slots(&events, date);
         assert_eq!(slots.len(), 2, "Should have gap before and after event");
@@ -1196,10 +1219,30 @@ mod tests {
     fn free_slots_overlapping_events_merged() {
         let date = chrono::NaiveDate::from_ymd_opt(2026, 4, 6).unwrap();
         let tz = chrono::Local::now().timezone();
-        let s1 = date.and_hms_opt(10, 0, 0).unwrap().and_local_timezone(tz).unwrap().to_rfc3339();
-        let e1 = date.and_hms_opt(11, 30, 0).unwrap().and_local_timezone(tz).unwrap().to_rfc3339();
-        let s2 = date.and_hms_opt(11, 0, 0).unwrap().and_local_timezone(tz).unwrap().to_rfc3339();
-        let e2 = date.and_hms_opt(12, 0, 0).unwrap().and_local_timezone(tz).unwrap().to_rfc3339();
+        let s1 = date
+            .and_hms_opt(10, 0, 0)
+            .unwrap()
+            .and_local_timezone(tz)
+            .unwrap()
+            .to_rfc3339();
+        let e1 = date
+            .and_hms_opt(11, 30, 0)
+            .unwrap()
+            .and_local_timezone(tz)
+            .unwrap()
+            .to_rfc3339();
+        let s2 = date
+            .and_hms_opt(11, 0, 0)
+            .unwrap()
+            .and_local_timezone(tz)
+            .unwrap()
+            .to_rfc3339();
+        let e2 = date
+            .and_hms_opt(12, 0, 0)
+            .unwrap()
+            .and_local_timezone(tz)
+            .unwrap()
+            .to_rfc3339();
         let events = vec![
             make_event("1", "A", &s1, &e1, "confirmed"),
             make_event("2", "B", &s2, &e2, "confirmed"),
@@ -1242,7 +1285,10 @@ mod tests {
     #[test]
     fn extract_flag_present() {
         let parts = vec!["create", "Meeting", "--start", "2026-04-04T10:00:00Z"];
-        assert_eq!(extract_flag(&parts, "--start"), Some("2026-04-04T10:00:00Z"));
+        assert_eq!(
+            extract_flag(&parts, "--start"),
+            Some("2026-04-04T10:00:00Z")
+        );
     }
 
     #[test]
@@ -1419,11 +1465,7 @@ mod tests {
         std::env::remove_var("OUTLOOK_ACCESS_TOKEN");
         let out = handle_calendar_command("today").await;
         // May get "not configured" or valid output if config file has tokens
-        assert!(
-            out.contains("not configured")
-                || out.contains("Calendar")
-                || !out.is_empty()
-        );
+        assert!(out.contains("not configured") || out.contains("Calendar") || !out.is_empty());
     }
 
     #[tokio::test]
@@ -1455,9 +1497,7 @@ mod tests {
         let _lock = CALENDAR_ENV_LOCK.lock().unwrap();
         std::env::set_var("GOOGLE_CALENDAR_TOKEN", "fake-token");
         let out = handle_calendar_command("delete").await;
-        assert!(
-            out.contains("Usage:") || out.contains("not configured"),
-        );
+        assert!(out.contains("Usage:") || out.contains("not configured"),);
         std::env::remove_var("GOOGLE_CALENDAR_TOKEN");
     }
 
@@ -1466,9 +1506,7 @@ mod tests {
         let _lock = CALENDAR_ENV_LOCK.lock().unwrap();
         std::env::set_var("GOOGLE_CALENDAR_TOKEN", "fake-token");
         let out = handle_calendar_command("move").await;
-        assert!(
-            out.contains("Usage:") || out.contains("not configured"),
-        );
+        assert!(out.contains("Usage:") || out.contains("not configured"),);
         std::env::remove_var("GOOGLE_CALENDAR_TOKEN");
     }
 }

@@ -18,7 +18,11 @@ pub struct LeWorld {
 #[given(expr = "a LaneEventBuilder with type {string} and lane {string}")]
 fn builder_with_type(world: &mut LeWorld, type_str: String, lane: String) {
     let et = type_from(&type_str);
-    match LaneEventBuilder::new().event_type(et).lane_id(&lane).build() {
+    match LaneEventBuilder::new()
+        .event_type(et)
+        .lane_id(&lane)
+        .build()
+    {
         Ok(e) => world.built_event = Some(e),
         Err(e) => world.build_error = Some(e),
     }

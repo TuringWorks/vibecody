@@ -148,16 +148,17 @@ impl TokenRefresher {
                             state.lock().await.mint_count += 1;
                         }
                         Err(e) => {
-                            tracing::warn!(
-                                "token_refresher: mint for {key} failed: {e}"
-                            );
+                            tracing::warn!("token_refresher: mint for {key} failed: {e}");
                         }
                     }
                 }
                 tokio::time::sleep(interval).await;
             }
         });
-        RefreshHandle { join, state: self.state }
+        RefreshHandle {
+            join,
+            state: self.state,
+        }
     }
 }
 
@@ -185,8 +186,7 @@ mod tests {
     async fn first_tick_populates_store() {
         use crate::secrets::SecretStore;
         let secrets = Arc::new(InMemorySecretStore::new());
-        let refresher =
-            TokenRefresher::new(secrets.clone(), Duration::from_millis(50));
+        let refresher = TokenRefresher::new(secrets.clone(), Duration::from_millis(50));
         let calls = Arc::new(AtomicU64::new(0));
         refresher
             .register_azure(
@@ -200,8 +200,7 @@ mod tests {
         let handle = refresher.start();
         for _ in 0..50 {
             tokio::time::sleep(Duration::from_millis(20)).await;
-            if let Some(t) = secrets.resolve_azure(&SecretRef("@workspace.azure_default".into()))
-            {
+            if let Some(t) = secrets.resolve_azure(&SecretRef("@workspace.azure_default".into())) {
                 assert_eq!(t.token, "stub-azure");
                 handle.abort();
                 return;

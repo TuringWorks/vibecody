@@ -215,7 +215,9 @@ pub fn extract_diff(response: &str) -> (String, Option<String>) {
                 let trimmed = line.trim_start();
                 if trimmed.starts_with("```diff") || trimmed.starts_with("```patch") {
                     state = ExtractState::InDiff;
-                } else if trimmed.starts_with("```") && looks_like_diff_header(lines.peek().copied()) {
+                } else if trimmed.starts_with("```")
+                    && looks_like_diff_header(lines.peek().copied())
+                {
                     state = ExtractState::InDiff;
                 } else {
                     before.push(line);
@@ -244,11 +246,19 @@ pub fn extract_diff(response: &str) -> (String, Option<String>) {
     let mut prose = before;
     prose.extend(after);
     let prose_joined = prose.join("\n").trim().to_string();
-    let prose_opt = if prose_joined.is_empty() { None } else { Some(prose_joined) };
+    let prose_opt = if prose_joined.is_empty() {
+        None
+    } else {
+        Some(prose_joined)
+    };
     (diff, prose_opt)
 }
 
-enum ExtractState { Before, InDiff, After }
+enum ExtractState {
+    Before,
+    InDiff,
+    After,
+}
 
 fn looks_like_diff_header(next: Option<&str>) -> bool {
     matches!(next, Some(l) if l.starts_with("--- ") || l.starts_with("diff --git"))
@@ -267,7 +277,8 @@ pub async fn generate(
 ) -> Result<DiffCompleteResponse> {
     let provider_name = provider.name().to_string();
     let instruction_len = request.instruction.len();
-    let context_lines = request.before_context.lines().count() + request.after_context.lines().count();
+    let context_lines =
+        request.before_context.lines().count() + request.after_context.lines().count();
     let has_selection = request.selection_text.is_some();
     let is_refinement = request.previous_diff.is_some();
     let extra_files = request.additional_files.len();
@@ -369,12 +380,17 @@ mod tests {
     fn build_messages_inserts_memory_as_second_system_message() {
         let req = DiffCompleteRequest {
             project_memory: Some(
-                "## Project Instructions\n\nUse Rust edition 2021. Prefer `?` over `.unwrap()`.".to_string(),
+                "## Project Instructions\n\nUse Rust edition 2021. Prefer `?` over `.unwrap()`."
+                    .to_string(),
             ),
             ..request_stub()
         };
         let msgs = build_messages(&req);
-        assert_eq!(msgs.len(), 3, "memory present → 3 messages (sys + memory + user)");
+        assert_eq!(
+            msgs.len(),
+            3,
+            "memory present → 3 messages (sys + memory + user)"
+        );
         assert_eq!(msgs[0].role, MessageRole::System);
         assert_eq!(msgs[1].role, MessageRole::System);
         assert!(
@@ -451,7 +467,10 @@ mod tests {
 
     #[test]
     fn user_prompt_handles_no_selection() {
-        let req = DiffCompleteRequest { selection_text: None, ..request_stub() };
+        let req = DiffCompleteRequest {
+            selection_text: None,
+            ..request_stub()
+        };
         let p = build_user_prompt(&req);
         assert!(!p.contains("=== Selected"));
         assert!(p.contains("=== Before selection ==="));
@@ -502,7 +521,8 @@ mod tests {
     fn user_prompt_renders_previous_attempt_and_refinement() {
         let req = DiffCompleteRequest {
             previous_diff: Some(
-                "--- a/src/lib.rs\n+++ b/src/lib.rs\n@@ -10 +10 @@\n-let x = 1;\n+let count = 1;\n".to_string(),
+                "--- a/src/lib.rs\n+++ b/src/lib.rs\n@@ -10 +10 @@\n-let x = 1;\n+let count = 1;\n"
+                    .to_string(),
             ),
             refinement: Some("also add a doc comment".to_string()),
             ..request_stub()
@@ -585,9 +605,8 @@ mod tests {
     #[tokio::test]
     async fn generate_returns_parsed_diff() {
         let mock_response = "Here's the change:\n```diff\n--- a/src/lib.rs\n+++ b/src/lib.rs\n@@ -10,1 +10,1 @@\n-let x = 1;\n+let count = 1;\n```";
-        let provider: Arc<dyn AIProvider> = Arc::new(
-            MockAIProvider::with_responses("mock", vec![mock_response]),
-        );
+        let provider: Arc<dyn AIProvider> =
+            Arc::new(MockAIProvider::with_responses("mock", vec![mock_response]));
 
         let response = generate(provider, request_stub()).await.unwrap();
 
@@ -600,9 +619,10 @@ mod tests {
 
     #[tokio::test]
     async fn generate_errors_when_no_diff_in_response() {
-        let provider: Arc<dyn AIProvider> = Arc::new(
-            MockAIProvider::with_responses("mock", vec!["Sorry, I cannot help."]),
-        );
+        let provider: Arc<dyn AIProvider> = Arc::new(MockAIProvider::with_responses(
+            "mock",
+            vec!["Sorry, I cannot help."],
+        ));
         let err = generate(provider, request_stub()).await.unwrap_err();
         assert!(err.to_string().contains("did not contain a diff"));
     }

@@ -510,7 +510,8 @@ fn detect_go(workspace: &Path, profile: &mut ProjectProfile) {
 
 fn detect_java(workspace: &Path, profile: &mut ProjectProfile) {
     let has_maven = workspace.join("pom.xml").exists();
-    let has_gradle = workspace.join("build.gradle").exists() || workspace.join("build.gradle.kts").exists();
+    let has_gradle =
+        workspace.join("build.gradle").exists() || workspace.join("build.gradle.kts").exists();
     if !has_maven && !has_gradle {
         return;
     }
@@ -529,7 +530,11 @@ fn detect_java(workspace: &Path, profile: &mut ProjectProfile) {
         profile.package_managers.push("maven".to_string());
     }
     if has_gradle {
-        let wrapper = if workspace.join("gradlew").exists() { "./gradlew" } else { "gradle" };
+        let wrapper = if workspace.join("gradlew").exists() {
+            "./gradlew"
+        } else {
+            "gradle"
+        };
         profile.build_commands.push(BuildCommand {
             label: "Gradle build".to_string(),
             command: format!("{} build", wrapper),
@@ -546,12 +551,21 @@ fn detect_java(workspace: &Path, profile: &mut ProjectProfile) {
 
 fn detect_dotnet(workspace: &Path, profile: &mut ProjectProfile) {
     let has_csproj = std::fs::read_dir(workspace)
-        .map(|entries| entries.filter_map(|e| e.ok())
-            .any(|e| e.path().extension().map(|x| x == "csproj" || x == "fsproj").unwrap_or(false)))
+        .map(|entries| {
+            entries.filter_map(|e| e.ok()).any(|e| {
+                e.path()
+                    .extension()
+                    .map(|x| x == "csproj" || x == "fsproj")
+                    .unwrap_or(false)
+            })
+        })
         .unwrap_or(false);
     let has_sln = std::fs::read_dir(workspace)
-        .map(|entries| entries.filter_map(|e| e.ok())
-            .any(|e| e.path().extension().map(|x| x == "sln").unwrap_or(false)))
+        .map(|entries| {
+            entries
+                .filter_map(|e| e.ok())
+                .any(|e| e.path().extension().map(|x| x == "sln").unwrap_or(false))
+        })
         .unwrap_or(false);
 
     if !has_csproj && !has_sln {
@@ -632,7 +646,13 @@ fn detect_architecture(workspace: &Path, profile: &mut ProjectProfile) {
     let has_pnpm_ws = workspace.join("pnpm-workspace.yaml").exists();
     let has_turborepo = workspace.join("turbo.json").exists();
 
-    if has_workspace_cargo || has_workspace_npm || has_lerna || has_nx || has_pnpm_ws || has_turborepo {
+    if has_workspace_cargo
+        || has_workspace_npm
+        || has_lerna
+        || has_nx
+        || has_pnpm_ws
+        || has_turborepo
+    {
         profile.architecture = ProjectArchitecture::Monorepo;
         return;
     }
@@ -685,7 +705,8 @@ fn detect_architecture(workspace: &Path, profile: &mut ProjectProfile) {
         if let Ok(content) = std::fs::read_to_string(workspace.join("docker-compose.yml"))
             .or_else(|_| std::fs::read_to_string(workspace.join("docker-compose.yaml")))
         {
-            let service_count = content.matches("image:").count() + content.matches("build:").count();
+            let service_count =
+                content.matches("image:").count() + content.matches("build:").count();
             if service_count >= 3 {
                 profile.architecture = ProjectArchitecture::MicroserviceCluster;
                 return;
@@ -700,24 +721,70 @@ fn detect_architecture(workspace: &Path, profile: &mut ProjectProfile) {
 
 fn collect_key_files(workspace: &Path, profile: &mut ProjectProfile) {
     let key_file_specs: Vec<(&[&str], KeyFileRole, usize)> = vec![
-        (&["README.md", "readme.md", "README.rst", "README"], KeyFileRole::Readme, 60),
-        (&["CONTRIBUTING.md", "CONTRIBUTING.rst"], KeyFileRole::Contributing, 30),
-        (&[".env.example", ".env.sample", ".env.template"], KeyFileRole::EnvExample, 40),
+        (
+            &["README.md", "readme.md", "README.rst", "README"],
+            KeyFileRole::Readme,
+            60,
+        ),
+        (
+            &["CONTRIBUTING.md", "CONTRIBUTING.rst"],
+            KeyFileRole::Contributing,
+            30,
+        ),
+        (
+            &[".env.example", ".env.sample", ".env.template"],
+            KeyFileRole::EnvExample,
+            40,
+        ),
         (&["Dockerfile", "dockerfile"], KeyFileRole::Dockerfile, 30),
-        (&[
-            ".github/workflows/ci.yml", ".github/workflows/ci.yaml",
-            ".github/workflows/build.yml", ".github/workflows/test.yml",
-            ".gitlab-ci.yml", ".circleci/config.yml", "Jenkinsfile",
-        ], KeyFileRole::CIConfig, 30),
-        (&["openapi.yaml", "openapi.json", "swagger.yaml", "swagger.json", "api.yaml"], KeyFileRole::APISpec, 40),
-        (&[
-            "tsconfig.json", "vite.config.ts", "next.config.js", "next.config.mjs",
-            "webpack.config.js", "tailwind.config.js", "tailwind.config.ts",
-        ], KeyFileRole::Config, 20),
-        (&[
-            "jest.config.js", "jest.config.ts", "vitest.config.ts",
-            "pytest.ini", "phpunit.xml",
-        ], KeyFileRole::TestConfig, 15),
+        (
+            &[
+                ".github/workflows/ci.yml",
+                ".github/workflows/ci.yaml",
+                ".github/workflows/build.yml",
+                ".github/workflows/test.yml",
+                ".gitlab-ci.yml",
+                ".circleci/config.yml",
+                "Jenkinsfile",
+            ],
+            KeyFileRole::CIConfig,
+            30,
+        ),
+        (
+            &[
+                "openapi.yaml",
+                "openapi.json",
+                "swagger.yaml",
+                "swagger.json",
+                "api.yaml",
+            ],
+            KeyFileRole::APISpec,
+            40,
+        ),
+        (
+            &[
+                "tsconfig.json",
+                "vite.config.ts",
+                "next.config.js",
+                "next.config.mjs",
+                "webpack.config.js",
+                "tailwind.config.js",
+                "tailwind.config.ts",
+            ],
+            KeyFileRole::Config,
+            20,
+        ),
+        (
+            &[
+                "jest.config.js",
+                "jest.config.ts",
+                "vitest.config.ts",
+                "pytest.ini",
+                "phpunit.xml",
+            ],
+            KeyFileRole::TestConfig,
+            15,
+        ),
     ];
 
     for (filenames, role, max_lines) in key_file_specs {
@@ -725,7 +792,8 @@ fn collect_key_files(workspace: &Path, profile: &mut ProjectProfile) {
             let path = workspace.join(filename);
             if path.exists() {
                 if let Ok(content) = std::fs::read_to_string(&path) {
-                    let preview: String = content.lines()
+                    let preview: String = content
+                        .lines()
                         .take(max_lines)
                         .collect::<Vec<_>>()
                         .join("\n");
@@ -742,9 +810,12 @@ fn collect_key_files(workspace: &Path, profile: &mut ProjectProfile) {
 
     // Schema files (search for common patterns)
     for schema_name in &[
-        "schema.prisma", "prisma/schema.prisma",
-        "drizzle.config.ts", "knexfile.js",
-        "migrations/", "db/schema.rb",
+        "schema.prisma",
+        "prisma/schema.prisma",
+        "drizzle.config.ts",
+        "knexfile.js",
+        "migrations/",
+        "db/schema.rb",
     ] {
         let path = workspace.join(schema_name);
         if path.exists() && path.is_file() {
@@ -765,16 +836,33 @@ fn collect_key_files(workspace: &Path, profile: &mut ProjectProfile) {
 
 fn detect_entry_points(workspace: &Path, profile: &mut ProjectProfile) {
     let candidates = [
-        "src/main.rs", "src/lib.rs",
-        "src/index.ts", "src/index.tsx", "src/index.js", "src/index.jsx",
-        "src/App.tsx", "src/App.jsx", "src/App.vue", "src/App.svelte",
-        "src/main.ts", "src/main.tsx", "src/main.js",
-        "main.go", "cmd/main.go",
-        "app/main.py", "main.py", "app.py", "manage.py",
-        "src/main/java", "src/main/kotlin",
-        "index.html", "public/index.html",
-        "pages/index.tsx", "pages/index.jsx",
-        "app/page.tsx", "app/page.jsx",
+        "src/main.rs",
+        "src/lib.rs",
+        "src/index.ts",
+        "src/index.tsx",
+        "src/index.js",
+        "src/index.jsx",
+        "src/App.tsx",
+        "src/App.jsx",
+        "src/App.vue",
+        "src/App.svelte",
+        "src/main.ts",
+        "src/main.tsx",
+        "src/main.js",
+        "main.go",
+        "cmd/main.go",
+        "app/main.py",
+        "main.py",
+        "app.py",
+        "manage.py",
+        "src/main/java",
+        "src/main/kotlin",
+        "index.html",
+        "public/index.html",
+        "pages/index.tsx",
+        "pages/index.jsx",
+        "app/page.tsx",
+        "app/page.jsx",
     ];
 
     for candidate in &candidates {
@@ -829,27 +917,36 @@ fn generate_summary(profile: &ProjectProfile) -> String {
 
     if !profile.build_commands.is_empty() {
         summary.push_str("\n\nBuild: ");
-        let cmds: Vec<_> = profile.build_commands.iter()
+        let cmds: Vec<_> = profile
+            .build_commands
+            .iter()
             .map(|c| format!("`{}`", c.command))
             .collect();
         summary.push_str(&cmds.join(" | "));
     }
     if !profile.test_commands.is_empty() {
         summary.push_str("\nTest: ");
-        let cmds: Vec<_> = profile.test_commands.iter()
+        let cmds: Vec<_> = profile
+            .test_commands
+            .iter()
             .map(|c| format!("`{}` ({})", c.command, c.framework))
             .collect();
         summary.push_str(&cmds.join(" | "));
     }
     if !profile.lint_commands.is_empty() {
         summary.push_str("\nLint: ");
-        let cmds: Vec<_> = profile.lint_commands.iter()
+        let cmds: Vec<_> = profile
+            .lint_commands
+            .iter()
             .map(|c| format!("`{}`", c.command))
             .collect();
         summary.push_str(&cmds.join(" | "));
     }
     if !profile.entry_points.is_empty() {
-        summary.push_str(&format!("\nEntry points: {}", profile.entry_points.join(", ")));
+        summary.push_str(&format!(
+            "\nEntry points: {}",
+            profile.entry_points.join(", ")
+        ));
     }
 
     summary
@@ -927,21 +1024,113 @@ pub fn extract_relevant_files_for_task(workspace: &Path, task: &str) -> Vec<Stri
 
     // 2. Keyword-based file matching
     let keyword_file_map: Vec<(&[&str], &[&str])> = vec![
-        (&["test", "spec", "testing"], &["tests/", "test/", "__tests__/", "spec/", "pytest.ini", "jest.config.js", "vitest.config.ts"]),
-        (&["build", "compile", "bundle"], &["Cargo.toml", "package.json", "tsconfig.json", "webpack.config.js", "vite.config.ts"]),
-        (&["deploy", "ci", "pipeline"], &[".github/workflows/", ".gitlab-ci.yml", "Dockerfile", "docker-compose.yml"]),
-        (&["auth", "login", "session", "jwt"], &["src/auth/", "src/middleware/", "src/lib/auth/"]),
-        (&["database", "db", "migration", "schema", "model"], &["prisma/", "migrations/", "src/models/", "src/db/", "schema.prisma"]),
-        (&["api", "endpoint", "route", "handler"], &["src/api/", "src/routes/", "src/handlers/", "src/controllers/", "pages/api/"]),
-        (&["style", "css", "theme", "design"], &["src/styles/", "tailwind.config.js", "src/App.css", "src/index.css"]),
-        (&["config", "setting", "env"], &[".env.example", "config/", "src/config/", "src/config.rs", "src/config.ts"]),
-        (&["readme", "doc", "documentation"], &["README.md", "docs/", "CONTRIBUTING.md"]),
-        (&["lint", "format", "eslint", "prettier", "clippy"], &[".eslintrc", "eslint.config.js", "biome.json", "rustfmt.toml"]),
-        (&["component", "ui", "widget", "panel"], &["src/components/", "src/ui/"]),
-        (&["hook", "middleware", "plugin"], &["src/hooks/", "src/middleware/", "src/plugins/"]),
-        (&["error", "bug", "fix", "crash"], &["src/", "Cargo.toml", "package.json"]),
-        (&["performance", "optimize", "speed", "memory"], &["src/", "Cargo.toml"]),
-        (&["security", "vulnerability", "xss", "injection"], &["src/", "Cargo.toml", "package.json"]),
+        (
+            &["test", "spec", "testing"],
+            &[
+                "tests/",
+                "test/",
+                "__tests__/",
+                "spec/",
+                "pytest.ini",
+                "jest.config.js",
+                "vitest.config.ts",
+            ],
+        ),
+        (
+            &["build", "compile", "bundle"],
+            &[
+                "Cargo.toml",
+                "package.json",
+                "tsconfig.json",
+                "webpack.config.js",
+                "vite.config.ts",
+            ],
+        ),
+        (
+            &["deploy", "ci", "pipeline"],
+            &[
+                ".github/workflows/",
+                ".gitlab-ci.yml",
+                "Dockerfile",
+                "docker-compose.yml",
+            ],
+        ),
+        (
+            &["auth", "login", "session", "jwt"],
+            &["src/auth/", "src/middleware/", "src/lib/auth/"],
+        ),
+        (
+            &["database", "db", "migration", "schema", "model"],
+            &[
+                "prisma/",
+                "migrations/",
+                "src/models/",
+                "src/db/",
+                "schema.prisma",
+            ],
+        ),
+        (
+            &["api", "endpoint", "route", "handler"],
+            &[
+                "src/api/",
+                "src/routes/",
+                "src/handlers/",
+                "src/controllers/",
+                "pages/api/",
+            ],
+        ),
+        (
+            &["style", "css", "theme", "design"],
+            &[
+                "src/styles/",
+                "tailwind.config.js",
+                "src/App.css",
+                "src/index.css",
+            ],
+        ),
+        (
+            &["config", "setting", "env"],
+            &[
+                ".env.example",
+                "config/",
+                "src/config/",
+                "src/config.rs",
+                "src/config.ts",
+            ],
+        ),
+        (
+            &["readme", "doc", "documentation"],
+            &["README.md", "docs/", "CONTRIBUTING.md"],
+        ),
+        (
+            &["lint", "format", "eslint", "prettier", "clippy"],
+            &[
+                ".eslintrc",
+                "eslint.config.js",
+                "biome.json",
+                "rustfmt.toml",
+            ],
+        ),
+        (
+            &["component", "ui", "widget", "panel"],
+            &["src/components/", "src/ui/"],
+        ),
+        (
+            &["hook", "middleware", "plugin"],
+            &["src/hooks/", "src/middleware/", "src/plugins/"],
+        ),
+        (
+            &["error", "bug", "fix", "crash"],
+            &["src/", "Cargo.toml", "package.json"],
+        ),
+        (
+            &["performance", "optimize", "speed", "memory"],
+            &["src/", "Cargo.toml"],
+        ),
+        (
+            &["security", "vulnerability", "xss", "injection"],
+            &["src/", "Cargo.toml", "package.json"],
+        ),
     ];
 
     for (keywords, file_patterns) in &keyword_file_map {
@@ -956,7 +1145,13 @@ pub fn extract_relevant_files_for_task(workspace: &Path, task: &str) -> Vec<Stri
     }
 
     // 3. Always include key project files for brownfield understanding
-    for key_file in &["README.md", "package.json", "Cargo.toml", "go.mod", "pyproject.toml"] {
+    for key_file in &[
+        "README.md",
+        "package.json",
+        "Cargo.toml",
+        "go.mod",
+        "pyproject.toml",
+    ] {
         if workspace.join(key_file).exists() && !relevant.iter().any(|(p, _)| p == *key_file) {
             relevant.push((key_file.to_string(), 10));
         }
@@ -997,8 +1192,7 @@ pub fn load_cached_profile(workspace: &Path, max_age_secs: u64) -> Option<Projec
 pub fn save_profile_cache(workspace: &Path, profile: &ProjectProfile) -> std::io::Result<()> {
     let dir = workspace.join(".vibecli");
     std::fs::create_dir_all(&dir)?;
-    let content = serde_json::to_string_pretty(profile)
-        .map_err(std::io::Error::other)?;
+    let content = serde_json::to_string_pretty(profile).map_err(std::io::Error::other)?;
     std::fs::write(dir.join("project-profile.json"), content)
 }
 
@@ -1032,7 +1226,10 @@ impl ProjectProfile {
             out.push_str(&format!("Frameworks: {}\n", self.frameworks.join(", ")));
         }
         if !self.package_managers.is_empty() {
-            out.push_str(&format!("Package managers: {}\n", self.package_managers.join(", ")));
+            out.push_str(&format!(
+                "Package managers: {}\n",
+                self.package_managers.join(", ")
+            ));
         }
 
         if !self.build_commands.is_empty() {
@@ -1044,7 +1241,10 @@ impl ProjectProfile {
         if !self.test_commands.is_empty() {
             out.push_str("\nTest commands:\n");
             for cmd in &self.test_commands {
-                out.push_str(&format!("  {} → {} ({})\n", cmd.label, cmd.command, cmd.framework));
+                out.push_str(&format!(
+                    "  {} → {} ({})\n",
+                    cmd.label, cmd.command, cmd.framework
+                ));
             }
         }
         if !self.lint_commands.is_empty() {
@@ -1054,14 +1254,26 @@ impl ProjectProfile {
             }
         }
         if !self.entry_points.is_empty() {
-            out.push_str(&format!("\nEntry points: {}\n", self.entry_points.join(", ")));
+            out.push_str(&format!(
+                "\nEntry points: {}\n",
+                self.entry_points.join(", ")
+            ));
         }
         if !self.env_vars.is_empty() {
-            out.push_str(&format!("\nExpected env vars: {}\n", self.env_vars.join(", ")));
+            out.push_str(&format!(
+                "\nExpected env vars: {}\n",
+                self.env_vars.join(", ")
+            ));
         }
         if !self.key_files.is_empty() {
-            out.push_str(&format!("\nKey files: {}\n",
-                self.key_files.iter().map(|f| format!("{} ({})", f.path, f.role)).collect::<Vec<_>>().join(", ")));
+            out.push_str(&format!(
+                "\nKey files: {}\n",
+                self.key_files
+                    .iter()
+                    .map(|f| format!("{} ({})", f.path, f.role))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
         }
 
         out
@@ -1076,14 +1288,20 @@ impl ProjectProfile {
         // Include key file previews (README especially)
         for kf in &self.key_files {
             if kf.role == KeyFileRole::Readme && !kf.preview.is_empty() {
-                ctx.push_str(&format!("\n\n### {} (first lines)\n```\n{}\n```", kf.path, kf.preview));
+                ctx.push_str(&format!(
+                    "\n\n### {} (first lines)\n```\n{}\n```",
+                    kf.path, kf.preview
+                ));
                 break;
             }
         }
 
         // Include env vars if any
         if !self.env_vars.is_empty() {
-            ctx.push_str(&format!("\n\nRequired env vars: {}", self.env_vars.join(", ")));
+            ctx.push_str(&format!(
+                "\n\nRequired env vars: {}",
+                self.env_vars.join(", ")
+            ));
         }
 
         ctx
@@ -1115,14 +1333,18 @@ mod tests {
     #[test]
     fn scan_rust_project() {
         let (_dir, path) = temp_workspace();
-        fs::write(path.join("Cargo.toml"), r#"
+        fs::write(
+            path.join("Cargo.toml"),
+            r#"
 [package]
 name = "myapp"
 version = "0.1.0"
 
 [dependencies]
 tokio = "1"
-"#).unwrap();
+"#,
+        )
+        .unwrap();
         fs::create_dir_all(path.join("src")).unwrap();
         fs::write(path.join("src/main.rs"), "fn main() {}").unwrap();
 
@@ -1137,13 +1359,17 @@ tokio = "1"
     #[test]
     fn scan_node_react_project() {
         let (_dir, path) = temp_workspace();
-        fs::write(path.join("package.json"), r#"{
+        fs::write(
+            path.join("package.json"),
+            r#"{
             "name": "my-react-app",
             "description": "A cool app",
             "dependencies": { "react": "^18.0.0", "vite": "^5.0.0" },
             "devDependencies": { "vitest": "^1.0.0", "eslint": "^8.0.0" },
             "scripts": { "build": "vite build", "test": "vitest", "dev": "vite" }
-        }"#).unwrap();
+        }"#,
+        )
+        .unwrap();
         fs::write(path.join("tsconfig.json"), "{}").unwrap();
         fs::create_dir_all(path.join("src")).unwrap();
         fs::write(path.join("src/App.tsx"), "export default function App() {}").unwrap();
@@ -1153,14 +1379,25 @@ tokio = "1"
         assert!(profile.frameworks.contains(&"React".to_string()));
         assert!(profile.frameworks.contains(&"Vite".to_string()));
         assert!(!profile.test_commands.is_empty());
-        assert!(profile.test_commands.iter().any(|t| t.framework == "Vitest"));
+        assert!(profile
+            .test_commands
+            .iter()
+            .any(|t| t.framework == "Vitest"));
     }
 
     #[test]
     fn scan_monorepo() {
         let (_dir, path) = temp_workspace();
-        fs::write(path.join("Cargo.toml"), "[workspace]\nmembers = [\"crates/*\"]").unwrap();
-        fs::write(path.join("package.json"), r#"{"workspaces": ["packages/*"]}"#).unwrap();
+        fs::write(
+            path.join("Cargo.toml"),
+            "[workspace]\nmembers = [\"crates/*\"]",
+        )
+        .unwrap();
+        fs::write(
+            path.join("package.json"),
+            r#"{"workspaces": ["packages/*"]}"#,
+        )
+        .unwrap();
 
         let profile = scan_workspace(&path);
         assert_eq!(profile.architecture, ProjectArchitecture::Monorepo);
@@ -1169,20 +1406,31 @@ tokio = "1"
     #[test]
     fn scan_python_django() {
         let (_dir, path) = temp_workspace();
-        fs::write(path.join("requirements.txt"), "django>=4.0\ndjango-rest-framework").unwrap();
+        fs::write(
+            path.join("requirements.txt"),
+            "django>=4.0\ndjango-rest-framework",
+        )
+        .unwrap();
         fs::write(path.join("manage.py"), "#!/usr/bin/env python").unwrap();
         fs::write(path.join("pytest.ini"), "[pytest]").unwrap();
 
         let profile = scan_workspace(&path);
         assert!(profile.languages.contains(&"Python".to_string()));
         assert!(profile.frameworks.contains(&"Django".to_string()));
-        assert!(profile.test_commands.iter().any(|t| t.framework == "pytest"));
+        assert!(profile
+            .test_commands
+            .iter()
+            .any(|t| t.framework == "pytest"));
     }
 
     #[test]
     fn scan_go_project() {
         let (_dir, path) = temp_workspace();
-        fs::write(path.join("go.mod"), "module example.com/myapp\n\nrequire github.com/gin-gonic/gin v1.9.0").unwrap();
+        fs::write(
+            path.join("go.mod"),
+            "module example.com/myapp\n\nrequire github.com/gin-gonic/gin v1.9.0",
+        )
+        .unwrap();
         fs::write(path.join("main.go"), "package main").unwrap();
 
         let profile = scan_workspace(&path);
@@ -1193,14 +1441,35 @@ tokio = "1"
     #[test]
     fn key_files_collected() {
         let (_dir, path) = temp_workspace();
-        fs::write(path.join("README.md"), "# My Project\n\nThis is a great project.\n\n## Setup\nRun npm install.").unwrap();
-        fs::write(path.join("Dockerfile"), "FROM node:20\nWORKDIR /app\nCOPY . .\nRUN npm install").unwrap();
-        fs::write(path.join(".env.example"), "DATABASE_URL=postgres://...\nAPI_KEY=your-key").unwrap();
+        fs::write(
+            path.join("README.md"),
+            "# My Project\n\nThis is a great project.\n\n## Setup\nRun npm install.",
+        )
+        .unwrap();
+        fs::write(
+            path.join("Dockerfile"),
+            "FROM node:20\nWORKDIR /app\nCOPY . .\nRUN npm install",
+        )
+        .unwrap();
+        fs::write(
+            path.join(".env.example"),
+            "DATABASE_URL=postgres://...\nAPI_KEY=your-key",
+        )
+        .unwrap();
 
         let profile = scan_workspace(&path);
-        assert!(profile.key_files.iter().any(|f| f.role == KeyFileRole::Readme));
-        assert!(profile.key_files.iter().any(|f| f.role == KeyFileRole::Dockerfile));
-        assert!(profile.key_files.iter().any(|f| f.role == KeyFileRole::EnvExample));
+        assert!(profile
+            .key_files
+            .iter()
+            .any(|f| f.role == KeyFileRole::Readme));
+        assert!(profile
+            .key_files
+            .iter()
+            .any(|f| f.role == KeyFileRole::Dockerfile));
+        assert!(profile
+            .key_files
+            .iter()
+            .any(|f| f.role == KeyFileRole::EnvExample));
         assert!(profile.env_vars.contains(&"DATABASE_URL".to_string()));
         assert!(profile.env_vars.contains(&"API_KEY".to_string()));
     }
@@ -1234,7 +1503,9 @@ tokio = "1"
         fs::write(path.join("docker-compose.yml"), "services:").unwrap();
 
         let files = extract_relevant_files_for_task(&path, "deploy to production");
-        assert!(files.iter().any(|f| f.contains("Dockerfile") || f.contains("docker")));
+        assert!(files
+            .iter()
+            .any(|f| f.contains("Dockerfile") || f.contains("docker")));
     }
 
     #[test]
@@ -1251,7 +1522,11 @@ tokio = "1"
     #[test]
     fn summary_generation() {
         let (_dir, path) = temp_workspace();
-        fs::write(path.join("Cargo.toml"), "[package]\nname = \"myapp\"\n\n[dependencies]\ntokio = \"1\"").unwrap();
+        fs::write(
+            path.join("Cargo.toml"),
+            "[package]\nname = \"myapp\"\n\n[dependencies]\ntokio = \"1\"",
+        )
+        .unwrap();
         fs::create_dir_all(path.join("src")).unwrap();
         fs::write(path.join("src/main.rs"), "fn main() {}").unwrap();
 
@@ -1263,7 +1538,11 @@ tokio = "1"
     #[test]
     fn system_prompt_context_generation() {
         let (_dir, path) = temp_workspace();
-        fs::write(path.join("README.md"), "# Hello World\n\nA simple Rust project.").unwrap();
+        fs::write(
+            path.join("README.md"),
+            "# Hello World\n\nA simple Rust project.",
+        )
+        .unwrap();
         fs::write(path.join("Cargo.toml"), "[package]\nname = \"hello\"").unwrap();
 
         let profile = scan_workspace(&path);
@@ -1276,7 +1555,11 @@ tokio = "1"
     #[test]
     fn display_output() {
         let (_dir, path) = temp_workspace();
-        fs::write(path.join("package.json"), r#"{"name":"myapp","dependencies":{"react":"18"},"scripts":{"build":"vite build"}}"#).unwrap();
+        fs::write(
+            path.join("package.json"),
+            r#"{"name":"myapp","dependencies":{"react":"18"},"scripts":{"build":"vite build"}}"#,
+        )
+        .unwrap();
         fs::write(path.join("tsconfig.json"), "{}").unwrap();
 
         let profile = scan_workspace(&path);
@@ -1289,7 +1572,11 @@ tokio = "1"
     #[test]
     fn detect_library_architecture() {
         let (_dir, path) = temp_workspace();
-        fs::write(path.join("Cargo.toml"), "[package]\nname = \"mylib\"\n\n[lib]\nname = \"mylib\"").unwrap();
+        fs::write(
+            path.join("Cargo.toml"),
+            "[package]\nname = \"mylib\"\n\n[lib]\nname = \"mylib\"",
+        )
+        .unwrap();
         fs::create_dir_all(path.join("src")).unwrap();
         fs::write(path.join("src/lib.rs"), "pub fn hello() {}").unwrap();
 

@@ -110,7 +110,10 @@ pub struct DrawioGraph {
 
 impl DrawioGraph {
     pub fn new(title: &str) -> Self {
-        Self { cells: Vec::new(), page_title: title.to_string() }
+        Self {
+            cells: Vec::new(),
+            page_title: title.to_string(),
+        }
     }
 
     pub fn add_cell(&mut self, cell: DrawioCell) {
@@ -119,7 +122,12 @@ impl DrawioGraph {
 
     /// Render to draw.io XML format
     pub fn to_xml(&self) -> String {
-        let cells_xml: String = self.cells.iter().map(|c| c.to_xml()).collect::<Vec<_>>().join("\n");
+        let cells_xml: String = self
+            .cells
+            .iter()
+            .map(|c| c.to_xml())
+            .collect::<Vec<_>>()
+            .join("\n");
         format!(
             r#"<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
   <root>
@@ -222,10 +230,21 @@ pub fn parse_drawio_xml(xml: &str) -> Result<ParsedDrawio, DesignError> {
             let target = extract_attr(cell_chunk, "target");
 
             total_cells += 1;
-            if is_vertex { total_vertices += 1; }
-            if is_edge { total_edges += 1; }
+            if is_vertex {
+                total_vertices += 1;
+            }
+            if is_edge {
+                total_edges += 1;
+            }
 
-            cells.push(DrawioCellInfo { id: cell_id, value, is_vertex, is_edge, source, target });
+            cells.push(DrawioCellInfo {
+                id: cell_id,
+                value,
+                is_vertex,
+                is_edge,
+                source,
+                target,
+            });
         }
         pages.push(DrawioPage { name, id, cells });
     }
@@ -239,23 +258,45 @@ pub fn parse_drawio_xml(xml: &str) -> Result<ParsedDrawio, DesignError> {
                 Some(v) => v,
                 None => continue,
             };
-            if cell_id == "0" || cell_id == "1" { continue; }
+            if cell_id == "0" || cell_id == "1" {
+                continue;
+            }
             let value = extract_attr(cell_chunk, "value").unwrap_or_default();
             let is_vertex = cell_chunk.contains("vertex=\"1\"");
             let is_edge = cell_chunk.contains("edge=\"1\"");
             let source = extract_attr(cell_chunk, "source");
             let target = extract_attr(cell_chunk, "target");
             total_cells += 1;
-            if is_vertex { total_vertices += 1; }
-            if is_edge { total_edges += 1; }
-            cells.push(DrawioCellInfo { id: cell_id, value, is_vertex, is_edge, source, target });
+            if is_vertex {
+                total_vertices += 1;
+            }
+            if is_edge {
+                total_edges += 1;
+            }
+            cells.push(DrawioCellInfo {
+                id: cell_id,
+                value,
+                is_vertex,
+                is_edge,
+                source,
+                target,
+            });
         }
         if !cells.is_empty() {
-            pages.push(DrawioPage { name: "Page-1".to_string(), id: uuid_short(), cells });
+            pages.push(DrawioPage {
+                name: "Page-1".to_string(),
+                id: uuid_short(),
+                cells,
+            });
         }
     }
 
-    Ok(ParsedDrawio { pages, total_cells, total_vertices, total_edges })
+    Ok(ParsedDrawio {
+        pages,
+        total_cells,
+        total_vertices,
+        total_edges,
+    })
 }
 
 // ─── Template library ─────────────────────────────────────────────────────────
@@ -282,8 +323,16 @@ pub fn template_flowchart(title: &str, steps: &[&str]) -> DrawioGraph {
         let y = (i as f64) * 80.0 + 20.0;
 
         let is_decision = step.ends_with('?');
-        let style = if is_decision { diamond_style } else { box_style };
-        let (w, h) = if is_decision { (120.0, 60.0) } else { (160.0, 40.0) };
+        let style = if is_decision {
+            diamond_style
+        } else {
+            box_style
+        };
+        let (w, h) = if is_decision {
+            (120.0, 60.0)
+        } else {
+            (160.0, 40.0)
+        };
 
         g.add_cell(DrawioCell::vertex(&id, step, style, 200.0, y, w, h));
 
@@ -309,12 +358,22 @@ pub fn template_architecture(
         let layer_id = format!("layer{}", layer_i);
         let lx = (layer_i as f64) * 260.0 + 20.0;
         let lh = (components.len() as f64) * 60.0 + 60.0;
-        g.add_cell(DrawioCell::vertex(&layer_id, layer_name, swimlane_style, lx, 20.0, 220.0, lh));
+        g.add_cell(DrawioCell::vertex(
+            &layer_id,
+            layer_name,
+            swimlane_style,
+            lx,
+            20.0,
+            220.0,
+            lh,
+        ));
 
         for (comp_i, comp_name) in components.iter().enumerate() {
             let cid = format!("comp{}_{}", layer_i, comp_i);
             let cy = (comp_i as f64) * 60.0 + 40.0;
-            g.add_cell(DrawioCell::vertex(&cid, comp_name, comp_style, 10.0, cy, 200.0, 40.0));
+            g.add_cell(DrawioCell::vertex(
+                &cid, comp_name, comp_style, 10.0, cy, 200.0, 40.0,
+            ));
         }
     }
     g
@@ -334,12 +393,28 @@ pub fn template_erd(
         let ex = (ent_i as f64 % 3.0) * 280.0 + 20.0;
         let ey = (ent_i as f64 / 3.0).floor() * 200.0 + 20.0;
         let eh = (fields.len() as f64) * 30.0 + 40.0;
-        g.add_cell(DrawioCell::vertex(&eid, ent_name, header_style, ex, ey, 240.0, eh));
+        g.add_cell(DrawioCell::vertex(
+            &eid,
+            ent_name,
+            header_style,
+            ex,
+            ey,
+            240.0,
+            eh,
+        ));
 
         for (fi, (fname, ftype)) in fields.iter().enumerate() {
             let fid = format!("field{}_{}", ent_i, fi);
             let label = format!("{}: {}", fname, ftype);
-            g.add_cell(DrawioCell::vertex(&fid, &label, row_style, ex, ey + 30.0 + (fi as f64) * 30.0, 240.0, 30.0));
+            g.add_cell(DrawioCell::vertex(
+                &fid,
+                &label,
+                row_style,
+                ex,
+                ey + 30.0 + (fi as f64) * 30.0,
+                240.0,
+                30.0,
+            ));
         }
     }
     g
@@ -354,7 +429,8 @@ pub fn template_sequence(
     let mut g = DrawioGraph::new(title);
     let actor_style = "shape=mxgraph.flowchart.actor;fillColor=#dae8fc;strokeColor=#6c8ebf;";
     let lifeline_style = "endArrow=none;dashed=1;strokeColor=#666666;";
-    let msg_style = "edgeStyle=elbowEdgeStyle;elbow=vertical;exitX=0.5;exitY=1;entryX=0.5;entryY=0;rounded=0;";
+    let msg_style =
+        "edgeStyle=elbowEdgeStyle;elbow=vertical;exitX=0.5;exitY=1;entryX=0.5;entryY=0;rounded=0;";
 
     let actor_map: HashMap<String, String> = actors
         .iter()
@@ -365,7 +441,15 @@ pub fn template_sequence(
     for (i, &actor) in actors.iter().enumerate() {
         let aid = format!("actor{}", i);
         let ax = (i as f64) * 180.0 + 60.0;
-        g.add_cell(DrawioCell::vertex(&aid, actor, actor_style, ax, 20.0, 80.0, 40.0));
+        g.add_cell(DrawioCell::vertex(
+            &aid,
+            actor,
+            actor_style,
+            ax,
+            20.0,
+            80.0,
+            40.0,
+        ));
 
         let llid = format!("lifeline{}", i);
         let lifeline_xml = format!(
@@ -374,22 +458,39 @@ pub fn template_sequence(
         <Array as="points"><mxPoint x="{}" y="400" /></Array>
       </mxGeometry>
     </mxCell>"#,
-            llid, lifeline_style, aid, aid,
+            llid,
+            lifeline_style,
+            aid,
+            aid,
             ax + 40.0
         );
         // Store as raw XML in metadata approach — simplified
         let _ = lifeline_xml;
         // Just add a long box as lifeline representation
         let llbox = format!("ll_box{}", i);
-        g.add_cell(DrawioCell::vertex(&llbox, "", "strokeColor=#999999;fillColor=none;dashed=1;", ax + 35.0, 60.0, 10.0, 340.0));
+        g.add_cell(DrawioCell::vertex(
+            &llbox,
+            "",
+            "strokeColor=#999999;fillColor=none;dashed=1;",
+            ax + 35.0,
+            60.0,
+            10.0,
+            340.0,
+        ));
     }
 
     let y_step = 40.0;
     for (mi, (from, to, label)) in messages.iter().enumerate() {
         let msg_id = format!("msg{}", mi);
         let my = 80.0 + (mi as f64) * y_step;
-        let from_id = actor_map.get(*from).cloned().unwrap_or_else(|| "actor0".to_string());
-        let to_id = actor_map.get(*to).cloned().unwrap_or_else(|| "actor0".to_string());
+        let from_id = actor_map
+            .get(*from)
+            .cloned()
+            .unwrap_or_else(|| "actor0".to_string());
+        let to_id = actor_map
+            .get(*to)
+            .cloned()
+            .unwrap_or_else(|| "actor0".to_string());
         let _ = (from_id, to_id, msg_style);
         // Use positioned edge
         let from_x = actors.iter().position(|&a| a == *from).unwrap_or(0) as f64 * 180.0 + 100.0;
@@ -457,20 +558,50 @@ pub fn template_c4_context(
     let edge_style = "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;";
 
     for (i, p) in persons.iter().enumerate() {
-        let style = if p.external { ext_person_style } else { person_style };
+        let style = if p.external {
+            ext_person_style
+        } else {
+            person_style
+        };
         let label = format!("{}\n[Person]\n{}", p.name, p.description);
-        g.add_cell(DrawioCell::vertex(&p.id, &label, style, (i as f64) * 180.0 + 20.0, 200.0, 160.0, 100.0));
+        g.add_cell(DrawioCell::vertex(
+            &p.id,
+            &label,
+            style,
+            (i as f64) * 180.0 + 20.0,
+            200.0,
+            160.0,
+            100.0,
+        ));
     }
     for (i, s) in systems.iter().enumerate() {
-        let style = if s.external { ext_system_style } else { system_style };
+        let style = if s.external {
+            ext_system_style
+        } else {
+            system_style
+        };
         let label = format!("{}\n[Software System]\n{}", s.name, s.description);
-        g.add_cell(DrawioCell::vertex(&s.id, &label, style, (i as f64) * 200.0 + 60.0, 400.0, 180.0, 100.0));
+        g.add_cell(DrawioCell::vertex(
+            &s.id,
+            &label,
+            style,
+            (i as f64) * 200.0 + 60.0,
+            400.0,
+            180.0,
+            100.0,
+        ));
     }
     for (i, r) in relations.iter().enumerate() {
         let eid = format!("rel{}", i);
         let tech = r.technology.as_deref().unwrap_or("");
-        let label = if tech.is_empty() { r.label.clone() } else { format!("{}\n[{}]", r.label, tech) };
-        g.add_cell(DrawioCell::edge(&eid, &label, &r.from_id, &r.to_id, edge_style));
+        let label = if tech.is_empty() {
+            r.label.clone()
+        } else {
+            format!("{}\n[{}]", r.label, tech)
+        };
+        g.add_cell(DrawioCell::edge(
+            &eid, &label, &r.from_id, &r.to_id, edge_style,
+        ));
     }
     g
 }
@@ -489,20 +620,40 @@ pub fn template_c4_container(
     let edge_style = "edgeStyle=orthogonalEdgeStyle;rounded=0;";
 
     let bound_w = containers.len() as f64 * 200.0 + 40.0;
-    g.add_cell(DrawioCell::vertex("sys_boundary", system_name, boundary_style, 40.0, 80.0, bound_w, 280.0));
+    g.add_cell(DrawioCell::vertex(
+        "sys_boundary",
+        system_name,
+        boundary_style,
+        40.0,
+        80.0,
+        bound_w,
+        280.0,
+    ));
 
     for (i, c) in containers.iter().enumerate() {
         let label = format!("{}\n[{}]\n{}", c.name, c.technology, c.description);
-        g.add_cell(DrawioCell::vertex(&c.id, &label, cont_style, (i as f64) * 200.0 + 60.0, 140.0, 180.0, 100.0));
+        g.add_cell(DrawioCell::vertex(
+            &c.id,
+            &label,
+            cont_style,
+            (i as f64) * 200.0 + 60.0,
+            140.0,
+            180.0,
+            100.0,
+        ));
     }
     for (i, es) in external_systems.iter().enumerate() {
         let label = format!("{}\n[External]\n{}", es.name, es.description);
         let ex = (i as f64) * 200.0 + 60.0;
-        g.add_cell(DrawioCell::vertex(&es.id, &label, ext_style, ex, 420.0, 180.0, 80.0));
+        g.add_cell(DrawioCell::vertex(
+            &es.id, &label, ext_style, ex, 420.0, 180.0, 80.0,
+        ));
     }
     for (i, r) in relations.iter().enumerate() {
         let eid = format!("rel{}", i);
-        g.add_cell(DrawioCell::edge(&eid, &r.label, &r.from_id, &r.to_id, edge_style));
+        g.add_cell(DrawioCell::edge(
+            &eid, &r.label, &r.from_id, &r.to_id, edge_style,
+        ));
     }
     g
 }
@@ -561,7 +712,10 @@ impl DrawioMcpCommand {
 
 /// Wrap draw.io XML in an HTML page that renders via viewer.diagrams.net
 pub fn embed_drawio_html(xml: &str, width: u32, height: u32) -> String {
-    let encoded = xml.replace('"', "&quot;").replace('<', "%3C").replace('>', "%3E");
+    let encoded = xml
+        .replace('"', "&quot;")
+        .replace('<', "%3C")
+        .replace('>', "%3E");
     format!(
         r#"<!DOCTYPE html>
 <html>
@@ -608,7 +762,11 @@ pub fn parse_llm_flowchart(text: &str) -> DrawioGraph {
             .collect()
     } else {
         text.lines()
-            .map(|l| l.trim().trim_start_matches(['*', '-', '•', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '.', ')']))
+            .map(|l| {
+                l.trim().trim_start_matches([
+                    '*', '-', '•', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '.', ')',
+                ])
+            })
             .map(|l| l.trim().to_string())
             .filter(|l| !l.is_empty())
             .collect()
@@ -650,7 +808,10 @@ fn split_between_tags(xml: &str, open: &str, close: &str) -> Vec<String> {
     let mut remaining = xml;
     while let Some(start) = remaining.find(open) {
         let from = &remaining[start..];
-        let end = from.find(close).map(|e| e + close.len()).unwrap_or(from.len());
+        let end = from
+            .find(close)
+            .map(|e| e + close.len())
+            .unwrap_or(from.len());
         results.push(from[..end].to_string());
         remaining = &from[end..];
     }
@@ -659,18 +820,26 @@ fn split_between_tags(xml: &str, open: &str, close: &str) -> Vec<String> {
 
 fn uuid_short() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let t = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let t = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
     format!("{:x}{:04x}", t.as_secs(), t.subsec_micros() & 0xffff)
 }
 
 fn epoch_ms() -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }
 
 fn chrono_now_iso() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let secs = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
     format!(
         "{}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
         1970 + secs / 31_536_000,
@@ -771,14 +940,23 @@ mod tests {
     #[test]
     fn c4_context_generates_persons_systems() {
         let persons = vec![C4Person {
-            id: "p1".into(), name: "User".into(), description: "End user".into(), external: false
+            id: "p1".into(),
+            name: "User".into(),
+            description: "End user".into(),
+            external: false,
         }];
         let systems = vec![C4System {
-            id: "s1".into(), name: "Backend".into(), description: "API".into(), external: false,
+            id: "s1".into(),
+            name: "Backend".into(),
+            description: "API".into(),
+            external: false,
             containers: vec![],
         }];
         let rels = vec![C4Relation {
-            from_id: "p1".into(), to_id: "s1".into(), label: "uses".into(), technology: None
+            from_id: "p1".into(),
+            to_id: "s1".into(),
+            label: "uses".into(),
+            technology: None,
         }];
         let g = template_c4_context("Context", &persons, &systems, &rels);
         assert_eq!(g.vertex_count(), 2);

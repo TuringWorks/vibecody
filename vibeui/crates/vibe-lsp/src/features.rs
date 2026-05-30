@@ -10,12 +10,9 @@
 
 use anyhow::Result;
 use lsp_types::{
-    CompletionParams, CompletionResponse,
-    DocumentFormattingParams, DocumentSymbolParams, DocumentSymbolResponse,
-    GotoDefinitionParams, GotoDefinitionResponse,
-    Hover, HoverParams,
-    Location, ReferenceParams,
-    RenameParams, TextEdit, WorkspaceEdit,
+    CompletionParams, CompletionResponse, DocumentFormattingParams, DocumentSymbolParams,
+    DocumentSymbolResponse, GotoDefinitionParams, GotoDefinitionResponse, Hover, HoverParams,
+    Location, ReferenceParams, RenameParams, TextEdit, WorkspaceEdit,
 };
 
 use crate::client::LspClient;
@@ -35,10 +32,7 @@ pub async fn get_completions(
 // ── Hover ─────────────────────────────────────────────────────────────────────
 
 /// Fetch hover information (type signature, documentation) at a position.
-pub async fn get_hover(
-    client: &mut LspClient,
-    params: HoverParams,
-) -> Result<Option<Hover>> {
+pub async fn get_hover(client: &mut LspClient, params: HoverParams) -> Result<Option<Hover>> {
     client.hover(params).await
 }
 
@@ -315,10 +309,7 @@ mod tests {
             kind: SymbolKind::STRUCT,
             tags: None,
             deprecated: None,
-            location: Location::new(
-                uri,
-                Range::new(Position::new(10, 0), Position::new(20, 1)),
-            ),
+            location: Location::new(uri, Range::new(Position::new(10, 0), Position::new(20, 1))),
             container_name: Some("my_module".to_string()),
         };
         assert_eq!(sym.name, "MyStruct");
@@ -368,10 +359,7 @@ mod tests {
     #[test]
     fn location_roundtrip_serialization() {
         let uri: Uri = "file:///src/main.rs".parse().unwrap();
-        let loc = Location::new(
-            uri,
-            Range::new(Position::new(42, 4), Position::new(42, 20)),
-        );
+        let loc = Location::new(uri, Range::new(Position::new(42, 4), Position::new(42, 20)));
         let json = serde_json::to_value(&loc).unwrap();
         let deserialized: Location = serde_json::from_value(json).unwrap();
         assert_eq!(deserialized.uri.as_str(), "file:///src/main.rs");
@@ -409,10 +397,7 @@ mod tests {
     fn diagnostic_with_related_information() {
         let uri: Uri = "file:///tmp/test.rs".parse().unwrap();
         let related = DiagnosticRelatedInformation {
-            location: Location::new(
-                uri,
-                Range::new(Position::new(1, 0), Position::new(1, 10)),
-            ),
+            location: Location::new(uri, Range::new(Position::new(1, 0), Position::new(1, 10))),
             message: "defined here".to_string(),
         };
         let diag = Diagnostic {
@@ -480,8 +465,14 @@ mod tests {
         let list = CompletionList {
             is_incomplete: true,
             items: vec![
-                CompletionItem { label: "item1".to_string(), ..Default::default() },
-                CompletionItem { label: "item2".to_string(), ..Default::default() },
+                CompletionItem {
+                    label: "item1".to_string(),
+                    ..Default::default()
+                },
+                CompletionItem {
+                    label: "item2".to_string(),
+                    ..Default::default()
+                },
             ],
         };
         let resp = CompletionResponse::List(list);
@@ -496,9 +487,10 @@ mod tests {
 
     #[test]
     fn completion_response_array_variant() {
-        let items = vec![
-            CompletionItem { label: "a".to_string(), ..Default::default() },
-        ];
+        let items = vec![CompletionItem {
+            label: "a".to_string(),
+            ..Default::default()
+        }];
         let resp = CompletionResponse::Array(items);
         match resp {
             CompletionResponse::Array(arr) => assert_eq!(arr.len(), 1),

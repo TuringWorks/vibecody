@@ -29,8 +29,7 @@ pub struct UsagePattern {
 
 /// Heuristic for identifying new/struggling team members.
 pub fn is_likely_new_member(pattern: &UsagePattern) -> bool {
-    pattern.total_sessions < 5
-        || (pattern.commands_used.len() < 3 && pattern.error_rate > 0.3)
+    pattern.total_sessions < 5 || (pattern.commands_used.len() < 3 && pattern.error_rate > 0.3)
 }
 
 // ─── KnowledgeGap ────────────────────────────────────────────────────────────
@@ -240,7 +239,11 @@ impl OnboardingEngine {
             commands_used,
             panels_used,
             error_rate,
-            first_seen_ms: if first_seen == u64::MAX { 0 } else { first_seen },
+            first_seen_ms: if first_seen == u64::MAX {
+                0
+            } else {
+                first_seen
+            },
             last_seen_ms: last_seen,
         })
     }
@@ -397,8 +400,16 @@ mod tests {
         let path = LearningPath {
             user_id: "u1".into(),
             steps: vec![
-                LearningCheckpoint { checkpoint_id: "c1".into(), description: "step 1".into(), completed: true },
-                LearningCheckpoint { checkpoint_id: "c2".into(), description: "step 2".into(), completed: true },
+                LearningCheckpoint {
+                    checkpoint_id: "c1".into(),
+                    description: "step 1".into(),
+                    completed: true,
+                },
+                LearningCheckpoint {
+                    checkpoint_id: "c2".into(),
+                    description: "step 2".into(),
+                    completed: true,
+                },
             ],
         };
         assert!((path.completion_pct() - 100.0).abs() < 0.01);
@@ -409,8 +420,16 @@ mod tests {
         let path = LearningPath {
             user_id: "u1".into(),
             steps: vec![
-                LearningCheckpoint { checkpoint_id: "c1".into(), description: "step 1".into(), completed: true },
-                LearningCheckpoint { checkpoint_id: "c2".into(), description: "step 2".into(), completed: false },
+                LearningCheckpoint {
+                    checkpoint_id: "c1".into(),
+                    description: "step 1".into(),
+                    completed: true,
+                },
+                LearningCheckpoint {
+                    checkpoint_id: "c2".into(),
+                    description: "step 2".into(),
+                    completed: false,
+                },
             ],
         };
         assert!((path.completion_pct() - 50.0).abs() < 0.01);
@@ -418,7 +437,10 @@ mod tests {
 
     #[test]
     fn test_completion_pct_empty() {
-        let path = LearningPath { user_id: "u1".into(), steps: vec![] };
+        let path = LearningPath {
+            user_id: "u1".into(),
+            steps: vec![],
+        };
         assert!((path.completion_pct() - 0.0).abs() < 0.01);
     }
 
@@ -427,8 +449,16 @@ mod tests {
         let path = LearningPath {
             user_id: "u1".into(),
             steps: vec![
-                LearningCheckpoint { checkpoint_id: "c1".into(), description: "done".into(), completed: true },
-                LearningCheckpoint { checkpoint_id: "c2".into(), description: "next".into(), completed: false },
+                LearningCheckpoint {
+                    checkpoint_id: "c1".into(),
+                    description: "done".into(),
+                    completed: true,
+                },
+                LearningCheckpoint {
+                    checkpoint_id: "c2".into(),
+                    description: "next".into(),
+                    completed: false,
+                },
             ],
         };
         let next = path.next_step();
@@ -440,16 +470,21 @@ mod tests {
     fn test_next_step_none_when_all_complete() {
         let path = LearningPath {
             user_id: "u1".into(),
-            steps: vec![
-                LearningCheckpoint { checkpoint_id: "c1".into(), description: "done".into(), completed: true },
-            ],
+            steps: vec![LearningCheckpoint {
+                checkpoint_id: "c1".into(),
+                description: "done".into(),
+                completed: true,
+            }],
         };
         assert!(path.next_step().is_none());
     }
 
     #[test]
     fn test_next_step_none_empty_path() {
-        let path = LearningPath { user_id: "u1".into(), steps: vec![] };
+        let path = LearningPath {
+            user_id: "u1".into(),
+            steps: vec![],
+        };
         assert!(path.next_step().is_none());
     }
 
@@ -513,11 +548,30 @@ mod tests {
     #[test]
     fn test_gap_report_top_gaps_sorted() {
         let gaps = vec![
-            KnowledgeGap { feature_name: "a".into(), description: "".into(), impact_score: 60, category: "".into() },
-            KnowledgeGap { feature_name: "b".into(), description: "".into(), impact_score: 90, category: "".into() },
-            KnowledgeGap { feature_name: "c".into(), description: "".into(), impact_score: 75, category: "".into() },
+            KnowledgeGap {
+                feature_name: "a".into(),
+                description: "".into(),
+                impact_score: 60,
+                category: "".into(),
+            },
+            KnowledgeGap {
+                feature_name: "b".into(),
+                description: "".into(),
+                impact_score: 90,
+                category: "".into(),
+            },
+            KnowledgeGap {
+                feature_name: "c".into(),
+                description: "".into(),
+                impact_score: 75,
+                category: "".into(),
+            },
         ];
-        let report = GapReport { user_id: "u1".into(), gaps, generated_at_ms: 0 };
+        let report = GapReport {
+            user_id: "u1".into(),
+            gaps,
+            generated_at_ms: 0,
+        };
         let top = report.top_gaps(2);
         assert_eq!(top[0].feature_name, "b");
         assert_eq!(top[1].feature_name, "c");
@@ -533,7 +587,11 @@ mod tests {
                 category: "".into(),
             })
             .collect();
-        let report = GapReport { user_id: "u1".into(), gaps, generated_at_ms: 0 };
+        let report = GapReport {
+            user_id: "u1".into(),
+            gaps,
+            generated_at_ms: 0,
+        };
         assert_eq!(report.top_gaps(3).len(), 3);
     }
 

@@ -81,7 +81,9 @@ impl Skill {
     /// Returns `true` if any trigger appears (case-insensitively) in `text`.
     pub fn matches(&self, text: &str) -> bool {
         let lower = text.to_lowercase();
-        self.triggers.iter().any(|t| lower.contains(&t.to_lowercase()))
+        self.triggers
+            .iter()
+            .any(|t| lower.contains(&t.to_lowercase()))
     }
 
     /// Check if all system requirements (OS, binaries, env vars) are satisfied.
@@ -89,7 +91,11 @@ impl Skill {
         // OS filter
         if !self.requires_os.is_empty() {
             let current_os = std::env::consts::OS;
-            if !self.requires_os.iter().any(|o| o.eq_ignore_ascii_case(current_os)) {
+            if !self
+                .requires_os
+                .iter()
+                .any(|o| o.eq_ignore_ascii_case(current_os))
+            {
                 return false;
             }
         }
@@ -190,7 +196,9 @@ impl SkillLoader {
                     if path.extension().and_then(|e| e.to_str()) == Some("md") {
                         match load_skill_file(&path) {
                             Ok(skill) => skills.push(skill),
-                            Err(e) => tracing::warn!("Failed to load skill {}: {}", path.display(), e),
+                            Err(e) => {
+                                tracing::warn!("Failed to load skill {}: {}", path.display(), e)
+                            }
                         }
                     }
                 }
@@ -201,7 +209,10 @@ impl SkillLoader {
 
     /// Return all skills whose triggers match `text`.
     pub fn matching(&self, text: &str) -> Vec<Skill> {
-        self.load_all().into_iter().filter(|s| s.matches(text)).collect()
+        self.load_all()
+            .into_iter()
+            .filter(|s| s.matches(text))
+            .collect()
     }
 
     /// Return matching skills that also satisfy system requirements.
@@ -294,15 +305,30 @@ fn load_skill_file(path: &Path) -> anyhow::Result<Skill> {
         } else if let Some(rest) = line.strip_prefix("webhook_trigger:") {
             fm_webhook_trigger = Some(rest.trim().trim_matches('"').to_string());
         } else if let Some(rest) = line.strip_prefix("install.brew:") {
-            fm_installers.push(SkillInstaller { manager: "brew".into(), package: rest.trim().trim_matches('"').to_string() });
+            fm_installers.push(SkillInstaller {
+                manager: "brew".into(),
+                package: rest.trim().trim_matches('"').to_string(),
+            });
         } else if let Some(rest) = line.strip_prefix("install.npm:") {
-            fm_installers.push(SkillInstaller { manager: "npm".into(), package: rest.trim().trim_matches('"').to_string() });
+            fm_installers.push(SkillInstaller {
+                manager: "npm".into(),
+                package: rest.trim().trim_matches('"').to_string(),
+            });
         } else if let Some(rest) = line.strip_prefix("install.cargo:") {
-            fm_installers.push(SkillInstaller { manager: "cargo".into(), package: rest.trim().trim_matches('"').to_string() });
+            fm_installers.push(SkillInstaller {
+                manager: "cargo".into(),
+                package: rest.trim().trim_matches('"').to_string(),
+            });
         } else if let Some(rest) = line.strip_prefix("install.pip:") {
-            fm_installers.push(SkillInstaller { manager: "pip".into(), package: rest.trim().trim_matches('"').to_string() });
+            fm_installers.push(SkillInstaller {
+                manager: "pip".into(),
+                package: rest.trim().trim_matches('"').to_string(),
+            });
         } else if let Some(rest) = line.strip_prefix("install.go:") {
-            fm_installers.push(SkillInstaller { manager: "go".into(), package: rest.trim().trim_matches('"').to_string() });
+            fm_installers.push(SkillInstaller {
+                manager: "go".into(),
+                package: rest.trim().trim_matches('"').to_string(),
+            });
         } else if let Some(rest) = line.strip_prefix("config.") {
             // config.KEY: VALUE
             if let Some(colon_pos) = rest.find(':') {
@@ -362,7 +388,10 @@ fn split_front_matter(raw: &str) -> (Vec<String>, String) {
     // Find the closing `---`
     let close = lines[1..].iter().position(|l| l.trim() == "---");
     if let Some(close_idx) = close {
-        let fm: Vec<String> = lines[1..close_idx + 1].iter().map(|s| s.to_string()).collect();
+        let fm: Vec<String> = lines[1..close_idx + 1]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         let body = lines[close_idx + 2..].join("\n");
         (fm, body)
     } else {
@@ -447,7 +476,8 @@ mod tests {
         std::fs::write(
             skills_dir.join("rust-safety.md"),
             "---\nname: rust-safety\ntriggers: [unsafe, lifetime]\n---\nCheck for unsafe blocks.",
-        ).unwrap();
+        )
+        .unwrap();
 
         let loader = SkillLoader::with_dirs(vec![skills_dir]);
         let skills = loader.load_all();
@@ -529,7 +559,10 @@ mod tests {
         assert_eq!(skill.installers[0].manager, "brew");
         assert_eq!(skill.installers[0].package, "kubectl");
         assert_eq!(skill.webhook_trigger.as_deref(), Some("/webhook/deploy"));
-        assert_eq!(skill.config.get("AWS_REGION").map(|s| s.as_str()), Some("us-east-1"));
+        assert_eq!(
+            skill.config.get("AWS_REGION").map(|s| s.as_str()),
+            Some("us-east-1")
+        );
     }
 
     #[test]
@@ -540,7 +573,8 @@ mod tests {
         std::fs::write(
             skills_dir.join("test.md"),
             "---\nname: test\ntriggers: [test]\n---\nContent.",
-        ).unwrap();
+        )
+        .unwrap();
 
         let loader = SkillLoader::with_dirs(vec![skills_dir]);
         let watcher = SkillWatcher::new(&loader);
@@ -558,7 +592,8 @@ mod tests {
         std::fs::write(
             skills_dir.join("available.md"),
             "---\nname: available\ntriggers: [deploy]\nrequires.bins: [sh]\n---\nOk.",
-        ).unwrap();
+        )
+        .unwrap();
         // Skill with unmet requirements
         std::fs::write(
             skills_dir.join("unavailable.md"),

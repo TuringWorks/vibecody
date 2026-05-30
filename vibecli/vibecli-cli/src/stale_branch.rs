@@ -22,17 +22,37 @@ pub struct BranchInfo {
 impl BranchInfo {
     pub fn new(name: impl Into<String>, last_commit_ms: u64, author: impl Into<String>) -> Self {
         Self {
-            name: name.into(), last_commit_ms, author: author.into(),
-            commit_count: 1, is_merged: false, has_open_pr: false,
-            ahead_of_main: 0, behind_main: 0,
+            name: name.into(),
+            last_commit_ms,
+            author: author.into(),
+            commit_count: 1,
+            is_merged: false,
+            has_open_pr: false,
+            ahead_of_main: 0,
+            behind_main: 0,
         }
     }
 
-    pub fn merged(mut self) -> Self { self.is_merged = true; self }
-    pub fn with_pr(mut self) -> Self { self.has_open_pr = true; self }
-    pub fn ahead(mut self, n: u32) -> Self { self.ahead_of_main = n; self }
-    pub fn behind(mut self, n: u32) -> Self { self.behind_main = n; self }
-    pub fn with_commits(mut self, n: u32) -> Self { self.commit_count = n; self }
+    pub fn merged(mut self) -> Self {
+        self.is_merged = true;
+        self
+    }
+    pub fn with_pr(mut self) -> Self {
+        self.has_open_pr = true;
+        self
+    }
+    pub fn ahead(mut self, n: u32) -> Self {
+        self.ahead_of_main = n;
+        self
+    }
+    pub fn behind(mut self, n: u32) -> Self {
+        self.behind_main = n;
+        self
+    }
+    pub fn with_commits(mut self, n: u32) -> Self {
+        self.commit_count = n;
+        self
+    }
 
     pub fn age_days(&self, now_ms: u64) -> u64 {
         (now_ms - self.last_commit_ms.min(now_ms)) / (24 * 3600 * 1000)
@@ -58,25 +78,30 @@ pub enum StalenessLabel {
 impl std::fmt::Display for StalenessLabel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Active        => write!(f, "active"),
+            Self::Active => write!(f, "active"),
             Self::MergedCleanup => write!(f, "merged-cleanup"),
-            Self::Dormant       => write!(f, "dormant"),
-            Self::Stale         => write!(f, "stale"),
-            Self::Zombie        => write!(f, "zombie"),
+            Self::Dormant => write!(f, "dormant"),
+            Self::Stale => write!(f, "stale"),
+            Self::Zombie => write!(f, "zombie"),
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum CleanupAction { Keep, Delete, Archive, Review }
+pub enum CleanupAction {
+    Keep,
+    Delete,
+    Archive,
+    Review,
+}
 
 impl std::fmt::Display for CleanupAction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Keep    => write!(f, "keep"),
-            Self::Delete  => write!(f, "delete"),
+            Self::Keep => write!(f, "keep"),
+            Self::Delete => write!(f, "delete"),
             Self::Archive => write!(f, "archive"),
-            Self::Review  => write!(f, "review"),
+            Self::Review => write!(f, "review"),
         }
     }
 }
@@ -100,7 +125,13 @@ pub struct StalenessThresholds {
 }
 
 impl Default for StalenessThresholds {
-    fn default() -> Self { Self { dormant_days: 14, stale_days: 60, zombie_days: 180 } }
+    fn default() -> Self {
+        Self {
+            dormant_days: 14,
+            stale_days: 60,
+            zombie_days: 180,
+        }
+    }
 }
 
 pub struct StaleBranchDetector {
@@ -108,7 +139,9 @@ pub struct StaleBranchDetector {
 }
 
 impl StaleBranchDetector {
-    pub fn new(thresholds: StalenessThresholds) -> Self { Self { thresholds } }
+    pub fn new(thresholds: StalenessThresholds) -> Self {
+        Self { thresholds }
+    }
 
     pub fn classify(&self, branch: &BranchInfo, now_ms: u64) -> StalenessReport {
         let age = branch.age_days(now_ms);
@@ -116,16 +149,21 @@ impl StaleBranchDetector {
         // Never touch protected branches
         if branch.name == "main" || branch.name == "master" || branch.name == "develop" {
             return StalenessReport {
-                branch: branch.name.clone(), label: StalenessLabel::Active,
-                action: CleanupAction::Keep, age_days: age, reason: "protected branch".into(),
+                branch: branch.name.clone(),
+                label: StalenessLabel::Active,
+                action: CleanupAction::Keep,
+                age_days: age,
+                reason: "protected branch".into(),
             };
         }
 
         // Merged with no PR or unmerged commits → delete
         if branch.is_merged && !branch.has_open_pr {
             return StalenessReport {
-                branch: branch.name.clone(), label: StalenessLabel::MergedCleanup,
-                action: CleanupAction::Delete, age_days: age,
+                branch: branch.name.clone(),
+                label: StalenessLabel::MergedCleanup,
+                action: CleanupAction::Delete,
+                age_days: age,
                 reason: "merged into main".into(),
             };
         }
@@ -133,8 +171,10 @@ impl StaleBranchDetector {
         // Has open PR → active regardless of age
         if branch.has_open_pr {
             return StalenessReport {
-                branch: branch.name.clone(), label: StalenessLabel::Active,
-                action: CleanupAction::Keep, age_days: age,
+                branch: branch.name.clone(),
+                label: StalenessLabel::Active,
+                action: CleanupAction::Keep,
+                age_days: age,
                 reason: "has open pull request".into(),
             };
         }
@@ -142,8 +182,10 @@ impl StaleBranchDetector {
         // Recent commits → active
         if age < self.thresholds.dormant_days {
             return StalenessReport {
-                branch: branch.name.clone(), label: StalenessLabel::Active,
-                action: CleanupAction::Keep, age_days: age,
+                branch: branch.name.clone(),
+                label: StalenessLabel::Active,
+                action: CleanupAction::Keep,
+                age_days: age,
                 reason: format!("{age} days old, within active window"),
             };
         }
@@ -151,27 +193,41 @@ impl StaleBranchDetector {
         // Zombie
         if age >= self.thresholds.zombie_days {
             return StalenessReport {
-                branch: branch.name.clone(), label: StalenessLabel::Zombie,
-                action: CleanupAction::Delete, age_days: age,
+                branch: branch.name.clone(),
+                label: StalenessLabel::Zombie,
+                action: CleanupAction::Delete,
+                age_days: age,
                 reason: format!("{age} days without activity"),
             };
         }
 
         // Stale with unmerged commits → archive
         if age >= self.thresholds.stale_days {
-            let action = if branch.ahead_of_main > 0 { CleanupAction::Archive } else { CleanupAction::Delete };
+            let action = if branch.ahead_of_main > 0 {
+                CleanupAction::Archive
+            } else {
+                CleanupAction::Delete
+            };
             return StalenessReport {
-                branch: branch.name.clone(), label: StalenessLabel::Stale,
-                action, age_days: age,
+                branch: branch.name.clone(),
+                label: StalenessLabel::Stale,
+                action,
+                age_days: age,
                 reason: format!("{age} days old, {} unmerged commits", branch.ahead_of_main),
             };
         }
 
         // Dormant
-        let action = if branch.ahead_of_main > 0 { CleanupAction::Review } else { CleanupAction::Delete };
+        let action = if branch.ahead_of_main > 0 {
+            CleanupAction::Review
+        } else {
+            CleanupAction::Delete
+        };
         StalenessReport {
-            branch: branch.name.clone(), label: StalenessLabel::Dormant,
-            action, age_days: age,
+            branch: branch.name.clone(),
+            label: StalenessLabel::Dormant,
+            action,
+            age_days: age,
             reason: format!("{age} days without commits"),
         }
     }
@@ -184,13 +240,21 @@ impl StaleBranchDetector {
     }
 
     /// Branches recommended for immediate deletion.
-    pub fn deletion_candidates<'a>(&self, reports: &'a [StalenessReport]) -> Vec<&'a StalenessReport> {
-        reports.iter().filter(|r| r.action == CleanupAction::Delete).collect()
+    pub fn deletion_candidates<'a>(
+        &self,
+        reports: &'a [StalenessReport],
+    ) -> Vec<&'a StalenessReport> {
+        reports
+            .iter()
+            .filter(|r| r.action == CleanupAction::Delete)
+            .collect()
     }
 }
 
 impl Default for StaleBranchDetector {
-    fn default() -> Self { Self::new(StalenessThresholds::default()) }
+    fn default() -> Self {
+        Self::new(StalenessThresholds::default())
+    }
 }
 
 // ── FreshnessState ────────────────────────────────────────────────────────────
@@ -206,8 +270,8 @@ pub enum FreshnessState {
 impl std::fmt::Display for FreshnessState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Fresh   => write!(f, "fresh"),
-            Self::Stale   => write!(f, "stale"),
+            Self::Fresh => write!(f, "fresh"),
+            Self::Stale => write!(f, "stale"),
             Self::Diverged => write!(f, "diverged"),
         }
     }
@@ -228,9 +292,9 @@ pub enum StalePolicy {
 impl std::fmt::Display for StalePolicy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::WarnOnly         => write!(f, "warn_only"),
-            Self::Block            => write!(f, "block"),
-            Self::AutoRebase       => write!(f, "auto_rebase"),
+            Self::WarnOnly => write!(f, "warn_only"),
+            Self::Block => write!(f, "block"),
+            Self::AutoRebase => write!(f, "auto_rebase"),
             Self::AutoMergeForward => write!(f, "auto_merge_forward"),
         }
     }
@@ -281,7 +345,9 @@ pub struct FreshnessPolicyDetector {
 }
 
 impl FreshnessPolicyDetector {
-    pub fn new(config: StaleBranchConfig) -> Self { Self { config } }
+    pub fn new(config: StaleBranchConfig) -> Self {
+        Self { config }
+    }
 
     /// Format a human-readable "missing N fix(es)" message.
     pub fn format_missing_fixes(commits_behind: usize) -> String {
@@ -336,9 +402,13 @@ mod tests {
 
     const NOW: u64 = 2_000 * 24 * 3600 * 1000; // arbitrary "now" — large enough for 999-day tests
 
-    fn ms_days_ago(days: u64, now_ms: u64) -> u64 { now_ms - days * 24 * 3600 * 1000 }
+    fn ms_days_ago(days: u64, now_ms: u64) -> u64 {
+        now_ms - days * 24 * 3600 * 1000
+    }
 
-    fn detector() -> StaleBranchDetector { StaleBranchDetector::default() }
+    fn detector() -> StaleBranchDetector {
+        StaleBranchDetector::default()
+    }
 
     fn branch_age(name: &str, days: u64) -> BranchInfo {
         BranchInfo::new(name, ms_days_ago(days, NOW), "alice")
@@ -486,7 +556,10 @@ mod tests {
 
     #[test]
     fn missing_fixes_message_singular() {
-        assert_eq!(FreshnessPolicyDetector::format_missing_fixes(1), "missing 1 fix");
+        assert_eq!(
+            FreshnessPolicyDetector::format_missing_fixes(1),
+            "missing 1 fix"
+        );
     }
 
     #[test]
@@ -498,7 +571,10 @@ mod tests {
 
     #[test]
     fn missing_fixes_message_zero_is_up_to_date() {
-        assert_eq!(FreshnessPolicyDetector::format_missing_fixes(0), "up to date");
+        assert_eq!(
+            FreshnessPolicyDetector::format_missing_fixes(0),
+            "up to date"
+        );
     }
 
     #[test]

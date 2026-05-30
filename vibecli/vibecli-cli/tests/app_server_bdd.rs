@@ -90,7 +90,12 @@ fn assert_error_code(world: &mut AsWorld, code: i32) {
 #[then(expr = "the raw response should contain {string}")]
 fn assert_raw_contains(world: &mut AsWorld, needle: String) {
     let raw = world.last_raw.as_ref().unwrap();
-    assert!(raw.contains(&needle), "expected {:?} in raw response: {}", needle, raw);
+    assert!(
+        raw.contains(&needle),
+        "expected {:?} in raw response: {}",
+        needle,
+        raw
+    );
 }
 
 fn main() {

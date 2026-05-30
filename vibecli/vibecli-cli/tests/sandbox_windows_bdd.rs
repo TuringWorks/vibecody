@@ -39,7 +39,10 @@ fn sandbox_allow_and_deny(world: &mut SwWorld, allow: String, deny: String) {
 #[given(expr = "a sandbox with no internet and allowed host {string}")]
 fn sandbox_no_internet_with_host(world: &mut SwWorld, host: String) {
     let mut cfg = WindowsSandboxConfig::default_restricted();
-    cfg.network = NetworkPolicy { allow_internet: false, allowed_hosts: vec![host] };
+    cfg.network = NetworkPolicy {
+        allow_internet: false,
+        allowed_hosts: vec![host],
+    };
     world.sandbox = Some(WindowsSandbox::new(cfg));
 }
 

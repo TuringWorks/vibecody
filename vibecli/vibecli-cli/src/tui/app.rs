@@ -1,6 +1,6 @@
+use crate::tui::theme::{get_theme, Theme};
 use tokio::sync::oneshot;
 use vibe_ai::tools::{ToolCall, ToolResult};
-use crate::tui::theme::{Theme, get_theme};
 
 #[derive(Debug, Clone)]
 pub enum TuiMessage {
@@ -37,10 +37,10 @@ pub enum CurrentScreen {
 
 use crate::tui::components::agent_view::AgentViewComponent;
 use crate::tui::components::diagnostics::DiagnosticsComponent;
-use crate::tui::components::file_tree::FileTreeComponent;
 use crate::tui::components::diff_view::DiffViewComponent;
-use crate::tui::components::vim_editor::VimEditorComponent;
+use crate::tui::components::file_tree::FileTreeComponent;
 use crate::tui::components::goals::GoalsComponent;
+use crate::tui::components::vim_editor::VimEditorComponent;
 
 /// Holds a pending tool-call approval: the call to show the user and the
 /// channel to send the approved result (or None for rejection) back to the agent.
@@ -137,9 +137,7 @@ impl App {
     /// Classify the current metrics freshness based on the monotonic
     /// timestamp of the last tick.
     pub fn metrics_freshness(&self) -> MetricsFreshness {
-        let elapsed = self
-            .last_metrics_tick
-            .map(|t| t.elapsed().as_millis());
+        let elapsed = self.last_metrics_tick.map(|t| t.elapsed().as_millis());
         MetricsFreshness::classify(elapsed)
     }
 

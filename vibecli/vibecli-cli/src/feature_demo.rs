@@ -125,7 +125,6 @@ pub enum DemoStatus {
     Failed,
 }
 
-
 // ── Export Format ──────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -275,10 +274,7 @@ impl BrowserSession {
     /// Take a screenshot via CDP and save to a file. Returns the file path.
     pub async fn screenshot(&self, output_path: &Path) -> Result<String> {
         // Use the CDP HTTP endpoint for page screenshot
-        let url = format!(
-            "http://localhost:{}/json/protocol",
-            self.cdp_port
-        );
+        let url = format!("http://localhost:{}/json/protocol", self.cdp_port);
         // Fallback: use platform screenshot if CDP screenshot isn't available
         let cmd = if cfg!(target_os = "macos") {
             format!("screencapture -x {}", output_path.display())
@@ -377,11 +373,7 @@ impl DemoRunner {
     }
 
     /// Execute all demo steps and produce a recording.
-    pub async fn run(
-        &mut self,
-        steps: &[DemoStep],
-        description: &str,
-    ) -> Result<DemoRecording> {
+    pub async fn run(&mut self, steps: &[DemoStep], description: &str) -> Result<DemoRecording> {
         let started_at = now_secs();
         let session = BrowserSession::connect(self.cdp_port).await;
 
@@ -393,15 +385,16 @@ impl DemoRunner {
                 Ok(Some("Browser not connected — dry run".to_string()))
             };
 
-            let screenshot_path = if step.auto_screenshot() || matches!(step, DemoStep::Screenshot { .. }) {
-                let path = self.output_dir.join(format!("frame-{:04}.png", i));
-                if let Ok(ref browser) = session {
-                    let _ = browser.screenshot(&path).await;
-                }
-                Some(path.to_string_lossy().to_string())
-            } else {
-                None
-            };
+            let screenshot_path =
+                if step.auto_screenshot() || matches!(step, DemoStep::Screenshot { .. }) {
+                    let path = self.output_dir.join(format!("frame-{:04}.png", i));
+                    if let Ok(ref browser) = session {
+                        let _ = browser.screenshot(&path).await;
+                    }
+                    Some(path.to_string_lossy().to_string())
+                } else {
+                    None
+                };
 
             let frame = DemoFrame {
                 step_index: i,
@@ -415,7 +408,8 @@ impl DemoRunner {
         }
 
         let recording = DemoRecording {
-            id: self.output_dir
+            id: self
+                .output_dir
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
                 .unwrap_or_else(|| self.name.clone()),
@@ -730,10 +724,7 @@ document.addEventListener('keydown', (e) => {{
                 md.push_str(&format!("> {result}\n\n"));
             }
 
-            md.push_str(&format!(
-                "*Duration: {}ms*\n\n",
-                frame.duration_ms
-            ));
+            md.push_str(&format!("*Duration: {}ms*\n\n", frame.duration_ms));
         }
 
         md.push_str("---\n\n");
@@ -1194,7 +1185,8 @@ These steps will demo the feature."##;
 
     #[test]
     fn generator_parse_embedded_array() {
-        let response = r#"The steps are: [{"action": "screenshot", "caption": "done"}] and that's it."#;
+        let response =
+            r#"The steps are: [{"action": "screenshot", "caption": "done"}] and that's it."#;
         let steps = DemoGenerator::parse_steps(response).unwrap();
         assert_eq!(steps.len(), 1);
     }
@@ -1350,7 +1342,9 @@ These steps will demo the feature."##;
         let data = b"VibeCody Feature Demo";
         let encoded = base64_encode(data);
         assert!(!encoded.is_empty());
-        assert!(encoded.chars().all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '/' || c == '='));
+        assert!(encoded
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '/' || c == '='));
     }
 
     #[test]

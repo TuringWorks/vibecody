@@ -117,7 +117,10 @@ pub fn verify_signed_agent_card(signed: &SignedAgentCard) -> Result<()> {
             .decode(sig.value.as_bytes())
             .with_context(|| format!("verify: signature for kid '{}' is not base64url", sig.kid))?;
         let signature = Signature::from_slice(&sig_bytes).with_context(|| {
-            format!("verify: signature for kid '{}' is not 64-byte ECDSA", sig.kid)
+            format!(
+                "verify: signature for kid '{}' is not 64-byte ECDSA",
+                sig.kid
+            )
         })?;
         verifying_key
             .verify(&digest, &signature)
@@ -232,7 +235,12 @@ mod tests {
         assert_eq!(sig.public_key.crv, "P-256");
         assert!(!sig.value.is_empty());
         // ECDSA P-256 signature is 64 bytes → base64url-no-pad = 86 chars.
-        assert_eq!(sig.value.len(), 86, "expected 86-char base64url for 64B ECDSA, got {}", sig.value.len());
+        assert_eq!(
+            sig.value.len(),
+            86,
+            "expected 86-char base64url for 64B ECDSA, got {}",
+            sig.value.len()
+        );
     }
 
     #[test]
@@ -259,20 +267,23 @@ mod tests {
         signed.signatures[0].algorithm = "RS256".to_string();
         let res = verify_signed_agent_card(&signed);
         assert!(res.is_err());
-        assert!(res.unwrap_err().to_string().contains("unsupported algorithm"));
+        assert!(res
+            .unwrap_err()
+            .to_string()
+            .contains("unsupported algorithm"));
     }
 
     #[test]
     fn canonical_json_sorts_object_keys() {
         let card = fixture_card();
         let json_str = canonical_json(&card).unwrap();
-        let first_key = json_str
-            .splitn(3, '"')
-            .nth(1)
-            .expect("first JSON key");
+        let first_key = json_str.splitn(3, '"').nth(1).expect("first JSON key");
         // AgentCard fields include name, description, url, ...; the
         // alphabetically smallest is "authentication".
-        assert_eq!(first_key, "authentication", "canonical_json must sort keys; got first={first_key}\nfull={json_str}");
+        assert_eq!(
+            first_key, "authentication",
+            "canonical_json must sort keys; got first={first_key}\nfull={json_str}"
+        );
     }
 
     #[test]
@@ -291,7 +302,9 @@ mod tests {
 
     #[tokio::test]
     async fn well_known_agent_json_route_returns_verifiable_signed_card() {
-        use axum::{body::to_bytes, body::Body, extract::State, http::Request, routing::get, Json, Router};
+        use axum::{
+            body::to_bytes, body::Body, extract::State, http::Request, routing::get, Json, Router,
+        };
         use std::sync::Arc;
         use tower::ServiceExt;
 

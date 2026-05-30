@@ -137,8 +137,10 @@ mod tests {
     fn inject_none_does_not_appear_in_by_inject() {
         let mut s = AuditSummary::new();
         s.ingest(&ev("a.com", EgressOutcome::Ok));
-        assert!(s.by_inject.is_empty(),
-            "default inject 'None' should not be counted");
+        assert!(
+            s.by_inject.is_empty(),
+            "default inject 'None' should not be counted"
+        );
     }
 
     #[test]

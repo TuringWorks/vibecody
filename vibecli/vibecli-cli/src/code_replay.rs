@@ -187,8 +187,7 @@ impl DiffGenerator {
         for step in steps {
             match step.edit_type {
                 EditType::Insert => {
-                    let mut lines: Vec<String> =
-                        content.lines().map(|l| l.to_string()).collect();
+                    let mut lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
                     let insert_at = step.line_start.min(lines.len());
                     for (i, new_line) in step.new_content.lines().enumerate() {
                         lines.insert(insert_at + i, new_line.to_string());
@@ -196,8 +195,7 @@ impl DiffGenerator {
                     content = lines.join("\n");
                 }
                 EditType::Delete => {
-                    let mut lines: Vec<String> =
-                        content.lines().map(|l| l.to_string()).collect();
+                    let mut lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
                     let start = step.line_start.min(lines.len());
                     let end = step.line_end.min(lines.len());
                     if start < end {
@@ -206,8 +204,7 @@ impl DiffGenerator {
                     content = lines.join("\n");
                 }
                 EditType::Replace => {
-                    let mut lines: Vec<String> =
-                        content.lines().map(|l| l.to_string()).collect();
+                    let mut lines: Vec<String> = content.lines().map(|l| l.to_string()).collect();
                     let start = step.line_start.min(lines.len());
                     let end = step.line_end.min(lines.len());
                     if start < end {
@@ -427,11 +424,7 @@ impl ReplayEngine {
     }
 
     /// Switch to an existing branch.
-    pub fn switch_branch(
-        &mut self,
-        timeline_id: &str,
-        branch_id: &str,
-    ) -> Result<(), String> {
+    pub fn switch_branch(&mut self, timeline_id: &str, branch_id: &str) -> Result<(), String> {
         let session = self
             .sessions
             .get_mut(timeline_id)
@@ -454,11 +447,7 @@ impl ReplayEngine {
     }
 
     /// Merge a branch into the active branch by appending its steps after the fork point.
-    pub fn merge_branch(
-        &mut self,
-        timeline_id: &str,
-        branch_id: &str,
-    ) -> Result<(), String> {
+    pub fn merge_branch(&mut self, timeline_id: &str, branch_id: &str) -> Result<(), String> {
         let session = self
             .sessions
             .get(timeline_id)
@@ -507,11 +496,7 @@ impl ReplayEngine {
     }
 
     /// Scrub to a specific step position in the active branch.
-    pub fn scrub_to(
-        &mut self,
-        timeline_id: &str,
-        step: usize,
-    ) -> Result<&EditStep, String> {
+    pub fn scrub_to(&mut self, timeline_id: &str, step: usize) -> Result<&EditStep, String> {
         let session = self
             .sessions
             .get_mut(timeline_id)
@@ -558,11 +543,7 @@ impl ReplayEngine {
     }
 
     /// Get the unified diff at a given step.
-    pub fn get_diff_at(
-        &self,
-        timeline_id: &str,
-        step: usize,
-    ) -> Result<String, String> {
+    pub fn get_diff_at(&self, timeline_id: &str, step: usize) -> Result<String, String> {
         let session = self
             .sessions
             .get(timeline_id)
@@ -587,11 +568,7 @@ impl ReplayEngine {
     }
 
     /// Get the reasoning string at a given step.
-    pub fn get_reasoning_at(
-        &self,
-        timeline_id: &str,
-        step: usize,
-    ) -> Result<String, String> {
+    pub fn get_reasoning_at(&self, timeline_id: &str, step: usize) -> Result<String, String> {
         let session = self
             .sessions
             .get(timeline_id)
@@ -623,10 +600,7 @@ impl ReplayEngine {
     }
 
     /// List all branches for a timeline.
-    pub fn list_branches(
-        &self,
-        timeline_id: &str,
-    ) -> Result<Vec<&TimelineBranch>, String> {
+    pub fn list_branches(&self, timeline_id: &str) -> Result<Vec<&TimelineBranch>, String> {
         let session = self
             .sessions
             .get(timeline_id)
@@ -719,11 +693,7 @@ impl ReplayEngine {
 
     /// Prune old steps from the active branch, keeping only the last `keep_last` steps.
     /// Returns the number of steps removed.
-    pub fn prune(
-        &mut self,
-        timeline_id: &str,
-        keep_last: usize,
-    ) -> Result<usize, String> {
+    pub fn prune(&mut self, timeline_id: &str, keep_last: usize) -> Result<usize, String> {
         let session = self
             .sessions
             .get_mut(timeline_id)
@@ -749,10 +719,7 @@ impl ReplayEngine {
             step.step_number = i + 1;
         }
 
-        session.timeline.total_steps = session
-            .timeline
-            .total_steps
-            .saturating_sub(remove_count);
+        session.timeline.total_steps = session.timeline.total_steps.saturating_sub(remove_count);
         session.current_position = session.current_position.saturating_sub(remove_count);
 
         self.update_metrics();
@@ -1089,8 +1056,7 @@ mod tests {
         e.record_step(&id, sample_step(1)).unwrap();
         e.fork(&id, 1, "exp").unwrap();
         // Switch back to main to fork again — but "exp" already exists
-        let main_id = e
-            .sessions[&id]
+        let main_id = e.sessions[&id]
             .timeline
             .branches
             .values()
@@ -1150,8 +1116,7 @@ mod tests {
             .unwrap()
             .status = BranchStatus::Abandoned;
 
-        let main_id = e
-            .sessions[&id]
+        let main_id = e.sessions[&id]
             .timeline
             .branches
             .values()
@@ -1303,7 +1268,15 @@ mod tests {
 
     #[test]
     fn test_apply_steps_file_create() {
-        let step = make_step("c", 1, EditType::FileCreate, "f.rs", "", "hello world", "create");
+        let step = make_step(
+            "c",
+            1,
+            EditType::FileCreate,
+            "f.rs",
+            "",
+            "hello world",
+            "create",
+        );
         let result = DiffGenerator::apply_steps("", &[&step]);
         assert_eq!(result, "hello world");
     }
@@ -1325,7 +1298,15 @@ mod tests {
 
     #[test]
     fn test_apply_steps_replace() {
-        let mut step = make_step("r", 1, EditType::Replace, "f.rs", "old", "replacement", "rep");
+        let mut step = make_step(
+            "r",
+            1,
+            EditType::Replace,
+            "f.rs",
+            "old",
+            "replacement",
+            "rep",
+        );
         step.line_start = 0;
         step.line_end = 1;
         let result = DiffGenerator::apply_steps("original\nkeep", &[&step]);
@@ -1335,7 +1316,15 @@ mod tests {
 
     #[test]
     fn test_apply_steps_sequential() {
-        let s1 = make_step("c", 1, EditType::FileCreate, "f.rs", "", "aaa\nbbb\nccc", "create");
+        let s1 = make_step(
+            "c",
+            1,
+            EditType::FileCreate,
+            "f.rs",
+            "",
+            "aaa\nbbb\nccc",
+            "create",
+        );
         let mut s2 = make_step("r", 2, EditType::Replace, "f.rs", "bbb", "xxx", "replace");
         s2.line_start = 1;
         s2.line_end = 2;

@@ -5,82 +5,152 @@
  *   cargo test --test failover_bdd -p vibe-ai
  */
 
-use cucumber::{World, given, then, when};
-use std::sync::Arc;
-use std::time::Instant;
-use vibe_ai::providers::FailoverProvider;
-use vibe_ai::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, Message, MessageRole};
-use vibe_ai::resilience::{ProviderHealthTracker, ProviderCallOutcome, FailureCategory};
 use anyhow::Result;
 use async_trait::async_trait;
+use cucumber::{given, then, when, World};
+use std::sync::Arc;
+use std::time::Instant;
+use vibe_ai::provider::{
+    AIProvider, CodeContext, CompletionResponse, CompletionStream, Message, MessageRole,
+};
+use vibe_ai::providers::FailoverProvider;
+use vibe_ai::resilience::{FailureCategory, ProviderCallOutcome, ProviderHealthTracker};
 
 // ── Opaque debug wrapper (FailoverProvider / ProviderHealthTracker lack Debug) ─
 
 struct Opaque<T>(T);
 impl<T> std::fmt::Debug for Opaque<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { f.write_str("_") }
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("_")
+    }
 }
 impl<T: Default> Default for Opaque<T> {
-    fn default() -> Self { Self(T::default()) }
+    fn default() -> Self {
+        Self(T::default())
+    }
 }
 
 // ── Mock providers ─────────────────────────────────────────────────────────────
 
-struct AlwaysFailProvider { name_: String }
+struct AlwaysFailProvider {
+    name_: String,
+}
 impl AlwaysFailProvider {
-    fn new(name: &str) -> Self { Self { name_: name.to_string() } }
+    fn new(name: &str) -> Self {
+        Self {
+            name_: name.to_string(),
+        }
+    }
 }
 #[async_trait]
 impl AIProvider for AlwaysFailProvider {
-    fn name(&self) -> &str { &self.name_ }
-    async fn is_available(&self) -> bool { false }
-    async fn complete(&self, _: &CodeContext) -> Result<CompletionResponse> { anyhow::bail!("mock") }
-    async fn stream_complete(&self, _: &CodeContext) -> Result<CompletionStream> { anyhow::bail!("mock") }
-    async fn chat(&self, _: &[Message], _: Option<String>) -> Result<String> { anyhow::bail!("mock") }
-    async fn stream_chat(&self, _: &[Message]) -> Result<CompletionStream> { anyhow::bail!("mock") }
+    fn name(&self) -> &str {
+        &self.name_
+    }
+    async fn is_available(&self) -> bool {
+        false
+    }
+    async fn complete(&self, _: &CodeContext) -> Result<CompletionResponse> {
+        anyhow::bail!("mock")
+    }
+    async fn stream_complete(&self, _: &CodeContext) -> Result<CompletionStream> {
+        anyhow::bail!("mock")
+    }
+    async fn chat(&self, _: &[Message], _: Option<String>) -> Result<String> {
+        anyhow::bail!("mock")
+    }
+    async fn stream_chat(&self, _: &[Message]) -> Result<CompletionStream> {
+        anyhow::bail!("mock")
+    }
 }
 
-struct AlwaysSucceedProvider { label: String }
+struct AlwaysSucceedProvider {
+    label: String,
+}
 impl AlwaysSucceedProvider {
-    fn new(label: &str) -> Self { Self { label: label.to_string() } }
+    fn new(label: &str) -> Self {
+        Self {
+            label: label.to_string(),
+        }
+    }
 }
 #[async_trait]
 impl AIProvider for AlwaysSucceedProvider {
-    fn name(&self) -> &str { &self.label }
-    async fn is_available(&self) -> bool { true }
-    async fn complete(&self, _: &CodeContext) -> Result<CompletionResponse> {
-        Ok(CompletionResponse { text: format!("{}-complete", self.label), model: self.label.clone(), usage: None })
+    fn name(&self) -> &str {
+        &self.label
     }
-    async fn stream_complete(&self, _: &CodeContext) -> Result<CompletionStream> { anyhow::bail!("not impl") }
+    async fn is_available(&self) -> bool {
+        true
+    }
+    async fn complete(&self, _: &CodeContext) -> Result<CompletionResponse> {
+        Ok(CompletionResponse {
+            text: format!("{}-complete", self.label),
+            model: self.label.clone(),
+            usage: None,
+        })
+    }
+    async fn stream_complete(&self, _: &CodeContext) -> Result<CompletionStream> {
+        anyhow::bail!("not impl")
+    }
     async fn chat(&self, _: &[Message], _: Option<String>) -> Result<String> {
         Ok(format!("{}-chat", self.label))
     }
-    async fn stream_chat(&self, _: &[Message]) -> Result<CompletionStream> { anyhow::bail!("not impl") }
+    async fn stream_chat(&self, _: &[Message]) -> Result<CompletionStream> {
+        anyhow::bail!("not impl")
+    }
     async fn chat_response(&self, _: &[Message], _: Option<String>) -> Result<CompletionResponse> {
-        Ok(CompletionResponse { text: format!("{}-chat-response", self.label), model: self.label.clone(), usage: None })
+        Ok(CompletionResponse {
+            text: format!("{}-chat-response", self.label),
+            model: self.label.clone(),
+            usage: None,
+        })
     }
 }
 
 struct UnavailableProvider;
 #[async_trait]
 impl AIProvider for UnavailableProvider {
-    fn name(&self) -> &str { "Unavailable" }
-    async fn is_available(&self) -> bool { false }
-    async fn complete(&self, _: &CodeContext) -> Result<CompletionResponse> { anyhow::bail!("unavail") }
-    async fn stream_complete(&self, _: &CodeContext) -> Result<CompletionStream> { anyhow::bail!("unavail") }
-    async fn chat(&self, _: &[Message], _: Option<String>) -> Result<String> { anyhow::bail!("unavail") }
-    async fn stream_chat(&self, _: &[Message]) -> Result<CompletionStream> { anyhow::bail!("unavail") }
+    fn name(&self) -> &str {
+        "Unavailable"
+    }
+    async fn is_available(&self) -> bool {
+        false
+    }
+    async fn complete(&self, _: &CodeContext) -> Result<CompletionResponse> {
+        anyhow::bail!("unavail")
+    }
+    async fn stream_complete(&self, _: &CodeContext) -> Result<CompletionStream> {
+        anyhow::bail!("unavail")
+    }
+    async fn chat(&self, _: &[Message], _: Option<String>) -> Result<String> {
+        anyhow::bail!("unavail")
+    }
+    async fn stream_chat(&self, _: &[Message]) -> Result<CompletionStream> {
+        anyhow::bail!("unavail")
+    }
 }
 
 struct AvailableProvider;
 #[async_trait]
 impl AIProvider for AvailableProvider {
-    fn name(&self) -> &str { "Available" }
-    async fn is_available(&self) -> bool { true }
-    async fn complete(&self, _: &CodeContext) -> Result<CompletionResponse> { anyhow::bail!("no impl") }
-    async fn stream_complete(&self, _: &CodeContext) -> Result<CompletionStream> { anyhow::bail!("no impl") }
-    async fn chat(&self, _: &[Message], _: Option<String>) -> Result<String> { anyhow::bail!("no impl") }
-    async fn stream_chat(&self, _: &[Message]) -> Result<CompletionStream> { anyhow::bail!("no impl") }
+    fn name(&self) -> &str {
+        "Available"
+    }
+    async fn is_available(&self) -> bool {
+        true
+    }
+    async fn complete(&self, _: &CodeContext) -> Result<CompletionResponse> {
+        anyhow::bail!("no impl")
+    }
+    async fn stream_complete(&self, _: &CodeContext) -> Result<CompletionStream> {
+        anyhow::bail!("no impl")
+    }
+    async fn chat(&self, _: &[Message], _: Option<String>) -> Result<String> {
+        anyhow::bail!("no impl")
+    }
+    async fn stream_chat(&self, _: &[Message]) -> Result<CompletionStream> {
+        anyhow::bail!("no impl")
+    }
 }
 
 // ── World ──────────────────────────────────────────────────────────────────────
@@ -89,22 +159,43 @@ impl AIProvider for AvailableProvider {
 #[world(init = Self::new)]
 pub struct FailoverWorld {
     failover: Option<Opaque<FailoverProvider>>,
-    tracker:  Option<Opaque<Arc<ProviderHealthTracker>>>,
-    last_chat_result:          Option<Result<String>>,
-    last_complete_result:      Option<Result<CompletionResponse>>,
+    tracker: Option<Opaque<Arc<ProviderHealthTracker>>>,
+    last_chat_result: Option<Result<String>>,
+    last_complete_result: Option<Result<CompletionResponse>>,
     last_chat_response_result: Option<Result<CompletionResponse>>,
 }
 
 impl FailoverWorld {
-    fn new() -> Self { Self::default() }
-    fn msgs() -> Vec<Message> { vec![Message { role: MessageRole::User, content: "hi".into() }] }
-    fn ctx() -> CodeContext {
-        CodeContext { language: "rust".into(), file_path: None, prefix: "fn ".into(), suffix: "".into(), additional_context: vec![] }
+    fn new() -> Self {
+        Self::default()
     }
-    fn set_failover(&mut self, fp: FailoverProvider) { self.failover = Some(Opaque(fp)); }
-    fn set_tracker(&mut self, t: Arc<ProviderHealthTracker>) { self.tracker = Some(Opaque(t)); }
-    fn fp(&self) -> &FailoverProvider { &self.failover.as_ref().expect("failover not set").0 }
-    fn tracker_ref(&self) -> &Arc<ProviderHealthTracker> { &self.tracker.as_ref().expect("tracker not set").0 }
+    fn msgs() -> Vec<Message> {
+        vec![Message {
+            role: MessageRole::User,
+            content: "hi".into(),
+        }]
+    }
+    fn ctx() -> CodeContext {
+        CodeContext {
+            language: "rust".into(),
+            file_path: None,
+            prefix: "fn ".into(),
+            suffix: "".into(),
+            additional_context: vec![],
+        }
+    }
+    fn set_failover(&mut self, fp: FailoverProvider) {
+        self.failover = Some(Opaque(fp));
+    }
+    fn set_tracker(&mut self, t: Arc<ProviderHealthTracker>) {
+        self.tracker = Some(Opaque(t));
+    }
+    fn fp(&self) -> &FailoverProvider {
+        &self.failover.as_ref().expect("failover not set").0
+    }
+    fn tracker_ref(&self) -> &Arc<ProviderHealthTracker> {
+        &self.tracker.as_ref().expect("tracker not set").0
+    }
 }
 
 // ── Given steps ───────────────────────────────────────────────────────────────
@@ -118,7 +209,8 @@ fn empty_chain(world: &mut FailoverWorld, count: usize) {
 #[given(expr = "a failover chain with providers {string}")]
 fn chain_from_names(world: &mut FailoverWorld, names_json: String) {
     let names = parse_names(&names_json);
-    let chain: Vec<Arc<dyn AIProvider>> = names.iter()
+    let chain: Vec<Arc<dyn AIProvider>> = names
+        .iter()
         .map(|n| Arc::new(AlwaysSucceedProvider::new(n)) as Arc<dyn AIProvider>)
         .collect();
     world.set_failover(FailoverProvider::new(chain));
@@ -126,17 +218,21 @@ fn chain_from_names(world: &mut FailoverWorld, names_json: String) {
 
 #[given("a failover chain where all providers are unavailable")]
 fn all_unavailable(world: &mut FailoverWorld) {
-    let chain: Vec<Arc<dyn AIProvider>> = vec![Arc::new(UnavailableProvider), Arc::new(UnavailableProvider)];
+    let chain: Vec<Arc<dyn AIProvider>> =
+        vec![Arc::new(UnavailableProvider), Arc::new(UnavailableProvider)];
     world.set_failover(FailoverProvider::new(chain));
 }
 
 #[given("a failover chain where only the second provider is available")]
 fn second_available(world: &mut FailoverWorld) {
-    let chain: Vec<Arc<dyn AIProvider>> = vec![Arc::new(UnavailableProvider), Arc::new(AvailableProvider)];
+    let chain: Vec<Arc<dyn AIProvider>> =
+        vec![Arc::new(UnavailableProvider), Arc::new(AvailableProvider)];
     world.set_failover(FailoverProvider::new(chain));
 }
 
-#[given(expr = "a failover chain where the first provider fails and the second succeeds as {string}")]
+#[given(
+    expr = "a failover chain where the first provider fails and the second succeeds as {string}"
+)]
 fn first_fails_second_succeeds(world: &mut FailoverWorld, backup_name: String) {
     let chain: Vec<Arc<dyn AIProvider>> = vec![
         Arc::new(AlwaysFailProvider::new("Failing")),
@@ -145,7 +241,9 @@ fn first_fails_second_succeeds(world: &mut FailoverWorld, backup_name: String) {
     world.set_failover(FailoverProvider::new(chain));
 }
 
-#[given(expr = "a failover chain where the first provider succeeds as {string} and second as {string}")]
+#[given(
+    expr = "a failover chain where the first provider succeeds as {string} and second as {string}"
+)]
 fn both_succeed(world: &mut FailoverWorld, first: String, second: String) {
     let chain: Vec<Arc<dyn AIProvider>> = vec![
         Arc::new(AlwaysSucceedProvider::new(&first)),
@@ -171,8 +269,12 @@ fn chain_no_tracker(world: &mut FailoverWorld, names_json: String) {
 #[given(expr = "a failover chain with providers {string} and a health tracker")]
 fn chain_with_tracker(world: &mut FailoverWorld, names_json: String) {
     let names = parse_names(&names_json);
-    let tracker = Arc::new(ProviderHealthTracker::new(50, std::time::Duration::from_secs(600)));
-    let chain: Vec<Arc<dyn AIProvider>> = names.iter()
+    let tracker = Arc::new(ProviderHealthTracker::new(
+        50,
+        std::time::Duration::from_secs(600),
+    ));
+    let chain: Vec<Arc<dyn AIProvider>> = names
+        .iter()
         .map(|n| Arc::new(AlwaysSucceedProvider::new(n)) as Arc<dyn AIProvider>)
         .collect();
     let fp = FailoverProvider::with_health_tracker(chain, tracker.clone());
@@ -181,20 +283,30 @@ fn chain_with_tracker(world: &mut FailoverWorld, names_json: String) {
 }
 
 #[given(expr = "{string} has {int} successful calls recorded and {string} has {int} failed calls")]
-fn record_health(world: &mut FailoverWorld, healthy: String, ok_count: usize, unhealthy: String, fail_count: usize) {
+fn record_health(
+    world: &mut FailoverWorld,
+    healthy: String,
+    ok_count: usize,
+    unhealthy: String,
+    fail_count: usize,
+) {
     let tracker = world.tracker_ref().clone();
     for _ in 0..ok_count {
         tracker.record(ProviderCallOutcome {
-            provider_name: healthy.clone(), success: true,
+            provider_name: healthy.clone(),
+            success: true,
             latency: std::time::Duration::from_millis(100),
-            timestamp: Instant::now(), error_category: None,
+            timestamp: Instant::now(),
+            error_category: None,
         });
     }
     for _ in 0..fail_count {
         tracker.record(ProviderCallOutcome {
-            provider_name: unhealthy.clone(), success: false,
+            provider_name: unhealthy.clone(),
+            success: false,
             latency: std::time::Duration::from_millis(3000),
-            timestamp: Instant::now(), error_category: Some(FailureCategory::ServerError),
+            timestamp: Instant::now(),
+            error_category: Some(FailureCategory::ServerError),
         });
     }
 }
@@ -256,47 +368,74 @@ async fn assert_available(world: &mut FailoverWorld) {
 fn assert_error_contains(world: &mut FailoverWorld, fragment: String) {
     let r = world.last_chat_result.as_ref().expect("no chat result");
     assert!(r.is_err(), "expected error");
-    assert!(r.as_ref().unwrap_err().to_string().contains(&fragment),
-        "error {:?} lacks {:?}", r.as_ref().unwrap_err(), fragment);
+    assert!(
+        r.as_ref().unwrap_err().to_string().contains(&fragment),
+        "error {:?} lacks {:?}",
+        r.as_ref().unwrap_err(),
+        fragment
+    );
 }
 
 #[then(expr = "the response should contain {string}")]
 fn assert_response_contains(world: &mut FailoverWorld, fragment: String) {
     let r = world.last_chat_result.as_ref().expect("no chat result");
     assert!(r.is_ok(), "expected ok, got {:?}", r);
-    assert!(r.as_ref().unwrap().contains(&fragment),
-        "response {:?} lacks {:?}", r.as_ref().unwrap(), fragment);
+    assert!(
+        r.as_ref().unwrap().contains(&fragment),
+        "response {:?} lacks {:?}",
+        r.as_ref().unwrap(),
+        fragment
+    );
 }
 
 #[then(expr = "the completion text should contain {string}")]
 fn assert_completion_contains(world: &mut FailoverWorld, fragment: String) {
-    let r = world.last_complete_result.as_ref().expect("no complete result");
+    let r = world
+        .last_complete_result
+        .as_ref()
+        .expect("no complete result");
     assert!(r.is_ok(), "expected ok, got {:?}", r);
-    assert!(r.as_ref().unwrap().text.contains(&fragment),
-        "text {:?} lacks {:?}", r.as_ref().unwrap().text, fragment);
+    assert!(
+        r.as_ref().unwrap().text.contains(&fragment),
+        "text {:?} lacks {:?}",
+        r.as_ref().unwrap().text,
+        fragment
+    );
 }
 
 #[then(expr = "the response text should contain {string}")]
 fn assert_chat_response_contains(world: &mut FailoverWorld, fragment: String) {
-    let r = world.last_chat_response_result.as_ref().expect("no chat_response result");
+    let r = world
+        .last_chat_response_result
+        .as_ref()
+        .expect("no chat_response result");
     assert!(r.is_ok(), "expected ok, got {:?}", r);
-    assert!(r.as_ref().unwrap().text.contains(&fragment),
-        "text {:?} lacks {:?}", r.as_ref().unwrap().text, fragment);
+    assert!(
+        r.as_ref().unwrap().text.contains(&fragment),
+        "text {:?} lacks {:?}",
+        r.as_ref().unwrap().text,
+        fragment
+    );
 }
 
 #[then(expr = "the tracker should record {int} failure for {string}")]
 fn assert_tracker_failures(world: &mut FailoverWorld, count: usize, provider: String) {
     let health = world.tracker_ref().health(&provider);
-    assert_eq!(health.recent_failures, count,
-        "{provider} recent_failures: expected {count} got {}", health.recent_failures);
+    assert_eq!(
+        health.recent_failures, count,
+        "{provider} recent_failures: expected {count} got {}",
+        health.recent_failures
+    );
 }
 
 #[then(expr = "the tracker should record {int} success for {string}")]
 fn assert_tracker_successes(world: &mut FailoverWorld, count: usize, provider: String) {
     let health = world.tracker_ref().health(&provider);
     let successes = health.total_calls - health.recent_failures;
-    assert_eq!(successes, count,
-        "{provider} successes: expected {count} got {successes}");
+    assert_eq!(
+        successes, count,
+        "{provider} successes: expected {count} got {successes}"
+    );
 }
 
 // ── Helper ─────────────────────────────────────────────────────────────────────

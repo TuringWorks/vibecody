@@ -253,10 +253,7 @@ impl AgentFsm {
             // Any → Aborted
             (_, AgentEvent::Abort(reason)) => Ok(AgentState::Aborted(reason.clone())),
 
-            _ => Err(format!(
-                "illegal transition: {} + {:?}",
-                state, event
-            )),
+            _ => Err(format!("illegal transition: {} + {:?}", state, event)),
         }
     }
 }
@@ -378,12 +375,11 @@ mod tests {
 
     #[test]
     fn test_abort_from_any_state() {
-        for initial_event in &[
-            AgentEvent::TaskReceived,
-        ] {
+        for initial_event in &[AgentEvent::TaskReceived] {
             let mut fsm = fresh();
             fsm.apply(initial_event.clone()).unwrap();
-            fsm.apply(AgentEvent::Abort("user cancelled".into())).unwrap();
+            fsm.apply(AgentEvent::Abort("user cancelled".into()))
+                .unwrap();
             assert!(matches!(fsm.state(), AgentState::Aborted(_)));
         }
     }
@@ -416,10 +412,7 @@ mod tests {
         fsm.apply(AgentEvent::TaskReceived).unwrap();
         fsm.apply(AgentEvent::PlanReady).unwrap();
         fsm.apply(AgentEvent::RateLimited).unwrap();
-        assert_eq!(
-            *fsm.state(),
-            AgentState::Blocked(BlockReason::RateLimited)
-        );
+        assert_eq!(*fsm.state(), AgentState::Blocked(BlockReason::RateLimited));
     }
 
     #[test]
@@ -520,7 +513,8 @@ mod tests {
         let mut fsm = fresh();
         fsm.apply(AgentEvent::TaskReceived).unwrap();
         fsm.apply(AgentEvent::PlanReady).unwrap();
-        fsm.apply(AgentEvent::WaitingForTool("cargo_build".into())).unwrap();
+        fsm.apply(AgentEvent::WaitingForTool("cargo_build".into()))
+            .unwrap();
         assert_eq!(
             *fsm.state(),
             AgentState::Blocked(BlockReason::AwaitingTool("cargo_build".into()))

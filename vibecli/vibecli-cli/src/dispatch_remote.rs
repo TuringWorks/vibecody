@@ -3,7 +3,12 @@
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum JobStatus { Queued, Running, Completed(String), Failed(String) }
+pub enum JobStatus {
+    Queued,
+    Running,
+    Completed(String),
+    Failed(String),
+}
 
 #[derive(Debug, Clone)]
 pub struct Job {
@@ -21,7 +26,9 @@ pub struct DispatchQueue {
 }
 
 impl DispatchQueue {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     fn next_id(&mut self) -> String {
         self.counter += 1;
@@ -34,24 +41,45 @@ impl DispatchQueue {
 
     pub fn enqueue_with_priority(&mut self, prompt: &str, priority: u8, now: u64) -> String {
         let id = self.next_id();
-        self.jobs.insert(id.clone(), Job { id: id.clone(), prompt: prompt.to_string(), priority, enqueued_at: now, status: JobStatus::Queued });
+        self.jobs.insert(
+            id.clone(),
+            Job {
+                id: id.clone(),
+                prompt: prompt.to_string(),
+                priority,
+                enqueued_at: now,
+                status: JobStatus::Queued,
+            },
+        );
         id
     }
 
     pub fn mark_running(&mut self, id: &str) {
-        if let Some(job) = self.jobs.get_mut(id) { job.status = JobStatus::Running; }
+        if let Some(job) = self.jobs.get_mut(id) {
+            job.status = JobStatus::Running;
+        }
     }
 
     pub fn mark_completed(&mut self, id: &str, output: &str) {
-        if let Some(job) = self.jobs.get_mut(id) { job.status = JobStatus::Completed(output.to_string()); }
+        if let Some(job) = self.jobs.get_mut(id) {
+            job.status = JobStatus::Completed(output.to_string());
+        }
     }
 
-    pub fn poll(&self, id: &str) -> Option<&Job> { self.jobs.get(id) }
+    pub fn poll(&self, id: &str) -> Option<&Job> {
+        self.jobs.get(id)
+    }
 
     pub fn dequeue_next(&mut self) -> Option<Job> {
-        let id = self.jobs.values()
+        let id = self
+            .jobs
+            .values()
             .filter(|j| j.status == JobStatus::Queued)
-            .max_by(|a, b| a.priority.cmp(&b.priority).then(b.enqueued_at.cmp(&a.enqueued_at)))
+            .max_by(|a, b| {
+                a.priority
+                    .cmp(&b.priority)
+                    .then(b.enqueued_at.cmp(&a.enqueued_at))
+            })
             .map(|j| j.id.clone())?;
         let mut job = self.jobs.remove(&id)?;
         job.status = JobStatus::Running;
@@ -59,7 +87,10 @@ impl DispatchQueue {
     }
 
     pub fn pending_count(&self) -> usize {
-        self.jobs.values().filter(|j| j.status == JobStatus::Queued).count()
+        self.jobs
+            .values()
+            .filter(|j| j.status == JobStatus::Queued)
+            .count()
     }
 }
 
@@ -95,7 +126,7 @@ mod tests {
     #[test]
     fn test_dequeue_same_priority_earlier_first() {
         let mut q = DispatchQueue::new();
-        q.enqueue_with_priority("first", 100, 0);  // enqueued_at = 0
+        q.enqueue_with_priority("first", 100, 0); // enqueued_at = 0
         q.enqueue_with_priority("second", 100, 10); // enqueued_at = 10 (later)
         let job = q.dequeue_next().unwrap();
         // earlier enqueued (lower enqueued_at) wins

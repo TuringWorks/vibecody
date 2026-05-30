@@ -132,7 +132,10 @@ impl ConflictParser {
                 let mut theirs_label = String::new();
 
                 // Collect ours
-                while i < lines.len() && !lines[i].starts_with("=======") && !lines[i].starts_with("|||||||") {
+                while i < lines.len()
+                    && !lines[i].starts_with("=======")
+                    && !lines[i].starts_with("|||||||")
+                {
                     ours.push(lines[i].to_string());
                     i += 1;
                 }
@@ -210,8 +213,12 @@ fn classify_conflict(ours: &[String], theirs: &[String], _base: Option<&[String]
     }
 
     // Import ordering (both sides are all import/use lines)
-    let ours_imports = ours.iter().all(|l| l.trim().starts_with("use ") || l.trim().starts_with("import "));
-    let theirs_imports = theirs.iter().all(|l| l.trim().starts_with("use ") || l.trim().starts_with("import "));
+    let ours_imports = ours
+        .iter()
+        .all(|l| l.trim().starts_with("use ") || l.trim().starts_with("import "));
+    let theirs_imports = theirs
+        .iter()
+        .all(|l| l.trim().starts_with("use ") || l.trim().starts_with("import "));
     if ours_imports && theirs_imports {
         return ConflictKind::ImportOrder;
     }
@@ -223,12 +230,20 @@ fn classify_conflict(ours: &[String], theirs: &[String], _base: Option<&[String]
 
     // Rename detection: same structure, only identifiers differ
     if ours.len() == theirs.len() {
-        let token_diffs: usize = ours.iter().zip(theirs.iter())
+        let token_diffs: usize = ours
+            .iter()
+            .zip(theirs.iter())
             .map(|(a, b)| {
                 let a_tokens: Vec<&str> = a.split_whitespace().collect();
                 let b_tokens: Vec<&str> = b.split_whitespace().collect();
-                if a_tokens.len() != b_tokens.len() { return 10usize; }
-                a_tokens.iter().zip(b_tokens.iter()).filter(|(x, y)| x != y).count()
+                if a_tokens.len() != b_tokens.len() {
+                    return 10usize;
+                }
+                a_tokens
+                    .iter()
+                    .zip(b_tokens.iter())
+                    .filter(|(x, y)| x != y)
+                    .count()
             })
             .sum();
         let total_tokens: usize = ours.iter().map(|l| l.split_whitespace().count()).sum();
@@ -238,9 +253,22 @@ fn classify_conflict(ours: &[String], theirs: &[String], _base: Option<&[String]
     }
 
     // Structural: function signature or type definition changed
-    let structural_keywords = ["fn ", "struct ", "enum ", "trait ", "impl ", "type ", "pub fn ", "async fn "];
-    let ours_structural = ours.iter().any(|l| structural_keywords.iter().any(|k| l.contains(k)));
-    let theirs_structural = theirs.iter().any(|l| structural_keywords.iter().any(|k| l.contains(k)));
+    let structural_keywords = [
+        "fn ",
+        "struct ",
+        "enum ",
+        "trait ",
+        "impl ",
+        "type ",
+        "pub fn ",
+        "async fn ",
+    ];
+    let ours_structural = ours
+        .iter()
+        .any(|l| structural_keywords.iter().any(|k| l.contains(k)));
+    let theirs_structural = theirs
+        .iter()
+        .any(|l| structural_keywords.iter().any(|k| l.contains(k)));
     if ours_structural || theirs_structural {
         return ConflictKind::Structural;
     }
@@ -283,7 +311,9 @@ impl SemanticMergeResolver {
             }
             ConflictKind::ImportOrder => {
                 // Merge and sort both sides
-                let mut merged: Vec<String> = hunk.ours.iter()
+                let mut merged: Vec<String> = hunk
+                    .ours
+                    .iter()
                     .chain(hunk.theirs.iter())
                     .filter(|l| !l.trim().is_empty())
                     .cloned()
@@ -326,7 +356,13 @@ impl SemanticMergeResolver {
 
         for hunk in hunks {
             let resolution = self.resolve_hunk(hunk);
-            if matches!(resolution, Resolution::AutoResolved(_) | Resolution::TakeOurs | Resolution::TakeTheirs | Resolution::TakeBoth) {
+            if matches!(
+                resolution,
+                Resolution::AutoResolved(_)
+                    | Resolution::TakeOurs
+                    | Resolution::TakeTheirs
+                    | Resolution::TakeBoth
+            ) {
                 summary.auto_resolved += 1;
             } else {
                 summary.needs_review += 1;
@@ -438,7 +474,10 @@ mod tests {
     use super::*;
 
     fn conflict(ours: &str, theirs: &str) -> String {
-        format!("<<<<<<< HEAD\n{}\n=======\n{}\n>>>>>>> feature\n", ours, theirs)
+        format!(
+            "<<<<<<< HEAD\n{}\n=======\n{}\n>>>>>>> feature\n",
+            ours, theirs
+        )
     }
 
     #[test]
@@ -465,8 +504,14 @@ mod tests {
     #[test]
     fn test_classify_import_order() {
         let kind = classify_conflict(
-            &["use std::collections::HashMap;".to_string(), "use std::fmt;".to_string()],
-            &["use std::fmt;".to_string(), "use std::collections::HashMap;".to_string()],
+            &[
+                "use std::collections::HashMap;".to_string(),
+                "use std::fmt;".to_string(),
+            ],
+            &[
+                "use std::fmt;".to_string(),
+                "use std::collections::HashMap;".to_string(),
+            ],
             None,
         );
         assert_eq!(kind, ConflictKind::ImportOrder);

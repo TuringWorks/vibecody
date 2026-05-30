@@ -257,8 +257,7 @@ impl ExplanationEngine {
         self.timestamp_counter += 1;
 
         let context_count = 0;
-        let has_tests = change.file_path.contains("test")
-            || change.change_type.contains("test");
+        let has_tests = change.file_path.contains("test") || change.change_type.contains("test");
         let confidence = ConfidenceEstimator::estimate(&change, context_count, has_tests);
 
         ExplanationChain {
@@ -299,11 +298,7 @@ impl ExplanationEngine {
         Ok(())
     }
 
-    pub fn add_alternative(
-        &mut self,
-        chain_id: &str,
-        alt: Alternative,
-    ) -> Result<(), String> {
+    pub fn add_alternative(&mut self, chain_id: &str, alt: Alternative) -> Result<(), String> {
         let max = self.config.max_alternatives;
         let entry = self
             .trail
@@ -322,11 +317,7 @@ impl ExplanationEngine {
         Ok(())
     }
 
-    pub fn add_reasoning_step(
-        &mut self,
-        chain_id: &str,
-        step: &str,
-    ) -> Result<(), String> {
+    pub fn add_reasoning_step(&mut self, chain_id: &str, step: &str) -> Result<(), String> {
         let entry = self
             .trail
             .entries
@@ -358,8 +349,7 @@ impl ExplanationEngine {
         // Recompute avg confidence
         let total = self.metrics.total_explanations as f64;
         let prev_avg = self.metrics.avg_confidence;
-        self.metrics.avg_confidence =
-            prev_avg + (confidence_score - prev_avg) / total;
+        self.metrics.avg_confidence = prev_avg + (confidence_score - prev_avg) / total;
 
         // Recompute most common reason
         if let Some((reason, _)) = self
@@ -460,11 +450,7 @@ impl ExplanationEngine {
         }
     }
 
-    pub fn export_entry(
-        &self,
-        id: &str,
-        format: ExplanationFormat,
-    ) -> Result<String, String> {
+    pub fn export_entry(&self, id: &str, format: ExplanationFormat) -> Result<String, String> {
         let entry = self
             .trail
             .entries
@@ -525,7 +511,10 @@ impl ExplanationEngine {
         if !c.alternatives.is_empty() {
             out.push_str("**Alternatives considered:**\n");
             for alt in &c.alternatives {
-                out.push_str(&format!("- {} (rejected: {})\n", alt.description, alt.rejected_reason));
+                out.push_str(&format!(
+                    "- {} (rejected: {})\n",
+                    alt.description, alt.rejected_reason
+                ));
             }
             out.push('\n');
         }
@@ -672,11 +661,17 @@ mod tests {
 
     #[test]
     fn test_confidence_to_score() {
-        assert!((ConfidenceEstimator::to_score(&ConfidenceLevel::VeryHigh) - 0.95).abs() < f64::EPSILON);
+        assert!(
+            (ConfidenceEstimator::to_score(&ConfidenceLevel::VeryHigh) - 0.95).abs() < f64::EPSILON
+        );
         assert!((ConfidenceEstimator::to_score(&ConfidenceLevel::High) - 0.8).abs() < f64::EPSILON);
-        assert!((ConfidenceEstimator::to_score(&ConfidenceLevel::Medium) - 0.6).abs() < f64::EPSILON);
+        assert!(
+            (ConfidenceEstimator::to_score(&ConfidenceLevel::Medium) - 0.6).abs() < f64::EPSILON
+        );
         assert!((ConfidenceEstimator::to_score(&ConfidenceLevel::Low) - 0.4).abs() < f64::EPSILON);
-        assert!((ConfidenceEstimator::to_score(&ConfidenceLevel::Uncertain) - 0.2).abs() < f64::EPSILON);
+        assert!(
+            (ConfidenceEstimator::to_score(&ConfidenceLevel::Uncertain) - 0.2).abs() < f64::EPSILON
+        );
     }
 
     #[test]
@@ -869,7 +864,11 @@ mod tests {
     #[test]
     fn test_query_fuzzy_intent() {
         let mut e = engine();
-        let chain = e.explain(sample_change(), "fix off-by-one error", ChangeReason::BugFix);
+        let chain = e.explain(
+            sample_change(),
+            "fix off-by-one error",
+            ChangeReason::BugFix,
+        );
         e.record(chain);
         assert_eq!(e.query("off-by-one").len(), 1);
         assert_eq!(e.query("OFF-BY-ONE").len(), 1);
@@ -890,7 +889,8 @@ mod tests {
         let chain = e.explain(sample_change(), "fix", ChangeReason::BugFix);
         let id = chain.id.clone();
         e.record(chain);
-        e.add_reasoning_step(&id, "Analyzed the loop bounds").unwrap();
+        e.add_reasoning_step(&id, "Analyzed the loop bounds")
+            .unwrap();
         assert_eq!(e.query("loop bounds").len(), 1);
     }
 
@@ -977,7 +977,12 @@ mod tests {
         e.record(chain);
         // Should silently succeed but not add
         e.add_context(&id, "LSP", "info", 0.8).unwrap();
-        assert!(e.get_explanation(&id).unwrap().chain.context_used.is_empty());
+        assert!(e
+            .get_explanation(&id)
+            .unwrap()
+            .chain
+            .context_used
+            .is_empty());
     }
 
     // -- add_alternative --
@@ -989,10 +994,7 @@ mod tests {
         let id = chain.id.clone();
         e.record(chain);
         e.add_alternative(&id, sample_alternative()).unwrap();
-        assert_eq!(
-            e.get_explanation(&id).unwrap().chain.alternatives.len(),
-            1
-        );
+        assert_eq!(e.get_explanation(&id).unwrap().chain.alternatives.len(), 1);
     }
 
     #[test]
@@ -1024,11 +1026,7 @@ mod tests {
         e.add_reasoning_step(&id, "Step 1").unwrap();
         e.add_reasoning_step(&id, "Step 2").unwrap();
         assert_eq!(
-            e.get_explanation(&id)
-                .unwrap()
-                .chain
-                .reasoning_steps
-                .len(),
+            e.get_explanation(&id).unwrap().chain.reasoning_steps.len(),
             2
         );
     }

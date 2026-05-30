@@ -199,23 +199,23 @@ impl EawCategory {
             // A representative subset; full UAX#11 table not enumerated here
             // to keep the implementation lean and allocation-free.
             0x00B2..=0x00B3 => Self::Ambiguous, // superscript 2, 3
-            0x00B7 => Self::Ambiguous,           // middle dot
-            0x00BC..=0x00BE => Self::Ambiguous,  // fractions
-            0x00D7 => Self::Ambiguous,           // multiplication sign
-            0x00F7 => Self::Ambiguous,           // division sign
-            0x2018..=0x2019 => Self::Ambiguous,  // curly single quotes
-            0x201C..=0x201D => Self::Ambiguous,  // curly double quotes
-            0x2026 => Self::Ambiguous,           // horizontal ellipsis
-            0x2103 => Self::Ambiguous,           // degree celsius
-            0x2116 => Self::Ambiguous,           // numero sign
-            0x2190..=0x2199 => Self::Ambiguous,  // arrows
-            0x21D2 | 0x21D4 => Self::Ambiguous,  // double arrows
-            0x2200..=0x22FF => Self::Ambiguous,  // mathematical operators
-            0x2308..=0x230B => Self::Ambiguous,  // ceiling / floor brackets
-            0x2329..=0x232A => Self::Ambiguous,  // angle brackets (legacy)
-            0x2500..=0x25FF => Self::Ambiguous,  // box drawing / geometric shapes
-            0x2600..=0x27FF => Self::Ambiguous,  // misc symbols, arrows
-            0x2900..=0x297F => Self::Ambiguous,  // supplemental arrows
+            0x00B7 => Self::Ambiguous,          // middle dot
+            0x00BC..=0x00BE => Self::Ambiguous, // fractions
+            0x00D7 => Self::Ambiguous,          // multiplication sign
+            0x00F7 => Self::Ambiguous,          // division sign
+            0x2018..=0x2019 => Self::Ambiguous, // curly single quotes
+            0x201C..=0x201D => Self::Ambiguous, // curly double quotes
+            0x2026 => Self::Ambiguous,          // horizontal ellipsis
+            0x2103 => Self::Ambiguous,          // degree celsius
+            0x2116 => Self::Ambiguous,          // numero sign
+            0x2190..=0x2199 => Self::Ambiguous, // arrows
+            0x21D2 | 0x21D4 => Self::Ambiguous, // double arrows
+            0x2200..=0x22FF => Self::Ambiguous, // mathematical operators
+            0x2308..=0x230B => Self::Ambiguous, // ceiling / floor brackets
+            0x2329..=0x232A => Self::Ambiguous, // angle brackets (legacy)
+            0x2500..=0x25FF => Self::Ambiguous, // box drawing / geometric shapes
+            0x2600..=0x27FF => Self::Ambiguous, // misc symbols, arrows
+            0x2900..=0x297F => Self::Ambiguous, // supplemental arrows
 
             // Everything else is Neutral / Narrow.
             0x0021..=0x007E => Self::Narrow, // printable ASCII
@@ -270,10 +270,7 @@ pub fn visible_width(s: &str) -> usize {
                                 i += 1;
                                 break;
                             }
-                            if chars[i] == '\x1b'
-                                && i + 1 < chars.len()
-                                && chars[i + 1] == '\\'
-                            {
+                            if chars[i] == '\x1b' && i + 1 < chars.len() && chars[i + 1] == '\\' {
                                 i += 2;
                                 break;
                             }
@@ -345,10 +342,7 @@ pub fn truncate_to_width(s: &str, max_cols: usize) -> String {
                                 i += 1;
                                 break;
                             }
-                            if chars[i] == '\x1b'
-                                && i + 1 < chars.len()
-                                && chars[i + 1] == '\\'
-                            {
+                            if chars[i] == '\x1b' && i + 1 < chars.len() && chars[i + 1] == '\\' {
                                 i += 2;
                                 break;
                             }
@@ -461,10 +455,7 @@ pub fn wrap_to_width(s: &str, max_cols: usize) -> Vec<String> {
                                 i += 1;
                                 break;
                             }
-                            if chars[i] == '\x1b'
-                                && i + 1 < chars.len()
-                                && chars[i + 1] == '\\'
-                            {
+                            if chars[i] == '\x1b' && i + 1 < chars.len() && chars[i + 1] == '\\' {
                                 i += 2;
                                 break;
                             }
@@ -578,10 +569,7 @@ pub fn is_ime_capable_terminal() -> bool {
             // Must be UTF-8 capable …
             if lower.contains("utf-8") || lower.contains("utf8") {
                 // … and named for a CJK language.
-                if lower.starts_with("zh")
-                    || lower.starts_with("ja")
-                    || lower.starts_with("ko")
-                {
+                if lower.starts_with("zh") || lower.starts_with("ja") || lower.starts_with("ko") {
                     return true;
                 }
             }
@@ -857,7 +845,11 @@ mod tests {
     fn truncate_cjk_stops_before_overflow() {
         // max_cols = 3, wide chars are 2 each → only one wide char fits (2 cols).
         let t = truncate_to_width("你好", 3);
-        assert_eq!(visible_width(&t), 2, "wide char must not partially overflow");
+        assert_eq!(
+            visible_width(&t),
+            2,
+            "wide char must not partially overflow"
+        );
     }
 
     #[test]

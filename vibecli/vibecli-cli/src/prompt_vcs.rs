@@ -43,7 +43,11 @@ pub struct DiffHunk {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum HunkKind { Added, Removed, Context }
+pub enum HunkKind {
+    Added,
+    Removed,
+    Context,
+}
 
 // ---------------------------------------------------------------------------
 // Versioned Prompt Store
@@ -78,10 +82,19 @@ impl PromptVcs {
     }
 
     /// Commit a new version on the current branch.
-    pub fn commit(&mut self, content: impl Into<String>, message: impl Into<String>, ts: u64) -> String {
+    pub fn commit(
+        &mut self,
+        content: impl Into<String>,
+        message: impl Into<String>,
+        ts: u64,
+    ) -> String {
         let id = self.gen_id();
         let parent_id = self.branches.get(&self.current_branch).and_then(|s| {
-            if s.is_empty() { None } else { Some(s.clone()) }
+            if s.is_empty() {
+                None
+            } else {
+                Some(s.clone())
+            }
         });
         let version = PromptVersion {
             id: id.clone(),
@@ -93,7 +106,8 @@ impl PromptVcs {
             tags: Vec::new(),
         };
         self.versions.insert(id.clone(), version);
-        self.branches.insert(self.current_branch.clone(), id.clone());
+        self.branches
+            .insert(self.current_branch.clone(), id.clone());
         id
     }
 
@@ -105,22 +119,32 @@ impl PromptVcs {
     /// Get HEAD of a branch.
     pub fn head(&self, branch: &str) -> Option<&PromptVersion> {
         let id = self.branches.get(branch)?;
-        if id.is_empty() { return None; }
+        if id.is_empty() {
+            return None;
+        }
         self.versions.get(id)
     }
 
     /// Create a new branch from the current HEAD.
     pub fn create_branch(&mut self, name: impl Into<String>) -> bool {
         let name = name.into();
-        if self.branches.contains_key(&name) { return false; }
-        let head_id = self.branches.get(&self.current_branch).cloned().unwrap_or_default();
+        if self.branches.contains_key(&name) {
+            return false;
+        }
+        let head_id = self
+            .branches
+            .get(&self.current_branch)
+            .cloned()
+            .unwrap_or_default();
         self.branches.insert(name, head_id);
         true
     }
 
     /// Switch to an existing branch.
     pub fn checkout(&mut self, branch: &str) -> bool {
-        if !self.branches.contains_key(branch) { return false; }
+        if !self.branches.contains_key(branch) {
+            return false;
+        }
         self.current_branch = branch.to_string();
         true
     }
@@ -137,7 +161,10 @@ impl PromptVcs {
 
     /// Find versions by tag.
     pub fn versions_with_tag(&self, tag: &str) -> Vec<&PromptVersion> {
-        self.versions.values().filter(|v| v.is_tagged(tag)).collect()
+        self.versions
+            .values()
+            .filter(|v| v.is_tagged(tag))
+            .collect()
     }
 
     /// Compute a line-level diff between two versions.
@@ -162,28 +189,43 @@ impl PromptVcs {
             if li < lcs.len() {
                 let (lf, lt) = lcs[li];
                 while fi < lf {
-                    hunks.push(DiffHunk { kind: HunkKind::Removed, content: from_lines[fi].to_string() });
+                    hunks.push(DiffHunk {
+                        kind: HunkKind::Removed,
+                        content: from_lines[fi].to_string(),
+                    });
                     removed += 1;
                     fi += 1;
                 }
                 while ti < lt {
-                    hunks.push(DiffHunk { kind: HunkKind::Added, content: to_lines[ti].to_string() });
+                    hunks.push(DiffHunk {
+                        kind: HunkKind::Added,
+                        content: to_lines[ti].to_string(),
+                    });
                     added += 1;
                     ti += 1;
                 }
-                hunks.push(DiffHunk { kind: HunkKind::Context, content: from_lines[fi].to_string() });
+                hunks.push(DiffHunk {
+                    kind: HunkKind::Context,
+                    content: from_lines[fi].to_string(),
+                });
                 unchanged += 1;
                 fi += 1;
                 ti += 1;
                 li += 1;
             } else {
                 if fi < from_lines.len() {
-                    hunks.push(DiffHunk { kind: HunkKind::Removed, content: from_lines[fi].to_string() });
+                    hunks.push(DiffHunk {
+                        kind: HunkKind::Removed,
+                        content: from_lines[fi].to_string(),
+                    });
                     removed += 1;
                     fi += 1;
                 }
                 if ti < to_lines.len() {
-                    hunks.push(DiffHunk { kind: HunkKind::Added, content: to_lines[ti].to_string() });
+                    hunks.push(DiffHunk {
+                        kind: HunkKind::Added,
+                        content: to_lines[ti].to_string(),
+                    });
                     added += 1;
                     ti += 1;
                 }
@@ -214,9 +256,15 @@ impl PromptVcs {
         result
     }
 
-    pub fn version_count(&self) -> usize { self.versions.len() }
-    pub fn branch_count(&self) -> usize { self.branches.len() }
-    pub fn current_branch(&self) -> &str { &self.current_branch }
+    pub fn version_count(&self) -> usize {
+        self.versions.len()
+    }
+    pub fn branch_count(&self) -> usize {
+        self.branches.len()
+    }
+    pub fn current_branch(&self) -> &str {
+        &self.current_branch
+    }
 }
 
 /// Compute LCS of two string slices, returning pairs of matching indices.

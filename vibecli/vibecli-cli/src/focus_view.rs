@@ -1,7 +1,12 @@
 //! focus_view — Deep-focus session gating and distraction tracking.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum NotificationLevel { Silent, Minimal, Normal, Verbose }
+pub enum NotificationLevel {
+    Silent,
+    Minimal,
+    Normal,
+    Verbose,
+}
 
 #[derive(Debug, Clone)]
 pub struct FocusConfig {
@@ -11,12 +16,17 @@ pub struct FocusConfig {
 
 impl FocusConfig {
     pub fn default_deep() -> Self {
-        Self { level: NotificationLevel::Silent, auto_exit_after_secs: None }
+        Self {
+            level: NotificationLevel::Silent,
+            auto_exit_after_secs: None,
+        }
     }
 }
 
 impl Default for FocusConfig {
-    fn default() -> Self { Self::default_deep() }
+    fn default() -> Self {
+        Self::default_deep()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -33,10 +43,16 @@ pub struct FocusManager {
 }
 
 impl FocusManager {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn enter_focus(&mut self, config: FocusConfig, now: u64) {
-        self.active = Some(FocusSession { config, started_at: now, distraction_count: 0 });
+        self.active = Some(FocusSession {
+            config,
+            started_at: now,
+            distraction_count: 0,
+        });
     }
 
     pub fn exit_focus(&mut self, _now: u64) {
@@ -45,12 +61,18 @@ impl FocusManager {
         }
     }
 
-    pub fn is_in_focus(&self) -> bool { self.active.is_some() }
+    pub fn is_in_focus(&self) -> bool {
+        self.active.is_some()
+    }
 
-    pub fn session_count(&self) -> usize { self.sessions.len() }
+    pub fn session_count(&self) -> usize {
+        self.sessions.len()
+    }
 
     pub fn record_distraction(&mut self) {
-        if let Some(s) = self.active.as_mut() { s.distraction_count += 1; }
+        if let Some(s) = self.active.as_mut() {
+            s.distraction_count += 1;
+        }
     }
 
     pub fn should_auto_exit(&self, now: u64) -> bool {
@@ -103,7 +125,10 @@ mod tests {
     #[test]
     fn test_auto_exit_triggers_after_limit() {
         let mut mgr = FocusManager::new();
-        let cfg = FocusConfig { auto_exit_after_secs: Some(60), ..Default::default() };
+        let cfg = FocusConfig {
+            auto_exit_after_secs: Some(60),
+            ..Default::default()
+        };
         mgr.enter_focus(cfg, 0);
         assert!(mgr.should_auto_exit(60));
         assert!(!mgr.should_auto_exit(59));

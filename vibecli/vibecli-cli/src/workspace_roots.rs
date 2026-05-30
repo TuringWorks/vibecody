@@ -41,7 +41,9 @@ pub enum ResolveError {
 impl std::fmt::Display for ResolveError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ResolveError::OutOfScope(p) => write!(f, "path is outside every workspace root: {}", p.display()),
+            ResolveError::OutOfScope(p) => {
+                write!(f, "path is outside every workspace root: {}", p.display())
+            }
             ResolveError::ReadOnly(p) => write!(f, "workspace root is read-only: {}", p.display()),
         }
     }
@@ -107,17 +109,32 @@ mod tests {
     use super::*;
 
     fn rw(path: &str) -> WorkspaceRoot {
-        WorkspaceRoot { path: PathBuf::from(path), permission: WorkspaceRootPermission::ReadWrite }
+        WorkspaceRoot {
+            path: PathBuf::from(path),
+            permission: WorkspaceRootPermission::ReadWrite,
+        }
     }
     fn ro(path: &str) -> WorkspaceRoot {
-        WorkspaceRoot { path: PathBuf::from(path), permission: WorkspaceRootPermission::ReadOnly }
+        WorkspaceRoot {
+            path: PathBuf::from(path),
+            permission: WorkspaceRootPermission::ReadOnly,
+        }
     }
 
     #[test]
     fn resolves_path_to_owning_root_in_two_root_config() {
         let roots = WorkspaceRoots::new(vec![rw("/proj/a"), rw("/proj/b")]);
-        assert_eq!(roots.resolve(Path::new("/proj/a/src/main.rs")).unwrap().path, PathBuf::from("/proj/a"));
-        assert_eq!(roots.resolve(Path::new("/proj/b/lib.rs")).unwrap().path, PathBuf::from("/proj/b"));
+        assert_eq!(
+            roots
+                .resolve(Path::new("/proj/a/src/main.rs"))
+                .unwrap()
+                .path,
+            PathBuf::from("/proj/a")
+        );
+        assert_eq!(
+            roots.resolve(Path::new("/proj/b/lib.rs")).unwrap().path,
+            PathBuf::from("/proj/b")
+        );
     }
 
     #[test]
@@ -140,15 +157,21 @@ mod tests {
         let roots = WorkspaceRoots::new(vec![rw("/proj/a"), rw("/proj/b"), ro("/vendored/libc")]);
         roots.check_write(Path::new("/proj/a/src/main.rs")).unwrap();
         roots.check_write(Path::new("/proj/b/lib.rs")).unwrap();
-        let err = roots.check_write(Path::new("/vendored/libc/string.c")).unwrap_err();
+        let err = roots
+            .check_write(Path::new("/vendored/libc/string.c"))
+            .unwrap_err();
         assert_eq!(err, ResolveError::ReadOnly(PathBuf::from("/vendored/libc")));
-        roots.check_read(Path::new("/vendored/libc/string.c")).unwrap();
+        roots
+            .check_read(Path::new("/vendored/libc/string.c"))
+            .unwrap();
     }
 
     #[test]
     fn parent_dir_traversal_is_normalised_and_cannot_escape_root() {
         let roots = WorkspaceRoots::new(vec![rw("/proj/a")]);
-        let err = roots.resolve(Path::new("/proj/a/sub/../../../etc/passwd")).unwrap_err();
+        let err = roots
+            .resolve(Path::new("/proj/a/sub/../../../etc/passwd"))
+            .unwrap_err();
         assert!(matches!(err, ResolveError::OutOfScope(_)), "got {err:?}");
     }
 

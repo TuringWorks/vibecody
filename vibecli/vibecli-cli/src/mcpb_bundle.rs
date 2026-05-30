@@ -73,8 +73,8 @@ pub fn pack_bundle(src_dir: &Path, dest_path: &Path) -> Result<BundleManifest> {
     let f = std::fs::File::create(dest_path)
         .with_context(|| format!("create {}", dest_path.display()))?;
     let mut zw = zip::ZipWriter::new(f);
-    let opts: zip::write::SimpleFileOptions = zip::write::SimpleFileOptions::default()
-        .compression_method(zip::CompressionMethod::Stored);
+    let opts: zip::write::SimpleFileOptions =
+        zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
 
     // Walk src_dir, adding every file. Sort entries by relative path
     // so the archive layout is deterministic.
@@ -212,7 +212,9 @@ mod tests {
             version: "1.2.0".into(),
             command: "node".into(),
             args: vec!["server.js".into()],
-            env: [("ALLOWED_PATHS".to_string(), "/tmp".to_string())].into_iter().collect(),
+            env: [("ALLOWED_PATHS".to_string(), "/tmp".to_string())]
+                .into_iter()
+                .collect(),
             description: Some("filesystem MCP server".into()),
         }
     }

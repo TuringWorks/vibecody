@@ -65,12 +65,7 @@ pub struct LogEntry {
 
 impl LogEntry {
     /// Create a normal (non-compacted) entry.
-    pub fn new(
-        id: impl Into<String>,
-        role: LogRole,
-        content: impl Into<String>,
-        ts: u64,
-    ) -> Self {
+    pub fn new(id: impl Into<String>, role: LogRole, content: impl Into<String>, ts: u64) -> Self {
         Self {
             id: id.into(),
             role,
@@ -204,11 +199,7 @@ impl DualLog {
         if self.context.len() <= keep_recent {
             return;
         }
-        let ts = self
-            .context
-            .last()
-            .map(|e| e.timestamp_ms)
-            .unwrap_or(0);
+        let ts = self.context.last().map(|e| e.timestamp_ms).unwrap_or(0);
         let summary_entry = LogEntry::compaction_summary(summary, ts);
         let tail_start = self.context.len() - keep_recent;
         let tail: Vec<LogEntry> = self.context.drain(tail_start..).collect();
@@ -323,8 +314,8 @@ fn parse_jsonl(src: &str) -> Result<Vec<LogEntry>, String> {
 fn write_file(path: &Path, content: &str) -> Result<(), String> {
     use std::io::Write;
     let tmp = path.with_extension("tmp");
-    let mut f = std::fs::File::create(&tmp)
-        .map_err(|e| format!("create {}: {e}", tmp.display()))?;
+    let mut f =
+        std::fs::File::create(&tmp).map_err(|e| format!("create {}: {e}", tmp.display()))?;
     f.write_all(content.as_bytes())
         .map_err(|e| format!("write {}: {e}", tmp.display()))?;
     std::fs::rename(&tmp, path)
@@ -524,7 +515,12 @@ mod tests {
     fn compact_replaces_old_entries_keeps_recent() {
         let mut dl = DualLog::new(20);
         for i in 0..10u64 {
-            dl.append(make_entry(&i.to_string(), LogRole::User, &format!("msg {i}"), i));
+            dl.append(make_entry(
+                &i.to_string(),
+                LogRole::User,
+                &format!("msg {i}"),
+                i,
+            ));
         }
         dl.sync_context();
         assert_eq!(dl.context_count(), 10);

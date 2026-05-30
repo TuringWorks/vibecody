@@ -25,7 +25,7 @@ impl DiffViewMode {
     /// Return the other mode (toggle helper).
     pub fn toggled(self) -> Self {
         match self {
-            DiffViewMode::Unified    => DiffViewMode::SideBySide,
+            DiffViewMode::Unified => DiffViewMode::SideBySide,
             DiffViewMode::SideBySide => DiffViewMode::Unified,
         }
     }
@@ -33,7 +33,7 @@ impl DiffViewMode {
     /// Human-readable label for the status bar.
     pub fn label(self) -> &'static str {
         match self {
-            DiffViewMode::Unified    => "Unified",
+            DiffViewMode::Unified => "Unified",
             DiffViewMode::SideBySide => "Side-by-Side",
         }
     }
@@ -135,7 +135,7 @@ impl DiffViewComponent {
     /// Produce styled Ratatui `Line`s for the current diff state and view mode.
     pub fn render_lines(&self) -> Vec<Line<'_>> {
         match self.view_mode {
-            DiffViewMode::Unified    => self.render_unified(),
+            DiffViewMode::Unified => self.render_unified(),
             DiffViewMode::SideBySide => self.render_side_by_side(),
         }
     }
@@ -211,7 +211,10 @@ impl DiffViewComponent {
                         if let Some(dl) = left {
                             spans.push(Span::styled(Self::format_lineno(dl.old_lineno), gs));
                             spans.push(Span::styled(" ", gs));
-                            spans.push(Span::styled(dl.content.as_str(), Self::style_for_kind(DiffLineKind::Removed)));
+                            spans.push(Span::styled(
+                                dl.content.as_str(),
+                                Self::style_for_kind(DiffLineKind::Removed),
+                            ));
                         } else {
                             spans.push(Span::styled("     ", gs));
                         }
@@ -222,7 +225,10 @@ impl DiffViewComponent {
                         if let Some(dl) = right {
                             spans.push(Span::styled(Self::format_lineno(dl.new_lineno), gs));
                             spans.push(Span::styled(" ", gs));
-                            spans.push(Span::styled(dl.content.as_str(), Self::style_for_kind(DiffLineKind::Added)));
+                            spans.push(Span::styled(
+                                dl.content.as_str(),
+                                Self::style_for_kind(DiffLineKind::Added),
+                            ));
                         } else {
                             spans.push(Span::styled("     ", gs));
                         }
@@ -238,7 +244,10 @@ impl DiffViewComponent {
                         Span::styled("  |  ", gs),
                         Span::styled(Self::format_lineno(lines[i].new_lineno), gs),
                         Span::styled(" ", gs),
-                        Span::styled(lines[i].content.as_str(), Self::style_for_kind(DiffLineKind::Added)),
+                        Span::styled(
+                            lines[i].content.as_str(),
+                            Self::style_for_kind(DiffLineKind::Added),
+                        ),
                     ]));
                     i += 1;
                 }
@@ -253,11 +262,15 @@ impl DiffViewComponent {
     /// Return the `Style` for a given diff line kind.
     pub fn style_for_kind(kind: DiffLineKind) -> Style {
         match kind {
-            DiffLineKind::Added      => Style::default().fg(Color::Green).bg(Color::Rgb(0, 40, 0)),
-            DiffLineKind::Removed    => Style::default().fg(Color::Red).bg(Color::Rgb(40, 0, 0)),
-            DiffLineKind::HunkHeader => Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
-            DiffLineKind::FileHeader => Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
-            DiffLineKind::Context    => Style::default().fg(Color::DarkGray),
+            DiffLineKind::Added => Style::default().fg(Color::Green).bg(Color::Rgb(0, 40, 0)),
+            DiffLineKind::Removed => Style::default().fg(Color::Red).bg(Color::Rgb(40, 0, 0)),
+            DiffLineKind::HunkHeader => Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+            DiffLineKind::FileHeader => Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+            DiffLineKind::Context => Style::default().fg(Color::DarkGray),
         }
     }
 
@@ -265,8 +278,10 @@ impl DiffViewComponent {
     pub fn classify_line(line: &str) -> DiffLineKind {
         if line.starts_with("@@") {
             DiffLineKind::HunkHeader
-        } else if line.starts_with("diff ") || line.starts_with("index ")
-            || line.starts_with("--- ") || line.starts_with("+++ ")
+        } else if line.starts_with("diff ")
+            || line.starts_with("index ")
+            || line.starts_with("--- ")
+            || line.starts_with("+++ ")
         {
             DiffLineKind::FileHeader
         } else if line.starts_with('+') {
@@ -486,9 +501,14 @@ mod tests {
     fn set_diff_stores_hunks() {
         let mut comp = DiffViewComponent::new();
         comp.set_diff("hello\n", "hello\nworld\n");
-        assert!(!comp.hunks.is_empty(), "hunks should be populated after set_diff");
+        assert!(
+            !comp.hunks.is_empty(),
+            "hunks should be populated after set_diff"
+        );
         let has_insert = comp.hunks.iter().any(|h| {
-            h.lines.iter().any(|l| l.tag == vibe_core::diff::DiffTag::Insert)
+            h.lines
+                .iter()
+                .any(|l| l.tag == vibe_core::diff::DiffTag::Insert)
         });
         assert!(has_insert, "diff should contain at least one inserted line");
     }
@@ -499,7 +519,10 @@ mod tests {
         comp.raw_lines = vec!["old".to_string()];
         comp.scroll = 5;
         comp.set_diff("a\n", "b\n");
-        assert!(comp.raw_lines.is_empty(), "raw_lines should be cleared by set_diff");
+        assert!(
+            comp.raw_lines.is_empty(),
+            "raw_lines should be cleared by set_diff"
+        );
         assert_eq!(comp.scroll, 0, "scroll should be reset by set_diff");
     }
 
@@ -507,9 +530,15 @@ mod tests {
     fn set_diff_populates_parsed_lines() {
         let mut comp = DiffViewComponent::new();
         comp.set_diff("hello\n", "hello\nworld\n");
-        assert!(!comp.parsed_lines().is_empty(), "parsed_lines should be populated");
+        assert!(
+            !comp.parsed_lines().is_empty(),
+            "parsed_lines should be populated"
+        );
         // Should have at least one hunk header + content lines.
-        assert!(comp.parsed_lines().iter().any(|l| l.kind == DiffLineKind::HunkHeader));
+        assert!(comp
+            .parsed_lines()
+            .iter()
+            .any(|l| l.kind == DiffLineKind::HunkHeader));
     }
 
     // ── set_raw_diff ─────────────────────────────────────────────────────────
@@ -529,7 +558,10 @@ mod tests {
         comp.set_diff("a\n", "b\n");
         comp.scroll = 10;
         comp.set_raw_diff("some diff text");
-        assert!(comp.hunks.is_empty(), "hunks should be cleared by set_raw_diff");
+        assert!(
+            comp.hunks.is_empty(),
+            "hunks should be cleared by set_raw_diff"
+        );
         assert_eq!(comp.scroll, 0, "scroll should be reset by set_raw_diff");
     }
 
@@ -544,12 +576,18 @@ mod tests {
 
     #[test]
     fn classify_added() {
-        assert_eq!(DiffViewComponent::classify_line("+new line"), DiffLineKind::Added);
+        assert_eq!(
+            DiffViewComponent::classify_line("+new line"),
+            DiffLineKind::Added
+        );
     }
 
     #[test]
     fn classify_removed() {
-        assert_eq!(DiffViewComponent::classify_line("-old line"), DiffLineKind::Removed);
+        assert_eq!(
+            DiffViewComponent::classify_line("-old line"),
+            DiffLineKind::Removed
+        );
     }
 
     #[test]
@@ -594,8 +632,14 @@ mod tests {
 
     #[test]
     fn classify_context() {
-        assert_eq!(DiffViewComponent::classify_line(" context line"), DiffLineKind::Context);
-        assert_eq!(DiffViewComponent::classify_line("plain text"), DiffLineKind::Context);
+        assert_eq!(
+            DiffViewComponent::classify_line(" context line"),
+            DiffLineKind::Context
+        );
+        assert_eq!(
+            DiffViewComponent::classify_line("plain text"),
+            DiffLineKind::Context
+        );
     }
 
     // ── style_for_kind ───────────────────────────────────────────────────────
@@ -744,7 +788,11 @@ mod tests {
         let mut comp = DiffViewComponent::new();
         comp.set_raw_diff("@@ -1,2 +1,3 @@\n ctx\n+added\n ctx2\n");
         // Lines: header, ctx(old=1,new=1), +added(new=2), ctx2(old=2,new=3)
-        let added = comp.parsed_lines().iter().find(|l| l.kind == DiffLineKind::Added).unwrap();
+        let added = comp
+            .parsed_lines()
+            .iter()
+            .find(|l| l.kind == DiffLineKind::Added)
+            .unwrap();
         assert!(added.old_lineno.is_none());
         assert!(added.new_lineno.is_some());
     }
@@ -753,7 +801,11 @@ mod tests {
     fn raw_diff_line_numbers_removed() {
         let mut comp = DiffViewComponent::new();
         comp.set_raw_diff("@@ -1,2 +1,1 @@\n-removed\n ctx\n");
-        let removed = comp.parsed_lines().iter().find(|l| l.kind == DiffLineKind::Removed).unwrap();
+        let removed = comp
+            .parsed_lines()
+            .iter()
+            .find(|l| l.kind == DiffLineKind::Removed)
+            .unwrap();
         assert!(removed.old_lineno.is_some());
         assert!(removed.new_lineno.is_none());
     }
@@ -762,7 +814,9 @@ mod tests {
     fn raw_diff_context_has_both_line_numbers() {
         let mut comp = DiffViewComponent::new();
         comp.set_raw_diff("@@ -5,2 +10,2 @@\n ctx1\n ctx2\n");
-        let ctx_lines: Vec<_> = comp.parsed_lines().iter()
+        let ctx_lines: Vec<_> = comp
+            .parsed_lines()
+            .iter()
             .filter(|l| l.kind == DiffLineKind::Context)
             .collect();
         assert_eq!(ctx_lines.len(), 2);

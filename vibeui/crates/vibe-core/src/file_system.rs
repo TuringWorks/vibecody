@@ -94,7 +94,7 @@ impl FileSystem {
         while let Some(entry) = read_dir.next_entry().await? {
             let path = entry.path();
             let metadata = entry.metadata().await?;
-            
+
             entries.push(FileEntry {
                 name: entry.file_name().to_string_lossy().to_string(),
                 path: path.clone(),
@@ -109,12 +109,10 @@ impl FileSystem {
         }
 
         // Sort: directories first, then alphabetically
-        entries.sort_by(|a, b| {
-            match (a.is_directory, b.is_directory) {
-                (true, false) => std::cmp::Ordering::Less,
-                (false, true) => std::cmp::Ordering::Greater,
-                _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
-            }
+        entries.sort_by(|a, b| match (a.is_directory, b.is_directory) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
         });
 
         Ok(entries)
@@ -138,7 +136,7 @@ impl FileSystem {
         tokio::spawn(async move {
             while let Ok(event) = rx.recv() {
                 use notify::EventKind;
-                
+
                 match event.kind {
                     EventKind::Create(_) => {
                         for path in event.paths {
@@ -221,10 +219,10 @@ mod tests {
     async fn test_read_write_file() {
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("test.txt");
-        
+
         let fs = FileSystem::new();
         fs.write_file(&file_path, "Hello, World!").await.unwrap();
-        
+
         let content = fs.read_file(&file_path).await.unwrap();
         assert_eq!(content, "Hello, World!");
     }
@@ -235,9 +233,15 @@ mod tests {
         let fs = FileSystem::new();
 
         // Create some test files
-        fs.write_file(&dir.path().join("file1.txt"), "test").await.unwrap();
-        fs.write_file(&dir.path().join("file2.txt"), "test").await.unwrap();
-        fs.create_directory(&dir.path().join("subdir")).await.unwrap();
+        fs.write_file(&dir.path().join("file1.txt"), "test")
+            .await
+            .unwrap();
+        fs.write_file(&dir.path().join("file2.txt"), "test")
+            .await
+            .unwrap();
+        fs.create_directory(&dir.path().join("subdir"))
+            .await
+            .unwrap();
 
         let entries = fs.list_directory(dir.path()).await.unwrap();
         assert_eq!(entries.len(), 3);
@@ -418,11 +422,21 @@ mod tests {
         let fs = FileSystem::new();
 
         // Create files and dirs with names that test alphabetical sorting
-        fs.write_file(&dir.path().join("zebra.txt"), "z").await.unwrap();
-        fs.write_file(&dir.path().join("alpha.txt"), "a").await.unwrap();
-        fs.create_directory(&dir.path().join("beta_dir")).await.unwrap();
-        fs.create_directory(&dir.path().join("aaa_dir")).await.unwrap();
-        fs.write_file(&dir.path().join("middle.txt"), "m").await.unwrap();
+        fs.write_file(&dir.path().join("zebra.txt"), "z")
+            .await
+            .unwrap();
+        fs.write_file(&dir.path().join("alpha.txt"), "a")
+            .await
+            .unwrap();
+        fs.create_directory(&dir.path().join("beta_dir"))
+            .await
+            .unwrap();
+        fs.create_directory(&dir.path().join("aaa_dir"))
+            .await
+            .unwrap();
+        fs.write_file(&dir.path().join("middle.txt"), "m")
+            .await
+            .unwrap();
 
         let entries = fs.list_directory(dir.path()).await.unwrap();
         assert_eq!(entries.len(), 5);
@@ -549,7 +563,9 @@ mod tests {
         let nested = sub.join("child").join("grandchild");
 
         fs.create_directory(&nested).await.unwrap();
-        fs.write_file(&nested.join("file.txt"), "data").await.unwrap();
+        fs.write_file(&nested.join("file.txt"), "data")
+            .await
+            .unwrap();
 
         // delete_directory (remove_dir_all) should remove everything recursively
         fs.delete_directory(&sub).await.unwrap();

@@ -151,9 +151,7 @@ impl Goal {
             return Err(GoalValidationError::TitleEmpty);
         }
         if trimmed.chars().count() > TITLE_MAX_LEN {
-            return Err(GoalValidationError::TitleTooLong(
-                trimmed.chars().count(),
-            ));
+            return Err(GoalValidationError::TitleTooLong(trimmed.chars().count()));
         }
         Ok(())
     }
@@ -183,8 +181,7 @@ impl Goal {
     /// rule: a plan written against an older statement is misleading.
     /// Returns `true` when the new goal's plan must be cleared.
     pub fn plan_should_invalidate(&self, prior: &Goal) -> bool {
-        self.statement != prior.statement
-            || self.success_criteria != prior.success_criteria
+        self.statement != prior.statement || self.success_criteria != prior.success_criteria
     }
 }
 
@@ -231,10 +228,7 @@ mod tests {
             GoalLinkKind::Recap,
             GoalLinkKind::Note,
         ] {
-            assert_eq!(
-                GoalLinkKind::from_str(kind.as_str()),
-                Some(kind),
-            );
+            assert_eq!(GoalLinkKind::from_str(kind.as_str()), Some(kind),);
         }
     }
 
@@ -249,15 +243,9 @@ mod tests {
     #[test]
     fn validate_rejects_empty_and_oversize_titles() {
         let mut g = Goal::new("");
-        assert!(matches!(
-            g.validate(),
-            Err(GoalValidationError::TitleEmpty)
-        ));
+        assert!(matches!(g.validate(), Err(GoalValidationError::TitleEmpty)));
         g.title = "   ".to_string();
-        assert!(matches!(
-            g.validate(),
-            Err(GoalValidationError::TitleEmpty)
-        ));
+        assert!(matches!(g.validate(), Err(GoalValidationError::TitleEmpty)));
         g.title = "x".repeat(TITLE_MAX_LEN + 1);
         assert!(matches!(
             g.validate(),

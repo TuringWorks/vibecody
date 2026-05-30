@@ -18,12 +18,23 @@ use std::collections::HashMap;
 pub struct Lamport(pub u64);
 
 impl Lamport {
-    pub fn new() -> Self { Self(0) }
-    pub fn tick(&mut self) -> Self { self.0 += 1; Self(self.0) }
-    pub fn merge(&mut self, other: &Lamport) { self.0 = self.0.max(other.0); }
+    pub fn new() -> Self {
+        Self(0)
+    }
+    pub fn tick(&mut self) -> Self {
+        self.0 += 1;
+        Self(self.0)
+    }
+    pub fn merge(&mut self, other: &Lamport) {
+        self.0 = self.0.max(other.0);
+    }
 }
 
-impl Default for Lamport { fn default() -> Self { Self::new() } }
+impl Default for Lamport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 /// Vector clock: one counter per participant.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
@@ -39,14 +50,22 @@ impl VectorClock {
     pub fn merge(&mut self, other: &VectorClock) {
         for (peer, &v) in &other.0 {
             let entry = self.0.entry(peer.clone()).or_insert(0);
-            if v > *entry { *entry = v; }
+            if v > *entry {
+                *entry = v;
+            }
         }
     }
 
     pub fn happened_before(&self, other: &VectorClock) -> bool {
         // self ≤ other ∧ self ≠ other
-        let all_le = self.0.iter().all(|(k, &v)| *other.0.get(k).unwrap_or(&0) >= v);
-        let any_lt = self.0.iter().any(|(k, &v)| *other.0.get(k).unwrap_or(&0) > v)
+        let all_le = self
+            .0
+            .iter()
+            .all(|(k, &v)| *other.0.get(k).unwrap_or(&0) >= v);
+        let any_lt = self
+            .0
+            .iter()
+            .any(|(k, &v)| *other.0.get(k).unwrap_or(&0) > v)
             || other.0.keys().any(|k| !self.0.contains_key(k.as_str()));
         all_le && any_lt
     }
@@ -64,20 +83,39 @@ pub enum CrdtOpKind {
 /// A single CRDT operation on the shared document.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CrdtOp {
-    pub id: String,           // globally unique op ID
-    pub author: String,       // participant ID
+    pub id: String,     // globally unique op ID
+    pub author: String, // participant ID
     pub clock: Lamport,
     pub kind: CrdtOpKind,
     pub file_path: String,
 }
 
 impl CrdtOp {
-    pub fn insert(id: &str, author: &str, clock: Lamport, file: &str, pos: usize, ch: char) -> Self {
-        Self { id: id.to_string(), author: author.to_string(), clock, kind: CrdtOpKind::Insert { pos, ch }, file_path: file.to_string() }
+    pub fn insert(
+        id: &str,
+        author: &str,
+        clock: Lamport,
+        file: &str,
+        pos: usize,
+        ch: char,
+    ) -> Self {
+        Self {
+            id: id.to_string(),
+            author: author.to_string(),
+            clock,
+            kind: CrdtOpKind::Insert { pos, ch },
+            file_path: file.to_string(),
+        }
     }
 
     pub fn delete(id: &str, author: &str, clock: Lamport, file: &str, pos: usize) -> Self {
-        Self { id: id.to_string(), author: author.to_string(), clock, kind: CrdtOpKind::Delete { pos }, file_path: file.to_string() }
+        Self {
+            id: id.to_string(),
+            author: author.to_string(),
+            clock,
+            kind: CrdtOpKind::Delete { pos },
+            file_path: file.to_string(),
+        }
     }
 }
 
@@ -85,12 +123,14 @@ impl CrdtOp {
 /// Production use: replace with Yrs/Automerge; this models the interface.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SequenceCrdt {
-    pub chars: Vec<Option<char>>,  // None = tombstoned
+    pub chars: Vec<Option<char>>, // None = tombstoned
     pub ops: Vec<CrdtOp>,
 }
 
 impl SequenceCrdt {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     /// Apply a CRDT operation.
     pub fn apply(&mut self, op: CrdtOp) {
@@ -113,8 +153,12 @@ impl SequenceCrdt {
         self.chars.iter().filter_map(|c| *c).collect()
     }
 
-    pub fn op_count(&self) -> usize { self.ops.len() }
-    pub fn char_count(&self) -> usize { self.chars.iter().filter(|c| c.is_some()).count() }
+    pub fn op_count(&self) -> usize {
+        self.ops.len()
+    }
+    pub fn char_count(&self) -> usize {
+        self.chars.iter().filter(|c| c.is_some()).count()
+    }
 }
 
 // ─── Participants ─────────────────────────────────────────────────────────────
@@ -133,7 +177,7 @@ pub struct Participant {
     pub display_name: String,
     pub kind: ParticipantKind,
     pub cursor: Option<CursorPos>,
-    pub color: String,  // CSS colour for cursor rendering
+    pub color: String, // CSS colour for cursor rendering
     pub is_online: bool,
     pub joined_at: u64,
 }
@@ -148,14 +192,34 @@ pub struct CursorPos {
 
 impl Participant {
     pub fn human(id: &str, name: &str, color: &str) -> Self {
-        Self { id: id.to_string(), display_name: name.to_string(), kind: ParticipantKind::Human, cursor: None, color: color.to_string(), is_online: false, joined_at: 0 }
+        Self {
+            id: id.to_string(),
+            display_name: name.to_string(),
+            kind: ParticipantKind::Human,
+            cursor: None,
+            color: color.to_string(),
+            is_online: false,
+            joined_at: 0,
+        }
     }
 
     pub fn agent(id: &str, name: &str, model: &str, color: &str) -> Self {
-        Self { id: id.to_string(), display_name: name.to_string(), kind: ParticipantKind::Agent { model_id: model.to_string() }, cursor: None, color: color.to_string(), is_online: false, joined_at: 0 }
+        Self {
+            id: id.to_string(),
+            display_name: name.to_string(),
+            kind: ParticipantKind::Agent {
+                model_id: model.to_string(),
+            },
+            cursor: None,
+            color: color.to_string(),
+            is_online: false,
+            joined_at: 0,
+        }
     }
 
-    pub fn is_agent(&self) -> bool { matches!(self.kind, ParticipantKind::Agent { .. }) }
+    pub fn is_agent(&self) -> bool {
+        matches!(self.kind, ParticipantKind::Agent { .. })
+    }
 }
 
 // ─── Session Events ───────────────────────────────────────────────────────────
@@ -163,11 +227,23 @@ impl Participant {
 /// Session lifecycle events.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum SessionEvent {
-    ParticipantJoined { participant_id: String },
-    ParticipantLeft   { participant_id: String },
-    CursorMoved       { participant_id: String, pos: CursorPos },
-    OperationApplied  { op_id: String },
-    ConflictResolved  { op_ids: Vec<String>, resolution: String },
+    ParticipantJoined {
+        participant_id: String,
+    },
+    ParticipantLeft {
+        participant_id: String,
+    },
+    CursorMoved {
+        participant_id: String,
+        pos: CursorPos,
+    },
+    OperationApplied {
+        op_id: String,
+    },
+    ConflictResolved {
+        op_ids: Vec<String>,
+        resolution: String,
+    },
     SessionClosed,
 }
 
@@ -207,7 +283,9 @@ impl CollabSession {
         let pid = participant.id.clone();
         self.participants.insert(pid.clone(), participant);
         self.clocks.insert(pid.clone(), Lamport::new());
-        self.events.push(SessionEvent::ParticipantJoined { participant_id: pid });
+        self.events.push(SessionEvent::ParticipantJoined {
+            participant_id: pid,
+        });
     }
 
     /// Remove a participant.
@@ -215,7 +293,9 @@ impl CollabSession {
         if let Some(p) = self.participants.get_mut(participant_id) {
             p.is_online = false;
         }
-        self.events.push(SessionEvent::ParticipantLeft { participant_id: participant_id.to_string() });
+        self.events.push(SessionEvent::ParticipantLeft {
+            participant_id: participant_id.to_string(),
+        });
     }
 
     /// Update a participant's cursor position.
@@ -223,30 +303,41 @@ impl CollabSession {
         if let Some(p) = self.participants.get_mut(participant_id) {
             p.cursor = Some(pos.clone());
         }
-        self.events.push(SessionEvent::CursorMoved { participant_id: participant_id.to_string(), pos });
+        self.events.push(SessionEvent::CursorMoved {
+            participant_id: participant_id.to_string(),
+            pos,
+        });
     }
 
     /// Insert a character into a shared document.
     pub fn insert(&mut self, author: &str, file: &str, pos: usize, ch: char) -> Option<String> {
-        if !self.participants.contains_key(author) { return None; }
+        if !self.participants.contains_key(author) {
+            return None;
+        }
         let clock = self.clocks.entry(author.to_string()).or_default().tick();
         let op_id = self.next_op_id();
         let op = CrdtOp::insert(&op_id, author, clock, file, pos, ch);
         let doc = self.documents.entry(file.to_string()).or_default();
         doc.apply(op);
-        self.events.push(SessionEvent::OperationApplied { op_id: op_id.clone() });
+        self.events.push(SessionEvent::OperationApplied {
+            op_id: op_id.clone(),
+        });
         Some(op_id)
     }
 
     /// Delete a character from a shared document.
     pub fn delete(&mut self, author: &str, file: &str, pos: usize) -> Option<String> {
-        if !self.participants.contains_key(author) { return None; }
+        if !self.participants.contains_key(author) {
+            return None;
+        }
         let clock = self.clocks.entry(author.to_string()).or_default().tick();
         let op_id = self.next_op_id();
         let op = CrdtOp::delete(&op_id, author, clock, file, pos);
         let doc = self.documents.entry(file.to_string()).or_default();
         doc.apply(op);
-        self.events.push(SessionEvent::OperationApplied { op_id: op_id.clone() });
+        self.events.push(SessionEvent::OperationApplied {
+            op_id: op_id.clone(),
+        });
         Some(op_id)
     }
 
@@ -262,17 +353,29 @@ impl CollabSession {
 
     /// Number of human participants.
     pub fn human_count(&self) -> usize {
-        self.participants.values().filter(|p| !p.is_agent() && p.is_online).count()
+        self.participants
+            .values()
+            .filter(|p| !p.is_agent() && p.is_online)
+            .count()
     }
 
     /// Number of agent participants.
     pub fn agent_count(&self) -> usize {
-        self.participants.values().filter(|p| p.is_agent() && p.is_online).count()
+        self.participants
+            .values()
+            .filter(|p| p.is_agent() && p.is_online)
+            .count()
     }
 
-    pub fn events(&self) -> &[SessionEvent] { &self.events }
-    pub fn participants(&self) -> &HashMap<String, Participant> { &self.participants }
-    pub fn document_count(&self) -> usize { self.documents.len() }
+    pub fn events(&self) -> &[SessionEvent] {
+        &self.events
+    }
+    pub fn participants(&self) -> &HashMap<String, Participant> {
+        &self.participants
+    }
+    pub fn document_count(&self) -> usize {
+        self.documents.len()
+    }
 
     /// Op count across all documents.
     pub fn total_ops(&self) -> usize {
@@ -430,7 +533,10 @@ mod tests {
     fn test_session_human_and_agent_count() {
         let mut s = CollabSession::new("s1");
         s.join(Participant::human("alice", "Alice", "#blue"), 1000);
-        s.join(Participant::agent("bot1", "VibeAgent", "claude-sonnet-4-6", "#green"), 1001);
+        s.join(
+            Participant::agent("bot1", "VibeAgent", "claude-sonnet-4-6", "#green"),
+            1001,
+        );
         assert_eq!(s.human_count(), 1);
         assert_eq!(s.agent_count(), 1);
     }
@@ -478,7 +584,11 @@ mod tests {
     fn test_session_move_cursor() {
         let mut s = CollabSession::new("s1");
         s.join(Participant::human("alice", "Alice", "#blue"), 1000);
-        let pos = CursorPos { file: "main.rs".into(), line: 10, col: 5 };
+        let pos = CursorPos {
+            file: "main.rs".into(),
+            line: 10,
+            col: 5,
+        };
         s.move_cursor("alice", pos.clone());
         let cursor = s.participants()["alice"].cursor.clone().unwrap();
         assert_eq!(cursor.line, 10);
@@ -491,8 +601,12 @@ mod tests {
         s.join(Participant::human("alice", "Alice", "#blue"), 1000);
         s.leave("alice");
         let events = s.events();
-        assert!(events.iter().any(|e| matches!(e, SessionEvent::ParticipantJoined { .. })));
-        assert!(events.iter().any(|e| matches!(e, SessionEvent::ParticipantLeft { .. })));
+        assert!(events
+            .iter()
+            .any(|e| matches!(e, SessionEvent::ParticipantJoined { .. })));
+        assert!(events
+            .iter()
+            .any(|e| matches!(e, SessionEvent::ParticipantLeft { .. })));
     }
 
     #[test]

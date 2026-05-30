@@ -47,11 +47,7 @@ impl ExecutionPlan {
                 .unwrap_or_default();
             out.push_str(&format!(
                 "{}  {}. [{}] {}{}\n",
-                icon,
-                step.id,
-                step.tool,
-                step.description,
-                path
+                icon, step.id, step.tool, step.description, path
             ));
         }
         if !self.estimated_files.is_empty() {
@@ -111,8 +107,14 @@ impl PlannerAgent {
         let user = build_planner_user_prompt(task);
 
         let messages = vec![
-            Message { role: MessageRole::System, content: system },
-            Message { role: MessageRole::User, content: user },
+            Message {
+                role: MessageRole::System,
+                content: system,
+            },
+            Message {
+                role: MessageRole::User,
+                content: user,
+            },
         ];
 
         let response = self.provider.chat(&messages, None).await?;
@@ -196,7 +198,11 @@ fn parse_plan_from_response(response: &str) -> Result<ExecutionPlan> {
         }
     }
 
-    let end = response.char_indices().nth(500).map(|(i,_)| i).unwrap_or(response.len());
+    let end = response
+        .char_indices()
+        .nth(500)
+        .map(|(i, _)| i)
+        .unwrap_or(response.len());
     bail!(
         "Could not parse execution plan from model response.\nResponse was:\n{}",
         &response[..end]
@@ -363,10 +369,34 @@ mod tests {
         let plan = ExecutionPlan {
             goal: "Test display".to_string(),
             steps: vec![
-                PlanStep { id: 1, description: "step 1".into(), tool: "read_file".into(), estimated_path: None, status: PlanStepStatus::Done },
-                PlanStep { id: 2, description: "step 2".into(), tool: "bash".into(), estimated_path: None, status: PlanStepStatus::Failed },
-                PlanStep { id: 3, description: "step 3".into(), tool: "write_file".into(), estimated_path: Some("out.rs".into()), status: PlanStepStatus::Skipped },
-                PlanStep { id: 4, description: "step 4".into(), tool: "bash".into(), estimated_path: None, status: PlanStepStatus::InProgress },
+                PlanStep {
+                    id: 1,
+                    description: "step 1".into(),
+                    tool: "read_file".into(),
+                    estimated_path: None,
+                    status: PlanStepStatus::Done,
+                },
+                PlanStep {
+                    id: 2,
+                    description: "step 2".into(),
+                    tool: "bash".into(),
+                    estimated_path: None,
+                    status: PlanStepStatus::Failed,
+                },
+                PlanStep {
+                    id: 3,
+                    description: "step 3".into(),
+                    tool: "write_file".into(),
+                    estimated_path: Some("out.rs".into()),
+                    status: PlanStepStatus::Skipped,
+                },
+                PlanStep {
+                    id: 4,
+                    description: "step 4".into(),
+                    tool: "bash".into(),
+                    estimated_path: None,
+                    status: PlanStepStatus::InProgress,
+                },
             ],
             estimated_files: vec![],
             risks: vec![],
@@ -412,9 +442,13 @@ mod tests {
     fn execution_plan_serde_roundtrip() {
         let plan = ExecutionPlan {
             goal: "Fix all bugs".to_string(),
-            steps: vec![
-                PlanStep { id: 1, description: "read".into(), tool: "read_file".into(), estimated_path: None, status: PlanStepStatus::Pending },
-            ],
+            steps: vec![PlanStep {
+                id: 1,
+                description: "read".into(),
+                tool: "read_file".into(),
+                estimated_path: None,
+                status: PlanStepStatus::Pending,
+            }],
             estimated_files: vec!["src/main.rs".into()],
             risks: vec!["May break things".into()],
         };

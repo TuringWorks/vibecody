@@ -19,13 +19,17 @@ pub struct Sample {
     pub function: String,
     pub file: Option<String>,
     pub line: Option<u32>,
-    pub self_samples: u64,   // samples spent in this function
-    pub total_samples: u64,  // including callees
+    pub self_samples: u64,  // samples spent in this function
+    pub total_samples: u64, // including callees
 }
 
 impl Sample {
     pub fn self_percent(&self, total: u64) -> f64 {
-        if total == 0 { 0.0 } else { self.self_samples as f64 / total as f64 * 100.0 }
+        if total == 0 {
+            0.0
+        } else {
+            self.self_samples as f64 / total as f64 * 100.0
+        }
     }
 }
 
@@ -40,11 +44,26 @@ pub struct CallNode {
 
 impl CallNode {
     pub fn leaf(function: &str, samples: u64) -> Self {
-        Self { function: function.to_string(), self_samples: samples, total_samples: samples, children: Vec::new() }
+        Self {
+            function: function.to_string(),
+            self_samples: samples,
+            total_samples: samples,
+            children: Vec::new(),
+        }
     }
 
-    pub fn with_children(function: &str, self_s: u64, total_s: u64, children: Vec<CallNode>) -> Self {
-        Self { function: function.to_string(), self_samples: self_s, total_samples: total_s, children }
+    pub fn with_children(
+        function: &str,
+        self_s: u64,
+        total_s: u64,
+        children: Vec<CallNode>,
+    ) -> Self {
+        Self {
+            function: function.to_string(),
+            self_samples: self_s,
+            total_samples: total_s,
+            children,
+        }
     }
 
     pub fn hottest_child(&self) -> Option<&CallNode> {
@@ -52,8 +71,11 @@ impl CallNode {
     }
 
     pub fn depth(&self) -> usize {
-        if self.children.is_empty() { 0 }
-        else { 1 + self.children.iter().map(|c| c.depth()).max().unwrap_or(0) }
+        if self.children.is_empty() {
+            0
+        } else {
+            1 + self.children.iter().map(|c| c.depth()).max().unwrap_or(0)
+        }
     }
 }
 
@@ -64,7 +86,7 @@ impl CallNode {
 pub struct AllocEvent {
     pub function: String,
     pub bytes: u64,
-    pub is_free: bool,  // true = deallocation
+    pub is_free: bool, // true = deallocation
     pub timestamp_ms: u64,
 }
 
@@ -104,7 +126,9 @@ pub struct LatencyStats {
 
 impl LatencyStats {
     pub fn compute(mut samples: Vec<f64>) -> Option<Self> {
-        if samples.is_empty() { return None; }
+        if samples.is_empty() {
+            return None;
+        }
         samples.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let n = samples.len();
         let percentile = |p: f64| -> f64 {
@@ -146,9 +170,9 @@ pub struct OptSuggestion {
     pub function: String,
     pub category: OptCategory,
     pub description: String,
-    pub estimated_speedup: f64,  // multiplier, e.g. 2.0 = 2x faster
+    pub estimated_speedup: f64, // multiplier, e.g. 2.0 = 2x faster
     pub code_hint: Option<String>,
-    pub effort: u8,  // 1 (trivial) – 10 (major refactor)
+    pub effort: u8, // 1 (trivial) – 10 (major refactor)
 }
 
 // ─── Profile Regression ───────────────────────────────────────────────────────
@@ -159,26 +183,41 @@ pub struct Regression {
     pub function: String,
     pub before_samples: u64,
     pub after_samples: u64,
-    pub delta_pct: f64,  // positive = got slower
+    pub delta_pct: f64, // positive = got slower
     pub severity: RegressionSeverity,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub enum RegressionSeverity { Negligible, Minor, Moderate, Major, Critical }
+pub enum RegressionSeverity {
+    Negligible,
+    Minor,
+    Moderate,
+    Major,
+    Critical,
+}
 
 impl Regression {
     pub fn new(function: &str, before: u64, after: u64, total: u64) -> Self {
-        let delta_pct = if before == 0 { 100.0 }
-            else { (after as f64 - before as f64) / before as f64 * 100.0 };
+        let delta_pct = if before == 0 {
+            100.0
+        } else {
+            (after as f64 - before as f64) / before as f64 * 100.0
+        };
         let sev = match delta_pct as i64 {
-            i64::MIN..=5   => RegressionSeverity::Negligible,
-            6..=20         => RegressionSeverity::Minor,
-            21..=50        => RegressionSeverity::Moderate,
-            51..=100       => RegressionSeverity::Major,
-            _              => RegressionSeverity::Critical,
+            i64::MIN..=5 => RegressionSeverity::Negligible,
+            6..=20 => RegressionSeverity::Minor,
+            21..=50 => RegressionSeverity::Moderate,
+            51..=100 => RegressionSeverity::Major,
+            _ => RegressionSeverity::Critical,
         };
         let _ = total;
-        Self { function: function.to_string(), before_samples: before, after_samples: after, delta_pct, severity: sev }
+        Self {
+            function: function.to_string(),
+            before_samples: before,
+            after_samples: after,
+            delta_pct,
+            severity: sev,
+        }
     }
 }
 
@@ -194,15 +233,28 @@ pub struct PerfProfiler {
 
 impl PerfProfiler {
     pub fn new() -> Self {
-        Self { samples: Vec::new(), alloc_events: Vec::new(), mem_snapshots: Vec::new(), suggestions: Vec::new() }
+        Self {
+            samples: Vec::new(),
+            alloc_events: Vec::new(),
+            mem_snapshots: Vec::new(),
+            suggestions: Vec::new(),
+        }
     }
 
-    pub fn add_sample(&mut self, s: Sample) { self.samples.push(s); }
-    pub fn add_alloc_event(&mut self, e: AllocEvent) { self.alloc_events.push(e); }
-    pub fn add_mem_snapshot(&mut self, s: MemSnapshot) { self.mem_snapshots.push(s); }
+    pub fn add_sample(&mut self, s: Sample) {
+        self.samples.push(s);
+    }
+    pub fn add_alloc_event(&mut self, e: AllocEvent) {
+        self.alloc_events.push(e);
+    }
+    pub fn add_mem_snapshot(&mut self, s: MemSnapshot) {
+        self.mem_snapshots.push(s);
+    }
 
     /// Total sample count across all functions.
-    pub fn total_samples(&self) -> u64 { self.samples.iter().map(|s| s.self_samples).sum() }
+    pub fn total_samples(&self) -> u64 {
+        self.samples.iter().map(|s| s.self_samples).sum()
+    }
 
     /// Top N hotspots by self-sample count.
     pub fn hotspots(&self, n: usize) -> Vec<&Sample> {
@@ -214,27 +266,43 @@ impl PerfProfiler {
 
     /// Generate AI optimization suggestions for the top hotspot.
     pub fn suggest_optimizations(&mut self, top_n: usize) -> Vec<OptSuggestion> {
-        let hot = self.hotspots(top_n).iter().map(|s| (s.function.clone(), s.self_samples)).collect::<Vec<_>>();
+        let hot = self
+            .hotspots(top_n)
+            .iter()
+            .map(|s| (s.function.clone(), s.self_samples))
+            .collect::<Vec<_>>();
         let total = self.total_samples();
         let mut suggestions = Vec::new();
         for (func, samples) in hot {
-            let pct = if total == 0 { 0.0 } else { samples as f64 / total as f64 * 100.0 };
+            let pct = if total == 0 {
+                0.0
+            } else {
+                samples as f64 / total as f64 * 100.0
+            };
             if pct > 20.0 {
                 suggestions.push(OptSuggestion {
                     function: func.clone(),
                     category: OptCategory::AlgorithmicComplexity,
-                    description: format!("{func} consumes {pct:.1}% of CPU — consider algorithmic improvements"),
+                    description: format!(
+                        "{func} consumes {pct:.1}% of CPU — consider algorithmic improvements"
+                    ),
                     estimated_speedup: 2.0 + pct / 50.0,
-                    code_hint: Some("Profile inner loops; replace O(n²) patterns with O(n log n)".into()),
+                    code_hint: Some(
+                        "Profile inner loops; replace O(n²) patterns with O(n log n)".into(),
+                    ),
                     effort: 7,
                 });
             } else if pct > 5.0 {
                 suggestions.push(OptSuggestion {
                     function: func.clone(),
                     category: OptCategory::Caching,
-                    description: format!("{func} called frequently — consider memoisation or result caching"),
+                    description: format!(
+                        "{func} called frequently — consider memoisation or result caching"
+                    ),
                     estimated_speedup: 1.5,
-                    code_hint: Some("Add an LRU cache or HashMap memo for repeated computations".into()),
+                    code_hint: Some(
+                        "Add an LRU cache or HashMap memo for repeated computations".into(),
+                    ),
                     effort: 3,
                 });
             }
@@ -248,9 +316,14 @@ impl PerfProfiler {
         let mut by_fn: HashMap<&str, (u64, u64)> = HashMap::new();
         for ev in &self.alloc_events {
             let e = by_fn.entry(&ev.function).or_insert((0, 0));
-            if ev.is_free { e.1 += ev.bytes; } else { e.0 += ev.bytes; }
+            if ev.is_free {
+                e.1 += ev.bytes;
+            } else {
+                e.0 += ev.bytes;
+            }
         }
-        by_fn.into_iter()
+        by_fn
+            .into_iter()
             .filter_map(|(func, (alloc, freed))| {
                 let net = alloc.saturating_sub(freed);
                 if net > 0 {
@@ -261,15 +334,24 @@ impl PerfProfiler {
                         net_bytes: net,
                         confidence: if freed == 0 { 85 } else { 60 },
                     })
-                } else { None }
+                } else {
+                    None
+                }
             })
             .collect()
     }
 
     /// Detect regressions between this profile and a set of newer samples.
     pub fn detect_regressions(&self, newer: &[Sample]) -> Vec<Regression> {
-        let old_map: HashMap<&str, u64> = self.samples.iter().map(|s| (s.function.as_str(), s.self_samples)).collect();
-        let new_map: HashMap<&str, u64> = newer.iter().map(|s| (s.function.as_str(), s.self_samples)).collect();
+        let old_map: HashMap<&str, u64> = self
+            .samples
+            .iter()
+            .map(|s| (s.function.as_str(), s.self_samples))
+            .collect();
+        let new_map: HashMap<&str, u64> = newer
+            .iter()
+            .map(|s| (s.function.as_str(), s.self_samples))
+            .collect();
         let total_new: u64 = newer.iter().map(|s| s.self_samples).sum();
         let mut regressions = Vec::new();
         for (func, &new_s) in &new_map {
@@ -281,26 +363,42 @@ impl PerfProfiler {
                 }
             }
         }
-        regressions.sort_by(|a, b| b.delta_pct.partial_cmp(&a.delta_pct).unwrap_or(std::cmp::Ordering::Equal));
+        regressions.sort_by(|a, b| {
+            b.delta_pct
+                .partial_cmp(&a.delta_pct)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         regressions
     }
 
     /// Memory growth rate (bytes/ms) from snapshots.
     pub fn memory_growth_rate(&self) -> Option<f64> {
-        if self.mem_snapshots.len() < 2 { return None; }
+        if self.mem_snapshots.len() < 2 {
+            return None;
+        }
         let first = &self.mem_snapshots[0];
         let last = self.mem_snapshots.last().unwrap();
         let delta_ms = (last.timestamp_ms - first.timestamp_ms) as f64;
-        if delta_ms == 0.0 { return None; }
+        if delta_ms == 0.0 {
+            return None;
+        }
         let delta_bytes = last.heap_bytes as f64 - first.heap_bytes as f64;
         Some(delta_bytes / delta_ms)
     }
 
-    pub fn samples(&self) -> &[Sample] { &self.samples }
-    pub fn suggestions(&self) -> &[OptSuggestion] { &self.suggestions }
+    pub fn samples(&self) -> &[Sample] {
+        &self.samples
+    }
+    pub fn suggestions(&self) -> &[OptSuggestion] {
+        &self.suggestions
+    }
 }
 
-impl Default for PerfProfiler { fn default() -> Self { Self::new() } }
+impl Default for PerfProfiler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
@@ -309,11 +407,22 @@ mod tests {
     use super::*;
 
     fn sample(func: &str, self_s: u64, total_s: u64) -> Sample {
-        Sample { function: func.to_string(), file: None, line: None, self_samples: self_s, total_samples: total_s }
+        Sample {
+            function: func.to_string(),
+            file: None,
+            line: None,
+            self_samples: self_s,
+            total_samples: total_s,
+        }
     }
 
     fn alloc(func: &str, bytes: u64, free: bool) -> AllocEvent {
-        AllocEvent { function: func.to_string(), bytes, is_free: free, timestamp_ms: 0 }
+        AllocEvent {
+            function: func.to_string(),
+            bytes,
+            is_free: free,
+            timestamp_ms: 0,
+        }
     }
 
     // ── LatencyStats ──────────────────────────────────────────────────────
@@ -421,7 +530,9 @@ mod tests {
     #[test]
     fn test_profiler_hotspots_limit() {
         let mut p = PerfProfiler::new();
-        for i in 0..10 { p.add_sample(sample(&format!("fn{i}"), i as u64 * 10, i as u64 * 10)); }
+        for i in 0..10 {
+            p.add_sample(sample(&format!("fn{i}"), i as u64 * 10, i as u64 * 10));
+        }
         assert!(p.hotspots(3).len() <= 3);
     }
 
@@ -432,7 +543,9 @@ mod tests {
         p.add_sample(sample("other", 300, 300));
         let suggs = p.suggest_optimizations(1);
         assert!(!suggs.is_empty());
-        assert!(suggs.iter().any(|s| s.category == OptCategory::AlgorithmicComplexity));
+        assert!(suggs
+            .iter()
+            .any(|s| s.category == OptCategory::AlgorithmicComplexity));
     }
 
     #[test]
@@ -452,7 +565,7 @@ mod tests {
         p.add_sample(sample("tiny", 1, 1));
         p.add_sample(sample("big", 999, 999));
         let suggs = p.suggest_optimizations(1); // only top 1 = "big"
-        // big is ~99% → algorithmic
+                                                // big is ~99% → algorithmic
         assert!(!suggs.is_empty());
     }
 
@@ -462,7 +575,7 @@ mod tests {
     fn test_leak_suspects_detects_net_allocation() {
         let mut p = PerfProfiler::new();
         p.add_alloc_event(alloc("leak_fn", 1024, false)); // 1KB allocated
-        // no free
+                                                          // no free
         let suspects = p.leak_suspects();
         assert_eq!(suspects.len(), 1);
         assert_eq!(suspects[0].net_bytes, 1024);
@@ -520,8 +633,18 @@ mod tests {
     #[test]
     fn test_memory_growth_rate() {
         let mut p = PerfProfiler::new();
-        p.add_mem_snapshot(MemSnapshot { timestamp_ms: 0, heap_bytes: 1_000_000, alloc_count: 0, free_count: 0 });
-        p.add_mem_snapshot(MemSnapshot { timestamp_ms: 1000, heap_bytes: 2_000_000, alloc_count: 100, free_count: 50 });
+        p.add_mem_snapshot(MemSnapshot {
+            timestamp_ms: 0,
+            heap_bytes: 1_000_000,
+            alloc_count: 0,
+            free_count: 0,
+        });
+        p.add_mem_snapshot(MemSnapshot {
+            timestamp_ms: 1000,
+            heap_bytes: 2_000_000,
+            alloc_count: 100,
+            free_count: 50,
+        });
         let rate = p.memory_growth_rate().unwrap();
         assert!((rate - 1000.0).abs() < 0.01); // 1000 bytes/ms
     }
@@ -529,7 +652,12 @@ mod tests {
     #[test]
     fn test_memory_growth_rate_single_snapshot_none() {
         let mut p = PerfProfiler::new();
-        p.add_mem_snapshot(MemSnapshot { timestamp_ms: 0, heap_bytes: 1_000_000, alloc_count: 0, free_count: 0 });
+        p.add_mem_snapshot(MemSnapshot {
+            timestamp_ms: 0,
+            heap_bytes: 1_000_000,
+            alloc_count: 0,
+            free_count: 0,
+        });
         assert!(p.memory_growth_rate().is_none());
     }
 

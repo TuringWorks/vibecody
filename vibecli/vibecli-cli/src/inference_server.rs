@@ -175,24 +175,41 @@ pub struct BenchmarkResult {
 
 pub fn build_vllm_command(config: &ServingConfig) -> Vec<String> {
     let mut cmd = vec![
-        "python".to_string(), "-m".to_string(),
+        "python".to_string(),
+        "-m".to_string(),
         "vllm.entrypoints.openai.api_server".to_string(),
-        "--model".to_string(), config.model_path.clone(),
-        "--host".to_string(), config.host.clone(),
-        "--port".to_string(), config.port.to_string(),
-        "--tensor-parallel-size".to_string(), config.tensor_parallel.to_string(),
-        "--max-num-batched-tokens".to_string(), (config.max_batch_size * 512).to_string(),
-        "--dtype".to_string(), config.dtype.clone(),
-        "--gpu-memory-utilization".to_string(), config.gpu_memory_utilization.to_string(),
+        "--model".to_string(),
+        config.model_path.clone(),
+        "--host".to_string(),
+        config.host.clone(),
+        "--port".to_string(),
+        config.port.to_string(),
+        "--tensor-parallel-size".to_string(),
+        config.tensor_parallel.to_string(),
+        "--max-num-batched-tokens".to_string(),
+        (config.max_batch_size * 512).to_string(),
+        "--dtype".to_string(),
+        config.dtype.clone(),
+        "--gpu-memory-utilization".to_string(),
+        config.gpu_memory_utilization.to_string(),
     ];
     if let Some(max_len) = config.max_model_len {
         cmd.push("--max-model-len".to_string());
         cmd.push(max_len.to_string());
     }
     match config.quantization {
-        QuantizationMethod::Gptq => { cmd.push("--quantization".to_string()); cmd.push("gptq".to_string()); }
-        QuantizationMethod::Awq => { cmd.push("--quantization".to_string()); cmd.push("awq".to_string()); }
-        QuantizationMethod::SqueezeLlm => { cmd.push("--quantization".to_string()); cmd.push("squeezellm".to_string()); }
+        QuantizationMethod::Gptq => {
+            cmd.push("--quantization".to_string());
+            cmd.push("gptq".to_string());
+        }
+        QuantizationMethod::Awq => {
+            cmd.push("--quantization".to_string());
+            cmd.push("awq".to_string());
+        }
+        QuantizationMethod::SqueezeLlm => {
+            cmd.push("--quantization".to_string());
+            cmd.push("squeezellm".to_string());
+        }
         _ => {}
     }
     if config.trust_remote_code {
@@ -204,7 +221,9 @@ pub fn build_vllm_command(config: &ServingConfig) -> Vec<String> {
     }
     for (k, v) in &config.extra_args {
         cmd.push(format!("--{k}"));
-        if !v.is_empty() { cmd.push(v.clone()); }
+        if !v.is_empty() {
+            cmd.push(v.clone());
+        }
     }
     cmd
 }
@@ -212,21 +231,36 @@ pub fn build_vllm_command(config: &ServingConfig) -> Vec<String> {
 pub fn build_tgi_command(config: &ServingConfig) -> Vec<String> {
     let mut cmd = vec![
         "text-generation-launcher".to_string(),
-        "--model-id".to_string(), config.model_path.clone(),
-        "--hostname".to_string(), config.host.clone(),
-        "--port".to_string(), config.port.to_string(),
-        "--num-shard".to_string(), config.tensor_parallel.to_string(),
-        "--max-batch-total-tokens".to_string(), (config.max_batch_size * 1024).to_string(),
-        "--dtype".to_string(), config.dtype.clone(),
+        "--model-id".to_string(),
+        config.model_path.clone(),
+        "--hostname".to_string(),
+        config.host.clone(),
+        "--port".to_string(),
+        config.port.to_string(),
+        "--num-shard".to_string(),
+        config.tensor_parallel.to_string(),
+        "--max-batch-total-tokens".to_string(),
+        (config.max_batch_size * 1024).to_string(),
+        "--dtype".to_string(),
+        config.dtype.clone(),
     ];
     if let Some(max_len) = config.max_model_len {
         cmd.push("--max-total-tokens".to_string());
         cmd.push(max_len.to_string());
     }
     match config.quantization {
-        QuantizationMethod::Gptq => { cmd.push("--quantize".to_string()); cmd.push("gptq".to_string()); }
-        QuantizationMethod::Awq => { cmd.push("--quantize".to_string()); cmd.push("awq".to_string()); }
-        QuantizationMethod::Int8 => { cmd.push("--quantize".to_string()); cmd.push("bitsandbytes".to_string()); }
+        QuantizationMethod::Gptq => {
+            cmd.push("--quantize".to_string());
+            cmd.push("gptq".to_string());
+        }
+        QuantizationMethod::Awq => {
+            cmd.push("--quantize".to_string());
+            cmd.push("awq".to_string());
+        }
+        QuantizationMethod::Int8 => {
+            cmd.push("--quantize".to_string());
+            cmd.push("bitsandbytes".to_string());
+        }
         _ => {}
     }
     if config.trust_remote_code {
@@ -238,21 +272,30 @@ pub fn build_tgi_command(config: &ServingConfig) -> Vec<String> {
 pub fn build_triton_command(config: &ServingConfig) -> Vec<String> {
     vec![
         "tritonserver".to_string(),
-        "--model-repository".to_string(), config.model_path.clone(),
-        "--http-port".to_string(), config.port.to_string(),
-        "--grpc-port".to_string(), (config.port + 1).to_string(),
-        "--metrics-port".to_string(), (config.port + 2).to_string(),
+        "--model-repository".to_string(),
+        config.model_path.clone(),
+        "--http-port".to_string(),
+        config.port.to_string(),
+        "--grpc-port".to_string(),
+        (config.port + 1).to_string(),
+        "--metrics-port".to_string(),
+        (config.port + 2).to_string(),
     ]
 }
 
 pub fn build_llamacpp_command(config: &ServingConfig) -> Vec<String> {
     let mut cmd = vec![
         "llama-server".to_string(),
-        "-m".to_string(), config.model_path.clone(),
-        "--host".to_string(), config.host.clone(),
-        "--port".to_string(), config.port.to_string(),
-        "-ngl".to_string(), "999".to_string(), // offload all layers to GPU
-        "-b".to_string(), config.max_batch_size.to_string(),
+        "-m".to_string(),
+        config.model_path.clone(),
+        "--host".to_string(),
+        config.host.clone(),
+        "--port".to_string(),
+        config.port.to_string(),
+        "-ngl".to_string(),
+        "999".to_string(), // offload all layers to GPU
+        "-b".to_string(),
+        config.max_batch_size.to_string(),
     ];
     if config.gpu_count > 1 {
         cmd.push("--tensor-split".to_string());
@@ -266,10 +309,7 @@ pub fn build_llamacpp_command(config: &ServingConfig) -> Vec<String> {
 }
 
 pub fn build_ollama_command(_config: &ServingConfig) -> Vec<String> {
-    vec![
-        "ollama".to_string(),
-        "serve".to_string(),
-    ]
+    vec!["ollama".to_string(), "serve".to_string()]
 }
 
 /// Build the shell command that reproduces the deployment with Mistral.rs's
@@ -517,8 +557,11 @@ pub fn estimate_gpu_memory(model_params_b: f64, quantization: &QuantizationMetho
     let bytes_per_param = match quantization {
         QuantizationMethod::None | QuantizationMethod::Fp16 | QuantizationMethod::Bf16 => 2.0,
         QuantizationMethod::Int8 | QuantizationMethod::GgufQ80 => 1.0,
-        QuantizationMethod::Int4 | QuantizationMethod::Gptq | QuantizationMethod::Awq
-        | QuantizationMethod::GgufQ4Km | QuantizationMethod::GgufQ5Km
+        QuantizationMethod::Int4
+        | QuantizationMethod::Gptq
+        | QuantizationMethod::Awq
+        | QuantizationMethod::GgufQ4Km
+        | QuantizationMethod::GgufQ5Km
         | QuantizationMethod::SqueezeLlm => 0.5,
         // TurboQuant: 3 bits/dim + 8 B per-vector scalar overhead. At a
         // typical head_dim=128 that amortises to ~0.4375 B/el — see Phase-3
@@ -534,20 +577,30 @@ pub fn estimate_gpu_memory(model_params_b: f64, quantization: &QuantizationMetho
 pub fn suggest_serving_config(model_name: &str, gpu_vram_mb: u64) -> String {
     let name_lower = model_name.to_lowercase();
     // Try to detect model size from name
-    let params_b = if name_lower.contains("70b") || name_lower.contains("72b") { 70.0 }
-        else if name_lower.contains("34b") || name_lower.contains("33b") { 34.0 }
-        else if name_lower.contains("13b") || name_lower.contains("14b") { 13.0 }
-        else if name_lower.contains("7b") || name_lower.contains("8b") { 7.0 }
-        else if name_lower.contains("3b") { 3.0 }
-        else if name_lower.contains("1b") || name_lower.contains("1.5b") { 1.5 }
-        else { 7.0 }; // default guess
+    let params_b = if name_lower.contains("70b") || name_lower.contains("72b") {
+        70.0
+    } else if name_lower.contains("34b") || name_lower.contains("33b") {
+        34.0
+    } else if name_lower.contains("13b") || name_lower.contains("14b") {
+        13.0
+    } else if name_lower.contains("7b") || name_lower.contains("8b") {
+        7.0
+    } else if name_lower.contains("3b") {
+        3.0
+    } else if name_lower.contains("1b") || name_lower.contains("1.5b") {
+        1.5
+    } else {
+        7.0
+    }; // default guess
 
     let fp16_mem = estimate_gpu_memory(params_b, &QuantizationMethod::Fp16);
     let int4_mem = estimate_gpu_memory(params_b, &QuantizationMethod::Int4);
 
     if fp16_mem <= gpu_vram_mb {
-        format!("Use vLLM with FP16 — {model_name} fits in {gpu_vram_mb}MB (needs ~{fp16_mem}MB). \
-                 Recommended: --dtype float16 --gpu-memory-utilization 0.9")
+        format!(
+            "Use vLLM with FP16 — {model_name} fits in {gpu_vram_mb}MB (needs ~{fp16_mem}MB). \
+                 Recommended: --dtype float16 --gpu-memory-utilization 0.9"
+        )
     } else if int4_mem <= gpu_vram_mb {
         format!("Use vLLM with GPTQ/AWQ quantization — {model_name} needs quantization to fit {gpu_vram_mb}MB (FP16: ~{fp16_mem}MB, INT4: ~{int4_mem}MB). \
                  Recommended: --quantization awq --dtype float16")
@@ -559,17 +612,30 @@ pub fn suggest_serving_config(model_name: &str, gpu_vram_mb: u64) -> String {
 }
 
 pub fn compare_backends(results: &[BenchmarkResult]) -> String {
-    if results.is_empty() { return "No benchmark results to compare.".to_string(); }
-    let mut output = format!("{:<12} {:<20} {:>8} {:>8} {:>10} {:>10} {:>8}\n",
-        "Backend", "Model", "Prompt", "Output", "TTFT(ms)", "Tok/s", "VRAM(MB)");
+    if results.is_empty() {
+        return "No benchmark results to compare.".to_string();
+    }
+    let mut output = format!(
+        "{:<12} {:<20} {:>8} {:>8} {:>10} {:>10} {:>8}\n",
+        "Backend", "Model", "Prompt", "Output", "TTFT(ms)", "Tok/s", "VRAM(MB)"
+    );
     output.push_str(&"-".repeat(78));
     output.push('\n');
     for r in results {
-        output.push_str(&format!("{:<12} {:<20} {:>8} {:>8} {:>10.1} {:>10.1} {:>8}\n",
+        output.push_str(&format!(
+            "{:<12} {:<20} {:>8} {:>8} {:>10.1} {:>10.1} {:>8}\n",
             format!("{:?}", r.backend),
-            if r.model_name.len() > 20 { &r.model_name[..20] } else { &r.model_name },
-            r.prompt_tokens, r.output_tokens,
-            r.time_to_first_token_ms, r.tokens_per_second, r.gpu_memory_used_mb));
+            if r.model_name.len() > 20 {
+                &r.model_name[..20]
+            } else {
+                &r.model_name
+            },
+            r.prompt_tokens,
+            r.output_tokens,
+            r.time_to_first_token_ms,
+            r.tokens_per_second,
+            r.gpu_memory_used_mb
+        ));
     }
     output
 }
@@ -766,15 +832,16 @@ mod tests {
 
     #[test]
     fn test_compare_backends() {
-        let results = vec![
-            BenchmarkResult {
-                backend: InferenceBackend::Vllm,
-                model_name: "llama-3-8b".to_string(),
-                prompt_tokens: 128, output_tokens: 256,
-                time_to_first_token_ms: 45.0, tokens_per_second: 120.0,
-                total_latency_ms: 2180.0, gpu_memory_used_mb: 16000,
-            },
-        ];
+        let results = vec![BenchmarkResult {
+            backend: InferenceBackend::Vllm,
+            model_name: "llama-3-8b".to_string(),
+            prompt_tokens: 128,
+            output_tokens: 256,
+            time_to_first_token_ms: 45.0,
+            tokens_per_second: 120.0,
+            total_latency_ms: 2180.0,
+            gpu_memory_used_mb: 16000,
+        }];
         let table = compare_backends(&results);
         assert!(table.contains("Vllm"));
         assert!(table.contains("120.0"));

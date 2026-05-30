@@ -140,40 +140,83 @@ impl IntentParser {
         let lower = input.to_lowercase();
 
         // Order matters: check more specific phrases first.
-        if lower.contains("testable") || lower.contains("test coverage") || lower.contains("make testable") {
+        if lower.contains("testable")
+            || lower.contains("test coverage")
+            || lower.contains("make testable")
+        {
             return Some(RefactorIntent::MakeTestable);
         }
-        if lower.contains("coupling") || lower.contains("decouple") || lower.contains("reduce coupling") {
+        if lower.contains("coupling")
+            || lower.contains("decouple")
+            || lower.contains("reduce coupling")
+        {
             return Some(RefactorIntent::ReduceCoupling);
         }
-        if lower.contains("performance") || lower.contains("optimize") || lower.contains("speed up") || lower.contains("faster") {
+        if lower.contains("performance")
+            || lower.contains("optimize")
+            || lower.contains("speed up")
+            || lower.contains("faster")
+        {
             return Some(RefactorIntent::ImprovePerformance);
         }
-        if lower.contains("error handling") || lower.contains("error recovery") || lower.contains("add error") || lower.contains("handle error") {
+        if lower.contains("error handling")
+            || lower.contains("error recovery")
+            || lower.contains("add error")
+            || lower.contains("handle error")
+        {
             return Some(RefactorIntent::AddErrorHandling);
         }
-        if lower.contains("extract service") || lower.contains("extract module") || lower.contains("pull out") {
+        if lower.contains("extract service")
+            || lower.contains("extract module")
+            || lower.contains("pull out")
+        {
             return Some(RefactorIntent::ExtractService);
         }
-        if lower.contains("duplicate") || lower.contains("consolidate") || lower.contains("dry") || lower.contains("deduplicate") {
+        if lower.contains("duplicate")
+            || lower.contains("consolidate")
+            || lower.contains("dry")
+            || lower.contains("deduplicate")
+        {
             return Some(RefactorIntent::ConsolidateDuplicates);
         }
-        if lower.contains("modernize") || lower.contains("modern syntax") || lower.contains("update syntax") || lower.contains("upgrade syntax") {
+        if lower.contains("modernize")
+            || lower.contains("modern syntax")
+            || lower.contains("update syntax")
+            || lower.contains("upgrade syntax")
+        {
             return Some(RefactorIntent::ModernizeSyntax);
         }
-        if lower.contains("typing") || lower.contains("type annotation") || lower.contains("add types") || lower.contains("type safety") {
+        if lower.contains("typing")
+            || lower.contains("type annotation")
+            || lower.contains("add types")
+            || lower.contains("type safety")
+        {
             return Some(RefactorIntent::AddTyping);
         }
-        if lower.contains("split module") || lower.contains("split file") || lower.contains("break apart") {
+        if lower.contains("split module")
+            || lower.contains("split file")
+            || lower.contains("break apart")
+        {
             return Some(RefactorIntent::SplitModule);
         }
-        if lower.contains("merge module") || lower.contains("merge file") || lower.contains("combine module") {
+        if lower.contains("merge module")
+            || lower.contains("merge file")
+            || lower.contains("combine module")
+        {
             return Some(RefactorIntent::MergeModules);
         }
-        if lower.contains("caching") || lower.contains("cache") || lower.contains("memoize") || lower.contains("memoization") {
+        if lower.contains("caching")
+            || lower.contains("cache")
+            || lower.contains("memoize")
+            || lower.contains("memoization")
+        {
             return Some(RefactorIntent::AddCaching);
         }
-        if lower.contains("logging") || lower.contains("log") || lower.contains("trace") || lower.contains("instrument") {
+        if lower.contains("logging")
+            || lower.contains("log")
+            || lower.contains("trace")
+            || lower.contains("instrument")
+        {
             return Some(RefactorIntent::AddLogging);
         }
         None
@@ -182,17 +225,37 @@ impl IntentParser {
     /// Return a human-readable description for the given intent.
     pub fn describe(intent: &RefactorIntent) -> &str {
         match intent {
-            RefactorIntent::MakeTestable => "Extract dependencies and add seams to make code unit-testable",
-            RefactorIntent::ReduceCoupling => "Introduce interfaces and reduce direct dependencies between modules",
-            RefactorIntent::ImprovePerformance => "Optimize hot paths, reduce allocations, and improve algorithmic efficiency",
-            RefactorIntent::AddErrorHandling => "Replace panics/unwraps with proper error types and recovery logic",
-            RefactorIntent::ExtractService => "Extract a cohesive set of functions into a standalone service or module",
-            RefactorIntent::ConsolidateDuplicates => "Identify and merge duplicated logic into shared abstractions",
-            RefactorIntent::ModernizeSyntax => "Update legacy patterns to idiomatic modern language features",
-            RefactorIntent::AddTyping => "Add type annotations and strengthen type safety across the codebase",
+            RefactorIntent::MakeTestable => {
+                "Extract dependencies and add seams to make code unit-testable"
+            }
+            RefactorIntent::ReduceCoupling => {
+                "Introduce interfaces and reduce direct dependencies between modules"
+            }
+            RefactorIntent::ImprovePerformance => {
+                "Optimize hot paths, reduce allocations, and improve algorithmic efficiency"
+            }
+            RefactorIntent::AddErrorHandling => {
+                "Replace panics/unwraps with proper error types and recovery logic"
+            }
+            RefactorIntent::ExtractService => {
+                "Extract a cohesive set of functions into a standalone service or module"
+            }
+            RefactorIntent::ConsolidateDuplicates => {
+                "Identify and merge duplicated logic into shared abstractions"
+            }
+            RefactorIntent::ModernizeSyntax => {
+                "Update legacy patterns to idiomatic modern language features"
+            }
+            RefactorIntent::AddTyping => {
+                "Add type annotations and strengthen type safety across the codebase"
+            }
             RefactorIntent::SplitModule => "Break a large module into smaller, focused sub-modules",
-            RefactorIntent::MergeModules => "Combine related small modules into a single cohesive module",
-            RefactorIntent::AddCaching => "Add caching layers to reduce redundant computation or I/O",
+            RefactorIntent::MergeModules => {
+                "Combine related small modules into a single cohesive module"
+            }
+            RefactorIntent::AddCaching => {
+                "Add caching layers to reduce redundant computation or I/O"
+            }
             RefactorIntent::AddLogging => "Add structured logging and tracing instrumentation",
         }
     }
@@ -216,7 +279,11 @@ impl IntentParser {
         }
 
         // Heuristic: repeated blocks -> ConsolidateDuplicates
-        let lines: Vec<&str> = code.lines().map(|l| l.trim()).filter(|l| l.len() > 20).collect();
+        let lines: Vec<&str> = code
+            .lines()
+            .map(|l| l.trim())
+            .filter(|l| l.len() > 20)
+            .collect();
         let mut seen: HashMap<&str, usize> = HashMap::new();
         for line in &lines {
             *seen.entry(line).or_insert(0) += 1;
@@ -228,7 +295,11 @@ impl IntentParser {
         }
 
         // Heuristic: no log/trace calls -> AddLogging
-        if !code.contains("log::") && !code.contains("tracing::") && !code.contains("println!") && line_count > 50 {
+        if !code.contains("log::")
+            && !code.contains("tracing::")
+            && !code.contains("println!")
+            && line_count > 50
+        {
             suggestions.push((RefactorIntent::AddLogging, 0.4));
         }
 
@@ -280,79 +351,178 @@ impl PlanGenerator {
     fn generate_steps(intent: &RefactorIntent, files: &[&str]) -> Vec<RefactorStep> {
         let templates: Vec<(&str, &str)> = match intent {
             RefactorIntent::MakeTestable => vec![
-                ("Identify tight couplings", "Scan for direct dependencies that hinder testing"),
-                ("Extract interfaces", "Create trait/interface for each dependency"),
-                ("Inject dependencies", "Replace direct construction with dependency injection"),
-                ("Add test doubles", "Create mock/stub implementations for testing"),
+                (
+                    "Identify tight couplings",
+                    "Scan for direct dependencies that hinder testing",
+                ),
+                (
+                    "Extract interfaces",
+                    "Create trait/interface for each dependency",
+                ),
+                (
+                    "Inject dependencies",
+                    "Replace direct construction with dependency injection",
+                ),
+                (
+                    "Add test doubles",
+                    "Create mock/stub implementations for testing",
+                ),
                 ("Write unit tests", "Add tests using the new seams"),
             ],
             RefactorIntent::ReduceCoupling => vec![
-                ("Analyze dependency graph", "Map module-to-module dependencies"),
-                ("Define abstractions", "Create traits/interfaces at module boundaries"),
-                ("Invert dependencies", "Point dependencies toward abstractions"),
+                (
+                    "Analyze dependency graph",
+                    "Map module-to-module dependencies",
+                ),
+                (
+                    "Define abstractions",
+                    "Create traits/interfaces at module boundaries",
+                ),
+                (
+                    "Invert dependencies",
+                    "Point dependencies toward abstractions",
+                ),
                 ("Validate isolation", "Ensure modules compile independently"),
             ],
             RefactorIntent::ImprovePerformance => vec![
-                ("Profile hot paths", "Identify the most expensive code paths"),
-                ("Reduce allocations", "Replace heap allocations with stack or pooled alternatives"),
-                ("Optimize algorithms", "Switch to more efficient data structures or algorithms"),
+                (
+                    "Profile hot paths",
+                    "Identify the most expensive code paths",
+                ),
+                (
+                    "Reduce allocations",
+                    "Replace heap allocations with stack or pooled alternatives",
+                ),
+                (
+                    "Optimize algorithms",
+                    "Switch to more efficient data structures or algorithms",
+                ),
                 ("Add benchmarks", "Create benchmarks to verify improvements"),
             ],
             RefactorIntent::AddErrorHandling => vec![
-                ("Audit panics", "Find all unwrap(), expect(), panic! call sites"),
-                ("Define error types", "Create structured error enum for the module"),
-                ("Replace panics", "Convert each panic site to Result/Option propagation"),
-                ("Add recovery logic", "Implement graceful degradation at boundaries"),
+                (
+                    "Audit panics",
+                    "Find all unwrap(), expect(), panic! call sites",
+                ),
+                (
+                    "Define error types",
+                    "Create structured error enum for the module",
+                ),
+                (
+                    "Replace panics",
+                    "Convert each panic site to Result/Option propagation",
+                ),
+                (
+                    "Add recovery logic",
+                    "Implement graceful degradation at boundaries",
+                ),
                 ("Update tests", "Ensure tests cover error paths"),
             ],
             RefactorIntent::ExtractService => vec![
-                ("Identify cohesive set", "Group functions that form a logical service"),
+                (
+                    "Identify cohesive set",
+                    "Group functions that form a logical service",
+                ),
                 ("Create module", "Set up the new module/crate structure"),
-                ("Move functions", "Relocate functions and their dependencies"),
-                ("Update imports", "Fix all call sites to reference the new module"),
+                (
+                    "Move functions",
+                    "Relocate functions and their dependencies",
+                ),
+                (
+                    "Update imports",
+                    "Fix all call sites to reference the new module",
+                ),
                 ("Add public API", "Define a clean public interface"),
             ],
             RefactorIntent::ConsolidateDuplicates => vec![
                 ("Detect duplicates", "Scan for repeated logic patterns"),
                 ("Design abstraction", "Create a shared function or trait"),
-                ("Replace occurrences", "Swap each duplicate with the shared abstraction"),
+                (
+                    "Replace occurrences",
+                    "Swap each duplicate with the shared abstraction",
+                ),
                 ("Verify behavior", "Run tests to confirm no regressions"),
             ],
             RefactorIntent::ModernizeSyntax => vec![
                 ("Catalog legacy patterns", "List outdated syntax and idioms"),
-                ("Apply modern equivalents", "Rewrite using current language features"),
-                ("Update dependencies", "Bump any library versions needed for new syntax"),
+                (
+                    "Apply modern equivalents",
+                    "Rewrite using current language features",
+                ),
+                (
+                    "Update dependencies",
+                    "Bump any library versions needed for new syntax",
+                ),
                 ("Run linter", "Verify no new warnings introduced"),
             ],
             RefactorIntent::AddTyping => vec![
-                ("Identify untyped code", "Find variables and parameters lacking type annotations"),
+                (
+                    "Identify untyped code",
+                    "Find variables and parameters lacking type annotations",
+                ),
                 ("Infer types", "Determine correct types from usage context"),
-                ("Annotate signatures", "Add explicit type annotations to function signatures"),
+                (
+                    "Annotate signatures",
+                    "Add explicit type annotations to function signatures",
+                ),
                 ("Enable strict mode", "Turn on strict type-checking flags"),
             ],
             RefactorIntent::SplitModule => vec![
-                ("Analyze responsibilities", "Identify distinct concerns within the module"),
+                (
+                    "Analyze responsibilities",
+                    "Identify distinct concerns within the module",
+                ),
                 ("Plan sub-modules", "Design the target module structure"),
                 ("Extract sub-modules", "Move code into new sub-module files"),
-                ("Wire re-exports", "Set up public re-exports from the parent module"),
+                (
+                    "Wire re-exports",
+                    "Set up public re-exports from the parent module",
+                ),
                 ("Update dependents", "Fix all external imports"),
             ],
             RefactorIntent::MergeModules => vec![
-                ("Analyze overlap", "Identify shared types and functions across modules"),
-                ("Resolve conflicts", "Handle naming collisions and visibility differences"),
+                (
+                    "Analyze overlap",
+                    "Identify shared types and functions across modules",
+                ),
+                (
+                    "Resolve conflicts",
+                    "Handle naming collisions and visibility differences",
+                ),
                 ("Combine code", "Merge source files into the target module"),
                 ("Update imports", "Redirect all external references"),
             ],
             RefactorIntent::AddCaching => vec![
-                ("Identify cache candidates", "Find expensive pure computations or I/O"),
-                ("Design cache strategy", "Choose TTL, eviction, and invalidation policies"),
-                ("Implement cache layer", "Add caching wrappers around identified functions"),
-                ("Add cache metrics", "Instrument hit/miss rates for observability"),
+                (
+                    "Identify cache candidates",
+                    "Find expensive pure computations or I/O",
+                ),
+                (
+                    "Design cache strategy",
+                    "Choose TTL, eviction, and invalidation policies",
+                ),
+                (
+                    "Implement cache layer",
+                    "Add caching wrappers around identified functions",
+                ),
+                (
+                    "Add cache metrics",
+                    "Instrument hit/miss rates for observability",
+                ),
             ],
             RefactorIntent::AddLogging => vec![
-                ("Identify log points", "Determine where log statements should be added"),
-                ("Choose log levels", "Assign appropriate severity to each log point"),
-                ("Add structured logging", "Insert log calls with context fields"),
+                (
+                    "Identify log points",
+                    "Determine where log statements should be added",
+                ),
+                (
+                    "Choose log levels",
+                    "Assign appropriate severity to each log point",
+                ),
+                (
+                    "Add structured logging",
+                    "Insert log calls with context fields",
+                ),
                 ("Verify output", "Check log output format and verbosity"),
             ],
         };
@@ -665,7 +835,8 @@ impl RefactorEngine {
             )
         });
         if all_done || session.current_step >= session.plan.steps.len() {
-            let t = self.ts; self.ts += 1;
+            let t = self.ts;
+            self.ts += 1;
             session.completed_at = Some(t);
             self.metrics.completed += 1;
             self.update_avg_steps();
@@ -692,7 +863,8 @@ impl RefactorEngine {
 
         // Check completion
         if session.current_step >= session.plan.steps.len() {
-            let t = self.ts; self.ts += 1;
+            let t = self.ts;
+            self.ts += 1;
             session.completed_at = Some(t);
             self.metrics.completed += 1;
             self.update_avg_steps();
@@ -1085,8 +1257,7 @@ mod tests {
 
     #[test]
     fn generate_plan_with_multiple_files() {
-        let plan =
-            PlanGenerator::generate(&RefactorIntent::SplitModule, &["a.rs", "b.rs", "c.rs"]);
+        let plan = PlanGenerator::generate(&RefactorIntent::SplitModule, &["a.rs", "b.rs", "c.rs"]);
         assert_eq!(plan.target_files.len(), 3);
         // Steps should be distributed across files
         let paths: Vec<&str> = plan.steps.iter().map(|s| s.file_path.as_str()).collect();
@@ -1488,11 +1659,7 @@ mod tests {
         for _ in 0..steps {
             engine.skip_step(&id).expect("skip");
         }
-        assert!(engine
-            .get_session(&id)
-            .expect("s")
-            .completed_at
-            .is_some());
+        assert!(engine.get_session(&id).expect("s").completed_at.is_some());
     }
 
     #[test]
@@ -1623,11 +1790,7 @@ mod tests {
                 engine.skip_step(&id).expect("skip");
             }
         }
-        assert!(engine
-            .get_session(&id)
-            .expect("s")
-            .completed_at
-            .is_some());
+        assert!(engine.get_session(&id).expect("s").completed_at.is_some());
     }
 
     #[test]

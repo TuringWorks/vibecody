@@ -228,7 +228,12 @@ impl VocabExtractor {
                 self.upsert(name, SymbolKind::TypeAlias, file_path);
             } else if let Some(name) = Self::try_extract(trimmed, &["impl "], file_path) {
                 // Only keep the impl target if it looks like a concrete type (starts uppercase)
-                if name.chars().next().map(|c| c.is_uppercase()).unwrap_or(false) {
+                if name
+                    .chars()
+                    .next()
+                    .map(|c| c.is_uppercase())
+                    .unwrap_or(false)
+                {
                     self.upsert(name, SymbolKind::Struct, file_path);
                 }
             }
@@ -342,7 +347,10 @@ mod tests {
 
     #[test]
     fn test_camel_simple() {
-        assert_eq!(camel_to_words("calculateUserTimeout"), "calculate user timeout");
+        assert_eq!(
+            camel_to_words("calculateUserTimeout"),
+            "calculate user timeout"
+        );
     }
 
     #[test]
@@ -377,7 +385,10 @@ mod tests {
 
     #[test]
     fn test_snake_simple() {
-        assert_eq!(snake_to_words("calculate_user_timeout"), "calculate user timeout");
+        assert_eq!(
+            snake_to_words("calculate_user_timeout"),
+            "calculate user timeout"
+        );
     }
 
     #[test]
@@ -404,10 +415,7 @@ mod tests {
 
     #[test]
     fn test_normalize_snake_detected() {
-        assert_eq!(
-            normalize_symbol_name("fetch_user_data"),
-            "fetch user data"
-        );
+        assert_eq!(normalize_symbol_name("fetch_user_data"), "fetch user data");
     }
 
     #[test]

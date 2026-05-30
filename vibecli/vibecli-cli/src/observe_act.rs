@@ -653,10 +653,7 @@ pub fn validate_action(action: &ObserveActAction, safety: &SafetyRails) -> Resul
                 if forbidden_lower.len() == lower.len()
                     && forbidden_lower.iter().all(|k| lower.contains(k))
                 {
-                    return Err(anyhow!(
-                        "Key combo [{}] is forbidden",
-                        keys.join("+")
-                    ));
+                    return Err(anyhow!("Key combo [{}] is forbidden", keys.join("+")));
                 }
             }
         }
@@ -726,8 +723,12 @@ impl LlmPromptBuilder {
         prompt.push_str(&format!("[Image: {}]\n\n", current_screenshot));
 
         prompt.push_str("## Instructions\n");
-        prompt.push_str("Analyze the screenshot and determine the next actions to make progress on the task.\n");
-        prompt.push_str("Respond with a JSON array of actions. Each action has a \"type\" field.\n\n");
+        prompt.push_str(
+            "Analyze the screenshot and determine the next actions to make progress on the task.\n",
+        );
+        prompt.push_str(
+            "Respond with a JSON array of actions. Each action has a \"type\" field.\n\n",
+        );
         prompt.push_str("Available action types:\n");
         prompt.push_str("- {\"type\": \"click\", \"x\": <num>, \"y\": <num>}\n");
         prompt.push_str("- {\"type\": \"double_click\", \"x\": <num>, \"y\": <num>}\n");
@@ -778,7 +779,10 @@ impl LlmPromptBuilder {
             "You are verifying whether an action had the expected effect on the screen.\n\n",
         );
         prompt.push_str(&format!("## Expected Change\n{}\n\n", expected));
-        prompt.push_str(&format!("## Current Screenshot\n[Image: {}]\n\n", screenshot));
+        prompt.push_str(&format!(
+            "## Current Screenshot\n[Image: {}]\n\n",
+            screenshot
+        ));
         prompt.push_str("Respond with a JSON object:\n");
         prompt.push_str("{\n");
         prompt.push_str("  \"actual_observation\": \"<what you see>\",\n");
@@ -852,7 +856,11 @@ mod tests {
 
     #[test]
     fn test_safety_mode_serialization() {
-        let modes = vec![SafetyMode::Cautious, SafetyMode::Autonomous, SafetyMode::Restricted];
+        let modes = vec![
+            SafetyMode::Cautious,
+            SafetyMode::Autonomous,
+            SafetyMode::Restricted,
+        ];
         for mode in modes {
             let json = serde_json::to_string(&mode).expect("serialize");
             let deserialized: SafetyMode = serde_json::from_str(&json).expect("deserialize");
@@ -889,14 +897,28 @@ mod tests {
             ObserveActAction::Click { x: 10, y: 20 },
             ObserveActAction::DoubleClick { x: 30, y: 40 },
             ObserveActAction::RightClick { x: 50, y: 60 },
-            ObserveActAction::Type { text: "hello".into() },
-            ObserveActAction::KeyCombo { keys: vec!["ctrl".into(), "c".into()] },
-            ObserveActAction::Scroll { direction: ScrollDirection::Down, amount: 3 },
+            ObserveActAction::Type {
+                text: "hello".into(),
+            },
+            ObserveActAction::KeyCombo {
+                keys: vec!["ctrl".into(), "c".into()],
+            },
+            ObserveActAction::Scroll {
+                direction: ScrollDirection::Down,
+                amount: 3,
+            },
             ObserveActAction::Wait { ms: 1000 },
             ObserveActAction::Screenshot,
             ObserveActAction::MoveMouse { x: 70, y: 80 },
-            ObserveActAction::Drag { from_x: 0, from_y: 0, to_x: 100, to_y: 100 },
-            ObserveActAction::Done { summary: "Finished".into() },
+            ObserveActAction::Drag {
+                from_x: 0,
+                from_y: 0,
+                to_x: 100,
+                to_y: 100,
+            },
+            ObserveActAction::Done {
+                summary: "Finished".into(),
+            },
         ];
         for action in &actions {
             let json = serde_json::to_string(action).expect("serialize");
@@ -916,16 +938,28 @@ mod tests {
             "Type(\"hi\")"
         );
         assert_eq!(
-            ObserveActAction::KeyCombo { keys: vec!["ctrl".into(), "s".into()] }.to_string(),
+            ObserveActAction::KeyCombo {
+                keys: vec!["ctrl".into(), "s".into()]
+            }
+            .to_string(),
             "KeyCombo(ctrl+s)"
         );
         assert_eq!(ObserveActAction::Screenshot.to_string(), "Screenshot");
         assert_eq!(
-            ObserveActAction::Drag { from_x: 1, from_y: 2, to_x: 3, to_y: 4 }.to_string(),
+            ObserveActAction::Drag {
+                from_x: 1,
+                from_y: 2,
+                to_x: 3,
+                to_y: 4
+            }
+            .to_string(),
             "Drag(1,2 → 3,4)"
         );
         assert_eq!(
-            ObserveActAction::Done { summary: "done".into() }.to_string(),
+            ObserveActAction::Done {
+                summary: "done".into()
+            }
+            .to_string(),
             "Done(\"done\")"
         );
     }
@@ -943,7 +977,11 @@ mod tests {
     #[test]
     fn test_screen_region_contains_point_inside() {
         let region = ScreenRegion {
-            x: 100, y: 100, width: 200, height: 150, label: "test".into(),
+            x: 100,
+            y: 100,
+            width: 200,
+            height: 150,
+            label: "test".into(),
         };
         assert!(region.contains_point(100, 100)); // top-left corner
         assert!(region.contains_point(200, 175)); // center
@@ -953,19 +991,27 @@ mod tests {
     #[test]
     fn test_screen_region_contains_point_outside() {
         let region = ScreenRegion {
-            x: 100, y: 100, width: 200, height: 150, label: "test".into(),
+            x: 100,
+            y: 100,
+            width: 200,
+            height: 150,
+            label: "test".into(),
         };
-        assert!(!region.contains_point(99, 100));  // just left
-        assert!(!region.contains_point(100, 99));  // just above
+        assert!(!region.contains_point(99, 100)); // just left
+        assert!(!region.contains_point(100, 99)); // just above
         assert!(!region.contains_point(300, 100)); // just right
         assert!(!region.contains_point(100, 250)); // just below
-        assert!(!region.contains_point(0, 0));     // far away
+        assert!(!region.contains_point(0, 0)); // far away
     }
 
     #[test]
     fn test_screen_region_contains_point_zero_size() {
         let region = ScreenRegion {
-            x: 50, y: 50, width: 0, height: 0, label: "zero".into(),
+            x: 50,
+            y: 50,
+            width: 0,
+            height: 0,
+            label: "zero".into(),
         };
         assert!(!region.contains_point(50, 50));
     }
@@ -973,7 +1019,10 @@ mod tests {
     #[test]
     fn test_screen_region_contains_point_overflow_safe() {
         let region = ScreenRegion {
-            x: u32::MAX - 10, y: u32::MAX - 10, width: 100, height: 100,
+            x: u32::MAX - 10,
+            y: u32::MAX - 10,
+            width: 100,
+            height: 100,
             label: "edge".into(),
         };
         // Should not panic from overflow; saturating_add clamps to MAX
@@ -989,10 +1038,8 @@ mod tests {
 
     #[test]
     fn test_session_new() {
-        let session = ObserveActSession::new(
-            ObserveActConfig::default(),
-            "Open the browser".into(),
-        );
+        let session =
+            ObserveActSession::new(ObserveActConfig::default(), "Open the browser".into());
         assert_eq!(session.status, SessionStatus::Idle);
         assert_eq!(session.task, "Open the browser");
         assert!(session.steps.is_empty());
@@ -1010,7 +1057,10 @@ mod tests {
     #[test]
     fn test_session_lifecycle_to_completed() {
         let mut session = ObserveActSession::new(
-            ObserveActConfig { max_steps: 2, ..Default::default() },
+            ObserveActConfig {
+                max_steps: 2,
+                ..Default::default()
+            },
             "task".into(),
         );
         session.start();
@@ -1079,7 +1129,9 @@ mod tests {
             llm_reasoning: "I see a button".into(),
             actions_taken: vec![
                 ObserveActAction::Click { x: 50, y: 50 },
-                ObserveActAction::Type { text: "hello".into() },
+                ObserveActAction::Type {
+                    text: "hello".into(),
+                },
             ],
             verification_result: None,
             duration_ms: 500,
@@ -1114,7 +1166,11 @@ mod tests {
     #[test]
     fn test_session_can_continue() {
         let mut session = ObserveActSession::new(
-            ObserveActConfig { max_steps: 5, max_consecutive_failures: 2, ..Default::default() },
+            ObserveActConfig {
+                max_steps: 5,
+                max_consecutive_failures: 2,
+                ..Default::default()
+            },
             "task".into(),
         );
 
@@ -1137,7 +1193,10 @@ mod tests {
     #[test]
     fn test_session_can_continue_max_steps() {
         let mut session = ObserveActSession::new(
-            ObserveActConfig { max_steps: 1, ..Default::default() },
+            ObserveActConfig {
+                max_steps: 1,
+                ..Default::default()
+            },
             "task".into(),
         );
         session.start();
@@ -1151,7 +1210,10 @@ mod tests {
     #[test]
     fn test_session_can_continue_max_failures() {
         let mut session = ObserveActSession::new(
-            ObserveActConfig { max_consecutive_failures: 1, ..Default::default() },
+            ObserveActConfig {
+                max_consecutive_failures: 1,
+                ..Default::default()
+            },
             "task".into(),
         );
         session.start();
@@ -1331,7 +1393,9 @@ mod tests {
         assert_eq!(actions[0], ObserveActAction::Click { x: 100, y: 200 });
         assert_eq!(
             actions[1],
-            ObserveActAction::Type { text: "hello".into() }
+            ObserveActAction::Type {
+                text: "hello".into()
+            }
         );
     }
 
@@ -1365,10 +1429,8 @@ That should work."#;
 
     #[test]
     fn test_verification_prompt() {
-        let prompt = LlmPromptBuilder::build_verification_prompt(
-            "A dialog should appear",
-            "/tmp/after.png",
-        );
+        let prompt =
+            LlmPromptBuilder::build_verification_prompt("A dialog should appear", "/tmp/after.png");
         assert!(prompt.contains("A dialog should appear"));
         assert!(prompt.contains("/tmp/after.png"));
         assert!(prompt.contains("actual_observation"));
@@ -1398,16 +1460,16 @@ That should work."#;
     fn test_validate_action_forbidden_region() {
         let safety = SafetyRails {
             forbidden_regions: vec![ScreenRegion {
-                x: 0, y: 0, width: 100, height: 50,
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 50,
                 label: "System tray".into(),
             }],
             ..Default::default()
         };
 
-        let result = validate_action(
-            &ObserveActAction::Click { x: 50, y: 25 },
-            &safety,
-        );
+        let result = validate_action(&ObserveActAction::Click { x: 50, y: 25 }, &safety);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("System tray"));
     }
@@ -1416,16 +1478,16 @@ That should work."#;
     fn test_validate_action_outside_forbidden_region() {
         let safety = SafetyRails {
             forbidden_regions: vec![ScreenRegion {
-                x: 0, y: 0, width: 100, height: 50,
+                x: 0,
+                y: 0,
+                width: 100,
+                height: 50,
                 label: "System tray".into(),
             }],
             ..Default::default()
         };
 
-        let result = validate_action(
-            &ObserveActAction::Click { x: 200, y: 200 },
-            &safety,
-        );
+        let result = validate_action(&ObserveActAction::Click { x: 200, y: 200 }, &safety);
         assert!(result.is_ok());
     }
 
@@ -1473,7 +1535,10 @@ That should work."#;
     fn test_validate_action_drag_forbidden_region() {
         let safety = SafetyRails {
             forbidden_regions: vec![ScreenRegion {
-                x: 500, y: 500, width: 100, height: 100,
+                x: 500,
+                y: 500,
+                width: 100,
+                height: 100,
                 label: "Danger zone".into(),
             }],
             ..Default::default()
@@ -1481,21 +1546,36 @@ That should work."#;
 
         // from point in forbidden region
         let result = validate_action(
-            &ObserveActAction::Drag { from_x: 550, from_y: 550, to_x: 100, to_y: 100 },
+            &ObserveActAction::Drag {
+                from_x: 550,
+                from_y: 550,
+                to_x: 100,
+                to_y: 100,
+            },
             &safety,
         );
         assert!(result.is_err());
 
         // to point in forbidden region
         let result = validate_action(
-            &ObserveActAction::Drag { from_x: 100, from_y: 100, to_x: 550, to_y: 550 },
+            &ObserveActAction::Drag {
+                from_x: 100,
+                from_y: 100,
+                to_x: 550,
+                to_y: 550,
+            },
             &safety,
         );
         assert!(result.is_err());
 
         // both points outside
         let result = validate_action(
-            &ObserveActAction::Drag { from_x: 100, from_y: 100, to_x: 200, to_y: 200 },
+            &ObserveActAction::Drag {
+                from_x: 100,
+                from_y: 100,
+                to_x: 200,
+                to_y: 200,
+            },
             &safety,
         );
         assert!(result.is_ok());
@@ -1581,7 +1661,10 @@ That should work."#;
     #[test]
     fn test_is_destructive_drag() {
         assert!(is_destructive(&ObserveActAction::Drag {
-            from_x: 0, from_y: 0, to_x: 100, to_y: 100,
+            from_x: 0,
+            from_y: 0,
+            to_x: 100,
+            to_y: 100,
         }));
     }
 
@@ -1590,7 +1673,10 @@ That should work."#;
         assert!(!is_destructive(&ObserveActAction::Click { x: 10, y: 20 }));
         assert!(!is_destructive(&ObserveActAction::Screenshot));
         assert!(!is_destructive(&ObserveActAction::Wait { ms: 500 }));
-        assert!(!is_destructive(&ObserveActAction::MoveMouse { x: 10, y: 20 }));
+        assert!(!is_destructive(&ObserveActAction::MoveMouse {
+            x: 10,
+            y: 20
+        }));
         assert!(!is_destructive(&ObserveActAction::Scroll {
             direction: ScrollDirection::Down,
             amount: 3,
@@ -1606,8 +1692,12 @@ That should work."#;
     fn test_event_serialization() {
         let events = vec![
             ObserveActEvent::StepStarted { step_num: 1 },
-            ObserveActEvent::ScreenshotCaptured { path: "/tmp/s.png".into() },
-            ObserveActEvent::LlmReasoning { text: "I see a button".into() },
+            ObserveActEvent::ScreenshotCaptured {
+                path: "/tmp/s.png".into(),
+            },
+            ObserveActEvent::LlmReasoning {
+                text: "I see a button".into(),
+            },
             ObserveActEvent::ActionExecuted {
                 action: ObserveActAction::Click { x: 10, y: 20 },
                 success: true,
@@ -1615,9 +1705,15 @@ That should work."#;
             ObserveActEvent::VerificationDone {
                 result: VerificationResult::new("x".into(), "y".into(), true, 0.9),
             },
-            ObserveActEvent::TaskCompleted { summary: "done".into() },
-            ObserveActEvent::Error { message: "oops".into() },
-            ObserveActEvent::SafetyHalt { reason: "forbidden region".into() },
+            ObserveActEvent::TaskCompleted {
+                summary: "done".into(),
+            },
+            ObserveActEvent::Error {
+                message: "oops".into(),
+            },
+            ObserveActEvent::SafetyHalt {
+                reason: "forbidden region".into(),
+            },
         ];
         for event in &events {
             let json = serde_json::to_string(event).expect("serialize");

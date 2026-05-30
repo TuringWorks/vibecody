@@ -20,9 +20,9 @@ use anyhow::Result;
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_otlp::WithExportConfig;
 use opentelemetry_sdk::trace::TracerProvider as SdkTracerProvider;
+use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::filter::EnvFilter;
 
 /// Guard that shuts down the OTel pipeline when dropped.
 pub struct OtelGuard {

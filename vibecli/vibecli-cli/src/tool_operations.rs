@@ -61,12 +61,7 @@ impl BashOutput {
 /// Execute shell commands on a pluggable backend.
 pub trait BashOperations: Send + Sync {
     /// Run `command`, optionally from `cwd`, with extra `env` variables.
-    fn run(
-        &self,
-        command: &str,
-        cwd: Option<&str>,
-        env: &HashMap<String, String>,
-    ) -> BashOutput;
+    fn run(&self, command: &str, cwd: Option<&str>, env: &HashMap<String, String>) -> BashOutput;
 
     /// Human-readable backend identifier (e.g. `"local"`, `"ssh:prod"`, `"docker:app"`).
     fn backend_name(&self) -> &str;
@@ -79,12 +74,7 @@ pub trait BashOperations: Send + Sync {
 pub struct LocalBashOps;
 
 impl BashOperations for LocalBashOps {
-    fn run(
-        &self,
-        command: &str,
-        cwd: Option<&str>,
-        env: &HashMap<String, String>,
-    ) -> BashOutput {
+    fn run(&self, command: &str, cwd: Option<&str>, env: &HashMap<String, String>) -> BashOutput {
         let start = std::time::Instant::now();
         let mut cmd = Command::new("sh");
         cmd.arg("-c").arg(command);
@@ -142,12 +132,7 @@ impl Default for DryRunBashOps {
 }
 
 impl BashOperations for DryRunBashOps {
-    fn run(
-        &self,
-        command: &str,
-        _cwd: Option<&str>,
-        _env: &HashMap<String, String>,
-    ) -> BashOutput {
+    fn run(&self, command: &str, _cwd: Option<&str>, _env: &HashMap<String, String>) -> BashOutput {
         self.recorded.lock().unwrap().push(command.to_owned());
         BashOutput::success(format!("[dry-run] {command}"))
     }
@@ -167,12 +152,7 @@ impl BashOperations for DryRunBashOps {
 pub struct EchoBashOps;
 
 impl BashOperations for EchoBashOps {
-    fn run(
-        &self,
-        command: &str,
-        _cwd: Option<&str>,
-        _env: &HashMap<String, String>,
-    ) -> BashOutput {
+    fn run(&self, command: &str, _cwd: Option<&str>, _env: &HashMap<String, String>) -> BashOutput {
         BashOutput::success(command.to_owned())
     }
 
@@ -292,8 +272,7 @@ impl EditOperations for LocalEditOps {
     fn write_file(&self, path: &str, content: &str) -> Result<(), String> {
         let resolved = self.resolve(path)?;
         if let Some(parent) = resolved.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| format!("mkdir '{parent:?}': {e}"))?;
+            std::fs::create_dir_all(parent).map_err(|e| format!("mkdir '{parent:?}': {e}"))?;
         }
         std::fs::write(&resolved, content).map_err(|e| format!("write '{path}': {e}"))
     }
@@ -323,8 +302,8 @@ impl EditOperations for LocalEditOps {
 
     fn list_dir(&self, path: &str) -> Result<Vec<String>, String> {
         let resolved = self.resolve(path)?;
-        let entries = std::fs::read_dir(&resolved)
-            .map_err(|e| format!("list_dir '{path}': {e}"))?;
+        let entries =
+            std::fs::read_dir(&resolved).map_err(|e| format!("list_dir '{path}': {e}"))?;
         let mut names = Vec::new();
         for entry in entries.flatten() {
             names.push(entry.file_name().to_string_lossy().into_owned());
@@ -334,9 +313,7 @@ impl EditOperations for LocalEditOps {
     }
 
     fn file_exists(&self, path: &str) -> bool {
-        self.resolve(path)
-            .map(|p| p.exists())
-            .unwrap_or(false)
+        self.resolve(path).map(|p| p.exists()).unwrap_or(false)
     }
 
     fn backend_name(&self) -> &str {
@@ -515,20 +492,12 @@ impl OpsRegistry {
     }
 
     /// Register (or replace) a [`BashOperations`] backend under `name`.
-    pub fn register_bash(
-        &mut self,
-        name: &str,
-        ops: std::sync::Arc<dyn BashOperations>,
-    ) {
+    pub fn register_bash(&mut self, name: &str, ops: std::sync::Arc<dyn BashOperations>) {
         self.bash.insert(name.to_owned(), ops);
     }
 
     /// Register (or replace) an [`EditOperations`] backend under `name`.
-    pub fn register_edit(
-        &mut self,
-        name: &str,
-        ops: std::sync::Arc<dyn EditOperations>,
-    ) {
+    pub fn register_edit(&mut self, name: &str, ops: std::sync::Arc<dyn EditOperations>) {
         self.edit.insert(name.to_owned(), ops);
     }
 
@@ -542,12 +511,16 @@ impl OpsRegistry {
 
     /// Returns the `"local"` bash backend (always present).
     pub fn default_bash(&self) -> &std::sync::Arc<dyn BashOperations> {
-        self.bash.get("local").expect("local bash ops always registered")
+        self.bash
+            .get("local")
+            .expect("local bash ops always registered")
     }
 
     /// Returns the `"local"` edit backend (always present).
     pub fn default_edit(&self) -> &std::sync::Arc<dyn EditOperations> {
-        self.edit.get("local").expect("local edit ops always registered")
+        self.edit
+            .get("local")
+            .expect("local edit ops always registered")
     }
 }
 
@@ -754,7 +727,10 @@ mod tests {
     fn registry_registered_backend_is_dispatched() {
         let mut reg = OpsRegistry::new();
         reg.register_bash("dry", std::sync::Arc::new(DryRunBashOps::new()));
-        let out = reg.get_bash("dry").unwrap().run("ls", None, &HashMap::new());
+        let out = reg
+            .get_bash("dry")
+            .unwrap()
+            .run("ls", None, &HashMap::new());
         assert!(out.is_success());
         assert_eq!(reg.get_bash("dry").unwrap().backend_name(), "dry-run");
     }

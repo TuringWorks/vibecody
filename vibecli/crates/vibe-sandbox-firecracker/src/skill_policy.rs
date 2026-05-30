@@ -192,7 +192,8 @@ fn validate_machine(m: &MachineConfig) -> Result<(), SkillPolicyError> {
         return Err(SkillPolicyError::InvalidMachine {
             field: "vcpu_count",
             value: m.vcpu_count.to_string(),
-            reason: "vcpu_count > 32 is rejected (sanity bound; raise the cap if a workload needs it)",
+            reason:
+                "vcpu_count > 32 is rejected (sanity bound; raise the cap if a workload needs it)",
         });
     }
     if m.mem_size_mib < 32 {
@@ -220,9 +221,7 @@ fn validate_env_name(k: &str) -> Result<(), SkillPolicyError> {
     if !(first.is_ascii_alphabetic() || first == '_') {
         return Err(SkillPolicyError::InvalidEnvName(k.to_string()));
     }
-    let ok = k
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || c == '_');
+    let ok = k.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
     if !ok {
         return Err(SkillPolicyError::InvalidEnvName(k.to_string()));
     }
@@ -437,9 +436,7 @@ mod tests {
     #[test]
     fn into_vm_config_boot_args_contain_console_and_root() {
         let p = SkillSandboxPolicy::default();
-        let cfg = p
-            .into_vm_config("/r.ext4", "/k")
-            .unwrap();
+        let cfg = p.into_vm_config("/r.ext4", "/k").unwrap();
         let b = cfg.boot_source.unwrap();
         assert!(b.boot_args.as_ref().unwrap().contains("console=ttyS0"));
         assert!(b.boot_args.as_ref().unwrap().contains("root=/dev/vda"));
@@ -518,10 +515,7 @@ mod tests {
             }),
             ..Default::default()
         };
-        let seq = p
-            .into_vm_config("/r.ext4", "/k")
-            .unwrap()
-            .boot_sequence();
+        let seq = p.into_vm_config("/r.ext4", "/k").unwrap().boot_sequence();
         let paths: Vec<&str> = seq.iter().map(|r| r.path.as_str()).collect();
         assert_eq!(
             paths,
@@ -543,13 +537,9 @@ mod tests {
         env.insert("FOO".into(), "bar".into());
         let p = SkillSandboxPolicy {
             machine: Some(MachineConfig::default()),
-            shares: vec![VirtioFsShare::new(
-                "/var/work",
-                "workspace",
-                "/run/s.sock",
-                false,
-            )
-            .unwrap()],
+            shares: vec![
+                VirtioFsShare::new("/var/work", "workspace", "/run/s.sock", false).unwrap(),
+            ],
             bridge: None,
             extra_env: env,
             extra_boot_args: Some("quiet".into()),

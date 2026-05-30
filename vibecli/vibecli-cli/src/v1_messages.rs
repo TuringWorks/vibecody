@@ -165,9 +165,9 @@ pub async fn messages(
     // existing `num_predict` key. Without this the Anthropic spec field
     // is silently dropped, which surprises clients that rely on it as
     // an output cap (Copilot review comment #2 on PR #8).
-    let options = req.max_tokens.map(|n| {
-        serde_json::json!({ "num_predict": n })
-    });
+    let options = req
+        .max_tokens
+        .map(|n| serde_json::json!({ "num_predict": n }));
 
     let chat_req = ChatRequest {
         model: req.model.clone(),

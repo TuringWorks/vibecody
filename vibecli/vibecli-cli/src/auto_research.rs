@@ -39,41 +39,119 @@ impl ResearchDomain {
     pub fn default_metrics(&self) -> Vec<MetricDef> {
         match self {
             Self::MlTraining => vec![
-                MetricDef::new("val_bpb", "Validation bits-per-byte", MetricDirection::Lower, 1.0),
+                MetricDef::new(
+                    "val_bpb",
+                    "Validation bits-per-byte",
+                    MetricDirection::Lower,
+                    1.0,
+                ),
                 MetricDef::new("train_loss", "Training loss", MetricDirection::Lower, 0.3),
-                MetricDef::new("gpu_util", "GPU utilization %", MetricDirection::Higher, 0.2),
+                MetricDef::new(
+                    "gpu_util",
+                    "GPU utilization %",
+                    MetricDirection::Higher,
+                    0.2,
+                ),
                 MetricDef::new("throughput", "Tokens/second", MetricDirection::Higher, 0.2),
             ],
             Self::ApiPerformance => vec![
                 MetricDef::new("p99_ms", "P99 latency (ms)", MetricDirection::Lower, 1.0),
-                MetricDef::new("throughput_rps", "Requests/second", MetricDirection::Higher, 0.8),
+                MetricDef::new(
+                    "throughput_rps",
+                    "Requests/second",
+                    MetricDirection::Higher,
+                    0.8,
+                ),
                 MetricDef::new("error_rate", "Error rate %", MetricDirection::Lower, 0.5),
-                MetricDef::new("memory_mb", "Memory usage (MB)", MetricDirection::Lower, 0.3),
+                MetricDef::new(
+                    "memory_mb",
+                    "Memory usage (MB)",
+                    MetricDirection::Lower,
+                    0.3,
+                ),
             ],
             Self::BuildOptimization => vec![
-                MetricDef::new("build_time_s", "Build time (seconds)", MetricDirection::Lower, 1.0),
-                MetricDef::new("binary_size_kb", "Binary size (KB)", MetricDirection::Lower, 0.5),
-                MetricDef::new("test_pass_rate", "Test pass rate %", MetricDirection::Higher, 0.8),
+                MetricDef::new(
+                    "build_time_s",
+                    "Build time (seconds)",
+                    MetricDirection::Lower,
+                    1.0,
+                ),
+                MetricDef::new(
+                    "binary_size_kb",
+                    "Binary size (KB)",
+                    MetricDirection::Lower,
+                    0.5,
+                ),
+                MetricDef::new(
+                    "test_pass_rate",
+                    "Test pass rate %",
+                    MetricDirection::Higher,
+                    0.8,
+                ),
             ],
             Self::AlgorithmBench => vec![
-                MetricDef::new("exec_time_ms", "Execution time (ms)", MetricDirection::Lower, 1.0),
-                MetricDef::new("memory_peak_kb", "Peak memory (KB)", MetricDirection::Lower, 0.5),
-                MetricDef::new("correctness", "Correctness score", MetricDirection::Higher, 0.9),
+                MetricDef::new(
+                    "exec_time_ms",
+                    "Execution time (ms)",
+                    MetricDirection::Lower,
+                    1.0,
+                ),
+                MetricDef::new(
+                    "memory_peak_kb",
+                    "Peak memory (KB)",
+                    MetricDirection::Lower,
+                    0.5,
+                ),
+                MetricDef::new(
+                    "correctness",
+                    "Correctness score",
+                    MetricDirection::Higher,
+                    0.9,
+                ),
             ],
             Self::DatabaseTuning => vec![
-                MetricDef::new("query_time_ms", "Query time (ms)", MetricDirection::Lower, 1.0),
+                MetricDef::new(
+                    "query_time_ms",
+                    "Query time (ms)",
+                    MetricDirection::Lower,
+                    1.0,
+                ),
                 MetricDef::new("rows_scanned", "Rows scanned", MetricDirection::Lower, 0.6),
                 MetricDef::new("index_usage", "Index usage %", MetricDirection::Higher, 0.4),
             ],
             Self::FrontendPerf => vec![
-                MetricDef::new("bundle_size_kb", "Bundle size (KB)", MetricDirection::Lower, 0.8),
-                MetricDef::new("fcp_ms", "First Contentful Paint (ms)", MetricDirection::Lower, 1.0),
-                MetricDef::new("lcp_ms", "Largest Contentful Paint (ms)", MetricDirection::Lower, 0.9),
-                MetricDef::new("cls", "Cumulative Layout Shift", MetricDirection::Lower, 0.5),
+                MetricDef::new(
+                    "bundle_size_kb",
+                    "Bundle size (KB)",
+                    MetricDirection::Lower,
+                    0.8,
+                ),
+                MetricDef::new(
+                    "fcp_ms",
+                    "First Contentful Paint (ms)",
+                    MetricDirection::Lower,
+                    1.0,
+                ),
+                MetricDef::new(
+                    "lcp_ms",
+                    "Largest Contentful Paint (ms)",
+                    MetricDirection::Lower,
+                    0.9,
+                ),
+                MetricDef::new(
+                    "cls",
+                    "Cumulative Layout Shift",
+                    MetricDirection::Lower,
+                    0.5,
+                ),
             ],
-            Self::Custom(_) => vec![
-                MetricDef::new("score", "Primary score", MetricDirection::Higher, 1.0),
-            ],
+            Self::Custom(_) => vec![MetricDef::new(
+                "score",
+                "Primary score",
+                MetricDirection::Higher,
+                1.0,
+            )],
         }
     }
 }
@@ -93,7 +171,10 @@ pub enum SearchStrategy {
     /// Maintain top-K candidates and branch from the best ones
     BeamSearch { beam_width: usize },
     /// Evolutionary: mutate, crossover, select from population
-    Genetic { population_size: usize, mutation_rate: f64 },
+    Genetic {
+        population_size: usize,
+        mutation_rate: f64,
+    },
     /// Try combining pairs of individually-discarded changes
     Combinatorial { max_combinations: usize },
     /// Bayesian optimization with surrogate model
@@ -320,7 +401,12 @@ impl Default for ResearchConfig {
         Self {
             domain: ResearchDomain::Custom("default".into()),
             strategy: SearchStrategy::Greedy,
-            metrics: vec![MetricDef::new("score", "Primary score", MetricDirection::Higher, 1.0)],
+            metrics: vec![MetricDef::new(
+                "score",
+                "Primary score",
+                MetricDirection::Higher,
+                1.0,
+            )],
             editable_files: Vec::new(),
             read_only_files: Vec::new(),
             run_command: String::new(),
@@ -473,19 +559,44 @@ impl ResearchSession {
     }
 
     pub fn kept_experiments(&self) -> Vec<&Experiment> {
-        self.experiments.iter().filter(|e| e.status == ExperimentStatus::Kept).collect()
+        self.experiments
+            .iter()
+            .filter(|e| e.status == ExperimentStatus::Kept)
+            .collect()
     }
 
     pub fn discarded_experiments(&self) -> Vec<&Experiment> {
-        self.experiments.iter().filter(|e| e.status == ExperimentStatus::Discarded).collect()
+        self.experiments
+            .iter()
+            .filter(|e| e.status == ExperimentStatus::Discarded)
+            .collect()
     }
 
     pub fn failed_experiments(&self) -> Vec<&Experiment> {
-        self.experiments.iter().filter(|e| matches!(e.status, ExperimentStatus::Failed(_) | ExperimentStatus::Crashed | ExperimentStatus::Timeout)).collect()
+        self.experiments
+            .iter()
+            .filter(|e| {
+                matches!(
+                    e.status,
+                    ExperimentStatus::Failed(_)
+                        | ExperimentStatus::Crashed
+                        | ExperimentStatus::Timeout
+                )
+            })
+            .collect()
     }
 
     pub fn acceptance_rate(&self) -> f64 {
-        let completed = self.experiments.iter().filter(|e| matches!(e.status, ExperimentStatus::Kept | ExperimentStatus::Discarded)).count();
+        let completed = self
+            .experiments
+            .iter()
+            .filter(|e| {
+                matches!(
+                    e.status,
+                    ExperimentStatus::Kept | ExperimentStatus::Discarded
+                )
+            })
+            .count();
         if completed == 0 {
             return 0.0;
         }
@@ -539,7 +650,9 @@ impl ResearchEngine {
     }
 
     pub fn active(&self) -> Option<&ResearchSession> {
-        self.active_session.as_ref().and_then(|id| self.get_session(id))
+        self.active_session
+            .as_ref()
+            .and_then(|id| self.get_session(id))
     }
 
     pub fn active_mut(&mut self) -> Option<&mut ResearchSession> {
@@ -556,14 +669,22 @@ impl ResearchEngine {
                 let normalized = match def.direction {
                     MetricDirection::Higher => mv.value,
                     MetricDirection::Lower => {
-                        if mv.value == 0.0 { f64::MAX } else { 1.0 / mv.value }
+                        if mv.value == 0.0 {
+                            f64::MAX
+                        } else {
+                            1.0 / mv.value
+                        }
                     }
                 };
                 score += normalized * def.weight;
                 total_weight += def.weight;
             }
         }
-        if total_weight > 0.0 { score / total_weight } else { 0.0 }
+        if total_weight > 0.0 {
+            score / total_weight
+        } else {
+            0.0
+        }
     }
 
     /// Check if an experiment's metrics contain NaN values.
@@ -571,7 +692,9 @@ impl ResearchEngine {
         metrics
             .iter()
             .filter(|m| m.value.is_nan() || m.value.is_infinite())
-            .map(|m| SafetyViolation::NaNDetected { metric: m.name.clone() })
+            .map(|m| SafetyViolation::NaNDetected {
+                metric: m.name.clone(),
+            })
             .collect()
     }
 
@@ -595,7 +718,10 @@ impl ResearchEngine {
                 }
             }
             if !config.editable_files.is_empty()
-                && !config.editable_files.iter().any(|e| change.path.ends_with(e) || change.path == *e)
+                && !config
+                    .editable_files
+                    .iter()
+                    .any(|e| change.path.ends_with(e) || change.path == *e)
             {
                 violations.push(format!(
                     "File not in editable list: {}",
@@ -607,12 +733,18 @@ impl ResearchEngine {
     }
 
     /// Record an experiment result and update session state.
-    pub fn record_experiment(&mut self, session_id: &str, mut experiment: Experiment) -> Result<(), String> {
-        let session = self.get_session_mut(session_id)
+    pub fn record_experiment(
+        &mut self,
+        session_id: &str,
+        mut experiment: Experiment,
+    ) -> Result<(), String> {
+        let session = self
+            .get_session_mut(session_id)
             .ok_or_else(|| format!("Session not found: {}", session_id))?;
 
         // Compute composite score
-        experiment.composite_score = Self::compute_composite_score(&experiment.metrics, &session.config.metrics);
+        experiment.composite_score =
+            Self::compute_composite_score(&experiment.metrics, &session.config.metrics);
         experiment.baseline_score = session.current_best_score;
         experiment.delta = experiment.composite_score - session.current_best_score;
 
@@ -624,10 +756,14 @@ impl ResearchEngine {
         if experiment.is_improvement() {
             experiment.status = ExperimentStatus::Kept;
             session.current_best_score = experiment.composite_score;
-            session.memory.record_outcome(true, &experiment.hypothesis.description);
+            session
+                .memory
+                .record_outcome(true, &experiment.hypothesis.description);
         } else if experiment.safety_violations.is_empty() {
             experiment.status = ExperimentStatus::Discarded;
-            session.memory.record_outcome(false, &experiment.hypothesis.description);
+            session
+                .memory
+                .record_outcome(false, &experiment.hypothesis.description);
         }
 
         experiment.completed_at = Some(SystemTime::now());
@@ -639,7 +775,8 @@ impl ResearchEngine {
 
     /// Generate analysis of a research session.
     pub fn analyze_session(&self, session_id: &str) -> Result<ResearchAnalysis, String> {
-        let session = self.get_session(session_id)
+        let session = self
+            .get_session(session_id)
             .ok_or_else(|| format!("Session not found: {}", session_id))?;
 
         let kept = session.kept_experiments();
@@ -650,11 +787,15 @@ impl ResearchEngine {
         let mut metric_trends: HashMap<String, Vec<f64>> = HashMap::new();
         for exp in &session.experiments {
             for mv in &exp.metrics {
-                metric_trends.entry(mv.name.clone()).or_default().push(mv.value);
+                metric_trends
+                    .entry(mv.name.clone())
+                    .or_default()
+                    .push(mv.value);
             }
         }
 
-        let mut top_changes: Vec<(String, f64)> = session.experiments
+        let mut top_changes: Vec<(String, f64)> = session
+            .experiments
             .iter()
             .filter(|e| e.status == ExperimentStatus::Kept)
             .map(|e| (e.hypothesis.description.clone(), e.delta))
@@ -687,14 +828,17 @@ impl ResearchEngine {
 
     /// Select next experiments based on search strategy.
     pub fn suggest_next(&self, session_id: &str) -> Result<Vec<String>, String> {
-        let session = self.get_session(session_id)
+        let session = self
+            .get_session(session_id)
             .ok_or_else(|| format!("Session not found: {}", session_id))?;
 
         let mut suggestions = Vec::new();
 
         match &session.config.strategy {
             SearchStrategy::Greedy => {
-                suggestions.push("Try a single focused change to the highest-impact parameter".to_string());
+                suggestions.push(
+                    "Try a single focused change to the highest-impact parameter".to_string(),
+                );
                 if !session.memory.successful_patterns.is_empty() {
                     suggestions.push(format!(
                         "Patterns that worked: {}",
@@ -704,12 +848,22 @@ impl ResearchEngine {
                 if !session.memory.failed_patterns.is_empty() {
                     suggestions.push(format!(
                         "Avoid patterns: {}",
-                        session.memory.failed_patterns.iter().take(5).cloned().collect::<Vec<_>>().join(", ")
+                        session
+                            .memory
+                            .failed_patterns
+                            .iter()
+                            .take(5)
+                            .cloned()
+                            .collect::<Vec<_>>()
+                            .join(", ")
                     ));
                 }
             }
             SearchStrategy::BeamSearch { beam_width } => {
-                suggestions.push(format!("Beam width: {} — branch from top candidates", beam_width));
+                suggestions.push(format!(
+                    "Beam width: {} — branch from top candidates",
+                    beam_width
+                ));
                 for candidate in session.beam_candidates.iter().take(*beam_width) {
                     suggestions.push(format!(
                         "Branch from {} (score: {:.4}, depth: {})",
@@ -717,12 +871,17 @@ impl ResearchEngine {
                     ));
                 }
             }
-            SearchStrategy::Genetic { population_size, mutation_rate } => {
+            SearchStrategy::Genetic {
+                population_size,
+                mutation_rate,
+            } => {
                 suggestions.push(format!(
                     "Population: {}, mutation rate: {:.2}",
                     population_size, mutation_rate
                 ));
-                let top: Vec<_> = session.population.iter()
+                let top: Vec<_> = session
+                    .population
+                    .iter()
                     .take(3)
                     .map(|g| format!("{} (fitness: {:.4})", g.id, g.fitness))
                     .collect();
@@ -737,8 +896,7 @@ impl ResearchEngine {
                 for pair in discarded.windows(2).take(n) {
                     suggestions.push(format!(
                         "Combine: {} + {}",
-                        pair[0].hypothesis.description,
-                        pair[1].hypothesis.description,
+                        pair[0].hypothesis.description, pair[1].hypothesis.description,
                     ));
                 }
             }
@@ -756,10 +914,14 @@ impl ResearchEngine {
 
     /// Generate a results TSV string for a session (compatible with autoresearch format).
     pub fn export_results_tsv(&self, session_id: &str) -> Result<String, String> {
-        let session = self.get_session(session_id)
+        let session = self
+            .get_session(session_id)
             .ok_or_else(|| format!("Session not found: {}", session_id))?;
 
-        let mut lines = vec!["experiment_id\tcommit\tstatus\tcomposite_score\tdelta\tduration_s\tdescription".to_string()];
+        let mut lines = vec![
+            "experiment_id\tcommit\tstatus\tcomposite_score\tdelta\tduration_s\tdescription"
+                .to_string(),
+        ];
 
         for exp in &session.experiments {
             let status_str = match &exp.status {
@@ -789,7 +951,15 @@ impl ResearchEngine {
     pub fn list_sessions(&self) -> Vec<(&str, &str, &SessionStatus, usize, f64)> {
         self.sessions
             .iter()
-            .map(|s| (s.id.as_str(), s.name.as_str(), &s.status, s.experiments.len(), s.acceptance_rate()))
+            .map(|s| {
+                (
+                    s.id.as_str(),
+                    s.name.as_str(),
+                    &s.status,
+                    s.experiments.len(),
+                    s.acceptance_rate(),
+                )
+            })
             .collect()
     }
 }
@@ -818,7 +988,9 @@ impl MetricExtractor {
         match strategy {
             ExtractionStrategy::Regex(pattern) => Self::extract_regex(output, pattern),
             ExtractionStrategy::JsonPath(path) => Self::extract_json(output, path),
-            ExtractionStrategy::KeyValue { separator } => Self::extract_key_value(output, separator),
+            ExtractionStrategy::KeyValue { separator } => {
+                Self::extract_key_value(output, separator)
+            }
             ExtractionStrategy::LastLine { prefix } => Self::extract_last_line(output, prefix),
         }
     }
@@ -831,7 +1003,11 @@ impl MetricExtractor {
                 for name in re.capture_names().flatten() {
                     if let Some(m) = caps.name(name) {
                         if let Ok(val) = m.as_str().parse::<f64>() {
-                            results.push(MetricValue { name: name.to_string(), value: val, unit: None });
+                            results.push(MetricValue {
+                                name: name.to_string(),
+                                value: val,
+                                unit: None,
+                            });
                         }
                     }
                 }
@@ -839,7 +1015,11 @@ impl MetricExtractor {
                 if results.is_empty() && caps.len() >= 3 {
                     if let (Some(n), Some(v)) = (caps.get(1), caps.get(2)) {
                         if let Ok(val) = v.as_str().parse::<f64>() {
-                            results.push(MetricValue { name: n.as_str().to_string(), value: val, unit: None });
+                            results.push(MetricValue {
+                                name: n.as_str().to_string(),
+                                value: val,
+                                unit: None,
+                            });
                         }
                     }
                 }
@@ -866,11 +1046,19 @@ impl MetricExtractor {
                 }
                 if let Some(val) = current.as_f64() {
                     let name = parts.last().copied().unwrap_or("value");
-                    results.push(MetricValue { name: name.to_string(), value: val, unit: None });
+                    results.push(MetricValue {
+                        name: name.to_string(),
+                        value: val,
+                        unit: None,
+                    });
                 } else if let Some(obj) = current.as_object() {
                     for (k, v) in obj {
                         if let Some(val) = v.as_f64() {
-                            results.push(MetricValue { name: k.clone(), value: val, unit: None });
+                            results.push(MetricValue {
+                                name: k.clone(),
+                                value: val,
+                                unit: None,
+                            });
                         }
                     }
                 }
@@ -887,9 +1075,23 @@ impl MetricExtractor {
                 let key = line[..idx].trim().to_string();
                 let val_str = line[idx + separator.len()..].trim();
                 // Strip any trailing non-numeric characters (units, etc.)
-                let numeric: String = val_str.chars().take_while(|c| c.is_ascii_digit() || *c == '.' || *c == '-' || *c == 'e' || *c == 'E' || *c == '+').collect();
+                let numeric: String = val_str
+                    .chars()
+                    .take_while(|c| {
+                        c.is_ascii_digit()
+                            || *c == '.'
+                            || *c == '-'
+                            || *c == 'e'
+                            || *c == 'E'
+                            || *c == '+'
+                    })
+                    .collect();
                 if let Ok(val) = numeric.parse::<f64>() {
-                    results.push(MetricValue { name: key, value: val, unit: None });
+                    results.push(MetricValue {
+                        name: key,
+                        value: val,
+                        unit: None,
+                    });
                 }
             }
         }
@@ -902,9 +1104,23 @@ impl MetricExtractor {
             let line = line.trim();
             if let Some(after_prefix) = line.strip_prefix(prefix) {
                 let rest = after_prefix.trim();
-                let numeric: String = rest.chars().take_while(|c| c.is_ascii_digit() || *c == '.' || *c == '-' || *c == 'e' || *c == 'E' || *c == '+').collect();
+                let numeric: String = rest
+                    .chars()
+                    .take_while(|c| {
+                        c.is_ascii_digit()
+                            || *c == '.'
+                            || *c == '-'
+                            || *c == 'e'
+                            || *c == 'E'
+                            || *c == '+'
+                    })
+                    .collect();
                 if let Ok(val) = numeric.parse::<f64>() {
-                    results.push(MetricValue { name: prefix.trim_end_matches(&[':', '=', ' '][..]).to_string(), value: val, unit: None });
+                    results.push(MetricValue {
+                        name: prefix.trim_end_matches(&[':', '=', ' '][..]).to_string(),
+                        value: val,
+                        unit: None,
+                    });
                     break;
                 }
             }
@@ -966,7 +1182,12 @@ impl StatisticalValidator {
 
     /// Bootstrap confidence interval for the mean difference.
     /// Returns (lower_bound, upper_bound, mean_diff).
-    pub fn bootstrap_ci(sample_a: &[f64], sample_b: &[f64], confidence: f64, n_bootstrap: usize) -> (f64, f64, f64) {
+    pub fn bootstrap_ci(
+        sample_a: &[f64],
+        sample_b: &[f64],
+        confidence: f64,
+        n_bootstrap: usize,
+    ) -> (f64, f64, f64) {
         if sample_a.is_empty() || sample_b.is_empty() {
             return (0.0, 0.0, 0.0);
         }
@@ -979,18 +1200,24 @@ impl StatisticalValidator {
 
         // Jackknife resampling on sample_a
         for i in 0..sample_a.len() {
-            let jack_mean: f64 = sample_a.iter().enumerate()
+            let jack_mean: f64 = sample_a
+                .iter()
+                .enumerate()
                 .filter(|(j, _)| *j != i)
                 .map(|(_, v)| v)
-                .sum::<f64>() / (sample_a.len() - 1).max(1) as f64;
+                .sum::<f64>()
+                / (sample_a.len() - 1).max(1) as f64;
             diffs.push(jack_mean - mean_b);
         }
         // Jackknife resampling on sample_b
         for i in 0..sample_b.len() {
-            let jack_mean: f64 = sample_b.iter().enumerate()
+            let jack_mean: f64 = sample_b
+                .iter()
+                .enumerate()
                 .filter(|(j, _)| *j != i)
                 .map(|(_, v)| v)
-                .sum::<f64>() / (sample_b.len() - 1).max(1) as f64;
+                .sum::<f64>()
+                / (sample_b.len() - 1).max(1) as f64;
             diffs.push(mean_a - jack_mean);
         }
 
@@ -1000,7 +1227,10 @@ impl StatisticalValidator {
         let upper_idx = ((1.0 - alpha) * diffs.len() as f64).ceil() as usize;
 
         let lower = diffs.get(lower_idx).copied().unwrap_or(observed_diff);
-        let upper = diffs.get(upper_idx.min(diffs.len() - 1)).copied().unwrap_or(observed_diff);
+        let upper = diffs
+            .get(upper_idx.min(diffs.len() - 1))
+            .copied()
+            .unwrap_or(observed_diff);
 
         (lower, upper, observed_diff)
     }
@@ -1043,7 +1273,11 @@ impl StatisticalValidator {
         let var_a = sample_a.iter().map(|x| (x - mean_a).powi(2)).sum::<f64>() / (n_a - 1.0);
         let var_b = sample_b.iter().map(|x| (x - mean_b).powi(2)).sum::<f64>() / (n_b - 1.0);
         let pooled_std = (((n_a - 1.0) * var_a + (n_b - 1.0) * var_b) / (n_a + n_b - 2.0)).sqrt();
-        if pooled_std == 0.0 { 0.0 } else { (mean_a - mean_b) / pooled_std }
+        if pooled_std == 0.0 {
+            0.0
+        } else {
+            (mean_a - mean_b) / pooled_std
+        }
     }
 }
 
@@ -1063,13 +1297,20 @@ pub struct ExperimentGraph {
 
 impl ExperimentGraph {
     pub fn new() -> Self {
-        Self { edges: HashMap::new(), children: HashMap::new(), roots: Vec::new() }
+        Self {
+            edges: HashMap::new(),
+            children: HashMap::new(),
+            roots: Vec::new(),
+        }
     }
 
     pub fn add_experiment(&mut self, id: &str, parent: Option<&str>) {
         if let Some(p) = parent {
             self.edges.insert(id.to_string(), p.to_string());
-            self.children.entry(p.to_string()).or_default().push(id.to_string());
+            self.children
+                .entry(p.to_string())
+                .or_default()
+                .push(id.to_string());
         } else {
             self.roots.push(id.to_string());
         }
@@ -1089,7 +1330,10 @@ impl ExperimentGraph {
 
     /// Get all children of an experiment.
     pub fn children_of(&self, id: &str) -> Vec<&str> {
-        self.children.get(id).map(|c| c.iter().map(|s| s.as_str()).collect()).unwrap_or_default()
+        self.children
+            .get(id)
+            .map(|c| c.iter().map(|s| s.as_str()).collect())
+            .unwrap_or_default()
     }
 
     /// Get depth of an experiment in the tree.
@@ -1101,7 +1345,10 @@ impl ExperimentGraph {
     pub fn leaves(&self) -> Vec<&str> {
         let mut all_ids: Vec<&str> = self.edges.keys().map(|s| s.as_str()).collect();
         all_ids.extend(self.roots.iter().map(|s| s.as_str()));
-        all_ids.into_iter().filter(|id| !self.children.contains_key(*id)).collect()
+        all_ids
+            .into_iter()
+            .filter(|id| !self.children.contains_key(*id))
+            .collect()
     }
 
     /// Find best branch point: the experiment with the most kept descendants.
@@ -1109,10 +1356,15 @@ impl ExperimentGraph {
         let mut scores: HashMap<&str, usize> = HashMap::new();
         for kid in kept_ids {
             for ancestor in self.ancestry(kid) {
-                *scores.entry(Box::leak(ancestor.into_boxed_str())).or_insert(0) += 1;
+                *scores
+                    .entry(Box::leak(ancestor.into_boxed_str()))
+                    .or_insert(0) += 1;
             }
         }
-        scores.into_iter().max_by_key(|(_, v)| *v).map(|(k, _)| k.to_string())
+        scores
+            .into_iter()
+            .max_by_key(|(_, v)| *v)
+            .map(|(k, _)| k.to_string())
     }
 }
 
@@ -1132,7 +1384,10 @@ impl HypothesisGenerator {
             let h = Hypothesis::new(
                 &format!("h_var_{}", exp_count + hypotheses.len()),
                 &format!("Variation of: {}", exp.hypothesis.description),
-                &format!("Based on kept experiment {} (delta: {:.4})", exp.id, exp.delta),
+                &format!(
+                    "Based on kept experiment {} (delta: {:.4})",
+                    exp.id, exp.delta
+                ),
             );
             hypotheses.push(h);
         }
@@ -1142,7 +1397,10 @@ impl HypothesisGenerator {
             let mut h = Hypothesis::new(
                 &format!("h_opp_{}", exp_count + hypotheses.len()),
                 &format!("Opposite of: {}", exp.hypothesis.description),
-                &format!("Discarded experiment {} suggests trying the inverse approach", exp.id),
+                &format!(
+                    "Discarded experiment {} suggests trying the inverse approach",
+                    exp.id
+                ),
             );
             h.confidence = Confidence::Low;
             hypotheses.push(h);
@@ -1155,7 +1413,10 @@ impl HypothesisGenerator {
             let b = &kept[kept.len() - 2];
             let mut h = Hypothesis::new(
                 &format!("h_combo_{}", exp_count + hypotheses.len()),
-                &format!("Combine: {} + {}", a.hypothesis.description, b.hypothesis.description),
+                &format!(
+                    "Combine: {} + {}",
+                    a.hypothesis.description, b.hypothesis.description
+                ),
                 "Two individually-beneficial changes may compound",
             );
             h.confidence = Confidence::Medium;
@@ -1165,11 +1426,15 @@ impl HypothesisGenerator {
 
         // Strategy 4: Metric-driven — focus on the weakest metric
         if let Some(last) = session.experiments.last() {
-            if let Some(weakest) = Self::find_weakest_metric(&last.metrics, &session.config.metrics) {
+            if let Some(weakest) = Self::find_weakest_metric(&last.metrics, &session.config.metrics)
+            {
                 let mut h = Hypothesis::new(
                     &format!("h_weak_{}", exp_count + hypotheses.len()),
                     &format!("Improve weakest metric: {}", weakest),
-                    &format!("{} has the most room for improvement relative to its weight", weakest),
+                    &format!(
+                        "{} has the most room for improvement relative to its weight",
+                        weakest
+                    ),
                 );
                 h.tags = vec!["metric-driven".to_string()];
                 hypotheses.push(h);
@@ -1199,7 +1464,13 @@ impl HypothesisGenerator {
             if let Some(mv) = metrics.iter().find(|m| m.name == def.name) {
                 let normalized = match def.direction {
                     MetricDirection::Higher => mv.value,
-                    MetricDirection::Lower => if mv.value == 0.0 { f64::MAX } else { 1.0 / mv.value },
+                    MetricDirection::Lower => {
+                        if mv.value == 0.0 {
+                            f64::MAX
+                        } else {
+                            1.0 / mv.value
+                        }
+                    }
                 };
                 let weighted = normalized * def.weight;
                 if weighted < worst_score {
@@ -1240,44 +1511,65 @@ pub struct WorktreeRunner {
 
 impl WorktreeRunner {
     pub fn new(base_dir: PathBuf, max_parallel: usize) -> Self {
-        let slots = (0..max_parallel).map(|i| WorktreeSlot {
-            id: format!("wt_{}", i),
-            worktree_path: base_dir.join(format!(".autoresearch-wt-{}", i)),
-            branch_name: format!("autoresearch/worker-{}", i),
-            experiment_id: None,
-            status: WorktreeStatus::Available,
-        }).collect();
-        Self { slots, base_dir, max_parallel }
+        let slots = (0..max_parallel)
+            .map(|i| WorktreeSlot {
+                id: format!("wt_{}", i),
+                worktree_path: base_dir.join(format!(".autoresearch-wt-{}", i)),
+                branch_name: format!("autoresearch/worker-{}", i),
+                experiment_id: None,
+                status: WorktreeStatus::Available,
+            })
+            .collect();
+        Self {
+            slots,
+            base_dir,
+            max_parallel,
+        }
     }
 
     /// Find an available worktree slot.
     pub fn available_slot(&self) -> Option<&WorktreeSlot> {
-        self.slots.iter().find(|s| s.status == WorktreeStatus::Available)
+        self.slots
+            .iter()
+            .find(|s| s.status == WorktreeStatus::Available)
     }
 
     /// Count running experiments.
     pub fn running_count(&self) -> usize {
-        self.slots.iter().filter(|s| s.status == WorktreeStatus::Running).count()
+        self.slots
+            .iter()
+            .filter(|s| s.status == WorktreeStatus::Running)
+            .count()
     }
 
     /// Get the git commands needed to create a worktree.
     pub fn create_worktree_commands(slot: &WorktreeSlot, base_ref: &str) -> Vec<String> {
-        vec![
-            format!("git worktree add -b {} {} {}", slot.branch_name, slot.worktree_path.display(), base_ref),
-        ]
+        vec![format!(
+            "git worktree add -b {} {} {}",
+            slot.branch_name,
+            slot.worktree_path.display(),
+            base_ref
+        )]
     }
 
     /// Get the git commands needed to clean up a worktree.
     pub fn cleanup_worktree_commands(slot: &WorktreeSlot) -> Vec<String> {
         vec![
-            format!("git worktree remove --force {}", slot.worktree_path.display()),
+            format!(
+                "git worktree remove --force {}",
+                slot.worktree_path.display()
+            ),
             format!("git branch -D {}", slot.branch_name),
         ]
     }
 
     /// Mark a slot as running with an experiment.
     pub fn assign_experiment(&mut self, slot_id: &str, experiment_id: &str) -> bool {
-        if let Some(slot) = self.slots.iter_mut().find(|s| s.id == slot_id && s.status == WorktreeStatus::Available) {
+        if let Some(slot) = self
+            .slots
+            .iter_mut()
+            .find(|s| s.id == slot_id && s.status == WorktreeStatus::Available)
+        {
             slot.experiment_id = Some(experiment_id.to_string());
             slot.status = WorktreeStatus::Running;
             true
@@ -1309,7 +1601,12 @@ impl WarmStarter {
                 continue;
             }
             for lesson in &past.memory.lessons {
-                if !session.memory.lessons.iter().any(|l| l.description == lesson.description) {
+                if !session
+                    .memory
+                    .lessons
+                    .iter()
+                    .any(|l| l.description == lesson.description)
+                {
                     session.memory.lessons.push(lesson.clone());
                 }
             }
@@ -1325,29 +1622,45 @@ impl WarmStarter {
             }
             // Import baseline metrics
             for (name, val) in &past.memory.metric_baselines {
-                session.memory.metric_baselines.entry(name.clone()).or_insert(*val);
+                session
+                    .memory
+                    .metric_baselines
+                    .entry(name.clone())
+                    .or_insert(*val);
             }
         }
         session.memory.total_sessions += past_sessions.len();
     }
 
     /// Estimate how many experiments a session needs based on past acceptance rates.
-    pub fn estimate_experiments_needed(past_sessions: &[ResearchSession], target_improvement_pct: f64) -> usize {
+    pub fn estimate_experiments_needed(
+        past_sessions: &[ResearchSession],
+        target_improvement_pct: f64,
+    ) -> usize {
         if past_sessions.is_empty() {
             return 50; // default
         }
-        let avg_acceptance = past_sessions.iter()
+        let avg_acceptance = past_sessions
+            .iter()
             .map(|s| s.acceptance_rate())
-            .sum::<f64>() / past_sessions.len() as f64;
-        let avg_delta_per_kept = past_sessions.iter()
+            .sum::<f64>()
+            / past_sessions.len() as f64;
+        let avg_delta_per_kept = past_sessions
+            .iter()
             .flat_map(|s| s.kept_experiments())
             .map(|e| e.delta)
-            .sum::<f64>() / past_sessions.iter().map(|s| s.kept_experiments().len()).sum::<usize>().max(1) as f64;
+            .sum::<f64>()
+            / past_sessions
+                .iter()
+                .map(|s| s.kept_experiments().len())
+                .sum::<usize>()
+                .max(1) as f64;
 
         if avg_acceptance == 0.0 || avg_delta_per_kept <= 0.0 {
             return 100;
         }
-        let needed_improvements = (target_improvement_pct / (avg_delta_per_kept * 100.0)).ceil() as usize;
+        let needed_improvements =
+            (target_improvement_pct / (avg_delta_per_kept * 100.0)).ceil() as usize;
         let needed_experiments = (needed_improvements as f64 / avg_acceptance).ceil() as usize;
         needed_experiments.clamp(5, 1000)
     }
@@ -1387,7 +1700,9 @@ impl AblationEngine {
             return Vec::new(); // Nothing to ablate
         }
         // Leave-one-out: for each change, create a variant without it
-        (0..n).map(|omit| (0..n).filter(|&i| i != omit).collect()).collect()
+        (0..n)
+            .map(|omit| (0..n).filter(|&i| i != omit).collect())
+            .collect()
     }
 
     /// Analyze ablation results to determine which changes are essential.
@@ -1518,7 +1833,12 @@ impl SimplicityScorer {
 
     /// Should an experiment be kept based on simplicity-adjusted scoring?
     pub fn should_keep(score: &SimplicityScore) -> bool {
-        matches!(score.verdict, SimplicityVerdict::ClearWin | SimplicityVerdict::Acceptable | SimplicityVerdict::CleanupWin)
+        matches!(
+            score.verdict,
+            SimplicityVerdict::ClearWin
+                | SimplicityVerdict::Acceptable
+                | SimplicityVerdict::CleanupWin
+        )
     }
 }
 
@@ -1568,13 +1888,19 @@ impl AdaptiveTimeBudget {
 
     /// Get the appropriate duration for an experiment phase.
     pub fn duration_for_phase(&self, is_confirmation: bool) -> Duration {
-        if is_confirmation { self.confirmation_duration } else { self.screening_duration }
+        if is_confirmation {
+            self.confirmation_duration
+        } else {
+            self.screening_duration
+        }
     }
 
     /// Screening efficiency: what % of experiments were screened out early.
     pub fn screening_efficiency(&self) -> f64 {
         let total = self.confirmed_experiments.len() + self.screened_out.len();
-        if total == 0 { return 0.0; }
+        if total == 0 {
+            return 0.0;
+        }
         self.screened_out.len() as f64 / total as f64
     }
 }
@@ -1597,7 +1923,14 @@ impl MultiSeedValidator {
     /// Compute statistics across multiple seed runs.
     pub fn aggregate(runs: &[SeedRun]) -> SeedStats {
         if runs.is_empty() {
-            return SeedStats { mean: 0.0, std_dev: 0.0, min: 0.0, max: 0.0, cv: 0.0, n: 0 };
+            return SeedStats {
+                mean: 0.0,
+                std_dev: 0.0,
+                min: 0.0,
+                max: 0.0,
+                cv: 0.0,
+                n: 0,
+            };
         }
         let n = runs.len() as f64;
         let scores: Vec<f64> = runs.iter().map(|r| r.score).collect();
@@ -1606,13 +1939,28 @@ impl MultiSeedValidator {
         let std_dev = variance.sqrt();
         let min = scores.iter().cloned().fold(f64::MAX, f64::min);
         let max = scores.iter().cloned().fold(f64::MIN, f64::max);
-        let cv = if mean != 0.0 { std_dev / mean.abs() } else { 0.0 };
-        SeedStats { mean, std_dev, min, max, cv, n: runs.len() }
+        let cv = if mean != 0.0 {
+            std_dev / mean.abs()
+        } else {
+            0.0
+        };
+        SeedStats {
+            mean,
+            std_dev,
+            min,
+            max,
+            cv,
+            n: runs.len(),
+        }
     }
 
     /// Is the improvement reliable across seeds?
     /// Returns true if the worst-case run still beats the baseline.
-    pub fn is_reliable(experiment_runs: &[SeedRun], baseline_runs: &[SeedRun], direction: &MetricDirection) -> bool {
+    pub fn is_reliable(
+        experiment_runs: &[SeedRun],
+        baseline_runs: &[SeedRun],
+        direction: &MetricDirection,
+    ) -> bool {
         if experiment_runs.is_empty() || baseline_runs.is_empty() {
             return false;
         }
@@ -1633,10 +1981,21 @@ impl MultiSeedValidator {
 
     /// Suggested number of seeds based on coefficient of variation.
     pub fn recommended_seeds(cv: f64) -> usize {
-        if cv < 0.01 { 1 }      // Very stable — 1 run is fine
-        else if cv < 0.05 { 3 }  // Low variance — 3 seeds
-        else if cv < 0.10 { 5 }  // Moderate — 5 seeds
-        else { 10 }              // High variance — need many seeds
+        if cv < 0.01 {
+            1
+        }
+        // Very stable — 1 run is fine
+        else if cv < 0.05 {
+            3
+        }
+        // Low variance — 3 seeds
+        else if cv < 0.10 {
+            5
+        }
+        // Moderate — 5 seeds
+        else {
+            10
+        } // High variance — need many seeds
     }
 }
 
@@ -1670,22 +2029,39 @@ impl ProgramTemplateGenerator {
             ResearchDomain::Custom(d) => d.as_str(),
         };
 
-        let editable = config.editable_files.iter()
+        let editable = config
+            .editable_files
+            .iter()
             .map(|p| format!("`{}`", p.display()))
             .collect::<Vec<_>>()
             .join(", ");
-        let editable_str = if editable.is_empty() { "any project files".to_string() } else { editable };
+        let editable_str = if editable.is_empty() {
+            "any project files".to_string()
+        } else {
+            editable
+        };
 
-        let metrics_desc = config.metrics.iter()
-            .map(|m| format!("- **{}**: {} ({})", m.name, m.description,
-                match m.direction { MetricDirection::Higher => "higher is better", MetricDirection::Lower => "lower is better" }))
+        let metrics_desc = config
+            .metrics
+            .iter()
+            .map(|m| {
+                format!(
+                    "- **{}**: {} ({})",
+                    m.name,
+                    m.description,
+                    match m.direction {
+                        MetricDirection::Higher => "higher is better",
+                        MetricDirection::Lower => "lower is better",
+                    }
+                )
+            })
             .collect::<Vec<_>>()
             .join("\n");
 
         let timeout = config.resource_limits.max_duration.as_secs();
 
         format!(
-r#"# AutoResearch Program — {domain_desc}
+            r#"# AutoResearch Program — {domain_desc}
 
 You are an autonomous research agent. Your job is to iteratively improve the
 code through structured experimentation. You work **indefinitely** until
@@ -1738,11 +2114,28 @@ manually stopped. Do NOT pause to ask the human — they may be asleep.
                 SearchStrategy::Bayesian { .. } => "Bayesian",
             },
             strategy_desc = match &config.strategy {
-                SearchStrategy::Greedy => "Keep/discard each change independently. Simple and effective.".to_string(),
-                SearchStrategy::BeamSearch { beam_width } => format!("Maintain top-{} candidates. Branch from the best, prune the rest.", beam_width),
-                SearchStrategy::Genetic { population_size, mutation_rate } => format!("Population of {}. Mutate at {:.0}% rate. Crossover top performers.", population_size, mutation_rate * 100.0),
-                SearchStrategy::Combinatorial { max_combinations } => format!("After greedy phase, try combining up to {} discarded changes pairwise.", max_combinations),
-                SearchStrategy::Bayesian { exploration_weight } => format!("Use surrogate model. Exploration weight: {:.1}. Balance exploit vs explore.", exploration_weight),
+                SearchStrategy::Greedy =>
+                    "Keep/discard each change independently. Simple and effective.".to_string(),
+                SearchStrategy::BeamSearch { beam_width } => format!(
+                    "Maintain top-{} candidates. Branch from the best, prune the rest.",
+                    beam_width
+                ),
+                SearchStrategy::Genetic {
+                    population_size,
+                    mutation_rate,
+                } => format!(
+                    "Population of {}. Mutate at {:.0}% rate. Crossover top performers.",
+                    population_size,
+                    mutation_rate * 100.0
+                ),
+                SearchStrategy::Combinatorial { max_combinations } => format!(
+                    "After greedy phase, try combining up to {} discarded changes pairwise.",
+                    max_combinations
+                ),
+                SearchStrategy::Bayesian { exploration_weight } => format!(
+                    "Use surrogate model. Exploration weight: {:.1}. Balance exploit vs explore.",
+                    exploration_weight
+                ),
             },
         )
     }
@@ -1819,7 +2212,9 @@ mod tests {
         assert!(!exp.is_improvement());
 
         exp.delta = 0.1;
-        exp.safety_violations.push(SafetyViolation::NaNDetected { metric: "loss".into() });
+        exp.safety_violations.push(SafetyViolation::NaNDetected {
+            metric: "loss".into(),
+        });
         assert!(!exp.is_improvement());
     }
 
@@ -1853,8 +2248,12 @@ mod tests {
         assert_eq!(mem.total_experiments, 3);
         assert_eq!(mem.total_improvements, 2);
         assert!((mem.acceptance_rate() - 0.6667).abs() < 0.01);
-        assert!(mem.successful_patterns.contains(&"increased lr".to_string()));
-        assert!(mem.failed_patterns.contains(&"decreased batch size".to_string()));
+        assert!(mem
+            .successful_patterns
+            .contains(&"increased lr".to_string()));
+        assert!(mem
+            .failed_patterns
+            .contains(&"decreased batch size".to_string()));
     }
 
     #[test]
@@ -1913,24 +2312,29 @@ mod tests {
 
     #[test]
     fn test_composite_score_higher_is_better() {
-        let metrics = vec![
-            MetricValue { name: "throughput".into(), value: 100.0, unit: None },
-        ];
-        let defs = vec![
-            MetricDef::new("throughput", "T", MetricDirection::Higher, 1.0),
-        ];
+        let metrics = vec![MetricValue {
+            name: "throughput".into(),
+            value: 100.0,
+            unit: None,
+        }];
+        let defs = vec![MetricDef::new(
+            "throughput",
+            "T",
+            MetricDirection::Higher,
+            1.0,
+        )];
         let score = ResearchEngine::compute_composite_score(&metrics, &defs);
         assert_eq!(score, 100.0);
     }
 
     #[test]
     fn test_composite_score_lower_is_better() {
-        let metrics = vec![
-            MetricValue { name: "latency".into(), value: 10.0, unit: None },
-        ];
-        let defs = vec![
-            MetricDef::new("latency", "L", MetricDirection::Lower, 1.0),
-        ];
+        let metrics = vec![MetricValue {
+            name: "latency".into(),
+            value: 10.0,
+            unit: None,
+        }];
+        let defs = vec![MetricDef::new("latency", "L", MetricDirection::Lower, 1.0)];
         let score = ResearchEngine::compute_composite_score(&metrics, &defs);
         assert_eq!(score, 0.1); // 1/10
     }
@@ -1938,8 +2342,16 @@ mod tests {
     #[test]
     fn test_composite_score_weighted() {
         let metrics = vec![
-            MetricValue { name: "a".into(), value: 100.0, unit: None },
-            MetricValue { name: "b".into(), value: 50.0, unit: None },
+            MetricValue {
+                name: "a".into(),
+                value: 100.0,
+                unit: None,
+            },
+            MetricValue {
+                name: "b".into(),
+                value: 50.0,
+                unit: None,
+            },
         ];
         let defs = vec![
             MetricDef::new("a", "A", MetricDirection::Higher, 2.0),
@@ -1959,9 +2371,21 @@ mod tests {
     #[test]
     fn test_check_nan() {
         let metrics = vec![
-            MetricValue { name: "ok".into(), value: 1.0, unit: None },
-            MetricValue { name: "bad".into(), value: f64::NAN, unit: None },
-            MetricValue { name: "inf".into(), value: f64::INFINITY, unit: None },
+            MetricValue {
+                name: "ok".into(),
+                value: 1.0,
+                unit: None,
+            },
+            MetricValue {
+                name: "bad".into(),
+                value: f64::NAN,
+                unit: None,
+            },
+            MetricValue {
+                name: "inf".into(),
+                value: f64::INFINITY,
+                unit: None,
+            },
         ];
         let violations = ResearchEngine::check_nan(&metrics);
         assert_eq!(violations.len(), 2);
@@ -1999,12 +2423,25 @@ mod tests {
     #[test]
     fn test_validate_file_changes_too_many() {
         let config = ResearchConfig {
-            resource_limits: ResourceLimits { max_file_changes: 1, ..Default::default() },
+            resource_limits: ResourceLimits {
+                max_file_changes: 1,
+                ..Default::default()
+            },
             ..Default::default()
         };
         let changes = vec![
-            FileChange { path: "a.py".into(), diff: "+".into(), lines_added: 1, lines_removed: 0 },
-            FileChange { path: "b.py".into(), diff: "+".into(), lines_added: 1, lines_removed: 0 },
+            FileChange {
+                path: "a.py".into(),
+                diff: "+".into(),
+                lines_added: 1,
+                lines_removed: 0,
+            },
+            FileChange {
+                path: "b.py".into(),
+                diff: "+".into(),
+                lines_added: 1,
+                lines_removed: 0,
+            },
         ];
         let v = ResearchEngine::validate_file_changes(&changes, &config);
         assert!(v.iter().any(|s| s.contains("Too many")));
@@ -2034,7 +2471,11 @@ mod tests {
 
         let h = Hypothesis::new("h1", "Better LR", "Reason");
         let mut exp = Experiment::new("e1", &sid, h, "python train.py");
-        exp.metrics = vec![MetricValue { name: "score".into(), value: 10.0, unit: None }];
+        exp.metrics = vec![MetricValue {
+            name: "score".into(),
+            value: 10.0,
+            unit: None,
+        }];
 
         engine.record_experiment(&sid, exp).unwrap();
 
@@ -2054,13 +2495,21 @@ mod tests {
         // First experiment sets baseline
         let h1 = Hypothesis::new("h1", "Baseline", "Reason");
         let mut exp1 = Experiment::new("e1", &sid, h1, "cmd");
-        exp1.metrics = vec![MetricValue { name: "score".into(), value: 10.0, unit: None }];
+        exp1.metrics = vec![MetricValue {
+            name: "score".into(),
+            value: 10.0,
+            unit: None,
+        }];
         engine.record_experiment(&sid, exp1).unwrap();
 
         // Second experiment is worse
         let h2 = Hypothesis::new("h2", "Worse", "Reason");
         let mut exp2 = Experiment::new("e2", &sid, h2, "cmd");
-        exp2.metrics = vec![MetricValue { name: "score".into(), value: 5.0, unit: None }];
+        exp2.metrics = vec![MetricValue {
+            name: "score".into(),
+            value: 5.0,
+            unit: None,
+        }];
         engine.record_experiment(&sid, exp2).unwrap();
 
         let session = engine.get_session(&sid).unwrap();
@@ -2075,7 +2524,11 @@ mod tests {
 
         let h = Hypothesis::new("h1", "NaN producer", "Reason");
         let mut exp = Experiment::new("e1", &sid, h, "cmd");
-        exp.metrics = vec![MetricValue { name: "score".into(), value: f64::NAN, unit: None }];
+        exp.metrics = vec![MetricValue {
+            name: "score".into(),
+            value: f64::NAN,
+            unit: None,
+        }];
 
         engine.record_experiment(&sid, exp).unwrap();
 
@@ -2092,7 +2545,11 @@ mod tests {
         for i in 0..5 {
             let h = Hypothesis::new(&format!("h{}", i), &format!("exp {}", i), "Reason");
             let mut exp = Experiment::new(&format!("e{}", i), &sid, h, "cmd");
-            exp.metrics = vec![MetricValue { name: "score".into(), value: (i as f64 + 1.0) * 2.0, unit: None }];
+            exp.metrics = vec![MetricValue {
+                name: "score".into(),
+                value: (i as f64 + 1.0) * 2.0,
+                unit: None,
+            }];
             exp.duration = Duration::from_secs(60);
             engine.record_experiment(&sid, exp).unwrap();
         }
@@ -2113,7 +2570,10 @@ mod tests {
     #[test]
     fn test_suggest_next_greedy() {
         let mut engine = ResearchEngine::new();
-        let config = ResearchConfig { strategy: SearchStrategy::Greedy, ..Default::default() };
+        let config = ResearchConfig {
+            strategy: SearchStrategy::Greedy,
+            ..Default::default()
+        };
         let sid = engine.create_session("test", config);
         let suggestions = engine.suggest_next(&sid).unwrap();
         assert!(!suggestions.is_empty());
@@ -2135,7 +2595,10 @@ mod tests {
     fn test_suggest_next_genetic() {
         let mut engine = ResearchEngine::new();
         let config = ResearchConfig {
-            strategy: SearchStrategy::Genetic { population_size: 20, mutation_rate: 0.1 },
+            strategy: SearchStrategy::Genetic {
+                population_size: 20,
+                mutation_rate: 0.1,
+            },
             ..Default::default()
         };
         let sid = engine.create_session("test", config);
@@ -2147,19 +2610,25 @@ mod tests {
     fn test_suggest_next_combinatorial() {
         let mut engine = ResearchEngine::new();
         let config = ResearchConfig {
-            strategy: SearchStrategy::Combinatorial { max_combinations: 5 },
+            strategy: SearchStrategy::Combinatorial {
+                max_combinations: 5,
+            },
             ..Default::default()
         };
         let sid = engine.create_session("test", config);
         let suggestions = engine.suggest_next(&sid).unwrap();
-        assert!(suggestions.iter().any(|s| s.contains("Combine") || s.contains("combining")));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.contains("Combine") || s.contains("combining")));
     }
 
     #[test]
     fn test_suggest_next_bayesian() {
         let mut engine = ResearchEngine::new();
         let config = ResearchConfig {
-            strategy: SearchStrategy::Bayesian { exploration_weight: 0.5 },
+            strategy: SearchStrategy::Bayesian {
+                exploration_weight: 0.5,
+            },
             ..Default::default()
         };
         let sid = engine.create_session("test", config);
@@ -2181,7 +2650,11 @@ mod tests {
 
         let h = Hypothesis::new("h1", "Test change", "Reason");
         let mut exp = Experiment::new("e1", &sid, h, "python train.py");
-        exp.metrics = vec![MetricValue { name: "score".into(), value: 5.0, unit: None }];
+        exp.metrics = vec![MetricValue {
+            name: "score".into(),
+            value: 5.0,
+            unit: None,
+        }];
         exp.git_commit = Some("abc123".into());
         exp.duration = Duration::from_secs(120);
         engine.record_experiment(&sid, exp).unwrap();
@@ -2267,10 +2740,18 @@ mod tests {
             e
         };
         session.experiments.push(mk("e1", ExperimentStatus::Kept));
-        session.experiments.push(mk("e2", ExperimentStatus::Discarded));
-        session.experiments.push(mk("e3", ExperimentStatus::Failed("err".into())));
-        session.experiments.push(mk("e4", ExperimentStatus::Timeout));
-        session.experiments.push(mk("e5", ExperimentStatus::Crashed));
+        session
+            .experiments
+            .push(mk("e2", ExperimentStatus::Discarded));
+        session
+            .experiments
+            .push(mk("e3", ExperimentStatus::Failed("err".into())));
+        session
+            .experiments
+            .push(mk("e4", ExperimentStatus::Timeout));
+        session
+            .experiments
+            .push(mk("e5", ExperimentStatus::Crashed));
 
         assert_eq!(session.kept_experiments().len(), 1);
         assert_eq!(session.discarded_experiments().len(), 1);
@@ -2280,14 +2761,23 @@ mod tests {
     #[test]
     fn test_search_strategy_equality() {
         assert_eq!(SearchStrategy::Greedy, SearchStrategy::Greedy);
-        assert_ne!(SearchStrategy::Greedy, SearchStrategy::BeamSearch { beam_width: 3 });
+        assert_ne!(
+            SearchStrategy::Greedy,
+            SearchStrategy::BeamSearch { beam_width: 3 }
+        );
         assert_eq!(
             SearchStrategy::BeamSearch { beam_width: 5 },
             SearchStrategy::BeamSearch { beam_width: 5 },
         );
         assert_ne!(
-            SearchStrategy::Genetic { population_size: 10, mutation_rate: 0.1 },
-            SearchStrategy::Genetic { population_size: 20, mutation_rate: 0.1 },
+            SearchStrategy::Genetic {
+                population_size: 10,
+                mutation_rate: 0.1
+            },
+            SearchStrategy::Genetic {
+                population_size: 20,
+                mutation_rate: 0.1
+            },
         );
     }
 
@@ -2313,11 +2803,24 @@ mod tests {
             elapsed: Duration::from_secs(600),
             limit: Duration::from_secs(300),
         };
-        let v2 = SafetyViolation::MemoryExceeded { used_mb: 32000, limit_mb: 16384 };
-        let v3 = SafetyViolation::NaNDetected { metric: "loss".into() };
-        let v4 = SafetyViolation::ProcessCrash { exit_code: 1, stderr: "segfault".into() };
-        let v5 = SafetyViolation::DiskSpaceExceeded { used_mb: 20000, limit_mb: 10240 };
-        let v6 = SafetyViolation::ResourceLeak { description: "open files".into() };
+        let v2 = SafetyViolation::MemoryExceeded {
+            used_mb: 32000,
+            limit_mb: 16384,
+        };
+        let v3 = SafetyViolation::NaNDetected {
+            metric: "loss".into(),
+        };
+        let v4 = SafetyViolation::ProcessCrash {
+            exit_code: 1,
+            stderr: "segfault".into(),
+        };
+        let v5 = SafetyViolation::DiskSpaceExceeded {
+            used_mb: 20000,
+            limit_mb: 10240,
+        };
+        let v6 = SafetyViolation::ResourceLeak {
+            description: "open files".into(),
+        };
         assert_ne!(v1, v2);
         assert_ne!(v3, v4);
         assert_ne!(v5, v6);
@@ -2351,14 +2854,20 @@ mod tests {
     #[test]
     fn test_multiple_sessions() {
         let mut engine = ResearchEngine::new();
-        let id1 = engine.create_session("ML run", ResearchConfig {
-            domain: ResearchDomain::MlTraining,
-            ..Default::default()
-        });
-        let id2 = engine.create_session("API bench", ResearchConfig {
-            domain: ResearchDomain::ApiPerformance,
-            ..Default::default()
-        });
+        let id1 = engine.create_session(
+            "ML run",
+            ResearchConfig {
+                domain: ResearchDomain::MlTraining,
+                ..Default::default()
+            },
+        );
+        let id2 = engine.create_session(
+            "API bench",
+            ResearchConfig {
+                domain: ResearchDomain::ApiPerformance,
+                ..Default::default()
+            },
+        );
 
         assert_eq!(engine.sessions.len(), 2);
         assert_eq!(engine.active_session, Some(id2.clone())); // Last created is active
@@ -2423,9 +2932,11 @@ mod tests {
 
     #[test]
     fn test_composite_score_missing_metric() {
-        let metrics = vec![
-            MetricValue { name: "a".into(), value: 10.0, unit: None },
-        ];
+        let metrics = vec![MetricValue {
+            name: "a".into(),
+            value: 10.0,
+            unit: None,
+        }];
         let defs = vec![
             MetricDef::new("a", "A", MetricDirection::Higher, 1.0),
             MetricDef::new("b", "B", MetricDirection::Higher, 1.0),
@@ -2437,12 +2948,12 @@ mod tests {
 
     #[test]
     fn test_composite_score_lower_zero() {
-        let metrics = vec![
-            MetricValue { name: "loss".into(), value: 0.0, unit: None },
-        ];
-        let defs = vec![
-            MetricDef::new("loss", "L", MetricDirection::Lower, 1.0),
-        ];
+        let metrics = vec![MetricValue {
+            name: "loss".into(),
+            value: 0.0,
+            unit: None,
+        }];
+        let defs = vec![MetricDef::new("loss", "L", MetricDirection::Lower, 1.0)];
         let score = ResearchEngine::compute_composite_score(&metrics, &defs);
         assert_eq!(score, f64::MAX);
     }
@@ -2456,12 +2967,16 @@ mod tests {
         // Record some outcomes to populate memory
         {
             let session = engine.get_session_mut(&sid).unwrap();
-            session.memory.record_outcome(true, "increased learning rate");
+            session
+                .memory
+                .record_outcome(true, "increased learning rate");
             session.memory.record_outcome(false, "removed dropout");
         }
 
         let suggestions = engine.suggest_next(&sid).unwrap();
-        assert!(suggestions.iter().any(|s| s.contains("increased learning rate")));
+        assert!(suggestions
+            .iter()
+            .any(|s| s.contains("increased learning rate")));
         assert!(suggestions.iter().any(|s| s.contains("removed dropout")));
     }
 
@@ -2536,8 +3051,18 @@ mod tests {
         let h = Hypothesis::new("h1", "Test", "Reason");
         let mut exp = Experiment::new("e1", "s1", h, "cmd");
         exp.file_changes = vec![
-            FileChange { path: "a.py".into(), diff: "+1".into(), lines_added: 1, lines_removed: 0 },
-            FileChange { path: "b.py".into(), diff: "-1".into(), lines_added: 0, lines_removed: 1 },
+            FileChange {
+                path: "a.py".into(),
+                diff: "+1".into(),
+                lines_added: 1,
+                lines_removed: 0,
+            },
+            FileChange {
+                path: "b.py".into(),
+                diff: "-1".into(),
+                lines_added: 0,
+                lines_removed: 1,
+            },
         ];
         exp.git_commit = Some("deadbeef".into());
         exp.git_branch = Some("autoresearch/run1".into());
@@ -2573,7 +3098,11 @@ mod tests {
         for i in 0..3 {
             let h = Hypothesis::new(&format!("h{}", i), &format!("change {}", i), "R");
             let mut exp = Experiment::new(&format!("e{}", i), &sid, h, "cmd");
-            exp.metrics = vec![MetricValue { name: "score".into(), value: (i + 1) as f64, unit: None }];
+            exp.metrics = vec![MetricValue {
+                name: "score".into(),
+                value: (i + 1) as f64,
+                unit: None,
+            }];
             exp.duration = Duration::from_secs(30);
             engine.record_experiment(&sid, exp).unwrap();
         }
@@ -2588,7 +3117,12 @@ mod tests {
     #[test]
     fn test_extract_key_value() {
         let output = "val_bpb: 1.08\ntrain_loss: 2.1\ngpu_util: 85.3%\n";
-        let metrics = MetricExtractor::extract(output, &ExtractionStrategy::KeyValue { separator: ": ".into() });
+        let metrics = MetricExtractor::extract(
+            output,
+            &ExtractionStrategy::KeyValue {
+                separator: ": ".into(),
+            },
+        );
         assert_eq!(metrics.len(), 3);
         assert_eq!(metrics[0].name, "val_bpb");
         assert!((metrics[0].value - 1.08).abs() < 0.001);
@@ -2599,7 +3133,12 @@ mod tests {
     #[test]
     fn test_extract_key_value_equals() {
         let output = "throughput=1250.5\nlatency=42\n";
-        let metrics = MetricExtractor::extract(output, &ExtractionStrategy::KeyValue { separator: "=".into() });
+        let metrics = MetricExtractor::extract(
+            output,
+            &ExtractionStrategy::KeyValue {
+                separator: "=".into(),
+            },
+        );
         assert_eq!(metrics.len(), 2);
         assert!((metrics[0].value - 1250.5).abs() < 0.1);
     }
@@ -2609,7 +3148,8 @@ mod tests {
         let output = r#"some log output
 {"metrics": {"val_bpb": 1.08, "loss": 2.1}}
 more output"#;
-        let metrics = MetricExtractor::extract(output, &ExtractionStrategy::JsonPath("metrics".into()));
+        let metrics =
+            MetricExtractor::extract(output, &ExtractionStrategy::JsonPath("metrics".into()));
         assert_eq!(metrics.len(), 2);
         assert!(metrics.iter().any(|m| m.name == "val_bpb"));
         assert!(metrics.iter().any(|m| m.name == "loss"));
@@ -2618,7 +3158,10 @@ more output"#;
     #[test]
     fn test_extract_json_nested() {
         let output = r#"{"results": {"score": 0.95}}"#;
-        let metrics = MetricExtractor::extract(output, &ExtractionStrategy::JsonPath("results.score".into()));
+        let metrics = MetricExtractor::extract(
+            output,
+            &ExtractionStrategy::JsonPath("results.score".into()),
+        );
         assert_eq!(metrics.len(), 1);
         assert_eq!(metrics[0].name, "score");
         assert!((metrics[0].value - 0.95).abs() < 0.001);
@@ -2627,14 +3170,20 @@ more output"#;
     #[test]
     fn test_extract_json_no_json() {
         let output = "plain text output with no JSON";
-        let metrics = MetricExtractor::extract(output, &ExtractionStrategy::JsonPath("score".into()));
+        let metrics =
+            MetricExtractor::extract(output, &ExtractionStrategy::JsonPath("score".into()));
         assert!(metrics.is_empty());
     }
 
     #[test]
     fn test_extract_last_line() {
         let output = "epoch 1: val_bpb: 1.20\nepoch 2: val_bpb: 1.15\nval_bpb: 1.08\n";
-        let metrics = MetricExtractor::extract(output, &ExtractionStrategy::LastLine { prefix: "val_bpb: ".into() });
+        let metrics = MetricExtractor::extract(
+            output,
+            &ExtractionStrategy::LastLine {
+                prefix: "val_bpb: ".into(),
+            },
+        );
         assert_eq!(metrics.len(), 1);
         assert!((metrics[0].value - 1.08).abs() < 0.001);
     }
@@ -2642,7 +3191,12 @@ more output"#;
     #[test]
     fn test_extract_last_line_not_found() {
         let output = "no matching prefix here\n";
-        let metrics = MetricExtractor::extract(output, &ExtractionStrategy::LastLine { prefix: "val_bpb: ".into() });
+        let metrics = MetricExtractor::extract(
+            output,
+            &ExtractionStrategy::LastLine {
+                prefix: "val_bpb: ".into(),
+            },
+        );
         assert!(metrics.is_empty());
     }
 
@@ -2660,14 +3214,20 @@ more output"#;
     #[test]
     fn test_extract_regex_invalid() {
         let output = "some output";
-        let metrics = MetricExtractor::extract(output, &ExtractionStrategy::Regex(r"[invalid".into()));
+        let metrics =
+            MetricExtractor::extract(output, &ExtractionStrategy::Regex(r"[invalid".into()));
         assert!(metrics.is_empty());
     }
 
     #[test]
     fn test_extract_key_value_negative() {
         let output = "delta: -0.05\n";
-        let metrics = MetricExtractor::extract(output, &ExtractionStrategy::KeyValue { separator: ": ".into() });
+        let metrics = MetricExtractor::extract(
+            output,
+            &ExtractionStrategy::KeyValue {
+                separator: ": ".into(),
+            },
+        );
         assert_eq!(metrics.len(), 1);
         assert!((metrics[0].value - (-0.05)).abs() < 0.001);
     }
@@ -2675,7 +3235,12 @@ more output"#;
     #[test]
     fn test_extract_key_value_scientific() {
         let output = "lr: 3e-4\n";
-        let metrics = MetricExtractor::extract(output, &ExtractionStrategy::KeyValue { separator: ": ".into() });
+        let metrics = MetricExtractor::extract(
+            output,
+            &ExtractionStrategy::KeyValue {
+                separator: ": ".into(),
+            },
+        );
         assert_eq!(metrics.len(), 1);
         assert!((metrics[0].value - 0.0003).abs() < 0.0001);
     }
@@ -2772,7 +3337,10 @@ more output"#;
         let baseline = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let experiment = vec![10.0, 11.0, 12.0, 13.0, 14.0];
         assert!(StatisticalValidator::is_significant_improvement(
-            &baseline, &experiment, &MetricDirection::Higher, 0.05
+            &baseline,
+            &experiment,
+            &MetricDirection::Higher,
+            0.05
         ));
     }
 
@@ -2781,7 +3349,10 @@ more output"#;
         let baseline = vec![10.0, 11.0, 12.0, 13.0];
         let experiment = vec![1.0, 2.0, 3.0, 4.0];
         assert!(StatisticalValidator::is_significant_improvement(
-            &baseline, &experiment, &MetricDirection::Lower, 0.05
+            &baseline,
+            &experiment,
+            &MetricDirection::Lower,
+            0.05
         ));
     }
 
@@ -2791,7 +3362,10 @@ more output"#;
         let baseline = vec![5.0];
         let experiment = vec![10.0];
         assert!(StatisticalValidator::is_significant_improvement(
-            &baseline, &experiment, &MetricDirection::Higher, 0.05
+            &baseline,
+            &experiment,
+            &MetricDirection::Higher,
+            0.05
         ));
     }
 
@@ -2890,7 +3464,9 @@ more output"#;
 
         let hypotheses = HypothesisGenerator::generate(&session);
         assert!(!hypotheses.is_empty());
-        assert!(hypotheses.iter().any(|h| h.description.contains("Variation")));
+        assert!(hypotheses
+            .iter()
+            .any(|h| h.description.contains("Variation")));
     }
 
     #[test]
@@ -2902,7 +3478,9 @@ more output"#;
         session.experiments.push(e);
 
         let hypotheses = HypothesisGenerator::generate(&session);
-        assert!(hypotheses.iter().any(|h| h.description.contains("Opposite")));
+        assert!(hypotheses
+            .iter()
+            .any(|h| h.description.contains("Opposite")));
     }
 
     #[test]
@@ -2922,18 +3500,30 @@ more output"#;
 
     #[test]
     fn test_hypothesis_gen_metric_driven() {
-        let mut session = ResearchSession::new("s1", "test", ResearchConfig {
-            metrics: vec![
-                MetricDef::new("a", "A", MetricDirection::Higher, 1.0),
-                MetricDef::new("b", "B", MetricDirection::Higher, 0.5),
-            ],
-            ..Default::default()
-        });
+        let mut session = ResearchSession::new(
+            "s1",
+            "test",
+            ResearchConfig {
+                metrics: vec![
+                    MetricDef::new("a", "A", MetricDirection::Higher, 1.0),
+                    MetricDef::new("b", "B", MetricDirection::Higher, 0.5),
+                ],
+                ..Default::default()
+            },
+        );
         let h = Hypothesis::new("h1", "Test", "R");
         let mut e = Experiment::new("e1", "s1", h, "cmd");
         e.metrics = vec![
-            MetricValue { name: "a".into(), value: 100.0, unit: None },
-            MetricValue { name: "b".into(), value: 1.0, unit: None },
+            MetricValue {
+                name: "a".into(),
+                value: 100.0,
+                unit: None,
+            },
+            MetricValue {
+                name: "b".into(),
+                value: 1.0,
+                unit: None,
+            },
         ];
         e.status = ExperimentStatus::Kept;
         session.experiments.push(e);
@@ -2949,7 +3539,9 @@ more output"#;
         session.memory.failed_patterns = vec!["d".into(), "e".into(), "f".into()];
 
         let hypotheses = HypothesisGenerator::generate(&session);
-        assert!(hypotheses.iter().any(|h| h.tags.contains(&"exploration".to_string())));
+        assert!(hypotheses
+            .iter()
+            .any(|h| h.tags.contains(&"exploration".to_string())));
     }
 
     // ── WorktreeRunner tests ─────────────────────────────────────────────────
@@ -3007,20 +3599,32 @@ more output"#;
 
     #[test]
     fn test_warm_start_same_domain() {
-        let mut new_session = ResearchSession::new("s2", "new", ResearchConfig {
-            domain: ResearchDomain::MlTraining,
-            ..Default::default()
-        });
-        let mut past = ResearchSession::new("s1", "past", ResearchConfig {
-            domain: ResearchDomain::MlTraining,
-            ..Default::default()
-        });
+        let mut new_session = ResearchSession::new(
+            "s2",
+            "new",
+            ResearchConfig {
+                domain: ResearchDomain::MlTraining,
+                ..Default::default()
+            },
+        );
+        let mut past = ResearchSession::new(
+            "s1",
+            "past",
+            ResearchConfig {
+                domain: ResearchDomain::MlTraining,
+                ..Default::default()
+            },
+        );
         past.memory.successful_patterns = vec!["RoPE".into()];
         past.memory.failed_patterns = vec!["no dropout".into()];
         past.memory.lessons.push(ResearchLesson {
-            id: "l1".into(), description: "RoPE helps".into(),
-            evidence: vec![], confidence: Confidence::High,
-            domain: "ml".into(), tags: vec![], created_at: SystemTime::now(),
+            id: "l1".into(),
+            description: "RoPE helps".into(),
+            evidence: vec![],
+            confidence: Confidence::High,
+            domain: "ml".into(),
+            tags: vec![],
+            created_at: SystemTime::now(),
         });
 
         WarmStarter::warm_start(&mut new_session, &[past]);
@@ -3032,14 +3636,22 @@ more output"#;
 
     #[test]
     fn test_warm_start_different_domain() {
-        let mut new_session = ResearchSession::new("s2", "new", ResearchConfig {
-            domain: ResearchDomain::ApiPerformance,
-            ..Default::default()
-        });
-        let mut past = ResearchSession::new("s1", "past", ResearchConfig {
-            domain: ResearchDomain::MlTraining,
-            ..Default::default()
-        });
+        let mut new_session = ResearchSession::new(
+            "s2",
+            "new",
+            ResearchConfig {
+                domain: ResearchDomain::ApiPerformance,
+                ..Default::default()
+            },
+        );
+        let mut past = ResearchSession::new(
+            "s1",
+            "past",
+            ResearchConfig {
+                domain: ResearchDomain::MlTraining,
+                ..Default::default()
+            },
+        );
         past.memory.successful_patterns = vec!["RoPE".into()];
 
         WarmStarter::warm_start(&mut new_session, &[past]);
@@ -3049,16 +3661,24 @@ more output"#;
 
     #[test]
     fn test_warm_start_no_duplicates() {
-        let mut new_session = ResearchSession::new("s2", "new", ResearchConfig {
-            domain: ResearchDomain::MlTraining,
-            ..Default::default()
-        });
+        let mut new_session = ResearchSession::new(
+            "s2",
+            "new",
+            ResearchConfig {
+                domain: ResearchDomain::MlTraining,
+                ..Default::default()
+            },
+        );
         new_session.memory.successful_patterns = vec!["RoPE".into()];
 
-        let mut past = ResearchSession::new("s1", "past", ResearchConfig {
-            domain: ResearchDomain::MlTraining,
-            ..Default::default()
-        });
+        let mut past = ResearchSession::new(
+            "s1",
+            "past",
+            ResearchConfig {
+                domain: ResearchDomain::MlTraining,
+                ..Default::default()
+            },
+        );
         past.memory.successful_patterns = vec!["RoPE".into(), "bigger LR".into()];
 
         WarmStarter::warm_start(&mut new_session, &[past]);
@@ -3112,7 +3732,12 @@ more output"#;
     fn test_ablation_plan_single_change() {
         let h = Hypothesis::new("h1", "Test", "R");
         let mut exp = Experiment::new("e1", "s1", h, "cmd");
-        exp.file_changes = vec![FileChange { path: "a.py".into(), diff: "+".into(), lines_added: 1, lines_removed: 0 }];
+        exp.file_changes = vec![FileChange {
+            path: "a.py".into(),
+            diff: "+".into(),
+            lines_added: 1,
+            lines_removed: 0,
+        }];
         let plans = AblationEngine::plan_ablation(&exp);
         assert!(plans.is_empty()); // Nothing to ablate with 1 change
     }
@@ -3122,9 +3747,24 @@ more output"#;
         let h = Hypothesis::new("h1", "Test", "R");
         let mut exp = Experiment::new("e1", "s1", h, "cmd");
         exp.file_changes = vec![
-            FileChange { path: "a.py".into(), diff: "+".into(), lines_added: 1, lines_removed: 0 },
-            FileChange { path: "b.py".into(), diff: "+".into(), lines_added: 1, lines_removed: 0 },
-            FileChange { path: "c.py".into(), diff: "+".into(), lines_added: 1, lines_removed: 0 },
+            FileChange {
+                path: "a.py".into(),
+                diff: "+".into(),
+                lines_added: 1,
+                lines_removed: 0,
+            },
+            FileChange {
+                path: "b.py".into(),
+                diff: "+".into(),
+                lines_added: 1,
+                lines_removed: 0,
+            },
+            FileChange {
+                path: "c.py".into(),
+                diff: "+".into(),
+                lines_added: 1,
+                lines_removed: 0,
+            },
         ];
         let plans = AblationEngine::plan_ablation(&exp);
         assert_eq!(plans.len(), 3); // Leave-one-out for each
@@ -3136,8 +3776,18 @@ more output"#;
     #[test]
     fn test_ablation_analyze() {
         let changes = vec![
-            FileChange { path: "a.py".into(), diff: "+".into(), lines_added: 5, lines_removed: 0 },
-            FileChange { path: "b.py".into(), diff: "+".into(), lines_added: 2, lines_removed: 0 },
+            FileChange {
+                path: "a.py".into(),
+                diff: "+".into(),
+                lines_added: 5,
+                lines_removed: 0,
+            },
+            FileChange {
+                path: "b.py".into(),
+                diff: "+".into(),
+                lines_added: 2,
+                lines_removed: 0,
+            },
         ];
         // Original score: 1.0, baseline: 0.8
         // Without change 0: score drops to 0.82 (essential — contributed 0.18)
@@ -3153,8 +3803,18 @@ more output"#;
     #[test]
     fn test_ablation_all_essential() {
         let changes = vec![
-            FileChange { path: "a.py".into(), diff: "+".into(), lines_added: 1, lines_removed: 0 },
-            FileChange { path: "b.py".into(), diff: "+".into(), lines_added: 1, lines_removed: 0 },
+            FileChange {
+                path: "a.py".into(),
+                diff: "+".into(),
+                lines_added: 1,
+                lines_removed: 0,
+            },
+            FileChange {
+                path: "b.py".into(),
+                diff: "+".into(),
+                lines_added: 1,
+                lines_removed: 0,
+            },
         ];
         let sub_scores = vec![(0, 0.5), (1, 0.5)];
         let result = AblationEngine::analyze_ablation(1.0, 0.0, &sub_scores, &changes);
@@ -3165,7 +3825,12 @@ more output"#;
 
     #[test]
     fn test_simplicity_clear_win() {
-        let changes = vec![FileChange { path: "a.py".into(), diff: "+".into(), lines_added: 2, lines_removed: 0 }];
+        let changes = vec![FileChange {
+            path: "a.py".into(),
+            diff: "+".into(),
+            lines_added: 2,
+            lines_removed: 0,
+        }];
         let score = SimplicityScorer::score(0.05, &changes, 0.001);
         assert_eq!(score.verdict, SimplicityVerdict::ClearWin);
         assert!(SimplicityScorer::should_keep(&score));
@@ -3173,7 +3838,12 @@ more output"#;
 
     #[test]
     fn test_simplicity_cleanup_win() {
-        let changes = vec![FileChange { path: "a.py".into(), diff: "-".into(), lines_added: 0, lines_removed: 10 }];
+        let changes = vec![FileChange {
+            path: "a.py".into(),
+            diff: "-".into(),
+            lines_added: 0,
+            lines_removed: 10,
+        }];
         let score = SimplicityScorer::score(0.001, &changes, 0.001);
         assert_eq!(score.verdict, SimplicityVerdict::CleanupWin);
         assert!(score.simplicity_bonus > 0.0);
@@ -3182,7 +3852,12 @@ more output"#;
 
     #[test]
     fn test_simplicity_marginal() {
-        let changes = vec![FileChange { path: "a.py".into(), diff: "+".into(), lines_added: 25, lines_removed: 0 }];
+        let changes = vec![FileChange {
+            path: "a.py".into(),
+            diff: "+".into(),
+            lines_added: 25,
+            lines_removed: 0,
+        }];
         let score = SimplicityScorer::score(0.001, &changes, 0.001);
         assert_eq!(score.verdict, SimplicityVerdict::Marginal);
         assert!(!SimplicityScorer::should_keep(&score));
@@ -3190,7 +3865,12 @@ more output"#;
 
     #[test]
     fn test_simplicity_no_improvement() {
-        let changes = vec![FileChange { path: "a.py".into(), diff: "+".into(), lines_added: 5, lines_removed: 0 }];
+        let changes = vec![FileChange {
+            path: "a.py".into(),
+            diff: "+".into(),
+            lines_added: 5,
+            lines_removed: 0,
+        }];
         let score = SimplicityScorer::score(-0.01, &changes, 0.001);
         assert_eq!(score.verdict, SimplicityVerdict::NoImprovement);
         assert!(!SimplicityScorer::should_keep(&score));
@@ -3198,9 +3878,12 @@ more output"#;
 
     #[test]
     fn test_simplicity_net_lines() {
-        let changes = vec![
-            FileChange { path: "a.py".into(), diff: "+".into(), lines_added: 5, lines_removed: 10 },
-        ];
+        let changes = vec![FileChange {
+            path: "a.py".into(),
+            diff: "+".into(),
+            lines_added: 5,
+            lines_removed: 10,
+        }];
         let score = SimplicityScorer::score(0.01, &changes, 0.001);
         assert_eq!(score.net_lines, -5);
         assert_eq!(score.verdict, SimplicityVerdict::CleanupWin);
@@ -3267,9 +3950,21 @@ more output"#;
     #[test]
     fn test_seed_stats_basic() {
         let runs = vec![
-            SeedRun { seed: 1, score: 10.0, duration: Duration::from_secs(60) },
-            SeedRun { seed: 2, score: 12.0, duration: Duration::from_secs(60) },
-            SeedRun { seed: 3, score: 11.0, duration: Duration::from_secs(60) },
+            SeedRun {
+                seed: 1,
+                score: 10.0,
+                duration: Duration::from_secs(60),
+            },
+            SeedRun {
+                seed: 2,
+                score: 12.0,
+                duration: Duration::from_secs(60),
+            },
+            SeedRun {
+                seed: 3,
+                score: 11.0,
+                duration: Duration::from_secs(60),
+            },
         ];
         let stats = MultiSeedValidator::aggregate(&runs);
         assert_eq!(stats.n, 3);
@@ -3288,7 +3983,11 @@ more output"#;
 
     #[test]
     fn test_seed_stats_single() {
-        let runs = vec![SeedRun { seed: 42, score: 5.0, duration: Duration::from_secs(30) }];
+        let runs = vec![SeedRun {
+            seed: 42,
+            score: 5.0,
+            duration: Duration::from_secs(30),
+        }];
         let stats = MultiSeedValidator::aggregate(&runs);
         assert_eq!(stats.mean, 5.0);
         assert_eq!(stats.min, 5.0);
@@ -3298,48 +3997,120 @@ more output"#;
     #[test]
     fn test_seed_reliable_higher() {
         let baseline = vec![
-            SeedRun { seed: 1, score: 1.0, duration: Duration::from_secs(60) },
-            SeedRun { seed: 2, score: 2.0, duration: Duration::from_secs(60) },
-            SeedRun { seed: 3, score: 1.5, duration: Duration::from_secs(60) },
+            SeedRun {
+                seed: 1,
+                score: 1.0,
+                duration: Duration::from_secs(60),
+            },
+            SeedRun {
+                seed: 2,
+                score: 2.0,
+                duration: Duration::from_secs(60),
+            },
+            SeedRun {
+                seed: 3,
+                score: 1.5,
+                duration: Duration::from_secs(60),
+            },
         ];
         let experiment = vec![
-            SeedRun { seed: 1, score: 10.0, duration: Duration::from_secs(60) },
-            SeedRun { seed: 2, score: 11.0, duration: Duration::from_secs(60) },
-            SeedRun { seed: 3, score: 10.5, duration: Duration::from_secs(60) },
+            SeedRun {
+                seed: 1,
+                score: 10.0,
+                duration: Duration::from_secs(60),
+            },
+            SeedRun {
+                seed: 2,
+                score: 11.0,
+                duration: Duration::from_secs(60),
+            },
+            SeedRun {
+                seed: 3,
+                score: 10.5,
+                duration: Duration::from_secs(60),
+            },
         ];
-        assert!(MultiSeedValidator::is_reliable(&experiment, &baseline, &MetricDirection::Higher));
+        assert!(MultiSeedValidator::is_reliable(
+            &experiment,
+            &baseline,
+            &MetricDirection::Higher
+        ));
     }
 
     #[test]
     fn test_seed_reliable_lower() {
         let baseline = vec![
-            SeedRun { seed: 1, score: 10.0, duration: Duration::from_secs(60) },
-            SeedRun { seed: 2, score: 11.0, duration: Duration::from_secs(60) },
+            SeedRun {
+                seed: 1,
+                score: 10.0,
+                duration: Duration::from_secs(60),
+            },
+            SeedRun {
+                seed: 2,
+                score: 11.0,
+                duration: Duration::from_secs(60),
+            },
         ];
         let experiment = vec![
-            SeedRun { seed: 1, score: 1.0, duration: Duration::from_secs(60) },
-            SeedRun { seed: 2, score: 2.0, duration: Duration::from_secs(60) },
+            SeedRun {
+                seed: 1,
+                score: 1.0,
+                duration: Duration::from_secs(60),
+            },
+            SeedRun {
+                seed: 2,
+                score: 2.0,
+                duration: Duration::from_secs(60),
+            },
         ];
-        assert!(MultiSeedValidator::is_reliable(&experiment, &baseline, &MetricDirection::Lower));
+        assert!(MultiSeedValidator::is_reliable(
+            &experiment,
+            &baseline,
+            &MetricDirection::Lower
+        ));
     }
 
     #[test]
     fn test_seed_not_reliable_overlapping() {
         let baseline = vec![
-            SeedRun { seed: 1, score: 5.0, duration: Duration::from_secs(60) },
-            SeedRun { seed: 2, score: 6.0, duration: Duration::from_secs(60) },
+            SeedRun {
+                seed: 1,
+                score: 5.0,
+                duration: Duration::from_secs(60),
+            },
+            SeedRun {
+                seed: 2,
+                score: 6.0,
+                duration: Duration::from_secs(60),
+            },
         ];
         let experiment = vec![
-            SeedRun { seed: 1, score: 5.5, duration: Duration::from_secs(60) },
-            SeedRun { seed: 2, score: 6.5, duration: Duration::from_secs(60) },
+            SeedRun {
+                seed: 1,
+                score: 5.5,
+                duration: Duration::from_secs(60),
+            },
+            SeedRun {
+                seed: 2,
+                score: 6.5,
+                duration: Duration::from_secs(60),
+            },
         ];
         // Overlapping distributions — not reliable
-        assert!(!MultiSeedValidator::is_reliable(&experiment, &baseline, &MetricDirection::Higher));
+        assert!(!MultiSeedValidator::is_reliable(
+            &experiment,
+            &baseline,
+            &MetricDirection::Higher
+        ));
     }
 
     #[test]
     fn test_seed_reliable_empty() {
-        assert!(!MultiSeedValidator::is_reliable(&[], &[], &MetricDirection::Higher));
+        assert!(!MultiSeedValidator::is_reliable(
+            &[],
+            &[],
+            &MetricDirection::Higher
+        ));
     }
 
     #[test]
@@ -3389,7 +4160,10 @@ more output"#;
     #[test]
     fn test_program_template_genetic() {
         let config = ResearchConfig {
-            strategy: SearchStrategy::Genetic { population_size: 30, mutation_rate: 0.15 },
+            strategy: SearchStrategy::Genetic {
+                population_size: 30,
+                mutation_rate: 0.15,
+            },
             ..Default::default()
         };
         let template = ProgramTemplateGenerator::generate(&config);
@@ -3424,7 +4198,10 @@ more output"#;
     #[test]
     fn test_program_template_timeout() {
         let config = ResearchConfig {
-            resource_limits: ResourceLimits { max_duration: Duration::from_secs(600), ..Default::default() },
+            resource_limits: ResourceLimits {
+                max_duration: Duration::from_secs(600),
+                ..Default::default()
+            },
             ..Default::default()
         };
         let template = ProgramTemplateGenerator::generate(&config);

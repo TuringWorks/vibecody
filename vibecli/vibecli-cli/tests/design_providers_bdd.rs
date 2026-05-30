@@ -2,10 +2,10 @@
  * BDD tests for design_providers using Cucumber.
  * Run with: cargo test --test design_providers_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::design_providers::{
-    DesignError, DiagramDoc, DiagramFormat, DiagramKind, DesignToken, DesignTokenType,
-    DesignProviderRegistry, ProviderKind, tokens_to_css,
+    tokens_to_css, DesignError, DesignProviderRegistry, DesignToken, DesignTokenType, DiagramDoc,
+    DiagramFormat, DiagramKind, ProviderKind,
 };
 
 #[derive(Debug, Default, World)]
@@ -56,7 +56,12 @@ fn given_diagram_kind(world: &mut DpWorld, kind: String) {
 
 #[given(expr = "I create a DiagramDoc titled {string} of kind {string} with content {string}")]
 fn given_create_diagram_doc(world: &mut DpWorld, title: String, kind: String, content: String) {
-    world.diagram_doc = Some(DiagramDoc::new(&title, parse_diagram_kind(&kind), content, ProviderKind::Mermaid));
+    world.diagram_doc = Some(DiagramDoc::new(
+        &title,
+        parse_diagram_kind(&kind),
+        content,
+        ProviderKind::Mermaid,
+    ));
 }
 
 #[given(expr = "a color token named {string} with value {string}")]
@@ -113,7 +118,10 @@ fn then_preferred_format(world: &mut DpWorld, expected: String) {
     // normalise: "c4dsl" or "c4_dsl"
     let e = expected.replace('_', "");
     let f = fmt_str.replace('_', "");
-    assert_eq!(f, e, "Expected preferred format {expected} but got {fmt_str}");
+    assert_eq!(
+        f, e,
+        "Expected preferred format {expected} but got {fmt_str}"
+    );
 }
 
 #[then(expr = "the doc id should start with {string}")]
@@ -129,7 +137,11 @@ fn then_doc_title(world: &mut DpWorld, expected: String) {
 
 #[then(expr = "the CSS should contain {string}")]
 fn then_css_contains(world: &mut DpWorld, expected: String) {
-    assert!(world.css_output.contains(&expected), "CSS missing: {expected}\nCSS: {}", world.css_output);
+    assert!(
+        world.css_output.contains(&expected),
+        "CSS missing: {expected}\nCSS: {}",
+        world.css_output
+    );
 }
 
 #[then("the available providers list should be empty")]

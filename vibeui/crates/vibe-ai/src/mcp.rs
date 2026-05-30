@@ -157,7 +157,12 @@ impl McpClient {
             .with_context(|| format!("invalid MCP response: {}", resp_line.trim()))?;
 
         if let Some(e) = resp.error {
-            anyhow::bail!("MCP error {} from '{}': {}", e.code, self.server_name, e.message);
+            anyhow::bail!(
+                "MCP error {} from '{}': {}",
+                e.code,
+                self.server_name,
+                e.message
+            );
         }
         Ok(resp.result.unwrap_or(Value::Null))
     }
@@ -223,7 +228,9 @@ impl McpClient {
         if tools.is_empty() {
             return String::new();
         }
-        let mut prompt = String::from("\n\n## MCP Tools\n\nAdditional tools available via connected MCP servers:\n\n");
+        let mut prompt = String::from(
+            "\n\n## MCP Tools\n\nAdditional tools available via connected MCP servers:\n\n",
+        );
         for tool in tools {
             prompt.push_str(&format!(
                 "### mcp/{}/{}\n{}\n\nCall with:\n```\n<tool_call name=\"mcp__{}__{}\">\n<arguments>{{\"key\": \"value\"}}</arguments>\n</tool_call>\n```\n\n",
@@ -281,7 +288,10 @@ mod tests {
         assert_eq!(back.name, cfg.name);
         assert_eq!(back.command, cfg.command);
         assert_eq!(back.args, cfg.args);
-        assert_eq!(back.env.get("GITHUB_TOKEN").map(|s| s.as_str()), Some("secret"));
+        assert_eq!(
+            back.env.get("GITHUB_TOKEN").map(|s| s.as_str()),
+            Some("secret")
+        );
     }
 
     // ── McpTool ───────────────────────────────────────────────────────────────
@@ -306,8 +316,10 @@ mod tests {
     fn tools_prompt_contains_mcp_tool_call_format() {
         let tools = vec![make_tool("github", "list_repos", "Lists repositories")];
         let prompt = McpClient::tools_prompt(&tools);
-        assert!(prompt.contains("mcp__github__list_repos"),
-            "prompt should contain mcp__<server>__<tool> format");
+        assert!(
+            prompt.contains("mcp__github__list_repos"),
+            "prompt should contain mcp__<server>__<tool> format"
+        );
         assert!(prompt.contains("Lists repositories"));
     }
 
@@ -358,7 +370,9 @@ mod tests {
             name: "github".to_string(),
             command: "npx @mcp/server-github".to_string(),
             args: vec!["--verbose".to_string()],
-            env: [("TOKEN".to_string(), "abc".to_string())].into_iter().collect(),
+            env: [("TOKEN".to_string(), "abc".to_string())]
+                .into_iter()
+                .collect(),
         };
         let toml_str = toml::to_string(&cfg).unwrap();
         let back: McpServerConfig = toml::from_str(&toml_str).unwrap();
@@ -460,7 +474,9 @@ mod tests {
                 ("DB_HOST".to_string(), "localhost".to_string()),
                 ("DB_PORT".to_string(), "5432".to_string()),
                 ("DB_USER".to_string(), "admin".to_string()),
-            ].into_iter().collect(),
+            ]
+            .into_iter()
+            .collect(),
         };
         assert_eq!(cfg.env.len(), 3);
         assert_eq!(cfg.env["DB_PORT"], "5432");
@@ -492,7 +508,11 @@ mod tests {
 
     #[test]
     fn tools_prompt_special_chars_in_names() {
-        let tools = vec![make_tool("my-server", "list_all-items", "List items with dashes")];
+        let tools = vec![make_tool(
+            "my-server",
+            "list_all-items",
+            "List items with dashes",
+        )];
         let prompt = McpClient::tools_prompt(&tools);
         assert!(prompt.contains("mcp__my-server__list_all-items"));
     }
@@ -500,7 +520,13 @@ mod tests {
     #[test]
     fn tools_prompt_many_tools() {
         let tools: Vec<McpTool> = (0..20)
-            .map(|i| make_tool("server", &format!("tool_{}", i), &format!("Tool number {}", i)))
+            .map(|i| {
+                make_tool(
+                    "server",
+                    &format!("tool_{}", i),
+                    &format!("Tool number {}", i),
+                )
+            })
             .collect();
         let prompt = McpClient::tools_prompt(&tools);
         assert!(prompt.contains("mcp__server__tool_0"));
@@ -528,7 +554,8 @@ mod tests {
 
     #[test]
     fn json_rpc_response_with_error() {
-        let json = r#"{"id": 1, "result": null, "error": {"code": -32600, "message": "Invalid Request"}}"#;
+        let json =
+            r#"{"id": 1, "result": null, "error": {"code": -32600, "message": "Invalid Request"}}"#;
         let resp: JsonRpcResponse = serde_json::from_str(json).unwrap();
         assert!(resp.error.is_some());
         let err = resp.error.unwrap();

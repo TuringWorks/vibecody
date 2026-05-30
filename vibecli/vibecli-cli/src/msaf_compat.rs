@@ -101,11 +101,14 @@ impl TokenValidator {
         } else {
             parts[3].split(',').map(|g| g.to_string()).collect()
         };
-        let exp_ms: u64 = parts[4]
-            .parse()
-            .map_err(|_| "invalid exp_ms".to_string())?;
+        let exp_ms: u64 = parts[4].parse().map_err(|_| "invalid exp_ms".to_string())?;
 
-        let claims = AzureAdClaims { sub, oid, groups, exp_ms };
+        let claims = AzureAdClaims {
+            sub,
+            oid,
+            groups,
+            exp_ms,
+        };
         if self.is_expired(&claims, now_ms) {
             return Err("token expired".to_string());
         }
@@ -162,11 +165,7 @@ impl MsafAgent {
     }
 
     /// Update the state of an existing task.
-    pub fn update_task_state(
-        &mut self,
-        task_id: &str,
-        state: MsafTaskState,
-    ) -> Result<(), String> {
+    pub fn update_task_state(&mut self, task_id: &str, state: MsafTaskState) -> Result<(), String> {
         self.tasks
             .get_mut(task_id)
             .ok_or_else(|| format!("task not found: {}", task_id))
@@ -248,9 +247,7 @@ impl AgentCatalog {
         let threshold_ms = ttl_secs * 1000;
         self.entries
             .values()
-            .filter(|e| {
-                now_ms.saturating_sub(e.last_heartbeat_ms) <= threshold_ms
-            })
+            .filter(|e| now_ms.saturating_sub(e.last_heartbeat_ms) <= threshold_ms)
             .collect()
     }
 
@@ -419,7 +416,9 @@ mod tests {
     fn agent_update_task_state_to_running() {
         let mut agent = MsafAgent::new(make_manifest("a1"));
         let id = agent.submit_task("test", "{}");
-        agent.update_task_state(&id, MsafTaskState::Running).unwrap();
+        agent
+            .update_task_state(&id, MsafTaskState::Running)
+            .unwrap();
         assert_eq!(agent.get_task(&id).unwrap().state, MsafTaskState::Running);
     }
 
@@ -427,22 +426,34 @@ mod tests {
     fn agent_update_task_state_to_completed() {
         let mut agent = MsafAgent::new(make_manifest("a1"));
         let id = agent.submit_task("deploy", "{}");
-        agent.update_task_state(&id, MsafTaskState::Completed("ok".to_string())).unwrap();
-        assert!(matches!(agent.get_task(&id).unwrap().state, MsafTaskState::Completed(_)));
+        agent
+            .update_task_state(&id, MsafTaskState::Completed("ok".to_string()))
+            .unwrap();
+        assert!(matches!(
+            agent.get_task(&id).unwrap().state,
+            MsafTaskState::Completed(_)
+        ));
     }
 
     #[test]
     fn agent_update_task_state_to_failed() {
         let mut agent = MsafAgent::new(make_manifest("a1"));
         let id = agent.submit_task("debug", "{}");
-        agent.update_task_state(&id, MsafTaskState::Failed("timeout".to_string())).unwrap();
-        assert!(matches!(agent.get_task(&id).unwrap().state, MsafTaskState::Failed(_)));
+        agent
+            .update_task_state(&id, MsafTaskState::Failed("timeout".to_string()))
+            .unwrap();
+        assert!(matches!(
+            agent.get_task(&id).unwrap().state,
+            MsafTaskState::Failed(_)
+        ));
     }
 
     #[test]
     fn agent_update_missing_task_returns_err() {
         let mut agent = MsafAgent::new(make_manifest("a1"));
-        assert!(agent.update_task_state("no-such-task", MsafTaskState::Running).is_err());
+        assert!(agent
+            .update_task_state("no-such-task", MsafTaskState::Running)
+            .is_err());
     }
 
     #[test]
@@ -450,7 +461,9 @@ mod tests {
         let mut agent = MsafAgent::new(make_manifest("a1"));
         let id1 = agent.submit_task("t1", "{}");
         let id2 = agent.submit_task("t2", "{}");
-        agent.update_task_state(&id1, MsafTaskState::Running).unwrap();
+        agent
+            .update_task_state(&id1, MsafTaskState::Running)
+            .unwrap();
         let running = agent.running_tasks();
         assert_eq!(running.len(), 1);
         assert_eq!(running[0].task_id, id1);
@@ -462,7 +475,9 @@ mod tests {
         let mut agent = MsafAgent::new(make_manifest("a1"));
         let id1 = agent.submit_task("t1", "{}");
         let _id2 = agent.submit_task("t2", "{}");
-        agent.update_task_state(&id1, MsafTaskState::Completed("done".to_string())).unwrap();
+        agent
+            .update_task_state(&id1, MsafTaskState::Completed("done".to_string()))
+            .unwrap();
         let completed = agent.completed_tasks();
         assert_eq!(completed.len(), 1);
     }

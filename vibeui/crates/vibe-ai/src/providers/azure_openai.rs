@@ -12,7 +12,10 @@
 //! api_version = "2024-12-01-preview"   # optional
 //! ```
 
-use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message, ProviderConfig, TokenUsage};
+use crate::provider::{
+    AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message,
+    ProviderConfig, TokenUsage,
+};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use futures::stream::StreamExt;
@@ -110,10 +113,13 @@ impl AzureOpenAIProvider {
     }
 
     fn build_messages(&self, messages: &[Message], context: Option<String>) -> Vec<AzMessage> {
-        let mut result: Vec<AzMessage> = messages.iter().map(|m| AzMessage {
-            role: m.role.as_str().to_string(),
-            content: Value::String(m.content.clone()),
-        }).collect();
+        let mut result: Vec<AzMessage> = messages
+            .iter()
+            .map(|m| AzMessage {
+                role: m.role.as_str().to_string(),
+                content: Value::String(m.content.clone()),
+            })
+            .collect();
         if let Some(ctx) = context {
             if let Some(last) = result.last_mut() {
                 if last.role == "user" {
@@ -129,7 +135,9 @@ impl AzureOpenAIProvider {
 
 #[async_trait]
 impl AIProvider for AzureOpenAIProvider {
-    fn name(&self) -> &str { &self.display_name }
+    fn name(&self) -> &str {
+        &self.display_name
+    }
 
     async fn is_available(&self) -> bool {
         self.config.api_key.is_some() && self.config.api_url.is_some()
@@ -141,8 +149,14 @@ impl AIProvider for AzureOpenAIProvider {
             context.language, context.prefix, context.suffix
         );
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "You are a helpful coding assistant.".to_string() },
-            Message { role: crate::provider::MessageRole::User, content: prompt },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "You are a helpful coding assistant.".to_string(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: prompt,
+            },
         ];
         self.chat_response(&messages, None).await
     }
@@ -153,34 +167,71 @@ impl AIProvider for AzureOpenAIProvider {
             context.language, context.prefix, context.suffix
         );
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "You are a helpful coding assistant.".to_string() },
-            Message { role: crate::provider::MessageRole::User, content: prompt },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "You are a helpful coding assistant.".to_string(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: prompt,
+            },
         ];
         self.stream_chat(&messages).await
     }
 
-    async fn chat_response(&self, messages: &[Message], context: Option<String>) -> Result<CompletionResponse> {
-        let api_key = self.config.api_key.as_ref().context("Azure OpenAI API key not set (AZURE_OPENAI_API_KEY)")?;
+    async fn chat_response(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+    ) -> Result<CompletionResponse> {
+        let api_key = self
+            .config
+            .api_key
+            .as_ref()
+            .context("Azure OpenAI API key not set (AZURE_OPENAI_API_KEY)")?;
         let request = AzRequest {
             messages: self.build_messages(messages, context),
             temperature: self.config.temperature,
             max_tokens: self.config.max_tokens,
             stream: false,
         };
-        let resp = self.client.post(self.endpoint_url())
+        let resp = self
+            .client
+            .post(self.endpoint_url())
             .header("api-key", api_key.as_str())
             .json(&request)
-            .send().await.context("Azure OpenAI request failed")?;
+            .send()
+            .await
+            .context("Azure OpenAI request failed")?;
 
         if !resp.status().is_success() {
             let err = resp.text().await?;
             anyhow::bail!("Azure OpenAI error: {}", err);
         }
-        let body: AzResponse = resp.json().await.context("Failed to parse Azure OpenAI response")?;
-        let content = body.choices.first().context("No choices")?.message.content.clone();
-        let text = match content { Value::String(s) => s, v => v.to_string() };
-        let usage = body.usage.map(|u| TokenUsage { prompt_tokens: u.prompt_tokens, completion_tokens: u.completion_tokens });
-        Ok(CompletionResponse { text, model: self.config.model.clone(), usage })
+        let body: AzResponse = resp
+            .json()
+            .await
+            .context("Failed to parse Azure OpenAI response")?;
+        let content = body
+            .choices
+            .first()
+            .context("No choices")?
+            .message
+            .content
+            .clone();
+        let text = match content {
+            Value::String(s) => s,
+            v => v.to_string(),
+        };
+        let usage = body.usage.map(|u| TokenUsage {
+            prompt_tokens: u.prompt_tokens,
+            completion_tokens: u.completion_tokens,
+        });
+        Ok(CompletionResponse {
+            text,
+            model: self.config.model.clone(),
+            usage,
+        })
     }
 
     async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String> {
@@ -188,42 +239,62 @@ impl AIProvider for AzureOpenAIProvider {
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
-        let api_key = self.config.api_key.as_ref().context("Azure OpenAI API key not set")?;
+        let api_key = self
+            .config
+            .api_key
+            .as_ref()
+            .context("Azure OpenAI API key not set")?;
         let request = AzRequest {
             messages: self.build_messages(messages, None),
             temperature: self.config.temperature,
             max_tokens: self.config.max_tokens,
             stream: true,
         };
-        let resp = self.client.post(self.endpoint_url())
+        let resp = self
+            .client
+            .post(self.endpoint_url())
             .header("api-key", api_key.as_str())
             .json(&request)
-            .send().await.context("Azure OpenAI stream failed")?;
+            .send()
+            .await
+            .context("Azure OpenAI stream failed")?;
 
         if !resp.status().is_success() {
             let err = resp.text().await?;
             anyhow::bail!("Azure OpenAI error: {}", err);
         }
-        let stream = resp.bytes_stream().map(|chunk| {
-            let chunk = chunk?;
-            let text = String::from_utf8_lossy(&chunk);
-            let mut content = String::new();
-            for line in text.lines() {
-                if let Some(data) = line.strip_prefix("data: ") {
-                    if data == "[DONE]" { continue; }
-                    if let Ok(r) = serde_json::from_str::<AzStreamResponse>(data) {
-                        if let Some(c) = r.choices.first().and_then(|ch| ch.delta.content.as_ref()) {
-                            content.push_str(c);
+        let stream = resp
+            .bytes_stream()
+            .map(|chunk| {
+                let chunk = chunk?;
+                let text = String::from_utf8_lossy(&chunk);
+                let mut content = String::new();
+                for line in text.lines() {
+                    if let Some(data) = line.strip_prefix("data: ") {
+                        if data == "[DONE]" {
+                            continue;
+                        }
+                        if let Ok(r) = serde_json::from_str::<AzStreamResponse>(data) {
+                            if let Some(c) =
+                                r.choices.first().and_then(|ch| ch.delta.content.as_ref())
+                            {
+                                content.push_str(c);
+                            }
                         }
                     }
                 }
-            }
-            Ok(content)
-        }).boxed();
+                Ok(content)
+            })
+            .boxed();
         Ok(stream)
     }
 
-    async fn chat_with_images(&self, messages: &[Message], _images: &[ImageAttachment], context: Option<String>) -> Result<String> {
+    async fn chat_with_images(
+        &self,
+        messages: &[Message],
+        _images: &[ImageAttachment],
+        context: Option<String>,
+    ) -> Result<String> {
         self.chat(messages, context).await
     }
 }
@@ -277,7 +348,9 @@ mod tests {
     fn endpoint_url_assembly() {
         let p = AzureOpenAIProvider::new(test_config());
         let url = p.endpoint_url();
-        assert!(url.starts_with("https://myresource.openai.azure.com/openai/deployments/gpt-4o/chat/completions"));
+        assert!(url.starts_with(
+            "https://myresource.openai.azure.com/openai/deployments/gpt-4o/chat/completions"
+        ));
         assert!(url.contains("api-version=2024-12-01-preview"));
     }
 
@@ -308,9 +381,18 @@ mod tests {
         use crate::provider::MessageRole;
         let p = AzureOpenAIProvider::new(test_config());
         let messages = vec![
-            Message { role: MessageRole::System, content: "sys".into() },
-            Message { role: MessageRole::User, content: "usr".into() },
-            Message { role: MessageRole::Assistant, content: "ast".into() },
+            Message {
+                role: MessageRole::System,
+                content: "sys".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "usr".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "ast".into(),
+            },
         ];
         let result = p.build_messages(&messages, None);
         assert_eq!(result[0].role, "system");
@@ -322,9 +404,10 @@ mod tests {
     fn build_messages_appends_context_to_last_user() {
         use crate::provider::MessageRole;
         let p = AzureOpenAIProvider::new(test_config());
-        let messages = vec![
-            Message { role: MessageRole::User, content: "hello".into() },
-        ];
+        let messages = vec![Message {
+            role: MessageRole::User,
+            content: "hello".into(),
+        }];
         let result = p.build_messages(&messages, Some("ctx".into()));
         let content = result[0].content.as_str().unwrap();
         assert!(content.contains("Context:\nctx"));
@@ -391,7 +474,10 @@ mod tests {
     #[test]
     fn az_request_includes_present_optional_fields() {
         let req = AzRequest {
-            messages: vec![AzMessage { role: "user".into(), content: serde_json::Value::String("hi".into()) }],
+            messages: vec![AzMessage {
+                role: "user".into(),
+                content: serde_json::Value::String("hi".into()),
+            }],
             temperature: Some(0.7),
             max_tokens: Some(4096),
             stream: true,
@@ -416,8 +502,14 @@ mod tests {
         use crate::provider::MessageRole;
         let p = AzureOpenAIProvider::new(test_config());
         let messages = vec![
-            Message { role: MessageRole::User, content: "Q".into() },
-            Message { role: MessageRole::Assistant, content: "A".into() },
+            Message {
+                role: MessageRole::User,
+                content: "Q".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "A".into(),
+            },
         ];
         let result = p.build_messages(&messages, Some("ignored ctx".into()));
         assert_eq!(result[1].content, serde_json::Value::String("A".into()));
@@ -427,9 +519,10 @@ mod tests {
     fn build_messages_empty_context_with_messages() {
         use crate::provider::MessageRole;
         let p = AzureOpenAIProvider::new(test_config());
-        let messages = vec![
-            Message { role: MessageRole::User, content: "hello".into() },
-        ];
+        let messages = vec![Message {
+            role: MessageRole::User,
+            content: "hello".into(),
+        }];
         let result = p.build_messages(&messages, Some("".into()));
         let content = result[0].content.as_str().unwrap();
         assert!(content.contains("Context:"));
@@ -460,7 +553,10 @@ mod tests {
 
     #[test]
     fn az_message_roundtrip_serde() {
-        let msg = AzMessage { role: "user".into(), content: serde_json::Value::String("test data".into()) };
+        let msg = AzMessage {
+            role: "user".into(),
+            content: serde_json::Value::String("test data".into()),
+        };
         let json = serde_json::to_string(&msg).unwrap();
         let msg2: AzMessage = serde_json::from_str(&json).unwrap();
         assert_eq!(msg.role, msg2.role);

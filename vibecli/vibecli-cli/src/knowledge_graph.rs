@@ -137,15 +137,18 @@ impl KnowledgeGraph {
 
         // Add a repo node
         let repo_id = self.alloc_id();
-        self.nodes.insert(repo_id, GraphNode {
-            id: repo_id,
-            name: name.to_string(),
-            kind: NodeKind::Repo,
-            repo: name.to_string(),
-            file: path.to_path_buf(),
-            line: 0,
-            signature: String::new(),
-        });
+        self.nodes.insert(
+            repo_id,
+            GraphNode {
+                id: repo_id,
+                name: name.to_string(),
+                kind: NodeKind::Repo,
+                repo: name.to_string(),
+                file: path.to_path_buf(),
+                line: 0,
+                signature: String::new(),
+            },
+        );
 
         let mut count = 0;
         // Walk the directory and extract symbols
@@ -155,12 +158,17 @@ impl KnowledgeGraph {
             .filter_map(|e| e.ok())
         {
             let p = entry.path();
-            if p.is_dir() { continue; }
+            if p.is_dir() {
+                continue;
+            }
 
             // Skip hidden dirs, node_modules, target, .git
             let path_str = p.to_string_lossy();
-            if path_str.contains("/.") || path_str.contains("/node_modules/")
-                || path_str.contains("/target/") || path_str.contains("/.git/") {
+            if path_str.contains("/.")
+                || path_str.contains("/node_modules/")
+                || path_str.contains("/target/")
+                || path_str.contains("/.git/")
+            {
                 continue;
             }
 
@@ -181,16 +189,23 @@ impl KnowledgeGraph {
 
             // Add file node
             let file_id = self.alloc_id();
-            let file_name = p.file_name().unwrap_or_default().to_string_lossy().to_string();
-            self.nodes.insert(file_id, GraphNode {
-                id: file_id,
-                name: file_name,
-                kind: NodeKind::File,
-                repo: name.to_string(),
-                file: p.to_path_buf(),
-                line: 0,
-                signature: String::new(),
-            });
+            let file_name = p
+                .file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .to_string();
+            self.nodes.insert(
+                file_id,
+                GraphNode {
+                    id: file_id,
+                    name: file_name,
+                    kind: NodeKind::File,
+                    repo: name.to_string(),
+                    file: p.to_path_buf(),
+                    line: 0,
+                    signature: String::new(),
+                },
+            );
             self.edges.push(GraphEdge {
                 from: repo_id,
                 to: file_id,
@@ -201,15 +216,18 @@ impl KnowledgeGraph {
             let symbols = extract_symbols_for_graph(p, &content, lang);
             for (sym_name, sym_kind, line, sig) in symbols {
                 let sym_id = self.alloc_id();
-                self.nodes.insert(sym_id, GraphNode {
-                    id: sym_id,
-                    name: sym_name,
-                    kind: sym_kind,
-                    repo: name.to_string(),
-                    file: p.to_path_buf(),
-                    line,
-                    signature: sig,
-                });
+                self.nodes.insert(
+                    sym_id,
+                    GraphNode {
+                        id: sym_id,
+                        name: sym_name,
+                        kind: sym_kind,
+                        repo: name.to_string(),
+                        file: p.to_path_buf(),
+                        line,
+                        signature: sig,
+                    },
+                );
                 self.edges.push(GraphEdge {
                     from: file_id,
                     to: sym_id,
@@ -223,15 +241,18 @@ impl KnowledgeGraph {
             for imported in imports {
                 // Store as a deferred reference — resolved in build_edges
                 let imp_id = self.alloc_id();
-                self.nodes.insert(imp_id, GraphNode {
-                    id: imp_id,
-                    name: imported.clone(),
-                    kind: NodeKind::Module,
-                    repo: name.to_string(),
-                    file: p.to_path_buf(),
-                    line: 0,
-                    signature: format!("import {}", imported),
-                });
+                self.nodes.insert(
+                    imp_id,
+                    GraphNode {
+                        id: imp_id,
+                        name: imported.clone(),
+                        kind: NodeKind::Module,
+                        repo: name.to_string(),
+                        file: p.to_path_buf(),
+                        line: 0,
+                        signature: format!("import {}", imported),
+                    },
+                );
                 self.edges.push(GraphEdge {
                     from: file_id,
                     to: imp_id,
@@ -273,12 +294,14 @@ impl KnowledgeGraph {
         let mut new_edges = Vec::new();
 
         // For each symbol, look for call patterns in the same file
-        let nodes_snapshot: Vec<(NodeId, GraphNode)> = self.nodes.iter()
-            .map(|(id, n)| (*id, n.clone()))
-            .collect();
+        let nodes_snapshot: Vec<(NodeId, GraphNode)> =
+            self.nodes.iter().map(|(id, n)| (*id, n.clone())).collect();
 
         for (id, node) in &nodes_snapshot {
-            if matches!(node.kind, NodeKind::Function | NodeKind::Struct | NodeKind::Class) {
+            if matches!(
+                node.kind,
+                NodeKind::Function | NodeKind::Struct | NodeKind::Class
+            ) {
                 // Find references to other symbols in this node's signature
                 for (name, targets) in &symbol_names {
                     if name != &node.name && node.signature.contains(name.as_str()) {
@@ -301,100 +324,142 @@ impl KnowledgeGraph {
 
     /// Find all nodes that have an edge pointing to the given symbol.
     pub fn query_callers(&self, symbol: &str) -> Vec<&GraphNode> {
-        let target_ids: HashSet<NodeId> = self.nodes.iter()
+        let target_ids: HashSet<NodeId> = self
+            .nodes
+            .iter()
             .filter(|(_, n)| n.name == symbol)
             .map(|(id, _)| *id)
             .collect();
 
-        let caller_ids: HashSet<NodeId> = self.edges.iter()
-            .filter(|e| target_ids.contains(&e.to) && matches!(e.kind, EdgeKind::Calls | EdgeKind::References))
+        let caller_ids: HashSet<NodeId> = self
+            .edges
+            .iter()
+            .filter(|e| {
+                target_ids.contains(&e.to)
+                    && matches!(e.kind, EdgeKind::Calls | EdgeKind::References)
+            })
             .map(|e| e.from)
             .collect();
 
-        caller_ids.iter()
+        caller_ids
+            .iter()
             .filter_map(|id| self.nodes.get(id))
             .collect()
     }
 
     /// Find all nodes that the given symbol has edges pointing to.
     pub fn query_callees(&self, symbol: &str) -> Vec<&GraphNode> {
-        let source_ids: HashSet<NodeId> = self.nodes.iter()
+        let source_ids: HashSet<NodeId> = self
+            .nodes
+            .iter()
             .filter(|(_, n)| n.name == symbol)
             .map(|(id, _)| *id)
             .collect();
 
-        let callee_ids: HashSet<NodeId> = self.edges.iter()
-            .filter(|e| source_ids.contains(&e.from) && matches!(e.kind, EdgeKind::Calls | EdgeKind::References))
+        let callee_ids: HashSet<NodeId> = self
+            .edges
+            .iter()
+            .filter(|e| {
+                source_ids.contains(&e.from)
+                    && matches!(e.kind, EdgeKind::Calls | EdgeKind::References)
+            })
             .map(|e| e.to)
             .collect();
 
-        callee_ids.iter()
+        callee_ids
+            .iter()
             .filter_map(|id| self.nodes.get(id))
             .collect()
     }
 
     /// Find all nodes that implement a given trait/interface.
     pub fn query_implementors(&self, trait_name: &str) -> Vec<&GraphNode> {
-        let trait_ids: HashSet<NodeId> = self.nodes.iter()
-            .filter(|(_, n)| n.name == trait_name && matches!(n.kind, NodeKind::Trait | NodeKind::Interface))
+        let trait_ids: HashSet<NodeId> = self
+            .nodes
+            .iter()
+            .filter(|(_, n)| {
+                n.name == trait_name && matches!(n.kind, NodeKind::Trait | NodeKind::Interface)
+            })
             .map(|(id, _)| *id)
             .collect();
 
-        let impl_ids: HashSet<NodeId> = self.edges.iter()
+        let impl_ids: HashSet<NodeId> = self
+            .edges
+            .iter()
             .filter(|e| trait_ids.contains(&e.to) && matches!(e.kind, EdgeKind::Implements))
             .map(|e| e.from)
             .collect();
 
-        impl_ids.iter()
+        impl_ids
+            .iter()
             .filter_map(|id| self.nodes.get(id))
             .collect()
     }
 
     /// Find what a file depends on (imports).
     pub fn query_dependencies(&self, file: &Path) -> Vec<&GraphNode> {
-        let file_ids: HashSet<NodeId> = self.nodes.iter()
+        let file_ids: HashSet<NodeId> = self
+            .nodes
+            .iter()
             .filter(|(_, n)| n.file == file && matches!(n.kind, NodeKind::File))
             .map(|(id, _)| *id)
             .collect();
 
-        let dep_ids: HashSet<NodeId> = self.edges.iter()
-            .filter(|e| file_ids.contains(&e.from) && matches!(e.kind, EdgeKind::Imports | EdgeKind::DependsOn))
+        let dep_ids: HashSet<NodeId> = self
+            .edges
+            .iter()
+            .filter(|e| {
+                file_ids.contains(&e.from)
+                    && matches!(e.kind, EdgeKind::Imports | EdgeKind::DependsOn)
+            })
             .map(|e| e.to)
             .collect();
 
-        dep_ids.iter()
-            .filter_map(|id| self.nodes.get(id))
-            .collect()
+        dep_ids.iter().filter_map(|id| self.nodes.get(id)).collect()
     }
 
     /// Find what depends on a file.
     pub fn query_dependents(&self, file: &Path) -> Vec<&GraphNode> {
-        let file_ids: HashSet<NodeId> = self.nodes.iter()
+        let file_ids: HashSet<NodeId> = self
+            .nodes
+            .iter()
             .filter(|(_, n)| n.file == file && matches!(n.kind, NodeKind::File))
             .map(|(id, _)| *id)
             .collect();
 
         // Find symbols in this file
-        let symbol_ids: HashSet<NodeId> = self.edges.iter()
+        let symbol_ids: HashSet<NodeId> = self
+            .edges
+            .iter()
             .filter(|e| file_ids.contains(&e.from) && matches!(e.kind, EdgeKind::Contains))
             .map(|e| e.to)
             .collect();
 
         let all_ids: HashSet<NodeId> = file_ids.union(&symbol_ids).copied().collect();
 
-        let dependent_ids: HashSet<NodeId> = self.edges.iter()
-            .filter(|e| all_ids.contains(&e.to) && matches!(e.kind, EdgeKind::Imports | EdgeKind::DependsOn | EdgeKind::References))
+        let dependent_ids: HashSet<NodeId> = self
+            .edges
+            .iter()
+            .filter(|e| {
+                all_ids.contains(&e.to)
+                    && matches!(
+                        e.kind,
+                        EdgeKind::Imports | EdgeKind::DependsOn | EdgeKind::References
+                    )
+            })
             .map(|e| e.from)
             .collect();
 
-        dependent_ids.iter()
+        dependent_ids
+            .iter()
             .filter_map(|id| self.nodes.get(id))
             .collect()
     }
 
     /// Find edges that cross repository boundaries.
     pub fn cross_repo_references(&self, repo: &str) -> Vec<(&GraphNode, &GraphNode, &EdgeKind)> {
-        self.edges.iter()
+        self.edges
+            .iter()
             .filter_map(|e| {
                 let from = self.nodes.get(&e.from)?;
                 let to = self.nodes.get(&e.to)?;
@@ -409,10 +474,14 @@ impl KnowledgeGraph {
 
     /// BFS shortest path between two symbols by name.
     pub fn shortest_path(&self, from_name: &str, to_name: &str) -> Option<Vec<NodeId>> {
-        let from_id = self.nodes.iter()
+        let from_id = self
+            .nodes
+            .iter()
             .find(|(_, n)| n.name == from_name)
             .map(|(id, _)| *id)?;
-        let to_id = self.nodes.iter()
+        let to_id = self
+            .nodes
+            .iter()
             .find(|(_, n)| n.name == to_name)
             .map(|(id, _)| *id)?;
 
@@ -458,7 +527,9 @@ impl KnowledgeGraph {
         let mut sub = KnowledgeGraph::new();
         sub.repos = self.repos.clone();
 
-        let start_ids: HashSet<NodeId> = self.nodes.iter()
+        let start_ids: HashSet<NodeId> = self
+            .nodes
+            .iter()
             .filter(|(_, n)| n.name == symbol)
             .map(|(id, _)| *id)
             .collect();
@@ -533,10 +604,9 @@ impl KnowledgeGraph {
             }
         }
 
-        let mut most_connected: Vec<(String, usize)> = degree.iter()
-            .filter_map(|(id, deg)| {
-                self.nodes.get(id).map(|n| (n.name.clone(), *deg))
-            })
+        let mut most_connected: Vec<(String, usize)> = degree
+            .iter()
+            .filter_map(|(id, deg)| self.nodes.get(id).map(|n| (n.name.clone(), *deg)))
             .collect();
         most_connected.sort_by(|a, b| b.1.cmp(&a.1));
         most_connected.truncate(10);
@@ -556,7 +626,8 @@ impl KnowledgeGraph {
 
     /// Export to Graphviz DOT format.
     pub fn to_dot(&self) -> String {
-        let mut dot = String::from("digraph KnowledgeGraph {\n  rankdir=LR;\n  node [shape=box];\n\n");
+        let mut dot =
+            String::from("digraph KnowledgeGraph {\n  rankdir=LR;\n  node [shape=box];\n\n");
 
         for (id, node) in &self.nodes {
             let shape = match node.kind {
@@ -570,7 +641,10 @@ impl KnowledgeGraph {
             };
             dot.push_str(&format!(
                 "  n{} [label=\"{}\\n({})\" shape={}];\n",
-                id, node.name, node.kind.as_str(), shape
+                id,
+                node.name,
+                node.kind.as_str(),
+                shape
             ));
         }
 
@@ -579,7 +653,9 @@ impl KnowledgeGraph {
         for e in &self.edges {
             dot.push_str(&format!(
                 "  n{} -> n{} [label=\"{}\"];\n",
-                e.from, e.to, e.kind.as_str()
+                e.from,
+                e.to,
+                e.kind.as_str()
             ));
         }
 
@@ -589,25 +665,29 @@ impl KnowledgeGraph {
 
     /// Save graph to JSON file.
     pub fn save(&self, path: &Path) -> Result<()> {
-        let json = serde_json::to_string_pretty(self)
-            .context("failed to serialize knowledge graph")?;
-        std::fs::write(path, json)
-            .context("failed to write knowledge graph file")?;
+        let json =
+            serde_json::to_string_pretty(self).context("failed to serialize knowledge graph")?;
+        std::fs::write(path, json).context("failed to write knowledge graph file")?;
         Ok(())
     }
 
     /// Load graph from JSON file.
     pub fn load(path: &Path) -> Result<Self> {
-        let json = std::fs::read_to_string(path)
-            .context("failed to read knowledge graph file")?;
-        let graph: Self = serde_json::from_str(&json)
-            .context("failed to deserialize knowledge graph")?;
+        let json = std::fs::read_to_string(path).context("failed to read knowledge graph file")?;
+        let graph: Self =
+            serde_json::from_str(&json).context("failed to deserialize knowledge graph")?;
         Ok(graph)
     }
 
-    pub fn node_count(&self) -> usize { self.nodes.len() }
-    pub fn edge_count(&self) -> usize { self.edges.len() }
-    pub fn repo_count(&self) -> usize { self.repos.len() }
+    pub fn node_count(&self) -> usize {
+        self.nodes.len()
+    }
+    pub fn edge_count(&self) -> usize {
+        self.edges.len()
+    }
+    pub fn repo_count(&self) -> usize {
+        self.repos.len()
+    }
 
     pub fn get_node(&self, id: NodeId) -> Option<&GraphNode> {
         self.nodes.get(&id)
@@ -707,10 +787,7 @@ fn extract_imports(content: &str, lang: &str) -> Vec<String> {
             r#"import\s+.*?from\s+['"]([\w@/.-]+)['"]"#,
             r#"require\(['"]([\w@/.-]+)['"]\)"#,
         ],
-        "python" => &[
-            r"from\s+([\w.]+)\s+import",
-            r"import\s+([\w.]+)",
-        ],
+        "python" => &[r"from\s+([\w.]+)\s+import", r"import\s+([\w.]+)"],
         "go" => &[r#""([\w./]+)""#],
         _ => return vec![],
     };
@@ -758,14 +835,36 @@ mod tests {
         g.add_node(make_node(5, "MyStruct", NodeKind::Struct, "repo_b"));
         g.add_node(make_node(6, "helper", NodeKind::Function, "repo_b"));
 
-        g.add_edge(GraphEdge { from: 1, to: 2, kind: EdgeKind::Calls });
-        g.add_edge(GraphEdge { from: 1, to: 3, kind: EdgeKind::Calls });
-        g.add_edge(GraphEdge { from: 2, to: 6, kind: EdgeKind::References });
-        g.add_edge(GraphEdge { from: 5, to: 4, kind: EdgeKind::Implements });
-        g.add_edge(GraphEdge { from: 3, to: 6, kind: EdgeKind::Calls });
+        g.add_edge(GraphEdge {
+            from: 1,
+            to: 2,
+            kind: EdgeKind::Calls,
+        });
+        g.add_edge(GraphEdge {
+            from: 1,
+            to: 3,
+            kind: EdgeKind::Calls,
+        });
+        g.add_edge(GraphEdge {
+            from: 2,
+            to: 6,
+            kind: EdgeKind::References,
+        });
+        g.add_edge(GraphEdge {
+            from: 5,
+            to: 4,
+            kind: EdgeKind::Implements,
+        });
+        g.add_edge(GraphEdge {
+            from: 3,
+            to: 6,
+            kind: EdgeKind::Calls,
+        });
 
-        g.repos.insert("repo_a".to_string(), PathBuf::from("/tmp/repo_a"));
-        g.repos.insert("repo_b".to_string(), PathBuf::from("/tmp/repo_b"));
+        g.repos
+            .insert("repo_a".to_string(), PathBuf::from("/tmp/repo_a"));
+        g.repos
+            .insert("repo_b".to_string(), PathBuf::from("/tmp/repo_b"));
         g
     }
 
@@ -797,7 +896,11 @@ mod tests {
         let mut g = KnowledgeGraph::new();
         g.add_node(make_node(1, "a", NodeKind::Function, "r"));
         g.add_node(make_node(2, "b", NodeKind::Function, "r"));
-        g.add_edge(GraphEdge { from: 1, to: 2, kind: EdgeKind::Calls });
+        g.add_edge(GraphEdge {
+            from: 1,
+            to: 2,
+            kind: EdgeKind::Calls,
+        });
         assert_eq!(g.edge_count(), 1);
     }
 
@@ -866,7 +969,11 @@ mod tests {
         let mut g = KnowledgeGraph::new();
         g.add_node(make_node(1, "a", NodeKind::Function, "r1"));
         g.add_node(make_node(2, "b", NodeKind::Function, "r1"));
-        g.add_edge(GraphEdge { from: 1, to: 2, kind: EdgeKind::Calls });
+        g.add_edge(GraphEdge {
+            from: 1,
+            to: 2,
+            kind: EdgeKind::Calls,
+        });
         let cross = g.cross_repo_references("r1");
         assert!(cross.is_empty());
     }
@@ -961,7 +1068,11 @@ mod tests {
         g.add_node(make_node(1, "connected", NodeKind::Function, "r"));
         g.add_node(make_node(2, "connected2", NodeKind::Function, "r"));
         g.add_node(make_node(3, "orphan", NodeKind::Function, "r"));
-        g.add_edge(GraphEdge { from: 1, to: 2, kind: EdgeKind::Calls });
+        g.add_edge(GraphEdge {
+            from: 1,
+            to: 2,
+            kind: EdgeKind::Calls,
+        });
         let stats = g.stats();
         assert_eq!(stats.orphan_count, 1);
     }
@@ -1088,13 +1199,21 @@ import bar from "lodash";"#;
     fn test_build_edges_resolves_references() {
         let mut g = KnowledgeGraph::new();
         g.add_node(GraphNode {
-            id: 1, name: "process".to_string(), kind: NodeKind::Function,
-            repo: "r".to_string(), file: PathBuf::from("a.rs"), line: 1,
+            id: 1,
+            name: "process".to_string(),
+            kind: NodeKind::Function,
+            repo: "r".to_string(),
+            file: PathBuf::from("a.rs"),
+            line: 1,
             signature: "fn process(data: Config)".to_string(),
         });
         g.add_node(GraphNode {
-            id: 2, name: "Config".to_string(), kind: NodeKind::Struct,
-            repo: "r".to_string(), file: PathBuf::from("b.rs"), line: 1,
+            id: 2,
+            name: "Config".to_string(),
+            kind: NodeKind::Struct,
+            repo: "r".to_string(),
+            file: PathBuf::from("b.rs"),
+            line: 1,
             signature: "struct Config {}".to_string(),
         });
         g.build_edges();
@@ -1106,16 +1225,28 @@ import bar from "lodash";"#;
         let mut g = KnowledgeGraph::new();
         let file = PathBuf::from("/tmp/repo/src/main.rs");
         g.add_node(GraphNode {
-            id: 1, name: "main.rs".to_string(), kind: NodeKind::File,
-            repo: "r".to_string(), file: file.clone(), line: 0,
+            id: 1,
+            name: "main.rs".to_string(),
+            kind: NodeKind::File,
+            repo: "r".to_string(),
+            file: file.clone(),
+            line: 0,
             signature: String::new(),
         });
         g.add_node(GraphNode {
-            id: 2, name: "utils".to_string(), kind: NodeKind::Module,
-            repo: "r".to_string(), file: PathBuf::from("/tmp/repo/src/utils.rs"), line: 0,
+            id: 2,
+            name: "utils".to_string(),
+            kind: NodeKind::Module,
+            repo: "r".to_string(),
+            file: PathBuf::from("/tmp/repo/src/utils.rs"),
+            line: 0,
             signature: String::new(),
         });
-        g.add_edge(GraphEdge { from: 1, to: 2, kind: EdgeKind::Imports });
+        g.add_edge(GraphEdge {
+            from: 1,
+            to: 2,
+            kind: EdgeKind::Imports,
+        });
         let deps = g.query_dependencies(&file);
         assert_eq!(deps.len(), 1);
         assert_eq!(deps[0].name, "utils");

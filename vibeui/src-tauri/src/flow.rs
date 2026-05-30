@@ -56,7 +56,15 @@ impl FlowTracker {
             return String::new();
         }
 
-        let recent: Vec<&FlowEvent> = self.events.iter().rev().take(limit).collect::<Vec<_>>().into_iter().rev().collect();
+        let recent: Vec<&FlowEvent> = self
+            .events
+            .iter()
+            .rev()
+            .take(limit)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect();
 
         // Summarise by category for brevity
         let opens: Vec<&str> = recent
@@ -80,19 +88,45 @@ impl FlowTracker {
             // Deduplicate, keep last 5
             let unique: Vec<&str> = {
                 let mut seen = std::collections::HashSet::new();
-                opens.iter().rev().filter(|&&p| seen.insert(p)).take(5).copied().collect::<Vec<_>>().into_iter().rev().collect()
+                opens
+                    .iter()
+                    .rev()
+                    .filter(|&&p| seen.insert(p))
+                    .take(5)
+                    .copied()
+                    .collect::<Vec<_>>()
+                    .into_iter()
+                    .rev()
+                    .collect()
             };
             ctx.push_str(&format!("Recently opened files: {}\n", unique.join(", ")));
         }
         if !edits.is_empty() {
             let unique: Vec<&str> = {
                 let mut seen = std::collections::HashSet::new();
-                edits.iter().rev().filter(|&&p| seen.insert(p)).take(5).copied().collect::<Vec<_>>().into_iter().rev().collect()
+                edits
+                    .iter()
+                    .rev()
+                    .filter(|&&p| seen.insert(p))
+                    .take(5)
+                    .copied()
+                    .collect::<Vec<_>>()
+                    .into_iter()
+                    .rev()
+                    .collect()
             };
             ctx.push_str(&format!("Recently edited files: {}\n", unique.join(", ")));
         }
         if !cmds.is_empty() {
-            let last: Vec<&str> = cmds.iter().rev().take(5).copied().collect::<Vec<_>>().into_iter().rev().collect();
+            let last: Vec<&str> = cmds
+                .iter()
+                .rev()
+                .take(5)
+                .copied()
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect();
             ctx.push_str(&format!("Recent terminal commands: {}\n", last.join("; ")));
         }
         ctx

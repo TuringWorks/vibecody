@@ -17,8 +17,8 @@ pub struct SonarRule {
     pub description: String,
     pub why: String,
     pub how_to_fix: String,
-    pub severity: String,    // BLOCKER | CRITICAL | MAJOR | MINOR | INFO
-    pub issue_type: String,  // BUG | VULNERABILITY | CODE_SMELL | SECURITY_HOTSPOT
+    pub severity: String,   // BLOCKER | CRITICAL | MAJOR | MINOR | INFO
+    pub issue_type: String, // BUG | VULNERABILITY | CODE_SMELL | SECURITY_HOTSPOT
     pub language: String,
     pub tags: Vec<String>,
     pub effort_minutes: u32,
@@ -1830,8 +1830,18 @@ pub fn load_rules_to_db() -> Result<u32, String> {
             "INSERT OR REPLACE INTO sonar_rules
              (key,name,description,why,how_to_fix,severity,issue_type,language,tags,effort_minutes)
              VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
-            params![r.key, r.name, r.description, r.why, r.how_to_fix,
-                    r.severity, r.issue_type, r.language, tags_json, r.effort_minutes],
+            params![
+                r.key,
+                r.name,
+                r.description,
+                r.why,
+                r.how_to_fix,
+                r.severity,
+                r.issue_type,
+                r.language,
+                tags_json,
+                r.effort_minutes
+            ],
         )
         .map_err(|e| e.to_string())?;
     }
@@ -1879,7 +1889,11 @@ pub fn get_rules(language: Option<&str>) -> Vec<SonarRule> {
         }
         Err(_) => builtin_rules(),
     };
-    if rules.is_empty() { builtin_rules() } else { rules }
+    if rules.is_empty() {
+        builtin_rules()
+    } else {
+        rules
+    }
 }
 
 // ── Pattern-based Scanner ─────────────────────────────────────────────────────
@@ -1908,7 +1922,14 @@ fn patterns() -> Vec<RulePattern> {
                     ("AKIA", "AWS access key"),
                 ];
                 for (kw, msg) in &triggers {
-                    if low.contains(kw) && (low.contains("= \"") || low.contains("= '") || low.contains(": \"") || low.contains(": '") || low.contains("=\"") || low.contains("='")) {
+                    if low.contains(kw)
+                        && (low.contains("= \"")
+                            || low.contains("= '")
+                            || low.contains(": \"")
+                            || low.contains(": '")
+                            || low.contains("=\"")
+                            || low.contains("='"))
+                    {
                         let col = line.to_lowercase().find(kw).unwrap_or(0) as u32;
                         return Some((col, kw.to_string(), msg.to_string()));
                     }
@@ -1924,10 +1945,16 @@ fn patterns() -> Vec<RulePattern> {
             rule_key: "typescript:S5332",
             matcher: |line| {
                 let trimmed = line.trim();
-                if trimmed.starts_with("//") || trimmed.starts_with('#') { return None; }
+                if trimmed.starts_with("//") || trimmed.starts_with('#') {
+                    return None;
+                }
                 if let Some(pos) = line.find("http://") {
                     if !line[..pos].contains("//") {
-                        return Some((pos as u32, "http://".into(), "Insecure HTTP URL — use https:// instead".into()));
+                        return Some((
+                            pos as u32,
+                            "http://".into(),
+                            "Insecure HTTP URL — use https:// instead".into(),
+                        ));
                     }
                 }
                 None
@@ -1938,10 +1965,18 @@ fn patterns() -> Vec<RulePattern> {
             matcher: |line| {
                 let low = line.to_lowercase();
                 let trimmed = line.trim();
-                if trimmed.starts_with("//") || trimmed.starts_with('#') { return None; }
+                if trimmed.starts_with("//") || trimmed.starts_with('#') {
+                    return None;
+                }
                 let sql_kws = ["select ", "insert into", "update ", "delete from"];
                 for kw in &sql_kws {
-                    if low.contains(kw) && (line.contains('+') || line.contains("${") || line.contains("format!") || line.contains('`') || line.contains("f\"")) {
+                    if low.contains(kw)
+                        && (line.contains('+')
+                            || line.contains("${")
+                            || line.contains("format!")
+                            || line.contains('`')
+                            || line.contains("f\""))
+                    {
                         let col = low.find(kw).unwrap_or(0) as u32;
                         return Some((col, kw.to_string(), format!("Potential SQL injection — '{}' query built via string concatenation/interpolation", kw.trim())));
                     }
@@ -1953,10 +1988,19 @@ fn patterns() -> Vec<RulePattern> {
             rule_key: "typescript:S6096",
             matcher: |line| {
                 let trimmed = line.trim();
-                if trimmed.starts_with("//") { return None; }
+                if trimmed.starts_with("//") {
+                    return None;
+                }
                 for kw in &["innerHTML", "document.write", "dangerouslySetInnerHTML"] {
                     if let Some(pos) = line.find(kw) {
-                        return Some((pos as u32, kw.to_string(), format!("Potential XSS — `{}` with user input renders unsanitized HTML", kw)));
+                        return Some((
+                            pos as u32,
+                            kw.to_string(),
+                            format!(
+                                "Potential XSS — `{}` with user input renders unsanitized HTML",
+                                kw
+                            ),
+                        ));
                     }
                 }
                 None
@@ -1967,11 +2011,17 @@ fn patterns() -> Vec<RulePattern> {
             matcher: |line| {
                 let trimmed = line.trim();
                 // Detect `catch` followed immediately by `}` or empty block indicators
-                if (trimmed == "} catch (e) {}" || trimmed == "} catch (_) {}" || trimmed == "catch (e) {}")
+                if (trimmed == "} catch (e) {}"
+                    || trimmed == "} catch (_) {}"
+                    || trimmed == "catch (e) {}")
                     || (trimmed.starts_with("catch") && trimmed.ends_with("{}"))
                 {
                     let col = line.find("catch").unwrap_or(0) as u32;
-                    return Some((col, "catch {}".into(), "Empty catch block silently swallows errors — log or re-throw".into()));
+                    return Some((
+                        col,
+                        "catch {}".into(),
+                        "Empty catch block silently swallows errors — log or re-throw".into(),
+                    ));
                 }
                 None
             },
@@ -1980,17 +2030,31 @@ fn patterns() -> Vec<RulePattern> {
             rule_key: "typescript:S3403",
             matcher: |line| {
                 let trimmed = line.trim();
-                if trimmed.starts_with("//") { return None; }
+                if trimmed.starts_with("//") {
+                    return None;
+                }
                 // Find == or != but not === / !==
                 let bytes = line.as_bytes();
                 let len = bytes.len();
                 for i in 0..len.saturating_sub(1) {
-                    if (bytes[i] == b'!' || bytes[i] == b'=') && bytes[i+1] == b'=' {
-                        let is_strict = i + 2 < len && bytes[i+2] == b'=';
-                        let is_preceded_by_excl_or_eq = i > 0 && (bytes[i-1] == b'!' || bytes[i-1] == b'=' || bytes[i-1] == b'<' || bytes[i-1] == b'>');
+                    if (bytes[i] == b'!' || bytes[i] == b'=') && bytes[i + 1] == b'=' {
+                        let is_strict = i + 2 < len && bytes[i + 2] == b'=';
+                        let is_preceded_by_excl_or_eq = i > 0
+                            && (bytes[i - 1] == b'!'
+                                || bytes[i - 1] == b'='
+                                || bytes[i - 1] == b'<'
+                                || bytes[i - 1] == b'>');
                         if !is_strict && !is_preceded_by_excl_or_eq {
                             let op = if bytes[i] == b'!' { "!=" } else { "==" };
-                            return Some((i as u32, op.into(), format!("Use `{}=` (strict equality) instead of `{}`", if bytes[i] == b'!' { "!" } else { "=" }, op)));
+                            return Some((
+                                i as u32,
+                                op.into(),
+                                format!(
+                                    "Use `{}=` (strict equality) instead of `{}`",
+                                    if bytes[i] == b'!' { "!" } else { "=" },
+                                    op
+                                ),
+                            ));
                         }
                     }
                 }
@@ -2001,10 +2065,25 @@ fn patterns() -> Vec<RulePattern> {
             rule_key: "typescript:S1125",
             matcher: |line| {
                 let trimmed = line.trim();
-                if trimmed.starts_with("//") { return None; }
-                for pattern in &["=== true", "=== false", "== true", "== false", "!== true", "!== false"] {
+                if trimmed.starts_with("//") {
+                    return None;
+                }
+                for pattern in &[
+                    "=== true",
+                    "=== false",
+                    "== true",
+                    "== false",
+                    "!== true",
+                    "!== false",
+                ] {
                     if let Some(pos) = line.find(pattern) {
-                        return Some((pos as u32, pattern.to_string(), format!("Redundant boolean literal `{pattern}` — simplify the expression")));
+                        return Some((
+                            pos as u32,
+                            pattern.to_string(),
+                            format!(
+                                "Redundant boolean literal `{pattern}` — simplify the expression"
+                            ),
+                        ));
                     }
                 }
                 None
@@ -2017,7 +2096,11 @@ fn patterns() -> Vec<RulePattern> {
                 for marker in &["TODO", "FIXME", "HACK", "XXX"] {
                     if let Some(pos) = trimmed.find(marker) {
                         let abs_col = line.find(marker).unwrap_or(pos) as u32;
-                        return Some((abs_col, marker.to_string(), format!("`{marker}` comment — track this in your issue tracker")));
+                        return Some((
+                            abs_col,
+                            marker.to_string(),
+                            format!("`{marker}` comment — track this in your issue tracker"),
+                        ));
                     }
                 }
                 None
@@ -2027,7 +2110,9 @@ fn patterns() -> Vec<RulePattern> {
             rule_key: "typescript:S4325",
             matcher: |line| {
                 let trimmed = line.trim();
-                if trimmed.starts_with("//") { return None; }
+                if trimmed.starts_with("//") {
+                    return None;
+                }
                 // Detect `: any` type annotation (TypeScript)
                 if let Some(pos) = line.find(": any") {
                     // Avoid false positives in comments
@@ -2036,10 +2121,18 @@ fn patterns() -> Vec<RulePattern> {
                     }
                 }
                 if let Some(pos) = line.find("<any>") {
-                    return Some((pos as u32, "<any>".into(), "Avoid `any` cast — use a specific type or type guard".into()));
+                    return Some((
+                        pos as u32,
+                        "<any>".into(),
+                        "Avoid `any` cast — use a specific type or type guard".into(),
+                    ));
                 }
                 if let Some(pos) = line.find("as any") {
-                    return Some((pos as u32, "as any".into(), "Avoid `as any` cast — use a specific type or `as unknown as T`".into()));
+                    return Some((
+                        pos as u32,
+                        "as any".into(),
+                        "Avoid `as any` cast — use a specific type or `as unknown as T`".into(),
+                    ));
                 }
                 None
             },
@@ -2048,7 +2141,9 @@ fn patterns() -> Vec<RulePattern> {
             rule_key: "typescript:S1764",
             matcher: |line| {
                 let trimmed = line.trim();
-                if trimmed.starts_with("//") { return None; }
+                if trimmed.starts_with("//") {
+                    return None;
+                }
                 // Check for x === x or x == x patterns (simple identifiers)
                 // Very basic: look for patterns like `word === word` or `word == word`
                 for op in &[" === ", " == ", " !== ", " != "] {
@@ -2057,8 +2152,20 @@ fn patterns() -> Vec<RulePattern> {
                         let after = line[pos + op.len()..].trim();
                         // Extract last token before op
                         let left_token = before.split_whitespace().last().unwrap_or("");
-                        let right_token = after.split(|c: char| !c.is_alphanumeric() && c != '_' && c != '.' && c != '\'' && c != '"').next().unwrap_or("");
-                        if !left_token.is_empty() && left_token == right_token && left_token.len() > 1 {
+                        let right_token = after
+                            .split(|c: char| {
+                                !c.is_alphanumeric()
+                                    && c != '_'
+                                    && c != '.'
+                                    && c != '\''
+                                    && c != '"'
+                            })
+                            .next()
+                            .unwrap_or("");
+                        if !left_token.is_empty()
+                            && left_token == right_token
+                            && left_token.len() > 1
+                        {
                             return Some((pos as u32, op.trim().into(), format!("Identical operands `{left_token} {op_t} {right_token}` — this is always {result}", op_t = op.trim(), result = if op.contains('!') { "false" } else { "true" })));
                         }
                     }
@@ -2070,13 +2177,19 @@ fn patterns() -> Vec<RulePattern> {
             rule_key: "typescript:S3358",
             matcher: |line| {
                 let trimmed = line.trim();
-                if trimmed.starts_with("//") { return None; }
+                if trimmed.starts_with("//") {
+                    return None;
+                }
                 // Detect ternaries containing ternaries: `? ... ? ... : ... : ...`
                 let q_count = line.chars().filter(|&c| c == '?').count();
                 let col_count = line.chars().filter(|&c| c == ':').count();
                 if q_count >= 2 && col_count >= 2 {
                     let pos = line.find('?').unwrap_or(0) as u32;
-                    return Some((pos, "?...?".into(), "Nested ternary operator — replace with if/else for readability".into()));
+                    return Some((
+                        pos,
+                        "?...?".into(),
+                        "Nested ternary operator — replace with if/else for readability".into(),
+                    ));
                 }
                 None
             },
@@ -2086,12 +2199,25 @@ fn patterns() -> Vec<RulePattern> {
             matcher: |line| {
                 let trimmed = line.trim();
                 // Detect hooks inside if/for/while
-                let hook_calls = ["useState(", "useEffect(", "useCallback(", "useMemo(", "useRef(", "useContext(", "useReducer("];
+                let hook_calls = [
+                    "useState(",
+                    "useEffect(",
+                    "useCallback(",
+                    "useMemo(",
+                    "useRef(",
+                    "useContext(",
+                    "useReducer(",
+                ];
                 let in_conditional = trimmed.starts_with("if ") || trimmed.starts_with("if(");
                 let _ = in_conditional; // static analysis only — pattern match on consecutive lines requires context
-                // Simpler: detect if a line has a hook call AND an if/for/while on the same line
+                                        // Simpler: detect if a line has a hook call AND an if/for/while on the same line
                 for hook in &hook_calls {
-                    if trimmed.contains(hook) && (line.contains("if (") || line.contains("if(") || line.contains("for (") || line.contains("while (")) {
+                    if trimmed.contains(hook)
+                        && (line.contains("if (")
+                            || line.contains("if(")
+                            || line.contains("for (")
+                            || line.contains("while ("))
+                    {
                         let pos = line.find(hook).unwrap_or(0) as u32;
                         return Some((pos, hook.to_string(), format!("`{hook}` called conditionally — React Hooks must be called at the top level")));
                     }
@@ -2104,10 +2230,21 @@ fn patterns() -> Vec<RulePattern> {
             matcher: |line| {
                 let low = line.to_lowercase();
                 let trimmed = line.trim();
-                if trimmed.starts_with("//") { return None; }
-                let kws = [("password", "Hardcoded password"), ("secret", "Hardcoded secret"), ("api_key", "Hardcoded API key"), ("private_key", "Private key")];
+                if trimmed.starts_with("//") {
+                    return None;
+                }
+                let kws = [
+                    ("password", "Hardcoded password"),
+                    ("secret", "Hardcoded secret"),
+                    ("api_key", "Hardcoded API key"),
+                    ("private_key", "Private key"),
+                ];
                 for (kw, msg) in &kws {
-                    if low.contains(kw) && (low.contains("= \"") || low.contains("= b\"") || low.contains(": &str = \"")) {
+                    if low.contains(kw)
+                        && (low.contains("= \"")
+                            || low.contains("= b\"")
+                            || low.contains(": &str = \""))
+                    {
                         let col = low.find(kw).unwrap_or(0) as u32;
                         return Some((col, kw.to_string(), msg.to_string()));
                     }
@@ -2120,22 +2257,31 @@ fn patterns() -> Vec<RulePattern> {
             matcher: |line| {
                 let trimmed = line.trim();
                 for marker in &["TODO", "FIXME", "HACK", "XXX"] {
-                    if trimmed.contains(marker) && (trimmed.starts_with("//") || trimmed.starts_with("/*") || trimmed.starts_with('*')) {
+                    if trimmed.contains(marker)
+                        && (trimmed.starts_with("//")
+                            || trimmed.starts_with("/*")
+                            || trimmed.starts_with('*'))
+                    {
                         let col = line.find(marker).unwrap_or(0) as u32;
-                        return Some((col, marker.to_string(), format!("`{marker}` comment — track in issue tracker")));
+                        return Some((
+                            col,
+                            marker.to_string(),
+                            format!("`{marker}` comment — track in issue tracker"),
+                        ));
                     }
                 }
                 None
             },
         },
-
         // ── PYTHON patterns ───────────────────────────────────────────────────
         RulePattern {
             rule_key: "python:S2068",
             matcher: |line| {
                 let low = line.to_lowercase();
                 let trimmed = line.trim();
-                if trimmed.starts_with('#') { return None; }
+                if trimmed.starts_with('#') {
+                    return None;
+                }
                 let kws = [
                     ("password", "Hardcoded password"),
                     ("secret", "Hardcoded secret"),
@@ -2143,7 +2289,12 @@ fn patterns() -> Vec<RulePattern> {
                     ("passwd", "Hardcoded password"),
                 ];
                 for (kw, msg) in &kws {
-                    if low.contains(kw) && (low.contains("= \"") || low.contains("= '") || low.contains("=\"") || low.contains("='")) {
+                    if low.contains(kw)
+                        && (low.contains("= \"")
+                            || low.contains("= '")
+                            || low.contains("=\"")
+                            || low.contains("='"))
+                    {
                         let col = low.find(kw).unwrap_or(0) as u32;
                         return Some((col, kw.to_string(), msg.to_string()));
                     }
@@ -2155,10 +2306,16 @@ fn patterns() -> Vec<RulePattern> {
             rule_key: "python:S5905",
             matcher: |line| {
                 let trimmed = line.trim();
-                if trimmed.starts_with('#') { return None; }
+                if trimmed.starts_with('#') {
+                    return None;
+                }
                 if trimmed.starts_with("print(") || trimmed.starts_with("print (") {
                     let col = line.find("print").unwrap_or(0) as u32;
-                    return Some((col, "print()".into(), "`print()` in production code — use the `logging` module instead".into()));
+                    return Some((
+                        col,
+                        "print()".into(),
+                        "`print()` in production code — use the `logging` module instead".into(),
+                    ));
                 }
                 None
             },
@@ -2167,8 +2324,11 @@ fn patterns() -> Vec<RulePattern> {
             rule_key: "python:S2201",
             matcher: |line| {
                 let trimmed = line.trim();
-                if trimmed.starts_with('#') { return None; }
-                if trimmed.starts_with("def ") && trimmed.contains('(')
+                if trimmed.starts_with('#') {
+                    return None;
+                }
+                if trimmed.starts_with("def ")
+                    && trimmed.contains('(')
                     && (trimmed.contains("=[") || trimmed.contains("={"))
                 {
                     let col = line.find("def ").unwrap_or(0) as u32;
@@ -2188,13 +2348,17 @@ fn patterns() -> Vec<RulePattern> {
                 None
             },
         },
-
         // ── C/C++ patterns ────────────────────────────────────────────────────
         RulePattern {
             rule_key: "c:S3518",
             matcher: |line| {
                 let trimmed = line.trim();
-                if trimmed.starts_with("//") || trimmed.starts_with("/*") || trimmed.starts_with('*') { return None; }
+                if trimmed.starts_with("//")
+                    || trimmed.starts_with("/*")
+                    || trimmed.starts_with('*')
+                {
+                    return None;
+                }
                 for dangerous in &["gets(", "strcpy(", " sprintf(", "strcat("] {
                     if let Some(pos) = line.find(dangerous) {
                         return Some((pos as u32, dangerous.trim().into(), format!("`{}` has no bounds checking — use safe alternatives (fgets, strncpy, snprintf, strncat)", dangerous.trim())));
@@ -2207,23 +2371,30 @@ fn patterns() -> Vec<RulePattern> {
             rule_key: "cpp:S5445",
             matcher: |line| {
                 let trimmed = line.trim();
-                if trimmed.starts_with("//") { return None; }
+                if trimmed.starts_with("//") {
+                    return None;
+                }
                 if let Some(pos) = line.find(" new ") {
-                    if !line.contains("unique_ptr") && !line.contains("shared_ptr") && !line.contains("make_unique") && !line.contains("make_shared") {
+                    if !line.contains("unique_ptr")
+                        && !line.contains("shared_ptr")
+                        && !line.contains("make_unique")
+                        && !line.contains("make_shared")
+                    {
                         return Some((pos as u32, "new".into(), "Raw `new` without smart pointer — consider std::unique_ptr or std::shared_ptr to prevent memory leaks".into()));
                     }
                 }
                 None
             },
         },
-
         // ── JAVA patterns ─────────────────────────────────────────────────────
         RulePattern {
             rule_key: "java:S2068",
             matcher: |line| {
                 let low = line.to_lowercase();
                 let trimmed = line.trim();
-                if trimmed.starts_with("//") || trimmed.starts_with('*') { return None; }
+                if trimmed.starts_with("//") || trimmed.starts_with('*') {
+                    return None;
+                }
                 let kws = [
                     ("password", "Hardcoded password"),
                     ("secret", "Hardcoded secret"),
@@ -2239,16 +2410,22 @@ fn patterns() -> Vec<RulePattern> {
                 None
             },
         },
-
         // ── GO patterns ───────────────────────────────────────────────────────
         RulePattern {
             rule_key: "go:S2704",
             matcher: |line| {
                 let trimmed = line.trim();
-                if trimmed.starts_with("//") { return None; }
+                if trimmed.starts_with("//") {
+                    return None;
+                }
                 if trimmed.contains(", _") && (trimmed.contains(":=") || trimmed.contains("= ")) {
                     let col = line.find(", _").unwrap_or(0) as u32;
-                    return Some((col, ", _".into(), "Error return value ignored via `_` — check the error or propagate it".into()));
+                    return Some((
+                        col,
+                        ", _".into(),
+                        "Error return value ignored via `_` — check the error or propagate it"
+                            .into(),
+                    ));
                 }
                 None
             },
@@ -2257,26 +2434,41 @@ fn patterns() -> Vec<RulePattern> {
             rule_key: "go:S6288",
             matcher: |line| {
                 let trimmed = line.trim();
-                if trimmed.starts_with("//") { return None; }
-                if trimmed.starts_with("defer ") && (line.contains("for ") || line.contains("range ")) {
+                if trimmed.starts_with("//") {
+                    return None;
+                }
+                if trimmed.starts_with("defer ")
+                    && (line.contains("for ") || line.contains("range "))
+                {
                     let col = line.find("defer").unwrap_or(0) as u32;
                     return Some((col, "defer".into(), "`defer` inside a loop — deferred calls run at function exit, not loop iteration; extract to a helper function".into()));
                 }
                 None
             },
         },
-
         // ── PHP patterns ──────────────────────────────────────────────────────
         RulePattern {
             rule_key: "php:S2076",
             matcher: |line| {
                 let trimmed = line.trim();
-                if trimmed.starts_with("//") || trimmed.starts_with('#') { return None; }
+                if trimmed.starts_with("//") || trimmed.starts_with('#') {
+                    return None;
+                }
                 if let Some(pos) = line.find("eval(") {
-                    return Some((pos as u32, "eval(".into(), "`eval()` executes arbitrary PHP — remove and use proper data structures".into()));
+                    return Some((
+                        pos as u32,
+                        "eval(".into(),
+                        "`eval()` executes arbitrary PHP — remove and use proper data structures"
+                            .into(),
+                    ));
                 }
                 if let Some(pos) = line.find("eval (") {
-                    return Some((pos as u32, "eval (".into(), "`eval()` executes arbitrary PHP — remove and use proper data structures".into()));
+                    return Some((
+                        pos as u32,
+                        "eval (".into(),
+                        "`eval()` executes arbitrary PHP — remove and use proper data structures"
+                            .into(),
+                    ));
                 }
                 None
             },
@@ -2286,14 +2478,19 @@ fn patterns() -> Vec<RulePattern> {
             matcher: |line| {
                 let low = line.to_lowercase();
                 let trimmed = line.trim();
-                if trimmed.starts_with("//") || trimmed.starts_with('#') || trimmed.starts_with('*') { return None; }
+                if trimmed.starts_with("//") || trimmed.starts_with('#') || trimmed.starts_with('*')
+                {
+                    return None;
+                }
                 let kws = [
                     ("password", "Hardcoded password"),
                     ("secret", "Hardcoded secret"),
                     ("api_key", "Hardcoded API key"),
                 ];
                 for (kw, msg) in &kws {
-                    if low.contains(kw) && (low.contains("= \"") || low.contains("= '") || low.contains("= <<<")) {
+                    if low.contains(kw)
+                        && (low.contains("= \"") || low.contains("= '") || low.contains("= <<<"))
+                    {
                         let col = low.find(kw).unwrap_or(0) as u32;
                         return Some((col, kw.to_string(), msg.to_string()));
                     }
@@ -2301,19 +2498,24 @@ fn patterns() -> Vec<RulePattern> {
                 None
             },
         },
-
         // ── SWIFT patterns ────────────────────────────────────────────────────
         RulePattern {
             rule_key: "swift:S6532",
             matcher: |line| {
                 let trimmed = line.trim();
-                if trimmed.starts_with("//") { return None; }
+                if trimmed.starts_with("//") {
+                    return None;
+                }
                 let bytes = line.as_bytes();
                 for i in 0..bytes.len() {
                     if bytes[i] == b'!' {
                         let next = bytes.get(i + 1).copied().unwrap_or(0);
                         let prev = if i > 0 { bytes[i - 1] } else { 0 };
-                        if next != b'=' && prev != b'!' && next != b'!' && (prev.is_ascii_alphanumeric() || prev == b')' || prev == b']') {
+                        if next != b'='
+                            && prev != b'!'
+                            && next != b'!'
+                            && (prev.is_ascii_alphanumeric() || prev == b')' || prev == b']')
+                        {
                             return Some((i as u32, "!".into(), "Force unwrap `!` crashes on nil — use `if let`, `guard let`, or `??` instead".into()));
                         }
                     }
@@ -2321,27 +2523,29 @@ fn patterns() -> Vec<RulePattern> {
                 None
             },
         },
-
         // ── KOTLIN patterns ───────────────────────────────────────────────────
         RulePattern {
             rule_key: "kotlin:S6531",
             matcher: |line| {
                 let trimmed = line.trim();
-                if trimmed.starts_with("//") { return None; }
+                if trimmed.starts_with("//") {
+                    return None;
+                }
                 if let Some(pos) = line.find("!!") {
                     return Some((pos as u32, "!!".into(), "Non-null assertion `!!` throws NullPointerException on null — use safe call `?.`, `?:`, or explicit null check".into()));
                 }
                 None
             },
         },
-
         // ── SQL patterns ──────────────────────────────────────────────────────
         RulePattern {
             rule_key: "sql:S2077",
             matcher: |line| {
                 let low = line.to_lowercase();
                 let trimmed = low.trim();
-                if trimmed.starts_with("--") || trimmed.starts_with("/*") { return None; }
+                if trimmed.starts_with("--") || trimmed.starts_with("/*") {
+                    return None;
+                }
                 if trimmed.contains("select *") || trimmed.starts_with("select *") {
                     let col = low.find("select *").unwrap_or(0) as u32;
                     return Some((col, "SELECT *".into(), "`SELECT *` retrieves all columns — enumerate only needed columns to avoid schema-change breakage and improve performance".into()));
@@ -2354,21 +2558,29 @@ fn patterns() -> Vec<RulePattern> {
             matcher: |line| {
                 let low = line.to_lowercase();
                 let trimmed = low.trim().to_string();
-                if trimmed.starts_with("--") { return None; }
+                if trimmed.starts_with("--") {
+                    return None;
+                }
                 let is_dml = trimmed.starts_with("delete ") || trimmed.starts_with("update ");
                 if is_dml && !low.contains(" where ") && !low.contains("\nwhere") {
-                    return Some((0u32, "DELETE/UPDATE without WHERE".into(), "DELETE or UPDATE without a WHERE clause will affect ALL rows in the table".into()));
+                    return Some((
+                        0u32,
+                        "DELETE/UPDATE without WHERE".into(),
+                        "DELETE or UPDATE without a WHERE clause will affect ALL rows in the table"
+                            .into(),
+                    ));
                 }
                 None
             },
         },
-
         // ── SOLIDITY patterns ─────────────────────────────────────────────────
         RulePattern {
             rule_key: "solidity:S6321",
             matcher: |line| {
                 let trimmed = line.trim();
-                if trimmed.starts_with("//") { return None; }
+                if trimmed.starts_with("//") {
+                    return None;
+                }
                 if let Some(pos) = line.find("tx.origin") {
                     return Some((pos as u32, "tx.origin".into(), "`tx.origin` used for authentication — use `msg.sender` instead to prevent phishing attacks".into()));
                 }
@@ -2380,13 +2592,17 @@ fn patterns() -> Vec<RulePattern> {
             matcher: |line| {
                 let low = line.to_lowercase();
                 let trimmed = line.trim();
-                if trimmed.starts_with("//") { return None; }
+                if trimmed.starts_with("//") {
+                    return None;
+                }
                 let kws = [
                     ("private_key", "Hardcoded private key"),
                     ("secret", "Hardcoded secret"),
                 ];
                 for (kw, msg) in &kws {
-                    if low.contains(kw) && (low.contains("= \"") || low.contains("= '") || low.contains("= 0x")) {
+                    if low.contains(kw)
+                        && (low.contains("= \"") || low.contains("= '") || low.contains("= 0x"))
+                    {
                         let col = low.find(kw).unwrap_or(0) as u32;
                         return Some((col, kw.to_string(), msg.to_string()));
                     }
@@ -2394,27 +2610,34 @@ fn patterns() -> Vec<RulePattern> {
                 None
             },
         },
-
         // ── RUBY patterns ─────────────────────────────────────────────────────
         RulePattern {
             rule_key: "ruby:S1481",
             matcher: |line| {
                 let trimmed = line.trim();
-                if trimmed.starts_with('#') { return None; }
+                if trimmed.starts_with('#') {
+                    return None;
+                }
                 if trimmed.starts_with("eval ") || trimmed.starts_with("eval(") {
                     let col = line.find("eval").unwrap_or(0) as u32;
-                    return Some((col, "eval".into(), "`eval` executes arbitrary Ruby code — this is a critical security risk".into()));
+                    return Some((
+                        col,
+                        "eval".into(),
+                        "`eval` executes arbitrary Ruby code — this is a critical security risk"
+                            .into(),
+                    ));
                 }
                 None
             },
         },
-
         // ── LUA patterns ──────────────────────────────────────────────────────
         RulePattern {
             rule_key: "lua:S1481",
             matcher: |line| {
                 let trimmed = line.trim();
-                if trimmed.starts_with("--") { return None; }
+                if trimmed.starts_with("--") {
+                    return None;
+                }
                 let is_assignment = trimmed.contains(" = ")
                     && !trimmed.starts_with("local ")
                     && !trimmed.starts_with("if ")
@@ -2426,25 +2649,42 @@ fn patterns() -> Vec<RulePattern> {
                     && !trimmed.starts_with("--");
                 if is_assignment {
                     let lhs = trimmed.split(" = ").next().unwrap_or("").trim();
-                    if !lhs.contains('.') && !lhs.contains('[') && !lhs.contains(':') && lhs.chars().all(|c| c.is_alphanumeric() || c == '_') && !lhs.is_empty() {
-                        return Some((0u32, lhs.to_string(), format!("`{}` assigned without `local` — may pollute global namespace", lhs)));
+                    if !lhs.contains('.')
+                        && !lhs.contains('[')
+                        && !lhs.contains(':')
+                        && lhs.chars().all(|c| c.is_alphanumeric() || c == '_')
+                        && !lhs.is_empty()
+                    {
+                        return Some((
+                            0u32,
+                            lhs.to_string(),
+                            format!(
+                                "`{}` assigned without `local` — may pollute global namespace",
+                                lhs
+                            ),
+                        ));
                     }
                 }
                 None
             },
         },
-
         // ── POWERSHELL patterns ───────────────────────────────────────────────
         RulePattern {
             rule_key: "powershell:S3649",
             matcher: |line| {
                 let trimmed = line.trim();
-                if trimmed.starts_with('#') { return None; }
+                if trimmed.starts_with('#') {
+                    return None;
+                }
                 if let Some(pos) = line.find("Invoke-Expression") {
                     return Some((pos as u32, "Invoke-Expression".into(), "`Invoke-Expression` with user input is equivalent to `eval` — use typed parameters and specific cmdlets".into()));
                 }
                 if let Some(pos) = line.find("iex ") {
-                    return Some((pos as u32, "iex".into(), "`iex` (Invoke-Expression alias) — avoid with user-controlled input".into()));
+                    return Some((
+                        pos as u32,
+                        "iex".into(),
+                        "`iex` (Invoke-Expression alias) — avoid with user-controlled input".into(),
+                    ));
                 }
                 None
             },
@@ -2454,7 +2694,9 @@ fn patterns() -> Vec<RulePattern> {
             matcher: |line| {
                 let low = line.to_lowercase();
                 let trimmed = line.trim();
-                if trimmed.starts_with('#') { return None; }
+                if trimmed.starts_with('#') {
+                    return None;
+                }
                 let kws = [
                     ("password", "Hardcoded password"),
                     ("-password ", "Hardcoded password in parameter"),
@@ -2469,13 +2711,14 @@ fn patterns() -> Vec<RulePattern> {
                 None
             },
         },
-
         // ── R patterns ────────────────────────────────────────────────────────
         RulePattern {
             rule_key: "r:S3518",
             matcher: |line| {
                 let trimmed = line.trim();
-                if trimmed.starts_with('#') { return None; }
+                if trimmed.starts_with('#') {
+                    return None;
+                }
                 for token in &[" = T", " = F", "(T)", "(F)", ", T,", ", F,", " T ", " F "] {
                     if line.contains(token) {
                         let col = line.find(token).unwrap_or(0) as u32;
@@ -2486,131 +2729,240 @@ fn patterns() -> Vec<RulePattern> {
             },
         },
         // Visual Basic — hardcoded creds
-        RulePattern { rule_key: "vb:S2068", matcher: |line| {
-            let low = line.to_lowercase(); let trimmed = line.trim();
-            if trimmed.starts_with('\'') { return None; }
-            let kws = [("password", "Hardcoded password"), ("secret", "Hardcoded secret"), ("apikey", "Hardcoded API key"), ("api_key", "Hardcoded API key")];
-            for (kw, msg) in &kws {
-                if low.contains(kw) && (low.contains("= \"") || low.contains("= '")) {
-                    let col = low.find(kw).unwrap_or(0) as u32;
-                    return Some((col, kw.to_string(), msg.to_string()));
+        RulePattern {
+            rule_key: "vb:S2068",
+            matcher: |line| {
+                let low = line.to_lowercase();
+                let trimmed = line.trim();
+                if trimmed.starts_with('\'') {
+                    return None;
                 }
-            }
-            None
-        }},
+                let kws = [
+                    ("password", "Hardcoded password"),
+                    ("secret", "Hardcoded secret"),
+                    ("apikey", "Hardcoded API key"),
+                    ("api_key", "Hardcoded API key"),
+                ];
+                for (kw, msg) in &kws {
+                    if low.contains(kw) && (low.contains("= \"") || low.contains("= '")) {
+                        let col = low.find(kw).unwrap_or(0) as u32;
+                        return Some((col, kw.to_string(), msg.to_string()));
+                    }
+                }
+                None
+            },
+        },
         // Objective-C — hardcoded creds
-        RulePattern { rule_key: "objc:S2068", matcher: |line| {
-            let low = line.to_lowercase(); let trimmed = line.trim();
-            if trimmed.starts_with("//") || trimmed.starts_with("/*") || trimmed.starts_with('*') { return None; }
-            let kws = [("password", "Hardcoded password"), ("secret", "Hardcoded secret"), ("apikey", "Hardcoded API key"), ("api_key", "Hardcoded API key")];
-            for (kw, msg) in &kws {
-                if low.contains(kw) && (low.contains("= @\"") || low.contains("= \"")) {
-                    let col = low.find(kw).unwrap_or(0) as u32;
-                    return Some((col, kw.to_string(), msg.to_string()));
+        RulePattern {
+            rule_key: "objc:S2068",
+            matcher: |line| {
+                let low = line.to_lowercase();
+                let trimmed = line.trim();
+                if trimmed.starts_with("//")
+                    || trimmed.starts_with("/*")
+                    || trimmed.starts_with('*')
+                {
+                    return None;
                 }
-            }
-            None
-        }},
+                let kws = [
+                    ("password", "Hardcoded password"),
+                    ("secret", "Hardcoded secret"),
+                    ("apikey", "Hardcoded API key"),
+                    ("api_key", "Hardcoded API key"),
+                ];
+                for (kw, msg) in &kws {
+                    if low.contains(kw) && (low.contains("= @\"") || low.contains("= \"")) {
+                        let col = low.find(kw).unwrap_or(0) as u32;
+                        return Some((col, kw.to_string(), msg.to_string()));
+                    }
+                }
+                None
+            },
+        },
         // Julia — hardcoded creds
-        RulePattern { rule_key: "julia:S2068", matcher: |line| {
-            let low = line.to_lowercase(); let trimmed = line.trim();
-            if trimmed.starts_with('#') { return None; }
-            let kws = [("password", "Hardcoded password"), ("secret", "Hardcoded secret"), ("api_key", "Hardcoded API key")];
-            for (kw, msg) in &kws {
-                if low.contains(kw) && (low.contains("= \"") || low.contains("= '")) {
-                    let col = low.find(kw).unwrap_or(0) as u32;
-                    return Some((col, kw.to_string(), msg.to_string()));
+        RulePattern {
+            rule_key: "julia:S2068",
+            matcher: |line| {
+                let low = line.to_lowercase();
+                let trimmed = line.trim();
+                if trimmed.starts_with('#') {
+                    return None;
                 }
-            }
-            None
-        }},
+                let kws = [
+                    ("password", "Hardcoded password"),
+                    ("secret", "Hardcoded secret"),
+                    ("api_key", "Hardcoded API key"),
+                ];
+                for (kw, msg) in &kws {
+                    if low.contains(kw) && (low.contains("= \"") || low.contains("= '")) {
+                        let col = low.find(kw).unwrap_or(0) as u32;
+                        return Some((col, kw.to_string(), msg.to_string()));
+                    }
+                }
+                None
+            },
+        },
         // Erlang — hardcoded creds
-        RulePattern { rule_key: "erlang:S2068", matcher: |line| {
-            let low = line.to_lowercase(); let trimmed = line.trim();
-            if trimmed.starts_with('%') { return None; }
-            let kws = [("password", "Hardcoded password"), ("secret", "Hardcoded secret"), ("api_key", "Hardcoded API key")];
-            for (kw, msg) in &kws {
-                if low.contains(kw) && (low.contains("<<\"") || low.contains("= \"") || low.contains(": \"")) {
-                    let col = low.find(kw).unwrap_or(0) as u32;
-                    return Some((col, kw.to_string(), msg.to_string()));
+        RulePattern {
+            rule_key: "erlang:S2068",
+            matcher: |line| {
+                let low = line.to_lowercase();
+                let trimmed = line.trim();
+                if trimmed.starts_with('%') {
+                    return None;
                 }
-            }
-            None
-        }},
+                let kws = [
+                    ("password", "Hardcoded password"),
+                    ("secret", "Hardcoded secret"),
+                    ("api_key", "Hardcoded API key"),
+                ];
+                for (kw, msg) in &kws {
+                    if low.contains(kw)
+                        && (low.contains("<<\"") || low.contains("= \"") || low.contains(": \""))
+                    {
+                        let col = low.find(kw).unwrap_or(0) as u32;
+                        return Some((col, kw.to_string(), msg.to_string()));
+                    }
+                }
+                None
+            },
+        },
         // OCaml — hardcoded creds
-        RulePattern { rule_key: "ocaml:S2068", matcher: |line| {
-            let low = line.to_lowercase(); let trimmed = line.trim();
-            if trimmed.starts_with("(*") || trimmed.starts_with('*') { return None; }
-            let kws = [("password", "Hardcoded password"), ("secret", "Hardcoded secret"), ("api_key", "Hardcoded API key")];
-            for (kw, msg) in &kws {
-                if low.contains(kw) && (low.contains("= \"") || low.contains("\"")) {
-                    let col = low.find(kw).unwrap_or(0) as u32;
-                    return Some((col, kw.to_string(), msg.to_string()));
+        RulePattern {
+            rule_key: "ocaml:S2068",
+            matcher: |line| {
+                let low = line.to_lowercase();
+                let trimmed = line.trim();
+                if trimmed.starts_with("(*") || trimmed.starts_with('*') {
+                    return None;
                 }
-            }
-            None
-        }},
+                let kws = [
+                    ("password", "Hardcoded password"),
+                    ("secret", "Hardcoded secret"),
+                    ("api_key", "Hardcoded API key"),
+                ];
+                for (kw, msg) in &kws {
+                    if low.contains(kw) && (low.contains("= \"") || low.contains("\"")) {
+                        let col = low.find(kw).unwrap_or(0) as u32;
+                        return Some((col, kw.to_string(), msg.to_string()));
+                    }
+                }
+                None
+            },
+        },
         // MATLAB — hardcoded creds
-        RulePattern { rule_key: "matlab:S2068", matcher: |line| {
-            let low = line.to_lowercase(); let trimmed = line.trim();
-            if trimmed.starts_with('%') { return None; }
-            let kws = [("password", "Hardcoded password"), ("secret", "Hardcoded secret"), ("api_key", "Hardcoded API key")];
-            for (kw, msg) in &kws {
-                if low.contains(kw) && (low.contains("= '") || low.contains("= \"")) {
-                    let col = low.find(kw).unwrap_or(0) as u32;
-                    return Some((col, kw.to_string(), msg.to_string()));
+        RulePattern {
+            rule_key: "matlab:S2068",
+            matcher: |line| {
+                let low = line.to_lowercase();
+                let trimmed = line.trim();
+                if trimmed.starts_with('%') {
+                    return None;
                 }
-            }
-            None
-        }},
+                let kws = [
+                    ("password", "Hardcoded password"),
+                    ("secret", "Hardcoded secret"),
+                    ("api_key", "Hardcoded API key"),
+                ];
+                for (kw, msg) in &kws {
+                    if low.contains(kw) && (low.contains("= '") || low.contains("= \"")) {
+                        let col = low.find(kw).unwrap_or(0) as u32;
+                        return Some((col, kw.to_string(), msg.to_string()));
+                    }
+                }
+                None
+            },
+        },
         // ABAP — dynamic SQL / hardcoded creds
-        RulePattern { rule_key: "abap:S3649", matcher: |line| {
-            let low = line.to_lowercase(); let trimmed = line.trim();
-            if trimmed.starts_with('*') || trimmed.starts_with('"') { return None; }
-            if low.contains("select") && (low.contains("&") || low.contains("(lv_") || low.contains("(v_")) {
-                let col = low.find("select").unwrap_or(0) as u32;
-                return Some((col, "SELECT".into(), "Dynamic OPEN SQL may be vulnerable to injection — use static SQL or parameterized queries".into()));
-            }
-            None
-        }},
-        RulePattern { rule_key: "abap:S2068", matcher: |line| {
-            let low = line.to_lowercase(); let trimmed = line.trim();
-            if trimmed.starts_with('*') || trimmed.starts_with('"') { return None; }
-            let kws = [("password", "Hardcoded password"), ("passwd", "Hardcoded password"), ("secret", "Hardcoded secret")];
-            for (kw, msg) in &kws {
-                if low.contains(kw) && (low.contains("= '") || low.contains("= \"") || low.contains("value '")) {
-                    let col = low.find(kw).unwrap_or(0) as u32;
-                    return Some((col, kw.to_string(), msg.to_string()));
+        RulePattern {
+            rule_key: "abap:S3649",
+            matcher: |line| {
+                let low = line.to_lowercase();
+                let trimmed = line.trim();
+                if trimmed.starts_with('*') || trimmed.starts_with('"') {
+                    return None;
                 }
-            }
-            None
-        }},
+                if low.contains("select")
+                    && (low.contains("&") || low.contains("(lv_") || low.contains("(v_"))
+                {
+                    let col = low.find("select").unwrap_or(0) as u32;
+                    return Some((col, "SELECT".into(), "Dynamic OPEN SQL may be vulnerable to injection — use static SQL or parameterized queries".into()));
+                }
+                None
+            },
+        },
+        RulePattern {
+            rule_key: "abap:S2068",
+            matcher: |line| {
+                let low = line.to_lowercase();
+                let trimmed = line.trim();
+                if trimmed.starts_with('*') || trimmed.starts_with('"') {
+                    return None;
+                }
+                let kws = [
+                    ("password", "Hardcoded password"),
+                    ("passwd", "Hardcoded password"),
+                    ("secret", "Hardcoded secret"),
+                ];
+                for (kw, msg) in &kws {
+                    if low.contains(kw)
+                        && (low.contains("= '") || low.contains("= \"") || low.contains("value '"))
+                    {
+                        let col = low.find(kw).unwrap_or(0) as u32;
+                        return Some((col, kw.to_string(), msg.to_string()));
+                    }
+                }
+                None
+            },
+        },
         // Delphi — hardcoded creds
-        RulePattern { rule_key: "delphi:S2068", matcher: |line| {
-            let low = line.to_lowercase(); let trimmed = line.trim();
-            if trimmed.starts_with("//") || trimmed.starts_with('{') { return None; }
-            let kws = [("password", "Hardcoded password"), ("secret", "Hardcoded secret"), ("apikey", "Hardcoded API key")];
-            for (kw, msg) in &kws {
-                if low.contains(kw) && (low.contains(":= '") || low.contains("= '") || low.contains(":= \"")) {
-                    let col = low.find(kw).unwrap_or(0) as u32;
-                    return Some((col, kw.to_string(), msg.to_string()));
+        RulePattern {
+            rule_key: "delphi:S2068",
+            matcher: |line| {
+                let low = line.to_lowercase();
+                let trimmed = line.trim();
+                if trimmed.starts_with("//") || trimmed.starts_with('{') {
+                    return None;
                 }
-            }
-            None
-        }},
+                let kws = [
+                    ("password", "Hardcoded password"),
+                    ("secret", "Hardcoded secret"),
+                    ("apikey", "Hardcoded API key"),
+                ];
+                for (kw, msg) in &kws {
+                    if low.contains(kw)
+                        && (low.contains(":= '") || low.contains("= '") || low.contains(":= \""))
+                    {
+                        let col = low.find(kw).unwrap_or(0) as u32;
+                        return Some((col, kw.to_string(), msg.to_string()));
+                    }
+                }
+                None
+            },
+        },
         // Zig — hardcoded creds
-        RulePattern { rule_key: "zig:S2068", matcher: |line| {
-            let low = line.to_lowercase(); let trimmed = line.trim();
-            if trimmed.starts_with("//") { return None; }
-            let kws = [("password", "Hardcoded password"), ("secret", "Hardcoded secret"), ("api_key", "Hardcoded API key")];
-            for (kw, msg) in &kws {
-                if low.contains(kw) && (low.contains("= \"") || low.contains("= '")) {
-                    let col = low.find(kw).unwrap_or(0) as u32;
-                    return Some((col, kw.to_string(), msg.to_string()));
+        RulePattern {
+            rule_key: "zig:S2068",
+            matcher: |line| {
+                let low = line.to_lowercase();
+                let trimmed = line.trim();
+                if trimmed.starts_with("//") {
+                    return None;
                 }
-            }
-            None
-        }},
+                let kws = [
+                    ("password", "Hardcoded password"),
+                    ("secret", "Hardcoded secret"),
+                    ("api_key", "Hardcoded API key"),
+                ];
+                for (kw, msg) in &kws {
+                    if low.contains(kw) && (low.contains("= \"") || low.contains("= '")) {
+                        let col = low.find(kw).unwrap_or(0) as u32;
+                        return Some((col, kw.to_string(), msg.to_string()));
+                    }
+                }
+                None
+            },
+        },
     ]
 }
 
@@ -2642,16 +2994,20 @@ pub fn scan_content(file_path: &str, content: &str) -> SonarScanResult {
     if max_depth >= 5 {
         let ext_for_complexity = file_path.rsplit('.').next().unwrap_or("");
         let complexity_rule_key = match ext_for_complexity {
-            "rs"                         => "rust:S3776",
-            "py" | "pyw"                 => "python:S3776",
-            "kt" | "kts"                 => "kotlin:S3776",
-            "scala" | "sc"               => "scala:S3776",
-            "ts" | "tsx" | "js" | "jsx"  => "typescript:S3776",
-            _                            => "typescript:S3776",
+            "rs" => "rust:S3776",
+            "py" | "pyw" => "python:S3776",
+            "kt" | "kts" => "kotlin:S3776",
+            "scala" | "sc" => "scala:S3776",
+            "ts" | "tsx" | "js" | "jsx" => "typescript:S3776",
+            _ => "typescript:S3776",
         };
         let key = complexity_rule_key;
         if let Some(rule) = rules_map.get(key) {
-            let snippet = lines.get(complexity_line.saturating_sub(1) as usize).copied().unwrap_or("").to_string();
+            let snippet = lines
+                .get(complexity_line.saturating_sub(1) as usize)
+                .copied()
+                .unwrap_or("")
+                .to_string();
             issues.push(SonarIssue {
                 rule_key: rule.key.clone(),
                 rule_name: rule.name.clone(),
@@ -2675,43 +3031,43 @@ pub fn scan_content(file_path: &str, content: &str) -> SonarScanResult {
     // Detect TODO/FIXME in general files — select language-appropriate rule key
     let todo_ext = file_path.rsplit('.').next().unwrap_or("");
     let todo_rule_key = match todo_ext {
-        "rs"                                                 => "rust:S1135",
-        "py" | "pyw"                                         => "python:S1135",
-        "c" | "h"                                            => "c:S1135",
-        "cpp" | "cc" | "cxx" | "hpp"                         => "cpp:S1135",
-        "java"                                               => "java:S1135",
-        "cs"                                                 => "csharp:S1135",
-        "php"                                                => "php:S1135",
-        "go"                                                 => "go:S1135",
-        "swift"                                              => "swift:S1135",
-        "kt" | "kts"                                         => "kotlin:S1135",
-        "rb"                                                 => "ruby:S1135",
-        "pl" | "pm"                                          => "perl:S1135",
-        "lua"                                                => "lua:S1135",
-        "scala" | "sc"                                       => "scala:S1135",
-        "dart"                                               => "dart:S1135",
-        "hs" | "lhs"                                         => "haskell:S1135",
-        "cob" | "cbl"                                        => "cobol:S1135",
+        "rs" => "rust:S1135",
+        "py" | "pyw" => "python:S1135",
+        "c" | "h" => "c:S1135",
+        "cpp" | "cc" | "cxx" | "hpp" => "cpp:S1135",
+        "java" => "java:S1135",
+        "cs" => "csharp:S1135",
+        "php" => "php:S1135",
+        "go" => "go:S1135",
+        "swift" => "swift:S1135",
+        "kt" | "kts" => "kotlin:S1135",
+        "rb" => "ruby:S1135",
+        "pl" | "pm" => "perl:S1135",
+        "lua" => "lua:S1135",
+        "scala" | "sc" => "scala:S1135",
+        "dart" => "dart:S1135",
+        "hs" | "lhs" => "haskell:S1135",
+        "cob" | "cbl" => "cobol:S1135",
         "f" | "f90" | "f95" | "f03" | "f08" | "for" | "ftn" => "fortran:S1135",
-        "r" | "R"                                            => "r:S1135",
-        "ps1" | "psm1"                                       => "powershell:S1135",
-        "vb" | "vbs" | "bas" | "cls" | "frm"                => "vb:S1135",
-        "m" | "mm"                                           => "objc:S1135",
-        "jl"                                                 => "julia:S1135",
-        "ml" | "mli" | "sml" | "sig" | "fun"                => "ocaml:S1135",
-        "erl" | "hrl"                                        => "erlang:S1135",
-        "mat" | "mlx" | "mlapp"                              => "matlab:S1135",
-        "abap" | "prog" | "clas" | "fugr"                    => "abap:S1135",
-        "pas" | "pp" | "dpr" | "dfm"                         => "delphi:S1135",
-        "zig" | "zon"                                        => "zig:S1135",
-        "pls" | "plsql" | "pkb" | "pks" | "pck"             => "sql:S1135",
-        "sas"                                                => "sas:S1135",
-        "asm" | "s" | "nasm"                                 => "assembly:S1135",
-        "adb" | "ads" | "ada"                                => "ada:S1135",
-        "pro" | "prolog"                                     => "prolog:S1135",
-        "lisp" | "lsp" | "cl" | "el"                         => "lisp:S1135",
-        "ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs"         => "typescript:S1135",
-        _                                                    => "general:S1135",
+        "r" | "R" => "r:S1135",
+        "ps1" | "psm1" => "powershell:S1135",
+        "vb" | "vbs" | "bas" | "cls" | "frm" => "vb:S1135",
+        "m" | "mm" => "objc:S1135",
+        "jl" => "julia:S1135",
+        "ml" | "mli" | "sml" | "sig" | "fun" => "ocaml:S1135",
+        "erl" | "hrl" => "erlang:S1135",
+        "mat" | "mlx" | "mlapp" => "matlab:S1135",
+        "abap" | "prog" | "clas" | "fugr" => "abap:S1135",
+        "pas" | "pp" | "dpr" | "dfm" => "delphi:S1135",
+        "zig" | "zon" => "zig:S1135",
+        "pls" | "plsql" | "pkb" | "pks" | "pck" => "sql:S1135",
+        "sas" => "sas:S1135",
+        "asm" | "s" | "nasm" => "assembly:S1135",
+        "adb" | "ads" | "ada" => "ada:S1135",
+        "pro" | "prolog" => "prolog:S1135",
+        "lisp" | "lsp" | "cl" | "el" => "lisp:S1135",
+        "ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs" => "typescript:S1135",
+        _ => "general:S1135",
     };
 
     // Pattern scan — line-by-line
@@ -2719,94 +3075,102 @@ pub fn scan_content(file_path: &str, content: &str) -> SonarScanResult {
         let ln = line_idx as u32 + 1;
         for pat in &pats {
             // Skip TODO/FIXME patterns here — handled separately below to avoid duplicates
-            if pat.rule_key.ends_with(":S1135") { continue; }
+            if pat.rule_key.ends_with(":S1135") {
+                continue;
+            }
 
             // Determine file language from extension
             let ext = file_path.rsplit('.').next().unwrap_or("");
-            let is_rust       = ext == "rs";
-            let is_ts         = matches!(ext, "ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs");
-            let is_python     = matches!(ext, "py" | "pyw" | "pyi");
-            let is_c          = matches!(ext, "c" | "h");
-            let is_cpp        = matches!(ext, "cpp" | "cc" | "cxx" | "hpp" | "hxx");
-            let is_java       = ext == "java";
-            let is_csharp     = ext == "cs";
-            let is_php        = matches!(ext, "php" | "php3" | "php4" | "php5" | "phtml");
-            let is_go         = ext == "go";
-            let is_swift      = ext == "swift";
-            let is_kotlin     = matches!(ext, "kt" | "kts");
-            let is_ruby       = matches!(ext, "rb" | "erb" | "rake");
-            let is_sql        = matches!(ext, "sql" | "ddl" | "dml" | "tsql" | "mysql" | "pgsql");
-            let is_solidity   = ext == "sol";
+            let is_rust = ext == "rs";
+            let is_ts = matches!(ext, "ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs");
+            let is_python = matches!(ext, "py" | "pyw" | "pyi");
+            let is_c = matches!(ext, "c" | "h");
+            let is_cpp = matches!(ext, "cpp" | "cc" | "cxx" | "hpp" | "hxx");
+            let is_java = ext == "java";
+            let is_csharp = ext == "cs";
+            let is_php = matches!(ext, "php" | "php3" | "php4" | "php5" | "phtml");
+            let is_go = ext == "go";
+            let is_swift = ext == "swift";
+            let is_kotlin = matches!(ext, "kt" | "kts");
+            let is_ruby = matches!(ext, "rb" | "erb" | "rake");
+            let is_sql = matches!(ext, "sql" | "ddl" | "dml" | "tsql" | "mysql" | "pgsql");
+            let is_solidity = ext == "sol";
             let is_powershell = matches!(ext, "ps1" | "psm1" | "psd1");
-            let is_perl       = matches!(ext, "pl" | "pm");
-            let is_lua        = ext == "lua";
-            let is_scala      = matches!(ext, "scala" | "sc");
-            let is_dart       = ext == "dart";
-            let is_haskell    = matches!(ext, "hs" | "lhs");
-            let is_cobol      = matches!(ext, "cob" | "cbl" | "cpy");
-            let is_fortran    = matches!(ext, "f" | "f90" | "f95" | "f03" | "f08" | "for" | "ftn");
-            let is_r          = matches!(ext, "r" | "R");
+            let is_perl = matches!(ext, "pl" | "pm");
+            let is_lua = ext == "lua";
+            let is_scala = matches!(ext, "scala" | "sc");
+            let is_dart = ext == "dart";
+            let is_haskell = matches!(ext, "hs" | "lhs");
+            let is_cobol = matches!(ext, "cob" | "cbl" | "cpy");
+            let is_fortran = matches!(ext, "f" | "f90" | "f95" | "f03" | "f08" | "for" | "ftn");
+            let is_r = matches!(ext, "r" | "R");
             // New TIOBE languages
-            let is_vb         = matches!(ext, "vb" | "vbs" | "bas" | "cls" | "frm");
-            let is_objc       = matches!(ext, "m" | "mm");
-            let is_julia      = ext == "jl";
-            let is_ocaml      = matches!(ext, "ml" | "mli" | "sml" | "sig" | "fun");
-            let is_erlang     = matches!(ext, "erl" | "hrl");
-            let is_matlab     = matches!(ext, "m" | "mat" | "mlx" | "mlapp");
-            let is_abap       = matches!(ext, "abap" | "prog" | "clas" | "fugr");
-            let is_delphi     = matches!(ext, "pas" | "pp" | "dpr" | "dfm");
-            let is_zig        = ext == "zig";
-            let is_plsql      = matches!(ext, "pls" | "plsql" | "pkb" | "pks" | "pck");
-            let is_sas        = ext == "sas";
+            let is_vb = matches!(ext, "vb" | "vbs" | "bas" | "cls" | "frm");
+            let is_objc = matches!(ext, "m" | "mm");
+            let is_julia = ext == "jl";
+            let is_ocaml = matches!(ext, "ml" | "mli" | "sml" | "sig" | "fun");
+            let is_erlang = matches!(ext, "erl" | "hrl");
+            let is_matlab = matches!(ext, "m" | "mat" | "mlx" | "mlapp");
+            let is_abap = matches!(ext, "abap" | "prog" | "clas" | "fugr");
+            let is_delphi = matches!(ext, "pas" | "pp" | "dpr" | "dfm");
+            let is_zig = ext == "zig";
+            let is_plsql = matches!(ext, "pls" | "plsql" | "pkb" | "pks" | "pck");
+            let is_sas = ext == "sas";
 
             let rule_lang = pat.rule_key.split(':').next().unwrap_or("");
             let allowed = match rule_lang {
                 "typescript" | "javascript" => is_ts,
-                "rust"        => is_rust,
-                "python"      => is_python,
-                "c"           => is_c || is_cpp,
-                "cpp"         => is_cpp,
-                "java"        => is_java,
-                "csharp"      => is_csharp,
-                "php"         => is_php,
-                "go"          => is_go,
-                "swift"       => is_swift,
-                "kotlin"      => is_kotlin,
-                "ruby"        => is_ruby,
-                "sql"         => is_sql || is_plsql,
-                "solidity"    => is_solidity,
-                "powershell"  => is_powershell,
-                "perl"        => is_perl,
-                "lua"         => is_lua,
-                "scala"       => is_scala,
-                "dart"        => is_dart,
-                "haskell"     => is_haskell,
-                "cobol"       => is_cobol,
-                "fortran"     => is_fortran,
-                "r"           => is_r,
-                "vb"          => is_vb,
-                "objc"        => is_objc,
-                "julia"       => is_julia,
-                "ocaml"       => is_ocaml,
-                "erlang"      => is_erlang,
-                "matlab"      => is_matlab,
-                "abap"        => is_abap,
-                "delphi"      => is_delphi,
-                "zig"         => is_zig,
-                "plsql"       => is_plsql,
-                "sas"         => is_sas,
-                "assembly"    => matches!(ext, "asm" | "s" | "nasm" | "S"),
-                "ada"         => matches!(ext, "adb" | "ads" | "ada"),
-                "prolog"      => matches!(ext, "pro" | "prolog"),
-                "lisp"        => matches!(ext, "lisp" | "lsp" | "cl" | "el"),
-                "general"     => true,
-                _             => true,
+                "rust" => is_rust,
+                "python" => is_python,
+                "c" => is_c || is_cpp,
+                "cpp" => is_cpp,
+                "java" => is_java,
+                "csharp" => is_csharp,
+                "php" => is_php,
+                "go" => is_go,
+                "swift" => is_swift,
+                "kotlin" => is_kotlin,
+                "ruby" => is_ruby,
+                "sql" => is_sql || is_plsql,
+                "solidity" => is_solidity,
+                "powershell" => is_powershell,
+                "perl" => is_perl,
+                "lua" => is_lua,
+                "scala" => is_scala,
+                "dart" => is_dart,
+                "haskell" => is_haskell,
+                "cobol" => is_cobol,
+                "fortran" => is_fortran,
+                "r" => is_r,
+                "vb" => is_vb,
+                "objc" => is_objc,
+                "julia" => is_julia,
+                "ocaml" => is_ocaml,
+                "erlang" => is_erlang,
+                "matlab" => is_matlab,
+                "abap" => is_abap,
+                "delphi" => is_delphi,
+                "zig" => is_zig,
+                "plsql" => is_plsql,
+                "sas" => is_sas,
+                "assembly" => matches!(ext, "asm" | "s" | "nasm" | "S"),
+                "ada" => matches!(ext, "adb" | "ads" | "ada"),
+                "prolog" => matches!(ext, "pro" | "prolog"),
+                "lisp" => matches!(ext, "lisp" | "lsp" | "cl" | "el"),
+                "general" => true,
+                _ => true,
             };
-            if !allowed { continue; }
+            if !allowed {
+                continue;
+            }
 
             if let Some((col, _fragment, message)) = (pat.matcher)(line_content) {
                 if let Some(rule) = rules_map.get(pat.rule_key) {
-                    let context_before = if line_idx > 0 { lines[line_idx - 1].to_string() } else { String::new() };
+                    let context_before = if line_idx > 0 {
+                        lines[line_idx - 1].to_string()
+                    } else {
+                        String::new()
+                    };
                     let context_after = lines.get(line_idx + 1).copied().unwrap_or("").to_string();
                     issues.push(SonarIssue {
                         rule_key: rule.key.clone(),
@@ -2834,8 +3198,15 @@ pub fn scan_content(file_path: &str, content: &str) -> SonarScanResult {
         for marker in &["TODO", "FIXME", "HACK", "XXX"] {
             if trimmed.contains(marker) {
                 let col = line_content.find(marker).unwrap_or(0) as u32;
-                if let Some(rule) = rules_map.get(todo_rule_key).or_else(|| rules_map.get("general:S1135")) {
-                    let context_before = if line_idx > 0 { lines[line_idx - 1].to_string() } else { String::new() };
+                if let Some(rule) = rules_map
+                    .get(todo_rule_key)
+                    .or_else(|| rules_map.get("general:S1135"))
+                {
+                    let context_before = if line_idx > 0 {
+                        lines[line_idx - 1].to_string()
+                    } else {
+                        String::new()
+                    };
                     let context_after = lines.get(line_idx + 1).copied().unwrap_or("").to_string();
                     issues.push(SonarIssue {
                         rule_key: rule.key.clone(),
@@ -2864,18 +3235,35 @@ pub fn scan_content(file_path: &str, content: &str) -> SonarScanResult {
     for (line_idx, &line_content) in lines.iter().enumerate() {
         let ln = line_idx as u32 + 1;
         let trimmed = line_content.trim();
-        if (trimmed.contains("function ") || trimmed.contains("fn ") || trimmed.contains("=> {")) && trimmed.contains('(') {
+        if (trimmed.contains("function ") || trimmed.contains("fn ") || trimmed.contains("=> {"))
+            && trimmed.contains('(')
+        {
             if let Some(start) = line_content.find('(') {
                 if let Some(end) = line_content[start..].find(')') {
                     let params_str = &line_content[start + 1..start + end];
-                    let param_count = if params_str.trim().is_empty() { 0 } else { params_str.split(',').count() };
+                    let param_count = if params_str.trim().is_empty() {
+                        0
+                    } else {
+                        params_str.split(',').count()
+                    };
                     if param_count > 7 {
-                        let rule_key = if file_path.ends_with(".rs") { "rust:S107" } else { "typescript:S107" };
+                        let rule_key = if file_path.ends_with(".rs") {
+                            "rust:S107"
+                        } else {
+                            "typescript:S107"
+                        };
                         // Use general rule if specific not found
-                        let rule = rules_map.get(rule_key).or_else(|| rules_map.get("typescript:S107"));
+                        let rule = rules_map
+                            .get(rule_key)
+                            .or_else(|| rules_map.get("typescript:S107"));
                         if let Some(rule) = rule {
-                            let context_before = if line_idx > 0 { lines[line_idx - 1].to_string() } else { String::new() };
-                            let context_after = lines.get(line_idx + 1).copied().unwrap_or("").to_string();
+                            let context_before = if line_idx > 0 {
+                                lines[line_idx - 1].to_string()
+                            } else {
+                                String::new()
+                            };
+                            let context_after =
+                                lines.get(line_idx + 1).copied().unwrap_or("").to_string();
                             issues.push(SonarIssue {
                                 rule_key: rule.key.clone(),
                                 rule_name: rule.name.clone(),
@@ -2901,12 +3289,22 @@ pub fn scan_content(file_path: &str, content: &str) -> SonarScanResult {
     }
 
     let bugs = issues.iter().filter(|i| i.issue_type == "BUG").count() as u32;
-    let vulns = issues.iter().filter(|i| i.issue_type == "VULNERABILITY").count() as u32;
-    let smells = issues.iter().filter(|i| i.issue_type == "CODE_SMELL").count() as u32;
-    let hotspots = issues.iter().filter(|i| i.issue_type == "SECURITY_HOTSPOT").count() as u32;
-    let debt = issues.iter().map(|i| {
-        i.effort.trim_end_matches("min").parse::<u32>().unwrap_or(0)
-    }).sum();
+    let vulns = issues
+        .iter()
+        .filter(|i| i.issue_type == "VULNERABILITY")
+        .count() as u32;
+    let smells = issues
+        .iter()
+        .filter(|i| i.issue_type == "CODE_SMELL")
+        .count() as u32;
+    let hotspots = issues
+        .iter()
+        .filter(|i| i.issue_type == "SECURITY_HOTSPOT")
+        .count() as u32;
+    let debt = issues
+        .iter()
+        .map(|i| i.effort.trim_end_matches("min").parse::<u32>().unwrap_or(0))
+        .sum();
 
     SonarScanResult {
         file: file_path.to_string(),

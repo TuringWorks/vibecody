@@ -147,12 +147,23 @@ mod tests {
     #[test]
     fn all_attribute_keys_unique() {
         let keys = vec![
-            ATTR_SESSION_ID, ATTR_TASK, ATTR_STEP_NUM, ATTR_TOOL_NAME,
-            ATTR_TOOL_SUCCESS, ATTR_TOOL_APPROVED, ATTR_LLM_MODEL,
-            ATTR_LLM_MESSAGE_COUNT, ATTR_HOOK_EVENT, ATTR_HOOK_DECISION,
+            ATTR_SESSION_ID,
+            ATTR_TASK,
+            ATTR_STEP_NUM,
+            ATTR_TOOL_NAME,
+            ATTR_TOOL_SUCCESS,
+            ATTR_TOOL_APPROVED,
+            ATTR_LLM_MODEL,
+            ATTR_LLM_MESSAGE_COUNT,
+            ATTR_HOOK_EVENT,
+            ATTR_HOOK_DECISION,
             ATTR_HOOK_BLOCK_REASON,
         ];
         let unique: std::collections::HashSet<&str> = keys.iter().cloned().collect();
-        assert_eq!(unique.len(), keys.len(), "All attribute keys should be unique");
+        assert_eq!(
+            unique.len(),
+            keys.len(),
+            "All attribute keys should be unique"
+        );
     }
 }

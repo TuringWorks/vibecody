@@ -2,10 +2,9 @@
  * BDD tests for the post-compaction session health probe.
  * Run with: cargo test --test session_health_probe_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::session_health_probe::{
-    PostCompactionProbe, ProbeConfig, ProbeResult,
-    ResponsiveMockChecker, UnresponsiveMockChecker,
+    PostCompactionProbe, ProbeConfig, ProbeResult, ResponsiveMockChecker, UnresponsiveMockChecker,
 };
 
 #[derive(Debug, Default, World)]
@@ -26,7 +25,9 @@ fn responsive_executor(world: &mut ShpWorld) {
 #[given("an unresponsive tool executor")]
 fn unresponsive_executor(world: &mut ShpWorld) {
     world.probe = Some(PostCompactionProbe::new(ProbeConfig::default()));
-    let checker = UnresponsiveMockChecker { reason: "timeout".into() };
+    let checker = UnresponsiveMockChecker {
+        reason: "timeout".into(),
+    };
     world.result = Some(world.probe.as_ref().unwrap().run(&checker));
 }
 
@@ -60,7 +61,10 @@ fn check_healthy(world: &mut ShpWorld) {
 
 #[then("the result should be Failed")]
 fn check_failed(world: &mut ShpWorld) {
-    assert!(matches!(world.result.as_ref().unwrap(), ProbeResult::Failed(_)));
+    assert!(matches!(
+        world.result.as_ref().unwrap(),
+        ProbeResult::Failed(_)
+    ));
 }
 
 #[then(expr = "the mapped health state should be {string}")]
@@ -80,7 +84,5 @@ fn check_probe_false(world: &mut ShpWorld) {
 }
 
 fn main() {
-    futures::executor::block_on(
-        ShpWorld::run("tests/features/session_health_probe.feature"),
-    );
+    futures::executor::block_on(ShpWorld::run("tests/features/session_health_probe.feature"));
 }

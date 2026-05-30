@@ -272,7 +272,10 @@ impl OptimizationStatus {
     }
 
     pub fn is_terminal(&self) -> bool {
-        matches!(self, Self::Completed | Self::Failed | Self::QualityGateBlocked)
+        matches!(
+            self,
+            Self::Completed | Self::Failed | Self::QualityGateBlocked
+        )
     }
 }
 
@@ -619,7 +622,11 @@ impl HardwareProfile {
                     QuantizationPrecision::Bf16,
                     QuantizationPrecision::Int8,
                 ],
-                vec![ExportFormat::Onnx, ExportFormat::TorchScript, ExportFormat::CustomRlRuntime],
+                vec![
+                    ExportFormat::Onnx,
+                    ExportFormat::TorchScript,
+                    ExportFormat::CustomRlRuntime,
+                ],
             ),
             HardwareTarget::CpuServer => (
                 vec![
@@ -794,7 +801,11 @@ pub enum QualityGateCondition {
     MinCompressionRatio(f64),
     MaxSparsity(f64),
     MinRewardRetention(f64),
-    Custom { metric_name: String, threshold: f64, less_than: bool },
+    Custom {
+        metric_name: String,
+        threshold: f64,
+        less_than: bool,
+    },
 }
 
 impl QualityGateCondition {
@@ -809,11 +820,17 @@ impl QualityGateCondition {
             Self::MinCompressionRatio(min) => metrics.compression_ratio >= *min,
             Self::MaxSparsity(max) => metrics.sparsity.is_none_or(|s| s <= *max),
             Self::MinRewardRetention(min) => metrics.reward_retention >= *min,
-            Self::Custom { metric_name, threshold, less_than } => {
-                metrics.custom_metrics.get(metric_name).is_none_or(|v| {
-                    if *less_than { *v <= *threshold } else { *v >= *threshold }
-                })
-            }
+            Self::Custom {
+                metric_name,
+                threshold,
+                less_than,
+            } => metrics.custom_metrics.get(metric_name).is_none_or(|v| {
+                if *less_than {
+                    *v <= *threshold
+                } else {
+                    *v >= *threshold
+                }
+            }),
         }
     }
 }
@@ -956,13 +973,19 @@ impl OptimizationHistory {
     }
 
     pub fn completed_steps(&self) -> usize {
-        self.steps.iter().filter(|s| s.status == OptimizationStatus::Completed).count()
+        self.steps
+            .iter()
+            .filter(|s| s.status == OptimizationStatus::Completed)
+            .count()
     }
 
     pub fn failed_steps(&self) -> usize {
         self.steps
             .iter()
-            .filter(|s| s.status == OptimizationStatus::Failed || s.status == OptimizationStatus::QualityGateBlocked)
+            .filter(|s| {
+                s.status == OptimizationStatus::Failed
+                    || s.status == OptimizationStatus::QualityGateBlocked
+            })
             .count()
     }
 
@@ -1051,19 +1074,27 @@ impl PipelineDefinition {
     }
 
     pub fn has_distill_stage(&self) -> bool {
-        self.stages.iter().any(|s| s.stage_type == PipelineStageType::Distill)
+        self.stages
+            .iter()
+            .any(|s| s.stage_type == PipelineStageType::Distill)
     }
 
     pub fn has_quantize_stage(&self) -> bool {
-        self.stages.iter().any(|s| s.stage_type == PipelineStageType::Quantize)
+        self.stages
+            .iter()
+            .any(|s| s.stage_type == PipelineStageType::Quantize)
     }
 
     pub fn has_prune_stage(&self) -> bool {
-        self.stages.iter().any(|s| s.stage_type == PipelineStageType::Prune)
+        self.stages
+            .iter()
+            .any(|s| s.stage_type == PipelineStageType::Prune)
     }
 
     pub fn has_export_stage(&self) -> bool {
-        self.stages.iter().any(|s| s.stage_type == PipelineStageType::Export)
+        self.stages
+            .iter()
+            .any(|s| s.stage_type == PipelineStageType::Export)
     }
 }
 
@@ -1228,7 +1259,8 @@ impl OptiOsEngine {
             bottleneck_layers,
             parameter_distribution,
         };
-        self.model_analyses.insert(student.id.clone(), analysis.clone());
+        self.model_analyses
+            .insert(student.id.clone(), analysis.clone());
         analysis
     }
 
@@ -1364,15 +1396,17 @@ impl OptiOsEngine {
         for layer in &student.layers {
             let sensitivity = sensitivities.iter().find(|s| s.layer_name == layer.name);
 
-            let assigned_precision = if let Some(override_p) = config.layer_overrides.get(&layer.name) {
-                override_p.clone()
-            } else if let Some(sens) = sensitivity {
-                sens.recommended_precision.clone()
-            } else {
-                config.default_precision.clone()
-            };
+            let assigned_precision =
+                if let Some(override_p) = config.layer_overrides.get(&layer.name) {
+                    override_p.clone()
+                } else if let Some(sens) = sensitivity {
+                    sens.recommended_precision.clone()
+                } else {
+                    config.default_precision.clone()
+                };
 
-            let layer_bytes = (layer.parameter_count * assigned_precision.bits() as u64).div_ceil(8);
+            let layer_bytes =
+                (layer.parameter_count * assigned_precision.bits() as u64).div_ceil(8);
             quantized_size += layer_bytes;
 
             layer_assignments.push(LayerQuantizationAssignment {
@@ -1397,8 +1431,8 @@ impl OptiOsEngine {
         let reward_regression = (reward_before - reward_after) / reward_before;
         let action_kl = reward_loss_factor * 0.5;
 
-        let passed = reward_regression <= config.max_reward_regression
-            && action_kl <= config.max_action_kl;
+        let passed =
+            reward_regression <= config.max_reward_regression && action_kl <= config.max_action_kl;
 
         QuantizationResult {
             model_id: student.id.clone(),
@@ -1486,11 +1520,7 @@ impl OptiOsEngine {
 
     // ── Export ──────────────────────────────────────────────────────
 
-    pub fn export_model(
-        &self,
-        student: &StudentModel,
-        config: &ExportConfig,
-    ) -> ExportArtifact {
+    pub fn export_model(&self, student: &StudentModel, config: &ExportConfig) -> ExportArtifact {
         let total_params: u64 = student.layers.iter().map(|l| l.parameter_count).sum();
         let size_bytes = total_params * 4; // simplification
 
@@ -1604,11 +1634,7 @@ impl OptiOsEngine {
             .collect()
     }
 
-    pub fn all_gates_pass(
-        &self,
-        metrics: &CompressionMetrics,
-        gates: &[QualityGate],
-    ) -> bool {
+    pub fn all_gates_pass(&self, metrics: &CompressionMetrics, gates: &[QualityGate]) -> bool {
         let results = self.check_quality_gates(metrics, gates);
         results.iter().all(|r| r.passed)
     }
@@ -1644,46 +1670,66 @@ impl OptiOsEngine {
                 StageConfig::Distill(cfg) => {
                     let result = self.run_distillation(student, cfg);
                     let rr = result.student_reward_mean.max(0.0);
-                    (current_params, current_size, rr, OptimizationStatus::Completed)
+                    (
+                        current_params,
+                        current_size,
+                        rr,
+                        OptimizationStatus::Completed,
+                    )
                 }
                 StageConfig::Quantize(cfg) => {
-                    let sensitivities = self.analyze_layer_sensitivity(
-                        student,
-                        &HashMap::new(),
-                        &HashMap::new(),
-                    );
+                    let sensitivities =
+                        self.analyze_layer_sensitivity(student, &HashMap::new(), &HashMap::new());
                     let result = self.run_quantization(student, &sensitivities, cfg);
                     let st = if result.passed_quality_gate {
                         OptimizationStatus::Completed
                     } else {
                         OptimizationStatus::QualityGateBlocked
                     };
-                    (current_params, result.quantized_size_bytes, result.reward_after, st)
+                    (
+                        current_params,
+                        result.quantized_size_bytes,
+                        result.reward_after,
+                        st,
+                    )
                 }
                 StageConfig::Prune(cfg) => {
-                    let sensitivities = self.analyze_layer_sensitivity(
-                        student,
-                        &HashMap::new(),
-                        &HashMap::new(),
-                    );
+                    let sensitivities =
+                        self.analyze_layer_sensitivity(student, &HashMap::new(), &HashMap::new());
                     let result = self.run_pruning(student, &sensitivities, cfg);
                     let st = if result.passed_quality_gate {
                         OptimizationStatus::Completed
                     } else {
                         OptimizationStatus::QualityGateBlocked
                     };
-                    (result.parameters_after, current_size, result.reward_after, st)
+                    (
+                        result.parameters_after,
+                        current_size,
+                        result.reward_after,
+                        st,
+                    )
                 }
-                StageConfig::Export(_cfg) => {
-                    (current_params, current_size, current_reward, OptimizationStatus::Completed)
-                }
+                StageConfig::Export(_cfg) => (
+                    current_params,
+                    current_size,
+                    current_reward,
+                    OptimizationStatus::Completed,
+                ),
                 StageConfig::Benchmark(cfg) => {
                     self.run_benchmark(&student.id, current_params, cfg);
-                    (current_params, current_size, current_reward, OptimizationStatus::Completed)
+                    (
+                        current_params,
+                        current_size,
+                        current_reward,
+                        OptimizationStatus::Completed,
+                    )
                 }
-                StageConfig::Validate(_cfg) => {
-                    (current_params, current_size, current_reward, OptimizationStatus::Completed)
-                }
+                StageConfig::Validate(_cfg) => (
+                    current_params,
+                    current_size,
+                    current_reward,
+                    OptimizationStatus::Completed,
+                ),
             };
 
             current_params = new_params;
@@ -1758,7 +1804,10 @@ impl OptiOsEngine {
 
         // Adjust precisions based on hardware constraints
         for sens in &mut sensitivities {
-            if !profile.supported_precisions.contains(&sens.recommended_precision) {
+            if !profile
+                .supported_precisions
+                .contains(&sens.recommended_precision)
+            {
                 // Find the closest supported precision
                 let mut best = profile.supported_precisions[0].clone();
                 let target_bits = sens.recommended_precision.bits();
@@ -1789,9 +1838,17 @@ impl OptiOsEngine {
             }
 
             if trimmed.starts_with("name:") {
-                pipeline.name = trimmed.strip_prefix("name:").unwrap_or("").trim().to_string();
+                pipeline.name = trimmed
+                    .strip_prefix("name:")
+                    .unwrap_or("")
+                    .trim()
+                    .to_string();
             } else if trimmed.starts_with("description:") {
-                pipeline.description = trimmed.strip_prefix("description:").unwrap_or("").trim().to_string();
+                pipeline.description = trimmed
+                    .strip_prefix("description:")
+                    .unwrap_or("")
+                    .trim()
+                    .to_string();
             } else if trimmed.starts_with("- stage:") {
                 let stage_name = trimmed.strip_prefix("- stage:").unwrap_or("").trim();
                 let stage_type = match stage_name.to_lowercase().as_str() {
@@ -1804,12 +1861,20 @@ impl OptiOsEngine {
                     _ => return Err(format!("Unknown stage: {}", stage_name)),
                 };
                 let config = match &stage_type {
-                    PipelineStageType::Distill => StageConfig::Distill(DistillationConfig::default()),
-                    PipelineStageType::Quantize => StageConfig::Quantize(QuantizationConfig::default()),
+                    PipelineStageType::Distill => {
+                        StageConfig::Distill(DistillationConfig::default())
+                    }
+                    PipelineStageType::Quantize => {
+                        StageConfig::Quantize(QuantizationConfig::default())
+                    }
                     PipelineStageType::Prune => StageConfig::Prune(PruningConfig::default()),
                     PipelineStageType::Export => StageConfig::Export(ExportConfig::default()),
-                    PipelineStageType::Benchmark => StageConfig::Benchmark(BenchmarkConfig::default()),
-                    PipelineStageType::Validate => StageConfig::Validate(ValidationConfig::default()),
+                    PipelineStageType::Benchmark => {
+                        StageConfig::Benchmark(BenchmarkConfig::default())
+                    }
+                    PipelineStageType::Validate => {
+                        StageConfig::Validate(ValidationConfig::default())
+                    }
                 };
                 pipeline.add_stage(PipelineStage {
                     stage_type,
@@ -1832,17 +1897,26 @@ impl OptiOsEngine {
 
     pub fn generate_optimization_report(&self, history: &OptimizationHistory) -> String {
         let mut report = String::with_capacity(2048);
-        report.push_str(&format!("# Optimization Report: {}\n\n", history.pipeline_id));
+        report.push_str(&format!(
+            "# Optimization Report: {}\n\n",
+            history.pipeline_id
+        ));
         report.push_str(&format!("Model: {}\n", history.model_id));
         report.push_str(&format!(
             "Steps: {} completed, {} failed\n",
             history.completed_steps(),
             history.failed_steps()
         ));
-        report.push_str(&format!("Total duration: {} ms\n\n", history.total_duration_ms()));
+        report.push_str(&format!(
+            "Total duration: {} ms\n\n",
+            history.total_duration_ms()
+        ));
 
         for step in &history.steps {
-            report.push_str(&format!("## Step: {} ({})\n", step.step_id, step.stage_type));
+            report.push_str(&format!(
+                "## Step: {} ({})\n",
+                step.step_id, step.stage_type
+            ));
             report.push_str(&format!("Status: {}\n", step.status));
             if let Some(ref after) = step.metrics_after {
                 report.push_str(&format!(
@@ -1860,8 +1934,14 @@ impl OptiOsEngine {
 
         if let Some(ref final_m) = history.final_metrics {
             report.push_str("## Final Metrics\n");
-            report.push_str(&format!("Compression ratio: {:.2}x\n", final_m.compression_ratio));
-            report.push_str(&format!("Reward retention: {:.1}%\n", final_m.reward_retention * 100.0));
+            report.push_str(&format!(
+                "Compression ratio: {:.2}x\n",
+                final_m.compression_ratio
+            ));
+            report.push_str(&format!(
+                "Reward retention: {:.1}%\n",
+                final_m.reward_retention * 100.0
+            ));
             report.push_str(&format!(
                 "Memory reduction: {:.1}%\n",
                 final_m.memory_reduction_pct()
@@ -2021,7 +2101,10 @@ mod tests {
     #[test]
     fn test_distillation_mode_display() {
         assert_eq!(DistillationMode::SingleTeacher.label(), "Single Teacher");
-        assert_eq!(DistillationMode::MultiTeacherEnsemble.label(), "Multi-Teacher Ensemble");
+        assert_eq!(
+            DistillationMode::MultiTeacherEnsemble.label(),
+            "Multi-Teacher Ensemble"
+        );
         assert_eq!(DistillationMode::Progressive.label(), "Progressive");
         assert_eq!(format!("{}", DistillationMode::Progressive), "Progressive");
     }
@@ -2029,7 +2112,10 @@ mod tests {
     #[test]
     fn test_distillation_loss_type_defaults() {
         assert_eq!(DistillationLossType::KlDivergence.default_weight(), 1.0);
-        assert_eq!(DistillationLossType::ActionDistribution.default_weight(), 0.5);
+        assert_eq!(
+            DistillationLossType::ActionDistribution.default_weight(),
+            0.5
+        );
         assert_eq!(DistillationLossType::ValueFunction.default_weight(), 0.3);
         assert_eq!(DistillationLossType::FeatureMatching.default_weight(), 0.2);
     }
@@ -2056,15 +2142,24 @@ mod tests {
             PruningStrategy::StructuredActionSensitivity.label(),
             "Structured (Action Sensitivity)"
         );
-        assert_eq!(PruningStrategy::UnstructuredMagnitude.label(), "Unstructured (Magnitude)");
-        assert_eq!(PruningStrategy::UnstructuredGradient.label(), "Unstructured (Gradient)");
+        assert_eq!(
+            PruningStrategy::UnstructuredMagnitude.label(),
+            "Unstructured (Magnitude)"
+        );
+        assert_eq!(
+            PruningStrategy::UnstructuredGradient.label(),
+            "Unstructured (Gradient)"
+        );
     }
 
     #[test]
     fn test_hardware_target_defaults() {
         assert_eq!(HardwareTarget::GpuServer.default_latency_budget_ms(), 10.0);
         assert_eq!(HardwareTarget::Embedded.default_memory_budget_mb(), 64.0);
-        assert!(HardwareTarget::CpuServer.default_memory_budget_mb() > HardwareTarget::EdgeDevice.default_memory_budget_mb());
+        assert!(
+            HardwareTarget::CpuServer.default_memory_budget_mb()
+                > HardwareTarget::EdgeDevice.default_memory_budget_mb()
+        );
     }
 
     #[test]
@@ -2095,7 +2190,10 @@ mod tests {
     #[test]
     fn test_layer_type_display() {
         assert_eq!(format!("{}", LayerType::Linear), "Linear");
-        assert_eq!(format!("{}", LayerType::Custom("MyLayer".to_string())), "Custom(MyLayer)");
+        assert_eq!(
+            format!("{}", LayerType::Custom("MyLayer".to_string())),
+            "Custom(MyLayer)"
+        );
     }
 
     #[test]
@@ -2107,18 +2205,33 @@ mod tests {
 
     #[test]
     fn test_sensitivity_level_from_score() {
-        assert_eq!(SensitivityLevel::from_score(0.95), SensitivityLevel::Critical);
+        assert_eq!(
+            SensitivityLevel::from_score(0.95),
+            SensitivityLevel::Critical
+        );
         assert_eq!(SensitivityLevel::from_score(0.75), SensitivityLevel::High);
         assert_eq!(SensitivityLevel::from_score(0.5), SensitivityLevel::Medium);
         assert_eq!(SensitivityLevel::from_score(0.2), SensitivityLevel::Low);
-        assert_eq!(SensitivityLevel::from_score(0.05), SensitivityLevel::Negligible);
+        assert_eq!(
+            SensitivityLevel::from_score(0.05),
+            SensitivityLevel::Negligible
+        );
     }
 
     #[test]
     fn test_sensitivity_level_recommended_precision() {
-        assert_eq!(SensitivityLevel::Critical.recommended_precision(), QuantizationPrecision::Fp32);
-        assert_eq!(SensitivityLevel::High.recommended_precision(), QuantizationPrecision::Fp16);
-        assert_eq!(SensitivityLevel::Negligible.recommended_precision(), QuantizationPrecision::Int4);
+        assert_eq!(
+            SensitivityLevel::Critical.recommended_precision(),
+            QuantizationPrecision::Fp32
+        );
+        assert_eq!(
+            SensitivityLevel::High.recommended_precision(),
+            QuantizationPrecision::Fp16
+        );
+        assert_eq!(
+            SensitivityLevel::Negligible.recommended_precision(),
+            QuantizationPrecision::Int4
+        );
     }
 
     // ── RL Loss Function Tests ────────────────────────────────────
@@ -2127,7 +2240,11 @@ mod tests {
     fn test_kl_divergence_identical_distributions() {
         let p = vec![0.25, 0.25, 0.25, 0.25];
         let kl = kl_divergence(&p, &p);
-        assert!(kl.abs() < 1e-6, "KL divergence of identical distributions should be ~0, got {}", kl);
+        assert!(
+            kl.abs() < 1e-6,
+            "KL divergence of identical distributions should be ~0, got {}",
+            kl
+        );
     }
 
     #[test]
@@ -2135,7 +2252,10 @@ mod tests {
         let p = vec![0.9, 0.1];
         let q = vec![0.1, 0.9];
         let kl = kl_divergence(&p, &q);
-        assert!(kl > 0.0, "KL divergence of different distributions should be > 0");
+        assert!(
+            kl > 0.0,
+            "KL divergence of different distributions should be > 0"
+        );
     }
 
     #[test]
@@ -2153,7 +2273,10 @@ mod tests {
         let skl = symmetric_kl_divergence(&p, &q);
         assert!(skl > 0.0);
         let skl_reversed = symmetric_kl_divergence(&q, &p);
-        assert!((skl - skl_reversed).abs() < 1e-10, "Symmetric KL should be commutative");
+        assert!(
+            (skl - skl_reversed).abs() < 1e-10,
+            "Symmetric KL should be commutative"
+        );
     }
 
     #[test]
@@ -2205,7 +2328,11 @@ mod tests {
         let t = vec![0.0, 0.0];
         let s = vec![3.0, 4.0];
         let loss = feature_matching_loss(&t, &s);
-        assert!((loss - 5.0).abs() < 1e-10, "Should be 5.0 (Euclidean), got {}", loss);
+        assert!(
+            (loss - 5.0).abs() < 1e-10,
+            "Should be 5.0 (Euclidean), got {}",
+            loss
+        );
     }
 
     #[test]
@@ -2222,15 +2349,25 @@ mod tests {
     fn test_softmax_high_temperature_uniform() {
         let logits = vec![1.0, 2.0, 3.0];
         let probs = softmax_with_temperature(&logits, 100.0);
-        let max_diff = probs.iter().map(|p| (p - 1.0 / 3.0).abs()).fold(0.0_f64, f64::max);
-        assert!(max_diff < 0.05, "High temperature should produce near-uniform, max_diff={}", max_diff);
+        let max_diff = probs
+            .iter()
+            .map(|p| (p - 1.0 / 3.0).abs())
+            .fold(0.0_f64, f64::max);
+        assert!(
+            max_diff < 0.05,
+            "High temperature should produce near-uniform, max_diff={}",
+            max_diff
+        );
     }
 
     #[test]
     fn test_softmax_low_temperature_peaked() {
         let logits = vec![1.0, 2.0, 3.0];
         let probs = softmax_with_temperature(&logits, 0.01);
-        assert!(probs[2] > 0.99, "Low temperature should concentrate on max logit");
+        assert!(
+            probs[2] > 0.99,
+            "Low temperature should concentrate on max logit"
+        );
     }
 
     #[test]
@@ -2298,8 +2435,15 @@ mod tests {
         let mut engine = make_engine();
         let student = make_student();
         let analysis = engine.analyze_model(&student);
-        let total_pct: f64 = analysis.layer_analysis.iter().map(|l| l.parameter_pct).sum();
-        assert!((total_pct - 100.0).abs() < 0.1, "Layer percentages should sum to 100%");
+        let total_pct: f64 = analysis
+            .layer_analysis
+            .iter()
+            .map(|l| l.parameter_pct)
+            .sum();
+        assert!(
+            (total_pct - 100.0).abs() < 0.1,
+            "Layer percentages should sum to 100%"
+        );
     }
 
     #[test]
@@ -2343,7 +2487,10 @@ mod tests {
         grads.insert("policy_head".to_string(), 0.95);
         let impacts = HashMap::new();
         let result = engine.analyze_layer_sensitivity(&student, &grads, &impacts);
-        let policy = result.iter().find(|s| s.layer_name == "policy_head").unwrap();
+        let policy = result
+            .iter()
+            .find(|s| s.layer_name == "policy_head")
+            .unwrap();
         assert!(
             policy.recommended_precision.bits() >= 16,
             "High-sensitivity layer should get higher precision"
@@ -2491,7 +2638,10 @@ mod tests {
         let config = QuantizationConfig::default();
         let result = engine.run_quantization(&student, &sensitivities, &config);
         assert_eq!(result.model_id, "student-1");
-        assert!(result.compression_ratio > 1.0, "Quantization should compress");
+        assert!(
+            result.compression_ratio > 1.0,
+            "Quantization should compress"
+        );
         assert!(result.quantized_size_bytes < result.original_size_bytes);
     }
 
@@ -2503,10 +2653,18 @@ mod tests {
         let config = QuantizationConfig::default();
         let result = engine.run_quantization(&student, &sensitivities, &config);
         // policy_head is critical -> FP32
-        let policy = result.layer_assignments.iter().find(|a| a.layer_name == "policy_head").unwrap();
+        let policy = result
+            .layer_assignments
+            .iter()
+            .find(|a| a.layer_name == "policy_head")
+            .unwrap();
         assert_eq!(policy.assigned_precision, QuantizationPrecision::Fp32);
         // embed is negligible -> INT4
-        let embed = result.layer_assignments.iter().find(|a| a.layer_name == "embed").unwrap();
+        let embed = result
+            .layer_assignments
+            .iter()
+            .find(|a| a.layer_name == "embed")
+            .unwrap();
         assert_eq!(embed.assigned_precision, QuantizationPrecision::Int4);
     }
 
@@ -2516,9 +2674,15 @@ mod tests {
         let student = make_student();
         let sensitivities = make_sensitivities();
         let mut config = QuantizationConfig::default();
-        config.layer_overrides.insert("embed".to_string(), QuantizationPrecision::Fp16);
+        config
+            .layer_overrides
+            .insert("embed".to_string(), QuantizationPrecision::Fp16);
         let result = engine.run_quantization(&student, &sensitivities, &config);
-        let embed = result.layer_assignments.iter().find(|a| a.layer_name == "embed").unwrap();
+        let embed = result
+            .layer_assignments
+            .iter()
+            .find(|a| a.layer_name == "embed")
+            .unwrap();
         assert_eq!(embed.assigned_precision, QuantizationPrecision::Fp16);
     }
 
@@ -2533,7 +2697,10 @@ mod tests {
             ..Default::default()
         };
         let result = engine.run_quantization(&student, &sensitivities, &config);
-        assert!(result.passed_quality_gate, "Should pass with relaxed thresholds");
+        assert!(
+            result.passed_quality_gate,
+            "Should pass with relaxed thresholds"
+        );
     }
 
     #[test]
@@ -2547,7 +2714,10 @@ mod tests {
             ..Default::default()
         };
         let result = engine.run_quantization(&student, &sensitivities, &config);
-        assert!(!result.passed_quality_gate, "Should fail with zero tolerance");
+        assert!(
+            !result.passed_quality_gate,
+            "Should fail with zero tolerance"
+        );
     }
 
     #[test]
@@ -2585,7 +2755,11 @@ mod tests {
             ..Default::default()
         };
         let result = engine.run_pruning(&student, &sensitivities, &config);
-        let policy = result.layers_pruned.iter().find(|l| l.layer_name == "policy_head").unwrap();
+        let policy = result
+            .layers_pruned
+            .iter()
+            .find(|l| l.layer_name == "policy_head")
+            .unwrap();
         assert!(policy.was_protected, "Critical layer should be protected");
         assert_eq!(policy.params_before, policy.params_after);
     }
@@ -2601,7 +2775,11 @@ mod tests {
             ..Default::default()
         };
         let result = engine.run_pruning(&student, &sensitivities, &config);
-        let policy = result.layers_pruned.iter().find(|l| l.layer_name == "policy_head").unwrap();
+        let policy = result
+            .layers_pruned
+            .iter()
+            .find(|l| l.layer_name == "policy_head")
+            .unwrap();
         assert!(!policy.was_protected);
     }
 
@@ -2645,7 +2823,9 @@ mod tests {
     fn test_hardware_profile_for_gpu() {
         let profile = HardwareProfile::for_target(HardwareTarget::GpuServer);
         assert_eq!(profile.latency_budget_ms, 10.0);
-        assert!(profile.supported_precisions.contains(&QuantizationPrecision::Fp16));
+        assert!(profile
+            .supported_precisions
+            .contains(&QuantizationPrecision::Fp16));
         assert!(profile.supported_formats.contains(&ExportFormat::Onnx));
     }
 
@@ -2653,8 +2833,12 @@ mod tests {
     fn test_hardware_profile_for_embedded() {
         let profile = HardwareProfile::for_target(HardwareTarget::Embedded);
         assert_eq!(profile.memory_budget_mb, 64.0);
-        assert!(!profile.supported_precisions.contains(&QuantizationPrecision::Fp32));
-        assert!(profile.supported_precisions.contains(&QuantizationPrecision::Int4));
+        assert!(!profile
+            .supported_precisions
+            .contains(&QuantizationPrecision::Fp32));
+        assert!(profile
+            .supported_precisions
+            .contains(&QuantizationPrecision::Int4));
     }
 
     #[test]
@@ -2680,7 +2864,9 @@ mod tests {
         assert_eq!(result.len(), student.layers.len());
         for s in &result {
             assert!(
-                profile.supported_precisions.contains(&s.recommended_precision),
+                profile
+                    .supported_precisions
+                    .contains(&s.recommended_precision),
                 "Precision {:?} not supported on target for layer {}",
                 s.recommended_precision,
                 s.layer_name
@@ -2904,14 +3090,12 @@ mod tests {
     fn test_quality_gate_engine_all_pass() {
         let engine = make_engine();
         let metrics = CompressionMetrics::new(1000, 500, 4000, 2000, 100.0, 99.0);
-        let gates = vec![
-            QualityGate {
-                id: "g1".to_string(),
-                name: "Max regression".to_string(),
-                condition: QualityGateCondition::MaxRewardRegression(0.05),
-                enabled: true,
-            },
-        ];
+        let gates = vec![QualityGate {
+            id: "g1".to_string(),
+            name: "Max regression".to_string(),
+            condition: QualityGateCondition::MaxRewardRegression(0.05),
+            enabled: true,
+        }];
         assert!(engine.all_gates_pass(&metrics, &gates));
     }
 
@@ -2919,14 +3103,12 @@ mod tests {
     fn test_quality_gate_disabled_skipped() {
         let engine = make_engine();
         let metrics = CompressionMetrics::new(1000, 500, 4000, 2000, 100.0, 50.0);
-        let gates = vec![
-            QualityGate {
-                id: "g1".to_string(),
-                name: "Strict gate".to_string(),
-                condition: QualityGateCondition::MaxRewardRegression(0.01),
-                enabled: false,
-            },
-        ];
+        let gates = vec![QualityGate {
+            id: "g1".to_string(),
+            name: "Strict gate".to_string(),
+            condition: QualityGateCondition::MaxRewardRegression(0.01),
+            enabled: false,
+        }];
         let results = engine.check_quality_gates(&metrics, &gates);
         assert!(results.is_empty(), "Disabled gate should be skipped");
     }
@@ -3327,7 +3509,8 @@ name: test
         assert!(distill_result.reward_retention > 0.0);
 
         // 4. Quantize
-        let quant_result = engine.run_quantization(&student, &sensitivities, &QuantizationConfig::default());
+        let quant_result =
+            engine.run_quantization(&student, &sensitivities, &QuantizationConfig::default());
         assert!(quant_result.compression_ratio > 1.0);
 
         // 5. Prune
@@ -3339,7 +3522,11 @@ name: test
         assert!(artifact.size_bytes > 0);
 
         // 7. Benchmark
-        let bench_results = engine.run_benchmark(&student.id, analysis.total_parameters, &BenchmarkConfig::default());
+        let bench_results = engine.run_benchmark(
+            &student.id,
+            analysis.total_parameters,
+            &BenchmarkConfig::default(),
+        );
         assert!(!bench_results.is_empty());
     }
 
@@ -3352,14 +3539,12 @@ name: test
             stage_type: PipelineStageType::Quantize,
             name: "quantize".to_string(),
             config: StageConfig::Quantize(QuantizationConfig::default()),
-            quality_gates: vec![
-                QualityGate {
-                    id: "g1".to_string(),
-                    name: "Max reward regression".to_string(),
-                    condition: QualityGateCondition::MaxRewardRegression(0.5),
-                    enabled: true,
-                },
-            ],
+            quality_gates: vec![QualityGate {
+                id: "g1".to_string(),
+                name: "Max reward regression".to_string(),
+                condition: QualityGateCondition::MaxRewardRegression(0.5),
+                enabled: true,
+            }],
             enabled: true,
         });
         let history = engine.run_pipeline(&pipeline, &student);
@@ -3377,11 +3562,14 @@ name: test
 
         // All precisions should be hardware-compatible
         for s in &sensitivities {
-            assert!(profile.supported_precisions.contains(&s.recommended_precision));
+            assert!(profile
+                .supported_precisions
+                .contains(&s.recommended_precision));
         }
 
         // Quantize with those sensitivities
-        let result = engine.run_quantization(&student, &sensitivities, &QuantizationConfig::default());
+        let result =
+            engine.run_quantization(&student, &sensitivities, &QuantizationConfig::default());
         assert!(result.compression_ratio > 1.0);
     }
 }

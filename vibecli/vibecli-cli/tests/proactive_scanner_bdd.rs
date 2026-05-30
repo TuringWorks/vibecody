@@ -1,14 +1,12 @@
 //! BDD coverage for ProactiveScanner real filesystem I/O (US-006).
 
-use cucumber::{World, gherkin::Step, given, then, when};
+use cucumber::{gherkin::Step, given, then, when, World};
 use std::path::PathBuf;
 use std::time::Duration;
 use tempfile::TempDir;
 use tokio::time::timeout;
 use vibecli_cli::proactive_agent::ScanCategory;
-use vibecli_cli::proactive_scanner::{
-    WatcherHandle, discover_files, scan_project, start_watcher,
-};
+use vibecli_cli::proactive_scanner::{discover_files, scan_project, start_watcher, WatcherHandle};
 
 #[derive(Default, World)]
 pub struct ScannerWorld {
@@ -22,7 +20,10 @@ pub struct ScannerWorld {
 impl std::fmt::Debug for ScannerWorld {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ScannerWorld")
-            .field("project", &self.project.as_ref().map(|d| d.path().to_owned()))
+            .field(
+                "project",
+                &self.project.as_ref().map(|d| d.path().to_owned()),
+            )
             .field("discovered", &self.discovered.len())
             .field("suggestions", &self.suggestions_count)
             .field("matched_event", &self.matched_event)

@@ -26,7 +26,14 @@ pub struct TokenPrice {
 }
 
 impl TokenPrice {
-    pub fn new(model_id: &str, provider: &str, input: f64, output: f64, cache_r: f64, cache_w: f64) -> Self {
+    pub fn new(
+        model_id: &str,
+        provider: &str,
+        input: f64,
+        output: f64,
+        cache_r: f64,
+        cache_w: f64,
+    ) -> Self {
         Self {
             model_id: model_id.to_string(),
             provider: provider.to_string(),
@@ -38,11 +45,17 @@ impl TokenPrice {
     }
 
     /// Compute cost for a given token breakdown.
-    pub fn compute_cost(&self, input_tokens: u64, output_tokens: u64, cache_read: u64, cache_write: u64) -> f64 {
-        let input_cost  = (input_tokens  as f64 / 1_000_000.0) * self.input_per_1m;
+    pub fn compute_cost(
+        &self,
+        input_tokens: u64,
+        output_tokens: u64,
+        cache_read: u64,
+        cache_write: u64,
+    ) -> f64 {
+        let input_cost = (input_tokens as f64 / 1_000_000.0) * self.input_per_1m;
         let output_cost = (output_tokens as f64 / 1_000_000.0) * self.output_per_1m;
-        let cr_cost     = (cache_read    as f64 / 1_000_000.0) * self.cache_read_per_1m;
-        let cw_cost     = (cache_write   as f64 / 1_000_000.0) * self.cache_write_per_1m;
+        let cr_cost = (cache_read as f64 / 1_000_000.0) * self.cache_read_per_1m;
+        let cw_cost = (cache_write as f64 / 1_000_000.0) * self.cache_write_per_1m;
         input_cost + output_cost + cr_cost + cw_cost
     }
 }
@@ -50,15 +63,15 @@ impl TokenPrice {
 /// Built-in pricing table (April 2026 rates).
 pub fn builtin_prices() -> Vec<TokenPrice> {
     vec![
-        TokenPrice::new("claude-opus-4-6",   "anthropic", 15.0, 75.0, 1.5, 18.75),
-        TokenPrice::new("claude-sonnet-4-6",  "anthropic",  3.0, 15.0, 0.3,  3.75),
-        TokenPrice::new("claude-haiku-4-5",   "anthropic",  0.8,  4.0, 0.08, 1.0),
-        TokenPrice::new("gpt-4o",             "openai",     5.0, 15.0, 0.5,  0.0),
-        TokenPrice::new("gpt-4o-mini",        "openai",     0.15, 0.6, 0.075, 0.0),
-        TokenPrice::new("gemini-2.5-pro",     "google",     3.5, 10.5, 0.0,  0.0),
-        TokenPrice::new("gemini-2.5-flash",   "google",     0.15, 0.6, 0.0,  0.0),
-        TokenPrice::new("llama-3.1-70b",      "ollama",     0.0,  0.0, 0.0,  0.0), // local = free
-        TokenPrice::new("deepseek-r1",        "deepseek",   0.55, 2.19, 0.0, 0.0),
+        TokenPrice::new("claude-opus-4-6", "anthropic", 15.0, 75.0, 1.5, 18.75),
+        TokenPrice::new("claude-sonnet-4-6", "anthropic", 3.0, 15.0, 0.3, 3.75),
+        TokenPrice::new("claude-haiku-4-5", "anthropic", 0.8, 4.0, 0.08, 1.0),
+        TokenPrice::new("gpt-4o", "openai", 5.0, 15.0, 0.5, 0.0),
+        TokenPrice::new("gpt-4o-mini", "openai", 0.15, 0.6, 0.075, 0.0),
+        TokenPrice::new("gemini-2.5-pro", "google", 3.5, 10.5, 0.0, 0.0),
+        TokenPrice::new("gemini-2.5-flash", "google", 0.15, 0.6, 0.0, 0.0),
+        TokenPrice::new("llama-3.1-70b", "ollama", 0.0, 0.0, 0.0, 0.0), // local = free
+        TokenPrice::new("deepseek-r1", "deepseek", 0.55, 2.19, 0.0, 0.0),
     ]
 }
 
@@ -82,8 +95,8 @@ pub struct Budget {
     pub period: BudgetPeriod,
     pub limit_usd: f64,
     pub spent_usd: f64,
-    pub warn_threshold: f64,   // fraction (e.g. 0.7 = 70%)
-    pub block_threshold: f64,  // fraction (e.g. 1.0 = 100%)
+    pub warn_threshold: f64,  // fraction (e.g. 0.7 = 70%)
+    pub block_threshold: f64, // fraction (e.g. 1.0 = 100%)
 }
 
 impl Budget {
@@ -99,14 +112,24 @@ impl Budget {
         }
     }
 
-    pub fn remaining(&self) -> f64 { (self.limit_usd - self.spent_usd).max(0.0) }
-
-    pub fn utilization(&self) -> f64 {
-        if self.limit_usd == 0.0 { 1.0 } else { self.spent_usd / self.limit_usd }
+    pub fn remaining(&self) -> f64 {
+        (self.limit_usd - self.spent_usd).max(0.0)
     }
 
-    pub fn is_warning(&self) -> bool { self.utilization() >= self.warn_threshold }
-    pub fn is_blocked(&self) -> bool { self.utilization() >= self.block_threshold }
+    pub fn utilization(&self) -> f64 {
+        if self.limit_usd == 0.0 {
+            1.0
+        } else {
+            self.spent_usd / self.limit_usd
+        }
+    }
+
+    pub fn is_warning(&self) -> bool {
+        self.utilization() >= self.warn_threshold
+    }
+    pub fn is_blocked(&self) -> bool {
+        self.utilization() >= self.block_threshold
+    }
 
     pub fn can_spend(&self, amount: f64) -> bool {
         self.spent_usd + amount <= self.limit_usd * self.block_threshold
@@ -126,8 +149,12 @@ pub enum BudgetDecision {
 }
 
 impl BudgetDecision {
-    pub fn is_allowed(&self) -> bool { matches!(self, Self::Allow | Self::Warn { .. }) }
-    pub fn is_blocked(&self) -> bool { matches!(self, Self::Block { .. }) }
+    pub fn is_allowed(&self) -> bool {
+        matches!(self, Self::Allow | Self::Warn { .. })
+    }
+    pub fn is_blocked(&self) -> bool {
+        matches!(self, Self::Block { .. })
+    }
 }
 
 // ─── Cost Prediction ──────────────────────────────────────────────────────────
@@ -135,28 +162,28 @@ impl BudgetDecision {
 /// Task type for cost estimation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TaskType {
-    SimpleCompletion,   // short autocomplete
-    CodeGeneration,     // generate a function/class
-    Refactoring,        // rewrite existing code
-    Explanation,        // explain code
-    Testing,            // generate tests
-    LargeContextRead,   // summarise a big codebase
-    MultiTurnChat,      // interactive session (per turn)
-    AgentLoop,          // full agent run with tool calls
+    SimpleCompletion, // short autocomplete
+    CodeGeneration,   // generate a function/class
+    Refactoring,      // rewrite existing code
+    Explanation,      // explain code
+    Testing,          // generate tests
+    LargeContextRead, // summarise a big codebase
+    MultiTurnChat,    // interactive session (per turn)
+    AgentLoop,        // full agent run with tool calls
 }
 
 impl TaskType {
     /// Estimated token ranges (input, output).
     pub fn token_estimate(&self) -> (u64, u64) {
         match self {
-            Self::SimpleCompletion  => (200,   100),
-            Self::CodeGeneration    => (800,   600),
-            Self::Refactoring       => (2_000, 1_500),
-            Self::Explanation       => (3_000,   800),
-            Self::Testing           => (1_500, 1_200),
-            Self::LargeContextRead  => (40_000, 2_000),
-            Self::MultiTurnChat     => (1_200,   400),
-            Self::AgentLoop         => (8_000, 4_000),
+            Self::SimpleCompletion => (200, 100),
+            Self::CodeGeneration => (800, 600),
+            Self::Refactoring => (2_000, 1_500),
+            Self::Explanation => (3_000, 800),
+            Self::Testing => (1_500, 1_200),
+            Self::LargeContextRead => (40_000, 2_000),
+            Self::MultiTurnChat => (1_200, 400),
+            Self::AgentLoop => (8_000, 4_000),
         }
     }
 }
@@ -169,7 +196,7 @@ pub struct CostPrediction {
     pub estimated_input_tokens: u64,
     pub estimated_output_tokens: u64,
     pub estimated_cost_usd: f64,
-    pub confidence: u8,  // 0-100
+    pub confidence: u8, // 0-100
     pub alternatives: Vec<CostAlternative>,
 }
 
@@ -218,7 +245,11 @@ impl CostPredictor {
             .into_iter()
             .map(|p| (p.model_id.clone(), p))
             .collect();
-        Self { prices, budgets: Vec::new(), history: Vec::new() }
+        Self {
+            prices,
+            budgets: Vec::new(),
+            history: Vec::new(),
+        }
     }
 
     /// Add a custom price entry.
@@ -248,13 +279,21 @@ impl CostPredictor {
         })
     }
 
-    fn cheaper_alternatives(&self, task: &TaskType, current_model: &str, current_cost: f64) -> Vec<CostAlternative> {
+    fn cheaper_alternatives(
+        &self,
+        task: &TaskType,
+        current_model: &str,
+        current_cost: f64,
+    ) -> Vec<CostAlternative> {
         let (input, output) = task.token_estimate();
-        let mut alts: Vec<CostAlternative> = self.prices.values()
+        let mut alts: Vec<CostAlternative> = self
+            .prices
+            .values()
             .filter(|p| p.model_id != current_model)
             .filter_map(|p| {
                 let cost = p.compute_cost(input, output, 0, 0);
-                if cost < current_cost * 0.8 {  // at least 20% cheaper
+                if cost < current_cost * 0.8 {
+                    // at least 20% cheaper
                     Some(CostAlternative {
                         model_id: p.model_id.clone(),
                         estimated_cost_usd: cost,
@@ -266,10 +305,16 @@ impl CostPredictor {
                             "Slightly cheaper, similar quality tier".into()
                         },
                     })
-                } else { None }
+                } else {
+                    None
+                }
             })
             .collect();
-        alts.sort_by(|a, b| a.estimated_cost_usd.partial_cmp(&b.estimated_cost_usd).unwrap_or(std::cmp::Ordering::Equal));
+        alts.sort_by(|a, b| {
+            a.estimated_cost_usd
+                .partial_cmp(&b.estimated_cost_usd)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         alts.truncate(3);
         alts
     }
@@ -280,17 +325,29 @@ impl CostPredictor {
             if budget.scope == scope || budget.scope == "*" {
                 if budget.is_blocked() {
                     return BudgetDecision::Block {
-                        reason: format!("Budget '{}' exhausted (${:.4} spent of ${:.2})", budget.id, budget.spent_usd, budget.limit_usd),
+                        reason: format!(
+                            "Budget '{}' exhausted (${:.4} spent of ${:.2})",
+                            budget.id, budget.spent_usd, budget.limit_usd
+                        ),
                     };
                 }
                 if !budget.can_spend(estimated_cost) {
                     return BudgetDecision::Block {
-                        reason: format!("Request would exceed budget '{}' by ${:.4}", budget.id, (budget.spent_usd + estimated_cost) - budget.limit_usd),
+                        reason: format!(
+                            "Request would exceed budget '{}' by ${:.4}",
+                            budget.id,
+                            (budget.spent_usd + estimated_cost) - budget.limit_usd
+                        ),
                     };
                 }
                 if budget.is_warning() {
                     return BudgetDecision::Warn {
-                        message: format!("Budget '{}' at {:.0}% ({:.0}% warn threshold)", budget.id, budget.utilization() * 100.0, budget.warn_threshold * 100.0),
+                        message: format!(
+                            "Budget '{}' at {:.0}% ({:.0}% warn threshold)",
+                            budget.id,
+                            budget.utilization() * 100.0,
+                            budget.warn_threshold * 100.0
+                        ),
                         remaining_usd: budget.remaining(),
                     };
                 }
@@ -313,23 +370,45 @@ impl CostPredictor {
 
     /// Detect cost anomalies vs. rolling average.
     pub fn detect_anomaly(&self, window: usize) -> CostAnomaly {
-        if self.history.len() < 3 { return CostAnomaly::Normal; }
+        if self.history.len() < 3 {
+            return CostAnomaly::Normal;
+        }
         // Check runaway total first (independent of baseline)
         let total: f64 = self.history.iter().map(|r| r.actual_cost_usd).sum();
         if total > 100.0 {
-            return CostAnomaly::Runaway { total_usd: total, message: format!("Session total ${total:.2} — review agent loops") };
+            return CostAnomaly::Runaway {
+                total_usd: total,
+                message: format!("Session total ${total:.2} — review agent loops"),
+            };
         }
         // Spike detection requires a baseline window
         let baseline_count = self.history.len().saturating_sub(window);
-        if baseline_count == 0 { return CostAnomaly::Normal; }
-        let recent: Vec<f64> = self.history.iter().rev().take(window).map(|r| r.actual_cost_usd).collect();
-        let oldest = self.history.iter().rev().skip(window).take(window).map(|r| r.actual_cost_usd);
+        if baseline_count == 0 {
+            return CostAnomaly::Normal;
+        }
+        let recent: Vec<f64> = self
+            .history
+            .iter()
+            .rev()
+            .take(window)
+            .map(|r| r.actual_cost_usd)
+            .collect();
+        let oldest = self
+            .history
+            .iter()
+            .rev()
+            .skip(window)
+            .take(window)
+            .map(|r| r.actual_cost_usd);
         let baseline: f64 = oldest.sum::<f64>() / baseline_count as f64;
         let recent_avg = recent.iter().sum::<f64>() / recent.len() as f64;
         if baseline > 0.0 {
             let factor = recent_avg / baseline;
             if factor > 5.0 {
-                return CostAnomaly::Spike { factor, message: format!("Recent cost {factor:.1}x above baseline") };
+                return CostAnomaly::Spike {
+                    factor,
+                    message: format!("Recent cost {factor:.1}x above baseline"),
+                };
             }
         }
         CostAnomaly::Normal
@@ -349,12 +428,18 @@ impl CostPredictor {
         map
     }
 
-    pub fn history(&self) -> &[CostRecord] { &self.history }
-    pub fn budgets(&self) -> &[Budget] { &self.budgets }
+    pub fn history(&self) -> &[CostRecord] {
+        &self.history
+    }
+    pub fn budgets(&self) -> &[Budget] {
+        &self.budgets
+    }
 }
 
 impl Default for CostPredictor {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -416,12 +501,17 @@ mod tests {
 
     #[test]
     fn test_builtin_prices_contains_claude_sonnet() {
-        assert!(builtin_prices().iter().any(|p| p.model_id.contains("sonnet")));
+        assert!(builtin_prices()
+            .iter()
+            .any(|p| p.model_id.contains("sonnet")));
     }
 
     #[test]
     fn test_builtin_prices_ollama_free() {
-        let ollama = builtin_prices().into_iter().find(|p| p.provider == "ollama").unwrap();
+        let ollama = builtin_prices()
+            .into_iter()
+            .find(|p| p.provider == "ollama")
+            .unwrap();
         assert_eq!(ollama.compute_cost(1_000_000, 1_000_000, 0, 0), 0.0);
     }
 
@@ -499,14 +589,19 @@ mod tests {
 
     #[test]
     fn test_budget_decision_warn_is_allowed() {
-        let d = BudgetDecision::Warn { message: "".into(), remaining_usd: 1.0 };
+        let d = BudgetDecision::Warn {
+            message: "".into(),
+            remaining_usd: 1.0,
+        };
         assert!(d.is_allowed());
         assert!(!d.is_blocked());
     }
 
     #[test]
     fn test_budget_decision_block_is_blocked() {
-        let d = BudgetDecision::Block { reason: "over".into() };
+        let d = BudgetDecision::Block {
+            reason: "over".into(),
+        };
         assert!(d.is_blocked());
         assert!(!d.is_allowed());
     }
@@ -548,14 +643,18 @@ mod tests {
     #[test]
     fn test_predictor_predict_ollama_is_free() {
         let pred = CostPredictor::new();
-        let result = pred.predict(&TaskType::LargeContextRead, "llama-3.1-70b").unwrap();
+        let result = pred
+            .predict(&TaskType::LargeContextRead, "llama-3.1-70b")
+            .unwrap();
         assert_eq!(result.estimated_cost_usd, 0.0);
     }
 
     #[test]
     fn test_predictor_cheaper_alternatives() {
         let pred = CostPredictor::new();
-        let result = pred.predict(&TaskType::AgentLoop, "claude-opus-4-6").unwrap();
+        let result = pred
+            .predict(&TaskType::AgentLoop, "claude-opus-4-6")
+            .unwrap();
         // Opus is the most expensive; should have cheaper alternatives
         assert!(!result.alternatives.is_empty());
         assert!(result.alternatives[0].estimated_cost_usd < result.estimated_cost_usd);
@@ -644,9 +743,13 @@ mod tests {
     fn test_predictor_anomaly_spike_detected() {
         let mut pred = CostPredictor::new();
         // Baseline: 3 cheap requests
-        for _ in 0..3 { pred.record_actual(make_record("m", 0.01)); }
+        for _ in 0..3 {
+            pred.record_actual(make_record("m", 0.01));
+        }
         // Spike: 3 expensive requests (10x)
-        for _ in 0..3 { pred.record_actual(make_record("m", 1.0)); }
+        for _ in 0..3 {
+            pred.record_actual(make_record("m", 1.0));
+        }
         let anomaly = pred.detect_anomaly(3);
         assert!(matches!(anomaly, CostAnomaly::Spike { .. }));
     }
@@ -655,7 +758,9 @@ mod tests {
     fn test_predictor_anomaly_runaway_large_total() {
         let mut pred = CostPredictor::new();
         // Same level, but accumulate >$100
-        for _ in 0..5 { pred.record_actual(make_record("m", 25.0)); }
+        for _ in 0..5 {
+            pred.record_actual(make_record("m", 25.0));
+        }
         let anomaly = pred.detect_anomaly(5);
         assert!(matches!(anomaly, CostAnomaly::Runaway { .. }));
     }
@@ -664,6 +769,8 @@ mod tests {
     fn test_predictor_add_custom_price() {
         let mut pred = CostPredictor::new();
         pred.add_price(TokenPrice::new("my-model", "custom", 1.0, 2.0, 0.0, 0.0));
-        assert!(pred.predict(&TaskType::SimpleCompletion, "my-model").is_some());
+        assert!(pred
+            .predict(&TaskType::SimpleCompletion, "my-model")
+            .is_some());
     }
 }

@@ -4,7 +4,10 @@
 //! Requires `api_url` to be set (gateway endpoint).
 
 use super::openai_compat::{self, ChatRequest};
-use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message, ProviderConfig};
+use crate::provider::{
+    AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message,
+    ProviderConfig,
+};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 
@@ -26,7 +29,10 @@ impl VercelAIProvider {
     }
 
     fn base_url(&self) -> Result<String> {
-        self.config.api_url.clone().context("Vercel AI Gateway URL not set (vercel_ai.api_url in config)")
+        self.config
+            .api_url
+            .clone()
+            .context("Vercel AI Gateway URL not set (vercel_ai.api_url in config)")
     }
 
     fn chat_url(&self) -> Result<String> {
@@ -34,10 +40,18 @@ impl VercelAIProvider {
     }
 
     fn api_key(&self) -> Result<&str> {
-        self.config.api_key.as_deref().context("Vercel AI API key not set (VERCEL_AI_API_KEY)")
+        self.config
+            .api_key
+            .as_deref()
+            .context("Vercel AI API key not set (VERCEL_AI_API_KEY)")
     }
 
-    fn make_request(&self, messages: &[Message], context: Option<String>, stream: bool) -> ChatRequest {
+    fn make_request(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+        stream: bool,
+    ) -> ChatRequest {
         ChatRequest {
             model: self.config.model.clone(),
             messages: openai_compat::build_messages(messages, context),
@@ -50,7 +64,9 @@ impl VercelAIProvider {
 
 #[async_trait]
 impl AIProvider for VercelAIProvider {
-    fn name(&self) -> &str { &self.display_name }
+    fn name(&self) -> &str {
+        &self.display_name
+    }
 
     async fn is_available(&self) -> bool {
         self.config.api_key.is_some() && self.config.api_url.is_some()
@@ -62,8 +78,14 @@ impl AIProvider for VercelAIProvider {
             context.language, context.prefix, context.suffix
         );
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "You are a helpful coding assistant.".to_string() },
-            Message { role: crate::provider::MessageRole::User, content: prompt },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "You are a helpful coding assistant.".to_string(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: prompt,
+            },
         ];
         self.chat_response(&messages, None).await
     }
@@ -74,13 +96,23 @@ impl AIProvider for VercelAIProvider {
             context.language, context.prefix, context.suffix
         );
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "You are a helpful coding assistant.".to_string() },
-            Message { role: crate::provider::MessageRole::User, content: prompt },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "You are a helpful coding assistant.".to_string(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: prompt,
+            },
         ];
         self.stream_chat(&messages).await
     }
 
-    async fn chat_response(&self, messages: &[Message], context: Option<String>) -> Result<CompletionResponse> {
+    async fn chat_response(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+    ) -> Result<CompletionResponse> {
         let api_key = self.api_key()?;
         let url = self.chat_url()?;
         let request = self.make_request(messages, context, false);
@@ -98,7 +130,12 @@ impl AIProvider for VercelAIProvider {
         openai_compat::send_stream_request(&self.client, &url, api_key, &request, "Vercel AI").await
     }
 
-    async fn chat_with_images(&self, messages: &[Message], _images: &[ImageAttachment], context: Option<String>) -> Result<String> {
+    async fn chat_with_images(
+        &self,
+        messages: &[Message],
+        _images: &[ImageAttachment],
+        context: Option<String>,
+    ) -> Result<String> {
         self.chat(messages, context).await
     }
 }
@@ -106,7 +143,7 @@ impl AIProvider for VercelAIProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use openai_compat::{ChatResponse, ChatMessage, StreamResponse, ChatRequest};
+    use openai_compat::{ChatMessage, ChatRequest, ChatResponse, StreamResponse};
 
     fn test_config() -> ProviderConfig {
         ProviderConfig {
@@ -175,9 +212,18 @@ mod tests {
     fn build_messages_maps_roles() {
         use crate::provider::MessageRole;
         let messages = vec![
-            Message { role: MessageRole::System, content: "sys".into() },
-            Message { role: MessageRole::User, content: "usr".into() },
-            Message { role: MessageRole::Assistant, content: "ast".into() },
+            Message {
+                role: MessageRole::System,
+                content: "sys".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "usr".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "ast".into(),
+            },
         ];
         let result = openai_compat::build_messages(&messages, None);
         assert_eq!(result[0].role, "system");
@@ -188,9 +234,10 @@ mod tests {
     #[test]
     fn build_messages_appends_context() {
         use crate::provider::MessageRole;
-        let messages = vec![
-            Message { role: MessageRole::User, content: "ask".into() },
-        ];
+        let messages = vec![Message {
+            role: MessageRole::User,
+            content: "ask".into(),
+        }];
         let result = openai_compat::build_messages(&messages, Some("relevant info".into()));
         assert!(result[0].content.contains("Context:"));
         assert!(result[0].content.contains("relevant info"));
@@ -201,7 +248,10 @@ mod tests {
     fn vercel_ai_request_serializes_correctly() {
         let req = ChatRequest {
             model: "gpt-4o".into(),
-            messages: vec![ChatMessage { role: "user".into(), content: "test".into() }],
+            messages: vec![ChatMessage {
+                role: "user".into(),
+                content: "test".into(),
+            }],
             temperature: Some(0.25),
             max_tokens: Some(512),
             stream: true,
@@ -250,7 +300,10 @@ mod tests {
     fn vercel_ai_request_serde_minimal() {
         let req = ChatRequest {
             model: "claude-3-opus".into(),
-            messages: vec![ChatMessage { role: "user".into(), content: "hi".into() }],
+            messages: vec![ChatMessage {
+                role: "user".into(),
+                content: "hi".into(),
+            }],
             temperature: None,
             max_tokens: None,
             stream: false,
@@ -268,10 +321,22 @@ mod tests {
         let req = ChatRequest {
             model: "gpt-4o".into(),
             messages: vec![
-                ChatMessage { role: "system".into(), content: "sys".into() },
-                ChatMessage { role: "user".into(), content: "u1".into() },
-                ChatMessage { role: "assistant".into(), content: "a1".into() },
-                ChatMessage { role: "user".into(), content: "u2".into() },
+                ChatMessage {
+                    role: "system".into(),
+                    content: "sys".into(),
+                },
+                ChatMessage {
+                    role: "user".into(),
+                    content: "u1".into(),
+                },
+                ChatMessage {
+                    role: "assistant".into(),
+                    content: "a1".into(),
+                },
+                ChatMessage {
+                    role: "user".into(),
+                    content: "u2".into(),
+                },
             ],
             temperature: Some(0.5),
             max_tokens: Some(4096),
@@ -287,7 +352,10 @@ mod tests {
 
     #[test]
     fn vercel_ai_message_roundtrip() {
-        let msg = ChatMessage { role: "user".into(), content: "test input".into() };
+        let msg = ChatMessage {
+            role: "user".into(),
+            content: "test input".into(),
+        };
         let json = serde_json::to_string(&msg).unwrap();
         let msg2: ChatMessage = serde_json::from_str(&json).unwrap();
         assert_eq!(msg.role, msg2.role);
@@ -312,9 +380,18 @@ mod tests {
     fn build_messages_context_only_affects_last_user() {
         use crate::provider::MessageRole;
         let messages = vec![
-            Message { role: MessageRole::User, content: "first".into() },
-            Message { role: MessageRole::Assistant, content: "mid".into() },
-            Message { role: MessageRole::User, content: "second".into() },
+            Message {
+                role: MessageRole::User,
+                content: "first".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "mid".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "second".into(),
+            },
         ];
         let result = openai_compat::build_messages(&messages, Some("background".into()));
         // First user message unchanged
@@ -328,8 +405,14 @@ mod tests {
     fn build_messages_context_skipped_when_last_is_assistant() {
         use crate::provider::MessageRole;
         let messages = vec![
-            Message { role: MessageRole::User, content: "q".into() },
-            Message { role: MessageRole::Assistant, content: "a".into() },
+            Message {
+                role: MessageRole::User,
+                content: "q".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "a".into(),
+            },
         ];
         let result = openai_compat::build_messages(&messages, Some("some ctx".into()));
         assert_eq!(result[1].content, "a");

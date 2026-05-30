@@ -1,6 +1,6 @@
 //! BDD coverage for the broker SSRF guard.
 
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibe_broker::{SsrfGuard, SsrfVerdict};
 
 #[derive(Default, World)]

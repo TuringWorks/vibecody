@@ -519,8 +519,7 @@ impl ExtensionCompatManager {
             let chunk = &search[prefix_pos..chunk_end];
 
             let prefix = Self::extract_json_string(chunk, "prefix").unwrap_or_default();
-            let description =
-                Self::extract_json_string(chunk, "description").unwrap_or_default();
+            let description = Self::extract_json_string(chunk, "description").unwrap_or_default();
 
             // Extract body (may be string or array)
             let body = if let Some(body_start) = chunk.find("\"body\"") {
@@ -566,16 +565,13 @@ impl ExtensionCompatManager {
     pub fn parse_language_config(content: &str) -> Result<LanguageConfig, CompatError> {
         let language_id = Self::extract_json_string(content, "languageId")
             .or_else(|| Self::extract_json_string(content, "id"))
-            .ok_or_else(|| {
-                CompatError::ParseError("missing languageId or id".to_string())
-            })?;
+            .ok_or_else(|| CompatError::ParseError("missing languageId or id".to_string()))?;
 
         let extensions = Self::extract_json_string_array(content, "extensions");
 
         // Comments
         let comment_line = Self::extract_nested_string(content, "comments", "lineComment");
-        let comment_block_start =
-            Self::extract_nested_string(content, "comments", "blockComment");
+        let comment_block_start = Self::extract_nested_string(content, "comments", "blockComment");
         let comment_block_end = comment_block_start.as_ref().and_then(|_| {
             // Look for second string in blockComment array
             Self::extract_nested_second_string(content, "blockComment")
@@ -814,9 +810,8 @@ impl ExtensionCompatManager {
                     let inner = &search[inner_start + 1..];
                     if let Some(inner_end) = inner.find(']') {
                         let pair_str = &inner[..inner_end];
-                        let items = Self::extract_json_string_array_inline(
-                            &format!("[{}]", pair_str),
-                        );
+                        let items =
+                            Self::extract_json_string_array_inline(&format!("[{}]", pair_str));
                         if items.len() >= 2 {
                             pairs.push((items[0].clone(), items[1].clone()));
                         }
@@ -875,7 +870,8 @@ mod tests {
     #[test]
     fn test_install_duplicate_extension() {
         let mut mgr = default_manager();
-        mgr.install_extension(sample_extension("test.grammar")).unwrap();
+        mgr.install_extension(sample_extension("test.grammar"))
+            .unwrap();
         let result = mgr.install_extension(sample_extension("test.grammar"));
         assert_eq!(result.unwrap_err(), CompatError::DuplicateExtension);
     }
@@ -899,7 +895,10 @@ mod tests {
         let mut ext = sample_extension("test.grammar");
         ext.id = "nope".to_string(); // no dot
         let result = mgr.install_extension(ext);
-        assert!(matches!(result.unwrap_err(), CompatError::InvalidManifest(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            CompatError::InvalidManifest(_)
+        ));
     }
 
     #[test]
@@ -908,13 +907,17 @@ mod tests {
         let mut ext = sample_extension("test.grammar");
         ext.id = String::new();
         let result = mgr.install_extension(ext);
-        assert!(matches!(result.unwrap_err(), CompatError::InvalidManifest(_)));
+        assert!(matches!(
+            result.unwrap_err(),
+            CompatError::InvalidManifest(_)
+        ));
     }
 
     #[test]
     fn test_uninstall_extension() {
         let mut mgr = default_manager();
-        mgr.install_extension(sample_extension("test.grammar")).unwrap();
+        mgr.install_extension(sample_extension("test.grammar"))
+            .unwrap();
         assert!(mgr.uninstall_extension("test.grammar").is_ok());
         assert_eq!(mgr.list_extensions().len(), 0);
     }
@@ -1224,16 +1227,16 @@ mod tests {
         assert_eq!(stats.total, 2);
         assert_eq!(stats.enabled, 1);
         assert_eq!(stats.total_size, 1024 + 2048);
-        assert_eq!(
-            *stats.by_category.get("language-grammar").unwrap_or(&0),
-            1
-        );
+        assert_eq!(*stats.by_category.get("language-grammar").unwrap_or(&0), 1);
         assert_eq!(*stats.by_category.get("color-theme").unwrap_or(&0), 1);
     }
 
     #[test]
     fn test_extension_category_as_str() {
-        assert_eq!(ExtensionCategory::LanguageGrammar.as_str(), "language-grammar");
+        assert_eq!(
+            ExtensionCategory::LanguageGrammar.as_str(),
+            "language-grammar"
+        );
         assert_eq!(ExtensionCategory::ColorTheme.as_str(), "color-theme");
         assert_eq!(ExtensionCategory::Snippet.as_str(), "snippet");
         assert_eq!(
@@ -1254,9 +1257,18 @@ mod tests {
 
     #[test]
     fn test_compat_error_display() {
-        assert_eq!(CompatError::ExtensionNotFound.to_string(), "extension not found");
-        assert_eq!(CompatError::DuplicateExtension.to_string(), "extension already installed");
-        assert_eq!(CompatError::MaxExtensionsReached.to_string(), "maximum extensions limit reached");
+        assert_eq!(
+            CompatError::ExtensionNotFound.to_string(),
+            "extension not found"
+        );
+        assert_eq!(
+            CompatError::DuplicateExtension.to_string(),
+            "extension already installed"
+        );
+        assert_eq!(
+            CompatError::MaxExtensionsReached.to_string(),
+            "maximum extensions limit reached"
+        );
         assert_eq!(
             CompatError::ParseError("bad".to_string()).to_string(),
             "parse error: bad"
@@ -1273,7 +1285,8 @@ mod tests {
     #[test]
     fn test_install_with_auto_parse_grammar() {
         let mut mgr = default_manager();
-        let grammar_json = r#"{ "scopeName": "source.go", "languageId": "go", "fileTypes": ["go"] }"#;
+        let grammar_json =
+            r#"{ "scopeName": "source.go", "languageId": "go", "fileTypes": ["go"] }"#;
         let ext = VsCodeExtension {
             id: "golang.go-grammar".to_string(),
             name: "go-grammar".to_string(),
@@ -1322,7 +1335,8 @@ mod tests {
     #[test]
     fn test_install_with_auto_parse_snippets() {
         let mut mgr = default_manager();
-        let snip_json = r#"{ "Log": { "prefix": "log", "body": ["console.log($1)"], "description": "Log" } }"#;
+        let snip_json =
+            r#"{ "Log": { "prefix": "log", "body": ["console.log($1)"], "description": "Log" } }"#;
         let ext = VsCodeExtension {
             id: "snip.js-snippets".to_string(),
             name: "js-snippets".to_string(),

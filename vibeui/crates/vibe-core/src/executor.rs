@@ -80,8 +80,11 @@ impl CommandExecutor {
         ));
         std::fs::write(&profile_path, &profile)?;
         let out = Command::new("sandbox-exec")
-            .arg("-f").arg(&profile_path)
-            .arg("sh").arg("-c").arg(command)
+            .arg("-f")
+            .arg(&profile_path)
+            .arg("sh")
+            .arg("-c")
+            .arg(command)
             .current_dir(cwd)
             .output();
         let _ = std::fs::remove_file(&profile_path);
@@ -100,11 +103,11 @@ impl CommandExecutor {
                 .args(["--ro-bind", "/lib64", "/lib64"])
                 .args(["--ro-bind", "/bin", "/bin"])
                 .args(["--ro-bind", "/etc/resolv.conf", "/etc/resolv.conf"])
-                .args(["--bind", &ws, &ws])       // workspace: read-write
+                .args(["--bind", &ws, &ws]) // workspace: read-write
                 .args(["--dev", "/dev"])
                 .args(["--tmpfs", "/tmp"])
-                .args(["--unshare-net"])           // no network access
-                .args(["--unshare-pid"])           // PID namespace isolation
+                .args(["--unshare-net"]) // no network access
+                .args(["--unshare-pid"]) // PID namespace isolation
                 .args(["--", "sh", "-c", command])
                 .current_dir(cwd)
                 .output()?);
@@ -222,7 +225,7 @@ mod tests {
     fn safe_command_blocks_rm_rf_root() {
         assert!(!CommandExecutor::is_safe_command("rm -rf /"));
         assert!(!CommandExecutor::is_safe_command("rm -rf ~/"));
-        assert!(!CommandExecutor::is_safe_command("rm  -rf  /"));  // extra spaces
+        assert!(!CommandExecutor::is_safe_command("rm  -rf  /")); // extra spaces
     }
 
     #[test]
@@ -243,7 +246,9 @@ mod tests {
 
     #[test]
     fn safe_command_blocks_dd() {
-        assert!(!CommandExecutor::is_safe_command("dd if=/dev/zero of=/dev/sda"));
+        assert!(!CommandExecutor::is_safe_command(
+            "dd if=/dev/zero of=/dev/sda"
+        ));
     }
 
     #[test]

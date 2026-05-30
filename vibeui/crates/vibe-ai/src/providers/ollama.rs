@@ -1,6 +1,8 @@
 //! Ollama AI provider implementation
 
-use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, Message, ProviderConfig};
+use crate::provider::{
+    AIProvider, CodeContext, CompletionResponse, CompletionStream, Message, ProviderConfig,
+};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use futures::stream::StreamExt;
@@ -157,10 +159,7 @@ impl OllamaProvider {
         if let Some(ref key) = api_key {
             req = req.header("Authorization", format!("Bearer {}", key));
         }
-        let response = req
-            .send()
-            .await
-            .context("Failed to connect to Ollama")?;
+        let response = req.send().await.context("Failed to connect to Ollama")?;
 
         #[derive(Deserialize)]
         struct ModelListResponse {
@@ -187,12 +186,20 @@ impl OllamaProvider {
 
         // Filter out known embedding-only model families and names
         let embedding_families = ["nomic-bert", "bert", "all-minilm"];
-        let embedding_names = ["nomic-embed-text", "all-minilm", "mxbai-embed", "snowflake-arctic-embed"];
-        let chat_models: Vec<String> = list.models
+        let embedding_names = [
+            "nomic-embed-text",
+            "all-minilm",
+            "mxbai-embed",
+            "snowflake-arctic-embed",
+        ];
+        let chat_models: Vec<String> = list
+            .models
             .into_iter()
             .filter(|m| {
                 !embedding_families.contains(&m.details.family.as_str())
-                    && !embedding_names.iter().any(|prefix| m.name.starts_with(prefix))
+                    && !embedding_names
+                        .iter()
+                        .any(|prefix| m.name.starts_with(prefix))
             })
             .map(|m| m.name)
             .collect();
@@ -217,7 +224,7 @@ impl AIProvider for OllamaProvider {
 
     async fn complete(&self, context: &CodeContext) -> Result<CompletionResponse> {
         let prompt = self.build_prompt(context);
-        
+
         let request = OllamaRequest {
             model: self.config.model.clone(),
             prompt,
@@ -246,7 +253,7 @@ impl AIProvider for OllamaProvider {
 
     async fn stream_complete(&self, context: &CodeContext) -> Result<CompletionStream> {
         let prompt = self.build_prompt(context);
-        
+
         let request = OllamaRequest {
             model: self.config.model.clone(),
             prompt,
@@ -262,7 +269,7 @@ impl AIProvider for OllamaProvider {
             .context("Failed to send request to Ollama")?;
 
         let stream = response.bytes_stream();
-        
+
         let completion_stream = stream
             .map(|chunk| {
                 let chunk = chunk?;
@@ -308,16 +315,23 @@ impl AIProvider for OllamaProvider {
             .context("Failed to send chat request to Ollama")?;
 
         let status = response.status();
-        let body_text = response.text().await.context("Failed to read response body")?;
+        let body_text = response
+            .text()
+            .await
+            .context("Failed to read response body")?;
 
         if !status.is_success() {
             anyhow::bail!("Ollama API error: {}", body_text);
         }
 
-        let ollama_response: OllamaChatResponse = serde_json::from_str(&body_text)
-            .context(format!("Failed to parse Ollama chat response: {}", body_text))?;
+        let ollama_response: OllamaChatResponse = serde_json::from_str(&body_text).context(
+            format!("Failed to parse Ollama chat response: {}", body_text),
+        )?;
 
-        Ok(ollama_response.message.map(|m| m.content).unwrap_or_default())
+        Ok(ollama_response
+            .message
+            .map(|m| m.content)
+            .unwrap_or_default())
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
@@ -381,7 +395,9 @@ impl AIProvider for OllamaProvider {
                 let mut result = String::new();
                 for line in text.lines() {
                     let line = line.trim();
-                    if line.is_empty() { continue; }
+                    if line.is_empty() {
+                        continue;
+                    }
                     match serde_json::from_str::<OllamaChatResponse>(line) {
                         Ok(response) => {
                             if let Some(msg) = response.message {
@@ -441,9 +457,7 @@ impl AIProvider for OllamaProvider {
         // Attach images to the last user message (Ollama expects base64 strings)
         if !images.is_empty() {
             if let Some(last_user) = ollama_messages.iter_mut().rev().find(|m| m.role == "user") {
-                last_user.images = Some(
-                    images.iter().map(|img| img.base64.clone()).collect()
-                );
+                last_user.images = Some(images.iter().map(|img| img.base64.clone()).collect());
             }
         }
 
@@ -462,16 +476,23 @@ impl AIProvider for OllamaProvider {
             .context("Failed to send vision request to Ollama")?;
 
         let status = response.status();
-        let body_text = response.text().await.context("Failed to read response body")?;
+        let body_text = response
+            .text()
+            .await
+            .context("Failed to read response body")?;
 
         if !status.is_success() {
             anyhow::bail!("Ollama vision API error: {}", body_text);
         }
 
-        let ollama_response: OllamaChatResponse = serde_json::from_str(&body_text)
-            .context(format!("Failed to parse Ollama vision response: {}", body_text))?;
+        let ollama_response: OllamaChatResponse = serde_json::from_str(&body_text).context(
+            format!("Failed to parse Ollama vision response: {}", body_text),
+        )?;
 
-        Ok(ollama_response.message.map(|m| m.content).unwrap_or_default())
+        Ok(ollama_response
+            .message
+            .map(|m| m.content)
+            .unwrap_or_default())
     }
 }
 
@@ -522,8 +543,8 @@ mod tests {
 
     #[test]
     fn build_options_some_when_max_tokens_set() {
-        let config = ProviderConfig::new("ollama".to_string(), "codellama".to_string())
-            .with_max_tokens(256);
+        let config =
+            ProviderConfig::new("ollama".to_string(), "codellama".to_string()).with_max_tokens(256);
         let provider = OllamaProvider::new(config);
         let opts = provider.build_options();
         assert!(opts.is_some());
@@ -604,7 +625,10 @@ mod tests {
             options: None,
         };
         let json = serde_json::to_string(&req).unwrap();
-        assert!(!json.contains("options"), "options should be omitted when None");
+        assert!(
+            !json.contains("options"),
+            "options should be omitted when None"
+        );
         assert!(json.contains("\"model\""));
         assert!(json.contains("\"prompt\""));
         assert!(json.contains("\"stream\""));
@@ -634,7 +658,10 @@ mod tests {
             num_predict: Some(512),
         };
         let json = serde_json::to_string(&opts).unwrap();
-        assert!(!json.contains("temperature"), "temperature should be omitted when None");
+        assert!(
+            !json.contains("temperature"),
+            "temperature should be omitted when None"
+        );
         assert!(json.contains("\"num_predict\":512"));
     }
 

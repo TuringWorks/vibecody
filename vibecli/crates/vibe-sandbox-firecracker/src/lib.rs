@@ -224,9 +224,7 @@ fn validate_bind_path(host: &Path) -> Result<()> {
     // workspace dep into this otherwise lean crate). The list is
     // small, audited in `vibe-core`'s test suite, and the parity is
     // covered by `tests/firecracker_deny_list_parity.rs`.
-    const DENIED_SEGMENTS: &[&str] = &[
-        ".vibecli", ".vibeui", ".claude", ".ssh", ".aws", ".gnupg",
-    ];
+    const DENIED_SEGMENTS: &[&str] = &[".vibecli", ".vibeui", ".claude", ".ssh", ".aws", ".gnupg"];
     const DENIED_FILENAMES: &[&str] = &[
         "daemon.token",
         "profile_settings.db",
@@ -303,8 +301,10 @@ mod tests {
     #[test]
     fn bind_rw_accumulates_in_order() {
         let mut sb = fresh();
-        sb.bind_rw(Path::new("/tmp/a"), Path::new("/work/a")).unwrap();
-        sb.bind_rw(Path::new("/tmp/b"), Path::new("/work/b")).unwrap();
+        sb.bind_rw(Path::new("/tmp/a"), Path::new("/work/a"))
+            .unwrap();
+        sb.bind_rw(Path::new("/tmp/b"), Path::new("/work/b"))
+            .unwrap();
         let binds = sb.binds();
         assert_eq!(binds.len(), 2);
         assert_eq!(binds[0].0, Path::new("/tmp/a"));

@@ -95,7 +95,9 @@ impl Scheduler {
         let job = ScheduledJob {
             id: Self::short_id(),
             task: task.to_string(),
-            schedule: ScheduleExpr::Once { at_ms: now.saturating_add(secs.saturating_mul(1000)) },
+            schedule: ScheduleExpr::Once {
+                at_ms: now.saturating_add(secs.saturating_mul(1000)),
+            },
             triggered_count: 0,
             created_at: now,
             last_triggered: None,
@@ -145,10 +147,7 @@ impl Scheduler {
 
     /// List all active jobs.
     pub fn list(&self) -> Vec<ScheduledJob> {
-        self.load_jobs()
-            .into_iter()
-            .filter(|j| j.active)
-            .collect()
+        self.load_jobs().into_iter().filter(|j| j.active).collect()
     }
 
     /// Poll for due jobs and return them (updating state).
@@ -158,7 +157,9 @@ impl Scheduler {
         let mut due = Vec::new();
 
         for job in &mut jobs {
-            if !job.active { continue; }
+            if !job.active {
+                continue;
+            }
             let is_due = match &job.schedule {
                 ScheduleExpr::Once { at_ms } => now >= *at_ms,
                 ScheduleExpr::Recurring { next_at_ms, .. } => now >= *next_at_ms,
@@ -168,8 +169,13 @@ impl Scheduler {
                 job.last_triggered = Some(now);
                 // For one-time jobs, deactivate after trigger
                 match &mut job.schedule {
-                    ScheduleExpr::Once { .. } => { job.active = false; }
-                    ScheduleExpr::Recurring { interval_secs, next_at_ms } => {
+                    ScheduleExpr::Once { .. } => {
+                        job.active = false;
+                    }
+                    ScheduleExpr::Recurring {
+                        interval_secs,
+                        next_at_ms,
+                    } => {
                         *next_at_ms = now.saturating_add(interval_secs.saturating_mul(1000));
                     }
                 }
@@ -212,22 +218,34 @@ pub fn format_relative(at_ms: u64) -> String {
         return "now".to_string();
     }
     let secs = (at_ms - now_ms) / 1000;
-    if secs < 60 { return format!("in {}s", secs); }
+    if secs < 60 {
+        return format!("in {}s", secs);
+    }
     let mins = secs / 60;
-    if mins < 60 { return format!("in {}m", mins); }
+    if mins < 60 {
+        return format!("in {}m", mins);
+    }
     let hours = mins / 60;
-    if hours < 24 { return format!("in {}h {}m", hours, mins % 60); }
+    if hours < 24 {
+        return format!("in {}h {}m", hours, mins % 60);
+    }
     let days = hours / 24;
     format!("in {}d {}h", days, hours % 24)
 }
 
 /// Format a duration (in seconds) as human-readable interval.
 pub fn format_interval(secs: u64) -> String {
-    if secs < 60 { return format!("every {}s", secs); }
+    if secs < 60 {
+        return format!("every {}s", secs);
+    }
     let mins = secs / 60;
-    if mins < 60 { return format!("every {}m", mins); }
+    if mins < 60 {
+        return format!("every {}m", mins);
+    }
     let hours = mins / 60;
-    if hours < 24 { return format!("every {}h", hours); }
+    if hours < 24 {
+        return format!("every {}h", hours);
+    }
     format!("every {}d", hours / 24)
 }
 
@@ -268,7 +286,8 @@ mod tests {
         let past = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
-            .as_millis() as u64 - 1000;
+            .as_millis() as u64
+            - 1000;
         assert_eq!(format_relative(past), "now");
     }
 
@@ -282,7 +301,9 @@ mod tests {
         let job = ScheduledJob {
             id: "abc123".to_string(),
             task: "Run tests".to_string(),
-            schedule: ScheduleExpr::Once { at_ms: 1700000000000 },
+            schedule: ScheduleExpr::Once {
+                at_ms: 1700000000000,
+            },
             triggered_count: 0,
             created_at: 1699999999000,
             last_triggered: None,
@@ -368,11 +389,17 @@ mod tests {
 
     #[test]
     fn schedule_expr_recurring_roundtrip() {
-        let expr = ScheduleExpr::Recurring { interval_secs: 3600, next_at_ms: 99999 };
+        let expr = ScheduleExpr::Recurring {
+            interval_secs: 3600,
+            next_at_ms: 99999,
+        };
         let json = serde_json::to_string(&expr).unwrap();
         let deser: ScheduleExpr = serde_json::from_str(&json).unwrap();
         match deser {
-            ScheduleExpr::Recurring { interval_secs, next_at_ms } => {
+            ScheduleExpr::Recurring {
+                interval_secs,
+                next_at_ms,
+            } => {
                 assert_eq!(interval_secs, 3600);
                 assert_eq!(next_at_ms, 99999);
             }

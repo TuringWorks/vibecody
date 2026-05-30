@@ -10,8 +10,8 @@
 //! Feature-gated: `#[cfg(any(test, feature = "testing"))]`
 
 use std::collections::VecDeque;
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 
 use anyhow::{bail, Result};
 use async_trait::async_trait;
@@ -147,7 +147,10 @@ impl MockAIProvider {
         //    the queue is empty, bail. We detect this by re-checking: if
         //    scenario_responses is empty AND default_response is empty AND
         //    call_count > 0 then it means we've exhausted a with_responses provider.
-        if self.scenario_responses.is_empty() && self.default_response.is_empty() && self.call_count.load(Ordering::SeqCst) > 0 {
+        if self.scenario_responses.is_empty()
+            && self.default_response.is_empty()
+            && self.call_count.load(Ordering::SeqCst) > 0
+        {
             bail!("MockAIProvider: no more responses");
         }
 
@@ -271,13 +274,16 @@ mod tests {
     async fn complete_returns_response() {
         let mut p = MockAIProvider::new("m");
         p.set_default_response("completion result");
-        let resp = p.complete(&CodeContext {
-            language: "rust".into(),
-            file_path: None,
-            prefix: "fn ".into(),
-            suffix: String::new(),
-            additional_context: vec![],
-        }).await.unwrap();
+        let resp = p
+            .complete(&CodeContext {
+                language: "rust".into(),
+                file_path: None,
+                prefix: "fn ".into(),
+                suffix: String::new(),
+                additional_context: vec![],
+            })
+            .await
+            .unwrap();
         assert_eq!(resp.text, "completion result");
         assert_eq!(resp.model, "m");
         assert!(resp.usage.is_none());
@@ -288,13 +294,16 @@ mod tests {
         use futures::StreamExt;
         let mut p = MockAIProvider::new("m");
         p.set_default_response("streamed");
-        let mut stream = p.stream_complete(&CodeContext {
-            language: "rust".into(),
-            file_path: None,
-            prefix: String::new(),
-            suffix: String::new(),
-            additional_context: vec![],
-        }).await.unwrap();
+        let mut stream = p
+            .stream_complete(&CodeContext {
+                language: "rust".into(),
+                file_path: None,
+                prefix: String::new(),
+                suffix: String::new(),
+                additional_context: vec![],
+            })
+            .await
+            .unwrap();
         let chunk = stream.next().await.unwrap().unwrap();
         assert_eq!(chunk, "streamed");
         assert!(stream.next().await.is_none());
@@ -326,7 +335,10 @@ mod tests {
         // Push one sequenced response into the queue manually by building
         // a with_responses provider and verifying queue beats scenario.
         // Simpler: build a provider that has BOTH. We compose manually.
-        p.responses.lock().unwrap().push_back("queue response".to_string());
+        p.responses
+            .lock()
+            .unwrap()
+            .push_back("queue response".to_string());
         let r = p.chat(&[msg("any prompt")], None).await.unwrap();
         assert_eq!(r, "queue response");
         // Second call: queue empty, scenario matches

@@ -1,7 +1,7 @@
 //! Syntax highlighting for code blocks
 
 use syntect::easy::HighlightLines;
-use syntect::highlighting::{ThemeSet, Style};
+use syntect::highlighting::{Style, ThemeSet};
 use syntect::parsing::SyntaxSet;
 use syntect::util::{as_24_bit_terminal_escaped, LinesWithEndings};
 
@@ -30,7 +30,7 @@ impl SyntaxHighlighter {
 
         let theme = &self.theme_set.themes["base16-ocean.dark"];
         let mut highlighter = HighlightLines::new(syntax, theme);
-        
+
         let mut highlighted = String::new();
         for line in LinesWithEndings::from(code) {
             let ranges: Vec<(Style, &str)> = highlighter
@@ -39,7 +39,7 @@ impl SyntaxHighlighter {
             let escaped = as_24_bit_terminal_escaped(&ranges[..], false);
             highlighted.push_str(&escaped);
         }
-        
+
         highlighted
     }
 
@@ -56,18 +56,18 @@ impl SyntaxHighlighter {
 
         let theme = &self.theme_set.themes["base16-ocean.dark"];
         let mut highlighter = HighlightLines::new(syntax, theme);
-        
+
         let mut ranges = Vec::new();
         for line in LinesWithEndings::from(code) {
             let line_ranges: Vec<(Style, &str)> = highlighter
                 .highlight_line(line, &self.syntax_set)
                 .unwrap_or_default();
-            
+
             for (style, text) in line_ranges {
                 ranges.push((style, text.to_string()));
             }
         }
-        
+
         ranges
     }
 
@@ -123,8 +123,8 @@ fn render_inline_markdown(line: &str) -> String {
     while i < len {
         // Inline code: `code`
         if chars[i] == '`' && i + 1 < len {
-            if let Some(end) = chars[i+1..].iter().position(|&c| c == '`') {
-                let code: String = chars[i+1..i+1+end].iter().collect();
+            if let Some(end) = chars[i + 1..].iter().position(|&c| c == '`') {
+                let code: String = chars[i + 1..i + 1 + end].iter().collect();
                 result.push_str(BG_GRAY);
                 result.push_str(BRIGHT_CYAN);
                 result.push_str(&code);
@@ -134,9 +134,9 @@ fn render_inline_markdown(line: &str) -> String {
             }
         }
         // Bold + Italic: ***text*** or ___text___
-        if i + 2 < len && chars[i] == '*' && chars[i+1] == '*' && chars[i+2] == '*' {
+        if i + 2 < len && chars[i] == '*' && chars[i + 1] == '*' && chars[i + 2] == '*' {
             if let Some(end) = find_closing(&chars, i + 3, &['*', '*', '*']) {
-                let text: String = chars[i+3..end].iter().collect();
+                let text: String = chars[i + 3..end].iter().collect();
                 result.push_str(BOLD);
                 result.push_str(ITALIC);
                 result.push_str(&text);
@@ -146,9 +146,9 @@ fn render_inline_markdown(line: &str) -> String {
             }
         }
         // Bold: **text** or __text__
-        if i + 1 < len && chars[i] == '*' && chars[i+1] == '*' {
+        if i + 1 < len && chars[i] == '*' && chars[i + 1] == '*' {
             if let Some(end) = find_closing(&chars, i + 2, &['*', '*']) {
-                let text: String = chars[i+2..end].iter().collect();
+                let text: String = chars[i + 2..end].iter().collect();
                 result.push_str(BOLD);
                 result.push_str(WHITE);
                 result.push_str(&text);
@@ -158,9 +158,9 @@ fn render_inline_markdown(line: &str) -> String {
             }
         }
         // Italic: *text* (single)
-        if chars[i] == '*' && i + 1 < len && chars[i+1] != ' ' {
-            if let Some(end) = chars[i+1..].iter().position(|&c| c == '*') {
-                let text: String = chars[i+1..i+1+end].iter().collect();
+        if chars[i] == '*' && i + 1 < len && chars[i + 1] != ' ' {
+            if let Some(end) = chars[i + 1..].iter().position(|&c| c == '*') {
+                let text: String = chars[i + 1..i + 1 + end].iter().collect();
                 result.push_str(ITALIC);
                 result.push_str(&text);
                 result.push_str(RESET);
@@ -170,12 +170,15 @@ fn render_inline_markdown(line: &str) -> String {
         }
         // Link: [text](url) — show text underlined, dim the URL
         if chars[i] == '[' {
-            if let Some(close_bracket) = chars[i+1..].iter().position(|&c| c == ']') {
+            if let Some(close_bracket) = chars[i + 1..].iter().position(|&c| c == ']') {
                 let text_end = i + 1 + close_bracket;
                 if text_end + 1 < len && chars[text_end + 1] == '(' {
-                    if let Some(close_paren) = chars[text_end+2..].iter().position(|&c| c == ')') {
-                        let link_text: String = chars[i+1..text_end].iter().collect();
-                        let url: String = chars[text_end+2..text_end+2+close_paren].iter().collect();
+                    if let Some(close_paren) = chars[text_end + 2..].iter().position(|&c| c == ')')
+                    {
+                        let link_text: String = chars[i + 1..text_end].iter().collect();
+                        let url: String = chars[text_end + 2..text_end + 2 + close_paren]
+                            .iter()
+                            .collect();
                         result.push_str(UNDERLINE);
                         result.push_str(CYAN);
                         result.push_str(&link_text);
@@ -199,8 +202,10 @@ fn render_inline_markdown(line: &str) -> String {
 /// Find closing delimiter sequence in chars starting at `from`.
 fn find_closing(chars: &[char], from: usize, delim: &[char]) -> Option<usize> {
     let dlen = delim.len();
-    if from + dlen > chars.len() { return None; }
-    (from..=chars.len() - dlen).find(|&i| chars[i..i+dlen] == *delim)
+    if from + dlen > chars.len() {
+        return None;
+    }
+    (from..=chars.len() - dlen).find(|&i| chars[i..i + dlen] == *delim)
 }
 
 /// Render a single markdown prose line with ANSI colors.
@@ -209,44 +214,101 @@ fn render_markdown_line(line: &str) -> String {
 
     // Headings: # ## ### ####
     if trimmed.starts_with("#### ") {
-        return format!("{}{}{}{}\n", BOLD, BLUE, render_inline_markdown(trimmed.trim_start_matches('#').trim()), RESET);
+        return format!(
+            "{}{}{}{}\n",
+            BOLD,
+            BLUE,
+            render_inline_markdown(trimmed.trim_start_matches('#').trim()),
+            RESET
+        );
     }
     if trimmed.starts_with("### ") {
-        return format!("{}{}{}{}\n", BOLD, MAGENTA, render_inline_markdown(trimmed.trim_start_matches('#').trim()), RESET);
+        return format!(
+            "{}{}{}{}\n",
+            BOLD,
+            MAGENTA,
+            render_inline_markdown(trimmed.trim_start_matches('#').trim()),
+            RESET
+        );
     }
     if trimmed.starts_with("## ") {
-        return format!("\n{}{}{}{}\n", BOLD, CYAN, render_inline_markdown(trimmed.trim_start_matches('#').trim()), RESET);
+        return format!(
+            "\n{}{}{}{}\n",
+            BOLD,
+            CYAN,
+            render_inline_markdown(trimmed.trim_start_matches('#').trim()),
+            RESET
+        );
     }
     if trimmed.starts_with("# ") {
-        return format!("\n{}{}{}{}\n", BOLD, BRIGHT_GREEN, render_inline_markdown(trimmed.trim_start_matches('#').trim()), RESET);
+        return format!(
+            "\n{}{}{}{}\n",
+            BOLD,
+            BRIGHT_GREEN,
+            render_inline_markdown(trimmed.trim_start_matches('#').trim()),
+            RESET
+        );
     }
 
     // Horizontal rule: --- or *** or ___
-    if trimmed.len() >= 3 && (trimmed.chars().all(|c| c == '-') || trimmed.chars().all(|c| c == '*') || trimmed.chars().all(|c| c == '_')) {
-        return format!("{}{}─────────────────────────────────────────{}\n", DIM, BRIGHT_BLACK, RESET);
+    if trimmed.len() >= 3
+        && (trimmed.chars().all(|c| c == '-')
+            || trimmed.chars().all(|c| c == '*')
+            || trimmed.chars().all(|c| c == '_'))
+    {
+        return format!(
+            "{}{}─────────────────────────────────────────{}\n",
+            DIM, BRIGHT_BLACK, RESET
+        );
     }
 
     // Task list: - [ ] or - [x] (must be before unordered list)
     if let Some(rest) = trimmed.strip_prefix("- [ ] ") {
         return format!("  {}☐{} {}\n", DIM, RESET, render_inline_markdown(rest));
     }
-    if let Some(rest) = trimmed.strip_prefix("- [x] ").or_else(|| trimmed.strip_prefix("- [X] ")) {
-        return format!("  {}{}☑{} {}\n", GREEN, BOLD, RESET, render_inline_markdown(rest));
+    if let Some(rest) = trimmed
+        .strip_prefix("- [x] ")
+        .or_else(|| trimmed.strip_prefix("- [X] "))
+    {
+        return format!(
+            "  {}{}☑{} {}\n",
+            GREEN,
+            BOLD,
+            RESET,
+            render_inline_markdown(rest)
+        );
     }
 
     // Blockquote: > text
     if let Some(rest) = trimmed.strip_prefix("> ") {
-        return format!("  {}{}│{} {}{}\n", DIM, GREEN, RESET, ITALIC, render_inline_markdown(rest));
+        return format!(
+            "  {}{}│{} {}{}\n",
+            DIM,
+            GREEN,
+            RESET,
+            ITALIC,
+            render_inline_markdown(rest)
+        );
     }
     if trimmed == ">" {
         return format!("  {}{}│{}\n", DIM, GREEN, RESET);
     }
 
     // Unordered list: - item, * item, + item
-    if let Some(rest) = trimmed.strip_prefix("- ").or_else(|| trimmed.strip_prefix("* ")).or_else(|| trimmed.strip_prefix("+ ")) {
+    if let Some(rest) = trimmed
+        .strip_prefix("- ")
+        .or_else(|| trimmed.strip_prefix("* "))
+        .or_else(|| trimmed.strip_prefix("+ "))
+    {
         let indent = line.len() - trimmed.len();
         let pad: String = " ".repeat(indent);
-        return format!("{}{}  •{} {}\n", pad, BRIGHT_YELLOW, RESET, render_inline_markdown(rest));
+        return format!(
+            "{}{}  •{} {}\n",
+            pad,
+            BRIGHT_YELLOW,
+            RESET,
+            render_inline_markdown(rest)
+        );
     }
 
     // Ordered list: 1. item, 2. item, etc.
@@ -256,7 +318,15 @@ fn render_markdown_line(line: &str) -> String {
             let rest = &trimmed[dot_pos + 2..];
             let indent = line.len() - trimmed.len();
             let pad: String = " ".repeat(indent);
-            return format!("{}{}{}{}.{} {}\n", pad, BRIGHT_YELLOW, BOLD, prefix, RESET, render_inline_markdown(rest));
+            return format!(
+                "{}{}{}{}.{} {}\n",
+                pad,
+                BRIGHT_YELLOW,
+                BOLD,
+                prefix,
+                RESET,
+                render_inline_markdown(rest)
+            );
         }
     }
 
@@ -285,18 +355,30 @@ pub fn highlight_code_blocks(text: &str) -> String {
                 // End of code block — syntax highlight the accumulated code
                 let lang_label = language.as_deref().unwrap_or("text");
                 // Code block header with language label
-                result.push_str(&format!("  {}{}┌─ {} ─{}\n", DIM, BRIGHT_BLACK, lang_label, RESET));
+                result.push_str(&format!(
+                    "  {}{}┌─ {} ─{}\n",
+                    DIM, BRIGHT_BLACK, lang_label, RESET
+                ));
                 let highlighted = highlighter.highlight(&code_buffer, language.as_deref());
                 let lines: Vec<&str> = highlighted.lines().collect();
                 let line_count = lines.len();
-                let width = if line_count > 0 { format!("{}", line_count).len() } else { 1 };
+                let width = if line_count > 0 {
+                    format!("{}", line_count).len()
+                } else {
+                    1
+                };
                 // Add left gutter with line numbers + background color
                 for (i, hl_line) in lines.iter().enumerate() {
                     let line_num = i + 1;
                     result.push_str(&format!(
                         "  {}{}{:>width$} │{} {}{}{}\n",
-                        DIM, BRIGHT_BLACK, line_num, RESET,
-                        BG_GRAY, hl_line, RESET,
+                        DIM,
+                        BRIGHT_BLACK,
+                        line_num,
+                        RESET,
+                        BG_GRAY,
+                        hl_line,
+                        RESET,
                         width = width,
                     ));
                 }
@@ -337,7 +419,9 @@ const FG_RED_CROSS: &str = "\x1b[38;5;167m"; // muted red for failures
 
 /// Get terminal width (fallback to 80).
 fn terminal_width() -> usize {
-    crossterm::terminal::size().map(|(w, _)| w as usize).unwrap_or(80)
+    crossterm::terminal::size()
+        .map(|(w, _)| w as usize)
+        .unwrap_or(80)
 }
 
 /// Render a tool call in a dark background box (Claude Code style).
@@ -370,17 +454,18 @@ pub fn format_tool_pending(tool_name: &str, summary: &str) -> String {
     } else {
         content[..padded_len].to_string()
     };
-    format!(
-        "\n{}{}{}{}",
-        BG_DARK, WHITE, display, RESET
-    )
+    format!("\n{}{}{}{}", BG_DARK, WHITE, display, RESET)
 }
 
 /// Format a completed step result in a dark background box with checkmark/cross.
 pub fn format_step_result(_step_num: usize, tool_summary: &str, success: bool) -> String {
     let width = terminal_width();
     let icon = if success { "\u{2713}" } else { "\u{2717}" }; // ✓ or ✗
-    let icon_color = if success { FG_GREEN_CHECK } else { FG_RED_CROSS };
+    let icon_color = if success {
+        FG_GREEN_CHECK
+    } else {
+        FG_RED_CROSS
+    };
     let content = format!(" {} {}", icon, tool_summary);
     let padded_len = width.saturating_sub(2);
     let display = if content.len() < padded_len {
@@ -388,10 +473,7 @@ pub fn format_step_result(_step_num: usize, tool_summary: &str, success: bool) -
     } else {
         content[..padded_len].to_string()
     };
-    format!(
-        "\n{}{} {}{}",
-        BG_DARK, icon_color, display, RESET
-    )
+    format!("\n{}{} {}{}", BG_DARK, icon_color, display, RESET)
 }
 
 /// Format a "thinking" status line (dim gray, like Claude Code).
@@ -399,7 +481,8 @@ pub fn format_step_result(_step_num: usize, tool_summary: &str, success: bool) -
 pub fn format_thinking(duration_secs: u64) -> String {
     format!(
         "{}Thought for {} second{}{}",
-        BRIGHT_BLACK, duration_secs,
+        BRIGHT_BLACK,
+        duration_secs,
         if duration_secs == 1 { "" } else { "s" },
         RESET
     )
@@ -408,15 +491,18 @@ pub fn format_thinking(duration_secs: u64) -> String {
 /// Format agent task start banner.
 pub fn format_agent_start(task: &str, policy: &str) -> String {
     let task_preview = if task.len() > 120 {
-        let end = task.char_indices().nth(120).map(|(i,_)| i).unwrap_or(task.len());
+        let end = task
+            .char_indices()
+            .nth(120)
+            .map(|(i, _)| i)
+            .unwrap_or(task.len());
         format!("{}...", &task[..end])
     } else {
         task.to_string()
     };
     format!(
         "\n{}{} Agent {}{}  {}\n{}  Policy: {}{}  Press Ctrl+C to stop{}\n",
-        BOLD, BRIGHT_YELLOW, RESET, BOLD, task_preview,
-        BRIGHT_BLACK, policy, "  |", RESET
+        BOLD, BRIGHT_YELLOW, RESET, BOLD, task_preview, BRIGHT_BLACK, policy, "  |", RESET
     )
 }
 
@@ -424,12 +510,18 @@ pub fn format_agent_start(task: &str, policy: &str) -> String {
 pub fn describe_tool_action(tool_name: &str, summary: &str) -> String {
     match tool_name {
         "read_file" => {
-            let path = summary.strip_prefix("read_file(").and_then(|s| s.strip_suffix(')')).unwrap_or(summary);
+            let path = summary
+                .strip_prefix("read_file(")
+                .and_then(|s| s.strip_suffix(')'))
+                .unwrap_or(summary);
             format!("Reading {}", path)
         }
         "write_file" => {
             // summary: "write_file(path, N lines)"
-            let inner = summary.strip_prefix("write_file(").and_then(|s| s.strip_suffix(')')).unwrap_or(summary);
+            let inner = summary
+                .strip_prefix("write_file(")
+                .and_then(|s| s.strip_suffix(')'))
+                .unwrap_or(summary);
             if let Some((path, rest)) = inner.split_once(',') {
                 format!("Writing {} ({})", path.trim(), rest.trim())
             } else {
@@ -437,7 +529,10 @@ pub fn describe_tool_action(tool_name: &str, summary: &str) -> String {
             }
         }
         "apply_patch" => {
-            let inner = summary.strip_prefix("apply_patch(").and_then(|s| s.strip_suffix(')')).unwrap_or(summary);
+            let inner = summary
+                .strip_prefix("apply_patch(")
+                .and_then(|s| s.strip_suffix(')'))
+                .unwrap_or(summary);
             if let Some((path, rest)) = inner.split_once(',') {
                 format!("Patching {} ({})", path.trim(), rest.trim())
             } else {
@@ -445,15 +540,24 @@ pub fn describe_tool_action(tool_name: &str, summary: &str) -> String {
             }
         }
         "bash" => {
-            let inner = summary.strip_prefix("bash(").and_then(|s| s.strip_suffix(')')).unwrap_or(summary);
+            let inner = summary
+                .strip_prefix("bash(")
+                .and_then(|s| s.strip_suffix(')'))
+                .unwrap_or(summary);
             format!("Running: {}", inner)
         }
         "search_files" => {
-            let inner = summary.strip_prefix("search_files(").and_then(|s| s.strip_suffix(')')).unwrap_or(summary);
+            let inner = summary
+                .strip_prefix("search_files(")
+                .and_then(|s| s.strip_suffix(')'))
+                .unwrap_or(summary);
             format!("Searching: {}", inner)
         }
         "list_directory" => {
-            let inner = summary.strip_prefix("list_directory(").and_then(|s| s.strip_suffix(')')).unwrap_or(summary);
+            let inner = summary
+                .strip_prefix("list_directory(")
+                .and_then(|s| s.strip_suffix(')'))
+                .unwrap_or(summary);
             format!("Listing {}", inner)
         }
         "web_search" => format!("Searching web: {}", summary),
@@ -467,25 +571,24 @@ pub fn describe_tool_action(tool_name: &str, summary: &str) -> String {
 
 /// Format agent completion message with change summary.
 pub fn format_agent_complete(summary: &str) -> String {
-    format!(
-        "\n{}{}Agent complete:{} {}",
-        BOLD, GREEN, RESET, summary
-    )
+    format!("\n{}{}Agent complete:{} {}", BOLD, GREEN, RESET, summary)
 }
 
 /// Format a change summary showing what files were modified.
 pub fn format_change_summary(steps: &[(String, String, bool)]) -> String {
     // steps: [(tool_name, summary, success)]
-    let writes: Vec<&str> = steps.iter()
+    let writes: Vec<&str> = steps
+        .iter()
         .filter(|(tool, _, success)| *success && (tool == "write_file" || tool == "apply_patch"))
-        .filter_map(|(_, summary, _)| {
-            summary.split('(').nth(1).and_then(|s| s.split(',').next())
-        })
+        .filter_map(|(_, summary, _)| summary.split('(').nth(1).and_then(|s| s.split(',').next()))
         .collect();
-    let commands: Vec<&str> = steps.iter()
+    let commands: Vec<&str> = steps
+        .iter()
         .filter(|(tool, _, success)| *success && tool == "bash")
         .filter_map(|(_, summary, _)| {
-            summary.strip_prefix("bash(").and_then(|s| s.strip_suffix(')'))
+            summary
+                .strip_prefix("bash(")
+                .and_then(|s| s.strip_suffix(')'))
         })
         .collect();
 
@@ -504,16 +607,16 @@ pub fn format_change_summary(steps: &[(String, String, bool)]) -> String {
     }
     let total = steps.len();
     let succeeded = steps.iter().filter(|(_, _, s)| *s).count();
-    out.push_str(&format!("\n   {}Steps:{} {}/{} succeeded", BOLD, RESET, succeeded, total));
+    out.push_str(&format!(
+        "\n   {}Steps:{} {}/{} succeeded",
+        BOLD, RESET, succeeded, total
+    ));
     out
 }
 
 /// Format agent error message.
 pub fn format_agent_error(error: &str) -> String {
-    format!(
-        "\n{}{}Error:{} {}",
-        BOLD, FG_RED_CROSS, RESET, error
-    )
+    format!("\n{}{}Error:{} {}", BOLD, FG_RED_CROSS, RESET, error)
 }
 
 /// Format the REPL prompt. Plain text to avoid rustyline ANSI width issues.
@@ -539,7 +642,12 @@ pub fn format_tool_output(output: &str, _success: bool) -> String {
         result.push_str(&format!("  {}{}{}\n", DIM, line, RESET));
     }
     if lines.len() > max_lines {
-        result.push_str(&format!("  {}... ({} more lines){}\n", DIM, lines.len() - max_lines, RESET));
+        result.push_str(&format!(
+            "  {}... ({} more lines){}\n",
+            DIM,
+            lines.len() - max_lines,
+            RESET
+        ));
     }
     result
 }
@@ -1004,7 +1112,7 @@ Visit [the docs](https://vibecody.dev) for more."#;
         assert!(out.contains(BRIGHT_GREEN)); // h1
         assert!(out.contains(CYAN)); // h2
         assert!(out.contains(MAGENTA)); // h3
-        // Lists have bullets
+                                        // Lists have bullets
         assert!(out.contains("•"));
         // Code block has gutter
         assert!(out.contains("┌─"));

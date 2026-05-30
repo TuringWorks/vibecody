@@ -188,8 +188,7 @@ impl RootfsManager {
         expected_sha: Option<&str>,
     ) -> Result<PathBuf, RootfsError> {
         let v = self.verify(source, expected_sha)?;
-        fs::create_dir_all(&self.cache_dir)
-            .map_err(|e| RootfsError::CacheInit(e.to_string()))?;
+        fs::create_dir_all(&self.cache_dir).map_err(|e| RootfsError::CacheInit(e.to_string()))?;
         let dst = self.cache_path(&v.sha256);
         if dst.exists() {
             // Already cached — sanity-check the bytes still match.
@@ -239,11 +238,7 @@ impl RootfsManager {
     /// Returns `Ok(true)` only when cosign was found AND verification
     /// succeeded; `Ok(false)` when cosign is absent; `Err` when cosign
     /// ran but refused the bundle.
-    pub fn verify_cosign(
-        &self,
-        image: &Path,
-        bundle: &Path,
-    ) -> Result<bool, RootfsError> {
+    pub fn verify_cosign(&self, image: &Path, bundle: &Path) -> Result<bool, RootfsError> {
         let cosign = match which("cosign") {
             Some(p) => p,
             None => return Ok(false),
@@ -331,8 +326,8 @@ impl Sha256Stream {
     fn new() -> Self {
         Self {
             h: [
-                0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c,
-                0x1f83d9ab, 0x5be0cd19,
+                0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab,
+                0x5be0cd19,
             ],
             buf: [0; 64],
             buf_len: 0,
@@ -453,7 +448,8 @@ mod tests {
     use std::io::Write;
 
     fn tmpdir(name: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("vibe_rootfs_test_{}_{}", name, std::process::id()));
+        let d =
+            std::env::temp_dir().join(format!("vibe_rootfs_test_{}_{}", name, std::process::id()));
         let _ = fs::remove_dir_all(&d);
         fs::create_dir_all(&d).unwrap();
         d
@@ -468,10 +464,7 @@ mod tests {
         for (i, b) in buf.iter_mut().enumerate().take(2048).skip(1088) {
             *b = (i % 256) as u8;
         }
-        fs::File::create(path)
-            .unwrap()
-            .write_all(&buf)
-            .unwrap();
+        fs::File::create(path).unwrap().write_all(&buf).unwrap();
     }
 
     // ── Sha256 — published NIST vectors ──────────────────────────────────
@@ -556,7 +549,9 @@ mod tests {
         let p = dir.join("empty.ext4");
         fs::File::create(&p).unwrap();
         let m = RootfsManager::new(dir);
-        let err = m.verify(&p, Some("00".repeat(32).as_str())).expect_err("empty");
+        let err = m
+            .verify(&p, Some("00".repeat(32).as_str()))
+            .expect_err("empty");
         assert!(matches!(err, RootfsError::Empty(_)));
     }
 
@@ -568,7 +563,9 @@ mod tests {
         let f = fs::File::create(&p).unwrap();
         f.set_len(MAX_ROOTFS_BYTES + 1).unwrap();
         let m = RootfsManager::new(dir);
-        let err = m.verify(&p, Some("00".repeat(32).as_str())).expect_err("too big");
+        let err = m
+            .verify(&p, Some("00".repeat(32).as_str()))
+            .expect_err("too big");
         assert!(matches!(err, RootfsError::TooLarge { .. }));
     }
 
@@ -696,7 +693,9 @@ mod tests {
         write_ext4_stub(&src, 8 * 1024);
         let m = RootfsManager::new(dir.join("cache"));
         // Wrong sha → verify fails → install fails.
-        let err = m.install(&src, Some(&"22".repeat(32))).expect_err("corrupt");
+        let err = m
+            .install(&src, Some(&"22".repeat(32)))
+            .expect_err("corrupt");
         assert!(matches!(err, RootfsError::HashMismatch { .. }));
     }
 

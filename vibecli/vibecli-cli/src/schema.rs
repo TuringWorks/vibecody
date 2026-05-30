@@ -26,7 +26,11 @@ pub type ValidationErrors = Vec<String>;
 pub fn validate(value: &Value, schema: &Value) -> Result<(), ValidationErrors> {
     let mut errors = ValidationErrors::new();
     validate_inner(value, schema, "$", &mut errors);
-    if errors.is_empty() { Ok(()) } else { Err(errors) }
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(errors)
+    }
 }
 
 // ── Internal recursive validator ──────────────────────────────────────────────
@@ -70,12 +74,22 @@ fn validate_inner(value: &Value, schema: &Value, path: &str, errors: &mut Valida
     if let Some(s) = value.as_str() {
         if let Some(min) = obj.get("minLength").and_then(|v| v.as_u64()) {
             if (s.chars().count() as u64) < min {
-                errors.push(format!("{}: string length {} < minLength {}", path, s.len(), min));
+                errors.push(format!(
+                    "{}: string length {} < minLength {}",
+                    path,
+                    s.len(),
+                    min
+                ));
             }
         }
         if let Some(max) = obj.get("maxLength").and_then(|v| v.as_u64()) {
             if (s.chars().count() as u64) > max {
-                errors.push(format!("{}: string length {} > maxLength {}", path, s.len(), max));
+                errors.push(format!(
+                    "{}: string length {} > maxLength {}",
+                    path,
+                    s.len(),
+                    max
+                ));
             }
         }
     }
@@ -121,12 +135,22 @@ fn validate_inner(value: &Value, schema: &Value, path: &str, errors: &mut Valida
     if let Some(arr) = value.as_array() {
         if let Some(min) = obj.get("minItems").and_then(|v| v.as_u64()) {
             if (arr.len() as u64) < min {
-                errors.push(format!("{}: array length {} < minItems {}", path, arr.len(), min));
+                errors.push(format!(
+                    "{}: array length {} < minItems {}",
+                    path,
+                    arr.len(),
+                    min
+                ));
             }
         }
         if let Some(max) = obj.get("maxItems").and_then(|v| v.as_u64()) {
             if (arr.len() as u64) > max {
-                errors.push(format!("{}: array length {} > maxItems {}", path, arr.len(), max));
+                errors.push(format!(
+                    "{}: array length {} > maxItems {}",
+                    path,
+                    arr.len(),
+                    max
+                ));
             }
         }
         if let Some(items_schema) = obj.get("items") {
@@ -140,24 +164,30 @@ fn validate_inner(value: &Value, schema: &Value, path: &str, errors: &mut Valida
 
 fn type_matches(value: &Value, type_name: &str) -> bool {
     match type_name {
-        "string"  => value.is_string(),
-        "number"  => value.is_number(),
+        "string" => value.is_string(),
+        "number" => value.is_number(),
         "integer" => value.is_i64() || value.is_u64(),
         "boolean" => value.is_boolean(),
-        "array"   => value.is_array(),
-        "object"  => value.is_object(),
-        "null"    => value.is_null(),
-        _         => true, // unknown type — pass
+        "array" => value.is_array(),
+        "object" => value.is_object(),
+        "null" => value.is_null(),
+        _ => true, // unknown type — pass
     }
 }
 
 fn json_type_name(v: &Value) -> &'static str {
     match v {
-        Value::Null      => "null",
-        Value::Bool(_)   => "boolean",
-        Value::Number(n) => if n.is_f64() { "number" } else { "integer" },
+        Value::Null => "null",
+        Value::Bool(_) => "boolean",
+        Value::Number(n) => {
+            if n.is_f64() {
+                "number"
+            } else {
+                "integer"
+            }
+        }
         Value::String(_) => "string",
-        Value::Array(_)  => "array",
+        Value::Array(_) => "array",
         Value::Object(_) => "object",
     }
 }

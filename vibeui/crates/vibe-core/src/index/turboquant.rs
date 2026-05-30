@@ -444,8 +444,7 @@ impl TurboQuantIndex {
         let polar_approx = compressed.polar.dequantize(dim);
 
         // Reconstruct QJL residual
-        let residual_approx =
-            compressed.qjl.decompress(&self.projection, dim);
+        let residual_approx = compressed.qjl.decompress(&self.projection, dim);
 
         // Combine: rotated_approx = polar + residual
         let rotated_approx: Vec<f32> = polar_approx
@@ -580,10 +579,12 @@ fn cosine_sim(a: &[f32], b: &[f32]) -> f32 {
     if a.len() != b.len() || a.is_empty() {
         return 0.0;
     }
-    let (dot, norm_a, norm_b) = a.iter().zip(b.iter()).fold(
-        (0.0f32, 0.0f32, 0.0f32),
-        |(d, na, nb), (x, y)| (d + x * y, na + x * x, nb + y * y),
-    );
+    let (dot, norm_a, norm_b) = a
+        .iter()
+        .zip(b.iter())
+        .fold((0.0f32, 0.0f32, 0.0f32), |(d, na, nb), (x, y)| {
+            (d + x * y, na + x * x, nb + y * y)
+        });
     let denom = norm_a.sqrt() * norm_b.sqrt();
     if denom == 0.0 {
         0.0
@@ -800,7 +801,11 @@ mod tests {
         let results = index.search(&v1, 3);
         assert!(!results.is_empty());
         assert_eq!(results[0].id, "a");
-        assert!(results[0].score > 0.8, "self-similarity should be high: {}", results[0].score);
+        assert!(
+            results[0].score > 0.8,
+            "self-similarity should be high: {}",
+            results[0].score
+        );
     }
 
     #[test]
@@ -911,7 +916,9 @@ mod tests {
         let k = 10;
 
         // Build ground truth with brute-force cosine
-        let vectors: Vec<Vec<f32>> = (0..n).map(|i| normalized_vector(dim, i as u64 + 100)).collect();
+        let vectors: Vec<Vec<f32>> = (0..n)
+            .map(|i| normalized_vector(dim, i as u64 + 100))
+            .collect();
         let query = normalized_vector(dim, 999);
 
         let mut gt_scores: Vec<(f32, usize)> = vectors
@@ -1107,7 +1114,9 @@ mod tests {
             qjl_proj_dim: None,
         };
         let mut index = TurboQuantIndex::new(config);
-        index.insert("a", &random_vector(dim, 1), HashMap::new()).unwrap();
+        index
+            .insert("a", &random_vector(dim, 1), HashMap::new())
+            .unwrap();
         assert!(!index.is_empty());
     }
 }

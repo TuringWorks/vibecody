@@ -10,8 +10,8 @@
 #![allow(dead_code)]
 
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
 use std::thread;
+use std::time::Instant;
 
 // ---------------------------------------------------------------------------
 // Core types
@@ -165,12 +165,7 @@ impl ParallelToolDispatcher {
     /// - `F` — sync preflight hook: `(&ToolCall) -> PreflightDecision`
     /// - `G` — sync tool executor: `(&ToolCall) -> ToolResult` (called
     ///   concurrently via OS threads in Parallel mode)
-    pub fn dispatch<F, G>(
-        &self,
-        calls: Vec<ToolCall>,
-        preflight: F,
-        execute: G,
-    ) -> Vec<ToolResult>
+    pub fn dispatch<F, G>(&self, calls: Vec<ToolCall>, preflight: F, execute: G) -> Vec<ToolResult>
     where
         F: Fn(&ToolCall) -> PreflightDecision,
         G: Fn(&ToolCall) -> ToolResult + Send + Sync + 'static,
@@ -191,12 +186,8 @@ impl ParallelToolDispatcher {
 
         // --- Step 2: dispatch allowed calls ---------------------------------
         match self.mode {
-            ExecutionMode::Sequential => {
-                Self::dispatch_sequential(preflight_decisions, execute)
-            }
-            ExecutionMode::Parallel => {
-                self.dispatch_parallel(preflight_decisions, execute)
-            }
+            ExecutionMode::Sequential => Self::dispatch_sequential(preflight_decisions, execute),
+            ExecutionMode::Parallel => self.dispatch_parallel(preflight_decisions, execute),
         }
     }
 
@@ -240,8 +231,7 @@ impl ParallelToolDispatcher {
         let total = decisions.len();
 
         // Allocate result slots indexed by original position.
-        let results: Arc<Mutex<Vec<Option<ToolResult>>>> =
-            Arc::new(Mutex::new(vec![None; total]));
+        let results: Arc<Mutex<Vec<Option<ToolResult>>>> = Arc::new(Mutex::new(vec![None; total]));
 
         let execute = Arc::new(execute);
 
@@ -423,17 +413,18 @@ mod tests {
         dispatcher.dispatch(
             calls,
             move |call| {
-                log2.lock()
-                    .unwrap()
-                    .push(call.tool_name.clone());
+                log2.lock().unwrap().push(call.tool_name.clone());
                 PreflightDecision::Allow
             },
             instant_executor,
         );
 
         let seen = log.lock().unwrap().clone();
-        assert_eq!(seen, vec!["Read", "Write", "Bash"],
-            "preflight must visit calls in original order");
+        assert_eq!(
+            seen,
+            vec!["Read", "Write", "Bash"],
+            "preflight must visit calls in original order"
+        );
     }
 
     // ── Test 2: parallel mode is faster than sum of serial times ────────────
@@ -445,8 +436,7 @@ mod tests {
             .collect();
 
         let dispatcher = ParallelToolDispatcher::with_concurrency(ExecutionMode::Parallel, 4);
-        let (results, stats) =
-            dispatcher.dispatch_with_stats(calls, allow_all, sleep_executor);
+        let (results, stats) = dispatcher.dispatch_with_stats(calls, allow_all, sleep_executor);
 
         assert_eq!(results.len(), 4);
         assert!(
@@ -475,26 +465,31 @@ mod tests {
 
         let calls = make_calls(&[("Read", "{}"), ("Bash", "{}"), ("Write", "{}")]);
         let dispatcher = ParallelToolDispatcher::new(ExecutionMode::Sequential);
-        let results = dispatcher.dispatch(
-            calls,
-            block_named("Bash"),
-            move |call| {
-                executed2.lock().unwrap().push(call.call_id.clone());
-                instant_executor(call)
-            },
-        );
+        let results = dispatcher.dispatch(calls, block_named("Bash"), move |call| {
+            executed2.lock().unwrap().push(call.call_id.clone());
+            instant_executor(call)
+        });
 
         // Bash (index 1) must be blocked
         assert!(results[1].blocked, "Bash call should be blocked");
-        assert_eq!(results[1].output, "", "blocked call should have empty output");
-        assert!(results[1].error.is_some(), "blocked call should carry reason");
+        assert_eq!(
+            results[1].output, "",
+            "blocked call should have empty output"
+        );
+        assert!(
+            results[1].error.is_some(),
+            "blocked call should carry reason"
+        );
 
         // Read and Write must have executed
         assert!(!results[0].blocked);
         assert!(!results[2].blocked);
 
         let exec_log = executed.lock().unwrap();
-        assert!(!exec_log.contains(&"id1".to_string()), "Bash must not be executed");
+        assert!(
+            !exec_log.contains(&"id1".to_string()),
+            "Bash must not be executed"
+        );
         assert!(exec_log.contains(&"id0".to_string()));
         assert!(exec_log.contains(&"id2".to_string()));
     }
@@ -528,8 +523,7 @@ mod tests {
             .collect();
 
         let dispatcher = ParallelToolDispatcher::new(ExecutionMode::Sequential);
-        let (results, stats) =
-            dispatcher.dispatch_with_stats(calls, allow_all, sleep_executor);
+        let (results, stats) = dispatcher.dispatch_with_stats(calls, allow_all, sleep_executor);
 
         assert_eq!(results.len(), 3);
         assert_eq!(*dispatcher.mode(), ExecutionMode::Sequential);
@@ -588,8 +582,8 @@ mod tests {
 
         let (_, stats) = dispatcher.dispatch_with_stats(calls, block_named("Bash"), error_exec);
         assert_eq!(stats.total_calls, 3);
-        assert_eq!(stats.blocked, 1);  // Bash
-        assert_eq!(stats.failed, 1);   // Write
+        assert_eq!(stats.blocked, 1); // Bash
+        assert_eq!(stats.failed, 1); // Write
         assert_eq!(stats.executed, 2); // Read + Write (both ran, Write errored)
     }
 }

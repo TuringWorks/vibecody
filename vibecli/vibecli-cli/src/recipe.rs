@@ -43,7 +43,9 @@ pub struct RecipeParam {
     pub description: Option<String>,
 }
 
-fn default_type() -> String { "string".into() }
+fn default_type() -> String {
+    "string".into()
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RecipeStep {
@@ -70,7 +72,9 @@ pub struct Recipe {
     pub tags: Vec<String>,
 }
 
-fn default_version() -> String { "1.0".into() }
+fn default_version() -> String {
+    "1.0".into()
+}
 
 impl Recipe {
     /// Load a recipe from a YAML file.
@@ -86,7 +90,11 @@ impl Recipe {
     pub fn validate_params(&self, params: &HashMap<String, String>) -> Result<()> {
         for (name, spec) in &self.parameters {
             if spec.required && !params.contains_key(name) && spec.default.is_none() {
-                bail!("Recipe '{}' requires parameter --param {}=<value>", self.name, name);
+                bail!(
+                    "Recipe '{}' requires parameter --param {}=<value>",
+                    self.name,
+                    name
+                );
             }
         }
         Ok(())
@@ -119,16 +127,23 @@ pub fn render_template(template: &str, params: &HashMap<String, String>) -> Stri
     re.replace_all(template, |caps: &regex::Captures| {
         let key = &caps[1];
         params.get(key).cloned().unwrap_or_else(|| {
-            eprintln!("  \x1b[33mWarning:\x1b[0m unresolved template variable: {{{{ {} }}}}", key);
+            eprintln!(
+                "  \x1b[33mWarning:\x1b[0m unresolved template variable: {{{{ {} }}}}",
+                key
+            );
             caps[0].to_string()
         })
-    }).to_string()
+    })
+    .to_string()
 }
 
 // ── Runner ────────────────────────────────────────────────────────────────────
 
 /// B6: Interactively prompt for missing required parameters.
-fn prompt_missing_params(recipe: &Recipe, provided: &HashMap<String, String>) -> HashMap<String, String> {
+fn prompt_missing_params(
+    recipe: &Recipe,
+    provided: &HashMap<String, String>,
+) -> HashMap<String, String> {
     use std::io::{self, Write};
     let mut filled = provided.clone();
     for (name, spec) in &recipe.parameters {
@@ -139,7 +154,9 @@ fn prompt_missing_params(recipe: &Recipe, provided: &HashMap<String, String>) ->
             let mut line = String::new();
             if io::stdin().read_line(&mut line).is_ok() {
                 let v = line.trim().to_string();
-                if !v.is_empty() { filled.insert(name.clone(), v); }
+                if !v.is_empty() {
+                    filled.insert(name.clone(), v);
+                }
             }
         }
     }
@@ -153,17 +170,31 @@ pub fn dry_run_recipe(recipe_file: &str, params: &HashMap<String, String>) -> Re
     recipe.validate_params(&params)?;
     let resolved = recipe.resolve_params(&params);
 
-    println!("\x1b[1;33m[DRY RUN]\x1b[0m \x1b[1;36m▶ Recipe: {}\x1b[0m ({})", recipe.name, recipe_file);
-    if let Some(desc) = &recipe.description { println!("  {}", desc); }
+    println!(
+        "\x1b[1;33m[DRY RUN]\x1b[0m \x1b[1;36m▶ Recipe: {}\x1b[0m ({})",
+        recipe.name, recipe_file
+    );
+    if let Some(desc) = &recipe.description {
+        println!("  {}", desc);
+    }
     println!("  Steps: {}", recipe.steps.len());
-    for (k, v) in &resolved { println!("  \x1b[2m{}={}\x1b[0m", k, v); }
+    for (k, v) in &resolved {
+        println!("  \x1b[2m{}={}\x1b[0m", k, v);
+    }
     println!();
     for (i, step) in recipe.steps.iter().enumerate() {
         let prompt = render_template(&step.prompt, &resolved);
-        let provider_note = step.provider.as_deref()
+        let provider_note = step
+            .provider
+            .as_deref()
             .map(|p| format!(" [provider: {}]", p))
             .unwrap_or_default();
-        println!("\x1b[1;34m── Step {}/{}{}\x1b[0m", i + 1, recipe.steps.len(), provider_note);
+        println!(
+            "\x1b[1;34m── Step {}/{}{}\x1b[0m",
+            i + 1,
+            recipe.steps.len(),
+            provider_note
+        );
         println!("{}", prompt.trim());
         println!();
     }
@@ -205,7 +236,12 @@ pub async fn run_recipe(
         let prompt = render_template(&step.prompt, &resolved);
         let step_provider = step.provider.as_deref().unwrap_or(effective_provider);
 
-        println!("\x1b[1;34m── Step {}/{}: {}\x1b[0m", i + 1, recipe.steps.len(), &prompt[..prompt.len().min(80)]);
+        println!(
+            "\x1b[1;34m── Step {}/{}: {}\x1b[0m",
+            i + 1,
+            recipe.steps.len(),
+            &prompt[..prompt.len().min(80)]
+        );
 
         // Build an LLM provider and run the step
         let llm = crate::create_provider(step_provider, effective_model.map(|s| s.to_string()))?;
@@ -213,16 +249,20 @@ pub async fn run_recipe(
         println!();
     }
 
-    println!("\x1b[1;32m✔ Recipe '{}' completed ({} steps)\x1b[0m", recipe.name, recipe.steps.len());
+    println!(
+        "\x1b[1;32m✔ Recipe '{}' completed ({} steps)\x1b[0m",
+        recipe.name,
+        recipe.steps.len()
+    );
     Ok(())
 }
 
-async fn run_recipe_step(
-    llm: &dyn vibe_ai::provider::AIProvider,
-    prompt: &str,
-) -> Result<()> {
+async fn run_recipe_step(llm: &dyn vibe_ai::provider::AIProvider, prompt: &str) -> Result<()> {
     use vibe_ai::provider::{Message, MessageRole};
-    let msgs = vec![Message { role: MessageRole::User, content: prompt.to_string() }];
+    let msgs = vec![Message {
+        role: MessageRole::User,
+        content: prompt.to_string(),
+    }];
     let mut stream = llm.stream_chat(&msgs).await?;
     use futures::StreamExt;
     while let Some(chunk) = stream.next().await {
@@ -239,7 +279,9 @@ pub fn list_recipes() -> Vec<(String, Recipe)> {
     let mut recipes = vec![];
     let search_dirs = vec![
         std::path::PathBuf::from("recipes"),
-        dirs::home_dir().map(|h| h.join(".vibecli").join("recipes")).unwrap_or_default(),
+        dirs::home_dir()
+            .map(|h| h.join(".vibecli").join("recipes"))
+            .unwrap_or_default(),
     ];
     for dir in search_dirs {
         if let Ok(entries) = std::fs::read_dir(&dir) {
@@ -282,34 +324,48 @@ pub fn handle_recipe_command(args: &str) -> String {
         }
         "show" | "info" => {
             let file = parts.get(1).copied().unwrap_or("");
-            if file.is_empty() { return "Usage: /recipe show <file.yaml>\n".to_string(); }
+            if file.is_empty() {
+                return "Usage: /recipe show <file.yaml>\n".to_string();
+            }
             match Recipe::load(file) {
                 Ok(r) => {
                     let mut out = format!("📜 {} (v{})\n", r.name, r.version);
-                    if let Some(d) = &r.description { out.push_str(&format!("  {}\n", d)); }
+                    if let Some(d) = &r.description {
+                        out.push_str(&format!("  {}\n", d));
+                    }
                     if !r.parameters.is_empty() {
                         out.push_str("  Parameters:\n");
                         for (k, p) in &r.parameters {
                             let req = if p.required { " (required)" } else { "" };
-                            let def = p.default.as_deref().map(|d| format!(" [default: {}]", d)).unwrap_or_default();
-                            out.push_str(&format!("    --param {}=<{}>{}{}\n", k, p.param_type, req, def));
+                            let def = p
+                                .default
+                                .as_deref()
+                                .map(|d| format!(" [default: {}]", d))
+                                .unwrap_or_default();
+                            out.push_str(&format!(
+                                "    --param {}=<{}>{}{}\n",
+                                k, p.param_type, req, def
+                            ));
                         }
                     }
                     out.push_str(&format!("  Steps: {}\n", r.steps.len()));
                     for (i, s) in r.steps.iter().enumerate() {
-                        out.push_str(&format!("    {}. {}\n", i + 1, &s.prompt[..s.prompt.len().min(60)]));
+                        out.push_str(&format!(
+                            "    {}. {}\n",
+                            i + 1,
+                            &s.prompt[..s.prompt.len().min(60)]
+                        ));
                     }
                     out
                 }
                 Err(e) => format!("❌ {}\n", e),
             }
         }
-        _ => {
-            "📜 Recipe Commands:\n\
+        _ => "📜 Recipe Commands:\n\
               /recipe list           — List available recipes\n\
               /recipe show <file>    — Show recipe details\n\n\
-            Run from CLI: vibecli --recipe <file.yaml> --param key=value\n".to_string()
-        }
+            Run from CLI: vibecli --recipe <file.yaml> --param key=value\n"
+            .to_string(),
     }
 }
 
@@ -338,14 +394,25 @@ mod tests {
     #[test]
     fn test_recipe_resolve_params_defaults() {
         let mut recipe = Recipe {
-            name: "test".into(), description: None, version: "1.0".into(),
-            author: None, provider: None, model: None, steps: vec![], tags: vec![],
+            name: "test".into(),
+            description: None,
+            version: "1.0".into(),
+            author: None,
+            provider: None,
+            model: None,
+            steps: vec![],
+            tags: vec![],
             parameters: HashMap::new(),
         };
-        recipe.parameters.insert("lang".into(), RecipeParam {
-            param_type: "string".into(), required: false,
-            default: Some("rust".into()), description: None,
-        });
+        recipe.parameters.insert(
+            "lang".into(),
+            RecipeParam {
+                param_type: "string".into(),
+                required: false,
+                default: Some("rust".into()),
+                description: None,
+            },
+        );
         let resolved = recipe.resolve_params(&HashMap::new());
         assert_eq!(resolved.get("lang").map(String::as_str), Some("rust"));
     }
@@ -353,13 +420,25 @@ mod tests {
     #[test]
     fn test_recipe_validate_params_missing_required() {
         let mut recipe = Recipe {
-            name: "test".into(), description: None, version: "1.0".into(),
-            author: None, provider: None, model: None, steps: vec![], tags: vec![],
+            name: "test".into(),
+            description: None,
+            version: "1.0".into(),
+            author: None,
+            provider: None,
+            model: None,
+            steps: vec![],
+            tags: vec![],
             parameters: HashMap::new(),
         };
-        recipe.parameters.insert("name".into(), RecipeParam {
-            param_type: "string".into(), required: true, default: None, description: None,
-        });
+        recipe.parameters.insert(
+            "name".into(),
+            RecipeParam {
+                param_type: "string".into(),
+                required: true,
+                default: None,
+                description: None,
+            },
+        );
         let result = recipe.validate_params(&HashMap::new());
         assert!(result.is_err());
     }
@@ -367,13 +446,25 @@ mod tests {
     #[test]
     fn test_recipe_validate_params_ok() {
         let mut recipe = Recipe {
-            name: "test".into(), description: None, version: "1.0".into(),
-            author: None, provider: None, model: None, steps: vec![], tags: vec![],
+            name: "test".into(),
+            description: None,
+            version: "1.0".into(),
+            author: None,
+            provider: None,
+            model: None,
+            steps: vec![],
+            tags: vec![],
             parameters: HashMap::new(),
         };
-        recipe.parameters.insert("name".into(), RecipeParam {
-            param_type: "string".into(), required: true, default: None, description: None,
-        });
+        recipe.parameters.insert(
+            "name".into(),
+            RecipeParam {
+                param_type: "string".into(),
+                required: true,
+                default: None,
+                description: None,
+            },
+        );
         let mut params = HashMap::new();
         params.insert("name".into(), "auth".into());
         assert!(recipe.validate_params(&params).is_ok());

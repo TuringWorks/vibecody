@@ -1,7 +1,7 @@
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
-use anyhow::Result;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AIConfig {
@@ -49,11 +49,15 @@ mod tests {
         let dir = std::env::temp_dir().join("vibecody_ai_config_test");
         let _ = std::fs::create_dir_all(&dir);
         let file = dir.join("ai.toml");
-        std::fs::write(&file, r#"
+        std::fs::write(
+            &file,
+            r#"
 [ollama]
 enabled = true
 model = "codellama"
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         let cfg = AIConfig::load_from_file(&file).unwrap();
         assert!(cfg.ollama.is_some());

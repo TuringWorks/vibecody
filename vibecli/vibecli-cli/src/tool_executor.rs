@@ -3,13 +3,13 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
+use std::path::Path as StdPath; // used in search() glob filter
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use vibe_ai::agent::{AgentContext, AgentEvent, AgentLoop, ApprovalPolicy, ToolExecutorTrait};
 use vibe_ai::provider::AIProvider;
 use vibe_ai::tools::{ToolCall, ToolResult};
 use vibe_ai::WorktreeManager;
-use std::path::Path as StdPath; // used in search() glob filter
 use vibe_core::executor::CommandExecutor;
 use vibe_core::search::search_files;
 use vibe_sandbox::NetPolicy;
@@ -20,7 +20,7 @@ const BLOCKED_COMMANDS: &[&str] = &[
     "rm -rf /*",
     "mkfs",
     "dd if=",
-    ":(){:|:&};:",  // fork bomb
+    ":(){:|:&};:", // fork bomb
     "chmod -r 777 /",
     "curl|sh",
     "curl|bash",
@@ -40,7 +40,7 @@ const EXFILTRATION_PATTERNS: &[&str] = &[
     "curl -d",
     "curl --data",
     "wget --post-data",
-    "nc ",         // netcat
+    "nc ", // netcat
     "ncat ",
     "/dev/tcp/",
     "base64 -d|sh",
@@ -89,9 +89,19 @@ impl ShellEnvPolicy {
             _ => {
                 // "core" — keep PATH, HOME, USER, SHELL, TERM, LANG, TMPDIR + common build vars
                 let core_keys = [
-                    "PATH", "HOME", "USER", "SHELL", "TERM", "LANG", "TMPDIR",
-                    "CARGO_HOME", "RUSTUP_HOME", "GOPATH", "GOROOT",
-                    "XDG_RUNTIME_DIR", "XDG_CONFIG_HOME",
+                    "PATH",
+                    "HOME",
+                    "USER",
+                    "SHELL",
+                    "TERM",
+                    "LANG",
+                    "TMPDIR",
+                    "CARGO_HOME",
+                    "RUSTUP_HOME",
+                    "GOPATH",
+                    "GOROOT",
+                    "XDG_RUNTIME_DIR",
+                    "XDG_CONFIG_HOME",
                 ];
                 std::env::vars()
                     .filter(|(k, _)| core_keys.contains(&k.as_str()))
@@ -109,9 +119,7 @@ impl ShellEnvPolicy {
         }
 
         // Apply exclude list
-        env.retain(|k, _| {
-            !self.exclude.iter().any(|pat| var_matches_pattern(k, pat))
-        });
+        env.retain(|k, _| !self.exclude.iter().any(|pat| var_matches_pattern(k, pat)));
 
         // Apply forced set
         for (k, v) in &self.set {
@@ -234,7 +242,12 @@ impl ToolExecutor {
         self
     }
 
-    pub fn with_search_config(mut self, engine: String, tavily_key: Option<String>, brave_key: Option<String>) -> Self {
+    pub fn with_search_config(
+        mut self,
+        engine: String,
+        tavily_key: Option<String>,
+        brave_key: Option<String>,
+    ) -> Self {
         self.search_engine = engine;
         self.tavily_api_key = tavily_key;
         self.brave_api_key = brave_key;
@@ -261,10 +274,16 @@ impl ToolExecutorTrait for ToolExecutor {
         if self.network_disabled {
             match call {
                 ToolCall::WebSearch { .. } => {
-                    return ToolResult::err("web_search", "Network access is disabled in sandbox mode");
+                    return ToolResult::err(
+                        "web_search",
+                        "Network access is disabled in sandbox mode",
+                    );
                 }
                 ToolCall::FetchUrl { .. } => {
-                    return ToolResult::err("fetch_url", "Network access is disabled in sandbox mode");
+                    return ToolResult::err(
+                        "fetch_url",
+                        "Network access is disabled in sandbox mode",
+                    );
                 }
                 _ => {}
             }
@@ -284,12 +303,15 @@ impl ToolExecutorTrait for ToolExecutor {
             ToolCall::TaskComplete { summary } => {
                 ToolResult::ok("task_complete", format!("Task complete: {}", summary))
             }
-            ToolCall::SpawnAgent { task, max_steps, max_depth } => {
-                self.spawn_sub_agent(task, *max_steps, *max_depth).await
-            }
-            ToolCall::Think { thought } => {
-                ToolResult::ok("think", format!("Reasoning noted ({} chars).", thought.len()))
-            }
+            ToolCall::SpawnAgent {
+                task,
+                max_steps,
+                max_depth,
+            } => self.spawn_sub_agent(task, *max_steps, *max_depth).await,
+            ToolCall::Think { thought } => ToolResult::ok(
+                "think",
+                format!("Reasoning noted ({} chars).", thought.len()),
+            ),
             ToolCall::PlanTask { steps } => {
                 ToolResult::ok("plan_task", format!("Plan recorded:\n{}", steps))
             }
@@ -299,7 +321,13 @@ impl ToolExecutorTrait for ToolExecutor {
                     Err(e) => return ToolResult::err("diffstat", e),
                 };
                 let output = std::process::Command::new("git")
-                    .args(["diff", "--stat", "HEAD", "--", resolved.to_str().unwrap_or(path)])
+                    .args([
+                        "diff",
+                        "--stat",
+                        "HEAD",
+                        "--",
+                        resolved.to_str().unwrap_or(path),
+                    ])
                     .current_dir(&self.workspace_root)
                     .output();
                 match output {
@@ -356,7 +384,10 @@ impl ToolExecutor {
         // filesystems (NFS, cold page-cache, USB drives).
         match tokio::fs::read_to_string(&resolved).await {
             Ok(content) => ToolResult::ok("read_file", content),
-            Err(e) => ToolResult::err("read_file", format!("Cannot read {}: {}", resolved.display(), e)),
+            Err(e) => ToolResult::err(
+                "read_file",
+                format!("Cannot read {}: {}", resolved.display(), e),
+            ),
         }
     }
 
@@ -375,7 +406,10 @@ impl ToolExecutor {
                 "write_file",
                 format!("Written {} bytes to {}", content.len(), resolved.display()),
             ),
-            Err(e) => ToolResult::err("write_file", format!("Cannot write {}: {}", resolved.display(), e)),
+            Err(e) => ToolResult::err(
+                "write_file",
+                format!("Cannot write {}: {}", resolved.display(), e),
+            ),
         }
     }
 
@@ -398,7 +432,10 @@ impl ToolExecutor {
             Err(e) => return ToolResult::err("apply_patch", format!("Patch failed: {}", e)),
         };
         match tokio::fs::write(&resolved, &patched).await {
-            Ok(_) => ToolResult::ok("apply_patch", format!("Patch applied to {}", resolved.display())),
+            Ok(_) => ToolResult::ok(
+                "apply_patch",
+                format!("Patch applied to {}", resolved.display()),
+            ),
             Err(e) => ToolResult::err("apply_patch", format!("Cannot write patched file: {}", e)),
         }
     }
@@ -580,11 +617,7 @@ impl ToolExecutor {
     /// shell semantics (pipes, redirects, env-var expansion) work.
     /// Workspace is bound rw; network policy is `NetPolicy::None`
     /// when `self.network_disabled`, else `NetPolicy::Direct`.
-    fn run_in_native_sandbox(
-        &self,
-        command: &str,
-        cwd: &Path,
-    ) -> Result<std::process::Output> {
+    fn run_in_native_sandbox(&self, command: &str, cwd: &Path) -> Result<std::process::Output> {
         use std::ffi::OsStr;
 
         let mut sandbox = vibe_sandbox_native::native()
@@ -624,7 +657,10 @@ impl ToolExecutor {
         if command.len() > MAX_COMMAND_LENGTH {
             return ToolResult::err(
                 "bash",
-                format!("Command blocked: exceeds maximum length of {} characters", MAX_COMMAND_LENGTH),
+                format!(
+                    "Command blocked: exceeds maximum length of {} characters",
+                    MAX_COMMAND_LENGTH
+                ),
             );
         }
 
@@ -656,10 +692,7 @@ impl ToolExecutor {
                     cmd_len = command.len(),
                     "sandbox.spawn: macOS Seatbelt no-network"
                 );
-                std::borrow::Cow::Owned(format!(
-                    "sandbox-exec -n no-network sh -c '{}'",
-                    escaped
-                ))
+                std::borrow::Cow::Owned(format!("sandbox-exec -n no-network sh -c '{}'", escaped))
             } else {
                 // Linux: unshare(1) creates a new network namespace with no interfaces
                 tracing::info!(
@@ -671,10 +704,7 @@ impl ToolExecutor {
                     cmd_len = command.len(),
                     "sandbox.spawn: Linux netns"
                 );
-                std::borrow::Cow::Owned(format!(
-                    "unshare --net sh -c '{}'",
-                    escaped
-                ))
+                std::borrow::Cow::Owned(format!("unshare --net sh -c '{}'", escaped))
             }
         } else {
             std::borrow::Cow::Borrowed(command)
@@ -774,7 +804,12 @@ impl ToolExecutor {
                         for topic in topics.iter().take(n.saturating_sub(results.len())) {
                             if let Some(text) = topic["Text"].as_str().filter(|s| !s.is_empty()) {
                                 let url_str = topic["FirstURL"].as_str().unwrap_or("");
-                                results.push(format!("{}. {}\n   {}", results.len() + 1, url_str, text));
+                                results.push(format!(
+                                    "{}. {}\n   {}",
+                                    results.len() + 1,
+                                    url_str,
+                                    text
+                                ));
                             }
                         }
                     }
@@ -813,7 +848,12 @@ impl ToolExecutor {
             "include_answer": true,
         });
 
-        match client.post("https://api.tavily.com/search").json(&payload).send().await {
+        match client
+            .post("https://api.tavily.com/search")
+            .json(&payload)
+            .send()
+            .await
+        {
             Ok(resp) => match resp.json::<serde_json::Value>().await {
                 Ok(json) => {
                     let mut output = Vec::new();
@@ -830,8 +870,19 @@ impl ToolExecutor {
                             let score = result["score"].as_f64().unwrap_or(0.0);
                             output.push(format!(
                                 "{}. **{}** ({:.2})\n   {}\n   {}",
-                                i + 1, title, score, url,
-                                if content.len() > 200 { &content[..content.char_indices().nth(200).map(|(i,_)| i).unwrap_or(content.len())] } else { content }
+                                i + 1,
+                                title,
+                                score,
+                                url,
+                                if content.len() > 200 {
+                                    &content[..content
+                                        .char_indices()
+                                        .nth(200)
+                                        .map(|(i, _)| i)
+                                        .unwrap_or(content.len())]
+                                } else {
+                                    content
+                                }
                             ));
                         }
                     }
@@ -868,11 +919,13 @@ impl ToolExecutor {
             num_results.min(10)
         );
 
-        match client.get(&url)
+        match client
+            .get(&url)
             .header("Accept", "application/json")
             .header("Accept-Encoding", "gzip")
             .header("X-Subscription-Token", &api_key)
-            .send().await
+            .send()
+            .await
         {
             Ok(resp) => match resp.json::<serde_json::Value>().await {
                 Ok(json) => {
@@ -882,7 +935,13 @@ impl ToolExecutor {
                             let title = result["title"].as_str().unwrap_or("Untitled");
                             let url = result["url"].as_str().unwrap_or("");
                             let desc = result["description"].as_str().unwrap_or("");
-                            output.push(format!("{}. **{}**\n   {}\n   {}", i + 1, title, url, desc));
+                            output.push(format!(
+                                "{}. **{}**\n   {}\n   {}",
+                                i + 1,
+                                title,
+                                url,
+                                desc
+                            ));
                         }
                     }
                     if output.is_empty() {
@@ -903,7 +962,10 @@ impl ToolExecutor {
         if !url_lower.starts_with("http://") && !url_lower.starts_with("https://") {
             return ToolResult::err(
                 "fetch_url",
-                format!("Only http:// and https:// URLs are allowed, got: {}", url.chars().take(50).collect::<String>()),
+                format!(
+                    "Only http:// and https:// URLs are allowed, got: {}",
+                    url.chars().take(50).collect::<String>()
+                ),
             );
         }
 
@@ -1024,17 +1086,18 @@ impl ToolExecutor {
         };
 
         // Canonicalize workspace root (must succeed; it's a known directory).
-        let canonical_root = self.workspace_root.canonicalize().map_err(|e| {
-            format!("Cannot canonicalize workspace root: {}", e)
-        })?;
+        let canonical_root = self
+            .workspace_root
+            .canonicalize()
+            .map_err(|e| format!("Cannot canonicalize workspace root: {}", e))?;
 
         // For existing files we can canonicalize directly.
         // For new files (write_file, create_dir) the file may not exist yet,
         // so we canonicalize the nearest existing ancestor and append the rest.
         let canonical = if candidate.exists() {
-            candidate.canonicalize().map_err(|e| {
-                format!("Cannot canonicalize path '{}': {}", path, e)
-            })?
+            candidate
+                .canonicalize()
+                .map_err(|e| format!("Cannot canonicalize path '{}': {}", path, e))?
         } else {
             // Walk up until we find an existing ancestor, then re-join.
             let mut existing = candidate.clone();
@@ -1050,9 +1113,9 @@ impl ToolExecutor {
                     None => break,
                 };
             }
-            let mut base = existing.canonicalize().map_err(|e| {
-                format!("Cannot canonicalize ancestor of '{}': {}", path, e)
-            })?;
+            let mut base = existing
+                .canonicalize()
+                .map_err(|e| format!("Cannot canonicalize ancestor of '{}': {}", path, e))?;
             for component in remainder.into_iter().rev() {
                 base.push(component);
             }
@@ -1072,15 +1135,18 @@ impl ToolExecutor {
     /// Spawn a nested AgentLoop to complete a delegated sub-task.
     /// Requires a provider to be set via `with_provider()`.
     /// Supports recursive subagent trees with depth limits and global agent caps.
-    pub async fn spawn_sub_agent(&self, task: &str, max_steps: Option<usize>, max_depth: Option<u32>) -> ToolResult {
+    pub async fn spawn_sub_agent(
+        &self,
+        task: &str,
+        max_steps: Option<usize>,
+        max_depth: Option<u32>,
+    ) -> ToolResult {
         let provider = match &self.provider {
             Some(p) => p.clone(),
-            None => {
-                return ToolResult::err(
-                    "spawn_agent",
-                    "No LLM provider configured for sub-agent. Call with_provider() on ToolExecutor.",
-                )
-            }
+            None => return ToolResult::err(
+                "spawn_agent",
+                "No LLM provider configured for sub-agent. Call with_provider() on ToolExecutor.",
+            ),
         };
 
         // ── Depth and counter checks ──────────────────────────────────────────
@@ -1089,12 +1155,17 @@ impl ToolExecutor {
         if current_depth >= depth_limit {
             return ToolResult::err(
                 "spawn_agent",
-                format!("Maximum agent nesting depth ({}) exceeded at depth {}", depth_limit, current_depth),
+                format!(
+                    "Maximum agent nesting depth ({}) exceeded at depth {}",
+                    depth_limit, current_depth
+                ),
             );
         }
 
         // Get or create the global agent counter
-        let counter = self.parent_context.as_ref()
+        let counter = self
+            .parent_context
+            .as_ref()
             .and_then(|c| c.active_agent_counter.clone())
             .unwrap_or_else(|| std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0)));
 
@@ -1102,7 +1173,10 @@ impl ToolExecutor {
         if active >= 20 {
             return ToolResult::err(
                 "spawn_agent",
-                format!("Global agent limit (20) reached — {} agents active across the tree", active),
+                format!(
+                    "Global agent limit (20) reached — {} agents active across the tree",
+                    active
+                ),
             );
         }
         counter.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -1110,7 +1184,9 @@ impl ToolExecutor {
         // Build a child executor that shares everything (including the provider ref).
         let child_context = AgentContext {
             workspace_root: self.workspace_root.clone(),
-            parent_session_id: self.parent_context.as_ref()
+            parent_session_id: self
+                .parent_context
+                .as_ref()
                 .and_then(|c| c.parent_session_id.clone())
                 .or_else(|| Some(format!("root-{}", std::process::id()))),
             depth: current_depth + 1,
@@ -1144,13 +1220,11 @@ impl ToolExecutor {
         let mut agent = AgentLoop::new(provider, ApprovalPolicy::FullAuto, child_executor);
         agent.max_steps = max_steps.unwrap_or(10);
 
-        let (event_tx, mut event_rx) =
-            tokio::sync::mpsc::channel::<AgentEvent>(64);
+        let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
 
         let task_owned = task.to_string();
-        let handle = tokio::spawn(async move {
-            agent.run(&task_owned, child_context, event_tx).await
-        });
+        let handle =
+            tokio::spawn(async move { agent.run(&task_owned, child_context, event_tx).await });
 
         let mut summary = String::new();
         let mut steps: Vec<String> = Vec::new();
@@ -1171,7 +1245,11 @@ impl ToolExecutor {
                         "  [step {}] {} → {}",
                         step.step_num,
                         step.tool_call.summary(),
-                        if step.tool_result.success { "ok" } else { "err" }
+                        if step.tool_result.success {
+                            "ok"
+                        } else {
+                            "err"
+                        }
                     ));
                 }
                 _ => {}
@@ -1189,7 +1267,11 @@ impl ToolExecutor {
             output.push_str("\n\n");
         }
         output.push_str("Summary: ");
-        output.push_str(if summary.is_empty() { "Sub-agent completed." } else { &summary });
+        output.push_str(if summary.is_empty() {
+            "Sub-agent completed."
+        } else {
+            &summary
+        });
 
         ToolResult::ok("spawn_agent", output)
     }
@@ -1412,13 +1494,22 @@ impl WorktreeManager for VibeCoreWorktreeManager {
         // Sanitize agent_id for branch name
         let safe_id = agent_id.replace(|c: char| !c.is_alphanumeric() && c != '-', "-");
         let branch = format!("agent/{}", safe_id);
-        let wt_dir = self.repo_path.join(".vibecli").join("worktrees").join(&safe_id);
+        let wt_dir = self
+            .repo_path
+            .join(".vibecli")
+            .join("worktrees")
+            .join(&safe_id);
         std::fs::create_dir_all(&wt_dir)?;
         self.create_worktree(&branch, &wt_dir)?;
         let manager: Arc<dyn WorktreeManager> = Arc::new(VibeCoreWorktreeManager {
             repo_path: self.repo_path.clone(),
         });
-        Ok(vibe_ai::IsolatedWorktree::new(wt_dir, branch, agent_id.to_string(), manager))
+        Ok(vibe_ai::IsolatedWorktree::new(
+            wt_dir,
+            branch,
+            agent_id.to_string(),
+            manager,
+        ))
     }
 }
 
@@ -1483,7 +1574,10 @@ mod tests {
 
         // Absolute path outside workspace must be blocked
         let result = executor.resolve_safe("/etc/passwd");
-        assert!(result.is_err(), "absolute path outside workspace should be blocked");
+        assert!(
+            result.is_err(),
+            "absolute path outside workspace should be blocked"
+        );
 
         // Normal relative path within workspace must succeed
         std::fs::write(tmp.join("test.txt"), "ok").unwrap();
@@ -1502,7 +1596,10 @@ mod tests {
 
         // Non-existent file in workspace should succeed
         let result = executor.resolve_safe("subdir/new_file.rs");
-        assert!(result.is_ok(), "new file path inside workspace should succeed");
+        assert!(
+            result.is_ok(),
+            "new file path inside workspace should succeed"
+        );
 
         let _ = std::fs::remove_dir_all(&tmp);
     }
@@ -1555,10 +1652,15 @@ mod tests {
         std::fs::create_dir_all(&tmp).unwrap();
         let executor = ToolExecutor::new(tmp.clone(), false).with_no_network();
 
-        let call = ToolCall::WebSearch { query: "rust lang".to_string(), num_results: 3 };
+        let call = ToolCall::WebSearch {
+            query: "rust lang".to_string(),
+            num_results: 3,
+        };
         let result = executor.execute(&call).await;
         assert!(!result.success);
-        assert!(result.output.contains("Network access is disabled in sandbox mode"));
+        assert!(result
+            .output
+            .contains("Network access is disabled in sandbox mode"));
 
         let _ = std::fs::remove_dir_all(&tmp);
     }
@@ -1569,10 +1671,14 @@ mod tests {
         std::fs::create_dir_all(&tmp).unwrap();
         let executor = ToolExecutor::new(tmp.clone(), false).with_no_network();
 
-        let call = ToolCall::FetchUrl { url: "https://example.com".to_string() };
+        let call = ToolCall::FetchUrl {
+            url: "https://example.com".to_string(),
+        };
         let result = executor.execute(&call).await;
         assert!(!result.success);
-        assert!(result.output.contains("Network access is disabled in sandbox mode"));
+        assert!(result
+            .output
+            .contains("Network access is disabled in sandbox mode"));
 
         let _ = std::fs::remove_dir_all(&tmp);
     }
@@ -1585,15 +1691,22 @@ mod tests {
         let executor = ToolExecutor::new(tmp.clone(), false).with_no_network();
 
         // ReadFile should still work
-        let call = ToolCall::ReadFile { path: "hello.txt".to_string() };
+        let call = ToolCall::ReadFile {
+            path: "hello.txt".to_string(),
+        };
         let result = executor.execute(&call).await;
         assert!(result.success, "ReadFile should work in no-network mode");
         assert!(result.output.contains("world"));
 
         // TaskComplete should still work
-        let call = ToolCall::TaskComplete { summary: "done".to_string() };
+        let call = ToolCall::TaskComplete {
+            summary: "done".to_string(),
+        };
         let result = executor.execute(&call).await;
-        assert!(result.success, "TaskComplete should work in no-network mode");
+        assert!(
+            result.success,
+            "TaskComplete should work in no-network mode"
+        );
 
         let _ = std::fs::remove_dir_all(&tmp);
     }
@@ -1944,8 +2057,11 @@ mod tests {
 
     #[test]
     fn tool_executor_with_search_config() {
-        let executor = ToolExecutor::new(PathBuf::from("/tmp/test"), true)
-            .with_search_config("tavily".to_string(), Some("key123".to_string()), None);
+        let executor = ToolExecutor::new(PathBuf::from("/tmp/test"), true).with_search_config(
+            "tavily".to_string(),
+            Some("key123".to_string()),
+            None,
+        );
         assert_eq!(executor.search_engine, "tavily");
         assert_eq!(executor.tavily_api_key.as_deref(), Some("key123"));
         assert!(executor.brave_api_key.is_none());
@@ -1984,7 +2100,10 @@ mod tests {
             set: HashMap::new(),
         };
         let env = policy.build_env();
-        assert_eq!(env.get("__VIBE_INCLUDE_TEST").map(|s| s.as_str()), Some("included"));
+        assert_eq!(
+            env.get("__VIBE_INCLUDE_TEST").map(|s| s.as_str()),
+            Some("included")
+        );
         std::env::remove_var("__VIBE_INCLUDE_TEST");
     }
 
@@ -2289,7 +2408,8 @@ mod tests {
     /// callers. This is the rollout-safety contract: opt-in only.
     #[tokio::test]
     async fn use_cli_prompter_default_is_false() {
-        let tmp = std::env::temp_dir().join(format!("vibe_prompter_default_{}", std::process::id()));
+        let tmp =
+            std::env::temp_dir().join(format!("vibe_prompter_default_{}", std::process::id()));
         std::fs::create_dir_all(&tmp).unwrap();
         let ex = ToolExecutor::new(tmp.clone(), false);
         assert!(!ex.use_cli_prompter);

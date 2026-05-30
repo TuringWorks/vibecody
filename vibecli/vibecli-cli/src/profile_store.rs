@@ -174,7 +174,10 @@ impl ProfileStore {
     pub fn new() -> Result<Self, String> {
         let path = db_path()?;
         let conn = open_conn(&path)?;
-        Ok(Self { conn, key: derive_key() })
+        Ok(Self {
+            conn,
+            key: derive_key(),
+        })
     }
 
     /// For tests: open against an arbitrary path with a custom key.
@@ -185,12 +188,7 @@ impl ProfileStore {
 
     // ── Panel settings (migrated from panel_settings.db) ─────────────────────
 
-    pub fn get(
-        &self,
-        profile_id: &str,
-        panel: &str,
-        key: &str,
-    ) -> Result<Option<String>, String> {
+    pub fn get(&self, profile_id: &str, panel: &str, key: &str) -> Result<Option<String>, String> {
         let mut stmt = self
             .conn
             .prepare(
@@ -207,11 +205,7 @@ impl ProfileStore {
         }
     }
 
-    pub fn get_all(
-        &self,
-        profile_id: &str,
-        panel: &str,
-    ) -> Result<serde_json::Value, String> {
+    pub fn get_all(&self, profile_id: &str, panel: &str) -> Result<serde_json::Value, String> {
         let mut stmt = self
             .conn
             .prepare(
@@ -235,13 +229,7 @@ impl ProfileStore {
         Ok(serde_json::Value::Object(map))
     }
 
-    pub fn set(
-        &self,
-        profile_id: &str,
-        panel: &str,
-        key: &str,
-        value: &str,
-    ) -> Result<(), String> {
+    pub fn set(&self, profile_id: &str, panel: &str, key: &str, value: &str) -> Result<(), String> {
         let blob = encrypt(&self.key, value)?;
         self.conn
             .execute(
@@ -300,11 +288,7 @@ impl ProfileStore {
         Ok(())
     }
 
-    pub fn get_api_key(
-        &self,
-        profile_id: &str,
-        provider: &str,
-    ) -> Result<Option<String>, String> {
+    pub fn get_api_key(&self, profile_id: &str, provider: &str) -> Result<Option<String>, String> {
         let mut stmt = self
             .conn
             .prepare(
@@ -321,15 +305,10 @@ impl ProfileStore {
         }
     }
 
-    pub fn list_api_key_providers(
-        &self,
-        profile_id: &str,
-    ) -> Result<Vec<String>, String> {
+    pub fn list_api_key_providers(&self, profile_id: &str) -> Result<Vec<String>, String> {
         let mut stmt = self
             .conn
-            .prepare(
-                "SELECT provider FROM api_keys WHERE profile_id=?1 ORDER BY provider",
-            )
+            .prepare("SELECT provider FROM api_keys WHERE profile_id=?1 ORDER BY provider")
             .map_err(|e| e.to_string())?;
         let rows = stmt
             .query_map(params![profile_id], |r| r.get::<_, String>(0))
@@ -339,11 +318,7 @@ impl ProfileStore {
         Ok(rows)
     }
 
-    pub fn delete_api_key(
-        &self,
-        profile_id: &str,
-        provider: &str,
-    ) -> Result<(), String> {
+    pub fn delete_api_key(&self, profile_id: &str, provider: &str) -> Result<(), String> {
         self.conn
             .execute(
                 "DELETE FROM api_keys WHERE profile_id=?1 AND provider=?2",
@@ -428,12 +403,7 @@ impl ProfileStore {
 
     // ── Global settings ───────────────────────────────────────────────────────
 
-    pub fn set_global(
-        &self,
-        profile_id: &str,
-        key: &str,
-        value: &str,
-    ) -> Result<(), String> {
+    pub fn set_global(&self, profile_id: &str, key: &str, value: &str) -> Result<(), String> {
         let blob = encrypt(&self.key, value)?;
         self.conn
             .execute(
@@ -449,11 +419,7 @@ impl ProfileStore {
         Ok(())
     }
 
-    pub fn get_global(
-        &self,
-        profile_id: &str,
-        key: &str,
-    ) -> Result<Option<String>, String> {
+    pub fn get_global(&self, profile_id: &str, key: &str) -> Result<Option<String>, String> {
         let mut stmt = self
             .conn
             .prepare(
@@ -470,10 +436,7 @@ impl ProfileStore {
         }
     }
 
-    pub fn get_all_global(
-        &self,
-        profile_id: &str,
-    ) -> Result<serde_json::Value, String> {
+    pub fn get_all_global(&self, profile_id: &str) -> Result<serde_json::Value, String> {
         let mut stmt = self
             .conn
             .prepare(
@@ -512,12 +475,9 @@ impl ProfileStore {
     pub fn get_master_key(&self, company_id: &str) -> Result<Option<[u8; 32]>, String> {
         let mut stmt = self
             .conn
-            .prepare(
-                "SELECT encrypted_value FROM master_keys WHERE company_id=?1",
-            )
+            .prepare("SELECT encrypted_value FROM master_keys WHERE company_id=?1")
             .map_err(|e| e.to_string())?;
-        let result: rusqlite::Result<Vec<u8>> =
-            stmt.query_row(params![company_id], |r| r.get(0));
+        let result: rusqlite::Result<Vec<u8>> = stmt.query_row(params![company_id], |r| r.get(0));
         match result {
             Ok(blob) => {
                 let hex_key = decrypt(&self.key, &blob)?;
@@ -535,11 +495,7 @@ impl ProfileStore {
     }
 
     /// Encrypt and store the 32-byte master key for a company.
-    pub fn set_master_key(
-        &self,
-        company_id: &str,
-        key: &[u8; 32],
-    ) -> Result<(), String> {
+    pub fn set_master_key(&self, company_id: &str, key: &[u8; 32]) -> Result<(), String> {
         let hex_key = hex::encode(key);
         let blob = encrypt(&self.key, &hex_key)?;
         let now = now_ms();
@@ -634,9 +590,7 @@ impl ProfileStore {
     pub fn export_profile(&self, profile_id: &str) -> Result<serde_json::Value, String> {
         let mut stmt = self
             .conn
-            .prepare(
-                "SELECT DISTINCT panel_name FROM panel_settings WHERE profile_id=?1",
-            )
+            .prepare("SELECT DISTINCT panel_name FROM panel_settings WHERE profile_id=?1")
             .map_err(|e| e.to_string())?;
         let panels: Vec<String> = stmt
             .query_map(params![profile_id], |r| r.get(0))
@@ -707,7 +661,10 @@ mod tests {
         let key = [1u8; 32];
         let ct1 = encrypt(&key, "same").unwrap();
         let ct2 = encrypt(&key, "same").unwrap();
-        assert_ne!(ct1, ct2, "random nonces should produce different ciphertexts");
+        assert_ne!(
+            ct1, ct2,
+            "random nonces should produce different ciphertexts"
+        );
     }
 
     #[test]
@@ -734,7 +691,10 @@ mod tests {
     fn panel_set_and_get() {
         let s = temp_store();
         s.set("default", "editor", "theme", "dark").unwrap();
-        assert_eq!(s.get("default", "editor", "theme").unwrap(), Some("dark".into()));
+        assert_eq!(
+            s.get("default", "editor", "theme").unwrap(),
+            Some("dark".into())
+        );
     }
 
     #[test]
@@ -748,7 +708,10 @@ mod tests {
         let s = temp_store();
         s.set("default", "editor", "theme", "dark").unwrap();
         s.set("default", "editor", "theme", "light").unwrap();
-        assert_eq!(s.get("default", "editor", "theme").unwrap(), Some("light".into()));
+        assert_eq!(
+            s.get("default", "editor", "theme").unwrap(),
+            Some("light".into())
+        );
     }
 
     #[test]
@@ -777,7 +740,12 @@ mod tests {
         s.set("default", "editor", "theme", "dark").unwrap();
         s.set("default", "editor", "font_size", "14").unwrap();
         s.delete_panel("default", "editor").unwrap();
-        assert!(s.get_all("default", "editor").unwrap().as_object().unwrap().is_empty());
+        assert!(s
+            .get_all("default", "editor")
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .is_empty());
     }
 
     // ── api keys ──────────────────────────────────────────────────────────────
@@ -803,7 +771,10 @@ mod tests {
         let s = temp_store();
         s.set_api_key("default", "openai", "sk-old").unwrap();
         s.set_api_key("default", "openai", "sk-new").unwrap();
-        assert_eq!(s.get_api_key("default", "openai").unwrap(), Some("sk-new".into()));
+        assert_eq!(
+            s.get_api_key("default", "openai").unwrap(),
+            Some("sk-new".into())
+        );
     }
 
     #[test]
@@ -829,7 +800,8 @@ mod tests {
     #[test]
     fn provider_config_set_and_get() {
         let s = temp_store();
-        s.set_provider_config("default", "openai", "model", "gpt-4o").unwrap();
+        s.set_provider_config("default", "openai", "model", "gpt-4o")
+            .unwrap();
         assert_eq!(
             s.get_provider_config("default", "openai", "model").unwrap(),
             Some("gpt-4o".into())
@@ -839,8 +811,10 @@ mod tests {
     #[test]
     fn provider_config_get_all() {
         let s = temp_store();
-        s.set_provider_config("default", "openai", "model", "gpt-4o").unwrap();
-        s.set_provider_config("default", "openai", "endpoint", "https://api.openai.com").unwrap();
+        s.set_provider_config("default", "openai", "model", "gpt-4o")
+            .unwrap();
+        s.set_provider_config("default", "openai", "endpoint", "https://api.openai.com")
+            .unwrap();
         let all = s.get_all_provider_config("default", "openai").unwrap();
         let obj = all.as_object().unwrap();
         assert_eq!(obj.len(), 2);
@@ -852,7 +826,10 @@ mod tests {
     fn global_set_and_get() {
         let s = temp_store();
         s.set_global("default", "theme", "dark").unwrap();
-        assert_eq!(s.get_global("default", "theme").unwrap(), Some("dark".into()));
+        assert_eq!(
+            s.get_global("default", "theme").unwrap(),
+            Some("dark".into())
+        );
     }
 
     #[test]
@@ -947,6 +924,9 @@ mod tests {
         s.create_profile("copy", "Copy").unwrap();
         let count = s.import_profile("copy", &exported).unwrap();
         assert_eq!(count, 2);
-        assert_eq!(s.get("copy", "editor", "theme").unwrap(), Some("dark".into()));
+        assert_eq!(
+            s.get("copy", "editor", "theme").unwrap(),
+            Some("dark".into())
+        );
     }
 }

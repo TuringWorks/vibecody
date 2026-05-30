@@ -56,9 +56,14 @@ impl MistakeCategory {
 
     pub fn all() -> Vec<MistakeCategory> {
         vec![
-            Self::SyntaxError, Self::TypeMismatch, Self::LogicError,
-            Self::RuntimePanic, Self::InfiniteLoop, Self::ResourceLeak,
-            Self::ApiMisuse, Self::TestFailure,
+            Self::SyntaxError,
+            Self::TypeMismatch,
+            Self::LogicError,
+            Self::RuntimePanic,
+            Self::InfiniteLoop,
+            Self::ResourceLeak,
+            Self::ApiMisuse,
+            Self::TestFailure,
         ]
     }
 }
@@ -176,8 +181,7 @@ impl RlcefEngine {
             self.metrics.avg_memory_kb * ((n - 1.0) / n) + outcome.memory_kb as f64 / n;
 
         let latest_reward = self.rewards.last().expect("just pushed").total;
-        self.metrics.avg_reward =
-            self.metrics.avg_reward * ((n - 1.0) / n) + latest_reward / n;
+        self.metrics.avg_reward = self.metrics.avg_reward * ((n - 1.0) / n) + latest_reward / n;
 
         self.outcomes.push(outcome);
     }
@@ -222,7 +226,11 @@ impl RlcefEngine {
             if outcome.test_passed {
                 continue;
             }
-            let error = outcome.error_message.clone().unwrap_or_default().to_lowercase();
+            let error = outcome
+                .error_message
+                .clone()
+                .unwrap_or_default()
+                .to_lowercase();
             let lang = outcome.language.clone();
 
             let category = if error.contains("syntax") || error.contains("parse") {
@@ -245,7 +253,9 @@ impl RlcefEngine {
 
             let key = (category.clone(), lang.clone());
             *pattern_counts.entry(key.clone()).or_insert(0) += 1;
-            pattern_examples.entry(key).or_insert_with(|| outcome.code.clone());
+            pattern_examples
+                .entry(key)
+                .or_insert_with(|| outcome.code.clone());
         }
 
         // Convert to patterns
@@ -253,17 +263,17 @@ impl RlcefEngine {
             if *count >= self.config.pattern_threshold {
                 let id = format!("{}-{}", cat.name(), lang);
                 let example = pattern_examples.get(&(cat.clone(), lang.clone())).cloned();
-                self.mistakes.insert(id.clone(), MistakePattern {
-                    id,
-                    category: cat.clone(),
-                    language: lang.clone(),
-                    description: format!(
-                        "{} in {} occurred {} times",
-                        cat.name(), lang, count
-                    ),
-                    frequency: *count,
-                    example_code: example,
-                });
+                self.mistakes.insert(
+                    id.clone(),
+                    MistakePattern {
+                        id,
+                        category: cat.clone(),
+                        language: lang.clone(),
+                        description: format!("{} in {} occurred {} times", cat.name(), lang, count),
+                        frequency: *count,
+                        example_code: example,
+                    },
+                );
             }
         }
 
@@ -310,7 +320,9 @@ impl RlcefEngine {
                     new_value: "true".to_string(),
                     reason: format!(
                         "Recurring {} in {} ({} occurrences)",
-                        pattern.category.name(), pattern.language, pattern.frequency
+                        pattern.category.name(),
+                        pattern.language,
+                        pattern.frequency
                     ),
                 });
             }
@@ -322,9 +334,15 @@ impl RlcefEngine {
 
     /// Export outcomes as training data (JSONL format).
     pub fn export_training_data(&self) -> String {
-        self.outcomes.iter().enumerate()
+        self.outcomes
+            .iter()
+            .enumerate()
             .map(|(i, o)| {
-                let reward = if i < self.rewards.len() { self.rewards[i].total } else { 0.0 };
+                let reward = if i < self.rewards.len() {
+                    self.rewards[i].total
+                } else {
+                    0.0
+                };
                 format!(
                     r#"{{"prompt":"{}","code":"{}","passed":{},"reward":{:.4},"language":"{}"}}"#,
                     o.prompt.replace('"', "\\\""),
@@ -340,12 +358,18 @@ impl RlcefEngine {
 
     /// Get language-specific profile.
     pub fn get_language_profile(&self, language: &str) -> (u64, u64, f64) {
-        let filtered: Vec<&ExecutionOutcome> = self.outcomes.iter()
+        let filtered: Vec<&ExecutionOutcome> = self
+            .outcomes
+            .iter()
             .filter(|o| o.language == language)
             .collect();
         let total = filtered.len() as u64;
         let passed = filtered.iter().filter(|o| o.test_passed).count() as u64;
-        let pass_rate = if total == 0 { 0.0 } else { passed as f64 / total as f64 };
+        let pass_rate = if total == 0 {
+            0.0
+        } else {
+            passed as f64 / total as f64
+        };
         (total, passed, pass_rate)
     }
 
@@ -501,7 +525,9 @@ mod tests {
         }
         let patterns = e.detect_mistake_patterns();
         assert!(!patterns.is_empty());
-        assert!(patterns.iter().any(|p| p.category == MistakeCategory::SyntaxError));
+        assert!(patterns
+            .iter()
+            .any(|p| p.category == MistakeCategory::SyntaxError));
     }
 
     #[test]
@@ -511,7 +537,9 @@ mod tests {
             e.record_outcome(fail_outcome("typescript", "type mismatch: expected string"));
         }
         let patterns = e.detect_mistake_patterns();
-        assert!(patterns.iter().any(|p| p.category == MistakeCategory::TypeMismatch));
+        assert!(patterns
+            .iter()
+            .any(|p| p.category == MistakeCategory::TypeMismatch));
     }
 
     #[test]
@@ -521,7 +549,9 @@ mod tests {
             e.record_outcome(fail_outcome("rust", "thread panicked at unwrap()"));
         }
         let patterns = e.detect_mistake_patterns();
-        assert!(patterns.iter().any(|p| p.category == MistakeCategory::RuntimePanic));
+        assert!(patterns
+            .iter()
+            .any(|p| p.category == MistakeCategory::RuntimePanic));
     }
 
     #[test]
@@ -537,10 +567,15 @@ mod tests {
     fn test_detect_mistake_patterns_infinite_loop() {
         let mut e = eng();
         for _ in 0..3 {
-            e.record_outcome(fail_outcome("python", "timeout exceeded — possible infinite loop"));
+            e.record_outcome(fail_outcome(
+                "python",
+                "timeout exceeded — possible infinite loop",
+            ));
         }
         let patterns = e.detect_mistake_patterns();
-        assert!(patterns.iter().any(|p| p.category == MistakeCategory::InfiniteLoop));
+        assert!(patterns
+            .iter()
+            .any(|p| p.category == MistakeCategory::InfiniteLoop));
     }
 
     #[test]
@@ -550,7 +585,9 @@ mod tests {
             e.record_outcome(fail_outcome("js", "undefined is not a function"));
         }
         let patterns = e.detect_mistake_patterns();
-        assert!(patterns.iter().any(|p| p.category == MistakeCategory::ApiMisuse));
+        assert!(patterns
+            .iter()
+            .any(|p| p.category == MistakeCategory::ApiMisuse));
     }
 
     #[test]
@@ -560,7 +597,9 @@ mod tests {
             e.record_outcome(fail_outcome("rust", "assertion failed: test expected 5"));
         }
         let patterns = e.detect_mistake_patterns();
-        assert!(patterns.iter().any(|p| p.category == MistakeCategory::TestFailure));
+        assert!(patterns
+            .iter()
+            .any(|p| p.category == MistakeCategory::TestFailure));
     }
 
     #[test]
@@ -718,8 +757,10 @@ mod tests {
     #[test]
     fn test_reward_signal_serde() {
         let r = RewardSignal {
-            test_score: 1.0, execution_time_score: 0.8,
-            memory_score: 0.9, total: 0.9,
+            test_score: 1.0,
+            execution_time_score: 0.8,
+            memory_score: 0.9,
+            total: 0.9,
         };
         let json = serde_json::to_string(&r).unwrap();
         let de: RewardSignal = serde_json::from_str(&json).unwrap();
@@ -761,7 +802,9 @@ mod tests {
             e.record_outcome(fail_outcome("go", "wrong output"));
         }
         let patterns = e.detect_mistake_patterns();
-        assert!(patterns.iter().any(|p| p.category == MistakeCategory::LogicError));
+        assert!(patterns
+            .iter()
+            .any(|p| p.category == MistakeCategory::LogicError));
     }
 
     #[test]
@@ -771,6 +814,8 @@ mod tests {
             e.record_outcome(fail_outcome("c", "resource leak detected"));
         }
         let patterns = e.detect_mistake_patterns();
-        assert!(patterns.iter().any(|p| p.category == MistakeCategory::ResourceLeak));
+        assert!(patterns
+            .iter()
+            .any(|p| p.category == MistakeCategory::ResourceLeak));
     }
 }

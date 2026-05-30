@@ -273,11 +273,7 @@ impl FastGrep {
     }
 
     /// Symbol-aware search: exact match on symbol names.
-    pub fn search_symbol(
-        &self,
-        name: &str,
-        index: &FileIndex,
-    ) -> Vec<ContextResult> {
+    pub fn search_symbol(&self, name: &str, index: &FileIndex) -> Vec<ContextResult> {
         let lower = name.to_ascii_lowercase();
         let mut results = Vec::new();
 
@@ -320,7 +316,9 @@ impl FastGrep {
         for entry in index.entries() {
             for (i, sym) in entry.symbols.iter().enumerate() {
                 let sym_lower = sym.to_ascii_lowercase();
-                if sym_lower.contains(&pattern_lower) || sym_lower == format!("impl_{}", trait_name.to_ascii_lowercase()) {
+                if sym_lower.contains(&pattern_lower)
+                    || sym_lower == format!("impl_{}", trait_name.to_ascii_lowercase())
+                {
                     results.push(ContextResult {
                         file_path: entry.file_path.clone(),
                         line_range: (i + 1, i + 1),
@@ -337,17 +335,16 @@ impl FastGrep {
     }
 
     /// Structural search: find callers / references of a symbol.
-    pub fn search_references(
-        &self,
-        symbol: &str,
-        index: &FileIndex,
-    ) -> Vec<ContextResult> {
+    pub fn search_references(&self, symbol: &str, index: &FileIndex) -> Vec<ContextResult> {
         let lower = symbol.to_ascii_lowercase();
         let mut results = Vec::new();
 
         for entry in index.entries() {
             // Check imports for the symbol.
-            let in_imports = entry.imports.iter().any(|imp| imp.to_ascii_lowercase().contains(&lower));
+            let in_imports = entry
+                .imports
+                .iter()
+                .any(|imp| imp.to_ascii_lowercase().contains(&lower));
             let in_symbols = entry.symbols.iter().any(|s| {
                 let sl = s.to_ascii_lowercase();
                 sl != lower && sl.contains(&lower)
@@ -430,10 +427,11 @@ impl FastGrep {
     /// Sort results: match-type rank ascending, then relevance descending.
     fn sort_results(results: &mut [ContextResult]) {
         results.sort_by(|a, b| {
-            a.match_type
-                .rank()
-                .cmp(&b.match_type.rank())
-                .then(b.relevance_score.partial_cmp(&a.relevance_score).unwrap_or(std::cmp::Ordering::Equal))
+            a.match_type.rank().cmp(&b.match_type.rank()).then(
+                b.relevance_score
+                    .partial_cmp(&a.relevance_score)
+                    .unwrap_or(std::cmp::Ordering::Equal),
+            )
         });
     }
 }
@@ -739,7 +737,10 @@ mod tests {
     fn test_fast_grep_implementations() {
         let entry = IndexEntry {
             file_path: "src/provider.rs".to_string(),
-            symbols: vec!["impl AIProvider for Ollama".to_string(), "OllamaConfig".to_string()],
+            symbols: vec![
+                "impl AIProvider for Ollama".to_string(),
+                "OllamaConfig".to_string(),
+            ],
             imports: vec![],
             exports: vec![],
             last_modified: 0,

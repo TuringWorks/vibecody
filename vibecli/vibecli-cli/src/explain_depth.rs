@@ -113,10 +113,18 @@ impl CodeExplainer {
     /// Build a system prompt for a given depth and audience.
     pub fn system_prompt(depth: DepthLevel, audience: Audience) -> String {
         let style = match audience {
-            Audience::Novice => "Use plain English. Avoid jargon. Assume no prior programming knowledge.",
-            Audience::Developer => "Assume familiarity with programming concepts. Use technical terms where helpful.",
-            Audience::SeniorEngineer => "Be precise and complete. Include edge cases, complexity, and tradeoffs.",
-            Audience::Architect => "Include system-level concerns, scalability, security, and design patterns.",
+            Audience::Novice => {
+                "Use plain English. Avoid jargon. Assume no prior programming knowledge."
+            }
+            Audience::Developer => {
+                "Assume familiarity with programming concepts. Use technical terms where helpful."
+            }
+            Audience::SeniorEngineer => {
+                "Be precise and complete. Include edge cases, complexity, and tradeoffs."
+            }
+            Audience::Architect => {
+                "Include system-level concerns, scalability, security, and design patterns."
+            }
         };
         let depth_instr = match depth {
             DepthLevel::Surface => "Provide a single-sentence summary of what this code does.",
@@ -129,12 +137,18 @@ impl CodeExplainer {
 
     /// Build a user prompt given the request.
     pub fn user_prompt(req: &ExplainRequest) -> String {
-        let focus_str = req.focus.as_deref()
+        let focus_str = req
+            .focus
+            .as_deref()
             .map(|f| format!(" Focus particularly on: {}.", f))
             .unwrap_or_default();
         format!(
             "Explain the following {} code at {} depth.{}\n\n```{}\n{}\n```",
-            req.language, req.depth.as_str(), focus_str, req.language, req.code
+            req.language,
+            req.depth.as_str(),
+            focus_str,
+            req.language,
+            req.code
         )
     }
 
@@ -181,7 +195,13 @@ impl CodeExplainer {
             None
         };
 
-        Explanation { depth: req.depth, title, body, complexity_hint, follow_up_questions: follow_ups }
+        Explanation {
+            depth: req.depth,
+            title,
+            body,
+            complexity_hint,
+            follow_up_questions: follow_ups,
+        }
     }
 
     /// Suggest a deeper depth level (returns None if already Expert).
@@ -269,7 +289,10 @@ mod tests {
 
     #[test]
     fn test_suggest_deeper() {
-        assert_eq!(CodeExplainer::suggest_deeper(DepthLevel::Surface), Some(DepthLevel::Overview));
+        assert_eq!(
+            CodeExplainer::suggest_deeper(DepthLevel::Surface),
+            Some(DepthLevel::Overview)
+        );
         assert_eq!(CodeExplainer::suggest_deeper(DepthLevel::Expert), None);
     }
 

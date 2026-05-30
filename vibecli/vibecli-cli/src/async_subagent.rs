@@ -150,11 +150,7 @@ impl AsyncSubagentRegistry {
         })
     }
 
-    pub fn mark_failed(
-        &self,
-        id: &str,
-        error: String,
-    ) -> std::result::Result<(), TransitionError> {
+    pub fn mark_failed(&self, id: &str, error: String) -> std::result::Result<(), TransitionError> {
         self.transition(id, |rec| {
             if rec.state.is_terminal() {
                 Err(SubagentState::Failed)

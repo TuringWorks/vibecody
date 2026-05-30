@@ -33,7 +33,11 @@ fn set_bounds(world: &mut CuWorld, width: u32, height: u32) {
 
 #[when(expr = "I validate a click at {int} {int}")]
 fn validate_click(world: &mut CuWorld, x: i32, y: i32) {
-    let action = Action::Click { x, y, button: MouseButton::Left };
+    let action = Action::Click {
+        x,
+        y,
+        button: MouseButton::Left,
+    };
     let result = world.bounds.as_ref().unwrap().validate_action(&action);
     world.validation = Some(result);
 }

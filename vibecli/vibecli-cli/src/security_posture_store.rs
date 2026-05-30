@@ -236,7 +236,10 @@ fn read_goal_link(store: &WorkspaceStore, id: &str) -> Result<Option<GoalLinkRec
     }
 }
 
-fn apply_status_overrides(store: &WorkspaceStore, finding: &mut SecurityFinding) -> Result<(), String> {
+fn apply_status_overrides(
+    store: &WorkspaceStore,
+    finding: &mut SecurityFinding,
+) -> Result<(), String> {
     // Suppression wins over goal-link (a suppressed finding is
     // explicitly silenced; the goal link is informational while
     // suppressed). On unsuppress, the goal link re-applies.
@@ -258,7 +261,10 @@ fn apply_status_overrides(store: &WorkspaceStore, finding: &mut SecurityFinding)
     Ok(())
 }
 
-fn append_decision_log_entry(store: &WorkspaceStore, entry: DecisionLogEntry) -> Result<(), String> {
+fn append_decision_log_entry(
+    store: &WorkspaceStore,
+    entry: DecisionLogEntry,
+) -> Result<(), String> {
     let mut entries = read_decision_log(store)?;
     entries.insert(0, entry); // newest-first
     if entries.len() > DECISION_LOG_MAX_ROWS {

@@ -74,7 +74,10 @@ impl CommitType {
 
     /// Whether this type should appear in the user-facing changelog.
     pub fn is_notable(&self) -> bool {
-        matches!(self, CommitType::Feat | CommitType::Fix | CommitType::Perf | CommitType::Refactor)
+        matches!(
+            self,
+            CommitType::Feat | CommitType::Fix | CommitType::Perf | CommitType::Refactor
+        )
     }
 }
 
@@ -110,7 +113,10 @@ impl Release {
         if commit.breaking {
             self.breaking_changes.push(commit.clone());
         }
-        self.sections.entry(commit.commit_type.clone()).or_default().push(commit);
+        self.sections
+            .entry(commit.commit_type.clone())
+            .or_default()
+            .push(commit);
     }
 
     pub fn total_commits(&self) -> usize {
@@ -137,8 +143,14 @@ impl CommitParser {
             (None, None)
         } else {
             let parts: Vec<&str> = rest.trim().splitn(2, "\n\n").collect();
-            let body = parts.first().filter(|s| !s.is_empty()).map(|s| s.to_string());
-            let footer = parts.get(1).filter(|s| !s.is_empty()).map(|s| s.to_string());
+            let body = parts
+                .first()
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_string());
+            let footer = parts
+                .get(1)
+                .filter(|s| !s.is_empty())
+                .map(|s| s.to_string());
             (body, footer)
         };
 
@@ -160,7 +172,14 @@ impl CommitParser {
         // Try to match `type[(scope)][!]: description`
         let colon_pos = match subject.find(':') {
             Some(p) => p,
-            None => return (CommitType::Unknown(String::new()), None, false, subject.to_string()),
+            None => {
+                return (
+                    CommitType::Unknown(String::new()),
+                    None,
+                    false,
+                    subject.to_string(),
+                )
+            }
         };
 
         let prefix = &subject[..colon_pos];
@@ -183,7 +202,12 @@ impl CommitParser {
             (prefix.to_string(), None)
         };
 
-        (CommitType::from_str(&type_str), scope, breaking, description)
+        (
+            CommitType::from_str(&type_str),
+            scope,
+            breaking,
+            description,
+        )
     }
 }
 
@@ -198,11 +222,18 @@ pub struct ChangelogGenerator {
 }
 
 impl Default for ChangelogGenerator {
-    fn default() -> Self { Self { include_all_types: false, include_hashes: true } }
+    fn default() -> Self {
+        Self {
+            include_all_types: false,
+            include_hashes: true,
+        }
+    }
 }
 
 impl ChangelogGenerator {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     /// Build a `Release` from a list of raw commit messages.
     pub fn build_release(
@@ -250,7 +281,9 @@ impl ChangelogGenerator {
 
         for commit_type in &order {
             if let Some(commits) = release.sections.get(commit_type) {
-                if commits.is_empty() { continue; }
+                if commits.is_empty() {
+                    continue;
+                }
                 out.push_str(&format!("### {}\n\n", commit_type.section_title()));
                 for commit in commits {
                     out.push_str(&self.format_entry(commit));
@@ -263,7 +296,9 @@ impl ChangelogGenerator {
     }
 
     fn format_entry(&self, commit: &ConventionalCommit) -> String {
-        let scope_part = commit.scope.as_ref()
+        let scope_part = commit
+            .scope
+            .as_ref()
             .map(|s| format!("**{}**: ", s))
             .unwrap_or_default();
         let hash_part = if self.include_hashes {
@@ -312,7 +347,10 @@ mod tests {
 
     #[test]
     fn test_parse_breaking_footer() {
-        let c = CommitParser::parse("yyy", "feat: new config format\n\nBREAKING CHANGE: old config removed");
+        let c = CommitParser::parse(
+            "yyy",
+            "feat: new config format\n\nBREAKING CHANGE: old config removed",
+        );
         assert!(c.breaking);
     }
 
@@ -339,7 +377,10 @@ mod tests {
 
     #[test]
     fn test_build_release_include_all() {
-        let gen = ChangelogGenerator { include_all_types: true, include_hashes: true };
+        let gen = ChangelogGenerator {
+            include_all_types: true,
+            include_hashes: true,
+        };
         let commits = vec![commit("abc", "chore: update deps")];
         let release = gen.build_release("1.0.0", "2026-04-12", &commits);
         assert!(release.sections.contains_key(&CommitType::Chore));
@@ -391,7 +432,10 @@ mod tests {
 
     #[test]
     fn test_hash_truncated_in_output() {
-        let gen = ChangelogGenerator { include_hashes: true, ..Default::default() };
+        let gen = ChangelogGenerator {
+            include_hashes: true,
+            ..Default::default()
+        };
         let commits = vec![commit("abcdef1234567890", "feat: something")];
         let release = gen.build_release("1.0.0", "today", &commits);
         let md = gen.render_markdown(&release);
@@ -400,7 +444,10 @@ mod tests {
 
     #[test]
     fn test_no_hash_option() {
-        let gen = ChangelogGenerator { include_hashes: false, ..Default::default() };
+        let gen = ChangelogGenerator {
+            include_hashes: false,
+            ..Default::default()
+        };
         let commits = vec![commit("abcdef1234567890", "feat: something")];
         let release = gen.build_release("1.0.0", "today", &commits);
         let md = gen.render_markdown(&release);

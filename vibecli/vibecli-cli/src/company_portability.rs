@@ -11,13 +11,13 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 
-use crate::company_store::{CompanyStore, Company, CompanyAgent};
-use crate::company_goals::Goal;
-use crate::company_tasks::CompanyTask;
-use crate::company_documents::Document;
-use crate::company_routines::Routine;
-use crate::company_budget::CompanyBudget;
 use crate::company_approvals::Approval;
+use crate::company_budget::CompanyBudget;
+use crate::company_documents::Document;
+use crate::company_goals::Goal;
+use crate::company_routines::Routine;
+use crate::company_store::{Company, CompanyAgent, CompanyStore};
+use crate::company_tasks::CompanyTask;
 
 // ── Blueprint ─────────────────────────────────────────────────────────────────
 
@@ -45,7 +45,8 @@ pub fn export_company(company_id: &str, output_path: &Path) -> Result<CompanyBlu
     let conn = store.conn();
 
     // Company
-    let company = store.get_company(company_id)?
+    let company = store
+        .get_company(company_id)?
         .ok_or_else(|| anyhow!("company not found: {}", company_id))?;
 
     // Agents
@@ -97,7 +98,10 @@ pub fn export_company(company_id: &str, output_path: &Path) -> Result<CompanyBlu
     let secret_keys = {
         let ss = crate::company_secrets::SecretStore::new(conn);
         ss.ensure_schema()?;
-        ss.list(company_id)?.into_iter().map(|s| s.key_name).collect()
+        ss.list(company_id)?
+            .into_iter()
+            .map(|s| s.key_name)
+            .collect()
     };
 
     let blueprint = CompanyBlueprint {
@@ -138,17 +142,18 @@ pub fn import_company(input_path: &Path, new_name: Option<&str>) -> Result<Strin
 
     // Create new company
     let company_name = new_name.unwrap_or(&bp.company.name);
-    let new_company = store.create_company(
-        company_name,
-        &bp.company.description,
-        &bp.company.mission,
-    )?;
+    let new_company =
+        store.create_company(company_name, &bp.company.description, &bp.company.mission)?;
     id_map.insert(bp.company.id.clone(), new_company.id.clone());
     let new_cid = new_company.id.clone();
 
     // Re-hire agents (in order — CEO first to preserve reports_to chain)
     for agent in &bp.agents {
-        let new_reports_to = agent.reports_to.as_ref().and_then(|old| id_map.get(old)).cloned();
+        let new_reports_to = agent
+            .reports_to
+            .as_ref()
+            .and_then(|old| id_map.get(old))
+            .cloned();
         let new_agent = store.hire_agent(
             &new_cid,
             &agent.name,
@@ -167,11 +172,23 @@ pub fn import_company(input_path: &Path, new_name: Option<&str>) -> Result<Strin
         let gs = crate::company_goals::GoalStore::new(conn);
         gs.ensure_schema()?;
         for goal in &bp.goals {
-            let new_parent = goal.parent_goal_id.as_ref().and_then(|old| id_map.get(old)).cloned();
-            let new_owner = goal.owner_agent_id.as_ref().and_then(|old| id_map.get(old)).cloned();
+            let new_parent = goal
+                .parent_goal_id
+                .as_ref()
+                .and_then(|old| id_map.get(old))
+                .cloned();
+            let new_owner = goal
+                .owner_agent_id
+                .as_ref()
+                .and_then(|old| id_map.get(old))
+                .cloned();
             let new_goal = gs.create(
-                &new_cid, &goal.title, &goal.description,
-                new_parent.as_deref(), new_owner.as_deref(), goal.priority,
+                &new_cid,
+                &goal.title,
+                &goal.description,
+                new_parent.as_deref(),
+                new_owner.as_deref(),
+                goal.priority,
             )?;
             id_map.insert(goal.id.clone(), new_goal.id.clone());
         }
@@ -182,12 +199,28 @@ pub fn import_company(input_path: &Path, new_name: Option<&str>) -> Result<Strin
         let ts = crate::company_tasks::TaskStore::new(conn);
         ts.ensure_schema()?;
         for task in &bp.tasks {
-            let new_goal = task.goal_id.as_ref().and_then(|old| id_map.get(old)).cloned();
-            let new_parent = task.parent_task_id.as_ref().and_then(|old| id_map.get(old)).cloned();
-            let new_agent = task.assigned_agent.as_ref().and_then(|old| id_map.get(old)).cloned();
+            let new_goal = task
+                .goal_id
+                .as_ref()
+                .and_then(|old| id_map.get(old))
+                .cloned();
+            let new_parent = task
+                .parent_task_id
+                .as_ref()
+                .and_then(|old| id_map.get(old))
+                .cloned();
+            let new_agent = task
+                .assigned_agent
+                .as_ref()
+                .and_then(|old| id_map.get(old))
+                .cloned();
             let new_task = ts.create(
-                &new_cid, &task.title, &task.description,
-                new_goal.as_deref(), new_parent.as_deref(), new_agent.as_deref(),
+                &new_cid,
+                &task.title,
+                &task.description,
+                new_goal.as_deref(),
+                new_parent.as_deref(),
+                new_agent.as_deref(),
                 task.priority.clone(),
             )?;
             id_map.insert(task.id.clone(), new_task.id.clone());
@@ -199,12 +232,23 @@ pub fn import_company(input_path: &Path, new_name: Option<&str>) -> Result<Strin
         let ds = crate::company_documents::DocumentStore::new(conn);
         ds.ensure_schema()?;
         for doc in &bp.documents {
-            let new_task = doc.linked_task_id.as_ref().and_then(|old| id_map.get(old)).cloned();
-            let new_goal = doc.linked_goal_id.as_ref().and_then(|old| id_map.get(old)).cloned();
+            let new_task = doc
+                .linked_task_id
+                .as_ref()
+                .and_then(|old| id_map.get(old))
+                .cloned();
+            let new_goal = doc
+                .linked_goal_id
+                .as_ref()
+                .and_then(|old| id_map.get(old))
+                .cloned();
             ds.create(
-                &new_cid, &doc.title, &doc.content,
+                &new_cid,
+                &doc.title,
+                &doc.content,
                 doc.author_agent_id.as_deref(),
-                new_task.as_deref(), new_goal.as_deref(),
+                new_task.as_deref(),
+                new_goal.as_deref(),
             )?;
         }
     }
@@ -214,8 +258,17 @@ pub fn import_company(input_path: &Path, new_name: Option<&str>) -> Result<Strin
         let rs = crate::company_routines::RoutineStore::new(conn);
         rs.ensure_schema()?;
         for routine in &bp.routines {
-            let new_agent = id_map.get(&routine.agent_id).cloned().unwrap_or_else(|| routine.agent_id.clone());
-            rs.create(&new_cid, &new_agent, &routine.name, &routine.prompt, routine.interval_secs)?;
+            let new_agent = id_map
+                .get(&routine.agent_id)
+                .cloned()
+                .unwrap_or_else(|| routine.agent_id.clone());
+            rs.create(
+                &new_cid,
+                &new_agent,
+                &routine.name,
+                &routine.prompt,
+                routine.interval_secs,
+            )?;
         }
     }
 

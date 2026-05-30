@@ -10,15 +10,26 @@ use std::collections::HashMap;
 // ─── Event Types ──────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum Lane { Tool, Plan, Memory, User, System, Error, Cost }
+pub enum Lane {
+    Tool,
+    Plan,
+    Memory,
+    User,
+    System,
+    Error,
+    Cost,
+}
 
 impl std::fmt::Display for Lane {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Tool => write!(f, "tool"),     Self::Plan   => write!(f, "plan"),
-            Self::Memory => write!(f, "memory"), Self::User   => write!(f, "user"),
-            Self::System => write!(f, "system"), Self::Error  => write!(f, "error"),
-            Self::Cost   => write!(f, "cost"),
+            Self::Tool => write!(f, "tool"),
+            Self::Plan => write!(f, "plan"),
+            Self::Memory => write!(f, "memory"),
+            Self::User => write!(f, "user"),
+            Self::System => write!(f, "system"),
+            Self::Error => write!(f, "error"),
+            Self::Cost => write!(f, "cost"),
         }
     }
 }
@@ -34,15 +45,42 @@ pub struct LaneEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EventPayload {
-    ToolCall   { name: String, args_preview: String },
-    ToolResult { name: String, ok: bool, tokens: u32 },
-    PlanStep   { step: u32, description: String },
-    MemoryRead { key: String },
-    MemoryWrite{ key: String, bytes: usize },
-    UserMessage{ content_preview: String, tokens: u32 },
-    SystemNote { message: String },
-    ErrorEvent { message: String, recoverable: bool },
-    CostAccrued{ input_tokens: u64, output_tokens: u64, usd: f64 },
+    ToolCall {
+        name: String,
+        args_preview: String,
+    },
+    ToolResult {
+        name: String,
+        ok: bool,
+        tokens: u32,
+    },
+    PlanStep {
+        step: u32,
+        description: String,
+    },
+    MemoryRead {
+        key: String,
+    },
+    MemoryWrite {
+        key: String,
+        bytes: usize,
+    },
+    UserMessage {
+        content_preview: String,
+        tokens: u32,
+    },
+    SystemNote {
+        message: String,
+    },
+    ErrorEvent {
+        message: String,
+        recoverable: bool,
+    },
+    CostAccrued {
+        input_tokens: u64,
+        output_tokens: u64,
+        usd: f64,
+    },
 }
 
 // ─── Event Bus ───────────────────────────────────────────────────────────────
@@ -55,12 +93,30 @@ pub struct LaneEventBus {
 }
 
 impl LaneEventBus {
-    pub fn new() -> Self { Self { events: Vec::new(), next_id: 0, subscriptions: HashMap::new() } }
+    pub fn new() -> Self {
+        Self {
+            events: Vec::new(),
+            next_id: 0,
+            subscriptions: HashMap::new(),
+        }
+    }
 
-    pub fn emit(&mut self, session_id: impl Into<String>, ts_ms: u64, lane: Lane, payload: EventPayload) -> u64 {
+    pub fn emit(
+        &mut self,
+        session_id: impl Into<String>,
+        ts_ms: u64,
+        lane: Lane,
+        payload: EventPayload,
+    ) -> u64 {
         let id = self.next_id;
         self.next_id += 1;
-        self.events.push(LaneEvent { id, lane, session_id: session_id.into(), ts_ms, payload });
+        self.events.push(LaneEvent {
+            id,
+            lane,
+            session_id: session_id.into(),
+            ts_ms,
+            payload,
+        });
         id
     }
 
@@ -69,7 +125,10 @@ impl LaneEventBus {
     }
 
     pub fn events_for_session(&self, session_id: &str) -> Vec<&LaneEvent> {
-        self.events.iter().filter(|e| e.session_id == session_id).collect()
+        self.events
+            .iter()
+            .filter(|e| e.session_id == session_id)
+            .collect()
     }
 
     pub fn events_in_lane(&self, lane: &Lane) -> Vec<&LaneEvent> {
@@ -77,7 +136,10 @@ impl LaneEventBus {
     }
 
     pub fn events_in_range(&self, from_ms: u64, to_ms: u64) -> Vec<&LaneEvent> {
-        self.events.iter().filter(|e| e.ts_ms >= from_ms && e.ts_ms <= to_ms).collect()
+        self.events
+            .iter()
+            .filter(|e| e.ts_ms >= from_ms && e.ts_ms <= to_ms)
+            .collect()
     }
 
     /// Cost summary across all CostAccrued events for a session.
@@ -86,13 +148,22 @@ impl LaneEventBus {
         let mut total_output = 0u64;
         let mut total_usd = 0.0_f64;
         for e in self.events_for_session(session_id) {
-            if let EventPayload::CostAccrued { input_tokens, output_tokens, usd } = &e.payload {
+            if let EventPayload::CostAccrued {
+                input_tokens,
+                output_tokens,
+                usd,
+            } = &e.payload
+            {
                 total_input += input_tokens;
                 total_output += output_tokens;
                 total_usd += usd;
             }
         }
-        CostSummary { input_tokens: total_input, output_tokens: total_output, total_usd }
+        CostSummary {
+            input_tokens: total_input,
+            output_tokens: total_output,
+            total_usd,
+        }
     }
 
     /// Count events per lane for a session.
@@ -104,12 +175,18 @@ impl LaneEventBus {
         counts
     }
 
-    pub fn total_events(&self) -> usize { self.events.len() }
-    pub fn clear(&mut self) { self.events.clear(); }
+    pub fn total_events(&self) -> usize {
+        self.events.len()
+    }
+    pub fn clear(&mut self) {
+        self.events.clear();
+    }
 }
 
 impl Default for LaneEventBus {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -125,47 +202,131 @@ pub struct CostSummary {
 mod tests {
     use super::*;
 
-    fn bus() -> LaneEventBus { LaneEventBus::new() }
+    fn bus() -> LaneEventBus {
+        LaneEventBus::new()
+    }
     const S: &str = "sess-1";
 
     #[test]
     fn test_emit_returns_incrementing_ids() {
         let mut b = bus();
-        let a = b.emit(S, 0, Lane::Tool, EventPayload::SystemNote { message: "a".into() });
-        let c = b.emit(S, 0, Lane::Tool, EventPayload::SystemNote { message: "b".into() });
+        let a = b.emit(
+            S,
+            0,
+            Lane::Tool,
+            EventPayload::SystemNote {
+                message: "a".into(),
+            },
+        );
+        let c = b.emit(
+            S,
+            0,
+            Lane::Tool,
+            EventPayload::SystemNote {
+                message: "b".into(),
+            },
+        );
         assert_eq!(c, a + 1);
     }
 
     #[test]
     fn test_events_for_session_filtered() {
         let mut b = bus();
-        b.emit("s1", 0, Lane::User, EventPayload::SystemNote { message: "x".into() });
-        b.emit("s2", 0, Lane::User, EventPayload::SystemNote { message: "y".into() });
+        b.emit(
+            "s1",
+            0,
+            Lane::User,
+            EventPayload::SystemNote {
+                message: "x".into(),
+            },
+        );
+        b.emit(
+            "s2",
+            0,
+            Lane::User,
+            EventPayload::SystemNote {
+                message: "y".into(),
+            },
+        );
         assert_eq!(b.events_for_session("s1").len(), 1);
     }
 
     #[test]
     fn test_events_in_lane() {
         let mut b = bus();
-        b.emit(S, 0, Lane::Tool, EventPayload::SystemNote { message: "t".into() });
-        b.emit(S, 0, Lane::Plan, EventPayload::PlanStep { step: 1, description: "do".into() });
+        b.emit(
+            S,
+            0,
+            Lane::Tool,
+            EventPayload::SystemNote {
+                message: "t".into(),
+            },
+        );
+        b.emit(
+            S,
+            0,
+            Lane::Plan,
+            EventPayload::PlanStep {
+                step: 1,
+                description: "do".into(),
+            },
+        );
         assert_eq!(b.events_in_lane(&Lane::Tool).len(), 1);
     }
 
     #[test]
     fn test_events_in_range() {
         let mut b = bus();
-        b.emit(S, 100, Lane::System, EventPayload::SystemNote { message: "a".into() });
-        b.emit(S, 200, Lane::System, EventPayload::SystemNote { message: "b".into() });
-        b.emit(S, 300, Lane::System, EventPayload::SystemNote { message: "c".into() });
+        b.emit(
+            S,
+            100,
+            Lane::System,
+            EventPayload::SystemNote {
+                message: "a".into(),
+            },
+        );
+        b.emit(
+            S,
+            200,
+            Lane::System,
+            EventPayload::SystemNote {
+                message: "b".into(),
+            },
+        );
+        b.emit(
+            S,
+            300,
+            Lane::System,
+            EventPayload::SystemNote {
+                message: "c".into(),
+            },
+        );
         assert_eq!(b.events_in_range(150, 250).len(), 1);
     }
 
     #[test]
     fn test_cost_summary_accumulates() {
         let mut b = bus();
-        b.emit(S, 0, Lane::Cost, EventPayload::CostAccrued { input_tokens: 1000, output_tokens: 500, usd: 0.01 });
-        b.emit(S, 1, Lane::Cost, EventPayload::CostAccrued { input_tokens: 2000, output_tokens: 100, usd: 0.02 });
+        b.emit(
+            S,
+            0,
+            Lane::Cost,
+            EventPayload::CostAccrued {
+                input_tokens: 1000,
+                output_tokens: 500,
+                usd: 0.01,
+            },
+        );
+        b.emit(
+            S,
+            1,
+            Lane::Cost,
+            EventPayload::CostAccrued {
+                input_tokens: 2000,
+                output_tokens: 100,
+                usd: 0.02,
+            },
+        );
         let summary = b.cost_summary(S);
         assert_eq!(summary.input_tokens, 3000);
         assert_eq!(summary.output_tokens, 600);
@@ -182,9 +343,31 @@ mod tests {
     #[test]
     fn test_lane_counts() {
         let mut b = bus();
-        b.emit(S, 0, Lane::Tool, EventPayload::SystemNote { message: "t".into() });
-        b.emit(S, 0, Lane::Tool, EventPayload::SystemNote { message: "t".into() });
-        b.emit(S, 0, Lane::Error, EventPayload::ErrorEvent { message: "e".into(), recoverable: true });
+        b.emit(
+            S,
+            0,
+            Lane::Tool,
+            EventPayload::SystemNote {
+                message: "t".into(),
+            },
+        );
+        b.emit(
+            S,
+            0,
+            Lane::Tool,
+            EventPayload::SystemNote {
+                message: "t".into(),
+            },
+        );
+        b.emit(
+            S,
+            0,
+            Lane::Error,
+            EventPayload::ErrorEvent {
+                message: "e".into(),
+                recoverable: true,
+            },
+        );
         let counts = b.lane_counts(S);
         assert_eq!(counts["tool"], 2);
         assert_eq!(counts["error"], 1);
@@ -193,15 +376,36 @@ mod tests {
     #[test]
     fn test_total_events() {
         let mut b = bus();
-        b.emit(S, 0, Lane::User, EventPayload::SystemNote { message: "a".into() });
-        b.emit(S, 0, Lane::User, EventPayload::SystemNote { message: "b".into() });
+        b.emit(
+            S,
+            0,
+            Lane::User,
+            EventPayload::SystemNote {
+                message: "a".into(),
+            },
+        );
+        b.emit(
+            S,
+            0,
+            Lane::User,
+            EventPayload::SystemNote {
+                message: "b".into(),
+            },
+        );
         assert_eq!(b.total_events(), 2);
     }
 
     #[test]
     fn test_clear() {
         let mut b = bus();
-        b.emit(S, 0, Lane::User, EventPayload::SystemNote { message: "x".into() });
+        b.emit(
+            S,
+            0,
+            Lane::User,
+            EventPayload::SystemNote {
+                message: "x".into(),
+            },
+        );
         b.clear();
         assert_eq!(b.total_events(), 0);
     }
@@ -219,19 +423,38 @@ mod tests {
         assert_eq!(Lane::Cost.to_string(), "cost");
     }
 
-
     #[test]
     fn test_tool_call_payload() {
         let mut b = bus();
-        let id = b.emit(S, 0, Lane::Tool, EventPayload::ToolCall { name: "Read".into(), args_preview: "x.rs".into() });
-        let ev = b.events_for_session(S).into_iter().find(|e| e.id == id).unwrap();
+        let id = b.emit(
+            S,
+            0,
+            Lane::Tool,
+            EventPayload::ToolCall {
+                name: "Read".into(),
+                args_preview: "x.rs".into(),
+            },
+        );
+        let ev = b
+            .events_for_session(S)
+            .into_iter()
+            .find(|e| e.id == id)
+            .unwrap();
         assert!(matches!(&ev.payload, EventPayload::ToolCall { name, .. } if name == "Read"));
     }
 
     #[test]
     fn test_memory_write_payload() {
         let mut b = bus();
-        b.emit(S, 0, Lane::Memory, EventPayload::MemoryWrite { key: "ctx".into(), bytes: 512 });
+        b.emit(
+            S,
+            0,
+            Lane::Memory,
+            EventPayload::MemoryWrite {
+                key: "ctx".into(),
+                bytes: 512,
+            },
+        );
         let mem_events = b.events_in_lane(&Lane::Memory);
         assert_eq!(mem_events.len(), 1);
     }
@@ -259,8 +482,7 @@ fn now_millis() -> u64 {
         .as_millis() as u64
 }
 
-static EVENT_COUNTER: std::sync::atomic::AtomicU64 =
-    std::sync::atomic::AtomicU64::new(0);
+static EVENT_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 fn next_event_id() -> String {
     let n = EVENT_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
@@ -340,24 +562,24 @@ impl LaneEventType {
 impl std::fmt::Display for LaneEventType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            Self::LaneStarted       => "lane_started",
-            Self::LaneStopped       => "lane_stopped",
-            Self::LaneResumed       => "lane_resumed",
-            Self::CommitCreated     => "commit_created",
-            Self::CommitSuperseded  => "commit_superseded",
-            Self::BranchLocked      => "branch_locked",
-            Self::BranchUnlocked    => "branch_unlocked",
-            Self::QualityGreen      => "quality_green",
-            Self::QualityRed        => "quality_red",
-            Self::FailureBuild      => "failure_build",
-            Self::FailureTest       => "failure_test",
-            Self::FailureLint       => "failure_lint",
-            Self::FailureMerge      => "failure_merge",
-            Self::FailureTimeout    => "failure_timeout",
+            Self::LaneStarted => "lane_started",
+            Self::LaneStopped => "lane_stopped",
+            Self::LaneResumed => "lane_resumed",
+            Self::CommitCreated => "commit_created",
+            Self::CommitSuperseded => "commit_superseded",
+            Self::BranchLocked => "branch_locked",
+            Self::BranchUnlocked => "branch_unlocked",
+            Self::QualityGreen => "quality_green",
+            Self::QualityRed => "quality_red",
+            Self::FailureBuild => "failure_build",
+            Self::FailureTest => "failure_test",
+            Self::FailureLint => "failure_lint",
+            Self::FailureMerge => "failure_merge",
+            Self::FailureTimeout => "failure_timeout",
             Self::FailurePermission => "failure_permission",
-            Self::FailureProvider   => "failure_provider",
+            Self::FailureProvider => "failure_provider",
             Self::FailureCompaction => "failure_compaction",
-            Self::FailureUnknown    => "failure_unknown",
+            Self::FailureUnknown => "failure_unknown",
         };
         write!(f, "{s}")
     }
@@ -541,11 +763,16 @@ mod workflow_tests {
         let deduped = deduplicate_superseded(&events);
         assert!(!deduped.iter().any(|e| {
             e.event_type == LaneEventType::CommitCreated
-                && e.metadata.get("sha").map(|s| s == "abc123").unwrap_or(false)
+                && e.metadata
+                    .get("sha")
+                    .map(|s| s == "abc123")
+                    .unwrap_or(false)
         }));
-        assert!(deduped
-            .iter()
-            .any(|e| e.metadata.get("sha").map(|s| s == "def456").unwrap_or(false)));
+        assert!(deduped.iter().any(|e| e
+            .metadata
+            .get("sha")
+            .map(|s| s == "def456")
+            .unwrap_or(false)));
     }
 
     #[test]

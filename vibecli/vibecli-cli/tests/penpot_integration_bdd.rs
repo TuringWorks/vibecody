@@ -2,13 +2,12 @@
  * BDD tests for penpot_connector using Cucumber.
  * Run with: cargo test --test penpot_integration_bdd
  */
-use cucumber::{World, given, then, when};
-use vibecli_cli::penpot_connector::{
-    PenpotColor, PenpotComponent, PenpotConfig, PenpotRequest,
-    parse_penpot_file_response, penpot_colors_to_css, penpot_component_to_react,
-    validate_penpot_config,
-};
+use cucumber::{given, then, when, World};
 use std::collections::HashMap;
+use vibecli_cli::penpot_connector::{
+    parse_penpot_file_response, penpot_colors_to_css, penpot_component_to_react,
+    validate_penpot_config, PenpotColor, PenpotComponent, PenpotConfig, PenpotRequest,
+};
 
 #[derive(Debug, Default, World)]
 pub struct PenpotWorld {
@@ -18,7 +17,12 @@ pub struct PenpotWorld {
     curl_command: String,
     css_output: String,
     react_code: String,
-    parse_result: Option<Result<vibecli_cli::design_providers::DesignFile, vibecli_cli::design_providers::DesignError>>,
+    parse_result: Option<
+        Result<
+            vibecli_cli::design_providers::DesignFile,
+            vibecli_cli::design_providers::DesignError,
+        >,
+    >,
     colors: Vec<PenpotColor>,
     component: Option<PenpotComponent>,
 }
@@ -33,14 +37,22 @@ fn given_config(world: &mut PenpotWorld, host: String, token: String) {
 #[given(expr = "a Penpot color named {string} with hex {string}")]
 fn given_color(world: &mut PenpotWorld, name: String, hex: String) {
     world.colors.push(PenpotColor {
-        id: "c1".into(), name, color: hex, opacity: Some(1.0), path: None,
+        id: "c1".into(),
+        name,
+        color: hex,
+        opacity: Some(1.0),
+        path: None,
     });
 }
 
 #[given(expr = "a Penpot component named {string} with id {string}")]
 fn given_component(world: &mut PenpotWorld, name: String, id: String) {
     world.component = Some(PenpotComponent {
-        id, name, path: String::new(), objects: HashMap::new(), main_instance_id: None,
+        id,
+        name,
+        path: String::new(),
+        objects: HashMap::new(),
+        main_instance_id: None,
     });
 }
 
@@ -75,7 +87,8 @@ fn when_get_profile_request(world: &mut PenpotWorld) {
 }
 
 #[when("I convert to curl")]
-fn when_to_curl(_world: &mut PenpotWorld) { /* already done */ }
+fn when_to_curl(_world: &mut PenpotWorld) { /* already done */
+}
 
 #[when("I export colors to CSS")]
 fn when_colors_to_css(world: &mut PenpotWorld) {
@@ -93,7 +106,8 @@ fn when_export_vue(world: &mut PenpotWorld) {
 }
 
 #[when("I parse the file response")]
-fn when_parse(_world: &mut PenpotWorld) { /* result set in given */ }
+fn when_parse(_world: &mut PenpotWorld) { /* result set in given */
+}
 
 // ── Then ───────────────────────────────────────────────────────────────────
 
@@ -124,7 +138,11 @@ fn then_curl_contains(world: &mut PenpotWorld, s: String) {
 
 #[then(expr = "the CSS should contain {string}")]
 fn then_css_contains(world: &mut PenpotWorld, s: String) {
-    assert!(world.css_output.contains(s.as_str()), "CSS missing: {s}\n{}", world.css_output);
+    assert!(
+        world.css_output.contains(s.as_str()),
+        "CSS missing: {s}\n{}",
+        world.css_output
+    );
 }
 
 #[then(expr = "the code should contain {string}")]
@@ -157,5 +175,7 @@ fn then_provider(world: &mut PenpotWorld, provider: String) {
 }
 
 fn main() {
-    futures::executor::block_on(PenpotWorld::run("tests/features/penpot_integration.feature"));
+    futures::executor::block_on(PenpotWorld::run(
+        "tests/features/penpot_integration.feature",
+    ));
 }

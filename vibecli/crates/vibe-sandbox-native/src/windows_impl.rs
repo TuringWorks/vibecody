@@ -131,23 +131,35 @@ impl Sandbox for WindowsSandbox {
 /// See `docs/security/threat-model.md` §7 item #11.
 const DENIED_SEGMENTS: &[&str] = &[
     // Cross-platform VibeCody / Claude state.
-    ".vibecli", ".vibeui", ".claude",
+    ".vibecli",
+    ".vibeui",
+    ".claude",
     // Unix-shaped credential dirs (some users keep `.ssh` / `.aws` on
     // Windows under their home).
-    ".ssh", ".aws", ".gnupg",
+    ".ssh",
+    ".aws",
+    ".gnupg",
     // Windows credential-manager backing stores.
-    "Credentials", "Vault",
+    "Credentials",
+    "Vault",
 ];
 
 /// Specific filenames that name credential blobs, regardless of parent dir.
 const DENIED_FILENAMES: &[&str] = &[
-    "daemon.token", "profile_settings.db", "workspace.db",
-    "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519",
+    "daemon.token",
+    "profile_settings.db",
+    "workspace.db",
+    "id_rsa",
+    "id_dsa",
+    "id_ecdsa",
+    "id_ed25519",
     "credentials",
 ];
 
 fn validate_path(p: &Path) -> Result<()> {
-    if p.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
+    if p.components()
+        .any(|c| matches!(c, std::path::Component::ParentDir))
+    {
         return Err(SandboxError::Setup(format!(
             "path traversal not allowed in sandbox path: {}",
             p.display()
@@ -218,8 +230,10 @@ mod tests {
     #[test]
     fn paths_reports_rw_and_ro() {
         let mut sb = WindowsSandbox::new().unwrap();
-        sb.bind_rw(Path::new(r"C:\Users\me\repo"), Path::new(r"C:\work")).unwrap();
-        sb.bind_ro(Path::new(r"C:\readonly"), Path::new(r"C:\readonly")).unwrap();
+        sb.bind_rw(Path::new(r"C:\Users\me\repo"), Path::new(r"C:\work"))
+            .unwrap();
+        sb.bind_ro(Path::new(r"C:\readonly"), Path::new(r"C:\readonly"))
+            .unwrap();
         let paths = sb.paths();
         assert_eq!(paths.len(), 2);
         assert_eq!(paths[0].2, BindAccessMode::ReadWrite);

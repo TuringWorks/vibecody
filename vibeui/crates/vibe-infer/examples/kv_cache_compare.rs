@@ -85,8 +85,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== Delta ===");
     let tps_delta =
         (stats_tq.tokens_per_sec - stats_fp16.tokens_per_sec) / stats_fp16.tokens_per_sec * 100.0;
-    println!("tok/s     : fp16 {:.1} → tq {:.1} ({:+.1}%)",
-        stats_fp16.tokens_per_sec, stats_tq.tokens_per_sec, tps_delta);
+    println!(
+        "tok/s     : fp16 {:.1} → tq {:.1} ({:+.1}%)",
+        stats_fp16.tokens_per_sec, stats_tq.tokens_per_sec, tps_delta
+    );
     println!("identical : {}", text_fp16 == text_tq);
 
     Ok(())

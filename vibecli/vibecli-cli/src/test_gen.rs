@@ -15,13 +15,13 @@ use serde::{Deserialize, Serialize};
 /// Supported test framework targets.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TestFramework {
-    RustBuiltin,    // #[test] in Rust
-    Jest,           // JavaScript / TypeScript
-    Pytest,         // Python
-    GoTest,         // Go testing package
-    JUnit,          // Java / Kotlin
-    Mocha,          // Node.js
-    Vitest,         // Vite-native TS
+    RustBuiltin, // #[test] in Rust
+    Jest,        // JavaScript / TypeScript
+    Pytest,      // Python
+    GoTest,      // Go testing package
+    JUnit,       // Java / Kotlin
+    Mocha,       // Node.js
+    Vitest,      // Vite-native TS
 }
 
 impl TestFramework {
@@ -34,9 +34,13 @@ impl TestFramework {
             "go" => Self::GoTest,
             "java" | "kt" => Self::JUnit,
             "ts" | "tsx" | "js" | "jsx" => {
-                if hint.contains("vitest") { Self::Vitest }
-                else if hint.contains("mocha") { Self::Mocha }
-                else { Self::Jest }
+                if hint.contains("vitest") {
+                    Self::Vitest
+                } else if hint.contains("mocha") {
+                    Self::Mocha
+                } else {
+                    Self::Jest
+                }
             }
             _ => Self::Jest,
         }
@@ -61,7 +65,7 @@ pub struct FunctionSignature {
     pub return_type: String,
     pub doc_comment: Option<String>,
     pub is_public: bool,
-    pub complexity_estimate: u8,  // 1-10
+    pub complexity_estimate: u8, // 1-10
 }
 
 /// Parameter information for a function.
@@ -92,8 +96,8 @@ pub enum TestKind {
     BoundaryValue,
     NullEdge,
     ErrorPath,
-    Property,     // property-based invariant
-    Mutation,     // detects a specific mutant
+    Property, // property-based invariant
+    Mutation, // detects a specific mutant
 }
 
 /// A mutation applied to source code.
@@ -105,21 +109,21 @@ pub struct Mutation {
     pub original_snippet: String,
     pub mutated_snippet: String,
     pub line: u32,
-    pub killed_by: Vec<String>,  // test IDs that kill this mutant
+    pub killed_by: Vec<String>, // test IDs that kill this mutant
     pub alive: bool,
 }
 
 /// Mutation operator types.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum MutationOperator {
-    ArithmeticReplacement,  // + → -
-    RelationalReplacement,  // > → >=
-    LogicalReplacement,     // && → ||
-    ReturnValueChange,      // return x → return default
-    BoundaryShift,          // < → <=
-    NegateCondition,        // if cond → if !cond
-    RemoveCall,             // function call → ()
-    ConstantReplacement,    // literal value substitution
+    ArithmeticReplacement, // + → -
+    RelationalReplacement, // > → >=
+    LogicalReplacement,    // && → ||
+    ReturnValueChange,     // return x → return default
+    BoundaryShift,         // < → <=
+    NegateCondition,       // if cond → if !cond
+    RemoveCall,            // function call → ()
+    ConstantReplacement,   // literal value substitution
 }
 
 impl MutationOperator {
@@ -130,7 +134,9 @@ impl MutationOperator {
                     Some(snippet.replacen(" + ", " - ", 1))
                 } else if snippet.contains(" - ") {
                     Some(snippet.replacen(" - ", " + ", 1))
-                } else { None }
+                } else {
+                    None
+                }
             }
             Self::RelationalReplacement => {
                 if snippet.contains(" > ") {
@@ -141,26 +147,34 @@ impl MutationOperator {
                     Some(snippet.replacen(" >= ", " > ", 1))
                 } else if snippet.contains(" <= ") {
                     Some(snippet.replacen(" <= ", " < ", 1))
-                } else { None }
+                } else {
+                    None
+                }
             }
             Self::LogicalReplacement => {
                 if snippet.contains(" && ") {
                     Some(snippet.replacen(" && ", " || ", 1))
                 } else if snippet.contains(" || ") {
                     Some(snippet.replacen(" || ", " && ", 1))
-                } else { None }
+                } else {
+                    None
+                }
             }
             Self::NegateCondition => {
                 if snippet.starts_with("if ") {
                     Some(snippet.replacen("if ", "if !", 1))
-                } else { None }
+                } else {
+                    None
+                }
             }
             Self::BoundaryShift => {
                 if snippet.contains(" < ") {
                     Some(snippet.replacen(" < ", " <= ", 1))
                 } else if snippet.contains(" <= ") {
                     Some(snippet.replacen(" <= ", " < ", 1))
-                } else { None }
+                } else {
+                    None
+                }
             }
             Self::ConstantReplacement => {
                 // Replace a numeric literal 0 with 1 or vice versa
@@ -168,7 +182,9 @@ impl MutationOperator {
                     Some(snippet.replacen('0', "1", 1))
                 } else if snippet.contains('1') {
                     Some(snippet.replacen('1', "0", 1))
-                } else { None }
+                } else {
+                    None
+                }
             }
             Self::ReturnValueChange | Self::RemoveCall => None, // context-specific
         }
@@ -182,24 +198,27 @@ pub struct MutationReport {
     pub total_mutants: usize,
     pub killed: usize,
     pub alive: usize,
-    pub score: f64,   // killed / total as percentage
+    pub score: f64, // killed / total as percentage
     pub mutants: Vec<Mutation>,
     pub suggestions: Vec<String>,
 }
 
 impl MutationReport {
     pub fn mutation_score(&self) -> f64 {
-        if self.total_mutants == 0 { 100.0 }
-        else { (self.killed as f64 / self.total_mutants as f64) * 100.0 }
+        if self.total_mutants == 0 {
+            100.0
+        } else {
+            (self.killed as f64 / self.total_mutants as f64) * 100.0
+        }
     }
 
     pub fn grade(&self) -> &'static str {
         match self.score as u32 {
             90..=100 => "A",
-            80..=89  => "B",
-            70..=79  => "C",
-            60..=69  => "D",
-            _        => "F",
+            80..=89 => "B",
+            70..=79 => "C",
+            60..=69 => "D",
+            _ => "F",
         }
     }
 }
@@ -216,8 +235,8 @@ pub enum TestOutcome {
 /// TDD loop state.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum TddPhase {
-    Red,    // test written, expected to fail
-    Green,  // implementation written, test passes
+    Red,      // test written, expected to fail
+    Green,    // implementation written, test passes
     Refactor, // code cleaned up, test still passes
 }
 
@@ -238,7 +257,7 @@ pub struct CoverageGap {
     pub function_name: String,
     pub uncovered_branches: Vec<String>,
     pub suggested_test_kinds: Vec<TestKind>,
-    pub priority: u8,  // 1 (high) - 5 (low)
+    pub priority: u8, // 1 (high) - 5 (low)
 }
 
 // ─── Test Generator ──────────────────────────────────────────────────────────
@@ -252,7 +271,11 @@ pub struct TestGenerator {
 
 impl TestGenerator {
     pub fn new(framework: TestFramework) -> Self {
-        Self { framework, generated: Vec::new(), id_counter: 0 }
+        Self {
+            framework,
+            generated: Vec::new(),
+            id_counter: 0,
+        }
     }
 
     fn next_id(&mut self) -> String {
@@ -279,7 +302,11 @@ impl TestGenerator {
 
     fn happy_path(&mut self, sig: &FunctionSignature) -> GeneratedTest {
         let id = self.next_id();
-        let code = self.render_test(sig, TestKind::HappyPath, "returns expected value for valid input");
+        let code = self.render_test(
+            sig,
+            TestKind::HappyPath,
+            "returns expected value for valid input",
+        );
         GeneratedTest {
             id,
             target_function: sig.name.clone(),
@@ -294,7 +321,11 @@ impl TestGenerator {
 
     fn boundary_test(&mut self, sig: &FunctionSignature) -> GeneratedTest {
         let id = self.next_id();
-        let code = self.render_test(sig, TestKind::BoundaryValue, "handles boundary values correctly");
+        let code = self.render_test(
+            sig,
+            TestKind::BoundaryValue,
+            "handles boundary values correctly",
+        );
         GeneratedTest {
             id,
             target_function: sig.name.clone(),
@@ -309,7 +340,11 @@ impl TestGenerator {
 
     fn null_edge_test(&mut self, sig: &FunctionSignature) -> GeneratedTest {
         let id = self.next_id();
-        let code = self.render_test(sig, TestKind::NullEdge, "handles None/null/empty gracefully");
+        let code = self.render_test(
+            sig,
+            TestKind::NullEdge,
+            "handles None/null/empty gracefully",
+        );
         GeneratedTest {
             id,
             target_function: sig.name.clone(),
@@ -337,15 +372,20 @@ impl TestGenerator {
         }
     }
 
-    fn render_test(&self, sig: &FunctionSignature, kind: TestKind, assertion_comment: &str) -> String {
+    fn render_test(
+        &self,
+        sig: &FunctionSignature,
+        kind: TestKind,
+        assertion_comment: &str,
+    ) -> String {
         let prefix = self.framework.test_fn_prefix();
         let fn_name = match &kind {
-            TestKind::HappyPath     => format!("test_{}_happy_path", sig.name),
+            TestKind::HappyPath => format!("test_{}_happy_path", sig.name),
             TestKind::BoundaryValue => format!("test_{}_boundary", sig.name),
-            TestKind::NullEdge      => format!("test_{}_null_edge", sig.name),
-            TestKind::ErrorPath     => format!("test_{}_error_path", sig.name),
-            TestKind::Property      => format!("test_{}_property", sig.name),
-            TestKind::Mutation      => format!("test_{}_mutation", sig.name),
+            TestKind::NullEdge => format!("test_{}_null_edge", sig.name),
+            TestKind::ErrorPath => format!("test_{}_error_path", sig.name),
+            TestKind::Property => format!("test_{}_property", sig.name),
+            TestKind::Mutation => format!("test_{}_mutation", sig.name),
         };
         match self.framework {
             TestFramework::RustBuiltin => format!(
@@ -369,11 +409,16 @@ impl TestGenerator {
     }
 
     /// Return all tests generated so far.
-    pub fn all_tests(&self) -> &[GeneratedTest] { &self.generated }
+    pub fn all_tests(&self) -> &[GeneratedTest] {
+        &self.generated
+    }
 
     /// Count by kind.
     pub fn count_by_kind(&self, kind: &TestKind) -> usize {
-        self.generated.iter().filter(|t| &t.test_kind == kind).count()
+        self.generated
+            .iter()
+            .filter(|t| &t.test_kind == kind)
+            .count()
     }
 }
 
@@ -444,21 +489,38 @@ impl MutationEngine {
         let total = mutants.len();
         let killed = mutants.iter().filter(|m| !m.alive).count();
         let alive = total - killed;
-        let score = if total == 0 { 100.0 } else { (killed as f64 / total as f64) * 100.0 };
+        let score = if total == 0 {
+            100.0
+        } else {
+            (killed as f64 / total as f64) * 100.0
+        };
         let suggestions = if alive > 0 {
             vec![
-                format!("{} surviving mutants — add boundary and negation tests to kill them", alive),
+                format!(
+                    "{} surviving mutants — add boundary and negation tests to kill them",
+                    alive
+                ),
                 "Focus on relational operator mutations (>, >=, <, <=) which often survive".into(),
             ]
         } else {
             vec!["All mutants killed — excellent test coverage!".into()]
         };
-        MutationReport { file: file.to_string(), total_mutants: total, killed, alive, score, mutants, suggestions }
+        MutationReport {
+            file: file.to_string(),
+            total_mutants: total,
+            killed,
+            alive,
+            score,
+            mutants,
+            suggestions,
+        }
     }
 }
 
 impl Default for MutationEngine {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // ─── TDD Loop Orchestrator ───────────────────────────────────────────────────
@@ -471,11 +533,21 @@ pub struct TddOrchestrator {
 
 impl TddOrchestrator {
     pub fn new(max_iterations: u32) -> Self {
-        Self { iterations: Vec::new(), max_iterations }
+        Self {
+            iterations: Vec::new(),
+            max_iterations,
+        }
     }
 
     /// Record an iteration result.
-    pub fn record(&mut self, phase: TddPhase, test_id: &str, outcome: TestOutcome, action: &str, ms: u64) {
+    pub fn record(
+        &mut self,
+        phase: TddPhase,
+        test_id: &str,
+        outcome: TestOutcome,
+        action: &str,
+        ms: u64,
+    ) {
         let n = (self.iterations.len() + 1) as u32;
         self.iterations.push(TddIteration {
             iteration: n,
@@ -490,7 +562,9 @@ impl TddOrchestrator {
     /// Check whether the loop should continue.
     pub fn should_continue(&self) -> bool {
         let n = self.iterations.len() as u32;
-        if n >= self.max_iterations { return false; }
+        if n >= self.max_iterations {
+            return false;
+        }
         // Stop if last green phase passed
         if let Some(last) = self.iterations.last() {
             if last.phase == TddPhase::Green && last.outcome == TestOutcome::Passed {
@@ -508,14 +582,19 @@ impl TddOrchestrator {
                 TddPhase::Red if it.outcome == TestOutcome::Passed => TddPhase::Green,
                 TddPhase::Green if it.outcome == TestOutcome::Passed => TddPhase::Refactor,
                 _ => it.phase.clone(),
-            }
+            },
         }
     }
 
-    pub fn iterations(&self) -> &[TddIteration] { &self.iterations }
+    pub fn iterations(&self) -> &[TddIteration] {
+        &self.iterations
+    }
 
     pub fn passed_count(&self) -> usize {
-        self.iterations.iter().filter(|i| i.outcome == TestOutcome::Passed).count()
+        self.iterations
+            .iter()
+            .filter(|i| i.outcome == TestOutcome::Passed)
+            .count()
     }
 }
 
@@ -527,10 +606,16 @@ pub struct CoverageDetector {
 }
 
 impl CoverageDetector {
-    pub fn new() -> Self { Self { gaps: Vec::new() } }
+    pub fn new() -> Self {
+        Self { gaps: Vec::new() }
+    }
 
     /// Detect functions with no corresponding tests.
-    pub fn detect(&mut self, functions: &[FunctionSignature], test_names: &[String]) -> Vec<CoverageGap> {
+    pub fn detect(
+        &mut self,
+        functions: &[FunctionSignature],
+        test_names: &[String],
+    ) -> Vec<CoverageGap> {
         let mut gaps = Vec::new();
         for func in functions {
             let has_test = test_names.iter().any(|t| t.contains(&func.name));
@@ -556,7 +641,9 @@ impl CoverageDetector {
 }
 
 impl Default for CoverageDetector {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -573,7 +660,11 @@ mod tests {
                 type_hint: "i32".into(),
                 is_optional: optional_param,
             }],
-            return_type: if has_result { "Result<i32, String>".into() } else { "i32".into() },
+            return_type: if has_result {
+                "Result<i32, String>".into()
+            } else {
+                "i32".into()
+            },
             doc_comment: None,
             is_public: true,
             complexity_estimate: 3,
@@ -584,7 +675,10 @@ mod tests {
 
     #[test]
     fn test_framework_detect_rs() {
-        assert_eq!(TestFramework::detect("rs", None), TestFramework::RustBuiltin);
+        assert_eq!(
+            TestFramework::detect("rs", None),
+            TestFramework::RustBuiltin
+        );
     }
 
     #[test]
@@ -599,7 +693,10 @@ mod tests {
 
     #[test]
     fn test_framework_detect_ts_vitest() {
-        assert_eq!(TestFramework::detect("ts", Some("vitest")), TestFramework::Vitest);
+        assert_eq!(
+            TestFramework::detect("ts", Some("vitest")),
+            TestFramework::Vitest
+        );
     }
 
     #[test]
@@ -609,7 +706,9 @@ mod tests {
 
     #[test]
     fn test_framework_prefix_rust() {
-        assert!(TestFramework::RustBuiltin.test_fn_prefix().contains("#[test]"));
+        assert!(TestFramework::RustBuiltin
+            .test_fn_prefix()
+            .contains("#[test]"));
     }
 
     // ── TestGenerator ─────────────────────────────────────────────────────
@@ -727,7 +826,10 @@ mod tests {
     #[test]
     fn test_mutation_op_relational_lt_to_lte() {
         let op = MutationOperator::RelationalReplacement;
-        assert_eq!(op.apply_to("while n < 10 {"), Some("while n <= 10 {".into()));
+        assert_eq!(
+            op.apply_to("while n < 10 {"),
+            Some("while n <= 10 {".into())
+        );
     }
 
     #[test]
@@ -827,10 +929,31 @@ mod tests {
     #[test]
     fn test_mutation_report_score() {
         let engine = MutationEngine::new();
-        let report = engine.build_report("src/lib.rs", vec![
-            Mutation { id: "m1".into(), description: "".into(), operator: MutationOperator::ArithmeticReplacement, original_snippet: "".into(), mutated_snippet: "".into(), line: 1, killed_by: vec!["t1".into()], alive: false },
-            Mutation { id: "m2".into(), description: "".into(), operator: MutationOperator::ArithmeticReplacement, original_snippet: "".into(), mutated_snippet: "".into(), line: 2, killed_by: vec![], alive: true },
-        ]);
+        let report = engine.build_report(
+            "src/lib.rs",
+            vec![
+                Mutation {
+                    id: "m1".into(),
+                    description: "".into(),
+                    operator: MutationOperator::ArithmeticReplacement,
+                    original_snippet: "".into(),
+                    mutated_snippet: "".into(),
+                    line: 1,
+                    killed_by: vec!["t1".into()],
+                    alive: false,
+                },
+                Mutation {
+                    id: "m2".into(),
+                    description: "".into(),
+                    operator: MutationOperator::ArithmeticReplacement,
+                    original_snippet: "".into(),
+                    mutated_snippet: "".into(),
+                    line: 2,
+                    killed_by: vec![],
+                    alive: true,
+                },
+            ],
+        );
         assert!((report.score - 50.0).abs() < 0.01);
         assert_eq!(report.killed, 1);
         assert_eq!(report.alive, 1);
@@ -839,11 +962,18 @@ mod tests {
     #[test]
     fn test_mutation_report_grade_a() {
         let engine = MutationEngine::new();
-        let killed: Vec<Mutation> = (0..10).map(|i| Mutation {
-            id: format!("m{i}"), description: "".into(), operator: MutationOperator::ArithmeticReplacement,
-            original_snippet: "".into(), mutated_snippet: "".into(), line: i as u32,
-            killed_by: vec!["t1".into()], alive: false,
-        }).collect();
+        let killed: Vec<Mutation> = (0..10)
+            .map(|i| Mutation {
+                id: format!("m{i}"),
+                description: "".into(),
+                operator: MutationOperator::ArithmeticReplacement,
+                original_snippet: "".into(),
+                mutated_snippet: "".into(),
+                line: i as u32,
+                killed_by: vec!["t1".into()],
+                alive: false,
+            })
+            .collect();
         let report = engine.build_report("lib.rs", killed);
         assert_eq!(report.grade(), "A");
     }
@@ -872,7 +1002,15 @@ mod tests {
     #[test]
     fn test_tdd_loop_stops_after_green_pass() {
         let mut orch = TddOrchestrator::new(10);
-        orch.record(TddPhase::Red, "t1", TestOutcome::Failed { message: "not implemented".into() }, "write stub", 10);
+        orch.record(
+            TddPhase::Red,
+            "t1",
+            TestOutcome::Failed {
+                message: "not implemented".into(),
+            },
+            "write stub",
+            10,
+        );
         orch.record(TddPhase::Green, "t1", TestOutcome::Passed, "implement", 50);
         assert!(!orch.should_continue());
     }
@@ -880,15 +1018,39 @@ mod tests {
     #[test]
     fn test_tdd_loop_stops_at_max_iterations() {
         let mut orch = TddOrchestrator::new(2);
-        orch.record(TddPhase::Red, "t1", TestOutcome::Failed { message: "err".into() }, "a1", 10);
-        orch.record(TddPhase::Red, "t1", TestOutcome::Failed { message: "err".into() }, "a2", 10);
+        orch.record(
+            TddPhase::Red,
+            "t1",
+            TestOutcome::Failed {
+                message: "err".into(),
+            },
+            "a1",
+            10,
+        );
+        orch.record(
+            TddPhase::Red,
+            "t1",
+            TestOutcome::Failed {
+                message: "err".into(),
+            },
+            "a2",
+            10,
+        );
         assert!(!orch.should_continue());
     }
 
     #[test]
     fn test_tdd_passed_count() {
         let mut orch = TddOrchestrator::new(10);
-        orch.record(TddPhase::Red, "t1", TestOutcome::Failed { message: "x".into() }, "a", 5);
+        orch.record(
+            TddPhase::Red,
+            "t1",
+            TestOutcome::Failed {
+                message: "x".into(),
+            },
+            "a",
+            5,
+        );
         orch.record(TddPhase::Green, "t1", TestOutcome::Passed, "b", 5);
         assert_eq!(orch.passed_count(), 1);
     }

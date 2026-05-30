@@ -138,10 +138,7 @@ impl AutoApprover {
                 score: 1.0,
                 decision: ApprovalDecision::AutoDeny,
                 contributions: vec![],
-                rationale: format!(
-                    "Tool '{}' is in always_deny list — auto-denied.",
-                    tool_name
-                ),
+                rationale: format!("Tool '{}' is in always_deny list — auto-denied.", tool_name),
             };
         }
 

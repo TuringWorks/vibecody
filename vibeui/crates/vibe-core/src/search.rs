@@ -1,9 +1,9 @@
-use std::path::PathBuf;
-use serde::{Deserialize, Serialize};
-use walkdir::WalkDir;
 use regex::RegexBuilder;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::{BufRead, BufReader};
+use std::path::PathBuf;
+use walkdir::WalkDir;
 
 /// Skip files larger than this to avoid reading multi-MB binaries into memory.
 const MAX_FILE_BYTES: u64 = 10 * 1024 * 1024; // 10 MB
@@ -17,7 +17,11 @@ pub struct SearchResult {
     pub line_content: String,
 }
 
-pub fn search_files(root_path: &PathBuf, query: &str, case_sensitive: bool) -> Result<Vec<SearchResult>, anyhow::Error> {
+pub fn search_files(
+    root_path: &PathBuf,
+    query: &str,
+    case_sensitive: bool,
+) -> Result<Vec<SearchResult>, anyhow::Error> {
     let mut results = Vec::new();
 
     // Compile regex
@@ -42,9 +46,10 @@ pub fn search_files(root_path: &PathBuf, query: &str, case_sensitive: bool) -> R
         // Skip hidden files/directories (any component *relative to root* starting with '.')
         // We strip the root prefix so that root paths like /tmp/.tmpXXX are not penalised.
         let rel = path.strip_prefix(root_path).unwrap_or(path);
-        if rel.components().any(|c| {
-            c.as_os_str().to_string_lossy().starts_with('.')
-        }) {
+        if rel
+            .components()
+            .any(|c| c.as_os_str().to_string_lossy().starts_with('.'))
+        {
             continue;
         }
 
@@ -87,8 +92,16 @@ mod tests {
 
     fn setup_test_dir() -> tempfile::TempDir {
         let dir = tempfile::tempdir().unwrap();
-        fs::write(dir.path().join("hello.rs"), "fn main() {\n    println!(\"hello\");\n}\n").unwrap();
-        fs::write(dir.path().join("lib.rs"), "pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n").unwrap();
+        fs::write(
+            dir.path().join("hello.rs"),
+            "fn main() {\n    println!(\"hello\");\n}\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.path().join("lib.rs"),
+            "pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}\n",
+        )
+        .unwrap();
         fs::write(dir.path().join("readme.txt"), "This is a readme file.\n").unwrap();
         dir
     }
@@ -106,7 +119,11 @@ mod tests {
     fn search_finds_multiple_files() {
         let dir = setup_test_dir();
         let results = search_files(&dir.path().to_path_buf(), r"fn\s+\w+", true).unwrap();
-        assert!(results.len() >= 2, "should match in both .rs files, got {}", results.len());
+        assert!(
+            results.len() >= 2,
+            "should match in both .rs files, got {}",
+            results.len()
+        );
     }
 
     #[test]
@@ -187,7 +204,11 @@ mod tests {
     #[test]
     fn search_regex_special_chars() {
         let dir = tempfile::tempdir().unwrap();
-        fs::write(dir.path().join("special.txt"), "price is $100\nanother line\n").unwrap();
+        fs::write(
+            dir.path().join("special.txt"),
+            "price is $100\nanother line\n",
+        )
+        .unwrap();
         // Escape the dollar sign in the regex
         let results = search_files(&dir.path().to_path_buf(), r"\$100", true).unwrap();
         assert_eq!(results.len(), 1);
@@ -201,7 +222,11 @@ mod tests {
         let content: String = (0..600).map(|i| format!("match_{}\n", i)).collect();
         fs::write(dir.path().join("big.txt"), &content).unwrap();
         let results = search_files(&dir.path().to_path_buf(), "match_", true).unwrap();
-        assert!(results.len() <= 500, "should cap at MAX_TOTAL_RESULTS (500), got {}", results.len());
+        assert!(
+            results.len() <= 500,
+            "should cap at MAX_TOTAL_RESULTS (500), got {}",
+            results.len()
+        );
     }
 
     #[test]

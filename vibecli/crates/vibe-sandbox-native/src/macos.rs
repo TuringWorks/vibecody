@@ -92,7 +92,9 @@ impl SbProfile {
         out.push_str("  (subpath \"/private/var/folders\")\n");
         out.push_str("  (subpath \"/private/var/select\")\n");
         out.push_str("  (subpath \"/dev\")\n");
-        out.push_str("  (literal \"/dev/null\") (literal \"/dev/random\") (literal \"/dev/urandom\")\n");
+        out.push_str(
+            "  (literal \"/dev/null\") (literal \"/dev/random\") (literal \"/dev/urandom\")\n",
+        );
         out.push_str("  (literal \"/dev/tty\") (literal \"/dev/dtracehelper\")\n");
         out.push_str("  (literal \"/private/var\") (literal \"/private/tmp\")\n");
         out.push_str("  (literal \"/var\") (literal \"/tmp\") (literal \"/etc\"))\n");
@@ -147,20 +149,24 @@ impl SbProfile {
 /// (see `linux.rs::DENIED_SEGMENTS`) plus `.ssh`, `.aws`, `.gnupg` which
 /// cover the macOS-relevant credential stores. See
 /// `docs/security/threat-model.md` §7 item #11.
-const DENIED_SEGMENTS: &[&str] = &[
-    ".vibecli", ".vibeui", ".claude",
-    ".ssh", ".aws", ".gnupg",
-];
+const DENIED_SEGMENTS: &[&str] = &[".vibecli", ".vibeui", ".claude", ".ssh", ".aws", ".gnupg"];
 
 /// Specific filenames that name credential blobs, regardless of parent dir.
 const DENIED_FILENAMES: &[&str] = &[
-    "daemon.token", "profile_settings.db", "workspace.db",
-    "id_rsa", "id_dsa", "id_ecdsa", "id_ed25519",
+    "daemon.token",
+    "profile_settings.db",
+    "workspace.db",
+    "id_rsa",
+    "id_dsa",
+    "id_ecdsa",
+    "id_ed25519",
     "credentials",
 ];
 
 fn validate_subpath(p: &Path) -> Result<()> {
-    if p.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
+    if p.components()
+        .any(|c| matches!(c, std::path::Component::ParentDir))
+    {
         return Err(SandboxError::Setup(format!(
             "path traversal not allowed in sandbox subpath: {}",
             p.display()
@@ -334,9 +340,8 @@ impl Sandbox for MacosSandbox {
 }
 
 fn canonicalize_for_macos(p: &Path) -> Result<PathBuf> {
-    std::fs::canonicalize(p).map_err(|e| {
-        SandboxError::Setup(format!("could not canonicalize {}: {}", p.display(), e))
-    })
+    std::fs::canonicalize(p)
+        .map_err(|e| SandboxError::Setup(format!("could not canonicalize {}: {}", p.display(), e)))
 }
 
 /// Helper used by `bind_with_mode` callers in higher tiers. Kept here so the
@@ -388,7 +393,9 @@ mod tests {
         let mut p = SbProfile::new();
         p.allow_outbound_socket(Path::new("/private/var/run/vibe-broker.sock"));
         let r = p.render();
-        assert!(r.contains("(allow network-outbound (literal \"/private/var/run/vibe-broker.sock\"))"));
+        assert!(
+            r.contains("(allow network-outbound (literal \"/private/var/run/vibe-broker.sock\"))")
+        );
         assert!(r.contains("(deny network*)"));
     }
 }

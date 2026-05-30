@@ -517,11 +517,7 @@ impl PurpleTeamManager {
                 AttackOutcome::Missed | AttackOutcome::NotTested => {
                     let tech = self.technique_db.iter().find(|t| t.id == sim.technique_id);
                     let (name, tactic, rec) = match tech {
-                        Some(t) => (
-                            t.name.clone(),
-                            t.tactic.clone(),
-                            t.detection_notes.clone(),
-                        ),
+                        Some(t) => (t.name.clone(), t.tactic.clone(), t.detection_notes.clone()),
                         None => (
                             sim.technique_id.clone(),
                             MitreTactic::Execution,
@@ -549,11 +545,7 @@ impl PurpleTeamManager {
                 AttackOutcome::PartiallyDetected => {
                     let tech = self.technique_db.iter().find(|t| t.id == sim.technique_id);
                     let (name, tactic, rec) = match tech {
-                        Some(t) => (
-                            t.name.clone(),
-                            t.tactic.clone(),
-                            t.detection_notes.clone(),
-                        ),
+                        Some(t) => (t.name.clone(), t.tactic.clone(), t.detection_notes.clone()),
                         None => (
                             sim.technique_id.clone(),
                             MitreTactic::Execution,
@@ -712,11 +704,12 @@ impl PurpleTeamManager {
         let mut recommendations = Vec::new();
         for sim in &ex.attack_simulations {
             match sim.actual_outcome {
-                AttackOutcome::Missed | AttackOutcome::PartiallyDetected | AttackOutcome::NotTested => {
+                AttackOutcome::Missed
+                | AttackOutcome::PartiallyDetected
+                | AttackOutcome::NotTested => {
                     if let Some(tech) = self.technique_db.iter().find(|t| t.id == sim.technique_id)
                     {
-                        recommendations
-                            .push((tech.name.clone(), tech.detection_notes.clone()));
+                        recommendations.push((tech.name.clone(), tech.detection_notes.clone()));
                     }
                 }
                 _ => {}
@@ -784,10 +777,7 @@ impl PurpleTeamManager {
         }
 
         let score = self.calculate_coverage_score(exercise_id);
-        report.push_str(&format!(
-            "\n## Overall Coverage Score: {:.1}%\n",
-            score
-        ));
+        report.push_str(&format!("\n## Overall Coverage Score: {:.1}%\n", score));
 
         Some(report)
     }
@@ -801,10 +791,7 @@ impl PurpleTeamManager {
 
         let mut report = String::new();
         report.push_str("# Exercise Comparison\n\n");
-        report.push_str(&format!(
-            "| Metric | {} | {} |\n",
-            ex1.name, ex2.name
-        ));
+        report.push_str(&format!("| Metric | {} | {} |\n", ex1.name, ex2.name));
         report.push_str("|--------|------|------|\n");
         report.push_str(&format!(
             "| Simulations | {} | {} |\n",
@@ -903,7 +890,10 @@ mod tests {
     fn test_start_exercise() {
         let (mut mgr, id) = setup_with_exercise();
         assert!(mgr.start_exercise(&id));
-        assert_eq!(mgr.get_exercise(&id).unwrap().status, ExerciseStatus::InProgress);
+        assert_eq!(
+            mgr.get_exercise(&id).unwrap().status,
+            ExerciseStatus::InProgress
+        );
         assert!(mgr.get_exercise(&id).unwrap().started_at.is_some());
     }
 
@@ -945,7 +935,10 @@ mod tests {
         assert_eq!(sim_id, "SIM-0001");
         let ex = mgr.get_exercise(&id).unwrap();
         assert_eq!(ex.attack_simulations.len(), 1);
-        assert_eq!(ex.attack_simulations[0].actual_outcome, AttackOutcome::NotTested);
+        assert_eq!(
+            ex.attack_simulations[0].actual_outcome,
+            AttackOutcome::NotTested
+        );
     }
 
     #[test]
@@ -993,7 +986,10 @@ mod tests {
             Some(DetectionSource::Siem)
         ));
         let ex = mgr.get_exercise(&id).unwrap();
-        assert_eq!(ex.attack_simulations[0].actual_outcome, AttackOutcome::Detected);
+        assert_eq!(
+            ex.attack_simulations[0].actual_outcome,
+            AttackOutcome::Detected
+        );
         assert_eq!(ex.attack_simulations[0].detection_time_secs, Some(30));
     }
 
@@ -1003,7 +999,10 @@ mod tests {
         let sim_id = mgr.add_simulation(&id, "T1055", "Injection test").unwrap();
         assert!(mgr.record_outcome(&id, &sim_id, AttackOutcome::Missed, None, None));
         let ex = mgr.get_exercise(&id).unwrap();
-        assert_eq!(ex.attack_simulations[0].actual_outcome, AttackOutcome::Missed);
+        assert_eq!(
+            ex.attack_simulations[0].actual_outcome,
+            AttackOutcome::Missed
+        );
         assert!(ex.attack_simulations[0].detection_time_secs.is_none());
     }
 
@@ -1047,7 +1046,9 @@ mod tests {
     #[test]
     fn test_identify_coverage_gaps_missed() {
         let (mut mgr, id) = setup_with_exercise();
-        let sim_id = mgr.add_simulation(&id, "T1055", "Process injection").unwrap();
+        let sim_id = mgr
+            .add_simulation(&id, "T1055", "Process injection")
+            .unwrap();
         mgr.record_outcome(&id, &sim_id, AttackOutcome::Missed, None, None);
         let gaps = mgr.identify_coverage_gaps(&id);
         assert_eq!(gaps.len(), 1);
@@ -1060,7 +1061,13 @@ mod tests {
     fn test_identify_coverage_gaps_partial() {
         let (mut mgr, id) = setup_with_exercise();
         let sim_id = mgr.add_simulation(&id, "T1003", "Credential dump").unwrap();
-        mgr.record_outcome(&id, &sim_id, AttackOutcome::PartiallyDetected, Some(120), Some(DetectionSource::Edr));
+        mgr.record_outcome(
+            &id,
+            &sim_id,
+            AttackOutcome::PartiallyDetected,
+            Some(120),
+            Some(DetectionSource::Edr),
+        );
         let gaps = mgr.identify_coverage_gaps(&id);
         assert_eq!(gaps.len(), 1);
         assert_eq!(gaps[0].current_coverage, CoverageLevel::Partial);
@@ -1071,7 +1078,13 @@ mod tests {
     fn test_identify_coverage_gaps_none_when_all_detected() {
         let (mut mgr, id) = setup_with_exercise();
         let sim_id = mgr.add_simulation(&id, "T1566", "Phishing").unwrap();
-        mgr.record_outcome(&id, &sim_id, AttackOutcome::Detected, Some(5), Some(DetectionSource::Siem));
+        mgr.record_outcome(
+            &id,
+            &sim_id,
+            AttackOutcome::Detected,
+            Some(5),
+            Some(DetectionSource::Siem),
+        );
         let gaps = mgr.identify_coverage_gaps(&id);
         assert!(gaps.is_empty());
     }
@@ -1102,10 +1115,20 @@ mod tests {
     fn test_update_matrix_from_exercise() {
         let (mut mgr, id) = setup_with_exercise();
         let sim_id = mgr.add_simulation(&id, "T1566", "Phishing").unwrap();
-        mgr.record_outcome(&id, &sim_id, AttackOutcome::Detected, Some(10), Some(DetectionSource::Siem));
+        mgr.record_outcome(
+            &id,
+            &sim_id,
+            AttackOutcome::Detected,
+            Some(10),
+            Some(DetectionSource::Siem),
+        );
         let updated = mgr.update_matrix_from_exercise(&id);
         assert_eq!(updated, 1);
-        let cell = mgr.attack_matrix.iter().find(|c| c.technique_id == "T1566").unwrap();
+        let cell = mgr
+            .attack_matrix
+            .iter()
+            .find(|c| c.technique_id == "T1566")
+            .unwrap();
         assert_eq!(cell.coverage, CoverageLevel::Full);
         assert!(cell.last_tested.is_some());
         assert!(cell.detection_sources.contains(&DetectionSource::Siem));
@@ -1218,7 +1241,13 @@ mod tests {
         let (mut mgr, id) = setup_with_exercise();
         mgr.start_exercise(&id);
         let sim_id = mgr.add_simulation(&id, "T1566", "Phishing test").unwrap();
-        mgr.record_outcome(&id, &sim_id, AttackOutcome::Detected, Some(15), Some(DetectionSource::Siem));
+        mgr.record_outcome(
+            &id,
+            &sim_id,
+            AttackOutcome::Detected,
+            Some(15),
+            Some(DetectionSource::Siem),
+        );
         mgr.complete_exercise(&id, "Successful exercise");
         let report = mgr.export_exercise_report(&id).unwrap();
         assert!(report.contains("# Purple Team Exercise Report"));
@@ -1330,19 +1359,37 @@ mod tests {
 
         let s1 = mgr.add_simulation(&id, "T1566", "Phishing").unwrap();
         let s2 = mgr.add_simulation(&id, "T1059", "Command exec").unwrap();
-        let s3 = mgr.add_simulation(&id, "T1055", "Process injection").unwrap();
+        let s3 = mgr
+            .add_simulation(&id, "T1055", "Process injection")
+            .unwrap();
 
         mgr.add_attack_step(&id, &s1, "Craft email", "GoPhish", "SMTP log");
         mgr.add_attack_step(&id, &s1, "User clicks link", "Browser", "Proxy log");
 
-        mgr.record_outcome(&id, &s1, AttackOutcome::Detected, Some(15), Some(DetectionSource::Siem));
-        mgr.record_outcome(&id, &s2, AttackOutcome::PartiallyDetected, Some(300), Some(DetectionSource::Edr));
+        mgr.record_outcome(
+            &id,
+            &s1,
+            AttackOutcome::Detected,
+            Some(15),
+            Some(DetectionSource::Siem),
+        );
+        mgr.record_outcome(
+            &id,
+            &s2,
+            AttackOutcome::PartiallyDetected,
+            Some(300),
+            Some(DetectionSource::Edr),
+        );
         mgr.record_outcome(&id, &s3, AttackOutcome::Missed, None, None);
 
         mgr.validate_detection(
-            &id, "T1059", "RULE-CMD-001",
-            AttackOutcome::Detected, AttackOutcome::PartiallyDetected,
-            "Only PowerShell detected, not bash", "Add bash monitoring rules",
+            &id,
+            "T1059",
+            "RULE-CMD-001",
+            AttackOutcome::Detected,
+            AttackOutcome::PartiallyDetected,
+            "Only PowerShell detected, not bash",
+            "Add bash monitoring rules",
         );
 
         let gaps = mgr.identify_coverage_gaps(&id);
@@ -1370,9 +1417,19 @@ mod tests {
     fn test_matrix_cell_blocked_is_full_coverage() {
         let (mut mgr, id) = setup_with_exercise();
         let sim_id = mgr.add_simulation(&id, "T1486", "Ransomware sim").unwrap();
-        mgr.record_outcome(&id, &sim_id, AttackOutcome::Blocked, Some(0), Some(DetectionSource::Ips));
+        mgr.record_outcome(
+            &id,
+            &sim_id,
+            AttackOutcome::Blocked,
+            Some(0),
+            Some(DetectionSource::Ips),
+        );
         mgr.update_matrix_from_exercise(&id);
-        let cell = mgr.attack_matrix.iter().find(|c| c.technique_id == "T1486").unwrap();
+        let cell = mgr
+            .attack_matrix
+            .iter()
+            .find(|c| c.technique_id == "T1486")
+            .unwrap();
         assert_eq!(cell.coverage, CoverageLevel::Full);
     }
 
@@ -1393,7 +1450,8 @@ mod tests {
     fn test_coverage_score_ignores_not_tested() {
         let (mut mgr, id) = setup_with_exercise();
         let s1 = mgr.add_simulation(&id, "T1566", "Phishing").unwrap();
-        mgr.add_simulation(&id, "T1059", "Cmd exec - not tested").unwrap();
+        mgr.add_simulation(&id, "T1059", "Cmd exec - not tested")
+            .unwrap();
         mgr.record_outcome(&id, &s1, AttackOutcome::Detected, Some(5), None);
         // s2 is NotTested, should be excluded from score calculation
         assert_eq!(mgr.calculate_coverage_score(&id), 100.0);

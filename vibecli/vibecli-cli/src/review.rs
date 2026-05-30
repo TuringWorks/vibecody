@@ -77,7 +77,7 @@ pub struct ReviewConfig {
 impl Default for ReviewConfig {
     fn default() -> Self {
         Self {
-            base_ref: String::new(),   // empty = compare workdir to HEAD
+            base_ref: String::new(), // empty = compare workdir to HEAD
             target_ref: String::new(),
             post_to_github: false,
             github_pr: None,
@@ -138,9 +138,15 @@ impl ReviewReport {
 
         md.push_str("# VibeCLI Code Review\n\n");
         if !self.base_ref.is_empty() || !self.target_ref.is_empty() {
-            md.push_str(&format!("**Diff:** `{}..{}`\n\n", self.base_ref, self.target_ref));
+            md.push_str(&format!(
+                "**Diff:** `{}..{}`\n\n",
+                self.base_ref, self.target_ref
+            ));
         }
-        md.push_str(&format!("**Files reviewed:** {}\n\n", self.files_reviewed.join(", ")));
+        md.push_str(&format!(
+            "**Files reviewed:** {}\n\n",
+            self.files_reviewed.join(", ")
+        ));
         md.push_str("---\n\n");
         md.push_str("## Summary\n\n");
         md.push_str(&self.summary);
@@ -150,9 +156,15 @@ impl ReviewReport {
         md.push_str("## Scores\n\n");
         md.push_str("| Dimension | Score |\n|-----------|-------|\n");
         md.push_str(&format!("| Overall | {:.1}/10 |\n", self.score.overall));
-        md.push_str(&format!("| Correctness | {:.1}/10 |\n", self.score.correctness));
+        md.push_str(&format!(
+            "| Correctness | {:.1}/10 |\n",
+            self.score.correctness
+        ));
         md.push_str(&format!("| Security | {:.1}/10 |\n", self.score.security));
-        md.push_str(&format!("| Performance | {:.1}/10 |\n", self.score.performance));
+        md.push_str(&format!(
+            "| Performance | {:.1}/10 |\n",
+            self.score.performance
+        ));
         md.push_str(&format!("| Style | {:.1}/10 |\n", self.score.style));
         md.push('\n');
 
@@ -169,8 +181,7 @@ impl ReviewReport {
                 };
                 md.push_str(&format!(
                     "### {} {} — `{}:{}` ({})\n\n{}\n\n",
-                    icon, issue.severity, issue.file, issue.line,
-                    issue.category, issue.description,
+                    icon, issue.severity, issue.file, issue.line, issue.category, issue.description,
                 ));
                 if let Some(ref fix) = issue.suggested_fix {
                     md.push_str(&format!("**Suggested fix:** {}\n\n", fix));
@@ -182,7 +193,11 @@ impl ReviewReport {
         if !self.suggestions.is_empty() {
             md.push_str("## Suggestions\n\n");
             for s in &self.suggestions {
-                let file_note = s.file.as_deref().map(|f| format!(" (`{}`)", f)).unwrap_or_default();
+                let file_note = s
+                    .file
+                    .as_deref()
+                    .map(|f| format!(" (`{}`)", f))
+                    .unwrap_or_default();
                 md.push_str(&format!("- {}{}\n", s.description, file_note));
             }
             md.push('\n');
@@ -194,7 +209,11 @@ impl ReviewReport {
 
     pub fn exit_code(&self) -> i32 {
         let critical = self.issues.iter().any(|i| i.severity == Severity::Critical);
-        if critical { 1 } else { 0 }
+        if critical {
+            1
+        } else {
+            0
+        }
     }
 }
 
@@ -211,7 +230,13 @@ pub async fn run_review(config: &ReviewConfig, llm: Arc<dyn AIProvider>) -> Resu
             summary: "No changes found to review.".to_string(),
             issues: vec![],
             suggestions: vec![],
-            score: ReviewScore { overall: 10.0, correctness: 10.0, security: 10.0, performance: 10.0, style: 10.0 },
+            score: ReviewScore {
+                overall: 10.0,
+                correctness: 10.0,
+                security: 10.0,
+                performance: 10.0,
+                style: 10.0,
+            },
             files_reviewed: vec![],
         });
     }
@@ -241,7 +266,8 @@ pub async fn run_review(config: &ReviewConfig, llm: Arc<dyn AIProvider>) -> Resu
     }
 
     // Deduplicate issues by (file, line, description)
-    all_issues.dedup_by(|a, b| a.file == b.file && a.line == b.line && a.description == b.description);
+    all_issues
+        .dedup_by(|a, b| a.file == b.file && a.line == b.line && a.description == b.description);
 
     // Score based on issues
     let score = compute_score(&all_issues);
@@ -360,11 +386,20 @@ async fn review_chunk(
     diff: &str,
     config: &ReviewConfig,
 ) -> Result<(Vec<ReviewIssue>, Vec<ReviewSuggestion>, String)> {
-    let focus_list = config.focus.iter().map(|f| f.to_string()).collect::<Vec<_>>().join(", ");
+    let focus_list = config
+        .focus
+        .iter()
+        .map(|f| f.to_string())
+        .collect::<Vec<_>>()
+        .join(", ");
 
     // Truncate very large diffs
     let diff_truncated = if diff.len() > MAX_DIFF_CHARS {
-        let end = diff.char_indices().nth(MAX_DIFF_CHARS).map(|(i, _)| i).unwrap_or(diff.len());
+        let end = diff
+            .char_indices()
+            .nth(MAX_DIFF_CHARS)
+            .map(|(i, _)| i)
+            .unwrap_or(diff.len());
         format!("{}\n... (truncated)", &diff[..end])
     } else {
         diff.to_string()
@@ -458,34 +493,51 @@ Diff:
         file: Option<String>,
     }
 
-    fn default_severity() -> String { "info".to_string() }
+    fn default_severity() -> String {
+        "info".to_string()
+    }
 
-    let parsed: RawChunkReview = serde_json::from_str(&json_str)
-        .unwrap_or(RawChunkReview { summary: String::new(), issues: vec![], suggestions: vec![] });
+    let parsed: RawChunkReview = serde_json::from_str(&json_str).unwrap_or(RawChunkReview {
+        summary: String::new(),
+        issues: vec![],
+        suggestions: vec![],
+    });
 
-    let issues = parsed.issues.into_iter().map(|i| ReviewIssue {
-        file: if i.file.is_empty() { file.to_string() } else { i.file },
-        line: i.line,
-        severity: match i.severity.as_str() {
-            "critical" => Severity::Critical,
-            "warning" => Severity::Warning,
-            _ => Severity::Info,
-        },
-        category: match i.category.as_str() {
-            "security" => ReviewFocus::Security,
-            "performance" => ReviewFocus::Performance,
-            "style" => ReviewFocus::Style,
-            "testing" => ReviewFocus::Testing,
-            _ => ReviewFocus::Correctness,
-        },
-        description: i.description,
-        suggested_fix: i.suggested_fix,
-    }).collect();
+    let issues = parsed
+        .issues
+        .into_iter()
+        .map(|i| ReviewIssue {
+            file: if i.file.is_empty() {
+                file.to_string()
+            } else {
+                i.file
+            },
+            line: i.line,
+            severity: match i.severity.as_str() {
+                "critical" => Severity::Critical,
+                "warning" => Severity::Warning,
+                _ => Severity::Info,
+            },
+            category: match i.category.as_str() {
+                "security" => ReviewFocus::Security,
+                "performance" => ReviewFocus::Performance,
+                "style" => ReviewFocus::Style,
+                "testing" => ReviewFocus::Testing,
+                _ => ReviewFocus::Correctness,
+            },
+            description: i.description,
+            suggested_fix: i.suggested_fix,
+        })
+        .collect();
 
-    let suggestions = parsed.suggestions.into_iter().map(|s| ReviewSuggestion {
-        description: s.description,
-        file: s.file,
-    }).collect();
+    let suggestions = parsed
+        .suggestions
+        .into_iter()
+        .map(|s| ReviewSuggestion {
+            description: s.description,
+            file: s.file,
+        })
+        .collect();
 
     Ok((issues, suggestions, parsed.summary))
 }
@@ -518,7 +570,8 @@ fn compute_score(issues: &[ReviewIssue]) -> ReviewScore {
     score.security = score.security.clamp(0.0, 10.0);
     score.performance = score.performance.clamp(0.0, 10.0);
     score.style = score.style.clamp(0.0, 10.0);
-    score.overall = ((score.correctness + score.security + score.performance + score.style) / 4.0).clamp(0.0, 10.0);
+    score.overall = ((score.correctness + score.security + score.performance + score.style) / 4.0)
+        .clamp(0.0, 10.0);
 
     score
 }
@@ -617,7 +670,10 @@ impl MultiPerspectiveReport {
         md.push_str(&self.summary);
         md.push_str("\n\n");
 
-        md.push_str(&format!("## Merged Issues ({})\n\n", self.merged_issues.len()));
+        md.push_str(&format!(
+            "## Merged Issues ({})\n\n",
+            self.merged_issues.len()
+        ));
         let mut sorted = self.merged_issues.clone();
         sorted.sort_by(|a, b| b.severity.cmp(&a.severity));
         for issue in &sorted {
@@ -667,7 +723,11 @@ pub async fn run_multi_perspective_review(
     }
 
     let diff_truncated = if diff.len() > MAX_DIFF_CHARS * 2 {
-        let end = diff.char_indices().nth(MAX_DIFF_CHARS * 2).map(|(i, _)| i).unwrap_or(diff.len());
+        let end = diff
+            .char_indices()
+            .nth(MAX_DIFF_CHARS * 2)
+            .map(|(i, _)| i)
+            .unwrap_or(diff.len());
         format!("{}\n... (truncated)", &diff[..end])
     } else {
         diff.clone()
@@ -739,13 +799,17 @@ Diff:
         }
     }
 
-    all_issues.dedup_by(|a, b| a.file == b.file && a.line == b.line && a.description == b.description);
+    all_issues
+        .dedup_by(|a, b| a.file == b.file && a.line == b.line && a.description == b.description);
 
     let summary = format!(
         "Reviewed from {} perspectives. Found {} total issues ({} critical).",
         perspectives.len(),
         all_issues.len(),
-        all_issues.iter().filter(|i| i.severity == Severity::Critical).count()
+        all_issues
+            .iter()
+            .filter(|i| i.severity == Severity::Critical)
+            .count()
     );
 
     Ok(MultiPerspectiveReport {
@@ -802,34 +866,47 @@ fn parse_perspective_response(response: &str) -> (Vec<ReviewIssue>, Vec<ReviewSu
         file: Option<String>,
     }
 
-    fn default_sev() -> String { "info".to_string() }
+    fn default_sev() -> String {
+        "info".to_string()
+    }
 
-    let parsed: RawResp = serde_json::from_str(&json_str)
-        .unwrap_or(RawResp { summary: String::new(), issues: vec![], suggestions: vec![] });
+    let parsed: RawResp = serde_json::from_str(&json_str).unwrap_or(RawResp {
+        summary: String::new(),
+        issues: vec![],
+        suggestions: vec![],
+    });
 
-    let issues = parsed.issues.into_iter().map(|i| ReviewIssue {
-        file: i.file,
-        line: i.line,
-        severity: match i.severity.as_str() {
-            "critical" => Severity::Critical,
-            "warning" => Severity::Warning,
-            _ => Severity::Info,
-        },
-        category: match i.category.as_str() {
-            "security" => ReviewFocus::Security,
-            "performance" => ReviewFocus::Performance,
-            "style" => ReviewFocus::Style,
-            "testing" => ReviewFocus::Testing,
-            _ => ReviewFocus::Correctness,
-        },
-        description: i.description,
-        suggested_fix: i.suggested_fix,
-    }).collect();
+    let issues = parsed
+        .issues
+        .into_iter()
+        .map(|i| ReviewIssue {
+            file: i.file,
+            line: i.line,
+            severity: match i.severity.as_str() {
+                "critical" => Severity::Critical,
+                "warning" => Severity::Warning,
+                _ => Severity::Info,
+            },
+            category: match i.category.as_str() {
+                "security" => ReviewFocus::Security,
+                "performance" => ReviewFocus::Performance,
+                "style" => ReviewFocus::Style,
+                "testing" => ReviewFocus::Testing,
+                _ => ReviewFocus::Correctness,
+            },
+            description: i.description,
+            suggested_fix: i.suggested_fix,
+        })
+        .collect();
 
-    let suggestions = parsed.suggestions.into_iter().map(|s| ReviewSuggestion {
-        description: s.description,
-        file: s.file,
-    }).collect();
+    let suggestions = parsed
+        .suggestions
+        .into_iter()
+        .map(|s| ReviewSuggestion {
+            description: s.description,
+            file: s.file,
+        })
+        .collect();
 
     (issues, suggestions, parsed.summary)
 }
@@ -897,7 +974,13 @@ mod tests {
                 description: "Add more tests".to_string(),
                 file: None,
             }],
-            score: ReviewScore { overall: 8.5, correctness: 9.0, security: 7.5, performance: 9.0, style: 9.0 },
+            score: ReviewScore {
+                overall: 8.5,
+                correctness: 9.0,
+                security: 7.5,
+                performance: 9.0,
+                style: 9.0,
+            },
             files_reviewed: vec!["src/auth.rs".to_string()],
         };
         let md = report.to_markdown();
@@ -984,34 +1067,46 @@ diff --git a/c.rs b/c.rs\n+c content\n";
     fn compute_score_mix_of_severities() {
         let issues = vec![
             ReviewIssue {
-                file: "a.rs".into(), line: 1,
-                severity: Severity::Critical, category: ReviewFocus::Correctness,
-                description: "bug".into(), suggested_fix: None,
+                file: "a.rs".into(),
+                line: 1,
+                severity: Severity::Critical,
+                category: ReviewFocus::Correctness,
+                description: "bug".into(),
+                suggested_fix: None,
             },
             ReviewIssue {
-                file: "b.rs".into(), line: 2,
-                severity: Severity::Warning, category: ReviewFocus::Style,
-                description: "naming".into(), suggested_fix: None,
+                file: "b.rs".into(),
+                line: 2,
+                severity: Severity::Warning,
+                category: ReviewFocus::Style,
+                description: "naming".into(),
+                suggested_fix: None,
             },
             ReviewIssue {
-                file: "c.rs".into(), line: 3,
-                severity: Severity::Info, category: ReviewFocus::Performance,
-                description: "minor".into(), suggested_fix: None,
+                file: "c.rs".into(),
+                line: 3,
+                severity: Severity::Info,
+                category: ReviewFocus::Performance,
+                description: "minor".into(),
+                suggested_fix: None,
             },
         ];
         let score = compute_score(&issues);
         assert!((score.correctness - 8.0).abs() < 0.01); // 10 - 2.0
-        assert!((score.style - 9.5).abs() < 0.01);       // 10 - 0.5
-        assert!((score.performance - 9.9).abs() < 0.01);  // 10 - 0.1
-        assert_eq!(score.security, 10.0);                 // untouched
+        assert!((score.style - 9.5).abs() < 0.01); // 10 - 0.5
+        assert!((score.performance - 9.9).abs() < 0.01); // 10 - 0.1
+        assert_eq!(score.security, 10.0); // untouched
     }
 
     #[test]
     fn compute_score_single_warning() {
         let issues = vec![ReviewIssue {
-            file: "x.rs".into(), line: 5,
-            severity: Severity::Warning, category: ReviewFocus::Performance,
-            description: "slow".into(), suggested_fix: None,
+            file: "x.rs".into(),
+            line: 5,
+            severity: Severity::Warning,
+            category: ReviewFocus::Performance,
+            description: "slow".into(),
+            suggested_fix: None,
         }];
         let score = compute_score(&issues);
         assert!((score.performance - 9.5).abs() < 0.01);
@@ -1025,22 +1120,35 @@ diff --git a/c.rs b/c.rs\n+c content\n";
     #[test]
     fn exit_code_zero_when_no_critical() {
         let report = ReviewReport {
-            base_ref: String::new(), target_ref: String::new(),
+            base_ref: String::new(),
+            target_ref: String::new(),
             summary: "ok".into(),
             issues: vec![
                 ReviewIssue {
-                    file: "a.rs".into(), line: 1,
-                    severity: Severity::Warning, category: ReviewFocus::Style,
-                    description: "meh".into(), suggested_fix: None,
+                    file: "a.rs".into(),
+                    line: 1,
+                    severity: Severity::Warning,
+                    category: ReviewFocus::Style,
+                    description: "meh".into(),
+                    suggested_fix: None,
                 },
                 ReviewIssue {
-                    file: "b.rs".into(), line: 2,
-                    severity: Severity::Info, category: ReviewFocus::Correctness,
-                    description: "note".into(), suggested_fix: None,
+                    file: "b.rs".into(),
+                    line: 2,
+                    severity: Severity::Info,
+                    category: ReviewFocus::Correctness,
+                    description: "note".into(),
+                    suggested_fix: None,
                 },
             ],
             suggestions: vec![],
-            score: ReviewScore { overall: 9.0, correctness: 9.0, security: 10.0, performance: 10.0, style: 9.0 },
+            score: ReviewScore {
+                overall: 9.0,
+                correctness: 9.0,
+                security: 10.0,
+                performance: 10.0,
+                style: 9.0,
+            },
             files_reviewed: vec![],
         };
         assert_eq!(report.exit_code(), 0);
@@ -1049,15 +1157,25 @@ diff --git a/c.rs b/c.rs\n+c content\n";
     #[test]
     fn exit_code_one_when_critical_present() {
         let report = ReviewReport {
-            base_ref: String::new(), target_ref: String::new(),
+            base_ref: String::new(),
+            target_ref: String::new(),
             summary: "bad".into(),
             issues: vec![ReviewIssue {
-                file: "a.rs".into(), line: 1,
-                severity: Severity::Critical, category: ReviewFocus::Security,
-                description: "vuln".into(), suggested_fix: None,
+                file: "a.rs".into(),
+                line: 1,
+                severity: Severity::Critical,
+                category: ReviewFocus::Security,
+                description: "vuln".into(),
+                suggested_fix: None,
             }],
             suggestions: vec![],
-            score: ReviewScore { overall: 5.0, correctness: 10.0, security: 5.0, performance: 10.0, style: 10.0 },
+            score: ReviewScore {
+                overall: 5.0,
+                correctness: 10.0,
+                security: 5.0,
+                performance: 10.0,
+                style: 10.0,
+            },
             files_reviewed: vec![],
         };
         assert_eq!(report.exit_code(), 1);
@@ -1068,11 +1186,21 @@ diff --git a/c.rs b/c.rs\n+c content\n";
     #[test]
     fn to_markdown_contains_expected_sections() {
         let report = ReviewReport {
-            base_ref: "develop".into(), target_ref: "feature".into(),
+            base_ref: "develop".into(),
+            target_ref: "feature".into(),
             summary: "Overall the change is good.".into(),
             issues: vec![],
-            suggestions: vec![ReviewSuggestion { description: "Add docs".into(), file: Some("lib.rs".into()) }],
-            score: ReviewScore { overall: 10.0, correctness: 10.0, security: 10.0, performance: 10.0, style: 10.0 },
+            suggestions: vec![ReviewSuggestion {
+                description: "Add docs".into(),
+                file: Some("lib.rs".into()),
+            }],
+            score: ReviewScore {
+                overall: 10.0,
+                correctness: 10.0,
+                security: 10.0,
+                performance: 10.0,
+                style: 10.0,
+            },
             files_reviewed: vec!["lib.rs".into(), "main.rs".into()],
         };
         let md = report.to_markdown();
@@ -1174,7 +1302,10 @@ diff --git a/c.rs b/c.rs\n+c content\n";
         assert_eq!(deserialized.severity, Severity::Critical);
         assert_eq!(deserialized.category, ReviewFocus::Security);
         assert_eq!(deserialized.description, "SQL injection vulnerability");
-        assert_eq!(deserialized.suggested_fix.as_deref(), Some("Use parameterized queries"));
+        assert_eq!(
+            deserialized.suggested_fix.as_deref(),
+            Some("Use parameterized queries")
+        );
     }
 
     #[test]
@@ -1185,7 +1316,10 @@ diff --git a/c.rs b/c.rs\n+c content\n";
         };
         let json = serde_json::to_string(&suggestion).unwrap();
         let deserialized: ReviewSuggestion = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.description, "Consider adding integration tests");
+        assert_eq!(
+            deserialized.description,
+            "Consider adding integration tests"
+        );
         assert_eq!(deserialized.file.as_deref(), Some("tests/"));
 
         // Also test with None file
@@ -1221,7 +1355,8 @@ diff --git a/c.rs b/c.rs\n+c content\n";
     #[test]
     fn split_diff_by_file_binary_file() {
         // Binary files in git diffs still have a "diff --git" header
-        let diff = "diff --git a/image.png b/image.png\nBinary files a/image.png and b/image.png differ\n";
+        let diff =
+            "diff --git a/image.png b/image.png\nBinary files a/image.png and b/image.png differ\n";
         let chunks = split_diff_by_file(diff);
         assert_eq!(chunks.len(), 1);
         assert_eq!(chunks[0].0, "image.png");
@@ -1276,9 +1411,12 @@ diff --git a/README.md b/README.md\n+added readme\n";
     fn compute_score_testing_deducts_from_correctness() {
         // Testing category should deduct from correctness
         let issues = vec![ReviewIssue {
-            file: "test.rs".into(), line: 1,
-            severity: Severity::Critical, category: ReviewFocus::Testing,
-            description: "missing tests".into(), suggested_fix: None,
+            file: "test.rs".into(),
+            line: 1,
+            severity: Severity::Critical,
+            category: ReviewFocus::Testing,
+            description: "missing tests".into(),
+            suggested_fix: None,
         }];
         let score = compute_score(&issues);
         assert!((score.correctness - 8.0).abs() < 0.01); // 10 - 2.0
@@ -1290,24 +1428,36 @@ diff --git a/README.md b/README.md\n+added readme\n";
         // One critical issue in every category
         let issues = vec![
             ReviewIssue {
-                file: "a.rs".into(), line: 1,
-                severity: Severity::Critical, category: ReviewFocus::Correctness,
-                description: "bug".into(), suggested_fix: None,
+                file: "a.rs".into(),
+                line: 1,
+                severity: Severity::Critical,
+                category: ReviewFocus::Correctness,
+                description: "bug".into(),
+                suggested_fix: None,
             },
             ReviewIssue {
-                file: "b.rs".into(), line: 2,
-                severity: Severity::Critical, category: ReviewFocus::Security,
-                description: "vuln".into(), suggested_fix: None,
+                file: "b.rs".into(),
+                line: 2,
+                severity: Severity::Critical,
+                category: ReviewFocus::Security,
+                description: "vuln".into(),
+                suggested_fix: None,
             },
             ReviewIssue {
-                file: "c.rs".into(), line: 3,
-                severity: Severity::Critical, category: ReviewFocus::Performance,
-                description: "slow".into(), suggested_fix: None,
+                file: "c.rs".into(),
+                line: 3,
+                severity: Severity::Critical,
+                category: ReviewFocus::Performance,
+                description: "slow".into(),
+                suggested_fix: None,
             },
             ReviewIssue {
-                file: "d.rs".into(), line: 4,
-                severity: Severity::Critical, category: ReviewFocus::Style,
-                description: "ugly".into(), suggested_fix: None,
+                file: "d.rs".into(),
+                line: 4,
+                severity: Severity::Critical,
+                category: ReviewFocus::Style,
+                description: "ugly".into(),
+                suggested_fix: None,
             },
         ];
         let score = compute_score(&issues);
@@ -1321,9 +1471,12 @@ diff --git a/README.md b/README.md\n+added readme\n";
     #[test]
     fn compute_score_info_only_barely_reduces() {
         let issues = vec![ReviewIssue {
-            file: "x.rs".into(), line: 1,
-            severity: Severity::Info, category: ReviewFocus::Style,
-            description: "nit".into(), suggested_fix: None,
+            file: "x.rs".into(),
+            line: 1,
+            severity: Severity::Info,
+            category: ReviewFocus::Style,
+            description: "nit".into(),
+            suggested_fix: None,
         }];
         let score = compute_score(&issues);
         assert!((score.style - 9.9).abs() < 0.01); // 10.0 - 0.1
@@ -1334,11 +1487,18 @@ diff --git a/README.md b/README.md\n+added readme\n";
     #[test]
     fn exit_code_zero_when_no_issues() {
         let report = ReviewReport {
-            base_ref: String::new(), target_ref: String::new(),
+            base_ref: String::new(),
+            target_ref: String::new(),
             summary: "clean".into(),
             issues: vec![],
             suggestions: vec![],
-            score: ReviewScore { overall: 10.0, correctness: 10.0, security: 10.0, performance: 10.0, style: 10.0 },
+            score: ReviewScore {
+                overall: 10.0,
+                correctness: 10.0,
+                security: 10.0,
+                performance: 10.0,
+                style: 10.0,
+            },
             files_reviewed: vec![],
         };
         assert_eq!(report.exit_code(), 0);
@@ -1347,27 +1507,43 @@ diff --git a/README.md b/README.md\n+added readme\n";
     #[test]
     fn exit_code_one_with_mixed_including_critical() {
         let report = ReviewReport {
-            base_ref: String::new(), target_ref: String::new(),
+            base_ref: String::new(),
+            target_ref: String::new(),
             summary: "mixed".into(),
             issues: vec![
                 ReviewIssue {
-                    file: "a.rs".into(), line: 1,
-                    severity: Severity::Info, category: ReviewFocus::Style,
-                    description: "nit".into(), suggested_fix: None,
+                    file: "a.rs".into(),
+                    line: 1,
+                    severity: Severity::Info,
+                    category: ReviewFocus::Style,
+                    description: "nit".into(),
+                    suggested_fix: None,
                 },
                 ReviewIssue {
-                    file: "b.rs".into(), line: 2,
-                    severity: Severity::Critical, category: ReviewFocus::Security,
-                    description: "vuln".into(), suggested_fix: None,
+                    file: "b.rs".into(),
+                    line: 2,
+                    severity: Severity::Critical,
+                    category: ReviewFocus::Security,
+                    description: "vuln".into(),
+                    suggested_fix: None,
                 },
                 ReviewIssue {
-                    file: "c.rs".into(), line: 3,
-                    severity: Severity::Warning, category: ReviewFocus::Performance,
-                    description: "slow".into(), suggested_fix: None,
+                    file: "c.rs".into(),
+                    line: 3,
+                    severity: Severity::Warning,
+                    category: ReviewFocus::Performance,
+                    description: "slow".into(),
+                    suggested_fix: None,
                 },
             ],
             suggestions: vec![],
-            score: ReviewScore { overall: 5.0, correctness: 10.0, security: 5.0, performance: 9.5, style: 9.9 },
+            score: ReviewScore {
+                overall: 5.0,
+                correctness: 10.0,
+                security: 5.0,
+                performance: 9.5,
+                style: 9.9,
+            },
             files_reviewed: vec![],
         };
         assert_eq!(report.exit_code(), 1);
@@ -1378,11 +1554,18 @@ diff --git a/README.md b/README.md\n+added readme\n";
     #[test]
     fn to_markdown_no_diff_refs_omits_diff_line() {
         let report = ReviewReport {
-            base_ref: String::new(), target_ref: String::new(),
+            base_ref: String::new(),
+            target_ref: String::new(),
             summary: "Quick review.".into(),
             issues: vec![],
             suggestions: vec![],
-            score: ReviewScore { overall: 10.0, correctness: 10.0, security: 10.0, performance: 10.0, style: 10.0 },
+            score: ReviewScore {
+                overall: 10.0,
+                correctness: 10.0,
+                security: 10.0,
+                performance: 10.0,
+                style: 10.0,
+            },
             files_reviewed: vec![],
         };
         let md = report.to_markdown();
@@ -1392,27 +1575,43 @@ diff --git a/README.md b/README.md\n+added readme\n";
     #[test]
     fn to_markdown_sorts_issues_critical_first() {
         let report = ReviewReport {
-            base_ref: "main".into(), target_ref: "HEAD".into(),
+            base_ref: "main".into(),
+            target_ref: "HEAD".into(),
             summary: "Issues found.".into(),
             issues: vec![
                 ReviewIssue {
-                    file: "a.rs".into(), line: 1,
-                    severity: Severity::Info, category: ReviewFocus::Style,
-                    description: "info issue".into(), suggested_fix: None,
+                    file: "a.rs".into(),
+                    line: 1,
+                    severity: Severity::Info,
+                    category: ReviewFocus::Style,
+                    description: "info issue".into(),
+                    suggested_fix: None,
                 },
                 ReviewIssue {
-                    file: "b.rs".into(), line: 2,
-                    severity: Severity::Critical, category: ReviewFocus::Security,
-                    description: "critical issue".into(), suggested_fix: None,
+                    file: "b.rs".into(),
+                    line: 2,
+                    severity: Severity::Critical,
+                    category: ReviewFocus::Security,
+                    description: "critical issue".into(),
+                    suggested_fix: None,
                 },
                 ReviewIssue {
-                    file: "c.rs".into(), line: 3,
-                    severity: Severity::Warning, category: ReviewFocus::Performance,
-                    description: "warning issue".into(), suggested_fix: None,
+                    file: "c.rs".into(),
+                    line: 3,
+                    severity: Severity::Warning,
+                    category: ReviewFocus::Performance,
+                    description: "warning issue".into(),
+                    suggested_fix: None,
                 },
             ],
             suggestions: vec![],
-            score: ReviewScore { overall: 7.0, correctness: 10.0, security: 8.0, performance: 9.5, style: 9.9 },
+            score: ReviewScore {
+                overall: 7.0,
+                correctness: 10.0,
+                security: 8.0,
+                performance: 9.5,
+                style: 9.9,
+            },
             files_reviewed: vec!["a.rs".into(), "b.rs".into(), "c.rs".into()],
         };
         let md = report.to_markdown();
@@ -1429,12 +1628,27 @@ diff --git a/README.md b/README.md\n+added readme\n";
     #[test]
     fn perspective_display_all_variants() {
         assert_eq!(format!("{}", ReviewPerspective::Architect), "Architect");
-        assert_eq!(format!("{}", ReviewPerspective::SecurityExpert), "Security Expert");
-        assert_eq!(format!("{}", ReviewPerspective::PerformanceEngineer), "Performance Engineer");
-        assert_eq!(format!("{}", ReviewPerspective::TestingSpecialist), "Testing Specialist");
+        assert_eq!(
+            format!("{}", ReviewPerspective::SecurityExpert),
+            "Security Expert"
+        );
+        assert_eq!(
+            format!("{}", ReviewPerspective::PerformanceEngineer),
+            "Performance Engineer"
+        );
+        assert_eq!(
+            format!("{}", ReviewPerspective::TestingSpecialist),
+            "Testing Specialist"
+        );
         assert_eq!(format!("{}", ReviewPerspective::UxReviewer), "UX Reviewer");
-        assert_eq!(format!("{}", ReviewPerspective::Maintainability), "Maintainability");
-        assert_eq!(format!("{}", ReviewPerspective::DevOpsEngineer), "DevOps Engineer");
+        assert_eq!(
+            format!("{}", ReviewPerspective::Maintainability),
+            "Maintainability"
+        );
+        assert_eq!(
+            format!("{}", ReviewPerspective::DevOpsEngineer),
+            "DevOps Engineer"
+        );
     }
 
     #[test]
@@ -1471,14 +1685,15 @@ diff --git a/README.md b/README.md\n+added readme\n";
     fn multi_perspective_report_markdown() {
         let report = MultiPerspectiveReport {
             perspectives_used: vec!["Architect".into(), "Security Expert".into()],
-            findings: vec![
-                PerspectiveFinding {
-                    perspective: "Architect".into(),
-                    issues: vec![],
-                    suggestions: vec![ReviewSuggestion { description: "Decouple modules".into(), file: None }],
-                    summary: "Good architecture overall.".into(),
-                },
-            ],
+            findings: vec![PerspectiveFinding {
+                perspective: "Architect".into(),
+                issues: vec![],
+                suggestions: vec![ReviewSuggestion {
+                    description: "Decouple modules".into(),
+                    file: None,
+                }],
+                summary: "Good architecture overall.".into(),
+            }],
             merged_issues: vec![ReviewIssue {
                 file: "main.rs".into(),
                 line: 5,
@@ -1500,7 +1715,8 @@ diff --git a/README.md b/README.md\n+added readme\n";
 
     #[test]
     fn parse_perspective_response_with_markdown_fences() {
-        let input = "```json\n{\"summary\": \"All good\", \"issues\": [], \"suggestions\": []}\n```";
+        let input =
+            "```json\n{\"summary\": \"All good\", \"issues\": [], \"suggestions\": []}\n```";
         let (issues, suggestions, summary) = parse_perspective_response(input);
         assert_eq!(summary, "All good");
         assert!(issues.is_empty());
@@ -1558,18 +1774,37 @@ diff --git a/README.md b/README.md\n+added readme\n";
 
     #[test]
     fn perspective_display_extended_variants() {
-        assert_eq!(format!("{}", ReviewPerspective::ApiDesigner), "API Designer");
-        assert_eq!(format!("{}", ReviewPerspective::DataModeler), "Data Modeler");
-        assert_eq!(format!("{}", ReviewPerspective::AccessibilityAuditor), "Accessibility Auditor");
+        assert_eq!(
+            format!("{}", ReviewPerspective::ApiDesigner),
+            "API Designer"
+        );
+        assert_eq!(
+            format!("{}", ReviewPerspective::DataModeler),
+            "Data Modeler"
+        );
+        assert_eq!(
+            format!("{}", ReviewPerspective::AccessibilityAuditor),
+            "Accessibility Auditor"
+        );
     }
 
     #[test]
     fn perspective_system_prompt_content_matches_role() {
-        assert!(ReviewPerspective::SecurityExpert.system_prompt().contains("security"));
-        assert!(ReviewPerspective::PerformanceEngineer.system_prompt().contains("performance"));
-        assert!(ReviewPerspective::Architect.system_prompt().contains("architect"));
-        assert!(ReviewPerspective::TestingSpecialist.system_prompt().contains("testing"));
-        assert!(ReviewPerspective::DevOpsEngineer.system_prompt().contains("DevOps"));
+        assert!(ReviewPerspective::SecurityExpert
+            .system_prompt()
+            .contains("security"));
+        assert!(ReviewPerspective::PerformanceEngineer
+            .system_prompt()
+            .contains("performance"));
+        assert!(ReviewPerspective::Architect
+            .system_prompt()
+            .contains("architect"));
+        assert!(ReviewPerspective::TestingSpecialist
+            .system_prompt()
+            .contains("testing"));
+        assert!(ReviewPerspective::DevOpsEngineer
+            .system_prompt()
+            .contains("DevOps"));
     }
 
     #[test]
@@ -1587,16 +1822,25 @@ diff --git a/README.md b/README.md\n+added readme\n";
     #[test]
     fn to_markdown_with_suggested_fix_shows_fix() {
         let report = ReviewReport {
-            base_ref: "main".into(), target_ref: "HEAD".into(),
+            base_ref: "main".into(),
+            target_ref: "HEAD".into(),
             summary: "One issue.".into(),
             issues: vec![ReviewIssue {
-                file: "lib.rs".into(), line: 10,
-                severity: Severity::Warning, category: ReviewFocus::Style,
+                file: "lib.rs".into(),
+                line: 10,
+                severity: Severity::Warning,
+                category: ReviewFocus::Style,
                 description: "Use snake_case".into(),
                 suggested_fix: Some("Rename myVar to my_var".into()),
             }],
             suggestions: vec![],
-            score: ReviewScore { overall: 9.5, correctness: 10.0, security: 10.0, performance: 10.0, style: 9.5 },
+            score: ReviewScore {
+                overall: 9.5,
+                correctness: 10.0,
+                security: 10.0,
+                performance: 10.0,
+                style: 9.5,
+            },
             files_reviewed: vec!["lib.rs".into()],
         };
         let md = report.to_markdown();
@@ -1606,16 +1850,25 @@ diff --git a/README.md b/README.md\n+added readme\n";
     #[test]
     fn to_markdown_with_no_suggested_fix_omits_fix_line() {
         let report = ReviewReport {
-            base_ref: "main".into(), target_ref: "HEAD".into(),
+            base_ref: "main".into(),
+            target_ref: "HEAD".into(),
             summary: "One issue.".into(),
             issues: vec![ReviewIssue {
-                file: "lib.rs".into(), line: 10,
-                severity: Severity::Info, category: ReviewFocus::Correctness,
+                file: "lib.rs".into(),
+                line: 10,
+                severity: Severity::Info,
+                category: ReviewFocus::Correctness,
                 description: "Consider edge case".into(),
                 suggested_fix: None,
             }],
             suggestions: vec![],
-            score: ReviewScore { overall: 9.9, correctness: 9.9, security: 10.0, performance: 10.0, style: 10.0 },
+            score: ReviewScore {
+                overall: 9.9,
+                correctness: 9.9,
+                security: 10.0,
+                performance: 10.0,
+                style: 10.0,
+            },
             files_reviewed: vec!["lib.rs".into()],
         };
         let md = report.to_markdown();
@@ -1625,14 +1878,27 @@ diff --git a/README.md b/README.md\n+added readme\n";
     #[test]
     fn to_markdown_suggestions_with_file_and_without() {
         let report = ReviewReport {
-            base_ref: String::new(), target_ref: String::new(),
+            base_ref: String::new(),
+            target_ref: String::new(),
             summary: "Suggestions only.".into(),
             issues: vec![],
             suggestions: vec![
-                ReviewSuggestion { description: "Add logging".into(), file: Some("main.rs".into()) },
-                ReviewSuggestion { description: "Consider CI".into(), file: None },
+                ReviewSuggestion {
+                    description: "Add logging".into(),
+                    file: Some("main.rs".into()),
+                },
+                ReviewSuggestion {
+                    description: "Consider CI".into(),
+                    file: None,
+                },
             ],
-            score: ReviewScore { overall: 10.0, correctness: 10.0, security: 10.0, performance: 10.0, style: 10.0 },
+            score: ReviewScore {
+                overall: 10.0,
+                correctness: 10.0,
+                security: 10.0,
+                performance: 10.0,
+                style: 10.0,
+            },
             files_reviewed: vec![],
         };
         let md = report.to_markdown();
@@ -1663,14 +1929,20 @@ diff --git a/README.md b/README.md\n+added readme\n";
             findings: vec![],
             merged_issues: vec![
                 ReviewIssue {
-                    file: "a.rs".into(), line: 1,
-                    severity: Severity::Info, category: ReviewFocus::Style,
-                    description: "info issue".into(), suggested_fix: None,
+                    file: "a.rs".into(),
+                    line: 1,
+                    severity: Severity::Info,
+                    category: ReviewFocus::Style,
+                    description: "info issue".into(),
+                    suggested_fix: None,
                 },
                 ReviewIssue {
-                    file: "b.rs".into(), line: 2,
-                    severity: Severity::Critical, category: ReviewFocus::Security,
-                    description: "critical issue".into(), suggested_fix: None,
+                    file: "b.rs".into(),
+                    line: 2,
+                    severity: Severity::Critical,
+                    category: ReviewFocus::Security,
+                    description: "critical issue".into(),
+                    suggested_fix: None,
                 },
             ],
             summary: "Found 2 issues.".into(),
@@ -1678,7 +1950,10 @@ diff --git a/README.md b/README.md\n+added readme\n";
         let md = report.to_markdown();
         let crit_pos = md.find("critical issue").unwrap();
         let info_pos = md.find("info issue").unwrap();
-        assert!(crit_pos < info_pos, "Critical should appear before Info in merged issues");
+        assert!(
+            crit_pos < info_pos,
+            "Critical should appear before Info in merged issues"
+        );
     }
 
     // ── compute_score with many info issues ───────────────────────────────
@@ -1714,8 +1989,13 @@ diff --git a/README.md b/README.md\n+added readme\n";
 
     #[test]
     fn review_focus_serde_roundtrip() {
-        for focus in &[ReviewFocus::Security, ReviewFocus::Performance,
-                       ReviewFocus::Correctness, ReviewFocus::Style, ReviewFocus::Testing] {
+        for focus in &[
+            ReviewFocus::Security,
+            ReviewFocus::Performance,
+            ReviewFocus::Correctness,
+            ReviewFocus::Style,
+            ReviewFocus::Testing,
+        ] {
             let json = serde_json::to_string(focus).unwrap();
             let back: ReviewFocus = serde_json::from_str(&json).unwrap();
             assert_eq!(&back, focus);

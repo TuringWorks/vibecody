@@ -134,8 +134,12 @@ impl AgentAdapter for InternalAdapter {
             duration_ms: 0,
         })
     }
-    fn adapter_type(&self) -> &str { "internal" }
-    fn label(&self) -> &str { "VibeCody Internal" }
+    fn adapter_type(&self) -> &str {
+        "internal"
+    }
+    fn label(&self) -> &str {
+        "VibeCody Internal"
+    }
 }
 
 // ── Built-in: HTTP adapter ────────────────────────────────────────────────────
@@ -173,25 +177,50 @@ impl AgentAdapter for HttpAdapter {
             "model": ctx.model,
             "session_id": ctx.session_id,
         });
-        let resp = self.client
+        let resp = self
+            .client
             .post(&self.config.url)
             .json(&payload)
-            .timeout(std::time::Duration::from_secs(self.config.timeout_secs.max(30)))
+            .timeout(std::time::Duration::from_secs(
+                self.config.timeout_secs.max(30),
+            ))
             .send()
             .await?;
         let status = resp.status();
         let body = resp.text().await?;
         let duration_ms = start.elapsed().as_millis() as u64;
         if status.is_success() {
-            Ok(ExecutionResult { success: true, output: body, error: None, session_id: None, tokens_used: 0, duration_ms })
+            Ok(ExecutionResult {
+                success: true,
+                output: body,
+                error: None,
+                session_id: None,
+                tokens_used: 0,
+                duration_ms,
+            })
         } else {
-            Ok(ExecutionResult { success: false, output: String::new(), error: Some(format!("HTTP {status}: {body}")), session_id: None, tokens_used: 0, duration_ms })
+            Ok(ExecutionResult {
+                success: false,
+                output: String::new(),
+                error: Some(format!("HTTP {status}: {body}")),
+                session_id: None,
+                tokens_used: 0,
+                duration_ms,
+            })
         }
     }
-    fn adapter_type(&self) -> &str { "http" }
-    fn label(&self) -> &str { "HTTP Endpoint" }
+    fn adapter_type(&self) -> &str {
+        "http"
+    }
+    fn label(&self) -> &str {
+        "HTTP Endpoint"
+    }
     async fn ping(&self) -> Result<()> {
-        self.client.head(&self.config.url).timeout(std::time::Duration::from_secs(5)).send().await?;
+        self.client
+            .head(&self.config.url)
+            .timeout(std::time::Duration::from_secs(5))
+            .send()
+            .await?;
         Ok(())
     }
 }
@@ -234,18 +263,41 @@ impl AgentAdapter for ProcessAdapter {
             cmd.env("VIBECODY_PROMPT", &prompt);
             cmd.stdin(std::process::Stdio::null());
             cmd.output()
-        }).await??;
+        })
+        .await??;
         let duration_ms = start.elapsed().as_millis() as u64;
         let stdout = String::from_utf8_lossy(&result.stdout).to_string();
         let stderr = String::from_utf8_lossy(&result.stderr).to_string();
         if result.status.success() {
-            Ok(ExecutionResult { success: true, output: stdout, error: if stderr.is_empty() { None } else { Some(stderr) }, session_id: None, tokens_used: 0, duration_ms })
+            Ok(ExecutionResult {
+                success: true,
+                output: stdout,
+                error: if stderr.is_empty() {
+                    None
+                } else {
+                    Some(stderr)
+                },
+                session_id: None,
+                tokens_used: 0,
+                duration_ms,
+            })
         } else {
-            Ok(ExecutionResult { success: false, output: stdout, error: Some(stderr), session_id: None, tokens_used: 0, duration_ms })
+            Ok(ExecutionResult {
+                success: false,
+                output: stdout,
+                error: Some(stderr),
+                session_id: None,
+                tokens_used: 0,
+                duration_ms,
+            })
         }
     }
-    fn adapter_type(&self) -> &str { "process" }
-    fn label(&self) -> &str { "Shell Process" }
+    fn adapter_type(&self) -> &str {
+        "process"
+    }
+    fn label(&self) -> &str {
+        "Shell Process"
+    }
 }
 
 // ── Adapter metadata for display ──────────────────────────────────────────────
@@ -273,11 +325,7 @@ impl AdapterRegistry {
             configs: RwLock::new(HashMap::new()),
         });
         // Register built-in internal adapter
-        registry.register_boxed(
-            "internal",
-            Arc::new(InternalAdapter),
-            serde_json::json!({}),
-        );
+        registry.register_boxed("internal", Arc::new(InternalAdapter), serde_json::json!({}));
         registry
     }
 
@@ -287,8 +335,14 @@ impl AdapterRegistry {
         adapter: Arc<dyn AgentAdapter>,
         config: serde_json::Value,
     ) {
-        self.adapters.write().unwrap().insert(name.to_string(), adapter);
-        self.configs.write().unwrap().insert(name.to_string(), config);
+        self.adapters
+            .write()
+            .unwrap()
+            .insert(name.to_string(), adapter);
+        self.configs
+            .write()
+            .unwrap()
+            .insert(name.to_string(), config);
     }
 
     pub fn register_http(&self, name: &str, config: HttpAdapterConfig) {
@@ -313,7 +367,10 @@ impl AdapterRegistry {
 
     /// Get adapter by type string (first match wins).
     pub fn get_by_type(&self, adapter_type: &str) -> Option<Arc<dyn AgentAdapter>> {
-        self.adapters.read().unwrap().values()
+        self.adapters
+            .read()
+            .unwrap()
+            .values()
             .find(|a| a.adapter_type() == adapter_type)
             .cloned()
     }
@@ -321,14 +378,15 @@ impl AdapterRegistry {
     pub fn list(&self) -> Vec<AdapterInfo> {
         let adapters = self.adapters.read().unwrap();
         let configs = self.configs.read().unwrap();
-        let mut infos: Vec<AdapterInfo> = adapters.iter().map(|(name, adapter)| {
-            AdapterInfo {
+        let mut infos: Vec<AdapterInfo> = adapters
+            .iter()
+            .map(|(name, adapter)| AdapterInfo {
                 name: name.clone(),
                 adapter_type: adapter.adapter_type().to_string(),
                 label: adapter.label().to_string(),
                 config_json: configs.get(name).cloned().unwrap_or(serde_json::json!({})),
-            }
-        }).collect();
+            })
+            .collect();
         infos.sort_by(|a, b| a.name.cmp(&b.name));
         infos
     }
@@ -367,7 +425,11 @@ mod tests {
     #[test]
     fn given_adapter_registered_when_get_then_returned() {
         let reg = AdapterRegistry::new();
-        reg.register_boxed("my-internal", Arc::new(InternalAdapter), serde_json::json!({}));
+        reg.register_boxed(
+            "my-internal",
+            Arc::new(InternalAdapter),
+            serde_json::json!({}),
+        );
         let found = reg.get("my-internal");
         assert!(found.is_some());
         assert_eq!(found.unwrap().adapter_type(), "internal");
@@ -376,7 +438,11 @@ mod tests {
     #[test]
     fn given_adapter_registered_when_list_then_appears_in_list() {
         let reg = AdapterRegistry::new();
-        reg.register_boxed("custom-1", Arc::new(InternalAdapter), serde_json::json!({"x": 1}));
+        reg.register_boxed(
+            "custom-1",
+            Arc::new(InternalAdapter),
+            serde_json::json!({"x": 1}),
+        );
         let list = reg.list();
         let found = list.iter().find(|i| i.name == "custom-1");
         assert!(found.is_some());
@@ -389,7 +455,11 @@ mod tests {
     #[test]
     fn given_registered_adapter_when_unregistered_then_returns_true_and_not_found() {
         let reg = AdapterRegistry::new();
-        reg.register_boxed("to-remove", Arc::new(InternalAdapter), serde_json::json!({}));
+        reg.register_boxed(
+            "to-remove",
+            Arc::new(InternalAdapter),
+            serde_json::json!({}),
+        );
         let removed = reg.unregister("to-remove");
         assert!(removed);
         assert!(reg.get("to-remove").is_none());
@@ -442,12 +512,15 @@ mod tests {
     #[test]
     fn given_process_adapter_registered_when_get_then_adapter_type_is_process() {
         let reg = AdapterRegistry::new();
-        reg.register_process("my-proc", ProcessAdapterConfig {
-            command: "echo".to_string(),
-            args: vec!["hello".to_string()],
-            env: Default::default(),
-            working_dir: None,
-        });
+        reg.register_process(
+            "my-proc",
+            ProcessAdapterConfig {
+                command: "echo".to_string(),
+                args: vec!["hello".to_string()],
+                env: Default::default(),
+                working_dir: None,
+            },
+        );
         let found = reg.get("my-proc");
         assert!(found.is_some());
         assert_eq!(found.unwrap().adapter_type(), "process");

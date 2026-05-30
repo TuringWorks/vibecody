@@ -77,11 +77,8 @@ impl ModelRegistry {
     }
 
     pub fn list_by_quant(&self, quant: &QuantizationType) -> Vec<&ModelCard> {
-        let mut result: Vec<&ModelCard> = self
-            .cards
-            .values()
-            .filter(|c| &c.quant == quant)
-            .collect();
+        let mut result: Vec<&ModelCard> =
+            self.cards.values().filter(|c| &c.quant == quant).collect();
         result.sort_by(|a, b| a.model_id.cmp(&b.model_id));
         result
     }
@@ -271,7 +268,8 @@ mod tests {
     #[test]
     fn test_registry_register_duplicate_fails() {
         let mut r = ModelRegistry::new();
-        r.register(sample_card("m1", QuantizationType::F32, 1000)).unwrap();
+        r.register(sample_card("m1", QuantizationType::F32, 1000))
+            .unwrap();
         let result = r.register(sample_card("m1", QuantizationType::F16, 500));
         assert!(result.is_err());
     }
@@ -279,7 +277,8 @@ mod tests {
     #[test]
     fn test_registry_get_existing() {
         let mut r = ModelRegistry::new();
-        r.register(sample_card("m2", QuantizationType::Q8_0, 2000)).unwrap();
+        r.register(sample_card("m2", QuantizationType::Q8_0, 2000))
+            .unwrap();
         let card = r.get("m2");
         assert!(card.is_some());
         assert_eq!(card.unwrap().model_id, "m2");
@@ -294,9 +293,12 @@ mod tests {
     #[test]
     fn test_registry_list_by_quant_match() {
         let mut r = ModelRegistry::new();
-        r.register(sample_card("a", QuantizationType::Q4KM, 2000)).unwrap();
-        r.register(sample_card("b", QuantizationType::Q4KM, 1500)).unwrap();
-        r.register(sample_card("c", QuantizationType::F32, 8000)).unwrap();
+        r.register(sample_card("a", QuantizationType::Q4KM, 2000))
+            .unwrap();
+        r.register(sample_card("b", QuantizationType::Q4KM, 1500))
+            .unwrap();
+        r.register(sample_card("c", QuantizationType::F32, 8000))
+            .unwrap();
         let q4km = r.list_by_quant(&QuantizationType::Q4KM);
         assert_eq!(q4km.len(), 2);
     }
@@ -304,7 +306,8 @@ mod tests {
     #[test]
     fn test_registry_list_by_quant_no_match() {
         let mut r = ModelRegistry::new();
-        r.register(sample_card("a", QuantizationType::F32, 8000)).unwrap();
+        r.register(sample_card("a", QuantizationType::F32, 8000))
+            .unwrap();
         let result = r.list_by_quant(&QuantizationType::Q2K);
         assert_eq!(result.len(), 0);
     }
@@ -312,25 +315,32 @@ mod tests {
     #[test]
     fn test_registry_total_size_mb() {
         let mut r = ModelRegistry::new();
-        r.register(sample_card("a", QuantizationType::F32, 1000)).unwrap();
-        r.register(sample_card("b", QuantizationType::F16, 2000)).unwrap();
+        r.register(sample_card("a", QuantizationType::F32, 1000))
+            .unwrap();
+        r.register(sample_card("b", QuantizationType::F16, 2000))
+            .unwrap();
         assert_eq!(r.total_size_mb(), 3000);
     }
 
     #[test]
     fn test_registry_model_count_multiple() {
         let mut r = ModelRegistry::new();
-        r.register(sample_card("a", QuantizationType::F32, 1000)).unwrap();
-        r.register(sample_card("b", QuantizationType::F16, 2000)).unwrap();
-        r.register(sample_card("c", QuantizationType::Q4_0, 500)).unwrap();
+        r.register(sample_card("a", QuantizationType::F32, 1000))
+            .unwrap();
+        r.register(sample_card("b", QuantizationType::F16, 2000))
+            .unwrap();
+        r.register(sample_card("c", QuantizationType::Q4_0, 500))
+            .unwrap();
         assert_eq!(r.model_count(), 3);
     }
 
     #[test]
     fn test_registry_list_by_quant_returns_correct_cards() {
         let mut r = ModelRegistry::new();
-        r.register(sample_card("x", QuantizationType::Q8_0, 3000)).unwrap();
-        r.register(sample_card("y", QuantizationType::Q8_0, 3100)).unwrap();
+        r.register(sample_card("x", QuantizationType::Q8_0, 3000))
+            .unwrap();
+        r.register(sample_card("y", QuantizationType::Q8_0, 3100))
+            .unwrap();
         let cards = r.list_by_quant(&QuantizationType::Q8_0);
         let ids: Vec<&str> = cards.iter().map(|c| c.model_id.as_str()).collect();
         assert!(ids.contains(&"x"));
@@ -341,14 +351,20 @@ mod tests {
 
     #[test]
     fn test_is_gpu_metal() {
-        let h = HardwareCapability { backend: HardwareBackend::Metal, vram_mb: Some(16384), estimated_tps: 50.0 };
+        let h = HardwareCapability {
+            backend: HardwareBackend::Metal,
+            vram_mb: Some(16384),
+            estimated_tps: 50.0,
+        };
         assert!(h.is_gpu());
     }
 
     #[test]
     fn test_is_gpu_cuda() {
         let h = HardwareCapability {
-            backend: HardwareBackend::Cuda { compute_capability: "8.6".into() },
+            backend: HardwareBackend::Cuda {
+                compute_capability: "8.6".into(),
+            },
             vram_mb: Some(24576),
             estimated_tps: 80.0,
         };
@@ -357,32 +373,50 @@ mod tests {
 
     #[test]
     fn test_is_gpu_rocm() {
-        let h = HardwareCapability { backend: HardwareBackend::Rocm, vram_mb: Some(8192), estimated_tps: 40.0 };
+        let h = HardwareCapability {
+            backend: HardwareBackend::Rocm,
+            vram_mb: Some(8192),
+            estimated_tps: 40.0,
+        };
         assert!(h.is_gpu());
     }
 
     #[test]
     fn test_is_gpu_cpu_avx2_false() {
-        let h = HardwareCapability { backend: HardwareBackend::CpuAvx2, vram_mb: None, estimated_tps: 10.0 };
+        let h = HardwareCapability {
+            backend: HardwareBackend::CpuAvx2,
+            vram_mb: None,
+            estimated_tps: 10.0,
+        };
         assert!(!h.is_gpu());
     }
 
     #[test]
     fn test_is_gpu_cpu_fallback_false() {
-        let h = HardwareCapability { backend: HardwareBackend::CpuFallback, vram_mb: None, estimated_tps: 3.0 };
+        let h = HardwareCapability {
+            backend: HardwareBackend::CpuFallback,
+            vram_mb: None,
+            estimated_tps: 3.0,
+        };
         assert!(!h.is_gpu());
     }
 
     #[test]
     fn test_backend_name_metal() {
-        let h = HardwareCapability { backend: HardwareBackend::Metal, vram_mb: None, estimated_tps: 50.0 };
+        let h = HardwareCapability {
+            backend: HardwareBackend::Metal,
+            vram_mb: None,
+            estimated_tps: 50.0,
+        };
         assert_eq!(h.backend_name(), "Metal");
     }
 
     #[test]
     fn test_backend_name_cuda() {
         let h = HardwareCapability {
-            backend: HardwareBackend::Cuda { compute_capability: "7.5".into() },
+            backend: HardwareBackend::Cuda {
+                compute_capability: "7.5".into(),
+            },
             vram_mb: None,
             estimated_tps: 60.0,
         };
@@ -391,19 +425,31 @@ mod tests {
 
     #[test]
     fn test_backend_name_rocm() {
-        let h = HardwareCapability { backend: HardwareBackend::Rocm, vram_mb: None, estimated_tps: 40.0 };
+        let h = HardwareCapability {
+            backend: HardwareBackend::Rocm,
+            vram_mb: None,
+            estimated_tps: 40.0,
+        };
         assert_eq!(h.backend_name(), "ROCm");
     }
 
     #[test]
     fn test_backend_name_cpu_avx2() {
-        let h = HardwareCapability { backend: HardwareBackend::CpuAvx2, vram_mb: None, estimated_tps: 10.0 };
+        let h = HardwareCapability {
+            backend: HardwareBackend::CpuAvx2,
+            vram_mb: None,
+            estimated_tps: 10.0,
+        };
         assert_eq!(h.backend_name(), "CPU (AVX2)");
     }
 
     #[test]
     fn test_backend_name_cpu_fallback() {
-        let h = HardwareCapability { backend: HardwareBackend::CpuFallback, vram_mb: None, estimated_tps: 3.0 };
+        let h = HardwareCapability {
+            backend: HardwareBackend::CpuFallback,
+            vram_mb: None,
+            estimated_tps: 3.0,
+        };
         assert_eq!(h.backend_name(), "CPU (fallback)");
     }
 
@@ -411,22 +457,64 @@ mod tests {
 
     #[test]
     fn test_is_faster_than_true() {
-        let a = BenchmarkResult { model_id: "a".into(), backend: HardwareBackend::Metal, median_tps: 80.0, first_token_ms: 100, memory_mb: 4096, run_count: 5 };
-        let b = BenchmarkResult { model_id: "b".into(), backend: HardwareBackend::CpuAvx2, median_tps: 10.0, first_token_ms: 500, memory_mb: 2048, run_count: 5 };
+        let a = BenchmarkResult {
+            model_id: "a".into(),
+            backend: HardwareBackend::Metal,
+            median_tps: 80.0,
+            first_token_ms: 100,
+            memory_mb: 4096,
+            run_count: 5,
+        };
+        let b = BenchmarkResult {
+            model_id: "b".into(),
+            backend: HardwareBackend::CpuAvx2,
+            median_tps: 10.0,
+            first_token_ms: 500,
+            memory_mb: 2048,
+            run_count: 5,
+        };
         assert!(a.is_faster_than(&b));
     }
 
     #[test]
     fn test_is_faster_than_false() {
-        let a = BenchmarkResult { model_id: "a".into(), backend: HardwareBackend::CpuFallback, median_tps: 5.0, first_token_ms: 800, memory_mb: 2048, run_count: 3 };
-        let b = BenchmarkResult { model_id: "b".into(), backend: HardwareBackend::Metal, median_tps: 70.0, first_token_ms: 120, memory_mb: 8192, run_count: 3 };
+        let a = BenchmarkResult {
+            model_id: "a".into(),
+            backend: HardwareBackend::CpuFallback,
+            median_tps: 5.0,
+            first_token_ms: 800,
+            memory_mb: 2048,
+            run_count: 3,
+        };
+        let b = BenchmarkResult {
+            model_id: "b".into(),
+            backend: HardwareBackend::Metal,
+            median_tps: 70.0,
+            first_token_ms: 120,
+            memory_mb: 8192,
+            run_count: 3,
+        };
         assert!(!a.is_faster_than(&b));
     }
 
     #[test]
     fn test_is_faster_than_equal() {
-        let a = BenchmarkResult { model_id: "a".into(), backend: HardwareBackend::Metal, median_tps: 50.0, first_token_ms: 150, memory_mb: 4096, run_count: 5 };
-        let b = BenchmarkResult { model_id: "b".into(), backend: HardwareBackend::Metal, median_tps: 50.0, first_token_ms: 150, memory_mb: 4096, run_count: 5 };
+        let a = BenchmarkResult {
+            model_id: "a".into(),
+            backend: HardwareBackend::Metal,
+            median_tps: 50.0,
+            first_token_ms: 150,
+            memory_mb: 4096,
+            run_count: 5,
+        };
+        let b = BenchmarkResult {
+            model_id: "b".into(),
+            backend: HardwareBackend::Metal,
+            median_tps: 50.0,
+            first_token_ms: 150,
+            memory_mb: 4096,
+            run_count: 5,
+        };
         assert!(!a.is_faster_than(&b));
     }
 

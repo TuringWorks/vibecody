@@ -222,7 +222,9 @@ pub enum PolicyDecision {
 fn parse_tool_pattern(pattern: &str) -> Option<(String, String)> {
     let paren = pattern.find('(')?;
     let end = pattern.rfind(')')?;
-    if end <= paren { return None; }
+    if end <= paren {
+        return None;
+    }
     let tool_pat = pattern[..paren].trim().to_string();
     let arg_pat = pattern[paren + 1..end].trim().to_string();
     Some((tool_pat, arg_pat))
@@ -231,10 +233,7 @@ fn parse_tool_pattern(pattern: &str) -> Option<(String, String)> {
 /// Minimal glob matcher supporting `*`, `**`, and `?`.
 /// Does not require an external crate.
 fn glob_match(pattern: &str, path: &str) -> bool {
-    glob_match_impl(
-        pattern.as_bytes(),
-        path.as_bytes(),
-    )
+    glob_match_impl(pattern.as_bytes(), path.as_bytes())
 }
 
 fn glob_match_impl(pat: &[u8], text: &[u8]) -> bool {
@@ -291,7 +290,10 @@ mod tests {
             denied_tools: vec!["bash".into()],
             ..Default::default()
         };
-        assert_eq!(policy.check_tool("bash"), PolicyDecision::Block("Tool 'bash' is blocked by admin policy".into()));
+        assert_eq!(
+            policy.check_tool("bash"),
+            PolicyDecision::Block("Tool 'bash' is blocked by admin policy".into())
+        );
         assert_eq!(policy.check_tool("read_file"), PolicyDecision::Allow);
     }
 
@@ -301,7 +303,10 @@ mod tests {
             require_approval_tools: vec!["write_file".into()],
             ..Default::default()
         };
-        assert_eq!(policy.check_tool("write_file"), PolicyDecision::RequireApproval);
+        assert_eq!(
+            policy.check_tool("write_file"),
+            PolicyDecision::RequireApproval
+        );
         assert_eq!(policy.check_tool("read_file"), PolicyDecision::Allow);
     }
 
@@ -311,9 +316,18 @@ mod tests {
             deny_paths: vec!["**/.env".into(), "**/secrets/**".into()],
             ..Default::default()
         };
-        assert!(matches!(policy.check_path(".env"), PolicyDecision::Block(_)));
-        assert!(matches!(policy.check_path("src/.env"), PolicyDecision::Block(_)));
-        assert!(matches!(policy.check_path("config/secrets/key.pem"), PolicyDecision::Block(_)));
+        assert!(matches!(
+            policy.check_path(".env"),
+            PolicyDecision::Block(_)
+        ));
+        assert!(matches!(
+            policy.check_path("src/.env"),
+            PolicyDecision::Block(_)
+        ));
+        assert!(matches!(
+            policy.check_path("config/secrets/key.pem"),
+            PolicyDecision::Block(_)
+        ));
         assert_eq!(policy.check_path("src/main.rs"), PolicyDecision::Allow);
     }
 
@@ -324,12 +338,18 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(policy.check_path("src/main.rs"), PolicyDecision::Allow);
-        assert!(matches!(policy.check_path("scripts/build.sh"), PolicyDecision::Block(_)));
+        assert!(matches!(
+            policy.check_path("scripts/build.sh"),
+            PolicyDecision::Block(_)
+        ));
     }
 
     #[test]
     fn max_steps_override() {
-        let policy = AdminPolicy { max_steps: Some(10), ..Default::default() };
+        let policy = AdminPolicy {
+            max_steps: Some(10),
+            ..Default::default()
+        };
         assert_eq!(policy.effective_max_steps(30), 10);
 
         let permissive = AdminPolicy::default();
@@ -473,8 +493,14 @@ mod tests {
             denied_tools: vec!["*".into()],
             ..Default::default()
         };
-        assert!(matches!(policy.check_tool("anything"), PolicyDecision::Block(_)));
-        assert!(matches!(policy.check_tool("read_file"), PolicyDecision::Block(_)));
+        assert!(matches!(
+            policy.check_tool("anything"),
+            PolicyDecision::Block(_)
+        ));
+        assert!(matches!(
+            policy.check_tool("read_file"),
+            PolicyDecision::Block(_)
+        ));
     }
 
     // ── AdminPolicy serde roundtrip ──────────────────────────────────────
@@ -503,7 +529,10 @@ mod tests {
     #[test]
     fn policy_decision_equality() {
         assert_eq!(PolicyDecision::Allow, PolicyDecision::Allow);
-        assert_eq!(PolicyDecision::RequireApproval, PolicyDecision::RequireApproval);
+        assert_eq!(
+            PolicyDecision::RequireApproval,
+            PolicyDecision::RequireApproval
+        );
         assert_ne!(PolicyDecision::Allow, PolicyDecision::RequireApproval);
         assert_ne!(
             PolicyDecision::Block("a".into()),

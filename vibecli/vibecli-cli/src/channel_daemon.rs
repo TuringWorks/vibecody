@@ -129,9 +129,7 @@ impl EventFilter {
             }
         }
         // Check event type whitelist.
-        if !self.event_types.is_empty()
-            && !self.event_types.iter().any(|t| t == event_type)
-        {
+        if !self.event_types.is_empty() && !self.event_types.iter().any(|t| t == event_type) {
             return false;
         }
         // Check keyword match (all must be present).
@@ -555,10 +553,7 @@ impl ChannelDaemon {
 
     /// Route an event to the appropriate automation trigger.
     /// Returns a description of the automation action.
-    pub fn route_to_automation(
-        &self,
-        event: &IncomingEvent,
-    ) -> Result<String, DaemonError> {
+    pub fn route_to_automation(&self, event: &IncomingEvent) -> Result<String, DaemonError> {
         let channel_config = self
             .channels
             .get(&event.channel)
@@ -583,10 +578,7 @@ impl ChannelDaemon {
 
     /// Process an incoming event end-to-end: verify, filter, rate-limit,
     /// assign a session, and route to automation.
-    pub fn process_event(
-        &mut self,
-        event: IncomingEvent,
-    ) -> Result<EventResponse, DaemonError> {
+    pub fn process_event(&mut self, event: IncomingEvent) -> Result<EventResponse, DaemonError> {
         let start = now_ms();
 
         if self.shutdown_requested {
@@ -737,10 +729,7 @@ mod tests {
         let mut ch = test_channel("disabled", ChannelType::Discord);
         ch.enabled = false;
         let config = DaemonConfig {
-            channels: vec![
-                test_channel("active", ChannelType::Slack),
-                ch,
-            ],
+            channels: vec![test_channel("active", ChannelType::Slack), ch],
             ..DaemonConfig::default()
         };
         let d = ChannelDaemon::new(config);
@@ -830,10 +819,7 @@ mod tests {
     fn test_remove_channel_not_found() {
         let mut d = default_daemon();
         let err = d.remove_channel("nonexistent").unwrap_err();
-        assert_eq!(
-            err,
-            DaemonError::ChannelNotFound("nonexistent".to_string())
-        );
+        assert_eq!(err, DaemonError::ChannelNotFound("nonexistent".to_string()));
     }
 
     #[test]
@@ -865,10 +851,7 @@ mod tests {
         d.start().unwrap();
         let event = test_event("unknown", "test");
         let err = d.process_event(event).unwrap_err();
-        assert_eq!(
-            err,
-            DaemonError::ChannelNotFound("unknown".to_string())
-        );
+        assert_eq!(err, DaemonError::ChannelNotFound("unknown".to_string()));
     }
 
     #[test]
@@ -1283,9 +1266,6 @@ mod tests {
         let d = default_daemon();
         let event = test_event("nonexistent", "test");
         let err = d.route_to_automation(&event).unwrap_err();
-        assert_eq!(
-            err,
-            DaemonError::ChannelNotFound("nonexistent".to_string())
-        );
+        assert_eq!(err, DaemonError::ChannelNotFound("nonexistent".to_string()));
     }
 }

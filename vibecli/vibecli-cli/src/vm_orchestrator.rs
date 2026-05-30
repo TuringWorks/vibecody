@@ -252,7 +252,12 @@ impl VmOrchestrator {
     pub fn active_count(&self) -> usize {
         self.environments
             .values()
-            .filter(|e| !matches!(e.status, EnvStatus::Completed | EnvStatus::Failed | EnvStatus::Cleaning))
+            .filter(|e| {
+                !matches!(
+                    e.status,
+                    EnvStatus::Completed | EnvStatus::Failed | EnvStatus::Cleaning
+                )
+            })
             .count()
     }
 
@@ -364,19 +369,13 @@ impl VmOrchestrator {
         env.completed_at = Some(current_timestamp());
         env.files_changed = files_changed;
 
-        let spec = self.generate_pr_spec(
-            &self.environments[id].clone(),
-        );
+        let spec = self.generate_pr_spec(&self.environments[id].clone());
 
         Ok(spec)
     }
 
     /// Fail an environment with an error message.
-    pub fn fail_environment(
-        &mut self,
-        id: &str,
-        error: &str,
-    ) -> Result<(), OrchestratorError> {
+    pub fn fail_environment(&mut self, id: &str, error: &str) -> Result<(), OrchestratorError> {
         let env = self
             .environments
             .get_mut(id)
@@ -509,9 +508,7 @@ impl VmOrchestrator {
                 total.cpu_percent += env.resource_usage.cpu_percent;
                 total.memory_mb += env.resource_usage.memory_mb;
                 total.disk_mb += env.resource_usage.disk_mb;
-                total.duration_secs = total
-                    .duration_secs
-                    .max(env.resource_usage.duration_secs);
+                total.duration_secs = total.duration_secs.max(env.resource_usage.duration_secs);
             }
         }
         total
@@ -608,7 +605,10 @@ mod tests {
         orch.launch_environment("task 1").unwrap();
         orch.launch_environment("task 2").unwrap();
         let result = orch.launch_environment("task 3");
-        assert_eq!(result.unwrap_err(), OrchestratorError::MaxEnvironmentsReached);
+        assert_eq!(
+            result.unwrap_err(),
+            OrchestratorError::MaxEnvironmentsReached
+        );
     }
 
     #[test]
@@ -681,7 +681,10 @@ mod tests {
         let mut orch = default_orchestrator();
         let id = orch.launch_environment("task").unwrap();
         orch.transition_status(&id, EnvStatus::Cloning).unwrap();
-        assert_eq!(orch.get_environment(&id).unwrap().status, EnvStatus::Cloning);
+        assert_eq!(
+            orch.get_environment(&id).unwrap().status,
+            EnvStatus::Cloning
+        );
     }
 
     #[test]
@@ -690,7 +693,10 @@ mod tests {
         let id = orch.launch_environment("task").unwrap();
         orch.transition_status(&id, EnvStatus::Cloning).unwrap();
         orch.transition_status(&id, EnvStatus::Working).unwrap();
-        assert_eq!(orch.get_environment(&id).unwrap().status, EnvStatus::Working);
+        assert_eq!(
+            orch.get_environment(&id).unwrap().status,
+            EnvStatus::Working
+        );
     }
 
     #[test]
@@ -699,7 +705,10 @@ mod tests {
         let id = orch.launch_environment("task").unwrap();
         orch.transition_status(&id, EnvStatus::Working).unwrap();
         orch.transition_status(&id, EnvStatus::Committing).unwrap();
-        assert_eq!(orch.get_environment(&id).unwrap().status, EnvStatus::Committing);
+        assert_eq!(
+            orch.get_environment(&id).unwrap().status,
+            EnvStatus::Committing
+        );
     }
 
     #[test]
@@ -707,7 +716,10 @@ mod tests {
         let mut orch = default_orchestrator();
         let id = orch.launch_environment("task").unwrap();
         orch.transition_status(&id, EnvStatus::CreatingPR).unwrap();
-        assert_eq!(orch.get_environment(&id).unwrap().status, EnvStatus::CreatingPR);
+        assert_eq!(
+            orch.get_environment(&id).unwrap().status,
+            EnvStatus::CreatingPR
+        );
     }
 
     #[test]
@@ -721,7 +733,10 @@ mod tests {
     fn test_full_lifecycle() {
         let mut orch = default_orchestrator();
         let id = orch.launch_environment("implement feature X").unwrap();
-        assert_eq!(orch.get_environment(&id).unwrap().status, EnvStatus::Provisioning);
+        assert_eq!(
+            orch.get_environment(&id).unwrap().status,
+            EnvStatus::Provisioning
+        );
 
         orch.transition_status(&id, EnvStatus::Cloning).unwrap();
         orch.transition_status(&id, EnvStatus::Working).unwrap();
@@ -729,7 +744,10 @@ mod tests {
         orch.transition_status(&id, EnvStatus::CreatingPR).unwrap();
         orch.transition_status(&id, EnvStatus::Completed).unwrap();
 
-        assert_eq!(orch.get_environment(&id).unwrap().status, EnvStatus::Completed);
+        assert_eq!(
+            orch.get_environment(&id).unwrap().status,
+            EnvStatus::Completed
+        );
     }
 
     // --- Docker run command ---
@@ -847,7 +865,12 @@ mod tests {
             created_at: 100,
             completed_at: Some(200),
             pr_url: None,
-            resource_usage: ResourceUsage { cpu_percent: 45.0, memory_mb: 1024, disk_mb: 500, duration_secs: 120 },
+            resource_usage: ResourceUsage {
+                cpu_percent: 45.0,
+                memory_mb: 1024,
+                disk_mb: 500,
+                duration_secs: 120,
+            },
             log_lines: Vec::new(),
             error: None,
             files_changed: vec!["src/auth.rs".to_string(), "src/main.rs".to_string()],
@@ -946,7 +969,10 @@ mod tests {
 
         let conflicts = orch.detect_conflicts();
         assert_eq!(conflicts.len(), 1);
-        assert_eq!(conflicts[0].conflicting_files, vec!["src/shared.rs".to_string()]);
+        assert_eq!(
+            conflicts[0].conflicting_files,
+            vec!["src/shared.rs".to_string()]
+        );
         assert!(conflicts[0].resolution_suggestion.contains("Single file"));
     }
 
@@ -968,7 +994,9 @@ mod tests {
         let conflicts = orch.detect_conflicts();
         assert_eq!(conflicts.len(), 1);
         assert_eq!(conflicts[0].conflicting_files.len(), 2);
-        assert!(conflicts[0].resolution_suggestion.contains("2 files overlap"));
+        assert!(conflicts[0]
+            .resolution_suggestion
+            .contains("2 files overlap"));
     }
 
     #[test]
@@ -1066,7 +1094,10 @@ mod tests {
         let spec = orch
             .complete_environment(&id, vec!["src/auth.rs".to_string()])
             .unwrap();
-        assert_eq!(orch.get_environment(&id).unwrap().status, EnvStatus::Completed);
+        assert_eq!(
+            orch.get_environment(&id).unwrap().status,
+            EnvStatus::Completed
+        );
         assert!(orch.get_environment(&id).unwrap().completed_at.is_some());
         assert_eq!(spec.files_changed, vec!["src/auth.rs".to_string()]);
     }
@@ -1160,7 +1191,10 @@ mod tests {
         // Only id1 (Provisioning) is active
         assert_eq!(orch.active_count(), 1);
         // id1 still active
-        assert_eq!(orch.get_environment(&id1).unwrap().status, EnvStatus::Provisioning);
+        assert_eq!(
+            orch.get_environment(&id1).unwrap().status,
+            EnvStatus::Provisioning
+        );
     }
 
     // --- List environments ---
@@ -1246,10 +1280,14 @@ mod tests {
 
         // Cannot launch a 9th
         let result = orch.launch_environment("task 9");
-        assert_eq!(result.unwrap_err(), OrchestratorError::MaxEnvironmentsReached);
+        assert_eq!(
+            result.unwrap_err(),
+            OrchestratorError::MaxEnvironmentsReached
+        );
 
         // Complete one and launch again
-        orch.transition_status(&ids[0], EnvStatus::Completed).unwrap();
+        orch.transition_status(&ids[0], EnvStatus::Completed)
+            .unwrap();
         assert_eq!(orch.active_count(), 7);
         let new_id = orch.launch_environment("task 9 retry").unwrap();
         assert_eq!(orch.active_count(), 8);

@@ -2,7 +2,7 @@
  * BDD tests for bash_classifier using Cucumber.
  * Run with: cargo test --test bash_classifier_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::bash_classifier::{BashClassifier, ClassificationResult};
 
 #[derive(Debug, Default, World)]
@@ -24,13 +24,23 @@ fn classify(world: &mut BcWorld) {
 #[then(expr = "the category should be {string}")]
 fn check_category(world: &mut BcWorld, expected: String) {
     let r = world.result.as_ref().unwrap();
-    assert_eq!(r.category.to_string(), expected, "command: {}", world.command);
+    assert_eq!(
+        r.category.to_string(),
+        expected,
+        "command: {}",
+        world.command
+    );
 }
 
 #[then(expr = "the flags should include {string}")]
 fn check_flag(world: &mut BcWorld, flag: String) {
     let r = world.result.as_ref().unwrap();
-    assert!(r.flags.contains(&flag), "flags {:?} do not contain {:?}", r.flags, flag);
+    assert!(
+        r.flags.contains(&flag),
+        "flags {:?} do not contain {:?}",
+        r.flags,
+        flag
+    );
 }
 
 fn main() {

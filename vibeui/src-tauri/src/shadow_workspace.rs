@@ -22,7 +22,7 @@ use std::sync::{Arc, Mutex};
 pub struct LintDiagnostic {
     pub line: u32,
     pub column: u32,
-    pub severity: String,  // "error" | "warning" | "info"
+    pub severity: String, // "error" | "warning" | "info"
     pub message: String,
     pub rule: Option<String>,
 }
@@ -38,11 +38,17 @@ pub struct LintResult {
 
 impl LintResult {
     pub fn error_count(&self) -> usize {
-        self.diagnostics.iter().filter(|d| d.severity == "error").count()
+        self.diagnostics
+            .iter()
+            .filter(|d| d.severity == "error")
+            .count()
     }
 
     pub fn warning_count(&self) -> usize {
-        self.diagnostics.iter().filter(|d| d.severity == "warning").count()
+        self.diagnostics
+            .iter()
+            .filter(|d| d.severity == "warning")
+            .count()
     }
 }
 
@@ -60,9 +66,11 @@ pub struct ShadowWorkspace {
 impl ShadowWorkspace {
     /// Create a shadow workspace as a temp directory.
     pub fn new(real_root: &Path) -> Result<Self> {
-        let shadow_path = std::env::temp_dir()
-            .join("vibecli_shadow")
-            .join(format!("{}-{:016x}", std::process::id(), rand::random::<u64>()));
+        let shadow_path = std::env::temp_dir().join("vibecli_shadow").join(format!(
+            "{}-{:016x}",
+            std::process::id(),
+            rand::random::<u64>()
+        ));
         std::fs::create_dir_all(&shadow_path)?;
         Ok(Self {
             path: shadow_path,
@@ -103,7 +111,9 @@ impl ShadowWorkspace {
             _ => (vec![], String::new(), String::new()),
         };
 
-        let success = result.iter().all(|d: &LintDiagnostic| d.severity != "error");
+        let success = result
+            .iter()
+            .all(|d: &LintDiagnostic| d.severity != "error");
         let lint_result = LintResult {
             file: rel_path.to_string(),
             diagnostics: result,
@@ -112,7 +122,9 @@ impl ShadowWorkspace {
             stderr,
         };
 
-        self.lint_results.lock().unwrap_or_else(|e| e.into_inner())
+        self.lint_results
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
             .insert(rel_path.to_string(), lint_result.clone());
 
         let _ = shadow_file; // suppress unused warning
@@ -152,8 +164,17 @@ impl ShadowWorkspace {
         let shadow_file = self.path.join(rel_path);
         // Try eslint --no-eslintrc with basic rules
         let out = Command::new("npx")
-            .args(["--yes", "eslint", "--format", "json", "--no-eslintrc",
-                   "--rule", "no-undef: error", "--rule", "no-unused-vars: warn"])
+            .args([
+                "--yes",
+                "eslint",
+                "--format",
+                "json",
+                "--no-eslintrc",
+                "--rule",
+                "no-undef: error",
+                "--rule",
+                "no-unused-vars: warn",
+            ])
             .arg(&shadow_file)
             .output();
 
@@ -212,7 +233,11 @@ impl ShadowWorkspace {
                         line: 1,
                         column: 1,
                         severity: "error".to_string(),
-                        message: stderr.lines().next().unwrap_or("Go syntax error").to_string(),
+                        message: stderr
+                            .lines()
+                            .next()
+                            .unwrap_or("Go syntax error")
+                            .to_string(),
                         rule: Some("gofmt".to_string()),
                     }]
                 } else {
@@ -243,13 +268,20 @@ impl ShadowWorkspace {
         if shadow_file.exists() {
             std::fs::remove_file(shadow_file)?;
         }
-        self.lint_results.lock().unwrap_or_else(|e| e.into_inner()).remove(rel_path);
+        self.lint_results
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(rel_path);
         Ok(())
     }
 
     /// Get cached lint result for a file.
     pub fn get_lint_result(&self, rel_path: &str) -> Option<LintResult> {
-        self.lint_results.lock().unwrap_or_else(|e| e.into_inner()).get(rel_path).cloned()
+        self.lint_results
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(rel_path)
+            .cloned()
     }
 
     /// Join `base` and `rel_path`, then verify the result stays inside `base`.
@@ -329,8 +361,8 @@ fn parse_eslint_json(json_str: &str) -> Vec<LintDiagnostic> {
     serde_json::from_str::<Vec<EslintFile>>(json_str)
         .unwrap_or_default()
         .into_iter()
-        .flat_map(|f| f.messages.into_iter().map(|m| {
-            LintDiagnostic {
+        .flat_map(|f| {
+            f.messages.into_iter().map(|m| LintDiagnostic {
                 line: m.line.unwrap_or(1),
                 column: m.column.unwrap_or(1),
                 severity: match m.severity.unwrap_or(1) {
@@ -339,8 +371,8 @@ fn parse_eslint_json(json_str: &str) -> Vec<LintDiagnostic> {
                 },
                 message: m.message,
                 rule: m.rule_id,
-            }
-        }))
+            })
+        })
         .collect()
 }
 
@@ -371,7 +403,11 @@ mod tests {
         let result = shadow.sync_file("../../etc/passwd", "pwned");
         assert!(result.is_err(), "path traversal must be blocked");
         let err_msg = result.unwrap_err().to_string();
-        assert!(err_msg.contains("traversal blocked"), "error should mention traversal: {}", err_msg);
+        assert!(
+            err_msg.contains("traversal blocked"),
+            "error should mention traversal: {}",
+            err_msg
+        );
 
         let _ = std::fs::remove_dir_all(&tmp);
     }
@@ -488,7 +524,10 @@ mod tests {
     fn parse_eslint_json_empty_messages() {
         let json = r#"[{"messages": []}]"#;
         let diags = parse_eslint_json(json);
-        assert!(diags.is_empty(), "empty messages array should produce no diagnostics");
+        assert!(
+            diags.is_empty(),
+            "empty messages array should produce no diagnostics"
+        );
     }
 
     #[test]
@@ -604,10 +643,15 @@ mod tests {
         let tmp = std::env::temp_dir().join(format!("vibe_sw_nested_{}", std::process::id()));
         std::fs::create_dir_all(&tmp).unwrap();
         let shadow = ShadowWorkspace::new(&tmp).unwrap();
-        shadow.sync_file("deep/nested/dir/file.rs", "fn deep() {}").unwrap();
+        shadow
+            .sync_file("deep/nested/dir/file.rs", "fn deep() {}")
+            .unwrap();
         let shadow_file = shadow.path.join("deep/nested/dir/file.rs");
         assert!(shadow_file.exists());
-        assert_eq!(std::fs::read_to_string(shadow_file).unwrap(), "fn deep() {}");
+        assert_eq!(
+            std::fs::read_to_string(shadow_file).unwrap(),
+            "fn deep() {}"
+        );
     }
 
     #[test]
@@ -686,7 +730,9 @@ mod tests {
         let tmp = std::env::temp_dir().join(format!("vibe_sw_lint_rs_{}", std::process::id()));
         std::fs::create_dir_all(&tmp).unwrap();
         let shadow = ShadowWorkspace::new(&tmp).unwrap();
-        shadow.sync_file("main.rs", "fn main() {\n    println!(\"hello\");\n}\n").unwrap();
+        shadow
+            .sync_file("main.rs", "fn main() {\n    println!(\"hello\");\n}\n")
+            .unwrap();
         let result = shadow.run_lint("main.rs");
         assert!(result.is_ok());
         let lint = result.unwrap();

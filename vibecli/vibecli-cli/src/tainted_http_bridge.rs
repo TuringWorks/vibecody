@@ -165,10 +165,7 @@ impl HttpPromptQueue {
     /// Resolve a pending prompt. Returns false if the `request_id` is
     /// not known (already timed out, or never existed).
     pub fn resolve(&self, request_id: &str, decision: bool) -> bool {
-        let mut pending = self
-            .pending
-            .lock()
-            .expect("HttpPromptQueue mutex poisoned");
+        let mut pending = self.pending.lock().expect("HttpPromptQueue mutex poisoned");
         let Some(entry) = pending.remove(request_id) else {
             return false;
         };
@@ -189,10 +186,7 @@ impl HttpPromptQueue {
     ) -> Option<oneshot::Receiver<bool>> {
         let (tx, rx) = oneshot::channel();
         {
-            let mut pending = self
-                .pending
-                .lock()
-                .expect("HttpPromptQueue mutex poisoned");
+            let mut pending = self.pending.lock().expect("HttpPromptQueue mutex poisoned");
             if pending.len() >= MAX_PENDING {
                 return None;
             }
@@ -261,12 +255,10 @@ impl Prompter for HttpBridgePrompter {
         let audit_id = tainted.audit_id();
         let summary = tainted.audit_summary();
 
-        let rx = match self.queue.enqueue(
-            request_id.clone(),
-            audit_id.clone(),
-            summary,
-            sink,
-        ) {
+        let rx = match self
+            .queue
+            .enqueue(request_id.clone(), audit_id.clone(), summary, sink)
+        {
             Some(rx) => rx,
             None => {
                 tracing::warn!(
@@ -291,9 +283,8 @@ impl Prompter for HttpBridgePrompter {
         // call a sync API from inside an async context." It requires
         // the multi-threaded runtime; `vibecli serve` uses one.
         let result = tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async move {
-                tokio::time::timeout(RESPONSE_TIMEOUT, rx).await
-            })
+            tokio::runtime::Handle::current()
+                .block_on(async move { tokio::time::timeout(RESPONSE_TIMEOUT, rx).await })
         });
 
         match result {
@@ -439,8 +430,7 @@ mod tests {
         let event = PendingPromptEvent {
             request_id: "prompt-abc".into(),
             audit_id: "audit-1234567890abcdef".into(),
-            summary: "kind=file audit_id=audit-1234567890abcdef origin=file{path=/x}"
-                .into(),
+            summary: "kind=file audit_id=audit-1234567890abcdef origin=file{path=/x}".into(),
             sink: "ToolCallArgument".into(),
             issued_at: 1_715_700_000,
         };
@@ -474,11 +464,10 @@ mod tests {
 
         let mut prompter = HttpBridgePrompter::new(queue.clone());
         let t = sample_tainted();
-        let decision = tokio::task::spawn_blocking(move || {
-            prompter.prompt(&t, Reason::ToolCallArgument)
-        })
-        .await
-        .unwrap();
+        let decision =
+            tokio::task::spawn_blocking(move || prompter.prompt(&t, Reason::ToolCallArgument))
+                .await
+                .unwrap();
         assert!(decision, "UI approved must propagate to prompter");
 
         ui_task.await.unwrap();
@@ -503,11 +492,10 @@ mod tests {
 
         let mut prompter = HttpBridgePrompter::new(queue.clone());
         let t = sample_tainted();
-        let decision = tokio::task::spawn_blocking(move || {
-            prompter.prompt(&t, Reason::ToolCallArgument)
-        })
-        .await
-        .unwrap();
+        let decision =
+            tokio::task::spawn_blocking(move || prompter.prompt(&t, Reason::ToolCallArgument))
+                .await
+                .unwrap();
         assert!(!decision);
 
         ui_task.await.unwrap();

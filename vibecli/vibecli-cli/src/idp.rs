@@ -739,8 +739,10 @@ impl IdpManager {
         if !self.teams.iter().any(|t| t.id == team_id) {
             return None;
         }
-        let steps: Vec<(OnboardingStep, bool)> =
-            OnboardingStep::all().into_iter().map(|s| (s, false)).collect();
+        let steps: Vec<(OnboardingStep, bool)> = OnboardingStep::all()
+            .into_iter()
+            .map(|s| (s, false))
+            .collect();
         let checklist = OnboardingChecklist {
             team_id: team_id.to_string(),
             steps,
@@ -866,9 +868,7 @@ impl IdpManager {
 
     pub fn calculate_dora_metrics(&self, team_id: &str) -> DoraMetrics {
         let team = self.teams.iter().find(|t| t.id == team_id);
-        let service_count = team
-            .map(|t| t.owned_services.len())
-            .unwrap_or(0) as f64;
+        let service_count = team.map(|t| t.owned_services.len()).unwrap_or(0) as f64;
 
         // Mock metrics that scale with team's service count
         let factor = if service_count > 0.0 {
@@ -1326,8 +1326,24 @@ mod tests {
     #[test]
     fn test_register_multiple_services() {
         let mut mgr = IdpManager::new();
-        let id1 = mgr.register_service("svc-a", "A", "team-a", ServiceTier::Gold, "r", "rust", "axum");
-        let id2 = mgr.register_service("svc-b", "B", "team-b", ServiceTier::Silver, "r", "go", "gin");
+        let id1 = mgr.register_service(
+            "svc-a",
+            "A",
+            "team-a",
+            ServiceTier::Gold,
+            "r",
+            "rust",
+            "axum",
+        );
+        let id2 = mgr.register_service(
+            "svc-b",
+            "B",
+            "team-b",
+            ServiceTier::Silver,
+            "r",
+            "go",
+            "gin",
+        );
         assert_eq!(id1, "svc-1");
         assert_eq!(id2, "svc-2");
         assert_eq!(mgr.catalog.len(), 2);
@@ -1350,8 +1366,24 @@ mod tests {
     #[test]
     fn test_search_catalog_by_name() {
         let mut mgr = IdpManager::new();
-        mgr.register_service("auth-api", "Auth", "team", ServiceTier::Gold, "r", "rust", "actix");
-        mgr.register_service("user-api", "Users", "team", ServiceTier::Silver, "r", "go", "gin");
+        mgr.register_service(
+            "auth-api",
+            "Auth",
+            "team",
+            ServiceTier::Gold,
+            "r",
+            "rust",
+            "actix",
+        );
+        mgr.register_service(
+            "user-api",
+            "Users",
+            "team",
+            ServiceTier::Silver,
+            "r",
+            "go",
+            "gin",
+        );
         let results = mgr.search_catalog("auth");
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].name, "auth-api");
@@ -1360,8 +1392,24 @@ mod tests {
     #[test]
     fn test_search_catalog_by_team() {
         let mut mgr = IdpManager::new();
-        mgr.register_service("svc-a", "A", "alpha-team", ServiceTier::Gold, "r", "rust", "axum");
-        mgr.register_service("svc-b", "B", "beta-team", ServiceTier::Silver, "r", "go", "gin");
+        mgr.register_service(
+            "svc-a",
+            "A",
+            "alpha-team",
+            ServiceTier::Gold,
+            "r",
+            "rust",
+            "axum",
+        );
+        mgr.register_service(
+            "svc-b",
+            "B",
+            "beta-team",
+            ServiceTier::Silver,
+            "r",
+            "go",
+            "gin",
+        );
         let results = mgr.search_catalog("alpha");
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].owner_team, "alpha-team");
@@ -1370,7 +1418,15 @@ mod tests {
     #[test]
     fn test_search_catalog_by_tag() {
         let mut mgr = IdpManager::new();
-        let id = mgr.register_service("svc", "desc", "team", ServiceTier::Gold, "r", "rust", "actix");
+        let id = mgr.register_service(
+            "svc",
+            "desc",
+            "team",
+            ServiceTier::Gold,
+            "r",
+            "rust",
+            "actix",
+        );
         mgr.catalog[0].tags.push("backend".to_string());
         mgr.catalog[0].tags.push("api".to_string());
         let results = mgr.search_catalog_by_tag("backend");
@@ -1381,7 +1437,15 @@ mod tests {
     #[test]
     fn test_search_catalog_by_tag_no_match() {
         let mut mgr = IdpManager::new();
-        mgr.register_service("svc", "desc", "team", ServiceTier::Gold, "r", "rust", "actix");
+        mgr.register_service(
+            "svc",
+            "desc",
+            "team",
+            ServiceTier::Gold,
+            "r",
+            "rust",
+            "actix",
+        );
         let results = mgr.search_catalog_by_tag("frontend");
         assert!(results.is_empty());
     }
@@ -1396,7 +1460,15 @@ mod tests {
     #[test]
     fn test_get_service() {
         let mut mgr = IdpManager::new();
-        let id = mgr.register_service("svc", "desc", "team", ServiceTier::Gold, "r", "rust", "axum");
+        let id = mgr.register_service(
+            "svc",
+            "desc",
+            "team",
+            ServiceTier::Gold,
+            "r",
+            "rust",
+            "axum",
+        );
         assert!(mgr.get_service(&id).is_some());
         assert!(mgr.get_service("nope").is_none());
     }
@@ -1441,7 +1513,15 @@ mod tests {
     #[test]
     fn test_evaluate_scorecard_gold() {
         let mut mgr = IdpManager::new();
-        let id = mgr.register_service("svc", "desc", "team", ServiceTier::Gold, "r", "rust", "axum");
+        let id = mgr.register_service(
+            "svc",
+            "desc",
+            "team",
+            ServiceTier::Gold,
+            "r",
+            "rust",
+            "axum",
+        );
         let result = mgr.evaluate_scorecard(&id).unwrap();
         assert_eq!(result.grade, "B");
         assert!(result.overall_score > 0.7);
@@ -1488,13 +1568,8 @@ mod tests {
     #[test]
     fn test_provision_infrastructure() {
         let mut mgr = IdpManager::new();
-        let id = mgr.request_infrastructure(
-            InfraTemplate::Cache,
-            "svc-1",
-            HashMap::new(),
-            "bob",
-            "gcp",
-        );
+        let id =
+            mgr.request_infrastructure(InfraTemplate::Cache, "svc-1", HashMap::new(), "bob", "gcp");
         assert!(mgr.provision_infrastructure(&id));
         assert_eq!(mgr.infra_requests[0].status, InfraStatus::Active);
         assert!(mgr.infra_requests[0].provisioned_at.is_some());
@@ -1578,7 +1653,15 @@ mod tests {
     fn test_get_team_dashboard() {
         let mut mgr = IdpManager::new();
         let team_id = mgr.create_team("platform", vec!["alice".to_string()]);
-        mgr.register_service("svc", "desc", "platform", ServiceTier::Gold, "r", "rust", "axum");
+        mgr.register_service(
+            "svc",
+            "desc",
+            "platform",
+            ServiceTier::Gold,
+            "r",
+            "rust",
+            "axum",
+        );
         let dashboard = mgr.get_team_dashboard(&team_id).unwrap();
         assert!(dashboard.contains("platform"));
         assert!(dashboard.contains("svc"));
@@ -1593,8 +1676,24 @@ mod tests {
     #[test]
     fn test_service_dependencies() {
         let mut mgr = IdpManager::new();
-        let id1 = mgr.register_service("auth", "Auth", "team", ServiceTier::Gold, "r", "rust", "axum");
-        let id2 = mgr.register_service("user", "Users", "team", ServiceTier::Silver, "r", "go", "gin");
+        let id1 = mgr.register_service(
+            "auth",
+            "Auth",
+            "team",
+            ServiceTier::Gold,
+            "r",
+            "rust",
+            "axum",
+        );
+        let id2 = mgr.register_service(
+            "user",
+            "Users",
+            "team",
+            ServiceTier::Silver,
+            "r",
+            "go",
+            "gin",
+        );
         mgr.catalog[1].dependencies.push(id1.clone());
         let deps = mgr.get_service_dependencies(&id2);
         assert_eq!(deps.len(), 1);
@@ -1604,7 +1703,15 @@ mod tests {
     #[test]
     fn test_service_dependencies_empty() {
         let mut mgr = IdpManager::new();
-        let id = mgr.register_service("svc", "desc", "team", ServiceTier::Gold, "r", "rust", "axum");
+        let id = mgr.register_service(
+            "svc",
+            "desc",
+            "team",
+            ServiceTier::Gold,
+            "r",
+            "rust",
+            "axum",
+        );
         let deps = mgr.get_service_dependencies(&id);
         assert!(deps.is_empty());
     }
@@ -1619,7 +1726,15 @@ mod tests {
     #[test]
     fn test_export_catalog() {
         let mut mgr = IdpManager::new();
-        mgr.register_service("svc", "desc", "team", ServiceTier::Gold, "r", "rust", "axum");
+        mgr.register_service(
+            "svc",
+            "desc",
+            "team",
+            ServiceTier::Gold,
+            "r",
+            "rust",
+            "axum",
+        );
         let md = mgr.export_catalog();
         assert!(md.contains("Service Catalog"));
         assert!(md.contains("svc"));
@@ -1637,7 +1752,15 @@ mod tests {
     fn test_calculate_dora_metrics() {
         let mut mgr = IdpManager::new();
         let team_id = mgr.create_team("team", vec!["alice".to_string()]);
-        mgr.register_service("svc", "desc", "team", ServiceTier::Gold, "r", "rust", "axum");
+        mgr.register_service(
+            "svc",
+            "desc",
+            "team",
+            ServiceTier::Gold,
+            "r",
+            "rust",
+            "axum",
+        );
         let metrics = mgr.calculate_dora_metrics(&team_id);
         assert!(metrics.deploy_frequency_per_week > 0.0);
         assert!(metrics.lead_time_hours > 0.0);
@@ -1672,7 +1795,15 @@ mod tests {
     #[test]
     fn test_generate_backstage_catalog_info() {
         let mut mgr = IdpManager::new();
-        let id = mgr.register_service("auth-api", "Auth service", "team-a", ServiceTier::Gold, "org/auth", "rust", "axum");
+        let id = mgr.register_service(
+            "auth-api",
+            "Auth service",
+            "team-a",
+            ServiceTier::Gold,
+            "org/auth",
+            "rust",
+            "axum",
+        );
         mgr.update_service_status(&id, ServiceStatus::Active);
         let yaml = mgr.generate_backstage_catalog_info(&id).unwrap();
         assert!(yaml.contains("kind: Component"));
@@ -1759,9 +1890,27 @@ mod tests {
     #[test]
     fn test_get_plugins_for_platform() {
         let mut mgr = IdpManager::new();
-        mgr.install_plugin("p1", PluginCategory::CiCd, IdpPlatform::Backstage, "1.0", "desc");
-        mgr.install_plugin("p2", PluginCategory::Security, IdpPlatform::Backstage, "1.0", "desc");
-        mgr.install_plugin("p3", PluginCategory::Monitoring, IdpPlatform::Cortex, "1.0", "desc");
+        mgr.install_plugin(
+            "p1",
+            PluginCategory::CiCd,
+            IdpPlatform::Backstage,
+            "1.0",
+            "desc",
+        );
+        mgr.install_plugin(
+            "p2",
+            PluginCategory::Security,
+            IdpPlatform::Backstage,
+            "1.0",
+            "desc",
+        );
+        mgr.install_plugin(
+            "p3",
+            PluginCategory::Monitoring,
+            IdpPlatform::Cortex,
+            "1.0",
+            "desc",
+        );
         let bs_plugins = mgr.get_plugins_for_platform(&IdpPlatform::Backstage);
         assert_eq!(bs_plugins.len(), 2);
     }
@@ -1791,7 +1940,15 @@ mod tests {
     #[test]
     fn test_generate_cycloid_blueprint() {
         let mut mgr = IdpManager::new();
-        let id = mgr.register_service("payments", "Payment processing", "fintech", ServiceTier::Gold, "org/payments", "go", "gin");
+        let id = mgr.register_service(
+            "payments",
+            "Payment processing",
+            "fintech",
+            ServiceTier::Gold,
+            "org/payments",
+            "go",
+            "gin",
+        );
         let blueprint = mgr.generate_cycloid_blueprint(&id).unwrap();
         assert!(blueprint.contains("Cycloid Blueprint"));
         assert!(blueprint.contains("payments"));
@@ -1808,7 +1965,15 @@ mod tests {
     #[test]
     fn test_generate_humanitec_score_file() {
         let mut mgr = IdpManager::new();
-        let id = mgr.register_service("api", "API service", "team", ServiceTier::Silver, "org/api", "python", "fastapi");
+        let id = mgr.register_service(
+            "api",
+            "API service",
+            "team",
+            ServiceTier::Silver,
+            "org/api",
+            "python",
+            "fastapi",
+        );
         let score = mgr.generate_humanitec_score_file(&id).unwrap();
         assert!(score.contains("score.dev/v1b1"));
         assert!(score.contains("name: api"));
@@ -1824,7 +1989,15 @@ mod tests {
     #[test]
     fn test_generate_port_blueprint() {
         let mut mgr = IdpManager::new();
-        let id = mgr.register_service("gateway", "API Gateway", "infra", ServiceTier::Gold, "org/gw", "rust", "axum");
+        let id = mgr.register_service(
+            "gateway",
+            "API Gateway",
+            "infra",
+            ServiceTier::Gold,
+            "org/gw",
+            "rust",
+            "axum",
+        );
         let bp = mgr.generate_port_blueprint(&id).unwrap();
         assert!(bp.contains("\"blueprint\": \"microservice\""));
         assert!(bp.contains("\"language\": \"rust\""));
@@ -1841,8 +2014,24 @@ mod tests {
     #[test]
     fn test_duplicate_service_names_allowed() {
         let mut mgr = IdpManager::new();
-        let id1 = mgr.register_service("svc", "first", "team", ServiceTier::Gold, "r1", "rust", "axum");
-        let id2 = mgr.register_service("svc", "second", "team", ServiceTier::Silver, "r2", "go", "gin");
+        let id1 = mgr.register_service(
+            "svc",
+            "first",
+            "team",
+            ServiceTier::Gold,
+            "r1",
+            "rust",
+            "axum",
+        );
+        let id2 = mgr.register_service(
+            "svc",
+            "second",
+            "team",
+            ServiceTier::Silver,
+            "r2",
+            "go",
+            "gin",
+        );
         assert_ne!(id1, id2);
         assert_eq!(mgr.catalog.len(), 2);
     }
@@ -1851,7 +2040,15 @@ mod tests {
     fn test_team_service_association() {
         let mut mgr = IdpManager::new();
         let team_id = mgr.create_team("backend", vec!["alice".to_string()]);
-        let svc_id = mgr.register_service("svc", "desc", "backend", ServiceTier::Gold, "r", "rust", "axum");
+        let svc_id = mgr.register_service(
+            "svc",
+            "desc",
+            "backend",
+            ServiceTier::Gold,
+            "r",
+            "rust",
+            "axum",
+        );
         let team = mgr.teams.iter().find(|t| t.id == team_id).unwrap();
         assert!(team.owned_services.contains(&svc_id));
     }
@@ -1859,8 +2056,10 @@ mod tests {
     #[test]
     fn test_scorecard_grade_levels() {
         let mut mgr = IdpManager::new();
-        let gold_id = mgr.register_service("gold", "d", "t", ServiceTier::Gold, "r", "rust", "axum");
-        let bronze_id = mgr.register_service("bronze", "d", "t", ServiceTier::Bronze, "r", "go", "gin");
+        let gold_id =
+            mgr.register_service("gold", "d", "t", ServiceTier::Gold, "r", "rust", "axum");
+        let bronze_id =
+            mgr.register_service("bronze", "d", "t", ServiceTier::Bronze, "r", "go", "gin");
 
         let gold_result = mgr.evaluate_scorecard(&gold_id).unwrap();
         let bronze_result = mgr.evaluate_scorecard(&bronze_id).unwrap();
@@ -1875,13 +2074,8 @@ mod tests {
         config.insert("engine".to_string(), "postgres".to_string());
         config.insert("size".to_string(), "large".to_string());
 
-        let req_id = mgr.request_infrastructure(
-            InfraTemplate::Database,
-            "svc-1",
-            config,
-            "alice",
-            "aws",
-        );
+        let req_id =
+            mgr.request_infrastructure(InfraTemplate::Database, "svc-1", config, "alice", "aws");
         assert_eq!(mgr.infra_requests[0].status, InfraStatus::Requested);
 
         mgr.provision_infrastructure(&req_id);
@@ -1908,7 +2102,15 @@ mod tests {
     #[test]
     fn test_backstage_catalog_lifecycle_mapping() {
         let mut mgr = IdpManager::new();
-        let id = mgr.register_service("svc", "desc", "team", ServiceTier::Gold, "r", "rust", "axum");
+        let id = mgr.register_service(
+            "svc",
+            "desc",
+            "team",
+            ServiceTier::Gold,
+            "r",
+            "rust",
+            "axum",
+        );
 
         // InDevelopment -> experimental
         let yaml = mgr.generate_backstage_catalog_info(&id).unwrap();
@@ -1922,7 +2124,13 @@ mod tests {
     #[test]
     fn test_plugins_uninstalled_not_in_platform_list() {
         let mut mgr = IdpManager::new();
-        let id = mgr.install_plugin("p1", PluginCategory::CiCd, IdpPlatform::Backstage, "1.0", "desc");
+        let id = mgr.install_plugin(
+            "p1",
+            PluginCategory::CiCd,
+            IdpPlatform::Backstage,
+            "1.0",
+            "desc",
+        );
         mgr.uninstall_plugin(&id);
         let plugins = mgr.get_plugins_for_platform(&IdpPlatform::Backstage);
         assert!(plugins.is_empty());

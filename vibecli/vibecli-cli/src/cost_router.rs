@@ -351,8 +351,7 @@ impl AbRouter {
         let n = results.len() as f64;
         let avg_quality: f64 = results.iter().map(|r| r.quality).sum::<f64>() / n;
         let avg_cost: f64 = results.iter().map(|r| r.cost).sum::<f64>() / n;
-        let success_rate: f64 =
-            results.iter().filter(|r| r.success).count() as f64 / n;
+        let success_rate: f64 = results.iter().filter(|r| r.success).count() as f64 / n;
         // Weighted composite: quality matters most, penalize cost, reward success
         avg_quality * 0.5 + success_rate * 30.0 - avg_cost * 10.0
     }
@@ -435,7 +434,11 @@ impl CostRouter {
     }
 
     /// Route a task to the best model given the current strategy and budget.
-    pub fn route_task(&mut self, task_id: &str, profile: &TaskProfile) -> Result<RoutingDecision, String> {
+    pub fn route_task(
+        &mut self,
+        task_id: &str,
+        profile: &TaskProfile,
+    ) -> Result<RoutingDecision, String> {
         if self.models.is_empty() {
             return Err("No models registered".to_string());
         }
@@ -502,8 +505,7 @@ impl CostRouter {
         // Update metrics
         self.metrics.total_routed += 1;
         self.metrics.total_cost += est_cost;
-        self.metrics.avg_cost =
-            self.metrics.total_cost / self.metrics.total_routed as f64;
+        self.metrics.avg_cost = self.metrics.total_cost / self.metrics.total_routed as f64;
         if est_cost < self.metrics.cheapest_route {
             self.metrics.cheapest_route = est_cost;
         }
@@ -564,10 +566,7 @@ impl CostRouter {
         ))
     }
 
-    fn select_quality(
-        &self,
-        eligible: &[&ModelInfo],
-    ) -> Result<(ModelInfo, String), String> {
+    fn select_quality(&self, eligible: &[&ModelInfo]) -> Result<(ModelInfo, String), String> {
         let best = eligible
             .iter()
             .max_by(|a, b| {
@@ -718,11 +717,7 @@ impl CostRouter {
         }
 
         // Check if one model dominates usage
-        if let Some((top_model, usage)) = self
-            .metrics
-            .by_model
-            .iter()
-            .max_by_key(|(_, u)| u.count)
+        if let Some((top_model, usage)) = self.metrics.by_model.iter().max_by_key(|(_, u)| u.count)
         {
             let pct = usage.count as f64 / self.metrics.total_routed as f64 * 100.0;
             if pct > 80.0 && self.models.len() > 1 {
@@ -747,7 +742,8 @@ impl CostRouter {
         // Suggest A/B testing if enough data
         if self.models.len() >= 2 && self.metrics.total_routed > 10 {
             recs.push(
-                "Consider A/B testing between your top models to optimize quality/cost.".to_string(),
+                "Consider A/B testing between your top models to optimize quality/cost."
+                    .to_string(),
             );
         }
 
@@ -891,7 +887,10 @@ mod tests {
             estimated_tokens: 100,
             complexity: TaskComplexity::Trivial,
         };
-        assert_eq!(ComplexityEstimator::estimate(&profile), TaskComplexity::Trivial);
+        assert_eq!(
+            ComplexityEstimator::estimate(&profile),
+            TaskComplexity::Trivial
+        );
     }
 
     #[test]
@@ -905,7 +904,10 @@ mod tests {
             estimated_tokens: 500,
             complexity: TaskComplexity::Simple,
         };
-        assert_eq!(ComplexityEstimator::estimate(&profile), TaskComplexity::Simple);
+        assert_eq!(
+            ComplexityEstimator::estimate(&profile),
+            TaskComplexity::Simple
+        );
     }
 
     #[test]
@@ -919,7 +921,10 @@ mod tests {
             estimated_tokens: 2000,
             complexity: TaskComplexity::Moderate,
         };
-        assert_eq!(ComplexityEstimator::estimate(&profile), TaskComplexity::Moderate);
+        assert_eq!(
+            ComplexityEstimator::estimate(&profile),
+            TaskComplexity::Moderate
+        );
     }
 
     #[test]
@@ -933,7 +938,10 @@ mod tests {
             estimated_tokens: 10000,
             complexity: TaskComplexity::Complex,
         };
-        assert_eq!(ComplexityEstimator::estimate(&profile), TaskComplexity::Complex);
+        assert_eq!(
+            ComplexityEstimator::estimate(&profile),
+            TaskComplexity::Complex
+        );
     }
 
     #[test]
@@ -947,7 +955,10 @@ mod tests {
             estimated_tokens: 50000,
             complexity: TaskComplexity::Expert,
         };
-        assert_eq!(ComplexityEstimator::estimate(&profile), TaskComplexity::Expert);
+        assert_eq!(
+            ComplexityEstimator::estimate(&profile),
+            TaskComplexity::Expert
+        );
     }
 
     #[test]
@@ -967,7 +978,10 @@ mod tests {
             complexity: TaskComplexity::Simple,
         };
         // 100 lines -> Simple (level 1), 4 langs bumps to Moderate (level 2)
-        assert_eq!(ComplexityEstimator::estimate(&profile), TaskComplexity::Moderate);
+        assert_eq!(
+            ComplexityEstimator::estimate(&profile),
+            TaskComplexity::Moderate
+        );
     }
 
     #[test]
@@ -982,7 +996,10 @@ mod tests {
             complexity: TaskComplexity::Moderate,
         };
         // 500 lines -> Moderate (level 2), tests reduce to Simple (level 1)
-        assert_eq!(ComplexityEstimator::estimate(&profile), TaskComplexity::Simple);
+        assert_eq!(
+            ComplexityEstimator::estimate(&profile),
+            TaskComplexity::Simple
+        );
     }
 
     #[test]
@@ -996,7 +1013,10 @@ mod tests {
             estimated_tokens: 50,
             complexity: TaskComplexity::Trivial,
         };
-        assert_eq!(ComplexityEstimator::estimate(&profile), TaskComplexity::Trivial);
+        assert_eq!(
+            ComplexityEstimator::estimate(&profile),
+            TaskComplexity::Trivial
+        );
     }
 
     // --- Cost estimation tests ---
@@ -1343,10 +1363,7 @@ mod tests {
         let _ = router.route_task("t1", &make_simple_profile()).unwrap();
         let _ = router.route_task("t2", &make_simple_profile()).unwrap();
 
-        assert_eq!(
-            *router.metrics.by_strategy.get("CheapestFirst").unwrap(),
-            2
-        );
+        assert_eq!(*router.metrics.by_strategy.get("CheapestFirst").unwrap(), 2);
     }
 
     #[test]

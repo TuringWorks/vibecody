@@ -147,7 +147,9 @@ impl TrustEngine {
         let domain = event.domain.clone();
 
         // Update global score
-        let score_entry = self.scores.entry(model_id.clone())
+        let score_entry = self
+            .scores
+            .entry(model_id.clone())
             .or_insert_with(|| TrustScore::new(&model_id));
 
         match event.event_type {
@@ -164,10 +166,9 @@ impl TrustEngine {
 
         // Update domain score
         if let Some(ref d) = domain {
-            let model_domains = self.domain_scores
-                .entry(model_id.clone())
-                .or_default();
-            let dt = model_domains.entry(d.clone())
+            let model_domains = self.domain_scores.entry(model_id.clone()).or_default();
+            let dt = model_domains
+                .entry(d.clone())
                 .or_insert_with(|| DomainTrust::new(d));
             dt.event_count += 1;
             match event.event_type {
@@ -193,7 +194,8 @@ impl TrustEngine {
 
     /// Get domain-specific score.
     pub fn get_domain_score(&self, model_id: &str, domain: &str) -> Option<f64> {
-        self.domain_scores.get(model_id)
+        self.domain_scores
+            .get(model_id)
             .and_then(|m| m.get(domain))
             .map(|dt| dt.score)
     }
@@ -214,27 +216,43 @@ impl TrustEngine {
 
     /// Generate a human-readable explanation.
     pub fn explain_score(&self, model_id: &str) -> Result<TrustExplanation, String> {
-        let score = self.scores.get(model_id)
+        let score = self
+            .scores
+            .get(model_id)
             .ok_or_else(|| format!("Model {} not found", model_id))?;
 
-        let model_events: Vec<&TrustEvent> = self.events.iter()
+        let model_events: Vec<&TrustEvent> = self
+            .events
+            .iter()
             .filter(|e| e.model_id == model_id)
             .collect();
 
         let total = model_events.len();
-        let successes = model_events.iter().filter(|e| e.event_type == TrustEventType::Success).count();
-        let failures = model_events.iter().filter(|e| e.event_type == TrustEventType::Failure).count();
+        let successes = model_events
+            .iter()
+            .filter(|e| e.event_type == TrustEventType::Success)
+            .count();
+        let failures = model_events
+            .iter()
+            .filter(|e| e.event_type == TrustEventType::Failure)
+            .count();
 
         let summary = format!(
             "{} events: {} successes, {} failures, {} partial",
-            total, successes, failures, total - successes - failures
+            total,
+            successes,
+            failures,
+            total - successes - failures
         );
 
         let trend = if total < 3 {
             "insufficient data".to_string()
         } else {
             let recent: Vec<&TrustEvent> = model_events.iter().rev().take(5).cloned().collect();
-            let recent_successes = recent.iter().filter(|e| e.event_type == TrustEventType::Success).count();
+            let recent_successes = recent
+                .iter()
+                .filter(|e| e.event_type == TrustEventType::Success)
+                .count();
             if recent_successes > 3 {
                 "improving".to_string()
             } else if recent_successes < 2 {
@@ -280,7 +298,9 @@ impl TrustEngine {
         if !(0.0..=100.0).contains(&new_score) {
             return Err("Score must be between 0 and 100".to_string());
         }
-        let entry = self.scores.entry(model_id.to_string())
+        let entry = self
+            .scores
+            .entry(model_id.to_string())
             .or_insert_with(|| TrustScore::new(model_id));
         entry.score = new_score;
         Ok(())
@@ -293,7 +313,8 @@ impl TrustEngine {
 
     /// Get all domain scores for a model.
     pub fn get_all_domain_scores(&self, model_id: &str) -> Vec<DomainTrust> {
-        self.domain_scores.get(model_id)
+        self.domain_scores
+            .get(model_id)
             .map(|m| m.values().cloned().collect())
             .unwrap_or_default()
     }

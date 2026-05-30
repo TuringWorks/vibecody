@@ -101,7 +101,11 @@ impl TraceWriter {
             input_summary: redact_secrets(input_summary),
             output: {
                 let truncated = if output.len() > 600 {
-                    let safe_end = output.char_indices().nth(600).map(|(i,_)| i).unwrap_or(output.len());
+                    let safe_end = output
+                        .char_indices()
+                        .nth(600)
+                        .map(|(i, _)| i)
+                        .unwrap_or(output.len());
                     format!("{}\n…(truncated)", &output[..safe_end])
                 } else {
                     output.to_string()
@@ -113,7 +117,11 @@ impl TraceWriter {
             approved_by: approved_by.to_string(),
         };
         if let Ok(line) = serde_json::to_string(&entry) {
-            if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(&self.path) {
+            if let Ok(mut f) = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&self.path)
+            {
                 let _ = writeln!(f, "{}", line);
             }
         }
@@ -124,8 +132,7 @@ impl TraceWriter {
     /// Secrets are scrubbed before writing.
     pub fn save_messages(&self, messages: &[Message]) -> std::io::Result<()> {
         let path = self.messages_path();
-        let json = serde_json::to_string_pretty(messages)
-            .map_err(std::io::Error::other)?;
+        let json = serde_json::to_string_pretty(messages).map_err(std::io::Error::other)?;
         fs::write(path, redact_secrets(&json))
     }
 
@@ -133,8 +140,7 @@ impl TraceWriter {
     /// Secrets are scrubbed before writing (same as save_messages).
     pub fn save_context(&self, ctx: &AgentContext) -> std::io::Result<()> {
         let path = self.context_path();
-        let json = serde_json::to_string_pretty(ctx)
-            .map_err(std::io::Error::other)?;
+        let json = serde_json::to_string_pretty(ctx).map_err(std::io::Error::other)?;
         fs::write(path, redact_secrets(&json))
     }
 
@@ -340,7 +346,10 @@ mod tests {
     fn redact_openai_key() {
         let input = "Using API key sk-abcdefghij1234567890abcdefghij to call GPT";
         let result = redact_secrets(input);
-        assert!(!result.contains("sk-abcdefghij"), "OpenAI key should be redacted");
+        assert!(
+            !result.contains("sk-abcdefghij"),
+            "OpenAI key should be redacted"
+        );
         assert!(result.contains("[REDACTED_API_KEY]"));
     }
 
@@ -348,7 +357,10 @@ mod tests {
     fn redact_github_token() {
         let input = "token=ghp_xyzABCDEFGHIJ1234567890abcdef";
         let result = redact_secrets(input);
-        assert!(!result.contains("ghp_xyz"), "GitHub token should be redacted");
+        assert!(
+            !result.contains("ghp_xyz"),
+            "GitHub token should be redacted"
+        );
         assert!(result.contains("[REDACTED_GITHUB_TOKEN]"));
     }
 
@@ -356,7 +368,10 @@ mod tests {
     fn redact_bearer_token() {
         let input = "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0";
         let result = redact_secrets(input);
-        assert!(!result.contains("eyJhbGci"), "Bearer token should be redacted");
+        assert!(
+            !result.contains("eyJhbGci"),
+            "Bearer token should be redacted"
+        );
         assert!(result.contains("Bearer [REDACTED]"));
     }
 
@@ -364,7 +379,10 @@ mod tests {
     fn redact_aws_key() {
         let input = "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE";
         let result = redact_secrets(input);
-        assert!(!result.contains("AKIAIOSFODNN7EXAMPLE"), "AWS key should be redacted");
+        assert!(
+            !result.contains("AKIAIOSFODNN7EXAMPLE"),
+            "AWS key should be redacted"
+        );
     }
 
     #[test]
@@ -379,7 +397,10 @@ mod tests {
     fn redact_password_in_config() {
         let input = r#"password = "superSecretPass123!""#;
         let result = redact_secrets(input);
-        assert!(!result.contains("superSecretPass"), "Password should be redacted");
+        assert!(
+            !result.contains("superSecretPass"),
+            "Password should be redacted"
+        );
     }
 
     #[test]
@@ -393,7 +414,10 @@ mod tests {
     fn redact_groq_key() {
         let input = "Sending request with gsk_abc123DEF456ghi789jklmno to Groq API";
         let result = redact_secrets(input);
-        assert!(!result.contains("gsk_abc123"), "Groq key should be redacted");
+        assert!(
+            !result.contains("gsk_abc123"),
+            "Groq key should be redacted"
+        );
         assert!(result.contains("[REDACTED_GROQ_KEY]"));
     }
 
@@ -401,7 +425,10 @@ mod tests {
     fn redact_grok_xai_key() {
         let input = "Using xai-abcdefghij1234567890klmnopqrst for Grok API";
         let result = redact_secrets(input);
-        assert!(!result.contains("xai-abcdefghij"), "Grok/xAI key should be redacted");
+        assert!(
+            !result.contains("xai-abcdefghij"),
+            "Grok/xAI key should be redacted"
+        );
         assert!(result.contains("[REDACTED_GROK_KEY]"));
     }
 
@@ -409,7 +436,10 @@ mod tests {
     fn redact_pem_private_key() {
         let input = "Config:\n-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEA0Z3VS5JJcds3xfn/ygWyF...\nmore key data here\n-----END RSA PRIVATE KEY-----\nDone.";
         let result = redact_secrets(input);
-        assert!(!result.contains("MIIEpAIBAAKCAQEA0Z3VS5JJcds3xfn"), "PEM private key body should be redacted");
+        assert!(
+            !result.contains("MIIEpAIBAAKCAQEA0Z3VS5JJcds3xfn"),
+            "PEM private key body should be redacted"
+        );
         assert!(result.contains("-----BEGIN RSA PRIVATE KEY-----"));
         assert!(result.contains("-----END RSA PRIVATE KEY-----"));
         assert!(result.contains("[REDACTED]"));
@@ -419,7 +449,10 @@ mod tests {
     fn redact_aws_secret_access_key_config_line() {
         let input = "aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
         let result = redact_secrets(input);
-        assert!(!result.contains("wJalrXUtnFEMI"), "AWS secret key value should be redacted");
+        assert!(
+            !result.contains("wJalrXUtnFEMI"),
+            "AWS secret key value should be redacted"
+        );
         assert!(result.contains("aws_secret_access_key = [REDACTED]"));
     }
 
@@ -432,21 +465,43 @@ mod tests {
             "grok=xai-abcdefghij1234567890klmnopqrst"
         );
         let result = redact_secrets(input);
-        assert!(result.contains("[REDACTED_API_KEY]"), "OpenAI key should be redacted");
-        assert!(result.contains("[REDACTED_GITHUB_TOKEN]"), "GitHub token should be redacted");
-        assert!(result.contains("[REDACTED_GROQ_KEY]"), "Groq key should be redacted");
-        assert!(result.contains("[REDACTED_GROK_KEY]"), "Grok key should be redacted");
-        assert!(!result.contains("sk-proj_"), "raw OpenAI key must not survive");
-        assert!(!result.contains("ghp_xyz"), "raw GitHub token must not survive");
+        assert!(
+            result.contains("[REDACTED_API_KEY]"),
+            "OpenAI key should be redacted"
+        );
+        assert!(
+            result.contains("[REDACTED_GITHUB_TOKEN]"),
+            "GitHub token should be redacted"
+        );
+        assert!(
+            result.contains("[REDACTED_GROQ_KEY]"),
+            "Groq key should be redacted"
+        );
+        assert!(
+            result.contains("[REDACTED_GROK_KEY]"),
+            "Grok key should be redacted"
+        );
+        assert!(
+            !result.contains("sk-proj_"),
+            "raw OpenAI key must not survive"
+        );
+        assert!(
+            !result.contains("ghp_xyz"),
+            "raw GitHub token must not survive"
+        );
         assert!(!result.contains("gsk_abc"), "raw Groq key must not survive");
         assert!(!result.contains("xai-abc"), "raw Grok key must not survive");
     }
 
     #[test]
     fn clean_text_unchanged() {
-        let input = "Running cargo build --release in /home/user/project. Status: OK. 42 tests passed.";
+        let input =
+            "Running cargo build --release in /home/user/project. Status: OK. 42 tests passed.";
         let result = redact_secrets(input);
-        assert_eq!(input, result, "Text with no secrets should be returned unchanged");
+        assert_eq!(
+            input, result,
+            "Text with no secrets should be returned unchanged"
+        );
     }
 
     #[test]
@@ -460,8 +515,24 @@ mod tests {
     fn write_and_load() {
         let dir = temp_dir().join(format!("vibe_trace_test_{}", now_secs()));
         let writer = TraceWriter::new(dir.clone());
-        writer.record(0, "read_file", "read_file(src/main.rs)", "fn main() {}", true, 5, "auto");
-        writer.record(1, "bash", "bash(cargo build)", "[exit 0]", true, 1200, "user");
+        writer.record(
+            0,
+            "read_file",
+            "read_file(src/main.rs)",
+            "fn main() {}",
+            true,
+            5,
+            "auto",
+        );
+        writer.record(
+            1,
+            "bash",
+            "bash(cargo build)",
+            "[exit 0]",
+            true,
+            1200,
+            "user",
+        );
 
         let sessions = list_traces(&dir);
         assert_eq!(sessions.len(), 1);

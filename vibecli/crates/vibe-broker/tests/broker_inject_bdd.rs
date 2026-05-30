@@ -4,7 +4,7 @@
 //! into a parking-lot variable; the test asserts the broker-injected
 //! token is what the upstream saw, NOT the sandbox-supplied placeholder.
 
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use rcgen::{CertificateParams, KeyPair};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName};
 use rustls::{ClientConfig, RootCertStore, ServerConfig};
@@ -184,16 +184,16 @@ inject = { type = "bearer", key = "@profile.openai_key" }
         .with_upstream_trust(trust)
         .with_secret_store(secrets);
     let rt = world.rt();
-    let handle = rt.block_on(async move {
-        broker.start_tcp("127.0.0.1:0").await.unwrap()
-    });
+    let handle = rt.block_on(async move { broker.start_tcp("127.0.0.1:0").await.unwrap() });
     if let BoundAddr::Tcp(addr) = handle.addr.clone() {
         world.broker_addr = Some(addr);
     }
     world.broker_handle = Some(handle);
 }
 
-#[when(expr = "the client performs CONNECT through the broker, then GET on root over TLS, sending its own Authorization {string}")]
+#[when(
+    expr = "the client performs CONNECT through the broker, then GET on root over TLS, sending its own Authorization {string}"
+)]
 fn run_client(world: &mut IWorld, sandbox_auth: String) {
     let upstream = world.upstream_addr.unwrap();
     let broker_addr = world.broker_addr.unwrap();
@@ -236,8 +236,12 @@ fn run_client(world: &mut IWorld, sandbox_auth: String) {
 #[then(expr = "the upstream observed Authorization {string}")]
 fn assert_upstream_saw(world: &mut IWorld, expected: String) {
     let observed = world.observed_auth.lock().unwrap().clone();
-    assert_eq!(observed.as_deref(), Some(expected.as_str()),
-        "upstream observed: {:?}", observed);
+    assert_eq!(
+        observed.as_deref(),
+        Some(expected.as_str()),
+        "upstream observed: {:?}",
+        observed
+    );
 }
 
 fn main() {

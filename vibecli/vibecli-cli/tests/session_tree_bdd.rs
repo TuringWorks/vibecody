@@ -2,7 +2,7 @@
  * BDD tests for session_tree using Cucumber.
  * Run with: cargo test --test session_tree_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::session_tree::{EntryId, EntryKind, SessionTree};
 
 // ---------------------------------------------------------------------------
@@ -54,10 +54,13 @@ fn new_tree(world: &mut StWorld) {
 
 #[when(expr = "I append a user message {string}")]
 fn append_user(world: &mut StWorld, content: String) {
-    let id = world.tree.append(None, EntryKind::Message {
-        role: "user".to_owned(),
-        content: content.clone(),
-    });
+    let id = world.tree.append(
+        None,
+        EntryKind::Message {
+            role: "user".to_owned(),
+            content: content.clone(),
+        },
+    );
     world.named.insert(content.clone(), id.clone());
     world.last_id = Some(id);
 }
@@ -67,7 +70,10 @@ fn append_assistant_of_last(world: &mut StWorld, content: String) {
     let parent = world.last_id.as_ref().map(|id| id.0.clone());
     let id = world.tree.append(
         parent.as_deref(),
-        EntryKind::Message { role: "assistant".to_owned(), content: content.clone() },
+        EntryKind::Message {
+            role: "assistant".to_owned(),
+            content: content.clone(),
+        },
     );
     world.named.insert(content.clone(), id.clone());
     world.last_id = Some(id);
@@ -78,7 +84,10 @@ fn append_assistant_of_named(world: &mut StWorld, content: String, parent_name: 
     let parent_id = world.resolved_parent(&parent_name);
     let id = world.tree.append(
         parent_id.as_deref(),
-        EntryKind::Message { role: "assistant".to_owned(), content: content.clone() },
+        EntryKind::Message {
+            role: "assistant".to_owned(),
+            content: content.clone(),
+        },
     );
     world.named.insert(content.clone(), id.clone());
     world.last_id = Some(id);
@@ -89,7 +98,10 @@ fn append_user_of_named(world: &mut StWorld, content: String, parent_name: Strin
     let parent_id = world.resolved_parent(&parent_name);
     let id = world.tree.append(
         parent_id.as_deref(),
-        EntryKind::Message { role: "user".to_owned(), content: content.clone() },
+        EntryKind::Message {
+            role: "user".to_owned(),
+            content: content.clone(),
+        },
     );
     world.named.insert(content.clone(), id.clone());
     world.last_id = Some(id);
@@ -97,13 +109,18 @@ fn append_user_of_named(world: &mut StWorld, content: String, parent_name: Strin
 
 #[when(expr = "I branch from {string} with an assistant message {string}")]
 fn branch_from_named(world: &mut StWorld, parent_name: String, content: String) {
-    let parent_id = world.resolved_parent(&parent_name)
+    let parent_id = world
+        .resolved_parent(&parent_name)
         .expect("parent name not found in named map");
-    let id = world.tree
-        .branch_from(&parent_id, EntryKind::Message {
-            role: "assistant".to_owned(),
-            content: content.clone(),
-        })
+    let id = world
+        .tree
+        .branch_from(
+            &parent_id,
+            EntryKind::Message {
+                role: "assistant".to_owned(),
+                content: content.clone(),
+            },
+        )
         .expect("branch_from failed");
     world.named.insert(content.clone(), id.clone());
     world.last_id = Some(id);
@@ -134,9 +151,8 @@ fn serialize(world: &mut StWorld) {
 
 #[when("I deserialize the JSONL into a new tree")]
 fn deserialize(world: &mut StWorld) {
-    world.restored = Some(
-        SessionTree::deserialize_jsonl(&world.jsonl).expect("deserialize failed"),
-    );
+    world.restored =
+        Some(SessionTree::deserialize_jsonl(&world.jsonl).expect("deserialize failed"));
 }
 
 // ---------------------------------------------------------------------------
@@ -155,7 +171,8 @@ fn label_last(world: &mut StWorld, label: String) {
 
 #[when(expr = "I fold the subtree at {string}")]
 fn fold_at(world: &mut StWorld, entry_name: String) {
-    let id = world.resolved_parent(&entry_name)
+    let id = world
+        .resolved_parent(&entry_name)
         .expect("entry name not found for fold");
     let visible = world.tree.fold_subtree(&id);
     world.folded_count = visible.len();
@@ -168,9 +185,11 @@ fn fold_at(world: &mut StWorld, entry_name: String) {
 #[then(expr = "the tree has {int} entries")]
 fn check_entry_count(world: &mut StWorld, expected: usize) {
     assert_eq!(
-        world.tree.entry_count(), expected,
+        world.tree.entry_count(),
+        expected,
         "entry count mismatch: got {}, want {}",
-        world.tree.entry_count(), expected
+        world.tree.entry_count(),
+        expected
     );
 }
 
@@ -184,18 +203,21 @@ fn check_last_is_leaf(world: &mut StWorld) {
 
 #[then(expr = "the branch count is {int}")]
 fn check_branch_count(world: &mut StWorld, expected: usize) {
-    assert_eq!(
-        world.tree.branch_count(), expected,
-        "branch count mismatch"
-    );
+    assert_eq!(world.tree.branch_count(), expected, "branch count mismatch");
 }
 
 #[then(expr = "the path to {string} has length {int}")]
 fn check_path_length(world: &mut StWorld, entry_name: String, expected: usize) {
-    let id = world.resolved_parent(&entry_name)
+    let id = world
+        .resolved_parent(&entry_name)
         .expect("entry name not found for path check");
     let path = world.tree.path_to(&id);
-    assert_eq!(path.len(), expected, "path length mismatch: {:?}", path.len());
+    assert_eq!(
+        path.len(),
+        expected,
+        "path length mismatch: {:?}",
+        path.len()
+    );
 }
 
 #[then(expr = "the first entry in the path is {string}")]
@@ -205,14 +227,19 @@ fn check_path_root(world: &mut StWorld, root_name: String) {
     let leaf_id = world.last_id.as_ref().expect("no last id").0.clone();
     let path = world.tree.path_to(&leaf_id);
     let first = path.first().expect("path is empty");
-    let expected_id = world.resolved_parent(&root_name)
+    let expected_id = world
+        .resolved_parent(&root_name)
         .expect("root name not in named map");
     assert_eq!(first.id.0, expected_id, "first path entry mismatch");
 }
 
 #[then(expr = "the restored tree has {int} entries")]
 fn check_restored_count(world: &mut StWorld, expected: usize) {
-    let count = world.restored.as_ref().expect("no restored tree").entry_count();
+    let count = world
+        .restored
+        .as_ref()
+        .expect("no restored tree")
+        .entry_count();
     assert_eq!(count, expected, "restored entry count mismatch");
 }
 
@@ -235,8 +262,14 @@ fn check_restored_label(world: &mut StWorld, expected_label: String) {
         .any(|e| e.label.as_deref() == Some(&expected_label));
     // Walk all entries in restored tree via active_branch which covers the full path.
     let full_active = restored.active_branch();
-    let found = full_active.iter().any(|e| e.label.as_deref() == Some(&expected_label));
-    assert!(found || has_label, "label '{}' not found in restored tree", expected_label);
+    let found = full_active
+        .iter()
+        .any(|e| e.label.as_deref() == Some(&expected_label));
+    assert!(
+        found || has_label,
+        "label '{}' not found in restored tree",
+        expected_label
+    );
 }
 
 // ---------------------------------------------------------------------------

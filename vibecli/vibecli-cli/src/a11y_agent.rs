@@ -14,23 +14,38 @@ use serde::{Deserialize, Serialize};
 
 /// WCAG 2.2 conformance level.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub enum WcagLevel { A, Aa, Aaa }
+pub enum WcagLevel {
+    A,
+    Aa,
+    Aaa,
+}
 
 impl std::fmt::Display for WcagLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self { Self::A => write!(f, "A"), Self::Aa => write!(f, "AA"), Self::Aaa => write!(f, "AAA") }
+        match self {
+            Self::A => write!(f, "A"),
+            Self::Aa => write!(f, "AA"),
+            Self::Aaa => write!(f, "AAA"),
+        }
     }
 }
 
 /// Impact severity of an accessibility violation.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub enum Impact { Minor, Moderate, Serious, Critical }
+pub enum Impact {
+    Minor,
+    Moderate,
+    Serious,
+    Critical,
+}
 
 impl std::fmt::Display for Impact {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Minor => write!(f, "minor"), Self::Moderate => write!(f, "moderate"),
-            Self::Serious => write!(f, "serious"), Self::Critical => write!(f, "critical"),
+            Self::Minor => write!(f, "minor"),
+            Self::Moderate => write!(f, "moderate"),
+            Self::Serious => write!(f, "serious"),
+            Self::Critical => write!(f, "critical"),
         }
     }
 }
@@ -40,7 +55,7 @@ impl std::fmt::Display for Impact {
 /// An accessibility rule definition (axe-core compatible).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct A11yRule {
-    pub id: String,          // e.g. "image-alt", "color-contrast"
+    pub id: String,             // e.g. "image-alt", "color-contrast"
     pub wcag_criterion: String, // e.g. "1.1.1"
     pub level: WcagLevel,
     pub impact: Impact,
@@ -64,21 +79,111 @@ impl A11yRule {
 /// Built-in WCAG 2.2 rule set (representative subset).
 pub fn builtin_rules() -> Vec<A11yRule> {
     vec![
-        A11yRule::new("image-alt",        "1.1.1",  WcagLevel::A,   Impact::Critical, "Images must have alternative text"),
-        A11yRule::new("button-name",       "4.1.2",  WcagLevel::A,   Impact::Critical, "Buttons must have an accessible name"),
-        A11yRule::new("link-name",         "4.1.2",  WcagLevel::A,   Impact::Serious,  "Links must have discernible text"),
-        A11yRule::new("label",             "1.3.1",  WcagLevel::A,   Impact::Critical, "Form inputs must have labels"),
-        A11yRule::new("color-contrast",    "1.4.3",  WcagLevel::Aa,  Impact::Serious,  "Text must have sufficient colour contrast (4.5:1)"),
-        A11yRule::new("heading-order",     "1.3.1",  WcagLevel::A,   Impact::Moderate, "Heading levels must not be skipped"),
-        A11yRule::new("html-has-lang",     "3.1.1",  WcagLevel::A,   Impact::Serious,  "The <html> element must have a lang attribute"),
-        A11yRule::new("aria-required-attr","4.1.2",  WcagLevel::A,   Impact::Critical, "Required ARIA attributes must be present"),
-        A11yRule::new("aria-roles",        "4.1.2",  WcagLevel::A,   Impact::Critical, "ARIA roles must be valid"),
-        A11yRule::new("keyboard",          "2.1.1",  WcagLevel::A,   Impact::Critical, "All functionality must be keyboard accessible"),
-        A11yRule::new("focus-visible",     "2.4.11", WcagLevel::Aa,  Impact::Serious,  "Keyboard focus must be visible"),
-        A11yRule::new("skip-link",         "2.4.1",  WcagLevel::A,   Impact::Moderate, "Page must have a skip-navigation link"),
-        A11yRule::new("tabindex",          "2.4.3",  WcagLevel::A,   Impact::Serious,  "Positive tabindex must not be used"),
-        A11yRule::new("autocomplete-valid","1.3.5",  WcagLevel::Aa,  Impact::Serious,  "Autocomplete attributes must be valid"),
-        A11yRule::new("video-caption",     "1.2.2",  WcagLevel::A,   Impact::Critical, "Videos must have captions"),
+        A11yRule::new(
+            "image-alt",
+            "1.1.1",
+            WcagLevel::A,
+            Impact::Critical,
+            "Images must have alternative text",
+        ),
+        A11yRule::new(
+            "button-name",
+            "4.1.2",
+            WcagLevel::A,
+            Impact::Critical,
+            "Buttons must have an accessible name",
+        ),
+        A11yRule::new(
+            "link-name",
+            "4.1.2",
+            WcagLevel::A,
+            Impact::Serious,
+            "Links must have discernible text",
+        ),
+        A11yRule::new(
+            "label",
+            "1.3.1",
+            WcagLevel::A,
+            Impact::Critical,
+            "Form inputs must have labels",
+        ),
+        A11yRule::new(
+            "color-contrast",
+            "1.4.3",
+            WcagLevel::Aa,
+            Impact::Serious,
+            "Text must have sufficient colour contrast (4.5:1)",
+        ),
+        A11yRule::new(
+            "heading-order",
+            "1.3.1",
+            WcagLevel::A,
+            Impact::Moderate,
+            "Heading levels must not be skipped",
+        ),
+        A11yRule::new(
+            "html-has-lang",
+            "3.1.1",
+            WcagLevel::A,
+            Impact::Serious,
+            "The <html> element must have a lang attribute",
+        ),
+        A11yRule::new(
+            "aria-required-attr",
+            "4.1.2",
+            WcagLevel::A,
+            Impact::Critical,
+            "Required ARIA attributes must be present",
+        ),
+        A11yRule::new(
+            "aria-roles",
+            "4.1.2",
+            WcagLevel::A,
+            Impact::Critical,
+            "ARIA roles must be valid",
+        ),
+        A11yRule::new(
+            "keyboard",
+            "2.1.1",
+            WcagLevel::A,
+            Impact::Critical,
+            "All functionality must be keyboard accessible",
+        ),
+        A11yRule::new(
+            "focus-visible",
+            "2.4.11",
+            WcagLevel::Aa,
+            Impact::Serious,
+            "Keyboard focus must be visible",
+        ),
+        A11yRule::new(
+            "skip-link",
+            "2.4.1",
+            WcagLevel::A,
+            Impact::Moderate,
+            "Page must have a skip-navigation link",
+        ),
+        A11yRule::new(
+            "tabindex",
+            "2.4.3",
+            WcagLevel::A,
+            Impact::Serious,
+            "Positive tabindex must not be used",
+        ),
+        A11yRule::new(
+            "autocomplete-valid",
+            "1.3.5",
+            WcagLevel::Aa,
+            Impact::Serious,
+            "Autocomplete attributes must be valid",
+        ),
+        A11yRule::new(
+            "video-caption",
+            "1.2.2",
+            WcagLevel::A,
+            Impact::Critical,
+            "Videos must have captions",
+        ),
     ]
 }
 
@@ -102,7 +207,7 @@ pub struct Remediation {
     pub before: String,
     pub after: String,
     pub explanation: String,
-    pub confidence: u8,  // 0–100
+    pub confidence: u8, // 0–100
 }
 
 // ─── Colour Contrast ──────────────────────────────────────────────────────────
@@ -115,14 +220,20 @@ pub fn parse_hex_color(hex: &str) -> Option<(u8, u8, u8)> {
         let g = u8::from_str_radix(&h[2..4], 16).ok()?;
         let b = u8::from_str_radix(&h[4..6], 16).ok()?;
         Some((r, g, b))
-    } else { None }
+    } else {
+        None
+    }
 }
 
 /// Relative luminance per WCAG formula.
 pub fn relative_luminance(r: u8, g: u8, b: u8) -> f64 {
     let linearize = |c: u8| {
         let v = c as f64 / 255.0;
-        if v <= 0.04045 { v / 12.92 } else { ((v + 0.055) / 1.055f64).powf(2.4) }
+        if v <= 0.04045 {
+            v / 12.92
+        } else {
+            ((v + 0.055) / 1.055f64).powf(2.4)
+        }
     };
     0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b)
 }
@@ -155,11 +266,19 @@ pub struct A11yChecker {
 
 impl A11yChecker {
     pub fn new() -> Self {
-        Self { rules: builtin_rules(), violations: Vec::new(), elements_scanned: 0 }
+        Self {
+            rules: builtin_rules(),
+            violations: Vec::new(),
+            elements_scanned: 0,
+        }
     }
 
     pub fn with_rules(rules: Vec<A11yRule>) -> Self {
-        Self { rules, violations: Vec::new(), elements_scanned: 0 }
+        Self {
+            rules,
+            violations: Vec::new(),
+            elements_scanned: 0,
+        }
     }
 
     /// Scan HTML/JSX source lines for a11y violations.
@@ -195,7 +314,8 @@ impl A11yChecker {
                 remediation: Some(Remediation {
                     before: line.trim().to_string(),
                     after: fix_after.trim().to_string(),
-                    explanation: "Add descriptive alt text; use alt=\"\" for decorative images".into(),
+                    explanation: "Add descriptive alt text; use alt=\"\" for decorative images"
+                        .into(),
                     confidence: 80,
                 }),
             }];
@@ -220,7 +340,9 @@ impl A11yChecker {
                     message: "Button has no accessible name (WCAG 4.1.2)".into(),
                     remediation: Some(Remediation {
                         before: line.trim().to_string(),
-                        after: line.trim().replacen("<button", "<button aria-label=\"Action\"", 1),
+                        after: line
+                            .trim()
+                            .replacen("<button", "<button aria-label=\"Action\"", 1),
                         explanation: "Add aria-label or visible text content to the button".into(),
                         confidence: 70,
                     }),
@@ -232,7 +354,8 @@ impl A11yChecker {
 
     fn check_link_name(&self, line: &str) -> Vec<Violation> {
         // <a href=...></a> with no text
-        if (line.contains("<a ") || line.contains("<a\t")) && line.contains("</a>")
+        if (line.contains("<a ") || line.contains("<a\t"))
+            && line.contains("</a>")
             && !line.contains("aria-label")
         {
             let text = extract_text_content(line);
@@ -259,8 +382,10 @@ impl A11yChecker {
     fn check_positive_tabindex(&self, line: &str) -> Vec<Violation> {
         // tabIndex > 0 is an anti-pattern
         if line.contains("tabIndex=") || line.contains("tabindex=") {
-            let has_positive = line.contains("tabIndex=\"1\"") || line.contains("tabIndex={1}")
-                || line.contains("tabindex=\"1\"") || line.contains("tabIndex=\"2\"");
+            let has_positive = line.contains("tabIndex=\"1\"")
+                || line.contains("tabIndex={1}")
+                || line.contains("tabindex=\"1\"")
+                || line.contains("tabIndex=\"2\"");
             if has_positive {
                 return vec![Violation {
                     rule_id: "tabindex".into(),
@@ -271,10 +396,14 @@ impl A11yChecker {
                     message: "Positive tabIndex disrupts focus order (WCAG 2.4.3)".into(),
                     remediation: Some(Remediation {
                         before: line.trim().to_string(),
-                        after: line.replace("tabIndex=\"1\"", "tabIndex=\"0\"")
-                               .replace("tabIndex={1}", "tabIndex={0}")
-                               .trim().to_string(),
-                        explanation: "Use tabIndex='0' to include in natural tab order or -1 to exclude".into(),
+                        after: line
+                            .replace("tabIndex=\"1\"", "tabIndex=\"0\"")
+                            .replace("tabIndex={1}", "tabIndex={0}")
+                            .trim()
+                            .to_string(),
+                        explanation:
+                            "Use tabIndex='0' to include in natural tab order or -1 to exclude"
+                                .into(),
                         confidence: 95,
                     }),
                 }];
@@ -294,7 +423,10 @@ impl A11yChecker {
                 message: "<html> element missing lang attribute (WCAG 3.1.1)".into(),
                 remediation: Some(Remediation {
                     before: line.trim().to_string(),
-                    after: line.replacen("<html", "<html lang=\"en\"", 1).trim().to_string(),
+                    after: line
+                        .replacen("<html", "<html lang=\"en\"", 1)
+                        .trim()
+                        .to_string(),
                     explanation: "Add lang attribute to declare document language".into(),
                     confidence: 90,
                 }),
@@ -304,7 +436,13 @@ impl A11yChecker {
     }
 
     /// Check a foreground/background colour pair.
-    pub fn check_contrast(&mut self, fg: &str, bg: &str, selector: &str, large_text: bool) -> Option<Violation> {
+    pub fn check_contrast(
+        &mut self,
+        fg: &str,
+        bg: &str,
+        selector: &str,
+        large_text: bool,
+    ) -> Option<Violation> {
         let ratio = contrast_ratio(fg, bg)?;
         let threshold = if large_text { 3.0 } else { 4.5 };
         if ratio < threshold {
@@ -314,23 +452,33 @@ impl A11yChecker {
                 wcag_level: WcagLevel::Aa,
                 element_selector: selector.to_string(),
                 source_snippet: format!("color: {fg}; background: {bg}"),
-                message: format!("Contrast ratio {ratio:.2}:1 fails WCAG AA (requires {threshold}:1)"),
-                remediation: None,  // colour fix requires design context
+                message: format!(
+                    "Contrast ratio {ratio:.2}:1 fails WCAG AA (requires {threshold}:1)"
+                ),
+                remediation: None, // colour fix requires design context
             };
             self.violations.push(v.clone());
             Some(v)
-        } else { None }
+        } else {
+            None
+        }
     }
 
     /// Overall accessibility score (0–100).
     pub fn score(&self) -> u8 {
-        if self.elements_scanned == 0 { return 100; }
-        let penalty: usize = self.violations.iter().map(|v| match v.impact {
-            Impact::Critical => 20,
-            Impact::Serious  => 10,
-            Impact::Moderate => 5,
-            Impact::Minor    => 2,
-        }).sum();
+        if self.elements_scanned == 0 {
+            return 100;
+        }
+        let penalty: usize = self
+            .violations
+            .iter()
+            .map(|v| match v.impact {
+                Impact::Critical => 20,
+                Impact::Serious => 10,
+                Impact::Moderate => 5,
+                Impact::Minor => 2,
+            })
+            .sum();
         let base = 100usize;
         base.saturating_sub(penalty).min(100) as u8
     }
@@ -338,26 +486,44 @@ impl A11yChecker {
     pub fn grade(&self) -> &'static str {
         match self.score() {
             90..=100 => "A",
-            75..=89  => "B",
-            60..=74  => "C",
-            50..=59  => "D",
-            _        => "F",
+            75..=89 => "B",
+            60..=74 => "C",
+            50..=59 => "D",
+            _ => "F",
         }
     }
 
-    pub fn violations(&self) -> &[Violation] { &self.violations }
-    pub fn violation_count(&self) -> usize { self.violations.len() }
+    pub fn violations(&self) -> &[Violation] {
+        &self.violations
+    }
+    pub fn violation_count(&self) -> usize {
+        self.violations.len()
+    }
     pub fn critical_count(&self) -> usize {
-        self.violations.iter().filter(|v| v.impact == Impact::Critical).count()
+        self.violations
+            .iter()
+            .filter(|v| v.impact == Impact::Critical)
+            .count()
     }
     pub fn violations_by_level(&self, level: &WcagLevel) -> Vec<&Violation> {
-        self.violations.iter().filter(|v| &v.wcag_level == level).collect()
+        self.violations
+            .iter()
+            .filter(|v| &v.wcag_level == level)
+            .collect()
     }
-    pub fn rules(&self) -> &[A11yRule] { &self.rules }
-    pub fn rule_count(&self) -> usize { self.rules.len() }
+    pub fn rules(&self) -> &[A11yRule] {
+        &self.rules
+    }
+    pub fn rule_count(&self) -> usize {
+        self.rules.len()
+    }
 }
 
-impl Default for A11yChecker { fn default() -> Self { Self::new() } }
+impl Default for A11yChecker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 /// Extract text content between HTML tags.
 fn extract_text_content(line: &str) -> String {

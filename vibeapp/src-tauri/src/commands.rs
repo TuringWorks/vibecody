@@ -148,8 +148,8 @@ pub async fn stream_agent(
         loop {
             let chunk = match response.chunk().await {
                 Ok(Some(c)) => c,
-                Ok(None) => break,    // stream ended
-                Err(_) => break,      // read error
+                Ok(None) => break, // stream ended
+                Err(_) => break,   // read error
             };
             let text = match std::str::from_utf8(&chunk) {
                 Ok(t) => t,

@@ -31,9 +31,13 @@ pub struct Confidence(pub f32);
 
 impl Confidence {
     pub fn label(&self) -> &'static str {
-        if self.0 >= 0.9 { "high" }
-        else if self.0 >= 0.7 { "medium" }
-        else { "low" }
+        if self.0 >= 0.9 {
+            "high"
+        } else if self.0 >= 0.7 {
+            "medium"
+        } else {
+            "low"
+        }
     }
 }
 
@@ -182,7 +186,11 @@ impl VoiceHistory {
             }
         }
 
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         results
     }
 
@@ -198,7 +206,10 @@ impl VoiceHistory {
             out.push_str("  {");
             out.push_str(&format!("\"id\":{},", entry.id.0));
             out.push_str(&format!("\"ts\":{},", entry.timestamp_ms));
-            out.push_str(&format!("\"text\":\"{}\",", entry.normalized_text.replace('"', "\\\"")));
+            out.push_str(&format!(
+                "\"text\":\"{}\",",
+                entry.normalized_text.replace('"', "\\\"")
+            ));
             out.push_str(&format!("\"confidence\":{:.2},", entry.confidence.0));
             out.push_str(&format!("\"executed\":{}", entry.executed));
             out.push('}');
@@ -218,9 +229,17 @@ impl VoiceHistory {
         let avg_confidence = if total == 0 {
             0.0
         } else {
-            self.entries.iter().map(|e| e.confidence.0 as f64).sum::<f64>() / total as f64
+            self.entries
+                .iter()
+                .map(|e| e.confidence.0 as f64)
+                .sum::<f64>()
+                / total as f64
         };
-        VoiceHistoryStats { total, executed, avg_confidence }
+        VoiceHistoryStats {
+            total,
+            executed,
+            avg_confidence,
+        }
     }
 
     fn normalize(text: &str) -> String {
@@ -240,7 +259,9 @@ pub struct VoiceHistoryStats {
 
 impl VoiceHistoryStats {
     pub fn execution_rate(&self) -> f64 {
-        if self.total == 0 { return 0.0; }
+        if self.total == 0 {
+            return 0.0;
+        }
         self.executed as f64 / self.total as f64
     }
 }

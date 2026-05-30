@@ -35,9 +35,7 @@
 //! ```
 
 use async_trait::async_trait;
-use mistralrs::{
-    IsqType, Model, RequestBuilder, TextMessageRole, TextMessages, TextModelBuilder,
-};
+use mistralrs::{IsqType, Model, RequestBuilder, TextMessageRole, TextMessages, TextModelBuilder};
 
 use crate::kv_cache_codec::{CandleTurboQuantCodec, NativeTurboQuantCodec};
 use crate::{
@@ -179,7 +177,8 @@ async fn install_codec_after_load(model: &Model, mode: &KvCacheMode) -> Result<(
         None => {
             return Err(InferenceError::Backend(
                 "TurboQuant requested but model exposes no head-dim metadata \
-                 (likely a speech / diffusion pipeline)".into(),
+                 (likely a speech / diffusion pipeline)"
+                    .into(),
             ));
         }
     };

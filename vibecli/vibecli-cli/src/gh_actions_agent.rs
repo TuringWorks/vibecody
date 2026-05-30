@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -251,7 +250,10 @@ impl GhActionsAgent {
 
         let config = WorkflowConfig {
             name: "VibeCLI Code Review".to_string(),
-            triggers: vec![format!("pull_request:\n    branches:\n      - {}", branch_pattern)],
+            triggers: vec![format!(
+                "pull_request:\n    branches:\n      - {}",
+                branch_pattern
+            )],
             jobs: vec![job],
             env_vars: HashMap::new(),
         };
@@ -421,19 +423,20 @@ impl GhActionsAgent {
             if line.contains('\t') {
                 issues.push(ValidationIssue {
                     line: line_num,
-                    message: "Tab character found; YAML requires spaces for indentation".to_string(),
+                    message: "Tab character found; YAML requires spaces for indentation"
+                        .to_string(),
                     severity: ValidationSeverity::Error,
                 });
             }
 
             // Warn about hardcoded secrets
             if (line.contains("api_key") || line.contains("API_KEY"))
-                && !line.contains("secrets.") && !line.contains("${{")
+                && !line.contains("secrets.")
+                && !line.contains("${{")
             {
                 issues.push(ValidationIssue {
                     line: line_num,
-                    message: "Possible hardcoded secret; use ${{ secrets.* }} instead"
-                        .to_string(),
+                    message: "Possible hardcoded secret; use ${{ secrets.* }} instead".to_string(),
                     severity: ValidationSeverity::Warning,
                 });
             }
@@ -833,8 +836,7 @@ mod tests {
         let issues = agent.validate_workflow(yaml);
         assert!(issues
             .iter()
-            .any(|i| i.severity == ValidationSeverity::Warning
-                && i.message.contains("secret")));
+            .any(|i| i.severity == ValidationSeverity::Warning && i.message.contains("secret")));
     }
 
     #[test]

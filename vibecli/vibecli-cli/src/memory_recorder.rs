@@ -57,10 +57,7 @@ Respond ONLY with the bullet points in this exact format:\n\
         std::fs::create_dir_all(parent)?;
     }
 
-    let header = format!(
-        "\n<!-- auto-recorded {} -->\n",
-        chrono_now_utc()
-    );
+    let header = format!("\n<!-- auto-recorded {} -->\n", chrono_now_utc());
     let entry = format!("{}{}\n", header, bullets.join("\n"));
 
     // Append (or create)

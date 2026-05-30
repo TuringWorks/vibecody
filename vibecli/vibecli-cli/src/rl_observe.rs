@@ -477,7 +477,7 @@ impl EwmaDetector {
             * self.target_std
             * (self.lambda / (2.0 - self.lambda)
                 * (1.0 - (1.0 - self.lambda).powi(2 * self.n as i32)))
-                .sqrt();
+            .sqrt();
         self.ucl = self.target_mean + factor;
         self.lcl = self.target_mean - factor;
         if self.ewma > self.ucl || self.ewma < self.lcl {
@@ -953,13 +953,7 @@ impl SafetyConstraint {
         }
     }
 
-    pub fn new_range(
-        id: &str,
-        name: &str,
-        kind: ConstraintKind,
-        lower: f64,
-        upper: f64,
-    ) -> Self {
+    pub fn new_range(id: &str, name: &str, kind: ConstraintKind, lower: f64, upper: f64) -> Self {
         Self {
             id: id.to_string(),
             name: name.to_string(),
@@ -1033,21 +1027,26 @@ impl SafetyMonitor {
     }
 
     pub fn add_constraint(&mut self, constraint: SafetyConstraint) {
-        self.violation_counts
-            .insert(constraint.id.clone(), 0);
-        self.near_miss_counts
-            .insert(constraint.id.clone(), 0);
+        self.violation_counts.insert(constraint.id.clone(), 0);
+        self.near_miss_counts.insert(constraint.id.clone(), 0);
         self.constraints.push(constraint);
     }
 
-    pub fn check_all(&mut self, values: &HashMap<String, f64>, timestamp: u64) -> Vec<ConstraintCheckResult> {
+    pub fn check_all(
+        &mut self,
+        values: &HashMap<String, f64>,
+        timestamp: u64,
+    ) -> Vec<ConstraintCheckResult> {
         let mut results = Vec::new();
         self.total_checks += 1;
         for constraint in &self.constraints {
             if let Some(&val) = values.get(&constraint.id) {
                 let result = constraint.check(val);
                 if result.violated {
-                    *self.violation_counts.entry(constraint.id.clone()).or_insert(0) += 1;
+                    *self
+                        .violation_counts
+                        .entry(constraint.id.clone())
+                        .or_insert(0) += 1;
                     self.violation_history.push(ConstraintViolationEvent {
                         constraint_id: constraint.id.clone(),
                         timestamp,
@@ -1056,7 +1055,10 @@ impl SafetyMonitor {
                     });
                 }
                 if result.near_miss {
-                    *self.near_miss_counts.entry(constraint.id.clone()).or_insert(0) += 1;
+                    *self
+                        .near_miss_counts
+                        .entry(constraint.id.clone())
+                        .or_insert(0) += 1;
                 }
                 results.push(result);
             }
@@ -1068,7 +1070,11 @@ impl SafetyMonitor {
         if self.total_checks == 0 {
             return 0.0;
         }
-        let count = self.violation_counts.get(constraint_id).copied().unwrap_or(0);
+        let count = self
+            .violation_counts
+            .get(constraint_id)
+            .copied()
+            .unwrap_or(0);
         count as f64 / self.total_checks as f64
     }
 
@@ -1214,7 +1220,11 @@ impl ExplorationTracker {
     }
 
     pub fn top_visited_states(&self, n: usize) -> Vec<(String, u64)> {
-        let mut entries: Vec<_> = self.state_visits.iter().map(|(k, &v)| (k.clone(), v)).collect();
+        let mut entries: Vec<_> = self
+            .state_visits
+            .iter()
+            .map(|(k, &v)| (k.clone(), v))
+            .collect();
         entries.sort_by(|a, b| b.1.cmp(&a.1));
         entries.truncate(n);
         entries
@@ -1647,7 +1657,9 @@ impl AlertManager {
                 let should_fire = match alert_type {
                     AlertType::RewardDrop
                     | AlertType::PolicyDegradation
-                    | AlertType::ExplorationCollapse => value < -rule.threshold || value.abs() > rule.threshold,
+                    | AlertType::ExplorationCollapse => {
+                        value < -rule.threshold || value.abs() > rule.threshold
+                    }
                     _ => value > rule.threshold,
                 };
                 if should_fire {
@@ -1782,7 +1794,13 @@ impl DashboardProvider {
         });
     }
 
-    pub fn add_table(&mut self, id: &str, title: &str, headers: Vec<String>, rows: Vec<Vec<String>>) {
+    pub fn add_table(
+        &mut self,
+        id: &str,
+        title: &str,
+        headers: Vec<String>,
+        rows: Vec<Vec<String>>,
+    ) {
         self.widgets.push(DashboardWidget {
             id: id.to_string(),
             title: title.to_string(),
@@ -1809,7 +1827,11 @@ impl DashboardProvider {
     }
 
     pub fn from_metric_series(series: &MetricSeries) -> DashboardWidget {
-        let data: Vec<(u64, f64)> = series.points.iter().map(|p| (p.timestamp, p.value)).collect();
+        let data: Vec<(u64, f64)> = series
+            .points
+            .iter()
+            .map(|p| (p.timestamp, p.value))
+            .collect();
         DashboardWidget {
             id: series.name.clone(),
             title: series.name.clone(),
@@ -2017,7 +2039,10 @@ impl TrajectoryAnalyzer {
         if self.trajectories.is_empty() {
             return 0.0;
         }
-        self.trajectories.iter().map(|t| t.length() as f64).sum::<f64>()
+        self.trajectories
+            .iter()
+            .map(|t| t.length() as f64)
+            .sum::<f64>()
             / self.trajectories.len() as f64
     }
 
@@ -2025,28 +2050,27 @@ impl TrajectoryAnalyzer {
         if self.trajectories.is_empty() {
             return 0.0;
         }
-        self.trajectories.iter().map(|t| t.total_reward).sum::<f64>()
+        self.trajectories
+            .iter()
+            .map(|t| t.total_reward)
+            .sum::<f64>()
             / self.trajectories.len() as f64
     }
 
     pub fn best_episode(&self) -> Option<&Trajectory> {
-        self.trajectories
-            .iter()
-            .max_by(|a, b| {
-                a.total_reward
-                    .partial_cmp(&b.total_reward)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
+        self.trajectories.iter().max_by(|a, b| {
+            a.total_reward
+                .partial_cmp(&b.total_reward)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
     }
 
     pub fn worst_episode(&self) -> Option<&Trajectory> {
-        self.trajectories
-            .iter()
-            .min_by(|a, b| {
-                a.total_reward
-                    .partial_cmp(&b.total_reward)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
+        self.trajectories.iter().min_by(|a, b| {
+            a.total_reward
+                .partial_cmp(&b.total_reward)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
     }
 
     pub fn reward_percentile(&self, pct: f64) -> f64 {
@@ -2190,7 +2214,8 @@ pub fn detect_anomalies_zscore(values: &[f64], z_threshold: f64) -> Vec<AnomalyR
     }
     let mean = values.iter().sum::<f64>() / values.len() as f64;
     let std_dev = {
-        let var = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (values.len() - 1) as f64;
+        let var =
+            values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (values.len() - 1) as f64;
         var.sqrt()
     };
     if std_dev == 0.0 {
@@ -2220,7 +2245,8 @@ pub fn detect_anomalies_isolation(values: &[f64], contamination: f64) -> Vec<Ano
         return Vec::new();
     }
     let n = values.len();
-    let avg_path_length = (2.0 * (n as f64 - 1.0).ln() + 0.5772) - 2.0 * (n as f64 - 1.0) / n as f64;
+    let avg_path_length =
+        (2.0 * (n as f64 - 1.0).ln() + 0.5772) - 2.0 * (n as f64 - 1.0) / n as f64;
 
     let mut sorted = values.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
@@ -2380,8 +2406,14 @@ impl ReportGenerator {
 
         // Safety compliance
         let mut safety_metrics = HashMap::new();
-        safety_metrics.insert("total_violations".to_string(), safety.total_violations() as f64);
-        safety_metrics.insert("total_near_misses".to_string(), safety.total_near_misses() as f64);
+        safety_metrics.insert(
+            "total_violations".to_string(),
+            safety.total_violations() as f64,
+        );
+        safety_metrics.insert(
+            "total_near_misses".to_string(),
+            safety.total_near_misses() as f64,
+        );
         safety_metrics.insert("safety_score".to_string(), safety.safety_score());
         let safety_status = if safety.total_violations() > 0 {
             ReportStatus::Critical
@@ -2406,7 +2438,10 @@ impl ReportGenerator {
         let mut cost_metrics = HashMap::new();
         cost_metrics.insert("total_gpu_hours".to_string(), cost.total_gpu_hours());
         cost_metrics.insert("total_cost_usd".to_string(), cost.total_cost_usd());
-        cost_metrics.insert("cost_per_reward_unit".to_string(), cost.cost_per_reward_unit());
+        cost_metrics.insert(
+            "cost_per_reward_unit".to_string(),
+            cost.cost_per_reward_unit(),
+        );
         cost_metrics.insert("compute_efficiency".to_string(), cost.compute_efficiency());
         sections.push(ReportSection {
             heading: "Cost Breakdown".to_string(),
@@ -2465,11 +2500,7 @@ impl ReportGenerator {
                 let mut keys: Vec<_> = section.metrics.keys().collect();
                 keys.sort();
                 for key in keys {
-                    md.push_str(&format!(
-                        "| {} | {:.4} |\n",
-                        key,
-                        section.metrics[key]
-                    ));
+                    md.push_str(&format!("| {} | {:.4} |\n", key, section.metrics[key]));
                 }
                 md.push('\n');
             }
@@ -2533,8 +2564,8 @@ impl SlidingWindowAggregator {
             return 0.0;
         }
         let m = self.mean();
-        let var =
-            self.values.iter().map(|v| (v - m).powi(2)).sum::<f64>() / (self.values.len() - 1) as f64;
+        let var = self.values.iter().map(|v| (v - m).powi(2)).sum::<f64>()
+            / (self.values.len() - 1) as f64;
         var.sqrt()
     }
 
@@ -2640,9 +2671,7 @@ fn percentile_value(sorted_values: &[f64], pct: f64) -> f64 {
     }
     let mut v = sorted_values.to_vec();
     v.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    let idx = ((pct / 100.0) * (v.len() as f64 - 1.0))
-        .round()
-        .max(0.0) as usize;
+    let idx = ((pct / 100.0) * (v.len() as f64 - 1.0)).round().max(0.0) as usize;
     v[idx.min(v.len() - 1)]
 }
 
@@ -2658,8 +2687,8 @@ pub struct RetentionPolicy {
 impl Default for RetentionPolicy {
     fn default() -> Self {
         Self {
-            raw_retention_secs: 86400,       // 24 hours
-            downsample_interval_secs: 3600,  // 1 hour
+            raw_retention_secs: 86400,      // 24 hours
+            downsample_interval_secs: 3600, // 1 hour
             strategy: DownsampleStrategy::Average,
         }
     }
@@ -2677,8 +2706,16 @@ impl RetentionManager {
 
     pub fn apply(&self, series: &MetricSeries, now: u64) -> MetricSeries {
         let cutoff = now.saturating_sub(self.policy.raw_retention_secs);
-        let recent: Vec<&MetricPoint> = series.points.iter().filter(|p| p.timestamp >= cutoff).collect();
-        let old: Vec<&MetricPoint> = series.points.iter().filter(|p| p.timestamp < cutoff).collect();
+        let recent: Vec<&MetricPoint> = series
+            .points
+            .iter()
+            .filter(|p| p.timestamp >= cutoff)
+            .collect();
+        let old: Vec<&MetricPoint> = series
+            .points
+            .iter()
+            .filter(|p| p.timestamp < cutoff)
+            .collect();
 
         let mut result = MetricSeries::new(&series.name, series.kind.clone());
         result.metadata = series.metadata.clone();
@@ -2714,14 +2751,8 @@ impl RetentionManager {
         }
         match self.policy.strategy {
             DownsampleStrategy::Average => values.iter().sum::<f64>() / values.len() as f64,
-            DownsampleStrategy::Min => values
-                .iter()
-                .copied()
-                .fold(f64::INFINITY, f64::min),
-            DownsampleStrategy::Max => values
-                .iter()
-                .copied()
-                .fold(f64::NEG_INFINITY, f64::max),
+            DownsampleStrategy::Min => values.iter().copied().fold(f64::INFINITY, f64::min),
+            DownsampleStrategy::Max => values.iter().copied().fold(f64::NEG_INFINITY, f64::max),
             DownsampleStrategy::Last => *values.last().unwrap(),
             DownsampleStrategy::Median => {
                 let mut sorted = values.to_vec();
@@ -2841,14 +2872,12 @@ impl CorrelationAnalyzer {
     }
 
     pub fn strongest_correlation(&self) -> Option<&CorrelationResult> {
-        self.results
-            .iter()
-            .max_by(|a, b| {
-                a.pearson_r
-                    .abs()
-                    .partial_cmp(&b.pearson_r.abs())
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
+        self.results.iter().max_by(|a, b| {
+            a.pearson_r
+                .abs()
+                .partial_cmp(&b.pearson_r.abs())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
     }
 
     pub fn correlations_for(&self, metric: &str) -> Vec<&CorrelationResult> {
@@ -2964,8 +2993,7 @@ impl RlObservabilityEngine {
     pub fn run_correlation_analysis(&mut self) {
         self.correlation_analyzer.series.clear();
         for (name, series) in &self.metric_store {
-            self.correlation_analyzer
-                .add_series(name, series.values());
+            self.correlation_analyzer.add_series(name, series.values());
         }
         self.correlation_analyzer.compute_all();
     }
@@ -2991,14 +3019,20 @@ mod tests {
     fn test_drift_type_label() {
         assert_eq!(DriftType::MeanShift.label(), "Mean Shift");
         assert_eq!(DriftType::VarianceChange.label(), "Variance Change");
-        assert_eq!(DriftType::DistributionalShift.label(), "Distributional Shift");
+        assert_eq!(
+            DriftType::DistributionalShift.label(),
+            "Distributional Shift"
+        );
         assert_eq!(DriftType::TrendDrift.label(), "Trend Drift");
         assert_eq!(DriftType::SeasonalDrift.label(), "Seasonal Drift");
     }
 
     #[test]
     fn test_drift_type_severity_weight() {
-        assert!(DriftType::DistributionalShift.severity_weight() > DriftType::SeasonalDrift.severity_weight());
+        assert!(
+            DriftType::DistributionalShift.severity_weight()
+                > DriftType::SeasonalDrift.severity_weight()
+        );
         assert_eq!(DriftType::MeanShift.severity_weight(), 0.8);
     }
 
@@ -3028,16 +3062,28 @@ mod tests {
 
     #[test]
     fn test_alert_type_default_severity() {
-        assert_eq!(AlertType::SafetyBreach.default_severity(), AlertSeverity::Emergency);
-        assert_eq!(AlertType::RewardDrop.default_severity(), AlertSeverity::Critical);
-        assert_eq!(AlertType::CostOverrun.default_severity(), AlertSeverity::Info);
+        assert_eq!(
+            AlertType::SafetyBreach.default_severity(),
+            AlertSeverity::Emergency
+        );
+        assert_eq!(
+            AlertType::RewardDrop.default_severity(),
+            AlertSeverity::Critical
+        );
+        assert_eq!(
+            AlertType::CostOverrun.default_severity(),
+            AlertSeverity::Info
+        );
     }
 
     #[test]
     fn test_metric_kind_label() {
         assert_eq!(MetricKind::Reward.label(), "Reward");
         assert_eq!(MetricKind::GpuUtilization.label(), "GPU Utilization");
-        assert_eq!(MetricKind::Custom("MyMetric".to_string()).label(), "MyMetric");
+        assert_eq!(
+            MetricKind::Custom("MyMetric".to_string()).label(),
+            "MyMetric"
+        );
     }
 
     #[test]
@@ -3814,7 +3860,13 @@ mod tests {
     #[test]
     fn test_dashboard_add_heatmap() {
         let mut dp = DashboardProvider::new();
-        dp.add_heatmap("hm1", "Coverage", 2, 2, vec![vec![1.0, 2.0], vec![3.0, 4.0]]);
+        dp.add_heatmap(
+            "hm1",
+            "Coverage",
+            2,
+            2,
+            vec![vec![1.0, 2.0], vec![3.0, 4.0]],
+        );
         let w = dp.get_widget("hm1").unwrap();
         assert_eq!(w.kind, DashboardWidgetKind::Heatmap);
     }

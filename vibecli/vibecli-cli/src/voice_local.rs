@@ -63,11 +63,21 @@ impl WhisperModel {
     /// URL to download the GGML model file from Hugging Face.
     pub fn ggml_url(&self) -> &str {
         match self {
-            WhisperModel::Tiny   => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin",
-            WhisperModel::Base   => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
-            WhisperModel::Small  => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin",
-            WhisperModel::Medium => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin",
-            WhisperModel::Large  => "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin",
+            WhisperModel::Tiny => {
+                "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin"
+            }
+            WhisperModel::Base => {
+                "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin"
+            }
+            WhisperModel::Small => {
+                "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin"
+            }
+            WhisperModel::Medium => {
+                "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-medium.bin"
+            }
+            WhisperModel::Large => {
+                "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin"
+            }
         }
     }
 }
@@ -168,7 +178,11 @@ impl LocalVoiceEngine {
         if self.is_recording {
             return Err("Already recording".to_string());
         }
-        if self.model_path.is_none() && !self.downloaded_models.contains_key(self.config.model.name()) {
+        if self.model_path.is_none()
+            && !self
+                .downloaded_models
+                .contains_key(self.config.model.name())
+        {
             return Err("No model downloaded — call download_model first".to_string());
         }
         self.is_recording = true;
@@ -186,7 +200,11 @@ impl LocalVoiceEngine {
     }
 
     /// Transcribe an audio buffer (simulated).
-    pub fn transcribe_audio(&mut self, audio_samples: &[f32], duration_secs: f64) -> Result<TranscriptionResult, String> {
+    pub fn transcribe_audio(
+        &mut self,
+        audio_samples: &[f32],
+        duration_secs: f64,
+    ) -> Result<TranscriptionResult, String> {
         if audio_samples.is_empty() {
             return Err("Empty audio buffer".to_string());
         }
@@ -233,8 +251,7 @@ impl LocalVoiceEngine {
         let energy: f64 = if frame.is_empty() {
             0.0
         } else {
-            frame.iter().map(|s| (*s as f64) * (*s as f64)).sum::<f64>()
-                / frame.len() as f64
+            frame.iter().map(|s| (*s as f64) * (*s as f64)).sum::<f64>() / frame.len() as f64
         };
         let energy_level = energy.sqrt();
         VoiceActivity {
@@ -247,7 +264,8 @@ impl LocalVoiceEngine {
     /// Simulate downloading a model to a local path.
     pub fn download_model(&mut self, model: &WhisperModel) -> Result<String, String> {
         let path = format!("~/.vibecli/models/whisper-{}.bin", model.name());
-        self.downloaded_models.insert(model.name().to_string(), path.clone());
+        self.downloaded_models
+            .insert(model.name().to_string(), path.clone());
         if self.config.model == *model {
             self.model_path = Some(path.clone());
         }
@@ -273,7 +291,10 @@ impl LocalVoiceEngine {
 
     /// Get transcription history filtered by language.
     pub fn history_by_language(&self, lang: &str) -> Vec<&TranscriptionResult> {
-        self.transcriptions.iter().filter(|t| t.language == lang).collect()
+        self.transcriptions
+            .iter()
+            .filter(|t| t.language == lang)
+            .collect()
     }
 
     /// Clear all transcription history.
@@ -484,9 +505,15 @@ mod tests {
         engine.download_model(&WhisperModel::Base).unwrap();
         let list = engine.list_available_models();
         assert_eq!(list.len(), 5);
-        let base = list.iter().find(|(m, _, _)| m == &WhisperModel::Base).unwrap();
+        let base = list
+            .iter()
+            .find(|(m, _, _)| m == &WhisperModel::Base)
+            .unwrap();
         assert!(base.1); // downloaded
-        let tiny = list.iter().find(|(m, _, _)| m == &WhisperModel::Tiny).unwrap();
+        let tiny = list
+            .iter()
+            .find(|(m, _, _)| m == &WhisperModel::Tiny)
+            .unwrap();
         assert!(!tiny.1); // not downloaded
     }
 
@@ -561,7 +588,10 @@ mod tests {
         assert_eq!(WhisperModel::from_name("tiny"), Some(WhisperModel::Tiny));
         assert_eq!(WhisperModel::from_name("base"), Some(WhisperModel::Base));
         assert_eq!(WhisperModel::from_name("small"), Some(WhisperModel::Small));
-        assert_eq!(WhisperModel::from_name("MEDIUM"), Some(WhisperModel::Medium));
+        assert_eq!(
+            WhisperModel::from_name("MEDIUM"),
+            Some(WhisperModel::Medium)
+        );
         assert_eq!(WhisperModel::from_name("Large"), Some(WhisperModel::Large));
     }
 

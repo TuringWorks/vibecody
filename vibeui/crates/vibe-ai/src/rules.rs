@@ -80,12 +80,15 @@ impl RulesLoader {
         if hints_path.exists() {
             if let Ok(content) = std::fs::read_to_string(&hints_path) {
                 if !content.trim().is_empty() {
-                    rules.insert(0, Rule {
-                        name: "workspace-hints".to_string(),
-                        path_pattern: None,
-                        content: content.trim().to_string(),
-                        source: hints_path.clone(),
-                    });
+                    rules.insert(
+                        0,
+                        Rule {
+                            name: "workspace-hints".to_string(),
+                            path_pattern: None,
+                            content: content.trim().to_string(),
+                            source: hints_path.clone(),
+                        },
+                    );
                 }
             }
         }
@@ -99,9 +102,8 @@ impl RulesLoader {
                     if sub_hints.exists() {
                         if let Ok(content) = std::fs::read_to_string(&sub_hints) {
                             if !content.trim().is_empty() {
-                                let sub_name = sub.file_name()
-                                    .and_then(|n| n.to_str())
-                                    .unwrap_or("subdir");
+                                let sub_name =
+                                    sub.file_name().and_then(|n| n.to_str()).unwrap_or("subdir");
                                 let pattern = format!("{}/**", sub_name);
                                 rules.push(Rule {
                                     name: format!("hints-{}", sub_name),
@@ -186,7 +188,10 @@ impl RulesLoader {
             let after_open = stripped.trim_start_matches('\n');
             if let Some(close_pos) = after_open.find("\n---") {
                 let fm = &after_open[..close_pos];
-                let body = after_open[close_pos..].trim_start_matches("\n---").trim_start().to_string();
+                let body = after_open[close_pos..]
+                    .trim_start_matches("\n---")
+                    .trim_start()
+                    .to_string();
                 // Simple key: value front-matter parser (no serde_yaml needed)
                 let mut name: Option<String> = None;
                 let mut path_pattern: Option<String> = None;
@@ -291,10 +296,7 @@ mod tests {
         };
         assert!(!rule.matches_open_files(&["src/main.ts".into()]));
         assert!(rule.matches_open_files(&["src/main.rs".into()]));
-        assert!(rule.matches_open_files(&[
-            "src/main.ts".into(),
-            "lib/utils.rs".into(),
-        ]));
+        assert!(rule.matches_open_files(&["src/main.ts".into(), "lib/utils.rs".into(),]));
     }
 
     #[test]
@@ -349,7 +351,8 @@ mod tests {
         std::fs::write(
             dir.join("safety.md"),
             "---\nname: rust-safety\npath_pattern: \"**/*.rs\"\n---\nAvoid unwrap.\n",
-        ).unwrap();
+        )
+        .unwrap();
 
         let rules = RulesLoader::load(&dir);
         assert_eq!(rules.len(), 1);
@@ -365,10 +368,7 @@ mod tests {
         let dir = std::env::temp_dir().join("vibecody_rules_load_nofm");
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(
-            dir.join("general.md"),
-            "Always be kind.\n",
-        ).unwrap();
+        std::fs::write(dir.join("general.md"), "Always be kind.\n").unwrap();
 
         let rules = RulesLoader::load(&dir);
         assert_eq!(rules.len(), 1);
@@ -432,7 +432,8 @@ mod tests {
         std::fs::write(
             ws_rules.join("safety.md"),
             "---\nname: safety\n---\nWorkspace safety rule.\n",
-        ).unwrap();
+        )
+        .unwrap();
 
         // load_for_workspace loads from workspace first
         let rules = RulesLoader::load_for_workspace(&dir);
@@ -455,7 +456,8 @@ mod tests {
         std::fs::write(
             steer_dir.join("arch.md"),
             "---\nname: architecture\npath_pattern: \"**/*.rs\"\n---\nThis is a Rust monorepo.\n",
-        ).unwrap();
+        )
+        .unwrap();
 
         let rules = RulesLoader::load_steering(&dir);
         assert_eq!(rules.len(), 1);

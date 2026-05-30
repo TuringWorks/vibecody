@@ -26,7 +26,9 @@ fn main() {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use vibe_infer::{minilm::MiniLmEmbedder, Embedder};
 
-    let text = std::env::args().nth(1).unwrap_or_else(|| "hello world".to_string());
+    let text = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "hello world".to_string());
 
     eprintln!("loading sentence-transformers/all-MiniLM-L6-v2 …");
     let t0 = std::time::Instant::now();

@@ -385,7 +385,9 @@ impl SpecPipeline {
 
     pub fn init_spec(&mut self) -> Result<(), SpecError> {
         if self.initialized {
-            return Err(SpecError::InitError("pipeline already initialized".to_string()));
+            return Err(SpecError::InitError(
+                "pipeline already initialized".to_string(),
+            ));
         }
         self.initialized = true;
         Ok(())
@@ -437,10 +439,11 @@ impl SpecPipeline {
 
     pub fn parse_ears(&self, text: &str) -> Result<EarsRequirement, SpecError> {
         let trimmed = text.trim();
-        let pattern = Self::detect_ears_pattern(trimmed)
-            .ok_or_else(|| SpecError::InvalidEarsFormat(
+        let pattern = Self::detect_ears_pattern(trimmed).ok_or_else(|| {
+            SpecError::InvalidEarsFormat(
                 "text does not match any EARS pattern (must contain ' shall ')".to_string(),
-            ))?;
+            )
+        })?;
 
         let (system, action, trigger, condition, feature) = match &pattern {
             EarsPattern::Ubiquitous => {
@@ -500,13 +503,15 @@ impl SpecPipeline {
             SpecError::InvalidEarsFormat("missing 'the [system]' clause".to_string())
         })?;
         let after_the = &text[the_idx + 4..];
-        let shall_idx = after_the.find(" shall ").ok_or_else(|| {
-            SpecError::InvalidEarsFormat("missing ' shall ' keyword".to_string())
-        })?;
+        let shall_idx = after_the
+            .find(" shall ")
+            .ok_or_else(|| SpecError::InvalidEarsFormat("missing ' shall ' keyword".to_string()))?;
         let system = after_the[..shall_idx].trim().to_string();
         let action = after_the[shall_idx + 7..].trim().to_string();
         if system.is_empty() {
-            return Err(SpecError::InvalidEarsFormat("empty system name".to_string()));
+            return Err(SpecError::InvalidEarsFormat(
+                "empty system name".to_string(),
+            ));
         }
         if action.is_empty() {
             return Err(SpecError::InvalidEarsFormat("empty action".to_string()));
@@ -514,14 +519,22 @@ impl SpecPipeline {
         Ok((system, action))
     }
 
-    fn extract_prefix_clause(text: &str, prefix: &str, separator: &str) -> Result<String, SpecError> {
+    fn extract_prefix_clause(
+        text: &str,
+        prefix: &str,
+        separator: &str,
+    ) -> Result<String, SpecError> {
         let start = prefix.len();
         let sep_idx = text.find(separator).ok_or_else(|| {
-            SpecError::InvalidEarsFormat(format!("missing separator '{separator}' after prefix '{prefix}'"))
+            SpecError::InvalidEarsFormat(format!(
+                "missing separator '{separator}' after prefix '{prefix}'"
+            ))
         })?;
         let clause = text[start..sep_idx].trim().to_string();
         if clause.is_empty() {
-            return Err(SpecError::InvalidEarsFormat("empty prefix clause".to_string()));
+            return Err(SpecError::InvalidEarsFormat(
+                "empty prefix clause".to_string(),
+            ));
         }
         Ok(clause)
     }
@@ -584,7 +597,9 @@ impl SpecPipeline {
     }
 
     pub fn update_task_status(&mut self, id: &str, status: TaskStatus) -> Result<(), SpecError> {
-        let task = self.tasks.get_mut(id)
+        let task = self
+            .tasks
+            .get_mut(id)
             .ok_or_else(|| SpecError::TaskNotFound(id.to_string()))?;
         task.status = status;
         Ok(())
@@ -614,11 +629,7 @@ impl SpecPipeline {
         Ok(())
     }
 
-    pub fn link_design_to_task(
-        &mut self,
-        design_id: &str,
-        task_id: &str,
-    ) -> Result<(), SpecError> {
+    pub fn link_design_to_task(&mut self, design_id: &str, task_id: &str) -> Result<(), SpecError> {
         if !self.designs.contains_key(design_id) {
             return Err(SpecError::DesignNotFound(design_id.to_string()));
         }
@@ -807,7 +818,10 @@ impl SpecPipeline {
         reqs.sort_by(|a, b| a.id.cmp(&b.id));
 
         for req in reqs {
-            md.push_str(&format!("## {} [{}] [{}]\n\n", req.id, req.priority, req.status));
+            md.push_str(&format!(
+                "## {} [{}] [{}]\n\n",
+                req.id, req.priority, req.status
+            ));
             md.push_str(&format!("**Pattern:** {}\n\n", req.pattern));
             md.push_str(&format!("> {}\n\n", req.text));
             md.push_str(&format!("- **System:** {}\n", req.system));
@@ -822,7 +836,10 @@ impl SpecPipeline {
                 md.push_str(&format!("- **Feature:** {feature}\n"));
             }
             if !req.linked_design_ids.is_empty() {
-                md.push_str(&format!("- **Designs:** {}\n", req.linked_design_ids.join(", ")));
+                md.push_str(&format!(
+                    "- **Designs:** {}\n",
+                    req.linked_design_ids.join(", ")
+                ));
             }
             md.push('\n');
         }
@@ -835,7 +852,10 @@ impl SpecPipeline {
         designs.sort_by(|a, b| a.id.cmp(&b.id));
 
         for design in designs {
-            md.push_str(&format!("## {} — {} [{}]\n\n", design.id, design.title, design.status));
+            md.push_str(&format!(
+                "## {} — {} [{}]\n\n",
+                design.id, design.title, design.status
+            ));
             md.push_str(&format!("{}\n\n", design.description));
             md.push_str(&format!("**Component:** {}\n\n", design.component));
             md.push_str(&format!("**Rationale:** {}\n\n", design.rationale));
@@ -849,7 +869,10 @@ impl SpecPipeline {
             if !design.interfaces.is_empty() {
                 md.push_str("**Interfaces:**\n");
                 for iface in &design.interfaces {
-                    md.push_str(&format!("- {} ({}) — {}\n", iface.name, iface.interface_type, iface.description));
+                    md.push_str(&format!(
+                        "- {} ({}) — {}\n",
+                        iface.name, iface.interface_type, iface.description
+                    ));
                 }
                 md.push('\n');
             }
@@ -869,7 +892,11 @@ impl SpecPipeline {
         tasks.sort_by_key(|t| t.order);
 
         for task in tasks {
-            let check = if task.status == TaskStatus::Done { "x" } else { " " };
+            let check = if task.status == TaskStatus::Done {
+                "x"
+            } else {
+                " "
+            };
             md.push_str(&format!(
                 "- [{}] **{}** — {} [{}] [{}]\n",
                 check, task.id, task.title, task.effort, task.status
@@ -956,25 +983,33 @@ mod tests {
 
     #[test]
     fn test_detect_event_driven_pattern() {
-        let result = SpecPipeline::detect_ears_pattern("When a user logs in, the system shall send a welcome email");
+        let result = SpecPipeline::detect_ears_pattern(
+            "When a user logs in, the system shall send a welcome email",
+        );
         assert_eq!(result, Some(EarsPattern::EventDriven));
     }
 
     #[test]
     fn test_detect_unwanted_behavior_pattern() {
-        let result = SpecPipeline::detect_ears_pattern("If the connection is lost, then the system shall retry");
+        let result = SpecPipeline::detect_ears_pattern(
+            "If the connection is lost, then the system shall retry",
+        );
         assert_eq!(result, Some(EarsPattern::UnwantedBehavior));
     }
 
     #[test]
     fn test_detect_state_driven_pattern() {
-        let result = SpecPipeline::detect_ears_pattern("While the system is in maintenance mode, the system shall reject requests");
+        let result = SpecPipeline::detect_ears_pattern(
+            "While the system is in maintenance mode, the system shall reject requests",
+        );
         assert_eq!(result, Some(EarsPattern::StateDriven));
     }
 
     #[test]
     fn test_detect_optional_pattern() {
-        let result = SpecPipeline::detect_ears_pattern("Where premium features are enabled, the system shall show analytics");
+        let result = SpecPipeline::detect_ears_pattern(
+            "Where premium features are enabled, the system shall show analytics",
+        );
         assert_eq!(result, Some(EarsPattern::Optional));
     }
 
@@ -989,7 +1024,9 @@ mod tests {
     #[test]
     fn test_parse_ubiquitous() {
         let pipeline = make_pipeline();
-        let req = pipeline.parse_ears("The editor shall highlight syntax errors").unwrap();
+        let req = pipeline
+            .parse_ears("The editor shall highlight syntax errors")
+            .unwrap();
         assert_eq!(req.pattern, EarsPattern::Ubiquitous);
         assert_eq!(req.system, "editor");
         assert_eq!(req.action, "highlight syntax errors");
@@ -1066,7 +1103,9 @@ mod tests {
     #[test]
     fn test_add_requirement() {
         let mut pipeline = make_pipeline();
-        let id = pipeline.add_requirement(make_requirement("test req")).unwrap();
+        let id = pipeline
+            .add_requirement(make_requirement("test req"))
+            .unwrap();
         assert_eq!(id, "REQ-001");
         assert!(pipeline.get_requirement("REQ-001").is_ok());
     }
@@ -1075,7 +1114,9 @@ mod tests {
     fn test_add_multiple_requirements_auto_increment() {
         let mut pipeline = make_pipeline();
         let id1 = pipeline.add_requirement(make_requirement("first")).unwrap();
-        let id2 = pipeline.add_requirement(make_requirement("second")).unwrap();
+        let id2 = pipeline
+            .add_requirement(make_requirement("second"))
+            .unwrap();
         let id3 = pipeline.add_requirement(make_requirement("third")).unwrap();
         assert_eq!(id1, "REQ-001");
         assert_eq!(id2, "REQ-002");
@@ -1137,7 +1178,10 @@ mod tests {
     #[test]
     fn test_get_nonexistent_design() {
         let pipeline = make_pipeline();
-        assert!(matches!(pipeline.get_design("DES-999"), Err(SpecError::DesignNotFound(_))));
+        assert!(matches!(
+            pipeline.get_design("DES-999"),
+            Err(SpecError::DesignNotFound(_))
+        ));
     }
 
     // --- Task CRUD ---
@@ -1174,15 +1218,23 @@ mod tests {
     #[test]
     fn test_get_nonexistent_task() {
         let pipeline = make_pipeline();
-        assert!(matches!(pipeline.get_task("TASK-999"), Err(SpecError::TaskNotFound(_))));
+        assert!(matches!(
+            pipeline.get_task("TASK-999"),
+            Err(SpecError::TaskNotFound(_))
+        ));
     }
 
     #[test]
     fn test_update_task_status() {
         let mut pipeline = make_pipeline();
         pipeline.add_task(make_task("work", 1)).unwrap();
-        pipeline.update_task_status("TASK-001", TaskStatus::InProgress).unwrap();
-        assert_eq!(pipeline.get_task("TASK-001").unwrap().status, TaskStatus::InProgress);
+        pipeline
+            .update_task_status("TASK-001", TaskStatus::InProgress)
+            .unwrap();
+        assert_eq!(
+            pipeline.get_task("TASK-001").unwrap().status,
+            TaskStatus::InProgress
+        );
     }
 
     #[test]
@@ -1199,13 +1251,17 @@ mod tests {
         let mut pipeline = make_pipeline();
         pipeline.add_requirement(make_requirement("req")).unwrap();
         pipeline.add_design(make_design("design")).unwrap();
-        pipeline.link_requirement_to_design("REQ-001", "DES-001").unwrap();
+        pipeline
+            .link_requirement_to_design("REQ-001", "DES-001")
+            .unwrap();
 
         let req = pipeline.get_requirement("REQ-001").unwrap();
         assert!(req.linked_design_ids.contains(&"DES-001".to_string()));
 
         let design = pipeline.get_design("DES-001").unwrap();
-        assert!(design.linked_requirement_ids.contains(&"REQ-001".to_string()));
+        assert!(design
+            .linked_requirement_ids
+            .contains(&"REQ-001".to_string()));
     }
 
     #[test]
@@ -1227,8 +1283,12 @@ mod tests {
         let mut pipeline = make_pipeline();
         pipeline.add_requirement(make_requirement("req")).unwrap();
         pipeline.add_design(make_design("design")).unwrap();
-        pipeline.link_requirement_to_design("REQ-001", "DES-001").unwrap();
-        pipeline.link_requirement_to_design("REQ-001", "DES-001").unwrap();
+        pipeline
+            .link_requirement_to_design("REQ-001", "DES-001")
+            .unwrap();
+        pipeline
+            .link_requirement_to_design("REQ-001", "DES-001")
+            .unwrap();
 
         let req = pipeline.get_requirement("REQ-001").unwrap();
         assert_eq!(req.linked_design_ids.len(), 1);
@@ -1271,10 +1331,15 @@ mod tests {
     #[test]
     fn test_validate_orphaned_requirement() {
         let mut pipeline = make_pipeline();
-        pipeline.add_requirement(make_requirement("orphan")).unwrap();
+        pipeline
+            .add_requirement(make_requirement("orphan"))
+            .unwrap();
         let validation = pipeline.validate();
         assert!(!validation.is_valid);
-        assert!(validation.errors.iter().any(|e| e.error_type == ValidationErrorType::OrphanedRequirement));
+        assert!(validation
+            .errors
+            .iter()
+            .any(|e| e.error_type == ValidationErrorType::OrphanedRequirement));
     }
 
     #[test]
@@ -1283,7 +1348,10 @@ mod tests {
         pipeline.add_design(make_design("orphan design")).unwrap();
         let validation = pipeline.validate();
         assert!(!validation.is_valid);
-        assert!(validation.errors.iter().any(|e| e.error_type == ValidationErrorType::OrphanedDesign));
+        assert!(validation
+            .errors
+            .iter()
+            .any(|e| e.error_type == ValidationErrorType::OrphanedDesign));
     }
 
     #[test]
@@ -1292,7 +1360,10 @@ mod tests {
         pipeline.add_task(make_task("orphan task", 1)).unwrap();
         let validation = pipeline.validate();
         assert!(!validation.is_valid);
-        assert!(validation.errors.iter().any(|e| e.error_type == ValidationErrorType::OrphanedTask));
+        assert!(validation
+            .errors
+            .iter()
+            .any(|e| e.error_type == ValidationErrorType::OrphanedTask));
     }
 
     #[test]
@@ -1308,7 +1379,10 @@ mod tests {
         pipeline.add_task(t2).unwrap();
 
         let validation = pipeline.validate();
-        assert!(validation.errors.iter().any(|e| e.error_type == ValidationErrorType::CircularDependency));
+        assert!(validation
+            .errors
+            .iter()
+            .any(|e| e.error_type == ValidationErrorType::CircularDependency));
     }
 
     #[test]
@@ -1319,7 +1393,10 @@ mod tests {
         pipeline.add_task(task).unwrap();
 
         let validation = pipeline.validate();
-        assert!(validation.errors.iter().any(|e| e.error_type == ValidationErrorType::MissingLink));
+        assert!(validation
+            .errors
+            .iter()
+            .any(|e| e.error_type == ValidationErrorType::MissingLink));
     }
 
     #[test]
@@ -1328,7 +1405,9 @@ mod tests {
         pipeline.add_requirement(make_requirement("req")).unwrap();
         pipeline.add_design(make_design("design")).unwrap();
         pipeline.add_task(make_task("task", 1)).unwrap();
-        pipeline.link_requirement_to_design("REQ-001", "DES-001").unwrap();
+        pipeline
+            .link_requirement_to_design("REQ-001", "DES-001")
+            .unwrap();
         pipeline.link_design_to_task("DES-001", "TASK-001").unwrap();
 
         let validation = pipeline.validate();
@@ -1349,10 +1428,16 @@ mod tests {
     #[test]
     fn test_coverage_partial() {
         let mut pipeline = make_pipeline();
-        pipeline.add_requirement(make_requirement("linked")).unwrap();
-        pipeline.add_requirement(make_requirement("unlinked")).unwrap();
+        pipeline
+            .add_requirement(make_requirement("linked"))
+            .unwrap();
+        pipeline
+            .add_requirement(make_requirement("unlinked"))
+            .unwrap();
         pipeline.add_design(make_design("design")).unwrap();
-        pipeline.link_requirement_to_design("REQ-001", "DES-001").unwrap();
+        pipeline
+            .link_requirement_to_design("REQ-001", "DES-001")
+            .unwrap();
 
         let coverage = pipeline.calculate_coverage();
         assert_eq!(coverage.requirements_with_design, 1);
@@ -1364,7 +1449,9 @@ mod tests {
         let mut pipeline = make_pipeline();
         pipeline.add_task(make_task("done", 1)).unwrap();
         pipeline.add_task(make_task("todo", 2)).unwrap();
-        pipeline.update_task_status("TASK-001", TaskStatus::Done).unwrap();
+        pipeline
+            .update_task_status("TASK-001", TaskStatus::Done)
+            .unwrap();
 
         let coverage = pipeline.calculate_coverage();
         assert_eq!(coverage.tasks_completed, 1);
@@ -1409,7 +1496,9 @@ mod tests {
         t2.dependencies = vec!["TASK-001".to_string()];
         pipeline.add_task(t1).unwrap();
         pipeline.add_task(t2).unwrap();
-        pipeline.update_task_status("TASK-001", TaskStatus::Done).unwrap();
+        pipeline
+            .update_task_status("TASK-001", TaskStatus::Done)
+            .unwrap();
 
         let next = pipeline.get_next_tasks();
         assert_eq!(next.len(), 1);
@@ -1420,7 +1509,9 @@ mod tests {
     fn test_get_next_tasks_excludes_non_todo() {
         let mut pipeline = make_pipeline();
         pipeline.add_task(make_task("in progress", 1)).unwrap();
-        pipeline.update_task_status("TASK-001", TaskStatus::InProgress).unwrap();
+        pipeline
+            .update_task_status("TASK-001", TaskStatus::InProgress)
+            .unwrap();
 
         let next = pipeline.get_next_tasks();
         assert!(next.is_empty());
@@ -1431,7 +1522,9 @@ mod tests {
     #[test]
     fn test_generate_requirements_md() {
         let mut pipeline = make_pipeline();
-        pipeline.add_requirement(make_requirement("The system shall do X")).unwrap();
+        pipeline
+            .add_requirement(make_requirement("The system shall do X"))
+            .unwrap();
         let md = pipeline.generate_requirements_md();
         assert!(md.contains("# Requirements"));
         assert!(md.contains("REQ-001"));
@@ -1462,7 +1555,9 @@ mod tests {
     fn test_generate_tasks_md_done_checkbox() {
         let mut pipeline = make_pipeline();
         pipeline.add_task(make_task("Done task", 1)).unwrap();
-        pipeline.update_task_status("TASK-001", TaskStatus::Done).unwrap();
+        pipeline
+            .update_task_status("TASK-001", TaskStatus::Done)
+            .unwrap();
         let md = pipeline.generate_tasks_md();
         assert!(md.contains("[x]"));
     }
@@ -1509,7 +1604,9 @@ mod tests {
         pipeline.add_requirement(make_requirement("req")).unwrap();
         pipeline.add_design(make_design("design")).unwrap();
         pipeline.add_task(make_task("task", 1)).unwrap();
-        pipeline.update_task_status("TASK-001", TaskStatus::Done).unwrap();
+        pipeline
+            .update_task_status("TASK-001", TaskStatus::Done)
+            .unwrap();
         let summary = pipeline.get_summary();
         assert_eq!(summary.phase, PipelinePhase::Verification);
     }
@@ -1599,8 +1696,12 @@ mod tests {
         let des_id = pipeline.add_design(design).unwrap();
 
         // Link requirements to design
-        pipeline.link_requirement_to_design(&req_id1, &des_id).unwrap();
-        pipeline.link_requirement_to_design(&req_id2, &des_id).unwrap();
+        pipeline
+            .link_requirement_to_design(&req_id1, &des_id)
+            .unwrap();
+        pipeline
+            .link_requirement_to_design(&req_id2, &des_id)
+            .unwrap();
 
         // Add tasks
         let mut t1 = make_task("Implement JWT verification", 1);
@@ -1626,13 +1727,17 @@ mod tests {
         assert_eq!(next[0].id, task_id1);
 
         // Complete task1, check task2 is now available
-        pipeline.update_task_status(&task_id1, TaskStatus::Done).unwrap();
+        pipeline
+            .update_task_status(&task_id1, TaskStatus::Done)
+            .unwrap();
         let next = pipeline.get_next_tasks();
         assert_eq!(next.len(), 1);
         assert_eq!(next[0].id, task_id2);
 
         // Complete task2, check summary
-        pipeline.update_task_status(&task_id2, TaskStatus::Done).unwrap();
+        pipeline
+            .update_task_status(&task_id2, TaskStatus::Done)
+            .unwrap();
         let summary = pipeline.get_summary();
         assert_eq!(summary.phase, PipelinePhase::Verification);
         assert_eq!(summary.total_requirements, 2);

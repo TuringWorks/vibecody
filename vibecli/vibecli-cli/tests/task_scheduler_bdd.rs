@@ -18,7 +18,9 @@ pub struct TsWorld {
 
 // ── Given ─────────────────────────────────────────────────────────────────────
 
-#[given(expr = "a scheduler with an interval task {string} every {int} seconds starting at time {int}")]
+#[given(
+    expr = "a scheduler with an interval task {string} every {int} seconds starting at time {int}"
+)]
 fn interval_task(world: &mut TsWorld, id: String, secs: u64, now: u64) {
     let task = CronTask::new(id.clone(), id, "run", Schedule::Interval { secs }, now);
     world.scheduler.add(task);
@@ -33,8 +35,12 @@ fn once_task(world: &mut TsWorld, id: String, at: u64, now: u64) {
 #[given(expr = "a priority scheduler with a Low task {string} and a High task {string}")]
 fn two_priority_tasks(world: &mut TsWorld, low: String, high: String) {
     world.priority_scheduler = TaskScheduler::new();
-    world.priority_scheduler.push(ScheduledTask::new(low, "low", TaskPriority::Low));
-    world.priority_scheduler.push(ScheduledTask::new(high, "high", TaskPriority::High));
+    world
+        .priority_scheduler
+        .push(ScheduledTask::new(low, "low", TaskPriority::Low));
+    world
+        .priority_scheduler
+        .push(ScheduledTask::new(high, "high", TaskPriority::High));
 }
 
 // ── When ──────────────────────────────────────────────────────────────────────
@@ -46,7 +52,12 @@ fn tick_at(world: &mut TsWorld, now: u64) {
 
 #[when(expr = "I check due tasks at time {int}")]
 fn check_due(world: &mut TsWorld, now: u64) {
-    world.due_ids = world.scheduler.due_tasks(now).iter().map(|t| t.id.clone()).collect();
+    world.due_ids = world
+        .scheduler
+        .due_tasks(now)
+        .iter()
+        .map(|t| t.id.clone())
+        .collect();
 }
 
 #[when(expr = "I remove task {string}")]
@@ -63,22 +74,40 @@ fn pop_priority(world: &mut TsWorld, now: u64) {
 
 #[then(expr = "the ticked ids should include {string}")]
 fn assert_ticked(world: &mut TsWorld, id: String) {
-    assert!(world.ticked_ids.contains(&id), "expected {:?} in ticked: {:?}", id, world.ticked_ids);
+    assert!(
+        world.ticked_ids.contains(&id),
+        "expected {:?} in ticked: {:?}",
+        id,
+        world.ticked_ids
+    );
 }
 
 #[then("no tasks should be due")]
 fn assert_none_due(world: &mut TsWorld) {
-    assert!(world.due_ids.is_empty(), "expected no due tasks, got: {:?}", world.due_ids);
+    assert!(
+        world.due_ids.is_empty(),
+        "expected no due tasks, got: {:?}",
+        world.due_ids
+    );
 }
 
 #[then(expr = "the due task should be {string}")]
 fn assert_due_task(world: &mut TsWorld, id: String) {
-    assert!(world.due_ids.contains(&id), "expected {:?} in due: {:?}", id, world.due_ids);
+    assert!(
+        world.due_ids.contains(&id),
+        "expected {:?} in due: {:?}",
+        id,
+        world.due_ids
+    );
 }
 
 #[then(expr = "the scheduler should have {int} tasks")]
 fn assert_task_count(world: &mut TsWorld, expected: usize) {
-    assert_eq!(world.scheduler.task_count(), expected, "task count mismatch");
+    assert_eq!(
+        world.scheduler.task_count(),
+        expected,
+        "task count mismatch"
+    );
 }
 
 #[then(expr = "the popped task id should be {string}")]

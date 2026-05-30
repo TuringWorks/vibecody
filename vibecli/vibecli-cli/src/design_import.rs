@@ -172,11 +172,21 @@ pub struct Spacing {
 
 impl Spacing {
     pub fn new(top: f32, right: f32, bottom: f32, left: f32) -> Self {
-        Self { top, right, bottom, left }
+        Self {
+            top,
+            right,
+            bottom,
+            left,
+        }
     }
 
     pub fn uniform(value: f32) -> Self {
-        Self { top: value, right: value, bottom: value, left: value }
+        Self {
+            top: value,
+            right: value,
+            bottom: value,
+            left: value,
+        }
     }
 }
 
@@ -373,11 +383,13 @@ impl DesignImporter {
             )));
         }
         // The file key may have query params attached if there is no title segment
-        let file_key = segments[1].split('?').next().unwrap_or(segments[1]).to_string();
+        let file_key = segments[1]
+            .split('?')
+            .next()
+            .unwrap_or(segments[1])
+            .to_string();
         if file_key.is_empty() {
-            return Err(ImportError::InvalidUrl(
-                "file key is empty".to_string(),
-            ));
+            return Err(ImportError::InvalidUrl("file key is empty".to_string()));
         }
 
         // Extract node-id from query string (optional)
@@ -387,8 +399,7 @@ impl DesignImporter {
                 .split('&')
                 .find_map(|pair| {
                     let (key, val) = pair.split_once('=')?;
-                    
-                    
+
                     if key == "node-id" {
                         Some(val.to_string())
                     } else {
@@ -482,9 +493,7 @@ impl DesignImporter {
             FrameworkTarget::React => Self::generate_react_component(comp),
             FrameworkTarget::Vue => Self::generate_vue_component(comp),
             FrameworkTarget::Svelte => Self::generate_svelte_component(comp),
-            FrameworkTarget::Angular | FrameworkTarget::Html => {
-                Self::generate_html_component(comp)
-            }
+            FrameworkTarget::Angular | FrameworkTarget::Html => Self::generate_html_component(comp),
         }
     }
 
@@ -527,7 +536,11 @@ impl DesignImporter {
         code.push_str("</template>\n\n");
         code.push_str("<script setup lang=\"ts\">\n");
         for prop in &comp.props {
-            let required = if prop.required { "required: true" } else { "required: false" };
+            let required = if prop.required {
+                "required: true"
+            } else {
+                "required: false"
+            };
             code.push_str(&format!(
                 "defineProps<{{ {}: {} }}>()\n",
                 prop.name, prop.prop_type
@@ -558,7 +571,10 @@ impl DesignImporter {
                 .as_deref()
                 .map(|v| format!(" = '{}'", v))
                 .unwrap_or_default();
-            code.push_str(&format!("  export let {}: {}{};\n", prop.name, prop.prop_type, default));
+            code.push_str(&format!(
+                "  export let {}: {}{};\n",
+                prop.name, prop.prop_type, default
+            ));
         }
         code.push_str("</script>\n\n");
         code.push_str(&comp.html_structure);
@@ -582,7 +598,10 @@ impl DesignImporter {
         code.push_str("<!DOCTYPE html>\n<html>\n<head>\n");
         code.push_str(&format!("  <title>{}</title>\n", comp.name));
         code.push_str("  <style>\n");
-        code.push_str(&format!("    .{} {{\n      {}\n    }}\n", comp.name, comp.css_styles));
+        code.push_str(&format!(
+            "    .{} {{\n      {}\n    }}\n",
+            comp.name, comp.css_styles
+        ));
         code.push_str("  </style>\n");
         code.push_str("</head>\n<body>\n");
         code.push_str(&format!("  {}\n", comp.html_structure));
@@ -674,9 +693,10 @@ impl DesignImporter {
         }
         // Bare 6- or 8-char hex without #
         if (trimmed.len() == 6 || trimmed.len() == 8)
-            && trimmed.chars().all(|c| c.is_ascii_hexdigit()) {
-                return format!("#{}", trimmed.to_lowercase());
-            }
+            && trimmed.chars().all(|c| c.is_ascii_hexdigit())
+        {
+            return format!("#{}", trimmed.to_lowercase());
+        }
         // Named CSS color — pass through
         trimmed.to_lowercase()
     }
@@ -693,7 +713,9 @@ impl DesignImporter {
         let mut components: Vec<ExtractedComponent> = Vec::new();
 
         // Lightweight parser: extract top-level <g>, <rect>, <circle>, <text>, <path> elements
-        let tag_names = ["g", "rect", "circle", "text", "path", "ellipse", "line", "polygon"];
+        let tag_names = [
+            "g", "rect", "circle", "text", "path", "ellipse", "line", "polygon",
+        ];
         for tag in &tag_names {
             let open = format!("<{}", tag);
             let mut search_start = 0;
@@ -906,9 +928,10 @@ mod tests {
 
     #[test]
     fn test_parse_figma_url_valid_file() {
-        let (key, node) =
-            DesignImporter::parse_figma_url("https://www.figma.com/file/abc123/MyDesign?node-id=1-2")
-                .unwrap();
+        let (key, node) = DesignImporter::parse_figma_url(
+            "https://www.figma.com/file/abc123/MyDesign?node-id=1-2",
+        )
+        .unwrap();
         assert_eq!(key, "abc123");
         assert_eq!(node, "1-2");
     }
@@ -916,8 +939,7 @@ mod tests {
     #[test]
     fn test_parse_figma_url_valid_design() {
         let (key, node) =
-            DesignImporter::parse_figma_url("https://www.figma.com/design/xyz789/Title")
-                .unwrap();
+            DesignImporter::parse_figma_url("https://www.figma.com/design/xyz789/Title").unwrap();
         assert_eq!(key, "xyz789");
         assert!(node.is_empty());
     }
@@ -940,8 +962,7 @@ mod tests {
 
     #[test]
     fn test_parse_figma_url_invalid_no_key() {
-        let err =
-            DesignImporter::parse_figma_url("https://www.figma.com/file/").unwrap_err();
+        let err = DesignImporter::parse_figma_url("https://www.figma.com/file/").unwrap_err();
         assert!(matches!(err, ImportError::InvalidUrl(_)));
     }
 
@@ -1031,8 +1052,12 @@ mod tests {
     #[test]
     fn test_node_to_component_with_children() {
         let mut parent = make_node("Container", FigmaNodeType::Frame);
-        parent.children.push(make_node("Child1", FigmaNodeType::Rectangle));
-        parent.children.push(make_node("Child2", FigmaNodeType::Text));
+        parent
+            .children
+            .push(make_node("Child1", FigmaNodeType::Rectangle));
+        parent
+            .children
+            .push(make_node("Child2", FigmaNodeType::Text));
         let comp = DesignImporter::node_to_component(&parent);
         assert_eq!(comp.children_slots.len(), 2);
         assert!(comp.html_structure.contains("Child1"));
@@ -1258,8 +1283,12 @@ mod tests {
     #[test]
     fn test_estimate_complexity_nested() {
         let mut parent = make_node("Parent", FigmaNodeType::Frame);
-        parent.children.push(make_node("Child1", FigmaNodeType::Text));
-        parent.children.push(make_node("Child2", FigmaNodeType::Rectangle));
+        parent
+            .children
+            .push(make_node("Child1", FigmaNodeType::Text));
+        parent
+            .children
+            .push(make_node("Child2", FigmaNodeType::Rectangle));
         let frame = make_frame("Nested", vec![parent]);
         // 1 parent + 2 children = 3
         assert_eq!(DesignImporter::estimate_complexity(&frame), 3);
@@ -1316,7 +1345,10 @@ mod tests {
 
     #[test]
     fn test_css_strategy_display() {
-        assert_eq!(format!("{}", CssStrategy::StyledComponents), "styled-components");
+        assert_eq!(
+            format!("{}", CssStrategy::StyledComponents),
+            "styled-components"
+        );
     }
 
     #[test]

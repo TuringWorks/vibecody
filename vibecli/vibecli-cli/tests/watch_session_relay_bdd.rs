@@ -2,10 +2,10 @@
  * BDD tests for watch_session_relay — compact Watch payloads and replay prevention.
  * Run with: cargo test --test watch_session_relay_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::watch_session_relay::{
-    to_watch_event_json, to_watch_message, to_watch_summary,
-    truncate, MessageRowView, NonceRegistry, SessionRowView,
+    to_watch_event_json, to_watch_message, to_watch_summary, truncate, MessageRowView,
+    NonceRegistry, SessionRowView,
 };
 
 // ── World ─────────────────────────────────────────────────────────────────────
@@ -139,7 +139,11 @@ fn when_convert_event(world: &mut RelayWorld) {
 #[when(expr = "I record nonce {string}")]
 fn when_record_nonce(world: &mut RelayWorld, nonce: String) {
     let ts = world.current_ts;
-    let result = world.nonce_reg.as_ref().unwrap().check_and_record(&nonce, ts);
+    let result = world
+        .nonce_reg
+        .as_ref()
+        .unwrap()
+        .check_and_record(&nonce, ts);
     world.record_error = result.err().map(|e| e.to_string());
     world.last_nonce = nonce;
 }
@@ -156,7 +160,10 @@ fn when_record_three_nonces(world: &mut RelayWorld, n1: String, n2: String, n3: 
 #[when("I record a nonce with a timestamp 60 seconds in the past")]
 fn when_record_stale_nonce(world: &mut RelayWorld) {
     let stale_ts = now_unix().saturating_sub(60);
-    let result = world.nonce_reg.as_ref().unwrap()
+    let result = world
+        .nonce_reg
+        .as_ref()
+        .unwrap()
         .check_and_record("stale-nonce", stale_ts);
     world.record_error = result.err().map(|e| e.to_string());
 }
@@ -172,9 +179,16 @@ fn when_compute_summary(world: &mut RelayWorld) {
         step_count: 2,
         started_at: 1_700_000_000,
     };
-    let msg_views: Vec<MessageRowView<'_>> = world.messages.iter().map(|(role, content, ts)| {
-        MessageRowView { id: 0, role, content, created_at: *ts }
-    }).collect();
+    let msg_views: Vec<MessageRowView<'_>> = world
+        .messages
+        .iter()
+        .map(|(role, content, ts)| MessageRowView {
+            id: 0,
+            role,
+            content,
+            created_at: *ts,
+        })
+        .collect();
     let summary = to_watch_summary(&session, &msg_views);
     world.message_preview = summary.last_message_preview;
     world.message_count = summary.message_count;
@@ -207,8 +221,12 @@ fn then_result_length(world: &mut RelayWorld, len: u32) {
 #[then(expr = "the result should end with {string}")]
 fn then_result_ends_with(world: &mut RelayWorld, suffix: String) {
     let c = suffix.chars().next().unwrap();
-    assert!(world.truncated.ends_with(c),
-        "expected to end with '{}', got: {}", suffix, world.truncated);
+    assert!(
+        world.truncated.ends_with(c),
+        "expected to end with '{}', got: {}",
+        suffix,
+        world.truncated
+    );
 }
 
 #[then(expr = "the event kind should be {string}")]
@@ -239,8 +257,11 @@ fn then_event_status(world: &mut RelayWorld, expected: String) {
 #[then(expr = "the event error should be at most {int} characters")]
 fn then_event_error_max_len(world: &mut RelayWorld, max: u32) {
     let err = world.event_error.as_ref().expect("expected error field");
-    assert!(err.chars().count() <= max as usize,
-        "error too long: {} chars", err.chars().count());
+    assert!(
+        err.chars().count() <= max as usize,
+        "error too long: {} chars",
+        err.chars().count()
+    );
 }
 
 #[then(expr = "the event error should end with {string}")]
@@ -255,15 +276,26 @@ fn then_replay_fails(world: &mut RelayWorld, needle: String) {
     // Try recording the same nonce a second time — must fail
     let ts = world.current_ts;
     let nonce = world.last_nonce.clone();
-    let result = world.nonce_reg.as_ref().unwrap().check_and_record(&nonce, ts);
+    let result = world
+        .nonce_reg
+        .as_ref()
+        .unwrap()
+        .check_and_record(&nonce, ts);
     let err = result.err().expect("expected replay error");
-    assert!(err.to_string().contains(&needle),
-        "expected '{}' in: {}", needle, err);
+    assert!(
+        err.to_string().contains(&needle),
+        "expected '{}' in: {}",
+        needle,
+        err
+    );
 }
 
 #[then("all three should be accepted")]
 fn then_three_accepted(world: &mut RelayWorld) {
-    assert!(world.record_error.is_none(), "expected no error for distinct nonces");
+    assert!(
+        world.record_error.is_none(),
+        "expected no error for distinct nonces"
+    );
 }
 
 #[then(expr = "it should fail with {string}")]

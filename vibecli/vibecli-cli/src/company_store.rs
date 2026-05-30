@@ -208,8 +208,7 @@ impl CompanyStore {
             std::fs::create_dir_all(parent)
                 .with_context(|| format!("create dirs for {parent:?}"))?;
         }
-        let conn = Connection::open(path)
-            .with_context(|| format!("open SQLite at {path:?}"))?;
+        let conn = Connection::open(path).with_context(|| format!("open SQLite at {path:?}"))?;
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")?;
         let store = Self { conn };
         store.create_schema()?;
@@ -228,7 +227,8 @@ impl CompanyStore {
     }
 
     fn create_schema(&self) -> Result<()> {
-        self.conn.execute_batch(r#"
+        self.conn.execute_batch(
+            r#"
             CREATE TABLE IF NOT EXISTS companies (
                 id              TEXT PRIMARY KEY,
                 name            TEXT NOT NULL UNIQUE,
@@ -270,7 +270,8 @@ impl CompanyStore {
             );
             CREATE INDEX IF NOT EXISTS idx_activity_company ON activity_log(company_id);
             CREATE INDEX IF NOT EXISTS idx_activity_entity ON activity_log(entity_type, entity_id);
-        "#)?;
+        "#,
+        )?;
         Ok(())
     }
 
@@ -282,12 +283,7 @@ impl CompanyStore {
 
     // ── Company CRUD ──────────────────────────────────────────────────────────
 
-    pub fn create_company(
-        &self,
-        name: &str,
-        description: &str,
-        mission: &str,
-    ) -> Result<Company> {
+    pub fn create_company(&self, name: &str, description: &str, mission: &str) -> Result<Company> {
         let company = Company {
             id: new_id(),
             name: name.to_string(),
@@ -313,7 +309,11 @@ impl CompanyStore {
             ],
         )?;
         self.log_activity(
-            &company.id, None, "company.created", "company", &company.id,
+            &company.id,
+            None,
+            "company.created",
+            "company",
+            &company.id,
             serde_json::json!({"name": company.name}),
         )?;
         Ok(company)
@@ -338,7 +338,8 @@ impl CompanyStore {
         })?;
         let mut companies = Vec::new();
         for row in rows {
-            let (id, name, description, mission, status, created_at, updated_at, settings_str) = row?;
+            let (id, name, description, mission, status, created_at, updated_at, settings_str) =
+                row?;
             companies.push(Company {
                 id,
                 name,
@@ -371,7 +372,8 @@ impl CompanyStore {
             ))
         })?;
         if let Some(row) = rows.next() {
-            let (id, name, description, mission, status, created_at, updated_at, settings_str) = row?;
+            let (id, name, description, mission, status, created_at, updated_at, settings_str) =
+                row?;
             return Ok(Some(Company {
                 id,
                 name,
@@ -412,7 +414,8 @@ impl CompanyStore {
                 params![s.as_str(), updated_at, id],
             )?;
         }
-        self.get_company(id)?.context("company not found after update")
+        self.get_company(id)?
+            .context("company not found after update")
     }
 
     pub fn delete_company(&self, id: &str) -> Result<()> {
@@ -477,7 +480,11 @@ impl CompanyStore {
             ],
         )?;
         self.log_activity(
-            company_id, None, "agent.hired", "company_agent", &agent.id,
+            company_id,
+            None,
+            "agent.hired",
+            "company_agent",
+            &agent.id,
             serde_json::json!({"name": agent.name, "title": agent.title}),
         )?;
         Ok(agent)
@@ -508,8 +515,21 @@ impl CompanyStore {
         })?;
         let mut agents = Vec::new();
         for row in rows {
-            let (id, company_id, name, title, role, reports_to, status,
-                 skills_str, adapter_type, adapter_config_str, budget, created_at, updated_at) = row?;
+            let (
+                id,
+                company_id,
+                name,
+                title,
+                role,
+                reports_to,
+                status,
+                skills_str,
+                adapter_type,
+                adapter_config_str,
+                budget,
+                created_at,
+                updated_at,
+            ) = row?;
             agents.push(CompanyAgent {
                 id,
                 company_id,
@@ -520,7 +540,8 @@ impl CompanyStore {
                 status: AgentStatus::from_str(&status),
                 skills: serde_json::from_str(&skills_str).unwrap_or_default(),
                 adapter_type: AdapterType::from_str(&adapter_type),
-                adapter_config: serde_json::from_str(&adapter_config_str).unwrap_or(serde_json::json!({})),
+                adapter_config: serde_json::from_str(&adapter_config_str)
+                    .unwrap_or(serde_json::json!({})),
                 monthly_budget_cents: budget,
                 created_at: created_at as u64,
                 updated_at: updated_at as u64,
@@ -553,8 +574,21 @@ impl CompanyStore {
             ))
         })?;
         if let Some(row) = rows.next() {
-            let (id, company_id, name, title, role, reports_to, status,
-                 skills_str, adapter_type, adapter_config_str, budget, created_at, updated_at) = row?;
+            let (
+                id,
+                company_id,
+                name,
+                title,
+                role,
+                reports_to,
+                status,
+                skills_str,
+                adapter_type,
+                adapter_config_str,
+                budget,
+                created_at,
+                updated_at,
+            ) = row?;
             return Ok(Some(CompanyAgent {
                 id,
                 company_id,
@@ -565,7 +599,8 @@ impl CompanyStore {
                 status: AgentStatus::from_str(&status),
                 skills: serde_json::from_str(&skills_str).unwrap_or_default(),
                 adapter_type: AdapterType::from_str(&adapter_type),
-                adapter_config: serde_json::from_str(&adapter_config_str).unwrap_or(serde_json::json!({})),
+                adapter_config: serde_json::from_str(&adapter_config_str)
+                    .unwrap_or(serde_json::json!({})),
                 monthly_budget_cents: budget,
                 created_at: created_at as u64,
                 updated_at: updated_at as u64,
@@ -581,7 +616,11 @@ impl CompanyStore {
             params![now_ms() as i64, id],
         )?;
         self.log_activity(
-            &agent.company_id, None, "agent.fired", "company_agent", id,
+            &agent.company_id,
+            None,
+            "agent.fired",
+            "company_agent",
+            id,
             serde_json::json!({"name": agent.name}),
         )?;
         Ok(())
@@ -641,7 +680,8 @@ impl CompanyStore {
         })?;
         let mut entries = Vec::new();
         for row in rows {
-            let (id, company_id, actor, action, entity_type, entity_id, details_str, created_at) = row?;
+            let (id, company_id, actor, action, entity_type, entity_id, details_str, created_at) =
+                row?;
             entries.push(ActivityEntry {
                 id,
                 company_id,
@@ -665,9 +705,7 @@ impl CompanyStore {
                     adapter_type, adapter_config_json, monthly_budget_cents, created_at, updated_at
              FROM company_agents WHERE reports_to = ?1 AND status != 'terminated'",
         )?;
-        let rows = stmt.query_map(params![agent_id], |row| {
-            Ok(self.row_to_agent(row))
-        })?;
+        let rows = stmt.query_map(params![agent_id], |row| Ok(self.row_to_agent(row)))?;
         let mut agents = Vec::new();
         for row in rows {
             agents.push(row??);
@@ -689,9 +727,7 @@ impl CompanyStore {
                FROM company_agents ca INNER JOIN tree t ON ca.id = t.id
                WHERE ca.status != 'terminated'"#,
         )?;
-        let rows = stmt.query_map(params![root_id], |row| {
-            Ok(self.row_to_agent(row))
-        })?;
+        let rows = stmt.query_map(params![root_id], |row| Ok(self.row_to_agent(row)))?;
         let mut agents = Vec::new();
         for row in rows {
             agents.push(row??);
@@ -708,9 +744,7 @@ impl CompanyStore {
              WHERE company_id = ?1 AND reports_to IS NULL AND status != 'terminated'
              ORDER BY created_at ASC LIMIT 1",
         )?;
-        let mut rows = stmt.query_map(params![company_id], |row| {
-            Ok(self.row_to_agent(row))
-        })?;
+        let mut rows = stmt.query_map(params![company_id], |row| Ok(self.row_to_agent(row)))?;
         if let Some(row) = rows.next() {
             return Ok(Some(row??));
         }
@@ -720,16 +754,17 @@ impl CompanyStore {
     /// Build a flat list of (agent, depth) pairs for ASCII org-chart display.
     pub fn build_org_chart(&self, company_id: &str) -> Result<Vec<(CompanyAgent, usize)>> {
         let agents = self.list_agents(company_id)?;
-        let mut by_id: std::collections::HashMap<String, CompanyAgent> = agents
-            .into_iter()
-            .map(|a| (a.id.clone(), a))
-            .collect();
+        let mut by_id: std::collections::HashMap<String, CompanyAgent> =
+            agents.into_iter().map(|a| (a.id.clone(), a)).collect();
         let mut result: Vec<(CompanyAgent, usize)> = Vec::new();
         // Find root nodes (no reports_to, or reports_to not in company)
         let ids: Vec<String> = by_id.keys().cloned().collect();
-        let roots: Vec<String> = ids.iter()
+        let roots: Vec<String> = ids
+            .iter()
             .filter(|id| {
-                by_id[*id].reports_to.as_ref()
+                by_id[*id]
+                    .reports_to
+                    .as_ref()
                     .map(|rt| !by_id.contains_key(rt.as_str()))
                     .unwrap_or(true)
             })
@@ -740,7 +775,8 @@ impl CompanyStore {
         // DFS traversal
         while let Some((id, depth)) = stack.pop() {
             if let Some(agent) = by_id.remove(&id) {
-                let mut children: Vec<String> = by_id.values()
+                let mut children: Vec<String> = by_id
+                    .values()
                     .filter(|a| a.reports_to.as_deref() == Some(&id))
                     .map(|a| a.id.clone())
                     .collect();
@@ -756,7 +792,10 @@ impl CompanyStore {
 
     /// Helper: convert a sqlite Row to a CompanyAgent.
     /// Used internally to avoid code duplication.
-    fn row_to_agent(&self, row: &rusqlite::Row) -> std::result::Result<CompanyAgent, rusqlite::Error> {
+    fn row_to_agent(
+        &self,
+        row: &rusqlite::Row,
+    ) -> std::result::Result<CompanyAgent, rusqlite::Error> {
         Ok(CompanyAgent {
             id: row.get(0)?,
             company_id: row.get(1)?,
@@ -801,7 +840,10 @@ pub fn default_db_path() -> PathBuf {
 /// Get the currently active company ID from the context file.
 pub fn get_active_company_id() -> Option<String> {
     let path = active_company_path();
-    std::fs::read_to_string(path).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+    std::fs::read_to_string(path)
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
 }
 
 /// Set the active company by ID.
@@ -831,7 +873,12 @@ impl Company {
             CompanyStatus::Paused => "⏸",
             CompanyStatus::Archived => "✗",
         };
-        format!("{status_badge} {} [{}]  {}", self.name, &self.id[..8], self.description)
+        format!(
+            "{status_badge} {} [{}]  {}",
+            self.name,
+            &self.id[..8],
+            self.description
+        )
     }
 }
 
@@ -873,7 +920,9 @@ mod tests {
     #[test]
     fn given_new_company_when_created_then_returned_with_active_status() {
         let store = make_store();
-        let c = store.create_company("Acme", "A description", "Build things").unwrap();
+        let c = store
+            .create_company("Acme", "A description", "Build things")
+            .unwrap();
         assert_eq!(c.name, "Acme");
         assert_eq!(c.description, "A description");
         assert_eq!(c.mission, "Build things");
@@ -917,8 +966,12 @@ mod tests {
     #[test]
     fn given_company_when_update_mission_then_reflected_on_fetch() {
         let store = make_store();
-        let c = store.create_company("Springfield Nuclear", "", "Original mission").unwrap();
-        let updated = store.update_company(&c.id, None, Some("New mission"), None).unwrap();
+        let c = store
+            .create_company("Springfield Nuclear", "", "Original mission")
+            .unwrap();
+        let updated = store
+            .update_company(&c.id, None, Some("New mission"), None)
+            .unwrap();
         assert_eq!(updated.mission, "New mission");
     }
 
@@ -926,7 +979,9 @@ mod tests {
     fn given_company_when_update_status_to_paused_then_status_reflects() {
         let store = make_store();
         let c = store.create_company("PauseCo", "", "").unwrap();
-        let updated = store.update_company(&c.id, None, None, Some(CompanyStatus::Paused)).unwrap();
+        let updated = store
+            .update_company(&c.id, None, None, Some(CompanyStatus::Paused))
+            .unwrap();
         assert_eq!(updated.status, CompanyStatus::Paused);
     }
 
@@ -956,10 +1011,18 @@ mod tests {
     fn given_company_when_agent_hired_then_appears_in_list() {
         let store = make_store();
         let c = store.create_company("AgentCo", "", "").unwrap();
-        let agent = store.hire_agent(
-            &c.id, "Alice", "CEO", CompanyRole::Ceo,
-            None, &[], AdapterType::Internal, 100_000,
-        ).unwrap();
+        let agent = store
+            .hire_agent(
+                &c.id,
+                "Alice",
+                "CEO",
+                CompanyRole::Ceo,
+                None,
+                &[],
+                AdapterType::Internal,
+                100_000,
+            )
+            .unwrap();
         let agents = store.list_agents(&c.id).unwrap();
         assert_eq!(agents.len(), 1);
         assert_eq!(agents[0].id, agent.id);
@@ -969,8 +1032,14 @@ mod tests {
     fn given_nonexistent_company_when_hire_agent_then_error() {
         let store = make_store();
         let result = store.hire_agent(
-            "no-such-company", "Bob", "Manager", CompanyRole::Manager,
-            None, &[], AdapterType::Internal, 0,
+            "no-such-company",
+            "Bob",
+            "Manager",
+            CompanyRole::Manager,
+            None,
+            &[],
+            AdapterType::Internal,
+            0,
         );
         assert!(result.is_err());
     }
@@ -979,10 +1048,18 @@ mod tests {
     fn given_agent_when_fire_agent_then_status_is_terminated() {
         let store = make_store();
         let c = store.create_company("FireCo", "", "").unwrap();
-        let agent = store.hire_agent(
-            &c.id, "Charlie", "Intern", CompanyRole::Agent,
-            None, &[], AdapterType::Internal, 0,
-        ).unwrap();
+        let agent = store
+            .hire_agent(
+                &c.id,
+                "Charlie",
+                "Intern",
+                CompanyRole::Agent,
+                None,
+                &[],
+                AdapterType::Internal,
+                0,
+            )
+            .unwrap();
         store.fire_agent(&agent.id).unwrap();
         let fetched = store.get_agent(&agent.id).unwrap().unwrap();
         assert_eq!(fetched.status, AgentStatus::Terminated);
@@ -992,12 +1069,22 @@ mod tests {
     fn given_agent_when_update_status_to_active_then_status_reflects() {
         let store = make_store();
         let c = store.create_company("StatusCo", "", "").unwrap();
-        let agent = store.hire_agent(
-            &c.id, "Dana", "Analyst", CompanyRole::Agent,
-            None, &[], AdapterType::Internal, 0,
-        ).unwrap();
+        let agent = store
+            .hire_agent(
+                &c.id,
+                "Dana",
+                "Analyst",
+                CompanyRole::Agent,
+                None,
+                &[],
+                AdapterType::Internal,
+                0,
+            )
+            .unwrap();
         assert_eq!(agent.status, AgentStatus::Idle);
-        store.update_agent_status(&agent.id, AgentStatus::Active).unwrap();
+        store
+            .update_agent_status(&agent.id, AgentStatus::Active)
+            .unwrap();
         let fetched = store.get_agent(&agent.id).unwrap().unwrap();
         assert_eq!(fetched.status, AgentStatus::Active);
     }
@@ -1015,14 +1102,30 @@ mod tests {
     fn given_ceo_and_report_when_get_direct_reports_then_returns_report() {
         let store = make_store();
         let c = store.create_company("OrgCo", "", "").unwrap();
-        let ceo = store.hire_agent(
-            &c.id, "Eve", "CEO", CompanyRole::Ceo,
-            None, &[], AdapterType::Internal, 0,
-        ).unwrap();
-        let report = store.hire_agent(
-            &c.id, "Frank", "Manager", CompanyRole::Manager,
-            Some(&ceo.id), &[], AdapterType::Internal, 0,
-        ).unwrap();
+        let ceo = store
+            .hire_agent(
+                &c.id,
+                "Eve",
+                "CEO",
+                CompanyRole::Ceo,
+                None,
+                &[],
+                AdapterType::Internal,
+                0,
+            )
+            .unwrap();
+        let report = store
+            .hire_agent(
+                &c.id,
+                "Frank",
+                "Manager",
+                CompanyRole::Manager,
+                Some(&ceo.id),
+                &[],
+                AdapterType::Internal,
+                0,
+            )
+            .unwrap();
         let reports = store.get_direct_reports(&ceo.id).unwrap();
         assert_eq!(reports.len(), 1);
         assert_eq!(reports[0].id, report.id);
@@ -1032,10 +1135,18 @@ mod tests {
     fn given_ceo_when_get_ceo_then_returns_root_agent() {
         let store = make_store();
         let c = store.create_company("TopCo", "", "").unwrap();
-        let ceo = store.hire_agent(
-            &c.id, "Grace", "CEO", CompanyRole::Ceo,
-            None, &[], AdapterType::Internal, 0,
-        ).unwrap();
+        let ceo = store
+            .hire_agent(
+                &c.id,
+                "Grace",
+                "CEO",
+                CompanyRole::Ceo,
+                None,
+                &[],
+                AdapterType::Internal,
+                0,
+            )
+            .unwrap();
         let found = store.get_ceo(&c.id).unwrap();
         assert!(found.is_some());
         assert_eq!(found.unwrap().id, ceo.id);
@@ -1045,18 +1156,42 @@ mod tests {
     fn given_subtree_when_get_agent_subtree_then_returns_all_descendants() {
         let store = make_store();
         let c = store.create_company("TreeCo", "", "").unwrap();
-        let ceo = store.hire_agent(
-            &c.id, "CEO", "CEO", CompanyRole::Ceo,
-            None, &[], AdapterType::Internal, 0,
-        ).unwrap();
-        let mgr = store.hire_agent(
-            &c.id, "Mgr", "Mgr", CompanyRole::Manager,
-            Some(&ceo.id), &[], AdapterType::Internal, 0,
-        ).unwrap();
-        let _ = store.hire_agent(
-            &c.id, "Dev", "Dev", CompanyRole::Agent,
-            Some(&mgr.id), &[], AdapterType::Internal, 0,
-        ).unwrap();
+        let ceo = store
+            .hire_agent(
+                &c.id,
+                "CEO",
+                "CEO",
+                CompanyRole::Ceo,
+                None,
+                &[],
+                AdapterType::Internal,
+                0,
+            )
+            .unwrap();
+        let mgr = store
+            .hire_agent(
+                &c.id,
+                "Mgr",
+                "Mgr",
+                CompanyRole::Manager,
+                Some(&ceo.id),
+                &[],
+                AdapterType::Internal,
+                0,
+            )
+            .unwrap();
+        let _ = store
+            .hire_agent(
+                &c.id,
+                "Dev",
+                "Dev",
+                CompanyRole::Agent,
+                Some(&mgr.id),
+                &[],
+                AdapterType::Internal,
+                0,
+            )
+            .unwrap();
         let subtree = store.get_agent_subtree(&ceo.id).unwrap();
         assert_eq!(subtree.len(), 3);
     }
@@ -1065,8 +1200,30 @@ mod tests {
     fn given_company_when_agent_count_then_reflects_active_agents() {
         let store = make_store();
         let c = store.create_company("CountCo", "", "").unwrap();
-        let a1 = store.hire_agent(&c.id, "A1", "T", CompanyRole::Agent, None, &[], AdapterType::Internal, 0).unwrap();
-        let _ = store.hire_agent(&c.id, "A2", "T", CompanyRole::Agent, None, &[], AdapterType::Internal, 0).unwrap();
+        let a1 = store
+            .hire_agent(
+                &c.id,
+                "A1",
+                "T",
+                CompanyRole::Agent,
+                None,
+                &[],
+                AdapterType::Internal,
+                0,
+            )
+            .unwrap();
+        let _ = store
+            .hire_agent(
+                &c.id,
+                "A2",
+                "T",
+                CompanyRole::Agent,
+                None,
+                &[],
+                AdapterType::Internal,
+                0,
+            )
+            .unwrap();
         assert_eq!(store.agent_count(&c.id).unwrap(), 2);
         store.fire_agent(&a1.id).unwrap();
         assert_eq!(store.agent_count(&c.id).unwrap(), 1);
@@ -1087,7 +1244,18 @@ mod tests {
     fn given_agent_hired_when_activity_listed_then_hire_event_present() {
         let store = make_store();
         let c = store.create_company("HireCo", "", "").unwrap();
-        let _ = store.hire_agent(&c.id, "Hank", "Dev", CompanyRole::Agent, None, &[], AdapterType::Internal, 0).unwrap();
+        let _ = store
+            .hire_agent(
+                &c.id,
+                "Hank",
+                "Dev",
+                CompanyRole::Agent,
+                None,
+                &[],
+                AdapterType::Internal,
+                0,
+            )
+            .unwrap();
         let log = store.list_activity(&c.id, 10).unwrap();
         let hire_event = log.iter().find(|e| e.action == "agent.hired");
         assert!(hire_event.is_some());

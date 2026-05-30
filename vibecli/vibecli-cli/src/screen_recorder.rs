@@ -53,7 +53,9 @@ impl ScreenRecorder {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        let frame_path = self.output_dir.join(format!("frame-{:04}.png", self.frames.len()));
+        let frame_path = self
+            .output_dir
+            .join(format!("frame-{:04}.png", self.frames.len()));
 
         take_screenshot_to(&frame_path)?;
 
@@ -223,9 +225,21 @@ mod tests {
         let rec = Recording {
             session_id: "multi".to_string(),
             frames: vec![
-                RecordingFrame { path: "a.png".into(), timestamp: 1, caption: "first".into() },
-                RecordingFrame { path: "b.png".into(), timestamp: 2, caption: "second".into() },
-                RecordingFrame { path: "c.png".into(), timestamp: 3, caption: "third".into() },
+                RecordingFrame {
+                    path: "a.png".into(),
+                    timestamp: 1,
+                    caption: "first".into(),
+                },
+                RecordingFrame {
+                    path: "b.png".into(),
+                    timestamp: 2,
+                    caption: "second".into(),
+                },
+                RecordingFrame {
+                    path: "c.png".into(),
+                    timestamp: 3,
+                    caption: "third".into(),
+                },
             ],
             started_at: 0,
             finished_at: Some(10),

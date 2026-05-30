@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -408,10 +407,7 @@ impl ClarifyingEngine {
                         step.estimated_effort
                     ));
                     if !step.file_changes.is_empty() {
-                        summary.push_str(&format!(
-                            "   Files: {}\n",
-                            step.file_changes.join(", ")
-                        ));
+                        summary.push_str(&format!("   Files: {}\n", step.file_changes.join(", ")));
                     }
                     if !step.dependencies.is_empty() {
                         summary.push_str(&format!(
@@ -503,10 +499,7 @@ impl ClarifyingEngine {
         if task_lower.contains("database") || task_lower.contains("db") {
             steps.push(PlanStep {
                 description: "Set up database schema and migrations".to_string(),
-                file_changes: vec![
-                    "src/models.rs".to_string(),
-                    "migrations/".to_string(),
-                ],
+                file_changes: vec!["src/models.rs".to_string(), "migrations/".to_string()],
                 dependencies: vec!["step-1".to_string()],
                 estimated_effort: "45 min".to_string(),
             });
@@ -593,7 +586,9 @@ mod tests {
     #[test]
     fn test_always_generates_testing_question() {
         let questions = ClarifyingEngine::generate_questions("simple task");
-        assert!(questions.iter().any(|q| q.text.contains("testing approach")));
+        assert!(questions
+            .iter()
+            .any(|q| q.text.contains("testing approach")));
     }
 
     #[test]
@@ -613,7 +608,9 @@ mod tests {
     #[test]
     fn test_test_task_generates_test_questions() {
         let questions = ClarifyingEngine::generate_questions("Add test coverage");
-        assert!(questions.iter().any(|q| q.text.contains("unit tests or integration")));
+        assert!(questions
+            .iter()
+            .any(|q| q.text.contains("unit tests or integration")));
         assert!(questions.iter().any(|q| q.text.contains("coverage target")));
     }
 
@@ -621,7 +618,9 @@ mod tests {
     fn test_refactor_task_generates_scope_questions() {
         let questions = ClarifyingEngine::generate_questions("Refactor the module");
         assert!(questions.iter().any(|q| q.text.contains("scope")));
-        assert!(questions.iter().any(|q| q.text.contains("backward compatibility")));
+        assert!(questions
+            .iter()
+            .any(|q| q.text.contains("backward compatibility")));
     }
 
     #[test]
@@ -659,7 +658,12 @@ mod tests {
     #[test]
     fn test_all_answered_true_after_answering_all() {
         let mut engine = ClarifyingEngine::new("simple task");
-        let ids: Vec<String> = engine.session().questions.iter().map(|q| q.id.clone()).collect();
+        let ids: Vec<String> = engine
+            .session()
+            .questions
+            .iter()
+            .map(|q| q.id.clone())
+            .collect();
         for id in &ids {
             let answer = Answer {
                 question_id: id.clone(),
@@ -714,7 +718,12 @@ mod tests {
     #[test]
     fn test_status_transitions_to_answered() {
         let mut engine = ClarifyingEngine::new("simple task");
-        let ids: Vec<String> = engine.session().questions.iter().map(|q| q.id.clone()).collect();
+        let ids: Vec<String> = engine
+            .session()
+            .questions
+            .iter()
+            .map(|q| q.id.clone())
+            .collect();
         for id in &ids {
             engine.skip_question(id).unwrap();
         }
@@ -730,7 +739,12 @@ mod tests {
     #[test]
     fn test_generate_plan_succeeds_when_all_answered() {
         let mut engine = ClarifyingEngine::new("Build an API");
-        let ids: Vec<String> = engine.session().questions.iter().map(|q| q.id.clone()).collect();
+        let ids: Vec<String> = engine
+            .session()
+            .questions
+            .iter()
+            .map(|q| q.id.clone())
+            .collect();
         for id in &ids {
             engine.skip_question(id).unwrap();
         }
@@ -744,7 +758,12 @@ mod tests {
     #[test]
     fn test_plan_status_becomes_ready() {
         let mut engine = ClarifyingEngine::new("simple task");
-        let ids: Vec<String> = engine.session().questions.iter().map(|q| q.id.clone()).collect();
+        let ids: Vec<String> = engine
+            .session()
+            .questions
+            .iter()
+            .map(|q| q.id.clone())
+            .collect();
         for id in &ids {
             engine.skip_question(id).unwrap();
         }
@@ -755,7 +774,12 @@ mod tests {
     #[test]
     fn test_risk_level_low_for_simple_task() {
         let mut engine = ClarifyingEngine::new("add a utility function");
-        let ids: Vec<String> = engine.session().questions.iter().map(|q| q.id.clone()).collect();
+        let ids: Vec<String> = engine
+            .session()
+            .questions
+            .iter()
+            .map(|q| q.id.clone())
+            .collect();
         for id in &ids {
             engine.skip_question(id).unwrap();
         }
@@ -766,12 +790,20 @@ mod tests {
     #[test]
     fn test_risk_level_higher_for_database_security() {
         let mut engine = ClarifyingEngine::new("database migration with security auth");
-        let ids: Vec<String> = engine.session().questions.iter().map(|q| q.id.clone()).collect();
+        let ids: Vec<String> = engine
+            .session()
+            .questions
+            .iter()
+            .map(|q| q.id.clone())
+            .collect();
         for id in &ids {
             engine.skip_question(id).unwrap();
         }
         let plan = engine.generate_plan().unwrap();
-        assert!(matches!(plan.risk_level, RiskLevel::High | RiskLevel::Critical));
+        assert!(matches!(
+            plan.risk_level,
+            RiskLevel::High | RiskLevel::Critical
+        ));
     }
 
     #[test]
@@ -783,7 +815,12 @@ mod tests {
     #[test]
     fn test_plan_summary_contains_title() {
         let mut engine = ClarifyingEngine::new("simple task");
-        let ids: Vec<String> = engine.session().questions.iter().map(|q| q.id.clone()).collect();
+        let ids: Vec<String> = engine
+            .session()
+            .questions
+            .iter()
+            .map(|q| q.id.clone())
+            .collect();
         for id in &ids {
             engine.skip_question(id).unwrap();
         }
@@ -795,7 +832,9 @@ mod tests {
 
     #[test]
     fn test_questions_sorted_by_priority() {
-        let questions = ClarifyingEngine::generate_questions("Build an API with database and deploy to production");
+        let questions = ClarifyingEngine::generate_questions(
+            "Build an API with database and deploy to production",
+        );
         for window in questions.windows(2) {
             assert!(window[0].priority <= window[1].priority);
         }
@@ -813,20 +852,30 @@ mod tests {
 
     #[test]
     fn test_performance_task_questions() {
-        let questions = ClarifyingEngine::generate_questions("optimize performance of the query engine");
-        assert!(questions.iter().any(|q| q.category == QuestionCategory::Performance));
+        let questions =
+            ClarifyingEngine::generate_questions("optimize performance of the query engine");
+        assert!(questions
+            .iter()
+            .any(|q| q.category == QuestionCategory::Performance));
     }
 
     #[test]
     fn test_deploy_task_questions() {
         let questions = ClarifyingEngine::generate_questions("deploy to production");
-        assert!(questions.iter().any(|q| q.category == QuestionCategory::Deployment));
+        assert!(questions
+            .iter()
+            .any(|q| q.category == QuestionCategory::Deployment));
     }
 
     #[test]
     fn test_plan_has_analysis_step() {
         let mut engine = ClarifyingEngine::new("simple task");
-        let ids: Vec<String> = engine.session().questions.iter().map(|q| q.id.clone()).collect();
+        let ids: Vec<String> = engine
+            .session()
+            .questions
+            .iter()
+            .map(|q| q.id.clone())
+            .collect();
         for id in &ids {
             engine.skip_question(id).unwrap();
         }
@@ -837,7 +886,12 @@ mod tests {
     #[test]
     fn test_plan_estimated_files_positive() {
         let mut engine = ClarifyingEngine::new("Build an API with database");
-        let ids: Vec<String> = engine.session().questions.iter().map(|q| q.id.clone()).collect();
+        let ids: Vec<String> = engine
+            .session()
+            .questions
+            .iter()
+            .map(|q| q.id.clone())
+            .collect();
         for id in &ids {
             engine.skip_question(id).unwrap();
         }
@@ -852,6 +906,9 @@ mod tests {
         let json = serde_json::to_string(engine.session()).unwrap();
         let deserialized: ClarificationSession = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.task_description, "simple task");
-        assert_eq!(deserialized.questions.len(), engine.session().questions.len());
+        assert_eq!(
+            deserialized.questions.len(),
+            engine.session().questions.len()
+        );
     }
 }

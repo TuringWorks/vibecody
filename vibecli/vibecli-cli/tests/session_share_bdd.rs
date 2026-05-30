@@ -2,10 +2,9 @@
  * BDD tests for session HTML export + GitHub Gist sharing.
  * Run with: cargo test --test session_share_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::session_share::{
-    GistClient, GistOptions, GistResult, HtmlExportOptions, HtmlExporter,
-    ShareMessage,
+    GistClient, GistOptions, GistResult, HtmlExportOptions, HtmlExporter, ShareMessage,
 };
 
 // ---------------------------------------------------------------------------
@@ -40,9 +39,7 @@ pub struct SsWorld {
 // Scenario 1 — HTML export with messages
 // ---------------------------------------------------------------------------
 
-#[given(
-    expr = "a session with a user message {string} and an assistant message {string}"
-)]
+#[given(expr = "a session with a user message {string} and an assistant message {string}")]
 fn given_session_with_messages(world: &mut SsWorld, user_msg: String, asst_msg: String) {
     world.messages.push(ShareMessage::user(user_msg));
     world.messages.push(ShareMessage::assistant(asst_msg));
@@ -75,7 +72,9 @@ fn then_contains_css_class(world: &mut SsWorld, css_class: String) {
 fn then_title_element(world: &mut SsWorld) {
     // Default title is "VibeCody Session"
     assert!(
-        world.html_output.contains("<title>VibeCody Session</title>"),
+        world
+            .html_output
+            .contains("<title>VibeCody Session</title>"),
         "Expected <title>VibeCody Session</title> in output"
     );
 }
@@ -118,9 +117,7 @@ fn then_no_backticks(world: &mut SsWorld) {
 // Scenario 3 — HTML escape
 // ---------------------------------------------------------------------------
 
-#[given(
-    "a raw string containing HTML special characters '<', '>', '&', '\"', and \"'\""
-)]
+#[given("a raw string containing HTML special characters '<', '>', '&', '\"', and \"'\"")]
 fn given_html_special_chars(world: &mut SsWorld) {
     world.raw_content = r#"<tag> & "quote" & 'apos'"#.to_string();
 }
@@ -165,11 +162,16 @@ fn when_build_payload(world: &mut SsWorld) {
     let safe_title: String = world
         .session_title
         .chars()
-        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '-'
+            }
+        })
         .collect();
     let filename = format!("session-{}.html", safe_title);
-    world.gist_payload =
-        GistClient::build_payload(&filename, &world.html_content_for_gist, &opts);
+    world.gist_payload = GistClient::build_payload(&filename, &world.html_content_for_gist, &opts);
 }
 
 #[then(expr = "the payload contains the description {string}")]
@@ -213,9 +215,7 @@ fn then_payload_contains_key(world: &mut SsWorld, key: String) {
 // Scenario 5 — Gist response parsing
 // ---------------------------------------------------------------------------
 
-#[given(
-    expr = "a mock GitHub API response JSON with id {string} and html_url {string}"
-)]
+#[given(expr = "a mock GitHub API response JSON with id {string} and html_url {string}")]
 fn given_mock_gist_response(world: &mut SsWorld, id: String, html_url: String) {
     // Store the mock JSON into raw_content for use in the When step
     world.raw_content = format!(
@@ -250,13 +250,19 @@ fn when_parse_gist_response(world: &mut SsWorld) {
 
 #[then(expr = "the parsed gist_id equals {string}")]
 fn then_parsed_gist_id(world: &mut SsWorld, expected: String) {
-    let gist = world.parsed_gist.as_ref().expect("gist should be parsed successfully");
+    let gist = world
+        .parsed_gist
+        .as_ref()
+        .expect("gist should be parsed successfully");
     assert_eq!(gist.gist_id, expected);
 }
 
 #[then(expr = "the parsed html_url equals {string}")]
 fn then_parsed_html_url(world: &mut SsWorld, expected: String) {
-    let gist = world.parsed_gist.as_ref().expect("gist should be parsed successfully");
+    let gist = world
+        .parsed_gist
+        .as_ref()
+        .expect("gist should be parsed successfully");
     assert_eq!(gist.html_url, expected);
 }
 
@@ -271,7 +277,5 @@ fn then_no_error(world: &mut SsWorld) {
 // ---------------------------------------------------------------------------
 
 fn main() {
-    futures::executor::block_on(
-        SsWorld::run("tests/features/session_share.feature"),
-    );
+    futures::executor::block_on(SsWorld::run("tests/features/session_share.feature"));
 }

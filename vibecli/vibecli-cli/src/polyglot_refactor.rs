@@ -162,7 +162,13 @@ impl Language {
 
     pub fn comment_prefix(&self) -> &'static str {
         match self {
-            Self::Python | Self::Ruby | Self::Perl | Self::Shell | Self::R | Self::Julia | Self::PHP => "#",
+            Self::Python
+            | Self::Ruby
+            | Self::Perl
+            | Self::Shell
+            | Self::R
+            | Self::Julia
+            | Self::PHP => "#",
             Self::Haskell | Self::Lua | Self::SQL | Self::Ada => "--",
             Self::Fortran => "!",
             Self::COBOL => "*",
@@ -174,14 +180,39 @@ impl Language {
 
     /// Whether the language has native iterator methods.
     pub fn has_iterators(&self) -> bool {
-        matches!(self, Self::Rust | Self::TypeScript | Self::Python | Self::Kotlin | Self::Swift
-            | Self::Scala | Self::Haskell | Self::OCaml | Self::Erlang | Self::Dart | Self::Ruby | Self::CSharp)
+        matches!(
+            self,
+            Self::Rust
+                | Self::TypeScript
+                | Self::Python
+                | Self::Kotlin
+                | Self::Swift
+                | Self::Scala
+                | Self::Haskell
+                | Self::OCaml
+                | Self::Erlang
+                | Self::Dart
+                | Self::Ruby
+                | Self::CSharp
+        )
     }
 
     /// Whether the language supports type inference.
     pub fn has_type_inference(&self) -> bool {
-        matches!(self, Self::Rust | Self::TypeScript | Self::Go | Self::Kotlin | Self::Swift
-            | Self::Scala | Self::Haskell | Self::OCaml | Self::Dart | Self::CSharp | Self::Julia)
+        matches!(
+            self,
+            Self::Rust
+                | Self::TypeScript
+                | Self::Go
+                | Self::Kotlin
+                | Self::Swift
+                | Self::Scala
+                | Self::Haskell
+                | Self::OCaml
+                | Self::Dart
+                | Self::CSharp
+                | Self::Julia
+        )
     }
 
     /// Returns the approximate TIOBE index rank (April 2026) for this language.
@@ -270,10 +301,31 @@ impl RefactorKind {
     /// Which languages this refactoring applies to (empty = all).
     pub fn applicable_to(&self) -> Vec<Language> {
         match self {
-            Self::LoopToIterator => vec![Language::Rust, Language::TypeScript, Language::Python, Language::Kotlin],
-            Self::IfToMatchOrSwitch => vec![Language::Rust, Language::Go, Language::TypeScript, Language::Java],
-            Self::NullCheckToOptional => vec![Language::Rust, Language::Kotlin, Language::Swift, Language::TypeScript],
-            Self::StringConcatToInterpolation => vec![Language::Rust, Language::TypeScript, Language::Python, Language::Kotlin, Language::Swift],
+            Self::LoopToIterator => vec![
+                Language::Rust,
+                Language::TypeScript,
+                Language::Python,
+                Language::Kotlin,
+            ],
+            Self::IfToMatchOrSwitch => vec![
+                Language::Rust,
+                Language::Go,
+                Language::TypeScript,
+                Language::Java,
+            ],
+            Self::NullCheckToOptional => vec![
+                Language::Rust,
+                Language::Kotlin,
+                Language::Swift,
+                Language::TypeScript,
+            ],
+            Self::StringConcatToInterpolation => vec![
+                Language::Rust,
+                Language::TypeScript,
+                Language::Python,
+                Language::Kotlin,
+                Language::Swift,
+            ],
             _ => vec![], // universal
         }
     }
@@ -296,7 +348,7 @@ pub struct RefactorOpportunity {
     pub original_snippet: String,
     pub suggested_snippet: String,
     pub rationale: String,
-    pub impact_score: u8,  // 1 (cosmetic) – 10 (critical improvement)
+    pub impact_score: u8, // 1 (cosmetic) – 10 (critical improvement)
     pub safe_to_apply: bool,
 }
 
@@ -332,26 +384,56 @@ impl NamingConvention {
     /// Preferred convention for identifiers in each language.
     pub fn preferred_for(lang: &Language) -> Self {
         match lang {
-            Language::Rust | Language::Python | Language::Ruby | Language::Perl | Language::Shell
-            | Language::Cpp | Language::C | Language::PHP | Language::Lua | Language::R
-            | Language::Julia | Language::Erlang | Language::Ada | Language::Prolog => Self::SnakeCase,
-            Language::TypeScript | Language::Java | Language::CSharp | Language::Kotlin
-            | Language::Go | Language::Swift | Language::Dart | Language::Scala
-            | Language::Haskell | Language::OCaml | Language::Solidity | Language::ObjectiveC => Self::CamelCase,
-            Language::SQL | Language::COBOL | Language::Fortran | Language::Assembly
-            | Language::PLSQL | Language::SAS | Language::ABAP => Self::ScreamingSnake,
+            Language::Rust
+            | Language::Python
+            | Language::Ruby
+            | Language::Perl
+            | Language::Shell
+            | Language::Cpp
+            | Language::C
+            | Language::PHP
+            | Language::Lua
+            | Language::R
+            | Language::Julia
+            | Language::Erlang
+            | Language::Ada
+            | Language::Prolog => Self::SnakeCase,
+            Language::TypeScript
+            | Language::Java
+            | Language::CSharp
+            | Language::Kotlin
+            | Language::Go
+            | Language::Swift
+            | Language::Dart
+            | Language::Scala
+            | Language::Haskell
+            | Language::OCaml
+            | Language::Solidity
+            | Language::ObjectiveC => Self::CamelCase,
+            Language::SQL
+            | Language::COBOL
+            | Language::Fortran
+            | Language::Assembly
+            | Language::PLSQL
+            | Language::SAS
+            | Language::ABAP => Self::ScreamingSnake,
             Language::VisualBasic | Language::PowerShell | Language::Delphi => Self::PascalCase,
             Language::JavaScript | Language::GML => Self::CamelCase,
-            Language::MATLAB | Language::Lisp | Language::ML
-            | Language::Zig | Language::FoxPro => Self::SnakeCase,
+            Language::MATLAB | Language::Lisp | Language::ML | Language::Zig | Language::FoxPro => {
+                Self::SnakeCase
+            }
         }
     }
 
     pub fn check(&self, name: &str) -> bool {
         match self {
             Self::SnakeCase => name == name.to_lowercase() && !name.contains('-'),
-            Self::CamelCase => name.chars().next().is_some_and(|c| c.is_lowercase()) && !name.contains('_'),
-            Self::PascalCase => name.chars().next().is_some_and(|c| c.is_uppercase()) && !name.contains('_'),
+            Self::CamelCase => {
+                name.chars().next().is_some_and(|c| c.is_lowercase()) && !name.contains('_')
+            }
+            Self::PascalCase => {
+                name.chars().next().is_some_and(|c| c.is_uppercase()) && !name.contains('_')
+            }
             Self::KebabCase => name == name.to_lowercase() && !name.contains('_'),
             Self::ScreamingSnake => name == name.to_uppercase(),
         }
@@ -376,11 +458,15 @@ impl NamingConvention {
                 }
                 result
             }
-            Self::PascalCase => words.iter().map(|w| {
-                let mut c = w.chars();
-                c.next().map(|f| f.to_uppercase().collect::<String>() + &c.as_str().to_lowercase())
-                    .unwrap_or_default()
-            }).collect(),
+            Self::PascalCase => words
+                .iter()
+                .map(|w| {
+                    let mut c = w.chars();
+                    c.next()
+                        .map(|f| f.to_uppercase().collect::<String>() + &c.as_str().to_lowercase())
+                        .unwrap_or_default()
+                })
+                .collect(),
             Self::KebabCase => words.join("-").to_lowercase(),
             Self::ScreamingSnake => words.join("_").to_uppercase(),
         }
@@ -394,7 +480,10 @@ pub fn split_identifier(name: &str) -> Vec<String> {
     let chars: Vec<char> = name.chars().collect();
     for (i, &ch) in chars.iter().enumerate() {
         if ch == '_' || ch == '-' {
-            if !current.is_empty() { words.push(current.clone()); current.clear(); }
+            if !current.is_empty() {
+                words.push(current.clone());
+                current.clear();
+            }
         } else if i > 0 && ch.is_uppercase() && !current.is_empty() {
             words.push(current.clone());
             current.clear();
@@ -403,7 +492,9 @@ pub fn split_identifier(name: &str) -> Vec<String> {
             current.push(ch);
         }
     }
-    if !current.is_empty() { words.push(current); }
+    if !current.is_empty() {
+        words.push(current);
+    }
     words
 }
 
@@ -418,7 +509,11 @@ pub struct PolyglotRefactor {
 
 impl PolyglotRefactor {
     pub fn new() -> Self {
-        Self { opportunities: Vec::new(), patterns: Vec::new(), id_counter: 0 }
+        Self {
+            opportunities: Vec::new(),
+            patterns: Vec::new(),
+            id_counter: 0,
+        }
     }
 
     fn next_id(&mut self) -> String {
@@ -427,7 +522,12 @@ impl PolyglotRefactor {
     }
 
     /// Scan source lines for refactoring opportunities.
-    pub fn scan(&mut self, file: &str, lang: &Language, lines: &[&str]) -> Vec<RefactorOpportunity> {
+    pub fn scan(
+        &mut self,
+        file: &str,
+        lang: &Language,
+        lines: &[&str],
+    ) -> Vec<RefactorOpportunity> {
         let mut found = Vec::new();
         for (i, line) in lines.iter().enumerate() {
             // Loop-to-iterator: detect classic for loops with index
@@ -453,13 +553,26 @@ impl PolyglotRefactor {
         found
     }
 
-    fn detect_loop_to_iter(&mut self, file: &str, lang: &Language, line: &str, ln: u32) -> Option<RefactorOpportunity> {
+    fn detect_loop_to_iter(
+        &mut self,
+        file: &str,
+        lang: &Language,
+        line: &str,
+        ln: u32,
+    ) -> Option<RefactorOpportunity> {
         // Detect: for (let i = 0; i < ...; i++) or for i in 0..n (simple index loops)
         let is_index_loop = (line.contains("for (let i") || line.contains("for i in 0.."))
-            && !line.contains(".iter()") && !line.contains(".map(") && !line.contains(".forEach(");
-        if !is_index_loop { return None; }
+            && !line.contains(".iter()")
+            && !line.contains(".map(")
+            && !line.contains(".forEach(");
+        if !is_index_loop {
+            return None;
+        }
         let suggested = match lang {
-            Language::Rust => line.replace("for i in 0..", "items.iter().enumerate().for_each(|(i, _)| "),
+            Language::Rust => line.replace(
+                "for i in 0..",
+                "items.iter().enumerate().for_each(|(i, _)| ",
+            ),
             Language::TypeScript => line.replace("for (let i = 0;", "items.forEach((item, i) => {"),
             _ => return None,
         };
@@ -479,14 +592,26 @@ impl PolyglotRefactor {
         })
     }
 
-    fn detect_string_concat(&mut self, file: &str, lang: &Language, line: &str, ln: u32) -> Option<RefactorOpportunity> {
+    fn detect_string_concat(
+        &mut self,
+        file: &str,
+        lang: &Language,
+        line: &str,
+        ln: u32,
+    ) -> Option<RefactorOpportunity> {
         // Detect string + variable + string pattern
         let has_concat = (line.contains("\" + ") || line.contains(" + \""))
-            && !line.contains("format!(") && !line.contains('`');
-        if !has_concat { return None; }
+            && !line.contains("format!(")
+            && !line.contains('`');
+        if !has_concat {
+            return None;
+        }
         let suggested = match lang {
             Language::Rust => format!("// Use format!() macro: {}", line.trim()),
-            Language::TypeScript => format!("// Use template literal: `${{...}}` instead of: {}", line.trim()),
+            Language::TypeScript => format!(
+                "// Use template literal: `${{...}}` instead of: {}",
+                line.trim()
+            ),
             Language::Python => format!("// Use f-string: f'...' instead of: {}", line.trim()),
             _ => return None,
         };
@@ -500,15 +625,25 @@ impl PolyglotRefactor {
             end_line: ln,
             original_snippet: line.to_string(),
             suggested_snippet: suggested,
-            rationale: RefactorKind::StringConcatToInterpolation.description().to_string(),
+            rationale: RefactorKind::StringConcatToInterpolation
+                .description()
+                .to_string(),
             impact_score: 3,
             safe_to_apply: false,
         })
     }
 
-    fn detect_if_chain(&mut self, file: &str, lang: &Language, line: &str, ln: u32) -> Option<RefactorOpportunity> {
+    fn detect_if_chain(
+        &mut self,
+        file: &str,
+        lang: &Language,
+        line: &str,
+        ln: u32,
+    ) -> Option<RefactorOpportunity> {
         // Detect: } else if ... { chains (crude but useful for demo)
-        if !line.trim().starts_with("} else if") { return None; }
+        if !line.trim().starts_with("} else if") {
+            return None;
+        }
         let suggested = match lang {
             Language::Rust => "// Consider: match value { pattern => ..., }".to_string(),
             Language::TypeScript => "// Consider: switch(value) { case ...: }".to_string(),
@@ -544,20 +679,29 @@ impl PolyglotRefactor {
     pub fn by_language(&self) -> HashMap<String, Vec<&RefactorOpportunity>> {
         let mut map: HashMap<String, Vec<&RefactorOpportunity>> = HashMap::new();
         for opp in &self.opportunities {
-            map.entry(opp.language.name().to_string()).or_default().push(opp);
+            map.entry(opp.language.name().to_string())
+                .or_default()
+                .push(opp);
         }
         map
     }
 
-    pub fn all_opportunities(&self) -> &[RefactorOpportunity] { &self.opportunities }
+    pub fn all_opportunities(&self) -> &[RefactorOpportunity] {
+        &self.opportunities
+    }
 
     pub fn high_impact(&self) -> Vec<&RefactorOpportunity> {
-        self.opportunities.iter().filter(|o| o.impact_score >= 7).collect()
+        self.opportunities
+            .iter()
+            .filter(|o| o.impact_score >= 7)
+            .collect()
     }
 }
 
 impl Default for PolyglotRefactor {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -708,12 +852,18 @@ mod tests {
 
     #[test]
     fn test_naming_preferred_for_rust_is_snake() {
-        assert_eq!(NamingConvention::preferred_for(&Language::Rust), NamingConvention::SnakeCase);
+        assert_eq!(
+            NamingConvention::preferred_for(&Language::Rust),
+            NamingConvention::SnakeCase
+        );
     }
 
     #[test]
     fn test_naming_preferred_for_ts_is_camel() {
-        assert_eq!(NamingConvention::preferred_for(&Language::TypeScript), NamingConvention::CamelCase);
+        assert_eq!(
+            NamingConvention::preferred_for(&Language::TypeScript),
+            NamingConvention::CamelCase
+        );
     }
 
     // ── split_identifier ──────────────────────────────────────────────────
@@ -767,7 +917,9 @@ mod tests {
         let mut eng = PolyglotRefactor::new();
         let lines = vec!["let s = \"Hello, \" + name + \"!\";"];
         let opps = eng.scan("lib.rs", &Language::Rust, &lines);
-        assert!(opps.iter().any(|o| o.kind == RefactorKind::StringConcatToInterpolation));
+        assert!(opps
+            .iter()
+            .any(|o| o.kind == RefactorKind::StringConcatToInterpolation));
     }
 
     #[test]
@@ -775,14 +927,20 @@ mod tests {
         let mut eng = PolyglotRefactor::new();
         let lines = vec!["} else if x == 2 {"];
         let opps = eng.scan("lib.rs", &Language::Rust, &lines);
-        assert!(opps.iter().any(|o| o.kind == RefactorKind::IfToMatchOrSwitch));
+        assert!(opps
+            .iter()
+            .any(|o| o.kind == RefactorKind::IfToMatchOrSwitch));
     }
 
     #[test]
     fn test_scan_accumulates_all() {
         let mut eng = PolyglotRefactor::new();
         eng.scan("a.rs", &Language::Rust, &["for i in 0..n {"]);
-        eng.scan("b.ts", &Language::TypeScript, &["for (let i = 0; i < n; i++) {"]);
+        eng.scan(
+            "b.ts",
+            &Language::TypeScript,
+            &["for (let i = 0; i < n; i++) {"],
+        );
         assert_eq!(eng.all_opportunities().len(), 2);
     }
 
@@ -806,7 +964,11 @@ mod tests {
     fn test_by_language_groups_correctly() {
         let mut eng = PolyglotRefactor::new();
         eng.scan("a.rs", &Language::Rust, &["for i in 0..n {"]);
-        eng.scan("b.ts", &Language::TypeScript, &["for (let i = 0; i < n; i++) {"]);
+        eng.scan(
+            "b.ts",
+            &Language::TypeScript,
+            &["for (let i = 0; i < n; i++) {"],
+        );
         let grouped = eng.by_language();
         assert!(grouped.contains_key("Rust"));
         assert!(grouped.contains_key("TypeScript"));
@@ -816,16 +978,30 @@ mod tests {
     fn test_high_impact_filters() {
         let mut eng = PolyglotRefactor::new();
         eng.opportunities.push(RefactorOpportunity {
-            id: "x1".into(), file: "f.rs".into(), language: Language::Rust,
-            kind: RefactorKind::ExtractFunction, start_line: 1, end_line: 5,
-            original_snippet: "".into(), suggested_snippet: "".into(),
-            rationale: "".into(), impact_score: 8, safe_to_apply: false,
+            id: "x1".into(),
+            file: "f.rs".into(),
+            language: Language::Rust,
+            kind: RefactorKind::ExtractFunction,
+            start_line: 1,
+            end_line: 5,
+            original_snippet: "".into(),
+            suggested_snippet: "".into(),
+            rationale: "".into(),
+            impact_score: 8,
+            safe_to_apply: false,
         });
         eng.opportunities.push(RefactorOpportunity {
-            id: "x2".into(), file: "f.rs".into(), language: Language::Rust,
-            kind: RefactorKind::InlineVariable, start_line: 10, end_line: 10,
-            original_snippet: "".into(), suggested_snippet: "".into(),
-            rationale: "".into(), impact_score: 3, safe_to_apply: true,
+            id: "x2".into(),
+            file: "f.rs".into(),
+            language: Language::Rust,
+            kind: RefactorKind::InlineVariable,
+            start_line: 10,
+            end_line: 10,
+            original_snippet: "".into(),
+            suggested_snippet: "".into(),
+            rationale: "".into(),
+            impact_score: 3,
+            safe_to_apply: true,
         });
         assert_eq!(eng.high_impact().len(), 1);
         assert_eq!(eng.high_impact()[0].impact_score, 8);

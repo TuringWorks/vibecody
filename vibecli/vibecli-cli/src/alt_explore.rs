@@ -75,9 +75,13 @@ impl Tournament {
     /// A perfect candidate (pass_rate=1.0, diff=0, compiles) scores exactly 1.0.
     pub fn score(&self, candidate: &mut ExploreCandidate) {
         let c = &self.config;
-        let diff_penalty = c.diff_penalty_weight
-            * (candidate.diff_lines as f32 / c.diff_normalizer).min(1.0);
-        let compile_penalty = if candidate.compile_success { 0.0 } else { c.compile_penalty };
+        let diff_penalty =
+            c.diff_penalty_weight * (candidate.diff_lines as f32 / c.diff_normalizer).min(1.0);
+        let compile_penalty = if candidate.compile_success {
+            0.0
+        } else {
+            c.compile_penalty
+        };
         candidate.score = (candidate.pass_rate - diff_penalty - compile_penalty).clamp(0.0, 1.0);
     }
 
@@ -86,7 +90,11 @@ impl Tournament {
         for c in &mut candidates {
             self.score(c);
         }
-        candidates.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        candidates.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         candidates
     }
 
@@ -96,7 +104,10 @@ impl Tournament {
         candidates: Vec<ExploreCandidate>,
     ) -> Vec<ExploreCandidate> {
         if self.config.min_compile_required {
-            candidates.into_iter().filter(|c| c.compile_success).collect()
+            candidates
+                .into_iter()
+                .filter(|c| c.compile_success)
+                .collect()
         } else {
             candidates
         }
@@ -159,14 +170,21 @@ mod tests {
     #[test]
     fn test_rank_orders_by_score() {
         let t = Tournament::new(TournamentConfig::default());
-        let candidates = vec![cand("a", 0.5, 0, true), cand("b", 1.0, 0, true), cand("c", 0.2, 0, true)];
+        let candidates = vec![
+            cand("a", 0.5, 0, true),
+            cand("b", 1.0, 0, true),
+            cand("c", 0.2, 0, true),
+        ];
         let ranked = t.rank(candidates);
         assert_eq!(ranked[0].id, "b");
     }
 
     #[test]
     fn test_disqualify_non_compiling_enabled() {
-        let t = Tournament::new(TournamentConfig { min_compile_required: true, ..Default::default() });
+        let t = Tournament::new(TournamentConfig {
+            min_compile_required: true,
+            ..Default::default()
+        });
         let candidates = vec![cand("a", 1.0, 0, true), cand("b", 1.0, 0, false)];
         let filtered = t.disqualify_non_compiling(candidates);
         assert_eq!(filtered.len(), 1);

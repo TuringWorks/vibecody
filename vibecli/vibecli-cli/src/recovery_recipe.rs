@@ -26,14 +26,30 @@ impl ErrorPattern {
     /// Detect pattern from an error message string.
     pub fn from_message(msg: &str) -> Self {
         let lower = msg.to_lowercase();
-        if lower.contains("permission denied") || lower.contains("access denied") { return Self::PermissionDenied; }
-        if lower.contains("no such file") || lower.contains("not found") { return Self::FileNotFound; }
-        if lower.contains("timeout") || lower.contains("timed out") { return Self::NetworkTimeout; }
-        if lower.contains("rate limit") || lower.contains("429") { return Self::RateLimited; }
-        if lower.contains("conflict") { return Self::MergeConflict; }
-        if lower.contains("error[e") || lower.contains("compil") { return Self::CompilationError; }
-        if lower.contains("test") && (lower.contains("failed") || lower.contains("panic")) { return Self::TestFailure; }
-        if lower.contains("parse") || lower.contains("syntax") { return Self::ParseError; }
+        if lower.contains("permission denied") || lower.contains("access denied") {
+            return Self::PermissionDenied;
+        }
+        if lower.contains("no such file") || lower.contains("not found") {
+            return Self::FileNotFound;
+        }
+        if lower.contains("timeout") || lower.contains("timed out") {
+            return Self::NetworkTimeout;
+        }
+        if lower.contains("rate limit") || lower.contains("429") {
+            return Self::RateLimited;
+        }
+        if lower.contains("conflict") {
+            return Self::MergeConflict;
+        }
+        if lower.contains("error[e") || lower.contains("compil") {
+            return Self::CompilationError;
+        }
+        if lower.contains("test") && (lower.contains("failed") || lower.contains("panic")) {
+            return Self::TestFailure;
+        }
+        if lower.contains("parse") || lower.contains("syntax") {
+            return Self::ParseError;
+        }
         Self::Custom(msg.chars().take(60).collect())
     }
 }
@@ -72,10 +88,13 @@ pub struct RecoveryRecipe {
 
 impl RecoveryRecipe {
     pub fn step_at(&self, attempt: u32) -> Option<&RecoveryStep> {
-        self.steps.get((attempt as usize).min(self.steps.len().saturating_sub(1)))
+        self.steps
+            .get((attempt as usize).min(self.steps.len().saturating_sub(1)))
     }
 
-    pub fn is_exhausted(&self, attempt: u32) -> bool { attempt >= self.max_attempts }
+    pub fn is_exhausted(&self, attempt: u32) -> bool {
+        attempt >= self.max_attempts
+    }
 }
 
 // ─── Built-in Recipes ────────────────────────────────────────────────────────
@@ -160,7 +179,10 @@ pub struct RecoveryEngine {
 impl RecoveryEngine {
     pub fn new(recipes: Vec<RecoveryRecipe>) -> Self {
         let map = recipes.into_iter().map(|r| (r.name.clone(), r)).collect();
-        Self { recipes: map, attempt_counts: HashMap::new() }
+        Self {
+            recipes: map,
+            attempt_counts: HashMap::new(),
+        }
     }
 
     /// Look up a recipe by error pattern.
@@ -174,14 +196,18 @@ impl RecoveryEngine {
         let recipe = self.find_recipe(&pattern)?;
         let name = recipe.name.clone();
         let attempt = *self.attempt_counts.get(&name).unwrap_or(&0);
-        if recipe.is_exhausted(attempt) { return None; }
+        if recipe.is_exhausted(attempt) {
+            return None;
+        }
         let step = recipe.step_at(attempt).cloned();
         *self.attempt_counts.entry(name).or_insert(0) += 1;
         step
     }
 
     /// Reset attempt counter for a recipe (after successful recovery).
-    pub fn reset(&mut self, recipe_name: &str) { self.attempt_counts.remove(recipe_name); }
+    pub fn reset(&mut self, recipe_name: &str) {
+        self.attempt_counts.remove(recipe_name);
+    }
 
     pub fn attempt_count(&self, recipe_name: &str) -> u32 {
         *self.attempt_counts.get(recipe_name).unwrap_or(&0)
@@ -189,7 +215,9 @@ impl RecoveryEngine {
 }
 
 impl Default for RecoveryEngine {
-    fn default() -> Self { Self::new(builtin_recipes()) }
+    fn default() -> Self {
+        Self::new(builtin_recipes())
+    }
 }
 
 // ── Prescriptive FailureScenario Registry ─────────────────────────────────────
@@ -221,13 +249,13 @@ pub enum FailureScenario {
 impl std::fmt::Display for FailureScenario {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ProviderTimeout      => write!(f, "provider_timeout"),
+            Self::ProviderTimeout => write!(f, "provider_timeout"),
             Self::ToolPermissionDenied => write!(f, "tool_permission_denied"),
-            Self::SessionCorrupted     => write!(f, "session_corrupted"),
-            Self::CompactionFailed     => write!(f, "compaction_failed"),
-            Self::SubagentCrash        => write!(f, "subagent_crash"),
-            Self::WorkspaceConflict    => write!(f, "workspace_conflict"),
-            Self::MCPServerDown        => write!(f, "mcp_server_down"),
+            Self::SessionCorrupted => write!(f, "session_corrupted"),
+            Self::CompactionFailed => write!(f, "compaction_failed"),
+            Self::SubagentCrash => write!(f, "subagent_crash"),
+            Self::WorkspaceConflict => write!(f, "workspace_conflict"),
+            Self::MCPServerDown => write!(f, "mcp_server_down"),
         }
     }
 }
@@ -243,9 +271,9 @@ pub enum RecoveryOutcome {
 impl std::fmt::Display for RecoveryOutcome {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Resolved  => write!(f, "resolved"),
+            Self::Resolved => write!(f, "resolved"),
             Self::Escalated => write!(f, "escalated"),
-            Self::Failed    => write!(f, "failed"),
+            Self::Failed => write!(f, "failed"),
         }
     }
 }
@@ -261,10 +289,18 @@ pub struct ScenarioRecoveryStep {
 
 impl ScenarioRecoveryStep {
     pub fn auto(description: &str, action: &str) -> Self {
-        Self { description: description.to_string(), automatic: true, action: action.to_string() }
+        Self {
+            description: description.to_string(),
+            automatic: true,
+            action: action.to_string(),
+        }
     }
     pub fn manual(description: &str, action: &str) -> Self {
-        Self { description: description.to_string(), automatic: false, action: action.to_string() }
+        Self {
+            description: description.to_string(),
+            automatic: false,
+            action: action.to_string(),
+        }
     }
 }
 
@@ -297,51 +333,105 @@ impl RecoveryRegistry {
         let mut recipes = HashMap::new();
 
         let all: Vec<(FailureScenario, Vec<ScenarioRecoveryStep>)> = vec![
-            (FailureScenario::ProviderTimeout, vec![
-                ScenarioRecoveryStep::auto("Retry with exponential backoff", "retry_backoff"),
-                ScenarioRecoveryStep::auto("Switch to fallback provider", "switch_provider"),
-                ScenarioRecoveryStep::manual("Check provider status page", "manual_check"),
-            ]),
-            (FailureScenario::ToolPermissionDenied, vec![
-                ScenarioRecoveryStep::auto("Retry with reduced permissions scope", "reduce_scope"),
-                ScenarioRecoveryStep::manual("Request user permission elevation", "request_elevation"),
-            ]),
-            (FailureScenario::SessionCorrupted, vec![
-                ScenarioRecoveryStep::auto("Restore from last valid checkpoint", "restore_checkpoint"),
-                ScenarioRecoveryStep::auto("Rebuild session from trace files", "rebuild_from_trace"),
-                ScenarioRecoveryStep::manual("Start fresh session", "fresh_session"),
-            ]),
-            (FailureScenario::CompactionFailed, vec![
-                ScenarioRecoveryStep::auto("Retry compaction with smaller window", "retry_smaller_window"),
-                ScenarioRecoveryStep::auto("Skip compaction, continue with full context", "skip_compaction"),
-                ScenarioRecoveryStep::manual("Manually summarize and restart", "manual_restart"),
-            ]),
-            (FailureScenario::SubagentCrash, vec![
-                ScenarioRecoveryStep::auto("Respawn subagent with same task", "respawn"),
-                ScenarioRecoveryStep::auto("Escalate task to parent agent", "escalate_to_parent"),
-                ScenarioRecoveryStep::manual("Mark task as failed and continue", "mark_failed"),
-            ]),
-            (FailureScenario::WorkspaceConflict, vec![
-                ScenarioRecoveryStep::auto("Auto-rebase on base branch", "auto_rebase"),
-                ScenarioRecoveryStep::auto("Create new branch to avoid conflict", "new_branch"),
-                ScenarioRecoveryStep::manual("Manually resolve conflicts", "manual_resolve"),
-            ]),
-            (FailureScenario::MCPServerDown, vec![
-                ScenarioRecoveryStep::auto("Reconnect after backoff", "reconnect"),
-                ScenarioRecoveryStep::auto("Use cached tool results if available", "use_cache"),
-                ScenarioRecoveryStep::manual("Disable MCP server and continue without", "disable_mcp"),
-            ]),
+            (
+                FailureScenario::ProviderTimeout,
+                vec![
+                    ScenarioRecoveryStep::auto("Retry with exponential backoff", "retry_backoff"),
+                    ScenarioRecoveryStep::auto("Switch to fallback provider", "switch_provider"),
+                    ScenarioRecoveryStep::manual("Check provider status page", "manual_check"),
+                ],
+            ),
+            (
+                FailureScenario::ToolPermissionDenied,
+                vec![
+                    ScenarioRecoveryStep::auto(
+                        "Retry with reduced permissions scope",
+                        "reduce_scope",
+                    ),
+                    ScenarioRecoveryStep::manual(
+                        "Request user permission elevation",
+                        "request_elevation",
+                    ),
+                ],
+            ),
+            (
+                FailureScenario::SessionCorrupted,
+                vec![
+                    ScenarioRecoveryStep::auto(
+                        "Restore from last valid checkpoint",
+                        "restore_checkpoint",
+                    ),
+                    ScenarioRecoveryStep::auto(
+                        "Rebuild session from trace files",
+                        "rebuild_from_trace",
+                    ),
+                    ScenarioRecoveryStep::manual("Start fresh session", "fresh_session"),
+                ],
+            ),
+            (
+                FailureScenario::CompactionFailed,
+                vec![
+                    ScenarioRecoveryStep::auto(
+                        "Retry compaction with smaller window",
+                        "retry_smaller_window",
+                    ),
+                    ScenarioRecoveryStep::auto(
+                        "Skip compaction, continue with full context",
+                        "skip_compaction",
+                    ),
+                    ScenarioRecoveryStep::manual(
+                        "Manually summarize and restart",
+                        "manual_restart",
+                    ),
+                ],
+            ),
+            (
+                FailureScenario::SubagentCrash,
+                vec![
+                    ScenarioRecoveryStep::auto("Respawn subagent with same task", "respawn"),
+                    ScenarioRecoveryStep::auto(
+                        "Escalate task to parent agent",
+                        "escalate_to_parent",
+                    ),
+                    ScenarioRecoveryStep::manual("Mark task as failed and continue", "mark_failed"),
+                ],
+            ),
+            (
+                FailureScenario::WorkspaceConflict,
+                vec![
+                    ScenarioRecoveryStep::auto("Auto-rebase on base branch", "auto_rebase"),
+                    ScenarioRecoveryStep::auto("Create new branch to avoid conflict", "new_branch"),
+                    ScenarioRecoveryStep::manual("Manually resolve conflicts", "manual_resolve"),
+                ],
+            ),
+            (
+                FailureScenario::MCPServerDown,
+                vec![
+                    ScenarioRecoveryStep::auto("Reconnect after backoff", "reconnect"),
+                    ScenarioRecoveryStep::auto("Use cached tool results if available", "use_cache"),
+                    ScenarioRecoveryStep::manual(
+                        "Disable MCP server and continue without",
+                        "disable_mcp",
+                    ),
+                ],
+            ),
         ];
 
         for (scenario, steps) in all {
-            recipes.insert(scenario.clone(), ScenarioRecipe {
-                scenario,
-                steps,
-                max_auto_attempts: 1,
-            });
+            recipes.insert(
+                scenario.clone(),
+                ScenarioRecipe {
+                    scenario,
+                    steps,
+                    max_auto_attempts: 1,
+                },
+            );
         }
 
-        Self { recipes, events: Vec::new() }
+        Self {
+            recipes,
+            events: Vec::new(),
+        }
     }
 
     pub fn get_recipe(&self, scenario: &FailureScenario) -> Option<&ScenarioRecipe> {
@@ -399,7 +489,9 @@ impl RecoveryRegistry {
 }
 
 impl Default for RecoveryRegistry {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl std::fmt::Debug for RecoveryRegistry {
@@ -419,32 +511,50 @@ mod tests {
 
     #[test]
     fn test_pattern_from_rate_limit_msg() {
-        assert_eq!(ErrorPattern::from_message("429 rate limit exceeded"), ErrorPattern::RateLimited);
+        assert_eq!(
+            ErrorPattern::from_message("429 rate limit exceeded"),
+            ErrorPattern::RateLimited
+        );
     }
 
     #[test]
     fn test_pattern_from_timeout_msg() {
-        assert_eq!(ErrorPattern::from_message("connection timed out"), ErrorPattern::NetworkTimeout);
+        assert_eq!(
+            ErrorPattern::from_message("connection timed out"),
+            ErrorPattern::NetworkTimeout
+        );
     }
 
     #[test]
     fn test_pattern_from_permission_msg() {
-        assert_eq!(ErrorPattern::from_message("Permission denied: /etc/shadow"), ErrorPattern::PermissionDenied);
+        assert_eq!(
+            ErrorPattern::from_message("Permission denied: /etc/shadow"),
+            ErrorPattern::PermissionDenied
+        );
     }
 
     #[test]
     fn test_pattern_from_compile_msg() {
-        assert_eq!(ErrorPattern::from_message("error[E0308]: mismatched types"), ErrorPattern::CompilationError);
+        assert_eq!(
+            ErrorPattern::from_message("error[E0308]: mismatched types"),
+            ErrorPattern::CompilationError
+        );
     }
 
     #[test]
     fn test_pattern_from_test_fail() {
-        assert_eq!(ErrorPattern::from_message("test foo::bar ... FAILED\npanicked"), ErrorPattern::TestFailure);
+        assert_eq!(
+            ErrorPattern::from_message("test foo::bar ... FAILED\npanicked"),
+            ErrorPattern::TestFailure
+        );
     }
 
     #[test]
     fn test_pattern_from_merge_conflict() {
-        assert_eq!(ErrorPattern::from_message("CONFLICT (content): Merge conflict in file.rs"), ErrorPattern::MergeConflict);
+        assert_eq!(
+            ErrorPattern::from_message("CONFLICT (content): Merge conflict in file.rs"),
+            ErrorPattern::MergeConflict
+        );
     }
 
     #[test]
@@ -458,13 +568,18 @@ mod tests {
         let mut engine = RecoveryEngine::default();
         let step = engine.recommend("429 rate limit exceeded");
         assert!(step.is_some());
-        assert!(matches!(step.unwrap().action, RecoveryAction::RetryAfterMs(5_000)));
+        assert!(matches!(
+            step.unwrap().action,
+            RecoveryAction::RetryAfterMs(5_000)
+        ));
     }
 
     #[test]
     fn test_recommend_escalates_after_max_attempts() {
         let mut engine = RecoveryEngine::default();
-        for _ in 0..2 { engine.recommend("429 rate limit exceeded"); }
+        for _ in 0..2 {
+            engine.recommend("429 rate limit exceeded");
+        }
         let step = engine.recommend("429 rate limit exceeded");
         assert!(matches!(step.unwrap().action, RecoveryAction::Escalate));
     }
@@ -472,7 +587,9 @@ mod tests {
     #[test]
     fn test_recommend_none_when_exhausted() {
         let mut engine = RecoveryEngine::default();
-        for _ in 0..3 { engine.recommend("429 rate limit exceeded"); }
+        for _ in 0..3 {
+            engine.recommend("429 rate limit exceeded");
+        }
         assert!(engine.recommend("429 rate limit exceeded").is_none());
     }
 
@@ -489,7 +606,10 @@ mod tests {
     fn test_compile_error_injects_context() {
         let mut engine = RecoveryEngine::default();
         let step = engine.recommend("error[E0308] mismatched types");
-        assert!(matches!(step.unwrap().action, RecoveryAction::InjectContext(_)));
+        assert!(matches!(
+            step.unwrap().action,
+            RecoveryAction::InjectContext(_)
+        ));
     }
 
     #[test]
@@ -560,7 +680,11 @@ mod tests {
             FailureScenario::MCPServerDown,
         ] {
             let recipe = reg.get_recipe(scenario).unwrap();
-            assert!(recipe.steps[0].automatic, "First step of {:?} must be automatic", scenario);
+            assert!(
+                recipe.steps[0].automatic,
+                "First step of {:?} must be automatic",
+                scenario
+            );
         }
     }
 

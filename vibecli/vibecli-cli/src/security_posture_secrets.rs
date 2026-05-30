@@ -328,10 +328,7 @@ impl Scanner for SecretLeakScanner {
                 Ok(c) if c.len() < 2_097_152 => c, // 2 MiB cap
                 _ => continue,
             };
-            let rel = path
-                .strip_prefix(workspace)
-                .unwrap_or(path)
-                .to_path_buf();
+            let rel = path.strip_prefix(workspace).unwrap_or(path).to_path_buf();
             scan_content(&content, &rel, &mut findings, &mut seen);
         }
         Ok(findings)
@@ -367,8 +364,12 @@ fn should_scan_file(path: &Path) -> bool {
     }
     // Skip files whose name suggests fixture / test data.
     let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-    if name.starts_with("test_") || name.ends_with("_test.rs") || name.ends_with(".test.ts")
-        || name.ends_with(".test.tsx") || name.ends_with(".spec.ts") || name.ends_with(".spec.tsx")
+    if name.starts_with("test_")
+        || name.ends_with("_test.rs")
+        || name.ends_with(".test.ts")
+        || name.ends_with(".test.tsx")
+        || name.ends_with(".spec.ts")
+        || name.ends_with(".spec.tsx")
     {
         return false;
     }
@@ -376,8 +377,24 @@ fn should_scan_file(path: &Path) -> bool {
     if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
         if matches!(
             ext,
-            "png" | "jpg" | "jpeg" | "gif" | "ico" | "pdf" | "zip" | "tar" | "gz"
-                | "bz2" | "xz" | "wasm" | "so" | "dylib" | "dll" | "exe" | "bin" | "lock"
+            "png"
+                | "jpg"
+                | "jpeg"
+                | "gif"
+                | "ico"
+                | "pdf"
+                | "zip"
+                | "tar"
+                | "gz"
+                | "bz2"
+                | "xz"
+                | "wasm"
+                | "so"
+                | "dylib"
+                | "dll"
+                | "exe"
+                | "bin"
+                | "lock"
         ) {
             return false;
         }
@@ -437,7 +454,9 @@ fn redact(matched: &str, redaction: Redaction) -> String {
         Redaction::KeepIssuerPrefix => {
             // Find the underscore / dash that splits the issuer
             // prefix from the body. `ghp_xxxxx` → `ghp_***`.
-            let split = matched.find(['_', '-']).unwrap_or_else(|| matched.len().min(4));
+            let split = matched
+                .find(['_', '-'])
+                .unwrap_or_else(|| matched.len().min(4));
             let p: String = matched.chars().take(split + 1).collect();
             format!("{p}***")
         }
@@ -505,7 +524,8 @@ mod tests {
         // not a real key.
         let f = scan_str(r#"const KEY = "AKIAIOSFODNN7EXAMPLE";"#);
         assert!(
-            f.iter().any(|f| f.rule_id == "secret-leak:aws-access-key-id"),
+            f.iter()
+                .any(|f| f.rule_id == "secret-leak:aws-access-key-id"),
             "expected AWS access key match"
         );
     }
@@ -514,13 +534,17 @@ mod tests {
     fn finds_github_pat() {
         // Synthetic — looks like a ghp_ but is just `a` repeated.
         let f = scan_str(&format!("const t = \"ghp_{}\";", "a".repeat(40)));
-        assert!(f.iter().any(|f| f.rule_id == "secret-leak:github-personal-access-token"));
+        assert!(f
+            .iter()
+            .any(|f| f.rule_id == "secret-leak:github-personal-access-token"));
     }
 
     #[test]
     fn finds_anthropic_key() {
         let f = scan_str(&format!("API={};", format!("sk-ant-{}", "x".repeat(50))));
-        assert!(f.iter().any(|f| f.rule_id == "secret-leak:anthropic-api-key"));
+        assert!(f
+            .iter()
+            .any(|f| f.rule_id == "secret-leak:anthropic-api-key"));
     }
 
     #[test]
@@ -543,10 +567,19 @@ mod tests {
     #[test]
     fn redacts_aws_key_to_prefix() {
         let f = scan_str(r#"const K = "AKIAIOSFODNN7EXAMPLE";"#);
-        let finding = f.iter().find(|f| f.rule_id == "secret-leak:aws-access-key-id").unwrap();
+        let finding = f
+            .iter()
+            .find(|f| f.rule_id == "secret-leak:aws-access-key-id")
+            .unwrap();
         let snippet = finding.snippet.as_ref().unwrap();
-        assert!(snippet.contains("AKIA***"), "expected redacted prefix, got: {snippet}");
-        assert!(!snippet.contains("EXAMPLE"), "redacted snippet must not carry full key");
+        assert!(
+            snippet.contains("AKIA***"),
+            "expected redacted prefix, got: {snippet}"
+        );
+        assert!(
+            !snippet.contains("EXAMPLE"),
+            "redacted snippet must not carry full key"
+        );
     }
 
     #[test]
@@ -568,12 +601,15 @@ mod tests {
         // A line that matches both `sk-` (openai) AND a `password =`
         // pattern shouldn't double-emit each rule, but it can emit
         // both rules once. Verify each rule_id appears at most once.
-        let f = scan_str(&format!(
-            "password = \"sk-{}\"",
-            "a".repeat(50)
-        ));
-        let openai_count = f.iter().filter(|f| f.rule_id == "secret-leak:openai-api-key").count();
-        let pw_count = f.iter().filter(|f| f.rule_id == "secret-leak:hardcoded-password-assignment").count();
+        let f = scan_str(&format!("password = \"sk-{}\"", "a".repeat(50)));
+        let openai_count = f
+            .iter()
+            .filter(|f| f.rule_id == "secret-leak:openai-api-key")
+            .count();
+        let pw_count = f
+            .iter()
+            .filter(|f| f.rule_id == "secret-leak:hardcoded-password-assignment")
+            .count();
         assert!(openai_count <= 1, "openai rule should dedup");
         assert!(pw_count <= 1, "password rule should dedup");
     }
@@ -594,7 +630,9 @@ mod tests {
 
     #[test]
     fn should_scan_file_skips_node_modules() {
-        assert!(!should_scan_file(Path::new("project/node_modules/foo/index.js")));
+        assert!(!should_scan_file(Path::new(
+            "project/node_modules/foo/index.js"
+        )));
     }
 
     #[test]

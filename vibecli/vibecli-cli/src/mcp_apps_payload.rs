@@ -74,8 +74,7 @@ pub struct McpAppCsp {
 /// Parse a raw byte string carrying `application/vnd.mcp.app+json`.
 /// Returns the typed payload or an error explaining why it was rejected.
 pub fn parse(bytes: &[u8]) -> Result<McpAppPayload> {
-    let payload: McpAppPayload =
-        serde_json::from_slice(bytes).context("parse MCP Apps JSON")?;
+    let payload: McpAppPayload = serde_json::from_slice(bytes).context("parse MCP Apps JSON")?;
     validate(&payload)?;
     Ok(payload)
 }
@@ -103,9 +102,7 @@ pub fn validate(payload: &McpAppPayload) -> Result<()> {
     if let Some(csp) = &payload.csp {
         for src in &csp.allow_script {
             if src.trim() == "*" {
-                return Err(anyhow!(
-                    "CSP allowScript cannot contain wildcard \"*\""
-                ));
+                return Err(anyhow!("CSP allowScript cannot contain wildcard \"*\""));
             }
         }
     }
@@ -165,8 +162,16 @@ mod tests {
     fn validate_rejects_duplicate_action_ids() {
         let mut p = fixture_payload();
         p.actions = vec![
-            McpAppAction { id: "go".into(), label: "Go".into(), description: None },
-            McpAppAction { id: "go".into(), label: "Again".into(), description: None },
+            McpAppAction {
+                id: "go".into(),
+                label: "Go".into(),
+                description: None,
+            },
+            McpAppAction {
+                id: "go".into(),
+                label: "Again".into(),
+                description: None,
+            },
         ];
         let err = validate(&p).unwrap_err();
         assert!(err.to_string().to_lowercase().contains("duplicate"));

@@ -1,7 +1,7 @@
 //! BDD coverage for the egress policy DSL parser + matcher.
 
-use cucumber::{World, given, then, when};
-use vibe_broker::{Decision, Policy, policy::Request};
+use cucumber::{given, then, when, World};
+use vibe_broker::{policy::Request, Decision, Policy};
 
 #[derive(Default, World)]
 pub struct PWorld {
@@ -30,7 +30,9 @@ fn empty_policy(world: &mut PWorld) {
     });
 }
 
-#[given(expr = "a policy with one rule allowing {string} methods {string} with bearer key {string}")]
+#[given(
+    expr = "a policy with one rule allowing {string} methods {string} with bearer key {string}"
+)]
 fn one_rule_bearer(world: &mut PWorld, host: String, methods: String, key: String) {
     let toml = format!(
         r#"
@@ -51,7 +53,9 @@ inject = {{ type = "bearer", key = "{key}" }}
     world.policy = Some(Policy::parse_toml(&toml).unwrap());
 }
 
-#[given(expr = "a policy with one rule allowing {string} methods {string} with path prefix {string} and bearer key {string}")]
+#[given(
+    expr = "a policy with one rule allowing {string} methods {string} with path prefix {string} and bearer key {string}"
+)]
 fn one_rule_with_prefix(
     world: &mut PWorld,
     host: String,
@@ -167,7 +171,5 @@ fn parsed_inject_is(world: &mut PWorld, expected: String) {
 }
 
 fn main() {
-    futures::executor::block_on(PWorld::run(
-        "tests/features/broker_policy.feature",
-    ));
+    futures::executor::block_on(PWorld::run("tests/features/broker_policy.feature"));
 }

@@ -2,7 +2,7 @@
  * BDD tests for reasoning_provider using Cucumber.
  * Run with: cargo test --test reasoning_provider_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::reasoning_provider::{
     build_reasoning_response, parse_thinking_blocks, strip_thinking_from,
     token_budget_for_complexity, ModelTier, ReasoningBudget, ReasoningConfig, ReasoningResponse,
@@ -60,8 +60,8 @@ fn do_budget(world: &mut RpWorld) {
 
 #[when("I build the reasoning response")]
 fn do_build(world: &mut RpWorld) {
-    let config = ReasoningConfig::new(ModelTier::Reasoning)
-        .with_strip_thinking(world.strip_thinking);
+    let config =
+        ReasoningConfig::new(ModelTier::Reasoning).with_strip_thinking(world.strip_thinking);
     world.response = Some(build_reasoning_response(&world.raw, &config));
 }
 
@@ -128,7 +128,5 @@ fn check_resp_contains(world: &mut RpWorld, expected: String) {
 }
 
 fn main() {
-    futures::executor::block_on(RpWorld::run(
-        "tests/features/reasoning_provider.feature",
-    ));
+    futures::executor::block_on(RpWorld::run("tests/features/reasoning_provider.feature"));
 }

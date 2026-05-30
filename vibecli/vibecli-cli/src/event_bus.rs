@@ -16,94 +16,182 @@ use std::sync::{Arc, Mutex, OnceLock};
 #[derive(Debug, Clone, PartialEq)]
 pub enum BusEvent {
     // ── Session lifecycle ────────────────────────────────────────────────────
-    SessionInit          { session_id: String },
-    SessionEnd           { session_id: String },
-    SessionBeforeCompact { session_id: String, message_count: usize },
-    SessionAfterCompact  { session_id: String, summary: String },
+    SessionInit {
+        session_id: String,
+    },
+    SessionEnd {
+        session_id: String,
+    },
+    SessionBeforeCompact {
+        session_id: String,
+        message_count: usize,
+    },
+    SessionAfterCompact {
+        session_id: String,
+        summary: String,
+    },
 
     // ── Agent lifecycle ──────────────────────────────────────────────────────
-    AgentStart { turn: u32 },
-    AgentEnd   { turn: u32, tool_calls_made: usize },
-    AgentError { turn: u32, message: String },
+    AgentStart {
+        turn: u32,
+    },
+    AgentEnd {
+        turn: u32,
+        tool_calls_made: usize,
+    },
+    AgentError {
+        turn: u32,
+        message: String,
+    },
 
     // ── Tool lifecycle ───────────────────────────────────────────────────────
-    ToolCall    { call_id: String, tool_name: String, args_json: String },
-    ToolResult  { call_id: String, tool_name: String, output: String, exit_code: i32 },
-    ToolBlocked { call_id: String, tool_name: String, reason: String },
+    ToolCall {
+        call_id: String,
+        tool_name: String,
+        args_json: String,
+    },
+    ToolResult {
+        call_id: String,
+        tool_name: String,
+        output: String,
+        exit_code: i32,
+    },
+    ToolBlocked {
+        call_id: String,
+        tool_name: String,
+        reason: String,
+    },
 
     // ── Model / provider ─────────────────────────────────────────────────────
-    ModelChange           { old_model: String, new_model: String },
-    ProviderChange        { old_provider: String, new_provider: String },
-    BeforeProviderRequest { provider: String, message_count: usize },
-    AfterProviderResponse { provider: String, input_tokens: u32, output_tokens: u32 },
+    ModelChange {
+        old_model: String,
+        new_model: String,
+    },
+    ProviderChange {
+        old_provider: String,
+        new_provider: String,
+    },
+    BeforeProviderRequest {
+        provider: String,
+        message_count: usize,
+    },
+    AfterProviderResponse {
+        provider: String,
+        input_tokens: u32,
+        output_tokens: u32,
+    },
 
     // ── Token streaming ──────────────────────────────────────────────────────
-    TokenDelta   { text: String, turn: u32 },
-    ThinkingDelta { text: String, turn: u32 },
-    StreamEnd    { turn: u32 },
+    TokenDelta {
+        text: String,
+        turn: u32,
+    },
+    ThinkingDelta {
+        text: String,
+        turn: u32,
+    },
+    StreamEnd {
+        turn: u32,
+    },
 
     // ── Input ────────────────────────────────────────────────────────────────
-    UserInput    { content: String },
-    CommandInput { command: String, args: String },
+    UserInput {
+        content: String,
+    },
+    CommandInput {
+        command: String,
+        args: String,
+    },
 
     // ── Memory ───────────────────────────────────────────────────────────────
-    MemoryWrite  { key: String, value_preview: String },
-    MemoryRead   { key: String },
-    MemoryDelete { key: String },
+    MemoryWrite {
+        key: String,
+        value_preview: String,
+    },
+    MemoryRead {
+        key: String,
+    },
+    MemoryDelete {
+        key: String,
+    },
 
     // ── File operations (from tool calls) ───────────────────────────────────
-    FileRead   { path: String },
-    FileWrite  { path: String, bytes: usize },
-    FileDelete { path: String },
+    FileRead {
+        path: String,
+    },
+    FileWrite {
+        path: String,
+        bytes: usize,
+    },
+    FileDelete {
+        path: String,
+    },
 
     // ── Cost / quota ─────────────────────────────────────────────────────────
-    CostThreshold { provider: String, cost_usd: f64, threshold_usd: f64 },
-    QuotaWarning  { provider: String, used_pct: f64 },
+    CostThreshold {
+        provider: String,
+        cost_usd: f64,
+        threshold_usd: f64,
+    },
+    QuotaWarning {
+        provider: String,
+        used_pct: f64,
+    },
 
     // ── Extension ────────────────────────────────────────────────────────────
-    ExtensionLoaded   { name: String },
-    ExtensionUnloaded { name: String },
-    ExtensionError    { name: String, error: String },
+    ExtensionLoaded {
+        name: String,
+    },
+    ExtensionUnloaded {
+        name: String,
+    },
+    ExtensionError {
+        name: String,
+        error: String,
+    },
 
     // ── Custom (extension-defined events) ───────────────────────────────────
-    Custom { event_type: String, payload: String },
+    Custom {
+        event_type: String,
+        payload: String,
+    },
 }
 
 impl BusEvent {
     /// Returns the snake_case type name used for filtering.
     pub fn type_name(&self) -> &str {
         match self {
-            Self::SessionInit          { .. } => "session_init",
-            Self::SessionEnd           { .. } => "session_end",
+            Self::SessionInit { .. } => "session_init",
+            Self::SessionEnd { .. } => "session_end",
             Self::SessionBeforeCompact { .. } => "session_before_compact",
-            Self::SessionAfterCompact  { .. } => "session_after_compact",
-            Self::AgentStart           { .. } => "agent_start",
-            Self::AgentEnd             { .. } => "agent_end",
-            Self::AgentError           { .. } => "agent_error",
-            Self::ToolCall             { .. } => "tool_call",
-            Self::ToolResult           { .. } => "tool_result",
-            Self::ToolBlocked          { .. } => "tool_blocked",
-            Self::ModelChange          { .. } => "model_change",
-            Self::ProviderChange       { .. } => "provider_change",
-            Self::BeforeProviderRequest{ .. } => "before_provider_request",
-            Self::AfterProviderResponse{ .. } => "after_provider_response",
-            Self::TokenDelta           { .. } => "token_delta",
-            Self::ThinkingDelta        { .. } => "thinking_delta",
-            Self::StreamEnd            { .. } => "stream_end",
-            Self::UserInput            { .. } => "user_input",
-            Self::CommandInput         { .. } => "command_input",
-            Self::MemoryWrite          { .. } => "memory_write",
-            Self::MemoryRead           { .. } => "memory_read",
-            Self::MemoryDelete         { .. } => "memory_delete",
-            Self::FileRead             { .. } => "file_read",
-            Self::FileWrite            { .. } => "file_write",
-            Self::FileDelete           { .. } => "file_delete",
-            Self::CostThreshold        { .. } => "cost_threshold",
-            Self::QuotaWarning         { .. } => "quota_warning",
-            Self::ExtensionLoaded      { .. } => "extension_loaded",
-            Self::ExtensionUnloaded    { .. } => "extension_unloaded",
-            Self::ExtensionError       { .. } => "extension_error",
-            Self::Custom               { .. } => "custom",
+            Self::SessionAfterCompact { .. } => "session_after_compact",
+            Self::AgentStart { .. } => "agent_start",
+            Self::AgentEnd { .. } => "agent_end",
+            Self::AgentError { .. } => "agent_error",
+            Self::ToolCall { .. } => "tool_call",
+            Self::ToolResult { .. } => "tool_result",
+            Self::ToolBlocked { .. } => "tool_blocked",
+            Self::ModelChange { .. } => "model_change",
+            Self::ProviderChange { .. } => "provider_change",
+            Self::BeforeProviderRequest { .. } => "before_provider_request",
+            Self::AfterProviderResponse { .. } => "after_provider_response",
+            Self::TokenDelta { .. } => "token_delta",
+            Self::ThinkingDelta { .. } => "thinking_delta",
+            Self::StreamEnd { .. } => "stream_end",
+            Self::UserInput { .. } => "user_input",
+            Self::CommandInput { .. } => "command_input",
+            Self::MemoryWrite { .. } => "memory_write",
+            Self::MemoryRead { .. } => "memory_read",
+            Self::MemoryDelete { .. } => "memory_delete",
+            Self::FileRead { .. } => "file_read",
+            Self::FileWrite { .. } => "file_write",
+            Self::FileDelete { .. } => "file_delete",
+            Self::CostThreshold { .. } => "cost_threshold",
+            Self::QuotaWarning { .. } => "quota_warning",
+            Self::ExtensionLoaded { .. } => "extension_loaded",
+            Self::ExtensionUnloaded { .. } => "extension_unloaded",
+            Self::ExtensionError { .. } => "extension_error",
+            Self::Custom { .. } => "custom",
         }
     }
 
@@ -111,16 +199,19 @@ impl BusEvent {
     /// Only `ToolCall` and `BeforeProviderRequest` are meaningful to block;
     /// all other events are observational.
     pub fn is_blocking_candidate(&self) -> bool {
-        matches!(self, Self::ToolCall { .. } | Self::BeforeProviderRequest { .. })
+        matches!(
+            self,
+            Self::ToolCall { .. } | Self::BeforeProviderRequest { .. }
+        )
     }
 
     /// Returns the session_id if this event carries one.
     pub fn session_id(&self) -> Option<&str> {
         match self {
-            Self::SessionInit          { session_id }
-            | Self::SessionEnd         { session_id }
+            Self::SessionInit { session_id }
+            | Self::SessionEnd { session_id }
             | Self::SessionBeforeCompact { session_id, .. }
-            | Self::SessionAfterCompact  { session_id, .. } => Some(session_id.as_str()),
+            | Self::SessionAfterCompact { session_id, .. } => Some(session_id.as_str()),
             _ => None,
         }
     }
@@ -128,8 +219,8 @@ impl BusEvent {
     /// Returns the tool_name if this event is tool-related.
     pub fn tool_name(&self) -> Option<&str> {
         match self {
-            Self::ToolCall    { tool_name, .. }
-            | Self::ToolResult  { tool_name, .. }
+            Self::ToolCall { tool_name, .. }
+            | Self::ToolResult { tool_name, .. }
             | Self::ToolBlocked { tool_name, .. } => Some(tool_name.as_str()),
             _ => None,
         }
@@ -385,7 +476,10 @@ mod tests {
         });
 
         bus.emit(BusEvent::AgentStart { turn: 1 });
-        bus.emit(BusEvent::AgentEnd { turn: 1, tool_calls_made: 3 });
+        bus.emit(BusEvent::AgentEnd {
+            turn: 1,
+            tool_calls_made: 3,
+        });
 
         let got = received.lock().unwrap();
         assert_eq!(got.len(), 2);
@@ -405,14 +499,22 @@ mod tests {
             HandlerDecision::Continue
         });
 
-        bus.emit(BusEvent::UserInput { content: "hello".into() });
+        bus.emit(BusEvent::UserInput {
+            content: "hello".into(),
+        });
         assert_eq!(*count.lock().unwrap(), 1);
 
         let removed = bus.unsubscribe(id);
         assert!(removed);
 
-        bus.emit(BusEvent::UserInput { content: "world".into() });
-        assert_eq!(*count.lock().unwrap(), 1, "should not increment after unsubscribe");
+        bus.emit(BusEvent::UserInput {
+            content: "world".into(),
+        });
+        assert_eq!(
+            *count.lock().unwrap(),
+            1,
+            "should not increment after unsubscribe"
+        );
     }
 
     // ── unsubscribe unknown id returns false ─────────────────────────────────
@@ -440,7 +542,9 @@ mod tests {
 
         assert_eq!(
             decision,
-            HandlerDecision::Block { reason: "denied".into() }
+            HandlerDecision::Block {
+                reason: "denied".into()
+            }
         );
     }
 
@@ -482,7 +586,10 @@ mod tests {
             tool_name: "Edit".into(),
             args_json: "{}".into(),
         });
-        bus.emit(BusEvent::AgentEnd { turn: 1, tool_calls_made: 1 });
+        bus.emit(BusEvent::AgentEnd {
+            turn: 1,
+            tool_calls_made: 1,
+        });
 
         assert_eq!(*count.lock().unwrap(), 1);
     }
@@ -500,7 +607,9 @@ mod tests {
             HandlerDecision::Continue
         });
 
-        bus.emit(BusEvent::SessionInit { session_id: "s1".into() });
+        bus.emit(BusEvent::SessionInit {
+            session_id: "s1".into(),
+        });
         bus.emit(BusEvent::ToolCall {
             call_id: "c1".into(),
             tool_name: "Read".into(),
@@ -517,10 +626,16 @@ mod tests {
             tool_name: "Bash".into(),
             reason: "no".into(),
         });
-        bus.emit(BusEvent::AgentEnd { turn: 1, tool_calls_made: 2 });
+        bus.emit(BusEvent::AgentEnd {
+            turn: 1,
+            tool_calls_made: 2,
+        });
 
         let got = names.lock().unwrap();
-        assert_eq!(got.as_slice(), &["tool_call", "tool_result", "tool_blocked"]);
+        assert_eq!(
+            got.as_slice(),
+            &["tool_call", "tool_result", "tool_blocked"]
+        );
     }
 
     // ── Priority ordering ────────────────────────────────────────────────────
@@ -538,7 +653,9 @@ mod tests {
             });
         }
 
-        bus.emit(BusEvent::UserInput { content: "x".into() });
+        bus.emit(BusEvent::UserInput {
+            content: "x".into(),
+        });
 
         let got = order.lock().unwrap().clone();
         assert_eq!(got, vec![10, 5, 0, -5]);
@@ -549,7 +666,9 @@ mod tests {
     #[test]
     fn history_records_emitted_events() {
         let bus = make_bus();
-        bus.emit(BusEvent::SessionInit { session_id: "s1".into() });
+        bus.emit(BusEvent::SessionInit {
+            session_id: "s1".into(),
+        });
         bus.emit(BusEvent::AgentStart { turn: 1 });
 
         let hist = bus.history();
@@ -580,8 +699,12 @@ mod tests {
     #[test]
     fn history_count_and_clear() {
         let bus = make_bus();
-        bus.emit(BusEvent::UserInput { content: "hi".into() });
-        bus.emit(BusEvent::UserInput { content: "bye".into() });
+        bus.emit(BusEvent::UserInput {
+            content: "hi".into(),
+        });
+        bus.emit(BusEvent::UserInput {
+            content: "bye".into(),
+        });
         assert_eq!(bus.history_count(), 2);
         bus.clear_history();
         assert_eq!(bus.history_count(), 0);
@@ -607,10 +730,7 @@ mod tests {
             payload: r#"{"foo":42}"#.into(),
         });
 
-        assert_eq!(
-            payload.lock().unwrap().as_deref(),
-            Some(r#"{"foo":42}"#)
-        );
+        assert_eq!(payload.lock().unwrap().as_deref(), Some(r#"{"foo":42}"#));
     }
 
     // ── type_name spot checks ────────────────────────────────────────────────
@@ -618,14 +738,60 @@ mod tests {
     #[test]
     fn type_name_spot_checks() {
         let cases: &[(BusEvent, &str)] = &[
-            (BusEvent::SessionInit { session_id: "s".into() }, "session_init"),
-            (BusEvent::SessionBeforeCompact { session_id: "s".into(), message_count: 10 }, "session_before_compact"),
-            (BusEvent::ToolCall { call_id: "c".into(), tool_name: "t".into(), args_json: "{}".into() }, "tool_call"),
-            (BusEvent::BeforeProviderRequest { provider: "claude".into(), message_count: 5 }, "before_provider_request"),
-            (BusEvent::TokenDelta { text: "hi".into(), turn: 1 }, "token_delta"),
-            (BusEvent::MemoryWrite { key: "k".into(), value_preview: "v".into() }, "memory_write"),
-            (BusEvent::CostThreshold { provider: "p".into(), cost_usd: 1.0, threshold_usd: 5.0 }, "cost_threshold"),
-            (BusEvent::ExtensionLoaded { name: "ext".into() }, "extension_loaded"),
+            (
+                BusEvent::SessionInit {
+                    session_id: "s".into(),
+                },
+                "session_init",
+            ),
+            (
+                BusEvent::SessionBeforeCompact {
+                    session_id: "s".into(),
+                    message_count: 10,
+                },
+                "session_before_compact",
+            ),
+            (
+                BusEvent::ToolCall {
+                    call_id: "c".into(),
+                    tool_name: "t".into(),
+                    args_json: "{}".into(),
+                },
+                "tool_call",
+            ),
+            (
+                BusEvent::BeforeProviderRequest {
+                    provider: "claude".into(),
+                    message_count: 5,
+                },
+                "before_provider_request",
+            ),
+            (
+                BusEvent::TokenDelta {
+                    text: "hi".into(),
+                    turn: 1,
+                },
+                "token_delta",
+            ),
+            (
+                BusEvent::MemoryWrite {
+                    key: "k".into(),
+                    value_preview: "v".into(),
+                },
+                "memory_write",
+            ),
+            (
+                BusEvent::CostThreshold {
+                    provider: "p".into(),
+                    cost_usd: 1.0,
+                    threshold_usd: 5.0,
+                },
+                "cost_threshold",
+            ),
+            (
+                BusEvent::ExtensionLoaded { name: "ext".into() },
+                "extension_loaded",
+            ),
         ];
         for (event, expected) in cases {
             assert_eq!(event.type_name(), *expected, "mismatch for {:?}", event);
@@ -637,23 +803,36 @@ mod tests {
     #[test]
     fn is_blocking_candidate_correct() {
         assert!(BusEvent::ToolCall {
-            call_id: "c".into(), tool_name: "t".into(), args_json: "{}".into()
-        }.is_blocking_candidate());
+            call_id: "c".into(),
+            tool_name: "t".into(),
+            args_json: "{}".into()
+        }
+        .is_blocking_candidate());
 
         assert!(BusEvent::BeforeProviderRequest {
-            provider: "p".into(), message_count: 1
-        }.is_blocking_candidate());
+            provider: "p".into(),
+            message_count: 1
+        }
+        .is_blocking_candidate());
 
         assert!(!BusEvent::AgentStart { turn: 0 }.is_blocking_candidate());
-        assert!(!BusEvent::UserInput { content: "x".into() }.is_blocking_candidate());
-        assert!(!BusEvent::SessionEnd { session_id: "s".into() }.is_blocking_candidate());
+        assert!(!BusEvent::UserInput {
+            content: "x".into()
+        }
+        .is_blocking_candidate());
+        assert!(!BusEvent::SessionEnd {
+            session_id: "s".into()
+        }
+        .is_blocking_candidate());
     }
 
     // ── session_id and tool_name accessors ───────────────────────────────────
 
     #[test]
     fn session_id_accessor() {
-        let e = BusEvent::SessionInit { session_id: "abc".into() };
+        let e = BusEvent::SessionInit {
+            session_id: "abc".into(),
+        };
         assert_eq!(e.session_id(), Some("abc"));
 
         let e2 = BusEvent::AgentStart { turn: 1 };
@@ -726,7 +905,15 @@ mod tests {
             args_json: "{}".into(),
         });
 
-        assert_eq!(decision, HandlerDecision::Block { reason: "stop".into() });
-        assert!(!*second_called.lock().unwrap(), "lower-priority handler must not run after block");
+        assert_eq!(
+            decision,
+            HandlerDecision::Block {
+                reason: "stop".into()
+            }
+        );
+        assert!(
+            !*second_called.lock().unwrap(),
+            "lower-priority handler must not run after block"
+        );
     }
 }

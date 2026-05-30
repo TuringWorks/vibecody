@@ -78,10 +78,7 @@ impl SkillWatcher {
     /// Begin watching `dir` for `*.md` changes. Returns the watcher
     /// (caller holds for its lifetime) and a receiver for batched
     /// events.
-    pub fn start(
-        dir: &Path,
-        config: SkillWatcherConfig,
-    ) -> Result<(Self, Receiver<SkillEvent>)> {
+    pub fn start(dir: &Path, config: SkillWatcherConfig) -> Result<(Self, Receiver<SkillEvent>)> {
         let (raw_tx, raw_rx) = channel::<notify::Result<Event>>();
         let mut watcher = notify::recommended_watcher(move |res| {
             // notify guarantees the channel survives the watcher
@@ -167,9 +164,7 @@ fn run_dispatcher(
                 // non-empty → flush) or there's nothing to do (pending
                 // is empty → spin-wait for the stop flag). The
                 // 100ms idle timeout above bounds the latter.
-                if !pending.is_empty()
-                    && deadline.map(|d| Instant::now() >= d).unwrap_or(true)
-                {
+                if !pending.is_empty() && deadline.map(|d| Instant::now() >= d).unwrap_or(true) {
                     let paths = std::mem::take(&mut pending).into_iter().collect();
                     if out_tx.send(SkillEvent::SkillsChanged { paths }).is_err() {
                         return;
@@ -242,7 +237,12 @@ mod tests {
             .expect("expected SkillsChanged within timeout");
         match ev {
             SkillEvent::SkillsChanged { paths } => {
-                assert!(paths.iter().any(|q| q == &p), "expected {} in paths {:?}", p.display(), paths);
+                assert!(
+                    paths.iter().any(|q| q == &p),
+                    "expected {} in paths {:?}",
+                    p.display(),
+                    paths
+                );
             }
         }
     }
@@ -273,7 +273,8 @@ mod tests {
         let next = rx.recv_timeout(Duration::from_millis(400));
         assert!(
             matches!(next, Err(RecvTimeoutError::Timeout)),
-            "expected no second batch; got {:?}", next
+            "expected no second batch; got {:?}",
+            next
         );
     }
 
@@ -290,7 +291,8 @@ mod tests {
         let next = rx.recv_timeout(Duration::from_millis(500));
         assert!(
             matches!(next, Err(RecvTimeoutError::Timeout)),
-            "non-md activity must not emit; got {:?}", next
+            "non-md activity must not emit; got {:?}",
+            next
         );
     }
 
@@ -348,7 +350,8 @@ mod tests {
                 result,
                 Err(RecvTimeoutError::Disconnected) | Err(RecvTimeoutError::Timeout)
             ),
-            "after drop expected disconnect or timeout; got {:?}", result
+            "after drop expected disconnect or timeout; got {:?}",
+            result
         );
     }
 }

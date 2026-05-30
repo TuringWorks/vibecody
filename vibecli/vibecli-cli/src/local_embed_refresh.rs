@@ -26,22 +26,34 @@ impl QuantizedVector {
     /// Quantize a float32 vector.
     pub fn from_floats(floats: &[f32]) -> Self {
         if floats.is_empty() {
-            return Self { values: vec![], scale: 1.0, zero_point: 0.0 };
+            return Self {
+                values: vec![],
+                scale: 1.0,
+                zero_point: 0.0,
+            };
         }
         let min = floats.iter().cloned().fold(f32::MAX, f32::min);
         let max = floats.iter().cloned().fold(f32::MIN, f32::max);
         let range = (max - min).max(1e-8);
         let scale = range / 254.0;
         let zero_point = min + range / 2.0;
-        let values = floats.iter().map(|&v| {
-            ((v - zero_point) / scale).round().clamp(-127.0, 127.0) as i8
-        }).collect();
-        Self { values, scale, zero_point }
+        let values = floats
+            .iter()
+            .map(|&v| ((v - zero_point) / scale).round().clamp(-127.0, 127.0) as i8)
+            .collect();
+        Self {
+            values,
+            scale,
+            zero_point,
+        }
     }
 
     /// Dequantize back to float32.
     pub fn to_floats(&self) -> Vec<f32> {
-        self.values.iter().map(|&q| q as f32 * self.scale + self.zero_point).collect()
+        self.values
+            .iter()
+            .map(|&q| q as f32 * self.scale + self.zero_point)
+            .collect()
     }
 
     /// Cosine similarity between two quantized vectors (dequantized).
@@ -49,19 +61,27 @@ impl QuantizedVector {
         let a = self.to_floats();
         let b = other.to_floats();
         let len = a.len().min(b.len());
-        if len == 0 { return 0.0; }
+        if len == 0 {
+            return 0.0;
+        }
         let dot: f32 = a[..len].iter().zip(&b[..len]).map(|(x, y)| x * y).sum();
         let norm_a: f32 = a[..len].iter().map(|x| x * x).sum::<f32>().sqrt();
         let norm_b: f32 = b[..len].iter().map(|x| x * x).sum::<f32>().sqrt();
-        if norm_a < 1e-8 || norm_b < 1e-8 { return 0.0; }
+        if norm_a < 1e-8 || norm_b < 1e-8 {
+            return 0.0;
+        }
         (dot / (norm_a * norm_b)).clamp(-1.0, 1.0)
     }
 
     /// Storage bytes used.
-    pub fn byte_size(&self) -> usize { self.values.len() }
+    pub fn byte_size(&self) -> usize {
+        self.values.len()
+    }
 
     /// Size reduction vs float32 (8-bit / 32-bit = 75% savings).
-    pub fn compression_ratio() -> f32 { 4.0 }
+    pub fn compression_ratio() -> f32 {
+        4.0
+    }
 }
 
 // ─── File Entry ──────────────────────────────────────────────────────────────
@@ -89,21 +109,34 @@ impl IndexedFile {
     pub fn new(path: impl Into<String>, content: &str, embedding: QuantizedVector) -> Self {
         let hash = content_hash(content);
         let tf_map = compute_tf(content);
-        Self { path: path.into(), content_hash: hash, embedding, tf_map }
+        Self {
+            path: path.into(),
+            content_hash: hash,
+            embedding,
+            tf_map,
+        }
     }
 }
 
 /// Compute term frequencies from text.
 fn compute_tf(text: &str) -> HashMap<String, f32> {
-    let tokens: Vec<String> = text.split(|c: char| !c.is_alphanumeric())
+    let tokens: Vec<String> = text
+        .split(|c: char| !c.is_alphanumeric())
         .filter(|t| t.len() >= 2)
         .map(|t| t.to_lowercase())
         .collect();
     let total = tokens.len() as f32;
-    if total == 0.0 { return HashMap::new(); }
+    if total == 0.0 {
+        return HashMap::new();
+    }
     let mut counts: HashMap<String, u32> = HashMap::new();
-    for t in &tokens { *counts.entry(t.clone()).or_insert(0) += 1; }
-    counts.into_iter().map(|(k, c)| (k, c as f32 / total)).collect()
+    for t in &tokens {
+        *counts.entry(t.clone()).or_insert(0) += 1;
+    }
+    counts
+        .into_iter()
+        .map(|(k, c)| (k, c as f32 / total))
+        .collect()
 }
 
 // ─── Embedding Index ─────────────────────────────────────────────────────────
@@ -119,7 +152,11 @@ pub struct EmbeddingIndex {
 
 impl EmbeddingIndex {
     pub fn new() -> Self {
-        Self { files: HashMap::new(), idf: HashMap::new(), file_count: 0 }
+        Self {
+            files: HashMap::new(),
+            idf: HashMap::new(),
+            file_count: 0,
+        }
     }
 
     /// Upsert a file: only re-encode if content hash changed.
@@ -127,7 +164,9 @@ impl EmbeddingIndex {
     pub fn upsert(&mut self, path: &str, content: &str, embedding: QuantizedVector) -> bool {
         let hash = content_hash(content);
         if let Some(existing) = self.files.get(path) {
-            if existing.content_hash == hash { return false; } // no change
+            if existing.content_hash == hash {
+                return false;
+            } // no change
         }
         let entry = IndexedFile::new(path, content, embedding);
         self.files.insert(path.to_string(), entry);
@@ -149,20 +188,37 @@ impl EmbeddingIndex {
     /// Recompute IDF scores across corpus.
     fn recompute_idf(&mut self) {
         let n = self.files.len() as f32;
-        if n == 0.0 { self.idf.clear(); return; }
+        if n == 0.0 {
+            self.idf.clear();
+            return;
+        }
         let mut df: HashMap<String, u32> = HashMap::new();
         for f in self.files.values() {
             for term in f.tf_map.keys() {
                 *df.entry(term.clone()).or_insert(0) += 1;
             }
         }
-        self.idf = df.into_iter().map(|(t, d)| (t, ((n / d as f32) + 1.0).ln())).collect();
+        self.idf = df
+            .into_iter()
+            .map(|(t, d)| (t, ((n / d as f32) + 1.0).ln()))
+            .collect();
     }
 
     /// Vector similarity search. Returns top-k (path, score) pairs.
-    pub fn vector_search(&self, query_embedding: &QuantizedVector, top_k: usize) -> Vec<(String, f32)> {
-        let mut scored: Vec<(String, f32)> = self.files.iter()
-            .map(|(path, file)| (path.clone(), query_embedding.cosine_similarity(&file.embedding)))
+    pub fn vector_search(
+        &self,
+        query_embedding: &QuantizedVector,
+        top_k: usize,
+    ) -> Vec<(String, f32)> {
+        let mut scored: Vec<(String, f32)> = self
+            .files
+            .iter()
+            .map(|(path, file)| {
+                (
+                    path.clone(),
+                    query_embedding.cosine_similarity(&file.embedding),
+                )
+            })
             .collect();
         scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         scored.truncate(top_k);
@@ -172,22 +228,36 @@ impl EmbeddingIndex {
     /// BM25 keyword search. Returns top-k (path, score) pairs.
     pub fn keyword_search(&self, query_terms: &[&str], top_k: usize) -> Vec<(String, f32)> {
         let k1 = 1.5_f32;
-        let b  = 0.75_f32;
-        let avg_dl = if self.files.is_empty() { 1.0 } else {
-            self.files.values().map(|f| f.tf_map.len() as f32).sum::<f32>() / self.files.len() as f32
+        let b = 0.75_f32;
+        let avg_dl = if self.files.is_empty() {
+            1.0
+        } else {
+            self.files
+                .values()
+                .map(|f| f.tf_map.len() as f32)
+                .sum::<f32>()
+                / self.files.len() as f32
         };
 
-        let mut scored: Vec<(String, f32)> = self.files.iter().map(|(path, file)| {
-            let dl = file.tf_map.len() as f32;
-            let score: f32 = query_terms.iter().map(|&term| {
-                let term_l = term.to_lowercase();
-                let tf = file.tf_map.get(&term_l).copied().unwrap_or(0.0) * dl;
-                let idf = self.idf.get(&term_l).copied().unwrap_or(0.0);
-                let tf_norm = tf * (k1 + 1.0) / (tf + k1 * (1.0 - b + b * dl / avg_dl));
-                idf * tf_norm
-            }).sum();
-            (path.clone(), score)
-        }).filter(|(_, s)| *s > 0.0).collect();
+        let mut scored: Vec<(String, f32)> = self
+            .files
+            .iter()
+            .map(|(path, file)| {
+                let dl = file.tf_map.len() as f32;
+                let score: f32 = query_terms
+                    .iter()
+                    .map(|&term| {
+                        let term_l = term.to_lowercase();
+                        let tf = file.tf_map.get(&term_l).copied().unwrap_or(0.0) * dl;
+                        let idf = self.idf.get(&term_l).copied().unwrap_or(0.0);
+                        let tf_norm = tf * (k1 + 1.0) / (tf + k1 * (1.0 - b + b * dl / avg_dl));
+                        idf * tf_norm
+                    })
+                    .sum();
+                (path.clone(), score)
+            })
+            .filter(|(_, s)| *s > 0.0)
+            .collect();
 
         scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         scored.truncate(top_k);
@@ -203,22 +273,43 @@ impl EmbeddingIndex {
         top_k: usize,
         alpha: f32,
     ) -> Vec<(String, f32)> {
-        let vec_results: HashMap<String, f32> = self.vector_search(query_embedding, self.files.len()).into_iter().collect();
-        let kw_results:  HashMap<String, f32> = self.keyword_search(query_terms, self.files.len()).into_iter().collect();
+        let vec_results: HashMap<String, f32> = self
+            .vector_search(query_embedding, self.files.len())
+            .into_iter()
+            .collect();
+        let kw_results: HashMap<String, f32> = self
+            .keyword_search(query_terms, self.files.len())
+            .into_iter()
+            .collect();
 
-        let mut all_paths: Vec<String> = vec_results.keys().chain(kw_results.keys()).cloned().collect();
+        let mut all_paths: Vec<String> = vec_results
+            .keys()
+            .chain(kw_results.keys())
+            .cloned()
+            .collect();
         all_paths.sort();
         all_paths.dedup();
 
         // Normalise scores independently
-        let vec_max: f32 = vec_results.values().cloned().fold(0.0_f32, f32::max).max(1e-8);
-        let kw_max:  f32 = kw_results.values().cloned().fold(0.0_f32, f32::max).max(1e-8);
+        let vec_max: f32 = vec_results
+            .values()
+            .cloned()
+            .fold(0.0_f32, f32::max)
+            .max(1e-8);
+        let kw_max: f32 = kw_results
+            .values()
+            .cloned()
+            .fold(0.0_f32, f32::max)
+            .max(1e-8);
 
-        let mut scored: Vec<(String, f32)> = all_paths.into_iter().map(|path| {
-            let v = vec_results.get(&path).copied().unwrap_or(0.0) / vec_max;
-            let k = kw_results.get(&path).copied().unwrap_or(0.0) / kw_max;
-            (path, alpha * v + (1.0 - alpha) * k)
-        }).collect();
+        let mut scored: Vec<(String, f32)> = all_paths
+            .into_iter()
+            .map(|path| {
+                let v = vec_results.get(&path).copied().unwrap_or(0.0) / vec_max;
+                let k = kw_results.get(&path).copied().unwrap_or(0.0) / kw_max;
+                (path, alpha * v + (1.0 - alpha) * k)
+            })
+            .collect();
 
         scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         scored.truncate(top_k);
@@ -246,7 +337,9 @@ impl EmbeddingIndex {
 }
 
 impl Default for EmbeddingIndex {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -262,7 +355,9 @@ pub struct IndexStats {
 mod tests {
     use super::*;
 
-    fn embed(vals: &[f32]) -> QuantizedVector { QuantizedVector::from_floats(vals) }
+    fn embed(vals: &[f32]) -> QuantizedVector {
+        QuantizedVector::from_floats(vals)
+    }
     fn unit_embed(n: usize) -> QuantizedVector {
         let vals: Vec<f32> = (0..n).map(|i| if i == 0 { 1.0 } else { 0.0 }).collect();
         embed(&vals)

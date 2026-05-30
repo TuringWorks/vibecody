@@ -45,14 +45,8 @@ pub struct TextBuffer {
 /// Represents an edit operation
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Edit {
-    Insert {
-        position: Position,
-        text: String,
-    },
-    Delete {
-        range: Range,
-        deleted_text: String,
-    },
+    Insert { position: Position, text: String },
+    Delete { range: Range, deleted_text: String },
     Batch(Vec<Edit>),
 }
 
@@ -154,14 +148,14 @@ impl TextBuffer {
     pub fn insert(&mut self, position: Position, text: &str) -> Result<()> {
         let char_idx = self.position_to_char(position);
         self.rope.insert(char_idx, text);
-        
+
         // Record edit for undo
         self.undo_stack.push(Edit::Insert {
             position,
             text: text.to_string(),
         });
         self.redo_stack.clear();
-        
+
         self.modified = true;
         Ok(())
     }
@@ -170,21 +164,21 @@ impl TextBuffer {
     pub fn delete(&mut self, range: Range) -> Result<()> {
         let start_char = self.position_to_char(range.start);
         let end_char = self.position_to_char(range.end);
-        
+
         if start_char >= end_char {
             return Ok(());
         }
-        
+
         let deleted_text = self.rope.slice(start_char..end_char).to_string();
         self.rope.remove(start_char..end_char);
-        
+
         // Record edit for undo
         self.undo_stack.push(Edit::Delete {
             range,
             deleted_text,
         });
         self.redo_stack.clear();
-        
+
         self.modified = true;
         Ok(())
     }
@@ -193,14 +187,17 @@ impl TextBuffer {
     pub fn apply_edits(&mut self, edits: Vec<Edit>) -> Result<()> {
         // Sort edits in reverse order to avoid index shifting issues
         // We need to convert edits to a comparable format (start char index)
-        let mut edits_with_pos: Vec<(usize, Edit)> = edits.into_iter().map(|edit| {
-            let pos = match &edit {
-                Edit::Insert { position, .. } => *position,
-                Edit::Delete { range, .. } => range.start,
-                Edit::Batch(_) => Position::new(0, 0), // Should not happen in input
-            };
-            (self.position_to_char(pos), edit)
-        }).collect();
+        let mut edits_with_pos: Vec<(usize, Edit)> = edits
+            .into_iter()
+            .map(|edit| {
+                let pos = match &edit {
+                    Edit::Insert { position, .. } => *position,
+                    Edit::Delete { range, .. } => range.start,
+                    Edit::Batch(_) => Position::new(0, 0), // Should not happen in input
+                };
+                (self.position_to_char(pos), edit)
+            })
+            .collect();
 
         // Sort by position descending
         edits_with_pos.sort_by(|a, b| b.0.cmp(&a.0));
@@ -215,13 +212,19 @@ impl TextBuffer {
                     self.rope.insert(char_idx, &text);
                     applied_edits.push(Edit::Insert { position, text });
                 }
-                Edit::Delete { range, deleted_text: _ } => {
+                Edit::Delete {
+                    range,
+                    deleted_text: _,
+                } => {
                     let start_char = self.position_to_char(range.start);
                     let end_char = self.position_to_char(range.end);
                     if start_char < end_char {
                         let deleted_text = self.rope.slice(start_char..end_char).to_string();
                         self.rope.remove(start_char..end_char);
-                        applied_edits.push(Edit::Delete { range, deleted_text });
+                        applied_edits.push(Edit::Delete {
+                            range,
+                            deleted_text,
+                        });
                     }
                 }
                 _ => {} // Nested batches not supported in input
@@ -232,7 +235,7 @@ impl TextBuffer {
         self.undo_stack.push(Edit::Batch(applied_edits));
         self.redo_stack.clear();
         self.modified = true;
-        
+
         Ok(())
     }
 
@@ -253,12 +256,15 @@ impl TextBuffer {
                 let end_char = start_char + text.chars().count();
                 self.rope.remove(start_char..end_char);
             }
-            Edit::Delete { range, deleted_text } => {
+            Edit::Delete {
+                range,
+                deleted_text,
+            } => {
                 let char_idx = self.position_to_char(range.start);
                 self.rope.insert(char_idx, &deleted_text);
             }
             Edit::Batch(edits) => {
-                // Undo batch edits in reverse order (they were applied in reverse order, 
+                // Undo batch edits in reverse order (they were applied in reverse order,
                 // so to undo we iterate normally? No, applied_edits contains them in applied order (reverse pos).
                 // To undo, we should undo the first applied (last pos) first?
                 // Wait, if we inserted at pos 100 then pos 10, undoing pos 100 doesn't affect pos 10.
@@ -375,10 +381,12 @@ mod tests {
     #[test]
     fn test_delete() {
         let mut buffer = TextBuffer::from_str("Hello World");
-        buffer.delete(Range {
-            start: Position::new(0, 5),
-            end: Position::new(0, 11),
-        }).unwrap();
+        buffer
+            .delete(Range {
+                start: Position::new(0, 5),
+                end: Position::new(0, 11),
+            })
+            .unwrap();
         assert_eq!(buffer.text(), "Hello");
     }
 
@@ -501,9 +509,16 @@ mod tests {
     fn apply_edits_batch_inserts() {
         let mut buf = TextBuffer::from_str("aaa\nbbb\nccc\n");
         buf.apply_edits(vec![
-            Edit::Insert { position: Position::new(0, 3), text: "1".to_string() },
-            Edit::Insert { position: Position::new(1, 3), text: "2".to_string() },
-        ]).unwrap();
+            Edit::Insert {
+                position: Position::new(0, 3),
+                text: "1".to_string(),
+            },
+            Edit::Insert {
+                position: Position::new(1, 3),
+                text: "2".to_string(),
+            },
+        ])
+        .unwrap();
         let text = buf.text();
         assert!(text.contains("aaa1"));
         assert!(text.contains("bbb2"));
@@ -513,12 +528,14 @@ mod tests {
     #[test]
     fn apply_edits_batch_deletes() {
         let mut buf = TextBuffer::from_str("abcdef");
-        buf.apply_edits(vec![
-            Edit::Delete {
-                range: Range { start: Position::new(0, 0), end: Position::new(0, 3) },
-                deleted_text: String::new(),
+        buf.apply_edits(vec![Edit::Delete {
+            range: Range {
+                start: Position::new(0, 0),
+                end: Position::new(0, 3),
             },
-        ]).unwrap();
+            deleted_text: String::new(),
+        }])
+        .unwrap();
         assert_eq!(buf.text(), "def");
     }
 
@@ -537,8 +554,14 @@ mod tests {
     fn set_cursors_replaces_all() {
         let mut buf = TextBuffer::from_str("hello");
         buf.set_cursors(vec![
-            Cursor { position: Position::new(0, 2), selection: None },
-            Cursor { position: Position::new(0, 4), selection: None },
+            Cursor {
+                position: Position::new(0, 2),
+                selection: None,
+            },
+            Cursor {
+                position: Position::new(0, 4),
+                selection: None,
+            },
         ]);
         assert_eq!(buf.cursors().len(), 2);
         assert_eq!(buf.cursors()[1].position, Position::new(0, 4));
@@ -594,7 +617,10 @@ mod tests {
 
     #[test]
     fn range_serde_roundtrip() {
-        let r = Range { start: Position::new(1, 2), end: Position::new(3, 4) };
+        let r = Range {
+            start: Position::new(1, 2),
+            end: Position::new(3, 4),
+        };
         let json = serde_json::to_string(&r).unwrap();
         let back: Range = serde_json::from_str(&json).unwrap();
         assert_eq!(back, r);
@@ -602,7 +628,10 @@ mod tests {
 
     #[test]
     fn edit_insert_serde() {
-        let edit = Edit::Insert { position: Position::new(0, 0), text: "hi".to_string() };
+        let edit = Edit::Insert {
+            position: Position::new(0, 0),
+            text: "hi".to_string(),
+        };
         let json = serde_json::to_string(&edit).unwrap();
         assert!(json.contains("hi"));
     }
@@ -631,7 +660,8 @@ mod tests {
         buf.delete(Range {
             start: Position::new(0, 3),
             end: Position::new(0, 3),
-        }).unwrap();
+        })
+        .unwrap();
         assert_eq!(buf.text(), "hello");
     }
 }

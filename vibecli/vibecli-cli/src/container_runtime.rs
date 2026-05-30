@@ -303,8 +303,14 @@ mod tests {
 
     #[test]
     fn runtime_kind_from_str() {
-        assert_eq!("docker".parse::<RuntimeKind>().unwrap(), RuntimeKind::Docker);
-        assert_eq!("Podman".parse::<RuntimeKind>().unwrap(), RuntimeKind::Podman);
+        assert_eq!(
+            "docker".parse::<RuntimeKind>().unwrap(),
+            RuntimeKind::Docker
+        );
+        assert_eq!(
+            "Podman".parse::<RuntimeKind>().unwrap(),
+            RuntimeKind::Podman
+        );
         assert_eq!(
             "opensandbox".parse::<RuntimeKind>().unwrap(),
             RuntimeKind::OpenSandbox
@@ -368,20 +374,36 @@ mod tests {
 
     #[test]
     fn parse_memory_with_whitespace() {
-        assert_eq!(parse_memory_string("  2g  ").unwrap(), 2 * 1024 * 1024 * 1024);
+        assert_eq!(
+            parse_memory_string("  2g  ").unwrap(),
+            2 * 1024 * 1024 * 1024
+        );
         assert_eq!(parse_memory_string(" 512m ").unwrap(), 512 * 1024 * 1024);
     }
 
     #[test]
     fn parse_memory_case_insensitive() {
-        assert_eq!(parse_memory_string("4G").unwrap(), parse_memory_string("4g").unwrap());
-        assert_eq!(parse_memory_string("512M").unwrap(), parse_memory_string("512m").unwrap());
-        assert_eq!(parse_memory_string("1024K").unwrap(), parse_memory_string("1024k").unwrap());
+        assert_eq!(
+            parse_memory_string("4G").unwrap(),
+            parse_memory_string("4g").unwrap()
+        );
+        assert_eq!(
+            parse_memory_string("512M").unwrap(),
+            parse_memory_string("512m").unwrap()
+        );
+        assert_eq!(
+            parse_memory_string("1024K").unwrap(),
+            parse_memory_string("1024k").unwrap()
+        );
     }
 
     #[test]
     fn runtime_kind_serde_roundtrip() {
-        for kind in [RuntimeKind::Docker, RuntimeKind::Podman, RuntimeKind::OpenSandbox] {
+        for kind in [
+            RuntimeKind::Docker,
+            RuntimeKind::Podman,
+            RuntimeKind::OpenSandbox,
+        ] {
             let json = serde_json::to_string(&kind).unwrap();
             let back: RuntimeKind = serde_json::from_str(&json).unwrap();
             assert_eq!(back, kind);

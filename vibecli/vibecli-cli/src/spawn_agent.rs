@@ -13,10 +13,10 @@
 //! - **ResultAggregator**: Merges outputs from parallel agents
 //! - **AgentBus**: Inter-agent message passing for coordination
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use serde::{Deserialize, Serialize};
 
 // ─── Timing helper ──────────────────────────────────────────────────────────
 
@@ -80,7 +80,6 @@ pub enum AgentPriority {
     Critical = 3,
 }
 
-
 impl std::fmt::Display for AgentPriority {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -106,7 +105,6 @@ pub enum IsolationMode {
     /// No isolation — runs in current workspace (dangerous for writes).
     None,
 }
-
 
 // ─── Spawn Config ───────────────────────────────────────────────────────────
 
@@ -149,9 +147,15 @@ pub struct SpawnConfig {
     pub timeout_secs: u64,
 }
 
-fn default_max_turns() -> usize { 25 }
-fn default_true() -> bool { true }
-fn default_full_auto() -> String { "full-auto".to_string() }
+fn default_max_turns() -> usize {
+    25
+}
+fn default_true() -> bool {
+    true
+}
+fn default_full_auto() -> String {
+    "full-auto".to_string()
+}
 
 impl Default for SpawnConfig {
     fn default() -> Self {
@@ -175,7 +179,10 @@ impl Default for SpawnConfig {
 
 impl SpawnConfig {
     pub fn new(task: impl Into<String>) -> Self {
-        Self { task: task.into(), ..Default::default() }
+        Self {
+            task: task.into(),
+            ..Default::default()
+        }
     }
 
     pub fn with_name(mut self, name: impl Into<String>) -> Self {
@@ -266,7 +273,10 @@ impl Default for AgentProgress {
 
 impl AgentProgress {
     pub fn new(turns_limit: usize) -> Self {
-        Self { turns_limit, ..Default::default() }
+        Self {
+            turns_limit,
+            ..Default::default()
+        }
     }
 
     /// Update percent based on turns.
@@ -277,7 +287,13 @@ impl AgentProgress {
         }
     }
 
-    pub fn record_turn(&mut self, message: Option<String>, files: &[String], tool_call_count: usize, tokens: u64) {
+    pub fn record_turn(
+        &mut self,
+        message: Option<String>,
+        files: &[String],
+        tool_call_count: usize,
+        tokens: u64,
+    ) {
         self.turns_completed += 1;
         if let Some(msg) = message {
             self.last_message = Some(msg);
@@ -343,7 +359,11 @@ impl SpawnedAgent {
         let id = format!("sa_{}", short_id());
         let name = config.name.clone().unwrap_or_else(|| {
             let words: Vec<&str> = config.task.split_whitespace().take(4).collect();
-            if words.is_empty() { "agent".to_string() } else { words.join("-").to_lowercase() }
+            if words.is_empty() {
+                "agent".to_string()
+            } else {
+                words.join("-").to_lowercase()
+            }
         });
         let branch = match config.isolation {
             IsolationMode::Worktree => Some(format!("spawn-{}", &id)),
@@ -407,11 +427,17 @@ impl SpawnedAgent {
     }
 
     pub fn is_active(&self) -> bool {
-        matches!(self.status, SpawnStatus::Running | SpawnStatus::Paused | SpawnStatus::Queued)
+        matches!(
+            self.status,
+            SpawnStatus::Running | SpawnStatus::Paused | SpawnStatus::Queued
+        )
     }
 
     pub fn is_terminal(&self) -> bool {
-        matches!(self.status, SpawnStatus::Completed | SpawnStatus::Failed | SpawnStatus::Cancelled)
+        matches!(
+            self.status,
+            SpawnStatus::Completed | SpawnStatus::Failed | SpawnStatus::Cancelled
+        )
     }
 
     pub fn duration_ms(&self) -> u64 {
@@ -467,7 +493,12 @@ pub enum MessageType {
 }
 
 impl AgentMessage {
-    pub fn new(from: impl Into<String>, to: impl Into<String>, msg_type: MessageType, content: impl Into<String>) -> Self {
+    pub fn new(
+        from: impl Into<String>,
+        to: impl Into<String>,
+        msg_type: MessageType,
+        content: impl Into<String>,
+    ) -> Self {
         Self {
             from_id: from.into(),
             to_id: to.into(),
@@ -508,7 +539,11 @@ pub struct TaskDecomposer;
 
 impl TaskDecomposer {
     /// Analyze a task description and produce subtasks using the given strategy.
-    pub fn decompose(task: &str, strategy: &DecomposeStrategy, context_files: &[String]) -> Vec<SubTask> {
+    pub fn decompose(
+        task: &str,
+        strategy: &DecomposeStrategy,
+        context_files: &[String],
+    ) -> Vec<SubTask> {
         match strategy {
             DecomposeStrategy::ByConcern => Self::decompose_by_concern(task),
             DecomposeStrategy::ByFile => Self::decompose_by_file(task, context_files),
@@ -716,7 +751,10 @@ impl ResultAggregator {
             strategy: strategy.clone(),
             total_agents: agents.len(),
             successful_agents: successful.len(),
-            failed_agents: agents.iter().filter(|a| a.status == SpawnStatus::Failed).count(),
+            failed_agents: agents
+                .iter()
+                .filter(|a| a.status == SpawnStatus::Failed)
+                .count(),
             best_agent_id,
             merged_branch: None,
             summaries,
@@ -809,7 +847,10 @@ impl AgentPool {
 
     /// Spawn a new agent. Returns the agent ID.
     pub fn spawn(&self, config: SpawnConfig) -> Result<String, String> {
-        let mut agents = self.agents.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let mut agents = self
+            .agents
+            .lock()
+            .map_err(|e| format!("Lock error: {}", e))?;
         if agents.len() >= self.config.max_total {
             return Err(format!(
                 "Pool is full ({}/{}). Cancel or wait for agents to finish.",
@@ -822,12 +863,18 @@ impl AgentPool {
         let id = agent.id.clone();
 
         // Check if we can start immediately or queue (atomic under same lock)
-        let running_count = agents.values().filter(|a| a.status == SpawnStatus::Running).count();
+        let running_count = agents
+            .values()
+            .filter(|a| a.status == SpawnStatus::Running)
+            .count();
         if running_count < self.config.max_concurrent {
             agent.start();
         } else {
             // Queue by priority
-            let mut queue = self.queue.lock().map_err(|e| format!("Lock error: {}", e))?;
+            let mut queue = self
+                .queue
+                .lock()
+                .map_err(|e| format!("Lock error: {}", e))?;
             queue.push(id.clone());
         }
 
@@ -905,11 +952,8 @@ impl AgentPool {
             Ok(a) => a,
             Err(_) => return vec![],
         };
-        let mut result: Vec<SpawnedAgent> = agents
-            .values()
-            .filter(|a| a.is_active())
-            .cloned()
-            .collect();
+        let mut result: Vec<SpawnedAgent> =
+            agents.values().filter(|a| a.is_active()).cloned().collect();
         result.sort_by(|a, b| b.config.priority.cmp(&a.config.priority));
         result
     }
@@ -918,14 +962,23 @@ impl AgentPool {
     pub fn running_count(&self) -> usize {
         self.agents
             .lock()
-            .map(|a| a.values().filter(|ag| ag.status == SpawnStatus::Running).count())
+            .map(|a| {
+                a.values()
+                    .filter(|ag| ag.status == SpawnStatus::Running)
+                    .count()
+            })
             .unwrap_or(0)
     }
 
     /// Pause an agent.
     pub fn pause(&self, id: &str) -> Result<(), String> {
-        let mut agents = self.agents.lock().map_err(|e| format!("Lock error: {}", e))?;
-        let agent = agents.get_mut(id).ok_or_else(|| format!("Agent not found: {}", id))?;
+        let mut agents = self
+            .agents
+            .lock()
+            .map_err(|e| format!("Lock error: {}", e))?;
+        let agent = agents
+            .get_mut(id)
+            .ok_or_else(|| format!("Agent not found: {}", id))?;
         if agent.status != SpawnStatus::Running {
             return Err(format!("Cannot pause agent in {} state", agent.status));
         }
@@ -935,8 +988,13 @@ impl AgentPool {
 
     /// Resume a paused agent.
     pub fn resume(&self, id: &str) -> Result<(), String> {
-        let mut agents = self.agents.lock().map_err(|e| format!("Lock error: {}", e))?;
-        let agent = agents.get_mut(id).ok_or_else(|| format!("Agent not found: {}", id))?;
+        let mut agents = self
+            .agents
+            .lock()
+            .map_err(|e| format!("Lock error: {}", e))?;
+        let agent = agents
+            .get_mut(id)
+            .ok_or_else(|| format!("Agent not found: {}", id))?;
         if agent.status != SpawnStatus::Paused {
             return Err(format!("Cannot resume agent in {} state", agent.status));
         }
@@ -946,8 +1004,13 @@ impl AgentPool {
 
     /// Cancel an agent.
     pub fn cancel(&self, id: &str) -> Result<(), String> {
-        let mut agents = self.agents.lock().map_err(|e| format!("Lock error: {}", e))?;
-        let agent = agents.get_mut(id).ok_or_else(|| format!("Agent not found: {}", id))?;
+        let mut agents = self
+            .agents
+            .lock()
+            .map_err(|e| format!("Lock error: {}", e))?;
+        let agent = agents
+            .get_mut(id)
+            .ok_or_else(|| format!("Agent not found: {}", id))?;
         if agent.is_terminal() {
             return Err(format!("Agent already in terminal state: {}", agent.status));
         }
@@ -959,8 +1022,13 @@ impl AgentPool {
 
     /// Complete an agent with a summary.
     pub fn complete(&self, id: &str, summary: String) -> Result<(), String> {
-        let mut agents = self.agents.lock().map_err(|e| format!("Lock error: {}", e))?;
-        let agent = agents.get_mut(id).ok_or_else(|| format!("Agent not found: {}", id))?;
+        let mut agents = self
+            .agents
+            .lock()
+            .map_err(|e| format!("Lock error: {}", e))?;
+        let agent = agents
+            .get_mut(id)
+            .ok_or_else(|| format!("Agent not found: {}", id))?;
         agent.complete(summary);
         drop(agents);
         self.promote_queued();
@@ -969,8 +1037,13 @@ impl AgentPool {
 
     /// Mark an agent as failed.
     pub fn fail(&self, id: &str, error: String) -> Result<(), String> {
-        let mut agents = self.agents.lock().map_err(|e| format!("Lock error: {}", e))?;
-        let agent = agents.get_mut(id).ok_or_else(|| format!("Agent not found: {}", id))?;
+        let mut agents = self
+            .agents
+            .lock()
+            .map_err(|e| format!("Lock error: {}", e))?;
+        let agent = agents
+            .get_mut(id)
+            .ok_or_else(|| format!("Agent not found: {}", id))?;
         agent.fail(error);
         drop(agents);
         self.promote_queued();
@@ -986,22 +1059,35 @@ impl AgentPool {
         tool_calls: usize,
         tokens: u64,
     ) -> Result<(), String> {
-        let mut agents = self.agents.lock().map_err(|e| format!("Lock error: {}", e))?;
-        let agent = agents.get_mut(id).ok_or_else(|| format!("Agent not found: {}", id))?;
-        agent.progress.record_turn(message, files, tool_calls, tokens);
+        let mut agents = self
+            .agents
+            .lock()
+            .map_err(|e| format!("Lock error: {}", e))?;
+        let agent = agents
+            .get_mut(id)
+            .ok_or_else(|| format!("Agent not found: {}", id))?;
+        agent
+            .progress
+            .record_turn(message, files, tool_calls, tokens);
         Ok(())
     }
 
     /// Send a message between agents.
     pub fn send_message(&self, msg: AgentMessage) -> Result<(), String> {
         // Deliver directly to target agent's inbox
-        let mut agents = self.agents.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let mut agents = self
+            .agents
+            .lock()
+            .map_err(|e| format!("Lock error: {}", e))?;
         if let Some(target) = agents.get_mut(&msg.to_id) {
             target.receive_message(msg);
             Ok(())
         } else {
             // Queue for later delivery
-            let mut bus = self.message_bus.lock().map_err(|e| format!("Lock error: {}", e))?;
+            let mut bus = self
+                .message_bus
+                .lock()
+                .map_err(|e| format!("Lock error: {}", e))?;
             bus.push(msg);
             Ok(())
         }
@@ -1026,8 +1112,14 @@ impl AgentPool {
 
         // Sort queue by priority
         queue.sort_by(|a_id, b_id| {
-            let a_pri = agents.get(a_id).map(|a| a.config.priority).unwrap_or(AgentPriority::Low);
-            let b_pri = agents.get(b_id).map(|a| a.config.priority).unwrap_or(AgentPriority::Low);
+            let a_pri = agents
+                .get(a_id)
+                .map(|a| a.config.priority)
+                .unwrap_or(AgentPriority::Low);
+            let b_pri = agents
+                .get(b_id)
+                .map(|a| a.config.priority)
+                .unwrap_or(AgentPriority::Low);
             b_pri.cmp(&a_pri)
         });
 
@@ -1042,8 +1134,13 @@ impl AgentPool {
 
     /// Aggregate results from all agents in a decomposed task.
     pub fn aggregate_results(&self, parent_id: &str) -> Result<AggregatedResult, String> {
-        let agents = self.agents.lock().map_err(|e| format!("Lock error: {}", e))?;
-        let parent = agents.get(parent_id).ok_or_else(|| format!("Agent not found: {}", parent_id))?;
+        let agents = self
+            .agents
+            .lock()
+            .map_err(|e| format!("Lock error: {}", e))?;
+        let parent = agents
+            .get(parent_id)
+            .ok_or_else(|| format!("Agent not found: {}", parent_id))?;
 
         let children: Vec<SpawnedAgent> = parent
             .child_ids
@@ -1055,7 +1152,10 @@ impl AgentPool {
             return Err("No child agents found".to_string());
         }
 
-        Ok(ResultAggregator::aggregate(&children, &self.config.default_merge_strategy))
+        Ok(ResultAggregator::aggregate(
+            &children,
+            &self.config.default_merge_strategy,
+        ))
     }
 
     /// Cleanup completed agents older than `max_age_ms`.
@@ -1256,10 +1356,16 @@ mod tests {
 
     #[test]
     fn spawned_agent_worktree_branch() {
-        let agent = SpawnedAgent::new(SpawnConfig::new("test").with_isolation(IsolationMode::Worktree));
-        assert!(agent.branch.as_ref().expect("should have branch").starts_with("spawn-sa_"));
+        let agent =
+            SpawnedAgent::new(SpawnConfig::new("test").with_isolation(IsolationMode::Worktree));
+        assert!(agent
+            .branch
+            .as_ref()
+            .expect("should have branch")
+            .starts_with("spawn-sa_"));
 
-        let agent2 = SpawnedAgent::new(SpawnConfig::new("test").with_isolation(IsolationMode::Container));
+        let agent2 =
+            SpawnedAgent::new(SpawnConfig::new("test").with_isolation(IsolationMode::Container));
         assert!(agent2.branch.is_none());
     }
 
@@ -1348,14 +1454,20 @@ mod tests {
 
     #[test]
     fn decompose_by_component() {
-        let files = vec!["src/auth/login.rs".into(), "src/auth/session.rs".into(), "src/api/handler.rs".into()];
-        let subtasks = TaskDecomposer::decompose("refactor", &DecomposeStrategy::ByComponent, &files);
+        let files = vec![
+            "src/auth/login.rs".into(),
+            "src/auth/session.rs".into(),
+            "src/api/handler.rs".into(),
+        ];
+        let subtasks =
+            TaskDecomposer::decompose("refactor", &DecomposeStrategy::ByComponent, &files);
         assert_eq!(subtasks.len(), 2); // two directories
     }
 
     #[test]
     fn decompose_custom() {
-        let subtasks = TaskDecomposer::decompose("do thing", &DecomposeStrategy::Custom, &["x.rs".into()]);
+        let subtasks =
+            TaskDecomposer::decompose("do thing", &DecomposeStrategy::Custom, &["x.rs".into()]);
         assert_eq!(subtasks.len(), 1);
         assert_eq!(subtasks[0].description, "do thing");
     }
@@ -1371,7 +1483,8 @@ mod tests {
 
         let mut a2 = SpawnedAgent::new(SpawnConfig::new("task B"));
         a2.start();
-        a2.progress.record_turn(None, &["file2.rs".into(), "file3.rs".into()], 5, 2000);
+        a2.progress
+            .record_turn(None, &["file2.rs".into(), "file3.rs".into()], 5, 2000);
         a2.complete("Did B".to_string());
 
         let result = ResultAggregator::aggregate(&[a1, a2], &MergeStrategy::BestResult);
@@ -1420,7 +1533,11 @@ mod tests {
 
     #[test]
     fn pool_spawn_and_list() {
-        let pool = AgentPool::new(PoolConfig { max_concurrent: 2, max_total: 5, ..Default::default() });
+        let pool = AgentPool::new(PoolConfig {
+            max_concurrent: 2,
+            max_total: 5,
+            ..Default::default()
+        });
 
         let id1 = pool.spawn(SpawnConfig::new("task 1")).expect("spawn 1");
         let id2 = pool.spawn(SpawnConfig::new("task 2")).expect("spawn 2");
@@ -1440,7 +1557,11 @@ mod tests {
 
     #[test]
     fn pool_max_total_enforced() {
-        let pool = AgentPool::new(PoolConfig { max_concurrent: 1, max_total: 2, ..Default::default() });
+        let pool = AgentPool::new(PoolConfig {
+            max_concurrent: 1,
+            max_total: 2,
+            ..Default::default()
+        });
         pool.spawn(SpawnConfig::new("a")).expect("spawn a");
         pool.spawn(SpawnConfig::new("b")).expect("spawn b");
         let result = pool.spawn(SpawnConfig::new("c"));
@@ -1462,7 +1583,11 @@ mod tests {
 
     #[test]
     fn pool_cancel_promotes_queued() {
-        let pool = AgentPool::new(PoolConfig { max_concurrent: 1, max_total: 5, ..Default::default() });
+        let pool = AgentPool::new(PoolConfig {
+            max_concurrent: 1,
+            max_total: 5,
+            ..Default::default()
+        });
         let id1 = pool.spawn(SpawnConfig::new("running")).expect("spawn 1");
         let id2 = pool.spawn(SpawnConfig::new("queued")).expect("spawn 2");
 
@@ -1474,8 +1599,14 @@ mod tests {
 
     #[test]
     fn pool_complete_promotes_queued() {
-        let pool = AgentPool::new(PoolConfig { max_concurrent: 1, max_total: 5, ..Default::default() });
-        let id1 = pool.spawn(SpawnConfig::new("will complete")).expect("spawn 1");
+        let pool = AgentPool::new(PoolConfig {
+            max_concurrent: 1,
+            max_total: 5,
+            ..Default::default()
+        });
+        let id1 = pool
+            .spawn(SpawnConfig::new("will complete"))
+            .expect("spawn 1");
         let id2 = pool.spawn(SpawnConfig::new("waiting")).expect("spawn 2");
 
         pool.complete(&id1, "done".to_string()).expect("complete");
@@ -1484,7 +1615,11 @@ mod tests {
 
     #[test]
     fn pool_fail_promotes_queued() {
-        let pool = AgentPool::new(PoolConfig { max_concurrent: 1, max_total: 5, ..Default::default() });
+        let pool = AgentPool::new(PoolConfig {
+            max_concurrent: 1,
+            max_total: 5,
+            ..Default::default()
+        });
         let id1 = pool.spawn(SpawnConfig::new("will fail")).expect("spawn 1");
         let id2 = pool.spawn(SpawnConfig::new("waiting")).expect("spawn 2");
 
@@ -1495,9 +1630,12 @@ mod tests {
     #[test]
     fn pool_update_progress() {
         let pool = AgentPool::with_defaults();
-        let id = pool.spawn(SpawnConfig::new("progress test")).expect("spawn");
+        let id = pool
+            .spawn(SpawnConfig::new("progress test"))
+            .expect("spawn");
 
-        pool.update_progress(&id, Some("working...".into()), &["a.rs".into()], 2, 500).expect("update");
+        pool.update_progress(&id, Some("working...".into()), &["a.rs".into()], 2, 500)
+            .expect("update");
         let agent = pool.get(&id).unwrap();
         assert_eq!(agent.progress.turns_completed, 1);
         assert_eq!(agent.progress.tokens_used, 500);
@@ -1520,7 +1658,11 @@ mod tests {
 
     #[test]
     fn pool_spawn_decomposed() {
-        let pool = AgentPool::new(PoolConfig { max_concurrent: 5, max_total: 10, ..Default::default() });
+        let pool = AgentPool::new(PoolConfig {
+            max_concurrent: 5,
+            max_total: 10,
+            ..Default::default()
+        });
         let base = SpawnConfig::new("");
         let (parent_id, child_ids) = pool
             .spawn_decomposed("add auth", &DecomposeStrategy::ByConcern, &[], &base)
@@ -1535,7 +1677,11 @@ mod tests {
 
     #[test]
     fn pool_aggregate_results() {
-        let pool = AgentPool::new(PoolConfig { max_concurrent: 5, max_total: 10, ..Default::default() });
+        let pool = AgentPool::new(PoolConfig {
+            max_concurrent: 5,
+            max_total: 10,
+            ..Default::default()
+        });
         let base = SpawnConfig::new("");
         let (parent_id, child_ids) = pool
             .spawn_decomposed("fix bugs", &DecomposeStrategy::ByConcern, &[], &base)
@@ -1543,7 +1689,8 @@ mod tests {
 
         // Complete all children
         for cid in &child_ids {
-            pool.update_progress(cid, Some("done".into()), &["file.rs".into()], 2, 500).ok();
+            pool.update_progress(cid, Some("done".into()), &["file.rs".into()], 2, 500)
+                .ok();
             pool.complete(cid, "Completed subtask".to_string()).ok();
         }
 
@@ -1570,7 +1717,11 @@ mod tests {
 
     #[test]
     fn pool_stats() {
-        let pool = AgentPool::new(PoolConfig { max_concurrent: 2, max_total: 10, ..Default::default() });
+        let pool = AgentPool::new(PoolConfig {
+            max_concurrent: 2,
+            max_total: 10,
+            ..Default::default()
+        });
         let id1 = pool.spawn(SpawnConfig::new("a")).expect("1");
         let _id2 = pool.spawn(SpawnConfig::new("b")).expect("2");
         let _id3 = pool.spawn(SpawnConfig::new("c")).expect("3"); // queued
@@ -1598,24 +1749,40 @@ mod tests {
 
     #[test]
     fn pool_priority_ordering() {
-        let pool = AgentPool::new(PoolConfig { max_concurrent: 1, max_total: 10, ..Default::default() });
+        let pool = AgentPool::new(PoolConfig {
+            max_concurrent: 1,
+            max_total: 10,
+            ..Default::default()
+        });
 
         // Fill the single slot
         let id_running = pool.spawn(SpawnConfig::new("running")).expect("running");
 
         // Queue two agents with different priorities
-        let _id_low = pool.spawn(SpawnConfig::new("low pri").with_priority(AgentPriority::Low)).expect("low");
-        let id_high = pool.spawn(SpawnConfig::new("high pri").with_priority(AgentPriority::High)).expect("high");
+        let _id_low = pool
+            .spawn(SpawnConfig::new("low pri").with_priority(AgentPriority::Low))
+            .expect("low");
+        let id_high = pool
+            .spawn(SpawnConfig::new("high pri").with_priority(AgentPriority::High))
+            .expect("high");
 
         // Complete running agent — high priority should be promoted first
         pool.complete(&id_running, "done".to_string()).ok();
         let high = pool.get(&id_high).unwrap();
-        assert_eq!(high.status, SpawnStatus::Running, "High priority agent should be promoted first");
+        assert_eq!(
+            high.status,
+            SpawnStatus::Running,
+            "High priority agent should be promoted first"
+        );
     }
 
     #[test]
     fn pool_cannot_pause_queued() {
-        let pool = AgentPool::new(PoolConfig { max_concurrent: 1, max_total: 5, ..Default::default() });
+        let pool = AgentPool::new(PoolConfig {
+            max_concurrent: 1,
+            max_total: 5,
+            ..Default::default()
+        });
         let _id1 = pool.spawn(SpawnConfig::new("running")).expect("1");
         let id2 = pool.spawn(SpawnConfig::new("queued")).expect("2");
         let result = pool.pause(&id2);

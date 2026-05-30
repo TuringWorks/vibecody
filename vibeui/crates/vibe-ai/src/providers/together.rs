@@ -3,7 +3,10 @@
 //! Supported models: meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo and other open models
 
 use super::openai_compat::{self, ChatRequest};
-use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message, ProviderConfig};
+use crate::provider::{
+    AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message,
+    ProviderConfig,
+};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 
@@ -27,7 +30,10 @@ impl TogetherProvider {
     }
 
     fn base_url(&self) -> String {
-        self.config.api_url.clone().unwrap_or_else(|| TOGETHER_BASE_URL.to_string())
+        self.config
+            .api_url
+            .clone()
+            .unwrap_or_else(|| TOGETHER_BASE_URL.to_string())
     }
 
     fn chat_url(&self) -> String {
@@ -35,10 +41,18 @@ impl TogetherProvider {
     }
 
     fn api_key(&self) -> Result<&str> {
-        self.config.api_key.as_deref().context("Together AI API key not set (TOGETHER_API_KEY)")
+        self.config
+            .api_key
+            .as_deref()
+            .context("Together AI API key not set (TOGETHER_API_KEY)")
     }
 
-    fn make_request(&self, messages: &[Message], context: Option<String>, stream: bool) -> ChatRequest {
+    fn make_request(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+        stream: bool,
+    ) -> ChatRequest {
         ChatRequest {
             model: self.config.model.clone(),
             messages: openai_compat::build_messages(messages, context),
@@ -51,9 +65,13 @@ impl TogetherProvider {
 
 #[async_trait]
 impl AIProvider for TogetherProvider {
-    fn name(&self) -> &str { &self.display_name }
+    fn name(&self) -> &str {
+        &self.display_name
+    }
 
-    async fn is_available(&self) -> bool { self.config.api_key.is_some() }
+    async fn is_available(&self) -> bool {
+        self.config.api_key.is_some()
+    }
 
     async fn complete(&self, context: &CodeContext) -> Result<CompletionResponse> {
         let prompt = format!(
@@ -61,8 +79,15 @@ impl AIProvider for TogetherProvider {
             context.language, context.prefix, context.suffix
         );
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "You are a helpful coding assistant specializing in code completion.".to_string() },
-            Message { role: crate::provider::MessageRole::User, content: prompt },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "You are a helpful coding assistant specializing in code completion."
+                    .to_string(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: prompt,
+            },
         ];
         self.chat_response(&messages, None).await
     }
@@ -73,16 +98,34 @@ impl AIProvider for TogetherProvider {
             context.language, context.prefix, context.suffix
         );
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "You are a helpful coding assistant specializing in code completion.".to_string() },
-            Message { role: crate::provider::MessageRole::User, content: prompt },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "You are a helpful coding assistant specializing in code completion."
+                    .to_string(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: prompt,
+            },
         ];
         self.stream_chat(&messages).await
     }
 
-    async fn chat_response(&self, messages: &[Message], context: Option<String>) -> Result<CompletionResponse> {
+    async fn chat_response(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+    ) -> Result<CompletionResponse> {
         let api_key = self.api_key()?;
         let request = self.make_request(messages, context, false);
-        openai_compat::send_chat_request(&self.client, &self.chat_url(), api_key, &request, "Together AI").await
+        openai_compat::send_chat_request(
+            &self.client,
+            &self.chat_url(),
+            api_key,
+            &request,
+            "Together AI",
+        )
+        .await
     }
 
     async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String> {
@@ -92,10 +135,22 @@ impl AIProvider for TogetherProvider {
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
         let api_key = self.api_key()?;
         let request = self.make_request(messages, None, true);
-        openai_compat::send_stream_request(&self.client, &self.chat_url(), api_key, &request, "Together AI").await
+        openai_compat::send_stream_request(
+            &self.client,
+            &self.chat_url(),
+            api_key,
+            &request,
+            "Together AI",
+        )
+        .await
     }
 
-    async fn chat_with_images(&self, messages: &[Message], _images: &[ImageAttachment], context: Option<String>) -> Result<String> {
+    async fn chat_with_images(
+        &self,
+        messages: &[Message],
+        _images: &[ImageAttachment],
+        context: Option<String>,
+    ) -> Result<String> {
         self.chat(messages, context).await
     }
 }
@@ -103,7 +158,7 @@ impl AIProvider for TogetherProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use openai_compat::{ChatResponse, ChatMessage, StreamResponse};
+    use openai_compat::{ChatMessage, ChatResponse, StreamResponse};
 
     fn test_config() -> ProviderConfig {
         ProviderConfig {
@@ -121,7 +176,10 @@ mod tests {
     #[test]
     fn name_is_together_ai() {
         let p = TogetherProvider::new(test_config());
-        assert_eq!(p.name(), "Together AI (meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo)");
+        assert_eq!(
+            p.name(),
+            "Together AI (meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo)"
+        );
     }
 
     #[tokio::test]
@@ -155,8 +213,14 @@ mod tests {
     fn build_messages_without_context() {
         use crate::provider::MessageRole;
         let msgs = vec![
-            Message { role: MessageRole::System, content: "System prompt".into() },
-            Message { role: MessageRole::User, content: "Help me".into() },
+            Message {
+                role: MessageRole::System,
+                content: "System prompt".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "Help me".into(),
+            },
         ];
         let result = openai_compat::build_messages(&msgs, None);
         assert_eq!(result.len(), 2);
@@ -169,9 +233,10 @@ mod tests {
     #[test]
     fn build_messages_with_context_prepends_to_last_user() {
         use crate::provider::MessageRole;
-        let msgs = vec![
-            Message { role: MessageRole::User, content: "Review this".into() },
-        ];
+        let msgs = vec![Message {
+            role: MessageRole::User,
+            content: "Review this".into(),
+        }];
         let result = openai_compat::build_messages(&msgs, Some("fn main() {}".into()));
         assert_eq!(result.len(), 1);
         assert!(result[0].content.starts_with("Context:\nfn main() {}"));
@@ -182,9 +247,18 @@ mod tests {
     fn build_messages_context_only_modifies_last_user() {
         use crate::provider::MessageRole;
         let msgs = vec![
-            Message { role: MessageRole::User, content: "First Q".into() },
-            Message { role: MessageRole::Assistant, content: "First A".into() },
-            Message { role: MessageRole::User, content: "Second Q".into() },
+            Message {
+                role: MessageRole::User,
+                content: "First Q".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "First A".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "Second Q".into(),
+            },
         ];
         let result = openai_compat::build_messages(&msgs, Some("context data".into()));
         assert_eq!(result[0].content, "First Q");
@@ -196,8 +270,14 @@ mod tests {
     fn build_messages_context_ignored_when_last_is_assistant() {
         use crate::provider::MessageRole;
         let msgs = vec![
-            Message { role: MessageRole::User, content: "Q".into() },
-            Message { role: MessageRole::Assistant, content: "A".into() },
+            Message {
+                role: MessageRole::User,
+                content: "Q".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "A".into(),
+            },
         ];
         let result = openai_compat::build_messages(&msgs, Some("extra ctx".into()));
         assert_eq!(result[1].content, "A");
@@ -213,9 +293,18 @@ mod tests {
     fn build_messages_role_mapping_all_roles() {
         use crate::provider::MessageRole;
         let msgs = vec![
-            Message { role: MessageRole::System, content: "s".into() },
-            Message { role: MessageRole::User, content: "u".into() },
-            Message { role: MessageRole::Assistant, content: "a".into() },
+            Message {
+                role: MessageRole::System,
+                content: "s".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "u".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "a".into(),
+            },
         ];
         let result = openai_compat::build_messages(&msgs, None);
         assert_eq!(result[0].role, "system");
@@ -252,7 +341,10 @@ mod tests {
     fn request_serde_minimal() {
         let req = ChatRequest {
             model: "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo".into(),
-            messages: vec![ChatMessage { role: "user".into(), content: "test".into() }],
+            messages: vec![ChatMessage {
+                role: "user".into(),
+                content: "test".into(),
+            }],
             temperature: None,
             max_tokens: None,
             stream: false,
@@ -270,8 +362,14 @@ mod tests {
         let req = ChatRequest {
             model: "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo".into(),
             messages: vec![
-                ChatMessage { role: "system".into(), content: "sys".into() },
-                ChatMessage { role: "user".into(), content: "usr".into() },
+                ChatMessage {
+                    role: "system".into(),
+                    content: "sys".into(),
+                },
+                ChatMessage {
+                    role: "user".into(),
+                    content: "usr".into(),
+                },
             ],
             temperature: Some(0.3),
             max_tokens: Some(4096),
@@ -309,7 +407,10 @@ mod tests {
 
     #[test]
     fn message_deser_roundtrip() {
-        let msg = ChatMessage { role: "user".into(), content: "hello world".into() };
+        let msg = ChatMessage {
+            role: "user".into(),
+            content: "hello world".into(),
+        };
         let json = serde_json::to_string(&msg).unwrap();
         let msg2: ChatMessage = serde_json::from_str(&json).unwrap();
         assert_eq!(msg.role, msg2.role);
@@ -343,9 +444,10 @@ mod tests {
     #[test]
     fn build_messages_empty_context_string_still_injects() {
         use crate::provider::MessageRole;
-        let msgs = vec![
-            Message { role: MessageRole::User, content: "query".into() },
-        ];
+        let msgs = vec![Message {
+            role: MessageRole::User,
+            content: "query".into(),
+        }];
         let result = openai_compat::build_messages(&msgs, Some("".into()));
         assert!(result[0].content.starts_with("Context:\n"));
         assert!(result[0].content.contains("User: query"));
@@ -356,8 +458,14 @@ mod tests {
         let req = ChatRequest {
             model: "mistralai/Mixtral-8x7B-Instruct-v0.1".into(),
             messages: vec![
-                ChatMessage { role: "system".into(), content: "be helpful".into() },
-                ChatMessage { role: "user".into(), content: "solve this".into() },
+                ChatMessage {
+                    role: "system".into(),
+                    content: "be helpful".into(),
+                },
+                ChatMessage {
+                    role: "user".into(),
+                    content: "solve this".into(),
+                },
             ],
             temperature: Some(0.0),
             max_tokens: Some(8192),
@@ -373,7 +481,10 @@ mod tests {
     fn request_streaming_model() {
         let req = ChatRequest {
             model: "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo".into(),
-            messages: vec![ChatMessage { role: "user".into(), content: "hi".into() }],
+            messages: vec![ChatMessage {
+                role: "user".into(),
+                content: "hi".into(),
+            }],
             temperature: None,
             max_tokens: None,
             stream: true,

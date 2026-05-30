@@ -1,6 +1,8 @@
 //! xAI Grok provider implementation
 
-use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, Message, ProviderConfig};
+use crate::provider::{
+    AIProvider, CodeContext, CompletionResponse, CompletionStream, Message, ProviderConfig,
+};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use futures::stream::StreamExt;
@@ -105,10 +107,16 @@ impl AIProvider for GrokProvider {
             "Complete the following {} code:\n\n{}<CURSOR>{}",
             context.language, context.prefix, context.suffix
         );
-        
+
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "You are a helpful coding assistant.".to_string() },
-            Message { role: crate::provider::MessageRole::User, content: prompt },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "You are a helpful coding assistant.".to_string(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: prompt,
+            },
         ];
 
         let response_text = self.chat(&messages, None).await?;
@@ -125,17 +133,27 @@ impl AIProvider for GrokProvider {
             "Complete the following {} code:\n\n{}<CURSOR>{}",
             context.language, context.prefix, context.suffix
         );
-        
+
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "You are a helpful coding assistant.".to_string() },
-            Message { role: crate::provider::MessageRole::User, content: prompt },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "You are a helpful coding assistant.".to_string(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: prompt,
+            },
         ];
 
         self.stream_chat(&messages).await
     }
 
     async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String> {
-        let api_key = self.config.api_key.as_ref().context("Grok API key not found")?;
+        let api_key = self
+            .config
+            .api_key
+            .as_ref()
+            .context("Grok API key not found")?;
         let request = GrokRequest {
             model: self.config.model.clone(),
             messages: self.build_messages(messages, context),
@@ -144,7 +162,8 @@ impl AIProvider for GrokProvider {
             stream: false,
         };
 
-        let response = self.client
+        let response = self
+            .client
             .post("https://api.x.ai/v1/chat/completions")
             .header("Authorization", format!("Bearer {}", api_key))
             .json(&request)
@@ -157,15 +176,24 @@ impl AIProvider for GrokProvider {
             anyhow::bail!("Grok API error: {}", error_text);
         }
 
-        let grok_response: GrokResponse = response.json().await.context("Failed to parse Grok response")?;
-        
-        grok_response.choices.first()
+        let grok_response: GrokResponse = response
+            .json()
+            .await
+            .context("Failed to parse Grok response")?;
+
+        grok_response
+            .choices
+            .first()
             .map(|c| c.message.content.clone())
             .context("No choices in Grok response")
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
-        let api_key = self.config.api_key.as_ref().context("Grok API key not found")?;
+        let api_key = self
+            .config
+            .api_key
+            .as_ref()
+            .context("Grok API key not found")?;
         let request = GrokRequest {
             model: self.config.model.clone(),
             messages: self.build_messages(messages, None),
@@ -174,7 +202,8 @@ impl AIProvider for GrokProvider {
             stream: true,
         };
 
-        let response = self.client
+        let response = self
+            .client
             .post("https://api.x.ai/v1/chat/completions")
             .header("Authorization", format!("Bearer {}", api_key))
             .json(&request)
@@ -188,13 +217,13 @@ impl AIProvider for GrokProvider {
         }
 
         let stream = response.bytes_stream();
-        
+
         let completion_stream = stream
             .map(|chunk| {
                 let chunk = chunk?;
                 let chunk_str = String::from_utf8_lossy(&chunk);
                 let mut content = String::new();
-                
+
                 for line in chunk_str.lines() {
                     if let Some(data) = line.strip_prefix("data: ") {
                         if data == "[DONE]" {
@@ -267,8 +296,14 @@ mod tests {
     fn build_messages_no_context_passthrough() {
         let p = GrokProvider::new(test_config());
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "sys".into() },
-            Message { role: crate::provider::MessageRole::User, content: "hello".into() },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "sys".into(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: "hello".into(),
+            },
         ];
         let result = p.build_messages(&messages, None);
         assert_eq!(result.len(), 2);
@@ -281,9 +316,10 @@ mod tests {
     #[test]
     fn build_messages_context_appended_to_last_user() {
         let p = GrokProvider::new(test_config());
-        let messages = vec![
-            Message { role: crate::provider::MessageRole::User, content: "explain this".into() },
-        ];
+        let messages = vec![Message {
+            role: crate::provider::MessageRole::User,
+            content: "explain this".into(),
+        }];
         let result = p.build_messages(&messages, Some("fn foo() {}".into()));
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].role, "user");
@@ -295,8 +331,14 @@ mod tests {
     fn build_messages_context_not_injected_when_last_is_assistant() {
         let p = GrokProvider::new(test_config());
         let messages = vec![
-            Message { role: crate::provider::MessageRole::User, content: "hi".into() },
-            Message { role: crate::provider::MessageRole::Assistant, content: "hello".into() },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: "hi".into(),
+            },
+            Message {
+                role: crate::provider::MessageRole::Assistant,
+                content: "hello".into(),
+            },
         ];
         let result = p.build_messages(&messages, Some("some context".into()));
         // Context should NOT be injected because last message role is "assistant"
@@ -309,10 +351,22 @@ mod tests {
     fn build_messages_context_injected_into_correct_last_user() {
         let p = GrokProvider::new(test_config());
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "system prompt".into() },
-            Message { role: crate::provider::MessageRole::User, content: "first question".into() },
-            Message { role: crate::provider::MessageRole::Assistant, content: "first answer".into() },
-            Message { role: crate::provider::MessageRole::User, content: "second question".into() },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "system prompt".into(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: "first question".into(),
+            },
+            Message {
+                role: crate::provider::MessageRole::Assistant,
+                content: "first answer".into(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: "second question".into(),
+            },
         ];
         let result = p.build_messages(&messages, Some("ctx data".into()));
         assert_eq!(result.len(), 4);
@@ -344,14 +398,23 @@ mod tests {
     fn grok_request_omits_none_temperature() {
         let req = GrokRequest {
             model: "grok-2".into(),
-            messages: vec![GrokMessage { role: "user".into(), content: "hi".into() }],
+            messages: vec![GrokMessage {
+                role: "user".into(),
+                content: "hi".into(),
+            }],
             temperature: None,
             max_tokens: None,
             stream: false,
         };
         let json = serde_json::to_string(&req).unwrap();
-        assert!(!json.contains("temperature"), "temperature should be omitted when None");
-        assert!(!json.contains("max_tokens"), "max_tokens should be omitted when None");
+        assert!(
+            !json.contains("temperature"),
+            "temperature should be omitted when None"
+        );
+        assert!(
+            !json.contains("max_tokens"),
+            "max_tokens should be omitted when None"
+        );
     }
 
     #[test]
@@ -388,9 +451,18 @@ mod tests {
     fn build_messages_maps_roles_correctly() {
         let p = GrokProvider::new(test_config());
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "s".into() },
-            Message { role: crate::provider::MessageRole::User, content: "u".into() },
-            Message { role: crate::provider::MessageRole::Assistant, content: "a".into() },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "s".into(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: "u".into(),
+            },
+            Message {
+                role: crate::provider::MessageRole::Assistant,
+                content: "a".into(),
+            },
         ];
         let result = p.build_messages(&messages, None);
         assert_eq!(result[0].role, "system");
@@ -404,7 +476,10 @@ mod tests {
     fn grok_request_model_field_preserved() {
         let req = GrokRequest {
             model: "grok-3-mini".into(),
-            messages: vec![GrokMessage { role: "user".into(), content: "test".into() }],
+            messages: vec![GrokMessage {
+                role: "user".into(),
+                content: "test".into(),
+            }],
             temperature: None,
             max_tokens: None,
             stream: false,
@@ -429,7 +504,10 @@ mod tests {
 
     #[test]
     fn grok_message_roundtrip() {
-        let msg = GrokMessage { role: "user".into(), content: "hello world".into() };
+        let msg = GrokMessage {
+            role: "user".into(),
+            content: "hello world".into(),
+        };
         let json = serde_json::to_string(&msg).unwrap();
         let msg2: GrokMessage = serde_json::from_str(&json).unwrap();
         assert_eq!(msg.role, msg2.role);
@@ -462,7 +540,10 @@ mod tests {
 
     #[test]
     fn grok_message_unicode_content() {
-        let msg = GrokMessage { role: "user".into(), content: "こんにちは 🌍".into() };
+        let msg = GrokMessage {
+            role: "user".into(),
+            content: "こんにちは 🌍".into(),
+        };
         let json = serde_json::to_string(&msg).unwrap();
         let msg2: GrokMessage = serde_json::from_str(&json).unwrap();
         assert_eq!(msg2.content, "こんにちは 🌍");

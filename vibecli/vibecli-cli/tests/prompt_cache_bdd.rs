@@ -2,7 +2,7 @@
  * BDD tests for prompt_cache using Cucumber.
  * Run with: cargo test --test prompt_cache_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::prompt_cache::{CacheKey, PromptCache};
 
 #[derive(Debug, Default, World)]
@@ -56,8 +56,16 @@ fn insert_prefix(world: &mut PcWorld) {
 
 #[when("I compute the cache key twice")]
 fn compute_twice(world: &mut PcWorld) {
-    world.key1 = Some(CacheKey::from_parts(&world.system, &world.tools, &world.config));
-    world.key2 = Some(CacheKey::from_parts(&world.system, &world.tools, &world.config));
+    world.key1 = Some(CacheKey::from_parts(
+        &world.system,
+        &world.tools,
+        &world.config,
+    ));
+    world.key2 = Some(CacheKey::from_parts(
+        &world.system,
+        &world.tools,
+        &world.config,
+    ));
 }
 
 #[when("I call get_or_insert with the same inputs twice")]

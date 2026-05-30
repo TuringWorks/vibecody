@@ -250,11 +250,7 @@ impl CiIntegration {
                 md.push_str("| URL | Viewport | Diff % | Passed |\n");
                 md.push_str("|-----|----------|--------|--------|\n");
                 for r in results {
-                    let diff_pct = r
-                        .diff
-                        .as_ref()
-                        .map(|d| d.diff_percent)
-                        .unwrap_or(0.0);
+                    let diff_pct = r.diff.as_ref().map(|d| d.diff_percent).unwrap_or(0.0);
                     let status = if r.compliance.passed { "yes" } else { "no" };
                     md.push_str(&format!(
                         "| {} | {} | {:.2}% | {} |\n",
@@ -272,11 +268,7 @@ impl CiIntegration {
                     "<tr><th>URL</th><th>Viewport</th><th>Diff %</th><th>Passed</th></tr>\n",
                 );
                 for r in results {
-                    let diff_pct = r
-                        .diff
-                        .as_ref()
-                        .map(|d| d.diff_percent)
-                        .unwrap_or(0.0);
+                    let diff_pct = r.diff.as_ref().map(|d| d.diff_percent).unwrap_or(0.0);
                     let status = if r.compliance.passed { "yes" } else { "no" };
                     html.push_str(&format!(
                         "<tr><td>{}</td><td>{}</td><td>{:.2}%</td><td>{}</td></tr>\n",
@@ -324,10 +316,7 @@ impl VerificationEngine {
             url.len(),
             self.metrics.total_captures
         );
-        let image_path = format!(
-            "{}/{}_{}.png",
-            self.config.diff_dir, id, viewport.name
-        );
+        let image_path = format!("{}/{}_{}.png", self.config.diff_dir, id, viewport.name);
         let simulated_data = format!("{}|{}x{}", url, viewport.width, viewport.height);
         let hash = format!("{:016x}", PerceptualHash::compute(&simulated_data));
 
@@ -345,7 +334,11 @@ impl VerificationEngine {
     }
 
     /// Set (or overwrite) a baseline.
-    pub fn set_baseline(&mut self, name: &str, screenshots: Vec<Screenshot>) -> Result<String, String> {
+    pub fn set_baseline(
+        &mut self,
+        name: &str,
+        screenshots: Vec<Screenshot>,
+    ) -> Result<String, String> {
         let id = format!("bl-{}-{}", name, self.baselines.len());
         let mut map = HashMap::new();
         for ss in screenshots {
@@ -408,9 +401,7 @@ impl VerificationEngine {
         let diff_image_path = if diff_percent > 0.0 {
             Some(format!(
                 "{}/diff_{}_{}.png",
-                self.config.diff_dir,
-                baseline_ss.id,
-                current_ss.id
+                self.config.diff_dir, baseline_ss.id, current_ss.id
             ))
         } else {
             None
@@ -446,12 +437,7 @@ impl VerificationEngine {
         let baseline_ss = baseline
             .screenshots
             .get(&viewport.name)
-            .ok_or_else(|| {
-                format!(
-                    "No baseline screenshot for viewport '{}'",
-                    viewport.name
-                )
-            })?
+            .ok_or_else(|| format!("No baseline screenshot for viewport '{}'", viewport.name))?
             .clone();
 
         let current_ss = self.capture_screenshot(url, viewport)?;
@@ -609,7 +595,9 @@ mod tests {
     fn test_capture_screenshot() {
         let mut engine = VerificationEngine::new(VerifyConfig::default());
         let vp = Viewport::desktop();
-        let ss = engine.capture_screenshot("https://example.com", &vp).unwrap();
+        let ss = engine
+            .capture_screenshot("https://example.com", &vp)
+            .unwrap();
         assert_eq!(ss.url, "https://example.com");
         assert_eq!(ss.viewport.name, "desktop");
         assert!(!ss.hash.is_empty());
@@ -620,16 +608,24 @@ mod tests {
     #[test]
     fn test_capture_multiple_screenshots() {
         let mut engine = VerificationEngine::new(VerifyConfig::default());
-        let _ = engine.capture_screenshot("https://a.com", &Viewport::desktop()).unwrap();
-        let _ = engine.capture_screenshot("https://b.com", &Viewport::mobile()).unwrap();
+        let _ = engine
+            .capture_screenshot("https://a.com", &Viewport::desktop())
+            .unwrap();
+        let _ = engine
+            .capture_screenshot("https://b.com", &Viewport::mobile())
+            .unwrap();
         assert_eq!(engine.metrics.total_captures, 2);
     }
 
     #[test]
     fn test_screenshot_ids_unique() {
         let mut engine = VerificationEngine::new(VerifyConfig::default());
-        let s1 = engine.capture_screenshot("https://a.com", &Viewport::desktop()).unwrap();
-        let s2 = engine.capture_screenshot("https://a.com", &Viewport::desktop()).unwrap();
+        let s1 = engine
+            .capture_screenshot("https://a.com", &Viewport::desktop())
+            .unwrap();
+        let s2 = engine
+            .capture_screenshot("https://a.com", &Viewport::desktop())
+            .unwrap();
         assert_ne!(s1.id, s2.id);
     }
 
@@ -638,7 +634,9 @@ mod tests {
     #[test]
     fn test_set_and_get_baseline() {
         let mut engine = VerificationEngine::new(VerifyConfig::default());
-        let ss = engine.capture_screenshot("https://example.com", &Viewport::desktop()).unwrap();
+        let ss = engine
+            .capture_screenshot("https://example.com", &Viewport::desktop())
+            .unwrap();
         let id = engine.set_baseline("homepage", vec![ss]).unwrap();
         assert!(id.starts_with("bl-"));
         let bl = engine.get_baseline("homepage").unwrap();
@@ -656,9 +654,13 @@ mod tests {
     #[test]
     fn test_update_baseline() {
         let mut engine = VerificationEngine::new(VerifyConfig::default());
-        let ss1 = engine.capture_screenshot("https://a.com", &Viewport::desktop()).unwrap();
+        let ss1 = engine
+            .capture_screenshot("https://a.com", &Viewport::desktop())
+            .unwrap();
         engine.set_baseline("home", vec![ss1]).unwrap();
-        let ss2 = engine.capture_screenshot("https://a.com", &Viewport::mobile()).unwrap();
+        let ss2 = engine
+            .capture_screenshot("https://a.com", &Viewport::mobile())
+            .unwrap();
         engine.update_baseline("home", vec![ss2]).unwrap();
         let bl = engine.get_baseline("home").unwrap();
         assert_eq!(bl.screenshots.len(), 2);
@@ -675,7 +677,9 @@ mod tests {
     #[test]
     fn test_delete_baseline() {
         let mut engine = VerificationEngine::new(VerifyConfig::default());
-        let ss = engine.capture_screenshot("https://a.com", &Viewport::desktop()).unwrap();
+        let ss = engine
+            .capture_screenshot("https://a.com", &Viewport::desktop())
+            .unwrap();
         engine.set_baseline("home", vec![ss]).unwrap();
         assert_eq!(engine.metrics.baselines_count, 1);
         engine.delete_baseline("home").unwrap();
@@ -692,7 +696,9 @@ mod tests {
     #[test]
     fn test_list_baselines() {
         let mut engine = VerificationEngine::new(VerifyConfig::default());
-        let ss = engine.capture_screenshot("https://a.com", &Viewport::desktop()).unwrap();
+        let ss = engine
+            .capture_screenshot("https://a.com", &Viewport::desktop())
+            .unwrap();
         engine.set_baseline("alpha", vec![ss.clone()]).unwrap();
         engine.set_baseline("beta", vec![ss]).unwrap();
         let names = engine.list_baselines();
@@ -757,7 +763,9 @@ mod tests {
     #[test]
     fn test_compare_identical_screenshots() {
         let mut engine = VerificationEngine::new(VerifyConfig::default());
-        let ss = engine.capture_screenshot("https://a.com", &Viewport::desktop()).unwrap();
+        let ss = engine
+            .capture_screenshot("https://a.com", &Viewport::desktop())
+            .unwrap();
         let diff = engine.compare_screenshots(&ss, &ss.clone()).unwrap();
         assert_eq!(diff.diff_percent, 0.0);
         assert_eq!(diff.changed_pixels, 0);
@@ -768,8 +776,12 @@ mod tests {
     #[test]
     fn test_compare_different_screenshots() {
         let mut engine = VerificationEngine::new(VerifyConfig::default());
-        let ss1 = engine.capture_screenshot("https://a.com", &Viewport::desktop()).unwrap();
-        let ss2 = engine.capture_screenshot("https://b.com", &Viewport::desktop()).unwrap();
+        let ss1 = engine
+            .capture_screenshot("https://a.com", &Viewport::desktop())
+            .unwrap();
+        let ss2 = engine
+            .capture_screenshot("https://b.com", &Viewport::desktop())
+            .unwrap();
         let diff = engine.compare_screenshots(&ss1, &ss2).unwrap();
         assert!(diff.diff_percent > 0.0);
         assert!(diff.changed_pixels > 0);
@@ -780,7 +792,9 @@ mod tests {
     #[test]
     fn test_diff_total_pixels() {
         let mut engine = VerificationEngine::new(VerifyConfig::default());
-        let ss = engine.capture_screenshot("https://a.com", &Viewport::desktop()).unwrap();
+        let ss = engine
+            .capture_screenshot("https://a.com", &Viewport::desktop())
+            .unwrap();
         let diff = engine.compare_screenshots(&ss, &ss.clone()).unwrap();
         assert_eq!(diff.total_pixels, 1920 * 1080);
     }
@@ -788,8 +802,12 @@ mod tests {
     #[test]
     fn test_diff_region_severity_assignment() {
         let mut engine = VerificationEngine::new(VerifyConfig::default());
-        let ss1 = engine.capture_screenshot("https://a.com", &Viewport::desktop()).unwrap();
-        let ss2 = engine.capture_screenshot("https://completely-different.com", &Viewport::desktop()).unwrap();
+        let ss1 = engine
+            .capture_screenshot("https://a.com", &Viewport::desktop())
+            .unwrap();
+        let ss2 = engine
+            .capture_screenshot("https://completely-different.com", &Viewport::desktop())
+            .unwrap();
         let diff = engine.compare_screenshots(&ss1, &ss2).unwrap();
         if !diff.regions.is_empty() {
             let sev = &diff.regions[0].severity;
@@ -811,10 +829,14 @@ mod tests {
             threshold_percent: 50.0,
             ..VerifyConfig::default()
         });
-        let ss = engine.capture_screenshot("https://a.com", &Viewport::desktop()).unwrap();
+        let ss = engine
+            .capture_screenshot("https://a.com", &Viewport::desktop())
+            .unwrap();
         engine.set_baseline("home", vec![ss]).unwrap();
         // Same URL → same hash → 0% diff → passes
-        let result = engine.verify_url("https://a.com", "home", &Viewport::desktop()).unwrap();
+        let result = engine
+            .verify_url("https://a.com", "home", &Viewport::desktop())
+            .unwrap();
         assert!(result.compliance.passed);
         assert_eq!(result.compliance.score, 100.0);
     }
@@ -825,9 +847,13 @@ mod tests {
             threshold_percent: 0.0,
             ..VerifyConfig::default()
         });
-        let ss = engine.capture_screenshot("https://a.com", &Viewport::desktop()).unwrap();
+        let ss = engine
+            .capture_screenshot("https://a.com", &Viewport::desktop())
+            .unwrap();
         engine.set_baseline("home", vec![ss]).unwrap();
-        let result = engine.verify_url("https://different.com", "home", &Viewport::desktop()).unwrap();
+        let result = engine
+            .verify_url("https://different.com", "home", &Viewport::desktop())
+            .unwrap();
         assert!(!result.compliance.passed);
         assert!(result.compliance.details.contains("exceeds"));
     }
@@ -837,25 +863,35 @@ mod tests {
     #[test]
     fn test_verify_url_no_baseline() {
         let mut engine = VerificationEngine::new(VerifyConfig::default());
-        let err = engine.verify_url("https://a.com", "missing", &Viewport::desktop()).unwrap_err();
+        let err = engine
+            .verify_url("https://a.com", "missing", &Viewport::desktop())
+            .unwrap_err();
         assert!(err.contains("not found"));
     }
 
     #[test]
     fn test_verify_url_no_viewport_in_baseline() {
         let mut engine = VerificationEngine::new(VerifyConfig::default());
-        let ss = engine.capture_screenshot("https://a.com", &Viewport::desktop()).unwrap();
+        let ss = engine
+            .capture_screenshot("https://a.com", &Viewport::desktop())
+            .unwrap();
         engine.set_baseline("home", vec![ss]).unwrap();
-        let err = engine.verify_url("https://a.com", "home", &Viewport::mobile()).unwrap_err();
+        let err = engine
+            .verify_url("https://a.com", "home", &Viewport::mobile())
+            .unwrap_err();
         assert!(err.contains("No baseline screenshot"));
     }
 
     #[test]
     fn test_verify_url_updates_metrics() {
         let mut engine = VerificationEngine::new(VerifyConfig::default());
-        let ss = engine.capture_screenshot("https://a.com", &Viewport::desktop()).unwrap();
+        let ss = engine
+            .capture_screenshot("https://a.com", &Viewport::desktop())
+            .unwrap();
         engine.set_baseline("home", vec![ss]).unwrap();
-        engine.verify_url("https://a.com", "home", &Viewport::desktop()).unwrap();
+        engine
+            .verify_url("https://a.com", "home", &Viewport::desktop())
+            .unwrap();
         assert_eq!(engine.metrics.total_passed, 1);
         assert_eq!(engine.metrics.total_comparisons, 1);
     }
@@ -871,7 +907,9 @@ mod tests {
             screenshots.push(engine.capture_screenshot("https://a.com", vp).unwrap());
         }
         engine.set_baseline("home", screenshots).unwrap();
-        let results = engine.verify_all_viewports("https://a.com", "home").unwrap();
+        let results = engine
+            .verify_all_viewports("https://a.com", "home")
+            .unwrap();
         assert_eq!(results.len(), 3);
         for r in &results {
             assert!(r.compliance.passed);
@@ -882,9 +920,13 @@ mod tests {
     fn test_verify_all_viewports_missing_viewport() {
         let mut engine = VerificationEngine::new(VerifyConfig::default());
         // Only set desktop baseline, but config has 3 viewports
-        let ss = engine.capture_screenshot("https://a.com", &Viewport::desktop()).unwrap();
+        let ss = engine
+            .capture_screenshot("https://a.com", &Viewport::desktop())
+            .unwrap();
         engine.set_baseline("home", vec![ss]).unwrap();
-        let err = engine.verify_all_viewports("https://a.com", "home").unwrap_err();
+        let err = engine
+            .verify_all_viewports("https://a.com", "home")
+            .unwrap_err();
         assert!(err.contains("tablet") || err.contains("No baseline screenshot"));
     }
 
@@ -946,10 +988,16 @@ mod tests {
     #[test]
     fn test_metrics_update_on_verify() {
         let mut engine = VerificationEngine::new(VerifyConfig::default());
-        let ss = engine.capture_screenshot("https://a.com", &Viewport::desktop()).unwrap();
+        let ss = engine
+            .capture_screenshot("https://a.com", &Viewport::desktop())
+            .unwrap();
         engine.set_baseline("home", vec![ss]).unwrap();
-        engine.verify_url("https://a.com", "home", &Viewport::desktop()).unwrap();
-        engine.verify_url("https://different.com", "home", &Viewport::desktop()).unwrap();
+        engine
+            .verify_url("https://a.com", "home", &Viewport::desktop())
+            .unwrap();
+        engine
+            .verify_url("https://different.com", "home", &Viewport::desktop())
+            .unwrap();
         assert_eq!(engine.metrics.total_comparisons, 2);
         assert_eq!(engine.metrics.total_passed + engine.metrics.total_failed, 2);
     }
@@ -963,9 +1011,13 @@ mod tests {
             threshold_percent: 100.0, // accept anything
             ..VerifyConfig::default()
         });
-        let ss = engine.capture_screenshot("https://a.com", &Viewport::desktop()).unwrap();
+        let ss = engine
+            .capture_screenshot("https://a.com", &Viewport::desktop())
+            .unwrap();
         engine.set_baseline("home", vec![ss]).unwrap();
-        let result = engine.verify_url("https://z.com", "home", &Viewport::desktop()).unwrap();
+        let result = engine
+            .verify_url("https://z.com", "home", &Viewport::desktop())
+            .unwrap();
         assert!(result.compliance.passed);
     }
 
@@ -1006,19 +1058,29 @@ mod tests {
     #[test]
     fn test_results_accumulate() {
         let mut engine = VerificationEngine::new(VerifyConfig::default());
-        let ss = engine.capture_screenshot("https://a.com", &Viewport::desktop()).unwrap();
+        let ss = engine
+            .capture_screenshot("https://a.com", &Viewport::desktop())
+            .unwrap();
         engine.set_baseline("home", vec![ss]).unwrap();
-        engine.verify_url("https://a.com", "home", &Viewport::desktop()).unwrap();
-        engine.verify_url("https://a.com", "home", &Viewport::desktop()).unwrap();
+        engine
+            .verify_url("https://a.com", "home", &Viewport::desktop())
+            .unwrap();
+        engine
+            .verify_url("https://a.com", "home", &Viewport::desktop())
+            .unwrap();
         assert_eq!(engine.results.len(), 2);
     }
 
     #[test]
     fn test_overwrite_baseline() {
         let mut engine = VerificationEngine::new(VerifyConfig::default());
-        let ss1 = engine.capture_screenshot("https://a.com", &Viewport::desktop()).unwrap();
+        let ss1 = engine
+            .capture_screenshot("https://a.com", &Viewport::desktop())
+            .unwrap();
         engine.set_baseline("home", vec![ss1]).unwrap();
-        let ss2 = engine.capture_screenshot("https://b.com", &Viewport::desktop()).unwrap();
+        let ss2 = engine
+            .capture_screenshot("https://b.com", &Viewport::desktop())
+            .unwrap();
         engine.set_baseline("home", vec![ss2.clone()]).unwrap();
         let bl = engine.get_baseline("home").unwrap();
         assert_eq!(bl.screenshots.get("desktop").unwrap().url, "https://b.com");

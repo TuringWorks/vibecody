@@ -110,7 +110,10 @@ impl ContextHierarchy {
         let mut i = 0;
         while i < lines.len() {
             let line = lines[i].trim();
-            if Self::is_function_line(line) || Self::is_struct_line(line) || Self::is_class_line(line) {
+            if Self::is_function_line(line)
+                || Self::is_struct_line(line)
+                || Self::is_class_line(line)
+            {
                 let summary = Self::summarize_function_block(&lines, i);
                 summaries.push(summary);
             }
@@ -238,12 +241,7 @@ impl ContextHierarchy {
         let first_doc = content
             .lines()
             .find(|l| l.trim().starts_with("//!"))
-            .map(|l| {
-                l.trim()
-                    .trim_start_matches("//!")
-                    .trim()
-                    .to_string()
-            });
+            .map(|l| l.trim().trim_start_matches("//!").trim().to_string());
         if let Some(doc) = first_doc {
             format!("{doc} ({count} definitions)")
         } else if count > 0 {
@@ -295,22 +293,21 @@ impl ContextHierarchy {
     }
 
     fn is_class_line(line: &str) -> bool {
-        line.starts_with("class ") || line.starts_with("interface ") || line.starts_with("abstract class ")
+        line.starts_with("class ")
+            || line.starts_with("interface ")
+            || line.starts_with("abstract class ")
     }
 
     fn is_signature_line(line: &str) -> bool {
-        Self::is_function_line(line)
-            || Self::is_struct_line(line)
-            || Self::is_class_line(line)
-            || {
-                let l = line.trim_start_matches("pub ");
-                let l = l.trim_start_matches("pub(crate) ");
-                l.starts_with("trait ")
-                    || l.starts_with("impl ")
-                    || l.starts_with("type ")
-                    || l.starts_with("const ")
-                    || l.starts_with("static ")
-            }
+        Self::is_function_line(line) || Self::is_struct_line(line) || Self::is_class_line(line) || {
+            let l = line.trim_start_matches("pub ");
+            let l = l.trim_start_matches("pub(crate) ");
+            l.starts_with("trait ")
+                || l.starts_with("impl ")
+                || l.starts_with("type ")
+                || l.starts_with("const ")
+                || l.starts_with("static ")
+        }
     }
 }
 
@@ -397,8 +394,7 @@ impl ContextWindow {
             }
             let new_level = chunk.depth_level + 1;
             let old_tokens = chunk.token_count;
-            let new_content =
-                ContextHierarchy::summarize_file(&chunk.content, new_level);
+            let new_content = ContextHierarchy::summarize_file(&chunk.content, new_level);
             let new_tokens = token_estimate(&new_content);
 
             self.chunks[idx].content = new_content;
@@ -431,12 +427,11 @@ impl ContextWindow {
     }
 
     fn sort_by_relevance(&mut self) {
-        self.chunks
-            .sort_by(|a, b| {
-                b.relevance_score
-                    .partial_cmp(&a.relevance_score)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
+        self.chunks.sort_by(|a, b| {
+            b.relevance_score
+                .partial_cmp(&a.relevance_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
     }
 }
 
@@ -527,10 +522,7 @@ impl ContextScorer {
         if file_stem.is_empty() {
             return 0.0;
         }
-        let matches = imports
-            .iter()
-            .filter(|imp| imp.contains(file_stem))
-            .count() as f64;
+        let matches = imports.iter().filter(|imp| imp.contains(file_stem)).count() as f64;
         let total = imports.len() as f64;
         (matches / total).min(1.0)
     }
@@ -795,9 +787,7 @@ impl InfiniteContextManager {
         }
 
         // Sort by score descending
-        candidates.sort_by(|a, b| {
-            b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
-        });
+        candidates.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         // Add highest-scoring files at appropriate depth
         for (path, score, content) in candidates {
@@ -836,8 +826,8 @@ impl InfiniteContextManager {
     /// Expand a file from its current summary to full content.
     pub fn expand_context(&self, window: &mut ContextWindow, file: &str) -> Result<()> {
         let path = Path::new(file);
-        let content = std::fs::read_to_string(path)
-            .with_context(|| format!("Failed to read {file}"))?;
+        let content =
+            std::fs::read_to_string(path).with_context(|| format!("Failed to read {file}"))?;
 
         // Find and update existing chunk, or add new one
         if let Some(chunk) = window
@@ -865,26 +855,16 @@ impl InfiniteContextManager {
     }
 
     /// Compress least-relevant chunks to reduce token usage by `target_reduction`.
-    pub fn compress_context(
-        &self,
-        window: &mut ContextWindow,
-        target_reduction: usize,
-    ) {
+    pub fn compress_context(&self, window: &mut ContextWindow, target_reduction: usize) {
         let target = window.used_tokens.saturating_sub(target_reduction);
         window.compress_to_fit(target);
     }
 
     /// Re-score and rebalance the context window for a new query.
-    pub fn refresh_context(
-        &self,
-        window: &mut ContextWindow,
-        new_query: &str,
-    ) {
+    pub fn refresh_context(&self, window: &mut ContextWindow, new_query: &str) {
         for chunk in &mut window.chunks {
-            let keyword_score =
-                ContextScorer::score_by_keyword_match(&chunk.content, new_query);
-            let freq_score =
-                ContextScorer::score_by_access_frequency(chunk.access_count);
+            let keyword_score = ContextScorer::score_by_keyword_match(&chunk.content, new_query);
+            let freq_score = ContextScorer::score_by_access_frequency(chunk.access_count);
             chunk.relevance_score =
                 ContextScorer::combined_score(&[keyword_score, freq_score], &[0.8, 0.2]);
             chunk.access_count += 1;
@@ -898,8 +878,8 @@ impl InfiniteContextManager {
         if let Some(cached) = self.cache.get(&cache_key) {
             return Ok(cached.clone());
         }
-        let content = std::fs::read_to_string(file)
-            .with_context(|| format!("Failed to read {file}"))?;
+        let content =
+            std::fs::read_to_string(file).with_context(|| format!("Failed to read {file}"))?;
         let summarized = ContextHierarchy::summarize_file(&content, depth);
         self.cache.put(cache_key, summarized.clone());
         Ok(summarized)
@@ -1010,7 +990,8 @@ mod tests {
 
     #[test]
     fn test_summarize_file_level_2_skeleton() {
-        let content = "struct Foo {\n    x: i32,\n}\n\nfn bar() {\n    let a = 1;\n    let b = 2;\n}";
+        let content =
+            "struct Foo {\n    x: i32,\n}\n\nfn bar() {\n    let a = 1;\n    let b = 2;\n}";
         let result = ContextHierarchy::summarize_file(content, 2);
         assert!(result.contains("struct Foo"));
         assert!(!result.contains("let a = 1"));
@@ -1161,7 +1142,7 @@ mod tests {
         w.add_chunk(chunk);
         let before = w.used_tokens;
         w.compress_to_fit(1); // Compress to almost nothing
-        // After compression, depth should have increased
+                              // After compression, depth should have increased
         assert!(w.chunks[0].depth_level > 0);
         assert!(w.used_tokens <= before);
     }
@@ -1297,7 +1278,10 @@ mod tests {
 
     #[test]
     fn test_score_dependency_matching_import() {
-        let imports = vec!["use crate::config;".to_string(), "use crate::utils;".to_string()];
+        let imports = vec![
+            "use crate::config;".to_string(),
+            "use crate::utils;".to_string(),
+        ];
         let score = ContextScorer::score_by_dependency("src/config.rs", &imports);
         assert!(score > 0.0);
     }
@@ -1662,10 +1646,8 @@ mod tests {
 
     #[test]
     fn test_edge_deeply_nested_path_scoring() {
-        let score = ContextScorer::score_by_edit_distance(
-            "a/b/c/d/e/f/g/file.rs",
-            "x/y/z/other.rs",
-        );
+        let score =
+            ContextScorer::score_by_edit_distance("a/b/c/d/e/f/g/file.rs", "x/y/z/other.rs");
         assert!(score > 0.0);
         assert!(score < 0.5);
     }
@@ -1740,7 +1722,8 @@ mod tests {
 
     #[test]
     fn test_extract_signatures_python_like() {
-        let content = "def hello():\n    pass\n\nclass MyClass:\n    def method(self):\n        pass";
+        let content =
+            "def hello():\n    pass\n\nclass MyClass:\n    def method(self):\n        pass";
         let sigs = ContextHierarchy::extract_signatures(content);
         assert!(sigs.iter().any(|s| s.contains("def hello()")));
         assert!(sigs.iter().any(|s| s.contains("class MyClass")));

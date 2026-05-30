@@ -32,9 +32,9 @@ pub enum Severity {
 impl std::fmt::Display for Severity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Severity::Error   => write!(f, "error"),
+            Severity::Error => write!(f, "error"),
             Severity::Warning => write!(f, "warning"),
-            Severity::Info    => write!(f, "info"),
+            Severity::Info => write!(f, "info"),
         }
     }
 }
@@ -60,9 +60,9 @@ pub struct BugReport {
 impl BugReport {
     pub fn icon(&self) -> &'static str {
         match self.severity {
-            Severity::Error   => "❌",
+            Severity::Error => "❌",
             Severity::Warning => "⚠️ ",
-            Severity::Info    => "ℹ️ ",
+            Severity::Info => "ℹ️ ",
         }
     }
 }
@@ -191,7 +191,9 @@ pub fn detect_security_patterns(diff: &str) -> Vec<BugReport> {
     let compiled: Vec<(Regex, &str, Severity, &str, &str)> = raw_patterns
         .iter()
         .filter_map(|(pat, cwe, sev, msg, sug)| {
-            Regex::new(pat).ok().map(|re| (re, *cwe, sev.clone(), *msg, *sug))
+            Regex::new(pat)
+                .ok()
+                .map(|re| (re, *cwe, sev.clone(), *msg, *sug))
         })
         .collect();
 
@@ -217,8 +219,12 @@ pub fn detect_security_patterns(diff: &str) -> Vec<BugReport> {
         if raw_line.starts_with("@@") {
             if let Some(plus_part) = raw_line.split('+').nth(1) {
                 let num_str = plus_part
-                    .split(',').next().unwrap_or("0")
-                    .split(' ').next().unwrap_or("0");
+                    .split(',')
+                    .next()
+                    .unwrap_or("0")
+                    .split(' ')
+                    .next()
+                    .unwrap_or("0");
                 current_new_line = num_str.parse::<u32>().unwrap_or(1).saturating_sub(1);
             }
             continue;
@@ -261,7 +267,10 @@ impl BugBot {
     pub fn new(llm: Arc<dyn LLMProvider>) -> Self {
         // Route through the canonical resolver so ProfileStore wins
         // over env. AGENTS.md → Zero-Config First.
-        Self { llm, gh_token: crate::github_app::resolve_github_token() }
+        Self {
+            llm,
+            gh_token: crate::github_app::resolve_github_token(),
+        }
     }
 
     pub fn with_gh_token(mut self, token: impl Into<String>) -> Self {
@@ -271,7 +280,9 @@ impl BugBot {
 
     /// Analyze a unified diff and return bug reports.
     pub async fn review_diff(&self, diff: &str) -> Vec<BugReport> {
-        if diff.trim().is_empty() { return vec![]; }
+        if diff.trim().is_empty() {
+            return vec![];
+        }
 
         // Run static OWASP/CWE pattern scan first — fast, no LLM required.
         let mut static_reports = detect_security_patterns(diff);
@@ -306,12 +317,19 @@ Diff:
 ```
 "#,
             {
-                let end = diff.char_indices().nth(8000).map(|(i, _)| i).unwrap_or(diff.len());
+                let end = diff
+                    .char_indices()
+                    .nth(8000)
+                    .map(|(i, _)| i)
+                    .unwrap_or(diff.len());
                 &diff[..end]
             }
         );
 
-        let msgs = vec![Message { role: MessageRole::User, content: prompt }];
+        let msgs = vec![Message {
+            role: MessageRole::User,
+            content: prompt,
+        }];
 
         let mut llm_reports = match self.llm.chat(&msgs, None).await {
             Ok(response) => {
@@ -352,7 +370,10 @@ Diff:
 
     /// Fetch PR diff from GitHub.
     pub async fn fetch_pr_diff(&self, owner: &str, repo: &str, pr_number: u64) -> Result<String> {
-        let url = format!("https://api.github.com/repos/{}/{}/pulls/{}", owner, repo, pr_number);
+        let url = format!(
+            "https://api.github.com/repos/{}/{}/pulls/{}",
+            owner, repo, pr_number
+        );
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(30))
             .connect_timeout(std::time::Duration::from_secs(10))
@@ -363,7 +384,8 @@ Diff:
             let url = url.clone();
             let gh_token = gh_token.clone();
             async move {
-                let mut req = client.get(&url)
+                let mut req = client
+                    .get(&url)
                     .header("Accept", "application/vnd.github.v3.diff")
                     .header("User-Agent", "vibecli-bugbot/1.0");
                 if let Some(token) = &gh_token {
@@ -371,7 +393,8 @@ Diff:
                 }
                 req.send().await.map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
         if !resp.status().is_success() {
             anyhow::bail!("GitHub API error: {}", resp.status());
         }
@@ -387,7 +410,9 @@ Diff:
         reports: &[BugReport],
         commit_sha: &str,
     ) -> Result<()> {
-        let token = self.gh_token.as_ref()
+        let token = self
+            .gh_token
+            .as_ref()
             .ok_or_else(|| anyhow::anyhow!("GITHUB_TOKEN not set"))?;
 
         let client = reqwest::Client::builder()
@@ -399,7 +424,8 @@ Diff:
             owner, repo, pr_number
         );
 
-        let comments: Vec<serde_json::Value> = reports.iter()
+        let comments: Vec<serde_json::Value> = reports
+            .iter()
             .filter(|r| r.severity == Severity::Error || r.severity == Severity::Warning)
             .map(|r| {
                 let mut body = format!("**{}** {}: {}", r.icon(), r.severity, r.message);
@@ -414,7 +440,9 @@ Diff:
             })
             .collect();
 
-        if comments.is_empty() { return Ok(()); }
+        if comments.is_empty() {
+            return Ok(());
+        }
 
         let body_text = if reports.iter().any(|r| r.severity == Severity::Error) {
             "🤖 **BugBot** found issues that need attention. Please review the inline comments."
@@ -435,14 +463,18 @@ Diff:
             let token = token.clone();
             let payload = payload.clone();
             async move {
-                client.post(&url)
+                client
+                    .post(&url)
                     .header("Authorization", format!("Bearer {}", token))
                     .header("Accept", "application/vnd.github.v3+json")
                     .header("User-Agent", "vibecli-bugbot/1.0")
                     .json(&payload)
-                    .send().await.map_err(Into::into)
+                    .send()
+                    .await
+                    .map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
 
         if !resp.status().is_success() {
             let err = resp.text().await?;
@@ -457,20 +489,35 @@ Diff:
             return "✅ BugBot found no issues.\n".to_string();
         }
 
-        let errors = reports.iter().filter(|r| r.severity == Severity::Error).count();
-        let warnings = reports.iter().filter(|r| r.severity == Severity::Warning).count();
-        let infos = reports.iter().filter(|r| r.severity == Severity::Info).count();
+        let errors = reports
+            .iter()
+            .filter(|r| r.severity == Severity::Error)
+            .count();
+        let warnings = reports
+            .iter()
+            .filter(|r| r.severity == Severity::Warning)
+            .count();
+        let infos = reports
+            .iter()
+            .filter(|r| r.severity == Severity::Info)
+            .count();
 
         let mut out = format!(
             "\n🤖 BugBot Review: {} errors, {} warnings, {} info\n{}\n",
-            errors, warnings, infos,
+            errors,
+            warnings,
+            infos,
             "─".repeat(50)
         );
 
         for r in reports {
             out.push_str(&format!(
                 "\n{} [{}] {}:{}\n   {}\n",
-                r.icon(), r.severity, r.file, r.line, r.message
+                r.icon(),
+                r.severity,
+                r.file,
+                r.line,
+                r.message
             ));
             if let Some(sug) = &r.suggestion {
                 out.push_str(&format!("   💡 {}\n", sug));
@@ -493,17 +540,15 @@ mod tests {
 
     #[test]
     fn format_reports_with_issues() {
-        let reports = vec![
-            BugReport {
-                file: "src/main.rs".to_string(),
-                line: 42,
-                severity: Severity::Error,
-                message: "Division by zero".to_string(),
-                suggestion: Some("Add guard".to_string()),
-                fix_command: None,
-                category: Some("logic".to_string()),
-            },
-        ];
+        let reports = vec![BugReport {
+            file: "src/main.rs".to_string(),
+            line: 42,
+            severity: Severity::Error,
+            message: "Division by zero".to_string(),
+            suggestion: Some("Add guard".to_string()),
+            fix_command: None,
+            category: Some("logic".to_string()),
+        }];
         let output = BugBot::format_reports(&reports);
         assert!(output.contains("1 errors"));
         assert!(output.contains("src/main.rs:42"));
@@ -589,7 +634,10 @@ mod tests {
  }
 "#;
         let reports = detect_security_patterns(diff);
-        assert!(!reports.is_empty(), "should detect insecure deserialization");
+        assert!(
+            !reports.is_empty(),
+            "should detect insecure deserialization"
+        );
         assert!(reports[0].message.contains("CWE-502"));
     }
 
@@ -659,7 +707,10 @@ mod tests {
  }
 "#;
         let reports = detect_security_patterns(diff);
-        assert!(reports.is_empty(), "removed lines with secrets should not be reported");
+        assert!(
+            reports.is_empty(),
+            "removed lines with secrets should not be reported"
+        );
     }
 
     #[test]
@@ -677,7 +728,10 @@ mod tests {
  fn existing() {}
 "#;
         let reports = detect_security_patterns(diff);
-        assert!(reports.is_empty(), "diff with no security issues should return empty vec");
+        assert!(
+            reports.is_empty(),
+            "diff with no security issues should return empty vec"
+        );
     }
 
     #[test]

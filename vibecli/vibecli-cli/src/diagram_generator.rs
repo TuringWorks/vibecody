@@ -74,17 +74,27 @@ pub fn build_system_prompt(kind: &DiagramKind, format: &DiagramFormat) -> String
         DiagramKind::NetworkTopology => "Create a network topology diagram showing servers, network devices, and connections.",
     };
 
-    format!("You are an expert software architect and diagram generator.\n\n{}\n\n{}", kind_guidance, format_instructions)
+    format!(
+        "You are an expert software architect and diagram generator.\n\n{}\n\n{}",
+        kind_guidance, format_instructions
+    )
 }
 
 /// Build the user prompt for diagram generation
 pub fn build_user_prompt(req: &DiagramRequest) -> String {
-    let mut prompt = format!("Generate a {} diagram for:\n\n{}", req.kind.display_name(), req.description);
+    let mut prompt = format!(
+        "Generate a {} diagram for:\n\n{}",
+        req.kind.display_name(),
+        req.description
+    );
     if let Some(ctx) = &req.context {
         prompt.push_str(&format!("\n\nAdditional context:\n{}", ctx));
     }
     if !req.style_hints.is_empty() {
-        prompt.push_str(&format!("\n\nStyle preferences:\n- {}", req.style_hints.join("\n- ")));
+        prompt.push_str(&format!(
+            "\n\nStyle preferences:\n- {}",
+            req.style_hints.join("\n- ")
+        ));
     }
     prompt
 }
@@ -107,9 +117,13 @@ pub fn post_process_diagram_output(raw: &str, format: &DiagramFormat) -> Result<
 }
 
 fn strip_markdown_fences(s: &str) -> &str {
-    let s = s.trim_start_matches("```mermaid").trim_start_matches("```drawio")
-        .trim_start_matches("```plantuml").trim_start_matches("```c4")
-        .trim_start_matches("```xml").trim_start_matches("```svg")
+    let s = s
+        .trim_start_matches("```mermaid")
+        .trim_start_matches("```drawio")
+        .trim_start_matches("```plantuml")
+        .trim_start_matches("```c4")
+        .trim_start_matches("```xml")
+        .trim_start_matches("```svg")
         .trim_start_matches("```");
     let s = s.strip_suffix("```").unwrap_or(s);
     s.trim()
@@ -117,22 +131,43 @@ fn strip_markdown_fences(s: &str) -> &str {
 
 fn validate_mermaid(s: &str) -> Result<String, String> {
     let valid_keywords = [
-        "flowchart", "graph", "sequenceDiagram", "classDiagram", "erDiagram",
-        "stateDiagram", "gantt", "pie", "journey", "mindmap", "timeline",
-        "gitGraph", "C4Context", "C4Container", "C4Component",
+        "flowchart",
+        "graph",
+        "sequenceDiagram",
+        "classDiagram",
+        "erDiagram",
+        "stateDiagram",
+        "gantt",
+        "pie",
+        "journey",
+        "mindmap",
+        "timeline",
+        "gitGraph",
+        "C4Context",
+        "C4Container",
+        "C4Component",
     ];
     let first_word = s.split_whitespace().next().unwrap_or("");
-    if valid_keywords.iter().any(|kw| first_word.eq_ignore_ascii_case(kw)) {
+    if valid_keywords
+        .iter()
+        .any(|kw| first_word.eq_ignore_ascii_case(kw))
+    {
         Ok(s.to_string())
     } else {
         // Try to find a valid keyword in the first few lines
         for line in s.lines().take(5) {
             let word = line.split_whitespace().next().unwrap_or("");
-            if valid_keywords.iter().any(|kw| word.eq_ignore_ascii_case(kw)) {
+            if valid_keywords
+                .iter()
+                .any(|kw| word.eq_ignore_ascii_case(kw))
+            {
                 return Ok(s.to_string());
             }
         }
-        Err(format!("Invalid Mermaid: no recognized diagram type keyword found. Got: {}", &s[..s.len().min(50)]))
+        Err(format!(
+            "Invalid Mermaid: no recognized diagram type keyword found. Got: {}",
+            &s[..s.len().min(50)]
+        ))
     }
 }
 
@@ -146,7 +181,11 @@ fn validate_drawio_xml(s: &str) -> Result<String, String> {
 
 fn validate_plantuml(s: &str) -> Result<String, String> {
     if s.contains("@startuml") {
-        let end = if !s.contains("@enduml") { format!("{}\n@enduml", s) } else { s.to_string() };
+        let end = if !s.contains("@enduml") {
+            format!("{}\n@enduml", s)
+        } else {
+            s.to_string()
+        };
         Ok(end)
     } else {
         Err("Invalid PlantUML: missing @startuml".to_string())
@@ -154,7 +193,11 @@ fn validate_plantuml(s: &str) -> Result<String, String> {
 }
 
 fn validate_c4_dsl(s: &str) -> Result<String, String> {
-    if s.contains("workspace") || s.contains("softwareSystem") || s.contains("container") || s.contains("person") {
+    if s.contains("workspace")
+        || s.contains("softwareSystem")
+        || s.contains("container")
+        || s.contains("person")
+    {
         Ok(s.to_string())
     } else {
         Err("Invalid C4 DSL: missing workspace or structural elements".to_string())
@@ -407,9 +450,11 @@ pub struct PlantUmlTemplates;
 
 impl PlantUmlTemplates {
     pub fn component_diagram(system_name: &str, components: &[(&str, &str)]) -> String {
-        let comps: String = components.iter()
+        let comps: String = components
+            .iter()
             .map(|(name, tech)| format!("  [{}] <<{}>>", name, tech))
-            .collect::<Vec<_>>().join("\n");
+            .collect::<Vec<_>>()
+            .join("\n");
 
         format!(
             r#"@startuml {}
@@ -566,7 +611,10 @@ mod tests {
 
     #[test]
     fn plantuml_component_template() {
-        let puml = PlantUmlTemplates::component_diagram("MySystem", &[("API", "Rust"), ("DB", "PostgreSQL")]);
+        let puml = PlantUmlTemplates::component_diagram(
+            "MySystem",
+            &[("API", "Rust"), ("DB", "PostgreSQL")],
+        );
         assert!(puml.contains("@startuml"));
         assert!(puml.contains("[API]"));
         assert!(puml.contains("Rust"));

@@ -6,15 +6,15 @@
 //!   vibecli --cmd "/company goal list"
 //!   etc.
 
-use crate::company_approvals::{ApprovalStore, ApprovalRequestType};
-use crate::company_goals::{GoalStore, print_goal_tree};
-use crate::company_secrets::SecretStore;
-use crate::company_documents::DocumentStore;
-use crate::company_budget::BudgetStore;
-use crate::company_routines::RoutineStore;
-use crate::company_heartbeat::HeartbeatStore;
 use crate::adapter_registry::AdapterRegistry;
-use crate::company_store::{AdapterType, CompanyRole, CompanyStore, get_active_company_id};
+use crate::company_approvals::{ApprovalRequestType, ApprovalStore};
+use crate::company_budget::BudgetStore;
+use crate::company_documents::DocumentStore;
+use crate::company_goals::{print_goal_tree, GoalStore};
+use crate::company_heartbeat::HeartbeatStore;
+use crate::company_routines::RoutineStore;
+use crate::company_secrets::SecretStore;
+use crate::company_store::{get_active_company_id, AdapterType, CompanyRole, CompanyStore};
 use crate::company_tasks::{TaskPriority, TaskStatus, TaskStore};
 
 /// Entry point — `args` is everything after "/company " (may be empty).
@@ -23,21 +23,21 @@ pub async fn handle_company_cmd_once(args: &str) -> String {
     let sub = parts.first().copied().unwrap_or("help");
 
     match sub {
-        "status"    => cmd_status(),
-        "list"      => cmd_list(),
-        "create"    => cmd_create(&parts[1..]),
-        "switch"    => cmd_switch(parts.get(1).copied().unwrap_or("")),
-        "delete"    => cmd_delete(parts.get(1).copied().unwrap_or("")),
-        "agent"     => cmd_agent(&parts[1..]),
-        "goal"      => cmd_goal(&parts[1..]),
-        "task"      => cmd_task(&parts[1..]),
-        "approval"  => cmd_approval(&parts[1..]),
-        "secret"    => cmd_secret(&parts[1..]),
-        "doc"       => cmd_doc(&parts[1..]),
-        "budget"    => cmd_budget(&parts[1..]),
-        "routine"   => cmd_routine(&parts[1..]),
+        "status" => cmd_status(),
+        "list" => cmd_list(),
+        "create" => cmd_create(&parts[1..]),
+        "switch" => cmd_switch(parts.get(1).copied().unwrap_or("")),
+        "delete" => cmd_delete(parts.get(1).copied().unwrap_or("")),
+        "agent" => cmd_agent(&parts[1..]),
+        "goal" => cmd_goal(&parts[1..]),
+        "task" => cmd_task(&parts[1..]),
+        "approval" => cmd_approval(&parts[1..]),
+        "secret" => cmd_secret(&parts[1..]),
+        "doc" => cmd_doc(&parts[1..]),
+        "budget" => cmd_budget(&parts[1..]),
+        "routine" => cmd_routine(&parts[1..]),
         "heartbeat" => cmd_heartbeat(&parts[1..]),
-        "adapter"   => cmd_adapter(&parts[1..]),
+        "adapter" => cmd_adapter(&parts[1..]),
         _ => help(),
     }
 }
@@ -52,7 +52,8 @@ fn help() -> String {
      \n  agent list|tree|hire|info   — Manage agents\
      \n  goal  list|tree|create      — Manage goals\
      \n  task  list|create|transition — Manage tasks\
-    ".into()
+    "
+    .into()
 }
 
 // ── Company ───────────────────────────────────────────────────────────────────
@@ -67,17 +68,31 @@ fn cmd_status() -> String {
             }
             Ok(companies) => {
                 let active = get_active_company_id();
-                companies.iter().map(|c| {
-                    let marker = if active.as_deref() == Some(c.id.as_str()) { "▶ " } else { "  " };
-                    let label = if !c.description.is_empty() { &c.description } else { &c.mission };
-                    format!("{}[{}] {}  {}", marker, c.status.as_str(), c.name, label)
-                }).collect::<Vec<_>>().join("\n")
+                companies
+                    .iter()
+                    .map(|c| {
+                        let marker = if active.as_deref() == Some(c.id.as_str()) {
+                            "▶ "
+                        } else {
+                            "  "
+                        };
+                        let label = if !c.description.is_empty() {
+                            &c.description
+                        } else {
+                            &c.mission
+                        };
+                        format!("{}[{}] {}  {}", marker, c.status.as_str(), c.name, label)
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
             }
         },
     }
 }
 
-fn cmd_list() -> String { cmd_status() }
+fn cmd_list() -> String {
+    cmd_status()
+}
 
 fn cmd_create(parts: &[&str]) -> String {
     let name = match parts.first().copied() {
@@ -88,20 +103,29 @@ fn cmd_create(parts: &[&str]) -> String {
     match CompanyStore::open_default() {
         Err(e) => format!("Error: {e}"),
         Ok(store) => match store.create_company(name, &desc, "") {
-            Ok(c) => format!("✓ Company created: {} [{}]", c.name, &c.id[..8.min(c.id.len())]),
+            Ok(c) => format!(
+                "✓ Company created: {} [{}]",
+                c.name,
+                &c.id[..8.min(c.id.len())]
+            ),
             Err(e) => format!("Error: {e}"),
         },
     }
 }
 
 fn cmd_switch(name_or_id: &str) -> String {
-    if name_or_id.is_empty() { return "Usage: /company switch <name|id>".into(); }
+    if name_or_id.is_empty() {
+        return "Usage: /company switch <name|id>".into();
+    }
     match CompanyStore::open_default() {
         Err(e) => format!("Error: {e}"),
         Ok(store) => match store.list_companies() {
             Err(e) => format!("Error: {e}"),
             Ok(companies) => {
-                match companies.iter().find(|c| c.name == name_or_id || c.id.starts_with(name_or_id)) {
+                match companies
+                    .iter()
+                    .find(|c| c.name == name_or_id || c.id.starts_with(name_or_id))
+                {
                     None => format!("Company '{}' not found.", name_or_id),
                     Some(c) => match crate::company_store::set_active_company_id(&c.id) {
                         Ok(()) => format!("✓ Switched to: {}", c.name),
@@ -114,13 +138,18 @@ fn cmd_switch(name_or_id: &str) -> String {
 }
 
 fn cmd_delete(name_or_id: &str) -> String {
-    if name_or_id.is_empty() { return "Usage: /company delete <name|id>".into(); }
+    if name_or_id.is_empty() {
+        return "Usage: /company delete <name|id>".into();
+    }
     match CompanyStore::open_default() {
         Err(e) => format!("Error: {e}"),
         Ok(store) => match store.list_companies() {
             Err(e) => format!("Error: {e}"),
             Ok(companies) => {
-                match companies.iter().find(|c| c.name == name_or_id || c.id.starts_with(name_or_id)) {
+                match companies
+                    .iter()
+                    .find(|c| c.name == name_or_id || c.id.starts_with(name_or_id))
+                {
                     None => format!("Company '{}' not found.", name_or_id),
                     Some(c) => match store.delete_company(&c.id) {
                         Ok(()) => format!("✓ Archived: {}", c.name),
@@ -141,7 +170,10 @@ fn cmd_agent(parts: &[&str]) -> String {
     match CompanyStore::open_default() {
         Err(e) => format!("Error: {e}"),
         Ok(store) => {
-            let cid = match &active { Some(id) => id.clone(), None => return "No active company. Use: /company switch <name>".into() };
+            let cid = match &active {
+                Some(id) => id.clone(),
+                None => return "No active company. Use: /company switch <name>".into(),
+            };
             match sub {
                 "list" => match store.list_agents(&cid) {
                     Err(e) => format!("Error: {e}"),
@@ -190,9 +222,22 @@ fn cmd_agent(parts: &[&str]) -> String {
 }
 
 fn build_agent_tree(agents: &[crate::company_store::CompanyAgent]) -> String {
-    fn print_tree(all: &[crate::company_store::CompanyAgent], parent_id: &str, depth: usize, out: &mut String) {
-        for a in all.iter().filter(|a| a.reports_to.as_deref() == Some(parent_id)) {
-            out.push_str(&format!("{}└─ [{}] {}\n", "  ".repeat(depth), a.role.as_str(), a.name));
+    fn print_tree(
+        all: &[crate::company_store::CompanyAgent],
+        parent_id: &str,
+        depth: usize,
+        out: &mut String,
+    ) {
+        for a in all
+            .iter()
+            .filter(|a| a.reports_to.as_deref() == Some(parent_id))
+        {
+            out.push_str(&format!(
+                "{}└─ [{}] {}\n",
+                "  ".repeat(depth),
+                a.role.as_str(),
+                a.name
+            ));
             print_tree(all, &a.id, depth + 1, out);
         }
     }
@@ -213,16 +258,32 @@ fn cmd_goal(parts: &[&str]) -> String {
     match CompanyStore::open_default() {
         Err(e) => format!("Error: {e}"),
         Ok(store) => {
-            let cid = match &active { Some(id) => id.clone(), None => return "No active company.".into() };
+            let cid = match &active {
+                Some(id) => id.clone(),
+                None => return "No active company.".into(),
+            };
             let gs = GoalStore::new(store.conn());
-            if let Err(e) = gs.ensure_schema() { return format!("Schema error: {e}"); }
+            if let Err(e) = gs.ensure_schema() {
+                return format!("Schema error: {e}");
+            }
             match sub {
                 "list" => match gs.list(&cid) {
                     Err(e) => format!("Error: {e}"),
-                    Ok(goals) if goals.is_empty() => "No goals. Use: /company goal create <title>".into(),
-                    Ok(goals) => goals.iter().map(|g| format!(
-                        "  [{}] {} ({}%)", g.status.as_str(), g.title, g.progress_pct
-                    )).collect::<Vec<_>>().join("\n"),
+                    Ok(goals) if goals.is_empty() => {
+                        "No goals. Use: /company goal create <title>".into()
+                    }
+                    Ok(goals) => goals
+                        .iter()
+                        .map(|g| {
+                            format!(
+                                "  [{}] {} ({}%)",
+                                g.status.as_str(),
+                                g.title,
+                                g.progress_pct
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n"),
                 },
                 "tree" => match gs.build_tree(&cid) {
                     Err(e) => format!("Error: {e}"),
@@ -231,9 +292,15 @@ fn cmd_goal(parts: &[&str]) -> String {
                 },
                 "create" => {
                     let title = parts[1..].join(" ");
-                    if title.is_empty() { return "Usage: /company goal create <title>".into(); }
+                    if title.is_empty() {
+                        return "Usage: /company goal create <title>".into();
+                    }
                     match gs.create(&cid, &title, "", None, None, 1) {
-                        Ok(g) => format!("✓ Goal created: {} [{}]", g.title, &g.id[..8.min(g.id.len())]),
+                        Ok(g) => format!(
+                            "✓ Goal created: {} [{}]",
+                            g.title,
+                            &g.id[..8.min(g.id.len())]
+                        ),
                         Err(e) => format!("Error: {e}"),
                     }
                 }
@@ -252,23 +319,40 @@ fn cmd_task(parts: &[&str]) -> String {
     match CompanyStore::open_default() {
         Err(e) => format!("Error: {e}"),
         Ok(store) => {
-            let cid = match &active { Some(id) => id.clone(), None => return "No active company.".into() };
+            let cid = match &active {
+                Some(id) => id.clone(),
+                None => return "No active company.".into(),
+            };
             let ts = TaskStore::new(store.conn());
-            if let Err(e) = ts.ensure_schema() { return format!("Schema error: {e}"); }
+            if let Err(e) = ts.ensure_schema() {
+                return format!("Schema error: {e}");
+            }
             match sub {
                 "list" => {
                     let status_filter = parts.get(1).copied();
                     match ts.list(&cid, status_filter) {
                         Err(e) => format!("Error: {e}"),
-                        Ok(tasks) if tasks.is_empty() => "No tasks. Use: /company task create <title>".into(),
-                        Ok(tasks) => tasks.iter().map(|t| t.summary_line()).collect::<Vec<_>>().join("\n"),
+                        Ok(tasks) if tasks.is_empty() => {
+                            "No tasks. Use: /company task create <title>".into()
+                        }
+                        Ok(tasks) => tasks
+                            .iter()
+                            .map(|t| t.summary_line())
+                            .collect::<Vec<_>>()
+                            .join("\n"),
                     }
                 }
                 "create" => {
                     let title = parts[1..].join(" ");
-                    if title.is_empty() { return "Usage: /company task create <title>".into(); }
+                    if title.is_empty() {
+                        return "Usage: /company task create <title>".into();
+                    }
                     match ts.create(&cid, &title, "", None, None, None, TaskPriority::Medium) {
-                        Ok(t) => format!("✓ Task created: {} [{}]", t.title, &t.id[..8.min(t.id.len())]),
+                        Ok(t) => format!(
+                            "✓ Task created: {} [{}]",
+                            t.title,
+                            &t.id[..8.min(t.id.len())]
+                        ),
                         Err(e) => format!("Error: {e}"),
                     }
                 }
@@ -283,7 +367,10 @@ fn cmd_task(parts: &[&str]) -> String {
                         Err(e) => format!("Error: {e}"),
                     }
                 }
-                _ => "Task subcommands: list [<status>] | create <title> | transition <id> <status>".into(),
+                _ => {
+                    "Task subcommands: list [<status>] | create <title> | transition <id> <status>"
+                        .into()
+                }
             }
         }
     }
@@ -297,9 +384,14 @@ fn cmd_approval(parts: &[&str]) -> String {
     match CompanyStore::open_default() {
         Err(e) => format!("Error: {e}"),
         Ok(store) => {
-            let cid = match &active { Some(id) => id.clone(), None => return "No active company.".into() };
+            let cid = match &active {
+                Some(id) => id.clone(),
+                None => return "No active company.".into(),
+            };
             let ap = ApprovalStore::new(store.conn());
-            if let Err(e) = ap.ensure_schema() { return format!("Schema error: {e}"); }
+            if let Err(e) = ap.ensure_schema() {
+                return format!("Schema error: {e}");
+            }
             match sub {
                 "list" => {
                     let pending_only = !parts.contains(&"--all") && !parts.contains(&"all");
@@ -362,20 +454,31 @@ fn cmd_secret(parts: &[&str]) -> String {
     match CompanyStore::open_default() {
         Err(e) => format!("Error: {e}"),
         Ok(store) => {
-            let cid = match &active { Some(id) => id.clone(), None => return "No active company.".into() };
+            let cid = match &active {
+                Some(id) => id.clone(),
+                None => return "No active company.".into(),
+            };
             let ss = SecretStore::new(store.conn());
-            if let Err(e) = ss.ensure_schema() { return format!("Schema error: {e}"); }
+            if let Err(e) = ss.ensure_schema() {
+                return format!("Schema error: {e}");
+            }
             match sub {
                 "list" => match ss.list(&cid) {
                     Err(e) => format!("Error: {e}"),
                     Ok(secrets) if secrets.is_empty() => "No secrets.".into(),
-                    Ok(secrets) => secrets.iter().map(|s| format!(
-                        "  {} [{}]", s.key_name, s.created_at
-                    )).collect::<Vec<_>>().join("\n"),
+                    Ok(secrets) => secrets
+                        .iter()
+                        .map(|s| format!("  {} [{}]", s.key_name, s.created_at))
+                        .collect::<Vec<_>>()
+                        .join("\n"),
                 },
                 "set" => {
                     let key = parts.get(1).copied().unwrap_or("");
-                    let value = if parts.len() > 2 { parts[2..].join(" ").trim_matches('"').to_string() } else { String::new() };
+                    let value = if parts.len() > 2 {
+                        parts[2..].join(" ").trim_matches('"').to_string()
+                    } else {
+                        String::new()
+                    };
                     if key.is_empty() || value.is_empty() {
                         return "Usage: /company secret set <key> <value>".into();
                     }
@@ -386,7 +489,9 @@ fn cmd_secret(parts: &[&str]) -> String {
                 }
                 "get" => {
                     let key = parts.get(1).copied().unwrap_or("");
-                    if key.is_empty() { return "Usage: /company secret get <key>".into(); }
+                    if key.is_empty() {
+                        return "Usage: /company secret get <key>".into();
+                    }
                     match ss.get(&cid, key) {
                         Err(e) => format!("Error: {e}"),
                         Ok(None) => format!("Secret '{key}' not found."),
@@ -395,13 +500,17 @@ fn cmd_secret(parts: &[&str]) -> String {
                 }
                 "delete" => {
                     let key = parts.get(1).copied().unwrap_or("");
-                    if key.is_empty() { return "Usage: /company secret delete <key>".into(); }
+                    if key.is_empty() {
+                        return "Usage: /company secret delete <key>".into();
+                    }
                     match ss.delete(&cid, key) {
                         Ok(_) => format!("✓ Deleted: {key}"),
                         Err(e) => format!("Error: {e}"),
                     }
                 }
-                _ => "Secret subcommands: list | set <key> <value> | get <key> | delete <key>".into(),
+                _ => {
+                    "Secret subcommands: list | set <key> <value> | get <key> | delete <key>".into()
+                }
             }
         }
     }
@@ -415,18 +524,31 @@ fn cmd_doc(parts: &[&str]) -> String {
     match CompanyStore::open_default() {
         Err(e) => format!("Error: {e}"),
         Ok(store) => {
-            let cid = match &active { Some(id) => id.clone(), None => return "No active company.".into() };
+            let cid = match &active {
+                Some(id) => id.clone(),
+                None => return "No active company.".into(),
+            };
             let ds = DocumentStore::new(store.conn());
-            if let Err(e) = ds.ensure_schema() { return format!("Schema error: {e}"); }
+            if let Err(e) = ds.ensure_schema() {
+                return format!("Schema error: {e}");
+            }
             match sub {
                 "list" => match ds.list(&cid) {
                     Err(e) => format!("Error: {e}"),
-                    Ok(docs) if docs.is_empty() => "No documents. Use: /company doc create <title>".into(),
-                    Ok(docs) => docs.iter().map(|d| d.summary_line()).collect::<Vec<_>>().join("\n"),
+                    Ok(docs) if docs.is_empty() => {
+                        "No documents. Use: /company doc create <title>".into()
+                    }
+                    Ok(docs) => docs
+                        .iter()
+                        .map(|d| d.summary_line())
+                        .collect::<Vec<_>>()
+                        .join("\n"),
                 },
                 "create" => {
                     let title = parts[1..].join(" ").trim_matches('"').to_string();
-                    if title.is_empty() { return "Usage: /company doc create <title>".into(); }
+                    if title.is_empty() {
+                        return "Usage: /company doc create <title>".into();
+                    }
                     match ds.create(&cid, &title, "", None, None, None) {
                         Ok(d) => format!("✓ Document created: {}", d.summary_line()),
                         Err(e) => format!("Error: {e}"),
@@ -434,7 +556,9 @@ fn cmd_doc(parts: &[&str]) -> String {
                 }
                 "show" => {
                     let id = parts.get(1).copied().unwrap_or("");
-                    if id.is_empty() { return "Usage: /company doc show <id>".into(); }
+                    if id.is_empty() {
+                        return "Usage: /company doc show <id>".into();
+                    }
                     match ds.get(id) {
                         Err(e) => format!("Error: {e}"),
                         Ok(None) => "Document not found.".into(),
@@ -443,13 +567,24 @@ fn cmd_doc(parts: &[&str]) -> String {
                 }
                 "history" => {
                     let id = parts.get(1).copied().unwrap_or("");
-                    if id.is_empty() { return "Usage: /company doc history <id>".into(); }
+                    if id.is_empty() {
+                        return "Usage: /company doc history <id>".into();
+                    }
                     match ds.list_revisions(id) {
                         Err(e) => format!("Error: {e}"),
                         Ok(revs) if revs.is_empty() => "No revisions.".into(),
-                        Ok(revs) => revs.iter().map(|r| format!(
-                            "  v{} — {} chars  [{}]", r.revision, r.content.len(), r.created_at
-                        )).collect::<Vec<_>>().join("\n"),
+                        Ok(revs) => revs
+                            .iter()
+                            .map(|r| {
+                                format!(
+                                    "  v{} — {} chars  [{}]",
+                                    r.revision,
+                                    r.content.len(),
+                                    r.created_at
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                            .join("\n"),
                     }
                 }
                 _ => "Doc subcommands: list | create <title> | show <id> | history <id>".into(),
@@ -466,9 +601,14 @@ fn cmd_budget(parts: &[&str]) -> String {
     match CompanyStore::open_default() {
         Err(e) => format!("Error: {e}"),
         Ok(store) => {
-            let cid = match &active { Some(id) => id.clone(), None => return "No active company.".into() };
+            let cid = match &active {
+                Some(id) => id.clone(),
+                None => return "No active company.".into(),
+            };
             let bs = BudgetStore::new(store.conn());
-            if let Err(e) = bs.ensure_schema() { return format!("Schema error: {e}"); }
+            if let Err(e) = bs.ensure_schema() {
+                return format!("Schema error: {e}");
+            }
             match sub {
                 "status" | "list" => {
                     let _agent_filter = parts.get(1).copied();
@@ -514,9 +654,14 @@ fn cmd_routine(parts: &[&str]) -> String {
     match CompanyStore::open_default() {
         Err(e) => format!("Error: {e}"),
         Ok(store) => {
-            let cid = match &active { Some(id) => id.clone(), None => return "No active company.".into() };
+            let cid = match &active {
+                Some(id) => id.clone(),
+                None => return "No active company.".into(),
+            };
             let rs = RoutineStore::new(store.conn());
-            if let Err(e) = rs.ensure_schema() { return format!("Schema error: {e}"); }
+            if let Err(e) = rs.ensure_schema() {
+                return format!("Schema error: {e}");
+            }
             match sub {
                 "list" => match rs.list(&cid) {
                     Err(e) => format!("Error: {e}"),
@@ -558,13 +703,20 @@ fn cmd_heartbeat(parts: &[&str]) -> String {
     match CompanyStore::open_default() {
         Err(e) => format!("Error: {e}"),
         Ok(store) => {
-            let cid = match &active { Some(id) => id.clone(), None => return "No active company.".into() };
+            let cid = match &active {
+                Some(id) => id.clone(),
+                None => return "No active company.".into(),
+            };
             let hs = HeartbeatStore::new(store.conn());
-            if let Err(e) = hs.ensure_schema() { return format!("Schema error: {e}"); }
+            if let Err(e) = hs.ensure_schema() {
+                return format!("Schema error: {e}");
+            }
             match sub {
                 "trigger" => {
                     let agent_id = parts.get(1).copied().unwrap_or("");
-                    if agent_id.is_empty() { return "Usage: /company heartbeat trigger <agent-id>".into(); }
+                    if agent_id.is_empty() {
+                        return "Usage: /company heartbeat trigger <agent-id>".into();
+                    }
                     match hs.trigger_manual(&cid, agent_id) {
                         Ok(hb) => format!("✓ Heartbeat triggered for {} [{}]", agent_id, hb.id),
                         Err(e) => format!("Error: {e}"),
@@ -572,7 +724,11 @@ fn cmd_heartbeat(parts: &[&str]) -> String {
                 }
                 "history" => {
                     let agent_id = parts.get(1).copied().unwrap_or("");
-                    let limit: i64 = parts.get(2).copied().and_then(|v| v.parse().ok()).unwrap_or(10);
+                    let limit: i64 = parts
+                        .get(2)
+                        .copied()
+                        .and_then(|v| v.parse().ok())
+                        .unwrap_or(10);
                     let result = if agent_id.is_empty() {
                         hs.company_history(&cid, limit)
                     } else {
@@ -581,10 +737,16 @@ fn cmd_heartbeat(parts: &[&str]) -> String {
                     match result {
                         Err(e) => format!("Error: {e}"),
                         Ok(hbs) if hbs.is_empty() => "No heartbeats.".into(),
-                        Ok(hbs) => hbs.iter().map(|h| h.summary_line()).collect::<Vec<_>>().join("\n"),
+                        Ok(hbs) => hbs
+                            .iter()
+                            .map(|h| h.summary_line())
+                            .collect::<Vec<_>>()
+                            .join("\n"),
                     }
                 }
-                _ => "Heartbeat subcommands: trigger <agent-id> | history [agent-id] [limit]".into(),
+                _ => {
+                    "Heartbeat subcommands: trigger <agent-id> | history [agent-id] [limit]".into()
+                }
             }
         }
     }
@@ -598,7 +760,10 @@ fn cmd_adapter(parts: &[&str]) -> String {
     match CompanyStore::open_default() {
         Err(e) => format!("Error: {e}"),
         Ok(_store) => {
-            let _cid = match &active { Some(id) => id.clone(), None => return "No active company.".into() };
+            let _cid = match &active {
+                Some(id) => id.clone(),
+                None => return "No active company.".into(),
+            };
             let ar = AdapterRegistry::new();
             match sub {
                 "list" => {
@@ -654,7 +819,9 @@ fn cmd_adapter(parts: &[&str]) -> String {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn flag_value<'a>(parts: &[&'a str], flag: &str) -> Option<&'a str> {
-    parts.iter().position(|p| *p == flag)
+    parts
+        .iter()
+        .position(|p| *p == flag)
         .and_then(|i| parts.get(i + 1))
         .copied()
 }

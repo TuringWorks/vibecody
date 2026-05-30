@@ -182,11 +182,7 @@ impl MigrationRunner {
 
         let mut entries: Vec<_> = std::fs::read_dir(&self.migrations_dir)?
             .filter_map(|e| e.ok())
-            .filter(|e| {
-                e.path()
-                    .extension()
-                    .is_some_and(|ext| ext == "sql")
-            })
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "sql"))
             .collect();
 
         entries.sort_by_key(|e| e.file_name());
@@ -205,7 +201,10 @@ impl MigrationRunner {
 
                     // Split on "-- DOWN" marker if present
                     let (sql_up, sql_down) = if let Some(pos) = content.find("-- DOWN") {
-                        (content[..pos].trim().to_string(), content[pos + 7..].trim().to_string())
+                        (
+                            content[..pos].trim().to_string(),
+                            content[pos + 7..].trim().to_string(),
+                        )
                     } else {
                         (content.trim().to_string(), String::new())
                     };
@@ -520,10 +519,7 @@ pub fn generate_schema_sql(tables: &[TableInfo], engine: &DatabaseEngine) -> Str
         // Add foreign key constraints.
         for col in &table.columns {
             if let Some(ref fk) = col.foreign_key {
-                column_defs.push(format!(
-                    "  FOREIGN KEY ({}) REFERENCES {}",
-                    col.name, fk
-                ));
+                column_defs.push(format!("  FOREIGN KEY ({}) REFERENCES {}", col.name, fk));
             }
         }
 
@@ -589,7 +585,10 @@ pub fn suggest_index(table: &TableInfo, query_columns: &[&str]) -> Option<String
     let indexable: Vec<&str> = query_columns
         .iter()
         .filter(|qc| {
-            table.columns.iter().any(|col| col.name == **qc && !col.primary_key)
+            table
+                .columns
+                .iter()
+                .any(|col| col.name == **qc && !col.primary_key)
         })
         .copied()
         .collect();
@@ -735,7 +734,19 @@ mod tests {
         let cmd = client.build_psql_command("SELECT 1");
         assert_eq!(
             cmd,
-            vec!["psql", "-h", "localhost", "-p", "5432", "-U", "pguser", "-d", "vibecody", "-c", "SELECT 1"]
+            vec![
+                "psql",
+                "-h",
+                "localhost",
+                "-p",
+                "5432",
+                "-U",
+                "pguser",
+                "-d",
+                "vibecody",
+                "-c",
+                "SELECT 1"
+            ]
         );
     }
 
@@ -757,7 +768,19 @@ mod tests {
         let cmd = client.build_mysql_command("SHOW TABLES");
         assert_eq!(
             cmd,
-            vec!["mysql", "-h", "127.0.0.1", "-P", "3306", "-u", "root", "-ppass", "testdb", "-e", "SHOW TABLES"]
+            vec![
+                "mysql",
+                "-h",
+                "127.0.0.1",
+                "-P",
+                "3306",
+                "-u",
+                "root",
+                "-ppass",
+                "testdb",
+                "-e",
+                "SHOW TABLES"
+            ]
         );
     }
 
@@ -777,7 +800,17 @@ mod tests {
         let cmd = client.build_redis_command("GET mykey");
         assert_eq!(
             cmd,
-            vec!["redis-cli", "-h", "localhost", "-p", "6379", "-a", "redispass", "GET", "mykey"]
+            vec![
+                "redis-cli",
+                "-h",
+                "localhost",
+                "-p",
+                "6379",
+                "-a",
+                "redispass",
+                "GET",
+                "mykey"
+            ]
         );
     }
 
@@ -846,7 +879,10 @@ mod tests {
         assert_eq!(result.columns, vec!["id", "name", "age"]);
         assert_eq!(result.rows.len(), 2);
         assert_eq!(result.rows[0][0], serde_json::json!(1));
-        assert_eq!(result.rows[0][1], serde_json::Value::String("Alice".to_string()));
+        assert_eq!(
+            result.rows[0][1],
+            serde_json::Value::String("Alice".to_string())
+        );
         assert_eq!(result.rows[1][2], serde_json::json!(25));
         assert_eq!(result.rows_affected, 2);
     }
@@ -915,16 +951,26 @@ mod tests {
         assert!(path.exists());
 
         let filename = path.file_name().unwrap().to_string_lossy();
-        assert!(filename.starts_with("V001__create_users.sql"), "got: {}", filename);
+        assert!(
+            filename.starts_with("V001__create_users.sql"),
+            "got: {}",
+            filename
+        );
 
         let content = fs::read_to_string(&path).expect("read migration");
         assert!(content.contains("-- UP"));
         assert!(content.contains("-- DOWN"));
 
         // Generate a second migration to verify incrementing.
-        let path2 = runner.generate_migration("add orders").expect("generate second");
+        let path2 = runner
+            .generate_migration("add orders")
+            .expect("generate second");
         let filename2 = path2.file_name().unwrap().to_string_lossy();
-        assert!(filename2.starts_with("V002__add_orders.sql"), "got: {}", filename2);
+        assert!(
+            filename2.starts_with("V002__add_orders.sql"),
+            "got: {}",
+            filename2
+        );
     }
 
     #[test]

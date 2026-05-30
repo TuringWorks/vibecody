@@ -34,11 +34,26 @@ pub enum ConnectorType {
 impl ConnectorType {
     pub fn all() -> Vec<ConnectorType> {
         vec![
-            Self::Stripe, Self::Figma, Self::Notion, Self::Jira, Self::Slack,
-            Self::PagerDuty, Self::Datadog, Self::Sentry, Self::LaunchDarkly,
-            Self::Vercel, Self::Netlify, Self::Supabase, Self::Firebase,
-            Self::Aws, Self::Gcp, Self::Azure, Self::GitHub, Self::GitLab,
-            Self::Linear, Self::Confluence,
+            Self::Stripe,
+            Self::Figma,
+            Self::Notion,
+            Self::Jira,
+            Self::Slack,
+            Self::PagerDuty,
+            Self::Datadog,
+            Self::Sentry,
+            Self::LaunchDarkly,
+            Self::Vercel,
+            Self::Netlify,
+            Self::Supabase,
+            Self::Firebase,
+            Self::Aws,
+            Self::Gcp,
+            Self::Azure,
+            Self::GitHub,
+            Self::GitLab,
+            Self::Linear,
+            Self::Confluence,
         ]
     }
 
@@ -162,8 +177,7 @@ impl PartialEq for ConnectorInstance {
 }
 
 /// Aggregate metrics across all connectors.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct ConnectorMetrics {
     pub total_connectors: usize,
     pub connected_count: usize,
@@ -171,7 +185,6 @@ pub struct ConnectorMetrics {
     pub total_errors: u64,
     pub auto_discovered: u64,
 }
-
 
 /// Webhook event received by the registry.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -214,12 +227,20 @@ impl ConnectorRegistry {
 
     /// Register a new connector.
     pub fn register(&mut self, config: ConnectorConfig) -> Result<String, String> {
-        let id = format!("conn-{}-{}", config.connector_type.name(), self.connectors.len());
+        let id = format!(
+            "conn-{}-{}",
+            config.connector_type.name(),
+            self.connectors.len()
+        );
 
         if self.connectors.values().any(|c| {
             c.config.connector_type == config.connector_type && c.config.base_url == config.base_url
         }) {
-            return Err(format!("Connector {} already registered for {}", config.connector_type.name(), config.base_url));
+            return Err(format!(
+                "Connector {} already registered for {}",
+                config.connector_type.name(),
+                config.base_url
+            ));
         }
 
         let status = if config.api_key.is_some() || config.oauth_config.is_some() {
@@ -239,24 +260,34 @@ impl ConnectorRegistry {
         };
         self.connectors.insert(id.clone(), instance);
         self.metrics.total_connectors = self.connectors.len();
-        self.metrics.connected_count = self.connectors.values()
-            .filter(|c| c.status == ConnectorStatus::Connected).count();
+        self.metrics.connected_count = self
+            .connectors
+            .values()
+            .filter(|c| c.status == ConnectorStatus::Connected)
+            .count();
         Ok(id)
     }
 
     /// Unregister a connector by ID.
     pub fn unregister(&mut self, id: &str) -> Result<ConnectorInstance, String> {
-        let inst = self.connectors.remove(id)
+        let inst = self
+            .connectors
+            .remove(id)
             .ok_or_else(|| format!("Connector {} not found", id))?;
         self.metrics.total_connectors = self.connectors.len();
-        self.metrics.connected_count = self.connectors.values()
-            .filter(|c| c.status == ConnectorStatus::Connected).count();
+        self.metrics.connected_count = self
+            .connectors
+            .values()
+            .filter(|c| c.status == ConnectorStatus::Connected)
+            .count();
         Ok(inst)
     }
 
     /// Run a health check on a connector (simulated).
     pub fn health_check(&mut self, id: &str) -> Result<ConnectorStatus, String> {
-        let conn = self.connectors.get_mut(id)
+        let conn = self
+            .connectors
+            .get_mut(id)
             .ok_or_else(|| format!("Connector {} not found", id))?;
 
         conn.last_health_check = Some(conn.requests_count + 1);
@@ -269,8 +300,11 @@ impl ConnectorRegistry {
         };
         conn.status = new_status.clone();
         self.metrics.total_requests += 1;
-        self.metrics.connected_count = self.connectors.values()
-            .filter(|c| c.status == ConnectorStatus::Connected).count();
+        self.metrics.connected_count = self
+            .connectors
+            .values()
+            .filter(|c| c.status == ConnectorStatus::Connected)
+            .count();
         Ok(new_status)
     }
 
@@ -283,21 +317,19 @@ impl ConnectorRegistry {
             let lower_content = content.to_lowercase();
 
             if (lower_name.contains("package.json") || lower_content.contains("stripe"))
-                && !self.has_type(&ConnectorType::Stripe) {
-                    discovered.push(ConnectorType::Stripe);
-                }
-            if lower_content.contains("sentry")
-                && !self.has_type(&ConnectorType::Sentry) {
-                    discovered.push(ConnectorType::Sentry);
-                }
-            if lower_content.contains("supabase")
-                && !self.has_type(&ConnectorType::Supabase) {
-                    discovered.push(ConnectorType::Supabase);
-                }
-            if lower_content.contains("firebase")
-                && !self.has_type(&ConnectorType::Firebase) {
-                    discovered.push(ConnectorType::Firebase);
-                }
+                && !self.has_type(&ConnectorType::Stripe)
+            {
+                discovered.push(ConnectorType::Stripe);
+            }
+            if lower_content.contains("sentry") && !self.has_type(&ConnectorType::Sentry) {
+                discovered.push(ConnectorType::Sentry);
+            }
+            if lower_content.contains("supabase") && !self.has_type(&ConnectorType::Supabase) {
+                discovered.push(ConnectorType::Supabase);
+            }
+            if lower_content.contains("firebase") && !self.has_type(&ConnectorType::Firebase) {
+                discovered.push(ConnectorType::Firebase);
+            }
             if lower_name.contains(".env") {
                 if lower_content.contains("datadog") && !self.has_type(&ConnectorType::Datadog) {
                     discovered.push(ConnectorType::Datadog);
@@ -325,7 +357,8 @@ impl ConnectorRegistry {
                 discovered.push(ConnectorType::Netlify);
             }
             if (lower_name.contains("aws") || lower_content.contains("aws_access_key"))
-                && !self.has_type(&ConnectorType::Aws) {
+                && !self.has_type(&ConnectorType::Aws)
+            {
                 discovered.push(ConnectorType::Aws);
             }
         }
@@ -335,12 +368,15 @@ impl ConnectorRegistry {
     }
 
     fn has_type(&self, ct: &ConnectorType) -> bool {
-        self.connectors.values().any(|c| c.config.connector_type == *ct)
+        self.connectors
+            .values()
+            .any(|c| c.config.connector_type == *ct)
     }
 
     /// List connectors filtered by status.
     pub fn list_by_status(&self, status: &ConnectorStatus) -> Vec<&ConnectorInstance> {
-        self.connectors.values()
+        self.connectors
+            .values()
             .filter(|c| &c.status == status)
             .collect()
     }
@@ -422,7 +458,10 @@ mod tests {
     #[test]
     fn test_registry_with_webhook() {
         let r = ConnectorRegistry::new().with_webhook_endpoint("https://hooks.example.com");
-        assert_eq!(r.webhook_endpoint, Some("https://hooks.example.com".to_string()));
+        assert_eq!(
+            r.webhook_endpoint,
+            Some("https://hooks.example.com".to_string())
+        );
     }
 
     #[test]
@@ -450,7 +489,9 @@ mod tests {
     #[test]
     fn test_register_auth_required_no_key() {
         let mut r = make_registry();
-        let id = r.register(ConnectorConfig::new(ConnectorType::Figma)).unwrap();
+        let id = r
+            .register(ConnectorConfig::new(ConnectorType::Figma))
+            .unwrap();
         assert_eq!(r.connectors[&id].status, ConnectorStatus::AuthRequired);
     }
 
@@ -487,7 +528,9 @@ mod tests {
     #[test]
     fn test_health_check_auth_required() {
         let mut r = make_registry();
-        let id = r.register(ConnectorConfig::new(ConnectorType::Jira)).unwrap();
+        let id = r
+            .register(ConnectorConfig::new(ConnectorType::Jira))
+            .unwrap();
         let status = r.health_check(&id).unwrap();
         assert_eq!(status, ConnectorStatus::AuthRequired);
     }
@@ -496,7 +539,10 @@ mod tests {
     fn test_auto_discover_stripe_from_package_json() {
         let mut r = make_registry();
         let mut files = HashMap::new();
-        files.insert("package.json".to_string(), r#"{"dependencies":{"stripe":"^12.0"}}"#.to_string());
+        files.insert(
+            "package.json".to_string(),
+            r#"{"dependencies":{"stripe":"^12.0"}}"#.to_string(),
+        );
         let found = r.auto_discover(&files);
         assert!(found.contains(&ConnectorType::Stripe));
     }
@@ -505,7 +551,10 @@ mod tests {
     fn test_auto_discover_sentry() {
         let mut r = make_registry();
         let mut files = HashMap::new();
-        files.insert("src/index.ts".to_string(), "import * as Sentry from '@sentry/node'".to_string());
+        files.insert(
+            "src/index.ts".to_string(),
+            "import * as Sentry from '@sentry/node'".to_string(),
+        );
         let found = r.auto_discover(&files);
         assert!(found.contains(&ConnectorType::Sentry));
     }
@@ -550,7 +599,10 @@ mod tests {
     fn test_auto_discover_supabase() {
         let mut r = make_registry();
         let mut files = HashMap::new();
-        files.insert("lib/db.ts".to_string(), "import { createClient } from '@supabase/supabase-js'".to_string());
+        files.insert(
+            "lib/db.ts".to_string(),
+            "import { createClient } from '@supabase/supabase-js'".to_string(),
+        );
         let found = r.auto_discover(&files);
         assert!(found.contains(&ConnectorType::Supabase));
     }
@@ -567,7 +619,8 @@ mod tests {
     #[test]
     fn test_auto_discover_no_duplicates() {
         let mut r = make_registry();
-        r.register(ConnectorConfig::new(ConnectorType::Sentry).with_api_key("k")).unwrap();
+        r.register(ConnectorConfig::new(ConnectorType::Sentry).with_api_key("k"))
+            .unwrap();
         let mut files = HashMap::new();
         files.insert("app.js".to_string(), "sentry".to_string());
         let found = r.auto_discover(&files);
@@ -623,7 +676,8 @@ mod tests {
     fn test_list_by_status_connected() {
         let mut r = make_registry();
         r.register(stripe_config()).unwrap();
-        r.register(ConnectorConfig::new(ConnectorType::Figma)).unwrap();
+        r.register(ConnectorConfig::new(ConnectorType::Figma))
+            .unwrap();
         let connected = r.list_by_status(&ConnectorStatus::Connected);
         assert_eq!(connected.len(), 1);
     }
@@ -631,8 +685,10 @@ mod tests {
     #[test]
     fn test_list_by_status_auth_required() {
         let mut r = make_registry();
-        r.register(ConnectorConfig::new(ConnectorType::Figma)).unwrap();
-        r.register(ConnectorConfig::new(ConnectorType::Notion)).unwrap();
+        r.register(ConnectorConfig::new(ConnectorType::Figma))
+            .unwrap();
+        r.register(ConnectorConfig::new(ConnectorType::Notion))
+            .unwrap();
         let auth = r.list_by_status(&ConnectorStatus::AuthRequired);
         assert_eq!(auth.len(), 2);
     }
@@ -689,7 +745,8 @@ mod tests {
     fn test_list_ids() {
         let mut r = make_registry();
         r.register(stripe_config()).unwrap();
-        r.register(ConnectorConfig::new(ConnectorType::Slack).with_api_key("k")).unwrap();
+        r.register(ConnectorConfig::new(ConnectorType::Slack).with_api_key("k"))
+            .unwrap();
         assert_eq!(r.list_ids().len(), 2);
     }
 
@@ -755,7 +812,8 @@ mod tests {
     #[test]
     fn test_custom_headers() {
         let mut cfg = ConnectorConfig::new(ConnectorType::Jira);
-        cfg.custom_headers.insert("X-Custom".to_string(), "value".to_string());
+        cfg.custom_headers
+            .insert("X-Custom".to_string(), "value".to_string());
         assert_eq!(cfg.custom_headers.len(), 1);
     }
 

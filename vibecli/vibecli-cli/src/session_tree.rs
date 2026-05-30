@@ -36,11 +36,26 @@ pub struct ParentId(pub String);
 /// The payload of a session entry.
 #[derive(Debug, Clone)]
 pub enum EntryKind {
-    Message { role: String, content: String },
-    ToolCall { name: String, args: String, result: String },
-    Compaction { summary: String, files_touched: Vec<String> },
-    BranchSummary { label: String },
-    Custom { type_name: String, payload: String },
+    Message {
+        role: String,
+        content: String,
+    },
+    ToolCall {
+        name: String,
+        args: String,
+        result: String,
+    },
+    Compaction {
+        summary: String,
+        files_touched: Vec<String>,
+    },
+    BranchSummary {
+        label: String,
+    },
+    Custom {
+        type_name: String,
+        payload: String,
+    },
 }
 
 impl EntryKind {
@@ -78,7 +93,9 @@ pub struct SessionTree {
 impl SessionTree {
     /// Create an empty tree.
     pub fn new() -> Self {
-        Self { entries: Vec::new() }
+        Self {
+            entries: Vec::new(),
+        }
     }
 
     /// Append a new entry under `parent_id` (or as a root if `None`).
@@ -107,12 +124,13 @@ impl SessionTree {
 
     /// Return direct children of `entry_id`.  Pass `None` to get root-level entries.
     pub fn children_of(&self, entry_id: Option<&str>) -> Vec<&SessionEntry> {
-        self.entries.iter().filter(|e| {
-            match entry_id {
+        self.entries
+            .iter()
+            .filter(|e| match entry_id {
                 None => e.parent_id.is_none(),
                 Some(pid) => e.parent_id.as_ref().map(|p| p.0.as_str()) == Some(pid),
-            }
-        }).collect()
+            })
+            .collect()
     }
 
     /// Return the path from the root to `entry_id`, inclusive (root first).
@@ -139,11 +157,15 @@ impl SessionTree {
 
     /// Return all leaf entries (entries with no children).
     pub fn leaf_entries(&self) -> Vec<&SessionEntry> {
-        self.entries.iter().filter(|e| {
-            !self.entries.iter().any(|c| {
-                c.parent_id.as_ref().map(|p| p.0.as_str()) == Some(e.id.0.as_str())
+        self.entries
+            .iter()
+            .filter(|e| {
+                !self
+                    .entries
+                    .iter()
+                    .any(|c| c.parent_id.as_ref().map(|p| p.0.as_str()) == Some(e.id.0.as_str()))
             })
-        }).collect()
+            .collect()
     }
 
     /// Return the active branch: path from root to the most-recently-added leaf.
@@ -158,14 +180,20 @@ impl SessionTree {
     /// (i.e. entries that would remain if the subtree were folded.)
     pub fn fold_subtree(&self, entry_id: &str) -> Vec<&SessionEntry> {
         let subtree_ids = self.collect_subtree_ids(entry_id);
-        self.entries.iter().filter(|e| !subtree_ids.contains(&e.id.0)).collect()
+        self.entries
+            .iter()
+            .filter(|e| !subtree_ids.contains(&e.id.0))
+            .collect()
     }
 
     /// Attach a human-readable label to an entry.  Returns `false` if not found.
     pub fn label_entry(&mut self, entry_id: &str, label: &str) -> bool {
         match self.entries.iter_mut().find(|e| e.id.0 == entry_id) {
             None => false,
-            Some(e) => { e.label = Some(label.to_owned()); true }
+            Some(e) => {
+                e.label = Some(label.to_owned());
+                true
+            }
         }
     }
 
@@ -198,9 +226,11 @@ impl SessionTree {
         let mut entries = Vec::new();
         for (lineno, line) in s.lines().enumerate() {
             let line = line.trim();
-            if line.is_empty() { continue; }
-            let entry = Self::entry_from_json(line)
-                .map_err(|e| format!("line {}: {}", lineno + 1, e))?;
+            if line.is_empty() {
+                continue;
+            }
+            let entry =
+                Self::entry_from_json(line).map_err(|e| format!("line {}: {}", lineno + 1, e))?;
             entries.push(entry);
         }
         Ok(Self { entries })
@@ -247,36 +277,50 @@ impl SessionTree {
 
     fn kind_to_json(kind: &EntryKind) -> String {
         match kind {
-            EntryKind::Message { role, content } =>
-                format!("{{\"role\":\"{}\",\"content\":{}}}", json_escape(role), quoted(content)),
-            EntryKind::ToolCall { name, args, result } =>
-                format!("{{\"name\":\"{}\",\"args\":{},\"result\":{}}}",
-                    json_escape(name), quoted(args), quoted(result)),
-            EntryKind::Compaction { summary, files_touched } => {
-                let files: Vec<String> = files_touched.iter().map(|f| format!("\"{}\"", json_escape(f))).collect();
-                format!("{{\"summary\":{},\"files\":[{}]}}", quoted(summary), files.join(","))
+            EntryKind::Message { role, content } => format!(
+                "{{\"role\":\"{}\",\"content\":{}}}",
+                json_escape(role),
+                quoted(content)
+            ),
+            EntryKind::ToolCall { name, args, result } => format!(
+                "{{\"name\":\"{}\",\"args\":{},\"result\":{}}}",
+                json_escape(name),
+                quoted(args),
+                quoted(result)
+            ),
+            EntryKind::Compaction {
+                summary,
+                files_touched,
+            } => {
+                let files: Vec<String> = files_touched
+                    .iter()
+                    .map(|f| format!("\"{}\"", json_escape(f)))
+                    .collect();
+                format!(
+                    "{{\"summary\":{},\"files\":[{}]}}",
+                    quoted(summary),
+                    files.join(",")
+                )
             }
-            EntryKind::BranchSummary { label } =>
-                format!("{{\"label\":{}}}", quoted(label)),
-            EntryKind::Custom { type_name, payload } =>
-                format!("{{\"type_name\":\"{}\",\"payload\":{}}}", json_escape(type_name), quoted(payload)),
+            EntryKind::BranchSummary { label } => format!("{{\"label\":{}}}", quoted(label)),
+            EntryKind::Custom { type_name, payload } => format!(
+                "{{\"type_name\":\"{}\",\"payload\":{}}}",
+                json_escape(type_name),
+                quoted(payload)
+            ),
         }
     }
 
     fn entry_from_json(s: &str) -> Result<SessionEntry, String> {
         // Minimal hand-rolled parser — avoids pulling in serde for this module.
-        let id = extract_str(s, "\"id\":")
-            .ok_or("missing id")?;
+        let id = extract_str(s, "\"id\":").ok_or("missing id")?;
         let parent_id = extract_nullable_str(s, "\"parent_id\":");
-        let kind_tag = extract_str(s, "\"kind\":")
-            .ok_or("missing kind")?;
-        let ts = extract_u64(s, "\"ts\":")
-            .unwrap_or(0);
+        let kind_tag = extract_str(s, "\"kind\":").ok_or("missing kind")?;
+        let ts = extract_u64(s, "\"ts\":").unwrap_or(0);
         let label = extract_nullable_str(s, "\"label\":");
 
         // Locate the payload object for kind-specific fields.
-        let payload_str = extract_object(s, "\"payload\":")
-            .unwrap_or_default();
+        let payload_str = extract_object(s, "\"payload\":").unwrap_or_default();
 
         let kind = match kind_tag.as_str() {
             "message" => {
@@ -293,14 +337,18 @@ impl SessionTree {
             "compaction" => {
                 let summary = extract_str(&payload_str, "\"summary\":").unwrap_or_default();
                 let files_touched = extract_str_array(&payload_str, "\"files\":");
-                EntryKind::Compaction { summary, files_touched }
+                EntryKind::Compaction {
+                    summary,
+                    files_touched,
+                }
             }
             "branch_summary" => {
                 let label = extract_str(&payload_str, "\"label\":").unwrap_or_default();
                 EntryKind::BranchSummary { label }
             }
             _ => {
-                let type_name = extract_str(&payload_str, "\"type_name\":").unwrap_or_else(|| kind_tag.clone());
+                let type_name =
+                    extract_str(&payload_str, "\"type_name\":").unwrap_or_else(|| kind_tag.clone());
                 let payload = extract_str(&payload_str, "\"payload\":").unwrap_or_default();
                 EntryKind::Custom { type_name, payload }
             }
@@ -321,7 +369,10 @@ impl SessionTree {
 // ---------------------------------------------------------------------------
 
 fn json_escape(s: &str) -> String {
-    s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n").replace('\r', "\\r")
+    s.replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\n', "\\n")
+        .replace('\r', "\\r")
 }
 
 fn quoted(s: &str) -> String {
@@ -333,8 +384,12 @@ fn extract_str(s: &str, key: &str) -> Option<String> {
     let start = s.find(key)?;
     let after_key = &s[start + key.len()..];
     let after_key = after_key.trim_start();
-    if after_key.starts_with("null") { return None; }
-    if !after_key.starts_with('"') { return None; }
+    if after_key.starts_with("null") {
+        return None;
+    }
+    if !after_key.starts_with('"') {
+        return None;
+    }
     let inner = &after_key[1..];
     let mut result = String::new();
     let mut chars = inner.chars();
@@ -356,14 +411,18 @@ fn extract_str(s: &str, key: &str) -> Option<String> {
 fn extract_nullable_str(s: &str, key: &str) -> Option<String> {
     let start = s.find(key)?;
     let after_key = s[start + key.len()..].trim_start();
-    if after_key.starts_with("null") { return None; }
+    if after_key.starts_with("null") {
+        return None;
+    }
     extract_str(s, key)
 }
 
 fn extract_u64(s: &str, key: &str) -> Option<u64> {
     let start = s.find(key)?;
     let after_key = s[start + key.len()..].trim_start();
-    let end = after_key.find(|c: char| !c.is_ascii_digit()).unwrap_or(after_key.len());
+    let end = after_key
+        .find(|c: char| !c.is_ascii_digit())
+        .unwrap_or(after_key.len());
     after_key[..end].parse().ok()
 }
 
@@ -371,7 +430,9 @@ fn extract_u64(s: &str, key: &str) -> Option<u64> {
 fn extract_object(s: &str, key: &str) -> Option<String> {
     let start = s.find(key)?;
     let after_key = s[start + key.len()..].trim_start();
-    if !after_key.starts_with('{') { return None; }
+    if !after_key.starts_with('{') {
+        return None;
+    }
     let mut depth = 0usize;
     let mut end = 0;
     for (i, c) in after_key.char_indices() {
@@ -379,7 +440,10 @@ fn extract_object(s: &str, key: &str) -> Option<String> {
             '{' => depth += 1,
             '}' => {
                 depth -= 1;
-                if depth == 0 { end = i + 1; break; }
+                if depth == 0 {
+                    end = i + 1;
+                    break;
+                }
             }
             _ => {}
         }
@@ -389,18 +453,31 @@ fn extract_object(s: &str, key: &str) -> Option<String> {
 
 /// Extract a JSON array of strings, e.g. `"files":["a","b"]`.
 fn extract_str_array(s: &str, key: &str) -> Vec<String> {
-    let start = match s.find(key) { Some(i) => i, None => return Vec::new() };
+    let start = match s.find(key) {
+        Some(i) => i,
+        None => return Vec::new(),
+    };
     let after_key = s[start + key.len()..].trim_start();
-    if !after_key.starts_with('[') { return Vec::new(); }
-    let end = match after_key.find(']') { Some(i) => i, None => return Vec::new() };
+    if !after_key.starts_with('[') {
+        return Vec::new();
+    }
+    let end = match after_key.find(']') {
+        Some(i) => i,
+        None => return Vec::new(),
+    };
     let inner = &after_key[1..end];
     // Split naively by `","` — sufficient for file paths without embedded quotes.
-    inner.split(',').filter_map(|tok| {
-        let tok = tok.trim();
-        if tok.starts_with('"') && tok.ends_with('"') && tok.len() >= 2 {
-            Some(tok[1..tok.len()-1].to_owned())
-        } else { None }
-    }).collect()
+    inner
+        .split(',')
+        .filter_map(|tok| {
+            let tok = tok.trim();
+            if tok.starts_with('"') && tok.ends_with('"') && tok.len() >= 2 {
+                Some(tok[1..tok.len() - 1].to_owned())
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
@@ -412,7 +489,10 @@ mod tests {
     use super::*;
 
     fn msg(role: &str, content: &str) -> EntryKind {
-        EntryKind::Message { role: role.to_owned(), content: content.to_owned() }
+        EntryKind::Message {
+            role: role.to_owned(),
+            content: content.to_owned(),
+        }
     }
 
     #[test]
@@ -431,7 +511,9 @@ mod tests {
         let mut tree = SessionTree::new();
         let root = tree.append(None, msg("user", "start"));
         let a = tree.append(Some(&root.0), msg("assistant", "branch A"));
-        let b = tree.branch_from(&root.0, msg("assistant", "branch B")).unwrap();
+        let b = tree
+            .branch_from(&root.0, msg("assistant", "branch B"))
+            .unwrap();
         assert_ne!(a, b);
         assert_eq!(tree.children_of(Some(&root.0)).len(), 2);
         assert_eq!(tree.branch_count(), 2);
@@ -514,14 +596,20 @@ mod tests {
         let mut tree = SessionTree::new();
         let r = tree.append(None, msg("user", "hello\nworld"));
         let a = tree.append(Some(&r.0), msg("assistant", "reply"));
-        let _ = tree.append(Some(&a.0), EntryKind::Compaction {
-            summary: "compacted 10 msgs".to_owned(),
-            files_touched: vec!["src/main.rs".to_owned(), "Cargo.toml".to_owned()],
-        });
-        let _ = tree.append(Some(&r.0), EntryKind::Custom {
-            type_name: "plugin_state".to_owned(),
-            payload: "{\"active\":true}".to_owned(),
-        });
+        let _ = tree.append(
+            Some(&a.0),
+            EntryKind::Compaction {
+                summary: "compacted 10 msgs".to_owned(),
+                files_touched: vec!["src/main.rs".to_owned(), "Cargo.toml".to_owned()],
+            },
+        );
+        let _ = tree.append(
+            Some(&r.0),
+            EntryKind::Custom {
+                type_name: "plugin_state".to_owned(),
+                payload: "{\"active\":true}".to_owned(),
+            },
+        );
         tree.label_entry(&r.0, "start");
 
         let jsonl = tree.serialize_jsonl();
@@ -535,39 +623,57 @@ mod tests {
         // Check content with newlines survived.
         if let EntryKind::Message { content, .. } = &root.kind {
             assert_eq!(content, "hello\nworld");
-        } else { panic!("wrong kind"); }
+        } else {
+            panic!("wrong kind");
+        }
 
         // Check compaction files array survived.
-        let compact = restored.entries.iter().find(|e| {
-            matches!(&e.kind, EntryKind::Compaction { .. })
-        }).unwrap();
+        let compact = restored
+            .entries
+            .iter()
+            .find(|e| matches!(&e.kind, EntryKind::Compaction { .. }))
+            .unwrap();
         if let EntryKind::Compaction { files_touched, .. } = &compact.kind {
             assert_eq!(files_touched.len(), 2);
-        } else { panic!("wrong kind"); }
+        } else {
+            panic!("wrong kind");
+        }
     }
 
     #[test]
     fn test_tool_call_roundtrip() {
         let mut tree = SessionTree::new();
-        let _ = tree.append(None, EntryKind::ToolCall {
-            name: "read_file".to_owned(),
-            args: "{\"path\":\"src/lib.rs\"}".to_owned(),
-            result: "pub mod foo;".to_owned(),
-        });
+        let _ = tree.append(
+            None,
+            EntryKind::ToolCall {
+                name: "read_file".to_owned(),
+                args: "{\"path\":\"src/lib.rs\"}".to_owned(),
+                result: "pub mod foo;".to_owned(),
+            },
+        );
         let jsonl = tree.serialize_jsonl();
         let rt = SessionTree::deserialize_jsonl(&jsonl).unwrap();
         if let EntryKind::ToolCall { name, .. } = &rt.entries[0].kind {
             assert_eq!(name, "read_file");
-        } else { panic!("wrong kind"); }
+        } else {
+            panic!("wrong kind");
+        }
     }
 
     #[test]
     fn test_branch_summary_roundtrip() {
         let mut tree = SessionTree::new();
-        let _ = tree.append(None, EntryKind::BranchSummary { label: "experiment-v2".to_owned() });
+        let _ = tree.append(
+            None,
+            EntryKind::BranchSummary {
+                label: "experiment-v2".to_owned(),
+            },
+        );
         let rt = SessionTree::deserialize_jsonl(&tree.serialize_jsonl()).unwrap();
         if let EntryKind::BranchSummary { label } = &rt.entries[0].kind {
             assert_eq!(label, "experiment-v2");
-        } else { panic!("wrong kind"); }
+        } else {
+            panic!("wrong kind");
+        }
     }
 }

@@ -203,7 +203,11 @@ impl InMemoryVectorDb {
             .collect();
 
         // Sort descending by score (higher is better).
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         results.truncate(query.top_k);
         results
     }
@@ -232,10 +236,7 @@ impl InMemoryVectorDb {
     ///
     /// Achieves ~10× memory reduction while preserving high cosine-similarity
     /// recall. Metadata is carried over as string key-value pairs.
-    pub fn to_turboquant(
-        &self,
-        seed: u64,
-    ) -> vibe_core::index::turboquant::TurboQuantIndex {
+    pub fn to_turboquant(&self, seed: u64) -> vibe_core::index::turboquant::TurboQuantIndex {
         let config = vibe_core::index::turboquant::TurboQuantConfig {
             dimension: self.dimension as usize,
             seed,
@@ -289,12 +290,11 @@ impl InMemoryVectorDb {
                     .sum();
                 -sum.sqrt() // negate so higher = closer
             }
-            DistanceMetric::DotProduct => {
-                a.iter()
-                    .zip(b.iter())
-                    .map(|(x, y)| (*x as f64) * (*y as f64))
-                    .sum()
-            }
+            DistanceMetric::DotProduct => a
+                .iter()
+                .zip(b.iter())
+                .map(|(x, y)| (*x as f64) * (*y as f64))
+                .sum(),
             DistanceMetric::Manhattan => {
                 let sum: f64 = a
                     .iter()
@@ -414,7 +414,12 @@ pub fn generate_pgvector_schema(config: &CollectionConfig) -> String {
     let hnsw_params = config
         .hnsw_config
         .as_ref()
-        .map(|h| format!(" WITH (m = {}, ef_construction = {})", h.m, h.ef_construction))
+        .map(|h| {
+            format!(
+                " WITH (m = {}, ef_construction = {})",
+                h.m, h.ef_construction
+            )
+        })
         .unwrap_or_default();
 
     format!(

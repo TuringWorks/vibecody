@@ -142,8 +142,8 @@ impl RpcFrame {
     /// or if the `"type"` field is absent.
     pub fn from_line(line: &str) -> Result<Self, String> {
         let trimmed = line.trim_end_matches(['\r', '\n']);
-        let value: serde_json::Value = serde_json::from_str(trimmed)
-            .map_err(|e| format!("json parse error: {e}"))?;
+        let value: serde_json::Value =
+            serde_json::from_str(trimmed).map_err(|e| format!("json parse error: {e}"))?;
         let obj = value
             .as_object()
             .ok_or_else(|| "expected JSON object".to_string())?;
@@ -298,9 +298,7 @@ impl<W: std::io::Write> RpcWriter<W> {
 
     /// Flush the underlying writer.
     pub fn flush(&mut self) -> Result<(), String> {
-        self.writer
-            .flush()
-            .map_err(|e| format!("flush error: {e}"))
+        self.writer.flush().map_err(|e| format!("flush error: {e}"))
     }
 }
 
@@ -547,7 +545,10 @@ mod tests {
         let result = RpcFrame::from_line(line);
         assert!(result.is_err());
         let msg = result.unwrap_err();
-        assert!(msg.contains("missing") || msg.contains("type"), "error: {msg}");
+        assert!(
+            msg.contains("missing") || msg.contains("type"),
+            "error: {msg}"
+        );
     }
 
     #[test]

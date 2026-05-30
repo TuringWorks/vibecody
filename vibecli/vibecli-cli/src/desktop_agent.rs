@@ -93,11 +93,7 @@ pub enum DesktopAction {
     /// Move mouse cursor to absolute coordinates.
     MoveMouse { x: u32, y: u32 },
     /// Click a mouse button at coordinates.
-    Click {
-        button: MouseButton,
-        x: u32,
-        y: u32,
-    },
+    Click { button: MouseButton, x: u32, y: u32 },
     /// Double-click (left button) at coordinates.
     DoubleClick { x: u32, y: u32 },
     /// Drag from one point to another.
@@ -112,10 +108,7 @@ pub enum DesktopAction {
     /// Press a single key (e.g., "Return", "Escape", "Tab").
     PressKey { key: String },
     /// Press a key combination (e.g., modifiers=["ctrl"], key="c").
-    KeyCombo {
-        modifiers: Vec<String>,
-        key: String,
-    },
+    KeyCombo { modifiers: Vec<String>, key: String },
     /// Capture a screenshot to the given path.
     Screenshot { path: String },
     /// Get the currently active/focused window.
@@ -475,11 +468,7 @@ fn parse_screen_size_macos(output: &str) -> Option<ScreenInfo> {
             let parts: Vec<&str> = after.split('x').collect();
             if parts.len() >= 2 {
                 let w = parts[0].trim().parse::<u32>().ok()?;
-                let h = parts[1]
-                    .split_whitespace()
-                    .next()?
-                    .parse::<u32>()
-                    .ok()?;
+                let h = parts[1].split_whitespace().next()?.parse::<u32>().ok()?;
                 let scale = if line.contains("Retina") { 2.0 } else { 1.0 };
                 return Some(ScreenInfo {
                     width: w,
@@ -647,9 +636,7 @@ impl DesktopAutomation {
             DesktopAction::KeyCombo { modifiers, key } => self.key_combo(modifiers, key).await,
             DesktopAction::Screenshot { path } => self.screenshot(path).await,
             DesktopAction::GetActiveWindow => self.get_active_window().await,
-            DesktopAction::FocusWindow { title_pattern } => {
-                self.focus_window(title_pattern).await
-            }
+            DesktopAction::FocusWindow { title_pattern } => self.focus_window(title_pattern).await,
             DesktopAction::ListWindows => self.list_windows().await,
             DesktopAction::SetWindowSize { width, height } => {
                 self.set_window_size(*width, *height).await
@@ -664,10 +651,7 @@ impl DesktopAutomation {
     }
 
     /// Execute a sequence of actions with `action_delay_ms` between each.
-    pub async fn execute_sequence(
-        &self,
-        actions: &[DesktopAction],
-    ) -> Result<Vec<DesktopResult>> {
+    pub async fn execute_sequence(&self, actions: &[DesktopAction]) -> Result<Vec<DesktopResult>> {
         let mut results = Vec::with_capacity(actions.len());
         for (i, action) in actions.iter().enumerate() {
             let result = self.execute(action).await?;
@@ -775,13 +759,7 @@ impl DesktopAutomation {
         }
     }
 
-    async fn drag(
-        &self,
-        from_x: u32,
-        from_y: u32,
-        to_x: u32,
-        to_y: u32,
-    ) -> Result<DesktopResult> {
+    async fn drag(&self, from_x: u32, from_y: u32, to_x: u32, to_y: u32) -> Result<DesktopResult> {
         let cmd = self.build_drag_cmd(from_x, from_y, to_x, to_y);
         run_shell(&cmd).await
     }
@@ -833,7 +811,10 @@ impl DesktopAutomation {
                 format!("xdotool type --delay 12 '{escaped}'")
             }
             DesktopPlatform::Windows => {
-                let ps_escaped = text.replace('\'', "''").replace('{', "{{").replace('}', "}}");
+                let ps_escaped = text
+                    .replace('\'', "''")
+                    .replace('{', "{{")
+                    .replace('}', "}}");
                 format!(
                     "powershell -command \"Add-Type -AssemblyName System.Windows.Forms; \
                      [System.Windows.Forms.SendKeys]::SendWait('{ps_escaped}')\""
@@ -994,9 +975,7 @@ impl DesktopAutomation {
         match self.platform {
             DesktopPlatform::MacOS => {
                 // Try to activate the application by name
-                format!(
-                    "osascript -e 'tell application \"{escaped}\" to activate'"
-                )
+                format!("osascript -e 'tell application \"{escaped}\" to activate'")
             }
             DesktopPlatform::Linux => {
                 format!("xdotool search --name '{escaped}' windowactivate")
@@ -1029,16 +1008,14 @@ impl DesktopAutomation {
 
     pub fn build_list_windows_cmd(&self) -> String {
         match self.platform {
-            DesktopPlatform::MacOS => {
-                "osascript -e 'tell application \"System Events\" to \
+            DesktopPlatform::MacOS => "osascript -e 'tell application \"System Events\" to \
                  repeat with p in (every process whose visible is true)\n\
                  set n to name of p\n\
                  repeat with w in (every window of p)\n\
                  log n & \" | \" & name of w\n\
                  end repeat\n\
                  end repeat'"
-                    .to_string()
-            }
+                .to_string(),
             DesktopPlatform::Linux => "wmctrl -l".to_string(),
             DesktopPlatform::Windows => {
                 "powershell -command \"Get-Process | Where-Object {$_.MainWindowTitle -ne ''} | \
@@ -1062,9 +1039,7 @@ impl DesktopAutomation {
                 )
             }
             DesktopPlatform::Linux => {
-                format!(
-                    "xdotool getactivewindow windowsize {width} {height}"
-                )
+                format!("xdotool getactivewindow windowsize {width} {height}")
             }
             DesktopPlatform::Windows => {
                 format!(
@@ -1124,11 +1099,9 @@ impl DesktopAutomation {
 
     pub fn build_get_mouse_position_cmd(&self) -> String {
         match self.platform {
-            DesktopPlatform::MacOS => {
-                "osascript -e 'tell application \"System Events\" to \
+            DesktopPlatform::MacOS => "osascript -e 'tell application \"System Events\" to \
                  return position of the mouse'"
-                    .to_string()
-            }
+                .to_string(),
             DesktopPlatform::Linux => "xdotool getmouselocation".to_string(),
             DesktopPlatform::Windows => {
                 "powershell -command \"Add-Type -AssemblyName System.Windows.Forms; \
@@ -1253,11 +1226,7 @@ async fn run_shell(cmd: &str) -> Result<DesktopResult> {
         };
         Ok(DesktopResult::ok(combined.trim()))
     } else {
-        let msg = if stderr.is_empty() {
-            stdout
-        } else {
-            stderr
-        };
+        let msg = if stderr.is_empty() { stdout } else { stderr };
         warn!("Shell command failed: {msg}");
         Ok(DesktopResult::fail(msg.trim()))
     }
@@ -2026,8 +1995,7 @@ mod tests {
     #[test]
     fn test_build_key_combo_cmd_linux_multi_modifier() {
         let da = DesktopAutomation::for_platform(DesktopPlatform::Linux);
-        let cmd =
-            da.build_key_combo_cmd(&["ctrl".to_string(), "shift".to_string()], "t");
+        let cmd = da.build_key_combo_cmd(&["ctrl".to_string(), "shift".to_string()], "t");
         assert_eq!(cmd, "xdotool key ctrl+shift+t");
     }
 
@@ -2091,7 +2059,10 @@ mod tests {
     #[test]
     fn test_build_get_mouse_position_cmd_linux() {
         let da = DesktopAutomation::for_platform(DesktopPlatform::Linux);
-        assert_eq!(da.build_get_mouse_position_cmd(), "xdotool getmouselocation");
+        assert_eq!(
+            da.build_get_mouse_position_cmd(),
+            "xdotool getmouselocation"
+        );
     }
 
     #[test]

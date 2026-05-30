@@ -105,7 +105,6 @@ impl ChartLibrary {
     }
 }
 
-
 // ---------------------------------------------------------------------------
 // Export format
 // ---------------------------------------------------------------------------
@@ -130,7 +129,6 @@ impl AnalysisExportFormat {
         }
     }
 }
-
 
 // ---------------------------------------------------------------------------
 // Data types
@@ -227,11 +225,7 @@ pub struct Dataset {
 }
 
 impl Dataset {
-    pub fn new(
-        id: impl Into<String>,
-        name: impl Into<String>,
-        source: DataSource,
-    ) -> Self {
+    pub fn new(id: impl Into<String>, name: impl Into<String>, source: DataSource) -> Self {
         Self {
             id: id.into(),
             name: name.into(),
@@ -357,8 +351,7 @@ pub struct GeneratedChart {
 // ---------------------------------------------------------------------------
 
 /// Layout strategy for a dashboard.
-#[derive(Debug, Clone, PartialEq)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum DashboardLayout {
     #[default]
     Grid,
@@ -375,7 +368,6 @@ impl DashboardLayout {
         }
     }
 }
-
 
 /// A collection of charts assembled into a dashboard page.
 #[derive(Debug, Clone, PartialEq)]
@@ -659,10 +651,8 @@ impl DataAnalyzer {
         for v in &non_null {
             *freq.entry(v).or_insert(0) += 1;
         }
-        let mut top_values: Vec<(String, usize)> = freq
-            .into_iter()
-            .map(|(k, v)| (k.to_string(), v))
-            .collect();
+        let mut top_values: Vec<(String, usize)> =
+            freq.into_iter().map(|(k, v)| (k.to_string(), v)).collect();
         top_values.sort_by(|a, b| b.1.cmp(&a.1));
         top_values.truncate(10);
 
@@ -686,11 +676,8 @@ impl DataAnalyzer {
                 } else {
                     sorted[sorted.len() / 2]
                 };
-                let variance: f64 = nums
-                    .iter()
-                    .map(|x| (x - mean_val).powi(2))
-                    .sum::<f64>()
-                    / nums.len() as f64;
+                let variance: f64 =
+                    nums.iter().map(|x| (x - mean_val).powi(2)).sum::<f64>() / nums.len() as f64;
                 let std_dev_val = variance.sqrt();
 
                 (
@@ -728,11 +715,7 @@ impl DataAnalyzer {
     // -----------------------------------------------------------------------
 
     /// Generate a chart for the given dataset.
-    pub fn generate_chart(
-        &self,
-        dataset_id: &str,
-        spec: ChartSpec,
-    ) -> Result<GeneratedChart> {
+    pub fn generate_chart(&self, dataset_id: &str, spec: ChartSpec) -> Result<GeneratedChart> {
         let ds = self
             .datasets
             .iter()
@@ -777,13 +760,7 @@ impl DataAnalyzer {
 
         format!(
             r#"{{"$schema":"https://vega.github.io/schema/vega-lite/v5.json","title":"{}","mark":"{}","encoding":{{"x":{{"field":"{}","type":"nominal"}},"y":{{"field":"{}","type":"quantitative"}}}},"width":{},"height":{},"data":{{"name":"{}"}}}}"#,
-            spec.title,
-            mark,
-            x_field,
-            y_field,
-            spec.width,
-            spec.height,
-            dataset.name,
+            spec.title, mark, x_field, y_field, spec.width, spec.height, dataset.name,
         )
     }
 
@@ -802,9 +779,7 @@ impl DataAnalyzer {
 
         format!(
             r#"{{"title":{{"text":"{}"}},"series":[{{"type":"{}","data":[]}}],"xAxis":{{"type":"category"}},"yAxis":{{"type":"value"}},"dataset":"{}"}}"#,
-            spec.title,
-            chart_type,
-            dataset.name,
+            spec.title, chart_type, dataset.name,
         )
     }
 
@@ -844,11 +819,7 @@ var spec = {chart_json};
     // -----------------------------------------------------------------------
 
     /// Create a dashboard from a collection of charts.
-    pub fn create_dashboard(
-        &self,
-        title: &str,
-        charts: Vec<GeneratedChart>,
-    ) -> Dashboard {
+    pub fn create_dashboard(&self, title: &str, charts: Vec<GeneratedChart>) -> Dashboard {
         Dashboard {
             id: generate_id(),
             title: title.to_string(),
@@ -862,9 +833,7 @@ var spec = {chart_json};
     /// Export a dashboard as a self-contained HTML page.
     pub fn export_dashboard(&self, dashboard: &Dashboard) -> String {
         let layout_css = match dashboard.layout {
-            DashboardLayout::Grid => {
-                "display:grid;grid-template-columns:repeat(2,1fr);gap:16px;"
-            }
+            DashboardLayout::Grid => "display:grid;grid-template-columns:repeat(2,1fr);gap:16px;",
             DashboardLayout::Vertical => "display:flex;flex-direction:column;gap:16px;",
             DashboardLayout::Horizontal => "display:flex;flex-direction:row;gap:16px;",
         };
@@ -903,11 +872,7 @@ var spec = {chart_json};
     // -----------------------------------------------------------------------
 
     /// Interpret a natural-language query against a dataset.
-    pub fn interpret_nl_query(
-        &self,
-        query: &str,
-        dataset_id: &str,
-    ) -> Result<NlQuery> {
+    pub fn interpret_nl_query(&self, query: &str, dataset_id: &str) -> Result<NlQuery> {
         let _ds = self
             .datasets
             .iter()
@@ -921,7 +886,10 @@ var spec = {chart_json};
             || lower.contains("graph")
             || lower.contains("visualize")
         {
-            ("generate chart visualization".to_string(), QueryResultType::Chart)
+            (
+                "generate chart visualization".to_string(),
+                QueryResultType::Chart,
+            )
         } else if lower.contains("table") || lower.contains("show") || lower.contains("list") {
             ("display as table".to_string(), QueryResultType::Table)
         } else if lower.contains("average")
@@ -1018,11 +986,7 @@ var spec = {chart_json};
     // -----------------------------------------------------------------------
 
     /// Detect outliers in a numeric column using IQR method.
-    pub fn detect_outliers(
-        &self,
-        dataset_id: &str,
-        column: &str,
-    ) -> Result<Vec<String>> {
+    pub fn detect_outliers(&self, dataset_id: &str, column: &str) -> Result<Vec<String>> {
         let ds = self
             .datasets
             .iter()
@@ -1231,13 +1195,7 @@ mod tests {
     #[test]
     fn test_infer_mixed_majority_numeric() {
         let analyzer = DataAnalyzer::new(AnalysisConfig::default());
-        let vals: Vec<String> = vec![
-            "1".into(),
-            "2".into(),
-            "3".into(),
-            "4".into(),
-            "N/A".into(),
-        ];
+        let vals: Vec<String> = vec!["1".into(), "2".into(), "3".into(), "4".into(), "N/A".into()];
         assert_eq!(analyzer.infer_column_type(&vals), DataType::Numeric);
     }
 
@@ -1281,13 +1239,7 @@ mod tests {
     fn test_column_stats_with_nulls() {
         let analyzer = DataAnalyzer::new(AnalysisConfig::default());
         let col = ColumnInfo::new("val", DataType::Numeric);
-        let values: Vec<String> = vec![
-            "10".into(),
-            "".into(),
-            "20".into(),
-            "".into(),
-            "30".into(),
-        ];
+        let values: Vec<String> = vec!["10".into(), "".into(), "20".into(), "".into(), "30".into()];
         let stats = analyzer.compute_column_stats(&values, &col);
         assert_eq!(stats.count, 3);
         assert_eq!(stats.null_count, 2);
@@ -1403,9 +1355,7 @@ mod tests {
             ..Default::default()
         };
         let mut analyzer = DataAnalyzer::new(cfg);
-        let id = analyzer
-            .load_dataset("d", DataSource::InMemory)
-            .unwrap();
+        let id = analyzer.load_dataset("d", DataSource::InMemory).unwrap();
         let spec = ChartSpec::new(ChartType::Bar, "EBar", "col");
         let chart = analyzer.generate_chart(&id, spec).unwrap();
         assert!(chart.render_code.contains("\"type\":\"bar\""));
@@ -1489,9 +1439,7 @@ mod tests {
     #[test]
     fn test_nl_query_chart() {
         let mut analyzer = DataAnalyzer::new(AnalysisConfig::default());
-        let id = analyzer
-            .load_dataset("d", DataSource::InMemory)
-            .unwrap();
+        let id = analyzer.load_dataset("d", DataSource::InMemory).unwrap();
         let q = analyzer
             .interpret_nl_query("plot sales by region", &id)
             .unwrap();
@@ -1501,9 +1449,7 @@ mod tests {
     #[test]
     fn test_nl_query_table() {
         let mut analyzer = DataAnalyzer::new(AnalysisConfig::default());
-        let id = analyzer
-            .load_dataset("d", DataSource::InMemory)
-            .unwrap();
+        let id = analyzer.load_dataset("d", DataSource::InMemory).unwrap();
         let q = analyzer
             .interpret_nl_query("show all records", &id)
             .unwrap();
@@ -1513,9 +1459,7 @@ mod tests {
     #[test]
     fn test_nl_query_statistic() {
         let mut analyzer = DataAnalyzer::new(AnalysisConfig::default());
-        let id = analyzer
-            .load_dataset("d", DataSource::InMemory)
-            .unwrap();
+        let id = analyzer.load_dataset("d", DataSource::InMemory).unwrap();
         let q = analyzer
             .interpret_nl_query("what is the average price", &id)
             .unwrap();
@@ -1525,9 +1469,7 @@ mod tests {
     #[test]
     fn test_nl_query_summary() {
         let mut analyzer = DataAnalyzer::new(AnalysisConfig::default());
-        let id = analyzer
-            .load_dataset("d", DataSource::InMemory)
-            .unwrap();
+        let id = analyzer.load_dataset("d", DataSource::InMemory).unwrap();
         let q = analyzer
             .interpret_nl_query("tell me about this data", &id)
             .unwrap();
@@ -1611,9 +1553,7 @@ mod tests {
     #[test]
     fn test_detect_outliers_basic() {
         let mut analyzer = DataAnalyzer::new(AnalysisConfig::default());
-        let id = analyzer
-            .load_dataset("d", DataSource::InMemory)
-            .unwrap();
+        let id = analyzer.load_dataset("d", DataSource::InMemory).unwrap();
 
         // Add a dataset with sample values including an outlier.
         let ds = analyzer.datasets.iter_mut().find(|d| d.id == id).unwrap();
@@ -1641,9 +1581,7 @@ mod tests {
     #[test]
     fn test_detect_outliers_column_not_found() {
         let mut analyzer = DataAnalyzer::new(AnalysisConfig::default());
-        let id = analyzer
-            .load_dataset("d", DataSource::InMemory)
-            .unwrap();
+        let id = analyzer.load_dataset("d", DataSource::InMemory).unwrap();
         let err = analyzer.detect_outliers(&id, "nope").unwrap_err();
         assert!(matches!(err, AnalysisError::ColumnNotFound(_)));
     }
@@ -1655,21 +1593,15 @@ mod tests {
     #[test]
     fn test_list_datasets() {
         let mut analyzer = DataAnalyzer::new(AnalysisConfig::default());
-        analyzer
-            .load_dataset("a", DataSource::InMemory)
-            .unwrap();
-        analyzer
-            .load_dataset("b", DataSource::InMemory)
-            .unwrap();
+        analyzer.load_dataset("a", DataSource::InMemory).unwrap();
+        analyzer.load_dataset("b", DataSource::InMemory).unwrap();
         assert_eq!(analyzer.list_datasets().len(), 2);
     }
 
     #[test]
     fn test_remove_dataset() {
         let mut analyzer = DataAnalyzer::new(AnalysisConfig::default());
-        let id = analyzer
-            .load_dataset("a", DataSource::InMemory)
-            .unwrap();
+        let id = analyzer.load_dataset("a", DataSource::InMemory).unwrap();
         analyzer.remove_dataset(&id).unwrap();
         assert!(analyzer.get_dataset(&id).is_none());
         assert_eq!(analyzer.list_datasets().len(), 0);

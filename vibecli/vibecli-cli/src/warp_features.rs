@@ -151,7 +151,8 @@ pub fn suggest_correction(cmd: &str, exit_code: i32, stderr: &str) -> Option<Com
         if first == "cargo" {
             return Some(CommandCorrection {
                 failed_command: cmd.to_string(),
-                suggested_command: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh".to_string(),
+                suggested_command: "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+                    .to_string(),
                 reason: "cargo not found. Install Rust via rustup.".to_string(),
             });
         }
@@ -172,7 +173,9 @@ pub fn suggest_correction(cmd: &str, exit_code: i32, stderr: &str) -> Option<Com
     }
 
     // cd to non-existent directory
-    if first == "cd" && (stderr_lower.contains("no such file") || stderr_lower.contains("not a directory")) {
+    if first == "cd"
+        && (stderr_lower.contains("no such file") || stderr_lower.contains("not a directory"))
+    {
         if let Some(target) = parts.get(1) {
             // Suggest removing trailing segments
             if let Some(pos) = target.rfind('/') {
@@ -194,7 +197,8 @@ pub fn suggest_correction(cmd: &str, exit_code: i32, stderr: &str) -> Option<Com
     }
 
     // sudo needed (EACCES)
-    if exit_code != 0 && (stderr_lower.contains("eacces") || stderr_lower.contains("access denied")) {
+    if exit_code != 0 && (stderr_lower.contains("eacces") || stderr_lower.contains("access denied"))
+    {
         return Some(CommandCorrection {
             failed_command: cmd.to_string(),
             suggested_command: format!("sudo {}", cmd),
@@ -224,7 +228,9 @@ pub struct SecretRedactor {
 }
 
 impl Default for SecretRedactor {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SecretRedactor {
@@ -501,7 +507,11 @@ impl OutputFilter {
                 } else {
                     line.to_lowercase().contains(&pattern.to_lowercase())
                 };
-                if invert { !matches } else { matches }
+                if invert {
+                    !matches
+                } else {
+                    matches
+                }
             })
             .collect::<Vec<&str>>()
             .join("\n")
@@ -825,7 +835,11 @@ mod tests {
         for prefix in &["ghp_", "gho_", "ghs_", "ghr_"] {
             let token = format!("{}abcdefghijklmnopqrst end", prefix);
             let output = r.redact(&token);
-            assert!(output.contains(&format!("{}****", &prefix[..4])), "Failed for {}", prefix);
+            assert!(
+                output.contains(&format!("{}****", &prefix[..4])),
+                "Failed for {}",
+                prefix
+            );
         }
     }
 
@@ -850,7 +864,8 @@ mod tests {
     #[test]
     fn test_redact_private_key() {
         let r = SecretRedactor::new();
-        let input = "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAK...\n-----END RSA PRIVATE KEY-----\nafter";
+        let input =
+            "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAK...\n-----END RSA PRIVATE KEY-----\nafter";
         let output = r.redact(input);
         assert!(output.contains("[PRIVATE KEY REDACTED]"));
         assert!(!output.contains("MIIEowIBAAK"));
@@ -876,7 +891,8 @@ mod tests {
 
     #[test]
     fn test_suggest_after_git_clone() {
-        let suggestions = suggest_next_commands("git clone https://github.com/user/repo.git", 0, "/home");
+        let suggestions =
+            suggest_next_commands("git clone https://github.com/user/repo.git", 0, "/home");
         assert!(!suggestions.is_empty());
         assert_eq!(suggestions[0].command, "cd repo");
     }
@@ -1061,7 +1077,8 @@ mod tests {
 
     #[test]
     fn test_parse_response_with_extra_whitespace() {
-        let resp = "  COMMAND:   git log --oneline  \n  EXPLANATION:  shows log  \n  CONFIDENCE:  0.8  ";
+        let resp =
+            "  COMMAND:   git log --oneline  \n  EXPLANATION:  shows log  \n  CONFIDENCE:  0.8  ";
         let cmd = parse_command_response(resp).unwrap();
         assert_eq!(cmd.generated, "git log --oneline");
         assert!((cmd.confidence - 0.8).abs() < 0.001);

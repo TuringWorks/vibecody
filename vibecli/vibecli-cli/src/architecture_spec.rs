@@ -246,7 +246,10 @@ impl TogafAdm {
 
     /// Get all artifacts belonging to a phase.
     pub fn get_artifacts_by_phase(&self, phase: &TogafPhase) -> Vec<&TogafArtifact> {
-        self.artifacts.iter().filter(|a| &a.phase == phase).collect()
+        self.artifacts
+            .iter()
+            .filter(|a| &a.phase == phase)
+            .collect()
     }
 
     /// Completion percentage for a phase (0.0 - 1.0).
@@ -262,7 +265,11 @@ impl TogafAdm {
             .filter(|a| a.status == ArtifactStatus::Approved)
             .count();
         let ratio = approved_count as f64 / required.len() as f64;
-        if ratio > 1.0 { 1.0 } else { ratio }
+        if ratio > 1.0 {
+            1.0
+        } else {
+            ratio
+        }
     }
 
     /// Overall ADM progress across all phases.
@@ -329,7 +336,10 @@ impl TogafAdm {
 
     /// Get all artifacts with a given status.
     pub fn get_artifacts_by_status(&self, status: &ArtifactStatus) -> Vec<&TogafArtifact> {
-        self.artifacts.iter().filter(|a| &a.status == status).collect()
+        self.artifacts
+            .iter()
+            .filter(|a| &a.status == status)
+            .collect()
     }
 
     /// Update artifact status by id. Returns true if found.
@@ -522,9 +532,10 @@ impl ZachmanFramework {
         content: &str,
     ) {
         let key = Self::cell_key(&perspective, &aspect);
-        let cell = self.cells.entry(key).or_insert_with(|| {
-            ZachmanCell::new(perspective.clone(), aspect.clone())
-        });
+        let cell = self
+            .cells
+            .entry(key)
+            .or_insert_with(|| ZachmanCell::new(perspective.clone(), aspect.clone()));
         cell.content = content.to_string();
         if cell.maturity == 0 && !content.is_empty() {
             cell.maturity = 1;
@@ -555,9 +566,10 @@ impl ZachmanFramework {
         artifact: &str,
     ) {
         let key = Self::cell_key(perspective, aspect);
-        let cell = self.cells.entry(key).or_insert_with(|| {
-            ZachmanCell::new(perspective.clone(), aspect.clone())
-        });
+        let cell = self
+            .cells
+            .entry(key)
+            .or_insert_with(|| ZachmanCell::new(perspective.clone(), aspect.clone()));
         cell.artifacts.push(artifact.to_string());
     }
 
@@ -574,11 +586,7 @@ impl ZachmanFramework {
     /// Percentage of non-empty cells (0.0 - 1.0).
     pub fn get_coverage(&self) -> f64 {
         let total = 36; // 6x6
-        let filled = self
-            .cells
-            .values()
-            .filter(|c| !c.is_empty())
-            .count();
+        let filled = self.cells.values().filter(|c| !c.is_empty()).count();
         filled as f64 / total as f64
     }
 
@@ -726,7 +734,8 @@ impl ZachmanFramework {
                 .map(|c| c.is_empty())
                 .unwrap_or(true);
             if missing_what {
-                issues.push("Planner perspective has content but What (Data) is missing".to_string());
+                issues
+                    .push("Planner perspective has content but What (Data) is missing".to_string());
             }
             if missing_why {
                 issues.push(
@@ -809,11 +818,7 @@ pub struct C4Element {
 }
 
 impl C4Element {
-    pub fn new(
-        name: &str,
-        element_type: C4ElementType,
-        description: &str,
-    ) -> Self {
+    pub fn new(name: &str, element_type: C4ElementType, description: &str) -> Self {
         Self {
             id: generate_id("c4"),
             name: name.to_string(),
@@ -933,7 +938,10 @@ impl C4Model {
     pub fn generate_context_diagram(&self) -> String {
         let mut mermaid = String::new();
         mermaid.push_str("graph TB\n");
-        mermaid.push_str(&format!("    title[\"System Context: {}\"]\n", self.system_name));
+        mermaid.push_str(&format!(
+            "    title[\"System Context: {}\"]\n",
+            self.system_name
+        ));
         mermaid.push_str("    style title fill:none,stroke:none\n\n");
 
         // Persons
@@ -1136,9 +1144,10 @@ impl C4Model {
 
         // Check for orphan elements (no relationships)
         for el in &self.elements {
-            let has_rel = self.relationships.iter().any(|r| {
-                r.source_id == el.id || r.target_id == el.id
-            });
+            let has_rel = self
+                .relationships
+                .iter()
+                .any(|r| r.source_id == el.id || r.target_id == el.id);
             if !has_rel {
                 issues.push(format!(
                     "Orphan element '{}' ({}) has no relationships",
@@ -1177,20 +1186,14 @@ impl C4Model {
         // Check containers have parent systems
         for el in &self.elements {
             if el.element_type == C4ElementType::Container && el.parent_id.is_none() {
-                issues.push(format!(
-                    "Container '{}' has no parent system",
-                    el.name
-                ));
+                issues.push(format!("Container '{}' has no parent system", el.name));
             }
         }
 
         // Check components have parent containers
         for el in &self.elements {
             if el.element_type == C4ElementType::Component && el.parent_id.is_none() {
-                issues.push(format!(
-                    "Component '{}' has no parent container",
-                    el.name
-                ));
+                issues.push(format!("Component '{}' has no parent container", el.name));
             }
         }
 
@@ -1448,7 +1451,10 @@ impl AdrStore {
 
     /// Get ADRs by status.
     pub fn get_by_status(&self, status: &AdrStatus) -> Vec<&Adr> {
-        self.records.iter().filter(|a| &a.status == status).collect()
+        self.records
+            .iter()
+            .filter(|a| &a.status == status)
+            .collect()
     }
 
     /// Get ADR count by status.
@@ -1774,10 +1780,7 @@ impl GovernanceEngine {
                             violations.push(GovernanceViolation::new(
                                 &rule.id,
                                 &rule.name,
-                                &format!(
-                                    "Container '{}' has no parent system",
-                                    el.name
-                                ),
+                                &format!("Container '{}' has no parent system", el.name),
                                 rule.severity.clone(),
                                 "Set parent_id to the owning SoftwareSystem element",
                             ));
@@ -1813,17 +1816,16 @@ impl GovernanceEngine {
     }
 
     /// Generate a governance report.
-    pub fn generate_report(
-        &self,
-        model: &C4Model,
-        adm: &TogafAdm,
-        adrs: &AdrStore,
-    ) -> String {
+    pub fn generate_report(&self, model: &C4Model, adm: &TogafAdm, adrs: &AdrStore) -> String {
         let violations = self.evaluate(model, adm, adrs);
 
         let mut report = String::new();
         report.push_str("# Architecture Governance Report\n\n");
-        report.push_str(&format!("Rules: {} | Violations: {}\n\n", self.rules.len(), violations.len()));
+        report.push_str(&format!(
+            "Rules: {} | Violations: {}\n\n",
+            self.rules.len(),
+            violations.len()
+        ));
 
         if violations.is_empty() {
             report.push_str("All governance rules pass.\n");
@@ -1851,7 +1853,10 @@ impl GovernanceEngine {
         if !critical.is_empty() {
             report.push_str(&format!("## CRITICAL ({})\n", critical.len()));
             for v in &critical {
-                report.push_str(&format!("- [{}] {}: {}\n", v.rule_id, v.rule_name, v.message));
+                report.push_str(&format!(
+                    "- [{}] {}: {}\n",
+                    v.rule_id, v.rule_name, v.message
+                ));
                 report.push_str(&format!("  Recommendation: {}\n", v.recommendation));
             }
             report.push('\n');
@@ -1860,7 +1865,10 @@ impl GovernanceEngine {
         if !errors.is_empty() {
             report.push_str(&format!("## ERRORS ({})\n", errors.len()));
             for v in &errors {
-                report.push_str(&format!("- [{}] {}: {}\n", v.rule_id, v.rule_name, v.message));
+                report.push_str(&format!(
+                    "- [{}] {}: {}\n",
+                    v.rule_id, v.rule_name, v.message
+                ));
                 report.push_str(&format!("  Recommendation: {}\n", v.recommendation));
             }
             report.push('\n');
@@ -1869,7 +1877,10 @@ impl GovernanceEngine {
         if !warnings.is_empty() {
             report.push_str(&format!("## WARNINGS ({})\n", warnings.len()));
             for v in &warnings {
-                report.push_str(&format!("- [{}] {}: {}\n", v.rule_id, v.rule_name, v.message));
+                report.push_str(&format!(
+                    "- [{}] {}: {}\n",
+                    v.rule_id, v.rule_name, v.message
+                ));
             }
             report.push('\n');
         }
@@ -2032,13 +2043,13 @@ impl ArchitectureSpec {
         ));
         let critical_count = violations
             .iter()
-            .filter(|v| v.severity == GovernanceSeverity::Critical || v.severity == GovernanceSeverity::Error)
+            .filter(|v| {
+                v.severity == GovernanceSeverity::Critical
+                    || v.severity == GovernanceSeverity::Error
+            })
             .count();
         if critical_count > 0 {
-            report.push_str(&format!(
-                "Critical/Error violations: {}\n",
-                critical_count
-            ));
+            report.push_str(&format!("Critical/Error violations: {}\n", critical_count));
         }
 
         report
@@ -2309,21 +2320,34 @@ mod tests {
             TogafArtifact::new("B", TogafPhase::Preliminary, ArtifactType::Catalog, "b")
                 .with_status(ArtifactStatus::Draft),
         );
-        assert_eq!(adm.get_artifacts_by_status(&ArtifactStatus::Approved).len(), 1);
+        assert_eq!(
+            adm.get_artifacts_by_status(&ArtifactStatus::Approved).len(),
+            1
+        );
         assert_eq!(adm.get_artifacts_by_status(&ArtifactStatus::Draft).len(), 1);
     }
 
     #[test]
     fn test_togaf_artifact_with_content() {
-        let art = TogafArtifact::new("Test", TogafPhase::Preliminary, ArtifactType::Catalog, "desc")
-            .with_content("Some content here");
+        let art = TogafArtifact::new(
+            "Test",
+            TogafPhase::Preliminary,
+            ArtifactType::Catalog,
+            "desc",
+        )
+        .with_content("Some content here");
         assert_eq!(art.content, "Some content here");
     }
 
     #[test]
     fn test_togaf_artifact_with_tags() {
-        let art = TogafArtifact::new("Test", TogafPhase::Preliminary, ArtifactType::Catalog, "desc")
-            .with_tags(vec!["security".to_string(), "cloud".to_string()]);
+        let art = TogafArtifact::new(
+            "Test",
+            TogafPhase::Preliminary,
+            ArtifactType::Catalog,
+            "desc",
+        )
+        .with_tags(vec!["security".to_string(), "cloud".to_string()]);
         assert_eq!(art.tags.len(), 2);
     }
 
@@ -2378,11 +2402,7 @@ mod tests {
     #[test]
     fn test_zachman_coverage_one_cell() {
         let mut zf = ZachmanFramework::new();
-        zf.set_cell(
-            ZachmanPerspective::Planner,
-            ZachmanAspect::What,
-            "Entities",
-        );
+        zf.set_cell(ZachmanPerspective::Planner, ZachmanAspect::What, "Entities");
         let coverage = zf.get_coverage();
         assert!((coverage - 1.0 / 36.0).abs() < 0.001);
     }
@@ -2412,7 +2432,9 @@ mod tests {
         let mut zf = ZachmanFramework::new();
         zf.set_cell(ZachmanPerspective::Owner, ZachmanAspect::How, "Processes");
         zf.set_cell_maturity(&ZachmanPerspective::Owner, &ZachmanAspect::How, 4);
-        let cell = zf.get_cell(&ZachmanPerspective::Owner, &ZachmanAspect::How).unwrap();
+        let cell = zf
+            .get_cell(&ZachmanPerspective::Owner, &ZachmanAspect::How)
+            .unwrap();
         assert_eq!(cell.maturity, 4);
     }
 
@@ -2421,7 +2443,9 @@ mod tests {
         let mut zf = ZachmanFramework::new();
         zf.set_cell(ZachmanPerspective::Owner, ZachmanAspect::How, "X");
         zf.set_cell_maturity(&ZachmanPerspective::Owner, &ZachmanAspect::How, 10);
-        let cell = zf.get_cell(&ZachmanPerspective::Owner, &ZachmanAspect::How).unwrap();
+        let cell = zf
+            .get_cell(&ZachmanPerspective::Owner, &ZachmanAspect::How)
+            .unwrap();
         assert_eq!(cell.maturity, 5);
     }
 
@@ -2443,7 +2467,9 @@ mod tests {
             &ZachmanAspect::What,
             "ERD-001",
         );
-        let cell = zf.get_cell(&ZachmanPerspective::Designer, &ZachmanAspect::What).unwrap();
+        let cell = zf
+            .get_cell(&ZachmanPerspective::Designer, &ZachmanAspect::What)
+            .unwrap();
         assert_eq!(cell.artifacts.len(), 1);
         assert_eq!(cell.artifacts[0], "ERD-001");
     }
@@ -2460,8 +2486,16 @@ mod tests {
     #[test]
     fn test_zachman_validate_consistency_clean() {
         let mut zf = ZachmanFramework::new();
-        zf.set_cell(ZachmanPerspective::Owner, ZachmanAspect::What, "Business model");
-        zf.set_cell(ZachmanPerspective::Designer, ZachmanAspect::What, "Logical model");
+        zf.set_cell(
+            ZachmanPerspective::Owner,
+            ZachmanAspect::What,
+            "Business model",
+        );
+        zf.set_cell(
+            ZachmanPerspective::Designer,
+            ZachmanAspect::What,
+            "Logical model",
+        );
         let issues = zf.validate_consistency();
         assert!(issues.is_empty());
     }
@@ -2470,7 +2504,11 @@ mod tests {
     fn test_zachman_validate_consistency_missing_owner() {
         let mut zf = ZachmanFramework::new();
         // Designer has content but Owner does not
-        zf.set_cell(ZachmanPerspective::Designer, ZachmanAspect::What, "Logical model");
+        zf.set_cell(
+            ZachmanPerspective::Designer,
+            ZachmanAspect::What,
+            "Logical model",
+        );
         let issues = zf.validate_consistency();
         assert!(issues.iter().any(|i| i.contains("Owner row is empty")));
     }
@@ -2478,7 +2516,11 @@ mod tests {
     #[test]
     fn test_zachman_validate_consistency_missing_designer() {
         let mut zf = ZachmanFramework::new();
-        zf.set_cell(ZachmanPerspective::Builder, ZachmanAspect::How, "Physical process");
+        zf.set_cell(
+            ZachmanPerspective::Builder,
+            ZachmanAspect::How,
+            "Physical process",
+        );
         let issues = zf.validate_consistency();
         assert!(issues.iter().any(|i| i.contains("Designer row is empty")));
     }
@@ -2486,10 +2528,16 @@ mod tests {
     #[test]
     fn test_zachman_validate_planner_requires_what_why() {
         let mut zf = ZachmanFramework::new();
-        zf.set_cell(ZachmanPerspective::Planner, ZachmanAspect::How, "Process flow");
+        zf.set_cell(
+            ZachmanPerspective::Planner,
+            ZachmanAspect::How,
+            "Process flow",
+        );
         let issues = zf.validate_consistency();
         assert!(issues.iter().any(|i| i.contains("What (Data) is missing")));
-        assert!(issues.iter().any(|i| i.contains("Why (Motivation) is missing")));
+        assert!(issues
+            .iter()
+            .any(|i| i.contains("Why (Motivation) is missing")));
     }
 
     #[test]
@@ -2556,7 +2604,11 @@ mod tests {
         let mut model = C4Model::new("Test");
         model.add_element(C4Element::new("User", C4ElementType::Person, "User"));
         model.add_element(C4Element::new("Admin", C4ElementType::Person, "Admin"));
-        model.add_element(C4Element::new("System", C4ElementType::SoftwareSystem, "Sys"));
+        model.add_element(C4Element::new(
+            "System",
+            C4ElementType::SoftwareSystem,
+            "Sys",
+        ));
         assert_eq!(model.get_elements_by_type(&C4ElementType::Person).len(), 2);
         assert_eq!(
             model
@@ -2575,12 +2627,10 @@ mod tests {
             "Main",
         ));
         model.add_element(
-            C4Element::new("API", C4ElementType::Container, "REST API")
-                .with_parent(&sys_id),
+            C4Element::new("API", C4ElementType::Container, "REST API").with_parent(&sys_id),
         );
         model.add_element(
-            C4Element::new("DB", C4ElementType::Container, "Database")
-                .with_parent(&sys_id),
+            C4Element::new("DB", C4ElementType::Container, "Database").with_parent(&sys_id),
         );
         assert_eq!(model.get_children(&sys_id).len(), 2);
     }
@@ -2601,15 +2651,19 @@ mod tests {
     fn test_c4_generate_context_diagram() {
         let mut model = C4Model::new("E-Commerce");
         let user_id = model.add_element(
-            C4Element::new("Customer", C4ElementType::Person, "Online shopper")
-                .with_id("user1"),
+            C4Element::new("Customer", C4ElementType::Person, "Online shopper").with_id("user1"),
         );
         let sys_id = model.add_element(
-            C4Element::new("E-Commerce Platform", C4ElementType::SoftwareSystem, "Main platform")
-                .with_id("sys1"),
+            C4Element::new(
+                "E-Commerce Platform",
+                C4ElementType::SoftwareSystem,
+                "Main platform",
+            )
+            .with_id("sys1"),
         );
         model.add_relationship(
-            C4Relationship::new(&user_id, &sys_id, "Browses and purchases").with_technology("HTTPS"),
+            C4Relationship::new(&user_id, &sys_id, "Browses and purchases")
+                .with_technology("HTTPS"),
         );
         let diagram = model.generate_context_diagram();
         assert!(diagram.contains("graph TB"));
@@ -2655,7 +2709,11 @@ mod tests {
     #[test]
     fn test_c4_validate_orphan_elements() {
         let mut model = C4Model::new("Test");
-        model.add_element(C4Element::new("Orphan", C4ElementType::SoftwareSystem, "No rels"));
+        model.add_element(C4Element::new(
+            "Orphan",
+            C4ElementType::SoftwareSystem,
+            "No rels",
+        ));
         let issues = model.validate_model();
         assert!(issues.iter().any(|i| i.contains("Orphan")));
     }
@@ -2689,7 +2747,11 @@ mod tests {
     #[test]
     fn test_c4_validate_component_no_parent() {
         let mut model = C4Model::new("Test");
-        model.add_element(C4Element::new("Ctrl", C4ElementType::Component, "No parent"));
+        model.add_element(C4Element::new(
+            "Ctrl",
+            C4ElementType::Component,
+            "No parent",
+        ));
         let issues = model.validate_model();
         assert!(issues.iter().any(|i| i.contains("no parent container")));
     }
@@ -2713,8 +2775,8 @@ mod tests {
 
     #[test]
     fn test_c4_element_with_technology() {
-        let el = C4Element::new("API", C4ElementType::Container, "API")
-            .with_technology("Rust/Actix");
+        let el =
+            C4Element::new("API", C4ElementType::Container, "API").with_technology("Rust/Actix");
         assert_eq!(el.technology, "Rust/Actix");
     }
 
@@ -2824,7 +2886,11 @@ mod tests {
     #[test]
     fn test_adr_search_by_title() {
         let mut store = AdrStore::new();
-        store.add(Adr::new("Use Kubernetes", "Need orchestration", "Adopt K8s"));
+        store.add(Adr::new(
+            "Use Kubernetes",
+            "Need orchestration",
+            "Adopt K8s",
+        ));
         store.add(Adr::new("Use Docker", "Need containers", "Adopt Docker"));
         let results = store.search("kubernetes");
         assert_eq!(results.len(), 1);
@@ -2842,9 +2908,7 @@ mod tests {
     #[test]
     fn test_adr_search_by_tag() {
         let mut store = AdrStore::new();
-        store.add(
-            Adr::new("Use X", "ctx", "dec").with_tags(vec!["infrastructure".to_string()]),
-        );
+        store.add(Adr::new("Use X", "ctx", "dec").with_tags(vec!["infrastructure".to_string()]));
         let results = store.search("infrastructure");
         assert_eq!(results.len(), 1);
     }
@@ -2961,8 +3025,7 @@ mod tests {
         let engine = GovernanceEngine::with_standard_rules();
         let mut model = C4Model::new("Test");
         model.add_element(
-            C4Element::new("API", C4ElementType::Container, "API")
-                .with_parent("sys1"),
+            C4Element::new("API", C4ElementType::Container, "API").with_parent("sys1"),
         );
         let adm = TogafAdm::new();
         let adrs = AdrStore::new();
@@ -2977,13 +3040,22 @@ mod tests {
         let mut adm = TogafAdm::new();
         // Add 3 draft artifacts to Preliminary
         adm.add_artifact(TogafArtifact::new(
-            "A", TogafPhase::Preliminary, ArtifactType::Catalog, "a",
+            "A",
+            TogafPhase::Preliminary,
+            ArtifactType::Catalog,
+            "a",
         ));
         adm.add_artifact(TogafArtifact::new(
-            "B", TogafPhase::Preliminary, ArtifactType::Matrix, "b",
+            "B",
+            TogafPhase::Preliminary,
+            ArtifactType::Matrix,
+            "b",
         ));
         adm.add_artifact(TogafArtifact::new(
-            "C", TogafPhase::Preliminary, ArtifactType::Diagram, "c",
+            "C",
+            TogafPhase::Preliminary,
+            ArtifactType::Diagram,
+            "c",
         ));
         let adrs = AdrStore::new();
         let violations = engine.evaluate(&model, &adm, &adrs);
@@ -3170,14 +3242,14 @@ mod tests {
 
         // Build C4 model
         let user_id = spec.c4().add_element(
-            C4Element::new("Customer", C4ElementType::Person, "Online shopper")
-                .with_id("customer"),
+            C4Element::new("Customer", C4ElementType::Person, "Online shopper").with_id("customer"),
         );
         let sys_id = spec.c4().add_element(
             C4Element::new("E-Commerce", C4ElementType::SoftwareSystem, "Main platform")
                 .with_id("ecommerce"),
         );
-        spec.c4().add_relationship(C4Relationship::new(&user_id, &sys_id, "Shops"));
+        spec.c4()
+            .add_relationship(C4Relationship::new(&user_id, &sys_id, "Shops"));
 
         // Add ADRs
         let adr_id = spec.adrs().add(Adr::new(
@@ -3242,6 +3314,9 @@ mod tests {
     #[test]
     fn test_c4_element_type_display() {
         assert_eq!(format!("{}", C4ElementType::Person), "Person");
-        assert_eq!(format!("{}", C4ElementType::SoftwareSystem), "Software System");
+        assert_eq!(
+            format!("{}", C4ElementType::SoftwareSystem),
+            "Software System"
+        );
     }
 }

@@ -134,7 +134,9 @@ pub struct TemplateRegistry {
 
 impl Default for TemplateRegistry {
     fn default() -> Self {
-        let mut reg = Self { templates: HashMap::new() };
+        let mut reg = Self {
+            templates: HashMap::new(),
+        };
         reg.load_builtins();
         reg
     }
@@ -146,7 +148,9 @@ impl TemplateRegistry {
     }
 
     pub fn empty() -> Self {
-        Self { templates: HashMap::new() }
+        Self {
+            templates: HashMap::new(),
+        }
     }
 
     pub fn register(&mut self, template: Template) {
@@ -164,14 +168,20 @@ impl TemplateRegistry {
     }
 
     pub fn list_by_language(&self, lang: &TemplateLanguage) -> Vec<&Template> {
-        self.list().into_iter()
+        self.list()
+            .into_iter()
             .filter(|t| &t.language == lang || t.language == TemplateLanguage::Any)
             .collect()
     }
 
     /// Render a named template with the given variables.
-    pub fn render(&self, name: &str, vars: &HashMap<String, String>) -> Result<RenderResult, String> {
-        let template = self.get(name)
+    pub fn render(
+        &self,
+        name: &str,
+        vars: &HashMap<String, String>,
+    ) -> Result<RenderResult, String> {
+        let template = self
+            .get(name)
             .ok_or_else(|| format!("Template `{}` not found", name))?;
         Ok(TemplateRenderer::render(template, vars))
     }
@@ -184,9 +194,24 @@ impl TemplateRegistry {
             language: TemplateLanguage::Rust,
             body: "#[derive({{derives}})]\npub struct {{name}} {\n    {{fields}}\n}\n".into(),
             variables: vec![
-                TemplateVar { name: "name".into(), description: "Struct name".into(), default: Some("MyStruct".into()), required: true },
-                TemplateVar { name: "derives".into(), description: "Derive macros".into(), default: Some("Debug, Clone".into()), required: false },
-                TemplateVar { name: "fields".into(), description: "Struct fields".into(), default: Some("// fields here".into()), required: false },
+                TemplateVar {
+                    name: "name".into(),
+                    description: "Struct name".into(),
+                    default: Some("MyStruct".into()),
+                    required: true,
+                },
+                TemplateVar {
+                    name: "derives".into(),
+                    description: "Derive macros".into(),
+                    default: Some("Debug, Clone".into()),
+                    required: false,
+                },
+                TemplateVar {
+                    name: "fields".into(),
+                    description: "Struct fields".into(),
+                    default: Some("// fields here".into()),
+                    required: false,
+                },
             ],
         });
 
@@ -197,9 +222,24 @@ impl TemplateRegistry {
             language: TemplateLanguage::Rust,
             body: "#[derive({{derives}})]\npub enum {{name}} {\n    {{variants}}\n}\n".into(),
             variables: vec![
-                TemplateVar { name: "name".into(), description: "Enum name".into(), default: Some("MyEnum".into()), required: true },
-                TemplateVar { name: "derives".into(), description: "Derive macros".into(), default: Some("Debug, Clone, PartialEq".into()), required: false },
-                TemplateVar { name: "variants".into(), description: "Enum variants".into(), default: Some("Variant1,\n    Variant2,".into()), required: false },
+                TemplateVar {
+                    name: "name".into(),
+                    description: "Enum name".into(),
+                    default: Some("MyEnum".into()),
+                    required: true,
+                },
+                TemplateVar {
+                    name: "derives".into(),
+                    description: "Derive macros".into(),
+                    default: Some("Debug, Clone, PartialEq".into()),
+                    required: false,
+                },
+                TemplateVar {
+                    name: "variants".into(),
+                    description: "Enum variants".into(),
+                    default: Some("Variant1,\n    Variant2,".into()),
+                    required: false,
+                },
             ],
         });
 
@@ -288,7 +328,10 @@ mod tests {
     use super::*;
 
     fn vars(pairs: &[(&str, &str)]) -> HashMap<String, String> {
-        pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
     }
 
     #[test]
@@ -306,11 +349,22 @@ mod tests {
             language: TemplateLanguage::Any,
             body: "fn {{name}}() -> {{return_type}} {}".into(),
             variables: vec![
-                TemplateVar { name: "name".into(), description: "".into(), default: None, required: true },
-                TemplateVar { name: "return_type".into(), description: "".into(), default: None, required: true },
+                TemplateVar {
+                    name: "name".into(),
+                    description: "".into(),
+                    default: None,
+                    required: true,
+                },
+                TemplateVar {
+                    name: "return_type".into(),
+                    description: "".into(),
+                    default: None,
+                    required: true,
+                },
             ],
         };
-        let result = TemplateRenderer::render(&template, &vars(&[("name", "foo"), ("return_type", "i32")]));
+        let result =
+            TemplateRenderer::render(&template, &vars(&[("name", "foo"), ("return_type", "i32")]));
         assert_eq!(result.content, "fn foo() -> i32 {}");
         assert!(result.is_complete());
     }
@@ -318,7 +372,9 @@ mod tests {
     #[test]
     fn test_render_uses_defaults() {
         let reg = TemplateRegistry::new();
-        let result = reg.render("rust-struct", &vars(&[("name", "Config")])).unwrap();
+        let result = reg
+            .render("rust-struct", &vars(&[("name", "Config")]))
+            .unwrap();
         assert!(result.content.contains("pub struct Config"));
         assert!(result.content.contains("Debug, Clone")); // default derive
         assert!(!result.used_defaults.is_empty());
@@ -331,9 +387,12 @@ mod tests {
             description: "".into(),
             language: TemplateLanguage::Any,
             body: "{{required_var}}".into(),
-            variables: vec![
-                TemplateVar { name: "required_var".into(), description: "".into(), default: None, required: true },
-            ],
+            variables: vec![TemplateVar {
+                name: "required_var".into(),
+                description: "".into(),
+                default: None,
+                required: true,
+            }],
         };
         let result = TemplateRenderer::render(&template, &HashMap::new());
         assert!(!result.is_complete());
@@ -350,14 +409,18 @@ mod tests {
     fn test_list_by_language() {
         let reg = TemplateRegistry::new();
         let rust = reg.list_by_language(&TemplateLanguage::Rust);
-        assert!(rust.iter().all(|t| t.language == TemplateLanguage::Rust || t.language == TemplateLanguage::Any));
+        assert!(rust
+            .iter()
+            .all(|t| t.language == TemplateLanguage::Rust || t.language == TemplateLanguage::Any));
         assert!(rust.len() >= 4);
     }
 
     #[test]
     fn test_rust_tauri_command_template() {
         let reg = TemplateRegistry::new();
-        let result = reg.render("rust-tauri-command", &vars(&[("name", "get_status")])).unwrap();
+        let result = reg
+            .render("rust-tauri-command", &vars(&[("name", "get_status")]))
+            .unwrap();
         assert!(result.content.contains("#[tauri::command]"));
         assert!(result.content.contains("pub async fn get_status"));
     }
@@ -365,7 +428,9 @@ mod tests {
     #[test]
     fn test_ts_react_component_template() {
         let reg = TemplateRegistry::new();
-        let result = reg.render("ts-react-component", &vars(&[("name", "MyPanel")])).unwrap();
+        let result = reg
+            .render("ts-react-component", &vars(&[("name", "MyPanel")]))
+            .unwrap();
         assert!(result.content.contains("interface MyPanelProps"));
         assert!(result.content.contains("export const MyPanel"));
     }
@@ -373,7 +438,12 @@ mod tests {
     #[test]
     fn test_md_adr_template() {
         let reg = TemplateRegistry::new();
-        let result = reg.render("md-adr", &vars(&[("number", "005"), ("title", "Use SQLite")])).unwrap();
+        let result = reg
+            .render(
+                "md-adr",
+                &vars(&[("number", "005"), ("title", "Use SQLite")]),
+            )
+            .unwrap();
         assert!(result.content.contains("ADR-005: Use SQLite"));
         assert!(result.content.contains("**Status**: Proposed"));
     }
@@ -393,7 +463,12 @@ mod tests {
             description: "test".into(),
             language: TemplateLanguage::Any,
             body: "hello {{who}}".into(),
-            variables: vec![TemplateVar { name: "who".into(), description: "".into(), default: Some("world".into()), required: false }],
+            variables: vec![TemplateVar {
+                name: "who".into(),
+                description: "".into(),
+                default: Some("world".into()),
+                required: false,
+            }],
         });
         let result = reg.render("custom", &HashMap::new()).unwrap();
         assert_eq!(result.content, "hello world");
@@ -402,7 +477,9 @@ mod tests {
     #[test]
     fn test_rust_test_module_template() {
         let reg = TemplateRegistry::new();
-        let result = reg.render("rust-test-module", &vars(&[("fn_name", "my_function")])).unwrap();
+        let result = reg
+            .render("rust-test-module", &vars(&[("fn_name", "my_function")]))
+            .unwrap();
         assert!(result.content.contains("fn test_my_function()"));
         assert!(result.content.contains("#[cfg(test)]"));
     }

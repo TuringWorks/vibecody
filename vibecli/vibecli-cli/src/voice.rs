@@ -68,21 +68,14 @@ pub async fn transcribe_audio(audio_path: &std::path::Path, api_key: &str) -> Re
 }
 
 /// Convert text to speech via ElevenLabs API. Returns audio bytes (mp3).
-pub async fn text_to_speech(
-    text: &str,
-    api_key: &str,
-    voice_id: &str,
-) -> Result<Vec<u8>> {
+pub async fn text_to_speech(text: &str, api_key: &str, voice_id: &str) -> Result<Vec<u8>> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .connect_timeout(std::time::Duration::from_secs(10))
         .build()
         .unwrap_or_else(|_| reqwest::Client::new());
 
-    let url = format!(
-        "https://api.elevenlabs.io/v1/text-to-speech/{}",
-        voice_id
-    );
+    let url = format!("https://api.elevenlabs.io/v1/text-to-speech/{}", voice_id);
 
     let api_key_owned = api_key.to_string();
     let text_owned = text.to_string();
@@ -132,7 +125,9 @@ pub fn models_dir() -> PathBuf {
 
 /// Check if a local Whisper model is downloaded.
 pub fn is_model_downloaded(model: &WhisperModel) -> bool {
-    models_dir().join(format!("ggml-{}.bin", model.name())).exists()
+    models_dir()
+        .join(format!("ggml-{}.bin", model.name()))
+        .exists()
 }
 
 /// Download a Whisper GGML model from Hugging Face.
@@ -142,12 +137,20 @@ pub async fn download_model(model: &WhisperModel) -> Result<PathBuf> {
 
     let dest = dir.join(format!("ggml-{}.bin", model.name()));
     if dest.exists() {
-        eprintln!("Model {} already downloaded at {}", model.name(), dest.display());
+        eprintln!(
+            "Model {} already downloaded at {}",
+            model.name(),
+            dest.display()
+        );
         return Ok(dest);
     }
 
     let url = model.ggml_url();
-    eprintln!("Downloading {} model (~{}MB) from Hugging Face...", model.name(), model.size_mb());
+    eprintln!(
+        "Downloading {} model (~{}MB) from Hugging Face...",
+        model.name(),
+        model.size_mb()
+    );
     eprintln!("  {}", url);
 
     let client = reqwest::Client::builder()
@@ -155,7 +158,11 @@ pub async fn download_model(model: &WhisperModel) -> Result<PathBuf> {
         .build()
         .unwrap_or_else(|_| reqwest::Client::new());
 
-    let resp = client.get(url).send().await.context("Download request failed")?;
+    let resp = client
+        .get(url)
+        .send()
+        .await
+        .context("Download request failed")?;
     if !resp.status().is_success() {
         anyhow::bail!("Download failed: HTTP {}", resp.status());
     }
@@ -163,7 +170,9 @@ pub async fn download_model(model: &WhisperModel) -> Result<PathBuf> {
     let total = resp.content_length().unwrap_or(0);
     let mut stream = resp.bytes_stream();
     let tmp = dest.with_extension("part");
-    let mut file = tokio::fs::File::create(&tmp).await.context("Failed to create temp file")?;
+    let mut file = tokio::fs::File::create(&tmp)
+        .await
+        .context("Failed to create temp file")?;
     let mut downloaded: u64 = 0;
 
     use futures::StreamExt;
@@ -174,14 +183,21 @@ pub async fn download_model(model: &WhisperModel) -> Result<PathBuf> {
         downloaded += chunk.len() as u64;
         if total > 0 {
             let pct = (downloaded as f64 / total as f64 * 100.0) as u32;
-            eprint!("\r  [{:>3}%] {:.1}/{:.1} MB", pct, downloaded as f64 / 1e6, total as f64 / 1e6);
+            eprint!(
+                "\r  [{:>3}%] {:.1}/{:.1} MB",
+                pct,
+                downloaded as f64 / 1e6,
+                total as f64 / 1e6
+            );
         }
     }
     file.flush().await?;
     drop(file);
     eprintln!();
 
-    tokio::fs::rename(&tmp, &dest).await.context("Failed to rename downloaded model")?;
+    tokio::fs::rename(&tmp, &dest)
+        .await
+        .context("Failed to rename downloaded model")?;
     eprintln!("Saved to {}", dest.display());
     Ok(dest)
 }
@@ -202,7 +218,9 @@ pub async fn transcribe_local(
         anyhow::bail!(
             "Model '{}' not downloaded. Run: /voice download {}\n  \
              Or download manually to {}",
-            model.name(), model.name(), model_path.display()
+            model.name(),
+            model.name(),
+            model_path.display()
         );
     }
 
@@ -213,7 +231,15 @@ pub async fn transcribe_local(
 
     // Try whisper-cpp first (brew install whisper-cpp)
     let output = tokio::process::Command::new("whisper-cpp")
-        .args(["--model", model_arg, "--language", language, "--no-timestamps", "--file", wav_arg])
+        .args([
+            "--model",
+            model_arg,
+            "--language",
+            language,
+            "--no-timestamps",
+            "--file",
+            wav_arg,
+        ])
         .output()
         .await;
 
@@ -229,7 +255,15 @@ pub async fn transcribe_local(
 
     // Try whisper.cpp `main` binary (manual build)
     let output = tokio::process::Command::new("main")
-        .args(["-m", model_arg, "-l", language, "--no-timestamps", "-f", wav_arg])
+        .args([
+            "-m",
+            model_arg,
+            "-l",
+            language,
+            "--no-timestamps",
+            "-f",
+            wav_arg,
+        ])
         .output()
         .await;
 
@@ -245,7 +279,15 @@ pub async fn transcribe_local(
 
     // Try Python openai-whisper as last resort
     let output = tokio::process::Command::new("whisper")
-        .args([wav_arg, "--model", model.name(), "--language", language, "--output_format", "txt"])
+        .args([
+            wav_arg,
+            "--model",
+            model.name(),
+            "--language",
+            language,
+            "--output_format",
+            "txt",
+        ])
         .output()
         .await;
 
@@ -270,7 +312,10 @@ pub async fn transcribe_local(
 /// If the file is already .wav, try to use it directly.
 /// Otherwise, convert via ffmpeg.
 async fn ensure_wav_16k(audio_path: &Path) -> Result<PathBuf> {
-    let ext = audio_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+    let ext = audio_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
     if ext == "wav" {
         // Assume it's already the right format for simplicity
         return Ok(audio_path.to_path_buf());
@@ -280,8 +325,15 @@ async fn ensure_wav_16k(audio_path: &Path) -> Result<PathBuf> {
     let tmp = std::env::temp_dir().join("vibecli_voice_input.wav");
     let status = tokio::process::Command::new("ffmpeg")
         .args([
-            "-y", "-i", audio_path.to_str().unwrap_or(""),
-            "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le",
+            "-y",
+            "-i",
+            audio_path.to_str().unwrap_or(""),
+            "-ar",
+            "16000",
+            "-ac",
+            "1",
+            "-c:a",
+            "pcm_s16le",
             tmp.to_str().unwrap_or(""),
         ])
         .stdout(std::process::Stdio::null())
@@ -330,7 +382,9 @@ pub async fn local_tts(text: &str) -> Result<()> {
             .status()
             .await;
         if let Ok(s) = status {
-            if s.success() { return Ok(()); }
+            if s.success() {
+                return Ok(());
+            }
         }
         let status = tokio::process::Command::new("spd-say")
             .arg(text)
@@ -347,11 +401,15 @@ pub async fn local_tts(text: &str) -> Result<()> {
     {
         let ps_text = text.replace('\'', "''");
         let status = tokio::process::Command::new("powershell")
-            .args(["-Command", &format!(
-                "Add-Type -AssemblyName System.Speech; \
+            .args([
+                "-Command",
+                &format!(
+                    "Add-Type -AssemblyName System.Speech; \
                  $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; \
-                 $s.Speak('{}')", ps_text
-            )])
+                 $s.Speak('{}')",
+                    ps_text
+                ),
+            ])
             .status()
             .await
             .context("Failed to run PowerShell TTS")?;
@@ -459,16 +517,26 @@ impl VoiceDispatcher {
         let tmp = std::env::temp_dir().join("vibecli_mic.wav");
         let silence_secs = format!("{:.1}", silence_timeout_ms as f64 / 1000.0);
 
-        eprintln!("Listening... (speak now, stops after {}s silence)", silence_secs);
+        eprintln!(
+            "Listening... (speak now, stops after {}s silence)",
+            silence_secs
+        );
 
         // Use sox `rec` for cross-platform mic capture
         let status = tokio::process::Command::new("rec")
             .args([
                 tmp.to_str().unwrap_or(""),
-                "rate", "16000",
-                "channels", "1",
-                "silence", "1", "0.1", "1%",  // start recording on sound
-                "1", &silence_secs, "1%",      // stop after N seconds of silence
+                "rate",
+                "16000",
+                "channels",
+                "1",
+                "silence",
+                "1",
+                "0.1",
+                "1%", // start recording on sound
+                "1",
+                &silence_secs,
+                "1%", // stop after N seconds of silence
             ])
             .stdout(std::process::Stdio::null())
             .status()
@@ -499,24 +567,70 @@ impl VoiceDispatcher {
     pub fn status(&self) -> String {
         let mut lines = Vec::new();
         lines.push("Voice Engine Status:".to_string());
-        lines.push(format!("  Cloud STT (Groq Whisper): {}", if self.cloud_stt_key.is_some() { "configured" } else { "not configured" }));
-        lines.push(format!("  Cloud TTS (ElevenLabs):   {}", if self.cloud_tts_key.is_some() { "configured" } else { "not configured" }));
-        lines.push(format!("  Local model:              {} ({}MB)", self.local_model.name(), self.local_model.size_mb()));
-        lines.push(format!("  Local model downloaded:   {}", if is_model_downloaded(&self.local_model) { "yes" } else { "no" }));
+        lines.push(format!(
+            "  Cloud STT (Groq Whisper): {}",
+            if self.cloud_stt_key.is_some() {
+                "configured"
+            } else {
+                "not configured"
+            }
+        ));
+        lines.push(format!(
+            "  Cloud TTS (ElevenLabs):   {}",
+            if self.cloud_tts_key.is_some() {
+                "configured"
+            } else {
+                "not configured"
+            }
+        ));
+        lines.push(format!(
+            "  Local model:              {} ({}MB)",
+            self.local_model.name(),
+            self.local_model.size_mb()
+        ));
+        lines.push(format!(
+            "  Local model downloaded:   {}",
+            if is_model_downloaded(&self.local_model) {
+                "yes"
+            } else {
+                "no"
+            }
+        ));
         lines.push(format!("  Prefer local:             {}", self.prefer_local));
         lines.push(format!("  Language:                 {}", self.language));
 
         // Check for local whisper runtime
-        let has_whisper_cpp = std::process::Command::new("whisper-cpp").arg("--help")
-            .stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).status().is_ok();
-        let has_whisper_py = std::process::Command::new("whisper").arg("--help")
-            .stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).status().is_ok();
-        let has_sox = std::process::Command::new("sox").arg("--version")
-            .stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null()).status().is_ok();
+        let has_whisper_cpp = std::process::Command::new("whisper-cpp")
+            .arg("--help")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .is_ok();
+        let has_whisper_py = std::process::Command::new("whisper")
+            .arg("--help")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .is_ok();
+        let has_sox = std::process::Command::new("sox")
+            .arg("--version")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .is_ok();
 
-        lines.push(format!("  whisper-cpp installed:    {}", if has_whisper_cpp { "yes" } else { "no" }));
-        lines.push(format!("  whisper (Python):         {}", if has_whisper_py { "yes" } else { "no" }));
-        lines.push(format!("  sox (mic capture):        {}", if has_sox { "yes" } else { "no" }));
+        lines.push(format!(
+            "  whisper-cpp installed:    {}",
+            if has_whisper_cpp { "yes" } else { "no" }
+        ));
+        lines.push(format!(
+            "  whisper (Python):         {}",
+            if has_whisper_py { "yes" } else { "no" }
+        ));
+        lines.push(format!(
+            "  sox (mic capture):        {}",
+            if has_sox { "yes" } else { "no" }
+        ));
 
         lines.join("\n")
     }
@@ -538,8 +652,14 @@ async fn play_audio(path: &Path) {
     {
         // Try aplay, then paplay, then mpv
         for cmd in &["aplay", "paplay", "mpv"] {
-            if let Ok(s) = tokio::process::Command::new(cmd).arg(path_str).status().await {
-                if s.success() { return; }
+            if let Ok(s) = tokio::process::Command::new(cmd)
+                .arg(path_str)
+                .status()
+                .await
+            {
+                if s.success() {
+                    return;
+                }
             }
         }
     }
@@ -547,7 +667,10 @@ async fn play_audio(path: &Path) {
     #[cfg(target_os = "windows")]
     {
         let _ = tokio::process::Command::new("powershell")
-            .args(["-Command", &format!("(New-Object Media.SoundPlayer '{}').PlaySync()", path_str)])
+            .args([
+                "-Command",
+                &format!("(New-Object Media.SoundPlayer '{}').PlaySync()", path_str),
+            ])
             .status()
             .await;
     }
@@ -587,14 +710,20 @@ mod tests {
     #[test]
     fn transcribe_path_file_name_extraction() {
         let path = std::path::Path::new("/home/user/recording.wav");
-        let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("audio.wav");
+        let file_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("audio.wav");
         assert_eq!(file_name, "recording.wav");
     }
 
     #[test]
     fn transcribe_path_no_extension() {
         let path = std::path::Path::new("/tmp/audiofile");
-        let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("audio.wav");
+        let file_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("audio.wav");
         assert_eq!(file_name, "audiofile");
     }
 
@@ -602,7 +731,10 @@ mod tests {
     fn transcribe_path_fallback_name() {
         // A path with no file_name component should fall back
         let path = std::path::Path::new("/");
-        let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("audio.wav");
+        let file_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("audio.wav");
         assert_eq!(file_name, "audio.wav");
     }
 
@@ -678,7 +810,10 @@ mod tests {
     #[test]
     fn transcribe_audio_path_with_spaces() {
         let path = std::path::Path::new("/tmp/my audio file.wav");
-        let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("audio.wav");
+        let file_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("audio.wav");
         assert_eq!(file_name, "my audio file.wav");
     }
 
@@ -807,7 +942,10 @@ mod tests {
         assert_eq!(WhisperModel::from_name("tiny"), Some(WhisperModel::Tiny));
         assert_eq!(WhisperModel::from_name("BASE"), Some(WhisperModel::Base));
         assert_eq!(WhisperModel::from_name("Small"), Some(WhisperModel::Small));
-        assert_eq!(WhisperModel::from_name("medium"), Some(WhisperModel::Medium));
+        assert_eq!(
+            WhisperModel::from_name("medium"),
+            Some(WhisperModel::Medium)
+        );
         assert_eq!(WhisperModel::from_name("large"), Some(WhisperModel::Large));
         assert_eq!(WhisperModel::from_name("unknown"), None);
     }

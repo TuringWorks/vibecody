@@ -103,9 +103,7 @@ pub fn handle_goal_list(args: &str) {
         match GoalStatus::from_str(arg) {
             Some(s) => Some(s),
             None => {
-                println!(
-                    "Unknown status {arg:?}. Valid: active | paused | done | abandoned\n"
-                );
+                println!("Unknown status {arg:?}. Valid: active | paused | done | abandoned\n");
                 return;
             }
         }
@@ -219,12 +217,7 @@ pub fn handle_goal_show(args: &str) {
                 .filter(|s| !s.is_empty())
                 .map(|s| format!("  — {s}"))
                 .unwrap_or_default();
-            println!(
-                "  [{}] {}{}",
-                l.kind.as_str(),
-                short(&l.target_id),
-                note,
-            );
+            println!("  [{}] {}{}", l.kind.as_str(), short(&l.target_id), note,);
         }
     }
     println!();
@@ -243,9 +236,7 @@ pub fn handle_goal_status(args: &str) {
     let status = match GoalStatus::from_str(status_arg) {
         Some(s) => s,
         None => {
-            println!(
-                "Unknown status {status_arg:?}. Valid: active | paused | done | abandoned\n"
-            );
+            println!("Unknown status {status_arg:?}. Valid: active | paused | done | abandoned\n");
             return;
         }
     };
@@ -264,11 +255,7 @@ pub fn handle_goal_status(args: &str) {
         ..Default::default()
     };
     match store.update_goal(&id, &patch) {
-        Ok(Some(g)) => println!(
-            "Goal {} → {}\n",
-            short(&g.id),
-            g.status.as_str(),
-        ),
+        Ok(Some(g)) => println!("Goal {} → {}\n", short(&g.id), g.status.as_str(),),
         Ok(None) => println!("Goal not found.\n"),
         Err(e) => println!("Failed to update goal: {e}\n"),
     }
@@ -281,19 +268,18 @@ pub fn handle_goal_link(args: &str) {
     let id_prefix = parts.next().unwrap_or("").trim();
     let kind_str = parts.next().unwrap_or("").trim();
     let target_id = parts.next().unwrap_or("").trim();
-    let note = parts.next().map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    let note = parts
+        .next()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
     if id_prefix.is_empty() || kind_str.is_empty() || target_id.is_empty() {
-        println!(
-            "Usage: /goal link <goal-id> <session|job|recap|note> <target-id> [note]\n"
-        );
+        println!("Usage: /goal link <goal-id> <session|job|recap|note> <target-id> [note]\n");
         return;
     }
     let kind = match GoalLinkKind::from_str(kind_str) {
         Some(k) => k,
         None => {
-            println!(
-                "Unknown link kind {kind_str:?}. Valid: session | job | recap | note\n"
-            );
+            println!("Unknown link kind {kind_str:?}. Valid: session | job | recap | note\n");
             return;
         }
     };
@@ -422,12 +408,7 @@ pub fn handle_goal_children(args: &str) {
     }
     println!("\n{} children of {}\n", kids.len(), parent.title);
     for g in &kids {
-        println!(
-            "  {} [{}] {}",
-            short(&g.id),
-            g.status.as_str(),
-            g.title,
-        );
+        println!("  {} [{}] {}", short(&g.id), g.status.as_str(), g.title,);
     }
     println!();
 }
@@ -471,11 +452,7 @@ pub fn handle_goal_reparent(args: &str) {
     };
     match store.update_goal(&child_id, &patch) {
         Ok(Some(_)) => match &new_parent {
-            Some(p) => println!(
-                "Reparented {} under {}\n",
-                short(&child_id),
-                short(p),
-            ),
+            Some(p) => println!("Reparented {} under {}\n", short(&child_id), short(p),),
             None => println!("Promoted {} to a root.\n", short(&child_id)),
         },
         Ok(None) => println!("Child goal not found.\n"),
@@ -490,7 +467,10 @@ pub fn handle_goal_reparent(args: &str) {
 pub fn handle_goal_pin(args: &str) {
     let mut global = false;
     let mut rest = args.trim().to_string();
-    if let Some(stripped) = rest.strip_prefix("--global").map(|s| s.trim_start().to_string()) {
+    if let Some(stripped) = rest
+        .strip_prefix("--global")
+        .map(|s| s.trim_start().to_string())
+    {
         global = true;
         rest = stripped;
     }

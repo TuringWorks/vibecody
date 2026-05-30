@@ -201,9 +201,7 @@ impl StubGenerator {
 
     /// Generate stubs for multiple functions at once.
     pub fn generate_all(&self, sigs: &[FnSignature]) -> Vec<GeneratedStub> {
-        sigs.iter()
-            .map(|s| self.generate_test_stub(s))
-            .collect()
+        sigs.iter().map(|s| self.generate_test_stub(s)).collect()
     }
 
     // ---- Rust generators ----
@@ -273,7 +271,11 @@ impl StubGenerator {
                 .map(|r| format!(" -> {r}"))
                 .unwrap_or_default();
             let async_kw = if method.is_async { "async " } else { "" };
-            let _ = writeln!(out, "    {async_kw}fn {}({params_full}){ret} {{", method.name);
+            let _ = writeln!(
+                out,
+                "    {async_kw}fn {}({params_full}){ret} {{",
+                method.name
+            );
             let _ = writeln!(out, "        unimplemented!(\"TODO: implement mock\")");
             let _ = writeln!(out, "    }}");
         }
@@ -340,9 +342,7 @@ fn rust_default_value(type_: &str) -> &'static str {
         _ if type_.starts_with("Vec<") => "vec![]",
         _ if type_.starts_with("Option<") => "None",
         _ if type_.starts_with("Result<") => "Ok(Default::default())",
-        _ if type_.starts_with("HashMap<") || type_.starts_with("HashSet<") => {
-            "Default::default()"
-        }
+        _ if type_.starts_with("HashMap<") || type_.starts_with("HashSet<") => "Default::default()",
         _ => "Default::default()",
     }
 }
@@ -470,7 +470,9 @@ mod tests {
         let trait_def = TraitDef::new("IStorage")
             .with_method(FnSignature::new("get").with_params(vec![Param::new("key", "string")]));
         let stub = gen.generate_mock(&trait_def, "MockStorage");
-        assert!(stub.source.contains("class MockStorage implements IStorage"));
+        assert!(stub
+            .source
+            .contains("class MockStorage implements IStorage"));
     }
 
     #[test]
@@ -524,7 +526,9 @@ mod tests {
     #[test]
     fn test_async_stub_contains_async() {
         let gen = StubGenerator::rust();
-        let sig = FnSignature::new("fetch_data").async_().with_return("String");
+        let sig = FnSignature::new("fetch_data")
+            .async_()
+            .with_return("String");
         let stub = gen.generate_test_stub(&sig);
         assert!(stub.source.contains("async fn test_fetch_data"));
     }

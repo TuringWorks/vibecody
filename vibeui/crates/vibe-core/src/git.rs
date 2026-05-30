@@ -146,26 +146,26 @@ pub fn pull(repo_path: &Path, remote: &str, branch: &str) -> Result<()> {
 pub fn get_diff(repo_path: &Path, file_path: &str) -> Result<String> {
     let repo = Repository::open(repo_path)?;
     let head = repo.head()?.peel_to_tree()?;
-    
+
     let mut diff_opts = git2::DiffOptions::new();
     diff_opts.pathspec(file_path);
-    
+
     let diff = repo.diff_tree_to_workdir_with_index(Some(&head), Some(&mut diff_opts))?;
-    
+
     let mut diff_text = String::new();
     diff.print(git2::DiffFormat::Patch, |_delta, _hunk, line| {
         let content = String::from_utf8_lossy(line.content());
         diff_text.push_str(&content);
         true
     })?;
-    
+
     Ok(diff_text)
 }
 
 pub fn list_branches(repo_path: &Path) -> Result<Vec<String>> {
     let repo = Repository::open(repo_path)?;
     let branches = repo.branches(None)?;
-    
+
     let mut branch_names = Vec::new();
     for branch in branches {
         let (branch, _) = branch?;
@@ -173,7 +173,7 @@ pub fn list_branches(repo_path: &Path) -> Result<Vec<String>> {
             branch_names.push(name.to_string());
         }
     }
-    
+
     Ok(branch_names)
 }
 
@@ -182,7 +182,9 @@ pub fn switch_branch(repo_path: &Path, branch: &str) -> Result<()> {
 
     // Try local branch first
     if let Ok(branch_ref) = repo.find_branch(branch, git2::BranchType::Local) {
-        let ref_name = branch_ref.get().name()
+        let ref_name = branch_ref
+            .get()
+            .name()
             .ok_or_else(|| anyhow::anyhow!("Branch reference has non-UTF-8 name"))?
             .to_string();
         repo.set_head(&ref_name)?;
@@ -193,7 +195,8 @@ pub fn switch_branch(repo_path: &Path, branch: &str) -> Result<()> {
     // Check if it's a remote branch (e.g. "origin/feature")
     if let Ok(remote_branch) = repo.find_branch(branch, git2::BranchType::Remote) {
         // Derive local name by stripping the remote prefix (e.g. "origin/feature" -> "feature")
-        let local_name = branch.split_once('/')
+        let local_name = branch
+            .split_once('/')
             .map(|(_, name)| name)
             .unwrap_or(branch);
 
@@ -202,11 +205,15 @@ pub fn switch_branch(repo_path: &Path, branch: &str) -> Result<()> {
         let mut new_branch = repo.branch(local_name, &commit, false)?;
 
         // Set upstream tracking
-        let remote_ref = remote_branch.get().name()
+        let remote_ref = remote_branch
+            .get()
+            .name()
             .ok_or_else(|| anyhow::anyhow!("Remote branch reference has non-UTF-8 name"))?;
         new_branch.set_upstream(Some(remote_ref))?;
 
-        let ref_name = new_branch.get().name()
+        let ref_name = new_branch
+            .get()
+            .name()
             .ok_or_else(|| anyhow::anyhow!("New branch reference has non-UTF-8 name"))?
             .to_string();
         repo.set_head(&ref_name)?;
@@ -221,16 +228,16 @@ pub fn get_history(repo_path: &Path, limit: usize) -> Result<Vec<CommitInfo>> {
     let repo = Repository::open(repo_path)?;
     let mut revwalk = repo.revwalk()?;
     revwalk.push_head()?;
-    
+
     let mut commits = Vec::new();
     for (i, oid) in revwalk.enumerate() {
         if i >= limit {
             break;
         }
-        
+
         let oid = oid?;
         let commit = repo.find_commit(oid)?;
-        
+
         commits.push(CommitInfo {
             hash: oid.to_string(),
             author: commit.author().name().unwrap_or("Unknown").to_string(),
@@ -238,7 +245,7 @@ pub fn get_history(repo_path: &Path, limit: usize) -> Result<Vec<CommitInfo>> {
             timestamp: commit.time().seconds(),
         });
     }
-    
+
     Ok(commits)
 }
 
@@ -259,11 +266,7 @@ pub fn get_commit_files(repo_path: &Path, hash: &str) -> Result<Vec<String>> {
         None
     };
 
-    let diff = repo.diff_tree_to_tree(
-        parent_tree.as_ref(),
-        Some(&tree),
-        None,
-    )?;
+    let diff = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), None)?;
 
     let mut files = Vec::new();
     diff.foreach(
@@ -288,18 +291,16 @@ pub fn get_commit_files(repo_path: &Path, hash: &str) -> Result<Vec<String>> {
 
 pub fn discard_changes(repo_path: &Path, file_path: &str) -> Result<()> {
     let repo = Repository::open(repo_path)?;
-    
+
     // Checkout the file from HEAD
     let mut checkout_builder = git2::build::CheckoutBuilder::new();
     checkout_builder.path(file_path);
     checkout_builder.force();
-    
+
     repo.checkout_head(Some(&mut checkout_builder))?;
-    
+
     Ok(())
 }
-
-
 
 pub fn is_git_repo(path: &Path) -> bool {
     Repository::open(path).is_ok()
@@ -384,7 +385,13 @@ pub struct WorktreeInfo {
 /// Equivalent to: `git worktree add <worktree_path> -b <branch>`
 pub fn create_worktree(repo_path: &Path, branch: &str, worktree_path: &Path) -> Result<()> {
     let output = std::process::Command::new("git")
-        .args(["worktree", "add", "-b", branch, &worktree_path.to_string_lossy()])
+        .args([
+            "worktree",
+            "add",
+            "-b",
+            branch,
+            &worktree_path.to_string_lossy(),
+        ])
         .current_dir(repo_path)
         .output()?;
     if !output.status.success() {
@@ -399,7 +406,12 @@ pub fn create_worktree(repo_path: &Path, branch: &str, worktree_path: &Path) -> 
 /// Equivalent to: `git worktree remove --force <worktree_path>`
 pub fn remove_worktree(repo_path: &Path, worktree_path: &Path) -> Result<()> {
     let output = std::process::Command::new("git")
-        .args(["worktree", "remove", "--force", &worktree_path.to_string_lossy()])
+        .args([
+            "worktree",
+            "remove",
+            "--force",
+            &worktree_path.to_string_lossy(),
+        ])
         .current_dir(repo_path)
         .output()?;
     if !output.status.success() {
@@ -436,7 +448,9 @@ pub fn list_worktrees(repo_path: &Path) -> Result<Vec<WorktreeInfo>> {
                     });
                 }
             }
-            current_path = Some(std::path::PathBuf::from(line.trim_start_matches("worktree ")));
+            current_path = Some(std::path::PathBuf::from(
+                line.trim_start_matches("worktree "),
+            ));
             current_branch.clear();
             is_bare = false;
         } else if line.starts_with("branch ") {
@@ -558,8 +572,10 @@ mod tests {
     fn get_current_branch_returns_main_or_master() {
         let dir = make_git_repo();
         let branch = get_current_branch(dir.path()).unwrap();
-        assert!(branch == "main" || branch == "master",
-            "unexpected branch: {branch}");
+        assert!(
+            branch == "main" || branch == "master",
+            "unexpected branch: {branch}"
+        );
     }
 
     // ── get_status ────────────────────────────────────────────────────────────
@@ -568,11 +584,15 @@ mod tests {
     fn get_status_clean_repo_has_no_modified_files() {
         let dir = make_git_repo();
         let status = get_status(dir.path()).unwrap();
-        let modified: Vec<_> = status.file_statuses
+        let modified: Vec<_> = status
+            .file_statuses
             .values()
             .filter(|s| **s == FileStatus::Modified)
             .collect();
-        assert!(modified.is_empty(), "clean repo should have no modified files");
+        assert!(
+            modified.is_empty(),
+            "clean repo should have no modified files"
+        );
     }
 
     #[test]
@@ -592,7 +612,10 @@ mod tests {
         std::fs::write(dir.path().join("README.md"), "changed").unwrap();
         let status = get_status(dir.path()).unwrap();
         assert!(
-            status.file_statuses.values().any(|s| *s == FileStatus::Modified),
+            status
+                .file_statuses
+                .values()
+                .any(|s| *s == FileStatus::Modified),
             "changed file should appear as Modified"
         );
     }
@@ -624,8 +647,10 @@ mod tests {
         create_stash(dir.path(), "to-drop").unwrap();
         assert_eq!(list_stashes(dir.path()).unwrap().len(), 1);
         drop_stash(dir.path(), 0).unwrap();
-        assert!(list_stashes(dir.path()).unwrap().is_empty(),
-            "stash should be gone after drop");
+        assert!(
+            list_stashes(dir.path()).unwrap().is_empty(),
+            "stash should be gone after drop"
+        );
     }
 
     #[test]
@@ -647,7 +672,10 @@ mod tests {
     fn drop_stash_on_wrong_index_returns_error() {
         let dir = make_git_repo();
         let result = drop_stash(dir.path(), 99);
-        assert!(result.is_err(), "dropping nonexistent stash index should fail");
+        assert!(
+            result.is_err(),
+            "dropping nonexistent stash index should fail"
+        );
     }
 
     // ── list_branches ──────────────────────────────────────────────────────
@@ -679,7 +707,11 @@ mod tests {
         // Make a second commit
         std::fs::write(dir.path().join("second.txt"), "second").unwrap();
         let run = |args: &[&str]| {
-            Command::new("git").args(args).current_dir(dir.path()).output().unwrap();
+            Command::new("git")
+                .args(args)
+                .current_dir(dir.path())
+                .output()
+                .unwrap();
         };
         run(&["add", "second.txt"]);
         run(&["commit", "-m", "second"]);
@@ -757,11 +789,22 @@ mod tests {
         let dir = make_git_repo();
         std::fs::write(dir.path().join("new.txt"), "hello").unwrap();
         let run = |args: &[&str]| {
-            Command::new("git").args(args).current_dir(dir.path()).output().unwrap();
+            Command::new("git")
+                .args(args)
+                .current_dir(dir.path())
+                .output()
+                .unwrap();
         };
         run(&["add", "new.txt"]);
 
-        commit(dir.path(), "add new file", vec!["new.txt".to_string()], None, None).unwrap();
+        commit(
+            dir.path(),
+            "add new file",
+            vec!["new.txt".to_string()],
+            None,
+            None,
+        )
+        .unwrap();
 
         let history = get_history(dir.path(), 1).unwrap();
         assert!(history[0].message.contains("add new file"));
@@ -774,7 +817,11 @@ mod tests {
         let dir = make_git_repo();
         // Create a new branch
         let run = |args: &[&str]| {
-            Command::new("git").args(args).current_dir(dir.path()).output().unwrap();
+            Command::new("git")
+                .args(args)
+                .current_dir(dir.path())
+                .output()
+                .unwrap();
         };
         run(&["branch", "feature-x"]);
 
@@ -940,9 +987,18 @@ mod tests {
             file_statuses: files,
         };
         assert_eq!(status.file_statuses.len(), 3);
-        assert_eq!(status.file_statuses.get("src/lib.rs"), Some(&FileStatus::Modified));
-        assert_eq!(status.file_statuses.get("new_file.txt"), Some(&FileStatus::New));
-        assert_eq!(status.file_statuses.get("old.rs"), Some(&FileStatus::Deleted));
+        assert_eq!(
+            status.file_statuses.get("src/lib.rs"),
+            Some(&FileStatus::Modified)
+        );
+        assert_eq!(
+            status.file_statuses.get("new_file.txt"),
+            Some(&FileStatus::New)
+        );
+        assert_eq!(
+            status.file_statuses.get("old.rs"),
+            Some(&FileStatus::Deleted)
+        );
     }
 
     #[test]
@@ -1144,16 +1200,16 @@ pub fn get_repo_diff(repo_path: &Path) -> Result<String> {
     if repo.head().is_err() {
         return Ok(String::new());
     }
-    
+
     let head = repo.head()?.peel_to_tree()?;
     let diff = repo.diff_tree_to_workdir_with_index(Some(&head), None)?;
-    
+
     let mut diff_text = String::new();
     diff.print(git2::DiffFormat::Patch, |_delta, _hunk, line| {
         let content = String::from_utf8_lossy(line.content());
         diff_text.push_str(&content);
         true
     })?;
-    
+
     Ok(diff_text)
 }

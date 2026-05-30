@@ -50,7 +50,11 @@ pub struct GitWorktreePool {
 }
 
 impl GitWorktreePool {
-    pub fn new(source_repo: impl AsRef<Path>, base_dir: impl AsRef<Path>, max_worktrees: usize) -> Self {
+    pub fn new(
+        source_repo: impl AsRef<Path>,
+        base_dir: impl AsRef<Path>,
+        max_worktrees: usize,
+    ) -> Self {
         Self {
             source_repo: source_repo.as_ref().to_path_buf(),
             base_dir: base_dir.as_ref().to_path_buf(),

@@ -206,10 +206,8 @@ mod tests {
 
     #[test]
     fn router_resolve_precedence() {
-        let r = Router::new(BackendKind::Ollama).with_pins(vec![Pin::new(
-            "Qwen/*",
-            BackendKind::Mistralrs,
-        )]);
+        let r = Router::new(BackendKind::Ollama)
+            .with_pins(vec![Pin::new("Qwen/*", BackendKind::Mistralrs)]);
         // Pin matches.
         assert_eq!(r.resolve("Qwen/foo", None).kind(), BackendKind::Mistralrs);
         // Pin doesn't match → default.

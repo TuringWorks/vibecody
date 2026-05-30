@@ -75,7 +75,10 @@ impl DeploymentStatus {
     pub fn can_transition_to(self, next: DeploymentStatus) -> bool {
         use DeploymentStatus::*;
         match (self, next) {
-            (Staging, Canary) | (Staging, Production) | (Staging, RolledBack) | (Staging, Stopped) => true,
+            (Staging, Canary)
+            | (Staging, Production)
+            | (Staging, RolledBack)
+            | (Staging, Stopped) => true,
             (Canary, Production) | (Canary, RolledBack) | (Canary, Stopped) => true,
             (Production, RolledBack) | (Production, Stopped) => true,
             // Same-state transition allowed for traffic_pct updates.
@@ -199,7 +202,9 @@ impl DeploymentStore {
 
     pub fn create(&self, req: CreateDeploymentRequest) -> Result<Deployment, RunError> {
         if req.name.trim().is_empty() {
-            return Err(RunError::Invalid("deployment name must be non-empty".into()));
+            return Err(RunError::Invalid(
+                "deployment name must be non-empty".into(),
+            ));
         }
         if req.traffic_pct < 0.0 || req.traffic_pct > 100.0 {
             return Err(RunError::Invalid(
@@ -235,7 +240,9 @@ impl DeploymentStore {
             ],
         )
         .map_err(|e| match e {
-            rusqlite::Error::SqliteFailure(_, ref m) if m.as_deref().map_or(false, |x| x.contains("FOREIGN KEY")) => {
+            rusqlite::Error::SqliteFailure(_, ref m)
+                if m.as_deref().map_or(false, |x| x.contains("FOREIGN KEY")) =>
+            {
                 RunError::Invalid(format!(
                     "artifact {} not found in rl_artifacts — register the run's artifact first",
                     req.artifact_id
@@ -290,7 +297,9 @@ impl DeploymentStore {
         })?;
         if let Some(pct) = req.traffic_pct {
             if !(0.0..=100.0).contains(&pct) {
-                return Err(RunError::Invalid("traffic_pct must be between 0 and 100".into()));
+                return Err(RunError::Invalid(
+                    "traffic_pct must be between 0 and 100".into(),
+                ));
             }
         }
         self.transition_internal(deployment_id, target, req.traffic_pct, None)
@@ -302,7 +311,9 @@ impl DeploymentStore {
         req: RollbackRequest,
     ) -> Result<Deployment, RunError> {
         if req.reason.trim().is_empty() {
-            return Err(RunError::Invalid("rollback reason must be non-empty".into()));
+            return Err(RunError::Invalid(
+                "rollback reason must be non-empty".into(),
+            ));
         }
         self.transition_internal(
             deployment_id,
@@ -348,7 +359,9 @@ impl DeploymentStore {
             });
         }
 
-        let promoted_at = if matches!(target, DeploymentStatus::Production) && from != DeploymentStatus::Production {
+        let promoted_at = if matches!(target, DeploymentStatus::Production)
+            && from != DeploymentStatus::Production
+        {
             Some(now)
         } else {
             None
@@ -511,7 +524,10 @@ mod tests {
         assert_eq!(d.status, DeploymentStatus::Staging);
         assert_eq!(d.runtime, "python");
         assert_eq!(deps.list().unwrap().len(), 1);
-        assert_eq!(deps.get(&d.deployment_id).unwrap().unwrap().name, "cartpole-prod");
+        assert_eq!(
+            deps.get(&d.deployment_id).unwrap().unwrap().name,
+            "cartpole-prod"
+        );
     }
 
     #[test]
@@ -665,7 +681,10 @@ mod tests {
         let h = deps.health(&d.deployment_id).unwrap();
         assert_eq!(h.deployment_id, d.deployment_id);
         assert_eq!(h.status, "staging");
-        assert!(h.note.is_some(), "slice 6 health note must explain that latency lands in slice 6.5");
+        assert!(
+            h.note.is_some(),
+            "slice 6 health note must explain that latency lands in slice 6.5"
+        );
         assert!(h.uptime_seconds >= 0);
     }
 }

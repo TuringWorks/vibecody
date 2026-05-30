@@ -279,15 +279,19 @@ mod tests {
             .iter()
             .flat_map(|j| &j.steps)
             .any(|s| s.uses.as_deref() == Some("actions/checkout@v4"));
-        assert!(has_checkout, "Expected checkout step with actions/checkout@v4");
+        assert!(
+            has_checkout,
+            "Expected checkout step with actions/checkout@v4"
+        );
     }
 
     #[test]
     fn test_issue_workflow_has_issue_comment_trigger() {
         let wf = ActionGenerator::issue_to_task_workflow();
-        let has = wf.triggers.iter().any(|t| {
-            matches!(t, ActionTrigger::IssueComment { pattern } if pattern == "@vibecli")
-        });
+        let has = wf
+            .triggers
+            .iter()
+            .any(|t| matches!(t, ActionTrigger::IssueComment { pattern } if pattern == "@vibecli"));
         assert!(has, "Expected IssueComment trigger with pattern @vibecli");
     }
 

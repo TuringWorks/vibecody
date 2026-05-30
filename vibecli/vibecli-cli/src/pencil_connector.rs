@@ -7,7 +7,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::design_providers::{DesignComponent, DesignError, DesignFile, DesignFrame, DesignToken, DesignTokenType, ProviderKind};
+use crate::design_providers::{
+    DesignComponent, DesignError, DesignFile, DesignFrame, DesignToken, DesignTokenType,
+    ProviderKind,
+};
 
 // ─── Pencil shape types ───────────────────────────────────────────────────────
 
@@ -109,7 +112,12 @@ impl PencilDocument {
 
     /// Serialize to Pencil EP XML format (the .ep ZIP inner content.xml)
     pub fn to_ep_xml(&self) -> String {
-        let pages_xml: String = self.pages.iter().map(page_to_xml).collect::<Vec<_>>().join("\n");
+        let pages_xml: String = self
+            .pages
+            .iter()
+            .map(page_to_xml)
+            .collect::<Vec<_>>()
+            .join("\n");
         format!(
             r#"<?xml version="1.0" encoding="UTF-8"?>
 <Document xmlns="http://www.evolus.vn/Namespace/Pencil"
@@ -119,19 +127,25 @@ impl PencilDocument {
           version="3.1.0">
 {}
 </Document>"#,
-            self.id, xml_escape(&self.name), pages_xml
+            self.id,
+            xml_escape(&self.name),
+            pages_xml
         )
     }
 
     /// Convert to a DesignFile for provider-agnostic usage
     pub fn to_design_file(&self) -> DesignFile {
-        let frames: Vec<DesignFrame> = self.pages.iter().map(|p| DesignFrame {
-            id: p.id.clone(),
-            name: p.name.clone(),
-            width: p.width as u32,
-            height: p.height as u32,
-            thumbnail_url: None,
-        }).collect();
+        let frames: Vec<DesignFrame> = self
+            .pages
+            .iter()
+            .map(|p| DesignFrame {
+                id: p.id.clone(),
+                name: p.name.clone(),
+                width: p.width as u32,
+                height: p.height as u32,
+                thumbnail_url: None,
+            })
+            .collect();
 
         let components = extract_components_from_doc(self);
         let tokens = extract_tokens_from_doc(self);
@@ -149,11 +163,25 @@ impl PencilDocument {
 }
 
 fn page_to_xml(page: &PencilPage) -> String {
-    let shapes_xml: String = page.shapes.iter().map(|s| shape_to_xml(s, 0)).collect::<Vec<_>>().join("\n");
-    let bg = page.background.as_deref().map(|b| format!(" background=\"{}\"", b)).unwrap_or_default();
+    let shapes_xml: String = page
+        .shapes
+        .iter()
+        .map(|s| shape_to_xml(s, 0))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let bg = page
+        .background
+        .as_deref()
+        .map(|b| format!(" background=\"{}\"", b))
+        .unwrap_or_default();
     format!(
         r#"  <Page id="{}" name="{}" width="{}" height="{}"{}>\n{}\n  </Page>"#,
-        page.id, xml_escape(&page.name), page.width, page.height, bg, shapes_xml
+        page.id,
+        xml_escape(&page.name),
+        page.width,
+        page.height,
+        bg,
+        shapes_xml
     )
 }
 
@@ -163,13 +191,23 @@ fn shape_to_xml(shape: &PencilShape, depth: usize) -> String {
     let children_xml = if shape.children.is_empty() {
         String::new()
     } else {
-        let c: String = shape.children.iter().map(|c| shape_to_xml(c, depth + 1)).collect::<Vec<_>>().join("\n");
+        let c: String = shape
+            .children
+            .iter()
+            .map(|c| shape_to_xml(c, depth + 1))
+            .collect::<Vec<_>>()
+            .join("\n");
         format!("\n{}\n{}", c, indent)
     };
     format!(
         r#"{}<Shape id="{}" type="{}" x="{}" y="{}" width="{}" height="{}"{}>{}</Shape>"#,
-        indent, shape.id, format!("{:?}", shape.kind).to_lowercase(),
-        shape.x, shape.y, shape.width, shape.height,
+        indent,
+        shape.id,
+        format!("{:?}", shape.kind).to_lowercase(),
+        shape.x,
+        shape.y,
+        shape.width,
+        shape.height,
         style_str,
         if shape.label.is_empty() && children_xml.is_empty() {
             String::new()
@@ -181,11 +219,21 @@ fn shape_to_xml(shape: &PencilShape, depth: usize) -> String {
 
 fn style_to_attrs(style: &PencilStyle) -> String {
     let mut attrs = String::new();
-    if let Some(c) = &style.fill_color { attrs.push_str(&format!(" fill=\"{}\"", c)); }
-    if let Some(c) = &style.stroke_color { attrs.push_str(&format!(" stroke=\"{}\"", c)); }
-    if let Some(w) = style.stroke_width { attrs.push_str(&format!(" strokeWidth=\"{}\"", w)); }
-    if let Some(fs) = style.font_size { attrs.push_str(&format!(" fontSize=\"{}\"", fs)); }
-    if let Some(r) = style.border_radius { attrs.push_str(&format!(" borderRadius=\"{}\"", r)); }
+    if let Some(c) = &style.fill_color {
+        attrs.push_str(&format!(" fill=\"{}\"", c));
+    }
+    if let Some(c) = &style.stroke_color {
+        attrs.push_str(&format!(" stroke=\"{}\"", c));
+    }
+    if let Some(w) = style.stroke_width {
+        attrs.push_str(&format!(" strokeWidth=\"{}\"", w));
+    }
+    if let Some(fs) = style.font_size {
+        attrs.push_str(&format!(" fontSize=\"{}\"", fs));
+    }
+    if let Some(r) = style.border_radius {
+        attrs.push_str(&format!(" borderRadius=\"{}\"", r));
+    }
     attrs
 }
 
@@ -200,16 +248,30 @@ pub fn parse_ep_xml(xml: &str) -> Result<PencilDocument, DesignError> {
 
     let name = extract_attr_val(xml, "name").unwrap_or_else(|| "Untitled".to_string());
     let id = extract_attr_val(xml, "id").unwrap_or_else(uuid_short);
-    let mut doc = PencilDocument { id, name, pages: Vec::new(), metadata: HashMap::new() };
+    let mut doc = PencilDocument {
+        id,
+        name,
+        pages: Vec::new(),
+        metadata: HashMap::new(),
+    };
 
     for page_chunk in split_tag_blocks(xml, "<Page", "</Page>") {
         let pname = extract_attr_val(&page_chunk, "name").unwrap_or_else(|| "Page".to_string());
         let pid = extract_attr_val(&page_chunk, "id").unwrap_or_else(uuid_short);
         let pw: f64 = extract_attr_val(&page_chunk, "width")
-            .and_then(|v| v.parse().ok()).unwrap_or(1280.0);
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(1280.0);
         let ph: f64 = extract_attr_val(&page_chunk, "height")
-            .and_then(|v| v.parse().ok()).unwrap_or(800.0);
-        let mut page = PencilPage { id: pid, name: pname, width: pw, height: ph, background: None, shapes: Vec::new() };
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(800.0);
+        let mut page = PencilPage {
+            id: pid,
+            name: pname,
+            width: pw,
+            height: ph,
+            background: None,
+            shapes: Vec::new(),
+        };
 
         for shape_chunk in split_tag_blocks(&page_chunk, "<Shape", "</Shape>") {
             if let Some(shape) = parse_shape_xml(&shape_chunk) {
@@ -243,11 +305,29 @@ fn parse_shape_xml(xml: &str) -> Option<PencilShape> {
         "container" | "group" => PencilShapeKind::Container,
         _ => PencilShapeKind::Rectangle,
     };
-    let x: f64 = extract_attr_val(xml, "x").and_then(|v| v.parse().ok()).unwrap_or(0.0);
-    let y: f64 = extract_attr_val(xml, "y").and_then(|v| v.parse().ok()).unwrap_or(0.0);
-    let w: f64 = extract_attr_val(xml, "width").and_then(|v| v.parse().ok()).unwrap_or(100.0);
-    let h: f64 = extract_attr_val(xml, "height").and_then(|v| v.parse().ok()).unwrap_or(40.0);
-    Some(PencilShape { id, kind, x, y, width: w, height: h, label: String::new(), style: PencilStyle::default(), children: Vec::new() })
+    let x: f64 = extract_attr_val(xml, "x")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0.0);
+    let y: f64 = extract_attr_val(xml, "y")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(0.0);
+    let w: f64 = extract_attr_val(xml, "width")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(100.0);
+    let h: f64 = extract_attr_val(xml, "height")
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(40.0);
+    Some(PencilShape {
+        id,
+        kind,
+        x,
+        y,
+        width: w,
+        height: h,
+        label: String::new(),
+        style: PencilStyle::default(),
+        children: Vec::new(),
+    })
 }
 
 // ─── Wireframe templates ──────────────────────────────────────────────────────
@@ -258,26 +338,132 @@ pub fn template_landing_page(title: &str) -> PencilDocument {
     let mut page = PencilPage::new("Landing Page", 1440.0, 900.0);
 
     // Nav bar
-    page.add_shape(make_rect("nav", 0.0, 0.0, 1440.0, 64.0, Some("#f0f0f0"), "Navigation"));
-    page.add_shape(make_rect("logo", 20.0, 12.0, 120.0, 40.0, Some("#cccccc"), "Logo"));
-    page.add_shape(make_text("nav-links", 800.0, 22.0, 400.0, 24.0, "Home  About  Features  Pricing  Contact"));
-    page.add_shape(make_button("nav-cta", 1300.0, 16.0, 120.0, 32.0, "Get Started"));
+    page.add_shape(make_rect(
+        "nav",
+        0.0,
+        0.0,
+        1440.0,
+        64.0,
+        Some("#f0f0f0"),
+        "Navigation",
+    ));
+    page.add_shape(make_rect(
+        "logo",
+        20.0,
+        12.0,
+        120.0,
+        40.0,
+        Some("#cccccc"),
+        "Logo",
+    ));
+    page.add_shape(make_text(
+        "nav-links",
+        800.0,
+        22.0,
+        400.0,
+        24.0,
+        "Home  About  Features  Pricing  Contact",
+    ));
+    page.add_shape(make_button(
+        "nav-cta",
+        1300.0,
+        16.0,
+        120.0,
+        32.0,
+        "Get Started",
+    ));
 
     // Hero
-    page.add_shape(make_rect("hero", 0.0, 64.0, 1440.0, 500.0, Some("#e8f4fd"), ""));
-    page.add_shape(make_text("hero-title", 200.0, 180.0, 700.0, 60.0, "Your Amazing Product Headline"));
-    page.add_shape(make_text("hero-sub", 200.0, 260.0, 600.0, 30.0, "A compelling subtitle that explains the value"));
-    page.add_shape(make_button("hero-cta-1", 200.0, 330.0, 160.0, 50.0, "Start Free Trial"));
-    page.add_shape(make_button("hero-cta-2", 380.0, 330.0, 140.0, 50.0, "Learn More"));
-    page.add_shape(make_rect("hero-img", 900.0, 100.0, 460.0, 380.0, Some("#cccccc"), "Product Screenshot"));
+    page.add_shape(make_rect(
+        "hero",
+        0.0,
+        64.0,
+        1440.0,
+        500.0,
+        Some("#e8f4fd"),
+        "",
+    ));
+    page.add_shape(make_text(
+        "hero-title",
+        200.0,
+        180.0,
+        700.0,
+        60.0,
+        "Your Amazing Product Headline",
+    ));
+    page.add_shape(make_text(
+        "hero-sub",
+        200.0,
+        260.0,
+        600.0,
+        30.0,
+        "A compelling subtitle that explains the value",
+    ));
+    page.add_shape(make_button(
+        "hero-cta-1",
+        200.0,
+        330.0,
+        160.0,
+        50.0,
+        "Start Free Trial",
+    ));
+    page.add_shape(make_button(
+        "hero-cta-2",
+        380.0,
+        330.0,
+        140.0,
+        50.0,
+        "Learn More",
+    ));
+    page.add_shape(make_rect(
+        "hero-img",
+        900.0,
+        100.0,
+        460.0,
+        380.0,
+        Some("#cccccc"),
+        "Product Screenshot",
+    ));
 
     // Features section
-    page.add_shape(make_text("feat-title", 540.0, 600.0, 360.0, 40.0, "Key Features"));
-    for (i, feature) in ["Feature One", "Feature Two", "Feature Three"].iter().enumerate() {
+    page.add_shape(make_text(
+        "feat-title",
+        540.0,
+        600.0,
+        360.0,
+        40.0,
+        "Key Features",
+    ));
+    for (i, feature) in ["Feature One", "Feature Two", "Feature Three"]
+        .iter()
+        .enumerate()
+    {
         let x = 160.0 + (i as f64) * 380.0;
-        page.add_shape(make_rect(&format!("feat-icon-{}", i), x + 100.0, 660.0, 60.0, 60.0, Some("#3b82f6"), ""));
-        page.add_shape(make_text(&format!("feat-name-{}", i), x, 740.0, 260.0, 28.0, feature));
-        page.add_shape(make_text(&format!("feat-desc-{}", i), x, 775.0, 260.0, 40.0, "Feature description goes here with key benefits"));
+        page.add_shape(make_rect(
+            &format!("feat-icon-{}", i),
+            x + 100.0,
+            660.0,
+            60.0,
+            60.0,
+            Some("#3b82f6"),
+            "",
+        ));
+        page.add_shape(make_text(
+            &format!("feat-name-{}", i),
+            x,
+            740.0,
+            260.0,
+            28.0,
+            feature,
+        ));
+        page.add_shape(make_text(
+            &format!("feat-desc-{}", i),
+            x,
+            775.0,
+            260.0,
+            40.0,
+            "Feature description goes here with key benefits",
+        ));
     }
 
     doc.add_page(page);
@@ -290,29 +476,108 @@ pub fn template_dashboard(title: &str, sections: &[&str]) -> PencilDocument {
     let mut page = PencilPage::new("Dashboard", 1440.0, 900.0);
 
     // Sidebar
-    page.add_shape(make_rect("sidebar", 0.0, 0.0, 240.0, 900.0, Some("#1e293b"), ""));
-    page.add_shape(make_text("sidebar-logo", 20.0, 20.0, 200.0, 40.0, "VibeCody Dashboard"));
+    page.add_shape(make_rect(
+        "sidebar",
+        0.0,
+        0.0,
+        240.0,
+        900.0,
+        Some("#1e293b"),
+        "",
+    ));
+    page.add_shape(make_text(
+        "sidebar-logo",
+        20.0,
+        20.0,
+        200.0,
+        40.0,
+        "VibeCody Dashboard",
+    ));
     for (i, section) in sections.iter().enumerate() {
         let sy = 80.0 + (i as f64) * 48.0;
-        page.add_shape(make_rect(&format!("nav-item-{}", i), 8.0, sy, 224.0, 40.0, Some("#334155"), section));
+        page.add_shape(make_rect(
+            &format!("nav-item-{}", i),
+            8.0,
+            sy,
+            224.0,
+            40.0,
+            Some("#334155"),
+            section,
+        ));
     }
 
     // Header
-    page.add_shape(make_rect("header", 240.0, 0.0, 1200.0, 60.0, Some("#f8fafc"), ""));
-    page.add_shape(make_text("header-title", 260.0, 15.0, 400.0, 30.0, "Dashboard Overview"));
+    page.add_shape(make_rect(
+        "header",
+        240.0,
+        0.0,
+        1200.0,
+        60.0,
+        Some("#f8fafc"),
+        "",
+    ));
+    page.add_shape(make_text(
+        "header-title",
+        260.0,
+        15.0,
+        400.0,
+        30.0,
+        "Dashboard Overview",
+    ));
 
     // Stats row
-    for (i, label) in ["Total Users", "Active Today", "Revenue", "Conversion"].iter().enumerate() {
+    for (i, label) in ["Total Users", "Active Today", "Revenue", "Conversion"]
+        .iter()
+        .enumerate()
+    {
         let x = 260.0 + (i as f64) * 290.0;
-        page.add_shape(make_rect(&format!("stat-{}", i), x, 80.0, 270.0, 100.0, Some("#ffffff"), ""));
-        page.add_shape(make_text(&format!("stat-val-{}", i), x + 20.0, 100.0, 200.0, 36.0, "—"));
-        page.add_shape(make_text(&format!("stat-lbl-{}", i), x + 20.0, 145.0, 200.0, 20.0, label));
+        page.add_shape(make_rect(
+            &format!("stat-{}", i),
+            x,
+            80.0,
+            270.0,
+            100.0,
+            Some("#ffffff"),
+            "",
+        ));
+        page.add_shape(make_text(
+            &format!("stat-val-{}", i),
+            x + 20.0,
+            100.0,
+            200.0,
+            36.0,
+            "—",
+        ));
+        page.add_shape(make_text(
+            &format!("stat-lbl-{}", i),
+            x + 20.0,
+            145.0,
+            200.0,
+            20.0,
+            label,
+        ));
     }
 
     // Main chart
-    page.add_shape(make_rect("chart-area", 260.0, 200.0, 780.0, 380.0, Some("#f8fafc"), "Chart Placeholder"));
+    page.add_shape(make_rect(
+        "chart-area",
+        260.0,
+        200.0,
+        780.0,
+        380.0,
+        Some("#f8fafc"),
+        "Chart Placeholder",
+    ));
     // Right panel
-    page.add_shape(make_rect("right-panel", 1060.0, 200.0, 360.0, 680.0, Some("#f8fafc"), "Recent Activity"));
+    page.add_shape(make_rect(
+        "right-panel",
+        1060.0,
+        200.0,
+        360.0,
+        680.0,
+        Some("#f8fafc"),
+        "Recent Activity",
+    ));
 
     doc.add_page(page);
     doc
@@ -326,47 +591,122 @@ pub fn template_mobile_app(title: &str, screens: &[&str]) -> PencilDocument {
         let offset_x = 0.0;
 
         // Status bar
-        page.add_shape(make_rect(&format!("status-{}", i), offset_x, 0.0, 390.0, 44.0, Some("#f0f0f0"), "Status Bar"));
+        page.add_shape(make_rect(
+            &format!("status-{}", i),
+            offset_x,
+            0.0,
+            390.0,
+            44.0,
+            Some("#f0f0f0"),
+            "Status Bar",
+        ));
         // Navigation bar
-        page.add_shape(make_rect(&format!("navbar-{}", i), offset_x, 44.0, 390.0, 56.0, Some("#ffffff"), ""));
-        page.add_shape(make_text(&format!("navbar-title-{}", i), offset_x + 130.0, 58.0, 130.0, 28.0, screen_name));
+        page.add_shape(make_rect(
+            &format!("navbar-{}", i),
+            offset_x,
+            44.0,
+            390.0,
+            56.0,
+            Some("#ffffff"),
+            "",
+        ));
+        page.add_shape(make_text(
+            &format!("navbar-title-{}", i),
+            offset_x + 130.0,
+            58.0,
+            130.0,
+            28.0,
+            screen_name,
+        ));
         // Content area
-        page.add_shape(make_rect(&format!("content-{}", i), offset_x, 100.0, 390.0, 688.0, Some("#f8f9fa"), "Content"));
+        page.add_shape(make_rect(
+            &format!("content-{}", i),
+            offset_x,
+            100.0,
+            390.0,
+            688.0,
+            Some("#f8f9fa"),
+            "Content",
+        ));
         // Tab bar
-        page.add_shape(make_rect(&format!("tabbar-{}", i), offset_x, 795.0, 390.0, 49.0, Some("#ffffff"), "Tab Bar"));
+        page.add_shape(make_rect(
+            &format!("tabbar-{}", i),
+            offset_x,
+            795.0,
+            390.0,
+            49.0,
+            Some("#ffffff"),
+            "Tab Bar",
+        ));
         for (ti, tab) in ["Home", "Search", "Profile", "Settings"].iter().enumerate() {
             let tx = offset_x + (ti as f64) * 97.5 + 20.0;
-            page.add_shape(make_text(&format!("tab-{}-{}", i, ti), tx, 808.0, 60.0, 24.0, tab));
+            page.add_shape(make_text(
+                &format!("tab-{}-{}", i, ti),
+                tx,
+                808.0,
+                60.0,
+                24.0,
+                tab,
+            ));
         }
         doc.add_page(page);
     }
     doc
 }
 
-fn make_rect(id: &str, x: f64, y: f64, w: f64, h: f64, fill: Option<&str>, label: &str) -> PencilShape {
+fn make_rect(
+    id: &str,
+    x: f64,
+    y: f64,
+    w: f64,
+    h: f64,
+    fill: Option<&str>,
+    label: &str,
+) -> PencilShape {
     PencilShape {
         id: id.to_string(),
         kind: PencilShapeKind::Rectangle,
-        x, y, width: w, height: h,
+        x,
+        y,
+        width: w,
+        height: h,
         label: label.to_string(),
-        style: PencilStyle { fill_color: fill.map(|s| s.to_string()), ..Default::default() },
+        style: PencilStyle {
+            fill_color: fill.map(|s| s.to_string()),
+            ..Default::default()
+        },
         children: Vec::new(),
     }
 }
 
 fn make_text(id: &str, x: f64, y: f64, w: f64, h: f64, label: &str) -> PencilShape {
     PencilShape {
-        id: id.to_string(), kind: PencilShapeKind::Text,
-        x, y, width: w, height: h, label: label.to_string(),
-        style: PencilStyle::default(), children: Vec::new(),
+        id: id.to_string(),
+        kind: PencilShapeKind::Text,
+        x,
+        y,
+        width: w,
+        height: h,
+        label: label.to_string(),
+        style: PencilStyle::default(),
+        children: Vec::new(),
     }
 }
 
 fn make_button(id: &str, x: f64, y: f64, w: f64, h: f64, label: &str) -> PencilShape {
     PencilShape {
-        id: id.to_string(), kind: PencilShapeKind::Button,
-        x, y, width: w, height: h, label: label.to_string(),
-        style: PencilStyle { fill_color: Some("#3b82f6".to_string()), border_radius: Some(6.0), ..Default::default() },
+        id: id.to_string(),
+        kind: PencilShapeKind::Button,
+        x,
+        y,
+        width: w,
+        height: h,
+        label: label.to_string(),
+        style: PencilStyle {
+            fill_color: Some("#3b82f6".to_string()),
+            border_radius: Some(6.0),
+            ..Default::default()
+        },
         children: Vec::new(),
     }
 }
@@ -383,12 +723,18 @@ pub struct PencilMcpOp {
 impl PencilMcpOp {
     /// Get editor state (active .pen file)
     pub fn get_editor_state() -> Self {
-        Self { tool: "get_editor_state".to_string(), params: serde_json::json!({ "include_schema": false }) }
+        Self {
+            tool: "get_editor_state".to_string(),
+            params: serde_json::json!({ "include_schema": false }),
+        }
     }
 
     /// Open a .pen file
     pub fn open_document(path: &str) -> Self {
-        Self { tool: "open_document".to_string(), params: serde_json::json!({ "filePathOrNew": path }) }
+        Self {
+            tool: "open_document".to_string(),
+            params: serde_json::json!({ "filePathOrNew": path }),
+        }
     }
 
     /// Batch read nodes
@@ -401,14 +747,22 @@ impl PencilMcpOp {
 
     /// Batch design operations
     pub fn batch_design(operations: &str) -> Self {
-        Self { tool: "batch_design".to_string(), params: serde_json::json!({ "operations": operations }) }
+        Self {
+            tool: "batch_design".to_string(),
+            params: serde_json::json!({ "operations": operations }),
+        }
     }
 
     /// Get design guidelines
     pub fn get_guidelines(category: Option<&str>) -> Self {
         let mut p = serde_json::json!({});
-        if let Some(c) = category { p["category"] = serde_json::Value::String(c.to_string()); }
-        Self { tool: "get_guidelines".to_string(), params: p }
+        if let Some(c) = category {
+            p["category"] = serde_json::Value::String(c.to_string());
+        }
+        Self {
+            tool: "get_guidelines".to_string(),
+            params: p,
+        }
     }
 
     pub fn to_json(&self) -> String {
@@ -422,12 +776,21 @@ fn extract_components_from_doc(doc: &PencilDocument) -> Vec<DesignComponent> {
     let mut components = Vec::new();
     for page in &doc.pages {
         for shape in &page.shapes {
-            if matches!(shape.kind, PencilShapeKind::Button | PencilShapeKind::Input |
-                PencilShapeKind::Dropdown | PencilShapeKind::TextArea | PencilShapeKind::Table)
-            {
+            if matches!(
+                shape.kind,
+                PencilShapeKind::Button
+                    | PencilShapeKind::Input
+                    | PencilShapeKind::Dropdown
+                    | PencilShapeKind::TextArea
+                    | PencilShapeKind::Table
+            ) {
                 components.push(DesignComponent {
                     id: shape.id.clone(),
-                    name: if shape.label.is_empty() { format!("{:?}", shape.kind) } else { shape.label.clone() },
+                    name: if shape.label.is_empty() {
+                        format!("{:?}", shape.kind)
+                    } else {
+                        shape.label.clone()
+                    },
                     description: format!("{:?} at ({}, {})", shape.kind, shape.x, shape.y),
                     category: "ui".to_string(),
                     props: {
@@ -467,7 +830,10 @@ fn extract_tokens_from_doc(doc: &PencilDocument) -> Vec<DesignToken> {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 fn xml_escape(s: &str) -> String {
-    s.replace('&', "&amp;").replace('"', "&quot;").replace('<', "&lt;").replace('>', "&gt;")
+    s.replace('&', "&amp;")
+        .replace('"', "&quot;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
 }
 
 fn extract_attr_val(xml: &str, attr: &str) -> Option<String> {
@@ -483,7 +849,10 @@ fn split_tag_blocks(xml: &str, open_tag: &str, close_tag: &str) -> Vec<String> {
     let mut remaining = xml;
     while let Some(start) = remaining.find(open_tag) {
         let from = &remaining[start..];
-        let end = from.find(close_tag).map(|e| e + close_tag.len()).unwrap_or(from.len());
+        let end = from
+            .find(close_tag)
+            .map(|e| e + close_tag.len())
+            .unwrap_or(from.len());
         results.push(from[..end].to_string());
         remaining = &from[end..];
     }
@@ -492,7 +861,9 @@ fn split_tag_blocks(xml: &str, open_tag: &str, close_tag: &str) -> Vec<String> {
 
 fn uuid_short() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let t = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let t = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
     format!("{:x}{:04x}", t.as_secs(), t.subsec_micros() & 0xffff)
 }
 

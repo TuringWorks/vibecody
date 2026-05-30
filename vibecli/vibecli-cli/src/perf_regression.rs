@@ -19,7 +19,13 @@ pub struct PerfSample {
 
 impl PerfSample {
     pub fn new(benchmark: impl Into<String>, value: f64, unit: impl Into<String>, ts: u64) -> Self {
-        Self { benchmark: benchmark.into(), value, unit: unit.into(), timestamp_ms: ts, metadata: HashMap::new() }
+        Self {
+            benchmark: benchmark.into(),
+            value,
+            unit: unit.into(),
+            timestamp_ms: ts,
+            metadata: HashMap::new(),
+        }
     }
 }
 
@@ -44,7 +50,9 @@ impl Baseline {
 
     /// Percent change relative to baseline mean.
     pub fn pct_change(&self, value: f64) -> f64 {
-        if self.mean == 0.0 { return 0.0; }
+        if self.mean == 0.0 {
+            return 0.0;
+        }
         ((value - self.mean) / self.mean) * 100.0
     }
 }
@@ -52,17 +60,22 @@ impl Baseline {
 /// Severity of a detected regression.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum RegressionSeverity {
-    Minor,   // 5–10% degradation
-    Major,   // 10–25% degradation
+    Minor,    // 5–10% degradation
+    Major,    // 10–25% degradation
     Critical, // >25% degradation
 }
 
 impl RegressionSeverity {
     pub fn from_pct(pct: f64) -> Option<Self> {
-        if pct > 25.0 { Some(Self::Critical) }
-        else if pct > 10.0 { Some(Self::Major) }
-        else if pct > 5.0 { Some(Self::Minor) }
-        else { None }
+        if pct > 25.0 {
+            Some(Self::Critical)
+        } else if pct > 10.0 {
+            Some(Self::Major)
+        } else if pct > 5.0 {
+            Some(Self::Minor)
+        } else {
+            None
+        }
     }
     pub fn as_str(&self) -> &str {
         match self {
@@ -121,13 +134,20 @@ impl PerfRegressionDetector {
     /// Build a baseline from the current history for a benchmark.
     pub fn compute_baseline(&mut self, benchmark: &str) -> Option<Baseline> {
         let samples = self.history.get(benchmark)?;
-        if samples.is_empty() { return None; }
+        if samples.is_empty() {
+            return None;
+        }
         let values: Vec<f64> = samples.iter().map(|s| s.value).collect();
         let n = values.len() as f64;
         let mean = values.iter().sum::<f64>() / n;
         let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n;
         let std_dev = variance.sqrt();
-        let b = Baseline { benchmark: benchmark.to_string(), mean, std_dev, sample_count: values.len() };
+        let b = Baseline {
+            benchmark: benchmark.to_string(),
+            mean,
+            std_dev,
+            sample_count: values.len(),
+        };
         self.baselines.insert(benchmark.to_string(), b.clone());
         Some(b)
     }
@@ -197,13 +217,21 @@ impl PerfRegressionDetector {
         }
         let mut lines = vec![format!("{} regression(s) detected:", alerts.len())];
         for a in &alerts {
-            lines.push(format!("  [{}] {} — {:.1}% slower (baseline: {:.2}, observed: {:.2})",
-                a.severity.as_str(), a.benchmark, a.pct_change, a.baseline_mean, a.observed));
+            lines.push(format!(
+                "  [{}] {} — {:.1}% slower (baseline: {:.2}, observed: {:.2})",
+                a.severity.as_str(),
+                a.benchmark,
+                a.pct_change,
+                a.baseline_mean,
+                a.observed
+            ));
         }
         lines.join("\n")
     }
 
-    pub fn baseline_count(&self) -> usize { self.baselines.len() }
+    pub fn baseline_count(&self) -> usize {
+        self.baselines.len()
+    }
     pub fn history_len(&self, benchmark: &str) -> usize {
         self.history.get(benchmark).map(|h| h.len()).unwrap_or(0)
     }
@@ -218,7 +246,12 @@ mod tests {
     use super::*;
 
     fn baseline(name: &str, mean: f64, std_dev: f64) -> Baseline {
-        Baseline { benchmark: name.to_string(), mean, std_dev, sample_count: 10 }
+        Baseline {
+            benchmark: name.to_string(),
+            mean,
+            std_dev,
+            sample_count: 10,
+        }
     }
 
     fn sample(name: &str, value: f64, ts: u64) -> PerfSample {
@@ -253,9 +286,18 @@ mod tests {
     #[test]
     fn test_severity_from_pct() {
         assert_eq!(RegressionSeverity::from_pct(4.0), None);
-        assert_eq!(RegressionSeverity::from_pct(7.0), Some(RegressionSeverity::Minor));
-        assert_eq!(RegressionSeverity::from_pct(15.0), Some(RegressionSeverity::Major));
-        assert_eq!(RegressionSeverity::from_pct(30.0), Some(RegressionSeverity::Critical));
+        assert_eq!(
+            RegressionSeverity::from_pct(7.0),
+            Some(RegressionSeverity::Minor)
+        );
+        assert_eq!(
+            RegressionSeverity::from_pct(15.0),
+            Some(RegressionSeverity::Major)
+        );
+        assert_eq!(
+            RegressionSeverity::from_pct(30.0),
+            Some(RegressionSeverity::Critical)
+        );
     }
 
     #[test]

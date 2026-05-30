@@ -133,7 +133,12 @@ impl Default for LoraConfig {
             r: 16,
             alpha: 32,
             dropout: 0.05,
-            target_modules: vec!["q_proj".into(), "k_proj".into(), "v_proj".into(), "o_proj".into()],
+            target_modules: vec![
+                "q_proj".into(),
+                "k_proj".into(),
+                "v_proj".into(),
+                "o_proj".into(),
+            ],
             bias: "none".to_string(),
             task_type: "CAUSAL_LM".to_string(),
         }
@@ -194,7 +199,10 @@ pub fn generate_deepspeed_config(config: &TrainingConfig) -> String {
     let fp16_enabled = config.mixed_precision == MixedPrecision::Fp16;
     let bf16_enabled = config.mixed_precision == MixedPrecision::Bf16;
 
-    let offload = if matches!(config.deepspeed_stage, Some(DeepSpeedStage::Stage3 | DeepSpeedStage::Infinity)) {
+    let offload = if matches!(
+        config.deepspeed_stage,
+        Some(DeepSpeedStage::Stage3 | DeepSpeedStage::Infinity)
+    ) {
         r#",
     "offload_optimizer": {
       "device": "cpu",
@@ -245,7 +253,8 @@ pub fn generate_deepspeed_launch_command(config: &TrainingConfig, script: &str) 
     let total_gpus = config.num_nodes * config.gpus_per_node;
     let mut cmd = vec![
         "deepspeed".to_string(),
-        "--num_gpus".to_string(), total_gpus.to_string(),
+        "--num_gpus".to_string(),
+        total_gpus.to_string(),
     ];
     if config.num_nodes > 1 {
         cmd.push("--num_nodes".to_string());
@@ -272,8 +281,12 @@ pub fn generate_deepspeed_launch_command(config: &TrainingConfig, script: &str) 
         cmd.push("--gradient_checkpointing".to_string());
     }
     match config.mixed_precision {
-        MixedPrecision::Fp16 => { cmd.push("--fp16".to_string()); }
-        MixedPrecision::Bf16 => { cmd.push("--bf16".to_string()); }
+        MixedPrecision::Fp16 => {
+            cmd.push("--fp16".to_string());
+        }
+        MixedPrecision::Bf16 => {
+            cmd.push("--bf16".to_string());
+        }
         _ => {}
     }
     cmd
@@ -283,7 +296,8 @@ pub fn generate_torchrun_command(config: &TrainingConfig, script: &str) -> Vec<S
     let nproc = config.gpus_per_node;
     let mut cmd = vec![
         "torchrun".to_string(),
-        "--nproc_per_node".to_string(), nproc.to_string(),
+        "--nproc_per_node".to_string(),
+        nproc.to_string(),
     ];
     if config.num_nodes > 1 {
         cmd.push("--nnodes".to_string());
@@ -315,7 +329,11 @@ pub fn generate_torchrun_command(config: &TrainingConfig, script: &str) -> Vec<S
 }
 
 pub fn generate_accelerate_config(config: &TrainingConfig) -> String {
-    let compute_env = if config.num_nodes > 1 { "MULTI_GPU" } else { "LOCAL_MACHINE" };
+    let compute_env = if config.num_nodes > 1 {
+        "MULTI_GPU"
+    } else {
+        "LOCAL_MACHINE"
+    };
     let distributed_type = match config.framework {
         DistributedFramework::DeepSpeed => "DEEPSPEED",
         DistributedFramework::Fsdp => "FSDP",
@@ -404,15 +422,25 @@ pub fn estimate_memory_per_gpu(model_params_b: f64, config: &TrainingConfig) -> 
 
     // Activations (rough estimate)
     let activation_mem = (config.batch_size_per_gpu as f64) * model_params_b * 50.0; // ~50 bytes/param/sample
-    let activation_mem = if config.gradient_checkpointing { activation_mem / 3.0 } else { activation_mem };
+    let activation_mem = if config.gradient_checkpointing {
+        activation_mem / 3.0
+    } else {
+        activation_mem
+    };
 
     let (per_gpu_model, per_gpu_opt, per_gpu_grad) = match &config.deepspeed_stage {
         Some(DeepSpeedStage::Stage0) | None => (model_mem, optimizer_mem, gradient_mem),
         Some(DeepSpeedStage::Stage1) => (model_mem, optimizer_mem / total_gpus, gradient_mem),
-        Some(DeepSpeedStage::Stage2) => (model_mem, optimizer_mem / total_gpus, gradient_mem / total_gpus),
-        Some(DeepSpeedStage::Stage3) | Some(DeepSpeedStage::Infinity) => {
-            (model_mem / total_gpus, optimizer_mem / total_gpus, gradient_mem / total_gpus)
-        }
+        Some(DeepSpeedStage::Stage2) => (
+            model_mem,
+            optimizer_mem / total_gpus,
+            gradient_mem / total_gpus,
+        ),
+        Some(DeepSpeedStage::Stage3) | Some(DeepSpeedStage::Infinity) => (
+            model_mem / total_gpus,
+            optimizer_mem / total_gpus,
+            gradient_mem / total_gpus,
+        ),
     };
 
     let total_per_gpu = per_gpu_model + per_gpu_opt + per_gpu_grad + activation_mem;
@@ -422,10 +450,17 @@ pub fn estimate_memory_per_gpu(model_params_b: f64, config: &TrainingConfig) -> 
         "Estimated VRAM per GPU: ~{total_mb} MB\n  \
          Model: {:.0} MB, Optimizer: {:.0} MB, Gradients: {:.0} MB, Activations: {:.0} MB\n  \
          ({} GPUs, {:?} precision{})",
-        per_gpu_model, per_gpu_opt, per_gpu_grad, activation_mem,
+        per_gpu_model,
+        per_gpu_opt,
+        per_gpu_grad,
+        activation_mem,
         total_gpus as u32,
         config.mixed_precision,
-        if config.gradient_checkpointing { ", gradient checkpointing ON" } else { "" },
+        if config.gradient_checkpointing {
+            ", gradient checkpointing ON"
+        } else {
+            ""
+        },
     )
 }
 
@@ -434,16 +469,22 @@ pub fn suggest_parallelism(model_params_b: f64, gpu_count: u32, gpu_vram_mb: u64
     let training_overhead = fp16_model_mb * 4; // ~4x for optimizer states + gradients + activations
 
     if training_overhead / (gpu_count as u64) < gpu_vram_mb {
-        format!("Data Parallel (DDP) — {model_params_b}B model fits with {gpu_count} GPUs at BF16. \
-                 Use torchrun or DeepSpeed ZeRO-1.")
+        format!(
+            "Data Parallel (DDP) — {model_params_b}B model fits with {gpu_count} GPUs at BF16. \
+                 Use torchrun or DeepSpeed ZeRO-1."
+        )
     } else if fp16_model_mb * 3 / (gpu_count as u64) < gpu_vram_mb {
-        format!("DeepSpeed ZeRO Stage 2 — shard optimizer + gradients across {gpu_count} GPUs. \
+        format!(
+            "DeepSpeed ZeRO Stage 2 — shard optimizer + gradients across {gpu_count} GPUs. \
                  Model: {model_params_b}B, ~{} MB/GPU after sharding.",
-                fp16_model_mb + (training_overhead - fp16_model_mb) / (gpu_count as u64))
+            fp16_model_mb + (training_overhead - fp16_model_mb) / (gpu_count as u64)
+        )
     } else if fp16_model_mb / (gpu_count as u64) < gpu_vram_mb {
-        format!("DeepSpeed ZeRO Stage 3 — shard everything across {gpu_count} GPUs. \
+        format!(
+            "DeepSpeed ZeRO Stage 3 — shard everything across {gpu_count} GPUs. \
                  Model: {model_params_b}B, ~{} MB/GPU after full sharding.",
-                training_overhead / (gpu_count as u64))
+            training_overhead / (gpu_count as u64)
+        )
     } else {
         let needed = (training_overhead / gpu_vram_mb) + 1;
         format!("Need more GPUs — {model_params_b}B model requires at least {needed} GPUs with {gpu_vram_mb}MB VRAM each. \
@@ -451,7 +492,11 @@ pub fn suggest_parallelism(model_params_b: f64, gpu_count: u32, gpu_vram_mb: u64
     }
 }
 
-pub fn generate_slurm_distributed_script(config: &TrainingConfig, script: &str, partition: &str) -> String {
+pub fn generate_slurm_distributed_script(
+    config: &TrainingConfig,
+    script: &str,
+    partition: &str,
+) -> String {
     let total_gpus = config.num_nodes * config.gpus_per_node;
     let framework_launch = match config.framework {
         DistributedFramework::DeepSpeed => format!(

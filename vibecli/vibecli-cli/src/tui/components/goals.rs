@@ -193,7 +193,11 @@ impl GoalsComponent {
             match store.list_pin_workspaces_for_goal(&row.id) {
                 Ok(workspaces) => {
                     for ws in workspaces {
-                        let ws_opt = if ws.is_empty() { None } else { Some(ws.as_str()) };
+                        let ws_opt = if ws.is_empty() {
+                            None
+                        } else {
+                            Some(ws.as_str())
+                        };
                         let _ = store.unpin_goal(ws_opt);
                     }
                     Ok(())
@@ -260,14 +264,10 @@ fn order_as_tree(rows: Vec<GoalRow>) -> Vec<GoalRow> {
     if rows.is_empty() {
         return rows;
     }
-    let id_set: std::collections::HashSet<String> =
-        rows.iter().map(|r| r.id.clone()).collect();
+    let id_set: std::collections::HashSet<String> = rows.iter().map(|r| r.id.clone()).collect();
     let mut by_parent: HashMap<Option<String>, Vec<GoalRow>> = HashMap::new();
     for r in rows {
-        let key = r
-            .parent_goal_id
-            .clone()
-            .filter(|p| id_set.contains(p));
+        let key = r.parent_goal_id.clone().filter(|p| id_set.contains(p));
         by_parent.entry(key).or_default().push(r);
     }
     let mut out: Vec<GoalRow> = Vec::new();

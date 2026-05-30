@@ -132,78 +132,66 @@ impl PrebuiltRule {
                     check_type: CheckType::NoHardcodedSecrets,
                 },
             ],
-            Self::PerformanceRegression => vec![
-                CiRule {
-                    id: "perf-no-sync-io".into(),
-                    name: "No Synchronous I/O in Async".into(),
-                    description: "Detect blocking I/O in async contexts".into(),
-                    category: RuleCategory::Performance,
-                    severity: Severity::Warning,
-                    enabled: true,
-                    pattern: Some("*.rs".into()),
-                    check_type: CheckType::RegexMatch(r"std::fs::(read|write)".into()),
-                },
-            ],
-            Self::ApiBreakingChanges => vec![
-                CiRule {
-                    id: "api-no-pub-removal".into(),
-                    name: "No Public API Removal".into(),
-                    description: "Detect removal of public API items".into(),
-                    category: RuleCategory::ApiBreaking,
-                    severity: Severity::Error,
-                    enabled: true,
-                    pattern: Some("*.rs".into()),
-                    check_type: CheckType::RegexMatch(r"^-\s*pub\s+(fn|struct|enum|trait)".into()),
-                },
-            ],
-            Self::NoSecrets => vec![
-                CiRule {
-                    id: "no-hardcoded-secrets".into(),
-                    name: "No Hardcoded Secrets".into(),
-                    description: "Prevent committing API keys, tokens, and passwords".into(),
-                    category: RuleCategory::Security,
-                    severity: Severity::Error,
-                    enabled: true,
-                    pattern: None,
-                    check_type: CheckType::NoHardcodedSecrets,
-                },
-            ],
-            Self::RequireTests => vec![
-                CiRule {
-                    id: "require-test-file".into(),
-                    name: "Require Tests".into(),
-                    description: "Ensure test files exist for new modules".into(),
-                    category: RuleCategory::TestCoverage,
-                    severity: Severity::Warning,
-                    enabled: true,
-                    pattern: Some("*.rs".into()),
-                    check_type: CheckType::RegexMatch(r"#\[cfg\(test\)\]".into()),
-                },
-            ],
-            Self::MaxComplexity => vec![
-                CiRule {
-                    id: "max-file-size".into(),
-                    name: "Maximum File Size".into(),
-                    description: "Files should not exceed 50KB".into(),
-                    category: RuleCategory::CodeQuality,
-                    severity: Severity::Warning,
-                    enabled: true,
-                    pattern: None,
-                    check_type: CheckType::MaxFileSize(50_000),
-                },
-            ],
-            Self::NoTodos => vec![
-                CiRule {
-                    id: "no-todo-comments".into(),
-                    name: "No TODO Comments".into(),
-                    description: "Prevent TODO/FIXME/HACK comments from being committed".into(),
-                    category: RuleCategory::CodeQuality,
-                    severity: Severity::Warning,
-                    enabled: true,
-                    pattern: None,
-                    check_type: CheckType::NoTodoComments,
-                },
-            ],
+            Self::PerformanceRegression => vec![CiRule {
+                id: "perf-no-sync-io".into(),
+                name: "No Synchronous I/O in Async".into(),
+                description: "Detect blocking I/O in async contexts".into(),
+                category: RuleCategory::Performance,
+                severity: Severity::Warning,
+                enabled: true,
+                pattern: Some("*.rs".into()),
+                check_type: CheckType::RegexMatch(r"std::fs::(read|write)".into()),
+            }],
+            Self::ApiBreakingChanges => vec![CiRule {
+                id: "api-no-pub-removal".into(),
+                name: "No Public API Removal".into(),
+                description: "Detect removal of public API items".into(),
+                category: RuleCategory::ApiBreaking,
+                severity: Severity::Error,
+                enabled: true,
+                pattern: Some("*.rs".into()),
+                check_type: CheckType::RegexMatch(r"^-\s*pub\s+(fn|struct|enum|trait)".into()),
+            }],
+            Self::NoSecrets => vec![CiRule {
+                id: "no-hardcoded-secrets".into(),
+                name: "No Hardcoded Secrets".into(),
+                description: "Prevent committing API keys, tokens, and passwords".into(),
+                category: RuleCategory::Security,
+                severity: Severity::Error,
+                enabled: true,
+                pattern: None,
+                check_type: CheckType::NoHardcodedSecrets,
+            }],
+            Self::RequireTests => vec![CiRule {
+                id: "require-test-file".into(),
+                name: "Require Tests".into(),
+                description: "Ensure test files exist for new modules".into(),
+                category: RuleCategory::TestCoverage,
+                severity: Severity::Warning,
+                enabled: true,
+                pattern: Some("*.rs".into()),
+                check_type: CheckType::RegexMatch(r"#\[cfg\(test\)\]".into()),
+            }],
+            Self::MaxComplexity => vec![CiRule {
+                id: "max-file-size".into(),
+                name: "Maximum File Size".into(),
+                description: "Files should not exceed 50KB".into(),
+                category: RuleCategory::CodeQuality,
+                severity: Severity::Warning,
+                enabled: true,
+                pattern: None,
+                check_type: CheckType::MaxFileSize(50_000),
+            }],
+            Self::NoTodos => vec![CiRule {
+                id: "no-todo-comments".into(),
+                name: "No TODO Comments".into(),
+                description: "Prevent TODO/FIXME/HACK comments from being committed".into(),
+                category: RuleCategory::CodeQuality,
+                severity: Severity::Warning,
+                enabled: true,
+                pattern: None,
+                check_type: CheckType::NoTodoComments,
+            }],
         }
     }
 }
@@ -327,7 +315,10 @@ impl CiGateRunner {
     }
 
     pub fn remove_rule(&mut self, id: &str) -> Result<(), GateError> {
-        let idx = self.rules.iter().position(|r| r.id == id)
+        let idx = self
+            .rules
+            .iter()
+            .position(|r| r.id == id)
             .ok_or(GateError::RuleNotFound)?;
         self.rules.remove(idx);
         Ok(())
@@ -360,9 +351,18 @@ impl CiGateRunner {
             all_results.extend(results);
         }
 
-        let failed = all_results.iter().filter(|r| !r.passed && r.severity == Severity::Error).count();
-        let warnings = all_results.iter().filter(|r| !r.passed && r.severity == Severity::Warning).count();
-        let infos = all_results.iter().filter(|r| !r.passed && r.severity == Severity::Info).count();
+        let failed = all_results
+            .iter()
+            .filter(|r| !r.passed && r.severity == Severity::Error)
+            .count();
+        let warnings = all_results
+            .iter()
+            .filter(|r| !r.passed && r.severity == Severity::Warning)
+            .count();
+        let infos = all_results
+            .iter()
+            .filter(|r| !r.passed && r.severity == Severity::Info)
+            .count();
         let passed = all_results.iter().filter(|r| r.passed).count();
 
         let overall_passed = if self.config.fail_on_error {
@@ -403,9 +403,13 @@ impl CiGateRunner {
             CheckType::NoTodoComments => self.check_no_todos(&filtered, rule),
             CheckType::NoConsoleLog => self.check_no_console_log(&filtered, rule),
             CheckType::FileExists(path) => self.check_file_exists(path, &filtered, rule),
-            CheckType::FileMustNotExist(path) => self.check_file_must_not_exist(path, &filtered, rule),
+            CheckType::FileMustNotExist(path) => {
+                self.check_file_must_not_exist(path, &filtered, rule)
+            }
             CheckType::MaxFileSize(max) => self.check_max_file_size(*max, &filtered, rule),
-            CheckType::RequiredHeader(header) => self.check_required_header(header, &filtered, rule),
+            CheckType::RequiredHeader(header) => {
+                self.check_required_header(header, &filtered, rule)
+            }
             CheckType::TestCoverageMin(min) => self.check_test_coverage_min(*min, &filtered, rule),
             CheckType::CustomScript(_cmd) => {
                 vec![CheckResult {
@@ -448,9 +452,10 @@ impl CiGateRunner {
     fn filter_files<'a>(&self, rule: &CiRule, files: &'a [DiffFile]) -> Vec<&'a DiffFile> {
         match &rule.pattern {
             None => files.iter().collect(),
-            Some(pat) => {
-                files.iter().filter(|f| Self::glob_matches(pat, &f.path)).collect()
-            }
+            Some(pat) => files
+                .iter()
+                .filter(|f| Self::glob_matches(pat, &f.path))
+                .collect(),
         }
     }
 
@@ -472,7 +477,12 @@ impl CiGateRunner {
         path == pattern
     }
 
-    pub fn check_regex_match(&self, pattern: &str, files: &[&DiffFile], rule: &CiRule) -> Vec<CheckResult> {
+    pub fn check_regex_match(
+        &self,
+        pattern: &str,
+        files: &[&DiffFile],
+        rule: &CiRule,
+    ) -> Vec<CheckResult> {
         let mut results = Vec::new();
         let re = match regex::Regex::new(pattern) {
             Ok(r) => r,
@@ -529,8 +539,14 @@ impl CiGateRunner {
 
     pub fn check_no_secrets(&self, files: &[&DiffFile], rule: &CiRule) -> Vec<CheckResult> {
         let secret_patterns = [
-            (r#"(?i)(api[_-]?key|apikey)\s*[:=]\s*['"][A-Za-z0-9_\-]{16,}['"]"#, "API key"),
-            (r#"(?i)(secret|password|passwd|pwd)\s*[:=]\s*['"][^'"]{8,}['"]"#, "password/secret"),
+            (
+                r#"(?i)(api[_-]?key|apikey)\s*[:=]\s*['"][A-Za-z0-9_\-]{16,}['"]"#,
+                "API key",
+            ),
+            (
+                r#"(?i)(secret|password|passwd|pwd)\s*[:=]\s*['"][^'"]{8,}['"]"#,
+                "password/secret",
+            ),
             (r#"(?i)bearer\s+[A-Za-z0-9_\-\.]{20,}"#, "bearer token"),
             (r#"AKIA[0-9A-Z]{16}"#, "AWS access key"),
             (r#"(?i)(sk-[A-Za-z0-9]{32,})"#, "OpenAI API key"),
@@ -539,7 +555,8 @@ impl CiGateRunner {
         ];
 
         let mut results = Vec::new();
-        let compiled: Vec<_> = secret_patterns.iter()
+        let compiled: Vec<_> = secret_patterns
+            .iter()
             .filter_map(|(p, label)| regex::Regex::new(p).ok().map(|re| (re, *label)))
             .collect();
 
@@ -555,7 +572,10 @@ impl CiGateRunner {
                             message: format!("Potential {} detected in {}", label, file.path),
                             file_path: Some(file.path.clone()),
                             line_number: Some((i + 1) as u32),
-                            suggestion: Some(format!("Remove hardcoded {} and use environment variables", label)),
+                            suggestion: Some(format!(
+                                "Remove hardcoded {} and use environment variables",
+                                label
+                            )),
                             duration_ms: 0,
                         });
                     }
@@ -620,7 +640,8 @@ impl CiGateRunner {
     }
 
     pub fn check_no_console_log(&self, files: &[&DiffFile], rule: &CiRule) -> Vec<CheckResult> {
-        let re = regex::Regex::new(r"console\.(log|warn|error|debug|info)\s*\(").expect("valid regex");
+        let re =
+            regex::Regex::new(r"console\.(log|warn|error|debug|info)\s*\(").expect("valid regex");
         let mut results = Vec::new();
 
         for file in files {
@@ -658,7 +679,12 @@ impl CiGateRunner {
         results
     }
 
-    fn check_file_exists(&self, path: &str, files: &[&DiffFile], rule: &CiRule) -> Vec<CheckResult> {
+    fn check_file_exists(
+        &self,
+        path: &str,
+        files: &[&DiffFile],
+        rule: &CiRule,
+    ) -> Vec<CheckResult> {
         let found = files.iter().any(|f| f.path == path);
         vec![CheckResult {
             rule_id: rule.id.clone(),
@@ -672,12 +698,21 @@ impl CiGateRunner {
             },
             file_path: Some(path.into()),
             line_number: None,
-            suggestion: if found { None } else { Some(format!("Create file '{}'", path)) },
+            suggestion: if found {
+                None
+            } else {
+                Some(format!("Create file '{}'", path))
+            },
             duration_ms: 0,
         }]
     }
 
-    fn check_file_must_not_exist(&self, path: &str, files: &[&DiffFile], rule: &CiRule) -> Vec<CheckResult> {
+    fn check_file_must_not_exist(
+        &self,
+        path: &str,
+        files: &[&DiffFile],
+        rule: &CiRule,
+    ) -> Vec<CheckResult> {
         let found = files.iter().any(|f| f.path == path && f.is_new);
         vec![CheckResult {
             rule_id: rule.id.clone(),
@@ -691,12 +726,21 @@ impl CiGateRunner {
             },
             file_path: Some(path.into()),
             line_number: None,
-            suggestion: if found { Some(format!("Remove file '{}'", path)) } else { None },
+            suggestion: if found {
+                Some(format!("Remove file '{}'", path))
+            } else {
+                None
+            },
             duration_ms: 0,
         }]
     }
 
-    fn check_max_file_size(&self, max_bytes: usize, files: &[&DiffFile], rule: &CiRule) -> Vec<CheckResult> {
+    fn check_max_file_size(
+        &self,
+        max_bytes: usize,
+        files: &[&DiffFile],
+        rule: &CiRule,
+    ) -> Vec<CheckResult> {
         let mut results = Vec::new();
         for file in files {
             let size: usize = file.additions.iter().map(|l| l.len() + 1).sum();
@@ -706,7 +750,10 @@ impl CiGateRunner {
                     rule_name: rule.name.clone(),
                     passed: false,
                     severity: rule.severity.clone(),
-                    message: format!("File '{}' exceeds max size ({} > {} bytes)", file.path, size, max_bytes),
+                    message: format!(
+                        "File '{}' exceeds max size ({} > {} bytes)",
+                        file.path, size, max_bytes
+                    ),
                     file_path: Some(file.path.clone()),
                     line_number: None,
                     suggestion: Some("Split the file into smaller modules".into()),
@@ -717,7 +764,12 @@ impl CiGateRunner {
         results
     }
 
-    fn check_required_header(&self, header: &str, files: &[&DiffFile], rule: &CiRule) -> Vec<CheckResult> {
+    fn check_required_header(
+        &self,
+        header: &str,
+        files: &[&DiffFile],
+        rule: &CiRule,
+    ) -> Vec<CheckResult> {
         let mut results = Vec::new();
         for file in files {
             let has_header = file.additions.first().is_some_and(|l| l.contains(header));
@@ -738,7 +790,12 @@ impl CiGateRunner {
         results
     }
 
-    fn check_test_coverage_min(&self, _min: f32, _files: &[&DiffFile], rule: &CiRule) -> Vec<CheckResult> {
+    fn check_test_coverage_min(
+        &self,
+        _min: f32,
+        _files: &[&DiffFile],
+        rule: &CiRule,
+    ) -> Vec<CheckResult> {
         // Coverage checks require external tooling; emit informational result
         vec![CheckResult {
             rule_id: rule.id.clone(),
@@ -769,8 +826,11 @@ impl CiGateRunner {
                     r#"{{"total":{},"passed":{},"failed":{},"warnings":{},"overall_passed":{},"results":[
 {}
 ]}}"#,
-                    report.total_checks, report.passed, report.failed,
-                    report.warnings, report.overall_passed,
+                    report.total_checks,
+                    report.passed,
+                    report.failed,
+                    report.warnings,
+                    report.overall_passed,
                     results_json.join(",\n"),
                 )
             }
@@ -782,12 +842,25 @@ impl CiGateRunner {
 
     pub fn format_as_text(report: &GateReport) -> String {
         let mut out = String::new();
-        out.push_str(&format!("CI Gate Report: {}/{} passed\n", report.passed, report.total_checks));
-        out.push_str(&format!("Status: {}\n", if report.overall_passed { "PASSED" } else { "FAILED" }));
+        out.push_str(&format!(
+            "CI Gate Report: {}/{} passed\n",
+            report.passed, report.total_checks
+        ));
+        out.push_str(&format!(
+            "Status: {}\n",
+            if report.overall_passed {
+                "PASSED"
+            } else {
+                "FAILED"
+            }
+        ));
         out.push_str("---\n");
         for r in &report.results {
             let icon = if r.passed { "PASS" } else { "FAIL" };
-            out.push_str(&format!("[{}] [{}] {}: {}\n", icon, r.severity, r.rule_name, r.message));
+            out.push_str(&format!(
+                "[{}] [{}] {}: {}\n",
+                icon, r.severity, r.rule_name, r.message
+            ));
             if let Some(ref suggestion) = r.suggestion {
                 out.push_str(&format!("  Suggestion: {}\n", suggestion));
             }
@@ -797,7 +870,11 @@ impl CiGateRunner {
 
     pub fn format_as_markdown(report: &GateReport) -> String {
         let mut out = String::new();
-        let status = if report.overall_passed { "PASSED" } else { "FAILED" };
+        let status = if report.overall_passed {
+            "PASSED"
+        } else {
+            "FAILED"
+        };
         out.push_str(&format!("# CI Gate Report: {}\n\n", status));
         out.push_str("| Metric | Count |\n|--------|-------|\n");
         out.push_str(&format!("| Total  | {} |\n", report.total_checks));
@@ -807,7 +884,10 @@ impl CiGateRunner {
         out.push_str("## Results\n\n");
         for r in &report.results {
             let icon = if r.passed { "+" } else { "-" };
-            out.push_str(&format!("- [{}] **{}**: {}\n", icon, r.rule_name, r.message));
+            out.push_str(&format!(
+                "- [{}] **{}**: {}\n",
+                icon, r.rule_name, r.message
+            ));
         }
         out
     }
@@ -820,7 +900,10 @@ impl CiGateRunner {
             report.total_checks, report.failed, report.warnings,
         ));
         for r in &report.results {
-            out.push_str(&format!("  <testcase name=\"{}\" classname=\"{}\"", r.rule_name, r.rule_id));
+            out.push_str(&format!(
+                "  <testcase name=\"{}\" classname=\"{}\"",
+                r.rule_name, r.rule_id
+            ));
             if r.passed {
                 out.push_str(" />\n");
             } else {
@@ -830,7 +913,11 @@ impl CiGateRunner {
                     Severity::Warning => "warning",
                     Severity::Info => "system-out",
                 };
-                out.push_str(&format!("    <{} message=\"{}\" />\n", tag, r.message.replace('"', "&quot;")));
+                out.push_str(&format!(
+                    "    <{} message=\"{}\" />\n",
+                    tag,
+                    r.message.replace('"', "&quot;")
+                ));
                 out.push_str("  </testcase>\n");
             }
         }
@@ -882,7 +969,8 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           files: ci-gates-report.xml
-"#.to_string()
+"#
+        .to_string()
     }
 }
 
@@ -966,7 +1054,9 @@ mod tests {
     #[test]
     fn test_remove_rule() {
         let mut runner = CiGateRunner::new(make_config());
-        runner.add_rule(make_rule("r1", CheckType::NoTodoComments)).unwrap();
+        runner
+            .add_rule(make_rule("r1", CheckType::NoTodoComments))
+            .unwrap();
         assert!(runner.remove_rule("r1").is_ok());
         assert_eq!(runner.list_rules().len(), 0);
     }
@@ -980,7 +1070,9 @@ mod tests {
     #[test]
     fn test_get_rule() {
         let mut runner = CiGateRunner::new(make_config());
-        runner.add_rule(make_rule("r1", CheckType::NoTodoComments)).unwrap();
+        runner
+            .add_rule(make_rule("r1", CheckType::NoTodoComments))
+            .unwrap();
         assert!(runner.get_rule("r1").is_some());
         assert!(runner.get_rule("r2").is_none());
     }
@@ -1029,7 +1121,10 @@ mod tests {
     fn test_check_pass_no_todos() {
         let mut runner = CiGateRunner::new(make_config());
         runner.load_prebuilt(PrebuiltRule::NoTodos);
-        let files = vec![make_diff_file("src/lib.rs", vec!["fn main() {}", "let x = 1;"])];
+        let files = vec![make_diff_file(
+            "src/lib.rs",
+            vec!["fn main() {}", "let x = 1;"],
+        )];
         let report = runner.run_checks(&files);
         assert!(report.overall_passed);
         assert_eq!(report.failed, 0);
@@ -1038,10 +1133,12 @@ mod tests {
     #[test]
     fn test_check_fail_todos() {
         let mut runner = CiGateRunner::new(make_config());
-        runner.add_rule(CiRule {
-            severity: Severity::Error,
-            ..make_rule("no-todos", CheckType::NoTodoComments)
-        }).unwrap();
+        runner
+            .add_rule(CiRule {
+                severity: Severity::Error,
+                ..make_rule("no-todos", CheckType::NoTodoComments)
+            })
+            .unwrap();
         let files = vec![make_diff_file("src/lib.rs", vec!["// TODO: fix this"])];
         let report = runner.run_checks(&files);
         assert!(!report.overall_passed);
@@ -1053,7 +1150,12 @@ mod tests {
     #[test]
     fn test_regex_match_found() {
         let mut runner = CiGateRunner::new(make_config());
-        runner.add_rule(make_rule("regex-test", CheckType::RegexMatch(r"unsafe\s+\{".into()))).unwrap();
+        runner
+            .add_rule(make_rule(
+                "regex-test",
+                CheckType::RegexMatch(r"unsafe\s+\{".into()),
+            ))
+            .unwrap();
         let files = vec![make_diff_file("src/lib.rs", vec!["unsafe {", "safe code"])];
         let report = runner.run_checks(&files);
         assert!(report.results.iter().any(|r| !r.passed));
@@ -1062,7 +1164,12 @@ mod tests {
     #[test]
     fn test_regex_match_not_found() {
         let mut runner = CiGateRunner::new(make_config());
-        runner.add_rule(make_rule("regex-test", CheckType::RegexMatch(r"unsafe\s+\{".into()))).unwrap();
+        runner
+            .add_rule(make_rule(
+                "regex-test",
+                CheckType::RegexMatch(r"unsafe\s+\{".into()),
+            ))
+            .unwrap();
         let files = vec![make_diff_file("src/lib.rs", vec!["fn safe() {}"])];
         let report = runner.run_checks(&files);
         assert!(report.overall_passed);
@@ -1074,51 +1181,70 @@ mod tests {
     fn test_detect_api_key() {
         let mut runner = CiGateRunner::new(make_config());
         runner.load_prebuilt(PrebuiltRule::NoSecrets);
-        let files = vec![make_diff_file("config.rs", vec![
-            r#"let api_key = "sk-1234567890abcdef1234567890abcdef1234";"#
-        ])];
+        let files = vec![make_diff_file(
+            "config.rs",
+            vec![r#"let api_key = "sk-1234567890abcdef1234567890abcdef1234";"#],
+        )];
         let report = runner.run_checks(&files);
-        assert!(report.results.iter().any(|r| !r.passed && r.message.contains("API key")));
+        assert!(report
+            .results
+            .iter()
+            .any(|r| !r.passed && r.message.contains("API key")));
     }
 
     #[test]
     fn test_detect_bearer_token() {
         let mut runner = CiGateRunner::new(make_config());
         runner.load_prebuilt(PrebuiltRule::NoSecrets);
-        let files = vec![make_diff_file("auth.rs", vec![
-            "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.abcdef"
-        ])];
+        let files = vec![make_diff_file(
+            "auth.rs",
+            vec!["Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.abcdef"],
+        )];
         let report = runner.run_checks(&files);
-        assert!(report.results.iter().any(|r| !r.passed && r.message.contains("bearer token")));
+        assert!(report
+            .results
+            .iter()
+            .any(|r| !r.passed && r.message.contains("bearer token")));
     }
 
     #[test]
     fn test_detect_password() {
         let mut runner = CiGateRunner::new(make_config());
         runner.load_prebuilt(PrebuiltRule::NoSecrets);
-        let files = vec![make_diff_file("db.rs", vec![
-            r#"let password = "supersecretpassword123";"#
-        ])];
+        let files = vec![make_diff_file(
+            "db.rs",
+            vec![r#"let password = "supersecretpassword123";"#],
+        )];
         let report = runner.run_checks(&files);
-        assert!(report.results.iter().any(|r| !r.passed && r.message.contains("password")));
+        assert!(report
+            .results
+            .iter()
+            .any(|r| !r.passed && r.message.contains("password")));
     }
 
     #[test]
     fn test_detect_aws_key() {
         let mut runner = CiGateRunner::new(make_config());
         runner.load_prebuilt(PrebuiltRule::NoSecrets);
-        let files = vec![make_diff_file("aws.rs", vec![
-            "let key = \"AKIAIOSFODNN7EXAMPLE\";"
-        ])];
+        let files = vec![make_diff_file(
+            "aws.rs",
+            vec!["let key = \"AKIAIOSFODNN7EXAMPLE\";"],
+        )];
         let report = runner.run_checks(&files);
-        assert!(report.results.iter().any(|r| !r.passed && r.message.contains("AWS")));
+        assert!(report
+            .results
+            .iter()
+            .any(|r| !r.passed && r.message.contains("AWS")));
     }
 
     #[test]
     fn test_no_secrets_clean() {
         let mut runner = CiGateRunner::new(make_config());
         runner.load_prebuilt(PrebuiltRule::NoSecrets);
-        let files = vec![make_diff_file("clean.rs", vec!["fn main() {}", "let x = 42;"])];
+        let files = vec![make_diff_file(
+            "clean.rs",
+            vec!["fn main() {}", "let x = 42;"],
+        )];
         let report = runner.run_checks(&files);
         assert!(report.overall_passed);
     }
@@ -1179,11 +1305,15 @@ mod tests {
     #[test]
     fn test_report_some_fail() {
         let mut runner = CiGateRunner::new(make_config());
-        runner.add_rule(CiRule {
-            severity: Severity::Error,
-            ..make_rule("no-todos", CheckType::NoTodoComments)
-        }).unwrap();
-        runner.add_rule(make_rule("no-console", CheckType::NoConsoleLog)).unwrap();
+        runner
+            .add_rule(CiRule {
+                severity: Severity::Error,
+                ..make_rule("no-todos", CheckType::NoTodoComments)
+            })
+            .unwrap();
+        runner
+            .add_rule(make_rule("no-console", CheckType::NoConsoleLog))
+            .unwrap();
         let files = vec![make_diff_file("app.js", vec!["// TODO: fix", "clean code"])];
         let report = runner.run_checks(&files);
         assert!(!report.overall_passed);
@@ -1192,15 +1322,22 @@ mod tests {
     #[test]
     fn test_report_all_fail() {
         let mut runner = CiGateRunner::new(make_config());
-        runner.add_rule(CiRule {
-            severity: Severity::Error,
-            ..make_rule("no-todos", CheckType::NoTodoComments)
-        }).unwrap();
-        runner.add_rule(CiRule {
-            severity: Severity::Error,
-            ..make_rule("no-console", CheckType::NoConsoleLog)
-        }).unwrap();
-        let files = vec![make_diff_file("app.js", vec!["// TODO: fix", "console.log('x');"])];
+        runner
+            .add_rule(CiRule {
+                severity: Severity::Error,
+                ..make_rule("no-todos", CheckType::NoTodoComments)
+            })
+            .unwrap();
+        runner
+            .add_rule(CiRule {
+                severity: Severity::Error,
+                ..make_rule("no-console", CheckType::NoConsoleLog)
+            })
+            .unwrap();
+        let files = vec![make_diff_file(
+            "app.js",
+            vec!["// TODO: fix", "console.log('x');"],
+        )];
         let report = runner.run_checks(&files);
         assert!(!report.overall_passed);
         assert!(report.failed >= 2);
@@ -1211,21 +1348,38 @@ mod tests {
     #[test]
     fn test_format_text() {
         let report = GateReport {
-            total_checks: 2, passed: 1, failed: 1, warnings: 0, infos: 0,
+            total_checks: 2,
+            passed: 1,
+            failed: 1,
+            warnings: 0,
+            infos: 0,
             results: vec![
                 CheckResult {
-                    rule_id: "r1".into(), rule_name: "Rule 1".into(),
-                    passed: true, severity: Severity::Info, message: "OK".into(),
-                    file_path: None, line_number: None, suggestion: None, duration_ms: 0,
+                    rule_id: "r1".into(),
+                    rule_name: "Rule 1".into(),
+                    passed: true,
+                    severity: Severity::Info,
+                    message: "OK".into(),
+                    file_path: None,
+                    line_number: None,
+                    suggestion: None,
+                    duration_ms: 0,
                 },
                 CheckResult {
-                    rule_id: "r2".into(), rule_name: "Rule 2".into(),
-                    passed: false, severity: Severity::Error, message: "Bad".into(),
-                    file_path: Some("f.rs".into()), line_number: Some(10),
-                    suggestion: Some("Fix it".into()), duration_ms: 0,
+                    rule_id: "r2".into(),
+                    rule_name: "Rule 2".into(),
+                    passed: false,
+                    severity: Severity::Error,
+                    message: "Bad".into(),
+                    file_path: Some("f.rs".into()),
+                    line_number: Some(10),
+                    suggestion: Some("Fix it".into()),
+                    duration_ms: 0,
                 },
             ],
-            overall_passed: false, duration_ms: 42, timestamp: 0,
+            overall_passed: false,
+            duration_ms: 42,
+            timestamp: 0,
         };
         let text = CiGateRunner::format_as_text(&report);
         assert!(text.contains("FAILED"));
@@ -1237,13 +1391,25 @@ mod tests {
     #[test]
     fn test_format_markdown() {
         let report = GateReport {
-            total_checks: 1, passed: 1, failed: 0, warnings: 0, infos: 0,
+            total_checks: 1,
+            passed: 1,
+            failed: 0,
+            warnings: 0,
+            infos: 0,
             results: vec![CheckResult {
-                rule_id: "r1".into(), rule_name: "Rule 1".into(),
-                passed: true, severity: Severity::Info, message: "OK".into(),
-                file_path: None, line_number: None, suggestion: None, duration_ms: 0,
+                rule_id: "r1".into(),
+                rule_name: "Rule 1".into(),
+                passed: true,
+                severity: Severity::Info,
+                message: "OK".into(),
+                file_path: None,
+                line_number: None,
+                suggestion: None,
+                duration_ms: 0,
             }],
-            overall_passed: true, duration_ms: 10, timestamp: 0,
+            overall_passed: true,
+            duration_ms: 10,
+            timestamp: 0,
         };
         let md = CiGateRunner::format_as_markdown(&report);
         assert!(md.contains("# CI Gate Report: PASSED"));
@@ -1253,13 +1419,25 @@ mod tests {
     #[test]
     fn test_format_junit() {
         let report = GateReport {
-            total_checks: 1, passed: 0, failed: 1, warnings: 0, infos: 0,
+            total_checks: 1,
+            passed: 0,
+            failed: 1,
+            warnings: 0,
+            infos: 0,
             results: vec![CheckResult {
-                rule_id: "r1".into(), rule_name: "Rule 1".into(),
-                passed: false, severity: Severity::Error, message: "Error found".into(),
-                file_path: None, line_number: None, suggestion: None, duration_ms: 0,
+                rule_id: "r1".into(),
+                rule_name: "Rule 1".into(),
+                passed: false,
+                severity: Severity::Error,
+                message: "Error found".into(),
+                file_path: None,
+                line_number: None,
+                suggestion: None,
+                duration_ms: 0,
             }],
-            overall_passed: false, duration_ms: 5, timestamp: 0,
+            overall_passed: false,
+            duration_ms: 5,
+            timestamp: 0,
         };
         let junit = CiGateRunner::format_as_junit(&report);
         assert!(junit.contains("<?xml"));
@@ -1272,8 +1450,15 @@ mod tests {
     #[test]
     fn test_exit_code_pass() {
         let report = GateReport {
-            total_checks: 1, passed: 1, failed: 0, warnings: 0, infos: 0,
-            results: vec![], overall_passed: true, duration_ms: 0, timestamp: 0,
+            total_checks: 1,
+            passed: 1,
+            failed: 0,
+            warnings: 0,
+            infos: 0,
+            results: vec![],
+            overall_passed: true,
+            duration_ms: 0,
+            timestamp: 0,
         };
         assert_eq!(CiGateRunner::generate_exit_code(&report), 0);
     }
@@ -1281,8 +1466,15 @@ mod tests {
     #[test]
     fn test_exit_code_fail() {
         let report = GateReport {
-            total_checks: 1, passed: 0, failed: 1, warnings: 0, infos: 0,
-            results: vec![], overall_passed: false, duration_ms: 0, timestamp: 0,
+            total_checks: 1,
+            passed: 0,
+            failed: 1,
+            warnings: 0,
+            infos: 0,
+            results: vec![],
+            overall_passed: false,
+            duration_ms: 0,
+            timestamp: 0,
         };
         assert_eq!(CiGateRunner::generate_exit_code(&report), 1);
     }
@@ -1290,8 +1482,15 @@ mod tests {
     #[test]
     fn test_exit_code_warn() {
         let report = GateReport {
-            total_checks: 2, passed: 1, failed: 0, warnings: 1, infos: 0,
-            results: vec![], overall_passed: true, duration_ms: 0, timestamp: 0,
+            total_checks: 2,
+            passed: 1,
+            failed: 0,
+            warnings: 1,
+            infos: 0,
+            results: vec![],
+            overall_passed: true,
+            duration_ms: 0,
+            timestamp: 0,
         };
         assert_eq!(CiGateRunner::generate_exit_code(&report), 2);
     }
@@ -1313,17 +1512,21 @@ mod tests {
     #[test]
     fn test_file_pattern_filters() {
         let mut runner = CiGateRunner::new(make_config());
-        runner.add_rule(CiRule {
-            pattern: Some("*.js".into()),
-            ..make_rule("js-only", CheckType::NoConsoleLog)
-        }).unwrap();
+        runner
+            .add_rule(CiRule {
+                pattern: Some("*.js".into()),
+                ..make_rule("js-only", CheckType::NoConsoleLog)
+            })
+            .unwrap();
         let files = vec![
             make_diff_file("app.js", vec!["console.log('x');"]),
             make_diff_file("app.rs", vec!["console.log('x');"]),
         ];
         let report = runner.run_checks(&files);
         // Only the .js file should be checked
-        let failed_files: Vec<_> = report.results.iter()
+        let failed_files: Vec<_> = report
+            .results
+            .iter()
             .filter(|r| !r.passed)
             .filter_map(|r| r.file_path.as_deref())
             .collect();
@@ -1336,10 +1539,12 @@ mod tests {
     #[test]
     fn test_warning_severity_does_not_fail() {
         let mut runner = CiGateRunner::new(make_config());
-        runner.add_rule(CiRule {
-            severity: Severity::Warning,
-            ..make_rule("warn-todos", CheckType::NoTodoComments)
-        }).unwrap();
+        runner
+            .add_rule(CiRule {
+                severity: Severity::Warning,
+                ..make_rule("warn-todos", CheckType::NoTodoComments)
+            })
+            .unwrap();
         let files = vec![make_diff_file("lib.rs", vec!["// TODO: later"])];
         let report = runner.run_checks(&files);
         // Warnings don't cause overall failure when fail_on_error=true
@@ -1352,15 +1557,19 @@ mod tests {
     #[test]
     fn test_multiple_rules_same_file() {
         let mut runner = CiGateRunner::new(make_config());
-        runner.add_rule(CiRule {
-            severity: Severity::Error,
-            ..make_rule("no-todos", CheckType::NoTodoComments)
-        }).unwrap();
-        runner.add_rule(make_rule("no-console", CheckType::NoConsoleLog)).unwrap();
-        let files = vec![make_diff_file("app.js", vec![
-            "// TODO: fix this",
-            "console.log('debug');",
-        ])];
+        runner
+            .add_rule(CiRule {
+                severity: Severity::Error,
+                ..make_rule("no-todos", CheckType::NoTodoComments)
+            })
+            .unwrap();
+        runner
+            .add_rule(make_rule("no-console", CheckType::NoConsoleLog))
+            .unwrap();
+        let files = vec![make_diff_file(
+            "app.js",
+            vec!["// TODO: fix this", "console.log('debug');"],
+        )];
         let report = runner.run_checks(&files);
         let failed: Vec<_> = report.results.iter().filter(|r| !r.passed).collect();
         assert!(failed.len() >= 2);
@@ -1418,11 +1627,16 @@ mod tests {
     #[test]
     fn test_disabled_rule_skipped() {
         let mut runner = CiGateRunner::new(make_config());
-        runner.add_rule(CiRule {
-            enabled: false,
-            ..make_rule("disabled", CheckType::NoTodoComments)
-        }).unwrap();
-        let files = vec![make_diff_file("lib.rs", vec!["// TODO: this should not be caught"])];
+        runner
+            .add_rule(CiRule {
+                enabled: false,
+                ..make_rule("disabled", CheckType::NoTodoComments)
+            })
+            .unwrap();
+        let files = vec![make_diff_file(
+            "lib.rs",
+            vec!["// TODO: this should not be caught"],
+        )];
         let report = runner.run_checks(&files);
         // Disabled rule produces no results
         assert_eq!(report.total_checks, 0);
@@ -1430,12 +1644,17 @@ mod tests {
 
     #[test]
     fn test_fail_on_error_false() {
-        let cfg = GateConfig { fail_on_error: false, ..GateConfig::default() };
+        let cfg = GateConfig {
+            fail_on_error: false,
+            ..GateConfig::default()
+        };
         let mut runner = CiGateRunner::new(cfg);
-        runner.add_rule(CiRule {
-            severity: Severity::Error,
-            ..make_rule("no-todos", CheckType::NoTodoComments)
-        }).unwrap();
+        runner
+            .add_rule(CiRule {
+                severity: Severity::Error,
+                ..make_rule("no-todos", CheckType::NoTodoComments)
+            })
+            .unwrap();
         let files = vec![make_diff_file("lib.rs", vec!["// TODO: fix"])];
         let report = runner.run_checks(&files);
         // Even with errors, overall_passed is true when fail_on_error=false

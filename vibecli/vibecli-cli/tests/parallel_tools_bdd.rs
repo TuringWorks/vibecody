@@ -48,7 +48,12 @@ struct StagedCall {
 
 impl std::fmt::Debug for ParallelToolDispatcher {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ParallelToolDispatcher({:?}, max={})", self.mode(), self.max_concurrency())
+        write!(
+            f,
+            "ParallelToolDispatcher({:?}, max={})",
+            self.mode(),
+            self.max_concurrency()
+        )
     }
 }
 

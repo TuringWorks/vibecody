@@ -21,13 +21,20 @@ pub struct SemVer {
 
 impl SemVer {
     pub fn new(major: u32, minor: u32, patch: u32) -> Self {
-        Self { major, minor, patch, pre: None }
+        Self {
+            major,
+            minor,
+            patch,
+            pre: None,
+        }
     }
 
     pub fn parse(s: &str) -> Option<Self> {
         let s = s.trim_start_matches(['v', '^', '~', '=', '>', '<', ' ']);
         let parts: Vec<&str> = s.splitn(3, '.').collect();
-        if parts.len() < 3 { return None; }
+        if parts.len() < 3 {
+            return None;
+        }
         let patch_pre: Vec<&str> = parts[2].splitn(2, '-').collect();
         Some(Self {
             major: parts[0].parse().ok()?,
@@ -37,7 +44,9 @@ impl SemVer {
         })
     }
 
-    pub fn is_pre_release(&self) -> bool { self.pre.is_some() }
+    pub fn is_pre_release(&self) -> bool {
+        self.pre.is_some()
+    }
 }
 
 impl std::fmt::Display for SemVer {
@@ -103,12 +112,17 @@ pub struct DepUpdateAdvisor {
 }
 
 impl Default for DepUpdateAdvisor {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl DepUpdateAdvisor {
     pub fn new() -> Self {
-        Self { registry: HashMap::new(), known_breaking: HashMap::new() }
+        Self {
+            registry: HashMap::new(),
+            known_breaking: HashMap::new(),
+        }
     }
 
     pub fn add_package(&mut self, name: impl Into<String>, current: SemVer, latest: SemVer) {
@@ -121,9 +135,15 @@ impl DepUpdateAdvisor {
 
     /// Compute risk level between `current` and `latest`.
     pub fn risk_level(current: &SemVer, latest: &SemVer) -> UpdateRisk {
-        if latest.is_pre_release() { return UpdateRisk::Unstable; }
-        if latest.major > current.major { return UpdateRisk::Major; }
-        if latest.minor > current.minor { return UpdateRisk::Minor; }
+        if latest.is_pre_release() {
+            return UpdateRisk::Unstable;
+        }
+        if latest.major > current.major {
+            return UpdateRisk::Major;
+        }
+        if latest.minor > current.minor {
+            return UpdateRisk::Minor;
+        }
         UpdateRisk::Patch
     }
 
@@ -132,7 +152,9 @@ impl DepUpdateAdvisor {
         let mut recommendations: Vec<UpdateRecommendation> = Vec::new();
 
         for (package, (current, latest)) in &self.registry {
-            if latest <= current { continue; } // already up to date
+            if latest <= current {
+                continue;
+            } // already up to date
 
             let risk = Self::risk_level(current, latest);
             let mut notes = Vec::new();
@@ -164,7 +186,9 @@ impl DepUpdateAdvisor {
                 UpdateRisk::Minor => 2,
                 UpdateRisk::Patch => 3,
             };
-            risk_ord(&a.risk).cmp(&risk_ord(&b.risk)).then(a.package.cmp(&b.package))
+            risk_ord(&a.risk)
+                .cmp(&risk_ord(&b.risk))
+                .then(a.package.cmp(&b.package))
         });
 
         recommendations
@@ -172,7 +196,10 @@ impl DepUpdateAdvisor {
 
     /// Return only packages that are safe to auto-update.
     pub fn safe_updates(&self) -> Vec<UpdateRecommendation> {
-        self.analyze().into_iter().filter(|r| r.can_auto_update()).collect()
+        self.analyze()
+            .into_iter()
+            .filter(|r| r.can_auto_update())
+            .collect()
     }
 
     /// Render a human-readable report.
@@ -204,7 +231,9 @@ impl DepUpdateAdvisor {
 mod tests {
     use super::*;
 
-    fn v(s: &str) -> SemVer { SemVer::parse(s).unwrap() }
+    fn v(s: &str) -> SemVer {
+        SemVer::parse(s).unwrap()
+    }
 
     #[test]
     fn test_semver_parse() {
@@ -235,23 +264,40 @@ mod tests {
 
     #[test]
     fn test_risk_patch() {
-        assert_eq!(DepUpdateAdvisor::risk_level(&v("1.0.0"), &v("1.0.1")), UpdateRisk::Patch);
+        assert_eq!(
+            DepUpdateAdvisor::risk_level(&v("1.0.0"), &v("1.0.1")),
+            UpdateRisk::Patch
+        );
     }
 
     #[test]
     fn test_risk_minor() {
-        assert_eq!(DepUpdateAdvisor::risk_level(&v("1.0.0"), &v("1.1.0")), UpdateRisk::Minor);
+        assert_eq!(
+            DepUpdateAdvisor::risk_level(&v("1.0.0"), &v("1.1.0")),
+            UpdateRisk::Minor
+        );
     }
 
     #[test]
     fn test_risk_major() {
-        assert_eq!(DepUpdateAdvisor::risk_level(&v("1.0.0"), &v("2.0.0")), UpdateRisk::Major);
+        assert_eq!(
+            DepUpdateAdvisor::risk_level(&v("1.0.0"), &v("2.0.0")),
+            UpdateRisk::Major
+        );
     }
 
     #[test]
     fn test_risk_unstable() {
-        let latest = SemVer { major: 2, minor: 0, patch: 0, pre: Some("beta.1".into()) };
-        assert_eq!(DepUpdateAdvisor::risk_level(&v("1.0.0"), &latest), UpdateRisk::Unstable);
+        let latest = SemVer {
+            major: 2,
+            minor: 0,
+            patch: 0,
+            pre: Some("beta.1".into()),
+        };
+        assert_eq!(
+            DepUpdateAdvisor::risk_level(&v("1.0.0"), &latest),
+            UpdateRisk::Unstable
+        );
     }
 
     #[test]

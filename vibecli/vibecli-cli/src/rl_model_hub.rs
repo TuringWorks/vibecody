@@ -174,12 +174,18 @@ impl std::fmt::Display for PromotionStage {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum SpaceType {
     Discrete(u64),
-    Continuous { dims: usize },
+    Continuous {
+        dims: usize,
+    },
     MultiDiscrete(Vec<u64>),
     MultiBinary(usize),
     Dict(Vec<(String, SpaceType)>),
     Tuple(Vec<SpaceType>),
-    Image { height: u32, width: u32, channels: u32 },
+    Image {
+        height: u32,
+        width: u32,
+        channels: u32,
+    },
 }
 
 impl SpaceType {
@@ -203,7 +209,11 @@ impl SpaceType {
             Self::MultiBinary(n) => *n,
             Self::Dict(fields) => fields.iter().map(|(_, s)| s.flat_size()).sum(),
             Self::Tuple(elems) => elems.iter().map(|s| s.flat_size()).sum(),
-            Self::Image { height, width, channels } => (*height as usize) * (*width as usize) * (*channels as usize),
+            Self::Image {
+                height,
+                width,
+                channels,
+            } => (*height as usize) * (*width as usize) * (*channels as usize),
         }
     }
 }
@@ -220,7 +230,11 @@ impl std::fmt::Display for SpaceType {
                 write!(f, "Dict({})", keys.join(", "))
             }
             Self::Tuple(elems) => write!(f, "Tuple({})", elems.len()),
-            Self::Image { height, width, channels } => write!(f, "Image({}x{}x{})", height, width, channels),
+            Self::Image {
+                height,
+                width,
+                channels,
+            } => write!(f, "Image({}x{}x{})", height, width, channels),
         }
     }
 }
@@ -229,11 +243,18 @@ impl std::fmt::Display for SpaceType {
 pub enum AuditAction {
     Register,
     Update,
-    Promote { from: PromotionStage, to: PromotionStage },
+    Promote {
+        from: PromotionStage,
+        to: PromotionStage,
+    },
     Deprecate,
     Delete,
-    ArtifactUpload { format: ArtifactFormat },
-    ArtifactDownload { format: ArtifactFormat },
+    ArtifactUpload {
+        format: ArtifactFormat,
+    },
+    ArtifactDownload {
+        format: ArtifactFormat,
+    },
     EvalAdded,
     TagAdded(String),
     TagRemoved(String),
@@ -271,9 +292,18 @@ pub enum HubError {
     PolicyNotFound(String),
     VersionExists(String),
     QualityGateFailed(Vec<String>),
-    InvalidPromotion { from: PromotionStage, to: PromotionStage },
-    ArtifactNotFound { policy_id: String, format: ArtifactFormat },
-    ChecksumMismatch { expected: String, actual: String },
+    InvalidPromotion {
+        from: PromotionStage,
+        to: PromotionStage,
+    },
+    ArtifactNotFound {
+        policy_id: String,
+        format: ArtifactFormat,
+    },
+    ChecksumMismatch {
+        expected: String,
+        actual: String,
+    },
     InvalidVersion(String),
     RetentionViolation(String),
     ImportError(String),
@@ -286,10 +316,20 @@ impl std::fmt::Display for HubError {
         match self {
             Self::PolicyNotFound(id) => write!(f, "policy not found: {}", id),
             Self::VersionExists(v) => write!(f, "version already exists: {}", v),
-            Self::QualityGateFailed(reasons) => write!(f, "quality gate failed: {}", reasons.join("; ")),
-            Self::InvalidPromotion { from, to } => write!(f, "invalid promotion: {} -> {}", from, to),
-            Self::ArtifactNotFound { policy_id, format } => write!(f, "artifact not found: {} ({})", policy_id, format),
-            Self::ChecksumMismatch { expected, actual } => write!(f, "checksum mismatch: expected {}, got {}", expected, actual),
+            Self::QualityGateFailed(reasons) => {
+                write!(f, "quality gate failed: {}", reasons.join("; "))
+            }
+            Self::InvalidPromotion { from, to } => {
+                write!(f, "invalid promotion: {} -> {}", from, to)
+            }
+            Self::ArtifactNotFound { policy_id, format } => {
+                write!(f, "artifact not found: {} ({})", policy_id, format)
+            }
+            Self::ChecksumMismatch { expected, actual } => write!(
+                f,
+                "checksum mismatch: expected {}, got {}",
+                expected, actual
+            ),
             Self::InvalidVersion(v) => write!(f, "invalid semantic version: {}", v),
             Self::RetentionViolation(msg) => write!(f, "retention violation: {}", msg),
             Self::ImportError(msg) => write!(f, "import error: {}", msg),
@@ -311,7 +351,12 @@ pub struct SemanticVersion {
 
 impl SemanticVersion {
     pub fn new(major: u32, minor: u32, patch: u32) -> Self {
-        Self { major, minor, patch, pre_release: None }
+        Self {
+            major,
+            minor,
+            patch,
+            pre_release: None,
+        }
     }
 
     pub fn with_pre_release(mut self, pre: &str) -> Self {
@@ -329,10 +374,21 @@ impl SemanticVersion {
         if parts.len() != 3 {
             return Err(HubError::InvalidVersion(s.to_string()));
         }
-        let major = parts[0].parse::<u32>().map_err(|_| HubError::InvalidVersion(s.to_string()))?;
-        let minor = parts[1].parse::<u32>().map_err(|_| HubError::InvalidVersion(s.to_string()))?;
-        let patch = parts[2].parse::<u32>().map_err(|_| HubError::InvalidVersion(s.to_string()))?;
-        Ok(Self { major, minor, patch, pre_release: pre })
+        let major = parts[0]
+            .parse::<u32>()
+            .map_err(|_| HubError::InvalidVersion(s.to_string()))?;
+        let minor = parts[1]
+            .parse::<u32>()
+            .map_err(|_| HubError::InvalidVersion(s.to_string()))?;
+        let patch = parts[2]
+            .parse::<u32>()
+            .map_err(|_| HubError::InvalidVersion(s.to_string()))?;
+        Ok(Self {
+            major,
+            minor,
+            patch,
+            pre_release: pre,
+        })
     }
 
     pub fn to_string_repr(&self) -> String {
@@ -360,7 +416,8 @@ impl SemanticVersion {
     }
 
     pub fn compare(&self, other: &Self) -> std::cmp::Ordering {
-        self.major.cmp(&other.major)
+        self.major
+            .cmp(&other.major)
             .then(self.minor.cmp(&other.minor))
             .then(self.patch.cmp(&other.patch))
     }
@@ -411,16 +468,20 @@ impl NormalizationStats {
     }
 
     pub fn normalize(&self, observation: &[f64]) -> Vec<f64> {
-        observation.iter().enumerate().map(|(i, &v)| {
-            let mean = self.running_mean.get(i).copied().unwrap_or(0.0);
-            let std = self.running_std.get(i).copied().unwrap_or(1.0);
-            let normalized = (v - mean) / std.max(1e-8);
-            if let Some(clip) = self.clip_range {
-                normalized.clamp(-clip, clip)
-            } else {
-                normalized
-            }
-        }).collect()
+        observation
+            .iter()
+            .enumerate()
+            .map(|(i, &v)| {
+                let mean = self.running_mean.get(i).copied().unwrap_or(0.0);
+                let std = self.running_std.get(i).copied().unwrap_or(1.0);
+                let normalized = (v - mean) / std.max(1e-8);
+                if let Some(clip) = self.clip_range {
+                    normalized.clamp(-clip, clip)
+                } else {
+                    normalized
+                }
+            })
+            .collect()
     }
 
     pub fn dims(&self) -> usize {
@@ -515,34 +576,74 @@ impl Hyperparameters {
     pub fn diff(&self, other: &Hyperparameters) -> Vec<(String, String, String)> {
         let mut diffs = Vec::new();
         if (self.learning_rate - other.learning_rate).abs() > 1e-12 {
-            diffs.push(("learning_rate".into(), format!("{}", self.learning_rate), format!("{}", other.learning_rate)));
+            diffs.push((
+                "learning_rate".into(),
+                format!("{}", self.learning_rate),
+                format!("{}", other.learning_rate),
+            ));
         }
         if (self.gamma - other.gamma).abs() > 1e-12 {
-            diffs.push(("gamma".into(), format!("{}", self.gamma), format!("{}", other.gamma)));
+            diffs.push((
+                "gamma".into(),
+                format!("{}", self.gamma),
+                format!("{}", other.gamma),
+            ));
         }
         if self.batch_size != other.batch_size {
-            diffs.push(("batch_size".into(), format!("{}", self.batch_size), format!("{}", other.batch_size)));
+            diffs.push((
+                "batch_size".into(),
+                format!("{}", self.batch_size),
+                format!("{}", other.batch_size),
+            ));
         }
         if self.n_epochs != other.n_epochs {
-            diffs.push(("n_epochs".into(), format!("{}", self.n_epochs), format!("{}", other.n_epochs)));
+            diffs.push((
+                "n_epochs".into(),
+                format!("{}", self.n_epochs),
+                format!("{}", other.n_epochs),
+            ));
         }
         if self.n_steps != other.n_steps {
-            diffs.push(("n_steps".into(), format!("{}", self.n_steps), format!("{}", other.n_steps)));
+            diffs.push((
+                "n_steps".into(),
+                format!("{}", self.n_steps),
+                format!("{}", other.n_steps),
+            ));
         }
         if (self.entropy_coeff - other.entropy_coeff).abs() > 1e-12 {
-            diffs.push(("entropy_coeff".into(), format!("{}", self.entropy_coeff), format!("{}", other.entropy_coeff)));
+            diffs.push((
+                "entropy_coeff".into(),
+                format!("{}", self.entropy_coeff),
+                format!("{}", other.entropy_coeff),
+            ));
         }
         if self.clip_range != other.clip_range {
-            diffs.push(("clip_range".into(), format!("{:?}", self.clip_range), format!("{:?}", other.clip_range)));
+            diffs.push((
+                "clip_range".into(),
+                format!("{:?}", self.clip_range),
+                format!("{:?}", other.clip_range),
+            ));
         }
         if self.target_kl != other.target_kl {
-            diffs.push(("target_kl".into(), format!("{:?}", self.target_kl), format!("{:?}", other.target_kl)));
+            diffs.push((
+                "target_kl".into(),
+                format!("{:?}", self.target_kl),
+                format!("{:?}", other.target_kl),
+            ));
         }
         if self.tau != other.tau {
-            diffs.push(("tau".into(), format!("{:?}", self.tau), format!("{:?}", other.tau)));
+            diffs.push((
+                "tau".into(),
+                format!("{:?}", self.tau),
+                format!("{:?}", other.tau),
+            ));
         }
         if self.buffer_size != other.buffer_size {
-            diffs.push(("buffer_size".into(), format!("{:?}", self.buffer_size), format!("{:?}", other.buffer_size)));
+            diffs.push((
+                "buffer_size".into(),
+                format!("{:?}", self.buffer_size),
+                format!("{:?}", other.buffer_size),
+            ));
         }
         diffs
     }
@@ -779,9 +880,12 @@ impl EvaluationResults {
         let n = self.scenario_results.len() as f64;
         let sum: f64 = self.scenario_results.iter().map(|s| s.mean_reward).sum();
         self.overall_mean_reward = sum / n;
-        let variance: f64 = self.scenario_results.iter()
+        let variance: f64 = self
+            .scenario_results
+            .iter()
             .map(|s| (s.mean_reward - self.overall_mean_reward).powi(2))
-            .sum::<f64>() / n;
+            .sum::<f64>()
+            / n;
         self.overall_std_reward = variance.sqrt();
     }
 
@@ -794,11 +898,19 @@ impl EvaluationResults {
     }
 
     pub fn best_scenario(&self) -> Option<&ScenarioResult> {
-        self.scenario_results.iter().max_by(|a, b| a.mean_reward.partial_cmp(&b.mean_reward).unwrap_or(std::cmp::Ordering::Equal))
+        self.scenario_results.iter().max_by(|a, b| {
+            a.mean_reward
+                .partial_cmp(&b.mean_reward)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
     }
 
     pub fn worst_scenario(&self) -> Option<&ScenarioResult> {
-        self.scenario_results.iter().min_by(|a, b| a.mean_reward.partial_cmp(&b.mean_reward).unwrap_or(std::cmp::Ordering::Equal))
+        self.scenario_results.iter().min_by(|a, b| {
+            a.mean_reward
+                .partial_cmp(&b.mean_reward)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
     }
 }
 
@@ -831,7 +943,13 @@ pub struct Artifact {
 }
 
 impl Artifact {
-    pub fn new(format: ArtifactFormat, path: &str, checksum: &str, size: u64, created_at: u64) -> Self {
+    pub fn new(
+        format: ArtifactFormat,
+        path: &str,
+        checksum: &str,
+        size: u64,
+        created_at: u64,
+    ) -> Self {
         Self {
             format,
             file_path: path.to_string(),
@@ -1002,7 +1120,8 @@ impl QualityGate {
     }
 
     pub fn add_custom_check(&mut self, metric: &str, threshold: f64, cmp: QualityComparator) {
-        self.custom_checks.push((metric.to_string(), threshold, cmp));
+        self.custom_checks
+            .push((metric.to_string(), threshold, cmp));
     }
 
     pub fn evaluate(&self, eval: &EvaluationResults) -> Result<(), Vec<String>> {
@@ -1072,7 +1191,8 @@ impl QualityGate {
             if eval.scenario_results.len() < min_sc {
                 failures.push(format!(
                     "scenarios {} < min {}",
-                    eval.scenario_results.len(), min_sc
+                    eval.scenario_results.len(),
+                    min_sc
                 ));
             }
         }
@@ -1117,7 +1237,13 @@ pub struct AuditEntry {
 }
 
 impl AuditEntry {
-    pub fn new(timestamp: u64, policy_id: &str, version: &str, actor: &str, action: AuditAction) -> Self {
+    pub fn new(
+        timestamp: u64,
+        policy_id: &str,
+        version: &str,
+        actor: &str,
+        action: AuditAction,
+    ) -> Self {
         Self {
             timestamp,
             policy_id: policy_id.to_string(),
@@ -1266,7 +1392,8 @@ impl ExportBundle {
     }
 
     pub fn set_metadata(&mut self, key: &str, value: &str) {
-        self.export_metadata.insert(key.to_string(), value.to_string());
+        self.export_metadata
+            .insert(key.to_string(), value.to_string());
     }
 
     pub fn is_reproducible(&self) -> bool {
@@ -1283,7 +1410,11 @@ impl ExportBundle {
             self.format,
             self.observation_space,
             self.action_space,
-            if self.normalization_stats.is_some() { "normalized" } else { "raw" },
+            if self.normalization_stats.is_some() {
+                "normalized"
+            } else {
+                "raw"
+            },
         )
     }
 }
@@ -1329,7 +1460,9 @@ impl ModelCard {
             "No evaluation results available".to_string()
         };
 
-        let best_reward = record.latest_eval.as_ref()
+        let best_reward = record
+            .latest_eval
+            .as_ref()
             .and_then(|e| e.best_scenario())
             .map(|s| s.mean_reward)
             .unwrap_or(0.0);
@@ -1344,13 +1477,21 @@ impl ModelCard {
             record.lineage.distilled_from.as_deref().unwrap_or("none"),
         );
 
-        let safety_notes = record.latest_eval.as_ref()
+        let safety_notes = record
+            .latest_eval
+            .as_ref()
             .and_then(|e| e.safety_report.as_ref())
             .map(|r| {
                 if r.passed {
-                    format!("Safety passed. Score: {:.2}, Tested scenarios: {}", r.safety_score, r.tested_scenarios)
+                    format!(
+                        "Safety passed. Score: {:.2}, Tested scenarios: {}",
+                        r.safety_score, r.tested_scenarios
+                    )
                 } else {
-                    format!("Safety FAILED. Violations: {}", r.constraint_violations.join(", "))
+                    format!(
+                        "Safety FAILED. Violations: {}",
+                        r.constraint_violations.join(", ")
+                    )
                 }
             })
             .unwrap_or_else(|| "No safety assessment available".to_string());
@@ -1376,8 +1517,15 @@ impl ModelCard {
             tags: record.tags.clone(),
             lineage_summary,
             artifact_formats: record.artifacts.iter().map(|a| a.format.clone()).collect(),
-            deployment_notes: record.deployment.as_ref()
-                .map(|d| format!("{} on {}, p50={}ms, p99={}ms", d.serving_framework, d.hardware_target, d.latency_p50_ms, d.latency_p99_ms))
+            deployment_notes: record
+                .deployment
+                .as_ref()
+                .map(|d| {
+                    format!(
+                        "{} on {}, p50={}ms, p99={}ms",
+                        d.serving_framework, d.hardware_target, d.latency_p50_ms, d.latency_p99_ms
+                    )
+                })
                 .unwrap_or_else(|| "No deployment config".to_string()),
             safety_notes,
         }
@@ -1385,7 +1533,10 @@ impl ModelCard {
 
     pub fn to_markdown(&self) -> String {
         let mut md = String::with_capacity(2048);
-        md.push_str(&format!("# Model Card: {} v{}\n\n", self.policy_name, self.version));
+        md.push_str(&format!(
+            "# Model Card: {} v{}\n\n",
+            self.policy_name, self.version
+        ));
         md.push_str(&format!("**Algorithm**: {}  \n", self.algorithm));
         md.push_str(&format!("**Author**: {}  \n", self.author));
         md.push_str(&format!("**Created**: {}  \n\n", self.created_at));
@@ -1393,7 +1544,10 @@ impl ModelCard {
         md.push_str("## Environment\n\n");
         md.push_str(&format!("- **Name**: {}\n", self.env_name));
         md.push_str(&format!("- **Version**: {}\n", self.env_version));
-        md.push_str(&format!("- **Observation Space**: {}\n", self.observation_space));
+        md.push_str(&format!(
+            "- **Observation Space**: {}\n",
+            self.observation_space
+        ));
         md.push_str(&format!("- **Action Space**: {}\n\n", self.action_space));
         md.push_str("## Training\n\n");
         md.push_str(&format!("- **Steps**: {}\n", self.training_steps));
@@ -1450,7 +1604,11 @@ pub struct MetricDiff {
 impl MetricDiff {
     pub fn new(name: &str, a: f64, b: f64) -> Self {
         let delta = b - a;
-        let relative = if a.abs() > 1e-12 { (delta / a.abs()) * 100.0 } else { 0.0 };
+        let relative = if a.abs() > 1e-12 {
+            (delta / a.abs()) * 100.0
+        } else {
+            0.0
+        };
         Self {
             metric_name: name.to_string(),
             value_a: a,
@@ -1561,7 +1719,10 @@ impl PolicyRecord {
     }
 
     pub fn is_promoted(&self) -> bool {
-        matches!(self.stage, PromotionStage::Canary | PromotionStage::Production)
+        matches!(
+            self.stage,
+            PromotionStage::Canary | PromotionStage::Production
+        )
     }
 
     pub fn add_tag(&mut self, tag: &str) -> Result<(), HubError> {
@@ -1668,13 +1829,21 @@ impl SearchCriteria {
             }
         }
         if let Some(min_r) = self.min_reward {
-            let reward = record.latest_eval.as_ref().map(|e| e.overall_mean_reward).unwrap_or(f64::NEG_INFINITY);
+            let reward = record
+                .latest_eval
+                .as_ref()
+                .map(|e| e.overall_mean_reward)
+                .unwrap_or(f64::NEG_INFINITY);
             if reward < min_r {
                 return false;
             }
         }
         if let Some(max_r) = self.max_reward {
-            let reward = record.latest_eval.as_ref().map(|e| e.overall_mean_reward).unwrap_or(f64::INFINITY);
+            let reward = record
+                .latest_eval
+                .as_ref()
+                .map(|e| e.overall_mean_reward)
+                .unwrap_or(f64::INFINITY);
             if reward > max_r {
                 return false;
             }
@@ -1796,7 +1965,8 @@ impl ModelHub {
 
     fn log_audit(&mut self, policy_id: &str, version: &str, actor: &str, action: AuditAction) {
         let ts = self.next_timestamp();
-        self.audit_trail.push(AuditEntry::new(ts, policy_id, version, actor, action));
+        self.audit_trail
+            .push(AuditEntry::new(ts, policy_id, version, actor, action));
     }
 
     // ── Registration ───────────────────────────────────────────────────
@@ -1818,7 +1988,12 @@ impl ModelHub {
         if let Some(ref eval) = record.latest_eval {
             match self.quality_gate.evaluate(eval) {
                 Ok(()) => {
-                    self.log_audit(&key, &version_str, &record.author, AuditAction::QualityGatePass);
+                    self.log_audit(
+                        &key,
+                        &version_str,
+                        &record.author,
+                        AuditAction::QualityGatePass,
+                    );
                 }
                 Err(reasons) => {
                     self.log_audit(
@@ -1840,13 +2015,15 @@ impl ModelHub {
     }
 
     pub fn get(&self, name: &str, version: &str) -> Option<&PolicyRecord> {
-        self.policies.get(name)?
+        self.policies
+            .get(name)?
             .iter()
             .find(|r| r.version.to_string_repr() == version)
     }
 
     pub fn get_mut(&mut self, name: &str, version: &str) -> Option<&mut PolicyRecord> {
-        self.policies.get_mut(name)?
+        self.policies
+            .get_mut(name)?
             .iter_mut()
             .find(|r| r.version.to_string_repr() == version)
     }
@@ -1861,9 +2038,13 @@ impl ModelHub {
     }
 
     pub fn list_versions(&self, name: &str) -> Vec<String> {
-        self.policies.get(name)
+        self.policies
+            .get(name)
             .map(|versions| {
-                let mut v: Vec<String> = versions.iter().map(|r| r.version.to_string_repr()).collect();
+                let mut v: Vec<String> = versions
+                    .iter()
+                    .map(|r| r.version.to_string_repr())
+                    .collect();
                 v.sort();
                 v
             })
@@ -1876,10 +2057,19 @@ impl ModelHub {
 
     // ── Delete ─────────────────────────────────────────────────────────
 
-    pub fn delete(&mut self, name: &str, version: &str, actor: &str) -> Result<PolicyRecord, HubError> {
-        let versions = self.policies.get_mut(name)
+    pub fn delete(
+        &mut self,
+        name: &str,
+        version: &str,
+        actor: &str,
+    ) -> Result<PolicyRecord, HubError> {
+        let versions = self
+            .policies
+            .get_mut(name)
             .ok_or_else(|| HubError::PolicyNotFound(format!("{}:{}", name, version)))?;
-        let idx = versions.iter().position(|r| r.version.to_string_repr() == version)
+        let idx = versions
+            .iter()
+            .position(|r| r.version.to_string_repr() == version)
             .ok_or_else(|| HubError::PolicyNotFound(format!("{}:{}", name, version)))?;
         let record = versions.remove(idx);
         if versions.is_empty() {
@@ -1891,9 +2081,16 @@ impl ModelHub {
 
     // ── Evaluation ─────────────────────────────────────────────────────
 
-    pub fn add_eval(&mut self, name: &str, version: &str, eval: EvaluationResults, actor: &str) -> Result<(), HubError> {
+    pub fn add_eval(
+        &mut self,
+        name: &str,
+        version: &str,
+        eval: EvaluationResults,
+        actor: &str,
+    ) -> Result<(), HubError> {
         let ts = self.timestamp_counter + 1;
-        let record = self.get_mut(name, version)
+        let record = self
+            .get_mut(name, version)
             .ok_or_else(|| HubError::PolicyNotFound(format!("{}:{}", name, version)))?;
         record.eval_history.push(eval.clone());
         record.latest_eval = Some(eval);
@@ -1904,10 +2101,17 @@ impl ModelHub {
 
     // ── Artifacts ──────────────────────────────────────────────────────
 
-    pub fn add_artifact(&mut self, name: &str, version: &str, artifact: Artifact, actor: &str) -> Result<(), HubError> {
+    pub fn add_artifact(
+        &mut self,
+        name: &str,
+        version: &str,
+        artifact: Artifact,
+        actor: &str,
+    ) -> Result<(), HubError> {
         let format = artifact.format.clone();
         let ts = self.timestamp_counter + 1;
-        let record = self.get_mut(name, version)
+        let record = self
+            .get_mut(name, version)
             .ok_or_else(|| HubError::PolicyNotFound(format!("{}:{}", name, version)))?;
         record.artifacts.push(artifact);
         record.updated_at = ts;
@@ -1915,10 +2119,18 @@ impl ModelHub {
         Ok(())
     }
 
-    pub fn get_artifact(&self, name: &str, version: &str, format: &ArtifactFormat) -> Result<&Artifact, HubError> {
-        let record = self.get(name, version)
+    pub fn get_artifact(
+        &self,
+        name: &str,
+        version: &str,
+        format: &ArtifactFormat,
+    ) -> Result<&Artifact, HubError> {
+        let record = self
+            .get(name, version)
             .ok_or_else(|| HubError::PolicyNotFound(format!("{}:{}", name, version)))?;
-        record.artifacts.iter()
+        record
+            .artifacts
+            .iter()
             .find(|a| &a.format == format)
             .ok_or_else(|| HubError::ArtifactNotFound {
                 policy_id: format!("{}:{}", name, version),
@@ -1946,7 +2158,8 @@ impl ModelHub {
         }
 
         let ts = self.timestamp_counter + 1;
-        let record = self.get_mut(name, version)
+        let record = self
+            .get_mut(name, version)
             .ok_or_else(|| HubError::PolicyNotFound(format!("{}:{}", name, version)))?;
 
         let from = record.stage.clone();
@@ -1957,13 +2170,22 @@ impl ModelHub {
         let from_clone = record.stage.clone();
         record.stage = target.clone();
         record.updated_at = ts;
-        self.log_audit(name, version, actor, AuditAction::Promote { from: from_clone, to: target });
+        self.log_audit(
+            name,
+            version,
+            actor,
+            AuditAction::Promote {
+                from: from_clone,
+                to: target,
+            },
+        );
         Ok(())
     }
 
     pub fn deprecate(&mut self, name: &str, version: &str, actor: &str) -> Result<(), HubError> {
         let ts = self.timestamp_counter + 1;
-        let record = self.get_mut(name, version)
+        let record = self
+            .get_mut(name, version)
             .ok_or_else(|| HubError::PolicyNotFound(format!("{}:{}", name, version)))?;
         record.stage = PromotionStage::Deprecated;
         record.updated_at = ts;
@@ -1973,26 +2195,46 @@ impl ModelHub {
 
     // ── Tags ───────────────────────────────────────────────────────────
 
-    pub fn add_tag(&mut self, name: &str, version: &str, tag: &str, actor: &str) -> Result<(), HubError> {
-        let record = self.get_mut(name, version)
+    pub fn add_tag(
+        &mut self,
+        name: &str,
+        version: &str,
+        tag: &str,
+        actor: &str,
+    ) -> Result<(), HubError> {
+        let record = self
+            .get_mut(name, version)
             .ok_or_else(|| HubError::PolicyNotFound(format!("{}:{}", name, version)))?;
         record.add_tag(tag)?;
         self.log_audit(name, version, actor, AuditAction::TagAdded(tag.to_string()));
         Ok(())
     }
 
-    pub fn remove_tag(&mut self, name: &str, version: &str, tag: &str, actor: &str) -> Result<(), HubError> {
-        let record = self.get_mut(name, version)
+    pub fn remove_tag(
+        &mut self,
+        name: &str,
+        version: &str,
+        tag: &str,
+        actor: &str,
+    ) -> Result<(), HubError> {
+        let record = self
+            .get_mut(name, version)
             .ok_or_else(|| HubError::PolicyNotFound(format!("{}:{}", name, version)))?;
         record.remove_tag(tag);
-        self.log_audit(name, version, actor, AuditAction::TagRemoved(tag.to_string()));
+        self.log_audit(
+            name,
+            version,
+            actor,
+            AuditAction::TagRemoved(tag.to_string()),
+        );
         Ok(())
     }
 
     // ── Search ─────────────────────────────────────────────────────────
 
     pub fn search(&self, criteria: &SearchCriteria) -> Vec<&PolicyRecord> {
-        self.policies.values()
+        self.policies
+            .values()
             .flat_map(|versions| versions.iter())
             .filter(|r| criteria.matches(r))
             .collect()
@@ -2012,9 +2254,16 @@ impl ModelHub {
 
     // ── Deployment ─────────────────────────────────────────────────────
 
-    pub fn set_deployment(&mut self, name: &str, version: &str, deployment: DeploymentMetadata, actor: &str) -> Result<(), HubError> {
+    pub fn set_deployment(
+        &mut self,
+        name: &str,
+        version: &str,
+        deployment: DeploymentMetadata,
+        actor: &str,
+    ) -> Result<(), HubError> {
         let ts = self.timestamp_counter + 1;
-        let record = self.get_mut(name, version)
+        let record = self
+            .get_mut(name, version)
             .ok_or_else(|| HubError::PolicyNotFound(format!("{}:{}", name, version)))?;
         record.deployment = Some(deployment);
         record.updated_at = ts;
@@ -2024,19 +2273,43 @@ impl ModelHub {
 
     // ── Comparison ─────────────────────────────────────────────────────
 
-    pub fn compare(&self, name_a: &str, version_a: &str, name_b: &str, version_b: &str) -> Result<PolicyComparison, HubError> {
-        let a = self.get(name_a, version_a)
+    pub fn compare(
+        &self,
+        name_a: &str,
+        version_a: &str,
+        name_b: &str,
+        version_b: &str,
+    ) -> Result<PolicyComparison, HubError> {
+        let a = self
+            .get(name_a, version_a)
             .ok_or_else(|| HubError::PolicyNotFound(format!("{}:{}", name_a, version_a)))?;
-        let b = self.get(name_b, version_b)
+        let b = self
+            .get(name_b, version_b)
             .ok_or_else(|| HubError::PolicyNotFound(format!("{}:{}", name_b, version_b)))?;
 
         let mut metric_diffs = Vec::new();
 
         if let (Some(eval_a), Some(eval_b)) = (&a.latest_eval, &b.latest_eval) {
-            metric_diffs.push(MetricDiff::new("mean_reward", eval_a.overall_mean_reward, eval_b.overall_mean_reward));
-            metric_diffs.push(MetricDiff::new("std_reward", eval_a.overall_std_reward, eval_b.overall_std_reward));
-            metric_diffs.push(MetricDiff::new("max_drawdown", eval_a.max_drawdown, eval_b.max_drawdown));
-            metric_diffs.push(MetricDiff::new("eval_episodes", eval_a.eval_episodes as f64, eval_b.eval_episodes as f64));
+            metric_diffs.push(MetricDiff::new(
+                "mean_reward",
+                eval_a.overall_mean_reward,
+                eval_b.overall_mean_reward,
+            ));
+            metric_diffs.push(MetricDiff::new(
+                "std_reward",
+                eval_a.overall_std_reward,
+                eval_b.overall_std_reward,
+            ));
+            metric_diffs.push(MetricDiff::new(
+                "max_drawdown",
+                eval_a.max_drawdown,
+                eval_b.max_drawdown,
+            ));
+            metric_diffs.push(MetricDiff::new(
+                "eval_episodes",
+                eval_a.eval_episodes as f64,
+                eval_b.eval_episodes as f64,
+            ));
         }
 
         let hyperparameter_diffs = a.hyperparameters.diff(&b.hyperparameters);
@@ -2066,11 +2339,19 @@ impl ModelHub {
 
     // ── Cross-Framework Export ──────────────────────────────────────────
 
-    pub fn export_bundle(&self, name: &str, version: &str, target_format: ArtifactFormat) -> Result<ExportBundle, HubError> {
-        let record = self.get(name, version)
+    pub fn export_bundle(
+        &self,
+        name: &str,
+        version: &str,
+        target_format: ArtifactFormat,
+    ) -> Result<ExportBundle, HubError> {
+        let record = self
+            .get(name, version)
             .ok_or_else(|| HubError::PolicyNotFound(format!("{}:{}", name, version)))?;
 
-        let artifact = record.artifacts.iter()
+        let artifact = record
+            .artifacts
+            .iter()
             .find(|a| a.format == target_format)
             .ok_or_else(|| HubError::ArtifactNotFound {
                 policy_id: record.full_id(),
@@ -2105,7 +2386,8 @@ impl ModelHub {
     // ── Model Card ─────────────────────────────────────────────────────
 
     pub fn generate_model_card(&self, name: &str, version: &str) -> Result<ModelCard, HubError> {
-        let record = self.get(name, version)
+        let record = self
+            .get(name, version)
             .ok_or_else(|| HubError::PolicyNotFound(format!("{}:{}", name, version)))?;
         Ok(ModelCard::generate(record))
     }
@@ -2121,7 +2403,11 @@ impl ModelHub {
             let mut to_remove = Vec::new();
             for (i, record) in versions.iter().enumerate() {
                 let age_days = (current_time.saturating_sub(record.created_at)) / 86400;
-                let reward = record.latest_eval.as_ref().map(|e| e.overall_mean_reward).unwrap_or(0.0);
+                let reward = record
+                    .latest_eval
+                    .as_ref()
+                    .map(|e| e.overall_mean_reward)
+                    .unwrap_or(0.0);
 
                 if !self.retention_policy.should_keep(
                     i,
@@ -2170,7 +2456,11 @@ impl ModelHub {
         snapshot
     }
 
-    pub fn import_registry(&mut self, snapshot: RegistrySnapshot, actor: &str) -> Result<usize, HubError> {
+    pub fn import_registry(
+        &mut self,
+        snapshot: RegistrySnapshot,
+        actor: &str,
+    ) -> Result<usize, HubError> {
         if snapshot.format_version != "1.0.0" {
             return Err(HubError::ImportError(format!(
                 "unsupported format version: {}",
@@ -2184,7 +2474,9 @@ impl ModelHub {
             let version_str = record.version.to_string_repr();
 
             // Skip duplicates
-            let exists = self.policies.get(&key)
+            let exists = self
+                .policies
+                .get(&key)
                 .map(|vs| vs.iter().any(|r| r.version.to_string_repr() == version_str))
                 .unwrap_or(false);
 
@@ -2204,11 +2496,17 @@ impl ModelHub {
     }
 
     pub fn audit_for_policy(&self, name: &str) -> Vec<&AuditEntry> {
-        self.audit_trail.iter().filter(|e| e.policy_id == name).collect()
+        self.audit_trail
+            .iter()
+            .filter(|e| e.policy_id == name)
+            .collect()
     }
 
     pub fn audit_for_actor(&self, actor: &str) -> Vec<&AuditEntry> {
-        self.audit_trail.iter().filter(|e| e.actor == actor).collect()
+        self.audit_trail
+            .iter()
+            .filter(|e| e.actor == actor)
+            .collect()
     }
 
     pub fn audit_summary(&self) -> HashMap<String, usize> {
@@ -2302,7 +2600,10 @@ fn compute_divergence_depth(a: &PolicyRecord, b: &PolicyRecord) -> u32 {
     depth
 }
 
-fn generate_comparison_recommendation(diffs: &[MetricDiff], divergence: &LineageDivergence) -> String {
+fn generate_comparison_recommendation(
+    diffs: &[MetricDiff],
+    divergence: &LineageDivergence,
+) -> String {
     if diffs.is_empty() {
         return "Insufficient evaluation data for comparison".to_string();
     }
@@ -2313,9 +2614,15 @@ fn generate_comparison_recommendation(diffs: &[MetricDiff], divergence: &Lineage
     let mut rec = String::new();
     if let Some(rd) = reward_diff {
         if rd.improved() {
-            rec.push_str(&format!("Policy B shows {:.1}% reward improvement. ", rd.relative_change_pct));
+            rec.push_str(&format!(
+                "Policy B shows {:.1}% reward improvement. ",
+                rd.relative_change_pct
+            ));
         } else {
-            rec.push_str(&format!("Policy A has {:.1}% higher reward. ", rd.relative_change_pct.abs()));
+            rec.push_str(&format!(
+                "Policy A has {:.1}% higher reward. ",
+                rd.relative_change_pct.abs()
+            ));
         }
     }
 
@@ -2512,7 +2819,11 @@ mod tests {
 
     #[test]
     fn test_space_flat_size_image() {
-        let space = SpaceType::Image { height: 84, width: 84, channels: 3 };
+        let space = SpaceType::Image {
+            height: 84,
+            width: 84,
+            channels: 3,
+        };
         assert_eq!(space.flat_size(), 84 * 84 * 3);
     }
 
@@ -2549,7 +2860,10 @@ mod tests {
         assert_eq!(ArtifactFormat::Onnx.file_extension(), ".onnx");
         assert_eq!(ArtifactFormat::Wasm.file_extension(), ".wasm");
         assert_eq!(ArtifactFormat::TFLite.file_extension(), ".tflite");
-        assert_eq!(ArtifactFormat::CustomRuntime("myrt".into()).file_extension(), ".bin");
+        assert_eq!(
+            ArtifactFormat::CustomRuntime("myrt".into()).file_extension(),
+            ".bin"
+        );
     }
 
     // ── PromotionStage tests ───────────────────────────────────────────
@@ -2824,9 +3138,11 @@ mod tests {
 
     #[test]
     fn test_artifact_metadata() {
-        let art = make_artifact()
-            .with_metadata("framework_version", "2.1.0");
-        assert_eq!(art.metadata.get("framework_version"), Some(&"2.1.0".to_string()));
+        let art = make_artifact().with_metadata("framework_version", "2.1.0");
+        assert_eq!(
+            art.metadata.get("framework_version"),
+            Some(&"2.1.0".to_string())
+        );
     }
 
     // ── QualityGate tests ──────────────────────────────────────────────
@@ -2981,7 +3297,8 @@ mod tests {
 
     #[test]
     fn test_register_quality_gate_blocks() {
-        let mut hub = make_hub().with_quality_gate(QualityGate::permissive().with_min_reward(500.0));
+        let mut hub =
+            make_hub().with_quality_gate(QualityGate::permissive().with_min_reward(500.0));
         let mut record = make_record("bad-policy", "1.0.0");
         record.latest_eval = Some(make_eval(100.0));
         let err = hub.register(record).unwrap_err();
@@ -3038,7 +3355,8 @@ mod tests {
     fn test_promote_staging() {
         let mut hub = make_hub();
         register_sample(&mut hub);
-        hub.promote("cart-ppo", "1.0.0", PromotionStage::Staging, "deployer").unwrap();
+        hub.promote("cart-ppo", "1.0.0", PromotionStage::Staging, "deployer")
+            .unwrap();
         let record = hub.get("cart-ppo", "1.0.0").unwrap();
         assert_eq!(record.stage, PromotionStage::Staging);
     }
@@ -3047,9 +3365,12 @@ mod tests {
     fn test_promote_full_pipeline() {
         let mut hub = make_hub();
         register_sample(&mut hub);
-        hub.promote("cart-ppo", "1.0.0", PromotionStage::Staging, "deployer").unwrap();
-        hub.promote("cart-ppo", "1.0.0", PromotionStage::Canary, "deployer").unwrap();
-        hub.promote("cart-ppo", "1.0.0", PromotionStage::Production, "deployer").unwrap();
+        hub.promote("cart-ppo", "1.0.0", PromotionStage::Staging, "deployer")
+            .unwrap();
+        hub.promote("cart-ppo", "1.0.0", PromotionStage::Canary, "deployer")
+            .unwrap();
+        hub.promote("cart-ppo", "1.0.0", PromotionStage::Production, "deployer")
+            .unwrap();
         let record = hub.get("cart-ppo", "1.0.0").unwrap();
         assert_eq!(record.stage, PromotionStage::Production);
     }
@@ -3058,7 +3379,9 @@ mod tests {
     fn test_promote_skip_not_allowed() {
         let mut hub = make_hub();
         register_sample(&mut hub);
-        let err = hub.promote("cart-ppo", "1.0.0", PromotionStage::Production, "deployer").unwrap_err();
+        let err = hub
+            .promote("cart-ppo", "1.0.0", PromotionStage::Production, "deployer")
+            .unwrap_err();
         assert!(matches!(err, HubError::InvalidPromotion { .. }));
     }
 
@@ -3067,7 +3390,9 @@ mod tests {
         let mut hub = make_hub();
         register_sample(&mut hub);
         hub.set_approvers(PromotionStage::Staging, vec!["admin".to_string()]);
-        let err = hub.promote("cart-ppo", "1.0.0", PromotionStage::Staging, "unauthorized").unwrap_err();
+        let err = hub
+            .promote("cart-ppo", "1.0.0", PromotionStage::Staging, "unauthorized")
+            .unwrap_err();
         assert!(matches!(err, HubError::ApprovalRequired(_)));
     }
 
@@ -3096,7 +3421,9 @@ mod tests {
         let mut hub = make_hub();
         register_sample(&mut hub);
         hub.add_tag("cart-ppo", "1.0.0", "best", "tester").unwrap();
-        let err = hub.add_tag("cart-ppo", "1.0.0", "best", "tester").unwrap_err();
+        let err = hub
+            .add_tag("cart-ppo", "1.0.0", "best", "tester")
+            .unwrap_err();
         assert!(matches!(err, HubError::DuplicateTag(_)));
     }
 
@@ -3105,7 +3432,8 @@ mod tests {
         let mut hub = make_hub();
         register_sample(&mut hub);
         hub.add_tag("cart-ppo", "1.0.0", "best", "tester").unwrap();
-        hub.remove_tag("cart-ppo", "1.0.0", "best", "tester").unwrap();
+        hub.remove_tag("cart-ppo", "1.0.0", "best", "tester")
+            .unwrap();
         let record = hub.get("cart-ppo", "1.0.0").unwrap();
         assert!(!record.tags.contains(&"best".to_string()));
     }
@@ -3144,7 +3472,8 @@ mod tests {
     fn test_search_by_tag() {
         let mut hub = make_hub();
         register_sample(&mut hub);
-        hub.add_tag("cart-ppo", "1.0.0", "production-ready", "tester").unwrap();
+        hub.add_tag("cart-ppo", "1.0.0", "production-ready", "tester")
+            .unwrap();
         let results = hub.search_by_tag("production-ready");
         assert_eq!(results.len(), 1);
     }
@@ -3163,7 +3492,8 @@ mod tests {
     fn test_search_by_stage() {
         let mut hub = make_hub();
         register_sample(&mut hub);
-        hub.promote("cart-ppo", "1.0.0", PromotionStage::Staging, "admin").unwrap();
+        hub.promote("cart-ppo", "1.0.0", PromotionStage::Staging, "admin")
+            .unwrap();
         let results = hub.search(&SearchCriteria::new().with_stage(PromotionStage::Staging));
         assert_eq!(results.len(), 1);
         let results = hub.search(&SearchCriteria::new().with_stage(PromotionStage::Production));
@@ -3197,8 +3527,15 @@ mod tests {
     fn test_add_artifact() {
         let mut hub = make_hub();
         register_sample(&mut hub);
-        let onnx = Artifact::new(ArtifactFormat::Onnx, "/models/policy.onnx", "sha256:cafe", 2048, 2000);
-        hub.add_artifact("cart-ppo", "1.0.0", onnx, "tester").unwrap();
+        let onnx = Artifact::new(
+            ArtifactFormat::Onnx,
+            "/models/policy.onnx",
+            "sha256:cafe",
+            2048,
+            2000,
+        );
+        hub.add_artifact("cart-ppo", "1.0.0", onnx, "tester")
+            .unwrap();
         let record = hub.get("cart-ppo", "1.0.0").unwrap();
         assert_eq!(record.artifacts.len(), 2);
     }
@@ -3207,7 +3544,9 @@ mod tests {
     fn test_get_artifact() {
         let mut hub = make_hub();
         register_sample(&mut hub);
-        let art = hub.get_artifact("cart-ppo", "1.0.0", &ArtifactFormat::PyTorch).unwrap();
+        let art = hub
+            .get_artifact("cart-ppo", "1.0.0", &ArtifactFormat::PyTorch)
+            .unwrap();
         assert_eq!(art.format, ArtifactFormat::PyTorch);
     }
 
@@ -3215,7 +3554,9 @@ mod tests {
     fn test_get_artifact_not_found() {
         let mut hub = make_hub();
         register_sample(&mut hub);
-        let err = hub.get_artifact("cart-ppo", "1.0.0", &ArtifactFormat::Wasm).unwrap_err();
+        let err = hub
+            .get_artifact("cart-ppo", "1.0.0", &ArtifactFormat::Wasm)
+            .unwrap_err();
         assert!(matches!(err, HubError::ArtifactNotFound { .. }));
     }
 
@@ -3226,7 +3567,8 @@ mod tests {
         let mut hub = make_hub();
         hub.register(make_record("test-pol", "1.0.0")).unwrap();
         let eval = make_eval(300.0);
-        hub.add_eval("test-pol", "1.0.0", eval, "evaluator").unwrap();
+        hub.add_eval("test-pol", "1.0.0", eval, "evaluator")
+            .unwrap();
         let record = hub.get("test-pol", "1.0.0").unwrap();
         assert!(record.latest_eval.is_some());
         assert_eq!(record.eval_history.len(), 1);
@@ -3245,9 +3587,15 @@ mod tests {
         r2.latest_eval = Some(make_eval(300.0));
         hub.register(r2).unwrap();
 
-        let comparison = hub.compare("cart-ppo", "1.0.0", "cart-ppo", "2.0.0").unwrap();
+        let comparison = hub
+            .compare("cart-ppo", "1.0.0", "cart-ppo", "2.0.0")
+            .unwrap();
         assert!(!comparison.metric_diffs.is_empty());
-        let reward_diff = comparison.metric_diffs.iter().find(|d| d.metric_name == "mean_reward").unwrap();
+        let reward_diff = comparison
+            .metric_diffs
+            .iter()
+            .find(|d| d.metric_name == "mean_reward")
+            .unwrap();
         assert!(reward_diff.improved());
     }
 
@@ -3283,7 +3631,9 @@ mod tests {
     fn test_export_bundle() {
         let mut hub = make_hub();
         register_sample(&mut hub);
-        let bundle = hub.export_bundle("cart-ppo", "1.0.0", ArtifactFormat::PyTorch).unwrap();
+        let bundle = hub
+            .export_bundle("cart-ppo", "1.0.0", ArtifactFormat::PyTorch)
+            .unwrap();
         assert_eq!(bundle.policy_name, "cart-ppo");
         assert!(bundle.is_reproducible());
         assert!(bundle.export_metadata.contains_key("algorithm"));
@@ -3293,7 +3643,9 @@ mod tests {
     fn test_export_bundle_missing_format() {
         let mut hub = make_hub();
         register_sample(&mut hub);
-        let err = hub.export_bundle("cart-ppo", "1.0.0", ArtifactFormat::Wasm).unwrap_err();
+        let err = hub
+            .export_bundle("cart-ppo", "1.0.0", ArtifactFormat::Wasm)
+            .unwrap_err();
         assert!(matches!(err, HubError::ArtifactNotFound { .. }));
     }
 
@@ -3304,7 +3656,9 @@ mod tests {
         record.normalization_stats = Some(NormalizationStats::new(4));
         record.artifacts.push(make_artifact());
         hub.register(record).unwrap();
-        let bundle = hub.export_bundle("cart-ppo", "1.0.0", ArtifactFormat::PyTorch).unwrap();
+        let bundle = hub
+            .export_bundle("cart-ppo", "1.0.0", ArtifactFormat::PyTorch)
+            .unwrap();
         assert!(bundle.normalization_stats.is_some());
     }
 
@@ -3352,7 +3706,8 @@ mod tests {
             max_age_days: None,
         });
         for i in 0..5 {
-            hub.register(make_record("pol", &format!("1.{}.0", i))).unwrap();
+            hub.register(make_record("pol", &format!("1.{}.0", i)))
+                .unwrap();
         }
         let removed = hub.enforce_retention("pol", 100_000, "cleaner");
         assert_eq!(removed.len(), 3);
@@ -3369,7 +3724,8 @@ mod tests {
             max_age_days: None,
         });
         for i in 0..3 {
-            hub.register(make_record("pol", &format!("1.{}.0", i))).unwrap();
+            hub.register(make_record("pol", &format!("1.{}.0", i)))
+                .unwrap();
         }
         hub.add_tag("pol", "1.0.0", "important", "admin").unwrap();
         let removed = hub.enforce_retention("pol", 100_000, "cleaner");
@@ -3443,7 +3799,8 @@ mod tests {
     fn test_audit_summary() {
         let mut hub = make_hub();
         register_sample(&mut hub);
-        hub.promote("cart-ppo", "1.0.0", PromotionStage::Staging, "admin").unwrap();
+        hub.promote("cart-ppo", "1.0.0", PromotionStage::Staging, "admin")
+            .unwrap();
         let summary = hub.audit_summary();
         assert!(summary.contains_key("register"));
     }
@@ -3503,7 +3860,8 @@ mod tests {
         let mut hub = make_hub();
         register_sample(&mut hub);
         let dm = DeploymentMetadata::new("triton", "A100");
-        hub.set_deployment("cart-ppo", "1.0.0", dm, "deployer").unwrap();
+        hub.set_deployment("cart-ppo", "1.0.0", dm, "deployer")
+            .unwrap();
         let record = hub.get("cart-ppo", "1.0.0").unwrap();
         assert!(record.deployment.is_some());
     }
@@ -3672,7 +4030,8 @@ mod tests {
         let mut r1 = make_record("cart-ppo", "1.0.0");
         r1.latest_eval = Some(make_eval(200.0));
         hub.register(r1).unwrap();
-        hub.add_tag("cart-ppo", "1.0.0", "stable", "tester").unwrap();
+        hub.add_tag("cart-ppo", "1.0.0", "stable", "tester")
+            .unwrap();
 
         let mut r2 = make_record("lunar-sac", "1.0.0");
         r2.algorithm = RlAlgorithm::Sac;

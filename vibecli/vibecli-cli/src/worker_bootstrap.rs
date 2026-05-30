@@ -10,8 +10,14 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Capability {
-    ReadFiles, WriteFiles, RunBash, BrowseWeb,
-    CallTools, SpawnAgents, AccessDatabase, ReadGit,
+    ReadFiles,
+    WriteFiles,
+    RunBash,
+    BrowseWeb,
+    CallTools,
+    SpawnAgents,
+    AccessDatabase,
+    ReadGit,
     Custom(String),
 }
 
@@ -49,28 +55,60 @@ pub struct BootstrapConfig {
 impl BootstrapConfig {
     pub fn new(worker_id: impl Into<String>, parent: impl Into<String>) -> Self {
         Self {
-            worker_id: worker_id.into(), parent_session_id: parent.into(),
-            capabilities: Vec::new(), env: HashMap::new(),
-            working_directory: ".".into(), model_id: "claude-sonnet-4-6".into(),
-            token_budget: 50_000, timeout_ms: 300_000, tags: Vec::new(),
+            worker_id: worker_id.into(),
+            parent_session_id: parent.into(),
+            capabilities: Vec::new(),
+            env: HashMap::new(),
+            working_directory: ".".into(),
+            model_id: "claude-sonnet-4-6".into(),
+            token_budget: 50_000,
+            timeout_ms: 300_000,
+            tags: Vec::new(),
         }
     }
 
-    pub fn with_capability(mut self, c: Capability) -> Self { self.capabilities.push(c); self }
-    pub fn with_env(mut self, k: impl Into<String>, v: impl Into<String>) -> Self { self.env.insert(k.into(), v.into()); self }
-    pub fn with_model(mut self, m: impl Into<String>) -> Self { self.model_id = m.into(); self }
-    pub fn with_budget(mut self, b: u64) -> Self { self.token_budget = b; self }
-    pub fn with_timeout(mut self, ms: u64) -> Self { self.timeout_ms = ms; self }
-    pub fn with_tag(mut self, t: impl Into<String>) -> Self { self.tags.push(t.into()); self }
-    pub fn in_dir(mut self, d: impl Into<String>) -> Self { self.working_directory = d.into(); self }
+    pub fn with_capability(mut self, c: Capability) -> Self {
+        self.capabilities.push(c);
+        self
+    }
+    pub fn with_env(mut self, k: impl Into<String>, v: impl Into<String>) -> Self {
+        self.env.insert(k.into(), v.into());
+        self
+    }
+    pub fn with_model(mut self, m: impl Into<String>) -> Self {
+        self.model_id = m.into();
+        self
+    }
+    pub fn with_budget(mut self, b: u64) -> Self {
+        self.token_budget = b;
+        self
+    }
+    pub fn with_timeout(mut self, ms: u64) -> Self {
+        self.timeout_ms = ms;
+        self
+    }
+    pub fn with_tag(mut self, t: impl Into<String>) -> Self {
+        self.tags.push(t.into());
+        self
+    }
+    pub fn in_dir(mut self, d: impl Into<String>) -> Self {
+        self.working_directory = d.into();
+        self
+    }
 
-    pub fn has_capability(&self, c: &Capability) -> bool { self.capabilities.contains(c) }
+    pub fn has_capability(&self, c: &Capability) -> bool {
+        self.capabilities.contains(c)
+    }
 }
 
 // ─── Bootstrap Result ────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum BootstrapStatus { Ready, CapabilityDenied { missing: Vec<Capability> }, ConfigError { reason: String } }
+pub enum BootstrapStatus {
+    Ready,
+    CapabilityDenied { missing: Vec<Capability> },
+    ConfigError { reason: String },
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BootstrapResult {
@@ -92,19 +130,28 @@ pub struct WorkerBootstrap {
 
 impl WorkerBootstrap {
     pub fn new(allowed: Vec<Capability>, max_budget: u64) -> Self {
-        Self { allowed_capabilities: allowed, max_token_budget: max_budget, workers: HashMap::new() }
+        Self {
+            allowed_capabilities: allowed,
+            max_token_budget: max_budget,
+            workers: HashMap::new(),
+        }
     }
 
     pub fn bootstrap(&mut self, config: BootstrapConfig) -> BootstrapResult {
         // Validate capabilities
-        let missing: Vec<Capability> = config.capabilities.iter()
+        let missing: Vec<Capability> = config
+            .capabilities
+            .iter()
             .filter(|c| !self.allowed_capabilities.contains(c))
-            .cloned().collect();
+            .cloned()
+            .collect();
 
         let budget = config.token_budget.min(self.max_token_budget);
 
         let status = if !missing.is_empty() {
-            BootstrapStatus::CapabilityDenied { missing: missing.clone() }
+            BootstrapStatus::CapabilityDenied {
+                missing: missing.clone(),
+            }
         } else {
             BootstrapStatus::Ready
         };
@@ -112,22 +159,42 @@ impl WorkerBootstrap {
         let effective_capabilities: Vec<Capability> = if missing.is_empty() {
             config.capabilities.clone()
         } else {
-            config.capabilities.into_iter().filter(|c| self.allowed_capabilities.contains(c)).collect()
+            config
+                .capabilities
+                .into_iter()
+                .filter(|c| self.allowed_capabilities.contains(c))
+                .collect()
         };
 
         let result = BootstrapResult {
             worker_id: config.worker_id.clone(),
-            status, effective_capabilities, effective_token_budget: budget,
+            status,
+            effective_capabilities,
+            effective_token_budget: budget,
         };
         self.workers.insert(config.worker_id, result.clone());
         result
     }
 
-    pub fn worker_result(&self, worker_id: &str) -> Option<&BootstrapResult> { self.workers.get(worker_id) }
-    pub fn active_workers(&self) -> usize { self.workers.len() }
-    pub fn deregister(&mut self, worker_id: &str) -> bool { self.workers.remove(worker_id).is_some() }
-    pub fn workers_by_tag<'a>(&'a self, _tag: &str, configs: &'a [BootstrapConfig]) -> Vec<&'a str> {
-        configs.iter().filter(|c| self.workers.contains_key(&c.worker_id)).map(|c| c.worker_id.as_str()).collect()
+    pub fn worker_result(&self, worker_id: &str) -> Option<&BootstrapResult> {
+        self.workers.get(worker_id)
+    }
+    pub fn active_workers(&self) -> usize {
+        self.workers.len()
+    }
+    pub fn deregister(&mut self, worker_id: &str) -> bool {
+        self.workers.remove(worker_id).is_some()
+    }
+    pub fn workers_by_tag<'a>(
+        &'a self,
+        _tag: &str,
+        configs: &'a [BootstrapConfig],
+    ) -> Vec<&'a str> {
+        configs
+            .iter()
+            .filter(|c| self.workers.contains_key(&c.worker_id))
+            .map(|c| c.worker_id.as_str())
+            .collect()
     }
 }
 
@@ -154,12 +221,12 @@ pub enum WorkerState {
 impl std::fmt::Display for WorkerState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Spawning       => write!(f, "spawning"),
-            Self::TrustRequired  => write!(f, "trust_required"),
+            Self::Spawning => write!(f, "spawning"),
+            Self::TrustRequired => write!(f, "trust_required"),
             Self::ReadyForPrompt => write!(f, "ready_for_prompt"),
-            Self::Running        => write!(f, "running"),
-            Self::Finished       => write!(f, "finished"),
-            Self::Failed         => write!(f, "failed"),
+            Self::Running => write!(f, "running"),
+            Self::Finished => write!(f, "finished"),
+            Self::Failed => write!(f, "failed"),
         }
     }
 }
@@ -168,10 +235,14 @@ impl WorkerState {
     /// Returns the valid successor states for this state.
     pub fn valid_transitions(&self) -> &'static [WorkerState] {
         match self {
-            Self::Spawning       => &[WorkerState::TrustRequired, WorkerState::ReadyForPrompt, WorkerState::Failed],
-            Self::TrustRequired  => &[WorkerState::ReadyForPrompt, WorkerState::Failed],
+            Self::Spawning => &[
+                WorkerState::TrustRequired,
+                WorkerState::ReadyForPrompt,
+                WorkerState::Failed,
+            ],
+            Self::TrustRequired => &[WorkerState::ReadyForPrompt, WorkerState::Failed],
             Self::ReadyForPrompt => &[WorkerState::Running, WorkerState::Failed],
-            Self::Running        => &[WorkerState::Finished, WorkerState::Failed],
+            Self::Running => &[WorkerState::Finished, WorkerState::Failed],
             Self::Finished | Self::Failed => &[],
         }
     }
@@ -220,10 +291,16 @@ impl WorkerLifecycle {
     /// Transition to a new state. Returns `Err` if the transition is invalid.
     pub fn transition(&mut self, new_state: WorkerState) -> Result<(), String> {
         if self.state.is_terminal() {
-            return Err(format!("Cannot transition from terminal state {}", self.state));
+            return Err(format!(
+                "Cannot transition from terminal state {}",
+                self.state
+            ));
         }
         if !self.state.valid_transitions().contains(&new_state) {
-            return Err(format!("Invalid transition: {} → {}", self.state, new_state));
+            return Err(format!(
+                "Invalid transition: {} → {}",
+                self.state, new_state
+            ));
         }
         self.state = new_state;
         Ok(())
@@ -232,9 +309,13 @@ impl WorkerLifecycle {
     /// Is `line` a valid agent readiness prompt? (>, ›, ❯) — NOT a bare shell prompt.
     pub fn is_valid_prompt(line: &str) -> bool {
         let trimmed = line.trim();
-        if trimmed.is_empty() { return false; }
+        if trimmed.is_empty() {
+            return false;
+        }
         let last = trimmed.chars().last().unwrap_or(' ');
-        if !VALID_PROMPTS.contains(&last) { return false; }
+        if !VALID_PROMPTS.contains(&last) {
+            return false;
+        }
         // Reject bare single shell-only prompt chars
         if trimmed.len() == 1 && SHELL_ONLY_PROMPTS.contains(&trimmed.chars().next().unwrap()) {
             return false;
@@ -252,8 +333,12 @@ impl WorkerLifecycle {
     pub fn detect_readiness(output: &str) -> bool {
         for line in output.lines() {
             let trimmed = line.trim();
-            if Self::is_shell_only_prompt(trimmed) { continue; }
-            if Self::is_valid_prompt(trimmed) { return true; }
+            if Self::is_shell_only_prompt(trimmed) {
+                continue;
+            }
+            if Self::is_valid_prompt(trimmed) {
+                return true;
+            }
         }
         false
     }
@@ -278,18 +363,15 @@ impl WorkerLifecycle {
     /// Persist lifecycle state to `<state_dir>/worker-state.json`.
     pub fn persist_state(&self, state_dir: &std::path::Path) -> Result<(), String> {
         let path = state_dir.join("worker-state.json");
-        let json = serde_json::to_string_pretty(self)
-            .map_err(|e| format!("serialize error: {e}"))?;
-        std::fs::write(&path, json)
-            .map_err(|e| format!("write error: {e}"))
+        let json =
+            serde_json::to_string_pretty(self).map_err(|e| format!("serialize error: {e}"))?;
+        std::fs::write(&path, json).map_err(|e| format!("write error: {e}"))
     }
 
     /// Load lifecycle state from a JSON file.
     pub fn load_state(path: &std::path::Path) -> Result<Self, String> {
-        let data = std::fs::read_to_string(path)
-            .map_err(|e| format!("read error: {e}"))?;
-        serde_json::from_str(&data)
-            .map_err(|e| format!("parse error: {e}"))
+        let data = std::fs::read_to_string(path).map_err(|e| format!("read error: {e}"))?;
+        serde_json::from_str(&data).map_err(|e| format!("parse error: {e}"))
     }
 }
 
@@ -378,7 +460,14 @@ mod tests {
     use super::*;
 
     fn wb() -> WorkerBootstrap {
-        WorkerBootstrap::new(vec![Capability::ReadFiles, Capability::WriteFiles, Capability::RunBash], 100_000)
+        WorkerBootstrap::new(
+            vec![
+                Capability::ReadFiles,
+                Capability::WriteFiles,
+                Capability::RunBash,
+            ],
+            100_000,
+        )
     }
 
     fn cfg(id: &str) -> BootstrapConfig {
@@ -477,7 +566,9 @@ mod tests {
 
     #[test]
     fn test_config_with_tags() {
-        let c = BootstrapConfig::new("w1", "p").with_tag("review").with_tag("frontend");
+        let c = BootstrapConfig::new("w1", "p")
+            .with_tag("review")
+            .with_tag("frontend");
         assert_eq!(c.tags, vec!["review", "frontend"]);
     }
 

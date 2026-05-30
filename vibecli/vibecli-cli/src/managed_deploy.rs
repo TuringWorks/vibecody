@@ -479,28 +479,19 @@ impl DeployManager {
             },
             DeployPlatform::FlyIo => DeployCommand {
                 platform: DeployPlatform::FlyIo,
-                args: vec![
-                    "fly".to_string(),
-                    "deploy".to_string(),
-                ],
+                args: vec!["fly".to_string(), "deploy".to_string()],
                 env: vec![],
                 description: format!("Deploy {} project to Fly.io", framework.framework),
             },
             DeployPlatform::Railway => DeployCommand {
                 platform: DeployPlatform::Railway,
-                args: vec![
-                    "railway".to_string(),
-                    "up".to_string(),
-                ],
+                args: vec!["railway".to_string(), "up".to_string()],
                 env: vec![],
                 description: format!("Deploy {} project to Railway", framework.framework),
             },
             DeployPlatform::Render => DeployCommand {
                 platform: DeployPlatform::Render,
-                args: vec![
-                    "render".to_string(),
-                    "deploy".to_string(),
-                ],
+                args: vec!["render".to_string(), "deploy".to_string()],
                 env: vec![],
                 description: format!("Deploy {} project to Render", framework.framework),
             },
@@ -514,10 +505,7 @@ impl DeployManager {
                     "--build".to_string(),
                 ],
                 env: vec![],
-                description: format!(
-                    "Deploy {} project via Docker Compose",
-                    framework.framework
-                ),
+                description: format!("Deploy {} project via Docker Compose", framework.framework),
             },
         }
     }
@@ -618,8 +606,7 @@ CMD ["nginx", "-g", "daemon off;"]
                     framework.install_command, framework.build_command, framework.output_dir,
                 )
             }
-            DetectedFramework::Express => {
-                r#"FROM node:20-alpine
+            DetectedFramework::Express => r#"FROM node:20-alpine
 WORKDIR /app
 COPY package*.json ./
 RUN npm install --production
@@ -627,10 +614,8 @@ COPY . .
 EXPOSE 8080
 CMD ["node", "server.js"]
 "#
-                .to_string()
-            }
-            DetectedFramework::FastApi => {
-                r#"FROM python:3.12-slim
+            .to_string(),
+            DetectedFramework::FastApi => r#"FROM python:3.12-slim
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
@@ -638,10 +623,8 @@ COPY . .
 EXPOSE 8080
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
 "#
-                .to_string()
-            }
-            DetectedFramework::Rails => {
-                r#"FROM ruby:3.3-slim
+            .to_string(),
+            DetectedFramework::Rails => r#"FROM ruby:3.3-slim
 WORKDIR /app
 COPY Gemfile Gemfile.lock ./
 RUN bundle install --without development test
@@ -650,10 +633,8 @@ RUN bundle exec rails assets:precompile
 EXPOSE 3000
 CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0"]
 "#
-                .to_string()
-            }
-            DetectedFramework::Django => {
-                r#"FROM python:3.12-slim
+            .to_string(),
+            DetectedFramework::Django => r#"FROM python:3.12-slim
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
@@ -662,25 +643,20 @@ RUN python manage.py collectstatic --noinput
 EXPOSE 8080
 CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8080"]
 "#
-                .to_string()
-            }
-            DetectedFramework::Static => {
-                r#"FROM nginx:alpine
+            .to_string(),
+            DetectedFramework::Static => r#"FROM nginx:alpine
 COPY . /usr/share/nginx/html
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 "#
-                .to_string()
-            }
-            DetectedFramework::Unknown => {
-                r#"FROM ubuntu:22.04
+            .to_string(),
+            DetectedFramework::Unknown => r#"FROM ubuntu:22.04
 WORKDIR /app
 COPY . .
 EXPOSE 8080
 CMD ["echo", "Configure your start command"]
 "#
-                .to_string()
-            }
+            .to_string(),
         }
     }
 
@@ -885,7 +861,10 @@ mod tests {
         assert_eq!(DeployPlatform::FlyIo.as_str(), "fly.io");
         assert_eq!(DeployPlatform::Railway.as_str(), "railway");
         assert_eq!(DeployPlatform::Render.as_str(), "render");
-        assert_eq!(DeployPlatform::DockerSelfHosted.as_str(), "docker-self-hosted");
+        assert_eq!(
+            DeployPlatform::DockerSelfHosted.as_str(),
+            "docker-self-hosted"
+        );
     }
 
     #[test]
@@ -963,7 +942,11 @@ mod tests {
 
     #[test]
     fn test_detect_django() {
-        let files = vec!["manage.py".into(), "settings.py".into(), "requirements.txt".into()];
+        let files = vec![
+            "manage.py".into(),
+            "settings.py".into(),
+            "requirements.txt".into(),
+        ];
         let det = DeployManager::detect_framework(&files);
         assert_eq!(det.framework, DetectedFramework::Django);
     }
@@ -991,9 +974,13 @@ mod tests {
     fn test_deploy_lifecycle_pending_to_live() {
         let mut mgr = default_manager();
         let id = mgr.deploy("app", DeployPlatform::Netlify, "main").unwrap();
-        assert_eq!(mgr.get_deployment(&id).unwrap().status, DeployStatus::Pending);
+        assert_eq!(
+            mgr.get_deployment(&id).unwrap().status,
+            DeployStatus::Pending
+        );
 
-        mgr.complete_deployment(&id, "https://app.netlify.app").unwrap();
+        mgr.complete_deployment(&id, "https://app.netlify.app")
+            .unwrap();
         let d = mgr.get_deployment(&id).unwrap();
         assert_eq!(d.status, DeployStatus::Live);
         assert_eq!(d.url.as_deref(), Some("https://app.netlify.app"));
@@ -1159,7 +1146,10 @@ mod tests {
         let info = mgr.rollback(&id2, "regression").unwrap();
         assert!(info.success);
         assert_eq!(info.rollback_to_id, id1);
-        assert_eq!(mgr.get_deployment(&id2).unwrap().status, DeployStatus::RolledBack);
+        assert_eq!(
+            mgr.get_deployment(&id2).unwrap().status,
+            DeployStatus::RolledBack
+        );
     }
 
     #[test]
@@ -1219,9 +1209,11 @@ mod tests {
     fn test_deploy_history() {
         let mut mgr = default_manager();
         mgr.deploy("app", DeployPlatform::Vercel, "main").unwrap();
-        mgr.complete_deployment("deploy-1", "https://v1.app").unwrap();
+        mgr.complete_deployment("deploy-1", "https://v1.app")
+            .unwrap();
         mgr.deploy("app", DeployPlatform::Vercel, "feat").unwrap();
-        mgr.deploy("other", DeployPlatform::Netlify, "main").unwrap();
+        mgr.deploy("other", DeployPlatform::Netlify, "main")
+            .unwrap();
 
         let history = mgr.get_deploy_history("app");
         assert_eq!(history.len(), 2);
@@ -1259,7 +1251,8 @@ mod tests {
     fn test_add_build_log() {
         let mut mgr = default_manager();
         let id = mgr.deploy("app", DeployPlatform::Vercel, "main").unwrap();
-        mgr.add_build_log(&id, "Installing dependencies...").unwrap();
+        mgr.add_build_log(&id, "Installing dependencies...")
+            .unwrap();
         mgr.add_build_log(&id, "Build complete.").unwrap();
         let d = mgr.get_deployment(&id).unwrap();
         assert_eq!(d.build_logs.len(), 2);
@@ -1277,12 +1270,18 @@ mod tests {
 
     #[test]
     fn test_estimate_build_time_nextjs() {
-        assert_eq!(DeployManager::estimate_build_time(&DetectedFramework::NextJs), 120);
+        assert_eq!(
+            DeployManager::estimate_build_time(&DetectedFramework::NextJs),
+            120
+        );
     }
 
     #[test]
     fn test_estimate_build_time_static() {
-        assert_eq!(DeployManager::estimate_build_time(&DetectedFramework::Static), 5);
+        assert_eq!(
+            DeployManager::estimate_build_time(&DetectedFramework::Static),
+            5
+        );
     }
 
     #[test]

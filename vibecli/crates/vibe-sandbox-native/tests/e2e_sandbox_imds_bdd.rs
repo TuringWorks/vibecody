@@ -5,14 +5,13 @@
 
 #[cfg(target_os = "macos")]
 mod e2e {
-    use cucumber::{World, given, then, when};
+    use cucumber::{given, then, when, World};
     use std::path::PathBuf;
     use std::sync::Arc;
     use tempfile::TempDir;
     use tokio::runtime::Runtime;
     use vibe_broker::{
-        AwsCredentials, ImdsHandle, ImdsServer, InMemorySecretStore, SecretStore,
-        policy::SecretRef,
+        policy::SecretRef, AwsCredentials, ImdsHandle, ImdsServer, InMemorySecretStore, SecretStore,
     };
     use vibe_sandbox::Sandbox;
     use vibe_sandbox_native::macos::MacosSandbox;
@@ -85,10 +84,11 @@ mod e2e {
     fn set_env(world: &mut EWorld) {
         let addr = world.imds_addr.unwrap();
         let url = format!("http://{}:{}/", addr.ip(), addr.port());
-        world.sandbox.as_mut().unwrap().set_env(
-            "AWS_EC2_METADATA_SERVICE_ENDPOINT",
-            url,
-        );
+        world
+            .sandbox
+            .as_mut()
+            .unwrap()
+            .set_env("AWS_EC2_METADATA_SERVICE_ENDPOINT", url);
     }
 
     #[when("the sandbox runs the AWS IMDSv2 dance via curl")]

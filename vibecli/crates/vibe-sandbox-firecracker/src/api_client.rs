@@ -95,9 +95,8 @@ pub fn put_json(
 ) -> Result<ApiResponse, ApiClientError> {
     let mut stream = connect_with_timeout(socket_path, timeout)?;
 
-    let body_bytes = serde_json::to_vec(body).map_err(|e| {
-        ApiClientError::BadResponse(format!("encode body: {}", e))
-    })?;
+    let body_bytes = serde_json::to_vec(body)
+        .map_err(|e| ApiClientError::BadResponse(format!("encode body: {}", e)))?;
 
     let request = format!(
         "PUT {} HTTP/1.1\r\n\
@@ -252,9 +251,7 @@ fn parse_http_response(buf: &[u8]) -> Result<ApiResponse, ApiClientError> {
 }
 
 fn find_subsequence(haystack: &[u8], needle: &[u8]) -> Option<usize> {
-    haystack
-        .windows(needle.len())
-        .position(|w| w == needle)
+    haystack.windows(needle.len()).position(|w| w == needle)
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────
@@ -305,8 +302,7 @@ mod tests {
                             if find_subsequence(&buf, b"\r\n\r\n").is_some() {
                                 // Read the body if any (Content-Length-bounded).
                                 let cl = parse_content_length(&buf).unwrap_or(0);
-                                let body_start =
-                                    find_subsequence(&buf, b"\r\n\r\n").unwrap() + 4;
+                                let body_start = find_subsequence(&buf, b"\r\n\r\n").unwrap() + 4;
                                 let body_have = buf.len() - body_start;
                                 if body_have < cl {
                                     // Read remainder.
@@ -465,15 +461,10 @@ mod tests {
             .lines()
             .find(|l| l.to_ascii_lowercase().starts_with("content-length:"))
             .unwrap();
-        let cl: usize = cl_line
-            .split(':')
-            .nth(1)
-            .unwrap()
-            .trim()
-            .parse()
-            .unwrap();
+        let cl: usize = cl_line.split(':').nth(1).unwrap().trim().parse().unwrap();
         assert_eq!(
-            cl, body_bytes.len(),
+            cl,
+            body_bytes.len(),
             "content-length must match the JSON body byte length exactly"
         );
         std::fs::remove_file(sock).ok();
@@ -500,10 +491,8 @@ mod tests {
 
     #[test]
     fn wait_for_socket_times_out_when_missing() {
-        let missing = std::env::temp_dir().join(format!(
-            "vibe_api_client_missing_{}",
-            rand_suffix()
-        ));
+        let missing =
+            std::env::temp_dir().join(format!("vibe_api_client_missing_{}", rand_suffix()));
         let err = wait_for_socket(&missing, Duration::from_millis(150)).unwrap_err();
         assert!(matches!(err, ApiClientError::SocketWaitTimeout { .. }));
     }

@@ -17,18 +17,23 @@
 
 use anyhow::{anyhow, Context, Result};
 use hmac::{Hmac, Mac};
-use sha2::Sha256;
 use rand::Rng;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
+use sha2::Sha256;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 type HmacSha256 = Hmac<Sha256>;
 
 fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }
-fn new_id() -> String { uuid::Uuid::new_v4().to_string() }
+fn new_id() -> String {
+    uuid::Uuid::new_v4().to_string()
+}
 
 // ── Master key management ─────────────────────────────────────────────────────
 
@@ -54,7 +59,9 @@ fn generate_key() -> [u8; 32] {
 }
 
 fn decode_hex_key(hex_str: &str) -> Option<[u8; 32]> {
-    if hex_str.len() != 64 { return None; }
+    if hex_str.len() != 64 {
+        return None;
+    }
     let mut key = [0u8; 32];
     hex::decode_to_slice(hex_str, &mut key).ok()?;
     Some(key)
@@ -152,7 +159,12 @@ fn decrypt(master_key: &[u8; 32], nonce: &[u8; 16], key_name: &str, ciphertext: 
     xor_with_keystream(master_key, nonce, key_name, ciphertext)
 }
 
-fn xor_with_keystream(master_key: &[u8; 32], nonce: &[u8; 16], key_name: &str, data: &[u8]) -> Vec<u8> {
+fn xor_with_keystream(
+    master_key: &[u8; 32],
+    nonce: &[u8; 16],
+    key_name: &str,
+    data: &[u8],
+) -> Vec<u8> {
     let mut out = Vec::with_capacity(data.len());
     let name_bytes = key_name.as_bytes();
     let mut counter: u64 = 0;
@@ -199,10 +211,13 @@ pub struct SecretStore<'a> {
 }
 
 impl<'a> SecretStore<'a> {
-    pub fn new(conn: &'a Connection) -> Self { Self { conn } }
+    pub fn new(conn: &'a Connection) -> Self {
+        Self { conn }
+    }
 
     pub fn ensure_schema(&self) -> Result<()> {
-        self.conn.execute_batch(r#"
+        self.conn.execute_batch(
+            r#"
             CREATE TABLE IF NOT EXISTS secrets (
                 id              TEXT PRIMARY KEY,
                 company_id      TEXT NOT NULL,
@@ -216,7 +231,8 @@ impl<'a> SecretStore<'a> {
                 UNIQUE(company_id, key_name)
             );
             CREATE INDEX IF NOT EXISTS idx_secrets_company ON secrets(company_id);
-        "#)?;
+        "#,
+        )?;
         Ok(())
     }
 
@@ -232,23 +248,28 @@ impl<'a> SecretStore<'a> {
         let mut nonce = [0u8; 16];
         rand::rng().fill(&mut nonce[..]);
         let ciphertext = encrypt(&master_key, &nonce, key_name, plaintext.as_bytes());
-        let enc_b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &ciphertext);
+        let enc_b64 =
+            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &ciphertext);
         let nonce_hex = hex::encode(nonce);
         let now = now_ms();
 
         // Upsert
-        let existing: Option<(String, i64)> = self.conn.query_row(
-            "SELECT id, version FROM secrets WHERE company_id = ?1 AND key_name = ?2",
-            params![company_id, key_name],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        ).ok();
+        let existing: Option<(String, i64)> = self
+            .conn
+            .query_row(
+                "SELECT id, version FROM secrets WHERE company_id = ?1 AND key_name = ?2",
+                params![company_id, key_name],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .ok();
 
         if let Some((id, version)) = existing {
             self.conn.execute(
                 "UPDATE secrets SET encrypted_value = ?1, nonce = ?2, version = ?3, created_by = ?4, updated_at = ?5 WHERE id = ?6",
                 params![enc_b64, nonce_hex, version + 1, created_by, now as i64, id],
             )?;
-            self.get(company_id, key_name)?.context("secret not found after update")
+            self.get(company_id, key_name)?
+                .context("secret not found after update")
         } else {
             let id = new_id();
             self.conn.execute(
@@ -256,18 +277,26 @@ impl<'a> SecretStore<'a> {
                  VALUES (?1,?2,?3,?4,?5,1,?6,?7,?8)",
                 params![id, company_id, key_name, enc_b64, nonce_hex, created_by, now as i64, now as i64],
             )?;
-            self.get(company_id, key_name)?.context("secret not found after insert")
+            self.get(company_id, key_name)?
+                .context("secret not found after insert")
         }
     }
 
     /// Retrieve and decrypt a secret value.
     pub fn get_value(&self, company_id: &str, key_name: &str) -> Result<String> {
-        let secret = self.get(company_id, key_name)?.context("secret not found")?;
+        let secret = self
+            .get(company_id, key_name)?
+            .context("secret not found")?;
         let master_key = get_or_create_master_key(company_id)?;
         let nonce_bytes = hex::decode(&secret.nonce).context("decoding nonce")?;
-        let nonce: [u8; 16] = nonce_bytes.try_into().map_err(|_| anyhow!("bad nonce length"))?;
-        let ciphertext = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &secret.encrypted_value)
-            .context("decoding ciphertext")?;
+        let nonce: [u8; 16] = nonce_bytes
+            .try_into()
+            .map_err(|_| anyhow!("bad nonce length"))?;
+        let ciphertext = base64::Engine::decode(
+            &base64::engine::general_purpose::STANDARD,
+            &secret.encrypted_value,
+        )
+        .context("decoding ciphertext")?;
         let plaintext = decrypt(&master_key, &nonce, key_name, &ciphertext);
         String::from_utf8(plaintext).context("decoding plaintext as UTF-8")
     }
@@ -286,7 +315,8 @@ impl<'a> SecretStore<'a> {
             "SELECT id, company_id, key_name, encrypted_value, nonce, version, created_by, created_at, updated_at
              FROM secrets WHERE company_id = ?1 ORDER BY key_name ASC",
         )?;
-        let rows = stmt.query_map(params![company_id], row_to_secret)?
+        let rows = stmt
+            .query_map(params![company_id], row_to_secret)?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(rows)
     }
@@ -318,7 +348,8 @@ impl CompanySecret {
     pub fn summary_line(&self) -> String {
         format!(
             "v{} {}  [{}]",
-            self.version, self.key_name,
+            self.version,
+            self.key_name,
             &self.id[..8.min(self.id.len())]
         )
     }

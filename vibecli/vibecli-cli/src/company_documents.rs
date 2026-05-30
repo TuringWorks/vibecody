@@ -10,9 +10,14 @@ use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }
-fn new_id() -> String { uuid::Uuid::new_v4().to_string() }
+fn new_id() -> String {
+    uuid::Uuid::new_v4().to_string()
+}
 
 // ── Data structs ──────────────────────────────────────────────────────────────
 
@@ -54,7 +59,8 @@ impl<'a> DocumentStore<'a> {
     }
 
     pub fn ensure_schema(&self) -> Result<()> {
-        self.conn.execute_batch(r#"
+        self.conn.execute_batch(
+            r#"
             CREATE TABLE IF NOT EXISTS documents (
                 id              TEXT PRIMARY KEY,
                 company_id      TEXT NOT NULL,
@@ -78,9 +84,12 @@ impl<'a> DocumentStore<'a> {
                 author_agent_id TEXT,
                 created_at      INTEGER NOT NULL
             );
-        "#)?;
+        "#,
+        )?;
         // Migration: add role column to existing databases (silently ignore if already present)
-        let _ = self.conn.execute_batch("ALTER TABLE documents ADD COLUMN role TEXT NOT NULL DEFAULT 'reference'");
+        let _ = self.conn.execute_batch(
+            "ALTER TABLE documents ADD COLUMN role TEXT NOT NULL DEFAULT 'reference'",
+        );
         Ok(())
     }
 
@@ -149,7 +158,9 @@ impl<'a> DocumentStore<'a> {
                 revision: row.get(7)?,
                 created_at: row.get::<_, i64>(8)? as u64,
                 updated_at: row.get::<_, i64>(9)? as u64,
-                role: row.get::<_, Option<String>>(10)?.unwrap_or_else(|| "reference".to_string()),
+                role: row
+                    .get::<_, Option<String>>(10)?
+                    .unwrap_or_else(|| "reference".to_string()),
             })
         })?;
         rows.collect::<rusqlite::Result<_>>().map_err(|e| e.into())
@@ -173,7 +184,9 @@ impl<'a> DocumentStore<'a> {
                 revision: row.get(7)?,
                 created_at: row.get::<_, i64>(8)? as u64,
                 updated_at: row.get::<_, i64>(9)? as u64,
-                role: row.get::<_, Option<String>>(10)?.unwrap_or_else(|| "reference".to_string()),
+                role: row
+                    .get::<_, Option<String>>(10)?
+                    .unwrap_or_else(|| "reference".to_string()),
             })
         })?;
         rows.next().transpose().map_err(|e| e.into())
@@ -197,7 +210,9 @@ impl<'a> DocumentStore<'a> {
                 revision: row.get(7)?,
                 created_at: row.get::<_, i64>(8)? as u64,
                 updated_at: row.get::<_, i64>(9)? as u64,
-                role: row.get::<_, Option<String>>(10)?.unwrap_or_else(|| "reference".to_string()),
+                role: row
+                    .get::<_, Option<String>>(10)?
+                    .unwrap_or_else(|| "reference".to_string()),
             })
         })?;
         rows.collect::<rusqlite::Result<_>>().map_err(|e| e.into())
@@ -263,7 +278,9 @@ impl Document {
         };
         format!(
             "v{} {}  {}  [{}]",
-            self.revision, self.title, link,
+            self.revision,
+            self.title,
+            link,
             &self.id[..8.min(self.id.len())]
         )
     }
@@ -287,7 +304,9 @@ mod tests {
         let conn = make_conn();
         let store = DocumentStore::new(&conn);
         store.ensure_schema().unwrap();
-        let doc = store.create("co1", "Spec", "# Hello", None, None, None).unwrap();
+        let doc = store
+            .create("co1", "Spec", "# Hello", None, None, None)
+            .unwrap();
         assert_eq!(doc.title, "Spec");
         assert_eq!(doc.content, "# Hello");
         assert_eq!(doc.revision, 1);
@@ -299,7 +318,9 @@ mod tests {
         let conn = make_conn();
         let store = DocumentStore::new(&conn);
         store.ensure_schema().unwrap();
-        let doc = store.create("co1", "Plan", "v1 content", None, None, None).unwrap();
+        let doc = store
+            .create("co1", "Plan", "v1 content", None, None, None)
+            .unwrap();
         let revs = store.list_revisions(&doc.id).unwrap();
         assert_eq!(revs.len(), 1);
         assert_eq!(revs[0].revision, 1);
@@ -311,7 +332,9 @@ mod tests {
         let conn = make_conn();
         let store = DocumentStore::new(&conn);
         store.ensure_schema().unwrap();
-        let doc = store.create("co1", "Task Doc", "", None, Some("task-abc"), None).unwrap();
+        let doc = store
+            .create("co1", "Task Doc", "", None, Some("task-abc"), None)
+            .unwrap();
         assert_eq!(doc.linked_task_id.as_deref(), Some("task-abc"));
     }
 
@@ -320,7 +343,9 @@ mod tests {
         let conn = make_conn();
         let store = DocumentStore::new(&conn);
         store.ensure_schema().unwrap();
-        let doc = store.create("co1", "Goal Doc", "", None, None, Some("goal-xyz")).unwrap();
+        let doc = store
+            .create("co1", "Goal Doc", "", None, None, Some("goal-xyz"))
+            .unwrap();
         assert_eq!(doc.linked_goal_id.as_deref(), Some("goal-xyz"));
     }
 
@@ -331,7 +356,9 @@ mod tests {
         let conn = make_conn();
         let store = DocumentStore::new(&conn);
         store.ensure_schema().unwrap();
-        let doc = store.create("co1", "RFC-001", "body", None, None, None).unwrap();
+        let doc = store
+            .create("co1", "RFC-001", "body", None, None, None)
+            .unwrap();
         let fetched = store.get(&doc.id).unwrap();
         assert!(fetched.is_some());
         assert_eq!(fetched.unwrap().title, "RFC-001");
@@ -379,8 +406,12 @@ mod tests {
         let conn = make_conn();
         let store = DocumentStore::new(&conn);
         store.ensure_schema().unwrap();
-        let doc = store.create("co1", "Living Doc", "v1", None, None, None).unwrap();
-        let updated = store.update(&doc.id, None, Some("v2"), Some("agent-1")).unwrap();
+        let doc = store
+            .create("co1", "Living Doc", "v1", None, None, None)
+            .unwrap();
+        let updated = store
+            .update(&doc.id, None, Some("v2"), Some("agent-1"))
+            .unwrap();
         assert_eq!(updated.revision, 2);
         assert_eq!(updated.content, "v2");
     }
@@ -390,8 +421,12 @@ mod tests {
         let conn = make_conn();
         let store = DocumentStore::new(&conn);
         store.ensure_schema().unwrap();
-        let doc = store.create("co1", "Old Title", "body", None, None, None).unwrap();
-        let updated = store.update(&doc.id, Some("New Title"), None, None).unwrap();
+        let doc = store
+            .create("co1", "Old Title", "body", None, None, None)
+            .unwrap();
+        let updated = store
+            .update(&doc.id, Some("New Title"), None, None)
+            .unwrap();
         assert_eq!(updated.title, "New Title");
         // title-only update should not bump revision
         assert_eq!(updated.revision, 1);
@@ -402,7 +437,9 @@ mod tests {
         let conn = make_conn();
         let store = DocumentStore::new(&conn);
         store.ensure_schema().unwrap();
-        let doc = store.create("co1", "Iter Doc", "init", None, None, None).unwrap();
+        let doc = store
+            .create("co1", "Iter Doc", "init", None, None, None)
+            .unwrap();
         store.update(&doc.id, None, Some("v2"), None).unwrap();
         store.update(&doc.id, None, Some("v3"), None).unwrap();
         let revs = store.list_revisions(&doc.id).unwrap();
@@ -427,7 +464,9 @@ mod tests {
         let conn = make_conn();
         let store = DocumentStore::new(&conn);
         store.ensure_schema().unwrap();
-        let doc = store.create("co1", "Authored", "body", Some("agent-auth"), None, None).unwrap();
+        let doc = store
+            .create("co1", "Authored", "body", Some("agent-auth"), None, None)
+            .unwrap();
         let revs = store.list_revisions(&doc.id).unwrap();
         assert_eq!(revs[0].author_agent_id.as_deref(), Some("agent-auth"));
     }
@@ -437,7 +476,9 @@ mod tests {
         let conn = make_conn();
         let store = DocumentStore::new(&conn);
         store.ensure_schema().unwrap();
-        let doc = store.create("co1", "Order Test", "r1", None, None, None).unwrap();
+        let doc = store
+            .create("co1", "Order Test", "r1", None, None, None)
+            .unwrap();
         store.update(&doc.id, None, Some("r2"), None).unwrap();
         let revs = store.list_revisions(&doc.id).unwrap();
         assert_eq!(revs[0].revision, 2);

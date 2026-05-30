@@ -207,7 +207,10 @@ impl EnvStore {
                 "cannot delete env with source '{source}' — only custom_* envs are user-deletable"
             )));
         }
-        conn.execute("DELETE FROM rl_environments WHERE env_id = ?1", params![env_id])?;
+        conn.execute(
+            "DELETE FROM rl_environments WHERE env_id = ?1",
+            params![env_id],
+        )?;
         Ok(())
     }
 
@@ -290,7 +293,11 @@ impl EnvStore {
         let mut updated = 0;
         let now = now_ms();
         for entry in envs {
-            let id = entry.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
+            let id = entry
+                .get("id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
             if id.is_empty() {
                 continue;
             }
@@ -418,7 +425,8 @@ impl EnvStore {
 
 fn row_to_env(r: &rusqlite::Row<'_>) -> rusqlite::Result<Environment> {
     let spec_str: String = r.get(4)?;
-    let spec_json: serde_json::Value = serde_json::from_str(&spec_str).unwrap_or(serde_json::Value::Null);
+    let spec_json: serde_json::Value =
+        serde_json::from_str(&spec_str).unwrap_or(serde_json::Value::Null);
     Ok(Environment {
         env_id: r.get(0)?,
         name: r.get(1)?,
@@ -562,7 +570,10 @@ mod tests {
         let count_before = store.count("gymnasium").unwrap();
         store.seed_defaults().unwrap();
         let count_after = store.count("gymnasium").unwrap();
-        assert_eq!(count_before, count_after, "seeding twice must not double up");
+        assert_eq!(
+            count_before, count_after,
+            "seeding twice must not double up"
+        );
     }
 
     #[test]
@@ -646,7 +657,12 @@ mod tests {
         let (_tmp, store) = open_tmp_store();
         store.seed_defaults().unwrap();
         let cp = store.list(EnvFilter::default()).unwrap();
-        let cartpole_id = cp.iter().find(|e| e.name == "CartPole-v1").unwrap().env_id.clone();
+        let cartpole_id = cp
+            .iter()
+            .find(|e| e.name == "CartPole-v1")
+            .unwrap()
+            .env_id
+            .clone();
         let err = store.delete(&cartpole_id).unwrap_err();
         assert!(matches!(err, RunError::Invalid(_)));
     }

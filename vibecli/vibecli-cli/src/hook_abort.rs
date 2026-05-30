@@ -19,11 +19,11 @@ pub enum HookEvent {
 impl std::fmt::Display for HookEvent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::PreToolUse   => write!(f, "PreToolUse"),
-            Self::PostToolUse  => write!(f, "PostToolUse"),
+            Self::PreToolUse => write!(f, "PreToolUse"),
+            Self::PostToolUse => write!(f, "PostToolUse"),
             Self::Notification => write!(f, "Notification"),
-            Self::PreCompact   => write!(f, "PreCompact"),
-            Self::Stop         => write!(f, "Stop"),
+            Self::PreCompact => write!(f, "PreCompact"),
+            Self::Stop => write!(f, "Stop"),
         }
     }
 }
@@ -43,10 +43,16 @@ pub enum HookExitCode {
 
 impl HookExitCode {
     pub fn from_i32(code: i32) -> Self {
-        match code { 0 => Self::Allow, 2 => Self::Block, _ => Self::GenericError }
+        match code {
+            0 => Self::Allow,
+            2 => Self::Block,
+            _ => Self::GenericError,
+        }
     }
 
-    pub fn is_blocking(&self) -> bool { matches!(self, Self::Block) }
+    pub fn is_blocking(&self) -> bool {
+        matches!(self, Self::Block)
+    }
 }
 
 // ─── Hook Output ─────────────────────────────────────────────────────────────
@@ -75,7 +81,11 @@ pub struct HookDecision {
 
 impl HookOutput {
     pub fn allow() -> Self {
-        Self { exit_code: HookExitCode::Allow, message: None, decision: None }
+        Self {
+            exit_code: HookExitCode::Allow,
+            message: None,
+            decision: None,
+        }
     }
 
     pub fn block(message: impl Into<String>) -> Self {
@@ -83,19 +93,27 @@ impl HookOutput {
             exit_code: HookExitCode::Block,
             message: Some(message.into()),
             decision: Some(HookDecision {
-                action: "block".into(), reason: None, message: None, suggest_retry: None,
+                action: "block".into(),
+                reason: None,
+                message: None,
+                suggest_retry: None,
             }),
         }
     }
 
     pub fn is_blocking(&self) -> bool {
         self.exit_code.is_blocking()
-        || self.decision.as_ref().map(|d| d.action == "block").unwrap_or(false)
+            || self
+                .decision
+                .as_ref()
+                .map(|d| d.action == "block")
+                .unwrap_or(false)
     }
 
     /// Readable reason for the hook's decision.
     pub fn reason(&self) -> Option<&str> {
-        self.decision.as_ref()
+        self.decision
+            .as_ref()
             .and_then(|d| d.reason.as_deref().or(d.message.as_deref()))
             .or(self.message.as_deref())
     }
@@ -112,8 +130,15 @@ impl HookParser {
         // Try to parse JSON decision from stdout
         let decision: Option<HookDecision> = serde_json::from_str(stdout.trim()).ok();
         // Determine blocking: exit 2, OR JSON action=block
-        let is_json_block = decision.as_ref().map(|d| d.action == "block").unwrap_or(false);
-        let effective_code = if is_json_block { HookExitCode::Block } else { code };
+        let is_json_block = decision
+            .as_ref()
+            .map(|d| d.action == "block")
+            .unwrap_or(false);
+        let effective_code = if is_json_block {
+            HookExitCode::Block
+        } else {
+            code
+        };
         let message = if stdout.trim().starts_with('{') {
             decision.as_ref().and_then(|d| d.message.clone())
         } else if !stdout.trim().is_empty() {
@@ -121,7 +146,11 @@ impl HookParser {
         } else {
             None
         };
-        HookOutput { exit_code: effective_code, message, decision }
+        HookOutput {
+            exit_code: effective_code,
+            message,
+            decision,
+        }
     }
 
     /// Summarise all hook outputs and return the aggregate decision.
@@ -147,10 +176,16 @@ pub struct HookContext {
 }
 
 impl HookContext {
-    pub fn pre_tool(session_id: impl Into<String>, tool_name: impl Into<String>, input: serde_json::Value) -> Self {
+    pub fn pre_tool(
+        session_id: impl Into<String>,
+        tool_name: impl Into<String>,
+        input: serde_json::Value,
+    ) -> Self {
         Self {
-            event: HookEvent::PreToolUse, session_id: session_id.into(),
-            tool_name: Some(tool_name.into()), tool_input: Some(input),
+            event: HookEvent::PreToolUse,
+            session_id: session_id.into(),
+            tool_name: Some(tool_name.into()),
+            tool_input: Some(input),
             tool_output: None,
         }
     }
@@ -171,12 +206,15 @@ pub struct AbortSignal {
 
 impl AbortSignal {
     pub fn new() -> Self {
-        Self { aborted: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)) }
+        Self {
+            aborted: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        }
     }
 
     /// Signal abort. All clones will immediately see this.
     pub fn abort(&self) {
-        self.aborted.store(true, std::sync::atomic::Ordering::SeqCst);
+        self.aborted
+            .store(true, std::sync::atomic::Ordering::SeqCst);
     }
 
     /// Returns true if the signal has been aborted.
@@ -186,7 +224,9 @@ impl AbortSignal {
 
     /// Clone the signal — the clone shares the same underlying atomic.
     pub fn clone_signal(&self) -> AbortSignal {
-        AbortSignal { aborted: std::sync::Arc::clone(&self.aborted) }
+        AbortSignal {
+            aborted: std::sync::Arc::clone(&self.aborted),
+        }
     }
 }
 
@@ -222,7 +262,10 @@ impl std::fmt::Display for HookProgressEvent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Started { hook_name } => write!(f, "started:{hook_name}"),
-            Self::Running { hook_name, elapsed_ms } => write!(f, "running:{hook_name}:{elapsed_ms}ms"),
+            Self::Running {
+                hook_name,
+                elapsed_ms,
+            } => write!(f, "running:{hook_name}:{elapsed_ms}ms"),
             Self::Completed { hook_name, success } => write!(f, "completed:{hook_name}:{success}"),
             Self::Aborted { hook_name } => write!(f, "aborted:{hook_name}"),
         }
@@ -245,7 +288,11 @@ pub struct HookAbortController {
 impl HookAbortController {
     pub fn new() -> Self {
         let (tx, rx) = std::sync::mpsc::sync_channel(64);
-        Self { signal: AbortSignal::new(), tx, rx: Some(rx) }
+        Self {
+            signal: AbortSignal::new(),
+            tx,
+            rx: Some(rx),
+        }
     }
 
     /// Get a cloneable abort signal.
@@ -274,7 +321,9 @@ impl HookAbortController {
 }
 
 impl Default for HookAbortController {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl std::fmt::Debug for HookAbortController {
@@ -315,7 +364,10 @@ mod tests {
     #[test]
     fn test_plain_text_message_captured() {
         let out = HookParser::parse(2, "This command is blocked for safety.");
-        assert_eq!(out.message.as_deref(), Some("This command is blocked for safety."));
+        assert_eq!(
+            out.message.as_deref(),
+            Some("This command is blocked for safety.")
+        );
     }
 
     #[test]
@@ -367,7 +419,10 @@ mod tests {
             exit_code: HookExitCode::Block,
             message: None,
             decision: Some(HookDecision {
-                action: "block".into(), reason: Some("safety".into()), message: None, suggest_retry: None,
+                action: "block".into(),
+                reason: Some("safety".into()),
+                message: None,
+                suggest_retry: None,
             }),
         };
         assert_eq!(out.reason(), Some("safety"));
@@ -375,7 +430,11 @@ mod tests {
 
     #[test]
     fn test_hook_output_reason_falls_back_to_message() {
-        let out = HookOutput { exit_code: HookExitCode::Block, message: Some("fallback".into()), decision: None };
+        let out = HookOutput {
+            exit_code: HookExitCode::Block,
+            message: Some("fallback".into()),
+            decision: None,
+        };
         assert_eq!(out.reason(), Some("fallback"));
     }
 
@@ -436,13 +495,17 @@ mod tests {
 
     #[test]
     fn progress_event_hook_name() {
-        let e = HookProgressEvent::Started { hook_name: "pre-tool".into() };
+        let e = HookProgressEvent::Started {
+            hook_name: "pre-tool".into(),
+        };
         assert_eq!(e.hook_name(), "pre-tool");
     }
 
     #[test]
     fn progress_event_aborted_is_terminal() {
-        let e = HookProgressEvent::Aborted { hook_name: "h".into() };
+        let e = HookProgressEvent::Aborted {
+            hook_name: "h".into(),
+        };
         assert!(e.is_terminal());
     }
 
@@ -459,9 +522,17 @@ mod tests {
     fn emit_sends_events_to_channel() {
         let mut ctrl = HookAbortController::new();
         let rx = ctrl.take_receiver().unwrap();
-        ctrl.emit(HookProgressEvent::Started { hook_name: "h1".into() });
-        ctrl.emit(HookProgressEvent::Running { hook_name: "h1".into(), elapsed_ms: 100 });
-        ctrl.emit(HookProgressEvent::Completed { hook_name: "h1".into(), success: true });
+        ctrl.emit(HookProgressEvent::Started {
+            hook_name: "h1".into(),
+        });
+        ctrl.emit(HookProgressEvent::Running {
+            hook_name: "h1".into(),
+            elapsed_ms: 100,
+        });
+        ctrl.emit(HookProgressEvent::Completed {
+            hook_name: "h1".into(),
+            success: true,
+        });
         let events: Vec<HookProgressEvent> = rx.try_iter().collect();
         assert_eq!(events.len(), 3);
     }

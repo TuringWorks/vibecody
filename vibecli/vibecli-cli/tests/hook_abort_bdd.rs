@@ -2,7 +2,7 @@
  * BDD tests for hook_abort using Cucumber.
  * Run with: cargo test --test hook_abort_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::hook_abort::{
     AbortSignal, HookAbortController, HookOutput, HookParser, HookProgressEvent,
 };
@@ -71,7 +71,12 @@ fn check_not_blocking(world: &mut HaWorld) {
 fn check_message(world: &mut HaWorld, needle: String) {
     let out = world.output.as_ref().or(world.aggregate.as_ref()).unwrap();
     let msg = out.message.as_deref().unwrap_or("");
-    assert!(msg.contains(&needle), "message '{}' does not contain '{}'", msg, needle);
+    assert!(
+        msg.contains(&needle),
+        "message '{}' does not contain '{}'",
+        msg,
+        needle
+    );
 }
 
 // ── AbortSignal step definitions ──────────────────────────────────────────────
@@ -102,9 +107,17 @@ fn abort_signal(world: &mut HaWorld) {
 fn emit_events(world: &mut HaWorld, hook_name: String) {
     if let Some(ctrl) = world.controller.as_mut() {
         let rx = ctrl.take_receiver().unwrap();
-        ctrl.emit(HookProgressEvent::Started { hook_name: hook_name.clone() });
-        ctrl.emit(HookProgressEvent::Running { hook_name: hook_name.clone(), elapsed_ms: 50 });
-        ctrl.emit(HookProgressEvent::Completed { hook_name: hook_name.clone(), success: true });
+        ctrl.emit(HookProgressEvent::Started {
+            hook_name: hook_name.clone(),
+        });
+        ctrl.emit(HookProgressEvent::Running {
+            hook_name: hook_name.clone(),
+            elapsed_ms: 50,
+        });
+        ctrl.emit(HookProgressEvent::Completed {
+            hook_name: hook_name.clone(),
+            success: true,
+        });
         world.received_events = rx.try_iter().map(|e| e.to_string()).collect();
     }
 }

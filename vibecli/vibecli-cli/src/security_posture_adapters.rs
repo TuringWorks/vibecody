@@ -45,7 +45,7 @@ impl Scanner for HealthScannerAdapter {
                 "health",
                 severity,
                 Category::CodeHealth,
-                PathBuf::from("."),    // health is whole-workspace, not per-file
+                PathBuf::from("."), // health is whole-workspace, not per-file
                 None,
                 None,
                 Some(dim.details),
@@ -123,8 +123,14 @@ impl Scanner for VulnerabilityScannerAdapter {
         // We deliberately don't recurse into node_modules / vendor — the
         // lockfile at the root is the source of truth.
         let lockfile_names = [
-            "Cargo.lock", "package-lock.json", "yarn.lock", "pnpm-lock.yaml",
-            "Pipfile.lock", "poetry.lock", "Gemfile.lock", "go.sum",
+            "Cargo.lock",
+            "package-lock.json",
+            "yarn.lock",
+            "pnpm-lock.yaml",
+            "Pipfile.lock",
+            "poetry.lock",
+            "Gemfile.lock",
+            "go.sum",
         ];
         for name in lockfile_names {
             let path = workspace.join(name);
@@ -174,7 +180,10 @@ impl Scanner for VulnerabilityScannerAdapter {
                 continue;
             }
             if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                if !matches!(ext, "rs" | "ts" | "tsx" | "js" | "jsx" | "py" | "go" | "java") {
+                if !matches!(
+                    ext,
+                    "rs" | "ts" | "tsx" | "js" | "jsx" | "py" | "go" | "java"
+                ) {
                     continue;
                 }
             } else {
@@ -231,7 +240,10 @@ impl Scanner for VulnerabilityScannerAdapter {
                 .filter(|&n| n > 0)
                 .and_then(|n| u32::try_from(n).ok());
 
-            let title = match (vuln.installed_version.as_deref(), vuln.fixed_version.as_deref()) {
+            let title = match (
+                vuln.installed_version.as_deref(),
+                vuln.fixed_version.as_deref(),
+            ) {
                 (Some(inst), Some(fix)) if !inst.is_empty() && !fix.is_empty() => {
                     format!("{} (installed: {inst}, fix: {fix})", vuln.title)
                 }
@@ -254,7 +266,7 @@ impl Scanner for VulnerabilityScannerAdapter {
                 file,
                 line,
                 None,
-                None,    // snippet not surfaced; title + rule_id carry the signal
+                None, // snippet not surfaced; title + rule_id carry the signal
                 rule_id,
                 title,
                 remediation,
@@ -448,7 +460,10 @@ mod tests {
     fn slugify_dimension_kebab_case() {
         assert_eq!(slugify_dimension("Test Coverage"), "test-coverage");
         assert_eq!(slugify_dimension("API Coverage"), "api-coverage");
-        assert_eq!(slugify_dimension("Dependency Freshness"), "dependency-freshness");
+        assert_eq!(
+            slugify_dimension("Dependency Freshness"),
+            "dependency-freshness"
+        );
     }
 
     #[test]

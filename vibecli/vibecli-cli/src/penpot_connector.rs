@@ -9,7 +9,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::design_providers::{DesignComponent, DesignError, DesignFile, DesignFrame, DesignToken, DesignTokenType, ProviderKind};
+use crate::design_providers::{
+    DesignComponent, DesignError, DesignFile, DesignFrame, DesignToken, DesignTokenType,
+    ProviderKind,
+};
 
 // ─── Penpot API types ─────────────────────────────────────────────────────────
 
@@ -23,7 +26,10 @@ pub struct PenpotConfig {
 
 impl PenpotConfig {
     pub fn new(host: &str, token: &str) -> Self {
-        Self { host: host.trim_end_matches('/').to_string(), token: token.to_string() }
+        Self {
+            host: host.trim_end_matches('/').to_string(),
+            token: token.to_string(),
+        }
     }
 
     pub fn default_cloud() -> Self {
@@ -135,7 +141,12 @@ impl PenpotRequest {
         headers.insert("Authorization".to_string(), format!("Token {}", token));
         headers.insert("Content-Type".to_string(), "application/json".to_string());
         headers.insert("Accept".to_string(), "application/json".to_string());
-        Self { method: method.to_string(), url: url.to_string(), headers, body: None }
+        Self {
+            method: method.to_string(),
+            url: url.to_string(),
+            headers,
+            body: None,
+        }
     }
 
     pub fn get_profile(cfg: &PenpotConfig) -> Self {
@@ -157,17 +168,31 @@ impl PenpotRequest {
     }
 
     pub fn get_file_data_for_thumbnail(cfg: &PenpotConfig, file_id: &str) -> Self {
-        let url = format!("{}?file-id={}", cfg.api_url("get-file-data-for-thumbnail"), file_id);
+        let url = format!(
+            "{}?file-id={}",
+            cfg.api_url("get-file-data-for-thumbnail"),
+            file_id
+        );
         Self::new("GET", &url, &cfg.token)
     }
 
     pub fn get_team_shared_files(cfg: &PenpotConfig, team_id: &str) -> Self {
-        let url = format!("{}?team-id={}", cfg.api_url("get-team-shared-files"), team_id);
+        let url = format!(
+            "{}?team-id={}",
+            cfg.api_url("get-team-shared-files"),
+            team_id
+        );
         Self::new("GET", &url, &cfg.token)
     }
 
-    pub fn export_file_svg(cfg: &PenpotConfig, file_id: &str, page_id: &str, object_ids: &[&str]) -> Self {
-        let ids: Vec<serde_json::Value> = object_ids.iter().map(|id| serde_json::json!(id)).collect();
+    pub fn export_file_svg(
+        cfg: &PenpotConfig,
+        file_id: &str,
+        page_id: &str,
+        object_ids: &[&str],
+    ) -> Self {
+        let ids: Vec<serde_json::Value> =
+            object_ids.iter().map(|id| serde_json::json!(id)).collect();
         let mut r = Self::new("POST", &cfg.api_url("export-binfile"), &cfg.token);
         r.body = Some(serde_json::json!({
             "file-id": file_id,
@@ -190,13 +215,21 @@ impl PenpotRequest {
             "DELETE" => "-X DELETE".to_string(),
             _ => String::new(),
         };
-        let headers: String = self.headers.iter()
+        let headers: String = self
+            .headers
+            .iter()
             .map(|(k, v)| format!("-H \"{}: {}\"", k, v))
-            .collect::<Vec<_>>().join(" \\\n  ");
-        let body_flag = self.body.as_ref()
+            .collect::<Vec<_>>()
+            .join(" \\\n  ");
+        let body_flag = self
+            .body
+            .as_ref()
             .map(|b| format!("-d '{}'", serde_json::to_string(b).unwrap_or_default()))
             .unwrap_or_default();
-        format!("curl {} \\\n  {} \\\n  {} \\\n  \"{}\"", method_flag, headers, body_flag, self.url)
+        format!(
+            "curl {} \\\n  {} \\\n  {} \\\n  \"{}\"",
+            method_flag, headers, body_flag, self.url
+        )
     }
 }
 
@@ -226,7 +259,11 @@ pub fn parse_penpot_file_response(json_str: &str) -> Result<DesignFile, DesignEr
                     if obj["type"].as_str() == Some("frame") {
                         frames.push(DesignFrame {
                             id: obj["id"].as_str().unwrap_or("").to_string(),
-                            name: format!("{} / {}", pname, obj["name"].as_str().unwrap_or("Frame")),
+                            name: format!(
+                                "{} / {}",
+                                pname,
+                                obj["name"].as_str().unwrap_or("Frame")
+                            ),
                             width: obj["width"].as_f64().unwrap_or(0.0) as u32,
                             height: obj["height"].as_f64().unwrap_or(0.0) as u32,
                             thumbnail_url: None,
@@ -271,7 +308,10 @@ pub fn parse_penpot_file_response(json_str: &str) -> Result<DesignFile, DesignEr
     // Extract typographies
     if let Some(typo_map) = v["data"]["typographies"].as_object() {
         for (_tid, typo) in typo_map {
-            let fname = typo["fontFamily"].as_str().unwrap_or("sans-serif").to_string();
+            let fname = typo["fontFamily"]
+                .as_str()
+                .unwrap_or("sans-serif")
+                .to_string();
             let tname = typo["name"].as_str().unwrap_or("typography").to_string();
             tokens.push(DesignToken {
                 name: tname,
@@ -299,7 +339,9 @@ pub fn parse_penpot_file_response(json_str: &str) -> Result<DesignFile, DesignEr
 /// Generate a React component scaffold from a Penpot component definition
 pub fn penpot_component_to_react(comp: &PenpotComponent, framework: &str) -> String {
     let comp_name = to_pascal_case(&comp.name);
-    let objects_summary: Vec<String> = comp.objects.values()
+    let objects_summary: Vec<String> = comp
+        .objects
+        .values()
         .filter(|o| !matches!(o.obj_type.as_str(), "frame" | "group"))
         .map(|o| format!("  // {} ({})", o.name, o.obj_type))
         .take(10)
@@ -373,8 +415,12 @@ export function {}({{ label = '{}', className = '' }}: {}Props) {{
   );
 }}
 "#,
-            comp.name, comp.id,
-            comp_name, comp_name, comp.name, comp_name,
+            comp.name,
+            comp.id,
+            comp_name,
+            comp_name,
+            comp.name,
+            comp_name,
             comp.name.to_lowercase().replace(' ', "-"),
             comp.id,
             objects_summary.join("\n"),
@@ -416,13 +462,22 @@ pub fn penpot_typography_to_css(typographies: &[PenpotTypography]) -> String {
 
 pub fn validate_penpot_config(cfg: &PenpotConfig) -> Result<(), DesignError> {
     if cfg.host.is_empty() {
-        return Err(DesignError::new("INVALID_CONFIG", "Penpot host URL is required"));
+        return Err(DesignError::new(
+            "INVALID_CONFIG",
+            "Penpot host URL is required",
+        ));
     }
     if !cfg.host.starts_with("http://") && !cfg.host.starts_with("https://") {
-        return Err(DesignError::new("INVALID_CONFIG", "Penpot host must start with http:// or https://"));
+        return Err(DesignError::new(
+            "INVALID_CONFIG",
+            "Penpot host must start with http:// or https://",
+        ));
     }
     if cfg.token.is_empty() {
-        return Err(DesignError::new("INVALID_CONFIG", "Penpot access token is required"));
+        return Err(DesignError::new(
+            "INVALID_CONFIG",
+            "Penpot access token is required",
+        ));
     }
     Ok(())
 }
@@ -452,7 +507,10 @@ mod tests {
     #[test]
     fn config_api_url() {
         let cfg = PenpotConfig::new("https://design.penpot.app", "tok123");
-        assert_eq!(cfg.api_url("get-profile"), "https://design.penpot.app/api/rpc/command/get-profile");
+        assert_eq!(
+            cfg.api_url("get-profile"),
+            "https://design.penpot.app/api/rpc/command/get-profile"
+        );
     }
 
     #[test]
@@ -497,8 +555,11 @@ mod tests {
     #[test]
     fn penpot_colors_to_css_output() {
         let colors = vec![PenpotColor {
-            id: "c1".into(), name: "Primary Blue".into(), color: "#3b82f6".into(),
-            opacity: Some(1.0), path: None,
+            id: "c1".into(),
+            name: "Primary Blue".into(),
+            color: "#3b82f6".into(),
+            opacity: Some(1.0),
+            path: None,
         }];
         let css = penpot_colors_to_css(&colors);
         assert!(css.contains("--primary-blue: #3b82f6;"));
@@ -507,8 +568,11 @@ mod tests {
     #[test]
     fn penpot_component_to_react_generates_function() {
         let comp = PenpotComponent {
-            id: "comp-1".into(), name: "Card".into(), path: "ui/cards".into(),
-            objects: HashMap::new(), main_instance_id: None,
+            id: "comp-1".into(),
+            name: "Card".into(),
+            path: "ui/cards".into(),
+            objects: HashMap::new(),
+            main_instance_id: None,
         };
         let code = penpot_component_to_react(&comp, "react");
         assert!(code.contains("function Card"));
@@ -518,8 +582,11 @@ mod tests {
     #[test]
     fn penpot_component_to_vue() {
         let comp = PenpotComponent {
-            id: "c2".into(), name: "Button".into(), path: "".into(),
-            objects: HashMap::new(), main_instance_id: None,
+            id: "c2".into(),
+            name: "Button".into(),
+            path: "".into(),
+            objects: HashMap::new(),
+            main_instance_id: None,
         };
         let code = penpot_component_to_react(&comp, "vue");
         assert!(code.contains("<template>"));

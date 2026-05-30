@@ -146,10 +146,7 @@ fn one_line(s: &str, max: usize) -> String {
 /// Idempotent: projections fully overwrite any existing file, so calling
 /// this repeatedly produces the same on-disk bytes for a given store
 /// state.
-pub fn write_projections(
-    home_dir: Option<&Path>,
-    workspace: &Path,
-) -> Result<ProjectionPaths> {
+pub fn write_projections(home_dir: Option<&Path>, workspace: &Path) -> Result<ProjectionPaths> {
     let memory_md = workspace.join(".vibecli").join("MEMORY.md");
     let project_store = crate::open_memory::project_scoped_store(workspace);
     let project_title = format!(
@@ -201,8 +198,7 @@ pub fn write_projections_from_store(
             .and_then(|n| n.to_str())
             .unwrap_or("workspace")
     );
-    let project_body =
-        render_markdown_for_scope(store, store.project_id(), &project_title);
+    let project_body = render_markdown_for_scope(store, store.project_id(), &project_title);
     if let Some(parent) = memory_md.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -235,11 +231,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let mut store = OpenMemoryStore::new(dir.path(), "test");
         for (content, _sector, pinned) in entries {
-            let id = store.add_with_tags(
-                *content,
-                Vec::new(),
-                std::collections::HashMap::new(),
-            );
+            let id = store.add_with_tags(*content, Vec::new(), std::collections::HashMap::new());
             if *pinned {
                 store.pin(&id);
             }
@@ -281,9 +273,7 @@ mod tests {
         // The unpinned fact is Semantic — its sector heading must appear
         // *after* the pinned block so the most-important entries render
         // first in the file.
-        let sector_pos = md
-            .find("## Semantic")
-            .expect("at least one sector heading");
+        let sector_pos = md.find("## Semantic").expect("at least one sector heading");
         assert!(
             pinned_pos < sector_pos,
             "pinned section should precede sector sections"
@@ -339,8 +329,7 @@ mod tests {
     #[test]
     fn write_projections_writes_memory_md_and_is_idempotent() {
         let workspace = TempDir::new().unwrap();
-        let first =
-            write_projections(None, workspace.path()).expect("first write");
+        let first = write_projections(None, workspace.path()).expect("first write");
         assert!(first.memory_md.exists());
         assert!(first.user_md.is_none(), "home omitted → no USER.md");
 
@@ -354,8 +343,7 @@ mod tests {
     fn write_projections_also_writes_user_md_when_home_is_provided() {
         let home = TempDir::new().unwrap();
         let workspace = TempDir::new().unwrap();
-        let paths = write_projections(Some(home.path()), workspace.path())
-            .expect("write");
+        let paths = write_projections(Some(home.path()), workspace.path()).expect("write");
         let user_md = paths.user_md.expect("user md path");
         assert!(user_md.exists());
         let body = std::fs::read_to_string(&user_md).unwrap();

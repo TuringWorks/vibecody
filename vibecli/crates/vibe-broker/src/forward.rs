@@ -60,10 +60,7 @@ pub async fn forward_plain_http(
     let path_and_query = format!(
         "{}{}",
         req.url.path(),
-        req.url
-            .query()
-            .map(|q| format!("?{q}"))
-            .unwrap_or_default()
+        req.url.query().map(|q| format!("?{q}")).unwrap_or_default()
     );
 
     let mut head = format!("{} {} HTTP/1.1\r\n", req.method, path_and_query);
@@ -118,7 +115,8 @@ fn parse_response(buf: &[u8]) -> Result<ForwardResponse, ForwardError> {
         .windows(4)
         .position(|w| w == b"\r\n\r\n")
         .ok_or(ForwardError::BadResponse)?;
-    let head_text = std::str::from_utf8(&buf[..split_pos]).map_err(|_| ForwardError::BadResponse)?;
+    let head_text =
+        std::str::from_utf8(&buf[..split_pos]).map_err(|_| ForwardError::BadResponse)?;
     let body = buf[split_pos + 4..].to_vec();
 
     let mut lines = head_text.split("\r\n");

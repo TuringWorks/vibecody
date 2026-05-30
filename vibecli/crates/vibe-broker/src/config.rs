@@ -133,8 +133,7 @@ pub enum ConfigError {
 
 impl BrokerConfig {
     pub fn from_toml_str(text: &str) -> Result<Self, ConfigError> {
-        let parsed: Self =
-            toml::from_str(text).map_err(|e| ConfigError::Toml(e.to_string()))?;
+        let parsed: Self = toml::from_str(text).map_err(|e| ConfigError::Toml(e.to_string()))?;
         parsed.validate()?;
         Ok(parsed)
     }

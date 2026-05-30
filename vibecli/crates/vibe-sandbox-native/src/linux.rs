@@ -162,7 +162,9 @@ const DENIED_SEGMENTS: &[&str] = &[".vibecli", ".vibeui", ".claude"];
 const DENIED_FILENAMES: &[&str] = &["daemon.token", "profile_settings.db", "workspace.db"];
 
 fn validate_path(p: &Path) -> Result<()> {
-    if p.components().any(|c| matches!(c, std::path::Component::ParentDir)) {
+    if p.components()
+        .any(|c| matches!(c, std::path::Component::ParentDir))
+    {
         return Err(SandboxError::Setup(format!(
             "path traversal not allowed in sandbox path: {}",
             p.display()
@@ -226,7 +228,8 @@ mod tests {
     #[test]
     fn bind_rw_appears_in_args() {
         let mut sb = LinuxSandbox::new().unwrap();
-        sb.bind_rw(Path::new("/host/work"), Path::new("/work")).unwrap();
+        sb.bind_rw(Path::new("/host/work"), Path::new("/work"))
+            .unwrap();
         let args = sb.build_bwrap_args();
         let mut iter = args.iter();
         let mut found = false;
@@ -248,9 +251,9 @@ mod tests {
         let mut sb = LinuxSandbox::new().unwrap();
         sb.bind_ro(Path::new("/host/ro"), Path::new("/ro")).unwrap();
         let args = sb.build_bwrap_args();
-        assert!(args.windows(3).any(|w| {
-            w[0] == "--ro-bind" && w[1] == "/host/ro" && w[2] == "/ro"
-        }));
+        assert!(args
+            .windows(3)
+            .any(|w| { w[0] == "--ro-bind" && w[1] == "/host/ro" && w[2] == "/ro" }));
     }
 
     #[test]

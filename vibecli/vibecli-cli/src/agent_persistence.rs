@@ -60,13 +60,25 @@ pub enum StateValue {
 
 impl StateValue {
     pub fn as_str(&self) -> Option<&str> {
-        if let StateValue::Str(s) = self { Some(s) } else { None }
+        if let StateValue::Str(s) = self {
+            Some(s)
+        } else {
+            None
+        }
     }
     pub fn as_int(&self) -> Option<i64> {
-        if let StateValue::Int(n) = self { Some(*n) } else { None }
+        if let StateValue::Int(n) = self {
+            Some(*n)
+        } else {
+            None
+        }
     }
     pub fn as_bool(&self) -> Option<bool> {
-        if let StateValue::Bool(b) = self { Some(*b) } else { None }
+        if let StateValue::Bool(b) = self {
+            Some(*b)
+        } else {
+            None
+        }
     }
 }
 
@@ -91,12 +103,17 @@ pub struct SnapshotStore {
 }
 
 impl Default for SnapshotStore {
-    fn default() -> Self { Self::new(10) }
+    fn default() -> Self {
+        Self::new(10)
+    }
 }
 
 impl SnapshotStore {
     pub fn new(max_checkpoints: usize) -> Self {
-        Self { snapshots: HashMap::new(), max_checkpoints }
+        Self {
+            snapshots: HashMap::new(),
+            max_checkpoints,
+        }
     }
 
     /// Save a snapshot. Assigns the next checkpoint_id.
@@ -122,14 +139,23 @@ impl SnapshotStore {
     }
 
     /// Load a specific checkpoint by ID.
-    pub fn load_checkpoint(&self, agent_id: &str, session_id: &str, checkpoint_id: u64) -> Option<&AgentSnapshot> {
-        self.snapshots.get(agent_id)?.get(session_id)?
-            .iter().find(|s| s.checkpoint_id == checkpoint_id)
+    pub fn load_checkpoint(
+        &self,
+        agent_id: &str,
+        session_id: &str,
+        checkpoint_id: u64,
+    ) -> Option<&AgentSnapshot> {
+        self.snapshots
+            .get(agent_id)?
+            .get(session_id)?
+            .iter()
+            .find(|s| s.checkpoint_id == checkpoint_id)
     }
 
     /// List all checkpoint IDs for a session.
     pub fn list_checkpoints(&self, agent_id: &str, session_id: &str) -> Vec<u64> {
-        self.snapshots.get(agent_id)
+        self.snapshots
+            .get(agent_id)
             .and_then(|s| s.get(session_id))
             .map(|cs| cs.iter().map(|s| s.checkpoint_id).collect())
             .unwrap_or_default()
@@ -144,7 +170,11 @@ impl SnapshotStore {
 
     /// Total snapshots stored.
     pub fn total_snapshots(&self) -> usize {
-        self.snapshots.values().flat_map(|s| s.values()).map(|v| v.len()).sum()
+        self.snapshots
+            .values()
+            .flat_map(|s| s.values())
+            .map(|v| v.len())
+            .sum()
     }
 }
 
@@ -159,7 +189,9 @@ pub struct SnapshotBuilder {
 
 impl SnapshotBuilder {
     pub fn new(agent_id: impl Into<String>, session_id: impl Into<String>) -> Self {
-        Self { snapshot: AgentSnapshot::new(agent_id, session_id) }
+        Self {
+            snapshot: AgentSnapshot::new(agent_id, session_id),
+        }
     }
 
     pub fn state(mut self, key: impl Into<String>, val: StateValue) -> Self {
@@ -182,7 +214,12 @@ impl SnapshotBuilder {
         self
     }
 
-    pub fn pending_call(mut self, tool: impl Into<String>, args: impl Into<String>, id: impl Into<String>) -> Self {
+    pub fn pending_call(
+        mut self,
+        tool: impl Into<String>,
+        args: impl Into<String>,
+        id: impl Into<String>,
+    ) -> Self {
         self.snapshot.pending_tool_calls.push(PendingToolCall {
             tool_name: tool.into(),
             args: args.into(),
@@ -196,11 +233,16 @@ impl SnapshotBuilder {
         self
     }
 
-    pub fn build(self) -> AgentSnapshot { self.snapshot }
+    pub fn build(self) -> AgentSnapshot {
+        self.snapshot
+    }
 }
 
 fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 // ---------------------------------------------------------------------------
@@ -321,7 +363,9 @@ mod tests {
 
     #[test]
     fn test_metadata() {
-        let snap = SnapshotBuilder::new("a", "s").meta("region", "us-east").build();
+        let snap = SnapshotBuilder::new("a", "s")
+            .meta("region", "us-east")
+            .build();
         assert_eq!(snap.metadata.get("region").unwrap(), "us-east");
     }
 }

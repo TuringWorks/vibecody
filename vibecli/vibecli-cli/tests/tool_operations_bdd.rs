@@ -5,7 +5,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::tool_operations::{
     BashOperations, DryRunBashOps, EchoBashOps, EditOperations, EditPatch, MemoryEditOps,
     OpsRegistry,
@@ -138,7 +138,12 @@ fn lookup_edit(world: &mut ToWorld, name: String) {
 #[then(expr = "{int} commands should be recorded")]
 fn check_recorded_count(world: &mut ToWorld, count: usize) {
     let cmds = world.dry_run.as_ref().unwrap().commands();
-    assert_eq!(cmds.len(), count, "expected {count} recorded commands, got {:?}", cmds);
+    assert_eq!(
+        cmds.len(),
+        count,
+        "expected {count} recorded commands, got {:?}",
+        cmds
+    );
 }
 
 #[then(expr = "recorded command {int} should be {string}")]
@@ -169,11 +174,7 @@ fn check_file_exists(world: &mut ToWorld, path: String) {
 
 #[then("the patch should succeed")]
 fn check_patch_success(world: &mut ToWorld) {
-    assert!(
-        world.patch_success,
-        "patch failed: {:?}",
-        world.patch_error
-    );
+    assert!(world.patch_success, "patch failed: {:?}", world.patch_error);
 }
 
 #[then(expr = "the bash backend name should be {string}")]

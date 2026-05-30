@@ -147,7 +147,10 @@ impl PluginLoader {
             .with_context(|| format!("Cannot read plugin manifest: {}", manifest_path.display()))?;
         let manifest: PluginManifest = toml::from_str(&toml_str)
             .with_context(|| format!("Invalid plugin.toml in {}", dir.display()))?;
-        Ok(Plugin { manifest, dir: dir.to_path_buf() })
+        Ok(Plugin {
+            manifest,
+            dir: dir.to_path_buf(),
+        })
     }
 
     // ── Install / Remove ──────────────────────────────────────────────────────
@@ -164,7 +167,9 @@ impl PluginLoader {
         if dest.exists() {
             anyhow::bail!(
                 "Plugin '{}' is already installed at {}. Use `plugin remove {}` first.",
-                name, dest.display(), name
+                name,
+                dest.display(),
+                name
             );
         }
 
@@ -195,7 +200,8 @@ impl PluginLoader {
         if dest.exists() {
             anyhow::bail!(
                 "Plugin '{}' is already installed. Use `plugin remove {}` first.",
-                name, name
+                name,
+                name
             );
         }
 
@@ -230,7 +236,13 @@ impl PluginLoader {
     pub fn list(&self) -> Vec<(String, String, String)> {
         self.load_all()
             .into_iter()
-            .map(|p| (p.manifest.name.clone(), p.manifest.version.clone(), p.manifest.description.clone()))
+            .map(|p| {
+                (
+                    p.manifest.name.clone(),
+                    p.manifest.version.clone(),
+                    p.manifest.description.clone(),
+                )
+            })
             .collect()
     }
 
@@ -301,7 +313,9 @@ mod tests {
     fn test_load_plugin() {
         let tmp = tempfile::tempdir().unwrap();
         let plugin_dir = make_plugin(tmp.path(), "myplugin");
-        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        let loader = PluginLoader {
+            plugins_dir: tmp.path().to_path_buf(),
+        };
         let plugin = loader.load_plugin(&plugin_dir).unwrap();
         assert_eq!(plugin.manifest.name, "myplugin");
         assert_eq!(plugin.manifest.version, "1.0.0");
@@ -313,7 +327,9 @@ mod tests {
         let dst_tmp = tempfile::tempdir().unwrap();
 
         let src_dir = make_plugin(src_tmp.path(), "coolplugin");
-        let loader = PluginLoader { plugins_dir: dst_tmp.path().to_path_buf() };
+        let loader = PluginLoader {
+            plugins_dir: dst_tmp.path().to_path_buf(),
+        };
 
         let installed = loader.install_from_path(&src_dir).unwrap();
         assert_eq!(installed.manifest.name, "coolplugin");
@@ -331,7 +347,9 @@ mod tests {
         let src_tmp = tempfile::tempdir().unwrap();
         let dst_tmp = tempfile::tempdir().unwrap();
         let src_dir = make_plugin(src_tmp.path(), "dupe");
-        let loader = PluginLoader { plugins_dir: dst_tmp.path().to_path_buf() };
+        let loader = PluginLoader {
+            plugins_dir: dst_tmp.path().to_path_buf(),
+        };
         loader.install_from_path(&src_dir).unwrap();
         assert!(loader.install_from_path(&src_dir).is_err());
     }
@@ -341,7 +359,9 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         make_plugin(tmp.path(), "p1");
         make_plugin(tmp.path(), "p2");
-        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        let loader = PluginLoader {
+            plugins_dir: tmp.path().to_path_buf(),
+        };
         let skills = loader.all_skill_paths();
         assert_eq!(skills.len(), 2);
     }
@@ -350,7 +370,9 @@ mod tests {
     fn test_plugin_skills_dir() {
         let tmp = tempfile::tempdir().unwrap();
         let plugin_dir = make_plugin(tmp.path(), "myplugin");
-        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        let loader = PluginLoader {
+            plugins_dir: tmp.path().to_path_buf(),
+        };
         let plugin = loader.load_plugin(&plugin_dir).unwrap();
         assert_eq!(plugin.skills_dir(), plugin_dir.join("skills"));
     }
@@ -359,7 +381,9 @@ mod tests {
     fn test_plugin_commands_dir() {
         let tmp = tempfile::tempdir().unwrap();
         let plugin_dir = make_plugin(tmp.path(), "myplugin");
-        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        let loader = PluginLoader {
+            plugins_dir: tmp.path().to_path_buf(),
+        };
         let plugin = loader.load_plugin(&plugin_dir).unwrap();
         assert_eq!(plugin.commands_dir(), plugin_dir.join("commands"));
     }
@@ -368,7 +392,9 @@ mod tests {
     fn test_plugin_resolved_hooks_empty() {
         let tmp = tempfile::tempdir().unwrap();
         let plugin_dir = make_plugin(tmp.path(), "nohooks");
-        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        let loader = PluginLoader {
+            plugins_dir: tmp.path().to_path_buf(),
+        };
         let plugin = loader.load_plugin(&plugin_dir).unwrap();
         assert!(plugin.resolved_hooks().is_empty());
     }
@@ -391,7 +417,9 @@ command = "hooks/pre-tool.sh"
 async = false
 "#;
         fs::write(dir.join("plugin.toml"), manifest).unwrap();
-        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        let loader = PluginLoader {
+            plugins_dir: tmp.path().to_path_buf(),
+        };
         let plugin = loader.load_plugin(&dir).unwrap();
         let hooks = plugin.resolved_hooks();
         assert_eq!(hooks.len(), 1);
@@ -404,7 +432,9 @@ async = false
     #[test]
     fn test_load_all_empty_dir() {
         let tmp = tempfile::tempdir().unwrap();
-        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        let loader = PluginLoader {
+            plugins_dir: tmp.path().to_path_buf(),
+        };
         assert!(loader.load_all().is_empty());
     }
 
@@ -414,7 +444,9 @@ async = false
         make_plugin(tmp.path(), "alpha");
         make_plugin(tmp.path(), "beta");
         make_plugin(tmp.path(), "gamma");
-        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        let loader = PluginLoader {
+            plugins_dir: tmp.path().to_path_buf(),
+        };
         let plugins = loader.load_all();
         assert_eq!(plugins.len(), 3);
     }
@@ -424,7 +456,9 @@ async = false
         let tmp = tempfile::tempdir().unwrap();
         let dir = tmp.path().join("nomanifest");
         fs::create_dir_all(&dir).unwrap();
-        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        let loader = PluginLoader {
+            plugins_dir: tmp.path().to_path_buf(),
+        };
         assert!(loader.load_plugin(&dir).is_err());
     }
 
@@ -434,14 +468,18 @@ async = false
         let dir = tmp.path().join("badplugin");
         fs::create_dir_all(&dir).unwrap();
         fs::write(dir.join("plugin.toml"), "not valid {{{ toml").unwrap();
-        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        let loader = PluginLoader {
+            plugins_dir: tmp.path().to_path_buf(),
+        };
         assert!(loader.load_plugin(&dir).is_err());
     }
 
     #[test]
     fn test_remove_nonexistent_plugin() {
         let tmp = tempfile::tempdir().unwrap();
-        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        let loader = PluginLoader {
+            plugins_dir: tmp.path().to_path_buf(),
+        };
         assert!(loader.remove("nonexistent").is_err());
     }
 
@@ -478,7 +516,9 @@ async = false
     fn test_list_returns_name_version_description() {
         let tmp = tempfile::tempdir().unwrap();
         make_plugin(tmp.path(), "info-plugin");
-        let loader = PluginLoader { plugins_dir: tmp.path().to_path_buf() };
+        let loader = PluginLoader {
+            plugins_dir: tmp.path().to_path_buf(),
+        };
         let list = loader.list();
         assert_eq!(list.len(), 1);
         assert_eq!(list[0].0, "info-plugin");
@@ -492,7 +532,9 @@ async = false
         let dst_tmp = tempfile::tempdir().unwrap();
         let src_dir = src_tmp.path().join("no-manifest-plugin");
         fs::create_dir_all(&src_dir).unwrap();
-        let loader = PluginLoader { plugins_dir: dst_tmp.path().to_path_buf() };
+        let loader = PluginLoader {
+            plugins_dir: dst_tmp.path().to_path_buf(),
+        };
         assert!(loader.install_from_path(&src_dir).is_err());
     }
 

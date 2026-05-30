@@ -140,7 +140,19 @@ fn extract_code_cells(content: &str) -> Vec<CodeCell> {
 }
 
 fn is_supported_language(lang: &str) -> bool {
-    matches!(lang, "bash" | "sh" | "python" | "python3" | "ruby" | "node" | "js" | "javascript" | "deno" | "rust")
+    matches!(
+        lang,
+        "bash"
+            | "sh"
+            | "python"
+            | "python3"
+            | "ruby"
+            | "node"
+            | "js"
+            | "javascript"
+            | "deno"
+            | "rust"
+    )
 }
 
 // ── Executor ──────────────────────────────────────────────────────────────────
@@ -149,18 +161,19 @@ fn is_supported_language(lang: &str) -> bool {
 pub fn run_cell(cell: &CodeCell) -> Result<CellResult> {
     use std::io::Write;
 
-    let (cmd, args, use_stdin, use_file): (&str, Vec<&str>, bool, bool) = match cell.language.as_str() {
-        "bash" | "sh" => ("sh", vec!["-c"], false, false),
-        "python" | "python3" => ("python3", vec!["-c"], false, false),
-        "ruby" => ("ruby", vec!["-e"], false, false),
-        "node" | "js" | "javascript" => ("node", vec!["-e"], false, false),
-        "deno" => ("deno", vec!["eval"], false, false),
-        "rust" => {
-            // Write to temp file and compile+run with rustc
-            return run_rust_cell(cell);
-        }
-        _ => return Err(anyhow::anyhow!("Unsupported language: {}", cell.language)),
-    };
+    let (cmd, args, use_stdin, use_file): (&str, Vec<&str>, bool, bool) =
+        match cell.language.as_str() {
+            "bash" | "sh" => ("sh", vec!["-c"], false, false),
+            "python" | "python3" => ("python3", vec!["-c"], false, false),
+            "ruby" => ("ruby", vec!["-e"], false, false),
+            "node" | "js" | "javascript" => ("node", vec!["-e"], false, false),
+            "deno" => ("deno", vec!["eval"], false, false),
+            "rust" => {
+                // Write to temp file and compile+run with rustc
+                return run_rust_cell(cell);
+            }
+            _ => return Err(anyhow::anyhow!("Unsupported language: {}", cell.language)),
+        };
 
     let output = if !args.is_empty() && !use_stdin && !use_file {
         Command::new(cmd)
@@ -205,7 +218,8 @@ fn run_rust_cell(cell: &CodeCell) -> Result<CellResult> {
     // Compile
     let compile = Command::new("rustc")
         .arg(&src_path)
-        .arg("-o").arg(&exe_path)
+        .arg("-o")
+        .arg(&exe_path)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output()
@@ -245,11 +259,14 @@ pub fn run_notebook(path: &Path, continue_on_error: bool) -> Result<bool> {
     let notebook = Notebook::load(path)?;
     let mut all_ok = true;
 
-    println!("📓 Notebook: {}", if notebook.meta.name.is_empty() {
-        path.display().to_string()
-    } else {
-        notebook.meta.name.clone()
-    });
+    println!(
+        "📓 Notebook: {}",
+        if notebook.meta.name.is_empty() {
+            path.display().to_string()
+        } else {
+            notebook.meta.name.clone()
+        }
+    );
     if !notebook.meta.description.is_empty() {
         println!("   {}", notebook.meta.description);
     }
@@ -257,7 +274,14 @@ pub fn run_notebook(path: &Path, continue_on_error: bool) -> Result<bool> {
 
     for (idx, cell) in notebook.cells.iter().enumerate() {
         let cell_num = idx + 1;
-        let preview: String = cell.source.lines().next().unwrap_or("").chars().take(60).collect();
+        let preview: String = cell
+            .source
+            .lines()
+            .next()
+            .unwrap_or("")
+            .chars()
+            .take(60)
+            .collect();
         println!("▶ Cell {} ({}) — {}", cell_num, cell.language, preview);
         println!("{}", "─".repeat(60));
 
@@ -279,7 +303,10 @@ pub fn run_notebook(path: &Path, continue_on_error: bool) -> Result<bool> {
                     println!("❌ exit {}\n", result.exit_code);
                     all_ok = false;
                     if !continue_on_error {
-                        println!("Stopping at cell {} (use --continue-on-error to run all cells)", cell_num);
+                        println!(
+                            "Stopping at cell {} (use --continue-on-error to run all cells)",
+                            cell_num
+                        );
                         return Ok(false);
                     }
                 }
@@ -367,7 +394,11 @@ print(2 + 2)
     #[test]
     fn test_unsupported_language_skipped() {
         let nb = Notebook::parse("```go\nfmt.Println()\n```\n").unwrap();
-        assert_eq!(nb.cells.len(), 0, "Go is not a supported language, cell should be skipped");
+        assert_eq!(
+            nb.cells.len(),
+            0,
+            "Go is not a supported language, cell should be skipped"
+        );
     }
 
     #[test]
@@ -379,7 +410,18 @@ print(2 + 2)
 
     #[test]
     fn test_is_supported_language_all_supported() {
-        let supported = ["bash", "sh", "python", "python3", "ruby", "node", "js", "javascript", "deno", "rust"];
+        let supported = [
+            "bash",
+            "sh",
+            "python",
+            "python3",
+            "ruby",
+            "node",
+            "js",
+            "javascript",
+            "deno",
+            "rust",
+        ];
         for lang in &supported {
             assert!(
                 is_supported_language(lang),
@@ -391,7 +433,18 @@ print(2 + 2)
 
     #[test]
     fn test_is_supported_language_unsupported() {
-        let unsupported = ["go", "java", "c", "cpp", "typescript", "ts", "perl", "lua", "haskell", ""];
+        let unsupported = [
+            "go",
+            "java",
+            "c",
+            "cpp",
+            "typescript",
+            "ts",
+            "perl",
+            "lua",
+            "haskell",
+            "",
+        ];
         for lang in &unsupported {
             assert!(
                 !is_supported_language(lang),
@@ -417,15 +470,23 @@ print(2 + 2)
         let content = "---\nauthor: Bob\nversion: 1.0\n---\n\n```bash\necho hi\n```\n";
         let nb = Notebook::parse(content).unwrap();
         assert_eq!(nb.meta.name, "", "name should default to empty string");
-        assert_eq!(nb.meta.description, "", "description should default to empty string");
+        assert_eq!(
+            nb.meta.description, "",
+            "description should default to empty string"
+        );
         assert_eq!(nb.cells.len(), 1);
     }
 
     #[test]
     fn test_consecutive_code_fences_no_prose_between() {
-        let content = "```bash\necho one\n```\n```python\nprint('two')\n```\n```sh\necho three\n```\n";
+        let content =
+            "```bash\necho one\n```\n```python\nprint('two')\n```\n```sh\necho three\n```\n";
         let nb = Notebook::parse(content).unwrap();
-        assert_eq!(nb.cells.len(), 3, "all three consecutive cells should be parsed");
+        assert_eq!(
+            nb.cells.len(),
+            3,
+            "all three consecutive cells should be parsed"
+        );
         assert_eq!(nb.cells[0].language, "bash");
         assert_eq!(nb.cells[0].source, "echo one");
         assert_eq!(nb.cells[1].language, "python");
@@ -451,7 +512,11 @@ print(2 + 2)
         // Now test: closing fence on its own line but no trailing newline
         let content2 = "```bash\necho last\n```";
         let nb2 = Notebook::parse(content2).unwrap();
-        assert_eq!(nb2.cells.len(), 1, "cell should be parsed even without trailing newline");
+        assert_eq!(
+            nb2.cells.len(),
+            1,
+            "cell should be parsed even without trailing newline"
+        );
         assert_eq!(nb2.cells[0].language, "bash");
         assert_eq!(nb2.cells[0].source, "echo last");
     }

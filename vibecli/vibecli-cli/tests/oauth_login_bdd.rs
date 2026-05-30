@@ -8,11 +8,9 @@
 #[path = "../src/oauth_login.rs"]
 mod oauth_login;
 
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
+use oauth_login::{NoopCallbacks, OAuthCredentials, OAuthFlowResult, OAuthManager, OAuthProvider};
 use std::time::{SystemTime, UNIX_EPOCH};
-use oauth_login::{
-    NoopCallbacks, OAuthCredentials, OAuthFlowResult, OAuthManager, OAuthProvider,
-};
 
 // ---------------------------------------------------------------------------
 // World
@@ -45,8 +43,7 @@ fn now_ms() -> u64 {
 }
 
 fn parse_provider(s: &str) -> OAuthProvider {
-    OAuthProvider::from_str(s)
-        .unwrap_or_else(|| panic!("unknown provider slug: {}", s))
+    OAuthProvider::from_str(s).unwrap_or_else(|| panic!("unknown provider slug: {}", s))
 }
 
 fn provider_slug(p: &OAuthProvider) -> &'static str {
@@ -142,11 +139,7 @@ fn when_list_logged_in(world: &mut OAuthWorld) {
 }
 
 #[when(expr = "I simulate a device flow for provider {string} with mock token {string}")]
-fn when_simulate_device_flow(
-    world: &mut OAuthWorld,
-    provider_str: String,
-    mock_token: String,
-) {
+fn when_simulate_device_flow(world: &mut OAuthWorld, provider_str: String, mock_token: String) {
     let provider = parse_provider(&provider_str);
     let mgr = world.manager.as_mut().expect("manager not initialised");
 
@@ -159,11 +152,7 @@ fn when_simulate_device_flow(
 }
 
 #[when(expr = "I build the auth header for provider {string} with fallback key {string}")]
-fn when_build_auth_header(
-    world: &mut OAuthWorld,
-    provider_str: String,
-    fallback: String,
-) {
+fn when_build_auth_header(world: &mut OAuthWorld, provider_str: String, fallback: String) {
     let provider = parse_provider(&provider_str);
     let mgr = world.manager.as_ref().expect("manager not initialised");
     world.auth_header = mgr.auth_header(&provider, Some(&fallback));
@@ -249,11 +238,7 @@ fn then_provider_logged_in(world: &mut OAuthWorld, provider_str: String) {
 }
 
 #[then(expr = "the valid token for provider {string} should equal {string}")]
-fn then_provider_token_eq(
-    world: &mut OAuthWorld,
-    provider_str: String,
-    expected: String,
-) {
+fn then_provider_token_eq(world: &mut OAuthWorld, provider_str: String, expected: String) {
     let provider = parse_provider(&provider_str);
     let mgr = world.manager.as_ref().expect("manager not initialised");
     assert_eq!(
@@ -278,7 +263,5 @@ fn then_auth_header_eq(world: &mut OAuthWorld, expected: String) {
 // ---------------------------------------------------------------------------
 
 fn main() {
-    futures::executor::block_on(OAuthWorld::run(
-        "tests/features/oauth_login.feature",
-    ));
+    futures::executor::block_on(OAuthWorld::run("tests/features/oauth_login.feature"));
 }

@@ -115,7 +115,10 @@ impl std::fmt::Debug for LazyToolRegistry {
             .field("cache_hits", &self.cache_hits)
             .field("cache_misses", &self.cache_misses)
             .field("total_load_time_ms", &self.total_load_time_ms)
-            .field("schema_loader", &self.schema_loader.as_ref().map(|_| "<fn>"))
+            .field(
+                "schema_loader",
+                &self.schema_loader.as_ref().map(|_| "<fn>"),
+            )
             .finish()
     }
 }
@@ -147,7 +150,8 @@ impl LazyToolRegistry {
     /// is loaded immediately.
     pub fn register_manifest(&mut self, manifest: ToolManifest) {
         let should_eager = self.should_eager_load(&manifest.name);
-        self.manifests.insert(manifest.name.clone(), manifest.clone());
+        self.manifests
+            .insert(manifest.name.clone(), manifest.clone());
 
         if should_eager {
             let _ = self.load_tool(&manifest.name);
@@ -172,7 +176,8 @@ impl LazyToolRegistry {
             .manifests
             .values()
             .filter_map(|manifest| {
-                let score = self.compute_relevance(&manifest.name, &manifest.description, &keywords);
+                let score =
+                    self.compute_relevance(&manifest.name, &manifest.description, &keywords);
                 if score > 0.0 {
                     Some(ToolSearchResult {
                         tool_name: manifest.name.clone(),
@@ -341,9 +346,7 @@ impl LazyToolRegistry {
         let loaded_token_count: usize = self
             .schemas
             .values()
-            .map(|entry| {
-                manifest_tokens_each + entry.schema.parameters.len() * param_tokens_each
-            })
+            .map(|entry| manifest_tokens_each + entry.schema.parameters.len() * param_tokens_each)
             .sum();
 
         loaded_token_count
@@ -506,14 +509,34 @@ mod tests {
 
     fn make_registry_with_tools() -> LazyToolRegistry {
         let mut reg = LazyToolRegistry::new(make_config(10, 300));
-        reg.register_manifest(make_manifest("read_file", "Read a file from disk", "filesystem"));
-        reg.register_manifest(make_manifest("write_file", "Write content to a file", "filesystem"));
-        reg.register_manifest(make_manifest("list_dir", "List directory contents", "filesystem"));
-        reg.register_manifest(make_manifest("search_code", "Search code with regex", "search"));
+        reg.register_manifest(make_manifest(
+            "read_file",
+            "Read a file from disk",
+            "filesystem",
+        ));
+        reg.register_manifest(make_manifest(
+            "write_file",
+            "Write content to a file",
+            "filesystem",
+        ));
+        reg.register_manifest(make_manifest(
+            "list_dir",
+            "List directory contents",
+            "filesystem",
+        ));
+        reg.register_manifest(make_manifest(
+            "search_code",
+            "Search code with regex",
+            "search",
+        ));
         reg.register_manifest(make_manifest("git_status", "Show git status", "git"));
         reg.register_manifest(make_manifest("git_commit", "Create a git commit", "git"));
         reg.register_manifest(make_manifest("run_test", "Run unit tests", "testing"));
-        reg.register_manifest(make_manifest("debug_start", "Start debugger session", "debug"));
+        reg.register_manifest(make_manifest(
+            "debug_start",
+            "Start debugger session",
+            "debug",
+        ));
         reg
     }
 
@@ -633,7 +656,11 @@ mod tests {
         let mut reg = LazyToolRegistry::new(make_config(10, 300));
         reg.register_manifest(make_manifest("search", "Find things", "srv"));
         reg.register_manifest(make_manifest("search_code", "Search code files", "srv"));
-        reg.register_manifest(make_manifest("deep_search", "Deep search in archives", "srv"));
+        reg.register_manifest(make_manifest(
+            "deep_search",
+            "Deep search in archives",
+            "srv",
+        ));
 
         let results = reg.search_tools("search", 10);
         // Exact name match "search" should rank highest
@@ -897,16 +924,22 @@ mod tests {
         let mut reg = make_registry_with_tools();
         reg.set_schema_loader(|name, server| {
             let mut params = HashMap::new();
-            params.insert("p1".to_string(), ParameterDef {
-                param_type: "string".to_string(),
-                description: "Param 1".to_string(),
-                required: true,
-            });
-            params.insert("p2".to_string(), ParameterDef {
-                param_type: "number".to_string(),
-                description: "Param 2".to_string(),
-                required: false,
-            });
+            params.insert(
+                "p1".to_string(),
+                ParameterDef {
+                    param_type: "string".to_string(),
+                    description: "Param 1".to_string(),
+                    required: true,
+                },
+            );
+            params.insert(
+                "p2".to_string(),
+                ParameterDef {
+                    param_type: "number".to_string(),
+                    description: "Param 2".to_string(),
+                    required: false,
+                },
+            );
             Some(ToolSchema {
                 name: name.to_string(),
                 description: "desc".to_string(),

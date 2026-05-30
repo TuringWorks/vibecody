@@ -168,8 +168,7 @@ sandbox = false
 
     #[allow(dead_code)]
     pub fn write_active(name: &str) -> Result<()> {
-        let path = Self::active_profile_path()
-            .context("Cannot determine home directory")?;
+        let path = Self::active_profile_path().context("Cannot determine home directory")?;
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -196,9 +195,15 @@ impl ProfileOverrides {
         let mgr = ProfileManager::new();
         let profile = mgr.load(profile_name)?;
         Ok(Self {
-            provider: profile.provider.as_ref().and_then(|p| p.provider_type.clone()),
+            provider: profile
+                .provider
+                .as_ref()
+                .and_then(|p| p.provider_type.clone()),
             model: profile.provider.as_ref().and_then(|p| p.model.clone()),
-            approval_policy: profile.safety.as_ref().and_then(|s| s.approval_policy.clone()),
+            approval_policy: profile
+                .safety
+                .as_ref()
+                .and_then(|s| s.approval_policy.clone()),
             sandbox: profile.safety.as_ref().and_then(|s| s.sandbox),
         })
     }
@@ -213,7 +218,9 @@ mod tests {
     #[test]
     fn test_create_and_load_profile() {
         let tmp = tempfile::tempdir().unwrap();
-        let mgr = ProfileManager { profiles_dir: tmp.path().to_path_buf() };
+        let mgr = ProfileManager {
+            profiles_dir: tmp.path().to_path_buf(),
+        };
 
         let path = mgr.create("work", "claude", "auto-edit").unwrap();
         assert!(path.exists());
@@ -228,7 +235,9 @@ mod tests {
     #[test]
     fn test_list_profiles() {
         let tmp = tempfile::tempdir().unwrap();
-        let mgr = ProfileManager { profiles_dir: tmp.path().to_path_buf() };
+        let mgr = ProfileManager {
+            profiles_dir: tmp.path().to_path_buf(),
+        };
         mgr.create("alpha", "ollama", "suggest").unwrap();
         mgr.create("beta", "openai", "full-auto").unwrap();
 
@@ -241,7 +250,9 @@ mod tests {
     #[test]
     fn test_delete_profile() {
         let tmp = tempfile::tempdir().unwrap();
-        let mgr = ProfileManager { profiles_dir: tmp.path().to_path_buf() };
+        let mgr = ProfileManager {
+            profiles_dir: tmp.path().to_path_buf(),
+        };
         mgr.create("test", "ollama", "suggest").unwrap();
         assert_eq!(mgr.list().len(), 1);
         mgr.delete("test").unwrap();
@@ -251,7 +262,9 @@ mod tests {
     #[test]
     fn test_duplicate_create_fails() {
         let tmp = tempfile::tempdir().unwrap();
-        let mgr = ProfileManager { profiles_dir: tmp.path().to_path_buf() };
+        let mgr = ProfileManager {
+            profiles_dir: tmp.path().to_path_buf(),
+        };
         mgr.create("p", "ollama", "suggest").unwrap();
         assert!(mgr.create("p", "claude", "full-auto").is_err());
     }
@@ -259,7 +272,9 @@ mod tests {
     #[test]
     fn test_load_nonexistent_fails() {
         let tmp = tempfile::tempdir().unwrap();
-        let mgr = ProfileManager { profiles_dir: tmp.path().to_path_buf() };
+        let mgr = ProfileManager {
+            profiles_dir: tmp.path().to_path_buf(),
+        };
         assert!(mgr.load("nope").is_err());
     }
 
@@ -304,27 +319,35 @@ mod tests {
     #[test]
     fn test_list_empty_dir() {
         let tmp = tempfile::tempdir().unwrap();
-        let mgr = ProfileManager { profiles_dir: tmp.path().to_path_buf() };
+        let mgr = ProfileManager {
+            profiles_dir: tmp.path().to_path_buf(),
+        };
         assert!(mgr.list().is_empty());
     }
 
     #[test]
     fn test_list_nonexistent_dir() {
-        let mgr = ProfileManager { profiles_dir: PathBuf::from("/nonexistent/profiles") };
+        let mgr = ProfileManager {
+            profiles_dir: PathBuf::from("/nonexistent/profiles"),
+        };
         assert!(mgr.list().is_empty());
     }
 
     #[test]
     fn test_delete_nonexistent_fails() {
         let tmp = tempfile::tempdir().unwrap();
-        let mgr = ProfileManager { profiles_dir: tmp.path().to_path_buf() };
+        let mgr = ProfileManager {
+            profiles_dir: tmp.path().to_path_buf(),
+        };
         assert!(mgr.delete("nope").is_err());
     }
 
     #[test]
     fn test_create_with_different_providers() {
         let tmp = tempfile::tempdir().unwrap();
-        let mgr = ProfileManager { profiles_dir: tmp.path().to_path_buf() };
+        let mgr = ProfileManager {
+            profiles_dir: tmp.path().to_path_buf(),
+        };
 
         mgr.create("ollama_profile", "ollama", "suggest").unwrap();
         mgr.create("openai_profile", "openai", "full-auto").unwrap();
@@ -347,7 +370,9 @@ mod tests {
     #[test]
     fn test_create_populates_description() {
         let tmp = tempfile::tempdir().unwrap();
-        let mgr = ProfileManager { profiles_dir: tmp.path().to_path_buf() };
+        let mgr = ProfileManager {
+            profiles_dir: tmp.path().to_path_buf(),
+        };
         mgr.create("test", "claude", "auto-edit").unwrap();
         let profile = mgr.load("test").unwrap();
         assert!(!profile.description.is_empty());
@@ -367,7 +392,9 @@ mod tests {
     #[test]
     fn test_create_then_delete_then_list() {
         let tmp = tempfile::tempdir().unwrap();
-        let mgr = ProfileManager { profiles_dir: tmp.path().to_path_buf() };
+        let mgr = ProfileManager {
+            profiles_dir: tmp.path().to_path_buf(),
+        };
         mgr.create("a", "ollama", "suggest").unwrap();
         mgr.create("b", "claude", "auto-edit").unwrap();
         assert_eq!(mgr.list().len(), 2);
@@ -390,6 +417,9 @@ mod tests {
         };
         let toml_str = toml::to_string(&profile).unwrap();
         let parsed: Profile = toml::from_str(&toml_str).unwrap();
-        assert_eq!(parsed.provider.unwrap().api_url.unwrap(), "http://localhost:11434");
+        assert_eq!(
+            parsed.provider.unwrap().api_url.unwrap(),
+            "http://localhost:11434"
+        );
     }
 }

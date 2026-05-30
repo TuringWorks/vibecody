@@ -79,8 +79,8 @@ impl Distribution {
     /// Sample a value (deterministic pseudo-sample using a seed for reproducibility).
     pub fn sample_deterministic(&self, seed: u64) -> f64 {
         // Simple LCG-based pseudo-random for deterministic replay
-        let t = ((seed.wrapping_mul(6364136223846793005).wrapping_add(1)) as f64)
-            / (u64::MAX as f64);
+        let t =
+            ((seed.wrapping_mul(6364136223846793005).wrapping_add(1)) as f64) / (u64::MAX as f64);
         match self {
             Self::Uniform { low, high } => low + t * (high - low),
             Self::Normal { mean, std_dev } => {
@@ -171,25 +171,15 @@ pub enum SpaceType {
         dtype: DType,
     },
     /// Single integer in [0, n).
-    Discrete {
-        n: u64,
-    },
+    Discrete { n: u64 },
     /// Vector of discrete values, each in [0, nvec[i]).
-    MultiDiscrete {
-        nvec: Vec<u64>,
-    },
+    MultiDiscrete { nvec: Vec<u64> },
     /// Binary vector of length n.
-    MultiBinary {
-        n: usize,
-    },
+    MultiBinary { n: usize },
     /// Dictionary of named sub-spaces.
-    Dict {
-        spaces: HashMap<String, SpaceType>,
-    },
+    Dict { spaces: HashMap<String, SpaceType> },
     /// Ordered tuple of sub-spaces.
-    Tuple {
-        spaces: Vec<SpaceType>,
-    },
+    Tuple { spaces: Vec<SpaceType> },
 }
 
 impl SpaceType {
@@ -219,7 +209,9 @@ impl SpaceType {
     /// Validate the space definition.
     pub fn validate(&self) -> Result<(), String> {
         match self {
-            Self::Box { low, high, shape, .. } => {
+            Self::Box {
+                low, high, shape, ..
+            } => {
                 let expected: usize = shape.iter().product::<usize>().max(1);
                 if low.len() != expected {
                     return Err(format!(
@@ -268,9 +260,7 @@ impl SpaceType {
                     return Err("Dict: must contain at least one space".into());
                 }
                 for (name, space) in spaces {
-                    space
-                        .validate()
-                        .map_err(|e| format!("Dict[{name}]: {e}"))?;
+                    space.validate().map_err(|e| format!("Dict[{name}]: {e}"))?;
                 }
                 Ok(())
             }
@@ -279,9 +269,7 @@ impl SpaceType {
                     return Err("Tuple: must contain at least one space".into());
                 }
                 for (i, space) in spaces.iter().enumerate() {
-                    space
-                        .validate()
-                        .map_err(|e| format!("Tuple[{i}]: {e}"))?;
+                    space.validate().map_err(|e| format!("Tuple[{i}]: {e}"))?;
                 }
                 Ok(())
             }
@@ -301,7 +289,9 @@ impl SpaceType {
                     .all(|(v, (l, h))| *v >= *l && *v <= *h)
             }
             Self::Discrete { n } => {
-                values.len() == 1 && values[0] >= 0.0 && values[0] < (*n as f64)
+                values.len() == 1
+                    && values[0] >= 0.0
+                    && values[0] < (*n as f64)
                     && (values[0] - values[0].round()).abs() < 1e-9
             }
             Self::MultiDiscrete { nvec } => {
@@ -418,8 +408,8 @@ impl RewardComponent {
                     return 0.0;
                 }
                 let mean = returns.iter().sum::<f64>() / returns.len() as f64;
-                let var = returns.iter().map(|r| (r - mean).powi(2)).sum::<f64>()
-                    / returns.len() as f64;
+                let var =
+                    returns.iter().map(|r| (r - mean).powi(2)).sum::<f64>() / returns.len() as f64;
                 let std = var.sqrt();
                 if std < 1e-10 {
                     0.0
@@ -458,7 +448,7 @@ impl RewardComponent {
                 -dist
             }
             RewardFunctionType::Composite { .. } => 0.0, // needs sub-evaluation
-            RewardFunctionType::Custom { .. } => 0.0,     // needs runtime parser
+            RewardFunctionType::Custom { .. } => 0.0,    // needs runtime parser
         };
 
         let clipped = match (self.clip_min, self.clip_max) {
@@ -518,10 +508,7 @@ pub enum SafetyConstraintType {
         max: f64,
     },
     /// Velocity must not exceed maximum.
-    VelocityLimit {
-        dimension: usize,
-        max_speed: f64,
-    },
+    VelocityLimit { dimension: usize, max_speed: f64 },
     /// Minimum distance between two entities.
     CollisionAvoidance {
         entity_a: String,
@@ -529,19 +516,14 @@ pub enum SafetyConstraintType {
         min_distance: f64,
     },
     /// Torque/force limit on an actuator.
-    TorqueLimit {
-        joint_index: usize,
-        max_torque: f64,
-    },
+    TorqueLimit { joint_index: usize, max_torque: f64 },
     /// Regulatory compliance rule.
     Regulatory {
         rule_id: String,
         description: String,
     },
     /// Custom expression constraint.
-    CustomExpression {
-        expression: String,
-    },
+    CustomExpression { expression: String },
 }
 
 impl SafetyConstraintType {
@@ -574,7 +556,11 @@ pub struct SafetyConstraint {
 }
 
 impl SafetyConstraint {
-    pub fn new(name: &str, constraint_type: SafetyConstraintType, severity: ConstraintSeverity) -> Self {
+    pub fn new(
+        name: &str,
+        constraint_type: SafetyConstraintType,
+        severity: ConstraintSeverity,
+    ) -> Self {
         Self {
             name: name.to_string(),
             constraint_type,
@@ -590,21 +576,31 @@ impl SafetyConstraint {
             return None;
         }
         let violated = match &self.constraint_type {
-            SafetyConstraintType::PositionLimit { dimension, min, max } => {
+            SafetyConstraintType::PositionLimit {
+                dimension,
+                min,
+                max,
+            } => {
                 if let Some(val) = state.get(*dimension) {
                     *val < *min || *val > *max
                 } else {
                     false
                 }
             }
-            SafetyConstraintType::VelocityLimit { dimension, max_speed } => {
+            SafetyConstraintType::VelocityLimit {
+                dimension,
+                max_speed,
+            } => {
                 if let Some(val) = state.get(*dimension) {
                     val.abs() > *max_speed
                 } else {
                     false
                 }
             }
-            SafetyConstraintType::TorqueLimit { joint_index, max_torque } => {
+            SafetyConstraintType::TorqueLimit {
+                joint_index,
+                max_torque,
+            } => {
                 if let Some(val) = action.get(*joint_index) {
                     val.abs() > *max_torque
                 } else {
@@ -1050,9 +1046,10 @@ impl DomainRandomization {
 
     pub fn validate(&self) -> Result<(), String> {
         for param in &self.params {
-            param.distribution.validate().map_err(|e| {
-                format!("Randomization param '{}': {e}", param.name)
-            })?;
+            param
+                .distribution
+                .validate()
+                .map_err(|e| format!("Randomization param '{}': {e}", param.name))?;
         }
         Ok(())
     }
@@ -1167,9 +1164,13 @@ impl ReplayManager {
 
     pub fn start_trajectory(&mut self, id: &str) -> Result<(), String> {
         if self.trajectories.len() >= self.max_trajectories {
-            return Err(format!("Max trajectories ({}) reached", self.max_trajectories));
+            return Err(format!(
+                "Max trajectories ({}) reached",
+                self.max_trajectories
+            ));
         }
-        self.trajectories.insert(id.to_string(), Trajectory::new(id));
+        self.trajectories
+            .insert(id.to_string(), Trajectory::new(id));
         Ok(())
     }
 
@@ -1224,7 +1225,13 @@ pub struct EnvCommit {
 }
 
 impl EnvCommit {
-    pub fn new(hash: &str, message: &str, parent: Option<&str>, timestamp: u64, snapshot: &str) -> Self {
+    pub fn new(
+        hash: &str,
+        message: &str,
+        parent: Option<&str>,
+        timestamp: u64,
+        snapshot: &str,
+    ) -> Self {
         Self {
             hash: hash.to_string(),
             message: message.to_string(),
@@ -1274,24 +1281,14 @@ impl EnvVersionControl {
 
     pub fn commit(&mut self, message: &str, snapshot: &str, timestamp: u64) -> String {
         let hash = Self::hash_content(snapshot, timestamp);
-        let commit = EnvCommit::new(
-            &hash,
-            message,
-            self.head.as_deref(),
-            timestamp,
-            snapshot,
-        );
+        let commit = EnvCommit::new(&hash, message, self.head.as_deref(), timestamp, snapshot);
         self.commits.push(commit);
         self.head = Some(hash.clone());
         hash
     }
 
     pub fn tag(&mut self, tag_name: &str, message: &str) -> Result<(), String> {
-        let head = self
-            .head
-            .as_ref()
-            .ok_or("No commits to tag")?
-            .clone();
+        let head = self.head.as_ref().ok_or("No commits to tag")?.clone();
         if self.tags.contains_key(tag_name) {
             return Err(format!("Tag '{tag_name}' already exists"));
         }
@@ -1463,10 +1460,13 @@ impl EnvironmentDef {
             .validate()
             .map_err(|e| format!("action_space: {e}"))?;
         if let Some(ref backend) = self.sim_backend {
-            backend.validate().map_err(|e| format!("sim_backend: {e}"))?;
+            backend
+                .validate()
+                .map_err(|e| format!("sim_backend: {e}"))?;
         }
         for conn in &self.connectors {
-            conn.validate().map_err(|e| format!("connector '{}': {e}", conn.name))?;
+            conn.validate()
+                .map_err(|e| format!("connector '{}': {e}", conn.name))?;
         }
         if let Some(ref rand) = self.randomization {
             rand.validate().map_err(|e| format!("randomization: {e}"))?;
@@ -1503,8 +1503,14 @@ impl EnvironmentDef {
         out.push_str(&format!("action_space: {}\n", self.action_space));
         out.push_str(&format!("training_mode: {}\n", self.training_mode));
         out.push_str(&format!("max_episode_steps: {}\n", self.max_episode_steps));
-        out.push_str(&format!("reward_components: {}\n", self.reward_components.len()));
-        out.push_str(&format!("safety_constraints: {}\n", self.safety_constraints.len()));
+        out.push_str(&format!(
+            "reward_components: {}\n",
+            self.reward_components.len()
+        ));
+        out.push_str(&format!(
+            "safety_constraints: {}\n",
+            self.safety_constraints.len()
+        ));
         out.push_str(&format!("connectors: {}\n", self.connectors.len()));
         if !self.tags.is_empty() {
             out.push_str(&format!("tags: [{}]\n", self.tags.join(", ")));
@@ -2246,8 +2252,7 @@ impl HybridPipeline {
         self.sim_episodes += 1;
         // Running average
         let n = self.sim_episodes as f64;
-        self.metrics.sim_performance =
-            self.metrics.sim_performance * ((n - 1.0) / n) + reward / n;
+        self.metrics.sim_performance = self.metrics.sim_performance * ((n - 1.0) / n) + reward / n;
     }
 
     pub fn record_real_episode(&mut self, reward: f64) {
@@ -2261,8 +2266,7 @@ impl HybridPipeline {
     }
 
     pub fn is_ready_for_deployment(&self) -> bool {
-        self.metrics.is_converged()
-            && self.current_stage == PipelineStage::RealWorldFinetuning
+        self.metrics.is_converged() && self.current_stage == PipelineStage::RealWorldFinetuning
     }
 
     pub fn summary(&self) -> String {
@@ -2396,7 +2400,11 @@ impl OrderBook {
             quantity,
             order_count: 1,
         });
-        self.bids.sort_by(|a, b| b.price.partial_cmp(&a.price).unwrap_or(std::cmp::Ordering::Equal));
+        self.bids.sort_by(|a, b| {
+            b.price
+                .partial_cmp(&a.price)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
     }
 
     pub fn add_ask(&mut self, price: f64, quantity: f64) {
@@ -2405,7 +2413,11 @@ impl OrderBook {
             quantity,
             order_count: 1,
         });
-        self.asks.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap_or(std::cmp::Ordering::Equal));
+        self.asks.sort_by(|a, b| {
+            a.price
+                .partial_cmp(&b.price)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
     }
 
     pub fn best_bid(&self) -> Option<f64> {
@@ -2484,8 +2496,8 @@ impl FinanceRegConstraint {
             max_daily_loss: 50_000.0,
             max_leverage: 10.0,
             restricted_symbols: Vec::new(),
-            trading_hours_start: 570,  // 9:30 AM
-            trading_hours_end: 960,    // 4:00 PM
+            trading_hours_start: 570, // 9:30 AM
+            trading_hours_end: 960,   // 4:00 PM
         }
     }
 
@@ -2583,7 +2595,13 @@ impl RobotJoint {
         }
     }
 
-    pub fn with_limits(mut self, pos_min: f64, pos_max: f64, vel_max: f64, torque_max: f64) -> Self {
+    pub fn with_limits(
+        mut self,
+        pos_min: f64,
+        pos_max: f64,
+        vel_max: f64,
+        torque_max: f64,
+    ) -> Self {
         self.position_min = pos_min;
         self.position_max = pos_max;
         self.velocity_max = vel_max;
@@ -2878,7 +2896,8 @@ impl RlEnvOs {
     ) -> Result<(), String> {
         let yaml = env_def.to_yaml();
         self.registry.register(env_def, author, timestamp)?;
-        self.version_control.commit("Initial registration", &yaml, timestamp);
+        self.version_control
+            .commit("Initial registration", &yaml, timestamp);
         Ok(())
     }
 
@@ -2922,49 +2941,71 @@ mod tests {
 
     #[test]
     fn test_distribution_uniform_validate() {
-        let d = Distribution::Uniform { low: 0.0, high: 1.0 };
+        let d = Distribution::Uniform {
+            low: 0.0,
+            high: 1.0,
+        };
         assert!(d.validate().is_ok());
     }
 
     #[test]
     fn test_distribution_uniform_invalid() {
-        let d = Distribution::Uniform { low: 5.0, high: 2.0 };
+        let d = Distribution::Uniform {
+            low: 5.0,
+            high: 2.0,
+        };
         assert!(d.validate().is_err());
     }
 
     #[test]
     fn test_distribution_normal_validate() {
-        let d = Distribution::Normal { mean: 0.0, std_dev: 1.0 };
+        let d = Distribution::Normal {
+            mean: 0.0,
+            std_dev: 1.0,
+        };
         assert!(d.validate().is_ok());
     }
 
     #[test]
     fn test_distribution_normal_invalid_std() {
-        let d = Distribution::Normal { mean: 0.0, std_dev: -1.0 };
+        let d = Distribution::Normal {
+            mean: 0.0,
+            std_dev: -1.0,
+        };
         assert!(d.validate().is_err());
     }
 
     #[test]
     fn test_distribution_lognormal_validate() {
-        let d = Distribution::LogNormal { mu: 0.0, sigma: 0.5 };
+        let d = Distribution::LogNormal {
+            mu: 0.0,
+            sigma: 0.5,
+        };
         assert!(d.validate().is_ok());
     }
 
     #[test]
     fn test_distribution_lognormal_invalid() {
-        let d = Distribution::LogNormal { mu: 0.0, sigma: 0.0 };
+        let d = Distribution::LogNormal {
+            mu: 0.0,
+            sigma: 0.0,
+        };
         assert!(d.validate().is_err());
     }
 
     #[test]
     fn test_distribution_categorical_validate() {
-        let d = Distribution::Categorical { probs: vec![0.3, 0.7] };
+        let d = Distribution::Categorical {
+            probs: vec![0.3, 0.7],
+        };
         assert!(d.validate().is_ok());
     }
 
     #[test]
     fn test_distribution_categorical_bad_sum() {
-        let d = Distribution::Categorical { probs: vec![0.3, 0.3] };
+        let d = Distribution::Categorical {
+            probs: vec![0.3, 0.3],
+        };
         assert!(d.validate().is_err());
     }
 
@@ -2976,7 +3017,10 @@ mod tests {
 
     #[test]
     fn test_distribution_sample_deterministic() {
-        let d = Distribution::Uniform { low: 0.0, high: 10.0 };
+        let d = Distribution::Uniform {
+            low: 0.0,
+            high: 10.0,
+        };
         let v1 = d.sample_deterministic(42);
         let v2 = d.sample_deterministic(42);
         assert_eq!(v1, v2); // deterministic
@@ -2984,14 +3028,38 @@ mod tests {
 
     #[test]
     fn test_distribution_labels() {
-        assert_eq!(Distribution::Uniform { low: 0.0, high: 1.0 }.label(), "Uniform");
-        assert_eq!(Distribution::Normal { mean: 0.0, std_dev: 1.0 }.label(), "Normal");
-        assert_eq!(Distribution::LogNormal { mu: 0.0, sigma: 1.0 }.label(), "LogNormal");
+        assert_eq!(
+            Distribution::Uniform {
+                low: 0.0,
+                high: 1.0
+            }
+            .label(),
+            "Uniform"
+        );
+        assert_eq!(
+            Distribution::Normal {
+                mean: 0.0,
+                std_dev: 1.0
+            }
+            .label(),
+            "Normal"
+        );
+        assert_eq!(
+            Distribution::LogNormal {
+                mu: 0.0,
+                sigma: 1.0
+            }
+            .label(),
+            "LogNormal"
+        );
     }
 
     #[test]
     fn test_distribution_display() {
-        let d = Distribution::Uniform { low: -1.0, high: 1.0 };
+        let d = Distribution::Uniform {
+            low: -1.0,
+            high: 1.0,
+        };
         assert!(format!("{d}").contains("Uniform"));
     }
 
@@ -3067,7 +3135,9 @@ mod tests {
 
     #[test]
     fn test_multi_discrete_space() {
-        let s = SpaceType::MultiDiscrete { nvec: vec![3, 4, 5] };
+        let s = SpaceType::MultiDiscrete {
+            nvec: vec![3, 4, 5],
+        };
         assert!(s.validate().is_ok());
         assert_eq!(s.flat_size(), 3);
         assert!(s.contains(&[2.0, 3.0, 4.0]));
@@ -3086,12 +3156,15 @@ mod tests {
     #[test]
     fn test_dict_space() {
         let mut spaces = HashMap::new();
-        spaces.insert("pos".to_string(), SpaceType::Box {
-            low: vec![-1.0],
-            high: vec![1.0],
-            shape: vec![1],
-            dtype: DType::Float32,
-        });
+        spaces.insert(
+            "pos".to_string(),
+            SpaceType::Box {
+                low: vec![-1.0],
+                high: vec![1.0],
+                shape: vec![1],
+                dtype: DType::Float32,
+            },
+        );
         spaces.insert("action".to_string(), SpaceType::Discrete { n: 4 });
         let s = SpaceType::Dict { spaces };
         assert!(s.validate().is_ok());
@@ -3112,7 +3185,9 @@ mod tests {
 
     #[test]
     fn test_empty_dict_invalid() {
-        let s = SpaceType::Dict { spaces: HashMap::new() };
+        let s = SpaceType::Dict {
+            spaces: HashMap::new(),
+        };
         assert!(s.validate().is_err());
     }
 
@@ -3155,7 +3230,9 @@ mod tests {
         let r = RewardComponent::new(
             "dist",
             1.0,
-            RewardFunctionType::L2Distance { target: vec![0.0, 0.0] },
+            RewardFunctionType::L2Distance {
+                target: vec![0.0, 0.0],
+            },
         );
         let val = r.compute(&[3.0, 4.0], &[], &[]);
         assert!((val - (-5.0)).abs() < 1e-6);
@@ -3163,7 +3240,11 @@ mod tests {
 
     #[test]
     fn test_reward_energy_penalty() {
-        let r = RewardComponent::new("energy", 1.0, RewardFunctionType::EnergyPenalty { weight: 0.5 });
+        let r = RewardComponent::new(
+            "energy",
+            1.0,
+            RewardFunctionType::EnergyPenalty { weight: 0.5 },
+        );
         let val = r.compute(&[], &[2.0, 3.0], &[]);
         // -0.5 * (4 + 9) = -6.5
         assert!((val - (-6.5)).abs() < 1e-6);
@@ -3171,7 +3252,13 @@ mod tests {
 
     #[test]
     fn test_reward_sparse() {
-        let r = RewardComponent::new("sparse", 1.0, RewardFunctionType::Sparse { goal_threshold: 1.0 });
+        let r = RewardComponent::new(
+            "sparse",
+            1.0,
+            RewardFunctionType::Sparse {
+                goal_threshold: 1.0,
+            },
+        );
         assert!((r.compute(&[0.1, 0.1], &[], &[]) - 1.0).abs() < 1e-6);
         assert!((r.compute(&[5.0, 5.0], &[], &[]) - 0.0).abs() < 1e-6);
     }
@@ -3217,7 +3304,9 @@ mod tests {
         let r = RewardComponent::new(
             "dense",
             1.0,
-            RewardFunctionType::Dense { goal: vec![1.0, 1.0] },
+            RewardFunctionType::Dense {
+                goal: vec![1.0, 1.0],
+            },
         );
         let val = r.compute(&[1.0, 1.0], &[], &[]);
         assert!((val - 0.0).abs() < 1e-6); // at goal
@@ -3229,7 +3318,11 @@ mod tests {
     fn test_safety_position_limit() {
         let mut c = SafetyConstraint::new(
             "pos_limit",
-            SafetyConstraintType::PositionLimit { dimension: 0, min: -1.0, max: 1.0 },
+            SafetyConstraintType::PositionLimit {
+                dimension: 0,
+                min: -1.0,
+                max: 1.0,
+            },
             ConstraintSeverity::Hard,
         );
         assert!(c.check(&[0.0], &[]).is_none());
@@ -3241,7 +3334,10 @@ mod tests {
     fn test_safety_velocity_limit() {
         let mut c = SafetyConstraint::new(
             "vel_limit",
-            SafetyConstraintType::VelocityLimit { dimension: 0, max_speed: 5.0 },
+            SafetyConstraintType::VelocityLimit {
+                dimension: 0,
+                max_speed: 5.0,
+            },
             ConstraintSeverity::Warning,
         );
         assert!(c.check(&[3.0], &[]).is_none());
@@ -3252,7 +3348,10 @@ mod tests {
     fn test_safety_torque_limit() {
         let mut c = SafetyConstraint::new(
             "torque_limit",
-            SafetyConstraintType::TorqueLimit { joint_index: 0, max_torque: 10.0 },
+            SafetyConstraintType::TorqueLimit {
+                joint_index: 0,
+                max_torque: 10.0,
+            },
             ConstraintSeverity::Critical,
         );
         assert!(c.check(&[], &[5.0]).is_none());
@@ -3263,7 +3362,11 @@ mod tests {
     fn test_safety_disabled_constraint() {
         let mut c = SafetyConstraint::new(
             "disabled",
-            SafetyConstraintType::PositionLimit { dimension: 0, min: -1.0, max: 1.0 },
+            SafetyConstraintType::PositionLimit {
+                dimension: 0,
+                min: -1.0,
+                max: 1.0,
+            },
             ConstraintSeverity::Hard,
         );
         c.enabled = false;
@@ -3274,7 +3377,11 @@ mod tests {
     fn test_safety_reset_violations() {
         let mut c = SafetyConstraint::new(
             "pos",
-            SafetyConstraintType::PositionLimit { dimension: 0, min: -1.0, max: 1.0 },
+            SafetyConstraintType::PositionLimit {
+                dimension: 0,
+                min: -1.0,
+                max: 1.0,
+            },
             ConstraintSeverity::Hard,
         );
         c.check(&[2.0], &[]);
@@ -3437,14 +3544,26 @@ mod tests {
 
     #[test]
     fn test_randomization_param() {
-        let p = RandomizationParam::new("gravity", Distribution::Uniform { low: 9.0, high: 11.0 });
+        let p = RandomizationParam::new(
+            "gravity",
+            Distribution::Uniform {
+                low: 9.0,
+                high: 11.0,
+            },
+        );
         assert!(p.should_apply(0));
         assert!(p.should_apply(5));
     }
 
     #[test]
     fn test_randomization_apply_every_n() {
-        let mut p = RandomizationParam::new("mass", Distribution::Normal { mean: 1.0, std_dev: 0.1 });
+        let mut p = RandomizationParam::new(
+            "mass",
+            Distribution::Normal {
+                mean: 1.0,
+                std_dev: 0.1,
+            },
+        );
         p.apply_every_n_episodes = 3;
         assert!(p.should_apply(0));
         assert!(!p.should_apply(1));
@@ -3455,8 +3574,20 @@ mod tests {
     #[test]
     fn test_domain_randomization_sample_all() {
         let mut dr = DomainRandomization::new(42);
-        dr.add_param(RandomizationParam::new("gravity", Distribution::Uniform { low: 9.0, high: 11.0 }));
-        dr.add_param(RandomizationParam::new("friction", Distribution::Uniform { low: 0.5, high: 1.5 }));
+        dr.add_param(RandomizationParam::new(
+            "gravity",
+            Distribution::Uniform {
+                low: 9.0,
+                high: 11.0,
+            },
+        ));
+        dr.add_param(RandomizationParam::new(
+            "friction",
+            Distribution::Uniform {
+                low: 0.5,
+                high: 1.5,
+            },
+        ));
         let vals = dr.sample_all(0);
         assert_eq!(vals.len(), 2);
         assert!(vals.contains_key("gravity"));
@@ -3467,14 +3598,26 @@ mod tests {
     fn test_domain_randomization_disabled() {
         let mut dr = DomainRandomization::new(42);
         dr.enabled = false;
-        dr.add_param(RandomizationParam::new("x", Distribution::Uniform { low: 0.0, high: 1.0 }));
+        dr.add_param(RandomizationParam::new(
+            "x",
+            Distribution::Uniform {
+                low: 0.0,
+                high: 1.0,
+            },
+        ));
         assert!(dr.sample_all(0).is_empty());
     }
 
     #[test]
     fn test_domain_randomization_validate() {
         let mut dr = DomainRandomization::new(42);
-        dr.add_param(RandomizationParam::new("bad", Distribution::Uniform { low: 5.0, high: 2.0 }));
+        dr.add_param(RandomizationParam::new(
+            "bad",
+            Distribution::Uniform {
+                low: 5.0,
+                high: 2.0,
+            },
+        ));
         assert!(dr.validate().is_err());
     }
 
@@ -3550,7 +3693,9 @@ mod tests {
     #[test]
     fn test_replay_manager_missing_trajectory() {
         let mut rm = ReplayManager::new(10);
-        assert!(rm.record_step("nope", StateSnapshot::new(0, vec![], vec![], 0.0, false)).is_err());
+        assert!(rm
+            .record_step("nope", StateSnapshot::new(0, vec![], vec![], 0.0, false))
+            .is_err());
     }
 
     // ── Version control tests ────────────────────────────────────────
@@ -3636,13 +3781,21 @@ mod tests {
 
     #[test]
     fn test_env_def_empty_name() {
-        let env = EnvironmentDef::new("", SpaceType::Discrete { n: 1 }, SpaceType::Discrete { n: 1 });
+        let env = EnvironmentDef::new(
+            "",
+            SpaceType::Discrete { n: 1 },
+            SpaceType::Discrete { n: 1 },
+        );
         assert!(env.validate().is_err());
     }
 
     #[test]
     fn test_env_def_compute_reward() {
-        let mut env = EnvironmentDef::new("test", SpaceType::Discrete { n: 1 }, SpaceType::Discrete { n: 1 });
+        let mut env = EnvironmentDef::new(
+            "test",
+            SpaceType::Discrete { n: 1 },
+            SpaceType::Discrete { n: 1 },
+        );
         env.add_reward(RewardComponent::new(
             "dist",
             1.0,
@@ -3654,10 +3807,18 @@ mod tests {
 
     #[test]
     fn test_env_def_check_safety() {
-        let mut env = EnvironmentDef::new("test", SpaceType::Discrete { n: 1 }, SpaceType::Discrete { n: 1 });
+        let mut env = EnvironmentDef::new(
+            "test",
+            SpaceType::Discrete { n: 1 },
+            SpaceType::Discrete { n: 1 },
+        );
         env.add_constraint(SafetyConstraint::new(
             "pos",
-            SafetyConstraintType::PositionLimit { dimension: 0, min: -1.0, max: 1.0 },
+            SafetyConstraintType::PositionLimit {
+                dimension: 0,
+                min: -1.0,
+                max: 1.0,
+            },
             ConstraintSeverity::Hard,
         ));
         let violations = env.check_safety(&[5.0], &[]);
@@ -3678,8 +3839,12 @@ mod tests {
 
     #[test]
     fn test_parser_parse_space_box() {
-        let s = EnvDefParser::parse_space("Box(shape=[3], low=-1.0, high=1.0, dtype=float32)").unwrap();
-        if let SpaceType::Box { shape, low, high, .. } = &s {
+        let s =
+            EnvDefParser::parse_space("Box(shape=[3], low=-1.0, high=1.0, dtype=float32)").unwrap();
+        if let SpaceType::Box {
+            shape, low, high, ..
+        } = &s
+        {
             assert_eq!(shape, &vec![3]);
             assert_eq!(low.len(), 3);
             assert_eq!(high.len(), 3);
@@ -3703,7 +3868,12 @@ mod tests {
     #[test]
     fn test_parser_parse_space_multidiscrete() {
         let s = EnvDefParser::parse_space("MultiDiscrete([3, 4, 5])").unwrap();
-        assert_eq!(s, SpaceType::MultiDiscrete { nvec: vec![3, 4, 5] });
+        assert_eq!(
+            s,
+            SpaceType::MultiDiscrete {
+                nvec: vec![3, 4, 5]
+            }
+        );
     }
 
     #[test]
@@ -3732,7 +3902,11 @@ mod tests {
     #[test]
     fn test_registry_register_and_list() {
         let mut reg = EnvironmentRegistry::new();
-        let env = EnvironmentDef::new("Env1", SpaceType::Discrete { n: 2 }, SpaceType::Discrete { n: 2 });
+        let env = EnvironmentDef::new(
+            "Env1",
+            SpaceType::Discrete { n: 2 },
+            SpaceType::Discrete { n: 2 },
+        );
         reg.register(env, "alice", 100).unwrap();
         assert_eq!(reg.count(), 1);
         assert_eq!(reg.list(), vec!["Env1"]);
@@ -3741,7 +3915,11 @@ mod tests {
     #[test]
     fn test_registry_duplicate() {
         let mut reg = EnvironmentRegistry::new();
-        let env = EnvironmentDef::new("Env1", SpaceType::Discrete { n: 2 }, SpaceType::Discrete { n: 2 });
+        let env = EnvironmentDef::new(
+            "Env1",
+            SpaceType::Discrete { n: 2 },
+            SpaceType::Discrete { n: 2 },
+        );
         reg.register(env.clone(), "alice", 100).unwrap();
         assert!(reg.register(env, "bob", 200).is_err());
     }
@@ -3749,7 +3927,11 @@ mod tests {
     #[test]
     fn test_registry_unregister() {
         let mut reg = EnvironmentRegistry::new();
-        let env = EnvironmentDef::new("Env1", SpaceType::Discrete { n: 2 }, SpaceType::Discrete { n: 2 });
+        let env = EnvironmentDef::new(
+            "Env1",
+            SpaceType::Discrete { n: 2 },
+            SpaceType::Discrete { n: 2 },
+        );
         reg.register(env, "alice", 100).unwrap();
         reg.unregister("Env1").unwrap();
         assert_eq!(reg.count(), 0);
@@ -3758,7 +3940,11 @@ mod tests {
     #[test]
     fn test_registry_search() {
         let mut reg = EnvironmentRegistry::new();
-        let mut env = EnvironmentDef::new("CartPole", SpaceType::Discrete { n: 2 }, SpaceType::Discrete { n: 2 });
+        let mut env = EnvironmentDef::new(
+            "CartPole",
+            SpaceType::Discrete { n: 2 },
+            SpaceType::Discrete { n: 2 },
+        );
         env.tags = vec!["classic".to_string()];
         reg.register(env, "alice", 100).unwrap();
         assert_eq!(reg.search("cart").len(), 1);
@@ -3769,8 +3955,12 @@ mod tests {
     #[test]
     fn test_registry_search_by_mode() {
         let mut reg = EnvironmentRegistry::new();
-        let env = EnvironmentDef::new("Sim1", SpaceType::Discrete { n: 2 }, SpaceType::Discrete { n: 2 })
-            .with_training_mode(TrainingMode::Simulation);
+        let env = EnvironmentDef::new(
+            "Sim1",
+            SpaceType::Discrete { n: 2 },
+            SpaceType::Discrete { n: 2 },
+        )
+        .with_training_mode(TrainingMode::Simulation);
         reg.register(env, "alice", 100).unwrap();
         assert_eq!(reg.search_by_mode(&TrainingMode::Simulation).len(), 1);
         assert_eq!(reg.search_by_mode(&TrainingMode::RealWorld).len(), 0);
@@ -3779,7 +3969,11 @@ mod tests {
     #[test]
     fn test_registry_downloads() {
         let mut reg = EnvironmentRegistry::new();
-        let env = EnvironmentDef::new("Env1", SpaceType::Discrete { n: 2 }, SpaceType::Discrete { n: 2 });
+        let env = EnvironmentDef::new(
+            "Env1",
+            SpaceType::Discrete { n: 2 },
+            SpaceType::Discrete { n: 2 },
+        );
         reg.register(env, "alice", 100).unwrap();
         reg.record_download("Env1").unwrap();
         reg.record_download("Env1").unwrap();
@@ -3789,7 +3983,11 @@ mod tests {
     #[test]
     fn test_registry_rating() {
         let mut reg = EnvironmentRegistry::new();
-        let env = EnvironmentDef::new("Env1", SpaceType::Discrete { n: 2 }, SpaceType::Discrete { n: 2 });
+        let env = EnvironmentDef::new(
+            "Env1",
+            SpaceType::Discrete { n: 2 },
+            SpaceType::Discrete { n: 2 },
+        );
         reg.register(env, "alice", 100).unwrap();
         reg.set_rating("Env1", 4.5).unwrap();
         assert!((reg.get("Env1").unwrap().rating - 4.5).abs() < 1e-6);
@@ -3798,7 +3996,11 @@ mod tests {
     #[test]
     fn test_registry_rating_out_of_range() {
         let mut reg = EnvironmentRegistry::new();
-        let env = EnvironmentDef::new("Env1", SpaceType::Discrete { n: 2 }, SpaceType::Discrete { n: 2 });
+        let env = EnvironmentDef::new(
+            "Env1",
+            SpaceType::Discrete { n: 2 },
+            SpaceType::Discrete { n: 2 },
+        );
         reg.register(env, "alice", 100).unwrap();
         assert!(reg.set_rating("Env1", 6.0).is_err());
     }
@@ -3850,7 +4052,12 @@ mod tests {
     fn test_simple_gym_env() {
         let env_def = EnvironmentDef::new(
             "test",
-            SpaceType::Box { low: vec![-1.0, -1.0], high: vec![1.0, 1.0], shape: vec![2], dtype: DType::Float32 },
+            SpaceType::Box {
+                low: vec![-1.0, -1.0],
+                high: vec![1.0, 1.0],
+                shape: vec![2],
+                dtype: DType::Float32,
+            },
             SpaceType::Discrete { n: 4 },
         );
         let mut gym = SimpleGymEnv::new(env_def);
@@ -3876,7 +4083,12 @@ mod tests {
     fn test_multi_agent_env() {
         let env_def = EnvironmentDef::new(
             "multi",
-            SpaceType::Box { low: vec![-1.0], high: vec![1.0], shape: vec![1], dtype: DType::Float32 },
+            SpaceType::Box {
+                low: vec![-1.0],
+                high: vec![1.0],
+                shape: vec![1],
+                dtype: DType::Float32,
+            },
             SpaceType::Discrete { n: 3 },
         );
         let mut ma = MultiAgentEnv::new(env_def, vec!["agent_0".into(), "agent_1".into()]);
@@ -4031,8 +4243,8 @@ mod tests {
     #[test]
     fn test_finance_trading_hours() {
         let reg = FinanceRegConstraint::new("SEC");
-        assert!(reg.is_within_trading_hours(600));   // 10:00 AM
-        assert!(!reg.is_within_trading_hours(500));  // 8:20 AM
+        assert!(reg.is_within_trading_hours(600)); // 10:00 AM
+        assert!(!reg.is_within_trading_hours(500)); // 8:20 AM
         assert!(!reg.is_within_trading_hours(1000)); // 4:40 PM
     }
 
@@ -4046,8 +4258,7 @@ mod tests {
 
     #[test]
     fn test_robot_joint_apply_torque() {
-        let mut j = RobotJoint::new("elbow", JointType::Revolute)
-            .with_limits(-1.0, 1.0, 5.0, 50.0);
+        let mut j = RobotJoint::new("elbow", JointType::Revolute).with_limits(-1.0, 1.0, 5.0, 50.0);
         let clamped = j.apply_torque(10.0, 0.01);
         assert!(!clamped); // 10 < 50
         assert!(j.current_velocity > 0.0);
@@ -4056,8 +4267,7 @@ mod tests {
 
     #[test]
     fn test_robot_joint_torque_clamping() {
-        let mut j = RobotJoint::new("wrist", JointType::Revolute)
-            .with_limits(-1.0, 1.0, 5.0, 10.0);
+        let mut j = RobotJoint::new("wrist", JointType::Revolute).with_limits(-1.0, 1.0, 5.0, 10.0);
         let clamped = j.apply_torque(20.0, 0.01);
         assert!(clamped); // 20 > 10
     }
@@ -4165,7 +4375,11 @@ mod tests {
     #[test]
     fn test_rl_env_os_register_env() {
         let mut os = RlEnvOs::new();
-        let env = EnvironmentDef::new("TestEnv", SpaceType::Discrete { n: 4 }, SpaceType::Discrete { n: 2 });
+        let env = EnvironmentDef::new(
+            "TestEnv",
+            SpaceType::Discrete { n: 4 },
+            SpaceType::Discrete { n: 2 },
+        );
         os.register_env(env, "alice", 100).unwrap();
         assert_eq!(os.registry.count(), 1);
         assert_eq!(os.version_control.commit_count(), 1);

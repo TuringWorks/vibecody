@@ -27,35 +27,35 @@ pub enum Stride {
 impl Stride {
     pub fn acronym(&self) -> char {
         match self {
-            Self::Spoofing              => 'S',
-            Self::Tampering             => 'T',
-            Self::Repudiation           => 'R',
+            Self::Spoofing => 'S',
+            Self::Tampering => 'T',
+            Self::Repudiation => 'R',
             Self::InformationDisclosure => 'I',
-            Self::DenialOfService       => 'D',
-            Self::ElevationOfPrivilege  => 'E',
+            Self::DenialOfService => 'D',
+            Self::ElevationOfPrivilege => 'E',
         }
     }
 
     pub fn description(&self) -> &'static str {
         match self {
-            Self::Spoofing              => "Impersonating another user or system",
-            Self::Tampering             => "Modifying data or code without authorisation",
-            Self::Repudiation           => "Denying actions without proof",
+            Self::Spoofing => "Impersonating another user or system",
+            Self::Tampering => "Modifying data or code without authorisation",
+            Self::Repudiation => "Denying actions without proof",
             Self::InformationDisclosure => "Exposing data to unauthorised parties",
-            Self::DenialOfService       => "Preventing legitimate access to services",
-            Self::ElevationOfPrivilege  => "Gaining higher permissions than granted",
+            Self::DenialOfService => "Preventing legitimate access to services",
+            Self::ElevationOfPrivilege => "Gaining higher permissions than granted",
         }
     }
 
     /// Default risk multiplier for ranking (higher = more severe by default).
     pub fn base_risk(&self) -> f64 {
         match self {
-            Self::ElevationOfPrivilege  => 9.0,
-            Self::Tampering             => 8.0,
+            Self::ElevationOfPrivilege => 9.0,
+            Self::Tampering => 8.0,
             Self::InformationDisclosure => 7.5,
-            Self::Spoofing              => 7.0,
-            Self::DenialOfService       => 6.5,
-            Self::Repudiation           => 5.0,
+            Self::Spoofing => 7.0,
+            Self::DenialOfService => 6.5,
+            Self::Repudiation => 5.0,
         }
     }
 }
@@ -77,16 +77,24 @@ pub struct DfdElement {
     pub id: String,
     pub name: String,
     pub kind: DfdElementKind,
-    pub trust_level: u8,  // 0 = untrusted, 10 = fully trusted
+    pub trust_level: u8, // 0 = untrusted, 10 = fully trusted
     pub data_types: Vec<String>,
 }
 
 impl DfdElement {
     pub fn new(id: &str, name: &str, kind: DfdElementKind, trust: u8) -> Self {
-        Self { id: id.to_string(), name: name.to_string(), kind, trust_level: trust, data_types: Vec::new() }
+        Self {
+            id: id.to_string(),
+            name: name.to_string(),
+            kind,
+            trust_level: trust,
+            data_types: Vec::new(),
+        }
     }
 
-    pub fn is_untrusted(&self) -> bool { self.trust_level <= 3 }
+    pub fn is_untrusted(&self) -> bool {
+        self.trust_level <= 3
+    }
 }
 
 // ─── Threat Types ─────────────────────────────────────────────────────────────
@@ -99,9 +107,9 @@ pub struct Threat {
     pub title: String,
     pub description: String,
     pub affected_element: String,
-    pub probability: f64,  // 0.0 – 1.0
-    pub impact: f64,       // 0.0 – 10.0
-    pub risk_score: f64,   // probability × impact
+    pub probability: f64, // 0.0 – 1.0
+    pub impact: f64,      // 0.0 – 10.0
+    pub risk_score: f64,  // probability × impact
     pub cwe: Option<String>,
     pub owasp: Option<String>,
     pub mitigations: Vec<Mitigation>,
@@ -109,7 +117,14 @@ pub struct Threat {
 }
 
 impl Threat {
-    pub fn new(id: &str, stride: Stride, title: &str, element: &str, prob: f64, impact: f64) -> Self {
+    pub fn new(
+        id: &str,
+        stride: Stride,
+        title: &str,
+        element: &str,
+        prob: f64,
+        impact: f64,
+    ) -> Self {
         let risk = prob * impact;
         Self {
             id: id.to_string(),
@@ -127,16 +142,22 @@ impl Threat {
         }
     }
 
-    pub fn with_cwe(mut self, cwe: &str) -> Self { self.cwe = Some(cwe.to_string()); self }
-    pub fn with_owasp(mut self, cat: &str) -> Self { self.owasp = Some(cat.to_string()); self }
+    pub fn with_cwe(mut self, cwe: &str) -> Self {
+        self.cwe = Some(cwe.to_string());
+        self
+    }
+    pub fn with_owasp(mut self, cat: &str) -> Self {
+        self.owasp = Some(cat.to_string());
+        self
+    }
 
     pub fn severity(&self) -> ThreatSeverity {
         match self.risk_score as u32 {
             8..=10 => ThreatSeverity::Critical,
-            6..=7  => ThreatSeverity::High,
-            3..=5  => ThreatSeverity::Medium,
-            1..=2  => ThreatSeverity::Low,
-            _      => ThreatSeverity::Informational,
+            6..=7 => ThreatSeverity::High,
+            3..=5 => ThreatSeverity::Medium,
+            1..=2 => ThreatSeverity::Low,
+            _ => ThreatSeverity::Informational,
         }
     }
 }
@@ -168,9 +189,9 @@ pub struct Mitigation {
     pub id: String,
     pub title: String,
     pub control_type: ControlType,
-    pub effectiveness: f64,  // 0.0 – 1.0 (how much it reduces risk)
+    pub effectiveness: f64, // 0.0 – 1.0 (how much it reduces risk)
     pub implementation_effort: EffortLevel,
-    pub nist_csf: Vec<String>,  // e.g. ["PR.AC-1", "DE.CM-7"]
+    pub nist_csf: Vec<String>, // e.g. ["PR.AC-1", "DE.CM-7"]
 }
 
 /// Security control types (NIST taxonomy).
@@ -216,46 +237,82 @@ pub enum AttackGate {
 
 impl AttackNode {
     pub fn leaf(id: &str, label: &str, prob: f64, cost: f64) -> Self {
-        Self { id: id.to_string(), label: label.to_string(), gate: AttackGate::Leaf, probability: prob, cost_to_attacker: cost, children: Vec::new() }
+        Self {
+            id: id.to_string(),
+            label: label.to_string(),
+            gate: AttackGate::Leaf,
+            probability: prob,
+            cost_to_attacker: cost,
+            children: Vec::new(),
+        }
     }
 
     pub fn or_node(id: &str, label: &str, children: Vec<AttackNode>) -> Self {
-        Self { id: id.to_string(), label: label.to_string(), gate: AttackGate::Or, probability: 0.0, cost_to_attacker: 0.0, children }
+        Self {
+            id: id.to_string(),
+            label: label.to_string(),
+            gate: AttackGate::Or,
+            probability: 0.0,
+            cost_to_attacker: 0.0,
+            children,
+        }
     }
 
     pub fn and_node(id: &str, label: &str, children: Vec<AttackNode>) -> Self {
-        Self { id: id.to_string(), label: label.to_string(), gate: AttackGate::And, probability: 0.0, cost_to_attacker: 0.0, children }
+        Self {
+            id: id.to_string(),
+            label: label.to_string(),
+            gate: AttackGate::And,
+            probability: 0.0,
+            cost_to_attacker: 0.0,
+            children,
+        }
     }
 
     /// Compute aggregate probability for OR/AND gates.
     pub fn aggregate_probability(&self) -> f64 {
-        if self.children.is_empty() { return self.probability; }
+        if self.children.is_empty() {
+            return self.probability;
+        }
         match self.gate {
             AttackGate::Leaf => self.probability,
             AttackGate::Or => {
                 // P(A OR B) = 1 - P(!A)*P(!B)
-                self.children.iter().fold(1.0, |acc, c| acc * (1.0 - c.aggregate_probability()))
+                self.children
+                    .iter()
+                    .fold(1.0, |acc, c| acc * (1.0 - c.aggregate_probability()))
                     .mul_add(-1.0, 1.0)
             }
             AttackGate::And => {
                 // P(A AND B) = P(A)*P(B)
-                self.children.iter().map(|c| c.aggregate_probability()).product()
+                self.children
+                    .iter()
+                    .map(|c| c.aggregate_probability())
+                    .product()
             }
         }
     }
 
     /// Minimum attacker cost through the tree (optimal path).
     pub fn min_attacker_cost(&self) -> f64 {
-        if self.children.is_empty() { return self.cost_to_attacker; }
+        if self.children.is_empty() {
+            return self.cost_to_attacker;
+        }
         match self.gate {
             AttackGate::Leaf => self.cost_to_attacker,
-            AttackGate::Or => self.children.iter().map(|c| c.min_attacker_cost()).fold(f64::MAX, f64::min),
+            AttackGate::Or => self
+                .children
+                .iter()
+                .map(|c| c.min_attacker_cost())
+                .fold(f64::MAX, f64::min),
             AttackGate::And => self.children.iter().map(|c| c.min_attacker_cost()).sum(),
         }
     }
 
     pub fn depth(&self) -> usize {
-        if self.children.is_empty() { return 0; }
+        if self.children.is_empty() {
+            return 0;
+        }
         1 + self.children.iter().map(|c| c.depth()).max().unwrap_or(0)
     }
 }
@@ -271,7 +328,11 @@ pub struct ThreatModeler {
 
 impl ThreatModeler {
     pub fn new() -> Self {
-        Self { elements: Vec::new(), threats: Vec::new(), id_counter: 0 }
+        Self {
+            elements: Vec::new(),
+            threats: Vec::new(),
+            id_counter: 0,
+        }
     }
 
     fn next_id(&mut self, prefix: &str) -> String {
@@ -290,9 +351,21 @@ impl ThreatModeler {
     /// Auto-generate STRIDE threats for untrusted external entities.
     pub fn auto_stride(&mut self, element: &DfdElement) -> Vec<Threat> {
         let mut generated = Vec::new();
-        let strides = [Stride::Spoofing, Stride::Tampering, Stride::InformationDisclosure];
+        let strides = [
+            Stride::Spoofing,
+            Stride::Tampering,
+            Stride::InformationDisclosure,
+        ];
         for stride in &strides {
-            let title = format!("{} threat on {}", stride.description().split_whitespace().next().unwrap_or("Threat"), element.name);
+            let title = format!(
+                "{} threat on {}",
+                stride
+                    .description()
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or("Threat"),
+                element.name
+            );
             let id = self.next_id("THR");
             let prob = if element.is_untrusted() { 0.7 } else { 0.3 };
             let impact = stride.base_risk();
@@ -306,66 +379,54 @@ impl ThreatModeler {
     /// Suggest mitigations for a threat based on its STRIDE category.
     pub fn suggest_mitigations(&self, threat: &Threat) -> Vec<Mitigation> {
         match threat.stride {
-            Stride::Spoofing => vec![
-                Mitigation {
-                    id: "MIT-AUTH".into(),
-                    title: "Implement multi-factor authentication".into(),
-                    control_type: ControlType::Preventive,
-                    effectiveness: 0.85,
-                    implementation_effort: EffortLevel::Medium,
-                    nist_csf: vec!["PR.AC-1".into(), "PR.AC-7".into()],
-                },
-            ],
-            Stride::Tampering => vec![
-                Mitigation {
-                    id: "MIT-SIGN".into(),
-                    title: "Use cryptographic signatures / HMAC for data integrity".into(),
-                    control_type: ControlType::Preventive,
-                    effectiveness: 0.90,
-                    implementation_effort: EffortLevel::Low,
-                    nist_csf: vec!["PR.DS-6".into()],
-                },
-            ],
-            Stride::InformationDisclosure => vec![
-                Mitigation {
-                    id: "MIT-ENC".into(),
-                    title: "Enforce TLS 1.3 and at-rest encryption (AES-256)".into(),
-                    control_type: ControlType::Preventive,
-                    effectiveness: 0.95,
-                    implementation_effort: EffortLevel::Low,
-                    nist_csf: vec!["PR.DS-2".into(), "PR.DS-5".into()],
-                },
-            ],
-            Stride::DenialOfService => vec![
-                Mitigation {
-                    id: "MIT-RATE".into(),
-                    title: "Apply rate limiting and circuit breakers".into(),
-                    control_type: ControlType::Preventive,
-                    effectiveness: 0.75,
-                    implementation_effort: EffortLevel::Medium,
-                    nist_csf: vec!["PR.AC-4".into()],
-                },
-            ],
-            Stride::ElevationOfPrivilege => vec![
-                Mitigation {
-                    id: "MIT-RBAC".into(),
-                    title: "Enforce RBAC with principle of least privilege".into(),
-                    control_type: ControlType::Preventive,
-                    effectiveness: 0.88,
-                    implementation_effort: EffortLevel::Medium,
-                    nist_csf: vec!["PR.AC-4".into(), "PR.AC-6".into()],
-                },
-            ],
-            Stride::Repudiation => vec![
-                Mitigation {
-                    id: "MIT-LOG".into(),
-                    title: "Implement tamper-evident audit logging".into(),
-                    control_type: ControlType::Detective,
-                    effectiveness: 0.80,
-                    implementation_effort: EffortLevel::Low,
-                    nist_csf: vec!["DE.AE-1".into(), "PR.PT-1".into()],
-                },
-            ],
+            Stride::Spoofing => vec![Mitigation {
+                id: "MIT-AUTH".into(),
+                title: "Implement multi-factor authentication".into(),
+                control_type: ControlType::Preventive,
+                effectiveness: 0.85,
+                implementation_effort: EffortLevel::Medium,
+                nist_csf: vec!["PR.AC-1".into(), "PR.AC-7".into()],
+            }],
+            Stride::Tampering => vec![Mitigation {
+                id: "MIT-SIGN".into(),
+                title: "Use cryptographic signatures / HMAC for data integrity".into(),
+                control_type: ControlType::Preventive,
+                effectiveness: 0.90,
+                implementation_effort: EffortLevel::Low,
+                nist_csf: vec!["PR.DS-6".into()],
+            }],
+            Stride::InformationDisclosure => vec![Mitigation {
+                id: "MIT-ENC".into(),
+                title: "Enforce TLS 1.3 and at-rest encryption (AES-256)".into(),
+                control_type: ControlType::Preventive,
+                effectiveness: 0.95,
+                implementation_effort: EffortLevel::Low,
+                nist_csf: vec!["PR.DS-2".into(), "PR.DS-5".into()],
+            }],
+            Stride::DenialOfService => vec![Mitigation {
+                id: "MIT-RATE".into(),
+                title: "Apply rate limiting and circuit breakers".into(),
+                control_type: ControlType::Preventive,
+                effectiveness: 0.75,
+                implementation_effort: EffortLevel::Medium,
+                nist_csf: vec!["PR.AC-4".into()],
+            }],
+            Stride::ElevationOfPrivilege => vec![Mitigation {
+                id: "MIT-RBAC".into(),
+                title: "Enforce RBAC with principle of least privilege".into(),
+                control_type: ControlType::Preventive,
+                effectiveness: 0.88,
+                implementation_effort: EffortLevel::Medium,
+                nist_csf: vec!["PR.AC-4".into(), "PR.AC-6".into()],
+            }],
+            Stride::Repudiation => vec![Mitigation {
+                id: "MIT-LOG".into(),
+                title: "Implement tamper-evident audit logging".into(),
+                control_type: ControlType::Detective,
+                effectiveness: 0.80,
+                implementation_effort: EffortLevel::Low,
+                nist_csf: vec!["DE.AE-1".into(), "PR.PT-1".into()],
+            }],
         }
     }
 
@@ -375,11 +436,20 @@ impl ThreatModeler {
         let mut critical = 0usize;
         for t in &self.threats {
             *by_stride.entry(format!("{:?}", t.stride)).or_insert(0) += 1;
-            if t.severity() >= ThreatSeverity::High { critical += 1; }
+            if t.severity() >= ThreatSeverity::High {
+                critical += 1;
+            }
         }
-        let open = self.threats.iter().filter(|t| t.status == ThreatStatus::Open).count();
-        let avg_risk = if self.threats.is_empty() { 0.0 }
-            else { self.threats.iter().map(|t| t.risk_score).sum::<f64>() / self.threats.len() as f64 };
+        let open = self
+            .threats
+            .iter()
+            .filter(|t| t.status == ThreatStatus::Open)
+            .count();
+        let avg_risk = if self.threats.is_empty() {
+            0.0
+        } else {
+            self.threats.iter().map(|t| t.risk_score).sum::<f64>() / self.threats.len() as f64
+        };
         ThreatModelReport {
             total_threats: self.threats.len(),
             open_threats: open,
@@ -390,20 +460,30 @@ impl ThreatModeler {
         }
     }
 
-    pub fn threats(&self) -> &[Threat] { &self.threats }
-    pub fn elements(&self) -> &[DfdElement] { &self.elements }
+    pub fn threats(&self) -> &[Threat] {
+        &self.threats
+    }
+    pub fn elements(&self) -> &[DfdElement] {
+        &self.elements
+    }
 
     /// Threats sorted by risk score descending.
     pub fn top_threats(&self, n: usize) -> Vec<&Threat> {
         let mut sorted: Vec<&Threat> = self.threats.iter().collect();
-        sorted.sort_by(|a, b| b.risk_score.partial_cmp(&a.risk_score).unwrap_or(std::cmp::Ordering::Equal));
+        sorted.sort_by(|a, b| {
+            b.risk_score
+                .partial_cmp(&a.risk_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         sorted.truncate(n);
         sorted
     }
 }
 
 impl Default for ThreatModeler {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 /// Summary report of a threat model session.
@@ -621,8 +701,14 @@ mod tests {
     #[test]
     fn test_modeler_suggest_mitigations_all_have_nist() {
         let m = ThreatModeler::new();
-        for stride in [Stride::Spoofing, Stride::Tampering, Stride::InformationDisclosure,
-                       Stride::DenialOfService, Stride::ElevationOfPrivilege, Stride::Repudiation] {
+        for stride in [
+            Stride::Spoofing,
+            Stride::Tampering,
+            Stride::InformationDisclosure,
+            Stride::DenialOfService,
+            Stride::ElevationOfPrivilege,
+            Stride::Repudiation,
+        ] {
             let t = make_threat("t", stride, 0.5, 5.0);
             let mits = m.suggest_mitigations(&t);
             assert!(!mits[0].nist_csf.is_empty());
@@ -656,7 +742,7 @@ mod tests {
     #[test]
     fn test_modeler_report_avg_risk() {
         let mut m = ThreatModeler::new();
-        m.add_threat(make_threat("t1", Stride::Spoofing, 0.5, 4.0));  // 2.0
+        m.add_threat(make_threat("t1", Stride::Spoofing, 0.5, 4.0)); // 2.0
         m.add_threat(make_threat("t2", Stride::Tampering, 0.5, 6.0)); // 3.0
         let report = m.report();
         assert!((report.avg_risk_score - 2.5).abs() < 0.01);

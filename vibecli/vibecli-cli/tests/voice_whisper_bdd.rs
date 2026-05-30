@@ -1,19 +1,13 @@
 //! BDD coverage for real local-voice I/O (US-005).
 
-use axum::{
-    Router,
-    extract::State,
-    http::StatusCode,
-    response::IntoResponse,
-    routing::get,
-};
-use cucumber::{World, given, then, when};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::get, Router};
+use cucumber::{given, then, when, World};
 use std::sync::Arc;
 use tempfile::TempDir;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 use vibecli_cli::voice_whisper::{
-    NullTranscriber, Transcriber, download_model, encode_wav_mono_pcm16, parse_wav,
+    download_model, encode_wav_mono_pcm16, parse_wav, NullTranscriber, Transcriber,
 };
 
 #[derive(Clone)]
@@ -49,9 +43,7 @@ impl std::fmt::Debug for VoiceWorld {
     }
 }
 
-async fn serve_bytes(
-    State(state): State<SharedState>,
-) -> impl IntoResponse {
+async fn serve_bytes(State(state): State<SharedState>) -> impl IntoResponse {
     let s = state.lock().await.clone();
     (s.status, s.body_bytes)
 }
@@ -117,7 +109,9 @@ async fn when_download(w: &mut VoiceWorld) {
     let url = format!("http://{}{}", addr, path);
     let dest = w.tmp.as_ref().unwrap().path().join("model.bin");
     let client = reqwest::Client::new();
-    let written = download_model(&client, &url, &dest).await.expect("download");
+    let written = download_model(&client, &url, &dest)
+        .await
+        .expect("download");
     let on_disk = std::fs::metadata(&dest).unwrap().len();
     w.last_download_bytes = Some(written);
     // Sanity: file on disk matches reported length.

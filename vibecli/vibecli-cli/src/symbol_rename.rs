@@ -50,9 +50,15 @@ impl RefKind {
         if trimmed.starts_with("///") || trimmed.starts_with("//!") || trimmed.starts_with("/**") {
             return RefKind::DocComment;
         }
-        if before.contains("fn ") || before.contains("struct ") || before.contains("enum ") || before.contains("trait ") || before.contains("type ") {
+        if before.contains("fn ")
+            || before.contains("struct ")
+            || before.contains("enum ")
+            || before.contains("trait ")
+            || before.contains("type ")
+        {
             // Check if it's the definition name
-            let after_keyword = before.rsplit_once("fn ")
+            let after_keyword = before
+                .rsplit_once("fn ")
                 .or_else(|| before.rsplit_once("struct "))
                 .or_else(|| before.rsplit_once("enum "))
                 .or_else(|| before.rsplit_once("trait "))
@@ -65,7 +71,10 @@ impl RefKind {
             }
         }
         // Type annotation: preceded by `: ` or `-> ` or `<`
-        if before.trim_end().ends_with(':') || before.trim_end().ends_with("->") || before.ends_with('<') {
+        if before.trim_end().ends_with(':')
+            || before.trim_end().ends_with("->")
+            || before.ends_with('<')
+        {
             return RefKind::TypeAnnotation;
         }
         // Function call: followed by `(`
@@ -134,8 +143,18 @@ impl ReferenceScanner {
                 let col_end = abs_pos + symbol.len();
 
                 // Whole-word check
-                let before_ok = abs_pos == 0 || !line.chars().nth(abs_pos - 1).map(|c| c.is_alphanumeric() || c == '_').unwrap_or(false);
-                let after_ok = col_end >= line.len() || !line.chars().nth(col_end).map(|c| c.is_alphanumeric() || c == '_').unwrap_or(false);
+                let before_ok = abs_pos == 0
+                    || !line
+                        .chars()
+                        .nth(abs_pos - 1)
+                        .map(|c| c.is_alphanumeric() || c == '_')
+                        .unwrap_or(false);
+                let after_ok = col_end >= line.len()
+                    || !line
+                        .chars()
+                        .nth(col_end)
+                        .map(|c| c.is_alphanumeric() || c == '_')
+                        .unwrap_or(false);
 
                 if before_ok && after_ok {
                     let ref_kind = RefKind::classify(line, abs_pos, symbol);
@@ -211,7 +230,8 @@ impl RenameEngine {
         }
         // Sort for determinism: by file path, then line, then col
         all_refs.sort_by(|a, b| {
-            a.file.cmp(&b.file)
+            a.file
+                .cmp(&b.file)
                 .then(a.line.cmp(&b.line))
                 .then(a.col_start.cmp(&b.col_start))
         });
@@ -326,7 +346,9 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
-    fn p(s: &str) -> PathBuf { PathBuf::from(s) }
+    fn p(s: &str) -> PathBuf {
+        PathBuf::from(s)
+    }
 
     #[test]
     fn test_scan_single_occurrence() {

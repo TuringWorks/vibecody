@@ -86,8 +86,9 @@ impl Workspace {
             let buffer = TextBuffer::from_file(path.clone())?;
             self.open_buffers.insert(path.clone(), buffer);
         }
-        self.open_buffers.get(&path)
-            .ok_or_else(|| anyhow::anyhow!("Buffer for '{}' missing after insertion", path.display()))
+        self.open_buffers.get(&path).ok_or_else(|| {
+            anyhow::anyhow!("Buffer for '{}' missing after insertion", path.display())
+        })
     }
 
     /// Get an open buffer
@@ -167,10 +168,10 @@ mod tests {
     fn test_add_remove_folder() {
         let mut workspace = Workspace::new("Test".to_string());
         let path = PathBuf::from("/test/path");
-        
+
         workspace.add_folder(path.clone()).ok();
         assert_eq!(workspace.folders().len(), 1);
-        
+
         workspace.remove_folder(&path);
         assert_eq!(workspace.folders().len(), 0);
     }
@@ -179,10 +180,7 @@ mod tests {
     fn test_settings() {
         let mut workspace = Workspace::new("Test".to_string());
 
-        workspace.set_setting(
-            "theme".to_string(),
-            serde_json::json!("dark")
-        );
+        workspace.set_setting("theme".to_string(), serde_json::json!("dark"));
 
         assert_eq!(
             workspace.get_setting("theme"),
@@ -291,7 +289,10 @@ mod tests {
         let deser: WorkspaceConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(deser.name, "Serde Test");
         assert_eq!(deser.folders.len(), 1);
-        assert_eq!(deser.settings.get("theme"), Some(&serde_json::json!("dark")));
+        assert_eq!(
+            deser.settings.get("theme"),
+            Some(&serde_json::json!("dark"))
+        );
     }
 
     #[test]
@@ -299,7 +300,11 @@ mod tests {
         let mut ws = Workspace::new("Test".to_string());
         ws.add_folder(PathBuf::from("/a")).ok();
         ws.remove_folder(&PathBuf::from("/nonexistent"));
-        assert_eq!(ws.folders().len(), 1, "removing absent folder should not change list");
+        assert_eq!(
+            ws.folders().len(),
+            1,
+            "removing absent folder should not change list"
+        );
     }
 
     #[test]
@@ -308,7 +313,14 @@ mod tests {
         ws.add_folder(PathBuf::from("/z")).ok();
         ws.add_folder(PathBuf::from("/a")).ok();
         ws.add_folder(PathBuf::from("/m")).ok();
-        assert_eq!(ws.folders(), &[PathBuf::from("/z"), PathBuf::from("/a"), PathBuf::from("/m")]);
+        assert_eq!(
+            ws.folders(),
+            &[
+                PathBuf::from("/z"),
+                PathBuf::from("/a"),
+                PathBuf::from("/m")
+            ]
+        );
     }
 
     #[test]
@@ -366,7 +378,10 @@ mod tests {
             settings: HashMap::new(),
         };
         let debug = format!("{:?}", config);
-        assert!(debug.contains("Debug"), "Debug output should contain the name");
+        assert!(
+            debug.contains("Debug"),
+            "Debug output should contain the name"
+        );
     }
 
     #[test]
@@ -389,7 +404,9 @@ mod tests {
     #[test]
     fn workspace_remove_all_folders() {
         let mut ws = Workspace::new("Test".to_string());
-        let paths: Vec<PathBuf> = (0..5).map(|i| PathBuf::from(format!("/dir{}", i))).collect();
+        let paths: Vec<PathBuf> = (0..5)
+            .map(|i| PathBuf::from(format!("/dir{}", i)))
+            .collect();
         for p in &paths {
             ws.add_folder(p.clone()).ok();
         }
@@ -454,7 +471,10 @@ mod tests {
             folders: vec![PathBuf::from("/path with spaces/dir")],
             settings: {
                 let mut m = HashMap::new();
-                m.insert("key\"special".to_string(), serde_json::json!("val\nnewline"));
+                m.insert(
+                    "key\"special".to_string(),
+                    serde_json::json!("val\nnewline"),
+                );
                 m
             },
         };

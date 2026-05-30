@@ -51,7 +51,11 @@ impl CandleTurboQuantCodec {
 
     /// Convenience for the common case: call this to wrap the codec in an
     /// `Arc<dyn KvCacheCodec>` ready to hand to `set_codec`.
-    pub fn shared(head_dim: usize, seed: u64, qjl_proj_dim: Option<usize>) -> Arc<dyn KvCacheCodec> {
+    pub fn shared(
+        head_dim: usize,
+        seed: u64,
+        qjl_proj_dim: Option<usize>,
+    ) -> Arc<dyn KvCacheCodec> {
         Arc::new(Self::new(head_dim, seed, qjl_proj_dim))
     }
 }
@@ -162,7 +166,11 @@ impl NativeTurboQuantCodec {
         }
     }
 
-    pub fn shared(head_dim: usize, seed: u64, qjl_proj_dim: Option<usize>) -> Arc<dyn KvCacheCodec> {
+    pub fn shared(
+        head_dim: usize,
+        seed: u64,
+        qjl_proj_dim: Option<usize>,
+    ) -> Arc<dyn KvCacheCodec> {
         Arc::new(Self::new(head_dim, seed, qjl_proj_dim))
     }
 
@@ -387,8 +395,20 @@ mod tests {
         let a = CandleTurboQuantCodec::new(64, 7, None);
         let b = CandleTurboQuantCodec::new(64, 7, None);
         let input = sample_tensor(&[1, 2, 4, 64]);
-        let ea: Vec<f32> = a.encode(&input).unwrap().flatten_all().unwrap().to_vec1().unwrap();
-        let eb: Vec<f32> = b.encode(&input).unwrap().flatten_all().unwrap().to_vec1().unwrap();
+        let ea: Vec<f32> = a
+            .encode(&input)
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
+        let eb: Vec<f32> = b
+            .encode(&input)
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
         assert_eq!(ea, eb);
     }
 
@@ -428,10 +448,25 @@ mod tests {
         let native = NativeTurboQuantCodec::new(head_dim, 13, None);
         let input = sample_tensor(&[2, 3, head_dim]);
 
-        let a: Vec<f32> = candle.encode(&input).unwrap().flatten_all().unwrap().to_vec1().unwrap();
-        let b: Vec<f32> = native.encode(&input).unwrap().flatten_all().unwrap().to_vec1().unwrap();
+        let a: Vec<f32> = candle
+            .encode(&input)
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
+        let b: Vec<f32> = native
+            .encode(&input)
+            .unwrap()
+            .flatten_all()
+            .unwrap()
+            .to_vec1()
+            .unwrap();
 
-        assert_eq!(a, b, "native CPU fallback must match CandleTurboQuantCodec exactly");
+        assert_eq!(
+            a, b,
+            "native CPU fallback must match CandleTurboQuantCodec exactly"
+        );
     }
 
     /// Native codec on Metal must match the CPU reference within fp16
@@ -455,7 +490,9 @@ mod tests {
         let cpu_codec = CandleTurboQuantCodec::new(head_dim, 99, Some(proj_dim));
         let native = NativeTurboQuantCodec::new(head_dim, 99, Some(proj_dim));
 
-        let input_cpu = sample_tensor(&[2, 8, head_dim]).to_dtype(DType::F32).unwrap();
+        let input_cpu = sample_tensor(&[2, 8, head_dim])
+            .to_dtype(DType::F32)
+            .unwrap();
         let input_metal = input_cpu.to_device(&device).unwrap();
 
         let cpu_out: Vec<f32> = cpu_codec
@@ -504,7 +541,9 @@ mod tests {
         let cpu_codec = CandleTurboQuantCodec::new(head_dim, 17, Some(proj_dim));
         let native = NativeTurboQuantCodec::new(head_dim, 17, Some(proj_dim));
 
-        let input_cpu = sample_tensor(&[2, 8, head_dim]).to_dtype(DType::F32).unwrap();
+        let input_cpu = sample_tensor(&[2, 8, head_dim])
+            .to_dtype(DType::F32)
+            .unwrap();
         let input_cuda = input_cpu.to_device(&device).unwrap();
 
         let cpu_out: Vec<f32> = cpu_codec

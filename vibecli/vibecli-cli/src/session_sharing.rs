@@ -307,15 +307,8 @@ impl SessionSharingManager {
         Ok(session.annotations.iter().collect())
     }
 
-    pub fn export_session(
-        &self,
-        id: &str,
-        format: ExportFormat,
-    ) -> Result<String, SharingError> {
-        let session = self
-            .sessions
-            .get(id)
-            .ok_or(SharingError::SessionNotFound)?;
+    pub fn export_session(&self, id: &str, format: ExportFormat) -> Result<String, SharingError> {
+        let session = self.sessions.get(id).ok_or(SharingError::SessionNotFound)?;
 
         let size = self.estimate_export_size(session);
         let max_bytes = self.config.max_export_size_mb * 1024 * 1024;
@@ -376,9 +369,15 @@ impl SessionSharingManager {
             .iter()
             .map(|a| {
                 let target = match &a.target_type {
-                    AnnotationTarget::ToolCall(id) => format!("{{\"type\":\"tool_call\",\"id\":\"{}\"}}", id),
-                    AnnotationTarget::FileChange(path) => format!("{{\"type\":\"file_change\",\"path\":\"{}\"}}", path),
-                    AnnotationTarget::ReasoningStep(n) => format!("{{\"type\":\"reasoning_step\",\"step\":{}}}", n),
+                    AnnotationTarget::ToolCall(id) => {
+                        format!("{{\"type\":\"tool_call\",\"id\":\"{}\"}}", id)
+                    }
+                    AnnotationTarget::FileChange(path) => {
+                        format!("{{\"type\":\"file_change\",\"path\":\"{}\"}}", path)
+                    }
+                    AnnotationTarget::ReasoningStep(n) => {
+                        format!("{{\"type\":\"reasoning_step\",\"step\":{}}}", n)
+                    }
                     AnnotationTarget::General => "{\"type\":\"general\"}".to_string(),
                 };
                 format!(
@@ -508,7 +507,9 @@ impl SessionSharingManager {
         let mut html = String::with_capacity(8192);
         html.push_str("<!DOCTYPE html>\n<html>\n<head>\n");
         html.push_str(&format!("<title>{}</title>\n", session.title));
-        html.push_str("<style>body{font-family:sans-serif;max-width:900px;margin:0 auto;padding:20px}");
+        html.push_str(
+            "<style>body{font-family:sans-serif;max-width:900px;margin:0 auto;padding:20px}",
+        );
         html.push_str("table{border-collapse:collapse;width:100%}th,td{border:1px solid #ddd;padding:8px;text-align:left}");
         html.push_str("th{background:#f4f4f4}.success{color:green}.fail{color:red}</style>\n");
         html.push_str("</head>\n<body>\n");
@@ -580,8 +581,8 @@ impl SessionSharingManager {
 
         // API key patterns: sk-..., key-..., AKIA..., ghp_..., gho_..., glpat-...
         let api_key_prefixes = [
-            "sk-", "sk_live_", "sk_test_", "key-", "AKIA", "ghp_", "gho_", "glpat-",
-            "xoxb-", "xoxp-", "whsec_",
+            "sk-", "sk_live_", "sk_test_", "key-", "AKIA", "ghp_", "gho_", "glpat-", "xoxb-",
+            "xoxp-", "whsec_",
         ];
         for prefix in &api_key_prefixes {
             let mut offset = 0;
@@ -589,7 +590,9 @@ impl SessionSharingManager {
                 if let Some(pos) = result[offset..].find(prefix) {
                     let start = offset + pos;
                     let end = result[start..]
-                        .find(|c: char| c.is_whitespace() || c == '"' || c == '\'' || c == ',' || c == '}')
+                        .find(|c: char| {
+                            c.is_whitespace() || c == '"' || c == '\'' || c == ',' || c == '}'
+                        })
                         .map(|e| start + e)
                         .unwrap_or(result.len());
                     result.replace_range(start..end, redacted);
@@ -659,8 +662,13 @@ impl SessionSharingManager {
 
         // Environment variable assignments: SOME_SECRET=value
         for env_key in &[
-            "API_KEY=", "SECRET_KEY=", "ACCESS_TOKEN=", "PRIVATE_KEY=",
-            "ANTHROPIC_API_KEY=", "OPENAI_API_KEY=", "GEMINI_API_KEY=",
+            "API_KEY=",
+            "SECRET_KEY=",
+            "ACCESS_TOKEN=",
+            "PRIVATE_KEY=",
+            "ANTHROPIC_API_KEY=",
+            "OPENAI_API_KEY=",
+            "GEMINI_API_KEY=",
         ] {
             let mut offset = 0;
             while offset < result.len() {
@@ -687,7 +695,11 @@ impl SessionSharingManager {
         size += session.id.len() + session.title.len() + session.description.len();
         size += session.agent_id.len() + session.created_by.len();
         for tc in &session.tool_calls {
-            size += tc.id.len() + tc.tool_name.len() + tc.input_summary.len() + tc.output_summary.len() + 64;
+            size += tc.id.len()
+                + tc.tool_name.len()
+                + tc.input_summary.len()
+                + tc.output_summary.len()
+                + 64;
         }
         for fc in &session.file_changes {
             size += fc.file_path.len() + fc.diff_summary.len() + 64;
@@ -826,7 +838,8 @@ pub async fn export_session_cmd(session_id: &str, output_path: &str) -> anyhow::
     use crate::session_store::SessionStore;
 
     let store = SessionStore::open_default()?;
-    let detail = store.get_session_detail(session_id)?
+    let detail = store
+        .get_session_detail(session_id)?
         .ok_or_else(|| anyhow::anyhow!("Session '{}' not found", session_id))?;
 
     // Determine format from output extension
@@ -854,15 +867,19 @@ pub async fn export_session_cmd(session_id: &str, output_path: &str) -> anyhow::
         created_by: "local".to_string(),
         created_at: detail.session.started_at,
         visibility: Visibility::Private,
-        tool_calls: detail.steps.iter().map(|s| ToolCallRecord {
-            id: s.id.to_string(),
-            tool_name: s.tool_name.clone(),
-            input_summary: s.input_summary.clone(),
-            output_summary: s.output.clone(),
-            timestamp: s.created_at,
-            duration_ms: 0,
-            success: s.success,
-        }).collect(),
+        tool_calls: detail
+            .steps
+            .iter()
+            .map(|s| ToolCallRecord {
+                id: s.id.to_string(),
+                tool_name: s.tool_name.clone(),
+                input_summary: s.input_summary.clone(),
+                output_summary: s.output.clone(),
+                timestamp: s.created_at,
+                duration_ms: 0,
+                success: s.success,
+            })
+            .collect(),
         file_changes: vec![],
         reasoning_steps: vec![],
         annotations: vec![],
@@ -876,7 +893,9 @@ pub async fn export_session_cmd(session_id: &str, output_path: &str) -> anyhow::
             outcome,
         },
         share_url: None,
-        duration_secs: detail.session.finished_at
+        duration_secs: detail
+            .session
+            .finished_at
             .map(|f| (f - detail.session.started_at) / 1000)
             .unwrap_or(0),
     };
@@ -892,7 +911,12 @@ pub async fn export_session_cmd(session_id: &str, output_path: &str) -> anyhow::
     };
 
     std::fs::write(output_path, &content)?;
-    println!("Session '{}' exported to {} ({} bytes)", session_id, output_path, content.len());
+    println!(
+        "Session '{}' exported to {} ({} bytes)",
+        session_id,
+        output_path,
+        content.len()
+    );
     Ok(())
 }
 
@@ -918,7 +942,12 @@ mod tests {
         }
     }
 
-    fn make_session(id: &str, author: &str, vis: Visibility, outcome: SessionOutcome) -> SharedSession {
+    fn make_session(
+        id: &str,
+        author: &str,
+        vis: Visibility,
+        outcome: SessionOutcome,
+    ) -> SharedSession {
         SharedSession {
             id: id.to_string(),
             title: format!("Session {}", id),
@@ -927,35 +956,32 @@ mod tests {
             created_by: author.to_string(),
             created_at: 1700000000,
             visibility: vis,
-            tool_calls: vec![
-                ToolCallRecord {
-                    id: "tc-1".to_string(),
-                    tool_name: "read_file".to_string(),
-                    input_summary: "src/main.rs".to_string(),
-                    output_summary: "200 lines read".to_string(),
-                    timestamp: 1700000010,
-                    duration_ms: 50,
-                    success: true,
-                },
-            ],
-            file_changes: vec![
-                FileChange {
-                    file_path: "src/auth.rs".to_string(),
-                    change_type: ChangeType::Modified,
-                    additions: 15,
-                    deletions: 3,
-                    diff_summary: "Added token validation".to_string(),
-                },
-            ],
-            reasoning_steps: vec![
-                ReasoningStep {
-                    step_number: 1,
-                    description: "Analyze auth flow".to_string(),
-                    decision: "Use JWT tokens".to_string(),
-                    alternatives_considered: vec!["Session cookies".to_string(), "OAuth only".to_string()],
-                    timestamp: 1700000005,
-                },
-            ],
+            tool_calls: vec![ToolCallRecord {
+                id: "tc-1".to_string(),
+                tool_name: "read_file".to_string(),
+                input_summary: "src/main.rs".to_string(),
+                output_summary: "200 lines read".to_string(),
+                timestamp: 1700000010,
+                duration_ms: 50,
+                success: true,
+            }],
+            file_changes: vec![FileChange {
+                file_path: "src/auth.rs".to_string(),
+                change_type: ChangeType::Modified,
+                additions: 15,
+                deletions: 3,
+                diff_summary: "Added token validation".to_string(),
+            }],
+            reasoning_steps: vec![ReasoningStep {
+                step_number: 1,
+                description: "Analyze auth flow".to_string(),
+                decision: "Use JWT tokens".to_string(),
+                alternatives_considered: vec![
+                    "Session cookies".to_string(),
+                    "OAuth only".to_string(),
+                ],
+                timestamp: 1700000005,
+            }],
             annotations: Vec::new(),
             metadata: make_metadata(outcome),
             share_url: None,
@@ -1017,7 +1043,13 @@ mod tests {
     #[test]
     fn test_get_session_found() {
         let mut mgr = SessionSharingManager::new(make_config());
-        mgr.share_session(make_session("s-1", "alice", Visibility::Team, SessionOutcome::Success)).unwrap();
+        mgr.share_session(make_session(
+            "s-1",
+            "alice",
+            Visibility::Team,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
         let session = mgr.get_session("s-1");
         assert!(session.is_some());
         assert_eq!(session.unwrap().created_by, "alice");
@@ -1040,8 +1072,20 @@ mod tests {
     #[test]
     fn test_list_sessions_multiple() {
         let mut mgr = SessionSharingManager::new(make_config());
-        mgr.share_session(make_session("s-1", "alice", Visibility::Team, SessionOutcome::Success)).unwrap();
-        mgr.share_session(make_session("s-2", "bob", Visibility::Public, SessionOutcome::Failed)).unwrap();
+        mgr.share_session(make_session(
+            "s-1",
+            "alice",
+            Visibility::Team,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
+        mgr.share_session(make_session(
+            "s-2",
+            "bob",
+            Visibility::Public,
+            SessionOutcome::Failed,
+        ))
+        .unwrap();
         assert_eq!(mgr.list_sessions().len(), 2);
     }
 
@@ -1050,9 +1094,24 @@ mod tests {
     #[test]
     fn test_filter_by_author() {
         let mut mgr = SessionSharingManager::new(make_config());
-        mgr.share_session(make_session("s-1", "alice", Visibility::Team, SessionOutcome::Success)).unwrap();
-        mgr.share_session(make_session("s-2", "bob", Visibility::Team, SessionOutcome::Success)).unwrap();
-        let filter = SessionFilter { author: Some("alice".to_string()), ..Default::default() };
+        mgr.share_session(make_session(
+            "s-1",
+            "alice",
+            Visibility::Team,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
+        mgr.share_session(make_session(
+            "s-2",
+            "bob",
+            Visibility::Team,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
+        let filter = SessionFilter {
+            author: Some("alice".to_string()),
+            ..Default::default()
+        };
         let results = mgr.filter_sessions(&filter);
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].created_by, "alice");
@@ -1061,9 +1120,24 @@ mod tests {
     #[test]
     fn test_filter_by_visibility() {
         let mut mgr = SessionSharingManager::new(make_config());
-        mgr.share_session(make_session("s-1", "alice", Visibility::Team, SessionOutcome::Success)).unwrap();
-        mgr.share_session(make_session("s-2", "bob", Visibility::Public, SessionOutcome::Success)).unwrap();
-        let filter = SessionFilter { visibility: Some(Visibility::Public), ..Default::default() };
+        mgr.share_session(make_session(
+            "s-1",
+            "alice",
+            Visibility::Team,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
+        mgr.share_session(make_session(
+            "s-2",
+            "bob",
+            Visibility::Public,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
+        let filter = SessionFilter {
+            visibility: Some(Visibility::Public),
+            ..Default::default()
+        };
         let results = mgr.filter_sessions(&filter);
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].id, "s-2");
@@ -1072,9 +1146,24 @@ mod tests {
     #[test]
     fn test_filter_by_outcome() {
         let mut mgr = SessionSharingManager::new(make_config());
-        mgr.share_session(make_session("s-1", "alice", Visibility::Team, SessionOutcome::Success)).unwrap();
-        mgr.share_session(make_session("s-2", "bob", Visibility::Team, SessionOutcome::Failed)).unwrap();
-        let filter = SessionFilter { outcome: Some(SessionOutcome::Failed), ..Default::default() };
+        mgr.share_session(make_session(
+            "s-1",
+            "alice",
+            Visibility::Team,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
+        mgr.share_session(make_session(
+            "s-2",
+            "bob",
+            Visibility::Team,
+            SessionOutcome::Failed,
+        ))
+        .unwrap();
+        let filter = SessionFilter {
+            outcome: Some(SessionOutcome::Failed),
+            ..Default::default()
+        };
         let results = mgr.filter_sessions(&filter);
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].id, "s-2");
@@ -1086,8 +1175,17 @@ mod tests {
         let mut s = make_session("s-1", "alice", Visibility::Team, SessionOutcome::Success);
         s.title = "Fix authentication bug".to_string();
         mgr.share_session(s).unwrap();
-        mgr.share_session(make_session("s-2", "bob", Visibility::Team, SessionOutcome::Success)).unwrap();
-        let filter = SessionFilter { keyword: Some("authentication".to_string()), ..Default::default() };
+        mgr.share_session(make_session(
+            "s-2",
+            "bob",
+            Visibility::Team,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
+        let filter = SessionFilter {
+            keyword: Some("authentication".to_string()),
+            ..Default::default()
+        };
         let results = mgr.filter_sessions(&filter);
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].id, "s-1");
@@ -1105,7 +1203,11 @@ mod tests {
         mgr.share_session(s1).unwrap();
         mgr.share_session(s2).unwrap();
         mgr.share_session(s3).unwrap();
-        let filter = SessionFilter { after: Some(1500), before: Some(2500), ..Default::default() };
+        let filter = SessionFilter {
+            after: Some(1500),
+            before: Some(2500),
+            ..Default::default()
+        };
         let results = mgr.filter_sessions(&filter);
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].id, "s-2");
@@ -1114,7 +1216,13 @@ mod tests {
     #[test]
     fn test_filter_empty() {
         let mut mgr = SessionSharingManager::new(make_config());
-        mgr.share_session(make_session("s-1", "alice", Visibility::Team, SessionOutcome::Success)).unwrap();
+        mgr.share_session(make_session(
+            "s-1",
+            "alice",
+            Visibility::Team,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
         let filter = SessionFilter::default();
         let results = mgr.filter_sessions(&filter);
         assert_eq!(results.len(), 1);
@@ -1125,7 +1233,13 @@ mod tests {
     #[test]
     fn test_add_annotation() {
         let mut mgr = SessionSharingManager::new(make_config());
-        mgr.share_session(make_session("s-1", "alice", Visibility::Team, SessionOutcome::Success)).unwrap();
+        mgr.share_session(make_session(
+            "s-1",
+            "alice",
+            Visibility::Team,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
         let annotation = Annotation {
             id: "a-1".to_string(),
             author: "bob".to_string(),
@@ -1146,13 +1260,22 @@ mod tests {
             target_type: AnnotationTarget::General,
             timestamp: 1700001000,
         };
-        assert_eq!(mgr.add_annotation("nonexistent", annotation), Err(SharingError::SessionNotFound));
+        assert_eq!(
+            mgr.add_annotation("nonexistent", annotation),
+            Err(SharingError::SessionNotFound)
+        );
     }
 
     #[test]
     fn test_get_annotations() {
         let mut mgr = SessionSharingManager::new(make_config());
-        mgr.share_session(make_session("s-1", "alice", Visibility::Team, SessionOutcome::Success)).unwrap();
+        mgr.share_session(make_session(
+            "s-1",
+            "alice",
+            Visibility::Team,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
         let a1 = Annotation {
             id: "a-1".to_string(),
             author: "bob".to_string(),
@@ -1178,15 +1301,27 @@ mod tests {
     #[test]
     fn test_get_annotations_not_found() {
         let mgr = SessionSharingManager::new(make_config());
-        assert_eq!(mgr.get_annotations("nope"), Err(SharingError::SessionNotFound));
+        assert_eq!(
+            mgr.get_annotations("nope"),
+            Err(SharingError::SessionNotFound)
+        );
     }
 
     // --- Export JSON ---
 
     #[test]
     fn test_export_json() {
-        let mut mgr = SessionSharingManager::new(SharingConfig { redact_secrets: false, ..make_config() });
-        mgr.share_session(make_session("s-1", "alice", Visibility::Team, SessionOutcome::Success)).unwrap();
+        let mut mgr = SessionSharingManager::new(SharingConfig {
+            redact_secrets: false,
+            ..make_config()
+        });
+        mgr.share_session(make_session(
+            "s-1",
+            "alice",
+            Visibility::Team,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
         let json = mgr.export_session("s-1", ExportFormat::Json).unwrap();
         assert!(json.contains("\"id\":\"s-1\""));
         assert!(json.contains("\"title\":\"Session s-1\""));
@@ -1200,8 +1335,17 @@ mod tests {
 
     #[test]
     fn test_export_markdown() {
-        let mut mgr = SessionSharingManager::new(SharingConfig { redact_secrets: false, ..make_config() });
-        mgr.share_session(make_session("s-1", "alice", Visibility::Team, SessionOutcome::Success)).unwrap();
+        let mut mgr = SessionSharingManager::new(SharingConfig {
+            redact_secrets: false,
+            ..make_config()
+        });
+        mgr.share_session(make_session(
+            "s-1",
+            "alice",
+            Visibility::Team,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
         let md = mgr.export_session("s-1", ExportFormat::Markdown).unwrap();
         assert!(md.contains("# Session s-1"));
         assert!(md.contains("## Tool Calls"));
@@ -1216,8 +1360,17 @@ mod tests {
 
     #[test]
     fn test_export_html() {
-        let mut mgr = SessionSharingManager::new(SharingConfig { redact_secrets: false, ..make_config() });
-        mgr.share_session(make_session("s-1", "alice", Visibility::Team, SessionOutcome::Success)).unwrap();
+        let mut mgr = SessionSharingManager::new(SharingConfig {
+            redact_secrets: false,
+            ..make_config()
+        });
+        mgr.share_session(make_session(
+            "s-1",
+            "alice",
+            Visibility::Team,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
         let html = mgr.export_session("s-1", ExportFormat::Html).unwrap();
         assert!(html.contains("<!DOCTYPE html>"));
         assert!(html.contains("<h1>Session s-1</h1>"));
@@ -1229,7 +1382,10 @@ mod tests {
     #[test]
     fn test_export_session_not_found() {
         let mgr = SessionSharingManager::new(make_config());
-        assert_eq!(mgr.export_session("nope", ExportFormat::Json), Err(SharingError::SessionNotFound));
+        assert_eq!(
+            mgr.export_session("nope", ExportFormat::Json),
+            Err(SharingError::SessionNotFound)
+        );
     }
 
     // --- Secret redaction ---
@@ -1304,8 +1460,17 @@ mod tests {
             max_export_size_mb: 0, // 0 bytes max
             ..make_config()
         });
-        mgr.share_session(make_session("s-1", "alice", Visibility::Team, SessionOutcome::Success)).unwrap();
-        assert_eq!(mgr.export_session("s-1", ExportFormat::Json), Err(SharingError::ExportTooLarge));
+        mgr.share_session(make_session(
+            "s-1",
+            "alice",
+            Visibility::Team,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
+        assert_eq!(
+            mgr.export_session("s-1", ExportFormat::Json),
+            Err(SharingError::ExportTooLarge)
+        );
     }
 
     // --- Delete session ---
@@ -1313,7 +1478,13 @@ mod tests {
     #[test]
     fn test_delete_session() {
         let mut mgr = SessionSharingManager::new(make_config());
-        mgr.share_session(make_session("s-1", "alice", Visibility::Team, SessionOutcome::Success)).unwrap();
+        mgr.share_session(make_session(
+            "s-1",
+            "alice",
+            Visibility::Team,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
         assert!(mgr.delete_session("s-1").is_ok());
         assert!(mgr.get_session("s-1").is_none());
     }
@@ -1321,7 +1492,10 @@ mod tests {
     #[test]
     fn test_delete_session_not_found() {
         let mut mgr = SessionSharingManager::new(make_config());
-        assert_eq!(mgr.delete_session("nope"), Err(SharingError::SessionNotFound));
+        assert_eq!(
+            mgr.delete_session("nope"),
+            Err(SharingError::SessionNotFound)
+        );
     }
 
     // --- Visibility updates ---
@@ -1329,15 +1503,27 @@ mod tests {
     #[test]
     fn test_update_visibility() {
         let mut mgr = SessionSharingManager::new(make_config());
-        mgr.share_session(make_session("s-1", "alice", Visibility::Private, SessionOutcome::Success)).unwrap();
+        mgr.share_session(make_session(
+            "s-1",
+            "alice",
+            Visibility::Private,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
         assert!(mgr.update_visibility("s-1", Visibility::Public).is_ok());
-        assert_eq!(mgr.get_session("s-1").unwrap().visibility, Visibility::Public);
+        assert_eq!(
+            mgr.get_session("s-1").unwrap().visibility,
+            Visibility::Public
+        );
     }
 
     #[test]
     fn test_update_visibility_not_found() {
         let mut mgr = SessionSharingManager::new(make_config());
-        assert_eq!(mgr.update_visibility("nope", Visibility::Team), Err(SharingError::SessionNotFound));
+        assert_eq!(
+            mgr.update_visibility("nope", Visibility::Team),
+            Err(SharingError::SessionNotFound)
+        );
     }
 
     // --- Session summary ---
@@ -1345,7 +1531,13 @@ mod tests {
     #[test]
     fn test_get_session_summary() {
         let mut mgr = SessionSharingManager::new(make_config());
-        mgr.share_session(make_session("s-1", "alice", Visibility::Team, SessionOutcome::Success)).unwrap();
+        mgr.share_session(make_session(
+            "s-1",
+            "alice",
+            Visibility::Team,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
         let summary = mgr.get_session_summary("s-1");
         assert!(summary.is_some());
         let s = summary.unwrap();
@@ -1366,8 +1558,17 @@ mod tests {
 
     #[test]
     fn test_import_session() {
-        let mut mgr = SessionSharingManager::new(SharingConfig { redact_secrets: false, ..make_config() });
-        mgr.share_session(make_session("s-1", "alice", Visibility::Team, SessionOutcome::Success)).unwrap();
+        let mut mgr = SessionSharingManager::new(SharingConfig {
+            redact_secrets: false,
+            ..make_config()
+        });
+        mgr.share_session(make_session(
+            "s-1",
+            "alice",
+            Visibility::Team,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
         let json = mgr.export_session("s-1", ExportFormat::Json).unwrap();
         let mut mgr2 = SessionSharingManager::new(make_config());
         let imported = mgr2.import_session(&json).unwrap();
@@ -1391,9 +1592,18 @@ mod tests {
 
     #[test]
     fn test_error_display() {
-        assert_eq!(SharingError::SessionNotFound.to_string(), "session not found");
-        assert_eq!(SharingError::ExportTooLarge.to_string(), "export exceeds maximum size");
-        assert_eq!(SharingError::DuplicateSession.to_string(), "duplicate session id");
+        assert_eq!(
+            SharingError::SessionNotFound.to_string(),
+            "session not found"
+        );
+        assert_eq!(
+            SharingError::ExportTooLarge.to_string(),
+            "export exceeds maximum size"
+        );
+        assert_eq!(
+            SharingError::DuplicateSession.to_string(),
+            "duplicate session id"
+        );
     }
 
     // --- Enum display ---
@@ -1422,7 +1632,13 @@ mod tests {
     #[test]
     fn test_annotation_target_variants() {
         let mut mgr = SessionSharingManager::new(make_config());
-        mgr.share_session(make_session("s-1", "alice", Visibility::Team, SessionOutcome::Success)).unwrap();
+        mgr.share_session(make_session(
+            "s-1",
+            "alice",
+            Visibility::Team,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
 
         let targets = vec![
             AnnotationTarget::ToolCall("tc-1".to_string()),
@@ -1464,9 +1680,27 @@ mod tests {
     #[test]
     fn test_filter_combined_author_and_outcome() {
         let mut mgr = SessionSharingManager::new(make_config());
-        mgr.share_session(make_session("s-1", "alice", Visibility::Team, SessionOutcome::Success)).unwrap();
-        mgr.share_session(make_session("s-2", "alice", Visibility::Team, SessionOutcome::Failed)).unwrap();
-        mgr.share_session(make_session("s-3", "bob", Visibility::Team, SessionOutcome::Success)).unwrap();
+        mgr.share_session(make_session(
+            "s-1",
+            "alice",
+            Visibility::Team,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
+        mgr.share_session(make_session(
+            "s-2",
+            "alice",
+            Visibility::Team,
+            SessionOutcome::Failed,
+        ))
+        .unwrap();
+        mgr.share_session(make_session(
+            "s-3",
+            "bob",
+            Visibility::Team,
+            SessionOutcome::Success,
+        ))
+        .unwrap();
         let filter = SessionFilter {
             author: Some("alice".to_string()),
             outcome: Some(SessionOutcome::Success),

@@ -184,13 +184,13 @@ pub fn estimate_gpu_cost(provider: &ClusterProvider, gpu_count: u32, hours: f64)
         ClusterProvider::Local => 0.0,
         ClusterProvider::Slurm => 0.0, // on-prem, no cloud cost
         ClusterProvider::KubernetesGpu => 2.50,
-        ClusterProvider::AwsEc2 => 3.06,        // p4d.24xlarge / 8 GPUs
-        ClusterProvider::GcpCompute => 2.95,     // a2-highgpu per GPU
-        ClusterProvider::AzureVm => 3.10,        // ND-series per GPU
-        ClusterProvider::Lambda => 1.10,         // A10 on-demand
-        ClusterProvider::RunPod => 0.74,         // A100 community
-        ClusterProvider::CoreWeave => 2.06,      // A100 80 GB
-        ClusterProvider::Vast => 0.50,           // marketplace average
+        ClusterProvider::AwsEc2 => 3.06,     // p4d.24xlarge / 8 GPUs
+        ClusterProvider::GcpCompute => 2.95, // a2-highgpu per GPU
+        ClusterProvider::AzureVm => 3.10,    // ND-series per GPU
+        ClusterProvider::Lambda => 1.10,     // A10 on-demand
+        ClusterProvider::RunPod => 0.74,     // A100 community
+        ClusterProvider::CoreWeave => 2.06,  // A100 80 GB
+        ClusterProvider::Vast => 0.50,       // marketplace average
     };
     per_gpu_per_hour * gpu_count as f64 * hours
 }
@@ -217,7 +217,8 @@ pub fn suggest_gpu_config(model_params_billions: f64, task: &str) -> String {
         }
     } else if model_params_billions <= 70.0 {
         if is_training {
-            "8x A100 80 GB (1 node) with DeepSpeed ZeRO-3 or Megatron-LM tensor parallelism.".to_string()
+            "8x A100 80 GB (1 node) with DeepSpeed ZeRO-3 or Megatron-LM tensor parallelism."
+                .to_string()
         } else {
             "2-4x A100 80 GB with tensor parallelism, or use GPTQ/AWQ int4 quantization on fewer GPUs.".to_string()
         }
@@ -299,7 +300,9 @@ pub fn generate_slurm_script(
     num_nodes: u32,
 ) -> String {
     let framework_cmd = match job.framework {
-        TrainingFramework::PyTorch | TrainingFramework::DeepSpeed | TrainingFramework::HuggingFace => {
+        TrainingFramework::PyTorch
+        | TrainingFramework::DeepSpeed
+        | TrainingFramework::HuggingFace => {
             format!(
                 "torchrun --nproc_per_node={gpus_per_node} --nnodes={num_nodes} \\\n  \
                  --master_addr=$MASTER_ADDR --master_port=$MASTER_PORT \\\n  \
@@ -370,7 +373,11 @@ pub fn generate_slurm_script(
         }
     };
 
-    let mixed_flag = if job.mixed_precision { "\n#SBATCH --comment=mixed-precision" } else { "" };
+    let mixed_flag = if job.mixed_precision {
+        "\n#SBATCH --comment=mixed-precision"
+    } else {
+        ""
+    };
     let total_gpus = gpus_per_node * num_nodes;
 
     format!(
@@ -403,11 +410,7 @@ srun {framework_cmd}
 }
 
 /// Generate a Kubernetes Job YAML manifest requesting GPU resources.
-pub fn generate_k8s_gpu_manifest(
-    job: &TrainingJobConfig,
-    gpu_type: &str,
-    num_gpus: u32,
-) -> String {
+pub fn generate_k8s_gpu_manifest(job: &TrainingJobConfig, gpu_type: &str, num_gpus: u32) -> String {
     let mixed_env = if job.mixed_precision {
         "\n        - name: MIXED_PRECISION\n          value: \"true\""
     } else {
@@ -513,8 +516,7 @@ mod tests {
         let vendor = GpuVendor::Nvidia;
         let json = serde_json::to_string(&vendor).expect("serialize GpuVendor");
         assert_eq!(json, "\"Nvidia\"");
-        let deserialized: GpuVendor =
-            serde_json::from_str(&json).expect("deserialize GpuVendor");
+        let deserialized: GpuVendor = serde_json::from_str(&json).expect("deserialize GpuVendor");
         assert_eq!(deserialized, GpuVendor::Nvidia);
     }
 
@@ -563,7 +565,11 @@ mod tests {
     fn test_validate_training_config_valid() {
         let config = sample_training_config();
         let errors = validate_training_config(&config);
-        assert!(errors.is_empty(), "valid config should have no errors: {:?}", errors);
+        assert!(
+            errors.is_empty(),
+            "valid config should have no errors: {:?}",
+            errors
+        );
     }
 
     #[test]
@@ -586,7 +592,11 @@ mod tests {
     fn test_validate_inference_config_valid() {
         let config = sample_inference_config();
         let errors = validate_inference_config(&config);
-        assert!(errors.is_empty(), "valid config should produce no errors: {:?}", errors);
+        assert!(
+            errors.is_empty(),
+            "valid config should produce no errors: {:?}",
+            errors
+        );
     }
 
     #[test]

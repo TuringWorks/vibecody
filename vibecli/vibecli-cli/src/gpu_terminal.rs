@@ -172,8 +172,12 @@ impl GlyphAtlas {
     /// Fraction of atlas area occupied by glyphs.
     pub fn atlas_utilization(&self) -> f32 {
         let total_area = (self.width * self.height) as f32;
-        if total_area == 0.0 { return 0.0; }
-        let used_area: f32 = self.glyphs.values()
+        if total_area == 0.0 {
+            return 0.0;
+        }
+        let used_area: f32 = self
+            .glyphs
+            .values()
             .map(|g| (g.width * g.height) as f32)
             .sum();
         used_area / total_area
@@ -345,7 +349,8 @@ impl GpuRenderer {
     /// Create a new renderer. Falls back to Software if preferred GPU backend
     /// is unavailable.
     pub fn new(config: GpuConfig) -> anyhow::Result<Self> {
-        let backend = config.preferred_backend
+        let backend = config
+            .preferred_backend
             .unwrap_or_else(Self::detect_best_backend);
 
         let atlas = GlyphAtlas::new(config.font_size);
@@ -434,14 +439,18 @@ impl GpuRenderer {
         // Fill grid with content for realistic benchmark
         for r in 0..self.grid.rows {
             for c in 0..self.grid.cols {
-                self.grid.set_cell(r, c, TerminalCell {
-                    ch: (b'A' + ((r * self.grid.cols + c) % 26) as u8) as char,
-                    fg: Color::WHITE,
-                    bg: Color::BLACK,
-                    bold: c % 3 == 0,
-                    italic: false,
-                    underline: r % 5 == 0,
-                });
+                self.grid.set_cell(
+                    r,
+                    c,
+                    TerminalCell {
+                        ch: (b'A' + ((r * self.grid.cols + c) % 26) as u8) as char,
+                        fg: Color::WHITE,
+                        bg: Color::BLACK,
+                        bold: c % 3 == 0,
+                        italic: false,
+                        underline: r % 5 == 0,
+                    },
+                );
             }
         }
 
@@ -454,7 +463,11 @@ impl GpuRenderer {
 
         frame_times.sort();
         let total_us: u64 = frame_times.iter().sum();
-        let avg_frame_us = if frames > 0 { total_us / frames as u64 } else { 0 };
+        let avg_frame_us = if frames > 0 {
+            total_us / frames as u64
+        } else {
+            0
+        };
         let avg_fps = if avg_frame_us > 0 {
             1_000_000.0 / avg_frame_us as f64
         } else {
@@ -527,9 +540,18 @@ mod tests {
 
     #[test]
     fn test_cell_equality() {
-        let a = TerminalCell { ch: 'A', ..Default::default() };
-        let b = TerminalCell { ch: 'A', ..Default::default() };
-        let c = TerminalCell { ch: 'B', ..Default::default() };
+        let a = TerminalCell {
+            ch: 'A',
+            ..Default::default()
+        };
+        let b = TerminalCell {
+            ch: 'A',
+            ..Default::default()
+        };
+        let c = TerminalCell {
+            ch: 'B',
+            ..Default::default()
+        };
         assert_eq!(a, b);
         assert_ne!(a, c);
     }
@@ -618,7 +640,11 @@ mod tests {
     #[test]
     fn test_grid_set_get() {
         let mut grid = GpuTerminalGrid::new(10, 10);
-        let cell = TerminalCell { ch: 'X', bold: true, ..Default::default() };
+        let cell = TerminalCell {
+            ch: 'X',
+            bold: true,
+            ..Default::default()
+        };
         grid.set_cell(5, 3, cell.clone());
         let got = grid.get_cell(5, 3).unwrap();
         assert_eq!(got.ch, 'X');
@@ -643,7 +669,14 @@ mod tests {
     #[test]
     fn test_grid_clear() {
         let mut grid = GpuTerminalGrid::new(5, 5);
-        grid.set_cell(2, 2, TerminalCell { ch: 'Q', ..Default::default() });
+        grid.set_cell(
+            2,
+            2,
+            TerminalCell {
+                ch: 'Q',
+                ..Default::default()
+            },
+        );
         grid.clear();
         assert_eq!(grid.get_cell(2, 2).unwrap().ch, ' ');
     }
@@ -651,7 +684,14 @@ mod tests {
     #[test]
     fn test_grid_resize_larger() {
         let mut grid = GpuTerminalGrid::new(5, 5);
-        grid.set_cell(2, 2, TerminalCell { ch: 'A', ..Default::default() });
+        grid.set_cell(
+            2,
+            2,
+            TerminalCell {
+                ch: 'A',
+                ..Default::default()
+            },
+        );
         grid.resize(10, 10);
         assert_eq!(grid.rows, 10);
         assert_eq!(grid.cols, 10);
@@ -662,7 +702,14 @@ mod tests {
     #[test]
     fn test_grid_resize_smaller() {
         let mut grid = GpuTerminalGrid::new(10, 10);
-        grid.set_cell(2, 2, TerminalCell { ch: 'B', ..Default::default() });
+        grid.set_cell(
+            2,
+            2,
+            TerminalCell {
+                ch: 'B',
+                ..Default::default()
+            },
+        );
         grid.resize(5, 5);
         assert_eq!(grid.rows, 5);
         // Cell within new bounds preserved
@@ -681,7 +728,14 @@ mod tests {
     fn test_grid_diff_one_change() {
         let a = GpuTerminalGrid::new(5, 5);
         let mut b = GpuTerminalGrid::new(5, 5);
-        b.set_cell(1, 1, TerminalCell { ch: 'Z', ..Default::default() });
+        b.set_cell(
+            1,
+            1,
+            TerminalCell {
+                ch: 'Z',
+                ..Default::default()
+            },
+        );
         let diffs = a.diff(&b);
         assert_eq!(diffs.len(), 1);
         assert_eq!(diffs[0].row, 1);
@@ -693,8 +747,22 @@ mod tests {
     fn test_grid_diff_multiple_changes() {
         let a = GpuTerminalGrid::new(5, 5);
         let mut b = GpuTerminalGrid::new(5, 5);
-        b.set_cell(0, 0, TerminalCell { ch: '1', ..Default::default() });
-        b.set_cell(4, 4, TerminalCell { ch: '2', ..Default::default() });
+        b.set_cell(
+            0,
+            0,
+            TerminalCell {
+                ch: '1',
+                ..Default::default()
+            },
+        );
+        b.set_cell(
+            4,
+            4,
+            TerminalCell {
+                ch: '2',
+                ..Default::default()
+            },
+        );
         let diffs = a.diff(&b);
         assert_eq!(diffs.len(), 2);
     }
@@ -703,7 +771,14 @@ mod tests {
     fn test_grid_diff_different_sizes() {
         let a = GpuTerminalGrid::new(5, 5);
         let mut b = GpuTerminalGrid::new(10, 10);
-        b.set_cell(2, 2, TerminalCell { ch: 'X', ..Default::default() });
+        b.set_cell(
+            2,
+            2,
+            TerminalCell {
+                ch: 'X',
+                ..Default::default()
+            },
+        );
         let diffs = a.diff(&b);
         // Only compares overlapping region (5x5)
         assert_eq!(diffs.len(), 1);
@@ -793,7 +868,14 @@ mod tests {
         assert_eq!(stats2.dirty_cells, 0);
 
         // Change one cell: one dirty cell
-        renderer.grid.set_cell(0, 0, TerminalCell { ch: 'X', ..Default::default() });
+        renderer.grid.set_cell(
+            0,
+            0,
+            TerminalCell {
+                ch: 'X',
+                ..Default::default()
+            },
+        );
         let stats3 = renderer.render_frame().expect("failed");
         assert_eq!(stats3.dirty_cells, 1);
     }

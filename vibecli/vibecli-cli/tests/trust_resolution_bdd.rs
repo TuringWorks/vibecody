@@ -2,12 +2,11 @@
  * BDD tests for trust_resolution using Cucumber.
  * Run with: cargo test --test trust_resolution_bdd
  */
-use cucumber::{World, given, then, when};
-use vibecli_cli::trust_resolution::{
-    ContentSource, ContentTrustResolver, TrustDecision, TrustEvent, TrustPolicy,
-    TrustResolver,
-};
+use cucumber::{given, then, when, World};
 use std::path::PathBuf;
+use vibecli_cli::trust_resolution::{
+    ContentSource, ContentTrustResolver, TrustDecision, TrustEvent, TrustPolicy, TrustResolver,
+};
 
 // ── World for content-source BDD scenarios ────────────────────────────────────
 
@@ -45,13 +44,17 @@ fn set_path(world: &mut TrWorld, path: String) {
 #[when("I resolve trust for the file")]
 fn resolve_file(world: &mut TrWorld) {
     let r = content_resolver_for(&world.workspace);
-    world.decision = Some(r.resolve(ContentSource::LocalFile { path: world.path.clone() }));
+    world.decision = Some(r.resolve(ContentSource::LocalFile {
+        path: world.path.clone(),
+    }));
 }
 
 #[when("I resolve trust for a remote URL")]
 fn resolve_remote(world: &mut TrWorld) {
     let r = content_resolver_for(&world.workspace);
-    world.decision = Some(r.resolve(ContentSource::RemoteUrl { url: "https://example.com/x".into() }));
+    world.decision = Some(r.resolve(ContentSource::RemoteUrl {
+        url: "https://example.com/x".into(),
+    }));
 }
 
 #[when("I resolve trust for agent-generated content")]

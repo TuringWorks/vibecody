@@ -121,14 +121,12 @@ pub struct OAuthToken {
 }
 
 /// Client-side OAuth state machine.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct OAuthState {
     pub current_token: Option<OAuthToken>,
     pub pending_auth: Option<AuthRequest>,
     pub token_history: Vec<OAuthToken>,
 }
-
 
 /// A pending authorization request.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -174,26 +172,20 @@ impl PkceChallenge {
     /// common for PKCE verifiers; we handle arbitrary length).
     fn sha256_bytes(data: &[u8]) -> [u8; 32] {
         let h: [u32; 8] = [
-            0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
-            0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
+            0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab,
+            0x5be0cd19,
         ];
         let k: [u32; 64] = [
-            0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
-            0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
-            0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
-            0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
-            0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
-            0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
-            0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
-            0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
-            0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
-            0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
-            0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
-            0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
-            0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
-            0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
-            0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
-            0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+            0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4,
+            0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe,
+            0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f,
+            0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
+            0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc,
+            0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b,
+            0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116,
+            0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+            0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7,
+            0xc67178f2,
         ];
 
         // Pre-processing: padding
@@ -218,21 +210,16 @@ impl PkceChallenge {
                 ]);
             }
             for i in 16..64 {
-                let s0 = w[i - 15].rotate_right(7)
-                    ^ w[i - 15].rotate_right(18)
-                    ^ (w[i - 15] >> 3);
-                let s1 = w[i - 2].rotate_right(17)
-                    ^ w[i - 2].rotate_right(19)
-                    ^ (w[i - 2] >> 10);
+                let s0 = w[i - 15].rotate_right(7) ^ w[i - 15].rotate_right(18) ^ (w[i - 15] >> 3);
+                let s1 = w[i - 2].rotate_right(17) ^ w[i - 2].rotate_right(19) ^ (w[i - 2] >> 10);
                 w[i] = w[i - 16]
                     .wrapping_add(s0)
                     .wrapping_add(w[i - 7])
                     .wrapping_add(s1);
             }
 
-            let (mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut hv) = (
-                hh[0], hh[1], hh[2], hh[3], hh[4], hh[5], hh[6], hh[7],
-            );
+            let (mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut hv) =
+                (hh[0], hh[1], hh[2], hh[3], hh[4], hh[5], hh[6], hh[7]);
 
             for i in 0..64 {
                 let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
@@ -279,8 +266,16 @@ impl PkceChallenge {
         let mut i = 0;
         while i < data.len() {
             let b0 = data[i] as u32;
-            let b1 = if i + 1 < data.len() { data[i + 1] as u32 } else { 0 };
-            let b2 = if i + 2 < data.len() { data[i + 2] as u32 } else { 0 };
+            let b1 = if i + 1 < data.len() {
+                data[i + 1] as u32
+            } else {
+                0
+            };
+            let b2 = if i + 2 < data.len() {
+                data[i + 2] as u32
+            } else {
+                0
+            };
             let triple = (b0 << 16) | (b1 << 8) | b2;
             out.push(CHARS[((triple >> 18) & 0x3F) as usize] as char);
             out.push(CHARS[((triple >> 12) & 0x3F) as usize] as char);
@@ -726,9 +721,7 @@ impl McpStreamableClient {
             expires_at: Some(9999999999),
             scopes: pending.scopes.clone(),
         };
-        self.oauth_state
-            .token_history
-            .push(token.clone());
+        self.oauth_state.token_history.push(token.clone());
         self.oauth_state.current_token = Some(token.clone());
         // Attach to connection if present
         if let Some(ref mut conn) = self.connection {
@@ -755,9 +748,7 @@ impl McpStreamableClient {
             expires_at: Some(9999999999),
             scopes: current.scopes.clone(),
         };
-        self.oauth_state
-            .token_history
-            .push(new_token.clone());
+        self.oauth_state.token_history.push(new_token.clone());
         self.oauth_state.current_token = Some(new_token.clone());
         if let Some(ref mut conn) = self.connection {
             conn.auth = Some(new_token.clone());
@@ -1053,7 +1044,12 @@ mod tests {
         assert!(new_token.access_token.starts_with("refreshed-"));
         assert_eq!(client.oauth_state.token_history.len(), 1);
         assert_eq!(
-            client.oauth_state.current_token.as_ref().unwrap().access_token,
+            client
+                .oauth_state
+                .current_token
+                .as_ref()
+                .unwrap()
+                .access_token,
             new_token.access_token
         );
     }
@@ -1189,7 +1185,9 @@ mod tests {
     #[test]
     fn test_authenticate_nonexistent_connection() {
         let mut server = make_server();
-        assert!(server.authenticate_connection("nope", make_token()).is_err());
+        assert!(server
+            .authenticate_connection("nope", make_token())
+            .is_err());
     }
 
     // -- Message send/receive -----------------------------------------------

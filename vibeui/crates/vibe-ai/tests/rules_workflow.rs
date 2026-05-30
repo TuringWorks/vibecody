@@ -51,8 +51,11 @@ fn loads_rule_without_frontmatter() {
 #[test]
 fn loads_rule_with_full_frontmatter() {
     let ws = workspace();
-    write_rule(&ws, "rust.md",
-        "---\nname: rust-safety\npath_pattern: \"**/*.rs\"\n---\n\nAvoid unwrap().\n");
+    write_rule(
+        &ws,
+        "rust.md",
+        "---\nname: rust-safety\npath_pattern: \"**/*.rs\"\n---\n\nAvoid unwrap().\n",
+    );
     let rules = load_local(&ws);
     assert_eq!(rules.len(), 1);
     assert_eq!(rules[0].name, "rust-safety");
@@ -64,10 +67,16 @@ fn loads_rule_with_full_frontmatter() {
 fn loads_multiple_rules_from_directory() {
     let ws = workspace();
     write_rule(&ws, "always.md", "Be safe.\n");
-    write_rule(&ws, "rust.md",
-        "---\nname: rust\npath_pattern: \"**/*.rs\"\n---\n\nNo unwrap.\n");
-    write_rule(&ws, "ts.md",
-        "---\nname: ts\npath_pattern: \"**/*.ts\"\n---\n\nUse strict.\n");
+    write_rule(
+        &ws,
+        "rust.md",
+        "---\nname: rust\npath_pattern: \"**/*.rs\"\n---\n\nNo unwrap.\n",
+    );
+    write_rule(
+        &ws,
+        "ts.md",
+        "---\nname: ts\npath_pattern: \"**/*.ts\"\n---\n\nUse strict.\n",
+    );
 
     let rules = load_local(&ws);
     assert_eq!(rules.len(), 3);
@@ -94,8 +103,11 @@ fn rule_without_pattern_matches_any_file() {
 #[test]
 fn rule_with_rs_pattern_only_matches_rust_files() {
     let ws = workspace();
-    write_rule(&ws, "rust.md",
-        "---\nname: rust\npath_pattern: \"**/*.rs\"\n---\n\nNo unwrap.\n");
+    write_rule(
+        &ws,
+        "rust.md",
+        "---\nname: rust\npath_pattern: \"**/*.rs\"\n---\n\nNo unwrap.\n",
+    );
     let rules = load_local(&ws);
     let rule = rules.iter().find(|r| r.name == "rust").unwrap();
 
@@ -109,19 +121,31 @@ fn rule_with_rs_pattern_only_matches_rust_files() {
 fn applicable_rules_filter_by_open_files() {
     let ws = workspace();
     write_rule(&ws, "always.md", "Be safe.");
-    write_rule(&ws, "rust.md",
-        "---\nname: rust\npath_pattern: \"**/*.rs\"\n---\n\nNo unwrap.\n");
-    write_rule(&ws, "ts.md",
-        "---\nname: ts\npath_pattern: \"**/*.ts\"\n---\n\nUse strict.\n");
+    write_rule(
+        &ws,
+        "rust.md",
+        "---\nname: rust\npath_pattern: \"**/*.rs\"\n---\n\nNo unwrap.\n",
+    );
+    write_rule(
+        &ws,
+        "ts.md",
+        "---\nname: ts\npath_pattern: \"**/*.ts\"\n---\n\nUse strict.\n",
+    );
 
     let rules = load_local(&ws);
     let open = vec!["src/main.rs".to_string()];
-    let applicable: Vec<_> = rules.iter().filter(|r| r.matches_open_files(&open)).collect();
+    let applicable: Vec<_> = rules
+        .iter()
+        .filter(|r| r.matches_open_files(&open))
+        .collect();
     let names: Vec<_> = applicable.iter().map(|r| r.name.as_str()).collect();
 
-    assert!(names.contains(&"always"), "always-apply rule should be included");
-    assert!(names.contains(&"rust"),   "rust rule should match .rs file");
-    assert!(!names.contains(&"ts"),    "ts rule should not match .rs file");
+    assert!(
+        names.contains(&"always"),
+        "always-apply rule should be included"
+    );
+    assert!(names.contains(&"rust"), "rust rule should match .rs file");
+    assert!(!names.contains(&"ts"), "ts rule should not match .rs file");
 }
 
 // ── global rules deduplication (serialised — touches HOME) ───────────────────
@@ -133,12 +157,19 @@ fn global_rule_not_loaded_when_workspace_has_same_name() {
     let global_home = TempDir::new().unwrap();
     let ws = workspace();
 
-    write_rule(&ws, "shared.md", "---\nname: shared\n---\n\nWorkspace version.\n");
+    write_rule(
+        &ws,
+        "shared.md",
+        "---\nname: shared\n---\n\nWorkspace version.\n",
+    );
 
     let global_rules_dir = global_home.path().join(".vibecli").join("rules");
     std::fs::create_dir_all(&global_rules_dir).unwrap();
-    std::fs::write(global_rules_dir.join("shared.md"),
-        "---\nname: shared\n---\n\nGlobal version.\n").unwrap();
+    std::fs::write(
+        global_rules_dir.join("shared.md"),
+        "---\nname: shared\n---\n\nGlobal version.\n",
+    )
+    .unwrap();
 
     let original = std::env::var("HOME").unwrap_or_default();
     std::env::set_var("HOME", global_home.path());
@@ -147,8 +178,10 @@ fn global_rule_not_loaded_when_workspace_has_same_name() {
 
     let shared: Vec<_> = rules.iter().filter(|r| r.name == "shared").collect();
     assert_eq!(shared.len(), 1);
-    assert!(shared[0].content.contains("Workspace version"),
-        "workspace rule should take precedence");
+    assert!(
+        shared[0].content.contains("Workspace version"),
+        "workspace rule should take precedence"
+    );
 }
 
 #[test]
@@ -160,16 +193,21 @@ fn global_rule_loaded_when_no_workspace_conflict() {
 
     let global_rules_dir = global_home.path().join(".vibecli").join("rules");
     std::fs::create_dir_all(&global_rules_dir).unwrap();
-    std::fs::write(global_rules_dir.join("global-only.md"),
-        "---\nname: global-only\n---\n\nGlobal guidance.\n").unwrap();
+    std::fs::write(
+        global_rules_dir.join("global-only.md"),
+        "---\nname: global-only\n---\n\nGlobal guidance.\n",
+    )
+    .unwrap();
 
     let original = std::env::var("HOME").unwrap_or_default();
     std::env::set_var("HOME", global_home.path());
     let rules = RulesLoader::load_for_workspace(ws.path());
     std::env::set_var("HOME", &original);
 
-    assert!(rules.iter().any(|r| r.name == "global-only"),
-        "global rule should be loaded when workspace has no conflict");
+    assert!(
+        rules.iter().any(|r| r.name == "global-only"),
+        "global rule should be loaded when workspace has no conflict"
+    );
 }
 
 // ── rule content integrity ────────────────────────────────────────────────────
@@ -177,12 +215,24 @@ fn global_rule_loaded_when_no_workspace_conflict() {
 #[test]
 fn rule_body_excludes_frontmatter_block() {
     let ws = workspace();
-    write_rule(&ws, "rule.md",
-        "---\nname: clean\npath_pattern: \"*\"\n---\n\nThis is the body.\nNo YAML here.\n");
+    write_rule(
+        &ws,
+        "rule.md",
+        "---\nname: clean\npath_pattern: \"*\"\n---\n\nThis is the body.\nNo YAML here.\n",
+    );
     let rules = load_local(&ws);
     let rule = rules.iter().find(|r| r.name == "clean").unwrap();
 
-    assert!(!rule.content.contains("---"), "frontmatter delimiters should not appear in body");
-    assert!(!rule.content.contains("path_pattern"), "frontmatter keys should not appear in body");
-    assert!(rule.content.contains("This is the body"), "body content should be present");
+    assert!(
+        !rule.content.contains("---"),
+        "frontmatter delimiters should not appear in body"
+    );
+    assert!(
+        !rule.content.contains("path_pattern"),
+        "frontmatter keys should not appear in body"
+    );
+    assert!(
+        rule.content.contains("This is the body"),
+        "body content should be present"
+    );
 }

@@ -204,9 +204,7 @@ impl TransitionMatrix {
         pairs
             .into_iter()
             .take(n)
-            .filter_map(|(k, c)| {
-                DevAction::from_key(k).map(|a| (a, *c as f64 / total as f64))
-            })
+            .filter_map(|(k, c)| DevAction::from_key(k).map(|a| (a, *c as f64 / total as f64)))
             .collect()
     }
 }
@@ -541,11 +539,7 @@ impl PredictionEngine {
         // Update metrics.
         self.metrics.total_suggestions += deduped.len() as u32;
         let phase_key = format!("{:?}", self.tracker.phase);
-        let ps = self
-            .metrics
-            .by_phase
-            .entry(phase_key)
-            .or_default();
+        let ps = self.metrics.by_phase.entry(phase_key).or_default();
         ps.suggestions += deduped.len() as u32;
 
         self.suggestions = deduped.clone();
@@ -553,10 +547,7 @@ impl PredictionEngine {
     }
 
     pub fn accept_suggestion(&mut self, suggestion_id: &str) -> Result<(), String> {
-        let found = self
-            .suggestions
-            .iter()
-            .any(|s| s.id == suggestion_id);
+        let found = self.suggestions.iter().any(|s| s.id == suggestion_id);
         if !found {
             return Err(format!("Suggestion '{}' not found", suggestion_id));
         }
@@ -565,11 +556,7 @@ impl PredictionEngine {
         self.update_accuracy();
 
         let phase_key = format!("{:?}", self.tracker.phase);
-        let ps = self
-            .metrics
-            .by_phase
-            .entry(phase_key)
-            .or_default();
+        let ps = self.metrics.by_phase.entry(phase_key).or_default();
         ps.accepted += 1;
         ps.accuracy = if ps.suggestions > 0 {
             ps.accepted as f64 / ps.suggestions as f64
@@ -581,10 +568,7 @@ impl PredictionEngine {
     }
 
     pub fn reject_suggestion(&mut self, suggestion_id: &str) -> Result<(), String> {
-        let found = self
-            .suggestions
-            .iter()
-            .any(|s| s.id == suggestion_id);
+        let found = self.suggestions.iter().any(|s| s.id == suggestion_id);
         if !found {
             return Err(format!("Suggestion '{}' not found", suggestion_id));
         }
@@ -669,7 +653,10 @@ mod tests {
     #[test]
     fn test_transition_matrix_empty() {
         let m = TransitionMatrix::new();
-        assert_eq!(m.get_probability(&DevAction::RunTests, &DevAction::Debug), 0.0);
+        assert_eq!(
+            m.get_probability(&DevAction::RunTests, &DevAction::Debug),
+            0.0
+        );
     }
 
     #[test]
@@ -752,9 +739,24 @@ mod tests {
     #[test]
     fn test_tracker_infer_phase_testing() {
         let mut t = WorkflowTracker::new(0);
-        t.record_action(ActionRecord { action: DevAction::RunTests, timestamp: 1, file_path: None, accepted: true });
-        t.record_action(ActionRecord { action: DevAction::RunBuild, timestamp: 2, file_path: None, accepted: true });
-        t.record_action(ActionRecord { action: DevAction::RunLint, timestamp: 3, file_path: None, accepted: true });
+        t.record_action(ActionRecord {
+            action: DevAction::RunTests,
+            timestamp: 1,
+            file_path: None,
+            accepted: true,
+        });
+        t.record_action(ActionRecord {
+            action: DevAction::RunBuild,
+            timestamp: 2,
+            file_path: None,
+            accepted: true,
+        });
+        t.record_action(ActionRecord {
+            action: DevAction::RunLint,
+            timestamp: 3,
+            file_path: None,
+            accepted: true,
+        });
         assert_eq!(t.infer_phase(), WorkflowPhase::Testing);
     }
 
@@ -909,10 +911,9 @@ mod tests {
         let mut e = PredictionEngine::new(0);
         e.record_action(DevAction::EditFile("a.rs".into()), 1, None);
         e.record_action(DevAction::RunTests, 2, None);
-        let p = e.transition_matrix.get_probability(
-            &DevAction::EditFile(String::new()),
-            &DevAction::RunTests,
-        );
+        let p = e
+            .transition_matrix
+            .get_probability(&DevAction::EditFile(String::new()), &DevAction::RunTests);
         assert!((p - 1.0).abs() < 1e-9);
     }
 
@@ -947,7 +948,10 @@ mod tests {
         // EditFile->RunTests exists in both rules and transitions
         e.record_action(DevAction::EditFile("b.rs".into()), 3, None);
         let suggestions = e.suggest_next(10);
-        let run_test_count = suggestions.iter().filter(|s| s.action.key() == "RunTests").count();
+        let run_test_count = suggestions
+            .iter()
+            .filter(|s| s.action.key() == "RunTests")
+            .count();
         assert_eq!(run_test_count, 1, "RunTests should appear only once");
     }
 
@@ -1128,7 +1132,9 @@ mod tests {
             e.record_action(DevAction::RunTests, ts(i), None);
         }
         // Transition RunTests -> RunTests should have probability 1.0
-        let p = e.transition_matrix.get_probability(&DevAction::RunTests, &DevAction::RunTests);
+        let p = e
+            .transition_matrix
+            .get_probability(&DevAction::RunTests, &DevAction::RunTests);
         assert!((p - 1.0).abs() < 1e-9);
         let suggestions = e.suggest_next(3);
         assert!(!suggestions.is_empty());
@@ -1156,36 +1162,103 @@ mod tests {
 
     #[test]
     fn test_phase_for_action_coverage() {
-        assert_eq!(phase_for_action(&DevAction::EditFile(String::new())), WorkflowPhase::Coding);
-        assert_eq!(phase_for_action(&DevAction::CreateFile(String::new())), WorkflowPhase::Coding);
-        assert_eq!(phase_for_action(&DevAction::DeleteFile(String::new())), WorkflowPhase::Coding);
-        assert_eq!(phase_for_action(&DevAction::RunTests), WorkflowPhase::Testing);
-        assert_eq!(phase_for_action(&DevAction::RunBuild), WorkflowPhase::Testing);
-        assert_eq!(phase_for_action(&DevAction::RunLint), WorkflowPhase::Testing);
-        assert_eq!(phase_for_action(&DevAction::GitCommit), WorkflowPhase::Committing);
-        assert_eq!(phase_for_action(&DevAction::GitPush), WorkflowPhase::Reviewing);
-        assert_eq!(phase_for_action(&DevAction::CreatePR), WorkflowPhase::Reviewing);
-        assert_eq!(phase_for_action(&DevAction::Deploy), WorkflowPhase::Deploying);
-        assert_eq!(phase_for_action(&DevAction::WriteDoc), WorkflowPhase::Documenting);
-        assert_eq!(phase_for_action(&DevAction::Debug), WorkflowPhase::Debugging);
-        assert_eq!(phase_for_action(&DevAction::AddDependency), WorkflowPhase::Coding);
-        assert_eq!(phase_for_action(&DevAction::Refactor), WorkflowPhase::Coding);
+        assert_eq!(
+            phase_for_action(&DevAction::EditFile(String::new())),
+            WorkflowPhase::Coding
+        );
+        assert_eq!(
+            phase_for_action(&DevAction::CreateFile(String::new())),
+            WorkflowPhase::Coding
+        );
+        assert_eq!(
+            phase_for_action(&DevAction::DeleteFile(String::new())),
+            WorkflowPhase::Coding
+        );
+        assert_eq!(
+            phase_for_action(&DevAction::RunTests),
+            WorkflowPhase::Testing
+        );
+        assert_eq!(
+            phase_for_action(&DevAction::RunBuild),
+            WorkflowPhase::Testing
+        );
+        assert_eq!(
+            phase_for_action(&DevAction::RunLint),
+            WorkflowPhase::Testing
+        );
+        assert_eq!(
+            phase_for_action(&DevAction::GitCommit),
+            WorkflowPhase::Committing
+        );
+        assert_eq!(
+            phase_for_action(&DevAction::GitPush),
+            WorkflowPhase::Reviewing
+        );
+        assert_eq!(
+            phase_for_action(&DevAction::CreatePR),
+            WorkflowPhase::Reviewing
+        );
+        assert_eq!(
+            phase_for_action(&DevAction::Deploy),
+            WorkflowPhase::Deploying
+        );
+        assert_eq!(
+            phase_for_action(&DevAction::WriteDoc),
+            WorkflowPhase::Documenting
+        );
+        assert_eq!(
+            phase_for_action(&DevAction::Debug),
+            WorkflowPhase::Debugging
+        );
+        assert_eq!(
+            phase_for_action(&DevAction::AddDependency),
+            WorkflowPhase::Coding
+        );
+        assert_eq!(
+            phase_for_action(&DevAction::Refactor),
+            WorkflowPhase::Coding
+        );
     }
 
     #[test]
     fn test_tracker_infer_phase_debugging() {
         let mut t = WorkflowTracker::new(0);
-        t.record_action(ActionRecord { action: DevAction::Debug, timestamp: 1, file_path: None, accepted: true });
-        t.record_action(ActionRecord { action: DevAction::Debug, timestamp: 2, file_path: None, accepted: true });
-        t.record_action(ActionRecord { action: DevAction::Debug, timestamp: 3, file_path: None, accepted: true });
+        t.record_action(ActionRecord {
+            action: DevAction::Debug,
+            timestamp: 1,
+            file_path: None,
+            accepted: true,
+        });
+        t.record_action(ActionRecord {
+            action: DevAction::Debug,
+            timestamp: 2,
+            file_path: None,
+            accepted: true,
+        });
+        t.record_action(ActionRecord {
+            action: DevAction::Debug,
+            timestamp: 3,
+            file_path: None,
+            accepted: true,
+        });
         assert_eq!(t.infer_phase(), WorkflowPhase::Debugging);
     }
 
     #[test]
     fn test_tracker_infer_phase_documenting() {
         let mut t = WorkflowTracker::new(0);
-        t.record_action(ActionRecord { action: DevAction::WriteDoc, timestamp: 1, file_path: None, accepted: true });
-        t.record_action(ActionRecord { action: DevAction::WriteDoc, timestamp: 2, file_path: None, accepted: true });
+        t.record_action(ActionRecord {
+            action: DevAction::WriteDoc,
+            timestamp: 1,
+            file_path: None,
+            accepted: true,
+        });
+        t.record_action(ActionRecord {
+            action: DevAction::WriteDoc,
+            timestamp: 2,
+            file_path: None,
+            accepted: true,
+        });
         assert_eq!(t.infer_phase(), WorkflowPhase::Documenting);
     }
 
@@ -1195,8 +1268,14 @@ mod tests {
         m.record_transition(&DevAction::EditFile("a".into()), &DevAction::RunTests);
         m.record_transition(&DevAction::RunTests, &DevAction::GitCommit);
         m.record_transition(&DevAction::GitCommit, &DevAction::GitPush);
-        assert!((m.get_probability(&DevAction::EditFile(String::new()), &DevAction::RunTests) - 1.0).abs() < 1e-9);
-        assert!((m.get_probability(&DevAction::RunTests, &DevAction::GitCommit) - 1.0).abs() < 1e-9);
+        assert!(
+            (m.get_probability(&DevAction::EditFile(String::new()), &DevAction::RunTests) - 1.0)
+                .abs()
+                < 1e-9
+        );
+        assert!(
+            (m.get_probability(&DevAction::RunTests, &DevAction::GitCommit) - 1.0).abs() < 1e-9
+        );
         assert!((m.get_probability(&DevAction::GitCommit, &DevAction::GitPush) - 1.0).abs() < 1e-9);
     }
 
@@ -1222,11 +1301,23 @@ mod tests {
     fn test_engine_long_workflow_sequence() {
         let mut e = PredictionEngine::new(0);
         // Simulate a real workflow
-        e.record_action(DevAction::CreateFile("lib.rs".into()), ts(0), Some("lib.rs".into()));
-        e.record_action(DevAction::EditFile("lib.rs".into()), ts(1), Some("lib.rs".into()));
+        e.record_action(
+            DevAction::CreateFile("lib.rs".into()),
+            ts(0),
+            Some("lib.rs".into()),
+        );
+        e.record_action(
+            DevAction::EditFile("lib.rs".into()),
+            ts(1),
+            Some("lib.rs".into()),
+        );
         e.record_action(DevAction::RunTests, ts(2), None);
         e.record_action(DevAction::Debug, ts(3), None);
-        e.record_action(DevAction::EditFile("lib.rs".into()), ts(4), Some("lib.rs".into()));
+        e.record_action(
+            DevAction::EditFile("lib.rs".into()),
+            ts(4),
+            Some("lib.rs".into()),
+        );
         e.record_action(DevAction::RunTests, ts(5), None);
         e.record_action(DevAction::GitCommit, ts(6), None);
         e.record_action(DevAction::GitPush, ts(7), None);

@@ -24,7 +24,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::task::JoinHandle;
 
-use crate::audit::{AuditSink, EgressOutcome, NullAuditSink, baseline_egress_request};
+use crate::audit::{baseline_egress_request, AuditSink, EgressOutcome, NullAuditSink};
 use crate::policy::SecretRef;
 use crate::secrets::SecretStore;
 
@@ -115,8 +115,7 @@ impl ImdsServer {
                 event.outcome = EgressOutcome::UpstreamError;
                 event.status = Some(400);
                 self.audit.record(event);
-                return write_response(&mut stream, 400, "Bad Request", "text/plain", b"")
-                    .await;
+                return write_response(&mut stream, 400, "Bad Request", "text/plain", b"").await;
             }
         };
 
@@ -130,9 +129,7 @@ impl ImdsServer {
         event.inject = "Imds".into();
 
         // PUT /latest/api/token: hand out the synthetic token.
-        if parsed.method.eq_ignore_ascii_case("PUT")
-            && parsed.path == "/latest/api/token"
-        {
+        if parsed.method.eq_ignore_ascii_case("PUT") && parsed.path == "/latest/api/token" {
             event.outcome = EgressOutcome::Ok;
             event.status = Some(200);
             self.audit.record(event);
@@ -156,8 +153,7 @@ impl ImdsServer {
             event.outcome = EgressOutcome::PolicyDenied;
             event.status = Some(401);
             self.audit.record(event);
-            return write_response(&mut stream, 401, "Unauthorized", "text/plain", b"")
-                .await;
+            return write_response(&mut stream, 401, "Unauthorized", "text/plain", b"").await;
         }
 
         if parsed.method.eq_ignore_ascii_case("GET") {
@@ -187,8 +183,7 @@ impl ImdsServer {
                 event.outcome = EgressOutcome::UpstreamError;
                 event.status = Some(404);
                 self.audit.record(event);
-                return write_response(&mut stream, 404, "Not Found", "text/plain", b"")
-                    .await;
+                return write_response(&mut stream, 404, "Not Found", "text/plain", b"").await;
             }
         }
 
@@ -215,7 +210,9 @@ impl ImdsServer {
 
         // 15-minute window — the daemon refreshes upstream creds before
         // expiration; SDKs cache up to this point.
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default();
         let exp = now + Duration::from_secs(15 * 60);
         let last_updated = format_iso8601(now);
         let expiration = format_iso8601(exp);
@@ -314,7 +311,11 @@ fn parse_request(buf: &[u8]) -> Option<Parsed> {
             headers.push((k.trim().to_owned(), v.trim().to_owned()));
         }
     }
-    Some(Parsed { method, path, headers })
+    Some(Parsed {
+        method,
+        path,
+        headers,
+    })
 }
 
 async fn read_until_headers(stream: &mut TcpStream, buf: &mut [u8]) -> std::io::Result<usize> {
@@ -386,9 +387,15 @@ mod tests {
     #[test]
     fn iso8601_known_vector() {
         // Unix epoch = 1970-01-01T00:00:00Z.
-        assert_eq!(format_iso8601(Duration::from_secs(0)), "1970-01-01T00:00:00Z");
+        assert_eq!(
+            format_iso8601(Duration::from_secs(0)),
+            "1970-01-01T00:00:00Z"
+        );
         // 86_400 seconds = exactly 1 day.
-        assert_eq!(format_iso8601(Duration::from_secs(86_400)), "1970-01-02T00:00:00Z");
+        assert_eq!(
+            format_iso8601(Duration::from_secs(86_400)),
+            "1970-01-02T00:00:00Z"
+        );
         // 2000-03-01T00:00:00Z — exercises the leap-year branch around
         // the Y2K boundary in civil_from_days.
         assert_eq!(

@@ -130,23 +130,37 @@ pub async fn plan_transform(
         [{{\"file\": \"path\", \"description\": \"what to change\", \"estimated_changes\": N}}]\n\n\
         Only return the JSON array, nothing else.",
         transform_type,
-        relevant_files.iter().take(20).map(|f| format!("- {}", f)).collect::<Vec<_>>().join("\n")
+        relevant_files
+            .iter()
+            .take(20)
+            .map(|f| format!("- {}", f))
+            .collect::<Vec<_>>()
+            .join("\n")
     );
 
     let messages = vec![
-        Message { role: MessageRole::System, content: "You are a code migration expert.".into() },
-        Message { role: MessageRole::User, content: prompt },
+        Message {
+            role: MessageRole::System,
+            content: "You are a code migration expert.".into(),
+        },
+        Message {
+            role: MessageRole::User,
+            content: prompt,
+        },
     ];
 
     let response = llm.chat(&messages, None).await?;
 
     // Try to parse the plan from JSON
     let items = parse_plan_json(&response).unwrap_or_else(|_| {
-        relevant_files.iter().map(|f| TransformPlanItem {
-            file: f.clone(),
-            description: format!("Apply {} transform", transform_type),
-            estimated_changes: 5,
-        }).collect()
+        relevant_files
+            .iter()
+            .map(|f| TransformPlanItem {
+                file: f.clone(),
+                description: format!("Apply {} transform", transform_type),
+                estimated_changes: 5,
+            })
+            .collect()
     });
 
     let total = items.len();
@@ -160,8 +174,13 @@ pub async fn plan_transform(
 
 fn parse_plan_json(content: &str) -> Result<Vec<TransformPlanItem>> {
     // Find JSON array in the response
-    let start = content.find('[').ok_or_else(|| anyhow::anyhow!("No JSON array"))?;
-    let end = content.rfind(']').ok_or_else(|| anyhow::anyhow!("No JSON array end"))? + 1;
+    let start = content
+        .find('[')
+        .ok_or_else(|| anyhow::anyhow!("No JSON array"))?;
+    let end = content
+        .rfind(']')
+        .ok_or_else(|| anyhow::anyhow!("No JSON array end"))?
+        + 1;
     let json_str = &content[start..end];
     Ok(serde_json::from_str(json_str)?)
 }
@@ -183,12 +202,19 @@ fn find_relevant_files(workspace: &std::path::Path, transform_type: &TransformTy
         .filter_map(|e| e.ok())
     {
         if entry.file_type().is_file() {
-            let ext = entry.path().extension().and_then(|e| e.to_str()).unwrap_or("");
+            let ext = entry
+                .path()
+                .extension()
+                .and_then(|e| e.to_str())
+                .unwrap_or("");
             if extensions.contains(&ext) {
                 if let Ok(rel) = entry.path().strip_prefix(workspace) {
                     let rel_str = rel.to_string_lossy().to_string();
                     // Skip node_modules, target, .git, etc.
-                    if !rel_str.contains("node_modules") && !rel_str.contains("/target/") && !rel_str.starts_with(".git") {
+                    if !rel_str.contains("node_modules")
+                        && !rel_str.contains("/target/")
+                        && !rel_str.starts_with(".git")
+                    {
                         files.push(rel_str);
                     }
                 }
@@ -216,8 +242,14 @@ pub async fn execute_transform_file(
     );
 
     let messages = vec![
-        Message { role: MessageRole::System, content: "You are a code migration tool. Return only the transformed code.".into() },
-        Message { role: MessageRole::User, content: prompt },
+        Message {
+            role: MessageRole::System,
+            content: "You are a code migration tool. Return only the transformed code.".into(),
+        },
+        Message {
+            role: MessageRole::User,
+            content: prompt,
+        },
     ];
 
     let response = llm.chat(&messages, None).await?;
@@ -251,7 +283,10 @@ mod tests {
     #[test]
     fn transform_type_display() {
         assert_eq!(TransformType::CommonjsToEsm.to_string(), "CommonJS → ESM");
-        assert_eq!(TransformType::ReactClassToHooks.to_string(), "React Class → Hooks");
+        assert_eq!(
+            TransformType::ReactClassToHooks.to_string(),
+            "React Class → Hooks"
+        );
     }
 
     #[test]
@@ -401,7 +436,10 @@ mod tests {
     fn transform_type_display_all_variants() {
         assert_eq!(TransformType::Python2To3.to_string(), "Python 2 \u{2192} 3");
         assert_eq!(TransformType::Vue2To3.to_string(), "Vue 2 \u{2192} 3");
-        assert_eq!(TransformType::JavaUpgrade.to_string(), "Java Version Upgrade");
+        assert_eq!(
+            TransformType::JavaUpgrade.to_string(),
+            "Java Version Upgrade"
+        );
     }
 
     // ── TransformResult serde roundtrip ──
@@ -459,8 +497,16 @@ Let me know if you want changes."#;
         let plan = TransformPlan {
             transform_type: TransformType::Python2To3,
             files: vec![
-                TransformPlanItem { file: "a.py".into(), description: "fix print".into(), estimated_changes: 2 },
-                TransformPlanItem { file: "b.py".into(), description: "fix dict".into(), estimated_changes: 3 },
+                TransformPlanItem {
+                    file: "a.py".into(),
+                    description: "fix print".into(),
+                    estimated_changes: 2,
+                },
+                TransformPlanItem {
+                    file: "b.py".into(),
+                    description: "fix dict".into(),
+                    estimated_changes: 3,
+                },
             ],
             total_files: 2,
             summary: "2 files to transform with Python 2 \u{2192} 3".into(),

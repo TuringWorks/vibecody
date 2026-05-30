@@ -31,10 +31,14 @@ const TODOIST_API: &str = "https://api.todoist.com/rest/v2";
 fn store_lookup(short: &str, legacy: &str) -> Option<String> {
     let store = crate::profile_store::ProfileStore::new().ok()?;
     if let Ok(Some(v)) = store.get_api_key("default", short) {
-        if !v.is_empty() { return Some(v); }
+        if !v.is_empty() {
+            return Some(v);
+        }
     }
     if let Ok(Some(v)) = store.get_api_key("default", legacy) {
-        if !v.is_empty() { return Some(v); }
+        if !v.is_empty() {
+            return Some(v);
+        }
     }
     None
 }
@@ -108,11 +112,17 @@ impl NotionClient {
         let key = store_lookup("notion", "integration.productivity.notion_api_key")
             .or_else(|| std::env::var("NOTION_API_KEY").ok())
             .or_else(|| {
-                crate::config::Config::load().ok()
+                crate::config::Config::load()
+                    .ok()
                     .and_then(|c| c.notion_api_key)
             })?;
-        if key.is_empty() { return None; }
-        Some(Self { api_key: key, client: build_client() })
+        if key.is_empty() {
+            return None;
+        }
+        Some(Self {
+            api_key: key,
+            client: build_client(),
+        })
     }
 
     async fn search(&self, query: &str) -> Result<Vec<NotionPage>> {
@@ -125,7 +135,8 @@ impl NotionClient {
             let api_key = api_key.clone();
             let payload = payload_c.clone();
             async move {
-                client.post(format!("{}/search", NOTION_API))
+                client
+                    .post(format!("{}/search", NOTION_API))
                     .header("Authorization", format!("Bearer {}", api_key))
                     .header("Notion-Version", "2022-06-28")
                     .json(&payload)
@@ -133,24 +144,32 @@ impl NotionClient {
                     .await
                     .map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
 
         let data: serde_json::Value = resp.json().await?;
-        let pages = data["results"].as_array()
-            .map(|arr| arr.iter().map(|p| {
-                let title = p["properties"]["title"]["title"].as_array()
-                    .or_else(|| p["properties"]["Name"]["title"].as_array())
-                    .and_then(|a| a.first())
-                    .and_then(|t| t["plain_text"].as_str())
-                    .unwrap_or("Untitled").to_string();
-                NotionPage {
-                    id: p["id"].as_str().unwrap_or("").to_string(),
-                    title,
-                    url: p["url"].as_str().unwrap_or("").to_string(),
-                    last_edited: p["last_edited_time"].as_str().unwrap_or("").to_string(),
-                    icon: p["icon"]["emoji"].as_str().map(String::from),
-                }
-            }).collect())
+        let pages = data["results"]
+            .as_array()
+            .map(|arr| {
+                arr.iter()
+                    .map(|p| {
+                        let title = p["properties"]["title"]["title"]
+                            .as_array()
+                            .or_else(|| p["properties"]["Name"]["title"].as_array())
+                            .and_then(|a| a.first())
+                            .and_then(|t| t["plain_text"].as_str())
+                            .unwrap_or("Untitled")
+                            .to_string();
+                        NotionPage {
+                            id: p["id"].as_str().unwrap_or("").to_string(),
+                            title,
+                            url: p["url"].as_str().unwrap_or("").to_string(),
+                            last_edited: p["last_edited_time"].as_str().unwrap_or("").to_string(),
+                            icon: p["icon"]["emoji"].as_str().map(String::from),
+                        }
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
         Ok(pages)
     }
@@ -164,14 +183,16 @@ impl NotionClient {
             let api_key = api_key.clone();
             let url = url.clone();
             async move {
-                client.get(&url)
+                client
+                    .get(&url)
                     .header("Authorization", format!("Bearer {}", api_key))
                     .header("Notion-Version", "2022-06-28")
                     .send()
                     .await
                     .map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
 
         let data: serde_json::Value = resp.json().await?;
         let mut content = String::new();
@@ -187,23 +208,27 @@ impl NotionClient {
                 }
             }
         }
-        if content.is_empty() { content = "(empty page)".to_string(); }
+        if content.is_empty() {
+            content = "(empty page)".to_string();
+        }
         Ok(content)
     }
 
     async fn append_text(&self, page_id: &str, text: &str) -> Result<()> {
         let children: Vec<serde_json::Value> = text
             .split('\n')
-            .map(|line| serde_json::json!({
-                "object": "block",
-                "type": "paragraph",
-                "paragraph": {
-                    "rich_text": [{
-                        "type": "text",
-                        "text": { "content": line }
-                    }]
-                }
-            }))
+            .map(|line| {
+                serde_json::json!({
+                    "object": "block",
+                    "type": "paragraph",
+                    "paragraph": {
+                        "rich_text": [{
+                            "type": "text",
+                            "text": { "content": line }
+                        }]
+                    }
+                })
+            })
             .collect();
         let payload = serde_json::json!({ "children": children });
         let api_key = self.api_key.clone();
@@ -216,7 +241,8 @@ impl NotionClient {
             let url = url.clone();
             let payload = payload_c.clone();
             async move {
-                client.patch(&url)
+                client
+                    .patch(&url)
                     .header("Authorization", format!("Bearer {}", api_key))
                     .header("Notion-Version", "2022-06-28")
                     .json(&payload)
@@ -224,7 +250,8 @@ impl NotionClient {
                     .await
                     .map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
 
         if !resp.status().is_success() {
             let status = resp.status();
@@ -246,14 +273,22 @@ async fn handle_notion(args: &str) -> String {
 
     match subcmd {
         "search" | "find" => {
-            if rest.is_empty() { return "Usage: /notion search <query>\n".to_string(); }
+            if rest.is_empty() {
+                return "Usage: /notion search <query>\n".to_string();
+            }
             match client.search(rest).await {
                 Ok(pages) => {
-                    if pages.is_empty() { return "🔎 No results.\n".to_string(); }
-                    let mut out = format!("📓 Notion Search: \"{}\" ({} results)\n", rest, pages.len());
+                    if pages.is_empty() {
+                        return "🔎 No results.\n".to_string();
+                    }
+                    let mut out =
+                        format!("📓 Notion Search: \"{}\" ({} results)\n", rest, pages.len());
                     for p in &pages {
                         let icon = p.icon.as_deref().unwrap_or("📄");
-                        out.push_str(&format!("  {} {}  {}\n    {}\n", icon, p.title, p.last_edited, p.url));
+                        out.push_str(&format!(
+                            "  {} {}  {}\n    {}\n",
+                            icon, p.title, p.last_edited, p.url
+                        ));
                     }
                     out
                 }
@@ -261,7 +296,9 @@ async fn handle_notion(args: &str) -> String {
             }
         }
         "page" | "read" => {
-            if rest.is_empty() { return "Usage: /notion page <page_id>\n".to_string(); }
+            if rest.is_empty() {
+                return "Usage: /notion page <page_id>\n".to_string();
+            }
             match client.get_page(rest).await {
                 Ok(content) => content,
                 Err(e) => format!("❌ {}\n", e),
@@ -270,7 +307,8 @@ async fn handle_notion(args: &str) -> String {
         _ => "📓 Notion Commands:\n\
               /notion search <query>   — Search pages\n\
               /notion page <id>        — Read page content\n\n\
-            Config: Set NOTION_API_KEY env var\n".to_string(),
+            Config: Set NOTION_API_KEY env var\n"
+            .to_string(),
     }
 }
 
@@ -286,18 +324,28 @@ impl TodoistClient {
         let key = store_lookup("todoist", "integration.productivity.todoist_api_key")
             .or_else(|| std::env::var("TODOIST_API_KEY").ok())
             .or_else(|| {
-                crate::config::Config::load().ok()
+                crate::config::Config::load()
+                    .ok()
                     .and_then(|c| c.todoist_api_key)
             })?;
-        if key.is_empty() { return None; }
-        Some(Self { api_key: key, client: build_client() })
+        if key.is_empty() {
+            return None;
+        }
+        Some(Self {
+            api_key: key,
+            client: build_client(),
+        })
     }
 
     async fn list_tasks(&self, filter: &str) -> Result<Vec<TodoistTask>> {
         let url = if filter.is_empty() {
             format!("{}/tasks", TODOIST_API)
         } else {
-            format!("{}/tasks?filter={}", TODOIST_API, urlencoding::encode(filter))
+            format!(
+                "{}/tasks?filter={}",
+                TODOIST_API,
+                urlencoding::encode(filter)
+            )
         };
         let api_key = self.api_key.clone();
         let client = self.client.clone();
@@ -306,24 +354,29 @@ impl TodoistClient {
             let api_key = api_key.clone();
             let url = url.clone();
             async move {
-                client.get(&url)
+                client
+                    .get(&url)
                     .header("Authorization", format!("Bearer {}", api_key))
                     .send()
                     .await
                     .map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
 
         let data: Vec<serde_json::Value> = resp.json().await?;
-        Ok(data.iter().map(|t| TodoistTask {
-            id: t["id"].as_str().unwrap_or("").to_string(),
-            content: t["content"].as_str().unwrap_or("").to_string(),
-            description: t["description"].as_str().unwrap_or("").to_string(),
-            due: t["due"]["string"].as_str().map(String::from),
-            priority: t["priority"].as_u64().unwrap_or(1) as u8,
-            project_id: t["project_id"].as_str().map(String::from),
-            is_completed: t["is_completed"].as_bool().unwrap_or(false),
-        }).collect())
+        Ok(data
+            .iter()
+            .map(|t| TodoistTask {
+                id: t["id"].as_str().unwrap_or("").to_string(),
+                content: t["content"].as_str().unwrap_or("").to_string(),
+                description: t["description"].as_str().unwrap_or("").to_string(),
+                due: t["due"]["string"].as_str().map(String::from),
+                priority: t["priority"].as_u64().unwrap_or(1) as u8,
+                project_id: t["project_id"].as_str().map(String::from),
+                is_completed: t["is_completed"].as_bool().unwrap_or(false),
+            })
+            .collect())
     }
 
     async fn add_task(&self, content: &str) -> Result<TodoistTask> {
@@ -350,14 +403,16 @@ impl TodoistClient {
             let api_key = api_key.clone();
             let payload = payload.clone();
             async move {
-                client.post(format!("{}/tasks", TODOIST_API))
+                client
+                    .post(format!("{}/tasks", TODOIST_API))
                     .header("Authorization", format!("Bearer {}", api_key))
                     .json(&payload)
                     .send()
                     .await
                     .map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
 
         let t: serde_json::Value = resp.json().await?;
         Ok(TodoistTask {
@@ -380,13 +435,15 @@ impl TodoistClient {
             let api_key = api_key.clone();
             let url = url.clone();
             async move {
-                client.post(&url)
+                client
+                    .post(&url)
                     .header("Authorization", format!("Bearer {}", api_key))
                     .send()
                     .await
                     .map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
         Ok(())
     }
 }
@@ -401,40 +458,56 @@ async fn handle_todoist(args: &str) -> String {
     let rest = parts.get(1).copied().unwrap_or("");
 
     match subcmd {
-        "" | "list" => {
-            match client.list_tasks("").await {
-                Ok(tasks) => {
-                    if tasks.is_empty() { return "📭 No active tasks!\n".to_string(); }
-                    let mut out = format!("📋 Todoist Tasks ({} active)\n{}\n", tasks.len(), "─".repeat(50));
-                    for t in &tasks {
-                        let due = t.due.as_deref().unwrap_or("");
-                        out.push_str(&format!("  {} [{}] {}  {}\n", t.priority_icon(), &t.id[..t.id.len().min(8)], t.content, due));
-                    }
-                    out
+        "" | "list" => match client.list_tasks("").await {
+            Ok(tasks) => {
+                if tasks.is_empty() {
+                    return "📭 No active tasks!\n".to_string();
                 }
-                Err(e) => format!("❌ {}\n", e),
-            }
-        }
-        "today" => {
-            match client.list_tasks("today").await {
-                Ok(tasks) => {
-                    if tasks.is_empty() { return "📭 Nothing due today!\n".to_string(); }
-                    let mut out = format!("📋 Due Today ({} tasks)\n", tasks.len());
-                    for t in &tasks { out.push_str(&format!("  {} {}\n", t.priority_icon(), t.content)); }
-                    out
+                let mut out = format!(
+                    "📋 Todoist Tasks ({} active)\n{}\n",
+                    tasks.len(),
+                    "─".repeat(50)
+                );
+                for t in &tasks {
+                    let due = t.due.as_deref().unwrap_or("");
+                    out.push_str(&format!(
+                        "  {} [{}] {}  {}\n",
+                        t.priority_icon(),
+                        &t.id[..t.id.len().min(8)],
+                        t.content,
+                        due
+                    ));
                 }
-                Err(e) => format!("❌ {}\n", e),
+                out
             }
-        }
+            Err(e) => format!("❌ {}\n", e),
+        },
+        "today" => match client.list_tasks("today").await {
+            Ok(tasks) => {
+                if tasks.is_empty() {
+                    return "📭 Nothing due today!\n".to_string();
+                }
+                let mut out = format!("📋 Due Today ({} tasks)\n", tasks.len());
+                for t in &tasks {
+                    out.push_str(&format!("  {} {}\n", t.priority_icon(), t.content));
+                }
+                out
+            }
+            Err(e) => format!("❌ {}\n", e),
+        },
         "add" | "new" => {
-            if rest.is_empty() { return "Usage: /todo add <task description>\n".to_string(); }
+            if rest.is_empty() {
+                return "Usage: /todo add <task description>\n".to_string();
+            }
             match client.add_task(rest).await {
                 Ok(t) => format!("➕ Task added: {} (id: {})\n", t.content, t.id),
                 Err(e) => format!("❌ {}\n", e),
             }
         }
         "complete" | "done" | "close" => {
-            if rest.is_empty() { return "Usage: /todo complete <task_id>\n".to_string(); }
+            if rest.is_empty() {
+                return "Usage: /todo complete <task_id>\n".to_string();
+            }
             match client.close_task(rest).await {
                 Ok(()) => format!("☑️  Task {} completed!\n", rest),
                 Err(e) => format!("❌ {}\n", e),
@@ -445,7 +518,8 @@ async fn handle_todoist(args: &str) -> String {
               /todo today           — Tasks due today\n\
               /todo add <task>      — Add a task\n\
               /todo complete <id>   — Complete a task\n\n\
-            Config: Set TODOIST_API_KEY env var\n".to_string(),
+            Config: Set TODOIST_API_KEY env var\n"
+            .to_string(),
     }
 }
 
@@ -462,30 +536,41 @@ impl JiraClient {
         let url = store_lookup("jira_url", "integration.productivity.jira_url")
             .or_else(|| std::env::var("JIRA_URL").ok())
             .or_else(|| {
-                crate::config::Config::load().ok()
+                crate::config::Config::load()
+                    .ok()
                     .and_then(|c| c.jira.as_ref().and_then(|j| j.url.clone()))
             })?;
         let email = store_lookup("jira_email", "integration.productivity.jira_email")
             .or_else(|| std::env::var("JIRA_EMAIL").ok())
             .or_else(|| {
-                crate::config::Config::load().ok()
+                crate::config::Config::load()
+                    .ok()
                     .and_then(|c| c.jira.as_ref().and_then(|j| j.email.clone()))
             })?;
         let token = store_lookup("jira_api_token", "integration.productivity.jira_api_token")
             .or_else(|| std::env::var("JIRA_API_TOKEN").ok())
             .or_else(|| {
-                crate::config::Config::load().ok()
+                crate::config::Config::load()
+                    .ok()
                     .and_then(|c| c.jira.as_ref().and_then(|j| j.api_token.clone()))
             })?;
 
         use base64::Engine;
         let auth = base64::engine::general_purpose::STANDARD.encode(format!("{}:{}", email, token));
-        Some(Self { base_url: url.trim_end_matches('/').to_string(), auth, client: build_client() })
+        Some(Self {
+            base_url: url.trim_end_matches('/').to_string(),
+            auth,
+            client: build_client(),
+        })
     }
 
     async fn list_issues(&self) -> Result<Vec<JiraIssue>> {
         let jql = "assignee=currentUser() AND statusCategory!=Done ORDER BY updated DESC";
-        let url = format!("{}/rest/api/3/search?jql={}&maxResults=20", self.base_url, urlencoding::encode(jql));
+        let url = format!(
+            "{}/rest/api/3/search?jql={}&maxResults=20",
+            self.base_url,
+            urlencoding::encode(jql)
+        );
         let auth = self.auth.clone();
         let client = self.client.clone();
         let resp = retry_async(&RetryConfig::default(), "jira-list", || {
@@ -493,28 +578,45 @@ impl JiraClient {
             let auth = auth.clone();
             let url = url.clone();
             async move {
-                client.get(&url)
+                client
+                    .get(&url)
                     .header("Authorization", format!("Basic {}", auth))
                     .send()
                     .await
                     .map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
 
         let data: serde_json::Value = resp.json().await?;
-        let issues = data["issues"].as_array()
-            .map(|arr| arr.iter().map(|i| {
-                let fields = &i["fields"];
-                JiraIssue {
-                    key: i["key"].as_str().unwrap_or("").to_string(),
-                    summary: fields["summary"].as_str().unwrap_or("").to_string(),
-                    status: fields["status"]["name"].as_str().unwrap_or("").to_string(),
-                    priority: fields["priority"]["name"].as_str().unwrap_or("").to_string(),
-                    assignee: fields["assignee"]["displayName"].as_str().map(String::from),
-                    issue_type: fields["issuetype"]["name"].as_str().unwrap_or("").to_string(),
-                    url: format!("{}/browse/{}", self.base_url, i["key"].as_str().unwrap_or("")),
-                }
-            }).collect())
+        let issues = data["issues"]
+            .as_array()
+            .map(|arr| {
+                arr.iter()
+                    .map(|i| {
+                        let fields = &i["fields"];
+                        JiraIssue {
+                            key: i["key"].as_str().unwrap_or("").to_string(),
+                            summary: fields["summary"].as_str().unwrap_or("").to_string(),
+                            status: fields["status"]["name"].as_str().unwrap_or("").to_string(),
+                            priority: fields["priority"]["name"]
+                                .as_str()
+                                .unwrap_or("")
+                                .to_string(),
+                            assignee: fields["assignee"]["displayName"].as_str().map(String::from),
+                            issue_type: fields["issuetype"]["name"]
+                                .as_str()
+                                .unwrap_or("")
+                                .to_string(),
+                            url: format!(
+                                "{}/browse/{}",
+                                self.base_url,
+                                i["key"].as_str().unwrap_or("")
+                            ),
+                        }
+                    })
+                    .collect()
+            })
             .unwrap_or_default();
         Ok(issues)
     }
@@ -536,7 +638,8 @@ impl JiraClient {
             let url = url.clone();
             let payload = payload.clone();
             async move {
-                client.post(&url)
+                client
+                    .post(&url)
                     .header("Authorization", format!("Basic {}", auth))
                     .header("Content-Type", "application/json")
                     .json(&payload)
@@ -544,7 +647,8 @@ impl JiraClient {
                     .await
                     .map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
 
         let data: serde_json::Value = resp.json().await?;
         let key = data["key"].as_str().unwrap_or("").to_string();
@@ -575,7 +679,8 @@ impl JiraClient {
             let url = url.clone();
             let payload = payload.clone();
             async move {
-                client.post(&url)
+                client
+                    .post(&url)
                     .header("Authorization", format!("Basic {}", auth))
                     .header("Content-Type", "application/json")
                     .json(&payload)
@@ -583,7 +688,8 @@ impl JiraClient {
                     .await
                     .map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
         Ok(())
     }
 }
@@ -591,7 +697,10 @@ impl JiraClient {
 async fn handle_jira(args: &str) -> String {
     let client = match JiraClient::from_env_or_config() {
         Some(c) => c,
-        None => return "⚠️  Jira not configured. Set JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN env vars.\n".to_string(),
+        None => {
+            return "⚠️  Jira not configured. Set JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN env vars.\n"
+                .to_string()
+        }
     };
     let parts: Vec<&str> = args.splitn(3, ' ').collect();
     let subcmd = parts.first().copied().unwrap_or("list");
@@ -599,25 +708,35 @@ async fn handle_jira(args: &str) -> String {
     let arg2 = parts.get(2).copied().unwrap_or("");
 
     match subcmd {
-        "" | "list" => {
-            match client.list_issues().await {
-                Ok(issues) => {
-                    if issues.is_empty() { return "🎫 No assigned issues.\n".to_string(); }
-                    let mut out = format!("🎫 Jira Issues ({} assigned)\n{}\n", issues.len(), "─".repeat(60));
-                    for i in &issues {
-                        out.push_str(&format!("  🎫 {:<12} {:<14} {}\n", i.key, i.status, i.summary));
-                    }
-                    out
+        "" | "list" => match client.list_issues().await {
+            Ok(issues) => {
+                if issues.is_empty() {
+                    return "🎫 No assigned issues.\n".to_string();
                 }
-                Err(e) => format!("❌ {}\n", e),
+                let mut out = format!(
+                    "🎫 Jira Issues ({} assigned)\n{}\n",
+                    issues.len(),
+                    "─".repeat(60)
+                );
+                for i in &issues {
+                    out.push_str(&format!(
+                        "  🎫 {:<12} {:<14} {}\n",
+                        i.key, i.status, i.summary
+                    ));
+                }
+                out
             }
-        }
+            Err(e) => format!("❌ {}\n", e),
+        },
         "create" | "new" => {
             if arg1.is_empty() || arg2.is_empty() {
                 return "Usage: /jira create <PROJECT_KEY> <summary>\n".to_string();
             }
             match client.create_issue(arg1, arg2).await {
-                Ok(issue) => format!("🎫 Created: {} — {}\n   {}\n", issue.key, issue.summary, issue.url),
+                Ok(issue) => format!(
+                    "🎫 Created: {} — {}\n   {}\n",
+                    issue.key, issue.summary, issue.url
+                ),
                 Err(e) => format!("❌ {}\n", e),
             }
         }
@@ -634,7 +753,8 @@ async fn handle_jira(args: &str) -> String {
               /jira list                    — List assigned issues\n\
               /jira create <proj> <summary> — Create issue\n\
               /jira comment <key> <text>    — Add comment\n\n\
-            Config: Set JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN env vars\n".to_string(),
+            Config: Set JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN env vars\n"
+            .to_string(),
     }
 }
 
@@ -652,7 +772,8 @@ pub async fn handle_productivity_command(args: &str) -> String {
         _ => "Productivity Commands:\n\
               /notion search|page     — Notion integration\n\
               /todo list|add|complete — Todoist task management\n\
-              /jira list|create       — Jira issue tracking\n".to_string(),
+              /jira list|create       — Jira issue tracking\n"
+            .to_string(),
     }
 }
 
@@ -676,7 +797,9 @@ pub async fn ui_notion_page(id: &str) -> std::result::Result<String, String> {
 pub async fn ui_notion_append(page_id: &str, text: &str) -> std::result::Result<(), String> {
     let c = NotionClient::from_env_or_config()
         .ok_or_else(|| "Notion not configured. Set NOTION_API_KEY.".to_string())?;
-    c.append_text(page_id, text).await.map_err(|e| e.to_string())
+    c.append_text(page_id, text)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 pub async fn ui_notion_status() -> ProviderStatus {
@@ -809,7 +932,9 @@ pub async fn ui_jira_create(
     let c = JiraClient::from_env_or_config().ok_or_else(|| {
         "Jira not configured. Set JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN.".to_string()
     })?;
-    c.create_issue(project, summary).await.map_err(|e| e.to_string())
+    c.create_issue(project, summary)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 pub async fn ui_jira_comment(key: &str, text: &str) -> std::result::Result<(), String> {
@@ -871,9 +996,13 @@ mod tests {
     #[test]
     fn test_todoist_task_serialize() {
         let task = TodoistTask {
-            id: "123".into(), content: "Buy milk".into(),
-            description: "".into(), due: Some("2026-04-04".into()),
-            priority: 4, project_id: None, is_completed: false,
+            id: "123".into(),
+            content: "Buy milk".into(),
+            description: "".into(),
+            due: Some("2026-04-04".into()),
+            priority: 4,
+            project_id: None,
+            is_completed: false,
         };
         let json = serde_json::to_string(&task).unwrap();
         let deser: TodoistTask = serde_json::from_str(&json).unwrap();
@@ -884,9 +1013,12 @@ mod tests {
     #[test]
     fn test_jira_issue_serialize() {
         let issue = JiraIssue {
-            key: "PROJ-123".into(), summary: "Fix bug".into(),
-            status: "In Progress".into(), priority: "High".into(),
-            assignee: Some("Alice".into()), issue_type: "Bug".into(),
+            key: "PROJ-123".into(),
+            summary: "Fix bug".into(),
+            status: "In Progress".into(),
+            priority: "High".into(),
+            assignee: Some("Alice".into()),
+            issue_type: "Bug".into(),
             url: "https://jira.example.com/browse/PROJ-123".into(),
         };
         let json = serde_json::to_string(&issue).unwrap();
@@ -898,19 +1030,33 @@ mod tests {
         // Todoist REST API priority field: 4=p1 urgent (🔥), 3=p2 high (⚡), 2=p3 medium (📌), 1/other=p4 normal (·)
         for (p, icon) in [(4u8, "🔥"), (3u8, "⚡"), (2u8, "📌"), (1u8, "·")] {
             let t = TodoistTask {
-                id: "x".into(), content: "t".into(), description: "".into(),
-                due: None, priority: p, project_id: None, is_completed: false,
+                id: "x".into(),
+                content: "t".into(),
+                description: "".into(),
+                due: None,
+                priority: p,
+                project_id: None,
+                is_completed: false,
             };
-            assert_eq!(t.priority_icon(), icon, "API priority {} should map to {}", p, icon);
+            assert_eq!(
+                t.priority_icon(),
+                icon,
+                "API priority {} should map to {}",
+                p,
+                icon
+            );
         }
     }
 
     #[test]
     fn test_jira_issue_no_assignee() {
         let issue = JiraIssue {
-            key: "X-1".into(), summary: "Unassigned".into(),
-            status: "Open".into(), priority: "Low".into(),
-            assignee: None, issue_type: "Task".into(),
+            key: "X-1".into(),
+            summary: "Unassigned".into(),
+            status: "Open".into(),
+            priority: "Low".into(),
+            assignee: None,
+            issue_type: "Task".into(),
             url: "https://jira.example.com/browse/X-1".into(),
         };
         let json = serde_json::to_string(&issue).unwrap();
@@ -921,8 +1067,13 @@ mod tests {
     #[test]
     fn test_todoist_completed_task() {
         let t = TodoistTask {
-            id: "done".into(), content: "Finished".into(), description: "".into(),
-            due: None, priority: 4, project_id: Some("p1".into()), is_completed: true,
+            id: "done".into(),
+            content: "Finished".into(),
+            description: "".into(),
+            due: None,
+            priority: 4,
+            project_id: Some("p1".into()),
+            is_completed: true,
         };
         assert!(t.is_completed);
         let json = serde_json::to_string(&t).unwrap();

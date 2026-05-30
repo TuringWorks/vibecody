@@ -100,8 +100,15 @@ impl TeamGovernanceManager {
         id
     }
 
-    pub fn submit_for_approval(&mut self, plugin_id: &str, reviewers: Vec<String>) -> Result<(), String> {
-        let plugin = self.plugins.get(plugin_id).ok_or_else(|| format!("Plugin {} not found", plugin_id))?;
+    pub fn submit_for_approval(
+        &mut self,
+        plugin_id: &str,
+        reviewers: Vec<String>,
+    ) -> Result<(), String> {
+        let plugin = self
+            .plugins
+            .get(plugin_id)
+            .ok_or_else(|| format!("Plugin {} not found", plugin_id))?;
 
         let request = ApprovalRequest {
             plugin_id: plugin_id.to_string(),
@@ -119,12 +126,15 @@ impl TeamGovernanceManager {
             timestamp: current_timestamp(),
         });
 
-        self.approval_requests.insert(plugin_id.to_string(), request);
+        self.approval_requests
+            .insert(plugin_id.to_string(), request);
         Ok(())
     }
 
     pub fn approve_plugin(&mut self, plugin_id: &str, reviewer: &str) -> Result<(), String> {
-        let request = self.approval_requests.get_mut(plugin_id)
+        let request = self
+            .approval_requests
+            .get_mut(plugin_id)
             .ok_or_else(|| format!("No approval request for {}", plugin_id))?;
 
         if !request.reviewers.contains(&reviewer.to_string()) {
@@ -148,8 +158,15 @@ impl TeamGovernanceManager {
         Ok(())
     }
 
-    pub fn reject_plugin(&mut self, plugin_id: &str, reviewer: &str, reason: &str) -> Result<(), String> {
-        let request = self.approval_requests.get_mut(plugin_id)
+    pub fn reject_plugin(
+        &mut self,
+        plugin_id: &str,
+        reviewer: &str,
+        reason: &str,
+    ) -> Result<(), String> {
+        let request = self
+            .approval_requests
+            .get_mut(plugin_id)
             .ok_or_else(|| format!("No approval request for {}", plugin_id))?;
 
         if !request.reviewers.contains(&reviewer.to_string()) {
@@ -157,7 +174,9 @@ impl TeamGovernanceManager {
         }
 
         request.status = ApprovalStatus::Rejected;
-        request.comments.push(format!("Rejected by {}: {}", reviewer, reason));
+        request
+            .comments
+            .push(format!("Rejected by {}: {}", reviewer, reason));
 
         if let Some(plugin) = self.plugins.get_mut(plugin_id) {
             plugin.approval_status = ApprovalStatus::Rejected;
@@ -174,7 +193,9 @@ impl TeamGovernanceManager {
     }
 
     pub fn deprecate_plugin(&mut self, plugin_id: &str) -> Result<(), String> {
-        let plugin = self.plugins.get_mut(plugin_id)
+        let plugin = self
+            .plugins
+            .get_mut(plugin_id)
             .ok_or_else(|| format!("Plugin {} not found", plugin_id))?;
 
         plugin.approval_status = ApprovalStatus::Deprecated;
@@ -201,31 +222,40 @@ impl TeamGovernanceManager {
     }
 
     pub fn get_policy(&self, team_id: &str) -> GovernancePolicy {
-        self.policies.get(team_id).cloned().unwrap_or_else(|| GovernancePolicy {
-            team_id: team_id.to_string(),
-            require_approval: true,
-            allowed_categories: Vec::new(),
-            blocked_categories: Vec::new(),
-            max_plugin_size_mb: 50,
-            require_sha_pin: false,
-        })
+        self.policies
+            .get(team_id)
+            .cloned()
+            .unwrap_or_else(|| GovernancePolicy {
+                team_id: team_id.to_string(),
+                require_approval: true,
+                allowed_categories: Vec::new(),
+                blocked_categories: Vec::new(),
+                max_plugin_size_mb: 50,
+                require_sha_pin: false,
+            })
     }
 
     pub fn list_team_plugins(&self, team_id: &str) -> Vec<TeamPlugin> {
-        self.plugins.values()
+        self.plugins
+            .values()
             .filter(|p| p.team_id == team_id)
             .cloned()
             .collect()
     }
 
     pub fn list_pending_approvals(&self, team_id: &str) -> Vec<ApprovalRequest> {
-        let team_plugin_ids: Vec<String> = self.plugins.values()
+        let team_plugin_ids: Vec<String> = self
+            .plugins
+            .values()
             .filter(|p| p.team_id == team_id)
             .map(|p| p.id.clone())
             .collect();
 
-        self.approval_requests.values()
-            .filter(|r| team_plugin_ids.contains(&r.plugin_id) && r.status == ApprovalStatus::Pending)
+        self.approval_requests
+            .values()
+            .filter(|r| {
+                team_plugin_ids.contains(&r.plugin_id) && r.status == ApprovalStatus::Pending
+            })
             .cloned()
             .collect()
     }
@@ -282,7 +312,11 @@ impl TeamGovernanceManager {
         }
 
         for blocked in &policy.blocked_categories {
-            if plugin.description.to_lowercase().contains(&blocked.to_lowercase()) {
+            if plugin
+                .description
+                .to_lowercase()
+                .contains(&blocked.to_lowercase())
+            {
                 issues.push(ComplianceIssue {
                     description: format!("Plugin matches blocked category: {}", blocked),
                     severity: "high".to_string(),
@@ -301,12 +335,15 @@ impl TeamGovernanceManager {
     }
 
     pub fn audit_log(&self, team_id: &str) -> Vec<AuditEntry> {
-        let team_plugin_ids: Vec<String> = self.plugins.values()
+        let team_plugin_ids: Vec<String> = self
+            .plugins
+            .values()
             .filter(|p| p.team_id == team_id)
             .map(|p| p.id.clone())
             .collect();
 
-        self.audit_entries.iter()
+        self.audit_entries
+            .iter()
             .filter(|e| e.target == team_id || team_plugin_ids.contains(&e.target))
             .cloned()
             .collect()
@@ -381,7 +418,8 @@ mod tests {
     fn test_approve_plugin() {
         let mut mgr = TeamGovernanceManager::new();
         let id = mgr.register_plugin(make_test_plugin("team-1"));
-        mgr.submit_for_approval(&id, vec!["bob".to_string()]).expect("submit ok");
+        mgr.submit_for_approval(&id, vec!["bob".to_string()])
+            .expect("submit ok");
         let result = mgr.approve_plugin(&id, "bob");
         assert!(result.is_ok());
         let plugin = mgr.plugins.get(&id).expect("plugin should exist");
@@ -392,7 +430,8 @@ mod tests {
     fn test_approve_unauthorized_reviewer() {
         let mut mgr = TeamGovernanceManager::new();
         let id = mgr.register_plugin(make_test_plugin("team-1"));
-        mgr.submit_for_approval(&id, vec!["bob".to_string()]).expect("submit ok");
+        mgr.submit_for_approval(&id, vec!["bob".to_string()])
+            .expect("submit ok");
         let result = mgr.approve_plugin(&id, "eve");
         assert!(result.is_err());
     }
@@ -401,7 +440,8 @@ mod tests {
     fn test_reject_plugin() {
         let mut mgr = TeamGovernanceManager::new();
         let id = mgr.register_plugin(make_test_plugin("team-1"));
-        mgr.submit_for_approval(&id, vec!["bob".to_string()]).expect("submit ok");
+        mgr.submit_for_approval(&id, vec!["bob".to_string()])
+            .expect("submit ok");
         let result = mgr.reject_plugin(&id, "bob", "security concern");
         assert!(result.is_ok());
         let plugin = mgr.plugins.get(&id).expect("plugin should exist");
@@ -412,8 +452,10 @@ mod tests {
     fn test_reject_adds_comment() {
         let mut mgr = TeamGovernanceManager::new();
         let id = mgr.register_plugin(make_test_plugin("team-1"));
-        mgr.submit_for_approval(&id, vec!["bob".to_string()]).expect("submit ok");
-        mgr.reject_plugin(&id, "bob", "bad code").expect("reject ok");
+        mgr.submit_for_approval(&id, vec!["bob".to_string()])
+            .expect("submit ok");
+        mgr.reject_plugin(&id, "bob", "bad code")
+            .expect("reject ok");
         let req = mgr.approval_requests.get(&id).expect("request exists");
         assert!(req.comments.iter().any(|c| c.contains("bad code")));
     }
@@ -422,7 +464,8 @@ mod tests {
     fn test_reject_unauthorized_reviewer() {
         let mut mgr = TeamGovernanceManager::new();
         let id = mgr.register_plugin(make_test_plugin("team-1"));
-        mgr.submit_for_approval(&id, vec!["bob".to_string()]).expect("submit ok");
+        mgr.submit_for_approval(&id, vec!["bob".to_string()])
+            .expect("submit ok");
         let result = mgr.reject_plugin(&id, "eve", "nope");
         assert!(result.is_err());
     }
@@ -493,8 +536,10 @@ mod tests {
         let mut mgr = TeamGovernanceManager::new();
         let id1 = mgr.register_plugin(make_test_plugin("team-1"));
         let id2 = mgr.register_plugin(make_test_plugin("team-1"));
-        mgr.submit_for_approval(&id1, vec!["bob".to_string()]).expect("ok");
-        mgr.submit_for_approval(&id2, vec!["bob".to_string()]).expect("ok");
+        mgr.submit_for_approval(&id1, vec!["bob".to_string()])
+            .expect("ok");
+        mgr.submit_for_approval(&id2, vec!["bob".to_string()])
+            .expect("ok");
         mgr.approve_plugin(&id1, "bob").expect("ok");
         let pending = mgr.list_pending_approvals("team-1");
         assert_eq!(pending.len(), 1);
@@ -538,7 +583,9 @@ mod tests {
         plugin.description = "A crypto mining plugin".to_string();
         let id = mgr.register_plugin(plugin);
         let issues = mgr.check_compliance(&id);
-        assert!(issues.iter().any(|i| i.description.contains("blocked category")));
+        assert!(issues
+            .iter()
+            .any(|i| i.description.contains("blocked category")));
     }
 
     #[test]
@@ -556,7 +603,9 @@ mod tests {
 
         let id = mgr.register_plugin(make_test_plugin("team-1"));
         let issues = mgr.check_compliance(&id);
-        assert!(issues.iter().any(|i| i.description.contains("requires approval")));
+        assert!(issues
+            .iter()
+            .any(|i| i.description.contains("requires approval")));
     }
 
     #[test]
@@ -580,7 +629,8 @@ mod tests {
     fn test_audit_log() {
         let mut mgr = TeamGovernanceManager::new();
         let id = mgr.register_plugin(make_test_plugin("team-1"));
-        mgr.submit_for_approval(&id, vec!["bob".to_string()]).expect("ok");
+        mgr.submit_for_approval(&id, vec!["bob".to_string()])
+            .expect("ok");
         mgr.approve_plugin(&id, "bob").expect("ok");
         let log = mgr.audit_log("team-1");
         assert!(log.len() >= 3);
@@ -629,11 +679,13 @@ mod tests {
         mgr.register_plugin(p2);
 
         let all = mgr.list_team_plugins("team-1");
-        let public_only: Vec<_> = all.iter()
+        let public_only: Vec<_> = all
+            .iter()
             .filter(|p| p.visibility == PluginVisibility::Public)
             .collect();
         assert_eq!(public_only.len(), 1);
-        let private_only: Vec<_> = all.iter()
+        let private_only: Vec<_> = all
+            .iter()
             .filter(|p| p.visibility == PluginVisibility::Private)
             .collect();
         assert_eq!(private_only.len(), 1);
@@ -657,15 +709,20 @@ mod tests {
 
         // Pending — should have compliance issues
         let issues = mgr.check_compliance(&id);
-        assert!(issues.iter().any(|i| i.description.contains("requires approval")));
+        assert!(issues
+            .iter()
+            .any(|i| i.description.contains("requires approval")));
 
         // Submit and approve
-        mgr.submit_for_approval(&id, vec!["reviewer1".to_string()]).expect("ok");
+        mgr.submit_for_approval(&id, vec!["reviewer1".to_string()])
+            .expect("ok");
         mgr.approve_plugin(&id, "reviewer1").expect("ok");
 
         // After approval, pending-approval issue should be gone
         let issues = mgr.check_compliance(&id);
-        assert!(!issues.iter().any(|i| i.description.contains("requires approval")));
+        assert!(!issues
+            .iter()
+            .any(|i| i.description.contains("requires approval")));
 
         // Audit trail complete
         let log = mgr.audit_log("team-1");

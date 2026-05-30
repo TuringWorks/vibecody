@@ -17,7 +17,11 @@ pub struct AcpVersion {
 
 impl AcpVersion {
     pub fn new(major: u32, minor: u32, patch: u32) -> Self {
-        Self { major, minor, patch }
+        Self {
+            major,
+            minor,
+            patch,
+        }
     }
 
     pub fn is_compatible_with(&self, other: &AcpVersion) -> bool {
@@ -267,8 +271,13 @@ impl AcpServer {
         match msg.message_type {
             AcpMessageType::CapabilityRequest => {
                 let caps: Vec<&str> = self.capabilities.iter().map(|c| c.as_str()).collect();
-                let payload = format!("{{\"capabilities\":[{}]}}",
-                    caps.iter().map(|c| format!("\"{}\"", c)).collect::<Vec<_>>().join(","));
+                let payload = format!(
+                    "{{\"capabilities\":[{}]}}",
+                    caps.iter()
+                        .map(|c| format!("\"{}\"", c))
+                        .collect::<Vec<_>>()
+                        .join(",")
+                );
                 AcpMessage::new(
                     &msg.id,
                     AcpMessageType::CapabilityResponse,
@@ -289,25 +298,32 @@ impl AcpServer {
                     AcpMessage::new(
                         &msg.id,
                         AcpMessageType::Error,
-                        &format!("{{\"code\":404,\"message\":\"Tool not found: {}\"}}", tool_name),
+                        &format!(
+                            "{{\"code\":404,\"message\":\"Tool not found: {}\"}}",
+                            tool_name
+                        ),
                         msg.timestamp + 1,
                     )
                 }
             }
-            AcpMessageType::Heartbeat => {
-                AcpMessage::new(&msg.id, AcpMessageType::Heartbeat, "pong", msg.timestamp + 1)
-            }
-            AcpMessageType::Disconnect => {
-                AcpMessage::new(&msg.id, AcpMessageType::Disconnect, "acknowledged", msg.timestamp + 1)
-            }
-            _ => {
-                AcpMessage::new(
-                    &msg.id,
-                    AcpMessageType::Error,
-                    "{\"code\":400,\"message\":\"Unhandled message type\"}",
-                    msg.timestamp + 1,
-                )
-            }
+            AcpMessageType::Heartbeat => AcpMessage::new(
+                &msg.id,
+                AcpMessageType::Heartbeat,
+                "pong",
+                msg.timestamp + 1,
+            ),
+            AcpMessageType::Disconnect => AcpMessage::new(
+                &msg.id,
+                AcpMessageType::Disconnect,
+                "acknowledged",
+                msg.timestamp + 1,
+            ),
+            _ => AcpMessage::new(
+                &msg.id,
+                AcpMessageType::Error,
+                "{\"code\":400,\"message\":\"Unhandled message type\"}",
+                msg.timestamp + 1,
+            ),
         }
     }
 
@@ -361,19 +377,31 @@ impl AcpServer {
     }
 
     pub fn to_manifest_json(&self) -> String {
-        let caps: Vec<String> = self.capabilities.iter().map(|c| format!("\"{}\"", c.as_str())).collect();
-        let tools: Vec<String> = self.tools.iter().map(|t| {
-            let params: Vec<String> = t.parameters.iter().map(|p| {
-                format!(
+        let caps: Vec<String> = self
+            .capabilities
+            .iter()
+            .map(|c| format!("\"{}\"", c.as_str()))
+            .collect();
+        let tools: Vec<String> = self
+            .tools
+            .iter()
+            .map(|t| {
+                let params: Vec<String> = t
+                    .parameters
+                    .iter()
+                    .map(|p| {
+                        format!(
                     "{{\"name\":\"{}\",\"type\":\"{}\",\"description\":\"{}\",\"required\":{}}}",
                     p.name, p.param_type, p.description, p.required
                 )
-            }).collect();
-            format!(
+                    })
+                    .collect();
+                format!(
                 "{{\"name\":\"{}\",\"description\":\"{}\",\"parameters\":[{}],\"returns\":\"{}\"}}",
                 t.name, t.description, params.join(","), t.returns
             )
-        }).collect();
+            })
+            .collect();
 
         format!(
             "{{\"server_name\":\"{}\",\"protocol_id\":\"{}\",\"version\":\"{}\",\"capabilities\":[{}],\"tools\":[{}]}}",
@@ -421,8 +449,10 @@ impl AcpServer {
                 let tools_content = &rest[..tools_end];
                 for tool_json in split_json_objects(tools_content) {
                     if let Ok(name) = extract_json_string(&tool_json, "name") {
-                        let desc = extract_json_string(&tool_json, "description").unwrap_or_default();
-                        let returns = extract_json_string(&tool_json, "returns").unwrap_or_default();
+                        let desc =
+                            extract_json_string(&tool_json, "description").unwrap_or_default();
+                        let returns =
+                            extract_json_string(&tool_json, "returns").unwrap_or_default();
                         let mut tool = AcpToolDef::new(&name, &desc, &returns);
 
                         if let Some(params_start) = tool_json.find("\"parameters\":[") {
@@ -431,9 +461,12 @@ impl AcpServer {
                             if let Some(params_end) = find_matching_bracket(params_rest) {
                                 let params_content = &params_rest[..params_end];
                                 for param_json in split_json_objects(params_content) {
-                                    let pname = extract_json_string(&param_json, "name").unwrap_or_default();
-                                    let ptype = extract_json_string(&param_json, "type").unwrap_or_default();
-                                    let pdesc = extract_json_string(&param_json, "description").unwrap_or_default();
+                                    let pname = extract_json_string(&param_json, "name")
+                                        .unwrap_or_default();
+                                    let ptype = extract_json_string(&param_json, "type")
+                                        .unwrap_or_default();
+                                    let pdesc = extract_json_string(&param_json, "description")
+                                        .unwrap_or_default();
                                     let preq = param_json.contains("\"required\":true");
                                     tool.add_param(&pname, &ptype, &pdesc, preq);
                                 }
@@ -478,12 +511,10 @@ impl AcpClient {
                 self.connected = true;
                 Ok(result)
             }
-            NegotiationStatus::VersionMismatch => {
-                Err(format!(
-                    "Version mismatch: client={}, server={}",
-                    self.protocol_version, server.version
-                ))
-            }
+            NegotiationStatus::VersionMismatch => Err(format!(
+                "Version mismatch: client={}, server={}",
+                self.protocol_version, server.version
+            )),
             NegotiationStatus::Failed => {
                 Err("Negotiation failed: no shared capabilities".to_string())
             }
@@ -562,7 +593,9 @@ fn extract_json_u64(json: &str, key: &str) -> Result<u64, String> {
     if let Some(start) = json.find(&search) {
         let value_start = start + search.len();
         let rest = json[value_start..].trim_start();
-        let end = rest.find(|c: char| !c.is_ascii_digit()).unwrap_or(rest.len());
+        let end = rest
+            .find(|c: char| !c.is_ascii_digit())
+            .unwrap_or(rest.len());
         return rest[..end]
             .parse::<u64>()
             .map_err(|e| format!("Invalid u64 for '{}': {}", key, e));
@@ -795,7 +828,12 @@ mod tests {
     #[test]
     fn test_handle_message_tool_call_found() {
         let server = make_server();
-        let msg = AcpMessage::new("t1", AcpMessageType::ToolCall, r#"{"tool":"read_file"}"#, 200);
+        let msg = AcpMessage::new(
+            "t1",
+            AcpMessageType::ToolCall,
+            r#"{"tool":"read_file"}"#,
+            200,
+        );
         let resp = server.handle_message(&msg);
         assert_eq!(resp.message_type, AcpMessageType::ToolResult);
         assert!(resp.payload.contains("ok"));
@@ -804,7 +842,12 @@ mod tests {
     #[test]
     fn test_handle_message_tool_call_not_found() {
         let server = make_server();
-        let msg = AcpMessage::new("t2", AcpMessageType::ToolCall, r#"{"tool":"nonexistent"}"#, 200);
+        let msg = AcpMessage::new(
+            "t2",
+            AcpMessageType::ToolCall,
+            r#"{"tool":"nonexistent"}"#,
+            200,
+        );
         let resp = server.handle_message(&msg);
         assert_eq!(resp.message_type, AcpMessageType::Error);
         assert!(resp.payload.contains("404"));
@@ -914,7 +957,9 @@ mod tests {
         let manifest = server.to_manifest_json();
         let mut client = make_client();
         client.connect(&manifest).expect("Should connect");
-        let msg = client.call_tool("read_file", r#"{"path":"test.rs"}"#).expect("Should succeed");
+        let msg = client
+            .call_tool("read_file", r#"{"path":"test.rs"}"#)
+            .expect("Should succeed");
         assert_eq!(msg.message_type, AcpMessageType::ToolCall);
         assert!(msg.payload.contains("read_file"));
     }

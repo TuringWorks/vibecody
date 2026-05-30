@@ -149,7 +149,8 @@ mod tests {
             let lower = alias.to_lowercase();
             assert!(
                 lower == "anthropic" || lower == "claude",
-                "Unexpected alias: {}", alias
+                "Unexpected alias: {}",
+                alias
             );
         }
     }
@@ -248,7 +249,8 @@ mod tests {
         assert!(!app.exit_pending);
         // Simulate first Ctrl+C
         app.exit_pending = true;
-        app.messages.push(TuiMessage::System("Press Ctrl+C again to quit".to_string()));
+        app.messages
+            .push(TuiMessage::System("Press Ctrl+C again to quit".to_string()));
         assert!(app.exit_pending);
         assert!(!app.should_quit);
     }
@@ -321,7 +323,10 @@ mod tests {
         use vibe_ai::provider::{Message, MessageRole};
         let tui_msg = TuiMessage::User("hello".into());
         let llm_msg = match &tui_msg {
-            TuiMessage::User(c) => Some(Message { role: MessageRole::User, content: c.clone() }),
+            TuiMessage::User(c) => Some(Message {
+                role: MessageRole::User,
+                content: c.clone(),
+            }),
             _ => None,
         };
         assert!(llm_msg.is_some());
@@ -333,7 +338,10 @@ mod tests {
         use vibe_ai::provider::{Message, MessageRole};
         let tui_msg = TuiMessage::Assistant("reply".into());
         let llm_msg = match &tui_msg {
-            TuiMessage::Assistant(c) => Some(Message { role: MessageRole::Assistant, content: c.clone() }),
+            TuiMessage::Assistant(c) => Some(Message {
+                role: MessageRole::Assistant,
+                content: c.clone(),
+            }),
             _ => None,
         };
         assert!(llm_msg.is_some());
@@ -366,7 +374,9 @@ mod tests {
         // Error messages are filtered out of the LLM conversation
         let tui_msg = TuiMessage::Error("oops".into());
         let llm_msg: Option<String> = match &tui_msg {
-            TuiMessage::User(c) | TuiMessage::Assistant(c) | TuiMessage::System(c) => Some(c.clone()),
+            TuiMessage::User(c) | TuiMessage::Assistant(c) | TuiMessage::System(c) => {
+                Some(c.clone())
+            }
             _ => None,
         };
         assert!(llm_msg.is_none());
@@ -378,7 +388,11 @@ mod tests {
     fn agent_complete_summary_truncation_short() {
         let summary = "Fixed the bug";
         let truncated = if summary.len() > 80 {
-            &summary[..summary.char_indices().nth(80).map(|(i, _)| i).unwrap_or(summary.len())]
+            &summary[..summary
+                .char_indices()
+                .nth(80)
+                .map(|(i, _)| i)
+                .unwrap_or(summary.len())]
         } else {
             summary
         };
@@ -389,7 +403,11 @@ mod tests {
     fn agent_complete_summary_truncation_long() {
         let summary = "A".repeat(200);
         let truncated = if summary.len() > 80 {
-            &summary[..summary.char_indices().nth(80).map(|(i, _)| i).unwrap_or(summary.len())]
+            &summary[..summary
+                .char_indices()
+                .nth(80)
+                .map(|(i, _)| i)
+                .unwrap_or(summary.len())]
         } else {
             &summary
         };

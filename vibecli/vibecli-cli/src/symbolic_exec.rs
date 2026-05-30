@@ -20,24 +20,37 @@ pub enum SymExpr {
     /// Symbolic variable (unknown at analysis time).
     Var(String),
     /// Arithmetic: left op right
-    BinOp { op: BinOp, left: Box<SymExpr>, right: Box<SymExpr> },
+    BinOp {
+        op: BinOp,
+        left: Box<SymExpr>,
+        right: Box<SymExpr>,
+    },
     /// Unconstrained (e.g. external input).
     Any,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum BinOp { Add, Sub, Mul, Div, Mod }
+pub enum BinOp {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+}
 
 impl std::fmt::Display for SymExpr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Lit(n)    => write!(f, "{n}"),
-            Self::Var(v)    => write!(f, "{v}"),
-            Self::Any       => write!(f, "?"),
+            Self::Lit(n) => write!(f, "{n}"),
+            Self::Var(v) => write!(f, "{v}"),
+            Self::Any => write!(f, "?"),
             Self::BinOp { op, left, right } => {
                 let op_s = match op {
-                    BinOp::Add => "+", BinOp::Sub => "-",
-                    BinOp::Mul => "*", BinOp::Div => "/", BinOp::Mod => "%",
+                    BinOp::Add => "+",
+                    BinOp::Sub => "-",
+                    BinOp::Mul => "*",
+                    BinOp::Div => "/",
+                    BinOp::Mod => "%",
                 };
                 write!(f, "({left} {op_s} {right})")
             }
@@ -56,14 +69,24 @@ pub struct Constraint {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum Relation { Eq, Ne, Lt, Le, Gt, Ge }
+pub enum Relation {
+    Eq,
+    Ne,
+    Lt,
+    Le,
+    Gt,
+    Ge,
+}
 
 impl std::fmt::Display for Constraint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let rel = match self.rel {
-            Relation::Eq => "==", Relation::Ne => "!=",
-            Relation::Lt => "<",  Relation::Le => "<=",
-            Relation::Gt => ">",  Relation::Ge => ">=",
+            Relation::Eq => "==",
+            Relation::Ne => "!=",
+            Relation::Lt => "<",
+            Relation::Le => "<=",
+            Relation::Gt => ">",
+            Relation::Ge => ">=",
         };
         write!(f, "{} {} {}", self.lhs, rel, self.rhs)
     }
@@ -113,7 +136,9 @@ pub enum NodeKind {
     /// Loop back-edge.
     LoopHeader,
     /// Function call site.
-    Call { callee: String },
+    Call {
+        callee: String,
+    },
 }
 
 // ─── Execution Path ──────────────────────────────────────────────────────────
@@ -133,7 +158,12 @@ pub struct ExecPath {
 
 impl ExecPath {
     pub fn new(start: NodeId) -> Self {
-        Self { nodes: vec![start], constraints: Vec::new(), probability: 1.0, infeasible: false }
+        Self {
+            nodes: vec![start],
+            constraints: Vec::new(),
+            probability: 1.0,
+            infeasible: false,
+        }
     }
 
     /// Extend path to next node, adding optional constraint and branch probability.
@@ -157,7 +187,12 @@ impl ExecPath {
         if conds.is_empty() {
             format!("path [{}] prob={:.3}", nodes.join("→"), self.probability)
         } else {
-            format!("path [{}] prob={:.3} when {}", nodes.join("→"), self.probability, conds.join(" ∧ "))
+            format!(
+                "path [{}] prob={:.3} when {}",
+                nodes.join("→"),
+                self.probability,
+                conds.join(" ∧ ")
+            )
         }
     }
 }
@@ -179,7 +214,12 @@ pub struct ExecConfig {
 
 impl Default for ExecConfig {
     fn default() -> Self {
-        Self { max_depth: 20, max_paths: 512, default_true_prob: 0.6, loop_unroll: 3 }
+        Self {
+            max_depth: 20,
+            max_paths: 512,
+            default_true_prob: 0.6,
+            loop_unroll: 3,
+        }
     }
 }
 
@@ -203,7 +243,9 @@ impl SymbolicExecutor {
         }
     }
 
-    pub fn add_node(&mut self, node: CfgNode) { self.nodes.insert(node.id, node); }
+    pub fn add_node(&mut self, node: CfgNode) {
+        self.nodes.insert(node.id, node);
+    }
 
     pub fn set_branch_prob(&mut self, from: NodeId, to: NodeId, prob: f64) {
         self.branch_probs.insert((from, to), prob);
@@ -214,19 +256,25 @@ impl SymbolicExecutor {
     }
 
     fn branch_prob(&self, from: NodeId, to: NodeId) -> f64 {
-        self.branch_probs.get(&(from, to)).copied().unwrap_or(self.config.default_true_prob)
+        self.branch_probs
+            .get(&(from, to))
+            .copied()
+            .unwrap_or(self.config.default_true_prob)
     }
 
     /// Enumerate all feasible paths from `entry` to `exit` using DFS.
     pub fn enumerate_paths(&self, entry: NodeId, exit: NodeId) -> Vec<ExecPath> {
         let mut completed: Vec<ExecPath> = Vec::new();
-        let mut stack: Vec<(ExecPath, HashMap<NodeId, usize>)> = vec![
-            (ExecPath::new(entry), HashMap::new())
-        ];
+        let mut stack: Vec<(ExecPath, HashMap<NodeId, usize>)> =
+            vec![(ExecPath::new(entry), HashMap::new())];
 
         while let Some((path, visit_count)) = stack.pop() {
-            if completed.len() >= self.config.max_paths { break; }
-            if path.infeasible { continue; }
+            if completed.len() >= self.config.max_paths {
+                break;
+            }
+            if path.infeasible {
+                continue;
+            }
 
             let current = *path.nodes.last().unwrap();
 
@@ -235,9 +283,14 @@ impl SymbolicExecutor {
                 continue;
             }
 
-            if path.nodes.len() >= self.config.max_depth { continue; }
+            if path.nodes.len() >= self.config.max_depth {
+                continue;
+            }
 
-            let node = match self.nodes.get(&current) { Some(n) => n, None => continue };
+            let node = match self.nodes.get(&current) {
+                Some(n) => n,
+                None => continue,
+            };
 
             for &succ in &node.successors {
                 let loop_count = *visit_count.get(&succ).unwrap_or(&0);
@@ -263,24 +316,34 @@ impl SymbolicExecutor {
         while let Some(n) = queue.pop() {
             if reachable.insert(n) {
                 if let Some(node) = self.nodes.get(&n) {
-                    for &s in &node.successors { queue.push(s); }
+                    for &s in &node.successors {
+                        queue.push(s);
+                    }
                 }
             }
         }
-        self.nodes.keys().filter(|id| !reachable.contains(*id)).copied().collect()
+        self.nodes
+            .keys()
+            .filter(|id| !reachable.contains(*id))
+            .copied()
+            .collect()
     }
 
     /// Summarise path coverage as text for LLM injection.
     pub fn coverage_prompt(&self, paths: &[ExecPath]) -> String {
         let feasible: Vec<_> = paths.iter().filter(|p| !p.infeasible).collect();
         let total_prob: f64 = feasible.iter().map(|p| p.probability).sum();
-        let mut lines = vec![
-            format!("Symbolic execution: {} feasible paths, cumulative prob={:.3}", feasible.len(), total_prob),
-        ];
+        let mut lines = vec![format!(
+            "Symbolic execution: {} feasible paths, cumulative prob={:.3}",
+            feasible.len(),
+            total_prob
+        )];
         for (i, p) in feasible.iter().enumerate().take(5) {
             lines.push(format!("  [{}] {}", i + 1, p.summary()));
         }
-        if feasible.len() > 5 { lines.push(format!("  … and {} more paths", feasible.len() - 5)); }
+        if feasible.len() > 5 {
+            lines.push(format!("  … and {} more paths", feasible.len() - 5));
+        }
         lines.join("\n")
     }
 }
@@ -293,7 +356,9 @@ pub struct CfgBuilder {
 }
 
 impl CfgBuilder {
-    pub fn new() -> Self { Self { next_id: 0 } }
+    pub fn new() -> Self {
+        Self { next_id: 0 }
+    }
 
     fn alloc(&mut self) -> NodeId {
         let id = self.next_id;
@@ -308,7 +373,13 @@ impl CfgBuilder {
         let mut builder = Self::new();
 
         let entry = builder.alloc();
-        exec.add_node(CfgNode { id: entry, lines: (0, 0), label: "entry".into(), kind: NodeKind::Entry, successors: vec![] });
+        exec.add_node(CfgNode {
+            id: entry,
+            lines: (0, 0),
+            label: "entry".into(),
+            kind: NodeKind::Entry,
+            successors: vec![],
+        });
 
         let exit = builder.alloc();
         // Will be added at end.
@@ -326,50 +397,74 @@ impl CfgBuilder {
                 // Close previous basic block
                 let basic_id = builder.alloc();
                 exec.add_node(CfgNode {
-                    id: basic_id, lines: (block_start, idx),
-                    label: format!("block@{idx}"), kind: NodeKind::Basic, successors: vec![],
+                    id: basic_id,
+                    lines: (block_start, idx),
+                    label: format!("block@{idx}"),
+                    kind: NodeKind::Basic,
+                    successors: vec![],
                 });
                 // Connect prev → basic
-                if let Some(node) = exec.nodes.get_mut(&prev) { node.successors.push(basic_id); }
+                if let Some(node) = exec.nodes.get_mut(&prev) {
+                    node.successors.push(basic_id);
+                }
 
                 // Branch node
                 let branch_id = builder.alloc();
                 exec.add_node(CfgNode {
-                    id: branch_id, lines: (idx + 1, idx + 1),
-                    label: format!("if@{}", idx + 1), kind: NodeKind::Branch, successors: vec![],
+                    id: branch_id,
+                    lines: (idx + 1, idx + 1),
+                    label: format!("if@{}", idx + 1),
+                    kind: NodeKind::Branch,
+                    successors: vec![],
                 });
-                if let Some(node) = exec.nodes.get_mut(&basic_id) { node.successors.push(branch_id); }
+                if let Some(node) = exec.nodes.get_mut(&basic_id) {
+                    node.successors.push(branch_id);
+                }
 
                 branch_stack.push(branch_id);
                 prev = branch_id;
                 block_start = idx + 2;
                 depth += 1;
-
             } else if (trimmed.starts_with("for ") || trimmed.starts_with("while ")) && depth < 10 {
                 let loop_id = builder.alloc();
                 exec.add_node(CfgNode {
-                    id: loop_id, lines: (idx + 1, idx + 1),
-                    label: format!("loop@{}", idx + 1), kind: NodeKind::LoopHeader, successors: vec![],
+                    id: loop_id,
+                    lines: (idx + 1, idx + 1),
+                    label: format!("loop@{}", idx + 1),
+                    kind: NodeKind::LoopHeader,
+                    successors: vec![],
                 });
-                if let Some(node) = exec.nodes.get_mut(&prev) { node.successors.push(loop_id); }
+                if let Some(node) = exec.nodes.get_mut(&prev) {
+                    node.successors.push(loop_id);
+                }
                 // Back-edge from loop to itself (unrolled by executor)
-                exec.nodes.get_mut(&loop_id).unwrap().successors.push(loop_id);
+                exec.nodes
+                    .get_mut(&loop_id)
+                    .unwrap()
+                    .successors
+                    .push(loop_id);
                 prev = loop_id;
                 block_start = idx + 2;
                 depth += 1;
-
             } else if trimmed == "}" && depth > 0 {
                 depth -= 1;
                 if let Some(branch_id) = branch_stack.pop() {
                     // True branch merges back to a new merge node
                     let merge_id = builder.alloc();
                     exec.add_node(CfgNode {
-                        id: merge_id, lines: (idx + 1, idx + 1),
-                        label: format!("merge@{}", idx + 1), kind: NodeKind::Basic, successors: vec![],
+                        id: merge_id,
+                        lines: (idx + 1, idx + 1),
+                        label: format!("merge@{}", idx + 1),
+                        kind: NodeKind::Basic,
+                        successors: vec![],
                     });
-                    if let Some(node) = exec.nodes.get_mut(&prev) { node.successors.push(merge_id); }
+                    if let Some(node) = exec.nodes.get_mut(&prev) {
+                        node.successors.push(merge_id);
+                    }
                     // False branch: skip body (branch_id → merge directly)
-                    if let Some(node) = exec.nodes.get_mut(&branch_id) { node.successors.push(merge_id); }
+                    if let Some(node) = exec.nodes.get_mut(&branch_id) {
+                        node.successors.push(merge_id);
+                    }
                     exec.set_branch_prob(branch_id, prev, 0.6);
                     exec.set_branch_prob(branch_id, merge_id, 0.4);
                     prev = merge_id;
@@ -381,19 +476,32 @@ impl CfgBuilder {
         // Final block
         let final_id = builder.alloc();
         exec.add_node(CfgNode {
-            id: final_id, lines: (block_start, lines.len()),
-            label: "final".into(), kind: NodeKind::Basic, successors: vec![exit],
+            id: final_id,
+            lines: (block_start, lines.len()),
+            label: "final".into(),
+            kind: NodeKind::Basic,
+            successors: vec![exit],
         });
-        if let Some(node) = exec.nodes.get_mut(&prev) { node.successors.push(final_id); }
+        if let Some(node) = exec.nodes.get_mut(&prev) {
+            node.successors.push(final_id);
+        }
 
-        exec.add_node(CfgNode { id: exit, lines: (lines.len(), lines.len()), label: "exit".into(), kind: NodeKind::Exit, successors: vec![] });
+        exec.add_node(CfgNode {
+            id: exit,
+            lines: (lines.len(), lines.len()),
+            label: "exit".into(),
+            kind: NodeKind::Exit,
+            successors: vec![],
+        });
 
         (exec, entry, exit)
     }
 }
 
 impl Default for CfgBuilder {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -405,12 +513,48 @@ mod tests {
     fn make_exec() -> (SymbolicExecutor, NodeId, NodeId) {
         // Simple CFG: entry → branch → {A, B} → merge → exit
         let mut exec = SymbolicExecutor::new(ExecConfig::default());
-        exec.add_node(CfgNode { id: 0, lines: (1,1), label: "entry".into(), kind: NodeKind::Entry, successors: vec![1] });
-        exec.add_node(CfgNode { id: 1, lines: (2,3), label: "branch".into(), kind: NodeKind::Branch, successors: vec![2, 3] });
-        exec.add_node(CfgNode { id: 2, lines: (4,5), label: "true_block".into(), kind: NodeKind::Basic, successors: vec![4] });
-        exec.add_node(CfgNode { id: 3, lines: (6,7), label: "false_block".into(), kind: NodeKind::Basic, successors: vec![4] });
-        exec.add_node(CfgNode { id: 4, lines: (8,9), label: "merge".into(), kind: NodeKind::Basic, successors: vec![5] });
-        exec.add_node(CfgNode { id: 5, lines: (10,10), label: "exit".into(), kind: NodeKind::Exit, successors: vec![] });
+        exec.add_node(CfgNode {
+            id: 0,
+            lines: (1, 1),
+            label: "entry".into(),
+            kind: NodeKind::Entry,
+            successors: vec![1],
+        });
+        exec.add_node(CfgNode {
+            id: 1,
+            lines: (2, 3),
+            label: "branch".into(),
+            kind: NodeKind::Branch,
+            successors: vec![2, 3],
+        });
+        exec.add_node(CfgNode {
+            id: 2,
+            lines: (4, 5),
+            label: "true_block".into(),
+            kind: NodeKind::Basic,
+            successors: vec![4],
+        });
+        exec.add_node(CfgNode {
+            id: 3,
+            lines: (6, 7),
+            label: "false_block".into(),
+            kind: NodeKind::Basic,
+            successors: vec![4],
+        });
+        exec.add_node(CfgNode {
+            id: 4,
+            lines: (8, 9),
+            label: "merge".into(),
+            kind: NodeKind::Basic,
+            successors: vec![5],
+        });
+        exec.add_node(CfgNode {
+            id: 5,
+            lines: (10, 10),
+            label: "exit".into(),
+            kind: NodeKind::Exit,
+            successors: vec![],
+        });
         exec.set_branch_prob(1, 2, 0.7);
         exec.set_branch_prob(1, 3, 0.3);
         (exec, 0, 5)
@@ -437,7 +581,10 @@ mod tests {
             (paths[1].probability, paths[0].probability)
         };
         let ratio = p_true / p_false;
-        assert!((ratio - 7.0 / 3.0).abs() < 1e-6, "expected ratio 7:3, got {ratio}");
+        assert!(
+            (ratio - 7.0 / 3.0).abs() < 1e-6,
+            "expected ratio 7:3, got {ratio}"
+        );
     }
 
     #[test]
@@ -453,15 +600,51 @@ mod tests {
     #[test]
     fn test_infeasible_path_filtered() {
         let mut exec = SymbolicExecutor::new(ExecConfig::default());
-        exec.add_node(CfgNode { id: 0, lines: (1,1), label: "entry".into(), kind: NodeKind::Entry, successors: vec![1] });
-        exec.add_node(CfgNode { id: 1, lines: (2,2), label: "branch".into(), kind: NodeKind::Branch, successors: vec![2, 3] });
-        exec.add_node(CfgNode { id: 2, lines: (3,3), label: "dead".into(), kind: NodeKind::Basic, successors: vec![4] });
-        exec.add_node(CfgNode { id: 3, lines: (4,4), label: "live".into(), kind: NodeKind::Basic, successors: vec![4] });
-        exec.add_node(CfgNode { id: 4, lines: (5,5), label: "exit".into(), kind: NodeKind::Exit, successors: vec![] });
-        // Branch 1→2 has infeasible constraint: 1 == 2
-        exec.set_branch_constraint(1, 2, Constraint {
-            lhs: SymExpr::Lit(1), rel: Relation::Eq, rhs: SymExpr::Lit(2),
+        exec.add_node(CfgNode {
+            id: 0,
+            lines: (1, 1),
+            label: "entry".into(),
+            kind: NodeKind::Entry,
+            successors: vec![1],
         });
+        exec.add_node(CfgNode {
+            id: 1,
+            lines: (2, 2),
+            label: "branch".into(),
+            kind: NodeKind::Branch,
+            successors: vec![2, 3],
+        });
+        exec.add_node(CfgNode {
+            id: 2,
+            lines: (3, 3),
+            label: "dead".into(),
+            kind: NodeKind::Basic,
+            successors: vec![4],
+        });
+        exec.add_node(CfgNode {
+            id: 3,
+            lines: (4, 4),
+            label: "live".into(),
+            kind: NodeKind::Basic,
+            successors: vec![4],
+        });
+        exec.add_node(CfgNode {
+            id: 4,
+            lines: (5, 5),
+            label: "exit".into(),
+            kind: NodeKind::Exit,
+            successors: vec![],
+        });
+        // Branch 1→2 has infeasible constraint: 1 == 2
+        exec.set_branch_constraint(
+            1,
+            2,
+            Constraint {
+                lhs: SymExpr::Lit(1),
+                rel: Relation::Eq,
+                rhs: SymExpr::Lit(2),
+            },
+        );
         let paths = exec.enumerate_paths(0, 4);
         let feasible: Vec<_> = paths.iter().filter(|p| !p.infeasible).collect();
         assert_eq!(feasible.len(), 1);
@@ -471,9 +654,27 @@ mod tests {
     #[test]
     fn test_dead_nodes_detection() {
         let mut exec = SymbolicExecutor::new(ExecConfig::default());
-        exec.add_node(CfgNode { id: 0, lines: (1,1), label: "entry".into(), kind: NodeKind::Entry, successors: vec![1] });
-        exec.add_node(CfgNode { id: 1, lines: (2,2), label: "live".into(), kind: NodeKind::Basic, successors: vec![] });
-        exec.add_node(CfgNode { id: 2, lines: (3,3), label: "orphan".into(), kind: NodeKind::Basic, successors: vec![] });
+        exec.add_node(CfgNode {
+            id: 0,
+            lines: (1, 1),
+            label: "entry".into(),
+            kind: NodeKind::Entry,
+            successors: vec![1],
+        });
+        exec.add_node(CfgNode {
+            id: 1,
+            lines: (2, 2),
+            label: "live".into(),
+            kind: NodeKind::Basic,
+            successors: vec![],
+        });
+        exec.add_node(CfgNode {
+            id: 2,
+            lines: (3, 3),
+            label: "orphan".into(),
+            kind: NodeKind::Basic,
+            successors: vec![],
+        });
         let dead = exec.dead_nodes(0);
         assert!(dead.contains(&2));
         assert!(!dead.contains(&0));
@@ -526,32 +727,52 @@ mod tests {
 
     #[test]
     fn test_constraint_display() {
-        let c = Constraint { lhs: SymExpr::Var("n".into()), rel: Relation::Gt, rhs: SymExpr::Lit(0) };
+        let c = Constraint {
+            lhs: SymExpr::Var("n".into()),
+            rel: Relation::Gt,
+            rhs: SymExpr::Lit(0),
+        };
         assert_eq!(c.to_string(), "n > 0");
     }
 
     #[test]
     fn test_is_trivially_unsat_true() {
-        let c = Constraint { lhs: SymExpr::Lit(1), rel: Relation::Eq, rhs: SymExpr::Lit(2) };
+        let c = Constraint {
+            lhs: SymExpr::Lit(1),
+            rel: Relation::Eq,
+            rhs: SymExpr::Lit(2),
+        };
         assert!(is_trivially_unsat(&c));
     }
 
     #[test]
     fn test_is_trivially_unsat_false_for_vars() {
-        let c = Constraint { lhs: SymExpr::Var("x".into()), rel: Relation::Eq, rhs: SymExpr::Lit(0) };
+        let c = Constraint {
+            lhs: SymExpr::Var("x".into()),
+            rel: Relation::Eq,
+            rhs: SymExpr::Lit(0),
+        };
         assert!(!is_trivially_unsat(&c));
     }
 
     #[test]
     fn test_is_trivially_unsat_sat_lit() {
-        let c = Constraint { lhs: SymExpr::Lit(3), rel: Relation::Gt, rhs: SymExpr::Lit(1) };
+        let c = Constraint {
+            lhs: SymExpr::Lit(3),
+            rel: Relation::Gt,
+            rhs: SymExpr::Lit(1),
+        };
         assert!(!is_trivially_unsat(&c));
     }
 
     #[test]
     fn test_constraint_added_to_path() {
         let p = ExecPath::new(0);
-        let c = Constraint { lhs: SymExpr::Var("x".into()), rel: Relation::Lt, rhs: SymExpr::Lit(10) };
+        let c = Constraint {
+            lhs: SymExpr::Var("x".into()),
+            rel: Relation::Lt,
+            rhs: SymExpr::Lit(10),
+        };
         let p2 = p.extend(1, Some(c.clone()), 0.6);
         assert_eq!(p2.constraints.len(), 1);
         assert_eq!(p2.constraints[0], c);
@@ -560,7 +781,11 @@ mod tests {
     #[test]
     fn test_infeasible_constraint_marks_path() {
         let p = ExecPath::new(0);
-        let c = Constraint { lhs: SymExpr::Lit(5), rel: Relation::Lt, rhs: SymExpr::Lit(2) };
+        let c = Constraint {
+            lhs: SymExpr::Lit(5),
+            rel: Relation::Lt,
+            rhs: SymExpr::Lit(2),
+        };
         let p2 = p.extend(1, Some(c), 0.5);
         assert!(p2.infeasible);
     }
@@ -585,7 +810,11 @@ mod tests {
     #[test]
     fn test_path_summary_with_constraint() {
         let p = ExecPath::new(0);
-        let c = Constraint { lhs: SymExpr::Var("x".into()), rel: Relation::Gt, rhs: SymExpr::Lit(0) };
+        let c = Constraint {
+            lhs: SymExpr::Var("x".into()),
+            rel: Relation::Gt,
+            rhs: SymExpr::Lit(0),
+        };
         let p2 = p.extend(1, Some(c), 0.7);
         let s = p2.summary();
         assert!(s.contains("x > 0"));
@@ -602,11 +831,32 @@ mod tests {
 
     #[test]
     fn test_loop_unrolling_bounded() {
-        let mut exec = SymbolicExecutor::new(ExecConfig { loop_unroll: 2, ..Default::default() });
+        let mut exec = SymbolicExecutor::new(ExecConfig {
+            loop_unroll: 2,
+            ..Default::default()
+        });
         // loop: 0 → 1 (header) → 1 (back-edge) or → 2 (exit)
-        exec.add_node(CfgNode { id: 0, lines: (1,1), label: "entry".into(), kind: NodeKind::Entry, successors: vec![1] });
-        exec.add_node(CfgNode { id: 1, lines: (2,3), label: "loop".into(), kind: NodeKind::LoopHeader, successors: vec![1, 2] });
-        exec.add_node(CfgNode { id: 2, lines: (4,4), label: "exit".into(), kind: NodeKind::Exit, successors: vec![] });
+        exec.add_node(CfgNode {
+            id: 0,
+            lines: (1, 1),
+            label: "entry".into(),
+            kind: NodeKind::Entry,
+            successors: vec![1],
+        });
+        exec.add_node(CfgNode {
+            id: 1,
+            lines: (2, 3),
+            label: "loop".into(),
+            kind: NodeKind::LoopHeader,
+            successors: vec![1, 2],
+        });
+        exec.add_node(CfgNode {
+            id: 2,
+            lines: (4, 4),
+            label: "exit".into(),
+            kind: NodeKind::Exit,
+            successors: vec![],
+        });
         exec.set_branch_prob(1, 1, 0.7);
         exec.set_branch_prob(1, 2, 0.3);
         let paths = exec.enumerate_paths(0, 2);
@@ -614,7 +864,10 @@ mod tests {
         // None should unroll more than loop_unroll=2 times
         for p in &paths {
             let loop_visits = p.nodes.iter().filter(|&&n| n == 1).count();
-            assert!(loop_visits <= 3, "loop visits={loop_visits} exceeds unroll bound");
+            assert!(
+                loop_visits <= 3,
+                "loop visits={loop_visits} exceeds unroll bound"
+            );
         }
     }
 

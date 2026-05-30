@@ -1,14 +1,13 @@
 //! BDD: IMDSv2 faker — drives the AWS metadata-service dance against
 //! a real server bound on a loopback port.
 
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use vibe_broker::{
-    AwsCredentials, ImdsHandle, ImdsServer, InMemorySecretStore, SecretStore,
-    policy::SecretRef,
+    policy::SecretRef, AwsCredentials, ImdsHandle, ImdsServer, InMemorySecretStore, SecretStore,
 };
 
 #[derive(Default, World)]
@@ -69,7 +68,9 @@ fn boot_imds_default(world: &mut IWorld) {
     world.secret_key = key;
 }
 
-#[given(expr = "an IMDS faker bound to a loopback address with role {string} and creds at {string}")]
+#[given(
+    expr = "an IMDS faker bound to a loopback address with role {string} and creds at {string}"
+)]
 fn boot_imds_named(world: &mut IWorld, role: String, key: String) {
     let secrets = build_secrets(&key);
     let server = ImdsServer::new(role.clone(), SecretRef(key.clone()), secrets);
@@ -98,7 +99,9 @@ fn fetch_token(world: &mut IWorld) {
         buf
     });
     let split = body.windows(4).position(|w| w == b"\r\n\r\n").unwrap();
-    let token = String::from_utf8_lossy(&body[split + 4..]).trim().to_owned();
+    let token = String::from_utf8_lossy(&body[split + 4..])
+        .trim()
+        .to_owned();
     world.imds_token = Some(token);
 }
 
@@ -171,8 +174,12 @@ fn get_without_token(world: &mut IWorld, path: String) {
 
 #[then(expr = "the IMDS response status is {int}")]
 fn status_is(world: &mut IWorld, expected: u16) {
-    assert_eq!(world.response_status, Some(expected),
-        "body was: {:?}", String::from_utf8_lossy(&world.response_body));
+    assert_eq!(
+        world.response_status,
+        Some(expected),
+        "body was: {:?}",
+        String::from_utf8_lossy(&world.response_body)
+    );
 }
 
 #[then("the IMDS response body is non-empty")]
@@ -182,7 +189,10 @@ fn body_non_empty(world: &mut IWorld) {
 
 #[then(expr = "the IMDS response body equals {string}")]
 fn body_equals(world: &mut IWorld, expected: String) {
-    assert_eq!(String::from_utf8_lossy(&world.response_body).trim(), expected);
+    assert_eq!(
+        String::from_utf8_lossy(&world.response_body).trim(),
+        expected
+    );
 }
 
 #[then(expr = "the IMDS response body contains {string}")]

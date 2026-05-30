@@ -17,9 +17,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
 use tokio::sync::broadcast;
-use vibecli_cli::job_manager::{
-    AgentEventPayload, CreateJobReq, JobManager, JobStatus, JobsDb,
-};
+use vibecli_cli::job_manager::{AgentEventPayload, CreateJobReq, JobManager, JobStatus, JobsDb};
 use vibecli_cli::subprocess_dispatch::{spawn_worker, DispatchFrame};
 
 fn vibecli_bin() -> PathBuf {
@@ -133,23 +131,13 @@ async fn when_dispatch(w: &mut DispatchWorld) {
                 }
                 DispatchFrame::Complete { summary } => {
                     let _ = jm
-                        .mark_terminal(
-                            &sid_for_task,
-                            JobStatus::Complete,
-                            Some(summary),
-                            None,
-                        )
+                        .mark_terminal(&sid_for_task, JobStatus::Complete, Some(summary), None)
                         .await;
                     break;
                 }
                 DispatchFrame::Error { message } => {
                     let _ = jm
-                        .mark_terminal(
-                            &sid_for_task,
-                            JobStatus::Failed,
-                            None,
-                            Some(message),
-                        )
+                        .mark_terminal(&sid_for_task, JobStatus::Failed, None, Some(message))
                         .await;
                     break;
                 }
@@ -204,10 +192,7 @@ async fn then_chunk_delivered(w: &mut DispatchWorld) {
     if w.saw_chunk {
         return;
     }
-    let mut rx = w
-        .broadcast_rx
-        .take()
-        .expect("broadcast rx not initialised");
+    let mut rx = w.broadcast_rx.take().expect("broadcast rx not initialised");
     // The bridge task may have already consumed the chunk into the broadcast
     // tx before we subscribed, so this is best-effort with a short window.
     let got = tokio::time::timeout(Duration::from_millis(500), async {

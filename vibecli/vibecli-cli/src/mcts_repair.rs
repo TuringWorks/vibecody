@@ -651,10 +651,7 @@ impl RepairEngine {
 
         session.status = SessionStatus::Searching;
 
-        let tree = session
-            .tree
-            .as_mut()
-            .ok_or("Session has no MCTS tree")?;
+        let tree = session.tree.as_mut().ok_or("Session has no MCTS tree")?;
 
         // Check iteration limit
         if tree.iteration_count >= tree.config.max_iterations {
@@ -1104,10 +1101,7 @@ mod tests {
         let child_id = tree.expand_node("root", make_edit("fix1")).unwrap();
         assert_eq!(child_id, "root-c0");
         assert_eq!(tree.node_count(), 2);
-        assert_eq!(
-            tree.get_node("root").unwrap().state,
-            NodeState::Expanded
-        );
+        assert_eq!(tree.get_node("root").unwrap().state, NodeState::Expanded);
     }
 
     #[test]

@@ -162,10 +162,7 @@ pub fn do_v1_resume_post(
                 let recap = match store.get_recap_by_id(recap_id) {
                     Ok(Some(r)) => r,
                     Ok(None) => {
-                        return err(
-                            HTTP_NOT_FOUND,
-                            format!("recap {recap_id:?} not found"),
-                        );
+                        return err(HTTP_NOT_FOUND, format!("recap {recap_id:?} not found"));
                     }
                     Err(e) => return err(HTTP_INTERNAL, format!("recap load: {e}")),
                 };
@@ -173,9 +170,9 @@ pub fn do_v1_resume_post(
                     return err(
                         HTTP_BAD_REQUEST,
                         format!(
-                            "recap kind {:?} not supported in F1.3; only \"session\" is implemented",
-                            recap.kind
-                        ),
+                        "recap kind {:?} not supported in F1.3; only \"session\" is implemented",
+                        recap.kind
+                    ),
                     );
                 }
                 (
@@ -298,10 +295,7 @@ pub fn do_v1_resume_post(
 }
 
 /// `GET /v1/resume/:handle` — return the registered record, or 404.
-pub fn do_v1_resume_get(
-    registry: &ResumeRegistry,
-    handle: &str,
-) -> HelperOutcome {
+pub fn do_v1_resume_get(registry: &ResumeRegistry, handle: &str) -> HelperOutcome {
     match registry.get(handle) {
         Some(record) => match serde_json::to_value(&record.response) {
             Ok(v) => HelperOutcome {
@@ -330,32 +324,19 @@ pub fn do_v1_resume_get(
 async fn resolve_job_resume_source(
     jm: &crate::job_manager::JobManager,
     req: &ResumeRequest,
-) -> Result<
-    (
-        String,
-        Option<crate::recap::ResumeHint>,
-        Option<String>,
-    ),
-    HelperOutcome,
-> {
+) -> Result<(String, Option<crate::recap::ResumeHint>, Option<String>), HelperOutcome> {
     if let Some(recap_id) = &req.from_recap_id {
         let recap = match jm.get_job_recap_by_id(recap_id).await {
             Ok(Some(r)) => r,
             Ok(None) => {
-                return Err(err(
-                    HTTP_NOT_FOUND,
-                    format!("recap {recap_id:?} not found"),
-                ));
+                return Err(err(HTTP_NOT_FOUND, format!("recap {recap_id:?} not found")));
             }
             Err(e) => return Err(err(HTTP_INTERNAL, format!("recap load: {e}"))),
         };
         if !matches!(recap.kind, crate::recap::RecapKind::Job) {
             return Err(err(
                 HTTP_BAD_REQUEST,
-                format!(
-                    "recap kind {:?} mismatched; expected \"job\"",
-                    recap.kind
-                ),
+                format!("recap kind {:?} mismatched; expected \"job\"", recap.kind),
             ));
         }
         return Ok((
@@ -390,10 +371,7 @@ pub async fn do_v1_resume_post_job(
     let parent = match jm.get(&parent_job_id).await {
         Some(j) => j,
         None => {
-            return err(
-                HTTP_NOT_FOUND,
-                format!("job {parent_job_id:?} not found"),
-            );
+            return err(HTTP_NOT_FOUND, format!("job {parent_job_id:?} not found"));
         }
     };
     let parent_status = match crate::job_manager::JobStatus::parse(&parent.status) {
@@ -401,10 +379,7 @@ pub async fn do_v1_resume_post_job(
         None => {
             return err(
                 HTTP_INTERNAL,
-                format!(
-                    "parent job has unknown status {:?}",
-                    parent.status
-                ),
+                format!("parent job has unknown status {:?}", parent.status),
             );
         }
     };
@@ -429,10 +404,7 @@ pub async fn do_v1_resume_post_job(
         _ => format!("Resume of {}", parent.task),
     };
 
-    let (workspace_root, approval) = match jm
-        .get_workspace_and_approval(&parent_job_id)
-        .await
-    {
+    let (workspace_root, approval) = match jm.get_workspace_and_approval(&parent_job_id).await {
         Ok(Some(pair)) => pair,
         Ok(None) => {
             return err(
@@ -466,9 +438,7 @@ pub async fn do_v1_resume_post_job(
         .set_parent_link(&new_id, &parent_job_id, &recap_id_for_link)
         .await
     {
-        eprintln!(
-            "[resume] set_parent_link failed for {new_id}: {e}"
-        );
+        eprintln!("[resume] set_parent_link failed for {new_id}: {e}");
     }
 
     let response = ResumeResponse {
@@ -863,9 +833,7 @@ mod tests {
 
     // ── J1.3b: kind=job resume helper tests ────────────────────────────
 
-    use crate::job_manager::{
-        AgentEventPayload, CreateJobReq, JobManager, JobStatus, JobsDb,
-    };
+    use crate::job_manager::{AgentEventPayload, CreateJobReq, JobManager, JobStatus, JobsDb};
     use std::sync::Arc;
 
     /// Build a JobManager with one terminal-state job and an auto-recap

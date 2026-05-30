@@ -19,9 +19,15 @@ pub async fn generate_bundle(resume_id: Option<&str>) -> Result<()> {
 
     // Relevant environment variables (keys only, not values for secrets)
     let env_vars = [
-        "OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY",
-        "GROK_API_KEY", "GROQ_API_KEY", "OLLAMA_HOST",
-        "HOME", "PATH", "VIBECLI_CONFIG",
+        "OPENAI_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "GEMINI_API_KEY",
+        "GROK_API_KEY",
+        "GROQ_API_KEY",
+        "OLLAMA_HOST",
+        "HOME",
+        "PATH",
+        "VIBECLI_CONFIG",
     ];
     println!("\nEnvironment:");
     for var in &env_vars {
@@ -32,15 +38,31 @@ pub async fn generate_bundle(resume_id: Option<&str>) -> Result<()> {
     // Config path
     let config_path = {
         let home = std::env::var("HOME").unwrap_or_default();
-        std::path::PathBuf::from(home).join(".vibecli").join("config.toml")
+        std::path::PathBuf::from(home)
+            .join(".vibecli")
+            .join("config.toml")
     };
-    println!("\nConfig: {} ({})", config_path.display(),
-        if config_path.exists() { "found" } else { "not found" });
+    println!(
+        "\nConfig: {} ({})",
+        config_path.display(),
+        if config_path.exists() {
+            "found"
+        } else {
+            "not found"
+        }
+    );
 
     // Session DB
     let db_path = crate::session_store::default_db_path();
-    println!("Session DB: {} ({})", db_path.display(),
-        if db_path.exists() { "found" } else { "not found" });
+    println!(
+        "Session DB: {} ({})",
+        db_path.display(),
+        if db_path.exists() {
+            "found"
+        } else {
+            "not found"
+        }
+    );
 
     if let Some(id) = resume_id {
         println!("\nResume session: {}", id);

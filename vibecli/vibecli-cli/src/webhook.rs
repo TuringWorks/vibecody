@@ -68,14 +68,8 @@ pub enum AttemptOutcome {
 /// Final outcome after retries are exhausted.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WebhookOutcome {
-    Delivered {
-        status: u16,
-        attempts: u32,
-    },
-    DeadLetter {
-        attempts: u32,
-        last_error: String,
-    },
+    Delivered { status: u16, attempts: u32 },
+    DeadLetter { attempts: u32, last_error: String },
 }
 
 impl WebhookOutcome {
@@ -94,10 +88,7 @@ impl WebhookOutcome {
 /// Drive the retry loop against a caller-supplied send closure. The caller
 /// owns the HTTP client; this module only orchestrates retry + backoff so
 /// it can be unit-tested without a real network.
-pub async fn deliver_with_retry<F, Fut>(
-    cfg: &RetryConfig,
-    mut send: F,
-) -> WebhookOutcome
+pub async fn deliver_with_retry<F, Fut>(cfg: &RetryConfig, mut send: F) -> WebhookOutcome
 where
     F: FnMut(u32) -> Fut,
     Fut: std::future::Future<Output = AttemptOutcome>,
@@ -106,7 +97,10 @@ where
     for attempt in 1..=cfg.max_attempts {
         match send(attempt).await {
             AttemptOutcome::Success(status) => {
-                return WebhookOutcome::Delivered { status, attempts: attempt };
+                return WebhookOutcome::Delivered {
+                    status,
+                    attempts: attempt,
+                };
             }
             AttemptOutcome::Transient(err) => {
                 last_error = err;
@@ -166,7 +160,13 @@ mod tests {
     async fn first_attempt_success_records_one_attempt() {
         let cfg = RetryConfig::instant_for_tests(5);
         let out = deliver_with_retry(&cfg, |_| async { AttemptOutcome::Success(200) }).await;
-        assert_eq!(out, WebhookOutcome::Delivered { status: 200, attempts: 1 });
+        assert_eq!(
+            out,
+            WebhookOutcome::Delivered {
+                status: 200,
+                attempts: 1
+            }
+        );
     }
 
     #[tokio::test]
@@ -186,7 +186,13 @@ mod tests {
             }
         })
         .await;
-        assert_eq!(out, WebhookOutcome::Delivered { status: 202, attempts: 3 });
+        assert_eq!(
+            out,
+            WebhookOutcome::Delivered {
+                status: 202,
+                attempts: 3
+            }
+        );
         assert_eq!(counter.load(Ordering::SeqCst), 3);
     }
 
@@ -204,7 +210,10 @@ mod tests {
         })
         .await;
         match out {
-            WebhookOutcome::DeadLetter { attempts, last_error } => {
+            WebhookOutcome::DeadLetter {
+                attempts,
+                last_error,
+            } => {
                 assert_eq!(attempts, 4);
                 assert!(last_error.contains("boom 4"), "got {last_error:?}");
             }

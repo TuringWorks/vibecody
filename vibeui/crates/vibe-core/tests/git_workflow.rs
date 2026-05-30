@@ -13,7 +13,11 @@ fn make_repo() -> TempDir {
     let dir = TempDir::new().unwrap();
     let p = dir.path();
     let run = |args: &[&str]| {
-        Command::new("git").args(args).current_dir(p).output().unwrap();
+        Command::new("git")
+            .args(args)
+            .current_dir(p)
+            .output()
+            .unwrap();
     };
     run(&["init"]);
     run(&["config", "user.email", "it@test.com"]);
@@ -27,8 +31,16 @@ fn make_repo() -> TempDir {
 fn add_and_commit(repo: &TempDir, filename: &str, content: &str, message: &str) {
     let p = repo.path();
     std::fs::write(p.join(filename), content).unwrap();
-    Command::new("git").args(["add", filename]).current_dir(p).output().unwrap();
-    Command::new("git").args(["commit", "-m", message]).current_dir(p).output().unwrap();
+    Command::new("git")
+        .args(["add", filename])
+        .current_dir(p)
+        .output()
+        .unwrap();
+    Command::new("git")
+        .args(["commit", "-m", message])
+        .current_dir(p)
+        .output()
+        .unwrap();
 }
 
 // ── full stash lifecycle ──────────────────────────────────────────────────────
@@ -51,7 +63,10 @@ fn full_stash_lifecycle() {
 
     // 3. Working tree is clean after stash
     let after_stash = std::fs::read_to_string(&file).unwrap();
-    assert_eq!(after_stash, "initial", "file should be restored to HEAD after stash");
+    assert_eq!(
+        after_stash, "initial",
+        "file should be restored to HEAD after stash"
+    );
 
     // 4. List shows one entry
     let stashes = git::list_stashes(path).unwrap();
@@ -84,14 +99,17 @@ fn status_and_diff_workflow() {
         status.file_statuses.contains_key("README.md"),
         "README.md should appear in status"
     );
-    assert_eq!(
-        status.file_statuses["README.md"],
-        git::FileStatus::Modified
-    );
+    assert_eq!(status.file_statuses["README.md"], git::FileStatus::Modified);
 
     let diff = git::get_diff(path, "README.md").unwrap();
-    assert!(diff.contains("updated content"), "diff should show the new content");
-    assert!(diff.contains("initial"), "diff should show removed original content");
+    assert!(
+        diff.contains("updated content"),
+        "diff should show the new content"
+    );
+    assert!(
+        diff.contains("initial"),
+        "diff should show removed original content"
+    );
 }
 
 // ── branch operations workflow ────────────────────────────────────────────────
@@ -123,8 +141,10 @@ fn branch_operations_workflow() {
     assert_eq!(back, initial_branch);
 
     // feature.txt should not be present on the main branch
-    assert!(!path.join("feature.txt").exists(),
-        "feature.txt should not exist on {initial_branch}");
+    assert!(
+        !path.join("feature.txt").exists(),
+        "feature.txt should not exist on {initial_branch}"
+    );
 }
 
 // ── git history workflow ──────────────────────────────────────────────────────
@@ -161,7 +181,10 @@ fn discard_changes_workflow() {
     let file = path.join("README.md");
 
     std::fs::write(&file, "dirty modification").unwrap();
-    assert_eq!(std::fs::read_to_string(&file).unwrap(), "dirty modification");
+    assert_eq!(
+        std::fs::read_to_string(&file).unwrap(),
+        "dirty modification"
+    );
 
     git::discard_changes(path, "README.md").unwrap();
 
@@ -186,8 +209,16 @@ fn new_and_deleted_file_statuses() {
     );
 
     // Stage + commit the new file, then delete it from disk
-    Command::new("git").args(["add", "new_file.txt"]).current_dir(path).output().unwrap();
-    Command::new("git").args(["commit", "-m", "add file"]).current_dir(path).output().unwrap();
+    Command::new("git")
+        .args(["add", "new_file.txt"])
+        .current_dir(path)
+        .output()
+        .unwrap();
+    Command::new("git")
+        .args(["commit", "-m", "add file"])
+        .current_dir(path)
+        .output()
+        .unwrap();
     std::fs::remove_file(path.join("new_file.txt")).unwrap();
 
     let status2 = git::get_status(path).unwrap();

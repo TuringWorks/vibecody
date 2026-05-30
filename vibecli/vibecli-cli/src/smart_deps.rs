@@ -125,12 +125,13 @@ impl Default for LicensePolicy {
     fn default() -> Self {
         Self {
             allowed: vec![
-                "MIT".to_string(), "Apache-2.0".to_string(), "BSD-2-Clause".to_string(),
-                "BSD-3-Clause".to_string(), "ISC".to_string(),
+                "MIT".to_string(),
+                "Apache-2.0".to_string(),
+                "BSD-2-Clause".to_string(),
+                "BSD-3-Clause".to_string(),
+                "ISC".to_string(),
             ],
-            blocked: vec![
-                "GPL-3.0".to_string(), "AGPL-3.0".to_string(),
-            ],
+            blocked: vec!["GPL-3.0".to_string(), "AGPL-3.0".to_string()],
         }
     }
 }
@@ -227,8 +228,14 @@ impl DepAnalyzer {
     }
 
     /// Resolve a conflict using the given strategy.
-    pub fn resolve_conflict(&mut self, package: &str, strategy: &ResolutionStrategy) -> Result<String, String> {
-        let conflict = self.conflicts.iter_mut()
+    pub fn resolve_conflict(
+        &mut self,
+        package: &str,
+        strategy: &ResolutionStrategy,
+    ) -> Result<String, String> {
+        let conflict = self
+            .conflicts
+            .iter_mut()
             .find(|c| c.package == package)
             .ok_or_else(|| format!("No conflict for {}", package))?;
 
@@ -273,26 +280,44 @@ impl DepAnalyzer {
     }
 
     /// Compare alternative packages.
-    pub fn compare_alternatives<'a>(&self, alternatives: &'a [PackageComparison]) -> Vec<&'a PackageComparison> {
+    pub fn compare_alternatives<'a>(
+        &self,
+        alternatives: &'a [PackageComparison],
+    ) -> Vec<&'a PackageComparison> {
         let mut sorted: Vec<&PackageComparison> = alternatives.iter().collect();
         sorted.sort_by(|a, b| {
-            let score_a = a.maintenance_score * 0.4 + a.security_score * 0.4
+            let score_a = a.maintenance_score * 0.4
+                + a.security_score * 0.4
                 + (a.downloads as f64).log10() * 0.2;
-            let score_b = b.maintenance_score * 0.4 + b.security_score * 0.4
+            let score_b = b.maintenance_score * 0.4
+                + b.security_score * 0.4
                 + (b.downloads as f64).log10() * 0.2;
-            score_b.partial_cmp(&score_a).unwrap_or(std::cmp::Ordering::Equal)
+            score_b
+                .partial_cmp(&score_a)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
         sorted
     }
 
     /// Check deps against license policy.
-    pub fn check_license_compliance(&self, licenses: &HashMap<String, String>) -> Vec<(String, String, bool)> {
+    pub fn check_license_compliance(
+        &self,
+        licenses: &HashMap<String, String>,
+    ) -> Vec<(String, String, bool)> {
         let mut results = Vec::new();
         for dep in &self.deps {
             if let Some(lic) = licenses.get(&dep.name) {
-                let blocked = self.config.license_policy.blocked.iter()
+                let blocked = self
+                    .config
+                    .license_policy
+                    .blocked
+                    .iter()
                     .any(|b| lic.contains(b));
-                let allowed = self.config.license_policy.allowed.iter()
+                let allowed = self
+                    .config
+                    .license_policy
+                    .allowed
+                    .iter()
                     .any(|a| lic.contains(a));
                 results.push((dep.name.clone(), lic.clone(), !blocked && allowed));
             }
@@ -302,7 +327,8 @@ impl DepAnalyzer {
 
     /// Detect deps that are never referenced in source.
     pub fn detect_unused(&self) -> Vec<&Dependency> {
-        self.deps.iter()
+        self.deps
+            .iter()
             .filter(|d| !d.dev_only && !self.usage_counts.contains_key(&d.name))
             .collect()
     }
@@ -445,7 +471,9 @@ mod tests {
         a.add_dep(Dependency::new("x", "1.0", PackageManager::Npm));
         a.add_dep(Dependency::new("x", "2.0", PackageManager::Npm));
         a.detect_conflicts();
-        let r = a.resolve_conflict("x", &ResolutionStrategy::Newest).unwrap();
+        let r = a
+            .resolve_conflict("x", &ResolutionStrategy::Newest)
+            .unwrap();
         assert_eq!(r, "2.0");
     }
 
@@ -455,7 +483,9 @@ mod tests {
         a.add_dep(Dependency::new("x", "1.0", PackageManager::Npm));
         a.add_dep(Dependency::new("x", "2.0", PackageManager::Npm));
         a.detect_conflicts();
-        let r = a.resolve_conflict("x", &ResolutionStrategy::Oldest).unwrap();
+        let r = a
+            .resolve_conflict("x", &ResolutionStrategy::Oldest)
+            .unwrap();
         assert_eq!(r, "1.0");
     }
 
@@ -472,7 +502,9 @@ mod tests {
     #[test]
     fn test_resolve_conflict_not_found() {
         let mut a = analyzer();
-        assert!(a.resolve_conflict("nope", &ResolutionStrategy::Newest).is_err());
+        assert!(a
+            .resolve_conflict("nope", &ResolutionStrategy::Newest)
+            .is_err());
     }
 
     #[test]
@@ -509,8 +541,22 @@ mod tests {
     fn test_compare_alternatives() {
         let a = analyzer();
         let alts = vec![
-            PackageComparison { name: "a".to_string(), downloads: 1000, maintenance_score: 0.5, security_score: 0.5, license: "MIT".to_string(), size_kb: 100 },
-            PackageComparison { name: "b".to_string(), downloads: 100000, maintenance_score: 0.9, security_score: 0.9, license: "MIT".to_string(), size_kb: 50 },
+            PackageComparison {
+                name: "a".to_string(),
+                downloads: 1000,
+                maintenance_score: 0.5,
+                security_score: 0.5,
+                license: "MIT".to_string(),
+                size_kb: 100,
+            },
+            PackageComparison {
+                name: "b".to_string(),
+                downloads: 100000,
+                maintenance_score: 0.9,
+                security_score: 0.9,
+                license: "MIT".to_string(),
+                size_kb: 50,
+            },
         ];
         let sorted = a.compare_alternatives(&alts);
         assert_eq!(sorted[0].name, "b");
@@ -656,12 +702,18 @@ mod tests {
         let mut a = analyzer();
         a.add_dep(Dependency::new("x", "1.0", PackageManager::Npm));
         a.add_advisory(SecurityAdvisory {
-            id: "CVE-1".to_string(), package: "x".to_string(),
-            severity: Severity::High, fixed_version: None, description: "a".to_string(),
+            id: "CVE-1".to_string(),
+            package: "x".to_string(),
+            severity: Severity::High,
+            fixed_version: None,
+            description: "a".to_string(),
         });
         a.add_advisory(SecurityAdvisory {
-            id: "CVE-2".to_string(), package: "x".to_string(),
-            severity: Severity::Critical, fixed_version: None, description: "b".to_string(),
+            id: "CVE-2".to_string(),
+            package: "x".to_string(),
+            severity: Severity::Critical,
+            fixed_version: None,
+            description: "b".to_string(),
         });
         assert_eq!(a.check_security().len(), 2);
     }
@@ -690,7 +742,8 @@ mod tests {
         a.add_dep(Dependency::new("x", "1.0", PackageManager::Npm));
         a.add_dep(Dependency::new("x", "2.0", PackageManager::Npm));
         a.detect_conflicts();
-        a.resolve_conflict("x", &ResolutionStrategy::Newest).unwrap();
+        a.resolve_conflict("x", &ResolutionStrategy::Newest)
+            .unwrap();
         assert!(a.conflicts[0].resolution.is_some());
     }
 

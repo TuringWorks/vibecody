@@ -158,21 +158,79 @@ impl Rng {
 // ---------------------------------------------------------------------------
 
 const MODULES: &[&str] = &[
-    "auth", "api", "core", "db", "cache", "queue", "events", "models",
-    "services", "handlers", "middleware", "utils", "config", "logging",
-    "metrics", "health", "migrations", "schema", "routes", "controllers",
-    "views", "templates", "workers", "jobs", "notifications", "payments",
-    "billing", "search", "analytics", "storage", "uploads", "crypto",
-    "session", "oauth", "rbac", "audit", "webhooks", "integrations",
-    "gateway", "proxy",
+    "auth",
+    "api",
+    "core",
+    "db",
+    "cache",
+    "queue",
+    "events",
+    "models",
+    "services",
+    "handlers",
+    "middleware",
+    "utils",
+    "config",
+    "logging",
+    "metrics",
+    "health",
+    "migrations",
+    "schema",
+    "routes",
+    "controllers",
+    "views",
+    "templates",
+    "workers",
+    "jobs",
+    "notifications",
+    "payments",
+    "billing",
+    "search",
+    "analytics",
+    "storage",
+    "uploads",
+    "crypto",
+    "session",
+    "oauth",
+    "rbac",
+    "audit",
+    "webhooks",
+    "integrations",
+    "gateway",
+    "proxy",
 ];
 
 const FILE_STEMS: &[&str] = &[
-    "handler", "service", "model", "controller", "manager", "factory",
-    "builder", "parser", "serializer", "validator", "converter", "adapter",
-    "provider", "client", "server", "worker", "job", "task", "pipeline",
-    "processor", "engine", "registry", "store", "cache", "index",
-    "resolver", "dispatcher", "listener", "monitor", "reporter",
+    "handler",
+    "service",
+    "model",
+    "controller",
+    "manager",
+    "factory",
+    "builder",
+    "parser",
+    "serializer",
+    "validator",
+    "converter",
+    "adapter",
+    "provider",
+    "client",
+    "server",
+    "worker",
+    "job",
+    "task",
+    "pipeline",
+    "processor",
+    "engine",
+    "registry",
+    "store",
+    "cache",
+    "index",
+    "resolver",
+    "dispatcher",
+    "listener",
+    "monitor",
+    "reporter",
 ];
 
 fn extension_for_language(lang: &str) -> &str {
@@ -256,7 +314,9 @@ pub fn generate_code_snippet(language: &str, lines: usize) -> String {
             let mut remaining = lines.saturating_sub(2);
             while remaining > 0 {
                 let fn_name = format!("handle{}", rng.next_usize(100_000));
-                buf.push_str(&format!("export function {fn_name}(data: unknown): string {{\n"));
+                buf.push_str(&format!(
+                    "export function {fn_name}(data: unknown): string {{\n"
+                ));
                 remaining = remaining.saturating_sub(1);
                 let body_lines = (2 + rng.next_usize(6)).min(remaining);
                 for i in 0..body_lines {
@@ -272,7 +332,9 @@ pub fn generate_code_snippet(language: &str, lines: usize) -> String {
             let mut remaining = lines.saturating_sub(2);
             while remaining > 0 {
                 let fn_name = format!("compute_{}", rng.next_usize(100_000));
-                buf.push_str(&format!("def {fn_name}(data: Dict[str, Any]) -> List[str]:\n"));
+                buf.push_str(&format!(
+                    "def {fn_name}(data: Dict[str, Any]) -> List[str]:\n"
+                ));
                 remaining = remaining.saturating_sub(1);
                 let body_lines = (2 + rng.next_usize(6)).min(remaining);
                 for i in 0..body_lines {
@@ -288,7 +350,9 @@ pub fn generate_code_snippet(language: &str, lines: usize) -> String {
             let mut remaining = lines.saturating_sub(4);
             while remaining > 0 {
                 let fn_name = format!("Process{}", rng.next_usize(100_000));
-                buf.push_str(&format!("func {fn_name}(input string) (string, error) {{\n"));
+                buf.push_str(&format!(
+                    "func {fn_name}(input string) (string, error) {{\n"
+                ));
                 remaining = remaining.saturating_sub(1);
                 let body_lines = (2 + rng.next_usize(5)).min(remaining);
                 for i in 0..body_lines {
@@ -304,7 +368,9 @@ pub fn generate_code_snippet(language: &str, lines: usize) -> String {
             let mut remaining = lines.saturating_sub(4);
             while remaining > 0 {
                 let fn_name = format!("process{}", rng.next_usize(100_000));
-                buf.push_str(&format!("    public static String {fn_name}(String input) {{\n"));
+                buf.push_str(&format!(
+                    "    public static String {fn_name}(String input) {{\n"
+                ));
                 remaining = remaining.saturating_sub(1);
                 let body_lines = (2 + rng.next_usize(5)).min(remaining);
                 for i in 0..body_lines {
@@ -321,7 +387,9 @@ pub fn generate_code_snippet(language: &str, lines: usize) -> String {
             let mut remaining = lines.saturating_sub(3);
             while remaining > 0 {
                 let fn_name = format!("process_{}", rng.next_usize(100_000));
-                buf.push_str(&format!("std::string {fn_name}(const std::string& input) {{\n"));
+                buf.push_str(&format!(
+                    "std::string {fn_name}(const std::string& input) {{\n"
+                ));
                 remaining = remaining.saturating_sub(1);
                 let body_lines = (2 + rng.next_usize(5)).min(remaining);
                 for i in 0..body_lines {
@@ -363,8 +431,18 @@ pub fn generate_symbol_table(file_count: usize) -> Vec<Symbol> {
     ];
 
     let prefixes = [
-        "handle", "process", "create", "delete", "update", "validate",
-        "parse", "serialize", "transform", "compute", "resolve", "dispatch",
+        "handle",
+        "process",
+        "create",
+        "delete",
+        "update",
+        "validate",
+        "parse",
+        "serialize",
+        "transform",
+        "compute",
+        "resolve",
+        "dispatch",
     ];
 
     for file_idx in 0..file_count {
@@ -631,12 +709,11 @@ pub fn run_bench_suite(config: &BenchConfig) -> Result<BenchReport> {
     metrics.push(bench_file_indexing(&manifest));
 
     // 2. Symbol lookup
-    let queries: Vec<String> = symbols
-        .iter()
-        .take(100)
-        .map(|s| s.name.clone())
-        .collect();
-    metrics.push(bench_symbol_lookup(&symbols[..symbols.len().min(5_000)], &queries));
+    let queries: Vec<String> = symbols.iter().take(100).map(|s| s.name.clone()).collect();
+    metrics.push(bench_symbol_lookup(
+        &symbols[..symbols.len().min(5_000)],
+        &queries,
+    ));
 
     // 3. Path search
     let patterns = vec![
@@ -644,7 +721,10 @@ pub fn run_bench_suite(config: &BenchConfig) -> Result<BenchReport> {
         "src/modules/auth/*".to_string(),
         "*handler*".to_string(),
     ];
-    metrics.push(bench_path_search(&manifest[..manifest.len().min(10_000)], &patterns));
+    metrics.push(bench_path_search(
+        &manifest[..manifest.len().min(10_000)],
+        &patterns,
+    ));
 
     // 4. Context window eviction
     metrics.push(bench_context_window_eviction(80_000, 32_000));
@@ -786,19 +866,17 @@ fn simple_glob_match(pattern: &str, text: &str) -> bool {
 }
 
 /// Evaluate benchmark results against thresholds.
-fn evaluate_thresholds(
-    metrics: &[BenchMetric],
-    config: &BenchConfig,
-) -> (String, Vec<String>) {
+fn evaluate_thresholds(metrics: &[BenchMetric], config: &BenchConfig) -> (String, Vec<String>) {
     let mut pass = true;
     let mut recommendations = Vec::new();
 
     // File indexing threshold: scale proportionally.
     if let Some(m) = metrics.iter().find(|m| m.name == "file_indexing") {
-        let scaled_threshold =
-            THRESHOLD_FILE_INDEX_MS * (config.target_files as f64 / THRESHOLD_FILE_INDEX_COUNT as f64);
+        let scaled_threshold = THRESHOLD_FILE_INDEX_MS
+            * (config.target_files as f64 / THRESHOLD_FILE_INDEX_COUNT as f64);
         // We ran with scaled-down count; extrapolate.
-        let extrapolated = m.value_ms * (config.target_files as f64 / config.target_files.min(50_000) as f64);
+        let extrapolated =
+            m.value_ms * (config.target_files as f64 / config.target_files.min(50_000) as f64);
         if extrapolated > scaled_threshold {
             pass = false;
             recommendations.push(format!(
@@ -811,7 +889,11 @@ fn evaluate_thresholds(
     // Symbol lookup threshold.
     if let Some(m) = metrics.iter().find(|m| m.name == "symbol_lookup") {
         let extrapolated = m.value_ms * (THRESHOLD_SYMBOL_LOOKUP_COUNT as f64 / 5_000.0);
-        if extrapolated > THRESHOLD_SYMBOL_LOOKUP_MS * (THRESHOLD_SYMBOL_LOOKUP_COUNT as f64 / 1_000_000.0) * 100.0 {
+        if extrapolated
+            > THRESHOLD_SYMBOL_LOOKUP_MS
+                * (THRESHOLD_SYMBOL_LOOKUP_COUNT as f64 / 1_000_000.0)
+                * 100.0
+        {
             // Very generous for linear search — it will likely fail, which is expected.
             recommendations.push(
                 "Symbol lookup is linear — switch to HashMap or radix trie for O(1) lookup.".into(),
@@ -932,7 +1014,11 @@ mod tests {
         };
         let manifest = generate_file_manifest(&cfg);
         for entry in &manifest {
-            assert!(entry.path.starts_with("src/"), "path should start with src/: {}", entry.path);
+            assert!(
+                entry.path.starts_with("src/"),
+                "path should start with src/: {}",
+                entry.path
+            );
         }
     }
 
@@ -1042,12 +1128,14 @@ mod tests {
     #[test]
     fn test_symbol_table_variety() {
         let symbols = generate_symbol_table(200);
-        let kinds: std::collections::HashSet<String> = symbols
-            .iter()
-            .map(|s| format!("{:?}", s.kind))
-            .collect();
+        let kinds: std::collections::HashSet<String> =
+            symbols.iter().map(|s| format!("{:?}", s.kind)).collect();
         // With 1000 symbols and 10 kinds, we should have most kinds represented.
-        assert!(kinds.len() >= 5, "expected variety of symbol kinds, got {}", kinds.len());
+        assert!(
+            kinds.len() >= 5,
+            "expected variety of symbol kinds, got {}",
+            kinds.len()
+        );
     }
 
     #[test]
@@ -1218,21 +1306,23 @@ mod tests {
         let cfg = BenchConfig::default();
         let (verdict, _recs) = evaluate_thresholds(&metrics, &cfg);
         // With very fast metrics, should pass.
-        assert!(verdict.contains("PASS"), "expected PASS verdict: {}", verdict);
+        assert!(
+            verdict.contains("PASS"),
+            "expected PASS verdict: {}",
+            verdict
+        );
     }
 
     #[test]
     fn test_evaluate_thresholds_eviction_fail() {
-        let metrics = vec![
-            BenchMetric {
-                name: "context_window_eviction".into(),
-                value_ms: 200.0, // exceeds 50ms threshold
-                throughput: Some(1000.0),
-                memory_bytes: Some(1000),
-                iterations: 10,
-                std_dev_ms: Some(10.0),
-            },
-        ];
+        let metrics = vec![BenchMetric {
+            name: "context_window_eviction".into(),
+            value_ms: 200.0, // exceeds 50ms threshold
+            throughput: Some(1000.0),
+            memory_bytes: Some(1000),
+            iterations: 10,
+            std_dev_ms: Some(10.0),
+        }];
         let cfg = BenchConfig::default();
         let (verdict, recs) = evaluate_thresholds(&metrics, &cfg);
         assert!(verdict.contains("NEEDS IMPROVEMENT"));

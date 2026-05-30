@@ -2,15 +2,13 @@
 //! the test, point the minter at it, assert minted-token shape and
 //! caching behaviour.
 
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::runtime::Runtime;
 use tokio::task::JoinHandle;
-use vibe_broker::{
-    AzureClientCredentialsMinter, CachedMinter, MintedToken, TokenMinter,
-};
+use vibe_broker::{AzureClientCredentialsMinter, CachedMinter, MintedToken, TokenMinter};
 
 #[derive(Default, World)]
 pub struct TWorld {
@@ -44,9 +42,7 @@ impl TWorld {
 /// JSON for any POST. We can't use rustls + a self-signed cert here
 /// because reqwest's default trust pool wouldn't accept it; instead the
 /// minter is pointed at a plain http:// stub via `with_endpoint`.
-async fn start_stub_http(
-    body: String,
-) -> (std::net::SocketAddr, JoinHandle<()>) {
+async fn start_stub_http(body: String) -> (std::net::SocketAddr, JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     let handle = tokio::spawn(async move {
@@ -108,18 +104,21 @@ async fn start_stub_http(
     (addr, handle)
 }
 
-#[given(expr = "a stub Azure OAuth endpoint at \\/tenant42\\/oauth2\\/v2.0\\/token returning access_token {string} with expires_in {int}")]
+#[given(
+    expr = "a stub Azure OAuth endpoint at \\/tenant42\\/oauth2\\/v2.0\\/token returning access_token {string} with expires_in {int}"
+)]
 fn stub_endpoint(world: &mut TWorld, token: String, expires_in: u64) {
-    let body = format!(
-        r#"{{"access_token":"{token}","token_type":"Bearer","expires_in":{expires_in}}}"#
-    );
+    let body =
+        format!(r#"{{"access_token":"{token}","token_type":"Bearer","expires_in":{expires_in}}}"#);
     let rt = world.rt();
     let (addr, handle) = rt.block_on(start_stub_http(body));
     world.stub_addr = Some(addr);
     world.stub_handle = Some(handle);
 }
 
-#[given(expr = "an AzureClientCredentialsMinter pointing at the stub with tenant {string} client_id {string} client_secret {string} scope {string}")]
+#[given(
+    expr = "an AzureClientCredentialsMinter pointing at the stub with tenant {string} client_id {string} client_secret {string} scope {string}"
+)]
 fn make_azure_minter(
     world: &mut TWorld,
     tenant: String,
@@ -177,7 +176,5 @@ fn cached_call_count(world: &mut TWorld, expected: u64) {
 }
 
 fn main() {
-    futures::executor::block_on(TWorld::run(
-        "tests/features/broker_token_mint.feature",
-    ));
+    futures::executor::block_on(TWorld::run("tests/features/broker_token_mint.feature"));
 }

@@ -1,10 +1,10 @@
 //! AI provider abstraction layer
 
+use anyhow::Result;
 use async_trait::async_trait;
+use futures::Stream;
 use serde::{Deserialize, Serialize};
 use std::pin::Pin;
-use futures::Stream;
-use anyhow::Result;
 
 /// Code context for AI completions
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -61,8 +61,16 @@ fn base64_encode(data: &[u8]) -> String {
         let n = (b0 << 16) | (b1 << 8) | b2;
         out.push(CHARS[((n >> 18) & 0x3F) as usize] as char);
         out.push(CHARS[((n >> 12) & 0x3F) as usize] as char);
-        out.push(if chunk.len() > 1 { CHARS[((n >> 6) & 0x3F) as usize] as char } else { '=' });
-        out.push(if chunk.len() > 2 { CHARS[(n & 0x3F) as usize] as char } else { '=' });
+        out.push(if chunk.len() > 1 {
+            CHARS[((n >> 6) & 0x3F) as usize] as char
+        } else {
+            '='
+        });
+        out.push(if chunk.len() > 2 {
+            CHARS[(n & 0x3F) as usize] as char
+        } else {
+            '='
+        });
     }
     out
 }
@@ -124,14 +132,20 @@ impl TokenUsage {
             (_, m) if m.contains("gpt-3.5") => (0.5 / 1_000_000.0, 1.5 / 1_000_000.0),
             // Google Gemini
             (_, m) if m.contains("gemini-2.5-pro") => (1.25 / 1_000_000.0, 10.0 / 1_000_000.0),
-            (_, m) if m.contains("gemini-2.5-flash") || m.contains("gemini-2.0-flash") => (0.15 / 1_000_000.0, 0.6 / 1_000_000.0),
+            (_, m) if m.contains("gemini-2.5-flash") || m.contains("gemini-2.0-flash") => {
+                (0.15 / 1_000_000.0, 0.6 / 1_000_000.0)
+            }
             // DeepSeek
             (_, m) if m.contains("deepseek") => (0.27 / 1_000_000.0, 1.1 / 1_000_000.0),
             // Mistral
             (_, m) if m.contains("mistral-large") => (2.0 / 1_000_000.0, 6.0 / 1_000_000.0),
-            (_, m) if m.contains("mistral-small") || m.contains("mistral-medium") => (0.2 / 1_000_000.0, 0.6 / 1_000_000.0),
+            (_, m) if m.contains("mistral-small") || m.contains("mistral-medium") => {
+                (0.2 / 1_000_000.0, 0.6 / 1_000_000.0)
+            }
             // Perplexity Sonar
-            (_, m) if m.contains("sonar-pro") || m.contains("sonar-reasoning") => (3.0 / 1_000_000.0, 15.0 / 1_000_000.0),
+            (_, m) if m.contains("sonar-pro") || m.contains("sonar-reasoning") => {
+                (3.0 / 1_000_000.0, 15.0 / 1_000_000.0)
+            }
             (_, m) if m.contains("sonar") => (1.0 / 1_000_000.0, 1.0 / 1_000_000.0),
             // xAI Grok
             (_, m) if m.contains("grok-3") => (3.0 / 1_000_000.0, 15.0 / 1_000_000.0),
@@ -186,7 +200,11 @@ pub trait AIProvider: Send + Sync {
     /// Chat, returning a full `CompletionResponse` with token usage.
     /// Default implementation wraps `chat()` with no usage info.
     /// Cloud providers (Claude, OpenAI) should override this to return usage.
-    async fn chat_response(&self, messages: &[Message], context: Option<String>) -> Result<CompletionResponse> {
+    async fn chat_response(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+    ) -> Result<CompletionResponse> {
         let text = self.chat(messages, context).await?;
         Ok(CompletionResponse {
             text,
@@ -313,7 +331,10 @@ mod tests {
 
     #[test]
     fn token_usage_total() {
-        let u = TokenUsage { prompt_tokens: 100, completion_tokens: 50 };
+        let u = TokenUsage {
+            prompt_tokens: 100,
+            completion_tokens: 50,
+        };
         assert_eq!(u.total(), 150);
     }
 
@@ -325,8 +346,14 @@ mod tests {
 
     #[test]
     fn token_usage_add() {
-        let mut a = TokenUsage { prompt_tokens: 10, completion_tokens: 20 };
-        let b = TokenUsage { prompt_tokens: 5, completion_tokens: 15 };
+        let mut a = TokenUsage {
+            prompt_tokens: 10,
+            completion_tokens: 20,
+        };
+        let b = TokenUsage {
+            prompt_tokens: 5,
+            completion_tokens: 15,
+        };
         a.add(&b);
         assert_eq!(a.prompt_tokens, 15);
         assert_eq!(a.completion_tokens, 35);
@@ -335,7 +362,10 @@ mod tests {
 
     #[test]
     fn estimated_cost_claude_opus() {
-        let u = TokenUsage { prompt_tokens: 1_000_000, completion_tokens: 1_000_000 };
+        let u = TokenUsage {
+            prompt_tokens: 1_000_000,
+            completion_tokens: 1_000_000,
+        };
         let cost = u.estimated_cost_usd("claude", "claude-opus-4-20250514");
         // 15.0 + 75.0 = 90.0
         assert!((cost - 90.0).abs() < 0.01, "got {}", cost);
@@ -343,7 +373,10 @@ mod tests {
 
     #[test]
     fn estimated_cost_claude_sonnet() {
-        let u = TokenUsage { prompt_tokens: 1_000_000, completion_tokens: 1_000_000 };
+        let u = TokenUsage {
+            prompt_tokens: 1_000_000,
+            completion_tokens: 1_000_000,
+        };
         let cost = u.estimated_cost_usd("claude", "claude-sonnet-4-20250514");
         // 3.0 + 15.0 = 18.0
         assert!((cost - 18.0).abs() < 0.01, "got {}", cost);
@@ -351,7 +384,10 @@ mod tests {
 
     #[test]
     fn estimated_cost_claude_haiku() {
-        let u = TokenUsage { prompt_tokens: 1_000_000, completion_tokens: 1_000_000 };
+        let u = TokenUsage {
+            prompt_tokens: 1_000_000,
+            completion_tokens: 1_000_000,
+        };
         let cost = u.estimated_cost_usd("claude", "claude-haiku-4-20250101");
         // 0.8 + 4.0 = 4.8
         assert!((cost - 4.8).abs() < 0.01, "got {}", cost);
@@ -359,7 +395,10 @@ mod tests {
 
     #[test]
     fn estimated_cost_gpt4o() {
-        let u = TokenUsage { prompt_tokens: 1_000_000, completion_tokens: 1_000_000 };
+        let u = TokenUsage {
+            prompt_tokens: 1_000_000,
+            completion_tokens: 1_000_000,
+        };
         let cost = u.estimated_cost_usd("openai", "gpt-4o-2024-08-06");
         // 2.5 + 10.0 = 12.5
         assert!((cost - 12.5).abs() < 0.01, "got {}", cost);
@@ -367,7 +406,10 @@ mod tests {
 
     #[test]
     fn estimated_cost_gpt4_turbo() {
-        let u = TokenUsage { prompt_tokens: 1_000_000, completion_tokens: 1_000_000 };
+        let u = TokenUsage {
+            prompt_tokens: 1_000_000,
+            completion_tokens: 1_000_000,
+        };
         let cost = u.estimated_cost_usd("openai", "gpt-4-turbo-preview");
         // 10.0 + 30.0 = 40.0
         assert!((cost - 40.0).abs() < 0.01, "got {}", cost);
@@ -375,7 +417,10 @@ mod tests {
 
     #[test]
     fn estimated_cost_gpt35() {
-        let u = TokenUsage { prompt_tokens: 1_000_000, completion_tokens: 1_000_000 };
+        let u = TokenUsage {
+            prompt_tokens: 1_000_000,
+            completion_tokens: 1_000_000,
+        };
         let cost = u.estimated_cost_usd("openai", "gpt-3.5-turbo");
         // 0.5 + 1.5 = 2.0
         assert!((cost - 2.0).abs() < 0.01, "got {}", cost);
@@ -383,14 +428,24 @@ mod tests {
 
     #[test]
     fn estimated_cost_ollama_free() {
-        let u = TokenUsage { prompt_tokens: 1_000_000, completion_tokens: 1_000_000 };
+        let u = TokenUsage {
+            prompt_tokens: 1_000_000,
+            completion_tokens: 1_000_000,
+        };
         let cost = u.estimated_cost_usd("ollama", "llama3.2");
-        assert!((cost - 0.0).abs() < 0.001, "local model should be free, got {}", cost);
+        assert!(
+            (cost - 0.0).abs() < 0.001,
+            "local model should be free, got {}",
+            cost
+        );
     }
 
     #[test]
     fn estimated_cost_unknown_provider_free() {
-        let u = TokenUsage { prompt_tokens: 500, completion_tokens: 500 };
+        let u = TokenUsage {
+            prompt_tokens: 500,
+            completion_tokens: 500,
+        };
         let cost = u.estimated_cost_usd("custom", "my-model");
         assert!((cost - 0.0).abs() < 0.001);
     }
@@ -459,7 +514,10 @@ mod tests {
 
     #[test]
     fn message_role_serde() {
-        let msg = Message { role: MessageRole::User, content: "test".into() };
+        let msg = Message {
+            role: MessageRole::User,
+            content: "test".into(),
+        };
         let json = serde_json::to_string(&msg).unwrap();
         assert!(json.contains("\"user\""));
         let decoded: Message = serde_json::from_str(&json).unwrap();
@@ -480,7 +538,10 @@ mod tests {
         let resp = CompletionResponse {
             text: "hello".into(),
             model: "test".into(),
-            usage: Some(TokenUsage { prompt_tokens: 10, completion_tokens: 5 }),
+            usage: Some(TokenUsage {
+                prompt_tokens: 10,
+                completion_tokens: 5,
+            }),
         };
         let json = serde_json::to_string(&resp).unwrap();
         assert!(json.contains("\"usage\""));
@@ -556,7 +617,10 @@ mod tests {
 
     #[test]
     fn token_usage_serde_roundtrip() {
-        let usage = TokenUsage { prompt_tokens: 100, completion_tokens: 50 };
+        let usage = TokenUsage {
+            prompt_tokens: 100,
+            completion_tokens: 50,
+        };
         let json = serde_json::to_string(&usage).unwrap();
         let back: TokenUsage = serde_json::from_str(&json).unwrap();
         assert_eq!(back.prompt_tokens, 100);

@@ -2,7 +2,7 @@
  * BDD tests for the Tailscale integration module.
  * Run with: cargo test --test tailscale_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::tailscale::TailscaleInfo;
 
 #[derive(Debug, Default, World)]
@@ -24,10 +24,14 @@ fn parse_funnel_url_from_json(status_json: &str) -> Option<String> {
     let funnel_active = funnel_ports
         .map(|ports| ports.iter().any(|p| p.as_u64() == Some(443)))
         .unwrap_or(false);
-    if !funnel_active { return None; }
+    if !funnel_active {
+        return None;
+    }
     let dns_name = status["Self"]["DNSName"].as_str()?;
     let host = dns_name.trim_end_matches('.');
-    if host.is_empty() { return None; }
+    if host.is_empty() {
+        return None;
+    }
     Some(format!("https://{host}"))
 }
 
@@ -71,7 +75,8 @@ fn status_with_funnel(world: &mut TsWorld, dns_name: String) {
             "DNSName": dns_name,
             "FunnelPorts": [443]
         }
-    }).to_string();
+    })
+    .to_string();
 }
 
 #[given(expr = "a tailscale status JSON with DNSName {string} and FunnelPorts []")]
@@ -81,7 +86,8 @@ fn status_no_funnel_ports(world: &mut TsWorld, dns_name: String) {
             "DNSName": dns_name,
             "FunnelPorts": []
         }
-    }).to_string();
+    })
+    .to_string();
 }
 
 #[given("a tailscale status JSON with no DNSName and FunnelPorts [443]")]
@@ -90,7 +96,8 @@ fn status_no_dns_name(world: &mut TsWorld) {
         "Self": {
             "FunnelPorts": [443]
         }
-    }).to_string();
+    })
+    .to_string();
 }
 
 // ── When ──────────────────────────────────────────────────────────────────────
@@ -161,8 +168,11 @@ fn hostname_eq(world: &mut TsWorld, expected: String) {
 
 #[then(expr = "the JSON should contain {string}")]
 fn json_contains(world: &mut TsWorld, needle: String) {
-    assert!(world.json_output.contains(&needle),
-        "JSON '{}' does not contain '{needle}'", world.json_output);
+    assert!(
+        world.json_output.contains(&needle),
+        "JSON '{}' does not contain '{needle}'",
+        world.json_output
+    );
 }
 
 #[then(expr = "the roundtripped ip should be {string}")]
@@ -195,12 +205,13 @@ fn funnel_url_eq(world: &mut TsWorld, expected: String) {
 
 #[then("the funnel URL should be None")]
 fn funnel_url_is_none(world: &mut TsWorld) {
-    assert!(world.funnel_url.is_none(),
-        "expected None but got {:?}", world.funnel_url);
+    assert!(
+        world.funnel_url.is_none(),
+        "expected None but got {:?}",
+        world.funnel_url
+    );
 }
 
 fn main() {
-    futures::executor::block_on(
-        TsWorld::run("tests/features/tailscale.feature"),
-    );
+    futures::executor::block_on(TsWorld::run("tests/features/tailscale.feature"));
 }

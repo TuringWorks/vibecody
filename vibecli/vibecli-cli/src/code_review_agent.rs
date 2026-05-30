@@ -194,7 +194,9 @@ impl PatternAnalyzer {
                     file_path: String::new(),
                     line_start: lineno,
                     line_end: lineno,
-                    suggestion: Some("Replace with `.expect(\"reason\")` or propagate the error with `?`".into()),
+                    suggestion: Some(
+                        "Replace with `.expect(\"reason\")` or propagate the error with `?`".into(),
+                    ),
                     confidence: 0.85,
                     auto_fixable: false,
                 });
@@ -251,7 +253,10 @@ impl PatternAnalyzer {
 
             // --- hardcoded secrets patterns ---
             let lower = trimmed.to_lowercase();
-            if (lower.contains("password") || lower.contains("secret") || lower.contains("api_key") || lower.contains("apikey"))
+            if (lower.contains("password")
+                || lower.contains("secret")
+                || lower.contains("api_key")
+                || lower.contains("apikey"))
                 && (trimmed.contains('=') || trimmed.contains(':'))
                 && !trimmed.starts_with("//")
                 && !trimmed.starts_with("#")
@@ -287,7 +292,9 @@ impl PatternAnalyzer {
                     severity: ReviewSeverity::Warning,
                     category: ReviewCategory::ErrorHandling,
                     title: "Empty catch block".into(),
-                    description: format!("Line {lineno}: Empty catch block swallows errors silently."),
+                    description: format!(
+                        "Line {lineno}: Empty catch block swallows errors silently."
+                    ),
                     file_path: String::new(),
                     line_start: lineno,
                     line_end: lineno,
@@ -420,9 +427,11 @@ impl PatternAnalyzer {
                     continue;
                 }
                 // Count occurrences of the name in non-import lines
-                let usage_count = lines.iter().enumerate().filter(|(i, l)| {
-                    *i != idx && !l.trim().starts_with("use ") && l.contains(name)
-                }).count();
+                let usage_count = lines
+                    .iter()
+                    .enumerate()
+                    .filter(|(i, l)| *i != idx && !l.trim().starts_with("use ") && l.contains(name))
+                    .count();
                 if usage_count == 0 {
                     findings.push(ReviewFinding {
                         id: format!("PA-unused-import-{}", idx + 1),
@@ -461,10 +470,12 @@ impl NamingChecker {
             let lineno = idx + 1;
 
             // Function names — `fn some_name(`
-            if let Some(rest) = trimmed.strip_prefix("fn ").or_else(|| trimmed.strip_prefix("pub fn ").or_else(|| trimmed.strip_prefix("pub(crate) fn "))) {
-                let name = rest.split(['(', '<', ' '])
-                    .next()
-                    .unwrap_or("");
+            if let Some(rest) = trimmed.strip_prefix("fn ").or_else(|| {
+                trimmed
+                    .strip_prefix("pub fn ")
+                    .or_else(|| trimmed.strip_prefix("pub(crate) fn "))
+            }) {
+                let name = rest.split(['(', '<', ' ']).next().unwrap_or("");
                 if !name.is_empty() && !Self::is_snake_case(name) {
                     findings.push(ReviewFinding {
                         id: format!("NC-rust-fn-{lineno}"),
@@ -493,9 +504,7 @@ impl NamingChecker {
                 ];
                 for prefix in &prefix_variants {
                     if let Some(rest) = trimmed.strip_prefix(prefix.as_str()) {
-                        let name = rest.split(['{', '(', '<', ' ', ';'])
-                            .next()
-                            .unwrap_or("");
+                        let name = rest.split(['{', '(', '<', ' ', ';']).next().unwrap_or("");
                         if !name.is_empty() && !Self::is_camel_case(name) {
                             findings.push(ReviewFinding {
                                 id: format!("NC-rust-type-{lineno}"),
@@ -530,9 +539,7 @@ impl NamingChecker {
 
             // function declarations
             if let Some(rest) = trimmed.strip_prefix("function ") {
-                let name = rest.split(['(', '<', ' '])
-                    .next()
-                    .unwrap_or("");
+                let name = rest.split(['(', '<', ' ']).next().unwrap_or("");
                 if !name.is_empty() && !Self::is_camel_case_lower(name) {
                     findings.push(ReviewFinding {
                         id: format!("NC-ts-fn-{lineno}"),
@@ -554,16 +561,17 @@ impl NamingChecker {
 
             // React components — `const FooBar = (` or `export const FooBar`
             if (trimmed.starts_with("const ") || trimmed.starts_with("export const "))
-                && (trimmed.contains("React.FC") || trimmed.contains(": FC") || trimmed.contains("=> {") || trimmed.contains("=> ("))
+                && (trimmed.contains("React.FC")
+                    || trimmed.contains(": FC")
+                    || trimmed.contains("=> {")
+                    || trimmed.contains("=> ("))
             {
                 let after_const = if let Some(r) = trimmed.strip_prefix("export const ") {
                     r
                 } else {
                     trimmed.strip_prefix("const ").unwrap_or("")
                 };
-                let name = after_const.split([' ', ':', '='])
-                    .next()
-                    .unwrap_or("");
+                let name = after_const.split([' ', ':', '=']).next().unwrap_or("");
                 if !name.is_empty() && !Self::is_pascal_case(name) {
                     findings.push(ReviewFinding {
                         id: format!("NC-ts-comp-{lineno}"),
@@ -590,7 +598,8 @@ impl NamingChecker {
 
     fn is_snake_case(s: &str) -> bool {
         !s.is_empty()
-            && s.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+            && s.chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
             && !s.starts_with('_')
     }
 
@@ -701,7 +710,11 @@ impl CodeReviewAgent {
         self.apply_config_filters(&mut findings);
 
         // Add praise if enabled
-        if self.config.include_praise && findings.iter().all(|f| f.severity != ReviewSeverity::Critical) {
+        if self.config.include_praise
+            && findings
+                .iter()
+                .all(|f| f.severity != ReviewSeverity::Critical)
+        {
             findings.push(ReviewFinding {
                 id: format!("PRAISE-{session_id}"),
                 severity: ReviewSeverity::Praise,
@@ -857,7 +870,12 @@ impl CodeReviewAgent {
             .findings
             .iter()
             .filter(|f| f.auto_fixable && f.suggestion.is_some())
-            .map(|f| (f.file_path.clone(), f.suggestion.clone().unwrap_or_default()))
+            .map(|f| {
+                (
+                    f.file_path.clone(),
+                    f.suggestion.clone().unwrap_or_default(),
+                )
+            })
             .collect()
     }
 
@@ -1004,14 +1022,18 @@ mod tests {
     fn test_detect_hardcoded_secret() {
         let code = "let password = \"hunter2\";\n";
         let findings = PatternAnalyzer::analyze(code, "rs");
-        assert!(findings.iter().any(|f| f.category == ReviewCategory::Security));
+        assert!(findings
+            .iter()
+            .any(|f| f.category == ReviewCategory::Security));
     }
 
     #[test]
     fn test_no_secret_in_comment() {
         let code = "// password = \"hunter2\"\n";
         let findings = PatternAnalyzer::analyze(code, "rs");
-        assert!(!findings.iter().any(|f| f.category == ReviewCategory::Security));
+        assert!(!findings
+            .iter()
+            .any(|f| f.category == ReviewCategory::Security));
     }
 
     #[test]
@@ -1064,7 +1086,9 @@ mod tests {
     fn test_used_import_no_warning() {
         let code = "use std::collections::HashMap;\nfn main() { let _m: HashMap<(), ()> = HashMap::new(); }\n";
         let findings = PatternAnalyzer::analyze(code, "rs");
-        assert!(!findings.iter().any(|f| f.title.contains("unused import") && f.title.contains("HashMap")));
+        assert!(!findings
+            .iter()
+            .any(|f| f.title.contains("unused import") && f.title.contains("HashMap")));
     }
 
     // -- NamingChecker -----------------------------------------------------
@@ -1221,7 +1245,11 @@ mod tests {
         let mut agent = default_agent();
         let code = "let x = foo().unwrap();\n";
         let session = agent.review_file("f.rs", code);
-        let finding_id = session.findings.iter().find(|f| f.title.contains("unwrap")).map(|f| f.id.clone());
+        let finding_id = session
+            .findings
+            .iter()
+            .find(|f| f.title.contains("unwrap"))
+            .map(|f| f.id.clone());
         if let Some(fid) = finding_id {
             assert!(agent.dismiss(&session.id, &fid).is_ok());
         }
@@ -1279,7 +1307,10 @@ mod tests {
     fn test_praise_included_when_clean() {
         let mut agent = default_agent();
         let session = agent.review_file("clean.rs", "fn main() {}\n");
-        assert!(session.findings.iter().any(|f| f.severity == ReviewSeverity::Praise));
+        assert!(session
+            .findings
+            .iter()
+            .any(|f| f.severity == ReviewSeverity::Praise));
     }
 
     #[test]
@@ -1288,7 +1319,10 @@ mod tests {
         cfg.include_praise = false;
         let mut agent = CodeReviewAgent::new(cfg);
         let session = agent.review_file("clean.rs", "fn main() {}\n");
-        assert!(!session.findings.iter().any(|f| f.severity == ReviewSeverity::Praise));
+        assert!(!session
+            .findings
+            .iter()
+            .any(|f| f.severity == ReviewSeverity::Praise));
     }
 
     #[test]
@@ -1306,7 +1340,8 @@ mod tests {
         let mut cfg = ReviewConfig::default();
         cfg.max_findings = 1;
         let mut agent = CodeReviewAgent::new(cfg);
-        let code = "let api_key = \"x\";\nlet password = \"y\";\nlet x = foo().unwrap();\n// TODO fix\n";
+        let code =
+            "let api_key = \"x\";\nlet password = \"y\";\nlet x = foo().unwrap();\n// TODO fix\n";
         let session = agent.review_file("f.rs", code);
         assert!(session.findings.len() <= 1);
     }
@@ -1413,7 +1448,10 @@ mod tests {
         });
         // Should NOT fire for Rust
         let session = agent.review_file("f.rs", "console.log(\"hi\");\n");
-        assert!(!session.findings.iter().any(|f| f.title.contains("console.log")));
+        assert!(!session
+            .findings
+            .iter()
+            .any(|f| f.title.contains("console.log")));
     }
 
     #[test]

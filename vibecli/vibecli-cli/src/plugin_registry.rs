@@ -1,6 +1,6 @@
 //! Plugin Registry — publishing, discovery, verification, and dependency resolution.
 
-use crate::plugin_sdk::{PluginManifestV2, PluginKind, PluginDependency};
+use crate::plugin_sdk::{PluginDependency, PluginKind, PluginManifestV2};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -18,13 +18,13 @@ pub struct RegistryEntry {
     pub homepage: Option<String>,
     pub keywords: Vec<String>,
     pub downloads: u64,
-    pub rating: f32,        // 0.0 - 5.0
+    pub rating: f32, // 0.0 - 5.0
     pub review_count: u32,
     pub created_at: String,
     pub updated_at: String,
-    pub checksum: String,   // SHA-256 of plugin archive
+    pub checksum: String,          // SHA-256 of plugin archive
     pub signature: Option<String>, // GPG/minisign signature
-    pub verified: bool,     // verified by VibeCody team
+    pub verified: bool,            // verified by VibeCody team
     pub archive_url: String,
     pub archive_size: u64,
     pub platforms: Vec<String>,
@@ -105,21 +105,42 @@ impl PluginRegistry {
         };
 
         let query_lower = query.to_lowercase();
-        let mut results: Vec<(&RegistryEntry, u32)> = index.entries.iter()
+        let mut results: Vec<(&RegistryEntry, u32)> = index
+            .entries
+            .iter()
             .filter(|e| {
                 if let Some(k) = kind {
-                    if &e.kind != k { return false; }
+                    if &e.kind != k {
+                        return false;
+                    }
                 }
                 true
             })
             .filter_map(|e| {
                 let mut score = 0u32;
-                if e.name.to_lowercase().contains(&query_lower) { score += 10; }
-                if e.display_name.to_lowercase().contains(&query_lower) { score += 8; }
-                if e.description.to_lowercase().contains(&query_lower) { score += 5; }
-                if e.keywords.iter().any(|k| k.to_lowercase().contains(&query_lower)) { score += 6; }
-                if e.author.to_lowercase().contains(&query_lower) { score += 3; }
-                if score > 0 { Some((e, score)) } else { None }
+                if e.name.to_lowercase().contains(&query_lower) {
+                    score += 10;
+                }
+                if e.display_name.to_lowercase().contains(&query_lower) {
+                    score += 8;
+                }
+                if e.description.to_lowercase().contains(&query_lower) {
+                    score += 5;
+                }
+                if e.keywords
+                    .iter()
+                    .any(|k| k.to_lowercase().contains(&query_lower))
+                {
+                    score += 6;
+                }
+                if e.author.to_lowercase().contains(&query_lower) {
+                    score += 3;
+                }
+                if score > 0 {
+                    Some((e, score))
+                } else {
+                    None
+                }
             })
             .collect();
 
@@ -152,7 +173,7 @@ impl PluginRegistry {
 
     /// Verify plugin checksum
     pub fn verify_checksum(archive_path: &Path, expected: &str) -> anyhow::Result<bool> {
-        use sha2::{Sha256, Digest};
+        use sha2::{Digest, Sha256};
         let data = std::fs::read(archive_path)?;
         let hash = format!("{:x}", Sha256::digest(&data));
         Ok(hash == expected)
@@ -220,14 +241,19 @@ impl PluginRegistry {
                 RegistryEntry {
                     name: "vibecody-jira".to_string(),
                     display_name: "Jira Connector".to_string(),
-                    description: "Integrate Jira issues, sprints, and boards with VibeCody agent".to_string(),
+                    description: "Integrate Jira issues, sprints, and boards with VibeCody agent"
+                        .to_string(),
                     version: "1.2.0".to_string(),
                     author: "vibecody-team".to_string(),
                     license: "MIT".to_string(),
                     kind: PluginKind::Connector,
                     repository: Some("https://github.com/vibecody/plugin-jira".to_string()),
                     homepage: None,
-                    keywords: vec!["jira".into(), "atlassian".into(), "project-management".into()],
+                    keywords: vec![
+                        "jira".into(),
+                        "atlassian".into(),
+                        "project-management".into(),
+                    ],
                     downloads: 15420,
                     rating: 4.5,
                     review_count: 87,
@@ -236,7 +262,8 @@ impl PluginRegistry {
                     checksum: "abc123".to_string(),
                     signature: None,
                     verified: true,
-                    archive_url: "https://registry.vibecody.dev/plugins/vibecody-jira/1.2.0.tar.gz".to_string(),
+                    archive_url: "https://registry.vibecody.dev/plugins/vibecody-jira/1.2.0.tar.gz"
+                        .to_string(),
                     archive_size: 45_000,
                     platforms: vec!["all".into()],
                     dependencies: vec![],
@@ -245,14 +272,19 @@ impl PluginRegistry {
                 RegistryEntry {
                     name: "vibecody-linear".to_string(),
                     display_name: "Linear Connector".to_string(),
-                    description: "Sync Linear issues, cycles, and projects with VibeCody workflows".to_string(),
+                    description: "Sync Linear issues, cycles, and projects with VibeCody workflows"
+                        .to_string(),
                     version: "1.0.3".to_string(),
                     author: "vibecody-team".to_string(),
                     license: "MIT".to_string(),
                     kind: PluginKind::Connector,
                     repository: Some("https://github.com/vibecody/plugin-linear".to_string()),
                     homepage: None,
-                    keywords: vec!["linear".into(), "issues".into(), "project-management".into()],
+                    keywords: vec![
+                        "linear".into(),
+                        "issues".into(),
+                        "project-management".into(),
+                    ],
                     downloads: 8930,
                     rating: 4.7,
                     review_count: 42,
@@ -261,7 +293,9 @@ impl PluginRegistry {
                     checksum: "def456".to_string(),
                     signature: None,
                     verified: true,
-                    archive_url: "https://registry.vibecody.dev/plugins/vibecody-linear/1.0.3.tar.gz".to_string(),
+                    archive_url:
+                        "https://registry.vibecody.dev/plugins/vibecody-linear/1.0.3.tar.gz"
+                            .to_string(),
                     archive_size: 38_000,
                     platforms: vec!["all".into()],
                     dependencies: vec![],
@@ -270,7 +304,8 @@ impl PluginRegistry {
                 RegistryEntry {
                     name: "vibecody-notion".to_string(),
                     display_name: "Notion Connector".to_string(),
-                    description: "Read/write Notion pages, databases, and blocks from VibeCody".to_string(),
+                    description: "Read/write Notion pages, databases, and blocks from VibeCody"
+                        .to_string(),
                     version: "0.9.1".to_string(),
                     author: "community".to_string(),
                     license: "MIT".to_string(),
@@ -286,7 +321,9 @@ impl PluginRegistry {
                     checksum: "ghi789".to_string(),
                     signature: None,
                     verified: false,
-                    archive_url: "https://registry.vibecody.dev/plugins/vibecody-notion/0.9.1.tar.gz".to_string(),
+                    archive_url:
+                        "https://registry.vibecody.dev/plugins/vibecody-notion/0.9.1.tar.gz"
+                            .to_string(),
                     archive_size: 32_000,
                     platforms: vec!["all".into()],
                     dependencies: vec![],
@@ -295,7 +332,8 @@ impl PluginRegistry {
                 RegistryEntry {
                     name: "vibecody-prettier".to_string(),
                     display_name: "Prettier Formatter".to_string(),
-                    description: "Auto-format code with Prettier on file save and agent edits".to_string(),
+                    description: "Auto-format code with Prettier on file save and agent edits"
+                        .to_string(),
                     version: "2.1.0".to_string(),
                     author: "vibecody-team".to_string(),
                     license: "MIT".to_string(),
@@ -311,7 +349,9 @@ impl PluginRegistry {
                     checksum: "jkl012".to_string(),
                     signature: None,
                     verified: true,
-                    archive_url: "https://registry.vibecody.dev/plugins/vibecody-prettier/2.1.0.tar.gz".to_string(),
+                    archive_url:
+                        "https://registry.vibecody.dev/plugins/vibecody-prettier/2.1.0.tar.gz"
+                            .to_string(),
                     archive_size: 12_000,
                     platforms: vec!["all".into()],
                     dependencies: vec![],
@@ -320,14 +360,21 @@ impl PluginRegistry {
                 RegistryEntry {
                     name: "vibecody-eslint".to_string(),
                     display_name: "ESLint Integration".to_string(),
-                    description: "Run ESLint on TypeScript/JavaScript edits with auto-fix suggestions".to_string(),
+                    description:
+                        "Run ESLint on TypeScript/JavaScript edits with auto-fix suggestions"
+                            .to_string(),
                     version: "1.5.0".to_string(),
                     author: "vibecody-team".to_string(),
                     license: "MIT".to_string(),
                     kind: PluginKind::Optimizer,
                     repository: Some("https://github.com/vibecody/plugin-eslint".to_string()),
                     homepage: None,
-                    keywords: vec!["eslint".into(), "linting".into(), "typescript".into(), "javascript".into()],
+                    keywords: vec![
+                        "eslint".into(),
+                        "linting".into(),
+                        "typescript".into(),
+                        "javascript".into(),
+                    ],
                     downloads: 28_400,
                     rating: 4.6,
                     review_count: 120,
@@ -336,7 +383,9 @@ impl PluginRegistry {
                     checksum: "mno345".to_string(),
                     signature: None,
                     verified: true,
-                    archive_url: "https://registry.vibecody.dev/plugins/vibecody-eslint/1.5.0.tar.gz".to_string(),
+                    archive_url:
+                        "https://registry.vibecody.dev/plugins/vibecody-eslint/1.5.0.tar.gz"
+                            .to_string(),
                     archive_size: 15_000,
                     platforms: vec!["all".into()],
                     dependencies: vec![],
@@ -345,12 +394,15 @@ impl PluginRegistry {
                 RegistryEntry {
                     name: "vibecody-docker-compose".to_string(),
                     display_name: "Docker Compose Manager".to_string(),
-                    description: "Manage Docker Compose stacks with agent-driven orchestration".to_string(),
+                    description: "Manage Docker Compose stacks with agent-driven orchestration"
+                        .to_string(),
                     version: "1.1.0".to_string(),
                     author: "vibecody-team".to_string(),
                     license: "MIT".to_string(),
                     kind: PluginKind::Adapter,
-                    repository: Some("https://github.com/vibecody/plugin-docker-compose".to_string()),
+                    repository: Some(
+                        "https://github.com/vibecody/plugin-docker-compose".to_string(),
+                    ),
                     homepage: None,
                     keywords: vec!["docker".into(), "compose".into(), "containers".into()],
                     downloads: 19_800,
@@ -361,7 +413,9 @@ impl PluginRegistry {
                     checksum: "pqr678".to_string(),
                     signature: None,
                     verified: true,
-                    archive_url: "https://registry.vibecody.dev/plugins/vibecody-docker-compose/1.1.0.tar.gz".to_string(),
+                    archive_url:
+                        "https://registry.vibecody.dev/plugins/vibecody-docker-compose/1.1.0.tar.gz"
+                            .to_string(),
                     archive_size: 22_000,
                     platforms: vec!["all".into()],
                     dependencies: vec![],
@@ -370,7 +424,8 @@ impl PluginRegistry {
                 RegistryEntry {
                     name: "vibecody-terraform".to_string(),
                     display_name: "Terraform Integration".to_string(),
-                    description: "Terraform plan, apply, and drift detection with agent context".to_string(),
+                    description: "Terraform plan, apply, and drift detection with agent context"
+                        .to_string(),
                     version: "1.3.0".to_string(),
                     author: "vibecody-team".to_string(),
                     license: "MIT".to_string(),
@@ -386,7 +441,9 @@ impl PluginRegistry {
                     checksum: "stu901".to_string(),
                     signature: None,
                     verified: true,
-                    archive_url: "https://registry.vibecody.dev/plugins/vibecody-terraform/1.3.0.tar.gz".to_string(),
+                    archive_url:
+                        "https://registry.vibecody.dev/plugins/vibecody-terraform/1.3.0.tar.gz"
+                            .to_string(),
                     archive_size: 18_000,
                     platforms: vec!["all".into()],
                     dependencies: vec![],
@@ -411,7 +468,9 @@ impl PluginRegistry {
                     checksum: "vwx234".to_string(),
                     signature: None,
                     verified: false,
-                    archive_url: "https://registry.vibecody.dev/plugins/vibecody-dracula-theme/1.0.0.tar.gz".to_string(),
+                    archive_url:
+                        "https://registry.vibecody.dev/plugins/vibecody-dracula-theme/1.0.0.tar.gz"
+                            .to_string(),
                     archive_size: 5_000,
                     platforms: vec!["all".into()],
                     dependencies: vec![],
@@ -420,14 +479,20 @@ impl PluginRegistry {
                 RegistryEntry {
                     name: "vibecody-devops-pack".to_string(),
                     display_name: "DevOps Skill Pack".to_string(),
-                    description: "50+ DevOps skills covering CI/CD, monitoring, IaC, and SRE".to_string(),
+                    description: "50+ DevOps skills covering CI/CD, monitoring, IaC, and SRE"
+                        .to_string(),
                     version: "2.0.0".to_string(),
                     author: "vibecody-team".to_string(),
                     license: "MIT".to_string(),
                     kind: PluginKind::SkillPack,
                     repository: Some("https://github.com/vibecody/plugin-devops-pack".to_string()),
                     homepage: None,
-                    keywords: vec!["devops".into(), "ci-cd".into(), "sre".into(), "skills".into()],
+                    keywords: vec![
+                        "devops".into(),
+                        "ci-cd".into(),
+                        "sre".into(),
+                        "skills".into(),
+                    ],
                     downloads: 9_700,
                     rating: 4.6,
                     review_count: 35,
@@ -436,7 +501,9 @@ impl PluginRegistry {
                     checksum: "yza567".to_string(),
                     signature: None,
                     verified: true,
-                    archive_url: "https://registry.vibecody.dev/plugins/vibecody-devops-pack/2.0.0.tar.gz".to_string(),
+                    archive_url:
+                        "https://registry.vibecody.dev/plugins/vibecody-devops-pack/2.0.0.tar.gz"
+                            .to_string(),
                     archive_size: 85_000,
                     platforms: vec!["all".into()],
                     dependencies: vec![],
@@ -445,14 +512,20 @@ impl PluginRegistry {
                 RegistryEntry {
                     name: "vibecody-code-review".to_string(),
                     display_name: "Code Review Workflow".to_string(),
-                    description: "Automated code review workflow with configurable rules and PR integration".to_string(),
+                    description:
+                        "Automated code review workflow with configurable rules and PR integration"
+                            .to_string(),
                     version: "1.0.0".to_string(),
                     author: "community".to_string(),
                     license: "Apache-2.0".to_string(),
                     kind: PluginKind::Workflow,
                     repository: Some("https://github.com/example/vibecody-code-review".to_string()),
                     homepage: None,
-                    keywords: vec!["code-review".into(), "workflow".into(), "pull-request".into()],
+                    keywords: vec![
+                        "code-review".into(),
+                        "workflow".into(),
+                        "pull-request".into(),
+                    ],
                     downloads: 7_300,
                     rating: 4.1,
                     review_count: 19,
@@ -461,28 +534,31 @@ impl PluginRegistry {
                     checksum: "bcd890".to_string(),
                     signature: None,
                     verified: false,
-                    archive_url: "https://registry.vibecody.dev/plugins/vibecody-code-review/1.0.0.tar.gz".to_string(),
+                    archive_url:
+                        "https://registry.vibecody.dev/plugins/vibecody-code-review/1.0.0.tar.gz"
+                            .to_string(),
                     archive_size: 28_000,
                     platforms: vec!["all".into()],
                     dependencies: vec![],
                     all_versions: vec![],
                 },
             ],
-            publishers: vec![
-                Publisher {
-                    username: "vibecody-team".to_string(),
-                    display_name: "VibeCody Team".to_string(),
-                    email: Some("plugins@vibecody.dev".to_string()),
-                    verified: true,
-                    plugins: vec![
-                        "vibecody-jira".into(), "vibecody-linear".into(),
-                        "vibecody-prettier".into(), "vibecody-eslint".into(),
-                        "vibecody-docker-compose".into(), "vibecody-terraform".into(),
-                        "vibecody-devops-pack".into(),
-                    ],
-                    public_key: None,
-                },
-            ],
+            publishers: vec![Publisher {
+                username: "vibecody-team".to_string(),
+                display_name: "VibeCody Team".to_string(),
+                email: Some("plugins@vibecody.dev".to_string()),
+                verified: true,
+                plugins: vec![
+                    "vibecody-jira".into(),
+                    "vibecody-linear".into(),
+                    "vibecody-prettier".into(),
+                    "vibecody-eslint".into(),
+                    "vibecody-docker-compose".into(),
+                    "vibecody-terraform".into(),
+                    "vibecody-devops-pack".into(),
+                ],
+                public_key: None,
+            }],
             updated_at: "2026-03-07".to_string(),
             registry_version: "1.0.0".to_string(),
         }
@@ -595,7 +671,10 @@ mod tests {
         let mut reg = PluginRegistry::new();
         reg.load_cached().unwrap();
         let idx = reg.index.as_ref().unwrap();
-        let team = idx.publishers.iter().find(|p| p.username == "vibecody-team");
+        let team = idx
+            .publishers
+            .iter()
+            .find(|p| p.username == "vibecody-team");
         assert!(team.is_some());
         assert!(team.unwrap().verified);
     }

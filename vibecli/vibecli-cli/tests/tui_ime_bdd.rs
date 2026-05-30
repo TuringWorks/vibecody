@@ -113,8 +113,8 @@ fn then_visible_text(world: &mut ImeWorld, expected: String) {
 
 #[then(expr = "find_cursor_marker returns column {int}")]
 fn then_find_marker_col(world: &mut ImeWorld, expected_col: usize) {
-    let col = find_cursor_marker(&world.output)
-        .expect("CURSOR_MARKER should be present in the output");
+    let col =
+        find_cursor_marker(&world.output).expect("CURSOR_MARKER should be present in the output");
     assert_eq!(
         col, expected_col,
         "cursor column mismatch: expected {}, got {}",
@@ -143,12 +143,7 @@ fn then_visible_width(world: &mut ImeWorld, expected: usize) {
 #[then(expr = "the truncated visible width is at most {int}")]
 fn then_truncated_width_le(world: &mut ImeWorld, max: usize) {
     let w = visible_width(&world.output);
-    assert!(
-        w <= max,
-        "truncated width {} exceeds max {}",
-        w,
-        max
-    );
+    assert!(w <= max, "truncated width {} exceeds max {}", w, max);
 }
 
 #[then("no wide character is split across the boundary")]
@@ -180,11 +175,7 @@ fn then_state_composing(world: &mut ImeWorld) {
 
 #[then(expr = "the preedit text is {string}")]
 fn then_preedit_text(world: &mut ImeWorld, expected: String) {
-    assert_eq!(
-        world.handler.composition(),
-        expected,
-        "preedit mismatch"
-    );
+    assert_eq!(world.handler.composition(), expected, "preedit mismatch");
 }
 
 #[then("the IME state is Committed")]

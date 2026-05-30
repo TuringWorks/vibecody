@@ -29,17 +29,31 @@ pub struct ContextSnapshot {
 impl ContextSnapshot {
     pub fn new(id: &str, step: u64, ts: u64, action: &str) -> Self {
         Self {
-            id: id.to_string(), step, timestamp_ms: ts,
-            commit_hash: None, variables: HashMap::new(),
-            files_changed: Vec::new(), agent_action: action.to_string(),
+            id: id.to_string(),
+            step,
+            timestamp_ms: ts,
+            commit_hash: None,
+            variables: HashMap::new(),
+            files_changed: Vec::new(),
+            agent_action: action.to_string(),
             parent_id: None,
         }
     }
 
-    pub fn with_commit(mut self, hash: &str) -> Self { self.commit_hash = Some(hash.to_string()); self }
-    pub fn with_parent(mut self, parent: &str) -> Self { self.parent_id = Some(parent.to_string()); self }
-    pub fn add_var(&mut self, name: &str, val: VarValue) { self.variables.insert(name.to_string(), val); }
-    pub fn add_file(&mut self, path: &str) { self.files_changed.push(path.to_string()); }
+    pub fn with_commit(mut self, hash: &str) -> Self {
+        self.commit_hash = Some(hash.to_string());
+        self
+    }
+    pub fn with_parent(mut self, parent: &str) -> Self {
+        self.parent_id = Some(parent.to_string());
+        self
+    }
+    pub fn add_var(&mut self, name: &str, val: VarValue) {
+        self.variables.insert(name.to_string(), val);
+    }
+    pub fn add_file(&mut self, path: &str) {
+        self.files_changed.push(path.to_string());
+    }
 }
 
 /// A variable value at a point in time.
@@ -56,12 +70,12 @@ pub enum VarValue {
 impl std::fmt::Display for VarValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Int(n)   => write!(f, "{n}"),
+            Self::Int(n) => write!(f, "{n}"),
             Self::Float(v) => write!(f, "{v:.3}"),
-            Self::Bool(b)  => write!(f, "{b}"),
-            Self::Text(s)  => write!(f, "{s}"),
-            Self::Null     => write!(f, "null"),
-            Self::List(v)  => write!(f, "[{} items]", v.len()),
+            Self::Bool(b) => write!(f, "{b}"),
+            Self::Text(s) => write!(f, "{s}"),
+            Self::Null => write!(f, "null"),
+            Self::List(v) => write!(f, "[{} items]", v.len()),
         }
     }
 }
@@ -71,12 +85,28 @@ impl std::fmt::Display for VarValue {
 /// Type of change between two context snapshots.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ContextChange {
-    VarAdded     { name: String, value: String },
-    VarRemoved   { name: String },
-    VarChanged   { name: String, from: String, to: String },
-    FileAdded    { path: String },
-    FileRemoved  { path: String },
-    ActionChanged { from: String, to: String },
+    VarAdded {
+        name: String,
+        value: String,
+    },
+    VarRemoved {
+        name: String,
+    },
+    VarChanged {
+        name: String,
+        from: String,
+        to: String,
+    },
+    FileAdded {
+        path: String,
+    },
+    FileRemoved {
+        path: String,
+    },
+    ActionChanged {
+        from: String,
+        to: String,
+    },
 }
 
 /// Diff between two context snapshots.
@@ -90,12 +120,21 @@ pub struct ContextDiff {
 }
 
 impl ContextDiff {
-    pub fn is_empty(&self) -> bool { self.changes.is_empty() }
+    pub fn is_empty(&self) -> bool {
+        self.changes.is_empty()
+    }
     pub fn has_var_changes(&self) -> bool {
-        self.changes.iter().any(|c| matches!(c, ContextChange::VarChanged { .. }))
+        self.changes
+            .iter()
+            .any(|c| matches!(c, ContextChange::VarChanged { .. }))
     }
     pub fn has_file_changes(&self) -> bool {
-        self.changes.iter().any(|c| matches!(c, ContextChange::FileAdded { .. } | ContextChange::FileRemoved { .. }))
+        self.changes.iter().any(|c| {
+            matches!(
+                c,
+                ContextChange::FileAdded { .. } | ContextChange::FileRemoved { .. }
+            )
+        })
     }
 }
 
@@ -117,10 +156,19 @@ pub struct VarTimeline {
 }
 
 impl VarTimeline {
-    pub fn new(name: &str) -> Self { Self { name: name.to_string(), entries: Vec::new() } }
+    pub fn new(name: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            entries: Vec::new(),
+        }
+    }
 
     pub fn push(&mut self, step: u64, snap_id: &str, val: VarValue) {
-        self.entries.push(VarHistoryEntry { step, snapshot_id: snap_id.to_string(), value: val });
+        self.entries.push(VarHistoryEntry {
+            step,
+            snapshot_id: snap_id.to_string(),
+            value: val,
+        });
     }
 
     pub fn changed_at(&self) -> Vec<u64> {
@@ -134,10 +182,16 @@ impl VarTimeline {
     }
 
     pub fn value_at(&self, step: u64) -> Option<&VarValue> {
-        self.entries.iter().rev().find(|e| e.step <= step).map(|e| &e.value)
+        self.entries
+            .iter()
+            .rev()
+            .find(|e| e.step <= step)
+            .map(|e| &e.value)
     }
 
-    pub fn total_changes(&self) -> usize { self.changed_at().len() }
+    pub fn total_changes(&self) -> usize {
+        self.changed_at().len()
+    }
 }
 
 // ─── Temporal Bisect ──────────────────────────────────────────────────────────
@@ -161,7 +215,12 @@ pub struct TemporalDebugger {
 }
 
 impl TemporalDebugger {
-    pub fn new() -> Self { Self { snapshots: Vec::new(), id_counter: 0 } }
+    pub fn new() -> Self {
+        Self {
+            snapshots: Vec::new(),
+            id_counter: 0,
+        }
+    }
 
     fn next_id(&mut self) -> String {
         self.id_counter += 1;
@@ -170,7 +229,9 @@ impl TemporalDebugger {
 
     /// Record a new context snapshot.
     pub fn record(&mut self, mut snap: ContextSnapshot) -> &ContextSnapshot {
-        if snap.id.is_empty() { snap.id = self.next_id(); }
+        if snap.id.is_empty() {
+            snap.id = self.next_id();
+        }
         // Auto-link to previous snapshot as parent
         if snap.parent_id.is_none() {
             if let Some(prev) = self.snapshots.last() {
@@ -184,14 +245,21 @@ impl TemporalDebugger {
     /// Diff two snapshots by ID.
     pub fn diff(&self, from_id: &str, to_id: &str) -> Option<ContextDiff> {
         let from = self.snapshots.iter().find(|s| s.id == from_id)?;
-        let to   = self.snapshots.iter().find(|s| s.id == to_id)?;
+        let to = self.snapshots.iter().find(|s| s.id == to_id)?;
         let mut changes = Vec::new();
 
         // Variable changes
         for (k, v) in &to.variables {
             match from.variables.get(k) {
-                None => changes.push(ContextChange::VarAdded { name: k.clone(), value: v.to_string() }),
-                Some(old) if old != v => changes.push(ContextChange::VarChanged { name: k.clone(), from: old.to_string(), to: v.to_string() }),
+                None => changes.push(ContextChange::VarAdded {
+                    name: k.clone(),
+                    value: v.to_string(),
+                }),
+                Some(old) if old != v => changes.push(ContextChange::VarChanged {
+                    name: k.clone(),
+                    from: old.to_string(),
+                    to: v.to_string(),
+                }),
                 _ => {}
             }
         }
@@ -213,12 +281,18 @@ impl TemporalDebugger {
         }
         // Action change
         if from.agent_action != to.agent_action {
-            changes.push(ContextChange::ActionChanged { from: from.agent_action.clone(), to: to.agent_action.clone() });
+            changes.push(ContextChange::ActionChanged {
+                from: from.agent_action.clone(),
+                to: to.agent_action.clone(),
+            });
         }
 
         Some(ContextDiff {
-            from_id: from_id.to_string(), to_id: to_id.to_string(),
-            from_step: from.step, to_step: to.step, changes,
+            from_id: from_id.to_string(),
+            to_id: to_id.to_string(),
+            from_step: from.step,
+            to_step: to.step,
+            changes,
         })
     }
 
@@ -229,7 +303,8 @@ impl TemporalDebugger {
 
     /// Replay snapshots from `from_step` to `to_step` in order.
     pub fn replay(&self, from_step: u64, to_step: u64) -> Vec<&ContextSnapshot> {
-        self.snapshots.iter()
+        self.snapshots
+            .iter()
             .filter(|s| s.step >= from_step && s.step <= to_step)
             .collect()
     }
@@ -248,19 +323,30 @@ impl TemporalDebugger {
     /// Binary-search for the snapshot where a predicate first becomes true.
     /// Returns the culprit snapshot. `good_predicate` returns true for a "good" snapshot.
     pub fn bisect<F>(&self, good_predicate: F) -> Option<BisectResult>
-    where F: Fn(&ContextSnapshot) -> bool
+    where
+        F: Fn(&ContextSnapshot) -> bool,
     {
-        if self.snapshots.is_empty() { return None; }
+        if self.snapshots.is_empty() {
+            return None;
+        }
         let mut lo = 0usize;
         let mut hi = self.snapshots.len() - 1;
-        if !good_predicate(&self.snapshots[lo]) { return None; } // first is already bad
-        if good_predicate(&self.snapshots[hi]) { return None; }  // last is still good → no regression
+        if !good_predicate(&self.snapshots[lo]) {
+            return None;
+        } // first is already bad
+        if good_predicate(&self.snapshots[hi]) {
+            return None;
+        } // last is still good → no regression
 
         let mut iterations = 0;
         while lo + 1 < hi {
             iterations += 1;
             let mid = (lo + hi) / 2;
-            if good_predicate(&self.snapshots[mid]) { lo = mid; } else { hi = mid; }
+            if good_predicate(&self.snapshots[mid]) {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
         }
         let culprit = &self.snapshots[hi];
         Some(BisectResult {
@@ -274,7 +360,8 @@ impl TemporalDebugger {
 
     /// Export snapshot log as JSONL.
     pub fn export_jsonl(&self) -> Vec<String> {
-        self.snapshots.iter()
+        self.snapshots
+            .iter()
             .map(|s| serde_json::to_string(s).unwrap_or_default())
             .collect()
     }
@@ -282,16 +369,27 @@ impl TemporalDebugger {
     /// Generate a diff-aware prompt injection string for LLM context.
     pub fn diff_prompt(&self, from_id: &str, to_id: &str) -> Option<String> {
         let diff = self.diff(from_id, to_id)?;
-        if diff.is_empty() { return Some("No changes detected between snapshots.".into()); }
-        let mut prompt = format!("Changes from step {} to step {}:\n", diff.from_step, diff.to_step);
+        if diff.is_empty() {
+            return Some("No changes detected between snapshots.".into());
+        }
+        let mut prompt = format!(
+            "Changes from step {} to step {}:\n",
+            diff.from_step, diff.to_step
+        );
         for c in &diff.changes {
             let line = match c {
-                ContextChange::VarChanged { name, from, to } => format!("  • Variable `{name}` changed: {from} → {to}"),
-                ContextChange::VarAdded { name, value } => format!("  • Variable `{name}` added with value: {value}"),
+                ContextChange::VarChanged { name, from, to } => {
+                    format!("  • Variable `{name}` changed: {from} → {to}")
+                }
+                ContextChange::VarAdded { name, value } => {
+                    format!("  • Variable `{name}` added with value: {value}")
+                }
                 ContextChange::VarRemoved { name } => format!("  • Variable `{name}` removed"),
                 ContextChange::FileAdded { path } => format!("  • File added: {path}"),
                 ContextChange::FileRemoved { path } => format!("  • File removed: {path}"),
-                ContextChange::ActionChanged { from, to } => format!("  • Action changed: {from} → {to}"),
+                ContextChange::ActionChanged { from, to } => {
+                    format!("  • Action changed: {from} → {to}")
+                }
             };
             prompt.push_str(&line);
             prompt.push('\n');
@@ -299,11 +397,19 @@ impl TemporalDebugger {
         Some(prompt)
     }
 
-    pub fn snapshots(&self) -> &[ContextSnapshot] { &self.snapshots }
-    pub fn snapshot_count(&self) -> usize { self.snapshots.len() }
+    pub fn snapshots(&self) -> &[ContextSnapshot] {
+        &self.snapshots
+    }
+    pub fn snapshot_count(&self) -> usize {
+        self.snapshots.len()
+    }
 }
 
-impl Default for TemporalDebugger { fn default() -> Self { Self::new() } }
+impl Default for TemporalDebugger {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
@@ -318,15 +424,25 @@ mod tests {
     // ── VarValue ──────────────────────────────────────────────────────────
 
     #[test]
-    fn test_var_value_display_int() { assert_eq!(VarValue::Int(42).to_string(), "42"); }
+    fn test_var_value_display_int() {
+        assert_eq!(VarValue::Int(42).to_string(), "42");
+    }
     #[test]
-    fn test_var_value_display_bool() { assert_eq!(VarValue::Bool(true).to_string(), "true"); }
+    fn test_var_value_display_bool() {
+        assert_eq!(VarValue::Bool(true).to_string(), "true");
+    }
     #[test]
-    fn test_var_value_display_null() { assert_eq!(VarValue::Null.to_string(), "null"); }
+    fn test_var_value_display_null() {
+        assert_eq!(VarValue::Null.to_string(), "null");
+    }
     #[test]
-    fn test_var_value_equality() { assert_eq!(VarValue::Int(1), VarValue::Int(1)); }
+    fn test_var_value_equality() {
+        assert_eq!(VarValue::Int(1), VarValue::Int(1));
+    }
     #[test]
-    fn test_var_value_inequality() { assert_ne!(VarValue::Int(1), VarValue::Int(2)); }
+    fn test_var_value_inequality() {
+        assert_ne!(VarValue::Int(1), VarValue::Int(2));
+    }
 
     // ── ContextSnapshot ───────────────────────────────────────────────────
 
@@ -385,10 +501,14 @@ mod tests {
         s1.add_var("x", VarValue::Int(1));
         let mut s2 = snap("s2", 2, "update");
         s2.add_var("x", VarValue::Int(99));
-        d.record(s1); d.record(s2);
+        d.record(s1);
+        d.record(s2);
         let diff = d.diff("s1", "s2").unwrap();
         assert!(diff.has_var_changes());
-        assert!(diff.changes.iter().any(|c| matches!(c, ContextChange::VarChanged { name, .. } if name == "x")));
+        assert!(diff
+            .changes
+            .iter()
+            .any(|c| matches!(c, ContextChange::VarChanged { name, .. } if name == "x")));
     }
 
     #[test]
@@ -399,7 +519,10 @@ mod tests {
         s2.add_var("new_var", VarValue::Bool(true));
         d.record(s2);
         let diff = d.diff("s1", "s2").unwrap();
-        assert!(diff.changes.iter().any(|c| matches!(c, ContextChange::VarAdded { name, .. } if name == "new_var")));
+        assert!(diff
+            .changes
+            .iter()
+            .any(|c| matches!(c, ContextChange::VarAdded { name, .. } if name == "new_var")));
     }
 
     #[test]
@@ -410,7 +533,10 @@ mod tests {
         d.record(s1);
         d.record(snap("s2", 2, "clean"));
         let diff = d.diff("s1", "s2").unwrap();
-        assert!(diff.changes.iter().any(|c| matches!(c, ContextChange::VarRemoved { name } if name == "tmp")));
+        assert!(diff
+            .changes
+            .iter()
+            .any(|c| matches!(c, ContextChange::VarRemoved { name } if name == "tmp")));
     }
 
     #[test]
@@ -444,7 +570,9 @@ mod tests {
     #[test]
     fn test_replay_range() {
         let mut d = TemporalDebugger::new();
-        for i in 1..=5 { d.record(snap(&format!("s{i}"), i, "a")); }
+        for i in 1..=5 {
+            d.record(snap(&format!("s{i}"), i, "a"));
+        }
         let replayed = d.replay(2, 4);
         assert_eq!(replayed.len(), 3);
         assert_eq!(replayed[0].step, 2);
@@ -465,9 +593,15 @@ mod tests {
     #[test]
     fn test_var_timeline_changed_at() {
         let mut d = TemporalDebugger::new();
-        let mut s1 = snap("s1", 1, "a"); s1.add_var("count", VarValue::Int(0)); d.record(s1);
-        let mut s2 = snap("s2", 2, "b"); s2.add_var("count", VarValue::Int(1)); d.record(s2);
-        let mut s3 = snap("s3", 3, "c"); s3.add_var("count", VarValue::Int(1)); d.record(s3);
+        let mut s1 = snap("s1", 1, "a");
+        s1.add_var("count", VarValue::Int(0));
+        d.record(s1);
+        let mut s2 = snap("s2", 2, "b");
+        s2.add_var("count", VarValue::Int(1));
+        d.record(s2);
+        let mut s3 = snap("s3", 3, "c");
+        s3.add_var("count", VarValue::Int(1));
+        d.record(s3);
         let tl = d.var_timeline("count");
         assert_eq!(tl.changed_at(), vec![2]); // only step 2 changed
     }
@@ -475,8 +609,12 @@ mod tests {
     #[test]
     fn test_var_timeline_value_at_step() {
         let mut d = TemporalDebugger::new();
-        let mut s1 = snap("s1", 1, "a"); s1.add_var("x", VarValue::Int(10)); d.record(s1);
-        let mut s2 = snap("s2", 3, "b"); s2.add_var("x", VarValue::Int(20)); d.record(s2);
+        let mut s1 = snap("s1", 1, "a");
+        s1.add_var("x", VarValue::Int(10));
+        d.record(s1);
+        let mut s2 = snap("s2", 3, "b");
+        s2.add_var("x", VarValue::Int(20));
+        d.record(s2);
         let tl = d.var_timeline("x");
         // At step 2 (between 1 and 3), value should be the step-1 value
         assert_eq!(tl.value_at(2), Some(&VarValue::Int(10)));
@@ -498,7 +636,9 @@ mod tests {
     #[test]
     fn test_bisect_finds_culprit() {
         let mut d = TemporalDebugger::new();
-        for i in 0..8u64 { d.record(snap(&format!("s{i}"), i, "step")); }
+        for i in 0..8u64 {
+            d.record(snap(&format!("s{i}"), i, "step"));
+        }
         // Steps 0-4 are "good" (step < 5), steps 5+ are "bad"
         let result = d.bisect(|s| s.step < 5).unwrap();
         assert_eq!(result.culprit_step, 5);
@@ -507,7 +647,9 @@ mod tests {
     #[test]
     fn test_bisect_returns_none_if_first_bad() {
         let mut d = TemporalDebugger::new();
-        for i in 0..4u64 { d.record(snap(&format!("s{i}"), i, "s")); }
+        for i in 0..4u64 {
+            d.record(snap(&format!("s{i}"), i, "s"));
+        }
         // all steps fail predicate
         let result = d.bisect(|_| false);
         assert!(result.is_none());
@@ -516,7 +658,9 @@ mod tests {
     #[test]
     fn test_bisect_returns_none_if_all_good() {
         let mut d = TemporalDebugger::new();
-        for i in 0..4u64 { d.record(snap(&format!("s{i}"), i, "s")); }
+        for i in 0..4u64 {
+            d.record(snap(&format!("s{i}"), i, "s"));
+        }
         let result = d.bisect(|_| true);
         assert!(result.is_none());
     }
@@ -534,8 +678,12 @@ mod tests {
     #[test]
     fn test_diff_prompt_has_changes() {
         let mut d = TemporalDebugger::new();
-        let mut s1 = snap("s1", 1, "init"); s1.add_var("y", VarValue::Int(0)); d.record(s1);
-        let mut s2 = snap("s2", 2, "run"); s2.add_var("y", VarValue::Int(42)); d.record(s2);
+        let mut s1 = snap("s1", 1, "init");
+        s1.add_var("y", VarValue::Int(0));
+        d.record(s1);
+        let mut s2 = snap("s2", 2, "run");
+        s2.add_var("y", VarValue::Int(42));
+        d.record(s2);
         let prompt = d.diff_prompt("s1", "s2").unwrap();
         assert!(prompt.contains("y"));
         assert!(prompt.contains("42"));

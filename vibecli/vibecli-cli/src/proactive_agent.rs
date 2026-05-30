@@ -494,13 +494,11 @@ impl ProactiveAgent {
             .filter(|s| s.status == SuggestionStatus::Pending)
             .collect();
         pending.sort_by(|a, b| {
-            a.priority
-                .cmp(&b.priority)
-                .then_with(|| {
-                    b.confidence
-                        .partial_cmp(&a.confidence)
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                })
+            a.priority.cmp(&b.priority).then_with(|| {
+                b.confidence
+                    .partial_cmp(&a.confidence)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
         });
         pending
     }
@@ -634,8 +632,7 @@ mod tests {
 
     #[test]
     fn test_generate_testing_gaps() {
-        let sug =
-            SuggestionGenerator::generate_for_category(&ScanCategory::TestingGaps, "foo.rs");
+        let sug = SuggestionGenerator::generate_for_category(&ScanCategory::TestingGaps, "foo.rs");
         assert!(sug.is_some());
     }
 
@@ -658,16 +655,14 @@ mod tests {
 
     #[test]
     fn test_generate_tech_debt() {
-        let sug =
-            SuggestionGenerator::generate_for_category(&ScanCategory::TechDebt, "complex.rs");
+        let sug = SuggestionGenerator::generate_for_category(&ScanCategory::TechDebt, "complex.rs");
         assert!(sug.is_some());
         assert_eq!(sug.unwrap().priority, SuggestionPriority::Medium);
     }
 
     #[test]
     fn test_generate_correctness() {
-        let sug =
-            SuggestionGenerator::generate_for_category(&ScanCategory::Correctness, "loop.rs");
+        let sug = SuggestionGenerator::generate_for_category(&ScanCategory::Correctness, "loop.rs");
         assert!(sug.is_some());
         assert_eq!(sug.unwrap().priority, SuggestionPriority::High);
     }
@@ -862,9 +857,7 @@ mod tests {
         let id = agent.suggestions.keys().next().unwrap().clone();
         agent.accept(&id).unwrap();
         let digest = agent.digest();
-        assert!(digest
-            .iter()
-            .all(|s| s.status == SuggestionStatus::Pending));
+        assert!(digest.iter().all(|s| s.status == SuggestionStatus::Pending));
     }
 
     #[test]

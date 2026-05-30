@@ -435,7 +435,11 @@ impl ToolCall {
             }
             ToolCall::Bash { command } => {
                 let cmd = if command.len() > 60 {
-                    let end = command.char_indices().nth(60).map(|(i,_)| i).unwrap_or(command.len());
+                    let end = command
+                        .char_indices()
+                        .nth(60)
+                        .map(|(i, _)| i)
+                        .unwrap_or(command.len());
                     format!("{}…", &command[..end])
                 } else {
                     command.clone()
@@ -453,19 +457,50 @@ impl ToolCall {
             ToolCall::FetchUrl { url } => format!("fetch_url({})", url),
             ToolCall::TaskComplete { summary } => {
                 let short = if summary.len() > 60 {
-                    let end = summary.char_indices().nth(60).map(|(i,_)| i).unwrap_or(summary.len());
+                    let end = summary
+                        .char_indices()
+                        .nth(60)
+                        .map(|(i, _)| i)
+                        .unwrap_or(summary.len());
                     format!("{}…", &summary[..end])
                 } else {
                     summary.clone()
                 };
                 format!("task_complete: {}", short)
             }
-            ToolCall::SpawnAgent { task, max_steps, max_depth } => {
-                let short = if task.len() > 60 { let end = task.char_indices().nth(60).map(|(i,_)| i).unwrap_or(task.len()); format!("{}…", &task[..end]) } else { task.clone() };
-                format!("spawn_agent(task={:?}, max_steps={}, max_depth={})", short, max_steps.unwrap_or(10), max_depth.unwrap_or(3))
+            ToolCall::SpawnAgent {
+                task,
+                max_steps,
+                max_depth,
+            } => {
+                let short = if task.len() > 60 {
+                    let end = task
+                        .char_indices()
+                        .nth(60)
+                        .map(|(i, _)| i)
+                        .unwrap_or(task.len());
+                    format!("{}…", &task[..end])
+                } else {
+                    task.clone()
+                };
+                format!(
+                    "spawn_agent(task={:?}, max_steps={}, max_depth={})",
+                    short,
+                    max_steps.unwrap_or(10),
+                    max_depth.unwrap_or(3)
+                )
             }
             ToolCall::Think { thought } => {
-                let short = if thought.len() > 80 { let end = thought.char_indices().nth(80).map(|(i,_)| i).unwrap_or(thought.len()); format!("{}…", &thought[..end]) } else { thought.clone() };
+                let short = if thought.len() > 80 {
+                    let end = thought
+                        .char_indices()
+                        .nth(80)
+                        .map(|(i, _)| i)
+                        .unwrap_or(thought.len());
+                    format!("{}…", &thought[..end])
+                } else {
+                    thought.clone()
+                };
                 format!("think({})", short)
             }
             ToolCall::PlanTask { steps } => {
@@ -481,8 +516,11 @@ impl ToolCall {
     pub fn is_destructive(&self) -> bool {
         matches!(
             self,
-            ToolCall::Bash { .. } | ToolCall::WriteFile { .. } | ToolCall::ApplyPatch { .. }
-                | ToolCall::SpawnAgent { .. } | ToolCall::RecordMemory { .. }
+            ToolCall::Bash { .. }
+                | ToolCall::WriteFile { .. }
+                | ToolCall::ApplyPatch { .. }
+                | ToolCall::SpawnAgent { .. }
+                | ToolCall::RecordMemory { .. }
         )
     }
 
@@ -513,11 +551,20 @@ impl ToolResult {
         let output = output.into();
         let truncated = output.len() > MAX_TOOL_OUTPUT;
         let output = if truncated {
-            format!("{}\n\n[… output truncated at {} chars …]", &output[..MAX_TOOL_OUTPUT], MAX_TOOL_OUTPUT)
+            format!(
+                "{}\n\n[… output truncated at {} chars …]",
+                &output[..MAX_TOOL_OUTPUT],
+                MAX_TOOL_OUTPUT
+            )
         } else {
             output
         };
-        Self { tool_name: tool_name.into(), output, success: true, truncated }
+        Self {
+            tool_name: tool_name.into(),
+            output,
+            success: true,
+            truncated,
+        }
     }
 
     pub fn err(tool_name: impl Into<String>, error: impl Into<String>) -> Self {
@@ -604,11 +651,13 @@ fn parse_single_tool(name: &str, body: &str) -> Option<ToolCall> {
         }
         "spawn_agent" => {
             let task = extract_tag(body, "task")?;
-            let max_steps = extract_tag(body, "max_steps")
-                .and_then(|s| s.parse().ok());
-            let max_depth = extract_tag(body, "max_depth")
-                .and_then(|s| s.parse().ok());
-            Some(ToolCall::SpawnAgent { task, max_steps, max_depth })
+            let max_steps = extract_tag(body, "max_steps").and_then(|s| s.parse().ok());
+            let max_depth = extract_tag(body, "max_depth").and_then(|s| s.parse().ok());
+            Some(ToolCall::SpawnAgent {
+                task,
+                max_steps,
+                max_depth,
+            })
         }
         "think" => {
             let thought = extract_tag(body, "thought").unwrap_or_default();
@@ -709,7 +758,9 @@ fn main() {
 </tool_call>"#;
         let calls = parse_tool_calls(text);
         assert_eq!(calls.len(), 1);
-        assert!(matches!(&calls[0], ToolCall::TaskComplete { summary } if summary.contains("Done")));
+        assert!(
+            matches!(&calls[0], ToolCall::TaskComplete { summary } if summary.contains("Done"))
+        );
     }
 
     #[test]
@@ -735,8 +786,10 @@ fn main() {
 </tool_call>"#;
         let calls = parse_tool_calls(text);
         assert_eq!(calls.len(), 1);
-        assert!(matches!(&calls[0], ToolCall::SearchFiles { query, glob: Some(g) }
-            if query == "fn main" && g == "*.rs"));
+        assert!(
+            matches!(&calls[0], ToolCall::SearchFiles { query, glob: Some(g) }
+            if query == "fn main" && g == "*.rs")
+        );
     }
 
     // ── ToolCall::name() ─────────────────────────────────────────────────
@@ -744,76 +797,171 @@ fn main() {
     #[test]
     fn tool_call_names() {
         assert_eq!(ToolCall::ReadFile { path: "a".into() }.name(), "read_file");
-        assert_eq!(ToolCall::WriteFile { path: "a".into(), content: "b".into() }.name(), "write_file");
-        assert_eq!(ToolCall::ApplyPatch { path: "a".into(), patch: "b".into() }.name(), "apply_patch");
-        assert_eq!(ToolCall::Bash { command: "ls".into() }.name(), "bash");
-        assert_eq!(ToolCall::SearchFiles { query: "q".into(), glob: None }.name(), "search_files");
-        assert_eq!(ToolCall::ListDirectory { path: ".".into() }.name(), "list_directory");
-        assert_eq!(ToolCall::WebSearch { query: "q".into(), num_results: 5 }.name(), "web_search");
+        assert_eq!(
+            ToolCall::WriteFile {
+                path: "a".into(),
+                content: "b".into()
+            }
+            .name(),
+            "write_file"
+        );
+        assert_eq!(
+            ToolCall::ApplyPatch {
+                path: "a".into(),
+                patch: "b".into()
+            }
+            .name(),
+            "apply_patch"
+        );
+        assert_eq!(
+            ToolCall::Bash {
+                command: "ls".into()
+            }
+            .name(),
+            "bash"
+        );
+        assert_eq!(
+            ToolCall::SearchFiles {
+                query: "q".into(),
+                glob: None
+            }
+            .name(),
+            "search_files"
+        );
+        assert_eq!(
+            ToolCall::ListDirectory { path: ".".into() }.name(),
+            "list_directory"
+        );
+        assert_eq!(
+            ToolCall::WebSearch {
+                query: "q".into(),
+                num_results: 5
+            }
+            .name(),
+            "web_search"
+        );
         assert_eq!(ToolCall::FetchUrl { url: "u".into() }.name(), "fetch_url");
-        assert_eq!(ToolCall::TaskComplete { summary: "s".into() }.name(), "task_complete");
-        assert_eq!(ToolCall::SpawnAgent { task: "t".into(), max_steps: None, max_depth: None }.name(), "spawn_agent");
+        assert_eq!(
+            ToolCall::TaskComplete {
+                summary: "s".into()
+            }
+            .name(),
+            "task_complete"
+        );
+        assert_eq!(
+            ToolCall::SpawnAgent {
+                task: "t".into(),
+                max_steps: None,
+                max_depth: None
+            }
+            .name(),
+            "spawn_agent"
+        );
     }
 
     // ── ToolCall::is_destructive() ───────────────────────────────────────
 
     #[test]
     fn is_destructive_true_for_bash() {
-        assert!(ToolCall::Bash { command: "rm -rf /".into() }.is_destructive());
+        assert!(ToolCall::Bash {
+            command: "rm -rf /".into()
+        }
+        .is_destructive());
     }
 
     #[test]
     fn is_destructive_true_for_write() {
-        assert!(ToolCall::WriteFile { path: "a".into(), content: "b".into() }.is_destructive());
+        assert!(ToolCall::WriteFile {
+            path: "a".into(),
+            content: "b".into()
+        }
+        .is_destructive());
     }
 
     #[test]
     fn is_destructive_true_for_patch() {
-        assert!(ToolCall::ApplyPatch { path: "a".into(), patch: "b".into() }.is_destructive());
+        assert!(ToolCall::ApplyPatch {
+            path: "a".into(),
+            patch: "b".into()
+        }
+        .is_destructive());
     }
 
     #[test]
     fn is_destructive_true_for_spawn() {
-        assert!(ToolCall::SpawnAgent { task: "t".into(), max_steps: None, max_depth: None }.is_destructive());
+        assert!(ToolCall::SpawnAgent {
+            task: "t".into(),
+            max_steps: None,
+            max_depth: None
+        }
+        .is_destructive());
     }
 
     #[test]
     fn is_destructive_false_for_read() {
         assert!(!ToolCall::ReadFile { path: "a".into() }.is_destructive());
-        assert!(!ToolCall::SearchFiles { query: "q".into(), glob: None }.is_destructive());
+        assert!(!ToolCall::SearchFiles {
+            query: "q".into(),
+            glob: None
+        }
+        .is_destructive());
         assert!(!ToolCall::ListDirectory { path: ".".into() }.is_destructive());
-        assert!(!ToolCall::WebSearch { query: "q".into(), num_results: 5 }.is_destructive());
+        assert!(!ToolCall::WebSearch {
+            query: "q".into(),
+            num_results: 5
+        }
+        .is_destructive());
         assert!(!ToolCall::FetchUrl { url: "u".into() }.is_destructive());
-        assert!(!ToolCall::TaskComplete { summary: "done".into() }.is_destructive());
+        assert!(!ToolCall::TaskComplete {
+            summary: "done".into()
+        }
+        .is_destructive());
     }
 
     // ── ToolCall::is_terminal() ──────────────────────────────────────────
 
     #[test]
     fn is_terminal_only_for_task_complete() {
-        assert!(ToolCall::TaskComplete { summary: "done".into() }.is_terminal());
+        assert!(ToolCall::TaskComplete {
+            summary: "done".into()
+        }
+        .is_terminal());
         assert!(!ToolCall::ReadFile { path: "a".into() }.is_terminal());
-        assert!(!ToolCall::Bash { command: "ls".into() }.is_terminal());
+        assert!(!ToolCall::Bash {
+            command: "ls".into()
+        }
+        .is_terminal());
     }
 
     // ── ToolCall::summary() ──────────────────────────────────────────────
 
     #[test]
     fn summary_read_file() {
-        let s = ToolCall::ReadFile { path: "/src/main.rs".into() }.summary();
+        let s = ToolCall::ReadFile {
+            path: "/src/main.rs".into(),
+        }
+        .summary();
         assert_eq!(s, "read_file(/src/main.rs)");
     }
 
     #[test]
     fn summary_write_file_counts_lines() {
-        let s = ToolCall::WriteFile { path: "a.rs".into(), content: "line1\nline2\nline3\n".into() }.summary();
+        let s = ToolCall::WriteFile {
+            path: "a.rs".into(),
+            content: "line1\nline2\nline3\n".into(),
+        }
+        .summary();
         assert!(s.contains("3 lines"), "got: {}", s);
     }
 
     #[test]
     fn summary_apply_patch_counts_hunks() {
         let patch = "@@ -1,3 +1,4 @@\n foo\n+bar\n@@ -10,2 +11,3 @@\n baz\n+qux\n";
-        let s = ToolCall::ApplyPatch { path: "a.rs".into(), patch: patch.into() }.summary();
+        let s = ToolCall::ApplyPatch {
+            path: "a.rs".into(),
+            patch: patch.into(),
+        }
+        .summary();
         assert!(s.contains("2 hunks"), "got: {}", s);
     }
 
@@ -827,27 +975,49 @@ fn main() {
 
     #[test]
     fn summary_search_with_glob() {
-        let s = ToolCall::SearchFiles { query: "foo".into(), glob: Some("*.rs".into()) }.summary();
+        let s = ToolCall::SearchFiles {
+            query: "foo".into(),
+            glob: Some("*.rs".into()),
+        }
+        .summary();
         assert!(s.contains("*.rs"), "got: {}", s);
     }
 
     #[test]
     fn summary_search_without_glob() {
-        let s = ToolCall::SearchFiles { query: "bar".into(), glob: None }.summary();
+        let s = ToolCall::SearchFiles {
+            query: "bar".into(),
+            glob: None,
+        }
+        .summary();
         assert!(s.contains("bar") && !s.contains("in"), "got: {}", s);
     }
 
     #[test]
     fn summary_spawn_agent() {
-        let s = ToolCall::SpawnAgent { task: "do stuff".into(), max_steps: Some(5), max_depth: Some(2) }.summary();
+        let s = ToolCall::SpawnAgent {
+            task: "do stuff".into(),
+            max_steps: Some(5),
+            max_depth: Some(2),
+        }
+        .summary();
         assert!(s.contains("max_steps=5"), "got: {}", s);
         assert!(s.contains("max_depth=2"), "got: {}", s);
     }
 
     #[test]
     fn summary_spawn_agent_defaults() {
-        let s = ToolCall::SpawnAgent { task: "x".into(), max_steps: None, max_depth: None }.summary();
-        assert!(s.contains("max_steps=10"), "default should be 10, got: {}", s);
+        let s = ToolCall::SpawnAgent {
+            task: "x".into(),
+            max_steps: None,
+            max_depth: None,
+        }
+        .summary();
+        assert!(
+            s.contains("max_steps=10"),
+            "default should be 10, got: {}",
+            s
+        );
         assert!(s.contains("max_depth=3"), "default should be 3, got: {}", s);
     }
 
@@ -884,8 +1054,15 @@ fn main() {
 
     #[test]
     fn format_tool_result_success() {
-        let call = ToolCall::ReadFile { path: "a.rs".into() };
-        let result = ToolResult { tool_name: "read_file".into(), output: "fn main() {}".into(), success: true, truncated: false };
+        let call = ToolCall::ReadFile {
+            path: "a.rs".into(),
+        };
+        let result = ToolResult {
+            tool_name: "read_file".into(),
+            output: "fn main() {}".into(),
+            success: true,
+            truncated: false,
+        };
         let formatted = format_tool_result(&call, &result);
         assert!(formatted.starts_with("✅"));
         assert!(formatted.contains("read_file"));
@@ -894,7 +1071,9 @@ fn main() {
 
     #[test]
     fn format_tool_result_error() {
-        let call = ToolCall::Bash { command: "bad".into() };
+        let call = ToolCall::Bash {
+            command: "bad".into(),
+        };
         let result = ToolResult::err("bash", "not found");
         let formatted = format_tool_result(&call, &result);
         assert!(formatted.starts_with("❌"));
@@ -902,8 +1081,15 @@ fn main() {
 
     #[test]
     fn format_tool_result_truncated_note() {
-        let call = ToolCall::Bash { command: "cat big".into() };
-        let result = ToolResult { tool_name: "bash".into(), output: "data".into(), success: true, truncated: true };
+        let call = ToolCall::Bash {
+            command: "cat big".into(),
+        };
+        let result = ToolResult {
+            tool_name: "bash".into(),
+            output: "data".into(),
+            success: true,
+            truncated: true,
+        };
         let formatted = format_tool_result(&call, &result);
         assert!(formatted.contains("truncated"));
     }
@@ -927,7 +1113,9 @@ fn main() {
 </tool_call>"#;
         let calls = parse_tool_calls(text);
         assert_eq!(calls.len(), 1);
-        assert!(matches!(&calls[0], ToolCall::WebSearch { query, num_results: 3 } if query == "rust async"));
+        assert!(
+            matches!(&calls[0], ToolCall::WebSearch { query, num_results: 3 } if query == "rust async")
+        );
     }
 
     #[test]
@@ -936,7 +1124,10 @@ fn main() {
 <query>hello</query>
 </tool_call>"#;
         let calls = parse_tool_calls(text);
-        assert!(matches!(&calls[0], ToolCall::WebSearch { num_results: 5, .. }));
+        assert!(matches!(
+            &calls[0],
+            ToolCall::WebSearch { num_results: 5, .. }
+        ));
     }
 
     #[test]
@@ -957,7 +1148,9 @@ fn main() {
 </tool_call>"#;
         let calls = parse_tool_calls(text);
         assert_eq!(calls.len(), 1);
-        assert!(matches!(&calls[0], ToolCall::SpawnAgent { task, max_steps: Some(5), max_depth: Some(2) } if task == "Write tests"));
+        assert!(
+            matches!(&calls[0], ToolCall::SpawnAgent { task, max_steps: Some(5), max_depth: Some(2) } if task == "Write tests")
+        );
     }
 
     #[test]

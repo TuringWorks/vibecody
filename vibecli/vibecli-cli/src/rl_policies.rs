@@ -58,10 +58,10 @@ pub struct RegisterRequest {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct LineageNode {
-    pub node_id: String,    // run_id (always) — policies attach via rl_policy_runs
-    pub kind: String,       // 'run' | 'policy'
-    pub label: String,      // human-readable
-    pub status: String,     // run.status or 'registered'
+    pub node_id: String, // run_id (always) — policies attach via rl_policy_runs
+    pub kind: String,    // 'run' | 'policy'
+    pub label: String,   // human-readable
+    pub status: String,  // run.status or 'registered'
     pub algorithm: Option<String>,
     pub environment_id: Option<String>,
     pub created_at: i64,
@@ -135,7 +135,11 @@ impl PolicyStore {
 
     // ── Register ──────────────────────────────────────────────────────────────
 
-    pub fn register(&self, req: RegisterRequest, runs: &crate::rl_runs::RunStore) -> Result<Policy, RunError> {
+    pub fn register(
+        &self,
+        req: RegisterRequest,
+        runs: &crate::rl_runs::RunStore,
+    ) -> Result<Policy, RunError> {
         if req.name.trim().is_empty() {
             return Err(RunError::Invalid("policy name must be non-empty".into()));
         }
@@ -202,16 +206,23 @@ impl PolicyStore {
                 req.onnx_artifact_id,
                 card_md,
                 framework,
-                serde_json::to_string(&obs_space_json).map_err(|e| RunError::Storage(e.to_string()))?,
-                serde_json::to_string(&act_space_json).map_err(|e| RunError::Storage(e.to_string()))?,
+                serde_json::to_string(&obs_space_json)
+                    .map_err(|e| RunError::Storage(e.to_string()))?,
+                serde_json::to_string(&act_space_json)
+                    .map_err(|e| RunError::Storage(e.to_string()))?,
                 None::<String>,
                 None::<String>,
                 now,
             ],
         )
         .map_err(|e| match e {
-            rusqlite::Error::SqliteFailure(_, ref m) if m.as_deref().map_or(false, |x| x.contains("UNIQUE")) => {
-                RunError::Invalid(format!("policy {}@{} already exists", req.name, req.version))
+            rusqlite::Error::SqliteFailure(_, ref m)
+                if m.as_deref().map_or(false, |x| x.contains("UNIQUE")) =>
+            {
+                RunError::Invalid(format!(
+                    "policy {}@{} already exists",
+                    req.name, req.version
+                ))
             }
             other => RunError::from(other),
         })?;
@@ -561,9 +572,15 @@ mod tests {
             })
             .unwrap();
         // Take it through the lifecycle to Succeeded.
-        store.transition(&run.run_id, RunStatus::Queued, None).unwrap();
-        store.transition(&run.run_id, RunStatus::Running, None).unwrap();
-        store.transition(&run.run_id, RunStatus::Succeeded, None).unwrap();
+        store
+            .transition(&run.run_id, RunStatus::Queued, None)
+            .unwrap();
+        store
+            .transition(&run.run_id, RunStatus::Running, None)
+            .unwrap();
+        store
+            .transition(&run.run_id, RunStatus::Succeeded, None)
+            .unwrap();
         let art = store
             .record_artifact(
                 &run.run_id,
@@ -686,9 +703,12 @@ mod tests {
                 sidecar_version: None,
             })
             .unwrap();
-        runs.transition(&child.run_id, RunStatus::Queued, None).unwrap();
-        runs.transition(&child.run_id, RunStatus::Running, None).unwrap();
-        runs.transition(&child.run_id, RunStatus::Succeeded, None).unwrap();
+        runs.transition(&child.run_id, RunStatus::Queued, None)
+            .unwrap();
+        runs.transition(&child.run_id, RunStatus::Running, None)
+            .unwrap();
+        runs.transition(&child.run_id, RunStatus::Succeeded, None)
+            .unwrap();
         let child_art = runs
             .record_artifact(
                 &child.run_id,

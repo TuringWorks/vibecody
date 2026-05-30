@@ -4,16 +4,14 @@
 //! mimics SearXNG's JSON schema, plus error paths for transport failures and
 //! missing API keys.
 
-use axum::{Router, extract::State, http::StatusCode, response::IntoResponse, routing::get};
-use cucumber::{World, given, then, when};
+use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::get, Router};
+use cucumber::{given, then, when, World};
 use std::net::SocketAddr;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use tokio::net::TcpListener;
 use vibecli_cli::web_grounding::{SearchConfig, SearchProvider, SearchResult, WebGroundingEngine};
-use vibecli_cli::web_grounding_backend::{
-    BraveBackend, SearchBackend, SearxngBackend,
-};
+use vibecli_cli::web_grounding_backend::{BraveBackend, SearchBackend, SearxngBackend};
 
 #[derive(Clone, Default)]
 struct MockState {
@@ -51,7 +49,10 @@ impl std::fmt::Debug for GroundingWorld {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GroundingWorld")
             .field("base_url", &self.base_url)
-            .field("last_results_is_ok", &self.last_results.as_ref().map(|r| r.is_ok()))
+            .field(
+                "last_results_is_ok",
+                &self.last_results.as_ref().map(|r| r.is_ok()),
+            )
             .finish()
     }
 }
@@ -192,7 +193,10 @@ fn then_error_contains(w: &mut GroundingWorld, needle: String) {
         .as_ref()
         .err()
         .unwrap_or_else(|| panic!("expected error, got Ok"));
-    assert!(err.contains(&needle), "error {err:?} did not contain {needle:?}");
+    assert!(
+        err.contains(&needle),
+        "error {err:?} did not contain {needle:?}"
+    );
 }
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 2)]

@@ -1,13 +1,13 @@
 //! LSP client implementation
 
-use anyhow::{Result, anyhow, Context};
+use anyhow::{anyhow, Context, Result};
 use lsp_types::*;
+use serde_json::Value;
 use std::path::PathBuf;
 use std::process::Stdio;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::sync::mpsc;
-use serde_json::Value;
 
 /// LSP client for communicating with language servers
 pub struct LspClient {
@@ -44,9 +44,18 @@ impl LspClient {
             .spawn()
             .context("Failed to spawn language server")?;
 
-        let stdin = child.stdin.take().ok_or_else(|| anyhow!("Failed to open stdin"))?;
-        let stdout = child.stdout.take().ok_or_else(|| anyhow!("Failed to open stdout"))?;
-        let stderr = child.stderr.take().ok_or_else(|| anyhow!("Failed to open stderr"))?;
+        let stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| anyhow!("Failed to open stdin"))?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| anyhow!("Failed to open stdout"))?;
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or_else(|| anyhow!("Failed to open stderr"))?;
 
         let (req_tx, mut req_rx) = mpsc::channel::<Value>(32);
         let (res_tx, res_rx) = mpsc::channel::<Value>(32);
@@ -83,11 +92,15 @@ impl LspClient {
                     Ok(0) => break, // EOF
                     Ok(_) => {
                         if line.starts_with("Content-Length: ") {
-                            if let Ok(len) = line.trim_start_matches("Content-Length: ").trim().parse::<usize>() {
+                            if let Ok(len) = line
+                                .trim_start_matches("Content-Length: ")
+                                .trim()
+                                .parse::<usize>()
+                            {
                                 // Read empty line
                                 let mut empty = String::new();
                                 let _ = reader.read_line(&mut empty).await;
-                                
+
                                 // Read body
                                 let mut body = vec![0; len];
                                 if (reader.read_exact(&mut body).await).is_ok() {
@@ -108,7 +121,9 @@ impl LspClient {
             let mut reader = BufReader::new(stderr);
             let mut line = String::new();
             while let Ok(n) = reader.read_line(&mut line).await {
-                if n == 0 { break; }
+                if n == 0 {
+                    break;
+                }
                 tracing::error!("LSP Stderr: {}", line.trim());
                 line.clear();
             }
@@ -128,8 +143,10 @@ impl LspClient {
         }
 
         let uri_string = format!("file://{}", root_path.display());
-        let root_uri: Uri = uri_string.parse().map_err(|_| anyhow!("Invalid root path"))?;
-        
+        let root_uri: Uri = uri_string
+            .parse()
+            .map_err(|_| anyhow!("Invalid root path"))?;
+
         let params = InitializeParams {
             process_id: Some(std::process::id()),
             #[allow(deprecated)]
@@ -138,11 +155,14 @@ impl LspClient {
             ..Default::default()
         };
 
-        let _response = self.send_request("initialize", serde_json::to_value(params)?).await?;
-        
+        let _response = self
+            .send_request("initialize", serde_json::to_value(params)?)
+            .await?;
+
         // Send initialized notification
-        self.send_notification("initialized", serde_json::json!({})).await?;
-        
+        self.send_notification("initialized", serde_json::json!({}))
+            .await?;
+
         self.initialized = true;
         Ok(())
     }
@@ -159,11 +179,13 @@ impl LspClient {
         });
 
         if let Some(tx) = &self.request_tx {
-            tx.send(req).await.map_err(|_| anyhow!("Failed to send request"))?;
+            tx.send(req)
+                .await
+                .map_err(|_| anyhow!("Failed to send request"))?;
         }
 
         // Wait for response
-        // Note: This is a simplified synchronous wait. In a real implementation, 
+        // Note: This is a simplified synchronous wait. In a real implementation,
         // we'd need a map of pending requests to handle out-of-order responses.
         // For MVP, we assume sequential processing or just wait for the matching ID.
         if let Some(rx) = &mut self.response_rx {
@@ -191,7 +213,9 @@ impl LspClient {
         });
 
         if let Some(tx) = &self.request_tx {
-            tx.send(notif).await.map_err(|_| anyhow!("Failed to send notification"))?;
+            tx.send(notif)
+                .await
+                .map_err(|_| anyhow!("Failed to send notification"))?;
         }
         Ok(())
     }
@@ -199,10 +223,12 @@ impl LspClient {
     /// Shutdown the language server
     pub async fn shutdown(&mut self) -> Result<()> {
         if self.initialized {
-            self.send_request("shutdown", serde_json::json!(null)).await?;
-            self.send_notification("exit", serde_json::json!(null)).await?;
+            self.send_request("shutdown", serde_json::json!(null))
+                .await?;
+            self.send_notification("exit", serde_json::json!(null))
+                .await?;
         }
-        
+
         if let Some(mut child) = self.process.take() {
             let _ = child.kill().await;
         }
@@ -210,36 +236,51 @@ impl LspClient {
     }
 
     /// Send a completion request
-    pub async fn completion(&mut self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
-        let res = self.send_request("textDocument/completion", serde_json::to_value(params)?).await?;
+    pub async fn completion(
+        &mut self,
+        params: CompletionParams,
+    ) -> Result<Option<CompletionResponse>> {
+        let res = self
+            .send_request("textDocument/completion", serde_json::to_value(params)?)
+            .await?;
         Ok(serde_json::from_value(res).ok())
     }
 
     /// Send a hover request
     pub async fn hover(&mut self, params: HoverParams) -> Result<Option<Hover>> {
-        let res = self.send_request("textDocument/hover", serde_json::to_value(params)?).await?;
+        let res = self
+            .send_request("textDocument/hover", serde_json::to_value(params)?)
+            .await?;
         Ok(serde_json::from_value(res).ok())
     }
 
     /// Send a goto definition request
-    pub async fn goto_definition(&mut self, params: GotoDefinitionParams) -> Result<Option<GotoDefinitionResponse>> {
-        let res = self.send_request("textDocument/definition", serde_json::to_value(params)?).await?;
+    pub async fn goto_definition(
+        &mut self,
+        params: GotoDefinitionParams,
+    ) -> Result<Option<GotoDefinitionResponse>> {
+        let res = self
+            .send_request("textDocument/definition", serde_json::to_value(params)?)
+            .await?;
         Ok(serde_json::from_value(res).ok())
     }
 
     /// Notify document opened
     pub async fn did_open(&mut self, params: DidOpenTextDocumentParams) -> Result<()> {
-        self.send_notification("textDocument/didOpen", serde_json::to_value(params)?).await
+        self.send_notification("textDocument/didOpen", serde_json::to_value(params)?)
+            .await
     }
 
     /// Notify document changed
     pub async fn did_change(&mut self, params: DidChangeTextDocumentParams) -> Result<()> {
-        self.send_notification("textDocument/didChange", serde_json::to_value(params)?).await
+        self.send_notification("textDocument/didChange", serde_json::to_value(params)?)
+            .await
     }
 
     /// Notify document saved
     pub async fn did_save(&mut self, params: DidSaveTextDocumentParams) -> Result<()> {
-        self.send_notification("textDocument/didSave", serde_json::to_value(params)?).await
+        self.send_notification("textDocument/didSave", serde_json::to_value(params)?)
+            .await
     }
 
     /// Request document symbols (outline view).
@@ -265,10 +306,7 @@ impl LspClient {
     }
 
     /// Request references for the symbol at a position.
-    pub async fn references(
-        &mut self,
-        params: ReferenceParams,
-    ) -> Result<Option<Vec<Location>>> {
+    pub async fn references(&mut self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
         let res = self
             .send_request("textDocument/references", serde_json::to_value(params)?)
             .await?;
@@ -276,10 +314,7 @@ impl LspClient {
     }
 
     /// Request rename edits for the symbol at a position.
-    pub async fn rename(
-        &mut self,
-        params: RenameParams,
-    ) -> Result<Option<WorkspaceEdit>> {
+    pub async fn rename(&mut self, params: RenameParams) -> Result<Option<WorkspaceEdit>> {
         let res = self
             .send_request("textDocument/rename", serde_json::to_value(params)?)
             .await?;
@@ -325,7 +360,11 @@ mod tests {
 
     #[test]
     fn new_client_preserves_multiple_args() {
-        let args = vec!["--stdio".to_string(), "--log-level".to_string(), "debug".to_string()];
+        let args = vec![
+            "--stdio".to_string(),
+            "--log-level".to_string(),
+            "debug".to_string(),
+        ];
         let client = LspClient::new("ts-server".to_string(), args.clone());
         assert_eq!(client.server_args, args);
     }
@@ -346,10 +385,7 @@ mod tests {
 
     #[tokio::test]
     async fn start_nonexistent_server_fails() {
-        let mut client = LspClient::new(
-            "this-server-does-not-exist-12345".to_string(),
-            vec![],
-        );
+        let mut client = LspClient::new("this-server-does-not-exist-12345".to_string(), vec![]);
         let result = client.start().await;
         assert!(result.is_err());
     }
@@ -363,9 +399,7 @@ mod tests {
         let header = format!("Content-Length: {}\r\n\r\n", body.len());
         assert!(header.starts_with("Content-Length: "));
         assert!(header.ends_with("\r\n\r\n"));
-        let len_str = header
-            .trim_start_matches("Content-Length: ")
-            .trim();
+        let len_str = header.trim_start_matches("Content-Length: ").trim();
         let parsed_len: usize = len_str.parse().unwrap();
         assert_eq!(parsed_len, body.len());
     }

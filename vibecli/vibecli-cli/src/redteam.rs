@@ -91,20 +91,20 @@ impl CvssSeverity {
     pub fn icon(&self) -> &'static str {
         match self {
             Self::Critical => "🔴",
-            Self::High     => "🟠",
-            Self::Medium   => "🟡",
-            Self::Low      => "🔵",
-            Self::Info     => "⚪",
+            Self::High => "🟠",
+            Self::Medium => "🟡",
+            Self::Low => "🔵",
+            Self::Info => "⚪",
         }
     }
 
     pub fn label(&self) -> &'static str {
         match self {
             Self::Critical => "CRITICAL",
-            Self::High     => "HIGH",
-            Self::Medium   => "MEDIUM",
-            Self::Low      => "LOW",
-            Self::Info     => "INFO",
+            Self::High => "HIGH",
+            Self::Medium => "MEDIUM",
+            Self::Low => "LOW",
+            Self::Info => "INFO",
         }
     }
 }
@@ -142,11 +142,11 @@ impl RedTeamStage {
 
     pub fn label(&self) -> &'static str {
         match self {
-            Self::Recon         => "Reconnaissance",
-            Self::Analysis      => "Vulnerability Analysis",
-            Self::Exploitation  => "Exploitation",
-            Self::Validation    => "Validation",
-            Self::Report        => "Report Generation",
+            Self::Recon => "Reconnaissance",
+            Self::Analysis => "Vulnerability Analysis",
+            Self::Exploitation => "Exploitation",
+            Self::Validation => "Validation",
+            Self::Report => "Report Generation",
         }
     }
 
@@ -218,11 +218,21 @@ pub struct RedTeamConfig {
     pub auto_report: bool,
 }
 
-fn default_max_depth() -> usize { 3 }
-fn default_timeout_secs() -> u64 { 300 }
-fn default_parallel_agents() -> usize { 3 }
-fn default_scope() -> Vec<String> { vec!["*".to_string()] }
-fn default_true() -> bool { true }
+fn default_max_depth() -> usize {
+    3
+}
+fn default_timeout_secs() -> u64 {
+    300
+}
+fn default_parallel_agents() -> usize {
+    3
+}
+fn default_scope() -> Vec<String> {
+    vec!["*".to_string()]
+}
+fn default_true() -> bool {
+    true
+}
 
 impl Default for RedTeamConfig {
     fn default() -> Self {
@@ -351,8 +361,7 @@ pub struct RedTeamSession {
     pub finished_at: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct StageStatus {
     pub started: bool,
     pub completed: bool,
@@ -360,11 +369,13 @@ pub struct StageStatus {
     pub duration_secs: Option<f64>,
 }
 
-
 impl RedTeamSession {
     pub fn new(config: RedTeamConfig) -> Self {
         let now = chrono_now();
-        let id = format!("rt-{}", now.replace([':', ' ', '-'], "").get(..14).unwrap_or(&now));
+        let id = format!(
+            "rt-{}",
+            now.replace([':', ' ', '-'], "").get(..14).unwrap_or(&now)
+        );
 
         let mut stage_status = HashMap::new();
         for stage in RedTeamStage::ALL {
@@ -386,10 +397,26 @@ impl RedTeamSession {
     }
 
     pub fn summary_line(&self) -> String {
-        let critical = self.findings.iter().filter(|f| f.severity == CvssSeverity::Critical).count();
-        let high = self.findings.iter().filter(|f| f.severity == CvssSeverity::High).count();
-        let medium = self.findings.iter().filter(|f| f.severity == CvssSeverity::Medium).count();
-        let low = self.findings.iter().filter(|f| f.severity == CvssSeverity::Low).count();
+        let critical = self
+            .findings
+            .iter()
+            .filter(|f| f.severity == CvssSeverity::Critical)
+            .count();
+        let high = self
+            .findings
+            .iter()
+            .filter(|f| f.severity == CvssSeverity::High)
+            .count();
+        let medium = self
+            .findings
+            .iter()
+            .filter(|f| f.severity == CvssSeverity::Medium)
+            .count();
+        let low = self
+            .findings
+            .iter()
+            .filter(|f| f.severity == CvssSeverity::Low)
+            .count();
         format!(
             "{} | {} | Stage: {} | 🔴{} 🟠{} 🟡{} 🔵{}",
             self.id, self.target_url, self.current_stage, critical, high, medium, low
@@ -462,10 +489,18 @@ pub async fn run_recon(target: &str, _config: &RedTeamConfig) -> Result<ReconRes
     let headers = resp.headers().clone();
 
     // Extract interesting headers.
-    for name in &["server", "x-powered-by", "x-framework", "x-aspnet-version", "x-generator"] {
+    for name in &[
+        "server",
+        "x-powered-by",
+        "x-framework",
+        "x-aspnet-version",
+        "x-generator",
+    ] {
         if let Some(val) = headers.get(*name) {
             if let Ok(v) = val.to_str() {
-                result.interesting_headers.insert(name.to_string(), v.to_string());
+                result
+                    .interesting_headers
+                    .insert(name.to_string(), v.to_string());
                 result.technologies.push(v.to_string());
             }
         }
@@ -478,7 +513,10 @@ pub async fn run_recon(target: &str, _config: &RedTeamConfig) -> Result<ReconRes
         url: target.to_string(),
         method: "GET".to_string(),
         status,
-        content_type: headers.get("content-type").and_then(|v| v.to_str().ok()).map(String::from),
+        content_type: headers
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .map(String::from),
         params: vec![],
     });
 
@@ -517,8 +555,11 @@ pub async fn run_recon(target: &str, _config: &RedTeamConfig) -> Result<ReconRes
                     url: full_url,
                     method: "GET".to_string(),
                     status: resp.status().as_u16(),
-                    content_type: resp.headers().get("content-type")
-                        .and_then(|v| v.to_str().ok()).map(String::from),
+                    content_type: resp
+                        .headers()
+                        .get("content-type")
+                        .and_then(|v| v.to_str().ok())
+                        .map(String::from),
                     params: vec![],
                 });
             }
@@ -578,7 +619,10 @@ pub async fn analyze_source(
     }
     context.push_str("\n## Input Points\n");
     for ip in &recon.input_points {
-        context.push_str(&format!("- {} param '{}' on {}\n", ip.input_type, ip.param_name, ip.page_url));
+        context.push_str(&format!(
+            "- {} param '{}' on {}\n",
+            ip.input_type, ip.param_name, ip.page_url
+        ));
     }
     context.push_str("\n## Technologies\n");
     for tech in &recon.technologies {
@@ -591,7 +635,11 @@ pub async fn analyze_source(
         if !source_files.is_empty() {
             context.push_str("\n## Source Code Excerpts\n");
             for (path, content) in &source_files {
-                let end = content.char_indices().nth(2000).map(|(i,_)| i).unwrap_or(content.len());
+                let end = content
+                    .char_indices()
+                    .nth(2000)
+                    .map(|(i, _)| i)
+                    .unwrap_or(content.len());
                 context.push_str(&format!("\n### {}\n```\n{}\n```\n", path, &content[..end]));
             }
         }
@@ -624,7 +672,10 @@ Return [] if no vulnerabilities are found.
 "#
     );
 
-    let msgs = vec![Message { role: MessageRole::User, content: prompt }];
+    let msgs = vec![Message {
+        role: MessageRole::User,
+        content: prompt,
+    }];
 
     match llm.chat(&msgs, None).await {
         Ok(response) => {
@@ -647,8 +698,18 @@ Return [] if no vulnerabilities are found.
 
 /// Collect up to `max_files` source files from the workspace, prioritizing route/API files.
 fn collect_source_files(workspace: &Path, max_files: usize) -> Vec<(String, String)> {
-    let priority_patterns = ["route", "controller", "handler", "api", "auth", "middleware", "endpoint"];
-    let extensions = ["rs", "ts", "tsx", "js", "jsx", "py", "go", "rb", "java", "php"];
+    let priority_patterns = [
+        "route",
+        "controller",
+        "handler",
+        "api",
+        "auth",
+        "middleware",
+        "endpoint",
+    ];
+    let extensions = [
+        "rs", "ts", "tsx", "js", "jsx", "py", "go", "rb", "java", "php",
+    ];
 
     let mut files: Vec<(String, String, bool)> = Vec::new();
 
@@ -658,18 +719,27 @@ fn collect_source_files(workspace: &Path, max_files: usize) -> Vec<(String, Stri
         .filter_map(|e| e.ok())
     {
         let path = entry.path();
-        if !path.is_file() { continue; }
+        if !path.is_file() {
+            continue;
+        }
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-        if !extensions.contains(&ext) { continue; }
-
-        // Skip node_modules, target, .git, vendor, etc.
-        let path_str = path.to_string_lossy();
-        if path_str.contains("node_modules") || path_str.contains("/target/")
-            || path_str.contains("/.git/") || path_str.contains("/vendor/") {
+        if !extensions.contains(&ext) {
             continue;
         }
 
-        let is_priority = priority_patterns.iter().any(|p| path_str.to_lowercase().contains(p));
+        // Skip node_modules, target, .git, vendor, etc.
+        let path_str = path.to_string_lossy();
+        if path_str.contains("node_modules")
+            || path_str.contains("/target/")
+            || path_str.contains("/.git/")
+            || path_str.contains("/vendor/")
+        {
+            continue;
+        }
+
+        let is_priority = priority_patterns
+            .iter()
+            .any(|p| path_str.to_lowercase().contains(p));
         if let Ok(content) = std::fs::read_to_string(path) {
             if content.len() < 50_000 {
                 let rel = path.strip_prefix(workspace).unwrap_or(path);
@@ -718,7 +788,10 @@ pub async fn exploit_candidate(
         AttackVector::PathTraversal => vec![
             ("../../../etc/passwd", "traversal-passwd"),
             ("....//....//....//etc/passwd", "traversal-double"),
-            ("%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd", "traversal-encoded"),
+            (
+                "%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd",
+                "traversal-encoded",
+            ),
         ],
         AttackVector::Ssrf => vec![
             ("http://127.0.0.1:80", "ssrf-localhost"),
@@ -753,9 +826,19 @@ pub async fn exploit_candidate(
     // Try each payload.
     for (payload, label) in payloads {
         let test_url = if candidate.url.contains('?') {
-            format!("{}&{}={}", candidate.url, candidate.location, urlencoding::encode(payload))
+            format!(
+                "{}&{}={}",
+                candidate.url,
+                candidate.location,
+                urlencoding::encode(payload)
+            )
         } else {
-            format!("{}?{}={}", candidate.url, candidate.location, urlencoding::encode(payload))
+            format!(
+                "{}?{}={}",
+                candidate.url,
+                candidate.location,
+                urlencoding::encode(payload)
+            )
         };
 
         if let Ok(resp) = client.get(&test_url).send().await {
@@ -764,18 +847,15 @@ pub async fn exploit_candidate(
             // Check for indicators of successful exploitation.
             let confirmed = match candidate.attack_vector {
                 AttackVector::SqlInjection => {
-                    body.contains("SQL") || body.contains("syntax error") || body.contains("mysql")
-                        || body.contains("ORA-") || body.contains("pg_catalog")
+                    body.contains("SQL")
+                        || body.contains("syntax error")
+                        || body.contains("mysql")
+                        || body.contains("ORA-")
+                        || body.contains("pg_catalog")
                 }
-                AttackVector::Xss => {
-                    body.contains(payload)
-                }
-                AttackVector::CommandInjection => {
-                    body.contains("VIBECLI_REDTEAM_CANARY")
-                }
-                AttackVector::PathTraversal => {
-                    body.contains("root:") || body.contains("/bin/")
-                }
+                AttackVector::Xss => body.contains(payload),
+                AttackVector::CommandInjection => body.contains("VIBECLI_REDTEAM_CANARY"),
+                AttackVector::PathTraversal => body.contains("root:") || body.contains("/bin/"),
                 AttackVector::Ssrf => {
                     // If we get a response that includes internal content.
                     body.len() > 100 && !body.contains("404") && !body.contains("error")
@@ -884,16 +964,33 @@ pub fn generate_report(session: &RedTeamSession) -> String {
     report.push_str("\n---\n\n");
 
     // Executive Summary
-    let critical = session.findings.iter().filter(|f| f.severity == CvssSeverity::Critical).count();
-    let high = session.findings.iter().filter(|f| f.severity == CvssSeverity::High).count();
-    let medium = session.findings.iter().filter(|f| f.severity == CvssSeverity::Medium).count();
-    let low = session.findings.iter().filter(|f| f.severity == CvssSeverity::Low).count();
+    let critical = session
+        .findings
+        .iter()
+        .filter(|f| f.severity == CvssSeverity::Critical)
+        .count();
+    let high = session
+        .findings
+        .iter()
+        .filter(|f| f.severity == CvssSeverity::High)
+        .count();
+    let medium = session
+        .findings
+        .iter()
+        .filter(|f| f.severity == CvssSeverity::Medium)
+        .count();
+    let low = session
+        .findings
+        .iter()
+        .filter(|f| f.severity == CvssSeverity::Low)
+        .count();
     let confirmed = session.findings.iter().filter(|f| f.confirmed).count();
 
     report.push_str("## Executive Summary\n\n");
     report.push_str(&format!(
         "VibeCLI Red Team identified **{} vulnerabilities** ({} confirmed exploitable):\n\n",
-        session.findings.len(), confirmed
+        session.findings.len(),
+        confirmed
     ));
     report.push_str("| Severity | Count |\n|----------|-------|\n");
     report.push_str(&format!("| 🔴 Critical | {} |\n", critical));
@@ -905,9 +1002,18 @@ pub fn generate_report(session: &RedTeamSession) -> String {
     // Recon Summary
     if let Some(recon) = &session.recon {
         report.push_str("## Reconnaissance Summary\n\n");
-        report.push_str(&format!("- **Endpoints discovered:** {}\n", recon.endpoints.len()));
-        report.push_str(&format!("- **Input points found:** {}\n", recon.input_points.len()));
-        report.push_str(&format!("- **Technologies detected:** {}\n", recon.technologies.join(", ")));
+        report.push_str(&format!(
+            "- **Endpoints discovered:** {}\n",
+            recon.endpoints.len()
+        ));
+        report.push_str(&format!(
+            "- **Input points found:** {}\n",
+            recon.input_points.len()
+        ));
+        report.push_str(&format!(
+            "- **Technologies detected:** {}\n",
+            recon.technologies.join(", ")
+        ));
         report.push('\n');
     }
 
@@ -916,19 +1022,33 @@ pub fn generate_report(session: &RedTeamSession) -> String {
         report.push_str("## Detailed Findings\n\n");
 
         let mut sorted = session.findings.clone();
-        sorted.sort_by(|a, b| b.cvss_score.partial_cmp(&a.cvss_score).unwrap_or(std::cmp::Ordering::Equal));
+        sorted.sort_by(|a, b| {
+            b.cvss_score
+                .partial_cmp(&a.cvss_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         for (i, finding) in sorted.iter().enumerate() {
             report.push_str(&format!(
                 "### {}. {} {} (CVSS: {:.1})\n\n",
-                i + 1, finding.severity.icon(), finding.title, finding.cvss_score
+                i + 1,
+                finding.severity.icon(),
+                finding.title,
+                finding.cvss_score
             ));
             report.push_str(&format!("- **ID:** {}\n", finding.id));
             report.push_str(&format!("- **Severity:** {}\n", finding.severity));
             report.push_str(&format!("- **CVSS Score:** {:.1}\n", finding.cvss_score));
             report.push_str(&format!("- **URL:** `{}`\n", finding.url));
             report.push_str(&format!("- **Parameter:** `{}`\n", finding.location));
-            report.push_str(&format!("- **Confirmed:** {}\n", if finding.confirmed { "Yes" } else { "Unconfirmed" }));
+            report.push_str(&format!(
+                "- **Confirmed:** {}\n",
+                if finding.confirmed {
+                    "Yes"
+                } else {
+                    "Unconfirmed"
+                }
+            ));
             if let Some(file) = &finding.source_file {
                 report.push_str(&format!("- **Source:** `{}`", file));
                 if let Some(line) = finding.source_line {
@@ -938,7 +1058,10 @@ pub fn generate_report(session: &RedTeamSession) -> String {
             }
 
             report.push_str(&format!("\n**Description:**\n{}\n\n", finding.description));
-            report.push_str(&format!("**Proof of Concept:**\n```\n{}\n```\n\n", finding.poc));
+            report.push_str(&format!(
+                "**Proof of Concept:**\n```\n{}\n```\n\n",
+                finding.poc
+            ));
             report.push_str(&format!("**Remediation:**\n{}\n\n", finding.remediation));
             report.push_str("---\n\n");
         }
@@ -972,8 +1095,12 @@ pub async fn run_redteam_pipeline(
     match run_recon(&config.target_url, &config).await {
         Ok(recon) => {
             let dur = start.elapsed().as_secs_f64();
-            println!("   ✅ Found {} endpoints, {} input points ({:.1}s)",
-                recon.endpoints.len(), recon.input_points.len(), dur);
+            println!(
+                "   ✅ Found {} endpoints, {} input points ({:.1}s)",
+                recon.endpoints.len(),
+                recon.input_points.len(),
+                dur
+            );
             session.recon = Some(recon);
             mark_stage_completed(&mut session, "Recon", dur);
         }
@@ -1005,7 +1132,11 @@ pub async fn run_redteam_pipeline(
     match analyze_source(workspace, recon, llm.as_ref()).await {
         Ok(candidates) => {
             let dur = start.elapsed().as_secs_f64();
-            println!("   ✅ Identified {} vulnerability candidates ({:.1}s)", candidates.len(), dur);
+            println!(
+                "   ✅ Identified {} vulnerability candidates ({:.1}s)",
+                candidates.len(),
+                dur
+            );
             session.candidates = candidates;
             mark_stage_completed(&mut session, "Analysis", dur);
         }
@@ -1024,9 +1155,18 @@ pub async fn run_redteam_pipeline(
 
     for candidate in &session.candidates.clone() {
         if let Some(finding) = exploit_candidate(candidate, &config).await {
-            let status = if finding.confirmed { "✅ CONFIRMED" } else { "⚠️  Potential" };
-            println!("   {} {} — {} ({:.1})",
-                status, finding.severity.icon(), finding.title, finding.cvss_score);
+            let status = if finding.confirmed {
+                "✅ CONFIRMED"
+            } else {
+                "⚠️  Potential"
+            };
+            println!(
+                "   {} {} — {} ({:.1})",
+                status,
+                finding.severity.icon(),
+                finding.title,
+                finding.cvss_score
+            );
             session.findings.push(finding);
         }
     }
@@ -1040,7 +1180,11 @@ pub async fn run_redteam_pipeline(
     session.current_stage = RedTeamStage::Validation;
     mark_stage_started(&mut session, "Validation");
     let confirmed = session.findings.iter().filter(|f| f.confirmed).count();
-    println!("   ✅ {} of {} findings confirmed exploitable", confirmed, session.findings.len());
+    println!(
+        "   ✅ {} of {} findings confirmed exploitable",
+        confirmed,
+        session.findings.len()
+    );
     mark_stage_completed(&mut session, "Validation", 0.0);
 
     // Stage 5: Report
@@ -1126,32 +1270,58 @@ pub fn format_findings(findings: &[VulnFinding]) -> String {
         return "✅ No vulnerabilities found.\n".to_string();
     }
 
-    let critical = findings.iter().filter(|f| f.severity == CvssSeverity::Critical).count();
-    let high = findings.iter().filter(|f| f.severity == CvssSeverity::High).count();
-    let medium = findings.iter().filter(|f| f.severity == CvssSeverity::Medium).count();
-    let low = findings.iter().filter(|f| f.severity == CvssSeverity::Low).count();
+    let critical = findings
+        .iter()
+        .filter(|f| f.severity == CvssSeverity::Critical)
+        .count();
+    let high = findings
+        .iter()
+        .filter(|f| f.severity == CvssSeverity::High)
+        .count();
+    let medium = findings
+        .iter()
+        .filter(|f| f.severity == CvssSeverity::Medium)
+        .count();
+    let low = findings
+        .iter()
+        .filter(|f| f.severity == CvssSeverity::Low)
+        .count();
 
     let mut out = format!(
         "\n🛡️  Red Team Results: 🔴{} 🟠{} 🟡{} 🔵{}\n{}\n",
-        critical, high, medium, low,
+        critical,
+        high,
+        medium,
+        low,
         "─".repeat(50)
     );
 
     let mut sorted = findings.to_vec();
-    sorted.sort_by(|a, b| b.cvss_score.partial_cmp(&a.cvss_score).unwrap_or(std::cmp::Ordering::Equal));
+    sorted.sort_by(|a, b| {
+        b.cvss_score
+            .partial_cmp(&a.cvss_score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     for f in &sorted {
         let confirmed_tag = if f.confirmed { " [CONFIRMED]" } else { "" };
         out.push_str(&format!(
             "\n{} {} (CVSS {:.1}){}\n   {}\n   URL: {}\n   Param: {}\n",
-            f.severity.icon(), f.title, f.cvss_score, confirmed_tag,
+            f.severity.icon(),
+            f.title,
+            f.cvss_score,
+            confirmed_tag,
             f.description.lines().next().unwrap_or(""),
-            f.url, f.location
+            f.url,
+            f.location
         ));
         if f.confirmed {
             out.push_str(&format!("   PoC: {}\n", f.poc));
         }
-        out.push_str(&format!("   Fix: {}\n", f.remediation.lines().next().unwrap_or("")));
+        out.push_str(&format!(
+            "   Fix: {}\n",
+            f.remediation.lines().next().unwrap_or("")
+        ));
     }
     out.push('\n');
     out
@@ -1175,8 +1345,14 @@ mod tests {
     #[test]
     fn test_stage_progression() {
         assert_eq!(RedTeamStage::Recon.next(), Some(RedTeamStage::Analysis));
-        assert_eq!(RedTeamStage::Analysis.next(), Some(RedTeamStage::Exploitation));
-        assert_eq!(RedTeamStage::Exploitation.next(), Some(RedTeamStage::Validation));
+        assert_eq!(
+            RedTeamStage::Analysis.next(),
+            Some(RedTeamStage::Exploitation)
+        );
+        assert_eq!(
+            RedTeamStage::Exploitation.next(),
+            Some(RedTeamStage::Validation)
+        );
         assert_eq!(RedTeamStage::Validation.next(), Some(RedTeamStage::Report));
         assert_eq!(RedTeamStage::Report.next(), None);
     }
@@ -1202,9 +1378,18 @@ mod tests {
 
     #[test]
     fn test_attack_vector_display() {
-        assert_eq!(format!("{}", AttackVector::SqlInjection), "SQL Injection (CWE-89)");
-        assert_eq!(format!("{}", AttackVector::Xss), "Cross-Site Scripting (CWE-79)");
-        assert_eq!(format!("{}", AttackVector::Ssrf), "Server-Side Request Forgery (CWE-918)");
+        assert_eq!(
+            format!("{}", AttackVector::SqlInjection),
+            "SQL Injection (CWE-89)"
+        );
+        assert_eq!(
+            format!("{}", AttackVector::Xss),
+            "Cross-Site Scripting (CWE-79)"
+        );
+        assert_eq!(
+            format!("{}", AttackVector::Ssrf),
+            "Server-Side Request Forgery (CWE-918)"
+        );
     }
 
     #[test]
@@ -1216,8 +1401,12 @@ mod tests {
     #[test]
     fn test_remediation_not_empty() {
         for vector in &[
-            AttackVector::SqlInjection, AttackVector::Xss, AttackVector::Ssrf,
-            AttackVector::Idor, AttackVector::CommandInjection, AttackVector::PathTraversal,
+            AttackVector::SqlInjection,
+            AttackVector::Xss,
+            AttackVector::Ssrf,
+            AttackVector::Idor,
+            AttackVector::CommandInjection,
+            AttackVector::PathTraversal,
         ] {
             assert!(!remediation_for(vector).is_empty());
         }
@@ -1225,7 +1414,10 @@ mod tests {
 
     #[test]
     fn test_generate_report_empty() {
-        let config = RedTeamConfig { target_url: "http://test.local".to_string(), ..Default::default() };
+        let config = RedTeamConfig {
+            target_url: "http://test.local".to_string(),
+            ..Default::default()
+        };
         let session = RedTeamSession::new(config);
         let report = generate_report(&session);
         assert!(report.contains("Security Assessment Report"));
@@ -1235,7 +1427,10 @@ mod tests {
 
     #[test]
     fn test_generate_report_with_findings() {
-        let config = RedTeamConfig { target_url: "http://test.local".to_string(), ..Default::default() };
+        let config = RedTeamConfig {
+            target_url: "http://test.local".to_string(),
+            ..Default::default()
+        };
         let mut session = RedTeamSession::new(config);
         session.findings.push(VulnFinding {
             id: "VF-0001".to_string(),
@@ -1289,7 +1484,10 @@ mod tests {
 
     #[test]
     fn test_session_summary_line() {
-        let config = RedTeamConfig { target_url: "http://test.local".to_string(), ..Default::default() };
+        let config = RedTeamConfig {
+            target_url: "http://test.local".to_string(),
+            ..Default::default()
+        };
         let mut session = RedTeamSession::new(config);
         session.findings.push(VulnFinding {
             id: "VF-0001".to_string(),
@@ -1317,11 +1515,21 @@ mod tests {
     #[test]
     fn attack_vector_serde_roundtrip() {
         let vectors = vec![
-            AttackVector::SqlInjection, AttackVector::Xss, AttackVector::Ssrf,
-            AttackVector::Idor, AttackVector::CommandInjection, AttackVector::PathTraversal,
-            AttackVector::AuthBypass, AttackVector::MassAssignment, AttackVector::OpenRedirect,
-            AttackVector::Xxe, AttackVector::InsecureDeserialization, AttackVector::NoSqlInjection,
-            AttackVector::TemplateInjection, AttackVector::Csrf, AttackVector::CleartextTransmission,
+            AttackVector::SqlInjection,
+            AttackVector::Xss,
+            AttackVector::Ssrf,
+            AttackVector::Idor,
+            AttackVector::CommandInjection,
+            AttackVector::PathTraversal,
+            AttackVector::AuthBypass,
+            AttackVector::MassAssignment,
+            AttackVector::OpenRedirect,
+            AttackVector::Xxe,
+            AttackVector::InsecureDeserialization,
+            AttackVector::NoSqlInjection,
+            AttackVector::TemplateInjection,
+            AttackVector::Csrf,
+            AttackVector::CleartextTransmission,
         ];
         for v in vectors {
             let json = serde_json::to_string(&v).unwrap();
@@ -1409,11 +1617,21 @@ mod tests {
     #[test]
     fn estimate_cvss_all_vectors_non_zero() {
         let vectors = [
-            AttackVector::SqlInjection, AttackVector::Xss, AttackVector::Ssrf,
-            AttackVector::Idor, AttackVector::CommandInjection, AttackVector::PathTraversal,
-            AttackVector::AuthBypass, AttackVector::MassAssignment, AttackVector::OpenRedirect,
-            AttackVector::Xxe, AttackVector::InsecureDeserialization, AttackVector::NoSqlInjection,
-            AttackVector::TemplateInjection, AttackVector::Csrf, AttackVector::CleartextTransmission,
+            AttackVector::SqlInjection,
+            AttackVector::Xss,
+            AttackVector::Ssrf,
+            AttackVector::Idor,
+            AttackVector::CommandInjection,
+            AttackVector::PathTraversal,
+            AttackVector::AuthBypass,
+            AttackVector::MassAssignment,
+            AttackVector::OpenRedirect,
+            AttackVector::Xxe,
+            AttackVector::InsecureDeserialization,
+            AttackVector::NoSqlInjection,
+            AttackVector::TemplateInjection,
+            AttackVector::Csrf,
+            AttackVector::CleartextTransmission,
         ];
         for v in &vectors {
             let score = estimate_cvss(v);
@@ -1427,16 +1645,34 @@ mod tests {
     #[test]
     fn remediation_covers_all_vectors() {
         let vectors = [
-            AttackVector::SqlInjection, AttackVector::Xss, AttackVector::Ssrf,
-            AttackVector::Idor, AttackVector::CommandInjection, AttackVector::PathTraversal,
-            AttackVector::AuthBypass, AttackVector::MassAssignment, AttackVector::OpenRedirect,
-            AttackVector::Xxe, AttackVector::InsecureDeserialization, AttackVector::NoSqlInjection,
-            AttackVector::TemplateInjection, AttackVector::Csrf, AttackVector::CleartextTransmission,
+            AttackVector::SqlInjection,
+            AttackVector::Xss,
+            AttackVector::Ssrf,
+            AttackVector::Idor,
+            AttackVector::CommandInjection,
+            AttackVector::PathTraversal,
+            AttackVector::AuthBypass,
+            AttackVector::MassAssignment,
+            AttackVector::OpenRedirect,
+            AttackVector::Xxe,
+            AttackVector::InsecureDeserialization,
+            AttackVector::NoSqlInjection,
+            AttackVector::TemplateInjection,
+            AttackVector::Csrf,
+            AttackVector::CleartextTransmission,
         ];
         for v in &vectors {
             let rem = remediation_for(v);
-            assert!(!rem.is_empty(), "Remediation for {:?} should not be empty", v);
-            assert!(rem.len() > 20, "Remediation for {:?} should be descriptive", v);
+            assert!(
+                !rem.is_empty(),
+                "Remediation for {:?} should not be empty",
+                v
+            );
+            assert!(
+                rem.len() > 20,
+                "Remediation for {:?} should be descriptive",
+                v
+            );
         }
     }
 
@@ -1493,7 +1729,10 @@ mod tests {
 
     #[test]
     fn mark_stage_started_sets_flag() {
-        let config = RedTeamConfig { target_url: "http://test.local".into(), ..Default::default() };
+        let config = RedTeamConfig {
+            target_url: "http://test.local".into(),
+            ..Default::default()
+        };
         let mut session = RedTeamSession::new(config);
         mark_stage_started(&mut session, "Recon");
         let status = session.stage_status.get("Recon").unwrap();
@@ -1503,7 +1742,10 @@ mod tests {
 
     #[test]
     fn mark_stage_completed_sets_duration() {
-        let config = RedTeamConfig { target_url: "http://test.local".into(), ..Default::default() };
+        let config = RedTeamConfig {
+            target_url: "http://test.local".into(),
+            ..Default::default()
+        };
         let mut session = RedTeamSession::new(config);
         mark_stage_started(&mut session, "Recon");
         mark_stage_completed(&mut session, "Recon", 5.5);
@@ -1514,7 +1756,10 @@ mod tests {
 
     #[test]
     fn mark_stage_error_records_message() {
-        let config = RedTeamConfig { target_url: "http://test.local".into(), ..Default::default() };
+        let config = RedTeamConfig {
+            target_url: "http://test.local".into(),
+            ..Default::default()
+        };
         let mut session = RedTeamSession::new(config);
         mark_stage_error(&mut session, "Analysis", "connection refused");
         let status = session.stage_status.get("Analysis").unwrap();
@@ -1523,7 +1768,10 @@ mod tests {
 
     #[test]
     fn mark_stage_nonexistent_key_does_not_panic() {
-        let config = RedTeamConfig { target_url: "http://test.local".into(), ..Default::default() };
+        let config = RedTeamConfig {
+            target_url: "http://test.local".into(),
+            ..Default::default()
+        };
         let mut session = RedTeamSession::new(config);
         // Should silently do nothing for unknown stage name
         mark_stage_started(&mut session, "NonExistentStage");
@@ -1535,7 +1783,10 @@ mod tests {
 
     #[test]
     fn generate_report_no_findings_shows_no_vulnerabilities() {
-        let config = RedTeamConfig { target_url: "http://test.local".into(), ..Default::default() };
+        let config = RedTeamConfig {
+            target_url: "http://test.local".into(),
+            ..Default::default()
+        };
         let session = RedTeamSession::new(config);
         let report = generate_report(&session);
         assert!(report.contains("# Security Assessment Report"));
@@ -1546,7 +1797,10 @@ mod tests {
 
     #[test]
     fn generate_report_with_recon_data() {
-        let config = RedTeamConfig { target_url: "http://test.local".into(), ..Default::default() };
+        let config = RedTeamConfig {
+            target_url: "http://test.local".into(),
+            ..Default::default()
+        };
         let mut session = RedTeamSession::new(config);
         session.recon = Some(ReconResult {
             endpoints: vec![Endpoint {
@@ -1568,28 +1822,48 @@ mod tests {
 
     #[test]
     fn generate_report_findings_sorted_by_cvss() {
-        let config = RedTeamConfig { target_url: "http://test.local".into(), ..Default::default() };
+        let config = RedTeamConfig {
+            target_url: "http://test.local".into(),
+            ..Default::default()
+        };
         let mut session = RedTeamSession::new(config);
         session.findings.push(VulnFinding {
-            id: "VF-0001".into(), attack_vector: AttackVector::OpenRedirect,
-            cvss_score: 5.4, severity: CvssSeverity::Medium,
-            url: "http://test.local".into(), location: "redirect".into(),
-            title: "Open Redirect".into(), description: "test".into(),
-            poc: "test".into(), remediation: "test".into(),
-            source_file: None, source_line: None, confirmed: false,
+            id: "VF-0001".into(),
+            attack_vector: AttackVector::OpenRedirect,
+            cvss_score: 5.4,
+            severity: CvssSeverity::Medium,
+            url: "http://test.local".into(),
+            location: "redirect".into(),
+            title: "Open Redirect".into(),
+            description: "test".into(),
+            poc: "test".into(),
+            remediation: "test".into(),
+            source_file: None,
+            source_line: None,
+            confirmed: false,
         });
         session.findings.push(VulnFinding {
-            id: "VF-0002".into(), attack_vector: AttackVector::SqlInjection,
-            cvss_score: 9.8, severity: CvssSeverity::Critical,
-            url: "http://test.local".into(), location: "id".into(),
-            title: "SQL Injection".into(), description: "test".into(),
-            poc: "curl test".into(), remediation: "test".into(),
-            source_file: Some("routes.rs".into()), source_line: Some(42), confirmed: true,
+            id: "VF-0002".into(),
+            attack_vector: AttackVector::SqlInjection,
+            cvss_score: 9.8,
+            severity: CvssSeverity::Critical,
+            url: "http://test.local".into(),
+            location: "id".into(),
+            title: "SQL Injection".into(),
+            description: "test".into(),
+            poc: "curl test".into(),
+            remediation: "test".into(),
+            source_file: Some("routes.rs".into()),
+            source_line: Some(42),
+            confirmed: true,
         });
         let report = generate_report(&session);
         let sqli_pos = report.find("SQL Injection").unwrap();
         let redir_pos = report.find("Open Redirect").unwrap();
-        assert!(sqli_pos < redir_pos, "Higher CVSS findings should appear first");
+        assert!(
+            sqli_pos < redir_pos,
+            "Higher CVSS findings should appear first"
+        );
         assert!(report.contains("routes.rs"));
         assert!(report.contains(":42"));
     }
@@ -1600,26 +1874,43 @@ mod tests {
     fn format_findings_sorts_by_cvss_descending() {
         let findings = vec![
             VulnFinding {
-                id: "VF-0001".into(), attack_vector: AttackVector::Csrf,
-                cvss_score: 5.0, severity: CvssSeverity::Medium,
-                url: "http://test.local".into(), location: "form".into(),
-                title: "CSRF".into(), description: "missing token".into(),
-                poc: "test".into(), remediation: "Add CSRF token".into(),
-                source_file: None, source_line: None, confirmed: false,
+                id: "VF-0001".into(),
+                attack_vector: AttackVector::Csrf,
+                cvss_score: 5.0,
+                severity: CvssSeverity::Medium,
+                url: "http://test.local".into(),
+                location: "form".into(),
+                title: "CSRF".into(),
+                description: "missing token".into(),
+                poc: "test".into(),
+                remediation: "Add CSRF token".into(),
+                source_file: None,
+                source_line: None,
+                confirmed: false,
             },
             VulnFinding {
-                id: "VF-0002".into(), attack_vector: AttackVector::SqlInjection,
-                cvss_score: 9.8, severity: CvssSeverity::Critical,
-                url: "http://test.local".into(), location: "id".into(),
-                title: "SQLi".into(), description: "injectable".into(),
-                poc: "curl test".into(), remediation: "Use prepared statements".into(),
-                source_file: None, source_line: None, confirmed: true,
+                id: "VF-0002".into(),
+                attack_vector: AttackVector::SqlInjection,
+                cvss_score: 9.8,
+                severity: CvssSeverity::Critical,
+                url: "http://test.local".into(),
+                location: "id".into(),
+                title: "SQLi".into(),
+                description: "injectable".into(),
+                poc: "curl test".into(),
+                remediation: "Use prepared statements".into(),
+                source_file: None,
+                source_line: None,
+                confirmed: true,
             },
         ];
         let output = format_findings(&findings);
         let sqli_pos = output.find("SQLi").unwrap();
         let csrf_pos = output.find("CSRF").unwrap();
-        assert!(sqli_pos < csrf_pos, "Higher CVSS should appear first in formatted output");
+        assert!(
+            sqli_pos < csrf_pos,
+            "Higher CVSS should appear first in formatted output"
+        );
         assert!(output.contains("[CONFIRMED]"));
         assert!(output.contains("PoC:"));
     }
@@ -1627,12 +1918,19 @@ mod tests {
     #[test]
     fn format_findings_unconfirmed_no_poc() {
         let findings = vec![VulnFinding {
-            id: "VF-0001".into(), attack_vector: AttackVector::Xss,
-            cvss_score: 7.2, severity: CvssSeverity::High,
-            url: "http://test.local/search".into(), location: "q".into(),
-            title: "Reflected XSS".into(), description: "User input reflected".into(),
-            poc: "curl test".into(), remediation: "Sanitize".into(),
-            source_file: None, source_line: None, confirmed: false,
+            id: "VF-0001".into(),
+            attack_vector: AttackVector::Xss,
+            cvss_score: 7.2,
+            severity: CvssSeverity::High,
+            url: "http://test.local/search".into(),
+            location: "q".into(),
+            title: "Reflected XSS".into(),
+            description: "User input reflected".into(),
+            poc: "curl test".into(),
+            remediation: "Sanitize".into(),
+            source_file: None,
+            source_line: None,
+            confirmed: false,
         }];
         let output = format_findings(&findings);
         assert!(output.contains("Reflected XSS"));
@@ -1675,7 +1973,10 @@ mod tests {
 
     #[test]
     fn summary_line_multiple_severities() {
-        let config = RedTeamConfig { target_url: "http://multi.local".into(), ..Default::default() };
+        let config = RedTeamConfig {
+            target_url: "http://multi.local".into(),
+            ..Default::default()
+        };
         let mut session = RedTeamSession::new(config);
         // Add one of each severity
         for (vector, score) in &[
@@ -1685,12 +1986,19 @@ mod tests {
             (AttackVector::CleartextTransmission, 2.0),
         ] {
             session.findings.push(VulnFinding {
-                id: "test".into(), attack_vector: vector.clone(),
-                cvss_score: *score, severity: CvssSeverity::from_score(*score),
-                url: "http://multi.local".into(), location: "p".into(),
-                title: "test".into(), description: "test".into(),
-                poc: "test".into(), remediation: "test".into(),
-                source_file: None, source_line: None, confirmed: true,
+                id: "test".into(),
+                attack_vector: vector.clone(),
+                cvss_score: *score,
+                severity: CvssSeverity::from_score(*score),
+                url: "http://multi.local".into(),
+                location: "p".into(),
+                title: "test".into(),
+                description: "test".into(),
+                poc: "test".into(),
+                remediation: "test".into(),
+                source_file: None,
+                source_line: None,
+                confirmed: true,
             });
         }
         let line = session.summary_line();
@@ -1716,10 +2024,17 @@ mod tests {
     fn estimate_cvss_cleartext_is_lowest() {
         let cleartext = estimate_cvss(&AttackVector::CleartextTransmission);
         for v in &[
-            AttackVector::SqlInjection, AttackVector::Xss, AttackVector::Ssrf,
-            AttackVector::Idor, AttackVector::CommandInjection,
+            AttackVector::SqlInjection,
+            AttackVector::Xss,
+            AttackVector::Ssrf,
+            AttackVector::Idor,
+            AttackVector::CommandInjection,
         ] {
-            assert!(cleartext < estimate_cvss(v), "Cleartext should be lower than {:?}", v);
+            assert!(
+                cleartext < estimate_cvss(v),
+                "Cleartext should be lower than {:?}",
+                v
+            );
         }
     }
 
@@ -1755,12 +2070,19 @@ mod tests {
 
     #[test]
     fn session_new_has_all_stage_statuses() {
-        let config = RedTeamConfig { target_url: "http://test.local".into(), ..Default::default() };
+        let config = RedTeamConfig {
+            target_url: "http://test.local".into(),
+            ..Default::default()
+        };
         let session = RedTeamSession::new(config);
         assert_eq!(session.stage_status.len(), 5);
         for stage in RedTeamStage::ALL {
             let key = format!("{:?}", stage);
-            assert!(session.stage_status.contains_key(&key), "Missing status for {:?}", stage);
+            assert!(
+                session.stage_status.contains_key(&key),
+                "Missing status for {:?}",
+                stage
+            );
             let status = &session.stage_status[&key];
             assert!(!status.started);
             assert!(!status.completed);

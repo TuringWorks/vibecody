@@ -165,11 +165,7 @@ impl ReproEngine {
     }
 
     /// Compares two traces by call_id sets and output hashes.
-    pub fn diff_traces(
-        &self,
-        trace_a_id: &str,
-        trace_b_id: &str,
-    ) -> Result<SessionDiff, String> {
+    pub fn diff_traces(&self, trace_a_id: &str, trace_b_id: &str) -> Result<SessionDiff, String> {
         let a = self
             .traces
             .get(trace_a_id)
@@ -380,7 +376,10 @@ mod tests {
 
     #[test]
     fn test_trace_call_count() {
-        let t = make_trace("t1", vec![("c1", "o1", true), ("c2", "o2", false), ("c3", "o3", true)]);
+        let t = make_trace(
+            "t1",
+            vec![("c1", "o1", true), ("c2", "o2", false), ("c3", "o3", true)],
+        );
         assert_eq!(t.call_count(), 3);
     }
 
@@ -584,11 +583,7 @@ mod tests {
         let mut e = ReproEngine::new();
         e.store_trace(make_trace(
             "t1",
-            vec![
-                ("c1", "o1", true),
-                ("c2", "o2", false),
-                ("c3", "o3", false),
-            ],
+            vec![("c1", "o1", true), ("c2", "o2", false), ("c3", "o3", false)],
         ));
         let report = e.non_determinism_report("t1");
         assert_eq!(report.len(), 2);

@@ -55,13 +55,26 @@ pub struct Quota {
 
 impl Quota {
     pub fn new(resource: ResourceKind, hard_limit: u64) -> Self {
-        Self { resource, soft_warn_pct: 0.8, hard_limit, reset_period_secs: None }
+        Self {
+            resource,
+            soft_warn_pct: 0.8,
+            hard_limit,
+            reset_period_secs: None,
+        }
     }
 
-    pub fn with_soft_warn(mut self, pct: f64) -> Self { self.soft_warn_pct = pct.clamp(0.0, 1.0); self }
-    pub fn with_reset(mut self, secs: u64) -> Self { self.reset_period_secs = Some(secs); self }
+    pub fn with_soft_warn(mut self, pct: f64) -> Self {
+        self.soft_warn_pct = pct.clamp(0.0, 1.0);
+        self
+    }
+    pub fn with_reset(mut self, secs: u64) -> Self {
+        self.reset_period_secs = Some(secs);
+        self
+    }
 
-    pub fn soft_limit(&self) -> u64 { (self.hard_limit as f64 * self.soft_warn_pct) as u64 }
+    pub fn soft_limit(&self) -> u64 {
+        (self.hard_limit as f64 * self.soft_warn_pct) as u64
+    }
 }
 
 /// Enforcement decision for a usage request.
@@ -70,13 +83,24 @@ pub enum QuotaDecision {
     /// Usage is within limits.
     Allow,
     /// Usage is above soft limit — allow but warn.
-    Warn { resource: String, used: u64, soft_limit: u64, hard_limit: u64 },
+    Warn {
+        resource: String,
+        used: u64,
+        soft_limit: u64,
+        hard_limit: u64,
+    },
     /// Usage would exceed hard limit — deny.
-    Deny { resource: String, used: u64, hard_limit: u64 },
+    Deny {
+        resource: String,
+        used: u64,
+        hard_limit: u64,
+    },
 }
 
 impl QuotaDecision {
-    pub fn is_allowed(&self) -> bool { !matches!(self, QuotaDecision::Deny { .. }) }
+    pub fn is_allowed(&self) -> bool {
+        !matches!(self, QuotaDecision::Deny { .. })
+    }
 }
 
 /// Per-agent usage tracking.
@@ -92,7 +116,10 @@ impl UsageRecord {
     }
 
     pub fn get(&self, resource: &ResourceKind) -> u64 {
-        self.counters.get(&resource.to_string()).copied().unwrap_or(0)
+        self.counters
+            .get(&resource.to_string())
+            .copied()
+            .unwrap_or(0)
     }
 
     pub fn reset(&mut self, resource: &ResourceKind) {
@@ -116,7 +143,9 @@ pub struct QuotaManager {
 }
 
 impl Default for QuotaManager {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl QuotaManager {
@@ -139,11 +168,18 @@ impl QuotaManager {
     }
 
     /// Check if `agent_id` can consume `amount` of `resource`.
-    pub fn check(&mut self, agent_id: &AgentId, resource: &ResourceKind, amount: u64) -> QuotaDecision {
+    pub fn check(
+        &mut self,
+        agent_id: &AgentId,
+        resource: &ResourceKind,
+        amount: u64,
+    ) -> QuotaDecision {
         let usage = self.usage.entry(agent_id.0.clone()).or_default();
 
         // Auto-reset expired periodic quotas
-        let all_quotas: Vec<Quota> = self.quotas.get(&agent_id.0)
+        let all_quotas: Vec<Quota> = self
+            .quotas
+            .get(&agent_id.0)
             .cloned()
             .unwrap_or_default()
             .into_iter()
@@ -154,11 +190,17 @@ impl QuotaManager {
         let projected = current + amount;
 
         for quota in &all_quotas {
-            if &quota.resource != resource { continue; }
+            if &quota.resource != resource {
+                continue;
+            }
 
             // Check if this quota period has expired and should reset
             if let Some(period_secs) = quota.reset_period_secs {
-                let last_reset = usage.last_reset_ms.get(&resource.to_string()).copied().unwrap_or(0);
+                let last_reset = usage
+                    .last_reset_ms
+                    .get(&resource.to_string())
+                    .copied()
+                    .unwrap_or(0);
                 if now_ms().saturating_sub(last_reset) > period_secs * 1000 {
                     // Would reset here; in tests we just check the counters as-is
                 }
@@ -186,11 +228,19 @@ impl QuotaManager {
 
     /// Record consumption of a resource (unconditional — call after check passes).
     pub fn consume(&mut self, agent_id: &AgentId, resource: &ResourceKind, amount: u64) {
-        self.usage.entry(agent_id.0.clone()).or_default().add(resource, amount);
+        self.usage
+            .entry(agent_id.0.clone())
+            .or_default()
+            .add(resource, amount);
     }
 
     /// Convenience: check then consume if allowed.
-    pub fn check_and_consume(&mut self, agent_id: &AgentId, resource: &ResourceKind, amount: u64) -> QuotaDecision {
+    pub fn check_and_consume(
+        &mut self,
+        agent_id: &AgentId,
+        resource: &ResourceKind,
+        amount: u64,
+    ) -> QuotaDecision {
         let decision = self.check(agent_id, resource, amount);
         if decision.is_allowed() {
             self.consume(agent_id, resource, amount);
@@ -207,17 +257,26 @@ impl QuotaManager {
 
     /// Get current usage for an agent resource.
     pub fn current_usage(&self, agent_id: &AgentId, resource: &ResourceKind) -> u64 {
-        self.usage.get(&agent_id.0).map(|r| r.get(resource)).unwrap_or(0)
+        self.usage
+            .get(&agent_id.0)
+            .map(|r| r.get(resource))
+            .unwrap_or(0)
     }
 
     /// Usage summary for an agent.
     pub fn usage_report(&self, agent_id: &AgentId) -> HashMap<String, u64> {
-        self.usage.get(&agent_id.0).map(|r| r.counters.clone()).unwrap_or_default()
+        self.usage
+            .get(&agent_id.0)
+            .map(|r| r.counters.clone())
+            .unwrap_or_default()
     }
 }
 
 fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 // ---------------------------------------------------------------------------
@@ -228,7 +287,9 @@ fn now_ms() -> u64 {
 mod tests {
     use super::*;
 
-    fn aid(s: &str) -> AgentId { AgentId::new(s) }
+    fn aid(s: &str) -> AgentId {
+        AgentId::new(s)
+    }
 
     #[test]
     fn test_allow_within_limits() {
@@ -242,7 +303,10 @@ mod tests {
     #[test]
     fn test_soft_warn() {
         let mut mgr = QuotaManager::new();
-        mgr.set_quotas(&aid("a1"), vec![Quota::new(ResourceKind::Tokens, 10_000).with_soft_warn(0.5)]);
+        mgr.set_quotas(
+            &aid("a1"),
+            vec![Quota::new(ResourceKind::Tokens, 10_000).with_soft_warn(0.5)],
+        );
         mgr.consume(&aid("a1"), &ResourceKind::Tokens, 4_000);
         let d = mgr.check(&aid("a1"), &ResourceKind::Tokens, 2_000); // 6000 > 5000 soft
         assert!(matches!(d, QuotaDecision::Warn { .. }));
@@ -321,7 +385,10 @@ mod tests {
     #[test]
     fn test_wall_time_quota() {
         let mut mgr = QuotaManager::new();
-        mgr.set_quotas(&aid("a1"), vec![Quota::new(ResourceKind::WallTimeSecs, 3600)]);
+        mgr.set_quotas(
+            &aid("a1"),
+            vec![Quota::new(ResourceKind::WallTimeSecs, 3600)],
+        );
         let d = mgr.check_and_consume(&aid("a1"), &ResourceKind::WallTimeSecs, 1800);
         assert_eq!(d, QuotaDecision::Allow);
     }
@@ -336,7 +403,10 @@ mod tests {
     #[test]
     fn test_custom_resource() {
         let mut mgr = QuotaManager::new();
-        mgr.set_quotas(&aid("a1"), vec![Quota::new(ResourceKind::Custom("api_calls".into()), 50)]);
+        mgr.set_quotas(
+            &aid("a1"),
+            vec![Quota::new(ResourceKind::Custom("api_calls".into()), 50)],
+        );
         mgr.consume(&aid("a1"), &ResourceKind::Custom("api_calls".into()), 49);
         let d = mgr.check(&aid("a1"), &ResourceKind::Custom("api_calls".into()), 2);
         assert!(!d.is_allowed());

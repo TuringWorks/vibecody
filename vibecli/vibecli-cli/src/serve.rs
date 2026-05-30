@@ -56,29 +56,32 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::{
     convert::Infallible,
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
-    sync::{atomic::{AtomicUsize, Ordering}, Arc},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use rand::Rng;
 use tower_http::cors::CorsLayer;
 use tower_http::set_header::SetResponseHeaderLayer;
 
+use crate::job_manager::{CreateJobReq, JobManager, JobStatus};
+use crate::session_store::{render_session_html, render_sessions_index_html, SessionStore};
+use crate::tainted_http_bridge::{PromptResponse, PromptResponseResult};
 use axum::extract::ws::{Message as WsMessage, WebSocket, WebSocketUpgrade};
 use axum::extract::{ConnectInfo, Query};
-use vibe_ai::{AgentContext, AgentEvent, AgentLoop, ApprovalPolicy, Message, MessageRole};
 use vibe_ai::provider::AIProvider;
+use vibe_ai::{AgentContext, AgentEvent, AgentLoop, ApprovalPolicy, Message, MessageRole};
 use vibe_collab::{CollabMessage, CollabServer, PeerInfo, SyncBroadcast};
-use crate::session_store::{SessionStore, render_session_html, render_sessions_index_html};
-use crate::job_manager::{JobManager, CreateJobReq, JobStatus};
-use crate::tainted_http_bridge::{PromptResponse, PromptResponseResult};
 // Re-export so external callers that imported these via `crate::serve::*`
 // keep compiling. `JobManager` owns the canonical definitions now.
-pub use crate::job_manager::{JobRecord, AgentEventPayload};
+pub use crate::job_manager::{AgentEventPayload, JobRecord};
 
 fn now_ms() -> u64 {
     SystemTime::now()
@@ -260,7 +263,10 @@ fn json_error(status: StatusCode, msg: impl Into<String>) -> (StatusCode, Json<s
 ///     Err(e) => internal_error("recap load", &e).into_response(),
 /// }
 /// ```
-pub(crate) fn internal_error(context: &str, err: &dyn std::fmt::Display) -> (StatusCode, Json<serde_json::Value>) {
+pub(crate) fn internal_error(
+    context: &str,
+    err: &dyn std::fmt::Display,
+) -> (StatusCode, Json<serde_json::Value>) {
     let (status, value) = internal_error_value(context, err);
     (status, Json(value))
 }
@@ -268,7 +274,10 @@ pub(crate) fn internal_error(context: &str, err: &dyn std::fmt::Display) -> (Sta
 /// Same as [`internal_error`] but returns the body as a raw
 /// `serde_json::Value`. Used by handlers that return `(StatusCode, Value)`
 /// (e.g. the recap/resume pure helpers in this file).
-pub(crate) fn internal_error_value(context: &str, err: &dyn std::fmt::Display) -> (StatusCode, serde_json::Value) {
+pub(crate) fn internal_error_value(
+    context: &str,
+    err: &dyn std::fmt::Display,
+) -> (StatusCode, serde_json::Value) {
     // Short, log-greppable correlation ID. 8 hex chars of entropy is plenty
     // for matching a single request to a log line; not a security boundary.
     use rand::Rng;
@@ -312,10 +321,14 @@ static CODEC_PROBE: std::sync::OnceLock<vibe_infer::kv_cache_tq::CodecProbeRepor
 fn integration_configured(short: &str, env_vars: &[&str]) -> bool {
     if let Ok(store) = crate::profile_store::ProfileStore::new() {
         if let Ok(Some(v)) = store.get_api_key("default", short) {
-            if !v.is_empty() { return true; }
+            if !v.is_empty() {
+                return true;
+            }
         }
     }
-    env_vars.iter().any(|v| std::env::var(v).map(|s| !s.is_empty()).unwrap_or(false))
+    env_vars
+        .iter()
+        .any(|v| std::env::var(v).map(|s| !s.is_empty()).unwrap_or(false))
 }
 
 /// Names of integrations that have no credential anywhere — neither a
@@ -325,16 +338,30 @@ fn integration_configured(short: &str, env_vars: &[&str]) -> bool {
 /// "needs configuration" badge per surface without users hunting docs.
 fn unconfigured_integrations() -> Vec<&'static str> {
     let mut out = Vec::new();
-    if !integration_configured("huggingface", &["HF_TOKEN"]) { out.push("huggingface"); }
-    if !integration_configured("notion", &["NOTION_API_KEY"]) { out.push("notion"); }
-    if !integration_configured("todoist", &["TODOIST_API_KEY"]) { out.push("todoist"); }
+    if !integration_configured("huggingface", &["HF_TOKEN"]) {
+        out.push("huggingface");
+    }
+    if !integration_configured("notion", &["NOTION_API_KEY"]) {
+        out.push("notion");
+    }
+    if !integration_configured("todoist", &["TODOIST_API_KEY"]) {
+        out.push("todoist");
+    }
     let jira_ok = integration_configured("jira_url", &["JIRA_URL"])
         && integration_configured("jira_email", &["JIRA_EMAIL"])
         && integration_configured("jira_api_token", &["JIRA_API_TOKEN"]);
-    if !jira_ok { out.push("jira"); }
-    if !integration_configured("linear", &["LINEAR_API_KEY"]) { out.push("linear"); }
-    if !integration_configured("copilot", &["COPILOT_TOKEN"]) { out.push("copilot"); }
-    if !integration_configured("github", &["GH_TOKEN", "GITHUB_TOKEN"]) { out.push("github"); }
+    if !jira_ok {
+        out.push("jira");
+    }
+    if !integration_configured("linear", &["LINEAR_API_KEY"]) {
+        out.push("linear");
+    }
+    if !integration_configured("copilot", &["COPILOT_TOKEN"]) {
+        out.push("copilot");
+    }
+    if !integration_configured("github", &["GH_TOKEN", "GITHUB_TOKEN"]) {
+        out.push("github");
+    }
     out
 }
 
@@ -346,14 +373,18 @@ fn unconfigured_integrations() -> Vec<&'static str> {
 fn resolve_machine_id() -> String {
     if let Ok(store) = crate::profile_store::ProfileStore::new() {
         if let Ok(Some(id)) = store.get_api_key("default", "watch.machine_id") {
-            if !id.is_empty() { return id; }
+            if !id.is_empty() {
+                return id;
+            }
         }
         let id = format!("{:016x}", rand::rng().random::<u64>());
         let _ = store.set_api_key("default", "watch.machine_id", &id);
         return id;
     }
     if let Ok(env) = std::env::var("VIBECLI_MACHINE_ID") {
-        if !env.is_empty() { return env; }
+        if !env.is_empty() {
+            return env;
+        }
     }
     format!("{:016x}", rand::rng().random::<u64>())
 }
@@ -408,11 +439,12 @@ fn sandbox_health_block() -> serde_json::Value {
         .map(|s| s.success())
         .unwrap_or(false);
 
-    let active_tier = if cfg!(target_os = "linux") || cfg!(target_os = "macos") || cfg!(target_os = "windows") {
-        "native"
-    } else {
-        "none"
-    };
+    let active_tier =
+        if cfg!(target_os = "linux") || cfg!(target_os = "macos") || cfg!(target_os = "windows") {
+            "native"
+        } else {
+            "none"
+        };
 
     // Per-OS capabilities the *current* shipping path delivers. These
     // are deliberately conservative — only set true when the code path
@@ -458,7 +490,9 @@ fn mcp_features_block() -> serde_json::Value {
     // whether MCP servers have been configured at all (a deciding signal
     // for clients that gate MCP-dependent features).
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
-    let cfg_path = std::path::PathBuf::from(home).join(".vibeui").join("mcp.json");
+    let cfg_path = std::path::PathBuf::from(home)
+        .join(".vibeui")
+        .join("mcp.json");
     let server_count = std::fs::read_to_string(&cfg_path)
         .ok()
         .and_then(|s| serde_json::from_str::<Vec<serde_json::Value>>(&s).ok())
@@ -491,7 +525,8 @@ fn memory_health_block() -> serde_json::Value {
     // intent, not just whether load happened to deserialize an encrypted
     // store. Same Zero-Config First pattern as load_memory_store().
     if let Ok(profile_store) = crate::profile_store::ProfileStore::new() {
-        if let Ok(Some(passphrase)) = profile_store.get_api_key("default", "openmemory_passphrase") {
+        if let Ok(Some(passphrase)) = profile_store.get_api_key("default", "openmemory_passphrase")
+        {
             if !passphrase.is_empty() {
                 store.enable_encryption(&passphrase);
             }
@@ -507,7 +542,9 @@ fn memory_health_block() -> serde_json::Value {
 }
 
 async fn health(State(state): State<ServeState>) -> impl IntoResponse {
-    let hf_token_present = std::env::var("HF_TOKEN").map(|s| !s.is_empty()).unwrap_or(false);
+    let hf_token_present = std::env::var("HF_TOKEN")
+        .map(|s| !s.is_empty())
+        .unwrap_or(false);
     let codec_probe = CODEC_PROBE.get();
     let providers = configured_provider_names();
     let provider_count = providers.len();
@@ -733,7 +770,11 @@ async fn list_models(State(state): State<ServeState>) -> impl IntoResponse {
 async fn web_client_page() -> impl IntoResponse {
     let config = crate::web_client::WebClientConfig::default();
     let html = crate::web_client::web_client_html(&config);
-    (StatusCode::OK, [("content-type", "text/html; charset=utf-8")], html)
+    (
+        StatusCode::OK,
+        [("content-type", "text/html; charset=utf-8")],
+        html,
+    )
 }
 
 /// Serve the favicon SVG for the web client.
@@ -744,32 +785,37 @@ async fn web_favicon() -> impl IntoResponse {
 
 /// Skill webhook endpoint — triggers a skill by name via POST.
 /// Matches skills with a `webhook_trigger` field set to the given name.
-async fn skill_webhook_handler(
-    Path(skill_name): Path<String>,
-    body: String,
-) -> impl IntoResponse {
+async fn skill_webhook_handler(Path(skill_name): Path<String>, body: String) -> impl IntoResponse {
     use vibe_ai::SkillLoader;
     let cwd = std::env::current_dir().unwrap_or_default();
     let loader = SkillLoader::new(&cwd);
     let skills = loader.load_all();
-    let matching = skills.iter().find(|s| {
-        s.webhook_trigger.as_deref() == Some(skill_name.as_str())
-    });
+    let matching = skills
+        .iter()
+        .find(|s| s.webhook_trigger.as_deref() == Some(skill_name.as_str()));
     match matching {
         Some(skill) => {
-            tracing::info!("[webhook] Triggered skill '{}' via webhook (body: {} bytes)", skill.name, body.len());
-            (StatusCode::OK, Json(serde_json::json!({
-                "triggered": true,
-                "skill": skill.name,
-                "body_length": body.len(),
-            })))
+            tracing::info!(
+                "[webhook] Triggered skill '{}' via webhook (body: {} bytes)",
+                skill.name,
+                body.len()
+            );
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "triggered": true,
+                    "skill": skill.name,
+                    "body_length": body.len(),
+                })),
+            )
         }
-        None => {
-            (StatusCode::NOT_FOUND, Json(serde_json::json!({
+        None => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
                 "triggered": false,
                 "error": format!("No skill with webhook_trigger '{}'", sanitize_user_input(&skill_name)),
-            })))
-        }
+            })),
+        ),
     }
 }
 
@@ -827,14 +873,13 @@ async fn chat(
         })
         .collect();
 
-    let mut stream = state
-        .provider
-        .stream_chat(&messages)
-        .await
-        .map_err(|e| {
-            tracing::error!("chat provider error: {e}");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("LLM provider error: {e}"))
-        })?;
+    let mut stream = state.provider.stream_chat(&messages).await.map_err(|e| {
+        tracing::error!("chat provider error: {e}");
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("LLM provider error: {e}"),
+        )
+    })?;
 
     let mut accumulated = String::new();
     while let Some(chunk) = stream.next().await {
@@ -842,12 +887,17 @@ async fn chat(
             Ok(text) => accumulated.push_str(&text),
             Err(e) => {
                 tracing::error!("chat stream error: {e}");
-                return Err(json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("Stream error: {e}")));
+                return Err(json_error(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    format!("Stream error: {e}"),
+                ));
             }
         }
     }
 
-    Ok(Json(ChatResponse { content: accumulated }))
+    Ok(Json(ChatResponse {
+        content: accumulated,
+    }))
 }
 
 async fn chat_stream(
@@ -882,9 +932,7 @@ async fn chat_stream(
                         }
                         Err(e) => {
                             let _ = tx
-                                .send(Ok(Event::default()
-                                    .event("error")
-                                    .data(e.to_string())))
+                                .send(Ok(Event::default().event("error").data(e.to_string())))
                                 .await;
                         }
                     }
@@ -922,8 +970,7 @@ fn build_agent_context_from_request(
     git_branch: Option<String>,
 ) -> Result<AgentContext, String> {
     use crate::context_assembler::{
-        AgentKind, ContextBudget, ContextPolicy, MemoryToggles, assemble_context,
-        parse_agent_kind,
+        assemble_context, parse_agent_kind, AgentKind, ContextBudget, ContextPolicy, MemoryToggles,
     };
 
     let kind = match request.kind.as_deref() {
@@ -951,7 +998,9 @@ fn build_agent_context_from_request(
 
     let defaults = MemoryToggles::default();
     let toggles = MemoryToggles {
-        openmemory_enabled: request.openmemory_enabled.unwrap_or(defaults.openmemory_enabled),
+        openmemory_enabled: request
+            .openmemory_enabled
+            .unwrap_or(defaults.openmemory_enabled),
         openmemory_auto_inject: request
             .openmemory_auto_inject
             .unwrap_or(defaults.openmemory_auto_inject),
@@ -1044,14 +1093,10 @@ async fn start_agent(
     // G7.1 — keep the full Goal so we can also inject a context
     // preamble (title + statement + criteria + plan) below, making
     // the agent goal-aware instead of just metadata-attributed.
-    let pinned_goal =
-        auto_link_to_pinned_goal(&state.workspace_root, &session_id);
+    let pinned_goal = auto_link_to_pinned_goal(&state.workspace_root, &session_id);
     if let Some(ref goal) = pinned_goal {
         let id_prefix = goal.id.chars().take(8).collect::<String>();
-        let msg = format!(
-            "Auto-linked to pinned goal {id_prefix}: {}",
-            goal.title
-        );
+        let msg = format!("Auto-linked to pinned goal {id_prefix}: {}", goal.title);
         let _ = state
             .job_manager
             .publish_event(&session_id, AgentEventPayload::system(msg))
@@ -1092,10 +1137,8 @@ async fn start_agent(
         // hooks remain CLI-only by design (mobile/watch/VibeUI clients
         // don't share the local `config.hooks` shape). Best-effort: a
         // store/loader error falls through with empty hooks.
-        let plugin_hooks = crate::plugin_runtime::merge_with_plugin_hooks(
-            &workspace_root,
-            Vec::new(),
-        );
+        let plugin_hooks =
+            crate::plugin_runtime::merge_with_plugin_hooks(&workspace_root, Vec::new());
         let agent = if plugin_hooks.is_empty() {
             AgentLoop::new(provider, approval, executor)
         } else {
@@ -1180,9 +1223,11 @@ async fn start_agent(
         while let Some(event) = event_rx.recv().await {
             let payload = match event {
                 AgentEvent::StreamChunk(text) => AgentEventPayload::chunk(text),
-                AgentEvent::ToolCallExecuted(step) => {
-                    AgentEventPayload::step(step.step_num, step.tool_call.name(), step.tool_result.success)
-                }
+                AgentEvent::ToolCallExecuted(step) => AgentEventPayload::step(
+                    step.step_num,
+                    step.tool_call.name(),
+                    step.tool_result.success,
+                ),
                 AgentEvent::Complete(summary) => {
                     let p = AgentEventPayload::complete(summary.clone());
                     let _ = job_manager.publish_event(&sid, p).await;
@@ -1232,9 +1277,7 @@ async fn start_agent(
 
 // ── Job endpoints ─────────────────────────────────────────────────────────────
 
-async fn list_jobs(
-    State(state): State<ServeState>,
-) -> Json<Vec<JobRecord>> {
+async fn list_jobs(State(state): State<ServeState>) -> Json<Vec<JobRecord>> {
     Json(state.job_manager.list().await)
 }
 
@@ -1242,12 +1285,12 @@ async fn get_job(
     Path(id): Path<String>,
     State(state): State<ServeState>,
 ) -> Result<Json<JobRecord>, (StatusCode, Json<serde_json::Value>)> {
-    state
-        .job_manager
-        .get(&id)
-        .await
-        .map(Json)
-        .ok_or_else(|| json_error(StatusCode::NOT_FOUND, format!("Job '{}' not found", sanitize_user_input(&id))))
+    state.job_manager.get(&id).await.map(Json).ok_or_else(|| {
+        json_error(
+            StatusCode::NOT_FOUND,
+            format!("Job '{}' not found", sanitize_user_input(&id)),
+        )
+    })
 }
 
 async fn cancel_job(
@@ -1258,7 +1301,12 @@ async fn cancel_job(
         .job_manager
         .cancel(&id, Some("user requested".into()))
         .await
-        .ok_or_else(|| json_error(StatusCode::NOT_FOUND, format!("Job '{}' not found", sanitize_user_input(&id))))?;
+        .ok_or_else(|| {
+            json_error(
+                StatusCode::NOT_FOUND,
+                format!("Job '{}' not found", sanitize_user_input(&id)),
+            )
+        })?;
     Ok(Json(record))
 }
 
@@ -1273,9 +1321,12 @@ async fn stream_agent(
     Path(session_id): Path<String>,
     Query(q): Query<StreamQuery>,
     State(state): State<ServeState>,
-) -> Result<Sse<impl futures::Stream<Item = Result<Event, Infallible>>>, (StatusCode, Json<serde_json::Value>)> {
-    use tokio_stream::wrappers::BroadcastStream;
+) -> Result<
+    Sse<impl futures::Stream<Item = Result<Event, Infallible>>>,
+    (StatusCode, Json<serde_json::Value>),
+> {
     use futures::StreamExt;
+    use tokio_stream::wrappers::BroadcastStream;
 
     // Replay first (if requested), so a client that reconnects with
     // `since_seq=N` gets every event persisted after N before the live
@@ -1303,7 +1354,12 @@ async fn stream_agent(
         .job_manager
         .subscribe(&session_id)
         .await
-        .ok_or_else(|| json_error(StatusCode::NOT_FOUND, format!("Session '{}' not found", sanitize_user_input(&session_id))))?;
+        .ok_or_else(|| {
+            json_error(
+                StatusCode::NOT_FOUND,
+                format!("Session '{}' not found", sanitize_user_input(&session_id)),
+            )
+        })?;
 
     let replay_stream = futures::stream::iter(replay.into_iter().map(|payload| {
         let json = serde_json::to_string(&payload).unwrap_or_default();
@@ -1526,16 +1582,23 @@ async fn github_webhook(
                 "[github-app] Reviewed PR #{} on {} → {} ({} findings)",
                 result.pr_number, result.repo, result.status, result.findings_count
             );
-            (StatusCode::OK, Json(serde_json::json!({
-                "status": result.status,
-                "findings": result.findings_count,
-                "summary": result.summary,
-            })))
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "status": result.status,
+                    "findings": result.findings_count,
+                    "summary": result.summary,
+                })),
+            )
                 .into_response()
         }
         Ok(None) => {
             // Event type not handled (e.g., push, issue, etc.)
-            (StatusCode::OK, Json(serde_json::json!({"status": "ignored"}))).into_response()
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({"status": "ignored"})),
+            )
+                .into_response()
         }
         Err(e) => {
             eprintln!("[github-app] Webhook error: {}", e);
@@ -1560,7 +1623,8 @@ async fn acp_create_task(
     State(state): State<ServeState>,
     Json(req): Json<crate::acp::AcpTaskRequest>,
 ) -> impl IntoResponse {
-    let workspace = req.context
+    let workspace = req
+        .context
         .as_ref()
         .and_then(|c| c.workspace_root.clone())
         .unwrap_or_else(|| state.workspace_root.to_string_lossy().to_string());
@@ -1623,12 +1687,10 @@ async fn acp_create_task(
     tokio::spawn(async move {
         let _ = job_manager.mark_running(&sid).await;
 
-        let mut executor = crate::tool_executor::ToolExecutor::new(
-            std::path::PathBuf::from(&workspace),
-            false,
-        )
-        .with_tainted_strict(tainted_flags.strict)
-        .with_cli_prompter(tainted_flags.prompt);
+        let mut executor =
+            crate::tool_executor::ToolExecutor::new(std::path::PathBuf::from(&workspace), false)
+                .with_tainted_strict(tainted_flags.strict)
+                .with_cli_prompter(tainted_flags.prompt);
         if tainted_flags.http_prompt {
             executor = executor.with_http_prompter(tainted_http_queue);
         }
@@ -1682,7 +1744,11 @@ async fn acp_get_task(
         };
         (StatusCode::OK, Json(status)).into_response()
     } else {
-        (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Task not found"}))).into_response()
+        (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": "Task not found"})),
+        )
+            .into_response()
     }
 }
 
@@ -1716,7 +1782,7 @@ struct V1TaskCreate {
 #[derive(Debug, Serialize)]
 struct V1TaskStatus {
     id: String,
-    status: String,   // "queued" | "running" | "completed" | "failed" | "cancelled"
+    status: String, // "queued" | "running" | "completed" | "failed" | "cancelled"
     task: String,
     mode: String,
     priority: u8,
@@ -1769,7 +1835,7 @@ struct V1Screenshot {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[allow(dead_code)] // Prepared for API key management endpoints
 struct ApiKeyRecord {
-    key_prefix: String,   // first 8 chars for display
+    key_prefix: String, // first 8 chars for display
     label: String,
     created_at: u64,
     permissions: Vec<String>, // "tasks", "browse", "chat", "admin"
@@ -1848,12 +1914,10 @@ async fn v1_create_task(
     tokio::spawn(async move {
         let _ = job_manager.mark_running(&sid).await;
 
-        let mut executor = crate::tool_executor::ToolExecutor::new(
-            std::path::PathBuf::from(&workspace),
-            false,
-        )
-        .with_tainted_strict(tainted_flags.strict)
-        .with_cli_prompter(tainted_flags.prompt);
+        let mut executor =
+            crate::tool_executor::ToolExecutor::new(std::path::PathBuf::from(&workspace), false)
+                .with_tainted_strict(tainted_flags.strict)
+                .with_cli_prompter(tainted_flags.prompt);
         if tainted_flags.http_prompt {
             executor = executor.with_http_prompter(tainted_http_queue);
         }
@@ -1885,7 +1949,10 @@ async fn v1_create_task(
         .await;
 
         let (status, summary) = match result {
-            Ok(Ok(())) => (JobStatus::Complete, "Task completed successfully".to_string()),
+            Ok(Ok(())) => (
+                JobStatus::Complete,
+                "Task completed successfully".to_string(),
+            ),
             Ok(Err(e)) => (JobStatus::Failed, format!("Task failed: {e}")),
             Err(_) => (
                 JobStatus::Failed,
@@ -1931,29 +1998,27 @@ async fn v1_create_task(
 }
 
 /// GET /v1/tasks — List all tasks.
-async fn v1_list_tasks(
-    State(state): State<ServeState>,
-) -> impl IntoResponse {
+async fn v1_list_tasks(State(state): State<ServeState>) -> impl IntoResponse {
     let tasks = state.job_manager.list().await;
-    let statuses: Vec<serde_json::Value> = tasks.iter().map(|j| {
-        serde_json::json!({
-            "id": j.session_id,
-            "status": j.status,
-            "task": j.task,
-            "provider": j.provider,
-            "started_at": j.started_at,
-            "finished_at": j.finished_at,
-            "summary": j.summary,
+    let statuses: Vec<serde_json::Value> = tasks
+        .iter()
+        .map(|j| {
+            serde_json::json!({
+                "id": j.session_id,
+                "status": j.status,
+                "task": j.task,
+                "provider": j.provider,
+                "started_at": j.started_at,
+                "finished_at": j.finished_at,
+                "summary": j.summary,
+            })
         })
-    }).collect();
+        .collect();
     Json(serde_json::json!({ "tasks": statuses, "total": statuses.len() }))
 }
 
 /// GET /v1/tasks/:id — Get task status.
-async fn v1_get_task(
-    State(state): State<ServeState>,
-    Path(id): Path<String>,
-) -> impl IntoResponse {
+async fn v1_get_task(State(state): State<ServeState>, Path(id): Path<String>) -> impl IntoResponse {
     match state.job_manager.get(&id).await {
         Some(job) => {
             let status = serde_json::json!({
@@ -1970,7 +2035,8 @@ async fn v1_get_task(
         None => (
             StatusCode::NOT_FOUND,
             Json(serde_json::json!({"error": "Task not found"})),
-        ).into_response(),
+        )
+            .into_response(),
     }
 }
 
@@ -2025,10 +2091,21 @@ async fn v1_task_feedback(
             // Persist feedback alongside the job
             let feedback_path = state.jobs_dir.join(format!("{id}.feedback.json"));
             let _ = std::fs::create_dir_all(&state.jobs_dir);
-            let _ = std::fs::write(&feedback_path, serde_json::to_string_pretty(&feedback).unwrap_or_default());
-            (StatusCode::OK, Json(serde_json::json!({"status": "feedback_recorded"}))).into_response()
+            let _ = std::fs::write(
+                &feedback_path,
+                serde_json::to_string_pretty(&feedback).unwrap_or_default(),
+            );
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({"status": "feedback_recorded"})),
+            )
+                .into_response()
         }
-        None => (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Task not found"}))).into_response(),
+        None => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": "Task not found"})),
+        )
+            .into_response(),
     }
 }
 
@@ -2098,7 +2175,11 @@ async fn v1_get_browse(
             };
             (StatusCode::OK, Json(status)).into_response()
         }
-        None => (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Browse task not found"}))).into_response(),
+        None => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": "Browse task not found"})),
+        )
+            .into_response(),
     }
 }
 
@@ -2118,27 +2199,37 @@ async fn v1_browse_screenshots(
             let screenshots: Vec<V1Screenshot> = if screenshots_dir.exists() {
                 std::fs::read_dir(&screenshots_dir)
                     .map(|entries| {
-                        entries.filter_map(|e| {
-                            let e = e.ok()?;
-                            let name = e.file_name().to_string_lossy().to_string();
-                            if name.ends_with(".png") {
-                                Some(V1Screenshot {
-                                    timestamp_ms: now_ms(),
-                                    action_before: name.clone(),
-                                    page_url: "".to_string(),
-                                })
-                            } else {
-                                None
-                            }
-                        }).collect()
+                        entries
+                            .filter_map(|e| {
+                                let e = e.ok()?;
+                                let name = e.file_name().to_string_lossy().to_string();
+                                if name.ends_with(".png") {
+                                    Some(V1Screenshot {
+                                        timestamp_ms: now_ms(),
+                                        action_before: name.clone(),
+                                        page_url: "".to_string(),
+                                    })
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect()
                     })
                     .unwrap_or_default()
             } else {
                 Vec::new()
             };
-            (StatusCode::OK, Json(serde_json::json!({"id": id, "screenshots": screenshots}))).into_response()
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({"id": id, "screenshots": screenshots})),
+            )
+                .into_response()
         }
-        None => (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Browse task not found"}))).into_response(),
+        None => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": "Browse task not found"})),
+        )
+            .into_response(),
     }
 }
 
@@ -2153,10 +2244,21 @@ async fn v1_browse_intervene(
             // Store intervention action
             let intervene_path = state.jobs_dir.join(format!("{id}.intervene.json"));
             let _ = std::fs::create_dir_all(&state.jobs_dir);
-            let _ = std::fs::write(&intervene_path, serde_json::to_string_pretty(&action).unwrap_or_default());
-            (StatusCode::OK, Json(serde_json::json!({"status": "intervention_recorded", "id": id}))).into_response()
+            let _ = std::fs::write(
+                &intervene_path,
+                serde_json::to_string_pretty(&action).unwrap_or_default(),
+            );
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({"status": "intervention_recorded", "id": id})),
+            )
+                .into_response()
         }
-        None => (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Browse task not found"}))).into_response(),
+        None => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": "Browse task not found"})),
+        )
+            .into_response(),
     }
 }
 
@@ -2217,8 +2319,7 @@ async fn v1_tainted_pending(
         }
     });
 
-    Sse::new(ReceiverStream::new(rx))
-        .keep_alive(KeepAlive::new().interval(Duration::from_secs(15)))
+    Sse::new(ReceiverStream::new(rx)).keep_alive(KeepAlive::new().interval(Duration::from_secs(15)))
 }
 
 /// `POST /v1/tainted/respond` — body is `PromptResponse`, response is
@@ -2419,10 +2520,7 @@ pub(crate) fn do_v1_recap_post(
     }
 }
 
-pub(crate) fn do_v1_recap_get(
-    store: &SessionStore,
-    id: &str,
-) -> (StatusCode, serde_json::Value) {
+pub(crate) fn do_v1_recap_get(store: &SessionStore, id: &str) -> (StatusCode, serde_json::Value) {
     match store.get_recap_by_id(id) {
         Ok(Some(r)) => match serde_json::to_value(&r) {
             Ok(v) => (StatusCode::OK, v),
@@ -2540,8 +2638,7 @@ pub(crate) fn do_v1_recap_delete(
 
 // ── HTTP handlers (thin shells around the helpers) ─────────────────────────
 
-fn open_default_or_500(
-) -> Result<SessionStore, (StatusCode, Json<serde_json::Value>)> {
+fn open_default_or_500() -> Result<SessionStore, (StatusCode, Json<serde_json::Value>)> {
     SessionStore::open_default().map_err(|e| internal_error("session.store.open", &e))
 }
 
@@ -3122,7 +3219,12 @@ fn build_goal_subtree(
     let kids = store.list_children_goals(&id)?;
     let mut child_nodes = Vec::with_capacity(kids.len());
     for child in kids {
-        child_nodes.push(build_goal_subtree(store, child, remaining_depth - 1, visited)?);
+        child_nodes.push(build_goal_subtree(
+            store,
+            child,
+            remaining_depth - 1,
+            visited,
+        )?);
     }
     Ok(serde_json::json!({
         "goal": goal,
@@ -3176,9 +3278,7 @@ async fn v1_exec_goal_post(
     (status, Json(body))
 }
 
-async fn v1_exec_goal_get(
-    Path(id): Path<String>,
-) -> (StatusCode, Json<serde_json::Value>) {
+async fn v1_exec_goal_get(Path(id): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
     let store = match open_default_or_500() {
         Ok(s) => s,
         Err(e) => return e,
@@ -3210,9 +3310,7 @@ async fn v1_exec_goal_patch(
     (status, Json(body))
 }
 
-async fn v1_exec_goal_delete(
-    Path(id): Path<String>,
-) -> (StatusCode, Json<serde_json::Value>) {
+async fn v1_exec_goal_delete(Path(id): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
     let store = match open_default_or_500() {
         Ok(s) => s,
         Err(e) => return e,
@@ -3221,9 +3319,7 @@ async fn v1_exec_goal_delete(
     (status, Json(body))
 }
 
-async fn v1_exec_goal_children(
-    Path(id): Path<String>,
-) -> (StatusCode, Json<serde_json::Value>) {
+async fn v1_exec_goal_children(Path(id): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
     let store = match open_default_or_500() {
         Ok(s) => s,
         Err(e) => return e,
@@ -3491,13 +3587,7 @@ pub(crate) fn goal_to_agent_preamble(goal: &crate::exec_goal::Goal) -> String {
             let _ = writeln!(out);
             let _ = writeln!(out, "## Current plan");
             for (i, step) in plan.steps.iter().enumerate() {
-                let _ = writeln!(
-                    out,
-                    "{}. [{}] {}",
-                    i + 1,
-                    step.tool,
-                    step.description
-                );
+                let _ = writeln!(out, "{}. [{}] {}", i + 1, step.tool, step.description);
             }
         }
     }
@@ -3613,13 +3703,7 @@ pub(crate) fn do_v1_exec_goal_start(
     let model = req.model.clone().unwrap_or_default();
 
     let insert_result = match goal.workspace.as_ref().and_then(|p| p.to_str()) {
-        Some(ws) => store.insert_session_with_project(
-            &session_id,
-            &task,
-            &provider,
-            &model,
-            ws,
-        ),
+        Some(ws) => store.insert_session_with_project(&session_id, &task, &provider, &model, ws),
         None => store.insert_session(&session_id, &task, &provider, &model),
     };
     if let Err(e) = insert_result {
@@ -3925,19 +4009,14 @@ pub(crate) fn do_v1_exec_goal_recap_phase1(
         }
     };
 
-    let mut collected: Vec<(
-        crate::recap::Recap,
-        crate::exec_goal::GoalLinkKind,
-        String,
-    )> = Vec::new();
+    let mut collected: Vec<(crate::recap::Recap, crate::exec_goal::GoalLinkKind, String)> =
+        Vec::new();
     let mut pending_job_targets: Vec<String> = Vec::new();
     let mut pending_recap_lookups: Vec<String> = Vec::new();
     for link in &links {
         match link.kind {
             crate::exec_goal::GoalLinkKind::Session => {
-                if let Ok(rows) =
-                    store.list_recaps_for_subject(&link.target_id, 1)
-                {
+                if let Ok(rows) = store.list_recaps_for_subject(&link.target_id, 1) {
                     if let Some(r) = rows.into_iter().next() {
                         collected.push((r, link.kind, link.target_id.clone()));
                     }
@@ -3983,25 +4062,15 @@ pub(crate) async fn do_v1_exec_goal_recap_phase2(
     // SessionStore is gone by this point; safe to cross `.await`
     // boundaries against JobManager now.
     for target in &pending_job_targets {
-        if let Ok(rows) =
-            job_manager.list_job_recaps_for_subject(target, 1).await
-        {
+        if let Ok(rows) = job_manager.list_job_recaps_for_subject(target, 1).await {
             if let Some(r) = rows.into_iter().next() {
-                collected.push((
-                    r,
-                    crate::exec_goal::GoalLinkKind::Job,
-                    target.clone(),
-                ));
+                collected.push((r, crate::exec_goal::GoalLinkKind::Job, target.clone()));
             }
         }
     }
     for target in &pending_recap_lookups {
         if let Ok(Some(r)) = job_manager.get_job_recap_by_id(target).await {
-            collected.push((
-                r,
-                crate::exec_goal::GoalLinkKind::Recap,
-                target.clone(),
-            ));
+            collected.push((r, crate::exec_goal::GoalLinkKind::Recap, target.clone()));
         }
     }
 
@@ -4083,13 +4152,12 @@ pub(crate) async fn do_v1_exec_goal_recap_phase2(
         let messages = vec![
             vibe_ai::Message {
                 role: vibe_ai::MessageRole::System,
-                content:
-                    "You are summarizing progress against a durable execution goal. \
+                content: "You are summarizing progress against a durable execution goal. \
                      Produce a tight JSON object: \
                      {\"headline\": <≤120 chars>, \"bullets\": [≤7 strings, each ≤140 chars]}. \
                      Output ONLY the JSON object, no prose. Bullets must be concrete \
                      accomplishments or in-flight work pulled from the inputs."
-                        .to_string(),
+                    .to_string(),
             },
             vibe_ai::Message {
                 role: vibe_ai::MessageRole::User,
@@ -4115,7 +4183,12 @@ pub(crate) async fn do_v1_exec_goal_recap_phase2(
             ),
         }
     } else {
-        (heuristic_headline.clone(), bullets.clone(), "heuristic", None)
+        (
+            heuristic_headline.clone(),
+            bullets.clone(),
+            "heuristic",
+            None,
+        )
     };
 
     let mut body = serde_json::json!({
@@ -4268,8 +4341,7 @@ async fn v1_exec_goal_recap(
 fn helper_outcome_to_response(
     out: crate::resume::HelperOutcome,
 ) -> (StatusCode, Json<serde_json::Value>) {
-    let status = StatusCode::from_u16(out.status)
-        .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
+    let status = StatusCode::from_u16(out.status).unwrap_or(StatusCode::INTERNAL_SERVER_ERROR);
     (status, Json(out.body))
 }
 
@@ -4312,9 +4384,7 @@ async fn v1_resume_post(
     helper_outcome_to_response(out)
 }
 
-async fn v1_resume_get(
-    Path(handle): Path<String>,
-) -> (StatusCode, Json<serde_json::Value>) {
+async fn v1_resume_get(Path(handle): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
     let registry = crate::resume::global_registry();
     let out = crate::resume::do_v1_resume_get(registry, &handle);
     helper_outcome_to_response(out)
@@ -4550,7 +4620,10 @@ async fn rl_list_runs_h(
     Query(q): Query<RlRunListQuery>,
 ) -> Result<Json<Vec<crate::rl_runs::Run>>, (StatusCode, Json<serde_json::Value>)> {
     let filter = crate::rl_runs::RunFilter {
-        kind: q.kind.as_deref().and_then(crate::rl_runs::RunKind::from_str),
+        kind: q
+            .kind
+            .as_deref()
+            .and_then(crate::rl_runs::RunKind::from_str),
         status: q
             .status
             .as_deref()
@@ -4587,11 +4660,7 @@ async fn rl_start_run(
     // return immediately with whatever the row looks like right after
     // spawn (typically Queued; reader task takes it to Running on the
     // first sidecar JSON-Line).
-    state
-        .rl_executor
-        .start(&id)
-        .await
-        .map_err(rl_err_to_http)?;
+    state.rl_executor.start(&id).await.map_err(rl_err_to_http)?;
     let run = state
         .rl_run_store
         .get(&id)
@@ -4611,11 +4680,7 @@ async fn rl_stop_run(
 ) -> Result<Json<crate::rl_runs::Run>, (StatusCode, Json<serde_json::Value>)> {
     // Executor sends SIGTERM and transitions through Stopping → Stopped
     // when the sidecar's atexit handler emits the final `finished` line.
-    state
-        .rl_executor
-        .stop(&id)
-        .await
-        .map_err(rl_err_to_http)?;
+    state.rl_executor.stop(&id).await.map_err(rl_err_to_http)?;
     let run = state
         .rl_run_store
         .get(&id)
@@ -4724,7 +4789,9 @@ struct RlEnvListQuery {
     limit: Option<i64>,
 }
 
-fn open_env_store_from_state(state: &ServeState) -> Result<crate::rl_envs::EnvStore, (StatusCode, Json<serde_json::Value>)> {
+fn open_env_store_from_state(
+    state: &ServeState,
+) -> Result<crate::rl_envs::EnvStore, (StatusCode, Json<serde_json::Value>)> {
     crate::rl_envs::EnvStore::open(&state.workspace_root).map_err(rl_err_to_http)
 }
 
@@ -4798,7 +4865,9 @@ async fn rl_delete_env_h(
 
 // ── RL-OS: /v1/rl/eval (slice 4) ──────────────────────────────────────────────
 
-fn open_eval_store_from_state(state: &ServeState) -> Result<crate::rl_eval::EvalStore, (StatusCode, Json<serde_json::Value>)> {
+fn open_eval_store_from_state(
+    state: &ServeState,
+) -> Result<crate::rl_eval::EvalStore, (StatusCode, Json<serde_json::Value>)> {
     crate::rl_eval::EvalStore::open(&state.workspace_root).map_err(rl_err_to_http)
 }
 
@@ -4909,7 +4978,9 @@ async fn rl_eval_upsert_results(
     store
         .upsert_results(&run_id, &q.suite_id, &rows)
         .map_err(rl_err_to_http)?;
-    Ok(Json(EvalResultsUpsertResponse { upserted: rows.len() }))
+    Ok(Json(EvalResultsUpsertResponse {
+        upserted: rows.len(),
+    }))
 }
 
 // ── RL-OS: /v1/rl/policies (slice 5) ──────────────────────────────────────────
@@ -5004,19 +5075,22 @@ async fn rl_get_policy_card(
 async fn rl_get_reward_components(
     Path(run_id): Path<String>,
     State(state): State<ServeState>,
-) -> Result<Json<Vec<crate::rl_policies::RewardComponentRow>>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<Vec<crate::rl_policies::RewardComponentRow>>, (StatusCode, Json<serde_json::Value>)>
+{
     let rows = state
         .rl_run_store
         .reward_decomposition(&run_id)
         .map_err(rl_err_to_http)?;
     let report: Vec<crate::rl_policies::RewardComponentRow> = rows
         .into_iter()
-        .map(|(component, mean, total, n)| crate::rl_policies::RewardComponentRow {
-            component,
-            mean,
-            total,
-            n_episodes: n,
-        })
+        .map(
+            |(component, mean, total, n)| crate::rl_policies::RewardComponentRow {
+                component,
+                mean,
+                total,
+                n_episodes: n,
+            },
+        )
         .collect();
     Ok(Json(report))
 }
@@ -5115,7 +5189,10 @@ async fn rl_get_deployment_health_h(
     let store = open_deploy_store_from_state(&state)?;
     let deployment = store.health(&id).map_err(rl_err_to_http)?;
     let runtime = state.rl_runtime_pool.peek_runtime_health(&id).await;
-    Ok(Json(DeploymentHealthResponse { deployment, runtime }))
+    Ok(Json(DeploymentHealthResponse {
+        deployment,
+        runtime,
+    }))
 }
 
 /// Slice 6.5 — real inference path. Looks up the deployment by name
@@ -5237,10 +5314,7 @@ async fn rl_judge_preference(
     Json(req): Json<crate::rl_advanced::JudgePreferenceRequest>,
 ) -> Result<Json<crate::rl_advanced::Preference>, (StatusCode, Json<serde_json::Value>)> {
     let store = open_pref_store_from_state(&state)?;
-    store
-        .judge(&pref_id, req)
-        .map(Json)
-        .map_err(rl_err_to_http)
+    store.judge(&pref_id, req).map(Json).map_err(rl_err_to_http)
 }
 
 #[derive(Debug, Deserialize)]
@@ -5262,7 +5336,8 @@ async fn rl_list_preferences(
 async fn rl_alignment_metrics(
     Path(run_id): Path<String>,
     State(state): State<ServeState>,
-) -> Result<Json<Vec<crate::rl_advanced::AlignmentScoreRow>>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Json<Vec<crate::rl_advanced::AlignmentScoreRow>>, (StatusCode, Json<serde_json::Value>)>
+{
     let store = open_pref_store_from_state(&state)?;
     store
         .alignment_scores(&run_id)
@@ -5272,7 +5347,10 @@ async fn rl_alignment_metrics(
 
 async fn rl_optimization_runs_h(
     State(state): State<ServeState>,
-) -> Result<Json<Vec<crate::rl_advanced::OptimizationRunSummary>>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<
+    Json<Vec<crate::rl_advanced::OptimizationRunSummary>>,
+    (StatusCode, Json<serde_json::Value>),
+> {
     crate::rl_advanced::list_optimization_runs(state.rl_run_store.as_ref())
         .map(Json)
         .map_err(rl_err_to_http)
@@ -5280,7 +5358,10 @@ async fn rl_optimization_runs_h(
 
 async fn rl_multi_agent_runs_h(
     State(state): State<ServeState>,
-) -> Result<Json<Vec<crate::rl_advanced::MultiAgentRunSummary>>, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<
+    Json<Vec<crate::rl_advanced::MultiAgentRunSummary>>,
+    (StatusCode, Json<serde_json::Value>),
+> {
     crate::rl_advanced::list_multi_agent_runs(state.rl_run_store.as_ref())
         .map(Json)
         .map_err(rl_err_to_http)
@@ -5406,15 +5487,24 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/v1/rl/eval/suites", post(rl_eval_create_suite))
         .route("/v1/rl/eval/suites", get(rl_eval_list_suites))
         .route("/v1/rl/eval/suites/:id", get(rl_eval_get_suite))
-        .route("/v1/rl/eval/suites/:id", axum::routing::delete(rl_eval_delete_suite))
+        .route(
+            "/v1/rl/eval/suites/:id",
+            axum::routing::delete(rl_eval_delete_suite),
+        )
         .route("/v1/rl/eval/results", get(rl_eval_list_results))
-        .route("/v1/rl/eval/runs/:run_id/results", post(rl_eval_upsert_results))
+        .route(
+            "/v1/rl/eval/runs/:run_id/results",
+            post(rl_eval_upsert_results),
+        )
         .route("/v1/rl/eval/compare", post(rl_eval_compare))
         // RL-OS slice 5 — policy registry + lineage + reward decomposition
         .route("/v1/rl/policies", post(rl_register_policy))
         .route("/v1/rl/policies", get(rl_list_policies_h))
         .route("/v1/rl/policies/:id", get(rl_get_policy))
-        .route("/v1/rl/policies/:id", axum::routing::delete(rl_delete_policy))
+        .route(
+            "/v1/rl/policies/:id",
+            axum::routing::delete(rl_delete_policy),
+        )
         .route("/v1/rl/policies/:id/lineage", get(rl_get_policy_lineage))
         .route("/v1/rl/policies/:id/card", get(rl_get_policy_card))
         .route(
@@ -5425,15 +5515,30 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/v1/rl/serve/deployments", post(rl_create_deployment))
         .route("/v1/rl/serve/deployments", get(rl_list_deployments_h))
         .route("/v1/rl/serve/deployments/:id", get(rl_get_deployment))
-        .route("/v1/rl/serve/deployments/:id/promote", post(rl_promote_deployment))
-        .route("/v1/rl/serve/deployments/:id/rollback", post(rl_rollback_deployment))
-        .route("/v1/rl/serve/deployments/:id/stop", post(rl_stop_deployment))
-        .route("/v1/rl/serve/deployments/:id/health", get(rl_get_deployment_health_h))
+        .route(
+            "/v1/rl/serve/deployments/:id/promote",
+            post(rl_promote_deployment),
+        )
+        .route(
+            "/v1/rl/serve/deployments/:id/rollback",
+            post(rl_rollback_deployment),
+        )
+        .route(
+            "/v1/rl/serve/deployments/:id/stop",
+            post(rl_stop_deployment),
+        )
+        .route(
+            "/v1/rl/serve/deployments/:id/health",
+            get(rl_get_deployment_health_h),
+        )
         .route("/v1/rl/serve/:name/act", post(rl_serve_act))
         // RL-OS slice 7 — RLHF + Optimization + Multi-Agent
         .route("/v1/rl/rlhf/preferences", post(rl_create_preference))
         .route("/v1/rl/rlhf/preferences", get(rl_list_preferences))
-        .route("/v1/rl/rlhf/preferences/:id/judge", post(rl_judge_preference))
+        .route(
+            "/v1/rl/rlhf/preferences/:id/judge",
+            post(rl_judge_preference),
+        )
         .route("/v1/rl/rlhf/runs/:id/alignment", get(rl_alignment_metrics))
         .route("/v1/rl/optimization/runs", get(rl_optimization_runs_h))
         .route("/v1/rl/multi-agent/runs", get(rl_multi_agent_runs_h))
@@ -5452,8 +5557,14 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         // G4.4 — register `/v1/goals/current` before the `/v1/goals/:id`
         // parameterized routes so axum's matchit picks the static path.
         .route("/v1/goals/current", get(v1_exec_goal_current_get))
-        .route("/v1/goals/current", axum::routing::put(v1_exec_goal_current_put))
-        .route("/v1/goals/current", axum::routing::delete(v1_exec_goal_current_delete))
+        .route(
+            "/v1/goals/current",
+            axum::routing::put(v1_exec_goal_current_put),
+        )
+        .route(
+            "/v1/goals/current",
+            axum::routing::delete(v1_exec_goal_current_delete),
+        )
         .route("/v1/goals/:id", get(v1_exec_goal_get))
         .route("/v1/goals/:id", axum::routing::patch(v1_exec_goal_patch))
         .route("/v1/goals/:id", axum::routing::delete(v1_exec_goal_delete))
@@ -5471,30 +5582,50 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/mobile/machines", get(mobile_list_machines))
         .route("/mobile/machines", post(mobile_register_machine))
         .route("/mobile/machines/:id", get(mobile_get_machine))
-        .route("/mobile/machines/:id", axum::routing::delete(mobile_unregister_machine))
+        .route(
+            "/mobile/machines/:id",
+            axum::routing::delete(mobile_unregister_machine),
+        )
         .route("/mobile/machines/:id/heartbeat", post(mobile_heartbeat))
         .route("/mobile/pairing", post(mobile_create_pairing))
         .route("/mobile/pairing/:id/accept", post(mobile_accept_pairing))
         .route("/mobile/pairing/:id/verify", post(mobile_verify_pin))
         .route("/mobile/pairing/:id/reject", post(mobile_reject_pairing))
         .route("/mobile/devices", get(mobile_list_devices))
-        .route("/mobile/devices/:id/push-token", post(mobile_update_push_token))
-        .route("/mobile/devices/:device_id/machines/:machine_id/unpair", post(mobile_unpair))
+        .route(
+            "/mobile/devices/:id/push-token",
+            post(mobile_update_push_token),
+        )
+        .route(
+            "/mobile/devices/:device_id/machines/:machine_id/unpair",
+            post(mobile_unpair),
+        )
         .route("/mobile/dispatch", post(mobile_dispatch))
         .route("/mobile/dispatch/:id", get(mobile_get_dispatch))
         .route("/mobile/dispatch/:id/cancel", post(mobile_cancel_dispatch))
         .route("/mobile/dispatch/:id/update", post(mobile_update_dispatch))
-        .route("/mobile/dispatches/machine/:id", get(mobile_machine_dispatches))
-        .route("/mobile/dispatches/device/:id", get(mobile_device_dispatches))
-        .route("/mobile/notifications/:device_id", get(mobile_notifications))
+        .route(
+            "/mobile/dispatches/machine/:id",
+            get(mobile_machine_dispatches),
+        )
+        .route(
+            "/mobile/dispatches/device/:id",
+            get(mobile_device_dispatches),
+        )
+        .route(
+            "/mobile/notifications/:device_id",
+            get(mobile_notifications),
+        )
         .route("/mobile/stats", get(mobile_stats))
         .route("/mobile/sessions", get(mobile_sessions))
         .route("/mobile/sessions/:id/context", get(mobile_session_context))
         // F3.x — cross-device active session. Mobile claims with PUT;
         // VibeUI polls GET to follow the claim. Mirrors the
         // /watch/active-session pattern from W1.1.
-        .route("/mobile/active-session", get(mobile_get_active_session)
-                                          .put(mobile_set_active_session))
+        .route(
+            "/mobile/active-session",
+            get(mobile_get_active_session).put(mobile_set_active_session),
+        )
         .route_layer(middleware::from_fn_with_state(limiter, rate_limit))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
@@ -5548,7 +5679,10 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
     // for the full handler set.
     let inference_limiter = Arc::new(RateLimiter::new(60, Duration::from_secs(60)));
     let inference_routes = crate::inference_routes::build_routes()
-        .route_layer(middleware::from_fn_with_state(inference_limiter, rate_limit))
+        .route_layer(middleware::from_fn_with_state(
+            inference_limiter,
+            rate_limit,
+        ))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
     // Public routes (health check, GitHub webhook with HMAC, pairing, collab WS, ACP discovery)
@@ -5557,7 +5691,10 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .merge(inference_routes)
         .nest("/watch", watch_router)
         .fallback(|| async {
-            (StatusCode::NOT_FOUND, Json(serde_json::json!({"error":"Not found"})))
+            (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({"error":"Not found"})),
+            )
         })
         .layer(DefaultBodyLimit::max(1024 * 1024)) // 1 MB max request body
         // Security response headers
@@ -5575,7 +5712,9 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         ))
         .layer(SetResponseHeaderLayer::overriding(
             axum::http::HeaderName::from_static("content-security-policy"),
-            HeaderValue::from_static("default-src 'self'; script-src 'none'; style-src 'unsafe-inline'"),
+            HeaderValue::from_static(
+                "default-src 'self'; script-src 'none'; style-src 'unsafe-inline'",
+            ),
         ))
         .layer(SetResponseHeaderLayer::overriding(
             axum::http::HeaderName::from_static("permissions-policy"),
@@ -5604,7 +5743,10 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
 fn hydrate_hf_token_from_profile_store() {
     // Already set in env? Honour it — covers developer overrides and
     // shells that source HF's own credential helpers.
-    if std::env::var("HF_TOKEN").map(|s| !s.is_empty()).unwrap_or(false) {
+    if std::env::var("HF_TOKEN")
+        .map(|s| !s.is_empty())
+        .unwrap_or(false)
+    {
         return;
     }
     let Ok(store) = crate::profile_store::ProfileStore::new() else {
@@ -5640,7 +5782,9 @@ fn is_loopback_host(host: &str) -> bool {
     if h.eq_ignore_ascii_case("localhost") {
         return true;
     }
-    h.parse::<IpAddr>().map(|ip| ip.is_loopback()).unwrap_or(false)
+    h.parse::<IpAddr>()
+        .map(|ip| ip.is_loopback())
+        .unwrap_or(false)
 }
 
 /// Prints a multi-line stderr warning when the daemon is about to bind to a
@@ -5714,16 +5858,18 @@ pub async fn serve(
         tracing::warn!(
             "vibecli serve: TurboQuant codec probe FAILED \
              (mean_cosine={:.4}, hash=0x{:08x}, {}µs) — codec output diverges from reference",
-            probe.mean_cosine, probe.output_hash, probe.elapsed_us,
+            probe.mean_cosine,
+            probe.output_hash,
+            probe.elapsed_us,
         );
-        eprintln!(
-            "[vibecli serve] kv-cache codec probe FAILED — see /health.kv_cache_codec_probe"
-        );
+        eprintln!("[vibecli serve] kv-cache codec probe FAILED — see /health.kv_cache_codec_probe");
     } else {
         tracing::info!(
             "vibecli serve: TurboQuant codec probe ok \
              (mean_cosine={:.4}, hash=0x{:08x}, {}µs)",
-            probe.mean_cosine, probe.output_hash, probe.elapsed_us,
+            probe.mean_cosine,
+            probe.output_hash,
+            probe.elapsed_us,
         );
     }
     let _ = CODEC_PROBE.set(probe);
@@ -5815,8 +5961,7 @@ pub async fn serve(
     // happens at the assignment to the type-annotated binding.
     let rl_executor: Arc<dyn crate::rl_executor::TrainingExecutor> = rl_python_executor;
 
-    let tainted_http_queue =
-        Arc::new(crate::tainted_http_bridge::HttpPromptQueue::new());
+    let tainted_http_queue = Arc::new(crate::tainted_http_bridge::HttpPromptQueue::new());
     let state = ServeState {
         provider,
         approval,
@@ -5850,11 +5995,10 @@ pub async fn serve(
             .join("config.toml");
         tokio::spawn(async move {
             // 1. Check for an already-running ngrok agent (fast, no side-effects).
-            let detected = tokio::task::spawn_blocking(move || {
-                crate::ngrok::detect_tunnel(port_copy)
-            })
-            .await
-            .unwrap_or(None);
+            let detected =
+                tokio::task::spawn_blocking(move || crate::ngrok::detect_tunnel(port_copy))
+                    .await
+                    .unwrap_or(None);
 
             if let Some(url) = detected {
                 eprintln!("[tunnel] ngrok tunnel detected: {url}");
@@ -5883,8 +6027,7 @@ pub async fn serve(
                         // port is accessible via the funnel URL path (no port in URL).
                         for _ in 0..10u32 {
                             tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-                            let funnel_url =
-                                crate::tailscale::tailscale_funnel_url(port_copy);
+                            let funnel_url = crate::tailscale::tailscale_funnel_url(port_copy);
                             if let Some(url) = funnel_url {
                                 eprintln!("[tunnel] Tailscale Funnel active: {url}");
                                 if let Ok(mut guard) = cache.lock() {
@@ -5934,7 +6077,8 @@ pub async fn serve(
                 if decayed > 0 || !consolidated.is_empty() {
                     eprintln!(
                         "[openmemory] Daily maintenance: {} decayed, {} consolidated",
-                        decayed, consolidated.len()
+                        decayed,
+                        consolidated.len()
                     );
                 }
             }
@@ -5963,7 +6107,11 @@ pub async fn serve(
         use std::os::unix::fs::PermissionsExt;
         let _ = std::fs::set_permissions(&token_path, std::fs::Permissions::from_mode(0o600));
     }
-    let masked = format!("{}...{}", &api_token[..4], &api_token[api_token.len()-4..]);
+    let masked = format!(
+        "{}...{}",
+        &api_token[..4],
+        &api_token[api_token.len() - 4..]
+    );
     eprintln!("[vibecli serve] API token: {masked} (full token in ~/.vibecli/daemon.token)");
     eprintln!("[vibecli serve] Jobs persisted at ~/.vibecli/jobs/");
     eprintln!("[vibecli serve] Session viewer at http://{addr}/sessions");
@@ -5974,7 +6122,10 @@ pub async fn serve(
     // in ProfileStore." Surface the canonical fix (encrypted store) first, env
     // export second; gated-load failures are auto-substituted at request time
     // either way.
-    if std::env::var("HF_TOKEN").map(|s| s.is_empty()).unwrap_or(true) {
+    if std::env::var("HF_TOKEN")
+        .map(|s| s.is_empty())
+        .unwrap_or(true)
+    {
         eprintln!(
             "[vibecli serve] HF_TOKEN not configured — gated mistralrs models (meta-llama/*) cannot be pulled."
         );
@@ -5982,12 +6133,8 @@ pub async fn serve(
             "[vibecli serve]   Falling back to {} for the picker default.",
             crate::inference::mistralrs::UNGATED_FALLBACK_MODEL
         );
-        eprintln!(
-            "[vibecli serve]   To enable Llama-3.x:"
-        );
-        eprintln!(
-            "[vibecli serve]     1. Accept the license at https://huggingface.co/meta-llama"
-        );
+        eprintln!("[vibecli serve]   To enable Llama-3.x:");
+        eprintln!("[vibecli serve]     1. Accept the license at https://huggingface.co/meta-llama");
         eprintln!(
             "[vibecli serve]     2. Run: vibecli set-key huggingface hf_...   (preferred — encrypted store)"
         );
@@ -6008,9 +6155,12 @@ pub async fn serve(
     // Plumb `ConnectInfo<SocketAddr>` into request extensions so the per-IP
     // rate-limit middleware can key on the remote IP. Handlers that don't
     // consume `ConnectInfo` are unaffected by this change.
-    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
-        .with_graceful_shutdown(shutdown_signal())
-        .await?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown_signal())
+    .await?;
     eprintln!("[vibecli serve] Shutting down gracefully");
     Ok(())
 }
@@ -6037,12 +6187,13 @@ async fn create_collab_room(
         .unwrap_or_else(|| format!("{:016x}", rand::rng().random::<u64>()));
     let room = state.collab_server.get_or_create_room(&room_id);
     let peer_count = room.peer_count().await;
-    Json(RoomInfo { room_id, peer_count })
+    Json(RoomInfo {
+        room_id,
+        peer_count,
+    })
 }
 
-async fn list_collab_rooms(
-    State(state): State<ServeState>,
-) -> Json<Vec<String>> {
+async fn list_collab_rooms(State(state): State<ServeState>) -> Json<Vec<String>> {
     Json(state.collab_server.list_rooms())
 }
 
@@ -6050,10 +6201,12 @@ async fn list_collab_peers(
     Path(room_id): Path<String>,
     State(state): State<ServeState>,
 ) -> Result<Json<Vec<PeerInfo>>, (StatusCode, Json<serde_json::Value>)> {
-    let room = state
-        .collab_server
-        .get_room(&room_id)
-        .ok_or_else(|| json_error(StatusCode::NOT_FOUND, format!("Room '{}' not found", sanitize_user_input(&room_id))))?;
+    let room = state.collab_server.get_room(&room_id).ok_or_else(|| {
+        json_error(
+            StatusCode::NOT_FOUND,
+            format!("Room '{}' not found", sanitize_user_input(&room_id)),
+        )
+    })?;
     Ok(Json(room.list_peers().await))
 }
 
@@ -6089,7 +6242,6 @@ async fn handle_collab_ws(
     room_id: String,
     collab_server: Arc<CollabServer>,
 ) {
-
     // Generate a peer ID and add to room
     let peer_id = format!("{:016x}", rand::rng().random::<u64>());
     let peer = match room.add_peer(peer_id.clone(), name).await {
@@ -6113,11 +6265,7 @@ async fn handle_collab_ws(
         peers,
     };
     let welcome_json = serde_json::to_string(&welcome).unwrap_or_default();
-    if socket
-        .send(WsMessage::Text(welcome_json))
-        .await
-        .is_err()
-    {
+    if socket.send(WsMessage::Text(welcome_json)).await.is_err() {
         room.remove_peer(&peer_id).await;
         return;
     }
@@ -6232,7 +6380,9 @@ async fn shutdown_signal() {
 
     #[cfg(unix)]
     {
-        if let Ok(mut sigterm) = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+        if let Ok(mut sigterm) =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+        {
             tokio::select! {
                 _ = ctrl_c => { eprintln!("\n[vibecli serve] Received SIGINT, shutting down..."); }
                 _ = sigterm.recv() => { eprintln!("[vibecli serve] Received SIGTERM, shutting down..."); }
@@ -6266,7 +6416,11 @@ async fn sessions_index_html() -> impl IntoResponse {
         Ok(store) => {
             let sessions = store.list_sessions(200).unwrap_or_default();
             let html = render_sessions_index_html(&sessions);
-            (StatusCode::OK, [("content-type", "text/html; charset=utf-8")], html)
+            (
+                StatusCode::OK,
+                [("content-type", "text/html; charset=utf-8")],
+                html,
+            )
         }
     }
 }
@@ -6313,7 +6467,8 @@ async fn share_session(Path(id): Path<String>) -> impl IntoResponse {
             Ok(None) => (
                 StatusCode::NOT_FOUND,
                 [("content-type", "text/html; charset=utf-8")],
-                "<h1>Session not found</h1><p><a href=\"/sessions\">All sessions</a></p>".to_string(),
+                "<h1>Session not found</h1><p><a href=\"/sessions\">All sessions</a></p>"
+                    .to_string(),
             ),
             Ok(Some(detail)) => {
                 let html = render_session_html(&detail);
@@ -6323,7 +6478,11 @@ async fn share_session(Path(id): Path<String>) -> impl IntoResponse {
   📤 <strong>Shared session</strong> — readonly view
 </div>"#;
                 let html = html.replace("<body>", &format!("<body>\n{}", banner));
-                (StatusCode::OK, [("content-type", "text/html; charset=utf-8")], html)
+                (
+                    StatusCode::OK,
+                    [("content-type", "text/html; charset=utf-8")],
+                    html,
+                )
             }
         },
     }
@@ -6351,11 +6510,16 @@ async fn view_session(Path(id): Path<String>) -> impl IntoResponse {
             Ok(None) => (
                 StatusCode::NOT_FOUND,
                 [("content-type", "text/html; charset=utf-8")],
-                "<h1>Session not found</h1><p><a href=\"/sessions\">All sessions</a></p>".to_string(),
+                "<h1>Session not found</h1><p><a href=\"/sessions\">All sessions</a></p>"
+                    .to_string(),
             ),
             Ok(Some(detail)) => {
                 let html = render_session_html(&detail);
-                (StatusCode::OK, [("content-type", "text/html; charset=utf-8")], html)
+                (
+                    StatusCode::OK,
+                    [("content-type", "text/html; charset=utf-8")],
+                    html,
+                )
             }
         },
     }
@@ -6381,7 +6545,8 @@ fn load_memory_store() -> crate::open_memory::OpenMemoryStore {
     let mut store = crate::open_memory::OpenMemoryStore::load(openmemory_dir(), "default")
         .unwrap_or_else(|_| crate::open_memory::OpenMemoryStore::new(openmemory_dir(), "default"));
     if let Ok(profile_store) = crate::profile_store::ProfileStore::new() {
-        if let Ok(Some(passphrase)) = profile_store.get_api_key("default", "openmemory_passphrase") {
+        if let Ok(Some(passphrase)) = profile_store.get_api_key("default", "openmemory_passphrase")
+        {
             if !passphrase.is_empty() {
                 store.enable_encryption(&passphrase);
             }
@@ -6405,7 +6570,9 @@ struct MemoryQueryRequest {
     sector: Option<String>,
 }
 
-fn default_limit() -> usize { 10 }
+fn default_limit() -> usize {
+    10
+}
 
 #[derive(Deserialize)]
 struct MemoryAddFactRequest {
@@ -6422,7 +6589,10 @@ async fn memory_add(
     let tag_count = req.tags.len();
     let mut store = load_memory_store();
     let id = store.add_with_tags(req.content, req.tags, std::collections::HashMap::new());
-    let sector = store.get(&id).map(|m| m.sector.to_string()).unwrap_or_default();
+    let sector = store
+        .get(&id)
+        .map(|m| m.sector.to_string())
+        .unwrap_or_default();
     match store.save() {
         Ok(_) => {
             tracing::info!(
@@ -6430,7 +6600,10 @@ async fn memory_add(
                 id = %id, sector = %sector, content_len, tag_count,
                 "memory.add: persisted"
             );
-            (StatusCode::CREATED, Json(serde_json::json!({ "id": id, "sector": sector })))
+            (
+                StatusCode::CREATED,
+                Json(serde_json::json!({ "id": id, "sector": sector })),
+            )
         }
         Err(e) => {
             tracing::warn!(
@@ -6438,7 +6611,10 @@ async fn memory_add(
                 id = %id, error = %e,
                 "memory.add: save failed (memory not durable)"
             );
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("save failed: {e}"))
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("save failed: {e}"),
+            )
         }
     }
 }
@@ -6458,19 +6634,22 @@ async fn memory_query(
         "memory.query"
     );
 
-    let items: Vec<serde_json::Value> = results.iter().map(|r| {
-        serde_json::json!({
-            "id": r.memory.id,
-            "content": r.memory.content,
-            "sector": r.memory.sector.to_string(),
-            "score": r.score,
-            "similarity": r.similarity,
-            "salience": r.effective_salience,
-            "recency": r.recency_score,
-            "tags": r.memory.tags,
-            "pinned": r.memory.pinned,
+    let items: Vec<serde_json::Value> = results
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "id": r.memory.id,
+                "content": r.memory.content,
+                "sector": r.memory.sector.to_string(),
+                "score": r.score,
+                "similarity": r.similarity,
+                "salience": r.effective_salience,
+                "recency": r.recency_score,
+                "tags": r.memory.tags,
+                "pinned": r.memory.pinned,
+            })
         })
-    }).collect();
+        .collect();
 
     Json(serde_json::json!({ "results": items, "count": items.len() }))
 }
@@ -6478,32 +6657,38 @@ async fn memory_query(
 async fn memory_list(_state: State<ServeState>) -> Json<serde_json::Value> {
     let store = load_memory_store();
     let mems = store.list_memories(0, 100);
-    let items: Vec<serde_json::Value> = mems.iter().map(|m| {
-        serde_json::json!({
-            "id": m.id,
-            "content": m.content,
-            "sector": m.sector.to_string(),
-            "salience": m.effective_salience(),
-            "tags": m.tags,
-            "pinned": m.pinned,
-            "created_at": m.created_at,
+    let items: Vec<serde_json::Value> = mems
+        .iter()
+        .map(|m| {
+            serde_json::json!({
+                "id": m.id,
+                "content": m.content,
+                "sector": m.sector.to_string(),
+                "salience": m.effective_salience(),
+                "tags": m.tags,
+                "pinned": m.pinned,
+                "created_at": m.created_at,
+            })
         })
-    }).collect();
+        .collect();
     Json(serde_json::json!({ "memories": items, "total": store.total_memories() }))
 }
 
 async fn memory_stats(_state: State<ServeState>) -> Json<serde_json::Value> {
     let store = load_memory_store();
     let stats = store.sector_stats();
-    let sectors: Vec<serde_json::Value> = stats.iter().map(|s| {
-        serde_json::json!({
-            "sector": s.sector.to_string(),
-            "count": s.count,
-            "avg_salience": s.avg_salience,
-            "avg_age_days": s.avg_age_days,
-            "pinned_count": s.pinned_count,
+    let sectors: Vec<serde_json::Value> = stats
+        .iter()
+        .map(|s| {
+            serde_json::json!({
+                "sector": s.sector.to_string(),
+                "count": s.count,
+                "avg_salience": s.avg_salience,
+                "avg_age_days": s.avg_age_days,
+                "pinned_count": s.pinned_count,
+            })
         })
-    }).collect();
+        .collect();
     Json(serde_json::json!({
         "total_memories": store.total_memories(),
         "total_waypoints": store.total_waypoints(),
@@ -6530,24 +6715,31 @@ async fn memory_add_fact(
         }
         Err(e) => {
             tracing::warn!(target: "vibecody::memory", id = %id, error = %e, "memory.add_fact: save failed");
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("save failed: {e}"))
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("save failed: {e}"),
+            )
         }
     }
 }
 
 async fn memory_facts(_state: State<ServeState>) -> Json<serde_json::Value> {
     let store = load_memory_store();
-    let facts: Vec<serde_json::Value> = store.query_current_facts().iter().map(|f| {
-        serde_json::json!({
-            "id": f.id,
-            "subject": f.subject,
-            "predicate": f.predicate,
-            "object": f.object,
-            "valid_from": f.valid_from,
-            "valid_to": f.valid_to,
-            "confidence": f.confidence,
+    let facts: Vec<serde_json::Value> = store
+        .query_current_facts()
+        .iter()
+        .map(|f| {
+            serde_json::json!({
+                "id": f.id,
+                "subject": f.subject,
+                "predicate": f.predicate,
+                "object": f.object,
+                "valid_from": f.valid_from,
+                "valid_to": f.valid_to,
+                "confidence": f.confidence,
+            })
         })
-    }).collect();
+        .collect();
     Json(serde_json::json!({ "facts": facts, "count": facts.len() }))
 }
 
@@ -6599,10 +6791,16 @@ async fn memory_pin(
         } else {
             tracing::info!(target: "vibecody::memory", id = %req.id, "memory.pin");
         }
-        (StatusCode::OK, Json(serde_json::json!({ "pinned": true, "id": req.id })))
+        (
+            StatusCode::OK,
+            Json(serde_json::json!({ "pinned": true, "id": req.id })),
+        )
     } else {
         tracing::debug!(target: "vibecody::memory", id = %req.id, "memory.pin: id not found or already pinned");
-        json_error(StatusCode::NOT_FOUND, format!("memory '{}' not found or already pinned", req.id))
+        json_error(
+            StatusCode::NOT_FOUND,
+            format!("memory '{}' not found or already pinned", req.id),
+        )
     }
 }
 
@@ -6617,10 +6815,16 @@ async fn memory_unpin(
         } else {
             tracing::info!(target: "vibecody::memory", id = %req.id, "memory.unpin");
         }
-        (StatusCode::OK, Json(serde_json::json!({ "pinned": false, "id": req.id })))
+        (
+            StatusCode::OK,
+            Json(serde_json::json!({ "pinned": false, "id": req.id })),
+        )
     } else {
         tracing::debug!(target: "vibecody::memory", id = %req.id, "memory.unpin: id not found or not pinned");
-        json_error(StatusCode::NOT_FOUND, format!("memory '{}' not found or not pinned", req.id))
+        json_error(
+            StatusCode::NOT_FOUND,
+            format!("memory '{}' not found or not pinned", req.id),
+        )
     }
 }
 
@@ -6635,10 +6839,16 @@ async fn memory_delete(
         } else {
             tracing::info!(target: "vibecody::memory", id = %req.id, "memory.delete");
         }
-        (StatusCode::OK, Json(serde_json::json!({ "deleted": true, "id": req.id })))
+        (
+            StatusCode::OK,
+            Json(serde_json::json!({ "deleted": true, "id": req.id })),
+        )
     } else {
         tracing::debug!(target: "vibecody::memory", id = %req.id, "memory.delete: id not found");
-        json_error(StatusCode::NOT_FOUND, format!("memory '{}' not found", req.id))
+        json_error(
+            StatusCode::NOT_FOUND,
+            format!("memory '{}' not found", req.id),
+        )
     }
 }
 
@@ -6651,7 +6861,9 @@ struct MemoryImportRequest {
     format: String,
 }
 
-fn default_import_format() -> String { "auto".to_string() }
+fn default_import_format() -> String {
+    "auto".to_string()
+}
 
 async fn memory_import(
     _state: State<ServeState>,
@@ -6660,7 +6872,7 @@ async fn memory_import(
     let mut store = load_memory_store();
     let result = match req.format.as_str() {
         "mem0" => crate::open_memory::import_from_mem0(&mut store, &req.content),
-        "zep"  => crate::open_memory::import_from_zep(&mut store, &req.content),
+        "zep" => crate::open_memory::import_from_zep(&mut store, &req.content),
         "openmemory" => store.import_openmemory_json(&req.content),
         _ => {
             // auto-detect: try each format in order
@@ -6674,11 +6886,14 @@ async fn memory_import(
             } else {
                 tracing::info!(target: "vibecody::memory", format = %req.format, imported, total = store.total_memories(), "memory.import: completed");
             }
-            (StatusCode::OK, Json(serde_json::json!({
-                "imported": imported,
-                "total_memories": store.total_memories(),
-                "format_used": req.format,
-            })))
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "imported": imported,
+                    "total_memories": store.total_memories(),
+                    "format_used": req.format,
+                })),
+            )
         }
         Err(e) => {
             tracing::warn!(target: "vibecody::memory", format = %req.format, error = %e, "memory.import: parse failed");
@@ -6703,14 +6918,24 @@ async fn memory_chunk(
     Json(req): Json<MemoryChunkRequest>,
 ) -> (StatusCode, Json<serde_json::Value>) {
     let mut store = load_memory_store();
-    let source = if req.source.is_empty() { "api".to_string() } else { req.source };
+    let source = if req.source.is_empty() {
+        "api".to_string()
+    } else {
+        req.source
+    };
     let created = store.ingest_conversation_chunks(&req.content, &source);
     match store.save() {
-        Ok(_) => (StatusCode::CREATED, Json(serde_json::json!({
-            "chunks_created": created,
-            "total_drawers": store.drawer_store().len(),
-        }))),
-        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("save failed: {e}")),
+        Ok(_) => (
+            StatusCode::CREATED,
+            Json(serde_json::json!({
+                "chunks_created": created,
+                "total_drawers": store.drawer_store().len(),
+            })),
+        ),
+        Err(e) => json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("save failed: {e}"),
+        ),
     }
 }
 
@@ -6726,10 +6951,12 @@ async fn memory_drawers_stats(_state: State<ServeState>) -> Json<serde_json::Val
         *wings.entry(d.wing.clone()).or_default() += 1;
         *rooms.entry(d.room.clone()).or_default() += 1;
     }
-    let wing_list: Vec<serde_json::Value> = wings.into_iter()
+    let wing_list: Vec<serde_json::Value> = wings
+        .into_iter()
         .map(|(w, c)| serde_json::json!({"wing": w, "count": c}))
         .collect();
-    let room_list: Vec<serde_json::Value> = rooms.into_iter()
+    let room_list: Vec<serde_json::Value> = rooms
+        .into_iter()
         .map(|(r, c)| serde_json::json!({"room": r, "count": c}))
         .collect();
 
@@ -6748,7 +6975,9 @@ struct MemoryTunnelRequest {
     weight: f64,
 }
 
-fn default_tunnel_weight() -> f64 { 0.8 }
+fn default_tunnel_weight() -> f64 {
+    0.8
+}
 
 async fn memory_tunnel(
     _state: State<ServeState>,
@@ -6758,15 +6987,25 @@ async fn memory_tunnel(
     let created = store.add_cross_project_waypoint(&req.src_id, &req.dst_id, req.weight);
     match store.save() {
         Ok(_) => {
-            let status = if created { StatusCode::CREATED } else { StatusCode::OK };
-            (status, Json(serde_json::json!({
-                "created": created,
-                "src_id": req.src_id,
-                "dst_id": req.dst_id,
-                "weight": req.weight,
-            })))
+            let status = if created {
+                StatusCode::CREATED
+            } else {
+                StatusCode::OK
+            };
+            (
+                status,
+                Json(serde_json::json!({
+                    "created": created,
+                    "src_id": req.src_id,
+                    "dst_id": req.dst_id,
+                    "weight": req.weight,
+                })),
+            )
         }
-        Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("save failed: {e}")),
+        Err(e) => json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("save failed: {e}"),
+        ),
     }
 }
 
@@ -6776,7 +7015,9 @@ struct MemoryAutoTunnelRequest {
     threshold: f64,
 }
 
-fn default_auto_tunnel_threshold() -> f64 { 0.75 }
+fn default_auto_tunnel_threshold() -> f64 {
+    0.75
+}
 
 async fn memory_auto_tunnel(
     _state: State<ServeState>,
@@ -6807,9 +7048,15 @@ struct MemoryContextRequest {
     l3_threshold: usize,
 }
 
-fn default_l1_tokens() -> usize { 700 }
-fn default_l2_limit() -> usize { 8 }
-fn default_l3_threshold() -> usize { 3 }
+fn default_l1_tokens() -> usize {
+    700
+}
+fn default_l2_limit() -> usize {
+    8
+}
+fn default_l3_threshold() -> usize {
+    3
+}
 
 async fn memory_context(
     _state: State<ServeState>,
@@ -6831,7 +7078,9 @@ struct MemoryBenchmarkQuery {
     k: usize,
 }
 
-fn default_bench_k() -> usize { 5 }
+fn default_bench_k() -> usize {
+    5
+}
 
 async fn memory_benchmark(
     _state: State<ServeState>,
@@ -6840,15 +7089,19 @@ async fn memory_benchmark(
     let cases = crate::mem_benchmark::default_benchmark_cases();
     let report = crate::mem_benchmark::run_benchmark(&cases, params.k);
 
-    let cases_out: Vec<serde_json::Value> = report.cases.iter().map(|c| {
-        serde_json::json!({
-            "query": c.query,
-            "expected_answer": c.expected_answer,
-            "found_cognitive": c.found_cognitive,
-            "found_verbatim": c.found_verbatim,
-            "found_any": c.found_any,
+    let cases_out: Vec<serde_json::Value> = report
+        .cases
+        .iter()
+        .map(|c| {
+            serde_json::json!({
+                "query": c.query,
+                "expected_answer": c.expected_answer,
+                "found_cognitive": c.found_cognitive,
+                "found_verbatim": c.found_verbatim,
+                "found_any": c.found_any,
+            })
         })
-    }).collect();
+        .collect();
 
     Json(serde_json::json!({
         "k": report.k,
@@ -6888,14 +7141,18 @@ async fn vulnscan_scan(
     let mut scanner = crate::vulnerability_db::VulnerabilityScanner::new();
     scanner.scan_dependencies(&deps);
     let summary = scanner.summary();
-    let findings: Vec<serde_json::Value> = scanner.active_findings().iter().map(|f| {
-        serde_json::json!({
-            "id": f.id, "severity": format!("{}", f.severity), "cvss": f.cvss_score,
-            "title": f.title, "cve": f.cve_id, "cwe": f.cwe_id,
-            "package": f.package, "version": f.installed_version, "fix": f.fixed_version,
-            "epss": f.epss_score, "exploit": f.exploit_available, "remediation": f.remediation,
+    let findings: Vec<serde_json::Value> = scanner
+        .active_findings()
+        .iter()
+        .map(|f| {
+            serde_json::json!({
+                "id": f.id, "severity": format!("{}", f.severity), "cvss": f.cvss_score,
+                "title": f.title, "cve": f.cve_id, "cwe": f.cwe_id,
+                "package": f.package, "version": f.installed_version, "fix": f.fixed_version,
+                "epss": f.epss_score, "exploit": f.exploit_available, "remediation": f.remediation,
+            })
         })
-    }).collect();
+        .collect();
     Json(serde_json::json!({
         "summary": summary,
         "findings": findings,
@@ -6909,21 +7166,25 @@ async fn vulnscan_file(
 ) -> Json<serde_json::Value> {
     let mut scanner = crate::vulnerability_db::VulnerabilityScanner::new();
     scanner.scan_file(&req.file_path, &req.content);
-    let findings: Vec<serde_json::Value> = scanner.active_findings().iter().map(|f| {
-        serde_json::json!({
-            "id": f.id, "severity": format!("{}", f.severity),
-            "title": f.title, "cwe": f.cwe_id,
-            "file": f.file_path, "line": f.line,
-            "remediation": f.remediation, "owasp": f.owasp,
+    let findings: Vec<serde_json::Value> = scanner
+        .active_findings()
+        .iter()
+        .map(|f| {
+            serde_json::json!({
+                "id": f.id, "severity": format!("{}", f.severity),
+                "title": f.title, "cwe": f.cwe_id,
+                "file": f.file_path, "line": f.line,
+                "remediation": f.remediation, "owasp": f.owasp,
+            })
         })
-    }).collect();
+        .collect();
     Json(serde_json::json!({ "findings": findings, "count": findings.len() }))
 }
 
 async fn vulnscan_summary(_state: State<ServeState>) -> Json<serde_json::Value> {
     let scanner = crate::vulnerability_db::VulnerabilityScanner::new();
     let snapshot = crate::vulnerability_db::OsvSnapshotDb::new(
-        crate::vulnerability_db::OsvSnapshotDb::default_path()
+        crate::vulnerability_db::OsvSnapshotDb::default_path(),
     );
     Json(serde_json::json!({
         "vuln_db_size": scanner.vuln_db_size(),
@@ -6993,7 +7254,9 @@ struct MobilePairingRequest {
     method: String,
 }
 
-fn default_pairing_method() -> String { "qr_code".to_string() }
+fn default_pairing_method() -> String {
+    "qr_code".to_string()
+}
 
 #[derive(Deserialize)]
 struct MobileAcceptPairingRequest {
@@ -7009,8 +7272,12 @@ struct MobileAcceptPairingRequest {
     os_version: String,
 }
 
-fn default_platform() -> String { "apns".to_string() }
-fn default_version() -> String { "1.0.0".to_string() }
+fn default_platform() -> String {
+    "apns".to_string()
+}
+fn default_version() -> String {
+    "1.0.0".to_string()
+}
 
 #[derive(Deserialize)]
 struct MobileVerifyPinRequest {
@@ -7031,7 +7298,9 @@ struct MobileDispatchRequest {
     payload: String,
 }
 
-fn default_dispatch_type() -> String { "chat".to_string() }
+fn default_dispatch_type() -> String {
+    "chat".to_string()
+}
 
 #[derive(Deserialize)]
 struct MobileUpdateDispatchRequest {
@@ -7087,22 +7356,24 @@ fn parse_dispatch_status(s: &str) -> crate::mobile_gateway::DispatchStatus {
 
 // -- Handlers --
 
-async fn mobile_list_machines(
-    _state: State<ServeState>,
-) -> Json<serde_json::Value> {
+async fn mobile_list_machines(_state: State<ServeState>) -> Json<serde_json::Value> {
     let gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
-    let summaries: Vec<serde_json::Value> = gw.machine_summaries().iter().map(|s| {
-        serde_json::json!({
-            "machine_id": s.machine_id,
-            "name": s.name,
-            "os": s.os,
-            "status": s.status,
-            "active_tasks": s.active_tasks,
-            "paired_devices": s.paired_devices,
-            "last_heartbeat": s.last_heartbeat,
-            "workspace": s.workspace,
+    let summaries: Vec<serde_json::Value> = gw
+        .machine_summaries()
+        .iter()
+        .map(|s| {
+            serde_json::json!({
+                "machine_id": s.machine_id,
+                "name": s.name,
+                "os": s.os,
+                "status": s.status,
+                "active_tasks": s.active_tasks,
+                "paired_devices": s.paired_devices,
+                "last_heartbeat": s.last_heartbeat,
+                "workspace": s.workspace,
+            })
         })
-    }).collect();
+        .collect();
     Json(serde_json::json!({ "machines": summaries }))
 }
 
@@ -7111,7 +7382,13 @@ async fn mobile_register_machine(
     Json(req): Json<MobileRegisterRequest>,
 ) -> (StatusCode, Json<serde_json::Value>) {
     let mut gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
-    let machine = gw.register_machine(&req.name, &req.hostname, req.port, &req.workspace_root, &req.api_token);
+    let machine = gw.register_machine(
+        &req.name,
+        &req.hostname,
+        req.port,
+        &req.workspace_root,
+        &req.api_token,
+    );
     let mid = machine.machine_id.clone();
 
     // Apply optional fields.
@@ -7129,39 +7406,43 @@ async fn mobile_register_machine(
         }
     }
 
-    (StatusCode::CREATED, Json(serde_json::json!({
-        "machine_id": mid,
-        "status": "registered",
-    })))
+    (
+        StatusCode::CREATED,
+        Json(serde_json::json!({
+            "machine_id": mid,
+            "status": "registered",
+        })),
+    )
 }
 
-async fn mobile_get_machine(
-    Path(id): Path<String>,
-) -> (StatusCode, Json<serde_json::Value>) {
+async fn mobile_get_machine(Path(id): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
     let gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
     match gw.get_machine(&id) {
-        Some(m) => (StatusCode::OK, Json(serde_json::json!({
-            "machine_id": m.machine_id,
-            "name": m.name,
-            "hostname": m.hostname,
-            "os": m.os.to_string(),
-            "arch": m.arch,
-            "status": m.status.to_string(),
-            "daemon_port": m.daemon_port,
-            "daemon_version": m.daemon_version,
-            "workspace_root": m.workspace_root,
-            "capabilities": m.capabilities,
-            "active_sessions": m.active_sessions,
-            "max_sessions": m.max_sessions,
-            "cpu_cores": m.cpu_cores,
-            "memory_gb": m.memory_gb,
-            "disk_free_gb": m.disk_free_gb,
-            "registered_at": m.registered_at,
-            "last_heartbeat": m.last_heartbeat,
-            "tailscale_ip": m.tailscale_ip,
-            "public_url": m.public_url,
-            "tags": m.tags,
-        }))),
+        Some(m) => (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "machine_id": m.machine_id,
+                "name": m.name,
+                "hostname": m.hostname,
+                "os": m.os.to_string(),
+                "arch": m.arch,
+                "status": m.status.to_string(),
+                "daemon_port": m.daemon_port,
+                "daemon_version": m.daemon_version,
+                "workspace_root": m.workspace_root,
+                "capabilities": m.capabilities,
+                "active_sessions": m.active_sessions,
+                "max_sessions": m.max_sessions,
+                "cpu_cores": m.cpu_cores,
+                "memory_gb": m.memory_gb,
+                "disk_free_gb": m.disk_free_gb,
+                "registered_at": m.registered_at,
+                "last_heartbeat": m.last_heartbeat,
+                "tailscale_ip": m.tailscale_ip,
+                "public_url": m.public_url,
+                "tags": m.tags,
+            })),
+        ),
         None => json_error(StatusCode::NOT_FOUND, "Machine not found"),
     }
 }
@@ -7171,7 +7452,10 @@ async fn mobile_unregister_machine(
 ) -> (StatusCode, Json<serde_json::Value>) {
     let mut gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
     match gw.unregister_machine(&id) {
-        Ok(_) => (StatusCode::OK, Json(serde_json::json!({ "status": "unregistered" }))),
+        Ok(_) => (
+            StatusCode::OK,
+            Json(serde_json::json!({ "status": "unregistered" })),
+        ),
         Err(e) => json_error(StatusCode::NOT_FOUND, e),
     }
 }
@@ -7205,10 +7489,13 @@ async fn mobile_heartbeat(
             gw.check_stale_machines();
             gw.check_timeouts();
             let pending = gw.pending_dispatches(&id).len();
-            (StatusCode::OK, Json(serde_json::json!({
-                "status": "ok",
-                "pending_dispatches": pending,
-            })))
+            (
+                StatusCode::OK,
+                Json(serde_json::json!({
+                    "status": "ok",
+                    "pending_dispatches": pending,
+                })),
+            )
         }
         Err(e) => json_error(StatusCode::NOT_FOUND, e),
     }
@@ -7220,12 +7507,15 @@ async fn mobile_create_pairing(
     let mut gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
     let method = parse_pairing_method(&req.method);
     match gw.create_pairing(&req.machine_id, method) {
-        Ok(p) => (StatusCode::CREATED, Json(serde_json::json!({
-            "pairing_id": p.id,
-            "pin": p.pin,
-            "qr_data": p.qr_data,
-            "expires_at": p.expires_at,
-        }))),
+        Ok(p) => (
+            StatusCode::CREATED,
+            Json(serde_json::json!({
+                "pairing_id": p.id,
+                "pin": p.pin,
+                "qr_data": p.qr_data,
+                "expires_at": p.expires_at,
+            })),
+        ),
         Err(e) => json_error(StatusCode::BAD_REQUEST, e),
     }
 }
@@ -7236,8 +7526,19 @@ async fn mobile_accept_pairing(
 ) -> (StatusCode, Json<serde_json::Value>) {
     let mut gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
     let platform = parse_push_platform(&req.platform);
-    match gw.accept_pairing(&id, &req.device_id, &req.device_name, platform, req.push_token, &req.app_version, &req.os_version) {
-        Ok(_) => (StatusCode::OK, Json(serde_json::json!({ "status": "paired" }))),
+    match gw.accept_pairing(
+        &id,
+        &req.device_id,
+        &req.device_name,
+        platform,
+        req.push_token,
+        &req.app_version,
+        &req.os_version,
+    ) {
+        Ok(_) => (
+            StatusCode::OK,
+            Json(serde_json::json!({ "status": "paired" })),
+        ),
         Err(e) => json_error(StatusCode::BAD_REQUEST, e),
     }
 }
@@ -7253,33 +7554,36 @@ async fn mobile_verify_pin(
     }
 }
 
-async fn mobile_reject_pairing(
-    Path(id): Path<String>,
-) -> (StatusCode, Json<serde_json::Value>) {
+async fn mobile_reject_pairing(Path(id): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
     let mut gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
     match gw.reject_pairing(&id) {
-        Ok(_) => (StatusCode::OK, Json(serde_json::json!({ "status": "rejected" }))),
+        Ok(_) => (
+            StatusCode::OK,
+            Json(serde_json::json!({ "status": "rejected" })),
+        ),
         Err(e) => json_error(StatusCode::NOT_FOUND, e),
     }
 }
 
-async fn mobile_list_devices(
-    _state: State<ServeState>,
-) -> Json<serde_json::Value> {
+async fn mobile_list_devices(_state: State<ServeState>) -> Json<serde_json::Value> {
     let gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
-    let devices: Vec<serde_json::Value> = gw.devices.values().map(|d| {
-        serde_json::json!({
-            "device_id": d.device_id,
-            "device_name": d.device_name,
-            "platform": d.platform.to_string(),
-            "paired_machines": d.paired_machines,
-            "paired_at": d.paired_at,
-            "last_seen": d.last_seen,
-            "app_version": d.app_version,
-            "os_version": d.os_version,
-            "has_push_token": d.push_token.is_some(),
+    let devices: Vec<serde_json::Value> = gw
+        .devices
+        .values()
+        .map(|d| {
+            serde_json::json!({
+                "device_id": d.device_id,
+                "device_name": d.device_name,
+                "platform": d.platform.to_string(),
+                "paired_machines": d.paired_machines,
+                "paired_at": d.paired_at,
+                "last_seen": d.last_seen,
+                "app_version": d.app_version,
+                "os_version": d.os_version,
+                "has_push_token": d.push_token.is_some(),
+            })
         })
-    }).collect();
+        .collect();
     Json(serde_json::json!({ "devices": devices }))
 }
 
@@ -7289,7 +7593,10 @@ async fn mobile_update_push_token(
 ) -> (StatusCode, Json<serde_json::Value>) {
     let mut gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
     match gw.update_push_token(&id, &req.push_token) {
-        Ok(_) => (StatusCode::OK, Json(serde_json::json!({ "status": "updated" }))),
+        Ok(_) => (
+            StatusCode::OK,
+            Json(serde_json::json!({ "status": "updated" })),
+        ),
         Err(e) => json_error(StatusCode::NOT_FOUND, e),
     }
 }
@@ -7299,7 +7606,10 @@ async fn mobile_unpair(
 ) -> (StatusCode, Json<serde_json::Value>) {
     let mut gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
     match gw.unpair_device(&device_id, &machine_id) {
-        Ok(_) => (StatusCode::OK, Json(serde_json::json!({ "status": "unpaired" }))),
+        Ok(_) => (
+            StatusCode::OK,
+            Json(serde_json::json!({ "status": "unpaired" })),
+        ),
         Err(e) => json_error(StatusCode::NOT_FOUND, e),
     }
 }
@@ -7310,43 +7620,48 @@ async fn mobile_dispatch(
     let mut gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
     let dtype = parse_dispatch_type(&req.dispatch_type);
     match gw.dispatch_task(&req.device_id, &req.machine_id, dtype, &req.payload) {
-        Ok(t) => (StatusCode::CREATED, Json(serde_json::json!({
-            "task_id": t.task_id,
-            "status": t.status.to_string(),
-        }))),
+        Ok(t) => (
+            StatusCode::CREATED,
+            Json(serde_json::json!({
+                "task_id": t.task_id,
+                "status": t.status.to_string(),
+            })),
+        ),
         Err(e) => json_error(StatusCode::BAD_REQUEST, e),
     }
 }
 
-async fn mobile_get_dispatch(
-    Path(id): Path<String>,
-) -> (StatusCode, Json<serde_json::Value>) {
+async fn mobile_get_dispatch(Path(id): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
     let gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
     match gw.get_dispatch(&id) {
-        Some(t) => (StatusCode::OK, Json(serde_json::json!({
-            "task_id": t.task_id,
-            "machine_id": t.machine_id,
-            "device_id": t.device_id,
-            "dispatch_type": t.dispatch_type.to_string(),
-            "payload": t.payload,
-            "status": t.status.to_string(),
-            "created_at": t.created_at,
-            "started_at": t.started_at,
-            "completed_at": t.completed_at,
-            "result": t.result,
-            "error": t.error,
-            "session_id": t.session_id,
-        }))),
+        Some(t) => (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "task_id": t.task_id,
+                "machine_id": t.machine_id,
+                "device_id": t.device_id,
+                "dispatch_type": t.dispatch_type.to_string(),
+                "payload": t.payload,
+                "status": t.status.to_string(),
+                "created_at": t.created_at,
+                "started_at": t.started_at,
+                "completed_at": t.completed_at,
+                "result": t.result,
+                "error": t.error,
+                "session_id": t.session_id,
+            })),
+        ),
         None => json_error(StatusCode::NOT_FOUND, "Dispatch not found"),
     }
 }
 
-async fn mobile_cancel_dispatch(
-    Path(id): Path<String>,
-) -> (StatusCode, Json<serde_json::Value>) {
+async fn mobile_cancel_dispatch(Path(id): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
     let mut gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
     match gw.cancel_dispatch(&id) {
-        Ok(_) => (StatusCode::OK, Json(serde_json::json!({ "status": "cancelled" }))),
+        Ok(_) => (
+            StatusCode::OK,
+            Json(serde_json::json!({ "status": "cancelled" })),
+        ),
         Err(e) => json_error(StatusCode::BAD_REQUEST, e),
     }
 }
@@ -7358,66 +7673,73 @@ async fn mobile_update_dispatch(
     let mut gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
     let status = parse_dispatch_status(&req.status);
     match gw.update_dispatch(&id, status, req.result, req.error, req.session_id) {
-        Ok(_) => (StatusCode::OK, Json(serde_json::json!({ "status": "updated" }))),
+        Ok(_) => (
+            StatusCode::OK,
+            Json(serde_json::json!({ "status": "updated" })),
+        ),
         Err(e) => json_error(StatusCode::NOT_FOUND, e),
     }
 }
 
-async fn mobile_machine_dispatches(
-    Path(id): Path<String>,
-) -> Json<serde_json::Value> {
+async fn mobile_machine_dispatches(Path(id): Path<String>) -> Json<serde_json::Value> {
     let gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
-    let tasks: Vec<serde_json::Value> = gw.list_dispatches_for_machine(&id).iter().map(|t| {
-        serde_json::json!({
-            "task_id": t.task_id,
-            "dispatch_type": t.dispatch_type.to_string(),
-            "payload": t.payload,
-            "status": t.status.to_string(),
-            "created_at": t.created_at,
-            "result": t.result,
+    let tasks: Vec<serde_json::Value> = gw
+        .list_dispatches_for_machine(&id)
+        .iter()
+        .map(|t| {
+            serde_json::json!({
+                "task_id": t.task_id,
+                "dispatch_type": t.dispatch_type.to_string(),
+                "payload": t.payload,
+                "status": t.status.to_string(),
+                "created_at": t.created_at,
+                "result": t.result,
+            })
         })
-    }).collect();
+        .collect();
     Json(serde_json::json!({ "dispatches": tasks }))
 }
 
-async fn mobile_device_dispatches(
-    Path(id): Path<String>,
-) -> Json<serde_json::Value> {
+async fn mobile_device_dispatches(Path(id): Path<String>) -> Json<serde_json::Value> {
     let gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
-    let tasks: Vec<serde_json::Value> = gw.list_dispatches_for_device(&id).iter().map(|t| {
-        serde_json::json!({
-            "task_id": t.task_id,
-            "machine_id": t.machine_id,
-            "dispatch_type": t.dispatch_type.to_string(),
-            "payload": t.payload,
-            "status": t.status.to_string(),
-            "created_at": t.created_at,
-            "result": t.result,
+    let tasks: Vec<serde_json::Value> = gw
+        .list_dispatches_for_device(&id)
+        .iter()
+        .map(|t| {
+            serde_json::json!({
+                "task_id": t.task_id,
+                "machine_id": t.machine_id,
+                "dispatch_type": t.dispatch_type.to_string(),
+                "payload": t.payload,
+                "status": t.status.to_string(),
+                "created_at": t.created_at,
+                "result": t.result,
+            })
         })
-    }).collect();
+        .collect();
     Json(serde_json::json!({ "dispatches": tasks }))
 }
 
-async fn mobile_notifications(
-    Path(device_id): Path<String>,
-) -> Json<serde_json::Value> {
+async fn mobile_notifications(Path(device_id): Path<String>) -> Json<serde_json::Value> {
     let gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
-    let notifs: Vec<serde_json::Value> = gw.unsent_notifications(&device_id).iter().map(|n| {
-        serde_json::json!({
-            "id": n.id,
-            "title": n.title,
-            "body": n.body,
-            "category": n.category.to_string(),
-            "data": n.data,
-            "created_at": n.created_at,
+    let notifs: Vec<serde_json::Value> = gw
+        .unsent_notifications(&device_id)
+        .iter()
+        .map(|n| {
+            serde_json::json!({
+                "id": n.id,
+                "title": n.title,
+                "body": n.body,
+                "category": n.category.to_string(),
+                "data": n.data,
+                "created_at": n.created_at,
+            })
         })
-    }).collect();
+        .collect();
     Json(serde_json::json!({ "notifications": notifs }))
 }
 
-async fn mobile_stats(
-    _state: State<ServeState>,
-) -> Json<serde_json::Value> {
+async fn mobile_stats(_state: State<ServeState>) -> Json<serde_json::Value> {
     let gw = mobile_gateway().lock().unwrap_or_else(|e| e.into_inner());
     let s = gw.stats();
     Json(serde_json::json!({
@@ -7558,18 +7880,20 @@ async fn mobile_beacon(State(state): State<ServeState>) -> Json<serde_json::Valu
         })
     };
 
-    Json(serde_json::to_value(BeaconResponse {
-        machine_id,
-        hostname,
-        daemon_version: env!("CARGO_PKG_VERSION"),
-        port: 0, // port is not stored in state; 0 means "use the URL you connected to"
-        lan_ips,
-        tailscale_ip,
-        public_url,
-        uptime_secs,
-        active_session,
-    })
-    .unwrap_or_else(|_| serde_json::json!({"error": "serialization failed"})))
+    Json(
+        serde_json::to_value(BeaconResponse {
+            machine_id,
+            hostname,
+            daemon_version: env!("CARGO_PKG_VERSION"),
+            port: 0, // port is not stored in state; 0 means "use the URL you connected to"
+            lan_ips,
+            tailscale_ip,
+            public_url,
+            uptime_secs,
+            active_session,
+        })
+        .unwrap_or_else(|_| serde_json::json!({"error": "serialization failed"})),
+    )
 }
 
 /// Per-session record returned by `GET /mobile/sessions`.
@@ -7695,9 +8019,7 @@ struct SetMobileActiveSessionRequest {
 /// client most recently claimed. VibeUI polls this so the desktop
 /// can follow the user's mobile context, mirroring how W1.1 made
 /// VibeUI follow the watch's claim.
-async fn mobile_get_active_session(
-    State(state): State<ServeState>,
-) -> Json<serde_json::Value> {
+async fn mobile_get_active_session(State(state): State<ServeState>) -> Json<serde_json::Value> {
     let cur = state
         .mobile_active_session
         .lock()
@@ -7865,13 +8187,15 @@ mod tests {
         // mobile clients don't break when we add the assembler block.
         let workspace = tempfile::TempDir::new().unwrap();
         let detail = fixture_detail("sess-abc", None);
-        let value =
-            build_mobile_context_response("sess-abc", &detail, workspace.path())
-                .expect("build response");
+        let value = build_mobile_context_response("sess-abc", &detail, workspace.path())
+            .expect("build response");
 
         assert_eq!(value["context_type"], "vibecody_session");
         assert_eq!(value["session_id"], "sess-abc");
-        assert!(value["context"].is_object(), "context must be a JSON object");
+        assert!(
+            value["context"].is_object(),
+            "context must be a JSON object"
+        );
     }
 
     #[test]
@@ -7883,12 +8207,8 @@ mod tests {
         // doesn't pull anything else for an empty workspace).
         let workspace = tempfile::TempDir::new().unwrap();
         let detail = fixture_detail("sess-empty", None);
-        let value = build_mobile_context_response(
-            "sess-empty",
-            &detail,
-            workspace.path(),
-        )
-        .expect("build response");
+        let value = build_mobile_context_response("sess-empty", &detail, workspace.path())
+            .expect("build response");
 
         let assembler = value
             .get("assembler")
@@ -7917,12 +8237,8 @@ mod tests {
         .expect("write CLAUDE.md");
 
         let detail = fixture_detail("sess-mem", None);
-        let value = build_mobile_context_response(
-            "sess-mem",
-            &detail,
-            workspace.path(),
-        )
-        .expect("build response");
+        let value = build_mobile_context_response("sess-mem", &detail, workspace.path())
+            .expect("build response");
 
         let sections = value["assembler"]["sections"]
             .as_array()
@@ -7950,7 +8266,8 @@ mod tests {
 
     #[test]
     fn job_record_deserialize_with_missing_optionals() {
-        let json = r#"{"session_id":"x","task":"t","status":"running","provider":"p","started_at":0}"#;
+        let json =
+            r#"{"session_id":"x","task":"t","status":"running","provider":"p","started_at":0}"#;
         let job: JobRecord = serde_json::from_str(json).unwrap();
         assert!(job.finished_at.is_none());
         assert!(job.summary.is_none());
@@ -8102,7 +8419,10 @@ mod tests {
         let rl = RateLimiter::new(10, Duration::from_secs(30));
         assert_eq!(rl.limit, 10);
         assert_eq!(rl.window_ms, 30_000);
-        assert!(rl.buckets.is_empty(), "no buckets allocated until first check");
+        assert!(
+            rl.buckets.is_empty(),
+            "no buckets allocated until first check"
+        );
     }
 
     // ── Per-IP behavior (DREAD #8) ──────────────────────────────────────
@@ -8124,7 +8444,10 @@ mod tests {
         // Victim still has a full bucket.
         assert!(rl.check_for(victim), "victim must not be locked out");
         assert!(rl.check_for(victim));
-        assert!(!rl.check_for(victim), "victim hits their own limit independently");
+        assert!(
+            !rl.check_for(victim),
+            "victim hits their own limit independently"
+        );
     }
 
     #[test]
@@ -8152,7 +8475,10 @@ mod tests {
 
         // Let entries expire.
         std::thread::sleep(Duration::from_millis(5));
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
         rl.prune_expired(now.saturating_sub(rl.window_ms));
         assert_eq!(rl.buckets.len(), 0, "expired buckets are dropped");
     }
@@ -8180,7 +8506,10 @@ mod tests {
 
     #[test]
     fn is_loopback_host_rejects_unspecified_wildcard() {
-        assert!(!is_loopback_host("0.0.0.0"), "0.0.0.0 is the wildcard bind, not loopback");
+        assert!(
+            !is_loopback_host("0.0.0.0"),
+            "0.0.0.0 is the wildcard bind, not loopback"
+        );
         assert!(!is_loopback_host("::"), "IPv6 unspecified");
     }
 
@@ -8203,7 +8532,10 @@ mod tests {
         let rl = RateLimiter::new(5, Duration::from_secs(60));
         let ip: IpAddr = "10.0.0.1".parse().unwrap();
         rl.check_for(ip);
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
         rl.prune_expired(now.saturating_sub(rl.window_ms));
         assert_eq!(rl.buckets.len(), 1, "in-window buckets survive prune");
     }
@@ -8381,8 +8713,12 @@ mod tests {
 
         #[async_trait::async_trait]
         impl AIProvider for MockProvider {
-            fn name(&self) -> &str { "mock" }
-            async fn is_available(&self) -> bool { true }
+            fn name(&self) -> &str {
+                "mock"
+            }
+            async fn is_available(&self) -> bool {
+                true
+            }
             async fn complete(
                 &self,
                 _ctx: &vibe_ai::provider::CodeContext,
@@ -8422,11 +8758,9 @@ mod tests {
         /// references it.
         fn test_app(token: &str) -> (Router, tempfile::TempDir) {
             let tmp_dir = tempfile::tempdir().unwrap();
-            let db = crate::job_manager::JobsDb::open_with(
-                &tmp_dir.path().join("jobs.db"),
-                [42u8; 32],
-            )
-            .unwrap();
+            let db =
+                crate::job_manager::JobsDb::open_with(&tmp_dir.path().join("jobs.db"), [42u8; 32])
+                    .unwrap();
             let state = ServeState {
                 provider: Arc::new(MockProvider),
                 approval: ApprovalPolicy::FullAuto,
@@ -8443,8 +8777,7 @@ mod tests {
                 inference_router: None,
                 rl_run_store: {
                     let s = Arc::new(
-                        crate::rl_runs::RunStore::open_with(&tmp_dir.path().join("rl.db"))
-                            .unwrap(),
+                        crate::rl_runs::RunStore::open_with(&tmp_dir.path().join("rl.db")).unwrap(),
                     );
                     s
                 },
@@ -8458,9 +8791,7 @@ mod tests {
                 rl_runtime_pool: Arc::new(crate::rl_runtime::RuntimePool::new()),
                 mobile_active_session: Arc::new(std::sync::Mutex::new(None)),
                 tainted: TaintedDaemonFlags::default(),
-                tainted_http_queue: Arc::new(
-                    crate::tainted_http_bridge::HttpPromptQueue::new(),
-                ),
+                tainted_http_queue: Arc::new(crate::tainted_http_bridge::HttpPromptQueue::new()),
             };
             (build_router(state, 7878), tmp_dir)
         }
@@ -8546,12 +8877,30 @@ mod tests {
             // The memory block must always exist — `enabled: false` when
             // the store can't load (fresh install, broken JSON, etc.)
             // rather than the field being missing.
-            assert!(json["memory"].is_object(), "memory block missing from /health");
-            assert!(json["memory"]["enabled"].is_boolean(), "memory.enabled must be a boolean");
-            assert!(json["memory"]["total_memories"].is_u64(), "memory.total_memories must be a non-negative integer");
-            assert!(json["memory"]["drawer_count"].is_u64(), "memory.drawer_count must be a non-negative integer");
-            assert!(json["memory"]["encryption_enabled"].is_boolean(), "memory.encryption_enabled must be a boolean");
-            assert!(json["memory"]["store_path"].is_string(), "memory.store_path must be a string");
+            assert!(
+                json["memory"].is_object(),
+                "memory block missing from /health"
+            );
+            assert!(
+                json["memory"]["enabled"].is_boolean(),
+                "memory.enabled must be a boolean"
+            );
+            assert!(
+                json["memory"]["total_memories"].is_u64(),
+                "memory.total_memories must be a non-negative integer"
+            );
+            assert!(
+                json["memory"]["drawer_count"].is_u64(),
+                "memory.drawer_count must be a non-negative integer"
+            );
+            assert!(
+                json["memory"]["encryption_enabled"].is_boolean(),
+                "memory.encryption_enabled must be a boolean"
+            );
+            assert!(
+                json["memory"]["store_path"].is_string(),
+                "memory.store_path must be a string"
+            );
             // Features summary mirrors the per-feature shape used by
             // diffcomplete; memory's transport differs (daemon HTTP vs.
             // tauri-desktop) but the shape is consistent.
@@ -8565,7 +8914,10 @@ mod tests {
         #[tokio::test]
         async fn health_exposes_sandbox_block_with_active_tier_and_deferred_list() {
             let (app, _tmp) = test_app("test-token");
-            let req = Request::builder().uri("/health").body(Body::empty()).unwrap();
+            let req = Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap();
             let resp = app.oneshot(req).await.unwrap();
             let body = body_string(resp.into_body()).await;
             let json: serde_json::Value = serde_json::from_str(&body).unwrap();
@@ -8591,7 +8943,10 @@ mod tests {
         #[tokio::test]
         async fn health_features_mcp_block_reports_server_count_and_configured_flag() {
             let (app, _tmp) = test_app("test-token");
-            let req = Request::builder().uri("/health").body(Body::empty()).unwrap();
+            let req = Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap();
             let resp = app.oneshot(req).await.unwrap();
             let body = body_string(resp.into_body()).await;
             let json: serde_json::Value = serde_json::from_str(&body).unwrap();
@@ -8644,7 +8999,9 @@ mod tests {
                 .method("POST")
                 .uri("/chat")
                 .header("content-type", "application/json")
-                .body(Body::from(r#"{"messages":[{"role":"user","content":"hi"}]}"#))
+                .body(Body::from(
+                    r#"{"messages":[{"role":"user","content":"hi"}]}"#,
+                ))
                 .unwrap();
             let resp = app.oneshot(req).await.unwrap();
             assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
@@ -8666,10 +9023,7 @@ mod tests {
         #[tokio::test]
         async fn jobs_without_auth_returns_401() {
             let (app, _tmp) = test_app("my-secret");
-            let req = Request::builder()
-                .uri("/jobs")
-                .body(Body::empty())
-                .unwrap();
+            let req = Request::builder().uri("/jobs").body(Body::empty()).unwrap();
             let resp = app.oneshot(req).await.unwrap();
             assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
         }
@@ -8703,8 +9057,7 @@ mod tests {
                 .get("kinds")
                 .and_then(|k| k.as_array())
                 .expect("context.kinds array");
-            let kind_strs: Vec<&str> =
-                kinds.iter().filter_map(|v| v.as_str()).collect();
+            let kind_strs: Vec<&str> = kinds.iter().filter_map(|v| v.as_str()).collect();
             assert!(kind_strs.contains(&"Chat"));
             assert!(kind_strs.contains(&"CodingAgent"));
             assert!(kind_strs.contains(&"ResearchAgent"));
@@ -8714,8 +9067,7 @@ mod tests {
                 .get("sections")
                 .and_then(|s| s.as_array())
                 .expect("context.sections array");
-            let section_strs: Vec<&str> =
-                sections.iter().filter_map(|v| v.as_str()).collect();
+            let section_strs: Vec<&str> = sections.iter().filter_map(|v| v.as_str()).collect();
             assert!(section_strs.contains(&"project_memory"));
             assert!(section_strs.contains(&"orchestration"));
             assert!(section_strs.contains(&"open_memory"));
@@ -8863,11 +9215,9 @@ mod tests {
         /// mapping, not real inference.
         fn test_app_with_inference(token: &str) -> (Router, tempfile::TempDir) {
             let tmp_dir = tempfile::tempdir().unwrap();
-            let db = crate::job_manager::JobsDb::open_with(
-                &tmp_dir.path().join("jobs.db"),
-                [42u8; 32],
-            )
-            .unwrap();
+            let db =
+                crate::job_manager::JobsDb::open_with(&tmp_dir.path().join("jobs.db"), [42u8; 32])
+                    .unwrap();
             let state = ServeState {
                 provider: Arc::new(MockProvider),
                 approval: ApprovalPolicy::FullAuto,
@@ -8890,18 +9240,14 @@ mod tests {
                 rl_executor: Arc::new(crate::rl_executor::PythonExecutor::new(
                     crate::rl_executor::ExecutorConfig::from_env(),
                     Arc::new(
-                        crate::rl_runs::RunStore::open_with(
-                            &tmp_dir.path().join("rl-exec.db"),
-                        )
-                        .unwrap(),
+                        crate::rl_runs::RunStore::open_with(&tmp_dir.path().join("rl-exec.db"))
+                            .unwrap(),
                     ),
                 )),
                 rl_runtime_pool: Arc::new(crate::rl_runtime::RuntimePool::new()),
                 mobile_active_session: Arc::new(std::sync::Mutex::new(None)),
                 tainted: TaintedDaemonFlags::default(),
-                tainted_http_queue: Arc::new(
-                    crate::tainted_http_bridge::HttpPromptQueue::new(),
-                ),
+                tainted_http_queue: Arc::new(crate::tainted_http_bridge::HttpPromptQueue::new()),
             };
             (build_router(state, 7878), tmp_dir)
         }
@@ -8924,7 +9270,10 @@ mod tests {
         #[tokio::test]
         async fn api_tags_without_auth_returns_401() {
             let (app, _tmp) = test_app_with_inference("secret-token");
-            let req = Request::builder().uri("/api/tags").body(Body::empty()).unwrap();
+            let req = Request::builder()
+                .uri("/api/tags")
+                .body(Body::empty())
+                .unwrap();
             let resp = app.oneshot(req).await.unwrap();
             assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
         }
@@ -9023,7 +9372,9 @@ mod tests {
                 .uri("/chat")
                 .header("content-type", "application/json")
                 .header("authorization", "Bearer wrong-token")
-                .body(Body::from(r#"{"messages":[{"role":"user","content":"hi"}]}"#))
+                .body(Body::from(
+                    r#"{"messages":[{"role":"user","content":"hi"}]}"#,
+                ))
                 .unwrap();
             let resp = app.oneshot(req).await.unwrap();
             assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
@@ -9037,7 +9388,9 @@ mod tests {
                 .uri("/chat")
                 .header("content-type", "application/json")
                 .header("authorization", "Bearer correct-token")
-                .body(Body::from(r#"{"messages":[{"role":"user","content":"hi"}]}"#))
+                .body(Body::from(
+                    r#"{"messages":[{"role":"user","content":"hi"}]}"#,
+                ))
                 .unwrap();
             let resp = app.oneshot(req).await.unwrap();
             assert_eq!(resp.status(), StatusCode::OK);
@@ -9319,7 +9672,9 @@ mod tests {
                 .uri("/chat")
                 .header("content-type", "application/json")
                 .header("authorization", "Bearer tok")
-                .body(Body::from(r#"{"messages":[{"role":"user","content":"hello"}]}"#))
+                .body(Body::from(
+                    r#"{"messages":[{"role":"user","content":"hello"}]}"#,
+                ))
                 .unwrap();
             let resp = app.oneshot(req).await.unwrap();
             assert_eq!(resp.status(), StatusCode::OK);
@@ -9597,18 +9952,16 @@ mod tests {
             // ever needs HOME set differently this must move to a
             // serial test.
             let prior_home = std::env::var("HOME").ok();
-            unsafe { std::env::set_var("HOME", tmp_home.path()); }
+            unsafe {
+                std::env::set_var("HOME", tmp_home.path());
+            }
 
             let (app, _tmp) = test_app("e2e-tok");
             let tok = "e2e-tok";
 
             // 1. Authed routes reject missing bearer.
             let (status, _) = send(&app, "GET", "/v1/goals", "wrong", None).await;
-            assert_eq!(
-                status,
-                StatusCode::UNAUTHORIZED,
-                "wrong bearer should 401"
-            );
+            assert_eq!(status, StatusCode::UNAUTHORIZED, "wrong bearer should 401");
 
             // 2. Empty list before any creates.
             let (status, body) = send(&app, "GET", "/v1/goals", tok, None).await;
@@ -9623,8 +9976,7 @@ mod tests {
                 "success_criteria": ["all tests green"],
                 "tags": ["meta"]
             });
-            let (status, body) =
-                send(&app, "POST", "/v1/goals", tok, Some(create)).await;
+            let (status, body) = send(&app, "POST", "/v1/goals", tok, Some(create)).await;
             assert_eq!(status, StatusCode::CREATED);
             let goal_id = body["id"].as_str().unwrap().to_string();
             assert_eq!(body["status"], "active");
@@ -9633,8 +9985,7 @@ mod tests {
 
             // 4. Duplicate (workspace, title) → 409.
             let dup = serde_json::json!({ "title": "Ship the /goal feature" });
-            let (status, _) =
-                send(&app, "POST", "/v1/goals", tok, Some(dup)).await;
+            let (status, _) = send(&app, "POST", "/v1/goals", tok, Some(dup)).await;
             assert_eq!(status, StatusCode::CONFLICT);
 
             // 5. GET /v1/goals/:id — detail + links.
@@ -9645,11 +9996,15 @@ mod tests {
             assert!(body["links"].as_array().unwrap().is_empty());
 
             // 6. PATCH — flip status.
-            let patch =
-                serde_json::json!({ "status": "paused", "tags": ["meta", "phase-1"] });
-            let (status, body) =
-                send(&app, "PATCH", &format!("/v1/goals/{goal_id}"), tok, Some(patch))
-                    .await;
+            let patch = serde_json::json!({ "status": "paused", "tags": ["meta", "phase-1"] });
+            let (status, body) = send(
+                &app,
+                "PATCH",
+                &format!("/v1/goals/{goal_id}"),
+                tok,
+                Some(patch),
+            )
+            .await;
             assert_eq!(status, StatusCode::OK);
             assert_eq!(body["status"], "paused");
             assert_eq!(body["tags"].as_array().unwrap().len(), 2);
@@ -9670,8 +10025,7 @@ mod tests {
             assert!(!session_id.is_empty());
 
             // 8. GET again — links now has one entry (the started session).
-            let (_, body) =
-                send(&app, "GET", &format!("/v1/goals/{goal_id}"), tok, None).await;
+            let (_, body) = send(&app, "GET", &format!("/v1/goals/{goal_id}"), tok, None).await;
             let links = body["links"].as_array().unwrap();
             assert_eq!(links.len(), 1);
             assert_eq!(links[0]["kind"], "session");
@@ -9723,10 +10077,7 @@ mod tests {
             .await;
             assert_eq!(status, StatusCode::OK);
             assert_eq!(body["count"], 1);
-            assert_eq!(
-                body["children"].as_array().unwrap()[0]["id"],
-                child_id
-            );
+            assert_eq!(body["children"].as_array().unwrap()[0]["id"], child_id);
 
             // 11. POST /recap — heuristic aggregate. No recaps exist yet
             //     so the headline reflects that; no LLM hit.
@@ -9741,22 +10092,17 @@ mod tests {
             assert_eq!(status, StatusCode::OK);
             assert_eq!(body["goal_id"], goal_id);
             assert!(
-                body["headline"].as_str().unwrap().contains(
-                    "No linked recaps yet"
-                ),
+                body["headline"]
+                    .as_str()
+                    .unwrap()
+                    .contains("No linked recaps yet"),
                 "expected the empty-recap headline; got {body}"
             );
             assert!(body["sources"].as_array().unwrap().is_empty());
 
             // 12. DELETE — soft-after: list count drops to one (child remains).
-            let (status, _) = send(
-                &app,
-                "DELETE",
-                &format!("/v1/goals/{goal_id}"),
-                tok,
-                None,
-            )
-            .await;
+            let (status, _) =
+                send(&app, "DELETE", &format!("/v1/goals/{goal_id}"), tok, None).await;
             assert_eq!(status, StatusCode::NO_CONTENT);
             let (_, body) = send(&app, "GET", "/v1/goals", tok, None).await;
             // The child remains, but its FK parent is gone (cascade dropped
@@ -9765,8 +10111,12 @@ mod tests {
 
             // Restore HOME so other tests in the same process aren't poisoned.
             match prior_home {
-                Some(v) => unsafe { std::env::set_var("HOME", v); },
-                None => unsafe { std::env::remove_var("HOME"); },
+                Some(v) => unsafe {
+                    std::env::set_var("HOME", v);
+                },
+                None => unsafe {
+                    std::env::remove_var("HOME");
+                },
             }
         }
 
@@ -9870,21 +10220,26 @@ mod tests {
             let resp = app.oneshot(req).await.unwrap();
             assert_eq!(resp.status(), StatusCode::OK);
             let body = body_string(resp.into_body()).await;
-            let v: serde_json::Value =
-                serde_json::from_str(&body).expect("response is JSON");
+            let v: serde_json::Value = serde_json::from_str(&body).expect("response is JSON");
 
-            let dim = v.get("embedding_dim").and_then(|x| x.as_u64())
+            let dim = v
+                .get("embedding_dim")
+                .and_then(|x| x.as_u64())
                 .expect("embedding_dim field present and numeric");
             assert!(dim > 0, "embedding_dim should be positive, got {dim}");
 
-            let ratio = v.get("embedding_compression_ratio").and_then(|x| x.as_f64())
+            let ratio = v
+                .get("embedding_compression_ratio")
+                .and_then(|x| x.as_f64())
                 .expect("embedding_compression_ratio field present and numeric");
             assert!(
                 ratio > 1.0,
                 "compression ratio should beat raw f32, got {ratio}"
             );
 
-            let backend = v.get("embedding_backend").and_then(|x| x.as_str())
+            let backend = v
+                .get("embedding_backend")
+                .and_then(|x| x.as_str())
                 .expect("embedding_backend field present and string");
             assert_eq!(backend, "turboquant");
         }
@@ -9935,9 +10290,7 @@ mod tests {
                 .method("POST")
                 .uri("/v1/resume")
                 .header("content-type", "application/json")
-                .body(Body::from(
-                    r#"{"from_subject_id":"x","kind":"session"}"#,
-                ))
+                .body(Body::from(r#"{"from_subject_id":"x","kind":"session"}"#))
                 .unwrap();
             let resp = app.oneshot(req).await.unwrap();
             assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
@@ -10022,14 +10375,20 @@ mod tests {
     fn chat_request_rejects_missing_messages_field() {
         let json = r#"{"model":"gpt-4"}"#;
         let result = serde_json::from_str::<ChatRequest>(json);
-        assert!(result.is_err(), "ChatRequest without 'messages' should fail to parse");
+        assert!(
+            result.is_err(),
+            "ChatRequest without 'messages' should fail to parse"
+        );
     }
 
     #[test]
     fn agent_request_rejects_missing_task() {
         let json = r#"{"approval":"full-auto"}"#;
         let result = serde_json::from_str::<AgentRequest>(json);
-        assert!(result.is_err(), "AgentRequest without 'task' should fail to parse");
+        assert!(
+            result.is_err(),
+            "AgentRequest without 'task' should fail to parse"
+        );
     }
 
     // ── MemPalace endpoint request structs ────────────────────────────────
@@ -10055,7 +10414,10 @@ mod tests {
         let req: MemoryTunnelRequest = serde_json::from_str(json).unwrap();
         assert_eq!(req.src_id, "mem_aaa");
         assert_eq!(req.dst_id, "mem_bbb");
-        assert!((req.weight - 0.8).abs() < 1e-9, "default weight should be 0.8");
+        assert!(
+            (req.weight - 0.8).abs() < 1e-9,
+            "default weight should be 0.8"
+        );
     }
 
     #[test]
@@ -10069,7 +10431,10 @@ mod tests {
     fn memory_auto_tunnel_request_defaults_threshold() {
         let json = r#"{}"#;
         let req: MemoryAutoTunnelRequest = serde_json::from_str(json).unwrap();
-        assert!((req.threshold - 0.75).abs() < 1e-9, "default threshold should be 0.75");
+        assert!(
+            (req.threshold - 0.75).abs() < 1e-9,
+            "default threshold should be 0.75"
+        );
     }
 
     #[test]
@@ -10159,10 +10524,8 @@ mod tests {
         tempfile::TempDir,
     ) {
         let dir = tempfile::tempdir().unwrap();
-        let store = crate::session_store::SessionStore::open(
-            dir.path().join("sessions.db"),
-        )
-        .unwrap();
+        let store =
+            crate::session_store::SessionStore::open(dir.path().join("sessions.db")).unwrap();
         let sid = "F12-route-test".to_string();
         store
             .insert_session_with_parent(
@@ -10267,7 +10630,9 @@ mod tests {
         let (status, body) = do_v1_recap_post(&store, &req);
         assert_eq!(status, StatusCode::BAD_REQUEST);
         assert!(
-            body["error"].as_str().is_some_and(|s| s.contains("diff_chain")),
+            body["error"]
+                .as_str()
+                .is_some_and(|s| s.contains("diff_chain")),
             "error must echo the unsupported kind back; got: {body}"
         );
     }
@@ -10307,7 +10672,9 @@ mod tests {
         };
         let (status, body) = do_v1_recap_post(&store, &req);
         assert_eq!(status, StatusCode::NOT_FOUND);
-        assert!(body["error"].as_str().is_some_and(|s| s.contains("does-not-exist")));
+        assert!(body["error"]
+            .as_str()
+            .is_some_and(|s| s.contains("does-not-exist")));
     }
 
     #[test]
@@ -10358,7 +10725,9 @@ mod tests {
         };
         let (s2, b2) = do_v1_recap_list(&store, &q_no_sid);
         assert_eq!(s2, StatusCode::BAD_REQUEST);
-        assert!(b2["error"].as_str().is_some_and(|s| s.contains("subject_id")));
+        assert!(b2["error"]
+            .as_str()
+            .is_some_and(|s| s.contains("subject_id")));
     }
 
     #[test]
@@ -10429,8 +10798,7 @@ mod tests {
             bullets: vec![],
             next_actions: vec![],
         };
-        let (status, body) =
-            do_v1_recap_patch(&store, "no-such-recap", &patch);
+        let (status, body) = do_v1_recap_patch(&store, "no-such-recap", &patch);
         assert_eq!(status, StatusCode::NOT_FOUND);
         assert_eq!(body["error"], "recap not found");
     }
@@ -10468,15 +10836,10 @@ mod tests {
 
     // ── G1.2 / G1.3: /v1/goals helper tests ────────────────────────────────
 
-    fn goal_route_fixture() -> (
-        crate::session_store::SessionStore,
-        tempfile::TempDir,
-    ) {
+    fn goal_route_fixture() -> (crate::session_store::SessionStore, tempfile::TempDir) {
         let dir = tempfile::tempdir().unwrap();
-        let store = crate::session_store::SessionStore::open(
-            dir.path().join("sessions.db"),
-        )
-        .unwrap();
+        let store =
+            crate::session_store::SessionStore::open(dir.path().join("sessions.db")).unwrap();
         (store, dir)
     }
 
@@ -10522,7 +10885,9 @@ mod tests {
         assert_eq!(status, StatusCode::CREATED);
         let (status2, body2) = do_v1_exec_goal_post(&store, &req);
         assert_eq!(status2, StatusCode::CONFLICT);
-        assert!(body2["error"].as_str().is_some_and(|s| s.contains("already")));
+        assert!(body2["error"]
+            .as_str()
+            .is_some_and(|s| s.contains("already")));
     }
 
     #[test]
@@ -10559,7 +10924,11 @@ mod tests {
         let (status, body) = do_v1_exec_goal_list(&store, &q);
         assert_eq!(status, StatusCode::OK);
         assert_eq!(body["count"], 2);
-        assert!(body["goals"].as_array().unwrap().iter().all(|g| g["status"] == "active"));
+        assert!(body["goals"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|g| g["status"] == "active"));
     }
 
     #[test]
@@ -10653,7 +11022,10 @@ mod tests {
         };
         store.set_goal_plan(&id, &plan).unwrap();
         let with_plan = store.get_goal_by_id(&id).unwrap().unwrap();
-        assert!(with_plan.current_plan.is_some(), "fixture should have a plan");
+        assert!(
+            with_plan.current_plan.is_some(),
+            "fixture should have a plan"
+        );
 
         // PATCH the statement → plan must clear.
         let patch = ExecGoalPatchRequest {
@@ -10784,12 +11156,16 @@ mod tests {
         // env mutations are isolated to the duration of this test.
         let prior = std::env::var("ANTHROPIC_API_KEY").ok();
         // unsafe: env-var mutation in tests
-        unsafe { std::env::remove_var("ANTHROPIC_API_KEY"); }
+        unsafe {
+            std::env::remove_var("ANTHROPIC_API_KEY");
+        }
         // Profile store may have a key on the test machine — accept either
         // outcome but verify the function doesn't panic.
         let _ = build_provider_override("claude", "claude-haiku-4-5");
         if let Some(p) = prior {
-            unsafe { std::env::set_var("ANTHROPIC_API_KEY", p); }
+            unsafe {
+                std::env::set_var("ANTHROPIC_API_KEY", p);
+            }
         }
     }
 
@@ -10865,8 +11241,12 @@ mod tests {
             &store,
             &mid_id,
             &ExecGoalPatchRequest {
-                title: None, statement: None, status: None,
-                success_criteria: None, tags: None, workspace: None,
+                title: None,
+                statement: None,
+                status: None,
+                success_criteria: None,
+                tags: None,
+                workspace: None,
                 parent_goal_id: Some(Some(root_id.clone())),
             },
         );
@@ -10874,13 +11254,16 @@ mod tests {
             &store,
             &leaf_id,
             &ExecGoalPatchRequest {
-                title: None, statement: None, status: None,
-                success_criteria: None, tags: None, workspace: None,
+                title: None,
+                statement: None,
+                status: None,
+                success_criteria: None,
+                tags: None,
+                workspace: None,
                 parent_goal_id: Some(Some(mid_id.clone())),
             },
         );
-        let (status, body) =
-            do_v1_exec_goal_tree(&store, &root_id, &ExecGoalTreeQuery::default());
+        let (status, body) = do_v1_exec_goal_tree(&store, &root_id, &ExecGoalTreeQuery::default());
         assert_eq!(status, StatusCode::OK);
         assert_eq!(body["root"], root_id);
         assert_eq!(body["depth"], TREE_DEPTH_DEFAULT);
@@ -10906,16 +11289,17 @@ mod tests {
             &store,
             &child_id,
             &ExecGoalPatchRequest {
-                title: None, statement: None, status: None,
-                success_criteria: None, tags: None, workspace: None,
+                title: None,
+                statement: None,
+                status: None,
+                success_criteria: None,
+                tags: None,
+                workspace: None,
                 parent_goal_id: Some(Some(root_id.clone())),
             },
         );
-        let (status, body) = do_v1_exec_goal_tree(
-            &store,
-            &root_id,
-            &ExecGoalTreeQuery { depth: Some(1) },
-        );
+        let (status, body) =
+            do_v1_exec_goal_tree(&store, &root_id, &ExecGoalTreeQuery { depth: Some(1) });
         assert_eq!(status, StatusCode::OK);
         assert_eq!(body["depth"], 1);
         let tree = &body["tree"];
@@ -10930,11 +11314,8 @@ mod tests {
         let (store, _dir) = goal_route_fixture();
         let (_, root) = do_v1_exec_goal_post(&store, &make_create_request("clamp_root"));
         let root_id = root["id"].as_str().unwrap().to_string();
-        let (status, body) = do_v1_exec_goal_tree(
-            &store,
-            &root_id,
-            &ExecGoalTreeQuery { depth: Some(99) },
-        );
+        let (status, body) =
+            do_v1_exec_goal_tree(&store, &root_id, &ExecGoalTreeQuery { depth: Some(99) });
         assert_eq!(status, StatusCode::OK);
         assert_eq!(body["depth"], TREE_DEPTH_MAX);
     }
@@ -10957,12 +11338,8 @@ mod tests {
 
     #[test]
     fn parse_aggregate_recap_llm_truncates_overlong_bullet_list() {
-        let bullets: Vec<String> =
-            (0..12).map(|i| format!("\"b{i}\"")).collect();
-        let txt = format!(
-            "{{\"headline\":\"H\",\"bullets\":[{}]}}",
-            bullets.join(",")
-        );
+        let bullets: Vec<String> = (0..12).map(|i| format!("\"b{i}\"")).collect();
+        let txt = format!("{{\"headline\":\"H\",\"bullets\":[{}]}}", bullets.join(","));
         let parsed = parse_aggregate_recap_llm(&txt).unwrap();
         assert_eq!(parsed.1.len(), 7);
     }
@@ -10983,19 +11360,12 @@ mod tests {
         // Drop store before phase2 to mirror handler behavior.
         drop(store);
         let jobs_tmp = tempfile::tempdir().unwrap();
-        let db = crate::job_manager::JobsDb::open_with(
-            &jobs_tmp.path().join("jobs.db"),
-            [42u8; 32],
-        )
-        .unwrap();
+        let db =
+            crate::job_manager::JobsDb::open_with(&jobs_tmp.path().join("jobs.db"), [42u8; 32])
+                .unwrap();
         let jm = JobManager::new_with(db);
-        let (status, body) = do_v1_exec_goal_recap_phase2(
-            phase1,
-            &jm,
-            None,
-            &ExecGoalRecapRequest::default(),
-        )
-        .await;
+        let (status, body) =
+            do_v1_exec_goal_recap_phase2(phase1, &jm, None, &ExecGoalRecapRequest::default()).await;
         assert_eq!(status, StatusCode::OK);
         assert_eq!(body["recap_synthesizer"], "heuristic");
         assert_eq!(body["recap_provider_override_applied"], false);
@@ -11023,8 +11393,7 @@ mod tests {
     #[test]
     fn exec_goal_current_put_then_get_roundtrips() {
         let (store, _dir) = goal_route_fixture();
-        let (_, created) =
-            do_v1_exec_goal_post(&store, &make_create_request("pin me"));
+        let (_, created) = do_v1_exec_goal_post(&store, &make_create_request("pin me"));
         let id = created["id"].as_str().unwrap().to_string();
         let put_req = PinnedGoalSetRequest {
             goal_id: id.clone(),
@@ -11033,8 +11402,7 @@ mod tests {
         let (status, _) = do_v1_exec_goal_current_put(&store, &put_req);
         assert_eq!(status, StatusCode::OK);
 
-        let (status, body) =
-            do_v1_exec_goal_current_get(&store, &PinnedGoalQuery::default());
+        let (status, body) = do_v1_exec_goal_current_get(&store, &PinnedGoalQuery::default());
         assert_eq!(status, StatusCode::OK);
         assert_eq!(body["goal_id"], id);
         assert_eq!(body["goal"]["id"], id);
@@ -11066,12 +11434,16 @@ mod tests {
 
         let (_, ws_a) = do_v1_exec_goal_current_get(
             &store,
-            &PinnedGoalQuery { workspace: Some("/tmp/ws-a".to_string()) },
+            &PinnedGoalQuery {
+                workspace: Some("/tmp/ws-a".to_string()),
+            },
         );
         assert_eq!(ws_a["goal_id"], id1);
         let (_, ws_b) = do_v1_exec_goal_current_get(
             &store,
-            &PinnedGoalQuery { workspace: Some("/tmp/ws-b".to_string()) },
+            &PinnedGoalQuery {
+                workspace: Some("/tmp/ws-b".to_string()),
+            },
         );
         assert_eq!(ws_b["goal_id"], id2);
         let (_, global) = do_v1_exec_goal_current_get(&store, &PinnedGoalQuery::default());
@@ -11085,10 +11457,12 @@ mod tests {
         let id = g["id"].as_str().unwrap().to_string();
         do_v1_exec_goal_current_put(
             &store,
-            &PinnedGoalSetRequest { goal_id: id.clone(), workspace: None },
+            &PinnedGoalSetRequest {
+                goal_id: id.clone(),
+                workspace: None,
+            },
         );
-        let (status, body) =
-            do_v1_exec_goal_current_delete(&store, &PinnedGoalQuery::default());
+        let (status, body) = do_v1_exec_goal_current_delete(&store, &PinnedGoalQuery::default());
         assert_eq!(status, StatusCode::OK);
         assert_eq!(body["removed"], true);
         let (_, after) = do_v1_exec_goal_current_get(&store, &PinnedGoalQuery::default());
@@ -11105,7 +11479,9 @@ mod tests {
         let tmp_home = tempfile::tempdir().unwrap();
         let prior_home = std::env::var("HOME").ok();
         // unsafe: env-var mutation in tests
-        unsafe { std::env::set_var("HOME", tmp_home.path()); }
+        unsafe {
+            std::env::set_var("HOME", tmp_home.path());
+        }
 
         // Bootstrap: open the default store (creates ~/.vibecli/sessions.db
         // under our tempdir) and seed a pinned goal.
@@ -11119,10 +11495,8 @@ mod tests {
         // handle (mirrors how the agent path runs).
         drop(store);
 
-        let result = auto_link_to_pinned_goal(
-            std::path::Path::new("/tmp/wsAUTO"),
-            "sess-autolink-1",
-        );
+        let result =
+            auto_link_to_pinned_goal(std::path::Path::new("/tmp/wsAUTO"), "sess-autolink-1");
         // G7.1 — auto_link now returns the full Goal struct (not just
         // id + title) so the caller can synthesize a context preamble.
         // Goal doesn't derive PartialEq (ExecutionPlan doesn't either),
@@ -11138,8 +11512,12 @@ mod tests {
         assert_eq!(links[0].kind, crate::exec_goal::GoalLinkKind::Session);
 
         match prior_home {
-            Some(v) => unsafe { std::env::set_var("HOME", v); },
-            None => unsafe { std::env::remove_var("HOME"); },
+            Some(v) => unsafe {
+                std::env::set_var("HOME", v);
+            },
+            None => unsafe {
+                std::env::remove_var("HOME");
+            },
         }
     }
 
@@ -11149,20 +11527,26 @@ mod tests {
         // means no link is inserted and no event needs to be published.
         let tmp_home = tempfile::tempdir().unwrap();
         let prior_home = std::env::var("HOME").ok();
-        unsafe { std::env::set_var("HOME", tmp_home.path()); }
+        unsafe {
+            std::env::set_var("HOME", tmp_home.path());
+        }
 
         // No goals, no pins — fresh tempdir.
-        let result = auto_link_to_pinned_goal(
-            std::path::Path::new("/tmp/wsEMPTY"),
-            "sess-empty-1",
-        );
+        let result = auto_link_to_pinned_goal(std::path::Path::new("/tmp/wsEMPTY"), "sess-empty-1");
         // Goal doesn't impl PartialEq, so `result == None` won't
         // compile; check `is_none()` instead.
-        assert!(result.is_none(), "auto_link should return None without a pin");
+        assert!(
+            result.is_none(),
+            "auto_link should return None without a pin"
+        );
 
         match prior_home {
-            Some(v) => unsafe { std::env::set_var("HOME", v); },
-            None => unsafe { std::env::remove_var("HOME"); },
+            Some(v) => unsafe {
+                std::env::set_var("HOME", v);
+            },
+            None => unsafe {
+                std::env::remove_var("HOME");
+            },
         }
     }
 
@@ -11295,7 +11679,10 @@ mod tests {
         let id = g["id"].as_str().unwrap().to_string();
         do_v1_exec_goal_current_put(
             &store,
-            &PinnedGoalSetRequest { goal_id: id.clone(), workspace: None },
+            &PinnedGoalSetRequest {
+                goal_id: id.clone(),
+                workspace: None,
+            },
         );
         let (status, _) = do_v1_exec_goal_delete(&store, &id);
         assert_eq!(status, StatusCode::NO_CONTENT);
@@ -11317,8 +11704,12 @@ mod tests {
             &store,
             &child_id,
             &ExecGoalPatchRequest {
-                title: None, statement: None, status: None,
-                success_criteria: None, tags: None, workspace: None,
+                title: None,
+                statement: None,
+                status: None,
+                success_criteria: None,
+                tags: None,
+                workspace: None,
                 parent_goal_id: Some(Some(root_id.clone())),
             },
         );
@@ -11327,16 +11718,17 @@ mod tests {
             &store,
             &root_id,
             &ExecGoalPatchRequest {
-                title: None, statement: None, status: None,
-                success_criteria: None, tags: None, workspace: None,
+                title: None,
+                statement: None,
+                status: None,
+                success_criteria: None,
+                tags: None,
+                workspace: None,
                 parent_goal_id: Some(Some(child_id.clone())),
             },
         );
-        let (status, body) = do_v1_exec_goal_tree(
-            &store,
-            &root_id,
-            &ExecGoalTreeQuery { depth: Some(5) },
-        );
+        let (status, body) =
+            do_v1_exec_goal_tree(&store, &root_id, &ExecGoalTreeQuery { depth: Some(5) });
         assert_eq!(status, StatusCode::OK);
         // Walk: root (depth 4) → child (depth 3) → root again → cycle leaf.
         let tree = &body["tree"];
@@ -11356,8 +11748,12 @@ mod tests {
         let (_, child) = do_v1_exec_goal_post(&store, &make_create_request("child"));
         let child_id = child["id"].as_str().unwrap().to_string();
         let set_parent = ExecGoalPatchRequest {
-            title: None, statement: None, status: None,
-            success_criteria: None, tags: None, workspace: None,
+            title: None,
+            statement: None,
+            status: None,
+            success_criteria: None,
+            tags: None,
+            workspace: None,
             parent_goal_id: Some(Some(root_id.clone())),
         };
         do_v1_exec_goal_patch(&store, &child_id, &set_parent);
@@ -11367,8 +11763,12 @@ mod tests {
 
         // Now clear the parent.
         let clear_parent = ExecGoalPatchRequest {
-            title: None, statement: None, status: None,
-            success_criteria: None, tags: None, workspace: None,
+            title: None,
+            statement: None,
+            status: None,
+            success_criteria: None,
+            tags: None,
+            workspace: None,
             parent_goal_id: Some(None),
         };
         let (s, body) = do_v1_exec_goal_patch(&store, &child_id, &clear_parent);
@@ -11397,7 +11797,9 @@ mod tests {
 
         // Insert a session, a recap for that session, and link it.
         let sid = "test-session-1".to_string();
-        store.insert_session(&sid, "first task", "mock", "test-model").unwrap();
+        store
+            .insert_session(&sid, "first task", "mock", "test-model")
+            .unwrap();
         store.insert_message(&sid, "user", "fix the bug").unwrap();
         let recap = crate::recap::Recap {
             id: uuid::Uuid::new_v4().simple().to_string(),
@@ -11462,13 +11864,14 @@ mod tests {
 
     async fn job_route_fixture(
         task: &str,
-    ) -> (Arc<crate::job_manager::JobManager>, String, tempfile::TempDir) {
+    ) -> (
+        Arc<crate::job_manager::JobManager>,
+        String,
+        tempfile::TempDir,
+    ) {
         let dir = tempfile::tempdir().unwrap();
-        let db = crate::job_manager::JobsDb::open_with(
-            &dir.path().join("jobs.db"),
-            [42u8; 32],
-        )
-        .unwrap();
+        let db =
+            crate::job_manager::JobsDb::open_with(&dir.path().join("jobs.db"), [42u8; 32]).unwrap();
         let mgr = Arc::new(crate::job_manager::JobManager::new_with(db));
         let sid = mgr
             .create(crate::job_manager::CreateJobReq {
@@ -11678,7 +12081,7 @@ mod tests {
 
 // ── VibeMemory routes (vibe-memory crate integration) ─────────────────────────
 
-use vibe_memory::{MemoryContextHub, ProjectMemStore, GlobalMemStore};
+use vibe_memory::{GlobalMemStore, MemoryContextHub, ProjectMemStore};
 
 #[derive(serde::Deserialize)]
 struct VibeMemoryStoreRequest {
@@ -11704,38 +12107,70 @@ async fn vibememory_store(
         };
         let store = match ProjectMemStore::open(&path) {
             Ok(s) => s,
-            Err(e) => return json_error(StatusCode::BAD_REQUEST, format!("Failed to open store: {e}")),
+            Err(e) => {
+                return json_error(
+                    StatusCode::BAD_REQUEST,
+                    format!("Failed to open store: {e}"),
+                )
+            }
         };
-        let entry = store.store(&req.content, Some(vibe_memory::MemoryMeta {
-            tags: req.tags,
-            pinned: req.pinned,
-            ..Default::default()
-        })).await;
+        let entry = store
+            .store(
+                &req.content,
+                Some(vibe_memory::MemoryMeta {
+                    tags: req.tags,
+                    pinned: req.pinned,
+                    ..Default::default()
+                }),
+            )
+            .await;
         match entry {
-            Ok(e) => (StatusCode::CREATED, Json(serde_json::json!({
-                "id": e.id,
-                "sector": e.sector,
-                "store": "project"
-            }))),
-            Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("Store failed: {e}")),
+            Ok(e) => (
+                StatusCode::CREATED,
+                Json(serde_json::json!({
+                    "id": e.id,
+                    "sector": e.sector,
+                    "store": "project"
+                })),
+            ),
+            Err(e) => json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Store failed: {e}"),
+            ),
         }
     } else {
         let store = match GlobalMemStore::open() {
             Ok(s) => s,
-            Err(e) => return json_error(StatusCode::BAD_REQUEST, format!("Failed to open store: {e}")),
+            Err(e) => {
+                return json_error(
+                    StatusCode::BAD_REQUEST,
+                    format!("Failed to open store: {e}"),
+                )
+            }
         };
-        let entry = store.store(&req.content, Some(vibe_memory::MemoryMeta {
-            tags: req.tags,
-            pinned: req.pinned,
-            ..Default::default()
-        })).await;
+        let entry = store
+            .store(
+                &req.content,
+                Some(vibe_memory::MemoryMeta {
+                    tags: req.tags,
+                    pinned: req.pinned,
+                    ..Default::default()
+                }),
+            )
+            .await;
         match entry {
-            Ok(e) => (StatusCode::CREATED, Json(serde_json::json!({
-                "id": e.id,
-                "sector": e.sector,
-                "store": "global"
-            }))),
-            Err(e) => json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("Store failed: {e}")),
+            Ok(e) => (
+                StatusCode::CREATED,
+                Json(serde_json::json!({
+                    "id": e.id,
+                    "sector": e.sector,
+                    "store": "global"
+                })),
+            ),
+            Err(e) => json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Store failed: {e}"),
+            ),
         }
     }
 }
@@ -11749,7 +12184,9 @@ struct VibeMemorySearchRequest {
     min_score: Option<f64>,
 }
 
-fn default_top_k() -> usize { 8 }
+fn default_top_k() -> usize {
+    8
+}
 
 async fn vibememory_search(
     _state: State<ServeState>,
@@ -11765,21 +12202,26 @@ async fn vibememory_search(
         },
         None => std::env::temp_dir(),
     };
-    
-    let results = hub.search_context(&workspace, &req.query, req.top_k, req.min_score).await;
-    
+
+    let results = hub
+        .search_context(&workspace, &req.query, req.top_k, req.min_score)
+        .await;
+
     match results {
         Ok(r) => {
-            let items: Vec<serde_json::Value> = r.iter().map(|item| {
-                serde_json::json!({
-                    "id": item.id,
-                    "content": item.content,
-                    "sector": item.sector,
-                    "score": item.score,
-                    "store": item.store.as_str(),
-                    "tags": item.tags,
+            let items: Vec<serde_json::Value> = r
+                .iter()
+                .map(|item| {
+                    serde_json::json!({
+                        "id": item.id,
+                        "content": item.content,
+                        "sector": item.sector,
+                        "score": item.score,
+                        "store": item.store.as_str(),
+                        "tags": item.tags,
+                    })
                 })
-            }).collect();
+                .collect();
             Json(serde_json::json!({ "results": items, "count": items.len() }))
         }
         Err(e) => Json(serde_json::json!({ "error": e.to_string(), "results": [], "count": 0 })),
@@ -11794,7 +12236,9 @@ struct VibeMemoryContextRequest {
     budget: usize,
 }
 
-fn default_budget() -> usize { 4096 }
+fn default_budget() -> usize {
+    4096
+}
 
 async fn vibememory_context(
     _state: State<ServeState>,
@@ -11807,8 +12251,10 @@ async fn vibememory_context(
         Err(e) => return Json(serde_json::json!({ "context": "", "error": e })),
     };
 
-    let context = hub.assemble_context(&workspace, &req.query, req.budget).await;
-    
+    let context = hub
+        .assemble_context(&workspace, &req.query, req.budget)
+        .await;
+
     match context {
         Ok(c) => Json(serde_json::json!({ "context": c })),
         Err(e) => Json(serde_json::json!({ "context": "", "error": e.to_string() })),
@@ -11822,7 +12268,7 @@ async fn vibememory_list(
     let sector = params.get("sector").map(|s| s.as_str());
     let limit = params.get("limit").and_then(|s| s.parse().ok());
     let store_type = params.get("store").map(|s| s.as_str()).unwrap_or("global");
-    
+
     if store_type == "project" {
         if let Some(workspace) = params.get("workspace") {
             // DREAD #2 — gate the project-store path.
@@ -11832,50 +12278,70 @@ async fn vibememory_list(
             };
             let store = match ProjectMemStore::open(&path) {
                 Ok(s) => s,
-                Err(e) => return Json(serde_json::json!({ "error": e.to_string(), "memories": [] })),
+                Err(e) => {
+                    return Json(serde_json::json!({ "error": e.to_string(), "memories": [] }))
+                }
             };
             let entries = store.list(sector, limit).await;
             match entries {
                 Ok(mems) => {
-                    let items: Vec<serde_json::Value> = mems.iter().map(|m| {
-                        serde_json::json!({
-                            "id": m.id,
-                            "content": m.content,
-                            "sector": m.sector,
-                            "salience": m.salience,
-                            "tags": m.tags,
-                            "pinned": m.pinned,
-                            "created_at": m.created_at,
+                    let items: Vec<serde_json::Value> = mems
+                        .iter()
+                        .map(|m| {
+                            serde_json::json!({
+                                "id": m.id,
+                                "content": m.content,
+                                "sector": m.sector,
+                                "salience": m.salience,
+                                "tags": m.tags,
+                                "pinned": m.pinned,
+                                "created_at": m.created_at,
+                            })
                         })
-                    }).collect();
-                    return Json(serde_json::json!({ "memories": items, "count": items.len(), "store": "project" }));
+                        .collect();
+                    return Json(
+                        serde_json::json!({ "memories": items, "count": items.len(), "store": "project" }),
+                    );
                 }
-                Err(e) => return Json(serde_json::json!({ "error": e.to_string(), "memories": [], "store": "project" })),
+                Err(e) => {
+                    return Json(
+                        serde_json::json!({ "error": e.to_string(), "memories": [], "store": "project" }),
+                    )
+                }
             }
         }
     }
-    
+
     let store = match GlobalMemStore::open() {
         Ok(s) => s,
-        Err(e) => return Json(serde_json::json!({ "error": e.to_string(), "memories": [], "store": "global" })),
+        Err(e) => {
+            return Json(
+                serde_json::json!({ "error": e.to_string(), "memories": [], "store": "global" }),
+            )
+        }
     };
     let entries = store.list(sector, limit).await;
     match entries {
         Ok(mems) => {
-            let items: Vec<serde_json::Value> = mems.iter().map(|m| {
-                serde_json::json!({
-                    "id": m.id,
-                    "content": m.content,
-                    "sector": m.sector,
-                    "salience": m.salience,
-                    "tags": m.tags,
-                    "pinned": m.pinned,
-                    "created_at": m.created_at,
+            let items: Vec<serde_json::Value> = mems
+                .iter()
+                .map(|m| {
+                    serde_json::json!({
+                        "id": m.id,
+                        "content": m.content,
+                        "sector": m.sector,
+                        "salience": m.salience,
+                        "tags": m.tags,
+                        "pinned": m.pinned,
+                        "created_at": m.created_at,
+                    })
                 })
-            }).collect();
+                .collect();
             Json(serde_json::json!({ "memories": items, "count": items.len(), "store": "global" }))
         }
-        Err(e) => Json(serde_json::json!({ "error": e.to_string(), "memories": [], "store": "global" })),
+        Err(e) => {
+            Json(serde_json::json!({ "error": e.to_string(), "memories": [], "store": "global" }))
+        }
     }
 }
 
@@ -11892,9 +12358,9 @@ async fn vibememory_stats(
         },
         None => std::env::temp_dir(),
     };
-    
+
     let stats = hub.get_stats(&workspace).await;
-    
+
     match stats {
         Ok(s) => Json(serde_json::json!({
             "project_count": s.project_count,
@@ -11923,7 +12389,7 @@ async fn vibememory_consolidate(
     };
 
     let report = hub.consolidate(&workspace).await;
-    
+
     match report {
         Ok(r) => Json(serde_json::json!({
             "entries_purged": r.entries_purged,

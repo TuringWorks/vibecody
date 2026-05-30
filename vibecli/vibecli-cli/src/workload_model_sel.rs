@@ -37,13 +37,27 @@ impl WorkloadType {
     /// Classify workload from a free-form task description.
     pub fn classify(description: &str) -> Self {
         let d = description.to_lowercase();
-        if d.contains("embed") || d.contains("vector") { return Self::Embedding; }
-        if d.contains("agent") || d.contains("plan") && d.contains("act") { return Self::AgentLoop; }
-        if d.contains("review") || d.contains("pr") || d.contains("pull request") { return Self::Review; }
-        if d.contains("edit") || d.contains("refactor") || d.contains("rename") { return Self::Edit; }
-        if d.contains("complete") || d.contains("fim") || d.contains("fill") { return Self::Completion; }
-        if d.contains("summarise") || d.contains("summarize") || d.contains("tldr") { return Self::Summarise; }
-        if d.contains("rag") || d.contains("search") || d.contains("retriev") { return Self::Rag; }
+        if d.contains("embed") || d.contains("vector") {
+            return Self::Embedding;
+        }
+        if d.contains("agent") || d.contains("plan") && d.contains("act") {
+            return Self::AgentLoop;
+        }
+        if d.contains("review") || d.contains("pr") || d.contains("pull request") {
+            return Self::Review;
+        }
+        if d.contains("edit") || d.contains("refactor") || d.contains("rename") {
+            return Self::Edit;
+        }
+        if d.contains("complete") || d.contains("fim") || d.contains("fill") {
+            return Self::Completion;
+        }
+        if d.contains("summarise") || d.contains("summarize") || d.contains("tldr") {
+            return Self::Summarise;
+        }
+        if d.contains("rag") || d.contains("search") || d.contains("retriev") {
+            return Self::Rag;
+        }
         Self::Chat
     }
 }
@@ -65,7 +79,12 @@ pub enum LatencyClass {
 impl LatencyClass {
     /// Median latency in ms (used as a proxy for scoring).
     pub fn median_ms(&self) -> u64 {
-        match self { Self::UltraFast => 300, Self::Fast => 1000, Self::Medium => 5000, Self::Slow => 15000 }
+        match self {
+            Self::UltraFast => 300,
+            Self::Fast => 1000,
+            Self::Medium => 5000,
+            Self::Slow => 15000,
+        }
     }
 }
 
@@ -98,7 +117,7 @@ impl ModelProfile {
     /// Estimated cost in USD for a request with given token counts.
     pub fn estimate_cost(&self, input_tokens: u64, output_tokens: u64) -> f64 {
         (input_tokens as f64 / 1_000_000.0) * self.cost_per_1m_in
-        + (output_tokens as f64 / 1_000_000.0) * self.cost_per_1m_out
+            + (output_tokens as f64 / 1_000_000.0) * self.cost_per_1m_out
     }
 
     /// Whether this model can handle a request of given context length.
@@ -139,10 +158,15 @@ pub struct SelectionRequest {
 impl SelectionRequest {
     pub fn chat(context_tokens: u32) -> Self {
         Self {
-            workload: WorkloadType::Chat, context_tokens,
-            expected_output_tokens: 256, max_budget_usd: None,
+            workload: WorkloadType::Chat,
+            context_tokens,
+            expected_output_tokens: 256,
+            max_budget_usd: None,
             policy: SelectionPolicy::Balanced,
-            require_code: false, require_fim: false, require_vision: false, require_long_context: false,
+            require_code: false,
+            require_fim: false,
+            require_vision: false,
+            require_long_context: false,
         }
     }
 }
@@ -167,36 +191,44 @@ pub struct WorkloadModelSelector {
 
 impl WorkloadModelSelector {
     pub fn new(models: Vec<ModelProfile>) -> Self {
-        Self { models, telemetry: HashMap::new() }
+        Self {
+            models,
+            telemetry: HashMap::new(),
+        }
     }
 
     /// Filter models that satisfy capability requirements and context window.
     fn eligible<'a>(&'a self, req: &SelectionRequest) -> Vec<&'a ModelProfile> {
-        self.models.iter().filter(|m| {
-            m.can_handle(req.context_tokens)
-            && (!req.require_code || m.capabilities.code)
-            && (!req.require_fim || m.capabilities.fim)
-            && (!req.require_vision || m.capabilities.vision)
-            && (!req.require_long_context || m.capabilities.long_context)
-        }).collect()
+        self.models
+            .iter()
+            .filter(|m| {
+                m.can_handle(req.context_tokens)
+                    && (!req.require_code || m.capabilities.code)
+                    && (!req.require_fim || m.capabilities.fim)
+                    && (!req.require_vision || m.capabilities.vision)
+                    && (!req.require_long_context || m.capabilities.long_context)
+            })
+            .collect()
     }
 
     /// Score a model for the given request under the given policy.
     fn score(&self, model: &ModelProfile, req: &SelectionRequest) -> f64 {
         let cost = model.estimate_cost(req.context_tokens as u64, req.expected_output_tokens);
-        let latency = self.telemetry.get(&model.id)
+        let latency = self
+            .telemetry
+            .get(&model.id)
             .filter(|t| t.requests > 0)
             .map(|t| t.observed_latency_ms)
             .unwrap_or(model.latency.median_ms() as f64);
         let quality = model.quality_score as f64;
 
         match &req.policy {
-            SelectionPolicy::CostOptimise     => -cost,
-            SelectionPolicy::LatencyOptimise  => -(latency / 1000.0),
-            SelectionPolicy::QualityMaximise  => quality,
+            SelectionPolicy::CostOptimise => -cost,
+            SelectionPolicy::LatencyOptimise => -(latency / 1000.0),
+            SelectionPolicy::QualityMaximise => quality,
             SelectionPolicy::Balanced => {
                 // Normalise: cost → [$0, ~$1] → [-1, 0]; latency → [0, 20s] → [-1, 0]; quality → [0, 1]
-                let cost_score    = -(cost / 0.10).clamp(0.0, 1.0);
+                let cost_score = -(cost / 0.10).clamp(0.0, 1.0);
                 let latency_score = -(latency / 10_000.0).clamp(0.0, 1.0);
                 0.4 * quality + 0.3 * cost_score + 0.3 * latency_score
             }
@@ -215,14 +247,18 @@ impl WorkloadModelSelector {
         }
 
         candidates.into_iter().max_by(|a, b| {
-            self.score(a, req).partial_cmp(&self.score(b, req)).unwrap_or(std::cmp::Ordering::Equal)
+            self.score(a, req)
+                .partial_cmp(&self.score(b, req))
+                .unwrap_or(std::cmp::Ordering::Equal)
         })
     }
 
     /// Select with fallback: if preferred model exceeds budget, degrade in quality order.
     pub fn select_with_fallback<'a>(&'a self, req: &SelectionRequest) -> Option<&'a ModelProfile> {
         // Try exact selection first
-        if let Some(m) = self.select(req) { return Some(m); }
+        if let Some(m) = self.select(req) {
+            return Some(m);
+        }
 
         // Fallback: relax budget, return cheapest eligible
         let mut candidates = self.eligible(req);
@@ -235,14 +271,23 @@ impl WorkloadModelSelector {
     }
 
     /// Record usage after a completed request.
-    pub fn record_usage(&mut self, model_id: &str, input_tokens: u64, output_tokens: u64, latency_ms: u64) {
+    pub fn record_usage(
+        &mut self,
+        model_id: &str,
+        input_tokens: u64,
+        output_tokens: u64,
+        latency_ms: u64,
+    ) {
         let entry = self.telemetry.entry(model_id.to_string()).or_default();
         entry.requests += 1;
         entry.total_input_tokens += input_tokens;
         entry.total_output_tokens += output_tokens;
 
         // Look up model cost
-        let cost = self.models.iter().find(|m| m.id == model_id)
+        let cost = self
+            .models
+            .iter()
+            .find(|m| m.id == model_id)
             .map(|m| m.estimate_cost(input_tokens, output_tokens))
             .unwrap_or(0.0);
         entry.total_cost_usd += cost;
@@ -252,22 +297,31 @@ impl WorkloadModelSelector {
         if entry.requests == 1 {
             entry.observed_latency_ms = latency_ms as f64;
         } else {
-            entry.observed_latency_ms = alpha * latency_ms as f64 + (1.0 - alpha) * entry.observed_latency_ms;
+            entry.observed_latency_ms =
+                alpha * latency_ms as f64 + (1.0 - alpha) * entry.observed_latency_ms;
         }
     }
 
     /// Detect models whose observed latency is 2× worse than declared class.
     pub fn latency_drift_alerts(&self) -> Vec<String> {
-        self.telemetry.iter().filter_map(|(id, tel)| {
-            if tel.requests < 5 { return None; }
-            let model = self.models.iter().find(|m| &m.id == id)?;
-            let declared = model.latency.median_ms() as f64;
-            if tel.observed_latency_ms > declared * 2.0 {
-                Some(format!("{id}: observed {:.0}ms vs declared {:.0}ms", tel.observed_latency_ms, declared))
-            } else {
-                None
-            }
-        }).collect()
+        self.telemetry
+            .iter()
+            .filter_map(|(id, tel)| {
+                if tel.requests < 5 {
+                    return None;
+                }
+                let model = self.models.iter().find(|m| &m.id == id)?;
+                let declared = model.latency.median_ms() as f64;
+                if tel.observed_latency_ms > declared * 2.0 {
+                    Some(format!(
+                        "{id}: observed {:.0}ms vs declared {:.0}ms",
+                        tel.observed_latency_ms, declared
+                    ))
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     /// Cost breakdown by provider across all telemetry.
@@ -287,46 +341,106 @@ impl WorkloadModelSelector {
 pub fn builtin_profiles() -> Vec<ModelProfile> {
     vec![
         ModelProfile {
-            id: "claude-opus-4-6".into(), provider: "anthropic".into(),
-            cost_per_1m_in: 15.0, cost_per_1m_out: 75.0,
-            context_window: 200_000, latency: LatencyClass::Medium,
+            id: "claude-opus-4-6".into(),
+            provider: "anthropic".into(),
+            cost_per_1m_in: 15.0,
+            cost_per_1m_out: 75.0,
+            context_window: 200_000,
+            latency: LatencyClass::Medium,
             quality_score: 0.98,
-            capabilities: Capabilities { code: true, function_calling: true, streaming: true, long_context: true, vision: true, fim: false },
+            capabilities: Capabilities {
+                code: true,
+                function_calling: true,
+                streaming: true,
+                long_context: true,
+                vision: true,
+                fim: false,
+            },
         },
         ModelProfile {
-            id: "claude-sonnet-4-6".into(), provider: "anthropic".into(),
-            cost_per_1m_in: 3.0, cost_per_1m_out: 15.0,
-            context_window: 200_000, latency: LatencyClass::Fast,
+            id: "claude-sonnet-4-6".into(),
+            provider: "anthropic".into(),
+            cost_per_1m_in: 3.0,
+            cost_per_1m_out: 15.0,
+            context_window: 200_000,
+            latency: LatencyClass::Fast,
             quality_score: 0.92,
-            capabilities: Capabilities { code: true, function_calling: true, streaming: true, long_context: true, vision: true, fim: false },
+            capabilities: Capabilities {
+                code: true,
+                function_calling: true,
+                streaming: true,
+                long_context: true,
+                vision: true,
+                fim: false,
+            },
         },
         ModelProfile {
-            id: "claude-haiku-4-5".into(), provider: "anthropic".into(),
-            cost_per_1m_in: 0.8, cost_per_1m_out: 4.0,
-            context_window: 200_000, latency: LatencyClass::UltraFast,
+            id: "claude-haiku-4-5".into(),
+            provider: "anthropic".into(),
+            cost_per_1m_in: 0.8,
+            cost_per_1m_out: 4.0,
+            context_window: 200_000,
+            latency: LatencyClass::UltraFast,
             quality_score: 0.80,
-            capabilities: Capabilities { code: true, function_calling: true, streaming: true, long_context: true, vision: false, fim: false },
+            capabilities: Capabilities {
+                code: true,
+                function_calling: true,
+                streaming: true,
+                long_context: true,
+                vision: false,
+                fim: false,
+            },
         },
         ModelProfile {
-            id: "gpt-4o".into(), provider: "openai".into(),
-            cost_per_1m_in: 5.0, cost_per_1m_out: 15.0,
-            context_window: 128_000, latency: LatencyClass::Fast,
+            id: "gpt-4o".into(),
+            provider: "openai".into(),
+            cost_per_1m_in: 5.0,
+            cost_per_1m_out: 15.0,
+            context_window: 128_000,
+            latency: LatencyClass::Fast,
             quality_score: 0.93,
-            capabilities: Capabilities { code: true, function_calling: true, streaming: true, long_context: false, vision: true, fim: false },
+            capabilities: Capabilities {
+                code: true,
+                function_calling: true,
+                streaming: true,
+                long_context: false,
+                vision: true,
+                fim: false,
+            },
         },
         ModelProfile {
-            id: "gpt-4o-mini".into(), provider: "openai".into(),
-            cost_per_1m_in: 0.15, cost_per_1m_out: 0.60,
-            context_window: 128_000, latency: LatencyClass::UltraFast,
+            id: "gpt-4o-mini".into(),
+            provider: "openai".into(),
+            cost_per_1m_in: 0.15,
+            cost_per_1m_out: 0.60,
+            context_window: 128_000,
+            latency: LatencyClass::UltraFast,
             quality_score: 0.75,
-            capabilities: Capabilities { code: true, function_calling: true, streaming: true, long_context: false, vision: false, fim: false },
+            capabilities: Capabilities {
+                code: true,
+                function_calling: true,
+                streaming: true,
+                long_context: false,
+                vision: false,
+                fim: false,
+            },
         },
         ModelProfile {
-            id: "deepseek-r1".into(), provider: "deepseek".into(),
-            cost_per_1m_in: 0.55, cost_per_1m_out: 2.19,
-            context_window: 128_000, latency: LatencyClass::Medium,
+            id: "deepseek-r1".into(),
+            provider: "deepseek".into(),
+            cost_per_1m_in: 0.55,
+            cost_per_1m_out: 2.19,
+            context_window: 128_000,
+            latency: LatencyClass::Medium,
             quality_score: 0.88,
-            capabilities: Capabilities { code: true, function_calling: true, streaming: true, long_context: false, vision: false, fim: true },
+            capabilities: Capabilities {
+                code: true,
+                function_calling: true,
+                streaming: true,
+                long_context: false,
+                vision: false,
+                fim: true,
+            },
         },
     ]
 }
@@ -341,36 +455,56 @@ mod tests {
         WorkloadModelSelector::new(builtin_profiles())
     }
 
-    fn chat_req() -> SelectionRequest { SelectionRequest::chat(1000) }
+    fn chat_req() -> SelectionRequest {
+        SelectionRequest::chat(1000)
+    }
 
     #[test]
     fn test_workload_classify_chat() {
-        assert_eq!(WorkloadType::classify("how do I sort a list?"), WorkloadType::Chat);
+        assert_eq!(
+            WorkloadType::classify("how do I sort a list?"),
+            WorkloadType::Chat
+        );
     }
 
     #[test]
     fn test_workload_classify_review() {
-        assert_eq!(WorkloadType::classify("review this pull request"), WorkloadType::Review);
+        assert_eq!(
+            WorkloadType::classify("review this pull request"),
+            WorkloadType::Review
+        );
     }
 
     #[test]
     fn test_workload_classify_edit() {
-        assert_eq!(WorkloadType::classify("refactor this function"), WorkloadType::Edit);
+        assert_eq!(
+            WorkloadType::classify("refactor this function"),
+            WorkloadType::Edit
+        );
     }
 
     #[test]
     fn test_workload_classify_agent() {
-        assert_eq!(WorkloadType::classify("plan and act on deploying the service"), WorkloadType::AgentLoop);
+        assert_eq!(
+            WorkloadType::classify("plan and act on deploying the service"),
+            WorkloadType::AgentLoop
+        );
     }
 
     #[test]
     fn test_workload_classify_embedding() {
-        assert_eq!(WorkloadType::classify("generate vector embedding"), WorkloadType::Embedding);
+        assert_eq!(
+            WorkloadType::classify("generate vector embedding"),
+            WorkloadType::Embedding
+        );
     }
 
     #[test]
     fn test_workload_classify_fim() {
-        assert_eq!(WorkloadType::classify("fill in the middle completion"), WorkloadType::Completion);
+        assert_eq!(
+            WorkloadType::classify("fill in the middle completion"),
+            WorkloadType::Completion
+        );
     }
 
     #[test]

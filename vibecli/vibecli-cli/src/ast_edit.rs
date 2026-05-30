@@ -154,7 +154,13 @@ pub struct AstNode {
 }
 
 impl AstNode {
-    pub fn new(kind: AstNodeKind, name: &str, start_line: usize, end_line: usize, language: Language) -> Self {
+    pub fn new(
+        kind: AstNodeKind,
+        name: &str,
+        start_line: usize,
+        end_line: usize,
+        language: Language,
+    ) -> Self {
         let id = format!("{}::{}@{}-{}", kind.as_str(), name, start_line, end_line);
         Self {
             id,
@@ -285,7 +291,13 @@ pub struct AstEditResult {
 }
 
 impl AstEditResult {
-    fn ok(edit_id: &str, orig: (usize, usize), new: (usize, usize), added: i32, removed: i32) -> Self {
+    fn ok(
+        edit_id: &str,
+        orig: (usize, usize),
+        new: (usize, usize),
+        added: i32,
+        removed: i32,
+    ) -> Self {
         Self {
             edit_id: edit_id.to_string(),
             success: true,
@@ -356,13 +368,15 @@ impl FileAst {
                 let name = extract_name_after_keyword(trimmed, "fn ");
                 let end = find_brace_block_end(&lines, i);
                 let sig = trimmed.trim_end_matches('{').trim().to_string();
-                let mut node = AstNode::new(AstNodeKind::Function, &name, line_num, end, Language::Rust);
+                let mut node =
+                    AstNode::new(AstNodeKind::Function, &name, line_num, end, Language::Rust);
                 node.signature = Some(sig);
                 nodes.push(node);
                 i = end;
                 continue;
             }
-            if trimmed.starts_with("pub struct ") || trimmed.starts_with("struct ")
+            if trimmed.starts_with("pub struct ")
+                || trimmed.starts_with("struct ")
                 || trimmed.starts_with("pub(crate) struct ")
             {
                 let name = extract_name_after_keyword(trimmed, "struct ");
@@ -371,18 +385,21 @@ impl FileAst {
                 } else {
                     line_num
                 };
-                let mut node = AstNode::new(AstNodeKind::Struct, &name, line_num, end, Language::Rust);
+                let mut node =
+                    AstNode::new(AstNodeKind::Struct, &name, line_num, end, Language::Rust);
                 node.signature = Some(trimmed.to_string());
                 nodes.push(node);
                 i = end;
                 continue;
             }
-            if trimmed.starts_with("pub enum ") || trimmed.starts_with("enum ")
+            if trimmed.starts_with("pub enum ")
+                || trimmed.starts_with("enum ")
                 || trimmed.starts_with("pub(crate) enum ")
             {
                 let name = extract_name_after_keyword(trimmed, "enum ");
                 let end = find_brace_block_end(&lines, i);
-                let mut node = AstNode::new(AstNodeKind::Enum, &name, line_num, end, Language::Rust);
+                let mut node =
+                    AstNode::new(AstNodeKind::Enum, &name, line_num, end, Language::Rust);
                 node.signature = Some(trimmed.to_string());
                 nodes.push(node);
                 i = end;
@@ -391,7 +408,8 @@ impl FileAst {
             if trimmed.starts_with("pub trait ") || trimmed.starts_with("trait ") {
                 let name = extract_name_after_keyword(trimmed, "trait ");
                 let end = find_brace_block_end(&lines, i);
-                let mut node = AstNode::new(AstNodeKind::Trait, &name, line_num, end, Language::Rust);
+                let mut node =
+                    AstNode::new(AstNodeKind::Trait, &name, line_num, end, Language::Rust);
                 node.signature = Some(trimmed.to_string());
                 nodes.push(node);
                 i = end;
@@ -400,7 +418,8 @@ impl FileAst {
             if trimmed.starts_with("impl ") || trimmed.starts_with("impl<") {
                 let name = extract_impl_name(trimmed);
                 let end = find_brace_block_end(&lines, i);
-                let mut node = AstNode::new(AstNodeKind::Impl, &name, line_num, end, Language::Rust);
+                let mut node =
+                    AstNode::new(AstNodeKind::Impl, &name, line_num, end, Language::Rust);
                 node.signature = Some(trimmed.to_string());
                 let mut j = i + 1;
                 while j < end.saturating_sub(1).max(i + 1) && j < lines.len() {
@@ -409,7 +428,8 @@ impl FileAst {
                         let mname = extract_name_after_keyword(inner, "fn ");
                         let mend = find_brace_block_end(&lines, j);
                         let msig = inner.trim_end_matches('{').trim().to_string();
-                        let mut method = AstNode::new(AstNodeKind::Method, &mname, j + 1, mend, Language::Rust);
+                        let mut method =
+                            AstNode::new(AstNodeKind::Method, &mname, j + 1, mend, Language::Rust);
                         method.signature = Some(msig);
                         node.add_child(method);
                         j = mend;
@@ -429,27 +449,55 @@ impl FileAst {
                 } else {
                     line_num
                 };
-                nodes.push(AstNode::new(AstNodeKind::Module, &name, line_num, end, Language::Rust));
+                nodes.push(AstNode::new(
+                    AstNodeKind::Module,
+                    &name,
+                    line_num,
+                    end,
+                    Language::Rust,
+                ));
                 i = end;
                 continue;
             }
             if trimmed.starts_with("use ") || trimmed.starts_with("pub use ") {
                 let import_text = trimmed.trim_end_matches(';').to_string();
-                nodes.push(AstNode::new(AstNodeKind::Import, &import_text, line_num, line_num, Language::Rust));
+                nodes.push(AstNode::new(
+                    AstNodeKind::Import,
+                    &import_text,
+                    line_num,
+                    line_num,
+                    Language::Rust,
+                ));
                 i += 1;
                 continue;
             }
             if trimmed.starts_with("pub const ") || trimmed.starts_with("const ") {
                 let name = extract_name_after_keyword(trimmed, "const ");
                 let name = name.split(':').next().unwrap_or(&name).to_string();
-                nodes.push(AstNode::new(AstNodeKind::Constant, &name, line_num, line_num, Language::Rust));
+                nodes.push(AstNode::new(
+                    AstNodeKind::Constant,
+                    &name,
+                    line_num,
+                    line_num,
+                    Language::Rust,
+                ));
                 i += 1;
                 continue;
             }
             if trimmed.starts_with("pub type ") || trimmed.starts_with("type ") {
                 let name = extract_name_after_keyword(trimmed, "type ");
-                let name = name.split(['=', '<', ' ']).next().unwrap_or(&name).to_string();
-                nodes.push(AstNode::new(AstNodeKind::TypeAlias, &name, line_num, line_num, Language::Rust));
+                let name = name
+                    .split(['=', '<', ' '])
+                    .next()
+                    .unwrap_or(&name)
+                    .to_string();
+                nodes.push(AstNode::new(
+                    AstNodeKind::TypeAlias,
+                    &name,
+                    line_num,
+                    line_num,
+                    Language::Rust,
+                ));
                 i += 1;
                 continue;
             }
@@ -467,23 +515,39 @@ impl FileAst {
             let trimmed = lines[i].trim();
             let line_num = i + 1;
 
-            if trimmed.starts_with("function ") || trimmed.starts_with("export function ")
-                || trimmed.starts_with("async function ") || trimmed.starts_with("export async function ")
+            if trimmed.starts_with("function ")
+                || trimmed.starts_with("export function ")
+                || trimmed.starts_with("async function ")
+                || trimmed.starts_with("export async function ")
             {
                 let name = extract_name_after_keyword(trimmed, "function ");
                 let end = find_brace_block_end(&lines, i);
-                let mut node = AstNode::new(AstNodeKind::Function, &name, line_num, end, Language::TypeScript);
+                let mut node = AstNode::new(
+                    AstNodeKind::Function,
+                    &name,
+                    line_num,
+                    end,
+                    Language::TypeScript,
+                );
                 node.signature = Some(trimmed.trim_end_matches('{').trim().to_string());
                 nodes.push(node);
                 i = end;
                 continue;
             }
-            if trimmed.starts_with("class ") || trimmed.starts_with("export class ")
-                || trimmed.starts_with("abstract class ") || trimmed.starts_with("export abstract class ")
+            if trimmed.starts_with("class ")
+                || trimmed.starts_with("export class ")
+                || trimmed.starts_with("abstract class ")
+                || trimmed.starts_with("export abstract class ")
             {
                 let name = extract_name_after_keyword(trimmed, "class ");
                 let end = find_brace_block_end(&lines, i);
-                let mut node = AstNode::new(AstNodeKind::Class, &name, line_num, end, Language::TypeScript);
+                let mut node = AstNode::new(
+                    AstNodeKind::Class,
+                    &name,
+                    line_num,
+                    end,
+                    Language::TypeScript,
+                );
                 node.signature = Some(trimmed.trim_end_matches('{').trim().to_string());
                 nodes.push(node);
                 i = end;
@@ -492,32 +556,76 @@ impl FileAst {
             if trimmed.starts_with("interface ") || trimmed.starts_with("export interface ") {
                 let name = extract_name_after_keyword(trimmed, "interface ");
                 let end = find_brace_block_end(&lines, i);
-                nodes.push(AstNode::new(AstNodeKind::Interface, &name, line_num, end, Language::TypeScript));
+                nodes.push(AstNode::new(
+                    AstNodeKind::Interface,
+                    &name,
+                    line_num,
+                    end,
+                    Language::TypeScript,
+                ));
                 i = end;
                 continue;
             }
             if trimmed.starts_with("import ") {
                 let import_text = trimmed.trim_end_matches(';').to_string();
-                nodes.push(AstNode::new(AstNodeKind::Import, &import_text, line_num, line_num, Language::TypeScript));
+                nodes.push(AstNode::new(
+                    AstNodeKind::Import,
+                    &import_text,
+                    line_num,
+                    line_num,
+                    Language::TypeScript,
+                ));
                 i += 1;
                 continue;
             }
-            if (trimmed.starts_with("const ") || trimmed.starts_with("export const ")
-                || trimmed.starts_with("let ") || trimmed.starts_with("var "))
+            if (trimmed.starts_with("const ")
+                || trimmed.starts_with("export const ")
+                || trimmed.starts_with("let ")
+                || trimmed.starts_with("var "))
                 && trimmed.contains('=')
             {
-                let kw = if trimmed.contains("const ") { "const " } else if trimmed.contains("let ") { "let " } else { "var " };
+                let kw = if trimmed.contains("const ") {
+                    "const "
+                } else if trimmed.contains("let ") {
+                    "let "
+                } else {
+                    "var "
+                };
                 let name = extract_name_after_keyword(trimmed, kw);
-                let name = name.split([' ', ':', '=']).next().unwrap_or(&name).to_string();
-                let kind = if trimmed.contains("const ") { AstNodeKind::Constant } else { AstNodeKind::Variable };
-                nodes.push(AstNode::new(kind, &name, line_num, line_num, Language::TypeScript));
+                let name = name
+                    .split([' ', ':', '='])
+                    .next()
+                    .unwrap_or(&name)
+                    .to_string();
+                let kind = if trimmed.contains("const ") {
+                    AstNodeKind::Constant
+                } else {
+                    AstNodeKind::Variable
+                };
+                nodes.push(AstNode::new(
+                    kind,
+                    &name,
+                    line_num,
+                    line_num,
+                    Language::TypeScript,
+                ));
                 i += 1;
                 continue;
             }
             if trimmed.starts_with("type ") || trimmed.starts_with("export type ") {
                 let name = extract_name_after_keyword(trimmed, "type ");
-                let name = name.split(['=', '<', ' ']).next().unwrap_or(&name).to_string();
-                nodes.push(AstNode::new(AstNodeKind::TypeAlias, &name, line_num, line_num, Language::TypeScript));
+                let name = name
+                    .split(['=', '<', ' '])
+                    .next()
+                    .unwrap_or(&name)
+                    .to_string();
+                nodes.push(AstNode::new(
+                    AstNodeKind::TypeAlias,
+                    &name,
+                    line_num,
+                    line_num,
+                    Language::TypeScript,
+                ));
                 i += 1;
                 continue;
             }
@@ -538,7 +646,13 @@ impl FileAst {
             if trimmed.starts_with("def ") || trimmed.starts_with("async def ") {
                 let name = extract_name_after_keyword(trimmed, "def ");
                 let end = find_python_block_end(&lines, i);
-                let mut node = AstNode::new(AstNodeKind::Function, &name, line_num, end, Language::Python);
+                let mut node = AstNode::new(
+                    AstNodeKind::Function,
+                    &name,
+                    line_num,
+                    end,
+                    Language::Python,
+                );
                 node.signature = Some(trimmed.trim_end_matches(':').trim().to_string());
                 nodes.push(node);
                 i = end;
@@ -546,9 +660,15 @@ impl FileAst {
             }
             if trimmed.starts_with("class ") {
                 let name = extract_name_after_keyword(trimmed, "class ");
-                let name = name.trim_end_matches(':').split('(').next().unwrap_or(&name).to_string();
+                let name = name
+                    .trim_end_matches(':')
+                    .split('(')
+                    .next()
+                    .unwrap_or(&name)
+                    .to_string();
                 let end = find_python_block_end(&lines, i);
-                let mut node = AstNode::new(AstNodeKind::Class, &name, line_num, end, Language::Python);
+                let mut node =
+                    AstNode::new(AstNodeKind::Class, &name, line_num, end, Language::Python);
                 node.signature = Some(trimmed.trim_end_matches(':').trim().to_string());
                 let base_indent = leading_spaces(lines[i]);
                 let mut j = i + 1;
@@ -559,7 +679,13 @@ impl FileAst {
                     {
                         let mname = extract_name_after_keyword(inner, "def ");
                         let mend = find_python_block_end(&lines, j);
-                        let mut method = AstNode::new(AstNodeKind::Method, &mname, j + 1, mend, Language::Python);
+                        let mut method = AstNode::new(
+                            AstNodeKind::Method,
+                            &mname,
+                            j + 1,
+                            mend,
+                            Language::Python,
+                        );
                         method.signature = Some(inner.trim_end_matches(':').trim().to_string());
                         node.add_child(method);
                         j = mend;
@@ -572,7 +698,13 @@ impl FileAst {
                 continue;
             }
             if trimmed.starts_with("import ") || trimmed.starts_with("from ") {
-                nodes.push(AstNode::new(AstNodeKind::Import, trimmed, line_num, line_num, Language::Python));
+                nodes.push(AstNode::new(
+                    AstNodeKind::Import,
+                    trimmed,
+                    line_num,
+                    line_num,
+                    Language::Python,
+                ));
                 i += 1;
                 continue;
             }
@@ -692,14 +824,16 @@ impl AstEditor {
 
     /// Apply a single pending edit by id.
     pub fn apply_edit(&mut self, edit_id: &str) -> Result<AstEditResult, String> {
-        let edit_idx = self.pending_edits.iter().position(|e| e.id == edit_id)
+        let edit_idx = self
+            .pending_edits
+            .iter()
+            .position(|e| e.id == edit_id)
             .ok_or_else(|| format!("Edit '{}' not found", edit_id))?;
 
         if self.pending_edits[edit_idx].confidence < self.config.min_confidence {
             return Err(format!(
                 "Edit confidence {:.2} below minimum {:.2}",
-                self.pending_edits[edit_idx].confidence,
-                self.config.min_confidence
+                self.pending_edits[edit_idx].confidence, self.config.min_confidence
             ));
         }
 
@@ -735,8 +869,14 @@ impl AstEditor {
                 let end = node.end_line.min(lines.len());
                 let original: Vec<&str> = lines[start..end].to_vec();
                 let mut preview = String::new();
-                preview.push_str(&format!("--- {} (lines {}-{})\n", file.file_path, node.start_line, node.end_line));
-                preview.push_str(&format!("+++ {} ({:?})\n", edit.target_node, edit.operation));
+                preview.push_str(&format!(
+                    "--- {} (lines {}-{})\n",
+                    file.file_path, node.start_line, node.end_line
+                ));
+                preview.push_str(&format!(
+                    "+++ {} ({:?})\n",
+                    edit.target_node, edit.operation
+                ));
                 for line in &original {
                     preview.push_str(&format!("- {}\n", line));
                 }
@@ -773,9 +913,15 @@ impl AstEditor {
         }
 
         for edit in &self.pending_edits {
-            let found = self.files.iter().any(|f| find_node_by_target(&f.nodes, &edit.target_node).is_some());
+            let found = self
+                .files
+                .iter()
+                .any(|f| find_node_by_target(&f.nodes, &edit.target_node).is_some());
             if !found {
-                warnings.push(format!("Target '{}' not found in any loaded file", edit.target_node));
+                warnings.push(format!(
+                    "Target '{}' not found in any loaded file",
+                    edit.target_node
+                ));
             }
         }
 
@@ -783,12 +929,18 @@ impl AstEditor {
     }
 
     fn execute_edit(&mut self, edit: &AstEdit) -> AstEditResult {
-        let file_idx = self.files.iter().position(|f| {
-            find_node_by_target(&f.nodes, &edit.target_node).is_some()
-        });
+        let file_idx = self
+            .files
+            .iter()
+            .position(|f| find_node_by_target(&f.nodes, &edit.target_node).is_some());
         let file_idx = match file_idx {
             Some(idx) => idx,
-            None => return AstEditResult::fail(&edit.id, &format!("Target '{}' not found", edit.target_node)),
+            None => {
+                return AstEditResult::fail(
+                    &edit.id,
+                    &format!("Target '{}' not found", edit.target_node),
+                )
+            }
         };
 
         let file = &self.files[file_idx];
@@ -824,7 +976,9 @@ impl AstEditor {
             EditOperation::InsertBefore => {
                 let content = match &edit.new_content {
                     Some(c) => c.clone(),
-                    None => return AstEditResult::fail(&edit.id, "InsertBefore requires new_content"),
+                    None => {
+                        return AstEditResult::fail(&edit.id, "InsertBefore requires new_content")
+                    }
                 };
                 let mut result_lines: Vec<String> = Vec::new();
                 for line in &lines[..orig_start.saturating_sub(1)] {
@@ -841,7 +995,9 @@ impl AstEditor {
             EditOperation::InsertAfter => {
                 let content = match &edit.new_content {
                     Some(c) => c.clone(),
-                    None => return AstEditResult::fail(&edit.id, "InsertAfter requires new_content"),
+                    None => {
+                        return AstEditResult::fail(&edit.id, "InsertAfter requires new_content")
+                    }
                 };
                 let mut result_lines: Vec<String> = Vec::new();
                 let insert_at = orig_end.min(lines.len());
@@ -869,13 +1025,19 @@ impl AstEditor {
             EditOperation::Wrap => {
                 let wrapper = match &edit.new_content {
                     Some(c) => c.clone(),
-                    None => return AstEditResult::fail(&edit.id, "Wrap requires new_content (wrapper template)"),
+                    None => {
+                        return AstEditResult::fail(
+                            &edit.id,
+                            "Wrap requires new_content (wrapper template)",
+                        )
+                    }
                 };
                 let mut result_lines: Vec<String> = Vec::new();
                 for line in &lines[..orig_start.saturating_sub(1)] {
                     result_lines.push(line.to_string());
                 }
-                let body: Vec<&str> = lines[orig_start.saturating_sub(1)..orig_end.min(lines.len())].to_vec();
+                let body: Vec<&str> =
+                    lines[orig_start.saturating_sub(1)..orig_end.min(lines.len())].to_vec();
                 let body_str = body.join("\n");
                 let wrapped = wrapper.replace("{body}", &body_str);
                 for line in wrapped.lines() {
@@ -891,15 +1053,23 @@ impl AstEditor {
             EditOperation::Rename => {
                 let new_name = match &edit.new_content {
                     Some(c) => c.clone(),
-                    None => return AstEditResult::fail(&edit.id, "Rename requires new_content (new name)"),
+                    None => {
+                        return AstEditResult::fail(
+                            &edit.id,
+                            "Rename requires new_content (new name)",
+                        )
+                    }
                 };
                 let old_name = &node.name;
                 file.content.replace(old_name.as_str(), &new_name)
             }
             EditOperation::Move => {
                 let mut result_lines: Vec<String> = Vec::new();
-                let moved_lines: Vec<String> = lines[orig_start.saturating_sub(1)..orig_end.min(lines.len())]
-                    .iter().map(|l| l.to_string()).collect();
+                let moved_lines: Vec<String> = lines
+                    [orig_start.saturating_sub(1)..orig_end.min(lines.len())]
+                    .iter()
+                    .map(|l| l.to_string())
+                    .collect();
                 for (i, line) in lines.iter().enumerate() {
                     let ln = i + 1;
                     if ln < orig_start || ln > orig_end {
@@ -924,7 +1094,10 @@ impl AstEditor {
         AstEditResult::ok(
             &edit.id,
             (orig_start, orig_end),
-            (orig_start, (orig_start as i32 + actually_added - 1).max(orig_start as i32) as usize),
+            (
+                orig_start,
+                (orig_start as i32 + actually_added - 1).max(orig_start as i32) as usize,
+            ),
             actually_added.max(0),
             removed,
         )
@@ -950,7 +1123,9 @@ fn is_rust_fn(trimmed: &str) -> bool {
 fn extract_name_after_keyword(line: &str, keyword: &str) -> String {
     if let Some(idx) = line.find(keyword) {
         let rest = &line[idx + keyword.len()..];
-        let end = rest.find([' ', '{', '(', '<', ':', ';', '\n']).unwrap_or(rest.len());
+        let end = rest
+            .find([' ', '{', '(', '<', ':', ';', '\n'])
+            .unwrap_or(rest.len());
         rest[..end].to_string()
     } else {
         "unknown".to_string()
@@ -977,10 +1152,14 @@ fn extract_impl_name(line: &str) -> String {
 fn find_matching_angle(s: &str) -> Option<usize> {
     let mut depth = 0i32;
     for (i, ch) in s.chars().enumerate() {
-        if ch == '<' { depth += 1; }
+        if ch == '<' {
+            depth += 1;
+        }
         if ch == '>' {
             depth -= 1;
-            if depth == 0 { return Some(i); }
+            if depth == 0 {
+                return Some(i);
+            }
         }
     }
     None
@@ -991,8 +1170,13 @@ fn find_brace_block_end(lines: &[&str], start: usize) -> usize {
     let mut found_open = false;
     for (i, line) in lines[start..].iter().enumerate() {
         for ch in line.chars() {
-            if ch == '{' { depth += 1; found_open = true; }
-            if ch == '}' { depth -= 1; }
+            if ch == '{' {
+                depth += 1;
+                found_open = true;
+            }
+            if ch == '}' {
+                depth -= 1;
+            }
         }
         if found_open && depth <= 0 {
             return start + i + 1;
@@ -1188,8 +1372,20 @@ mod tests {
     #[test]
     fn test_ast_node_find_by_name() {
         let mut parent = AstNode::new(AstNodeKind::Impl, "Foo", 1, 20, Language::Rust);
-        parent.add_child(AstNode::new(AstNodeKind::Method, "bar", 3, 5, Language::Rust));
-        parent.add_child(AstNode::new(AstNodeKind::Method, "baz", 7, 10, Language::Rust));
+        parent.add_child(AstNode::new(
+            AstNodeKind::Method,
+            "bar",
+            3,
+            5,
+            Language::Rust,
+        ));
+        parent.add_child(AstNode::new(
+            AstNodeKind::Method,
+            "baz",
+            7,
+            10,
+            Language::Rust,
+        ));
 
         assert!(parent.find_by_name("bar").is_some());
         assert!(parent.find_by_name("baz").is_some());
@@ -1200,7 +1396,13 @@ mod tests {
     fn test_ast_node_find_by_path() {
         let mut parent = AstNode::new(AstNodeKind::Struct, "root", 1, 30, Language::Rust);
         let mut child = AstNode::new(AstNodeKind::Impl, "Config", 5, 25, Language::Rust);
-        child.add_child(AstNode::new(AstNodeKind::Method, "new", 7, 10, Language::Rust));
+        child.add_child(AstNode::new(
+            AstNodeKind::Method,
+            "new",
+            7,
+            10,
+            Language::Rust,
+        ));
         parent.add_child(child);
 
         assert!(parent.find_by_path("Config").is_some());
@@ -1273,14 +1475,18 @@ pub trait Printable {
     #[test]
     fn test_parse_rust_finds_struct() {
         let nodes = FileAst::parse_rust(RUST_SAMPLE);
-        let struct_node = nodes.iter().find(|n| n.kind == AstNodeKind::Struct && n.name == "Config");
+        let struct_node = nodes
+            .iter()
+            .find(|n| n.kind == AstNodeKind::Struct && n.name == "Config");
         assert!(struct_node.is_some());
     }
 
     #[test]
     fn test_parse_rust_finds_impl_with_methods() {
         let nodes = FileAst::parse_rust(RUST_SAMPLE);
-        let impl_node = nodes.iter().find(|n| n.kind == AstNodeKind::Impl && n.name == "Config");
+        let impl_node = nodes
+            .iter()
+            .find(|n| n.kind == AstNodeKind::Impl && n.name == "Config");
         assert!(impl_node.is_some());
         let impl_node = impl_node.unwrap();
         assert!(impl_node.children.len() >= 2);
@@ -1291,38 +1497,51 @@ pub trait Printable {
     #[test]
     fn test_parse_rust_finds_enum() {
         let nodes = FileAst::parse_rust(RUST_SAMPLE);
-        assert!(nodes.iter().any(|n| n.kind == AstNodeKind::Enum && n.name == "Color"));
+        assert!(nodes
+            .iter()
+            .any(|n| n.kind == AstNodeKind::Enum && n.name == "Color"));
     }
 
     #[test]
     fn test_parse_rust_finds_function() {
         let nodes = FileAst::parse_rust(RUST_SAMPLE);
-        assert!(nodes.iter().any(|n| n.kind == AstNodeKind::Function && n.name == "main"));
+        assert!(nodes
+            .iter()
+            .any(|n| n.kind == AstNodeKind::Function && n.name == "main"));
     }
 
     #[test]
     fn test_parse_rust_finds_imports() {
         let nodes = FileAst::parse_rust(RUST_SAMPLE);
-        let imports: Vec<_> = nodes.iter().filter(|n| n.kind == AstNodeKind::Import).collect();
+        let imports: Vec<_> = nodes
+            .iter()
+            .filter(|n| n.kind == AstNodeKind::Import)
+            .collect();
         assert_eq!(imports.len(), 2);
     }
 
     #[test]
     fn test_parse_rust_finds_const() {
         let nodes = FileAst::parse_rust(RUST_SAMPLE);
-        assert!(nodes.iter().any(|n| n.kind == AstNodeKind::Constant && n.name == "MAX_RETRIES"));
+        assert!(nodes
+            .iter()
+            .any(|n| n.kind == AstNodeKind::Constant && n.name == "MAX_RETRIES"));
     }
 
     #[test]
     fn test_parse_rust_finds_type_alias() {
         let nodes = FileAst::parse_rust(RUST_SAMPLE);
-        assert!(nodes.iter().any(|n| n.kind == AstNodeKind::TypeAlias && n.name == "Result"));
+        assert!(nodes
+            .iter()
+            .any(|n| n.kind == AstNodeKind::TypeAlias && n.name == "Result"));
     }
 
     #[test]
     fn test_parse_rust_finds_trait() {
         let nodes = FileAst::parse_rust(RUST_SAMPLE);
-        assert!(nodes.iter().any(|n| n.kind == AstNodeKind::Trait && n.name == "Printable"));
+        assert!(nodes
+            .iter()
+            .any(|n| n.kind == AstNodeKind::Trait && n.name == "Printable"));
     }
 
     #[test]
@@ -1377,38 +1596,51 @@ type UserId = number;
     #[test]
     fn test_parse_typescript_imports() {
         let nodes = FileAst::parse_typescript(TS_SAMPLE);
-        let imports: Vec<_> = nodes.iter().filter(|n| n.kind == AstNodeKind::Import).collect();
+        let imports: Vec<_> = nodes
+            .iter()
+            .filter(|n| n.kind == AstNodeKind::Import)
+            .collect();
         assert_eq!(imports.len(), 2);
     }
 
     #[test]
     fn test_parse_typescript_interface() {
         let nodes = FileAst::parse_typescript(TS_SAMPLE);
-        assert!(nodes.iter().any(|n| n.kind == AstNodeKind::Interface && n.name == "User"));
+        assert!(nodes
+            .iter()
+            .any(|n| n.kind == AstNodeKind::Interface && n.name == "User"));
     }
 
     #[test]
     fn test_parse_typescript_class() {
         let nodes = FileAst::parse_typescript(TS_SAMPLE);
-        assert!(nodes.iter().any(|n| n.kind == AstNodeKind::Class && n.name == "UserService"));
+        assert!(nodes
+            .iter()
+            .any(|n| n.kind == AstNodeKind::Class && n.name == "UserService"));
     }
 
     #[test]
     fn test_parse_typescript_function() {
         let nodes = FileAst::parse_typescript(TS_SAMPLE);
-        assert!(nodes.iter().any(|n| n.kind == AstNodeKind::Function && n.name == "greet"));
+        assert!(nodes
+            .iter()
+            .any(|n| n.kind == AstNodeKind::Function && n.name == "greet"));
     }
 
     #[test]
     fn test_parse_typescript_const() {
         let nodes = FileAst::parse_typescript(TS_SAMPLE);
-        assert!(nodes.iter().any(|n| n.kind == AstNodeKind::Constant && n.name == "MAX_USERS"));
+        assert!(nodes
+            .iter()
+            .any(|n| n.kind == AstNodeKind::Constant && n.name == "MAX_USERS"));
     }
 
     #[test]
     fn test_parse_typescript_type_alias() {
         let nodes = FileAst::parse_typescript(TS_SAMPLE);
-        assert!(nodes.iter().any(|n| n.kind == AstNodeKind::TypeAlias && n.name == "UserId"));
+        assert!(nodes
+            .iter()
+            .any(|n| n.kind == AstNodeKind::TypeAlias && n.name == "UserId"));
     }
 
     // -- Python parsing --
@@ -1431,14 +1663,19 @@ def main():
     #[test]
     fn test_parse_python_imports() {
         let nodes = FileAst::parse_python(PY_SAMPLE);
-        let imports: Vec<_> = nodes.iter().filter(|n| n.kind == AstNodeKind::Import).collect();
+        let imports: Vec<_> = nodes
+            .iter()
+            .filter(|n| n.kind == AstNodeKind::Import)
+            .collect();
         assert_eq!(imports.len(), 2);
     }
 
     #[test]
     fn test_parse_python_class_with_methods() {
         let nodes = FileAst::parse_python(PY_SAMPLE);
-        let class_node = nodes.iter().find(|n| n.kind == AstNodeKind::Class && n.name == "Config");
+        let class_node = nodes
+            .iter()
+            .find(|n| n.kind == AstNodeKind::Class && n.name == "Config");
         assert!(class_node.is_some());
         let class_node = class_node.unwrap();
         assert!(class_node.children.len() >= 2);
@@ -1449,7 +1686,9 @@ def main():
     #[test]
     fn test_parse_python_function() {
         let nodes = FileAst::parse_python(PY_SAMPLE);
-        assert!(nodes.iter().any(|n| n.kind == AstNodeKind::Function && n.name == "main"));
+        assert!(nodes
+            .iter()
+            .any(|n| n.kind == AstNodeKind::Function && n.name == "main"));
     }
 
     // -- AstEdit tests --
@@ -1465,25 +1704,22 @@ def main():
 
     #[test]
     fn test_ast_edit_with_content() {
-        let edit = AstEdit::new("foo", EditOperation::Replace, "test")
-            .with_content("new content here");
+        let edit =
+            AstEdit::new("foo", EditOperation::Replace, "test").with_content("new content here");
         assert_eq!(edit.new_content, Some("new content here".to_string()));
     }
 
     #[test]
     fn test_ast_edit_with_confidence() {
-        let edit = AstEdit::new("foo", EditOperation::Delete, "test")
-            .with_confidence(0.95);
+        let edit = AstEdit::new("foo", EditOperation::Delete, "test").with_confidence(0.95);
         assert!((edit.confidence - 0.95).abs() < f64::EPSILON);
     }
 
     #[test]
     fn test_ast_edit_confidence_clamped() {
-        let edit = AstEdit::new("foo", EditOperation::Delete, "test")
-            .with_confidence(1.5);
+        let edit = AstEdit::new("foo", EditOperation::Delete, "test").with_confidence(1.5);
         assert!((edit.confidence - 1.0).abs() < f64::EPSILON);
-        let edit2 = AstEdit::new("foo", EditOperation::Delete, "test")
-            .with_confidence(-0.5);
+        let edit2 = AstEdit::new("foo", EditOperation::Delete, "test").with_confidence(-0.5);
         assert!((edit2.confidence - 0.0).abs() < f64::EPSILON);
     }
 
@@ -1531,7 +1767,11 @@ def main():
         editor.load_file("src/main.rs", "fn old() {}");
         editor.load_file("src/main.rs", "fn new_fn() {}");
         assert_eq!(editor.files.len(), 1);
-        assert!(editor.get_file("src/main.rs").unwrap().content.contains("new_fn"));
+        assert!(editor
+            .get_file("src/main.rs")
+            .unwrap()
+            .content
+            .contains("new_fn"));
     }
 
     #[test]
@@ -1544,7 +1784,11 @@ def main():
         let edit_id = editor.pending_edits[0].id.clone();
         let result = editor.apply_edit(&edit_id).unwrap();
         assert!(result.success);
-        assert!(editor.get_file("lib.rs").unwrap().content.contains("replaced"));
+        assert!(editor
+            .get_file("lib.rs")
+            .unwrap()
+            .content
+            .contains("replaced"));
     }
 
     #[test]
@@ -1556,33 +1800,53 @@ def main():
         let edit_id = editor.pending_edits[0].id.clone();
         let result = editor.apply_edit(&edit_id).unwrap();
         assert!(result.success);
-        assert!(!editor.get_file("lib.rs").unwrap().content.contains("fn main"));
+        assert!(!editor
+            .get_file("lib.rs")
+            .unwrap()
+            .content
+            .contains("fn main"));
     }
 
     #[test]
     fn test_editor_apply_insert_before() {
         let mut editor = AstEditor::new();
         editor.load_file("lib.rs", RUST_SAMPLE);
-        let edit = AstEdit::new("main", EditOperation::InsertBefore, "Add comment before main")
-            .with_content("// This is the entry point");
+        let edit = AstEdit::new(
+            "main",
+            EditOperation::InsertBefore,
+            "Add comment before main",
+        )
+        .with_content("// This is the entry point");
         editor.add_edit(edit);
         let edit_id = editor.pending_edits[0].id.clone();
         let result = editor.apply_edit(&edit_id).unwrap();
         assert!(result.success);
-        assert!(editor.get_file("lib.rs").unwrap().content.contains("// This is the entry point"));
+        assert!(editor
+            .get_file("lib.rs")
+            .unwrap()
+            .content
+            .contains("// This is the entry point"));
     }
 
     #[test]
     fn test_editor_apply_insert_after() {
         let mut editor = AstEditor::new();
         editor.load_file("lib.rs", RUST_SAMPLE);
-        let edit = AstEdit::new("Config", EditOperation::InsertAfter, "Add after struct Config")
-            .with_content("\n// After Config struct");
+        let edit = AstEdit::new(
+            "Config",
+            EditOperation::InsertAfter,
+            "Add after struct Config",
+        )
+        .with_content("\n// After Config struct");
         editor.add_edit(edit);
         let edit_id = editor.pending_edits[0].id.clone();
         let result = editor.apply_edit(&edit_id).unwrap();
         assert!(result.success);
-        assert!(editor.get_file("lib.rs").unwrap().content.contains("// After Config struct"));
+        assert!(editor
+            .get_file("lib.rs")
+            .unwrap()
+            .content
+            .contains("// After Config struct"));
     }
 
     #[test]
@@ -1595,8 +1859,16 @@ def main():
         let edit_id = editor.pending_edits[0].id.clone();
         let result = editor.apply_edit(&edit_id).unwrap();
         assert!(result.success);
-        assert!(editor.get_file("lib.rs").unwrap().content.contains("Colour"));
-        assert!(!editor.get_file("lib.rs").unwrap().content.contains("pub enum Color"));
+        assert!(editor
+            .get_file("lib.rs")
+            .unwrap()
+            .content
+            .contains("Colour"));
+        assert!(!editor
+            .get_file("lib.rs")
+            .unwrap()
+            .content
+            .contains("pub enum Color"));
     }
 
     #[test]
@@ -1610,7 +1882,11 @@ def main():
         let edit_id = editor.pending_edits[0].id.clone();
         let result = editor.apply_edit(&edit_id).unwrap();
         assert!(result.success);
-        assert!(editor.get_file("test.rs").unwrap().content.contains("mod wrapped"));
+        assert!(editor
+            .get_file("test.rs")
+            .unwrap()
+            .content
+            .contains("mod wrapped"));
     }
 
     #[test]
@@ -1625,8 +1901,7 @@ def main():
     fn test_editor_apply_edit_low_confidence() {
         let mut editor = AstEditor::new();
         editor.load_file("lib.rs", RUST_SAMPLE);
-        let edit = AstEdit::new("main", EditOperation::Delete, "Remove main")
-            .with_confidence(0.3);
+        let edit = AstEdit::new("main", EditOperation::Delete, "Remove main").with_confidence(0.3);
         editor.add_edit(edit);
         let edit_id = editor.pending_edits[0].id.clone();
         let result = editor.apply_edit(&edit_id);
@@ -1649,7 +1924,7 @@ def main():
         let mut editor = AstEditor::new();
         editor.load_file("lib.rs", "fn foo() {}\n");
         editor.add_edit(
-            AstEdit::new("foo", EditOperation::Delete, "Remove foo").with_confidence(0.1)
+            AstEdit::new("foo", EditOperation::Delete, "Remove foo").with_confidence(0.1),
         );
         let results = editor.apply_all();
         assert_eq!(results.len(), 1);
@@ -1691,8 +1966,10 @@ def main():
         let mut editor = AstEditor::new();
         editor.load_file("lib.rs", RUST_SAMPLE);
         editor.add_edit(AstEdit::new("main", EditOperation::Delete, "Remove main 1"));
-        editor.add_edit(AstEdit::new("main", EditOperation::Replace, "Replace main 2")
-            .with_content("fn main() {}"));
+        editor.add_edit(
+            AstEdit::new("main", EditOperation::Replace, "Replace main 2")
+                .with_content("fn main() {}"),
+        );
         let warnings = editor.validate_edits();
         assert!(warnings.iter().any(|w| w.contains("Duplicate target")));
     }
@@ -1701,7 +1978,11 @@ def main():
     fn test_editor_validate_edits_missing_target() {
         let mut editor = AstEditor::new();
         editor.load_file("lib.rs", RUST_SAMPLE);
-        editor.add_edit(AstEdit::new("nonexistent_fn", EditOperation::Delete, "Remove missing"));
+        editor.add_edit(AstEdit::new(
+            "nonexistent_fn",
+            EditOperation::Delete,
+            "Remove missing",
+        ));
         let warnings = editor.validate_edits();
         assert!(warnings.iter().any(|w| w.contains("not found")));
     }
@@ -1711,7 +1992,7 @@ def main():
         let mut editor = AstEditor::new();
         editor.load_file("lib.rs", RUST_SAMPLE);
         editor.add_edit(
-            AstEdit::new("main", EditOperation::Delete, "Remove main").with_confidence(0.5)
+            AstEdit::new("main", EditOperation::Delete, "Remove main").with_confidence(0.5),
         );
         let warnings = editor.validate_edits();
         assert!(warnings.iter().any(|w| w.contains("confidence")));
@@ -1743,9 +2024,15 @@ def main():
     #[test]
     fn test_extract_name_after_keyword() {
         assert_eq!(extract_name_after_keyword("pub fn main() {", "fn "), "main");
-        assert_eq!(extract_name_after_keyword("struct Config {", "struct "), "Config");
+        assert_eq!(
+            extract_name_after_keyword("struct Config {", "struct "),
+            "Config"
+        );
         assert_eq!(extract_name_after_keyword("enum Color {", "enum "), "Color");
-        assert_eq!(extract_name_after_keyword("trait Display {", "trait "), "Display");
+        assert_eq!(
+            extract_name_after_keyword("trait Display {", "trait "),
+            "Display"
+        );
     }
 
     #[test]
@@ -1816,7 +2103,8 @@ def main():
 
     #[test]
     fn test_node_signature_populated() {
-        let nodes = FileAst::parse_rust("pub fn greet(name: &str) -> String {\n    name.to_string()\n}\n");
+        let nodes =
+            FileAst::parse_rust("pub fn greet(name: &str) -> String {\n    name.to_string()\n}\n");
         assert!(nodes[0].signature.is_some());
         assert!(nodes[0].signature.as_ref().unwrap().contains("greet"));
     }

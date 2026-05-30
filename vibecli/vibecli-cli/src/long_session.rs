@@ -19,12 +19,20 @@ pub struct SessionState {
 
 impl SessionState {
     pub fn new(id: impl Into<String>, started_at: u64) -> Self {
-        Self { id: id.into(), started_at, turns: vec![], total_tokens: 0 }
+        Self {
+            id: id.into(),
+            started_at,
+            turns: vec![],
+            total_tokens: 0,
+        }
     }
 
     pub fn record_turn(&mut self, tokens: u64, tool_calls: u32) {
         self.total_tokens += tokens;
-        self.turns.push(TurnRecord { tokens_used: tokens, tool_calls });
+        self.turns.push(TurnRecord {
+            tokens_used: tokens,
+            tool_calls,
+        });
     }
 
     pub fn turn_count(&self) -> usize {
@@ -81,7 +89,9 @@ pub struct SessionManager {
 
 impl SessionManager {
     pub fn with_defaults() -> Self {
-        Self { config: SessionConfig::default() }
+        Self {
+            config: SessionConfig::default(),
+        }
     }
 
     pub fn new(config: SessionConfig) -> Self {
@@ -100,7 +110,8 @@ impl SessionManager {
             let elapsed = now.saturating_sub(state.started_at);
             if elapsed >= self.config.max_wall_secs {
                 return ContinuationDecision::Halt(format!(
-                    "wall-time limit reached ({}s)", elapsed
+                    "wall-time limit reached ({}s)",
+                    elapsed
                 ));
             }
         }
@@ -112,7 +123,10 @@ impl SessionManager {
 
     pub fn budget_remaining(&self, state: &SessionState, _now: u64) -> SessionBudget {
         let remaining_tokens = self.config.max_tokens.saturating_sub(state.total_tokens);
-        SessionBudget { max_tokens: remaining_tokens, wall_secs: 0 }
+        SessionBudget {
+            max_tokens: remaining_tokens,
+            wall_secs: 0,
+        }
     }
 }
 
@@ -121,7 +135,10 @@ mod tests {
     use super::*;
 
     fn mgr_with_limit(max_tokens: u64) -> SessionManager {
-        SessionManager::new(SessionConfig { max_tokens, ..Default::default() })
+        SessionManager::new(SessionConfig {
+            max_tokens,
+            ..Default::default()
+        })
     }
 
     #[test]

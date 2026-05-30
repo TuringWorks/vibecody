@@ -3,11 +3,9 @@
 //! cert as its upstream trust store, then has a TLS client perform the
 //! full CONNECT + GET / dance through the broker.
 
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use rcgen::{CertificateParams, KeyPair};
-use rustls::pki_types::{
-    CertificateDer, PrivateKeyDer, ServerName,
-};
+use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName};
 use rustls::{ClientConfig, RootCertStore, ServerConfig};
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -15,9 +13,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime::Runtime;
 use tokio::task::JoinHandle;
 use tokio_rustls::{TlsAcceptor, TlsConnector};
-use vibe_broker::{
-    BoundAddr, Broker, BrokerCa, BrokerHandle, Policy, SsrfGuard,
-};
+use vibe_broker::{BoundAddr, Broker, BrokerCa, BrokerHandle, Policy, SsrfGuard};
 
 #[derive(Default, World)]
 pub struct MWorld {
@@ -144,9 +140,7 @@ match.require_tls = true
         .with_tls_ca(ca)
         .with_upstream_trust(trust);
     let rt = world.rt();
-    let handle = rt.block_on(async move {
-        broker.start_tcp("127.0.0.1:0").await.unwrap()
-    });
+    let handle = rt.block_on(async move { broker.start_tcp("127.0.0.1:0").await.unwrap() });
     if let BoundAddr::Tcp(addr) = handle.addr.clone() {
         world.broker_addr = Some(addr);
     }
@@ -199,10 +193,18 @@ fn run_client(world: &mut MWorld) {
         let _ = tls.read_to_end(&mut buf).await;
 
         // 6. Parse response
-        let split = buf.windows(4).position(|w| w == b"\r\n\r\n").unwrap_or(buf.len());
+        let split = buf
+            .windows(4)
+            .position(|w| w == b"\r\n\r\n")
+            .unwrap_or(buf.len());
         let head_text = String::from_utf8_lossy(&buf[..split]);
         let status_line = head_text.split("\r\n").next().unwrap();
-        let status: u16 = status_line.split_whitespace().nth(1).unwrap().parse().unwrap();
+        let status: u16 = status_line
+            .split_whitespace()
+            .nth(1)
+            .unwrap()
+            .parse()
+            .unwrap();
         let body = if split + 4 <= buf.len() {
             buf[split + 4..].to_vec()
         } else {

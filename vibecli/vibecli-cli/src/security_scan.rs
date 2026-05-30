@@ -1,4 +1,3 @@
-
 use std::time::SystemTime;
 
 /// Type of security scan to perform.
@@ -178,7 +177,8 @@ impl SecretPattern {
             },
             SecretPattern {
                 name: "JWT Token".to_string(),
-                pattern: "eyJ[A-Za-z0-9_-]{10,}\\.eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}".to_string(),
+                pattern: "eyJ[A-Za-z0-9_-]{10,}\\.eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}"
+                    .to_string(),
                 severity: ScanSeverity::High,
                 description: "JWT token detected in source code".to_string(),
             },
@@ -213,20 +213,24 @@ impl SecretPattern {
                     && line.chars().filter(|c| c.is_ascii_alphanumeric()).count() >= 20
             }
             "AWS Secret Key" => line.to_lowercase().contains("aws_secret_access_key"),
-            "GitHub Token" => line.contains("ghp_") && {
-                if let Some(idx) = line.find("ghp_") {
-                    line[idx + 4..].len() >= 36
-                } else {
-                    false
+            "GitHub Token" => {
+                line.contains("ghp_") && {
+                    if let Some(idx) = line.find("ghp_") {
+                        line[idx + 4..].len() >= 36
+                    } else {
+                        false
+                    }
                 }
-            },
-            "GitHub OAuth" => line.contains("gho_") && {
-                if let Some(idx) = line.find("gho_") {
-                    line[idx + 4..].len() >= 36
-                } else {
-                    false
+            }
+            "GitHub OAuth" => {
+                line.contains("gho_") && {
+                    if let Some(idx) = line.find("gho_") {
+                        line[idx + 4..].len() >= 36
+                    } else {
+                        false
+                    }
                 }
-            },
+            }
             "Private Key" => line.contains("-----BEGIN") && line.contains("PRIVATE KEY-----"),
             "Slack Webhook" => line.contains("hooks.slack.com/services/"),
             "Generic API Key" => {
@@ -241,9 +245,7 @@ impl SecretPattern {
                     && !lower.contains("password_hash")
                     && !lower.contains("password_reset")
             }
-            "JWT Token" => {
-                line.contains("eyJ") && line.matches('.').count() >= 2
-            }
+            "JWT Token" => line.contains("eyJ") && line.matches('.').count() >= 2,
             "Database Connection String" => {
                 let lower = line.to_lowercase();
                 lower.contains("mysql://")
@@ -464,7 +466,10 @@ impl SecurityScanner {
             }
             for pattern in &self.config.secret_patterns {
                 if pattern.matches(line) {
-                    if !pattern.severity.is_at_least(&self.config.severity_threshold) {
+                    if !pattern
+                        .severity
+                        .is_at_least(&self.config.severity_threshold)
+                    {
                         continue;
                     }
                     let mut finding = SecurityFinding::new(
@@ -544,12 +549,10 @@ impl SecurityScanner {
                         && lower_content.contains(&vuln.version)
                 }
                 "requirements.txt" => {
-                    lower_content.contains(&pkg_lower)
-                        && lower_content.contains(&vuln.version)
+                    lower_content.contains(&pkg_lower) && lower_content.contains(&vuln.version)
                 }
                 "Cargo.toml" => {
-                    lower_content.contains(&pkg_lower)
-                        && lower_content.contains(&vuln.version)
+                    lower_content.contains(&pkg_lower) && lower_content.contains(&vuln.version)
                 }
                 _ => lower_content.contains(&pkg_lower) && lower_content.contains(&vuln.version),
             };
@@ -586,11 +589,26 @@ impl SecurityScanner {
             .filter(|f| !f.suppressed && !f.false_positive)
             .collect();
 
-        let critical = active.iter().filter(|f| f.severity == ScanSeverity::Critical).count();
-        let high = active.iter().filter(|f| f.severity == ScanSeverity::High).count();
-        let medium = active.iter().filter(|f| f.severity == ScanSeverity::Medium).count();
-        let low = active.iter().filter(|f| f.severity == ScanSeverity::Low).count();
-        let info = active.iter().filter(|f| f.severity == ScanSeverity::Info).count();
+        let critical = active
+            .iter()
+            .filter(|f| f.severity == ScanSeverity::Critical)
+            .count();
+        let high = active
+            .iter()
+            .filter(|f| f.severity == ScanSeverity::High)
+            .count();
+        let medium = active
+            .iter()
+            .filter(|f| f.severity == ScanSeverity::Medium)
+            .count();
+        let low = active
+            .iter()
+            .filter(|f| f.severity == ScanSeverity::Low)
+            .count();
+        let info = active
+            .iter()
+            .filter(|f| f.severity == ScanSeverity::Info)
+            .count();
 
         let blocked = self.should_block_pr();
 
@@ -650,7 +668,10 @@ impl SecurityScanner {
         let mut md = String::new();
 
         md.push_str("# Security Scan Report\n\n");
-        md.push_str(&format!("**Status:** {}\n\n", if report.blocked { "BLOCKED" } else { "PASSED" }));
+        md.push_str(&format!(
+            "**Status:** {}\n\n",
+            if report.blocked { "BLOCKED" } else { "PASSED" }
+        ));
         md.push_str("## Summary\n\n");
         md.push_str("| Severity | Count |\n");
         md.push_str("| --- | --- |\n");
@@ -659,7 +680,10 @@ impl SecurityScanner {
         md.push_str(&format!("| Medium | {} |\n", report.medium));
         md.push_str(&format!("| Low | {} |\n", report.low));
         md.push_str(&format!("| Info | {} |\n", report.info));
-        md.push_str(&format!("| **Total** | **{}** |\n\n", report.total_findings));
+        md.push_str(&format!(
+            "| **Total** | **{}** |\n\n",
+            report.total_findings
+        ));
 
         let all_findings = self.all_findings();
         if !all_findings.is_empty() {
@@ -750,7 +774,10 @@ mod tests {
     #[test]
     fn test_pattern_matches_aws_key() {
         let patterns = SecretPattern::default_patterns();
-        let aws = patterns.iter().find(|p| p.name == "AWS Access Key").unwrap();
+        let aws = patterns
+            .iter()
+            .find(|p| p.name == "AWS Access Key")
+            .unwrap();
         assert!(aws.matches("AKIAIOSFODNN7EXAMPLE1234567890"));
         assert!(!aws.matches("just some normal text"));
     }
@@ -758,7 +785,10 @@ mod tests {
     #[test]
     fn test_pattern_matches_aws_secret() {
         let patterns = SecretPattern::default_patterns();
-        let pat = patterns.iter().find(|p| p.name == "AWS Secret Key").unwrap();
+        let pat = patterns
+            .iter()
+            .find(|p| p.name == "AWS Secret Key")
+            .unwrap();
         assert!(pat.matches("aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"));
         assert!(!pat.matches("just some text"));
     }
@@ -791,7 +821,10 @@ mod tests {
     #[test]
     fn test_pattern_matches_generic_api_key() {
         let patterns = SecretPattern::default_patterns();
-        let pat = patterns.iter().find(|p| p.name == "Generic API Key").unwrap();
+        let pat = patterns
+            .iter()
+            .find(|p| p.name == "Generic API Key")
+            .unwrap();
         assert!(pat.matches("api_key = 'sk_1234567890abcdefghij'"));
         assert!(pat.matches("API-KEY: abcdefghijklmnopqrstuvwxyz"));
         assert!(!pat.matches("just a normal line of code"));
@@ -800,7 +833,10 @@ mod tests {
     #[test]
     fn test_pattern_matches_password() {
         let patterns = SecretPattern::default_patterns();
-        let pat = patterns.iter().find(|p| p.name == "Password Assignment").unwrap();
+        let pat = patterns
+            .iter()
+            .find(|p| p.name == "Password Assignment")
+            .unwrap();
         assert!(pat.matches("password = 'mysecretpassword123'"));
         assert!(!pat.matches("password_hash = bcrypt(input)"));
     }
@@ -809,7 +845,9 @@ mod tests {
     fn test_pattern_matches_jwt() {
         let patterns = SecretPattern::default_patterns();
         let pat = patterns.iter().find(|p| p.name == "JWT Token").unwrap();
-        assert!(pat.matches("token = eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature123456"));
+        assert!(
+            pat.matches("token = eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature123456")
+        );
         assert!(!pat.matches("just some text without jwt"));
     }
 
@@ -988,9 +1026,24 @@ mod tests {
     #[test]
     fn test_scan_result_findings_by_severity() {
         let mut r = ScanResult::new(ScanType::SecretDetection);
-        r.add_finding(SecurityFinding::new(ScanType::SecretDetection, ScanSeverity::High, "a", "d"));
-        r.add_finding(SecurityFinding::new(ScanType::SecretDetection, ScanSeverity::Low, "b", "d"));
-        r.add_finding(SecurityFinding::new(ScanType::SecretDetection, ScanSeverity::High, "c", "d"));
+        r.add_finding(SecurityFinding::new(
+            ScanType::SecretDetection,
+            ScanSeverity::High,
+            "a",
+            "d",
+        ));
+        r.add_finding(SecurityFinding::new(
+            ScanType::SecretDetection,
+            ScanSeverity::Low,
+            "b",
+            "d",
+        ));
+        r.add_finding(SecurityFinding::new(
+            ScanType::SecretDetection,
+            ScanSeverity::High,
+            "c",
+            "d",
+        ));
         assert_eq!(r.findings_by_severity(&ScanSeverity::High).len(), 2);
         assert_eq!(r.findings_by_severity(&ScanSeverity::Low).len(), 1);
         assert_eq!(r.findings_by_severity(&ScanSeverity::Critical).len(), 0);
@@ -999,9 +1052,19 @@ mod tests {
     #[test]
     fn test_scan_result_has_blocking() {
         let mut r = ScanResult::new(ScanType::SecretDetection);
-        r.add_finding(SecurityFinding::new(ScanType::SecretDetection, ScanSeverity::Low, "a", "d"));
+        r.add_finding(SecurityFinding::new(
+            ScanType::SecretDetection,
+            ScanSeverity::Low,
+            "a",
+            "d",
+        ));
         assert!(!r.has_blocking_findings(&ScanSeverity::High));
-        r.add_finding(SecurityFinding::new(ScanType::SecretDetection, ScanSeverity::Critical, "b", "d"));
+        r.add_finding(SecurityFinding::new(
+            ScanType::SecretDetection,
+            ScanSeverity::Critical,
+            "b",
+            "d",
+        ));
         assert!(r.has_blocking_findings(&ScanSeverity::High));
     }
 
@@ -1089,7 +1152,11 @@ mod tests {
         let result = s.scan_dependencies(package_json, "package.json");
         assert_eq!(result.status, ScanStatus::Completed);
         assert!(!result.findings.is_empty());
-        let lodash_finding = result.findings.iter().find(|f| f.title.contains("lodash")).unwrap();
+        let lodash_finding = result
+            .findings
+            .iter()
+            .find(|f| f.title.contains("lodash"))
+            .unwrap();
         assert!(lodash_finding.cve_id.is_some());
     }
 

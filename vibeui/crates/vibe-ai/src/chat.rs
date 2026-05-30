@@ -65,7 +65,10 @@ impl ChatEngine {
 
     /// Get list of provider names
     pub fn get_provider_names(&self) -> Vec<String> {
-        self.providers.iter().map(|p| p.name().to_string()).collect()
+        self.providers
+            .iter()
+            .map(|p| p.name().to_string())
+            .collect()
     }
 
     /// Set the active provider
@@ -185,7 +188,8 @@ impl ChatEngine {
         let response = provider.chat(&messages, None).await?;
 
         // Add assistant response
-        let conversation = self.active_conversation_mut()
+        let conversation = self
+            .active_conversation_mut()
             .ok_or_else(|| anyhow::anyhow!("No active conversation after LLM response"))?;
         conversation.add_assistant_message(response.clone());
 

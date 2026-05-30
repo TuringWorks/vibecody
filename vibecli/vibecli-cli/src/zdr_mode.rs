@@ -109,7 +109,10 @@ impl ZdrCompliance {
         }
 
         let compliant = violations.is_empty();
-        Self { violations, compliant }
+        Self {
+            violations,
+            compliant,
+        }
     }
 
     pub fn violation_count(&self) -> usize {
@@ -127,7 +130,10 @@ pub struct ZdrSession {
 
 impl ZdrSession {
     pub fn new(policy: ZdrPolicy) -> Self {
-        Self { policy, messages: Vec::new() }
+        Self {
+            policy,
+            messages: Vec::new(),
+        }
     }
 
     /// Append a message to the in-memory history.
@@ -335,7 +341,9 @@ fn scrub_jwt(input: &str) -> String {
         // Count base64url + base64 chars.
         let token_extra: usize = after
             .bytes()
-            .take_while(|&b| b.is_ascii_alphanumeric() || matches!(b, b'+' | b'/' | b'=' | b'-' | b'_' | b'.'))
+            .take_while(|&b| {
+                b.is_ascii_alphanumeric() || matches!(b, b'+' | b'/' | b'=' | b'-' | b'_' | b'.')
+            })
             .count();
         let total_token_len = PREFIX.len() + token_extra;
         if total_token_len >= 20 {
@@ -359,7 +367,11 @@ fn scrub_prefixed_token(input: &str, prefix: &str, min_suffix_len: usize) -> Str
         // Make sure it's not in the middle of a longer prefix we already handled.
         let before = &remaining[..idx];
         // If the char immediately before is alphanumeric, this is not a token boundary.
-        if before.as_bytes().last().is_some_and(|b| b.is_ascii_alphanumeric() || *b == b'-') {
+        if before
+            .as_bytes()
+            .last()
+            .is_some_and(|b| b.is_ascii_alphanumeric() || *b == b'-')
+        {
             out.push_str(&remaining[..idx + prefix.len()]);
             remaining = &remaining[idx + prefix.len()..];
             continue;

@@ -1,4 +1,3 @@
-
 use std::time::SystemTime;
 
 /// Named sub-agent roles for code analysis vs library analysis vs implementation,
@@ -587,7 +586,10 @@ mod tests {
         assert_eq!(SubAgentRole::Oracle.default_name(), "Oracle");
         assert_eq!(SubAgentRole::Librarian.default_name(), "Librarian");
         assert_eq!(SubAgentRole::Implementer.default_name(), "Implementer");
-        assert_eq!(SubAgentRole::SecurityExpert.default_name(), "SecurityExpert");
+        assert_eq!(
+            SubAgentRole::SecurityExpert.default_name(),
+            "SecurityExpert"
+        );
     }
 
     #[test]
@@ -595,7 +597,11 @@ mod tests {
         for role in SubAgentRole::all_variants() {
             let caps = role.default_capabilities();
             assert!(!caps.is_empty(), "{:?} should have capabilities", role);
-            assert!(caps.len() >= 4, "{:?} should have at least 4 capabilities", role);
+            assert!(
+                caps.len() >= 4,
+                "{:?} should have at least 4 capabilities",
+                role
+            );
         }
     }
 
@@ -615,7 +621,10 @@ mod tests {
             SubAgentRole::Tester.suggested_model(),
             "claude-sonnet-4-20250514"
         );
-        assert_eq!(SubAgentRole::Implementer.suggested_model(), "claude-opus-4-6");
+        assert_eq!(
+            SubAgentRole::Implementer.suggested_model(),
+            "claude-opus-4-6"
+        );
     }
 
     #[test]
@@ -760,7 +769,10 @@ mod tests {
         let result = orch.delegate(&from_id, &to_id, "Implement feature X");
         assert!(result.is_ok());
         assert_eq!(orch.delegation_log.len(), 1);
-        assert_eq!(orch.delegation_log[0].task_description, "Implement feature X");
+        assert_eq!(
+            orch.delegation_log[0].task_description,
+            "Implement feature X"
+        );
     }
 
     #[test]

@@ -1,10 +1,10 @@
 //! Diff viewing and application
 
-use vibe_core::DiffEngine;
 use crate::syntax::highlight_code_blocks;
 use anyhow::Result;
-use std::path::Path;
 use std::fs;
+use std::path::Path;
+use vibe_core::DiffEngine;
 
 pub struct DiffViewer;
 
@@ -13,29 +13,29 @@ impl DiffViewer {
         let path = Path::new(file_path);
         let hunks = DiffEngine::generate_diff(original, modified);
         let diff_text = DiffEngine::format_unified_diff(&hunks, path, path);
-        
+
         println!("\n📊 Diff for: {}\n", file_path);
         println!("{}", colorize_diff(&diff_text));
         println!();
-        
+
         Ok(())
     }
-    
+
     pub fn show_file_diff(file_path: &str) -> Result<()> {
         let path = Path::new(file_path);
-        
+
         if !path.exists() {
             anyhow::bail!("File not found: {}", file_path);
         }
-        
+
         let current_content = fs::read_to_string(path)?;
-        
+
         // For now, we'll show the file content
         // In a real implementation, we'd compare with a previous version or AI suggestion
         println!("\n📄 Current content of: {}\n", file_path);
         println!("{}", highlight_code_blocks(&current_content));
         println!("\n💡 Tip: Use /generate to create modified version, then /diff to compare\n");
-        
+
         Ok(())
     }
 }
@@ -114,9 +114,9 @@ mod tests {
     fn colorize_mixed_diff() {
         let diff = "--- a/foo.rs\n+++ b/foo.rs\n@@ -1,2 +1,3 @@\n context\n-old\n+new\n+added";
         let out = colorize_diff(diff);
-        assert!(out.contains("\x1b[36m@@"));   // hunk cyan
-        assert!(out.contains("\x1b[31m-old"));  // removed red
-        assert!(out.contains("\x1b[32m+new"));  // added green
+        assert!(out.contains("\x1b[36m@@")); // hunk cyan
+        assert!(out.contains("\x1b[31m-old")); // removed red
+        assert!(out.contains("\x1b[32m+new")); // added green
         assert!(out.contains("\x1b[32m+added")); // added green
     }
 

@@ -23,7 +23,6 @@ impl std::fmt::Display for AgentMode {
     }
 }
 
-
 /// Task complexity level used for automatic mode selection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum TaskComplexity {
@@ -360,10 +359,7 @@ impl ModeRouter {
 
     /// Record a mode invocation with token usage.
     pub fn record_usage(&mut self, mode: AgentMode, tokens: u64) {
-        self.stats
-            .entry(mode)
-            .or_default()
-            .record(tokens);
+        self.stats.entry(mode).or_default().record(tokens);
     }
 
     /// Get usage stats for a mode.

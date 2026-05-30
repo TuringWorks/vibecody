@@ -132,11 +132,17 @@ mod tests {
         let room = CollabRoom::new("test-room".to_string(), 10);
 
         // Add peers
-        let peer1 = room.add_peer("p1".to_string(), "Alice".to_string()).await.unwrap();
+        let peer1 = room
+            .add_peer("p1".to_string(), "Alice".to_string())
+            .await
+            .unwrap();
         assert_eq!(peer1.name, "Alice");
         assert!(!peer1.color.is_empty());
 
-        let peer2 = room.add_peer("p2".to_string(), "Bob".to_string()).await.unwrap();
+        let peer2 = room
+            .add_peer("p2".to_string(), "Bob".to_string())
+            .await
+            .unwrap();
         assert_ne!(peer1.color, peer2.color);
 
         assert_eq!(room.peer_count().await, 2);
@@ -158,8 +164,12 @@ mod tests {
     #[tokio::test]
     async fn test_room_full() {
         let room = CollabRoom::new("small-room".to_string(), 2);
-        room.add_peer("p1".to_string(), "A".to_string()).await.unwrap();
-        room.add_peer("p2".to_string(), "B".to_string()).await.unwrap();
+        room.add_peer("p1".to_string(), "A".to_string())
+            .await
+            .unwrap();
+        room.add_peer("p2".to_string(), "B".to_string())
+            .await
+            .unwrap();
 
         let result = room.add_peer("p3".to_string(), "C".to_string()).await;
         assert!(result.is_err());
@@ -246,12 +256,20 @@ mod tests {
     #[tokio::test]
     async fn test_peer_color_wraps_after_palette() {
         let room = CollabRoom::new("wrap-room".to_string(), 20);
-        let p0 = room.add_peer("p0".to_string(), "A".to_string()).await.unwrap();
+        let p0 = room
+            .add_peer("p0".to_string(), "A".to_string())
+            .await
+            .unwrap();
         // Add 8 more peers so the 9th (index 8) wraps around
         for i in 1..=8 {
-            room.add_peer(format!("p{i}"), format!("U{i}")).await.unwrap();
+            room.add_peer(format!("p{i}"), format!("U{i}"))
+                .await
+                .unwrap();
         }
-        let p8 = room.add_peer("p9".to_string(), "B".to_string()).await.unwrap();
+        let p8 = room
+            .add_peer("p9".to_string(), "B".to_string())
+            .await
+            .unwrap();
         // Index 0 and index 9 should not be compared directly because peer_counter
         // is 9 at that point. But index 0 mod 8 == 0 and index 8 mod 8 == 0.
         assert_eq!(p0.color, color_for_peer(0).to_string());
@@ -269,9 +287,15 @@ mod tests {
     #[tokio::test]
     async fn test_remove_peer_does_not_affect_others() {
         let room = CollabRoom::new("multi-room".to_string(), 10);
-        room.add_peer("p1".to_string(), "Alice".to_string()).await.unwrap();
-        room.add_peer("p2".to_string(), "Bob".to_string()).await.unwrap();
-        room.add_peer("p3".to_string(), "Charlie".to_string()).await.unwrap();
+        room.add_peer("p1".to_string(), "Alice".to_string())
+            .await
+            .unwrap();
+        room.add_peer("p2".to_string(), "Bob".to_string())
+            .await
+            .unwrap();
+        room.add_peer("p3".to_string(), "Charlie".to_string())
+            .await
+            .unwrap();
 
         room.remove_peer("p2").await;
         let peers = room.list_peers().await;
@@ -285,7 +309,10 @@ mod tests {
     #[tokio::test]
     async fn test_add_peer_last_active_is_recent() {
         let room = CollabRoom::new("time-room".to_string(), 10);
-        let peer = room.add_peer("p1".to_string(), "Alice".to_string()).await.unwrap();
+        let peer = room
+            .add_peer("p1".to_string(), "Alice".to_string())
+            .await
+            .unwrap();
         let now_ms = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -298,14 +325,19 @@ mod tests {
     #[tokio::test]
     async fn test_add_peer_cursor_starts_none() {
         let room = CollabRoom::new("cursor-room".to_string(), 10);
-        let peer = room.add_peer("p1".to_string(), "Alice".to_string()).await.unwrap();
+        let peer = room
+            .add_peer("p1".to_string(), "Alice".to_string())
+            .await
+            .unwrap();
         assert!(peer.cursor.is_none());
     }
 
     #[tokio::test]
     async fn test_max_peers_one() {
         let room = CollabRoom::new("solo-room".to_string(), 1);
-        room.add_peer("p1".to_string(), "Alice".to_string()).await.unwrap();
+        room.add_peer("p1".to_string(), "Alice".to_string())
+            .await
+            .unwrap();
         let result = room.add_peer("p2".to_string(), "Bob".to_string()).await;
         assert!(result.is_err());
         assert_eq!(room.peer_count().await, 1);
@@ -376,8 +408,14 @@ mod tests {
     #[tokio::test]
     async fn test_add_duplicate_peer_id_overwrites() {
         let room = CollabRoom::new("dup-room".to_string(), 10);
-        let p1 = room.add_peer("p1".to_string(), "Alice".to_string()).await.unwrap();
-        let p1_again = room.add_peer("p1".to_string(), "Alice-v2".to_string()).await.unwrap();
+        let p1 = room
+            .add_peer("p1".to_string(), "Alice".to_string())
+            .await
+            .unwrap();
+        let p1_again = room
+            .add_peer("p1".to_string(), "Alice-v2".to_string())
+            .await
+            .unwrap();
         // The second add overwrites the first; peer count stays at 1 if HashMap replaces
         // Actually HashMap::insert replaces the value but the count stays the same
         // since it's the same key. But our code doesn't check for duplicates.

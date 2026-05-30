@@ -643,7 +643,10 @@ mod tests {
         assert_eq!(WidgetKind::from_str("code"), WidgetKind::Code);
         assert_eq!(WidgetKind::from_str("tree"), WidgetKind::Tree);
         assert_eq!(WidgetKind::from_str("metric"), WidgetKind::Metric);
-        assert_eq!(WidgetKind::from_str("custom_thing"), WidgetKind::Custom("custom_thing".into()));
+        assert_eq!(
+            WidgetKind::from_str("custom_thing"),
+            WidgetKind::Custom("custom_thing".into())
+        );
     }
 
     #[test]
@@ -718,8 +721,7 @@ mod tests {
 
     #[test]
     fn test_chart_data() {
-        let mut chart = ChartData::new(ChartType::Bar)
-            .with_labels(vec!["Q1".into(), "Q2".into()]);
+        let mut chart = ChartData::new(ChartType::Bar).with_labels(vec!["Q1".into(), "Q2".into()]);
         chart.add_dataset(ChartDataset {
             label: "Revenue".into(),
             values: vec![100.0, 200.0],
@@ -731,8 +733,7 @@ mod tests {
 
     #[test]
     fn test_chart_to_ascii_bars() {
-        let mut chart = ChartData::new(ChartType::Bar)
-            .with_labels(vec!["A".into(), "B".into()]);
+        let mut chart = ChartData::new(ChartType::Bar).with_labels(vec!["A".into(), "B".into()]);
         chart.add_dataset(ChartDataset {
             label: "Data".into(),
             values: vec![50.0, 100.0],
@@ -867,7 +868,8 @@ mod tests {
 
     #[test]
     fn test_parse_mcp_app_table() {
-        let response = r#"{"type": "mcp-app", "component": "table", "id": "t1", "props": {"rows": "3"}}"#;
+        let response =
+            r#"{"type": "mcp-app", "component": "table", "id": "t1", "props": {"rows": "3"}}"#;
         let widget = parse_mcp_app(response).unwrap();
         assert_eq!(widget.kind, WidgetKind::Table);
         assert_eq!(widget.id.as_deref(), Some("t1"));

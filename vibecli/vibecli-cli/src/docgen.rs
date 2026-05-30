@@ -152,10 +152,7 @@ impl DocPage {
         let mut md = String::new();
         md.push_str(&format!("# {}\n\n", self.title));
         if !self.tags.is_empty() {
-            md.push_str(&format!(
-                "**Tags**: {}\n\n",
-                self.tags.join(", ")
-            ));
+            md.push_str(&format!("**Tags**: {}\n\n", self.tags.join(", ")));
         }
         md.push_str(&self.content);
         if !self.source_files.is_empty() {
@@ -392,10 +389,7 @@ impl WikiGenerator {
     fn generate_models_page(&self) -> DocPage {
         let mut content = String::from("## Data Models\n\n");
         for iface in &self.interfaces {
-            content.push_str(&format!(
-                "### {} ({})\n\n",
-                iface.name, iface.kind
-            ));
+            content.push_str(&format!("### {} ({})\n\n", iface.name, iface.kind));
             content.push_str(&format!(
                 "**Source**: `{}:{}`  \n**Visibility**: {}\n\n",
                 iface.source_file, iface.line, iface.visibility
@@ -436,10 +430,7 @@ impl WikiGenerator {
     /// Check freshness of all pages based on source file modifications.
     pub fn check_freshness(&mut self, modified_files: &[String]) {
         for page in &mut self.pages {
-            let affected = page
-                .source_files
-                .iter()
-                .any(|f| modified_files.contains(f));
+            let affected = page.source_files.iter().any(|f| modified_files.contains(f));
             if affected {
                 page.freshness = Freshness::Stale;
             }
@@ -495,10 +486,7 @@ pub fn extract_endpoints(source: &str, file_path: &str) -> Vec<DetectedEndpoint>
         let trimmed = line.trim();
         // Detect common patterns: .get("/path"), .post("/path"), route("/path")
         for method in &["get", "post", "put", "delete", "patch"] {
-            let patterns = [
-                format!(".{}(\"", method),
-                format!(".{}(\"/", method),
-            ];
+            let patterns = [format!(".{}(\"", method), format!(".{}(\"/", method)];
             for pattern in &patterns {
                 if let Some(idx) = trimmed.to_lowercase().find(pattern) {
                     let after = &trimmed[idx + pattern.len()..];
@@ -652,8 +640,7 @@ mod tests {
 
     #[test]
     fn test_doc_page_word_count() {
-        let page = DocPage::new("Test", DocKind::Index)
-            .with_content("one two three four five");
+        let page = DocPage::new("Test", DocKind::Index).with_content("one two three four five");
         assert_eq!(page.word_count(), 5);
     }
 
@@ -708,16 +695,26 @@ mod tests {
     fn test_wiki_generator_generate() {
         let mut gen = WikiGenerator::new(DocGenConfig::default());
         gen.add_endpoint(DetectedEndpoint {
-            method: "GET".into(), path: "/health".into(), handler: "h".into(),
-            source_file: "s.rs".into(), line: 1, description: None,
+            method: "GET".into(),
+            path: "/health".into(),
+            handler: "h".into(),
+            source_file: "s.rs".into(),
+            line: 1,
+            description: None,
         });
         gen.add_interface(DetectedInterface {
-            name: "Config".into(), kind: "struct".into(), methods: vec!["new".into()],
-            source_file: "c.rs".into(), line: 1, visibility: "pub".into(),
+            name: "Config".into(),
+            kind: "struct".into(),
+            methods: vec!["new".into()],
+            source_file: "c.rs".into(),
+            line: 1,
+            visibility: "pub".into(),
         });
         gen.add_config(DetectedConfig {
-            key: "port".into(), value_type: "u16".into(),
-            default_value: Some("8080".into()), description: Some("Port".into()),
+            key: "port".into(),
+            value_type: "u16".into(),
+            default_value: Some("8080".into()),
+            description: Some("Port".into()),
             source_file: "c.rs".into(),
         });
         gen.generate();
@@ -739,12 +736,8 @@ mod tests {
     #[test]
     fn test_check_freshness() {
         let mut gen = WikiGenerator::new(DocGenConfig::default());
-        gen.add_page(
-            DocPage::new("API", DocKind::ApiEndpoint).with_source("serve.rs"),
-        );
-        gen.add_page(
-            DocPage::new("Config", DocKind::Configuration).with_source("config.rs"),
-        );
+        gen.add_page(DocPage::new("API", DocKind::ApiEndpoint).with_source("serve.rs"));
+        gen.add_page(DocPage::new("Config", DocKind::Configuration).with_source("config.rs"));
         gen.check_freshness(&["serve.rs".to_string()]);
         assert_eq!(gen.get_page("api").unwrap().freshness, Freshness::Stale);
         assert_eq!(gen.get_page("config").unwrap().freshness, Freshness::Fresh);
@@ -765,8 +758,12 @@ mod tests {
         let mut gen = WikiGenerator::new(DocGenConfig::default());
         gen.add_page(DocPage::new("Test", DocKind::Index).with_content("word1 word2"));
         gen.add_endpoint(DetectedEndpoint {
-            method: "GET".into(), path: "/".into(), handler: "h".into(),
-            source_file: "s.rs".into(), line: 1, description: None,
+            method: "GET".into(),
+            path: "/".into(),
+            handler: "h".into(),
+            source_file: "s.rs".into(),
+            line: 1,
+            description: None,
         });
         let stats = gen.stats();
         assert_eq!(stats.page_count, 1);
@@ -803,19 +800,30 @@ mod tests {
 
     #[test]
     fn test_extract_interfaces_rust() {
-        let source = "pub struct Config {\n    pub port: u16,\n}\npub trait Provider {\n}\npub fn main() {}";
+        let source =
+            "pub struct Config {\n    pub port: u16,\n}\npub trait Provider {\n}\npub fn main() {}";
         let ifaces = extract_interfaces(source, "main.rs");
-        assert!(ifaces.iter().any(|i| i.name == "Config" && i.kind == "struct"));
-        assert!(ifaces.iter().any(|i| i.name == "Provider" && i.kind == "trait"));
-        assert!(ifaces.iter().any(|i| i.name == "main" && i.kind == "function"));
+        assert!(ifaces
+            .iter()
+            .any(|i| i.name == "Config" && i.kind == "struct"));
+        assert!(ifaces
+            .iter()
+            .any(|i| i.name == "Provider" && i.kind == "trait"));
+        assert!(ifaces
+            .iter()
+            .any(|i| i.name == "main" && i.kind == "function"));
     }
 
     #[test]
     fn test_extract_interfaces_typescript() {
         let source = "export interface User {\n  name: string;\n}\nexport class Service {}";
         let ifaces = extract_interfaces(source, "types.ts");
-        assert!(ifaces.iter().any(|i| i.name == "User" && i.kind == "interface"));
-        assert!(ifaces.iter().any(|i| i.name == "Service" && i.kind == "class"));
+        assert!(ifaces
+            .iter()
+            .any(|i| i.name == "User" && i.kind == "interface"));
+        assert!(ifaces
+            .iter()
+            .any(|i| i.name == "Service" && i.kind == "class"));
     }
 
     #[test]
@@ -828,8 +836,12 @@ mod tests {
     fn test_api_page_contains_endpoints() {
         let mut gen = WikiGenerator::new(DocGenConfig::default());
         gen.add_endpoint(DetectedEndpoint {
-            method: "GET".into(), path: "/health".into(), handler: "health_check".into(),
-            source_file: "serve.rs".into(), line: 42, description: None,
+            method: "GET".into(),
+            path: "/health".into(),
+            handler: "health_check".into(),
+            source_file: "serve.rs".into(),
+            line: 42,
+            description: None,
         });
         gen.generate();
         let api_page = gen.get_page("api-endpoints").unwrap();
@@ -842,8 +854,12 @@ mod tests {
     fn test_models_page_contains_interfaces() {
         let mut gen = WikiGenerator::new(DocGenConfig::default());
         gen.add_interface(DetectedInterface {
-            name: "Config".into(), kind: "struct".into(), methods: vec!["new".into(), "load".into()],
-            source_file: "config.rs".into(), line: 10, visibility: "public".into(),
+            name: "Config".into(),
+            kind: "struct".into(),
+            methods: vec!["new".into(), "load".into()],
+            source_file: "config.rs".into(),
+            line: 10,
+            visibility: "public".into(),
         });
         gen.generate();
         let page = gen.get_page("data-models").unwrap();
@@ -856,8 +872,10 @@ mod tests {
     fn test_config_page_contains_options() {
         let mut gen = WikiGenerator::new(DocGenConfig::default());
         gen.add_config(DetectedConfig {
-            key: "server.port".into(), value_type: "u16".into(),
-            default_value: Some("7878".into()), description: Some("HTTP port".into()),
+            key: "server.port".into(),
+            value_type: "u16".into(),
+            default_value: Some("7878".into()),
+            description: Some("HTTP port".into()),
             source_file: "config.rs".into(),
         });
         gen.generate();

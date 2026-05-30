@@ -7,7 +7,7 @@
  *
  * Run with: cargo test --test embedding_engine_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use std::collections::HashMap;
 use vibecli_cli::open_memory::LocalEmbeddingEngine;
 
@@ -74,9 +74,7 @@ fn when_unrelated_docs(w: &mut EngWorld, n: usize) {
     let eng = w.engine_mut();
     // Synthetic tokens that won't collide with English test corpora.
     for i in 0..n {
-        let doc = format!(
-            "filler{i}_alpha filler{i}_beta filler{i}_gamma filler{i}_delta"
-        );
+        let doc = format!("filler{i}_alpha filler{i}_beta filler{i}_gamma filler{i}_delta");
         eng.add_document(&doc);
     }
 }
@@ -86,7 +84,12 @@ fn when_unrelated_docs(w: &mut EngWorld, n: usize) {
 #[then(regex = r#"^"([^"]+)" has length (\d+)$"#)]
 fn then_len(w: &mut EngWorld, name: String, expected: usize) {
     let v = w.vecs.get(&name).expect("vec not embedded");
-    assert_eq!(v.len(), expected, "{name} length = {} != {expected}", v.len());
+    assert_eq!(
+        v.len(),
+        expected,
+        "{name} length = {} != {expected}",
+        v.len()
+    );
 }
 
 #[then(regex = r#"^cosine similarity between "([^"]+)" and "([^"]+)" is at least ([0-9.]+)$"#)]
@@ -112,7 +115,5 @@ fn then_cos_gt(w: &mut EngWorld, a: String, b: String, c: String, d: String) {
 }
 
 fn main() {
-    futures::executor::block_on(EngWorld::run(
-        "tests/features/embedding_engine.feature",
-    ));
+    futures::executor::block_on(EngWorld::run("tests/features/embedding_engine.feature"));
 }

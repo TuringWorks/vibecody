@@ -1,8 +1,8 @@
 pub mod app;
-pub mod ui;
-pub mod theme;
 pub mod components;
 mod tests;
+pub mod theme;
+pub mod ui;
 
 use anyhow::Result;
 use crossterm::{
@@ -10,25 +10,27 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use futures::StreamExt;
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
 use std::sync::Arc;
-use futures::StreamExt;
 use tokio::sync::mpsc;
 
+use crate::config::Config;
 use crate::memory::ProjectMemory;
 use crate::tool_executor::ToolExecutor;
 use crate::tui::app::{App, CurrentScreen, PendingApproval, TuiMessage};
 use crate::tui::components::agent_view::AgentStatus;
-use vibe_ai::agent::{AgentContext, AgentEvent, AgentLoop, AgentStep, ApprovalPolicy, ToolExecutorTrait};
+use vibe_ai::agent::{
+    AgentContext, AgentEvent, AgentLoop, AgentStep, ApprovalPolicy, ToolExecutorTrait,
+};
 use vibe_ai::provider::{AIProvider as LLMProvider, Message, MessageRole, ProviderConfig};
-use vibe_ai::providers::ollama::OllamaProvider;
-use vibe_ai::providers::openai::OpenAIProvider;
 use vibe_ai::providers::claude::ClaudeProvider;
 use vibe_ai::providers::gemini::GeminiProvider;
 use vibe_ai::providers::grok::GrokProvider;
+use vibe_ai::providers::ollama::OllamaProvider;
+use vibe_ai::providers::openai::OpenAIProvider;
 use vibe_ai::tools::ToolResult;
-use crate::config::Config;
 use vibe_core::git;
 
 pub async fn run(provider_name: String, model: Option<String>) -> Result<()> {
@@ -63,7 +65,10 @@ fn create_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn
     Ok(vibe_ai::ResilientProvider::wrap(raw))
 }
 
-fn create_raw_tui_provider(provider_name: &str, model: Option<String>) -> Result<Arc<dyn LLMProvider>> {
+fn create_raw_tui_provider(
+    provider_name: &str,
+    model: Option<String>,
+) -> Result<Arc<dyn LLMProvider>> {
     let config = Config::load().unwrap_or_default();
     let provider_config = config.get_provider_config(provider_name);
 
@@ -207,17 +212,24 @@ fn spawn_metrics_poller(tx: mpsc::Sender<AppEvent>) {
         ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
         loop {
             ticker.tick().await;
-            let Ok(token) = std::fs::read_to_string(&token_path) else { continue };
+            let Ok(token) = std::fs::read_to_string(&token_path) else {
+                continue;
+            };
             let token = token.trim();
             let Ok(resp) = client
                 .get(url)
                 .header("authorization", format!("Bearer {token}"))
                 .send()
                 .await
-            else { continue };
-            if !resp.status().is_success() { continue }
-            let Ok(snap) = resp.json::<crate::job_manager::JobManagerMetrics>().await
-            else { continue };
+            else {
+                continue;
+            };
+            if !resp.status().is_success() {
+                continue;
+            }
+            let Ok(snap) = resp.json::<crate::job_manager::JobManagerMetrics>().await else {
+                continue;
+            };
             if tx.send(AppEvent::MetricsTick(snap)).await.is_err() {
                 // Main loop dropped the receiver — we're shutting down.
                 break;
@@ -241,7 +253,8 @@ async fn run_app<B: ratatui::backend::Backend>(
     // Inject project memory (VIBECLI.md / AGENTS.md / CLAUDE.md)
     let memory = ProjectMemory::load(&workspace);
     if !memory.is_empty() {
-        app.messages.push(TuiMessage::System(format!("📚 {}", memory.summary())));
+        app.messages
+            .push(TuiMessage::System(format!("📚 {}", memory.summary())));
         if let Some(mem_content) = memory.combined() {
             app.messages.push(TuiMessage::System(mem_content));
         }
@@ -264,7 +277,8 @@ async fn run_app<B: ratatui::backend::Backend>(
 
         if !context.is_empty() {
             app.messages.push(TuiMessage::System(format!(
-                "Loaded git context for branch '{}'", branch
+                "Loaded git context for branch '{}'",
+                branch
             )));
             app.messages.push(TuiMessage::System(context));
         }
@@ -287,42 +301,44 @@ async fn run_app<B: ratatui::backend::Backend>(
         if let Some(event) = event {
             match event {
                 // ── Mouse Events ──────────────────────────────────────────────
-                AppEvent::Input(Event::Mouse(mouse_event)) => {
-                    match mouse_event.kind {
-                        event::MouseEventKind::ScrollUp => match app.current_screen {
-                            CurrentScreen::Chat => {
-                                app.scroll_offset = app.scroll_offset.saturating_add(3);
-                            }
-                            CurrentScreen::DiffView => app.diff_view.scroll_up(),
-                            CurrentScreen::FileTree => app.file_tree.previous(),
-                            CurrentScreen::Agent => app.agent_view.scroll_up(),
-                            CurrentScreen::Goals => app.goals.previous(),
-                            CurrentScreen::VimEditor => {}
-                        },
-                        event::MouseEventKind::ScrollDown => match app.current_screen {
-                            CurrentScreen::Chat => {
-                                app.scroll_offset = app.scroll_offset.saturating_sub(3);
-                            }
-                            CurrentScreen::DiffView => app.diff_view.scroll_down(),
-                            CurrentScreen::FileTree => app.file_tree.next(),
-                            CurrentScreen::Agent => app.agent_view.scroll_down(),
-                            CurrentScreen::Goals => app.goals.next(),
-                            CurrentScreen::VimEditor => {}
-                        },
-                        _ => {}
-                    }
-                }
+                AppEvent::Input(Event::Mouse(mouse_event)) => match mouse_event.kind {
+                    event::MouseEventKind::ScrollUp => match app.current_screen {
+                        CurrentScreen::Chat => {
+                            app.scroll_offset = app.scroll_offset.saturating_add(3);
+                        }
+                        CurrentScreen::DiffView => app.diff_view.scroll_up(),
+                        CurrentScreen::FileTree => app.file_tree.previous(),
+                        CurrentScreen::Agent => app.agent_view.scroll_up(),
+                        CurrentScreen::Goals => app.goals.previous(),
+                        CurrentScreen::VimEditor => {}
+                    },
+                    event::MouseEventKind::ScrollDown => match app.current_screen {
+                        CurrentScreen::Chat => {
+                            app.scroll_offset = app.scroll_offset.saturating_sub(3);
+                        }
+                        CurrentScreen::DiffView => app.diff_view.scroll_down(),
+                        CurrentScreen::FileTree => app.file_tree.next(),
+                        CurrentScreen::Agent => app.agent_view.scroll_down(),
+                        CurrentScreen::Goals => app.goals.next(),
+                        CurrentScreen::VimEditor => {}
+                    },
+                    _ => {}
+                },
 
                 // ── Key Events ────────────────────────────────────────────────
                 AppEvent::Input(Event::Key(key)) => {
                     // VimEditor gets all keys when active
                     if matches!(app.current_screen, CurrentScreen::VimEditor) {
                         // Get viewport height for scroll calculations (approximate)
-                        let viewport_h = terminal.size().map(|r| r.height.saturating_sub(4)).unwrap_or(24);
+                        let viewport_h = terminal
+                            .size()
+                            .map(|r| r.height.saturating_sub(4))
+                            .unwrap_or(24);
                         let wants_close = app.vim_editor.handle_key(key, viewport_h);
                         if wants_close {
                             app.current_screen = CurrentScreen::Chat;
-                            app.messages.push(TuiMessage::System("Editor closed.".to_string()));
+                            app.messages
+                                .push(TuiMessage::System("Editor closed.".to_string()));
                         }
                         continue;
                     }
@@ -361,7 +377,9 @@ async fn run_app<B: ratatui::backend::Backend>(
                         }
 
                         // ── Agent approval keys ───────────────────────────────
-                        KeyCode::Char('y') if matches!(app.current_screen, CurrentScreen::Agent) => {
+                        KeyCode::Char('y')
+                            if matches!(app.current_screen, CurrentScreen::Agent) =>
+                        {
                             if let Some(PendingApproval { call, result_tx }) =
                                 app.pending_approval.take()
                             {
@@ -378,13 +396,14 @@ async fn run_app<B: ratatui::backend::Backend>(
                                         approved: true,
                                     };
                                     let _ = result_tx.send(Some(result));
-                                    let _ = tx_clone
-                                        .send(AppEvent::AgentToolCallExecuted(step))
-                                        .await;
+                                    let _ =
+                                        tx_clone.send(AppEvent::AgentToolCallExecuted(step)).await;
                                 });
                             }
                         }
-                        KeyCode::Char('n') if matches!(app.current_screen, CurrentScreen::Agent) => {
+                        KeyCode::Char('n')
+                            if matches!(app.current_screen, CurrentScreen::Agent) =>
+                        {
                             if let Some(PendingApproval { result_tx, .. }) =
                                 app.pending_approval.take()
                             {
@@ -393,7 +412,9 @@ async fn run_app<B: ratatui::backend::Backend>(
                                 let _ = result_tx.send(None);
                             }
                         }
-                        KeyCode::Char('a') if matches!(app.current_screen, CurrentScreen::Agent) => {
+                        KeyCode::Char('a')
+                            if matches!(app.current_screen, CurrentScreen::Agent) =>
+                        {
                             // Approve-all: approve current and switch executor to FullAuto
                             if let Some(PendingApproval { call, result_tx }) =
                                 app.pending_approval.take()
@@ -411,9 +432,8 @@ async fn run_app<B: ratatui::backend::Backend>(
                                         approved: true,
                                     };
                                     let _ = result_tx.send(Some(result));
-                                    let _ = tx_clone
-                                        .send(AppEvent::AgentToolCallExecuted(step))
-                                        .await;
+                                    let _ =
+                                        tx_clone.send(AppEvent::AgentToolCallExecuted(step)).await;
                                 });
                             }
                         }
@@ -542,8 +562,7 @@ async fn run_app<B: ratatui::backend::Backend>(
 
                 // ── LLM / Streaming events ────────────────────────────────────
                 AppEvent::Chunk(text) => {
-                    if let Some(TuiMessage::AssistantStreaming(ref mut s)) =
-                        app.messages.last_mut()
+                    if let Some(TuiMessage::AssistantStreaming(ref mut s)) = app.messages.last_mut()
                     {
                         s.push_str(&text);
                     } else {
@@ -582,12 +601,21 @@ async fn run_app<B: ratatui::backend::Backend>(
                     app.agent_view.status = AgentStatus::Complete(summary.clone());
                     app.messages.push(TuiMessage::System(format!(
                         "✅ Agent complete: {}",
-                        if summary.len() > 80 { &summary[..summary.char_indices().nth(80).map(|(i,_)| i).unwrap_or(summary.len())] } else { &summary }
+                        if summary.len() > 80 {
+                            &summary[..summary
+                                .char_indices()
+                                .nth(80)
+                                .map(|(i, _)| i)
+                                .unwrap_or(summary.len())]
+                        } else {
+                            &summary
+                        }
                     )));
                 }
                 AppEvent::AgentError(e) => {
                     app.agent_view.status = AgentStatus::Error(e.clone());
-                    app.messages.push(TuiMessage::Error(format!("Agent: {}", e)));
+                    app.messages
+                        .push(TuiMessage::Error(format!("Agent: {}", e)));
                 }
 
                 AppEvent::Error(e) => {
@@ -628,7 +656,8 @@ async fn handle_chat_input(
                         .to_string(),
                 ));
             } else {
-                app.messages.push(TuiMessage::System(format!("🚀 Executing: {}", cmd)));
+                app.messages
+                    .push(TuiMessage::System(format!("🚀 Executing: {}", cmd)));
                 let output = if cfg!(target_os = "windows") {
                     std::process::Command::new("cmd").args(["/C", cmd]).output()
                 } else {
@@ -650,7 +679,9 @@ async fn handle_chat_input(
                             output: result,
                         });
                     }
-                    Err(e) => app.messages.push(TuiMessage::Error(format!("Execution failed: {}", e))),
+                    Err(e) => app
+                        .messages
+                        .push(TuiMessage::Error(format!("Execution failed: {}", e))),
                 }
             }
         }
@@ -674,13 +705,15 @@ async fn handle_chat_input(
                 app.current_screen = CurrentScreen::Goals;
             }
             "/help" => {
-                app.messages.push(TuiMessage::System("Use ? for shortcuts".to_string()));
+                app.messages
+                    .push(TuiMessage::System("Use ? for shortcuts".to_string()));
             }
             "/init" => match Config::default().save() {
                 Ok(_) => app.messages.push(TuiMessage::System(
                     "✅ Configuration initialized at ~/.vibecli/config.toml".to_string(),
                 )),
-                Err(e) => app.messages
+                Err(e) => app
+                    .messages
                     .push(TuiMessage::Error(format!("Failed to save config: {}", e))),
             },
             "/config" => {
@@ -700,7 +733,8 @@ async fn handle_chat_input(
                 let task = args.to_string();
                 app.agent_view.reset();
                 app.current_screen = CurrentScreen::Agent;
-                app.messages.push(TuiMessage::System(format!("🤖 Starting agent: {}", task)));
+                app.messages
+                    .push(TuiMessage::System(format!("🤖 Starting agent: {}", task)));
 
                 let config = Config::load().unwrap_or_default();
                 let approval = ApprovalPolicy::from_str(&config.safety.approval_policy);
@@ -734,12 +768,18 @@ async fn handle_chat_input(
                             }
                             AgentEvent::Complete(s) => AppEvent::AgentComplete(s),
                             AgentEvent::Error(e) => AppEvent::AgentError(e),
-                            AgentEvent::RetryableError { error, attempt, max_attempts, backoff_ms } => {
-                                AppEvent::AgentChunk(format!(
-                                    "\n⟳ Retrying ({}/{}) in {}ms: {}\n",
-                                    attempt + 1, max_attempts, backoff_ms, error
-                                ))
-                            }
+                            AgentEvent::RetryableError {
+                                error,
+                                attempt,
+                                max_attempts,
+                                backoff_ms,
+                            } => AppEvent::AgentChunk(format!(
+                                "\n⟳ Retrying ({}/{}) in {}ms: {}\n",
+                                attempt + 1,
+                                max_attempts,
+                                backoff_ms,
+                                error
+                            )),
                             AgentEvent::CircuitBreak { state, reason } => {
                                 if state == vibe_ai::agent::AgentHealthState::Blocked {
                                     AppEvent::AgentError(reason)
@@ -747,12 +787,15 @@ async fn handle_chat_input(
                                     AppEvent::AgentChunk(reason)
                                 }
                             }
-                            AgentEvent::Partial { summary, steps_completed, steps_planned, .. } => {
-                                AppEvent::AgentComplete(format!(
-                                    "⚠ Partial ({}/{}): {}",
-                                    steps_completed, steps_planned, summary
-                                ))
-                            }
+                            AgentEvent::Partial {
+                                summary,
+                                steps_completed,
+                                steps_planned,
+                                ..
+                            } => AppEvent::AgentComplete(format!(
+                                "⚠ Partial ({}/{}): {}",
+                                steps_completed, steps_planned, summary
+                            )),
                             AgentEvent::Verifier { decision } => {
                                 AppEvent::AgentChunk(format!("\nverifier: {:?}\n", decision))
                             }
@@ -776,7 +819,10 @@ async fn handle_chat_input(
                         content: "You are a command generation assistant. Output only the command."
                             .to_string(),
                     },
-                    Message { role: MessageRole::User, content: args.to_string() },
+                    Message {
+                        role: MessageRole::User,
+                        content: args.to_string(),
+                    },
                 ];
                 let tx_clone = tx.clone();
                 tokio::spawn(async move {
@@ -808,9 +854,8 @@ async fn handle_chat_input(
                         )));
                     }
                     _ => {
-                        app.messages.push(TuiMessage::System(
-                            "Usage: /memory [show|edit]".to_string(),
-                        ));
+                        app.messages
+                            .push(TuiMessage::System("Usage: /memory [show|edit]".to_string()));
                     }
                 }
             }
@@ -851,7 +896,10 @@ async fn handle_chat_input(
                     let new_theme = get_theme(args);
                     let name = new_theme.name;
                     app.theme = new_theme;
-                    app.messages.push(TuiMessage::System(format!("✅ Theme switched to '{}'", name)));
+                    app.messages.push(TuiMessage::System(format!(
+                        "✅ Theme switched to '{}'",
+                        name
+                    )));
                 }
             }
             "/check" => {
@@ -865,7 +913,9 @@ async fn handle_chat_input(
                     ("cargo", &["check", "--message-format=json", "--quiet"])
                 };
                 app.messages.push(TuiMessage::System(format!(
-                    "Running {} {}…", prog, prog_args.join(" ")
+                    "Running {} {}…",
+                    prog,
+                    prog_args.join(" ")
                 )));
                 match std::process::Command::new(prog)
                     .args(prog_args)
@@ -873,9 +923,8 @@ async fn handle_chat_input(
                     .output()
                 {
                     Err(e) => {
-                        app.messages.push(TuiMessage::Error(format!(
-                            "Failed to run {}: {}", prog, e
-                        )));
+                        app.messages
+                            .push(TuiMessage::Error(format!("Failed to run {}: {}", prog, e)));
                     }
                     Ok(out) => {
                         use crate::tui::components::diagnostics::parse_cargo_check;
@@ -889,7 +938,8 @@ async fn handle_chat_input(
                         app.diagnostics_panel.set(diags);
                         let _ = summary; // used inside set()
                         app.messages.push(TuiMessage::System(format!(
-                            "Diagnostics: {}", app.diagnostics_panel.status
+                            "Diagnostics: {}",
+                            app.diagnostics_panel.status
                         )));
                     }
                 }
@@ -901,34 +951,42 @@ async fn handle_chat_input(
                     ));
                 } else {
                     let url = format!("http://localhost:7878/share/{}", args.trim());
-                    app.messages.push(TuiMessage::System(format!(
-                        "📤 Share URL: {}", url
-                    )));
+                    app.messages
+                        .push(TuiMessage::System(format!("📤 Share URL: {}", url)));
                 }
             }
             _ => {
-                app.messages.push(TuiMessage::System(format!(
-                    "Unknown command: {}",
-                    command
-                )));
+                app.messages
+                    .push(TuiMessage::System(format!("Unknown command: {}", command)));
             }
         }
         return;
     }
 
     // Regular chat — stream response
-    let messages: Vec<Message> = app.messages.iter().filter_map(|m| match m {
-        TuiMessage::User(c) => Some(Message { role: MessageRole::User, content: c.clone() }),
-        TuiMessage::Assistant(c) | TuiMessage::AssistantStreaming(c) => {
-            Some(Message { role: MessageRole::Assistant, content: c.clone() })
-        }
-        TuiMessage::System(c) => Some(Message { role: MessageRole::System, content: c.clone() }),
-        TuiMessage::CommandOutput { command, output } => Some(Message {
-            role: MessageRole::User,
-            content: format!("Command executed: {}\nOutput:\n{}", command, output),
-        }),
-        _ => None,
-    }).collect();
+    let messages: Vec<Message> = app
+        .messages
+        .iter()
+        .filter_map(|m| match m {
+            TuiMessage::User(c) => Some(Message {
+                role: MessageRole::User,
+                content: c.clone(),
+            }),
+            TuiMessage::Assistant(c) | TuiMessage::AssistantStreaming(c) => Some(Message {
+                role: MessageRole::Assistant,
+                content: c.clone(),
+            }),
+            TuiMessage::System(c) => Some(Message {
+                role: MessageRole::System,
+                content: c.clone(),
+            }),
+            TuiMessage::CommandOutput { command, output } => Some(Message {
+                role: MessageRole::User,
+                content: format!("Command executed: {}\nOutput:\n{}", command, output),
+            }),
+            _ => None,
+        })
+        .collect();
 
     let tx_clone = tx.clone();
     tokio::spawn(async move {

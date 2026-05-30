@@ -9,11 +9,11 @@ use std::path::{Path, PathBuf};
 pub struct CrawlConfig {
     pub max_pages: usize,
     pub max_depth: usize,
-    pub delay_ms: u64,              // delay between requests (rate limiting)
+    pub delay_ms: u64, // delay between requests (rate limiting)
     pub timeout_secs: u64,
     pub user_agent: String,
     pub respect_robots_txt: bool,
-    pub follow_external: bool,       // follow links to other domains
+    pub follow_external: bool,         // follow links to other domains
     pub include_patterns: Vec<String>, // URL patterns to include (regex)
     pub exclude_patterns: Vec<String>, // URL patterns to exclude
     pub allowed_content_types: Vec<String>,
@@ -31,7 +31,8 @@ impl Default for CrawlConfig {
             follow_external: false,
             include_patterns: vec![],
             exclude_patterns: vec![
-                r"\.(png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|eot|mp4|mp3|pdf|zip|tar|gz)$".to_string(),
+                r"\.(png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|eot|mp4|mp3|pdf|zip|tar|gz)$"
+                    .to_string(),
             ],
             allowed_content_types: vec![
                 "text/html".to_string(),
@@ -49,12 +50,12 @@ impl Default for CrawlConfig {
 pub struct CrawledPage {
     pub url: String,
     pub title: Option<String>,
-    pub content: String,       // extracted plain text
+    pub content: String, // extracted plain text
     pub raw_html: String,
     pub status_code: u16,
     pub content_type: Option<String>,
     pub depth: usize,
-    pub links: Vec<String>,    // outgoing links found
+    pub links: Vec<String>, // outgoing links found
     pub crawled_at: String,
     pub word_count: usize,
     pub headers: HashMap<String, String>,
@@ -140,7 +141,12 @@ impl RobotsTxt {
             }
         }
 
-        Self { disallowed, allowed, crawl_delay, sitemaps }
+        Self {
+            disallowed,
+            allowed,
+            crawl_delay,
+            sitemaps,
+        }
     }
 
     /// Check if a URL path is allowed
@@ -172,7 +178,7 @@ impl SitemapParser {
         for line in xml.lines() {
             let trimmed = line.trim();
             if trimmed.starts_with("<loc>") && trimmed.ends_with("</loc>") {
-                let url = &trimmed[5..trimmed.len()-6];
+                let url = &trimmed[5..trimmed.len() - 6];
                 urls.push(url.to_string());
             } else if trimmed.starts_with("<loc>") {
                 in_loc = true;
@@ -181,7 +187,7 @@ impl SitemapParser {
             } else if trimmed.contains("<loc>") && trimmed.contains("</loc>") {
                 if let Some(start) = trimmed.find("<loc>") {
                     if let Some(end) = trimmed.find("</loc>") {
-                        urls.push(trimmed[start+5..end].to_string());
+                        urls.push(trimmed[start + 5..end].to_string());
                     }
                 }
             }
@@ -198,7 +204,7 @@ impl SitemapParser {
             if trimmed.contains("<loc>") && trimmed.contains("</loc>") {
                 if let Some(start) = trimmed.find("<loc>") {
                     if let Some(end) = trimmed.find("</loc>") {
-                        let url = &trimmed[start+5..end];
+                        let url = &trimmed[start + 5..end];
                         if url.contains("sitemap") || url.ends_with(".xml") {
                             sitemap_urls.push(url.to_string());
                         }
@@ -228,9 +234,14 @@ pub fn extract_links(html: &str, base_url: &str) -> Vec<String> {
     let mut pos = 0;
     while let Some(idx) = lower[pos..].find("href=") {
         let start = pos + idx + 5;
-        let quote = if html.as_bytes().get(start) == Some(&b'"') { '"' }
-                   else if html.as_bytes().get(start) == Some(&b'\'') { '\'' }
-                   else { pos = start + 1; continue; };
+        let quote = if html.as_bytes().get(start) == Some(&b'"') {
+            '"'
+        } else if html.as_bytes().get(start) == Some(&b'\'') {
+            '\''
+        } else {
+            pos = start + 1;
+            continue;
+        };
 
         let url_start = start + 1;
         if let Some(end) = html[url_start..].find(quote) {
@@ -253,7 +264,12 @@ pub fn extract_links(html: &str, base_url: &str) -> Vec<String> {
 /// Resolve a potentially relative URL
 fn resolve_url(href: &str, base: &str, domain: &str) -> Option<String> {
     let href = href.trim();
-    if href.is_empty() || href.starts_with('#') || href.starts_with("javascript:") || href.starts_with("mailto:") || href.starts_with("data:") {
+    if href.is_empty()
+        || href.starts_with('#')
+        || href.starts_with("javascript:")
+        || href.starts_with("mailto:")
+        || href.starts_with("data:")
+    {
         return None;
     }
 
@@ -287,11 +303,22 @@ pub fn normalize_url(url: &str) -> String {
     }
     // Remove common tracking params
     if let Some(query) = normalized.find('?') {
-        let params = &normalized[query+1..];
-        let filtered: Vec<&str> = params.split('&')
+        let params = &normalized[query + 1..];
+        let filtered: Vec<&str> = params
+            .split('&')
             .filter(|p| {
                 let key = p.split('=').next().unwrap_or("");
-                !["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "ref", "fbclid", "gclid"].contains(&key)
+                ![
+                    "utm_source",
+                    "utm_medium",
+                    "utm_campaign",
+                    "utm_content",
+                    "utm_term",
+                    "ref",
+                    "fbclid",
+                    "gclid",
+                ]
+                .contains(&key)
             })
             .collect();
         if filtered.is_empty() {
@@ -306,8 +333,10 @@ pub fn normalize_url(url: &str) -> String {
 /// Save crawl results to disk
 pub fn save_crawl_results(result: &CrawlResult, output_dir: &Path) -> anyhow::Result<PathBuf> {
     std::fs::create_dir_all(output_dir)?;
-    let filename = format!("crawl-{}.json",
-        result.seed_url.replace("://", "-").replace(['/', '.'], "_"));
+    let filename = format!(
+        "crawl-{}.json",
+        result.seed_url.replace("://", "-").replace(['/', '.'], "_")
+    );
     let path = output_dir.join(filename);
     let data = serde_json::to_string_pretty(result)?;
     std::fs::write(&path, data)?;
@@ -315,10 +344,13 @@ pub fn save_crawl_results(result: &CrawlResult, output_dir: &Path) -> anyhow::Re
 }
 
 fn now_ts() -> String {
-    format!("{}", std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs())
+    format!(
+        "{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
+    )
 }
 
 #[cfg(test)]
@@ -379,26 +411,66 @@ mod tests {
 
     #[test]
     fn test_normalize_url() {
-        assert_eq!(normalize_url("https://example.com/page#section"), "https://example.com/page");
-        assert_eq!(normalize_url("https://example.com/page/"), "https://example.com/page");
-        assert_eq!(normalize_url("https://example.com/page?utm_source=test&key=val"), "https://example.com/page?key=val");
-        assert_eq!(normalize_url("https://example.com/page?utm_source=x"), "https://example.com/page");
+        assert_eq!(
+            normalize_url("https://example.com/page#section"),
+            "https://example.com/page"
+        );
+        assert_eq!(
+            normalize_url("https://example.com/page/"),
+            "https://example.com/page"
+        );
+        assert_eq!(
+            normalize_url("https://example.com/page?utm_source=test&key=val"),
+            "https://example.com/page?key=val"
+        );
+        assert_eq!(
+            normalize_url("https://example.com/page?utm_source=x"),
+            "https://example.com/page"
+        );
     }
 
     #[test]
     fn test_resolve_url_absolute() {
-        assert_eq!(resolve_url("https://other.com/page", "https://example.com", "https://example.com"), Some("https://other.com/page".to_string()));
+        assert_eq!(
+            resolve_url(
+                "https://other.com/page",
+                "https://example.com",
+                "https://example.com"
+            ),
+            Some("https://other.com/page".to_string())
+        );
     }
 
     #[test]
     fn test_resolve_url_relative() {
-        assert_eq!(resolve_url("/about", "https://example.com/docs/page", "https://example.com"), Some("https://example.com/about".to_string()));
-        assert_eq!(resolve_url("page2.html", "https://example.com/docs/page1", "https://example.com"), Some("https://example.com/docs/page2.html".to_string()));
+        assert_eq!(
+            resolve_url(
+                "/about",
+                "https://example.com/docs/page",
+                "https://example.com"
+            ),
+            Some("https://example.com/about".to_string())
+        );
+        assert_eq!(
+            resolve_url(
+                "page2.html",
+                "https://example.com/docs/page1",
+                "https://example.com"
+            ),
+            Some("https://example.com/docs/page2.html".to_string())
+        );
     }
 
     #[test]
     fn test_resolve_url_protocol_relative() {
-        assert_eq!(resolve_url("//cdn.example.com/file", "https://example.com", "https://example.com"), Some("https://cdn.example.com/file".to_string()));
+        assert_eq!(
+            resolve_url(
+                "//cdn.example.com/file",
+                "https://example.com",
+                "https://example.com"
+            ),
+            Some("https://cdn.example.com/file".to_string())
+        );
     }
 
     #[test]

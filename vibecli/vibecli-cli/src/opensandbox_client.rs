@@ -139,7 +139,8 @@ impl OpenSandboxClient {
                 }
                 req.send().await.map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -169,7 +170,8 @@ impl OpenSandboxClient {
                 }
                 req.send().await.map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -194,7 +196,8 @@ impl OpenSandboxClient {
                 }
                 req.send().await.map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -218,7 +221,8 @@ impl OpenSandboxClient {
                 }
                 req.send().await.map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -242,7 +246,8 @@ impl OpenSandboxClient {
                 }
                 req.send().await.map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -266,7 +271,8 @@ impl OpenSandboxClient {
                 }
                 req.send().await.map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -306,10 +312,7 @@ impl ExecdClient {
     }
 
     /// Run a command and collect all output via SSE.
-    pub async fn run_command(
-        &self,
-        request: &RunCommandRequest,
-    ) -> anyhow::Result<ExecResult> {
+    pub async fn run_command(&self, request: &RunCommandRequest) -> anyhow::Result<ExecResult> {
         let url = format!("{}/command", self.base_url);
         let auth = self.auth_header();
         let request_json = serde_json::to_value(request)?;
@@ -325,7 +328,8 @@ impl ExecdClient {
                 }
                 req.send().await.map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -363,7 +367,8 @@ impl ExecdClient {
                 }
                 req.send().await.map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -419,7 +424,8 @@ impl ExecdClient {
                 }
                 req.send().await.map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -448,7 +454,8 @@ impl ExecdClient {
                 }
                 req.send().await.map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -476,7 +483,8 @@ impl ExecdClient {
                 }
                 req.send().await.map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
@@ -501,7 +509,8 @@ impl ExecdClient {
                 }
                 req.send().await.map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
         if !resp.status().is_success() {
             anyhow::bail!("get_metrics failed");
         }
@@ -708,12 +717,7 @@ impl ContainerRuntime for OpenSandboxRuntime {
         })
     }
 
-    async fn exec(
-        &self,
-        id: &str,
-        command: &str,
-        cwd: Option<&str>,
-    ) -> anyhow::Result<ExecResult> {
+    async fn exec(&self, id: &str, command: &str, cwd: Option<&str>) -> anyhow::Result<ExecResult> {
         let execd = self.get_execd(id).await?;
         let req = RunCommandRequest {
             command: command.to_string(),
@@ -756,7 +760,11 @@ impl ContainerRuntime for OpenSandboxRuntime {
 
     async fn logs(&self, id: &str, _tail: Option<u32>) -> anyhow::Result<String> {
         let result = self
-            .exec(id, "cat /var/log/sandbox.log 2>/dev/null || echo '(no logs)'", None)
+            .exec(
+                id,
+                "cat /var/log/sandbox.log 2>/dev/null || echo '(no logs)'",
+                None,
+            )
             .await?;
         Ok(result.stdout)
     }
@@ -888,7 +896,8 @@ mod tests {
 
     #[test]
     fn parse_sse_no_data_prefix_lines_ignored() {
-        let body = "event: message\nid: 1\ndata: {\"type\":\"stdout\",\"text\":\"ok\"}\nretry: 3000\n";
+        let body =
+            "event: message\nid: 1\ndata: {\"type\":\"stdout\",\"text\":\"ok\"}\nretry: 3000\n";
         let (stdout, _, _) = parse_sse_events(body);
         assert_eq!(stdout, "ok");
     }
@@ -952,7 +961,8 @@ mod tests {
 
     #[test]
     fn opensandbox_client_auth_header_with_key() {
-        let client = OpenSandboxClient::new("http://localhost".to_string(), Some("my-key".to_string()));
+        let client =
+            OpenSandboxClient::new("http://localhost".to_string(), Some("my-key".to_string()));
         let header = client.auth_header();
         assert!(header.is_some());
         let (name, value) = header.unwrap();

@@ -27,8 +27,8 @@ use futures::stream::StreamExt;
 use serde::Serialize;
 
 use crate::inference::backend::{
-    BackendError, BackendKind, ChatChunk, ChatMessage, ChatRequest, GenerateChunk,
-    GenerateRequest, ModelInfo, PullProgress, PullRequest,
+    BackendError, BackendKind, ChatChunk, ChatMessage, ChatRequest, GenerateChunk, GenerateRequest,
+    ModelInfo, PullProgress, PullRequest,
 };
 use crate::inference::backend_override::override_kind;
 use crate::serve::ServeState;
@@ -50,10 +50,7 @@ fn err_response(e: BackendError) -> Response {
 /// Each frame becomes one JSON object + `\n`. Errors mid-stream are
 /// flushed as `{"error": "..."}` frames so clients see them inline.
 fn ndjson_response<T>(
-    stream: futures::stream::BoxStream<
-        'static,
-        crate::inference::backend::BackendResult<T>,
-    >,
+    stream: futures::stream::BoxStream<'static, crate::inference::backend::BackendResult<T>>,
 ) -> Response
 where
     T: Serialize + Send + 'static,
@@ -357,4 +354,3 @@ pub fn build_routes() -> axum::Router<ServeState> {
         // inference subtree by the caller.
         .route("/v1/messages", post(crate::v1_messages::messages))
 }
-

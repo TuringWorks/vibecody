@@ -28,15 +28,15 @@
 //! streaming surface — deferred to a follow-up.
 
 use async_trait::async_trait;
-use futures::stream::BoxStream;
 #[cfg(mistralrs_enabled)]
 use futures::stream;
+use futures::stream::BoxStream;
 
 #[cfg(mistralrs_enabled)]
 use super::backend::ChatMessage;
 use super::backend::{
-    Backend, BackendError, BackendKind, BackendResult, ChatChunk, ChatRequest,
-    GenerateChunk, GenerateRequest, ModelInfo, PullProgress, PullRequest,
+    Backend, BackendError, BackendKind, BackendResult, ChatChunk, ChatRequest, GenerateChunk,
+    GenerateRequest, ModelInfo, PullProgress, PullRequest,
 };
 
 #[cfg(mistralrs_enabled)]
@@ -48,7 +48,7 @@ use tokio::sync::RwLock;
 #[cfg(mistralrs_enabled)]
 use vibe_infer::{
     mistral::{KvCacheMode, MistralGenerator},
-    ChatRole as InferChatRole, ChatMessage as InferChatMessage, ChatRequest as InferChatRequest,
+    ChatMessage as InferChatMessage, ChatRequest as InferChatRequest, ChatRole as InferChatRole,
     GenerationRequest, InferenceError, TextGenerator,
 };
 
@@ -86,7 +86,10 @@ fn looks_like_gated_error(err: &str) -> bool {
 /// `HF_TOKEN` presence into account. Surfaced via `/health` so the frontend
 /// can swap its picker default before a user hits the gated 401.
 pub fn recommended_default_model() -> &'static str {
-    if std::env::var("HF_TOKEN").map(|s| !s.is_empty()).unwrap_or(false) {
+    if std::env::var("HF_TOKEN")
+        .map(|s| !s.is_empty())
+        .unwrap_or(false)
+    {
         "meta-llama/Llama-3.1-8B-Instruct"
     } else {
         UNGATED_FALLBACK_MODEL
@@ -286,7 +289,10 @@ impl Backend for MistralRsBackend {
             prompt_tokens: Some(prompt_tokens),
             completion_tokens: Some(completion_tokens),
         };
-        Ok(Box::pin(stream::iter(vec![Ok(content_frame), Ok(done_frame)])))
+        Ok(Box::pin(stream::iter(vec![
+            Ok(content_frame),
+            Ok(done_frame),
+        ])))
     }
 
     #[cfg(not(mistralrs_enabled))]
@@ -295,8 +301,7 @@ impl Backend for MistralRsBackend {
         _req: ChatRequest,
     ) -> BackendResult<BoxStream<'static, BackendResult<ChatChunk>>> {
         Err(BackendError::Unavailable(
-            "mistralrs backend not built — recompile vibecli with --features vibe-mistralrs"
-                .into(),
+            "mistralrs backend not built — recompile vibecli with --features vibe-mistralrs".into(),
         ))
     }
 
@@ -346,8 +351,7 @@ impl Backend for MistralRsBackend {
         _req: GenerateRequest,
     ) -> BackendResult<BoxStream<'static, BackendResult<GenerateChunk>>> {
         Err(BackendError::Unavailable(
-            "mistralrs backend not built — recompile vibecli with --features vibe-mistralrs"
-                .into(),
+            "mistralrs backend not built — recompile vibecli with --features vibe-mistralrs".into(),
         ))
     }
 
@@ -404,8 +408,7 @@ impl Backend for MistralRsBackend {
         _req: PullRequest,
     ) -> BackendResult<BoxStream<'static, BackendResult<PullProgress>>> {
         Err(BackendError::Unavailable(
-            "mistralrs backend not built — recompile vibecli with --features vibe-mistralrs"
-                .into(),
+            "mistralrs backend not built — recompile vibecli with --features vibe-mistralrs".into(),
         ))
     }
 
@@ -447,7 +450,9 @@ mod tests {
     #[test]
     fn looks_like_gated_error_matches_hf_auth_signatures() {
         // Real HF Hub error fragments observed in the wild.
-        assert!(looks_like_gated_error("GatedRepoError: Cannot access gated repo"));
+        assert!(looks_like_gated_error(
+            "GatedRepoError: Cannot access gated repo"
+        ));
         assert!(looks_like_gated_error("401 Client Error: Unauthorized"));
         assert!(looks_like_gated_error("HTTP 403 Forbidden"));
         assert!(looks_like_gated_error(
@@ -476,7 +481,10 @@ mod tests {
         unsafe {
             std::env::set_var("HF_TOKEN", "hf_test_dummy");
         }
-        assert_eq!(recommended_default_model(), "meta-llama/Llama-3.1-8B-Instruct");
+        assert_eq!(
+            recommended_default_model(),
+            "meta-llama/Llama-3.1-8B-Instruct"
+        );
 
         // Restore.
         unsafe {

@@ -169,9 +169,23 @@ impl RiskScorer {
 
         // Security-sensitive files
         let security_patterns = [
-            "auth", "crypto", "secret", "password", "token", "credential",
-            "login", "session", "permission", "acl", "rbac", "oauth",
-            "jwt", "cert", "tls", "ssl", "key",
+            "auth",
+            "crypto",
+            "secret",
+            "password",
+            "token",
+            "credential",
+            "login",
+            "session",
+            "permission",
+            "acl",
+            "rbac",
+            "oauth",
+            "jwt",
+            "cert",
+            "tls",
+            "ssl",
+            "key",
         ];
         for pat in &security_patterns {
             if lower.contains(pat) {
@@ -183,9 +197,18 @@ impl RiskScorer {
 
         // Public API changes
         let api_patterns = [
-            "api/", "routes/", "handler", "controller", "endpoint",
-            "openapi", "swagger", "graphql", "schema.rs", "schema.ts",
-            "proto", "grpc",
+            "api/",
+            "routes/",
+            "handler",
+            "controller",
+            "endpoint",
+            "openapi",
+            "swagger",
+            "graphql",
+            "schema.rs",
+            "schema.ts",
+            "proto",
+            "grpc",
         ];
         for pat in &api_patterns {
             if lower.contains(pat) {
@@ -197,8 +220,14 @@ impl RiskScorer {
 
         // Database migrations
         let db_patterns = [
-            "migration", "migrate", "schema", "sql", "alembic",
-            "flyway", "liquibase", "knex",
+            "migration",
+            "migrate",
+            "schema",
+            "sql",
+            "alembic",
+            "flyway",
+            "liquibase",
+            "knex",
         ];
         for pat in &db_patterns {
             if lower.contains(pat) {
@@ -227,9 +256,17 @@ impl RiskScorer {
 
         // Dependency changes
         let dep_patterns = [
-            "cargo.toml", "package.json", "go.mod", "requirements.txt",
-            "gemfile", "pom.xml", "build.gradle", "poetry.lock",
-            "yarn.lock", "package-lock.json", "cargo.lock",
+            "cargo.toml",
+            "package.json",
+            "go.mod",
+            "requirements.txt",
+            "gemfile",
+            "pom.xml",
+            "build.gradle",
+            "poetry.lock",
+            "yarn.lock",
+            "package-lock.json",
+            "cargo.lock",
         ];
         for pat in &dep_patterns {
             if lower.ends_with(pat) || lower.contains(pat) {
@@ -241,9 +278,16 @@ impl RiskScorer {
 
         // Configuration files
         let config_patterns = [
-            ".env", "config.toml", "config.yaml", "config.json",
-            ".yml", "dockerfile", "docker-compose", "nginx.conf",
-            "terraform", ".tf",
+            ".env",
+            "config.toml",
+            "config.yaml",
+            "config.json",
+            ".yml",
+            "dockerfile",
+            "docker-compose",
+            "nginx.conf",
+            "terraform",
+            ".tf",
         ];
         for pat in &config_patterns {
             if lower.contains(pat) {
@@ -291,20 +335,19 @@ impl TestSuggester {
                         || code.starts_with("async fn ")
                     {
                         if let Some(name) = extract_fn_name(code) {
-                            suggestions.push(format!(
-                                "Add unit test for new function `{name}`"
-                            ));
+                            suggestions.push(format!("Add unit test for new function `{name}`"));
                         }
                     }
 
                     // New error path → error test
-                    if code.contains("Err(") || code.contains("return Err")
-                        || code.contains("bail!") || code.contains("anyhow!")
-                        || code.contains("panic!") || code.contains("unwrap()")
+                    if code.contains("Err(")
+                        || code.contains("return Err")
+                        || code.contains("bail!")
+                        || code.contains("anyhow!")
+                        || code.contains("panic!")
+                        || code.contains("unwrap()")
                     {
-                        suggestions.push(
-                            "Add error-path test for new error handling code".into(),
-                        );
+                        suggestions.push("Add error-path test for new error handling code".into());
                     }
 
                     // JS/TS function detection
@@ -313,9 +356,7 @@ impl TestSuggester {
                         || code.starts_with("function ")
                     {
                         if let Some(name) = extract_js_fn_name(code) {
-                            suggestions.push(format!(
-                                "Add unit test for new function `{name}`"
-                            ));
+                            suggestions.push(format!("Add unit test for new function `{name}`"));
                         }
                     }
                 }
@@ -348,13 +389,10 @@ impl TestSuggester {
 
         // Config change → validation test
         let config_exts = [".toml", ".yaml", ".yml", ".json"];
-        let is_config = config_exts.iter().any(|e| lower_path.ends_with(e))
-            && !lower_path.contains("lock");
+        let is_config =
+            config_exts.iter().any(|e| lower_path.ends_with(e)) && !lower_path.contains("lock");
         if is_config {
-            suggestions.push(format!(
-                "Add config validation test for `{}`",
-                file.path
-            ));
+            suggestions.push(format!("Add config validation test for `{}`", file.path));
         }
 
         // Database change → migration test
@@ -378,7 +416,11 @@ fn extract_fn_name(code: &str) -> Option<String> {
         .trim_start_matches("fn ");
     let end = code.find('(')?;
     let name = code[..end].trim();
-    if name.is_empty() { None } else { Some(name.to_string()) }
+    if name.is_empty() {
+        None
+    } else {
+        Some(name.to_string())
+    }
 }
 
 fn extract_js_fn_name(code: &str) -> Option<String> {
@@ -388,11 +430,19 @@ fn extract_js_fn_name(code: &str) -> Option<String> {
     if let Some(rest) = code.strip_prefix("function ") {
         let end = rest.find('(')?;
         let name = rest[..end].trim();
-        if name.is_empty() { None } else { Some(name.to_string()) }
+        if name.is_empty() {
+            None
+        } else {
+            Some(name.to_string())
+        }
     } else if let Some(rest) = code.strip_prefix("const ") {
         let end = rest.find(' ').or_else(|| rest.find('='))?;
         let name = rest[..end].trim();
-        if name.is_empty() { None } else { Some(name.to_string()) }
+        if name.is_empty() {
+            None
+        } else {
+            Some(name.to_string())
+        }
     } else {
         None
     }
@@ -584,10 +634,7 @@ impl DiffAnalyzer {
         let file_risks: Vec<FileRisk> = limited.iter().map(|f| self.file_risk(f)).collect();
 
         // Overall score = weighted average biased toward max
-        let max_score = file_risks
-            .iter()
-            .map(|fr| fr.score)
-            .fold(0.0_f64, f64::max);
+        let max_score = file_risks.iter().map(|fr| fr.score).fold(0.0_f64, f64::max);
         let avg_score = if file_risks.is_empty() {
             0.0
         } else {
@@ -643,7 +690,10 @@ impl DiffAnalyzer {
         // Bonus risk for many hunks (scattered changes)
         if file.hunks.len() > 5 {
             score = (score + 0.1).min(1.0);
-            reasons.push(format!("Scattered changes across {} hunks", file.hunks.len()));
+            reasons.push(format!(
+                "Scattered changes across {} hunks",
+                file.hunks.len()
+            ));
         }
 
         let impacted_areas = Self::detect_impact_areas(&file.path, file);
@@ -683,8 +733,11 @@ impl DiffAnalyzer {
                     .lines()
                     .filter(|l| l.starts_with('-'))
                     .filter(|l| {
-                        l.contains("assert") || l.contains("expect(") || l.contains("#[test]")
-                            || l.contains("it(\"") || l.contains("test(\"")
+                        l.contains("assert")
+                            || l.contains("expect(")
+                            || l.contains("#[test]")
+                            || l.contains("it(\"")
+                            || l.contains("test(\"")
                     })
                     .count();
                 if removed_assertions > 0 {
@@ -705,8 +758,11 @@ impl DiffAnalyzer {
                     .lines()
                     .filter(|l| l.starts_with('-'))
                     .filter(|l| {
-                        l.contains("catch") || l.contains("Err(") || l.contains("try {")
-                            || l.contains("rescue") || l.contains("except")
+                        l.contains("catch")
+                            || l.contains("Err(")
+                            || l.contains("try {")
+                            || l.contains("rescue")
+                            || l.contains("except")
                     })
                     .count();
                 if removed_error_handling > 0 {
@@ -752,9 +808,7 @@ impl DiffAnalyzer {
                     signals.push(RegressionSignal {
                         file_path: file.path.clone(),
                         signal_type: "tech_debt_added".into(),
-                        description: format!(
-                            "{added_todos} TODO/FIXME/HACK comment(s) added"
-                        ),
+                        description: format!("{added_todos} TODO/FIXME/HACK comment(s) added"),
                         confidence: 0.5,
                     });
                 }
@@ -779,10 +833,7 @@ impl DiffAnalyzer {
 
     /// Suggest tests based on all files in the diff.
     pub fn suggest_tests(&self, files: &[DiffFile]) -> Vec<String> {
-        let mut all: Vec<String> = files
-            .iter()
-            .flat_map(TestSuggester::suggest)
-            .collect();
+        let mut all: Vec<String> = files.iter().flat_map(TestSuggester::suggest).collect();
         all.sort();
         all.dedup();
         all
@@ -852,17 +903,22 @@ impl DiffAnalyzer {
             ));
         }
 
-        for fr in file_risks.iter().filter(|fr| fr.score >= self.config.risk_threshold) {
-            s.push_str(&format!("\n  - {} ({:.2}): {}", fr.path, fr.score, fr.reasons.join("; ")));
+        for fr in file_risks
+            .iter()
+            .filter(|fr| fr.score >= self.config.risk_threshold)
+        {
+            s.push_str(&format!(
+                "\n  - {} ({:.2}): {}",
+                fr.path,
+                fr.score,
+                fr.reasons.join("; ")
+            ));
         }
 
         s
     }
 
-    fn suggest_reviewers(
-        file_risks: &[FileRisk],
-        impact_areas: &[ImpactArea],
-    ) -> Vec<String> {
+    fn suggest_reviewers(file_risks: &[FileRisk], impact_areas: &[ImpactArea]) -> Vec<String> {
         let mut reviewers: Vec<String> = Vec::new();
 
         for area in impact_areas {
@@ -892,14 +948,33 @@ impl DiffAnalyzer {
         let mut areas = Vec::new();
         let lower = path.to_lowercase();
 
-        let security_kw = ["auth", "crypto", "secret", "password", "token", "credential",
-            "login", "session", "permission", "key"];
+        let security_kw = [
+            "auth",
+            "crypto",
+            "secret",
+            "password",
+            "token",
+            "credential",
+            "login",
+            "session",
+            "permission",
+            "key",
+        ];
         if security_kw.iter().any(|k| lower.contains(k)) {
             areas.push(ImpactArea::Security);
         }
 
-        let api_kw = ["api/", "routes/", "handler", "controller", "endpoint",
-            "openapi", "swagger", "graphql", "proto"];
+        let api_kw = [
+            "api/",
+            "routes/",
+            "handler",
+            "controller",
+            "endpoint",
+            "openapi",
+            "swagger",
+            "graphql",
+            "proto",
+        ];
         if api_kw.iter().any(|k| lower.contains(k)) {
             areas.push(ImpactArea::PublicAPI);
         }
@@ -909,7 +984,14 @@ impl DiffAnalyzer {
             areas.push(ImpactArea::Database);
         }
 
-        let config_kw = [".env", "config.", "dockerfile", "docker-compose", ".tf", "nginx"];
+        let config_kw = [
+            ".env",
+            "config.",
+            "dockerfile",
+            "docker-compose",
+            ".tf",
+            "nginx",
+        ];
         if config_kw.iter().any(|k| lower.contains(k)) {
             areas.push(ImpactArea::Configuration);
         }
@@ -923,14 +1005,30 @@ impl DiffAnalyzer {
             areas.push(ImpactArea::Documentation);
         }
 
-        let build_kw = ["makefile", "cmake", "build.rs", "build.gradle",
-            ".github/workflows", "ci/", "jenkinsfile"];
+        let build_kw = [
+            "makefile",
+            "cmake",
+            "build.rs",
+            "build.gradle",
+            ".github/workflows",
+            "ci/",
+            "jenkinsfile",
+        ];
         if build_kw.iter().any(|k| lower.contains(k)) {
             areas.push(ImpactArea::Build);
         }
 
-        let dep_kw = ["cargo.toml", "package.json", "go.mod", "requirements.txt",
-            "gemfile", "pom.xml", "cargo.lock", "yarn.lock", "package-lock"];
+        let dep_kw = [
+            "cargo.toml",
+            "package.json",
+            "go.mod",
+            "requirements.txt",
+            "gemfile",
+            "pom.xml",
+            "cargo.lock",
+            "yarn.lock",
+            "package-lock",
+        ];
         if dep_kw.iter().any(|k| lower.contains(k)) {
             areas.push(ImpactArea::Dependencies);
         }
@@ -968,14 +1066,34 @@ fn parse_hunk_header(line: &str) -> (usize, usize) {
 
 fn detect_language(path: &str) -> Option<String> {
     let ext_map: HashMap<&str, &str> = [
-        ("rs", "Rust"), ("ts", "TypeScript"), ("tsx", "TypeScript"),
-        ("js", "JavaScript"), ("jsx", "JavaScript"), ("py", "Python"),
-        ("go", "Go"), ("java", "Java"), ("rb", "Ruby"), ("cpp", "C++"),
-        ("c", "C"), ("cs", "C#"), ("swift", "Swift"), ("kt", "Kotlin"),
-        ("sql", "SQL"), ("sh", "Shell"), ("toml", "TOML"), ("yaml", "YAML"),
-        ("yml", "YAML"), ("json", "JSON"), ("html", "HTML"), ("css", "CSS"),
-        ("scss", "SCSS"), ("vue", "Vue"), ("svelte", "Svelte"),
-        ("proto", "Protobuf"), ("tf", "Terraform"), ("md", "Markdown"),
+        ("rs", "Rust"),
+        ("ts", "TypeScript"),
+        ("tsx", "TypeScript"),
+        ("js", "JavaScript"),
+        ("jsx", "JavaScript"),
+        ("py", "Python"),
+        ("go", "Go"),
+        ("java", "Java"),
+        ("rb", "Ruby"),
+        ("cpp", "C++"),
+        ("c", "C"),
+        ("cs", "C#"),
+        ("swift", "Swift"),
+        ("kt", "Kotlin"),
+        ("sql", "SQL"),
+        ("sh", "Shell"),
+        ("toml", "TOML"),
+        ("yaml", "YAML"),
+        ("yml", "YAML"),
+        ("json", "JSON"),
+        ("html", "HTML"),
+        ("css", "CSS"),
+        ("scss", "SCSS"),
+        ("vue", "Vue"),
+        ("svelte", "Svelte"),
+        ("proto", "Protobuf"),
+        ("tf", "Terraform"),
+        ("md", "Markdown"),
     ]
     .into_iter()
     .collect();
@@ -1137,8 +1255,7 @@ new file mode 100644
     #[test]
     fn test_risk_scorer_score_clamped_to_one() {
         // auth + migration + large + dependency-ish path
-        let (score, _) =
-            RiskScorer::score_file("auth_migration_schema.toml", 600, 600);
+        let (score, _) = RiskScorer::score_file("auth_migration_schema.toml", 600, 600);
         assert!(score <= 1.0);
     }
 
@@ -1238,7 +1355,9 @@ rename to new.rs
         let analyzer = DiffAnalyzer::new(ReviewConfig::default());
         let files = DiffAnalyzer::parse_diff(sample_diff());
         let assessment = analyzer.analyze(&files);
-        assert!(assessment.suggested_reviewers.contains(&"security-team".to_string()));
+        assert!(assessment
+            .suggested_reviewers
+            .contains(&"security-team".to_string()));
     }
 
     #[test]
@@ -1271,7 +1390,9 @@ rename to new.rs
         let files = DiffAnalyzer::parse_diff(sample_diff());
         let regressions = analyzer.detect_regressions(&files);
         assert!(
-            regressions.iter().any(|r| r.signal_type == "assertion_removed"),
+            regressions
+                .iter()
+                .any(|r| r.signal_type == "assertion_removed"),
             "Should detect removed assertions"
         );
     }
@@ -1289,7 +1410,9 @@ diff --git a/src/lib.rs b/src/lib.rs
         let analyzer = DiffAnalyzer::new(ReviewConfig::default());
         let files = DiffAnalyzer::parse_diff(diff);
         let regressions = analyzer.detect_regressions(&files);
-        assert!(regressions.iter().any(|r| r.signal_type == "unsafe_unwrap_added"));
+        assert!(regressions
+            .iter()
+            .any(|r| r.signal_type == "unsafe_unwrap_added"));
     }
 
     #[test]
@@ -1305,7 +1428,9 @@ diff --git a/src/lib.rs b/src/lib.rs
         let analyzer = DiffAnalyzer::new(ReviewConfig::default());
         let files = DiffAnalyzer::parse_diff(diff);
         let regressions = analyzer.detect_regressions(&files);
-        assert!(regressions.iter().any(|r| r.signal_type == "tech_debt_added"));
+        assert!(regressions
+            .iter()
+            .any(|r| r.signal_type == "tech_debt_added"));
     }
 
     #[test]
@@ -1322,7 +1447,9 @@ diff --git a/src/lib.rs b/src/lib.rs
         let analyzer = DiffAnalyzer::new(ReviewConfig::default());
         let files = DiffAnalyzer::parse_diff(diff);
         let regressions = analyzer.detect_regressions(&files);
-        assert!(regressions.iter().any(|r| r.signal_type == "error_handling_removed"));
+        assert!(regressions
+            .iter()
+            .any(|r| r.signal_type == "error_handling_removed"));
     }
 
     #[test]
@@ -1336,7 +1463,9 @@ diff --git a/src/lib.rs b/src/lib.rs
         };
         let analyzer = DiffAnalyzer::new(ReviewConfig::default());
         let regressions = analyzer.detect_regressions(&[file]);
-        assert!(regressions.iter().any(|r| r.signal_type == "large_deletion"));
+        assert!(regressions
+            .iter()
+            .any(|r| r.signal_type == "large_deletion"));
     }
 
     // -- suggest_tests --
@@ -1573,21 +1702,33 @@ diff --git a/src/lib.rs b/src/lib.rs
 
     #[test]
     fn test_extract_fn_name_basic() {
-        assert_eq!(extract_fn_name("pub fn hello(x: i32)"), Some("hello".into()));
+        assert_eq!(
+            extract_fn_name("pub fn hello(x: i32)"),
+            Some("hello".into())
+        );
         assert_eq!(extract_fn_name("fn bar()"), Some("bar".into()));
-        assert_eq!(extract_fn_name("pub async fn fetch_data()"), Some("fetch_data".into()));
+        assert_eq!(
+            extract_fn_name("pub async fn fetch_data()"),
+            Some("fetch_data".into())
+        );
     }
 
     // -- extract_js_fn_name --
 
     #[test]
     fn test_extract_js_fn_name_function() {
-        assert_eq!(extract_js_fn_name("export function greet()"), Some("greet".into()));
+        assert_eq!(
+            extract_js_fn_name("export function greet()"),
+            Some("greet".into())
+        );
         assert_eq!(extract_js_fn_name("function inner()"), Some("inner".into()));
     }
 
     #[test]
     fn test_extract_js_fn_name_const() {
-        assert_eq!(extract_js_fn_name("export const handler = () =>"), Some("handler".into()));
+        assert_eq!(
+            extract_js_fn_name("export const handler = () =>"),
+            Some("handler".into())
+        );
     }
 }

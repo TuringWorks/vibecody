@@ -32,10 +32,7 @@ impl DockerRuntime {
         ];
 
         // Container name
-        let name = config
-            .name
-            .clone()
-            .unwrap_or_else(generate_container_name);
+        let name = config.name.clone().unwrap_or_else(generate_container_name);
         args.push("--name".to_string());
         args.push(name);
 
@@ -189,10 +186,7 @@ impl ContainerRuntime for DockerRuntime {
         let args = self.build_create_args(config);
         let str_args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
 
-        let output = Command::new(&self.binary)
-            .args(&str_args)
-            .output()
-            .await?;
+        let output = Command::new(&self.binary).args(&str_args).output().await?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -202,7 +196,10 @@ impl ContainerRuntime for DockerRuntime {
         let container_id = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
         // Apply network restrictions if needed
-        if let NetworkPolicy::Restricted { ref allowed_domains } = config.network_policy {
+        if let NetworkPolicy::Restricted {
+            ref allowed_domains,
+        } = config.network_policy
+        {
             self.apply_network_restrictions(&container_id, allowed_domains)
                 .await?;
         }
@@ -269,12 +266,7 @@ impl ContainerRuntime for DockerRuntime {
         })
     }
 
-    async fn exec(
-        &self,
-        id: &str,
-        command: &str,
-        cwd: Option<&str>,
-    ) -> anyhow::Result<ExecResult> {
+    async fn exec(&self, id: &str, command: &str, cwd: Option<&str>) -> anyhow::Result<ExecResult> {
         let mut args = vec!["exec"];
         if let Some(dir) = cwd {
             args.push("-w");
@@ -374,9 +366,7 @@ impl ContainerRuntime for DockerRuntime {
     }
 
     async fn list_dir(&self, id: &str, path: &str) -> anyhow::Result<Vec<String>> {
-        let result = self
-            .exec(id, &format!("ls -1 '{path}'"), None)
-            .await?;
+        let result = self.exec(id, &format!("ls -1 '{path}'"), None).await?;
         if result.exit_code != 0 {
             anyhow::bail!("list_dir failed: {}", result.stderr);
         }
@@ -406,8 +396,8 @@ impl ContainerRuntime for DockerRuntime {
             .await?;
 
         // Docker stats JSON has CPUPerc, MemUsage, PIDs
-        let v: serde_json::Value = serde_json::from_str(&output)
-            .unwrap_or_else(|_| serde_json::json!({}));
+        let v: serde_json::Value =
+            serde_json::from_str(&output).unwrap_or_else(|_| serde_json::json!({}));
 
         let cpu_str = v["CPUPerc"].as_str().unwrap_or("0%");
         let cpu = cpu_str.trim_end_matches('%').parse::<f64>().unwrap_or(0.0);

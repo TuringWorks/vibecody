@@ -87,7 +87,12 @@ impl TelegramGateway {
             .user_agent("VibeCLI-Gateway/1.0")
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
-        Self { token, offset: 0, client, allowed_users }
+        Self {
+            token,
+            offset: 0,
+            client,
+            allowed_users,
+        }
     }
 
     fn base_url(&self) -> String {
@@ -97,15 +102,24 @@ impl TelegramGateway {
 
 #[async_trait::async_trait]
 impl GatewayPlatform for TelegramGateway {
-    fn name(&self) -> &str { "telegram" }
+    fn name(&self) -> &str {
+        "telegram"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
-        let url = format!("{}/getUpdates?timeout=30&offset={}", self.base_url(), self.offset);
+        let url = format!(
+            "{}/getUpdates?timeout=30&offset={}",
+            self.base_url(),
+            self.offset
+        );
         let resp = retry_async(&RetryConfig::default(), "telegram-poll", || {
             let client = self.client.clone();
             let url = url.clone();
             async move { client.get(&url).send().await.map_err(Into::into) }
-        }).await?.json::<serde_json::Value>().await?;
+        })
+        .await?
+        .json::<serde_json::Value>()
+        .await?;
 
         let mut messages = Vec::new();
         if let Some(updates) = resp["result"].as_array() {
@@ -116,17 +130,24 @@ impl GatewayPlatform for TelegramGateway {
                 if let Some(msg) = update.get("message") {
                     let chat_id = msg["chat"]["id"].to_string();
                     let text = msg["text"].as_str().unwrap_or("").to_string();
-                    let user = msg["from"]["username"].as_str()
+                    let user = msg["from"]["username"]
+                        .as_str()
                         .or_else(|| msg["from"]["first_name"].as_str())
                         .unwrap_or("unknown")
                         .to_string();
                     let message_id = msg["message_id"].as_i64().map(|id| id.to_string());
 
-                    if text.is_empty() { continue; }
+                    if text.is_empty() {
+                        continue;
+                    }
 
                     // Check whitelist
                     if !self.allowed_users.is_empty()
-                        && !self.allowed_users.iter().any(|u| u == &user || u == &format!("@{}", user)) {
+                        && !self
+                            .allowed_users
+                            .iter()
+                            .any(|u| u == &user || u == &format!("@{}", user))
+                    {
                         continue;
                     }
 
@@ -157,8 +178,16 @@ impl GatewayPlatform for TelegramGateway {
             let client = self.client.clone();
             let url = url.clone();
             let payload = payload.clone();
-            async move { client.post(&url).json(&payload).send().await.map_err(Into::into) }
-        }).await?;
+            async move {
+                client
+                    .post(&url)
+                    .json(&payload)
+                    .send()
+                    .await
+                    .map_err(Into::into)
+            }
+        })
+        .await?;
         Ok(())
     }
 }
@@ -180,13 +209,20 @@ impl DiscordGateway {
             .timeout(std::time::Duration::from_secs(15))
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
-        Self { token, client, last_message_id: None, channel_id }
+        Self {
+            token,
+            client,
+            last_message_id: None,
+            channel_id,
+        }
     }
 }
 
 #[async_trait::async_trait]
 impl GatewayPlatform for DiscordGateway {
-    fn name(&self) -> &str { "discord" }
+    fn name(&self) -> &str {
+        "discord"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         let mut url = format!(
@@ -202,23 +238,36 @@ impl GatewayPlatform for DiscordGateway {
             let url = url.clone();
             let token = self.token.clone();
             async move {
-                client.get(&url)
+                client
+                    .get(&url)
                     .header("Authorization", format!("Bot {}", token))
-                    .send().await.map_err(Into::into)
+                    .send()
+                    .await
+                    .map_err(Into::into)
             }
-        }).await?.json::<serde_json::Value>().await?;
+        })
+        .await?
+        .json::<serde_json::Value>()
+        .await?;
 
         let mut messages = Vec::new();
         if let Some(msgs) = resp.as_array() {
             for msg in msgs.iter().rev() {
                 // Skip bot messages
-                if msg["author"]["bot"].as_bool().unwrap_or(false) { continue; }
+                if msg["author"]["bot"].as_bool().unwrap_or(false) {
+                    continue;
+                }
 
                 let id = msg["id"].as_str().unwrap_or("").to_string();
                 let text = msg["content"].as_str().unwrap_or("").to_string();
-                let user = msg["author"]["username"].as_str().unwrap_or("unknown").to_string();
+                let user = msg["author"]["username"]
+                    .as_str()
+                    .unwrap_or("unknown")
+                    .to_string();
 
-                if text.is_empty() || id.is_empty() { continue; }
+                if text.is_empty() || id.is_empty() {
+                    continue;
+                }
 
                 self.last_message_id = Some(id.clone());
                 messages.push(IncomingMessage {
@@ -247,12 +296,16 @@ impl GatewayPlatform for DiscordGateway {
             let token = self.token.clone();
             let payload = payload.clone();
             async move {
-                client.post(&url)
+                client
+                    .post(&url)
                     .header("Authorization", format!("Bot {}", token))
                     .json(&payload)
-                    .send().await.map_err(Into::into)
+                    .send()
+                    .await
+                    .map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
         Ok(())
     }
 }
@@ -272,13 +325,20 @@ impl SlackGateway {
             .timeout(std::time::Duration::from_secs(15))
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
-        Self { bot_token, client, channel, last_ts: None }
+        Self {
+            bot_token,
+            client,
+            channel,
+            last_ts: None,
+        }
     }
 }
 
 #[async_trait::async_trait]
 impl GatewayPlatform for SlackGateway {
-    fn name(&self) -> &str { "slack" }
+    fn name(&self) -> &str {
+        "slack"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         let mut url = format!(
@@ -293,22 +353,34 @@ impl GatewayPlatform for SlackGateway {
             let url = url.clone();
             let bot_token = self.bot_token.clone();
             async move {
-                client.get(&url)
+                client
+                    .get(&url)
                     .header("Authorization", format!("Bearer {}", bot_token))
-                    .send().await.map_err(Into::into)
+                    .send()
+                    .await
+                    .map_err(Into::into)
             }
-        }).await?.json::<serde_json::Value>().await?;
+        })
+        .await?
+        .json::<serde_json::Value>()
+        .await?;
 
         let mut messages = Vec::new();
         if let Some(msgs) = resp["messages"].as_array() {
             for msg in msgs.iter().rev() {
-                if msg["bot_id"].is_string() { continue; } // skip bot messages
+                if msg["bot_id"].is_string() {
+                    continue;
+                } // skip bot messages
                 let ts = msg["ts"].as_str().unwrap_or("").to_string();
                 let text = msg["text"].as_str().unwrap_or("").to_string();
                 let user = msg["user"].as_str().unwrap_or("unknown").to_string();
 
-                if text.is_empty() || ts.is_empty() { continue; }
-                if Some(&ts) == self.last_ts.as_ref() { continue; }
+                if text.is_empty() || ts.is_empty() {
+                    continue;
+                }
+                if Some(&ts) == self.last_ts.as_ref() {
+                    continue;
+                }
                 self.last_ts = Some(ts.clone());
 
                 messages.push(IncomingMessage {
@@ -333,12 +405,16 @@ impl GatewayPlatform for SlackGateway {
             let bot_token = self.bot_token.clone();
             let payload = payload.clone();
             async move {
-                client.post("https://slack.com/api/chat.postMessage")
+                client
+                    .post("https://slack.com/api/chat.postMessage")
                     .header("Authorization", format!("Bearer {}", bot_token))
                     .json(&payload)
-                    .send().await.map_err(Into::into)
+                    .send()
+                    .await
+                    .map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
         Ok(())
     }
 }
@@ -364,13 +440,19 @@ impl SignalGateway {
             .user_agent("VibeCLI-Gateway/1.0")
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
-        Self { api_url, phone_number, client }
+        Self {
+            api_url,
+            phone_number,
+            client,
+        }
     }
 }
 
 #[async_trait::async_trait]
 impl GatewayPlatform for SignalGateway {
-    fn name(&self) -> &str { "signal" }
+    fn name(&self) -> &str {
+        "signal"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         // signal-cli REST: GET /v1/receive/{number} returns messages and consumes them
@@ -379,7 +461,10 @@ impl GatewayPlatform for SignalGateway {
             let client = self.client.clone();
             let url = url.clone();
             async move { client.get(&url).send().await.map_err(Into::into) }
-        }).await?.json::<serde_json::Value>().await?;
+        })
+        .await?
+        .json::<serde_json::Value>()
+        .await?;
 
         let mut messages = Vec::new();
         if let Some(entries) = resp.as_array() {
@@ -388,7 +473,9 @@ impl GatewayPlatform for SignalGateway {
                 let data_msg = &envelope["dataMessage"];
 
                 let text = data_msg["message"].as_str().unwrap_or("").to_string();
-                if text.is_empty() { continue; }
+                if text.is_empty() {
+                    continue;
+                }
 
                 let source = envelope["source"].as_str().unwrap_or("unknown").to_string();
                 let ts = data_msg["timestamp"].as_u64().unwrap_or(0).to_string();
@@ -416,8 +503,16 @@ impl GatewayPlatform for SignalGateway {
             let client = self.client.clone();
             let url = url.clone();
             let payload = payload.clone();
-            async move { client.post(&url).json(&payload).send().await.map_err(Into::into) }
-        }).await?;
+            async move {
+                client
+                    .post(&url)
+                    .json(&payload)
+                    .send()
+                    .await
+                    .map_err(Into::into)
+            }
+        })
+        .await?;
         Ok(())
     }
 }
@@ -434,19 +529,33 @@ pub struct MatrixGateway {
 }
 
 impl MatrixGateway {
-    pub fn new(homeserver: String, access_token: String, room_id: String, bot_user_id: String) -> Self {
+    pub fn new(
+        homeserver: String,
+        access_token: String,
+        room_id: String,
+        bot_user_id: String,
+    ) -> Self {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(35))
             .user_agent("VibeCLI-Gateway/1.0")
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
-        Self { homeserver, access_token, room_id, bot_user_id, client, since_token: None }
+        Self {
+            homeserver,
+            access_token,
+            room_id,
+            bot_user_id,
+            client,
+            since_token: None,
+        }
     }
 }
 
 #[async_trait::async_trait]
 impl GatewayPlatform for MatrixGateway {
-    fn name(&self) -> &str { "matrix" }
+    fn name(&self) -> &str {
+        "matrix"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         let mut url = format!(
@@ -462,11 +571,17 @@ impl GatewayPlatform for MatrixGateway {
             let url = url.clone();
             let access_token = self.access_token.clone();
             async move {
-                client.get(&url)
+                client
+                    .get(&url)
                     .header("Authorization", format!("Bearer {}", access_token))
-                    .send().await.map_err(Into::into)
+                    .send()
+                    .await
+                    .map_err(Into::into)
             }
-        }).await?.json::<serde_json::Value>().await?;
+        })
+        .await?
+        .json::<serde_json::Value>()
+        .await?;
 
         // Update since token for next poll
         if let Some(next) = resp["next_batch"].as_str() {
@@ -476,16 +591,23 @@ impl GatewayPlatform for MatrixGateway {
         let mut messages = Vec::new();
 
         // Navigate: rooms → join → <room_id> → timeline → events
-        if let Some(events) = resp["rooms"]["join"][&self.room_id]["timeline"]["events"].as_array() {
+        if let Some(events) = resp["rooms"]["join"][&self.room_id]["timeline"]["events"].as_array()
+        {
             for event in events {
-                if event["type"].as_str() != Some("m.room.message") { continue; }
+                if event["type"].as_str() != Some("m.room.message") {
+                    continue;
+                }
 
                 let sender = event["sender"].as_str().unwrap_or("").to_string();
                 // Skip our own messages
-                if sender == self.bot_user_id { continue; }
+                if sender == self.bot_user_id {
+                    continue;
+                }
 
                 let body = event["content"]["body"].as_str().unwrap_or("").to_string();
-                if body.is_empty() { continue; }
+                if body.is_empty() {
+                    continue;
+                }
 
                 let event_id = event["event_id"].as_str().unwrap_or("").to_string();
 
@@ -509,9 +631,7 @@ impl GatewayPlatform for MatrixGateway {
             .as_millis();
         let url = format!(
             "{}/_matrix/client/v3/rooms/{}/send/m.room.message/{}",
-            self.homeserver,
-            response.chat_id,
-            txn_id
+            self.homeserver, response.chat_id, txn_id
         );
         let payload = serde_json::json!({
             "msgtype": "m.text",
@@ -523,12 +643,16 @@ impl GatewayPlatform for MatrixGateway {
             let access_token = self.access_token.clone();
             let payload = payload.clone();
             async move {
-                client.put(&url)
+                client
+                    .put(&url)
                     .header("Authorization", format!("Bearer {}", access_token))
                     .json(&payload)
-                    .send().await.map_err(Into::into)
+                    .send()
+                    .await
+                    .map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
         Ok(())
     }
 }
@@ -550,13 +674,21 @@ impl TwilioGateway {
             .user_agent("VibeCLI-Gateway/1.0")
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
-        Self { account_sid, auth_token, from_number, client, last_message_sid: None }
+        Self {
+            account_sid,
+            auth_token,
+            from_number,
+            client,
+            last_message_sid: None,
+        }
     }
 }
 
 #[async_trait::async_trait]
 impl GatewayPlatform for TwilioGateway {
-    fn name(&self) -> &str { "twilio" }
+    fn name(&self) -> &str {
+        "twilio"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         // Fetch recent inbound messages
@@ -570,11 +702,17 @@ impl GatewayPlatform for TwilioGateway {
             let account_sid = self.account_sid.clone();
             let auth_token = self.auth_token.clone();
             async move {
-                client.get(&url)
+                client
+                    .get(&url)
                     .basic_auth(&account_sid, Some(&auth_token))
-                    .send().await.map_err(Into::into)
+                    .send()
+                    .await
+                    .map_err(Into::into)
             }
-        }).await?.json::<serde_json::Value>().await?;
+        })
+        .await?
+        .json::<serde_json::Value>()
+        .await?;
 
         let mut messages = Vec::new();
         if let Some(msgs) = resp["messages"].as_array() {
@@ -584,7 +722,9 @@ impl GatewayPlatform for TwilioGateway {
             for msg in msgs {
                 let sid = msg["sid"].as_str().unwrap_or("").to_string();
                 let direction = msg["direction"].as_str().unwrap_or("");
-                if direction != "inbound" { continue; }
+                if direction != "inbound" {
+                    continue;
+                }
 
                 // Skip messages we've already seen
                 if !found_last {
@@ -596,7 +736,9 @@ impl GatewayPlatform for TwilioGateway {
 
                 let body = msg["body"].as_str().unwrap_or("").to_string();
                 let from = msg["from"].as_str().unwrap_or("unknown").to_string();
-                if body.is_empty() { continue; }
+                if body.is_empty() {
+                    continue;
+                }
 
                 self.last_message_sid = Some(sid.clone());
                 batch.push(IncomingMessage {
@@ -615,10 +757,14 @@ impl GatewayPlatform for TwilioGateway {
                 for msg in msgs {
                     let sid = msg["sid"].as_str().unwrap_or("").to_string();
                     let direction = msg["direction"].as_str().unwrap_or("");
-                    if direction != "inbound" { continue; }
+                    if direction != "inbound" {
+                        continue;
+                    }
                     let body = msg["body"].as_str().unwrap_or("").to_string();
                     let from = msg["from"].as_str().unwrap_or("unknown").to_string();
-                    if body.is_empty() { continue; }
+                    if body.is_empty() {
+                        continue;
+                    }
                     self.last_message_sid = Some(sid.clone());
                     batch.push(IncomingMessage {
                         platform: "twilio".to_string(),
@@ -646,7 +792,10 @@ impl GatewayPlatform for TwilioGateway {
             ("From", self.from_number.as_str()),
             ("Body", &truncate_text(&response.text, 1600)),
         ];
-        let params_vec: Vec<(String, String)> = params.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+        let params_vec: Vec<(String, String)> = params
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
         retry_async(&RetryConfig::default(), "twilio-send", || {
             let client = self.client.clone();
             let url = url.clone();
@@ -654,12 +803,16 @@ impl GatewayPlatform for TwilioGateway {
             let auth_token = self.auth_token.clone();
             let params_vec = params_vec.clone();
             async move {
-                client.post(&url)
+                client
+                    .post(&url)
                     .basic_auth(&account_sid, Some(&auth_token))
                     .form(&params_vec)
-                    .send().await.map_err(Into::into)
+                    .send()
+                    .await
+                    .map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
         Ok(())
     }
 }
@@ -683,15 +836,20 @@ impl IMessageGateway {
         });
         // Get the current max ROWID so we only see new messages
         let last_rowid = Self::max_rowid(&path).unwrap_or(0);
-        Self { db_path: path, last_rowid }
+        Self {
+            db_path: path,
+            last_rowid,
+        }
     }
 
     fn max_rowid(db_path: &str) -> Option<i64> {
         let conn = rusqlite::Connection::open_with_flags(
             db_path,
             rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-        ).ok()?;
-        conn.query_row("SELECT MAX(ROWID) FROM message", [], |row| row.get(0)).ok()
+        )
+        .ok()?;
+        conn.query_row("SELECT MAX(ROWID) FROM message", [], |row| row.get(0))
+            .ok()
     }
 
     /// Escape text for AppleScript string literals.
@@ -703,7 +861,9 @@ impl IMessageGateway {
 #[cfg(target_os = "macos")]
 #[async_trait::async_trait]
 impl GatewayPlatform for IMessageGateway {
-    fn name(&self) -> &str { "imessage" }
+    fn name(&self) -> &str {
+        "imessage"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         let conn = rusqlite::Connection::open_with_flags(
@@ -717,7 +877,7 @@ impl GatewayPlatform for IMessageGateway {
              LEFT JOIN handle h ON m.handle_id = h.ROWID
              WHERE m.ROWID > ?1 AND m.is_from_me = 0 AND m.text IS NOT NULL
              ORDER BY m.ROWID ASC
-             LIMIT 10"
+             LIMIT 10",
         )?;
 
         let mut messages = Vec::new();
@@ -732,7 +892,9 @@ impl GatewayPlatform for IMessageGateway {
         for row in rows {
             let (rowid, text, handle_id) = row?;
             self.last_rowid = rowid; // always advance past this row
-            if text.is_empty() { continue; }
+            if text.is_empty() {
+                continue;
+            }
 
             messages.push(IncomingMessage {
                 platform: "imessage".to_string(),
@@ -799,50 +961,64 @@ impl WhatsAppGateway {
             Self::run_webhook(port, vt, buf_clone).await;
         });
 
-        Self { access_token, phone_number_id, client, buffer }
+        Self {
+            access_token,
+            phone_number_id,
+            client,
+            buffer,
+        }
     }
 
-    async fn run_webhook(port: u16, verify_token: String, buffer: Arc<Mutex<Vec<IncomingMessage>>>) {
-        use axum::{Router, extract::Query, routing::get, routing::post};
+    async fn run_webhook(
+        port: u16,
+        verify_token: String,
+        buffer: Arc<Mutex<Vec<IncomingMessage>>>,
+    ) {
+        use axum::{extract::Query, routing::get, routing::post, Router};
 
         let vt = verify_token.clone();
-        let verify_handler = move |Query(params): Query<std::collections::HashMap<String, String>>| async move {
-            if params.get("hub.verify_token").map(|s| s.as_str()) == Some(&vt) {
-                params.get("hub.challenge").cloned().unwrap_or_default()
-            } else {
-                "invalid".to_string()
-            }
-        };
+        let verify_handler =
+            move |Query(params): Query<std::collections::HashMap<String, String>>| async move {
+                if params.get("hub.verify_token").map(|s| s.as_str()) == Some(&vt) {
+                    params.get("hub.challenge").cloned().unwrap_or_default()
+                } else {
+                    "invalid".to_string()
+                }
+            };
 
         let buf = buffer.clone();
-        let post_handler = move |axum::extract::Json(body): axum::extract::Json<serde_json::Value>| async move {
-            // Parse WhatsApp webhook payload
-            if let Some(entries) = body["entry"].as_array() {
-                for entry in entries {
-                    if let Some(changes) = entry["changes"].as_array() {
-                        for change in changes {
-                            if let Some(msgs) = change["value"]["messages"].as_array() {
-                                for msg in msgs {
-                                    let text = msg["text"]["body"].as_str().unwrap_or("").to_string();
-                                    let from = msg["from"].as_str().unwrap_or("").to_string();
-                                    let msg_id = msg["id"].as_str().unwrap_or("").to_string();
-                                    if text.is_empty() || from.is_empty() { continue; }
+        let post_handler =
+            move |axum::extract::Json(body): axum::extract::Json<serde_json::Value>| async move {
+                // Parse WhatsApp webhook payload
+                if let Some(entries) = body["entry"].as_array() {
+                    for entry in entries {
+                        if let Some(changes) = entry["changes"].as_array() {
+                            for change in changes {
+                                if let Some(msgs) = change["value"]["messages"].as_array() {
+                                    for msg in msgs {
+                                        let text =
+                                            msg["text"]["body"].as_str().unwrap_or("").to_string();
+                                        let from = msg["from"].as_str().unwrap_or("").to_string();
+                                        let msg_id = msg["id"].as_str().unwrap_or("").to_string();
+                                        if text.is_empty() || from.is_empty() {
+                                            continue;
+                                        }
 
-                                    buf.lock().await.push(IncomingMessage {
-                                        platform: "whatsapp".to_string(),
-                                        chat_id: from.clone(),
-                                        user: from,
-                                        text,
-                                        message_id: Some(msg_id),
-                                    });
+                                        buf.lock().await.push(IncomingMessage {
+                                            platform: "whatsapp".to_string(),
+                                            chat_id: from.clone(),
+                                            user: from,
+                                            text,
+                                            message_id: Some(msg_id),
+                                        });
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
-            "OK".to_string()
-        };
+                "OK".to_string()
+            };
 
         let app = Router::new()
             .route("/webhook", get(verify_handler))
@@ -863,7 +1039,9 @@ impl WhatsAppGateway {
 
 #[async_trait::async_trait]
 impl GatewayPlatform for WhatsAppGateway {
-    fn name(&self) -> &str { "whatsapp" }
+    fn name(&self) -> &str {
+        "whatsapp"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         let mut buf = self.buffer.lock().await;
@@ -890,12 +1068,16 @@ impl GatewayPlatform for WhatsAppGateway {
             let access_token = self.access_token.clone();
             let payload = payload.clone();
             async move {
-                client.post(&url)
+                client
+                    .post(&url)
                     .header("Authorization", format!("Bearer {}", access_token))
                     .json(&payload)
-                    .send().await.map_err(Into::into)
+                    .send()
+                    .await
+                    .map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
         Ok(())
     }
 }
@@ -915,14 +1097,20 @@ pub struct TeamsGateway {
 }
 
 impl TeamsGateway {
-    pub async fn new(tenant_id: String, client_id: String, client_secret: String, port: u16) -> Self {
+    pub async fn new(
+        tenant_id: String,
+        client_id: String,
+        client_secret: String,
+        port: u16,
+    ) -> Self {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(15))
             .user_agent("VibeCLI-Gateway/1.0")
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
         let buffer: Arc<Mutex<Vec<(IncomingMessage, String)>>> = Arc::new(Mutex::new(Vec::new()));
-        let token_cache: Arc<Mutex<Option<(String, std::time::Instant)>>> = Arc::new(Mutex::new(None));
+        let token_cache: Arc<Mutex<Option<(String, std::time::Instant)>>> =
+            Arc::new(Mutex::new(None));
 
         // Spawn webhook receiver
         let buf_clone = buffer.clone();
@@ -930,40 +1118,58 @@ impl TeamsGateway {
             Self::run_webhook(port, buf_clone).await;
         });
 
-        Self { client_id, client_secret, tenant_id, client, buffer, token_cache }
+        Self {
+            client_id,
+            client_secret,
+            tenant_id,
+            client,
+            buffer,
+            token_cache,
+        }
     }
 
     async fn run_webhook(port: u16, buffer: Arc<Mutex<Vec<(IncomingMessage, String)>>>) {
-        use axum::{Router, routing::post};
+        use axum::{routing::post, Router};
 
         let buf = buffer.clone();
-        let handler = move |axum::extract::Json(activity): axum::extract::Json<serde_json::Value>| {
-            let buf = buf.clone();
-            async move {
-                let activity_type = activity["type"].as_str().unwrap_or("");
-                if activity_type != "message" { return "OK".to_string(); }
+        let handler =
+            move |axum::extract::Json(activity): axum::extract::Json<serde_json::Value>| {
+                let buf = buf.clone();
+                async move {
+                    let activity_type = activity["type"].as_str().unwrap_or("");
+                    if activity_type != "message" {
+                        return "OK".to_string();
+                    }
 
-                let text = activity["text"].as_str().unwrap_or("").to_string();
-                let from_name = activity["from"]["name"].as_str().unwrap_or("unknown").to_string();
-                let conversation_id = activity["conversation"]["id"].as_str().unwrap_or("").to_string();
-                let activity_id = activity["id"].as_str().unwrap_or("").to_string();
-                let service_url = activity["serviceUrl"].as_str().unwrap_or("").to_string();
+                    let text = activity["text"].as_str().unwrap_or("").to_string();
+                    let from_name = activity["from"]["name"]
+                        .as_str()
+                        .unwrap_or("unknown")
+                        .to_string();
+                    let conversation_id = activity["conversation"]["id"]
+                        .as_str()
+                        .unwrap_or("")
+                        .to_string();
+                    let activity_id = activity["id"].as_str().unwrap_or("").to_string();
+                    let service_url = activity["serviceUrl"].as_str().unwrap_or("").to_string();
 
-                if text.is_empty() || conversation_id.is_empty() { return "OK".to_string(); }
+                    if text.is_empty() || conversation_id.is_empty() {
+                        return "OK".to_string();
+                    }
 
-                buf.lock().await.push((
-                    IncomingMessage {
-                        platform: "teams".to_string(),
-                        chat_id: conversation_id,
-                        user: from_name,
-                        text,
-                        message_id: Some(activity_id),
-                    },
-                    service_url,
-                ));
-                "OK".to_string()
-            }
-        };
+                    buf.lock().await.push((
+                        IncomingMessage {
+                            platform: "teams".to_string(),
+                            chat_id: conversation_id,
+                            user: from_name,
+                            text,
+                            message_id: Some(activity_id),
+                        },
+                        service_url,
+                    ));
+                    "OK".to_string()
+                }
+            };
 
         let app = Router::new().route("/api/messages", post(handler));
         let addr: std::net::SocketAddr = ([0, 0, 0, 0], port).into();
@@ -999,17 +1205,29 @@ impl TeamsGateway {
             ("client_secret", &self.client_secret),
             ("scope", "https://api.botframework.com/.default"),
         ];
-        let params_owned: Vec<(String, String)> = params.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect();
+        let params_owned: Vec<(String, String)> = params
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect();
         let resp = retry_async(&RetryConfig::default(), "teams-oauth-token", || {
             let client = self.client.clone();
             let url = url.clone();
             let params_owned = params_owned.clone();
             async move {
-                client.post(&url).form(&params_owned).send().await.map_err(Into::into)
+                client
+                    .post(&url)
+                    .form(&params_owned)
+                    .send()
+                    .await
+                    .map_err(Into::into)
             }
-        }).await?.json::<serde_json::Value>().await?;
+        })
+        .await?
+        .json::<serde_json::Value>()
+        .await?;
 
-        let token = resp["access_token"].as_str()
+        let token = resp["access_token"]
+            .as_str()
             .ok_or_else(|| anyhow::anyhow!("Teams OAuth2 failed: no access_token in response"))?
             .to_string();
 
@@ -1021,7 +1239,9 @@ impl TeamsGateway {
 
 #[async_trait::async_trait]
 impl GatewayPlatform for TeamsGateway {
-    fn name(&self) -> &str { "teams" }
+    fn name(&self) -> &str {
+        "teams"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         let mut buf = self.buffer.lock().await;
@@ -1029,24 +1249,33 @@ impl GatewayPlatform for TeamsGateway {
         // We store (IncomingMessage, service_url) but poll() returns just IncomingMessage.
         // The service_url is needed for send() — we store it in a side map.
         // For simplicity, we embed it in the message_id as "activity_id|service_url".
-        Ok(pairs.into_iter().map(|(mut msg, svc_url)| {
-            if let Some(aid) = &msg.message_id {
-                msg.message_id = Some(format!("{}|{}", aid, svc_url));
-            }
-            msg
-        }).collect())
+        Ok(pairs
+            .into_iter()
+            .map(|(mut msg, svc_url)| {
+                if let Some(aid) = &msg.message_id {
+                    msg.message_id = Some(format!("{}|{}", aid, svc_url));
+                }
+                msg
+            })
+            .collect())
     }
 
     async fn send(&self, response: GatewayResponse) -> Result<()> {
         // Extract service_url from message_id (packed by poll())
-        let (_, service_url) = response.reply_to.as_deref()
+        let (_, service_url) = response
+            .reply_to
+            .as_deref()
             .and_then(|s| s.split_once('|'))
             .unwrap_or(("", "https://smba.trafficmanager.net/teams/"));
 
         let token = self.get_access_token().await?;
         let url = format!(
             "{}v3/conversations/{}/activities",
-            if service_url.ends_with('/') { service_url.to_string() } else { format!("{}/", service_url) },
+            if service_url.ends_with('/') {
+                service_url.to_string()
+            } else {
+                format!("{}/", service_url)
+            },
             response.chat_id
         );
         let payload = serde_json::json!({
@@ -1059,12 +1288,16 @@ impl GatewayPlatform for TeamsGateway {
             let token = token.clone();
             let payload = payload.clone();
             async move {
-                client.post(&url)
+                client
+                    .post(&url)
                     .header("Authorization", format!("Bearer {}", token))
                     .json(&payload)
-                    .send().await.map_err(Into::into)
+                    .send()
+                    .await
+                    .map_err(Into::into)
             }
-        }).await?;
+        })
+        .await?;
         Ok(())
     }
 }
@@ -1088,8 +1321,18 @@ pub async fn run_gateway(
         match gateway.poll().await {
             Ok(incoming) => {
                 for msg in incoming {
-                    let text_end = msg.text.char_indices().nth(80).map(|(i,_)| i).unwrap_or(msg.text.len());
-                    eprintln!("[gateway] {} @{}: {}", msg.platform, msg.user, &msg.text[..text_end]);
+                    let text_end = msg
+                        .text
+                        .char_indices()
+                        .nth(80)
+                        .map(|(i, _)| i)
+                        .unwrap_or(msg.text.len());
+                    eprintln!(
+                        "[gateway] {} @{}: {}",
+                        msg.platform,
+                        msg.user,
+                        &msg.text[..text_end]
+                    );
 
                     // Simple direct LLM response (non-agent for speed)
                     let messages = vec![
@@ -1104,11 +1347,13 @@ pub async fn run_gateway(
 
                     let chat_id = msg.chat_id.clone();
                     let reply_to = msg.message_id.clone();
-                    let _ = gateway.send(GatewayResponse {
-                        chat_id,
-                        text: response_text,
-                        reply_to,
-                    }).await;
+                    let _ = gateway
+                        .send(GatewayResponse {
+                            chat_id,
+                            text: response_text,
+                            reply_to,
+                        })
+                        .await;
                 }
             }
             Err(e) => {
@@ -1143,20 +1388,23 @@ pub async fn run_channel_daemon(
     automation_engine: std::sync::Arc<tokio::sync::Mutex<crate::automations::AutomationEngine>>,
     max_concurrent: usize,
 ) -> Result<()> {
-    use vibe_ai::provider::{Message, MessageRole};
     use crate::automations::{EventPayload, TaskStatus};
+    use vibe_ai::provider::{Message, MessageRole};
 
     let platform_name = gateway.name().to_string();
-    eprintln!("[daemon] Starting enhanced channel daemon on {}", platform_name);
+    eprintln!(
+        "[daemon] Starting enhanced channel daemon on {}",
+        platform_name
+    );
     eprintln!("[daemon] Max concurrent tasks: {}", max_concurrent);
 
     // Track active task count for concurrency limiting
     let active_tasks = std::sync::Arc::new(std::sync::atomic::AtomicU32::new(0));
 
     // Per-channel session history (channel_id:user → messages)
-    let sessions: std::sync::Arc<tokio::sync::Mutex<
-        std::collections::HashMap<String, Vec<Message>>
-    >> = std::sync::Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
+    let sessions: std::sync::Arc<
+        tokio::sync::Mutex<std::collections::HashMap<String, Vec<Message>>>,
+    > = std::sync::Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
 
     let mut iteration: u64 = 0;
 
@@ -1164,13 +1412,17 @@ pub async fn run_channel_daemon(
         iteration += 1;
 
         // Periodic health log
-        if iteration.is_multiple_of(150) { // Every ~5 minutes at 2s interval
+        if iteration.is_multiple_of(150) {
+            // Every ~5 minutes at 2s interval
             let engine = automation_engine.lock().await;
             let stats = engine.stats();
             eprintln!(
                 "[daemon] Health: {} rules ({} enabled), {} tasks ({} running), {} completed",
-                stats.total_rules, stats.enabled_rules,
-                stats.total_tasks, stats.running_tasks, stats.completed_tasks,
+                stats.total_rules,
+                stats.enabled_rules,
+                stats.total_tasks,
+                stats.running_tasks,
+                stats.completed_tasks,
             );
         }
 
@@ -1183,7 +1435,9 @@ pub async fn run_channel_daemon(
                     // Build event payload for automation matching
                     let mut payload = EventPayload::new(&msg.platform, "message", &msg.text);
                     payload.fields.insert("user".to_string(), msg.user.clone());
-                    payload.fields.insert("chat_id".to_string(), msg.chat_id.clone());
+                    payload
+                        .fields
+                        .insert("chat_id".to_string(), msg.chat_id.clone());
                     if let Some(ref mid) = msg.message_id {
                         payload.fields.insert("message_id".to_string(), mid.clone());
                     }
@@ -1199,8 +1453,10 @@ pub async fn run_channel_daemon(
                         for task in tasks {
                             let current = active_tasks.load(std::sync::atomic::Ordering::Relaxed);
                             if current as usize >= max_concurrent {
-                                eprintln!("[daemon] Concurrency limit reached ({}/{}), skipping task {}",
-                                    current, max_concurrent, task.task_id);
+                                eprintln!(
+                                    "[daemon] Concurrency limit reached ({}/{}), skipping task {}",
+                                    current, max_concurrent, task.task_id
+                                );
                                 continue;
                             }
 
@@ -1211,7 +1467,10 @@ pub async fn run_channel_daemon(
                             let task_id = task.task_id.clone();
                             let prompt = task.prompt.clone();
 
-                            eprintln!("[daemon] Spawning agent task: {} (rule: {})", task_id, task.rule_id);
+                            eprintln!(
+                                "[daemon] Spawning agent task: {} (rule: {})",
+                                task_id, task.rule_id
+                            );
 
                             // Update task status to Running
                             {
@@ -1224,9 +1483,13 @@ pub async fn run_channel_daemon(
                                 Message {
                                     role: MessageRole::System,
                                     content: "You are Vibe Agent, an autonomous coding assistant. \
-                                        Execute the task and report results concisely.".to_string(),
+                                        Execute the task and report results concisely."
+                                        .to_string(),
                                 },
-                                Message { role: MessageRole::User, content: prompt },
+                                Message {
+                                    role: MessageRole::User,
+                                    content: prompt,
+                                },
                             ];
 
                             tokio::spawn(async move {
@@ -1242,7 +1505,11 @@ pub async fn run_channel_daemon(
                                 }
                                 active_clone.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
 
-                                eprintln!("[daemon] Task {} complete ({} chars)", task_id, result.len());
+                                eprintln!(
+                                    "[daemon] Task {} complete ({} chars)",
+                                    task_id,
+                                    result.len()
+                                );
                                 // Note: response goes back via the automation output, not gateway reply
                                 // In full integration, this would send a gateway response too
                             });
@@ -1289,7 +1556,8 @@ pub async fn run_channel_daemon(
                                     content: response_text.clone(),
                                 });
                                 // Cap session at 50 messages to prevent unbounded growth
-                                if history.len() > 52 { // system + 50 user/assistant pairs + 1 buffer
+                                if history.len() > 52 {
+                                    // system + 50 user/assistant pairs + 1 buffer
                                     let system = history[0].clone();
                                     history.drain(1..history.len() - 20); // Keep last 20
                                     history[0] = system;
@@ -1299,11 +1567,13 @@ pub async fn run_channel_daemon(
 
                         let chat_id = msg.chat_id.clone();
                         let reply_to = msg.message_id.clone();
-                        let _ = gateway.send(GatewayResponse {
-                            chat_id,
-                            text: response_text,
-                            reply_to,
-                        }).await;
+                        let _ = gateway
+                            .send(GatewayResponse {
+                                chat_id,
+                                text: response_text,
+                                reply_to,
+                            })
+                            .await;
                     }
                 }
             }
@@ -1347,30 +1617,49 @@ impl GoogleChatGateway {
             .user_agent("VibeCLI-Gateway/1.0")
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
-        Self { service_account_json, space_id, client }
+        Self {
+            service_account_json,
+            space_id,
+            client,
+        }
     }
 }
 
 #[async_trait::async_trait]
 impl GatewayPlatform for GoogleChatGateway {
-    fn name(&self) -> &str { "googlechat" }
+    fn name(&self) -> &str {
+        "googlechat"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         let url = format!(
             "https://chat.googleapis.com/v1/spaces/{}/messages",
             self.space_id
         );
-        let resp = self.client.get(&url)
-            .header("Authorization", format!("Bearer {}", self.service_account_json))
-            .send().await?.json::<serde_json::Value>().await?;
+        let resp = self
+            .client
+            .get(&url)
+            .header(
+                "Authorization",
+                format!("Bearer {}", self.service_account_json),
+            )
+            .send()
+            .await?
+            .json::<serde_json::Value>()
+            .await?;
 
         let mut messages = Vec::new();
         if let Some(msgs) = resp["messages"].as_array() {
             for msg in msgs {
                 let text = msg["text"].as_str().unwrap_or("").to_string();
-                let sender = msg["sender"]["displayName"].as_str().unwrap_or("unknown").to_string();
+                let sender = msg["sender"]["displayName"]
+                    .as_str()
+                    .unwrap_or("unknown")
+                    .to_string();
                 let msg_name = msg["name"].as_str().unwrap_or("").to_string();
-                if text.is_empty() { continue; }
+                if text.is_empty() {
+                    continue;
+                }
 
                 messages.push(IncomingMessage {
                     platform: "googlechat".to_string(),
@@ -1392,10 +1681,15 @@ impl GatewayPlatform for GoogleChatGateway {
         let payload = serde_json::json!({
             "text": truncate_text(&response.text, 4096),
         });
-        self.client.post(&url)
-            .header("Authorization", format!("Bearer {}", self.service_account_json))
+        self.client
+            .post(&url)
+            .header(
+                "Authorization",
+                format!("Bearer {}", self.service_account_json),
+            )
             .json(&payload)
-            .send().await?;
+            .send()
+            .await?;
         Ok(())
     }
 }
@@ -1418,22 +1712,35 @@ impl MattermostGateway {
             .user_agent("VibeCLI-Gateway/1.0")
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
-        Self { url, token, channel_id, last_ts: 0, client }
+        Self {
+            url,
+            token,
+            channel_id,
+            last_ts: 0,
+            client,
+        }
     }
 }
 
 #[async_trait::async_trait]
 impl GatewayPlatform for MattermostGateway {
-    fn name(&self) -> &str { "mattermost" }
+    fn name(&self) -> &str {
+        "mattermost"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         let url = format!(
             "{}/api/v4/channels/{}/posts?since={}",
             self.url, self.channel_id, self.last_ts
         );
-        let resp = self.client.get(&url)
+        let resp = self
+            .client
+            .get(&url)
             .header("Authorization", format!("Bearer {}", self.token))
-            .send().await?.json::<serde_json::Value>().await?;
+            .send()
+            .await?
+            .json::<serde_json::Value>()
+            .await?;
 
         let mut messages = Vec::new();
         if let Some(order) = resp["order"].as_array() {
@@ -1444,7 +1751,9 @@ impl GatewayPlatform for MattermostGateway {
                         let text = post["message"].as_str().unwrap_or("").to_string();
                         let user = post["user_id"].as_str().unwrap_or("unknown").to_string();
                         let create_at = post["create_at"].as_i64().unwrap_or(0);
-                        if text.is_empty() { continue; }
+                        if text.is_empty() {
+                            continue;
+                        }
                         if create_at > self.last_ts {
                             self.last_ts = create_at;
                         }
@@ -1469,10 +1778,12 @@ impl GatewayPlatform for MattermostGateway {
             "channel_id": self.channel_id,
             "message": truncate_text(&response.text, 16383),
         });
-        self.client.post(&url)
+        self.client
+            .post(&url)
             .header("Authorization", format!("Bearer {}", self.token))
             .json(&payload)
-            .send().await?;
+            .send()
+            .await?;
         Ok(())
     }
 }
@@ -1500,7 +1811,10 @@ impl IRCGateway {
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
         Self {
-            server, port, nick, channel,
+            server,
+            port,
+            nick,
+            channel,
             buffer: Arc::new(Mutex::new(Vec::new())),
             client,
         }
@@ -1509,7 +1823,9 @@ impl IRCGateway {
 
 #[async_trait::async_trait]
 impl GatewayPlatform for IRCGateway {
-    fn name(&self) -> &str { "irc" }
+    fn name(&self) -> &str {
+        "irc"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         let mut buf = self.buffer.lock().await;
@@ -1548,7 +1864,9 @@ impl LINEGateway {
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
         Self {
-            channel_access_token, channel_secret, client,
+            channel_access_token,
+            channel_secret,
+            client,
             buffer: Arc::new(Mutex::new(Vec::new())),
         }
     }
@@ -1556,7 +1874,9 @@ impl LINEGateway {
 
 #[async_trait::async_trait]
 impl GatewayPlatform for LINEGateway {
-    fn name(&self) -> &str { "line" }
+    fn name(&self) -> &str {
+        "line"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         let mut buf = self.buffer.lock().await;
@@ -1573,10 +1893,15 @@ impl GatewayPlatform for LINEGateway {
                 "text": truncate_text(&response.text, 5000)
             }]
         });
-        self.client.post(url)
-            .header("Authorization", format!("Bearer {}", self.channel_access_token))
+        self.client
+            .post(url)
+            .header(
+                "Authorization",
+                format!("Bearer {}", self.channel_access_token),
+            )
             .json(&payload)
-            .send().await?;
+            .send()
+            .await?;
         Ok(())
     }
 }
@@ -1600,7 +1925,9 @@ impl TwitchGateway {
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
         Self {
-            oauth_token, channel, nick,
+            oauth_token,
+            channel,
+            nick,
             buffer: Arc::new(Mutex::new(Vec::new())),
             client,
         }
@@ -1609,7 +1936,9 @@ impl TwitchGateway {
 
 #[async_trait::async_trait]
 impl GatewayPlatform for TwitchGateway {
-    fn name(&self) -> &str { "twitch" }
+    fn name(&self) -> &str {
+        "twitch"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         let mut buf = self.buffer.lock().await;
@@ -1647,32 +1976,51 @@ impl NextcloudTalkGateway {
             .user_agent("VibeCLI-Gateway/1.0")
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
-        Self { url, user, password, room_token, last_id: 0, client }
+        Self {
+            url,
+            user,
+            password,
+            room_token,
+            last_id: 0,
+            client,
+        }
     }
 }
 
 #[async_trait::async_trait]
 impl GatewayPlatform for NextcloudTalkGateway {
-    fn name(&self) -> &str { "nextcloud" }
+    fn name(&self) -> &str {
+        "nextcloud"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         let url = format!(
             "{}/ocs/v2.php/apps/spreed/api/v1/chat/{}?lookIntoFuture=0&lastKnownMessageId={}",
             self.url, self.room_token, self.last_id
         );
-        let resp = self.client.get(&url)
+        let resp = self
+            .client
+            .get(&url)
             .basic_auth(&self.user, Some(&self.password))
             .header("OCS-APIRequest", "true")
             .header("Accept", "application/json")
-            .send().await?.json::<serde_json::Value>().await?;
+            .send()
+            .await?
+            .json::<serde_json::Value>()
+            .await?;
 
         let mut messages = Vec::new();
         if let Some(msgs) = resp["ocs"]["data"].as_array() {
             for msg in msgs {
                 let id = msg["id"].as_i64().unwrap_or(0);
                 let text = msg["message"].as_str().unwrap_or("").to_string();
-                let actor = msg["actorDisplayName"].as_str().unwrap_or("unknown").to_string();
-                if text.is_empty() { continue; }
+                let actor = msg["actorDisplayName"]
+                    .as_str()
+                    .unwrap_or("unknown")
+                    .to_string();
+                if text.is_empty() {
+                    continue;
+                }
                 if id > self.last_id {
                     self.last_id = id;
                 }
@@ -1697,11 +2045,13 @@ impl GatewayPlatform for NextcloudTalkGateway {
         let payload = serde_json::json!({
             "message": truncate_text(&response.text, 32000),
         });
-        self.client.post(&url)
+        self.client
+            .post(&url)
             .basic_auth(&self.user, Some(&self.password))
             .header("OCS-APIRequest", "true")
             .json(&payload)
-            .send().await?;
+            .send()
+            .await?;
         Ok(())
     }
 }
@@ -1737,7 +2087,9 @@ impl WebChatGateway {
 
 #[async_trait::async_trait]
 impl GatewayPlatform for WebChatGateway {
-    fn name(&self) -> &str { "webchat" }
+    fn name(&self) -> &str {
+        "webchat"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         let mut buf = self.buffer.lock().await;
@@ -1772,21 +2124,31 @@ impl NostrGateway {
             .connect_timeout(std::time::Duration::from_secs(5))
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
-        Self { private_key, relay_urls, client }
+        Self {
+            private_key,
+            relay_urls,
+            client,
+        }
     }
 }
 
 #[async_trait::async_trait]
 impl GatewayPlatform for NostrGateway {
-    fn name(&self) -> &str { "nostr" }
+    fn name(&self) -> &str {
+        "nostr"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
-        tracing::warn!("[nostr] poll() is a stub — Nostr requires NIP-04 crypto, not yet implemented");
+        tracing::warn!(
+            "[nostr] poll() is a stub — Nostr requires NIP-04 crypto, not yet implemented"
+        );
         Ok(vec![])
     }
 
     async fn send(&self, _response: GatewayResponse) -> Result<()> {
-        tracing::warn!("[nostr] send() is a stub — Nostr requires NIP-04 crypto, not yet implemented");
+        tracing::warn!(
+            "[nostr] send() is a stub — Nostr requires NIP-04 crypto, not yet implemented"
+        );
         Ok(())
     }
 }
@@ -1811,7 +2173,8 @@ impl FeishuGateway {
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
         Self {
-            app_id, app_secret,
+            app_id,
+            app_secret,
             buffer: Arc::new(Mutex::new(Vec::new())),
             client,
         }
@@ -1820,7 +2183,9 @@ impl FeishuGateway {
 
 #[async_trait::async_trait]
 impl GatewayPlatform for FeishuGateway {
-    fn name(&self) -> &str { "feishu" }
+    fn name(&self) -> &str {
+        "feishu"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         let mut buf = self.buffer.lock().await;
@@ -1835,9 +2200,7 @@ impl GatewayPlatform for FeishuGateway {
             "msg_type": "text",
             "content": serde_json::json!({ "text": truncate_text(&response.text, 30000) }).to_string(),
         });
-        self.client.post(url)
-            .json(&payload)
-            .send().await?;
+        self.client.post(url).json(&payload).send().await?;
         Ok(())
     }
 }
@@ -1861,7 +2224,8 @@ impl DingTalkGateway {
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
         Self {
-            access_token, webhook_secret,
+            access_token,
+            webhook_secret,
             buffer: Arc::new(Mutex::new(Vec::new())),
             client,
         }
@@ -1870,7 +2234,9 @@ impl DingTalkGateway {
 
 #[async_trait::async_trait]
 impl GatewayPlatform for DingTalkGateway {
-    fn name(&self) -> &str { "dingtalk" }
+    fn name(&self) -> &str {
+        "dingtalk"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         let mut buf = self.buffer.lock().await;
@@ -1889,9 +2255,7 @@ impl GatewayPlatform for DingTalkGateway {
                 "content": truncate_text(&response.text, 20000)
             }
         });
-        self.client.post(&url)
-            .json(&payload)
-            .send().await?;
+        self.client.post(&url).json(&payload).send().await?;
         Ok(())
     }
 }
@@ -1914,7 +2278,8 @@ impl QQGateway {
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
         Self {
-            app_id, token,
+            app_id,
+            token,
             buffer: Arc::new(Mutex::new(Vec::new())),
             client,
         }
@@ -1923,15 +2288,21 @@ impl QQGateway {
 
 #[async_trait::async_trait]
 impl GatewayPlatform for QQGateway {
-    fn name(&self) -> &str { "qq" }
+    fn name(&self) -> &str {
+        "qq"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
-        tracing::warn!("[qq] poll() is a stub — QQ Bot API requires WebSocket, not yet implemented");
+        tracing::warn!(
+            "[qq] poll() is a stub — QQ Bot API requires WebSocket, not yet implemented"
+        );
         Ok(vec![])
     }
 
     async fn send(&self, _response: GatewayResponse) -> Result<()> {
-        tracing::warn!("[qq] send() is a stub — QQ Bot API requires WebSocket, not yet implemented");
+        tracing::warn!(
+            "[qq] send() is a stub — QQ Bot API requires WebSocket, not yet implemented"
+        );
         Ok(())
     }
 }
@@ -1957,7 +2328,9 @@ impl WeComGateway {
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
         Self {
-            corp_id, agent_id, secret,
+            corp_id,
+            agent_id,
+            secret,
             buffer: Arc::new(Mutex::new(Vec::new())),
             client,
         }
@@ -1966,7 +2339,9 @@ impl WeComGateway {
 
 #[async_trait::async_trait]
 impl GatewayPlatform for WeComGateway {
-    fn name(&self) -> &str { "wecom" }
+    fn name(&self) -> &str {
+        "wecom"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         let mut buf = self.buffer.lock().await;
@@ -1985,9 +2360,7 @@ impl GatewayPlatform for WeComGateway {
                 "content": truncate_text(&response.text, 2048)
             }
         });
-        self.client.post(url)
-            .json(&payload)
-            .send().await?;
+        self.client.post(url).json(&payload).send().await?;
         Ok(())
     }
 }
@@ -2018,7 +2391,9 @@ impl ZaloGateway {
 
 #[async_trait::async_trait]
 impl GatewayPlatform for ZaloGateway {
-    fn name(&self) -> &str { "zalo" }
+    fn name(&self) -> &str {
+        "zalo"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         let mut buf = self.buffer.lock().await;
@@ -2036,10 +2411,12 @@ impl GatewayPlatform for ZaloGateway {
                 "text": truncate_text(&response.text, 2000)
             }
         });
-        self.client.post(url)
+        self.client
+            .post(url)
             .header("access_token", &self.access_token)
             .json(&payload)
-            .send().await?;
+            .send()
+            .await?;
         Ok(())
     }
 }
@@ -2061,31 +2438,49 @@ impl BlueBubblesGateway {
             .user_agent("VibeCLI-Gateway/1.0")
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
-        Self { url, password, last_ts: 0, client }
+        Self {
+            url,
+            password,
+            last_ts: 0,
+            client,
+        }
     }
 }
 
 #[async_trait::async_trait]
 impl GatewayPlatform for BlueBubblesGateway {
-    fn name(&self) -> &str { "bluebubbles" }
+    fn name(&self) -> &str {
+        "bluebubbles"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
-        let url = format!("{}/api/v1/message?password={}&after={}&limit=10",
+        let url = format!(
+            "{}/api/v1/message?password={}&after={}&limit=10",
             self.url, self.password, self.last_ts
         );
-        let resp = self.client.get(&url)
-            .send().await?.json::<serde_json::Value>().await?;
+        let resp = self
+            .client
+            .get(&url)
+            .send()
+            .await?
+            .json::<serde_json::Value>()
+            .await?;
 
         let mut messages = Vec::new();
         if let Some(data) = resp["data"].as_array() {
             for msg in data {
                 let text = msg["text"].as_str().unwrap_or("").to_string();
                 let is_from_me = msg["isFromMe"].as_bool().unwrap_or(true);
-                let handle = msg["handle"]["address"].as_str().unwrap_or("unknown").to_string();
+                let handle = msg["handle"]["address"]
+                    .as_str()
+                    .unwrap_or("unknown")
+                    .to_string();
                 let date_created = msg["dateCreated"].as_i64().unwrap_or(0);
                 let guid = msg["guid"].as_str().unwrap_or("").to_string();
 
-                if text.is_empty() || is_from_me { continue; }
+                if text.is_empty() || is_from_me {
+                    continue;
+                }
                 if date_created > self.last_ts {
                     self.last_ts = date_created;
                 }
@@ -2103,14 +2498,15 @@ impl GatewayPlatform for BlueBubblesGateway {
     }
 
     async fn send(&self, response: GatewayResponse) -> Result<()> {
-        let url = format!("{}/api/v1/message/text?password={}", self.url, self.password);
+        let url = format!(
+            "{}/api/v1/message/text?password={}",
+            self.url, self.password
+        );
         let payload = serde_json::json!({
             "chatGuid": response.chat_id,
             "message": truncate_text(&response.text, 10000),
         });
-        self.client.post(&url)
-            .json(&payload)
-            .send().await?;
+        self.client.post(&url).json(&payload).send().await?;
         Ok(())
     }
 }
@@ -2136,7 +2532,9 @@ impl SynologyChatGateway {
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
         Self {
-            url, incoming_url, token,
+            url,
+            incoming_url,
+            token,
             buffer: Arc::new(Mutex::new(Vec::new())),
             client,
         }
@@ -2145,7 +2543,9 @@ impl SynologyChatGateway {
 
 #[async_trait::async_trait]
 impl GatewayPlatform for SynologyChatGateway {
-    fn name(&self) -> &str { "synology" }
+    fn name(&self) -> &str {
+        "synology"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         let mut buf = self.buffer.lock().await;
@@ -2160,10 +2560,12 @@ impl GatewayPlatform for SynologyChatGateway {
                 "text": truncate_text(&response.text, 10000)
             })
         );
-        self.client.post(&self.incoming_url)
+        self.client
+            .post(&self.incoming_url)
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(payload)
-            .send().await?;
+            .send()
+            .await?;
         Ok(())
     }
 }
@@ -2187,13 +2589,19 @@ impl TlonGateway {
             .connect_timeout(std::time::Duration::from_secs(5))
             .build()
             .unwrap_or_else(|_| reqwest::Client::new());
-        Self { ship_url, ship_code, client }
+        Self {
+            ship_url,
+            ship_code,
+            client,
+        }
     }
 }
 
 #[async_trait::async_trait]
 impl GatewayPlatform for TlonGateway {
-    fn name(&self) -> &str { "tlon" }
+    fn name(&self) -> &str {
+        "tlon"
+    }
 
     async fn poll(&mut self) -> Result<Vec<IncomingMessage>> {
         tracing::warn!("[tlon] poll() is a stub — Urbit/Tlon API not yet implemented");
@@ -2252,7 +2660,10 @@ mod tests {
 
     #[test]
     fn signal_gateway_constructor() {
-        let gw = SignalGateway::new("http://localhost:8080".to_string(), "+15551234567".to_string());
+        let gw = SignalGateway::new(
+            "http://localhost:8080".to_string(),
+            "+15551234567".to_string(),
+        );
         assert_eq!(gw.name(), "signal");
         assert_eq!(gw.api_url, "http://localhost:8080");
         assert_eq!(gw.phone_number, "+15551234567");
@@ -2340,7 +2751,11 @@ mod tests {
             message_id: Some("act_1".to_string()),
         };
         // Simulate what poll() does
-        let packed = format!("{}|{}", msg.message_id.unwrap(), "https://smba.trafficmanager.net/teams/");
+        let packed = format!(
+            "{}|{}",
+            msg.message_id.unwrap(),
+            "https://smba.trafficmanager.net/teams/"
+        );
         let (activity_id, service_url) = packed.split_once('|').unwrap();
         assert_eq!(activity_id, "act_1");
         assert!(service_url.starts_with("https://"));
@@ -2692,9 +3107,23 @@ mod tests {
 
     #[test]
     fn route_message_by_platform() {
-        let platforms = ["telegram", "discord", "slack", "signal", "matrix",
-                         "twilio", "whatsapp", "teams", "irc", "twitch",
-                         "webchat", "nostr", "qq", "googlechat", "mattermost"];
+        let platforms = [
+            "telegram",
+            "discord",
+            "slack",
+            "signal",
+            "matrix",
+            "twilio",
+            "whatsapp",
+            "teams",
+            "irc",
+            "twitch",
+            "webchat",
+            "nostr",
+            "qq",
+            "googlechat",
+            "mattermost",
+        ];
         for platform in &platforms {
             let msg = IncomingMessage {
                 platform: platform.to_string(),
@@ -2717,11 +3146,17 @@ mod tests {
     fn telegram_whitelist_matching() {
         let allowed = vec!["alice".to_string(), "@bob".to_string()];
         // Direct match
-        assert!(allowed.iter().any(|u| u == "alice" || u == &format!("@{}", "alice")));
+        assert!(allowed
+            .iter()
+            .any(|u| u == "alice" || u == &format!("@{}", "alice")));
         // @-prefixed match
-        assert!(allowed.iter().any(|u| u == "bob" || u == &format!("@{}", "bob")));
+        assert!(allowed
+            .iter()
+            .any(|u| u == "bob" || u == &format!("@{}", "bob")));
         // Non-match
-        assert!(!allowed.iter().any(|u| u == "eve" || u == &format!("@{}", "eve")));
+        assert!(!allowed
+            .iter()
+            .any(|u| u == "eve" || u == &format!("@{}", "eve")));
     }
 
     #[test]
@@ -2836,7 +3271,9 @@ mod tests {
             assert!(
                 truncated.len() <= limit,
                 "{} truncation exceeded limit {} (got {})",
-                platform, limit, truncated.len()
+                platform,
+                limit,
+                truncated.len()
             );
         }
     }
@@ -2847,7 +3284,8 @@ mod tests {
     fn teams_service_url_extraction_with_no_pipe() {
         // When reply_to has no pipe, fallback service_url should be used
         let reply_to = Some("just-an-activity-id".to_string());
-        let (_, service_url) = reply_to.as_deref()
+        let (_, service_url) = reply_to
+            .as_deref()
             .and_then(|s| s.split_once('|'))
             .unwrap_or(("", "https://smba.trafficmanager.net/teams/"));
         assert_eq!(service_url, "https://smba.trafficmanager.net/teams/");
@@ -2856,7 +3294,8 @@ mod tests {
     #[test]
     fn teams_service_url_extraction_with_pipe() {
         let reply_to = Some("act_123|https://custom.service.url/".to_string());
-        let (activity_id, service_url) = reply_to.as_deref()
+        let (activity_id, service_url) = reply_to
+            .as_deref()
             .and_then(|s| s.split_once('|'))
             .unwrap_or(("", "https://smba.trafficmanager.net/teams/"));
         assert_eq!(activity_id, "act_123");
@@ -2866,7 +3305,8 @@ mod tests {
     #[test]
     fn teams_service_url_with_none_reply() {
         let reply_to: Option<String> = None;
-        let (_, service_url) = reply_to.as_deref()
+        let (_, service_url) = reply_to
+            .as_deref()
             .and_then(|s| s.split_once('|'))
             .unwrap_or(("", "https://smba.trafficmanager.net/teams/"));
         assert_eq!(service_url, "https://smba.trafficmanager.net/teams/");
@@ -2964,7 +3404,10 @@ mod tests {
     #[test]
     fn telegram_base_url_special_token() {
         let gw = TelegramGateway::new("123456:ABC-def_GHI".to_string(), vec![]);
-        assert_eq!(gw.base_url(), "https://api.telegram.org/bot123456:ABC-def_GHI");
+        assert_eq!(
+            gw.base_url(),
+            "https://api.telegram.org/bot123456:ABC-def_GHI"
+        );
     }
 
     // ── IncomingMessage empty text ──────────────────────────────────────────
@@ -3011,10 +3454,24 @@ mod tests {
     #[test]
     fn route_message_all_18_platforms() {
         let platforms = [
-            "telegram", "discord", "slack", "signal", "matrix",
-            "twilio", "whatsapp", "teams", "irc", "twitch",
-            "webchat", "nostr", "qq", "googlechat", "mattermost",
-            "line", "feishu", "dingtalk",
+            "telegram",
+            "discord",
+            "slack",
+            "signal",
+            "matrix",
+            "twilio",
+            "whatsapp",
+            "teams",
+            "irc",
+            "twitch",
+            "webchat",
+            "nostr",
+            "qq",
+            "googlechat",
+            "mattermost",
+            "line",
+            "feishu",
+            "dingtalk",
         ];
         assert_eq!(platforms.len(), 18);
         for platform in &platforms {

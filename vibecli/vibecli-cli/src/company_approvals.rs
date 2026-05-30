@@ -14,9 +14,14 @@ use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }
-fn new_id() -> String { uuid::Uuid::new_v4().to_string() }
+fn new_id() -> String {
+    uuid::Uuid::new_v4().to_string()
+}
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
 
@@ -105,10 +110,13 @@ pub struct ApprovalStore<'a> {
 }
 
 impl<'a> ApprovalStore<'a> {
-    pub fn new(conn: &'a Connection) -> Self { Self { conn } }
+    pub fn new(conn: &'a Connection) -> Self {
+        Self { conn }
+    }
 
     pub fn ensure_schema(&self) -> Result<()> {
-        self.conn.execute_batch(r#"
+        self.conn.execute_batch(
+            r#"
             CREATE TABLE IF NOT EXISTS approvals (
                 id              TEXT PRIMARY KEY,
                 company_id      TEXT NOT NULL,
@@ -124,7 +132,8 @@ impl<'a> ApprovalStore<'a> {
             CREATE INDEX IF NOT EXISTS idx_approvals_company ON approvals(company_id);
             CREATE INDEX IF NOT EXISTS idx_approvals_status ON approvals(company_id, status);
             CREATE INDEX IF NOT EXISTS idx_approvals_requester ON approvals(requester_id);
-        "#)?;
+        "#,
+        )?;
         Ok(())
     }
 
@@ -173,13 +182,19 @@ impl<'a> ApprovalStore<'a> {
 
     pub fn list(&self, company_id: &str, status_filter: Option<&str>) -> Result<Vec<Approval>> {
         let (sql, use_status) = if status_filter.is_some() {
-            ("SELECT id, company_id, request_type, subject_id, requester_id, status,
+            (
+                "SELECT id, company_id, request_type, subject_id, requester_id, status,
                      reason, decided_by, decided_at, created_at
-              FROM approvals WHERE company_id = ?1 AND status = ?2 ORDER BY created_at DESC", true)
+              FROM approvals WHERE company_id = ?1 AND status = ?2 ORDER BY created_at DESC",
+                true,
+            )
         } else {
-            ("SELECT id, company_id, request_type, subject_id, requester_id, status,
+            (
+                "SELECT id, company_id, request_type, subject_id, requester_id, status,
                      reason, decided_by, decided_at, created_at
-              FROM approvals WHERE company_id = ?1 ORDER BY created_at DESC", false)
+              FROM approvals WHERE company_id = ?1 ORDER BY created_at DESC",
+                false,
+            )
         };
         let mut stmt = self.conn.prepare(sql)?;
         let rows = if use_status {
@@ -193,17 +208,19 @@ impl<'a> ApprovalStore<'a> {
     }
 
     /// Decide on an approval request (approve or reject).
-    pub fn decide(
-        &self,
-        id: &str,
-        approved: bool,
-        decided_by: &str,
-    ) -> Result<Approval> {
+    pub fn decide(&self, id: &str, approved: bool, decided_by: &str) -> Result<Approval> {
         let approval = self.get(id)?.context("approval not found")?;
         if approval.status != ApprovalStatus::Pending {
-            return Err(anyhow!("Approval is already {} — cannot re-decide", approval.status.as_str()));
+            return Err(anyhow!(
+                "Approval is already {} — cannot re-decide",
+                approval.status.as_str()
+            ));
         }
-        let new_status = if approved { ApprovalStatus::Approved } else { ApprovalStatus::Rejected };
+        let new_status = if approved {
+            ApprovalStatus::Approved
+        } else {
+            ApprovalStatus::Rejected
+        };
         let now = now_ms();
         self.conn.execute(
             "UPDATE approvals SET status = ?1, decided_by = ?2, decided_at = ?3 WHERE id = ?4",
@@ -299,7 +316,15 @@ mod tests {
         let conn = make_conn();
         let store = ApprovalStore::new(&conn);
         store.ensure_schema().unwrap();
-        let a = store.request("co1", ApprovalRequestType::Hire, "agent-x", "req-1", "Need to hire").unwrap();
+        let a = store
+            .request(
+                "co1",
+                ApprovalRequestType::Hire,
+                "agent-x",
+                "req-1",
+                "Need to hire",
+            )
+            .unwrap();
         assert_eq!(a.status, ApprovalStatus::Pending);
         assert_eq!(a.request_type, ApprovalRequestType::Hire);
         assert_eq!(a.requester_id, "req-1");
@@ -310,7 +335,15 @@ mod tests {
         let conn = make_conn();
         let store = ApprovalStore::new(&conn);
         store.ensure_schema().unwrap();
-        let a = store.request("co1", ApprovalRequestType::Budget, "subj-1", "req-1", "Reason").unwrap();
+        let a = store
+            .request(
+                "co1",
+                ApprovalRequestType::Budget,
+                "subj-1",
+                "req-1",
+                "Reason",
+            )
+            .unwrap();
         let fetched = store.get(&a.id).unwrap();
         assert!(fetched.is_some());
         assert_eq!(fetched.unwrap().id, a.id);
@@ -332,7 +365,15 @@ mod tests {
         let conn = make_conn();
         let store = ApprovalStore::new(&conn);
         store.ensure_schema().unwrap();
-        let a = store.request("co1", ApprovalRequestType::Task, "task-1", "req-1", "Do task").unwrap();
+        let a = store
+            .request(
+                "co1",
+                ApprovalRequestType::Task,
+                "task-1",
+                "req-1",
+                "Do task",
+            )
+            .unwrap();
         let decided = store.decide(&a.id, true, "approver-1").unwrap();
         assert_eq!(decided.status, ApprovalStatus::Approved);
         assert_eq!(decided.decided_by.as_deref(), Some("approver-1"));
@@ -344,7 +385,15 @@ mod tests {
         let conn = make_conn();
         let store = ApprovalStore::new(&conn);
         store.ensure_schema().unwrap();
-        let a = store.request("co1", ApprovalRequestType::Deploy, "svc-1", "req-1", "Deploy now").unwrap();
+        let a = store
+            .request(
+                "co1",
+                ApprovalRequestType::Deploy,
+                "svc-1",
+                "req-1",
+                "Deploy now",
+            )
+            .unwrap();
         let decided = store.decide(&a.id, false, "boss-1").unwrap();
         assert_eq!(decided.status, ApprovalStatus::Rejected);
     }
@@ -354,7 +403,9 @@ mod tests {
         let conn = make_conn();
         let store = ApprovalStore::new(&conn);
         store.ensure_schema().unwrap();
-        let a = store.request("co1", ApprovalRequestType::Hire, "ag-1", "req", "ok").unwrap();
+        let a = store
+            .request("co1", ApprovalRequestType::Hire, "ag-1", "req", "ok")
+            .unwrap();
         store.decide(&a.id, true, "boss").unwrap();
         let result = store.decide(&a.id, false, "boss");
         assert!(result.is_err());
@@ -367,7 +418,9 @@ mod tests {
         let conn = make_conn();
         let store = ApprovalStore::new(&conn);
         store.ensure_schema().unwrap();
-        let a = store.request("co1", ApprovalRequestType::Budget, "sub", "req", "ok").unwrap();
+        let a = store
+            .request("co1", ApprovalRequestType::Budget, "sub", "req", "ok")
+            .unwrap();
         store.decide(&a.id, false, "boss").unwrap();
         let result = store.decide(&a.id, true, "boss");
         assert!(result.is_err());
@@ -380,7 +433,15 @@ mod tests {
         let conn = make_conn();
         let store = ApprovalStore::new(&conn);
         store.ensure_schema().unwrap();
-        let a = store.request("co1", ApprovalRequestType::Strategy, "goal-1", "req-1", "pivot").unwrap();
+        let a = store
+            .request(
+                "co1",
+                ApprovalRequestType::Strategy,
+                "goal-1",
+                "req-1",
+                "pivot",
+            )
+            .unwrap();
         let cancelled = store.cancel(&a.id).unwrap();
         assert_eq!(cancelled.status, ApprovalStatus::Cancelled);
     }
@@ -390,7 +451,9 @@ mod tests {
         let conn = make_conn();
         let store = ApprovalStore::new(&conn);
         store.ensure_schema().unwrap();
-        let a = store.request("co1", ApprovalRequestType::Task, "t1", "r1", "ok").unwrap();
+        let a = store
+            .request("co1", ApprovalRequestType::Task, "t1", "r1", "ok")
+            .unwrap();
         store.decide(&a.id, true, "boss").unwrap();
         let result = store.cancel(&a.id);
         assert!(result.is_err());
@@ -403,9 +466,15 @@ mod tests {
         let conn = make_conn();
         let store = ApprovalStore::new(&conn);
         store.ensure_schema().unwrap();
-        store.request("co1", ApprovalRequestType::Hire, "a1", "r1", "ok").unwrap();
-        store.request("co1", ApprovalRequestType::Budget, "a2", "r2", "ok").unwrap();
-        store.request("co2", ApprovalRequestType::Task, "a3", "r3", "ok").unwrap();
+        store
+            .request("co1", ApprovalRequestType::Hire, "a1", "r1", "ok")
+            .unwrap();
+        store
+            .request("co1", ApprovalRequestType::Budget, "a2", "r2", "ok")
+            .unwrap();
+        store
+            .request("co2", ApprovalRequestType::Task, "a3", "r3", "ok")
+            .unwrap();
         let list = store.list("co1", None).unwrap();
         assert_eq!(list.len(), 2);
     }
@@ -415,8 +484,12 @@ mod tests {
         let conn = make_conn();
         let store = ApprovalStore::new(&conn);
         store.ensure_schema().unwrap();
-        let a1 = store.request("co1", ApprovalRequestType::Hire, "s1", "r1", "ok").unwrap();
-        let _a2 = store.request("co1", ApprovalRequestType::Task, "s2", "r2", "ok").unwrap();
+        let a1 = store
+            .request("co1", ApprovalRequestType::Hire, "s1", "r1", "ok")
+            .unwrap();
+        let _a2 = store
+            .request("co1", ApprovalRequestType::Task, "s2", "r2", "ok")
+            .unwrap();
         store.decide(&a1.id, true, "boss").unwrap();
         let pending = store.list("co1", Some("pending")).unwrap();
         assert_eq!(pending.len(), 1);
@@ -430,8 +503,12 @@ mod tests {
         let conn = make_conn();
         let store = ApprovalStore::new(&conn);
         store.ensure_schema().unwrap();
-        store.request("co1", ApprovalRequestType::Hire, "s1", "r1", "ok").unwrap();
-        store.request("co1", ApprovalRequestType::Budget, "s2", "r2", "ok").unwrap();
+        store
+            .request("co1", ApprovalRequestType::Hire, "s1", "r1", "ok")
+            .unwrap();
+        store
+            .request("co1", ApprovalRequestType::Budget, "s2", "r2", "ok")
+            .unwrap();
         assert_eq!(store.pending_count("co1").unwrap(), 2);
     }
 
@@ -440,7 +517,9 @@ mod tests {
         let conn = make_conn();
         let store = ApprovalStore::new(&conn);
         store.ensure_schema().unwrap();
-        let a = store.request("co1", ApprovalRequestType::Deploy, "s1", "r1", "ok").unwrap();
+        let a = store
+            .request("co1", ApprovalRequestType::Deploy, "s1", "r1", "ok")
+            .unwrap();
         store.decide(&a.id, true, "boss").unwrap();
         assert_eq!(store.pending_count("co1").unwrap(), 0);
     }

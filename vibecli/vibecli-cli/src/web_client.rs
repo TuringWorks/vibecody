@@ -57,11 +57,7 @@ pub fn web_client_favicon_svg() -> &'static str {
 /// that should be served alongside the main HTML page.
 pub fn web_client_assets() -> Vec<(&'static str, &'static str, &'static str)> {
     vec![
-        (
-            "/favicon.svg",
-            "image/svg+xml",
-            web_client_favicon_svg(),
-        ),
+        ("/favicon.svg", "image/svg+xml", web_client_favicon_svg()),
         (
             "/manifest.json",
             "application/json",
@@ -836,7 +832,10 @@ mod tests {
         assert!(!html.contains("https://cdnjs"));
         assert!(!html.contains("https://jsdelivr"));
         // No external stylesheet links (check for https:// URLs, not http-equiv attributes)
-        assert!(!html.contains("https://"), "HTML should not reference external URLs");
+        assert!(
+            !html.contains("https://"),
+            "HTML should not reference external URLs"
+        );
     }
 
     #[test]

@@ -67,7 +67,9 @@ impl ReplMacro {
         if args.len() < self.params.len() {
             return Err(format!(
                 "macro '{}' requires {} args, got {}",
-                self.name, self.params.len(), args.len()
+                self.name,
+                self.params.len(),
+                args.len()
             ));
         }
         let mut map = HashMap::new();
@@ -89,7 +91,9 @@ pub struct MacroRegistry {
 }
 
 impl MacroRegistry {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     /// Register a macro; overwrites if name already exists.
     pub fn define(&mut self, m: ReplMacro) {
@@ -108,14 +112,20 @@ impl MacroRegistry {
 
     /// Expand a macro by name with named args.
     pub fn expand(&mut self, name: &str, args: &HashMap<String, String>) -> Result<String, String> {
-        let m = self.macros.get_mut(name).ok_or_else(|| format!("macro '{}' not found", name))?;
+        let m = self
+            .macros
+            .get_mut(name)
+            .ok_or_else(|| format!("macro '{}' not found", name))?;
         m.use_count += 1;
         m.expand(args)
     }
 
     /// Expand a macro by name with positional args.
     pub fn expand_positional(&mut self, name: &str, args: &[&str]) -> Result<String, String> {
-        let m = self.macros.get_mut(name).ok_or_else(|| format!("macro '{}' not found", name))?;
+        let m = self
+            .macros
+            .get_mut(name)
+            .ok_or_else(|| format!("macro '{}' not found", name))?;
         m.use_count += 1;
         m.expand_positional(args)
     }
@@ -123,7 +133,9 @@ impl MacroRegistry {
     /// Parse a macro invocation string: `@name arg1 arg2 ...`
     pub fn parse_invocation(input: &str) -> Option<(&str, Vec<&str>)> {
         let input = input.trim();
-        if !input.starts_with('@') { return None; }
+        if !input.starts_with('@') {
+            return None;
+        }
         let mut parts = input[1..].splitn(2, ' ');
         let name = parts.next()?;
         let args_str = parts.next().unwrap_or("");
@@ -196,7 +208,9 @@ impl MacroRegistry {
         }
     }
 
-    pub fn macro_count(&self) -> usize { self.macros.len() }
+    pub fn macro_count(&self) -> usize {
+        self.macros.len()
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -243,14 +257,26 @@ mod tests {
 
     #[test]
     fn test_expand_positional_too_few_args() {
-        let m = ReplMacro::new("two-param", vec!["a".to_string(), "b".to_string()], "${a}+${b}", "", 0);
+        let m = ReplMacro::new(
+            "two-param",
+            vec!["a".to_string(), "b".to_string()],
+            "${a}+${b}",
+            "",
+            0,
+        );
         let result = m.expand_positional(&["only_one"]);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_default_value_fallback() {
-        let m = ReplMacro::new("review", vec!["depth".to_string()], "/explain --depth ${depth:overview}", "", 0);
+        let m = ReplMacro::new(
+            "review",
+            vec!["depth".to_string()],
+            "/explain --depth ${depth:overview}",
+            "",
+            0,
+        );
         // depth has a default, so passing no args should use "overview"
         let result = m.expand(&HashMap::new()).unwrap();
         assert_eq!(result, "/explain --depth overview");

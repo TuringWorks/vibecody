@@ -46,8 +46,9 @@ impl Marketplace {
             .join("marketplace-index.json");
 
         Self {
-            index_url: "https://raw.githubusercontent.com/nicktrebes/vibecody-plugins/main/index.json"
-                .to_string(),
+            index_url:
+                "https://raw.githubusercontent.com/nicktrebes/vibecody-plugins/main/index.json"
+                    .to_string(),
             cache_path,
         }
     }
@@ -253,7 +254,11 @@ mod tests {
     #[test]
     fn builtin_plugins_have_valid_urls() {
         for plugin in builtin_plugins() {
-            assert!(plugin.repo_url.starts_with("https://"), "repo_url for {} should be https", plugin.name);
+            assert!(
+                plugin.repo_url.starts_with("https://"),
+                "repo_url for {} should be https",
+                plugin.name
+            );
             assert!(!plugin.name.is_empty());
             assert!(!plugin.description.is_empty());
             assert!(!plugin.version.is_empty());
@@ -267,7 +272,11 @@ mod tests {
         let mut names: Vec<&str> = plugins.iter().map(|p| p.name.as_str()).collect();
         names.sort();
         names.dedup();
-        assert_eq!(names.len(), plugins.len(), "builtin plugin names must be unique");
+        assert_eq!(
+            names.len(),
+            plugins.len(),
+            "builtin plugin names must be unique"
+        );
     }
 
     // ── search matches on tags ───────────────────────────────────────────────
@@ -276,7 +285,10 @@ mod tests {
     async fn search_by_tag() {
         let m = Marketplace::new();
         let results = m.search("devops").await.unwrap();
-        assert!(results.len() >= 1, "should match plugins tagged with devops");
+        assert!(
+            results.len() >= 1,
+            "should match plugins tagged with devops"
+        );
     }
 
     // ── search matches on author ─────────────────────────────────────────────
@@ -285,7 +297,11 @@ mod tests {
     async fn search_by_author() {
         let m = Marketplace::new();
         let results = m.search("vibecody").await.unwrap();
-        assert_eq!(results.len(), builtin_plugins().len(), "all builtins are by VibeCody");
+        assert_eq!(
+            results.len(),
+            builtin_plugins().len(),
+            "all builtins are by VibeCody"
+        );
     }
 
     // ── search case insensitive ──────────────────────────────────────────────

@@ -40,7 +40,9 @@ impl ProposedHunk {
         self.replacement_lines.len() as i64 - self.original_len as i64
     }
 
-    pub fn is_decided(&self) -> bool { self.decision != HunkDecision::Pending }
+    pub fn is_decided(&self) -> bool {
+        self.decision != HunkDecision::Pending
+    }
 }
 
 /// Result of applying the session.
@@ -87,7 +89,8 @@ impl InlineDiffSession {
         self.next_hunk_id += 1;
 
         // Capture the original lines this hunk replaces
-        let original_lines: Vec<String> = self.original_lines
+        let original_lines: Vec<String> = self
+            .original_lines
             .iter()
             .skip(start_line.saturating_sub(1))
             .take(original_len)
@@ -108,7 +111,10 @@ impl InlineDiffSession {
 
     /// Accept a hunk by ID.
     pub fn accept(&mut self, id: HunkId) -> Result<(), String> {
-        let hunk = self.hunks.iter_mut().find(|h| h.id == id)
+        let hunk = self
+            .hunks
+            .iter_mut()
+            .find(|h| h.id == id)
             .ok_or_else(|| format!("Hunk {:?} not found", id))?;
         if hunk.decision != HunkDecision::Pending {
             return Err(format!("Hunk {:?} already decided", id));
@@ -119,7 +125,10 @@ impl InlineDiffSession {
 
     /// Reject a hunk by ID.
     pub fn reject(&mut self, id: HunkId) -> Result<(), String> {
-        let hunk = self.hunks.iter_mut().find(|h| h.id == id)
+        let hunk = self
+            .hunks
+            .iter_mut()
+            .find(|h| h.id == id)
             .ok_or_else(|| format!("Hunk {:?} not found", id))?;
         if hunk.decision != HunkDecision::Pending {
             return Err(format!("Hunk {:?} already decided", id));
@@ -163,7 +172,9 @@ impl InlineDiffSession {
         }
 
         // Apply accepted hunks in reverse start_line order (bottom-up)
-        let mut accepted_hunks: Vec<&ProposedHunk> = self.hunks.iter()
+        let mut accepted_hunks: Vec<&ProposedHunk> = self
+            .hunks
+            .iter()
             .filter(|h| h.decision == HunkDecision::Accepted)
             .collect();
         accepted_hunks.sort_by(|a, b| b.start_line.cmp(&a.start_line));
@@ -193,7 +204,10 @@ impl InlineDiffSession {
 
     /// Preview: apply only the hunk at `id` against the original.
     pub fn preview_hunk(&self, id: HunkId) -> Result<String, String> {
-        let hunk = self.hunks.iter().find(|h| h.id == id)
+        let hunk = self
+            .hunks
+            .iter()
+            .find(|h| h.id == id)
             .ok_or_else(|| format!("Hunk {:?} not found", id))?;
         let mut lines = self.original_lines.clone();
         let start = hunk.start_line.saturating_sub(1);
@@ -202,9 +216,18 @@ impl InlineDiffSession {
         Ok(lines.join("\n") + "\n")
     }
 
-    pub fn pending_count(&self) -> usize { self.hunks.iter().filter(|h| h.decision == HunkDecision::Pending).count() }
-    pub fn decided_count(&self) -> usize { self.hunks.iter().filter(|h| h.is_decided()).count() }
-    pub fn hunk_count(&self) -> usize { self.hunks.len() }
+    pub fn pending_count(&self) -> usize {
+        self.hunks
+            .iter()
+            .filter(|h| h.decision == HunkDecision::Pending)
+            .count()
+    }
+    pub fn decided_count(&self) -> usize {
+        self.hunks.iter().filter(|h| h.is_decided()).count()
+    }
+    pub fn hunk_count(&self) -> usize {
+        self.hunks.len()
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -307,8 +330,10 @@ mod tests {
         // Both should be applied
         assert!(result.new_content.contains('A'));
         assert!(result.new_content.contains('D'));
-        assert!(!result.new_content.contains('\n'.to_string().as_str())
-            || result.new_content.lines().any(|l| l == "A"));
+        assert!(
+            !result.new_content.contains('\n'.to_string().as_str())
+                || result.new_content.lines().any(|l| l == "A")
+        );
     }
 
     #[test]

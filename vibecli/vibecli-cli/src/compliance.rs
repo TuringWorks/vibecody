@@ -58,7 +58,10 @@ pub fn generate_soc2_report() -> ComplianceReport {
             description: "Organization demonstrates commitment to integrity and ethical values"
                 .to_string(),
             status: ControlStatus::Implemented,
-            evidence: vec!["MIT License".to_string(), "Open source codebase".to_string()],
+            evidence: vec![
+                "MIT License".to_string(),
+                "Open source codebase".to_string(),
+            ],
             notes: "Fully open source with transparent development".to_string(),
         },
         ComplianceControl {
@@ -347,8 +350,7 @@ mod tests {
             notes: "notes".to_string(),
         };
         let json = serde_json::to_string(&control).expect("serialize");
-        let deserialized: ComplianceControl =
-            serde_json::from_str(&json).expect("deserialize");
+        let deserialized: ComplianceControl = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(deserialized.id, "TEST-1");
         assert_eq!(deserialized.status, ControlStatus::Implemented);
         assert_eq!(deserialized.evidence.len(), 1);
@@ -475,7 +477,10 @@ mod tests {
         let parsed: ComplianceReport = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.framework, ComplianceFramework::SOC2);
         assert_eq!(parsed.controls.len(), report.controls.len());
-        assert!((parsed.summary.compliance_percentage - report.summary.compliance_percentage).abs() < 0.001);
+        assert!(
+            (parsed.summary.compliance_percentage - report.summary.compliance_percentage).abs()
+                < 0.001
+        );
     }
 
     #[test]

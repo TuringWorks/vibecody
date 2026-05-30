@@ -71,11 +71,7 @@ pub struct AppTemplate {
 
 impl AppTemplate {
     /// Create a new template with the minimum required fields.
-    pub fn new(
-        id: impl Into<String>,
-        name: impl Into<String>,
-        category: TemplateCategory,
-    ) -> Self {
+    pub fn new(id: impl Into<String>, name: impl Into<String>, category: TemplateCategory) -> Self {
         Self {
             id: id.into(),
             name: name.into(),
@@ -374,7 +370,10 @@ pub struct AppProvisioner;
 
 impl AppProvisioner {
     /// Generate database schema file and connection config.
-    pub fn provision_database(workspace: &Path, db_type: &DatabaseType) -> Result<Vec<(String, String)>> {
+    pub fn provision_database(
+        workspace: &Path,
+        db_type: &DatabaseType,
+    ) -> Result<Vec<(String, String)>> {
         let mut files = Vec::new();
 
         match db_type {
@@ -393,7 +392,7 @@ impl AppProvisioner {
                        user_id INTEGER NOT NULL REFERENCES users(id),\n  \
                        expires_at DATETIME NOT NULL\n\
                      );\n"
-                    .to_string(),
+                        .to_string(),
                 ));
                 files.push((
                     "src/db.ts".to_string(),
@@ -401,7 +400,7 @@ impl AppProvisioner {
                      const db = new Database(process.env.DATABASE_URL || './data.db');\n\
                      db.pragma('journal_mode = WAL');\n\n\
                      export default db;\n"
-                    .to_string(),
+                        .to_string(),
                 ));
             }
             DatabaseType::Postgres => {
@@ -420,7 +419,7 @@ impl AppProvisioner {
                        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,\n  \
                        expires_at TIMESTAMPTZ NOT NULL\n\
                      );\n"
-                    .to_string(),
+                        .to_string(),
                 ));
                 files.push((
                     "src/db.ts".to_string(),
@@ -429,7 +428,7 @@ impl AppProvisioner {
                        connectionString: process.env.DATABASE_URL,\n\
                      });\n\n\
                      export default pool;\n"
-                    .to_string(),
+                        .to_string(),
                 ));
             }
             DatabaseType::Supabase => {
@@ -445,7 +444,7 @@ impl AppProvisioner {
                      ALTER TABLE users ENABLE ROW LEVEL SECURITY;\n\n\
                      CREATE POLICY \"Users can view own data\" ON users\n  \
                        FOR SELECT USING (auth.uid() = id);\n"
-                    .to_string(),
+                        .to_string(),
                 ));
                 files.push((
                     "src/db.ts".to_string(),
@@ -455,7 +454,7 @@ impl AppProvisioner {
                        process.env.SUPABASE_ANON_KEY!\n\
                      );\n\n\
                      export default supabase;\n"
-                    .to_string(),
+                        .to_string(),
                 ));
             }
         }
@@ -516,7 +515,7 @@ impl AppProvisioner {
                      passport.serializeUser((user, done) => done(null, user));\n\
                      passport.deserializeUser((user, done) => done(null, user as any));\n\n\
                      export default passport;\n"
-                    .to_string(),
+                        .to_string(),
                 ));
             }
             AuthType::Supabase => {
@@ -556,7 +555,10 @@ impl AppProvisioner {
     }
 
     /// Generate deployment configuration for a hosting target.
-    pub fn provision_hosting(workspace: &Path, host: &HostingTarget) -> Result<Vec<(String, String)>> {
+    pub fn provision_hosting(
+        workspace: &Path,
+        host: &HostingTarget,
+    ) -> Result<Vec<(String, String)>> {
         let mut files = Vec::new();
 
         match host {
@@ -585,7 +587,7 @@ impl AppProvisioner {
                        from = \"/*\"\n  \
                        to = \"/index.html\"\n  \
                        status = 200\n"
-                    .to_string(),
+                        .to_string(),
                 ));
             }
             HostingTarget::Railway => {
@@ -634,7 +636,11 @@ impl AppProvisioner {
 
     /// Generate a .env.example file from a provision config.
     pub fn generate_env_file(workspace: &Path, config: &ProvisionConfig) -> Result<String> {
-        let mut lines = vec!["# Environment Variables".to_string(), "# Copy to .env and fill in values".to_string(), String::new()];
+        let mut lines = vec![
+            "# Environment Variables".to_string(),
+            "# Copy to .env and fill in values".to_string(),
+            String::new(),
+        ];
 
         if let Some(db) = &config.database {
             match db {
@@ -642,7 +648,9 @@ impl AppProvisioner {
                     lines.push("DATABASE_URL=./data.db".to_string());
                 }
                 DatabaseType::Postgres => {
-                    lines.push("DATABASE_URL=postgres://user:password@localhost:5432/mydb".to_string());
+                    lines.push(
+                        "DATABASE_URL=postgres://user:password@localhost:5432/mydb".to_string(),
+                    );
                 }
                 DatabaseType::Supabase => {
                     lines.push("SUPABASE_URL=https://your-project.supabase.co".to_string());
@@ -808,16 +816,83 @@ impl AIEnhancer {
         );
 
         // Detect features and patterns
-        let has_auth = Self::matches_any(&idea_lower, &["auth", "login", "sign up", "register", "user", "account", "password"]);
-        let has_payments = Self::matches_any(&idea_lower, &["payment", "stripe", "checkout", "billing", "subscription", "pricing"]);
-        let has_database = Self::matches_any(&idea_lower, &["database", "store", "crud", "data", "persist", "save", "table", "schema"]);
-        let has_api = Self::matches_any(&idea_lower, &["api", "rest", "graphql", "endpoint", "backend", "server"]);
-        let has_ui = Self::matches_any(&idea_lower, &["user interface", "frontend", "front-end", "dashboard", " page", "landing", " form ", "component", "react", "vue", "svelte", " ui "]);
-        let has_mobile = Self::matches_any(&idea_lower, &["mobile", "ios", "android", "react native", "flutter", "app"]);
-        let has_ecommerce = Self::matches_any(&idea_lower, &["ecommerce", "e-commerce", "shop", "cart", "product", "order", "inventory"]);
-        let has_chat = Self::matches_any(&idea_lower, &["chat", "message", "real-time", "realtime", "websocket"]);
-        let has_blog = Self::matches_any(&idea_lower, &["blog", "post", "article", "cms", "content"]);
-        let has_analytics = Self::matches_any(&idea_lower, &["analytics", "dashboard", "metrics", "chart", "graph", "visualization"]);
+        let has_auth = Self::matches_any(
+            &idea_lower,
+            &[
+                "auth", "login", "sign up", "register", "user", "account", "password",
+            ],
+        );
+        let has_payments = Self::matches_any(
+            &idea_lower,
+            &[
+                "payment",
+                "stripe",
+                "checkout",
+                "billing",
+                "subscription",
+                "pricing",
+            ],
+        );
+        let has_database = Self::matches_any(
+            &idea_lower,
+            &[
+                "database", "store", "crud", "data", "persist", "save", "table", "schema",
+            ],
+        );
+        let has_api = Self::matches_any(
+            &idea_lower,
+            &["api", "rest", "graphql", "endpoint", "backend", "server"],
+        );
+        let has_ui = Self::matches_any(
+            &idea_lower,
+            &[
+                "user interface",
+                "frontend",
+                "front-end",
+                "dashboard",
+                " page",
+                "landing",
+                " form ",
+                "component",
+                "react",
+                "vue",
+                "svelte",
+                " ui ",
+            ],
+        );
+        let has_mobile = Self::matches_any(
+            &idea_lower,
+            &["mobile", "ios", "android", "react native", "flutter", "app"],
+        );
+        let has_ecommerce = Self::matches_any(
+            &idea_lower,
+            &[
+                "ecommerce",
+                "e-commerce",
+                "shop",
+                "cart",
+                "product",
+                "order",
+                "inventory",
+            ],
+        );
+        let has_chat = Self::matches_any(
+            &idea_lower,
+            &["chat", "message", "real-time", "realtime", "websocket"],
+        );
+        let has_blog =
+            Self::matches_any(&idea_lower, &["blog", "post", "article", "cms", "content"]);
+        let has_analytics = Self::matches_any(
+            &idea_lower,
+            &[
+                "analytics",
+                "dashboard",
+                "metrics",
+                "chart",
+                "graph",
+                "visualization",
+            ],
+        );
 
         // Build user stories
         let mut user_stories = Vec::new();
@@ -826,8 +901,10 @@ impl AIEnhancer {
             user_stories.push("As a user, I can reset my password via email".to_string());
         }
         if has_ecommerce {
-            user_stories.push("As a customer, I can browse products and add them to my cart".to_string());
-            user_stories.push("As a customer, I can complete a purchase with secure checkout".to_string());
+            user_stories
+                .push("As a customer, I can browse products and add them to my cart".to_string());
+            user_stories
+                .push("As a customer, I can complete a purchase with secure checkout".to_string());
             user_stories.push("As an admin, I can manage product inventory".to_string());
         }
         if has_blog {
@@ -835,17 +912,23 @@ impl AIEnhancer {
             user_stories.push("As a reader, I can browse and search articles".to_string());
         }
         if has_chat {
-            user_stories.push("As a user, I can send and receive messages in real-time".to_string());
+            user_stories
+                .push("As a user, I can send and receive messages in real-time".to_string());
         }
         if has_analytics {
             user_stories.push("As an admin, I can view key metrics on a dashboard".to_string());
-            user_stories.push("As an analyst, I can filter and export data visualizations".to_string());
+            user_stories
+                .push("As an analyst, I can filter and export data visualizations".to_string());
         }
         if has_api && user_stories.is_empty() {
-            user_stories.push("As a developer, I can call API endpoints to manage resources".to_string());
+            user_stories
+                .push("As a developer, I can call API endpoints to manage resources".to_string());
         }
         if user_stories.is_empty() {
-            user_stories.push(format!("As a user, I can interact with the {} system", title.to_lowercase()));
+            user_stories.push(format!(
+                "As a user, I can interact with the {} system",
+                title.to_lowercase()
+            ));
         }
 
         // Determine tech stack
@@ -964,10 +1047,21 @@ impl AIEnhancer {
         }
 
         // Estimate complexity
-        let feature_count = [has_auth, has_payments, has_database, has_api, has_ui, has_mobile, has_ecommerce, has_chat, has_blog, has_analytics]
-            .iter()
-            .filter(|&&x| x)
-            .count();
+        let feature_count = [
+            has_auth,
+            has_payments,
+            has_database,
+            has_api,
+            has_ui,
+            has_mobile,
+            has_ecommerce,
+            has_chat,
+            has_blog,
+            has_analytics,
+        ]
+        .iter()
+        .filter(|&&x| x)
+        .count();
         let estimated_complexity = if feature_count >= 3 || words.len() > 50 {
             EstimatedComplexity::Complex
         } else if feature_count >= 2 || words.len() > 20 {
@@ -993,7 +1087,9 @@ impl AIEnhancer {
         let mut files = Vec::new();
 
         // package.json
-        let deps: Vec<String> = spec.tech_stack_recommendation.iter()
+        let deps: Vec<String> = spec
+            .tech_stack_recommendation
+            .iter()
             .filter_map(|t| match t.to_lowercase().as_str() {
                 "react" => Some("\"react\": \"^18.2.0\""),
                 "express" => Some("\"express\": \"^4.18.0\""),
@@ -1161,7 +1257,10 @@ impl AppScaffolder {
         let mut services = String::from("version: '3.8'\n\nservices:\n");
         services.push_str("  app:\n    build: .\n    ports:\n      - \"3000:3000\"\n    env_file:\n      - .env\n");
 
-        let has_pg = spec.tech_stack_recommendation.iter().any(|t| t.to_lowercase().contains("postgres"));
+        let has_pg = spec
+            .tech_stack_recommendation
+            .iter()
+            .any(|t| t.to_lowercase().contains("postgres"));
         if has_pg || spec.database_schema_suggestion.is_some() {
             services.push_str("    depends_on:\n      - db\n\n");
             services.push_str("  db:\n    image: postgres:16-alpine\n    environment:\n      POSTGRES_DB: app\n      POSTGRES_USER: app\n      POSTGRES_PASSWORD: secret\n    ports:\n      - \"5432:5432\"\n    volumes:\n      - pgdata:/var/lib/postgresql/data\n\n");
@@ -1526,7 +1625,10 @@ mod tests {
         let store = TeamTemplateStore::with_dir(dir.path().to_path_buf());
         let result = store.import_template("not valid json");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid template JSON"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid template JSON"));
     }
 
     #[test]
@@ -1546,14 +1648,21 @@ mod tests {
     fn enhance_landing_page() {
         let spec = AIEnhancer::enhance_prompt("Build a landing page for my SaaS startup");
         assert!(!spec.title.is_empty());
-        assert!(spec.ui_components.iter().any(|c| c == "Header" || c == "MainContent"));
+        assert!(spec
+            .ui_components
+            .iter()
+            .any(|c| c == "Header" || c == "MainContent"));
         assert_eq!(spec.estimated_complexity, EstimatedComplexity::Simple);
     }
 
     #[test]
     fn enhance_api_project() {
-        let spec = AIEnhancer::enhance_prompt("Create a REST API with user authentication and database");
-        assert!(spec.tech_stack_recommendation.iter().any(|t| t.contains("Node")));
+        let spec =
+            AIEnhancer::enhance_prompt("Create a REST API with user authentication and database");
+        assert!(spec
+            .tech_stack_recommendation
+            .iter()
+            .any(|t| t.contains("Node")));
         assert!(!spec.api_endpoints.is_empty());
         assert!(spec.api_endpoints.iter().any(|e| e.contains("/auth/")));
         assert!(spec.database_schema_suggestion.is_some());
@@ -1561,8 +1670,12 @@ mod tests {
 
     #[test]
     fn enhance_dashboard() {
-        let spec = AIEnhancer::enhance_prompt("Analytics dashboard with charts and metrics visualization");
-        assert!(spec.ui_components.iter().any(|c| c == "MetricsDashboard" || c == "ChartWidget"));
+        let spec =
+            AIEnhancer::enhance_prompt("Analytics dashboard with charts and metrics visualization");
+        assert!(spec
+            .ui_components
+            .iter()
+            .any(|c| c == "MetricsDashboard" || c == "ChartWidget"));
         assert!(spec.api_endpoints.iter().any(|e| e.contains("metrics")));
     }
 
@@ -1574,21 +1687,36 @@ mod tests {
         assert!(spec.ui_components.iter().any(|c| c == "ProductGrid"));
         assert!(spec.ui_components.iter().any(|c| c == "ShoppingCart"));
         assert!(spec.user_stories.iter().any(|s| s.contains("cart")));
-        assert!(spec.database_schema_suggestion.as_ref().unwrap().contains("products"));
+        assert!(spec
+            .database_schema_suggestion
+            .as_ref()
+            .unwrap()
+            .contains("products"));
     }
 
     #[test]
     fn enhance_blog() {
         let spec = AIEnhancer::enhance_prompt("Blog platform with posts and user authentication");
-        assert!(spec.user_stories.iter().any(|s| s.contains("blog") || s.contains("publish")));
+        assert!(spec
+            .user_stories
+            .iter()
+            .any(|s| s.contains("blog") || s.contains("publish")));
         assert!(spec.api_endpoints.iter().any(|e| e.contains("posts")));
-        assert!(spec.ui_components.iter().any(|c| c == "PostList" || c == "PostEditor"));
+        assert!(spec
+            .ui_components
+            .iter()
+            .any(|c| c == "PostList" || c == "PostEditor"));
     }
 
     #[test]
     fn enhance_chat_app() {
-        let spec = AIEnhancer::enhance_prompt("Real-time chat application with user accounts and message history");
-        assert!(spec.tech_stack_recommendation.iter().any(|t| t == "Socket.io"));
+        let spec = AIEnhancer::enhance_prompt(
+            "Real-time chat application with user accounts and message history",
+        );
+        assert!(spec
+            .tech_stack_recommendation
+            .iter()
+            .any(|t| t == "Socket.io"));
         assert!(spec.ui_components.iter().any(|c| c == "ChatWindow"));
         assert!(spec.api_endpoints.iter().any(|e| e.contains("messages")));
     }
@@ -1596,7 +1724,10 @@ mod tests {
     #[test]
     fn enhance_mobile_app() {
         let spec = AIEnhancer::enhance_prompt("Mobile app for iOS and Android");
-        assert!(spec.tech_stack_recommendation.iter().any(|t| t.contains("React Native") || t.contains("Expo")));
+        assert!(spec
+            .tech_stack_recommendation
+            .iter()
+            .any(|t| t.contains("React Native") || t.contains("Expo")));
     }
 
     #[test]
@@ -1652,7 +1783,8 @@ mod tests {
     #[test]
     fn provision_sqlite() {
         let dir = temp_dir();
-        let files = AppProvisioner::provision_database(dir.path(), &DatabaseType::Sqlite).expect("provision");
+        let files = AppProvisioner::provision_database(dir.path(), &DatabaseType::Sqlite)
+            .expect("provision");
         assert!(files.iter().any(|(p, _)| p == "db/schema.sql"));
         assert!(files.iter().any(|(p, _)| p == "src/db.ts"));
         let schema = fs::read_to_string(dir.path().join("db/schema.sql")).expect("read");
@@ -1663,7 +1795,8 @@ mod tests {
     #[test]
     fn provision_postgres() {
         let dir = temp_dir();
-        let files = AppProvisioner::provision_database(dir.path(), &DatabaseType::Postgres).expect("provision");
+        let files = AppProvisioner::provision_database(dir.path(), &DatabaseType::Postgres)
+            .expect("provision");
         assert_eq!(files.len(), 2);
         let schema = fs::read_to_string(dir.path().join("db/schema.sql")).expect("read");
         assert!(schema.contains("PostgreSQL"));
@@ -1675,7 +1808,8 @@ mod tests {
     #[test]
     fn provision_supabase_db() {
         let dir = temp_dir();
-        let files = AppProvisioner::provision_database(dir.path(), &DatabaseType::Supabase).expect("provision");
+        let files = AppProvisioner::provision_database(dir.path(), &DatabaseType::Supabase)
+            .expect("provision");
         assert_eq!(files.len(), 2);
         let schema = fs::read_to_string(dir.path().join("db/schema.sql")).expect("read");
         assert!(schema.contains("ROW LEVEL SECURITY"));
@@ -1699,7 +1833,8 @@ mod tests {
     #[test]
     fn provision_oauth_auth() {
         let dir = temp_dir();
-        let files = AppProvisioner::provision_auth(dir.path(), &AuthType::OAuth).expect("provision");
+        let files =
+            AppProvisioner::provision_auth(dir.path(), &AuthType::OAuth).expect("provision");
         assert_eq!(files.len(), 1);
         let auth = fs::read_to_string(dir.path().join("src/auth.ts")).expect("read");
         assert!(auth.contains("passport"));
@@ -1709,7 +1844,8 @@ mod tests {
     #[test]
     fn provision_supabase_auth() {
         let dir = temp_dir();
-        let files = AppProvisioner::provision_auth(dir.path(), &AuthType::Supabase).expect("provision");
+        let files =
+            AppProvisioner::provision_auth(dir.path(), &AuthType::Supabase).expect("provision");
         assert_eq!(files.len(), 1);
         let auth = fs::read_to_string(dir.path().join("src/auth.ts")).expect("read");
         assert!(auth.contains("signUp"));
@@ -1721,7 +1857,8 @@ mod tests {
     #[test]
     fn provision_vercel() {
         let dir = temp_dir();
-        let files = AppProvisioner::provision_hosting(dir.path(), &HostingTarget::Vercel).expect("provision");
+        let files = AppProvisioner::provision_hosting(dir.path(), &HostingTarget::Vercel)
+            .expect("provision");
         assert_eq!(files.len(), 1);
         let content = fs::read_to_string(dir.path().join("vercel.json")).expect("read");
         assert!(content.contains("buildCommand"));
@@ -1888,8 +2025,8 @@ mod tests {
 
     #[test]
     fn backend_docker_compose_postgres() {
-        let config = BackendConfig::new(HostingTarget::Railway)
-            .with_database(DatabaseType::Postgres);
+        let config =
+            BackendConfig::new(HostingTarget::Railway).with_database(DatabaseType::Postgres);
         let compose = ManagedBackend::generate_docker_compose(&config);
         assert!(compose.contains("postgres:16-alpine"));
         assert!(compose.contains("pgdata"));
@@ -1898,16 +2035,15 @@ mod tests {
 
     #[test]
     fn backend_docker_compose_sqlite() {
-        let config = BackendConfig::new(HostingTarget::Vercel)
-            .with_database(DatabaseType::Sqlite);
+        let config = BackendConfig::new(HostingTarget::Vercel).with_database(DatabaseType::Sqlite);
         let compose = ManagedBackend::generate_docker_compose(&config);
         assert!(compose.contains("sqlite-data"));
     }
 
     #[test]
     fn backend_docker_compose_supabase() {
-        let config = BackendConfig::new(HostingTarget::Netlify)
-            .with_database(DatabaseType::Supabase);
+        let config =
+            BackendConfig::new(HostingTarget::Netlify).with_database(DatabaseType::Supabase);
         let compose = ManagedBackend::generate_docker_compose(&config);
         // Supabase is managed, no db container
         assert!(!compose.contains("postgres:16"));
@@ -1930,8 +2066,8 @@ mod tests {
 
     #[test]
     fn backend_deployment_manifest() {
-        let config = BackendConfig::new(HostingTarget::Railway)
-            .with_database(DatabaseType::Postgres);
+        let config =
+            BackendConfig::new(HostingTarget::Railway).with_database(DatabaseType::Postgres);
         let manifest = ManagedBackend::generate_deployment_manifest(&config);
         assert!(manifest.contains("kind: Deployment"));
         assert!(manifest.contains("kind: Service"));
@@ -2030,8 +2166,10 @@ mod tests {
     #[test]
     fn scaffold_nested_template_paths() {
         let dir = temp_dir();
-        let tmpl = AppTemplate::new("nested", "Nested", TemplateCategory::FullStack)
-            .with_file("src/components/deep/Widget.tsx", "export const W = () => null;");
+        let tmpl = AppTemplate::new("nested", "Nested", TemplateCategory::FullStack).with_file(
+            "src/components/deep/Widget.tsx",
+            "export const W = () => null;",
+        );
         let created = AppScaffolder::scaffold_from_template(dir.path(), &tmpl).expect("scaffold");
         assert!(created.contains(&"src/components/deep/Widget.tsx".to_string()));
         assert!(dir.path().join("src/components/deep/Widget.tsx").is_file());

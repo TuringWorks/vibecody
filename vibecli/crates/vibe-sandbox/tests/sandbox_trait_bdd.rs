@@ -1,10 +1,10 @@
 //! BDD tests for the cross-platform Sandbox trait + tier selection.
 //! Run with: cargo test -p vibe-sandbox --test sandbox_trait_bdd
 
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use std::str::FromStr;
 use vibe_sandbox::{
-    BindMode, NetPolicy, ResourceLimits, Sandbox, SandboxTier, SelectOptions, select,
+    select, BindMode, NetPolicy, ResourceLimits, Sandbox, SandboxTier, SelectOptions,
 };
 
 #[derive(Default, World)]
@@ -91,7 +91,12 @@ fn memory_unset(world: &mut SbWorld) {
 
 #[then("cpu_quota_ms_per_sec is unset")]
 fn cpu_unset(world: &mut SbWorld) {
-    assert!(world.limits.as_ref().unwrap().cpu_quota_ms_per_sec.is_none());
+    assert!(world
+        .limits
+        .as_ref()
+        .unwrap()
+        .cpu_quota_ms_per_sec
+        .is_none());
 }
 
 #[then("wall_clock is unset")]
@@ -121,10 +126,7 @@ fn call_select_on(world: &mut SbWorld, name: String) {
 
 #[then(expr = "the returned tier is {string}")]
 fn returned_tier_is(world: &mut SbWorld, expected: String) {
-    assert_eq!(
-        world.sandbox.as_ref().unwrap().tier().to_string(),
-        expected
-    );
+    assert_eq!(world.sandbox.as_ref().unwrap().tier().to_string(), expected);
 }
 
 #[then("a downgrade event was recorded")]

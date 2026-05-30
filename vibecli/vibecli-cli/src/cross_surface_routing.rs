@@ -519,10 +519,7 @@ impl SurfaceRouter {
         let durations: Vec<u64> = self
             .routes
             .iter()
-            .filter_map(|r| {
-                r.completed_at
-                    .map(|end| end.saturating_sub(r.created_at))
-            })
+            .filter_map(|r| r.completed_at.map(|end| end.saturating_sub(r.created_at)))
             .collect();
 
         let avg_duration = if durations.is_empty() {
@@ -619,7 +616,10 @@ mod tests {
         let mut router = default_router();
         router.register_surface(cli_surface()).unwrap();
         let result = router.register_surface(cli_surface());
-        assert_eq!(result, Err(RoutingError::DuplicateSurface("cli-1".to_string())));
+        assert_eq!(
+            result,
+            Err(RoutingError::DuplicateSurface("cli-1".to_string()))
+        );
     }
 
     #[test]
@@ -634,7 +634,10 @@ mod tests {
     fn test_unregister_nonexistent_surface() {
         let mut router = default_router();
         let result = router.unregister_surface("nope");
-        assert_eq!(result, Err(RoutingError::SurfaceNotFound("nope".to_string())));
+        assert_eq!(
+            result,
+            Err(RoutingError::SurfaceNotFound("nope".to_string()))
+        );
     }
 
     #[test]
@@ -854,7 +857,10 @@ mod tests {
     fn test_update_surface_status_not_found() {
         let mut router = default_router();
         let result = router.update_surface_status("nope", SurfaceStatus::Online);
-        assert_eq!(result, Err(RoutingError::SurfaceNotFound("nope".to_string())));
+        assert_eq!(
+            result,
+            Err(RoutingError::SurfaceNotFound("nope".to_string()))
+        );
     }
 
     #[test]
@@ -946,7 +952,10 @@ mod tests {
 
     #[test]
     fn test_routing_error_display() {
-        assert_eq!(format!("{}", RoutingError::RouteFull), "max active routes reached");
+        assert_eq!(
+            format!("{}", RoutingError::RouteFull),
+            "max active routes reached"
+        );
         assert_eq!(
             format!("{}", RoutingError::SurfaceOffline("x".to_string())),
             "surface offline: x"

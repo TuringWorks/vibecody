@@ -11,9 +11,14 @@ use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }
-fn new_id() -> String { uuid::Uuid::new_v4().to_string() }
+fn new_id() -> String {
+    uuid::Uuid::new_v4().to_string()
+}
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
 
@@ -86,7 +91,8 @@ impl<'a> GoalStore<'a> {
     }
 
     pub fn ensure_schema(&self) -> Result<()> {
-        self.conn.execute_batch(r#"
+        self.conn.execute_batch(
+            r#"
             CREATE TABLE IF NOT EXISTS goals (
                 id              TEXT PRIMARY KEY,
                 company_id      TEXT NOT NULL,
@@ -103,13 +109,20 @@ impl<'a> GoalStore<'a> {
             );
             CREATE INDEX IF NOT EXISTS idx_goals_company ON goals(company_id);
             CREATE INDEX IF NOT EXISTS idx_goals_parent ON goals(parent_goal_id);
-        "#)?;
+        "#,
+        )?;
         Ok(())
     }
 
-    pub fn create(&self, company_id: &str, title: &str, description: &str,
-                  parent_goal_id: Option<&str>, owner_agent_id: Option<&str>,
-                  priority: i64) -> Result<Goal> {
+    pub fn create(
+        &self,
+        company_id: &str,
+        title: &str,
+        description: &str,
+        parent_goal_id: Option<&str>,
+        owner_agent_id: Option<&str>,
+        priority: i64,
+    ) -> Result<Goal> {
         let goal = Goal {
             id: new_id(),
             company_id: company_id.to_string(),
@@ -212,11 +225,14 @@ impl<'a> GoalStore<'a> {
         };
         if let Some(parent_id) = &goal.parent_goal_id {
             // Average progress of all direct children
-            let avg: Option<f64> = self.conn.query_row(
-                "SELECT AVG(progress_pct) FROM goals WHERE parent_goal_id = ?1",
-                params![parent_id],
-                |r| r.get(0),
-            ).ok();
+            let avg: Option<f64> = self
+                .conn
+                .query_row(
+                    "SELECT AVG(progress_pct) FROM goals WHERE parent_goal_id = ?1",
+                    params![parent_id],
+                    |r| r.get(0),
+                )
+                .ok();
             if let Some(avg_pct) = avg {
                 self.conn.execute(
                     "UPDATE goals SET progress_pct = ?1, updated_at = ?2 WHERE id = ?3",
@@ -234,17 +250,26 @@ impl<'a> GoalStore<'a> {
         let mut by_parent: std::collections::HashMap<Option<String>, Vec<Goal>> =
             std::collections::HashMap::new();
         for g in all {
-            by_parent.entry(g.parent_goal_id.clone()).or_default().push(g);
+            by_parent
+                .entry(g.parent_goal_id.clone())
+                .or_default()
+                .push(g);
         }
         fn build(
             parent_id: Option<String>,
             map: &mut std::collections::HashMap<Option<String>, Vec<Goal>>,
         ) -> Vec<GoalTreeNode> {
             let children = map.remove(&parent_id).unwrap_or_default();
-            children.into_iter().map(|goal| {
-                let id = Some(goal.id.clone());
-                GoalTreeNode { goal, children: build(id, map) }
-            }).collect()
+            children
+                .into_iter()
+                .map(|goal| {
+                    let id = Some(goal.id.clone());
+                    GoalTreeNode {
+                        goal,
+                        children: build(id, map),
+                    }
+                })
+                .collect()
         }
         Ok(build(None, &mut by_parent))
     }
@@ -301,9 +326,9 @@ mod tests {
     #[test]
     fn goal_status_round_trip() {
         for (s, v) in &[
-            ("planned",   GoalStatus::Planned),
-            ("active",    GoalStatus::Active),
-            ("achieved",  GoalStatus::Achieved),
+            ("planned", GoalStatus::Planned),
+            ("active", GoalStatus::Active),
+            ("achieved", GoalStatus::Achieved),
             ("cancelled", GoalStatus::Cancelled),
         ] {
             assert_eq!(GoalStatus::from_str(s), *v);
@@ -322,7 +347,9 @@ mod tests {
     #[test]
     fn create_and_get_goal() {
         let store = make_store();
-        let goal = store.create("co-1", "Launch v1.0", "First release", None, None, 2).unwrap();
+        let goal = store
+            .create("co-1", "Launch v1.0", "First release", None, None, 2)
+            .unwrap();
         assert!(!goal.id.is_empty());
         assert_eq!(goal.title, "Launch v1.0");
         assert_eq!(goal.status, GoalStatus::Planned);
@@ -361,9 +388,9 @@ mod tests {
     #[test]
     fn list_orders_by_priority_desc() {
         let store = make_store();
-        store.create("co-1", "Low",      "", None, None, 0).unwrap();
+        store.create("co-1", "Low", "", None, None, 0).unwrap();
         store.create("co-1", "Critical", "", None, None, 3).unwrap();
-        store.create("co-1", "Medium",   "", None, None, 1).unwrap();
+        store.create("co-1", "Medium", "", None, None, 1).unwrap();
 
         let goals = store.list("co-1").unwrap();
         assert_eq!(goals[0].priority, 3);
@@ -417,8 +444,12 @@ mod tests {
     fn progress_rolls_up_to_parent() {
         let store = make_store();
         let parent = store.create("co-1", "Parent", "", None, None, 2).unwrap();
-        let child1 = store.create("co-1", "Child 1", "", Some(&parent.id), None, 1).unwrap();
-        let child2 = store.create("co-1", "Child 2", "", Some(&parent.id), None, 1).unwrap();
+        let child1 = store
+            .create("co-1", "Child 1", "", Some(&parent.id), None, 1)
+            .unwrap();
+        let child2 = store
+            .create("co-1", "Child 2", "", Some(&parent.id), None, 1)
+            .unwrap();
 
         store.update_progress(&child1.id, 60).unwrap();
         store.update_progress(&child2.id, 40).unwrap();
@@ -432,8 +463,12 @@ mod tests {
     fn progress_rolls_up_transitively() {
         let store = make_store();
         let grandparent = store.create("co-1", "GP", "", None, None, 3).unwrap();
-        let parent = store.create("co-1", "Parent", "", Some(&grandparent.id), None, 2).unwrap();
-        let child = store.create("co-1", "Child", "", Some(&parent.id), None, 1).unwrap();
+        let parent = store
+            .create("co-1", "Parent", "", Some(&grandparent.id), None, 2)
+            .unwrap();
+        let child = store
+            .create("co-1", "Child", "", Some(&parent.id), None, 1)
+            .unwrap();
 
         store.update_progress(&child.id, 100).unwrap();
 
@@ -455,9 +490,15 @@ mod tests {
     #[test]
     fn build_tree_structures_hierarchy() {
         let store = make_store();
-        let root = store.create("co-1", "Root goal", "", None, None, 3).unwrap();
-        let child = store.create("co-1", "Child goal", "", Some(&root.id), None, 1).unwrap();
-        let _grandchild = store.create("co-1", "Grandchild goal", "", Some(&child.id), None, 0).unwrap();
+        let root = store
+            .create("co-1", "Root goal", "", None, None, 3)
+            .unwrap();
+        let child = store
+            .create("co-1", "Child goal", "", Some(&root.id), None, 1)
+            .unwrap();
+        let _grandchild = store
+            .create("co-1", "Grandchild goal", "", Some(&child.id), None, 0)
+            .unwrap();
 
         let tree = store.build_tree("co-1").unwrap();
         assert_eq!(tree.len(), 1);
@@ -465,7 +506,10 @@ mod tests {
         assert_eq!(tree[0].children.len(), 1);
         assert_eq!(tree[0].children[0].goal.title, "Child goal");
         assert_eq!(tree[0].children[0].children.len(), 1);
-        assert_eq!(tree[0].children[0].children[0].goal.title, "Grandchild goal");
+        assert_eq!(
+            tree[0].children[0].children[0].goal.title,
+            "Grandchild goal"
+        );
     }
 
     #[test]
@@ -490,14 +534,21 @@ mod tests {
         let output = print_goal_tree(&tree, 0);
         assert!(output.contains("My Goal"));
         assert!(output.contains("50"));
-        assert!(output.contains("○") || output.contains("●") || output.contains("✓") || output.contains("✗"));
+        assert!(
+            output.contains("○")
+                || output.contains("●")
+                || output.contains("✓")
+                || output.contains("✗")
+        );
     }
 
     #[test]
     fn print_goal_tree_indents_children() {
         let store = make_store();
         let root = store.create("co-1", "Root", "", None, None, 1).unwrap();
-        store.create("co-1", "Child", "", Some(&root.id), None, 0).unwrap();
+        store
+            .create("co-1", "Child", "", Some(&root.id), None, 0)
+            .unwrap();
 
         let tree = store.build_tree("co-1").unwrap();
         let output = print_goal_tree(&tree, 0);
@@ -535,7 +586,9 @@ mod tests {
     #[test]
     fn create_goal_with_owner() {
         let store = make_store();
-        let goal = store.create("co-1", "Owned goal", "", None, Some("agent-1"), 0).unwrap();
+        let goal = store
+            .create("co-1", "Owned goal", "", None, Some("agent-1"), 0)
+            .unwrap();
         assert_eq!(goal.owner_agent_id.as_deref(), Some("agent-1"));
     }
 
@@ -545,10 +598,14 @@ mod tests {
     fn created_at_is_recent() {
         let store = make_store();
         let before = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
         let goal = store.create("co-1", "Goal", "", None, None, 0).unwrap();
         let after = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
         assert!(goal.created_at >= before);
         assert!(goal.created_at <= after);
     }

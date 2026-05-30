@@ -172,9 +172,12 @@ impl PythonRuntime {
         let hello: Hello = serde_json::from_str(ready_line.trim())
             .map_err(|e| RunError::Storage(format!("parse ready: {e}; got: {ready_line:?}")))?;
         let (framework, action_kind, device, checkpoint) = match hello {
-            Hello::Ready { framework, action_kind, device, checkpoint } => {
-                (framework, action_kind, device, checkpoint)
-            }
+            Hello::Ready {
+                framework,
+                action_kind,
+                device,
+                checkpoint,
+            } => (framework, action_kind, device, checkpoint),
             Hello::Error { error } => {
                 return Err(RunError::Invalid(format!(
                     "inference sidecar failed to load checkpoint: {error}"
@@ -228,13 +231,16 @@ impl PolicyRuntime for PythonRuntime {
             .map_err(|e| RunError::Storage(format!("flush act: {e}")))?;
 
         let mut response = String::new();
-        match timeout(Duration::from_secs(30), inner.stdout.read_line(&mut response)).await {
+        match timeout(
+            Duration::from_secs(30),
+            inner.stdout.read_line(&mut response),
+        )
+        .await
+        {
             Ok(Ok(0)) => {
                 self.error_total
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                return Err(RunError::Storage(
-                    "inference sidecar closed stdout".into(),
-                ));
+                return Err(RunError::Storage("inference sidecar closed stdout".into()));
             }
             Ok(Ok(_)) => {}
             Ok(Err(e)) => {
@@ -263,10 +269,9 @@ impl PolicyRuntime for PythonRuntime {
                 .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             return Err(RunError::Invalid(format!("sidecar error: {err}")));
         }
-        let action = parsed
-            .get("action")
-            .cloned()
-            .ok_or_else(|| RunError::Storage(format!("act response missing 'action': {response:?}")))?;
+        let action = parsed.get("action").cloned().ok_or_else(|| {
+            RunError::Storage(format!("act response missing 'action': {response:?}"))
+        })?;
         Ok(action)
     }
 
@@ -283,9 +288,7 @@ impl PolicyRuntime for PythonRuntime {
             requests_total: self
                 .requests_total
                 .load(std::sync::atomic::Ordering::Relaxed),
-            error_total: self
-                .error_total
-                .load(std::sync::atomic::Ordering::Relaxed),
+            error_total: self.error_total.load(std::sync::atomic::Ordering::Relaxed),
             last_latency_ms: last_latency,
         }
     }
@@ -518,7 +521,8 @@ mod tests {
     #[async_trait]
     impl PolicyRuntime for FakeRuntime {
         async fn act(&self, obs: serde_json::Value) -> Result<serde_json::Value, RunError> {
-            self.requests.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            self.requests
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
             // Echo the obs's first scalar as the action — enough to test
             // the wire shape without any real model.
             let action = obs
@@ -572,7 +576,13 @@ mod tests {
         // Use a non-existent checkpoint path; the cache hit should
         // short-circuit before the file is checked.
         let got = pool
-            .get_or_spawn(&cfg, "dep-1", "nope.pt", std::path::Path::new("/tmp"), "python")
+            .get_or_spawn(
+                &cfg,
+                "dep-1",
+                "nope.pt",
+                std::path::Path::new("/tmp"),
+                "python",
+            )
             .await
             .unwrap();
         // Same allocation reached via the cache.

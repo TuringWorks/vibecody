@@ -34,10 +34,7 @@ impl VectorExtension {
                 "vector" | "sqlite-vector" => Self::Vector,
                 "lite" | "vectorlite" => Self::Lite,
                 _ => {
-                    warn!(
-                        "Unknown VIBE_MEMORY_VECTOR_EXT '{}', defaulting to vec",
-                        v
-                    );
+                    warn!("Unknown VIBE_MEMORY_VECTOR_EXT '{}', defaulting to vec", v);
                     Self::Vec
                 }
             })

@@ -12,8 +12,5 @@
 //! into one source of truth.
 
 pub use vibe_core::path_guard::{
-    canonicalize_lenient,
-    reject_sensitive_path,
-    DENIED_FILENAMES,
-    DENIED_SEGMENTS,
+    canonicalize_lenient, reject_sensitive_path, DENIED_FILENAMES, DENIED_SEGMENTS,
 };

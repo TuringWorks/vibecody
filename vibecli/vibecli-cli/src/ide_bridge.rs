@@ -88,10 +88,7 @@ impl IdeBridgeState {
 
     /// Produces a compact context block string for the agent.
     pub fn format_context_block(&self) -> String {
-        let file = self
-            .active_file
-            .as_deref()
-            .unwrap_or("(none)");
+        let file = self.active_file.as_deref().unwrap_or("(none)");
 
         let selection = if let Some(sel) = &self.active_selection {
             format!("lines {}-{}", sel.start_line, sel.end_line)
@@ -203,55 +200,109 @@ mod tests {
 
     #[test]
     fn test_pass_rate_all_pass() {
-        let t = TestResult { total: 10, passed: 10, failed: 0, skipped: 0, duration_ms: 100 };
+        let t = TestResult {
+            total: 10,
+            passed: 10,
+            failed: 0,
+            skipped: 0,
+            duration_ms: 100,
+        };
         assert!((t.pass_rate() - 100.0).abs() < 0.01);
     }
 
     #[test]
     fn test_pass_rate_half() {
-        let t = TestResult { total: 10, passed: 5, failed: 5, skipped: 0, duration_ms: 100 };
+        let t = TestResult {
+            total: 10,
+            passed: 5,
+            failed: 5,
+            skipped: 0,
+            duration_ms: 100,
+        };
         assert!((t.pass_rate() - 50.0).abs() < 0.01);
     }
 
     #[test]
     fn test_pass_rate_zero_total() {
-        let t = TestResult { total: 0, passed: 0, failed: 0, skipped: 0, duration_ms: 0 };
+        let t = TestResult {
+            total: 0,
+            passed: 0,
+            failed: 0,
+            skipped: 0,
+            duration_ms: 0,
+        };
         assert!((t.pass_rate() - 0.0).abs() < 0.01);
     }
 
     #[test]
     fn test_pass_rate_none_pass() {
-        let t = TestResult { total: 5, passed: 0, failed: 5, skipped: 0, duration_ms: 10 };
+        let t = TestResult {
+            total: 5,
+            passed: 0,
+            failed: 5,
+            skipped: 0,
+            duration_ms: 10,
+        };
         assert!((t.pass_rate() - 0.0).abs() < 0.01);
     }
 
     #[test]
     fn test_pass_rate_with_skipped() {
-        let t = TestResult { total: 10, passed: 8, failed: 0, skipped: 2, duration_ms: 50 };
+        let t = TestResult {
+            total: 10,
+            passed: 8,
+            failed: 0,
+            skipped: 2,
+            duration_ms: 50,
+        };
         assert!((t.pass_rate() - 80.0).abs() < 0.01);
     }
 
     #[test]
     fn test_is_passing_no_failures() {
-        let t = TestResult { total: 5, passed: 5, failed: 0, skipped: 0, duration_ms: 10 };
+        let t = TestResult {
+            total: 5,
+            passed: 5,
+            failed: 0,
+            skipped: 0,
+            duration_ms: 10,
+        };
         assert!(t.is_passing());
     }
 
     #[test]
     fn test_is_passing_with_failures() {
-        let t = TestResult { total: 5, passed: 4, failed: 1, skipped: 0, duration_ms: 10 };
+        let t = TestResult {
+            total: 5,
+            passed: 4,
+            failed: 1,
+            skipped: 0,
+            duration_ms: 10,
+        };
         assert!(!t.is_passing());
     }
 
     #[test]
     fn test_is_passing_all_failed() {
-        let t = TestResult { total: 3, passed: 0, failed: 3, skipped: 0, duration_ms: 5 };
+        let t = TestResult {
+            total: 3,
+            passed: 0,
+            failed: 3,
+            skipped: 0,
+            duration_ms: 5,
+        };
         assert!(!t.is_passing());
     }
 
     #[test]
     fn test_is_passing_zero_total() {
-        let t = TestResult { total: 0, passed: 0, failed: 0, skipped: 0, duration_ms: 0 };
+        let t = TestResult {
+            total: 0,
+            passed: 0,
+            failed: 0,
+            skipped: 0,
+            duration_ms: 0,
+        };
         assert!(t.is_passing());
     }
 
@@ -414,7 +465,9 @@ mod tests {
     #[test]
     fn test_bridge_client_set_status_connected() {
         let mut c = BridgeClient::new();
-        c.set_status(ConnectionStatus::Connected { socket_path: "/tmp/ide.sock".into() });
+        c.set_status(ConnectionStatus::Connected {
+            socket_path: "/tmp/ide.sock".into(),
+        });
         assert!(matches!(c.status(), ConnectionStatus::Connected { .. }));
     }
 
@@ -455,14 +508,18 @@ mod tests {
     #[test]
     fn test_context_for_agent_connected_no_state() {
         let mut c = BridgeClient::new();
-        c.set_status(ConnectionStatus::Connected { socket_path: "/tmp/ide.sock".into() });
+        c.set_status(ConnectionStatus::Connected {
+            socket_path: "/tmp/ide.sock".into(),
+        });
         assert_eq!(c.context_for_agent(), "No IDE connected");
     }
 
     #[test]
     fn test_context_for_agent_connected_with_state() {
         let mut c = BridgeClient::new();
-        c.set_status(ConnectionStatus::Connected { socket_path: "/tmp/ide.sock".into() });
+        c.set_status(ConnectionStatus::Connected {
+            socket_path: "/tmp/ide.sock".into(),
+        });
         let mut state = IdeBridgeState::new();
         state.active_file = Some("main.rs".into());
         c.update_state(state);

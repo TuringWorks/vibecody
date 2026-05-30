@@ -45,10 +45,10 @@ impl MemorySector {
     /// Default exponential decay rate (per day).
     pub fn decay_rate(&self) -> f64 {
         match self {
-            Self::Episodic   => 0.015,
-            Self::Semantic   => 0.005,
+            Self::Episodic => 0.015,
+            Self::Semantic => 0.005,
             Self::Procedural => 0.008,
-            Self::Emotional  => 0.020,
+            Self::Emotional => 0.020,
             Self::Reflective => 0.001,
         }
     }
@@ -56,10 +56,10 @@ impl MemorySector {
     /// Sector importance weight for composite scoring.
     pub fn weight(&self) -> f64 {
         match self {
-            Self::Episodic   => 1.2,
-            Self::Semantic   => 1.0,
+            Self::Episodic => 1.2,
+            Self::Semantic => 1.0,
             Self::Procedural => 1.1,
-            Self::Emotional  => 1.3,
+            Self::Emotional => 1.3,
             Self::Reflective => 0.8,
         }
     }
@@ -78,29 +78,99 @@ impl MemorySector {
     fn keyword_signals(&self) -> &[&str] {
         match self {
             Self::Episodic => &[
-                "yesterday", "today", "remember", "happened", "when i", "last time",
-                "session", "just now", "earlier", "ago", "event", "experience",
-                "meeting", "conversation", "visited", "saw", "tried", "did",
+                "yesterday",
+                "today",
+                "remember",
+                "happened",
+                "when i",
+                "last time",
+                "session",
+                "just now",
+                "earlier",
+                "ago",
+                "event",
+                "experience",
+                "meeting",
+                "conversation",
+                "visited",
+                "saw",
+                "tried",
+                "did",
             ],
             Self::Semantic => &[
-                "means", "defined", "always", "fact", "is a", "known as",
-                "definition", "concept", "type", "category", "refers to",
-                "according to", "standard", "specification", "api", "protocol",
+                "means",
+                "defined",
+                "always",
+                "fact",
+                "is a",
+                "known as",
+                "definition",
+                "concept",
+                "type",
+                "category",
+                "refers to",
+                "according to",
+                "standard",
+                "specification",
+                "api",
+                "protocol",
             ],
             Self::Procedural => &[
-                "step", "how to", "command", "recipe", "process", "workflow",
-                "first", "then", "next", "finally", "run", "execute", "build",
-                "install", "configure", "deploy", "to do", "procedure",
+                "step",
+                "how to",
+                "command",
+                "recipe",
+                "process",
+                "workflow",
+                "first",
+                "then",
+                "next",
+                "finally",
+                "run",
+                "execute",
+                "build",
+                "install",
+                "configure",
+                "deploy",
+                "to do",
+                "procedure",
             ],
             Self::Emotional => &[
-                "frustrated", "happy", "love", "hate", "annoying", "great",
-                "terrible", "excited", "worried", "confused", "delighted",
-                "angry", "sad", "perfect", "awful", "amazing", "disappointing",
+                "frustrated",
+                "happy",
+                "love",
+                "hate",
+                "annoying",
+                "great",
+                "terrible",
+                "excited",
+                "worried",
+                "confused",
+                "delighted",
+                "angry",
+                "sad",
+                "perfect",
+                "awful",
+                "amazing",
+                "disappointing",
             ],
             Self::Reflective => &[
-                "realize", "insight", "pattern", "lesson", "learned", "principle",
-                "takeaway", "reflection", "conclusion", "observation", "noticed",
-                "meta", "in hindsight", "going forward", "strategy", "approach",
+                "realize",
+                "insight",
+                "pattern",
+                "lesson",
+                "learned",
+                "principle",
+                "takeaway",
+                "reflection",
+                "conclusion",
+                "observation",
+                "noticed",
+                "meta",
+                "in hindsight",
+                "going forward",
+                "strategy",
+                "approach",
             ],
         }
     }
@@ -109,10 +179,10 @@ impl MemorySector {
 impl std::fmt::Display for MemorySector {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Episodic   => write!(f, "episodic"),
-            Self::Semantic   => write!(f, "semantic"),
+            Self::Episodic => write!(f, "episodic"),
+            Self::Semantic => write!(f, "semantic"),
             Self::Procedural => write!(f, "procedural"),
-            Self::Emotional  => write!(f, "emotional"),
+            Self::Emotional => write!(f, "emotional"),
             Self::Reflective => write!(f, "reflective"),
         }
     }
@@ -122,10 +192,10 @@ impl std::str::FromStr for MemorySector {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self> {
         match s.to_lowercase().as_str() {
-            "episodic"   => Ok(Self::Episodic),
-            "semantic"   => Ok(Self::Semantic),
+            "episodic" => Ok(Self::Episodic),
+            "semantic" => Ok(Self::Semantic),
             "procedural" => Ok(Self::Procedural),
-            "emotional"  => Ok(Self::Emotional),
+            "emotional" => Ok(Self::Emotional),
             "reflective" => Ok(Self::Reflective),
             _ => anyhow::bail!("unknown sector: {s}"),
         }
@@ -284,7 +354,11 @@ pub struct TemporalFact {
 }
 
 impl TemporalFact {
-    pub fn new(subject: impl Into<String>, predicate: impl Into<String>, object: impl Into<String>) -> Self {
+    pub fn new(
+        subject: impl Into<String>,
+        predicate: impl Into<String>,
+        object: impl Into<String>,
+    ) -> Self {
         let now = epoch_secs();
         Self {
             id: generate_id(),
@@ -330,7 +404,8 @@ impl SectorClassifier {
     pub fn new() -> Self {
         // Pre-compute IDF from built-in keyword lists
         let mut df: HashMap<String, u64> = HashMap::new();
-        let total_keywords: u64 = MemorySector::all().iter()
+        let total_keywords: u64 = MemorySector::all()
+            .iter()
             .map(|s| s.keyword_signals().len() as u64)
             .sum();
 
@@ -340,32 +415,43 @@ impl SectorClassifier {
             }
         }
 
-        let idf_weights: HashMap<String, f64> = df.into_iter()
+        let idf_weights: HashMap<String, f64> = df
+            .into_iter()
             .map(|(kw, freq)| {
                 let idf = ((total_keywords as f64) / (1.0 + freq as f64)).ln() + 1.0;
                 (kw, idf)
             })
             .collect();
 
-        Self { idf_weights, doc_count: 0 }
+        Self {
+            idf_weights,
+            doc_count: 0,
+        }
     }
 
     /// Classify text into sectors with confidence scores.
     pub fn classify(&self, text: &str) -> Vec<(MemorySector, f64)> {
         let lower = text.to_lowercase();
-        let mut scores: Vec<(MemorySector, f64)> = MemorySector::all().iter().map(|&sector| {
-            let score: f64 = sector.keyword_signals().iter().map(|&kw| {
-                let kw_lower = kw.to_lowercase();
-                if lower.contains(&kw_lower) {
-                    let tf = lower.matches(&kw_lower).count() as f64;
-                    let idf = self.idf_weights.get(&kw_lower).copied().unwrap_or(1.0);
-                    tf * idf * sector.weight()
-                } else {
-                    0.0
-                }
-            }).sum();
-            (sector, score)
-        }).collect();
+        let mut scores: Vec<(MemorySector, f64)> = MemorySector::all()
+            .iter()
+            .map(|&sector| {
+                let score: f64 = sector
+                    .keyword_signals()
+                    .iter()
+                    .map(|&kw| {
+                        let kw_lower = kw.to_lowercase();
+                        if lower.contains(&kw_lower) {
+                            let tf = lower.matches(&kw_lower).count() as f64;
+                            let idf = self.idf_weights.get(&kw_lower).copied().unwrap_or(1.0);
+                            tf * idf * sector.weight()
+                        } else {
+                            0.0
+                        }
+                    })
+                    .sum();
+                (sector, score)
+            })
+            .collect();
 
         // Normalize to confidence distribution
         let total: f64 = scores.iter().map(|(_, s)| s).sum();
@@ -390,7 +476,10 @@ impl SectorClassifier {
 
     /// Return the primary sector for a text.
     pub fn primary_sector(&self, text: &str) -> MemorySector {
-        self.classify(text).first().map(|(s, _)| *s).unwrap_or(MemorySector::Semantic)
+        self.classify(text)
+            .first()
+            .map(|(s, _)| *s)
+            .unwrap_or(MemorySector::Semantic)
     }
 
     /// Update IDF weights with new document (online learning).
@@ -531,9 +620,21 @@ impl LocalEmbeddingEngine {
         if a.len() != b.len() || a.is_empty() {
             return 0.0;
         }
-        let dot: f64 = a.iter().zip(b.iter()).map(|(x, y)| (*x as f64) * (*y as f64)).sum();
-        let norm_a: f64 = a.iter().map(|x| (*x as f64) * (*x as f64)).sum::<f64>().sqrt();
-        let norm_b: f64 = b.iter().map(|x| (*x as f64) * (*x as f64)).sum::<f64>().sqrt();
+        let dot: f64 = a
+            .iter()
+            .zip(b.iter())
+            .map(|(x, y)| (*x as f64) * (*y as f64))
+            .sum();
+        let norm_a: f64 = a
+            .iter()
+            .map(|x| (*x as f64) * (*x as f64))
+            .sum::<f64>()
+            .sqrt();
+        let norm_b: f64 = b
+            .iter()
+            .map(|x| (*x as f64) * (*x as f64))
+            .sum::<f64>()
+            .sqrt();
         if norm_a == 0.0 || norm_b == 0.0 {
             return 0.0;
         }
@@ -580,13 +681,15 @@ impl PartialOrd for OrdF64 {
 }
 impl Ord for OrdF64 {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.partial_cmp(&other.0).unwrap_or(std::cmp::Ordering::Equal)
+        self.0
+            .partial_cmp(&other.0)
+            .unwrap_or(std::cmp::Ordering::Equal)
     }
 }
 
 pub struct HnswIndex {
     /// All vectors stored, indexed by position.
-    vectors: Vec<(String, Vec<f32>)>,  // (memory_id, vector)
+    vectors: Vec<(String, Vec<f32>)>, // (memory_id, vector)
     /// Adjacency lists per layer. layers[l][node_idx] = vec of neighbor indices.
     layers: Vec<Vec<Vec<usize>>>,
     /// Maximum number of layers.
@@ -643,13 +746,18 @@ impl HnswIndex {
         let query_vec = self.vectors[idx].1.clone();
         let ef = self.ef_construction;
         for l in 0..=target_layer.min(self.layers.len().saturating_sub(1)) {
-            let max_n = if l == 0 { self.max_neighbors * 2 } else { self.max_neighbors };
+            let max_n = if l == 0 {
+                self.max_neighbors * 2
+            } else {
+                self.max_neighbors
+            };
 
             // Inline neighbor finding
             let mut candidates: Vec<(usize, f64)> = (0..self.layers[l].len())
                 .filter(|&i| i != idx && i < self.vectors.len())
                 .map(|i| {
-                    let sim = LocalEmbeddingEngine::cosine_similarity(&query_vec, &self.vectors[i].1);
+                    let sim =
+                        LocalEmbeddingEngine::cosine_similarity(&query_vec, &self.vectors[i].1);
                     (i, sim)
                 })
                 .collect();
@@ -723,13 +831,17 @@ impl HnswIndex {
             }
             // Greedy search: follow best neighbor at each step
             let mut current = entry_point;
-            let mut best_sim = LocalEmbeddingEngine::cosine_similarity(vector, &self.vectors[current].1);
+            let mut best_sim =
+                LocalEmbeddingEngine::cosine_similarity(vector, &self.vectors[current].1);
             loop {
                 let mut improved = false;
                 if current < layer.len() {
                     for &neighbor in &layer[current] {
                         if neighbor < self.vectors.len() {
-                            let sim = LocalEmbeddingEngine::cosine_similarity(vector, &self.vectors[neighbor].1);
+                            let sim = LocalEmbeddingEngine::cosine_similarity(
+                                vector,
+                                &self.vectors[neighbor].1,
+                            );
                             if sim > best_sim {
                                 best_sim = sim;
                                 current = neighbor;
@@ -738,7 +850,9 @@ impl HnswIndex {
                         }
                     }
                 }
-                if !improved { break; }
+                if !improved {
+                    break;
+                }
             }
             entry_point = current;
         }
@@ -762,7 +876,10 @@ impl HnswIndex {
             if !self.layers.is_empty() && current < self.layers[0].len() {
                 for &neighbor in &self.layers[0][current] {
                     if neighbor < self.vectors.len() && visited.insert(neighbor) {
-                        let nsim = LocalEmbeddingEngine::cosine_similarity(vector, &self.vectors[neighbor].1);
+                        let nsim = LocalEmbeddingEngine::cosine_similarity(
+                            vector,
+                            &self.vectors[neighbor].1,
+                        );
                         candidates.push(OrdF64(nsim, neighbor));
                         results.push((neighbor, nsim));
                     }
@@ -781,7 +898,8 @@ impl HnswIndex {
         }
 
         results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-        results.into_iter()
+        results
+            .into_iter()
             .take(k)
             .map(|(i, sim)| (self.vectors[i].0.clone(), sim))
             .collect()
@@ -789,14 +907,18 @@ impl HnswIndex {
 
     /// Brute-force fallback for small datasets.
     fn brute_force_query(&self, vector: &[f32], k: usize) -> Vec<(String, f64)> {
-        let mut candidates: Vec<(usize, f64)> = self.vectors.iter().enumerate()
+        let mut candidates: Vec<(usize, f64)> = self
+            .vectors
+            .iter()
+            .enumerate()
             .map(|(i, (_, v))| {
                 let sim = LocalEmbeddingEngine::cosine_similarity(vector, v);
                 (i, sim)
             })
             .collect();
         candidates.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-        candidates.into_iter()
+        candidates
+            .into_iter()
             .take(k)
             .map(|(i, sim)| (self.vectors[i].0.clone(), sim))
             .collect()
@@ -978,19 +1100,16 @@ impl DrawerStore {
             .drawers
             .iter()
             .filter(|d| {
-                wing_filter.is_none_or(|w| d.wing == w)
-                    && room_filter.is_none_or(|r| d.room == r)
+                wing_filter.is_none_or(|w| d.wing == w) && room_filter.is_none_or(|r| d.room == r)
             })
             .filter(|d| !d.embedding.is_empty())
             .map(|d| {
-                let sim =
-                    LocalEmbeddingEngine::cosine_similarity(query_embedding, &d.embedding);
+                let sim = LocalEmbeddingEngine::cosine_similarity(query_embedding, &d.embedding);
                 (d, sim)
             })
             .collect();
 
-        candidates
-            .sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        candidates.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         candidates.into_iter().take(limit).map(|(d, _)| d).collect()
     }
 
@@ -1346,8 +1465,12 @@ impl OpenMemoryStore {
 
         // Classify
         let classifications = self.classifier.classify(&content);
-        let primary = classifications.first().map(|(s, _)| *s).unwrap_or(MemorySector::Semantic);
-        let secondary: Vec<(MemorySector, f64)> = classifications.iter()
+        let primary = classifications
+            .first()
+            .map(|(s, _)| *s)
+            .unwrap_or(MemorySector::Semantic);
+        let secondary: Vec<(MemorySector, f64)> = classifications
+            .iter()
             .skip(1)
             .filter(|(_, conf)| *conf > 0.1)
             .cloned()
@@ -1378,28 +1501,43 @@ impl OpenMemoryStore {
         let id = node.id.clone();
 
         // Insert into the compressed embedding index.
-        self.hnsw_index.insert(id.clone(), &embedding, HashMap::new());
+        self.hnsw_index
+            .insert(id.clone(), &embedding, HashMap::new());
 
         // Create multi-waypoint links (top-K most similar)
-        let similar = self.hnsw_index.query(&embedding, self.max_waypoints_per_node + 1);
+        let similar = self
+            .hnsw_index
+            .query(&embedding, self.max_waypoints_per_node + 1);
         for (other_id, sim) in &similar {
             if other_id == &id || *sim < self.waypoint_threshold {
                 continue;
             }
-            let cross_sector = self.memories.get(other_id)
+            let cross_sector = self
+                .memories
+                .get(other_id)
                 .map(|m| m.sector != primary)
                 .unwrap_or(false);
             let wp = Waypoint::new(&id, other_id, *sim, cross_sector);
-            self.waypoints.entry(id.clone()).or_default().push(wp.clone());
+            self.waypoints
+                .entry(id.clone())
+                .or_default()
+                .push(wp.clone());
 
             // Bidirectional
             let wp_rev = Waypoint::new(other_id, &id, *sim, cross_sector);
-            self.waypoints.entry(other_id.to_string()).or_default().push(wp_rev);
+            self.waypoints
+                .entry(other_id.to_string())
+                .or_default()
+                .push(wp_rev);
         }
 
         // Prune waypoints to max_waypoints_per_node
         for entry in self.waypoints.values_mut() {
-            entry.sort_by(|a, b| b.weight.partial_cmp(&a.weight).unwrap_or(std::cmp::Ordering::Equal));
+            entry.sort_by(|a, b| {
+                b.weight
+                    .partial_cmp(&a.weight)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
             entry.truncate(self.max_waypoints_per_node);
         }
 
@@ -1436,7 +1574,8 @@ impl OpenMemoryStore {
         node.encrypted = self.encryption.is_some();
 
         let id = node.id.clone();
-        self.hnsw_index.insert(id.clone(), &embedding, HashMap::new());
+        self.hnsw_index
+            .insert(id.clone(), &embedding, HashMap::new());
         self.memories.insert(id.clone(), node);
         id
     }
@@ -1519,13 +1658,19 @@ impl OpenMemoryStore {
         let query_sector = self.classifier.primary_sector(text);
         let now = epoch_secs();
 
-        let mut results: Vec<QueryResult> = self.memories.values()
+        let mut results: Vec<QueryResult> = self
+            .memories
+            .values()
             .filter(|m| {
                 if let Some(sf) = sector_filter {
-                    if m.sector != sf { return false; }
+                    if m.sector != sf {
+                        return false;
+                    }
                 }
                 if let Some(pf) = project_filter {
-                    if m.project_id.as_deref() != Some(pf) { return false; }
+                    if m.project_id.as_deref() != Some(pf) {
+                        return false;
+                    }
                 }
                 true
             })
@@ -1543,8 +1688,11 @@ impl OpenMemoryStore {
 
                 let waypoint_score = self.compute_waypoint_score(&m.id, &query_embedding);
 
-                let sector_match_score = if m.sector == query_sector { 1.0 } else {
-                    m.secondary_sectors.iter()
+                let sector_match_score = if m.sector == query_sector {
+                    1.0
+                } else {
+                    m.secondary_sectors
+                        .iter()
                         .find(|(s, _)| *s == query_sector)
                         .map(|(_, c)| *c)
                         .unwrap_or(0.0)
@@ -1569,7 +1717,11 @@ impl OpenMemoryStore {
             })
             .collect();
 
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         results.truncate(limit);
 
         results
@@ -1615,13 +1767,22 @@ impl OpenMemoryStore {
                 }
             }
         }
-        if count > 0 { score / count as f64 } else { 0.0 }
+        if count > 0 {
+            score / count as f64
+        } else {
+            0.0
+        }
     }
 
     // ── Temporal Knowledge Graph ─────────────────────────────────────────
 
     /// Add a temporal fact.
-    pub fn add_fact(&mut self, subject: impl Into<String>, predicate: impl Into<String>, object: impl Into<String>) -> String {
+    pub fn add_fact(
+        &mut self,
+        subject: impl Into<String>,
+        predicate: impl Into<String>,
+        object: impl Into<String>,
+    ) -> String {
         let subject = subject.into();
         let predicate = predicate.into();
         let object = object.into();
@@ -1644,7 +1805,8 @@ impl OpenMemoryStore {
 
     /// Query facts valid at a specific point in time.
     pub fn query_facts_at(&self, epoch: u64) -> Vec<&TemporalFact> {
-        self.temporal_facts.iter()
+        self.temporal_facts
+            .iter()
             .filter(|f| f.is_valid_at(epoch))
             .collect()
     }
@@ -1656,7 +1818,8 @@ impl OpenMemoryStore {
 
     /// Query facts by subject.
     pub fn query_facts_by_subject(&self, subject: &str) -> Vec<&TemporalFact> {
-        self.temporal_facts.iter()
+        self.temporal_facts
+            .iter()
             .filter(|f| f.subject == subject)
             .collect()
     }
@@ -1731,8 +1894,10 @@ impl OpenMemoryStore {
                     continue;
                 }
                 if let Some(other) = self.memories.get(other_id) {
-                    if other.sector == sector && !other.pinned && other.effective_salience() <= 0.5 {
-                        let sim = LocalEmbeddingEngine::cosine_similarity(&embedding, &other.embedding);
+                    if other.sector == sector && !other.pinned && other.effective_salience() <= 0.5
+                    {
+                        let sim =
+                            LocalEmbeddingEngine::cosine_similarity(&embedding, &other.embedding);
                         if sim >= self.consolidation_threshold {
                             cluster.push(other_id.clone());
                         }
@@ -1773,8 +1938,9 @@ impl OpenMemoryStore {
             consolidated.embedding = new_embedding.clone();
             consolidated.user_id = self.user_id.clone();
             consolidated.project_id = self.project_id.clone();
-            consolidated.metadata.insert("consolidated_from".to_string(),
-                cluster.join(","));
+            consolidated
+                .metadata
+                .insert("consolidated_from".to_string(), cluster.join(","));
 
             let new_id = consolidated.id.clone();
 
@@ -1786,7 +1952,8 @@ impl OpenMemoryStore {
             }
 
             // Insert consolidated
-            self.hnsw_index.insert(new_id.clone(), &new_embedding, HashMap::new());
+            self.hnsw_index
+                .insert(new_id.clone(), &new_embedding, HashMap::new());
             results.push(ConsolidationResult {
                 merged_ids: cluster,
                 consolidated: consolidated.clone(),
@@ -1802,24 +1969,35 @@ impl OpenMemoryStore {
 
     /// Get per-sector statistics.
     pub fn sector_stats(&self) -> Vec<SectorStats> {
-        MemorySector::all().iter().map(|&sector| {
-            let mems: Vec<&MemoryNode> = self.memories.values()
-                .filter(|m| m.sector == sector)
-                .collect();
-            let count = mems.len();
-            let avg_salience = if count > 0 {
-                mems.iter().map(|m| m.effective_salience()).sum::<f64>() / count as f64
-            } else {
-                0.0
-            };
-            let avg_age = if count > 0 {
-                mems.iter().map(|m| m.age_days()).sum::<f64>() / count as f64
-            } else {
-                0.0
-            };
-            let pinned_count = mems.iter().filter(|m| m.pinned).count();
-            SectorStats { sector, count, avg_salience, avg_age_days: avg_age, pinned_count }
-        }).collect()
+        MemorySector::all()
+            .iter()
+            .map(|&sector| {
+                let mems: Vec<&MemoryNode> = self
+                    .memories
+                    .values()
+                    .filter(|m| m.sector == sector)
+                    .collect();
+                let count = mems.len();
+                let avg_salience = if count > 0 {
+                    mems.iter().map(|m| m.effective_salience()).sum::<f64>() / count as f64
+                } else {
+                    0.0
+                };
+                let avg_age = if count > 0 {
+                    mems.iter().map(|m| m.age_days()).sum::<f64>() / count as f64
+                } else {
+                    0.0
+                };
+                let pinned_count = mems.iter().filter(|m| m.pinned).count();
+                SectorStats {
+                    sector,
+                    count,
+                    avg_salience,
+                    avg_age_days: avg_age,
+                    pinned_count,
+                }
+            })
+            .collect()
     }
 
     /// Total memory count.
@@ -1846,23 +2024,31 @@ impl OpenMemoryStore {
 
     /// Get memories by sector.
     pub fn list_by_sector(&self, sector: MemorySector) -> Vec<&MemoryNode> {
-        let mut mems: Vec<&MemoryNode> = self.memories.values()
+        let mut mems: Vec<&MemoryNode> = self
+            .memories
+            .values()
             .filter(|m| m.sector == sector)
             .collect();
-        mems.sort_by(|a, b| b.effective_salience().partial_cmp(&a.effective_salience()).unwrap_or(std::cmp::Ordering::Equal));
+        mems.sort_by(|a, b| {
+            b.effective_salience()
+                .partial_cmp(&a.effective_salience())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         mems
     }
 
     /// Get memories by tag.
     pub fn list_by_tag(&self, tag: &str) -> Vec<&MemoryNode> {
-        self.memories.values()
+        self.memories
+            .values()
             .filter(|m| m.tags.iter().any(|t| t == tag))
             .collect()
     }
 
     /// Get waypoints for a memory.
     pub fn get_waypoints(&self, memory_id: &str) -> Vec<&Waypoint> {
-        self.waypoints.get(memory_id)
+        self.waypoints
+            .get(memory_id)
             .map(|wps| wps.iter().collect())
             .unwrap_or_default()
     }
@@ -1894,7 +2080,8 @@ impl OpenMemoryStore {
         let json = serde_json::to_string_pretty(&self.temporal_facts)?;
         std::fs::write(&facts_path, json)?;
 
-        self.drawer_store.save(&self.data_dir.join("drawers.json"))?;
+        self.drawer_store
+            .save(&self.data_dir.join("drawers.json"))?;
 
         if let Some(targets) = &self.projection_targets {
             let _ = crate::memory_projections::write_projections_from_store(
@@ -1936,7 +2123,9 @@ impl OpenMemoryStore {
                     m.embedding = store.embedding_engine.embed(&m.content);
                 }
                 if !m.embedding.is_empty() {
-                    store.hnsw_index.insert(m.id.clone(), &m.embedding, HashMap::new());
+                    store
+                        .hnsw_index
+                        .insert(m.id.clone(), &m.embedding, HashMap::new());
                 }
                 store.memories.insert(m.id.clone(), m);
             }
@@ -1949,7 +2138,11 @@ impl OpenMemoryStore {
             let all_wps: Vec<Vec<Waypoint>> = serde_json::from_str(&json)?;
             for wps in all_wps {
                 for wp in wps {
-                    store.waypoints.entry(wp.src_id.clone()).or_default().push(wp);
+                    store
+                        .waypoints
+                        .entry(wp.src_id.clone())
+                        .or_default()
+                        .push(wp);
                 }
             }
         }
@@ -1962,8 +2155,7 @@ impl OpenMemoryStore {
         }
 
         // Load verbatim drawers (MemPalace verbatim layer)
-        store.drawer_store = DrawerStore::load(&data_dir.join("drawers.json"))
-            .unwrap_or_default();
+        store.drawer_store = DrawerStore::load(&data_dir.join("drawers.json")).unwrap_or_default();
 
         Ok(store)
     }
@@ -1986,8 +2178,11 @@ impl OpenMemoryStore {
                     format!(" [{}]", m.tags.join(", "))
                 };
                 let pin = if m.pinned { " (pinned)" } else { "" };
-                out.push_str(&format!("- **{}%**{}{}: {}\n",
-                    salience_pct, tags, pin,
+                out.push_str(&format!(
+                    "- **{}%**{}{}: {}\n",
+                    salience_pct,
+                    tags,
+                    pin,
                     &m.content[..m.content.len().min(200)]
                 ));
             }
@@ -1997,8 +2192,13 @@ impl OpenMemoryStore {
         if !self.temporal_facts.is_empty() {
             out.push_str("## Temporal Facts\n\n");
             for f in self.query_current_facts() {
-                out.push_str(&format!("- {} {} {} (conf: {:.0}%)\n",
-                    f.subject, f.predicate, f.object, f.confidence * 100.0));
+                out.push_str(&format!(
+                    "- {} {} {} (conf: {:.0}%)\n",
+                    f.subject,
+                    f.predicate,
+                    f.object,
+                    f.confidence * 100.0
+                ));
             }
         }
 
@@ -2014,7 +2214,8 @@ impl OpenMemoryStore {
 
         let mut ctx = String::from("<open-memory>\n");
         for r in &results {
-            ctx.push_str(&format!("[{} | sal:{:.0}% | score:{:.2}] {}\n",
+            ctx.push_str(&format!(
+                "[{} | sal:{:.0}% | score:{:.2}] {}\n",
                 r.memory.sector,
                 r.effective_salience * 100.0,
                 r.score,
@@ -2043,27 +2244,36 @@ impl OpenMemoryStore {
         let mut imported = 0;
 
         for entry in &entries {
-            let content = entry.get("content")
+            let content = entry
+                .get("content")
                 .and_then(|v| v.as_str())
                 .unwrap_or_default();
             if content.is_empty() {
                 continue;
             }
 
-            let sector_str = entry.get("primary_sector")
+            let sector_str = entry
+                .get("primary_sector")
                 .or_else(|| entry.get("sector"))
                 .and_then(|v| v.as_str())
                 .unwrap_or("semantic");
 
-            let sector = sector_str.parse::<MemorySector>()
+            let sector = sector_str
+                .parse::<MemorySector>()
                 .unwrap_or(MemorySector::Semantic);
 
-            let tags: Vec<String> = entry.get("tags")
+            let tags: Vec<String> = entry
+                .get("tags")
                 .and_then(|v| v.as_array())
-                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
                 .unwrap_or_default();
 
-            let salience = entry.get("salience")
+            let salience = entry
+                .get("salience")
                 .and_then(|v| v.as_f64())
                 .unwrap_or(0.7);
 
@@ -2090,22 +2300,26 @@ impl OpenMemoryStore {
 
     /// Export in OpenMemory-compatible JSON format.
     pub fn export_openmemory_json(&self) -> String {
-        let entries: Vec<serde_json::Value> = self.memories.values().map(|m| {
-            serde_json::json!({
-                "id": m.id,
-                "content": m.content,
-                "primary_sector": m.sector.to_string(),
-                "tags": m.tags,
-                "meta": m.metadata,
-                "salience": m.salience,
-                "decay_lambda": m.decay_lambda,
-                "created_at": m.created_at,
-                "updated_at": m.updated_at,
-                "last_seen_at": m.last_seen_at,
-                "version": m.version,
-                "user_id": m.user_id,
+        let entries: Vec<serde_json::Value> = self
+            .memories
+            .values()
+            .map(|m| {
+                serde_json::json!({
+                    "id": m.id,
+                    "content": m.content,
+                    "primary_sector": m.sector.to_string(),
+                    "tags": m.tags,
+                    "meta": m.metadata,
+                    "salience": m.salience,
+                    "decay_lambda": m.decay_lambda,
+                    "created_at": m.created_at,
+                    "updated_at": m.updated_at,
+                    "last_seen_at": m.last_seen_at,
+                    "version": m.version,
+                    "user_id": m.user_id,
+                })
             })
-        }).collect();
+            .collect();
 
         serde_json::to_string_pretty(&entries).unwrap_or_default()
     }
@@ -2207,7 +2421,8 @@ impl OpenMemoryStore {
                 }
                 if let Some(m_j) = self.memories.get(&ids[j]) {
                     let content_j = m_j.content.to_lowercase();
-                    let words_j: std::collections::HashSet<&str> = content_j.split_whitespace().collect();
+                    let words_j: std::collections::HashSet<&str> =
+                        content_j.split_whitespace().collect();
                     let overlap = words_i.intersection(&words_j).count();
                     let min_len = words_i.len().min(words_j.len());
                     if min_len > 0 && overlap as f64 / min_len as f64 >= threshold {
@@ -2271,7 +2486,11 @@ impl OpenMemoryStore {
         let pinned = self.memories.values().filter(|m| m.pinned).count();
         let encrypted = self.memories.values().filter(|m| m.encrypted).count();
         let avg_salience = if total > 0 {
-            self.memories.values().map(|m| m.effective_salience()).sum::<f64>() / total as f64
+            self.memories
+                .values()
+                .map(|m| m.effective_salience())
+                .sum::<f64>()
+                / total as f64
         } else {
             0.0
         };
@@ -2290,11 +2509,18 @@ impl OpenMemoryStore {
         let stats = self.sector_stats();
         let sector_diversity = if total > 0 {
             let expected = total as f64 / 5.0;
-            let variance: f64 = stats.iter()
+            let variance: f64 = stats
+                .iter()
                 .map(|s| (s.count as f64 - expected).powi(2))
-                .sum::<f64>() / 5.0;
-            let max_variance = (total as f64 - expected).powi(2) * 4.0 / 5.0 + expected.powi(2) * 4.0 / 5.0;
-            if max_variance > 0.0 { 1.0 - (variance / max_variance).sqrt() } else { 1.0 }
+                .sum::<f64>()
+                / 5.0;
+            let max_variance =
+                (total as f64 - expected).powi(2) * 4.0 / 5.0 + expected.powi(2) * 4.0 / 5.0;
+            if max_variance > 0.0 {
+                1.0 - (variance / max_variance).sqrt()
+            } else {
+                1.0
+            }
         } else {
             0.0
         };
@@ -2339,7 +2565,8 @@ impl OpenMemoryStore {
                 if s.avg_salience < 0.3 {
                     insights.push(format!(
                         "Low-salience sector: {} (avg {:.0}%) — may benefit from consolidation",
-                        s.sector, s.avg_salience * 100.0
+                        s.sector,
+                        s.avg_salience * 100.0
                     ));
                 }
             }
@@ -2369,17 +2596,19 @@ impl OpenMemoryStore {
         if insights.is_empty() {
             insights.push(format!(
                 "Memory health is good: {} memories across {} sectors, avg {:.1} links/memory",
-                total, stats.iter().filter(|s| s.count > 0).count(), avg_waypoints
+                total,
+                stats.iter().filter(|s| s.count > 0).count(),
+                avg_waypoints
             ));
         }
 
-        let reflection = format!(
-            "Auto-reflection ({}): {}",
-            total,
-            insights.join("; ")
-        );
+        let reflection = format!("Auto-reflection ({}): {}", total, insights.join("; "));
 
-        let id = self.add_with_sector(&reflection, MemorySector::Reflective, vec!["auto-reflection".to_string()]);
+        let id = self.add_with_sector(
+            &reflection,
+            MemorySector::Reflective,
+            vec!["auto-reflection".to_string()],
+        );
         if let Some(node) = self.memories.get_mut(&id) {
             node.pinned = true; // Reflections are pinned by default
         }
@@ -2405,7 +2634,11 @@ impl OpenMemoryStore {
             if s.count > 0 {
                 lines.push(format!(
                     "  {} — {} ({:.0}% avg salience, {} pinned, {:.1}d avg age)",
-                    s.sector, s.count, s.avg_salience * 100.0, s.pinned_count, s.avg_age_days
+                    s.sector,
+                    s.count,
+                    s.avg_salience * 100.0,
+                    s.pinned_count,
+                    s.avg_age_days
                 ));
             }
         }
@@ -2420,7 +2653,9 @@ impl OpenMemoryStore {
         let mut top_tags: Vec<(String, usize)> = tag_counts.into_iter().collect();
         top_tags.sort_by(|a, b| b.1.cmp(&a.1));
         if !top_tags.is_empty() {
-            let tags_str: Vec<String> = top_tags.iter().take(10)
+            let tags_str: Vec<String> = top_tags
+                .iter()
+                .take(10)
                 .map(|(t, c)| format!("{}({})", t, c))
                 .collect();
             lines.push(format!("  Top tags: {}", tags_str.join(", ")));
@@ -2434,17 +2669,24 @@ impl OpenMemoryStore {
     /// Full-text search (simple substring matching).
     pub fn search_text(&self, text: &str) -> Vec<&MemoryNode> {
         let lower = text.to_lowercase();
-        let mut results: Vec<&MemoryNode> = self.memories.values()
+        let mut results: Vec<&MemoryNode> = self
+            .memories
+            .values()
             .filter(|m| m.content.to_lowercase().contains(&lower))
             .collect();
-        results.sort_by(|a, b| b.effective_salience().partial_cmp(&a.effective_salience())
-            .unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            b.effective_salience()
+                .partial_cmp(&a.effective_salience())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         results
     }
 
     /// Search by date range (created_at).
     pub fn search_by_date(&self, from: u64, to: u64) -> Vec<&MemoryNode> {
-        let mut results: Vec<&MemoryNode> = self.memories.values()
+        let mut results: Vec<&MemoryNode> = self
+            .memories
+            .values()
             .filter(|m| m.created_at >= from && m.created_at <= to)
             .collect();
         results.sort_by(|a, b| b.created_at.cmp(&a.created_at));
@@ -2453,11 +2695,20 @@ impl OpenMemoryStore {
 
     /// Get memories that are about to be purged (low effective salience).
     pub fn at_risk_memories(&self, threshold: f64) -> Vec<&MemoryNode> {
-        let mut results: Vec<&MemoryNode> = self.memories.values()
-            .filter(|m| !m.pinned && m.effective_salience() < threshold && m.effective_salience() >= self.purge_threshold)
+        let mut results: Vec<&MemoryNode> = self
+            .memories
+            .values()
+            .filter(|m| {
+                !m.pinned
+                    && m.effective_salience() < threshold
+                    && m.effective_salience() >= self.purge_threshold
+            })
             .collect();
-        results.sort_by(|a, b| a.effective_salience().partial_cmp(&b.effective_salience())
-            .unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            a.effective_salience()
+                .partial_cmp(&b.effective_salience())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         results
     }
 
@@ -2622,8 +2873,12 @@ impl OpenMemoryStore {
 
         // L2: Wing/Room scoped semantic search
         let query_sector = self.classifier.primary_sector(query);
-        let scoped =
-            self.query_scoped(query, l2_limit, self.project_id.as_deref(), Some(query_sector));
+        let scoped = self.query_scoped(
+            query,
+            l2_limit,
+            self.project_id.as_deref(),
+            Some(query_sector),
+        );
         let scoped_ids: std::collections::HashSet<&str> =
             scoped.iter().map(|r| r.memory.id.as_str()).collect();
 
@@ -2666,12 +2921,9 @@ impl OpenMemoryStore {
         // L3-verbatim: Drawer search — raw text, no summarization loss
         let query_embedding = self.embedding_engine.embed(query);
         if !query_embedding.is_empty() && !self.drawer_store.is_empty() {
-            let drawers = self.drawer_store.search(
-                &query_embedding,
-                4,
-                self.project_id.as_deref(),
-                None,
-            );
+            let drawers =
+                self.drawer_store
+                    .search(&query_embedding, 4, self.project_id.as_deref(), None);
             if !drawers.is_empty() {
                 ctx.push_str("### Verbatim Drawers\n");
                 for d in drawers {
@@ -2766,7 +3018,9 @@ impl OpenMemoryStore {
                 }
                 let sim = LocalEmbeddingEngine::cosine_similarity(&self_emb, &other_mem.embedding);
                 if sim >= threshold {
-                    let cross_sector = self.memories.get(self_id)
+                    let cross_sector = self
+                        .memories
+                        .get(self_id)
                         .map(|m| m.sector != other_mem.sector)
                         .unwrap_or(false);
 
@@ -2803,15 +3057,25 @@ impl OpenMemoryStore {
                     .memories
                     .iter()
                     .filter(|(_, m)| !m.embedding.is_empty())
-                    .map(|(id, m)| (id.clone(), m.embedding.clone(), m.sector, m.project_id.clone()))
+                    .map(|(id, m)| {
+                        (
+                            id.clone(),
+                            m.embedding.clone(),
+                            m.sector,
+                            m.project_id.clone(),
+                        )
+                    })
                     .collect();
 
                 for (j_id, j_emb, j_sector, j_project) in &j_memories {
                     let i_ids: Vec<String> = stores[i].memories.keys().cloned().collect();
                     for i_id in &i_ids {
                         if let Some(i_mem) = stores[i].memories.get(i_id) {
-                            if i_mem.embedding.is_empty() { continue; }
-                            let sim = LocalEmbeddingEngine::cosine_similarity(&i_mem.embedding, j_emb);
+                            if i_mem.embedding.is_empty() {
+                                continue;
+                            }
+                            let sim =
+                                LocalEmbeddingEngine::cosine_similarity(&i_mem.embedding, j_emb);
                             if sim >= threshold {
                                 let cross_sector = i_mem.sector != *j_sector;
                                 let i_project = i_mem.project_id.clone();
@@ -2819,11 +3083,19 @@ impl OpenMemoryStore {
 
                                 let mut wp_i = Waypoint::new(i_id, j_id, sim, cross_sector);
                                 wp_i.cross_project = cross_project;
-                                stores[i].waypoints.entry(i_id.clone()).or_default().push(wp_i);
+                                stores[i]
+                                    .waypoints
+                                    .entry(i_id.clone())
+                                    .or_default()
+                                    .push(wp_i);
 
                                 let mut wp_j = Waypoint::new(j_id, i_id, sim, cross_sector);
                                 wp_j.cross_project = cross_project;
-                                stores[j].waypoints.entry(j_id.clone()).or_default().push(wp_j);
+                                stores[j]
+                                    .waypoints
+                                    .entry(j_id.clone())
+                                    .or_default()
+                                    .push(wp_j);
 
                                 total += 1;
                             }
@@ -2978,14 +3250,9 @@ pub fn project_scoped_store(workspace: &std::path::Path) -> OpenMemoryStore {
 /// human-readable projection files to stay in sync. Read-only callers
 /// can use [`project_scoped_store`] — projection refresh is a no-op
 /// without a `save()`, so the cost is exactly zero on the read path.
-pub fn project_scoped_store_with_refresh(
-    workspace: &std::path::Path,
-) -> OpenMemoryStore {
+pub fn project_scoped_store_with_refresh(workspace: &std::path::Path) -> OpenMemoryStore {
     let mut store = project_scoped_store(workspace);
-    store.enable_projection_refresh(
-        workspace.to_path_buf(),
-        dirs::home_dir(),
-    );
+    store.enable_projection_refresh(workspace.to_path_buf(), dirs::home_dir());
     store
 }
 
@@ -3017,7 +3284,8 @@ fn detect_project_id(workspace: &std::path::Path) -> Option<String> {
         }
     }
     // Fallback: use directory name
-    workspace.file_name()
+    workspace
+        .file_name()
         .and_then(|n| n.to_str())
         .map(|s| s.to_string())
 }
@@ -3028,7 +3296,8 @@ fn detect_project_id(workspace: &std::path::Path) -> Option<String> {
 /// Mem0 stores: {memories: [{id, memory, hash, metadata, created_at, updated_at, user_id}]}
 pub fn import_from_mem0(store: &mut OpenMemoryStore, json: &str) -> Result<usize> {
     let parsed: serde_json::Value = serde_json::from_str(json)?;
-    let memories = parsed.get("memories")
+    let memories = parsed
+        .get("memories")
         .or_else(|| parsed.get("results"))
         .and_then(|v| v.as_array());
 
@@ -3045,7 +3314,8 @@ pub fn import_from_mem0(store: &mut OpenMemoryStore, json: &str) -> Result<usize
 
     let mut count = 0;
     for entry in entries {
-        let content = entry.get("memory")
+        let content = entry
+            .get("memory")
             .or_else(|| entry.get("content"))
             .or_else(|| entry.get("text"))
             .and_then(|v| v.as_str())
@@ -3054,12 +3324,17 @@ pub fn import_from_mem0(store: &mut OpenMemoryStore, json: &str) -> Result<usize
             continue;
         }
 
-        let tags: Vec<String> = entry.get("metadata")
+        let tags: Vec<String> = entry
+            .get("metadata")
             .and_then(|v| v.as_object())
             .map(|obj| {
                 obj.get("tags")
                     .and_then(|v| v.as_array())
-                    .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect()
+                    })
                     .unwrap_or_default()
             })
             .unwrap_or_default();
@@ -3076,7 +3351,8 @@ pub fn import_from_zep(store: &mut OpenMemoryStore, json: &str) -> Result<usize>
     let entries: Vec<serde_json::Value> = serde_json::from_str(json)?;
     let mut count = 0;
     for entry in &entries {
-        let content = entry.get("content")
+        let content = entry
+            .get("content")
             .or_else(|| entry.get("text"))
             .and_then(|v| v.as_str())
             .unwrap_or_default();
@@ -3084,7 +3360,8 @@ pub fn import_from_zep(store: &mut OpenMemoryStore, json: &str) -> Result<usize>
             continue;
         }
 
-        let role = entry.get("role")
+        let role = entry
+            .get("role")
             .and_then(|v| v.as_str())
             .unwrap_or("unknown");
 
@@ -3107,14 +3384,16 @@ pub fn import_from_auto_memory(store: &mut OpenMemoryStore, json: &str) -> Resul
     let facts: Vec<serde_json::Value> = serde_json::from_str(json)?;
     let mut count = 0;
     for fact in &facts {
-        let content = fact.get("fact")
+        let content = fact
+            .get("fact")
             .and_then(|v| v.as_str())
             .unwrap_or_default();
         if content.is_empty() {
             continue;
         }
 
-        let confidence = fact.get("confidence")
+        let confidence = fact
+            .get("confidence")
             .and_then(|v| v.as_f64())
             .unwrap_or(0.7);
 
@@ -3123,12 +3402,18 @@ pub fn import_from_auto_memory(store: &mut OpenMemoryStore, json: &str) -> Resul
             continue;
         }
 
-        let tags: Vec<String> = fact.get("tags")
+        let tags: Vec<String> = fact
+            .get("tags")
             .and_then(|v| v.as_array())
-            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default();
 
-        let pinned = fact.get("pinned")
+        let pinned = fact
+            .get("pinned")
             .and_then(|v| v.as_bool())
             .unwrap_or(false);
 
@@ -3159,15 +3444,9 @@ pub fn sync_auto_memories_for(
 ) -> Result<usize> {
     let mut total = 0;
     if let Some(home) = home_dir {
-        total += import_and_mark_synced(
-            store,
-            &home.join(".vibecli").join("auto-memory.json"),
-        );
+        total += import_and_mark_synced(store, &home.join(".vibecli").join("auto-memory.json"));
     }
-    total += import_and_mark_synced(
-        store,
-        &workspace.join(".vibecli").join("auto-memory.json"),
-    );
+    total += import_and_mark_synced(store, &workspace.join(".vibecli").join("auto-memory.json"));
     Ok(total)
 }
 
@@ -3179,10 +3458,7 @@ pub fn sync_auto_memories(store: &mut OpenMemoryStore) -> Result<usize> {
     sync_auto_memories_for(store, &cwd, dirs::home_dir().as_deref())
 }
 
-fn import_and_mark_synced(
-    store: &mut OpenMemoryStore,
-    path: &std::path::Path,
-) -> usize {
+fn import_and_mark_synced(store: &mut OpenMemoryStore, path: &std::path::Path) -> usize {
     if !path.exists() {
         return 0;
     }
@@ -3222,17 +3498,25 @@ pub struct ConnectorEntry {
 pub struct GitHubConnector;
 
 impl DataSourceConnector for GitHubConnector {
-    fn name(&self) -> &str { "github" }
+    fn name(&self) -> &str {
+        "github"
+    }
 
     fn fetch(&self, config: &HashMap<String, String>) -> Result<Vec<ConnectorEntry>> {
-        let repo = config.get("repo").ok_or_else(|| anyhow::anyhow!("missing 'repo' config"))?;
+        let repo = config
+            .get("repo")
+            .ok_or_else(|| anyhow::anyhow!("missing 'repo' config"))?;
         // In a real implementation, this would call the GitHub API.
         // For now, provide the structure for future integration.
         Ok(vec![ConnectorEntry {
             content: format!("GitHub repository: {}", repo),
             tags: vec!["github".to_string(), "source".to_string()],
-            metadata: [("source".to_string(), "github".to_string()),
-                       ("repo".to_string(), repo.clone())].into_iter().collect(),
+            metadata: [
+                ("source".to_string(), "github".to_string()),
+                ("repo".to_string(), repo.clone()),
+            ]
+            .into_iter()
+            .collect(),
         }])
     }
 }
@@ -3241,15 +3525,20 @@ impl DataSourceConnector for GitHubConnector {
 pub struct NotionConnector;
 
 impl DataSourceConnector for NotionConnector {
-    fn name(&self) -> &str { "notion" }
+    fn name(&self) -> &str {
+        "notion"
+    }
 
     fn fetch(&self, config: &HashMap<String, String>) -> Result<Vec<ConnectorEntry>> {
-        let database_id = config.get("database_id")
+        let database_id = config
+            .get("database_id")
             .ok_or_else(|| anyhow::anyhow!("missing 'database_id' config"))?;
         Ok(vec![ConnectorEntry {
             content: format!("Notion database: {}", database_id),
             tags: vec!["notion".to_string()],
-            metadata: [("source".to_string(), "notion".to_string())].into_iter().collect(),
+            metadata: [("source".to_string(), "notion".to_string())]
+                .into_iter()
+                .collect(),
         }])
     }
 }
@@ -3258,10 +3547,14 @@ impl DataSourceConnector for NotionConnector {
 pub struct FileSystemConnector;
 
 impl DataSourceConnector for FileSystemConnector {
-    fn name(&self) -> &str { "filesystem" }
+    fn name(&self) -> &str {
+        "filesystem"
+    }
 
     fn fetch(&self, config: &HashMap<String, String>) -> Result<Vec<ConnectorEntry>> {
-        let path = config.get("path").ok_or_else(|| anyhow::anyhow!("missing 'path' config"))?;
+        let path = config
+            .get("path")
+            .ok_or_else(|| anyhow::anyhow!("missing 'path' config"))?;
         let path = std::path::Path::new(path);
         let mut entries = Vec::new();
 
@@ -3270,8 +3563,12 @@ impl DataSourceConnector for FileSystemConnector {
             entries.push(ConnectorEntry {
                 content,
                 tags: vec!["file".to_string()],
-                metadata: [("source".to_string(), "filesystem".to_string()),
-                           ("path".to_string(), path.display().to_string())].into_iter().collect(),
+                metadata: [
+                    ("source".to_string(), "filesystem".to_string()),
+                    ("path".to_string(), path.display().to_string()),
+                ]
+                .into_iter()
+                .collect(),
             });
         } else if path.is_dir() {
             for entry in std::fs::read_dir(path)? {
@@ -3279,14 +3576,20 @@ impl DataSourceConnector for FileSystemConnector {
                 let p = entry.path();
                 if p.is_file() {
                     let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("");
-                    if ["md", "txt", "rs", "py", "js", "ts", "toml", "yaml", "json"].contains(&ext) {
+                    if ["md", "txt", "rs", "py", "js", "ts", "toml", "yaml", "json"].contains(&ext)
+                    {
                         if let Ok(content) = std::fs::read_to_string(&p) {
-                            if content.len() <= 50_000 { // Skip very large files
+                            if content.len() <= 50_000 {
+                                // Skip very large files
                                 entries.push(ConnectorEntry {
                                     content,
                                     tags: vec!["file".to_string(), ext.to_string()],
-                                    metadata: [("source".to_string(), "filesystem".to_string()),
-                                               ("path".to_string(), p.display().to_string())].into_iter().collect(),
+                                    metadata: [
+                                        ("source".to_string(), "filesystem".to_string()),
+                                        ("path".to_string(), p.display().to_string()),
+                                    ]
+                                    .into_iter()
+                                    .collect(),
                                 });
                             }
                         }
@@ -3303,11 +3606,14 @@ impl DataSourceConnector for FileSystemConnector {
 pub struct GitHistoryConnector;
 
 impl DataSourceConnector for GitHistoryConnector {
-    fn name(&self) -> &str { "git-history" }
+    fn name(&self) -> &str {
+        "git-history"
+    }
 
     fn fetch(&self, config: &HashMap<String, String>) -> Result<Vec<ConnectorEntry>> {
         let repo_path = config.get("path").unwrap_or(&".".to_string()).clone();
-        let limit = config.get("limit")
+        let limit = config
+            .get("limit")
             .and_then(|v| v.parse::<usize>().ok())
             .unwrap_or(50);
 
@@ -3319,11 +3625,16 @@ impl DataSourceConnector for GitHistoryConnector {
         match output {
             Ok(out) if out.status.success() => {
                 let stdout = String::from_utf8_lossy(&out.stdout);
-                Ok(stdout.lines().map(|line| ConnectorEntry {
-                    content: line.to_string(),
-                    tags: vec!["git".to_string(), "commit".to_string()],
-                    metadata: [("source".to_string(), "git-history".to_string())].into_iter().collect(),
-                }).collect())
+                Ok(stdout
+                    .lines()
+                    .map(|line| ConnectorEntry {
+                        content: line.to_string(),
+                        tags: vec!["git".to_string(), "commit".to_string()],
+                        metadata: [("source".to_string(), "git-history".to_string())]
+                            .into_iter()
+                            .collect(),
+                    })
+                    .collect())
             }
             _ => Ok(Vec::new()),
         }
@@ -3470,14 +3781,17 @@ mod tests {
     #[test]
     fn classify_episodic() {
         let c = SectorClassifier::new();
-        let sector = c.primary_sector("Yesterday I had a meeting with the team and we discussed the new feature");
+        let sector = c.primary_sector(
+            "Yesterday I had a meeting with the team and we discussed the new feature",
+        );
         assert_eq!(sector, MemorySector::Episodic);
     }
 
     #[test]
     fn classify_semantic() {
         let c = SectorClassifier::new();
-        let sector = c.primary_sector("The API specification defines a RESTful protocol for data access");
+        let sector =
+            c.primary_sector("The API specification defines a RESTful protocol for data access");
         assert_eq!(sector, MemorySector::Semantic);
     }
 
@@ -3491,7 +3805,8 @@ mod tests {
     #[test]
     fn classify_emotional() {
         let c = SectorClassifier::new();
-        let sector = c.primary_sector("I'm really frustrated with this annoying bug, it's terrible");
+        let sector =
+            c.primary_sector("I'm really frustrated with this annoying bug, it's terrible");
         assert_eq!(sector, MemorySector::Emotional);
     }
 
@@ -3508,7 +3823,11 @@ mod tests {
         let result = c.classify("Yesterday I realized that the step-by-step process was amazing");
         assert_eq!(result.len(), 5);
         let total: f64 = result.iter().map(|(_, c)| c).sum();
-        assert!((total - 1.0).abs() < 0.01, "confidences should sum to 1.0, got {}", total);
+        assert!(
+            (total - 1.0).abs() < 0.01,
+            "confidences should sum to 1.0, got {}",
+            total
+        );
     }
 
     #[test]
@@ -3606,7 +3925,10 @@ mod tests {
         let trait_obj: &dyn vibe_infer::Embedder = &engine;
         assert_eq!(trait_obj.dim(), 256);
 
-        let async_vec = trait_obj.embed("hello world").await.expect("embed via trait");
+        let async_vec = trait_obj
+            .embed("hello world")
+            .await
+            .expect("embed via trait");
         let sync_vec = engine.embed("hello world");
         assert_eq!(async_vec, sync_vec);
     }
@@ -3887,10 +4209,16 @@ mod tests {
         store.add_with_sector("event", MemorySector::Episodic, vec![]);
 
         let stats = store.sector_stats();
-        let semantic_stats = stats.iter().find(|s| s.sector == MemorySector::Semantic).expect("has semantic");
+        let semantic_stats = stats
+            .iter()
+            .find(|s| s.sector == MemorySector::Semantic)
+            .expect("has semantic");
         assert_eq!(semantic_stats.count, 2);
 
-        let episodic_stats = stats.iter().find(|s| s.sector == MemorySector::Episodic).expect("has episodic");
+        let episodic_stats = stats
+            .iter()
+            .find(|s| s.sector == MemorySector::Episodic)
+            .expect("has episodic");
         assert_eq!(episodic_stats.count, 1);
     }
 
@@ -3986,9 +4314,11 @@ mod tests {
     fn store_prune_waypoints() {
         let mut store = test_store();
         // Manually add a weak waypoint
-        store.waypoints.entry("src".to_string()).or_default().push(
-            Waypoint::new("src", "dst", 0.01, false)
-        );
+        store
+            .waypoints
+            .entry("src".to_string())
+            .or_default()
+            .push(Waypoint::new("src", "dst", 0.01, false));
         let pruned = store.prune_waypoints(0.05);
         assert_eq!(pruned, 1);
     }
@@ -4003,7 +4333,11 @@ mod tests {
     #[test]
     fn store_export_markdown() {
         let mut store = test_store();
-        store.add_with_sector("A semantic fact", MemorySector::Semantic, vec!["test".to_string()]);
+        store.add_with_sector(
+            "A semantic fact",
+            MemorySector::Semantic,
+            vec!["test".to_string()],
+        );
         let md = store.export_markdown();
         assert!(md.contains("VibeCody OpenMemory Export"));
         assert!(md.contains("semantic"));
@@ -4263,7 +4597,11 @@ mod tests {
     #[test]
     fn export_openmemory_json_roundtrip() {
         let mut store = test_store();
-        store.add_with_tags("A fact about Rust", vec!["rust".to_string()], HashMap::new());
+        store.add_with_tags(
+            "A fact about Rust",
+            vec!["rust".to_string()],
+            HashMap::new(),
+        );
         let json = store.export_openmemory_json();
 
         let mut store2 = test_store();
@@ -4360,7 +4698,11 @@ mod tests {
     fn user_summary_with_data() {
         let mut store = test_store();
         store.add_with_tags("Fact about Rust", vec!["rust".to_string()], HashMap::new());
-        store.add_with_tags("Another fact", vec!["rust".to_string(), "lang".to_string()], HashMap::new());
+        store.add_with_tags(
+            "Another fact",
+            vec!["rust".to_string(), "lang".to_string()],
+            HashMap::new(),
+        );
         let summary = store.user_summary();
         assert!(summary.contains("2 memories"));
         assert!(summary.contains("rust"));
@@ -4440,7 +4782,8 @@ mod tests {
     #[test]
     fn mcp_tool_definitions_names() {
         let tools = OpenMemoryStore::mcp_tool_definitions();
-        let names: Vec<&str> = tools.iter()
+        let names: Vec<&str> = tools
+            .iter()
             .filter_map(|t| t.get("name").and_then(|v| v.as_str()))
             .collect();
         assert!(names.contains(&"memory_add"));
@@ -4467,7 +4810,9 @@ mod tests {
     #[test]
     fn github_connector_with_repo() {
         let connector = GitHubConnector;
-        let config: HashMap<String, String> = [("repo".to_string(), "owner/repo".to_string())].into_iter().collect();
+        let config: HashMap<String, String> = [("repo".to_string(), "owner/repo".to_string())]
+            .into_iter()
+            .collect();
         let entries = connector.fetch(&config).expect("should work");
         assert!(!entries.is_empty());
         assert!(entries[0].content.contains("owner/repo"));
@@ -4502,8 +4847,15 @@ mod tests {
     #[test]
     fn filesystem_connector_nonexistent_path() {
         let connector = FileSystemConnector;
-        let config: HashMap<String, String> = [("path".to_string(), "/tmp/nonexistent_vibecody_test_path".to_string())].into_iter().collect();
-        let entries = connector.fetch(&config).expect("should not error for non-dir");
+        let config: HashMap<String, String> = [(
+            "path".to_string(),
+            "/tmp/nonexistent_vibecody_test_path".to_string(),
+        )]
+        .into_iter()
+        .collect();
+        let entries = connector
+            .fetch(&config)
+            .expect("should not error for non-dir");
         assert!(entries.is_empty());
     }
 
@@ -4517,7 +4869,9 @@ mod tests {
     fn ingest_from_connector_basic() {
         let mut store = test_store();
         let connector = GitHubConnector;
-        let config: HashMap<String, String> = [("repo".to_string(), "test/repo".to_string())].into_iter().collect();
+        let config: HashMap<String, String> = [("repo".to_string(), "test/repo".to_string())]
+            .into_iter()
+            .collect();
         let count = ingest_from_connector(&mut store, &connector, &config).expect("should ingest");
         assert_eq!(count, 1);
         assert_eq!(store.total_memories(), 1);
@@ -4572,7 +4926,8 @@ mod tests {
         // 10. Fact evolution
         store.add_fact("rust", "version", "1.76");
         let current = store.query_current_facts();
-        let rust_version: Vec<&&TemporalFact> = current.iter()
+        let rust_version: Vec<&&TemporalFact> = current
+            .iter()
             .filter(|f| f.subject == "rust" && f.predicate == "version")
             .collect();
         assert_eq!(rust_version.len(), 1);
@@ -4693,7 +5048,8 @@ mod tests {
     #[test]
     fn import_zep_skips_empty_content() {
         let mut store = test_store();
-        let json = r#"[{"content": "", "role": "user"}, {"content": "valid", "role": "assistant"}]"#;
+        let json =
+            r#"[{"content": "", "role": "user"}, {"content": "valid", "role": "assistant"}]"#;
         let count = import_from_zep(&mut store, json).expect("import");
         assert_eq!(count, 1);
     }
@@ -4817,12 +5173,24 @@ mod tests {
     fn consolidate_merges_similar_weak_memories() {
         let mut store = test_store();
         // Add very similar memories with low salience
-        let id1 = store.add_with_sector("Rust has ownership semantics", MemorySector::Semantic, vec![]);
-        let id2 = store.add_with_sector("Rust uses ownership semantics for safety", MemorySector::Semantic, vec![]);
+        let id1 = store.add_with_sector(
+            "Rust has ownership semantics",
+            MemorySector::Semantic,
+            vec![],
+        );
+        let id2 = store.add_with_sector(
+            "Rust uses ownership semantics for safety",
+            MemorySector::Semantic,
+            vec![],
+        );
 
         // Lower salience to make eligible
-        if let Some(m) = store.get_mut(&id1) { m.salience = 0.2; }
-        if let Some(m) = store.get_mut(&id2) { m.salience = 0.2; }
+        if let Some(m) = store.get_mut(&id1) {
+            m.salience = 0.2;
+        }
+        if let Some(m) = store.get_mut(&id2) {
+            m.salience = 0.2;
+        }
 
         let before = store.total_memories();
         let results = store.consolidate();
@@ -4877,11 +5245,15 @@ mod tests {
     fn prune_waypoints_removes_weak_links() {
         let mut store = test_store();
         // Manually add waypoints with varying weights
-        store.waypoints.entry("a".to_string()).or_default().extend(vec![
-            Waypoint::new("a", "b", 0.9, false),
-            Waypoint::new("a", "c", 0.02, false),
-            Waypoint::new("a", "d", 0.01, false),
-        ]);
+        store
+            .waypoints
+            .entry("a".to_string())
+            .or_default()
+            .extend(vec![
+                Waypoint::new("a", "b", 0.9, false),
+                Waypoint::new("a", "c", 0.02, false),
+                Waypoint::new("a", "d", 0.01, false),
+            ]);
         let pruned = store.prune_waypoints(0.05);
         assert_eq!(pruned, 2); // c and d should be pruned
         assert_eq!(store.get_waypoints("a").len(), 1); // Only b remains
@@ -4967,7 +5339,10 @@ mod tests {
         store.add_with_sector("unpinned", MemorySector::Semantic, vec![]);
 
         let stats = store.sector_stats();
-        let sem = stats.iter().find(|s| s.sector == MemorySector::Semantic).unwrap();
+        let sem = stats
+            .iter()
+            .find(|s| s.sector == MemorySector::Semantic)
+            .unwrap();
         assert_eq!(sem.count, 2);
         assert_eq!(sem.pinned_count, 1);
     }
@@ -5065,7 +5440,9 @@ mod tests {
         let id1 = store.add("Exact same content here");
         let id2 = store.add("Exact same content here");
         // Boost id2 salience
-        if let Some(m) = store.get_mut(&id2) { m.salience = 0.5; }
+        if let Some(m) = store.get_mut(&id2) {
+            m.salience = 0.5;
+        }
         // id1 has salience 1.0, id2 has 0.5 — id2 should be removed
         store.remove_duplicates(0.9);
         assert_eq!(store.total_memories(), 1);
@@ -5110,7 +5487,7 @@ mod tests {
         let doc = "word ".repeat(500); // ~2500 chars
         let chunks = store.ingest_document(&doc, "test.md");
         assert!(chunks >= 2); // Should create multiple chunks
-        // All should have "document" tag
+                              // All should have "document" tag
         let tagged = store.list_by_tag("document");
         assert_eq!(tagged.len(), chunks);
     }
@@ -5168,7 +5545,11 @@ mod tests {
             store.add_with_sector("test", *sector, vec![]);
         }
         let h = store.health_metrics();
-        assert!(h.sector_diversity > 0.9, "5 memories across 5 sectors should be near-perfect diversity, got {}", h.sector_diversity);
+        assert!(
+            h.sector_diversity > 0.9,
+            "5 memories across 5 sectors should be near-perfect diversity, got {}",
+            h.sector_diversity
+        );
     }
 
     #[test]
@@ -5179,7 +5560,11 @@ mod tests {
             store.add_with_sector("all semantic", MemorySector::Semantic, vec![]);
         }
         let h = store.health_metrics();
-        assert!(h.sector_diversity < 0.5, "all-same-sector should have low diversity, got {}", h.sector_diversity);
+        assert!(
+            h.sector_diversity < 0.5,
+            "all-same-sector should have low diversity, got {}",
+            h.sector_diversity
+        );
     }
 
     // ── Config integration test ──────────────────────────────────────────
@@ -5222,7 +5607,13 @@ mod tests {
     fn drawer_store_ingest_basic() {
         let mut engine = LocalEmbeddingEngine::new();
         let mut ds = DrawerStore::new();
-        let added = ds.ingest("Rust ownership model prevents data races", "myproject", "semantic", "session-1", &mut engine);
+        let added = ds.ingest(
+            "Rust ownership model prevents data races",
+            "myproject",
+            "semantic",
+            "session-1",
+            &mut engine,
+        );
         assert!(added >= 1);
         assert_eq!(ds.len(), added);
     }
@@ -5241,8 +5632,20 @@ mod tests {
     fn drawer_store_wing_filter() {
         let mut engine = LocalEmbeddingEngine::new();
         let mut ds = DrawerStore::new();
-        ds.ingest("alpha project fact about Rust programming", "alpha", "semantic", "s1", &mut engine);
-        ds.ingest("beta project fact about Python scripting", "beta", "semantic", "s2", &mut engine);
+        ds.ingest(
+            "alpha project fact about Rust programming",
+            "alpha",
+            "semantic",
+            "s1",
+            &mut engine,
+        );
+        ds.ingest(
+            "beta project fact about Python scripting",
+            "beta",
+            "semantic",
+            "s2",
+            &mut engine,
+        );
 
         let q_embedding = engine.embed("Rust programming");
         let alpha_results = ds.search(&q_embedding, 5, Some("alpha"), None);
@@ -5280,7 +5683,10 @@ mod tests {
     fn build_essential_story_respects_token_budget() {
         let mut store = test_store();
         for i in 0..50 {
-            store.add(&format!("Memory content item number {} with lots of details about topic", i));
+            store.add(&format!(
+                "Memory content item number {} with lots of details about topic",
+                i
+            ));
         }
         // Budget of 100 tokens ≈ 400 chars — should truncate
         let story_small = store.build_essential_story(100);
@@ -5322,7 +5728,11 @@ mod tests {
     fn query_scoped_room_filter() {
         let mut store = test_store();
         store.add_with_sector("Step 1: cargo build", MemorySector::Procedural, vec![]);
-        store.add_with_sector("Rust is a systems language fact", MemorySector::Semantic, vec![]);
+        store.add_with_sector(
+            "Rust is a systems language fact",
+            MemorySector::Semantic,
+            vec![],
+        );
 
         let results = store.query_scoped("build", 5, None, Some(MemorySector::Procedural));
         // All results should be procedural sector
@@ -5407,7 +5817,13 @@ mod tests {
 
         let mut engine = LocalEmbeddingEngine::new();
         let mut ds = DrawerStore::new();
-        ds.ingest("Rust ownership prevents data races at compile time", "proj", "semantic", "s1", &mut engine);
+        ds.ingest(
+            "Rust ownership prevents data races at compile time",
+            "proj",
+            "semantic",
+            "s1",
+            &mut engine,
+        );
         ds.save(&path).expect("save");
 
         let loaded = DrawerStore::load(&path).expect("load");
@@ -5448,12 +5864,8 @@ mod tests {
             sample_facts(),
         );
 
-        let n = sync_auto_memories_for(
-            &mut store,
-            workspace.path(),
-            Some(home.path()),
-        )
-        .expect("sync");
+        let n =
+            sync_auto_memories_for(&mut store, workspace.path(), Some(home.path())).expect("sync");
         assert_eq!(n, 4, "2 facts × 2 sources");
     }
 
@@ -5468,12 +5880,8 @@ mod tests {
         let src = workspace.path().join(".vibecli").join("auto-memory.json");
         write_auto_memory(&src, sample_facts());
 
-        let first = sync_auto_memories_for(
-            &mut store,
-            workspace.path(),
-            Some(home.path()),
-        )
-        .expect("sync1");
+        let first =
+            sync_auto_memories_for(&mut store, workspace.path(), Some(home.path())).expect("sync1");
         assert_eq!(first, 2);
         assert!(!src.exists(), "source should be renamed after sync");
         assert!(
@@ -5481,12 +5889,8 @@ mod tests {
             "expected .synced sidecar"
         );
 
-        let second = sync_auto_memories_for(
-            &mut store,
-            workspace.path(),
-            Some(home.path()),
-        )
-        .expect("sync2");
+        let second =
+            sync_auto_memories_for(&mut store, workspace.path(), Some(home.path())).expect("sync2");
         assert_eq!(second, 0, "second sync must be a no-op");
     }
 
@@ -5495,12 +5899,8 @@ mod tests {
         let mut store = test_store();
         let home = tempfile::TempDir::new().unwrap();
         let workspace = tempfile::TempDir::new().unwrap();
-        let n = sync_auto_memories_for(
-            &mut store,
-            workspace.path(),
-            Some(home.path()),
-        )
-        .expect("sync");
+        let n =
+            sync_auto_memories_for(&mut store, workspace.path(), Some(home.path())).expect("sync");
         assert_eq!(n, 0);
     }
 
@@ -5512,8 +5912,7 @@ mod tests {
             &workspace.path().join(".vibecli").join("auto-memory.json"),
             sample_facts(),
         );
-        let n = sync_auto_memories_for(&mut store, workspace.path(), None)
-            .expect("sync");
+        let n = sync_auto_memories_for(&mut store, workspace.path(), None).expect("sync");
         // Project-tier facts still import even with no home provided.
         assert_eq!(n, 2);
     }
@@ -5579,10 +5978,7 @@ mod tests {
         store.set_project("phase7-idempotent");
         store.add("fact one");
         store.add("fact two");
-        store.enable_projection_refresh(
-            workspace.path().to_path_buf(),
-            None,
-        );
+        store.enable_projection_refresh(workspace.path().to_path_buf(), None);
 
         store.save().expect("save 1");
         let memory_md = workspace.path().join(".vibecli").join("MEMORY.md");
@@ -5611,10 +6007,7 @@ mod tests {
 
         let mut store = OpenMemoryStore::new(data_dir.path(), "test-user");
         store.add("fact");
-        store.enable_projection_refresh(
-            workspace.path().to_path_buf(),
-            None,
-        );
+        store.enable_projection_refresh(workspace.path().to_path_buf(), None);
 
         let result = store.save();
         assert!(

@@ -18,22 +18,22 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WatchSessionSummary {
     pub session_id: String,
-    pub task_preview: String,   // first 80 chars of task
-    pub status: String,         // "running" | "complete" | "failed"
+    pub task_preview: String, // first 80 chars of task
+    pub status: String,       // "running" | "complete" | "failed"
     pub provider: String,
     pub model: String,
     pub message_count: u32,
     pub step_count: u32,
-    pub started_at: u64,        // Unix secs
-    pub last_activity: u64,     // Unix secs
+    pub started_at: u64,              // Unix secs
+    pub last_activity: u64,           // Unix secs
     pub last_message_preview: String, // first 120 chars of last assistant message
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WatchMessage {
     pub id: i64,
-    pub role: String,           // "user" | "assistant" | "system" | "tool"
-    pub content: String,        // capped at 512 chars; "…" suffix if truncated
+    pub role: String,    // "user" | "assistant" | "system" | "tool"
+    pub content: String, // capped at 512 chars; "…" suffix if truncated
     pub created_at: u64,
 }
 
@@ -43,9 +43,9 @@ pub struct WatchMessage {
 pub struct WatchSandboxStatus {
     pub container_id: String,
     pub session_id: Option<String>,
-    pub state: String,          // "running" | "paused" | "stopped" | "error"
+    pub state: String, // "running" | "paused" | "stopped" | "error"
     pub uptime_secs: u64,
-    pub cpu_pct: f32,           // 0.0–100.0
+    pub cpu_pct: f32, // 0.0–100.0
     pub mem_mb: u64,
     pub mem_limit_mb: u64,
     pub last_output_lines: Vec<String>, // last 5 lines of stdout/stderr
@@ -138,7 +138,10 @@ pub struct MessageRowView<'a> {
 }
 
 /// Convert session + messages into a `WatchSessionSummary`.
-pub fn to_watch_summary(session: &SessionRowView<'_>, messages: &[MessageRowView<'_>]) -> WatchSessionSummary {
+pub fn to_watch_summary(
+    session: &SessionRowView<'_>,
+    messages: &[MessageRowView<'_>],
+) -> WatchSessionSummary {
     let last_message_preview = messages
         .iter()
         .rev()
@@ -176,7 +179,8 @@ pub fn to_watch_message(row: &MessageRowView<'_>) -> WatchMessage {
 /// Convert a raw SSE JSON event payload into a `WatchAgentEvent`.
 /// Accepts the JSON as emitted by the existing AgentEventPayload SSE stream.
 pub fn to_watch_event_json(payload: &serde_json::Value) -> WatchAgentEvent {
-    let kind = payload.get("type")
+    let kind = payload
+        .get("type")
         .or_else(|| payload.get("kind"))
         .and_then(|v| v.as_str())
         .unwrap_or("info");
@@ -184,46 +188,83 @@ pub fn to_watch_event_json(payload: &serde_json::Value) -> WatchAgentEvent {
     match kind {
         "token_delta" | "delta" => WatchAgentEvent {
             kind: "delta".into(),
-            delta: payload.get("text").and_then(|v| v.as_str()).map(String::from),
-            tool: None, status: None, error: None, step: None,
+            delta: payload
+                .get("text")
+                .and_then(|v| v.as_str())
+                .map(String::from),
+            tool: None,
+            status: None,
+            error: None,
+            step: None,
         },
         "tool_start" => WatchAgentEvent {
             kind: "tool_start".into(),
             delta: None,
-            tool: payload.get("name").and_then(|v| v.as_str()).map(String::from),
-            status: None, error: None,
-            step: payload.get("step").and_then(|v| v.as_u64()).map(|s| s as u32),
+            tool: payload
+                .get("name")
+                .and_then(|v| v.as_str())
+                .map(String::from),
+            status: None,
+            error: None,
+            step: payload
+                .get("step")
+                .and_then(|v| v.as_u64())
+                .map(|s| s as u32),
         },
         "tool_end" => WatchAgentEvent {
             kind: "tool_end".into(),
             delta: None,
-            tool: payload.get("name").and_then(|v| v.as_str()).map(String::from),
+            tool: payload
+                .get("name")
+                .and_then(|v| v.as_str())
+                .map(String::from),
             status: Some(
-                if payload.get("success").and_then(|v| v.as_bool()).unwrap_or(true) {
+                if payload
+                    .get("success")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true)
+                {
                     "ok"
                 } else {
                     "err"
-                }.into()
+                }
+                .into(),
             ),
             error: None,
-            step: payload.get("step").and_then(|v| v.as_u64()).map(|s| s as u32),
+            step: payload
+                .get("step")
+                .and_then(|v| v.as_u64())
+                .map(|s| s as u32),
         },
         "done" => WatchAgentEvent {
             kind: "done".into(),
-            delta: None, tool: None,
-            status: payload.get("status").and_then(|v| v.as_str()).map(String::from),
-            error: None, step: None,
+            delta: None,
+            tool: None,
+            status: payload
+                .get("status")
+                .and_then(|v| v.as_str())
+                .map(String::from),
+            error: None,
+            step: None,
         },
         "error" => WatchAgentEvent {
             kind: "error".into(),
-            delta: None, tool: None, status: None,
-            error: payload.get("message").and_then(|v| v.as_str())
+            delta: None,
+            tool: None,
+            status: None,
+            error: payload
+                .get("message")
+                .and_then(|v| v.as_str())
                 .map(|m| truncate(m, 200)),
             step: None,
         },
         _ => WatchAgentEvent {
             kind: "info".into(),
-            delta: None, tool: None, status: None, error: None, step: None,
+            delta: None,
+            tool: None,
+            status: None,
+            error: None,
+            step: None,
         },
     }
 }
@@ -474,9 +515,24 @@ mod tests {
             started_at: 1_700_000_000,
         };
         let messages = vec![
-            MessageRowView { id: 1, role: "user", content: "hello", created_at: 1_700_000_001 },
-            MessageRowView { id: 2, role: "assistant", content: "hi there", created_at: 1_700_000_002 },
-            MessageRowView { id: 3, role: "user", content: "do it", created_at: 1_700_000_003 },
+            MessageRowView {
+                id: 1,
+                role: "user",
+                content: "hello",
+                created_at: 1_700_000_001,
+            },
+            MessageRowView {
+                id: 2,
+                role: "assistant",
+                content: "hi there",
+                created_at: 1_700_000_002,
+            },
+            MessageRowView {
+                id: 3,
+                role: "user",
+                content: "do it",
+                created_at: 1_700_000_003,
+            },
         ];
         let summary = to_watch_summary(&session, &messages);
         assert_eq!(summary.message_count, 3);
@@ -487,13 +543,20 @@ mod tests {
     #[test]
     fn to_watch_summary_last_activity_is_last_message_ts() {
         let session = SessionRowView {
-            id: "s2", task: "Task", status: "complete",
-            provider: "ollama", model: "llama3", step_count: 1,
+            id: "s2",
+            task: "Task",
+            status: "complete",
+            provider: "ollama",
+            model: "llama3",
+            step_count: 1,
             started_at: 1_700_000_000,
         };
-        let messages = vec![
-            MessageRowView { id: 1, role: "user", content: "go", created_at: 1_700_000_100 },
-        ];
+        let messages = vec![MessageRowView {
+            id: 1,
+            role: "user",
+            content: "go",
+            created_at: 1_700_000_100,
+        }];
         let summary = to_watch_summary(&session, &messages);
         assert_eq!(summary.last_activity, 1_700_000_100);
     }
@@ -501,8 +564,12 @@ mod tests {
     #[test]
     fn to_watch_summary_no_messages_uses_started_at() {
         let session = SessionRowView {
-            id: "s3", task: "Empty", status: "failed",
-            provider: "p", model: "m", step_count: 0,
+            id: "s3",
+            task: "Empty",
+            status: "failed",
+            provider: "p",
+            model: "m",
+            step_count: 0,
             started_at: 1_700_000_042,
         };
         let summary = to_watch_summary(&session, &[]);

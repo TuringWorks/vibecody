@@ -39,17 +39,34 @@ impl PrContext {
         }
     }
 
-    pub fn total_added(&self) -> usize { self.diff_stats.values().map(|(a, _)| a).sum() }
-    pub fn total_removed(&self) -> usize { self.diff_stats.values().map(|(_, r)| r).sum() }
-    pub fn files_changed(&self) -> usize { self.diff_stats.len() }
+    pub fn total_added(&self) -> usize {
+        self.diff_stats.values().map(|(a, _)| a).sum()
+    }
+    pub fn total_removed(&self) -> usize {
+        self.diff_stats.values().map(|(_, r)| r).sum()
+    }
+    pub fn files_changed(&self) -> usize {
+        self.diff_stats.len()
+    }
 
     pub fn is_large_pr(&self) -> bool {
         self.files_changed() > 20 || self.total_added() + self.total_removed() > 500
     }
 
     pub fn touches_sensitive_files(&self) -> bool {
-        let sensitive = ["auth", "security", "crypto", "password", "token", "secret", "key", "permission"];
-        self.diff_stats.keys().any(|f| sensitive.iter().any(|s| f.contains(s)))
+        let sensitive = [
+            "auth",
+            "security",
+            "crypto",
+            "password",
+            "token",
+            "secret",
+            "key",
+            "permission",
+        ];
+        self.diff_stats
+            .keys()
+            .any(|f| sensitive.iter().any(|s| f.contains(s)))
     }
 }
 
@@ -83,7 +100,9 @@ impl Default for PrDescriptionGenerator {
 }
 
 impl PrDescriptionGenerator {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn generate(&self, ctx: &PrContext) -> PrDescription {
         let title = self.generate_title(ctx);
@@ -95,7 +114,12 @@ impl PrDescriptionGenerator {
             Vec::new()
         };
 
-        PrDescription { title, body, labels, reviewer_hints }
+        PrDescription {
+            title,
+            body,
+            labels,
+            reviewer_hints,
+        }
     }
 
     fn generate_title(&self, ctx: &PrContext) -> String {
@@ -112,7 +136,8 @@ impl PrDescriptionGenerator {
 
         let raw = from_commit.unwrap_or_else(|| {
             // Convert branch name to title: "fix/auth-token-expiry" → "Fix auth token expiry"
-            let name = ctx.branch_name
+            let name = ctx
+                .branch_name
                 .trim_start_matches("feat/")
                 .trim_start_matches("fix/")
                 .trim_start_matches("chore/")
@@ -137,10 +162,15 @@ impl PrDescriptionGenerator {
         out.push_str("## Summary\n\n");
 
         // Bullet points from commits (deduplicated)
-        let notable: Vec<String> = ctx.commits.iter()
+        let notable: Vec<String> = ctx
+            .commits
+            .iter()
             .filter_map(|(_, msg)| {
                 let lower = msg.to_lowercase();
-                if lower.starts_with("feat") || lower.starts_with("fix") || lower.starts_with("perf") {
+                if lower.starts_with("feat")
+                    || lower.starts_with("fix")
+                    || lower.starts_with("perf")
+                {
                     msg.find(':').map(|i| format!("- {}", msg[i + 1..].trim()))
                 } else {
                     None
@@ -161,7 +191,9 @@ impl PrDescriptionGenerator {
         // Stats
         out.push_str(&format!(
             "\n**Changes**: {} files, +{} −{}\n",
-            ctx.files_changed(), ctx.total_added(), ctx.total_removed()
+            ctx.files_changed(),
+            ctx.total_added(),
+            ctx.total_removed()
         ));
 
         // Linked issues
@@ -172,7 +204,9 @@ impl PrDescriptionGenerator {
         }
 
         // Breaking changes
-        let breaking: Vec<&str> = ctx.commits.iter()
+        let breaking: Vec<&str> = ctx
+            .commits
+            .iter()
             .filter(|(_, m)| m.contains("!:") || m.contains("BREAKING CHANGE"))
             .map(|(_, m)| m.as_str())
             .collect();
@@ -201,13 +235,22 @@ impl PrDescriptionGenerator {
         let mut labels = Vec::new();
         let commit_types: Vec<&str> = ctx.commits.iter().map(|(_, m)| m.as_str()).collect();
 
-        if commit_types.iter().any(|m| m.to_lowercase().starts_with("feat")) {
+        if commit_types
+            .iter()
+            .any(|m| m.to_lowercase().starts_with("feat"))
+        {
             labels.push("enhancement".into());
         }
-        if commit_types.iter().any(|m| m.to_lowercase().starts_with("fix")) {
+        if commit_types
+            .iter()
+            .any(|m| m.to_lowercase().starts_with("fix"))
+        {
             labels.push("bug".into());
         }
-        if commit_types.iter().any(|m| m.contains("!:") || m.contains("BREAKING")) {
+        if commit_types
+            .iter()
+            .any(|m| m.contains("!:") || m.contains("BREAKING"))
+        {
             labels.push("breaking-change".into());
         }
         if ctx.is_large_pr() {
@@ -222,12 +265,19 @@ impl PrDescriptionGenerator {
     fn generate_reviewer_hints(&self, ctx: &PrContext) -> Vec<String> {
         let mut hints = Vec::new();
         if ctx.is_large_pr() {
-            hints.push("This is a large PR. Consider reviewing by file area rather than all at once.".into());
+            hints.push(
+                "This is a large PR. Consider reviewing by file area rather than all at once."
+                    .into(),
+            );
         }
         if ctx.touches_sensitive_files() {
             hints.push("Touches auth/security files. Prioritise security review.".into());
         }
-        if ctx.commits.iter().any(|(_, m)| m.contains("!:") || m.contains("BREAKING")) {
+        if ctx
+            .commits
+            .iter()
+            .any(|(_, m)| m.contains("!:") || m.contains("BREAKING"))
+        {
             hints.push("Contains breaking changes. Verify downstream compatibility.".into());
         }
         hints
@@ -355,7 +405,10 @@ mod tests {
 
     #[test]
     fn test_no_test_plan_option() {
-        let gen = PrDescriptionGenerator { include_test_plan: false, ..Default::default() };
+        let gen = PrDescriptionGenerator {
+            include_test_plan: false,
+            ..Default::default()
+        };
         let pr = gen.generate(&basic_ctx());
         assert!(!pr.body.contains("## Test plan"));
     }

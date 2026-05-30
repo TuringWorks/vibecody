@@ -93,7 +93,10 @@ fn when_persist(world: &mut DlWorld) {
     let tmp = TempDir::new().expect("TempDir::new");
     let log_path = tmp.path().join("log.jsonl");
     let ctx_path = tmp.path().join("context.jsonl");
-    world.dl.persist(&log_path, &ctx_path).expect("persist failed");
+    world
+        .dl
+        .persist(&log_path, &ctx_path)
+        .expect("persist failed");
     world.tmp_dir = Some(tmp);
 }
 
@@ -133,11 +136,7 @@ fn then_full_count(world: &mut DlWorld, expected: usize) {
 
 #[then(expr = "the context count should be {int}")]
 fn then_ctx_count(world: &mut DlWorld, expected: usize) {
-    assert_eq!(
-        world.dl.context_count(),
-        expected,
-        "context_count mismatch"
-    );
+    assert_eq!(world.dl.context_count(), expected, "context_count mismatch");
 }
 
 #[then(expr = "the unsynced count should be {int}")]
@@ -156,7 +155,10 @@ fn then_first_is_summary(world: &mut DlWorld) {
         .context_entries()
         .first()
         .expect("context is empty");
-    assert!(first.is_compacted, "expected first entry to be a compaction summary");
+    assert!(
+        first.is_compacted,
+        "expected first entry to be a compaction summary"
+    );
 }
 
 #[then(expr = "the context should not contain entry {string}")]

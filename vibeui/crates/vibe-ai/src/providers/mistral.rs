@@ -4,7 +4,10 @@
 //! mistral-small-latest, codestral-latest, open-mistral-nemo
 
 use super::openai_compat::{self, ChatRequest};
-use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message, ProviderConfig};
+use crate::provider::{
+    AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message,
+    ProviderConfig,
+};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 
@@ -28,7 +31,10 @@ impl MistralProvider {
     }
 
     fn base_url(&self) -> String {
-        self.config.api_url.clone().unwrap_or_else(|| MISTRAL_BASE_URL.to_string())
+        self.config
+            .api_url
+            .clone()
+            .unwrap_or_else(|| MISTRAL_BASE_URL.to_string())
     }
 
     fn chat_url(&self) -> String {
@@ -36,10 +42,18 @@ impl MistralProvider {
     }
 
     fn api_key(&self) -> Result<&str> {
-        self.config.api_key.as_deref().context("Mistral API key not set (MISTRAL_API_KEY)")
+        self.config
+            .api_key
+            .as_deref()
+            .context("Mistral API key not set (MISTRAL_API_KEY)")
     }
 
-    fn make_request(&self, messages: &[Message], context: Option<String>, stream: bool) -> ChatRequest {
+    fn make_request(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+        stream: bool,
+    ) -> ChatRequest {
         ChatRequest {
             model: self.config.model.clone(),
             messages: openai_compat::build_messages(messages, context),
@@ -52,9 +66,13 @@ impl MistralProvider {
 
 #[async_trait]
 impl AIProvider for MistralProvider {
-    fn name(&self) -> &str { &self.display_name }
+    fn name(&self) -> &str {
+        &self.display_name
+    }
 
-    async fn is_available(&self) -> bool { self.config.api_key.is_some() }
+    async fn is_available(&self) -> bool {
+        self.config.api_key.is_some()
+    }
 
     async fn complete(&self, context: &CodeContext) -> Result<CompletionResponse> {
         let prompt = format!(
@@ -62,8 +80,14 @@ impl AIProvider for MistralProvider {
             context.language, context.prefix, context.suffix
         );
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "You are a helpful coding assistant.".to_string() },
-            Message { role: crate::provider::MessageRole::User, content: prompt },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "You are a helpful coding assistant.".to_string(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: prompt,
+            },
         ];
         self.chat_response(&messages, None).await
     }
@@ -74,16 +98,33 @@ impl AIProvider for MistralProvider {
             context.language, context.prefix, context.suffix
         );
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "You are a helpful coding assistant.".to_string() },
-            Message { role: crate::provider::MessageRole::User, content: prompt },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "You are a helpful coding assistant.".to_string(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: prompt,
+            },
         ];
         self.stream_chat(&messages).await
     }
 
-    async fn chat_response(&self, messages: &[Message], context: Option<String>) -> Result<CompletionResponse> {
+    async fn chat_response(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+    ) -> Result<CompletionResponse> {
         let api_key = self.api_key()?;
         let request = self.make_request(messages, context, false);
-        openai_compat::send_chat_request(&self.client, &self.chat_url(), api_key, &request, "Mistral").await
+        openai_compat::send_chat_request(
+            &self.client,
+            &self.chat_url(),
+            api_key,
+            &request,
+            "Mistral",
+        )
+        .await
     }
 
     async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String> {
@@ -93,10 +134,22 @@ impl AIProvider for MistralProvider {
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
         let api_key = self.api_key()?;
         let request = self.make_request(messages, None, true);
-        openai_compat::send_stream_request(&self.client, &self.chat_url(), api_key, &request, "Mistral").await
+        openai_compat::send_stream_request(
+            &self.client,
+            &self.chat_url(),
+            api_key,
+            &request,
+            "Mistral",
+        )
+        .await
     }
 
-    async fn chat_with_images(&self, messages: &[Message], _images: &[ImageAttachment], context: Option<String>) -> Result<String> {
+    async fn chat_with_images(
+        &self,
+        messages: &[Message],
+        _images: &[ImageAttachment],
+        context: Option<String>,
+    ) -> Result<String> {
         self.chat(messages, context).await
     }
 }
@@ -104,7 +157,7 @@ impl AIProvider for MistralProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use openai_compat::{ChatResponse, ChatMessage, StreamResponse};
+    use openai_compat::{ChatMessage, ChatResponse, StreamResponse};
 
     fn test_config() -> ProviderConfig {
         ProviderConfig {
@@ -158,8 +211,14 @@ mod tests {
     fn build_messages_without_context() {
         use crate::provider::MessageRole;
         let msgs = vec![
-            Message { role: MessageRole::System, content: "Be helpful.".into() },
-            Message { role: MessageRole::User, content: "Hello".into() },
+            Message {
+                role: MessageRole::System,
+                content: "Be helpful.".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "Hello".into(),
+            },
         ];
         let result = openai_compat::build_messages(&msgs, None);
         assert_eq!(result.len(), 2);
@@ -172,9 +231,10 @@ mod tests {
     #[test]
     fn build_messages_with_context_prepends_to_last_user() {
         use crate::provider::MessageRole;
-        let msgs = vec![
-            Message { role: MessageRole::User, content: "Explain this".into() },
-        ];
+        let msgs = vec![Message {
+            role: MessageRole::User,
+            content: "Explain this".into(),
+        }];
         let result = openai_compat::build_messages(&msgs, Some("file.rs contents".into()));
         assert_eq!(result.len(), 1);
         assert!(result[0].content.starts_with("Context:\nfile.rs contents"));
@@ -185,9 +245,18 @@ mod tests {
     fn build_messages_context_only_affects_last_user_message() {
         use crate::provider::MessageRole;
         let msgs = vec![
-            Message { role: MessageRole::User, content: "First".into() },
-            Message { role: MessageRole::Assistant, content: "Reply".into() },
-            Message { role: MessageRole::User, content: "Second".into() },
+            Message {
+                role: MessageRole::User,
+                content: "First".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "Reply".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "Second".into(),
+            },
         ];
         let result = openai_compat::build_messages(&msgs, Some("ctx".into()));
         // First user message unchanged
@@ -201,8 +270,14 @@ mod tests {
     fn build_messages_context_skipped_when_last_is_not_user() {
         use crate::provider::MessageRole;
         let msgs = vec![
-            Message { role: MessageRole::User, content: "Q".into() },
-            Message { role: MessageRole::Assistant, content: "A".into() },
+            Message {
+                role: MessageRole::User,
+                content: "Q".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "A".into(),
+            },
         ];
         let result = openai_compat::build_messages(&msgs, Some("some context".into()));
         // Last message is assistant, context should NOT be injected
@@ -220,9 +295,18 @@ mod tests {
     fn build_messages_role_mapping() {
         use crate::provider::MessageRole;
         let msgs = vec![
-            Message { role: MessageRole::System, content: "sys".into() },
-            Message { role: MessageRole::User, content: "usr".into() },
-            Message { role: MessageRole::Assistant, content: "ast".into() },
+            Message {
+                role: MessageRole::System,
+                content: "sys".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "usr".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "ast".into(),
+            },
         ];
         let result = openai_compat::build_messages(&msgs, None);
         assert_eq!(result[0].role, "system");
@@ -276,7 +360,10 @@ mod tests {
     fn mistral_request_serde_stream_false() {
         let req = ChatRequest {
             model: "mistral-large-latest".into(),
-            messages: vec![ChatMessage { role: "user".into(), content: "hi".into() }],
+            messages: vec![ChatMessage {
+                role: "user".into(),
+                content: "hi".into(),
+            }],
             temperature: None,
             max_tokens: None,
             stream: false,
@@ -295,8 +382,14 @@ mod tests {
         let req = ChatRequest {
             model: "codestral-latest".into(),
             messages: vec![
-                ChatMessage { role: "system".into(), content: "sys".into() },
-                ChatMessage { role: "user".into(), content: "code".into() },
+                ChatMessage {
+                    role: "system".into(),
+                    content: "sys".into(),
+                },
+                ChatMessage {
+                    role: "user".into(),
+                    content: "code".into(),
+                },
             ],
             temperature: Some(0.5),
             max_tokens: Some(2048),
@@ -344,7 +437,10 @@ mod tests {
 
     #[test]
     fn mistral_message_serde_roundtrip() {
-        let msg = ChatMessage { role: "system".into(), content: "Be precise.".into() };
+        let msg = ChatMessage {
+            role: "system".into(),
+            content: "Be precise.".into(),
+        };
         let json = serde_json::to_string(&msg).unwrap();
         let msg2: ChatMessage = serde_json::from_str(&json).unwrap();
         assert_eq!(msg.role, msg2.role);
@@ -366,9 +462,10 @@ mod tests {
     #[test]
     fn build_messages_empty_context_string_still_injects() {
         use crate::provider::MessageRole;
-        let msgs = vec![
-            Message { role: MessageRole::User, content: "query".into() },
-        ];
+        let msgs = vec![Message {
+            role: MessageRole::User,
+            content: "query".into(),
+        }];
         let result = openai_compat::build_messages(&msgs, Some("".into()));
         assert!(result[0].content.starts_with("Context:\n"));
         assert!(result[0].content.contains("User: query"));
@@ -380,7 +477,10 @@ mod tests {
     fn mistral_request_with_different_model() {
         let req = ChatRequest {
             model: "open-mistral-nemo".into(),
-            messages: vec![ChatMessage { role: "user".into(), content: "hi".into() }],
+            messages: vec![ChatMessage {
+                role: "user".into(),
+                content: "hi".into(),
+            }],
             temperature: Some(1.0),
             max_tokens: Some(100),
             stream: false,

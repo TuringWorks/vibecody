@@ -211,7 +211,11 @@ impl LangGraphBridge {
         let pipeline = LangGraphPipeline::new(id, name);
         self.pipelines.insert(id.to_string(), pipeline);
         self.metrics.pipelines_created += 1;
-        self.log_event(EventType::StateUpdated, None, &format!("Pipeline '{}' created", id));
+        self.log_event(
+            EventType::StateUpdated,
+            None,
+            &format!("Pipeline '{}' created", id),
+        );
         Ok(id.to_string())
     }
 
@@ -229,7 +233,10 @@ impl LangGraphBridge {
             .get_mut(pipeline_id)
             .ok_or_else(|| format!("Pipeline '{}' not found", pipeline_id))?;
         if pipeline.nodes.contains_key(node_id) {
-            return Err(format!("Node '{}' already exists in pipeline '{}'", node_id, pipeline_id));
+            return Err(format!(
+                "Node '{}' already exists in pipeline '{}'",
+                node_id, pipeline_id
+            ));
         }
         let node = GraphNode {
             id: node_id.to_string(),
@@ -398,7 +405,10 @@ impl LangGraphBridge {
         self.log_event(
             EventType::CheckpointSaved,
             None,
-            &format!("Checkpoint '{}' saved for pipeline '{}'", checkpoint_id, pipeline_id),
+            &format!(
+                "Checkpoint '{}' saved for pipeline '{}'",
+                checkpoint_id, pipeline_id
+            ),
         );
         Ok(())
     }
@@ -428,7 +438,10 @@ impl LangGraphBridge {
         self.log_event(
             EventType::StateUpdated,
             None,
-            &format!("Restored checkpoint '{}' for pipeline '{}'", checkpoint_id, pipeline_id),
+            &format!(
+                "Restored checkpoint '{}' for pipeline '{}'",
+                checkpoint_id, pipeline_id
+            ),
         );
         Ok(())
     }
@@ -498,9 +511,15 @@ mod tests {
     fn setup_simple_pipeline(bridge: &mut LangGraphBridge) -> String {
         let pid = "p1";
         bridge.create_pipeline(pid, "Test Pipeline").unwrap();
-        bridge.add_node(pid, "start", NodeType::Agent, "Start Agent", HashMap::new()).unwrap();
-        bridge.add_node(pid, "tool1", NodeType::Tool, "Search Tool", HashMap::new()).unwrap();
-        bridge.add_node(pid, "end", NodeType::End, "End Node", HashMap::new()).unwrap();
+        bridge
+            .add_node(pid, "start", NodeType::Agent, "Start Agent", HashMap::new())
+            .unwrap();
+        bridge
+            .add_node(pid, "tool1", NodeType::Tool, "Search Tool", HashMap::new())
+            .unwrap();
+        bridge
+            .add_node(pid, "end", NodeType::End, "End Node", HashMap::new())
+            .unwrap();
         bridge.add_edge(pid, "start", "tool1", None).unwrap();
         bridge.add_edge(pid, "tool1", "end", None).unwrap();
         bridge.set_entry(pid, "start").unwrap();
@@ -540,7 +559,8 @@ mod tests {
     fn test_add_node() {
         let mut b = make_bridge();
         b.create_pipeline("p1", "A").unwrap();
-        b.add_node("p1", "n1", NodeType::Tool, "ToolNode", HashMap::new()).unwrap();
+        b.add_node("p1", "n1", NodeType::Tool, "ToolNode", HashMap::new())
+            .unwrap();
         let p = b.get_pipeline("p1").unwrap();
         assert_eq!(p.nodes.len(), 1);
         assert_eq!(p.nodes["n1"].name, "ToolNode");
@@ -552,7 +572,8 @@ mod tests {
         b.create_pipeline("p1", "A").unwrap();
         let mut cfg = HashMap::new();
         cfg.insert("model".to_string(), "claude-3".to_string());
-        b.add_node("p1", "n1", NodeType::Agent, "Claude", cfg).unwrap();
+        b.add_node("p1", "n1", NodeType::Agent, "Claude", cfg)
+            .unwrap();
         let node = &b.get_pipeline("p1").unwrap().nodes["n1"];
         assert_eq!(node.config.get("model").unwrap(), "claude-3");
     }
@@ -561,15 +582,20 @@ mod tests {
     fn test_add_duplicate_node() {
         let mut b = make_bridge();
         b.create_pipeline("p1", "A").unwrap();
-        b.add_node("p1", "n1", NodeType::Tool, "T", HashMap::new()).unwrap();
-        let err = b.add_node("p1", "n1", NodeType::Agent, "A", HashMap::new()).unwrap_err();
+        b.add_node("p1", "n1", NodeType::Tool, "T", HashMap::new())
+            .unwrap();
+        let err = b
+            .add_node("p1", "n1", NodeType::Agent, "A", HashMap::new())
+            .unwrap_err();
         assert!(err.contains("already exists"));
     }
 
     #[test]
     fn test_add_node_missing_pipeline() {
         let mut b = make_bridge();
-        let err = b.add_node("nope", "n1", NodeType::Tool, "T", HashMap::new()).unwrap_err();
+        let err = b
+            .add_node("nope", "n1", NodeType::Tool, "T", HashMap::new())
+            .unwrap_err();
         assert!(err.contains("not found"));
     }
 
@@ -579,8 +605,10 @@ mod tests {
     fn test_add_edge() {
         let mut b = make_bridge();
         b.create_pipeline("p1", "A").unwrap();
-        b.add_node("p1", "a", NodeType::Agent, "A", HashMap::new()).unwrap();
-        b.add_node("p1", "b", NodeType::Tool, "B", HashMap::new()).unwrap();
+        b.add_node("p1", "a", NodeType::Agent, "A", HashMap::new())
+            .unwrap();
+        b.add_node("p1", "b", NodeType::Tool, "B", HashMap::new())
+            .unwrap();
         b.add_edge("p1", "a", "b", None).unwrap();
         assert_eq!(b.get_pipeline("p1").unwrap().edges.len(), 1);
     }
@@ -589,9 +617,12 @@ mod tests {
     fn test_add_edge_with_condition() {
         let mut b = make_bridge();
         b.create_pipeline("p1", "A").unwrap();
-        b.add_node("p1", "a", NodeType::Router, "R", HashMap::new()).unwrap();
-        b.add_node("p1", "b", NodeType::Tool, "T", HashMap::new()).unwrap();
-        b.add_edge("p1", "a", "b", Some("score > 0.8".to_string())).unwrap();
+        b.add_node("p1", "a", NodeType::Router, "R", HashMap::new())
+            .unwrap();
+        b.add_node("p1", "b", NodeType::Tool, "T", HashMap::new())
+            .unwrap();
+        b.add_edge("p1", "a", "b", Some("score > 0.8".to_string()))
+            .unwrap();
         let edge = &b.get_pipeline("p1").unwrap().edges[0];
         assert_eq!(edge.condition, Some("score > 0.8".to_string()));
     }
@@ -600,7 +631,8 @@ mod tests {
     fn test_add_edge_missing_source() {
         let mut b = make_bridge();
         b.create_pipeline("p1", "A").unwrap();
-        b.add_node("p1", "b", NodeType::Tool, "B", HashMap::new()).unwrap();
+        b.add_node("p1", "b", NodeType::Tool, "B", HashMap::new())
+            .unwrap();
         let err = b.add_edge("p1", "missing", "b", None).unwrap_err();
         assert!(err.contains("Source node"));
     }
@@ -609,7 +641,8 @@ mod tests {
     fn test_add_edge_missing_target() {
         let mut b = make_bridge();
         b.create_pipeline("p1", "A").unwrap();
-        b.add_node("p1", "a", NodeType::Agent, "A", HashMap::new()).unwrap();
+        b.add_node("p1", "a", NodeType::Agent, "A", HashMap::new())
+            .unwrap();
         let err = b.add_edge("p1", "a", "missing", None).unwrap_err();
         assert!(err.contains("Target node"));
     }
@@ -627,7 +660,8 @@ mod tests {
     fn test_set_entry() {
         let mut b = make_bridge();
         b.create_pipeline("p1", "A").unwrap();
-        b.add_node("p1", "start", NodeType::Agent, "S", HashMap::new()).unwrap();
+        b.add_node("p1", "start", NodeType::Agent, "S", HashMap::new())
+            .unwrap();
         b.set_entry("p1", "start").unwrap();
         assert_eq!(b.get_pipeline("p1").unwrap().entry_node, "start");
     }
@@ -658,7 +692,10 @@ mod tests {
         b.execute_step(&pid).unwrap(); // start -> tool1
         let executed = b.execute_step(&pid).unwrap(); // tool1 -> end
         assert_eq!(executed, "tool1");
-        assert_eq!(b.get_pipeline(&pid).unwrap().current_node, Some("end".to_string()));
+        assert_eq!(
+            b.get_pipeline(&pid).unwrap().current_node,
+            Some("end".to_string())
+        );
     }
 
     #[test]
@@ -669,14 +706,18 @@ mod tests {
         b.execute_step(&pid).unwrap(); // tool1
         let err = b.execute_step(&pid).unwrap_err(); // end node
         assert!(err.contains("completed"));
-        assert_eq!(b.get_pipeline(&pid).unwrap().status, PipelineStatus::Completed);
+        assert_eq!(
+            b.get_pipeline(&pid).unwrap().status,
+            PipelineStatus::Completed
+        );
     }
 
     #[test]
     fn test_execute_step_no_entry() {
         let mut b = make_bridge();
         b.create_pipeline("p1", "A").unwrap();
-        b.add_node("p1", "n1", NodeType::Tool, "T", HashMap::new()).unwrap();
+        b.add_node("p1", "n1", NodeType::Tool, "T", HashMap::new())
+            .unwrap();
         let err = b.execute_step("p1").unwrap_err();
         assert!(err.contains("No entry node"));
     }
@@ -696,7 +737,10 @@ mod tests {
         let mut b = make_bridge();
         let pid = setup_simple_pipeline(&mut b);
         b.execute_step(&pid).unwrap();
-        assert_eq!(b.get_pipeline(&pid).unwrap().status, PipelineStatus::Running);
+        assert_eq!(
+            b.get_pipeline(&pid).unwrap().status,
+            PipelineStatus::Running
+        );
     }
 
     #[test]
@@ -704,8 +748,10 @@ mod tests {
         let mut b = make_bridge();
         b.config.max_steps = 1;
         b.create_pipeline("p1", "A").unwrap();
-        b.add_node("p1", "a", NodeType::Agent, "A", HashMap::new()).unwrap();
-        b.add_node("p1", "b", NodeType::Agent, "B", HashMap::new()).unwrap();
+        b.add_node("p1", "a", NodeType::Agent, "A", HashMap::new())
+            .unwrap();
+        b.add_node("p1", "b", NodeType::Agent, "B", HashMap::new())
+            .unwrap();
         b.add_edge("p1", "a", "b", None).unwrap();
         b.add_edge("p1", "b", "a", None).unwrap(); // cycle
         b.set_entry("p1", "a").unwrap();
@@ -718,10 +764,14 @@ mod tests {
     fn test_execute_step_completes_no_outgoing_edges() {
         let mut b = make_bridge();
         b.create_pipeline("p1", "A").unwrap();
-        b.add_node("p1", "solo", NodeType::Agent, "Solo", HashMap::new()).unwrap();
+        b.add_node("p1", "solo", NodeType::Agent, "Solo", HashMap::new())
+            .unwrap();
         b.set_entry("p1", "solo").unwrap();
         b.execute_step("p1").unwrap();
-        assert_eq!(b.get_pipeline("p1").unwrap().status, PipelineStatus::Completed);
+        assert_eq!(
+            b.get_pipeline("p1").unwrap().status,
+            PipelineStatus::Completed
+        );
     }
 
     #[test]
@@ -882,9 +932,15 @@ mod tests {
     #[test]
     fn test_state_values() {
         let mut state = AgentState::new();
-        state.values.insert("key".to_string(), StateValue::Text("hello".to_string()));
-        state.values.insert("num".to_string(), StateValue::Number(42.0));
-        state.values.insert("flag".to_string(), StateValue::Bool(true));
+        state
+            .values
+            .insert("key".to_string(), StateValue::Text("hello".to_string()));
+        state
+            .values
+            .insert("num".to_string(), StateValue::Number(42.0));
+        state
+            .values
+            .insert("flag".to_string(), StateValue::Bool(true));
         assert_eq!(state.values.len(), 3);
     }
 
@@ -937,7 +993,13 @@ mod tests {
 
     #[test]
     fn test_node_type_variants() {
-        let types = vec![NodeType::Tool, NodeType::Agent, NodeType::Router, NodeType::Checkpoint, NodeType::End];
+        let types = vec![
+            NodeType::Tool,
+            NodeType::Agent,
+            NodeType::Router,
+            NodeType::Checkpoint,
+            NodeType::End,
+        ];
         assert_eq!(types.len(), 5);
         assert_ne!(types[0], types[1]);
     }
@@ -991,11 +1053,26 @@ mod tests {
     fn test_router_node_with_conditional_edges() {
         let mut b = make_bridge();
         b.create_pipeline("p1", "Router Test").unwrap();
-        b.add_node("p1", "router", NodeType::Router, "Router", HashMap::new()).unwrap();
-        b.add_node("p1", "path_a", NodeType::Tool, "Path A", HashMap::new()).unwrap();
-        b.add_node("p1", "path_b", NodeType::Tool, "Path B", HashMap::new()).unwrap();
-        b.add_edge("p1", "router", "path_a", Some("confidence > 0.9".to_string())).unwrap();
-        b.add_edge("p1", "router", "path_b", Some("confidence <= 0.9".to_string())).unwrap();
+        b.add_node("p1", "router", NodeType::Router, "Router", HashMap::new())
+            .unwrap();
+        b.add_node("p1", "path_a", NodeType::Tool, "Path A", HashMap::new())
+            .unwrap();
+        b.add_node("p1", "path_b", NodeType::Tool, "Path B", HashMap::new())
+            .unwrap();
+        b.add_edge(
+            "p1",
+            "router",
+            "path_a",
+            Some("confidence > 0.9".to_string()),
+        )
+        .unwrap();
+        b.add_edge(
+            "p1",
+            "router",
+            "path_b",
+            Some("confidence <= 0.9".to_string()),
+        )
+        .unwrap();
         b.set_entry("p1", "router").unwrap();
         // Executes — takes first edge (path_a)
         b.execute_step("p1").unwrap();

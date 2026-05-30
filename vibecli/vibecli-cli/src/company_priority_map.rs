@@ -44,11 +44,11 @@ impl PriorityMapStore {
     }
 
     pub fn get(&self) -> Result<Vec<ProgramEntry>> {
-        let result: rusqlite::Result<String> = self.conn.query_row(
-            "SELECT data FROM priority_map WHERE id = 1",
-            [],
-            |row| row.get(0),
-        );
+        let result: rusqlite::Result<String> =
+            self.conn
+                .query_row("SELECT data FROM priority_map WHERE id = 1", [], |row| {
+                    row.get(0)
+                });
         match result {
             Ok(s) => Ok(serde_json::from_str(&s).unwrap_or_else(|_| Self::defaults())),
             Err(_) => Ok(Self::defaults()),
@@ -66,7 +66,15 @@ impl PriorityMapStore {
     }
 
     fn defaults() -> Vec<ProgramEntry> {
-        let programs = ["Revenue", "EA", "Legal", "BizDev", "Marketing", "Product", "Personal"];
+        let programs = [
+            "Revenue",
+            "EA",
+            "Legal",
+            "BizDev",
+            "Marketing",
+            "Product",
+            "Personal",
+        ];
         programs
             .iter()
             .map(|&p| ProgramEntry {
@@ -111,8 +119,16 @@ mod tests {
     fn given_custom_map_when_set_then_get_returns_it() {
         let store = make_store();
         let entries = vec![
-            ProgramEntry { program: "Revenue".to_string(), urgency: 0, routing_rules: vec!["ceo".to_string()] },
-            ProgramEntry { program: "Legal".to_string(), urgency: 1, routing_rules: vec![] },
+            ProgramEntry {
+                program: "Revenue".to_string(),
+                urgency: 0,
+                routing_rules: vec!["ceo".to_string()],
+            },
+            ProgramEntry {
+                program: "Legal".to_string(),
+                urgency: 1,
+                routing_rules: vec![],
+            },
         ];
         store.set(&entries).unwrap();
         let got = store.get().unwrap();
@@ -124,9 +140,17 @@ mod tests {
     #[test]
     fn given_map_when_updated_then_returns_new_data() {
         let store = make_store();
-        let v1 = vec![ProgramEntry { program: "P1".to_string(), urgency: 3, routing_rules: vec![] }];
+        let v1 = vec![ProgramEntry {
+            program: "P1".to_string(),
+            urgency: 3,
+            routing_rules: vec![],
+        }];
         store.set(&v1).unwrap();
-        let v2 = vec![ProgramEntry { program: "P1".to_string(), urgency: 0, routing_rules: vec!["urgent".to_string()] }];
+        let v2 = vec![ProgramEntry {
+            program: "P1".to_string(),
+            urgency: 0,
+            routing_rules: vec!["urgent".to_string()],
+        }];
         store.set(&v2).unwrap();
         let got = store.get().unwrap();
         assert_eq!(got[0].urgency, 0);

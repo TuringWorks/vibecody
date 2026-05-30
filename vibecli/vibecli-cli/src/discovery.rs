@@ -56,7 +56,11 @@ pub async fn discover_peers(timeout_secs: u64) -> Result<Vec<PeerInfo>> {
 /// Currently registers the daemon info for local probing.
 /// When mdns-sd is available, this will use full mDNS advertisement.
 pub fn advertise_service(port: u16, name: &str) -> Result<ServiceAdvertisement> {
-    tracing::info!("[discovery] Advertising VibeCLI service '{}' on port {}", name, port);
+    tracing::info!(
+        "[discovery] Advertising VibeCLI service '{}' on port {}",
+        name,
+        port
+    );
     Ok(ServiceAdvertisement {
         name: name.to_string(),
         port,

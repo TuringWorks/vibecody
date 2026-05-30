@@ -18,11 +18,9 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 
-use crate::audit::{
-    AuditSink, EgressOutcome, NullAuditSink, baseline_egress_request,
-};
-use crate::forward::{ForwardError, ForwardRequest, forward_plain_http};
-use crate::mitm::{InspectContext, default_upstream_roots, run_mitm};
+use crate::audit::{baseline_egress_request, AuditSink, EgressOutcome, NullAuditSink};
+use crate::forward::{forward_plain_http, ForwardError, ForwardRequest};
+use crate::mitm::{default_upstream_roots, run_mitm, InspectContext};
 use crate::policy::{Decision, Policy, Request as PolicyRequest};
 use crate::secrets::{EmptySecretStore, SecretStore};
 use crate::ssrf::{SsrfGuard, SsrfVerdict};
@@ -247,8 +245,7 @@ impl Broker {
         let parsed = match parse_request_head(raw) {
             Ok(p) => p,
             Err(_) => {
-                let mut event =
-                    baseline_egress_request("native", &self.policy_id, "?", "?", "?");
+                let mut event = baseline_egress_request("native", &self.policy_id, "?", "?", "?");
                 event.outcome = EgressOutcome::UpstreamError;
                 event.status = Some(400);
                 self.audit.record(event);
@@ -328,11 +325,7 @@ impl Broker {
         }
     }
 
-    async fn dispatch_connect<S>(
-        &self,
-        mut stream: S,
-        parsed: &ParsedHead,
-    ) -> std::io::Result<()>
+    async fn dispatch_connect<S>(&self, mut stream: S, parsed: &ParsedHead) -> std::io::Result<()>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
@@ -372,8 +365,16 @@ impl Broker {
             audit: self.audit.as_ref(),
             policy_id: &self.policy_id,
         };
-        if let Err(e) =
-            run_mitm(stream, &host, port, &ca, trust, self.upstream_timeout, inspect).await
+        if let Err(e) = run_mitm(
+            stream,
+            &host,
+            port,
+            &ca,
+            trust,
+            self.upstream_timeout,
+            inspect,
+        )
+        .await
         {
             tracing::debug!("mitm error: {e}");
         }
@@ -409,10 +410,10 @@ impl Broker {
         let result = forward_plain_http(req, self.upstream_timeout).await;
         match result {
             Ok(resp) => write_forwarded(stream, resp).await,
-            Err(ForwardError::Timeout(_)) => write_upstream_error(stream, 504, "upstream_timeout").await,
-            Err(ForwardError::UnsupportedScheme(_)) => {
-                write_denied(stream, "policy_denied").await
+            Err(ForwardError::Timeout(_)) => {
+                write_upstream_error(stream, 504, "upstream_timeout").await
             }
+            Err(ForwardError::UnsupportedScheme(_)) => write_denied(stream, "policy_denied").await,
             Err(_) => write_upstream_error(stream, 502, "upstream_error").await,
         }
     }
@@ -556,11 +557,7 @@ where
     stream.write_all(&resp.body).await
 }
 
-async fn write_connect_denied<S>(
-    stream: &mut S,
-    reason: &str,
-    code: u16,
-) -> std::io::Result<()>
+async fn write_connect_denied<S>(stream: &mut S, reason: &str, code: u16) -> std::io::Result<()>
 where
     S: AsyncWrite + Unpin,
 {
@@ -595,11 +592,7 @@ fn split_host_port(target: &str) -> Option<(String, u16)> {
     Some((h.to_string(), port))
 }
 
-async fn write_upstream_error<S>(
-    stream: &mut S,
-    code: u16,
-    reason: &str,
-) -> std::io::Result<()>
+async fn write_upstream_error<S>(stream: &mut S, code: u16, reason: &str) -> std::io::Result<()>
 where
     S: AsyncWrite + Unpin,
 {

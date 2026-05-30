@@ -433,10 +433,8 @@ fn open_conn(path: &Path) -> Result<Connection, String> {
     // surfaces. Mirrors the maybe_add_column helper in session_store.rs.
     add_jobs_column_if_missing(&conn, "parent_job_id", "TEXT")?;
     add_jobs_column_if_missing(&conn, "resumed_from_recap_id", "TEXT")?;
-    conn.execute_batch(
-        "CREATE INDEX IF NOT EXISTS idx_jobs_parent ON jobs(parent_job_id);",
-    )
-    .map_err(|e| e.to_string())?;
+    conn.execute_batch("CREATE INDEX IF NOT EXISTS idx_jobs_parent ON jobs(parent_job_id);")
+        .map_err(|e| e.to_string())?;
 
     Ok(conn)
 }
@@ -520,10 +518,7 @@ impl JobsDb {
     /// Insert a job recap. If a recap already exists for the same
     /// `(subject_id, last_event_seq)` pair, returns its existing id
     /// (idempotent — no rewrite). The `recap.kind` must be `Job`.
-    pub fn insert_job_recap(
-        &self,
-        recap: &crate::recap::Recap,
-    ) -> Result<String, String> {
+    pub fn insert_job_recap(&self, recap: &crate::recap::Recap) -> Result<String, String> {
         if !matches!(recap.kind, crate::recap::RecapKind::Job) {
             return Err(format!(
                 "insert_job_recap expects RecapKind::Job, got {:?}",
@@ -586,10 +581,7 @@ impl JobsDb {
         Ok(recap.id.clone())
     }
 
-    pub fn get_job_recap_by_id(
-        &self,
-        id: &str,
-    ) -> Result<Option<crate::recap::Recap>, String> {
+    pub fn get_job_recap_by_id(&self, id: &str) -> Result<Option<crate::recap::Recap>, String> {
         self.fetch_recap_one(
             "SELECT id, subject_id, last_event_seq, workspace, generated_at,
                     generator_kind, generator_provider, generator_model,
@@ -642,7 +634,9 @@ impl JobsDb {
             )
             .map_err(|e| e.to_string())?;
         let rows = stmt
-            .query_map(params![subject_id, limit as i64], |row| Ok(self.row_to_recap(row)))
+            .query_map(params![subject_id, limit as i64], |row| {
+                Ok(self.row_to_recap(row))
+            })
             .map_err(|e| e.to_string())?;
         let mut out = Vec::new();
         for r in rows {
@@ -733,7 +727,12 @@ impl JobsDb {
         })
     }
 
-    pub fn insert(&self, rec: &JobRecord, workspace_root: &str, approval: &str) -> Result<(), String> {
+    pub fn insert(
+        &self,
+        rec: &JobRecord,
+        workspace_root: &str,
+        approval: &str,
+    ) -> Result<(), String> {
         let task_blob = encrypt(&self.key, &rec.task)?;
         let summary_blob = encrypt_opt(&self.key, rec.summary.as_deref())?;
         let webhook_blob = encrypt_opt(&self.key, rec.webhook_url.as_deref())?;
@@ -829,10 +828,7 @@ impl JobsDb {
     /// J1.3b: read back the parent-job lineage columns for `sid`. Returns
     /// `(parent_job_id, resumed_from_recap_id)`; both are `None` when no
     /// resume has linked the row, or when the row doesn't exist.
-    pub fn get_parent_link(
-        &self,
-        sid: &str,
-    ) -> Result<(Option<String>, Option<String>), String> {
+    pub fn get_parent_link(&self, sid: &str) -> Result<(Option<String>, Option<String>), String> {
         let mut stmt = self
             .conn
             .prepare(
@@ -858,7 +854,10 @@ impl JobsDb {
         reason: Option<&str>,
     ) -> Result<bool, String> {
         if !status.is_terminal() {
-            return Err(format!("mark_terminal called with non-terminal status {:?}", status));
+            return Err(format!(
+                "mark_terminal called with non-terminal status {:?}",
+                status
+            ));
         }
         let summary_blob = encrypt_opt(&self.key, summary)?;
         let n = self
@@ -910,10 +909,7 @@ impl JobsDb {
     }
 
     pub fn list(&self) -> Result<Vec<JobRecord>, String> {
-        let mut stmt = self
-            .conn
-            .prepare(SELECT_ALL)
-            .map_err(|e| e.to_string())?;
+        let mut stmt = self.conn.prepare(SELECT_ALL).map_err(|e| e.to_string())?;
         let mut rows = stmt.query([]).map_err(|e| e.to_string())?;
         let mut out = Vec::new();
         while let Some(row) = rows.next().map_err(|e| e.to_string())? {
@@ -1138,12 +1134,7 @@ impl JobsDb {
 
     /// Upsert a scratchpad entry for (session_id, key). Values are
     /// encrypted at rest.
-    pub fn scratchpad_set(
-        &self,
-        session_id: &str,
-        key: &str,
-        value: &str,
-    ) -> Result<(), String> {
+    pub fn scratchpad_set(&self, session_id: &str, key: &str, value: &str) -> Result<(), String> {
         let blob = encrypt(&self.key, value)?;
         self.conn
             .execute(
@@ -1159,11 +1150,7 @@ impl JobsDb {
     }
 
     /// Read a single scratchpad entry. Returns `None` when missing.
-    pub fn scratchpad_get(
-        &self,
-        session_id: &str,
-        key: &str,
-    ) -> Result<Option<String>, String> {
+    pub fn scratchpad_get(&self, session_id: &str, key: &str) -> Result<Option<String>, String> {
         let mut stmt = self
             .conn
             .prepare(
@@ -1183,10 +1170,7 @@ impl JobsDb {
     }
 
     /// List all scratchpad entries for a session, newest first.
-    pub fn scratchpad_list(
-        &self,
-        session_id: &str,
-    ) -> Result<Vec<ScratchpadEntry>, String> {
+    pub fn scratchpad_list(&self, session_id: &str) -> Result<Vec<ScratchpadEntry>, String> {
         let mut stmt = self
             .conn
             .prepare(
@@ -1219,11 +1203,7 @@ impl JobsDb {
 
     /// Delete a single scratchpad entry. Returns `true` iff a row was
     /// removed (i.e., the entry existed).
-    pub fn scratchpad_delete(
-        &self,
-        session_id: &str,
-        key: &str,
-    ) -> Result<bool, String> {
+    pub fn scratchpad_delete(&self, session_id: &str, key: &str) -> Result<bool, String> {
         let n = self
             .conn
             .execute(
@@ -1259,7 +1239,8 @@ impl JobsDb {
 
     fn row_to_record(&self, r: &rusqlite::Row) -> Result<JobRecord, String> {
         let get = |i: usize| -> Result<_, String> {
-            r.get::<_, rusqlite::types::Value>(i).map_err(|e| e.to_string())
+            r.get::<_, rusqlite::types::Value>(i)
+                .map_err(|e| e.to_string())
         };
         use rusqlite::types::Value;
 
@@ -1374,8 +1355,9 @@ type EventStreams = Arc<Mutex<HashMap<String, broadcast::Sender<AgentEventPayloa
 /// Owner of the async-job queue and live event streams. Storage +
 /// broadcast only in M1; agent orchestration stays in the caller.
 #[cfg(unix)]
-type DispatchSenders =
-    Arc<Mutex<HashMap<String, tokio::sync::mpsc::Sender<crate::subprocess_dispatch::DispatchFrame>>>>;
+type DispatchSenders = Arc<
+    Mutex<HashMap<String, tokio::sync::mpsc::Sender<crate::subprocess_dispatch::DispatchFrame>>>,
+>;
 
 /// Atomic counters tracking JobManager activity. Cheap to increment from
 /// any task (load-ordering `Relaxed`) and sampled via `metrics_snapshot`.
@@ -1516,11 +1498,20 @@ impl JobManager {
             let mut mgr = self.quotas.lock().await;
             let aid = AgentId(bucket.to_string());
             let decision = mgr.check_and_consume(&aid, &ResourceKind::Tasks, 1);
-            if let QuotaDecision::Deny { resource, used, hard_limit } = decision {
+            if let QuotaDecision::Deny {
+                resource,
+                used,
+                hard_limit,
+            } = decision
+            {
                 self.metrics
                     .quota_denied
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                return Err(SubmitError::QuotaDenied { resource, used, hard_limit });
+                return Err(SubmitError::QuotaDenied {
+                    resource,
+                    used,
+                    hard_limit,
+                });
             }
         }
 
@@ -1587,14 +1578,10 @@ impl JobManager {
                     Ok(events) => {
                         let recap = crate::recap::heuristic_job_recap(&job, &events);
                         if let Err(e) = db.insert_job_recap(&recap) {
-                            eprintln!(
-                                "[recap] auto-recap on terminal failed for {sid}: {e}"
-                            );
+                            eprintln!("[recap] auto-recap on terminal failed for {sid}: {e}");
                         }
                     }
-                    Err(e) => eprintln!(
-                        "[recap] auto-recap event replay failed for {sid}: {e}"
-                    ),
+                    Err(e) => eprintln!("[recap] auto-recap event replay failed for {sid}: {e}"),
                 }
             }
         }
@@ -1692,11 +1679,7 @@ impl JobManager {
 
     /// Fetch persisted events for `sid` with `seq > since_seq`, ordered
     /// ascending. Used by SSE reconnect to replay events the client missed.
-    pub async fn replay_events(
-        &self,
-        sid: &str,
-        since_seq: u64,
-    ) -> Vec<(u64, AgentEventPayload)> {
+    pub async fn replay_events(&self, sid: &str, since_seq: u64) -> Vec<(u64, AgentEventPayload)> {
         let events = {
             let db = self.db.lock().await;
             db.list_events_since(sid, since_seq).unwrap_or_default()
@@ -1711,10 +1694,7 @@ impl JobManager {
 
     // ── J1.3: HTTP-side wrappers around the JobsDb job-recap CRUD ─────────
 
-    pub async fn insert_job_recap(
-        &self,
-        recap: &crate::recap::Recap,
-    ) -> Result<String, String> {
+    pub async fn insert_job_recap(&self, recap: &crate::recap::Recap) -> Result<String, String> {
         self.db.lock().await.insert_job_recap(recap)
     }
 
@@ -1817,7 +1797,10 @@ impl JobManager {
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 ("delivered".to_string(), *attempts, Some(*status), None)
             }
-            crate::webhook::WebhookOutcome::DeadLetter { attempts, last_error } => {
+            crate::webhook::WebhookOutcome::DeadLetter {
+                attempts,
+                last_error,
+            } => {
                 self.metrics
                     .webhooks_dead_lettered
                     .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -1871,9 +1854,7 @@ impl JobManager {
                         crate::webhook::AttemptOutcome::Transient(format!("HTTP {status}"))
                     }
                 }
-                Err(e) => {
-                    crate::webhook::AttemptOutcome::Transient(format!("send error: {e}"))
-                }
+                Err(e) => crate::webhook::AttemptOutcome::Transient(format!("send error: {e}")),
             }
         })
         .await
@@ -1924,7 +1905,10 @@ impl JobManager {
 
         let db = self.db.lock().await;
         let current = db.get(sid).ok().flatten()?;
-        if JobStatus::parse(&current.status).map(|s| s.is_terminal()).unwrap_or(false) {
+        if JobStatus::parse(&current.status)
+            .map(|s| s.is_terminal())
+            .unwrap_or(false)
+        {
             return Some(current);
         }
         let changed = db
@@ -1977,7 +1961,7 @@ impl JobManager {
         approval: &str,
         workspace_root: &str,
     ) -> Result<(), String> {
-        use crate::subprocess_dispatch::{spawn_worker, generate_psk, DispatchFrame};
+        use crate::subprocess_dispatch::{generate_psk, spawn_worker, DispatchFrame};
 
         let exe = std::env::current_exe().map_err(|e| format!("current_exe: {e}"))?;
         let psk = generate_psk();
@@ -2029,24 +2013,14 @@ impl JobManager {
                     }
                     DispatchFrame::Complete { summary } => {
                         let _ = jm
-                            .mark_terminal(
-                                &sid_owned,
-                                JobStatus::Complete,
-                                Some(summary),
-                                None,
-                            )
+                            .mark_terminal(&sid_owned, JobStatus::Complete, Some(summary), None)
                             .await;
                         got_terminal = true;
                         break;
                     }
                     DispatchFrame::Error { message } => {
                         let _ = jm
-                            .mark_terminal(
-                                &sid_owned,
-                                JobStatus::Failed,
-                                None,
-                                Some(message),
-                            )
+                            .mark_terminal(&sid_owned, JobStatus::Failed, None, Some(message))
                             .await;
                         got_terminal = true;
                         break;
@@ -2236,7 +2210,11 @@ mod tests {
         m.create(r(1)).await.expect("first allowed");
         m.create(r(2)).await.expect("second allowed");
         match m.create(r(3)).await {
-            Err(SubmitError::QuotaDenied { resource, used, hard_limit }) => {
+            Err(SubmitError::QuotaDenied {
+                resource,
+                used,
+                hard_limit,
+            }) => {
                 assert_eq!(resource, "tasks");
                 assert_eq!(hard_limit, 2);
                 assert_eq!(used, 2);
@@ -2260,7 +2238,9 @@ mod tests {
 
         let mut r2 = req("y");
         r2.quota_bucket = Some("bucket-b".into());
-        m.create(r2).await.expect("first to bucket-b not affected by bucket-a");
+        m.create(r2)
+            .await
+            .expect("first to bucket-b not affected by bucket-a");
 
         assert!(matches!(
             m.create(r).await,
@@ -2299,10 +2279,7 @@ mod tests {
         assert_eq!(n, 1);
         let rec = m.get(&id).await.unwrap();
         assert_eq!(rec.status, "failed");
-        assert_eq!(
-            rec.cancellation_reason.as_deref(),
-            Some("daemon restart")
-        );
+        assert_eq!(rec.cancellation_reason.as_deref(), Some("daemon restart"));
     }
 
     #[tokio::test]
@@ -2530,7 +2507,10 @@ mod tests {
         assert_eq!(out.status, "dead_letter");
         assert_eq!(out.attempts, 3);
         assert!(
-            out.last_error.as_deref().unwrap_or("").contains("attempt 3"),
+            out.last_error
+                .as_deref()
+                .unwrap_or("")
+                .contains("attempt 3"),
             "unexpected last_error: {:?}",
             out.last_error
         );
@@ -2566,7 +2546,10 @@ mod tests {
         assert_eq!(second.status, "delivered");
 
         let dead = m.list_dead_letter_webhooks().await;
-        assert!(dead.is_empty(), "upsert should have cleared dead_letter state");
+        assert!(
+            dead.is_empty(),
+            "upsert should have cleared dead_letter state"
+        );
 
         let cur = m.get_webhook_delivery(&id).await.expect("row");
         assert_eq!(cur.status, "delivered");
@@ -2578,9 +2561,12 @@ mod tests {
         let a = m.create(req("session-a")).await.unwrap();
         let b = m.create(req("session-b")).await.unwrap();
 
-        m.publish_event(&a, AgentEventPayload::chunk("a1".into())).await;
-        m.publish_event(&b, AgentEventPayload::chunk("b1".into())).await;
-        m.publish_event(&a, AgentEventPayload::chunk("a2".into())).await;
+        m.publish_event(&a, AgentEventPayload::chunk("a1".into()))
+            .await;
+        m.publish_event(&b, AgentEventPayload::chunk("b1".into()))
+            .await;
+        m.publish_event(&a, AgentEventPayload::chunk("a2".into()))
+            .await;
 
         let ra = m.replay_events(&a, 0).await;
         let rb = m.replay_events(&b, 0).await;
@@ -2819,7 +2805,10 @@ mod tests {
         assert_eq!(got.subject_id, "job-A");
         assert_eq!(got.last_message_id, Some(7));
         assert!(matches!(got.kind, crate::recap::RecapKind::Job));
-        assert!(matches!(got.generator, crate::recap::RecapGenerator::Heuristic));
+        assert!(matches!(
+            got.generator,
+            crate::recap::RecapGenerator::Heuristic
+        ));
         assert_eq!(got.schema_version, 1);
     }
 
@@ -2847,8 +2836,7 @@ mod tests {
         let null_seq = job_recap("job-A", None, "null seq");
         let id_with = db.insert_job_recap(&with_seq).unwrap();
         let id_null = db.insert_job_recap(&null_seq).unwrap();
-        assert_ne!(id_with, id_null,
-            "null-seq recap should be a separate row");
+        assert_ne!(id_with, id_null, "null-seq recap should be a separate row");
     }
 
     #[test]
@@ -2950,14 +2938,9 @@ mod tests {
             AgentEventPayload::error("rustc: cannot find type `Foo`".into()),
         )
         .await;
-        m.mark_terminal(
-            &id,
-            JobStatus::Failed,
-            None,
-            Some("compile error".into()),
-        )
-        .await
-        .unwrap();
+        m.mark_terminal(&id, JobStatus::Failed, None, Some("compile error".into()))
+            .await
+            .unwrap();
 
         let recaps = list_recaps_for(&m, &id).await;
         assert_eq!(recaps.len(), 1);
@@ -2980,9 +2963,7 @@ mod tests {
             .unwrap();
         // Repeat call: mark_terminal returns Ok(false) because the row
         // is already terminal. Either way, recap count must stay at 1.
-        let _ = m
-            .mark_terminal(&id, JobStatus::Complete, None, None)
-            .await;
+        let _ = m.mark_terminal(&id, JobStatus::Complete, None, None).await;
         let recaps = list_recaps_for(&m, &id).await;
         assert_eq!(
             recaps.len(),

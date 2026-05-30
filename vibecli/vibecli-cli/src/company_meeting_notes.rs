@@ -39,24 +39,46 @@ pub struct MeetingIngestResult {
 // ── Prefixes ──────────────────────────────────────────────────────────────────
 
 const TASK_PREFIXES: &[&str] = &[
-    "Action:", "Action item:", "TODO:", "AI:",
-    "action:", "action item:", "todo:", "ai:",
+    "Action:",
+    "Action item:",
+    "TODO:",
+    "AI:",
+    "action:",
+    "action item:",
+    "todo:",
+    "ai:",
 ];
 
-const APPROVAL_PREFIXES: &[&str] = &[
-    "Decision:", "Decided:", "decision:", "decided:",
-];
+const APPROVAL_PREFIXES: &[&str] = &["Decision:", "Decided:", "decision:", "decided:"];
 
 const FOLLOWUP_PREFIXES: &[&str] = &[
-    "Follow up:", "Follow-up:", "Next step:", "Next steps:",
-    "follow up:", "follow-up:", "next step:", "next steps:",
+    "Follow up:",
+    "Follow-up:",
+    "Next step:",
+    "Next steps:",
+    "follow up:",
+    "follow-up:",
+    "next step:",
+    "next steps:",
 ];
 
 // ── Date extraction ───────────────────────────────────────────────────────────
 
 const WEEKDAYS: &[&str] = &[
-    "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
-    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
 ];
 
 /// Try to extract a due date from a line.
@@ -84,7 +106,8 @@ fn extract_due_date(text: &str) -> (String, Option<String>) {
             if rest.starts_with(day) {
                 let clean = text[..idx].to_string();
                 // Normalize to Title case
-                let normalized = format!("{}{}", &day[..1].to_uppercase(), &day[1..].to_lowercase());
+                let normalized =
+                    format!("{}{}", &day[..1].to_uppercase(), &day[1..].to_lowercase());
                 return (clean, Some(normalized));
             }
         }
@@ -124,19 +147,31 @@ pub fn ingest_meeting_notes(content: &str) -> MeetingIngestResult {
         }
 
         // Check approval prefixes
-        if let Some(body) = APPROVAL_PREFIXES.iter().find_map(|&p| strip_prefix(line, p)) {
+        if let Some(body) = APPROVAL_PREFIXES
+            .iter()
+            .find_map(|&p| strip_prefix(line, p))
+        {
             // Try to split "Subject: text" or just use the whole body as decision_text
             let (subject, decision_text) = if let Some(colon_pos) = body.find(':') {
-                (body[..colon_pos].trim().to_string(), body[colon_pos + 1..].trim().to_string())
+                (
+                    body[..colon_pos].trim().to_string(),
+                    body[colon_pos + 1..].trim().to_string(),
+                )
             } else {
                 ("Decision".to_string(), body.to_string())
             };
-            result.approvals.push(ExtractedApproval { subject, decision_text });
+            result.approvals.push(ExtractedApproval {
+                subject,
+                decision_text,
+            });
             continue;
         }
 
         // Check follow-up prefixes
-        if let Some(body) = FOLLOWUP_PREFIXES.iter().find_map(|&p| strip_prefix(line, p)) {
+        if let Some(body) = FOLLOWUP_PREFIXES
+            .iter()
+            .find_map(|&p| strip_prefix(line, p))
+        {
             let (text, due_date) = extract_due_date(body);
             result.followups.push(ExtractedFollowup {
                 text: text.trim().to_string(),

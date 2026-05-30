@@ -44,7 +44,10 @@ fn vibecli() -> Command {
 
 #[test]
 fn serve_flag_in_help_output() {
-    let output = vibecli().arg("--help").output().expect("failed to run vibecli");
+    let output = vibecli()
+        .arg("--help")
+        .output()
+        .expect("failed to run vibecli");
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
         stdout.contains("serve") || stdout.contains("port"),

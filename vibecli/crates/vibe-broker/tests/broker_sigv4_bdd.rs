@@ -3,7 +3,7 @@
 //! X-Amz-Date headers it received. Test asserts the broker-injected
 //! SigV4 headers landed on the wire.
 
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use rcgen::{CertificateParams, KeyPair};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName};
 use rustls::{ClientConfig, RootCertStore, ServerConfig};
@@ -14,8 +14,8 @@ use tokio::runtime::Runtime;
 use tokio::task::JoinHandle;
 use tokio_rustls::{TlsAcceptor, TlsConnector};
 use vibe_broker::{
-    BoundAddr, Broker, BrokerCa, BrokerHandle, InMemorySecretStore, Policy, SecretStore, SsrfGuard,
-    secrets::AwsCredentials,
+    secrets::AwsCredentials, BoundAddr, Broker, BrokerCa, BrokerHandle, InMemorySecretStore,
+    Policy, SecretStore, SsrfGuard,
 };
 
 #[derive(Default, World)]
@@ -192,9 +192,7 @@ inject = { type = "aws-sigv4", profile = "@workspace.aws_default" }
         .with_upstream_trust(trust)
         .with_secret_store(secrets);
     let rt = world.rt();
-    let handle = rt.block_on(async move {
-        broker.start_tcp("127.0.0.1:0").await.unwrap()
-    });
+    let handle = rt.block_on(async move { broker.start_tcp("127.0.0.1:0").await.unwrap() });
     if let BoundAddr::Tcp(addr) = handle.addr.clone() {
         world.broker_addr = Some(addr);
     }
@@ -231,9 +229,7 @@ fn run_client(world: &mut SWorld) {
         let server_name = ServerName::try_from(host.clone()).unwrap();
         let mut tls = connector.connect(server_name, tcp).await.unwrap();
 
-        let req = format!(
-            "GET / HTTP/1.1\r\nHost: {host}:{port}\r\nConnection: close\r\n\r\n"
-        );
+        let req = format!("GET / HTTP/1.1\r\nHost: {host}:{port}\r\nConnection: close\r\n\r\n");
         tls.write_all(req.as_bytes()).await.unwrap();
         let mut buf = Vec::new();
         let _ = tls.read_to_end(&mut buf).await;
@@ -260,7 +256,11 @@ fn auth_starts_with(world: &mut SWorld, prefix: String) {
 #[then("the upstream observed an X-Amz-Date header")]
 fn x_amz_date_present(world: &mut SWorld) {
     let v = header_value(world, "X-Amz-Date");
-    assert!(v.is_some(), "headers: {:?}", world.observed_headers.lock().unwrap());
+    assert!(
+        v.is_some(),
+        "headers: {:?}",
+        world.observed_headers.lock().unwrap()
+    );
 }
 
 #[then(expr = "the upstream Authorization includes {string}")]

@@ -9,15 +9,15 @@
 
 use anyhow::Result;
 
-use crate::company_store::CompanyStore;
-use crate::company_goals::GoalStore;
-use crate::company_tasks::TaskStore;
-use crate::company_documents::DocumentStore;
-use crate::company_budget::BudgetStore;
 use crate::company_approvals::ApprovalStore;
-use crate::company_secrets::SecretStore;
-use crate::company_routines::RoutineStore;
+use crate::company_budget::BudgetStore;
+use crate::company_documents::DocumentStore;
+use crate::company_goals::GoalStore;
 use crate::company_heartbeat::HeartbeatStore;
+use crate::company_routines::RoutineStore;
+use crate::company_secrets::SecretStore;
+use crate::company_store::CompanyStore;
+use crate::company_tasks::TaskStore;
 
 /// Initialize all company module schemas on a CompanyStore connection.
 pub fn ensure_all_schemas(store: &CompanyStore) -> Result<()> {
@@ -57,7 +57,8 @@ pub struct TaskCounts {
 
 pub fn build_dashboard(company_id: &str) -> Result<CompanyDashboard> {
     let store = CompanyStore::open_default()?;
-    let company = store.get_company(company_id)?
+    let company = store
+        .get_company(company_id)?
         .ok_or_else(|| anyhow::anyhow!("company not found"))?;
     let conn = store.conn();
 
@@ -65,12 +66,30 @@ pub fn build_dashboard(company_id: &str) -> Result<CompanyDashboard> {
 
     let all_tasks = TaskStore::new(conn).list(company_id, None)?;
     let task_counts = TaskCounts {
-        backlog: all_tasks.iter().filter(|t| matches!(t.status, crate::company_tasks::TaskStatus::Backlog)).count(),
-        todo: all_tasks.iter().filter(|t| matches!(t.status, crate::company_tasks::TaskStatus::Todo)).count(),
-        in_progress: all_tasks.iter().filter(|t| matches!(t.status, crate::company_tasks::TaskStatus::InProgress)).count(),
-        in_review: all_tasks.iter().filter(|t| matches!(t.status, crate::company_tasks::TaskStatus::InReview)).count(),
-        done: all_tasks.iter().filter(|t| matches!(t.status, crate::company_tasks::TaskStatus::Done)).count(),
-        blocked: all_tasks.iter().filter(|t| matches!(t.status, crate::company_tasks::TaskStatus::Blocked)).count(),
+        backlog: all_tasks
+            .iter()
+            .filter(|t| matches!(t.status, crate::company_tasks::TaskStatus::Backlog))
+            .count(),
+        todo: all_tasks
+            .iter()
+            .filter(|t| matches!(t.status, crate::company_tasks::TaskStatus::Todo))
+            .count(),
+        in_progress: all_tasks
+            .iter()
+            .filter(|t| matches!(t.status, crate::company_tasks::TaskStatus::InProgress))
+            .count(),
+        in_review: all_tasks
+            .iter()
+            .filter(|t| matches!(t.status, crate::company_tasks::TaskStatus::InReview))
+            .count(),
+        done: all_tasks
+            .iter()
+            .filter(|t| matches!(t.status, crate::company_tasks::TaskStatus::Done))
+            .count(),
+        blocked: all_tasks
+            .iter()
+            .filter(|t| matches!(t.status, crate::company_tasks::TaskStatus::Blocked))
+            .count(),
     };
 
     let pending_approvals = ApprovalStore::new(conn).pending_count(company_id)?;
@@ -78,7 +97,8 @@ pub fn build_dashboard(company_id: &str) -> Result<CompanyDashboard> {
     let routines = RoutineStore::new(conn).list(company_id)?;
     let active_routines = routines.iter().filter(|r| r.active).count();
 
-    let running_heartbeats = agents.iter()
+    let running_heartbeats = agents
+        .iter()
         .map(|a| HeartbeatStore::new(conn).running_count(&a.id).unwrap_or(0))
         .sum::<i64>() as usize;
 
@@ -104,7 +124,9 @@ pub fn tick_routines(company_id: &str) -> Result<Vec<String>> {
     let due = rs.due_routines()?;
     let mut fired = Vec::new();
     for routine in due {
-        if routine.company_id != company_id { continue; }
+        if routine.company_id != company_id {
+            continue;
+        }
         rs.mark_ran(&routine.id)?;
         fired.push(routine.id);
     }
@@ -120,10 +142,15 @@ pub fn render_dashboard(d: &CompanyDashboard) -> String {
          Pending approvals: {}\n\
          Active routines: {}\n\
          Running heartbeats: {}",
-        d.company_name, &d.company_id[..8.min(d.company_id.len())],
+        d.company_name,
+        &d.company_id[..8.min(d.company_id.len())],
         d.agent_count,
-        d.task_counts.backlog, d.task_counts.todo, d.task_counts.in_progress,
-        d.task_counts.in_review, d.task_counts.done, d.task_counts.blocked,
+        d.task_counts.backlog,
+        d.task_counts.todo,
+        d.task_counts.in_progress,
+        d.task_counts.in_review,
+        d.task_counts.done,
+        d.task_counts.blocked,
         d.pending_approvals,
         d.active_routines,
         d.running_heartbeats,

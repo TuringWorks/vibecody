@@ -527,8 +527,16 @@ impl TeamCoordinator {
             member_count: self.members.len(),
             total_messages: self.messages.len(),
             total_tasks: self.tasks.len(),
-            completed_tasks: self.tasks.iter().filter(|t| t.status == TaskStatus::Complete).count(),
-            active_tasks: self.tasks.iter().filter(|t| t.status == TaskStatus::InProgress).count(),
+            completed_tasks: self
+                .tasks
+                .iter()
+                .filter(|t| t.status == TaskStatus::Complete)
+                .count(),
+            active_tasks: self
+                .tasks
+                .iter()
+                .filter(|t| t.status == TaskStatus::InProgress)
+                .count(),
             unresolved_conflicts: self.conflicts.iter().filter(|c| !c.resolved).count(),
         }
     }
@@ -869,7 +877,10 @@ mod tests {
         if let Some(m) = team.get_member_mut("dev1") {
             m.status = MemberStatus::Working;
         }
-        assert_eq!(team.get_member("dev1").unwrap().status, MemberStatus::Working);
+        assert_eq!(
+            team.get_member("dev1").unwrap().status,
+            MemberStatus::Working
+        );
     }
 
     #[test]

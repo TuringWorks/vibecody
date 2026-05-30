@@ -18,8 +18,17 @@ pub struct RepoEntry {
 }
 
 impl RepoEntry {
-    pub fn new(alias: impl Into<String>, root: impl Into<PathBuf>, language: impl Into<String>) -> Self {
-        Self { alias: alias.into(), root: root.into(), language: language.into(), active: true }
+    pub fn new(
+        alias: impl Into<String>,
+        root: impl Into<PathBuf>,
+        language: impl Into<String>,
+    ) -> Self {
+        Self {
+            alias: alias.into(),
+            root: root.into(),
+            language: language.into(),
+            active: true,
+        }
     }
 }
 
@@ -60,7 +69,9 @@ pub struct MultiRepoRegistry {
 }
 
 impl MultiRepoRegistry {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     /// Register a repo under an alias.
     pub fn register(&mut self, entry: RepoEntry) {
@@ -78,7 +89,12 @@ impl MultiRepoRegistry {
     }
 
     /// Add a directed import edge.
-    pub fn add_import(&mut self, from: impl Into<String>, to: impl Into<String>, path: impl Into<String>) {
+    pub fn add_import(
+        &mut self,
+        from: impl Into<String>,
+        to: impl Into<String>,
+        path: impl Into<String>,
+    ) {
         self.import_graph.insert(ImportEdge {
             from_alias: from.into(),
             to_alias: to.into(),
@@ -88,12 +104,18 @@ impl MultiRepoRegistry {
 
     /// Get all repos that `alias` imports from.
     pub fn imports_from(&self, alias: &str) -> Vec<&ImportEdge> {
-        self.import_graph.iter().filter(|e| e.from_alias == alias).collect()
+        self.import_graph
+            .iter()
+            .filter(|e| e.from_alias == alias)
+            .collect()
     }
 
     /// Get all repos that import `alias`.
     pub fn imported_by(&self, alias: &str) -> Vec<&ImportEdge> {
-        self.import_graph.iter().filter(|e| e.to_alias == alias).collect()
+        self.import_graph
+            .iter()
+            .filter(|e| e.to_alias == alias)
+            .collect()
     }
 
     /// Detect cycles in the import graph via DFS.
@@ -108,9 +130,18 @@ impl MultiRepoRegistry {
         false
     }
 
-    fn dfs_cycle(&self, node: &str, visited: &mut HashSet<String>, stack: &mut HashSet<String>) -> bool {
-        if stack.contains(node) { return true; }
-        if visited.contains(node) { return false; }
+    fn dfs_cycle(
+        &self,
+        node: &str,
+        visited: &mut HashSet<String>,
+        stack: &mut HashSet<String>,
+    ) -> bool {
+        if stack.contains(node) {
+            return true;
+        }
+        if visited.contains(node) {
+            return false;
+        }
         visited.insert(node.to_string());
         stack.insert(node.to_string());
         for edge in self.import_graph.iter().filter(|e| e.from_alias == node) {
@@ -124,11 +155,16 @@ impl MultiRepoRegistry {
 
     /// Topological order for context loading (dependencies first).
     pub fn topological_order(&self) -> Vec<String> {
-        let mut in_degree: HashMap<String, usize> = self.repos.keys().map(|k| (k.clone(), 0)).collect();
+        let mut in_degree: HashMap<String, usize> =
+            self.repos.keys().map(|k| (k.clone(), 0)).collect();
         for edge in &self.import_graph {
             *in_degree.entry(edge.to_alias.clone()).or_insert(0) += 1;
         }
-        let mut queue: Vec<String> = in_degree.iter().filter(|(_, &d)| d == 0).map(|(k, _)| k.clone()).collect();
+        let mut queue: Vec<String> = in_degree
+            .iter()
+            .filter(|(_, &d)| d == 0)
+            .map(|(k, _)| k.clone())
+            .collect();
         queue.sort();
         let mut order = Vec::new();
         while !queue.is_empty() {
@@ -174,7 +210,12 @@ impl MultiRepoRegistry {
         let order = self.topological_order();
         for alias in &order {
             if let Some(r) = self.repos.get(alias) {
-                lines.push(format!("- **{}** ({}) `{}`", r.alias, r.language, r.root.display()));
+                lines.push(format!(
+                    "- **{}** ({}) `{}`",
+                    r.alias,
+                    r.language,
+                    r.root.display()
+                ));
             }
         }
         if !self.import_graph.is_empty() {
@@ -182,15 +223,24 @@ impl MultiRepoRegistry {
             let mut edges: Vec<_> = self.import_graph.iter().collect();
             edges.sort_by_key(|e| (&e.from_alias, &e.to_alias));
             for e in edges {
-                lines.push(format!("  {} → {} ({})", e.from_alias, e.to_alias, e.import_path));
+                lines.push(format!(
+                    "  {} → {} ({})",
+                    e.from_alias, e.to_alias, e.import_path
+                ));
             }
         }
         lines.join("\n")
     }
 
-    pub fn repo_count(&self) -> usize { self.repos.len() }
-    pub fn edge_count(&self) -> usize { self.import_graph.len() }
-    pub fn get_repo(&self, alias: &str) -> Option<&RepoEntry> { self.repos.get(alias) }
+    pub fn repo_count(&self) -> usize {
+        self.repos.len()
+    }
+    pub fn edge_count(&self) -> usize {
+        self.import_graph.len()
+    }
+    pub fn get_repo(&self, alias: &str) -> Option<&RepoEntry> {
+        self.repos.get(alias)
+    }
     pub fn root_for(&self, alias: &str) -> Option<&Path> {
         self.repos.get(alias).map(|r| r.root.as_path())
     }

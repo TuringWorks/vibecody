@@ -33,21 +33,21 @@ use std::convert::Infallible;
 use std::sync::{Arc, Mutex};
 use vibe_ai::provider::AIProvider;
 
-use crate::watch_auth::{
-    WatchAuthManager, WatchRefreshRequest, WatchRegisterRequest, WristEvent,
-};
-use crate::watch_session_relay::{
-    to_watch_event_json, to_watch_message, to_watch_summary, MessageRowView,
-    NonceRegistry, SessionRowView, WatchDispatchRequest,
-};
+use crate::watch_auth::{WatchAuthManager, WatchRefreshRequest, WatchRegisterRequest, WristEvent};
 #[cfg(test)]
 use crate::watch_session_relay::WatchDispatchResponse;
+use crate::watch_session_relay::{
+    to_watch_event_json, to_watch_message, to_watch_summary, MessageRowView, NonceRegistry,
+    SessionRowView, WatchDispatchRequest,
+};
 use tokio_stream::StreamExt as _;
 
 // ── Shared bridge state ───────────────────────────────────────────────────────
 
 /// Broadcast stream map: session_id → sender of JSON-encoded SSE events.
-pub type WatchEventStreams = Arc<Mutex<std::collections::HashMap<String, tokio::sync::broadcast::Sender<serde_json::Value>>>>;
+pub type WatchEventStreams = Arc<
+    Mutex<std::collections::HashMap<String, tokio::sync::broadcast::Sender<serde_json::Value>>>,
+>;
 
 #[derive(Clone)]
 pub struct WatchBridgeState {
@@ -167,9 +167,7 @@ fn extract_any_auth(
     state: &WatchBridgeState,
     headers: &axum::http::HeaderMap,
 ) -> Result<String, (StatusCode, Json<serde_json::Value>)> {
-    let hdr = headers
-        .get("Authorization")
-        .and_then(|v| v.to_str().ok());
+    let hdr = headers.get("Authorization").and_then(|v| v.to_str().ok());
     if crate::auth_util::bearer_matches(hdr, &state.api_token) {
         return Ok("bearer".to_string());
     }
@@ -181,32 +179,38 @@ fn extract_any_auth(
 /// Build the /watch/* router. Mount it under `/watch` in the parent router.
 pub fn build_watch_router(state: WatchBridgeState) -> Router {
     Router::new()
-        .route("/beacon",           get(watch_beacon))
-        .route("/challenge",        post(watch_challenge))
-        .route("/register",         post(watch_register))
-        .route("/refresh-token",    post(watch_refresh_token))
-        .route("/wrist",            post(watch_wrist_event))
-        .route("/sessions",         get(watch_list_sessions))
+        .route("/beacon", get(watch_beacon))
+        .route("/challenge", post(watch_challenge))
+        .route("/register", post(watch_register))
+        .route("/refresh-token", post(watch_refresh_token))
+        .route("/wrist", post(watch_wrist_event))
+        .route("/sessions", get(watch_list_sessions))
         .route("/sessions/:id/messages", get(watch_session_messages))
         .route("/sessions/:id/recap", get(watch_session_recap))
-        .route("/jobs",             get(watch_list_jobs))
-        .route("/jobs/:id/recap",   get(watch_job_recap))
-        .route("/goals",            get(watch_list_goals))
-        .route("/goals/:id",        get(watch_get_goal))
-        .route("/goals/:id/start",  post(watch_start_goal))
-        .route("/stream/:id",       get(watch_stream))
-        .route("/dispatch",         post(watch_dispatch))
-        .route("/active-session",   get(watch_get_active_session).put(watch_set_active_session))
-        .route("/events",           get(watch_session_events_sse))
-        .route("/sandbox/chat-session", get(watch_get_sandbox_chat_session).put(watch_set_sandbox_chat_session))
-        .route("/devices",          get(watch_list_devices))
-        .route("/devices/:id",      delete(watch_revoke_device))
+        .route("/jobs", get(watch_list_jobs))
+        .route("/jobs/:id/recap", get(watch_job_recap))
+        .route("/goals", get(watch_list_goals))
+        .route("/goals/:id", get(watch_get_goal))
+        .route("/goals/:id/start", post(watch_start_goal))
+        .route("/stream/:id", get(watch_stream))
+        .route("/dispatch", post(watch_dispatch))
+        .route(
+            "/active-session",
+            get(watch_get_active_session).put(watch_set_active_session),
+        )
+        .route("/events", get(watch_session_events_sse))
+        .route(
+            "/sandbox/chat-session",
+            get(watch_get_sandbox_chat_session).put(watch_set_sandbox_chat_session),
+        )
+        .route("/devices", get(watch_list_devices))
+        .route("/devices/:id", delete(watch_revoke_device))
         // DREAD #1 Slice G part 3 (watch) — tainted-argument bridge.
         // Bridges to the same `HttpPromptQueue` powering /v1/tainted/*
         // so a prompt enqueued by an agent's tool-call surfaces on
         // whichever paired client is online. Watch-Token authed.
-        .route("/tainted/pending",  get(watch_tainted_pending))
-        .route("/tainted/respond",  post(watch_tainted_respond))
+        .route("/tainted/pending", get(watch_tainted_pending))
+        .route("/tainted/respond", post(watch_tainted_respond))
         .with_state(state)
 }
 
@@ -228,9 +232,7 @@ async fn watch_beacon(State(state): State<WatchBridgeState>) -> impl IntoRespons
 /// The nonce itself grants nothing; real security is in /watch/register
 /// which verifies the Ed25519 device signature against the nonce.
 /// Rate-limited naturally by the 2-minute nonce TTL.
-async fn watch_challenge(
-    State(state): State<WatchBridgeState>,
-) -> impl IntoResponse {
+async fn watch_challenge(State(state): State<WatchBridgeState>) -> impl IntoResponse {
     let ch = state
         .auth
         .lock()
@@ -238,7 +240,10 @@ async fn watch_challenge(
         .issue_challenge();
     match ch {
         Ok(c) => (StatusCode::OK, Json(serde_json::to_value(c).unwrap())),
-        Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({"error": e.to_string()}))),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({"error": e.to_string()})),
+        ),
     }
 }
 
@@ -309,12 +314,12 @@ async fn watch_wrist_event(
     let _device_id = match extract_watch_auth(&state, &headers) {
         Ok(id) => id,
         Err(_) => {
-            let bearer = headers
-                .get("Authorization")
-                .and_then(|v| v.to_str().ok());
+            let bearer = headers.get("Authorization").and_then(|v| v.to_str().ok());
             if !crate::auth_util::bearer_matches(bearer, &state.api_token) {
-                return (StatusCode::UNAUTHORIZED,
-                    Json(serde_json::json!({"error": "Auth required"})));
+                return (
+                    StatusCode::UNAUTHORIZED,
+                    Json(serde_json::json!({"error": "Auth required"})),
+                );
             }
             ev.device_id.clone()
         }
@@ -322,7 +327,10 @@ async fn watch_wrist_event(
     let mut auth = state.auth.lock().unwrap_or_else(|e| e.into_inner());
     match auth.handle_wrist_event(&ev) {
         Ok(()) => (StatusCode::OK, Json(serde_json::json!({"ok": true}))),
-        Err(e) => (StatusCode::BAD_REQUEST, Json(serde_json::json!({"error": e.to_string()}))),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": e.to_string()})),
+        ),
     }
 }
 
@@ -407,11 +415,13 @@ async fn watch_session_messages(
                 "session_id": session_id,
                 "messages": [],
                 "total": 0,
-            })).into_response();
+            }))
+            .into_response();
         }
     };
     let messages = store.get_messages(&session_id).unwrap_or_default();
-    let session_status = store.get_session(&session_id)
+    let session_status = store
+        .get_session(&session_id)
         .ok()
         .flatten()
         .map(|s| s.status)
@@ -434,7 +444,8 @@ async fn watch_session_messages(
         "messages": watch_msgs,
         "total": total,
         "status": session_status,
-    })).into_response()
+    }))
+    .into_response()
 }
 
 /// GET /watch/sessions/:id/recap — read-only freshest recap for a session.
@@ -462,8 +473,7 @@ async fn watch_session_recap(
         Ok(s) => s,
         Err(e) => {
             tracing::warn!("watch_session_recap: cannot open session store: {e}");
-            return Json(serde_json::json!({"recap": serde_json::Value::Null}))
-                .into_response();
+            return Json(serde_json::json!({"recap": serde_json::Value::Null})).into_response();
         }
     };
     let recap = store
@@ -473,11 +483,11 @@ async fn watch_session_recap(
     match recap {
         Some(r) => match serde_json::to_value(&r) {
             Ok(v) => Json(serde_json::json!({"recap": v})).into_response(),
-            Err(e) => crate::serve::internal_error("watch.session_recap.serialize", &e)
-                .into_response(),
+            Err(e) => {
+                crate::serve::internal_error("watch.session_recap.serialize", &e).into_response()
+            }
         },
-        None => Json(serde_json::json!({"recap": serde_json::Value::Null}))
-            .into_response(),
+        None => Json(serde_json::json!({"recap": serde_json::Value::Null})).into_response(),
     }
 }
 
@@ -535,8 +545,7 @@ async fn watch_job_recap(
         Ok(d) => d,
         Err(e) => {
             tracing::warn!("watch_job_recap: cannot open jobs.db: {e}");
-            return Json(serde_json::json!({"recap": serde_json::Value::Null}))
-                .into_response();
+            return Json(serde_json::json!({"recap": serde_json::Value::Null})).into_response();
         }
     };
     let recap = db
@@ -546,11 +555,9 @@ async fn watch_job_recap(
     match recap {
         Some(r) => match serde_json::to_value(&r) {
             Ok(v) => Json(serde_json::json!({"recap": v})).into_response(),
-            Err(e) => crate::serve::internal_error("watch.job_recap.serialize", &e)
-                .into_response(),
+            Err(e) => crate::serve::internal_error("watch.job_recap.serialize", &e).into_response(),
         },
-        None => Json(serde_json::json!({"recap": serde_json::Value::Null}))
-            .into_response(),
+        None => Json(serde_json::json!({"recap": serde_json::Value::Null})).into_response(),
     }
 }
 
@@ -571,21 +578,23 @@ async fn watch_stream(
     let tx = match tx {
         Some(t) => t,
         None => {
-            return (StatusCode::NOT_FOUND,
-                Json(serde_json::json!({"error": "Session stream not found"}))).into_response()
+            return (
+                StatusCode::NOT_FOUND,
+                Json(serde_json::json!({"error": "Session stream not found"})),
+            )
+                .into_response()
         }
     };
     let rx = tx.subscribe();
-    let stream = tokio_stream::wrappers::BroadcastStream::new(rx)
-        .filter_map(|item| {
-            item.ok().map(|payload| {
-                let watch_ev = to_watch_event_json(&payload);
-                let data = serde_json::to_string(&watch_ev).unwrap_or_default();
-                Ok::<axum::response::sse::Event, Infallible>(
-                    axum::response::sse::Event::default().data(data)
-                )
-            })
-        });
+    let stream = tokio_stream::wrappers::BroadcastStream::new(rx).filter_map(|item| {
+        item.ok().map(|payload| {
+            let watch_ev = to_watch_event_json(&payload);
+            let data = serde_json::to_string(&watch_ev).unwrap_or_default();
+            Ok::<axum::response::sse::Event, Infallible>(
+                axum::response::sse::Event::default().data(data),
+            )
+        })
+    });
     Sse::new(stream)
         .keep_alive(
             axum::response::sse::KeepAlive::new()
@@ -614,21 +623,32 @@ async fn watch_dispatch(
     let is_bearer = device_id == "bearer";
     if !is_bearer {
         if let Err(e) = state.nonces.check_and_record(&req.nonce, req.timestamp) {
-            return (StatusCode::UNPROCESSABLE_ENTITY,
-                Json(serde_json::json!({"error": e.to_string()}))).into_response();
+            return (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                Json(serde_json::json!({"error": e.to_string()})),
+            )
+                .into_response();
         }
     }
     // Validate content
     let content = req.content.trim().to_string();
     if content.is_empty() {
-        return (StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": "Content must not be empty"}))).into_response();
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({"error": "Content must not be empty"})),
+        )
+            .into_response();
     }
 
     let provider = match &state.provider {
         Some(p) => p.clone(),
-        None => return (StatusCode::SERVICE_UNAVAILABLE,
-            Json(serde_json::json!({"error": "No LLM provider configured"}))).into_response(),
+        None => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(serde_json::json!({"error": "No LLM provider configured"})),
+            )
+                .into_response()
+        }
     };
 
     let db_path = state.session_db_path.clone().unwrap_or_else(|| {
@@ -652,8 +672,9 @@ async fn watch_dispatch(
     // Open store and create/continue session
     let store = match crate::session_store::SessionStore::open(&db_path) {
         Ok(s) => s,
-        Err(e) => return crate::serve::internal_error("watch.session_store.open", &e)
-            .into_response(),
+        Err(e) => {
+            return crate::serve::internal_error("watch.session_store.open", &e).into_response()
+        }
     };
     if req.session_id.is_none() {
         let _ = store.insert_session(&session_id, &content, &state.provider_name, "");
@@ -662,17 +683,20 @@ async fn watch_dispatch(
 
     // Load prior messages for context
     let prior = store.get_messages(&session_id).unwrap_or_default();
-    let messages: Vec<vibe_ai::provider::Message> = prior.iter().map(|m| {
-        use vibe_ai::provider::MessageRole;
-        vibe_ai::provider::Message {
-            role: match m.role.as_str() {
-                "assistant" => MessageRole::Assistant,
-                "system"    => MessageRole::System,
-                _           => MessageRole::User,
-            },
-            content: m.content.clone(),
-        }
-    }).collect();
+    let messages: Vec<vibe_ai::provider::Message> = prior
+        .iter()
+        .map(|m| {
+            use vibe_ai::provider::MessageRole;
+            vibe_ai::provider::Message {
+                role: match m.role.as_str() {
+                    "assistant" => MessageRole::Assistant,
+                    "system" => MessageRole::System,
+                    _ => MessageRole::User,
+                },
+                content: m.content.clone(),
+            }
+        })
+        .collect();
 
     // Create or reuse broadcast channel for this session
     let tx = {
@@ -728,7 +752,8 @@ async fn watch_dispatch(
         "session_id": session_id,
         "message_id": 0,
         "streaming_url": streaming_url,
-    })).into_response()
+    }))
+    .into_response()
 }
 
 // ── Active session tracking ────────────────────────────────────────────────────
@@ -746,15 +771,24 @@ async fn watch_get_active_session(
             &state.api_token,
         );
     if !authed {
-        return (StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({"error": "Auth required"}))).into_response();
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "Auth required"})),
+        )
+            .into_response();
     }
-    let sid = state.active_session.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let sid = state
+        .active_session
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
     Json(serde_json::json!({"session_id": sid})).into_response()
 }
 
 #[derive(serde::Deserialize)]
-struct SetActiveSessionRequest { session_id: String }
+struct SetActiveSessionRequest {
+    session_id: String,
+}
 
 /// PUT /watch/active-session — Watch sets which session it's currently viewing.
 async fn watch_set_active_session(
@@ -765,7 +799,10 @@ async fn watch_set_active_session(
     if let Err(e) = extract_watch_auth(&state, &headers) {
         return e.into_response();
     }
-    *state.active_session.lock().unwrap_or_else(|e| e.into_inner()) = Some(req.session_id.clone());
+    *state
+        .active_session
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = Some(req.session_id.clone());
     // Notify VibeUI that the Watch switched sessions
     let _ = state.session_events.send(serde_json::json!({
         "type": "watch_session_changed",
@@ -785,9 +822,7 @@ async fn watch_session_events_sse(
     State(state): State<WatchBridgeState>,
     headers: axum::http::HeaderMap,
 ) -> impl IntoResponse {
-    let bearer = headers
-        .get("Authorization")
-        .and_then(|v| v.to_str().ok());
+    let bearer = headers.get("Authorization").and_then(|v| v.to_str().ok());
     if !crate::auth_util::bearer_matches(bearer, &state.api_token) {
         return (
             StatusCode::UNAUTHORIZED,
@@ -798,15 +833,14 @@ async fn watch_session_events_sse(
 
     use std::convert::Infallible;
     let rx = state.session_events.subscribe();
-    let stream = tokio_stream::wrappers::BroadcastStream::new(rx)
-        .filter_map(|item| {
-            item.ok().map(|payload| {
-                let data = serde_json::to_string(&payload).unwrap_or_default();
-                Ok::<axum::response::sse::Event, Infallible>(
-                    axum::response::sse::Event::default().data(data)
-                )
-            })
-        });
+    let stream = tokio_stream::wrappers::BroadcastStream::new(rx).filter_map(|item| {
+        item.ok().map(|payload| {
+            let data = serde_json::to_string(&payload).unwrap_or_default();
+            Ok::<axum::response::sse::Event, Infallible>(
+                axum::response::sse::Event::default().data(data),
+            )
+        })
+    });
     Sse::new(stream)
         .keep_alive(
             axum::response::sse::KeepAlive::new()
@@ -831,15 +865,24 @@ async fn watch_get_sandbox_chat_session(
             &state.api_token,
         );
     if !authed {
-        return (StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({"error": "Auth required"}))).into_response();
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "Auth required"})),
+        )
+            .into_response();
     }
-    let sid = state.sandbox_chat_session.lock().unwrap_or_else(|e| e.into_inner()).clone();
+    let sid = state
+        .sandbox_chat_session
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clone();
     Json(serde_json::json!({"session_id": sid})).into_response()
 }
 
 #[derive(serde::Deserialize)]
-struct SetSandboxChatSessionRequest { session_id: Option<String> }
+struct SetSandboxChatSessionRequest {
+    session_id: Option<String>,
+}
 
 /// PUT /watch/sandbox/chat-session — VibeUI notifies the daemon which sandbox
 /// chat session is active so the Watch can navigate to it.
@@ -849,17 +892,21 @@ async fn watch_set_sandbox_chat_session(
     headers: axum::http::HeaderMap,
     Json(req): Json<SetSandboxChatSessionRequest>,
 ) -> impl IntoResponse {
-    let bearer = headers
-        .get("Authorization")
-        .and_then(|v| v.to_str().ok());
+    let bearer = headers.get("Authorization").and_then(|v| v.to_str().ok());
     // Bearer only — the doc-comment above declares this is "VibeUI sets, Watch
     // reads." Watch should not be able to redirect VibeUI's sandbox session
     // pointer (DREAD #9 in docs/security/threat-model.md).
     if !crate::auth_util::bearer_matches(bearer, &state.api_token) {
-        return (StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({"error": "Bearer token required"}))).into_response();
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "Bearer token required"})),
+        )
+            .into_response();
     }
-    *state.sandbox_chat_session.lock().unwrap_or_else(|e| e.into_inner()) = req.session_id.clone();
+    *state
+        .sandbox_chat_session
+        .lock()
+        .unwrap_or_else(|e| e.into_inner()) = req.session_id.clone();
     let _ = state.session_events.send(serde_json::json!({
         "type": "sandbox_chat_session_changed",
         "session_id": req.session_id,
@@ -872,28 +919,31 @@ async fn watch_list_devices(
     State(state): State<WatchBridgeState>,
     headers: axum::http::HeaderMap,
 ) -> impl IntoResponse {
-    let bearer = headers
-        .get("Authorization")
-        .and_then(|v| v.to_str().ok());
+    let bearer = headers.get("Authorization").and_then(|v| v.to_str().ok());
     if !crate::auth_util::bearer_matches(bearer, &state.api_token) {
-        return (StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({"error": "Bearer token required"}))).into_response();
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "Bearer token required"})),
+        )
+            .into_response();
     }
     let auth = state.auth.lock().unwrap_or_else(|e| e.into_inner());
     let devices = auth.list_devices().unwrap_or_default();
     // Scrub public key from list response (available on detail endpoint)
     let safe: Vec<serde_json::Value> = devices
         .iter()
-        .map(|d| serde_json::json!({
-            "device_id": d.device_id,
-            "name": d.name,
-            "model": d.model,
-            "os_version": d.os_version,
-            "registered_at": d.registered_at,
-            "last_seen": d.last_seen,
-            "revoked": d.revoked_at.is_some(),
-            "wrist_suspended": d.wrist_suspended,
-        }))
+        .map(|d| {
+            serde_json::json!({
+                "device_id": d.device_id,
+                "name": d.name,
+                "model": d.model,
+                "os_version": d.os_version,
+                "registered_at": d.registered_at,
+                "last_seen": d.last_seen,
+                "revoked": d.revoked_at.is_some(),
+                "wrist_suspended": d.wrist_suspended,
+            })
+        })
         .collect();
     Json(serde_json::json!({"devices": safe})).into_response()
 }
@@ -904,18 +954,22 @@ async fn watch_revoke_device(
     headers: axum::http::HeaderMap,
     Path(device_id): Path<String>,
 ) -> impl IntoResponse {
-    let bearer = headers
-        .get("Authorization")
-        .and_then(|v| v.to_str().ok());
+    let bearer = headers.get("Authorization").and_then(|v| v.to_str().ok());
     if !crate::auth_util::bearer_matches(bearer, &state.api_token) {
-        return (StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({"error": "Bearer token required"}))).into_response();
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "Bearer token required"})),
+        )
+            .into_response();
     }
     let mut auth = state.auth.lock().unwrap_or_else(|e| e.into_inner());
     match auth.revoke_device(&device_id) {
         Ok(()) => Json(serde_json::json!({"ok": true, "device_id": device_id})).into_response(),
-        Err(e) => (StatusCode::NOT_FOUND,
-            Json(serde_json::json!({"error": e.to_string()}))).into_response(),
+        Err(e) => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({"error": e.to_string()})),
+        )
+            .into_response(),
     }
 }
 
@@ -948,15 +1002,12 @@ async fn watch_list_goals(
     if let Err(e) = extract_any_auth(&state, &headers) {
         return e.into_response();
     }
-    let db_path = state
-        .session_db_path
-        .clone()
-        .unwrap_or_else(|| {
-            dirs::home_dir()
-                .unwrap_or_else(|| std::path::PathBuf::from("."))
-                .join(".vibecli")
-                .join("sessions.db")
-        });
+    let db_path = state.session_db_path.clone().unwrap_or_else(|| {
+        dirs::home_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join(".vibecli")
+            .join("sessions.db")
+    });
     let store = match crate::session_store::SessionStore::open(&db_path) {
         Ok(s) => s,
         Err(e) => {
@@ -983,10 +1034,17 @@ async fn watch_list_goals(
     let mut workspace_pins: std::collections::HashMap<String, Option<String>> =
         std::collections::HashMap::new();
     for g in &goals {
-        if let Some(ws) = g.workspace.as_ref().map(|p| p.to_string_lossy().into_owned()) {
-            workspace_pins
-                .entry(ws.clone())
-                .or_insert_with(|| store.get_pinned_goal(Some(&ws)).unwrap_or(None).map(|(id, _)| id));
+        if let Some(ws) = g
+            .workspace
+            .as_ref()
+            .map(|p| p.to_string_lossy().into_owned())
+        {
+            workspace_pins.entry(ws.clone()).or_insert_with(|| {
+                store
+                    .get_pinned_goal(Some(&ws))
+                    .unwrap_or(None)
+                    .map(|(id, _)| id)
+            });
         }
     }
 
@@ -1030,15 +1088,12 @@ async fn watch_get_goal(
     if let Err(e) = extract_any_auth(&state, &headers) {
         return e.into_response();
     }
-    let db_path = state
-        .session_db_path
-        .clone()
-        .unwrap_or_else(|| {
-            dirs::home_dir()
-                .unwrap_or_else(|| std::path::PathBuf::from("."))
-                .join(".vibecli")
-                .join("sessions.db")
-        });
+    let db_path = state.session_db_path.clone().unwrap_or_else(|| {
+        dirs::home_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join(".vibecli")
+            .join("sessions.db")
+    });
     let store = match crate::session_store::SessionStore::open(&db_path) {
         Ok(s) => s,
         Err(e) => {
@@ -1107,15 +1162,12 @@ async fn watch_start_goal(
     if let Err(e) = extract_any_auth(&state, &headers) {
         return e.into_response();
     }
-    let db_path = state
-        .session_db_path
-        .clone()
-        .unwrap_or_else(|| {
-            dirs::home_dir()
-                .unwrap_or_else(|| std::path::PathBuf::from("."))
-                .join(".vibecli")
-                .join("sessions.db")
-        });
+    let db_path = state.session_db_path.clone().unwrap_or_else(|| {
+        dirs::home_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join(".vibecli")
+            .join("sessions.db")
+    });
     let store = match crate::session_store::SessionStore::open(&db_path) {
         Ok(s) => s,
         Err(e) => {
@@ -1127,11 +1179,13 @@ async fn watch_start_goal(
                 .into_response();
         }
     };
-    let req = body.map(|Json(b)| b).unwrap_or(crate::serve::ExecGoalStartRequest {
-        task: None,
-        provider: None,
-        model: None,
-    });
+    let req = body
+        .map(|Json(b)| b)
+        .unwrap_or(crate::serve::ExecGoalStartRequest {
+            task: None,
+            provider: None,
+            model: None,
+        });
     let (status, body) = crate::serve::do_v1_exec_goal_start(&store, &id, &req);
     (status, Json(body)).into_response()
 }
@@ -1308,10 +1362,7 @@ mod tests {
         // We can't construct WatchBridgeState in unit tests (it
         // touches the filesystem via WatchAuthManager), so this is a
         // type-level assertion via std::mem::size_of_val.
-        fn _assert_optional<T>(
-            _x: Option<Arc<crate::tainted_http_bridge::HttpPromptQueue>>,
-        ) {
-        }
+        fn _assert_optional<T>(_x: Option<Arc<crate::tainted_http_bridge::HttpPromptQueue>>) {}
         _assert_optional::<()>(None);
     }
 
@@ -1325,8 +1376,7 @@ mod tests {
             approve: false,
         };
         let json = serde_json::to_string(&req).unwrap();
-        let back: crate::tainted_http_bridge::PromptResponse =
-            serde_json::from_str(&json).unwrap();
+        let back: crate::tainted_http_bridge::PromptResponse = serde_json::from_str(&json).unwrap();
         assert_eq!(back.request_id, "prompt-watch-abc");
         assert!(!back.approve);
     }
@@ -1380,8 +1430,7 @@ mod tests {
                 "ignore previous instructions".to_string(),
             );
             let _: &mut dyn Prompter = &mut prompter;
-            confirm_with_prompter(&t, Reason::ToolCallArgument, &mut prompter)
-                .is_ok()
+            confirm_with_prompter(&t, Reason::ToolCallArgument, &mut prompter).is_ok()
         });
 
         // Wait for the prompt to land in the queue. The watch SSE
@@ -1477,7 +1526,7 @@ mod tests {
     fn watch_dispatch_request_without_session_id() {
         use crate::watch_session_relay::WatchDispatchRequest;
         let req = WatchDispatchRequest {
-            session_id: None,  // new session
+            session_id: None, // new session
             content: "Start a new task".into(),
             provider: Some("claude".into()),
             nonce: "fresh-nonce-001".into(),

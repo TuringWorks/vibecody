@@ -2,7 +2,7 @@
  * BDD tests for autodream using Cucumber.
  * Run with: cargo test --test autodream_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::autodream::{AutoDream, ConsolidationPolicy, ConsolidationResult, MemoryEntry};
 
 #[derive(Debug, Default, World)]
@@ -46,8 +46,12 @@ impl AdWorld {
 #[given("a memory store with two entries for key \"topic\"")]
 fn two_entries_same_key(world: &mut AdWorld) {
     let now = AdWorld::unix_now();
-    world.entries.push(MemoryEntry::new("topic", "value one", now));
-    world.entries.push(MemoryEntry::new("topic", "value two", now));
+    world
+        .entries
+        .push(MemoryEntry::new("topic", "value one", now));
+    world
+        .entries
+        .push(MemoryEntry::new("topic", "value two", now));
 }
 
 #[given("a memory store with an entry created 30 days ago")]
@@ -58,7 +62,9 @@ fn old_entry(world: &mut AdWorld) {
         .map(|d| d.as_secs())
         .unwrap_or(0);
     let thirty_days = 30 * 86_400;
-    world.entries.push(MemoryEntry::new("old_key", "stale", now - thirty_days));
+    world
+        .entries
+        .push(MemoryEntry::new("old_key", "stale", now - thirty_days));
 }
 
 #[given("the max age policy is 7 days")]
@@ -151,10 +157,7 @@ fn check_not_includes(world: &mut AdWorld, key: String) {
 #[then(expr = "the first entry should have key {string}")]
 fn check_first_key(world: &mut AdWorld, key: String) {
     let r = world.result.as_ref().unwrap();
-    assert!(
-        !r.entries.is_empty(),
-        "entries are empty"
-    );
+    assert!(!r.entries.is_empty(), "entries are empty");
     assert_eq!(r.entries[0].key, key);
 }
 

@@ -115,8 +115,7 @@ impl TeamMessageBus {
             .iter()
             .filter(|m| {
                 m.from_agent_id != agent_id
-                    && (m.to_agent_id.is_none()
-                        || m.to_agent_id.as_deref() == Some(agent_id))
+                    && (m.to_agent_id.is_none() || m.to_agent_id.as_deref() == Some(agent_id))
             })
             .cloned()
             .collect()
@@ -199,7 +198,12 @@ impl AgentTeam {
     }
 
     /// Update the status of a sub-task.
-    pub async fn update_task_status(&self, task_id: &str, status: TeamTaskStatus, result: Option<String>) {
+    pub async fn update_task_status(
+        &self,
+        task_id: &str,
+        status: TeamTaskStatus,
+        result: Option<String>,
+    ) {
         let mut tasks = self.tasks.lock().await;
         if let Some(task) = tasks.iter_mut().find(|t| t.id == task_id) {
             task.status = status;
@@ -212,19 +216,32 @@ impl AgentTeam {
     /// Check if all sub-tasks are complete.
     pub async fn all_complete(&self) -> bool {
         let tasks = self.tasks.lock().await;
-        !tasks.is_empty() && tasks.iter().all(|t| {
-            t.status == TeamTaskStatus::Completed || t.status == TeamTaskStatus::Failed
-        })
+        !tasks.is_empty()
+            && tasks.iter().all(|t| {
+                t.status == TeamTaskStatus::Completed || t.status == TeamTaskStatus::Failed
+            })
     }
 
     /// Get summary of team progress.
     pub async fn progress_summary(&self) -> String {
         let tasks = self.tasks.lock().await;
         let total = tasks.len();
-        let done = tasks.iter().filter(|t| t.status == TeamTaskStatus::Completed).count();
-        let failed = tasks.iter().filter(|t| t.status == TeamTaskStatus::Failed).count();
-        let in_progress = tasks.iter().filter(|t| t.status == TeamTaskStatus::InProgress).count();
-        format!("{}/{} complete, {} in progress, {} failed", done, total, in_progress, failed)
+        let done = tasks
+            .iter()
+            .filter(|t| t.status == TeamTaskStatus::Completed)
+            .count();
+        let failed = tasks
+            .iter()
+            .filter(|t| t.status == TeamTaskStatus::Failed)
+            .count();
+        let in_progress = tasks
+            .iter()
+            .filter(|t| t.status == TeamTaskStatus::InProgress)
+            .count();
+        format!(
+            "{}/{} complete, {} in progress, {} failed",
+            done, total, in_progress, failed
+        )
     }
 
     /// Set team status.
@@ -278,7 +295,11 @@ mod tests {
         let bus = TeamMessageBus::new(16);
         let mut rx = bus.subscribe();
 
-        let msg = TeamMessage::new("agent-1", TeamMessageType::Finding, "Found a bug in auth.rs");
+        let msg = TeamMessage::new(
+            "agent-1",
+            TeamMessageType::Finding,
+            "Found a bug in auth.rs",
+        );
         bus.send(msg.clone()).await.unwrap();
 
         let received = rx.recv().await.unwrap();
@@ -291,7 +312,12 @@ mod tests {
     async fn team_message_directed() {
         let bus = TeamMessageBus::new(16);
 
-        let msg = TeamMessage::directed("agent-1", "agent-2", TeamMessageType::Request, "Need the API schema");
+        let msg = TeamMessage::directed(
+            "agent-1",
+            "agent-2",
+            TeamMessageType::Request,
+            "Need the API schema",
+        );
         bus.send(msg).await.unwrap();
 
         let for_2 = bus.messages_for("agent-2").await;
@@ -306,8 +332,16 @@ mod tests {
     async fn team_message_history() {
         let bus = TeamMessageBus::new(16);
 
-        bus.send(TeamMessage::new("a1", TeamMessageType::Status, "started")).await.unwrap();
-        bus.send(TeamMessage::new("a2", TeamMessageType::Finding, "found issue")).await.unwrap();
+        bus.send(TeamMessage::new("a1", TeamMessageType::Status, "started"))
+            .await
+            .unwrap();
+        bus.send(TeamMessage::new(
+            "a2",
+            TeamMessageType::Finding,
+            "found issue",
+        ))
+        .await
+        .unwrap();
 
         let history = bus.history().await;
         assert_eq!(history.len(), 2);
@@ -323,21 +357,30 @@ mod tests {
 
         team.set_tasks(vec![
             TeamSubTask {
-                id: "t1".into(), agent_id: "worker-1".into(),
+                id: "t1".into(),
+                agent_id: "worker-1".into(),
                 description: "Fix auth bug".into(),
-                status: TeamTaskStatus::Pending, result: None, generated_files: vec![],
+                status: TeamTaskStatus::Pending,
+                result: None,
+                generated_files: vec![],
             },
             TeamSubTask {
-                id: "t2".into(), agent_id: "worker-2".into(),
+                id: "t2".into(),
+                agent_id: "worker-2".into(),
                 description: "Fix API bug".into(),
-                status: TeamTaskStatus::Pending, result: None, generated_files: vec![],
+                status: TeamTaskStatus::Pending,
+                result: None,
+                generated_files: vec![],
             },
-        ]).await;
+        ])
+        .await;
 
         assert!(!team.all_complete().await);
-        team.update_task_status("t1", TeamTaskStatus::Completed, Some("Fixed".into())).await;
+        team.update_task_status("t1", TeamTaskStatus::Completed, Some("Fixed".into()))
+            .await;
         assert!(!team.all_complete().await);
-        team.update_task_status("t2", TeamTaskStatus::Completed, Some("Fixed".into())).await;
+        team.update_task_status("t2", TeamTaskStatus::Completed, Some("Fixed".into()))
+            .await;
         assert!(team.all_complete().await);
     }
 
@@ -345,10 +388,32 @@ mod tests {
     async fn team_progress_summary() {
         let team = AgentTeam::new("team-1", "lead", "goal");
         team.set_tasks(vec![
-            TeamSubTask { id: "t1".into(), agent_id: "a".into(), description: "d".into(), status: TeamTaskStatus::Completed, result: None, generated_files: vec![] },
-            TeamSubTask { id: "t2".into(), agent_id: "b".into(), description: "d".into(), status: TeamTaskStatus::InProgress, result: None, generated_files: vec![] },
-            TeamSubTask { id: "t3".into(), agent_id: "c".into(), description: "d".into(), status: TeamTaskStatus::Failed, result: None, generated_files: vec![] },
-        ]).await;
+            TeamSubTask {
+                id: "t1".into(),
+                agent_id: "a".into(),
+                description: "d".into(),
+                status: TeamTaskStatus::Completed,
+                result: None,
+                generated_files: vec![],
+            },
+            TeamSubTask {
+                id: "t2".into(),
+                agent_id: "b".into(),
+                description: "d".into(),
+                status: TeamTaskStatus::InProgress,
+                result: None,
+                generated_files: vec![],
+            },
+            TeamSubTask {
+                id: "t3".into(),
+                agent_id: "c".into(),
+                description: "d".into(),
+                status: TeamTaskStatus::Failed,
+                result: None,
+                generated_files: vec![],
+            },
+        ])
+        .await;
 
         let summary = team.progress_summary().await;
         assert!(summary.contains("1/3 complete"));
@@ -378,8 +443,20 @@ mod tests {
     async fn messages_for_excludes_self() {
         let bus = TeamMessageBus::new(16);
 
-        bus.send(TeamMessage::new("agent-1", TeamMessageType::Finding, "my finding")).await.unwrap();
-        bus.send(TeamMessage::new("agent-2", TeamMessageType::Finding, "their finding")).await.unwrap();
+        bus.send(TeamMessage::new(
+            "agent-1",
+            TeamMessageType::Finding,
+            "my finding",
+        ))
+        .await
+        .unwrap();
+        bus.send(TeamMessage::new(
+            "agent-2",
+            TeamMessageType::Finding,
+            "their finding",
+        ))
+        .await
+        .unwrap();
 
         let for_1 = bus.messages_for("agent-1").await;
         assert_eq!(for_1.len(), 1);
@@ -537,9 +614,11 @@ mod tests {
             status: TeamTaskStatus::Pending,
             result: None,
             generated_files: vec![],
-        }]).await;
+        }])
+        .await;
         // Should not panic
-        team.update_task_status("nonexistent", TeamTaskStatus::Completed, None).await;
+        team.update_task_status("nonexistent", TeamTaskStatus::Completed, None)
+            .await;
         let tasks = team.tasks.lock().await;
         assert_eq!(tasks[0].status, TeamTaskStatus::Pending);
     }
@@ -587,7 +666,13 @@ mod tests {
     #[tokio::test]
     async fn message_bus_messages_for_broadcast_visible_to_others() {
         let bus = TeamMessageBus::new(16);
-        bus.send(TeamMessage::new("a1", TeamMessageType::Finding, "broadcast msg")).await.unwrap();
+        bus.send(TeamMessage::new(
+            "a1",
+            TeamMessageType::Finding,
+            "broadcast msg",
+        ))
+        .await
+        .unwrap();
         // Broadcast should be visible to a2 but not a1 (self excluded)
         let for_a2 = bus.messages_for("a2").await;
         assert_eq!(for_a2.len(), 1);
@@ -598,16 +683,33 @@ mod tests {
     #[tokio::test]
     async fn message_bus_directed_not_visible_to_third_party() {
         let bus = TeamMessageBus::new(16);
-        bus.send(TeamMessage::directed("a1", "a2", TeamMessageType::Request, "private")).await.unwrap();
+        bus.send(TeamMessage::directed(
+            "a1",
+            "a2",
+            TeamMessageType::Request,
+            "private",
+        ))
+        .await
+        .unwrap();
         let for_a3 = bus.messages_for("a3").await;
-        assert_eq!(for_a3.len(), 0, "directed message should not be visible to third party");
+        assert_eq!(
+            for_a3.len(),
+            0,
+            "directed message should not be visible to third party"
+        );
     }
 
     #[tokio::test]
     async fn message_bus_count_matches_sends() {
         let bus = TeamMessageBus::new(16);
         for i in 0..5 {
-            bus.send(TeamMessage::new(&format!("a{}", i), TeamMessageType::Status, "msg")).await.unwrap();
+            bus.send(TeamMessage::new(
+                &format!("a{}", i),
+                TeamMessageType::Status,
+                "msg",
+            ))
+            .await
+            .unwrap();
         }
         assert_eq!(bus.message_count().await, 5);
     }

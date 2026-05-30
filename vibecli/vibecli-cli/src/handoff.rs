@@ -250,8 +250,16 @@ mod tests {
         HandoffDocument::from_agent_session(
             "test-session-001",
             &[
-                ("read_file".to_string(), "read src/main.rs".to_string(), true),
-                ("write_file".to_string(), "write src/lib.rs".to_string(), true),
+                (
+                    "read_file".to_string(),
+                    "read src/main.rs".to_string(),
+                    true,
+                ),
+                (
+                    "write_file".to_string(),
+                    "write src/lib.rs".to_string(),
+                    true,
+                ),
                 ("bash".to_string(), "cargo test".to_string(), false),
             ],
             &["src/main.rs".to_string(), "src/lib.rs".to_string()],
@@ -354,13 +362,8 @@ mod tests {
 
     #[test]
     fn empty_session_handoff() {
-        let doc = HandoffDocument::from_agent_session(
-            "empty-001",
-            &[],
-            &[],
-            &[],
-            "Nothing happened",
-        );
+        let doc =
+            HandoffDocument::from_agent_session("empty-001", &[], &[], &[], "Nothing happened");
         assert!(doc.sections.work_done.is_empty());
         assert!(doc.sections.assessment.contains("successfully"));
         assert!(doc.sections.issues.is_empty());

@@ -254,10 +254,7 @@ impl HandoffContext {
 
     /// Rough token estimate: total characters / 4 (industry heuristic).
     pub fn token_estimate(&self) -> usize {
-        let sys_chars = self
-            .system_prompt
-            .as_deref()
-            .map_or(0, str::len);
+        let sys_chars = self.system_prompt.as_deref().map_or(0, str::len);
         let msg_chars: usize = self.messages.iter().map(HandoffMessage::char_len).sum();
         let tool_chars: usize = self
             .tools
@@ -353,8 +350,8 @@ impl HandoffContext {
             return Err("expected JSON object".into());
         }
         // Use a simple key-extraction approach that works with our known schema.
-        let source_provider = extract_str_field(s, "source_provider")
-            .ok_or("missing source_provider")?;
+        let source_provider =
+            extract_str_field(s, "source_provider").ok_or("missing source_provider")?;
         let target_provider = extract_optional_str_field(s, "target_provider");
         let system_prompt = extract_optional_str_field(s, "system_prompt");
         let messages = extract_messages(s)?;
@@ -450,13 +447,7 @@ impl HandoffHistory {
 
     /// Record a new handoff event. `msg_count` is the number of messages in
     /// the context at the moment the switch is triggered.
-    pub fn record(
-        &mut self,
-        from: &str,
-        to: &str,
-        reason: HandoffReason,
-        msg_count: usize,
-    ) {
+    pub fn record(&mut self, from: &str, to: &str, reason: HandoffReason, msg_count: usize) {
         self.entries.push(HandoffEvent {
             from_provider: from.to_owned(),
             to_provider: to.to_owned(),
@@ -668,9 +659,11 @@ fn extract_array_raw<'a>(s: &'a str, key: &str) -> Option<&'a str> {
     let needle = format!("\"{}\":[", key);
     // Also allow whitespace after colon
     let needle2 = format!("\"{}\":  [", key);
-    let start = s.find(needle.as_str()).or_else(|| s.find(needle2.as_str()))?;
+    let start = s
+        .find(needle.as_str())
+        .or_else(|| s.find(needle2.as_str()))?;
     let bracket_pos = start + key.len() + 3; // skip `"key":[`
-    // find actual `[`
+                                             // find actual `[`
     let abs = s[bracket_pos..].find('[')? + bracket_pos;
     find_matching_bracket(s, abs)
 }
@@ -924,8 +917,8 @@ mod tests {
 
     // Helper: build a small context with 3 messages and 1 tool.
     fn sample_context() -> HandoffContext {
-        let mut ctx = HandoffContext::new("claude")
-            .with_system("You are a helpful coding assistant.");
+        let mut ctx =
+            HandoffContext::new("claude").with_system("You are a helpful coding assistant.");
         ctx.push_message(HandoffMessage::user("Explain ownership in Rust."));
         ctx.push_message(HandoffMessage::assistant("Ownership is a set of rules…"));
         ctx.push_message(HandoffMessage::user("Give me an example."));
@@ -1024,7 +1017,11 @@ mod tests {
     fn test_has_tool_calls() {
         let mut msg = HandoffMessage::assistant("Let me run that.");
         assert!(!msg.has_tool_calls());
-        msg.parts.push(ContentPart::tool_call("call-1", "run_code", r#"{"code":"1+1"}"#));
+        msg.parts.push(ContentPart::tool_call(
+            "call-1",
+            "run_code",
+            r#"{"code":"1+1"}"#,
+        ));
         assert!(msg.has_tool_calls());
     }
 
@@ -1041,8 +1038,18 @@ mod tests {
         assert_eq!(history.count(), 0);
         assert!(history.last().is_none());
 
-        history.record("claude-sonnet", "claude-haiku", HandoffReason::CostRouting, 8);
-        history.record("claude-haiku", "gemini-flash", HandoffReason::CapabilityGap, 14);
+        history.record(
+            "claude-sonnet",
+            "claude-haiku",
+            HandoffReason::CostRouting,
+            8,
+        );
+        history.record(
+            "claude-haiku",
+            "gemini-flash",
+            HandoffReason::CapabilityGap,
+            14,
+        );
 
         assert_eq!(history.count(), 2);
         let last = history.last().unwrap();
@@ -1052,7 +1059,10 @@ mod tests {
         assert_eq!(last.message_count_at_handoff, 14);
 
         let providers = history.providers_used();
-        assert_eq!(providers, vec!["claude-sonnet", "claude-haiku", "gemini-flash"]);
+        assert_eq!(
+            providers,
+            vec!["claude-sonnet", "claude-haiku", "gemini-flash"]
+        );
     }
 
     #[test]

@@ -10,9 +10,7 @@
 
 use std::collections::HashMap;
 
-use vibe_core::index::turboquant::{
-    TurboQuantConfig, TurboQuantIndex, TurboQuantSearchResult,
-};
+use vibe_core::index::turboquant::{TurboQuantConfig, TurboQuantIndex, TurboQuantSearchResult};
 
 /// Default seed for the random rotation matrix. Stable across runs so two
 /// indexes with the same data produce identical compressed representations.

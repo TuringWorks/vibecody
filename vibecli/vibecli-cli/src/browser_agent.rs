@@ -66,7 +66,10 @@ impl BrowserConfig {
             "--disable-gpu".to_string(),
             "--disable-extensions".to_string(),
             "--disable-default-apps".to_string(),
-            format!("--window-size={},{}", self.viewport_width, self.viewport_height),
+            format!(
+                "--window-size={},{}",
+                self.viewport_width, self.viewport_height
+            ),
         ];
         if self.headless {
             args.push("--headless=new".to_string());
@@ -159,7 +162,11 @@ impl PageInfo {
     pub const MAX_DOM_SUMMARY_LEN: usize = 4096;
 
     /// Create a PageInfo, truncating dom_summary if needed.
-    pub fn new(url: impl Into<String>, title: impl Into<String>, dom_text: impl Into<String>) -> Self {
+    pub fn new(
+        url: impl Into<String>,
+        title: impl Into<String>,
+        dom_text: impl Into<String>,
+    ) -> Self {
         let dom = dom_text.into();
         let dom_summary = if dom.len() > Self::MAX_DOM_SUMMARY_LEN {
             let mut s = dom[..Self::MAX_DOM_SUMMARY_LEN].to_string();
@@ -212,7 +219,10 @@ pub enum BrowserAction {
     /// Type text into an element identified by CSS selector.
     Type { selector: String, text: String },
     /// Scroll the page in a direction by a pixel amount.
-    Scroll { direction: ScrollDirection, amount: u32 },
+    Scroll {
+        direction: ScrollDirection,
+        amount: u32,
+    },
     /// Capture a screenshot.
     Screenshot,
     /// Extract text content from an optional selector (or whole page).
@@ -254,7 +264,10 @@ impl std::fmt::Display for BrowserAction {
                 };
                 write!(f, "EvaluateJs({})", preview)
             }
-            Self::WaitForSelector { selector, timeout_ms } => {
+            Self::WaitForSelector {
+                selector,
+                timeout_ms,
+            } => {
                 write!(f, "WaitForSelector({}, {}ms)", selector, timeout_ms)
             }
             Self::Back => write!(f, "Back"),
@@ -426,7 +439,10 @@ impl BrowserSession {
     // ── CDP Helpers (private) ──────────────────────────────────────────────
 
     /// Fetch the list of debug targets from Chrome.
-    async fn fetch_targets_static(client: &reqwest::Client, debug_url: &str) -> Result<Vec<CdpTarget>> {
+    async fn fetch_targets_static(
+        client: &reqwest::Client,
+        debug_url: &str,
+    ) -> Result<Vec<CdpTarget>> {
         let url = format!("{}/json/list", debug_url);
         debug!(url = %url, "Fetching CDP targets");
         let resp = client
@@ -479,7 +495,11 @@ impl BrowserSession {
     /// Uses the `/json/command/{target_id}` endpoint for HTTP-based CDP.
     /// Falls back to evaluating via `PUT /json/activate/{target_id}` + direct endpoint
     /// if the command endpoint is not available.
-    async fn cdp_send(&mut self, method: &str, params: serde_json::Value) -> Result<serde_json::Value> {
+    async fn cdp_send(
+        &mut self,
+        method: &str,
+        params: serde_json::Value,
+    ) -> Result<serde_json::Value> {
         let cmd_id = self.next_cmd_id();
         let cmd = CdpCommand {
             id: cmd_id,
@@ -521,7 +541,10 @@ impl BrowserSession {
             bail!("CDP {method} error: {msg}");
         }
 
-        Ok(body.get("result").cloned().unwrap_or(serde_json::Value::Null))
+        Ok(body
+            .get("result")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null))
     }
 
     /// Shorthand for `Runtime.evaluate`.
@@ -576,7 +599,9 @@ impl BrowserSession {
         // Check for navigation error
         if let Some(error_text) = result.get("errorText").and_then(|e| e.as_str()) {
             warn!(error = %error_text, url = %url, "Navigation failed");
-            return Ok(BrowserResult::fail(format!("Navigation failed: {error_text}")));
+            return Ok(BrowserResult::fail(format!(
+                "Navigation failed: {error_text}"
+            )));
         }
 
         // Update session state
@@ -588,7 +613,8 @@ impl BrowserSession {
             self.page_title = Self::extract_js_value(val);
         }
 
-        self.history.push(NavigationEntry::new(url, &self.page_title));
+        self.history
+            .push(NavigationEntry::new(url, &self.page_title));
         info!(url = %url, title = %self.page_title, "Navigation complete");
 
         Ok(BrowserResult::ok(format!("Navigated to {url}")))
@@ -676,7 +702,11 @@ impl BrowserSession {
     }
 
     /// Scroll the page in the given direction by a pixel amount.
-    pub async fn scroll(&mut self, direction: ScrollDirection, amount: u32) -> Result<BrowserResult> {
+    pub async fn scroll(
+        &mut self,
+        direction: ScrollDirection,
+        amount: u32,
+    ) -> Result<BrowserResult> {
         let (dx, dy) = match direction {
             ScrollDirection::Up => (0, -(amount as i64)),
             ScrollDirection::Down => (0, amount as i64),
@@ -812,7 +842,10 @@ impl BrowserSession {
             self.page_title = Self::extract_js_value(&val);
         }
 
-        Ok(BrowserResult::ok(format!("Navigated back to {}", self.page_url)))
+        Ok(BrowserResult::ok(format!(
+            "Navigated back to {}",
+            self.page_url
+        )))
     }
 
     /// Navigate forward in the browser history.
@@ -873,7 +906,10 @@ impl BrowserSession {
             BrowserAction::Scroll { direction, amount } => self.scroll(*direction, *amount).await,
             BrowserAction::Screenshot => {
                 let data = self.screenshot().await?;
-                Ok(BrowserResult::ok_with_screenshot("Screenshot captured", data))
+                Ok(BrowserResult::ok_with_screenshot(
+                    "Screenshot captured",
+                    data,
+                ))
             }
             BrowserAction::ExtractText { selector } => {
                 let text = self.extract_text(selector.as_deref()).await?;
@@ -979,10 +1015,7 @@ impl BrowserPool {
     /// Switch to a tab by index.
     pub fn switch_tab(&mut self, idx: usize) -> Result<()> {
         if idx >= self.sessions.len() {
-            bail!(
-                "Tab index {idx} out of range (0..{})",
-                self.sessions.len()
-            );
+            bail!("Tab index {idx} out of range (0..{})", self.sessions.len());
         }
         self.active_idx = idx;
         info!(tab = idx, "Switched to tab");
@@ -992,10 +1025,7 @@ impl BrowserPool {
     /// Close a tab by index and remove it from the pool.
     pub async fn close_tab(&mut self, idx: usize) -> Result<()> {
         if idx >= self.sessions.len() {
-            bail!(
-                "Tab index {idx} out of range (0..{})",
-                self.sessions.len()
-            );
+            bail!("Tab index {idx} out of range (0..{})", self.sessions.len());
         }
         if self.sessions.len() == 1 {
             bail!("Cannot close the last tab");
@@ -1159,18 +1189,30 @@ pub fn browser_agent_tool_definitions() -> Vec<BrowserToolDef> {
         BrowserToolDef {
             name: "browser_navigate".into(),
             description: "Navigate the browser to a URL".into(),
-            parameters: vec![("url".into(), "string".into(), "The URL to navigate to".into())],
+            parameters: vec![(
+                "url".into(),
+                "string".into(),
+                "The URL to navigate to".into(),
+            )],
         },
         BrowserToolDef {
             name: "browser_click".into(),
             description: "Click an element by CSS selector".into(),
-            parameters: vec![("selector".into(), "string".into(), "CSS selector of the element to click".into())],
+            parameters: vec![(
+                "selector".into(),
+                "string".into(),
+                "CSS selector of the element to click".into(),
+            )],
         },
         BrowserToolDef {
             name: "browser_type".into(),
             description: "Type text into an input element".into(),
             parameters: vec![
-                ("selector".into(), "string".into(), "CSS selector of the input element".into()),
+                (
+                    "selector".into(),
+                    "string".into(),
+                    "CSS selector of the input element".into(),
+                ),
                 ("text".into(), "string".into(), "The text to type".into()),
             ],
         },
@@ -1178,7 +1220,11 @@ pub fn browser_agent_tool_definitions() -> Vec<BrowserToolDef> {
             name: "browser_scroll".into(),
             description: "Scroll the page".into(),
             parameters: vec![
-                ("direction".into(), "string".into(), "Scroll direction: up, down, left, right".into()),
+                (
+                    "direction".into(),
+                    "string".into(),
+                    "Scroll direction: up, down, left, right".into(),
+                ),
                 ("amount".into(), "number".into(), "Pixels to scroll".into()),
             ],
         },
@@ -1190,19 +1236,35 @@ pub fn browser_agent_tool_definitions() -> Vec<BrowserToolDef> {
         BrowserToolDef {
             name: "browser_extract_text".into(),
             description: "Extract text content from the page or a specific element".into(),
-            parameters: vec![("selector".into(), "string".into(), "Optional CSS selector (omit for whole page)".into())],
+            parameters: vec![(
+                "selector".into(),
+                "string".into(),
+                "Optional CSS selector (omit for whole page)".into(),
+            )],
         },
         BrowserToolDef {
             name: "browser_evaluate_js".into(),
             description: "Evaluate JavaScript in the browser and return the result".into(),
-            parameters: vec![("script".into(), "string".into(), "JavaScript code to evaluate".into())],
+            parameters: vec![(
+                "script".into(),
+                "string".into(),
+                "JavaScript code to evaluate".into(),
+            )],
         },
         BrowserToolDef {
             name: "browser_wait".into(),
             description: "Wait for a CSS selector to appear in the DOM".into(),
             parameters: vec![
-                ("selector".into(), "string".into(), "CSS selector to wait for".into()),
-                ("timeout_ms".into(), "number".into(), "Maximum time to wait in milliseconds".into()),
+                (
+                    "selector".into(),
+                    "string".into(),
+                    "CSS selector to wait for".into(),
+                ),
+                (
+                    "timeout_ms".into(),
+                    "number".into(),
+                    "Maximum time to wait in milliseconds".into(),
+                ),
             ],
         },
         BrowserToolDef {
@@ -1602,9 +1664,7 @@ mod tests {
             BrowserAction::ExtractText {
                 selector: Some("p".into()),
             },
-            BrowserAction::EvaluateJs {
-                script: "1".into(),
-            },
+            BrowserAction::EvaluateJs { script: "1".into() },
             BrowserAction::WaitForSelector {
                 selector: "div".into(),
                 timeout_ms: 1000,
@@ -1616,8 +1676,7 @@ mod tests {
 
         for action in &actions {
             let json = serde_json::to_string(action).expect("serialize");
-            let _deser: BrowserAction =
-                serde_json::from_str(&json).expect("deserialize");
+            let _deser: BrowserAction = serde_json::from_str(&json).expect("deserialize");
         }
     }
 
@@ -1683,7 +1742,10 @@ mod tests {
             "about:blank".into(),
             "".into(),
         );
-        assert_eq!(session.cdp_endpoint(), "http://127.0.0.1:9333/json/protocol");
+        assert_eq!(
+            session.cdp_endpoint(),
+            "http://127.0.0.1:9333/json/protocol"
+        );
     }
 
     #[test]
@@ -1833,10 +1895,7 @@ mod tests {
             "C".into(),
         );
 
-        let pool = BrowserPool::from_sessions(
-            vec![s1, s2, s3],
-            BrowserConfig::default(),
-        );
+        let pool = BrowserPool::from_sessions(vec![s1, s2, s3], BrowserConfig::default());
 
         assert_eq!(pool.tab_count(), 3);
         assert_eq!(pool.active_idx, 0);
@@ -1861,10 +1920,7 @@ mod tests {
             "B".into(),
         );
 
-        let mut pool = BrowserPool::from_sessions(
-            vec![s1, s2],
-            BrowserConfig::default(),
-        );
+        let mut pool = BrowserPool::from_sessions(vec![s1, s2], BrowserConfig::default());
 
         pool.switch_tab(1).expect("switch");
         assert_eq!(pool.active_idx, 1);
@@ -1915,10 +1971,7 @@ mod tests {
 
     #[test]
     fn test_detect_chrome_from_nonexistent_paths() {
-        let result = detect_chrome_from_candidates(&[
-            "/nonexistent/path/chrome",
-            "/also/not/here",
-        ]);
+        let result = detect_chrome_from_candidates(&["/nonexistent/path/chrome", "/also/not/here"]);
         assert!(result.is_none());
     }
 
@@ -2063,12 +2116,11 @@ mod tests {
         // without a real Chrome, but we verify the Display output which
         // mirrors the dispatch path.
         let cases: Vec<(BrowserAction, &str)> = vec![
+            (BrowserAction::Navigate { url: "u".into() }, "Navigate"),
             (
-                BrowserAction::Navigate { url: "u".into() },
-                "Navigate",
-            ),
-            (
-                BrowserAction::Click { selector: "s".into() },
+                BrowserAction::Click {
+                    selector: "s".into(),
+                },
                 "Click",
             ),
             (
@@ -2127,21 +2179,15 @@ mod tests {
         );
 
         // Simulate navigation entries being added
-        session.history.push(NavigationEntry::with_timestamp(
-            "https://a.com",
-            "A",
-            100,
-        ));
-        session.history.push(NavigationEntry::with_timestamp(
-            "https://b.com",
-            "B",
-            200,
-        ));
-        session.history.push(NavigationEntry::with_timestamp(
-            "https://c.com",
-            "C",
-            300,
-        ));
+        session
+            .history
+            .push(NavigationEntry::with_timestamp("https://a.com", "A", 100));
+        session
+            .history
+            .push(NavigationEntry::with_timestamp("https://b.com", "B", 200));
+        session
+            .history
+            .push(NavigationEntry::with_timestamp("https://c.com", "C", 300));
 
         assert_eq!(session.history.len(), 3);
         assert_eq!(session.history[0].url, "https://a.com");

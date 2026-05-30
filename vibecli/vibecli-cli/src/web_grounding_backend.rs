@@ -19,11 +19,8 @@ pub trait SearchBackend: Send + Sync + std::fmt::Debug {
     ///
     /// Implementations must not implement caching, rate limiting, or classification —
     /// those are the engine's job.
-    async fn search(
-        &self,
-        query: &str,
-        config: &SearchConfig,
-    ) -> Result<Vec<SearchResult>, String>;
+    async fn search(&self, query: &str, config: &SearchConfig)
+        -> Result<Vec<SearchResult>, String>;
 
     /// Which provider this backend serves. Used for telemetry + `SearchResult.source`.
     fn provider(&self) -> SearchProvider;
@@ -88,12 +85,9 @@ impl SearxngBackend {
     }
 }
 
-pub(crate) fn parse_searxng_response(
-    body: &str,
-    now: u64,
-) -> Result<Vec<SearchResult>, String> {
-    let parsed: SearxngResponse = serde_json::from_str(body)
-        .map_err(|e| format!("SearXNG JSON parse error: {e}"))?;
+pub(crate) fn parse_searxng_response(body: &str, now: u64) -> Result<Vec<SearchResult>, String> {
+    let parsed: SearxngResponse =
+        serde_json::from_str(body).map_err(|e| format!("SearXNG JSON parse error: {e}"))?;
     Ok(parsed
         .results
         .into_iter()
@@ -177,12 +171,9 @@ impl BraveBackend {
     }
 }
 
-pub(crate) fn parse_brave_response(
-    body: &str,
-    now: u64,
-) -> Result<Vec<SearchResult>, String> {
-    let parsed: BraveResponse = serde_json::from_str(body)
-        .map_err(|e| format!("Brave JSON parse error: {e}"))?;
+pub(crate) fn parse_brave_response(body: &str, now: u64) -> Result<Vec<SearchResult>, String> {
+    let parsed: BraveResponse =
+        serde_json::from_str(body).map_err(|e| format!("Brave JSON parse error: {e}"))?;
     let results = parsed
         .web
         .map(|w| w.results)
@@ -271,12 +262,9 @@ impl TavilyBackend {
     }
 }
 
-pub(crate) fn parse_tavily_response(
-    body: &str,
-    now: u64,
-) -> Result<Vec<SearchResult>, String> {
-    let parsed: TavilyResponse = serde_json::from_str(body)
-        .map_err(|e| format!("Tavily JSON parse error: {e}"))?;
+pub(crate) fn parse_tavily_response(body: &str, now: u64) -> Result<Vec<SearchResult>, String> {
+    let parsed: TavilyResponse =
+        serde_json::from_str(body).map_err(|e| format!("Tavily JSON parse error: {e}"))?;
     Ok(parsed
         .results
         .into_iter()

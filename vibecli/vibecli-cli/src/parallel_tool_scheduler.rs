@@ -430,9 +430,7 @@ impl ParallelToolScheduler {
             let failed_ids: HashSet<ToolJobId> = self
                 .jobs
                 .values()
-                .filter(|j| {
-                    matches!(j.state, JobState::Failed(_)) || j.state == JobState::Skipped
-                })
+                .filter(|j| matches!(j.state, JobState::Failed(_)) || j.state == JobState::Skipped)
                 .map(|j| j.id.clone())
                 .collect();
 
@@ -494,9 +492,8 @@ mod tests {
     }
 
     fn job_with_deps(id: &str, deps: &[&str]) -> ToolJob {
-        ToolJob::new(id, "Edit", r#"{"path":"file.rs"}"#).with_depends_on(
-            deps.iter().map(|d| ToolJobId::new(*d)).collect(),
-        )
+        ToolJob::new(id, "Edit", r#"{"path":"file.rs"}"#)
+            .with_depends_on(deps.iter().map(|d| ToolJobId::new(*d)).collect())
     }
 
     #[test]
@@ -597,10 +594,10 @@ mod tests {
     #[test]
     fn test_auto_sequence_write_targets() {
         let mut sched = ParallelToolScheduler::with_default_config();
-        let writer = ToolJob::new("writer", "Edit", "{}")
-            .with_write_targets(vec!["src/main.rs".into()]);
-        let reader = ToolJob::new("reader", "Read", "{}")
-            .with_read_targets(vec!["src/main.rs".into()]);
+        let writer =
+            ToolJob::new("writer", "Edit", "{}").with_write_targets(vec!["src/main.rs".into()]);
+        let reader =
+            ToolJob::new("reader", "Read", "{}").with_read_targets(vec!["src/main.rs".into()]);
 
         sched.add_job(writer);
         sched.add_job(reader);

@@ -27,7 +27,11 @@ impl BundleVersion {
         let major = parts[0].parse::<u32>().ok()?;
         let minor = parts[1].parse::<u32>().ok()?;
         let patch = parts[2].parse::<u32>().ok()?;
-        Some(Self { major, minor, patch })
+        Some(Self {
+            major,
+            minor,
+            patch,
+        })
     }
 
     /// Returns true if self >= min (i.e., self is compatible with the minimum requirement).
@@ -60,10 +64,14 @@ pub struct BundleManifest {
 impl BundleManifest {
     pub fn validate(&self) -> Result<(), BundleError> {
         if self.name.is_empty() {
-            return Err(BundleError::InvalidManifest("name must not be empty".into()));
+            return Err(BundleError::InvalidManifest(
+                "name must not be empty".into(),
+            ));
         }
         if self.author.is_empty() {
-            return Err(BundleError::InvalidManifest("author must not be empty".into()));
+            return Err(BundleError::InvalidManifest(
+                "author must not be empty".into(),
+            ));
         }
         Ok(())
     }
@@ -168,7 +176,11 @@ pub struct PluginMeta {
 
 impl PluginMeta {
     pub fn new(id: impl Into<String>, version: impl Into<String>) -> Self {
-        Self { id: id.into(), version: version.into(), requires: vec![] }
+        Self {
+            id: id.into(),
+            version: version.into(),
+            requires: vec![],
+        }
     }
 
     pub fn require(mut self, dep: impl Into<String>) -> Self {
@@ -192,7 +204,9 @@ pub struct PluginBundle {
 }
 
 impl PluginBundle {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn add(&mut self, plugin: PluginMeta) {
         self.plugins.push(plugin);
@@ -217,7 +231,11 @@ impl PluginBundle {
             }
         }
         let valid = missing_deps.is_empty() && duplicate_ids.is_empty();
-        BundleReport { valid, missing_deps, duplicate_ids }
+        BundleReport {
+            valid,
+            missing_deps,
+            duplicate_ids,
+        }
     }
 }
 
@@ -290,7 +308,8 @@ mod tests {
     #[test]
     fn test_registry_install_and_find() {
         let mut reg = BundleRegistry::new();
-        reg.install(sample_manifest("plugin-a"), "/plugins/a", 1000).unwrap();
+        reg.install(sample_manifest("plugin-a"), "/plugins/a", 1000)
+            .unwrap();
         let found = reg.find("plugin-a").unwrap();
         assert_eq!(found.install_path, "/plugins/a");
         assert_eq!(found.installed_at, 1000);
@@ -299,15 +318,19 @@ mod tests {
     #[test]
     fn test_registry_install_duplicate_fails() {
         let mut reg = BundleRegistry::new();
-        reg.install(sample_manifest("dup"), "/plugins/dup", 1000).unwrap();
-        let err = reg.install(sample_manifest("dup"), "/plugins/dup2", 2000).unwrap_err();
+        reg.install(sample_manifest("dup"), "/plugins/dup", 1000)
+            .unwrap();
+        let err = reg
+            .install(sample_manifest("dup"), "/plugins/dup2", 2000)
+            .unwrap_err();
         assert_eq!(err, BundleError::AlreadyInstalled);
     }
 
     #[test]
     fn test_registry_uninstall() {
         let mut reg = BundleRegistry::new();
-        reg.install(sample_manifest("removable"), "/plugins/r", 1000).unwrap();
+        reg.install(sample_manifest("removable"), "/plugins/r", 1000)
+            .unwrap();
         assert_eq!(reg.list().len(), 1);
         reg.uninstall("removable").unwrap();
         assert_eq!(reg.list().len(), 0);

@@ -176,11 +176,7 @@ pub fn heuristic_recap(detail: &SessionDetail) -> Recap {
         kind: RecapKind::Session,
         subject_id: detail.session.id.clone(),
         last_message_id,
-        workspace: detail
-            .session
-            .project_path
-            .as_ref()
-            .map(PathBuf::from),
+        workspace: detail.session.project_path.as_ref().map(PathBuf::from),
         generated_at: Utc::now(),
         generator: RecapGenerator::Heuristic,
         headline,
@@ -205,9 +201,9 @@ fn new_recap_id() -> String {
 fn derive_headline(messages: &[MessageRow]) -> String {
     // Skip system messages and `/command` user messages — those don't
     // describe what the user wanted from the conversation.
-    let first_prose = messages.iter().find(|m| {
-        m.role == "user" && !is_slash_command(&m.content)
-    });
+    let first_prose = messages
+        .iter()
+        .find(|m| m.role == "user" && !is_slash_command(&m.content));
     let raw = match first_prose {
         Some(m) => m.content.trim(),
         None => return "(empty session)".to_string(),
@@ -236,8 +232,7 @@ fn is_slash_command(content: &str) -> bool {
 }
 
 fn derive_bullets(steps: &[StepRow], status: &str) -> Vec<String> {
-    let mut counts: std::collections::BTreeMap<String, u32> =
-        std::collections::BTreeMap::new();
+    let mut counts: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
     for s in steps {
         *counts.entry(s.tool_name.clone()).or_insert(0) += 1;
     }
@@ -370,9 +365,8 @@ fn parse_imperative(sentence: &str) -> Option<String> {
         if let Some(rest) = lower.strip_prefix(p) {
             // Map back to the original case at the same byte offset.
             let cut = s.len() - rest.len();
-            let raw = s[cut..].trim_start_matches(|c: char| {
-                c == ' ' || c == ',' || c == ':' || c == '-'
-            });
+            let raw =
+                s[cut..].trim_start_matches(|c: char| c == ' ' || c == ',' || c == ':' || c == '-');
             let trimmed = raw.trim_end_matches(|c: char| {
                 c == '.' || c == '!' || c == '?' || c == ';' || c == ','
             });
@@ -405,8 +399,7 @@ fn truncate_chars(s: &str, max: usize) -> String {
 fn derive_artifacts(steps: &[StepRow]) -> Vec<RecapArtifact> {
     // Collect file-shaped paths from `input_summary`. Steps that look
     // like file ops contribute one artifact each; we dedupe on locator.
-    let mut seen: std::collections::BTreeSet<String> =
-        std::collections::BTreeSet::new();
+    let mut seen: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
     let mut out = Vec::new();
     for s in steps {
         for path in extract_file_paths(&s.input_summary) {
@@ -647,8 +640,7 @@ fn derive_job_bullets(
     status: &str,
     cancellation_reason: Option<&str>,
 ) -> Vec<String> {
-    let mut counts: std::collections::BTreeMap<String, u32> =
-        std::collections::BTreeMap::new();
+    let mut counts: std::collections::BTreeMap<String, u32> = std::collections::BTreeMap::new();
     for (_, ev) in events {
         if ev.kind == "step" {
             if let Some(tool) = &ev.tool_name {
@@ -847,12 +839,7 @@ mod tests {
         // 90-char message should truncate at 80 chars (no trailing
         // punctuation in this fixture so the cap is the binding rule).
         let long_msg = "a".repeat(90);
-        let d = detail(
-            "S",
-            "complete",
-            vec![msg(1, "user", &long_msg)],
-            vec![],
-        );
+        let d = detail("S", "complete", vec![msg(1, "user", &long_msg)], vec![]);
         let r = heuristic_recap(&d);
         assert_eq!(
             r.headline.chars().count(),
@@ -1019,7 +1006,9 @@ mod tests {
             r.next_actions
         );
         assert!(
-            r.next_actions.iter().any(|a| a.to_lowercase().contains("open a pr")),
+            r.next_actions
+                .iter()
+                .any(|a| a.to_lowercase().contains("open a pr")),
             "expected 'open a PR' in next_actions; got: {:?}",
             r.next_actions
         );
@@ -1069,7 +1058,11 @@ mod tests {
             .iter()
             .filter(|a| a.eq_ignore_ascii_case("Write tests"))
             .count();
-        assert!(count <= 1, "duplicates not deduped; got: {:?}", r.next_actions);
+        assert!(
+            count <= 1,
+            "duplicates not deduped; got: {:?}",
+            r.next_actions
+        );
     }
 
     // ── artifacts ────────────────────────────────────────────────────────
@@ -1424,10 +1417,8 @@ mod tests {
         tempfile::TempDir,
     ) {
         let dir = tempfile::tempdir().unwrap();
-        let store = crate::session_store::SessionStore::open(
-            dir.path().join("sessions.db"),
-        )
-        .unwrap();
+        let store =
+            crate::session_store::SessionStore::open(dir.path().join("sessions.db")).unwrap();
         let sid = "F14-load-test".to_string();
         store
             .insert_session_with_parent(
@@ -1448,8 +1439,7 @@ mod tests {
     #[test]
     fn load_or_generate_returns_none_for_missing_session() {
         let (store, _sid, _dir) = load_fixture();
-        let out =
-            load_or_generate_session_recap(&store, "ghost-session").unwrap();
+        let out = load_or_generate_session_recap(&store, "ghost-session").unwrap();
         assert!(
             out.is_none(),
             "missing session must yield None so REPL can 404 cleanly"
@@ -1476,8 +1466,12 @@ mod tests {
         // the F1.1 idempotency rule plus our list-newest-first lookup
         // means we never generate a duplicate row.
         let (store, sid, _dir) = load_fixture();
-        let r1 = load_or_generate_session_recap(&store, &sid).unwrap().unwrap();
-        let r2 = load_or_generate_session_recap(&store, &sid).unwrap().unwrap();
+        let r1 = load_or_generate_session_recap(&store, &sid)
+            .unwrap()
+            .unwrap();
+        let r2 = load_or_generate_session_recap(&store, &sid)
+            .unwrap()
+            .unwrap();
         assert_eq!(
             r1.id, r2.id,
             "no new messages → must reuse the prior recap, not duplicate"
@@ -1492,9 +1486,13 @@ mod tests {
         // user who runs `/recap` after sending more chat must see the
         // new state, not a stale snapshot.
         let (store, sid, _dir) = load_fixture();
-        let r1 = load_or_generate_session_recap(&store, &sid).unwrap().unwrap();
+        let r1 = load_or_generate_session_recap(&store, &sid)
+            .unwrap()
+            .unwrap();
         store.insert_message(&sid, "assistant", "ack").unwrap();
-        let r2 = load_or_generate_session_recap(&store, &sid).unwrap().unwrap();
+        let r2 = load_or_generate_session_recap(&store, &sid)
+            .unwrap()
+            .unwrap();
         assert_ne!(
             r1.id, r2.id,
             "new last_message_id must yield a new recap row"
@@ -1578,7 +1576,10 @@ mod tests {
         let job = fixture_job("j6", "Build", "failed");
         let events = vec![
             (1u64, AgentEventPayload::step(1, "shell", false)),
-            (2, AgentEventPayload::error("compile error: missing semicolon".into())),
+            (
+                2,
+                AgentEventPayload::error("compile error: missing semicolon".into()),
+            ),
         ];
         let r = heuristic_job_recap(&job, &events);
         let stopped = r.bullets.iter().find(|b| b.starts_with("Stopped:"));

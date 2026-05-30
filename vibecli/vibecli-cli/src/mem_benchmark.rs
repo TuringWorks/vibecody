@@ -128,13 +128,19 @@ pub fn run_benchmark(cases: &[MemBenchCase], k: usize) -> BenchmarkReport {
     }
 
     let total = cases.len();
-    let recall_cognitive = if total == 0 { 0.0 } else {
+    let recall_cognitive = if total == 0 {
+        0.0
+    } else {
         case_results.iter().filter(|r| r.found_cognitive).count() as f64 / total as f64
     };
-    let recall_verbatim = if total == 0 { 0.0 } else {
+    let recall_verbatim = if total == 0 {
+        0.0
+    } else {
         case_results.iter().filter(|r| r.found_verbatim).count() as f64 / total as f64
     };
-    let recall_combined = if total == 0 { 0.0 } else {
+    let recall_combined = if total == 0 {
+        0.0
+    } else {
         case_results.iter().filter(|r| r.found_any).count() as f64 / total as f64
     };
 

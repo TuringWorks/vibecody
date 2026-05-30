@@ -2,10 +2,10 @@
  * BDD tests for pencil_connector using Cucumber.
  * Run with: cargo test --test pencil_integration_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::pencil_connector::{
-    parse_ep_xml, template_dashboard, template_landing_page, template_mobile_app,
-    PencilDocument, PencilMcpOp, PencilPage, PencilShape, PencilShapeKind, PencilStyle,
+    parse_ep_xml, template_dashboard, template_landing_page, template_mobile_app, PencilDocument,
+    PencilMcpOp, PencilPage, PencilShape, PencilShapeKind, PencilStyle,
 };
 
 #[derive(Debug, Default, World)]
@@ -65,7 +65,10 @@ fn given_dashboard(world: &mut PencilWorld, s1: String, s2: String) {
 
 #[given(expr = "I generate a mobile app with screens {string} and {string} and {string}")]
 fn given_mobile_app(world: &mut PencilWorld, s1: String, s2: String, s3: String) {
-    world.document = Some(template_mobile_app("MyApp", &[s1.as_str(), s2.as_str(), s3.as_str()]));
+    world.document = Some(template_mobile_app(
+        "MyApp",
+        &[s1.as_str(), s2.as_str(), s3.as_str()],
+    ));
 }
 
 #[given("a PencilDocument with 2 pages")]
@@ -81,9 +84,17 @@ fn given_doc_with_color_shape(world: &mut PencilWorld) {
     let mut doc = PencilDocument::new("D");
     let mut page = PencilPage::new("P1", 1280.0, 800.0);
     page.add_shape(PencilShape {
-        id: "s1".into(), kind: PencilShapeKind::Rectangle,
-        x: 0.0, y: 0.0, width: 100.0, height: 40.0, label: String::new(),
-        style: PencilStyle { fill_color: Some("#3b82f6".into()), ..Default::default() },
+        id: "s1".into(),
+        kind: PencilShapeKind::Rectangle,
+        x: 0.0,
+        y: 0.0,
+        width: 100.0,
+        height: 40.0,
+        label: String::new(),
+        style: PencilStyle {
+            fill_color: Some("#3b82f6".into()),
+            ..Default::default()
+        },
         children: Vec::new(),
     });
     doc.add_page(page);
@@ -103,7 +114,8 @@ fn when_serialise_ep(world: &mut PencilWorld) {
 }
 
 #[when("I parse the EP XML")]
-fn when_parse_ep(_world: &mut PencilWorld) { /* result set in given */ }
+fn when_parse_ep(_world: &mut PencilWorld) { /* result set in given */
+}
 
 #[when("I convert to a DesignFile")]
 fn when_convert_to_design_file(world: &mut PencilWorld) {
@@ -119,7 +131,11 @@ fn when_serialise_json(world: &mut PencilWorld) {
 
 #[then(expr = "the XML should contain {string}")]
 fn then_xml_contains(world: &mut PencilWorld, s: String) {
-    assert!(world.ep_xml.contains(s.as_str()), "EP XML missing: {s}\n{}", world.ep_xml);
+    assert!(
+        world.ep_xml.contains(s.as_str()),
+        "EP XML missing: {s}\n{}",
+        world.ep_xml
+    );
 }
 
 #[then(expr = "the document name should be {string}")]
@@ -189,5 +205,7 @@ fn then_json_contains(world: &mut PencilWorld, s: String) {
 }
 
 fn main() {
-    futures::executor::block_on(PencilWorld::run("tests/features/pencil_integration.feature"));
+    futures::executor::block_on(PencilWorld::run(
+        "tests/features/pencil_integration.feature",
+    ));
 }

@@ -36,7 +36,10 @@ impl ProviderKind {
     }
 
     pub fn supports_editing(&self) -> bool {
-        matches!(self, Self::Figma | Self::Penpot | Self::Pencil | Self::DrawIo | Self::Inhouse)
+        matches!(
+            self,
+            Self::Figma | Self::Penpot | Self::Pencil | Self::DrawIo | Self::Inhouse
+        )
     }
 
     pub fn supports_export(&self) -> bool {
@@ -133,15 +136,22 @@ impl DiagramKind {
     /// Best format for this diagram kind
     pub fn preferred_format(&self) -> DiagramFormat {
         match self {
-            Self::Flowchart | Self::Sequence | Self::ClassDiagram
-            | Self::StateMachine | Self::Gantt | Self::UserJourney
+            Self::Flowchart
+            | Self::Sequence
+            | Self::ClassDiagram
+            | Self::StateMachine
+            | Self::Gantt
+            | Self::UserJourney
             | Self::MindMap => DiagramFormat::MermaidMd,
             Self::C4Context | Self::C4Container | Self::C4Component | Self::C4Code => {
                 DiagramFormat::C4Dsl
             }
-            Self::EntityRelationship | Self::ComponentDiagram
-            | Self::DeploymentDiagram | Self::Architecture
-            | Self::NetworkTopology | Self::Wireframe => DiagramFormat::DrawIoXml,
+            Self::EntityRelationship
+            | Self::ComponentDiagram
+            | Self::DeploymentDiagram
+            | Self::Architecture
+            | Self::NetworkTopology
+            | Self::Wireframe => DiagramFormat::DrawIoXml,
         }
     }
 }
@@ -263,13 +273,19 @@ pub struct DesignProviderRegistry {
 
 impl std::fmt::Debug for DesignProviderRegistry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "DesignProviderRegistry({} providers)", self.providers.len())
+        write!(
+            f,
+            "DesignProviderRegistry({} providers)",
+            self.providers.len()
+        )
     }
 }
 
 impl DesignProviderRegistry {
     pub fn new() -> Self {
-        Self { providers: HashMap::new() }
+        Self {
+            providers: HashMap::new(),
+        }
     }
 
     pub fn register(&mut self, provider: Box<dyn DesignProvider>) {
@@ -302,10 +318,18 @@ pub struct DesignError {
 
 impl DesignError {
     pub fn new(code: &str, msg: &str) -> Self {
-        Self { code: code.to_string(), message: msg.to_string(), provider: None }
+        Self {
+            code: code.to_string(),
+            message: msg.to_string(),
+            provider: None,
+        }
     }
     pub fn for_provider(code: &str, msg: &str, provider: ProviderKind) -> Self {
-        Self { code: code.to_string(), message: msg.to_string(), provider: Some(provider) }
+        Self {
+            code: code.to_string(),
+            message: msg.to_string(),
+            provider: Some(provider),
+        }
     }
 }
 
@@ -319,7 +343,9 @@ impl std::fmt::Display for DesignError {
 
 fn uuid_short() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let t = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let t = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
     format!("{:x}{:04x}", t.as_secs(), t.subsec_micros() & 0xffff)
 }
 
@@ -381,22 +407,29 @@ mod tests {
 
     #[test]
     fn diagram_kind_preferred_format() {
-        assert_eq!(DiagramKind::Flowchart.preferred_format(), DiagramFormat::MermaidMd);
-        assert_eq!(DiagramKind::C4Context.preferred_format(), DiagramFormat::C4Dsl);
-        assert_eq!(DiagramKind::Architecture.preferred_format(), DiagramFormat::DrawIoXml);
+        assert_eq!(
+            DiagramKind::Flowchart.preferred_format(),
+            DiagramFormat::MermaidMd
+        );
+        assert_eq!(
+            DiagramKind::C4Context.preferred_format(),
+            DiagramFormat::C4Dsl
+        );
+        assert_eq!(
+            DiagramKind::Architecture.preferred_format(),
+            DiagramFormat::DrawIoXml
+        );
     }
 
     #[test]
     fn tokens_to_css_roundtrip() {
-        let tokens = vec![
-            DesignToken {
-                name: "Primary Blue".to_string(),
-                token_type: DesignTokenType::Color,
-                value: "#3b82f6".to_string(),
-                description: None,
-                provider: ProviderKind::Inhouse,
-            },
-        ];
+        let tokens = vec![DesignToken {
+            name: "Primary Blue".to_string(),
+            token_type: DesignTokenType::Color,
+            value: "#3b82f6".to_string(),
+            description: None,
+            provider: ProviderKind::Inhouse,
+        }];
         let css = tokens_to_css(&tokens);
         assert!(css.contains("--primary-blue: #3b82f6;"));
     }

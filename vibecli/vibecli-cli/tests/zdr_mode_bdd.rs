@@ -2,10 +2,8 @@
  * BDD tests for zdr_mode using Cucumber 0.20.
  * Run with: cargo test --test zdr_mode_bdd
  */
-use cucumber::{World, given, then, when};
-use vibecli_cli::zdr_mode::{
-    ZdrCompliance, ZdrPolicy, ZdrSession, scrub_pii,
-};
+use cucumber::{given, then, when, World};
+use vibecli_cli::zdr_mode::{scrub_pii, ZdrCompliance, ZdrPolicy, ZdrSession};
 
 // ─── World ────────────────────────────────────────────────────────────────────
 
@@ -67,13 +65,19 @@ fn when_clear_session(world: &mut ZdrWorld) {
 #[then("the policy should be ZDR compliant")]
 fn then_compliant(world: &mut ZdrWorld) {
     let policy = world.policy.as_ref().expect("policy not set");
-    assert!(policy.is_zdr_compliant(), "expected policy to be ZDR compliant");
+    assert!(
+        policy.is_zdr_compliant(),
+        "expected policy to be ZDR compliant"
+    );
 }
 
 #[then("the policy should not be ZDR compliant")]
 fn then_not_compliant(world: &mut ZdrWorld) {
     let policy = world.policy.as_ref().expect("policy not set");
-    assert!(!policy.is_zdr_compliant(), "expected policy to NOT be ZDR compliant");
+    assert!(
+        !policy.is_zdr_compliant(),
+        "expected policy to NOT be ZDR compliant"
+    );
 }
 
 #[then(expr = "there should be at least {int} compliance violation")]

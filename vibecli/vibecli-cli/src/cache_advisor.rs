@@ -104,16 +104,23 @@ pub struct CacheAdvisorySummary {
 
 impl CacheAdvisorySummary {
     pub fn cache_ratio(&self) -> f64 {
-        if self.total_tokens == 0 { return 0.0; }
+        if self.total_tokens == 0 {
+            return 0.0;
+        }
         self.cacheable_tokens as f64 / self.total_tokens as f64
     }
 
     pub fn cache_efficiency_label(&self) -> &'static str {
         let r = self.cache_ratio();
-        if r >= 0.7 { "excellent" }
-        else if r >= 0.4 { "good" }
-        else if r >= 0.2 { "moderate" }
-        else { "poor" }
+        if r >= 0.7 {
+            "excellent"
+        } else if r >= 0.4 {
+            "good"
+        } else if r >= 0.2 {
+            "moderate"
+        } else {
+            "poor"
+        }
     }
 }
 
@@ -184,7 +191,10 @@ impl CacheAdvisor {
             recommendations.push(rec);
         }
 
-        let total_savings: f64 = recommendations.iter().map(|r| r.estimated_savings_usd).sum();
+        let total_savings: f64 = recommendations
+            .iter()
+            .map(|r| r.estimated_savings_usd)
+            .sum();
 
         CacheAdvisorySummary {
             total_tokens,
@@ -200,7 +210,10 @@ impl CacheAdvisor {
             return CacheRecommendation {
                 segment_id: seg.id.clone(),
                 cache_type: CacheType::None,
-                reason: format!("Too small ({} tokens < {} min)", seg.token_estimate, self.min_cacheable_tokens),
+                reason: format!(
+                    "Too small ({} tokens < {} min)",
+                    seg.token_estimate, self.min_cacheable_tokens
+                ),
                 tokens_saved: 0,
                 estimated_savings_usd: 0.0,
             };
@@ -261,12 +274,19 @@ impl CacheAdvisor {
         out.push_str("# Cache Advisory Report\n\n");
         out.push_str(&format!("Model: {}\n", self.model));
         out.push_str(&format!("Total tokens: {}\n", summary.total_tokens));
-        out.push_str(&format!("Cacheable tokens: {} ({:.0}%)\n",
+        out.push_str(&format!(
+            "Cacheable tokens: {} ({:.0}%)\n",
             summary.cacheable_tokens,
             summary.cache_ratio() * 100.0
         ));
-        out.push_str(&format!("Cache efficiency: {}\n", summary.cache_efficiency_label()));
-        out.push_str(&format!("Estimated savings: ${:.4}/1M requests\n\n", summary.total_estimated_savings_usd));
+        out.push_str(&format!(
+            "Cache efficiency: {}\n",
+            summary.cache_efficiency_label()
+        ));
+        out.push_str(&format!(
+            "Estimated savings: ${:.4}/1M requests\n\n",
+            summary.total_estimated_savings_usd
+        ));
         out.push_str("## Recommendations\n\n");
         for rec in &summary.recommendations {
             out.push_str(&format!(
@@ -288,7 +308,12 @@ pub fn estimate_tokens(text: &str) -> usize {
 }
 
 /// Build a segment from text content.
-pub fn segment_from_text(id: &str, text: &str, kind: SegmentType, freq: ChangeFreq) -> PromptSegment {
+pub fn segment_from_text(
+    id: &str,
+    text: &str,
+    kind: SegmentType,
+    freq: ChangeFreq,
+) -> PromptSegment {
     PromptSegment {
         id: id.to_string(),
         content_type: kind,
@@ -427,7 +452,12 @@ mod tests {
 
     #[test]
     fn test_segment_from_text_helper() {
-        let seg = segment_from_text("s1", &"x".repeat(8000), SegmentType::SystemPrompt, ChangeFreq::Static);
+        let seg = segment_from_text(
+            "s1",
+            &"x".repeat(8000),
+            SegmentType::SystemPrompt,
+            ChangeFreq::Static,
+        );
         assert_eq!(seg.token_estimate, 2000);
         assert_eq!(seg.content_type, SegmentType::SystemPrompt);
     }

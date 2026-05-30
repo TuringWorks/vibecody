@@ -205,7 +205,12 @@ impl HealthScorer {
         let ratio = test_files as f64 / total as f64;
         // Map ratio to 0-100: 20%+ test files => 100
         let score = (ratio / 0.20 * 100.0).min(100.0);
-        let details = format!("{} test files out of {} total ({:.1}%)", test_files, total, ratio * 100.0);
+        let details = format!(
+            "{} test files out of {} total ({:.1}%)",
+            test_files,
+            total,
+            ratio * 100.0
+        );
         let remediation = if score < 60.0 {
             Some("Add more test files to improve coverage.".to_string())
         } else {
@@ -268,7 +273,12 @@ impl HealthScorer {
         let ratio = doc_files as f64 / total as f64;
         // 10%+ doc files => 100
         let score = (ratio / 0.10 * 100.0).min(100.0);
-        let details = format!("{} doc files out of {} total ({:.1}%)", doc_files, total, ratio * 100.0);
+        let details = format!(
+            "{} doc files out of {} total ({:.1}%)",
+            doc_files,
+            total,
+            ratio * 100.0
+        );
         let remediation = if score < 50.0 {
             Some("Add README, API docs, or inline documentation.".to_string())
         } else {
@@ -331,7 +341,12 @@ impl HealthScorer {
         let total = total_lines.max(1);
         let dead_ratio = dead_lines as f64 / total as f64;
         let score = ((1.0 - dead_ratio * 5.0) * 100.0).clamp(0.0, 100.0);
-        let details = format!("{} dead lines out of {} total ({:.1}%)", dead_lines, total, dead_ratio * 100.0);
+        let details = format!(
+            "{} dead lines out of {} total ({:.1}%)",
+            dead_lines,
+            total,
+            dead_ratio * 100.0
+        );
         let remediation = if score < 70.0 {
             Some(format!("Remove {} lines of dead code.", dead_lines))
         } else {
@@ -352,7 +367,10 @@ impl HealthScorer {
         let per_file = warnings as f64 / files as f64;
         // 0 warnings/file => 100, 2+ => 0
         let score = ((1.0 - per_file / 2.0) * 100.0).clamp(0.0, 100.0);
-        let details = format!("{} warnings across {} files ({:.2}/file)", warnings, files, per_file);
+        let details = format!(
+            "{} warnings across {} files ({:.2}/file)",
+            warnings, files, per_file
+        );
         let remediation = if score < 70.0 {
             Some(format!("Fix {} linter warnings.", warnings))
         } else {
@@ -379,7 +397,9 @@ impl HealthScorer {
         };
         let details = format!("Build time: {:.1}s", seconds);
         let remediation = if score < 50.0 {
-            Some("Optimize build: use incremental compilation, caching, or parallelism.".to_string())
+            Some(
+                "Optimize build: use incremental compilation, caching, or parallelism.".to_string(),
+            )
         } else {
             None
         };
@@ -404,7 +424,10 @@ impl HealthScorer {
         };
         let details = format!("Bundle size: {}KB", kb);
         let remediation = if score < 50.0 {
-            Some("Reduce bundle size with tree-shaking, code splitting, or dependency audit.".to_string())
+            Some(
+                "Reduce bundle size with tree-shaking, code splitting, or dependency audit."
+                    .to_string(),
+            )
         } else {
             None
         };
@@ -426,7 +449,10 @@ impl HealthScorer {
         };
         let details = format!("{} accessibility issues", issues);
         let remediation = if issues > 0 {
-            Some(format!("Fix {} accessibility issues (WCAG compliance).", issues))
+            Some(format!(
+                "Fix {} accessibility issues (WCAG compliance).",
+                issues
+            ))
         } else {
             None
         };
@@ -444,9 +470,17 @@ impl HealthScorer {
         let t = total.max(1);
         let ratio = documented as f64 / t as f64;
         let score = (ratio * 100.0).min(100.0);
-        let details = format!("{} of {} API endpoints documented ({:.1}%)", documented, t, ratio * 100.0);
+        let details = format!(
+            "{} of {} API endpoints documented ({:.1}%)",
+            documented,
+            t,
+            ratio * 100.0
+        );
         let remediation = if score < 70.0 {
-            Some(format!("Document {} undocumented API endpoints.", t - documented))
+            Some(format!(
+                "Document {} undocumented API endpoints.",
+                t - documented
+            ))
         } else {
             None
         };
@@ -488,13 +522,29 @@ impl HealthEngine {
         let mut total_lines: usize = 0;
 
         fn visit(dir: &Path, files: &mut Vec<String>, lines: &mut usize, depth: usize) {
-            if depth > 8 { return; }
-            let rd = match std::fs::read_dir(dir) { Ok(r) => r, Err(_) => return };
+            if depth > 8 {
+                return;
+            }
+            let rd = match std::fs::read_dir(dir) {
+                Ok(r) => r,
+                Err(_) => return,
+            };
             for entry in rd.flatten() {
                 let p = entry.path();
                 // Skip common noise dirs
                 if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
-                    if matches!(name, "node_modules" | ".git" | "target" | "dist" | ".next" | "__pycache__" | ".cache" | "build" | "coverage") {
+                    if matches!(
+                        name,
+                        "node_modules"
+                            | ".git"
+                            | "target"
+                            | "dist"
+                            | ".next"
+                            | "__pycache__"
+                            | ".cache"
+                            | "build"
+                            | "coverage"
+                    ) {
                         continue;
                     }
                 }
@@ -502,11 +552,44 @@ impl HealthEngine {
                     visit(&p, files, lines, depth + 1);
                 } else if p.is_file() {
                     let ext = p.extension().and_then(|e| e.to_str()).unwrap_or("");
-                    if matches!(ext, "rs" | "ts" | "tsx" | "js" | "jsx" | "py" | "go" | "java" | "kt" | "cs" | "cpp" | "c" | "h" | "swift" | "rb" | "php" | "scala" | "hs" | "ml" | "ex" | "exs" | "vue" | "svelte" | "md" | "rst" | "txt" | "toml" | "yaml" | "yml" | "json") {
+                    if matches!(
+                        ext,
+                        "rs" | "ts"
+                            | "tsx"
+                            | "js"
+                            | "jsx"
+                            | "py"
+                            | "go"
+                            | "java"
+                            | "kt"
+                            | "cs"
+                            | "cpp"
+                            | "c"
+                            | "h"
+                            | "swift"
+                            | "rb"
+                            | "php"
+                            | "scala"
+                            | "hs"
+                            | "ml"
+                            | "ex"
+                            | "exs"
+                            | "vue"
+                            | "svelte"
+                            | "md"
+                            | "rst"
+                            | "txt"
+                            | "toml"
+                            | "yaml"
+                            | "yml"
+                            | "json"
+                    ) {
                         if let Ok(content) = std::fs::read_to_string(&p) {
                             *lines += content.lines().count();
                         }
-                        if let Some(s) = p.to_str() { files.push(s.to_string()); }
+                        if let Some(s) = p.to_str() {
+                            files.push(s.to_string());
+                        }
                     }
                 }
             }
@@ -514,16 +597,35 @@ impl HealthEngine {
 
         visit(Path::new(project_path), &mut all_files, &mut total_lines, 0);
 
-        let test_count = all_files.iter().filter(|f| {
-            let lower = f.to_lowercase();
-            lower.contains("test") || lower.contains("spec") || lower.contains("_test.") || lower.contains(".test.") || lower.contains(".spec.")
-        }).count();
+        let test_count = all_files
+            .iter()
+            .filter(|f| {
+                let lower = f.to_lowercase();
+                lower.contains("test")
+                    || lower.contains("spec")
+                    || lower.contains("_test.")
+                    || lower.contains(".test.")
+                    || lower.contains(".spec.")
+            })
+            .count();
 
-        let doc_count = all_files.iter().filter(|f| {
-            let lower = f.to_lowercase();
-            let ext = std::path::Path::new(f).extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
-            ext == "md" || ext == "rst" || ext == "txt" || lower.contains("readme") || lower.contains("changelog") || lower.contains("contributing")
-        }).count();
+        let doc_count = all_files
+            .iter()
+            .filter(|f| {
+                let lower = f.to_lowercase();
+                let ext = std::path::Path::new(f)
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("")
+                    .to_lowercase();
+                ext == "md"
+                    || ext == "rst"
+                    || ext == "txt"
+                    || lower.contains("readme")
+                    || lower.contains("changelog")
+                    || lower.contains("contributing")
+            })
+            .count();
 
         (all_files, test_count, doc_count, total_lines)
     }
@@ -533,16 +635,35 @@ impl HealthEngine {
 
         // Walk the real filesystem; fall back to hint for non-existent paths (tests / remote scans)
         let (all_files, _test_count, doc_count, total_lines) = Self::walk_project(project_path);
-        let fc = if all_files.is_empty() { _file_count_hint.max(1) } else { all_files.len() };
+        let fc = if all_files.is_empty() {
+            _file_count_hint.max(1)
+        } else {
+            all_files.len()
+        };
         let file_refs: Vec<&str> = all_files.iter().map(|s| s.as_str()).collect();
 
         // Dependency freshness: count dependency manifest entries as a proxy
-        let dep_manifest = ["Cargo.toml", "package.json", "requirements.txt", "go.mod", "pom.xml", "build.gradle"];
-        let deps_count = dep_manifest.iter().map(|m| {
-            let p = std::path::Path::new(project_path).join(m);
-            if !p.exists() { return 0usize; }
-            std::fs::read_to_string(&p).map(|c| c.lines().count() / 3).unwrap_or(0)
-        }).sum::<usize>().max(1);
+        let dep_manifest = [
+            "Cargo.toml",
+            "package.json",
+            "requirements.txt",
+            "go.mod",
+            "pom.xml",
+            "build.gradle",
+        ];
+        let deps_count = dep_manifest
+            .iter()
+            .map(|m| {
+                let p = std::path::Path::new(project_path).join(m);
+                if !p.exists() {
+                    return 0usize;
+                }
+                std::fs::read_to_string(&p)
+                    .map(|c| c.lines().count() / 3)
+                    .unwrap_or(0)
+            })
+            .sum::<usize>()
+            .max(1);
         // Heuristic: treat ~10% of listed deps as outdated (no real resolver here)
         let outdated = (deps_count as f64 * 0.10) as usize;
 
@@ -550,19 +671,51 @@ impl HealthEngine {
         let cves: usize = 0;
 
         // Complexity: proxy via average lines-per-source-file
-        let source_count = file_refs.iter().filter(|f| {
-            let ext = std::path::Path::new(f).extension().and_then(|e| e.to_str()).unwrap_or("");
-            matches!(ext, "rs" | "ts" | "tsx" | "js" | "jsx" | "py" | "go" | "java" | "kt" | "cs" | "cpp" | "c" | "swift" | "rb" | "php")
-        }).count().max(1);
+        let source_count = file_refs
+            .iter()
+            .filter(|f| {
+                let ext = std::path::Path::new(f)
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("");
+                matches!(
+                    ext,
+                    "rs" | "ts"
+                        | "tsx"
+                        | "js"
+                        | "jsx"
+                        | "py"
+                        | "go"
+                        | "java"
+                        | "kt"
+                        | "cs"
+                        | "cpp"
+                        | "c"
+                        | "swift"
+                        | "rb"
+                        | "php"
+                )
+            })
+            .count()
+            .max(1);
         let avg_lines_per_file = total_lines as f64 / source_count as f64;
         // Cyclomatic proxy: ~1 branch per 15 lines is typical
         let avg_complexity = (avg_lines_per_file / 15.0).clamp(1.0, 25.0);
 
         // Type safety: rough proxy from typed vs untyped file extensions
-        let typed_files = file_refs.iter().filter(|f| {
-            let ext = std::path::Path::new(f).extension().and_then(|e| e.to_str()).unwrap_or("");
-            matches!(ext, "rs" | "ts" | "tsx" | "java" | "kt" | "cs" | "go" | "swift" | "hs" | "ml")
-        }).count();
+        let typed_files = file_refs
+            .iter()
+            .filter(|f| {
+                let ext = std::path::Path::new(f)
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("");
+                matches!(
+                    ext,
+                    "rs" | "ts" | "tsx" | "java" | "kt" | "cs" | "go" | "swift" | "hs" | "ml"
+                )
+            })
+            .count();
         let typed_pct = (typed_files as f64 / fc as f64 * 100.0).min(100.0);
 
         // Dead code: honest — we can't detect it without running analysis tools; use 0
@@ -579,11 +732,21 @@ impl HealthEngine {
         let a11y_issues: usize = 0;
 
         // API coverage: count pub fn / export / def as proxy for "API endpoints"
-        let api_total = file_refs.iter().filter(|f| {
-            let ext = std::path::Path::new(f).extension().and_then(|e| e.to_str()).unwrap_or("");
-            matches!(ext, "rs" | "ts" | "tsx" | "js" | "py" | "go" | "java" | "kt")
-        }).count();
-        let api_documented = (api_total as f64 * (doc_count as f64 / fc as f64 + 0.3).min(1.0)) as usize;
+        let api_total = file_refs
+            .iter()
+            .filter(|f| {
+                let ext = std::path::Path::new(f)
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("");
+                matches!(
+                    ext,
+                    "rs" | "ts" | "tsx" | "js" | "py" | "go" | "java" | "kt"
+                )
+            })
+            .count();
+        let api_documented =
+            (api_total as f64 * (doc_count as f64 / fc as f64 + 0.3).min(1.0)) as usize;
 
         let dimensions = vec![
             self.apply_weight(HealthScorer::score_test_coverage(&file_refs)),
@@ -645,8 +808,18 @@ impl HealthEngine {
             let mut best_dim = String::new();
             let mut worst_dim = String::new();
             for dim in HealthDimension::all() {
-                let f_score = first.dimensions.iter().find(|d| d.dimension == dim).map(|d| d.score).unwrap_or(0.0);
-                let l_score = last.dimensions.iter().find(|d| d.dimension == dim).map(|d| d.score).unwrap_or(0.0);
+                let f_score = first
+                    .dimensions
+                    .iter()
+                    .find(|d| d.dimension == dim)
+                    .map(|d| d.score)
+                    .unwrap_or(0.0);
+                let l_score = last
+                    .dimensions
+                    .iter()
+                    .find(|d| d.dimension == dim)
+                    .map(|d| d.score)
+                    .unwrap_or(0.0);
                 let delta = l_score - f_score;
                 if delta > best_delta {
                     best_delta = delta;
@@ -731,10 +904,12 @@ impl HealthEngine {
                     RemediationPriority::Medium
                 };
                 let title = format!("Improve {}", ds.dimension.label());
-                let description = ds
-                    .remediation
-                    .clone()
-                    .unwrap_or_else(|| format!("Score is {:.1}, target >= {:.0}", ds.score, self.config.threshold_good));
+                let description = ds.remediation.clone().unwrap_or_else(|| {
+                    format!(
+                        "Score is {:.1}, target >= {:.0}",
+                        ds.score, self.config.threshold_good
+                    )
+                });
                 let impact = self.config.threshold_good - ds.score;
                 let auto_fixable = matches!(
                     ds.dimension,
@@ -755,17 +930,23 @@ impl HealthEngine {
                     dimension: ds.dimension.clone(),
                     priority: RemediationPriority::Low,
                     title: format!("Polish {}", ds.dimension.label()),
-                    description: ds
-                        .remediation
-                        .clone()
-                        .unwrap_or_else(|| format!("Score is {:.1}, could reach {:.0}+", ds.score, self.config.threshold_good)),
+                    description: ds.remediation.clone().unwrap_or_else(|| {
+                        format!(
+                            "Score is {:.1}, could reach {:.0}+",
+                            ds.score, self.config.threshold_good
+                        )
+                    }),
                     estimated_impact: self.config.threshold_good - ds.score,
                     auto_fixable: false,
                 });
             }
         }
         // Sort by estimated impact descending
-        remediations.sort_by(|a, b| b.estimated_impact.partial_cmp(&a.estimated_impact).unwrap_or(std::cmp::Ordering::Equal));
+        remediations.sort_by(|a, b| {
+            b.estimated_impact
+                .partial_cmp(&a.estimated_impact)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         remediations
     }
 
@@ -785,7 +966,10 @@ impl HealthEngine {
         } else {
             "red"
         };
-        format!("![Health Score](https://img.shields.io/badge/health-{:.0}%25-{}?label={})", score, color, label)
+        format!(
+            "![Health Score](https://img.shields.io/badge/health-{:.0}%25-{}?label={})",
+            score, color, label
+        )
     }
 
     /// Return the full snapshot history.
@@ -803,8 +987,14 @@ impl HealthEngine {
         let mut md = String::new();
         md.push_str("# Codebase Health Report\n\n");
         md.push_str(&format!("**Project:** {}\n\n", snapshot.project_path));
-        md.push_str(&format!("**Files Analyzed:** {}\n\n", snapshot.files_analyzed));
-        md.push_str(&format!("**Overall Score:** {:.1}/100\n\n", snapshot.overall_score));
+        md.push_str(&format!(
+            "**Files Analyzed:** {}\n\n",
+            snapshot.files_analyzed
+        ));
+        md.push_str(&format!(
+            "**Overall Score:** {:.1}/100\n\n",
+            snapshot.overall_score
+        ));
 
         let badge = Self::generate_badge(snapshot.overall_score);
         md.push_str(&format!("{}\n\n", badge));
@@ -826,7 +1016,11 @@ impl HealthEngine {
         if !remediations.is_empty() {
             md.push_str("\n## Remediations\n\n");
             for r in &remediations {
-                let auto = if r.auto_fixable { " (auto-fixable)" } else { "" };
+                let auto = if r.auto_fixable {
+                    " (auto-fixable)"
+                } else {
+                    ""
+                };
                 md.push_str(&format!(
                     "- **[{}]** {} — {} (impact: +{:.1}){}\n",
                     r.priority, r.title, r.description, r.estimated_impact, auto
@@ -861,7 +1055,10 @@ mod tests {
 
     #[test]
     fn test_dimension_display() {
-        assert_eq!(format!("{}", HealthDimension::TestCoverage), "Test Coverage");
+        assert_eq!(
+            format!("{}", HealthDimension::TestCoverage),
+            "Test Coverage"
+        );
         assert_eq!(format!("{}", HealthDimension::BuildTime), "Build Time");
     }
 
@@ -904,7 +1101,12 @@ mod tests {
 
     #[test]
     fn test_score_test_coverage_high() {
-        let files = vec!["src/main.rs", "tests/test_main.rs", "tests/test_lib.rs", "src/lib.rs"];
+        let files = vec![
+            "src/main.rs",
+            "tests/test_main.rs",
+            "tests/test_lib.rs",
+            "src/lib.rs",
+        ];
         let ds = HealthScorer::score_test_coverage(&files);
         assert!(ds.score >= 90.0, "score={}", ds.score);
         assert!(ds.remediation.is_none());
@@ -1448,7 +1650,12 @@ mod tests {
         let mut engine = HealthEngine::new(cfg);
         let snap = engine.scan("/p", 100);
         // With heavy weight on test coverage the overall should be closer to that score
-        let tc_score = snap.dimensions.iter().find(|d| d.dimension == HealthDimension::TestCoverage).unwrap().score;
+        let tc_score = snap
+            .dimensions
+            .iter()
+            .find(|d| d.dimension == HealthDimension::TestCoverage)
+            .unwrap()
+            .score;
         let diff = (snap.overall_score - tc_score).abs();
         // The overall should be pulled toward the heavily-weighted dimension
         assert!(diff < 40.0, "diff={}", diff);
@@ -1476,7 +1683,11 @@ mod tests {
         cfg.weights.insert("Security Posture".to_string(), 5.0);
         let mut engine = HealthEngine::new(cfg);
         let snap = engine.scan("/p", 100);
-        let sec = snap.dimensions.iter().find(|d| d.dimension == HealthDimension::SecurityPosture).unwrap();
+        let sec = snap
+            .dimensions
+            .iter()
+            .find(|d| d.dimension == HealthDimension::SecurityPosture)
+            .unwrap();
         assert_eq!(sec.weight, 5.0);
     }
 
@@ -1651,7 +1862,11 @@ mod tests {
         let snap = engine.scan("/p", 100);
         let report = engine.export_report(&snap);
         for dim in HealthDimension::all() {
-            assert!(report.contains(dim.label()), "missing dimension {}", dim.label());
+            assert!(
+                report.contains(dim.label()),
+                "missing dimension {}",
+                dim.label()
+            );
         }
     }
 

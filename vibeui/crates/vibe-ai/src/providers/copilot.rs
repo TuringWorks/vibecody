@@ -8,8 +8,8 @@
 //! The model you get depends on your GitHub Copilot plan.
 
 use crate::provider::{
-    AIProvider, CodeContext, CompletionResponse, CompletionStream,
-    ImageAttachment, Message, MessageRole, ProviderConfig, TokenUsage,
+    AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message,
+    MessageRole, ProviderConfig, TokenUsage,
 };
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
@@ -18,8 +18,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-const COPILOT_TOKEN_URL: &str =
-    "https://api.github.com/copilot_internal/v2/token";
+const COPILOT_TOKEN_URL: &str = "https://api.github.com/copilot_internal/v2/token";
 const COPILOT_BASE_URL: &str = "https://api.githubcopilot.com";
 
 // ── Copilot token exchange ────────────────────────────────────────────────────
@@ -125,7 +124,9 @@ impl CopilotProvider {
     }
 
     fn github_token(&self) -> String {
-        self.config.api_key.clone()
+        self.config
+            .api_key
+            .clone()
             .or_else(|| std::env::var("GITHUB_TOKEN").ok())
             .unwrap_or_default()
     }
@@ -146,7 +147,8 @@ impl CopilotProvider {
             bail!("GITHUB_TOKEN not set (required for GitHub Copilot provider)");
         }
 
-        let resp = self.client
+        let resp = self
+            .client
             .get(COPILOT_TOKEN_URL)
             .header("Authorization", format!("token {}", gh_token))
             .header("Accept", "application/json")
@@ -158,10 +160,16 @@ impl CopilotProvider {
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
-            bail!("GitHub Copilot token exchange failed ({}): {}", status, body);
+            bail!(
+                "GitHub Copilot token exchange failed ({}): {}",
+                status,
+                body
+            );
         }
 
-        let token_resp: CopilotTokenResponse = resp.json().await
+        let token_resp: CopilotTokenResponse = resp
+            .json()
+            .await
             .context("Failed to parse Copilot token response")?;
 
         let expires_at = token_resp.expires_at.unwrap_or_else(|| {
@@ -169,23 +177,31 @@ impl CopilotProvider {
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
-                .as_secs() + 1800 // default 30 min
+                .as_secs()
+                + 1800 // default 30 min
         });
 
         let token = token_resp.token.clone();
-        *cache = Some(CopilotToken { token: token_resp.token, expires_at });
+        *cache = Some(CopilotToken {
+            token: token_resp.token,
+            expires_at,
+        });
         Ok(token)
     }
 
     fn build_messages(&self, messages: &[Message], context: Option<String>) -> Vec<ChatMessage> {
-        let mut result: Vec<ChatMessage> = messages.iter().map(|m| ChatMessage {
-            role: match m.role {
-                MessageRole::System => "system",
-                MessageRole::User => "user",
-                MessageRole::Assistant => "assistant",
-            }.to_string(),
-            content: m.content.clone(),
-        }).collect();
+        let mut result: Vec<ChatMessage> = messages
+            .iter()
+            .map(|m| ChatMessage {
+                role: match m.role {
+                    MessageRole::System => "system",
+                    MessageRole::User => "user",
+                    MessageRole::Assistant => "assistant",
+                }
+                .to_string(),
+                content: m.content.clone(),
+            })
+            .collect();
 
         if let Some(ctx) = context {
             if let Some(last) = result.last_mut() {
@@ -200,7 +216,9 @@ impl CopilotProvider {
 
 #[async_trait]
 impl AIProvider for CopilotProvider {
-    fn name(&self) -> &str { &self.display_name }
+    fn name(&self) -> &str {
+        &self.display_name
+    }
 
     async fn is_available(&self) -> bool {
         !self.github_token().is_empty()
@@ -212,8 +230,14 @@ impl AIProvider for CopilotProvider {
             context.language, context.prefix, context.suffix
         );
         let messages = vec![
-            Message { role: MessageRole::System, content: "You are a helpful coding assistant.".to_string() },
-            Message { role: MessageRole::User, content: prompt },
+            Message {
+                role: MessageRole::System,
+                content: "You are a helpful coding assistant.".to_string(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: prompt,
+            },
         ];
         self.chat_response(&messages, None).await
     }
@@ -224,13 +248,23 @@ impl AIProvider for CopilotProvider {
             context.language, context.prefix, context.suffix
         );
         let messages = vec![
-            Message { role: MessageRole::System, content: "You are a helpful coding assistant.".to_string() },
-            Message { role: MessageRole::User, content: prompt },
+            Message {
+                role: MessageRole::System,
+                content: "You are a helpful coding assistant.".to_string(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: prompt,
+            },
         ];
         self.stream_chat(&messages).await
     }
 
-    async fn chat_response(&self, messages: &[Message], context: Option<String>) -> Result<CompletionResponse> {
+    async fn chat_response(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+    ) -> Result<CompletionResponse> {
         let copilot_token = self.get_copilot_token().await?;
         let request = ChatRequest {
             model: self.config.model.clone(),
@@ -240,7 +274,9 @@ impl AIProvider for CopilotProvider {
             stream: false,
         };
         let url = format!("{}/chat/completions", COPILOT_BASE_URL);
-        let resp = self.client.post(&url)
+        let resp = self
+            .client
+            .post(&url)
             .header("Authorization", format!("Bearer {}", copilot_token))
             .header("Copilot-Integration-Id", "vscode-chat")
             .header("Editor-Version", "vscode/1.85.0")
@@ -256,13 +292,26 @@ impl AIProvider for CopilotProvider {
             bail!("Copilot API error {}: {}", status, body);
         }
 
-        let body: ChatResponse = resp.json().await.context("Failed to parse Copilot response")?;
-        let text = body.choices.first().context("No choices")?.message.content.clone();
+        let body: ChatResponse = resp
+            .json()
+            .await
+            .context("Failed to parse Copilot response")?;
+        let text = body
+            .choices
+            .first()
+            .context("No choices")?
+            .message
+            .content
+            .clone();
         let usage = body.usage.map(|u| TokenUsage {
             prompt_tokens: u.prompt_tokens,
             completion_tokens: u.completion_tokens,
         });
-        Ok(CompletionResponse { text, model: self.config.model.clone(), usage })
+        Ok(CompletionResponse {
+            text,
+            model: self.config.model.clone(),
+            usage,
+        })
     }
 
     async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String> {
@@ -279,7 +328,9 @@ impl AIProvider for CopilotProvider {
             stream: true,
         };
         let url = format!("{}/chat/completions", COPILOT_BASE_URL);
-        let resp = self.client.post(&url)
+        let resp = self
+            .client
+            .post(&url)
             .header("Authorization", format!("Bearer {}", copilot_token))
             .header("Copilot-Integration-Id", "vscode-chat")
             .header("Editor-Version", "vscode/1.85.0")
@@ -297,29 +348,41 @@ impl AIProvider for CopilotProvider {
 
         // Buffer SSE lines across chunk boundaries — HTTP chunks may split mid-line
         let mut line_buf = String::new();
-        let stream = resp.bytes_stream().map(move |chunk| {
-            let chunk = chunk?;
-            let text = String::from_utf8_lossy(&chunk);
-            line_buf.push_str(&text);
-            let mut content = String::new();
-            while let Some(nl) = line_buf.find('\n') {
-                let line = line_buf[..nl].trim_end_matches('\r').to_string();
-                line_buf = line_buf[nl + 1..].to_string();
-                if let Some(data) = line.strip_prefix("data: ") {
-                    if data == "[DONE]" { continue; }
-                    if let Ok(r) = serde_json::from_str::<StreamResponse>(data) {
-                        if let Some(c) = r.choices.first().and_then(|ch| ch.delta.content.as_ref()) {
-                            content.push_str(c);
+        let stream = resp
+            .bytes_stream()
+            .map(move |chunk| {
+                let chunk = chunk?;
+                let text = String::from_utf8_lossy(&chunk);
+                line_buf.push_str(&text);
+                let mut content = String::new();
+                while let Some(nl) = line_buf.find('\n') {
+                    let line = line_buf[..nl].trim_end_matches('\r').to_string();
+                    line_buf = line_buf[nl + 1..].to_string();
+                    if let Some(data) = line.strip_prefix("data: ") {
+                        if data == "[DONE]" {
+                            continue;
+                        }
+                        if let Ok(r) = serde_json::from_str::<StreamResponse>(data) {
+                            if let Some(c) =
+                                r.choices.first().and_then(|ch| ch.delta.content.as_ref())
+                            {
+                                content.push_str(c);
+                            }
                         }
                     }
                 }
-            }
-            Ok(content)
-        }).boxed();
+                Ok(content)
+            })
+            .boxed();
         Ok(stream)
     }
 
-    async fn chat_with_images(&self, messages: &[Message], _images: &[ImageAttachment], context: Option<String>) -> Result<String> {
+    async fn chat_with_images(
+        &self,
+        messages: &[Message],
+        _images: &[ImageAttachment],
+        context: Option<String>,
+    ) -> Result<String> {
         self.chat(messages, context).await
     }
 }
@@ -344,7 +407,8 @@ pub async fn run_device_flow() -> Result<String> {
         .post("https://github.com/login/device/code")
         .header("Accept", "application/json")
         .form(&[("client_id", CLIENT_ID), ("scope", "read:user copilot")])
-        .send().await?;
+        .send()
+        .await?;
     if !device_resp.status().is_success() {
         let status = device_resp.status();
         let body = device_resp.text().await.unwrap_or_default();
@@ -352,9 +416,14 @@ pub async fn run_device_flow() -> Result<String> {
     }
     let resp = device_resp.json::<Value>().await?;
 
-    let device_code = resp["device_code"].as_str().context("no device_code")?.to_string();
+    let device_code = resp["device_code"]
+        .as_str()
+        .context("no device_code")?
+        .to_string();
     let user_code = resp["user_code"].as_str().unwrap_or("???");
-    let verify_url = resp["verification_uri"].as_str().unwrap_or("https://github.com/login/device");
+    let verify_url = resp["verification_uri"]
+        .as_str()
+        .unwrap_or("https://github.com/login/device");
     let interval_secs = resp["interval"].as_u64().unwrap_or(5);
 
     eprintln!("\n🔑 GitHub Copilot OAuth");
@@ -374,7 +443,8 @@ pub async fn run_device_flow() -> Result<String> {
                 ("device_code", &device_code),
                 ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
             ])
-            .send().await?;
+            .send()
+            .await?;
         if !poll_resp.status().is_success() {
             let status = poll_resp.status();
             let body = poll_resp.text().await.unwrap_or_default();
@@ -421,7 +491,10 @@ mod tests {
 
     #[test]
     fn copilot_token_expired() {
-        let token = CopilotToken { token: "tok".into(), expires_at: 0 };
+        let token = CopilotToken {
+            token: "tok".into(),
+            expires_at: 0,
+        };
         assert!(token.is_expired());
     }
 
@@ -459,9 +532,18 @@ mod tests {
     fn build_messages_maps_roles() {
         let p = CopilotProvider::new(test_config());
         let messages = vec![
-            Message { role: MessageRole::System, content: "sys".into() },
-            Message { role: MessageRole::User, content: "usr".into() },
-            Message { role: MessageRole::Assistant, content: "ast".into() },
+            Message {
+                role: MessageRole::System,
+                content: "sys".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "usr".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "ast".into(),
+            },
         ];
         let result = p.build_messages(&messages, None);
         assert_eq!(result.len(), 3);
@@ -473,9 +555,10 @@ mod tests {
     #[test]
     fn build_messages_appends_context_to_last_user() {
         let p = CopilotProvider::new(test_config());
-        let messages = vec![
-            Message { role: MessageRole::User, content: "hello".into() },
-        ];
+        let messages = vec![Message {
+            role: MessageRole::User,
+            content: "hello".into(),
+        }];
         let result = p.build_messages(&messages, Some("file.rs contents".into()));
         assert!(result[0].content.contains("Context:"));
         assert!(result[0].content.contains("file.rs contents"));
@@ -485,9 +568,10 @@ mod tests {
     #[test]
     fn build_messages_no_context_leaves_content_unchanged() {
         let p = CopilotProvider::new(test_config());
-        let messages = vec![
-            Message { role: MessageRole::User, content: "world".into() },
-        ];
+        let messages = vec![Message {
+            role: MessageRole::User,
+            content: "world".into(),
+        }];
         let result = p.build_messages(&messages, None);
         assert_eq!(result[0].content, "world");
     }
@@ -496,7 +580,10 @@ mod tests {
     fn chat_request_serializes_stream_field() {
         let req = ChatRequest {
             model: "gpt-4o".into(),
-            messages: vec![ChatMessage { role: "user".into(), content: "hi".into() }],
+            messages: vec![ChatMessage {
+                role: "user".into(),
+                content: "hi".into(),
+            }],
             temperature: None,
             max_tokens: None,
             stream: true,
@@ -529,7 +616,10 @@ mod tests {
     fn stream_response_deser() {
         let json = r#"{"choices":[{"delta":{"content":"streamed token"}}]}"#;
         let resp: StreamResponse = serde_json::from_str(json).unwrap();
-        assert_eq!(resp.choices[0].delta.content.as_ref().unwrap(), "streamed token");
+        assert_eq!(
+            resp.choices[0].delta.content.as_ref().unwrap(),
+            "streamed token"
+        );
     }
 
     #[test]
@@ -566,9 +656,18 @@ mod tests {
     fn build_messages_context_only_affects_last_user() {
         let p = CopilotProvider::new(test_config());
         let messages = vec![
-            Message { role: MessageRole::User, content: "first".into() },
-            Message { role: MessageRole::Assistant, content: "mid".into() },
-            Message { role: MessageRole::User, content: "second".into() },
+            Message {
+                role: MessageRole::User,
+                content: "first".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "mid".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "second".into(),
+            },
         ];
         let result = p.build_messages(&messages, Some("bg info".into()));
         // First user message unchanged
@@ -582,8 +681,14 @@ mod tests {
     fn build_messages_context_skipped_when_last_is_assistant() {
         let p = CopilotProvider::new(test_config());
         let messages = vec![
-            Message { role: MessageRole::User, content: "q".into() },
-            Message { role: MessageRole::Assistant, content: "a".into() },
+            Message {
+                role: MessageRole::User,
+                content: "q".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "a".into(),
+            },
         ];
         let result = p.build_messages(&messages, Some("ignored ctx".into()));
         // Last message is assistant, so context is NOT injected
@@ -613,7 +718,10 @@ mod tests {
 
     #[test]
     fn chat_message_roundtrip() {
-        let msg = ChatMessage { role: "user".into(), content: "hello world".into() };
+        let msg = ChatMessage {
+            role: "user".into(),
+            content: "hello world".into(),
+        };
         let json = serde_json::to_string(&msg).unwrap();
         let msg2: ChatMessage = serde_json::from_str(&json).unwrap();
         assert_eq!(msg.role, msg2.role);
@@ -638,7 +746,10 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        let token = CopilotToken { token: "tok".into(), expires_at: now + 30 };
+        let token = CopilotToken {
+            token: "tok".into(),
+            expires_at: now + 30,
+        };
         // expires_at is within the 60s buffer, so should be expired
         assert!(token.is_expired());
     }
@@ -683,7 +794,10 @@ mod tests {
 
     #[test]
     fn chat_message_unicode_roundtrip() {
-        let msg = ChatMessage { role: "user".into(), content: "café résumé naïve".into() };
+        let msg = ChatMessage {
+            role: "user".into(),
+            content: "café résumé naïve".into(),
+        };
         let json = serde_json::to_string(&msg).unwrap();
         let msg2: ChatMessage = serde_json::from_str(&json).unwrap();
         assert_eq!(msg2.content, "café résumé naïve");
@@ -694,9 +808,18 @@ mod tests {
         let req = ChatRequest {
             model: "gpt-4o".into(),
             messages: vec![
-                ChatMessage { role: "system".into(), content: "sys".into() },
-                ChatMessage { role: "user".into(), content: "q".into() },
-                ChatMessage { role: "assistant".into(), content: "a".into() },
+                ChatMessage {
+                    role: "system".into(),
+                    content: "sys".into(),
+                },
+                ChatMessage {
+                    role: "user".into(),
+                    content: "q".into(),
+                },
+                ChatMessage {
+                    role: "assistant".into(),
+                    content: "a".into(),
+                },
             ],
             temperature: None,
             max_tokens: None,
@@ -759,9 +882,10 @@ mod tests {
     #[test]
     fn build_messages_single_system_message_context_not_injected() {
         let p = CopilotProvider::new(test_config());
-        let messages = vec![
-            Message { role: MessageRole::System, content: "sys prompt".into() },
-        ];
+        let messages = vec![Message {
+            role: MessageRole::System,
+            content: "sys prompt".into(),
+        }];
         let result = p.build_messages(&messages, Some("ctx data".into()));
         // Last message is system, not user, so context should NOT be injected
         assert_eq!(result[0].content, "sys prompt");

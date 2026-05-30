@@ -374,9 +374,13 @@ impl AgenticCiCd {
     pub fn generate_compiler_fix(&self, error: &str, file: &str) -> String {
         let lower = error.to_lowercase();
         if lower.contains("cannot find") {
-            format!("// In {file}: add missing import or define the symbol\nuse crate::missing_module;")
+            format!(
+                "// In {file}: add missing import or define the symbol\nuse crate::missing_module;"
+            )
         } else if lower.contains("expected") && lower.contains("found") {
-            format!("// In {file}: fix type mismatch\n// Change the expression type to match expected")
+            format!(
+                "// In {file}: fix type mismatch\n// Change the expression type to match expected"
+            )
         } else if lower.contains("unused") {
             format!("// In {file}: prefix unused variable with underscore\nlet _unused = value;")
         } else if lower.contains("borrow") {
@@ -387,11 +391,7 @@ impl AgenticCiCd {
     }
 
     /// Detect test coverage gaps for the given files and coverage data.
-    pub fn detect_test_gaps(
-        &self,
-        files: &[String],
-        coverage: &[(String, f32)],
-    ) -> Vec<TestGap> {
+    pub fn detect_test_gaps(&self, files: &[String], coverage: &[(String, f32)]) -> Vec<TestGap> {
         let cov_map: HashMap<&str, f32> = coverage.iter().map(|(f, c)| (f.as_str(), *c)).collect();
 
         files
@@ -443,7 +443,13 @@ impl AgenticCiCd {
         for (i, suggested) in gap.suggested_tests.iter().enumerate() {
             let test_name = suggested
                 .chars()
-                .map(|c| if c.is_alphanumeric() || c == '_' { c } else { '_' })
+                .map(|c| {
+                    if c.is_alphanumeric() || c == '_' {
+                        c
+                    } else {
+                        '_'
+                    }
+                })
                 .collect::<String>();
             tests.push_str(&format!("    #[test]\n    fn {test_name}() {{\n"));
             tests.push_str(&format!(
@@ -460,10 +466,7 @@ impl AgenticCiCd {
     }
 
     /// Check for available dependency updates.
-    pub fn check_dependency_updates(
-        &self,
-        deps: &[(String, String)],
-    ) -> Vec<DependencyUpdate> {
+    pub fn check_dependency_updates(&self, deps: &[(String, String)]) -> Vec<DependencyUpdate> {
         deps.iter()
             .map(|(pkg, version)| {
                 let parts: Vec<&str> = version.split('.').collect();
@@ -555,13 +558,19 @@ impl AgenticCiCd {
             suggestions.push("Consider running tests in parallel with build artifacts".to_string());
         }
         if has_lint && has_test {
-            suggestions.push("Run lint and test steps concurrently to reduce wall time".to_string());
+            suggestions
+                .push("Run lint and test steps concurrently to reduce wall time".to_string());
         }
         if steps.len() > 8 {
-            suggestions.push("Pipeline has many steps; consider consolidating related steps".to_string());
+            suggestions
+                .push("Pipeline has many steps; consider consolidating related steps".to_string());
         }
-        if !steps.iter().any(|s| s.contains("artifact") || s.contains("upload")) {
-            suggestions.push("Consider uploading build artifacts for faster downstream jobs".to_string());
+        if !steps
+            .iter()
+            .any(|s| s.contains("artifact") || s.contains("upload"))
+        {
+            suggestions
+                .push("Consider uploading build artifacts for faster downstream jobs".to_string());
         }
 
         suggestions
@@ -575,9 +584,9 @@ impl AgenticCiCd {
             FixStrategy::LintAutofix => "cargo clippy --fix --allow-dirty".to_string(),
             FixStrategy::DependencyBump => "cargo update".to_string(),
             FixStrategy::TestUpdate => "cargo test -- --ignored 2>&1 || true".to_string(),
-            FixStrategy::CompilerErrorFix | FixStrategy::MissingImport | FixStrategy::TypeAnnotation => {
-                "cargo check 2>&1 | head -50".to_string()
-            }
+            FixStrategy::CompilerErrorFix
+            | FixStrategy::MissingImport
+            | FixStrategy::TypeAnnotation => "cargo check 2>&1 | head -50".to_string(),
             _ => format!("echo 'Strategy {strategy} requires manual intervention'"),
         };
 
@@ -965,7 +974,10 @@ mod tests {
 
     #[test]
     fn test_fix_strategy_display() {
-        assert_eq!(format!("{}", FixStrategy::CompilerErrorFix), "compiler_error_fix");
+        assert_eq!(
+            format!("{}", FixStrategy::CompilerErrorFix),
+            "compiler_error_fix"
+        );
         assert_eq!(format!("{}", FixStrategy::SecurityPatch), "security_patch");
     }
 

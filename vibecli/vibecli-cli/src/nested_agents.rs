@@ -368,10 +368,7 @@ impl AgentTree {
 
     /// Returns the depth of `node_id` (0 = root).  Returns 0 for unknown nodes.
     pub fn depth_of(&self, node_id: &str) -> u32 {
-        self.nodes
-            .get(node_id)
-            .map(|n| n.config.depth)
-            .unwrap_or(0)
+        self.nodes.get(node_id).map(|n| n.config.depth).unwrap_or(0)
     }
 
     /// Returns `true` if the node has no children.
@@ -397,7 +394,10 @@ impl AgentTree {
 
     /// Returns all nodes whose `config.depth` equals `depth`.
     pub fn nodes_at_depth(&self, depth: u32) -> Vec<&AgentNode> {
-        self.nodes.values().filter(|n| n.config.depth == depth).collect()
+        self.nodes
+            .values()
+            .filter(|n| n.config.depth == depth)
+            .collect()
     }
 
     /// DFS check: would adding an edge from `from_id` to `to_id` create a cycle?
@@ -410,8 +410,11 @@ impl AgentTree {
     /// Returns a textual summary of the execution tree.
     pub fn execution_graph_summary(&self) -> String {
         // Find root nodes (no parent).
-        let mut roots: Vec<&AgentNode> =
-            self.nodes.values().filter(|n| n.parent_id.is_none()).collect();
+        let mut roots: Vec<&AgentNode> = self
+            .nodes
+            .values()
+            .filter(|n| n.parent_id.is_none())
+            .collect();
         // Sort by created_at for determinism.
         roots.sort_by_key(|n| n.created_at_ms);
 
@@ -426,11 +429,7 @@ impl AgentTree {
         let prefix = "  ".repeat(indent);
         lines.push(format!(
             "{}[{}] {} (depth={}, status={})",
-            prefix,
-            node.id,
-            node.config.description,
-            node.config.depth,
-            node.status,
+            prefix, node.id, node.config.description, node.config.depth, node.status,
         ));
         let mut children: Vec<&AgentNode> = node
             .children
@@ -544,13 +543,19 @@ mod tests {
     // 3
     #[test]
     fn test_node_status_display_completed_with_payload() {
-        assert_eq!(NodeStatus::Completed("ok".to_string()).to_string(), "Completed(ok)");
+        assert_eq!(
+            NodeStatus::Completed("ok".to_string()).to_string(),
+            "Completed(ok)"
+        );
     }
 
     // 4
     #[test]
     fn test_node_status_display_failed_with_reason() {
-        assert_eq!(NodeStatus::Failed("crash".to_string()).to_string(), "Failed(crash)");
+        assert_eq!(
+            NodeStatus::Failed("crash".to_string()).to_string(),
+            "Failed(crash)"
+        );
     }
 
     // 5
@@ -883,7 +888,9 @@ mod tests {
         let root = t.spawn_root(node_cfg("root", 0)).unwrap();
         let c1 = t.spawn_child(&root, node_cfg("c1", 1)).unwrap();
         t.complete_node(&c1, "patch1".to_string()).unwrap();
-        let agg = t.aggregate_results(&root, &MergeStrategy::Structured).unwrap();
+        let agg = t
+            .aggregate_results(&root, &MergeStrategy::Structured)
+            .unwrap();
         assert!(agg.contains("[0]"), "agg: {}", agg);
         assert!(agg.contains("patch1"), "agg: {}", agg);
     }
@@ -895,7 +902,9 @@ mod tests {
         let root = t.spawn_root(node_cfg("root", 0)).unwrap();
         let c1 = t.spawn_child(&root, node_cfg("c1", 1)).unwrap();
         t.complete_node(&c1, "diff".to_string()).unwrap();
-        let agg = t.aggregate_results(&root, &MergeStrategy::CodePatchMerge).unwrap();
+        let agg = t
+            .aggregate_results(&root, &MergeStrategy::CodePatchMerge)
+            .unwrap();
         assert!(agg.contains("--- patch"), "agg: {}", agg);
     }
 
@@ -903,7 +912,9 @@ mod tests {
     #[test]
     fn test_aggregate_unknown_node_returns_none() {
         let t = tree(5);
-        assert!(t.aggregate_results("ghost", &MergeStrategy::Concat).is_none());
+        assert!(t
+            .aggregate_results("ghost", &MergeStrategy::Concat)
+            .is_none());
     }
 
     // 39
@@ -928,7 +939,9 @@ mod tests {
         let gc2 = t.spawn_child(&c2, node_cfg("gc2", 2)).unwrap();
         t.complete_node(&gc1, "res-gc1".to_string()).unwrap();
         t.complete_node(&gc2, "res-gc2".to_string()).unwrap();
-        let agg = t.aggregate_results(&root, &MergeStrategy::Structured).unwrap();
+        let agg = t
+            .aggregate_results(&root, &MergeStrategy::Structured)
+            .unwrap();
         assert!(agg.contains("res-gc1"), "agg: {}", agg);
         assert!(agg.contains("res-gc2"), "agg: {}", agg);
     }
@@ -1067,7 +1080,11 @@ mod tests {
             .lines()
             .find(|l| l.contains("child-node"))
             .expect("child-node not in summary");
-        assert!(child_line.starts_with("  "), "child line not indented: {:?}", child_line);
+        assert!(
+            child_line.starts_with("  "),
+            "child line not indented: {:?}",
+            child_line
+        );
     }
 
     // ── 54–57: children_of / is_leaf ─────────────────────────────────────
@@ -1163,7 +1180,11 @@ mod tests {
         t.complete_node(&c1, "line1".to_string()).unwrap();
         t.complete_node(&c2, "line2".to_string()).unwrap();
         let agg = t.aggregate_results(&root, &MergeStrategy::Concat).unwrap();
-        assert!(agg.contains('\n'), "expected newline in concat output: {:?}", agg);
+        assert!(
+            agg.contains('\n'),
+            "expected newline in concat output: {:?}",
+            agg
+        );
     }
 
     // 60

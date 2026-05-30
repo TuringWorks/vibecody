@@ -240,11 +240,7 @@ impl FileWatcher {
             return;
         }
         let now = Instant::now();
-        let window_start = self
-            .pending
-            .first()
-            .map(|e| e.at)
-            .unwrap_or(now);
+        let window_start = self.pending.first().map(|e| e.at).unwrap_or(now);
         let batch = ChangeBatch {
             events: std::mem::take(&mut self.pending),
             window_start,

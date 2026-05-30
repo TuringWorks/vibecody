@@ -192,11 +192,7 @@ impl ReviewEngine {
         id
     }
 
-    pub fn add_comment(
-        &mut self,
-        session_id: &str,
-        comment: ReviewComment,
-    ) -> Result<(), String> {
+    pub fn add_comment(&mut self, session_id: &str, comment: ReviewComment) -> Result<(), String> {
         let session = self
             .sessions
             .get_mut(session_id)
@@ -304,11 +300,7 @@ impl ReviewEngine {
         Ok(next_num)
     }
 
-    pub fn decide(
-        &mut self,
-        session_id: &str,
-        decision: ReviewDecision,
-    ) -> Result<(), String> {
+    pub fn decide(&mut self, session_id: &str, decision: ReviewDecision) -> Result<(), String> {
         let ts = self.tick();
         let session = self
             .sessions
@@ -497,7 +489,15 @@ mod tests {
     fn test_add_comment() {
         let mut e = engine();
         let sid = e.start_session("t", sample_files());
-        let c = make_comment("c1", ReviewRole::Agent, "src/main.rs", 10, 15, "Potential null deref", "warning");
+        let c = make_comment(
+            "c1",
+            ReviewRole::Agent,
+            "src/main.rs",
+            10,
+            15,
+            "Potential null deref",
+            "warning",
+        );
         assert!(e.add_comment(&sid, c).is_ok());
     }
 
@@ -515,7 +515,11 @@ mod tests {
         let mut e = engine();
         let sid = e.start_session("t", sample_files());
         assert_eq!(e.get_quality().total_comments, 0);
-        e.add_comment(&sid, make_comment("c1", ReviewRole::Agent, "f", 1, 1, "x", "info")).unwrap();
+        e.add_comment(
+            &sid,
+            make_comment("c1", ReviewRole::Agent, "f", 1, 1, "x", "info"),
+        )
+        .unwrap();
         assert_eq!(e.get_quality().total_comments, 1);
     }
 
@@ -524,8 +528,16 @@ mod tests {
     fn test_reply_to_comment() {
         let mut e = engine();
         let sid = e.start_session("t", sample_files());
-        e.add_comment(&sid, make_comment("c1", ReviewRole::Agent, "f", 1, 2, "issue", "warning")).unwrap();
-        let reply = ReviewReply { author_role: ReviewRole::Human, content: "Good catch".to_string(), created_at: 100 };
+        e.add_comment(
+            &sid,
+            make_comment("c1", ReviewRole::Agent, "f", 1, 2, "issue", "warning"),
+        )
+        .unwrap();
+        let reply = ReviewReply {
+            author_role: ReviewRole::Human,
+            content: "Good catch".to_string(),
+            created_at: 100,
+        };
         assert!(e.reply(&sid, "c1", reply).is_ok());
     }
 
@@ -534,7 +546,11 @@ mod tests {
     fn test_reply_missing_comment() {
         let mut e = engine();
         let sid = e.start_session("t", sample_files());
-        let reply = ReviewReply { author_role: ReviewRole::Human, content: "x".to_string(), created_at: 0 };
+        let reply = ReviewReply {
+            author_role: ReviewRole::Human,
+            content: "x".to_string(),
+            created_at: 0,
+        };
         assert!(e.reply(&sid, "nope", reply).is_err());
     }
 
@@ -543,7 +559,11 @@ mod tests {
     fn test_resolve_comment() {
         let mut e = engine();
         let sid = e.start_session("t", sample_files());
-        e.add_comment(&sid, make_comment("c1", ReviewRole::Agent, "f", 1, 1, "x", "info")).unwrap();
+        e.add_comment(
+            &sid,
+            make_comment("c1", ReviewRole::Agent, "f", 1, 1, "x", "info"),
+        )
+        .unwrap();
         assert!(e.resolve(&sid, "c1").is_ok());
         let s = e.get_session(&sid).unwrap();
         assert_eq!(s.rounds[0].comments[0].status, CommentStatus::Resolved);
@@ -555,7 +575,11 @@ mod tests {
     fn test_resolve_increments_quality() {
         let mut e = engine();
         let sid = e.start_session("t", sample_files());
-        e.add_comment(&sid, make_comment("c1", ReviewRole::Agent, "f", 1, 1, "x", "info")).unwrap();
+        e.add_comment(
+            &sid,
+            make_comment("c1", ReviewRole::Agent, "f", 1, 1, "x", "info"),
+        )
+        .unwrap();
         e.resolve(&sid, "c1").unwrap();
         assert_eq!(e.get_quality().resolved, 1);
     }
@@ -565,7 +589,11 @@ mod tests {
     fn test_wontfix() {
         let mut e = engine();
         let sid = e.start_session("t", sample_files());
-        e.add_comment(&sid, make_comment("c1", ReviewRole::Human, "f", 1, 1, "style nit", "info")).unwrap();
+        e.add_comment(
+            &sid,
+            make_comment("c1", ReviewRole::Human, "f", 1, 1, "style nit", "info"),
+        )
+        .unwrap();
         e.wontfix(&sid, "c1").unwrap();
         let s = e.get_session(&sid).unwrap();
         assert_eq!(s.rounds[0].comments[0].status, CommentStatus::WontFix);
@@ -605,7 +633,10 @@ mod tests {
     // 15
     #[test]
     fn test_max_rounds_enforced() {
-        let mut e = ReviewEngine::new(ReviewConfig { max_rounds: 2, ..Default::default() });
+        let mut e = ReviewEngine::new(ReviewConfig {
+            max_rounds: 2,
+            ..Default::default()
+        });
         let sid = e.start_session("t", sample_files());
         e.next_round(&sid).unwrap();
         assert!(e.next_round(&sid).is_err());
@@ -647,8 +678,16 @@ mod tests {
     fn test_open_comments_filters() {
         let mut e = engine();
         let sid = e.start_session("t", sample_files());
-        e.add_comment(&sid, make_comment("c1", ReviewRole::Agent, "f", 1, 1, "a", "warning")).unwrap();
-        e.add_comment(&sid, make_comment("c2", ReviewRole::Agent, "f", 5, 5, "b", "error")).unwrap();
+        e.add_comment(
+            &sid,
+            make_comment("c1", ReviewRole::Agent, "f", 1, 1, "a", "warning"),
+        )
+        .unwrap();
+        e.add_comment(
+            &sid,
+            make_comment("c2", ReviewRole::Agent, "f", 5, 5, "b", "error"),
+        )
+        .unwrap();
         e.resolve(&sid, "c1").unwrap();
         let open = e.open_comments(&sid).unwrap();
         assert_eq!(open.len(), 1);
@@ -676,7 +715,11 @@ mod tests {
     fn test_record_real_issue() {
         let mut e = engine();
         let sid = e.start_session("t", sample_files());
-        e.add_comment(&sid, make_comment("c1", ReviewRole::Agent, "f", 1, 1, "bug", "error")).unwrap();
+        e.add_comment(
+            &sid,
+            make_comment("c1", ReviewRole::Agent, "f", 1, 1, "bug", "error"),
+        )
+        .unwrap();
         e.record_real_issue(&sid, "c1");
         assert_eq!(e.get_quality().agent_caught_real_issues, 1);
     }
@@ -686,7 +729,11 @@ mod tests {
     fn test_record_false_positive() {
         let mut e = engine();
         let sid = e.start_session("t", sample_files());
-        e.add_comment(&sid, make_comment("c1", ReviewRole::Agent, "f", 1, 1, "not a bug", "warning")).unwrap();
+        e.add_comment(
+            &sid,
+            make_comment("c1", ReviewRole::Agent, "f", 1, 1, "not a bug", "warning"),
+        )
+        .unwrap();
         e.record_false_positive(&sid, "c1");
         assert_eq!(e.get_quality().false_positives, 1);
     }
@@ -696,9 +743,21 @@ mod tests {
     fn test_precision_calculation() {
         let mut e = engine();
         let sid = e.start_session("t", sample_files());
-        e.add_comment(&sid, make_comment("c1", ReviewRole::Agent, "f", 1, 1, "real", "error")).unwrap();
-        e.add_comment(&sid, make_comment("c2", ReviewRole::Agent, "f", 2, 2, "false", "warning")).unwrap();
-        e.add_comment(&sid, make_comment("c3", ReviewRole::Agent, "f", 3, 3, "real2", "error")).unwrap();
+        e.add_comment(
+            &sid,
+            make_comment("c1", ReviewRole::Agent, "f", 1, 1, "real", "error"),
+        )
+        .unwrap();
+        e.add_comment(
+            &sid,
+            make_comment("c2", ReviewRole::Agent, "f", 2, 2, "false", "warning"),
+        )
+        .unwrap();
+        e.add_comment(
+            &sid,
+            make_comment("c3", ReviewRole::Agent, "f", 3, 3, "real2", "error"),
+        )
+        .unwrap();
         e.record_real_issue(&sid, "c1");
         e.record_real_issue(&sid, "c3");
         e.record_false_positive(&sid, "c2");
@@ -714,7 +773,11 @@ mod tests {
     fn test_precision_all_real() {
         let mut e = engine();
         let sid = e.start_session("t", sample_files());
-        e.add_comment(&sid, make_comment("c1", ReviewRole::Agent, "f", 1, 1, "x", "error")).unwrap();
+        e.add_comment(
+            &sid,
+            make_comment("c1", ReviewRole::Agent, "f", 1, 1, "x", "error"),
+        )
+        .unwrap();
         e.record_real_issue(&sid, "c1");
         assert!((e.get_quality().precision - 1.0).abs() < 1e-9);
     }
@@ -731,7 +794,11 @@ mod tests {
     fn test_human_comment_ignored_by_record_real_issue() {
         let mut e = engine();
         let sid = e.start_session("t", sample_files());
-        e.add_comment(&sid, make_comment("c1", ReviewRole::Human, "f", 1, 1, "x", "info")).unwrap();
+        e.add_comment(
+            &sid,
+            make_comment("c1", ReviewRole::Human, "f", 1, 1, "x", "info"),
+        )
+        .unwrap();
         e.record_real_issue(&sid, "c1");
         assert_eq!(e.get_quality().agent_caught_real_issues, 0);
     }
@@ -741,7 +808,11 @@ mod tests {
     fn test_human_comment_ignored_by_record_false_positive() {
         let mut e = engine();
         let sid = e.start_session("t", sample_files());
-        e.add_comment(&sid, make_comment("c1", ReviewRole::Human, "f", 1, 1, "x", "info")).unwrap();
+        e.add_comment(
+            &sid,
+            make_comment("c1", ReviewRole::Human, "f", 1, 1, "x", "info"),
+        )
+        .unwrap();
         e.record_false_positive(&sid, "c1");
         assert_eq!(e.get_quality().false_positives, 0);
     }
@@ -753,8 +824,16 @@ mod tests {
         let sid = e.start_session("t", sample_files());
         let cl = ReviewChecklist {
             items: vec![
-                ChecklistItem { label: "Tests pass".to_string(), checked: false, category: "ci".to_string() },
-                ChecklistItem { label: "No warnings".to_string(), checked: false, category: "ci".to_string() },
+                ChecklistItem {
+                    label: "Tests pass".to_string(),
+                    checked: false,
+                    category: "ci".to_string(),
+                },
+                ChecklistItem {
+                    label: "No warnings".to_string(),
+                    checked: false,
+                    category: "ci".to_string(),
+                },
             ],
         };
         e.add_checklist(&sid, cl);
@@ -768,7 +847,11 @@ mod tests {
         let mut e = engine();
         let sid = e.start_session("t", sample_files());
         let cl = ReviewChecklist {
-            items: vec![ChecklistItem { label: "Lint".to_string(), checked: false, category: "ci".to_string() }],
+            items: vec![ChecklistItem {
+                label: "Lint".to_string(),
+                checked: false,
+                category: "ci".to_string(),
+            }],
         };
         e.add_checklist(&sid, cl);
         let now = e.toggle_checklist_item(&sid, 0).unwrap();
@@ -849,7 +932,11 @@ mod tests {
         let sid = e.start_session("t", sample_files());
         for i in 0..10 {
             let cid = format!("c{}", i);
-            e.add_comment(&sid, make_comment(&cid, ReviewRole::Agent, "f", i, i + 1, "issue", "warning")).unwrap();
+            e.add_comment(
+                &sid,
+                make_comment(&cid, ReviewRole::Agent, "f", i, i + 1, "issue", "warning"),
+            )
+            .unwrap();
         }
         let s = e.get_session(&sid).unwrap();
         assert_eq!(s.rounds[0].comments.len(), 10);
@@ -860,9 +947,17 @@ mod tests {
     fn test_comments_across_rounds() {
         let mut e = engine();
         let sid = e.start_session("t", sample_files());
-        e.add_comment(&sid, make_comment("c1", ReviewRole::Agent, "f", 1, 1, "r1", "info")).unwrap();
+        e.add_comment(
+            &sid,
+            make_comment("c1", ReviewRole::Agent, "f", 1, 1, "r1", "info"),
+        )
+        .unwrap();
         e.next_round(&sid).unwrap();
-        e.add_comment(&sid, make_comment("c2", ReviewRole::Human, "f", 2, 2, "r2", "info")).unwrap();
+        e.add_comment(
+            &sid,
+            make_comment("c2", ReviewRole::Human, "f", 2, 2, "r2", "info"),
+        )
+        .unwrap();
         let s = e.get_session(&sid).unwrap();
         assert_eq!(s.rounds[0].comments.len(), 1);
         assert_eq!(s.rounds[1].comments.len(), 1);
@@ -873,9 +968,17 @@ mod tests {
     fn test_open_comments_across_rounds() {
         let mut e = engine();
         let sid = e.start_session("t", sample_files());
-        e.add_comment(&sid, make_comment("c1", ReviewRole::Agent, "f", 1, 1, "a", "warning")).unwrap();
+        e.add_comment(
+            &sid,
+            make_comment("c1", ReviewRole::Agent, "f", 1, 1, "a", "warning"),
+        )
+        .unwrap();
         e.next_round(&sid).unwrap();
-        e.add_comment(&sid, make_comment("c2", ReviewRole::Human, "f", 2, 2, "b", "error")).unwrap();
+        e.add_comment(
+            &sid,
+            make_comment("c2", ReviewRole::Human, "f", 2, 2, "b", "error"),
+        )
+        .unwrap();
         e.resolve(&sid, "c1").unwrap();
         let open = e.open_comments(&sid).unwrap();
         assert_eq!(open.len(), 1);
@@ -887,21 +990,38 @@ mod tests {
     fn test_reply_preserves_content() {
         let mut e = engine();
         let sid = e.start_session("t", sample_files());
-        e.add_comment(&sid, make_comment("c1", ReviewRole::Agent, "f", 1, 1, "issue", "warning")).unwrap();
-        e.reply(&sid, "c1", ReviewReply {
-            author_role: ReviewRole::Human,
-            content: "I disagree".to_string(),
-            created_at: 200,
-        }).unwrap();
-        e.reply(&sid, "c1", ReviewReply {
-            author_role: ReviewRole::Agent,
-            content: "Let me explain".to_string(),
-            created_at: 300,
-        }).unwrap();
+        e.add_comment(
+            &sid,
+            make_comment("c1", ReviewRole::Agent, "f", 1, 1, "issue", "warning"),
+        )
+        .unwrap();
+        e.reply(
+            &sid,
+            "c1",
+            ReviewReply {
+                author_role: ReviewRole::Human,
+                content: "I disagree".to_string(),
+                created_at: 200,
+            },
+        )
+        .unwrap();
+        e.reply(
+            &sid,
+            "c1",
+            ReviewReply {
+                author_role: ReviewRole::Agent,
+                content: "Let me explain".to_string(),
+                created_at: 300,
+            },
+        )
+        .unwrap();
         let s = e.get_session(&sid).unwrap();
         assert_eq!(s.rounds[0].comments[0].replies.len(), 2);
         assert_eq!(s.rounds[0].comments[0].replies[0].content, "I disagree");
-        assert_eq!(s.rounds[0].comments[0].replies[1].author_role, ReviewRole::Agent);
+        assert_eq!(
+            s.rounds[0].comments[0].replies[1].author_role,
+            ReviewRole::Agent
+        );
     }
 
     // 42
@@ -915,7 +1035,12 @@ mod tests {
     // 43
     #[test]
     fn test_comment_status_variants() {
-        let statuses = [CommentStatus::Open, CommentStatus::Resolved, CommentStatus::WontFix, CommentStatus::Acknowledged];
+        let statuses = [
+            CommentStatus::Open,
+            CommentStatus::Resolved,
+            CommentStatus::WontFix,
+            CommentStatus::Acknowledged,
+        ];
         assert_eq!(statuses.len(), 4);
         assert_ne!(CommentStatus::Open, CommentStatus::Resolved);
     }
@@ -945,17 +1070,71 @@ mod tests {
         let sid = e.start_session("Full flow PR", vec!["app.rs".to_string()]);
 
         // Round 1: Agent reviews human code
-        e.add_comment(&sid, make_comment("c1", ReviewRole::Agent, "app.rs", 42, 45, "Missing error handling", "error")).unwrap();
-        e.add_comment(&sid, make_comment("c2", ReviewRole::Agent, "app.rs", 100, 100, "Style: prefer if-let", "info")).unwrap();
-        e.reply(&sid, "c1", ReviewReply { author_role: ReviewRole::Human, content: "Fixed".to_string(), created_at: 1 }).unwrap();
+        e.add_comment(
+            &sid,
+            make_comment(
+                "c1",
+                ReviewRole::Agent,
+                "app.rs",
+                42,
+                45,
+                "Missing error handling",
+                "error",
+            ),
+        )
+        .unwrap();
+        e.add_comment(
+            &sid,
+            make_comment(
+                "c2",
+                ReviewRole::Agent,
+                "app.rs",
+                100,
+                100,
+                "Style: prefer if-let",
+                "info",
+            ),
+        )
+        .unwrap();
+        e.reply(
+            &sid,
+            "c1",
+            ReviewReply {
+                author_role: ReviewRole::Human,
+                content: "Fixed".to_string(),
+                created_at: 1,
+            },
+        )
+        .unwrap();
         e.resolve(&sid, "c1").unwrap();
         e.wontfix(&sid, "c2").unwrap();
         e.decide(&sid, ReviewDecision::RequestChanges).unwrap();
 
         // Round 2: Human reviews agent code
         e.next_round(&sid).unwrap();
-        e.add_comment(&sid, make_comment("c3", ReviewRole::Human, "app.rs", 50, 55, "This refactor is wrong", "error")).unwrap();
-        e.reply(&sid, "c3", ReviewReply { author_role: ReviewRole::Agent, content: "Reverted".to_string(), created_at: 2 }).unwrap();
+        e.add_comment(
+            &sid,
+            make_comment(
+                "c3",
+                ReviewRole::Human,
+                "app.rs",
+                50,
+                55,
+                "This refactor is wrong",
+                "error",
+            ),
+        )
+        .unwrap();
+        e.reply(
+            &sid,
+            "c3",
+            ReviewReply {
+                author_role: ReviewRole::Agent,
+                content: "Reverted".to_string(),
+                created_at: 2,
+            },
+        )
+        .unwrap();
         e.resolve(&sid, "c3").unwrap();
 
         // Round 3: Agent approves
@@ -1003,7 +1182,11 @@ mod tests {
     // 50
     #[test]
     fn test_custom_config() {
-        let cfg = ReviewConfig { max_rounds: 10, checklist_enabled: false, agent_pushback: false };
+        let cfg = ReviewConfig {
+            max_rounds: 10,
+            checklist_enabled: false,
+            agent_pushback: false,
+        };
         let e = ReviewEngine::new(cfg);
         assert_eq!(e.config.max_rounds, 10);
         assert!(!e.config.checklist_enabled);

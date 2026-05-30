@@ -3,7 +3,7 @@
  * Run with: cargo test --test mock_provider_bdd
  */
 
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibe_ai::mock_provider::MockAIProvider;
 use vibe_ai::provider::{AIProvider, Message, MessageRole};
 

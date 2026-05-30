@@ -1,6 +1,6 @@
 //! BDD coverage for GitWorktreePool against real git repos (US-003).
 
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use std::path::PathBuf;
 use std::process::Command;
 use tempfile::TempDir;
@@ -18,8 +18,14 @@ pub struct GitWorktreeWorld {
 impl std::fmt::Debug for GitWorktreeWorld {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("GitWorktreeWorld")
-            .field("repo_path", &self.repo.as_ref().map(|d| d.path().to_owned()))
-            .field("base_dir", &self.base_dir.as_ref().map(|d| d.path().to_owned()))
+            .field(
+                "repo_path",
+                &self.repo.as_ref().map(|d| d.path().to_owned()),
+            )
+            .field(
+                "base_dir",
+                &self.base_dir.as_ref().map(|d| d.path().to_owned()),
+            )
             .field("last_merge", &self.last_merge)
             .field("last_spawn_error", &self.last_spawn_error)
             .finish()
@@ -63,11 +69,7 @@ fn given_fresh_repo(w: &mut GitWorktreeWorld, branch: String) {
     std::fs::write(repo_path.join("hello.txt"), "orig\n").expect("write");
     run_git(&repo_path, &["add", "hello.txt"]);
     run_git(&repo_path, &["commit", "-m", "init"]);
-    w.pool = Some(GitWorktreePool::new(
-        &repo_path,
-        base.path(),
-        4,
-    ));
+    w.pool = Some(GitWorktreePool::new(&repo_path, base.path(), 4));
     w.repo = Some(repo);
     w.base_dir = Some(base);
 }
@@ -85,7 +87,9 @@ fn given_spawned(w: &mut GitWorktreeWorld, id: String, branch: String) {
     pool.spawn(&id, &branch).expect("spawn");
 }
 
-#[given(regex = r#"^a new file "([^"]+)" with content "([^"]+)" is committed in worktree "([^"]+)"$"#)]
+#[given(
+    regex = r#"^a new file "([^"]+)" with content "([^"]+)" is committed in worktree "([^"]+)"$"#
+)]
 fn given_new_file(w: &mut GitWorktreeWorld, file: String, content: String, id: String) {
     let pool = w.pool.as_ref().expect("pool");
     let handle = pool.get(&id).expect("handle");
@@ -106,12 +110,20 @@ fn given_modified_in_wt(w: &mut GitWorktreeWorld, file: String, content: String,
 }
 
 #[given(regex = r#"^file "([^"]+)" is modified to "([^"]+)" and committed on branch "([^"]+)"$"#)]
-fn given_modified_on_branch(w: &mut GitWorktreeWorld, file: String, content: String, branch: String) {
+fn given_modified_on_branch(
+    w: &mut GitWorktreeWorld,
+    file: String,
+    content: String,
+    branch: String,
+) {
     let repo_p = repo_path(w);
     run_git(&repo_p, &["checkout", &branch]);
     std::fs::write(repo_p.join(&file), format!("{content}\n")).expect("write");
     run_git(&repo_p, &["add", &file]);
-    run_git(&repo_p, &["commit", "-m", &format!("modify {file} on {branch}")]);
+    run_git(
+        &repo_p,
+        &["commit", "-m", &format!("modify {file} on {branch}")],
+    );
 }
 
 // ── When ────────────────────────────────────────────────────────────────────
@@ -150,7 +162,11 @@ fn when_spawn_attempt(w: &mut GitWorktreeWorld, id: String, branch: String) {
 fn then_path_exists(w: &mut GitWorktreeWorld, id: String) {
     let pool = w.pool.as_ref().expect("pool");
     let handle = pool.get(&id).expect("handle");
-    assert!(handle.path.is_dir(), "path {:?} does not exist", handle.path);
+    assert!(
+        handle.path.is_dir(),
+        "path {:?} does not exist",
+        handle.path
+    );
 }
 
 #[then(regex = r#"^the worktree HEAD is on branch "([^"]+)"$"#)]
@@ -170,7 +186,10 @@ fn then_head_on_branch(w: &mut GitWorktreeWorld, branch: String) {
 fn then_path_gone(w: &mut GitWorktreeWorld, id: String) {
     let base = base_path(w);
     let expected = base.join(&id);
-    assert!(!expected.exists(), "worktree dir {expected:?} still present");
+    assert!(
+        !expected.exists(),
+        "worktree dir {expected:?} still present"
+    );
     let pool = w.pool.as_ref().expect("pool");
     assert!(pool.get(&id).is_none(), "handle for {id} still tracked");
 }
@@ -186,7 +205,10 @@ fn then_merge_clean(w: &mut GitWorktreeWorld) {
 fn then_branch_has_file(w: &mut GitWorktreeWorld, branch: String, file: String) {
     let repo_p = repo_path(w);
     run_git(&repo_p, &["checkout", &branch]);
-    assert!(repo_p.join(&file).exists(), "file {file} not present on {branch}");
+    assert!(
+        repo_p.join(&file).exists(),
+        "file {file} not present on {branch}"
+    );
 }
 
 #[then(regex = r#"^the merge reports conflicts in "([^"]+)"$"#)]
@@ -209,10 +231,7 @@ fn then_source_clean(w: &mut GitWorktreeWorld) {
         .output()
         .expect("git");
     let status = String::from_utf8_lossy(&out.stdout);
-    assert!(
-        status.trim().is_empty(),
-        "source repo not clean: {status}"
-    );
+    assert!(status.trim().is_empty(), "source repo not clean: {status}");
 }
 
 #[then(regex = r#"^the spawn returns an error mentioning "([^"]+)"$"#)]
@@ -225,7 +244,5 @@ fn then_spawn_error(w: &mut GitWorktreeWorld, needle: String) {
 }
 
 fn main() {
-    futures::executor::block_on(
-        GitWorktreeWorld::run("tests/features/worktree_git.feature"),
-    );
+    futures::executor::block_on(GitWorktreeWorld::run("tests/features/worktree_git.feature"));
 }

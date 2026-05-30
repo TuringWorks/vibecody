@@ -154,16 +154,24 @@ mod tests {
             ..Default::default()
         };
         store.set(&cfg).unwrap();
-        let result = store.apply_substitutions("Hello {{owner_name}} from {{business_name}}!").unwrap();
+        let result = store
+            .apply_substitutions("Hello {{owner_name}} from {{business_name}}!")
+            .unwrap();
         assert_eq!(result, "Hello Bob from TechCo!");
     }
 
     #[test]
     fn given_set_when_updated_then_returns_new_value() {
         let store = make_store();
-        let cfg1 = WorkspaceConfig { owner_name: "Old".to_string(), ..Default::default() };
+        let cfg1 = WorkspaceConfig {
+            owner_name: "Old".to_string(),
+            ..Default::default()
+        };
         store.set(&cfg1).unwrap();
-        let cfg2 = WorkspaceConfig { owner_name: "New".to_string(), ..Default::default() };
+        let cfg2 = WorkspaceConfig {
+            owner_name: "New".to_string(),
+            ..Default::default()
+        };
         store.set(&cfg2).unwrap();
         let got = store.get().unwrap();
         assert_eq!(got.owner_name, "New");

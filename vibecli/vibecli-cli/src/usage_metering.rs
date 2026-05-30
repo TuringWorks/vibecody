@@ -239,7 +239,10 @@ impl UsageMeter {
                     let alert = BudgetAlert {
                         budget_id: b.id.clone(),
                         alert_type: AlertType::Critical,
-                        message: format!("Budget '{}' at critical level ({:.1}%)", b.name, usage_pct),
+                        message: format!(
+                            "Budget '{}' at critical level ({:.1}%)",
+                            b.name, usage_pct
+                        ),
                         timestamp: self.records.last().map(|r| r.timestamp).unwrap_or(0),
                         usage_percent: usage_pct,
                     };
@@ -494,10 +497,7 @@ impl UsageMeter {
             }
         }
         let mut sorted: Vec<(String, f64)> = by_user.into_iter().collect();
-        sorted.sort_by(|a, b| {
-            b.1.partial_cmp(&a.1)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        sorted.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         sorted.truncate(limit);
         sorted
     }
@@ -616,11 +616,7 @@ mod tests {
     #[test]
     fn test_check_budget_user() {
         let mut meter = UsageMeter::new();
-        meter.create_budget(make_budget(
-            "b1",
-            BudgetOwner::User("alice".into()),
-            50.0,
-        ));
+        meter.create_budget(make_budget("b1", BudgetOwner::User("alice".into()), 50.0));
         assert!(meter
             .check_budget(&BudgetOwner::User("alice".into()))
             .is_some());
@@ -733,11 +729,7 @@ mod tests {
     #[test]
     fn test_user_budget_tracking() {
         let mut meter = UsageMeter::new();
-        meter.create_budget(make_budget(
-            "b1",
-            BudgetOwner::User("alice".into()),
-            10.0,
-        ));
+        meter.create_budget(make_budget("b1", BudgetOwner::User("alice".into()), 10.0));
         // alice's usage
         meter.record_usage(make_record("r1", "alice", "proj1", 4.0, 2000));
         // bob's usage should not affect alice's budget
@@ -750,11 +742,7 @@ mod tests {
     #[test]
     fn test_project_budget_tracking() {
         let mut meter = UsageMeter::new();
-        meter.create_budget(make_budget(
-            "b1",
-            BudgetOwner::Project("proj1".into()),
-            5.0,
-        ));
+        meter.create_budget(make_budget("b1", BudgetOwner::Project("proj1".into()), 5.0));
         meter.record_usage(make_record("r1", "alice", "proj1", 3.0, 2000));
         meter.record_usage(make_record("r2", "bob", "proj2", 10.0, 2001));
         assert!(!meter.is_over_budget(&BudgetOwner::Project("proj1".into())));
@@ -890,17 +878,11 @@ mod tests {
 
         // Not enough time elapsed
         meter.reset_period_budgets(50_000);
-        assert_eq!(
-            meter.get_budget("b1").expect("exists").used_credits,
-            50.0
-        );
+        assert_eq!(meter.get_budget("b1").expect("exists").used_credits, 50.0);
 
         // Enough time elapsed (86400 seconds)
         meter.reset_period_budgets(1000 + 86_400);
-        assert_eq!(
-            meter.get_budget("b1").expect("exists").used_credits,
-            0.0
-        );
+        assert_eq!(meter.get_budget("b1").expect("exists").used_credits, 0.0);
     }
 
     #[test]
@@ -911,10 +893,7 @@ mod tests {
         b.used_credits = 80.0;
         meter.create_budget(b);
         meter.reset_period_budgets(999_999_999);
-        assert_eq!(
-            meter.get_budget("b1").expect("exists").used_credits,
-            80.0
-        );
+        assert_eq!(meter.get_budget("b1").expect("exists").used_credits, 80.0);
     }
 
     #[test]
@@ -1015,14 +994,12 @@ mod tests {
     fn test_multiple_budgets_multiple_alerts() {
         let mut meter = UsageMeter::new();
         meter.create_budget(make_budget("b1", BudgetOwner::Global, 10.0));
-        meter.create_budget(make_budget(
-            "b2",
-            BudgetOwner::User("alice".into()),
-            5.0,
-        ));
+        meter.create_budget(make_budget("b2", BudgetOwner::User("alice".into()), 5.0));
         // alice uses 5.0 -> global at 50% (no alert), user at 100% (limit reached)
         let alerts = meter.record_usage(make_record("r1", "alice", "proj1", 5.0, 2000));
-        assert!(alerts.iter().any(|a| a.alert_type == AlertType::LimitReached));
+        assert!(alerts
+            .iter()
+            .any(|a| a.alert_type == AlertType::LimitReached));
     }
 
     #[test]
@@ -1046,10 +1023,7 @@ mod tests {
         let mut r = make_record("r1", "alice", "p1", 0.05, 2000);
         r.agent_id = Some("agent-007".to_string());
         meter.record_usage(r);
-        assert_eq!(
-            meter.records[0].agent_id,
-            Some("agent-007".to_string())
-        );
+        assert_eq!(meter.records[0].agent_id, Some("agent-007".to_string()));
     }
 
     #[test]

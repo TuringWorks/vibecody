@@ -23,23 +23,18 @@ pub mod token_refresher;
 
 pub use accept::{BoundAddr, Broker, BrokerHandle};
 pub use audit::{
-    AuditEvent, AuditSink, EgressOutcome, JsonlFileAuditSink, MemoryAuditSink, NullAuditSink,
-    baseline_egress_request,
+    baseline_egress_request, AuditEvent, AuditSink, EgressOutcome, JsonlFileAuditSink,
+    MemoryAuditSink, NullAuditSink,
 };
 pub use audit_summary::AuditSummary;
 pub use config::{
-    AuditSection, AzureProfile, BrokerConfig, BrokerSection, ConfigError, GcpProfile,
-    ImdsSection, ListenerKind, PolicySection, RefresherSection,
+    AuditSection, AzureProfile, BrokerConfig, BrokerSection, ConfigError, GcpProfile, ImdsSection,
+    ListenerKind, PolicySection, RefresherSection,
 };
 pub use daemon::{BrokerDaemon, DaemonError, DaemonHandle};
-pub use token_mint::{
-    AzureClientCredentialsMinter, CachedMinter, GcpServiceAccountMinter, MintError, MintedToken,
-    TokenMinter,
-};
-pub use token_refresher::{RefreshHandle, TokenRefresher};
-pub use forward::{ForwardError, ForwardRequest, ForwardResponse, forward_plain_http};
+pub use forward::{forward_plain_http, ForwardError, ForwardRequest, ForwardResponse};
 pub use imds::{ImdsHandle, ImdsServer};
-pub use mitm::{InspectContext, MitmError, default_upstream_roots, run_mitm};
+pub use mitm::{default_upstream_roots, run_mitm, InspectContext, MitmError};
 pub use policy::{Decision, Inject, Policy, Rule, RuleMatch, SecretRef};
 pub use secrets::{
     AwsCredentials, AzureAccessToken, EmptySecretStore, GcpAccessToken, InMemorySecretStore,
@@ -47,6 +42,11 @@ pub use secrets::{
 };
 pub use ssrf::{SsrfGuard, SsrfVerdict};
 pub use tls::{BrokerCa, LeafCert, TlsError};
+pub use token_mint::{
+    AzureClientCredentialsMinter, CachedMinter, GcpServiceAccountMinter, MintError, MintedToken,
+    TokenMinter,
+};
+pub use token_refresher::{RefreshHandle, TokenRefresher};
 
 #[derive(Debug, thiserror::Error)]
 pub enum BrokerError {

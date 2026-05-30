@@ -710,7 +710,10 @@ impl A2aEventStream {
     }
 
     pub fn events_for_task(&self, task_id: &str) -> Vec<&A2aEvent> {
-        self.events.iter().filter(|e| e.task_id == task_id).collect()
+        self.events
+            .iter()
+            .filter(|e| e.task_id == task_id)
+            .collect()
     }
 
     pub fn events_by_type(&self, event_type: &A2aEventType) -> Vec<&A2aEvent> {
@@ -846,8 +849,7 @@ impl A2aServer {
             task.updated_at = ts;
         }
         self.metrics.record_failed();
-        self.event_stream
-            .emit(A2aEventType::Error, task_id, reason);
+        self.event_stream.emit(A2aEventType::Error, task_id, reason);
         Ok(())
     }
 
@@ -955,11 +957,7 @@ impl A2aClient {
         Ok(id)
     }
 
-    pub fn mark_task_completed(
-        &mut self,
-        task_id: &str,
-        output: TaskOutput,
-    ) -> Result<(), String> {
+    pub fn mark_task_completed(&mut self, task_id: &str, output: TaskOutput) -> Result<(), String> {
         self.timestamp_counter += 1;
         let ts = self.timestamp_counter;
         {
@@ -1125,10 +1123,7 @@ pub fn migrate_v2_to_v3(card_json: &str) -> Result<AgentCard, String> {
         serde_json::from_str(card_json).map_err(|e| format!("Parse error: {e}"))?;
     if value.get("transport_modes").is_none() {
         if let Some(obj) = value.as_object_mut() {
-            obj.insert(
-                "transport_modes".to_string(),
-                serde_json::json!(["Http"]),
-            );
+            obj.insert("transport_modes".to_string(), serde_json::json!(["Http"]));
         }
     }
     serde_json::from_value(value).map_err(|e| format!("Upgrade error: {e}"))
@@ -1220,7 +1215,10 @@ mod tests {
         reg.register(make_capable_card(
             "coder",
             "http://coder:8080",
-            vec![AgentCapability::CodeGeneration, AgentCapability::Refactoring],
+            vec![
+                AgentCapability::CodeGeneration,
+                AgentCapability::Refactoring,
+            ],
         ))
         .unwrap();
         reg.register(make_capable_card(
@@ -1271,8 +1269,10 @@ mod tests {
 
     #[test]
     fn test_agent_card_with_auth() {
-        let card = make_agent_card("test", "http://localhost:8080")
-            .with_auth(AgentAuth::oauth2("https://auth.example.com/token", vec!["read".to_string()]));
+        let card = make_agent_card("test", "http://localhost:8080").with_auth(AgentAuth::oauth2(
+            "https://auth.example.com/token",
+            vec!["read".to_string()],
+        ));
         assert_eq!(card.authentication.auth_type, AuthType::OAuth2);
         assert_eq!(
             card.authentication.token_url,
@@ -1498,8 +1498,7 @@ mod tests {
 
     #[test]
     fn test_match_score_empty_required() {
-        let score =
-            CapabilityNegotiator::match_score(&[], &[AgentCapability::Testing]);
+        let score = CapabilityNegotiator::match_score(&[], &[AgentCapability::Testing]);
         assert!((score - 1.0).abs() < f64::EPSILON);
     }
 
@@ -1733,7 +1732,10 @@ mod tests {
     fn test_server_register_handler() {
         let card = make_agent_card("srv", "http://localhost:9000");
         let mut server = A2aServer::new("localhost", 9000, card);
-        server.register_handler(make_handler("code_handler", AgentCapability::CodeGeneration));
+        server.register_handler(make_handler(
+            "code_handler",
+            AgentCapability::CodeGeneration,
+        ));
         assert!(server.has_handler("code_handler"));
         assert_eq!(server.handler_count(), 1);
     }
@@ -1754,7 +1756,9 @@ mod tests {
         let mut server = A2aServer::new("localhost", 9000, card);
         let id = server.submit_task(TaskInput::text("build it")).unwrap();
         assert_eq!(server.active_task_count(), 1);
-        server.complete_task(&id, TaskOutput::text("built")).unwrap();
+        server
+            .complete_task(&id, TaskOutput::text("built"))
+            .unwrap();
         let metrics = server.get_metrics();
         assert_eq!(metrics.tasks_created, 1);
         assert_eq!(metrics.tasks_completed, 1);

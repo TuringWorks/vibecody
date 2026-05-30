@@ -4,20 +4,20 @@
 // register_device round-trip using real P256 keys, proving the
 // Secure Enclave key type is handled correctly.
 
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD as B64, Engine};
 use cucumber::{given, then, when, World};
 use p256::ecdsa::{signature::Signer, Signature, SigningKey};
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD as B64, Engine};
 use tempfile::TempDir;
 use vibecli_cli::watch_auth::{WatchAuthManager, WatchRegisterRequest};
 
 #[derive(Debug, Default, World)]
 pub struct P256World {
-    manager:     Option<WatchAuthManager>,
-    _tmp:        Option<TempDir>,
+    manager: Option<WatchAuthManager>,
+    _tmp: Option<TempDir>,
     signing_key: Option<SigningKey>,
-    nonce:       String,
-    issued_at:   u64,
-    last_req:    Option<WatchRegisterRequest>,
+    nonce: String,
+    issued_at: u64,
+    last_req: Option<WatchRegisterRequest>,
     last_result: Option<Result<String, String>>, // device_id or error message
 }
 
@@ -28,13 +28,13 @@ impl P256World {
 
     fn build_req(&self, pk_bytes: &[u8], sig_bytes: &[u8]) -> WatchRegisterRequest {
         WatchRegisterRequest {
-            device_id:          "testdevice00000000000000000000001".into(),
-            name:               "BDD Watch".into(),
-            os_version:         "11.0".into(),
-            model:              "Watch7,1".into(),
-            public_key_b64:     B64.encode(pk_bytes),
-            signature_b64:      B64.encode(sig_bytes),
-            nonce:              self.nonce.clone(),
+            device_id: "testdevice00000000000000000000001".into(),
+            name: "BDD Watch".into(),
+            os_version: "11.0".into(),
+            model: "Watch7,1".into(),
+            public_key_b64: B64.encode(pk_bytes),
+            signature_b64: B64.encode(sig_bytes),
+            nonce: self.nonce.clone(),
             device_check_token: None,
         }
     }
@@ -47,19 +47,21 @@ fn a_fresh_manager(world: &mut P256World) {
     let tmp = tempfile::tempdir().expect("tmpdir");
     let mgr = WatchAuthManager::new_with_path(tmp.path(), &[42u8; 32])
         .expect("WatchAuthManager::new_with_path");
-    world._tmp    = Some(tmp);
+    world._tmp = Some(tmp);
     world.manager = Some(mgr);
 }
 
 #[given("a P256 signing key is generated")]
 fn generate_p256_key(world: &mut P256World) {
-    world.signing_key = Some(SigningKey::random(&mut p256::elliptic_curve::rand_core::OsRng));
+    world.signing_key = Some(SigningKey::random(
+        &mut p256::elliptic_curve::rand_core::OsRng,
+    ));
 }
 
 #[given("a registration challenge is issued")]
 fn issue_challenge(world: &mut P256World) {
     let ch = world.mgr().issue_challenge().expect("issue_challenge");
-    world.nonce     = ch.nonce;
+    world.nonce = ch.nonce;
     world.issued_at = ch.issued_at;
 }
 
@@ -84,10 +86,12 @@ fn sign_challenge(world: &mut P256World) {
 
 #[when("register_device is called with a 32-byte public key")]
 fn call_with_short_key(world: &mut P256World) {
-    let pk  = vec![0u8; 32];
+    let pk = vec![0u8; 32];
     let sig = vec![0u8; 64];
     let req = world.build_req(&pk, &sig);
-    let result = world.mgr().register_device(&req)
+    let result = world
+        .mgr()
+        .register_device(&req)
         .map(|d| d.device_id)
         .map_err(|e| e.to_string());
     world.last_result = Some(result);
@@ -101,7 +105,9 @@ fn call_with_zero_sig(world: &mut P256World) {
     let pk_bytes = &pk_uncompressed.as_bytes()[1..];
     let sig = vec![0u8; 64];
     let req = world.build_req(pk_bytes, &sig);
-    let result = world.mgr().register_device(&req)
+    let result = world
+        .mgr()
+        .register_device(&req)
         .map(|d| d.device_id)
         .map_err(|e| e.to_string());
     world.last_result = Some(result);
@@ -118,7 +124,9 @@ fn sign_tampered_message(world: &mut P256World) {
     let wrong_msg = b"this is not the nonce+device_id+timestamp";
     let sig: Signature = sk.sign(wrong_msg.as_ref());
     let req = world.build_req(pk_bytes, &sig.to_bytes());
-    let result = world.mgr().register_device(&req)
+    let result = world
+        .mgr()
+        .register_device(&req)
         .map(|d| d.device_id)
         .map_err(|e| e.to_string());
     world.last_result = Some(result);
@@ -127,7 +135,9 @@ fn sign_tampered_message(world: &mut P256World) {
 #[when("register_device succeeds")]
 fn do_register(world: &mut P256World) {
     let req = world.last_req.clone().expect("no pending request");
-    let result = world.mgr().register_device(&req)
+    let result = world
+        .mgr()
+        .register_device(&req)
         .map(|d| d.device_id)
         .map_err(|e| e.to_string());
     world.last_result = Some(result);
@@ -137,7 +147,9 @@ fn do_register(world: &mut P256World) {
 fn replay_register(world: &mut P256World) {
     // last_req still has the original nonce which is now consumed
     let req = world.last_req.clone().expect("no request to replay");
-    let result = world.mgr().register_device(&req)
+    let result = world
+        .mgr()
+        .register_device(&req)
         .map(|d| d.device_id)
         .map_err(|e| e.to_string());
     world.last_result = Some(result);
@@ -148,7 +160,9 @@ fn replay_register(world: &mut P256World) {
 #[then("register_device succeeds")]
 fn assert_success(world: &mut P256World) {
     let req = world.last_req.clone().expect("no pending request");
-    let result = world.mgr().register_device(&req)
+    let result = world
+        .mgr()
+        .register_device(&req)
         .map(|d| d.device_id)
         .map_err(|e| e.to_string());
     world.last_result = Some(result.clone());
@@ -168,7 +182,9 @@ fn assert_fails_with(world: &mut P256World, needle: String) {
     let err = result.as_ref().expect_err("expected Err");
     assert!(
         err.to_lowercase().contains(&needle.to_lowercase()),
-        "expected error containing {:?}, got: {:?}", needle, err
+        "expected error containing {:?}, got: {:?}",
+        needle,
+        err
     );
 }
 

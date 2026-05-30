@@ -115,7 +115,9 @@ pub struct SearchIndex {
 }
 
 impl SearchIndex {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     /// Add a chunk to the index.
     pub fn index(&mut self, chunk: CodeChunk) {
@@ -140,7 +142,9 @@ impl SearchIndex {
         }
     }
 
-    pub fn chunk_count(&self) -> usize { self.chunks.len() }
+    pub fn chunk_count(&self) -> usize {
+        self.chunks.len()
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -154,7 +158,9 @@ pub struct SemanticSearchV2 {
 
 impl SemanticSearchV2 {
     pub fn new() -> Self {
-        Self { index: SearchIndex::new() }
+        Self {
+            index: SearchIndex::new(),
+        }
     }
 
     pub fn index_chunk(&mut self, chunk: CodeChunk) {
@@ -175,11 +181,15 @@ impl SemanticSearchV2 {
         for (idx, chunk) in self.index.chunks.iter().enumerate() {
             // Language filter
             if let Some(ref lang) = config.language_filter {
-                if &chunk.language != lang { continue; }
+                if &chunk.language != lang {
+                    continue;
+                }
             }
             // File filter
             if let Some(ref filt) = config.file_filter {
-                if !chunk.file.contains(filt.as_str()) { continue; }
+                if !chunk.file.contains(filt.as_str()) {
+                    continue;
+                }
             }
 
             let mut best_score = 0.0f32;
@@ -213,14 +223,15 @@ impl SemanticSearchV2 {
         scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         scored.truncate(config.max_results);
 
-        scored.into_iter().map(|(idx, score, strategy, matched_terms)| {
-            SearchResult {
+        scored
+            .into_iter()
+            .map(|(idx, score, strategy, matched_terms)| SearchResult {
                 chunk: self.index.chunks[idx].clone(),
                 score,
                 strategy,
                 matched_terms,
-            }
-        }).collect()
+            })
+            .collect()
     }
 
     /// Build a context window from top results.
@@ -236,17 +247,23 @@ impl SemanticSearchV2 {
                 r.score,
                 r.chunk.content
             );
-            if buf.len() + snippet.len() > max_chars { break; }
+            if buf.len() + snippet.len() > max_chars {
+                break;
+            }
             buf.push_str(&snippet);
         }
         buf
     }
 
-    pub fn chunk_count(&self) -> usize { self.index.chunk_count() }
+    pub fn chunk_count(&self) -> usize {
+        self.index.chunk_count()
+    }
 }
 
 impl Default for SemanticSearchV2 {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -277,9 +294,13 @@ fn lexical_score(chunk: &CodeChunk, query_tokens: &[String]) -> (f32, Vec<String
 
 fn structural_score(chunk: &CodeChunk, query: &str) -> (f32, Vec<String>) {
     // Structural: check if query looks like a symbol name and appears in content.
-    let score = if chunk.content.contains(query) { 0.8 }
-    else if chunk.content.to_lowercase().contains(&query.to_lowercase()) { 0.5 }
-    else { 0.0 };
+    let score = if chunk.content.contains(query) {
+        0.8
+    } else if chunk.content.to_lowercase().contains(&query.to_lowercase()) {
+        0.5
+    } else {
+        0.0
+    };
     (score, Vec::new())
 }
 
@@ -293,10 +314,18 @@ fn semantic_score(chunk: &CodeChunk, query_embedding: &[f32]) -> (f32, Vec<Strin
 
 fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     let len = a.len().min(b.len());
-    let dot: f32 = a[..len].iter().zip(b[..len].iter()).map(|(x, y)| x * y).sum();
+    let dot: f32 = a[..len]
+        .iter()
+        .zip(b[..len].iter())
+        .map(|(x, y)| x * y)
+        .sum();
     let norm_a: f32 = a.iter().map(|x| x * x).sum::<f32>().sqrt();
     let norm_b: f32 = b.iter().map(|x| x * x).sum::<f32>().sqrt();
-    if norm_a == 0.0 || norm_b == 0.0 { 0.0 } else { dot / (norm_a * norm_b) }
+    if norm_a == 0.0 || norm_b == 0.0 {
+        0.0
+    } else {
+        dot / (norm_a * norm_b)
+    }
 }
 
 /// Mock embedding: bag-of-tokens using hash positions.
@@ -304,7 +333,9 @@ fn mock_embed(text: &str) -> Vec<f32> {
     let tokens = tokenize(text);
     let mut v = vec![0.0f32; 32];
     for (i, t) in tokens.iter().enumerate() {
-        let h: usize = t.bytes().fold(0usize, |a, b| a.wrapping_mul(31).wrapping_add(b as usize));
+        let h: usize = t
+            .bytes()
+            .fold(0usize, |a, b| a.wrapping_mul(31).wrapping_add(b as usize));
         v[h % 32] += 1.0 / (i + 1) as f32;
     }
     v
@@ -330,16 +361,34 @@ mod tests {
     #[test]
     fn test_index_and_count() {
         let mut eng = SemanticSearchV2::new();
-        eng.index_chunk(chunk("c1", "src/lib.rs", "fn add(a: i32) -> i32 { a + 1 }", "rust"));
+        eng.index_chunk(chunk(
+            "c1",
+            "src/lib.rs",
+            "fn add(a: i32) -> i32 { a + 1 }",
+            "rust",
+        ));
         assert_eq!(eng.chunk_count(), 1);
     }
 
     #[test]
     fn test_lexical_search() {
         let mut eng = SemanticSearchV2::new();
-        eng.index_chunk(chunk("c1", "src/lib.rs", "fn add_numbers(a: i32, b: i32) -> i32 { a + b }", "rust"));
-        eng.index_chunk(chunk("c2", "src/main.rs", "fn greet(name: &str) { println!(\"Hello\"); }", "rust"));
-        let config = SearchConfig { strategies: vec![SearchStrategy::Lexical], ..Default::default() };
+        eng.index_chunk(chunk(
+            "c1",
+            "src/lib.rs",
+            "fn add_numbers(a: i32, b: i32) -> i32 { a + b }",
+            "rust",
+        ));
+        eng.index_chunk(chunk(
+            "c2",
+            "src/main.rs",
+            "fn greet(name: &str) { println!(\"Hello\"); }",
+            "rust",
+        ));
+        let config = SearchConfig {
+            strategies: vec![SearchStrategy::Lexical],
+            ..Default::default()
+        };
         // Use tokens that appear literally in c1: "add_numbers" and "i32"
         let results = eng.search("add_numbers i32", &config);
         assert!(!results.is_empty());
@@ -349,8 +398,16 @@ mod tests {
     #[test]
     fn test_structural_search() {
         let mut eng = SemanticSearchV2::new();
-        eng.index_chunk(chunk("c1", "src/lib.rs", "pub fn serialize_json(data: &Value) -> String { }", "rust"));
-        let config = SearchConfig { strategies: vec![SearchStrategy::Structural], ..Default::default() };
+        eng.index_chunk(chunk(
+            "c1",
+            "src/lib.rs",
+            "pub fn serialize_json(data: &Value) -> String { }",
+            "rust",
+        ));
+        let config = SearchConfig {
+            strategies: vec![SearchStrategy::Structural],
+            ..Default::default()
+        };
         let results = eng.search("serialize_json", &config);
         assert!(!results.is_empty());
     }
@@ -358,8 +415,16 @@ mod tests {
     #[test]
     fn test_semantic_search() {
         let mut eng = SemanticSearchV2::new();
-        eng.index_chunk(emb_chunk("c1", "src/auth.rs", "fn validate_token(token: &str) -> bool { true }", "rust"));
-        let config = SearchConfig { strategies: vec![SearchStrategy::Semantic], ..Default::default() };
+        eng.index_chunk(emb_chunk(
+            "c1",
+            "src/auth.rs",
+            "fn validate_token(token: &str) -> bool { true }",
+            "rust",
+        ));
+        let config = SearchConfig {
+            strategies: vec![SearchStrategy::Semantic],
+            ..Default::default()
+        };
         let results = eng.search("validate token auth", &config);
         assert!(!results.is_empty());
     }
@@ -367,7 +432,12 @@ mod tests {
     #[test]
     fn test_hybrid_search() {
         let mut eng = SemanticSearchV2::new();
-        eng.index_chunk(emb_chunk("c1", "src/db.rs", "fn query_users(filter: &str) -> Vec<User> { vec![] }", "rust"));
+        eng.index_chunk(emb_chunk(
+            "c1",
+            "src/db.rs",
+            "fn query_users(filter: &str) -> Vec<User> { vec![] }",
+            "rust",
+        ));
         let config = SearchConfig::default();
         let results = eng.search("query users database", &config);
         assert!(!results.is_empty());
@@ -404,7 +474,12 @@ mod tests {
     #[test]
     fn test_min_score_filter() {
         let mut eng = SemanticSearchV2::new();
-        eng.index_chunk(chunk("c1", "src/unrelated.rs", "fn something_else() {}", "rust"));
+        eng.index_chunk(chunk(
+            "c1",
+            "src/unrelated.rs",
+            "fn something_else() {}",
+            "rust",
+        ));
         let config = SearchConfig {
             strategies: vec![SearchStrategy::Lexical],
             min_score: 0.9, // Very high threshold
@@ -418,7 +493,12 @@ mod tests {
     fn test_max_results() {
         let mut eng = SemanticSearchV2::new();
         for i in 0..20 {
-            eng.index_chunk(chunk(&format!("c{}", i), "src/lib.rs", "fn compute() {}", "rust"));
+            eng.index_chunk(chunk(
+                &format!("c{}", i),
+                "src/lib.rs",
+                "fn compute() {}",
+                "rust",
+            ));
         }
         let config = SearchConfig {
             max_results: 5,
@@ -441,7 +521,12 @@ mod tests {
     #[test]
     fn test_build_context() {
         let mut eng = SemanticSearchV2::new();
-        eng.index_chunk(chunk("c1", "src/lib.rs", "fn add(a: i32) -> i32 { a + 1 }", "rust"));
+        eng.index_chunk(chunk(
+            "c1",
+            "src/lib.rs",
+            "fn add(a: i32) -> i32 { a + 1 }",
+            "rust",
+        ));
         let config = SearchConfig::default();
         let results = eng.search("add", &config);
         let ctx = eng.build_context(&results, 10000);

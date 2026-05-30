@@ -1,4 +1,3 @@
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
@@ -457,8 +456,8 @@ impl MigrationPlan {
 
     pub fn add_component(&mut self, component: LegacyComponent) {
         // Update estimated effort: ~1 hour per 100 lines + complexity factor
-        let effort = (component.lines_of_code as u32 / 100).max(1)
-            + component.complexity_score / 10;
+        let effort =
+            (component.lines_of_code as u32 / 100).max(1) + component.complexity_score / 10;
         self.estimated_effort_hours += effort;
         self.components.push(component);
     }
@@ -733,9 +732,7 @@ impl MigrationEngine {
         // Estimate effort: base of 2 hours per component + 1 hour per 200 lines + complexity factor
         result.estimated_effort_hours = components
             .iter()
-            .map(|c| {
-                2 + (c.lines_of_code as u32 / 200).max(1) + c.complexity_score / 15
-            })
+            .map(|c| 2 + (c.lines_of_code as u32 / 200).max(1) + c.complexity_score / 15)
             .sum();
 
         result.recommended_strategy = self.suggest_strategy(&result);
@@ -849,9 +846,7 @@ impl MigrationEngine {
         target: &TargetLanguage,
     ) -> TranslationResult {
         let ext = target_extension(target);
-        let target_path = component
-            .file_path
-            .with_extension(ext);
+        let target_path = component.file_path.with_extension(ext);
 
         let matching_rules: Vec<&TranslationRule> = self
             .translation_rules
@@ -978,83 +973,49 @@ impl MigrationEngine {
         match (source, target) {
             (SourceLanguage::Cobol, TargetLanguage::Rust) => {
                 rules.push(
-                    TranslationRule::new(
-                        source.clone(),
-                        target.clone(),
-                        "PERFORM",
-                        "fn",
-                    )
-                    .with_example("PERFORM CALCULATE-TOTAL", "fn calculate_total()")
-                    .with_confidence(0.9),
+                    TranslationRule::new(source.clone(), target.clone(), "PERFORM", "fn")
+                        .with_example("PERFORM CALCULATE-TOTAL", "fn calculate_total()")
+                        .with_confidence(0.9),
                 );
                 rules.push(
-                    TranslationRule::new(
-                        source.clone(),
-                        target.clone(),
-                        "MOVE",
-                        "let",
-                    )
-                    .with_example("MOVE A TO B", "let b = a;")
-                    .with_confidence(0.85),
+                    TranslationRule::new(source.clone(), target.clone(), "MOVE", "let")
+                        .with_example("MOVE A TO B", "let b = a;")
+                        .with_confidence(0.85),
                 );
                 rules.push(
-                    TranslationRule::new(
-                        source.clone(),
-                        target.clone(),
-                        "PIC 9",
-                        "i64",
-                    )
-                    .with_confidence(0.8),
+                    TranslationRule::new(source.clone(), target.clone(), "PIC 9", "i64")
+                        .with_confidence(0.8),
                 );
                 rules.push(
-                    TranslationRule::new(
-                        source.clone(),
-                        target.clone(),
-                        "PIC X",
-                        "String",
-                    )
-                    .with_confidence(0.8),
+                    TranslationRule::new(source.clone(), target.clone(), "PIC X", "String")
+                        .with_confidence(0.8),
                 );
                 rules.push(
-                    TranslationRule::new(
-                        source.clone(),
-                        target.clone(),
-                        "IF",
-                        "if",
-                    )
-                    .with_confidence(0.95),
+                    TranslationRule::new(source.clone(), target.clone(), "IF", "if")
+                        .with_confidence(0.95),
                 );
             }
             (SourceLanguage::Cobol, TargetLanguage::Java21) => {
                 rules.push(
-                    TranslationRule::new(
-                        source.clone(),
-                        target.clone(),
-                        "PERFORM",
-                        "void",
-                    )
-                    .with_example("PERFORM CALC", "void calc()")
-                    .with_confidence(0.85),
+                    TranslationRule::new(source.clone(), target.clone(), "PERFORM", "void")
+                        .with_example("PERFORM CALC", "void calc()")
+                        .with_confidence(0.85),
                 );
                 rules.push(
-                    TranslationRule::new(
-                        source.clone(),
-                        target.clone(),
-                        "PIC 9",
-                        "long",
-                    )
-                    .with_confidence(0.8),
+                    TranslationRule::new(source.clone(), target.clone(), "PIC 9", "long")
+                        .with_confidence(0.8),
                 );
             }
-            (SourceLanguage::Java4 | SourceLanguage::Java5 | SourceLanguage::Java6 | SourceLanguage::Java7, TargetLanguage::Kotlin) => {
+            (
+                SourceLanguage::Java4
+                | SourceLanguage::Java5
+                | SourceLanguage::Java6
+                | SourceLanguage::Java7,
+                TargetLanguage::Kotlin,
+            ) => {
                 rules.push(
-                    TranslationRule::new(
-                        source.clone(),
-                        target.clone(),
-                        "public class",
-                        "class",
-                    )
-                    .with_confidence(0.95),
+                    TranslationRule::new(source.clone(), target.clone(), "public class", "class")
+                        .with_confidence(0.95),
                 );
                 rules.push(
                     TranslationRule::new(
@@ -1066,43 +1027,23 @@ impl MigrationEngine {
                     .with_confidence(0.9),
                 );
                 rules.push(
-                    TranslationRule::new(
-                        source.clone(),
-                        target.clone(),
-                        "HashMap",
-                        "mutableMapOf",
-                    )
-                    .with_confidence(0.9),
+                    TranslationRule::new(source.clone(), target.clone(), "HashMap", "mutableMapOf")
+                        .with_confidence(0.9),
                 );
                 rules.push(
-                    TranslationRule::new(
-                        source.clone(),
-                        target.clone(),
-                        "null",
-                        "null",
-                    )
-                    .with_confidence(0.7)
-                    .needs_review(),
+                    TranslationRule::new(source.clone(), target.clone(), "null", "null")
+                        .with_confidence(0.7)
+                        .needs_review(),
                 );
             }
             (SourceLanguage::VB6, TargetLanguage::CSharp12) => {
                 rules.push(
-                    TranslationRule::new(
-                        source.clone(),
-                        target.clone(),
-                        "Dim",
-                        "var",
-                    )
-                    .with_confidence(0.9),
+                    TranslationRule::new(source.clone(), target.clone(), "Dim", "var")
+                        .with_confidence(0.9),
                 );
                 rules.push(
-                    TranslationRule::new(
-                        source.clone(),
-                        target.clone(),
-                        "Sub",
-                        "void",
-                    )
-                    .with_confidence(0.85),
+                    TranslationRule::new(source.clone(), target.clone(), "Sub", "void")
+                        .with_confidence(0.85),
                 );
                 rules.push(
                     TranslationRule::new(
@@ -1116,77 +1057,42 @@ impl MigrationEngine {
             }
             (SourceLanguage::Fortran, TargetLanguage::Python) => {
                 rules.push(
-                    TranslationRule::new(
-                        source.clone(),
-                        target.clone(),
-                        "SUBROUTINE",
-                        "def",
-                    )
-                    .with_confidence(0.9),
+                    TranslationRule::new(source.clone(), target.clone(), "SUBROUTINE", "def")
+                        .with_confidence(0.9),
                 );
                 rules.push(
-                    TranslationRule::new(
-                        source.clone(),
-                        target.clone(),
-                        "DO",
-                        "for",
-                    )
-                    .with_confidence(0.85),
+                    TranslationRule::new(source.clone(), target.clone(), "DO", "for")
+                        .with_confidence(0.85),
                 );
                 rules.push(
-                    TranslationRule::new(
-                        source.clone(),
-                        target.clone(),
-                        "REAL",
-                        "float",
-                    )
-                    .with_confidence(0.9),
+                    TranslationRule::new(source.clone(), target.clone(), "REAL", "float")
+                        .with_confidence(0.9),
                 );
             }
             (SourceLanguage::CSharpLegacy, TargetLanguage::CSharp12) => {
                 rules.push(
-                    TranslationRule::new(
-                        source.clone(),
-                        target.clone(),
-                        "delegate",
-                        "Func",
-                    )
-                    .with_confidence(0.8)
-                    .needs_review(),
+                    TranslationRule::new(source.clone(), target.clone(), "delegate", "Func")
+                        .with_confidence(0.8)
+                        .needs_review(),
                 );
             }
             (SourceLanguage::Perl, TargetLanguage::Python) => {
                 rules.push(
-                    TranslationRule::new(
-                        source.clone(),
-                        target.clone(),
-                        "my $",
-                        "",
-                    )
-                    .with_confidence(0.7)
-                    .needs_review(),
+                    TranslationRule::new(source.clone(), target.clone(), "my $", "")
+                        .with_confidence(0.7)
+                        .needs_review(),
                 );
                 rules.push(
-                    TranslationRule::new(
-                        source.clone(),
-                        target.clone(),
-                        "sub ",
-                        "def ",
-                    )
-                    .with_confidence(0.85),
+                    TranslationRule::new(source.clone(), target.clone(), "sub ", "def ")
+                        .with_confidence(0.85),
                 );
             }
             _ => {
                 // Generic fallback rule
                 rules.push(
-                    TranslationRule::new(
-                        source.clone(),
-                        target.clone(),
-                        "//",
-                        "//",
-                    )
-                    .with_confidence(0.5)
-                    .needs_review(),
+                    TranslationRule::new(source.clone(), target.clone(), "//", "//")
+                        .with_confidence(0.5)
+                        .needs_review(),
                 );
             }
         }
@@ -1247,7 +1153,12 @@ mod tests {
     use super::*;
 
     // Helper to create a basic component
-    fn make_component(name: &str, lang: SourceLanguage, loc: usize, complexity: u32) -> LegacyComponent {
+    fn make_component(
+        name: &str,
+        lang: SourceLanguage,
+        loc: usize,
+        complexity: u32,
+    ) -> LegacyComponent {
         let mut c = LegacyComponent::new(name, ComponentType::Module, lang);
         c.lines_of_code = loc;
         c.complexity_score = complexity;
@@ -1304,8 +1215,16 @@ mod tests {
         c.add_data_structure(DataStructure {
             name: "CUSTOMER-REC".to_string(),
             fields: vec![
-                ("CUST-ID".to_string(), "PIC 9(5)".to_string(), "i64".to_string()),
-                ("CUST-NAME".to_string(), "PIC X(30)".to_string(), "String".to_string()),
+                (
+                    "CUST-ID".to_string(),
+                    "PIC 9(5)".to_string(),
+                    "i64".to_string(),
+                ),
+                (
+                    "CUST-NAME".to_string(),
+                    "PIC X(30)".to_string(),
+                    "String".to_string(),
+                ),
             ],
             source: "COPYBOOK".to_string(),
         });
@@ -1405,7 +1324,12 @@ mod tests {
 
     #[test]
     fn test_plan_new() {
-        let p = MigrationPlan::new("COBOL to Rust", SourceLanguage::Cobol, TargetLanguage::Rust, MigrationStrategy::StranglerFig);
+        let p = MigrationPlan::new(
+            "COBOL to Rust",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            MigrationStrategy::StranglerFig,
+        );
         assert_eq!(p.title, "COBOL to Rust");
         assert_eq!(p.source, SourceLanguage::Cobol);
         assert_eq!(p.target, TargetLanguage::Rust);
@@ -1415,7 +1339,12 @@ mod tests {
 
     #[test]
     fn test_plan_add_component() {
-        let mut p = MigrationPlan::new("test", SourceLanguage::Cobol, TargetLanguage::Rust, MigrationStrategy::BigBang);
+        let mut p = MigrationPlan::new(
+            "test",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            MigrationStrategy::BigBang,
+        );
         p.add_component(make_component("a", SourceLanguage::Cobol, 500, 20));
         assert_eq!(p.components.len(), 1);
         assert!(p.estimated_effort_hours > 0);
@@ -1423,7 +1352,12 @@ mod tests {
 
     #[test]
     fn test_plan_total_lines() {
-        let mut p = MigrationPlan::new("test", SourceLanguage::Cobol, TargetLanguage::Rust, MigrationStrategy::BigBang);
+        let mut p = MigrationPlan::new(
+            "test",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            MigrationStrategy::BigBang,
+        );
         p.add_component(make_component("a", SourceLanguage::Cobol, 500, 10));
         p.add_component(make_component("b", SourceLanguage::Cobol, 300, 10));
         assert_eq!(p.total_lines(), 800);
@@ -1431,7 +1365,12 @@ mod tests {
 
     #[test]
     fn test_plan_total_complexity() {
-        let mut p = MigrationPlan::new("test", SourceLanguage::Cobol, TargetLanguage::Rust, MigrationStrategy::BigBang);
+        let mut p = MigrationPlan::new(
+            "test",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            MigrationStrategy::BigBang,
+        );
         p.add_component(make_component("a", SourceLanguage::Cobol, 100, 30));
         p.add_component(make_component("b", SourceLanguage::Cobol, 100, 45));
         assert_eq!(p.total_complexity(), 75);
@@ -1439,7 +1378,12 @@ mod tests {
 
     #[test]
     fn test_plan_highest_risk_critical() {
-        let mut p = MigrationPlan::new("test", SourceLanguage::Cobol, TargetLanguage::Rust, MigrationStrategy::BigBang);
+        let mut p = MigrationPlan::new(
+            "test",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            MigrationStrategy::BigBang,
+        );
         let mut c1 = make_component("safe", SourceLanguage::Cobol, 100, 5);
         c1.risk_level = RiskLevel::Low;
         let mut c2 = make_component("risky", SourceLanguage::Cobol, 100, 90);
@@ -1453,7 +1397,12 @@ mod tests {
 
     #[test]
     fn test_plan_highest_risk_falls_back_to_high() {
-        let mut p = MigrationPlan::new("test", SourceLanguage::Cobol, TargetLanguage::Rust, MigrationStrategy::BigBang);
+        let mut p = MigrationPlan::new(
+            "test",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            MigrationStrategy::BigBang,
+        );
         let mut c1 = make_component("low", SourceLanguage::Cobol, 100, 5);
         c1.risk_level = RiskLevel::Low;
         let mut c2 = make_component("high", SourceLanguage::Cobol, 100, 60);
@@ -1467,13 +1416,23 @@ mod tests {
 
     #[test]
     fn test_plan_progress_no_phases() {
-        let p = MigrationPlan::new("test", SourceLanguage::Cobol, TargetLanguage::Rust, MigrationStrategy::BigBang);
+        let p = MigrationPlan::new(
+            "test",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            MigrationStrategy::BigBang,
+        );
         assert_eq!(p.progress_percentage(), 0.0);
     }
 
     #[test]
     fn test_plan_progress_half() {
-        let mut p = MigrationPlan::new("test", SourceLanguage::Cobol, TargetLanguage::Rust, MigrationStrategy::BigBang);
+        let mut p = MigrationPlan::new(
+            "test",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            MigrationStrategy::BigBang,
+        );
         p.add_phase(MigrationPhaseDetail {
             phase: MigrationPhase::Analysis,
             description: "Analyze".to_string(),
@@ -1495,7 +1454,12 @@ mod tests {
 
     #[test]
     fn test_plan_progress_all_done() {
-        let mut p = MigrationPlan::new("test", SourceLanguage::Cobol, TargetLanguage::Rust, MigrationStrategy::BigBang);
+        let mut p = MigrationPlan::new(
+            "test",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            MigrationStrategy::BigBang,
+        );
         p.add_phase(MigrationPhaseDetail {
             phase: MigrationPhase::Analysis,
             description: "A".to_string(),
@@ -1509,7 +1473,12 @@ mod tests {
 
     #[test]
     fn test_plan_estimated_remaining() {
-        let mut p = MigrationPlan::new("test", SourceLanguage::Cobol, TargetLanguage::Rust, MigrationStrategy::BigBang);
+        let mut p = MigrationPlan::new(
+            "test",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            MigrationStrategy::BigBang,
+        );
         p.add_phase(MigrationPhaseDetail {
             phase: MigrationPhase::Analysis,
             description: "A".to_string(),
@@ -1531,7 +1500,12 @@ mod tests {
 
     #[test]
     fn test_plan_phase_status() {
-        let mut p = MigrationPlan::new("test", SourceLanguage::Cobol, TargetLanguage::Rust, MigrationStrategy::BigBang);
+        let mut p = MigrationPlan::new(
+            "test",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            MigrationStrategy::BigBang,
+        );
         p.add_phase(MigrationPhaseDetail {
             phase: MigrationPhase::Testing,
             description: "Test".to_string(),
@@ -1540,7 +1514,10 @@ mod tests {
             status: MigrationStatus::Paused,
             prerequisites: vec![],
         });
-        assert_eq!(p.phase_status(&MigrationPhase::Testing), Some(&MigrationStatus::Paused));
+        assert_eq!(
+            p.phase_status(&MigrationPhase::Testing),
+            Some(&MigrationStatus::Paused)
+        );
         assert_eq!(p.phase_status(&MigrationPhase::Deployment), None);
     }
 
@@ -1548,7 +1525,12 @@ mod tests {
 
     #[test]
     fn test_build_dependency_graph() {
-        let mut p = MigrationPlan::new("test", SourceLanguage::Cobol, TargetLanguage::Rust, MigrationStrategy::BigBang);
+        let mut p = MigrationPlan::new(
+            "test",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            MigrationStrategy::BigBang,
+        );
         let mut a = make_component("a", SourceLanguage::Cobol, 100, 10);
         let b = make_component("b", SourceLanguage::Cobol, 100, 10);
         a.add_dependency(make_dep(&b.id, DependencyType::Call, false));
@@ -1564,7 +1546,12 @@ mod tests {
 
     #[test]
     fn test_topological_order_simple() {
-        let mut p = MigrationPlan::new("test", SourceLanguage::Cobol, TargetLanguage::Rust, MigrationStrategy::BigBang);
+        let mut p = MigrationPlan::new(
+            "test",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            MigrationStrategy::BigBang,
+        );
         let mut a = make_component("a", SourceLanguage::Cobol, 100, 10);
         let b = make_component("b", SourceLanguage::Cobol, 100, 10);
         // a depends on b, so b should come first
@@ -1583,7 +1570,12 @@ mod tests {
 
     #[test]
     fn test_topological_order_no_deps() {
-        let mut p = MigrationPlan::new("test", SourceLanguage::Cobol, TargetLanguage::Rust, MigrationStrategy::BigBang);
+        let mut p = MigrationPlan::new(
+            "test",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            MigrationStrategy::BigBang,
+        );
         p.add_component(make_component("x", SourceLanguage::Cobol, 100, 10));
         p.add_component(make_component("y", SourceLanguage::Cobol, 100, 10));
         p.build_dependency_graph();
@@ -1593,7 +1585,12 @@ mod tests {
 
     #[test]
     fn test_dependency_graph_ignores_external() {
-        let mut p = MigrationPlan::new("test", SourceLanguage::Cobol, TargetLanguage::Rust, MigrationStrategy::BigBang);
+        let mut p = MigrationPlan::new(
+            "test",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            MigrationStrategy::BigBang,
+        );
         let mut a = make_component("a", SourceLanguage::Cobol, 100, 10);
         a.add_dependency(make_dep("nonexistent", DependencyType::Call, false));
         p.add_component(a);
@@ -1784,7 +1781,12 @@ mod tests {
     #[test]
     fn test_engine_create_plan() {
         let mut e = MigrationEngine::new();
-        let plan = e.create_plan("My Plan", SourceLanguage::Cobol, TargetLanguage::Rust, MigrationStrategy::StranglerFig);
+        let plan = e.create_plan(
+            "My Plan",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            MigrationStrategy::StranglerFig,
+        );
         assert_eq!(plan.title, "My Plan");
         assert_eq!(e.plans.len(), 1);
         assert!(e.active_plan.is_some());
@@ -1793,16 +1795,36 @@ mod tests {
     #[test]
     fn test_engine_create_multiple_plans() {
         let mut e = MigrationEngine::new();
-        e.create_plan("Plan 1", SourceLanguage::Cobol, TargetLanguage::Rust, MigrationStrategy::BigBang);
-        e.create_plan("Plan 2", SourceLanguage::Java4, TargetLanguage::Kotlin, MigrationStrategy::Incremental);
+        e.create_plan(
+            "Plan 1",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            MigrationStrategy::BigBang,
+        );
+        e.create_plan(
+            "Plan 2",
+            SourceLanguage::Java4,
+            TargetLanguage::Kotlin,
+            MigrationStrategy::Incremental,
+        );
         assert_eq!(e.plans.len(), 2);
     }
 
     #[test]
     fn test_engine_list_plans() {
         let mut e = MigrationEngine::new();
-        e.create_plan("Alpha", SourceLanguage::Cobol, TargetLanguage::Rust, MigrationStrategy::BigBang);
-        e.create_plan("Beta", SourceLanguage::Java4, TargetLanguage::Kotlin, MigrationStrategy::Incremental);
+        e.create_plan(
+            "Alpha",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            MigrationStrategy::BigBang,
+        );
+        e.create_plan(
+            "Beta",
+            SourceLanguage::Java4,
+            TargetLanguage::Kotlin,
+            MigrationStrategy::Incremental,
+        );
         let listed = e.list_plans();
         assert_eq!(listed.len(), 2);
         assert_eq!(listed[0].1, "Alpha");
@@ -1812,7 +1834,12 @@ mod tests {
     #[test]
     fn test_engine_get_plan() {
         let mut e = MigrationEngine::new();
-        let plan = e.create_plan("Find Me", SourceLanguage::Cobol, TargetLanguage::Rust, MigrationStrategy::BigBang);
+        let plan = e.create_plan(
+            "Find Me",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            MigrationStrategy::BigBang,
+        );
         let id = plan.id.clone();
         assert!(e.get_plan(&id).is_some());
         assert_eq!(e.get_plan(&id).unwrap().title, "Find Me");
@@ -1828,7 +1855,10 @@ mod tests {
     fn test_engine_add_translation_rule() {
         let mut e = MigrationEngine::new();
         e.add_translation_rule(TranslationRule::new(
-            SourceLanguage::Cobol, TargetLanguage::Rust, "PERFORM", "fn",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            "PERFORM",
+            "fn",
         ));
         assert_eq!(e.translation_rules.len(), 1);
     }
@@ -1987,9 +2017,17 @@ mod tests {
     fn test_identify_service_boundaries_groups_by_data() {
         let e = MigrationEngine::new();
         let mut c1 = make_component("a", SourceLanguage::Cobol, 100, 10);
-        c1.add_dependency(make_dep("db-customers", DependencyType::DatabaseAccess, false));
+        c1.add_dependency(make_dep(
+            "db-customers",
+            DependencyType::DatabaseAccess,
+            false,
+        ));
         let mut c2 = make_component("b", SourceLanguage::Cobol, 200, 10);
-        c2.add_dependency(make_dep("db-customers", DependencyType::DatabaseAccess, false));
+        c2.add_dependency(make_dep(
+            "db-customers",
+            DependencyType::DatabaseAccess,
+            false,
+        ));
         let mut c3 = make_component("c", SourceLanguage::Cobol, 150, 10);
         c3.add_dependency(make_dep("db-orders", DependencyType::DatabaseAccess, false));
         let boundaries = e.identify_service_boundaries(&[c1, c2, c3]);
@@ -2054,15 +2092,23 @@ mod tests {
         let mut c = make_component("complex", SourceLanguage::Cobol, 100, 90);
         c.file_path = PathBuf::from("test.cbl");
         let result = e.translate_component(&c, &TargetLanguage::Rust);
-        assert!(result.warnings.iter().any(|w| w.contains("exceeds threshold")));
+        assert!(result
+            .warnings
+            .iter()
+            .any(|w| w.contains("exceeds threshold")));
     }
 
     #[test]
     fn test_translate_review_items_from_rules() {
         let mut e = MigrationEngine::new();
         e.add_translation_rule(
-            TranslationRule::new(SourceLanguage::Cobol, TargetLanguage::Rust, "GOTO", "// TODO: refactor goto")
-                .needs_review()
+            TranslationRule::new(
+                SourceLanguage::Cobol,
+                TargetLanguage::Rust,
+                "GOTO",
+                "// TODO: refactor goto",
+            )
+            .needs_review(),
         );
         let mut c = make_component("mod", SourceLanguage::Cobol, 100, 10);
         c.file_path = PathBuf::from("test.cbl");
@@ -2081,7 +2127,12 @@ mod tests {
     #[test]
     fn test_generate_report_empty_plan() {
         let mut e = MigrationEngine::new();
-        let plan = e.create_plan("Empty", SourceLanguage::Cobol, TargetLanguage::Rust, MigrationStrategy::BigBang);
+        let plan = e.create_plan(
+            "Empty",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            MigrationStrategy::BigBang,
+        );
         let id = plan.id.clone();
         let report = e.generate_report(&id).unwrap();
         assert_eq!(report.components_total, 0);
@@ -2093,7 +2144,12 @@ mod tests {
     fn test_generate_report_with_components() {
         let mut e = MigrationEngine::new();
         e.load_default_rules(&SourceLanguage::Cobol, &TargetLanguage::Rust);
-        let plan = e.create_plan("Full", SourceLanguage::Cobol, TargetLanguage::Rust, MigrationStrategy::BigBang);
+        let plan = e.create_plan(
+            "Full",
+            SourceLanguage::Cobol,
+            TargetLanguage::Rust,
+            MigrationStrategy::BigBang,
+        );
         let mut c = make_component("main", SourceLanguage::Cobol, 2000, 30);
         c.file_path = PathBuf::from("/src/main.cbl");
         plan.add_component(c);
@@ -2116,13 +2172,17 @@ mod tests {
     #[test]
     fn test_supported_pairs_contains_cobol_rust() {
         let pairs = MigrationEngine::supported_pairs();
-        assert!(pairs.iter().any(|(s, t)| *s == SourceLanguage::Cobol && *t == TargetLanguage::Rust));
+        assert!(pairs
+            .iter()
+            .any(|(s, t)| *s == SourceLanguage::Cobol && *t == TargetLanguage::Rust));
     }
 
     #[test]
     fn test_supported_pairs_contains_java_kotlin() {
         let pairs = MigrationEngine::supported_pairs();
-        assert!(pairs.iter().any(|(s, t)| *s == SourceLanguage::Java5 && *t == TargetLanguage::Kotlin));
+        assert!(pairs
+            .iter()
+            .any(|(s, t)| *s == SourceLanguage::Java5 && *t == TargetLanguage::Kotlin));
     }
 
     // --- Config defaults ---
@@ -2149,8 +2209,15 @@ mod tests {
 
     #[test]
     fn test_custom_source_language() {
-        let c = LegacyComponent::new("custom", ComponentType::Module, SourceLanguage::Custom("Natural".to_string()));
-        assert_eq!(c.source_language, SourceLanguage::Custom("Natural".to_string()));
+        let c = LegacyComponent::new(
+            "custom",
+            ComponentType::Module,
+            SourceLanguage::Custom("Natural".to_string()),
+        );
+        assert_eq!(
+            c.source_language,
+            SourceLanguage::Custom("Natural".to_string())
+        );
     }
 
     #[test]
@@ -2223,14 +2290,20 @@ mod tests {
 
     #[test]
     fn test_default_rules_cobol_java() {
-        let rules = MigrationEngine::default_rules_for_pair(&SourceLanguage::Cobol, &TargetLanguage::Java21);
+        let rules = MigrationEngine::default_rules_for_pair(
+            &SourceLanguage::Cobol,
+            &TargetLanguage::Java21,
+        );
         assert!(!rules.is_empty());
         assert!(rules.iter().any(|r| r.source_pattern == "PERFORM"));
     }
 
     #[test]
     fn test_default_rules_csharp_legacy() {
-        let rules = MigrationEngine::default_rules_for_pair(&SourceLanguage::CSharpLegacy, &TargetLanguage::CSharp12);
+        let rules = MigrationEngine::default_rules_for_pair(
+            &SourceLanguage::CSharpLegacy,
+            &TargetLanguage::CSharp12,
+        );
         assert!(!rules.is_empty());
     }
 
@@ -2241,13 +2314,19 @@ mod tests {
         assert_eq!(target_extension(&TargetLanguage::Python), "py");
         assert_eq!(target_extension(&TargetLanguage::TypeScript), "ts");
         assert_eq!(target_extension(&TargetLanguage::Kotlin), "kt");
-        assert_eq!(target_extension(&TargetLanguage::Custom("Zig".to_string())), "txt");
+        assert_eq!(
+            target_extension(&TargetLanguage::Custom("Zig".to_string())),
+            "txt"
+        );
     }
 
     #[test]
     fn test_source_language_name_mapping() {
         assert_eq!(source_language_name(&SourceLanguage::Cobol), "COBOL");
         assert_eq!(source_language_name(&SourceLanguage::Fortran), "Fortran");
-        assert_eq!(source_language_name(&SourceLanguage::Custom("Ada".to_string())), "Ada");
+        assert_eq!(
+            source_language_name(&SourceLanguage::Custom("Ada".to_string())),
+            "Ada"
+        );
     }
 }

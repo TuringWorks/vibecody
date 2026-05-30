@@ -123,7 +123,12 @@ fn build_announce(
     let mut count: u16 = 0;
 
     // PTR _vibecli._tcp.local. → <instance>._vibecli._tcp.local.
-    push_rr(&mut answers, &encode_name("_vibecli._tcp.local."), 12, &encode_name(&fqdn_instance));
+    push_rr(
+        &mut answers,
+        &encode_name("_vibecli._tcp.local."),
+        12,
+        &encode_name(&fqdn_instance),
+    );
     count += 1;
 
     // SRV <instance>._vibecli._tcp.local. → <host>.local.  port
@@ -157,7 +162,7 @@ fn build_announce(
     pkt.extend_from_slice(&0x0000u16.to_be_bytes()); // ID
     pkt.extend_from_slice(&0x8400u16.to_be_bytes()); // QR=1 AA=1
     pkt.extend_from_slice(&0x0000u16.to_be_bytes()); // QDCOUNT
-    pkt.extend_from_slice(&count.to_be_bytes());     // ANCOUNT
+    pkt.extend_from_slice(&count.to_be_bytes()); // ANCOUNT
     pkt.extend_from_slice(&0x0000u16.to_be_bytes()); // NSCOUNT
     pkt.extend_from_slice(&0x0000u16.to_be_bytes()); // ARCOUNT
     pkt.extend_from_slice(&answers);
@@ -168,7 +173,7 @@ fn push_rr(buf: &mut Vec<u8>, name: &[u8], rtype: u16, rdata: &[u8]) {
     buf.extend_from_slice(name);
     buf.extend_from_slice(&rtype.to_be_bytes());
     buf.extend_from_slice(&0x8001u16.to_be_bytes()); // IN + cache-flush
-    buf.extend_from_slice(&120u32.to_be_bytes());    // TTL 120 s
+    buf.extend_from_slice(&120u32.to_be_bytes()); // TTL 120 s
     buf.extend_from_slice(&(rdata.len() as u16).to_be_bytes());
     buf.extend_from_slice(rdata);
 }

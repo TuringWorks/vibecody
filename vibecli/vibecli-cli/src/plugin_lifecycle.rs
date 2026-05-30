@@ -1,8 +1,8 @@
 //! Plugin Lifecycle Manager — install, update, uninstall, enable, disable, dev mode.
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use serde::{Deserialize, Serialize};
 
 /// Plugin installation state
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -11,8 +11,8 @@ pub enum PluginState {
     Installed,
     Enabled,
     Disabled,
-    Outdated,    // newer version available
-    DevMode,     // linked locally for development
+    Outdated, // newer version available
+    DevMode,  // linked locally for development
     Errored(String),
 }
 
@@ -38,7 +38,10 @@ pub struct PluginStateStore {
 
 impl PluginStateStore {
     pub fn new() -> Self {
-        Self { plugins: vec![], version: "1.0.0".to_string() }
+        Self {
+            plugins: vec![],
+            version: "1.0.0".to_string(),
+        }
     }
 
     pub fn load(path: &Path) -> anyhow::Result<Self> {
@@ -72,7 +75,8 @@ impl PluginStateStore {
     }
 
     pub fn enabled_plugins(&self) -> Vec<&InstalledPlugin> {
-        self.plugins.iter()
+        self.plugins
+            .iter()
             .filter(|p| matches!(p.state, PluginState::Enabled | PluginState::DevMode))
             .collect()
     }
@@ -94,7 +98,11 @@ impl PluginLifecycle {
         std::fs::create_dir_all(&plugins_dir)?;
         let store = PluginStateStore::load(&state_path)?;
 
-        Ok(Self { plugins_dir, state_path, store })
+        Ok(Self {
+            plugins_dir,
+            state_path,
+            store,
+        })
     }
 
     #[cfg(test)]
@@ -103,13 +111,24 @@ impl PluginLifecycle {
         let state_path = dir.join("plugin-state.json");
         std::fs::create_dir_all(&plugins_dir)?;
         let store = PluginStateStore::load(&state_path)?;
-        Ok(Self { plugins_dir, state_path, store })
+        Ok(Self {
+            plugins_dir,
+            state_path,
+            store,
+        })
     }
 
     /// Install a plugin from a git repository URL
-    pub fn install_from_repo(&mut self, name: &str, repo_url: &str) -> anyhow::Result<InstalledPlugin> {
+    pub fn install_from_repo(
+        &mut self,
+        name: &str,
+        repo_url: &str,
+    ) -> anyhow::Result<InstalledPlugin> {
         if self.store.is_installed(name) {
-            anyhow::bail!("Plugin '{}' is already installed. Use 'update' instead.", name);
+            anyhow::bail!(
+                "Plugin '{}' is already installed. Use 'update' instead.",
+                name
+            );
         }
 
         let plugin_dir = self.plugins_dir.join(name);
@@ -119,7 +138,13 @@ impl PluginLifecycle {
 
         // Clone the repository
         let status = std::process::Command::new("git")
-            .args(["clone", "--depth", "1", repo_url, plugin_dir.to_str().unwrap_or("")])
+            .args([
+                "clone",
+                "--depth",
+                "1",
+                repo_url,
+                plugin_dir.to_str().unwrap_or(""),
+            ])
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped())
             .status()?;
@@ -156,7 +181,11 @@ impl PluginLifecycle {
     }
 
     /// Install from a local directory (dev mode / symlink)
-    pub fn install_dev(&mut self, name: &str, source_dir: &Path) -> anyhow::Result<InstalledPlugin> {
+    pub fn install_dev(
+        &mut self,
+        name: &str,
+        source_dir: &Path,
+    ) -> anyhow::Result<InstalledPlugin> {
         if !source_dir.join("plugin.toml").exists() {
             anyhow::bail!("Directory does not contain a plugin.toml manifest");
         }
@@ -215,7 +244,9 @@ impl PluginLifecycle {
 
     /// Enable a disabled plugin
     pub fn enable(&mut self, name: &str) -> anyhow::Result<()> {
-        let plugin = self.store.find_mut(name)
+        let plugin = self
+            .store
+            .find_mut(name)
             .ok_or_else(|| anyhow::anyhow!("Plugin '{}' not found", name))?;
 
         match plugin.state {
@@ -232,7 +263,9 @@ impl PluginLifecycle {
 
     /// Disable a plugin without uninstalling
     pub fn disable(&mut self, name: &str) -> anyhow::Result<()> {
-        let plugin = self.store.find_mut(name)
+        let plugin = self
+            .store
+            .find_mut(name)
             .ok_or_else(|| anyhow::anyhow!("Plugin '{}' not found", name))?;
 
         plugin.state = PluginState::Disabled;
@@ -242,7 +275,9 @@ impl PluginLifecycle {
 
     /// Update a plugin to latest version
     pub fn update(&mut self, name: &str) -> anyhow::Result<String> {
-        let plugin = self.store.find(name)
+        let plugin = self
+            .store
+            .find(name)
             .ok_or_else(|| anyhow::anyhow!("Plugin '{}' not found", name))?;
 
         if plugin.state == PluginState::DevMode {
@@ -258,7 +293,10 @@ impl PluginLifecycle {
             .output()?;
 
         if !output.status.success() {
-            anyhow::bail!("Failed to update plugin: {}", String::from_utf8_lossy(&output.stderr));
+            anyhow::bail!(
+                "Failed to update plugin: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
         }
 
         // Re-read version
@@ -279,7 +317,10 @@ impl PluginLifecycle {
 
     /// Update all installed plugins
     pub fn update_all(&mut self) -> anyhow::Result<Vec<(String, String)>> {
-        let names: Vec<String> = self.store.plugins.iter()
+        let names: Vec<String> = self
+            .store
+            .plugins
+            .iter()
             .filter(|p| p.state != PluginState::DevMode)
             .map(|p| p.name.clone())
             .collect();
@@ -301,7 +342,9 @@ impl PluginLifecycle {
 
     /// Configure a plugin setting
     pub fn set_config(&mut self, name: &str, key: &str, value: &str) -> anyhow::Result<()> {
-        let plugin = self.store.find_mut(name)
+        let plugin = self
+            .store
+            .find_mut(name)
             .ok_or_else(|| anyhow::anyhow!("Plugin '{}' not found", name))?;
         plugin.config.insert(key.to_string(), value.to_string());
         self.store.save(&self.state_path)?;
@@ -310,14 +353,18 @@ impl PluginLifecycle {
 
     /// Get a plugin's configuration
     pub fn get_config(&self, name: &str) -> anyhow::Result<&HashMap<String, String>> {
-        let plugin = self.store.find(name)
+        let plugin = self
+            .store
+            .find(name)
             .ok_or_else(|| anyhow::anyhow!("Plugin '{}' not found", name))?;
         Ok(&plugin.config)
     }
 
     /// Get plugin info
     pub fn info(&self, name: &str) -> anyhow::Result<PluginInfo> {
-        let plugin = self.store.find(name)
+        let plugin = self
+            .store
+            .find(name)
             .ok_or_else(|| anyhow::anyhow!("Plugin '{}' not found", name))?;
 
         let manifest_path = plugin.install_dir.join("plugin.toml");
@@ -327,19 +374,27 @@ impl PluginLifecycle {
             None
         };
 
-        let skills_count = plugin.install_dir.join("skills")
+        let skills_count = plugin
+            .install_dir
+            .join("skills")
             .read_dir()
-            .map(|d| d.filter_map(|e| e.ok()).filter(|e| {
-                e.path().extension().map(|ext| ext == "md").unwrap_or(false)
-            }).count())
+            .map(|d| {
+                d.filter_map(|e| e.ok())
+                    .filter(|e| e.path().extension().map(|ext| ext == "md").unwrap_or(false))
+                    .count()
+            })
             .unwrap_or(0);
 
-        let hooks_count = plugin.install_dir.join("hooks")
+        let hooks_count = plugin
+            .install_dir
+            .join("hooks")
             .read_dir()
             .map(|d| d.filter_map(|e| e.ok()).count())
             .unwrap_or(0);
 
-        let commands_count = plugin.install_dir.join("commands")
+        let commands_count = plugin
+            .install_dir
+            .join("commands")
             .read_dir()
             .map(|d| d.filter_map(|e| e.ok()).count())
             .unwrap_or(0);
@@ -397,7 +452,8 @@ mod tests {
         use std::sync::atomic::{AtomicU64, Ordering};
         static COUNTER: AtomicU64 = AtomicU64::new(0);
         let id = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let dir = std::env::temp_dir().join(format!("vibecli-plugin-test-{}-{}", std::process::id(), id));
+        let dir =
+            std::env::temp_dir().join(format!("vibecli-plugin-test-{}-{}", std::process::id(), id));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
@@ -568,10 +624,7 @@ mod tests {
             PluginLifecycle::extract_version("name = \"test\"\nversion = \"1.2.3\"\n"),
             "1.2.3"
         );
-        assert_eq!(
-            PluginLifecycle::extract_version("no version here"),
-            "0.0.0"
-        );
+        assert_eq!(PluginLifecycle::extract_version("no version here"), "0.0.0");
     }
 
     #[test]
@@ -749,7 +802,10 @@ mod tests {
         });
         let result = lc.install_from_repo("existing", "https://example.com/repo.git");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("already installed"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("already installed"));
         fs::remove_dir_all(&dir).ok();
     }
 }

@@ -17,7 +17,10 @@ fn vibecli() -> Command {
 
 #[test]
 fn help_flag_exits_zero() {
-    let output = vibecli().arg("--help").output().expect("failed to run vibecli");
+    let output = vibecli()
+        .arg("--help")
+        .output()
+        .expect("failed to run vibecli");
     assert!(output.status.success(), "--help should exit 0");
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
@@ -28,7 +31,10 @@ fn help_flag_exits_zero() {
 
 #[test]
 fn version_flag_exits_zero() {
-    let output = vibecli().arg("--version").output().expect("failed to run vibecli");
+    let output = vibecli()
+        .arg("--version")
+        .output()
+        .expect("failed to run vibecli");
     assert!(output.status.success(), "--version should exit 0");
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(
@@ -41,14 +47,20 @@ fn version_flag_exits_zero() {
 
 #[test]
 fn doctor_flag_exits_zero_and_reports_checks() {
-    let output = vibecli().arg("--doctor").output().expect("failed to run vibecli");
+    let output = vibecli()
+        .arg("--doctor")
+        .output()
+        .expect("failed to run vibecli");
     // doctor always exits 0 even if some checks fail (it's informational)
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     let combined = format!("{stdout}{stderr}");
     assert!(
-        combined.contains("doctor") || combined.contains("check") || combined.contains("OK")
-            || combined.contains("✓") || combined.contains("✗"),
+        combined.contains("doctor")
+            || combined.contains("check")
+            || combined.contains("OK")
+            || combined.contains("✓")
+            || combined.contains("✗"),
         "--doctor should print health-check results; got:\n{combined}"
     );
 }
@@ -58,7 +70,10 @@ fn doctor_flag_exits_zero_and_reports_checks() {
 #[test]
 fn ci_flag_without_task_exits_nonzero_or_prints_usage() {
     // Running --ci without a task description should either fail or print usage.
-    let output = vibecli().arg("--ci").output().expect("failed to run vibecli");
+    let output = vibecli()
+        .arg("--ci")
+        .output()
+        .expect("failed to run vibecli");
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
     let combined = format!("{stdout}{stderr}");
@@ -68,8 +83,10 @@ fn ci_flag_without_task_exits_nonzero_or_prints_usage() {
         || combined.contains("task")
         || combined.contains("required")
         || combined.contains("Usage");
-    assert!(graceful,
-        "--ci with no task should indicate missing arg or fail; got:\n{combined}");
+    assert!(
+        graceful,
+        "--ci with no task should indicate missing arg or fail; got:\n{combined}"
+    );
 }
 
 // ── JSON output format ────────────────────────────────────────────────────────

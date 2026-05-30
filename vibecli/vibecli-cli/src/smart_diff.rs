@@ -285,10 +285,7 @@ impl DiffParser {
 
     fn parse_range(s: &str) -> (usize, usize) {
         if let Some((start, count)) = s.split_once(',') {
-            (
-                start.parse().unwrap_or(1),
-                count.parse().unwrap_or(1),
-            )
+            (start.parse().unwrap_or(1), count.parse().unwrap_or(1))
         } else {
             (s.parse().unwrap_or(1), 1)
         }
@@ -396,10 +393,7 @@ impl DiffRenderer {
     }
 
     fn render_unified(file_diff: &FileDiff) -> String {
-        let mut out = format!(
-            "--- {}\n+++ {}\n",
-            file_diff.old_path, file_diff.new_path
-        );
+        let mut out = format!("--- {}\n+++ {}\n", file_diff.old_path, file_diff.new_path);
         for hunk in &file_diff.hunks {
             out.push_str(&hunk.to_unified());
         }
@@ -496,11 +490,7 @@ impl DiffRenderer {
             let _ = writeln!(
                 out,
                 "{CYAN}@@ -{},{} +{},{}{}@@{RESET}",
-                hunk.old_start,
-                hunk.old_count,
-                hunk.new_start,
-                hunk.new_count,
-                ctx
+                hunk.old_start, hunk.old_count, hunk.new_start, hunk.new_count, ctx
             );
             for line in &hunk.lines {
                 match line.kind {
@@ -630,8 +620,7 @@ mod tests {
     #[test]
     fn test_render_side_by_side_contains_separator() {
         let files = DiffParser::parse(SAMPLE_DIFF);
-        let rendered =
-            DiffRenderer::render(&files[0], &RenderMode::SideBySide { col_width: 40 });
+        let rendered = DiffRenderer::render(&files[0], &RenderMode::SideBySide { col_width: 40 });
         assert!(rendered.contains('│'));
     }
 

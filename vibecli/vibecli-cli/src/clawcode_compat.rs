@@ -293,8 +293,10 @@ mod tests {
     #[test]
     fn test_workers_supporting_language_match() {
         let mut r = WorkerRegistry::new();
-        r.register(make_registration("w1", vec!["rust", "python"])).unwrap();
-        r.register(make_registration("w2", vec!["typescript"])).unwrap();
+        r.register(make_registration("w1", vec!["rust", "python"]))
+            .unwrap();
+        r.register(make_registration("w2", vec!["typescript"]))
+            .unwrap();
         let matches = r.workers_supporting_language("rust");
         assert_eq!(matches.len(), 1);
         assert_eq!(matches[0].worker_id, "w1");
@@ -320,7 +322,8 @@ mod tests {
     fn test_workers_supporting_multiple_workers() {
         let mut r = WorkerRegistry::new();
         r.register(make_registration("w1", vec!["python"])).unwrap();
-        r.register(make_registration("w2", vec!["python", "rust"])).unwrap();
+        r.register(make_registration("w2", vec!["python", "rust"]))
+            .unwrap();
         let matches = r.workers_supporting_language("python");
         assert_eq!(matches.len(), 2);
     }
@@ -403,27 +406,42 @@ mod tests {
 
     #[test]
     fn test_map_code_edit() {
-        assert_eq!(map_task_type_to_repl_command(&ClawCodeTaskType::CodeEdit), "edit");
+        assert_eq!(
+            map_task_type_to_repl_command(&ClawCodeTaskType::CodeEdit),
+            "edit"
+        );
     }
 
     #[test]
     fn test_map_code_review() {
-        assert_eq!(map_task_type_to_repl_command(&ClawCodeTaskType::CodeReview), "review");
+        assert_eq!(
+            map_task_type_to_repl_command(&ClawCodeTaskType::CodeReview),
+            "review"
+        );
     }
 
     #[test]
     fn test_map_test_gen() {
-        assert_eq!(map_task_type_to_repl_command(&ClawCodeTaskType::TestGen), "test gen");
+        assert_eq!(
+            map_task_type_to_repl_command(&ClawCodeTaskType::TestGen),
+            "test gen"
+        );
     }
 
     #[test]
     fn test_map_explain() {
-        assert_eq!(map_task_type_to_repl_command(&ClawCodeTaskType::Explain), "explain");
+        assert_eq!(
+            map_task_type_to_repl_command(&ClawCodeTaskType::Explain),
+            "explain"
+        );
     }
 
     #[test]
     fn test_map_refactor() {
-        assert_eq!(map_task_type_to_repl_command(&ClawCodeTaskType::Refactor), "refactor");
+        assert_eq!(
+            map_task_type_to_repl_command(&ClawCodeTaskType::Refactor),
+            "refactor"
+        );
     }
 
     #[test]

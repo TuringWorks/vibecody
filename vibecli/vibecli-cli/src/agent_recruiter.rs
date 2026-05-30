@@ -41,7 +41,10 @@ impl RecruitmentTask {
         }
     }
 
-    pub fn with_priority(mut self, p: TaskPriority) -> Self { self.priority = p; self }
+    pub fn with_priority(mut self, p: TaskPriority) -> Self {
+        self.priority = p;
+        self
+    }
     pub fn with_preferred(mut self, caps: &[&str]) -> Self {
         self.preferred_capabilities = caps.iter().map(|s| s.to_string()).collect();
         self
@@ -97,7 +100,9 @@ pub struct AgentRecruiter {
 }
 
 impl Default for AgentRecruiter {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AgentRecruiter {
@@ -121,17 +126,24 @@ impl AgentRecruiter {
         }
 
         // Filter to capable candidates
-        let capable: Vec<&&AgentRegistration> = candidates.iter()
+        let capable: Vec<&&AgentRegistration> = candidates
+            .iter()
             .filter(|a| {
                 a.is_available()
-                    && task.required_capabilities.iter().all(|cap| a.has_capability(cap))
+                    && task
+                        .required_capabilities
+                        .iter()
+                        .all(|cap| a.has_capability(cap))
             })
             .collect();
 
         if capable.is_empty() {
             // Check if ANY agent (even unavailable) has the capabilities
-            let any_capable = candidates.iter()
-                .any(|a| task.required_capabilities.iter().all(|cap| a.has_capability(cap)));
+            let any_capable = candidates.iter().any(|a| {
+                task.required_capabilities
+                    .iter()
+                    .all(|cap| a.has_capability(cap))
+            });
             return if any_capable {
                 if self.queue.len() < self.max_queue_depth {
                     self.queue.push_back(task);
@@ -145,7 +157,8 @@ impl AgentRecruiter {
         }
 
         // Score candidates
-        let best = capable.iter()
+        let best = capable
+            .iter()
             .max_by(|a, b| {
                 let sa = self.score(a, &task);
                 let sb = self.score(b, &task);
@@ -180,7 +193,11 @@ impl AgentRecruiter {
             let task_id = task.task_id.clone();
             let outcome = self.try_assign_direct(&task, candidates);
             if let Some(agent_id) = outcome {
-                let assignment = Assignment { task_id: task_id.clone(), agent_id: agent_id.clone(), assigned_at_ms: now_ms() };
+                let assignment = Assignment {
+                    task_id: task_id.clone(),
+                    agent_id: agent_id.clone(),
+                    assigned_at_ms: now_ms(),
+                };
                 self.assignments.insert(task_id.clone(), assignment);
                 assigned.push((task_id, agent_id));
             } else {
@@ -191,11 +208,23 @@ impl AgentRecruiter {
         assigned
     }
 
-    fn try_assign_direct(&self, task: &RecruitmentTask, candidates: &[&AgentRegistration]) -> Option<AgentId> {
-        let capable: Vec<&&AgentRegistration> = candidates.iter()
-            .filter(|a| a.is_available() && task.required_capabilities.iter().all(|cap| a.has_capability(cap)))
+    fn try_assign_direct(
+        &self,
+        task: &RecruitmentTask,
+        candidates: &[&AgentRegistration],
+    ) -> Option<AgentId> {
+        let capable: Vec<&&AgentRegistration> = candidates
+            .iter()
+            .filter(|a| {
+                a.is_available()
+                    && task
+                        .required_capabilities
+                        .iter()
+                        .all(|cap| a.has_capability(cap))
+            })
             .collect();
-        capable.iter()
+        capable
+            .iter()
             .max_by(|a, b| {
                 let sa = self.score(a, task);
                 let sb = self.score(b, task);
@@ -207,7 +236,9 @@ impl AgentRecruiter {
     /// Score = (1 - load) × 0.5 + preferred_match × 0.3 + priority_bonus × 0.2
     fn score(&self, agent: &&AgentRegistration, task: &RecruitmentTask) -> f32 {
         let load_score = 1.0 - agent.load;
-        let preferred_count = task.preferred_capabilities.iter()
+        let preferred_count = task
+            .preferred_capabilities
+            .iter()
             .filter(|cap| agent.has_capability(cap))
             .count();
         let preferred_score = if task.preferred_capabilities.is_empty() {
@@ -223,13 +254,22 @@ impl AgentRecruiter {
         load_score * 0.5 + preferred_score * 0.3 + priority_bonus * 0.2
     }
 
-    pub fn active_assignment_count(&self) -> usize { self.assignments.len() }
-    pub fn queue_depth(&self) -> usize { self.queue.len() }
-    pub fn get_assignment(&self, task_id: &str) -> Option<&Assignment> { self.assignments.get(task_id) }
+    pub fn active_assignment_count(&self) -> usize {
+        self.assignments.len()
+    }
+    pub fn queue_depth(&self) -> usize {
+        self.queue.len()
+    }
+    pub fn get_assignment(&self, task_id: &str) -> Option<&Assignment> {
+        self.assignments.get(task_id)
+    }
 }
 
 fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 // ---------------------------------------------------------------------------
@@ -244,7 +284,9 @@ mod tests {
 
     fn make_agent(id: &str, caps: &[&str], load: f32) -> AgentRegistration {
         let mut capabilities = HashSet::new();
-        for c in caps { capabilities.insert(Capability::new(*c)); }
+        for c in caps {
+            capabilities.insert(Capability::new(*c));
+        }
         AgentRegistration {
             id: AgentId::new(id),
             name: id.into(),
@@ -293,7 +335,10 @@ mod tests {
     fn test_release_removes_assignment() {
         let mut recruiter = AgentRecruiter::new();
         let agent = make_agent("a1", &[Capability::CODE_EDIT], 0.1);
-        recruiter.recruit(RecruitmentTask::new("t1", &[Capability::CODE_EDIT]), &[&agent]);
+        recruiter.recruit(
+            RecruitmentTask::new("t1", &[Capability::CODE_EDIT]),
+            &[&agent],
+        );
         recruiter.release("t1");
         assert_eq!(recruiter.active_assignment_count(), 0);
     }
@@ -326,7 +371,10 @@ mod tests {
         let mut recruiter = AgentRecruiter::new();
         let mut busy = make_agent("a1", &[Capability::CODE_EDIT], 1.0);
         busy.current_task_count = 4;
-        recruiter.recruit(RecruitmentTask::new("t1", &[Capability::CODE_EDIT]), &[&busy]);
+        recruiter.recruit(
+            RecruitmentTask::new("t1", &[Capability::CODE_EDIT]),
+            &[&busy],
+        );
         assert_eq!(recruiter.queue_depth(), 1);
 
         let free = make_agent("a2", &[Capability::CODE_EDIT], 0.0);
@@ -361,7 +409,10 @@ mod tests {
     fn test_get_assignment() {
         let mut recruiter = AgentRecruiter::new();
         let agent = make_agent("a1", &[Capability::CODE_EDIT], 0.0);
-        recruiter.recruit(RecruitmentTask::new("t1", &[Capability::CODE_EDIT]), &[&agent]);
+        recruiter.recruit(
+            RecruitmentTask::new("t1", &[Capability::CODE_EDIT]),
+            &[&agent],
+        );
         let a = recruiter.get_assignment("t1").unwrap();
         assert_eq!(a.agent_id.0, "a1");
     }

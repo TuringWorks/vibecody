@@ -30,7 +30,12 @@ impl TerminalManager {
     }
 
     /// Spawn a new terminal, optionally starting in `cwd`.
-    pub fn spawn_in(&self, shell: &str, cwd: Option<&std::path::Path>, tx: Sender<(u32, String)>) -> Result<u32> {
+    pub fn spawn_in(
+        &self,
+        shell: &str,
+        cwd: Option<&std::path::Path>,
+        tx: Sender<(u32, String)>,
+    ) -> Result<u32> {
         let pty_system = native_pty_system();
         let pair = pty_system.openpty(PtySize {
             rows: 24,

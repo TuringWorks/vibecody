@@ -3,15 +3,14 @@
 //! HTTP stub on every scenario.
 
 use async_trait::async_trait;
-use cucumber::{World, given, then, when};
-use std::sync::Arc;
+use cucumber::{given, then, when, World};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 use vibe_broker::{
-    InMemorySecretStore, MintError, MintedToken, RefreshHandle, SecretStore, TokenMinter,
-    TokenRefresher,
-    policy::SecretRef,
+    policy::SecretRef, InMemorySecretStore, MintError, MintedToken, RefreshHandle, SecretStore,
+    TokenMinter, TokenRefresher,
 };
 
 struct StubMinter {
@@ -41,10 +40,7 @@ pub struct RWorld {
 impl std::fmt::Debug for RWorld {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RWorld")
-            .field(
-                "stub_calls",
-                &self.stub_calls.load(Ordering::SeqCst),
-            )
+            .field("stub_calls", &self.stub_calls.load(Ordering::SeqCst))
             .finish()
     }
 }
@@ -83,11 +79,8 @@ fn register(world: &mut RWorld, key: String) {
     let rt = world.rt();
     let r = world.refresher.as_ref().unwrap();
     rt.block_on(async {
-        r.register_azure(
-            SecretRef(key),
-            Arc::new(StubMinter { token, calls }),
-        )
-        .await;
+        r.register_azure(SecretRef(key), Arc::new(StubMinter { token, calls }))
+            .await;
     });
 }
 
@@ -149,7 +142,5 @@ fn plateaus(world: &mut RWorld) {
 }
 
 fn main() {
-    futures::executor::block_on(RWorld::run(
-        "tests/features/broker_token_refresher.feature",
-    ));
+    futures::executor::block_on(RWorld::run("tests/features/broker_token_refresher.feature"));
 }

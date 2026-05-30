@@ -345,8 +345,7 @@ fn parse_unified_diff(diff: &str) -> Vec<DiffFile> {
                 f.added_lines.push((current_line, added.to_string()));
                 f.lines_added += 1;
             } else if let Some(stripped) = line.strip_prefix('-') {
-                f.removed_lines
-                    .push((current_line, stripped.to_string()));
+                f.removed_lines.push((current_line, stripped.to_string()));
                 f.lines_removed += 1;
             } else {
                 current_line += 1;
@@ -368,28 +367,76 @@ pub fn detect_security_issues(code: &str) -> Vec<ReviewFinding> {
 
     let secret_patterns: Vec<(&str, &str)> = vec![
         ("AKIA[0-9A-Z]{16}", "AWS access key detected"),
-        ("(?i)password\\s*=\\s*[\"'][^\"']+[\"']", "Hardcoded password"),
+        (
+            "(?i)password\\s*=\\s*[\"'][^\"']+[\"']",
+            "Hardcoded password",
+        ),
         ("(?i)secret\\s*=\\s*[\"'][^\"']+[\"']", "Hardcoded secret"),
-        ("(?i)api[_-]?key\\s*=\\s*[\"'][^\"']+[\"']", "Hardcoded API key"),
+        (
+            "(?i)api[_-]?key\\s*=\\s*[\"'][^\"']+[\"']",
+            "Hardcoded API key",
+        ),
         ("(?i)token\\s*=\\s*[\"'][a-zA-Z0-9]{20,}", "Hardcoded token"),
-        ("-----BEGIN (RSA |EC )?PRIVATE KEY-----", "Private key in source"),
+        (
+            "-----BEGIN (RSA |EC )?PRIVATE KEY-----",
+            "Private key in source",
+        ),
     ];
 
     let injection_patterns: Vec<(&str, &str, &str)> = vec![
-        ("eval(", "Potential code injection via eval()", "Avoid eval(); use safer alternatives"),
-        ("exec(", "Potential command injection via exec()", "Validate and sanitize all inputs before execution"),
-        ("innerHTML", "Potential XSS via innerHTML assignment", "Use textContent or sanitize HTML input"),
-        ("document.write", "Potential XSS via document.write()", "Use DOM manipulation methods instead"),
-        (".exec(", "Potential command execution", "Validate inputs and use parameterized calls"),
-        ("dangerouslySetInnerHTML", "React dangerouslySetInnerHTML usage", "Ensure HTML is sanitized before rendering"),
+        (
+            "eval(",
+            "Potential code injection via eval()",
+            "Avoid eval(); use safer alternatives",
+        ),
+        (
+            "exec(",
+            "Potential command injection via exec()",
+            "Validate and sanitize all inputs before execution",
+        ),
+        (
+            "innerHTML",
+            "Potential XSS via innerHTML assignment",
+            "Use textContent or sanitize HTML input",
+        ),
+        (
+            "document.write",
+            "Potential XSS via document.write()",
+            "Use DOM manipulation methods instead",
+        ),
+        (
+            ".exec(",
+            "Potential command execution",
+            "Validate inputs and use parameterized calls",
+        ),
+        (
+            "dangerouslySetInnerHTML",
+            "React dangerouslySetInnerHTML usage",
+            "Ensure HTML is sanitized before rendering",
+        ),
     ];
 
     let sql_patterns: Vec<(&str, &str)> = vec![
-        ("format!(\"SELECT", "Potential SQL injection via string formatting"),
-        ("format!(\"INSERT", "Potential SQL injection via string formatting"),
-        ("format!(\"UPDATE", "Potential SQL injection via string formatting"),
-        ("format!(\"DELETE", "Potential SQL injection via string formatting"),
-        ("+ \" WHERE ", "Potential SQL injection via string concatenation"),
+        (
+            "format!(\"SELECT",
+            "Potential SQL injection via string formatting",
+        ),
+        (
+            "format!(\"INSERT",
+            "Potential SQL injection via string formatting",
+        ),
+        (
+            "format!(\"UPDATE",
+            "Potential SQL injection via string formatting",
+        ),
+        (
+            "format!(\"DELETE",
+            "Potential SQL injection via string formatting",
+        ),
+        (
+            "+ \" WHERE ",
+            "Potential SQL injection via string concatenation",
+        ),
         ("f\"SELECT", "Potential SQL injection via f-string"),
         ("f\"INSERT", "Potential SQL injection via f-string"),
     ];
@@ -473,7 +520,10 @@ pub fn detect_security_issues(code: &str) -> Vec<ReviewFinding> {
                     severity: ReviewSeverity::Security,
                     category: ReviewCategory::Security,
                     message: msg.to_string(),
-                    suggestion: Some("Use parameterized queries or an ORM instead of string formatting".to_string()),
+                    suggestion: Some(
+                        "Use parameterized queries or an ORM instead of string formatting"
+                            .to_string(),
+                    ),
                     auto_fixable: false,
                     confidence: 0.80,
                 });
@@ -484,7 +534,10 @@ pub fn detect_security_issues(code: &str) -> Vec<ReviewFinding> {
         // Path traversal
         if !trimmed.starts_with("//") && !trimmed.starts_with('#') {
             for (pattern, msg) in &path_patterns {
-                if trimmed.contains(pattern) && !trimmed.contains("test") && !trimmed.contains("spec") {
+                if trimmed.contains(pattern)
+                    && !trimmed.contains("test")
+                    && !trimmed.contains("spec")
+                {
                     findings.push(ReviewFinding {
                         id: format!("SEC-{}", next_id),
                         file: String::new(),
@@ -493,7 +546,10 @@ pub fn detect_security_issues(code: &str) -> Vec<ReviewFinding> {
                         severity: ReviewSeverity::Warning,
                         category: ReviewCategory::Security,
                         message: msg.to_string(),
-                        suggestion: Some("Sanitize file paths and validate against allowed directories".to_string()),
+                        suggestion: Some(
+                            "Sanitize file paths and validate against allowed directories"
+                                .to_string(),
+                        ),
                         auto_fixable: false,
                         confidence: 0.60,
                     });
@@ -511,8 +567,11 @@ pub fn detect_security_issues(code: &str) -> Vec<ReviewFinding> {
                 line_end: ln,
                 severity: ReviewSeverity::Warning,
                 category: ReviewCategory::Security,
-                message: "Unsafe block detected — ensure memory safety invariants are upheld".to_string(),
-                suggestion: Some("Document why unsafe is necessary and what invariants must hold".to_string()),
+                message: "Unsafe block detected — ensure memory safety invariants are upheld"
+                    .to_string(),
+                suggestion: Some(
+                    "Document why unsafe is necessary and what invariants must hold".to_string(),
+                ),
                 auto_fixable: false,
                 confidence: 0.90,
             });
@@ -534,7 +593,9 @@ pub fn detect_complexity_issues(code: &str) -> Vec<ReviewFinding> {
     let mut max_nesting: i32 = 0;
     let mut branch_count: u32 = 0;
 
-    let branch_keywords = ["if ", "else if ", "elif ", "match ", "case ", "while ", "for ", "loop "];
+    let branch_keywords = [
+        "if ", "else if ", "elif ", "match ", "case ", "while ", "for ", "loop ",
+    ];
 
     for (line_num, line) in code.lines().enumerate() {
         let ln = line_num + 1;
@@ -598,7 +659,9 @@ pub fn detect_complexity_issues(code: &str) -> Vec<ReviewFinding> {
                 severity: ReviewSeverity::Warning,
                 category: ReviewCategory::Complexity,
                 message: format!("Deeply nested code (indent level {})", indent / 4),
-                suggestion: Some("Consider extracting into a helper function or using early returns".to_string()),
+                suggestion: Some(
+                    "Consider extracting into a helper function or using early returns".to_string(),
+                ),
                 auto_fixable: false,
                 confidence: 0.70,
             });
@@ -629,7 +692,15 @@ fn extract_function_name(line: &str) -> Option<String> {
     // Python: def name(
     // JS/TS: function name(
     // Go: func name(
-    let prefixes = ["pub async fn ", "async fn ", "pub fn ", "fn ", "def ", "function ", "func "];
+    let prefixes = [
+        "pub async fn ",
+        "async fn ",
+        "pub fn ",
+        "fn ",
+        "def ",
+        "function ",
+        "func ",
+    ];
     for prefix in &prefixes {
         if let Some(rest) = line.strip_prefix(prefix) {
             if let Some(paren) = rest.find('(') {
@@ -692,7 +763,9 @@ fn emit_complexity_findings(
                 "Function '{}' has cyclomatic complexity {} (threshold: 10)",
                 name, branch_count
             ),
-            suggestion: Some("Reduce branching by extracting sub-functions or using lookup tables".to_string()),
+            suggestion: Some(
+                "Reduce branching by extracting sub-functions or using lookup tables".to_string(),
+            ),
             auto_fixable: false,
             confidence: 0.90,
         });
@@ -712,7 +785,9 @@ fn emit_complexity_findings(
                 "Function '{}' has max nesting depth {} (threshold: 4)",
                 name, max_nesting
             ),
-            suggestion: Some("Use early returns, guard clauses, or extract nested logic".to_string()),
+            suggestion: Some(
+                "Use early returns, guard clauses, or extract nested logic".to_string(),
+            ),
             auto_fixable: false,
             confidence: 0.85,
         });
@@ -747,7 +822,11 @@ pub fn detect_style_issues(code: &str) -> Vec<ReviewFinding> {
         }
 
         // Very long lines
-        if line.len() > 120 && !trimmed.starts_with("//") && !trimmed.starts_with('#') && !trimmed.starts_with("///") {
+        if line.len() > 120
+            && !trimmed.starts_with("//")
+            && !trimmed.starts_with('#')
+            && !trimmed.starts_with("///")
+        {
             findings.push(ReviewFinding {
                 id: format!("STY-{}", next_id),
                 file: String::new(),
@@ -765,7 +844,10 @@ pub fn detect_style_issues(code: &str) -> Vec<ReviewFinding> {
 
         // TODO/FIXME/HACK/XXX comments
         let upper = trimmed.to_uppercase();
-        if (upper.contains("TODO") || upper.contains("FIXME") || upper.contains("HACK") || upper.contains("XXX"))
+        if (upper.contains("TODO")
+            || upper.contains("FIXME")
+            || upper.contains("HACK")
+            || upper.contains("XXX"))
             && (trimmed.starts_with("//") || trimmed.starts_with('#') || trimmed.starts_with('*'))
         {
             findings.push(ReviewFinding {
@@ -798,10 +880,17 @@ pub fn detect_style_issues(code: &str) -> Vec<ReviewFinding> {
         {
             // Check for bare numeric literals > 2 digits that are not 0, 1, 2, 100, etc.
             for word in trimmed.split_whitespace() {
-                if let Ok(n) = word.trim_matches(|c: char| !c.is_ascii_digit() && c != '-').parse::<i64>() {
+                if let Ok(n) = word
+                    .trim_matches(|c: char| !c.is_ascii_digit() && c != '-')
+                    .parse::<i64>()
+                {
                     if n.abs() > 2 && n != 10 && n != 100 && n != 1000 && n != 0xFF {
                         // Only flag if it looks like a standalone number in an expression
-                        if (trimmed.contains("==") || trimmed.contains(">=") || trimmed.contains("<=") || trimmed.contains("> ") || trimmed.contains("< "))
+                        if (trimmed.contains("==")
+                            || trimmed.contains(">=")
+                            || trimmed.contains("<=")
+                            || trimmed.contains("> ")
+                            || trimmed.contains("< "))
                             && word.chars().all(|c| c.is_ascii_digit() || c == '-')
                         {
                             findings.push(ReviewFinding {
@@ -811,8 +900,13 @@ pub fn detect_style_issues(code: &str) -> Vec<ReviewFinding> {
                                 line_end: ln,
                                 severity: ReviewSeverity::Info,
                                 category: ReviewCategory::Style,
-                                message: format!("Magic number {} — consider using a named constant", n),
-                                suggestion: Some("Extract to a named constant for clarity".to_string()),
+                                message: format!(
+                                    "Magic number {} — consider using a named constant",
+                                    n
+                                ),
+                                suggestion: Some(
+                                    "Extract to a named constant for clarity".to_string(),
+                                ),
                                 auto_fixable: false,
                                 confidence: 0.55,
                             });
@@ -825,7 +919,9 @@ pub fn detect_style_issues(code: &str) -> Vec<ReviewFinding> {
         }
 
         // Snake_case check for Rust function names
-        if (trimmed.starts_with("pub fn ") || trimmed.starts_with("fn ")) && !trimmed.starts_with("fn main") {
+        if (trimmed.starts_with("pub fn ") || trimmed.starts_with("fn "))
+            && !trimmed.starts_with("fn main")
+        {
             if let Some(name) = extract_function_name(trimmed) {
                 if name.chars().any(|c| c.is_uppercase()) && !name.contains("::") {
                     findings.push(ReviewFinding {
@@ -846,7 +942,10 @@ pub fn detect_style_issues(code: &str) -> Vec<ReviewFinding> {
         }
 
         // println! in production code (Rust)
-        if trimmed.starts_with("println!") || trimmed.starts_with("dbg!") || trimmed.starts_with("print!") {
+        if trimmed.starts_with("println!")
+            || trimmed.starts_with("dbg!")
+            || trimmed.starts_with("print!")
+        {
             findings.push(ReviewFinding {
                 id: format!("STY-{}", next_id),
                 file: String::new(),
@@ -855,7 +954,9 @@ pub fn detect_style_issues(code: &str) -> Vec<ReviewFinding> {
                 severity: ReviewSeverity::Info,
                 category: ReviewCategory::Style,
                 message: "Debug print statement in code".to_string(),
-                suggestion: Some("Use a logging framework (log/tracing) instead of println!/dbg!".to_string()),
+                suggestion: Some(
+                    "Use a logging framework (log/tracing) instead of println!/dbg!".to_string(),
+                ),
                 auto_fixable: false,
                 confidence: 0.80,
             });
@@ -935,7 +1036,10 @@ pub fn detect_documentation_gaps(code: &str) -> Vec<ReviewFinding> {
                     severity: ReviewSeverity::Info,
                     category: ReviewCategory::Documentation,
                     message: format!("Public {} missing documentation", item_type),
-                    suggestion: Some(format!("Add a /// doc comment explaining this {}", item_type)),
+                    suggestion: Some(format!(
+                        "Add a /// doc comment explaining this {}",
+                        item_type
+                    )),
                     auto_fixable: false,
                     confidence: 0.90,
                 });
@@ -971,7 +1075,11 @@ pub fn detect_documentation_gaps(code: &str) -> Vec<ReviewFinding> {
         }
 
         // Missing module-level doc
-        if ln == 1 && !trimmed.starts_with("//!") && !trimmed.starts_with("#!") && !trimmed.starts_with("\"\"\"") {
+        if ln == 1
+            && !trimmed.starts_with("//!")
+            && !trimmed.starts_with("#!")
+            && !trimmed.starts_with("\"\"\"")
+        {
             findings.push(ReviewFinding {
                 id: format!("DOC-{}", next_id),
                 file: String::new(),
@@ -980,7 +1088,9 @@ pub fn detect_documentation_gaps(code: &str) -> Vec<ReviewFinding> {
                 severity: ReviewSeverity::Info,
                 category: ReviewCategory::Documentation,
                 message: "Missing module-level documentation".to_string(),
-                suggestion: Some("Add a module doc comment (//! for Rust, \"\"\" for Python)".to_string()),
+                suggestion: Some(
+                    "Add a module doc comment (//! for Rust, \"\"\" for Python)".to_string(),
+                ),
                 auto_fixable: false,
                 confidence: 0.70,
             });
@@ -1007,7 +1117,11 @@ pub fn detect_test_gaps(code: &str, test_code: &str) -> Vec<ReviewFinding> {
             && !trimmed.contains("#[test]")
         {
             if let Some(name) = extract_function_name(trimmed) {
-                if name != "main" && name != "new" && name != "default" && !name.starts_with("test_") {
+                if name != "main"
+                    && name != "new"
+                    && name != "default"
+                    && !name.starts_with("test_")
+                {
                     functions.push((name, i + 1));
                 }
             }
@@ -1116,7 +1230,10 @@ pub fn detect_duplication(files: &[(&str, &str)]) -> Vec<ReviewFinding> {
                 continue;
             }
             if chunks[i].lines == chunks[j].lines {
-                let key = format!("{}:{}+{}:{}", chunks[i].file, chunks[i].start, chunks[j].file, chunks[j].start);
+                let key = format!(
+                    "{}:{}+{}:{}",
+                    chunks[i].file, chunks[i].start, chunks[j].file, chunks[j].start
+                );
                 if reported.contains(&key) {
                     continue;
                 }
@@ -1132,7 +1249,9 @@ pub fn detect_duplication(files: &[(&str, &str)]) -> Vec<ReviewFinding> {
                         "Duplicated code block ({} lines) also found in {} at line {}",
                         min_dup_lines, chunks[j].file, chunks[j].start
                     ),
-                    suggestion: Some("Extract shared logic into a common function or module".to_string()),
+                    suggestion: Some(
+                        "Extract shared logic into a common function or module".to_string(),
+                    ),
                     auto_fixable: false,
                     confidence: 0.85,
                 });
@@ -1157,19 +1276,43 @@ pub fn detect_architecture_violations(code: &str) -> Vec<ReviewFinding> {
     let mut imports: Vec<(usize, String)> = Vec::new();
     for (i, line) in code.lines().enumerate() {
         let trimmed = line.trim();
-        if trimmed.starts_with("use ") || trimmed.starts_with("import ") || trimmed.starts_with("from ") || trimmed.starts_with("require(") {
+        if trimmed.starts_with("use ")
+            || trimmed.starts_with("import ")
+            || trimmed.starts_with("from ")
+            || trimmed.starts_with("require(")
+        {
             imports.push((i + 1, trimmed.to_string()));
         }
     }
 
     // Layer violation patterns
     let violations: Vec<(&str, &str, &str)> = vec![
-        ("controller", "repository", "Controller should not directly access repository layer"),
-        ("view", "repository", "View layer should not access data layer directly"),
-        ("model", "controller", "Model should not depend on controller"),
-        ("domain", "infrastructure", "Domain should not depend on infrastructure"),
+        (
+            "controller",
+            "repository",
+            "Controller should not directly access repository layer",
+        ),
+        (
+            "view",
+            "repository",
+            "View layer should not access data layer directly",
+        ),
+        (
+            "model",
+            "controller",
+            "Model should not depend on controller",
+        ),
+        (
+            "domain",
+            "infrastructure",
+            "Domain should not depend on infrastructure",
+        ),
         ("core", "ui", "Core logic should not depend on UI layer"),
-        ("util", "service", "Utility modules should not depend on service layer"),
+        (
+            "util",
+            "service",
+            "Utility modules should not depend on service layer",
+        ),
     ];
 
     for (ln, import_line) in &imports {
@@ -1230,7 +1373,9 @@ pub fn detect_architecture_violations(code: &str) -> Vec<ReviewFinding> {
             },
             category: ReviewCategory::Architecture,
             message: format!("File is {} lines — consider splitting", line_count),
-            suggestion: Some("Split into smaller modules with clear single responsibility".to_string()),
+            suggestion: Some(
+                "Split into smaller modules with clear single responsibility".to_string(),
+            ),
             auto_fixable: false,
             confidence: 0.80,
         });
@@ -1247,7 +1392,9 @@ pub fn detect_architecture_violations(code: &str) -> Vec<ReviewFinding> {
             severity: ReviewSeverity::Warning,
             category: ReviewCategory::Architecture,
             message: format!("High coupling: {} imports detected", imports.len()),
-            suggestion: Some("Review dependencies — consider facade pattern or module restructuring".to_string()),
+            suggestion: Some(
+                "Review dependencies — consider facade pattern or module restructuring".to_string(),
+            ),
             auto_fixable: false,
             confidence: 0.65,
         });
@@ -1272,11 +1419,22 @@ impl LinterAggregator {
     pub fn new() -> Self {
         let mut supported = HashMap::new();
         supported.insert("clippy".to_string(), vec!["rs".to_string()]);
-        supported.insert("eslint".to_string(), vec!["js".to_string(), "ts".to_string(), "jsx".to_string(), "tsx".to_string()]);
+        supported.insert(
+            "eslint".to_string(),
+            vec![
+                "js".to_string(),
+                "ts".to_string(),
+                "jsx".to_string(),
+                "tsx".to_string(),
+            ],
+        );
         supported.insert("pylint".to_string(), vec!["py".to_string()]);
         supported.insert("golint".to_string(), vec!["go".to_string()]);
         supported.insert("rubocop".to_string(), vec!["rb".to_string()]);
-        supported.insert("shellcheck".to_string(), vec!["sh".to_string(), "bash".to_string()]);
+        supported.insert(
+            "shellcheck".to_string(),
+            vec!["sh".to_string(), "bash".to_string()],
+        );
         supported.insert("hadolint".to_string(), vec!["Dockerfile".to_string()]);
         supported.insert("markdownlint".to_string(), vec!["md".to_string()]);
         Self {
@@ -1435,7 +1593,12 @@ impl AiCodeReviewEngine {
     }
 
     /// Single-file review combining all detectors.
-    pub fn analyze_file(&mut self, path: &str, content: &str, config: &ReviewConfig) -> Vec<ReviewFinding> {
+    pub fn analyze_file(
+        &mut self,
+        path: &str,
+        content: &str,
+        config: &ReviewConfig,
+    ) -> Vec<ReviewFinding> {
         let mut findings: Vec<ReviewFinding> = Vec::new();
 
         // Skip ignored patterns
@@ -1446,19 +1609,31 @@ impl AiCodeReviewEngine {
             }
         }
 
-        if config.enabled_categories.contains(&ReviewCategory::Security) {
+        if config
+            .enabled_categories
+            .contains(&ReviewCategory::Security)
+        {
             findings.extend(detect_security_issues(content));
         }
-        if config.enabled_categories.contains(&ReviewCategory::Complexity) {
+        if config
+            .enabled_categories
+            .contains(&ReviewCategory::Complexity)
+        {
             findings.extend(detect_complexity_issues(content));
         }
         if config.enabled_categories.contains(&ReviewCategory::Style) {
             findings.extend(detect_style_issues(content));
         }
-        if config.enabled_categories.contains(&ReviewCategory::Documentation) {
+        if config
+            .enabled_categories
+            .contains(&ReviewCategory::Documentation)
+        {
             findings.extend(detect_documentation_gaps(content));
         }
-        if config.enabled_categories.contains(&ReviewCategory::Architecture) {
+        if config
+            .enabled_categories
+            .contains(&ReviewCategory::Architecture)
+        {
             findings.extend(detect_architecture_violations(content));
         }
 
@@ -1635,7 +1810,11 @@ impl AiCodeReviewEngine {
                     QualityGateResult {
                         gate_id: gate.id.clone(),
                         passed: dup_pct <= *max_pct,
-                        message: format!("Duplication: {:.1}% (max: {:.1}%)", dup_pct * 100.0, max_pct * 100.0),
+                        message: format!(
+                            "Duplication: {:.1}% (max: {:.1}%)",
+                            dup_pct * 100.0,
+                            max_pct * 100.0
+                        ),
                         details: vec![],
                     }
                 }
@@ -1696,7 +1875,11 @@ impl AiCodeReviewEngine {
                 }
 
                 // Integration test suggestions for API endpoints
-                if trimmed.contains("async fn") && (trimmed.contains("handler") || trimmed.contains("endpoint") || trimmed.contains("route")) {
+                if trimmed.contains("async fn")
+                    && (trimmed.contains("handler")
+                        || trimmed.contains("endpoint")
+                        || trimmed.contains("route"))
+                {
                     if let Some(name) = extract_function_name(trimmed) {
                         suggestions.push(TestSuggestion {
                             file: df.path.clone(),
@@ -1798,7 +1981,10 @@ impl AiCodeReviewEngine {
         md.push_str("| Metric | Value |\n|--------|-------|\n");
         md.push_str(&format!("| Files changed | {} |\n", analysis.files_changed));
         md.push_str(&format!("| Lines added | +{} |\n", analysis.lines_added));
-        md.push_str(&format!("| Lines removed | -{} |\n", analysis.lines_removed));
+        md.push_str(&format!(
+            "| Lines removed | -{} |\n",
+            analysis.lines_removed
+        ));
         md.push_str(&format!(
             "| Risk score | {:.1}/10 |\n",
             analysis.risk_score * 10.0
@@ -1817,12 +2003,16 @@ impl AiCodeReviewEngine {
             let security: Vec<&ReviewFinding> = analysis
                 .findings
                 .iter()
-                .filter(|f| f.severity == ReviewSeverity::Security || f.severity == ReviewSeverity::Critical)
+                .filter(|f| {
+                    f.severity == ReviewSeverity::Security || f.severity == ReviewSeverity::Critical
+                })
                 .collect();
             let warnings: Vec<&ReviewFinding> = analysis
                 .findings
                 .iter()
-                .filter(|f| f.severity == ReviewSeverity::Warning || f.severity == ReviewSeverity::Error)
+                .filter(|f| {
+                    f.severity == ReviewSeverity::Warning || f.severity == ReviewSeverity::Error
+                })
                 .collect();
             let info: Vec<&ReviewFinding> = analysis
                 .findings
@@ -1837,7 +2027,10 @@ impl AiCodeReviewEngine {
                 ));
             }
             if !warnings.is_empty() {
-                md.push_str(&format!("- **{} warnings** should be reviewed\n", warnings.len()));
+                md.push_str(&format!(
+                    "- **{} warnings** should be reviewed\n",
+                    warnings.len()
+                ));
             }
             if !info.is_empty() {
                 md.push_str(&format!("- **{} informational** suggestions\n", info.len()));
@@ -2097,7 +2290,11 @@ impl AiCodeReviewEngine {
             if dirs.len() == 1 {
                 format!("Update {} ({} files)", dirs[0], diff_files.len())
             } else {
-                format!("Update {} files across {} directories", diff_files.len(), dirs.len())
+                format!(
+                    "Update {} files across {} directories",
+                    diff_files.len(),
+                    dirs.len()
+                )
             }
         }
     }
@@ -2136,15 +2333,18 @@ impl AiCodeReviewEngine {
     fn suggest_reviewers(&self, diff_files: &[DiffFile]) -> Vec<String> {
         let mut reviewers = Vec::new();
 
-        let has_security = diff_files
-            .iter()
-            .any(|f| f.path.contains("auth") || f.path.contains("security") || f.path.contains("crypto"));
-        let has_infra = diff_files
-            .iter()
-            .any(|f| f.path.contains("deploy") || f.path.contains("docker") || f.path.contains("k8s") || f.path.contains("ci"));
-        let has_frontend = diff_files
-            .iter()
-            .any(|f| f.path.ends_with(".tsx") || f.path.ends_with(".jsx") || f.path.ends_with(".css"));
+        let has_security = diff_files.iter().any(|f| {
+            f.path.contains("auth") || f.path.contains("security") || f.path.contains("crypto")
+        });
+        let has_infra = diff_files.iter().any(|f| {
+            f.path.contains("deploy")
+                || f.path.contains("docker")
+                || f.path.contains("k8s")
+                || f.path.contains("ci")
+        });
+        let has_frontend = diff_files.iter().any(|f| {
+            f.path.ends_with(".tsx") || f.path.ends_with(".jsx") || f.path.ends_with(".css")
+        });
         let has_backend = diff_files
             .iter()
             .any(|f| f.path.ends_with(".rs") || f.path.ends_with(".go") || f.path.ends_with(".py"));
@@ -2246,8 +2446,14 @@ mod tests {
 
     #[test]
     fn test_quality_gate_condition_label() {
-        assert_eq!(QualityGateCondition::NoTodoComments.label(), "No TODO Comments");
-        assert_eq!(QualityGateCondition::MaxComplexity(10).label(), "Max Complexity");
+        assert_eq!(
+            QualityGateCondition::NoTodoComments.label(),
+            "No TODO Comments"
+        );
+        assert_eq!(
+            QualityGateCondition::MaxComplexity(10).label(),
+            "Max Complexity"
+        );
     }
 
     #[test]
@@ -2335,14 +2541,18 @@ diff --git a/b.rs b/b.rs
     fn test_detect_hardcoded_password() {
         let code = r#"let password = "hunter2";"#;
         let findings = detect_security_issues(code);
-        assert!(findings.iter().any(|f| f.message.contains("Hardcoded password")));
+        assert!(findings
+            .iter()
+            .any(|f| f.message.contains("Hardcoded password")));
     }
 
     #[test]
     fn test_detect_hardcoded_secret() {
         let code = r#"let secret = "abc123def456";"#;
         let findings = detect_security_issues(code);
-        assert!(findings.iter().any(|f| f.message.contains("Hardcoded secret")));
+        assert!(findings
+            .iter()
+            .any(|f| f.message.contains("Hardcoded secret")));
     }
 
     #[test]
@@ -2384,7 +2594,9 @@ diff --git a/b.rs b/b.rs
     fn test_detect_document_write() {
         let code = "document.write(content);";
         let findings = detect_security_issues(code);
-        assert!(findings.iter().any(|f| f.message.contains("document.write")));
+        assert!(findings
+            .iter()
+            .any(|f| f.message.contains("document.write")));
     }
 
     #[test]
@@ -2392,7 +2604,9 @@ diff --git a/b.rs b/b.rs
         let code = "// password = \"test123\";";
         let findings = detect_security_issues(code);
         // Comments should be skipped
-        assert!(findings.iter().all(|f| !f.message.contains("Hardcoded password")));
+        assert!(findings
+            .iter()
+            .all(|f| !f.message.contains("Hardcoded password")));
     }
 
     #[test]
@@ -2422,7 +2636,9 @@ diff --git a/b.rs b/b.rs
         let code = "fn nested() {\n    if true {\n        if true {\n            if true {\n                if true {\n                    if true {\n                            do_thing();\n                    }\n                }\n            }\n        }\n    }\n}\n";
         let findings = detect_complexity_issues(code);
         assert!(
-            findings.iter().any(|f| f.message.contains("nesting") || f.message.contains("nested") || f.message.contains("indent")),
+            findings.iter().any(|f| f.message.contains("nesting")
+                || f.message.contains("nested")
+                || f.message.contains("indent")),
             "Expected nesting finding, got: {:?}",
             findings.iter().map(|f| &f.message).collect::<Vec<_>>()
         );
@@ -2443,7 +2659,9 @@ diff --git a/b.rs b/b.rs
         }
         code.push_str("}\n");
         let findings = detect_complexity_issues(&code);
-        assert!(findings.iter().any(|f| f.message.contains("cyclomatic complexity")));
+        assert!(findings
+            .iter()
+            .any(|f| f.message.contains("cyclomatic complexity")));
     }
 
     // ── Style detector ─────────────────────────────────────────────────
@@ -2452,7 +2670,9 @@ diff --git a/b.rs b/b.rs
     fn test_detect_trailing_whitespace() {
         let code = "let x = 1;   \n";
         let findings = detect_style_issues(code);
-        assert!(findings.iter().any(|f| f.message.contains("Trailing whitespace")));
+        assert!(findings
+            .iter()
+            .any(|f| f.message.contains("Trailing whitespace")));
     }
 
     #[test]
@@ -2488,7 +2708,9 @@ diff --git a/b.rs b/b.rs
         let code = "fn clean_function() {\n    let x = 1;\n}\n";
         let findings = detect_style_issues(code);
         // Should not flag trailing whitespace or debug prints
-        assert!(findings.iter().all(|f| !f.message.contains("Trailing whitespace")));
+        assert!(findings
+            .iter()
+            .all(|f| !f.message.contains("Trailing whitespace")));
         assert!(findings.iter().all(|f| !f.message.contains("Debug print")));
     }
 
@@ -2512,7 +2734,9 @@ diff --git a/b.rs b/b.rs
     fn test_detect_undocumented_pub_fn() {
         let code = "pub fn my_function() {}\n";
         let findings = detect_documentation_gaps(code);
-        assert!(findings.iter().any(|f| f.message.contains("function") && f.message.contains("documentation")));
+        assert!(findings
+            .iter()
+            .any(|f| f.message.contains("function") && f.message.contains("documentation")));
     }
 
     #[test]
@@ -2527,7 +2751,9 @@ diff --git a/b.rs b/b.rs
         let code = "/// Does something useful\npub fn documented() {}\n";
         let findings = detect_documentation_gaps(code);
         assert!(
-            findings.iter().all(|f| !f.message.contains("function missing documentation")),
+            findings
+                .iter()
+                .all(|f| !f.message.contains("function missing documentation")),
             "Documented function should not be flagged"
         );
     }
@@ -2592,10 +2818,14 @@ diff --git a/b.rs b/b.rs
 
     #[test]
     fn test_detect_duplication_across_files() {
-        let shared = "let a = 1;\nlet b = 2;\nlet c = 3;\nlet d = 4;\nlet e = 5;\nlet f = 6;\nlet g = 7;\n";
+        let shared =
+            "let a = 1;\nlet b = 2;\nlet c = 3;\nlet d = 4;\nlet e = 5;\nlet f = 6;\nlet g = 7;\n";
         let files = vec![("file_a.rs", shared), ("file_b.rs", shared)];
         let findings = detect_duplication(&files);
-        assert!(!findings.is_empty(), "Should detect duplication across files");
+        assert!(
+            !findings.is_empty(),
+            "Should detect duplication across files"
+        );
         assert!(findings[0].category == ReviewCategory::Duplication);
     }
 
@@ -2611,10 +2841,14 @@ diff --git a/b.rs b/b.rs
 
     #[test]
     fn test_duplication_same_file_ignored() {
-        let code = "let a = 1;\nlet b = 2;\nlet c = 3;\nlet d = 4;\nlet e = 5;\nlet f = 6;\nlet g = 7;\n";
+        let code =
+            "let a = 1;\nlet b = 2;\nlet c = 3;\nlet d = 4;\nlet e = 5;\nlet f = 6;\nlet g = 7;\n";
         let files = vec![("same.rs", code)];
         let findings = detect_duplication(&files);
-        assert!(findings.is_empty(), "Same-file duplication should not be flagged");
+        assert!(
+            findings.is_empty(),
+            "Same-file duplication should not be flagged"
+        );
     }
 
     // ── Architecture detector ──────────────────────────────────────────
@@ -2644,7 +2878,9 @@ diff --git a/b.rs b/b.rs
         }
         code.push_str("fn main() {}\n");
         let findings = detect_architecture_violations(&code);
-        assert!(findings.iter().any(|f| f.message.contains("coupling") || f.message.contains("imports")));
+        assert!(findings
+            .iter()
+            .any(|f| f.message.contains("coupling") || f.message.contains("imports")));
     }
 
     #[test]
@@ -2699,7 +2935,10 @@ diff --git a/b.rs b/b.rs
         let config = default_config();
         let analysis = engine.analyze_diff(sample_diff(), &config);
         assert!(
-            analysis.findings.iter().any(|f| f.category == ReviewCategory::Security),
+            analysis
+                .findings
+                .iter()
+                .any(|f| f.category == ReviewCategory::Security),
             "Should detect security issues in diff"
         );
     }
@@ -2734,7 +2973,9 @@ diff --git a/b.rs b/b.rs
         let mut engine = make_engine();
         let config = default_config();
         let analysis = engine.analyze_diff(diff, &config);
-        assert!(analysis.suggested_reviewers.contains(&"security-team".to_string()));
+        assert!(analysis
+            .suggested_reviewers
+            .contains(&"security-team".to_string()));
     }
 
     // ── Engine: analyze_file ───────────────────────────────────────────
@@ -2871,20 +3112,18 @@ diff --git a/b.rs b/b.rs
             files_changed: 1,
             lines_added: 10,
             lines_removed: 5,
-            findings: vec![
-                ReviewFinding {
-                    id: "cx-1".to_string(),
-                    file: "a.rs".to_string(),
-                    line_start: 1,
-                    line_end: 50,
-                    severity: ReviewSeverity::Warning,
-                    category: ReviewCategory::Complexity,
-                    message: "High complexity".to_string(),
-                    suggestion: None,
-                    auto_fixable: false,
-                    confidence: 0.8,
-                },
-            ],
+            findings: vec![ReviewFinding {
+                id: "cx-1".to_string(),
+                file: "a.rs".to_string(),
+                line_start: 1,
+                line_end: 50,
+                severity: ReviewSeverity::Warning,
+                category: ReviewCategory::Complexity,
+                message: "High complexity".to_string(),
+                suggestion: None,
+                auto_fixable: false,
+                confidence: 0.8,
+            }],
             risk_score: 0.3,
             architectural_impact: "Low".to_string(),
             test_coverage_delta: 0.0,
@@ -3296,15 +3535,15 @@ diff --git a/b.rs b/b.rs
         }
         let mut config = default_config();
         config.learning_enabled = true;
-        let findings = engine.analyze_file(
-            "test.rs",
-            "println!(\"debug\");\n",
-            &config,
-        );
+        let findings = engine.analyze_file("test.rs", "println!(\"debug\");\n", &config);
         // Info-level findings should have reduced confidence
         for f in &findings {
             if f.severity == ReviewSeverity::Info {
-                assert!(f.confidence < 0.85, "Confidence should be reduced: {}", f.confidence);
+                assert!(
+                    f.confidence < 0.85,
+                    "Confidence should be reduced: {}",
+                    f.confidence
+                );
             }
         }
     }
@@ -3321,16 +3560,14 @@ diff --git a/b.rs b/b.rs
         assert!(!analysis.findings.is_empty());
 
         // 2. Check quality gates
-        let gates = vec![
-            QualityGate {
-                id: "g1".to_string(),
-                name: "No secrets".to_string(),
-                rule: "No hardcoded secrets".to_string(),
-                condition: QualityGateCondition::NoHardcodedSecrets,
-                enabled: true,
-                severity: ReviewSeverity::Security,
-            },
-        ];
+        let gates = vec![QualityGate {
+            id: "g1".to_string(),
+            name: "No secrets".to_string(),
+            rule: "No hardcoded secrets".to_string(),
+            condition: QualityGateCondition::NoHardcodedSecrets,
+            enabled: true,
+            severity: ReviewSeverity::Security,
+        }];
         let gate_results = engine.check_quality_gates(&analysis, &gates);
         assert!(!gate_results[0].passed);
 
@@ -3399,19 +3636,34 @@ diff --git a/b.rs b/b.rs
 
     #[test]
     fn test_extract_fn_name_rust() {
-        assert_eq!(extract_function_name("fn foo(x: i32)"), Some("foo".to_string()));
-        assert_eq!(extract_function_name("pub fn bar()"), Some("bar".to_string()));
-        assert_eq!(extract_function_name("pub async fn baz(s: &str)"), Some("baz".to_string()));
+        assert_eq!(
+            extract_function_name("fn foo(x: i32)"),
+            Some("foo".to_string())
+        );
+        assert_eq!(
+            extract_function_name("pub fn bar()"),
+            Some("bar".to_string())
+        );
+        assert_eq!(
+            extract_function_name("pub async fn baz(s: &str)"),
+            Some("baz".to_string())
+        );
     }
 
     #[test]
     fn test_extract_fn_name_python() {
-        assert_eq!(extract_function_name("def my_func(self):"), Some("my_func".to_string()));
+        assert_eq!(
+            extract_function_name("def my_func(self):"),
+            Some("my_func".to_string())
+        );
     }
 
     #[test]
     fn test_extract_fn_name_go() {
-        assert_eq!(extract_function_name("func handler(w http.ResponseWriter)"), Some("handler".to_string()));
+        assert_eq!(
+            extract_function_name("func handler(w http.ResponseWriter)"),
+            Some("handler".to_string())
+        );
     }
 
     #[test]

@@ -43,7 +43,10 @@ const MS_DEFAULT_SCOPE: &str =
 // ── Data types ───────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum EmailProvider { Gmail, Outlook }
+pub enum EmailProvider {
+    Gmail,
+    Outlook,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Email {
@@ -60,8 +63,15 @@ pub struct Email {
 impl Email {
     pub fn format_line(&self) -> String {
         let read_marker = if self.is_read { " " } else { "◉" };
-        let from_short = if self.from.len() > 24 { &self.from[..24] } else { &self.from };
-        format!("{} 📧 {:<24}  {}  {}", read_marker, from_short, self.subject, self.date)
+        let from_short = if self.from.len() > 24 {
+            &self.from[..24]
+        } else {
+            &self.from
+        };
+        format!(
+            "{} 📧 {:<24}  {}  {}",
+            read_marker, from_short, self.subject, self.date
+        )
     }
 }
 
@@ -149,19 +159,41 @@ impl EmailClient {
     pub fn from_env_or_config() -> Option<Self> {
         // 1. ProfileStore (encrypted SQLite) — takes precedence over env/config
         if let Ok(store) = crate::profile_store::ProfileStore::new() {
-            if let Ok(Some(tok)) = store.get_api_key("default", "integration.email.gmail_access_token") {
+            if let Ok(Some(tok)) =
+                store.get_api_key("default", "integration.email.gmail_access_token")
+            {
                 if !tok.is_empty() {
-                    let r = store.get_api_key("default", "integration.email.gmail_refresh_token").ok().flatten();
-                    let id = store.get_api_key("default", "integration.email.gmail_oauth_client_id").ok().flatten();
-                    let sec = store.get_api_key("default", "integration.email.gmail_oauth_client_secret").ok().flatten();
+                    let r = store
+                        .get_api_key("default", "integration.email.gmail_refresh_token")
+                        .ok()
+                        .flatten();
+                    let id = store
+                        .get_api_key("default", "integration.email.gmail_oauth_client_id")
+                        .ok()
+                        .flatten();
+                    let sec = store
+                        .get_api_key("default", "integration.email.gmail_oauth_client_secret")
+                        .ok()
+                        .flatten();
                     return Some(Self::new(EmailProvider::Gmail, tok).with_refresh(r, id, sec));
                 }
             }
-            if let Ok(Some(tok)) = store.get_api_key("default", "integration.email.outlook_access_token") {
+            if let Ok(Some(tok)) =
+                store.get_api_key("default", "integration.email.outlook_access_token")
+            {
                 if !tok.is_empty() {
-                    let r = store.get_api_key("default", "integration.email.outlook_refresh_token").ok().flatten();
-                    let id = store.get_api_key("default", "integration.email.outlook_oauth_client_id").ok().flatten();
-                    let sec = store.get_api_key("default", "integration.email.outlook_oauth_client_secret").ok().flatten();
+                    let r = store
+                        .get_api_key("default", "integration.email.outlook_refresh_token")
+                        .ok()
+                        .flatten();
+                    let id = store
+                        .get_api_key("default", "integration.email.outlook_oauth_client_id")
+                        .ok()
+                        .flatten();
+                    let sec = store
+                        .get_api_key("default", "integration.email.outlook_oauth_client_secret")
+                        .ok()
+                        .flatten();
                     return Some(Self::new(EmailProvider::Outlook, tok).with_refresh(r, id, sec));
                 }
             }
@@ -188,24 +220,20 @@ impl EmailClient {
             if let Some(email_cfg) = cfg.email {
                 if let Some(token) = email_cfg.gmail_access_token {
                     if !token.is_empty() {
-                        return Some(
-                            Self::new(EmailProvider::Gmail, token).with_refresh(
-                                email_cfg.gmail_refresh_token,
-                                email_cfg.gmail_oauth_client_id,
-                                email_cfg.gmail_oauth_client_secret,
-                            ),
-                        );
+                        return Some(Self::new(EmailProvider::Gmail, token).with_refresh(
+                            email_cfg.gmail_refresh_token,
+                            email_cfg.gmail_oauth_client_id,
+                            email_cfg.gmail_oauth_client_secret,
+                        ));
                     }
                 }
                 if let Some(token) = email_cfg.outlook_access_token {
                     if !token.is_empty() {
-                        return Some(
-                            Self::new(EmailProvider::Outlook, token).with_refresh(
-                                email_cfg.outlook_refresh_token,
-                                email_cfg.outlook_oauth_client_id,
-                                email_cfg.outlook_oauth_client_secret,
-                            ),
-                        );
+                        return Some(Self::new(EmailProvider::Outlook, token).with_refresh(
+                            email_cfg.outlook_refresh_token,
+                            email_cfg.outlook_oauth_client_id,
+                            email_cfg.outlook_oauth_client_secret,
+                        ));
                     }
                 }
             }
@@ -215,16 +243,26 @@ impl EmailClient {
 
     fn auth_header(&self) -> String {
         // Brief lock — clone out and drop the guard before awaiting.
-        let tok = self.access_token.lock().expect("email access_token mutex poisoned").clone();
+        let tok = self
+            .access_token
+            .lock()
+            .expect("email access_token mutex poisoned")
+            .clone();
         format!("Bearer {}", tok)
     }
 
     fn current_access_token(&self) -> String {
-        self.access_token.lock().expect("email access_token mutex poisoned").clone()
+        self.access_token
+            .lock()
+            .expect("email access_token mutex poisoned")
+            .clone()
     }
 
     fn store_new_access_token(&self, new_token: &str) {
-        *self.access_token.lock().expect("email access_token mutex poisoned") = new_token.to_string();
+        *self
+            .access_token
+            .lock()
+            .expect("email access_token mutex poisoned") = new_token.to_string();
     }
 
     fn can_refresh(&self) -> bool {
@@ -242,12 +280,14 @@ impl EmailClient {
             anyhow!("Gmail/Outlook access token expired and no refresh token is configured. \
                      Add a refresh token + OAuth client ID/secret in Settings → Integrations → Email.")
         })?;
-        let client_id = self.oauth_client_id.as_deref().ok_or_else(|| {
-            anyhow!("Cannot refresh OAuth token: missing client_id")
-        })?;
-        let client_secret = self.oauth_client_secret.as_deref().ok_or_else(|| {
-            anyhow!("Cannot refresh OAuth token: missing client_secret")
-        })?;
+        let client_id = self
+            .oauth_client_id
+            .as_deref()
+            .ok_or_else(|| anyhow!("Cannot refresh OAuth token: missing client_id"))?;
+        let client_secret = self
+            .oauth_client_secret
+            .as_deref()
+            .ok_or_else(|| anyhow!("Cannot refresh OAuth token: missing client_secret"))?;
 
         // Build the form body. Microsoft requires a `scope` field on
         // refresh; Google ignores it. Send it for both — harmless on Google.
@@ -265,7 +305,12 @@ impl EmailClient {
             EmailProvider::Outlook => MS_TOKEN_URL,
         };
 
-        let resp = self.client.post(url).form(&form).send().await
+        let resp = self
+            .client
+            .post(url)
+            .form(&form)
+            .send()
+            .await
             .map_err(|e| anyhow!("OAuth refresh request failed: {}", e))?;
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
@@ -284,7 +329,10 @@ impl EmailClient {
                 EmailProvider::Outlook => "integration.email.outlook_access_token",
             };
             if let Err(e) = store.set_api_key("default", key, &new_token) {
-                tracing::warn!("Failed to persist refreshed email token to ProfileStore: {}", e);
+                tracing::warn!(
+                    "Failed to persist refreshed email token to ProfileStore: {}",
+                    e
+                );
             }
         }
         Ok(())
@@ -299,13 +347,15 @@ impl EmailClient {
                 let url = url.to_string();
                 let auth = auth.clone();
                 async move {
-                    client.get(&url)
+                    client
+                        .get(&url)
                         .header("Authorization", &auth)
                         .send()
                         .await
                         .map_err(Into::into)
                 }
-            }).await?;
+            })
+            .await?;
 
             let status = resp.status();
             if status == reqwest::StatusCode::UNAUTHORIZED && !refreshed && self.can_refresh() {
@@ -333,7 +383,8 @@ impl EmailClient {
                 let auth = auth.clone();
                 let body = body_clone.clone();
                 async move {
-                    client.patch(&url)
+                    client
+                        .patch(&url)
                         .header("Authorization", &auth)
                         .header("Content-Type", "application/json")
                         .json(&body)
@@ -341,7 +392,8 @@ impl EmailClient {
                         .await
                         .map_err(Into::into)
                 }
-            }).await?;
+            })
+            .await?;
 
             let status = resp.status();
             if status == reqwest::StatusCode::UNAUTHORIZED && !refreshed && self.can_refresh() {
@@ -375,7 +427,8 @@ impl EmailClient {
                 let auth = auth.clone();
                 let body = body_clone.clone();
                 async move {
-                    client.post(&url)
+                    client
+                        .post(&url)
                         .header("Authorization", &auth)
                         .header("Content-Type", "application/json")
                         .json(&body)
@@ -383,7 +436,8 @@ impl EmailClient {
                         .await
                         .map_err(Into::into)
                 }
-            }).await?;
+            })
+            .await?;
 
             let status = resp.status();
             if status == reqwest::StatusCode::UNAUTHORIZED && !refreshed && self.can_refresh() {
@@ -410,8 +464,15 @@ impl EmailClient {
     }
 
     async fn gmail_list(&self, query: &str, max: usize) -> Result<Vec<Email>> {
-        let q = if query.is_empty() { String::new() } else { format!("&q={}", urlencoding::encode(query)) };
-        let url = format!("{}/messages?maxResults={}{}&format=metadata", GMAIL_API, max, q);
+        let q = if query.is_empty() {
+            String::new()
+        } else {
+            format!("&q={}", urlencoding::encode(query))
+        };
+        let url = format!(
+            "{}/messages?maxResults={}{}&format=metadata",
+            GMAIL_API, max, q
+        );
         let data = self.get_json(&url).await?;
 
         let mut emails = Vec::new();
@@ -422,12 +483,19 @@ impl EmailClient {
                     if let Ok(detail) = self.get_json(&detail_url).await {
                         let headers = detail["payload"]["headers"].as_array();
                         let get_hdr = |name: &str| -> String {
-                            headers.and_then(|h| h.iter().find(|v| v["name"].as_str() == Some(name)))
+                            headers
+                                .and_then(|h| h.iter().find(|v| v["name"].as_str() == Some(name)))
                                 .and_then(|v| v["value"].as_str())
-                                .unwrap_or("").to_string()
+                                .unwrap_or("")
+                                .to_string()
                         };
-                        let labels: Vec<String> = detail["labelIds"].as_array()
-                            .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                        let labels: Vec<String> = detail["labelIds"]
+                            .as_array()
+                            .map(|a| {
+                                a.iter()
+                                    .filter_map(|v| v.as_str().map(String::from))
+                                    .collect()
+                            })
                             .unwrap_or_default();
                         let is_read = !labels.contains(&"UNREAD".to_string());
                         emails.push(Email {
@@ -453,7 +521,10 @@ impl EmailClient {
         } else {
             format!("&$search=\"{}\"", urlencoding::encode(query))
         };
-        let url = format!("{}/messages?$top={}&$orderby=receivedDateTime desc{}", GRAPH_API, max, filter);
+        let url = format!(
+            "{}/messages?$top={}&$orderby=receivedDateTime desc{}",
+            GRAPH_API, max, filter
+        );
         let data = self.get_json(&url).await?;
 
         let mut emails = Vec::new();
@@ -461,17 +532,27 @@ impl EmailClient {
             for msg in messages {
                 emails.push(Email {
                     id: msg["id"].as_str().unwrap_or("").to_string(),
-                    from: msg["from"]["emailAddress"]["address"].as_str().unwrap_or("").to_string(),
-                    to: msg["toRecipients"].as_array()
+                    from: msg["from"]["emailAddress"]["address"]
+                        .as_str()
+                        .unwrap_or("")
+                        .to_string(),
+                    to: msg["toRecipients"]
+                        .as_array()
                         .and_then(|a| a.first())
                         .and_then(|r| r["emailAddress"]["address"].as_str())
-                        .unwrap_or("").to_string(),
+                        .unwrap_or("")
+                        .to_string(),
                     subject: msg["subject"].as_str().unwrap_or("").to_string(),
                     snippet: msg["bodyPreview"].as_str().unwrap_or("").to_string(),
                     date: msg["receivedDateTime"].as_str().unwrap_or("").to_string(),
                     is_read: msg["isRead"].as_bool().unwrap_or(true),
-                    labels: msg["categories"].as_array()
-                        .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                    labels: msg["categories"]
+                        .as_array()
+                        .map(|a| {
+                            a.iter()
+                                .filter_map(|v| v.as_str().map(String::from))
+                                .collect()
+                        })
                         .unwrap_or_default(),
                 });
             }
@@ -487,21 +568,34 @@ impl EmailClient {
                 let snippet = data["snippet"].as_str().unwrap_or("(no body)");
                 let headers = data["payload"]["headers"].as_array();
                 let get_hdr = |name: &str| -> String {
-                    headers.and_then(|h| h.iter().find(|v| v["name"].as_str() == Some(name)))
-                        .and_then(|v| v["value"].as_str()).unwrap_or("").to_string()
+                    headers
+                        .and_then(|h| h.iter().find(|v| v["name"].as_str() == Some(name)))
+                        .and_then(|v| v["value"].as_str())
+                        .unwrap_or("")
+                        .to_string()
                 };
-                Ok(format!("From: {}\nTo: {}\nDate: {}\nSubject: {}\n\n{}",
-                    get_hdr("From"), get_hdr("To"), get_hdr("Date"), get_hdr("Subject"), snippet))
+                Ok(format!(
+                    "From: {}\nTo: {}\nDate: {}\nSubject: {}\n\n{}",
+                    get_hdr("From"),
+                    get_hdr("To"),
+                    get_hdr("Date"),
+                    get_hdr("Subject"),
+                    snippet
+                ))
             }
             EmailProvider::Outlook => {
                 let url = format!("{}/messages/{}", GRAPH_API, id);
                 let data = self.get_json(&url).await?;
                 let body = data["body"]["content"].as_str().unwrap_or("(no body)");
-                Ok(format!("From: {}\nSubject: {}\nDate: {}\n\n{}",
-                    data["from"]["emailAddress"]["address"].as_str().unwrap_or(""),
+                Ok(format!(
+                    "From: {}\nSubject: {}\nDate: {}\n\n{}",
+                    data["from"]["emailAddress"]["address"]
+                        .as_str()
+                        .unwrap_or(""),
                     data["subject"].as_str().unwrap_or(""),
                     data["receivedDateTime"].as_str().unwrap_or(""),
-                    body))
+                    body
+                ))
             }
         }
     }
@@ -523,7 +617,11 @@ impl EmailClient {
                 let (body_text, body_html) = extract_gmail_body(&data["payload"]);
                 let labels: Vec<String> = data["labelIds"]
                     .as_array()
-                    .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|v| v.as_str().map(String::from))
+                            .collect()
+                    })
                     .unwrap_or_default();
                 let is_read = !labels.contains(&"UNREAD".to_string());
                 let text_fallback = if body_text.is_empty() && body_html.is_empty() {
@@ -574,7 +672,10 @@ impl EmailClient {
                     .unwrap_or_default();
                 Ok(EmailBody {
                     id: id.to_string(),
-                    from: data["from"]["emailAddress"]["address"].as_str().unwrap_or("").to_string(),
+                    from: data["from"]["emailAddress"]["address"]
+                        .as_str()
+                        .unwrap_or("")
+                        .to_string(),
                     to,
                     cc,
                     subject: data["subject"].as_str().unwrap_or("").to_string(),
@@ -584,7 +685,11 @@ impl EmailClient {
                     is_read: data["isRead"].as_bool().unwrap_or(true),
                     labels: data["categories"]
                         .as_array()
-                        .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                        .map(|a| {
+                            a.iter()
+                                .filter_map(|v| v.as_str().map(String::from))
+                                .collect()
+                        })
                         .unwrap_or_default(),
                 })
             }
@@ -634,7 +739,10 @@ impl EmailClient {
     pub async fn send_message(&self, to: &str, subject: &str, body: &str) -> Result<String> {
         match self.provider {
             EmailProvider::Gmail => {
-                let raw = format!("To: {}\r\nSubject: {}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n{}", to, subject, body);
+                let raw = format!(
+                    "To: {}\r\nSubject: {}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n{}",
+                    to, subject, body
+                );
                 let encoded = base64_url_encode(raw.as_bytes());
                 let url = format!("{}/messages/send", GMAIL_API);
                 let payload = serde_json::json!({ "raw": encoded });
@@ -661,24 +769,34 @@ impl EmailClient {
             EmailProvider::Gmail => {
                 let url = format!("{}/labels", GMAIL_API);
                 let data = self.get_json(&url).await?;
-                let labels = data["labels"].as_array()
-                    .map(|a| a.iter().map(|l| EmailLabel {
-                        id: l["id"].as_str().unwrap_or("").to_string(),
-                        name: l["name"].as_str().unwrap_or("").to_string(),
-                        message_count: l["messagesTotal"].as_u64(),
-                    }).collect())
+                let labels = data["labels"]
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .map(|l| EmailLabel {
+                                id: l["id"].as_str().unwrap_or("").to_string(),
+                                name: l["name"].as_str().unwrap_or("").to_string(),
+                                message_count: l["messagesTotal"].as_u64(),
+                            })
+                            .collect()
+                    })
                     .unwrap_or_default();
                 Ok(labels)
             }
             EmailProvider::Outlook => {
                 let url = format!("{}/mailFolders", GRAPH_API);
                 let data = self.get_json(&url).await?;
-                let labels = data["value"].as_array()
-                    .map(|a| a.iter().map(|l| EmailLabel {
-                        id: l["id"].as_str().unwrap_or("").to_string(),
-                        name: l["displayName"].as_str().unwrap_or("").to_string(),
-                        message_count: l["totalItemCount"].as_u64(),
-                    }).collect())
+                let labels = data["value"]
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .map(|l| EmailLabel {
+                                id: l["id"].as_str().unwrap_or("").to_string(),
+                                name: l["displayName"].as_str().unwrap_or("").to_string(),
+                                message_count: l["totalItemCount"].as_u64(),
+                            })
+                            .collect()
+                    })
                     .unwrap_or_default();
                 Ok(labels)
             }
@@ -689,8 +807,13 @@ impl EmailClient {
 /// Pull `access_token` out of an OAuth refresh response. Pure function so
 /// the JSON shape can be unit-tested without a live HTTP server.
 fn parse_oauth_refresh_response(body: &str) -> Result<String> {
-    let json: serde_json::Value = serde_json::from_str(body)
-        .map_err(|e| anyhow!("OAuth refresh: response body is not JSON: {} (body: {})", e, body))?;
+    let json: serde_json::Value = serde_json::from_str(body).map_err(|e| {
+        anyhow!(
+            "OAuth refresh: response body is not JSON: {} (body: {})",
+            e,
+            body
+        )
+    })?;
     if let Some(tok) = json["access_token"].as_str() {
         if !tok.is_empty() {
             return Ok(tok.to_string());
@@ -704,7 +827,11 @@ fn parse_oauth_refresh_response(body: &str) -> Result<String> {
     Err(anyhow!(
         "OAuth refresh: response missing access_token (error: {}{})",
         err,
-        if desc.is_empty() { String::new() } else { format!(" — {}", desc) }
+        if desc.is_empty() {
+            String::new()
+        } else {
+            format!(" — {}", desc)
+        }
     ))
 }
 
@@ -794,12 +921,18 @@ fn require_client() -> std::result::Result<EmailClient, String> {
 
 pub async fn ui_list(query: &str, max: usize) -> std::result::Result<Vec<Email>, String> {
     let client = require_client()?;
-    client.list_messages(query, max).await.map_err(|e| e.to_string())
+    client
+        .list_messages(query, max)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 pub async fn ui_read(id: &str) -> std::result::Result<EmailBody, String> {
     let client = require_client()?;
-    client.read_message_typed(id).await.map_err(|e| e.to_string())
+    client
+        .read_message_typed(id)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 pub async fn ui_archive(id: &str) -> std::result::Result<(), String> {
@@ -819,7 +952,10 @@ pub async fn ui_labels() -> std::result::Result<Vec<EmailLabel>, String> {
 
 pub async fn ui_send(to: &str, subject: &str, body: &str) -> std::result::Result<String, String> {
     let client = require_client()?;
-    client.send_message(to, subject, body).await.map_err(|e| e.to_string())
+    client
+        .send_message(to, subject, body)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Returns auth status for the UI provider strip. Never errors — a missing
@@ -846,7 +982,10 @@ pub async fn ui_status() -> ProviderStatus {
         EmailProvider::Outlook => match client.get_json(GRAPH_API).await {
             Ok(v) => (
                 true,
-                v["mail"].as_str().or_else(|| v["userPrincipalName"].as_str()).map(String::from),
+                v["mail"]
+                    .as_str()
+                    .or_else(|| v["userPrincipalName"].as_str())
+                    .map(String::from),
                 None,
             ),
             Err(e) => (false, None, Some(e.to_string())),
@@ -876,30 +1015,36 @@ pub async fn handle_email_command(args: &str) -> String {
     let arg2 = parts.get(2).copied().unwrap_or("");
 
     match subcmd {
-        "" | "inbox" | "list" => {
-            match client.list_messages("", 20).await {
-                Ok(emails) => {
-                    if emails.is_empty() { return "📭 No emails found.\n".to_string(); }
-                    let mut out = format!("📧 Inbox ({} emails)\n{}\n", emails.len(), "─".repeat(72));
-                    for e in &emails { out.push_str(&format!("{}\n", e.format_line())); }
-                    out
+        "" | "inbox" | "list" => match client.list_messages("", 20).await {
+            Ok(emails) => {
+                if emails.is_empty() {
+                    return "📭 No emails found.\n".to_string();
                 }
-                Err(e) => format!("❌ Failed to list emails: {}\n", e),
-            }
-        }
-        "unread" => {
-            match client.list_messages("is:unread", 20).await {
-                Ok(emails) => {
-                    if emails.is_empty() { return "📭 No unread emails!\n".to_string(); }
-                    let mut out = format!("📧 Unread ({} emails)\n{}\n", emails.len(), "─".repeat(72));
-                    for e in &emails { out.push_str(&format!("{}\n", e.format_line())); }
-                    out
+                let mut out = format!("📧 Inbox ({} emails)\n{}\n", emails.len(), "─".repeat(72));
+                for e in &emails {
+                    out.push_str(&format!("{}\n", e.format_line()));
                 }
-                Err(e) => format!("❌ {}\n", e),
+                out
             }
-        }
+            Err(e) => format!("❌ Failed to list emails: {}\n", e),
+        },
+        "unread" => match client.list_messages("is:unread", 20).await {
+            Ok(emails) => {
+                if emails.is_empty() {
+                    return "📭 No unread emails!\n".to_string();
+                }
+                let mut out = format!("📧 Unread ({} emails)\n{}\n", emails.len(), "─".repeat(72));
+                for e in &emails {
+                    out.push_str(&format!("{}\n", e.format_line()));
+                }
+                out
+            }
+            Err(e) => format!("❌ {}\n", e),
+        },
         "read" => {
-            if arg1.is_empty() { return "Usage: /email read <message_id>\n".to_string(); }
+            if arg1.is_empty() {
+                return "Usage: /email read <message_id>\n".to_string();
+            }
             match client.read_message(arg1).await {
                 Ok(body) => format!("{}\n", body),
                 Err(e) => format!("❌ {}\n", e),
@@ -915,51 +1060,81 @@ pub async fn handle_email_command(args: &str) -> String {
             }
         }
         "search" => {
-            if arg1.is_empty() { return "Usage: /email search <query>\n".to_string(); }
-            let query = if arg2.is_empty() { arg1.to_string() } else { format!("{} {}", arg1, arg2) };
+            if arg1.is_empty() {
+                return "Usage: /email search <query>\n".to_string();
+            }
+            let query = if arg2.is_empty() {
+                arg1.to_string()
+            } else {
+                format!("{} {}", arg1, arg2)
+            };
             match client.list_messages(&query, 20).await {
                 Ok(emails) => {
-                    if emails.is_empty() { return "🔍 No results.\n".to_string(); }
-                    let mut out = format!("🔍 Search: \"{}\" ({} results)\n{}\n", query, emails.len(), "─".repeat(72));
-                    for e in &emails { out.push_str(&format!("{}\n", e.format_line())); }
-                    out
-                }
-                Err(e) => format!("❌ {}\n", e),
-            }
-        }
-        "labels" | "folders" => {
-            match client.list_labels().await {
-                Ok(labels) => {
-                    let mut out = "🏷️  Labels\n".to_string();
-                    for l in &labels {
-                        let count = l.message_count.map(|c| format!(" ({})", c)).unwrap_or_default();
-                        out.push_str(&format!("  {}{}\n", l.name, count));
+                    if emails.is_empty() {
+                        return "🔍 No results.\n".to_string();
+                    }
+                    let mut out = format!(
+                        "🔍 Search: \"{}\" ({} results)\n{}\n",
+                        query,
+                        emails.len(),
+                        "─".repeat(72)
+                    );
+                    for e in &emails {
+                        out.push_str(&format!("{}\n", e.format_line()));
                     }
                     out
                 }
                 Err(e) => format!("❌ {}\n", e),
             }
         }
+        "labels" | "folders" => match client.list_labels().await {
+            Ok(labels) => {
+                let mut out = "🏷️  Labels\n".to_string();
+                for l in &labels {
+                    let count = l
+                        .message_count
+                        .map(|c| format!(" ({})", c))
+                        .unwrap_or_default();
+                    out.push_str(&format!("  {}{}\n", l.name, count));
+                }
+                out
+            }
+            Err(e) => format!("❌ {}\n", e),
+        },
         "triage" => {
             match client.list_messages("is:unread", 20).await {
                 Ok(emails) => {
-                    if emails.is_empty() { return "📭 No unread emails to triage!\n".to_string(); }
+                    if emails.is_empty() {
+                        return "📭 No unread emails to triage!\n".to_string();
+                    }
                     let mut out = "🤖 Email Triage (AI analysis)\n".to_string();
-                    out.push_str(&format!("{} unread emails. Categorizing by urgency...\n\n", emails.len()));
+                    out.push_str(&format!(
+                        "{} unread emails. Categorizing by urgency...\n\n",
+                        emails.len()
+                    ));
                     // Format for LLM processing
                     for (i, e) in emails.iter().enumerate() {
-                        out.push_str(&format!("{}. From: {} | Subject: {} | Date: {}\n   Preview: {}\n\n",
-                            i + 1, e.from, e.subject, e.date, &e.snippet[..e.snippet.len().min(100)]));
+                        out.push_str(&format!(
+                            "{}. From: {} | Subject: {} | Date: {}\n   Preview: {}\n\n",
+                            i + 1,
+                            e.from,
+                            e.subject,
+                            e.date,
+                            &e.snippet[..e.snippet.len().min(100)]
+                        ));
                     }
-                    out.push_str("\nCategories: 🚨 Urgent | ⚡ Important | 💬 Normal | 📎 Low | 🗑 Archive\n");
-                    out.push_str("Ask the AI to categorize: \"Categorize these emails by urgency\"\n");
+                    out.push_str(
+                        "\nCategories: 🚨 Urgent | ⚡ Important | 💬 Normal | 📎 Low | 🗑 Archive\n",
+                    );
+                    out.push_str(
+                        "Ask the AI to categorize: \"Categorize these emails by urgency\"\n",
+                    );
                     out
                 }
                 Err(e) => format!("❌ {}\n", e),
             }
         }
-        _ => {
-            "📧 Email Commands:\n\
+        _ => "📧 Email Commands:\n\
               /email inbox              — List recent emails\n\
               /email unread             — List unread emails\n\
               /email read <id>          — Read full email\n\
@@ -968,8 +1143,8 @@ pub async fn handle_email_command(args: &str) -> String {
               /email labels             — List labels/folders\n\
               /email triage             — AI-powered triage\n\n\
             Config: Set GMAIL_ACCESS_TOKEN or OUTLOOK_ACCESS_TOKEN env var,\n\
-            or add [email] section to ~/.vibecli/config.toml\n".to_string()
-        }
+            or add [email] section to ~/.vibecli/config.toml\n"
+            .to_string(),
     }
 }
 
@@ -980,10 +1155,14 @@ mod tests {
     #[test]
     fn test_email_serialize() {
         let email = Email {
-            id: "abc123".into(), from: "alice@example.com".into(),
-            to: "bob@example.com".into(), subject: "Test".into(),
-            snippet: "Hello world".into(), date: "2026-04-04".into(),
-            is_read: false, labels: vec!["INBOX".into()],
+            id: "abc123".into(),
+            from: "alice@example.com".into(),
+            to: "bob@example.com".into(),
+            subject: "Test".into(),
+            snippet: "Hello world".into(),
+            date: "2026-04-04".into(),
+            is_read: false,
+            labels: vec!["INBOX".into()],
         };
         let json = serde_json::to_string(&email).unwrap();
         assert!(json.contains("alice@example.com"));
@@ -994,9 +1173,14 @@ mod tests {
     #[test]
     fn test_format_line() {
         let email = Email {
-            id: "1".into(), from: "test@test.com".into(), to: "".into(),
-            subject: "Important".into(), snippet: "".into(),
-            date: "2026-04-04".into(), is_read: false, labels: vec![],
+            id: "1".into(),
+            from: "test@test.com".into(),
+            to: "".into(),
+            subject: "Important".into(),
+            snippet: "".into(),
+            date: "2026-04-04".into(),
+            is_read: false,
+            labels: vec![],
         };
         let line = email.format_line();
         assert!(line.contains("◉")); // unread marker
@@ -1014,19 +1198,31 @@ mod tests {
     #[test]
     fn test_email_read_marker() {
         let read = Email {
-            id: "r1".into(), from: "x@x.com".into(), to: "".into(),
-            subject: "Read".into(), snippet: "".into(),
-            date: "2026-04-04".into(), is_read: true, labels: vec![],
+            id: "r1".into(),
+            from: "x@x.com".into(),
+            to: "".into(),
+            subject: "Read".into(),
+            snippet: "".into(),
+            date: "2026-04-04".into(),
+            is_read: true,
+            labels: vec![],
         };
-        assert!(!read.format_line().contains("◉"), "read email should not have unread marker");
+        assert!(
+            !read.format_line().contains("◉"),
+            "read email should not have unread marker"
+        );
     }
 
     #[test]
     fn test_email_labels_preserved() {
         let e = Email {
-            id: "l1".into(), from: "a@b.com".into(), to: "".into(),
-            subject: "Labels".into(), snippet: "".into(),
-            date: "".into(), is_read: false,
+            id: "l1".into(),
+            from: "a@b.com".into(),
+            to: "".into(),
+            subject: "Labels".into(),
+            snippet: "".into(),
+            date: "".into(),
+            is_read: false,
             labels: vec!["INBOX".into(), "IMPORTANT".into()],
         };
         let json = serde_json::to_string(&e).unwrap();
@@ -1039,14 +1235,20 @@ mod tests {
     async fn test_handle_email_command_no_config() {
         // Without credentials, should return a user-friendly message, not panic
         let out = handle_email_command("unread").await;
-        assert!(!out.is_empty(), "should return a message even without config");
+        assert!(
+            !out.is_empty(),
+            "should return a message even without config"
+        );
     }
 
     #[tokio::test]
     async fn test_handle_email_command_unknown_sub() {
         let out = handle_email_command("foobar").await;
         assert!(
-            out.contains("Usage") || out.contains("usage") || out.contains("not configured") || !out.is_empty(),
+            out.contains("Usage")
+                || out.contains("usage")
+                || out.contains("not configured")
+                || !out.is_empty(),
             "unknown sub-command should return usage or error"
         );
     }
@@ -1073,7 +1275,9 @@ mod tests {
 
     #[test]
     fn parse_oauth_refresh_response_rejects_non_json() {
-        let err = parse_oauth_refresh_response("not json").unwrap_err().to_string();
+        let err = parse_oauth_refresh_response("not json")
+            .unwrap_err()
+            .to_string();
         assert!(err.contains("not JSON"), "got: {err}");
     }
 
@@ -1081,7 +1285,8 @@ mod tests {
     fn parse_oauth_refresh_response_surfaces_error_description() {
         // Google's typical refresh failure body — "invalid_grant" means the
         // user revoked access or the refresh token was rotated.
-        let body = r#"{"error":"invalid_grant","error_description":"Token has been expired or revoked."}"#;
+        let body =
+            r#"{"error":"invalid_grant","error_description":"Token has been expired or revoked."}"#;
         let err = parse_oauth_refresh_response(body).unwrap_err().to_string();
         assert!(err.contains("invalid_grant"), "got: {err}");
         assert!(err.contains("expired or revoked"), "got: {err}");
@@ -1096,7 +1301,8 @@ mod tests {
 
     #[test]
     fn format_email_api_error_401_is_actionable() {
-        let err = format_email_api_error(reqwest::StatusCode::UNAUTHORIZED, "ignored body").to_string();
+        let err =
+            format_email_api_error(reqwest::StatusCode::UNAUTHORIZED, "ignored body").to_string();
         assert!(err.contains("expired"), "got: {err}");
         assert!(err.contains("refresh"), "got: {err}");
         // The raw provider body should NOT leak through on 401 — it's
@@ -1117,26 +1323,45 @@ mod tests {
         // Should include the leading chunk plus the truncation marker.
         assert!(err.contains("502"), "got: {err}");
         assert!(err.ends_with('…') || err.contains(" …"), "got: {err}");
-        assert!(err.len() < 600, "should not dump kilobytes; got len {}", err.len());
+        assert!(
+            err.len() < 600,
+            "should not dump kilobytes; got len {}",
+            err.len()
+        );
     }
 
     #[test]
     fn with_refresh_treats_empty_strings_as_unset() {
-        let c = EmailClient::new(EmailProvider::Gmail, "tok".into())
-            .with_refresh(Some("".into()), Some("".into()), Some("".into()));
-        assert!(!c.can_refresh(), "empty refresh creds should not enable can_refresh");
+        let c = EmailClient::new(EmailProvider::Gmail, "tok".into()).with_refresh(
+            Some("".into()),
+            Some("".into()),
+            Some("".into()),
+        );
+        assert!(
+            !c.can_refresh(),
+            "empty refresh creds should not enable can_refresh"
+        );
     }
 
     #[test]
     fn can_refresh_requires_all_three_fields() {
-        let only_token = EmailClient::new(EmailProvider::Gmail, "tok".into())
-            .with_refresh(Some("r".into()), None, None);
+        let only_token = EmailClient::new(EmailProvider::Gmail, "tok".into()).with_refresh(
+            Some("r".into()),
+            None,
+            None,
+        );
         assert!(!only_token.can_refresh());
-        let two = EmailClient::new(EmailProvider::Gmail, "tok".into())
-            .with_refresh(Some("r".into()), Some("id".into()), None);
+        let two = EmailClient::new(EmailProvider::Gmail, "tok".into()).with_refresh(
+            Some("r".into()),
+            Some("id".into()),
+            None,
+        );
         assert!(!two.can_refresh());
-        let all_three = EmailClient::new(EmailProvider::Gmail, "tok".into())
-            .with_refresh(Some("r".into()), Some("id".into()), Some("sec".into()));
+        let all_three = EmailClient::new(EmailProvider::Gmail, "tok".into()).with_refresh(
+            Some("r".into()),
+            Some("id".into()),
+            Some("sec".into()),
+        );
         assert!(all_three.can_refresh());
     }
 
@@ -1144,9 +1369,14 @@ mod tests {
     fn test_email_subject_truncation_display() {
         let long_subject = "A".repeat(100);
         let e = Email {
-            id: "trunc".into(), from: "a@b.com".into(), to: "".into(),
-            subject: long_subject.clone(), snippet: "".into(),
-            date: "".into(), is_read: true, labels: vec![],
+            id: "trunc".into(),
+            from: "a@b.com".into(),
+            to: "".into(),
+            subject: long_subject.clone(),
+            snippet: "".into(),
+            date: "".into(),
+            is_read: true,
+            labels: vec![],
         };
         let line = e.format_line();
         // format_line should not panic on long subjects

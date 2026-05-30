@@ -214,7 +214,10 @@ mod tests {
     #[tokio::test]
     async fn stub_embedder_errors() {
         let r = StubBackend.embed("hello").await;
-        assert!(matches!(r, Err(InferenceError::BackendNotEnabled("candle"))));
+        assert!(matches!(
+            r,
+            Err(InferenceError::BackendNotEnabled("candle"))
+        ));
     }
 
     #[tokio::test]
@@ -227,6 +230,9 @@ mod tests {
                 stop: vec![],
             })
             .await;
-        assert!(matches!(r, Err(InferenceError::BackendNotEnabled("candle"))));
+        assert!(matches!(
+            r,
+            Err(InferenceError::BackendNotEnabled("candle"))
+        ));
     }
 }

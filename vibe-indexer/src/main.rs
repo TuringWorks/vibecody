@@ -94,7 +94,9 @@ pub struct SearchRequest {
     pub limit: usize,
 }
 
-fn default_limit() -> usize { 10 }
+fn default_limit() -> usize {
+    10
+}
 
 #[derive(Serialize)]
 pub struct SearchResponse {
@@ -212,7 +214,10 @@ async fn index_status(
     match jobs.get(&id) {
         Some(job) => match serde_json::to_value(job) {
             Ok(v) => (StatusCode::OK, Json(v)),
-            Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e.to_string() }))),
+            Err(e) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": e.to_string() })),
+            ),
         },
         None => (
             StatusCode::NOT_FOUND,
@@ -260,7 +265,10 @@ async fn search(
             let total = hits.len();
             match serde_json::to_value(SearchResponse { hits, total }) {
                 Ok(v) => (StatusCode::OK, Json(v)),
-                Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(serde_json::json!({ "error": e.to_string() }))),
+                Err(e) => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(serde_json::json!({ "error": e.to_string() })),
+                ),
             }
         }
         Err(e) => (
@@ -299,7 +307,10 @@ async fn main() -> anyhow::Result<()> {
 
     // Simple arg parsing (no clap dep to keep the binary light)
     let args: Vec<String> = std::env::args().collect();
-    let port: u16 = arg_value(&args, "--port").unwrap_or("9999".into()).parse().unwrap_or(9999);
+    let port: u16 = arg_value(&args, "--port")
+        .unwrap_or("9999".into())
+        .parse()
+        .unwrap_or(9999);
     let provider_name = arg_value(&args, "--provider").unwrap_or("ollama".into());
     let model = arg_value(&args, "--model").unwrap_or("nomic-embed-text".into());
     let api_key = arg_value(&args, "--api-key").unwrap_or_default();
@@ -308,8 +319,7 @@ async fn main() -> anyhow::Result<()> {
         "openai" => EmbeddingProvider::OpenAI { api_key, model },
         _ => EmbeddingProvider::Ollama {
             model,
-            api_url: arg_value(&args, "--ollama-url")
-                .unwrap_or("http://localhost:11434".into()),
+            api_url: arg_value(&args, "--ollama-url").unwrap_or("http://localhost:11434".into()),
         },
     };
 
@@ -379,9 +389,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn arg_value(args: &[String], flag: &str) -> Option<String> {
-    args.windows(2)
-        .find(|w| w[0] == flag)
-        .map(|w| w[1].clone())
+    args.windows(2).find(|w| w[0] == flag).map(|w| w[1].clone())
 }
 
 /// Percent-encode a workspace path so it can be used as a filename.
@@ -395,8 +403,16 @@ fn urlencoding_encode(s: &str) -> String {
             }
             _ => {
                 out.push('%');
-                out.push(char::from_digit((b >> 4) as u32, 16).unwrap_or('0').to_ascii_uppercase());
-                out.push(char::from_digit((b & 0xf) as u32, 16).unwrap_or('0').to_ascii_uppercase());
+                out.push(
+                    char::from_digit((b >> 4) as u32, 16)
+                        .unwrap_or('0')
+                        .to_ascii_uppercase(),
+                );
+                out.push(
+                    char::from_digit((b & 0xf) as u32, 16)
+                        .unwrap_or('0')
+                        .to_ascii_uppercase(),
+                );
             }
         }
     }
@@ -510,7 +526,9 @@ mod tests {
     #[test]
     fn arg_value_finds_flag() {
         let args: Vec<String> = vec!["bin", "--port", "8080", "--model", "nomic"]
-            .into_iter().map(String::from).collect();
+            .into_iter()
+            .map(String::from)
+            .collect();
         assert_eq!(arg_value(&args, "--port"), Some("8080".to_string()));
         assert_eq!(arg_value(&args, "--model"), Some("nomic".to_string()));
     }
@@ -518,7 +536,9 @@ mod tests {
     #[test]
     fn arg_value_returns_none_for_missing_flag() {
         let args: Vec<String> = vec!["bin", "--port", "8080"]
-            .into_iter().map(String::from).collect();
+            .into_iter()
+            .map(String::from)
+            .collect();
         assert_eq!(arg_value(&args, "--model"), None);
     }
 
@@ -532,7 +552,9 @@ mod tests {
     fn arg_value_returns_none_for_flag_at_end() {
         // Flag is the last element so there's no value after it
         let args: Vec<String> = vec!["bin", "--port"]
-            .into_iter().map(String::from).collect();
+            .into_iter()
+            .map(String::from)
+            .collect();
         assert_eq!(arg_value(&args, "--port"), None);
     }
 
@@ -556,9 +578,18 @@ mod tests {
 
     #[test]
     fn job_status_serializes_lowercase() {
-        assert_eq!(serde_json::to_string(&JobStatus::Running).unwrap(), "\"running\"");
-        assert_eq!(serde_json::to_string(&JobStatus::Complete).unwrap(), "\"complete\"");
-        assert_eq!(serde_json::to_string(&JobStatus::Failed).unwrap(), "\"failed\"");
+        assert_eq!(
+            serde_json::to_string(&JobStatus::Running).unwrap(),
+            "\"running\""
+        );
+        assert_eq!(
+            serde_json::to_string(&JobStatus::Complete).unwrap(),
+            "\"complete\""
+        );
+        assert_eq!(
+            serde_json::to_string(&JobStatus::Failed).unwrap(),
+            "\"failed\""
+        );
     }
 
     #[test]
@@ -642,4 +673,3 @@ mod tests {
         assert_eq!(req.workspace, "/home/user/project");
     }
 }
-

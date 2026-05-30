@@ -133,7 +133,10 @@ mod tests {
         assert_eq!(make_report(CiOutcome::Success, 1, 0).exit_code(), 0);
         assert_eq!(make_report(CiOutcome::Partial, 1, 1).exit_code(), 1);
         assert_eq!(make_report(CiOutcome::Failed, 0, 1).exit_code(), 2);
-        assert_eq!(make_report(CiOutcome::ApprovalRequired, 0, 0).exit_code(), 3);
+        assert_eq!(
+            make_report(CiOutcome::ApprovalRequired, 0, 0).exit_code(),
+            3
+        );
     }
 
     #[test]
@@ -165,7 +168,10 @@ mod tests {
     #[test]
     fn output_format_from_str() {
         assert_eq!(CiOutputFormat::from_str("json"), CiOutputFormat::Json);
-        assert_eq!(CiOutputFormat::from_str("markdown"), CiOutputFormat::Markdown);
+        assert_eq!(
+            CiOutputFormat::from_str("markdown"),
+            CiOutputFormat::Markdown
+        );
         assert_eq!(CiOutputFormat::from_str("md"), CiOutputFormat::Markdown);
         assert_eq!(CiOutputFormat::from_str("verbose"), CiOutputFormat::Verbose);
         assert_eq!(CiOutputFormat::from_str("unknown"), CiOutputFormat::Json);
@@ -256,7 +262,10 @@ mod tests {
 
     #[test]
     fn output_format_case_insensitive() {
-        assert_eq!(CiOutputFormat::from_str("MARKDOWN"), CiOutputFormat::Markdown);
+        assert_eq!(
+            CiOutputFormat::from_str("MARKDOWN"),
+            CiOutputFormat::Markdown
+        );
         assert_eq!(CiOutputFormat::from_str("JSON"), CiOutputFormat::Json);
         assert_eq!(CiOutputFormat::from_str("Verbose"), CiOutputFormat::Verbose);
         assert_eq!(CiOutputFormat::from_str("MD"), CiOutputFormat::Markdown);
@@ -363,7 +372,11 @@ pub async fn run_ci(
                 }
 
                 if verbose {
-                    let icon = if step.tool_result.success { "✅" } else { "❌" };
+                    let icon = if step.tool_result.success {
+                        "✅"
+                    } else {
+                        "❌"
+                    };
                     eprintln!("\n{} {}", icon, input_summary);
                 }
 
@@ -428,9 +441,20 @@ pub async fn run_ci(
                 outcome = CiOutcome::Failed;
                 break;
             }
-            AgentEvent::RetryableError { error, attempt, max_attempts, backoff_ms } => {
+            AgentEvent::RetryableError {
+                error,
+                attempt,
+                max_attempts,
+                backoff_ms,
+            } => {
                 if verbose {
-                    eprintln!("  ⟳ Retrying ({}/{}) after {}ms: {}", attempt + 1, max_attempts, backoff_ms, error);
+                    eprintln!(
+                        "  ⟳ Retrying ({}/{}) after {}ms: {}",
+                        attempt + 1,
+                        max_attempts,
+                        backoff_ms,
+                        error
+                    );
                 }
             }
             AgentEvent::CircuitBreak { state, reason } => {
@@ -443,7 +467,12 @@ pub async fn run_ci(
                     break;
                 }
             }
-            AgentEvent::Partial { summary: partial_summary, steps_completed, steps_planned, .. } => {
+            AgentEvent::Partial {
+                summary: partial_summary,
+                steps_completed,
+                steps_planned,
+                ..
+            } => {
                 if verbose {
                     eprintln!(
                         "  ⚠ Partial completion ({}/{}): {}",

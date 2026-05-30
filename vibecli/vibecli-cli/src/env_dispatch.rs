@@ -50,10 +50,7 @@ pub enum ExecutionEnvironment {
     /// The local machine running this process.
     Local,
     /// An isolated git worktree on the local filesystem.
-    GitWorktree {
-        branch: String,
-        path: String,
-    },
+    GitWorktree { branch: String, path: String },
     /// A remote host reachable via SSH.
     RemoteSSH {
         host: String,
@@ -75,7 +72,11 @@ impl std::fmt::Display for ExecutionEnvironment {
             Self::Local => write!(f, "Local"),
             Self::GitWorktree { branch, .. } => write!(f, "GitWorktree({})", branch),
             Self::RemoteSSH { host, port, .. } => write!(f, "SSH({}:{})", host, port),
-            Self::CloudVM { provider, instance_id, .. } => {
+            Self::CloudVM {
+                provider,
+                instance_id,
+                ..
+            } => {
                 write!(f, "CloudVM({}/{})", provider, instance_id)
             }
         }
@@ -214,8 +215,10 @@ impl DispatchRouter {
 
     /// Returns `true` if the environment is healthy enough to accept work.
     fn is_available(status: &EnvironmentStatus) -> bool {
-        matches!(status.health, EnvironmentHealth::Healthy | EnvironmentHealth::Degraded(_))
-            && status.current_task.is_none()
+        matches!(
+            status.health,
+            EnvironmentHealth::Healthy | EnvironmentHealth::Degraded(_)
+        ) && status.current_task.is_none()
     }
 
     // ── Public API ──────────────────────────────────────────────────────
@@ -252,7 +255,11 @@ impl DispatchRouter {
         preferred_env: Option<&str>,
     ) -> Result<String, String> {
         // Determine the number of currently running tasks.
-        let running_count = self.tasks.iter().filter(|t| t.status == TaskStatus::Running).count();
+        let running_count = self
+            .tasks
+            .iter()
+            .filter(|t| t.status == TaskStatus::Running)
+            .count();
         if running_count >= self.config.max_parallel {
             return Err(format!(
                 "max_parallel ({}) reached; cannot dispatch more tasks",
@@ -330,7 +337,10 @@ impl DispatchRouter {
             .find(|t| t.task_id == task_id)
             .ok_or_else(|| format!("Task '{}' not found", task_id))?;
         if task.status != TaskStatus::Running {
-            return Err(format!("Task '{}' is not running (status: {})", task_id, task.status));
+            return Err(format!(
+                "Task '{}' is not running (status: {})",
+                task_id, task.status
+            ));
         }
         let env_id = task.environment.clone();
         task.status = TaskStatus::Completed;
@@ -349,7 +359,10 @@ impl DispatchRouter {
             .find(|t| t.task_id == task_id)
             .ok_or_else(|| format!("Task '{}' not found", task_id))?;
         if task.status != TaskStatus::Running {
-            return Err(format!("Task '{}' is not running (status: {})", task_id, task.status));
+            return Err(format!(
+                "Task '{}' is not running (status: {})",
+                task_id, task.status
+            ));
         }
         let env_id = task.environment.clone();
         task.status = TaskStatus::Failed;
@@ -368,7 +381,10 @@ impl DispatchRouter {
             .find(|t| t.task_id == task_id)
             .ok_or_else(|| format!("Task '{}' not found", task_id))?;
         if task.status == TaskStatus::Completed || task.status == TaskStatus::Failed {
-            return Err(format!("Task '{}' already finished; cannot cancel", task_id));
+            return Err(format!(
+                "Task '{}' already finished; cannot cancel",
+                task_id
+            ));
         }
         let env_id = task.environment.clone();
         task.status = TaskStatus::Cancelled;
@@ -394,15 +410,14 @@ impl DispatchRouter {
 
     /// Returns environments that are healthy/degraded and have no current task.
     pub fn available_environments(&self) -> Vec<&EnvironmentStatus> {
-        self.environments.iter().filter(|e| Self::is_available(e)).collect()
+        self.environments
+            .iter()
+            .filter(|e| Self::is_available(e))
+            .collect()
     }
 
     /// Update the health status of a named environment.
-    pub fn update_health(
-        &mut self,
-        env_id: &str,
-        health: EnvironmentHealth,
-    ) -> Result<(), String> {
+    pub fn update_health(&mut self, env_id: &str, health: EnvironmentHealth) -> Result<(), String> {
         self.environments
             .iter_mut()
             .find(|e| e.env_id == env_id)
@@ -421,7 +436,11 @@ impl DispatchRouter {
         if total == 0 {
             return 0.0;
         }
-        let busy = self.environments.iter().filter(|e| e.current_task.is_some()).count();
+        let busy = self
+            .environments
+            .iter()
+            .filter(|e| e.current_task.is_some())
+            .count();
         busy as f32 / total as f32
     }
 
@@ -468,7 +487,8 @@ impl ProgressAggregator {
             .entry(task_id.to_string())
             .or_default()
             .push(message.to_string());
-        self.ordered.push((task_id.to_string(), message.to_string()));
+        self.ordered
+            .push((task_id.to_string(), message.to_string()));
     }
 
     /// Returns all event messages recorded for `task_id`, in insertion order.
@@ -524,7 +544,8 @@ mod tests {
     }
 
     fn register_local(r: &mut DispatchRouter, id: &str) {
-        r.register_environment(id, ExecutionEnvironment::Local).unwrap();
+        r.register_environment(id, ExecutionEnvironment::Local)
+            .unwrap();
     }
 
     fn register_worktree(r: &mut DispatchRouter, id: &str, branch: &str) {
@@ -668,7 +689,9 @@ mod tests {
     #[test]
     fn test_register_environment_success() {
         let mut r = default_router();
-        assert!(r.register_environment("env-1", ExecutionEnvironment::Local).is_ok());
+        assert!(r
+            .register_environment("env-1", ExecutionEnvironment::Local)
+            .is_ok());
         assert_eq!(r.environment_count(), 1);
     }
 
@@ -676,7 +699,8 @@ mod tests {
     #[test]
     fn test_register_environment_duplicate_errors() {
         let mut r = default_router();
-        r.register_environment("env-1", ExecutionEnvironment::Local).unwrap();
+        r.register_environment("env-1", ExecutionEnvironment::Local)
+            .unwrap();
         let res = r.register_environment("env-1", ExecutionEnvironment::Local);
         assert!(res.is_err());
         assert!(res.unwrap_err().contains("already registered"));
@@ -699,7 +723,13 @@ mod tests {
         register_cloud(&mut r, "cloud-1", CloudProvider::Gce);
         assert_eq!(r.environment_count(), 1);
         let env = r.get_environment("cloud-1").unwrap();
-        assert!(matches!(env.environment, ExecutionEnvironment::CloudVM { provider: CloudProvider::Gce, .. }));
+        assert!(matches!(
+            env.environment,
+            ExecutionEnvironment::CloudVM {
+                provider: CloudProvider::Gce,
+                ..
+            }
+        ));
     }
 
     // ── 17: dispatch_task ────────────────────────────────────────────────
@@ -988,7 +1018,8 @@ mod tests {
     fn test_available_environments_unreachable_excluded() {
         let mut r = default_router();
         register_local(&mut r, "local");
-        r.update_health("local", EnvironmentHealth::Unreachable).unwrap();
+        r.update_health("local", EnvironmentHealth::Unreachable)
+            .unwrap();
         assert_eq!(r.available_environments().len(), 0);
     }
 
@@ -997,7 +1028,8 @@ mod tests {
     fn test_available_environments_degraded_included() {
         let mut r = default_router();
         register_local(&mut r, "local");
-        r.update_health("local", EnvironmentHealth::Degraded("slow".to_string())).unwrap();
+        r.update_health("local", EnvironmentHealth::Degraded("slow".to_string()))
+            .unwrap();
         assert_eq!(r.available_environments().len(), 1);
     }
 
@@ -1007,7 +1039,9 @@ mod tests {
     fn test_update_health_success() {
         let mut r = default_router();
         register_local(&mut r, "local");
-        assert!(r.update_health("local", EnvironmentHealth::Degraded("high cpu".to_string())).is_ok());
+        assert!(r
+            .update_health("local", EnvironmentHealth::Degraded("high cpu".to_string()))
+            .is_ok());
         let env = r.get_environment("local").unwrap();
         assert!(matches!(env.health, EnvironmentHealth::Degraded(_)));
     }
@@ -1024,7 +1058,8 @@ mod tests {
     fn test_update_health_to_unreachable_makes_unavailable() {
         let mut r = default_router();
         register_local(&mut r, "local");
-        r.update_health("local", EnvironmentHealth::Unreachable).unwrap();
+        r.update_health("local", EnvironmentHealth::Unreachable)
+            .unwrap();
         assert!(r.available_environments().is_empty());
     }
 
@@ -1033,8 +1068,10 @@ mod tests {
     fn test_update_health_recover_to_healthy() {
         let mut r = default_router();
         register_local(&mut r, "local");
-        r.update_health("local", EnvironmentHealth::Unreachable).unwrap();
-        r.update_health("local", EnvironmentHealth::Healthy).unwrap();
+        r.update_health("local", EnvironmentHealth::Unreachable)
+            .unwrap();
+        r.update_health("local", EnvironmentHealth::Healthy)
+            .unwrap();
         assert_eq!(r.available_environments().len(), 1);
     }
 
@@ -1174,7 +1211,8 @@ mod tests {
         r.complete_task(&t1, "binary built".to_string()).unwrap();
         agg.record_event(&t1, "done");
 
-        r.fail_task(&t2, "lint error on line 42".to_string()).unwrap();
+        r.fail_task(&t2, "lint error on line 42".to_string())
+            .unwrap();
         agg.record_event(&t2, "failed");
 
         assert_eq!(r.running_tasks().len(), 0);

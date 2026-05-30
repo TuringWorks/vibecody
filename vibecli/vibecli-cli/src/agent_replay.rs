@@ -76,7 +76,11 @@ pub struct ExecutionTrace {
 }
 
 impl ExecutionTrace {
-    pub fn new(session_id: impl Into<String>, agent_name: impl Into<String>, started_at_ms: u64) -> Self {
+    pub fn new(
+        session_id: impl Into<String>,
+        agent_name: impl Into<String>,
+        started_at_ms: u64,
+    ) -> Self {
         Self {
             session_id: session_id.into(),
             agent_name: agent_name.into(),
@@ -89,15 +93,22 @@ impl ExecutionTrace {
     }
 
     pub fn duration_ms(&self) -> Option<u64> {
-        self.ended_at_ms.map(|end| end.saturating_sub(self.started_at_ms))
+        self.ended_at_ms
+            .map(|end| end.saturating_sub(self.started_at_ms))
     }
 
     pub fn tool_calls(&self) -> Vec<&AgentStep> {
-        self.steps.iter().filter(|s| s.kind == StepKind::ToolCall).collect()
+        self.steps
+            .iter()
+            .filter(|s| s.kind == StepKind::ToolCall)
+            .collect()
     }
 
     pub fn errors(&self) -> Vec<&AgentStep> {
-        self.steps.iter().filter(|s| s.kind == StepKind::Error).collect()
+        self.steps
+            .iter()
+            .filter(|s| s.kind == StepKind::Error)
+            .collect()
     }
 }
 
@@ -112,7 +123,11 @@ pub struct TraceRecorder {
 }
 
 impl TraceRecorder {
-    pub fn new(session_id: impl Into<String>, agent_name: impl Into<String>, clock_ms: u64) -> Self {
+    pub fn new(
+        session_id: impl Into<String>,
+        agent_name: impl Into<String>,
+        clock_ms: u64,
+    ) -> Self {
         Self {
             trace: ExecutionTrace::new(session_id, agent_name, clock_ms),
             clock_ms,
@@ -124,7 +139,13 @@ impl TraceRecorder {
         self.clock_ms += ms;
     }
 
-    pub fn record_step(&mut self, kind: StepKind, input: Option<String>, output: Option<String>, duration_ms: u64) -> usize {
+    pub fn record_step(
+        &mut self,
+        kind: StepKind,
+        input: Option<String>,
+        output: Option<String>,
+        duration_ms: u64,
+    ) -> usize {
         let index = self.trace.steps.len();
         self.trace.steps.push(AgentStep {
             index,
@@ -143,7 +164,13 @@ impl TraceRecorder {
         index
     }
 
-    pub fn record_tool_call(&mut self, tool: impl Into<String>, args: impl Into<String>, result: impl Into<String>, duration_ms: u64) -> usize {
+    pub fn record_tool_call(
+        &mut self,
+        tool: impl Into<String>,
+        args: impl Into<String>,
+        result: impl Into<String>,
+        duration_ms: u64,
+    ) -> usize {
         let index = self.trace.steps.len();
         let tool_s = tool.into();
         self.trace.steps.push(AgentStep {
@@ -163,7 +190,11 @@ impl TraceRecorder {
         index
     }
 
-    pub fn finish(mut self, exit_reason: impl Into<String>, final_state: impl Into<String>) -> ExecutionTrace {
+    pub fn finish(
+        mut self,
+        exit_reason: impl Into<String>,
+        final_state: impl Into<String>,
+    ) -> ExecutionTrace {
         self.trace.ended_at_ms = Some(self.clock_ms);
         self.trace.exit_reason = Some(exit_reason.into());
         self.trace.final_state = Some(final_state.into());
@@ -202,7 +233,11 @@ impl TraceReplayer {
     /// Jump to a specific step index.
     pub fn seek(&mut self, index: usize) -> Result<(), String> {
         if index >= self.trace.steps.len() {
-            return Err(format!("Step {} out of range (max {})", index, self.trace.steps.len() - 1));
+            return Err(format!(
+                "Step {} out of range (max {})",
+                index,
+                self.trace.steps.len() - 1
+            ));
         }
         self.current_index = index;
         Ok(())
@@ -238,17 +273,30 @@ impl TraceReplayer {
     /// Render a summary of the entire trace.
     pub fn summary(&self) -> String {
         let mut out = String::new();
-        out.push_str(&format!("# Trace: {} ({})\n", self.trace.session_id, self.trace.agent_name));
-        out.push_str(&format!("Steps: {} | Duration: {}ms\n",
+        out.push_str(&format!(
+            "# Trace: {} ({})\n",
+            self.trace.session_id, self.trace.agent_name
+        ));
+        out.push_str(&format!(
+            "Steps: {} | Duration: {}ms\n",
             self.trace.steps.len(),
             self.trace.duration_ms().unwrap_or(0)
         ));
-        out.push_str(&format!("Exit: {}\n\n", self.trace.exit_reason.as_deref().unwrap_or("?")));
+        out.push_str(&format!(
+            "Exit: {}\n\n",
+            self.trace.exit_reason.as_deref().unwrap_or("?")
+        ));
         for step in &self.trace.steps {
-            let marker = if step.index < self.current_index { "✓" } else if step.index == self.current_index { "▶" } else { " " };
-            out.push_str(&format!("{} [{:02}] {} {}ms",
-                marker, step.index, step.kind,
-                step.duration_ms
+            let marker = if step.index < self.current_index {
+                "✓"
+            } else if step.index == self.current_index {
+                "▶"
+            } else {
+                " "
+            };
+            out.push_str(&format!(
+                "{} [{:02}] {} {}ms",
+                marker, step.index, step.kind, step.duration_ms
             ));
             if let Some(tool) = &step.tool_name {
                 out.push_str(&format!(" ({})", tool));
@@ -260,13 +308,19 @@ impl TraceReplayer {
 
     /// Compare step output against an expected string.
     pub fn assert_step_output(&self, index: usize, expected: &str) -> Result<(), String> {
-        let step = self.trace.steps.get(index)
+        let step = self
+            .trace
+            .steps
+            .get(index)
             .ok_or_else(|| format!("Step {} not found", index))?;
         let actual = step.output.as_deref().unwrap_or("");
         if actual == expected {
             Ok(())
         } else {
-            Err(format!("Step {} output mismatch:\nExpected: {:?}\nActual:   {:?}", index, expected, actual))
+            Err(format!(
+                "Step {} output mismatch:\nExpected: {:?}\nActual:   {:?}",
+                index, expected, actual
+            ))
         }
     }
 }
@@ -282,7 +336,12 @@ mod tests {
     fn make_trace() -> ExecutionTrace {
         let mut rec = TraceRecorder::new("sess-1", "coder-agent", 1000);
         rec.record_step(StepKind::UserMessage, Some("Fix the bug".into()), None, 5);
-        rec.record_step(StepKind::Thought, None, Some("I need to read the file".into()), 10);
+        rec.record_step(
+            StepKind::Thought,
+            None,
+            Some("I need to read the file".into()),
+            10,
+        );
         rec.record_tool_call("read_file", "main.rs", "fn main() {}", 20);
         rec.record_step(StepKind::AssistantMessage, None, Some("Fixed!".into()), 15);
         rec.finish("complete", "idle")

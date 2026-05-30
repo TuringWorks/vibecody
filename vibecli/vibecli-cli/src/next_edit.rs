@@ -1,4 +1,3 @@
-
 use std::time::SystemTime;
 
 /// Reinforcement learning for edit suggestions — predict what the user will edit next.
@@ -179,7 +178,10 @@ impl EditHistory {
     pub fn most_edited_files(&self, n: usize) -> Vec<(&str, usize)> {
         let mut counts: Vec<(&str, usize)> = Vec::new();
         for edit in &self.edits {
-            if let Some(entry) = counts.iter_mut().find(|(p, _)| *p == edit.file_path.as_str()) {
+            if let Some(entry) = counts
+                .iter_mut()
+                .find(|(p, _)| *p == edit.file_path.as_str())
+            {
                 entry.1 += 1;
             } else {
                 counts.push((&edit.file_path, 1));
@@ -410,7 +412,11 @@ impl NextEditPredictor {
         }
 
         // Sort by confidence descending
-        predictions.sort_by(|a, b| b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal));
+        predictions.sort_by(|a, b| {
+            b.confidence
+                .partial_cmp(&a.confidence)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         predictions.truncate(self.config.max_predictions);
         predictions
     }
@@ -449,11 +455,7 @@ impl NextEditPredictor {
         let _ = id;
     }
 
-    pub fn learn_pattern(
-        &mut self,
-        trigger: EditType,
-        predicted: EditType,
-    ) -> EditPattern {
+    pub fn learn_pattern(&mut self, trigger: EditType, predicted: EditType) -> EditPattern {
         let pattern = EditPattern {
             pattern_type: format!("learned_{}", self.patterns.len()),
             trigger_edit: trigger,
@@ -493,26 +495,23 @@ mod tests {
 
     #[test]
     fn test_edit_prediction_with_confidence() {
-        let pred = EditPrediction::new("f.rs", 1, EditType::Delete, "d")
-            .with_confidence(0.9);
+        let pred = EditPrediction::new("f.rs", 1, EditType::Delete, "d").with_confidence(0.9);
         assert_eq!(pred.confidence, 0.9);
     }
 
     #[test]
     fn test_edit_prediction_confidence_clamped() {
-        let pred = EditPrediction::new("f.rs", 1, EditType::Delete, "d")
-            .with_confidence(1.5);
+        let pred = EditPrediction::new("f.rs", 1, EditType::Delete, "d").with_confidence(1.5);
         assert_eq!(pred.confidence, 1.0);
 
-        let pred2 = EditPrediction::new("f.rs", 1, EditType::Delete, "d")
-            .with_confidence(-0.5);
+        let pred2 = EditPrediction::new("f.rs", 1, EditType::Delete, "d").with_confidence(-0.5);
         assert_eq!(pred2.confidence, 0.0);
     }
 
     #[test]
     fn test_edit_prediction_with_content() {
-        let pred = EditPrediction::new("f.rs", 1, EditType::Replace, "d")
-            .with_content("new content");
+        let pred =
+            EditPrediction::new("f.rs", 1, EditType::Replace, "d").with_content("new content");
         assert_eq!(pred.suggested_content, Some("new content".to_string()));
     }
 
@@ -762,8 +761,8 @@ mod tests {
 
     #[test]
     fn test_recorded_edit_with_accepted() {
-        let edit = RecordedEdit::new("f.rs", 5, EditType::Replace, "old", "new")
-            .with_accepted(true);
+        let edit =
+            RecordedEdit::new("f.rs", 5, EditType::Replace, "old", "new").with_accepted(true);
         assert!(edit.accepted);
     }
 

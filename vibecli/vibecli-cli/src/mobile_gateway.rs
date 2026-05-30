@@ -608,8 +608,14 @@ impl MobileGateway {
     }
 
     /// Update machine heartbeat and status.
-    pub fn heartbeat(&mut self, machine_id: &str, metrics: Option<MachineMetrics>) -> Result<(), String> {
-        let machine = self.machines.get_mut(machine_id)
+    pub fn heartbeat(
+        &mut self,
+        machine_id: &str,
+        metrics: Option<MachineMetrics>,
+    ) -> Result<(), String> {
+        let machine = self
+            .machines
+            .get_mut(machine_id)
             .ok_or_else(|| format!("Machine {} not found", machine_id))?;
 
         machine.last_heartbeat = now_epoch_secs();
@@ -624,7 +630,9 @@ impl MobileGateway {
             } else {
                 machine.status = MachineStatus::Idle;
             }
-        } else if machine.status == MachineStatus::Offline || machine.status == MachineStatus::Unreachable {
+        } else if machine.status == MachineStatus::Offline
+            || machine.status == MachineStatus::Unreachable
+        {
             machine.status = MachineStatus::Online;
         }
 
@@ -633,7 +641,8 @@ impl MobileGateway {
 
     /// Unregister a machine.
     pub fn unregister_machine(&mut self, machine_id: &str) -> Result<RegisteredMachine, String> {
-        self.machines.remove(machine_id)
+        self.machines
+            .remove(machine_id)
             .ok_or_else(|| format!("Machine {} not found", machine_id))
     }
 
@@ -649,7 +658,8 @@ impl MobileGateway {
 
     /// List machines that are currently online or idle.
     pub fn list_available_machines(&self) -> Vec<&RegisteredMachine> {
-        self.machines.values()
+        self.machines
+            .values()
             .filter(|m| matches!(m.status, MachineStatus::Online | MachineStatus::Idle))
             .collect()
     }
@@ -675,7 +685,9 @@ impl MobileGateway {
 
     /// Set machine tags for organization.
     pub fn tag_machine(&mut self, machine_id: &str, tags: Vec<String>) -> Result<(), String> {
-        let machine = self.machines.get_mut(machine_id)
+        let machine = self
+            .machines
+            .get_mut(machine_id)
             .ok_or_else(|| format!("Machine {} not found", machine_id))?;
         machine.tags = tags;
         Ok(())
@@ -748,12 +760,17 @@ impl MobileGateway {
         let now = now_epoch_secs();
 
         // Find and validate pairing request.
-        let req = self.pairing_requests.iter_mut()
+        let req = self
+            .pairing_requests
+            .iter_mut()
             .find(|r| r.id == pairing_id)
             .ok_or_else(|| format!("Pairing request {} not found", pairing_id))?;
 
         if req.status != PairingStatus::Pending {
-            return Err(format!("Pairing {} is {}, not pending", pairing_id, req.status));
+            return Err(format!(
+                "Pairing {} is {}, not pending",
+                pairing_id, req.status
+            ));
         }
         if now > req.expires_at {
             req.status = PairingStatus::Expired;
@@ -765,9 +782,13 @@ impl MobileGateway {
         req.device_id = Some(device_id.to_string());
 
         // Check machine device limit.
-        let _machine = self.machines.get(&machine_id)
+        let _machine = self
+            .machines
+            .get(&machine_id)
             .ok_or_else(|| format!("Machine {} no longer registered", machine_id))?;
-        let existing_count = self.devices.values()
+        let existing_count = self
+            .devices
+            .values()
             .filter(|d| d.paired_machines.contains(&machine_id))
             .count();
         if existing_count >= self.config.max_devices_per_machine {
@@ -812,7 +833,9 @@ impl MobileGateway {
 
     /// Verify a PIN for a pairing request.
     pub fn verify_pin(&self, pairing_id: &str, pin: &str) -> Result<bool, String> {
-        let req = self.pairing_requests.iter()
+        let req = self
+            .pairing_requests
+            .iter()
             .find(|r| r.id == pairing_id)
             .ok_or_else(|| format!("Pairing request {} not found", pairing_id))?;
 
@@ -830,7 +853,9 @@ impl MobileGateway {
 
     /// Reject a pairing request.
     pub fn reject_pairing(&mut self, pairing_id: &str) -> Result<(), String> {
-        let req = self.pairing_requests.iter_mut()
+        let req = self
+            .pairing_requests
+            .iter_mut()
             .find(|r| r.id == pairing_id)
             .ok_or_else(|| format!("Pairing request {} not found", pairing_id))?;
         req.status = PairingStatus::Rejected;
@@ -839,7 +864,9 @@ impl MobileGateway {
 
     /// Unpair a device from a machine.
     pub fn unpair_device(&mut self, device_id: &str, machine_id: &str) -> Result<(), String> {
-        let device = self.devices.get_mut(device_id)
+        let device = self
+            .devices
+            .get_mut(device_id)
             .ok_or_else(|| format!("Device {} not found", device_id))?;
         device.paired_machines.retain(|m| m != machine_id);
         if device.paired_machines.is_empty() {
@@ -850,7 +877,8 @@ impl MobileGateway {
 
     /// List all paired devices for a machine.
     pub fn list_devices_for_machine(&self, machine_id: &str) -> Vec<&PairedDevice> {
-        self.devices.values()
+        self.devices
+            .values()
             .filter(|d| d.paired_machines.contains(&machine_id.to_string()))
             .collect()
     }
@@ -858,7 +886,9 @@ impl MobileGateway {
     /// List all machines paired with a device.
     pub fn list_machines_for_device(&self, device_id: &str) -> Vec<&RegisteredMachine> {
         match self.devices.get(device_id) {
-            Some(device) => device.paired_machines.iter()
+            Some(device) => device
+                .paired_machines
+                .iter()
                 .filter_map(|mid| self.machines.get(mid))
                 .collect(),
             None => Vec::new(),
@@ -869,9 +899,8 @@ impl MobileGateway {
     pub fn cleanup_expired_pairings(&mut self) -> usize {
         let now = now_epoch_secs();
         let before = self.pairing_requests.len();
-        self.pairing_requests.retain(|r| {
-            r.status == PairingStatus::Accepted || now <= r.expires_at
-        });
+        self.pairing_requests
+            .retain(|r| r.status == PairingStatus::Accepted || now <= r.expires_at);
         before - self.pairing_requests.len()
     }
 
@@ -886,16 +915,24 @@ impl MobileGateway {
         payload: &str,
     ) -> Result<&DispatchedTask, String> {
         // Validate device is paired with machine.
-        let device = self.devices.get(device_id)
+        let device = self
+            .devices
+            .get(device_id)
             .ok_or_else(|| format!("Device {} not found", device_id))?;
         if !device.paired_machines.contains(&machine_id.to_string()) {
-            return Err(format!("Device {} is not paired with machine {}", device_id, machine_id));
+            return Err(format!(
+                "Device {} is not paired with machine {}",
+                device_id, machine_id
+            ));
         }
 
         // Validate machine is available.
-        let machine = self.machines.get(machine_id)
+        let machine = self
+            .machines
+            .get(machine_id)
             .ok_or_else(|| format!("Machine {} not found", machine_id))?;
-        if machine.status == MachineStatus::Offline || machine.status == MachineStatus::Unreachable {
+        if machine.status == MachineStatus::Offline || machine.status == MachineStatus::Unreachable
+        {
             return Err(format!("Machine {} is {}", machine_id, machine.status));
         }
 
@@ -905,11 +942,22 @@ impl MobileGateway {
         }
 
         // Check pending dispatch limit.
-        let pending = self.dispatched_tasks.iter()
-            .filter(|t| t.machine_id == machine_id && matches!(t.status, DispatchStatus::Queued | DispatchStatus::Sent | DispatchStatus::Running))
+        let pending = self
+            .dispatched_tasks
+            .iter()
+            .filter(|t| {
+                t.machine_id == machine_id
+                    && matches!(
+                        t.status,
+                        DispatchStatus::Queued | DispatchStatus::Sent | DispatchStatus::Running
+                    )
+            })
             .count();
         if pending >= self.config.max_pending_dispatches {
-            return Err(format!("Machine {} has {} pending dispatches (max {})", machine_id, pending, self.config.max_pending_dispatches));
+            return Err(format!(
+                "Machine {} has {} pending dispatches (max {})",
+                machine_id, pending, self.config.max_pending_dispatches
+            ));
         }
 
         let task_id = self.next_id("dsp");
@@ -945,7 +993,9 @@ impl MobileGateway {
         error: Option<String>,
         session_id: Option<String>,
     ) -> Result<(), String> {
-        let task = self.dispatched_tasks.iter_mut()
+        let task = self
+            .dispatched_tasks
+            .iter_mut()
             .find(|t| t.task_id == task_id)
             .ok_or_else(|| format!("Task {} not found", task_id))?;
 
@@ -955,7 +1005,10 @@ impl MobileGateway {
             DispatchStatus::Running => {
                 task.started_at = Some(now);
             }
-            DispatchStatus::Completed | DispatchStatus::Failed | DispatchStatus::Cancelled | DispatchStatus::TimedOut => {
+            DispatchStatus::Completed
+            | DispatchStatus::Failed
+            | DispatchStatus::Cancelled
+            | DispatchStatus::TimedOut => {
                 task.completed_at = Some(now);
             }
             _ => {}
@@ -974,7 +1027,10 @@ impl MobileGateway {
 
         // Queue push notification if task completed and notify enabled.
         if task.notify_on_complete
-            && matches!(task.status, DispatchStatus::Completed | DispatchStatus::Failed)
+            && matches!(
+                task.status,
+                DispatchStatus::Completed | DispatchStatus::Failed
+            )
         {
             let device_id = task.device_id.clone();
             let category = if task.status == DispatchStatus::Completed {
@@ -987,7 +1043,10 @@ impl MobileGateway {
             } else {
                 "Task Failed".to_string()
             };
-            let body = task.result.clone().or_else(|| task.error.clone())
+            let body = task
+                .result
+                .clone()
+                .or_else(|| task.error.clone())
                 .unwrap_or_else(|| task.payload.chars().take(100).collect());
 
             let mut data = HashMap::new();
@@ -1018,32 +1077,40 @@ impl MobileGateway {
 
     /// List dispatches for a device.
     pub fn list_dispatches_for_device(&self, device_id: &str) -> Vec<&DispatchedTask> {
-        self.dispatched_tasks.iter()
+        self.dispatched_tasks
+            .iter()
             .filter(|t| t.device_id == device_id)
             .collect()
     }
 
     /// List dispatches for a machine.
     pub fn list_dispatches_for_machine(&self, machine_id: &str) -> Vec<&DispatchedTask> {
-        self.dispatched_tasks.iter()
+        self.dispatched_tasks
+            .iter()
             .filter(|t| t.machine_id == machine_id)
             .collect()
     }
 
     /// List pending (queued) dispatches for a machine.
     pub fn pending_dispatches(&self, machine_id: &str) -> Vec<&DispatchedTask> {
-        self.dispatched_tasks.iter()
+        self.dispatched_tasks
+            .iter()
             .filter(|t| t.machine_id == machine_id && t.status == DispatchStatus::Queued)
             .collect()
     }
 
     /// Cancel a pending or running dispatch.
     pub fn cancel_dispatch(&mut self, task_id: &str) -> Result<(), String> {
-        let task = self.dispatched_tasks.iter_mut()
+        let task = self
+            .dispatched_tasks
+            .iter_mut()
             .find(|t| t.task_id == task_id)
             .ok_or_else(|| format!("Task {} not found", task_id))?;
 
-        if matches!(task.status, DispatchStatus::Completed | DispatchStatus::Failed | DispatchStatus::Cancelled) {
+        if matches!(
+            task.status,
+            DispatchStatus::Completed | DispatchStatus::Failed | DispatchStatus::Cancelled
+        ) {
             return Err(format!("Task {} is already {}", task_id, task.status));
         }
 
@@ -1075,12 +1142,10 @@ impl MobileGateway {
     // ── Push Notifications ───────────────────────────────────────────────
 
     /// Update a device's push notification token.
-    pub fn update_push_token(
-        &mut self,
-        device_id: &str,
-        push_token: &str,
-    ) -> Result<(), String> {
-        let device = self.devices.get_mut(device_id)
+    pub fn update_push_token(&mut self, device_id: &str, push_token: &str) -> Result<(), String> {
+        let device = self
+            .devices
+            .get_mut(device_id)
             .ok_or_else(|| format!("Device {} not found", device_id))?;
         device.push_token = Some(push_token.to_string());
         Ok(())
@@ -1117,14 +1182,17 @@ impl MobileGateway {
 
     /// Get unsent notifications for a device.
     pub fn unsent_notifications(&self, device_id: &str) -> Vec<&PushNotification> {
-        self.notifications.iter()
+        self.notifications
+            .iter()
             .filter(|n| n.device_id == device_id && !n.sent)
             .collect()
     }
 
     /// Mark a notification as sent.
     pub fn mark_notification_sent(&mut self, notification_id: &str) -> Result<(), String> {
-        let notif = self.notifications.iter_mut()
+        let notif = self
+            .notifications
+            .iter_mut()
             .find(|n| n.id == notification_id)
             .ok_or_else(|| format!("Notification {} not found", notification_id))?;
         notif.sent = true;
@@ -1137,23 +1205,39 @@ impl MobileGateway {
     /// Get gateway statistics.
     pub fn stats(&self) -> GatewayStats {
         let total_machines = self.machines.len();
-        let online_machines = self.machines.values()
-            .filter(|m| matches!(m.status, MachineStatus::Online | MachineStatus::Idle | MachineStatus::Busy))
+        let online_machines = self
+            .machines
+            .values()
+            .filter(|m| {
+                matches!(
+                    m.status,
+                    MachineStatus::Online | MachineStatus::Idle | MachineStatus::Busy
+                )
+            })
             .count();
         let total_devices = self.devices.len();
         let total_dispatches = self.dispatched_tasks.len();
-        let active_dispatches = self.dispatched_tasks.iter()
-            .filter(|t| matches!(t.status, DispatchStatus::Queued | DispatchStatus::Sent | DispatchStatus::Running))
+        let active_dispatches = self
+            .dispatched_tasks
+            .iter()
+            .filter(|t| {
+                matches!(
+                    t.status,
+                    DispatchStatus::Queued | DispatchStatus::Sent | DispatchStatus::Running
+                )
+            })
             .count();
-        let completed_dispatches = self.dispatched_tasks.iter()
+        let completed_dispatches = self
+            .dispatched_tasks
+            .iter()
             .filter(|t| t.status == DispatchStatus::Completed)
             .count();
-        let failed_dispatches = self.dispatched_tasks.iter()
+        let failed_dispatches = self
+            .dispatched_tasks
+            .iter()
             .filter(|t| t.status == DispatchStatus::Failed)
             .count();
-        let pending_notifications = self.notifications.iter()
-            .filter(|n| !n.sent)
-            .count();
+        let pending_notifications = self.notifications.iter().filter(|n| !n.sent).count();
 
         GatewayStats {
             total_machines,
@@ -1164,7 +1248,9 @@ impl MobileGateway {
             completed_dispatches,
             failed_dispatches,
             pending_notifications,
-            pending_pairings: self.pairing_requests.iter()
+            pending_pairings: self
+                .pairing_requests
+                .iter()
                 .filter(|r| r.status == PairingStatus::Pending)
                 .count(),
         }
@@ -1172,25 +1258,34 @@ impl MobileGateway {
 
     /// Get a brief summary of all machines for mobile display.
     pub fn machine_summaries(&self) -> Vec<MachineSummary> {
-        self.machines.values().map(|m| {
-            let dispatches = self.dispatched_tasks.iter()
-                .filter(|t| t.machine_id == m.machine_id && matches!(t.status, DispatchStatus::Running))
-                .count();
-            let devices = self.devices.values()
-                .filter(|d| d.paired_machines.contains(&m.machine_id))
-                .count();
+        self.machines
+            .values()
+            .map(|m| {
+                let dispatches = self
+                    .dispatched_tasks
+                    .iter()
+                    .filter(|t| {
+                        t.machine_id == m.machine_id && matches!(t.status, DispatchStatus::Running)
+                    })
+                    .count();
+                let devices = self
+                    .devices
+                    .values()
+                    .filter(|d| d.paired_machines.contains(&m.machine_id))
+                    .count();
 
-            MachineSummary {
-                machine_id: m.machine_id.clone(),
-                name: m.name.clone(),
-                os: m.os.to_string(),
-                status: m.status.to_string(),
-                active_tasks: dispatches,
-                paired_devices: devices,
-                last_heartbeat: m.last_heartbeat,
-                workspace: m.workspace_root.clone(),
-            }
-        }).collect()
+                MachineSummary {
+                    machine_id: m.machine_id.clone(),
+                    name: m.name.clone(),
+                    os: m.os.to_string(),
+                    status: m.status.to_string(),
+                    active_tasks: dispatches,
+                    paired_devices: devices,
+                    last_heartbeat: m.last_heartbeat,
+                    workspace: m.workspace_root.clone(),
+                }
+            })
+            .collect()
     }
 }
 
@@ -1238,7 +1333,13 @@ mod tests {
     }
 
     fn register_test_machine(gw: &mut MobileGateway) -> String {
-        let machine = gw.register_machine("Test Machine", "test-host", 7878, "/home/user/project", "secret123");
+        let machine = gw.register_machine(
+            "Test Machine",
+            "test-host",
+            7878,
+            "/home/user/project",
+            "secret123",
+        );
         machine.machine_id.clone()
     }
 
@@ -1247,7 +1348,16 @@ mod tests {
         let pairing_id = pairing.id.clone();
         let _pin = pairing.pin.clone().unwrap();
         let device_id = "device-001".to_string();
-        gw.accept_pairing(&pairing_id, &device_id, "iPhone 16", PushPlatform::APNs, Some("apns-token-xyz".to_string()), "1.0.0", "18.0").unwrap();
+        gw.accept_pairing(
+            &pairing_id,
+            &device_id,
+            "iPhone 16",
+            PushPlatform::APNs,
+            Some("apns-token-xyz".to_string()),
+            "1.0.0",
+            "18.0",
+        )
+        .unwrap();
         (device_id, pairing_id)
     }
 
@@ -1256,7 +1366,13 @@ mod tests {
     #[test]
     fn test_register_machine() {
         let mut gw = make_gateway();
-        let machine = gw.register_machine("My Mac", "mac-pro.local", 7878, "/Users/dev/project", "tok123");
+        let machine = gw.register_machine(
+            "My Mac",
+            "mac-pro.local",
+            7878,
+            "/Users/dev/project",
+            "tok123",
+        );
         assert_eq!(machine.name, "My Mac");
         assert_eq!(machine.hostname, "mac-pro.local");
         assert_eq!(machine.daemon_port, 7878);
@@ -1373,14 +1489,18 @@ mod tests {
         gw.machines.get_mut(&mid).unwrap().last_heartbeat = 1000;
         let stale = gw.check_stale_machines();
         assert_eq!(stale.len(), 1);
-        assert_eq!(gw.get_machine(&mid).unwrap().status, MachineStatus::Unreachable);
+        assert_eq!(
+            gw.get_machine(&mid).unwrap().status,
+            MachineStatus::Unreachable
+        );
     }
 
     #[test]
     fn test_tag_machine() {
         let mut gw = make_gateway();
         let mid = register_test_machine(&mut gw);
-        gw.tag_machine(&mid, vec!["prod".to_string(), "gpu".to_string()]).unwrap();
+        gw.tag_machine(&mid, vec!["prod".to_string(), "gpu".to_string()])
+            .unwrap();
         assert_eq!(gw.get_machine(&mid).unwrap().tags, vec!["prod", "gpu"]);
     }
 
@@ -1408,7 +1528,11 @@ mod tests {
         let mid = register_test_machine(&mut gw);
         let pairing = gw.create_pairing(&mid, PairingMethod::QrCode).unwrap();
         assert!(pairing.qr_data.is_some());
-        assert!(pairing.qr_data.as_ref().unwrap().starts_with("vibecody://pair?"));
+        assert!(pairing
+            .qr_data
+            .as_ref()
+            .unwrap()
+            .starts_with("vibecody://pair?"));
     }
 
     #[test]
@@ -1446,7 +1570,10 @@ mod tests {
         let pairing = gw.create_pairing(&mid, PairingMethod::Pin).unwrap();
         let pid = pairing.id.clone();
         gw.reject_pairing(&pid).unwrap();
-        assert_eq!(gw.pairing_requests.last().unwrap().status, PairingStatus::Rejected);
+        assert_eq!(
+            gw.pairing_requests.last().unwrap().status,
+            PairingStatus::Rejected
+        );
     }
 
     #[test]
@@ -1495,7 +1622,9 @@ mod tests {
         let mut gw = make_gateway();
         let mid = register_test_machine(&mut gw);
         let (device_id, _) = pair_test_device(&mut gw, &mid);
-        let task = gw.dispatch_task(&device_id, &mid, DispatchType::Chat, "Hello from mobile!").unwrap();
+        let task = gw
+            .dispatch_task(&device_id, &mid, DispatchType::Chat, "Hello from mobile!")
+            .unwrap();
         assert!(task.task_id.starts_with("dsp-"));
         assert_eq!(task.status, DispatchStatus::Queued);
         assert_eq!(task.payload, "Hello from mobile!");
@@ -1506,7 +1635,14 @@ mod tests {
         let mut gw = make_gateway();
         let mid = register_test_machine(&mut gw);
         let (device_id, _) = pair_test_device(&mut gw, &mid);
-        let task = gw.dispatch_task(&device_id, &mid, DispatchType::AgentTask, "Fix the auth bug in login.rs").unwrap();
+        let task = gw
+            .dispatch_task(
+                &device_id,
+                &mid,
+                DispatchType::AgentTask,
+                "Fix the auth bug in login.rs",
+            )
+            .unwrap();
         assert_eq!(task.dispatch_type, DispatchType::AgentTask);
     }
 
@@ -1514,7 +1650,9 @@ mod tests {
     fn test_dispatch_unpaired() {
         let mut gw = make_gateway();
         let mid = register_test_machine(&mut gw);
-        assert!(gw.dispatch_task("unknown-device", &mid, DispatchType::Chat, "hi").is_err());
+        assert!(gw
+            .dispatch_task("unknown-device", &mid, DispatchType::Chat, "hi")
+            .is_err());
     }
 
     #[test]
@@ -1523,7 +1661,9 @@ mod tests {
         let mid = register_test_machine(&mut gw);
         let (device_id, _) = pair_test_device(&mut gw, &mid);
         gw.machines.get_mut(&mid).unwrap().status = MachineStatus::Offline;
-        assert!(gw.dispatch_task(&device_id, &mid, DispatchType::Chat, "hi").is_err());
+        assert!(gw
+            .dispatch_task(&device_id, &mid, DispatchType::Chat, "hi")
+            .is_err());
     }
 
     #[test]
@@ -1531,8 +1671,19 @@ mod tests {
         let mut gw = make_gateway();
         let mid = register_test_machine(&mut gw);
         let (device_id, _) = pair_test_device(&mut gw, &mid);
-        let tid = gw.dispatch_task(&device_id, &mid, DispatchType::AgentTask, "task").unwrap().task_id.clone();
-        gw.update_dispatch(&tid, DispatchStatus::Running, None, None, Some("sess-1".to_string())).unwrap();
+        let tid = gw
+            .dispatch_task(&device_id, &mid, DispatchType::AgentTask, "task")
+            .unwrap()
+            .task_id
+            .clone();
+        gw.update_dispatch(
+            &tid,
+            DispatchStatus::Running,
+            None,
+            None,
+            Some("sess-1".to_string()),
+        )
+        .unwrap();
         let task = gw.get_dispatch(&tid).unwrap();
         assert_eq!(task.status, DispatchStatus::Running);
         assert!(task.started_at.is_some());
@@ -1544,15 +1695,29 @@ mod tests {
         let mut gw = make_gateway();
         let mid = register_test_machine(&mut gw);
         let (device_id, _) = pair_test_device(&mut gw, &mid);
-        let tid = gw.dispatch_task(&device_id, &mid, DispatchType::Chat, "hi").unwrap().task_id.clone();
-        gw.update_dispatch(&tid, DispatchStatus::Completed, Some("Done!".to_string()), None, None).unwrap();
+        let tid = gw
+            .dispatch_task(&device_id, &mid, DispatchType::Chat, "hi")
+            .unwrap()
+            .task_id
+            .clone();
+        gw.update_dispatch(
+            &tid,
+            DispatchStatus::Completed,
+            Some("Done!".to_string()),
+            None,
+            None,
+        )
+        .unwrap();
         let task = gw.get_dispatch(&tid).unwrap();
         assert_eq!(task.status, DispatchStatus::Completed);
         assert_eq!(task.result.as_deref(), Some("Done!"));
         assert!(task.completed_at.is_some());
         // Should have queued a notification.
         assert_eq!(gw.notifications.len(), 1);
-        assert_eq!(gw.notifications[0].category, NotificationCategory::TaskComplete);
+        assert_eq!(
+            gw.notifications[0].category,
+            NotificationCategory::TaskComplete
+        );
     }
 
     #[test]
@@ -1560,11 +1725,25 @@ mod tests {
         let mut gw = make_gateway();
         let mid = register_test_machine(&mut gw);
         let (device_id, _) = pair_test_device(&mut gw, &mid);
-        let tid = gw.dispatch_task(&device_id, &mid, DispatchType::Command, "ls").unwrap().task_id.clone();
-        gw.update_dispatch(&tid, DispatchStatus::Failed, None, Some("permission denied".to_string()), None).unwrap();
+        let tid = gw
+            .dispatch_task(&device_id, &mid, DispatchType::Command, "ls")
+            .unwrap()
+            .task_id
+            .clone();
+        gw.update_dispatch(
+            &tid,
+            DispatchStatus::Failed,
+            None,
+            Some("permission denied".to_string()),
+            None,
+        )
+        .unwrap();
         let task = gw.get_dispatch(&tid).unwrap();
         assert_eq!(task.status, DispatchStatus::Failed);
-        assert_eq!(gw.notifications[0].category, NotificationCategory::TaskFailed);
+        assert_eq!(
+            gw.notifications[0].category,
+            NotificationCategory::TaskFailed
+        );
     }
 
     #[test]
@@ -1572,9 +1751,16 @@ mod tests {
         let mut gw = make_gateway();
         let mid = register_test_machine(&mut gw);
         let (device_id, _) = pair_test_device(&mut gw, &mid);
-        let tid = gw.dispatch_task(&device_id, &mid, DispatchType::Chat, "hi").unwrap().task_id.clone();
+        let tid = gw
+            .dispatch_task(&device_id, &mid, DispatchType::Chat, "hi")
+            .unwrap()
+            .task_id
+            .clone();
         gw.cancel_dispatch(&tid).unwrap();
-        assert_eq!(gw.get_dispatch(&tid).unwrap().status, DispatchStatus::Cancelled);
+        assert_eq!(
+            gw.get_dispatch(&tid).unwrap().status,
+            DispatchStatus::Cancelled
+        );
     }
 
     #[test]
@@ -1582,8 +1768,19 @@ mod tests {
         let mut gw = make_gateway();
         let mid = register_test_machine(&mut gw);
         let (device_id, _) = pair_test_device(&mut gw, &mid);
-        let tid = gw.dispatch_task(&device_id, &mid, DispatchType::Chat, "hi").unwrap().task_id.clone();
-        gw.update_dispatch(&tid, DispatchStatus::Completed, Some("done".to_string()), None, None).unwrap();
+        let tid = gw
+            .dispatch_task(&device_id, &mid, DispatchType::Chat, "hi")
+            .unwrap()
+            .task_id
+            .clone();
+        gw.update_dispatch(
+            &tid,
+            DispatchStatus::Completed,
+            Some("done".to_string()),
+            None,
+            None,
+        )
+        .unwrap();
         assert!(gw.cancel_dispatch(&tid).is_err());
     }
 
@@ -1592,8 +1789,10 @@ mod tests {
         let mut gw = make_gateway();
         let mid = register_test_machine(&mut gw);
         let (device_id, _) = pair_test_device(&mut gw, &mid);
-        gw.dispatch_task(&device_id, &mid, DispatchType::Chat, "one").unwrap();
-        gw.dispatch_task(&device_id, &mid, DispatchType::Chat, "two").unwrap();
+        gw.dispatch_task(&device_id, &mid, DispatchType::Chat, "one")
+            .unwrap();
+        gw.dispatch_task(&device_id, &mid, DispatchType::Chat, "two")
+            .unwrap();
         assert_eq!(gw.pending_dispatches(&mid).len(), 2);
     }
 
@@ -1602,15 +1801,26 @@ mod tests {
         let mut gw = make_gateway();
         let mid = register_test_machine(&mut gw);
         let (device_id, _) = pair_test_device(&mut gw, &mid);
-        let tid = gw.dispatch_task(&device_id, &mid, DispatchType::AgentTask, "long task").unwrap().task_id.clone();
+        let tid = gw
+            .dispatch_task(&device_id, &mid, DispatchType::AgentTask, "long task")
+            .unwrap()
+            .task_id
+            .clone();
         // Force running with old start time.
-        let task = gw.dispatched_tasks.iter_mut().find(|t| t.task_id == tid).unwrap();
+        let task = gw
+            .dispatched_tasks
+            .iter_mut()
+            .find(|t| t.task_id == tid)
+            .unwrap();
         task.status = DispatchStatus::Running;
         task.started_at = Some(1000);
         task.timeout_secs = 60;
         let timed_out = gw.check_timeouts();
         assert_eq!(timed_out.len(), 1);
-        assert_eq!(gw.get_dispatch(&tid).unwrap().status, DispatchStatus::TimedOut);
+        assert_eq!(
+            gw.get_dispatch(&tid).unwrap().status,
+            DispatchStatus::TimedOut
+        );
     }
 
     #[test]
@@ -1618,8 +1828,10 @@ mod tests {
         let mut gw = make_gateway();
         let mid = register_test_machine(&mut gw);
         let (device_id, _) = pair_test_device(&mut gw, &mid);
-        gw.dispatch_task(&device_id, &mid, DispatchType::Chat, "a").unwrap();
-        gw.dispatch_task(&device_id, &mid, DispatchType::GitOp, "status").unwrap();
+        gw.dispatch_task(&device_id, &mid, DispatchType::Chat, "a")
+            .unwrap();
+        gw.dispatch_task(&device_id, &mid, DispatchType::GitOp, "status")
+            .unwrap();
         assert_eq!(gw.list_dispatches_for_device(&device_id).len(), 2);
     }
 
@@ -1628,7 +1840,8 @@ mod tests {
         let mut gw = make_gateway();
         let mid = register_test_machine(&mut gw);
         let (device_id, _) = pair_test_device(&mut gw, &mid);
-        gw.dispatch_task(&device_id, &mid, DispatchType::FileOp, "ls /tmp").unwrap();
+        gw.dispatch_task(&device_id, &mid, DispatchType::FileOp, "ls /tmp")
+            .unwrap();
         assert_eq!(gw.list_dispatches_for_machine(&mid).len(), 1);
     }
 
@@ -1640,7 +1853,10 @@ mod tests {
         let mid = register_test_machine(&mut gw);
         let (device_id, _) = pair_test_device(&mut gw, &mid);
         gw.update_push_token(&device_id, "new-token").unwrap();
-        assert_eq!(gw.devices.get(&device_id).unwrap().push_token.as_deref(), Some("new-token"));
+        assert_eq!(
+            gw.devices.get(&device_id).unwrap().push_token.as_deref(),
+            Some("new-token")
+        );
     }
 
     #[test]
@@ -1648,7 +1864,13 @@ mod tests {
         let mut gw = make_gateway();
         let mid = register_test_machine(&mut gw);
         let (device_id, _) = pair_test_device(&mut gw, &mid);
-        gw.queue_notification(&device_id, "Test", "Hello", NotificationCategory::SessionEvent).unwrap();
+        gw.queue_notification(
+            &device_id,
+            "Test",
+            "Hello",
+            NotificationCategory::SessionEvent,
+        )
+        .unwrap();
         assert_eq!(gw.unsent_notifications(&device_id).len(), 1);
     }
 
@@ -1657,7 +1879,13 @@ mod tests {
         let mut gw = make_gateway();
         let mid = register_test_machine(&mut gw);
         let (device_id, _) = pair_test_device(&mut gw, &mid);
-        gw.queue_notification(&device_id, "Test", "Hello", NotificationCategory::SessionEvent).unwrap();
+        gw.queue_notification(
+            &device_id,
+            "Test",
+            "Hello",
+            NotificationCategory::SessionEvent,
+        )
+        .unwrap();
         let nid = gw.notifications[0].id.clone();
         gw.mark_notification_sent(&nid).unwrap();
         assert!(gw.notifications[0].sent);
@@ -1671,7 +1899,8 @@ mod tests {
         let mut gw = make_gateway();
         let mid = register_test_machine(&mut gw);
         let (device_id, _) = pair_test_device(&mut gw, &mid);
-        gw.dispatch_task(&device_id, &mid, DispatchType::Chat, "hi").unwrap();
+        gw.dispatch_task(&device_id, &mid, DispatchType::Chat, "hi")
+            .unwrap();
         let stats = gw.stats();
         assert_eq!(stats.total_machines, 1);
         assert_eq!(stats.online_machines, 1);
@@ -1755,8 +1984,14 @@ mod tests {
 
     #[test]
     fn test_notification_category_display() {
-        assert_eq!(NotificationCategory::TaskComplete.to_string(), "task_complete");
-        assert_eq!(NotificationCategory::ApprovalRequired.to_string(), "approval_required");
+        assert_eq!(
+            NotificationCategory::TaskComplete.to_string(),
+            "task_complete"
+        );
+        assert_eq!(
+            NotificationCategory::ApprovalRequired.to_string(),
+            "approval_required"
+        );
     }
 
     // ── Edge Cases ───────────────────────────────────────────────────
@@ -1767,12 +2002,38 @@ mod tests {
         let mid = register_test_machine(&mut gw);
 
         // Pair first device.
-        let p1 = gw.create_pairing(&mid, PairingMethod::Pin).unwrap().id.clone();
-        gw.accept_pairing(&p1, "dev-1", "iPhone", PushPlatform::APNs, None, "1.0", "18.0").unwrap();
+        let p1 = gw
+            .create_pairing(&mid, PairingMethod::Pin)
+            .unwrap()
+            .id
+            .clone();
+        gw.accept_pairing(
+            &p1,
+            "dev-1",
+            "iPhone",
+            PushPlatform::APNs,
+            None,
+            "1.0",
+            "18.0",
+        )
+        .unwrap();
 
         // Pair second device.
-        let p2 = gw.create_pairing(&mid, PairingMethod::Pin).unwrap().id.clone();
-        gw.accept_pairing(&p2, "dev-2", "Pixel", PushPlatform::Fcm, None, "1.0", "14.0").unwrap();
+        let p2 = gw
+            .create_pairing(&mid, PairingMethod::Pin)
+            .unwrap()
+            .id
+            .clone();
+        gw.accept_pairing(
+            &p2,
+            "dev-2",
+            "Pixel",
+            PushPlatform::Fcm,
+            None,
+            "1.0",
+            "14.0",
+        )
+        .unwrap();
 
         assert_eq!(gw.list_devices_for_machine(&mid).len(), 2);
     }
@@ -1784,11 +2045,37 @@ mod tests {
         let mid2 = register_test_machine(&mut gw);
 
         // Pair same device with both machines.
-        let p1 = gw.create_pairing(&mid1, PairingMethod::Pin).unwrap().id.clone();
-        gw.accept_pairing(&p1, "dev-1", "iPhone", PushPlatform::APNs, None, "1.0", "18.0").unwrap();
+        let p1 = gw
+            .create_pairing(&mid1, PairingMethod::Pin)
+            .unwrap()
+            .id
+            .clone();
+        gw.accept_pairing(
+            &p1,
+            "dev-1",
+            "iPhone",
+            PushPlatform::APNs,
+            None,
+            "1.0",
+            "18.0",
+        )
+        .unwrap();
 
-        let p2 = gw.create_pairing(&mid2, PairingMethod::Pin).unwrap().id.clone();
-        gw.accept_pairing(&p2, "dev-1", "iPhone", PushPlatform::APNs, None, "1.0", "18.0").unwrap();
+        let p2 = gw
+            .create_pairing(&mid2, PairingMethod::Pin)
+            .unwrap()
+            .id
+            .clone();
+        gw.accept_pairing(
+            &p2,
+            "dev-1",
+            "iPhone",
+            PushPlatform::APNs,
+            None,
+            "1.0",
+            "18.0",
+        )
+        .unwrap();
 
         let device = gw.devices.get("dev-1").unwrap();
         assert_eq!(device.paired_machines.len(), 2);
@@ -1800,7 +2087,9 @@ mod tests {
         let mut gw = make_gateway();
         let mid = register_test_machine(&mut gw);
         let (device_id, _) = pair_test_device(&mut gw, &mid);
-        let task = gw.dispatch_task(&device_id, &mid, DispatchType::ReplCommand, "/status").unwrap();
+        let task = gw
+            .dispatch_task(&device_id, &mid, DispatchType::ReplCommand, "/status")
+            .unwrap();
         assert_eq!(task.dispatch_type, DispatchType::ReplCommand);
         assert_eq!(task.payload, "/status");
     }
@@ -1810,7 +2099,9 @@ mod tests {
         let mut gw = make_gateway();
         let mid = register_test_machine(&mut gw);
         let (device_id, _) = pair_test_device(&mut gw, &mid);
-        let task = gw.dispatch_task(&device_id, &mid, DispatchType::GitOp, "status").unwrap();
+        let task = gw
+            .dispatch_task(&device_id, &mid, DispatchType::GitOp, "status")
+            .unwrap();
         assert_eq!(task.dispatch_type, DispatchType::GitOp);
     }
 
@@ -1819,7 +2110,9 @@ mod tests {
         let mut gw = make_gateway();
         let mid = register_test_machine(&mut gw);
         let (device_id, _) = pair_test_device(&mut gw, &mid);
-        let task = gw.dispatch_task(&device_id, &mid, DispatchType::FileOp, "list:/src").unwrap();
+        let task = gw
+            .dispatch_task(&device_id, &mid, DispatchType::FileOp, "list:/src")
+            .unwrap();
         assert_eq!(task.dispatch_type, DispatchType::FileOp);
     }
 
@@ -1828,7 +2121,9 @@ mod tests {
         let mut gw = make_gateway();
         let mid = register_test_machine(&mut gw);
         let (device_id, _) = pair_test_device(&mut gw, &mid);
-        let task = gw.dispatch_task(&device_id, &mid, DispatchType::Cancel, "sess-123").unwrap();
+        let task = gw
+            .dispatch_task(&device_id, &mid, DispatchType::Cancel, "sess-123")
+            .unwrap();
         assert_eq!(task.dispatch_type, DispatchType::Cancel);
     }
 

@@ -185,9 +185,15 @@ mod tests {
         assert_eq!(room.max_peers, 3);
 
         // Verify the limit is enforced
-        room.add_peer("p1".to_string(), "A".to_string()).await.unwrap();
-        room.add_peer("p2".to_string(), "B".to_string()).await.unwrap();
-        room.add_peer("p3".to_string(), "C".to_string()).await.unwrap();
+        room.add_peer("p1".to_string(), "A".to_string())
+            .await
+            .unwrap();
+        room.add_peer("p2".to_string(), "B".to_string())
+            .await
+            .unwrap();
+        room.add_peer("p3".to_string(), "C".to_string())
+            .await
+            .unwrap();
         let result = room.add_peer("p4".to_string(), "D".to_string()).await;
         assert!(result.is_err());
     }
@@ -198,7 +204,10 @@ mod tests {
 
         // Create an occupied room
         let occupied = server.get_or_create_room("occupied");
-        occupied.add_peer("p1".to_string(), "Alice".to_string()).await.unwrap();
+        occupied
+            .add_peer("p1".to_string(), "Alice".to_string())
+            .await
+            .unwrap();
 
         // Create two empty rooms
         server.get_or_create_room("empty1");
@@ -219,7 +228,10 @@ mod tests {
     async fn test_remove_room_then_recreate() {
         let server = CollabServer::new(10);
         let room1 = server.get_or_create_room("recycled");
-        room1.add_peer("p1".to_string(), "Alice".to_string()).await.unwrap();
+        room1
+            .add_peer("p1".to_string(), "Alice".to_string())
+            .await
+            .unwrap();
         assert_eq!(room1.peer_count().await, 1);
 
         server.remove_room("recycled");
@@ -260,8 +272,12 @@ mod tests {
 
         // Create room and add peers
         let room = server.get_or_create_room("lifecycle");
-        room.add_peer("p1".to_string(), "Alice".to_string()).await.unwrap();
-        room.add_peer("p2".to_string(), "Bob".to_string()).await.unwrap();
+        room.add_peer("p1".to_string(), "Alice".to_string())
+            .await
+            .unwrap();
+        room.add_peer("p2".to_string(), "Bob".to_string())
+            .await
+            .unwrap();
 
         // Cleanup should not remove it
         let cleaned = server.cleanup_empty_rooms().await;

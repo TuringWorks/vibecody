@@ -22,10 +22,10 @@
 //! # Ok(()) }
 //! ```
 
+use crate::index::embeddings::SearchHit;
 use anyhow::{anyhow, Context, Result};
 use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
-use crate::index::embeddings::SearchHit;
 
 // ── Remote types (mirrors vibe-indexer JSON contracts) ────────────────────────
 
@@ -73,7 +73,11 @@ pub struct RemoteEmbeddingIndex {
 impl RemoteEmbeddingIndex {
     /// Create a new client.
     pub fn new(url: String, workspace: String, api_key: Option<String>) -> Self {
-        Self { url: url.trim_end_matches('/').to_string(), workspace, api_key }
+        Self {
+            url: url.trim_end_matches('/').to_string(),
+            workspace,
+            api_key,
+        }
     }
 
     /// POST /index — ask the service to index `self.workspace`.
@@ -145,7 +149,11 @@ impl RemoteEmbeddingIndex {
     /// This has the same signature as `EmbeddingIndex::search` so callers can
     /// swap local vs. remote transparently.
     pub async fn search(&self, query: &str, k: usize) -> Result<Vec<SearchHit>> {
-        let req = SearchRequest { query, workspace: &self.workspace, limit: k };
+        let req = SearchRequest {
+            query,
+            workspace: &self.workspace,
+            limit: k,
+        };
         let resp: SearchResponse = self
             .client()?
             .post(format!("{}/search", self.url))
@@ -196,8 +204,7 @@ impl RemoteEmbeddingIndex {
 ///
 /// Add `[index] backend = "remote"` + `url = "http://…"` to `~/.vibecli/config.toml`
 /// or `.vibecli/config.toml` to opt into the remote backend.
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub enum IndexBackend {
     /// Use the local in-process `EmbeddingIndex`.
     #[default]
@@ -210,7 +217,6 @@ pub enum IndexBackend {
         api_key: Option<String>,
     },
 }
-
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -260,11 +266,8 @@ mod tests {
 
     #[test]
     fn remote_client_preserves_url_without_slash() {
-        let client = RemoteEmbeddingIndex::new(
-            "http://host:1234".to_string(),
-            "/ws".to_string(),
-            None,
-        );
+        let client =
+            RemoteEmbeddingIndex::new("http://host:1234".to_string(), "/ws".to_string(), None);
         assert_eq!(client.url, "http://host:1234");
     }
 
@@ -290,11 +293,8 @@ mod tests {
 
     #[test]
     fn remote_client_builds_http_client_no_key() {
-        let client = RemoteEmbeddingIndex::new(
-            "http://localhost".to_string(),
-            "/ws".to_string(),
-            None,
-        );
+        let client =
+            RemoteEmbeddingIndex::new("http://localhost".to_string(), "/ws".to_string(), None);
         assert!(client.client().is_ok());
     }
 
@@ -341,11 +341,8 @@ mod tests {
 
     #[test]
     fn remote_client_debug_format() {
-        let client = RemoteEmbeddingIndex::new(
-            "http://localhost".to_string(),
-            "/ws".to_string(),
-            None,
-        );
+        let client =
+            RemoteEmbeddingIndex::new("http://localhost".to_string(), "/ws".to_string(), None);
         let debug = format!("{:?}", client);
         assert!(debug.contains("RemoteEmbeddingIndex"));
     }
@@ -362,22 +359,16 @@ mod tests {
 
     #[tokio::test]
     async fn search_fails_for_unreachable() {
-        let client = RemoteEmbeddingIndex::new(
-            "http://127.0.0.1:1".to_string(),
-            "/ws".to_string(),
-            None,
-        );
+        let client =
+            RemoteEmbeddingIndex::new("http://127.0.0.1:1".to_string(), "/ws".to_string(), None);
         let result = client.search("test query", 5).await;
         assert!(result.is_err());
     }
 
     #[tokio::test]
     async fn start_indexing_fails_for_unreachable() {
-        let client = RemoteEmbeddingIndex::new(
-            "http://127.0.0.1:1".to_string(),
-            "/ws".to_string(),
-            None,
-        );
+        let client =
+            RemoteEmbeddingIndex::new("http://127.0.0.1:1".to_string(), "/ws".to_string(), None);
         let result = client.start_indexing().await;
         assert!(result.is_err());
     }

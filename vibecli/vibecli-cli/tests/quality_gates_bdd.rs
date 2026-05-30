@@ -2,7 +2,7 @@
  * BDD tests for quality_gates using Cucumber.
  * Run with: cargo test --test quality_gates_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::quality_gates::{CheckResults, GreenContract, GreenOutcome, QualityLevel};
 
 #[derive(Debug, Default, World)]
@@ -58,7 +58,12 @@ fn check_outcome_str(world: &mut QgWorld, expected: String) {
         GreenOutcome::Pass => "pass".to_string(),
         GreenOutcome::Fail(r) => format!("fail: {r}"),
     };
-    assert!(s.starts_with(&expected), "expected '{}' but got '{}'", expected, s);
+    assert!(
+        s.starts_with(&expected),
+        "expected '{}' but got '{}'",
+        expected,
+        s
+    );
 }
 
 #[then(expr = "the outcome should contain {string}")]
@@ -68,7 +73,12 @@ fn check_outcome_contains(world: &mut QgWorld, needle: String) {
         GreenOutcome::Pass => "pass".to_string(),
         GreenOutcome::Fail(r) => r.clone(),
     };
-    assert!(s.contains(&needle), "expected '{}' to contain '{}'", s, needle);
+    assert!(
+        s.contains(&needle),
+        "expected '{}' to contain '{}'",
+        s,
+        needle
+    );
 }
 
 fn main() {

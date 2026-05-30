@@ -1,7 +1,7 @@
 //! BDD: BrokerConfig TOML parsing — verifies the wiring config the
 //! daemon will read at startup.
 
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibe_broker::{BrokerConfig, ConfigError};
 
 #[derive(Default, World)]
@@ -132,10 +132,7 @@ fn audit_path(world: &mut CWorld, expected: String) {
 
 #[then(expr = "the parsed IMDS role_name is {string}")]
 fn imds_role(world: &mut CWorld, expected: String) {
-    assert_eq!(
-        cfg(world).broker.imds.as_ref().unwrap().role_name,
-        expected
-    );
+    assert_eq!(cfg(world).broker.imds.as_ref().unwrap().role_name, expected);
 }
 
 #[then(expr = "the parsed IMDS listen_tcp is {string}")]
@@ -172,7 +169,5 @@ fn is_err(world: &mut CWorld) {
 }
 
 fn main() {
-    futures::executor::block_on(CWorld::run(
-        "tests/features/broker_config.feature",
-    ));
+    futures::executor::block_on(CWorld::run("tests/features/broker_config.feature"));
 }

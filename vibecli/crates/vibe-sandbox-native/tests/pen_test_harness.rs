@@ -186,8 +186,18 @@ fn env_policy_inherit_requires_explicit_strip_secrets_choice() {
         strip_secrets: false,
     };
     // These are *different* states — pin that.
-    assert!(!matches!(p_strip, EnvPolicy::Inherit { strip_secrets: false }));
-    assert!(!matches!(p_no_strip, EnvPolicy::Inherit { strip_secrets: true }));
+    assert!(!matches!(
+        p_strip,
+        EnvPolicy::Inherit {
+            strip_secrets: false
+        }
+    ));
+    assert!(!matches!(
+        p_no_strip,
+        EnvPolicy::Inherit {
+            strip_secrets: true
+        }
+    ));
 }
 
 /// `EnvPolicy::Pass(vec![…])` allows the caller to whitelist specific
@@ -395,7 +405,8 @@ fn linux_sandbox_tier_is_stable_across_multiple_constructions() {
 #[test]
 fn linux_sandbox_shutdown_is_idempotent_on_unused_sandbox() {
     let sb = fresh();
-    sb.shutdown().expect("shutdown of unused sandbox should succeed");
+    sb.shutdown()
+        .expect("shutdown of unused sandbox should succeed");
 }
 
 /// Re-binding the same host path with different guest paths is

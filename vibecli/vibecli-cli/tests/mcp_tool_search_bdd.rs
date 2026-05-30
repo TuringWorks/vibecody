@@ -2,7 +2,7 @@
  * BDD tests for mcp_tool_search using Cucumber.
  * Run with: cargo test --test mcp_tool_search_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use serde_json::json;
 use vibecli_cli::mcp_tool_search::{ToolRegistry, ToolSchema, ToolStub};
 
@@ -29,9 +29,10 @@ fn make_schema(name: &str) -> ToolSchema {
 #[given(expr = "a registry with tools {string} {string} {string}")]
 fn given_three_tools(world: &mut MtsWorld, t1: String, t2: String, t3: String) {
     for name in [&t1, &t2, &t3] {
-        world
-            .registry
-            .register(ToolStub::new(name.as_str(), format!("Description of {}", name)));
+        world.registry.register(ToolStub::new(
+            name.as_str(),
+            format!("Description of {}", name),
+        ));
     }
 }
 
@@ -115,7 +116,11 @@ fn then_savings_gt_zero(world: &mut MtsWorld) {
 #[then("the hit rate should be 0.75")]
 fn then_hit_rate(world: &mut MtsWorld) {
     let delta = (world.hit_rate - 0.75).abs();
-    assert!(delta < 0.001, "Expected hit rate 0.75, got {}", world.hit_rate);
+    assert!(
+        delta < 0.001,
+        "Expected hit rate 0.75, got {}",
+        world.hit_rate
+    );
 }
 
 fn main() {

@@ -18,7 +18,10 @@ pub struct GitWorld {
 
 impl GitWorld {
     fn new() -> Self {
-        Self { dir: None, checkpoints: vec![] }
+        Self {
+            dir: None,
+            checkpoints: vec![],
+        }
     }
 
     fn repo(&self) -> &std::path::Path {
@@ -44,7 +47,11 @@ fn setup_repo(world: &mut GitWorld) {
     let p = dir.path();
 
     let run = |args: &[&str]| {
-        Command::new("git").args(args).current_dir(p).output().unwrap();
+        Command::new("git")
+            .args(args)
+            .current_dir(p)
+            .output()
+            .unwrap();
     };
     run(&["init"]);
     run(&["config", "user.email", "bdd@test.com"]);

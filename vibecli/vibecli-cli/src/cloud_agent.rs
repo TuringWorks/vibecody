@@ -122,10 +122,7 @@ pub fn build_docker_command(config: &CloudAgentConfig, task: &str) -> Vec<String
 ///
 /// Returns a `CloudAgentStatus` with the container's logs, exit status,
 /// and timing information.
-pub async fn start_cloud_agent(
-    config: &CloudAgentConfig,
-    task: &str,
-) -> Result<CloudAgentStatus> {
+pub async fn start_cloud_agent(config: &CloudAgentConfig, task: &str) -> Result<CloudAgentStatus> {
     if !check_docker()? {
         anyhow::bail!("Docker is not installed or not running. Install Docker from https://docs.docker.com/get-docker/");
     }
@@ -309,7 +306,10 @@ mod tests {
         let json = serde_json::to_string(&config).unwrap();
         let parsed: CloudAgentConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.image, "node:20");
-        assert_eq!(parsed.repo_url, Some("https://github.com/test/repo".to_string()));
+        assert_eq!(
+            parsed.repo_url,
+            Some("https://github.com/test/repo".to_string())
+        );
         assert_eq!(parsed.branch, Some("develop".to_string()));
         assert_eq!(parsed.env_vars.len(), 1);
         assert_eq!(parsed.timeout_secs, 600);
@@ -353,7 +353,11 @@ mod tests {
         let status = CloudAgentStatus {
             container_id: "test-123".to_string(),
             status: "complete".to_string(),
-            logs: vec!["line1".to_string(), "line2".to_string(), "line3".to_string()],
+            logs: vec![
+                "line1".to_string(),
+                "line2".to_string(),
+                "line3".to_string(),
+            ],
             branch_created: Some("feature/x".to_string()),
             pr_url: Some("https://github.com/org/repo/pull/1".to_string()),
             started_at: 1000,
@@ -362,7 +366,10 @@ mod tests {
         let json = serde_json::to_string(&status).unwrap();
         let parsed: CloudAgentStatus = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.logs.len(), 3);
-        assert_eq!(parsed.pr_url, Some("https://github.com/org/repo/pull/1".to_string()));
+        assert_eq!(
+            parsed.pr_url,
+            Some("https://github.com/org/repo/pull/1".to_string())
+        );
         assert_eq!(parsed.finished_at, Some(2000));
     }
 

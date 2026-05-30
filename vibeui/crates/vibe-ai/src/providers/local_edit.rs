@@ -261,8 +261,10 @@ impl AIProvider for LocalEditProvider {
             anyhow::bail!("Local-edit chat error ({}): {}", status, body);
         }
 
-        let parsed: OllamaChatResponseMsg = serde_json::from_str(&body)
-            .context(format!("Failed to parse local-edit chat response: {}", body))?;
+        let parsed: OllamaChatResponseMsg = serde_json::from_str(&body).context(format!(
+            "Failed to parse local-edit chat response: {}",
+            body
+        ))?;
 
         Ok(parsed.message.content)
     }
@@ -394,7 +396,10 @@ mod tests {
         let json = serde_json::to_value(&opts).unwrap();
         // f32 → JSON f64 loses precision, so use approximate comparison
         let temp = json["temperature"].as_f64().unwrap();
-        assert!((temp - 0.3).abs() < 1e-6, "temperature {temp} not close to 0.3");
+        assert!(
+            (temp - 0.3).abs() < 1e-6,
+            "temperature {temp} not close to 0.3"
+        );
         assert_eq!(json["num_predict"], 128);
     }
 
@@ -468,8 +473,14 @@ mod tests {
         let req = OllamaChatRequest {
             model: "starcoder2:3b".into(),
             messages: vec![
-                OllamaChatMessage { role: "system".into(), content: "sys".into() },
-                OllamaChatMessage { role: "user".into(), content: "q".into() },
+                OllamaChatMessage {
+                    role: "system".into(),
+                    content: "sys".into(),
+                },
+                OllamaChatMessage {
+                    role: "user".into(),
+                    content: "q".into(),
+                },
             ],
             stream: false,
             options: None,

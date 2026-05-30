@@ -19,16 +19,21 @@ use std::collections::HashMap;
 pub enum HealthStatus {
     Healthy,
     Degraded { reason: String },
-    Stalled  { stall_seconds: u64 },
+    Stalled { stall_seconds: u64 },
     Dead,
 }
 
 impl HealthStatus {
-    pub fn is_ok(&self) -> bool { matches!(self, Self::Healthy) }
+    pub fn is_ok(&self) -> bool {
+        matches!(self, Self::Healthy)
+    }
 
     pub fn severity(&self) -> u8 {
         match self {
-            Self::Healthy => 0, Self::Degraded { .. } => 1, Self::Stalled { .. } => 2, Self::Dead => 3,
+            Self::Healthy => 0,
+            Self::Degraded { .. } => 1,
+            Self::Stalled { .. } => 2,
+            Self::Dead => 3,
         }
     }
 }
@@ -61,32 +66,47 @@ pub struct SessionMetrics {
 impl SessionMetrics {
     pub fn new(session_id: impl Into<String>, started_at_ms: u64, token_budget: u64) -> Self {
         Self {
-            session_id: session_id.into(), started_at_ms, last_activity_ms: started_at_ms,
-            tool_calls: 0, tool_errors: 0, tokens_used: 0, token_budget,
+            session_id: session_id.into(),
+            started_at_ms,
+            last_activity_ms: started_at_ms,
+            tool_calls: 0,
+            tool_errors: 0,
+            tokens_used: 0,
+            token_budget,
             pending_tool_calls: 0,
         }
     }
 
     pub fn record_tool_call(&mut self, now_ms: u64, is_error: bool) {
         self.tool_calls += 1;
-        if is_error { self.tool_errors += 1; }
+        if is_error {
+            self.tool_errors += 1;
+        }
         self.last_activity_ms = now_ms;
-        if !is_error { self.pending_tool_calls = self.pending_tool_calls.saturating_sub(1); }
+        if !is_error {
+            self.pending_tool_calls = self.pending_tool_calls.saturating_sub(1);
+        }
     }
 
-    pub fn add_tokens(&mut self, tokens: u64) { self.tokens_used += tokens; }
+    pub fn add_tokens(&mut self, tokens: u64) {
+        self.tokens_used += tokens;
+    }
 
     pub fn idle_seconds(&self, now_ms: u64) -> u64 {
         (now_ms - self.last_activity_ms) / 1000
     }
 
     pub fn token_utilisation(&self) -> f64 {
-        if self.token_budget == 0 { return 1.0; }
+        if self.token_budget == 0 {
+            return 1.0;
+        }
         self.tokens_used as f64 / self.token_budget as f64
     }
 
     pub fn error_rate(&self) -> f64 {
-        if self.tool_calls == 0 { return 0.0; }
+        if self.tool_calls == 0 {
+            return 0.0;
+        }
         self.tool_errors as f64 / self.tool_calls as f64
     }
 }
@@ -110,8 +130,11 @@ pub struct ProbeThresholds {
 impl Default for ProbeThresholds {
     fn default() -> Self {
         Self {
-            stall_seconds: 30, dead_seconds: 120,
-            token_warning: 0.85, error_rate_warning: 0.3, max_pending: 5,
+            stall_seconds: 30,
+            dead_seconds: 120,
+            token_warning: 0.85,
+            error_rate_warning: 0.3,
+            max_pending: 5,
         }
     }
 }
@@ -125,7 +148,10 @@ pub struct SessionHealthProbe {
 
 impl SessionHealthProbe {
     pub fn new(thresholds: ProbeThresholds) -> Self {
-        Self { thresholds, sessions: HashMap::new() }
+        Self {
+            thresholds,
+            sessions: HashMap::new(),
+        }
     }
 
     pub fn register(&mut self, metrics: SessionMetrics) {
@@ -133,7 +159,12 @@ impl SessionHealthProbe {
     }
 
     pub fn update(&mut self, session_id: &str, f: impl FnOnce(&mut SessionMetrics)) -> bool {
-        if let Some(m) = self.sessions.get_mut(session_id) { f(m); true } else { false }
+        if let Some(m) = self.sessions.get_mut(session_id) {
+            f(m);
+            true
+        } else {
+            false
+        }
     }
 
     pub fn probe(&self, session_id: &str, now_ms: u64) -> HealthStatus {
@@ -143,17 +174,29 @@ impl SessionHealthProbe {
         };
 
         let idle = m.idle_seconds(now_ms);
-        if idle >= self.thresholds.dead_seconds { return HealthStatus::Dead; }
-        if idle >= self.thresholds.stall_seconds { return HealthStatus::Stalled { stall_seconds: idle }; }
+        if idle >= self.thresholds.dead_seconds {
+            return HealthStatus::Dead;
+        }
+        if idle >= self.thresholds.stall_seconds {
+            return HealthStatus::Stalled {
+                stall_seconds: idle,
+            };
+        }
 
         if m.token_utilisation() >= self.thresholds.token_warning {
-            return HealthStatus::Degraded { reason: format!("token budget {:.0}% used", m.token_utilisation() * 100.0) };
+            return HealthStatus::Degraded {
+                reason: format!("token budget {:.0}% used", m.token_utilisation() * 100.0),
+            };
         }
         if m.error_rate() >= self.thresholds.error_rate_warning {
-            return HealthStatus::Degraded { reason: format!("error rate {:.0}%", m.error_rate() * 100.0) };
+            return HealthStatus::Degraded {
+                reason: format!("error rate {:.0}%", m.error_rate() * 100.0),
+            };
         }
         if m.pending_tool_calls > self.thresholds.max_pending {
-            return HealthStatus::Degraded { reason: format!("{} pending tool calls", m.pending_tool_calls) };
+            return HealthStatus::Degraded {
+                reason: format!("{} pending tool calls", m.pending_tool_calls),
+            };
         }
 
         HealthStatus::Healthy
@@ -161,7 +204,9 @@ impl SessionHealthProbe {
 
     /// Probe all sessions and return unhealthy ones sorted by severity.
     pub fn probe_all(&self, now_ms: u64) -> Vec<(String, HealthStatus)> {
-        let mut results: Vec<_> = self.sessions.keys()
+        let mut results: Vec<_> = self
+            .sessions
+            .keys()
             .map(|id| (id.clone(), self.probe(id, now_ms)))
             .filter(|(_, s)| !s.is_ok())
             .collect();
@@ -169,13 +214,21 @@ impl SessionHealthProbe {
         results
     }
 
-    pub fn remove(&mut self, session_id: &str) { self.sessions.remove(session_id); }
-    pub fn session_count(&self) -> usize { self.sessions.len() }
-    pub fn metrics(&self, session_id: &str) -> Option<&SessionMetrics> { self.sessions.get(session_id) }
+    pub fn remove(&mut self, session_id: &str) {
+        self.sessions.remove(session_id);
+    }
+    pub fn session_count(&self) -> usize {
+        self.sessions.len()
+    }
+    pub fn metrics(&self, session_id: &str) -> Option<&SessionMetrics> {
+        self.sessions.get(session_id)
+    }
 }
 
 impl Default for SessionHealthProbe {
-    fn default() -> Self { Self::new(ProbeThresholds::default()) }
+    fn default() -> Self {
+        Self::new(ProbeThresholds::default())
+    }
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -184,8 +237,12 @@ impl Default for SessionHealthProbe {
 mod tests {
     use super::*;
 
-    fn probe() -> SessionHealthProbe { SessionHealthProbe::default() }
-    fn now() -> u64 { 0 }
+    fn probe() -> SessionHealthProbe {
+        SessionHealthProbe::default()
+    }
+    fn now() -> u64 {
+        0
+    }
     const BUDGET: u64 = 100_000;
 
     fn register(p: &mut SessionHealthProbe, id: &str) {
@@ -232,7 +289,10 @@ mod tests {
         let mut p = probe();
         p.register(SessionMetrics::new("s1", 0, 100));
         p.update("s1", |m| m.tokens_used = 90); // 90% > 85%
-        assert!(matches!(p.probe("s1", now()), HealthStatus::Degraded { .. }));
+        assert!(matches!(
+            p.probe("s1", now()),
+            HealthStatus::Degraded { .. }
+        ));
     }
 
     #[test]
@@ -243,7 +303,10 @@ mod tests {
             m.tool_calls = 10;
             m.tool_errors = 4; // 40% > 30%
         });
-        assert!(matches!(p.probe("s1", now()), HealthStatus::Degraded { .. }));
+        assert!(matches!(
+            p.probe("s1", now()),
+            HealthStatus::Degraded { .. }
+        ));
     }
 
     #[test]
@@ -251,7 +314,10 @@ mod tests {
         let mut p = probe();
         register(&mut p, "s1");
         p.update("s1", |m| m.pending_tool_calls = 6); // > 5
-        assert!(matches!(p.probe("s1", now()), HealthStatus::Degraded { .. }));
+        assert!(matches!(
+            p.probe("s1", now()),
+            HealthStatus::Degraded { .. }
+        ));
     }
 
     #[test]
@@ -299,7 +365,10 @@ mod tests {
         register(&mut p, "dead");
         register(&mut p, "degraded");
         p.update("dead", |m| m.last_activity_ms = 0);
-        p.update("degraded", |m| { m.tool_calls = 10; m.tool_errors = 5; });
+        p.update("degraded", |m| {
+            m.tool_calls = 10;
+            m.tool_errors = 5;
+        });
         let unhealthy = p.probe_all(200_000);
         assert_eq!(unhealthy[0].1.severity(), 3); // dead first
     }
@@ -324,8 +393,13 @@ mod tests {
 
     #[test]
     fn test_status_severity_ordering() {
-        assert!(HealthStatus::Healthy.severity() < HealthStatus::Degraded { reason: "x".into() }.severity());
-        assert!(HealthStatus::Stalled { stall_seconds: 5 }.severity() < HealthStatus::Dead.severity());
+        assert!(
+            HealthStatus::Healthy.severity()
+                < HealthStatus::Degraded { reason: "x".into() }.severity()
+        );
+        assert!(
+            HealthStatus::Stalled { stall_seconds: 5 }.severity() < HealthStatus::Dead.severity()
+        );
     }
 
     #[test]
@@ -497,14 +571,18 @@ mod compaction_tests {
     #[test]
     fn degraded_on_slow_tool() {
         let probe = PostCompactionProbe::new(ProbeConfig::default());
-        let checker = SlowMockChecker { reason: "slow".into() };
+        let checker = SlowMockChecker {
+            reason: "slow".into(),
+        };
         assert!(matches!(probe.run(&checker), ProbeResult::Degraded(_)));
     }
 
     #[test]
     fn failed_on_unresponsive_tool() {
         let probe = PostCompactionProbe::new(ProbeConfig::default());
-        let checker = UnresponsiveMockChecker { reason: "timeout".into() };
+        let checker = UnresponsiveMockChecker {
+            reason: "timeout".into(),
+        };
         assert!(matches!(probe.run(&checker), ProbeResult::Failed(_)));
     }
 
@@ -515,8 +593,14 @@ mod compaction_tests {
 
     #[test]
     fn map_degraded_to_degraded() {
-        assert_eq!(ProbeResult::Degraded("x".into()).to_health_string(), "DEGRADED");
-        assert_eq!(ProbeResult::Failed("x".into()).to_health_string(), "DEGRADED");
+        assert_eq!(
+            ProbeResult::Degraded("x".into()).to_health_string(),
+            "DEGRADED"
+        );
+        assert_eq!(
+            ProbeResult::Failed("x".into()).to_health_string(),
+            "DEGRADED"
+        );
     }
 
     #[test]

@@ -223,7 +223,8 @@ impl PreferenceStore {
         };
         let mut stmt = conn.prepare(sql)?;
         let rows = if args.is_empty() {
-            stmt.query_map([], row_to_pref)?.collect::<Result<Vec<_>, _>>()?
+            stmt.query_map([], row_to_pref)?
+                .collect::<Result<Vec<_>, _>>()?
         } else {
             stmt.query_map(rusqlite::params_from_iter(args.iter()), row_to_pref)?
                 .collect::<Result<Vec<_>, _>>()?
@@ -275,10 +276,7 @@ pub fn list_optimization_runs(
                 kind: kind.as_str().to_string(),
                 algorithm: r.algorithm,
                 environment_id: r.environment_id,
-                status: r
-                    .status
-                    .as_str()
-                    .to_string(),
+                status: r.status.as_str().to_string(),
                 total_timesteps: r.total_timesteps,
                 elapsed_steps: r.elapsed_steps,
                 last_reward_mean: r.last_reward_mean,

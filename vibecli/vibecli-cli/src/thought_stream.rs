@@ -279,12 +279,19 @@ impl ThoughtExtractor {
             if trimmed.is_empty() {
                 continue;
             }
-            let result = trimmed.strip_prefix("Planning:")
+            let result = trimmed
+                .strip_prefix("Planning:")
                 .map(|rest| (ThoughtCategory::Planning, 70u8, rest.trim()))
-                .or_else(|| trimmed.strip_prefix("Decision:")
-                    .map(|rest| (ThoughtCategory::Decision, 90u8, rest.trim())))
-                .or_else(|| trimmed.strip_prefix("Observation:")
-                    .map(|rest| (ThoughtCategory::Observation, 75u8, rest.trim())));
+                .or_else(|| {
+                    trimmed
+                        .strip_prefix("Decision:")
+                        .map(|rest| (ThoughtCategory::Decision, 90u8, rest.trim()))
+                })
+                .or_else(|| {
+                    trimmed
+                        .strip_prefix("Observation:")
+                        .map(|rest| (ThoughtCategory::Observation, 75u8, rest.trim()))
+                });
             if let Some((cat, conf, content)) = result {
                 if !content.is_empty() {
                     units.push(self.make_unit_with_category(content, cat, conf));
@@ -359,10 +366,7 @@ impl ThoughtSession {
     }
 
     pub fn filter_by_category(&self, cat: &ThoughtCategory) -> Vec<&ThoughtUnit> {
-        self.units
-            .iter()
-            .filter(|u| &u.category == cat)
-            .collect()
+        self.units.iter().filter(|u| &u.category == cat).collect()
     }
 
     /// Returns Decision units that have High confidence.
@@ -694,7 +698,7 @@ mod tests {
         // First chunk opens but doesn't close the tag
         let u1 = ex.extract_from_chunk("<thinking>partial start");
         assert!(u1.is_empty()); // buffered
-        // Second chunk closes the tag
+                                // Second chunk closes the tag
         let u2 = ex.extract_from_chunk(" and end</thinking>");
         assert_eq!(u2.len(), 1);
         assert!(u2[0].content.contains("partial start"));
@@ -710,13 +714,7 @@ mod tests {
     // ── ThoughtSession ───────────────────────────────────────────────────
 
     fn make_unit_with(cat: ThoughtCategory, conf: u8) -> ThoughtUnit {
-        ThoughtUnit::new(
-            format!("t-{}", conf),
-            cat,
-            "some content",
-            conf,
-            "agent-1",
-        )
+        ThoughtUnit::new(format!("t-{}", conf), cat, "some content", conf, "agent-1")
     }
 
     #[test]

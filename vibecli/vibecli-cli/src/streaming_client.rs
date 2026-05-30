@@ -170,10 +170,14 @@ impl KafkaCliBuilder {
         let mut cmd = vec![
             "kafka-topics.sh".to_string(),
             "--create".to_string(),
-            "--bootstrap-server".to_string(), brokers.to_string(),
-            "--topic".to_string(), config.name.clone(),
-            "--partitions".to_string(), config.partitions.to_string(),
-            "--replication-factor".to_string(), config.replication_factor.to_string(),
+            "--bootstrap-server".to_string(),
+            brokers.to_string(),
+            "--topic".to_string(),
+            config.name.clone(),
+            "--partitions".to_string(),
+            config.partitions.to_string(),
+            "--replication-factor".to_string(),
+            config.replication_factor.to_string(),
         ];
         if let Some(retention) = config.retention_ms {
             cmd.push("--config".to_string());
@@ -201,7 +205,8 @@ impl KafkaCliBuilder {
         vec![
             "kafka-topics.sh".to_string(),
             "--list".to_string(),
-            "--bootstrap-server".to_string(), brokers.to_string(),
+            "--bootstrap-server".to_string(),
+            brokers.to_string(),
         ]
     }
 
@@ -209,8 +214,10 @@ impl KafkaCliBuilder {
         vec![
             "kafka-topics.sh".to_string(),
             "--describe".to_string(),
-            "--bootstrap-server".to_string(), brokers.to_string(),
-            "--topic".to_string(), topic.to_string(),
+            "--bootstrap-server".to_string(),
+            brokers.to_string(),
+            "--topic".to_string(),
+            topic.to_string(),
         ]
     }
 
@@ -218,18 +225,23 @@ impl KafkaCliBuilder {
         let brokers = config.config.brokers.join(",");
         let mut cmd = vec![
             "kafka-console-producer.sh".to_string(),
-            "--bootstrap-server".to_string(), brokers,
-            "--topic".to_string(), config.config.topic.clone(),
+            "--bootstrap-server".to_string(),
+            brokers,
+            "--topic".to_string(),
+            config.config.topic.clone(),
         ];
         if config.compression != Compression::None {
             cmd.push("--compression-codec".to_string());
-            cmd.push(match config.compression {
-                Compression::Gzip => "gzip",
-                Compression::Snappy => "snappy",
-                Compression::Lz4 => "lz4",
-                Compression::Zstd => "zstd",
-                Compression::None => "none",
-            }.to_string());
+            cmd.push(
+                match config.compression {
+                    Compression::Gzip => "gzip",
+                    Compression::Snappy => "snappy",
+                    Compression::Lz4 => "lz4",
+                    Compression::Zstd => "zstd",
+                    Compression::None => "none",
+                }
+                .to_string(),
+            );
         }
         cmd
     }
@@ -238,8 +250,10 @@ impl KafkaCliBuilder {
         let brokers = config.config.brokers.join(",");
         let mut cmd = vec![
             "kafka-console-consumer.sh".to_string(),
-            "--bootstrap-server".to_string(), brokers,
-            "--topic".to_string(), config.config.topic.clone(),
+            "--bootstrap-server".to_string(),
+            brokers,
+            "--topic".to_string(),
+            config.config.topic.clone(),
         ];
         if let Some(ref group) = config.config.group_id {
             cmd.push("--group".to_string());
@@ -259,7 +273,8 @@ impl KafkaCliBuilder {
         vec![
             "kafka-consumer-groups.sh".to_string(),
             "--list".to_string(),
-            "--bootstrap-server".to_string(), brokers.to_string(),
+            "--bootstrap-server".to_string(),
+            brokers.to_string(),
         ]
     }
 
@@ -267,8 +282,10 @@ impl KafkaCliBuilder {
         vec![
             "kafka-consumer-groups.sh".to_string(),
             "--describe".to_string(),
-            "--bootstrap-server".to_string(), brokers.to_string(),
-            "--group".to_string(), group.to_string(),
+            "--bootstrap-server".to_string(),
+            brokers.to_string(),
+            "--group".to_string(),
+            group.to_string(),
         ]
     }
 }
@@ -287,7 +304,9 @@ pub fn validate_stream_config(config: &StreamConfig) -> Vec<String> {
     }
     for b in &config.brokers {
         if !b.contains(':') && config.platform == StreamPlatform::Kafka {
-            errors.push(format!("Broker '{b}' should include port (e.g., localhost:9092)"));
+            errors.push(format!(
+                "Broker '{b}' should include port (e.g., localhost:9092)"
+            ));
         }
     }
     if let Some(ref auth) = config.auth {
@@ -302,12 +321,24 @@ pub fn validate_stream_config(config: &StreamConfig) -> Vec<String> {
 
 pub fn generate_kafka_connect_config(connector: &ConnectorConfig) -> String {
     let mut obj = serde_json::Map::new();
-    obj.insert("name".into(), serde_json::Value::String(connector.name.clone()));
+    obj.insert(
+        "name".into(),
+        serde_json::Value::String(connector.name.clone()),
+    );
     let mut cfg = serde_json::Map::new();
-    cfg.insert("connector.class".into(), serde_json::Value::String(connector.connector_class.clone()));
-    cfg.insert("tasks.max".into(), serde_json::Value::String(connector.tasks_max.to_string()));
+    cfg.insert(
+        "connector.class".into(),
+        serde_json::Value::String(connector.connector_class.clone()),
+    );
+    cfg.insert(
+        "tasks.max".into(),
+        serde_json::Value::String(connector.tasks_max.to_string()),
+    );
     if !connector.topics.is_empty() {
-        cfg.insert("topics".into(), serde_json::Value::String(connector.topics.join(",")));
+        cfg.insert(
+            "topics".into(),
+            serde_json::Value::String(connector.topics.join(",")),
+        );
     }
     for (k, v) in &connector.connection {
         cfg.insert(k.clone(), serde_json::Value::String(v.clone()));
@@ -347,9 +378,14 @@ pub fn generate_docker_compose_kafka(brokers: u32, zookeeper: bool) -> String {
             yaml.push_str(&format!("      KAFKA_NODE_ID: {i}\n"));
         }
         yaml.push_str(&format!("      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:{port},INTERNAL://kafka-{i}:{internal_port}\n"));
-        yaml.push_str("      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT\n");
+        yaml.push_str(
+            "      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT\n",
+        );
         yaml.push_str("      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL\n");
-        yaml.push_str(&format!("      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: {}\n", brokers.min(3)));
+        yaml.push_str(&format!(
+            "      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: {}\n",
+            brokers.min(3)
+        ));
         yaml.push('\n');
     }
     yaml
@@ -358,13 +394,31 @@ pub fn generate_docker_compose_kafka(brokers: u32, zookeeper: bool) -> String {
 pub fn estimate_throughput(msg_size_bytes: u64, msgs_per_sec: u64) -> String {
     let bytes_per_sec = msg_size_bytes * msgs_per_sec;
     if bytes_per_sec >= 1_073_741_824 {
-        format!("{:.2} GB/s ({} msgs/s, {} bytes/msg)", bytes_per_sec as f64 / 1_073_741_824.0, msgs_per_sec, msg_size_bytes)
+        format!(
+            "{:.2} GB/s ({} msgs/s, {} bytes/msg)",
+            bytes_per_sec as f64 / 1_073_741_824.0,
+            msgs_per_sec,
+            msg_size_bytes
+        )
     } else if bytes_per_sec >= 1_048_576 {
-        format!("{:.2} MB/s ({} msgs/s, {} bytes/msg)", bytes_per_sec as f64 / 1_048_576.0, msgs_per_sec, msg_size_bytes)
+        format!(
+            "{:.2} MB/s ({} msgs/s, {} bytes/msg)",
+            bytes_per_sec as f64 / 1_048_576.0,
+            msgs_per_sec,
+            msg_size_bytes
+        )
     } else if bytes_per_sec >= 1024 {
-        format!("{:.2} KB/s ({} msgs/s, {} bytes/msg)", bytes_per_sec as f64 / 1024.0, msgs_per_sec, msg_size_bytes)
+        format!(
+            "{:.2} KB/s ({} msgs/s, {} bytes/msg)",
+            bytes_per_sec as f64 / 1024.0,
+            msgs_per_sec,
+            msg_size_bytes
+        )
     } else {
-        format!("{} B/s ({} msgs/s, {} bytes/msg)", bytes_per_sec, msgs_per_sec, msg_size_bytes)
+        format!(
+            "{} B/s ({} msgs/s, {} bytes/msg)",
+            bytes_per_sec, msgs_per_sec, msg_size_bytes
+        )
     }
 }
 
@@ -533,7 +587,10 @@ mod tests {
             topics: vec!["orders".to_string()],
             connection: {
                 let mut m = HashMap::new();
-                m.insert("connection.url".into(), "jdbc:postgresql://localhost/db".into());
+                m.insert(
+                    "connection.url".into(),
+                    "jdbc:postgresql://localhost/db".into(),
+                );
                 m
             },
         };
@@ -566,7 +623,7 @@ mod tests {
     #[test]
     fn test_suggest_partition_count() {
         assert_eq!(suggest_partition_count(100.0, 4), 10); // 100/10 = 10 > 4
-        assert_eq!(suggest_partition_count(5.0, 8), 8);    // 1 < 8, use consumers
-        assert_eq!(suggest_partition_count(0.1, 1), 1);     // minimum 1
+        assert_eq!(suggest_partition_count(5.0, 8), 8); // 1 < 8, use consumers
+        assert_eq!(suggest_partition_count(0.1, 1), 1); // minimum 1
     }
 }

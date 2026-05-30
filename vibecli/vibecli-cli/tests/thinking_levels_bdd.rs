@@ -4,7 +4,7 @@
  */
 use cucumber::{given, then, when, World};
 use vibecli_cli::thinking_levels::{
-    TaskHint, ThinkingBudgetOverride, ThinkingConfig, ThinkingLevel, ModelWithLevel,
+    ModelWithLevel, TaskHint, ThinkingBudgetOverride, ThinkingConfig, ThinkingLevel,
 };
 
 // ── World ─────────────────────────────────────────────────────────────────────
@@ -107,8 +107,8 @@ fn check_model_level(world: &mut TlWorld, expected: String) {
 
 #[then(expr = "the token budget for level {string} should be {int}")]
 fn check_token_budget(world: &mut TlWorld, level_str: String, expected: u32) {
-    let level = ThinkingLevel::from_str(&level_str)
-        .unwrap_or_else(|| panic!("unknown level: {level_str}"));
+    let level =
+        ThinkingLevel::from_str(&level_str).unwrap_or_else(|| panic!("unknown level: {level_str}"));
     assert_eq!(
         level.token_budget(),
         expected,
@@ -122,7 +122,10 @@ fn check_token_budget(world: &mut TlWorld, level_str: String, expected: u32) {
 #[then("the config should be enabled")]
 fn check_config_enabled(world: &mut TlWorld) {
     let cfg = world.config.as_ref().expect("config not built");
-    assert!(cfg.enabled, "expected config to be enabled, but it was disabled");
+    assert!(
+        cfg.enabled,
+        "expected config to be enabled, but it was disabled"
+    );
 }
 
 #[then(expr = "the provider param should be {string}")]

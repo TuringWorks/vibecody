@@ -145,12 +145,7 @@ pub fn migrate_from_codex(
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /// Copy a UTF-8 file, respecting the `force` flag.
-fn copy_text(
-    src: &Path,
-    dest: &Path,
-    force: bool,
-    report: &mut MigrationReport,
-) -> Result<()> {
+fn copy_text(src: &Path, dest: &Path, force: bool, report: &mut MigrationReport) -> Result<()> {
     if dest.exists() && !force {
         report.skipped.push(dest.to_path_buf());
         return Ok(());
@@ -160,8 +155,7 @@ fn copy_text(
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent).ok();
     }
-    std::fs::write(dest, body)
-        .with_context(|| format!("write {}", dest.display()))?;
+    std::fs::write(dest, body).with_context(|| format!("write {}", dest.display()))?;
     report.written.push(dest.to_path_buf());
     Ok(())
 }
@@ -172,8 +166,8 @@ fn copy_text(
 fn parse_claude_mcp_json(path: &Path) -> Result<Vec<McpServerEntry>> {
     let raw = std::fs::read_to_string(path)
         .with_context(|| format!("read_to_string {}", path.display()))?;
-    let v: serde_json::Value = serde_json::from_str(&raw)
-        .with_context(|| format!("parse JSON {}", path.display()))?;
+    let v: serde_json::Value =
+        serde_json::from_str(&raw).with_context(|| format!("parse JSON {}", path.display()))?;
     let map = v
         .get("mcpServers")
         .and_then(|m| m.as_object())
@@ -307,8 +301,7 @@ fn write_mcp_servers_toml(
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent).ok();
     }
-    std::fs::write(dest, out)
-        .with_context(|| format!("write {}", dest.display()))?;
+    std::fs::write(dest, out).with_context(|| format!("write {}", dest.display()))?;
     report.written.push(dest.to_path_buf());
     Ok(())
 }
@@ -447,8 +440,14 @@ args = ["mcp-filesystem", "/tmp"]
         let out = dest.path().join("mcp_servers.toml");
         assert!(out.exists(), "mcp_servers.toml should be written");
         let body = fs::read_to_string(&out).unwrap();
-        assert!(body.contains("[filesystem]"), "filesystem section missing\n{body}");
-        assert!(body.contains("[brave_search]"), "brave_search section missing\n{body}");
+        assert!(
+            body.contains("[filesystem]"),
+            "filesystem section missing\n{body}"
+        );
+        assert!(
+            body.contains("[brave_search]"),
+            "brave_search section missing\n{body}"
+        );
         assert!(body.contains("npx"), "command should be preserved");
         assert!(body.contains("BRAVE_API_KEY"), "env should be preserved");
         assert_eq!(report.mcp_servers_translated, 2);
@@ -491,12 +490,9 @@ args = ["mcp-filesystem", "/tmp"]
         assert!(report_safe.skipped.iter().any(|p| p == &existing));
 
         // With force = true, the migration overwrites.
-        let report_force = migrate_from_claude_code(
-            home.path(),
-            dest.path(),
-            &MigrationOptions { force: true },
-        )
-        .unwrap();
+        let report_force =
+            migrate_from_claude_code(home.path(), dest.path(), &MigrationOptions { force: true })
+                .unwrap();
         let body = fs::read_to_string(&existing).unwrap();
         assert!(body.contains("Use TDD"), "force should overwrite");
         assert!(report_force.written.iter().any(|p| p == &existing));
@@ -534,7 +530,10 @@ args = ["mcp-filesystem", "/tmp"]
         let out = dest.path().join("mcp_servers.toml");
         assert!(out.exists(), "mcp_servers.toml should be written");
         let body = fs::read_to_string(&out).unwrap();
-        assert!(body.contains("[brave_search]"), "brave_search section missing\n{body}");
+        assert!(
+            body.contains("[brave_search]"),
+            "brave_search section missing\n{body}"
+        );
         assert!(body.contains("[fs]"), "fs section missing\n{body}");
         assert!(body.contains("BRAVE_API_KEY"), "env should be preserved");
         assert_eq!(report.mcp_servers_translated, 2);

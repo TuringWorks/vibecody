@@ -2,10 +2,8 @@
  * BDD tests for stale_branch using Cucumber.
  * Run with: cargo test --test stale_branch_bdd
  */
-use cucumber::{World, given, then, when};
-use vibecli_cli::stale_branch::{
-    BranchFreshness, StaleBranchConfig, FreshnessPolicyDetector,
-};
+use cucumber::{given, then, when, World};
+use vibecli_cli::stale_branch::{BranchFreshness, FreshnessPolicyDetector, StaleBranchConfig};
 
 #[derive(Debug, Default, World)]
 pub struct SbWorld {

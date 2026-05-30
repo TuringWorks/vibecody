@@ -1,7 +1,7 @@
 //! BDD: GCP IAM + Azure MSI credential injection. Both end up as a
 //! Bearer token from a cloud-specific SecretStore lookup.
 
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use rcgen::{CertificateParams, KeyPair};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, ServerName};
 use rustls::{ClientConfig, RootCertStore, ServerConfig};
@@ -209,9 +209,7 @@ match.require_tls = true
         .with_upstream_trust(trust)
         .with_secret_store(secrets);
     let rt = world.rt();
-    let handle = rt.block_on(async move {
-        broker.start_tcp("127.0.0.1:0").await.unwrap()
-    });
+    let handle = rt.block_on(async move { broker.start_tcp("127.0.0.1:0").await.unwrap() });
     if let BoundAddr::Tcp(addr) = handle.addr.clone() {
         world.broker_addr = Some(addr);
     }
@@ -223,12 +221,16 @@ fn build_gcp_policy(world: &mut CWorld, _key: String) {
     build_broker_with_inject(world);
 }
 
-#[given(expr = "a policy that allows the upstream on CONNECT and Azure-MSI-injects {string} on GET")]
+#[given(
+    expr = "a policy that allows the upstream on CONNECT and Azure-MSI-injects {string} on GET"
+)]
 fn build_azure_policy(world: &mut CWorld, _key: String) {
     build_broker_with_inject(world);
 }
 
-#[when(expr = "the client performs CONNECT through the broker, then GET on root over TLS, sending its own Authorization {string}")]
+#[when(
+    expr = "the client performs CONNECT through the broker, then GET on root over TLS, sending its own Authorization {string}"
+)]
 fn run_client(world: &mut CWorld, sandbox_auth: String) {
     let upstream = world.upstream_addr.unwrap();
     let broker_addr = world.broker_addr.unwrap();
@@ -270,8 +272,12 @@ fn run_client(world: &mut CWorld, sandbox_auth: String) {
 #[then(expr = "the upstream observed Authorization {string}")]
 fn assert_upstream_saw(world: &mut CWorld, expected: String) {
     let observed = world.observed_auth.lock().unwrap().clone();
-    assert_eq!(observed.as_deref(), Some(expected.as_str()),
-        "observed: {:?}", observed);
+    assert_eq!(
+        observed.as_deref(),
+        Some(expected.as_str()),
+        "observed: {:?}",
+        observed
+    );
 }
 
 fn main() {

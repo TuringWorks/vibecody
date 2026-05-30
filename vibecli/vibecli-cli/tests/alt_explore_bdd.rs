@@ -2,7 +2,7 @@
  * BDD tests for alt_explore using Cucumber.
  * Run with: cargo test --test alt_explore_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::alt_explore::{ExploreCandidate, Tournament, TournamentConfig, TournamentResult};
 
 #[derive(Debug, Default, World)]
@@ -52,8 +52,12 @@ fn two_candidates_scored(world: &mut AeWorld, high: String, low: String) {
 
 #[given(expr = "two candidates where {string} compiles and {string} does not")]
 fn two_candidates_compile(world: &mut AeWorld, good: String, bad: String) {
-    world.candidates.push(ExploreCandidate::new(good, "", 0.8, 20, true));
-    world.candidates.push(ExploreCandidate::new(bad, "", 1.0, 0, false));
+    world
+        .candidates
+        .push(ExploreCandidate::new(good, "", 0.8, 20, true));
+    world
+        .candidates
+        .push(ExploreCandidate::new(bad, "", 1.0, 0, false));
 }
 
 #[given("min_compile_required is true")]
@@ -115,10 +119,7 @@ fn check_score_lte(world: &mut AeWorld, limit: f32) {
 
 #[then(expr = "the first candidate should be {string}")]
 fn check_first_candidate(world: &mut AeWorld, expected: String) {
-    assert!(
-        !world.ranked.is_empty(),
-        "ranked list is empty"
-    );
+    assert!(!world.ranked.is_empty(), "ranked list is empty");
     assert_eq!(world.ranked[0].id, expected);
 }
 

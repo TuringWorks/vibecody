@@ -5,7 +5,7 @@
  *
  * Run with: cargo test --test session_fts_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use tempfile::NamedTempFile;
 use vibecli_cli::session_store::{FtsHit, SearchScope, SessionStore};
 

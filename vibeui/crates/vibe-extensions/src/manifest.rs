@@ -71,7 +71,11 @@ pub struct VersionReq {
 
 impl VersionReq {
     pub fn new(major: u32, minor: u32, patch: u32) -> Self {
-        Self { major, minor, patch }
+        Self {
+            major,
+            minor,
+            patch,
+        }
     }
 
     /// Parse from a "major.minor.patch" string.
@@ -89,7 +93,11 @@ impl VersionReq {
         let patch = parts[2]
             .parse::<u32>()
             .map_err(|_| ManifestError::InvalidVersion(s.to_string()))?;
-        Ok(Self { major, minor, patch })
+        Ok(Self {
+            major,
+            minor,
+            patch,
+        })
     }
 
     /// Returns `true` if `self` is compatible with (i.e., satisfied by) `host`.
@@ -405,7 +413,11 @@ mod tests {
     #[test]
     fn check_permissions_all_granted() {
         let m = sample_manifest();
-        let granted = vec![Permission::FileRead, Permission::Notify, Permission::Network];
+        let granted = vec![
+            Permission::FileRead,
+            Permission::Notify,
+            Permission::Network,
+        ];
         assert!(m.check_permissions(&granted).is_ok());
     }
 
@@ -415,7 +427,10 @@ mod tests {
         // Only grant FileRead but manifest also needs Notify
         let granted = vec![Permission::FileRead];
         let err = m.check_permissions(&granted).unwrap_err();
-        assert!(matches!(err, ManifestError::PermissionDenied(Permission::Notify)));
+        assert!(matches!(
+            err,
+            ManifestError::PermissionDenied(Permission::Notify)
+        ));
     }
 
     #[test]
@@ -583,7 +598,11 @@ mod tests {
 
     #[test]
     fn permission_serde_round_trip() {
-        let perms = vec![Permission::FileRead, Permission::ProcessExec, Permission::Clipboard];
+        let perms = vec![
+            Permission::FileRead,
+            Permission::ProcessExec,
+            Permission::Clipboard,
+        ];
         let json = serde_json::to_string(&perms).unwrap();
         let parsed: Vec<Permission> = serde_json::from_str(&json).unwrap();
         assert_eq!(perms, parsed);

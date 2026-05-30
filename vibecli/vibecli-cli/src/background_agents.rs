@@ -18,9 +18,9 @@
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
 
 // ── AgentDef ──────────────────────────────────────────────────────────────────
 
@@ -53,10 +53,18 @@ pub struct AgentDef {
     pub model: Option<String>,
 }
 
-fn default_true() -> bool { true }
-fn default_on_demand() -> String { "on_demand".to_string() }
-fn default_full_auto() -> String { "full-auto".to_string() }
-fn default_max_steps() -> u32 { 20 }
+fn default_true() -> bool {
+    true
+}
+fn default_on_demand() -> String {
+    "on_demand".to_string()
+}
+fn default_full_auto() -> String {
+    "full-auto".to_string()
+}
+fn default_max_steps() -> u32 {
+    20
+}
 
 // ── AgentRunStatus ────────────────────────────────────────────────────────────
 
@@ -88,7 +96,7 @@ pub struct AgentRun {
     pub name: String,
     pub task: String,
     pub status: AgentRunStatus,
-    pub started_at: u64,    // unix millis
+    pub started_at: u64, // unix millis
     pub finished_at: Option<u64>,
     pub summary: Option<String>,
 }
@@ -139,7 +147,10 @@ impl BackgroundAgentManager {
     }
 
     pub fn new(agents_dir: PathBuf) -> Self {
-        Self { agents_dir, runs: Arc::new(Mutex::new(HashMap::new())) }
+        Self {
+            agents_dir,
+            runs: Arc::new(Mutex::new(HashMap::new())),
+        }
     }
 
     /// Ensure the agents directory exists.
@@ -150,14 +161,17 @@ impl BackgroundAgentManager {
 
     /// List all defined agent names.
     pub fn list_defs(&self) -> Vec<String> {
-        if !self.agents_dir.is_dir() { return vec![]; }
+        if !self.agents_dir.is_dir() {
+            return vec![];
+        }
         let mut names: Vec<String> = std::fs::read_dir(&self.agents_dir)
             .into_iter()
             .flatten()
             .filter_map(|e| e.ok())
             .filter(|e| e.path().extension().and_then(|x| x.to_str()) == Some("toml"))
             .filter_map(|e| {
-                e.path().file_stem()
+                e.path()
+                    .file_stem()
                     .and_then(|s| s.to_str())
                     .map(|s| s.to_string())
             })
@@ -171,8 +185,8 @@ impl BackgroundAgentManager {
         let path = self.agents_dir.join(format!("{}.toml", name));
         let raw = std::fs::read_to_string(&path)
             .map_err(|e| anyhow::anyhow!("Cannot read agent '{}': {}", name, e))?;
-        let def: AgentDef = toml::from_str(&raw)
-            .map_err(|e| anyhow::anyhow!("Invalid agent '{}': {}", name, e))?;
+        let def: AgentDef =
+            toml::from_str(&raw).map_err(|e| anyhow::anyhow!("Invalid agent '{}': {}", name, e))?;
         Ok(def)
     }
 
@@ -198,7 +212,10 @@ impl BackgroundAgentManager {
     pub fn start_run(&self, def: &AgentDef) -> AgentRun {
         let id = format!("{}-{}", def.name, Self::short_id());
         let run = AgentRun::new(&id, &def.name, &def.task);
-        self.runs.lock().unwrap_or_else(|e| e.into_inner()).insert(id.clone(), run.clone());
+        self.runs
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(id.clone(), run.clone());
         run
     }
 
@@ -225,7 +242,11 @@ impl BackgroundAgentManager {
 
     /// Get a specific run by ID.
     pub fn get_run(&self, id: &str) -> Option<AgentRun> {
-        self.runs.lock().unwrap_or_else(|e| e.into_inner()).get(id).cloned()
+        self.runs
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .get(id)
+            .cloned()
     }
 
     /// Create a starter template in the agents directory.
@@ -283,7 +304,11 @@ mod tests {
         let run = mgr.start_run(&def);
         assert_eq!(run.status, AgentRunStatus::Running);
 
-        mgr.finish_run(&run.id, AgentRunStatus::Complete, Some("Build passed".to_string()));
+        mgr.finish_run(
+            &run.id,
+            AgentRunStatus::Complete,
+            Some("Build passed".to_string()),
+        );
         let updated = mgr.get_run(&run.id).unwrap();
         assert_eq!(updated.status, AgentRunStatus::Complete);
         assert_eq!(updated.summary.as_deref(), Some("Build passed"));
@@ -318,7 +343,12 @@ mod tests {
 
     #[test]
     fn agent_run_status_serde_roundtrip() {
-        for status in [AgentRunStatus::Running, AgentRunStatus::Complete, AgentRunStatus::Failed, AgentRunStatus::Cancelled] {
+        for status in [
+            AgentRunStatus::Running,
+            AgentRunStatus::Complete,
+            AgentRunStatus::Failed,
+            AgentRunStatus::Cancelled,
+        ] {
             let json = serde_json::to_string(&status).unwrap();
             let back: AgentRunStatus = serde_json::from_str(&json).unwrap();
             assert_eq!(back, status);
@@ -495,10 +525,22 @@ mod tests {
 
     #[test]
     fn agent_run_status_json_lowercase_names() {
-        assert_eq!(serde_json::to_string(&AgentRunStatus::Running).unwrap(), r#""running""#);
-        assert_eq!(serde_json::to_string(&AgentRunStatus::Complete).unwrap(), r#""complete""#);
-        assert_eq!(serde_json::to_string(&AgentRunStatus::Failed).unwrap(), r#""failed""#);
-        assert_eq!(serde_json::to_string(&AgentRunStatus::Cancelled).unwrap(), r#""cancelled""#);
+        assert_eq!(
+            serde_json::to_string(&AgentRunStatus::Running).unwrap(),
+            r#""running""#
+        );
+        assert_eq!(
+            serde_json::to_string(&AgentRunStatus::Complete).unwrap(),
+            r#""complete""#
+        );
+        assert_eq!(
+            serde_json::to_string(&AgentRunStatus::Failed).unwrap(),
+            r#""failed""#
+        );
+        assert_eq!(
+            serde_json::to_string(&AgentRunStatus::Cancelled).unwrap(),
+            r#""cancelled""#
+        );
     }
 
     // ── Multiple runs tracked independently ─────────────────────────────────

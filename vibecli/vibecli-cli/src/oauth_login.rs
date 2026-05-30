@@ -46,51 +46,29 @@ impl OAuthProvider {
     /// OAuth authorization endpoint URL.
     pub fn auth_url(&self) -> &str {
         match self {
-            OAuthProvider::AnthropicClaude => {
-                "https://claude.ai/oauth/authorize"
-            }
-            OAuthProvider::GitHubCopilot => {
-                "https://github.com/login/oauth/authorize"
-            }
-            OAuthProvider::GoogleGeminiCli => {
-                "https://accounts.google.com/o/oauth2/v2/auth"
-            }
-            OAuthProvider::OpenAICodex => {
-                "https://auth.openai.com/authorize"
-            }
+            OAuthProvider::AnthropicClaude => "https://claude.ai/oauth/authorize",
+            OAuthProvider::GitHubCopilot => "https://github.com/login/oauth/authorize",
+            OAuthProvider::GoogleGeminiCli => "https://accounts.google.com/o/oauth2/v2/auth",
+            OAuthProvider::OpenAICodex => "https://auth.openai.com/authorize",
         }
     }
 
     /// Token exchange endpoint URL.
     pub fn token_url(&self) -> &str {
         match self {
-            OAuthProvider::AnthropicClaude => {
-                "https://claude.ai/oauth/token"
-            }
-            OAuthProvider::GitHubCopilot => {
-                "https://github.com/login/oauth/access_token"
-            }
-            OAuthProvider::GoogleGeminiCli => {
-                "https://oauth2.googleapis.com/token"
-            }
-            OAuthProvider::OpenAICodex => {
-                "https://auth.openai.com/oauth/token"
-            }
+            OAuthProvider::AnthropicClaude => "https://claude.ai/oauth/token",
+            OAuthProvider::GitHubCopilot => "https://github.com/login/oauth/access_token",
+            OAuthProvider::GoogleGeminiCli => "https://oauth2.googleapis.com/token",
+            OAuthProvider::OpenAICodex => "https://auth.openai.com/oauth/token",
         }
     }
 
     /// Device authorization endpoint, if the provider supports the device flow.
     pub fn device_code_url(&self) -> Option<&str> {
         match self {
-            OAuthProvider::AnthropicClaude => {
-                Some("https://claude.ai/oauth/device/code")
-            }
-            OAuthProvider::GitHubCopilot => {
-                Some("https://github.com/login/device/code")
-            }
-            OAuthProvider::GoogleGeminiCli => {
-                Some("https://oauth2.googleapis.com/device/code")
-            }
+            OAuthProvider::AnthropicClaude => Some("https://claude.ai/oauth/device/code"),
+            OAuthProvider::GitHubCopilot => Some("https://github.com/login/device/code"),
+            OAuthProvider::GoogleGeminiCli => Some("https://oauth2.googleapis.com/device/code"),
             OAuthProvider::OpenAICodex => None,
         }
     }
@@ -118,18 +96,12 @@ impl OAuthProvider {
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_ascii_lowercase().as_str() {
-            "anthropic" | "anthropic_claude" | "claude" => {
-                Some(OAuthProvider::AnthropicClaude)
-            }
-            "github" | "github_copilot" | "copilot" => {
-                Some(OAuthProvider::GitHubCopilot)
-            }
+            "anthropic" | "anthropic_claude" | "claude" => Some(OAuthProvider::AnthropicClaude),
+            "github" | "github_copilot" | "copilot" => Some(OAuthProvider::GitHubCopilot),
             "google" | "google_gemini_cli" | "gemini" | "gemini_cli" => {
                 Some(OAuthProvider::GoogleGeminiCli)
             }
-            "openai" | "openai_codex" | "codex" | "chatgpt" => {
-                Some(OAuthProvider::OpenAICodex)
-            }
+            "openai" | "openai_codex" | "codex" | "chatgpt" => Some(OAuthProvider::OpenAICodex),
             _ => None,
         }
     }
@@ -196,7 +168,11 @@ impl OAuthCredentials {
     /// `"Bearer ****...{last4}"`.
     pub fn redacted(&self) -> String {
         let token = &self.access_token;
-        let last4: String = token.chars().rev().take(4).collect::<String>()
+        let last4: String = token
+            .chars()
+            .rev()
+            .take(4)
+            .collect::<String>()
             .chars()
             .rev()
             .collect();
@@ -212,12 +188,7 @@ impl OAuthCredentials {
 pub trait OAuthLoginCallbacks: Send + Sync {
     /// Called when a device code is obtained; the user must visit
     /// `verification_url` and enter `user_code` within `expires_in_s` seconds.
-    fn on_device_code(
-        &self,
-        user_code: &str,
-        verification_url: &str,
-        expires_in_s: u64,
-    );
+    fn on_device_code(&self, user_code: &str, verification_url: &str, expires_in_s: u64);
 
     /// Called each polling iteration while waiting for the user to authorize.
     fn on_polling(&self, attempt: u32);
@@ -279,10 +250,7 @@ impl OAuthManager {
     }
 
     /// Retrieve credentials for a provider, if they exist.
-    pub fn get_credentials(
-        &self,
-        provider: &OAuthProvider,
-    ) -> Option<&OAuthCredentials> {
+    pub fn get_credentials(&self, provider: &OAuthProvider) -> Option<&OAuthCredentials> {
         self.store.get(provider)
     }
 
@@ -329,11 +297,7 @@ impl OAuthManager {
         callbacks: &dyn OAuthLoginCallbacks,
     ) -> OAuthFlowResult {
         // Simulate: device code issued
-        callbacks.on_device_code(
-            "VIBE-1234",
-            "https://example.com/activate",
-            300,
-        );
+        callbacks.on_device_code("VIBE-1234", "https://example.com/activate", 300);
 
         // Simulate: two polling attempts
         callbacks.on_polling(1);
@@ -617,10 +581,7 @@ mod tests {
     fn test_auth_header_preserves_bearer_prefix_in_fallback() {
         let mgr = OAuthManager::new();
         let header = mgr
-            .auth_header(
-                &OAuthProvider::OpenAICodex,
-                Some("Bearer already-prefixed"),
-            )
+            .auth_header(&OAuthProvider::OpenAICodex, Some("Bearer already-prefixed"))
             .unwrap();
         assert_eq!(header, "Bearer already-prefixed");
     }
@@ -638,8 +599,7 @@ mod tests {
 
     #[test]
     fn test_anthropic_not_long_retention() {
-        let cfg =
-            CacheRetentionConfig::for_provider(&OAuthProvider::AnthropicClaude);
+        let cfg = CacheRetentionConfig::for_provider(&OAuthProvider::AnthropicClaude);
         assert_eq!(cfg.retention_seconds, 3_600);
         assert!(!cfg.is_long_retention());
     }

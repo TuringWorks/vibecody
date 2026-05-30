@@ -22,20 +22,48 @@ use tokio::process::Command;
 /// Events that hooks can respond to.
 #[derive(Debug, Clone, Serialize)]
 pub enum HookEvent {
-    SessionStart { session_id: String },
+    SessionStart {
+        session_id: String,
+    },
     /// Fires before the agent processes the user's prompt. Blocking cancels the task.
-    UserPromptSubmit { prompt: String, session_id: String },
-    PreToolUse { call: ToolCall, session_id: String },
-    PostToolUse { call: ToolCall, result: ToolResult, session_id: String },
-    Stop { reason: String, session_id: String },
-    TaskCompleted { summary: String, session_id: String },
-    SubagentStart { name: String },
+    UserPromptSubmit {
+        prompt: String,
+        session_id: String,
+    },
+    PreToolUse {
+        call: ToolCall,
+        session_id: String,
+    },
+    PostToolUse {
+        call: ToolCall,
+        result: ToolResult,
+        session_id: String,
+    },
+    Stop {
+        reason: String,
+        session_id: String,
+    },
+    TaskCompleted {
+        summary: String,
+        session_id: String,
+    },
+    SubagentStart {
+        name: String,
+    },
     /// Fires when a file is written (e.g. by the agent's WriteFile tool or by the editor save).
-    FileSaved { path: String, content: String, language: String },
+    FileSaved {
+        path: String,
+        content: String,
+        language: String,
+    },
     /// Fires when a new file is created.
-    FileCreated { path: String },
+    FileCreated {
+        path: String,
+    },
     /// Fires when a file is deleted.
-    FileDeleted { path: String },
+    FileDeleted {
+        path: String,
+    },
 }
 
 impl HookEvent {
@@ -128,8 +156,12 @@ pub enum HookHandler {
     },
 }
 
-fn default_http_method() -> String { "POST".to_string() }
-fn default_http_timeout_ms() -> u64 { 10_000 }
+fn default_http_method() -> String {
+    "POST".to_string()
+}
+fn default_http_timeout_ms() -> u64 {
+    10_000
+}
 
 // ── HookConfig ────────────────────────────────────────────────────────────────
 
@@ -238,11 +270,17 @@ pub struct HookRunner {
 
 impl HookRunner {
     pub fn new(configs: Vec<HookConfig>) -> Self {
-        Self { configs, llm_provider: None }
+        Self {
+            configs,
+            llm_provider: None,
+        }
     }
 
     pub fn empty() -> Self {
-        Self { configs: vec![], llm_provider: None }
+        Self {
+            configs: vec![],
+            llm_provider: None,
+        }
     }
 
     /// Attach an LLM provider so `handler = { llm = "..." }` hooks can evaluate.
@@ -315,9 +353,12 @@ async fn exec_handler(
     match &config.handler {
         HookHandler::Command { shell } => exec_shell_hook(shell, event).await,
         HookHandler::Llm { prompt } => exec_llm_hook(prompt, event, llm).await,
-        HookHandler::Http { url, method, headers, timeout_ms } => {
-            exec_http_hook(url, method, headers, *timeout_ms, event).await
-        }
+        HookHandler::Http {
+            url,
+            method,
+            headers,
+            timeout_ms,
+        } => exec_http_hook(url, method, headers, *timeout_ms, event).await,
     }
 }
 
@@ -329,7 +370,10 @@ async fn exec_llm_hook(
     let provider = match llm {
         Some(p) => p,
         None => {
-            tracing::debug!("LLM hook for '{}' skipped — no provider set", event.type_name());
+            tracing::debug!(
+                "LLM hook for '{}' skipped — no provider set",
+                event.type_name()
+            );
             return Ok(HookDecision::Allow);
         }
     };
@@ -338,9 +382,10 @@ async fn exec_llm_hook(
     let payload_str = serde_json::to_string(&payload).unwrap_or_default();
     let full_prompt = format!("{}\n\nEvent JSON:\n{}", prompt, payload_str);
 
-    let messages = vec![
-        Message { role: MessageRole::User, content: full_prompt },
-    ];
+    let messages = vec![Message {
+        role: MessageRole::User,
+        content: full_prompt,
+    }];
 
     match provider.chat(&messages, None).await {
         Ok(response) => {
@@ -361,7 +406,9 @@ async fn exec_llm_hook(
             if let Ok(resp) = serde_json::from_str::<LlmHookResponse>(json_str) {
                 if !resp.ok {
                     return Ok(HookDecision::Block {
-                        reason: resp.reason.unwrap_or_else(|| "LLM hook blocked".to_string()),
+                        reason: resp
+                            .reason
+                            .unwrap_or_else(|| "LLM hook blocked".to_string()),
                     });
                 }
                 if let Some(nits) = resp.nits {
@@ -433,7 +480,9 @@ async fn exec_http_hook(
             match decision.as_str() {
                 "block" => {
                     return Ok(HookDecision::Block {
-                        reason: resp.reason.unwrap_or_else(|| "Blocked by HTTP hook".to_string()),
+                        reason: resp
+                            .reason
+                            .unwrap_or_else(|| "Blocked by HTTP hook".to_string()),
                     });
                 }
                 "inject" => {
@@ -447,7 +496,9 @@ async fn exec_http_hook(
         // Fall back to allow/context fields
         if resp.allow == Some(false) {
             return Ok(HookDecision::Block {
-                reason: resp.reason.unwrap_or_else(|| "Blocked by HTTP hook".to_string()),
+                reason: resp
+                    .reason
+                    .unwrap_or_else(|| "Blocked by HTTP hook".to_string()),
             });
         }
         if let Some(ctx) = resp.context {
@@ -489,7 +540,11 @@ async fn exec_shell_hook(shell: &str, event: &HookEvent) -> Result<HookDecision>
             stdout.clone()
         };
         return Ok(HookDecision::Block {
-            reason: if reason.is_empty() { "Blocked by hook".to_string() } else { reason },
+            reason: if reason.is_empty() {
+                "Blocked by hook".to_string()
+            } else {
+                reason
+            },
         });
     }
 
@@ -539,7 +594,11 @@ fn build_payload(event: &HookEvent) -> HookPayload {
             input: serde_json::to_value(call).ok(),
             output: None,
         },
-        HookEvent::PostToolUse { call, result, session_id } => HookPayload {
+        HookEvent::PostToolUse {
+            call,
+            result,
+            session_id,
+        } => HookPayload {
             event: "PostToolUse",
             session_id: session_id.clone(),
             tool: Some(call.name().to_string()),
@@ -553,7 +612,10 @@ fn build_payload(event: &HookEvent) -> HookPayload {
             input: None,
             output: Some(reason.clone()),
         },
-        HookEvent::TaskCompleted { summary, session_id } => HookPayload {
+        HookEvent::TaskCompleted {
+            summary,
+            session_id,
+        } => HookPayload {
             event: "TaskCompleted",
             session_id: session_id.clone(),
             tool: None,
@@ -574,7 +636,11 @@ fn build_payload(event: &HookEvent) -> HookPayload {
             input: Some(serde_json::json!({ "name": name })),
             output: None,
         },
-        HookEvent::FileSaved { path, content, language } => HookPayload {
+        HookEvent::FileSaved {
+            path,
+            content,
+            language,
+        } => HookPayload {
             event: "FileSaved",
             session_id: "file".to_string(),
             tool: None,
@@ -683,7 +749,9 @@ mod tests {
 
     fn pre_tool_call() -> HookEvent {
         HookEvent::PreToolUse {
-            call: ToolCall::Bash { command: "cargo build".to_string() },
+            call: ToolCall::Bash {
+                command: "cargo build".to_string(),
+            },
             session_id: "test-session".to_string(),
         }
     }
@@ -693,7 +761,9 @@ mod tests {
         let cfg = HookConfig {
             event: "PreToolUse".to_string(),
             tools: None,
-            handler: HookHandler::Command { shell: "true".to_string() },
+            handler: HookHandler::Command {
+                shell: "true".to_string(),
+            },
             paths: None,
             async_exec: false,
         };
@@ -705,7 +775,9 @@ mod tests {
         let cfg = HookConfig {
             event: "PreToolUse".to_string(),
             tools: Some(vec!["bash".to_string()]),
-            handler: HookHandler::Command { shell: "true".to_string() },
+            handler: HookHandler::Command {
+                shell: "true".to_string(),
+            },
             paths: None,
             async_exec: false,
         };
@@ -717,7 +789,9 @@ mod tests {
         let cfg = HookConfig {
             event: "PreToolUse".to_string(),
             tools: Some(vec!["write_file".to_string()]),
-            handler: HookHandler::Command { shell: "true".to_string() },
+            handler: HookHandler::Command {
+                shell: "true".to_string(),
+            },
             paths: None,
             async_exec: false,
         };
@@ -729,7 +803,9 @@ mod tests {
         let cfg = HookConfig {
             event: "PostToolUse".to_string(),
             tools: None,
-            handler: HookHandler::Command { shell: "true".to_string() },
+            handler: HookHandler::Command {
+                shell: "true".to_string(),
+            },
             paths: None,
             async_exec: false,
         };
@@ -745,19 +821,29 @@ mod tests {
             Some(&["task_complete".to_string()][..])
         );
         assert!(matches!(cfg.handler, HookHandler::Llm { .. }));
-        assert!(!cfg.async_exec, "verifier must be synchronous so it can block");
+        assert!(
+            !cfg.async_exec,
+            "verifier must be synchronous so it can block"
+        );
         let post_complete = HookEvent::PostToolUse {
-            call: ToolCall::TaskComplete { summary: "done".into() },
+            call: ToolCall::TaskComplete {
+                summary: "done".into(),
+            },
             result: ToolResult::ok("task_complete", "done"),
             session_id: "s".into(),
         };
         assert!(cfg.matches(&post_complete));
         let post_other = HookEvent::PostToolUse {
-            call: ToolCall::Bash { command: "ls".into() },
+            call: ToolCall::Bash {
+                command: "ls".into(),
+            },
             result: ToolResult::ok("bash", "x"),
             session_id: "s".into(),
         };
-        assert!(!cfg.matches(&post_other), "verifier must not fire on non-task_complete tools");
+        assert!(
+            !cfg.matches(&post_other),
+            "verifier must not fire on non-task_complete tools"
+        );
     }
 
     #[test]
@@ -785,7 +871,9 @@ mod tests {
             event: "PreToolUse".to_string(),
             tools: None,
             paths: None,
-            handler: HookHandler::Command { shell: "exit 0".to_string() },
+            handler: HookHandler::Command {
+                shell: "exit 0".to_string(),
+            },
             async_exec: false,
         }]);
         let decision = runner.run(&pre_tool_call()).await;
@@ -826,49 +914,70 @@ mod tests {
 
     #[test]
     fn type_name_session_start() {
-        let e = HookEvent::SessionStart { session_id: "s".into() };
+        let e = HookEvent::SessionStart {
+            session_id: "s".into(),
+        };
         assert_eq!(e.type_name(), "SessionStart");
     }
 
     #[test]
     fn type_name_user_prompt_submit() {
-        let e = HookEvent::UserPromptSubmit { prompt: "hi".into(), session_id: "s".into() };
+        let e = HookEvent::UserPromptSubmit {
+            prompt: "hi".into(),
+            session_id: "s".into(),
+        };
         assert_eq!(e.type_name(), "UserPromptSubmit");
     }
 
     #[test]
     fn type_name_stop() {
-        let e = HookEvent::Stop { reason: "done".into(), session_id: "s".into() };
+        let e = HookEvent::Stop {
+            reason: "done".into(),
+            session_id: "s".into(),
+        };
         assert_eq!(e.type_name(), "Stop");
     }
 
     #[test]
     fn type_name_task_completed() {
-        let e = HookEvent::TaskCompleted { summary: "ok".into(), session_id: "s".into() };
+        let e = HookEvent::TaskCompleted {
+            summary: "ok".into(),
+            session_id: "s".into(),
+        };
         assert_eq!(e.type_name(), "TaskCompleted");
     }
 
     #[test]
     fn type_name_subagent_start() {
-        let e = HookEvent::SubagentStart { name: "worker".into() };
+        let e = HookEvent::SubagentStart {
+            name: "worker".into(),
+        };
         assert_eq!(e.type_name(), "SubagentStart");
     }
 
     #[test]
     fn type_name_file_saved() {
-        let e = HookEvent::FileSaved { path: "/a.rs".into(), content: "c".into(), language: "rust".into() };
+        let e = HookEvent::FileSaved {
+            path: "/a.rs".into(),
+            content: "c".into(),
+            language: "rust".into(),
+        };
         assert_eq!(e.type_name(), "FileSaved");
     }
 
     #[test]
     fn type_name_file_created() {
-        let e = HookEvent::FileCreated { path: "/a.rs".into() };
+        let e = HookEvent::FileCreated {
+            path: "/a.rs".into(),
+        };
         assert_eq!(e.type_name(), "FileCreated");
     }
 
     #[test]
     fn type_name_file_deleted() {
-        let e = HookEvent::FileDeleted { path: "/a.rs".into() };
+        let e = HookEvent::FileDeleted {
+            path: "/a.rs".into(),
+        };
         assert_eq!(e.type_name(), "FileDeleted");
     }
 
@@ -883,15 +992,24 @@ mod tests {
 
     #[test]
     fn tool_name_none_for_non_tool_events() {
-        let e = HookEvent::SessionStart { session_id: "s".into() };
+        let e = HookEvent::SessionStart {
+            session_id: "s".into(),
+        };
         assert!(e.tool_name().is_none());
     }
 
     #[test]
     fn tool_name_post_tool_use() {
         let e = HookEvent::PostToolUse {
-            call: ToolCall::Bash { command: "ls".to_string() },
-            result: crate::tools::ToolResult { tool_name: "bash".into(), output: "ok".into(), success: true, truncated: false },
+            call: ToolCall::Bash {
+                command: "ls".to_string(),
+            },
+            result: crate::tools::ToolResult {
+                tool_name: "bash".into(),
+                output: "ok".into(),
+                success: true,
+                truncated: false,
+            },
             session_id: "s".into(),
         };
         assert_eq!(e.tool_name(), Some("bash"));
@@ -901,25 +1019,36 @@ mod tests {
 
     #[test]
     fn file_path_file_saved() {
-        let e = HookEvent::FileSaved { path: "/src/main.rs".into(), content: "".into(), language: "rust".into() };
+        let e = HookEvent::FileSaved {
+            path: "/src/main.rs".into(),
+            content: "".into(),
+            language: "rust".into(),
+        };
         assert_eq!(e.file_path(), Some("/src/main.rs"));
     }
 
     #[test]
     fn file_path_file_created() {
-        let e = HookEvent::FileCreated { path: "/new.ts".into() };
+        let e = HookEvent::FileCreated {
+            path: "/new.ts".into(),
+        };
         assert_eq!(e.file_path(), Some("/new.ts"));
     }
 
     #[test]
     fn file_path_file_deleted() {
-        let e = HookEvent::FileDeleted { path: "/old.py".into() };
+        let e = HookEvent::FileDeleted {
+            path: "/old.py".into(),
+        };
         assert_eq!(e.file_path(), Some("/old.py"));
     }
 
     #[test]
     fn file_path_none_for_non_file_events() {
-        let e = HookEvent::Stop { reason: "done".into(), session_id: "s".into() };
+        let e = HookEvent::Stop {
+            reason: "done".into(),
+            session_id: "s".into(),
+        };
         assert!(e.file_path().is_none());
     }
 
@@ -936,7 +1065,9 @@ mod tests {
             event: "PreToolUse".to_string(),
             tools: None,
             paths: None,
-            handler: HookHandler::Command { shell: "true".to_string() },
+            handler: HookHandler::Command {
+                shell: "true".to_string(),
+            },
             async_exec: false,
         }]);
         assert!(!runner.is_empty());
@@ -950,7 +1081,9 @@ mod tests {
             event: "FileSaved".to_string(),
             tools: None,
             paths: Some(vec!["**/*.rs".to_string()]),
-            handler: HookHandler::Command { shell: "true".to_string() },
+            handler: HookHandler::Command {
+                shell: "true".to_string(),
+            },
             async_exec: false,
         };
         let event = HookEvent::FileSaved {
@@ -967,7 +1100,9 @@ mod tests {
             event: "FileSaved".to_string(),
             tools: None,
             paths: Some(vec!["**/*.rs".to_string()]),
-            handler: HookHandler::Command { shell: "true".to_string() },
+            handler: HookHandler::Command {
+                shell: "true".to_string(),
+            },
             async_exec: false,
         };
         let event = HookEvent::FileSaved {
@@ -984,10 +1119,14 @@ mod tests {
             event: "SessionStart".to_string(),
             tools: None,
             paths: Some(vec!["**/*.rs".to_string()]),
-            handler: HookHandler::Command { shell: "true".to_string() },
+            handler: HookHandler::Command {
+                shell: "true".to_string(),
+            },
             async_exec: false,
         };
-        let event = HookEvent::SessionStart { session_id: "s".into() };
+        let event = HookEvent::SessionStart {
+            session_id: "s".into(),
+        };
         assert!(!cfg.matches(&event));
     }
 
@@ -1050,12 +1189,21 @@ mod tests {
         let handler = HookHandler::Http {
             url: "https://example.com/hook".to_string(),
             method: "POST".to_string(),
-            headers: std::collections::HashMap::from([("Authorization".to_string(), "Bearer tok".to_string())]),
+            headers: std::collections::HashMap::from([(
+                "Authorization".to_string(),
+                "Bearer tok".to_string(),
+            )]),
             timeout_ms: 5000,
         };
         let json = serde_json::to_string(&handler).unwrap();
         let back: HookHandler = serde_json::from_str(&json).unwrap();
-        if let HookHandler::Http { url, method, headers, timeout_ms } = back {
+        if let HookHandler::Http {
+            url,
+            method,
+            headers,
+            timeout_ms,
+        } = back
+        {
             assert_eq!(url, "https://example.com/hook");
             assert_eq!(method, "POST");
             assert_eq!(headers.get("Authorization").unwrap(), "Bearer tok");
@@ -1070,7 +1218,13 @@ mod tests {
         // Deserialize with minimal fields (method + timeout_ms use defaults)
         let json = r#"{"http":{"url":"https://example.com"}}"#;
         let handler: HookHandler = serde_json::from_str(json).unwrap();
-        if let HookHandler::Http { url, method, headers, timeout_ms } = handler {
+        if let HookHandler::Http {
+            url,
+            method,
+            headers,
+            timeout_ms,
+        } = handler
+        {
             assert_eq!(url, "https://example.com");
             assert_eq!(method, "POST");
             assert!(headers.is_empty());
@@ -1099,7 +1253,9 @@ mod tests {
 
     #[test]
     fn hook_handler_command_serde() {
-        let handler = HookHandler::Command { shell: "echo hi".to_string() };
+        let handler = HookHandler::Command {
+            shell: "echo hi".to_string(),
+        };
         let json = serde_json::to_string(&handler).unwrap();
         let back: HookHandler = serde_json::from_str(&json).unwrap();
         if let HookHandler::Command { shell } = back {
@@ -1111,7 +1267,9 @@ mod tests {
 
     #[test]
     fn hook_handler_llm_serde() {
-        let handler = HookHandler::Llm { prompt: "check safety".to_string() };
+        let handler = HookHandler::Llm {
+            prompt: "check safety".to_string(),
+        };
         let json = serde_json::to_string(&handler).unwrap();
         let back: HookHandler = serde_json::from_str(&json).unwrap();
         if let HookHandler::Llm { prompt } = back {
@@ -1129,7 +1287,9 @@ mod tests {
             event: "PreToolUse".to_string(),
             tools: Some(vec!["bash".to_string()]),
             paths: None,
-            handler: HookHandler::Command { shell: "true".to_string() },
+            handler: HookHandler::Command {
+                shell: "true".to_string(),
+            },
             async_exec: true,
         };
         let json = serde_json::to_string(&cfg).unwrap();
@@ -1167,7 +1327,9 @@ mod tests {
 
     #[test]
     fn build_payload_subagent_start() {
-        let event = HookEvent::SubagentStart { name: "worker".into() };
+        let event = HookEvent::SubagentStart {
+            name: "worker".into(),
+        };
         let payload = build_payload(&event);
         assert_eq!(payload.event, "SubagentStart");
         assert_eq!(payload.session_id, "unknown");
@@ -1177,7 +1339,9 @@ mod tests {
 
     #[test]
     fn build_payload_session_start() {
-        let event = HookEvent::SessionStart { session_id: "sess-1".into() };
+        let event = HookEvent::SessionStart {
+            session_id: "sess-1".into(),
+        };
         let payload = build_payload(&event);
         assert_eq!(payload.event, "SessionStart");
         assert_eq!(payload.session_id, "sess-1");
@@ -1188,7 +1352,10 @@ mod tests {
 
     #[test]
     fn build_payload_user_prompt_submit() {
-        let event = HookEvent::UserPromptSubmit { prompt: "fix the bug".into(), session_id: "s1".into() };
+        let event = HookEvent::UserPromptSubmit {
+            prompt: "fix the bug".into(),
+            session_id: "s1".into(),
+        };
         let payload = build_payload(&event);
         assert_eq!(payload.event, "UserPromptSubmit");
         assert_eq!(payload.session_id, "s1");
@@ -1198,7 +1365,10 @@ mod tests {
 
     #[test]
     fn build_payload_stop() {
-        let event = HookEvent::Stop { reason: "max_steps".into(), session_id: "s1".into() };
+        let event = HookEvent::Stop {
+            reason: "max_steps".into(),
+            session_id: "s1".into(),
+        };
         let payload = build_payload(&event);
         assert_eq!(payload.event, "Stop");
         assert_eq!(payload.output, Some("max_steps".into()));
@@ -1206,7 +1376,10 @@ mod tests {
 
     #[test]
     fn build_payload_task_completed() {
-        let event = HookEvent::TaskCompleted { summary: "All done".into(), session_id: "s1".into() };
+        let event = HookEvent::TaskCompleted {
+            summary: "All done".into(),
+            session_id: "s1".into(),
+        };
         let payload = build_payload(&event);
         assert_eq!(payload.event, "TaskCompleted");
         assert_eq!(payload.output, Some("All done".into()));
@@ -1214,7 +1387,9 @@ mod tests {
 
     #[test]
     fn build_payload_file_created() {
-        let event = HookEvent::FileCreated { path: "/src/new.rs".into() };
+        let event = HookEvent::FileCreated {
+            path: "/src/new.rs".into(),
+        };
         let payload = build_payload(&event);
         assert_eq!(payload.event, "FileCreated");
         assert_eq!(payload.session_id, "file");
@@ -1224,7 +1399,9 @@ mod tests {
 
     #[test]
     fn build_payload_file_deleted() {
-        let event = HookEvent::FileDeleted { path: "/tmp/old.rs".into() };
+        let event = HookEvent::FileDeleted {
+            path: "/tmp/old.rs".into(),
+        };
         let payload = build_payload(&event);
         assert_eq!(payload.event, "FileDeleted");
         let input = payload.input.unwrap();
@@ -1234,8 +1411,15 @@ mod tests {
     #[test]
     fn build_payload_post_tool_use() {
         let event = HookEvent::PostToolUse {
-            call: ToolCall::Bash { command: "ls".to_string() },
-            result: crate::tools::ToolResult { tool_name: "bash".into(), output: "file1.rs".into(), success: true, truncated: false },
+            call: ToolCall::Bash {
+                command: "ls".to_string(),
+            },
+            result: crate::tools::ToolResult {
+                tool_name: "bash".into(),
+                output: "file1.rs".into(),
+                success: true,
+                truncated: false,
+            },
             session_id: "s1".into(),
         };
         let payload = build_payload(&event);
@@ -1258,7 +1442,9 @@ mod tests {
 
     #[test]
     fn hook_payload_skips_none_fields() {
-        let event = HookEvent::SessionStart { session_id: "s".into() };
+        let event = HookEvent::SessionStart {
+            session_id: "s".into(),
+        };
         let payload = build_payload(&event);
         let json = serde_json::to_string(&payload).unwrap();
         // tool, input, output should not appear in JSON (skip_serializing_if)
@@ -1279,18 +1465,16 @@ mod tests {
 
     #[test]
     fn hook_response_block_with_reason() {
-        let resp: HookResponse = serde_json::from_str(
-            r#"{"allow": false, "reason": "unsafe operation"}"#
-        ).unwrap();
+        let resp: HookResponse =
+            serde_json::from_str(r#"{"allow": false, "reason": "unsafe operation"}"#).unwrap();
         assert_eq!(resp.allow, Some(false));
         assert_eq!(resp.reason.as_deref(), Some("unsafe operation"));
     }
 
     #[test]
     fn hook_response_context_injection() {
-        let resp: HookResponse = serde_json::from_str(
-            r#"{"context": "lint results: all clean"}"#
-        ).unwrap();
+        let resp: HookResponse =
+            serde_json::from_str(r#"{"context": "lint results: all clean"}"#).unwrap();
         assert!(resp.allow.is_none());
         assert_eq!(resp.context.as_deref(), Some("lint results: all clean"));
     }
@@ -1350,9 +1534,11 @@ mod tests {
     fn hook_config_matches_tool_substring() {
         let cfg = HookConfig {
             event: "PreToolUse".to_string(),
-            tools: Some(vec!["bas".to_string()]),  // substring of "bash"
+            tools: Some(vec!["bas".to_string()]), // substring of "bash"
             paths: None,
-            handler: HookHandler::Command { shell: "true".to_string() },
+            handler: HookHandler::Command {
+                shell: "true".to_string(),
+            },
             async_exec: false,
         };
         assert!(cfg.matches(&pre_tool_call()));
@@ -1364,7 +1550,9 @@ mod tests {
             event: "PreToolUse".to_string(),
             tools: Some(vec!["write_file".to_string(), "bash".to_string()]),
             paths: None,
-            handler: HookHandler::Command { shell: "true".to_string() },
+            handler: HookHandler::Command {
+                shell: "true".to_string(),
+            },
             async_exec: false,
         };
         assert!(cfg.matches(&pre_tool_call()));
@@ -1376,10 +1564,14 @@ mod tests {
             event: "SessionStart".to_string(),
             tools: Some(vec!["bash".to_string()]),
             paths: None,
-            handler: HookHandler::Command { shell: "true".to_string() },
+            handler: HookHandler::Command {
+                shell: "true".to_string(),
+            },
             async_exec: false,
         };
-        let event = HookEvent::SessionStart { session_id: "s".into() };
+        let event = HookEvent::SessionStart {
+            session_id: "s".into(),
+        };
         // tools filter set, but event has no tool_name → should not match
         assert!(!cfg.matches(&event));
     }
@@ -1400,7 +1592,11 @@ mod tests {
 
     #[test]
     fn session_id_for_file_events_is_file() {
-        let e = HookEvent::FileSaved { path: "/a".into(), content: "c".into(), language: "rs".into() };
+        let e = HookEvent::FileSaved {
+            path: "/a".into(),
+            content: "c".into(),
+            language: "rs".into(),
+        };
         assert_eq!(e.session_id(), "file");
     }
 }

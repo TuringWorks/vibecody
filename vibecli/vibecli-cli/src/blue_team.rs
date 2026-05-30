@@ -383,7 +383,10 @@ impl BlueTeamManager {
     pub fn generate_detection_query(&self, platform: &SiemPlatform, ioc: &str) -> String {
         match platform {
             SiemPlatform::Splunk => {
-                format!("index=main (src_ip=\"{}\" OR dest_ip=\"{}\" OR url=\"{}\" OR hash=\"{}\")", ioc, ioc, ioc, ioc)
+                format!(
+                    "index=main (src_ip=\"{}\" OR dest_ip=\"{}\" OR url=\"{}\" OR hash=\"{}\")",
+                    ioc, ioc, ioc, ioc
+                )
             }
             SiemPlatform::Sentinel => {
                 format!(
@@ -416,7 +419,10 @@ impl BlueTeamManager {
                 )
             }
             SiemPlatform::Datadog => {
-                format!("source:security @network.client.ip:\"{}\" OR @http.url:\"{}\"", ioc, ioc)
+                format!(
+                    "source:security @network.client.ip:\"{}\" OR @http.url:\"{}\"",
+                    ioc, ioc
+                )
             }
             SiemPlatform::SumoLogic => {
                 format!(
@@ -657,7 +663,10 @@ impl BlueTeamManager {
         report.push_str(&format!("- Total IOCs: {}\n", self.iocs.len()));
         report.push_str(&format!("- Detection rules: {}\n", self.rules.len()));
         report.push_str(&format!("- Playbooks: {}\n", self.playbooks.len()));
-        report.push_str(&format!("- Forensic cases: {}\n", self.forensic_cases.len()));
+        report.push_str(&format!(
+            "- Forensic cases: {}\n",
+            self.forensic_cases.len()
+        ));
         report.push_str(&format!("- Hunt queries: {}\n", self.hunt_queries.len()));
 
         report
@@ -709,7 +718,11 @@ mod tests {
     #[test]
     fn test_add_incident() {
         let mut mgr = make_manager();
-        let id = mgr.add_incident("Phishing campaign", IncidentSeverity::P2High, ThreatCategory::Phishing);
+        let id = mgr.add_incident(
+            "Phishing campaign",
+            IncidentSeverity::P2High,
+            ThreatCategory::Phishing,
+        );
         assert!(id.starts_with("INC-"));
         assert_eq!(mgr.incidents.len(), 1);
         assert_eq!(mgr.incidents[0].title, "Phishing campaign");
@@ -719,7 +732,11 @@ mod tests {
     #[test]
     fn test_add_multiple_incidents() {
         let mut mgr = make_manager();
-        let id1 = mgr.add_incident("Inc 1", IncidentSeverity::P1Critical, ThreatCategory::Malware);
+        let id1 = mgr.add_incident(
+            "Inc 1",
+            IncidentSeverity::P1Critical,
+            ThreatCategory::Malware,
+        );
         let id2 = mgr.add_incident("Inc 2", IncidentSeverity::P4Low, ThreatCategory::DDoS);
         assert_ne!(id1, id2);
         assert_eq!(mgr.incidents.len(), 2);
@@ -742,7 +759,11 @@ mod tests {
     #[test]
     fn test_add_timeline_entry() {
         let mut mgr = make_manager();
-        let id = mgr.add_incident("Test", IncidentSeverity::P1Critical, ThreatCategory::Ransomware);
+        let id = mgr.add_incident(
+            "Test",
+            IncidentSeverity::P1Critical,
+            ThreatCategory::Ransomware,
+        );
         assert!(mgr.add_timeline_entry(&id, "Contained host", "analyst1", "Isolated server-01"));
         assert_eq!(mgr.incidents[0].timeline.len(), 2); // creation + new entry
     }
@@ -773,7 +794,12 @@ mod tests {
     fn test_toggle_rule() {
         let mut mgr = make_manager();
         let id = mgr.add_detection_rule(
-            "Test Rule", "desc", SiemPlatform::Sentinel, "query", vec![], IncidentSeverity::P4Low,
+            "Test Rule",
+            "desc",
+            SiemPlatform::Sentinel,
+            "query",
+            vec![],
+            IncidentSeverity::P4Low,
         );
         assert!(mgr.rules[0].enabled);
         assert!(mgr.toggle_rule(&id));
@@ -791,7 +817,12 @@ mod tests {
     #[test]
     fn test_add_ioc() {
         let mut mgr = make_manager();
-        let id = mgr.add_ioc(IocType::IpAddress, "192.168.1.100", 0.95, "threat-intel-feed");
+        let id = mgr.add_ioc(
+            IocType::IpAddress,
+            "192.168.1.100",
+            0.95,
+            "threat-intel-feed",
+        );
         assert!(id.starts_with("IOC-"));
         assert_eq!(mgr.iocs.len(), 1);
         assert_eq!(mgr.iocs[0].confidence, 0.95);
@@ -913,7 +944,11 @@ mod tests {
     #[test]
     fn test_create_forensic_case() {
         let mut mgr = make_manager();
-        let inc_id = mgr.add_incident("Test", IncidentSeverity::P1Critical, ThreatCategory::Malware);
+        let inc_id = mgr.add_incident(
+            "Test",
+            IncidentSeverity::P1Critical,
+            ThreatCategory::Malware,
+        );
         let case_id = mgr.create_forensic_case(&inc_id);
         assert!(case_id.is_some());
         assert!(case_id.unwrap().starts_with("CASE-"));
@@ -929,7 +964,11 @@ mod tests {
     #[test]
     fn test_add_forensic_artifact() {
         let mut mgr = make_manager();
-        let inc_id = mgr.add_incident("Test", IncidentSeverity::P2High, ThreatCategory::Exfiltration);
+        let inc_id = mgr.add_incident(
+            "Test",
+            IncidentSeverity::P2High,
+            ThreatCategory::Exfiltration,
+        );
         let case_id = mgr.create_forensic_case(&inc_id).expect("case created");
         assert!(mgr.add_forensic_artifact(
             &case_id,
@@ -957,13 +996,28 @@ mod tests {
     #[test]
     fn test_add_chain_of_custody() {
         let mut mgr = make_manager();
-        let inc_id = mgr.add_incident("Test", IncidentSeverity::P3Medium, ThreatCategory::InsiderThreat);
+        let inc_id = mgr.add_incident(
+            "Test",
+            IncidentSeverity::P3Medium,
+            ThreatCategory::InsiderThreat,
+        );
         let case_id = mgr.create_forensic_case(&inc_id).expect("case");
-        assert!(mgr.add_chain_of_custody(&case_id, "analyst1", "Collected", "RAM dump from workstation"));
+        assert!(mgr.add_chain_of_custody(
+            &case_id,
+            "analyst1",
+            "Collected",
+            "RAM dump from workstation"
+        ));
         assert!(mgr.add_chain_of_custody(&case_id, "forensics-lab", "Received", "Verified hash"));
         assert_eq!(mgr.forensic_cases[0].chain_of_custody.len(), 2);
-        assert_eq!(mgr.forensic_cases[0].chain_of_custody[0].handler, "analyst1");
-        assert_eq!(mgr.forensic_cases[0].chain_of_custody[1].handler, "forensics-lab");
+        assert_eq!(
+            mgr.forensic_cases[0].chain_of_custody[0].handler,
+            "analyst1"
+        );
+        assert_eq!(
+            mgr.forensic_cases[0].chain_of_custody[1].handler,
+            "forensics-lab"
+        );
     }
 
     #[test]
@@ -985,9 +1039,27 @@ mod tests {
     fn test_add_playbook_steps() {
         let mut mgr = make_manager();
         let pb_id = mgr.add_playbook("Phishing Response", ThreatCategory::Phishing);
-        assert!(mgr.add_playbook_step(&pb_id, PlaybookActionType::Isolate, "Isolate affected endpoint", true, 60));
-        assert!(mgr.add_playbook_step(&pb_id, PlaybookActionType::Collect, "Collect email headers", false, 300));
-        assert!(mgr.add_playbook_step(&pb_id, PlaybookActionType::Block, "Block sender domain", true, 30));
+        assert!(mgr.add_playbook_step(
+            &pb_id,
+            PlaybookActionType::Isolate,
+            "Isolate affected endpoint",
+            true,
+            60
+        ));
+        assert!(mgr.add_playbook_step(
+            &pb_id,
+            PlaybookActionType::Collect,
+            "Collect email headers",
+            false,
+            300
+        ));
+        assert!(mgr.add_playbook_step(
+            &pb_id,
+            PlaybookActionType::Block,
+            "Block sender domain",
+            true,
+            30
+        ));
         assert_eq!(mgr.playbooks[0].steps.len(), 3);
         assert_eq!(mgr.playbooks[0].steps[0].order, 1);
         assert_eq!(mgr.playbooks[0].steps[1].order, 2);
@@ -1004,7 +1076,13 @@ mod tests {
     fn test_run_playbook_dry() {
         let mut mgr = make_manager();
         let pb_id = mgr.add_playbook("IR Plan", ThreatCategory::Malware);
-        mgr.add_playbook_step(&pb_id, PlaybookActionType::Isolate, "Isolate host", true, 60);
+        mgr.add_playbook_step(
+            &pb_id,
+            PlaybookActionType::Isolate,
+            "Isolate host",
+            true,
+            60,
+        );
         mgr.add_playbook_step(&pb_id, PlaybookActionType::Scan, "Run AV scan", true, 600);
 
         let result = mgr.run_playbook_dry(&pb_id);
@@ -1050,7 +1128,11 @@ mod tests {
     #[test]
     fn test_get_incident() {
         let mut mgr = make_manager();
-        let id = mgr.add_incident("Found it", IncidentSeverity::P4Low, ThreatCategory::SupplyChain);
+        let id = mgr.add_incident(
+            "Found it",
+            IncidentSeverity::P4Low,
+            ThreatCategory::SupplyChain,
+        );
         assert!(mgr.get_incident(&id).is_some());
         assert_eq!(mgr.get_incident(&id).unwrap().title, "Found it");
         assert!(mgr.get_incident("NONEXISTENT").is_none());
@@ -1059,7 +1141,11 @@ mod tests {
     #[test]
     fn test_get_open_incidents() {
         let mut mgr = make_manager();
-        let id1 = mgr.add_incident("Open 1", IncidentSeverity::P1Critical, ThreatCategory::Malware);
+        let id1 = mgr.add_incident(
+            "Open 1",
+            IncidentSeverity::P1Critical,
+            ThreatCategory::Malware,
+        );
         mgr.add_incident("Open 2", IncidentSeverity::P2High, ThreatCategory::Phishing);
         mgr.update_incident_status(&id1, IncidentStatus::Closed);
 
@@ -1071,7 +1157,11 @@ mod tests {
     #[test]
     fn test_get_incidents_by_severity() {
         let mut mgr = make_manager();
-        mgr.add_incident("Crit 1", IncidentSeverity::P1Critical, ThreatCategory::Ransomware);
+        mgr.add_incident(
+            "Crit 1",
+            IncidentSeverity::P1Critical,
+            ThreatCategory::Ransomware,
+        );
         mgr.add_incident("Low 1", IncidentSeverity::P4Low, ThreatCategory::DDoS);
         mgr.add_incident("Crit 2", IncidentSeverity::P1Critical, ThreatCategory::C2);
 
@@ -1088,7 +1178,11 @@ mod tests {
     #[test]
     fn test_correlate_iocs() {
         let mut mgr = make_manager();
-        let inc_id = mgr.add_incident("Test", IncidentSeverity::P2High, ThreatCategory::Exfiltration);
+        let inc_id = mgr.add_incident(
+            "Test",
+            IncidentSeverity::P2High,
+            ThreatCategory::Exfiltration,
+        );
         mgr.add_ioc(IocType::IpAddress, "10.0.0.1", 0.9, "feed");
         mgr.add_ioc(IocType::Domain, "evil.com", 0.8, "feed");
 
@@ -1120,9 +1214,20 @@ mod tests {
     #[test]
     fn test_export_report_with_data() {
         let mut mgr = make_manager();
-        mgr.add_incident("Breach", IncidentSeverity::P1Critical, ThreatCategory::Malware);
+        mgr.add_incident(
+            "Breach",
+            IncidentSeverity::P1Critical,
+            ThreatCategory::Malware,
+        );
         mgr.add_ioc(IocType::FileHash, "abc123def", 0.95, "virustotal");
-        mgr.add_detection_rule("Rule1", "desc", SiemPlatform::Splunk, "q", vec![], IncidentSeverity::P2High);
+        mgr.add_detection_rule(
+            "Rule1",
+            "desc",
+            SiemPlatform::Splunk,
+            "q",
+            vec![],
+            IncidentSeverity::P2High,
+        );
 
         let report = mgr.export_report();
         assert!(report.contains("Breach"));
@@ -1144,14 +1249,22 @@ mod tests {
     fn test_calculate_mttr_single_entry_only() {
         let mut mgr = make_manager();
         // Incident with only creation entry (1 timeline entry) should not count
-        mgr.add_incident("Test", IncidentSeverity::P1Critical, ThreatCategory::Malware);
+        mgr.add_incident(
+            "Test",
+            IncidentSeverity::P1Critical,
+            ThreatCategory::Malware,
+        );
         assert!(mgr.calculate_mttr().is_none());
     }
 
     #[test]
     fn test_calculate_mttr_with_responses() {
         let mut mgr = make_manager();
-        let id = mgr.add_incident("Test", IncidentSeverity::P1Critical, ThreatCategory::Ransomware);
+        let id = mgr.add_incident(
+            "Test",
+            IncidentSeverity::P1Critical,
+            ThreatCategory::Ransomware,
+        );
         mgr.add_timeline_entry(&id, "Responded", "analyst", "First response");
         // 2 entries total -> (2-1) * 15 = 15 minutes MTTR
         let mttr = mgr.calculate_mttr();
@@ -1162,7 +1275,11 @@ mod tests {
     #[test]
     fn test_incident_created_with_timeline() {
         let mut mgr = make_manager();
-        let id = mgr.add_incident("Auto-timeline", IncidentSeverity::P3Medium, ThreatCategory::LateralMovement);
+        let id = mgr.add_incident(
+            "Auto-timeline",
+            IncidentSeverity::P3Medium,
+            ThreatCategory::LateralMovement,
+        );
         let inc = mgr.get_incident(&id).unwrap();
         assert_eq!(inc.timeline.len(), 1);
         assert_eq!(inc.timeline[0].action, "Incident created");
@@ -1172,7 +1289,11 @@ mod tests {
     #[test]
     fn test_incident_status_transitions() {
         let mut mgr = make_manager();
-        let id = mgr.add_incident("Lifecycle", IncidentSeverity::P2High, ThreatCategory::PrivilegeEscalation);
+        let id = mgr.add_incident(
+            "Lifecycle",
+            IncidentSeverity::P2High,
+            ThreatCategory::PrivilegeEscalation,
+        );
 
         let statuses = vec![
             IncidentStatus::Investigating,
@@ -1192,7 +1313,11 @@ mod tests {
     #[test]
     fn test_forensic_multiple_artifacts() {
         let mut mgr = make_manager();
-        let inc_id = mgr.add_incident("Multi-art", IncidentSeverity::P1Critical, ThreatCategory::Malware);
+        let inc_id = mgr.add_incident(
+            "Multi-art",
+            IncidentSeverity::P1Critical,
+            ThreatCategory::Malware,
+        );
         let case_id = mgr.create_forensic_case(&inc_id).unwrap();
 
         let artifact_types = vec![
@@ -1215,7 +1340,14 @@ mod tests {
         let mut mgr = make_manager();
         let id1 = mgr.add_incident("A", IncidentSeverity::P4Low, ThreatCategory::DDoS);
         let id2 = mgr.add_ioc(IocType::Domain, "x.com", 0.5, "s");
-        let id3 = mgr.add_detection_rule("R", "d", SiemPlatform::Wazuh, "q", vec![], IncidentSeverity::P4Low);
+        let id3 = mgr.add_detection_rule(
+            "R",
+            "d",
+            SiemPlatform::Wazuh,
+            "q",
+            vec![],
+            IncidentSeverity::P4Low,
+        );
         let id4 = mgr.add_playbook("P", ThreatCategory::Phishing);
         // All IDs should be unique
         let ids = vec![&id1, &id2, &id3, &id4];

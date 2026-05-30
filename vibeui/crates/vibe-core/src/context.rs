@@ -104,7 +104,11 @@ impl<'a> ContextBuilder<'a> {
 
                 let diff_block = format!(
                     "\n## Git Diff{}\n```diff\n{}\n```\n",
-                    if diff.len() > diff_budget { " (truncated)" } else { "" },
+                    if diff.len() > diff_budget {
+                        " (truncated)"
+                    } else {
+                        ""
+                    },
                     diff_slice
                 );
                 used_chars += diff_block.len();
@@ -292,7 +296,8 @@ mod tests {
         std::fs::write(
             dir.join("src/lib.rs"),
             "pub fn authenticate_user() {}\npub fn render_page() {}\n",
-        ).unwrap();
+        )
+        .unwrap();
 
         let mut index = CodebaseIndex::new(dir.clone());
         index.build().unwrap();
@@ -348,7 +353,10 @@ mod tests {
             .with_git_diff(&big_diff)
             .with_token_budget(1_000)
             .build_for_task("task");
-        assert!(ctx.contains("(truncated)"), "large diff should show truncated marker");
+        assert!(
+            ctx.contains("(truncated)"),
+            "large diff should show truncated marker"
+        );
     }
 
     #[test]
@@ -359,7 +367,10 @@ mod tests {
             .with_git_diff(small_diff)
             .with_token_budget(10_000)
             .build_for_task("task");
-        assert!(!ctx.contains("(truncated)"), "small diff should not be truncated");
+        assert!(
+            !ctx.contains("(truncated)"),
+            "small diff should not be truncated"
+        );
         assert!(ctx.contains("+added line"));
     }
 
@@ -420,7 +431,10 @@ mod tests {
 
         // The file content should be truncated, showing "..." marker
         if ctx.contains("Open Files") {
-            assert!(ctx.contains("..."), "large file should have truncation marker");
+            assert!(
+                ctx.contains("..."),
+                "large file should have truncation marker"
+            );
         }
 
         let _ = std::fs::remove_dir_all(&dir);
@@ -478,7 +492,10 @@ mod tests {
             .with_git_branch("main")
             .with_git_changed_files(vec!["src/lib.rs".into()])
             .build_for_task("task");
-        assert!(ctx.contains("  - src/lib.rs"), "changed files should be bullet-listed");
+        assert!(
+            ctx.contains("  - src/lib.rs"),
+            "changed files should be bullet-listed"
+        );
     }
 
     #[test]
@@ -513,7 +530,9 @@ mod tests {
 
     #[test]
     fn diff_with_newlines_truncates_at_line_boundary() {
-        let diff = (0..1000).map(|i| format!("line {}\n", i)).collect::<String>();
+        let diff = (0..1000)
+            .map(|i| format!("line {}\n", i))
+            .collect::<String>();
         let ctx = ContextBuilder::new()
             .with_git_branch("main")
             .with_git_diff(&diff)

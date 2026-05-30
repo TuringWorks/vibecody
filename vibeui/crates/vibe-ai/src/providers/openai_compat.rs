@@ -166,12 +166,10 @@ pub async fn send_chat_request(
         .message
         .content
         .clone();
-    let usage = body
-        .usage
-        .map(|u| TokenUsage {
-            prompt_tokens: u.prompt_tokens,
-            completion_tokens: u.completion_tokens,
-        });
+    let usage = body.usage.map(|u| TokenUsage {
+        prompt_tokens: u.prompt_tokens,
+        completion_tokens: u.completion_tokens,
+    });
     Ok(CompletionResponse {
         text,
         model: request.model.clone(),
@@ -212,9 +210,10 @@ mod tests {
 
     #[test]
     fn build_messages_basic() {
-        let msgs = vec![
-            Message { role: MessageRole::User, content: "hello".into() },
-        ];
+        let msgs = vec![Message {
+            role: MessageRole::User,
+            content: "hello".into(),
+        }];
         let result = build_messages(&msgs, None);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].role, "user");
@@ -223,9 +222,10 @@ mod tests {
 
     #[test]
     fn build_messages_with_context() {
-        let msgs = vec![
-            Message { role: MessageRole::User, content: "explain".into() },
-        ];
+        let msgs = vec![Message {
+            role: MessageRole::User,
+            content: "explain".into(),
+        }];
         let result = build_messages(&msgs, Some("file.rs contents".into()));
         assert!(result[0].content.contains("Context:\nfile.rs contents"));
         assert!(result[0].content.contains("User: explain"));
@@ -233,9 +233,10 @@ mod tests {
 
     #[test]
     fn build_messages_context_only_appends_to_user() {
-        let msgs = vec![
-            Message { role: MessageRole::System, content: "sys".into() },
-        ];
+        let msgs = vec![Message {
+            role: MessageRole::System,
+            content: "sys".into(),
+        }];
         let result = build_messages(&msgs, Some("ctx".into()));
         // System message should NOT get context injected
         assert_eq!(result[0].content, "sys");
@@ -244,10 +245,22 @@ mod tests {
     #[test]
     fn build_messages_preserves_roles() {
         let msgs = vec![
-            Message { role: MessageRole::System, content: "sys".into() },
-            Message { role: MessageRole::User, content: "u1".into() },
-            Message { role: MessageRole::Assistant, content: "a1".into() },
-            Message { role: MessageRole::User, content: "u2".into() },
+            Message {
+                role: MessageRole::System,
+                content: "sys".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "u1".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "a1".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "u2".into(),
+            },
         ];
         let result = build_messages(&msgs, None);
         assert_eq!(result[0].role, "system");
@@ -267,7 +280,10 @@ mod tests {
     fn chat_request_serializes_correctly() {
         let req = ChatRequest {
             model: "gpt-4".into(),
-            messages: vec![ChatMessage { role: "user".into(), content: "hi".into() }],
+            messages: vec![ChatMessage {
+                role: "user".into(),
+                content: "hi".into(),
+            }],
             temperature: Some(0.7),
             max_tokens: None,
             stream: false,

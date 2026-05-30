@@ -109,9 +109,7 @@ pub enum TriggerSource {
         channels: Vec<String>,
     },
     /// Cron expression (time-based)
-    Cron {
-        expression: String,
-    },
+    Cron { expression: String },
     /// File system watcher
     FileWatch {
         patterns: Vec<String>,
@@ -380,10 +378,7 @@ impl AutomationRule {
                             .get("team_id")
                             .is_some_and(|t| team_ids.contains(t)))
             }
-            TriggerSource::PagerDuty {
-                severity,
-                services,
-            } => {
+            TriggerSource::PagerDuty { severity, services } => {
                 payload.source == "pagerduty"
                     && (severity.is_empty()
                         || payload
@@ -444,7 +439,10 @@ impl AutomationRule {
                             .get("guild_id")
                             .is_some_and(|g| guild_ids.contains(g)))
             }
-            TriggerSource::Teams { events, channel_ids } => {
+            TriggerSource::Teams {
+                events,
+                channel_ids,
+            } => {
                 payload.source == "teams"
                     && (events.is_empty() || events.contains(&payload.event_type))
                     && (channel_ids.is_empty()
@@ -663,7 +661,10 @@ impl AutomationEngine {
 
     pub fn update_task_status(&mut self, task_id: &str, status: TaskStatus) -> bool {
         if let Some(task) = self.tasks.iter_mut().find(|t| t.task_id == task_id) {
-            if matches!(status, TaskStatus::Completed | TaskStatus::Failed(_) | TaskStatus::Cancelled) {
+            if matches!(
+                status,
+                TaskStatus::Completed | TaskStatus::Failed(_) | TaskStatus::Cancelled
+            ) {
                 task.completed_at = Some(
                     SystemTime::now()
                         .duration_since(UNIX_EPOCH)
@@ -747,9 +748,18 @@ fn simple_sha256(data: &[u8]) -> String {
     // Minimal SHA-256 stub for compilation — real impl delegates to ring/sha2
     let mut hash = 0u64;
     for (i, &byte) in data.iter().enumerate() {
-        hash = hash.wrapping_mul(31).wrapping_add(byte as u64).wrapping_add(i as u64);
+        hash = hash
+            .wrapping_mul(31)
+            .wrapping_add(byte as u64)
+            .wrapping_add(i as u64);
     }
-    format!("{:016x}{:016x}{:016x}{:016x}", hash, hash.rotate_left(16), hash.rotate_left(32), hash.rotate_left(48))
+    format!(
+        "{:016x}{:016x}{:016x}{:016x}",
+        hash,
+        hash.rotate_left(16),
+        hash.rotate_left(32),
+        hash.rotate_left(48)
+    )
 }
 
 fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
@@ -820,8 +830,8 @@ pub fn parse_linear_event(body: &str) -> EventPayload {
 
 /// Parse a PagerDuty webhook payload.
 pub fn parse_pagerduty_event(body: &str) -> EventPayload {
-    let event_type = extract_json_field(body, "event_type")
-        .unwrap_or_else(|| "incident.triggered".to_string());
+    let event_type =
+        extract_json_field(body, "event_type").unwrap_or_else(|| "incident.triggered".to_string());
     let mut payload = EventPayload::new("pagerduty", &event_type, body);
     if let Some(severity) = extract_json_field(body, "severity") {
         payload = payload.with_field("severity", &severity);
@@ -905,8 +915,7 @@ pub fn parse_whatsapp_event(body: &str) -> EventPayload {
 
 /// Parse a Discord webhook/bot event payload.
 pub fn parse_discord_event(body: &str) -> EventPayload {
-    let event_type = extract_json_field(body, "t")
-        .unwrap_or_else(|| "MESSAGE_CREATE".to_string());
+    let event_type = extract_json_field(body, "t").unwrap_or_else(|| "MESSAGE_CREATE".to_string());
     let mut payload = EventPayload::new("discord", &event_type, body);
     if let Some(channel_id) = extract_json_field(body, "channel_id") {
         payload = payload.with_field("channel_id", &channel_id);
@@ -925,8 +934,7 @@ pub fn parse_discord_event(body: &str) -> EventPayload {
 
 /// Parse a Microsoft Teams activity payload.
 pub fn parse_teams_event(body: &str) -> EventPayload {
-    let event_type = extract_json_field(body, "type")
-        .unwrap_or_else(|| "message".to_string());
+    let event_type = extract_json_field(body, "type").unwrap_or_else(|| "message".to_string());
     let mut payload = EventPayload::new("teams", &event_type, body);
     if let Some(channel_id) = extract_json_field(body, "channelId") {
         payload = payload.with_field("channel_id", &channel_id);
@@ -942,8 +950,8 @@ pub fn parse_teams_event(body: &str) -> EventPayload {
 
 /// Parse a Matrix event payload.
 pub fn parse_matrix_event(body: &str) -> EventPayload {
-    let event_type = extract_json_field(body, "type")
-        .unwrap_or_else(|| "m.room.message".to_string());
+    let event_type =
+        extract_json_field(body, "type").unwrap_or_else(|| "m.room.message".to_string());
     let mut payload = EventPayload::new("matrix", &event_type, body);
     if let Some(room_id) = extract_json_field(body, "room_id") {
         payload = payload.with_field("room_id", &room_id);
@@ -989,8 +997,7 @@ pub fn parse_imessage_event(body: &str) -> EventPayload {
 
 /// Parse an IRC event payload.
 pub fn parse_irc_event(body: &str) -> EventPayload {
-    let event_type = extract_json_field(body, "command")
-        .unwrap_or_else(|| "PRIVMSG".to_string());
+    let event_type = extract_json_field(body, "command").unwrap_or_else(|| "PRIVMSG".to_string());
     let mut payload = EventPayload::new("irc", &event_type, body);
     if let Some(channel) = extract_json_field(body, "channel") {
         payload = payload.with_field("channel", &channel);
@@ -1200,10 +1207,9 @@ mod tests {
 
     #[test]
     fn test_prompt_template_defaults() {
-        let tpl = PromptTemplate::new("Deploy {{service}} to {{env}}")
-            .with_default("env", "staging");
-        let payload = EventPayload::new("webhook", "deploy", "")
-            .with_field("service", "api");
+        let tpl =
+            PromptTemplate::new("Deploy {{service}} to {{env}}").with_default("env", "staging");
+        let payload = EventPayload::new("webhook", "deploy", "").with_field("service", "api");
         let rendered = tpl.render(&payload);
         assert_eq!(rendered, "Deploy api to staging");
     }
@@ -1254,16 +1260,13 @@ mod tests {
             },
             "Test",
         );
-        let p1 = EventPayload::new("github", "push", "")
-            .with_field("repository", "vibecody");
+        let p1 = EventPayload::new("github", "push", "").with_field("repository", "vibecody");
         assert!(rule.matches(&p1));
 
-        let p2 = EventPayload::new("github", "push", "")
-            .with_field("repository", "other-repo");
+        let p2 = EventPayload::new("github", "push", "").with_field("repository", "other-repo");
         assert!(!rule.matches(&p2));
 
-        let p3 = EventPayload::new("github", "issues", "")
-            .with_field("repository", "vibecody");
+        let p3 = EventPayload::new("github", "issues", "").with_field("repository", "vibecody");
         assert!(!rule.matches(&p3));
     }
 
@@ -1278,8 +1281,7 @@ mod tests {
             },
             "Respond",
         );
-        let p = EventPayload::new("slack", "app_mention", "")
-            .with_field("channel", "#dev");
+        let p = EventPayload::new("slack", "app_mention", "").with_field("channel", "#dev");
         assert!(rule.matches(&p));
     }
 
@@ -1294,8 +1296,7 @@ mod tests {
             },
             "Handle",
         );
-        let p = EventPayload::new("linear", "update", "")
-            .with_field("team_id", "team-1");
+        let p = EventPayload::new("linear", "update", "").with_field("team_id", "team-1");
         assert!(rule.matches(&p));
     }
 
@@ -1340,8 +1341,7 @@ mod tests {
             },
             "Lint",
         );
-        let p = EventPayload::new("filewatch", "changed", "")
-            .with_field("path", "main.rs");
+        let p = EventPayload::new("filewatch", "changed", "").with_field("path", "main.rs");
         assert!(rule.matches(&p));
     }
 
@@ -1422,8 +1422,7 @@ mod tests {
             },
             "Run tests for {{repository}}",
         ));
-        let payload = EventPayload::new("github", "push", "")
-            .with_field("repository", "vibecody");
+        let payload = EventPayload::new("github", "push", "").with_field("repository", "vibecody");
         let tasks = engine.process_event(&payload);
         assert_eq!(tasks.len(), 1);
         assert_eq!(tasks[0].prompt, "Run tests for vibecody");
@@ -1485,7 +1484,10 @@ mod tests {
         assert_eq!(engine.list_tasks().len(), 1);
 
         assert!(engine.update_task_status(&task_id, TaskStatus::Running));
-        assert_eq!(engine.get_task(&task_id).unwrap().status, TaskStatus::Running);
+        assert_eq!(
+            engine.get_task(&task_id).unwrap().status,
+            TaskStatus::Running
+        );
 
         assert!(engine.update_task_status(&task_id, TaskStatus::Completed));
         assert_eq!(
@@ -1540,7 +1542,10 @@ mod tests {
     #[test]
     fn test_engine_config_path() {
         let engine = test_engine();
-        assert_eq!(engine.config_path(), &PathBuf::from("/tmp/test-automations"));
+        assert_eq!(
+            engine.config_path(),
+            &PathBuf::from("/tmp/test-automations")
+        );
     }
 
     #[test]
@@ -1556,7 +1561,8 @@ mod tests {
 
     #[test]
     fn test_parse_slack_event() {
-        let body = r#"{"type": "app_mention", "channel": "C123", "user": "U456", "text": "hey bot"}"#;
+        let body =
+            r#"{"type": "app_mention", "channel": "C123", "user": "U456", "text": "hey bot"}"#;
         let p = parse_slack_event(body);
         assert_eq!(p.source, "slack");
         assert_eq!(p.event_type, "app_mention");
@@ -1566,7 +1572,8 @@ mod tests {
 
     #[test]
     fn test_parse_linear_event() {
-        let body = r#"{"action": "create", "teamId": "team-1", "title": "Fix bug", "state": "Todo"}"#;
+        let body =
+            r#"{"action": "create", "teamId": "team-1", "title": "Fix bug", "state": "Todo"}"#;
         let p = parse_linear_event(body);
         assert_eq!(p.source, "linear");
         assert_eq!(p.event_type, "create");
@@ -1639,11 +1646,9 @@ mod tests {
             conditions,
             ..Default::default()
         };
-        let p1 = EventPayload::new("github", "issues", "")
-            .with_field("action", "opened");
+        let p1 = EventPayload::new("github", "issues", "").with_field("action", "opened");
         assert!(rule.matches(&p1));
-        let p2 = EventPayload::new("github", "issues", "")
-            .with_field("action", "closed");
+        let p2 = EventPayload::new("github", "issues", "").with_field("action", "closed");
         assert!(!rule.matches(&p2));
     }
 
@@ -1658,8 +1663,7 @@ mod tests {
             },
             "Lint",
         );
-        let p = EventPayload::new("filewatch", "changed", "")
-            .with_field("path", "anything.txt");
+        let p = EventPayload::new("filewatch", "changed", "").with_field("path", "anything.txt");
         assert!(rule.matches(&p));
     }
 
@@ -1674,8 +1678,7 @@ mod tests {
             },
             "Test",
         );
-        let p = EventPayload::new("github", "push", "")
-            .with_field("repository", "any-repo");
+        let p = EventPayload::new("github", "push", "").with_field("repository", "any-repo");
         assert!(rule.matches(&p));
     }
 
@@ -1690,8 +1693,7 @@ mod tests {
             },
             "Handle",
         );
-        let p = EventPayload::new("slack", "message", "")
-            .with_field("channel", "#random");
+        let p = EventPayload::new("slack", "message", "").with_field("channel", "#random");
         assert!(rule.matches(&p));
     }
 
@@ -1723,23 +1725,98 @@ mod tests {
 
     #[test]
     fn test_trigger_source_name_messaging() {
-        assert_eq!(TriggerSource::Telegram { events: vec![], chat_ids: vec![] }.source_name(), "telegram");
-        assert_eq!(TriggerSource::Signal { events: vec![], group_ids: vec![] }.source_name(), "signal");
-        assert_eq!(TriggerSource::WhatsApp { events: vec![], phone_numbers: vec![] }.source_name(), "whatsapp");
-        assert_eq!(TriggerSource::Discord { events: vec![], channel_ids: vec![], guild_ids: vec![] }.source_name(), "discord");
-        assert_eq!(TriggerSource::Teams { events: vec![], channel_ids: vec![] }.source_name(), "teams");
-        assert_eq!(TriggerSource::Matrix { events: vec![], room_ids: vec![] }.source_name(), "matrix");
-        assert_eq!(TriggerSource::TwilioSms { events: vec![], from_numbers: vec![] }.source_name(), "twilio_sms");
-        assert_eq!(TriggerSource::IMessage { events: vec![], contacts: vec![] }.source_name(), "imessage");
-        assert_eq!(TriggerSource::Irc { events: vec![], channels: vec![] }.source_name(), "irc");
-        assert_eq!(TriggerSource::Twitch { events: vec![], channels: vec![] }.source_name(), "twitch");
+        assert_eq!(
+            TriggerSource::Telegram {
+                events: vec![],
+                chat_ids: vec![]
+            }
+            .source_name(),
+            "telegram"
+        );
+        assert_eq!(
+            TriggerSource::Signal {
+                events: vec![],
+                group_ids: vec![]
+            }
+            .source_name(),
+            "signal"
+        );
+        assert_eq!(
+            TriggerSource::WhatsApp {
+                events: vec![],
+                phone_numbers: vec![]
+            }
+            .source_name(),
+            "whatsapp"
+        );
+        assert_eq!(
+            TriggerSource::Discord {
+                events: vec![],
+                channel_ids: vec![],
+                guild_ids: vec![]
+            }
+            .source_name(),
+            "discord"
+        );
+        assert_eq!(
+            TriggerSource::Teams {
+                events: vec![],
+                channel_ids: vec![]
+            }
+            .source_name(),
+            "teams"
+        );
+        assert_eq!(
+            TriggerSource::Matrix {
+                events: vec![],
+                room_ids: vec![]
+            }
+            .source_name(),
+            "matrix"
+        );
+        assert_eq!(
+            TriggerSource::TwilioSms {
+                events: vec![],
+                from_numbers: vec![]
+            }
+            .source_name(),
+            "twilio_sms"
+        );
+        assert_eq!(
+            TriggerSource::IMessage {
+                events: vec![],
+                contacts: vec![]
+            }
+            .source_name(),
+            "imessage"
+        );
+        assert_eq!(
+            TriggerSource::Irc {
+                events: vec![],
+                channels: vec![]
+            }
+            .source_name(),
+            "irc"
+        );
+        assert_eq!(
+            TriggerSource::Twitch {
+                events: vec![],
+                channels: vec![]
+            }
+            .source_name(),
+            "twitch"
+        );
     }
 
     #[test]
     fn test_rule_matches_telegram() {
         let rule = AutomationRule::new(
-            "r1", "TG",
-            TriggerSource::Telegram { events: vec!["message".into()], chat_ids: vec!["123".into()] },
+            "r1",
+            "TG",
+            TriggerSource::Telegram {
+                events: vec!["message".into()],
+                chat_ids: vec!["123".into()],
+            },
             "Handle",
         );
         let p = EventPayload::new("telegram", "message", "").with_field("chat_id", "123");
@@ -1751,8 +1828,12 @@ mod tests {
     #[test]
     fn test_rule_matches_telegram_empty_filter() {
         let rule = AutomationRule::new(
-            "r1", "TG all",
-            TriggerSource::Telegram { events: vec![], chat_ids: vec![] },
+            "r1",
+            "TG all",
+            TriggerSource::Telegram {
+                events: vec![],
+                chat_ids: vec![],
+            },
             "Handle",
         );
         let p = EventPayload::new("telegram", "message", "").with_field("chat_id", "any");
@@ -1762,8 +1843,12 @@ mod tests {
     #[test]
     fn test_rule_matches_signal() {
         let rule = AutomationRule::new(
-            "r1", "Signal",
-            TriggerSource::Signal { events: vec!["message".into()], group_ids: vec!["grp-1".into()] },
+            "r1",
+            "Signal",
+            TriggerSource::Signal {
+                events: vec!["message".into()],
+                group_ids: vec!["grp-1".into()],
+            },
             "Handle",
         );
         let p = EventPayload::new("signal", "message", "").with_field("group_id", "grp-1");
@@ -1775,8 +1860,12 @@ mod tests {
     #[test]
     fn test_rule_matches_whatsapp() {
         let rule = AutomationRule::new(
-            "r1", "WA",
-            TriggerSource::WhatsApp { events: vec!["message".into()], phone_numbers: vec!["+1234".into()] },
+            "r1",
+            "WA",
+            TriggerSource::WhatsApp {
+                events: vec!["message".into()],
+                phone_numbers: vec!["+1234".into()],
+            },
             "Handle",
         );
         let p = EventPayload::new("whatsapp", "message", "").with_field("from", "+1234");
@@ -1788,7 +1877,8 @@ mod tests {
     #[test]
     fn test_rule_matches_discord() {
         let rule = AutomationRule::new(
-            "r1", "Discord",
+            "r1",
+            "Discord",
             TriggerSource::Discord {
                 events: vec!["MESSAGE_CREATE".into()],
                 channel_ids: vec!["ch-1".into()],
@@ -1810,8 +1900,13 @@ mod tests {
     #[test]
     fn test_rule_matches_discord_empty_guild() {
         let rule = AutomationRule::new(
-            "r1", "Discord",
-            TriggerSource::Discord { events: vec![], channel_ids: vec![], guild_ids: vec![] },
+            "r1",
+            "Discord",
+            TriggerSource::Discord {
+                events: vec![],
+                channel_ids: vec![],
+                guild_ids: vec![],
+            },
             "Handle",
         );
         let p = EventPayload::new("discord", "MESSAGE_CREATE", "");
@@ -1821,8 +1916,12 @@ mod tests {
     #[test]
     fn test_rule_matches_teams() {
         let rule = AutomationRule::new(
-            "r1", "Teams",
-            TriggerSource::Teams { events: vec!["message".into()], channel_ids: vec!["ch-1".into()] },
+            "r1",
+            "Teams",
+            TriggerSource::Teams {
+                events: vec!["message".into()],
+                channel_ids: vec!["ch-1".into()],
+            },
             "Handle",
         );
         let p = EventPayload::new("teams", "message", "").with_field("channel_id", "ch-1");
@@ -1832,19 +1931,28 @@ mod tests {
     #[test]
     fn test_rule_matches_matrix() {
         let rule = AutomationRule::new(
-            "r1", "Matrix",
-            TriggerSource::Matrix { events: vec!["m.room.message".into()], room_ids: vec!["!abc:matrix.org".into()] },
+            "r1",
+            "Matrix",
+            TriggerSource::Matrix {
+                events: vec!["m.room.message".into()],
+                room_ids: vec!["!abc:matrix.org".into()],
+            },
             "Handle",
         );
-        let p = EventPayload::new("matrix", "m.room.message", "").with_field("room_id", "!abc:matrix.org");
+        let p = EventPayload::new("matrix", "m.room.message", "")
+            .with_field("room_id", "!abc:matrix.org");
         assert!(rule.matches(&p));
     }
 
     #[test]
     fn test_rule_matches_twilio_sms() {
         let rule = AutomationRule::new(
-            "r1", "SMS",
-            TriggerSource::TwilioSms { events: vec!["incoming".into()], from_numbers: vec!["+15551234".into()] },
+            "r1",
+            "SMS",
+            TriggerSource::TwilioSms {
+                events: vec!["incoming".into()],
+                from_numbers: vec!["+15551234".into()],
+            },
             "Handle",
         );
         let p = EventPayload::new("twilio_sms", "incoming", "").with_field("from", "+15551234");
@@ -1854,19 +1962,28 @@ mod tests {
     #[test]
     fn test_rule_matches_imessage() {
         let rule = AutomationRule::new(
-            "r1", "iMsg",
-            TriggerSource::IMessage { events: vec!["message".into()], contacts: vec!["alice@icloud.com".into()] },
+            "r1",
+            "iMsg",
+            TriggerSource::IMessage {
+                events: vec!["message".into()],
+                contacts: vec!["alice@icloud.com".into()],
+            },
             "Handle",
         );
-        let p = EventPayload::new("imessage", "message", "").with_field("sender", "alice@icloud.com");
+        let p =
+            EventPayload::new("imessage", "message", "").with_field("sender", "alice@icloud.com");
         assert!(rule.matches(&p));
     }
 
     #[test]
     fn test_rule_matches_irc() {
         let rule = AutomationRule::new(
-            "r1", "IRC",
-            TriggerSource::Irc { events: vec!["PRIVMSG".into()], channels: vec!["#rust".into()] },
+            "r1",
+            "IRC",
+            TriggerSource::Irc {
+                events: vec!["PRIVMSG".into()],
+                channels: vec!["#rust".into()],
+            },
             "Handle",
         );
         let p = EventPayload::new("irc", "PRIVMSG", "").with_field("channel", "#rust");
@@ -1876,8 +1993,12 @@ mod tests {
     #[test]
     fn test_rule_matches_twitch() {
         let rule = AutomationRule::new(
-            "r1", "Twitch",
-            TriggerSource::Twitch { events: vec!["chat.message".into()], channels: vec!["streamer1".into()] },
+            "r1",
+            "Twitch",
+            TriggerSource::Twitch {
+                events: vec!["chat.message".into()],
+                channels: vec!["streamer1".into()],
+            },
             "Handle",
         );
         let p = EventPayload::new("twitch", "chat.message", "").with_field("channel", "streamer1");
@@ -1926,7 +2047,8 @@ mod tests {
 
     #[test]
     fn test_parse_whatsapp_event() {
-        let body = r#"{"from": "+1234567890", "body": "Hi there", "display_phone_number": "+0987654321"}"#;
+        let body =
+            r#"{"from": "+1234567890", "body": "Hi there", "display_phone_number": "+0987654321"}"#;
         let p = parse_whatsapp_event(body);
         assert_eq!(p.source, "whatsapp");
         assert_eq!(p.event_type, "message");
@@ -1999,7 +2121,8 @@ mod tests {
 
     #[test]
     fn test_parse_irc_event() {
-        let body = r##"{"command": "PRIVMSG", "channel": "#rust", "nick": "bob", "message": "hello"}"##;
+        let body =
+            r##"{"command": "PRIVMSG", "channel": "#rust", "nick": "bob", "message": "hello"}"##;
         let p = parse_irc_event(body);
         assert_eq!(p.source, "irc");
         assert_eq!(p.event_type, "PRIVMSG");
@@ -2034,8 +2157,12 @@ mod tests {
     #[test]
     fn test_telegram_rule_ignores_slack_event() {
         let rule = AutomationRule::new(
-            "r1", "TG",
-            TriggerSource::Telegram { events: vec![], chat_ids: vec![] },
+            "r1",
+            "TG",
+            TriggerSource::Telegram {
+                events: vec![],
+                chat_ids: vec![],
+            },
             "Handle",
         );
         let p = EventPayload::new("slack", "message", "");
@@ -2045,8 +2172,13 @@ mod tests {
     #[test]
     fn test_discord_rule_ignores_teams_event() {
         let rule = AutomationRule::new(
-            "r1", "Discord",
-            TriggerSource::Discord { events: vec![], channel_ids: vec![], guild_ids: vec![] },
+            "r1",
+            "Discord",
+            TriggerSource::Discord {
+                events: vec![],
+                channel_ids: vec![],
+                guild_ids: vec![],
+            },
             "Handle",
         );
         let p = EventPayload::new("teams", "message", "");
@@ -2056,8 +2188,12 @@ mod tests {
     #[test]
     fn test_whatsapp_rule_ignores_signal_event() {
         let rule = AutomationRule::new(
-            "r1", "WA",
-            TriggerSource::WhatsApp { events: vec![], phone_numbers: vec![] },
+            "r1",
+            "WA",
+            TriggerSource::WhatsApp {
+                events: vec![],
+                phone_numbers: vec![],
+            },
             "Handle",
         );
         let p = EventPayload::new("signal", "message", "");

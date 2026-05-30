@@ -52,10 +52,7 @@ fn fresh() -> Box<dyn Sandbox> {
 fn path_traversal_via_dotdot_is_rejected_on_rw_bind() {
     let mut sb = fresh();
     let err = sb
-        .bind_rw(
-            Path::new(r"C:\Users\me\..\Windows"),
-            Path::new(r"C:\work"),
-        )
+        .bind_rw(Path::new(r"C:\Users\me\..\Windows"), Path::new(r"C:\work"))
         .unwrap_err();
     let s = format!("{err}");
     assert!(
@@ -95,11 +92,8 @@ fn path_traversal_in_guest_path_is_rejected() {
 #[test]
 fn bind_rw_accepts_normal_windows_path() {
     let mut sb = fresh();
-    sb.bind_rw(
-        Path::new(r"C:\Users\me\repo"),
-        Path::new(r"C:\work"),
-    )
-    .expect("legitimate path must be accepted");
+    sb.bind_rw(Path::new(r"C:\Users\me\repo"), Path::new(r"C:\work"))
+        .expect("legitimate path must be accepted");
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -262,10 +256,7 @@ fn resource_limits_round_trip_through_sandbox_limits() {
 fn windows_rejects_user_vibecli_state_dir() {
     let mut sb = fresh();
     let err = sb
-        .bind_rw(
-            Path::new(r"C:\Users\alice\.vibecli"),
-            Path::new(r"C:\work"),
-        )
+        .bind_rw(Path::new(r"C:\Users\alice\.vibecli"), Path::new(r"C:\work"))
         .unwrap_err();
     assert!(format!("{err}").contains(".vibecli"));
 }
@@ -286,10 +277,7 @@ fn windows_rejects_workspace_vibecli_state_dir() {
 fn windows_rejects_user_claude_state_dir() {
     let mut sb = fresh();
     let err = sb
-        .bind_rw(
-            Path::new(r"C:\Users\alice\.claude"),
-            Path::new(r"C:\work"),
-        )
+        .bind_rw(Path::new(r"C:\Users\alice\.claude"), Path::new(r"C:\work"))
         .unwrap_err();
     assert!(format!("{err}").contains(".claude"));
 }

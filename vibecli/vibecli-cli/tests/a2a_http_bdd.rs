@@ -1,12 +1,10 @@
 //! BDD coverage for A2A over real HTTP + SSE (US-002).
 
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use vibecli_cli::a2a_http::{A2aHttpClient, ServerHandle, serve_agent};
-use vibecli_cli::a2a_protocol::{
-    A2aEventType, AgentCapability, AgentCard, A2aServer, TaskInput,
-};
+use vibecli_cli::a2a_http::{serve_agent, A2aHttpClient, ServerHandle};
+use vibecli_cli::a2a_protocol::{A2aEventType, A2aServer, AgentCapability, AgentCard, TaskInput};
 
 #[derive(Default, World)]
 pub struct A2aWorld {
@@ -21,7 +19,10 @@ impl std::fmt::Debug for A2aWorld {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("A2aWorld")
             .field("server_addr", &self.server.as_ref().map(|s| s.addr))
-            .field("fetched_card", &self.fetched_card.as_ref().map(|c| c.name.clone()))
+            .field(
+                "fetched_card",
+                &self.fetched_card.as_ref().map(|c| c.name.clone()),
+            )
             .field("last_task_id", &self.last_task_id)
             .field("events_count", &self.events.len())
             .finish()
@@ -110,10 +111,7 @@ async fn then_task_status(w: &mut A2aWorld, status: String) {
         .await
         .expect("get_task");
     let got = format!("{:?}", task.status);
-    assert!(
-        got.contains(&status),
-        "expected status {status}, got {got}"
-    );
+    assert!(got.contains(&status), "expected status {status}, got {got}");
 }
 
 #[then(regex = r#"^the received events include a "([^"]+)" event$"#)]

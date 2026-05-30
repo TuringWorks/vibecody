@@ -8,7 +8,9 @@
 //! After all agents complete, the caller can inspect each agent's branch and
 //! merge the best result via `vibe_core::git::merge_worktree_branch`.
 
-use crate::agent::{AgentContext, AgentEvent, AgentLoop, AgentStep, ApprovalPolicy, ToolExecutorTrait};
+use crate::agent::{
+    AgentContext, AgentEvent, AgentLoop, AgentStep, ApprovalPolicy, ToolExecutorTrait,
+};
 use crate::hooks::HookRunner;
 use crate::provider::AIProvider;
 use anyhow::Result;
@@ -89,12 +91,31 @@ pub struct AgentResult {
 /// Events emitted by the orchestrator as agents run.
 #[derive(Debug)]
 pub enum OrchestratorEvent {
-    AgentStarted { id: usize, task: String, worktree: PathBuf },
-    AgentStep { id: usize, step: AgentStep },
-    AgentChunk { id: usize, text: String },
-    AgentComplete { id: usize, summary: String, branch: String },
-    AgentError { id: usize, error: String },
-    AllComplete { results: Vec<AgentResult> },
+    AgentStarted {
+        id: usize,
+        task: String,
+        worktree: PathBuf,
+    },
+    AgentStep {
+        id: usize,
+        step: AgentStep,
+    },
+    AgentChunk {
+        id: usize,
+        text: String,
+    },
+    AgentComplete {
+        id: usize,
+        summary: String,
+        branch: String,
+    },
+    AgentError {
+        id: usize,
+        error: String,
+    },
+    AllComplete {
+        results: Vec<AgentResult>,
+    },
 }
 
 // ── MultiAgentOrchestrator ────────────────────────────────────────────────────
@@ -144,7 +165,12 @@ impl IsolatedWorktree {
         agent_id: String,
         manager: Arc<dyn WorktreeManager>,
     ) -> Self {
-        Self { path, branch, agent_id, manager }
+        Self {
+            path,
+            branch,
+            agent_id,
+            manager,
+        }
     }
 }
 
@@ -152,7 +178,11 @@ impl Drop for IsolatedWorktree {
     fn drop(&mut self) {
         if self.path.exists() {
             if let Err(e) = self.manager.remove_worktree(&self.path) {
-                tracing::warn!("Failed to clean up worktree for agent {}: {}", self.agent_id, e);
+                tracing::warn!(
+                    "Failed to clean up worktree for agent {}: {}",
+                    self.agent_id,
+                    e
+                );
             }
         }
     }
@@ -201,9 +231,7 @@ impl MultiAgentOrchestrator {
         event_tx: mpsc::Sender<OrchestratorEvent>,
     ) -> Result<Vec<AgentResult>> {
         let n = n.min(self.max_agents);
-        let tasks: Vec<AgentTask> = (0..n)
-            .map(|i| AgentTask::new(i, task))
-            .collect();
+        let tasks: Vec<AgentTask> = (0..n).map(|i| AgentTask::new(i, task)).collect();
         self.run_tasks(repo_path, tasks, event_tx).await
     }
 
@@ -222,7 +250,8 @@ impl MultiAgentOrchestrator {
         for task in tasks.iter() {
             let branch = task.branch_name();
             // Place worktrees in a sibling directory
-            let wt_path = repo_path.parent()
+            let wt_path = repo_path
+                .parent()
                 .unwrap_or(repo_path)
                 .join(format!(".vibe-worktree-{}", task.id));
 
@@ -240,7 +269,10 @@ impl MultiAgentOrchestrator {
                 }
             } else {
                 // No worktree manager — all agents share the same directory
-                tracing::warn!("No WorktreeManager provided; task {} will run in main repo", task.id);
+                tracing::warn!(
+                    "No WorktreeManager provided; task {} will run in main repo",
+                    task.id
+                );
                 worktree_paths.push(repo_path.clone());
             }
         }
@@ -265,7 +297,8 @@ impl MultiAgentOrchestrator {
                     wt_path_clone,
                     hooks,
                     tx,
-                ).await
+                )
+                .await
             });
             handles.push(handle);
         }
@@ -289,7 +322,11 @@ impl MultiAgentOrchestrator {
             }
         }
 
-        let _ = event_tx.send(OrchestratorEvent::AllComplete { results: results.clone() }).await;
+        let _ = event_tx
+            .send(OrchestratorEvent::AllComplete {
+                results: results.clone(),
+            })
+            .await;
         Ok(results)
     }
 }
@@ -309,11 +346,13 @@ async fn run_single_agent(
     let branch = task.branch_name();
     let task_desc = task.description.clone();
 
-    let _ = event_tx.send(OrchestratorEvent::AgentStarted {
-        id,
-        task: task_desc.clone(),
-        worktree: worktree.clone(),
-    }).await;
+    let _ = event_tx
+        .send(OrchestratorEvent::AgentStarted {
+            id,
+            task: task_desc.clone(),
+            worktree: worktree.clone(),
+        })
+        .await;
 
     let mut agent = AgentLoop::new(Arc::clone(&provider), approval, Arc::clone(&executor));
     if let Some(runner) = hooks {
@@ -338,11 +377,15 @@ async fn run_single_agent(
     while let Some(event) = inner_rx.recv().await {
         match event {
             AgentEvent::StreamChunk(text) => {
-                let _ = event_tx.send(OrchestratorEvent::AgentChunk { id, text }).await;
+                let _ = event_tx
+                    .send(OrchestratorEvent::AgentChunk { id, text })
+                    .await;
             }
             AgentEvent::ToolCallExecuted(step) => {
                 steps_taken += 1;
-                let _ = event_tx.send(OrchestratorEvent::AgentStep { id, step }).await;
+                let _ = event_tx
+                    .send(OrchestratorEvent::AgentStep { id, step })
+                    .await;
             }
             AgentEvent::ToolCallPending { call, result_tx } => {
                 // In parallel mode, auto-execute all tool calls
@@ -353,36 +396,60 @@ async fn run_single_agent(
             AgentEvent::Complete(summary) => {
                 final_summary = summary.clone();
                 success = true;
-                let _ = event_tx.send(OrchestratorEvent::AgentComplete {
-                    id,
-                    summary,
-                    branch: branch.clone(),
-                }).await;
+                let _ = event_tx
+                    .send(OrchestratorEvent::AgentComplete {
+                        id,
+                        summary,
+                        branch: branch.clone(),
+                    })
+                    .await;
                 break;
             }
-            AgentEvent::Partial { summary, steps_completed, steps_planned, .. } => {
-                final_summary = format!("{} (completed {}/{} steps)", summary, steps_completed, steps_planned);
+            AgentEvent::Partial {
+                summary,
+                steps_completed,
+                steps_planned,
+                ..
+            } => {
+                final_summary = format!(
+                    "{} (completed {}/{} steps)",
+                    summary, steps_completed, steps_planned
+                );
                 // Treat partial as a soft failure — work was done but not all of it
-                let _ = event_tx.send(OrchestratorEvent::AgentComplete {
-                    id,
-                    summary: final_summary.clone(),
-                    branch: branch.clone(),
-                }).await;
+                let _ = event_tx
+                    .send(OrchestratorEvent::AgentComplete {
+                        id,
+                        summary: final_summary.clone(),
+                        branch: branch.clone(),
+                    })
+                    .await;
                 break;
             }
             AgentEvent::Error(err) => {
                 final_summary = err.clone();
-                let _ = event_tx.send(OrchestratorEvent::AgentError { id, error: err }).await;
+                let _ = event_tx
+                    .send(OrchestratorEvent::AgentError { id, error: err })
+                    .await;
                 break;
             }
-            AgentEvent::RetryableError { error, attempt, max_attempts, .. } => {
+            AgentEvent::RetryableError {
+                error,
+                attempt,
+                max_attempts,
+                ..
+            } => {
                 // Log retry but don't treat as fatal in parallel mode
                 tracing::warn!(id, attempt, max_attempts, error = %error, "Sub-agent retrying");
             }
             AgentEvent::CircuitBreak { state, reason } => {
                 // Treat circuit break as an error in parallel mode
                 let msg = format!("Circuit breaker: {} — {}", state, reason);
-                let _ = event_tx.send(OrchestratorEvent::AgentError { id, error: msg.clone() }).await;
+                let _ = event_tx
+                    .send(OrchestratorEvent::AgentError {
+                        id,
+                        error: msg.clone(),
+                    })
+                    .await;
                 if state == crate::agent::AgentHealthState::Blocked {
                     final_summary = msg;
                     break;

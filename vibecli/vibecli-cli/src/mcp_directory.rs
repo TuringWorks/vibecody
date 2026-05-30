@@ -207,7 +207,11 @@ impl PluginDirectory {
             })
             .collect();
 
-        results.sort_by(|a, b| b.relevance.partial_cmp(&a.relevance).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            b.relevance
+                .partial_cmp(&a.relevance)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         results.truncate(max);
         results
     }
@@ -247,7 +251,8 @@ impl PluginDirectory {
             return InstallResult {
                 plugin_id: id.to_string(),
                 success: false,
-                message: "Plugin is not verified and unverified plugins are not allowed".to_string(),
+                message: "Plugin is not verified and unverified plugins are not allowed"
+                    .to_string(),
             };
         }
 
@@ -365,7 +370,11 @@ impl PluginDirectory {
     }
 
     pub fn top_rated(&self, limit: usize) -> Vec<&McpPlugin> {
-        let mut plugins: Vec<&McpPlugin> = self.plugins.values().filter(|p| p.rating_count > 0).collect();
+        let mut plugins: Vec<&McpPlugin> = self
+            .plugins
+            .values()
+            .filter(|p| p.rating_count > 0)
+            .collect();
         plugins.sort_by(|a, b| {
             b.rating
                 .partial_cmp(&a.rating)
@@ -468,12 +477,24 @@ mod tests {
             max_installed: 10,
         };
         let mut dir = PluginDirectory::new(config);
-        dir.add_plugin(make_plugin("pg-client", "PostgreSQL Client", PluginCategory::Database))
-            .unwrap();
-        dir.add_plugin(make_plugin("eslint-runner", "ESLint Runner", PluginCategory::CodeAnalysis))
-            .unwrap();
-        dir.add_plugin(make_plugin("slack-notify", "Slack Notifier", PluginCategory::Communication))
-            .unwrap();
+        dir.add_plugin(make_plugin(
+            "pg-client",
+            "PostgreSQL Client",
+            PluginCategory::Database,
+        ))
+        .unwrap();
+        dir.add_plugin(make_plugin(
+            "eslint-runner",
+            "ESLint Runner",
+            PluginCategory::CodeAnalysis,
+        ))
+        .unwrap();
+        dir.add_plugin(make_plugin(
+            "slack-notify",
+            "Slack Notifier",
+            PluginCategory::Communication,
+        ))
+        .unwrap();
         dir
     }
 
@@ -545,7 +566,8 @@ mod tests {
     #[test]
     fn test_search_verified_only() {
         let mut dir = make_directory();
-        dir.set_verification_status("pg-client", VerificationStatus::Unverified).unwrap();
+        dir.set_verification_status("pg-client", VerificationStatus::Unverified)
+            .unwrap();
         let results = dir.search("", None, true, 10);
         assert_eq!(results.len(), 2);
     }
@@ -598,8 +620,10 @@ mod tests {
             max_installed: 1,
         };
         let mut dir = PluginDirectory::new(config);
-        dir.add_plugin(make_plugin("a", "A", PluginCategory::Utility)).unwrap();
-        dir.add_plugin(make_plugin("b", "B", PluginCategory::Utility)).unwrap();
+        dir.add_plugin(make_plugin("a", "A", PluginCategory::Utility))
+            .unwrap();
+        dir.add_plugin(make_plugin("b", "B", PluginCategory::Utility))
+            .unwrap();
         dir.install("a");
         let result = dir.install("b");
         assert!(!result.success);
@@ -802,7 +826,8 @@ mod tests {
     #[test]
     fn test_set_verification_status() {
         let mut dir = make_directory();
-        dir.set_verification_status("pg-client", VerificationStatus::Pending).unwrap();
+        dir.set_verification_status("pg-client", VerificationStatus::Pending)
+            .unwrap();
         assert_eq!(
             dir.get_plugin("pg-client").unwrap().verification,
             VerificationStatus::Pending
@@ -815,7 +840,8 @@ mod tests {
         let status = VerificationStatus::Rejected {
             reason: "Malicious code detected".to_string(),
         };
-        dir.set_verification_status("pg-client", status.clone()).unwrap();
+        dir.set_verification_status("pg-client", status.clone())
+            .unwrap();
         assert_eq!(dir.get_plugin("pg-client").unwrap().verification, status);
     }
 
@@ -828,9 +854,18 @@ mod tests {
 
     #[test]
     fn test_search_relevance_name_exact_match() {
-        let mut dir = PluginDirectory::new(DirectoryConfig { allow_unverified: true, ..DirectoryConfig::default() });
-        dir.add_plugin(make_plugin("exact", "mytools", PluginCategory::Utility)).unwrap();
-        dir.add_plugin(make_plugin("partial", "mytools-extra", PluginCategory::Utility)).unwrap();
+        let mut dir = PluginDirectory::new(DirectoryConfig {
+            allow_unverified: true,
+            ..DirectoryConfig::default()
+        });
+        dir.add_plugin(make_plugin("exact", "mytools", PluginCategory::Utility))
+            .unwrap();
+        dir.add_plugin(make_plugin(
+            "partial",
+            "mytools-extra",
+            PluginCategory::Utility,
+        ))
+        .unwrap();
         let results = dir.search("mytools", None, false, 10);
         assert!(results.len() >= 2);
         // Exact match should rank higher

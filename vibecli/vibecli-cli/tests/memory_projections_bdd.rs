@@ -5,10 +5,10 @@
  *
  * Run with: cargo test --test memory_projections_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use std::path::PathBuf;
 use tempfile::TempDir;
-use vibecli_cli::memory_projections::{ProjectionPaths, write_projections};
+use vibecli_cli::memory_projections::{write_projections, ProjectionPaths};
 use vibecli_cli::open_memory::OpenMemoryStore;
 
 #[derive(Default, World)]
@@ -28,10 +28,7 @@ impl std::fmt::Debug for ProjWorld {
                 "workspace",
                 &self.workspace.as_ref().map(|t| t.path().to_owned()),
             )
-            .field(
-                "home",
-                &self.home.as_ref().map(|t| t.path().to_owned()),
-            )
+            .field("home", &self.home.as_ref().map(|t| t.path().to_owned()))
             .field(
                 "data_dir",
                 &self.data_dir.as_ref().map(|t| t.path().to_owned()),
@@ -86,8 +83,7 @@ fn when_write_no_home(w: &mut ProjWorld) {
 fn when_write_with_home(w: &mut ProjWorld) {
     let ws = w.workspace_path();
     let home = w.home_path();
-    let paths =
-        write_projections(Some(&home), &ws).expect("write_projections");
+    let paths = write_projections(Some(&home), &ws).expect("write_projections");
     let bytes = std::fs::read(&paths.memory_md).expect("read memory.md");
     w.last_run_bytes.push(bytes);
     w.last = Some(paths);
@@ -204,7 +200,5 @@ fn then_file_absent_workspace(w: &mut ProjWorld, rel: String) {
 }
 
 fn main() {
-    futures::executor::block_on(ProjWorld::run(
-        "tests/features/memory_projections.feature",
-    ));
+    futures::executor::block_on(ProjWorld::run("tests/features/memory_projections.feature"));
 }

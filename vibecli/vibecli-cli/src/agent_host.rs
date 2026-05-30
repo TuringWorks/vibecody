@@ -302,10 +302,7 @@ impl AgentHost {
 
         let agent_name = agent.name.clone();
         let ts = self.next_ts();
-        let response_text = format!(
-            "[{}] Response to: {}",
-            agent_name, message
-        );
+        let response_text = format!("[{}] Response to: {}", agent_name, message);
 
         let output = OutputLine {
             agent_id: id.to_string(),
@@ -373,11 +370,7 @@ impl AgentHost {
 
     /// Read an entry from the shared clipboard by key.
     pub fn read_clipboard(&self, key: &str) -> Option<&ClipboardEntry> {
-        self.clipboard
-            .entries
-            .iter()
-            .rev()
-            .find(|e| e.key == key)
+        self.clipboard.entries.iter().rev().find(|e| e.key == key)
     }
 
     /// List all clipboard entries.
@@ -581,7 +574,9 @@ mod tests {
     #[test]
     fn test_full_lifecycle() {
         let mut host = default_host();
-        let id = host.add_agent("lifecycle", "aider", "aider", vec![]).unwrap();
+        let id = host
+            .add_agent("lifecycle", "aider", "aider", vec![])
+            .unwrap();
         assert_eq!(host.agents[&id].status, HostedAgentStatus::Running);
 
         host.stop_agent(&id).unwrap();
@@ -656,8 +651,7 @@ mod tests {
     fn test_restart_crashed_agent() {
         let mut host = default_host();
         let id = host.add_agent("a", "claude-code", "c", vec![]).unwrap();
-        host.agents.get_mut(&id).unwrap().status =
-            HostedAgentStatus::Crashed("oom".to_string());
+        host.agents.get_mut(&id).unwrap().status = HostedAgentStatus::Crashed("oom".to_string());
         host.restart_agent(&id).unwrap();
         assert_eq!(host.agents[&id].status, HostedAgentStatus::Running);
     }
@@ -753,7 +747,9 @@ mod tests {
     #[test]
     fn test_ask_agent_success() {
         let mut host = default_host();
-        let id = host.add_agent("claude", "claude-code", "c", vec![]).unwrap();
+        let id = host
+            .add_agent("claude", "claude-code", "c", vec![])
+            .unwrap();
         let output = host.ask_agent(&id, "what is 2+2?").unwrap();
         assert_eq!(output.agent_id, id);
         assert_eq!(output.label, OutputLabel::Stdout);
@@ -1095,7 +1091,9 @@ mod tests {
         let mut host = default_host();
         let id = host.add_agent("a", "claude-code", "c", vec![]).unwrap();
         let agent = host.agents.get_mut(&id).unwrap();
-        agent.env_vars.insert("API_KEY".to_string(), "secret".to_string());
+        agent
+            .env_vars
+            .insert("API_KEY".to_string(), "secret".to_string());
         assert_eq!(agent.env_vars["API_KEY"], "secret");
     }
 

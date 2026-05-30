@@ -29,25 +29,46 @@ pub enum Severity {
 
 impl std::fmt::Display for Severity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {
-            Self::P0 => "P0", Self::P1 => "P1", Self::P2 => "P2",
-            Self::P3 => "P3", Self::P4 => "P4",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::P0 => "P0",
+                Self::P1 => "P1",
+                Self::P2 => "P2",
+                Self::P3 => "P3",
+                Self::P4 => "P4",
+            }
+        )
     }
 }
 
 impl Severity {
     /// Maximum time to first response in minutes.
     pub fn response_slo_minutes(&self) -> u32 {
-        match self { Self::P0 => 5, Self::P1 => 15, Self::P2 => 60, Self::P3 => 240, Self::P4 => 1440 }
+        match self {
+            Self::P0 => 5,
+            Self::P1 => 15,
+            Self::P2 => 60,
+            Self::P3 => 240,
+            Self::P4 => 1440,
+        }
     }
 
     /// Classify based on error rate and latency impact.
     pub fn classify(error_rate_pct: f64, latency_p99_ms: u64, affected_users_pct: f64) -> Self {
-        if error_rate_pct > 50.0 || affected_users_pct > 75.0 { return Self::P0; }
-        if error_rate_pct > 20.0 || latency_p99_ms > 5000 || affected_users_pct > 25.0 { return Self::P1; }
-        if error_rate_pct > 5.0  || latency_p99_ms > 2000 { return Self::P2; }
-        if error_rate_pct > 1.0  || latency_p99_ms > 1000 { return Self::P3; }
+        if error_rate_pct > 50.0 || affected_users_pct > 75.0 {
+            return Self::P0;
+        }
+        if error_rate_pct > 20.0 || latency_p99_ms > 5000 || affected_users_pct > 25.0 {
+            return Self::P1;
+        }
+        if error_rate_pct > 5.0 || latency_p99_ms > 2000 {
+            return Self::P2;
+        }
+        if error_rate_pct > 1.0 || latency_p99_ms > 1000 {
+            return Self::P3;
+        }
         Self::P4
     }
 }
@@ -56,18 +77,26 @@ impl Severity {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IncidentStatus {
-    Detected, Acknowledged, Investigating, Mitigated, Resolved,
+    Detected,
+    Acknowledged,
+    Investigating,
+    Mitigated,
+    Resolved,
 }
 
 impl std::fmt::Display for IncidentStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {
-            Self::Detected      => "Detected",
-            Self::Acknowledged  => "Acknowledged",
-            Self::Investigating => "Investigating",
-            Self::Mitigated     => "Mitigated",
-            Self::Resolved      => "Resolved",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Detected => "Detected",
+                Self::Acknowledged => "Acknowledged",
+                Self::Investigating => "Investigating",
+                Self::Mitigated => "Mitigated",
+                Self::Resolved => "Resolved",
+            }
+        )
     }
 }
 
@@ -93,11 +122,23 @@ pub struct Incident {
 }
 
 impl Incident {
-    pub fn new(id: impl Into<String>, title: impl Into<String>, severity: Severity, detected_at_ms: u64) -> Self {
+    pub fn new(
+        id: impl Into<String>,
+        title: impl Into<String>,
+        severity: Severity,
+        detected_at_ms: u64,
+    ) -> Self {
         Self {
-            id: id.into(), title: title.into(), severity, status: IncidentStatus::Detected,
-            detected_at_ms, acknowledged_at_ms: None, resolved_at_ms: None,
-            affected_services: Vec::new(), timeline: Vec::new(), labels: HashMap::new(),
+            id: id.into(),
+            title: title.into(),
+            severity,
+            status: IncidentStatus::Detected,
+            detected_at_ms,
+            acknowledged_at_ms: None,
+            resolved_at_ms: None,
+            affected_services: Vec::new(),
+            timeline: Vec::new(),
+            labels: HashMap::new(),
         }
     }
 
@@ -113,25 +154,38 @@ impl Incident {
         self.add_event(ts_ms, actor, resolution);
     }
 
-    pub fn add_event(&mut self, ts_ms: u64, actor: impl Into<String>, description: impl Into<String>) {
-        self.timeline.push(TimelineEvent { ts_ms, actor: actor.into(), description: description.into() });
+    pub fn add_event(
+        &mut self,
+        ts_ms: u64,
+        actor: impl Into<String>,
+        description: impl Into<String>,
+    ) {
+        self.timeline.push(TimelineEvent {
+            ts_ms,
+            actor: actor.into(),
+            description: description.into(),
+        });
     }
 
     /// Time to first acknowledgement in minutes.
     pub fn tta_minutes(&self) -> Option<u64> {
-        self.acknowledged_at_ms.map(|a| (a - self.detected_at_ms) / 60_000)
+        self.acknowledged_at_ms
+            .map(|a| (a - self.detected_at_ms) / 60_000)
     }
 
     /// Total duration from detection to resolution in minutes.
     pub fn ttr_minutes(&self) -> Option<u64> {
-        self.resolved_at_ms.map(|r| (r - self.detected_at_ms) / 60_000)
+        self.resolved_at_ms
+            .map(|r| (r - self.detected_at_ms) / 60_000)
     }
 
     /// Whether SLO for first response has been breached.
     pub fn slo_breached(&self, current_ts_ms: u64) -> bool {
         let elapsed_minutes = (current_ts_ms - self.detected_at_ms) / 60_000;
         match &self.acknowledged_at_ms {
-            Some(ack) => (ack - self.detected_at_ms) / 60_000 > self.severity.response_slo_minutes() as u64,
+            Some(ack) => {
+                (ack - self.detected_at_ms) / 60_000 > self.severity.response_slo_minutes() as u64
+            }
             None => elapsed_minutes > self.severity.response_slo_minutes() as u64,
         }
     }
@@ -159,7 +213,8 @@ impl OnCallRotation {
     /// Who is on-call at `hour_offset` hours from epoch?
     pub fn on_call_at(&self, hour_offset: u64) -> Option<&str> {
         for slot in &self.slots {
-            if hour_offset >= slot.start_hour && hour_offset < slot.start_hour + slot.duration_hours {
+            if hour_offset >= slot.start_hour && hour_offset < slot.start_hour + slot.duration_hours
+            {
                 return Some(&slot.engineer);
             }
         }
@@ -171,7 +226,9 @@ impl OnCallRotation {
         let primary = self.on_call_at(hour_offset);
         let mut chain: Vec<&str> = primary.into_iter().collect();
         for e in &self.escalation_chain {
-            if primary != Some(e.as_str()) { chain.push(e.as_str()); }
+            if primary != Some(e.as_str()) {
+                chain.push(e.as_str());
+            }
         }
         chain
     }
@@ -193,10 +250,14 @@ impl Runbook {
         let mut score = 0.0_f64;
         let title_lower = incident.title.to_lowercase();
         for kw in &self.keywords {
-            if title_lower.contains(kw.to_lowercase().as_str()) { score += 1.0; }
+            if title_lower.contains(kw.to_lowercase().as_str()) {
+                score += 1.0;
+            }
         }
         for svc in &incident.affected_services {
-            if self.services.contains(svc) { score += 2.0; }
+            if self.services.contains(svc) {
+                score += 2.0;
+            }
         }
         score
     }
@@ -224,7 +285,11 @@ impl Hypothesis {
 
 /// Sort hypotheses by rank score descending.
 pub fn rank_hypotheses(mut hypotheses: Vec<Hypothesis>) -> Vec<Hypothesis> {
-    hypotheses.sort_by(|a, b| b.rank_score().partial_cmp(&a.rank_score()).unwrap_or(std::cmp::Ordering::Equal));
+    hypotheses.sort_by(|a, b| {
+        b.rank_score()
+            .partial_cmp(&a.rank_score())
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     hypotheses
 }
 
@@ -238,19 +303,29 @@ pub struct IncidentManager {
 
 impl IncidentManager {
     pub fn new() -> Self {
-        Self { incidents: HashMap::new(), runbooks: Vec::new(), rotations: HashMap::new() }
+        Self {
+            incidents: HashMap::new(),
+            runbooks: Vec::new(),
+            rotations: HashMap::new(),
+        }
     }
 
     pub fn open_incident(&mut self, incident: Incident) {
         self.incidents.insert(incident.id.clone(), incident);
     }
 
-    pub fn add_runbook(&mut self, rb: Runbook) { self.runbooks.push(rb); }
-    pub fn add_rotation(&mut self, rot: OnCallRotation) { self.rotations.insert(rot.service.clone(), rot); }
+    pub fn add_runbook(&mut self, rb: Runbook) {
+        self.runbooks.push(rb);
+    }
+    pub fn add_rotation(&mut self, rot: OnCallRotation) {
+        self.rotations.insert(rot.service.clone(), rot);
+    }
 
     /// Find runbooks relevant to this incident, sorted by match score.
     pub fn matching_runbooks(&self, incident: &Incident) -> Vec<(&Runbook, f64)> {
-        let mut scored: Vec<_> = self.runbooks.iter()
+        let mut scored: Vec<_> = self
+            .runbooks
+            .iter()
             .map(|rb| (rb, rb.matches(incident)))
             .filter(|(_, s)| *s > 0.0)
             .collect();
@@ -261,18 +336,32 @@ impl IncidentManager {
     /// Generate a post-mortem draft for a resolved incident.
     pub fn post_mortem(&self, incident_id: &str) -> Option<String> {
         let inc = self.incidents.get(incident_id)?;
-        if inc.status != IncidentStatus::Resolved { return None; }
+        if inc.status != IncidentStatus::Resolved {
+            return None;
+        }
 
         let ttd = "at detection";
-        let tta = inc.tta_minutes().map(|m| format!("{m} min")).unwrap_or_else(|| "unknown".into());
-        let ttr = inc.ttr_minutes().map(|m| format!("{m} min")).unwrap_or_else(|| "unknown".into());
+        let tta = inc
+            .tta_minutes()
+            .map(|m| format!("{m} min"))
+            .unwrap_or_else(|| "unknown".into());
+        let ttr = inc
+            .ttr_minutes()
+            .map(|m| format!("{m} min"))
+            .unwrap_or_else(|| "unknown".into());
 
-        let events: Vec<String> = inc.timeline.iter().map(|e| {
-            format!("  - [{}ms] {}: {}", e.ts_ms, e.actor, e.description)
-        }).collect();
+        let events: Vec<String> = inc
+            .timeline
+            .iter()
+            .map(|e| format!("  - [{}ms] {}: {}", e.ts_ms, e.actor, e.description))
+            .collect();
 
-        let runbooks: Vec<String> = self.matching_runbooks(inc)
-            .into_iter().take(3).map(|(rb, _)| format!("  - {} ({})", rb.title, rb.id)).collect();
+        let runbooks: Vec<String> = self
+            .matching_runbooks(inc)
+            .into_iter()
+            .take(3)
+            .map(|(rb, _)| format!("  - {} ({})", rb.title, rb.id))
+            .collect();
 
         Some(format!(
             "# Post-Mortem: {} ({})\n\n\
@@ -291,12 +380,17 @@ impl IncidentManager {
 
     /// List incidents that breached their SLO at the given timestamp.
     pub fn slo_breaches(&self, current_ts_ms: u64) -> Vec<&Incident> {
-        self.incidents.values().filter(|i| i.slo_breached(current_ts_ms)).collect()
+        self.incidents
+            .values()
+            .filter(|i| i.slo_breached(current_ts_ms))
+            .collect()
     }
 }
 
 impl Default for IncidentManager {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -393,8 +487,16 @@ mod tests {
         let rot = OnCallRotation {
             service: "api".into(),
             slots: vec![
-                OnCallSlot { engineer: "alice".into(), start_hour: 0, duration_hours: 12 },
-                OnCallSlot { engineer: "bob".into(),   start_hour: 12, duration_hours: 12 },
+                OnCallSlot {
+                    engineer: "alice".into(),
+                    start_hour: 0,
+                    duration_hours: 12,
+                },
+                OnCallSlot {
+                    engineer: "bob".into(),
+                    start_hour: 12,
+                    duration_hours: 12,
+                },
             ],
             escalation_chain: vec!["manager".into()],
         };
@@ -407,7 +509,11 @@ mod tests {
     fn test_oncall_escalation_includes_manager() {
         let rot = OnCallRotation {
             service: "api".into(),
-            slots: vec![OnCallSlot { engineer: "alice".into(), start_hour: 0, duration_hours: 24 }],
+            slots: vec![OnCallSlot {
+                engineer: "alice".into(),
+                start_hour: 0,
+                duration_hours: 24,
+            }],
             escalation_chain: vec!["manager".into()],
         };
         let chain = rot.escalate(0);
@@ -418,9 +524,11 @@ mod tests {
     #[test]
     fn test_runbook_matches_by_keyword() {
         let rb = Runbook {
-            id: "rb-001".into(), title: "DB Connection".into(),
+            id: "rb-001".into(),
+            title: "DB Connection".into(),
             keywords: vec!["timeout".into(), "database".into()],
-            steps: vec!["Check pool".into()], services: vec![],
+            steps: vec!["Check pool".into()],
+            services: vec![],
         };
         let i = base_incident(); // title: "Database connection timeout"
         assert!(rb.matches(&i) > 0.0);
@@ -429,8 +537,10 @@ mod tests {
     #[test]
     fn test_runbook_matches_by_service() {
         let rb = Runbook {
-            id: "rb-002".into(), title: "API Health".into(),
-            keywords: vec![], steps: vec![],
+            id: "rb-002".into(),
+            title: "API Health".into(),
+            keywords: vec![],
+            steps: vec![],
             services: vec!["api".into()],
         };
         let i = base_incident();
@@ -440,8 +550,11 @@ mod tests {
     #[test]
     fn test_runbook_no_match() {
         let rb = Runbook {
-            id: "rb-003".into(), title: "Deploy".into(),
-            keywords: vec!["deployment".to_string()], steps: vec![], services: vec!["deploy-service".into()],
+            id: "rb-003".into(),
+            title: "Deploy".into(),
+            keywords: vec!["deployment".to_string()],
+            steps: vec![],
+            services: vec!["deploy-service".into()],
         };
         let i = base_incident();
         assert_eq!(rb.matches(&i), 0.0);
@@ -449,23 +562,53 @@ mod tests {
 
     #[test]
     fn test_hypothesis_rank_recent_wins() {
-        let h1 = Hypothesis { description: "Cache miss".into(), frequency: 10, hours_since_last: 1, confidence: 0.8 };
-        let h2 = Hypothesis { description: "OOM".into(), frequency: 10, hours_since_last: 100, confidence: 0.5 };
+        let h1 = Hypothesis {
+            description: "Cache miss".into(),
+            frequency: 10,
+            hours_since_last: 1,
+            confidence: 0.8,
+        };
+        let h2 = Hypothesis {
+            description: "OOM".into(),
+            frequency: 10,
+            hours_since_last: 100,
+            confidence: 0.5,
+        };
         assert!(h1.rank_score() > h2.rank_score());
     }
 
     #[test]
     fn test_hypothesis_rank_frequent_wins_same_recency() {
-        let h1 = Hypothesis { description: "A".into(), frequency: 20, hours_since_last: 5, confidence: 0.9 };
-        let h2 = Hypothesis { description: "B".into(), frequency: 5, hours_since_last: 5, confidence: 0.5 };
+        let h1 = Hypothesis {
+            description: "A".into(),
+            frequency: 20,
+            hours_since_last: 5,
+            confidence: 0.9,
+        };
+        let h2 = Hypothesis {
+            description: "B".into(),
+            frequency: 5,
+            hours_since_last: 5,
+            confidence: 0.5,
+        };
         assert!(h1.rank_score() > h2.rank_score());
     }
 
     #[test]
     fn test_rank_hypotheses_sorted() {
         let hyps = vec![
-            Hypothesis { description: "B".into(), frequency: 2, hours_since_last: 5, confidence: 0.3 },
-            Hypothesis { description: "A".into(), frequency: 20, hours_since_last: 1, confidence: 0.9 },
+            Hypothesis {
+                description: "B".into(),
+                frequency: 2,
+                hours_since_last: 5,
+                confidence: 0.3,
+            },
+            Hypothesis {
+                description: "A".into(),
+                frequency: 20,
+                hours_since_last: 1,
+                confidence: 0.9,
+            },
         ];
         let ranked = rank_hypotheses(hyps);
         assert_eq!(ranked[0].description, "A");
@@ -513,13 +656,18 @@ mod tests {
     fn test_matching_runbooks_sorted() {
         let mut mgr = IncidentManager::new();
         mgr.add_runbook(Runbook {
-            id: "rb-a".into(), title: "Weak".into(),
-            keywords: vec!["timeout".into()], steps: vec![], services: vec![],
+            id: "rb-a".into(),
+            title: "Weak".into(),
+            keywords: vec!["timeout".into()],
+            steps: vec![],
+            services: vec![],
         });
         mgr.add_runbook(Runbook {
-            id: "rb-b".into(), title: "Strong".into(),
+            id: "rb-b".into(),
+            title: "Strong".into(),
             keywords: vec!["timeout".into(), "database".into()],
-            steps: vec![], services: vec!["db".into()],
+            steps: vec![],
+            services: vec!["db".into()],
         });
         let i = base_incident();
         let matches = mgr.matching_runbooks(&i);

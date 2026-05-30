@@ -193,18 +193,40 @@ impl ModelMarketplace {
                 provider: "anthropic".into(),
                 model_family: "claude-4".into(),
                 capabilities: vec![
-                    Capability::CodeGeneration, Capability::Chat, Capability::Vision,
-                    Capability::ToolUse, Capability::Streaming, Capability::SystemPrompt,
-                    Capability::MultiModal, Capability::FunctionCalling, Capability::JsonMode,
+                    Capability::CodeGeneration,
+                    Capability::Chat,
+                    Capability::Vision,
+                    Capability::ToolUse,
+                    Capability::Streaming,
+                    Capability::SystemPrompt,
+                    Capability::MultiModal,
+                    Capability::FunctionCalling,
+                    Capability::JsonMode,
                     Capability::ReasoningMode,
                 ],
                 context_window: 1_000_000,
                 max_output_tokens: 32_000,
-                pricing: ModelPricing { input_per_million: 15.0, output_per_million: 75.0, free_tier: false, currency: "USD".into() },
-                benchmarks: ModelBenchmarks { swe_bench_score: Some(72.0), humaneval_score: Some(96.4), mbpp_score: Some(91.0), arena_elo: Some(1380), mmlu_score: Some(92.0), speed_tokens_per_sec: Some(60.0) },
+                pricing: ModelPricing {
+                    input_per_million: 15.0,
+                    output_per_million: 75.0,
+                    free_tier: false,
+                    currency: "USD".into(),
+                },
+                benchmarks: ModelBenchmarks {
+                    swe_bench_score: Some(72.0),
+                    humaneval_score: Some(96.4),
+                    mbpp_score: Some(91.0),
+                    arena_elo: Some(1380),
+                    mmlu_score: Some(92.0),
+                    speed_tokens_per_sec: Some(60.0),
+                },
                 release_date: "2026-02-01".into(),
                 description: "Most capable Anthropic model for complex reasoning and code".into(),
-                supported_features: vec!["extended-thinking".into(), "tool-use".into(), "vision".into()],
+                supported_features: vec![
+                    "extended-thinking".into(),
+                    "tool-use".into(),
+                    "vision".into(),
+                ],
                 community_rating: Some(4.8),
                 rating_count: 1250,
             },
@@ -214,14 +236,31 @@ impl ModelMarketplace {
                 provider: "anthropic".into(),
                 model_family: "claude-4".into(),
                 capabilities: vec![
-                    Capability::CodeGeneration, Capability::Chat, Capability::Vision,
-                    Capability::ToolUse, Capability::Streaming, Capability::SystemPrompt,
-                    Capability::FunctionCalling, Capability::JsonMode,
+                    Capability::CodeGeneration,
+                    Capability::Chat,
+                    Capability::Vision,
+                    Capability::ToolUse,
+                    Capability::Streaming,
+                    Capability::SystemPrompt,
+                    Capability::FunctionCalling,
+                    Capability::JsonMode,
                 ],
                 context_window: 200_000,
                 max_output_tokens: 16_000,
-                pricing: ModelPricing { input_per_million: 3.0, output_per_million: 15.0, free_tier: false, currency: "USD".into() },
-                benchmarks: ModelBenchmarks { swe_bench_score: Some(62.0), humaneval_score: Some(93.7), mbpp_score: Some(88.0), arena_elo: Some(1340), mmlu_score: Some(89.5), speed_tokens_per_sec: Some(110.0) },
+                pricing: ModelPricing {
+                    input_per_million: 3.0,
+                    output_per_million: 15.0,
+                    free_tier: false,
+                    currency: "USD".into(),
+                },
+                benchmarks: ModelBenchmarks {
+                    swe_bench_score: Some(62.0),
+                    humaneval_score: Some(93.7),
+                    mbpp_score: Some(88.0),
+                    arena_elo: Some(1340),
+                    mmlu_score: Some(89.5),
+                    speed_tokens_per_sec: Some(110.0),
+                },
                 release_date: "2026-01-15".into(),
                 description: "Best balance of speed and intelligence for daily coding".into(),
                 supported_features: vec!["tool-use".into(), "vision".into()],
@@ -234,13 +273,29 @@ impl ModelMarketplace {
                 provider: "anthropic".into(),
                 model_family: "claude-4".into(),
                 capabilities: vec![
-                    Capability::CodeGeneration, Capability::Chat, Capability::Streaming,
-                    Capability::SystemPrompt, Capability::FunctionCalling, Capability::JsonMode,
+                    Capability::CodeGeneration,
+                    Capability::Chat,
+                    Capability::Streaming,
+                    Capability::SystemPrompt,
+                    Capability::FunctionCalling,
+                    Capability::JsonMode,
                 ],
                 context_window: 200_000,
                 max_output_tokens: 8_000,
-                pricing: ModelPricing { input_per_million: 0.25, output_per_million: 1.25, free_tier: false, currency: "USD".into() },
-                benchmarks: ModelBenchmarks { swe_bench_score: Some(41.0), humaneval_score: Some(85.0), mbpp_score: Some(80.0), arena_elo: Some(1250), mmlu_score: Some(82.0), speed_tokens_per_sec: Some(200.0) },
+                pricing: ModelPricing {
+                    input_per_million: 0.25,
+                    output_per_million: 1.25,
+                    free_tier: false,
+                    currency: "USD".into(),
+                },
+                benchmarks: ModelBenchmarks {
+                    swe_bench_score: Some(41.0),
+                    humaneval_score: Some(85.0),
+                    mbpp_score: Some(80.0),
+                    arena_elo: Some(1250),
+                    mmlu_score: Some(82.0),
+                    speed_tokens_per_sec: Some(200.0),
+                },
                 release_date: "2025-11-01".into(),
                 description: "Fast and affordable for high-volume tasks".into(),
                 supported_features: vec!["tool-use".into()],
@@ -254,15 +309,33 @@ impl ModelMarketplace {
                 provider: "openai".into(),
                 model_family: "gpt-5".into(),
                 capabilities: vec![
-                    Capability::CodeGeneration, Capability::Chat, Capability::Vision,
-                    Capability::ToolUse, Capability::Streaming, Capability::SystemPrompt,
-                    Capability::MultiModal, Capability::FunctionCalling, Capability::JsonMode,
+                    Capability::CodeGeneration,
+                    Capability::Chat,
+                    Capability::Vision,
+                    Capability::ToolUse,
+                    Capability::Streaming,
+                    Capability::SystemPrompt,
+                    Capability::MultiModal,
+                    Capability::FunctionCalling,
+                    Capability::JsonMode,
                     Capability::ReasoningMode,
                 ],
                 context_window: 256_000,
                 max_output_tokens: 32_000,
-                pricing: ModelPricing { input_per_million: 12.0, output_per_million: 60.0, free_tier: false, currency: "USD".into() },
-                benchmarks: ModelBenchmarks { swe_bench_score: Some(68.0), humaneval_score: Some(95.0), mbpp_score: Some(90.0), arena_elo: Some(1370), mmlu_score: Some(91.0), speed_tokens_per_sec: Some(80.0) },
+                pricing: ModelPricing {
+                    input_per_million: 12.0,
+                    output_per_million: 60.0,
+                    free_tier: false,
+                    currency: "USD".into(),
+                },
+                benchmarks: ModelBenchmarks {
+                    swe_bench_score: Some(68.0),
+                    humaneval_score: Some(95.0),
+                    mbpp_score: Some(90.0),
+                    arena_elo: Some(1370),
+                    mmlu_score: Some(91.0),
+                    speed_tokens_per_sec: Some(80.0),
+                },
                 release_date: "2026-01-20".into(),
                 description: "OpenAI flagship model with strong reasoning".into(),
                 supported_features: vec!["reasoning".into(), "vision".into(), "tools".into()],
@@ -275,14 +348,31 @@ impl ModelMarketplace {
                 provider: "openai".into(),
                 model_family: "gpt-5".into(),
                 capabilities: vec![
-                    Capability::CodeGeneration, Capability::Chat, Capability::Vision,
-                    Capability::ToolUse, Capability::Streaming, Capability::SystemPrompt,
-                    Capability::FunctionCalling, Capability::JsonMode,
+                    Capability::CodeGeneration,
+                    Capability::Chat,
+                    Capability::Vision,
+                    Capability::ToolUse,
+                    Capability::Streaming,
+                    Capability::SystemPrompt,
+                    Capability::FunctionCalling,
+                    Capability::JsonMode,
                 ],
                 context_window: 128_000,
                 max_output_tokens: 16_000,
-                pricing: ModelPricing { input_per_million: 5.0, output_per_million: 25.0, free_tier: false, currency: "USD".into() },
-                benchmarks: ModelBenchmarks { swe_bench_score: Some(55.0), humaneval_score: Some(91.0), mbpp_score: Some(86.0), arena_elo: Some(1320), mmlu_score: Some(88.0), speed_tokens_per_sec: Some(120.0) },
+                pricing: ModelPricing {
+                    input_per_million: 5.0,
+                    output_per_million: 25.0,
+                    free_tier: false,
+                    currency: "USD".into(),
+                },
+                benchmarks: ModelBenchmarks {
+                    swe_bench_score: Some(55.0),
+                    humaneval_score: Some(91.0),
+                    mbpp_score: Some(86.0),
+                    arena_elo: Some(1320),
+                    mmlu_score: Some(88.0),
+                    speed_tokens_per_sec: Some(120.0),
+                },
                 release_date: "2025-12-01".into(),
                 description: "Strong general-purpose model at moderate cost".into(),
                 supported_features: vec!["vision".into(), "tools".into()],
@@ -295,14 +385,32 @@ impl ModelMarketplace {
                 provider: "openai".into(),
                 model_family: "gpt-4".into(),
                 capabilities: vec![
-                    Capability::CodeGeneration, Capability::Chat, Capability::Vision,
-                    Capability::ToolUse, Capability::Streaming, Capability::SystemPrompt,
-                    Capability::MultiModal, Capability::FunctionCalling, Capability::JsonMode,
+                    Capability::CodeGeneration,
+                    Capability::Chat,
+                    Capability::Vision,
+                    Capability::ToolUse,
+                    Capability::Streaming,
+                    Capability::SystemPrompt,
+                    Capability::MultiModal,
+                    Capability::FunctionCalling,
+                    Capability::JsonMode,
                 ],
                 context_window: 128_000,
                 max_output_tokens: 16_384,
-                pricing: ModelPricing { input_per_million: 2.50, output_per_million: 10.0, free_tier: false, currency: "USD".into() },
-                benchmarks: ModelBenchmarks { swe_bench_score: Some(48.0), humaneval_score: Some(90.2), mbpp_score: Some(85.0), arena_elo: Some(1290), mmlu_score: Some(87.2), speed_tokens_per_sec: Some(150.0) },
+                pricing: ModelPricing {
+                    input_per_million: 2.50,
+                    output_per_million: 10.0,
+                    free_tier: false,
+                    currency: "USD".into(),
+                },
+                benchmarks: ModelBenchmarks {
+                    swe_bench_score: Some(48.0),
+                    humaneval_score: Some(90.2),
+                    mbpp_score: Some(85.0),
+                    arena_elo: Some(1290),
+                    mmlu_score: Some(87.2),
+                    speed_tokens_per_sec: Some(150.0),
+                },
                 release_date: "2024-05-13".into(),
                 description: "Fast multimodal model with broad capabilities".into(),
                 supported_features: vec!["vision".into(), "audio".into(), "tools".into()],
@@ -315,13 +423,29 @@ impl ModelMarketplace {
                 provider: "openai".into(),
                 model_family: "codex".into(),
                 capabilities: vec![
-                    Capability::CodeGeneration, Capability::Chat, Capability::ToolUse,
-                    Capability::Streaming, Capability::SystemPrompt, Capability::FunctionCalling,
+                    Capability::CodeGeneration,
+                    Capability::Chat,
+                    Capability::ToolUse,
+                    Capability::Streaming,
+                    Capability::SystemPrompt,
+                    Capability::FunctionCalling,
                 ],
                 context_window: 192_000,
                 max_output_tokens: 32_000,
-                pricing: ModelPricing { input_per_million: 6.0, output_per_million: 30.0, free_tier: false, currency: "USD".into() },
-                benchmarks: ModelBenchmarks { swe_bench_score: Some(70.0), humaneval_score: Some(97.0), mbpp_score: Some(92.0), arena_elo: Some(1360), mmlu_score: None, speed_tokens_per_sec: Some(90.0) },
+                pricing: ModelPricing {
+                    input_per_million: 6.0,
+                    output_per_million: 30.0,
+                    free_tier: false,
+                    currency: "USD".into(),
+                },
+                benchmarks: ModelBenchmarks {
+                    swe_bench_score: Some(70.0),
+                    humaneval_score: Some(97.0),
+                    mbpp_score: Some(92.0),
+                    arena_elo: Some(1360),
+                    mmlu_score: None,
+                    speed_tokens_per_sec: Some(90.0),
+                },
                 release_date: "2026-02-10".into(),
                 description: "Specialized code generation model from OpenAI".into(),
                 supported_features: vec!["code-execution".into(), "tools".into()],
@@ -335,18 +459,40 @@ impl ModelMarketplace {
                 provider: "google".into(),
                 model_family: "gemini-2".into(),
                 capabilities: vec![
-                    Capability::CodeGeneration, Capability::Chat, Capability::Vision,
-                    Capability::ToolUse, Capability::Streaming, Capability::SystemPrompt,
-                    Capability::MultiModal, Capability::FunctionCalling, Capability::JsonMode,
+                    Capability::CodeGeneration,
+                    Capability::Chat,
+                    Capability::Vision,
+                    Capability::ToolUse,
+                    Capability::Streaming,
+                    Capability::SystemPrompt,
+                    Capability::MultiModal,
+                    Capability::FunctionCalling,
+                    Capability::JsonMode,
                     Capability::ReasoningMode,
                 ],
                 context_window: 2_000_000,
                 max_output_tokens: 65_536,
-                pricing: ModelPricing { input_per_million: 7.0, output_per_million: 21.0, free_tier: true, currency: "USD".into() },
-                benchmarks: ModelBenchmarks { swe_bench_score: Some(63.8), humaneval_score: Some(94.0), mbpp_score: Some(89.0), arena_elo: Some(1350), mmlu_score: Some(90.5), speed_tokens_per_sec: Some(95.0) },
+                pricing: ModelPricing {
+                    input_per_million: 7.0,
+                    output_per_million: 21.0,
+                    free_tier: true,
+                    currency: "USD".into(),
+                },
+                benchmarks: ModelBenchmarks {
+                    swe_bench_score: Some(63.8),
+                    humaneval_score: Some(94.0),
+                    mbpp_score: Some(89.0),
+                    arena_elo: Some(1350),
+                    mmlu_score: Some(90.5),
+                    speed_tokens_per_sec: Some(95.0),
+                },
                 release_date: "2025-12-15".into(),
                 description: "Google flagship with 2M context window and strong reasoning".into(),
-                supported_features: vec!["grounding".into(), "code-execution".into(), "vision".into()],
+                supported_features: vec![
+                    "grounding".into(),
+                    "code-execution".into(),
+                    "vision".into(),
+                ],
                 community_rating: Some(4.5),
                 rating_count: 1600,
             },
@@ -356,14 +502,30 @@ impl ModelMarketplace {
                 provider: "google".into(),
                 model_family: "gemini-2".into(),
                 capabilities: vec![
-                    Capability::CodeGeneration, Capability::Chat, Capability::Vision,
-                    Capability::Streaming, Capability::SystemPrompt, Capability::FunctionCalling,
+                    Capability::CodeGeneration,
+                    Capability::Chat,
+                    Capability::Vision,
+                    Capability::Streaming,
+                    Capability::SystemPrompt,
+                    Capability::FunctionCalling,
                     Capability::JsonMode,
                 ],
                 context_window: 1_000_000,
                 max_output_tokens: 32_768,
-                pricing: ModelPricing { input_per_million: 0.15, output_per_million: 0.60, free_tier: true, currency: "USD".into() },
-                benchmarks: ModelBenchmarks { swe_bench_score: Some(42.0), humaneval_score: Some(86.0), mbpp_score: Some(81.0), arena_elo: Some(1260), mmlu_score: Some(83.0), speed_tokens_per_sec: Some(250.0) },
+                pricing: ModelPricing {
+                    input_per_million: 0.15,
+                    output_per_million: 0.60,
+                    free_tier: true,
+                    currency: "USD".into(),
+                },
+                benchmarks: ModelBenchmarks {
+                    swe_bench_score: Some(42.0),
+                    humaneval_score: Some(86.0),
+                    mbpp_score: Some(81.0),
+                    arena_elo: Some(1260),
+                    mmlu_score: Some(83.0),
+                    speed_tokens_per_sec: Some(250.0),
+                },
                 release_date: "2025-11-20".into(),
                 description: "Ultra-fast and cheap with large context".into(),
                 supported_features: vec!["grounding".into(), "vision".into()],
@@ -377,13 +539,29 @@ impl ModelMarketplace {
                 provider: "meta".into(),
                 model_family: "llama-4".into(),
                 capabilities: vec![
-                    Capability::CodeGeneration, Capability::Chat, Capability::ToolUse,
-                    Capability::Streaming, Capability::SystemPrompt, Capability::FunctionCalling,
+                    Capability::CodeGeneration,
+                    Capability::Chat,
+                    Capability::ToolUse,
+                    Capability::Streaming,
+                    Capability::SystemPrompt,
+                    Capability::FunctionCalling,
                 ],
                 context_window: 128_000,
                 max_output_tokens: 16_000,
-                pricing: ModelPricing { input_per_million: 0.0, output_per_million: 0.0, free_tier: true, currency: "USD".into() },
-                benchmarks: ModelBenchmarks { swe_bench_score: Some(50.0), humaneval_score: Some(89.0), mbpp_score: Some(84.0), arena_elo: Some(1300), mmlu_score: Some(86.0), speed_tokens_per_sec: Some(40.0) },
+                pricing: ModelPricing {
+                    input_per_million: 0.0,
+                    output_per_million: 0.0,
+                    free_tier: true,
+                    currency: "USD".into(),
+                },
+                benchmarks: ModelBenchmarks {
+                    swe_bench_score: Some(50.0),
+                    humaneval_score: Some(89.0),
+                    mbpp_score: Some(84.0),
+                    arena_elo: Some(1300),
+                    mmlu_score: Some(86.0),
+                    speed_tokens_per_sec: Some(40.0),
+                },
                 release_date: "2025-10-01".into(),
                 description: "Open-weight flagship model, self-hostable".into(),
                 supported_features: vec!["self-hosted".into(), "fine-tunable".into()],
@@ -396,13 +574,28 @@ impl ModelMarketplace {
                 provider: "meta".into(),
                 model_family: "llama-4".into(),
                 capabilities: vec![
-                    Capability::CodeGeneration, Capability::Chat, Capability::Streaming,
-                    Capability::SystemPrompt, Capability::FunctionCalling,
+                    Capability::CodeGeneration,
+                    Capability::Chat,
+                    Capability::Streaming,
+                    Capability::SystemPrompt,
+                    Capability::FunctionCalling,
                 ],
                 context_window: 128_000,
                 max_output_tokens: 8_000,
-                pricing: ModelPricing { input_per_million: 0.0, output_per_million: 0.0, free_tier: true, currency: "USD".into() },
-                benchmarks: ModelBenchmarks { swe_bench_score: Some(38.0), humaneval_score: Some(82.0), mbpp_score: Some(78.0), arena_elo: Some(1240), mmlu_score: Some(80.0), speed_tokens_per_sec: Some(90.0) },
+                pricing: ModelPricing {
+                    input_per_million: 0.0,
+                    output_per_million: 0.0,
+                    free_tier: true,
+                    currency: "USD".into(),
+                },
+                benchmarks: ModelBenchmarks {
+                    swe_bench_score: Some(38.0),
+                    humaneval_score: Some(82.0),
+                    mbpp_score: Some(78.0),
+                    arena_elo: Some(1240),
+                    mmlu_score: Some(80.0),
+                    speed_tokens_per_sec: Some(90.0),
+                },
                 release_date: "2025-10-01".into(),
                 description: "Strong open model for local or cloud deployment".into(),
                 supported_features: vec!["self-hosted".into(), "fine-tunable".into()],
@@ -416,14 +609,30 @@ impl ModelMarketplace {
                 provider: "mistral".into(),
                 model_family: "mistral-large".into(),
                 capabilities: vec![
-                    Capability::CodeGeneration, Capability::Chat, Capability::ToolUse,
-                    Capability::Streaming, Capability::SystemPrompt, Capability::FunctionCalling,
+                    Capability::CodeGeneration,
+                    Capability::Chat,
+                    Capability::ToolUse,
+                    Capability::Streaming,
+                    Capability::SystemPrompt,
+                    Capability::FunctionCalling,
                     Capability::JsonMode,
                 ],
                 context_window: 128_000,
                 max_output_tokens: 16_000,
-                pricing: ModelPricing { input_per_million: 2.0, output_per_million: 6.0, free_tier: false, currency: "USD".into() },
-                benchmarks: ModelBenchmarks { swe_bench_score: Some(45.0), humaneval_score: Some(88.0), mbpp_score: Some(83.0), arena_elo: Some(1280), mmlu_score: Some(84.5), speed_tokens_per_sec: Some(130.0) },
+                pricing: ModelPricing {
+                    input_per_million: 2.0,
+                    output_per_million: 6.0,
+                    free_tier: false,
+                    currency: "USD".into(),
+                },
+                benchmarks: ModelBenchmarks {
+                    swe_bench_score: Some(45.0),
+                    humaneval_score: Some(88.0),
+                    mbpp_score: Some(83.0),
+                    arena_elo: Some(1280),
+                    mmlu_score: Some(84.5),
+                    speed_tokens_per_sec: Some(130.0),
+                },
                 release_date: "2025-11-10".into(),
                 description: "European frontier model with strong multilingual support".into(),
                 supported_features: vec!["tool-use".into(), "json-mode".into()],
@@ -436,13 +645,28 @@ impl ModelMarketplace {
                 provider: "mistral".into(),
                 model_family: "codestral".into(),
                 capabilities: vec![
-                    Capability::CodeGeneration, Capability::Chat, Capability::Streaming,
-                    Capability::SystemPrompt, Capability::FunctionCalling,
+                    Capability::CodeGeneration,
+                    Capability::Chat,
+                    Capability::Streaming,
+                    Capability::SystemPrompt,
+                    Capability::FunctionCalling,
                 ],
                 context_window: 64_000,
                 max_output_tokens: 16_000,
-                pricing: ModelPricing { input_per_million: 0.30, output_per_million: 0.90, free_tier: false, currency: "USD".into() },
-                benchmarks: ModelBenchmarks { swe_bench_score: Some(40.0), humaneval_score: Some(90.0), mbpp_score: Some(85.0), arena_elo: Some(1270), mmlu_score: None, speed_tokens_per_sec: Some(180.0) },
+                pricing: ModelPricing {
+                    input_per_million: 0.30,
+                    output_per_million: 0.90,
+                    free_tier: false,
+                    currency: "USD".into(),
+                },
+                benchmarks: ModelBenchmarks {
+                    swe_bench_score: Some(40.0),
+                    humaneval_score: Some(90.0),
+                    mbpp_score: Some(85.0),
+                    arena_elo: Some(1270),
+                    mmlu_score: None,
+                    speed_tokens_per_sec: Some(180.0),
+                },
                 release_date: "2025-09-15".into(),
                 description: "Dedicated code model with fill-in-the-middle support".into(),
                 supported_features: vec!["fim".into(), "code-completion".into()],
@@ -456,14 +680,31 @@ impl ModelMarketplace {
                 provider: "deepseek".into(),
                 model_family: "deepseek-v3".into(),
                 capabilities: vec![
-                    Capability::CodeGeneration, Capability::Chat, Capability::ToolUse,
-                    Capability::Streaming, Capability::SystemPrompt, Capability::FunctionCalling,
-                    Capability::JsonMode, Capability::ReasoningMode,
+                    Capability::CodeGeneration,
+                    Capability::Chat,
+                    Capability::ToolUse,
+                    Capability::Streaming,
+                    Capability::SystemPrompt,
+                    Capability::FunctionCalling,
+                    Capability::JsonMode,
+                    Capability::ReasoningMode,
                 ],
                 context_window: 128_000,
                 max_output_tokens: 16_000,
-                pricing: ModelPricing { input_per_million: 0.27, output_per_million: 1.10, free_tier: false, currency: "USD".into() },
-                benchmarks: ModelBenchmarks { swe_bench_score: Some(55.0), humaneval_score: Some(91.5), mbpp_score: Some(87.0), arena_elo: Some(1330), mmlu_score: Some(87.5), speed_tokens_per_sec: Some(100.0) },
+                pricing: ModelPricing {
+                    input_per_million: 0.27,
+                    output_per_million: 1.10,
+                    free_tier: false,
+                    currency: "USD".into(),
+                },
+                benchmarks: ModelBenchmarks {
+                    swe_bench_score: Some(55.0),
+                    humaneval_score: Some(91.5),
+                    mbpp_score: Some(87.0),
+                    arena_elo: Some(1330),
+                    mmlu_score: Some(87.5),
+                    speed_tokens_per_sec: Some(100.0),
+                },
                 release_date: "2025-12-20".into(),
                 description: "Cost-effective MoE model with strong coding abilities".into(),
                 supported_features: vec!["reasoning".into(), "tool-use".into()],
@@ -476,13 +717,28 @@ impl ModelMarketplace {
                 provider: "deepseek".into(),
                 model_family: "deepseek-r".into(),
                 capabilities: vec![
-                    Capability::CodeGeneration, Capability::Chat, Capability::Streaming,
-                    Capability::SystemPrompt, Capability::ReasoningMode,
+                    Capability::CodeGeneration,
+                    Capability::Chat,
+                    Capability::Streaming,
+                    Capability::SystemPrompt,
+                    Capability::ReasoningMode,
                 ],
                 context_window: 128_000,
                 max_output_tokens: 32_000,
-                pricing: ModelPricing { input_per_million: 0.55, output_per_million: 2.19, free_tier: false, currency: "USD".into() },
-                benchmarks: ModelBenchmarks { swe_bench_score: Some(58.0), humaneval_score: Some(92.0), mbpp_score: Some(88.0), arena_elo: Some(1345), mmlu_score: Some(88.5), speed_tokens_per_sec: Some(70.0) },
+                pricing: ModelPricing {
+                    input_per_million: 0.55,
+                    output_per_million: 2.19,
+                    free_tier: false,
+                    currency: "USD".into(),
+                },
+                benchmarks: ModelBenchmarks {
+                    swe_bench_score: Some(58.0),
+                    humaneval_score: Some(92.0),
+                    mbpp_score: Some(88.0),
+                    arena_elo: Some(1345),
+                    mmlu_score: Some(88.5),
+                    speed_tokens_per_sec: Some(70.0),
+                },
                 release_date: "2026-01-10".into(),
                 description: "Reasoning-focused model with chain-of-thought".into(),
                 supported_features: vec!["reasoning".into(), "math".into()],
@@ -496,14 +752,31 @@ impl ModelMarketplace {
                 provider: "xai".into(),
                 model_family: "grok".into(),
                 capabilities: vec![
-                    Capability::CodeGeneration, Capability::Chat, Capability::Vision,
-                    Capability::ToolUse, Capability::Streaming, Capability::SystemPrompt,
-                    Capability::FunctionCalling, Capability::JsonMode,
+                    Capability::CodeGeneration,
+                    Capability::Chat,
+                    Capability::Vision,
+                    Capability::ToolUse,
+                    Capability::Streaming,
+                    Capability::SystemPrompt,
+                    Capability::FunctionCalling,
+                    Capability::JsonMode,
                 ],
                 context_window: 131_072,
                 max_output_tokens: 16_000,
-                pricing: ModelPricing { input_per_million: 3.0, output_per_million: 15.0, free_tier: false, currency: "USD".into() },
-                benchmarks: ModelBenchmarks { swe_bench_score: Some(52.0), humaneval_score: Some(90.0), mbpp_score: Some(85.0), arena_elo: Some(1310), mmlu_score: Some(87.0), speed_tokens_per_sec: Some(100.0) },
+                pricing: ModelPricing {
+                    input_per_million: 3.0,
+                    output_per_million: 15.0,
+                    free_tier: false,
+                    currency: "USD".into(),
+                },
+                benchmarks: ModelBenchmarks {
+                    swe_bench_score: Some(52.0),
+                    humaneval_score: Some(90.0),
+                    mbpp_score: Some(85.0),
+                    arena_elo: Some(1310),
+                    mmlu_score: Some(87.0),
+                    speed_tokens_per_sec: Some(100.0),
+                },
                 release_date: "2025-12-05".into(),
                 description: "xAI model with real-time knowledge and humor".into(),
                 supported_features: vec!["real-time".into(), "vision".into()],
@@ -517,13 +790,28 @@ impl ModelMarketplace {
                 provider: "groq".into(),
                 model_family: "llama-4".into(),
                 capabilities: vec![
-                    Capability::CodeGeneration, Capability::Chat, Capability::Streaming,
-                    Capability::SystemPrompt, Capability::FunctionCalling,
+                    Capability::CodeGeneration,
+                    Capability::Chat,
+                    Capability::Streaming,
+                    Capability::SystemPrompt,
+                    Capability::FunctionCalling,
                 ],
                 context_window: 128_000,
                 max_output_tokens: 8_000,
-                pricing: ModelPricing { input_per_million: 0.59, output_per_million: 0.79, free_tier: true, currency: "USD".into() },
-                benchmarks: ModelBenchmarks { swe_bench_score: Some(38.0), humaneval_score: Some(82.0), mbpp_score: Some(78.0), arena_elo: Some(1240), mmlu_score: Some(80.0), speed_tokens_per_sec: Some(800.0) },
+                pricing: ModelPricing {
+                    input_per_million: 0.59,
+                    output_per_million: 0.79,
+                    free_tier: true,
+                    currency: "USD".into(),
+                },
+                benchmarks: ModelBenchmarks {
+                    swe_bench_score: Some(38.0),
+                    humaneval_score: Some(82.0),
+                    mbpp_score: Some(78.0),
+                    arena_elo: Some(1240),
+                    mmlu_score: Some(80.0),
+                    speed_tokens_per_sec: Some(800.0),
+                },
                 release_date: "2025-10-01".into(),
                 description: "Ultra-fast Llama inference on Groq LPU hardware".into(),
                 supported_features: vec!["fast-inference".into()],
@@ -537,13 +825,27 @@ impl ModelMarketplace {
                 provider: "cerebras".into(),
                 model_family: "llama-4".into(),
                 capabilities: vec![
-                    Capability::CodeGeneration, Capability::Chat, Capability::Streaming,
+                    Capability::CodeGeneration,
+                    Capability::Chat,
+                    Capability::Streaming,
                     Capability::SystemPrompt,
                 ],
                 context_window: 128_000,
                 max_output_tokens: 8_000,
-                pricing: ModelPricing { input_per_million: 0.60, output_per_million: 0.60, free_tier: false, currency: "USD".into() },
-                benchmarks: ModelBenchmarks { swe_bench_score: Some(38.0), humaneval_score: Some(82.0), mbpp_score: Some(78.0), arena_elo: Some(1240), mmlu_score: Some(80.0), speed_tokens_per_sec: Some(900.0) },
+                pricing: ModelPricing {
+                    input_per_million: 0.60,
+                    output_per_million: 0.60,
+                    free_tier: false,
+                    currency: "USD".into(),
+                },
+                benchmarks: ModelBenchmarks {
+                    swe_bench_score: Some(38.0),
+                    humaneval_score: Some(82.0),
+                    mbpp_score: Some(78.0),
+                    arena_elo: Some(1240),
+                    mmlu_score: Some(80.0),
+                    speed_tokens_per_sec: Some(900.0),
+                },
                 release_date: "2025-10-01".into(),
                 description: "Fastest inference via Cerebras wafer-scale chips".into(),
                 supported_features: vec!["fast-inference".into()],
@@ -557,12 +859,19 @@ impl ModelMarketplace {
                 provider: "openrouter".into(),
                 model_family: "auto".into(),
                 capabilities: vec![
-                    Capability::CodeGeneration, Capability::Chat, Capability::Streaming,
+                    Capability::CodeGeneration,
+                    Capability::Chat,
+                    Capability::Streaming,
                     Capability::SystemPrompt,
                 ],
                 context_window: 128_000,
                 max_output_tokens: 16_000,
-                pricing: ModelPricing { input_per_million: 1.0, output_per_million: 3.0, free_tier: false, currency: "USD".into() },
+                pricing: ModelPricing {
+                    input_per_million: 1.0,
+                    output_per_million: 3.0,
+                    free_tier: false,
+                    currency: "USD".into(),
+                },
                 benchmarks: ModelBenchmarks::default(),
                 release_date: "2025-06-01".into(),
                 description: "Auto-routes to best model for each request".into(),
@@ -577,13 +886,27 @@ impl ModelMarketplace {
                 provider: "ollama".into(),
                 model_family: "qwen-3".into(),
                 capabilities: vec![
-                    Capability::CodeGeneration, Capability::Chat, Capability::Streaming,
+                    Capability::CodeGeneration,
+                    Capability::Chat,
+                    Capability::Streaming,
                     Capability::SystemPrompt,
                 ],
                 context_window: 32_768,
                 max_output_tokens: 8_000,
-                pricing: ModelPricing { input_per_million: 0.0, output_per_million: 0.0, free_tier: true, currency: "USD".into() },
-                benchmarks: ModelBenchmarks { swe_bench_score: Some(30.0), humaneval_score: Some(78.0), mbpp_score: Some(74.0), arena_elo: Some(1200), mmlu_score: Some(76.0), speed_tokens_per_sec: Some(25.0) },
+                pricing: ModelPricing {
+                    input_per_million: 0.0,
+                    output_per_million: 0.0,
+                    free_tier: true,
+                    currency: "USD".into(),
+                },
+                benchmarks: ModelBenchmarks {
+                    swe_bench_score: Some(30.0),
+                    humaneval_score: Some(78.0),
+                    mbpp_score: Some(74.0),
+                    arena_elo: Some(1200),
+                    mmlu_score: Some(76.0),
+                    speed_tokens_per_sec: Some(25.0),
+                },
                 release_date: "2025-09-01".into(),
                 description: "Strong local model for privacy-first workflows".into(),
                 supported_features: vec!["self-hosted".into(), "offline".into()],
@@ -621,50 +944,58 @@ impl ModelMarketplace {
     /// Search models by name, provider, or description (case-insensitive).
     pub fn search_models(&self, query: &str) -> Vec<&ModelEntry> {
         let q = query.to_lowercase();
-        let mut results: Vec<&ModelEntry> = self.models.values().filter(|m| {
-            m.name.to_lowercase().contains(&q)
-                || m.provider.to_lowercase().contains(&q)
-                || m.description.to_lowercase().contains(&q)
-                || m.id.to_lowercase().contains(&q)
-        }).collect();
+        let mut results: Vec<&ModelEntry> = self
+            .models
+            .values()
+            .filter(|m| {
+                m.name.to_lowercase().contains(&q)
+                    || m.provider.to_lowercase().contains(&q)
+                    || m.description.to_lowercase().contains(&q)
+                    || m.id.to_lowercase().contains(&q)
+            })
+            .collect();
         results.sort_by(|a, b| a.name.cmp(&b.name));
         results
     }
 
     /// Filter models by multiple criteria.
     pub fn filter_models(&self, filter: &ModelFilter) -> Vec<&ModelEntry> {
-        let mut results: Vec<&ModelEntry> = self.models.values().filter(|m| {
-            if let Some(ref p) = filter.provider {
-                if m.provider.to_lowercase() != p.to_lowercase() {
+        let mut results: Vec<&ModelEntry> = self
+            .models
+            .values()
+            .filter(|m| {
+                if let Some(ref p) = filter.provider {
+                    if m.provider.to_lowercase() != p.to_lowercase() {
+                        return false;
+                    }
+                }
+                if let Some(ref cap) = filter.capability {
+                    if !m.capabilities.contains(cap) {
+                        return false;
+                    }
+                }
+                if let Some(max_price) = filter.max_price_input {
+                    if m.pricing.input_per_million > max_price {
+                        return false;
+                    }
+                }
+                if let Some(min_ctx) = filter.min_context_window {
+                    if m.context_window < min_ctx {
+                        return false;
+                    }
+                }
+                if let Some(min_swe) = filter.min_swe_bench {
+                    match m.benchmarks.swe_bench_score {
+                        Some(s) if s >= min_swe => {}
+                        _ => return false,
+                    }
+                }
+                if filter.free_only && !m.pricing.free_tier {
                     return false;
                 }
-            }
-            if let Some(ref cap) = filter.capability {
-                if !m.capabilities.contains(cap) {
-                    return false;
-                }
-            }
-            if let Some(max_price) = filter.max_price_input {
-                if m.pricing.input_per_million > max_price {
-                    return false;
-                }
-            }
-            if let Some(min_ctx) = filter.min_context_window {
-                if m.context_window < min_ctx {
-                    return false;
-                }
-            }
-            if let Some(min_swe) = filter.min_swe_bench {
-                match m.benchmarks.swe_bench_score {
-                    Some(s) if s >= min_swe => {},
-                    _ => return false,
-                }
-            }
-            if filter.free_only && !m.pricing.free_tier {
-                return false;
-            }
-            true
-        }).collect();
+                true
+            })
+            .collect();
         results.sort_by(|a, b| a.name.cmp(&b.name));
         results
     }
@@ -687,54 +1018,81 @@ impl ModelMarketplace {
         });
         table.push(ComparisonRow {
             attribute: "Context Window".into(),
-            values: entries.iter().map(|m| format!("{}", m.context_window)).collect(),
+            values: entries
+                .iter()
+                .map(|m| format!("{}", m.context_window))
+                .collect(),
         });
         table.push(ComparisonRow {
             attribute: "Max Output Tokens".into(),
-            values: entries.iter().map(|m| format!("{}", m.max_output_tokens)).collect(),
+            values: entries
+                .iter()
+                .map(|m| format!("{}", m.max_output_tokens))
+                .collect(),
         });
         table.push(ComparisonRow {
             attribute: "Input $/1M tokens".into(),
-            values: entries.iter().map(|m| format!("{:.2}", m.pricing.input_per_million)).collect(),
+            values: entries
+                .iter()
+                .map(|m| format!("{:.2}", m.pricing.input_per_million))
+                .collect(),
         });
         table.push(ComparisonRow {
             attribute: "Output $/1M tokens".into(),
-            values: entries.iter().map(|m| format!("{:.2}", m.pricing.output_per_million)).collect(),
+            values: entries
+                .iter()
+                .map(|m| format!("{:.2}", m.pricing.output_per_million))
+                .collect(),
         });
         table.push(ComparisonRow {
             attribute: "SWE-bench".into(),
-            values: entries.iter().map(|m| match m.benchmarks.swe_bench_score {
-                Some(s) => format!("{:.1}", s),
-                None => "N/A".into(),
-            }).collect(),
+            values: entries
+                .iter()
+                .map(|m| match m.benchmarks.swe_bench_score {
+                    Some(s) => format!("{:.1}", s),
+                    None => "N/A".into(),
+                })
+                .collect(),
         });
         table.push(ComparisonRow {
             attribute: "HumanEval".into(),
-            values: entries.iter().map(|m| match m.benchmarks.humaneval_score {
-                Some(s) => format!("{:.1}", s),
-                None => "N/A".into(),
-            }).collect(),
+            values: entries
+                .iter()
+                .map(|m| match m.benchmarks.humaneval_score {
+                    Some(s) => format!("{:.1}", s),
+                    None => "N/A".into(),
+                })
+                .collect(),
         });
         table.push(ComparisonRow {
             attribute: "Arena ELO".into(),
-            values: entries.iter().map(|m| match m.benchmarks.arena_elo {
-                Some(e) => format!("{}", e),
-                None => "N/A".into(),
-            }).collect(),
+            values: entries
+                .iter()
+                .map(|m| match m.benchmarks.arena_elo {
+                    Some(e) => format!("{}", e),
+                    None => "N/A".into(),
+                })
+                .collect(),
         });
         table.push(ComparisonRow {
             attribute: "Speed (tok/s)".into(),
-            values: entries.iter().map(|m| match m.benchmarks.speed_tokens_per_sec {
-                Some(s) => format!("{:.0}", s),
-                None => "N/A".into(),
-            }).collect(),
+            values: entries
+                .iter()
+                .map(|m| match m.benchmarks.speed_tokens_per_sec {
+                    Some(s) => format!("{:.0}", s),
+                    None => "N/A".into(),
+                })
+                .collect(),
         });
         table.push(ComparisonRow {
             attribute: "Community Rating".into(),
-            values: entries.iter().map(|m| match m.community_rating {
-                Some(r) => format!("{:.1}/5.0", r),
-                None => "N/A".into(),
-            }).collect(),
+            values: entries
+                .iter()
+                .map(|m| match m.community_rating {
+                    Some(r) => format!("{:.1}/5.0", r),
+                    None => "N/A".into(),
+                })
+                .collect(),
         });
 
         // Pick recommendation: highest SWE-bench score among compared
@@ -744,7 +1102,10 @@ impl ModelMarketplace {
             sa.partial_cmp(&sb).unwrap_or(std::cmp::Ordering::Equal)
         });
         let recommendation = match best {
-            Some(m) => format!("{} has the highest SWE-bench score among compared models", m.name),
+            Some(m) => format!(
+                "{} has the highest SWE-bench score among compared models",
+                m.name
+            ),
             None => "No clear recommendation".into(),
         };
 
@@ -762,7 +1123,10 @@ impl ModelMarketplace {
         daily_input: u64,
         daily_output: u64,
     ) -> Result<CostEstimate, MarketplaceError> {
-        let model = self.models.get(model_id).ok_or(MarketplaceError::ModelNotFound)?;
+        let model = self
+            .models
+            .get(model_id)
+            .ok_or(MarketplaceError::ModelNotFound)?;
         let daily_cost = (daily_input as f64 / 1_000_000.0) * model.pricing.input_per_million
             + (daily_output as f64 / 1_000_000.0) * model.pricing.output_per_million;
         Ok(CostEstimate {
@@ -780,7 +1144,10 @@ impl ModelMarketplace {
         if !(0.0..=5.0).contains(&rating) {
             return Err(MarketplaceError::InvalidRating);
         }
-        let model = self.models.get_mut(model_id).ok_or(MarketplaceError::ModelNotFound)?;
+        let model = self
+            .models
+            .get_mut(model_id)
+            .ok_or(MarketplaceError::ModelNotFound)?;
         let old_rating = model.community_rating.unwrap_or(0.0);
         let old_count = model.rating_count;
         let new_count = old_count + 1;
@@ -792,7 +1159,9 @@ impl ModelMarketplace {
 
     /// Return the top-rated models, sorted by community rating descending.
     pub fn get_top_rated(&self, limit: usize) -> Vec<&ModelEntry> {
-        let mut entries: Vec<&ModelEntry> = self.models.values()
+        let mut entries: Vec<&ModelEntry> = self
+            .models
+            .values()
             .filter(|m| m.community_rating.is_some())
             .collect();
         entries.sort_by(|a, b| {
@@ -807,90 +1176,127 @@ impl ModelMarketplace {
     /// Recommend models for a task type: "code", "chat", "vision", "reasoning", "fast", "cheap".
     pub fn recommend_for_task(&self, task: &str) -> Vec<ModelRecommendation> {
         let task_lower = task.to_lowercase();
-        let mut scored: Vec<ModelRecommendation> = self.models.values().filter_map(|m| {
-            let (score, reason) = match task_lower.as_str() {
-                "code" | "coding" | "code-generation" => {
-                    if !m.capabilities.contains(&Capability::CodeGeneration) {
-                        return None;
+        let mut scored: Vec<ModelRecommendation> = self
+            .models
+            .values()
+            .filter_map(|m| {
+                let (score, reason) = match task_lower.as_str() {
+                    "code" | "coding" | "code-generation" => {
+                        if !m.capabilities.contains(&Capability::CodeGeneration) {
+                            return None;
+                        }
+                        let mut s: f32 = 0.0;
+                        if let Some(swe) = m.benchmarks.swe_bench_score {
+                            s += swe / 100.0 * 50.0;
+                        }
+                        if let Some(he) = m.benchmarks.humaneval_score {
+                            s += he / 100.0 * 30.0;
+                        }
+                        if let Some(r) = m.community_rating {
+                            s += r * 4.0;
+                        }
+                        (s, "Strong code generation benchmarks".to_string())
                     }
-                    let mut s: f32 = 0.0;
-                    if let Some(swe) = m.benchmarks.swe_bench_score { s += swe / 100.0 * 50.0; }
-                    if let Some(he) = m.benchmarks.humaneval_score { s += he / 100.0 * 30.0; }
-                    if let Some(r) = m.community_rating { s += r * 4.0; }
-                    (s, "Strong code generation benchmarks".to_string())
-                }
-                "chat" | "conversation" => {
-                    if !m.capabilities.contains(&Capability::Chat) {
-                        return None;
+                    "chat" | "conversation" => {
+                        if !m.capabilities.contains(&Capability::Chat) {
+                            return None;
+                        }
+                        let mut s: f32 = 0.0;
+                        if let Some(elo) = m.benchmarks.arena_elo {
+                            s += (elo as f32 - 1000.0) / 400.0 * 50.0;
+                        }
+                        if let Some(r) = m.community_rating {
+                            s += r * 10.0;
+                        }
+                        (s, "High chat quality and community rating".to_string())
                     }
-                    let mut s: f32 = 0.0;
-                    if let Some(elo) = m.benchmarks.arena_elo { s += (elo as f32 - 1000.0) / 400.0 * 50.0; }
-                    if let Some(r) = m.community_rating { s += r * 10.0; }
-                    (s, "High chat quality and community rating".to_string())
-                }
-                "vision" | "image" | "multimodal" => {
-                    if !m.capabilities.contains(&Capability::Vision) {
-                        return None;
+                    "vision" | "image" | "multimodal" => {
+                        if !m.capabilities.contains(&Capability::Vision) {
+                            return None;
+                        }
+                        let mut s: f32 = 50.0;
+                        if let Some(r) = m.community_rating {
+                            s += r * 10.0;
+                        }
+                        if m.capabilities.contains(&Capability::MultiModal) {
+                            s += 20.0;
+                        }
+                        (s, "Vision and multimodal capabilities".to_string())
                     }
-                    let mut s: f32 = 50.0;
-                    if let Some(r) = m.community_rating { s += r * 10.0; }
-                    if m.capabilities.contains(&Capability::MultiModal) { s += 20.0; }
-                    (s, "Vision and multimodal capabilities".to_string())
-                }
-                "reasoning" | "thinking" => {
-                    if !m.capabilities.contains(&Capability::ReasoningMode) {
-                        return None;
+                    "reasoning" | "thinking" => {
+                        if !m.capabilities.contains(&Capability::ReasoningMode) {
+                            return None;
+                        }
+                        let mut s: f32 = 50.0;
+                        if let Some(mmlu) = m.benchmarks.mmlu_score {
+                            s += mmlu / 100.0 * 30.0;
+                        }
+                        if let Some(r) = m.community_rating {
+                            s += r * 4.0;
+                        }
+                        (s, "Extended reasoning capabilities".to_string())
                     }
-                    let mut s: f32 = 50.0;
-                    if let Some(mmlu) = m.benchmarks.mmlu_score { s += mmlu / 100.0 * 30.0; }
-                    if let Some(r) = m.community_rating { s += r * 4.0; }
-                    (s, "Extended reasoning capabilities".to_string())
-                }
-                "fast" | "speed" | "latency" => {
-                    let speed = m.benchmarks.speed_tokens_per_sec.unwrap_or(0.0);
-                    if speed < 1.0 { return None; }
-                    let s = speed / 10.0;
-                    (s, format!("{:.0} tokens/sec throughput", speed))
-                }
-                "cheap" | "budget" | "cost-effective" => {
-                    if m.pricing.free_tier {
-                        let s = 90.0 + m.community_rating.unwrap_or(0.0) * 2.0;
-                        return Some(ModelRecommendation {
-                            model_id: m.id.clone(),
-                            reason: "Free tier available".to_string(),
-                            score: s,
-                        });
+                    "fast" | "speed" | "latency" => {
+                        let speed = m.benchmarks.speed_tokens_per_sec.unwrap_or(0.0);
+                        if speed < 1.0 {
+                            return None;
+                        }
+                        let s = speed / 10.0;
+                        (s, format!("{:.0} tokens/sec throughput", speed))
                     }
-                    if m.pricing.input_per_million > 5.0 { return None; }
-                    let s = (50.0 - m.pricing.input_per_million * 5.0) as f32 + m.community_rating.unwrap_or(0.0) * 5.0;
-                    (s, "Low-cost with good quality".to_string())
-                }
-                _ => {
-                    // General: use a blend of all signals
-                    let mut s: f32 = 0.0;
-                    if let Some(swe) = m.benchmarks.swe_bench_score { s += swe / 100.0 * 20.0; }
-                    if let Some(r) = m.community_rating { s += r * 10.0; }
-                    (s, "General-purpose model".to_string())
-                }
-            };
-            Some(ModelRecommendation {
-                model_id: m.id.clone(),
-                reason,
-                score,
+                    "cheap" | "budget" | "cost-effective" => {
+                        if m.pricing.free_tier {
+                            let s = 90.0 + m.community_rating.unwrap_or(0.0) * 2.0;
+                            return Some(ModelRecommendation {
+                                model_id: m.id.clone(),
+                                reason: "Free tier available".to_string(),
+                                score: s,
+                            });
+                        }
+                        if m.pricing.input_per_million > 5.0 {
+                            return None;
+                        }
+                        let s = (50.0 - m.pricing.input_per_million * 5.0) as f32
+                            + m.community_rating.unwrap_or(0.0) * 5.0;
+                        (s, "Low-cost with good quality".to_string())
+                    }
+                    _ => {
+                        // General: use a blend of all signals
+                        let mut s: f32 = 0.0;
+                        if let Some(swe) = m.benchmarks.swe_bench_score {
+                            s += swe / 100.0 * 20.0;
+                        }
+                        if let Some(r) = m.community_rating {
+                            s += r * 10.0;
+                        }
+                        (s, "General-purpose model".to_string())
+                    }
+                };
+                Some(ModelRecommendation {
+                    model_id: m.id.clone(),
+                    reason,
+                    score,
+                })
             })
-        }).collect();
+            .collect();
 
-        scored.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        scored.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         scored.truncate(5);
         scored
     }
 
     /// Return the cheapest model with a given capability (by input price).
     pub fn get_cheapest(&self, capability: &Capability) -> Option<&ModelEntry> {
-        self.models.values()
+        self.models
+            .values()
             .filter(|m| m.capabilities.contains(capability))
             .min_by(|a, b| {
-                a.pricing.input_per_million
+                a.pricing
+                    .input_per_million
                     .partial_cmp(&b.pricing.input_per_million)
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
@@ -898,8 +1304,11 @@ impl ModelMarketplace {
 
     /// Return the fastest model with a given capability (by tokens/sec).
     pub fn get_fastest(&self, capability: &Capability) -> Option<&ModelEntry> {
-        self.models.values()
-            .filter(|m| m.capabilities.contains(capability) && m.benchmarks.speed_tokens_per_sec.is_some())
+        self.models
+            .values()
+            .filter(|m| {
+                m.capabilities.contains(capability) && m.benchmarks.speed_tokens_per_sec.is_some()
+            })
             .max_by(|a, b| {
                 let sa = a.benchmarks.speed_tokens_per_sec.unwrap_or(0.0);
                 let sb = b.benchmarks.speed_tokens_per_sec.unwrap_or(0.0);
@@ -909,7 +1318,10 @@ impl ModelMarketplace {
 
     /// Generate a TOML config snippet for a model.
     pub fn generate_config_snippet(&self, model_id: &str) -> Result<String, MarketplaceError> {
-        let model = self.models.get(model_id).ok_or(MarketplaceError::ModelNotFound)?;
+        let model = self
+            .models
+            .get(model_id)
+            .ok_or(MarketplaceError::ModelNotFound)?;
         let env_var = match model.provider.as_str() {
             "anthropic" => "ANTHROPIC_API_KEY",
             "openai" => "OPENAI_API_KEY",
@@ -1082,7 +1494,10 @@ mod tests {
     #[test]
     fn test_filter_by_provider() {
         let mp = marketplace();
-        let filter = ModelFilter { provider: Some("google".into()), ..Default::default() };
+        let filter = ModelFilter {
+            provider: Some("google".into()),
+            ..Default::default()
+        };
         let results = mp.filter_models(&filter);
         assert!(results.len() >= 2);
         for m in &results {
@@ -1093,7 +1508,10 @@ mod tests {
     #[test]
     fn test_filter_by_capability() {
         let mp = marketplace();
-        let filter = ModelFilter { capability: Some(Capability::Vision), ..Default::default() };
+        let filter = ModelFilter {
+            capability: Some(Capability::Vision),
+            ..Default::default()
+        };
         let results = mp.filter_models(&filter);
         assert!(!results.is_empty());
         for m in &results {
@@ -1104,7 +1522,10 @@ mod tests {
     #[test]
     fn test_filter_by_max_price() {
         let mp = marketplace();
-        let filter = ModelFilter { max_price_input: Some(1.0), ..Default::default() };
+        let filter = ModelFilter {
+            max_price_input: Some(1.0),
+            ..Default::default()
+        };
         let results = mp.filter_models(&filter);
         for m in &results {
             assert!(m.pricing.input_per_million <= 1.0);
@@ -1114,7 +1535,10 @@ mod tests {
     #[test]
     fn test_filter_by_min_context() {
         let mp = marketplace();
-        let filter = ModelFilter { min_context_window: Some(500_000), ..Default::default() };
+        let filter = ModelFilter {
+            min_context_window: Some(500_000),
+            ..Default::default()
+        };
         let results = mp.filter_models(&filter);
         assert!(!results.is_empty());
         for m in &results {
@@ -1125,7 +1549,10 @@ mod tests {
     #[test]
     fn test_filter_free_only() {
         let mp = marketplace();
-        let filter = ModelFilter { free_only: true, ..Default::default() };
+        let filter = ModelFilter {
+            free_only: true,
+            ..Default::default()
+        };
         let results = mp.filter_models(&filter);
         assert!(!results.is_empty());
         for m in &results {
@@ -1136,7 +1563,10 @@ mod tests {
     #[test]
     fn test_filter_by_min_swe_bench() {
         let mp = marketplace();
-        let filter = ModelFilter { min_swe_bench: Some(60.0), ..Default::default() };
+        let filter = ModelFilter {
+            min_swe_bench: Some(60.0),
+            ..Default::default()
+        };
         let results = mp.filter_models(&filter);
         assert!(!results.is_empty());
         for m in &results {
@@ -1164,7 +1594,9 @@ mod tests {
     #[test]
     fn test_compare_models_success() {
         let mp = marketplace();
-        let cmp = mp.compare_models(&["claude-opus-4.6", "gpt-5.4"]).expect("should work");
+        let cmp = mp
+            .compare_models(&["claude-opus-4.6", "gpt-5.4"])
+            .expect("should work");
         assert_eq!(cmp.models.len(), 2);
         assert!(!cmp.comparison_table.is_empty());
         assert!(!cmp.recommendation.is_empty());
@@ -1180,8 +1612,14 @@ mod tests {
     #[test]
     fn test_compare_table_rows() {
         let mp = marketplace();
-        let cmp = mp.compare_models(&["claude-sonnet-4.5", "gemini-2.5-pro"]).unwrap();
-        let attrs: Vec<&str> = cmp.comparison_table.iter().map(|r| r.attribute.as_str()).collect();
+        let cmp = mp
+            .compare_models(&["claude-sonnet-4.5", "gemini-2.5-pro"])
+            .unwrap();
+        let attrs: Vec<&str> = cmp
+            .comparison_table
+            .iter()
+            .map(|r| r.attribute.as_str())
+            .collect();
         assert!(attrs.contains(&"Provider"));
         assert!(attrs.contains(&"Context Window"));
         assert!(attrs.contains(&"SWE-bench"));
@@ -1195,7 +1633,9 @@ mod tests {
     fn test_estimate_cost_basic() {
         let mp = marketplace();
         // Claude Opus: $15/1M input, $75/1M output
-        let est = mp.estimate_cost("claude-opus-4.6", 1_000_000, 200_000).unwrap();
+        let est = mp
+            .estimate_cost("claude-opus-4.6", 1_000_000, 200_000)
+            .unwrap();
         assert_eq!(est.model_id, "claude-opus-4.6");
         assert!((est.daily_cost - 30.0).abs() < 0.01); // 15 + 75*0.2 = 30
         assert!((est.monthly_cost - 900.0).abs() < 0.01);
@@ -1204,14 +1644,19 @@ mod tests {
     #[test]
     fn test_estimate_cost_free_model() {
         let mp = marketplace();
-        let est = mp.estimate_cost("llama-4-405b", 5_000_000, 1_000_000).unwrap();
+        let est = mp
+            .estimate_cost("llama-4-405b", 5_000_000, 1_000_000)
+            .unwrap();
         assert!((est.daily_cost - 0.0).abs() < 0.001);
     }
 
     #[test]
     fn test_estimate_cost_not_found() {
         let mp = marketplace();
-        assert_eq!(mp.estimate_cost("nope", 100, 100), Err(MarketplaceError::ModelNotFound));
+        assert_eq!(
+            mp.estimate_cost("nope", 100, 100),
+            Err(MarketplaceError::ModelNotFound)
+        );
     }
 
     #[test]
@@ -1227,19 +1672,28 @@ mod tests {
     #[test]
     fn test_rate_model_invalid_too_high() {
         let mut mp = marketplace();
-        assert_eq!(mp.rate_model("gpt-4o", 5.1), Err(MarketplaceError::InvalidRating));
+        assert_eq!(
+            mp.rate_model("gpt-4o", 5.1),
+            Err(MarketplaceError::InvalidRating)
+        );
     }
 
     #[test]
     fn test_rate_model_invalid_negative() {
         let mut mp = marketplace();
-        assert_eq!(mp.rate_model("gpt-4o", -0.1), Err(MarketplaceError::InvalidRating));
+        assert_eq!(
+            mp.rate_model("gpt-4o", -0.1),
+            Err(MarketplaceError::InvalidRating)
+        );
     }
 
     #[test]
     fn test_rate_model_not_found() {
         let mut mp = marketplace();
-        assert_eq!(mp.rate_model("nope", 3.0), Err(MarketplaceError::ModelNotFound));
+        assert_eq!(
+            mp.rate_model("nope", 3.0),
+            Err(MarketplaceError::ModelNotFound)
+        );
     }
 
     #[test]
@@ -1320,7 +1774,9 @@ mod tests {
     #[test]
     fn test_get_cheapest() {
         let mp = marketplace();
-        let cheapest = mp.get_cheapest(&Capability::CodeGeneration).expect("should find one");
+        let cheapest = mp
+            .get_cheapest(&Capability::CodeGeneration)
+            .expect("should find one");
         // Free models (price 0.0) should win
         assert_eq!(cheapest.pricing.input_per_million, 0.0);
     }
@@ -1328,7 +1784,9 @@ mod tests {
     #[test]
     fn test_get_fastest() {
         let mp = marketplace();
-        let fastest = mp.get_fastest(&Capability::CodeGeneration).expect("should find one");
+        let fastest = mp
+            .get_fastest(&Capability::CodeGeneration)
+            .expect("should find one");
         assert!(fastest.benchmarks.speed_tokens_per_sec.unwrap() >= 100.0);
     }
 
@@ -1352,7 +1810,10 @@ mod tests {
     #[test]
     fn test_generate_config_snippet_not_found() {
         let mp = marketplace();
-        assert_eq!(mp.generate_config_snippet("nope"), Err(MarketplaceError::ModelNotFound));
+        assert_eq!(
+            mp.generate_config_snippet("nope"),
+            Err(MarketplaceError::ModelNotFound)
+        );
     }
 
     #[test]
@@ -1370,8 +1831,14 @@ mod tests {
 
     #[test]
     fn test_error_display() {
-        assert_eq!(format!("{}", MarketplaceError::ModelNotFound), "model not found");
-        assert_eq!(format!("{}", MarketplaceError::DuplicateModel), "duplicate model");
+        assert_eq!(
+            format!("{}", MarketplaceError::ModelNotFound),
+            "model not found"
+        );
+        assert_eq!(
+            format!("{}", MarketplaceError::DuplicateModel),
+            "duplicate model"
+        );
     }
 
     #[test]

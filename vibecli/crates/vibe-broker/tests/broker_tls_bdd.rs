@@ -1,13 +1,12 @@
 //! BDD: BrokerCa minting + leaf-cert factory + CONNECT method handling.
 
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use vibe_broker::{
-    BoundAddr, Broker, BrokerCa, BrokerHandle, LeafCert, Policy, SsrfGuard,
-    policy::DefaultRule,
+    policy::DefaultRule, BoundAddr, Broker, BrokerCa, BrokerHandle, LeafCert, Policy, SsrfGuard,
 };
 
 #[derive(Default, World)]
@@ -50,7 +49,11 @@ fn read_ca_pem(world: &mut TWorld) {
 #[then(expr = "the PEM starts with {string}")]
 fn pem_starts_with(world: &mut TWorld, expected: String) {
     let pem = world.ca_pem.as_ref().unwrap();
-    assert!(pem.starts_with(&expected), "got: {}", &pem[..40.min(pem.len())]);
+    assert!(
+        pem.starts_with(&expected),
+        "got: {}",
+        &pem[..40.min(pem.len())]
+    );
 }
 
 #[then(expr = "the PEM ends with a {string} block")]
@@ -74,7 +77,11 @@ fn mint_leaf_again(world: &mut TWorld, host: String) {
 #[then(expr = "the leaf cert SAN list contains {string}")]
 fn san_contains(world: &mut TWorld, expected: String) {
     let leaf = world.leaves.last().unwrap();
-    assert!(leaf.san_list.contains(&expected), "SANs were: {:?}", leaf.san_list);
+    assert!(
+        leaf.san_list.contains(&expected),
+        "SANs were: {:?}",
+        leaf.san_list
+    );
 }
 
 #[then("the leaf cert is signed by the broker CA")]
@@ -189,8 +196,12 @@ fn parse_response_into(world: &mut TWorld, resp: &[u8]) {
 
 #[then(expr = "the broker response status is {int}")]
 fn status_is(world: &mut TWorld, expected: u16) {
-    assert_eq!(world.response_status, Some(expected),
-        "headers: {:?}", world.response_headers);
+    assert_eq!(
+        world.response_status,
+        Some(expected),
+        "headers: {:?}",
+        world.response_headers
+    );
 }
 
 #[then(expr = "the broker response header {string} is {string}")]
@@ -201,7 +212,12 @@ fn header_is(world: &mut TWorld, name: String, value: String) {
         .iter()
         .find(|(n, _)| n == &lower)
         .map(|(_, v)| v.as_str());
-    assert_eq!(actual, Some(value.as_str()), "headers: {:?}", world.response_headers);
+    assert_eq!(
+        actual,
+        Some(value.as_str()),
+        "headers: {:?}",
+        world.response_headers
+    );
 }
 
 fn main() {

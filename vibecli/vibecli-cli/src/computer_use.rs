@@ -32,13 +32,32 @@ pub enum Key {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Action {
-    Click { x: i32, y: i32, button: MouseButton },
-    DoubleClick { x: i32, y: i32 },
-    Type { text: String },
-    KeyPress { key: Key },
-    Scroll { x: i32, y: i32, delta_x: i32, delta_y: i32 },
+    Click {
+        x: i32,
+        y: i32,
+        button: MouseButton,
+    },
+    DoubleClick {
+        x: i32,
+        y: i32,
+    },
+    Type {
+        text: String,
+    },
+    KeyPress {
+        key: Key,
+    },
+    Scroll {
+        x: i32,
+        y: i32,
+        delta_x: i32,
+        delta_y: i32,
+    },
     Screenshot,
-    MoveMouse { x: i32, y: i32 },
+    MoveMouse {
+        x: i32,
+        y: i32,
+    },
 }
 
 // ---------------------------------------------------------------------------
@@ -63,7 +82,12 @@ impl Action {
             Action::DoubleClick { x, y } => format!("Double-click at ({}, {})", x, y),
             Action::Type { text } => format!("Type \"{}\"", text),
             Action::KeyPress { key } => format!("Press {:?}", key),
-            Action::Scroll { x, y, delta_x, delta_y } => {
+            Action::Scroll {
+                x,
+                y,
+                delta_x,
+                delta_y,
+            } => {
                 format!("Scroll at ({}, {}) by ({}, {})", x, y, delta_x, delta_y)
             }
             Action::Screenshot => "Take screenshot".to_string(),
@@ -200,7 +224,11 @@ mod tests {
 
     #[test]
     fn test_click_description() {
-        let a = Action::Click { x: 10, y: 20, button: MouseButton::Left };
+        let a = Action::Click {
+            x: 10,
+            y: 20,
+            button: MouseButton::Left,
+        };
         let desc = a.description();
         assert!(desc.contains("10"));
         assert!(desc.contains("20"));
@@ -209,7 +237,9 @@ mod tests {
 
     #[test]
     fn test_type_is_destructive() {
-        let a = Action::Type { text: "hello".into() };
+        let a = Action::Type {
+            text: "hello".into(),
+        };
         assert!(a.is_destructive());
     }
 
@@ -237,22 +267,36 @@ mod tests {
     #[test]
     fn test_validate_action_ok_within_bounds() {
         let bounds = ScreenBounds::new(1920, 1080);
-        let action = Action::Click { x: 100, y: 200, button: MouseButton::Left };
+        let action = Action::Click {
+            x: 100,
+            y: 200,
+            button: MouseButton::Left,
+        };
         assert!(bounds.validate_action(&action).is_ok());
     }
 
     #[test]
     fn test_validate_action_fails_out_of_bounds() {
         let bounds = ScreenBounds::new(800, 600);
-        let action = Action::Click { x: 900, y: 700, button: MouseButton::Right };
+        let action = Action::Click {
+            x: 900,
+            y: 700,
+            button: MouseButton::Right,
+        };
         assert!(bounds.validate_action(&action).is_err());
     }
 
     #[test]
     fn test_action_plan_step_and_destructive_count() {
         let plan = ActionPlan::new("Fill form")
-            .add(Action::Click { x: 10, y: 10, button: MouseButton::Left })
-            .add(Action::Type { text: "Alice".into() })
+            .add(Action::Click {
+                x: 10,
+                y: 10,
+                button: MouseButton::Left,
+            })
+            .add(Action::Type {
+                text: "Alice".into(),
+            })
             .add(Action::KeyPress { key: Key::Enter })
             .add(Action::Screenshot);
         assert_eq!(plan.step_count(), 4);

@@ -38,13 +38,19 @@ pub struct Budget {
 
 impl Budget {
     pub fn new(label: impl Into<String>, max_tokens: u64) -> Self {
-        Self { label: label.into(), max_tokens, used_tokens: 0 }
+        Self {
+            label: label.into(),
+            max_tokens,
+            used_tokens: 0,
+        }
     }
     pub fn remaining(&self) -> u64 {
         self.max_tokens.saturating_sub(self.used_tokens)
     }
     pub fn utilization_pct(&self) -> f64 {
-        if self.max_tokens == 0 { return 0.0; }
+        if self.max_tokens == 0 {
+            return 0.0;
+        }
         (self.used_tokens as f64 / self.max_tokens as f64) * 100.0
     }
     pub fn is_exhausted(&self) -> bool {
@@ -104,12 +110,16 @@ impl TokenDashboard {
             session_id: session_id.into(),
         };
         // Built-in pricing for common models (per 1M tokens)
-        dash.pricing.insert("claude-opus-4-6".to_string(), (15.0, 75.0));
-        dash.pricing.insert("claude-sonnet-4-6".to_string(), (3.0, 15.0));
-        dash.pricing.insert("claude-haiku-4-5".to_string(), (0.25, 1.25));
+        dash.pricing
+            .insert("claude-opus-4-6".to_string(), (15.0, 75.0));
+        dash.pricing
+            .insert("claude-sonnet-4-6".to_string(), (3.0, 15.0));
+        dash.pricing
+            .insert("claude-haiku-4-5".to_string(), (0.25, 1.25));
         dash.pricing.insert("gpt-4o".to_string(), (5.0, 15.0));
         dash.pricing.insert("gpt-4o-mini".to_string(), (0.15, 0.60));
-        dash.pricing.insert("gemini-2.5-pro".to_string(), (1.25, 5.0));
+        dash.pricing
+            .insert("gemini-2.5-pro".to_string(), (1.25, 5.0));
         dash
     }
 
@@ -133,7 +143,8 @@ impl TokenDashboard {
     /// Add a budget constraint.
     pub fn set_budget(&mut self, label: impl Into<String>, max_tokens: u64) {
         let lbl = label.into();
-        self.budgets.insert(lbl.clone(), Budget::new(lbl, max_tokens));
+        self.budgets
+            .insert(lbl.clone(), Budget::new(lbl, max_tokens));
     }
 
     /// Get budget info by label.
@@ -176,7 +187,8 @@ impl TokenDashboard {
         let stats = self.stats();
         let mut lines = vec![
             format!("# Token Dashboard — session: {}", self.session_id),
-            format!("Calls: {}  |  Prompt: {}  |  Completion: {}  |  Cached: {}",
+            format!(
+                "Calls: {}  |  Prompt: {}  |  Completion: {}  |  Cached: {}",
                 stats.total_calls,
                 stats.total_prompt_tokens,
                 stats.total_completion_tokens,
@@ -189,8 +201,10 @@ impl TokenDashboard {
             let mut models: Vec<_> = stats.by_model.iter().collect();
             models.sort_by_key(|(k, _)| k.as_str());
             for (model, ms) in models {
-                lines.push(format!("  {} — {} calls, {} prompt, {} completion",
-                    model, ms.calls, ms.prompt_tokens, ms.completion_tokens));
+                lines.push(format!(
+                    "  {} — {} calls, {} prompt, {} completion",
+                    model, ms.calls, ms.prompt_tokens, ms.completion_tokens
+                ));
             }
         }
         if !self.budgets.is_empty() {
@@ -199,8 +213,14 @@ impl TokenDashboard {
             budgets.sort_by_key(|b| b.label.as_str());
             for b in budgets {
                 let warn = if b.warn_threshold() { " ⚠" } else { "" };
-                lines.push(format!("  {} — {}/{} ({:.1}%){}",
-                    b.label, b.used_tokens, b.max_tokens, b.utilization_pct(), warn));
+                lines.push(format!(
+                    "  {} — {}/{} ({:.1}%){}",
+                    b.label,
+                    b.used_tokens,
+                    b.max_tokens,
+                    b.utilization_pct(),
+                    warn
+                ));
             }
         }
         lines.join("\n")
@@ -208,17 +228,28 @@ impl TokenDashboard {
 
     /// Return records within a time window.
     pub fn records_in_window(&self, start_ms: u64, end_ms: u64) -> Vec<&TokenRecord> {
-        self.records.iter()
+        self.records
+            .iter()
             .filter(|r| r.timestamp_ms >= start_ms && r.timestamp_ms <= end_ms)
             .collect()
     }
 
-    pub fn record_count(&self) -> usize { self.records.len() }
-    pub fn session_id(&self) -> &str { &self.session_id }
+    pub fn record_count(&self) -> usize {
+        self.records.len()
+    }
+    pub fn session_id(&self) -> &str {
+        &self.session_id
+    }
 
     /// Set custom pricing for a model.
-    pub fn set_pricing(&mut self, model: impl Into<String>, prompt_per_m: f64, completion_per_m: f64) {
-        self.pricing.insert(model.into(), (prompt_per_m, completion_per_m));
+    pub fn set_pricing(
+        &mut self,
+        model: impl Into<String>,
+        prompt_per_m: f64,
+        completion_per_m: f64,
+    ) {
+        self.pricing
+            .insert(model.into(), (prompt_per_m, completion_per_m));
     }
 }
 
@@ -302,7 +333,13 @@ mod tests {
     fn test_cost_estimation() {
         let mut d = TokenDashboard::new("s1");
         // 1M prompt at $3/M = $3, 500k completion at $15/M = $7.5
-        d.record(make_record("c1", "claude-sonnet-4-6", 1_000_000, 500_000, 1));
+        d.record(make_record(
+            "c1",
+            "claude-sonnet-4-6",
+            1_000_000,
+            500_000,
+            1,
+        ));
         let s = d.stats();
         assert!((s.total_cost_usd - 10.5).abs() < 0.01);
     }

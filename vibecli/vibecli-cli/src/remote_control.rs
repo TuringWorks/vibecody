@@ -165,10 +165,7 @@ impl RemoteSession {
         let session_token = pseudo_random_hex(32, 1);
         let encryption_key = pseudo_random_hex(64, 2); // 256-bit key in hex
         let id = generate_id("rs", 0);
-        let qr_code_data = format!(
-            "{}?session={}&token={}",
-            bridge_url, id, session_token
-        );
+        let qr_code_data = format!("{}?session={}&token={}", bridge_url, id, session_token);
 
         Self {
             id,
@@ -235,17 +232,10 @@ impl RemoteSession {
     }
 
     /// Record an inbound message.
-    pub fn receive_message(
-        &mut self,
-        content: &str,
-        msg_type: RemoteMessageType,
-    ) -> RemoteMessage {
+    pub fn receive_message(&mut self, content: &str, msg_type: RemoteMessageType) -> RemoteMessage {
         self.messages_received += 1;
         RemoteMessage {
-            id: generate_id(
-                "msg",
-                (self.messages_sent + self.messages_received) as u64,
-            ),
+            id: generate_id("msg", (self.messages_sent + self.messages_received) as u64),
             direction: MessageDirection::Inbound,
             content: content.to_string(),
             encrypted: true,
@@ -275,11 +265,7 @@ impl BridgeConfig {
             heartbeat_interval_secs: 30,
             max_message_size_bytes: 1_048_576,
             allow_file_transfer: false,
-            allowed_commands: vec![
-                "chat".to_string(),
-                "status".to_string(),
-                "help".to_string(),
-            ],
+            allowed_commands: vec!["chat".to_string(), "status".to_string(), "help".to_string()],
         }
     }
 
@@ -293,11 +279,7 @@ impl BridgeConfig {
             heartbeat_interval_secs: 30,
             max_message_size_bytes: 1_048_576,
             allow_file_transfer: false,
-            allowed_commands: vec![
-                "chat".to_string(),
-                "status".to_string(),
-                "help".to_string(),
-            ],
+            allowed_commands: vec!["chat".to_string(), "status".to_string(), "help".to_string()],
         }
     }
 
@@ -414,10 +396,7 @@ impl RemoteControlManager {
         content: &str,
         msg_type: RemoteMessageType,
     ) -> Result<RemoteMessage, String> {
-        let active_id = self
-            .active_session
-            .clone()
-            .ok_or("no active session")?;
+        let active_id = self.active_session.clone().ok_or("no active session")?;
 
         let session = self
             .sessions
@@ -728,8 +707,7 @@ mod tests {
     fn test_manager_connect_expired_session() {
         let mut mgr = RemoteControlManager::new();
         let id = mgr.create_session().id.clone();
-        mgr.get_session_mut(&id).unwrap().expires_at =
-            SystemTime::now() - Duration::from_secs(1);
+        mgr.get_session_mut(&id).unwrap().expires_at = SystemTime::now() - Duration::from_secs(1);
         let result = mgr.connect_session(&id, ClientType::Browser, "10.0.0.1");
         assert!(result.is_err());
     }
@@ -766,8 +744,7 @@ mod tests {
         let id1 = mgr.create_session().id.clone();
         let _id2 = mgr.create_session().id.clone();
 
-        mgr.get_session_mut(&id1).unwrap().expires_at =
-            SystemTime::now() - Duration::from_secs(1);
+        mgr.get_session_mut(&id1).unwrap().expires_at = SystemTime::now() - Duration::from_secs(1);
 
         mgr.cleanup_expired();
         assert_eq!(mgr.sessions.len(), 1);
@@ -780,8 +757,7 @@ mod tests {
         let id = mgr.create_session().id.clone();
         mgr.connect_session(&id, ClientType::Mobile, "10.0.0.1")
             .unwrap();
-        mgr.get_session_mut(&id).unwrap().expires_at =
-            SystemTime::now() - Duration::from_secs(1);
+        mgr.get_session_mut(&id).unwrap().expires_at = SystemTime::now() - Duration::from_secs(1);
         mgr.cleanup_expired();
         assert!(mgr.active_session().is_none());
     }
@@ -908,6 +884,9 @@ mod tests {
         let id = mgr.create_session().id.clone();
         let session = mgr.get_session_mut(&id).unwrap();
         session.status = RemoteSessionStatus::Active;
-        assert_eq!(mgr.get_session(&id).unwrap().status, RemoteSessionStatus::Active);
+        assert_eq!(
+            mgr.get_session(&id).unwrap().status,
+            RemoteSessionStatus::Active
+        );
     }
 }

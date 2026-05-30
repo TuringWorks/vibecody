@@ -17,7 +17,11 @@ impl ComplexityTier {
     /// Estimates complexity from raw counts.
     /// score = files_affected + cross_module_deps*2 + ambiguous_specs*3
     /// 0-3: Trivial, 4-7: Simple, 8-14: Moderate, 15-24: Complex, 25+: Hard
-    pub fn estimate(files_affected: u32, cross_module_deps: u32, ambiguous_specs: u32) -> ComplexityTier {
+    pub fn estimate(
+        files_affected: u32,
+        cross_module_deps: u32,
+        ambiguous_specs: u32,
+    ) -> ComplexityTier {
         let score = estimate_complexity_score(files_affected, cross_module_deps, ambiguous_specs);
         match score {
             0..=3 => ComplexityTier::Trivial,
@@ -340,7 +344,10 @@ mod tests {
 
     #[test]
     fn test_strategy_complex() {
-        assert_eq!(strategy_for_tier(&ComplexityTier::Complex), "decompose-first");
+        assert_eq!(
+            strategy_for_tier(&ComplexityTier::Complex),
+            "decompose-first"
+        );
     }
 
     #[test]
@@ -402,7 +409,10 @@ mod tests {
     fn test_decompose_db_assumption_generated() {
         let d = ProblemDecomposer::new();
         let task = d.decompose("Connect database and run queries");
-        assert!(task.assumptions.iter().any(|a| a.description.contains("schema")));
+        assert!(task
+            .assumptions
+            .iter()
+            .any(|a| a.description.contains("schema")));
     }
 
     #[test]
@@ -448,7 +458,10 @@ mod tests {
     fn test_decompose_original_description_preserved() {
         let d = ProblemDecomposer::new();
         let task = d.decompose("my specific task description here");
-        assert_eq!(task.original_description, "my specific task description here");
+        assert_eq!(
+            task.original_description,
+            "my specific task description here"
+        );
     }
 
     #[test]

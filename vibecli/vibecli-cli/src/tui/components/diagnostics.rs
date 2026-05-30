@@ -44,8 +44,14 @@ impl DiagnosticsComponent {
     /// Replace current diagnostics with a new set and reset scroll.
     pub fn set(&mut self, items: Vec<TuiDiagnostic>) {
         self.scroll = 0;
-        let errors   = items.iter().filter(|d| d.severity == DiagSeverity::Error).count();
-        let warnings = items.iter().filter(|d| d.severity == DiagSeverity::Warning).count();
+        let errors = items
+            .iter()
+            .filter(|d| d.severity == DiagSeverity::Error)
+            .count();
+        let warnings = items
+            .iter()
+            .filter(|d| d.severity == DiagSeverity::Warning)
+            .count();
         self.status = if items.is_empty() {
             "✅ No issues found".to_string()
         } else {
@@ -90,12 +96,18 @@ pub fn parse_cargo_check(output: &str) -> Vec<TuiDiagnostic> {
                 };
                 let message = msg["message"].as_str().unwrap_or("").to_string();
                 // Extract primary span for file + line.
-                if let Some(span) = msg["spans"].as_array()
+                if let Some(span) = msg["spans"]
+                    .as_array()
                     .and_then(|s| s.iter().find(|sp| sp["is_primary"].as_bool() == Some(true)))
                 {
                     let file = span["file_name"].as_str().unwrap_or("unknown").to_string();
                     let lineno = span["line_start"].as_u64().unwrap_or(0) as u32;
-                    diags.push(TuiDiagnostic { severity, file, line: lineno, message });
+                    diags.push(TuiDiagnostic {
+                        severity,
+                        file,
+                        line: lineno,
+                        message,
+                    });
                 } else if !message.is_empty() {
                     diags.push(TuiDiagnostic {
                         severity,
@@ -130,7 +142,12 @@ pub fn parse_cargo_check(output: &str) -> Vec<TuiDiagnostic> {
         };
         let message = rest.trim_start_matches(':').trim().to_string();
         if !message.is_empty() {
-            diags.push(TuiDiagnostic { severity, file: String::new(), line: 0, message });
+            diags.push(TuiDiagnostic {
+                severity,
+                file: String::new(),
+                line: 0,
+                message,
+            });
         }
     }
 
@@ -177,10 +194,30 @@ mod tests {
     fn set_counts_errors_and_warnings() {
         let mut dc = DiagnosticsComponent::new();
         let items = vec![
-            TuiDiagnostic { severity: DiagSeverity::Error, file: "a.rs".into(), line: 1, message: "err".into() },
-            TuiDiagnostic { severity: DiagSeverity::Error, file: "b.rs".into(), line: 2, message: "err2".into() },
-            TuiDiagnostic { severity: DiagSeverity::Warning, file: "c.rs".into(), line: 3, message: "warn".into() },
-            TuiDiagnostic { severity: DiagSeverity::Info, file: "d.rs".into(), line: 4, message: "info".into() },
+            TuiDiagnostic {
+                severity: DiagSeverity::Error,
+                file: "a.rs".into(),
+                line: 1,
+                message: "err".into(),
+            },
+            TuiDiagnostic {
+                severity: DiagSeverity::Error,
+                file: "b.rs".into(),
+                line: 2,
+                message: "err2".into(),
+            },
+            TuiDiagnostic {
+                severity: DiagSeverity::Warning,
+                file: "c.rs".into(),
+                line: 3,
+                message: "warn".into(),
+            },
+            TuiDiagnostic {
+                severity: DiagSeverity::Info,
+                file: "d.rs".into(),
+                line: 4,
+                message: "info".into(),
+            },
         ];
         dc.set(items);
         assert!(dc.status.contains("2 error(s)"));
@@ -192,9 +229,12 @@ mod tests {
     fn set_resets_scroll_to_zero() {
         let mut dc = DiagnosticsComponent::new();
         dc.scroll = 10;
-        dc.set(vec![
-            TuiDiagnostic { severity: DiagSeverity::Warning, file: "x.rs".into(), line: 1, message: "w".into() },
-        ]);
+        dc.set(vec![TuiDiagnostic {
+            severity: DiagSeverity::Warning,
+            file: "x.rs".into(),
+            line: 1,
+            message: "w".into(),
+        }]);
         assert_eq!(dc.scroll, 0);
     }
 
@@ -203,9 +243,12 @@ mod tests {
     #[test]
     fn clear_removes_all_items() {
         let mut dc = DiagnosticsComponent::new();
-        dc.set(vec![
-            TuiDiagnostic { severity: DiagSeverity::Error, file: "a.rs".into(), line: 1, message: "e".into() },
-        ]);
+        dc.set(vec![TuiDiagnostic {
+            severity: DiagSeverity::Error,
+            file: "a.rs".into(),
+            line: 1,
+            message: "e".into(),
+        }]);
         dc.clear();
         assert!(dc.items.is_empty());
         assert_eq!(dc.scroll, 0);
@@ -218,9 +261,24 @@ mod tests {
     fn scroll_down_increments() {
         let mut dc = DiagnosticsComponent::new();
         dc.items = vec![
-            TuiDiagnostic { severity: DiagSeverity::Error, file: "".into(), line: 0, message: "a".into() },
-            TuiDiagnostic { severity: DiagSeverity::Error, file: "".into(), line: 0, message: "b".into() },
-            TuiDiagnostic { severity: DiagSeverity::Error, file: "".into(), line: 0, message: "c".into() },
+            TuiDiagnostic {
+                severity: DiagSeverity::Error,
+                file: "".into(),
+                line: 0,
+                message: "a".into(),
+            },
+            TuiDiagnostic {
+                severity: DiagSeverity::Error,
+                file: "".into(),
+                line: 0,
+                message: "b".into(),
+            },
+            TuiDiagnostic {
+                severity: DiagSeverity::Error,
+                file: "".into(),
+                line: 0,
+                message: "c".into(),
+            },
         ];
         dc.scroll_down();
         assert_eq!(dc.scroll, 1);
@@ -338,7 +396,8 @@ mod tests {
 
     #[test]
     fn parse_cargo_check_ignores_unrelated_lines() {
-        let output = "   Compiling foo v0.1.0\n    Finished dev [unoptimized + debuginfo] target(s)";
+        let output =
+            "   Compiling foo v0.1.0\n    Finished dev [unoptimized + debuginfo] target(s)";
         let diags = parse_cargo_check(output);
         assert!(diags.is_empty());
     }

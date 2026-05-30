@@ -253,11 +253,12 @@ impl Extension {
         };
 
         let bytes = arg.as_bytes().to_vec();
-        let len = i32::try_from(bytes.len())
-            .map_err(|_| ExtensionError::Other(anyhow::anyhow!(
+        let len = i32::try_from(bytes.len()).map_err(|_| {
+            ExtensionError::Other(anyhow::anyhow!(
                 "String too large for WASM allocation ({} bytes)",
                 bytes.len()
-            )))?;
+            ))
+        })?;
 
         // H5: reset fuel + epoch budgets so each call gets a fresh
         // allotment rather than inheriting the previous call's
@@ -293,8 +294,11 @@ impl Extension {
         // here — fuel/epoch carry over from the alloc call so a
         // misbehaving alloc cannot exhaust the budget and starve the
         // real call's accounting.
-        let call_res =
-            func.call(&mut self.store, &[Val::I32(ptr as i32), Val::I32(len)], &mut []);
+        let call_res = func.call(
+            &mut self.store,
+            &[Val::I32(ptr as i32), Val::I32(len)],
+            &mut [],
+        );
         call_res.map_err(|e| classify_trap(e, &self.name))?;
         Ok(())
     }
@@ -462,8 +466,7 @@ impl ExtensionLoader {
     }
 
     fn load_one(&self, path: &Path, name: &str) -> Result<Extension> {
-        let wasm = std::fs::read(path)
-            .with_context(|| format!("read {}", path.display()))?;
+        let wasm = std::fs::read(path).with_context(|| format!("read {}", path.display()))?;
         let module = Module::new(&self.engine, &wasm)
             .map_err(|e| anyhow::anyhow!("compile {}: {}", path.display(), e))?;
 
@@ -512,7 +515,10 @@ impl ExtensionLoader {
                     Some(Extern::Memory(m)) => m,
                     _ => return -1,
                 };
-                if mem.write(&mut caller, out_ptr as usize, &content[..written]).is_err() {
+                if mem
+                    .write(&mut caller, out_ptr as usize, &content[..written])
+                    .is_err()
+                {
                     return -1;
                 }
                 written as i32
@@ -918,7 +924,10 @@ mod tests {
         let err = ext.try_call("loop_forever", "x").unwrap_err();
         assert!(matches!(
             err,
-            ExtensionError::Exhausted { kind: ExhaustionKind::Fuel, .. }
+            ExtensionError::Exhausted {
+                kind: ExhaustionKind::Fuel,
+                ..
+            }
         ));
 
         let _ = std::fs::remove_dir_all(&dir);
@@ -966,8 +975,7 @@ mod tests {
 
     #[test]
     fn h4_loader_with_hyperlight_preference_still_resolves_to_wasmtime() {
-        let l = ExtensionLoader::new()
-            .with_tier_preference(ExtensionTier::HyperlightIfAvailable);
+        let l = ExtensionLoader::new().with_tier_preference(ExtensionTier::HyperlightIfAvailable);
         assert_eq!(l.effective_tier(), ExtensionTier::Wasmtime);
     }
 
@@ -991,8 +999,8 @@ mod tests {
         // When H1 lands, this test flips: with the preference set
         // and the host supporting Hyperlight, tier() returns
         // HyperlightIfAvailable. Until then it's Wasmtime.
-        let loader = ExtensionLoader::new()
-            .with_tier_preference(ExtensionTier::HyperlightIfAvailable);
+        let loader =
+            ExtensionLoader::new().with_tier_preference(ExtensionTier::HyperlightIfAvailable);
         let dir = std::env::temp_dir().join("vibe_ext_test_h4_pref");
         let _ = std::fs::create_dir_all(&dir);
         let wat = r#"(module (memory (export "memory") 1))"#;

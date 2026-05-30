@@ -66,10 +66,7 @@ pub enum Artifact {
     },
 
     /// Raw text artifact — free-form agent output marked as an artifact.
-    Text {
-        title: String,
-        content: String,
-    },
+    Text { title: String, content: String },
 }
 
 impl Artifact {
@@ -176,7 +173,8 @@ impl AgentArtifact {
     /// This is appended to the agent's next context window so the agent can
     /// act on user feedback without requiring a new top-level task.
     pub fn pending_feedback(&self) -> Option<String> {
-        let pending: Vec<&str> = self.annotations
+        let pending: Vec<&str> = self
+            .annotations
             .iter()
             .filter(|a| !a.applied)
             .map(|a| a.text.as_str())
@@ -297,17 +295,40 @@ mod tests {
 
     #[test]
     fn artifact_kind_labels() {
-        assert_eq!(Artifact::TaskList { items: vec![] }.kind_label(), "Task List");
-        assert_eq!(Artifact::FileChange { path: "f".into(), diff: "".into(), content: None }.kind_label(), "File Change");
-        assert_eq!(Artifact::CommandOutput { command: "".into(), stdout: "".into(), stderr: "".into(), exit_code: 0 }.kind_label(), "Command Output");
+        assert_eq!(
+            Artifact::TaskList { items: vec![] }.kind_label(),
+            "Task List"
+        );
+        assert_eq!(
+            Artifact::FileChange {
+                path: "f".into(),
+                diff: "".into(),
+                content: None
+            }
+            .kind_label(),
+            "File Change"
+        );
+        assert_eq!(
+            Artifact::CommandOutput {
+                command: "".into(),
+                stdout: "".into(),
+                stderr: "".into(),
+                exit_code: 0
+            }
+            .kind_label(),
+            "Command Output"
+        );
     }
 
     #[test]
     fn annotation_pending_feedback() {
-        let mut artifact = AgentArtifact::new(1, Artifact::Text {
-            title: "test".to_string(),
-            content: "hello".to_string(),
-        });
+        let mut artifact = AgentArtifact::new(
+            1,
+            Artifact::Text {
+                title: "test".to_string(),
+                content: "hello".to_string(),
+            },
+        );
         assert!(artifact.pending_feedback().is_none());
 
         artifact.annotate("Please also handle the error case");
@@ -322,7 +343,14 @@ mod tests {
     #[test]
     fn artifact_store_collect_feedback() {
         let mut store = ArtifactStore::new();
-        let mut a1 = AgentArtifact::new(1, Artifact::FileChange { path: "main.rs".into(), diff: "".into(), content: None });
+        let mut a1 = AgentArtifact::new(
+            1,
+            Artifact::FileChange {
+                path: "main.rs".into(),
+                diff: "".into(),
+                content: None,
+            },
+        );
         a1.annotate("Add error handling here");
         store.push(a1);
 
@@ -350,7 +378,13 @@ mod tests {
         let path = dir.path().join("artifacts.json");
 
         let mut store = ArtifactStore::new();
-        store.push(AgentArtifact::new(1, Artifact::Text { title: "T".into(), content: "C".into() }));
+        store.push(AgentArtifact::new(
+            1,
+            Artifact::Text {
+                title: "T".into(),
+                content: "C".into(),
+            },
+        ));
         store.save(&path).unwrap();
 
         let loaded = ArtifactStore::load(&path).unwrap();
@@ -370,17 +404,63 @@ mod tests {
     fn artifact_icon_all_variants() {
         let cases: Vec<(Artifact, &str)> = vec![
             (Artifact::TaskList { items: vec![] }, "Task List"),
-            (Artifact::ImplementationPlan { steps: vec![], files: vec![] }, "Implementation Plan"),
-            (Artifact::FileChange { path: "p".into(), diff: "".into(), content: None }, "File Change"),
-            (Artifact::CommandOutput { command: "c".into(), stdout: "".into(), stderr: "".into(), exit_code: 0 }, "Command Output"),
-            (Artifact::TestResults { passed: 1, failed: 0, skipped: 0, output: "".into() }, "Test Results"),
-            (Artifact::ReviewReport { issues: vec![], summary: "".into(), score: 0.9 }, "Code Review"),
-            (Artifact::Text { title: "t".into(), content: "c".into() }, "Text"),
+            (
+                Artifact::ImplementationPlan {
+                    steps: vec![],
+                    files: vec![],
+                },
+                "Implementation Plan",
+            ),
+            (
+                Artifact::FileChange {
+                    path: "p".into(),
+                    diff: "".into(),
+                    content: None,
+                },
+                "File Change",
+            ),
+            (
+                Artifact::CommandOutput {
+                    command: "c".into(),
+                    stdout: "".into(),
+                    stderr: "".into(),
+                    exit_code: 0,
+                },
+                "Command Output",
+            ),
+            (
+                Artifact::TestResults {
+                    passed: 1,
+                    failed: 0,
+                    skipped: 0,
+                    output: "".into(),
+                },
+                "Test Results",
+            ),
+            (
+                Artifact::ReviewReport {
+                    issues: vec![],
+                    summary: "".into(),
+                    score: 0.9,
+                },
+                "Code Review",
+            ),
+            (
+                Artifact::Text {
+                    title: "t".into(),
+                    content: "c".into(),
+                },
+                "Text",
+            ),
         ];
         for (artifact, expected_label) in &cases {
             assert_eq!(artifact.kind_label(), *expected_label);
             // icon() should return a non-empty string for every variant
-            assert!(!artifact.icon().is_empty(), "icon for {} should not be empty", expected_label);
+            assert!(
+                !artifact.icon().is_empty(),
+                "icon for {} should not be empty",
+                expected_label
+            );
         }
     }
 
@@ -390,8 +470,18 @@ mod tests {
     fn artifact_task_list_serde() {
         let artifact = Artifact::TaskList {
             items: vec![
-                TaskItem { id: 1, description: "Do thing".into(), done: false, file: Some("main.rs".into()) },
-                TaskItem { id: 2, description: "Done thing".into(), done: true, file: None },
+                TaskItem {
+                    id: 1,
+                    description: "Do thing".into(),
+                    done: false,
+                    file: Some("main.rs".into()),
+                },
+                TaskItem {
+                    id: 2,
+                    description: "Done thing".into(),
+                    done: true,
+                    file: None,
+                },
             ],
         };
         let json = serde_json::to_string(&artifact).unwrap();
@@ -417,7 +507,13 @@ mod tests {
         let json = serde_json::to_string(&artifact).unwrap();
         assert!(json.contains("\"type\":\"test_results\""));
         let back: Artifact = serde_json::from_str(&json).unwrap();
-        if let Artifact::TestResults { passed, failed, skipped, .. } = back {
+        if let Artifact::TestResults {
+            passed,
+            failed,
+            skipped,
+            ..
+        } = back
+        {
             assert_eq!(passed, 10);
             assert_eq!(failed, 2);
             assert_eq!(skipped, 1);
@@ -440,7 +536,12 @@ mod tests {
         };
         let json = serde_json::to_string(&artifact).unwrap();
         let back: Artifact = serde_json::from_str(&json).unwrap();
-        if let Artifact::ReviewReport { issues, summary, score } = back {
+        if let Artifact::ReviewReport {
+            issues,
+            summary,
+            score,
+        } = back
+        {
             assert_eq!(issues.len(), 1);
             assert_eq!(issues[0].line, 42);
             assert_eq!(summary, "One issue found");
@@ -460,7 +561,10 @@ mod tests {
         };
         let json = serde_json::to_string(&artifact).unwrap();
         let back: Artifact = serde_json::from_str(&json).unwrap();
-        if let Artifact::CommandOutput { command, exit_code, .. } = back {
+        if let Artifact::CommandOutput {
+            command, exit_code, ..
+        } = back
+        {
             assert_eq!(command, "cargo test");
             assert_eq!(exit_code, 0);
         } else {
@@ -479,7 +583,13 @@ mod tests {
     #[test]
     fn artifact_store_mark_applied_clears_pending() {
         let mut store = ArtifactStore::new();
-        let mut a = AgentArtifact::new(1, Artifact::Text { title: "t".into(), content: "c".into() });
+        let mut a = AgentArtifact::new(
+            1,
+            Artifact::Text {
+                title: "t".into(),
+                content: "c".into(),
+            },
+        );
         a.annotate("feedback 1");
         a.annotate("feedback 2");
         let id = a.id.clone();

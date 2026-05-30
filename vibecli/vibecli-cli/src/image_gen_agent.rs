@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -21,7 +20,9 @@ pub enum ImageStyle {
 impl ImageStyle {
     fn prompt_modifier(&self) -> &str {
         match self {
-            Self::Photorealistic => "photorealistic, ultra-detailed, 8k resolution, professional photography",
+            Self::Photorealistic => {
+                "photorealistic, ultra-detailed, 8k resolution, professional photography"
+            }
             Self::Cartoon => "cartoon style, bold outlines, vibrant colors, cel-shaded",
             Self::Sketch => "pencil sketch, hand-drawn, fine lines, crosshatching",
             Self::Watercolor => "watercolor painting, soft edges, color blending, artistic",
@@ -285,10 +286,7 @@ impl BatchGenerator {
     pub fn estimated_total_cost(&self) -> f64 {
         self.entries
             .iter()
-            .map(|e| {
-                self.model
-                    .cost_per_image(e.request.width, e.request.height)
-            })
+            .map(|e| self.model.cost_per_image(e.request.width, e.request.height))
             .sum()
     }
 
@@ -391,11 +389,7 @@ impl ImageGenAgent {
     }
 
     /// Generate variations of a previously generated image.
-    pub fn generate_variations(
-        &mut self,
-        image_id: &str,
-        count: usize,
-    ) -> Vec<ImageResult> {
+    pub fn generate_variations(&mut self, image_id: &str, count: usize) -> Vec<ImageResult> {
         let source = self.generated.iter().find(|r| r.id == image_id).cloned();
         let Some(source) = source else {
             return Vec::new();
@@ -445,7 +439,11 @@ impl ImageGenAgent {
 
     /// Build a detailed prompt from a description and style.
     pub fn build_prompt(&self, description: &str, style: &ImageStyle) -> String {
-        let quality = self.config.get("quality").map(|s| s.as_str()).unwrap_or("high");
+        let quality = self
+            .config
+            .get("quality")
+            .map(|s| s.as_str())
+            .unwrap_or("high");
         let quality_suffix = match quality {
             "ultra" => ", masterpiece, best quality, extremely detailed",
             "high" => ", high quality, detailed",
@@ -565,8 +563,8 @@ mod tests {
     #[test]
     fn test_agent_generate_custom_dimensions() {
         let mut agent = ImageGenAgent::new();
-        let req = ImageRequest::new("landscape", ImageStyle::OilPainting)
-            .with_dimensions(2048, 1024);
+        let req =
+            ImageRequest::new("landscape", ImageStyle::OilPainting).with_dimensions(2048, 1024);
         let result = agent.generate(&req);
         assert_eq!(result.width, 2048);
         assert_eq!(result.height, 1024);
@@ -575,8 +573,7 @@ mod tests {
     #[test]
     fn test_agent_generate_jpeg_format() {
         let mut agent = ImageGenAgent::new();
-        let req = ImageRequest::new("portrait", ImageStyle::Anime)
-            .with_format(ImageFormat::Jpeg);
+        let req = ImageRequest::new("portrait", ImageStyle::Anime).with_format(ImageFormat::Jpeg);
         let result = agent.generate(&req);
         assert!(result.image_path.ends_with(".jpg"));
         assert_eq!(result.format, ImageFormat::Jpeg);
@@ -608,7 +605,9 @@ mod tests {
         let req = ImageRequest::new("flower", ImageStyle::PixelArt);
         let original = agent.generate(&req);
 
-        let upscaled = agent.upscale(&original.id, 2.0).expect("upscale should succeed");
+        let upscaled = agent
+            .upscale(&original.id, 2.0)
+            .expect("upscale should succeed");
         assert_eq!(upscaled.width, 2048);
         assert_eq!(upscaled.height, 2048);
     }
@@ -668,8 +667,7 @@ mod tests {
     fn test_estimate_cost_larger_image_costs_more() {
         let agent = ImageGenAgent::new().with_model(GenerationModel::DallE3);
         let small = ImageRequest::new("t", ImageStyle::Cartoon);
-        let large = ImageRequest::new("t", ImageStyle::Cartoon)
-            .with_dimensions(2048, 2048);
+        let large = ImageRequest::new("t", ImageStyle::Cartoon).with_dimensions(2048, 2048);
         assert!(agent.estimate_cost(&large) > agent.estimate_cost(&small));
     }
 

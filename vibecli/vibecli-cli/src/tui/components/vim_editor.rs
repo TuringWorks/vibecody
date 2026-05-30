@@ -31,23 +31,23 @@ pub enum VimMode {
 impl VimMode {
     pub fn label(&self) -> &'static str {
         match self {
-            VimMode::Normal     => "NORMAL",
-            VimMode::Insert     => "INSERT",
-            VimMode::Visual     => "VISUAL",
+            VimMode::Normal => "NORMAL",
+            VimMode::Insert => "INSERT",
+            VimMode::Visual => "VISUAL",
             VimMode::VisualLine => "V-LINE",
-            VimMode::Command    => "COMMAND",
-            VimMode::Search     => "SEARCH",
+            VimMode::Command => "COMMAND",
+            VimMode::Search => "SEARCH",
         }
     }
 
     pub fn color(&self) -> Color {
         match self {
-            VimMode::Normal     => Color::Blue,
-            VimMode::Insert     => Color::Green,
-            VimMode::Visual     => Color::Magenta,
+            VimMode::Normal => Color::Blue,
+            VimMode::Insert => Color::Green,
+            VimMode::Visual => Color::Magenta,
             VimMode::VisualLine => Color::Magenta,
-            VimMode::Command    => Color::Yellow,
-            VimMode::Search     => Color::Cyan,
+            VimMode::Command => Color::Yellow,
+            VimMode::Search => Color::Cyan,
         }
     }
 }
@@ -117,7 +117,9 @@ impl VimEditorComponent {
         self.lines = match std::fs::read_to_string(&path) {
             Ok(content) => {
                 let mut ls: Vec<String> = content.lines().map(str::to_owned).collect();
-                if ls.is_empty() { ls.push(String::new()); }
+                if ls.is_empty() {
+                    ls.push(String::new());
+                }
                 ls
             }
             Err(_) => vec![String::new()],
@@ -126,14 +128,20 @@ impl VimEditorComponent {
         self.scroll_row = 0;
         self.modified = false;
         self.mode = VimMode::Normal;
-        self.status_msg = Some(format!("Opened \"{}\"  {} lines", path.display(), self.lines.len()));
+        self.status_msg = Some(format!(
+            "Opened \"{}\"  {} lines",
+            path.display(),
+            self.lines.len()
+        ));
     }
 
     /// Set buffer content without a file path (e.g. scratch buffer).
     #[allow(dead_code)]
     pub fn set_content(&mut self, content: &str) {
         let mut ls: Vec<String> = content.lines().map(str::to_owned).collect();
-        if ls.is_empty() { ls.push(String::new()); }
+        if ls.is_empty() {
+            ls.push(String::new());
+        }
         self.lines = ls;
         self.cursor = (0, 0);
         self.scroll_row = 0;
@@ -168,14 +176,18 @@ impl VimEditorComponent {
 
     fn clamp_cursor(&mut self) {
         let max_row = self.lines.len().saturating_sub(1);
-        if self.cursor.0 > max_row { self.cursor.0 = max_row; }
+        if self.cursor.0 > max_row {
+            self.cursor.0 = max_row;
+        }
         let line_len = self.lines[self.cursor.0].len();
         let max_col = if self.mode == VimMode::Insert {
             line_len
         } else {
             line_len.saturating_sub(1)
         };
-        if self.cursor.1 > max_col { self.cursor.1 = max_col; }
+        if self.cursor.1 > max_col {
+            self.cursor.1 = max_col;
+        }
     }
 
     fn scroll_to_cursor(&mut self, height: usize) {
@@ -207,7 +219,11 @@ impl VimEditorComponent {
     }
     fn move_right(&mut self) {
         let line = &self.lines[self.cursor.0];
-        let max = if self.mode == VimMode::Insert { line.len() } else { line.len().saturating_sub(1) };
+        let max = if self.mode == VimMode::Insert {
+            line.len()
+        } else {
+            line.len().saturating_sub(1)
+        };
         if self.cursor.1 < max {
             // Find the next char boundary
             self.cursor.1 = line[self.cursor.1..]
@@ -234,24 +250,42 @@ impl VimEditorComponent {
         let line = &self.lines[row];
         // Collect (byte_offset, char) pairs so we work in char indices but store byte offsets
         let indices: Vec<(usize, char)> = line.char_indices().collect();
-        if indices.is_empty() { return; }
+        if indices.is_empty() {
+            return;
+        }
         // Find which char index corresponds to our current byte offset
-        let char_idx = indices.iter().position(|(b, _)| *b >= self.cursor.1).unwrap_or(indices.len().saturating_sub(1));
+        let char_idx = indices
+            .iter()
+            .position(|(b, _)| *b >= self.cursor.1)
+            .unwrap_or(indices.len().saturating_sub(1));
         let mut i = char_idx + 1;
-        while i < indices.len() && indices[i].1.is_alphanumeric() { i += 1; }
-        while i < indices.len() && !indices[i].1.is_alphanumeric() { i += 1; }
+        while i < indices.len() && indices[i].1.is_alphanumeric() {
+            i += 1;
+        }
+        while i < indices.len() && !indices[i].1.is_alphanumeric() {
+            i += 1;
+        }
         let target = i.min(indices.len().saturating_sub(1));
         self.cursor.1 = indices[target].0;
     }
     fn move_word_back(&mut self) {
         let line = &self.lines[self.cursor.0];
         let indices: Vec<(usize, char)> = line.char_indices().collect();
-        if indices.is_empty() || self.cursor.1 == 0 { return; }
+        if indices.is_empty() || self.cursor.1 == 0 {
+            return;
+        }
         // Find which char index corresponds to our current byte offset
-        let char_idx = indices.iter().position(|(b, _)| *b >= self.cursor.1).unwrap_or(indices.len().saturating_sub(1));
+        let char_idx = indices
+            .iter()
+            .position(|(b, _)| *b >= self.cursor.1)
+            .unwrap_or(indices.len().saturating_sub(1));
         let mut i = char_idx.saturating_sub(1);
-        while i > 0 && !indices[i].1.is_alphanumeric() { i -= 1; }
-        while i > 0 && indices[i - 1].1.is_alphanumeric() { i -= 1; }
+        while i > 0 && !indices[i].1.is_alphanumeric() {
+            i -= 1;
+        }
+        while i > 0 && indices[i - 1].1.is_alphanumeric() {
+            i -= 1;
+        }
         self.cursor.1 = indices[i].0;
     }
 
@@ -285,7 +319,9 @@ impl VimEditorComponent {
     }
 
     fn paste_after(&mut self) {
-        if self.yank_reg.is_empty() { return; }
+        if self.yank_reg.is_empty() {
+            return;
+        }
         self.save_undo();
         let insert_at = self.cursor.0 + 1;
         for (i, line) in self.yank_reg.iter().enumerate() {
@@ -297,7 +333,9 @@ impl VimEditorComponent {
     }
 
     fn paste_before(&mut self) {
-        if self.yank_reg.is_empty() { return; }
+        if self.yank_reg.is_empty() {
+            return;
+        }
         self.save_undo();
         let insert_at = self.cursor.0;
         for (i, line) in self.yank_reg.iter().enumerate() {
@@ -312,7 +350,9 @@ impl VimEditorComponent {
 
     /// Find all matches of `pattern` (case-insensitive).
     fn find_matches(&self, pattern: &str) -> Vec<(usize, usize)> {
-        if pattern.is_empty() { return Vec::new(); }
+        if pattern.is_empty() {
+            return Vec::new();
+        }
         let pat = pattern.to_lowercase();
         let mut matches = Vec::new();
         for (row, line) in self.lines.iter().enumerate() {
@@ -327,14 +367,17 @@ impl VimEditorComponent {
     }
 
     pub fn search_next(&mut self) {
-        if self.last_search.is_empty() { return; }
+        if self.last_search.is_empty() {
+            return;
+        }
         let matches = self.find_matches(&self.last_search);
         if matches.is_empty() {
             self.status_msg = Some(format!("Pattern not found: {}", self.last_search));
             return;
         }
         let cur = self.cursor;
-        let next = matches.iter()
+        let next = matches
+            .iter()
             .find(|&&(r, c)| r > cur.0 || (r == cur.0 && c > cur.1))
             .or_else(|| matches.first())
             .copied();
@@ -344,14 +387,18 @@ impl VimEditorComponent {
     }
 
     pub fn search_prev(&mut self) {
-        if self.last_search.is_empty() { return; }
+        if self.last_search.is_empty() {
+            return;
+        }
         let matches = self.find_matches(&self.last_search);
         if matches.is_empty() {
             self.status_msg = Some(format!("Pattern not found: {}", self.last_search));
             return;
         }
         let cur = self.cursor;
-        let prev = matches.iter().rev()
+        let prev = matches
+            .iter()
+            .rev()
             .find(|&&(r, c)| r < cur.0 || (r == cur.0 && c < cur.1))
             .or_else(|| matches.last())
             .copied();
@@ -367,16 +414,20 @@ impl VimEditorComponent {
         let vp = viewport_height as usize;
 
         match self.mode {
-            VimMode::Insert  => self.handle_insert(key),
+            VimMode::Insert => self.handle_insert(key),
             VimMode::Command => self.handle_command_input(key),
-            VimMode::Search  => self.handle_search_input(key),
+            VimMode::Search => self.handle_search_input(key),
             VimMode::Visual | VimMode::VisualLine => {
                 let quit = self.handle_visual(key, vp);
-                if quit { return true; }
+                if quit {
+                    return true;
+                }
             }
             VimMode::Normal => {
                 let quit = self.handle_normal(key, vp);
-                if quit { return true; }
+                if quit {
+                    return true;
+                }
             }
         }
 
@@ -403,12 +454,36 @@ impl VimEditorComponent {
             }
 
             // Motions
-            KeyCode::Char('h') | KeyCode::Left  => { let n = self.take_count(); for _ in 0..n { self.move_left(); } }
-            KeyCode::Char('l') | KeyCode::Right => { let n = self.take_count(); for _ in 0..n { self.move_right(); } }
-            KeyCode::Char('j') | KeyCode::Down  => { let n = self.take_count(); self.move_down(n); }
-            KeyCode::Char('k') | KeyCode::Up    => { let n = self.take_count(); self.move_up(n); }
-            KeyCode::Char('w') => { let n = self.take_count(); for _ in 0..n { self.move_word_forward(); } }
-            KeyCode::Char('0') => { self.cursor.1 = 0; self.count_buf.clear(); }
+            KeyCode::Char('h') | KeyCode::Left => {
+                let n = self.take_count();
+                for _ in 0..n {
+                    self.move_left();
+                }
+            }
+            KeyCode::Char('l') | KeyCode::Right => {
+                let n = self.take_count();
+                for _ in 0..n {
+                    self.move_right();
+                }
+            }
+            KeyCode::Char('j') | KeyCode::Down => {
+                let n = self.take_count();
+                self.move_down(n);
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                let n = self.take_count();
+                self.move_up(n);
+            }
+            KeyCode::Char('w') => {
+                let n = self.take_count();
+                for _ in 0..n {
+                    self.move_word_forward();
+                }
+            }
+            KeyCode::Char('0') => {
+                self.cursor.1 = 0;
+                self.count_buf.clear();
+            }
             KeyCode::Char('$') => {
                 let len = self.lines[self.cursor.0].len().saturating_sub(1);
                 self.cursor.1 = len;
@@ -418,7 +493,11 @@ impl VimEditorComponent {
                 let n = if self.count_buf.is_empty() {
                     self.lines.len().saturating_sub(1)
                 } else {
-                    let c = self.count_buf.parse::<usize>().unwrap_or(1).saturating_sub(1);
+                    let c = self
+                        .count_buf
+                        .parse::<usize>()
+                        .unwrap_or(1)
+                        .saturating_sub(1);
                     self.count_buf.clear();
                     c.min(self.lines.len().saturating_sub(1))
                 };
@@ -431,24 +510,42 @@ impl VimEditorComponent {
             }
 
             // Page scroll (must come before unguarded Char('b')/Char('f'))
-            KeyCode::Char('f') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+            KeyCode::Char('f')
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
                 let n = self.take_count();
                 self.move_down(vp.saturating_sub(2) * n);
             }
-            KeyCode::Char('b') if key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+            KeyCode::Char('b')
+                if key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
                 let n = self.take_count();
                 self.move_up(vp.saturating_sub(2) * n);
             }
 
             // Word back
-            KeyCode::Char('b') => { let n = self.take_count(); for _ in 0..n { self.move_word_back(); } }
+            KeyCode::Char('b') => {
+                let n = self.take_count();
+                for _ in 0..n {
+                    self.move_word_back();
+                }
+            }
 
             // Insert mode entry
-            KeyCode::Char('i') => { self.count_buf.clear(); self.mode = VimMode::Insert; }
+            KeyCode::Char('i') => {
+                self.count_buf.clear();
+                self.mode = VimMode::Insert;
+            }
             KeyCode::Char('a') => {
                 self.count_buf.clear();
                 let len = self.lines[self.cursor.0].len();
-                if self.cursor.1 < len { self.cursor.1 += 1; }
+                if self.cursor.1 < len {
+                    self.cursor.1 += 1;
+                }
                 self.mode = VimMode::Insert;
             }
             KeyCode::Char('I') => {
@@ -495,10 +592,22 @@ impl VimEditorComponent {
             }
 
             // Yank / delete / paste chords (dd, yy)
-            KeyCode::Char('d') => { self.count_buf.clear(); self.pending_key = Some('d'); }
-            KeyCode::Char('y') => { self.count_buf.clear(); self.pending_key = Some('y'); }
-            KeyCode::Char('p') => { self.count_buf.clear(); self.paste_after(); }
-            KeyCode::Char('P') => { self.count_buf.clear(); self.paste_before(); }
+            KeyCode::Char('d') => {
+                self.count_buf.clear();
+                self.pending_key = Some('d');
+            }
+            KeyCode::Char('y') => {
+                self.count_buf.clear();
+                self.pending_key = Some('y');
+            }
+            KeyCode::Char('p') => {
+                self.count_buf.clear();
+                self.paste_after();
+            }
+            KeyCode::Char('P') => {
+                self.count_buf.clear();
+                self.paste_before();
+            }
 
             // Undo
             KeyCode::Char('u') => {
@@ -514,8 +623,16 @@ impl VimEditorComponent {
             }
 
             // Visual mode
-            KeyCode::Char('v') => { self.count_buf.clear(); self.mode = VimMode::Visual; self.visual_start = Some(self.cursor); }
-            KeyCode::Char('V') => { self.count_buf.clear(); self.mode = VimMode::VisualLine; self.visual_start = Some(self.cursor); }
+            KeyCode::Char('v') => {
+                self.count_buf.clear();
+                self.mode = VimMode::Visual;
+                self.visual_start = Some(self.cursor);
+            }
+            KeyCode::Char('V') => {
+                self.count_buf.clear();
+                self.mode = VimMode::VisualLine;
+                self.visual_start = Some(self.cursor);
+            }
 
             // Search
             KeyCode::Char('/') => {
@@ -523,16 +640,31 @@ impl VimEditorComponent {
                 self.search_buf.clear();
                 self.mode = VimMode::Search;
             }
-            KeyCode::Char('n') => { self.count_buf.clear(); self.search_next(); }
-            KeyCode::Char('N') => { self.count_buf.clear(); self.search_prev(); }
+            KeyCode::Char('n') => {
+                self.count_buf.clear();
+                self.search_next();
+            }
+            KeyCode::Char('N') => {
+                self.count_buf.clear();
+                self.search_prev();
+            }
 
             // Command mode
-            KeyCode::Char(':') => { self.count_buf.clear(); self.command_buf.clear(); self.mode = VimMode::Command; }
+            KeyCode::Char(':') => {
+                self.count_buf.clear();
+                self.command_buf.clear();
+                self.mode = VimMode::Command;
+            }
 
             // Esc
-            KeyCode::Esc => { self.count_buf.clear(); self.status_msg = None; }
+            KeyCode::Esc => {
+                self.count_buf.clear();
+                self.status_msg = None;
+            }
 
-            _ => { self.count_buf.clear(); }
+            _ => {
+                self.count_buf.clear();
+            }
         }
         false
     }
@@ -563,7 +695,7 @@ impl VimEditorComponent {
     // ── Insert mode ───────────────────────────────────────────────────────────
 
     fn handle_insert(&mut self, key: crossterm::event::KeyEvent) {
-        use crossterm::event::{KeyCode};
+        use crossterm::event::KeyCode;
         match key.code {
             KeyCode::Esc => {
                 self.mode = VimMode::Normal;
@@ -633,7 +765,11 @@ impl VimEditorComponent {
                     self.modified = true;
                 }
             }
-            KeyCode::Char(c) if !key.modifiers.contains(crossterm::event::KeyModifiers::CONTROL) => {
+            KeyCode::Char(c)
+                if !key
+                    .modifiers
+                    .contains(crossterm::event::KeyModifiers::CONTROL) =>
+            {
                 let row = self.cursor.0;
                 let col = self.cursor.1;
                 self.lines[row].insert(col, c);
@@ -649,15 +785,22 @@ impl VimEditorComponent {
     fn handle_command_input(&mut self, key: crossterm::event::KeyEvent) {
         use crossterm::event::KeyCode;
         match key.code {
-            KeyCode::Esc => { self.mode = VimMode::Normal; self.command_buf.clear(); }
-            KeyCode::Backspace => { self.command_buf.pop(); }
+            KeyCode::Esc => {
+                self.mode = VimMode::Normal;
+                self.command_buf.clear();
+            }
+            KeyCode::Backspace => {
+                self.command_buf.pop();
+            }
             KeyCode::Enter => {
                 let cmd = self.command_buf.trim().to_string();
                 self.command_buf.clear();
                 self.mode = VimMode::Normal;
                 self.execute_command(&cmd);
             }
-            KeyCode::Char(c) => { self.command_buf.push(c); }
+            KeyCode::Char(c) => {
+                self.command_buf.push(c);
+            }
             _ => {}
         }
     }
@@ -671,7 +814,8 @@ impl VimEditorComponent {
             }
             "q" | "quit" => {
                 if self.modified {
-                    self.status_msg = Some("Unsaved changes! Use :q! to force quit or :wq to save".to_string());
+                    self.status_msg =
+                        Some("Unsaved changes! Use :q! to force quit or :wq to save".to_string());
                 } else {
                     // Signal quit via a flag — caller checks wants_quit()
                     self.modified = false; // no-op, quit handled by caller
@@ -708,16 +852,24 @@ impl VimEditorComponent {
     fn handle_search_input(&mut self, key: crossterm::event::KeyEvent) {
         use crossterm::event::KeyCode;
         match key.code {
-            KeyCode::Esc => { self.mode = VimMode::Normal; self.search_buf.clear(); }
-            KeyCode::Backspace => { self.search_buf.pop(); }
+            KeyCode::Esc => {
+                self.mode = VimMode::Normal;
+                self.search_buf.clear();
+            }
+            KeyCode::Backspace => {
+                self.search_buf.pop();
+            }
             KeyCode::Enter => {
                 self.last_search = self.search_buf.clone();
                 self.search_buf.clear();
                 self.mode = VimMode::Normal;
-                if self.last_search.is_empty() { return; }
+                if self.last_search.is_empty() {
+                    return;
+                }
                 let matches = self.find_matches(&self.last_search);
                 let cur = self.cursor;
-                if let Some(&(r, c)) = matches.iter()
+                if let Some(&(r, c)) = matches
+                    .iter()
                     .find(|&&(row, col)| row > cur.0 || (row == cur.0 && col > cur.1))
                     .or_else(|| matches.first())
                 {
@@ -726,7 +878,9 @@ impl VimEditorComponent {
                     self.status_msg = Some(format!("Pattern not found: {}", self.last_search));
                 }
             }
-            KeyCode::Char(c) => { self.search_buf.push(c); }
+            KeyCode::Char(c) => {
+                self.search_buf.push(c);
+            }
             _ => {}
         }
     }
@@ -741,10 +895,10 @@ impl VimEditorComponent {
                 self.mode = VimMode::Normal;
                 self.visual_start = None;
             }
-            KeyCode::Char('h') | KeyCode::Left  => self.move_left(),
+            KeyCode::Char('h') | KeyCode::Left => self.move_left(),
             KeyCode::Char('l') | KeyCode::Right => self.move_right(),
-            KeyCode::Char('j') | KeyCode::Down  => self.move_down(1),
-            KeyCode::Char('k') | KeyCode::Up    => self.move_up(1),
+            KeyCode::Char('j') | KeyCode::Down => self.move_down(1),
+            KeyCode::Char('k') | KeyCode::Up => self.move_up(1),
             KeyCode::Char('y') => {
                 // Yank selection
                 if let Some(start) = self.visual_start {
@@ -771,7 +925,9 @@ impl VimEditorComponent {
                     self.yank_reg = self.lines[r1..=r2].to_vec();
                     let count = r2 - r1 + 1;
                     self.lines.drain(r1..=r2);
-                    if self.lines.is_empty() { self.lines.push(String::new()); }
+                    if self.lines.is_empty() {
+                        self.lines.push(String::new());
+                    }
                     self.cursor.0 = r1.min(self.lines.len().saturating_sub(1));
                     self.cursor.1 = 0;
                     self.modified = true;
@@ -806,16 +962,21 @@ impl VimEditorComponent {
 
         // Build text lines to render
         let visible_height = inner_area.height as usize;
-        let search_pat = if self.last_search.is_empty() { None } else { Some(self.last_search.to_lowercase()) };
+        let search_pat = if self.last_search.is_empty() {
+            None
+        } else {
+            Some(self.last_search.to_lowercase())
+        };
 
         let mut text_lines: Vec<Line> = Vec::with_capacity(visible_height);
         for screen_row in 0..visible_height {
             let buf_row = self.scroll_row + screen_row;
             if buf_row >= self.lines.len() {
                 // Tilde for empty rows (like vim)
-                text_lines.push(Line::from(vec![
-                    Span::styled("~", Style::default().fg(Color::DarkGray)),
-                ]));
+                text_lines.push(Line::from(vec![Span::styled(
+                    "~",
+                    Style::default().fg(Color::DarkGray),
+                )]));
                 continue;
             }
 
@@ -826,7 +987,11 @@ impl VimEditorComponent {
 
             // Line number gutter
             if self.show_line_numbers {
-                let num = format!("{:>width$} ", buf_row + 1, width = (gutter_w as usize).saturating_sub(1));
+                let num = format!(
+                    "{:>width$} ",
+                    buf_row + 1,
+                    width = (gutter_w as usize).saturating_sub(1)
+                );
                 let gutter_style = if is_cursor_row {
                     Style::default().fg(Color::Yellow)
                 } else {
@@ -844,24 +1009,36 @@ impl VimEditorComponent {
             while col <= chars.len() && col < text_w + self.cursor.1.saturating_sub(text_w).max(0) {
                 if col == chars.len() {
                     // End-of-line cursor in insert mode
-                    if is_cursor_row && self.cursor.1 == col && (self.mode == VimMode::Insert || self.mode == VimMode::Command) {
-                        spans.push(Span::styled(" ", Style::default().bg(Color::White).fg(Color::Black)));
+                    if is_cursor_row
+                        && self.cursor.1 == col
+                        && (self.mode == VimMode::Insert || self.mode == VimMode::Command)
+                    {
+                        spans.push(Span::styled(
+                            " ",
+                            Style::default().bg(Color::White).fg(Color::Black),
+                        ));
                     }
                     break;
                 }
                 let ch = chars[col];
                 let is_cursor = is_cursor_row && col == self.cursor.1;
-                let in_visual = vis_lo.is_some_and(|lo| col >= lo) && vis_hi.is_some_and(|hi| col <= hi);
+                let in_visual =
+                    vis_lo.is_some_and(|lo| col >= lo) && vis_hi.is_some_and(|hi| col <= hi);
                 let in_search = search_pat.as_ref().is_some_and(|pat| {
                     // Use char indices for correct multi-byte UTF-8 handling
                     let lower_chars: Vec<char> = line_str.to_lowercase().chars().collect();
                     let pat_chars: Vec<char> = pat.chars().collect();
-                    if pat_chars.is_empty() { return false; }
+                    if pat_chars.is_empty() {
+                        return false;
+                    }
                     let mut m = false;
                     let mut s = 0usize;
                     while s + pat_chars.len() <= lower_chars.len() {
                         if lower_chars[s..s + pat_chars.len()] == pat_chars[..] {
-                            if col >= s && col < s + pat_chars.len() { m = true; break; }
+                            if col >= s && col < s + pat_chars.len() {
+                                m = true;
+                                break;
+                            }
                             s += 1;
                         } else {
                             s += 1;
@@ -871,7 +1048,10 @@ impl VimEditorComponent {
                 });
 
                 let style = if is_cursor {
-                    Style::default().bg(Color::White).fg(Color::Black).add_modifier(Modifier::BOLD)
+                    Style::default()
+                        .bg(Color::White)
+                        .fg(Color::Black)
+                        .add_modifier(Modifier::BOLD)
                 } else if in_visual {
                     Style::default().bg(Color::Blue).fg(Color::White)
                 } else if in_search {
@@ -889,7 +1069,9 @@ impl VimEditorComponent {
 
         // Border and file title
         let title = {
-            let fname = self.file_path.as_ref()
+            let fname = self
+                .file_path
+                .as_ref()
                 .and_then(|p| p.file_name())
                 .and_then(|n| n.to_str())
                 .unwrap_or("[No Name]");
@@ -925,13 +1107,33 @@ impl VimEditorComponent {
         let mode_label = self.mode.label();
         let mode_color = self.mode.color();
         let pos = format!("{}:{}", self.cursor.0 + 1, self.cursor.1 + 1);
-        let pct = if self.lines.len() <= 1 { "All".to_string() } else {
-            format!("{}%", 100 * self.cursor.0 / self.lines.len().saturating_sub(1))
+        let pct = if self.lines.len() <= 1 {
+            "All".to_string()
+        } else {
+            format!(
+                "{}%",
+                100 * self.cursor.0 / self.lines.len().saturating_sub(1)
+            )
         };
-        let status_text = format!(" {:6}  {}  {}  {}  ", mode_label, pos, pct,
-            self.file_path.as_ref().and_then(|p| p.file_name()).and_then(|n| n.to_str()).unwrap_or(""));
+        let status_text = format!(
+            " {:6}  {}  {}  {}  ",
+            mode_label,
+            pos,
+            pct,
+            self.file_path
+                .as_ref()
+                .and_then(|p| p.file_name())
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+        );
         let status_line = Line::from(vec![
-            Span::styled(format!(" {} ", mode_label), Style::default().fg(Color::Black).bg(mode_color).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                format!(" {} ", mode_label),
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(mode_color)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled(
                 format!("  {}  {}  ", pos, pct),
                 Style::default().fg(Color::DarkGray).bg(Color::Reset),
@@ -954,7 +1156,10 @@ impl VimEditorComponent {
             ]),
             _ => {
                 if let Some(ref msg) = self.status_msg {
-                    Line::from(Span::styled(msg.clone(), Style::default().fg(Color::Yellow)))
+                    Line::from(Span::styled(
+                        msg.clone(),
+                        Style::default().fg(Color::Yellow),
+                    ))
                 } else {
                     Line::from("")
                 }
@@ -968,21 +1173,47 @@ impl VimEditorComponent {
     fn visual_range_for_row(&self, row: usize) -> (Option<usize>, Option<usize>) {
         match (&self.mode, self.visual_start) {
             (VimMode::VisualLine, Some(start)) => {
-                let (r1, r2) = if start.0 <= self.cursor.0 { (start.0, self.cursor.0) } else { (self.cursor.0, start.0) };
-                if row >= r1 && row <= r2 { (Some(0), Some(usize::MAX)) } else { (None, None) }
+                let (r1, r2) = if start.0 <= self.cursor.0 {
+                    (start.0, self.cursor.0)
+                } else {
+                    (self.cursor.0, start.0)
+                };
+                if row >= r1 && row <= r2 {
+                    (Some(0), Some(usize::MAX))
+                } else {
+                    (None, None)
+                }
             }
             (VimMode::Visual, Some(start)) if start.0 == self.cursor.0 && row == self.cursor.0 => {
-                let (c1, c2) = if start.1 <= self.cursor.1 { (start.1, self.cursor.1) } else { (self.cursor.1, start.1) };
+                let (c1, c2) = if start.1 <= self.cursor.1 {
+                    (start.1, self.cursor.1)
+                } else {
+                    (self.cursor.1, start.1)
+                };
                 (Some(c1), Some(c2))
             }
             (VimMode::Visual, Some(start)) => {
-                let (r1, r2) = if start.0 <= self.cursor.0 { (start.0, self.cursor.0) } else { (self.cursor.0, start.0) };
-                if row < r1 || row > r2 { return (None, None); }
+                let (r1, r2) = if start.0 <= self.cursor.0 {
+                    (start.0, self.cursor.0)
+                } else {
+                    (self.cursor.0, start.0)
+                };
+                if row < r1 || row > r2 {
+                    return (None, None);
+                }
                 if row == r1 && r1 != r2 {
-                    let c = if start.0 <= self.cursor.0 { start.1 } else { self.cursor.1 };
+                    let c = if start.0 <= self.cursor.0 {
+                        start.1
+                    } else {
+                        self.cursor.1
+                    };
                     (Some(c), Some(usize::MAX))
                 } else if row == r2 && r1 != r2 {
-                    let c = if start.0 <= self.cursor.0 { self.cursor.1 } else { start.1 };
+                    let c = if start.0 <= self.cursor.0 {
+                        self.cursor.1
+                    } else {
+                        start.1
+                    };
                     (Some(0), Some(c))
                 } else {
                     (Some(0), Some(usize::MAX))
@@ -994,7 +1225,9 @@ impl VimEditorComponent {
 
     /// Current line count.
     #[allow(dead_code)]
-    pub fn line_count(&self) -> usize { self.lines.len() }
+    pub fn line_count(&self) -> usize {
+        self.lines.len()
+    }
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

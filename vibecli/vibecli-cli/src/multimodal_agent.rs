@@ -39,27 +39,12 @@ pub struct MultiModalInput {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum AgentAction {
-    EditFile {
-        path: String,
-        content: String,
-    },
-    RunCommand {
-        cmd: String,
-    },
-    GenerateCode {
-        language: String,
-        code: String,
-    },
-    DescribeImage {
-        description: String,
-    },
-    TranscribeVoice {
-        text: String,
-    },
-    SearchCode {
-        query: String,
-        results: Vec<String>,
-    },
+    EditFile { path: String, content: String },
+    RunCommand { cmd: String },
+    GenerateCode { language: String, code: String },
+    DescribeImage { description: String },
+    TranscribeVoice { text: String },
+    SearchCode { query: String, results: Vec<String> },
 }
 
 impl AgentAction {
@@ -346,13 +331,21 @@ impl UnifiedAgent {
                 InputMode::Text => {
                     if let Some(ref text) = input.text {
                         if text.starts_with("search ") || text.starts_with("find ") {
-                            let query = text.split_once(' ').map(|(_, q)| q).unwrap_or("").to_string();
+                            let query = text
+                                .split_once(' ')
+                                .map(|(_, q)| q)
+                                .unwrap_or("")
+                                .to_string();
                             actions.push(AgentAction::SearchCode {
                                 query,
                                 results: Vec::new(),
                             });
                         } else if text.starts_with("run ") {
-                            let cmd = text.split_once(' ').map(|(_, c)| c).unwrap_or("").to_string();
+                            let cmd = text
+                                .split_once(' ')
+                                .map(|(_, c)| c)
+                                .unwrap_or("")
+                                .to_string();
                             actions.push(AgentAction::RunCommand { cmd });
                         }
                     }
@@ -577,9 +570,7 @@ mod tests {
         };
         let mut agent = UnifiedAgent::new(config);
         for i in 0..5 {
-            agent
-                .add_input(text_input(&format!("msg {}", i)))
-                .unwrap();
+            agent.add_input(text_input(&format!("msg {}", i))).unwrap();
         }
         assert_eq!(agent.context.turns.len(), 3);
     }
@@ -616,8 +607,7 @@ mod tests {
         let code = "fn main() {\n    let x = 42;\n    println!(\"{}\", x);\n}";
         let result = UnifiedAgent::detect_input_mode(code);
         assert!(
-            result.detected_mode == InputMode::Code
-                || result.detected_mode == InputMode::Mixed
+            result.detected_mode == InputMode::Code || result.detected_mode == InputMode::Mixed
         );
     }
 
@@ -947,10 +937,7 @@ mod tests {
             "edit_file"
         );
         assert_eq!(
-            AgentAction::RunCommand {
-                cmd: String::new(),
-            }
-            .action_type(),
+            AgentAction::RunCommand { cmd: String::new() }.action_type(),
             "run_command"
         );
         assert_eq!(

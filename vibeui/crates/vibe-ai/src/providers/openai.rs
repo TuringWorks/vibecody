@@ -1,6 +1,9 @@
 //! OpenAI provider implementation (ChatGPT, Codex)
 
-use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message, ProviderConfig, TokenUsage};
+use crate::provider::{
+    AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message,
+    ProviderConfig, TokenUsage,
+};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use futures::stream::StreamExt;
@@ -81,13 +84,17 @@ impl OpenAIProvider {
     const DEFAULT_API_URL: &'static str = "https://api.openai.com/v1/chat/completions";
 
     fn api_url(&self) -> &str {
-        self.config.api_url.as_deref().unwrap_or(Self::DEFAULT_API_URL)
+        self.config
+            .api_url
+            .as_deref()
+            .unwrap_or(Self::DEFAULT_API_URL)
     }
 
     /// Translate a raw OpenAI API error response into a user-friendly message.
     fn translate_api_error(status: u16, body: &str) -> String {
         if let Ok(v) = serde_json::from_str::<Value>(body) {
-            let msg = v.pointer("/error/message")
+            let msg = v
+                .pointer("/error/message")
                 .and_then(|m| m.as_str())
                 .unwrap_or(body);
             return match status {
@@ -115,9 +122,8 @@ impl OpenAIProvider {
             if let Some(last_msg) = openai_messages.last_mut() {
                 if last_msg.role == "user" {
                     if let Value::String(ref s) = last_msg.content.clone() {
-                        last_msg.content = Value::String(
-                            format!("Context:\n{}\n\nUser: {}", ctx, s)
-                        );
+                        last_msg.content =
+                            Value::String(format!("Context:\n{}\n\nUser: {}", ctx, s));
                     }
                 }
             }
@@ -182,28 +188,48 @@ impl AIProvider for OpenAIProvider {
             context.language, context.prefix, context.suffix
         );
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "You are a helpful coding assistant.".to_string() },
-            Message { role: crate::provider::MessageRole::User, content: prompt },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "You are a helpful coding assistant.".to_string(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: prompt,
+            },
         ];
         self.chat_response(&messages, None).await
     }
 
     async fn stream_complete(&self, context: &CodeContext) -> Result<CompletionStream> {
-         let prompt = format!(
+        let prompt = format!(
             "Complete the following {} code:\n\n{}<CURSOR>{}",
             context.language, context.prefix, context.suffix
         );
-        
+
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "You are a helpful coding assistant.".to_string() },
-            Message { role: crate::provider::MessageRole::User, content: prompt },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "You are a helpful coding assistant.".to_string(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: prompt,
+            },
         ];
 
         self.stream_chat(&messages).await
     }
 
-    async fn chat_response(&self, messages: &[Message], context: Option<String>) -> Result<CompletionResponse> {
-        let api_key = self.config.api_key.as_ref().context("OpenAI API key not found")?;
+    async fn chat_response(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+    ) -> Result<CompletionResponse> {
+        let api_key = self
+            .config
+            .api_key
+            .as_ref()
+            .context("OpenAI API key not found")?;
         let request = OpenAIRequest {
             model: self.config.model.clone(),
             messages: self.build_messages(messages, context),
@@ -212,7 +238,8 @@ impl AIProvider for OpenAIProvider {
             stream: false,
         };
 
-        let response = self.client
+        let response = self
+            .client
             .post(self.api_url())
             .header("Authorization", format!("Bearer {}", api_key))
             .json(&request)
@@ -226,11 +253,18 @@ impl AIProvider for OpenAIProvider {
             anyhow::bail!("{}", Self::translate_api_error(status, &error_text));
         }
 
-        let openai_response: OpenAIResponse = response.json().await.context("Failed to parse OpenAI response")?;
+        let openai_response: OpenAIResponse = response
+            .json()
+            .await
+            .context("Failed to parse OpenAI response")?;
 
-        let content = openai_response.choices.first()
+        let content = openai_response
+            .choices
+            .first()
             .context("No choices in OpenAI response")?
-            .message.content.clone();
+            .message
+            .content
+            .clone();
         let text = match content {
             Value::String(s) => s,
             other => other.to_string(),
@@ -253,7 +287,11 @@ impl AIProvider for OpenAIProvider {
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
-        let api_key = self.config.api_key.as_ref().context("OpenAI API key not found")?;
+        let api_key = self
+            .config
+            .api_key
+            .as_ref()
+            .context("OpenAI API key not found")?;
         let request = OpenAIRequest {
             model: self.config.model.clone(),
             messages: self.build_messages(messages, None), // Context handled in build_messages
@@ -262,7 +300,8 @@ impl AIProvider for OpenAIProvider {
             stream: true,
         };
 
-        let response = self.client
+        let response = self
+            .client
             .post(self.api_url())
             .header("Authorization", format!("Bearer {}", api_key))
             .json(&request)
@@ -277,7 +316,7 @@ impl AIProvider for OpenAIProvider {
         }
 
         let stream = response.bytes_stream();
-        
+
         let completion_stream = stream
             .map(|chunk| {
                 let chunk = chunk?;
@@ -285,7 +324,7 @@ impl AIProvider for OpenAIProvider {
                 // OpenAI stream format is "data: {json}\n\n"
                 // We need to parse multiple lines
                 let mut content = String::new();
-                
+
                 for line in chunk_str.lines() {
                     if let Some(data) = line.strip_prefix("data: ") {
                         if data == "[DONE]" {
@@ -310,8 +349,11 @@ impl AIProvider for OpenAIProvider {
     fn supports_vision(&self) -> bool {
         // GPT-4 Vision, GPT-4o, and GPT-4-turbo models support images
         let m = &self.config.model;
-        m.contains("gpt-4o") || m.contains("gpt-4-vision") || m.contains("gpt-4-turbo")
-            || m == "gpt-4" || m.contains("o1")
+        m.contains("gpt-4o")
+            || m.contains("gpt-4-vision")
+            || m.contains("gpt-4-turbo")
+            || m == "gpt-4"
+            || m.contains("o1")
     }
 
     async fn chat_with_images(
@@ -324,7 +366,11 @@ impl AIProvider for OpenAIProvider {
             return self.chat(messages, context).await;
         }
 
-        let api_key = self.config.api_key.as_ref().context("OpenAI API key not found")?;
+        let api_key = self
+            .config
+            .api_key
+            .as_ref()
+            .context("OpenAI API key not found")?;
         let request = OpenAIRequest {
             model: self.config.model.clone(),
             messages: self.build_vision_messages(messages, images, context),
@@ -333,7 +379,8 @@ impl AIProvider for OpenAIProvider {
             stream: false,
         };
 
-        let response = self.client
+        let response = self
+            .client
             .post(self.api_url())
             .header("Authorization", format!("Bearer {}", api_key))
             .json(&request)
@@ -351,9 +398,13 @@ impl AIProvider for OpenAIProvider {
             .await
             .context("Failed to parse OpenAI vision response")?;
 
-        let content = openai_response.choices.first()
+        let content = openai_response
+            .choices
+            .first()
             .context("No choices in OpenAI vision response")?
-            .message.content.clone();
+            .message
+            .content
+            .clone();
         match content {
             Value::String(s) => Ok(s),
             other => Ok(other.to_string()),
@@ -408,9 +459,10 @@ mod tests {
     #[test]
     fn build_messages_basic() {
         let p = OpenAIProvider::new(test_config());
-        let msgs = vec![
-            Message { role: MessageRole::User, content: "hello".into() },
-        ];
+        let msgs = vec![Message {
+            role: MessageRole::User,
+            content: "hello".into(),
+        }];
         let result = p.build_messages(&msgs, None);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].role, "user");
@@ -419,9 +471,10 @@ mod tests {
     #[test]
     fn build_messages_with_context() {
         let p = OpenAIProvider::new(test_config());
-        let msgs = vec![
-            Message { role: MessageRole::User, content: "hello".into() },
-        ];
+        let msgs = vec![Message {
+            role: MessageRole::User,
+            content: "hello".into(),
+        }];
         let result = p.build_messages(&msgs, Some("ctx".into()));
         assert_eq!(result.len(), 1);
         let content = result[0].content.as_str().unwrap();

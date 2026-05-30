@@ -1,6 +1,6 @@
 //! Cross-platform BDD tests for the native() constructor.
 
-use cucumber::{World, then, when};
+use cucumber::{then, when, World};
 use vibe_sandbox::Sandbox;
 
 #[derive(Default, World)]

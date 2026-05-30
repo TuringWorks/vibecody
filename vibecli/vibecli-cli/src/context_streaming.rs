@@ -639,10 +639,8 @@ impl ContextStreamingEngine {
         // Pre-compute semantic scores for every indexed segment in a single
         // pass through the TurboQuant index — cheaper than embedding the
         // query once per segment inside the loop.
-        let semantic_scores: Option<HashMap<String, f32>> = self
-            .semantic
-            .as_ref()
-            .map(|s| s.scores_for(&q.query));
+        let semantic_scores: Option<HashMap<String, f32>> =
+            self.semantic.as_ref().map(|s| s.scores_for(&q.query));
 
         for seg in self.segments.values() {
             // Level filter.
@@ -1302,7 +1300,7 @@ mod tests {
     fn test_window_eviction() {
         let config = StreamingConfig {
             max_tokens: 10000,
-            window_size: 100,  // Small window to force eviction
+            window_size: 100, // Small window to force eviction
             overlap_tokens: 10,
             ..StreamingConfig::default()
         };
@@ -1597,12 +1595,13 @@ mod tests {
     #[test]
     fn semantic_scorer_indexes_segments_on_add() {
         let scorer = SemanticScorer::new(32, hash_embedder(32));
-        let mut engine = ContextStreamingEngine::with_semantic(
-            StreamingConfig::default(),
-            scorer,
-        );
-        engine.add_segment("a.rs", "fox jumps over the lazy dog").unwrap();
-        engine.add_segment("b.rs", "quantum physics entanglement").unwrap();
+        let mut engine = ContextStreamingEngine::with_semantic(StreamingConfig::default(), scorer);
+        engine
+            .add_segment("a.rs", "fox jumps over the lazy dog")
+            .unwrap();
+        engine
+            .add_segment("b.rs", "quantum physics entanglement")
+            .unwrap();
 
         let sem = engine.semantic().expect("semantic attached");
         assert_eq!(sem.len(), 2);
@@ -1611,10 +1610,7 @@ mod tests {
     #[test]
     fn semantic_query_prefers_topically_similar_segment() {
         let scorer = SemanticScorer::new(64, hash_embedder(64));
-        let mut engine = ContextStreamingEngine::with_semantic(
-            StreamingConfig::default(),
-            scorer,
-        );
+        let mut engine = ContextStreamingEngine::with_semantic(StreamingConfig::default(), scorer);
         let fox_id = engine
             .add_segment("animals.rs", "the quick brown fox jumps over the lazy dog")
             .unwrap();
@@ -1640,10 +1636,7 @@ mod tests {
     #[test]
     fn semantic_remove_segment_unindexes() {
         let scorer = SemanticScorer::new(16, hash_embedder(16));
-        let mut engine = ContextStreamingEngine::with_semantic(
-            StreamingConfig::default(),
-            scorer,
-        );
+        let mut engine = ContextStreamingEngine::with_semantic(StreamingConfig::default(), scorer);
         let id = engine.add_segment("x.rs", "some content").unwrap();
         assert_eq!(engine.semantic().unwrap().len(), 1);
         engine.remove_segment(&id).unwrap();
@@ -1653,12 +1646,13 @@ mod tests {
     #[test]
     fn refocus_writes_relevance_scores() {
         let scorer = SemanticScorer::new(32, hash_embedder(32));
-        let mut engine = ContextStreamingEngine::with_semantic(
-            StreamingConfig::default(),
-            scorer,
-        );
-        let a = engine.add_segment("a.rs", "database migration schema").unwrap();
-        let b = engine.add_segment("b.rs", "frontend react component").unwrap();
+        let mut engine = ContextStreamingEngine::with_semantic(StreamingConfig::default(), scorer);
+        let a = engine
+            .add_segment("a.rs", "database migration schema")
+            .unwrap();
+        let b = engine
+            .add_segment("b.rs", "frontend react component")
+            .unwrap();
 
         let updated = engine.refocus("database migration");
         assert_eq!(updated, 2, "both segments should be re-scored");
@@ -1693,10 +1687,7 @@ mod tests {
     #[test]
     fn take_semantic_reverts_to_keyword_scoring() {
         let scorer = SemanticScorer::new(16, hash_embedder(16));
-        let mut engine = ContextStreamingEngine::with_semantic(
-            StreamingConfig::default(),
-            scorer,
-        );
+        let mut engine = ContextStreamingEngine::with_semantic(StreamingConfig::default(), scorer);
         engine.add_segment("a.rs", "hello").unwrap();
         assert!(engine.take_semantic().is_some());
         assert!(engine.semantic().is_none());

@@ -163,7 +163,9 @@ fn extract_complete_string_keys(buffer: &str) -> Vec<String> {
         i += 1; // skip closing key quote
 
         // Skip whitespace and colon.
-        while i < len && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b'\n' || bytes[i] == b'\r') {
+        while i < len
+            && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b'\n' || bytes[i] == b'\r')
+        {
             i += 1;
         }
         if i >= len || bytes[i] != b':' {
@@ -172,7 +174,9 @@ fn extract_complete_string_keys(buffer: &str) -> Vec<String> {
         i += 1; // skip ':'
 
         // Skip whitespace.
-        while i < len && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b'\n' || bytes[i] == b'\r') {
+        while i < len
+            && (bytes[i] == b' ' || bytes[i] == b'\t' || bytes[i] == b'\n' || bytes[i] == b'\r')
+        {
             i += 1;
         }
 
@@ -301,8 +305,8 @@ fn parse_partial(buffer: &str) -> PartialParseResult {
     let extractable_keys = extract_complete_string_keys(buffer);
 
     // Determine the best hint.
-    let hint = if let Some(path) = extract_string_value(buffer, "path")
-        .or_else(|| extract_string_value(buffer, "file_path"))
+    let hint = if let Some(path) =
+        extract_string_value(buffer, "path").or_else(|| extract_string_value(buffer, "file_path"))
     {
         Some(PartialHint::FilePath(path.to_string()))
     } else if let Some(cmd) = extract_string_value(buffer, "command") {
@@ -572,7 +576,10 @@ mod tests {
         let buf = r#"{"path": "src/lib.rs", "content": "hel"#;
         let keys = extract_complete_string_keys(buf);
         assert!(keys.contains(&"path".to_string()), "keys = {:?}", keys);
-        assert!(!keys.contains(&"content".to_string()), "content should not be extractable yet");
+        assert!(
+            !keys.contains(&"content".to_string()),
+            "content should not be extractable yet"
+        );
     }
 
     // -- Finalize valid JSON -------------------------------------------------
@@ -640,8 +647,18 @@ mod tests {
     fn manager_multi_call_tracking() {
         let mut mgr = StreamingToolCallManager::new();
 
-        mgr.on_delta(ToolCallDelta::new("call_1", "write_file", r#"{"path": "a.rs"}"#, 0));
-        mgr.on_delta(ToolCallDelta::new("call_2", "bash", r#"{"command": "ls"}"#, 0));
+        mgr.on_delta(ToolCallDelta::new(
+            "call_1",
+            "write_file",
+            r#"{"path": "a.rs"}"#,
+            0,
+        ));
+        mgr.on_delta(ToolCallDelta::new(
+            "call_2",
+            "bash",
+            r#"{"command": "ls"}"#,
+            0,
+        ));
 
         let calls = mgr.active_calls();
         assert_eq!(calls.len(), 2);
@@ -653,7 +670,12 @@ mod tests {
     #[test]
     fn manager_on_complete_returns_value() {
         let mut mgr = StreamingToolCallManager::new();
-        mgr.on_delta(ToolCallDelta::new("call_3", "bash", r#"{"command":"ls -la"}"#, 0));
+        mgr.on_delta(ToolCallDelta::new(
+            "call_3",
+            "bash",
+            r#"{"command":"ls -la"}"#,
+            0,
+        ));
         let val = mgr.on_complete("call_3").expect("should parse");
         assert_eq!(val["command"], "ls -la");
     }
@@ -661,11 +683,25 @@ mod tests {
     #[test]
     fn manager_finalize_all_drains() {
         let mut mgr = StreamingToolCallManager::new();
-        mgr.on_delta(ToolCallDelta::new("call_a", "bash", r#"{"command":"pwd"}"#, 0));
-        mgr.on_delta(ToolCallDelta::new("call_b", "read_file", r#"{"path":"x.rs"}"#, 0));
+        mgr.on_delta(ToolCallDelta::new(
+            "call_a",
+            "bash",
+            r#"{"command":"pwd"}"#,
+            0,
+        ));
+        mgr.on_delta(ToolCallDelta::new(
+            "call_b",
+            "read_file",
+            r#"{"path":"x.rs"}"#,
+            0,
+        ));
         let results = mgr.finalize_all();
         assert_eq!(results.len(), 2);
-        assert_eq!(mgr.active_calls().len(), 0, "should be empty after finalize_all");
+        assert_eq!(
+            mgr.active_calls().len(),
+            0,
+            "should be empty after finalize_all"
+        );
     }
 
     #[test]

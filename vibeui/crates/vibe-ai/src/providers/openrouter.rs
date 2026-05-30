@@ -3,7 +3,10 @@
 //! Set OPENROUTER_API_KEY. Model format: "anthropic/claude-3.5-sonnet",
 //! "google/gemini-flash-1.5", "meta-llama/llama-3.3-70b-instruct", etc.
 
-use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message, ProviderConfig, TokenUsage};
+use crate::provider::{
+    AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message,
+    ProviderConfig, TokenUsage,
+};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use futures::stream::StreamExt;
@@ -89,14 +92,20 @@ impl OpenRouterProvider {
     }
 
     fn base_url(&self) -> String {
-        self.config.api_url.clone().unwrap_or_else(|| OPENROUTER_BASE_URL.to_string())
+        self.config
+            .api_url
+            .clone()
+            .unwrap_or_else(|| OPENROUTER_BASE_URL.to_string())
     }
 
     fn build_messages(&self, messages: &[Message], context: Option<String>) -> Vec<ORMessage> {
-        let mut result: Vec<ORMessage> = messages.iter().map(|m| ORMessage {
-            role: m.role.as_str().to_string(),
-            content: m.content.clone(),
-        }).collect();
+        let mut result: Vec<ORMessage> = messages
+            .iter()
+            .map(|m| ORMessage {
+                role: m.role.as_str().to_string(),
+                content: m.content.clone(),
+            })
+            .collect();
         if let Some(ctx) = context {
             if let Some(last) = result.last_mut() {
                 if last.role == "user" {
@@ -108,7 +117,8 @@ impl OpenRouterProvider {
     }
 
     fn client_with_headers(&self, api_key: &str) -> reqwest::RequestBuilder {
-        self.client.post(format!("{}/chat/completions", self.base_url()))
+        self.client
+            .post(format!("{}/chat/completions", self.base_url()))
             .header("Authorization", format!("Bearer {}", api_key))
             .header("HTTP-Referer", &self.site_url)
             .header("X-Title", &self.app_name)
@@ -117,9 +127,13 @@ impl OpenRouterProvider {
 
 #[async_trait]
 impl AIProvider for OpenRouterProvider {
-    fn name(&self) -> &str { &self.display_name }
+    fn name(&self) -> &str {
+        &self.display_name
+    }
 
-    async fn is_available(&self) -> bool { self.config.api_key.is_some() }
+    async fn is_available(&self) -> bool {
+        self.config.api_key.is_some()
+    }
 
     async fn complete(&self, context: &CodeContext) -> Result<CompletionResponse> {
         let prompt = format!(
@@ -127,8 +141,14 @@ impl AIProvider for OpenRouterProvider {
             context.language, context.prefix, context.suffix
         );
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "You are a helpful coding assistant.".to_string() },
-            Message { role: crate::provider::MessageRole::User, content: prompt },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "You are a helpful coding assistant.".to_string(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: prompt,
+            },
         ];
         self.chat_response(&messages, None).await
     }
@@ -139,14 +159,28 @@ impl AIProvider for OpenRouterProvider {
             context.language, context.prefix, context.suffix
         );
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "You are a helpful coding assistant.".to_string() },
-            Message { role: crate::provider::MessageRole::User, content: prompt },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "You are a helpful coding assistant.".to_string(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: prompt,
+            },
         ];
         self.stream_chat(&messages).await
     }
 
-    async fn chat_response(&self, messages: &[Message], context: Option<String>) -> Result<CompletionResponse> {
-        let api_key = self.config.api_key.as_ref().context("OpenRouter API key not set (OPENROUTER_API_KEY)")?;
+    async fn chat_response(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+    ) -> Result<CompletionResponse> {
+        let api_key = self
+            .config
+            .api_key
+            .as_ref()
+            .context("OpenRouter API key not set (OPENROUTER_API_KEY)")?;
         let request = ORRequest {
             model: self.config.model.clone(),
             messages: self.build_messages(messages, context),
@@ -154,17 +188,37 @@ impl AIProvider for OpenRouterProvider {
             max_tokens: self.config.max_tokens,
             stream: false,
         };
-        let resp = self.client_with_headers(api_key)
-            .json(&request).send().await.context("OpenRouter request failed")?;
+        let resp = self
+            .client_with_headers(api_key)
+            .json(&request)
+            .send()
+            .await
+            .context("OpenRouter request failed")?;
 
         if !resp.status().is_success() {
             let err = resp.text().await?;
             anyhow::bail!("OpenRouter API error: {}", err);
         }
-        let body: ORResponse = resp.json().await.context("Failed to parse OpenRouter response")?;
-        let text = body.choices.first().context("No choices")?.message.content.clone();
-        let usage = body.usage.map(|u| TokenUsage { prompt_tokens: u.prompt_tokens, completion_tokens: u.completion_tokens });
-        Ok(CompletionResponse { text, model: self.config.model.clone(), usage })
+        let body: ORResponse = resp
+            .json()
+            .await
+            .context("Failed to parse OpenRouter response")?;
+        let text = body
+            .choices
+            .first()
+            .context("No choices")?
+            .message
+            .content
+            .clone();
+        let usage = body.usage.map(|u| TokenUsage {
+            prompt_tokens: u.prompt_tokens,
+            completion_tokens: u.completion_tokens,
+        });
+        Ok(CompletionResponse {
+            text,
+            model: self.config.model.clone(),
+            usage,
+        })
     }
 
     async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String> {
@@ -172,7 +226,11 @@ impl AIProvider for OpenRouterProvider {
     }
 
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
-        let api_key = self.config.api_key.as_ref().context("OpenRouter API key not set")?;
+        let api_key = self
+            .config
+            .api_key
+            .as_ref()
+            .context("OpenRouter API key not set")?;
         let request = ORRequest {
             model: self.config.model.clone(),
             messages: self.build_messages(messages, None),
@@ -180,33 +238,49 @@ impl AIProvider for OpenRouterProvider {
             max_tokens: self.config.max_tokens,
             stream: true,
         };
-        let resp = self.client_with_headers(api_key)
-            .json(&request).send().await.context("OpenRouter stream failed")?;
+        let resp = self
+            .client_with_headers(api_key)
+            .json(&request)
+            .send()
+            .await
+            .context("OpenRouter stream failed")?;
 
         if !resp.status().is_success() {
             let err = resp.text().await?;
             anyhow::bail!("OpenRouter API error: {}", err);
         }
-        let stream = resp.bytes_stream().map(|chunk| {
-            let chunk = chunk?;
-            let text = String::from_utf8_lossy(&chunk);
-            let mut content = String::new();
-            for line in text.lines() {
-                if let Some(data) = line.strip_prefix("data: ") {
-                    if data == "[DONE]" { continue; }
-                    if let Ok(r) = serde_json::from_str::<ORStreamResponse>(data) {
-                        if let Some(c) = r.choices.first().and_then(|ch| ch.delta.content.as_ref()) {
-                            content.push_str(c);
+        let stream = resp
+            .bytes_stream()
+            .map(|chunk| {
+                let chunk = chunk?;
+                let text = String::from_utf8_lossy(&chunk);
+                let mut content = String::new();
+                for line in text.lines() {
+                    if let Some(data) = line.strip_prefix("data: ") {
+                        if data == "[DONE]" {
+                            continue;
+                        }
+                        if let Ok(r) = serde_json::from_str::<ORStreamResponse>(data) {
+                            if let Some(c) =
+                                r.choices.first().and_then(|ch| ch.delta.content.as_ref())
+                            {
+                                content.push_str(c);
+                            }
                         }
                     }
                 }
-            }
-            Ok(content)
-        }).boxed();
+                Ok(content)
+            })
+            .boxed();
         Ok(stream)
     }
 
-    async fn chat_with_images(&self, messages: &[Message], _images: &[ImageAttachment], context: Option<String>) -> Result<String> {
+    async fn chat_with_images(
+        &self,
+        messages: &[Message],
+        _images: &[ImageAttachment],
+        context: Option<String>,
+    ) -> Result<String> {
         // OpenRouter passes through vision to underlying providers that support it
         self.chat(messages, context).await
     }
@@ -280,9 +354,18 @@ mod tests {
         use crate::provider::MessageRole;
         let p = OpenRouterProvider::new(test_config());
         let messages = vec![
-            Message { role: MessageRole::System, content: "sys".into() },
-            Message { role: MessageRole::User, content: "q".into() },
-            Message { role: MessageRole::Assistant, content: "a".into() },
+            Message {
+                role: MessageRole::System,
+                content: "sys".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "q".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "a".into(),
+            },
         ];
         let result = p.build_messages(&messages, None);
         assert_eq!(result[0].role, "system");
@@ -294,9 +377,10 @@ mod tests {
     fn build_messages_appends_context() {
         use crate::provider::MessageRole;
         let p = OpenRouterProvider::new(test_config());
-        let messages = vec![
-            Message { role: MessageRole::User, content: "query".into() },
-        ];
+        let messages = vec![Message {
+            role: MessageRole::User,
+            content: "query".into(),
+        }];
         let result = p.build_messages(&messages, Some("extra context".into()));
         assert!(result[0].content.contains("Context:"));
         assert!(result[0].content.contains("extra context"));
@@ -307,7 +391,10 @@ mod tests {
     fn or_request_serializes_correctly() {
         let req = ORRequest {
             model: "anthropic/claude-3.5-sonnet".into(),
-            messages: vec![ORMessage { role: "user".into(), content: "test".into() }],
+            messages: vec![ORMessage {
+                role: "user".into(),
+                content: "test".into(),
+            }],
             temperature: Some(0.5),
             max_tokens: Some(2048),
             stream: false,
@@ -325,7 +412,10 @@ mod tests {
     fn or_request_skips_none_optional_fields() {
         let req = ORRequest {
             model: "meta-llama/llama-3.3-70b-instruct".into(),
-            messages: vec![ORMessage { role: "user".into(), content: "hi".into() }],
+            messages: vec![ORMessage {
+                role: "user".into(),
+                content: "hi".into(),
+            }],
             temperature: None,
             max_tokens: None,
             stream: false,
@@ -394,8 +484,14 @@ mod tests {
         use crate::provider::MessageRole;
         let p = OpenRouterProvider::new(test_config());
         let messages = vec![
-            Message { role: MessageRole::User, content: "Q".into() },
-            Message { role: MessageRole::Assistant, content: "A".into() },
+            Message {
+                role: MessageRole::User,
+                content: "Q".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "A".into(),
+            },
         ];
         let result = p.build_messages(&messages, Some("ctx".into()));
         assert_eq!(result[1].content, "A");
@@ -407,9 +503,18 @@ mod tests {
         use crate::provider::MessageRole;
         let p = OpenRouterProvider::new(test_config());
         let messages = vec![
-            Message { role: MessageRole::User, content: "First".into() },
-            Message { role: MessageRole::Assistant, content: "Reply".into() },
-            Message { role: MessageRole::User, content: "Second".into() },
+            Message {
+                role: MessageRole::User,
+                content: "First".into(),
+            },
+            Message {
+                role: MessageRole::Assistant,
+                content: "Reply".into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content: "Second".into(),
+            },
         ];
         let result = p.build_messages(&messages, Some("ctx".into()));
         assert_eq!(result[0].content, "First");
@@ -421,7 +526,10 @@ mod tests {
 
     #[test]
     fn or_message_serde_roundtrip() {
-        let msg = ORMessage { role: "assistant".into(), content: "hello world".into() };
+        let msg = ORMessage {
+            role: "assistant".into(),
+            content: "hello world".into(),
+        };
         let json = serde_json::to_string(&msg).unwrap();
         let msg2: ORMessage = serde_json::from_str(&json).unwrap();
         assert_eq!(msg.role, msg2.role);

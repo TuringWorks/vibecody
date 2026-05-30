@@ -143,7 +143,9 @@ impl EvalStore {
         // Quick sanity-check the YAML parses; full schema validation
         // happens when the sidecar consumes the suite at run time.
         if let Err(e) = serde_yaml::from_str::<serde_yaml::Value>(&req.config_yaml) {
-            return Err(RunError::Invalid(format!("config_yaml is not valid YAML: {e}")));
+            return Err(RunError::Invalid(format!(
+                "config_yaml is not valid YAML: {e}"
+            )));
         }
         let suite_id = format!("suite-{}", uuid::Uuid::new_v4());
         let now = now_ms();
@@ -269,10 +271,7 @@ impl EvalStore {
         Ok(rows)
     }
 
-    pub fn list_results_for_suite(
-        &self,
-        suite_id: &str,
-    ) -> Result<Vec<EvalResult>, RunError> {
+    pub fn list_results_for_suite(&self, suite_id: &str) -> Result<Vec<EvalResult>, RunError> {
         let conn = self.conn.lock().expect("rl_eval mutex poisoned");
         let mut stmt = conn.prepare(
             "SELECT run_id, suite_id, metric_name, value, ci_low, ci_high, n_episodes, extra_json
@@ -631,7 +630,11 @@ mod tests {
 
         let report = evals.compare(&a, &b, Some(&suite.suite_id)).unwrap();
         assert_eq!(report.rows.len(), 2);
-        let mr = report.rows.iter().find(|r| r.metric_name == "mean_return").unwrap();
+        let mr = report
+            .rows
+            .iter()
+            .find(|r| r.metric_name == "mean_return")
+            .unwrap();
         assert_eq!(mr.value_a, Some(100.0));
         assert_eq!(mr.value_b, Some(130.0));
         assert_eq!(mr.difference, Some(30.0));
@@ -639,7 +642,11 @@ mod tests {
         // Cohen's d should be positive (B > A) and reasonably sized given the CIs.
         assert!(mr.effect_size.unwrap() > 1.0);
 
-        let sr = report.rows.iter().find(|r| r.metric_name == "success_rate").unwrap();
+        let sr = report
+            .rows
+            .iter()
+            .find(|r| r.metric_name == "success_rate")
+            .unwrap();
         // 0.7 - 0.5 in fp64 is 0.19999…6, so compare with tolerance.
         assert!((sr.difference.unwrap() - 0.2).abs() < 1e-9);
         assert!(sr.improved);

@@ -8,8 +8,8 @@
 //! - **FailureJournal**: Structured failure persistence enables pattern detection and learning.
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -77,24 +77,38 @@ pub fn classify_error(error: &str) -> FailureCategory {
     let lower = error.to_lowercase();
     if lower.contains("rate limit") || lower.contains("429") || lower.contains("too many") {
         FailureCategory::RateLimit
-    } else if lower.contains("timeout") || lower.contains("timed out") || lower.contains("deadline") {
+    } else if lower.contains("timeout") || lower.contains("timed out") || lower.contains("deadline")
+    {
         FailureCategory::Timeout
-    } else if lower.contains("503") || lower.contains("502") || lower.contains("504")
-        || lower.contains("529") || lower.contains("overloaded") || lower.contains("internal server")
+    } else if lower.contains("503")
+        || lower.contains("502")
+        || lower.contains("504")
+        || lower.contains("529")
+        || lower.contains("overloaded")
+        || lower.contains("internal server")
     {
         FailureCategory::ServerError
-    } else if lower.contains("401") || lower.contains("403") || lower.contains("auth")
-        || lower.contains("api key") || lower.contains("forbidden")
+    } else if lower.contains("401")
+        || lower.contains("403")
+        || lower.contains("auth")
+        || lower.contains("api key")
+        || lower.contains("forbidden")
     {
         FailureCategory::AuthError
-    } else if lower.contains("network") || lower.contains("connection") || lower.contains("dns")
-        || lower.contains("broken pipe") || lower.contains("reset")
+    } else if lower.contains("network")
+        || lower.contains("connection")
+        || lower.contains("dns")
+        || lower.contains("broken pipe")
+        || lower.contains("reset")
     {
         FailureCategory::NetworkError
     } else if lower.contains("stream") || lower.contains("eof") || lower.contains("incomplete") {
         FailureCategory::StreamInterrupted
-    } else if lower.contains("invalid") || lower.contains("unexpected") || lower.contains("decode")
-        || lower.contains("parse") || lower.contains("malformed")
+    } else if lower.contains("invalid")
+        || lower.contains("unexpected")
+        || lower.contains("decode")
+        || lower.contains("parse")
+        || lower.contains("malformed")
     {
         FailureCategory::InvalidResponse
     } else {
@@ -188,7 +202,11 @@ impl ProviderHealthTracker {
                 let success_rate = successes as f64 / total as f64;
 
                 let avg_latency_ms = if total > 0 {
-                    entries.iter().map(|e| e.latency.as_millis() as f64).sum::<f64>() / total as f64
+                    entries
+                        .iter()
+                        .map(|e| e.latency.as_millis() as f64)
+                        .sum::<f64>()
+                        / total as f64
                 } else {
                     0.0
                 };
@@ -213,11 +231,12 @@ impl ProviderHealthTracker {
     /// Get health for all tracked providers, sorted by score descending.
     pub fn all_health(&self) -> Vec<ProviderHealth> {
         let names = self.tracked_names();
-        let mut healths: Vec<ProviderHealth> = names
-            .iter()
-            .map(|name| self.health(name))
-            .collect();
-        healths.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        let mut healths: Vec<ProviderHealth> = names.iter().map(|name| self.health(name)).collect();
+        healths.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         healths
     }
 
@@ -241,7 +260,6 @@ impl ProviderHealthTracker {
         scored.into_iter().map(|(n, _)| n).collect()
     }
 }
-
 
 // ── Recovery Policy ─────────────────────────────────────────────────────────
 
@@ -655,49 +673,88 @@ mod tests {
 
     #[test]
     fn classify_rate_limit() {
-        assert_eq!(classify_error("Rate limit exceeded"), FailureCategory::RateLimit);
+        assert_eq!(
+            classify_error("Rate limit exceeded"),
+            FailureCategory::RateLimit
+        );
         assert_eq!(classify_error("HTTP 429"), FailureCategory::RateLimit);
     }
 
     #[test]
     fn classify_timeout() {
-        assert_eq!(classify_error("connection timed out"), FailureCategory::Timeout);
+        assert_eq!(
+            classify_error("connection timed out"),
+            FailureCategory::Timeout
+        );
         assert_eq!(classify_error("request timeout"), FailureCategory::Timeout);
     }
 
     #[test]
     fn classify_server_error() {
-        assert_eq!(classify_error("HTTP 503 Service Unavailable"), FailureCategory::ServerError);
-        assert_eq!(classify_error("API overloaded"), FailureCategory::ServerError);
+        assert_eq!(
+            classify_error("HTTP 503 Service Unavailable"),
+            FailureCategory::ServerError
+        );
+        assert_eq!(
+            classify_error("API overloaded"),
+            FailureCategory::ServerError
+        );
     }
 
     #[test]
     fn classify_auth() {
-        assert_eq!(classify_error("HTTP 401 Unauthorized"), FailureCategory::AuthError);
-        assert_eq!(classify_error("Invalid API key"), FailureCategory::AuthError);
+        assert_eq!(
+            classify_error("HTTP 401 Unauthorized"),
+            FailureCategory::AuthError
+        );
+        assert_eq!(
+            classify_error("Invalid API key"),
+            FailureCategory::AuthError
+        );
     }
 
     #[test]
     fn classify_network() {
-        assert_eq!(classify_error("connection reset by peer"), FailureCategory::NetworkError);
-        assert_eq!(classify_error("DNS resolution failed"), FailureCategory::NetworkError);
+        assert_eq!(
+            classify_error("connection reset by peer"),
+            FailureCategory::NetworkError
+        );
+        assert_eq!(
+            classify_error("DNS resolution failed"),
+            FailureCategory::NetworkError
+        );
     }
 
     #[test]
     fn classify_invalid_response() {
-        assert_eq!(classify_error("invalid JSON in response"), FailureCategory::InvalidResponse);
-        assert_eq!(classify_error("failed to decode body"), FailureCategory::InvalidResponse);
+        assert_eq!(
+            classify_error("invalid JSON in response"),
+            FailureCategory::InvalidResponse
+        );
+        assert_eq!(
+            classify_error("failed to decode body"),
+            FailureCategory::InvalidResponse
+        );
     }
 
     #[test]
     fn classify_stream() {
-        assert_eq!(classify_error("unexpected EOF during stream"), FailureCategory::StreamInterrupted);
-        assert_eq!(classify_error("incomplete message received"), FailureCategory::StreamInterrupted);
+        assert_eq!(
+            classify_error("unexpected EOF during stream"),
+            FailureCategory::StreamInterrupted
+        );
+        assert_eq!(
+            classify_error("incomplete message received"),
+            FailureCategory::StreamInterrupted
+        );
     }
 
     #[test]
     fn classify_unknown() {
-        assert_eq!(classify_error("something went wrong"), FailureCategory::Unknown);
+        assert_eq!(
+            classify_error("something went wrong"),
+            FailureCategory::Unknown
+        );
     }
 
     // ── ProviderHealthTracker tests ─────────────────────────────────────────
@@ -751,7 +808,11 @@ mod tests {
                 success: i < 7,
                 latency: Duration::from_millis(500),
                 timestamp: Instant::now(),
-                error_category: if i >= 7 { Some(FailureCategory::ServerError) } else { None },
+                error_category: if i >= 7 {
+                    Some(FailureCategory::ServerError)
+                } else {
+                    None
+                },
             });
         }
         let health = tracker.health("openai");
@@ -799,10 +860,7 @@ mod tests {
                 error_category: Some(FailureCategory::ServerError),
             });
         }
-        let ranked = tracker.ranked_providers(&[
-            "bad".to_string(),
-            "good".to_string(),
-        ]);
+        let ranked = tracker.ranked_providers(&["bad".to_string(), "good".to_string()]);
         assert_eq!(ranked[0], "good");
         assert_eq!(ranked[1], "bad");
     }
@@ -957,21 +1015,60 @@ mod tests {
     #[test]
     fn summary_counts_by_category() {
         let mut journal = FailureJournal::new(None, 100);
-        journal.record(FailureRecord::new(FailureCategory::Timeout, None, "t1".into(), None));
-        journal.record(FailureRecord::new(FailureCategory::Timeout, None, "t2".into(), None));
-        journal.record(FailureRecord::new(FailureCategory::AuthError, None, "a1".into(), None));
+        journal.record(FailureRecord::new(
+            FailureCategory::Timeout,
+            None,
+            "t1".into(),
+            None,
+        ));
+        journal.record(FailureRecord::new(
+            FailureCategory::Timeout,
+            None,
+            "t2".into(),
+            None,
+        ));
+        journal.record(FailureRecord::new(
+            FailureCategory::AuthError,
+            None,
+            "a1".into(),
+            None,
+        ));
         let summary = journal.summary();
         assert_eq!(summary.total_failures, 3);
-        assert_eq!(*summary.by_category.get(&FailureCategory::Timeout).unwrap(), 2);
-        assert_eq!(*summary.by_category.get(&FailureCategory::AuthError).unwrap(), 1);
+        assert_eq!(
+            *summary.by_category.get(&FailureCategory::Timeout).unwrap(),
+            2
+        );
+        assert_eq!(
+            *summary
+                .by_category
+                .get(&FailureCategory::AuthError)
+                .unwrap(),
+            1
+        );
     }
 
     #[test]
     fn summary_counts_by_provider() {
         let mut journal = FailureJournal::new(None, 100);
-        journal.record(FailureRecord::new(FailureCategory::Timeout, Some("claude".into()), "t".into(), None));
-        journal.record(FailureRecord::new(FailureCategory::Timeout, Some("openai".into()), "t".into(), None));
-        journal.record(FailureRecord::new(FailureCategory::Timeout, Some("claude".into()), "t".into(), None));
+        journal.record(FailureRecord::new(
+            FailureCategory::Timeout,
+            Some("claude".into()),
+            "t".into(),
+            None,
+        ));
+        journal.record(FailureRecord::new(
+            FailureCategory::Timeout,
+            Some("openai".into()),
+            "t".into(),
+            None,
+        ));
+        journal.record(FailureRecord::new(
+            FailureCategory::Timeout,
+            Some("claude".into()),
+            "t".into(),
+            None,
+        ));
         let summary = journal.summary();
         assert_eq!(*summary.by_provider.get("claude").unwrap(), 2);
         assert_eq!(*summary.by_provider.get("openai").unwrap(), 1);
@@ -1065,6 +1162,9 @@ mod tests {
     #[test]
     fn failure_category_display() {
         assert_eq!(format!("{}", FailureCategory::RateLimit), "RateLimit");
-        assert_eq!(format!("{}", FailureCategory::StreamInterrupted), "StreamInterrupted");
+        assert_eq!(
+            format!("{}", FailureCategory::StreamInterrupted),
+            "StreamInterrupted"
+        );
     }
 }

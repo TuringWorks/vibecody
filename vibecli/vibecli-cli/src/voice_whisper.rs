@@ -80,8 +80,7 @@ pub async fn download_model(
     }
     if let Some(parent) = dest.parent() {
         if !parent.as_os_str().is_empty() {
-            std::fs::create_dir_all(parent)
-                .map_err(|e| format!("mkdir: {e}"))?;
+            std::fs::create_dir_all(parent).map_err(|e| format!("mkdir: {e}"))?;
         }
     }
     let mut file = File::create(dest).map_err(|e| format!("create: {e}"))?;
@@ -113,7 +112,8 @@ pub struct WavPcm {
 pub fn load_wav_pcm(path: &Path) -> Result<WavPcm, String> {
     let mut f = File::open(path).map_err(|e| format!("open: {e}"))?;
     let mut bytes = Vec::new();
-    f.read_to_end(&mut bytes).map_err(|e| format!("read: {e}"))?;
+    f.read_to_end(&mut bytes)
+        .map_err(|e| format!("read: {e}"))?;
     parse_wav(&bytes)
 }
 
@@ -133,9 +133,12 @@ pub fn parse_wav(bytes: &[u8]) -> Result<WavPcm, String> {
 
     while pos + 8 <= bytes.len() {
         let chunk_id = &bytes[pos..pos + 4];
-        let chunk_size =
-            u32::from_le_bytes([bytes[pos + 4], bytes[pos + 5], bytes[pos + 6], bytes[pos + 7]])
-                as usize;
+        let chunk_size = u32::from_le_bytes([
+            bytes[pos + 4],
+            bytes[pos + 5],
+            bytes[pos + 6],
+            bytes[pos + 7],
+        ]) as usize;
         let chunk_start = pos + 8;
         let chunk_end = chunk_start.saturating_add(chunk_size);
         if chunk_end > bytes.len() {
@@ -151,8 +154,7 @@ pub fn parse_wav(bytes: &[u8]) -> Result<WavPcm, String> {
                     return Err("fmt chunk too small".to_string());
                 }
                 let audio_format = u16::from_le_bytes([bytes[chunk_start], bytes[chunk_start + 1]]);
-                let channels =
-                    u16::from_le_bytes([bytes[chunk_start + 2], bytes[chunk_start + 3]]);
+                let channels = u16::from_le_bytes([bytes[chunk_start + 2], bytes[chunk_start + 3]]);
                 let sample_rate = u32::from_le_bytes([
                     bytes[chunk_start + 4],
                     bytes[chunk_start + 5],
@@ -175,8 +177,7 @@ pub fn parse_wav(bytes: &[u8]) -> Result<WavPcm, String> {
         }
     }
 
-    let (fmt, channels, sr, bits) =
-        fmt_chunk.ok_or_else(|| "missing fmt chunk".to_string())?;
+    let (fmt, channels, sr, bits) = fmt_chunk.ok_or_else(|| "missing fmt chunk".to_string())?;
     let data = data_chunk.ok_or_else(|| "missing data chunk".to_string())?;
     if fmt != 1 {
         return Err(format!(
@@ -269,11 +270,8 @@ mod whisper_backend {
     impl WhisperTranscriber {
         pub fn load(model_path: &Path) -> Result<Self, String> {
             let params = WhisperContextParameters::default();
-            let ctx = WhisperContext::new_with_params(
-                &model_path.to_string_lossy(),
-                params,
-            )
-            .map_err(|e| format!("load whisper model {model_path:?}: {e}"))?;
+            let ctx = WhisperContext::new_with_params(&model_path.to_string_lossy(), params)
+                .map_err(|e| format!("load whisper model {model_path:?}: {e}"))?;
             Ok(Self {
                 ctx: Mutex::new(ctx),
                 model_path: model_path.to_path_buf(),

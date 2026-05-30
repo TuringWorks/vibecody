@@ -225,8 +225,8 @@ async fn actor_loop(
                     .context("noise read_message")?
             };
             plain.truncate(n);
-            let frame: DispatchFrame = serde_json::from_slice(&plain)
-                .context("dispatch: decode incoming frame")?;
+            let frame: DispatchFrame =
+                serde_json::from_slice(&plain).context("dispatch: decode incoming frame")?;
             if in_tx_r.send(frame).await.is_err() {
                 break;
             }
@@ -239,7 +239,10 @@ async fn actor_loop(
         while let Some(frame) = out_rx.recv().await {
             let plain = serde_json::to_vec(&frame).context("dispatch: encode outgoing frame")?;
             if plain.len() > MAX_FRAME_PAYLOAD {
-                bail!("dispatch: frame too large ({} > {MAX_FRAME_PAYLOAD})", plain.len());
+                bail!(
+                    "dispatch: frame too large ({} > {MAX_FRAME_PAYLOAD})",
+                    plain.len()
+                );
             }
             let mut cipher = vec![0u8; plain.len() + 16];
             let n = {
@@ -266,7 +269,10 @@ async fn actor_loop(
 /// Create a `AF_UNIX / SOCK_STREAM` socketpair suitable for parent↔child IPC.
 /// Returns `(parent_end, child_end)`. Both sockets are blocking; the parent
 /// end is converted to a tokio `UnixStream` by callers.
-pub fn make_socketpair() -> Result<(std::os::unix::net::UnixStream, std::os::unix::net::UnixStream)> {
+pub fn make_socketpair() -> Result<(
+    std::os::unix::net::UnixStream,
+    std::os::unix::net::UnixStream,
+)> {
     use socket2::{Domain, Socket, Type};
     let (a, b) = Socket::pair(Domain::UNIX, Type::STREAM, None).context("socketpair")?;
     // Convert via raw fd → std UnixStream.
@@ -360,13 +366,13 @@ where
     F: FnOnce(WorkerSession) -> Fut,
     Fut: std::future::Future<Output = Result<()>>,
 {
-    let fd_str = std::env::var(ENV_WORKER_FD)
-        .map_err(|_| anyhow!("worker: {} not set", ENV_WORKER_FD))?;
+    let fd_str =
+        std::env::var(ENV_WORKER_FD).map_err(|_| anyhow!("worker: {} not set", ENV_WORKER_FD))?;
     let fd: RawFd = fd_str
         .parse()
         .map_err(|e| anyhow!("worker: invalid fd {fd_str}: {e}"))?;
-    let psk_hex = std::env::var(ENV_WORKER_PSK)
-        .map_err(|_| anyhow!("worker: {} not set", ENV_WORKER_PSK))?;
+    let psk_hex =
+        std::env::var(ENV_WORKER_PSK).map_err(|_| anyhow!("worker: {} not set", ENV_WORKER_PSK))?;
     let psk_bytes = hex::decode(&psk_hex).map_err(|e| anyhow!("worker: bad PSK hex: {e}"))?;
     let psk: [u8; 32] = psk_bytes
         .as_slice()
@@ -504,12 +510,8 @@ mod tests {
 
         let psk_a = psk;
         let psk_b = psk;
-        let init = tokio::spawn(async move {
-            run_initiator_handshake(&mut a_tokio, &psk_a).await
-        });
-        let resp = tokio::spawn(async move {
-            run_responder_handshake(&mut b_tokio, &psk_b).await
-        });
+        let init = tokio::spawn(async move { run_initiator_handshake(&mut a_tokio, &psk_a).await });
+        let resp = tokio::spawn(async move { run_responder_handshake(&mut b_tokio, &psk_b).await });
 
         let (init_res, resp_res) = tokio::join!(init, resp);
         assert!(init_res.unwrap().is_ok(), "initiator must complete");
@@ -526,12 +528,8 @@ mod tests {
 
         let psk_a = [1u8; 32];
         let psk_b = [2u8; 32];
-        let init = tokio::spawn(async move {
-            run_initiator_handshake(&mut a_tokio, &psk_a).await
-        });
-        let resp = tokio::spawn(async move {
-            run_responder_handshake(&mut b_tokio, &psk_b).await
-        });
+        let init = tokio::spawn(async move { run_initiator_handshake(&mut a_tokio, &psk_a).await });
+        let resp = tokio::spawn(async move { run_responder_handshake(&mut b_tokio, &psk_b).await });
 
         let (init_res, resp_res) = tokio::join!(init, resp);
         // At least one side must fail; Noise_NNpsk0 rejects on the responder
@@ -562,7 +560,8 @@ mod tests {
             let t = run_responder_handshake(&mut b_tokio, &psk_b).await?;
             Ok::<_, anyhow::Error>((b_tokio, t))
         });
-        let ((a_stream, a_ts), (b_stream, b_ts)) = (init.await.unwrap().unwrap(), resp.await.unwrap().unwrap());
+        let ((a_stream, a_ts), (b_stream, b_ts)) =
+            (init.await.unwrap().unwrap(), resp.await.unwrap().unwrap());
 
         let (a_out, mut a_in, _a_actor) = spawn_actor(a_stream, a_ts);
         let (b_out, mut b_in, _b_actor) = spawn_actor(b_stream, b_ts);
@@ -584,7 +583,12 @@ mod tests {
             .unwrap()
             .unwrap();
         match got {
-            DispatchFrame::Run { job_id, task, max_turns, .. } => {
+            DispatchFrame::Run {
+                job_id,
+                task,
+                max_turns,
+                ..
+            } => {
                 assert_eq!(job_id, "j1");
                 assert_eq!(task, "hello");
                 assert_eq!(max_turns, 3);
@@ -594,7 +598,9 @@ mod tests {
 
         // B → A
         b_out
-            .send(DispatchFrame::Complete { summary: "done".into() })
+            .send(DispatchFrame::Complete {
+                summary: "done".into(),
+            })
             .await
             .unwrap();
         let got = tokio::time::timeout(std::time::Duration::from_secs(2), a_in.recv())
@@ -622,8 +628,7 @@ mod tests {
         let s = serde_json::to_string(&f).expect("event frame must serialize");
         assert!(s.contains("\"frame\":\"event\""));
         assert!(s.contains("\"type\":\"chunk\""));
-        let back: DispatchFrame =
-            serde_json::from_str(&s).expect("event frame must deserialize");
+        let back: DispatchFrame = serde_json::from_str(&s).expect("event frame must deserialize");
         match back {
             DispatchFrame::Event(ev) => assert_eq!(ev.kind, "chunk"),
             other => panic!("expected Event, got {other:?}"),

@@ -202,12 +202,14 @@ mod tests {
 
     #[test]
     fn multiple_tokens_all_unique() {
-        let tokens: Vec<String> = (0..10)
-            .map(|_| generate_pairing_url("h", 1).1)
-            .collect();
+        let tokens: Vec<String> = (0..10).map(|_| generate_pairing_url("h", 1).1).collect();
         for i in 0..tokens.len() {
             for j in (i + 1)..tokens.len() {
-                assert_ne!(tokens[i], tokens[j], "Tokens at {} and {} should differ", i, j);
+                assert_ne!(
+                    tokens[i], tokens[j],
+                    "Tokens at {} and {} should differ",
+                    i, j
+                );
             }
         }
     }
@@ -260,13 +262,19 @@ mod tests {
         for _ in 0..100 {
             let (_, t1) = generate_pairing_url("h", 1);
             let (_, t2) = generate_pairing_url("h", 1);
-            let matching_prefix = t1.chars().zip(t2.chars()).take_while(|(a, b)| a == b).count();
+            let matching_prefix = t1
+                .chars()
+                .zip(t2.chars())
+                .take_while(|(a, b)| a == b)
+                .count();
             // It should be EXTREMELY unlikely for the first 8+ chars to match.
             // Probability of 8-char match by chance = 1/16^8 ~= 2e-10.
             assert!(
                 matching_prefix < 8,
                 "Two consecutive tokens share {} hex chars — RNG is broken: {} vs {}",
-                matching_prefix, t1, t2
+                matching_prefix,
+                t1,
+                t2
             );
         }
     }

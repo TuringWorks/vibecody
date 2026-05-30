@@ -58,20 +58,50 @@ impl PricingCatalogue {
             entries: HashMap::new(),
         };
         // Anthropic
-        c.add(ModelPricing::new("anthropic", "claude-opus-4-6", 0.015, 0.075));
-        c.add(ModelPricing::new("anthropic", "claude-sonnet-4-6", 0.003, 0.015));
-        c.add(ModelPricing::new("anthropic", "claude-haiku-4-5-20251001", 0.00025, 0.00125));
+        c.add(ModelPricing::new(
+            "anthropic",
+            "claude-opus-4-6",
+            0.015,
+            0.075,
+        ));
+        c.add(ModelPricing::new(
+            "anthropic",
+            "claude-sonnet-4-6",
+            0.003,
+            0.015,
+        ));
+        c.add(ModelPricing::new(
+            "anthropic",
+            "claude-haiku-4-5-20251001",
+            0.00025,
+            0.00125,
+        ));
         // OpenAI
         c.add(ModelPricing::new("openai", "gpt-4o", 0.005, 0.015));
         c.add(ModelPricing::new("openai", "gpt-4o-mini", 0.00015, 0.0006));
         c.add(ModelPricing::new("openai", "o3", 0.01, 0.04));
         // Google
-        c.add(ModelPricing::new("google", "gemini-2.0-flash", 0.0001, 0.0004));
+        c.add(ModelPricing::new(
+            "google",
+            "gemini-2.0-flash",
+            0.0001,
+            0.0004,
+        ));
         c.add(ModelPricing::new("google", "gemini-2.0-pro", 0.002, 0.008));
         // Groq
-        c.add(ModelPricing::new("groq", "llama-3.3-70b-versatile", 0.00059, 0.00079));
+        c.add(ModelPricing::new(
+            "groq",
+            "llama-3.3-70b-versatile",
+            0.00059,
+            0.00079,
+        ));
         // Mistral
-        c.add(ModelPricing::new("mistral", "mistral-large-latest", 0.003, 0.009));
+        c.add(ModelPricing::new(
+            "mistral",
+            "mistral-large-latest",
+            0.003,
+            0.009,
+        ));
         // Ollama (local — zero cost)
         c.add(ModelPricing::new("ollama", "llama3", 0.0, 0.0));
         c.add(ModelPricing::new("ollama", "deepseek-coder", 0.0, 0.0));
@@ -90,9 +120,7 @@ impl PricingCatalogue {
 
     pub fn all_models(&self) -> Vec<&ModelPricing> {
         let mut v: Vec<_> = self.entries.values().collect();
-        v.sort_by(|a, b| {
-            a.provider.cmp(&b.provider).then(a.model.cmp(&b.model))
-        });
+        v.sort_by(|a, b| a.provider.cmp(&b.provider).then(a.model.cmp(&b.model)));
         v
     }
 }
@@ -232,9 +260,8 @@ impl CostEstimator {
 
         let input_tokens = system_tokens + history_tokens + user_tokens + tool_tokens;
         // Output is harder to predict; use multiplier on the user message as a proxy.
-        let output_tokens =
-            ((user_tokens as f64 * self.output_multiplier) as usize).max(100) +
-            input.expected_tool_rounds * 200;
+        let output_tokens = ((user_tokens as f64 * self.output_multiplier) as usize).max(100)
+            + input.expected_tool_rounds * 200;
 
         let confidence = match input.expected_tool_rounds {
             0 => EstimateConfidence::High,

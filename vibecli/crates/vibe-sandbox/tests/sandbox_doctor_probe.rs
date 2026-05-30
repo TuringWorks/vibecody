@@ -83,8 +83,14 @@ fn probe_json_shape_is_stable() {
         serde_json::from_str(&stdout).expect("probe stdout is parseable JSON");
 
     // ── Top-level keys ───────────────────────────────────────────────────
-    assert!(json.get("os").and_then(|v| v.as_str()).is_some(), "missing .os");
-    assert!(json.get("arch").and_then(|v| v.as_str()).is_some(), "missing .arch");
+    assert!(
+        json.get("os").and_then(|v| v.as_str()).is_some(),
+        "missing .os"
+    );
+    assert!(
+        json.get("arch").and_then(|v| v.as_str()).is_some(),
+        "missing .arch"
+    );
     let tiers = json
         .get("tiers")
         .and_then(|v| v.as_object())

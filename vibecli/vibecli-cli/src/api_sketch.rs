@@ -14,34 +14,51 @@ use std::collections::HashMap;
 
 /// HTTP method.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum HttpMethod { Get, Post, Put, Patch, Delete, Head, Options }
+pub enum HttpMethod {
+    Get,
+    Post,
+    Put,
+    Patch,
+    Delete,
+    Head,
+    Options,
+}
 
 impl HttpMethod {
     pub fn parse_method(s: &str) -> Option<Self> {
         match s.to_uppercase().as_str() {
-            "GET"     => Some(Self::Get),
-            "POST"    => Some(Self::Post),
-            "PUT"     => Some(Self::Put),
-            "PATCH"   => Some(Self::Patch),
-            "DELETE"  => Some(Self::Delete),
-            "HEAD"    => Some(Self::Head),
+            "GET" => Some(Self::Get),
+            "POST" => Some(Self::Post),
+            "PUT" => Some(Self::Put),
+            "PATCH" => Some(Self::Patch),
+            "DELETE" => Some(Self::Delete),
+            "HEAD" => Some(Self::Head),
             "OPTIONS" => Some(Self::Options),
             _ => None,
         }
     }
 
-    pub fn is_safe(&self) -> bool { matches!(self, Self::Get | Self::Head | Self::Options) }
+    pub fn is_safe(&self) -> bool {
+        matches!(self, Self::Get | Self::Head | Self::Options)
+    }
     pub fn is_idempotent(&self) -> bool {
-        matches!(self, Self::Get | Self::Put | Self::Delete | Self::Head | Self::Options)
+        matches!(
+            self,
+            Self::Get | Self::Put | Self::Delete | Self::Head | Self::Options
+        )
     }
 }
 
 impl std::fmt::Display for HttpMethod {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            Self::Get => "GET", Self::Post => "POST", Self::Put => "PUT",
-            Self::Patch => "PATCH", Self::Delete => "DELETE",
-            Self::Head => "HEAD", Self::Options => "OPTIONS",
+            Self::Get => "GET",
+            Self::Post => "POST",
+            Self::Put => "PUT",
+            Self::Patch => "PATCH",
+            Self::Delete => "DELETE",
+            Self::Head => "HEAD",
+            Self::Options => "OPTIONS",
         };
         write!(f, "{s}")
     }
@@ -65,9 +82,9 @@ pub enum SchemaType {
 impl SchemaType {
     pub fn openapi_name(&self) -> String {
         match self {
-            Self::String  => "string".into(),
+            Self::String => "string".into(),
             Self::Integer => "integer".into(),
-            Self::Number  => "number".into(),
+            Self::Number => "number".into(),
             Self::Boolean => "boolean".into(),
             Self::Array(_) => "array".into(),
             Self::Object(_) => "object".into(),
@@ -82,7 +99,9 @@ impl SchemaType {
             "i32" | "i64" | "u32" | "u64" | "usize" | "int" | "integer" => Self::Integer,
             "f32" | "f64" | "float" | "number" => Self::Number,
             "bool" | "boolean" => Self::Boolean,
-            h if h.starts_with("vec<") || h.starts_with("array") => Self::Array(Box::new(Self::String)),
+            h if h.starts_with("vec<") || h.starts_with("array") => {
+                Self::Array(Box::new(Self::String))
+            }
             _ => Self::Object(HashMap::new()),
         }
     }
@@ -100,7 +119,13 @@ pub struct ApiParam {
 
 /// Where the parameter appears.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub enum ParamLocation { Path, Query, Header, Cookie, Body }
+pub enum ParamLocation {
+    Path,
+    Query,
+    Header,
+    Cookie,
+    Body,
+}
 
 // ─── Endpoint Types ───────────────────────────────────────────────────────────
 
@@ -136,11 +161,17 @@ impl Endpoint {
     }
 
     pub fn path_params(&self) -> Vec<&ApiParam> {
-        self.params.iter().filter(|p| p.location == ParamLocation::Path).collect()
+        self.params
+            .iter()
+            .filter(|p| p.location == ParamLocation::Path)
+            .collect()
     }
 
     pub fn query_params(&self) -> Vec<&ApiParam> {
-        self.params.iter().filter(|p| p.location == ParamLocation::Query).collect()
+        self.params
+            .iter()
+            .filter(|p| p.location == ParamLocation::Query)
+            .collect()
     }
 
     pub fn has_path_param(&self, name: &str) -> bool {
@@ -170,11 +201,29 @@ pub struct ApiResponse {
 /// Breaking change type between two API versions.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum BreakingChange {
-    EndpointRemoved   { path: String, method: String },
-    ParamAdded        { path: String, param: String },  // required param added
-    ParamTypeChanged  { path: String, param: String, from: String, to: String },
-    ResponseRemoved   { path: String, status: u16 },
-    MethodChanged     { path: String, from: String, to: String },
+    EndpointRemoved {
+        path: String,
+        method: String,
+    },
+    ParamAdded {
+        path: String,
+        param: String,
+    }, // required param added
+    ParamTypeChanged {
+        path: String,
+        param: String,
+        from: String,
+        to: String,
+    },
+    ResponseRemoved {
+        path: String,
+        status: u16,
+    },
+    MethodChanged {
+        path: String,
+        from: String,
+        to: String,
+    },
 }
 
 // ─── OpenAPI Generator ────────────────────────────────────────────────────────
@@ -189,7 +238,12 @@ pub struct ApiSketch {
 
 impl ApiSketch {
     pub fn new(title: &str, version: &str) -> Self {
-        Self { endpoints: Vec::new(), title: title.to_string(), version: version.to_string(), id_counter: 0 }
+        Self {
+            endpoints: Vec::new(),
+            title: title.to_string(),
+            version: version.to_string(),
+            id_counter: 0,
+        }
     }
 
     fn next_id(&mut self) -> String {
@@ -198,7 +252,9 @@ impl ApiSketch {
     }
 
     pub fn add_endpoint(&mut self, mut ep: Endpoint) {
-        if ep.id.is_empty() { ep.id = self.next_id(); }
+        if ep.id.is_empty() {
+            ep.id = self.next_id();
+        }
         self.endpoints.push(ep);
     }
 
@@ -216,7 +272,12 @@ impl ApiSketch {
                         let path = &after[..end];
                         if let Some(method) = HttpMethod::parse_method(method_str) {
                             let id = self.next_id();
-                            let ep = Endpoint::new(&id, method, path, &format!("{} {path}", method_str.to_uppercase()));
+                            let ep = Endpoint::new(
+                                &id,
+                                method,
+                                path,
+                                &format!("{} {path}", method_str.to_uppercase()),
+                            );
                             found.push(ep.clone());
                             self.endpoints.push(ep);
                         }
@@ -230,9 +291,13 @@ impl ApiSketch {
                     if let Some(e) = after.find('"') {
                         let path = &after[..e];
                         let id = self.next_id();
-                        let method = if trimmed.contains("get(") { HttpMethod::Get }
-                            else if trimmed.contains("post(") { HttpMethod::Post }
-                            else { HttpMethod::Get };
+                        let method = if trimmed.contains("get(") {
+                            HttpMethod::Get
+                        } else if trimmed.contains("post(") {
+                            HttpMethod::Post
+                        } else {
+                            HttpMethod::Get
+                        };
                         let ep = Endpoint::new(&id, method, path, &format!("Route {path}"));
                         found.push(ep.clone());
                         self.endpoints.push(ep);
@@ -270,7 +335,9 @@ impl ApiSketch {
     /// Convert an endpoint to a Tauri command stub.
     pub fn to_tauri_command(&self, ep: &Endpoint) -> String {
         let fn_name = endpoint_to_fn_name(&ep.method, &ep.path);
-        let params: String = ep.params.iter()
+        let params: String = ep
+            .params
+            .iter()
             .filter(|p| p.location != ParamLocation::Body)
             .map(|p| format!("{}: Option<String>", p.name))
             .collect::<Vec<_>>()
@@ -284,17 +351,23 @@ impl ApiSketch {
     /// Detect breaking changes between this spec and a newer set of endpoints.
     pub fn diff(&self, newer: &[Endpoint]) -> Vec<BreakingChange> {
         let mut changes = Vec::new();
-        let old_map: HashMap<(&str, String), &Endpoint> = self.endpoints.iter()
+        let old_map: HashMap<(&str, String), &Endpoint> = self
+            .endpoints
+            .iter()
             .map(|e| ((e.path.as_str(), e.method.to_string()), e))
             .collect();
-        let new_map: HashMap<(&str, String), &Endpoint> = newer.iter()
+        let new_map: HashMap<(&str, String), &Endpoint> = newer
+            .iter()
             .map(|e| ((e.path.as_str(), e.method.to_string()), e))
             .collect();
 
         // Removed endpoints
         for (path, method) in old_map.keys() {
             if !new_map.contains_key(&(path, method.clone())) {
-                changes.push(BreakingChange::EndpointRemoved { path: path.to_string(), method: method.clone() });
+                changes.push(BreakingChange::EndpointRemoved {
+                    path: path.to_string(),
+                    method: method.clone(),
+                });
             }
         }
         // Added required params in existing endpoints
@@ -302,7 +375,10 @@ impl ApiSketch {
             if let Some(old_ep) = old_map.get(&(path, method.clone())) {
                 for new_p in &new_ep.params {
                     if new_p.required && !old_ep.params.iter().any(|op| op.name == new_p.name) {
-                        changes.push(BreakingChange::ParamAdded { path: path.to_string(), param: new_p.name.clone() });
+                        changes.push(BreakingChange::ParamAdded {
+                            path: path.to_string(),
+                            param: new_p.name.clone(),
+                        });
                     }
                 }
             }
@@ -310,15 +386,25 @@ impl ApiSketch {
         changes
     }
 
-    pub fn endpoints(&self) -> &[Endpoint] { &self.endpoints }
-    pub fn endpoint_count(&self) -> usize { self.endpoints.len() }
+    pub fn endpoints(&self) -> &[Endpoint] {
+        &self.endpoints
+    }
+    pub fn endpoint_count(&self) -> usize {
+        self.endpoints.len()
+    }
     pub fn endpoints_by_method(&self, method: &HttpMethod) -> Vec<&Endpoint> {
-        self.endpoints.iter().filter(|e| &e.method == method).collect()
+        self.endpoints
+            .iter()
+            .filter(|e| &e.method == method)
+            .collect()
     }
 }
 
 fn endpoint_to_fn_name(method: &HttpMethod, path: &str) -> String {
-    let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty() && !s.starts_with('{')).collect();
+    let segments: Vec<&str> = path
+        .split('/')
+        .filter(|s| !s.is_empty() && !s.starts_with('{'))
+        .collect();
     let base = segments.join("_");
     format!("{}_{}", method.to_string().to_lowercase(), base)
 }
@@ -329,7 +415,9 @@ fn endpoint_to_fn_name(method: &HttpMethod, path: &str) -> String {
 mod tests {
     use super::*;
 
-    fn sketch() -> ApiSketch { ApiSketch::new("TestAPI", "1.0.0") }
+    fn sketch() -> ApiSketch {
+        ApiSketch::new("TestAPI", "1.0.0")
+    }
 
     fn ep(method: HttpMethod, path: &str) -> Endpoint {
         Endpoint::new("", method, path, "test endpoint")
@@ -338,39 +426,69 @@ mod tests {
     // ── HttpMethod ────────────────────────────────────────────────────────
 
     #[test]
-    fn test_method_from_str_get() { assert_eq!(HttpMethod::parse_method("GET"), Some(HttpMethod::Get)); }
+    fn test_method_from_str_get() {
+        assert_eq!(HttpMethod::parse_method("GET"), Some(HttpMethod::Get));
+    }
     #[test]
-    fn test_method_from_str_post() { assert_eq!(HttpMethod::parse_method("post"), Some(HttpMethod::Post)); }
+    fn test_method_from_str_post() {
+        assert_eq!(HttpMethod::parse_method("post"), Some(HttpMethod::Post));
+    }
     #[test]
-    fn test_method_from_str_unknown() { assert_eq!(HttpMethod::parse_method("FETCH"), None); }
+    fn test_method_from_str_unknown() {
+        assert_eq!(HttpMethod::parse_method("FETCH"), None);
+    }
     #[test]
-    fn test_method_is_safe_get() { assert!(HttpMethod::Get.is_safe()); }
+    fn test_method_is_safe_get() {
+        assert!(HttpMethod::Get.is_safe());
+    }
     #[test]
-    fn test_method_is_safe_post_false() { assert!(!HttpMethod::Post.is_safe()); }
+    fn test_method_is_safe_post_false() {
+        assert!(!HttpMethod::Post.is_safe());
+    }
     #[test]
-    fn test_method_is_idempotent_put() { assert!(HttpMethod::Put.is_idempotent()); }
+    fn test_method_is_idempotent_put() {
+        assert!(HttpMethod::Put.is_idempotent());
+    }
     #[test]
-    fn test_method_is_idempotent_post_false() { assert!(!HttpMethod::Post.is_idempotent()); }
+    fn test_method_is_idempotent_post_false() {
+        assert!(!HttpMethod::Post.is_idempotent());
+    }
     #[test]
-    fn test_method_display() { assert_eq!(format!("{}", HttpMethod::Delete), "DELETE"); }
+    fn test_method_display() {
+        assert_eq!(format!("{}", HttpMethod::Delete), "DELETE");
+    }
 
     // ── SchemaType ────────────────────────────────────────────────────────
 
     #[test]
-    fn test_schema_openapi_name_string() { assert_eq!(SchemaType::String.openapi_name(), "string"); }
+    fn test_schema_openapi_name_string() {
+        assert_eq!(SchemaType::String.openapi_name(), "string");
+    }
     #[test]
-    fn test_schema_from_hint_i32() { assert_eq!(SchemaType::from_type_hint("i32"), SchemaType::Integer); }
+    fn test_schema_from_hint_i32() {
+        assert_eq!(SchemaType::from_type_hint("i32"), SchemaType::Integer);
+    }
     #[test]
-    fn test_schema_from_hint_bool() { assert_eq!(SchemaType::from_type_hint("bool"), SchemaType::Boolean); }
+    fn test_schema_from_hint_bool() {
+        assert_eq!(SchemaType::from_type_hint("bool"), SchemaType::Boolean);
+    }
     #[test]
-    fn test_schema_from_hint_f64() { assert_eq!(SchemaType::from_type_hint("f64"), SchemaType::Number); }
+    fn test_schema_from_hint_f64() {
+        assert_eq!(SchemaType::from_type_hint("f64"), SchemaType::Number);
+    }
     #[test]
     fn test_schema_from_hint_vec() {
-        assert!(matches!(SchemaType::from_type_hint("Vec<String>"), SchemaType::Array(_)));
+        assert!(matches!(
+            SchemaType::from_type_hint("Vec<String>"),
+            SchemaType::Array(_)
+        ));
     }
     #[test]
     fn test_schema_from_hint_unknown_is_object() {
-        assert!(matches!(SchemaType::from_type_hint("MyStruct"), SchemaType::Object(_)));
+        assert!(matches!(
+            SchemaType::from_type_hint("MyStruct"),
+            SchemaType::Object(_)
+        ));
     }
 
     // ── Endpoint ──────────────────────────────────────────────────────────
@@ -378,14 +496,26 @@ mod tests {
     #[test]
     fn test_endpoint_path_params() {
         let mut e = ep(HttpMethod::Get, "/users/{id}");
-        e.params.push(ApiParam { name: "id".into(), location: ParamLocation::Path, schema: SchemaType::Integer, required: true, description: None });
+        e.params.push(ApiParam {
+            name: "id".into(),
+            location: ParamLocation::Path,
+            schema: SchemaType::Integer,
+            required: true,
+            description: None,
+        });
         assert_eq!(e.path_params().len(), 1);
     }
 
     #[test]
     fn test_endpoint_query_params() {
         let mut e = ep(HttpMethod::Get, "/users");
-        e.params.push(ApiParam { name: "limit".into(), location: ParamLocation::Query, schema: SchemaType::Integer, required: false, description: None });
+        e.params.push(ApiParam {
+            name: "limit".into(),
+            location: ParamLocation::Query,
+            schema: SchemaType::Integer,
+            required: false,
+            description: None,
+        });
         assert_eq!(e.query_params().len(), 1);
     }
 
@@ -489,7 +619,9 @@ mod tests {
         s.add_endpoint(ep(HttpMethod::Get, "/users"));
         let newer: Vec<Endpoint> = vec![];
         let changes = s.diff(&newer);
-        assert!(changes.iter().any(|c| matches!(c, BreakingChange::EndpointRemoved { .. })));
+        assert!(changes
+            .iter()
+            .any(|c| matches!(c, BreakingChange::EndpointRemoved { .. })));
     }
 
     #[test]
@@ -497,9 +629,17 @@ mod tests {
         let mut s = sketch();
         s.add_endpoint(ep(HttpMethod::Get, "/users"));
         let mut new_ep = ep(HttpMethod::Get, "/users");
-        new_ep.params.push(ApiParam { name: "filter".into(), location: ParamLocation::Query, schema: SchemaType::String, required: true, description: None });
+        new_ep.params.push(ApiParam {
+            name: "filter".into(),
+            location: ParamLocation::Query,
+            schema: SchemaType::String,
+            required: true,
+            description: None,
+        });
         let changes = s.diff(&[new_ep]);
-        assert!(changes.iter().any(|c| matches!(c, BreakingChange::ParamAdded { param, .. } if param == "filter")));
+        assert!(changes
+            .iter()
+            .any(|c| matches!(c, BreakingChange::ParamAdded { param, .. } if param == "filter")));
     }
 
     #[test]
@@ -516,7 +656,13 @@ mod tests {
         let mut s = sketch();
         s.add_endpoint(ep(HttpMethod::Get, "/items"));
         let mut new_ep = ep(HttpMethod::Get, "/items");
-        new_ep.params.push(ApiParam { name: "sort".into(), location: ParamLocation::Query, schema: SchemaType::String, required: false, description: None });
+        new_ep.params.push(ApiParam {
+            name: "sort".into(),
+            location: ParamLocation::Query,
+            schema: SchemaType::String,
+            required: false,
+            description: None,
+        });
         let changes = s.diff(&[new_ep]);
         assert!(changes.is_empty());
     }

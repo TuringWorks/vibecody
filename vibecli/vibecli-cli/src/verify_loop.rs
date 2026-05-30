@@ -173,7 +173,10 @@ mod tests {
         )
         .unwrap();
         match out {
-            Outcome::Success { candidate, iterations_used } => {
+            Outcome::Success {
+                candidate,
+                iterations_used,
+            } => {
                 assert_eq!(candidate, 2);
                 assert!(iterations_used >= 2);
             }

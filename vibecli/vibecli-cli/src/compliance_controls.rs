@@ -161,21 +161,96 @@ impl ControlInventory {
 
     pub fn add_default_soc2_controls(&mut self) {
         let defaults = vec![
-            ("CC1.1", TrustServiceCriteria::Security, "Access Control", "Logical and physical access controls to protect information assets"),
-            ("CC1.2", TrustServiceCriteria::Security, "Authentication", "Multi-factor authentication for system access"),
-            ("CC1.3", TrustServiceCriteria::Security, "Encryption at Rest", "Data encryption at rest using AES-256 or equivalent"),
-            ("CC1.4", TrustServiceCriteria::Security, "Encryption in Transit", "TLS 1.2+ for all data in transit"),
-            ("CC1.5", TrustServiceCriteria::Security, "Vulnerability Management", "Regular vulnerability scanning and patching"),
-            ("CC2.1", TrustServiceCriteria::Availability, "System Monitoring", "Continuous monitoring of system availability and performance"),
-            ("CC2.2", TrustServiceCriteria::Availability, "Incident Response", "Documented incident response procedures"),
-            ("CC2.3", TrustServiceCriteria::Availability, "Backup and Recovery", "Regular backups with tested recovery procedures"),
-            ("CC3.1", TrustServiceCriteria::ProcessingIntegrity, "Input Validation", "Validation of all inputs to prevent injection attacks"),
-            ("CC3.2", TrustServiceCriteria::ProcessingIntegrity, "Audit Logging", "Comprehensive audit logging of all system actions"),
-            ("CC4.1", TrustServiceCriteria::Confidentiality, "Data Classification", "Classification and handling of confidential data"),
-            ("CC4.2", TrustServiceCriteria::Confidentiality, "Key Management", "Secure key management and rotation procedures"),
-            ("CC5.1", TrustServiceCriteria::Privacy, "Data Retention", "Defined data retention and disposal policies"),
-            ("CC5.2", TrustServiceCriteria::Privacy, "PII Protection", "Identification and protection of personally identifiable information"),
-            ("CC5.3", TrustServiceCriteria::Privacy, "Consent Management", "User consent tracking and management"),
+            (
+                "CC1.1",
+                TrustServiceCriteria::Security,
+                "Access Control",
+                "Logical and physical access controls to protect information assets",
+            ),
+            (
+                "CC1.2",
+                TrustServiceCriteria::Security,
+                "Authentication",
+                "Multi-factor authentication for system access",
+            ),
+            (
+                "CC1.3",
+                TrustServiceCriteria::Security,
+                "Encryption at Rest",
+                "Data encryption at rest using AES-256 or equivalent",
+            ),
+            (
+                "CC1.4",
+                TrustServiceCriteria::Security,
+                "Encryption in Transit",
+                "TLS 1.2+ for all data in transit",
+            ),
+            (
+                "CC1.5",
+                TrustServiceCriteria::Security,
+                "Vulnerability Management",
+                "Regular vulnerability scanning and patching",
+            ),
+            (
+                "CC2.1",
+                TrustServiceCriteria::Availability,
+                "System Monitoring",
+                "Continuous monitoring of system availability and performance",
+            ),
+            (
+                "CC2.2",
+                TrustServiceCriteria::Availability,
+                "Incident Response",
+                "Documented incident response procedures",
+            ),
+            (
+                "CC2.3",
+                TrustServiceCriteria::Availability,
+                "Backup and Recovery",
+                "Regular backups with tested recovery procedures",
+            ),
+            (
+                "CC3.1",
+                TrustServiceCriteria::ProcessingIntegrity,
+                "Input Validation",
+                "Validation of all inputs to prevent injection attacks",
+            ),
+            (
+                "CC3.2",
+                TrustServiceCriteria::ProcessingIntegrity,
+                "Audit Logging",
+                "Comprehensive audit logging of all system actions",
+            ),
+            (
+                "CC4.1",
+                TrustServiceCriteria::Confidentiality,
+                "Data Classification",
+                "Classification and handling of confidential data",
+            ),
+            (
+                "CC4.2",
+                TrustServiceCriteria::Confidentiality,
+                "Key Management",
+                "Secure key management and rotation procedures",
+            ),
+            (
+                "CC5.1",
+                TrustServiceCriteria::Privacy,
+                "Data Retention",
+                "Defined data retention and disposal policies",
+            ),
+            (
+                "CC5.2",
+                TrustServiceCriteria::Privacy,
+                "PII Protection",
+                "Identification and protection of personally identifiable information",
+            ),
+            (
+                "CC5.3",
+                TrustServiceCriteria::Privacy,
+                "Consent Management",
+                "User consent tracking and management",
+            ),
         ];
 
         for (id, criteria, title, desc) in defaults {
@@ -277,10 +352,7 @@ impl ControlInventory {
     pub fn export_report_markdown(report: &ComplianceReport) -> String {
         let mut md = String::with_capacity(2048);
         md.push_str("# SOC 2 Compliance Report\n\n");
-        md.push_str(&format!(
-            "- **Generated:** {}\n",
-            report.generated_at
-        ));
+        md.push_str(&format!("- **Generated:** {}\n", report.generated_at));
         md.push_str(&format!(
             "- **Total Controls:** {}\n",
             report.total_controls
@@ -340,9 +412,7 @@ impl ControlInventory {
                         // Find end of email (scan forward for non-email char)
                         let after = &remaining[at_pos + 1..];
                         let email_end = after
-                            .find(|c: char| {
-                                c.is_whitespace() || c == '>' || c == ')' || c == ','
-                            })
+                            .find(|c: char| c.is_whitespace() || c == '>' || c == ')' || c == ',')
                             .unwrap_or(after.len());
                         let full_end = at_pos + 1 + email_end;
                         let email = &remaining[email_start..full_end];
@@ -386,7 +456,10 @@ impl ControlInventory {
                             buf.push(c);
                         } else {
                             if Self::is_ipv4(&buf) {
-                                output.push_str(&Self::apply_redaction(&buf, &field.redaction_method));
+                                output.push_str(&Self::apply_redaction(
+                                    &buf,
+                                    &field.redaction_method,
+                                ));
                             } else {
                                 output.push_str(&buf);
                             }
@@ -403,7 +476,8 @@ impl ControlInventory {
                 }
                 PiiType::Name | PiiType::Custom(_) => {
                     // For Name/Custom, redact occurrences of field_name value directly
-                    let replacement = Self::apply_redaction(&field.field_name, &field.redaction_method);
+                    let replacement =
+                        Self::apply_redaction(&field.field_name, &field.redaction_method);
                     result = result.replace(&field.field_name, &replacement);
                 }
             }
@@ -436,9 +510,9 @@ impl ControlInventory {
         match method {
             RedactionMethod::Hash => {
                 // Simple hash representation
-                let hash: u64 = text.bytes().fold(0u64, |acc, b| {
-                    acc.wrapping_mul(31).wrapping_add(b as u64)
-                });
+                let hash: u64 = text
+                    .bytes()
+                    .fold(0u64, |acc, b| acc.wrapping_mul(31).wrapping_add(b as u64));
                 format!("[HASH:{:016x}]", hash)
             }
             RedactionMethod::Mask => {
@@ -591,9 +665,12 @@ mod tests {
     fn test_generate_report_mixed() {
         let mut inv = ControlInventory::new();
         inv.add_default_soc2_controls();
-        inv.assess_control("CC1.1", ControlStatus::Implemented, vec![]).unwrap();
-        inv.assess_control("CC1.2", ControlStatus::Implemented, vec![]).unwrap();
-        inv.assess_control("CC1.3", ControlStatus::PartiallyImplemented, vec![]).unwrap();
+        inv.assess_control("CC1.1", ControlStatus::Implemented, vec![])
+            .unwrap();
+        inv.assess_control("CC1.2", ControlStatus::Implemented, vec![])
+            .unwrap();
+        inv.assess_control("CC1.3", ControlStatus::PartiallyImplemented, vec![])
+            .unwrap();
         let report = inv.generate_report();
         assert_eq!(report.implemented, 2);
         assert_eq!(report.partial, 1);

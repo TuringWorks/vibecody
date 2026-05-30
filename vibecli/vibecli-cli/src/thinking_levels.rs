@@ -12,7 +12,7 @@ use std::collections::HashMap;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub enum ThinkingLevel {
     #[default]
-    Off,     // no thinking tokens
+    Off, // no thinking tokens
     Minimal, // ~200 tokens
     Low,     // ~1_000 tokens
     Medium,  // ~5_000 tokens

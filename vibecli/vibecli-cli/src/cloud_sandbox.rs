@@ -53,7 +53,11 @@ impl Default for SandboxConfig {
             memory_mb: 4096,
             disk_gb: 20,
             timeout_secs: 3600,
-            ports: vec![PortMapping { container: 8080, host: None, protocol: "tcp".to_string() }],
+            ports: vec![PortMapping {
+                container: 8080,
+                host: None,
+                protocol: "tcp".to_string(),
+            }],
             env_vars: HashMap::new(),
             workspace_path: "/workspace".to_string(),
         }
@@ -124,8 +128,18 @@ impl CloudSandboxManager {
         id
     }
 
-    pub fn create_from_template(&mut self, template_id: &str, name: &str, owner: &str) -> Option<String> {
-        let config = self.templates.iter().find(|t| t.id == template_id)?.config.clone();
+    pub fn create_from_template(
+        &mut self,
+        template_id: &str,
+        name: &str,
+        owner: &str,
+    ) -> Option<String> {
+        let config = self
+            .templates
+            .iter()
+            .find(|t| t.id == template_id)?
+            .config
+            .clone();
         Some(self.create_instance(name, config, owner))
     }
 
@@ -163,7 +177,10 @@ impl CloudSandboxManager {
     }
 
     pub fn active_instances(&self) -> Vec<&SandboxInstance> {
-        self.instances.iter().filter(|i| i.state.is_active()).collect()
+        self.instances
+            .iter()
+            .filter(|i| i.state.is_active())
+            .collect()
     }
 
     pub fn sync_files(&mut self, id: &str, count: usize) -> bool {
@@ -241,7 +258,10 @@ fn default_templates() -> Vec<SandboxTemplate> {
 
 fn now() -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
 }
 
 // ---------------------------------------------------------------------------

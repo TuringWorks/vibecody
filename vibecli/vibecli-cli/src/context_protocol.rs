@@ -236,7 +236,8 @@ impl ContextManager {
     pub fn get(&mut self, id: &str) -> Option<&ContextItem> {
         if let Some(&idx) = self.index.get(id) {
             self.access_counter += 1;
-            self.access_order.insert(id.to_string(), self.access_counter);
+            self.access_order
+                .insert(id.to_string(), self.access_counter);
             self.metrics.cache_hits += 1;
             Some(&self.window.items[idx])
         } else {
@@ -392,10 +393,8 @@ impl ContextManager {
                     .iter()
                     .min_by(|a, b| {
                         a.priority.cmp(&b.priority).then_with(|| {
-                            let a_access =
-                                self.access_order.get(&a.id).copied().unwrap_or(0);
-                            let b_access =
-                                self.access_order.get(&b.id).copied().unwrap_or(0);
+                            let a_access = self.access_order.get(&a.id).copied().unwrap_or(0);
+                            let b_access = self.access_order.get(&b.id).copied().unwrap_or(0);
                             a_access.cmp(&b_access)
                         })
                     })
@@ -409,13 +408,12 @@ impl ContextManager {
                     .min_by_key(|item| self.insert_order.get(&item.id).copied().unwrap_or(0))
                     .map(|item| item.id.clone())
             }
-            EvictionPolicy::SmallestFirst => {
-                self.window
-                    .items
-                    .iter()
-                    .min_by_key(|item| item.token_count)
-                    .map(|item| item.id.clone())
-            }
+            EvictionPolicy::SmallestFirst => self
+                .window
+                .items
+                .iter()
+                .min_by_key(|item| item.token_count)
+                .map(|item| item.id.clone()),
         };
 
         if let Some(id) = victim_id {
@@ -630,9 +628,12 @@ mod tests {
     #[test]
     fn test_query_by_type() {
         let mut mgr = ContextManager::new(5000);
-        mgr.add(make_item_typed("a", 10, ContextType::FileContent)).unwrap();
-        mgr.add(make_item_typed("b", 10, ContextType::GitDiff)).unwrap();
-        mgr.add(make_item_typed("c", 10, ContextType::FileContent)).unwrap();
+        mgr.add(make_item_typed("a", 10, ContextType::FileContent))
+            .unwrap();
+        mgr.add(make_item_typed("b", 10, ContextType::GitDiff))
+            .unwrap();
+        mgr.add(make_item_typed("c", 10, ContextType::FileContent))
+            .unwrap();
         let results = mgr.query(&ContextType::FileContent);
         assert_eq!(results.len(), 2);
     }
@@ -646,9 +647,11 @@ mod tests {
     #[test]
     fn test_query_by_file() {
         let mut mgr = ContextManager::new(5000);
-        mgr.add(make_item_with_file("a", 10, "src/main.rs")).unwrap();
+        mgr.add(make_item_with_file("a", 10, "src/main.rs"))
+            .unwrap();
         mgr.add(make_item_with_file("b", 10, "src/lib.rs")).unwrap();
-        mgr.add(make_item_with_file("c", 10, "src/main.rs")).unwrap();
+        mgr.add(make_item_with_file("c", 10, "src/main.rs"))
+            .unwrap();
         let results = mgr.query_by_file("src/main.rs");
         assert_eq!(results.len(), 2);
     }
@@ -682,12 +685,15 @@ mod tests {
     fn test_eviction_lru() {
         let mut mgr = ContextManager::new(200);
         mgr.window.eviction_policy = EvictionPolicy::Lru;
-        mgr.add(make_item("a", 100, ContextPriority::Medium)).unwrap();
-        mgr.add(make_item("b", 100, ContextPriority::Medium)).unwrap();
+        mgr.add(make_item("a", 100, ContextPriority::Medium))
+            .unwrap();
+        mgr.add(make_item("b", 100, ContextPriority::Medium))
+            .unwrap();
         // Access "a" so "b" is LRU
         let _ = mgr.get("a");
         // Adding "c" should evict "b"
-        mgr.add(make_item("c", 100, ContextPriority::Medium)).unwrap();
+        mgr.add(make_item("c", 100, ContextPriority::Medium))
+            .unwrap();
         assert!(mgr.get("a").is_some());
         assert_eq!(mgr.count(), 2);
         // "b" was evicted
@@ -698,13 +704,17 @@ mod tests {
     fn test_eviction_lru_oldest_evicted() {
         let mut mgr = ContextManager::new(150);
         mgr.window.eviction_policy = EvictionPolicy::Lru;
-        mgr.add(make_item("a", 50, ContextPriority::Medium)).unwrap();
-        mgr.add(make_item("b", 50, ContextPriority::Medium)).unwrap();
-        mgr.add(make_item("c", 50, ContextPriority::Medium)).unwrap();
+        mgr.add(make_item("a", 50, ContextPriority::Medium))
+            .unwrap();
+        mgr.add(make_item("b", 50, ContextPriority::Medium))
+            .unwrap();
+        mgr.add(make_item("c", 50, ContextPriority::Medium))
+            .unwrap();
         // Now full at 150. Access b and c, leaving a as LRU.
         let _ = mgr.get("b");
         let _ = mgr.get("c");
-        mgr.add(make_item("d", 50, ContextPriority::Medium)).unwrap();
+        mgr.add(make_item("d", 50, ContextPriority::Medium))
+            .unwrap();
         assert!(mgr.index.get("a").is_none()); // a evicted
         assert!(mgr.get("b").is_some());
         assert!(mgr.get("c").is_some());
@@ -717,10 +727,13 @@ mod tests {
     fn test_eviction_priority() {
         let mut mgr = ContextManager::new(200);
         mgr.window.eviction_policy = EvictionPolicy::Priority;
-        mgr.add(make_item("high", 100, ContextPriority::High)).unwrap();
-        mgr.add(make_item("low", 100, ContextPriority::Low)).unwrap();
+        mgr.add(make_item("high", 100, ContextPriority::High))
+            .unwrap();
+        mgr.add(make_item("low", 100, ContextPriority::Low))
+            .unwrap();
         // Adding another should evict "low"
-        mgr.add(make_item("med", 100, ContextPriority::Medium)).unwrap();
+        mgr.add(make_item("med", 100, ContextPriority::Medium))
+            .unwrap();
         assert!(mgr.index.get("low").is_none());
         assert!(mgr.get("high").is_some());
     }
@@ -729,9 +742,12 @@ mod tests {
     fn test_eviction_priority_keeps_critical() {
         let mut mgr = ContextManager::new(200);
         mgr.window.eviction_policy = EvictionPolicy::Priority;
-        mgr.add(make_item("crit", 100, ContextPriority::Critical)).unwrap();
-        mgr.add(make_item("bg", 100, ContextPriority::Background)).unwrap();
-        mgr.add(make_item("new", 100, ContextPriority::High)).unwrap();
+        mgr.add(make_item("crit", 100, ContextPriority::Critical))
+            .unwrap();
+        mgr.add(make_item("bg", 100, ContextPriority::Background))
+            .unwrap();
+        mgr.add(make_item("new", 100, ContextPriority::High))
+            .unwrap();
         assert!(mgr.index.get("bg").is_none());
         assert!(mgr.get("crit").is_some());
     }
@@ -742,10 +758,13 @@ mod tests {
     fn test_eviction_fifo() {
         let mut mgr = ContextManager::new(200);
         mgr.window.eviction_policy = EvictionPolicy::Fifo;
-        mgr.add(make_item("first", 100, ContextPriority::High)).unwrap();
-        mgr.add(make_item("second", 100, ContextPriority::Low)).unwrap();
+        mgr.add(make_item("first", 100, ContextPriority::High))
+            .unwrap();
+        mgr.add(make_item("second", 100, ContextPriority::Low))
+            .unwrap();
         // Even though "first" has higher priority, FIFO evicts it first
-        mgr.add(make_item("third", 100, ContextPriority::Medium)).unwrap();
+        mgr.add(make_item("third", 100, ContextPriority::Medium))
+            .unwrap();
         assert!(mgr.index.get("first").is_none());
         assert!(mgr.get("second").is_some());
     }
@@ -754,12 +773,16 @@ mod tests {
     fn test_eviction_fifo_order() {
         let mut mgr = ContextManager::new(150);
         mgr.window.eviction_policy = EvictionPolicy::Fifo;
-        mgr.add(make_item("a", 50, ContextPriority::Medium)).unwrap();
-        mgr.add(make_item("b", 50, ContextPriority::Medium)).unwrap();
-        mgr.add(make_item("c", 50, ContextPriority::Medium)).unwrap();
+        mgr.add(make_item("a", 50, ContextPriority::Medium))
+            .unwrap();
+        mgr.add(make_item("b", 50, ContextPriority::Medium))
+            .unwrap();
+        mgr.add(make_item("c", 50, ContextPriority::Medium))
+            .unwrap();
         // Access "a" to prove FIFO ignores access order
         let _ = mgr.get("a");
-        mgr.add(make_item("d", 50, ContextPriority::Medium)).unwrap();
+        mgr.add(make_item("d", 50, ContextPriority::Medium))
+            .unwrap();
         assert!(mgr.index.get("a").is_none()); // a evicted despite recent access
     }
 
@@ -769,12 +792,15 @@ mod tests {
     fn test_eviction_smallest_first() {
         let mut mgr = ContextManager::new(200);
         mgr.window.eviction_policy = EvictionPolicy::SmallestFirst;
-        mgr.add(make_item("big", 120, ContextPriority::Medium)).unwrap();
-        mgr.add(make_item("small", 80, ContextPriority::Medium)).unwrap();
+        mgr.add(make_item("big", 120, ContextPriority::Medium))
+            .unwrap();
+        mgr.add(make_item("small", 80, ContextPriority::Medium))
+            .unwrap();
         // Full at 200. Adding 90 needs 90 free -> evict small(80), then still short,
         // so this tests that smallest is evicted first.
         // Use a value that fits after one eviction: need 120+new <= 200 => new <= 80
-        mgr.add(make_item("new", 80, ContextPriority::Medium)).unwrap();
+        mgr.add(make_item("new", 80, ContextPriority::Medium))
+            .unwrap();
         assert!(mgr.index.get("small").is_none()); // smallest evicted
         assert!(mgr.get("big").is_some());
         assert!(mgr.get("new").is_some());
@@ -784,11 +810,15 @@ mod tests {
     fn test_eviction_smallest_first_multiple() {
         let mut mgr = ContextManager::new(100);
         mgr.window.eviction_policy = EvictionPolicy::SmallestFirst;
-        mgr.add(make_item("a", 30, ContextPriority::Medium)).unwrap();
-        mgr.add(make_item("b", 20, ContextPriority::Medium)).unwrap();
-        mgr.add(make_item("c", 50, ContextPriority::Medium)).unwrap();
+        mgr.add(make_item("a", 30, ContextPriority::Medium))
+            .unwrap();
+        mgr.add(make_item("b", 20, ContextPriority::Medium))
+            .unwrap();
+        mgr.add(make_item("c", 50, ContextPriority::Medium))
+            .unwrap();
         // Full at 100. Need 40 free -> evict b(20) then a(30) = 50 freed
-        mgr.add(make_item("d", 40, ContextPriority::Medium)).unwrap();
+        mgr.add(make_item("d", 40, ContextPriority::Medium))
+            .unwrap();
         assert!(mgr.index.get("b").is_none());
         assert!(mgr.index.get("a").is_none());
         assert!(mgr.get("c").is_some());
@@ -801,7 +831,8 @@ mod tests {
     fn test_evict_to_budget() {
         let mut mgr = ContextManager::new(1000);
         mgr.add(make_item("a", 400, ContextPriority::Low)).unwrap();
-        mgr.add(make_item("b", 400, ContextPriority::Medium)).unwrap();
+        mgr.add(make_item("b", 400, ContextPriority::Medium))
+            .unwrap();
         mgr.add(make_item("c", 200, ContextPriority::High)).unwrap();
         // Shrink budget
         mgr.window.max_tokens = 500;
@@ -852,11 +883,7 @@ mod tests {
     fn test_share_missing_item() {
         let mut mgr = ContextManager::new(1000);
         assert!(mgr
-            .share(
-                vec!["nope".into()],
-                ShareMode::ReadOnly,
-                vec!["x".into()]
-            )
+            .share(vec!["nope".into()], ShareMode::ReadOnly, vec!["x".into()])
             .is_err());
     }
 
@@ -878,7 +905,8 @@ mod tests {
     fn test_build_prompt_respects_budget() {
         let mut mgr = ContextManager::new(1000);
         mgr.add(make_item("a", 100, ContextPriority::High)).unwrap();
-        mgr.add(make_item("b", 200, ContextPriority::Medium)).unwrap();
+        mgr.add(make_item("b", 200, ContextPriority::Medium))
+            .unwrap();
         mgr.add(make_item("c", 300, ContextPriority::Low)).unwrap();
         let prompt = mgr.build_prompt(250);
         let total: usize = prompt.iter().map(|i| i.token_count).sum();
@@ -888,9 +916,12 @@ mod tests {
     #[test]
     fn test_build_prompt_priority_order() {
         let mut mgr = ContextManager::new(1000);
-        mgr.add(make_item("low", 100, ContextPriority::Low)).unwrap();
-        mgr.add(make_item("crit", 100, ContextPriority::Critical)).unwrap();
-        mgr.add(make_item("high", 100, ContextPriority::High)).unwrap();
+        mgr.add(make_item("low", 100, ContextPriority::Low))
+            .unwrap();
+        mgr.add(make_item("crit", 100, ContextPriority::Critical))
+            .unwrap();
+        mgr.add(make_item("high", 100, ContextPriority::High))
+            .unwrap();
         let prompt = mgr.build_prompt(200);
         assert_eq!(prompt.len(), 2);
         assert_eq!(prompt[0].id, "crit");
@@ -1192,10 +1223,13 @@ mod tests {
         let mut mgr = ContextManager::new(100);
         mgr.window.eviction_policy = EvictionPolicy::Priority;
         mgr.add(make_item("a", 30, ContextPriority::Low)).unwrap();
-        mgr.add(make_item("b", 30, ContextPriority::Background)).unwrap();
-        mgr.add(make_item("c", 40, ContextPriority::Medium)).unwrap();
+        mgr.add(make_item("b", 30, ContextPriority::Background))
+            .unwrap();
+        mgr.add(make_item("c", 40, ContextPriority::Medium))
+            .unwrap();
         // Adding 80-token item requires evicting multiple items
-        mgr.add(make_item("d", 80, ContextPriority::Critical)).unwrap();
+        mgr.add(make_item("d", 80, ContextPriority::Critical))
+            .unwrap();
         assert!(mgr.get("d").is_some());
         assert!(mgr.window.used_tokens <= 100);
     }
@@ -1227,8 +1261,10 @@ mod tests {
     #[test]
     fn test_build_prompt_skips_large() {
         let mut mgr = ContextManager::new(1000);
-        mgr.add(make_item("big", 500, ContextPriority::High)).unwrap();
-        mgr.add(make_item("small", 50, ContextPriority::Critical)).unwrap();
+        mgr.add(make_item("big", 500, ContextPriority::High))
+            .unwrap();
+        mgr.add(make_item("small", 50, ContextPriority::Critical))
+            .unwrap();
         let prompt = mgr.build_prompt(100);
         assert_eq!(prompt.len(), 1);
         assert_eq!(prompt[0].id, "small");

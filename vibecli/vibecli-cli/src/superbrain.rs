@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 // ── Data Structures ──
 
@@ -84,11 +84,98 @@ impl SmartRouter {
     /// Default routing rules mapping task categories to providers.
     pub fn default_rules() -> Vec<RoutingRule> {
         vec![
-            RoutingRule { keywords: vec!["implement".into(), "function".into(), "code".into(), "debug".into(), "fix".into(), "bug".into(), "refactor".into(), "class".into(), "struct".into(), "async".into(), "test".into(), "compile".into(), "error".into(), "rust".into(), "python".into(), "javascript".into(), "typescript".into()], category: "code".into(), provider: "claude".into(), model: "claude-3.5-sonnet".into(), priority: 10 },
-            RoutingRule { keywords: vec!["calculate".into(), "equation".into(), "prove".into(), "solve".into(), "integral".into(), "derivative".into(), "matrix".into(), "algebra".into(), "theorem".into(), "probability".into(), "statistics".into()], category: "math".into(), provider: "openai".into(), model: "gpt-4o".into(), priority: 10 },
-            RoutingRule { keywords: vec!["write a story".into(), "poem".into(), "creative".into(), "brainstorm".into(), "imagine".into(), "story".into(), "narrative".into(), "fiction".into(), "design".into()], category: "creative".into(), provider: "gemini".into(), model: "gemini-2.0-flash".into(), priority: 10 },
-            RoutingRule { keywords: vec!["analyze".into(), "compare".into(), "evaluate".into(), "review".into(), "assess".into(), "critique".into(), "research".into(), "explain".into()], category: "analysis".into(), provider: "claude".into(), model: "claude-3.5-sonnet".into(), priority: 8 },
-            RoutingRule { keywords: vec!["what is".into(), "define".into(), "who is".into(), "when did".into(), "where is".into(), "list".into(), "name".into()], category: "factual".into(), provider: "groq".into(), model: "llama-3.3-70b-versatile".into(), priority: 5 },
+            RoutingRule {
+                keywords: vec![
+                    "implement".into(),
+                    "function".into(),
+                    "code".into(),
+                    "debug".into(),
+                    "fix".into(),
+                    "bug".into(),
+                    "refactor".into(),
+                    "class".into(),
+                    "struct".into(),
+                    "async".into(),
+                    "test".into(),
+                    "compile".into(),
+                    "error".into(),
+                    "rust".into(),
+                    "python".into(),
+                    "javascript".into(),
+                    "typescript".into(),
+                ],
+                category: "code".into(),
+                provider: "claude".into(),
+                model: "claude-3.5-sonnet".into(),
+                priority: 10,
+            },
+            RoutingRule {
+                keywords: vec![
+                    "calculate".into(),
+                    "equation".into(),
+                    "prove".into(),
+                    "solve".into(),
+                    "integral".into(),
+                    "derivative".into(),
+                    "matrix".into(),
+                    "algebra".into(),
+                    "theorem".into(),
+                    "probability".into(),
+                    "statistics".into(),
+                ],
+                category: "math".into(),
+                provider: "openai".into(),
+                model: "gpt-4o".into(),
+                priority: 10,
+            },
+            RoutingRule {
+                keywords: vec![
+                    "write a story".into(),
+                    "poem".into(),
+                    "creative".into(),
+                    "brainstorm".into(),
+                    "imagine".into(),
+                    "story".into(),
+                    "narrative".into(),
+                    "fiction".into(),
+                    "design".into(),
+                ],
+                category: "creative".into(),
+                provider: "gemini".into(),
+                model: "gemini-2.0-flash".into(),
+                priority: 10,
+            },
+            RoutingRule {
+                keywords: vec![
+                    "analyze".into(),
+                    "compare".into(),
+                    "evaluate".into(),
+                    "review".into(),
+                    "assess".into(),
+                    "critique".into(),
+                    "research".into(),
+                    "explain".into(),
+                ],
+                category: "analysis".into(),
+                provider: "claude".into(),
+                model: "claude-3.5-sonnet".into(),
+                priority: 8,
+            },
+            RoutingRule {
+                keywords: vec![
+                    "what is".into(),
+                    "define".into(),
+                    "who is".into(),
+                    "when did".into(),
+                    "where is".into(),
+                    "list".into(),
+                    "name".into(),
+                ],
+                category: "factual".into(),
+                provider: "groq".into(),
+                model: "llama-3.3-70b-versatile".into(),
+                priority: 5,
+            },
         ]
     }
 
@@ -120,7 +207,12 @@ impl SmartRouter {
                 provider: rule.provider.clone(),
                 model: rule.model.clone(),
                 category: rule.category.clone(),
-                reason: format!("Matched {} keywords [{}] in category '{}'", matched_keywords.len(), matched_keywords.join(", "), rule.category),
+                reason: format!(
+                    "Matched {} keywords [{}] in category '{}'",
+                    matched_keywords.len(),
+                    matched_keywords.join(", "),
+                    rule.category
+                ),
                 confidence: (best_score as f64 / 30.0).min(1.0),
             }
         } else {
@@ -142,7 +234,12 @@ pub struct SuperBrainPrompts;
 
 impl SuperBrainPrompts {
     /// Build the chain relay prompt for model N, including all previous model outputs.
-    pub fn chain_relay_prompt(query: &str, previous: &[ModelContribution], step: usize, total: usize) -> Vec<vibe_ai::provider::Message> {
+    pub fn chain_relay_prompt(
+        query: &str,
+        previous: &[ModelContribution],
+        step: usize,
+        total: usize,
+    ) -> Vec<vibe_ai::provider::Message> {
         use vibe_ai::provider::{Message, MessageRole};
 
         let role_label = match step {
@@ -151,48 +248,97 @@ impl SuperBrainPrompts {
             _ => "Critical Reviewer",
         };
 
-        let mut system = format!("You are step {} of {} in a chain-of-thought relay. Your role: {}.", step + 1, total, role_label);
+        let mut system = format!(
+            "You are step {} of {} in a chain-of-thought relay. Your role: {}.",
+            step + 1,
+            total,
+            role_label
+        );
         if step > 0 {
             system.push_str("\nBuild upon the previous analysis. Add depth, correct errors, and refine the reasoning.");
         }
 
         let mut user_content = format!("Original query: {}\n", query);
         for (i, prev) in previous.iter().enumerate() {
-            user_content.push_str(&format!("\n--- Step {} ({} / {}) ---\n{}\n", i + 1, prev.provider, prev.model, prev.content));
+            user_content.push_str(&format!(
+                "\n--- Step {} ({} / {}) ---\n{}\n",
+                i + 1,
+                prev.provider,
+                prev.model,
+                prev.content
+            ));
         }
         if step > 0 {
-            user_content.push_str(&format!("\nAs the {}, provide your refined analysis:", role_label));
+            user_content.push_str(&format!(
+                "\nAs the {}, provide your refined analysis:",
+                role_label
+            ));
         }
 
         vec![
-            Message { role: MessageRole::System, content: system },
-            Message { role: MessageRole::User, content: user_content },
+            Message {
+                role: MessageRole::System,
+                content: system,
+            },
+            Message {
+                role: MessageRole::User,
+                content: user_content,
+            },
         ]
     }
 
     /// Build the judge prompt for Best-of-N mode.
-    pub fn best_of_n_judge_prompt(query: &str, responses: &[ModelContribution]) -> Vec<vibe_ai::provider::Message> {
+    pub fn best_of_n_judge_prompt(
+        query: &str,
+        responses: &[ModelContribution],
+    ) -> Vec<vibe_ai::provider::Message> {
         use vibe_ai::provider::{Message, MessageRole};
 
         let mut content = format!("You are a judge evaluating multiple AI responses to the following query:\n\n\"{}\"\n\nHere are the responses:\n", query);
         for (i, resp) in responses.iter().enumerate() {
-            content.push_str(&format!("\n--- Response {} ({}/{}) ---\n{}\n", i + 1, resp.provider, resp.model, resp.content));
+            content.push_str(&format!(
+                "\n--- Response {} ({}/{}) ---\n{}\n",
+                i + 1,
+                resp.provider,
+                resp.model,
+                resp.content
+            ));
         }
         content.push_str("\nEvaluate each response for accuracy, completeness, clarity, and helpfulness. Then:\n1. Rank all responses from best to worst\n2. Explain why the best response is superior\n3. Provide the best response (or an improved version combining the best elements)\n\nFormat your answer as:\nWINNER: [number]\nREASON: [explanation]\nBEST RESPONSE:\n[the winning or improved response]");
 
         vec![
-            Message { role: MessageRole::System, content: "You are an impartial judge evaluating AI responses. Be objective and thorough.".into() },
-            Message { role: MessageRole::User, content },
+            Message {
+                role: MessageRole::System,
+                content:
+                    "You are an impartial judge evaluating AI responses. Be objective and thorough."
+                        .into(),
+            },
+            Message {
+                role: MessageRole::User,
+                content,
+            },
         ]
     }
 
     /// Build consensus synthesis prompt.
-    pub fn consensus_prompt(query: &str, responses: &[ModelContribution]) -> Vec<vibe_ai::provider::Message> {
+    pub fn consensus_prompt(
+        query: &str,
+        responses: &[ModelContribution],
+    ) -> Vec<vibe_ai::provider::Message> {
         use vibe_ai::provider::{Message, MessageRole};
 
-        let mut content = format!("Multiple AI models were asked: \"{}\"\n\nTheir responses:\n", query);
+        let mut content = format!(
+            "Multiple AI models were asked: \"{}\"\n\nTheir responses:\n",
+            query
+        );
         for (i, resp) in responses.iter().enumerate() {
-            content.push_str(&format!("\n--- Model {} ({}/{}) ---\n{}\n", i + 1, resp.provider, resp.model, resp.content));
+            content.push_str(&format!(
+                "\n--- Model {} ({}/{}) ---\n{}\n",
+                i + 1,
+                resp.provider,
+                resp.model,
+                resp.content
+            ));
         }
         content.push_str("\nSynthesize these into a single comprehensive response that:\n1. Identifies points of agreement (consensus)\n2. Notes any disagreements\n3. Produces the best possible answer combining all perspectives\n4. Reports the agreement level (e.g., \"4/5 models agree that...\")\n\nProvide the synthesized response:");
 
@@ -212,12 +358,18 @@ impl SuperBrainPrompts {
     }
 
     /// Build specialist merge prompt.
-    pub fn specialist_merge_prompt(query: &str, subtask_results: &[(String, ModelContribution)]) -> Vec<vibe_ai::provider::Message> {
+    pub fn specialist_merge_prompt(
+        query: &str,
+        subtask_results: &[(String, ModelContribution)],
+    ) -> Vec<vibe_ai::provider::Message> {
         use vibe_ai::provider::{Message, MessageRole};
 
         let mut content = format!("Original query: {}\n\nSubtask results:\n", query);
         for (subtask, result) in subtask_results {
-            content.push_str(&format!("\n--- Subtask: {} ---\n[Handled by {}/{}]\n{}\n", subtask, result.provider, result.model, result.content));
+            content.push_str(&format!(
+                "\n--- Subtask: {} ---\n[Handled by {}/{}]\n{}\n",
+                subtask, result.provider, result.model, result.content
+            ));
         }
         content.push_str("\nMerge these subtask results into one cohesive, comprehensive response to the original query:");
 
@@ -230,15 +382,24 @@ impl SuperBrainPrompts {
 
 /// Parse subtask list from decomposition response.
 pub fn parse_subtasks(response: &str) -> Vec<String> {
-    response.lines()
+    response
+        .lines()
         .filter_map(|line| {
             let trimmed = line.trim();
-            if trimmed.is_empty() { return None; }
+            if trimmed.is_empty() {
+                return None;
+            }
             // Strip leading number + dot/paren
             let content = trimmed
-                .trim_start_matches(|c: char| c.is_ascii_digit() || c == '.' || c == ')' || c == '-')
+                .trim_start_matches(|c: char| {
+                    c.is_ascii_digit() || c == '.' || c == ')' || c == '-'
+                })
                 .trim();
-            if content.is_empty() { None } else { Some(content.to_string()) }
+            if content.is_empty() {
+                None
+            } else {
+                Some(content.to_string())
+            }
         })
         .take(5) // max 5 subtasks
         .collect()
@@ -247,11 +408,23 @@ pub fn parse_subtasks(response: &str) -> Vec<String> {
 /// Available SuperBrain modes with descriptions.
 pub fn available_modes() -> Vec<(&'static str, &'static str)> {
     vec![
-        ("Smart Router", "Routes query to the best model based on task type"),
-        ("Consensus", "Sends to all models, synthesizes the majority view"),
-        ("Chain Relay", "Sequential refinement: each model builds on the previous"),
+        (
+            "Smart Router",
+            "Routes query to the best model based on task type",
+        ),
+        (
+            "Consensus",
+            "Sends to all models, synthesizes the majority view",
+        ),
+        (
+            "Chain Relay",
+            "Sequential refinement: each model builds on the previous",
+        ),
         ("Best-of-N", "All models respond, a judge picks the best"),
-        ("Specialist", "Decomposes into subtasks, assigns to different models"),
+        (
+            "Specialist",
+            "Decomposes into subtasks, assigns to different models",
+        ),
     ]
 }
 
@@ -299,7 +472,10 @@ mod tests {
     #[test]
     fn test_route_multi_keyword() {
         let rules = SmartRouter::default_rules();
-        let decision = SmartRouter::route("Debug this async function and fix the compile error", &rules);
+        let decision = SmartRouter::route(
+            "Debug this async function and fix the compile error",
+            &rules,
+        );
         assert_eq!(decision.category, "code");
         assert!(decision.confidence > 0.5);
     }
@@ -315,9 +491,12 @@ mod tests {
     #[test]
     fn test_chain_relay_prompt_step1() {
         let prev = vec![ModelContribution {
-            provider: "claude".into(), model: "sonnet".into(),
-            role: "primary".into(), content: "AI is...".into(),
-            duration_ms: 100, tokens: Some(10),
+            provider: "claude".into(),
+            model: "sonnet".into(),
+            role: "primary".into(),
+            content: "AI is...".into(),
+            duration_ms: 100,
+            tokens: Some(10),
         }];
         let msgs = SuperBrainPrompts::chain_relay_prompt("What is AI?", &prev, 1, 3);
         assert!(msgs[1].content.contains("AI is..."));
@@ -327,8 +506,22 @@ mod tests {
     #[test]
     fn test_chain_relay_prompt_final() {
         let prev = vec![
-            ModelContribution { provider: "a".into(), model: "m1".into(), role: "p".into(), content: "Step 1".into(), duration_ms: 100, tokens: None },
-            ModelContribution { provider: "b".into(), model: "m2".into(), role: "p".into(), content: "Step 2".into(), duration_ms: 100, tokens: None },
+            ModelContribution {
+                provider: "a".into(),
+                model: "m1".into(),
+                role: "p".into(),
+                content: "Step 1".into(),
+                duration_ms: 100,
+                tokens: None,
+            },
+            ModelContribution {
+                provider: "b".into(),
+                model: "m2".into(),
+                role: "p".into(),
+                content: "Step 2".into(),
+                duration_ms: 100,
+                tokens: None,
+            },
         ];
         let msgs = SuperBrainPrompts::chain_relay_prompt("Q", &prev, 2, 3);
         assert!(msgs[0].content.contains("Final Synthesizer"));
@@ -337,8 +530,22 @@ mod tests {
     #[test]
     fn test_best_of_n_judge_prompt() {
         let responses = vec![
-            ModelContribution { provider: "a".into(), model: "m1".into(), role: "p".into(), content: "Answer A".into(), duration_ms: 100, tokens: None },
-            ModelContribution { provider: "b".into(), model: "m2".into(), role: "p".into(), content: "Answer B".into(), duration_ms: 200, tokens: None },
+            ModelContribution {
+                provider: "a".into(),
+                model: "m1".into(),
+                role: "p".into(),
+                content: "Answer A".into(),
+                duration_ms: 100,
+                tokens: None,
+            },
+            ModelContribution {
+                provider: "b".into(),
+                model: "m2".into(),
+                role: "p".into(),
+                content: "Answer B".into(),
+                duration_ms: 200,
+                tokens: None,
+            },
         ];
         let msgs = SuperBrainPrompts::best_of_n_judge_prompt("Q?", &responses);
         assert!(msgs[1].content.contains("Answer A"));
@@ -348,9 +555,14 @@ mod tests {
 
     #[test]
     fn test_consensus_prompt() {
-        let responses = vec![
-            ModelContribution { provider: "a".into(), model: "m1".into(), role: "p".into(), content: "Yes".into(), duration_ms: 100, tokens: None },
-        ];
+        let responses = vec![ModelContribution {
+            provider: "a".into(),
+            model: "m1".into(),
+            role: "p".into(),
+            content: "Yes".into(),
+            duration_ms: 100,
+            tokens: None,
+        }];
         let msgs = SuperBrainPrompts::consensus_prompt("Is water wet?", &responses);
         assert!(msgs[1].content.contains("Is water wet?"));
         assert!(msgs[1].content.contains("Yes"));
@@ -389,9 +601,17 @@ mod tests {
 
     #[test]
     fn test_specialist_merge_prompt() {
-        let results = vec![
-            ("Research".into(), ModelContribution { provider: "a".into(), model: "m".into(), role: "s".into(), content: "Found...".into(), duration_ms: 100, tokens: None }),
-        ];
+        let results = vec![(
+            "Research".into(),
+            ModelContribution {
+                provider: "a".into(),
+                model: "m".into(),
+                role: "s".into(),
+                content: "Found...".into(),
+                duration_ms: 100,
+                tokens: None,
+            },
+        )];
         let msgs = SuperBrainPrompts::specialist_merge_prompt("Build app", &results);
         assert!(msgs[1].content.contains("Research"));
         assert!(msgs[1].content.contains("Found..."));

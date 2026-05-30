@@ -2,10 +2,10 @@
  * BDD tests for tui_images using Cucumber.
  * Run with: cargo test --test tui_images_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::tui_images::{
-    ImageProtocol, RenderOptions, RenderResult,
-    kitty_escape, iterm2_escape, parse_image_dimensions, render_image_bytes,
+    iterm2_escape, kitty_escape, parse_image_dimensions, render_image_bytes, ImageProtocol,
+    RenderOptions, RenderResult,
 };
 
 // ─── World ────────────────────────────────────────────────────────────────────
@@ -52,8 +52,8 @@ fn synthetic_png_header(world: &mut TuiImagesWorld) {
     // PNG signature (8 bytes) + IHDR length (4) + "IHDR" (4) + width BE (4) + height BE (4)
     let mut data = Vec::with_capacity(24);
     data.extend_from_slice(b"\x89PNG\r\n\x1a\n"); // PNG magic
-    data.extend_from_slice(&13u32.to_be_bytes());  // IHDR data length
-    data.extend_from_slice(b"IHDR");               // chunk type
+    data.extend_from_slice(&13u32.to_be_bytes()); // IHDR data length
+    data.extend_from_slice(b"IHDR"); // chunk type
     data.extend_from_slice(&320u32.to_be_bytes()); // width
     data.extend_from_slice(&240u32.to_be_bytes()); // height
     world.image_data = data;

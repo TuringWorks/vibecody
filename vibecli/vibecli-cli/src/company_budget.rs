@@ -12,9 +12,14 @@ use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }
-fn new_id() -> String { uuid::Uuid::new_v4().to_string() }
+fn new_id() -> String {
+    uuid::Uuid::new_v4().to_string()
+}
 
 /// Current month as "YYYY-MM".
 pub fn current_month() -> String {
@@ -33,15 +38,32 @@ fn days_to_year_month(mut days: u64) -> (u64, u64) {
     loop {
         let leap = is_leap(year);
         let yd = if leap { 366 } else { 365 };
-        if days < yd { break; }
+        if days < yd {
+            break;
+        }
         days -= yd;
         year += 1;
     }
     let leap = is_leap(year);
-    let months = [31u64, if leap { 29 } else { 28 }, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let months = [
+        31u64,
+        if leap { 29 } else { 28 },
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
+    ];
     let mut month = 1u64;
     for &md in &months {
-        if days < md { break; }
+        if days < md {
+            break;
+        }
         days -= md;
         month += 1;
     }
@@ -90,12 +112,17 @@ pub struct BudgetStore<'a> {
 }
 
 impl<'a> BudgetStore<'a> {
-    pub fn new(conn: &'a Connection) -> Self { Self { conn } }
+    pub fn new(conn: &'a Connection) -> Self {
+        Self { conn }
+    }
 
-    pub fn current_month_static() -> String { current_month() }
+    pub fn current_month_static() -> String {
+        current_month()
+    }
 
     pub fn ensure_schema(&self) -> Result<()> {
-        self.conn.execute_batch(r#"
+        self.conn.execute_batch(
+            r#"
             CREATE TABLE IF NOT EXISTS budgets (
                 id            TEXT PRIMARY KEY,
                 company_id    TEXT NOT NULL,
@@ -124,7 +151,8 @@ impl<'a> BudgetStore<'a> {
             );
             CREATE INDEX IF NOT EXISTS idx_cost_events_budget ON cost_events(budget_id);
             CREATE INDEX IF NOT EXISTS idx_cost_events_agent ON cost_events(company_id, agent_id);
-        "#)?;
+        "#,
+        )?;
         Ok(())
     }
 
@@ -139,18 +167,22 @@ impl<'a> BudgetStore<'a> {
         alert_pct: i64,
     ) -> Result<CompanyBudget> {
         // Check if exists
-        let existing: Option<String> = self.conn.query_row(
-            "SELECT id FROM budgets WHERE company_id = ?1 AND agent_id = ?2 AND month = ?3",
-            params![company_id, agent_id, month],
-            |r| r.get(0),
-        ).ok();
+        let existing: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT id FROM budgets WHERE company_id = ?1 AND agent_id = ?2 AND month = ?3",
+                params![company_id, agent_id, month],
+                |r| r.get(0),
+            )
+            .ok();
 
         if let Some(id) = existing {
             self.conn.execute(
                 "UPDATE budgets SET limit_cents = ?1, hard_stop = ?2, alert_pct = ?3 WHERE id = ?4",
                 params![limit_cents, hard_stop as i64, alert_pct, id],
             )?;
-            self.get_by_id(&id)?.context("budget not found after update")
+            self.get_by_id(&id)?
+                .context("budget not found after update")
         } else {
             let id = new_id();
             let now = now_ms();
@@ -159,7 +191,8 @@ impl<'a> BudgetStore<'a> {
                  VALUES (?1,?2,?3,?4,?5,0,?6,?7,?8)",
                 params![id, company_id, agent_id, month, limit_cents, hard_stop as i64, alert_pct, now as i64],
             )?;
-            self.get_by_id(&id)?.context("budget not found after insert")
+            self.get_by_id(&id)?
+                .context("budget not found after insert")
         }
     }
 
@@ -191,7 +224,8 @@ impl<'a> BudgetStore<'a> {
             "SELECT id, company_id, agent_id, month, limit_cents, spent_cents, hard_stop, alert_pct, created_at
              FROM budgets WHERE company_id = ?1 ORDER BY month DESC, agent_id ASC",
         )?;
-        let rows = stmt.query_map(params![company_id], row_to_budget)?
+        let rows = stmt
+            .query_map(params![company_id], row_to_budget)?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(rows)
     }
@@ -256,13 +290,17 @@ impl<'a> BudgetStore<'a> {
 
     /// Budget utilization 0.0–1.0 (0.0 if no limit set).
     pub fn utilization(budget: &CompanyBudget) -> f64 {
-        if budget.limit_cents == 0 { return 0.0; }
+        if budget.limit_cents == 0 {
+            return 0.0;
+        }
         (budget.spent_cents as f64 / budget.limit_cents as f64).clamp(0.0, 1.0)
     }
 
     /// True if spent >= alert threshold.
     pub fn is_over_alert(budget: &CompanyBudget) -> bool {
-        if budget.limit_cents == 0 { return false; }
+        if budget.limit_cents == 0 {
+            return false;
+        }
         let pct = (budget.spent_cents as f64 / budget.limit_cents as f64) * 100.0;
         pct >= budget.alert_pct as f64
     }
@@ -320,7 +358,9 @@ mod tests {
         let conn = make_conn();
         let store = BudgetStore::new(&conn);
         store.ensure_schema().unwrap();
-        let b = store.set_budget("co1", "ag1", "2026-04", 10_000, false, 80).unwrap();
+        let b = store
+            .set_budget("co1", "ag1", "2026-04", 10_000, false, 80)
+            .unwrap();
         assert_eq!(b.limit_cents, 10_000);
         assert_eq!(b.spent_cents, 0);
         assert_eq!(b.month, "2026-04");
@@ -332,8 +372,12 @@ mod tests {
         let conn = make_conn();
         let store = BudgetStore::new(&conn);
         store.ensure_schema().unwrap();
-        store.set_budget("co1", "ag1", "2026-04", 5_000, false, 80).unwrap();
-        let updated = store.set_budget("co1", "ag1", "2026-04", 20_000, true, 90).unwrap();
+        store
+            .set_budget("co1", "ag1", "2026-04", 5_000, false, 80)
+            .unwrap();
+        let updated = store
+            .set_budget("co1", "ag1", "2026-04", 20_000, true, 90)
+            .unwrap();
         assert_eq!(updated.limit_cents, 20_000);
         assert!(updated.hard_stop);
         assert_eq!(updated.alert_pct, 90);
@@ -349,7 +393,9 @@ mod tests {
         let conn = make_conn();
         let store = BudgetStore::new(&conn);
         store.ensure_schema().unwrap();
-        store.set_budget("co1", "ag1", "2026-04", 1_000, false, 80).unwrap();
+        store
+            .set_budget("co1", "ag1", "2026-04", 1_000, false, 80)
+            .unwrap();
         let result = store.get_for_month("co1", "ag1", "2026-04").unwrap();
         assert!(result.is_some());
     }
@@ -371,9 +417,15 @@ mod tests {
         let store = BudgetStore::new(&conn);
         store.ensure_schema().unwrap();
         let month = current_month();
-        store.set_budget("co1", "ag1", &month, 50_000, false, 80).unwrap();
-        store.ingest_cost("co1", "ag1", 1_500, "gpt-4", None, "task-run").unwrap();
-        store.ingest_cost("co1", "ag1", 2_000, "claude-3", None, "task-run-2").unwrap();
+        store
+            .set_budget("co1", "ag1", &month, 50_000, false, 80)
+            .unwrap();
+        store
+            .ingest_cost("co1", "ag1", 1_500, "gpt-4", None, "task-run")
+            .unwrap();
+        store
+            .ingest_cost("co1", "ag1", 2_000, "claude-3", None, "task-run-2")
+            .unwrap();
         let budget = store.get_for_month("co1", "ag1", &month).unwrap().unwrap();
         assert_eq!(budget.spent_cents, 3_500);
     }
@@ -383,7 +435,9 @@ mod tests {
         let conn = make_conn();
         let store = BudgetStore::new(&conn);
         store.ensure_schema().unwrap();
-        let (budget, _triggered) = store.ingest_cost("co1", "ag-new", 100, "gpt-4", None, "desc").unwrap();
+        let (budget, _triggered) = store
+            .ingest_cost("co1", "ag-new", 100, "gpt-4", None, "desc")
+            .unwrap();
         assert_eq!(budget.agent_id, "ag-new");
         assert_eq!(budget.spent_cents, 100);
     }
@@ -394,8 +448,12 @@ mod tests {
         let store = BudgetStore::new(&conn);
         store.ensure_schema().unwrap();
         let month = current_month();
-        store.set_budget("co1", "ag1", &month, 1_000, true, 80).unwrap();
-        let (_, triggered) = store.ingest_cost("co1", "ag1", 1_000, "gpt-4", None, "final").unwrap();
+        store
+            .set_budget("co1", "ag1", &month, 1_000, true, 80)
+            .unwrap();
+        let (_, triggered) = store
+            .ingest_cost("co1", "ag1", 1_000, "gpt-4", None, "final")
+            .unwrap();
         assert!(triggered);
     }
 
@@ -405,8 +463,12 @@ mod tests {
         let store = BudgetStore::new(&conn);
         store.ensure_schema().unwrap();
         let month = current_month();
-        store.set_budget("co1", "ag1", &month, 1_000, false, 80).unwrap();
-        let (_, triggered) = store.ingest_cost("co1", "ag1", 1_000, "gpt-4", None, "final").unwrap();
+        store
+            .set_budget("co1", "ag1", &month, 1_000, false, 80)
+            .unwrap();
+        let (_, triggered) = store
+            .ingest_cost("co1", "ag1", 1_000, "gpt-4", None, "final")
+            .unwrap();
         assert!(!triggered);
     }
 
@@ -417,7 +479,9 @@ mod tests {
         store.ensure_schema().unwrap();
         let month = current_month();
         store.set_budget("co1", "ag1", &month, 0, true, 80).unwrap();
-        let (_, triggered) = store.ingest_cost("co1", "ag1", 99_999, "gpt-4", None, "desc").unwrap();
+        let (_, triggered) = store
+            .ingest_cost("co1", "ag1", 99_999, "gpt-4", None, "desc")
+            .unwrap();
         assert!(!triggered);
     }
 
@@ -429,8 +493,12 @@ mod tests {
         let store = BudgetStore::new(&conn);
         store.ensure_schema().unwrap();
         let month = current_month();
-        store.set_budget("co1", "ag1", &month, 2_000, false, 80).unwrap();
-        store.ingest_cost("co1", "ag1", 1_000, "m", None, "d").unwrap();
+        store
+            .set_budget("co1", "ag1", &month, 2_000, false, 80)
+            .unwrap();
+        store
+            .ingest_cost("co1", "ag1", 1_000, "m", None, "d")
+            .unwrap();
         let budget = store.get_for_month("co1", "ag1", &month).unwrap().unwrap();
         let util = BudgetStore::utilization(&budget);
         assert!((util - 0.5).abs() < f64::EPSILON);
@@ -439,9 +507,15 @@ mod tests {
     #[test]
     fn given_zero_limit_budget_when_utilization_then_returns_zero() {
         let b = CompanyBudget {
-            id: "x".into(), company_id: "c".into(), agent_id: "a".into(),
-            month: "2026-04".into(), limit_cents: 0, spent_cents: 999,
-            hard_stop: false, alert_pct: 80, created_at: 0,
+            id: "x".into(),
+            company_id: "c".into(),
+            agent_id: "a".into(),
+            month: "2026-04".into(),
+            limit_cents: 0,
+            spent_cents: 999,
+            hard_stop: false,
+            alert_pct: 80,
+            created_at: 0,
         };
         assert_eq!(BudgetStore::utilization(&b), 0.0);
     }
@@ -454,8 +528,12 @@ mod tests {
         let store = BudgetStore::new(&conn);
         store.ensure_schema().unwrap();
         let month = current_month();
-        store.set_budget("co1", "ag1", &month, 1_000, false, 80).unwrap();
-        store.ingest_cost("co1", "ag1", 850, "m", None, "d").unwrap();
+        store
+            .set_budget("co1", "ag1", &month, 1_000, false, 80)
+            .unwrap();
+        store
+            .ingest_cost("co1", "ag1", 850, "m", None, "d")
+            .unwrap();
         let budget = store.get_for_month("co1", "ag1", &month).unwrap().unwrap();
         assert!(BudgetStore::is_over_alert(&budget));
     }
@@ -466,8 +544,12 @@ mod tests {
         let store = BudgetStore::new(&conn);
         store.ensure_schema().unwrap();
         let month = current_month();
-        store.set_budget("co1", "ag1", &month, 1_000, false, 80).unwrap();
-        store.ingest_cost("co1", "ag1", 500, "m", None, "d").unwrap();
+        store
+            .set_budget("co1", "ag1", &month, 1_000, false, 80)
+            .unwrap();
+        store
+            .ingest_cost("co1", "ag1", 500, "m", None, "d")
+            .unwrap();
         let budget = store.get_for_month("co1", "ag1", &month).unwrap().unwrap();
         assert!(!BudgetStore::is_over_alert(&budget));
     }
@@ -479,9 +561,15 @@ mod tests {
         let conn = make_conn();
         let store = BudgetStore::new(&conn);
         store.ensure_schema().unwrap();
-        store.ingest_cost("co1", "ag1", 100, "gpt-4", None, "a").unwrap();
-        store.ingest_cost("co1", "ag2", 200, "claude-3", None, "b").unwrap();
-        store.ingest_cost("co2", "ag3", 300, "llama", None, "c").unwrap();
+        store
+            .ingest_cost("co1", "ag1", 100, "gpt-4", None, "a")
+            .unwrap();
+        store
+            .ingest_cost("co1", "ag2", 200, "claude-3", None, "b")
+            .unwrap();
+        store
+            .ingest_cost("co2", "ag3", 300, "llama", None, "c")
+            .unwrap();
         let events = store.list_events("co1", None).unwrap();
         assert_eq!(events.len(), 2);
     }
@@ -491,8 +579,12 @@ mod tests {
         let conn = make_conn();
         let store = BudgetStore::new(&conn);
         store.ensure_schema().unwrap();
-        store.ingest_cost("co1", "ag1", 100, "m", None, "d").unwrap();
-        store.ingest_cost("co1", "ag2", 200, "m", None, "d").unwrap();
+        store
+            .ingest_cost("co1", "ag1", 100, "m", None, "d")
+            .unwrap();
+        store
+            .ingest_cost("co1", "ag2", 200, "m", None, "d")
+            .unwrap();
         let events = store.list_events("co1", Some("ag1")).unwrap();
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].agent_id, "ag1");
@@ -508,16 +600,28 @@ impl CompanyBudget {
         };
         let spent_str = format!("${:.2}", self.spent_cents as f64 / 100.0);
         let pct = if self.limit_cents > 0 {
-            format!("{:.1}%", (self.spent_cents as f64 / self.limit_cents as f64) * 100.0)
+            format!(
+                "{:.1}%",
+                (self.spent_cents as f64 / self.limit_cents as f64) * 100.0
+            )
         } else {
             "—".to_string()
         };
-        let alert = if BudgetStore::is_over_alert(self) { " ⚠" } else { "" };
+        let alert = if BudgetStore::is_over_alert(self) {
+            " ⚠"
+        } else {
+            ""
+        };
         let hard = if self.hard_stop { " [hard-stop]" } else { "" };
         format!(
             "[{}] {} {} / {}  ({}){}{} — agent:{}",
-            self.month, &self.agent_id[..8.min(self.agent_id.len())],
-            spent_str, limit_str, pct, alert, hard,
+            self.month,
+            &self.agent_id[..8.min(self.agent_id.len())],
+            spent_str,
+            limit_str,
+            pct,
+            alert,
+            hard,
             &self.agent_id[..8.min(self.agent_id.len())]
         )
     }

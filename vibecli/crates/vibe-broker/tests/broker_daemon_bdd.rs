@@ -2,7 +2,7 @@
 //! the entry point, asserts the bound listener responds and the audit
 //! file gets populated.
 
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -12,7 +12,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime::Runtime;
 use tokio::task::JoinHandle;
 use vibe_broker::{
-    BoundAddr, BrokerConfig, BrokerDaemon, DaemonHandle, SecretStore, policy::SecretRef,
+    policy::SecretRef, BoundAddr, BrokerConfig, BrokerDaemon, DaemonHandle, SecretStore,
 };
 
 #[derive(Default, World)]
@@ -96,7 +96,9 @@ path = "{}"
     world.config_path = Some(config_path);
 }
 
-#[given(expr = "a broker config in the temp dir with TCP listener, no policy, IMDS section bound to {word}")]
+#[given(
+    expr = "a broker config in the temp dir with TCP listener, no policy, IMDS section bound to {word}"
+)]
 fn write_imds_config(world: &mut DWorld, addr: String) {
     let config_path = world.dir_path().join("broker.toml");
     // Always use a free TCP port (ignore the cosmetic `127.0.0.1:0`
@@ -117,9 +119,8 @@ listen_tcp = "127.0.0.1:0"
 
 #[given(expr = "a stub Azure OAuth endpoint returning access_token {string} with expires_in {int}")]
 fn stub_endpoint(world: &mut DWorld, token: String, expires_in: u64) {
-    let body = format!(
-        r#"{{"access_token":"{token}","token_type":"Bearer","expires_in":{expires_in}}}"#
-    );
+    let body =
+        format!(r#"{{"access_token":"{token}","token_type":"Bearer","expires_in":{expires_in}}}"#);
     let rt = world.rt();
     let (addr, handle) = rt.block_on(async move {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -163,7 +164,9 @@ fn stub_endpoint(world: &mut DWorld, token: String, expires_in: u64) {
     world.stub_handle = Some(handle);
 }
 
-#[given(expr = "a broker config in the temp dir with TCP listener, refresher {int}ms, azure profile pointed at the stub")]
+#[given(
+    expr = "a broker config in the temp dir with TCP listener, refresher {int}ms, azure profile pointed at the stub"
+)]
 fn write_refresher_config(world: &mut DWorld, interval_ms: u64) {
     let stub = world.stub_addr.unwrap();
     let endpoint = format!("http://{}", stub);
@@ -244,7 +247,10 @@ fn send_request(world: &mut DWorld, req: String) {
         let _ = s.read_to_end(&mut buf).await;
         buf
     });
-    let split = resp.windows(2).position(|w| w == b"\r\n").unwrap_or(resp.len());
+    let split = resp
+        .windows(2)
+        .position(|w| w == b"\r\n")
+        .unwrap_or(resp.len());
     let line = String::from_utf8_lossy(&resp[..split]);
     if let Some(p) = line.split_whitespace().nth(1) {
         world.response_status = p.parse().ok();
@@ -296,7 +302,5 @@ fn token_eq(world: &mut DWorld, expected: String) {
 }
 
 fn main() {
-    futures::executor::block_on(DWorld::run(
-        "tests/features/broker_daemon.feature",
-    ));
+    futures::executor::block_on(DWorld::run("tests/features/broker_daemon.feature"));
 }

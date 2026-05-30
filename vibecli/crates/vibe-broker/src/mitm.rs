@@ -23,7 +23,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_rustls::{TlsAcceptor, TlsConnector};
 
-use crate::audit::{AuditSink, EgressOutcome, baseline_egress_request};
+use crate::audit::{baseline_egress_request, AuditSink, EgressOutcome};
 use crate::policy::{Decision, Inject, Policy, Request as PolicyRequest};
 use crate::secrets::SecretStore;
 use crate::ssrf::{SsrfGuard, SsrfVerdict};
@@ -90,16 +90,14 @@ where
 
     // ---- 2. Read one decrypted request from the client ------------
     let mut head_buf = vec![0u8; 16 * 1024];
-    let n = read_until_headers(&mut client_tls, &mut head_buf).await
+    let n = read_until_headers(&mut client_tls, &mut head_buf)
+        .await
         .map_err(MitmError::Forwarding)?;
     let head = &head_buf[..n];
     let parsed = parse_head(head).ok_or(MitmError::MalformedRequest)?;
 
     // ---- 3. Policy + SSRF on the real (decrypted) URL --------------
-    let absolute_url = format!(
-        "https://{host}:{port}{path}",
-        path = parsed.target_path()
-    );
+    let absolute_url = format!("https://{host}:{port}{path}", path = parsed.target_path());
     let mut event = baseline_egress_request(
         "native",
         inspect.policy_id,
@@ -124,10 +122,13 @@ where
             event.outcome = EgressOutcome::PolicyDenied;
             event.status = Some(451);
             inspect.audit.record(event);
-            let _ = write_simple_response(&mut client_tls, 451, "Unavailable", "policy_denied").await;
+            let _ =
+                write_simple_response(&mut client_tls, 451, "Unavailable", "policy_denied").await;
             return Ok(());
         }
-        Decision::Allow { inject, rule_index, .. } => (inject.clone(), rule_index),
+        Decision::Allow {
+            inject, rule_index, ..
+        } => (inject.clone(), rule_index),
     };
     event.matched_rule_index = Some(matched_idx);
     event.inject = inject.type_name().to_string();
@@ -150,16 +151,12 @@ where
     let connector = TlsConnector::from(Arc::new(client_cfg));
     let server_name = ServerName::try_from(host.to_owned())
         .map_err(|e| MitmError::Config(format!("bad SNI {host}: {e}")))?;
-    let mut upstream_tls = match tokio::time::timeout(
-        timeout,
-        connector.connect(server_name, upstream_tcp),
-    )
-    .await
-    {
-        Ok(Ok(s)) => s,
-        Ok(Err(e)) => return Err(MitmError::UpstreamHandshake(e.to_string())),
-        Err(_) => return Err(MitmError::UpstreamHandshake("timeout".into())),
-    };
+    let mut upstream_tls =
+        match tokio::time::timeout(timeout, connector.connect(server_name, upstream_tcp)).await {
+            Ok(Ok(s)) => s,
+            Ok(Err(e)) => return Err(MitmError::UpstreamHandshake(e.to_string())),
+            Err(_) => return Err(MitmError::UpstreamHandshake("timeout".into())),
+        };
 
     // ---- 5. Replay the request to upstream with optional injection -
     let req_bytes = build_outbound_request(&parsed, &inject, inspect.secrets, host, port);
@@ -264,14 +261,8 @@ fn build_outbound_request(
     let mut out = String::with_capacity(1024);
     out.push_str(&format!("{} {} HTTP/1.1\r\n", parsed.method, parsed.target));
 
-    let injected_headers = resolve_injection(
-        inject,
-        secrets,
-        &parsed.method,
-        host,
-        port,
-        &parsed.target,
-    );
+    let injected_headers =
+        resolve_injection(inject, secrets, &parsed.method, host, port, &parsed.target);
 
     // Strip any header the broker is about to inject so the sandbox can't
     // smuggle a value in. Compare case-insensitively.
@@ -340,8 +331,9 @@ fn resolve_injection(
             _ => Vec::new(),
         },
         Inject::AwsSigV4 { profile } => match secrets.resolve_aws(profile) {
-            Some(creds) => sign_aws_v4(method, host, port, path_and_query, &creds)
-                .unwrap_or_default(),
+            Some(creds) => {
+                sign_aws_v4(method, host, port, path_and_query, &creds).unwrap_or_default()
+            }
             None => Vec::new(),
         },
         Inject::GcpIam { service_account } => match secrets.resolve_gcp(service_account) {
@@ -417,11 +409,7 @@ fn sign_aws_v4(
         .iter()
         .map(|(k, v)| format!("{k}:{}\n", v.trim()))
         .collect::<String>();
-    let signed_headers = signed
-        .iter()
-        .map(|(k, _)| *k)
-        .collect::<Vec<_>>()
-        .join(";");
+    let signed_headers = signed.iter().map(|(k, _)| *k).collect::<Vec<_>>().join(";");
 
     let canonical_request = format!(
         "{method}\n{canonical_uri}\n{canonical_query}\n{canonical_headers}\n{signed_headers}\n{payload_hash}"
@@ -499,10 +487,7 @@ fn canonicalize_query(query: &str) -> String {
     let mut pairs: Vec<(String, String)> = query
         .split('&')
         .map(|p| match p.split_once('=') {
-            Some((k, v)) => (
-                aws_uri_encode(k, false),
-                aws_uri_encode(v, false),
-            ),
+            Some((k, v)) => (aws_uri_encode(k, false), aws_uri_encode(v, false)),
             None => (aws_uri_encode(p, false), String::new()),
         })
         .collect();
@@ -541,8 +526,7 @@ mod base64ish {
     }
 
     pub fn encode(input: &[u8]) -> String {
-        const CHARSET: &[u8] =
-            b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
         let mut out = String::with_capacity((input.len() + 2) / 3 * 4);
         for chunk in input.chunks(3) {
             let b0 = chunk[0];
@@ -599,7 +583,8 @@ mod tests {
 
     #[test]
     fn parse_head_basic() {
-        let raw = b"GET /v1/messages HTTP/1.1\r\nHost: api.openai.com\r\nAuthorization: existing\r\n\r\n";
+        let raw =
+            b"GET /v1/messages HTTP/1.1\r\nHost: api.openai.com\r\nAuthorization: existing\r\n\r\n";
         let p = parse_head(raw).unwrap();
         assert_eq!(p.method, "GET");
         assert_eq!(p.target, "/v1/messages");

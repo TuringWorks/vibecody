@@ -8,26 +8,26 @@ use std::collections::HashMap;
 /// Supported quantum programming languages and frameworks.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum QuantumLanguage {
-    Qiskit,        // Python — IBM Quantum
-    Cirq,          // Python — Google Quantum AI
-    PennyLane,     // Python — Xanadu (differentiable quantum)
-    QSharp,        // Q# — Microsoft Azure Quantum
-    Quipper,       // Haskell-embedded — scalable quantum
-    Silq,          // High-level quantum language (ETH Zürich)
-    OpenQASM2,     // Open Quantum Assembly Language v2
-    OpenQASM3,     // Open Quantum Assembly Language v3
-    Scaffold,      // C-like quantum language (Princeton)
-    ProjectQ,      // Python — ETH Zürich
-    Strawberry,    // Strawberry Fields — Xanadu photonic
-    TKet,          // Quantinuum t|ket⟩ SDK
-    BraketSDK,     // Amazon Braket SDK
-    CudaQuantum,   // NVIDIA CUDA Quantum (C++ / Python)
-    Qulacs,        // C++/Python high-performance simulator
-    Stim,          // Google — stabilizer circuit simulator
-    Bloqade,       // QuEra — neutral atom quantum
-    IonQ,          // IonQ native SDK
-    QirAlliance,   // Quantum Intermediate Representation
-    Twist,         // MIT — purity-based quantum language
+    Qiskit,      // Python — IBM Quantum
+    Cirq,        // Python — Google Quantum AI
+    PennyLane,   // Python — Xanadu (differentiable quantum)
+    QSharp,      // Q# — Microsoft Azure Quantum
+    Quipper,     // Haskell-embedded — scalable quantum
+    Silq,        // High-level quantum language (ETH Zürich)
+    OpenQASM2,   // Open Quantum Assembly Language v2
+    OpenQASM3,   // Open Quantum Assembly Language v3
+    Scaffold,    // C-like quantum language (Princeton)
+    ProjectQ,    // Python — ETH Zürich
+    Strawberry,  // Strawberry Fields — Xanadu photonic
+    TKet,        // Quantinuum t|ket⟩ SDK
+    BraketSDK,   // Amazon Braket SDK
+    CudaQuantum, // NVIDIA CUDA Quantum (C++ / Python)
+    Qulacs,      // C++/Python high-performance simulator
+    Stim,        // Google — stabilizer circuit simulator
+    Bloqade,     // QuEra — neutral atom quantum
+    IonQ,        // IonQ native SDK
+    QirAlliance, // Quantum Intermediate Representation
+    Twist,       // MIT — purity-based quantum language
 }
 
 impl QuantumLanguage {
@@ -58,9 +58,15 @@ impl QuantumLanguage {
 
     pub fn host_language(&self) -> &'static str {
         match self {
-            Self::Qiskit | Self::Cirq | Self::PennyLane | Self::ProjectQ
-            | Self::Strawberry | Self::BraketSDK | Self::Qulacs
-            | Self::Bloqade | Self::IonQ => "Python",
+            Self::Qiskit
+            | Self::Cirq
+            | Self::PennyLane
+            | Self::ProjectQ
+            | Self::Strawberry
+            | Self::BraketSDK
+            | Self::Qulacs
+            | Self::Bloqade
+            | Self::IonQ => "Python",
             Self::QSharp => "Q# (standalone / Python host)",
             Self::Quipper => "Haskell",
             Self::Silq => "Silq (standalone)",
@@ -101,7 +107,9 @@ impl QuantumLanguage {
             Self::Qiskit => "pip install qiskit qiskit-aer qiskit-ibm-runtime",
             Self::Cirq => "pip install cirq",
             Self::PennyLane => "pip install pennylane pennylane-qiskit",
-            Self::QSharp => "dotnet new -i Microsoft.Quantum.ProjectTemplates && pip install qsharp",
+            Self::QSharp => {
+                "dotnet new -i Microsoft.Quantum.ProjectTemplates && pip install qsharp"
+            }
             Self::Quipper => "cabal install quipper",
             Self::Silq => "# Download from https://silq.ethz.ch",
             Self::OpenQASM2 | Self::OpenQASM3 => "pip install openqasm3",
@@ -122,7 +130,8 @@ impl QuantumLanguage {
 
     pub fn hello_circuit(&self) -> &'static str {
         match self {
-            Self::Qiskit => r#"from qiskit import QuantumCircuit
+            Self::Qiskit => {
+                r#"from qiskit import QuantumCircuit
 from qiskit_aer import AerSimulator
 
 qc = QuantumCircuit(2, 2)
@@ -133,8 +142,10 @@ qc.measure([0, 1], [0, 1])
 sim = AerSimulator()
 result = sim.run(qc, shots=1024).result()
 print(result.get_counts())
-"#,
-            Self::Cirq => r#"import cirq
+"#
+            }
+            Self::Cirq => {
+                r#"import cirq
 
 q0, q1 = cirq.LineQubit.range(2)
 circuit = cirq.Circuit([
@@ -146,8 +157,10 @@ circuit = cirq.Circuit([
 sim = cirq.Simulator()
 result = sim.run(circuit, repetitions=1024)
 print(result.histogram(key='result'))
-"#,
-            Self::QSharp => r#"namespace BellState {
+"#
+            }
+            Self::QSharp => {
+                r#"namespace BellState {
     open Microsoft.Quantum.Canon;
     open Microsoft.Quantum.Intrinsic;
     open Microsoft.Quantum.Measurement;
@@ -162,8 +175,10 @@ print(result.histogram(key='result'))
         return (r0, r1);
     }
 }
-"#,
-            Self::OpenQASM3 => r#"OPENQASM 3.0;
+"#
+            }
+            Self::OpenQASM3 => {
+                r#"OPENQASM 3.0;
 include "stdgates.inc";
 
 qubit[2] q;
@@ -173,8 +188,10 @@ h q[0];
 cx q[0], q[1];
 
 c = measure q;
-"#,
-            Self::PennyLane => r#"import pennylane as qml
+"#
+            }
+            Self::PennyLane => {
+                r#"import pennylane as qml
 from pennylane import numpy as np
 
 dev = qml.device("default.qubit", wires=2)
@@ -186,18 +203,34 @@ def bell_state():
     return qml.probs(wires=[0, 1])
 
 print(bell_state())
-"#,
+"#
+            }
             _ => "// See official documentation for this language's hello-world circuit.",
         }
     }
 
     pub fn all() -> Vec<QuantumLanguage> {
         vec![
-            Self::Qiskit, Self::Cirq, Self::PennyLane, Self::QSharp,
-            Self::Quipper, Self::Silq, Self::OpenQASM2, Self::OpenQASM3,
-            Self::Scaffold, Self::ProjectQ, Self::Strawberry, Self::TKet,
-            Self::BraketSDK, Self::CudaQuantum, Self::Qulacs, Self::Stim,
-            Self::Bloqade, Self::IonQ, Self::QirAlliance, Self::Twist,
+            Self::Qiskit,
+            Self::Cirq,
+            Self::PennyLane,
+            Self::QSharp,
+            Self::Quipper,
+            Self::Silq,
+            Self::OpenQASM2,
+            Self::OpenQASM3,
+            Self::Scaffold,
+            Self::ProjectQ,
+            Self::Strawberry,
+            Self::TKet,
+            Self::BraketSDK,
+            Self::CudaQuantum,
+            Self::Qulacs,
+            Self::Stim,
+            Self::Bloqade,
+            Self::IonQ,
+            Self::QirAlliance,
+            Self::Twist,
         ]
     }
 }
@@ -207,21 +240,21 @@ print(bell_state())
 /// Known quantum operating systems and control-plane software.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum QuantumOS {
-    QiskitRuntime,       // IBM Qiskit Runtime (cloud control plane)
-    AzureQuantum,        // Microsoft Azure Quantum resource manager
-    AmazonBraket,        // AWS Braket orchestration layer
-    CirqEngine,          // Google Quantum Engine (Cirq backend)
-    QuOS,                // Quantum Machines — QUA language runtime
-    Artiq,               // M-Labs — Advanced Real-Time Infrastructure for Quantum
-    QCtrl,               // Q-CTRL — firmware-level pulse optimisation
-    Mitiq,               // Unitary Fund — quantum error mitigation OS layer
-    Qibo,                // TII (UAE) — full-stack quantum OS
-    PulseOS,             // Oxford Quantum Circuits — pulse-level control
-    Staq,                // Princeton — full-stack quantum compiler OS
-    Delft,               // QuTech — quantum network OS (QNodeOS prototype)
-    FireOpal,            // Q-CTRL Fire Opal — automated error suppression
-    TrueQ,               // Keysight True-Q — characterisation & mitigation
-    Qcs,                 // Rigetti Quantum Cloud Services
+    QiskitRuntime, // IBM Qiskit Runtime (cloud control plane)
+    AzureQuantum,  // Microsoft Azure Quantum resource manager
+    AmazonBraket,  // AWS Braket orchestration layer
+    CirqEngine,    // Google Quantum Engine (Cirq backend)
+    QuOS,          // Quantum Machines — QUA language runtime
+    Artiq,         // M-Labs — Advanced Real-Time Infrastructure for Quantum
+    QCtrl,         // Q-CTRL — firmware-level pulse optimisation
+    Mitiq,         // Unitary Fund — quantum error mitigation OS layer
+    Qibo,          // TII (UAE) — full-stack quantum OS
+    PulseOS,       // Oxford Quantum Circuits — pulse-level control
+    Staq,          // Princeton — full-stack quantum compiler OS
+    Delft,         // QuTech — quantum network OS (QNodeOS prototype)
+    FireOpal,      // Q-CTRL Fire Opal — automated error suppression
+    TrueQ,         // Keysight True-Q — characterisation & mitigation
+    Qcs,           // Rigetti Quantum Cloud Services
 }
 
 impl QuantumOS {
@@ -247,8 +280,11 @@ impl QuantumOS {
 
     pub fn layer(&self) -> &'static str {
         match self {
-            Self::QiskitRuntime | Self::AzureQuantum | Self::AmazonBraket
-            | Self::CirqEngine | Self::Qcs => "Cloud orchestration",
+            Self::QiskitRuntime
+            | Self::AzureQuantum
+            | Self::AmazonBraket
+            | Self::CirqEngine
+            | Self::Qcs => "Cloud orchestration",
             Self::QuOS | Self::Artiq | Self::PulseOS => "Hardware control plane",
             Self::QCtrl | Self::FireOpal | Self::TrueQ => "Error mitigation / firmware",
             Self::Mitiq => "Error mitigation (software)",
@@ -279,10 +315,21 @@ impl QuantumOS {
 
     pub fn all() -> Vec<QuantumOS> {
         vec![
-            Self::QiskitRuntime, Self::AzureQuantum, Self::AmazonBraket,
-            Self::CirqEngine, Self::QuOS, Self::Artiq, Self::QCtrl,
-            Self::Mitiq, Self::Qibo, Self::PulseOS, Self::Staq,
-            Self::Delft, Self::FireOpal, Self::TrueQ, Self::Qcs,
+            Self::QiskitRuntime,
+            Self::AzureQuantum,
+            Self::AmazonBraket,
+            Self::CirqEngine,
+            Self::QuOS,
+            Self::Artiq,
+            Self::QCtrl,
+            Self::Mitiq,
+            Self::Qibo,
+            Self::PulseOS,
+            Self::Staq,
+            Self::Delft,
+            Self::FireOpal,
+            Self::TrueQ,
+            Self::Qcs,
         ]
     }
 }
@@ -373,8 +420,9 @@ impl QuantumAlgorithm {
 
     pub fn category(&self) -> &'static str {
         match self {
-            Self::Grover | Self::BernsteinVazirani | Self::DeutschJozsa
-            | Self::SimonProblem => "Oracle / search",
+            Self::Grover | Self::BernsteinVazirani | Self::DeutschJozsa | Self::SimonProblem => {
+                "Oracle / search"
+            }
             Self::Shor | Self::Qpe => "Number-theoretic",
             Self::Vqe | Self::Qaoa => "Variational (NISQ-friendly)",
             Self::Hhl | Self::QuantumMonteCarlo => "Linear algebra / simulation",
@@ -406,10 +454,21 @@ impl QuantumAlgorithm {
 
     pub fn all() -> Vec<QuantumAlgorithm> {
         vec![
-            Self::Grover, Self::Shor, Self::Vqe, Self::Qaoa, Self::Qpe,
-            Self::BernsteinVazirani, Self::DeutschJozsa, Self::SimonProblem,
-            Self::Hhl, Self::QuantumWalk, Self::QuantumMonteCarlo,
-            Self::Qsvm, Self::Qnn, Self::QuantumBoltzmann, Self::Dmrg,
+            Self::Grover,
+            Self::Shor,
+            Self::Vqe,
+            Self::Qaoa,
+            Self::Qpe,
+            Self::BernsteinVazirani,
+            Self::DeutschJozsa,
+            Self::SimonProblem,
+            Self::Hhl,
+            Self::QuantumWalk,
+            Self::QuantumMonteCarlo,
+            Self::Qsvm,
+            Self::Qnn,
+            Self::QuantumBoltzmann,
+            Self::Dmrg,
         ]
     }
 }
@@ -460,9 +519,15 @@ impl ErrorCorrectionCode {
 
     pub fn all() -> Vec<ErrorCorrectionCode> {
         vec![
-            Self::SurfaceCode, Self::SteaneCode, Self::ShorCode,
-            Self::ColorCode, Self::ToricCode, Self::BaconShorCode,
-            Self::CatCode, Self::GKPCode, Self::FlaggedFTEC,
+            Self::SurfaceCode,
+            Self::SteaneCode,
+            Self::ShorCode,
+            Self::ColorCode,
+            Self::ToricCode,
+            Self::BaconShorCode,
+            Self::CatCode,
+            Self::GKPCode,
+            Self::FlaggedFTEC,
         ]
     }
 }
@@ -472,20 +537,20 @@ impl ErrorCorrectionCode {
 /// A minimal quantum gate representation for circuit building.
 #[derive(Debug, Clone, PartialEq)]
 pub enum QuantumGate {
-    H(usize),                      // Hadamard
-    X(usize),                      // Pauli-X (NOT)
-    Y(usize),                      // Pauli-Y
-    Z(usize),                      // Pauli-Z
-    S(usize),                      // Phase (√Z)
-    T(usize),                      // π/8 gate (√S)
-    Rx(usize, f64),                // Rotation around X
-    Ry(usize, f64),                // Rotation around Y
-    Rz(usize, f64),                // Rotation around Z
-    Cnot(usize, usize),            // Controlled-NOT
-    CZ(usize, usize),              // Controlled-Z
-    Swap(usize, usize),            // SWAP
-    Toffoli(usize, usize, usize),  // CCX (Toffoli)
-    Measure(usize, usize),         // Measure qubit -> classical bit
+    H(usize),                     // Hadamard
+    X(usize),                     // Pauli-X (NOT)
+    Y(usize),                     // Pauli-Y
+    Z(usize),                     // Pauli-Z
+    S(usize),                     // Phase (√Z)
+    T(usize),                     // π/8 gate (√S)
+    Rx(usize, f64),               // Rotation around X
+    Ry(usize, f64),               // Rotation around Y
+    Rz(usize, f64),               // Rotation around Z
+    Cnot(usize, usize),           // Controlled-NOT
+    CZ(usize, usize),             // Controlled-Z
+    Swap(usize, usize),           // SWAP
+    Toffoli(usize, usize, usize), // CCX (Toffoli)
+    Measure(usize, usize),        // Measure qubit -> classical bit
 }
 
 impl QuantumGate {
@@ -510,9 +575,15 @@ impl QuantumGate {
 
     pub fn max_qubit(&self) -> usize {
         match self {
-            Self::H(q) | Self::X(q) | Self::Y(q) | Self::Z(q)
-            | Self::S(q) | Self::T(q)
-            | Self::Rx(q, _) | Self::Ry(q, _) | Self::Rz(q, _) => *q,
+            Self::H(q)
+            | Self::X(q)
+            | Self::Y(q)
+            | Self::Z(q)
+            | Self::S(q)
+            | Self::T(q)
+            | Self::Rx(q, _)
+            | Self::Ry(q, _)
+            | Self::Rz(q, _) => *q,
             Self::Cnot(a, b) | Self::CZ(a, b) | Self::Swap(a, b) => (*a).max(*b),
             Self::Toffoli(a, b, c) => (*a).max(*b).max(*c),
             Self::Measure(q, _) => *q,
@@ -554,9 +625,15 @@ impl QuantumCircuit {
         let mut qubit_depth = vec![0usize; self.num_qubits];
         for gate in &self.gates {
             match gate {
-                QuantumGate::H(q) | QuantumGate::X(q) | QuantumGate::Y(q)
-                | QuantumGate::Z(q) | QuantumGate::S(q) | QuantumGate::T(q)
-                | QuantumGate::Rx(q, _) | QuantumGate::Ry(q, _) | QuantumGate::Rz(q, _)
+                QuantumGate::H(q)
+                | QuantumGate::X(q)
+                | QuantumGate::Y(q)
+                | QuantumGate::Z(q)
+                | QuantumGate::S(q)
+                | QuantumGate::T(q)
+                | QuantumGate::Rx(q, _)
+                | QuantumGate::Ry(q, _)
+                | QuantumGate::Rz(q, _)
                 | QuantumGate::Measure(q, _) => {
                     if *q < self.num_qubits {
                         qubit_depth[*q] += 1;
@@ -583,9 +660,15 @@ impl QuantumCircuit {
     }
 
     pub fn two_qubit_gate_count(&self) -> usize {
-        self.gates.iter().filter(|g| matches!(g,
-            QuantumGate::Cnot(..) | QuantumGate::CZ(..) | QuantumGate::Swap(..)
-        )).count()
+        self.gates
+            .iter()
+            .filter(|g| {
+                matches!(
+                    g,
+                    QuantumGate::Cnot(..) | QuantumGate::CZ(..) | QuantumGate::Swap(..)
+                )
+            })
+            .count()
     }
 
     pub fn to_qasm3(&self) -> String {
@@ -657,8 +740,12 @@ impl QuantumCircuit {
                 QuantumGate::Cnot(c, t) => format!("    cirq.CNOT(qubits[{}], qubits[{}]),", c, t),
                 QuantumGate::CZ(c, t) => format!("    cirq.CZ(qubits[{}], qubits[{}]),", c, t),
                 QuantumGate::Swap(a, b) => format!("    cirq.SWAP(qubits[{}], qubits[{}]),", a, b),
-                QuantumGate::Toffoli(a, b, t) => format!("    cirq.CCX(qubits[{}], qubits[{}], qubits[{}]),", a, b, t),
-                QuantumGate::Measure(q, _) => format!("    cirq.measure(qubits[{}], key='m{}'),", q, q),
+                QuantumGate::Toffoli(a, b, t) => {
+                    format!("    cirq.CCX(qubits[{}], qubits[{}], qubits[{}]),", a, b, t)
+                }
+                QuantumGate::Measure(q, _) => {
+                    format!("    cirq.measure(qubits[{}], key='m{}'),", q, q)
+                }
             };
             out.push_str(&line);
             out.push('\n');
@@ -691,7 +778,9 @@ pub struct QuantumProject {
 }
 
 impl Default for QuantumComputingManager {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl QuantumComputingManager {
@@ -810,7 +899,8 @@ impl QuantumComputingManager {
     }
 
     pub fn set_hardware_pref(&mut self, key: &str, value: &str) {
-        self.hardware_prefs.insert(key.to_string(), value.to_string());
+        self.hardware_prefs
+            .insert(key.to_string(), value.to_string());
     }
 
     pub fn get_hardware_pref(&self, key: &str) -> Option<&String> {
@@ -838,15 +928,54 @@ impl QuantumComputingManager {
     /// Generate a compatibility matrix: which languages work on which OS.
     pub fn compatibility_matrix() -> Vec<(QuantumLanguage, Vec<QuantumOS>)> {
         vec![
-            (QuantumLanguage::Qiskit, vec![QuantumOS::QiskitRuntime, QuantumOS::AzureQuantum, QuantumOS::AmazonBraket]),
-            (QuantumLanguage::Cirq, vec![QuantumOS::CirqEngine, QuantumOS::AzureQuantum, QuantumOS::AmazonBraket]),
-            (QuantumLanguage::PennyLane, vec![QuantumOS::QiskitRuntime, QuantumOS::AmazonBraket, QuantumOS::CirqEngine]),
+            (
+                QuantumLanguage::Qiskit,
+                vec![
+                    QuantumOS::QiskitRuntime,
+                    QuantumOS::AzureQuantum,
+                    QuantumOS::AmazonBraket,
+                ],
+            ),
+            (
+                QuantumLanguage::Cirq,
+                vec![
+                    QuantumOS::CirqEngine,
+                    QuantumOS::AzureQuantum,
+                    QuantumOS::AmazonBraket,
+                ],
+            ),
+            (
+                QuantumLanguage::PennyLane,
+                vec![
+                    QuantumOS::QiskitRuntime,
+                    QuantumOS::AmazonBraket,
+                    QuantumOS::CirqEngine,
+                ],
+            ),
             (QuantumLanguage::QSharp, vec![QuantumOS::AzureQuantum]),
             (QuantumLanguage::BraketSDK, vec![QuantumOS::AmazonBraket]),
-            (QuantumLanguage::TKet, vec![QuantumOS::QiskitRuntime, QuantumOS::AzureQuantum, QuantumOS::AmazonBraket, QuantumOS::Qcs]),
-            (QuantumLanguage::CudaQuantum, vec![QuantumOS::QiskitRuntime, QuantumOS::CirqEngine]),
+            (
+                QuantumLanguage::TKet,
+                vec![
+                    QuantumOS::QiskitRuntime,
+                    QuantumOS::AzureQuantum,
+                    QuantumOS::AmazonBraket,
+                    QuantumOS::Qcs,
+                ],
+            ),
+            (
+                QuantumLanguage::CudaQuantum,
+                vec![QuantumOS::QiskitRuntime, QuantumOS::CirqEngine],
+            ),
             (QuantumLanguage::Bloqade, vec![QuantumOS::AmazonBraket]),
-            (QuantumLanguage::OpenQASM3, vec![QuantumOS::QiskitRuntime, QuantumOS::AzureQuantum, QuantumOS::AmazonBraket]),
+            (
+                QuantumLanguage::OpenQASM3,
+                vec![
+                    QuantumOS::QiskitRuntime,
+                    QuantumOS::AzureQuantum,
+                    QuantumOS::AmazonBraket,
+                ],
+            ),
         ]
     }
 }
@@ -864,21 +993,47 @@ impl Complex {
     pub const ONE: Self = Self { re: 1.0, im: 0.0 };
     pub const I: Self = Self { re: 0.0, im: 1.0 };
 
-    pub fn new(re: f64, im: f64) -> Self { Self { re, im } }
-    pub fn from_polar(r: f64, theta: f64) -> Self { Self { re: r * theta.cos(), im: r * theta.sin() } }
-    pub fn conj(self) -> Self { Self { re: self.re, im: -self.im } }
-    pub fn norm_sq(self) -> f64 { self.re * self.re + self.im * self.im }
-    pub fn norm(self) -> f64 { self.norm_sq().sqrt() }
+    pub fn new(re: f64, im: f64) -> Self {
+        Self { re, im }
+    }
+    pub fn from_polar(r: f64, theta: f64) -> Self {
+        Self {
+            re: r * theta.cos(),
+            im: r * theta.sin(),
+        }
+    }
+    pub fn conj(self) -> Self {
+        Self {
+            re: self.re,
+            im: -self.im,
+        }
+    }
+    pub fn norm_sq(self) -> f64 {
+        self.re * self.re + self.im * self.im
+    }
+    pub fn norm(self) -> f64 {
+        self.norm_sq().sqrt()
+    }
 }
 
 impl std::ops::Add for Complex {
     type Output = Self;
-    fn add(self, rhs: Self) -> Self { Self { re: self.re + rhs.re, im: self.im + rhs.im } }
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            re: self.re + rhs.re,
+            im: self.im + rhs.im,
+        }
+    }
 }
 
 impl std::ops::Sub for Complex {
     type Output = Self;
-    fn sub(self, rhs: Self) -> Self { Self { re: self.re - rhs.re, im: self.im - rhs.im } }
+    fn sub(self, rhs: Self) -> Self {
+        Self {
+            re: self.re - rhs.re,
+            im: self.im - rhs.im,
+        }
+    }
 }
 
 impl std::ops::Mul for Complex {
@@ -893,12 +1048,22 @@ impl std::ops::Mul for Complex {
 
 impl std::ops::Mul<f64> for Complex {
     type Output = Self;
-    fn mul(self, rhs: f64) -> Self { Self { re: self.re * rhs, im: self.im * rhs } }
+    fn mul(self, rhs: f64) -> Self {
+        Self {
+            re: self.re * rhs,
+            im: self.im * rhs,
+        }
+    }
 }
 
 impl std::ops::Neg for Complex {
     type Output = Self;
-    fn neg(self) -> Self { Self { re: -self.re, im: -self.im } }
+    fn neg(self) -> Self {
+        Self {
+            re: -self.re,
+            im: -self.im,
+        }
+    }
 }
 
 // ── Statevector Simulator ─────────────────────────────────────────────────────
@@ -911,12 +1076,29 @@ pub fn gate_h() -> GateMatrix {
     let c = Complex::new(s, 0.0);
     [[c, c], [c, Complex::new(-s, 0.0)]]
 }
-pub fn gate_x() -> GateMatrix { [[Complex::ZERO, Complex::ONE], [Complex::ONE, Complex::ZERO]] }
-pub fn gate_y() -> GateMatrix { [[Complex::ZERO, -Complex::I], [Complex::I, Complex::ZERO]] }
-pub fn gate_z() -> GateMatrix { [[Complex::ONE, Complex::ZERO], [Complex::ZERO, Complex::new(-1.0, 0.0)]] }
-pub fn gate_s() -> GateMatrix { [[Complex::ONE, Complex::ZERO], [Complex::ZERO, Complex::I]] }
+pub fn gate_x() -> GateMatrix {
+    [[Complex::ZERO, Complex::ONE], [Complex::ONE, Complex::ZERO]]
+}
+pub fn gate_y() -> GateMatrix {
+    [[Complex::ZERO, -Complex::I], [Complex::I, Complex::ZERO]]
+}
+pub fn gate_z() -> GateMatrix {
+    [
+        [Complex::ONE, Complex::ZERO],
+        [Complex::ZERO, Complex::new(-1.0, 0.0)],
+    ]
+}
+pub fn gate_s() -> GateMatrix {
+    [[Complex::ONE, Complex::ZERO], [Complex::ZERO, Complex::I]]
+}
 pub fn gate_t() -> GateMatrix {
-    [[Complex::ONE, Complex::ZERO], [Complex::ZERO, Complex::from_polar(1.0, std::f64::consts::FRAC_PI_4)]]
+    [
+        [Complex::ONE, Complex::ZERO],
+        [
+            Complex::ZERO,
+            Complex::from_polar(1.0, std::f64::consts::FRAC_PI_4),
+        ],
+    ]
 }
 pub fn gate_rx(theta: f64) -> GateMatrix {
     let c = Complex::new((theta / 2.0).cos(), 0.0);
@@ -929,14 +1111,16 @@ pub fn gate_ry(theta: f64) -> GateMatrix {
     [[c, -s], [s, c]]
 }
 pub fn gate_rz(theta: f64) -> GateMatrix {
-    [[Complex::from_polar(1.0, -theta / 2.0), Complex::ZERO],
-     [Complex::ZERO, Complex::from_polar(1.0, theta / 2.0)]]
+    [
+        [Complex::from_polar(1.0, -theta / 2.0), Complex::ZERO],
+        [Complex::ZERO, Complex::from_polar(1.0, theta / 2.0)],
+    ]
 }
 
 /// Simulation result returned to the frontend.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct SimulationResult {
-    pub amplitudes: Vec<(String, f64, f64)>,  // (basis_label, re, im)
+    pub amplitudes: Vec<(String, f64, f64)>, // (basis_label, re, im)
     pub probabilities: Vec<(String, f64)>,
     pub samples: std::collections::HashMap<String, usize>,
     pub num_qubits: usize,
@@ -1038,14 +1222,18 @@ impl StatevectorSimulator {
             QuantumGate::Cnot(c, t) => self.apply_controlled(*c, *t, &gate_x()),
             QuantumGate::CZ(c, t) => self.apply_controlled(*c, *t, &gate_z()),
             QuantumGate::Swap(a, b) => self.apply_swap(*a, *b),
-            QuantumGate::Toffoli(c1, c2, t) => self.apply_double_controlled(*c1, *c2, *t, &gate_x()),
+            QuantumGate::Toffoli(c1, c2, t) => {
+                self.apply_double_controlled(*c1, *c2, *t, &gate_x())
+            }
             QuantumGate::Measure(_, _) => {} // measurement handled separately
         }
     }
 
     /// Get probability of each computational basis state.
     pub fn probabilities(&self) -> Vec<(String, f64)> {
-        self.state.iter().enumerate()
+        self.state
+            .iter()
+            .enumerate()
             .map(|(i, amp)| {
                 let label = format!("{:0>width$b}", i, width = self.num_qubits);
                 (label, amp.norm_sq())
@@ -1056,7 +1244,9 @@ impl StatevectorSimulator {
 
     /// Get full amplitudes as (label, re, im) triples.
     pub fn amplitudes(&self) -> Vec<(String, f64, f64)> {
-        self.state.iter().enumerate()
+        self.state
+            .iter()
+            .enumerate()
             .map(|(i, amp)| {
                 let label = format!("{:0>width$b}", i, width = self.num_qubits);
                 (label, amp.re, amp.im)
@@ -1092,14 +1282,20 @@ impl StatevectorSimulator {
                 .as_nanos()
                 .hash(&mut h);
             let r = (h.finish() % 1_000_000) as f64 / 1_000_000.0;
-            let idx = cumulative.iter().position(|c| r < *c).unwrap_or(probs.len() - 1);
+            let idx = cumulative
+                .iter()
+                .position(|c| r < *c)
+                .unwrap_or(probs.len() - 1);
             *counts.entry(probs[idx].0.clone()).or_insert(0) += 1;
         }
         counts
     }
 
     /// Simulate an entire circuit and return results.
-    pub fn simulate_circuit(circuit: &QuantumCircuit, shots: usize) -> Result<SimulationResult, String> {
+    pub fn simulate_circuit(
+        circuit: &QuantumCircuit,
+        shots: usize,
+    ) -> Result<SimulationResult, String> {
         let mut sim = Self::new(circuit.num_qubits)?;
         for gate in &circuit.gates {
             sim.apply_gate(gate);
@@ -1140,7 +1336,9 @@ impl CircuitOptimizer {
             let before = gates.len();
             gates = Self::cancel_identities(&gates, &mut rules);
             gates = Self::merge_rotations(&gates, &mut rules);
-            if gates.len() == before { break; }
+            if gates.len() == before {
+                break;
+            }
         }
 
         let optimized = QuantumCircuit {
@@ -1152,7 +1350,9 @@ impl CircuitOptimizer {
         let opt_count = optimized.gate_count();
         let savings = if original_count > 0 {
             ((original_count - opt_count) as f64 / original_count as f64) * 100.0
-        } else { 0.0 };
+        } else {
+            0.0
+        };
 
         let result = OptimizationResult {
             original_gate_count: original_count,
@@ -1173,25 +1373,47 @@ impl CircuitOptimizer {
                 let (a, b) = (&gates[i], &gates[i + 1]);
                 // Self-inverse gates: HH, XX, YY, ZZ, CNOT·CNOT
                 let cancelled = match (a, b) {
-                    (QuantumGate::H(q1), QuantumGate::H(q2)) if q1 == q2 => { rules.push(format!("HH→I on q{}", q1)); true }
-                    (QuantumGate::X(q1), QuantumGate::X(q2)) if q1 == q2 => { rules.push(format!("XX→I on q{}", q1)); true }
-                    (QuantumGate::Y(q1), QuantumGate::Y(q2)) if q1 == q2 => { rules.push(format!("YY→I on q{}", q1)); true }
-                    (QuantumGate::Z(q1), QuantumGate::Z(q2)) if q1 == q2 => { rules.push(format!("ZZ→I on q{}", q1)); true }
-                    (QuantumGate::Cnot(c1, t1), QuantumGate::Cnot(c2, t2)) if c1 == c2 && t1 == t2 => { rules.push(format!("CNOT·CNOT→I on q{},q{}", c1, t1)); true }
+                    (QuantumGate::H(q1), QuantumGate::H(q2)) if q1 == q2 => {
+                        rules.push(format!("HH→I on q{}", q1));
+                        true
+                    }
+                    (QuantumGate::X(q1), QuantumGate::X(q2)) if q1 == q2 => {
+                        rules.push(format!("XX→I on q{}", q1));
+                        true
+                    }
+                    (QuantumGate::Y(q1), QuantumGate::Y(q2)) if q1 == q2 => {
+                        rules.push(format!("YY→I on q{}", q1));
+                        true
+                    }
+                    (QuantumGate::Z(q1), QuantumGate::Z(q2)) if q1 == q2 => {
+                        rules.push(format!("ZZ→I on q{}", q1));
+                        true
+                    }
+                    (QuantumGate::Cnot(c1, t1), QuantumGate::Cnot(c2, t2))
+                        if c1 == c2 && t1 == t2 =>
+                    {
+                        rules.push(format!("CNOT·CNOT→I on q{},q{}", c1, t1));
+                        true
+                    }
                     _ => false,
                 };
-                if cancelled { i += 2; continue; }
+                if cancelled {
+                    i += 2;
+                    continue;
+                }
                 // SS→Z, TT→S
                 match (a, b) {
                     (QuantumGate::S(q1), QuantumGate::S(q2)) if q1 == q2 => {
                         rules.push(format!("SS→Z on q{}", q1));
                         result.push(QuantumGate::Z(*q1));
-                        i += 2; continue;
+                        i += 2;
+                        continue;
                     }
                     (QuantumGate::T(q1), QuantumGate::T(q2)) if q1 == q2 => {
                         rules.push(format!("TT→S on q{}", q1));
                         result.push(QuantumGate::S(*q1));
-                        i += 2; continue;
+                        i += 2;
+                        continue;
                     }
                     _ => {}
                 }
@@ -1211,24 +1433,39 @@ impl CircuitOptimizer {
                     (QuantumGate::Rx(q1, a), QuantumGate::Rx(q2, b)) if q1 == q2 => {
                         let sum = a + b;
                         rules.push(format!("Rx merge on q{}: {:.3}+{:.3}={:.3}", q1, a, b, sum));
-                        if sum.abs() < 1e-10 || (sum - 2.0 * std::f64::consts::PI).abs() < 1e-10 { None }
-                        else { Some(QuantumGate::Rx(*q1, sum)) }
+                        if sum.abs() < 1e-10 || (sum - 2.0 * std::f64::consts::PI).abs() < 1e-10 {
+                            None
+                        } else {
+                            Some(QuantumGate::Rx(*q1, sum))
+                        }
                     }
                     (QuantumGate::Ry(q1, a), QuantumGate::Ry(q2, b)) if q1 == q2 => {
                         let sum = a + b;
                         rules.push(format!("Ry merge on q{}: {:.3}+{:.3}={:.3}", q1, a, b, sum));
-                        if sum.abs() < 1e-10 || (sum - 2.0 * std::f64::consts::PI).abs() < 1e-10 { None }
-                        else { Some(QuantumGate::Ry(*q1, sum)) }
+                        if sum.abs() < 1e-10 || (sum - 2.0 * std::f64::consts::PI).abs() < 1e-10 {
+                            None
+                        } else {
+                            Some(QuantumGate::Ry(*q1, sum))
+                        }
                     }
                     (QuantumGate::Rz(q1, a), QuantumGate::Rz(q2, b)) if q1 == q2 => {
                         let sum = a + b;
                         rules.push(format!("Rz merge on q{}: {:.3}+{:.3}={:.3}", q1, a, b, sum));
-                        if sum.abs() < 1e-10 || (sum - 2.0 * std::f64::consts::PI).abs() < 1e-10 { None }
-                        else { Some(QuantumGate::Rz(*q1, sum)) }
+                        if sum.abs() < 1e-10 || (sum - 2.0 * std::f64::consts::PI).abs() < 1e-10 {
+                            None
+                        } else {
+                            Some(QuantumGate::Rz(*q1, sum))
+                        }
                     }
-                    _ => { result.push(gates[i].clone()); i += 1; continue; }
+                    _ => {
+                        result.push(gates[i].clone());
+                        i += 1;
+                        continue;
+                    }
                 };
-                if let Some(g) = merged { result.push(g); }
+                if let Some(g) = merged {
+                    result.push(g);
+                }
                 i += 2;
                 continue;
             }
@@ -1260,7 +1497,9 @@ impl AlgorithmTemplates {
         for i in 0..n - 1 {
             c.add_gate(QuantumGate::Cnot(0, i + 1));
         }
-        for i in 0..n { c.add_gate(QuantumGate::Measure(i, i)); }
+        for i in 0..n {
+            c.add_gate(QuantumGate::Measure(i, i));
+        }
         c
     }
 
@@ -1310,13 +1549,19 @@ impl AlgorithmTemplates {
         // Prepare ancilla in |1⟩
         c.add_gate(QuantumGate::X(n));
         // Hadamard all qubits
-        for i in 0..=n { c.add_gate(QuantumGate::H(i)); }
+        for i in 0..=n {
+            c.add_gate(QuantumGate::H(i));
+        }
         // Oracle: balanced function f(x) = x_0 (CNOT from q0 to ancilla)
         c.add_gate(QuantumGate::Cnot(0, n));
         // Hadamard on input qubits
-        for i in 0..n { c.add_gate(QuantumGate::H(i)); }
+        for i in 0..n {
+            c.add_gate(QuantumGate::H(i));
+        }
         // Measure input qubits
-        for i in 0..n { c.add_gate(QuantumGate::Measure(i, i)); }
+        for i in 0..n {
+            c.add_gate(QuantumGate::Measure(i, i));
+        }
         c
     }
 
@@ -1327,15 +1572,23 @@ impl AlgorithmTemplates {
         // Prepare ancilla
         c.add_gate(QuantumGate::X(n));
         // Hadamard all
-        for i in 0..=n { c.add_gate(QuantumGate::H(i)); }
+        for i in 0..=n {
+            c.add_gate(QuantumGate::H(i));
+        }
         // Oracle: CNOT from q_i to ancilla where secret bit is 1
         for (i, &bit) in bits.iter().enumerate() {
-            if bit { c.add_gate(QuantumGate::Cnot(i, n)); }
+            if bit {
+                c.add_gate(QuantumGate::Cnot(i, n));
+            }
         }
         // Hadamard on input qubits
-        for i in 0..n { c.add_gate(QuantumGate::H(i)); }
+        for i in 0..n {
+            c.add_gate(QuantumGate::H(i));
+        }
         // Measure
-        for i in 0..n { c.add_gate(QuantumGate::Measure(i, i)); }
+        for i in 0..n {
+            c.add_gate(QuantumGate::Measure(i, i));
+        }
         c
     }
 
@@ -1354,7 +1607,9 @@ impl AlgorithmTemplates {
                 c.add_gate(QuantumGate::Cnot(q, q + 1));
             }
         }
-        for i in 0..n { c.add_gate(QuantumGate::Measure(i, i)); }
+        for i in 0..n {
+            c.add_gate(QuantumGate::Measure(i, i));
+        }
         c
     }
 
@@ -1362,7 +1617,9 @@ impl AlgorithmTemplates {
         let n = n.clamp(2, 16);
         let mut c = QuantumCircuit::new(&format!("QAOA {}-qubit", n), n, n);
         // Initial superposition
-        for q in 0..n { c.add_gate(QuantumGate::H(q)); }
+        for q in 0..n {
+            c.add_gate(QuantumGate::H(q));
+        }
         // Cost layer: ZZ interactions on nearest-neighbor pairs
         for q in 0..n - 1 {
             c.add_gate(QuantumGate::Cnot(q, q + 1));
@@ -1370,14 +1627,24 @@ impl AlgorithmTemplates {
             c.add_gate(QuantumGate::Cnot(q, q + 1));
         }
         // Mixer layer: Rx on all qubits
-        for q in 0..n { c.add_gate(QuantumGate::Rx(q, 2.0 * beta)); }
-        for i in 0..n { c.add_gate(QuantumGate::Measure(i, i)); }
+        for q in 0..n {
+            c.add_gate(QuantumGate::Rx(q, 2.0 * beta));
+        }
+        for i in 0..n {
+            c.add_gate(QuantumGate::Measure(i, i));
+        }
         c
     }
 
     /// Generic entry point: get a template by name with optional params.
-    pub fn get_template(name: &str, params: &std::collections::HashMap<String, String>) -> Result<QuantumCircuit, String> {
-        let n = params.get("qubits").and_then(|v| v.parse().ok()).unwrap_or(3);
+    pub fn get_template(
+        name: &str,
+        params: &std::collections::HashMap<String, String>,
+    ) -> Result<QuantumCircuit, String> {
+        let n = params
+            .get("qubits")
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(3);
         match name.to_lowercase().replace(['-', '_', ' '], "").as_str() {
             "bell" | "bellstate" => Ok(Self::bell_state()),
             "ghz" | "ghzstate" => Ok(Self::ghz_state(n)),
@@ -1389,12 +1656,21 @@ impl AlgorithmTemplates {
                 Ok(Self::bernstein_vazirani(secret))
             }
             "vqe" | "vqeansatz" => {
-                let layers = params.get("layers").and_then(|v| v.parse().ok()).unwrap_or(2);
+                let layers = params
+                    .get("layers")
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(2);
                 Ok(Self::vqe_ansatz(n, layers))
             }
             "qaoa" => {
-                let gamma = params.get("gamma").and_then(|v| v.parse().ok()).unwrap_or(0.5);
-                let beta = params.get("beta").and_then(|v| v.parse().ok()).unwrap_or(0.5);
+                let gamma = params
+                    .get("gamma")
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(0.5);
+                let beta = params
+                    .get("beta")
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(0.5);
                 Ok(Self::qaoa_layer(n, gamma, beta))
             }
             _ => Err(format!("Unknown algorithm template: {}", name)),
@@ -1408,9 +1684,15 @@ impl AlgorithmTemplates {
             ("GHZ", "N-qubit GHZ state: maximally entangled"),
             ("QFT", "Quantum Fourier Transform"),
             ("Grover 2-qubit", "Grover's search on 2 qubits"),
-            ("Deutsch-Jozsa", "Determines if function is constant or balanced"),
+            (
+                "Deutsch-Jozsa",
+                "Determines if function is constant or balanced",
+            ),
             ("Bernstein-Vazirani", "Finds hidden bit string in one query"),
-            ("VQE Ansatz", "Variational Quantum Eigensolver ansatz circuit"),
+            (
+                "VQE Ansatz",
+                "Variational Quantum Eigensolver ansatz circuit",
+            ),
             ("QAOA", "Quantum Approximate Optimization Algorithm"),
         ]
     }
@@ -1432,9 +1714,32 @@ impl CostEstimator {
     /// IBM Quantum: $1.60/second runtime
     pub fn estimate_ibm(circuit: &QuantumCircuit, shots: usize) -> CostEstimate {
         // Gate times: single ~35ns, CNOT ~300ns, readout ~1μs
-        let single_ns: f64 = circuit.gates.iter().filter(|g| matches!(g, QuantumGate::H(_) | QuantumGate::X(_) | QuantumGate::Y(_) | QuantumGate::Z(_) | QuantumGate::S(_) | QuantumGate::T(_) | QuantumGate::Rx(..) | QuantumGate::Ry(..) | QuantumGate::Rz(..))).count() as f64 * 35.0;
+        let single_ns: f64 = circuit
+            .gates
+            .iter()
+            .filter(|g| {
+                matches!(
+                    g,
+                    QuantumGate::H(_)
+                        | QuantumGate::X(_)
+                        | QuantumGate::Y(_)
+                        | QuantumGate::Z(_)
+                        | QuantumGate::S(_)
+                        | QuantumGate::T(_)
+                        | QuantumGate::Rx(..)
+                        | QuantumGate::Ry(..)
+                        | QuantumGate::Rz(..)
+                )
+            })
+            .count() as f64
+            * 35.0;
         let two_q_ns = circuit.two_qubit_gate_count() as f64 * 300.0;
-        let measure_ns = circuit.gates.iter().filter(|g| matches!(g, QuantumGate::Measure(..))).count() as f64 * 1000.0;
+        let measure_ns = circuit
+            .gates
+            .iter()
+            .filter(|g| matches!(g, QuantumGate::Measure(..)))
+            .count() as f64
+            * 1000.0;
         let total_ns_per_shot = single_ns + two_q_ns + measure_ns;
         let total_seconds = total_ns_per_shot * shots as f64 / 1e9;
         let cost = total_seconds * 1.60;
@@ -1461,7 +1766,9 @@ impl CostEstimator {
                 ("Task fee".to_string(), task_cost),
                 (format!("{} shots × $0.00145", shots), shot_cost),
             ],
-            notes: vec!["IonQ Aria via Braket. Rigetti: $0.00035/shot, Simulators: $0.075/min".to_string()],
+            notes: vec![
+                "IonQ Aria via Braket. Rigetti: $0.00035/shot, Simulators: $0.075/min".to_string(),
+            ],
         }
     }
 
@@ -1476,8 +1783,18 @@ impl CostEstimator {
             provider: "IonQ (direct)".to_string(),
             estimated_cost_usd: total,
             breakdown: vec![
-                (format!("{} 1Q gates × {} shots × $0.00003", single_gates, shots), single_cost),
-                (format!("{} 2Q gates × {} shots × $0.0003", circuit.two_qubit_gate_count(), shots), two_q_cost),
+                (
+                    format!("{} 1Q gates × {} shots × $0.00003", single_gates, shots),
+                    single_cost,
+                ),
+                (
+                    format!(
+                        "{} 2Q gates × {} shots × $0.0003",
+                        circuit.two_qubit_gate_count(),
+                        shots
+                    ),
+                    two_q_cost,
+                ),
                 (format!("{} shots × $0.01", shots), shot_cost),
             ],
             notes: vec!["IonQ Aria direct access pricing".to_string()],
@@ -1505,13 +1822,20 @@ pub struct ScaffoldFile {
 pub struct ProjectScaffolder;
 
 impl ProjectScaffolder {
-    pub fn scaffold(language: &str, name: &str, num_qubits: usize) -> Result<Vec<ScaffoldFile>, String> {
+    pub fn scaffold(
+        language: &str,
+        name: &str,
+        num_qubits: usize,
+    ) -> Result<Vec<ScaffoldFile>, String> {
         match language.to_lowercase().as_str() {
             "qiskit" => Ok(Self::scaffold_qiskit(name, num_qubits)),
             "cirq" => Ok(Self::scaffold_cirq(name, num_qubits)),
             "pennylane" => Ok(Self::scaffold_pennylane(name, num_qubits)),
             "q#" | "qsharp" => Ok(Self::scaffold_qsharp(name, num_qubits)),
-            _ => Err(format!("Unsupported language for scaffolding: {}", language)),
+            _ => Err(format!(
+                "Unsupported language for scaffolding: {}",
+                language
+            )),
         }
     }
 
@@ -1675,7 +1999,10 @@ mod tests {
 
     #[test]
     fn test_hardware_type_name() {
-        assert_eq!(QuantumHardwareType::Superconducting.name(), "Superconducting transmon");
+        assert_eq!(
+            QuantumHardwareType::Superconducting.name(),
+            "Superconducting transmon"
+        );
         assert_eq!(QuantumHardwareType::TrappedIon.name(), "Trapped-ion");
     }
 
@@ -1729,7 +2056,10 @@ mod tests {
 
     #[test]
     fn test_qml_algorithms() {
-        assert_eq!(QuantumAlgorithm::Qsvm.category(), "Quantum machine learning");
+        assert_eq!(
+            QuantumAlgorithm::Qsvm.category(),
+            "Quantum machine learning"
+        );
         assert_eq!(QuantumAlgorithm::Qnn.category(), "Quantum machine learning");
     }
 
@@ -1772,7 +2102,10 @@ mod tests {
 
     #[test]
     fn test_gate_qasm3_toffoli() {
-        assert_eq!(QuantumGate::Toffoli(0, 1, 2).qasm3(), "ccx q[0], q[1], q[2];");
+        assert_eq!(
+            QuantumGate::Toffoli(0, 1, 2).qasm3(),
+            "ccx q[0], q[1], q[2];"
+        );
     }
 
     #[test]
@@ -1910,7 +2243,13 @@ mod tests {
     #[test]
     fn test_get_project() {
         let mut mgr = make_manager();
-        let id = mgr.create_project("test", QuantumLanguage::Cirq, QuantumHardwareType::Superconducting, 5, "test");
+        let id = mgr.create_project(
+            "test",
+            QuantumLanguage::Cirq,
+            QuantumHardwareType::Superconducting,
+            5,
+            "test",
+        );
         let p = mgr.get_project(&id).expect("project should exist");
         assert_eq!(p.language, QuantumLanguage::Cirq);
         assert_eq!(p.num_qubits, 5);
@@ -1925,7 +2264,13 @@ mod tests {
     #[test]
     fn test_set_project_os() {
         let mut mgr = make_manager();
-        let id = mgr.create_project("test", QuantumLanguage::Qiskit, QuantumHardwareType::Superconducting, 2, "test");
+        let id = mgr.create_project(
+            "test",
+            QuantumLanguage::Qiskit,
+            QuantumHardwareType::Superconducting,
+            2,
+            "test",
+        );
         assert!(mgr.set_project_os(&id, QuantumOS::QiskitRuntime));
         let p = mgr.get_project(&id).unwrap();
         assert_eq!(p.target_os, Some(QuantumOS::QiskitRuntime));
@@ -1940,7 +2285,13 @@ mod tests {
     #[test]
     fn test_set_project_algorithm() {
         let mut mgr = make_manager();
-        let id = mgr.create_project("test", QuantumLanguage::Qiskit, QuantumHardwareType::Superconducting, 2, "test");
+        let id = mgr.create_project(
+            "test",
+            QuantumLanguage::Qiskit,
+            QuantumHardwareType::Superconducting,
+            2,
+            "test",
+        );
         assert!(mgr.set_project_algorithm(&id, QuantumAlgorithm::Grover));
         let p = mgr.get_project(&id).unwrap();
         assert_eq!(p.algorithm, Some(QuantumAlgorithm::Grover));
@@ -1949,7 +2300,13 @@ mod tests {
     #[test]
     fn test_set_project_ecc() {
         let mut mgr = make_manager();
-        let id = mgr.create_project("test", QuantumLanguage::Qiskit, QuantumHardwareType::Superconducting, 10, "test");
+        let id = mgr.create_project(
+            "test",
+            QuantumLanguage::Qiskit,
+            QuantumHardwareType::Superconducting,
+            10,
+            "test",
+        );
         assert!(mgr.set_project_ecc(&id, ErrorCorrectionCode::SurfaceCode));
         let p = mgr.get_project(&id).unwrap();
         assert_eq!(p.error_correction, Some(ErrorCorrectionCode::SurfaceCode));
@@ -1958,7 +2315,13 @@ mod tests {
     #[test]
     fn test_delete_project() {
         let mut mgr = make_manager();
-        let id = mgr.create_project("test", QuantumLanguage::Qiskit, QuantumHardwareType::Superconducting, 2, "test");
+        let id = mgr.create_project(
+            "test",
+            QuantumLanguage::Qiskit,
+            QuantumHardwareType::Superconducting,
+            2,
+            "test",
+        );
         assert!(mgr.delete_project(&id));
         assert!(mgr.projects.is_empty());
     }
@@ -1972,8 +2335,20 @@ mod tests {
     #[test]
     fn test_list_projects() {
         let mut mgr = make_manager();
-        mgr.create_project("a", QuantumLanguage::Qiskit, QuantumHardwareType::Superconducting, 2, "a");
-        mgr.create_project("b", QuantumLanguage::Cirq, QuantumHardwareType::TrappedIon, 5, "b");
+        mgr.create_project(
+            "a",
+            QuantumLanguage::Qiskit,
+            QuantumHardwareType::Superconducting,
+            2,
+            "a",
+        );
+        mgr.create_project(
+            "b",
+            QuantumLanguage::Cirq,
+            QuantumHardwareType::TrappedIon,
+            5,
+            "b",
+        );
         assert_eq!(mgr.list_projects().len(), 2);
     }
 
@@ -2063,14 +2438,26 @@ mod tests {
     #[test]
     fn test_estimate_physical_qubits_no_ecc() {
         let mut mgr = make_manager();
-        let id = mgr.create_project("test", QuantumLanguage::Qiskit, QuantumHardwareType::Superconducting, 10, "test");
+        let id = mgr.create_project(
+            "test",
+            QuantumLanguage::Qiskit,
+            QuantumHardwareType::Superconducting,
+            10,
+            "test",
+        );
         assert_eq!(mgr.estimate_physical_qubits(&id), Some(10));
     }
 
     #[test]
     fn test_estimate_physical_qubits_surface_code() {
         let mut mgr = make_manager();
-        let id = mgr.create_project("test", QuantumLanguage::Qiskit, QuantumHardwareType::Superconducting, 10, "test");
+        let id = mgr.create_project(
+            "test",
+            QuantumLanguage::Qiskit,
+            QuantumHardwareType::Superconducting,
+            10,
+            "test",
+        );
         mgr.set_project_ecc(&id, ErrorCorrectionCode::SurfaceCode);
         assert_eq!(mgr.estimate_physical_qubits(&id), Some(10_000));
     }
@@ -2078,7 +2465,13 @@ mod tests {
     #[test]
     fn test_estimate_physical_qubits_steane() {
         let mut mgr = make_manager();
-        let id = mgr.create_project("test", QuantumLanguage::Qiskit, QuantumHardwareType::Superconducting, 10, "test");
+        let id = mgr.create_project(
+            "test",
+            QuantumLanguage::Qiskit,
+            QuantumHardwareType::Superconducting,
+            10,
+            "test",
+        );
         mgr.set_project_ecc(&id, ErrorCorrectionCode::SteaneCode);
         assert_eq!(mgr.estimate_physical_qubits(&id), Some(70));
     }
@@ -2101,8 +2494,20 @@ mod tests {
     #[test]
     fn test_id_generation_unique() {
         let mut mgr = make_manager();
-        let id1 = mgr.create_project("a", QuantumLanguage::Qiskit, QuantumHardwareType::Superconducting, 1, "a");
-        let id2 = mgr.create_project("b", QuantumLanguage::Cirq, QuantumHardwareType::TrappedIon, 2, "b");
+        let id1 = mgr.create_project(
+            "a",
+            QuantumLanguage::Qiskit,
+            QuantumHardwareType::Superconducting,
+            1,
+            "a",
+        );
+        let id2 = mgr.create_project(
+            "b",
+            QuantumLanguage::Cirq,
+            QuantumHardwareType::TrappedIon,
+            2,
+            "b",
+        );
         assert_ne!(id1, id2);
     }
 
@@ -2278,7 +2683,7 @@ mod tests {
         sim.apply_gate(&QuantumGate::X(0)); // |001⟩ -> bit 0 = 1
         sim.apply_gate(&QuantumGate::X(1)); // |011⟩ -> bit 1 = 1
         sim.apply_gate(&QuantumGate::Toffoli(0, 1, 2)); // both controls on -> flip target
-        // State should be |111⟩ = index 0b111 = 7
+                                                        // State should be |111⟩ = index 0b111 = 7
         assert!((sim.state[7].re - 1.0).abs() < 1e-10);
     }
 
@@ -2336,7 +2741,9 @@ mod tests {
         assert_eq!(opt.gate_count(), 1);
         if let QuantumGate::Rx(_, angle) = opt.gates[0] {
             assert!((angle - 0.8).abs() < 1e-10);
-        } else { panic!("Expected Rx gate"); }
+        } else {
+            panic!("Expected Rx gate");
+        }
         assert!(result.rules_applied.iter().any(|r| r.contains("Rx merge")));
     }
 

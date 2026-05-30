@@ -96,7 +96,8 @@ pub fn scan_project(workspace: &Path) -> ProjectSignals {
     }
 
     // README
-    signals.has_readme = workspace.join("README.md").exists() || workspace.join("readme.md").exists();
+    signals.has_readme =
+        workspace.join("README.md").exists() || workspace.join("readme.md").exists();
 
     // Extract description from README first line
     if signals.has_readme {
@@ -170,7 +171,13 @@ pub fn scan_project(workspace: &Path) -> ProjectSignals {
         || workspace.join("src/test").exists();
     // Also check for test config files
     if !signals.has_tests {
-        for name in &["jest.config.js", "jest.config.ts", "vitest.config.ts", "pytest.ini", "pyproject.toml"] {
+        for name in &[
+            "jest.config.js",
+            "jest.config.ts",
+            "vitest.config.ts",
+            "pytest.ini",
+            "pyproject.toml",
+        ] {
             if workspace.join(name).exists() {
                 signals.has_tests = true;
                 break;
@@ -211,13 +218,27 @@ fn detect_languages_and_frameworks(workspace: &Path, signals: &mut ProjectSignal
     if workspace.join("Cargo.toml").exists() {
         signals.languages.push("Rust".to_string());
         if let Ok(content) = std::fs::read_to_string(workspace.join("Cargo.toml")) {
-            if content.contains("actix") { signals.frameworks.push("Actix".to_string()); }
-            if content.contains("axum") { signals.frameworks.push("Axum".to_string()); }
-            if content.contains("rocket") { signals.frameworks.push("Rocket".to_string()); }
-            if content.contains("tauri") { signals.frameworks.push("Tauri".to_string()); }
-            if content.contains("tokio") { signals.frameworks.push("Tokio".to_string()); }
-            if content.contains("ratatui") { signals.frameworks.push("Ratatui".to_string()); }
-            if content.contains("wasm") { signals.frameworks.push("WASM".to_string()); }
+            if content.contains("actix") {
+                signals.frameworks.push("Actix".to_string());
+            }
+            if content.contains("axum") {
+                signals.frameworks.push("Axum".to_string());
+            }
+            if content.contains("rocket") {
+                signals.frameworks.push("Rocket".to_string());
+            }
+            if content.contains("tauri") {
+                signals.frameworks.push("Tauri".to_string());
+            }
+            if content.contains("tokio") {
+                signals.frameworks.push("Tokio".to_string());
+            }
+            if content.contains("ratatui") {
+                signals.frameworks.push("Ratatui".to_string());
+            }
+            if content.contains("wasm") {
+                signals.frameworks.push("WASM".to_string());
+            }
         }
         signals.package_manager = Some("cargo".to_string());
     }
@@ -231,16 +252,30 @@ fn detect_languages_and_frameworks(workspace: &Path, signals: &mut ProjectSignal
             signals.languages.push("JavaScript".to_string());
         }
         if let Ok(content) = std::fs::read_to_string(&pkg_json) {
-            if content.contains("\"react\"") { signals.frameworks.push("React".to_string()); }
-            if content.contains("\"next\"") { signals.frameworks.push("Next.js".to_string()); }
-            if content.contains("\"vue\"") { signals.frameworks.push("Vue".to_string()); }
-            if content.contains("\"svelte\"") { signals.frameworks.push("Svelte".to_string()); }
+            if content.contains("\"react\"") {
+                signals.frameworks.push("React".to_string());
+            }
+            if content.contains("\"next\"") {
+                signals.frameworks.push("Next.js".to_string());
+            }
+            if content.contains("\"vue\"") {
+                signals.frameworks.push("Vue".to_string());
+            }
+            if content.contains("\"svelte\"") {
+                signals.frameworks.push("Svelte".to_string());
+            }
             if content.contains("\"angular\"") || content.contains("\"@angular/core\"") {
                 signals.frameworks.push("Angular".to_string());
             }
-            if content.contains("\"express\"") { signals.frameworks.push("Express".to_string()); }
-            if content.contains("\"fastify\"") { signals.frameworks.push("Fastify".to_string()); }
-            if content.contains("\"vite\"") { signals.frameworks.push("Vite".to_string()); }
+            if content.contains("\"express\"") {
+                signals.frameworks.push("Express".to_string());
+            }
+            if content.contains("\"fastify\"") {
+                signals.frameworks.push("Fastify".to_string());
+            }
+            if content.contains("\"vite\"") {
+                signals.frameworks.push("Vite".to_string());
+            }
         }
         // Package manager
         if workspace.join("pnpm-lock.yaml").exists() {
@@ -263,11 +298,21 @@ fn detect_languages_and_frameworks(workspace: &Path, signals: &mut ProjectSignal
         if let Ok(content) = std::fs::read_to_string(workspace.join("pyproject.toml").as_path())
             .or_else(|_| std::fs::read_to_string(workspace.join("requirements.txt").as_path()))
         {
-            if content.contains("django") { signals.frameworks.push("Django".to_string()); }
-            if content.contains("flask") { signals.frameworks.push("Flask".to_string()); }
-            if content.contains("fastapi") { signals.frameworks.push("FastAPI".to_string()); }
-            if content.contains("torch") || content.contains("pytorch") { signals.frameworks.push("PyTorch".to_string()); }
-            if content.contains("tensorflow") { signals.frameworks.push("TensorFlow".to_string()); }
+            if content.contains("django") {
+                signals.frameworks.push("Django".to_string());
+            }
+            if content.contains("flask") {
+                signals.frameworks.push("Flask".to_string());
+            }
+            if content.contains("fastapi") {
+                signals.frameworks.push("FastAPI".to_string());
+            }
+            if content.contains("torch") || content.contains("pytorch") {
+                signals.frameworks.push("PyTorch".to_string());
+            }
+            if content.contains("tensorflow") {
+                signals.frameworks.push("TensorFlow".to_string());
+            }
         }
     }
 
@@ -275,17 +320,25 @@ fn detect_languages_and_frameworks(workspace: &Path, signals: &mut ProjectSignal
     if workspace.join("go.mod").exists() {
         signals.languages.push("Go".to_string());
         if let Ok(content) = std::fs::read_to_string(workspace.join("go.mod")) {
-            if content.contains("gin-gonic") { signals.frameworks.push("Gin".to_string()); }
-            if content.contains("echo") { signals.frameworks.push("Echo".to_string()); }
-            if content.contains("fiber") { signals.frameworks.push("Fiber".to_string()); }
+            if content.contains("gin-gonic") {
+                signals.frameworks.push("Gin".to_string());
+            }
+            if content.contains("echo") {
+                signals.frameworks.push("Echo".to_string());
+            }
+            if content.contains("fiber") {
+                signals.frameworks.push("Fiber".to_string());
+            }
         }
     }
 
     // Java / Kotlin
-    if workspace.join("pom.xml").exists() || workspace.join("build.gradle").exists()
+    if workspace.join("pom.xml").exists()
+        || workspace.join("build.gradle").exists()
         || workspace.join("build.gradle.kts").exists()
     {
-        if workspace.join("build.gradle.kts").exists() || workspace.join("src/main/kotlin").exists() {
+        if workspace.join("build.gradle.kts").exists() || workspace.join("src/main/kotlin").exists()
+        {
             signals.languages.push("Kotlin".to_string());
         } else {
             signals.languages.push("Java".to_string());
@@ -294,7 +347,8 @@ fn detect_languages_and_frameworks(workspace: &Path, signals: &mut ProjectSignal
     }
 
     // C# / .NET
-    if workspace.join("*.csproj").exists() || workspace.join("*.sln").exists()
+    if workspace.join("*.csproj").exists()
+        || workspace.join("*.sln").exists()
         || workspace.join("global.json").exists()
     {
         signals.languages.push("C#".to_string());
@@ -310,7 +364,9 @@ fn detect_languages_and_frameworks(workspace: &Path, signals: &mut ProjectSignal
     if workspace.join("mix.exs").exists() {
         signals.languages.push("Elixir".to_string());
         if let Ok(content) = std::fs::read_to_string(workspace.join("mix.exs")) {
-            if content.contains(":phoenix") { signals.frameworks.push("Phoenix".to_string()); }
+            if content.contains(":phoenix") {
+                signals.frameworks.push("Phoenix".to_string());
+            }
         }
     }
 }
@@ -336,10 +392,15 @@ pub fn build_generation_prompt(signals: &ProjectSignals) -> String {
     let mut prompt = String::with_capacity(2000);
 
     prompt.push_str("You are writing a SOUL.md file for a software project. ");
-    prompt.push_str("A SOUL.md captures the project's philosophy, core beliefs, and design principles. ");
-    prompt.push_str("It answers WHY the project exists and WHAT it believes, not HOW it works.\n\n");
+    prompt.push_str(
+        "A SOUL.md captures the project's philosophy, core beliefs, and design principles. ",
+    );
+    prompt
+        .push_str("It answers WHY the project exists and WHAT it believes, not HOW it works.\n\n");
     prompt.push_str("Write in a direct, confident voice. No corporate jargon. No buzzwords. ");
-    prompt.push_str("Be specific to this project — generic platitudes like 'we value quality' are useless.\n\n");
+    prompt.push_str(
+        "Be specific to this project — generic platitudes like 'we value quality' are useless.\n\n",
+    );
 
     prompt.push_str("## Project Signals\n\n");
     prompt.push_str(&format!("- **Name:** {}\n", signals.name));
@@ -350,10 +411,16 @@ pub fn build_generation_prompt(signals: &ProjectSignals) -> String {
         prompt.push_str(&format!("- **License:** {}\n", signals.license));
     }
     if !signals.languages.is_empty() {
-        prompt.push_str(&format!("- **Languages:** {}\n", signals.languages.join(", ")));
+        prompt.push_str(&format!(
+            "- **Languages:** {}\n",
+            signals.languages.join(", ")
+        ));
     }
     if !signals.frameworks.is_empty() {
-        prompt.push_str(&format!("- **Frameworks:** {}\n", signals.frameworks.join(", ")));
+        prompt.push_str(&format!(
+            "- **Frameworks:** {}\n",
+            signals.frameworks.join(", ")
+        ));
     }
     prompt.push_str(&format!("- **Has tests:** {}\n", signals.has_tests));
     prompt.push_str(&format!("- **Has CI:** {}\n", signals.has_ci));
@@ -409,7 +476,7 @@ pub fn generate_template_soul(signals: &ProjectSignals) -> SoulDocument {
         beliefs.push(
             "### Open by default\n\n\
              The code is open source not as a marketing strategy, but as a commitment. \
-             If you use this project, you can read every line, fork it, and make it yours."
+             If you use this project, you can read every line, fork it, and make it yours.",
         );
     }
 
@@ -425,27 +492,27 @@ pub fn generate_template_soul(signals: &ProjectSignals) -> SoulDocument {
         beliefs.push(
             "### Shared foundations, separate surfaces\n\n\
              Common logic lives in shared libraries. Each application surface is just a frontend \
-             to the same capabilities. A fix in the core improves everything."
+             to the same capabilities. A fix in the core improves everything.",
         );
     }
 
     beliefs.push(
         "### Simplicity over cleverness\n\n\
          Readable code beats clever code. Standard formats beat custom ones. \
-         If you can't understand how something works by reading the source, we've failed."
+         If you can't understand how something works by reading the source, we've failed.",
     );
 
     beliefs.push(
         "### Ship the tool, not the promise\n\n\
          Every feature in the documentation exists in code and can be built from source today. \
-         If it's documented, it works. If it doesn't work, that's a bug."
+         If it's documented, it works. If it doesn't work, that's a bug.",
     );
 
     if signals.has_docker || signals.has_ci {
         beliefs.push(
             "### Reproducible everywhere\n\n\
              It builds on your machine, on CI, and in a container. \
-             Environment-specific surprises are bugs, not user errors."
+             Environment-specific surprises are bugs, not user errors.",
         );
     }
 
@@ -461,10 +528,15 @@ pub fn generate_template_soul(signals: &ProjectSignals) -> SoulDocument {
         principles.push(format!(
             "**Language choice:** {} {} chosen deliberately — for {}, not for trendiness.",
             signals.languages.join(" and "),
-            if signals.languages.len() == 1 { "was" } else { "were" },
+            if signals.languages.len() == 1 {
+                "was"
+            } else {
+                "were"
+            },
             match signals.languages.first().map(|s| s.as_str()) {
                 Some("Rust") => "performance, safety, and correctness",
-                Some("TypeScript") | Some("JavaScript") => "ecosystem reach and developer familiarity",
+                Some("TypeScript") | Some("JavaScript") =>
+                    "ecosystem reach and developer familiarity",
                 Some("Python") => "readability and library ecosystem",
                 Some("Go") => "simplicity, concurrency, and deployment",
                 _ => "the right tradeoffs in this domain",
@@ -504,13 +576,20 @@ pub fn generate_template_soul(signals: &ProjectSignals) -> SoulDocument {
     nots.push("Not a framework — it's a tool that does one job well.".to_string());
     nots.push("Not a platform — there's no account to create, no server to depend on.".to_string());
     if signals.is_open_source {
-        nots.push("Not a business masquerading as open source — the full tool is the free tool.".to_string());
+        nots.push(
+            "Not a business masquerading as open source — the full tool is the free tool."
+                .to_string(),
+        );
     }
     nots.push("Not finished — but what's shipped today works today.".to_string());
 
     sections.push(SoulSection {
         heading: "What This Project Is Not".to_string(),
-        body: nots.iter().map(|n| format!("- {n}")).collect::<Vec<_>>().join("\n"),
+        body: nots
+            .iter()
+            .map(|n| format!("- {n}"))
+            .collect::<Vec<_>>()
+            .join("\n"),
     });
 
     // Section 5: Decision framework
@@ -550,8 +629,7 @@ pub fn write_soul(workspace: &Path, content: &str) -> std::io::Result<PathBuf> {
 
 /// Check if a SOUL.md already exists in the workspace.
 pub fn soul_exists(workspace: &Path) -> bool {
-    workspace.join("SOUL.md").exists()
-        || workspace.join("soul.md").exists()
+    workspace.join("SOUL.md").exists() || workspace.join("soul.md").exists()
 }
 
 /// Read existing SOUL.md content.
@@ -625,7 +703,11 @@ mod tests {
     #[test]
     fn scan_detects_typescript_react() {
         let dir = temp_project("ts_react");
-        fs::write(dir.join("package.json"), r#"{"name":"myapp","dependencies":{"react":"18"}}"#).unwrap();
+        fs::write(
+            dir.join("package.json"),
+            r#"{"name":"myapp","dependencies":{"react":"18"}}"#,
+        )
+        .unwrap();
         fs::write(dir.join("tsconfig.json"), "{}").unwrap();
         let signals = scan_project(&dir);
         assert!(signals.languages.contains(&"TypeScript".to_string()));
@@ -637,7 +719,11 @@ mod tests {
     #[test]
     fn scan_detects_python_fastapi() {
         let dir = temp_project("py_fastapi");
-        fs::write(dir.join("pyproject.toml"), "[project]\nname = \"api\"\ndependencies = [\"fastapi\"]\n").unwrap();
+        fs::write(
+            dir.join("pyproject.toml"),
+            "[project]\nname = \"api\"\ndependencies = [\"fastapi\"]\n",
+        )
+        .unwrap();
         let signals = scan_project(&dir);
         assert!(signals.languages.contains(&"Python".to_string()));
         assert!(signals.frameworks.contains(&"FastAPI".to_string()));
@@ -656,7 +742,11 @@ mod tests {
     #[test]
     fn scan_detects_monorepo_cargo_workspace() {
         let dir = temp_project("mono_cargo");
-        fs::write(dir.join("Cargo.toml"), "[workspace]\nmembers = [\"a\", \"b\"]\n").unwrap();
+        fs::write(
+            dir.join("Cargo.toml"),
+            "[workspace]\nmembers = [\"a\", \"b\"]\n",
+        )
+        .unwrap();
         let signals = scan_project(&dir);
         assert!(signals.is_monorepo);
         fs::remove_dir_all(&dir).ok();
@@ -665,7 +755,11 @@ mod tests {
     #[test]
     fn scan_detects_monorepo_npm_workspaces() {
         let dir = temp_project("mono_npm");
-        fs::write(dir.join("package.json"), r#"{"name":"mono","workspaces":["packages/*"]}"#).unwrap();
+        fs::write(
+            dir.join("package.json"),
+            r#"{"name":"mono","workspaces":["packages/*"]}"#,
+        )
+        .unwrap();
         let signals = scan_project(&dir);
         assert!(signals.is_monorepo);
         fs::remove_dir_all(&dir).ok();
@@ -710,7 +804,11 @@ mod tests {
     #[test]
     fn scan_detects_readme_description() {
         let dir = temp_project("readme");
-        fs::write(dir.join("README.md"), "# MyApp\n\nA blazing fast widget factory.\n").unwrap();
+        fs::write(
+            dir.join("README.md"),
+            "# MyApp\n\nA blazing fast widget factory.\n",
+        )
+        .unwrap();
         let signals = scan_project(&dir);
         assert!(signals.has_readme);
         assert_eq!(signals.description, "A blazing fast widget factory.");
@@ -749,7 +847,11 @@ mod tests {
     #[test]
     fn scan_detects_elixir_phoenix() {
         let dir = temp_project("elixir");
-        fs::write(dir.join("mix.exs"), "defp deps do [{:phoenix, \"~> 1.7\"}] end").unwrap();
+        fs::write(
+            dir.join("mix.exs"),
+            "defp deps do [{:phoenix, \"~> 1.7\"}] end",
+        )
+        .unwrap();
         let signals = scan_project(&dir);
         assert!(signals.languages.contains(&"Elixir".to_string()));
         assert!(signals.frameworks.contains(&"Phoenix".to_string()));
@@ -759,7 +861,11 @@ mod tests {
     #[test]
     fn scan_name_from_cargo_package() {
         let dir = temp_project("cargo_name");
-        fs::write(dir.join("Cargo.toml"), "[package]\nname = \"cool-tool\"\nversion = \"0.1.0\"\n").unwrap();
+        fs::write(
+            dir.join("Cargo.toml"),
+            "[package]\nname = \"cool-tool\"\nversion = \"0.1.0\"\n",
+        )
+        .unwrap();
         let signals = scan_project(&dir);
         assert_eq!(signals.name, "cool-tool");
         fs::remove_dir_all(&dir).ok();
@@ -909,8 +1015,14 @@ mod tests {
     #[test]
     fn extract_json_field_works() {
         let json = r#"{"name": "foo", "version": "1.0"}"#;
-        assert_eq!(extract_json_string_field(json, "name"), Some("foo".to_string()));
-        assert_eq!(extract_json_string_field(json, "version"), Some("1.0".to_string()));
+        assert_eq!(
+            extract_json_string_field(json, "name"),
+            Some("foo".to_string())
+        );
+        assert_eq!(
+            extract_json_string_field(json, "version"),
+            Some("1.0".to_string())
+        );
         assert_eq!(extract_json_string_field(json, "missing"), None);
     }
 
@@ -933,8 +1045,16 @@ mod tests {
     fn full_scan_and_generate_integration() {
         let dir = temp_project("integration");
         fs::write(dir.join("LICENSE"), "MIT License").unwrap();
-        fs::write(dir.join("Cargo.toml"), "[workspace]\nmembers = [\"a\"]\n[package]\nname = \"integtest\"\n").unwrap();
-        fs::write(dir.join("README.md"), "# IntegTest\n\nAn integration test project.\n").unwrap();
+        fs::write(
+            dir.join("Cargo.toml"),
+            "[workspace]\nmembers = [\"a\"]\n[package]\nname = \"integtest\"\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("README.md"),
+            "# IntegTest\n\nAn integration test project.\n",
+        )
+        .unwrap();
         fs::create_dir_all(dir.join(".github/workflows")).unwrap();
         fs::create_dir_all(dir.join("tests")).unwrap();
         fs::write(dir.join("Dockerfile"), "FROM rust").unwrap();
@@ -976,7 +1096,11 @@ mod tests {
     #[test]
     fn scan_detects_vue() {
         let dir = temp_project("vue");
-        fs::write(dir.join("package.json"), r#"{"name":"app","dependencies":{"vue":"3"}}"#).unwrap();
+        fs::write(
+            dir.join("package.json"),
+            r#"{"name":"app","dependencies":{"vue":"3"}}"#,
+        )
+        .unwrap();
         let signals = scan_project(&dir);
         assert!(signals.frameworks.contains(&"Vue".to_string()));
         fs::remove_dir_all(&dir).ok();
@@ -985,7 +1109,11 @@ mod tests {
     #[test]
     fn scan_detects_nextjs() {
         let dir = temp_project("next");
-        fs::write(dir.join("package.json"), r#"{"name":"web","dependencies":{"next":"14","react":"18"}}"#).unwrap();
+        fs::write(
+            dir.join("package.json"),
+            r#"{"name":"web","dependencies":{"next":"14","react":"18"}}"#,
+        )
+        .unwrap();
         let signals = scan_project(&dir);
         assert!(signals.frameworks.contains(&"Next.js".to_string()));
         assert!(signals.frameworks.contains(&"React".to_string()));
@@ -995,7 +1123,11 @@ mod tests {
     #[test]
     fn scan_detects_axum() {
         let dir = temp_project("axum");
-        fs::write(dir.join("Cargo.toml"), "[dependencies]\naxum = \"0.7\"\ntokio = \"1\"\n").unwrap();
+        fs::write(
+            dir.join("Cargo.toml"),
+            "[dependencies]\naxum = \"0.7\"\ntokio = \"1\"\n",
+        )
+        .unwrap();
         let signals = scan_project(&dir);
         assert!(signals.frameworks.contains(&"Axum".to_string()));
         assert!(signals.frameworks.contains(&"Tokio".to_string()));
@@ -1015,7 +1147,11 @@ mod tests {
     #[test]
     fn scan_detects_gin() {
         let dir = temp_project("gin");
-        fs::write(dir.join("go.mod"), "module myapp\nrequire github.com/gin-gonic/gin v1.9\n").unwrap();
+        fs::write(
+            dir.join("go.mod"),
+            "module myapp\nrequire github.com/gin-gonic/gin v1.9\n",
+        )
+        .unwrap();
         let signals = scan_project(&dir);
         assert!(signals.frameworks.contains(&"Gin".to_string()));
         fs::remove_dir_all(&dir).ok();
@@ -1029,7 +1165,9 @@ mod tests {
             ..Default::default()
         };
         let doc = generate_template_soul(&signals);
-        assert!(doc.sections[2].body.contains("performance, safety, and correctness"));
+        assert!(doc.sections[2]
+            .body
+            .contains("performance, safety, and correctness"));
     }
 
     #[test]
@@ -1040,7 +1178,9 @@ mod tests {
             ..Default::default()
         };
         let doc = generate_template_soul(&signals);
-        assert!(doc.sections[2].body.contains("readability and library ecosystem"));
+        assert!(doc.sections[2]
+            .body
+            .contains("readability and library ecosystem"));
     }
 
     #[test]
@@ -1051,7 +1191,9 @@ mod tests {
             ..Default::default()
         };
         let doc = generate_template_soul(&signals);
-        assert!(doc.sections[2].body.contains("simplicity, concurrency, and deployment"));
+        assert!(doc.sections[2]
+            .body
+            .contains("simplicity, concurrency, and deployment"));
     }
 
     #[test]

@@ -285,7 +285,10 @@ fn then_queued_at_nonzero(world: &mut JmWorld) {
 #[then("the job started_at should be zero")]
 fn then_started_at_zero(world: &mut JmWorld) {
     let rec = world.last_record.as_ref().expect("last_record");
-    assert_eq!(rec.started_at, 0, "started_at should be zero for queued job");
+    assert_eq!(
+        rec.started_at, 0,
+        "started_at should be zero for queued job"
+    );
 }
 
 #[then("the job started_at should be non-zero")]

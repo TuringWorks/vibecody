@@ -64,10 +64,7 @@ pub enum Provenance {
     },
     /// Fetched from the web (browser, `web.fetch`, MCP server that
     /// scrapes the open web).
-    WebFetch {
-        url: String,
-        fetched_at: SystemTime,
-    },
+    WebFetch { url: String, fetched_at: SystemTime },
     /// Returned by an MCP tool invocation.
     Mcp {
         server: String,
@@ -313,27 +310,36 @@ where
                     r.start,
                     r.end,
                 ),
-                None => format!(
-                    "file{{path={}}}",
-                    truncate(&path.display().to_string()),
-                ),
+                None => format!("file{{path={}}}", truncate(&path.display().to_string()),),
             },
             Provenance::WebFetch { url, .. } => {
                 format!("web{{url={}}}", truncate(url))
             }
-            Provenance::Mcp { server, tool, call_id } => format!(
+            Provenance::Mcp {
+                server,
+                tool,
+                call_id,
+            } => format!(
                 "mcp{{server={}, tool={}, call_id={}}}",
                 truncate(server),
                 truncate(tool),
                 truncate(call_id),
             ),
-            Provenance::Rag { index, doc_id, score } => format!(
+            Provenance::Rag {
+                index,
+                doc_id,
+                score,
+            } => format!(
                 "rag{{index={}, doc_id={}, score={:.3}}}",
                 truncate(index),
                 truncate(doc_id),
                 score,
             ),
-            Provenance::LlmResponse { provider, model, request_id } => format!(
+            Provenance::LlmResponse {
+                provider,
+                model,
+                request_id,
+            } => format!(
                 "llm{{provider={}, model={}, request_id={}}}",
                 truncate(provider),
                 truncate(model),
@@ -471,7 +477,10 @@ impl Tainted<String> {
         format!(
             "[tainted/{}/{:02x}{:02x}{:02x}{:02x}]",
             self.origin.kind(),
-            h[0], h[1], h[2], h[3],
+            h[0],
+            h[1],
+            h[2],
+            h[3],
         )
     }
 }
@@ -805,8 +814,9 @@ mod tests {
     fn rejection_reason_display_is_actionable() {
         assert!(format!("{}", RejectionReason::Headless).contains("headless"));
         assert!(format!("{}", RejectionReason::InteractiveStub).contains("Slice G"));
-        assert!(format!("{}", RejectionReason::PolicyDenied("no shell".into()))
-            .contains("no shell"));
+        assert!(
+            format!("{}", RejectionReason::PolicyDenied("no shell".into())).contains("no shell")
+        );
     }
 
     // ── Slice C: http.outbound gate ───────────────────────────────────
@@ -825,12 +835,8 @@ mod tests {
 
     #[test]
     fn confirm_http_outbound_interactive_stubs_until_slice_g() {
-        let url = Tainted::from_llm_response(
-            "openai",
-            "gpt-4o",
-            "req-7",
-            "https://docs.rs/serde".into(),
-        );
+        let url =
+            Tainted::from_llm_response("openai", "gpt-4o", "req-7", "https://docs.rs/serde".into());
         let res = confirm_http_outbound(&url, ConfirmMode::Interactive);
         // Slice G wires the real modal. Stub today.
         assert!(matches!(res, Err(RejectionReason::InteractiveStub)));

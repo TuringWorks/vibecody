@@ -2,7 +2,7 @@
  * BDD tests for context_handoff using Cucumber.
  * Run with: cargo test --test context_handoff_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::context_handoff::{
     HandoffContext, HandoffHistory, HandoffMessage, HandoffReason, ToolDefinition,
 };
@@ -239,7 +239,5 @@ fn then_providers_used(world: &mut ChWorld, expected_csv: String) {
 // ---------------------------------------------------------------------------
 
 fn main() {
-    futures::executor::block_on(ChWorld::run(
-        "tests/features/context_handoff.feature",
-    ));
+    futures::executor::block_on(ChWorld::run("tests/features/context_handoff.feature"));
 }

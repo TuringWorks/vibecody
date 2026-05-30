@@ -22,7 +22,7 @@
 //! "background scan" behaviour construct a scanner from this module and
 //! pass its results into [`ProactiveAgent::scan`].
 
-use crate::proactive_agent::{ScanCategory, SuggestionGenerator, Suggestion};
+use crate::proactive_agent::{ScanCategory, Suggestion, SuggestionGenerator};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::{Path, PathBuf};
 use tokio::sync::mpsc;

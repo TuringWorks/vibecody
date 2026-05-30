@@ -18,7 +18,10 @@ pub struct RulesWorld {
 
 impl RulesWorld {
     fn new() -> Self {
-        Self { workspace: None, loaded_rules: vec![] }
+        Self {
+            workspace: None,
+            loaded_rules: vec![],
+        }
     }
 
     fn rules_dir(&self) -> PathBuf {
@@ -57,8 +60,12 @@ fn rule_no_pattern(world: &mut RulesWorld, filename: String, content: String) {
 
 #[given(regex = r#"a rule file "([^"]+)" with path_pattern "([^"]+)" and content "([^"]+)""#)]
 fn rule_with_pattern(world: &mut RulesWorld, filename: String, pattern: String, content: String) {
-    let fm = format!("---\nname: {}\npath_pattern: \"{}\"\n---\n\n{}",
-        filename.trim_end_matches(".md"), pattern, content);
+    let fm = format!(
+        "---\nname: {}\npath_pattern: \"{}\"\n---\n\n{}",
+        filename.trim_end_matches(".md"),
+        pattern,
+        content
+    );
     world.write_rule(&filename, &fm);
 }
 
@@ -72,7 +79,12 @@ fn rule_with_fm_name(world: &mut RulesWorld, filename: String, name: String, con
 
 #[when("I load rules from the workspace")]
 fn load_rules(world: &mut RulesWorld) {
-    let ws = world.workspace.as_ref().expect("workspace not set").path().to_path_buf();
+    let ws = world
+        .workspace
+        .as_ref()
+        .expect("workspace not set")
+        .path()
+        .to_path_buf();
     world.loaded_rules = RulesLoader::load_for_workspace(&ws);
 }
 
@@ -81,23 +93,33 @@ fn load_rules(world: &mut RulesWorld) {
 #[then(regex = r"(\d+) rules? (?:are|is) loaded")]
 fn rule_count(world: &mut RulesWorld, expected: usize) {
     assert_eq!(
-        world.loaded_rules.len(), expected,
+        world.loaded_rules.len(),
+        expected,
         "expected {expected} rule(s), got {}: {:?}",
         world.loaded_rules.len(),
-        world.loaded_rules.iter().map(|r| &r.name).collect::<Vec<_>>()
+        world
+            .loaded_rules
+            .iter()
+            .map(|r| &r.name)
+            .collect::<Vec<_>>()
     );
 }
 
 #[then(regex = r#"the rule "([^"]+)" matches an empty file list"#)]
 fn matches_empty(world: &mut RulesWorld, name: String) {
-    let rule = world.find_rule(&name)
+    let rule = world
+        .find_rule(&name)
         .unwrap_or_else(|| panic!("rule '{name}' not found"));
-    assert!(rule.matches_open_files(&[]), "rule '{name}' should match empty file list");
+    assert!(
+        rule.matches_open_files(&[]),
+        "rule '{name}' should match empty file list"
+    );
 }
 
 #[then(regex = r#"the rule "([^"]+)" matches the file "([^"]+)""#)]
 fn matches_file(world: &mut RulesWorld, name: String, file: String) {
-    let rule = world.find_rule(&name)
+    let rule = world
+        .find_rule(&name)
         .unwrap_or_else(|| panic!("rule '{name}' not found"));
     assert!(
         rule.matches_open_files(&[file.clone()]),
@@ -107,7 +129,8 @@ fn matches_file(world: &mut RulesWorld, name: String, file: String) {
 
 #[then(regex = r#"the rule "([^"]+)" does not match the file "([^"]+)""#)]
 fn not_matches_file(world: &mut RulesWorld, name: String, file: String) {
-    let rule = world.find_rule(&name)
+    let rule = world
+        .find_rule(&name)
         .unwrap_or_else(|| panic!("rule '{name}' not found"));
     assert!(
         !rule.matches_open_files(&[file.clone()]),
@@ -117,7 +140,8 @@ fn not_matches_file(world: &mut RulesWorld, name: String, file: String) {
 
 #[then(regex = r#"the rule "([^"]+)" does not match an empty file list"#)]
 fn not_matches_empty(world: &mut RulesWorld, name: String) {
-    let rule = world.find_rule(&name)
+    let rule = world
+        .find_rule(&name)
         .unwrap_or_else(|| panic!("rule '{name}' not found"));
     assert!(
         !rule.matches_open_files(&[]),

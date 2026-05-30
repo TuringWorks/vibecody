@@ -4,7 +4,9 @@ use std::collections::HashMap;
 
 fn fnv1a(s: &str) -> u64 {
     let mut h: u64 = 14_695_981_039_346_656_037;
-    for b in s.bytes() { h = h.wrapping_mul(1_099_511_628_211) ^ b as u64; }
+    for b in s.bytes() {
+        h = h.wrapping_mul(1_099_511_628_211) ^ b as u64;
+    }
     h
 }
 
@@ -38,7 +40,9 @@ pub struct PromptCache {
 }
 
 impl PromptCache {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn get_or_insert(&mut self, system: &str, tools: &str, config: &str) -> &CacheEntry {
         let key = CacheKey::from_parts(system, tools, config);
@@ -59,11 +63,17 @@ impl PromptCache {
         }
     }
 
-    pub fn stats(&self) -> &CacheStats { &self.stats }
+    pub fn stats(&self) -> &CacheStats {
+        &self.stats
+    }
 
     pub fn hit_rate(&self) -> f64 {
         let total = self.stats.hits + self.stats.misses;
-        if total == 0 { 0.0 } else { self.stats.hits as f64 / total as f64 }
+        if total == 0 {
+            0.0
+        } else {
+            self.stats.hits as f64 / total as f64
+        }
     }
 }
 

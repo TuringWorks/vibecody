@@ -68,8 +68,12 @@ impl LinearClient {
     pub fn from_env_or_config() -> Option<Self> {
         // 0. ProfileStore (encrypted SQLite)
         if let Ok(store) = crate::profile_store::ProfileStore::new() {
-            if let Ok(Some(key)) = store.get_api_key("default", "integration.projecttools.linear_api_key") {
-                if !key.is_empty() { return Some(Self::new(key)); }
+            if let Ok(Some(key)) =
+                store.get_api_key("default", "integration.projecttools.linear_api_key")
+            {
+                if !key.is_empty() {
+                    return Some(Self::new(key));
+                }
             }
         }
         // 1. Environment variable
@@ -90,7 +94,11 @@ impl LinearClient {
     }
 
     /// Execute a GraphQL query.
-    async fn graphql(&self, query: &str, variables: serde_json::Value) -> Result<serde_json::Value> {
+    async fn graphql(
+        &self,
+        query: &str,
+        variables: serde_json::Value,
+    ) -> Result<serde_json::Value> {
         let payload = serde_json::json!({ "query": query, "variables": variables });
         let resp = retry_async(&RetryConfig::default(), "linear-graphql", || {
             let client = self.client.clone();
@@ -159,7 +167,11 @@ impl LinearClient {
     }
 
     /// Create a new issue in the default team (first team for the user).
-    pub async fn create_issue(&self, title: &str, description: Option<&str>) -> Result<LinearIssue> {
+    pub async fn create_issue(
+        &self,
+        title: &str,
+        description: Option<&str>,
+    ) -> Result<LinearIssue> {
         // First, get the first team ID
         let team_query = r#"query Teams { teams { nodes { id key name } } }"#;
         let team_data = self.graphql(team_query, serde_json::json!({})).await?;
@@ -222,7 +234,9 @@ impl LinearClient {
             }
         "#;
 
-        let data = self.graphql(query, serde_json::json!({ "id": identifier })).await?;
+        let data = self
+            .graphql(query, serde_json::json!({ "id": identifier }))
+            .await?;
         let n = &data["issue"];
         if n.is_null() {
             return Err(anyhow!("Issue '{}' not found", identifier));
@@ -342,8 +356,13 @@ mod tests {
     #[test]
     fn priority_label_maps_correctly() {
         let make = |p: u8| LinearIssue {
-            id: "x".into(), identifier: "T-1".into(), title: "t".into(),
-            state: "Todo".into(), priority: p, url: "u".into(), assignee: None,
+            id: "x".into(),
+            identifier: "T-1".into(),
+            title: "t".into(),
+            state: "Todo".into(),
+            priority: p,
+            url: "u".into(),
+            assignee: None,
         };
         assert_eq!(make(1).priority_label(), "🔴 Urgent");
         assert_eq!(make(2).priority_label(), "🟠 High");
@@ -366,8 +385,13 @@ mod tests {
     #[test]
     fn priority_label_all_values() {
         let make = |p: u8| LinearIssue {
-            id: "x".into(), identifier: "T-1".into(), title: "t".into(),
-            state: "Todo".into(), priority: p, url: "u".into(), assignee: None,
+            id: "x".into(),
+            identifier: "T-1".into(),
+            title: "t".into(),
+            state: "Todo".into(),
+            priority: p,
+            url: "u".into(),
+            assignee: None,
         };
         assert_eq!(make(0).priority_label(), "⬜ None");
         assert_eq!(make(1).priority_label(), "🔴 Urgent");
@@ -401,8 +425,13 @@ mod tests {
     #[test]
     fn linear_issue_no_assignee() {
         let issue = LinearIssue {
-            id: "x".into(), identifier: "T-1".into(), title: "t".into(),
-            state: "Todo".into(), priority: 0, url: "u".into(), assignee: None,
+            id: "x".into(),
+            identifier: "T-1".into(),
+            title: "t".into(),
+            state: "Todo".into(),
+            priority: 0,
+            url: "u".into(),
+            assignee: None,
         };
         let json = serde_json::to_string(&issue).unwrap();
         let back: LinearIssue = serde_json::from_str(&json).unwrap();
@@ -414,48 +443,78 @@ mod tests {
     #[tokio::test]
     async fn handle_linear_command_unknown_sub_shows_usage() {
         // Set a fake key so we get past the "not configured" check
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); std::env::set_var("LINEAR_API_KEY", "fake-key-for-test"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::set_var("LINEAR_API_KEY", "fake-key-for-test");
+        }
         let output = handle_linear_command("unknown_sub").await;
         // Accept either: key present → "Usage:", key raced away → "not configured"
-        assert!(output.contains("Usage:") || output.contains("not configured"), "unknown sub should show usage or not-configured");
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); std::env::remove_var("LINEAR_API_KEY"); }
+        assert!(
+            output.contains("Usage:") || output.contains("not configured"),
+            "unknown sub should show usage or not-configured"
+        );
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::remove_var("LINEAR_API_KEY");
+        }
     }
 
     // ── handle_linear_command attach ───────────────────────────────────────
 
     #[tokio::test]
     async fn handle_linear_command_attach_empty_id() {
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); std::env::set_var("LINEAR_API_KEY", "fake-key-for-test"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::set_var("LINEAR_API_KEY", "fake-key-for-test");
+        }
         let output = handle_linear_command("attach").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); std::env::remove_var("LINEAR_API_KEY"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::remove_var("LINEAR_API_KEY");
+        }
     }
 
     // ── handle_linear_command new empty title ──────────────────────────────
 
     #[tokio::test]
     async fn handle_linear_command_new_empty_title() {
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); std::env::set_var("LINEAR_API_KEY", "fake-key-for-test"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::set_var("LINEAR_API_KEY", "fake-key-for-test");
+        }
         let output = handle_linear_command("new").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); std::env::remove_var("LINEAR_API_KEY"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::remove_var("LINEAR_API_KEY");
+        }
     }
 
     // ── handle_linear_command open empty id ─────────────────────────────────
 
     #[tokio::test]
     async fn handle_linear_command_open_empty_id() {
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); std::env::set_var("LINEAR_API_KEY", "fake-key-for-test"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::set_var("LINEAR_API_KEY", "fake-key-for-test");
+        }
         let output = handle_linear_command("open").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); std::env::remove_var("LINEAR_API_KEY"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::remove_var("LINEAR_API_KEY");
+        }
     }
 
     // ── no API key shows warning ───────────────────────────────────────────
 
     #[tokio::test]
     async fn handle_linear_command_no_key_shows_warning() {
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner()); std::env::remove_var("LINEAR_API_KEY"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::remove_var("LINEAR_API_KEY");
+        }
         let output = handle_linear_command("list").await;
         // Accept either: key absent → "not configured" / "LINEAR_API_KEY",
         // or key raced in from another test → "Usage:" or other valid output
@@ -493,8 +552,13 @@ mod tests {
     #[test]
     fn linear_issue_debug_format() {
         let issue = LinearIssue {
-            id: "x".into(), identifier: "T-1".into(), title: "t".into(),
-            state: "Todo".into(), priority: 3, url: "u".into(), assignee: None,
+            id: "x".into(),
+            identifier: "T-1".into(),
+            title: "t".into(),
+            state: "Todo".into(),
+            priority: 3,
+            url: "u".into(),
+            assignee: None,
         };
         let dbg = format!("{:?}", issue);
         assert!(dbg.contains("T-1"));
@@ -544,8 +608,13 @@ mod tests {
     #[test]
     fn priority_label_boundary_255() {
         let issue = LinearIssue {
-            id: "x".into(), identifier: "T-1".into(), title: "t".into(),
-            state: "s".into(), priority: 255, url: "u".into(), assignee: None,
+            id: "x".into(),
+            identifier: "T-1".into(),
+            title: "t".into(),
+            state: "s".into(),
+            priority: 255,
+            url: "u".into(),
+            assignee: None,
         };
         assert_eq!(issue.priority_label(), "⬜ None");
     }

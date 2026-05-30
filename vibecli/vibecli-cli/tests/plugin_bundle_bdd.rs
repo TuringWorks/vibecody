@@ -52,13 +52,23 @@ fn assert_invalid(world: &mut PbWorld) {
 #[then(expr = "there should be {int} missing dependency")]
 fn assert_missing_deps(world: &mut PbWorld, count: usize) {
     let r = world.report.as_ref().unwrap();
-    assert_eq!(r.missing_deps.len(), count, "missing_deps count mismatch: {:?}", r.missing_deps);
+    assert_eq!(
+        r.missing_deps.len(),
+        count,
+        "missing_deps count mismatch: {:?}",
+        r.missing_deps
+    );
 }
 
 #[then(expr = "there should be {int} duplicate id")]
 fn assert_duplicate_ids(world: &mut PbWorld, count: usize) {
     let r = world.report.as_ref().unwrap();
-    assert_eq!(r.duplicate_ids.len(), count, "duplicate_ids count mismatch: {:?}", r.duplicate_ids);
+    assert_eq!(
+        r.duplicate_ids.len(),
+        count,
+        "duplicate_ids count mismatch: {:?}",
+        r.duplicate_ids
+    );
 }
 
 fn main() {

@@ -71,14 +71,8 @@ pub enum WebhookEvent {
 pub enum AuthMethod {
     Token(String),
     OAuth(String),
-    App {
-        app_id: String,
-        private_key: String,
-    },
-    Basic {
-        username: String,
-        password: String,
-    },
+    App { app_id: String, private_key: String },
+    Basic { username: String, password: String },
 }
 
 // === Core Structures ===
@@ -269,7 +263,11 @@ impl ApiUrlBuilder {
                 let (org, project, repo) = match parts.len() {
                     3 => (parts[0], parts[1], parts[2]),
                     2 => (parts[0], parts[1], parts[1]),
-                    _ => (self.project_path.as_str(), self.project_path.as_str(), self.project_path.as_str()),
+                    _ => (
+                        self.project_path.as_str(),
+                        self.project_path.as_str(),
+                        self.project_path.as_str(),
+                    ),
                 };
                 format!(
                     "{}/{}/{}/_apis/git/repositories/{}/pullrequests",
@@ -307,10 +305,7 @@ impl ApiUrlBuilder {
                 } else {
                     (self.project_path.as_str(), self.project_path.as_str())
                 };
-                format!(
-                    "{}/{}/{}/_apis/wit/workitems",
-                    self.base_url, org, project
-                )
+                format!("{}/{}/{}/_apis/wit/workitems", self.base_url, org, project)
             }
             GitPlatform::Bitbucket => {
                 format!(
@@ -333,10 +328,7 @@ impl ApiUrlBuilder {
     pub fn pipelines_url(&self) -> String {
         match &self.platform {
             GitPlatform::GitHub => {
-                format!(
-                    "{}/repos/{}/actions/runs",
-                    self.base_url, self.project_path
-                )
+                format!("{}/repos/{}/actions/runs", self.base_url, self.project_path)
             }
             GitPlatform::GitLab => {
                 let encoded = self.project_path.replace('/', "%2F");
@@ -358,10 +350,7 @@ impl ApiUrlBuilder {
                 )
             }
             GitPlatform::Gitea => {
-                format!(
-                    "{}/repos/{}/actions/runs",
-                    self.base_url, self.project_path
-                )
+                format!("{}/repos/{}/actions/runs", self.base_url, self.project_path)
             }
             GitPlatform::Custom(_) => {
                 format!("{}/repos/{}/pipelines", self.base_url, self.project_path)
@@ -376,17 +365,18 @@ impl ApiUrlBuilder {
             }
             GitPlatform::GitLab => {
                 let encoded = self.project_path.replace('/', "%2F");
-                format!(
-                    "{}/projects/{}/repository/branches",
-                    self.base_url, encoded
-                )
+                format!("{}/projects/{}/repository/branches", self.base_url, encoded)
             }
             GitPlatform::AzureDevOps => {
                 let parts: Vec<&str> = self.project_path.splitn(3, '/').collect();
                 let (org, project, repo) = match parts.len() {
                     3 => (parts[0], parts[1], parts[2]),
                     2 => (parts[0], parts[1], parts[1]),
-                    _ => (self.project_path.as_str(), self.project_path.as_str(), self.project_path.as_str()),
+                    _ => (
+                        self.project_path.as_str(),
+                        self.project_path.as_str(),
+                        self.project_path.as_str(),
+                    ),
                 };
                 format!(
                     "{}/{}/{}/_apis/git/repositories/{}/refs",
@@ -415,17 +405,18 @@ impl ApiUrlBuilder {
             }
             GitPlatform::GitLab => {
                 let encoded = self.project_path.replace('/', "%2F");
-                format!(
-                    "{}/projects/{}/repository/commits",
-                    self.base_url, encoded
-                )
+                format!("{}/projects/{}/repository/commits", self.base_url, encoded)
             }
             GitPlatform::AzureDevOps => {
                 let parts: Vec<&str> = self.project_path.splitn(3, '/').collect();
                 let (org, project, repo) = match parts.len() {
                     3 => (parts[0], parts[1], parts[2]),
                     2 => (parts[0], parts[1], parts[1]),
-                    _ => (self.project_path.as_str(), self.project_path.as_str(), self.project_path.as_str()),
+                    _ => (
+                        self.project_path.as_str(),
+                        self.project_path.as_str(),
+                        self.project_path.as_str(),
+                    ),
                 };
                 format!(
                     "{}/{}/{}/_apis/git/repositories/{}/commits",
@@ -467,7 +458,11 @@ impl ApiUrlBuilder {
                 let (org, project, repo) = match parts.len() {
                     3 => (parts[0], parts[1], parts[2]),
                     2 => (parts[0], parts[1], parts[1]),
-                    _ => (self.project_path.as_str(), self.project_path.as_str(), self.project_path.as_str()),
+                    _ => (
+                        self.project_path.as_str(),
+                        self.project_path.as_str(),
+                        self.project_path.as_str(),
+                    ),
                 };
                 format!(
                     "{}/{}/{}/_apis/git/repositories/{}/pullrequests/{}/reviewers",
@@ -515,7 +510,11 @@ impl ApiUrlBuilder {
                 let (org, project, repo) = match parts.len() {
                     3 => (parts[0], parts[1], parts[2]),
                     2 => (parts[0], parts[1], parts[1]),
-                    _ => (self.project_path.as_str(), self.project_path.as_str(), self.project_path.as_str()),
+                    _ => (
+                        self.project_path.as_str(),
+                        self.project_path.as_str(),
+                        self.project_path.as_str(),
+                    ),
                 };
                 format!(
                     "{}/{}/{}/_apis/git/repositories/{}/commits/{}/statuses",
@@ -554,14 +553,15 @@ impl ApiUrlBuilder {
             }
             GitPlatform::AzureDevOps => {
                 let parts: Vec<&str> = self.project_path.splitn(3, '/').collect();
-                let _org = if !parts.is_empty() { parts[0] } else { &self.project_path };
+                let _org = if !parts.is_empty() {
+                    parts[0]
+                } else {
+                    &self.project_path
+                };
                 format!("{}/_apis/hooks/subscriptions", self.base_url)
             }
             GitPlatform::Bitbucket => {
-                format!(
-                    "{}/repositories/{}/hooks",
-                    self.base_url, self.project_path
-                )
+                format!("{}/repositories/{}/hooks", self.base_url, self.project_path)
             }
             GitPlatform::Gitea => {
                 format!("{}/repos/{}/hooks", self.base_url, self.project_path)
@@ -586,7 +586,11 @@ impl ApiUrlBuilder {
                 let (org, project, repo) = match parts.len() {
                     3 => (parts[0], parts[1], parts[2]),
                     2 => (parts[0], parts[1], parts[1]),
-                    _ => (self.project_path.as_str(), self.project_path.as_str(), self.project_path.as_str()),
+                    _ => (
+                        self.project_path.as_str(),
+                        self.project_path.as_str(),
+                        self.project_path.as_str(),
+                    ),
                 };
                 format!(
                     "{}/{}/{}/_apis/git/repositories/{}",
@@ -594,10 +598,7 @@ impl ApiUrlBuilder {
                 )
             }
             GitPlatform::Bitbucket => {
-                format!(
-                    "{}/repositories/{}",
-                    self.base_url, self.project_path
-                )
+                format!("{}/repositories/{}", self.base_url, self.project_path)
             }
             GitPlatform::Gitea => {
                 format!("{}/repos/{}", self.base_url, self.project_path)
@@ -628,7 +629,11 @@ impl ApiUrlBuilder {
                 let (org, project, repo) = match parts.len() {
                     3 => (parts[0], parts[1], parts[2]),
                     2 => (parts[0], parts[1], parts[1]),
-                    _ => (self.project_path.as_str(), self.project_path.as_str(), self.project_path.as_str()),
+                    _ => (
+                        self.project_path.as_str(),
+                        self.project_path.as_str(),
+                        self.project_path.as_str(),
+                    ),
                 };
                 format!(
                     "{}/{}/{}/_apis/git/repositories/{}/diffs/commits?baseVersion={}&targetVersion={}",
@@ -824,7 +829,11 @@ impl GitPlatformClient {
 
     pub fn list_pull_requests(&self, state: Option<&PrState>) -> Vec<&PullRequest> {
         match state {
-            Some(s) => self.pull_requests.iter().filter(|pr| &pr.state == s).collect(),
+            Some(s) => self
+                .pull_requests
+                .iter()
+                .filter(|pr| &pr.state == s)
+                .collect(),
             None => self.pull_requests.iter().collect(),
         }
     }
@@ -874,7 +883,11 @@ impl GitPlatformClient {
     }
 
     pub fn add_reviewer(&mut self, pr_number: u64, reviewer: &str) -> bool {
-        if let Some(pr) = self.pull_requests.iter_mut().find(|pr| pr.number == pr_number) {
+        if let Some(pr) = self
+            .pull_requests
+            .iter_mut()
+            .find(|pr| pr.number == pr_number)
+        {
             if !pr.reviewers.contains(&reviewer.to_string()) {
                 pr.reviewers.push(reviewer.to_string());
             }
@@ -886,7 +899,11 @@ impl GitPlatformClient {
     }
 
     pub fn add_label(&mut self, pr_number: u64, label: &str) -> bool {
-        if let Some(pr) = self.pull_requests.iter_mut().find(|pr| pr.number == pr_number) {
+        if let Some(pr) = self
+            .pull_requests
+            .iter_mut()
+            .find(|pr| pr.number == pr_number)
+        {
             if !pr.labels.contains(&label.to_string()) {
                 pr.labels.push(label.to_string());
             }
@@ -972,10 +989,7 @@ impl GitPlatformClient {
     }
 
     pub fn latest_pipeline_for_branch(&self, branch: &str) -> Option<&Pipeline> {
-        self.pipelines
-            .iter()
-            .rev()
-            .find(|p| p.branch == branch)
+        self.pipelines.iter().rev().find(|p| p.branch == branch)
     }
 
     // --- Branch operations ---
@@ -1276,26 +1290,50 @@ mod tests {
 
     #[test]
     fn test_github_pr_url() {
-        let b = ApiUrlBuilder::new(GitPlatform::GitHub, "https://api.github.com", "octocat/repo");
-        assert_eq!(b.pull_requests_url(), "https://api.github.com/repos/octocat/repo/pulls");
+        let b = ApiUrlBuilder::new(
+            GitPlatform::GitHub,
+            "https://api.github.com",
+            "octocat/repo",
+        );
+        assert_eq!(
+            b.pull_requests_url(),
+            "https://api.github.com/repos/octocat/repo/pulls"
+        );
     }
 
     #[test]
     fn test_github_issues_url() {
-        let b = ApiUrlBuilder::new(GitPlatform::GitHub, "https://api.github.com", "octocat/repo");
-        assert_eq!(b.issues_url(), "https://api.github.com/repos/octocat/repo/issues");
+        let b = ApiUrlBuilder::new(
+            GitPlatform::GitHub,
+            "https://api.github.com",
+            "octocat/repo",
+        );
+        assert_eq!(
+            b.issues_url(),
+            "https://api.github.com/repos/octocat/repo/issues"
+        );
     }
 
     #[test]
     fn test_github_pipelines_url() {
-        let b = ApiUrlBuilder::new(GitPlatform::GitHub, "https://api.github.com", "octocat/repo");
-        assert_eq!(b.pipelines_url(), "https://api.github.com/repos/octocat/repo/actions/runs");
+        let b = ApiUrlBuilder::new(
+            GitPlatform::GitHub,
+            "https://api.github.com",
+            "octocat/repo",
+        );
+        assert_eq!(
+            b.pipelines_url(),
+            "https://api.github.com/repos/octocat/repo/actions/runs"
+        );
     }
 
     #[test]
     fn test_github_branches_url() {
         let b = ApiUrlBuilder::new(GitPlatform::GitHub, "https://api.github.com", "o/r");
-        assert_eq!(b.branches_url(), "https://api.github.com/repos/o/r/branches");
+        assert_eq!(
+            b.branches_url(),
+            "https://api.github.com/repos/o/r/branches"
+        );
     }
 
     #[test]
@@ -1307,13 +1345,19 @@ mod tests {
     #[test]
     fn test_github_reviews_url() {
         let b = ApiUrlBuilder::new(GitPlatform::GitHub, "https://api.github.com", "o/r");
-        assert_eq!(b.reviews_url(42), "https://api.github.com/repos/o/r/pulls/42/reviews");
+        assert_eq!(
+            b.reviews_url(42),
+            "https://api.github.com/repos/o/r/pulls/42/reviews"
+        );
     }
 
     #[test]
     fn test_github_status_checks_url() {
         let b = ApiUrlBuilder::new(GitPlatform::GitHub, "https://api.github.com", "o/r");
-        assert_eq!(b.status_checks_url("abc123"), "https://api.github.com/repos/o/r/commits/abc123/status");
+        assert_eq!(
+            b.status_checks_url("abc123"),
+            "https://api.github.com/repos/o/r/commits/abc123/status"
+        );
     }
 
     #[test]
@@ -1331,56 +1375,88 @@ mod tests {
     #[test]
     fn test_github_compare_url() {
         let b = ApiUrlBuilder::new(GitPlatform::GitHub, "https://api.github.com", "o/r");
-        assert_eq!(b.compare_url("main", "feature"), "https://api.github.com/repos/o/r/compare/main...feature");
+        assert_eq!(
+            b.compare_url("main", "feature"),
+            "https://api.github.com/repos/o/r/compare/main...feature"
+        );
     }
 
     // --- URL builder tests: GitLab ---
 
     #[test]
     fn test_gitlab_pr_url() {
-        let b = ApiUrlBuilder::new(GitPlatform::GitLab, "https://gl.com/api/v4", "group/project");
-        assert_eq!(b.pull_requests_url(), "https://gl.com/api/v4/projects/group%2Fproject/merge_requests");
+        let b = ApiUrlBuilder::new(
+            GitPlatform::GitLab,
+            "https://gl.com/api/v4",
+            "group/project",
+        );
+        assert_eq!(
+            b.pull_requests_url(),
+            "https://gl.com/api/v4/projects/group%2Fproject/merge_requests"
+        );
     }
 
     #[test]
     fn test_gitlab_issues_url() {
         let b = ApiUrlBuilder::new(GitPlatform::GitLab, "https://gl.com/api/v4", "g/p");
-        assert_eq!(b.issues_url(), "https://gl.com/api/v4/projects/g%2Fp/issues");
+        assert_eq!(
+            b.issues_url(),
+            "https://gl.com/api/v4/projects/g%2Fp/issues"
+        );
     }
 
     #[test]
     fn test_gitlab_pipelines_url() {
         let b = ApiUrlBuilder::new(GitPlatform::GitLab, "https://gl.com/api/v4", "g/p");
-        assert_eq!(b.pipelines_url(), "https://gl.com/api/v4/projects/g%2Fp/pipelines");
+        assert_eq!(
+            b.pipelines_url(),
+            "https://gl.com/api/v4/projects/g%2Fp/pipelines"
+        );
     }
 
     #[test]
     fn test_gitlab_branches_url() {
         let b = ApiUrlBuilder::new(GitPlatform::GitLab, "https://gl.com/api/v4", "g/p");
-        assert_eq!(b.branches_url(), "https://gl.com/api/v4/projects/g%2Fp/repository/branches");
+        assert_eq!(
+            b.branches_url(),
+            "https://gl.com/api/v4/projects/g%2Fp/repository/branches"
+        );
     }
 
     #[test]
     fn test_gitlab_commits_url() {
         let b = ApiUrlBuilder::new(GitPlatform::GitLab, "https://gl.com/api/v4", "g/p");
-        assert_eq!(b.commits_url(), "https://gl.com/api/v4/projects/g%2Fp/repository/commits");
+        assert_eq!(
+            b.commits_url(),
+            "https://gl.com/api/v4/projects/g%2Fp/repository/commits"
+        );
     }
 
     #[test]
     fn test_gitlab_reviews_url() {
         let b = ApiUrlBuilder::new(GitPlatform::GitLab, "https://gl.com/api/v4", "g/p");
-        assert_eq!(b.reviews_url(10), "https://gl.com/api/v4/projects/g%2Fp/merge_requests/10/approvals");
+        assert_eq!(
+            b.reviews_url(10),
+            "https://gl.com/api/v4/projects/g%2Fp/merge_requests/10/approvals"
+        );
     }
 
     #[test]
     fn test_gitlab_compare_url() {
         let b = ApiUrlBuilder::new(GitPlatform::GitLab, "https://gl.com/api/v4", "g/p");
-        assert_eq!(b.compare_url("main", "dev"), "https://gl.com/api/v4/projects/g%2Fp/repository/compare?from=main&to=dev");
+        assert_eq!(
+            b.compare_url("main", "dev"),
+            "https://gl.com/api/v4/projects/g%2Fp/repository/compare?from=main&to=dev"
+        );
     }
 
     #[test]
     fn test_gitlab_nested_project_encoding() {
-        let b = ApiUrlBuilder::new(GitPlatform::GitLab, "https://gl.com/api/v4", "group/sub/project");
+        let b = ApiUrlBuilder::new(
+            GitPlatform::GitLab,
+            "https://gl.com/api/v4",
+            "group/sub/project",
+        );
         assert!(b.pull_requests_url().contains("group%2Fsub%2Fproject"));
     }
 
@@ -1388,59 +1464,119 @@ mod tests {
 
     #[test]
     fn test_azure_pr_url() {
-        let b = ApiUrlBuilder::new(GitPlatform::AzureDevOps, "https://dev.azure.com", "org/proj/repo");
-        assert_eq!(b.pull_requests_url(), "https://dev.azure.com/org/proj/_apis/git/repositories/repo/pullrequests");
+        let b = ApiUrlBuilder::new(
+            GitPlatform::AzureDevOps,
+            "https://dev.azure.com",
+            "org/proj/repo",
+        );
+        assert_eq!(
+            b.pull_requests_url(),
+            "https://dev.azure.com/org/proj/_apis/git/repositories/repo/pullrequests"
+        );
     }
 
     #[test]
     fn test_azure_pipelines_url() {
-        let b = ApiUrlBuilder::new(GitPlatform::AzureDevOps, "https://dev.azure.com", "org/proj/repo");
-        assert_eq!(b.pipelines_url(), "https://dev.azure.com/org/proj/_apis/pipelines");
+        let b = ApiUrlBuilder::new(
+            GitPlatform::AzureDevOps,
+            "https://dev.azure.com",
+            "org/proj/repo",
+        );
+        assert_eq!(
+            b.pipelines_url(),
+            "https://dev.azure.com/org/proj/_apis/pipelines"
+        );
     }
 
     #[test]
     fn test_azure_branches_url() {
-        let b = ApiUrlBuilder::new(GitPlatform::AzureDevOps, "https://dev.azure.com", "org/proj/repo");
-        assert_eq!(b.branches_url(), "https://dev.azure.com/org/proj/_apis/git/repositories/repo/refs");
+        let b = ApiUrlBuilder::new(
+            GitPlatform::AzureDevOps,
+            "https://dev.azure.com",
+            "org/proj/repo",
+        );
+        assert_eq!(
+            b.branches_url(),
+            "https://dev.azure.com/org/proj/_apis/git/repositories/repo/refs"
+        );
     }
 
     #[test]
     fn test_azure_compare_url() {
-        let b = ApiUrlBuilder::new(GitPlatform::AzureDevOps, "https://dev.azure.com", "org/proj/repo");
+        let b = ApiUrlBuilder::new(
+            GitPlatform::AzureDevOps,
+            "https://dev.azure.com",
+            "org/proj/repo",
+        );
         assert!(b.compare_url("main", "dev").contains("baseVersion=main"));
         assert!(b.compare_url("main", "dev").contains("targetVersion=dev"));
     }
 
     #[test]
     fn test_azure_issues_url() {
-        let b = ApiUrlBuilder::new(GitPlatform::AzureDevOps, "https://dev.azure.com", "org/proj/repo");
-        assert_eq!(b.issues_url(), "https://dev.azure.com/org/proj/_apis/wit/workitems");
+        let b = ApiUrlBuilder::new(
+            GitPlatform::AzureDevOps,
+            "https://dev.azure.com",
+            "org/proj/repo",
+        );
+        assert_eq!(
+            b.issues_url(),
+            "https://dev.azure.com/org/proj/_apis/wit/workitems"
+        );
     }
 
     #[test]
     fn test_azure_webhooks_url() {
-        let b = ApiUrlBuilder::new(GitPlatform::AzureDevOps, "https://dev.azure.com", "org/proj/repo");
-        assert_eq!(b.webhooks_url(), "https://dev.azure.com/_apis/hooks/subscriptions");
+        let b = ApiUrlBuilder::new(
+            GitPlatform::AzureDevOps,
+            "https://dev.azure.com",
+            "org/proj/repo",
+        );
+        assert_eq!(
+            b.webhooks_url(),
+            "https://dev.azure.com/_apis/hooks/subscriptions"
+        );
     }
 
     // --- URL builder tests: Bitbucket ---
 
     #[test]
     fn test_bitbucket_pr_url() {
-        let b = ApiUrlBuilder::new(GitPlatform::Bitbucket, "https://api.bitbucket.org/2.0", "ws/repo");
-        assert_eq!(b.pull_requests_url(), "https://api.bitbucket.org/2.0/repositories/ws/repo/pullrequests");
+        let b = ApiUrlBuilder::new(
+            GitPlatform::Bitbucket,
+            "https://api.bitbucket.org/2.0",
+            "ws/repo",
+        );
+        assert_eq!(
+            b.pull_requests_url(),
+            "https://api.bitbucket.org/2.0/repositories/ws/repo/pullrequests"
+        );
     }
 
     #[test]
     fn test_bitbucket_branches_url() {
-        let b = ApiUrlBuilder::new(GitPlatform::Bitbucket, "https://api.bitbucket.org/2.0", "ws/repo");
-        assert_eq!(b.branches_url(), "https://api.bitbucket.org/2.0/repositories/ws/repo/refs/branches");
+        let b = ApiUrlBuilder::new(
+            GitPlatform::Bitbucket,
+            "https://api.bitbucket.org/2.0",
+            "ws/repo",
+        );
+        assert_eq!(
+            b.branches_url(),
+            "https://api.bitbucket.org/2.0/repositories/ws/repo/refs/branches"
+        );
     }
 
     #[test]
     fn test_bitbucket_compare_url() {
-        let b = ApiUrlBuilder::new(GitPlatform::Bitbucket, "https://api.bitbucket.org/2.0", "ws/repo");
-        assert_eq!(b.compare_url("main", "dev"), "https://api.bitbucket.org/2.0/repositories/ws/repo/diff/main..dev");
+        let b = ApiUrlBuilder::new(
+            GitPlatform::Bitbucket,
+            "https://api.bitbucket.org/2.0",
+            "ws/repo",
+        );
+        assert_eq!(
+            b.compare_url("main", "dev"),
+            "https://api.bitbucket.org/2.0/repositories/ws/repo/diff/main..dev"
+        );
     }
 
     // --- URL builder tests: Gitea ---
@@ -1448,13 +1584,19 @@ mod tests {
     #[test]
     fn test_gitea_pr_url() {
         let b = ApiUrlBuilder::new(GitPlatform::Gitea, "https://gitea.local/api/v1", "u/r");
-        assert_eq!(b.pull_requests_url(), "https://gitea.local/api/v1/repos/u/r/pulls");
+        assert_eq!(
+            b.pull_requests_url(),
+            "https://gitea.local/api/v1/repos/u/r/pulls"
+        );
     }
 
     #[test]
     fn test_gitea_pipelines_url() {
         let b = ApiUrlBuilder::new(GitPlatform::Gitea, "https://gitea.local/api/v1", "u/r");
-        assert_eq!(b.pipelines_url(), "https://gitea.local/api/v1/repos/u/r/actions/runs");
+        assert_eq!(
+            b.pipelines_url(),
+            "https://gitea.local/api/v1/repos/u/r/actions/runs"
+        );
     }
 
     // --- PR CRUD tests ---
@@ -1671,14 +1813,26 @@ mod tests {
     fn test_list_pipelines() {
         let mut client = GitPlatformClient::new(github_config());
         client.add_pipeline(Pipeline {
-            id: 1, name: "A".into(), status: PipelineStatus::Success,
-            branch: "main".into(), commit_sha: "a".into(), stages: vec![],
-            started_at: None, finished_at: None, url: String::new(),
+            id: 1,
+            name: "A".into(),
+            status: PipelineStatus::Success,
+            branch: "main".into(),
+            commit_sha: "a".into(),
+            stages: vec![],
+            started_at: None,
+            finished_at: None,
+            url: String::new(),
         });
         client.add_pipeline(Pipeline {
-            id: 2, name: "B".into(), status: PipelineStatus::Failed,
-            branch: "dev".into(), commit_sha: "b".into(), stages: vec![],
-            started_at: None, finished_at: None, url: String::new(),
+            id: 2,
+            name: "B".into(),
+            status: PipelineStatus::Failed,
+            branch: "dev".into(),
+            commit_sha: "b".into(),
+            stages: vec![],
+            started_at: None,
+            finished_at: None,
+            url: String::new(),
         });
         assert_eq!(client.list_pipelines().len(), 2);
     }
@@ -1687,14 +1841,26 @@ mod tests {
     fn test_latest_pipeline_for_branch() {
         let mut client = GitPlatformClient::new(github_config());
         client.add_pipeline(Pipeline {
-            id: 1, name: "CI".into(), status: PipelineStatus::Success,
-            branch: "main".into(), commit_sha: "a".into(), stages: vec![],
-            started_at: None, finished_at: None, url: String::new(),
+            id: 1,
+            name: "CI".into(),
+            status: PipelineStatus::Success,
+            branch: "main".into(),
+            commit_sha: "a".into(),
+            stages: vec![],
+            started_at: None,
+            finished_at: None,
+            url: String::new(),
         });
         client.add_pipeline(Pipeline {
-            id: 2, name: "CI".into(), status: PipelineStatus::Running,
-            branch: "main".into(), commit_sha: "b".into(), stages: vec![],
-            started_at: None, finished_at: None, url: String::new(),
+            id: 2,
+            name: "CI".into(),
+            status: PipelineStatus::Running,
+            branch: "main".into(),
+            commit_sha: "b".into(),
+            stages: vec![],
+            started_at: None,
+            finished_at: None,
+            url: String::new(),
         });
         let latest = client.latest_pipeline_for_branch("main").unwrap();
         assert_eq!(latest.id, 2);
@@ -1754,7 +1920,10 @@ mod tests {
     #[test]
     fn test_create_webhook() {
         let mut client = GitPlatformClient::new(github_config());
-        let wh = client.create_webhook("https://hook.example.com", vec![WebhookEvent::Push, WebhookEvent::PullRequest]);
+        let wh = client.create_webhook(
+            "https://hook.example.com",
+            vec![WebhookEvent::Push, WebhookEvent::PullRequest],
+        );
         assert_eq!(wh.url, "https://hook.example.com");
         assert_eq!(wh.events.len(), 2);
         assert!(wh.active);
@@ -1788,7 +1957,8 @@ mod tests {
     #[test]
     fn test_create_status_check() {
         let client = GitPlatformClient::new(github_config());
-        let sc = client.create_status_check("sha1", "ci/test", PipelineStatus::Success, "All passed");
+        let sc =
+            client.create_status_check("sha1", "ci/test", PipelineStatus::Success, "All passed");
         assert_eq!(sc.context, "ci/test");
         assert_eq!(sc.state, PipelineStatus::Success);
         assert_eq!(sc.description, "All passed");
@@ -1993,13 +2163,26 @@ mod tests {
         mgr.add_platform("az", azure_config());
 
         let pr = PullRequest {
-            id: 1, number: 1, title: "Test".into(), description: "Desc".into(),
-            source_branch: "f".into(), target_branch: "m".into(),
-            state: PrState::Open, author: "u".into(),
-            reviewers: vec![], labels: vec![],
-            created_at: SystemTime::now(), updated_at: SystemTime::now(),
-            merge_method: None, ci_status: None, url: String::new(),
-            diff_stats: DiffStats { files_changed: 0, additions: 0, deletions: 0 },
+            id: 1,
+            number: 1,
+            title: "Test".into(),
+            description: "Desc".into(),
+            source_branch: "f".into(),
+            target_branch: "m".into(),
+            state: PrState::Open,
+            author: "u".into(),
+            reviewers: vec![],
+            labels: vec![],
+            created_at: SystemTime::now(),
+            updated_at: SystemTime::now(),
+            merge_method: None,
+            ci_status: None,
+            url: String::new(),
+            diff_stats: DiffStats {
+                files_changed: 0,
+                additions: 0,
+                deletions: 0,
+            },
         };
 
         let synced = mgr.sync_pr_across_platforms(&pr, &["gl", "az", "nonexistent"]);
@@ -2012,13 +2195,26 @@ mod tests {
     fn test_sync_pr_empty_targets() {
         let mgr = PlatformManager::new();
         let pr = PullRequest {
-            id: 1, number: 1, title: "T".into(), description: "".into(),
-            source_branch: "f".into(), target_branch: "m".into(),
-            state: PrState::Open, author: "u".into(),
-            reviewers: vec![], labels: vec![],
-            created_at: SystemTime::now(), updated_at: SystemTime::now(),
-            merge_method: None, ci_status: None, url: String::new(),
-            diff_stats: DiffStats { files_changed: 0, additions: 0, deletions: 0 },
+            id: 1,
+            number: 1,
+            title: "T".into(),
+            description: "".into(),
+            source_branch: "f".into(),
+            target_branch: "m".into(),
+            state: PrState::Open,
+            author: "u".into(),
+            reviewers: vec![],
+            labels: vec![],
+            created_at: SystemTime::now(),
+            updated_at: SystemTime::now(),
+            merge_method: None,
+            ci_status: None,
+            url: String::new(),
+            diff_stats: DiffStats {
+                files_changed: 0,
+                additions: 0,
+                deletions: 0,
+            },
         };
         assert!(mgr.sync_pr_across_platforms(&pr, &[]).is_empty());
     }
@@ -2047,8 +2243,14 @@ mod tests {
     fn test_auth_method_variants() {
         let _token = AuthMethod::Token("tok".into());
         let _oauth = AuthMethod::OAuth("oa".into());
-        let _app = AuthMethod::App { app_id: "123".into(), private_key: "pk".into() };
-        let _basic = AuthMethod::Basic { username: "u".into(), password: "p".into() };
+        let _app = AuthMethod::App {
+            app_id: "123".into(),
+            private_key: "pk".into(),
+        };
+        let _basic = AuthMethod::Basic {
+            username: "u".into(),
+            password: "p".into(),
+        };
     }
 
     #[test]
@@ -2057,8 +2259,18 @@ mod tests {
             name: "build".into(),
             status: PipelineStatus::Success,
             jobs: vec![
-                PipelineJob { name: "compile".into(), status: PipelineStatus::Success, log_url: Some("url".into()), duration_secs: Some(30) },
-                PipelineJob { name: "lint".into(), status: PipelineStatus::Success, log_url: None, duration_secs: Some(10) },
+                PipelineJob {
+                    name: "compile".into(),
+                    status: PipelineStatus::Success,
+                    log_url: Some("url".into()),
+                    duration_secs: Some(30),
+                },
+                PipelineJob {
+                    name: "lint".into(),
+                    status: PipelineStatus::Success,
+                    log_url: None,
+                    duration_secs: Some(10),
+                },
             ],
             duration_secs: Some(40),
         };
@@ -2073,9 +2285,12 @@ mod tests {
             author: "reviewer".into(),
             state: ReviewState::ChangesRequested,
             body: "Please fix".into(),
-            comments: vec![
-                ReviewComment { file_path: "src/main.rs".into(), line: 42, body: "typo".into(), author: "reviewer".into() },
-            ],
+            comments: vec![ReviewComment {
+                file_path: "src/main.rs".into(),
+                line: 42,
+                body: "typo".into(),
+                author: "reviewer".into(),
+            }],
             submitted_at: SystemTime::now(),
         };
         assert_eq!(review.comments.len(), 1);
@@ -2084,7 +2299,11 @@ mod tests {
 
     #[test]
     fn test_diff_stats() {
-        let stats = DiffStats { files_changed: 5, additions: 100, deletions: 30 };
+        let stats = DiffStats {
+            files_changed: 5,
+            additions: 100,
+            deletions: 30,
+        };
         assert_eq!(stats.files_changed, 5);
         assert_eq!(stats.additions, 100);
         assert_eq!(stats.deletions, 30);
@@ -2093,12 +2312,18 @@ mod tests {
     #[test]
     fn test_repository_struct() {
         let repo = Repository {
-            id: 1, name: "test".into(), full_path: "user/test".into(),
-            default_branch: "main".into(), description: Some("A repo".into()),
-            visibility: "public".into(), clone_url: "https://github.com/user/test.git".into(),
+            id: 1,
+            name: "test".into(),
+            full_path: "user/test".into(),
+            default_branch: "main".into(),
+            description: Some("A repo".into()),
+            visibility: "public".into(),
+            clone_url: "https://github.com/user/test.git".into(),
             web_url: "https://github.com/user/test".into(),
-            created_at: SystemTime::now(), language: Some("Rust".into()),
-            stars: 42, forks: 7,
+            created_at: SystemTime::now(),
+            language: Some("Rust".into()),
+            stars: 42,
+            forks: 7,
         };
         assert_eq!(repo.name, "test");
         assert_eq!(repo.stars, 42);
@@ -2107,8 +2332,10 @@ mod tests {
     #[test]
     fn test_commit_info_struct() {
         let ci = CommitInfo {
-            sha: "abc123".into(), message: "fix: bug".into(),
-            author: "dev".into(), author_email: "dev@example.com".into(),
+            sha: "abc123".into(),
+            message: "fix: bug".into(),
+            author: "dev".into(),
+            author_email: "dev@example.com".into(),
             timestamp: SystemTime::now(),
             files_changed: vec!["src/lib.rs".into(), "tests/test.rs".into()],
         };
@@ -2118,10 +2345,15 @@ mod tests {
     #[test]
     fn test_webhook_events_all_variants() {
         let events = vec![
-            WebhookEvent::Push, WebhookEvent::PullRequest, WebhookEvent::Issue,
-            WebhookEvent::Comment, WebhookEvent::PipelineComplete,
-            WebhookEvent::TagCreated, WebhookEvent::BranchCreated,
-            WebhookEvent::BranchDeleted, WebhookEvent::Release,
+            WebhookEvent::Push,
+            WebhookEvent::PullRequest,
+            WebhookEvent::Issue,
+            WebhookEvent::Comment,
+            WebhookEvent::PipelineComplete,
+            WebhookEvent::TagCreated,
+            WebhookEvent::BranchCreated,
+            WebhookEvent::BranchDeleted,
+            WebhookEvent::Release,
         ];
         assert_eq!(events.len(), 9);
     }
@@ -2137,7 +2369,11 @@ mod tests {
 
     #[test]
     fn test_azure_repository_url() {
-        let b = ApiUrlBuilder::new(GitPlatform::AzureDevOps, "https://dev.azure.com", "org/proj/repo");
+        let b = ApiUrlBuilder::new(
+            GitPlatform::AzureDevOps,
+            "https://dev.azure.com",
+            "org/proj/repo",
+        );
         let url = b.repository_url();
         assert!(url.contains("org"));
         assert!(url.contains("proj"));
@@ -2147,14 +2383,25 @@ mod tests {
 
     #[test]
     fn test_bitbucket_status_checks_url() {
-        let b = ApiUrlBuilder::new(GitPlatform::Bitbucket, "https://api.bitbucket.org/2.0", "ws/repo");
+        let b = ApiUrlBuilder::new(
+            GitPlatform::Bitbucket,
+            "https://api.bitbucket.org/2.0",
+            "ws/repo",
+        );
         let url = b.status_checks_url("sha1");
-        assert_eq!(url, "https://api.bitbucket.org/2.0/repositories/ws/repo/commit/sha1/statuses");
+        assert_eq!(
+            url,
+            "https://api.bitbucket.org/2.0/repositories/ws/repo/commit/sha1/statuses"
+        );
     }
 
     #[test]
     fn test_custom_platform_url_builder() {
-        let b = ApiUrlBuilder::new(GitPlatform::Custom("Forgejo".into()), "https://forgejo.local/api/v1", "u/r");
+        let b = ApiUrlBuilder::new(
+            GitPlatform::Custom("Forgejo".into()),
+            "https://forgejo.local/api/v1",
+            "u/r",
+        );
         assert!(b.pull_requests_url().contains("/repos/u/r/pulls"));
         assert!(b.issues_url().contains("/repos/u/r/issues"));
         assert!(b.repository_url().contains("/repos/u/r"));

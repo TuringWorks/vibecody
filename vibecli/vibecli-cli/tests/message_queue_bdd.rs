@@ -33,7 +33,9 @@ impl MqWorld {
     }
 
     fn agent(&self) -> &AgentMessageQueues {
-        self.agent_queues.as_ref().expect("agent queues not initialised")
+        self.agent_queues
+            .as_ref()
+            .expect("agent queues not initialised")
     }
 }
 
@@ -78,10 +80,7 @@ fn given_enqueue_two(world: &mut MqWorld, a: String, b: String) {
 
 #[given(expr = "I enqueue user message {string}")]
 fn given_enqueue_one(world: &mut MqWorld, content: String) {
-    world
-        .queue()
-        .enqueue(QueuedMessage::user(content))
-        .unwrap();
+    world.queue().enqueue(QueuedMessage::user(content)).unwrap();
 }
 
 // ---------------------------------------------------------------------------
@@ -174,7 +173,11 @@ fn then_message_content(world: &mut MqWorld, expected: String) {
 
 #[then(expr = "the queue should have {int} messages remaining")]
 fn then_queue_length(world: &mut MqWorld, expected: usize) {
-    assert_eq!(world.queue().len(), expected, "remaining queue length mismatch");
+    assert_eq!(
+        world.queue().len(),
+        expected,
+        "remaining queue length mismatch"
+    );
 }
 
 #[then("the enqueue should fail with a capacity error")]

@@ -122,7 +122,8 @@ impl SecurityScanner {
         for (line_num, line) in content.lines().enumerate() {
             let line_lower = line.to_lowercase();
             // Check suppression comment
-            if line.contains("// nosec") || line.contains("# nosec") || line.contains("// NOSONAR") {
+            if line.contains("// nosec") || line.contains("# nosec") || line.contains("// NOSONAR")
+            {
                 continue;
             }
             for pat in &self.patterns {
@@ -183,11 +184,17 @@ impl SecurityScanner {
     }
 
     pub fn findings_for_file(&self, file: &str) -> Vec<&SecurityFinding> {
-        self.findings.iter().filter(|f| f.file == file && !f.suppressed).collect()
+        self.findings
+            .iter()
+            .filter(|f| f.file == file && !f.suppressed)
+            .collect()
     }
 
     pub fn findings_by_severity(&self, severity: &Severity) -> Vec<&SecurityFinding> {
-        self.findings.iter().filter(|f| &f.severity == severity && !f.suppressed).collect()
+        self.findings
+            .iter()
+            .filter(|f| &f.severity == severity && !f.suppressed)
+            .collect()
     }
 
     pub fn suppress_pattern(&mut self, pattern: &str) {
@@ -204,7 +211,9 @@ impl SecurityScanner {
     }
 
     pub fn has_blocking_findings(&self, min_severity: &Severity) -> bool {
-        self.findings.iter().any(|f| !f.suppressed && f.severity.score() >= min_severity.score())
+        self.findings
+            .iter()
+            .any(|f| !f.suppressed && f.severity.score() >= min_severity.score())
     }
 
     pub fn summary(&self) -> ScanSummary {
@@ -212,11 +221,26 @@ impl SecurityScanner {
         ScanSummary {
             total: self.findings.len(),
             active: active.len(),
-            critical: active.iter().filter(|f| f.severity == Severity::Critical).count(),
-            high: active.iter().filter(|f| f.severity == Severity::High).count(),
-            medium: active.iter().filter(|f| f.severity == Severity::Medium).count(),
-            low: active.iter().filter(|f| f.severity == Severity::Low).count(),
-            info: active.iter().filter(|f| f.severity == Severity::Info).count(),
+            critical: active
+                .iter()
+                .filter(|f| f.severity == Severity::Critical)
+                .count(),
+            high: active
+                .iter()
+                .filter(|f| f.severity == Severity::High)
+                .count(),
+            medium: active
+                .iter()
+                .filter(|f| f.severity == Severity::Medium)
+                .count(),
+            low: active
+                .iter()
+                .filter(|f| f.severity == Severity::Low)
+                .count(),
+            info: active
+                .iter()
+                .filter(|f| f.severity == Severity::Info)
+                .count(),
             suppressed: self.findings.len() - active.len(),
         }
     }
@@ -436,7 +460,10 @@ mod tests {
     #[test]
     fn test_sql_injection_detection() {
         let mut scanner = SecurityScanner::new();
-        let ids = scanner.scan_content("db.py", "query = \"SELECT * FROM users WHERE id=\" + user_id");
+        let ids = scanner.scan_content(
+            "db.py",
+            "query = \"SELECT * FROM users WHERE id=\" + user_id",
+        );
         assert!(!ids.is_empty());
     }
 
@@ -445,7 +472,10 @@ mod tests {
         let mut scanner = SecurityScanner::new();
         let ids = scanner.scan_content("hash.py", "h = md5(data)");
         assert!(!ids.is_empty());
-        assert_eq!(scanner.get_finding(&ids[0]).unwrap().vuln_class, VulnerabilityClass::WeakCrypto);
+        assert_eq!(
+            scanner.get_finding(&ids[0]).unwrap().vuln_class,
+            VulnerabilityClass::WeakCrypto
+        );
     }
 
     #[test]

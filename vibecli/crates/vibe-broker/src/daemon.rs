@@ -94,10 +94,9 @@ impl BrokerDaemon {
 
         // ---- 3. Audit sink ------------------------------------------
         let audit: Arc<dyn AuditSink> = match &config.broker.audit {
-            Some(a) => Arc::new(
-                JsonlFileAuditSink::open(&a.jsonl_path)
-                    .map_err(|e| DaemonError::Io(e))?,
-            ),
+            Some(a) => {
+                Arc::new(JsonlFileAuditSink::open(&a.jsonl_path).map_err(|e| DaemonError::Io(e))?)
+            }
             None => Arc::new(NullAuditSink),
         };
 
@@ -128,11 +127,7 @@ impl BrokerDaemon {
             for prof in &config.gcp {
                 let key_pem = std::fs::read_to_string(&prof.private_key_pem_path)
                     .map_err(|e| DaemonError::Io(e))?;
-                let minter = GcpServiceAccountMinter::new(
-                    &prof.client_email,
-                    key_pem,
-                    &prof.scope,
-                );
+                let minter = GcpServiceAccountMinter::new(&prof.client_email, key_pem, &prof.scope);
                 let minter = match &prof.endpoint {
                     Some(ep) => minter.with_endpoint(ep),
                     None => minter,
@@ -161,19 +156,13 @@ impl BrokerDaemon {
         let broker_handle = match config.listener_kind() {
             ListenerKind::Tcp => {
                 let addr = config.broker.listen_tcp.as_ref().unwrap();
-                broker
-                    .start_tcp(addr)
-                    .await
-                    .map_err(DaemonError::Io)?
+                broker.start_tcp(addr).await.map_err(DaemonError::Io)?
             }
             ListenerKind::Uds => {
                 #[cfg(unix)]
                 {
                     let path = config.broker.listen_uds.as_ref().unwrap();
-                    broker
-                        .start_uds(path)
-                        .await
-                        .map_err(DaemonError::Io)?
+                    broker.start_uds(path).await.map_err(DaemonError::Io)?
                 }
                 #[cfg(not(unix))]
                 {

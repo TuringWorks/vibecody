@@ -2,7 +2,7 @@
  * BDD tests for recovery_recipe using Cucumber.
  * Run with: cargo test --test recovery_recipe_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::recovery_recipe::{FailureScenario, RecoveryOutcome, RecoveryRegistry};
 
 #[derive(Debug, Default, World)]
@@ -13,14 +13,14 @@ pub struct RrWorld {
 
 fn scenario_from(s: &str) -> FailureScenario {
     match s {
-        "provider_timeout"       => FailureScenario::ProviderTimeout,
+        "provider_timeout" => FailureScenario::ProviderTimeout,
         "tool_permission_denied" => FailureScenario::ToolPermissionDenied,
-        "session_corrupted"      => FailureScenario::SessionCorrupted,
-        "compaction_failed"      => FailureScenario::CompactionFailed,
-        "subagent_crash"         => FailureScenario::SubagentCrash,
-        "workspace_conflict"     => FailureScenario::WorkspaceConflict,
-        "mcp_server_down"        => FailureScenario::MCPServerDown,
-        _                        => FailureScenario::ProviderTimeout,
+        "session_corrupted" => FailureScenario::SessionCorrupted,
+        "compaction_failed" => FailureScenario::CompactionFailed,
+        "subagent_crash" => FailureScenario::SubagentCrash,
+        "workspace_conflict" => FailureScenario::WorkspaceConflict,
+        "mcp_server_down" => FailureScenario::MCPServerDown,
+        _ => FailureScenario::ProviderTimeout,
     }
 }
 
@@ -66,7 +66,11 @@ fn check_first_steps(world: &mut RrWorld) {
         FailureScenario::MCPServerDown,
     ] {
         let recipe = reg.get_recipe(scenario).unwrap();
-        assert!(recipe.steps[0].automatic, "{:?} first step not automatic", scenario);
+        assert!(
+            recipe.steps[0].automatic,
+            "{:?} first step not automatic",
+            scenario
+        );
     }
 }
 

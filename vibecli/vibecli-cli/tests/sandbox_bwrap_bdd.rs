@@ -2,7 +2,7 @@
  * BDD tests for sandbox_bwrap using Cucumber 0.20.
  * Run with: cargo test --test sandbox_bwrap_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::sandbox_bwrap::BwrapProfile;
 
 #[derive(Debug, World)]

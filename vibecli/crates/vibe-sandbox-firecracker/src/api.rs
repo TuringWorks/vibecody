@@ -416,7 +416,12 @@ mod tests {
         let paths: Vec<&str> = seq.iter().map(|r| r.path.as_str()).collect();
         assert_eq!(
             paths,
-            vec!["/machine-config", "/boot-source", "/drives/rootfs", "/actions"]
+            vec![
+                "/machine-config",
+                "/boot-source",
+                "/drives/rootfs",
+                "/actions"
+            ]
         );
     }
 

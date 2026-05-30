@@ -330,10 +330,7 @@ pub enum DecisionOperation {
 /// severity descending. Per-scanner errors are surfaced via the
 /// returned `errors` map; one scanner failing never blocks the
 /// rest.
-pub fn run_all_scanners(
-    workspace: &Path,
-    scanners: &[Box<dyn Scanner>],
-) -> AggregatorResult {
+pub fn run_all_scanners(workspace: &Path, scanners: &[Box<dyn Scanner>]) -> AggregatorResult {
     let mut findings: Vec<SecurityFinding> = Vec::new();
     let mut errors: Vec<ScannerError> = Vec::new();
 
@@ -469,21 +466,40 @@ mod tests {
             None,
             vec![],
         );
-        assert_eq!(f1.id, f2.id, "stable id required for suppression to survive re-scans");
+        assert_eq!(
+            f1.id, f2.id,
+            "stable id required for suppression to survive re-scans"
+        );
         assert_eq!(f1.id.len(), 16, "id should be 16 hex chars");
     }
 
     #[test]
     fn id_differs_when_line_differs() {
         let f1 = SecurityFinding::new(
-            "secrets", Severity::Critical, Category::SecretLeak,
-            "src/api/keys.rs", Some(42), None, None,
-            "secret-leak:aws-access-key", "AWS access key", None, vec![],
+            "secrets",
+            Severity::Critical,
+            Category::SecretLeak,
+            "src/api/keys.rs",
+            Some(42),
+            None,
+            None,
+            "secret-leak:aws-access-key",
+            "AWS access key",
+            None,
+            vec![],
         );
         let f2 = SecurityFinding::new(
-            "secrets", Severity::Critical, Category::SecretLeak,
-            "src/api/keys.rs", Some(43), None, None,
-            "secret-leak:aws-access-key", "AWS access key", None, vec![],
+            "secrets",
+            Severity::Critical,
+            Category::SecretLeak,
+            "src/api/keys.rs",
+            Some(43),
+            None,
+            None,
+            "secret-leak:aws-access-key",
+            "AWS access key",
+            None,
+            vec![],
         );
         assert_ne!(f1.id, f2.id);
     }
@@ -494,14 +510,30 @@ mod tests {
         // different findings (the user should be able to suppress
         // one without the other).
         let f1 = SecurityFinding::new(
-            "secrets", Severity::Critical, Category::SecretLeak,
-            "src/api/keys.rs", Some(42), None, None,
-            "RULE", "t", None, vec![],
+            "secrets",
+            Severity::Critical,
+            Category::SecretLeak,
+            "src/api/keys.rs",
+            Some(42),
+            None,
+            None,
+            "RULE",
+            "t",
+            None,
+            vec![],
         );
         let f2 = SecurityFinding::new(
-            "vulnerability_db", Severity::Critical, Category::SecretLeak,
-            "src/api/keys.rs", Some(42), None, None,
-            "RULE", "t", None, vec![],
+            "vulnerability_db",
+            Severity::Critical,
+            Category::SecretLeak,
+            "src/api/keys.rs",
+            Some(42),
+            None,
+            None,
+            "RULE",
+            "t",
+            None,
+            vec![],
         );
         assert_ne!(f1.id, f2.id);
     }
@@ -579,7 +611,11 @@ mod tests {
             fail: true,
         });
         let result = run_all_scanners(Path::new("/tmp"), &[s_ok, s_fail]);
-        assert_eq!(result.findings.len(), 1, "ok scanner's findings must survive");
+        assert_eq!(
+            result.findings.len(),
+            1,
+            "ok scanner's findings must survive"
+        );
         assert_eq!(result.errors.len(), 1, "failure must be surfaced");
         assert_eq!(result.errors[0].scanner, "fail");
         assert!(result.errors[0].message.contains("stub failure"));

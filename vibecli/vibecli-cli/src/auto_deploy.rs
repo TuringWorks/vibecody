@@ -7,10 +7,21 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum DeployTarget {
-    DockerCompose { compose_file: String },
-    Kubernetes { namespace: String, manifest_path: String },
-    Serverless { provider: String, function_name: String },
-    StaticHosting { bucket: String, cdn_prefix: String },
+    DockerCompose {
+        compose_file: String,
+    },
+    Kubernetes {
+        namespace: String,
+        manifest_path: String,
+    },
+    Serverless {
+        provider: String,
+        function_name: String,
+    },
+    StaticHosting {
+        bucket: String,
+        cdn_prefix: String,
+    },
 }
 
 // ─── DeployStageKind ─────────────────────────────────────────────────────────
@@ -111,9 +122,10 @@ impl DeployPlan {
     /// Returns true when all stages are Passed or Skipped (and there is at least one stage).
     pub fn is_complete(&self) -> bool {
         !self.stages.is_empty()
-            && self.stages.iter().all(|s| {
-                s.status == StageStatus::Passed || s.status == StageStatus::Skipped
-            })
+            && self
+                .stages
+                .iter()
+                .all(|s| s.status == StageStatus::Passed || s.status == StageStatus::Skipped)
     }
 
     /// Returns true when any stage has failed.
@@ -204,12 +216,7 @@ impl DeployPipeline {
         Ok(())
     }
 
-    pub fn fail_stage(
-        &mut self,
-        plan_id: &str,
-        stage_id: &str,
-        error: &str,
-    ) -> Result<(), String> {
+    pub fn fail_stage(&mut self, plan_id: &str, stage_id: &str, error: &str) -> Result<(), String> {
         let plan = self
             .plans
             .get_mut(plan_id)
@@ -342,7 +349,11 @@ mod tests {
     #[test]
     fn test_plan_add_stage() {
         let mut plan = DeployPlan::new("deploy", false);
-        plan.add_stage(make_stage("s1", DeployStageKind::Build, StageStatus::Pending));
+        plan.add_stage(make_stage(
+            "s1",
+            DeployStageKind::Build,
+            StageStatus::Pending,
+        ));
         assert_eq!(plan.stage_count(), 1);
     }
 
@@ -351,7 +362,9 @@ mod tests {
         let mut plan = DeployPlan::new("deploy", false);
         plan.add_gate(HealthGate {
             gate_id: "g1".into(),
-            check_type: HealthCheckType::SmokeTest { command: "curl".into() },
+            check_type: HealthCheckType::SmokeTest {
+                command: "curl".into(),
+            },
             config_json: "{}".into(),
             passed: None,
             checked_at_ms: None,
@@ -362,31 +375,59 @@ mod tests {
     #[test]
     fn test_plan_is_complete_all_passed() {
         let mut plan = DeployPlan::new("deploy", false);
-        plan.add_stage(make_stage("s1", DeployStageKind::Build, StageStatus::Passed));
-        plan.add_stage(make_stage("s2", DeployStageKind::Deploy, StageStatus::Passed));
+        plan.add_stage(make_stage(
+            "s1",
+            DeployStageKind::Build,
+            StageStatus::Passed,
+        ));
+        plan.add_stage(make_stage(
+            "s2",
+            DeployStageKind::Deploy,
+            StageStatus::Passed,
+        ));
         assert!(plan.is_complete());
     }
 
     #[test]
     fn test_plan_is_complete_with_skipped() {
         let mut plan = DeployPlan::new("deploy", false);
-        plan.add_stage(make_stage("s1", DeployStageKind::Build, StageStatus::Passed));
-        plan.add_stage(make_stage("s2", DeployStageKind::Test, StageStatus::Skipped));
+        plan.add_stage(make_stage(
+            "s1",
+            DeployStageKind::Build,
+            StageStatus::Passed,
+        ));
+        plan.add_stage(make_stage(
+            "s2",
+            DeployStageKind::Test,
+            StageStatus::Skipped,
+        ));
         assert!(plan.is_complete());
     }
 
     #[test]
     fn test_plan_not_complete_with_pending() {
         let mut plan = DeployPlan::new("deploy", false);
-        plan.add_stage(make_stage("s1", DeployStageKind::Build, StageStatus::Passed));
-        plan.add_stage(make_stage("s2", DeployStageKind::Deploy, StageStatus::Pending));
+        plan.add_stage(make_stage(
+            "s1",
+            DeployStageKind::Build,
+            StageStatus::Passed,
+        ));
+        plan.add_stage(make_stage(
+            "s2",
+            DeployStageKind::Deploy,
+            StageStatus::Pending,
+        ));
         assert!(!plan.is_complete());
     }
 
     #[test]
     fn test_plan_not_complete_with_running() {
         let mut plan = DeployPlan::new("deploy", false);
-        plan.add_stage(make_stage("s1", DeployStageKind::Deploy, StageStatus::Running));
+        plan.add_stage(make_stage(
+            "s1",
+            DeployStageKind::Deploy,
+            StageStatus::Running,
+        ));
         assert!(!plan.is_complete());
     }
 
@@ -404,15 +445,27 @@ mod tests {
     #[test]
     fn test_plan_has_failures_false() {
         let mut plan = DeployPlan::new("deploy", false);
-        plan.add_stage(make_stage("s1", DeployStageKind::Build, StageStatus::Passed));
+        plan.add_stage(make_stage(
+            "s1",
+            DeployStageKind::Build,
+            StageStatus::Passed,
+        ));
         assert!(!plan.has_failures());
     }
 
     #[test]
     fn test_plan_next_pending_stage() {
         let mut plan = DeployPlan::new("deploy", false);
-        plan.add_stage(make_stage("s1", DeployStageKind::Build, StageStatus::Passed));
-        plan.add_stage(make_stage("s2", DeployStageKind::Deploy, StageStatus::Pending));
+        plan.add_stage(make_stage(
+            "s1",
+            DeployStageKind::Build,
+            StageStatus::Passed,
+        ));
+        plan.add_stage(make_stage(
+            "s2",
+            DeployStageKind::Deploy,
+            StageStatus::Pending,
+        ));
         let next = plan.next_pending_stage();
         assert!(next.is_some());
         assert_eq!(next.unwrap().stage_id, "s2");
@@ -421,7 +474,11 @@ mod tests {
     #[test]
     fn test_plan_next_pending_none_when_all_done() {
         let mut plan = DeployPlan::new("deploy", false);
-        plan.add_stage(make_stage("s1", DeployStageKind::Build, StageStatus::Passed));
+        plan.add_stage(make_stage(
+            "s1",
+            DeployStageKind::Build,
+            StageStatus::Passed,
+        ));
         assert!(plan.next_pending_stage().is_none());
     }
 
@@ -586,7 +643,9 @@ mod tests {
         let stage_id = p.get_plan(&plan_id).unwrap().stages[0].stage_id.clone();
         p.start_stage(&plan_id, &stage_id).unwrap();
         p.pass_stage(&plan_id, &stage_id).unwrap();
-        assert!(p.get_plan(&plan_id).unwrap().stages[0].completed_ms.is_some());
+        assert!(p.get_plan(&plan_id).unwrap().stages[0]
+            .completed_ms
+            .is_some());
     }
 
     #[test]

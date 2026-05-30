@@ -129,11 +129,21 @@ impl AlgorithmId {
     pub fn family(&self) -> AlgorithmFamily {
         match self {
             Self::Ppo | Self::A2c | Self::Trpo | Self::Ppg => AlgorithmFamily::OnPolicy,
-            Self::Sac | Self::Td3 | Self::Dqn | Self::Ddpg | Self::C51 | Self::Qrdqn | Self::Iqn => {
-                AlgorithmFamily::OffPolicy
-            }
-            Self::Cql | Self::Iql | Self::Bcq | Self::Bear | Self::Crr | Self::Td3bc
-            | Self::DecisionTransformer | Self::Combo => AlgorithmFamily::OfflineRL,
+            Self::Sac
+            | Self::Td3
+            | Self::Dqn
+            | Self::Ddpg
+            | Self::C51
+            | Self::Qrdqn
+            | Self::Iqn => AlgorithmFamily::OffPolicy,
+            Self::Cql
+            | Self::Iql
+            | Self::Bcq
+            | Self::Bear
+            | Self::Crr
+            | Self::Td3bc
+            | Self::DecisionTransformer
+            | Self::Combo => AlgorithmFamily::OfflineRL,
             Self::DreamerV3 | Self::WorldModels | Self::MuZeroStyle => AlgorithmFamily::ModelBased,
             Self::Mappo | Self::Qmix | Self::Vdn | Self::Maddpg | Self::Coma => {
                 AlgorithmFamily::MultiAgent
@@ -179,13 +189,36 @@ impl AlgorithmId {
 
     pub fn all() -> Vec<AlgorithmId> {
         vec![
-            Self::Ppo, Self::A2c, Self::Trpo, Self::Ppg,
-            Self::Sac, Self::Td3, Self::Dqn, Self::Ddpg, Self::C51, Self::Qrdqn, Self::Iqn,
-            Self::Cql, Self::Iql, Self::Bcq, Self::Bear, Self::Crr, Self::Td3bc,
-            Self::DecisionTransformer, Self::Combo,
-            Self::DreamerV3, Self::WorldModels, Self::MuZeroStyle,
-            Self::Mappo, Self::Qmix, Self::Vdn, Self::Maddpg, Self::Coma,
-            Self::Bc, Self::Gail, Self::DAgger,
+            Self::Ppo,
+            Self::A2c,
+            Self::Trpo,
+            Self::Ppg,
+            Self::Sac,
+            Self::Td3,
+            Self::Dqn,
+            Self::Ddpg,
+            Self::C51,
+            Self::Qrdqn,
+            Self::Iqn,
+            Self::Cql,
+            Self::Iql,
+            Self::Bcq,
+            Self::Bear,
+            Self::Crr,
+            Self::Td3bc,
+            Self::DecisionTransformer,
+            Self::Combo,
+            Self::DreamerV3,
+            Self::WorldModels,
+            Self::MuZeroStyle,
+            Self::Mappo,
+            Self::Qmix,
+            Self::Vdn,
+            Self::Maddpg,
+            Self::Coma,
+            Self::Bc,
+            Self::Gail,
+            Self::DAgger,
         ]
     }
 
@@ -405,8 +438,20 @@ impl Activation {
             Self::Sigmoid => 1.0 / (1.0 + (-x).exp()),
             Self::Gelu => 0.5 * x * (1.0 + (0.7978845608 * (x + 0.044715 * x.powi(3))).tanh()),
             Self::SiLU => x * (1.0 / (1.0 + (-x).exp())),
-            Self::LeakyReLU(alpha) => if x >= 0.0 { x } else { alpha * x },
-            Self::Elu(alpha) => if x >= 0.0 { x } else { alpha * (x.exp() - 1.0) },
+            Self::LeakyReLU(alpha) => {
+                if x >= 0.0 {
+                    x
+                } else {
+                    alpha * x
+                }
+            }
+            Self::Elu(alpha) => {
+                if x >= 0.0 {
+                    x
+                } else {
+                    alpha * (x.exp() - 1.0)
+                }
+            }
             Self::Softmax => x.exp(), // simplified; real softmax needs vector context
             Self::Identity => x,
         }
@@ -416,34 +461,77 @@ impl Activation {
 /// Layer type for building network architectures.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum LayerType {
-    Dense { in_features: usize, out_features: usize },
-    Conv2d { in_channels: usize, out_channels: usize, kernel_size: usize, stride: usize },
-    Lstm { input_size: usize, hidden_size: usize, num_layers: usize },
-    TransformerBlock { d_model: usize, n_heads: usize, d_ff: usize },
-    LayerNorm { features: usize },
-    BatchNorm { features: usize },
-    Dropout { rate: f64 },
+    Dense {
+        in_features: usize,
+        out_features: usize,
+    },
+    Conv2d {
+        in_channels: usize,
+        out_channels: usize,
+        kernel_size: usize,
+        stride: usize,
+    },
+    Lstm {
+        input_size: usize,
+        hidden_size: usize,
+        num_layers: usize,
+    },
+    TransformerBlock {
+        d_model: usize,
+        n_heads: usize,
+        d_ff: usize,
+    },
+    LayerNorm {
+        features: usize,
+    },
+    BatchNorm {
+        features: usize,
+    },
+    Dropout {
+        rate: f64,
+    },
     Flatten,
-    Embedding { vocab_size: usize, embed_dim: usize },
-    MultiHeadAttention { d_model: usize, n_heads: usize },
+    Embedding {
+        vocab_size: usize,
+        embed_dim: usize,
+    },
+    MultiHeadAttention {
+        d_model: usize,
+        n_heads: usize,
+    },
 }
 
 impl LayerType {
     pub fn param_count(&self) -> usize {
         match self {
-            Self::Dense { in_features, out_features } => in_features * out_features + out_features,
-            Self::Conv2d { in_channels, out_channels, kernel_size, .. } => {
-                in_channels * out_channels * kernel_size * kernel_size + out_channels
-            }
-            Self::Lstm { input_size, hidden_size, num_layers } => {
-                num_layers * 4 * (input_size * hidden_size + hidden_size * hidden_size + hidden_size)
+            Self::Dense {
+                in_features,
+                out_features,
+            } => in_features * out_features + out_features,
+            Self::Conv2d {
+                in_channels,
+                out_channels,
+                kernel_size,
+                ..
+            } => in_channels * out_channels * kernel_size * kernel_size + out_channels,
+            Self::Lstm {
+                input_size,
+                hidden_size,
+                num_layers,
+            } => {
+                num_layers
+                    * 4
+                    * (input_size * hidden_size + hidden_size * hidden_size + hidden_size)
             }
             Self::TransformerBlock { d_model, d_ff, .. } => {
                 4 * d_model * d_model + 2 * d_model * d_ff + 4 * d_model
             }
             Self::LayerNorm { features } | Self::BatchNorm { features } => 2 * features,
             Self::Dropout { .. } | Self::Flatten => 0,
-            Self::Embedding { vocab_size, embed_dim } => vocab_size * embed_dim,
+            Self::Embedding {
+                vocab_size,
+                embed_dim,
+            } => vocab_size * embed_dim,
             Self::MultiHeadAttention { d_model, .. } => 4 * d_model * d_model + 4 * d_model,
         }
     }
@@ -498,14 +586,20 @@ impl PolicyNetwork {
         for (i, &h) in hidden_dims.iter().enumerate() {
             layers.push(LayerConfig {
                 name: format!("dense_{}", i),
-                layer_type: LayerType::Dense { in_features: prev, out_features: h },
+                layer_type: LayerType::Dense {
+                    in_features: prev,
+                    out_features: h,
+                },
                 activation: Some(Activation::ReLU),
             });
             prev = h;
         }
         layers.push(LayerConfig {
             name: "output".into(),
-            layer_type: LayerType::Dense { in_features: prev, out_features: output_dim },
+            layer_type: LayerType::Dense {
+                in_features: prev,
+                out_features: output_dim,
+            },
             activation: None,
         });
         Self {
@@ -524,21 +618,30 @@ impl PolicyNetwork {
             LayerConfig {
                 name: "conv1".into(),
                 layer_type: LayerType::Conv2d {
-                    in_channels: input_channels, out_channels: 32, kernel_size: 8, stride: 4,
+                    in_channels: input_channels,
+                    out_channels: 32,
+                    kernel_size: 8,
+                    stride: 4,
                 },
                 activation: Some(Activation::ReLU),
             },
             LayerConfig {
                 name: "conv2".into(),
                 layer_type: LayerType::Conv2d {
-                    in_channels: 32, out_channels: 64, kernel_size: 4, stride: 2,
+                    in_channels: 32,
+                    out_channels: 64,
+                    kernel_size: 4,
+                    stride: 2,
                 },
                 activation: Some(Activation::ReLU),
             },
             LayerConfig {
                 name: "conv3".into(),
                 layer_type: LayerType::Conv2d {
-                    in_channels: 64, out_channels: 64, kernel_size: 3, stride: 1,
+                    in_channels: 64,
+                    out_channels: 64,
+                    kernel_size: 3,
+                    stride: 1,
                 },
                 activation: Some(Activation::ReLU),
             },
@@ -549,12 +652,18 @@ impl PolicyNetwork {
             },
             LayerConfig {
                 name: "fc".into(),
-                layer_type: LayerType::Dense { in_features: 3136, out_features: 512 },
+                layer_type: LayerType::Dense {
+                    in_features: 3136,
+                    out_features: 512,
+                },
                 activation: Some(Activation::ReLU),
             },
             LayerConfig {
                 name: "output".into(),
-                layer_type: LayerType::Dense { in_features: 512, out_features: output_dim },
+                layer_type: LayerType::Dense {
+                    in_features: 512,
+                    out_features: output_dim,
+                },
                 activation: None,
             },
         ];
@@ -584,7 +693,10 @@ impl PolicyNetwork {
         }
         layers.push(LayerConfig {
             name: "output_head".into(),
-            layer_type: LayerType::Dense { in_features: d_model, out_features: output_dim },
+            layer_type: LayerType::Dense {
+                in_features: d_model,
+                out_features: output_dim,
+            },
             activation: None,
         });
         Self {
@@ -598,16 +710,28 @@ impl PolicyNetwork {
         }
     }
 
-    pub fn lstm(input_size: usize, hidden_size: usize, num_layers: usize, output_dim: usize) -> Self {
+    pub fn lstm(
+        input_size: usize,
+        hidden_size: usize,
+        num_layers: usize,
+        output_dim: usize,
+    ) -> Self {
         let layers = vec![
             LayerConfig {
                 name: "lstm".into(),
-                layer_type: LayerType::Lstm { input_size, hidden_size, num_layers },
+                layer_type: LayerType::Lstm {
+                    input_size,
+                    hidden_size,
+                    num_layers,
+                },
                 activation: Some(Activation::Tanh),
             },
             LayerConfig {
                 name: "output".into(),
-                layer_type: LayerType::Dense { in_features: hidden_size, out_features: output_dim },
+                layer_type: LayerType::Dense {
+                    in_features: hidden_size,
+                    out_features: output_dim,
+                },
                 activation: None,
             },
         ];
@@ -654,8 +778,15 @@ impl PolicyNetwork {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ReplayBufferType {
     Uniform,
-    Prioritized { alpha: f64, beta: f64, beta_increment: f64 },
-    Hindsight { strategy: HERStrategy, k_goals: usize },
+    Prioritized {
+        alpha: f64,
+        beta: f64,
+        beta_increment: f64,
+    },
+    Hindsight {
+        strategy: HERStrategy,
+        k_goals: usize,
+    },
 }
 
 /// HER goal relabeling strategy.
@@ -709,10 +840,16 @@ impl ReplayBuffer {
     pub fn add(&mut self, transition: Transition) {
         let priority = self.max_priority;
         if self.entries.len() < self.capacity {
-            self.entries.push(PriorityEntry { transition, priority });
+            self.entries.push(PriorityEntry {
+                transition,
+                priority,
+            });
         } else {
             let idx = self.total_added % self.capacity;
-            self.entries[idx] = PriorityEntry { transition, priority };
+            self.entries[idx] = PriorityEntry {
+                transition,
+                priority,
+            };
         }
         self.total_added += 1;
     }
@@ -740,9 +877,15 @@ impl ReplayBuffer {
             }
             ReplayBufferType::Prioritized { alpha, .. } => {
                 // Priority-weighted sampling
-                let total_priority: f64 = self.entries.iter().map(|e| e.priority.powf(*alpha)).sum();
+                let total_priority: f64 =
+                    self.entries.iter().map(|e| e.priority.powf(*alpha)).sum();
                 if total_priority <= 0.0 {
-                    return self.entries.iter().take(actual_size).map(|e| &e.transition).collect();
+                    return self
+                        .entries
+                        .iter()
+                        .take(actual_size)
+                        .map(|e| &e.transition)
+                        .collect();
                 }
                 let segment = total_priority / actual_size as f64;
                 let mut result = Vec::with_capacity(actual_size);
@@ -750,7 +893,9 @@ impl ReplayBuffer {
                 let mut segment_idx = 0;
                 for entry in &self.entries {
                     cumulative += entry.priority.powf(*alpha);
-                    while segment_idx < actual_size && cumulative >= (segment_idx as f64 + 0.5) * segment {
+                    while segment_idx < actual_size
+                        && cumulative >= (segment_idx as f64 + 0.5) * segment
+                    {
                         result.push(&entry.transition);
                         segment_idx += 1;
                     }
@@ -795,7 +940,9 @@ impl ReplayBuffer {
     }
 
     pub fn utilization(&self) -> f64 {
-        if self.capacity == 0 { return 0.0; }
+        if self.capacity == 0 {
+            return 0.0;
+        }
         self.entries.len() as f64 / self.capacity as f64
     }
 }
@@ -855,27 +1002,40 @@ impl LRSchedule {
         match self {
             Self::Constant => base_lr,
             Self::Linear { start, end } => {
-                if total_steps == 0 { return *start; }
+                if total_steps == 0 {
+                    return *start;
+                }
                 let frac = step as f64 / total_steps as f64;
                 start + (end - start) * frac
             }
             Self::Cosine { min_lr } => {
-                if total_steps == 0 { return base_lr; }
+                if total_steps == 0 {
+                    return base_lr;
+                }
                 let frac = step as f64 / total_steps as f64;
                 min_lr + 0.5 * (base_lr - min_lr) * (1.0 + (std::f64::consts::PI * frac).cos())
             }
             Self::StepDecay { step_size, gamma } => {
-                if *step_size == 0 { return base_lr; }
+                if *step_size == 0 {
+                    return base_lr;
+                }
                 base_lr * gamma.powi((step / step_size) as i32)
             }
-            Self::WarmupCosine { warmup_steps, min_lr } => {
+            Self::WarmupCosine {
+                warmup_steps,
+                min_lr,
+            } => {
                 if step < *warmup_steps {
-                    if *warmup_steps == 0 { return base_lr; }
+                    if *warmup_steps == 0 {
+                        return base_lr;
+                    }
                     base_lr * step as f64 / *warmup_steps as f64
                 } else {
                     let post = step - warmup_steps;
                     let post_total = total_steps.saturating_sub(*warmup_steps);
-                    if post_total == 0 { return base_lr; }
+                    if post_total == 0 {
+                        return base_lr;
+                    }
                     let frac = post as f64 / post_total as f64;
                     min_lr + 0.5 * (base_lr - min_lr) * (1.0 + (std::f64::consts::PI * frac).cos())
                 }
@@ -959,11 +1119,13 @@ impl Default for TrainingConfig {
 
 impl TrainingConfig {
     pub fn from_yaml(yaml: &str) -> Result<Self, String> {
-        serde_yaml::from_str(yaml).map_err(|e| format!("Failed to parse training config YAML: {}", e))
+        serde_yaml::from_str(yaml)
+            .map_err(|e| format!("Failed to parse training config YAML: {}", e))
     }
 
     pub fn to_yaml(&self) -> Result<String, String> {
-        serde_yaml::to_string(self).map_err(|e| format!("Failed to serialize training config: {}", e))
+        serde_yaml::to_string(self)
+            .map_err(|e| format!("Failed to serialize training config: {}", e))
     }
 
     pub fn validate(&self) -> Vec<String> {
@@ -1219,8 +1381,14 @@ impl Trajectory {
         let mut advantages = vec![0.0; n];
         let mut gae = 0.0;
         for t in (0..n).rev() {
-            let next_value = if t + 1 < values.len() { values[t + 1] } else { 0.0 };
-            let delta = self.transitions[t].reward + gamma * next_value * (1.0 - self.transitions[t].done as i32 as f64) - values[t];
+            let next_value = if t + 1 < values.len() {
+                values[t + 1]
+            } else {
+                0.0
+            };
+            let delta = self.transitions[t].reward
+                + gamma * next_value * (1.0 - self.transitions[t].done as i32 as f64)
+                - values[t];
             gae = delta + gamma * lam * (1.0 - self.transitions[t].done as i32 as f64) * gae;
             advantages[t] = gae;
         }
@@ -1252,7 +1420,8 @@ impl Trajectory {
         let mut returns = vec![0.0; n];
         let mut running = 0.0;
         for t in (0..n).rev() {
-            running = self.transitions[t].reward + gamma * running * (1.0 - self.transitions[t].done as i32 as f64);
+            running = self.transitions[t].reward
+                + gamma * running * (1.0 - self.transitions[t].done as i32 as f64);
             returns[t] = running;
         }
         returns
@@ -1353,8 +1522,15 @@ impl TrainingMetrics {
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        let point = MetricPoint { step, value, timestamp: ts };
-        self.metrics.entry(name.to_string()).or_default().push(point);
+        let point = MetricPoint {
+            step,
+            value,
+            timestamp: ts,
+        };
+        self.metrics
+            .entry(name.to_string())
+            .or_default()
+            .push(point);
 
         if name == "reward" && value > self.best_reward {
             self.best_reward = value;
@@ -1378,11 +1554,19 @@ impl TrainingMetrics {
     }
 
     pub fn get_min(&self, name: &str) -> Option<f64> {
-        self.metrics.get(name)?.iter().map(|p| p.value).reduce(f64::min)
+        self.metrics
+            .get(name)?
+            .iter()
+            .map(|p| p.value)
+            .reduce(f64::min)
     }
 
     pub fn get_max(&self, name: &str) -> Option<f64> {
-        self.metrics.get(name)?.iter().map(|p| p.value).reduce(f64::max)
+        self.metrics
+            .get(name)?
+            .iter()
+            .map(|p| p.value)
+            .reduce(f64::max)
     }
 
     pub fn metric_names(&self) -> Vec<&String> {
@@ -1400,7 +1584,10 @@ impl TrainingMetrics {
                 continue;
             }
             let min = points.iter().map(|p| p.value).fold(f64::INFINITY, f64::min);
-            let max = points.iter().map(|p| p.value).fold(f64::NEG_INFINITY, f64::max);
+            let max = points
+                .iter()
+                .map(|p| p.value)
+                .fold(f64::NEG_INFINITY, f64::max);
             let avg = points.iter().map(|p| p.value).sum::<f64>() / points.len() as f64;
             result.insert(name.clone(), (min, avg, max));
         }
@@ -1433,7 +1620,9 @@ impl PromotionCriteria {
             Self::SuccessRate(t) => success_rate >= *t,
             Self::MinEpisodes(n) => episodes >= *n,
             Self::StepCount(n) => steps >= *n,
-            Self::Combined(criteria) => criteria.iter().all(|c| c.is_met(reward, success_rate, episodes, steps)),
+            Self::Combined(criteria) => criteria
+                .iter()
+                .all(|c| c.is_met(reward, success_rate, episodes, steps)),
         }
     }
 }
@@ -1486,7 +1675,8 @@ impl CurriculumManager {
         if self.current_stage >= self.stages.len() {
             return false;
         }
-        self.history.push((self.current_stage, total_steps, self.stage_best_reward));
+        self.history
+            .push((self.current_stage, total_steps, self.stage_best_reward));
         self.current_stage += 1;
         self.stage_steps = 0;
         self.stage_episodes = 0;
@@ -1503,7 +1693,12 @@ impl CurriculumManager {
             return false;
         }
         let stage = &self.stages[self.current_stage];
-        if stage.promotion_criteria.is_met(reward, success_rate, self.stage_episodes, self.stage_steps) {
+        if stage.promotion_criteria.is_met(
+            reward,
+            success_rate,
+            self.stage_episodes,
+            self.stage_steps,
+        ) {
             self.advance(total_steps)
         } else {
             false
@@ -1599,10 +1794,7 @@ impl MultiAgentOrchestrator {
     }
 
     pub fn team_count(&self) -> usize {
-        let mut teams: Vec<usize> = self.agent_types
-            .iter()
-            .filter_map(|a| a.team_id)
-            .collect();
+        let mut teams: Vec<usize> = self.agent_types.iter().filter_map(|a| a.team_id).collect();
         teams.sort();
         teams.dedup();
         teams.len()
@@ -1631,7 +1823,11 @@ impl MultiAgentOrchestrator {
         }
         let total: f64 = self.agent_metrics.values().flatten().sum();
         let count: usize = self.agent_metrics.values().map(|v| v.len()).sum();
-        if count == 0 { 0.0 } else { total / count as f64 }
+        if count == 0 {
+            0.0
+        } else {
+            total / count as f64
+        }
     }
 }
 
@@ -1746,7 +1942,9 @@ impl A2AProtocol {
     }
 
     pub fn get_subordinates(&self, agent: &str) -> Vec<&String> {
-        self.hierarchy.get(agent).map_or(Vec::new(), |c| c.iter().collect())
+        self.hierarchy
+            .get(agent)
+            .map_or(Vec::new(), |c| c.iter().collect())
     }
 
     pub fn delegate(&mut self, from: &str, to: &str, task: HashMap<String, f64>) {
@@ -1783,9 +1981,17 @@ impl Default for A2AProtocol {
 pub enum SearchStrategy {
     GridSearch,
     RandomSearch,
-    BayesianOptimization { acquisition: String },
-    PopulationBased { population_size: usize, exploit_fraction: f64 },
-    NeuralArchSearch { max_layers: usize, max_width: usize },
+    BayesianOptimization {
+        acquisition: String,
+    },
+    PopulationBased {
+        population_size: usize,
+        exploit_fraction: f64,
+    },
+    NeuralArchSearch {
+        max_layers: usize,
+        max_width: usize,
+    },
 }
 
 /// A hyperparameter search space entry.
@@ -1800,15 +2006,33 @@ pub struct HParamSpace {
 
 impl HParamSpace {
     pub fn continuous(name: &str, min: f64, max: f64) -> Self {
-        Self { name: name.into(), min, max, log_scale: false, discrete: false }
+        Self {
+            name: name.into(),
+            min,
+            max,
+            log_scale: false,
+            discrete: false,
+        }
     }
 
     pub fn log_continuous(name: &str, min: f64, max: f64) -> Self {
-        Self { name: name.into(), min, max, log_scale: true, discrete: false }
+        Self {
+            name: name.into(),
+            min,
+            max,
+            log_scale: true,
+            discrete: false,
+        }
     }
 
     pub fn discrete(name: &str, min: f64, max: f64) -> Self {
-        Self { name: name.into(), min, max, log_scale: false, discrete: true }
+        Self {
+            name: name.into(),
+            min,
+            max,
+            log_scale: false,
+            discrete: true,
+        }
     }
 
     /// Sample linearly within the range (deterministic for a given fraction).
@@ -1820,7 +2044,11 @@ impl HParamSpace {
             (log_min + (log_max - log_min) * f).exp()
         } else {
             let val = self.min + (self.max - self.min) * f;
-            if self.discrete { val.round() } else { val }
+            if self.discrete {
+                val.round()
+            } else {
+                val
+            }
         }
     }
 }
@@ -1941,7 +2169,10 @@ impl AutoRL {
     }
 
     pub fn completed_trials(&self) -> usize {
-        self.trials.iter().filter(|t| t.status == TrialStatus::Completed).count()
+        self.trials
+            .iter()
+            .filter(|t| t.status == TrialStatus::Completed)
+            .count()
     }
 
     pub fn best_params(&self) -> Option<&HashMap<String, f64>> {
@@ -1949,11 +2180,16 @@ impl AutoRL {
     }
 
     pub fn top_k(&self, k: usize) -> Vec<&TrialResult> {
-        let mut completed: Vec<&TrialResult> = self.trials
+        let mut completed: Vec<&TrialResult> = self
+            .trials
             .iter()
             .filter(|t| t.status == TrialStatus::Completed)
             .collect();
-        completed.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        completed.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         completed.into_iter().take(k).collect()
     }
 
@@ -1962,7 +2198,8 @@ impl AutoRL {
             return false;
         }
         // Prune if significantly worse than median at similar step counts
-        let completed_at_step: Vec<f64> = self.trials
+        let completed_at_step: Vec<f64> = self
+            .trials
             .iter()
             .filter(|t| t.status == TrialStatus::Completed && t.steps_trained >= step)
             .map(|t| t.score)
@@ -2070,7 +2307,9 @@ impl PopulationTrainer {
         }
         let mut indices: Vec<usize> = (0..self.population.len()).collect();
         indices.sort_by(|&a, &b| {
-            self.population[b].score.partial_cmp(&self.population[a].score)
+            self.population[b]
+                .score
+                .partial_cmp(&self.population[a].score)
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
 
@@ -2090,7 +2329,8 @@ impl PopulationTrainer {
             let mut new_params = source.clone();
             // Mutate
             for (_, v) in new_params.iter_mut() {
-                let perturbation = 1.0 + (((idx * 997 + self.generation * 31) % 200) as f64 / 1000.0 - 0.1);
+                let perturbation =
+                    1.0 + (((idx * 997 + self.generation * 31) % 200) as f64 / 1000.0 - 0.1);
                 *v *= perturbation;
             }
             self.population[idx].hyperparams = new_params;
@@ -2122,12 +2362,15 @@ impl PopulationTrainer {
 
     pub fn best_agent(&self) -> Option<&PBTAgent> {
         self.population.iter().max_by(|a, b| {
-            a.score.partial_cmp(&b.score).unwrap_or(std::cmp::Ordering::Equal)
+            a.score
+                .partial_cmp(&b.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
         })
     }
 
     pub fn elo_ranking(&self) -> Vec<(usize, f64)> {
-        let mut ranking: Vec<(usize, f64)> = self.population.iter().map(|a| (a.id, a.elo)).collect();
+        let mut ranking: Vec<(usize, f64)> =
+            self.population.iter().map(|a| (a.id, a.elo)).collect();
         ranking.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         ranking
     }
@@ -2191,14 +2434,11 @@ impl FaultToleranceManager {
     }
 
     pub fn should_checkpoint(&self, current_step: usize) -> bool {
-        self.config.enabled && current_step - self.last_checkpoint_step >= self.config.frequency_steps
+        self.config.enabled
+            && current_step - self.last_checkpoint_step >= self.config.frequency_steps
     }
 
-    pub fn create_checkpoint(
-        &mut self,
-        step: usize,
-        metrics: &HashMap<String, f64>,
-    ) -> Checkpoint {
+    pub fn create_checkpoint(&mut self, step: usize, metrics: &HashMap<String, f64>) -> Checkpoint {
         let ts = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -2398,7 +2638,8 @@ impl TrainingLifecycle {
             snapshot.insert("reward".into(), reward);
             snapshot.insert("loss".into(), loss);
             snapshot.insert("step".into(), self.current_step as f64);
-            self.fault_tolerance.create_checkpoint(self.current_step, &snapshot);
+            self.fault_tolerance
+                .create_checkpoint(self.current_step, &snapshot);
         }
     }
 
@@ -2411,11 +2652,15 @@ impl TrainingLifecycle {
 
     pub fn is_done(&self) -> bool {
         self.current_step >= self.config.total_timesteps
-            || matches!(self.phase, TrainingPhase::Completed | TrainingPhase::Failed(_))
+            || matches!(
+                self.phase,
+                TrainingPhase::Completed | TrainingPhase::Failed(_)
+            )
     }
 
     fn transition_to(&mut self, new_phase: TrainingPhase) {
-        self.phase_history.push((self.phase.clone(), self.current_step));
+        self.phase_history
+            .push((self.phase.clone(), self.current_step));
         self.phase = new_phase;
     }
 
@@ -2500,7 +2745,10 @@ impl TrainOS {
             summary.insert("progress".into(), format!("{:.1}%", lc.progress() * 100.0));
         }
         if let Some(cur) = &self.curriculum {
-            summary.insert("curriculum_stage".into(), format!("{}/{}", cur.current_stage, cur.total_stages()));
+            summary.insert(
+                "curriculum_stage".into(),
+                format!("{}/{}", cur.current_stage, cur.total_stages()),
+            );
         }
         if let Some(ma) = &self.multi_agent {
             summary.insert("agents".into(), ma.total_agents().to_string());
@@ -2550,7 +2798,10 @@ mod tests {
         assert_eq!(AlgorithmId::Ppo.name(), "PPO");
         assert_eq!(AlgorithmId::Td3bc.name(), "TD3+BC");
         assert_eq!(AlgorithmId::Qrdqn.name(), "QR-DQN");
-        assert_eq!(AlgorithmId::DecisionTransformer.name(), "Decision Transformer");
+        assert_eq!(
+            AlgorithmId::DecisionTransformer.name(),
+            "Decision Transformer"
+        );
     }
 
     #[test]
@@ -2717,7 +2968,10 @@ mod tests {
 
     #[test]
     fn test_layer_param_count_dense() {
-        let l = LayerType::Dense { in_features: 100, out_features: 50 };
+        let l = LayerType::Dense {
+            in_features: 100,
+            out_features: 50,
+        };
         assert_eq!(l.param_count(), 5050);
     }
 
@@ -2772,7 +3026,11 @@ mod tests {
     #[test]
     fn test_replay_buffer_prioritized_sample() {
         let mut buf = ReplayBuffer::new(
-            ReplayBufferType::Prioritized { alpha: 0.6, beta: 0.4, beta_increment: 0.001 },
+            ReplayBufferType::Prioritized {
+                alpha: 0.6,
+                beta: 0.4,
+                beta_increment: 0.001,
+            },
             100,
         );
         for i in 0..10 {
@@ -2785,7 +3043,10 @@ mod tests {
     #[test]
     fn test_replay_buffer_her_sample() {
         let mut buf = ReplayBuffer::new(
-            ReplayBufferType::Hindsight { strategy: HERStrategy::Future, k_goals: 4 },
+            ReplayBufferType::Hindsight {
+                strategy: HERStrategy::Future,
+                k_goals: 4,
+            },
             100,
         );
         for i in 0..20 {
@@ -2798,7 +3059,11 @@ mod tests {
     #[test]
     fn test_replay_buffer_update_priorities() {
         let mut buf = ReplayBuffer::new(
-            ReplayBufferType::Prioritized { alpha: 0.6, beta: 0.4, beta_increment: 0.001 },
+            ReplayBufferType::Prioritized {
+                alpha: 0.6,
+                beta: 0.4,
+                beta_increment: 0.001,
+            },
             100,
         );
         for i in 0..5 {
@@ -2893,7 +3158,10 @@ mod tests {
 
     #[test]
     fn test_lr_linear() {
-        let schedule = LRSchedule::Linear { start: 0.01, end: 0.001 };
+        let schedule = LRSchedule::Linear {
+            start: 0.01,
+            end: 0.001,
+        };
         let lr_mid = schedule.get_lr(0.01, 500, 1000);
         assert!((lr_mid - 0.0055).abs() < 1e-10);
     }
@@ -2908,7 +3176,10 @@ mod tests {
 
     #[test]
     fn test_lr_step_decay() {
-        let schedule = LRSchedule::StepDecay { step_size: 100, gamma: 0.1 };
+        let schedule = LRSchedule::StepDecay {
+            step_size: 100,
+            gamma: 0.1,
+        };
         let lr0 = schedule.get_lr(1.0, 0, 1000);
         let lr200 = schedule.get_lr(1.0, 200, 1000);
         assert_eq!(lr0, 1.0);
@@ -2917,7 +3188,10 @@ mod tests {
 
     #[test]
     fn test_lr_warmup_cosine() {
-        let schedule = LRSchedule::WarmupCosine { warmup_steps: 100, min_lr: 0.0 };
+        let schedule = LRSchedule::WarmupCosine {
+            warmup_steps: 100,
+            min_lr: 0.0,
+        };
         let lr_50 = schedule.get_lr(0.001, 50, 1000);
         let lr_500 = schedule.get_lr(0.001, 500, 1000);
         assert!(lr_50 < 0.001);
@@ -2937,14 +3211,20 @@ mod tests {
 
     #[test]
     fn test_distributed_manager_creation() {
-        let cfg = DistributedConfig { num_workers: 4, ..Default::default() };
+        let cfg = DistributedConfig {
+            num_workers: 4,
+            ..Default::default()
+        };
         let dm = DistributedManager::new(cfg);
         assert_eq!(dm.workers.len(), 4);
     }
 
     #[test]
     fn test_distributed_start_all() {
-        let cfg = DistributedConfig { num_workers: 3, ..Default::default() };
+        let cfg = DistributedConfig {
+            num_workers: 3,
+            ..Default::default()
+        };
         let mut dm = DistributedManager::new(cfg);
         dm.start_all();
         assert_eq!(dm.active_workers(), 3);
@@ -2952,7 +3232,10 @@ mod tests {
 
     #[test]
     fn test_distributed_stop_all() {
-        let cfg = DistributedConfig { num_workers: 3, ..Default::default() };
+        let cfg = DistributedConfig {
+            num_workers: 3,
+            ..Default::default()
+        };
         let mut dm = DistributedManager::new(cfg);
         dm.start_all();
         dm.stop_all();
@@ -2961,7 +3244,11 @@ mod tests {
 
     #[test]
     fn test_allreduce_gradient_sync() {
-        let cfg = DistributedConfig { num_workers: 2, gradient_sync: GradientSyncStrategy::AllReduce, ..Default::default() };
+        let cfg = DistributedConfig {
+            num_workers: 2,
+            gradient_sync: GradientSyncStrategy::AllReduce,
+            ..Default::default()
+        };
         let mut dm = DistributedManager::new(cfg);
         let grads = vec![vec![1.0, 2.0, 3.0], vec![3.0, 4.0, 5.0]];
         let result = dm.sync_gradients(&grads);
@@ -2985,7 +3272,10 @@ mod tests {
 
     #[test]
     fn test_distributed_mark_worker_failed() {
-        let cfg = DistributedConfig { num_workers: 3, ..Default::default() };
+        let cfg = DistributedConfig {
+            num_workers: 3,
+            ..Default::default()
+        };
         let mut dm = DistributedManager::new(cfg);
         dm.start_all();
         dm.mark_worker_failed(1, "OOM");
@@ -2994,7 +3284,10 @@ mod tests {
 
     #[test]
     fn test_distributed_replace_failed_worker() {
-        let cfg = DistributedConfig { num_workers: 3, ..Default::default() };
+        let cfg = DistributedConfig {
+            num_workers: 3,
+            ..Default::default()
+        };
         let mut dm = DistributedManager::new(cfg);
         dm.start_all();
         dm.mark_worker_failed(1, "OOM");
@@ -3004,7 +3297,10 @@ mod tests {
 
     #[test]
     fn test_distributed_advance_step() {
-        let cfg = DistributedConfig { num_workers: 2, ..Default::default() };
+        let cfg = DistributedConfig {
+            num_workers: 2,
+            ..Default::default()
+        };
         let mut dm = DistributedManager::new(cfg);
         dm.start_all();
         dm.advance_step();
@@ -3073,7 +3369,10 @@ mod tests {
         let mut collector = ExperienceCollector::new(4, 128);
         let mut traj = Trajectory::new();
         traj.add(make_transition(1.0));
-        traj.add(Transition { done: true, ..make_transition(2.0) });
+        traj.add(Transition {
+            done: true,
+            ..make_transition(2.0)
+        });
         collector.add_trajectory(traj);
         assert_eq!(collector.total_steps, 2);
         assert_eq!(collector.total_episodes, 1);
@@ -3263,14 +3562,18 @@ mod tests {
 
     #[test]
     fn test_multi_agent_orchestrator_creation() {
-        let orch = MultiAgentOrchestrator::new(MultiAgentMode::Cooperative, CommunicationProtocol::SharedReward);
+        let orch = MultiAgentOrchestrator::new(
+            MultiAgentMode::Cooperative,
+            CommunicationProtocol::SharedReward,
+        );
         assert_eq!(orch.mode, MultiAgentMode::Cooperative);
         assert_eq!(orch.total_agents(), 0);
     }
 
     #[test]
     fn test_multi_agent_add_types() {
-        let mut orch = MultiAgentOrchestrator::new(MultiAgentMode::Mixed, CommunicationProtocol::None);
+        let mut orch =
+            MultiAgentOrchestrator::new(MultiAgentMode::Mixed, CommunicationProtocol::None);
         orch.add_agent_type(AgentType {
             name: "attacker".into(),
             policy: PolicyNetwork::mlp(10, &[64], 4),
@@ -3293,7 +3596,8 @@ mod tests {
 
     #[test]
     fn test_multi_agent_interaction_tracking() {
-        let mut orch = MultiAgentOrchestrator::new(MultiAgentMode::Cooperative, CommunicationProtocol::None);
+        let mut orch =
+            MultiAgentOrchestrator::new(MultiAgentMode::Cooperative, CommunicationProtocol::None);
         orch.record_interaction("agent_0", 1.0);
         orch.record_interaction("agent_0", 3.0);
         orch.record_interaction("agent_1", 5.0);
@@ -3303,7 +3607,10 @@ mod tests {
 
     #[test]
     fn test_multi_agent_shared_reward() {
-        let mut orch = MultiAgentOrchestrator::new(MultiAgentMode::Cooperative, CommunicationProtocol::SharedReward);
+        let mut orch = MultiAgentOrchestrator::new(
+            MultiAgentMode::Cooperative,
+            CommunicationProtocol::SharedReward,
+        );
         orch.record_interaction("a", 10.0);
         orch.record_interaction("b", 20.0);
         assert!((orch.compute_shared_reward() - 15.0).abs() < 1e-10);
@@ -3381,7 +3688,8 @@ mod tests {
             "a".into(),
             "b".into(),
             HashMap::new(),
-        ).with_priority(10);
+        )
+        .with_priority(10);
         assert_eq!(msg.priority, 10);
     }
 
@@ -3439,7 +3747,9 @@ mod tests {
     #[test]
     fn test_autorl_bayesian_first_trial() {
         let mut arl = AutoRL::new(
-            SearchStrategy::BayesianOptimization { acquisition: "ucb".into() },
+            SearchStrategy::BayesianOptimization {
+                acquisition: "ucb".into(),
+            },
             10,
         );
         arl.add_param(HParamSpace::continuous("lr", 0.001, 0.1));
@@ -3619,7 +3929,10 @@ mod tests {
 
     #[test]
     fn test_fault_tolerance_find_by_step() {
-        let mut ft = FaultToleranceManager::new(CheckpointConfig { keep_last: 10, ..Default::default() });
+        let mut ft = FaultToleranceManager::new(CheckpointConfig {
+            keep_last: 10,
+            ..Default::default()
+        });
         let m = HashMap::new();
         ft.create_checkpoint(100, &m);
         ft.create_checkpoint(200, &m);
@@ -3762,7 +4075,10 @@ mod tests {
         os.configure(TrainingConfig::default());
         os.setup_replay_buffer(ReplayBufferType::Uniform, 10000);
         os.setup_curriculum(make_stages(), true);
-        os.setup_multi_agent(MultiAgentMode::Cooperative, CommunicationProtocol::SharedReward);
+        os.setup_multi_agent(
+            MultiAgentMode::Cooperative,
+            CommunicationProtocol::SharedReward,
+        );
         os.setup_auto_rl(SearchStrategy::RandomSearch, 20);
         let mut params = HashMap::new();
         params.insert("lr".into(), 0.001);

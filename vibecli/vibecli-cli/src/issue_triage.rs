@@ -167,16 +167,19 @@ impl Default for TriageMetrics {
 // ---------------------------------------------------------------------------
 
 const BUG_KEYWORDS: &[&str] = &[
-    "bug", "crash", "error", "broken", "fail", "not working", "regression",
+    "bug",
+    "crash",
+    "error",
+    "broken",
+    "fail",
+    "not working",
+    "regression",
 ];
-const FEATURE_KEYWORDS: &[&str] = &[
-    "feature", "add", "request", "implement", "proposal", "wish",
-];
+const FEATURE_KEYWORDS: &[&str] = &["feature", "add", "request", "implement", "proposal", "wish"];
 const QUESTION_KEYWORDS: &[&str] = &["how", "question", "?", "help", "why"];
 const DOC_KEYWORDS: &[&str] = &["docs", "documentation", "readme", "typo", "guide"];
-const ENHANCEMENT_KEYWORDS: &[&str] = &[
-    "improve", "enhance", "optimize", "refactor", "performance",
-];
+const ENHANCEMENT_KEYWORDS: &[&str] =
+    &["improve", "enhance", "optimize", "refactor", "performance"];
 const CHORE_KEYWORDS: &[&str] = &["chore", "ci", "deps", "bump", "lint", "update dependency"];
 const CRITICAL_KEYWORDS: &[&str] = &["critical", "security", "data loss", "vulnerability"];
 const HIGH_KEYWORDS: &[&str] = &["broken", "crash", "blocker", "severe"];
@@ -309,9 +312,15 @@ impl AutoLabeler {
         // Match patterns like src/, .rs, .tsx, .ts, .js etc.
         for word in text.split_whitespace() {
             let w = word.trim_matches(|c: char| !c.is_alphanumeric() && c != '/' && c != '.');
-            if (w.contains('/') || w.ends_with(".rs") || w.ends_with(".tsx") || w.ends_with(".ts")
-                || w.ends_with(".js") || w.ends_with(".py") || w.ends_with(".go")
-                || w.ends_with(".toml") || w.ends_with(".json"))
+            if (w.contains('/')
+                || w.ends_with(".rs")
+                || w.ends_with(".tsx")
+                || w.ends_with(".ts")
+                || w.ends_with(".js")
+                || w.ends_with(".py")
+                || w.ends_with(".go")
+                || w.ends_with(".toml")
+                || w.ends_with(".json"))
                 && !components.contains(&w.to_string())
             {
                 components.push(w.to_string());
@@ -353,7 +362,8 @@ impl CodeLinker {
         let text = format!("{} {}", issue.title, issue.body);
         let mut functions = Vec::new();
         for word in text.split_whitespace() {
-            let w = word.trim_matches(|c: char| !c.is_alphanumeric() && c != '(' && c != ')' && c != '_');
+            let w = word
+                .trim_matches(|c: char| !c.is_alphanumeric() && c != '(' && c != ')' && c != '_');
             if w.ends_with("()") {
                 let name = w.trim_end_matches("()");
                 if !name.is_empty() && !functions.contains(&name.to_string()) {
@@ -394,19 +404,12 @@ impl ResponseDrafter {
         let files_note = if triage.related_files.is_empty() {
             String::new()
         } else {
-            format!(
-                " Related files: {}.",
-                triage.related_files.join(", ")
-            )
+            format!(" Related files: {}.", triage.related_files.join(", "))
         };
 
         format!(
             "Thank you @{} for filing this {}! Severity: {}.{}{} We will review it shortly.",
-            issue.author,
-            type_label,
-            triage.severity,
-            severity_note,
-            files_note,
+            issue.author, type_label, triage.severity, severity_note, files_note,
         )
     }
 }
@@ -510,7 +513,10 @@ impl TriageEngine {
 
         // Auto-assign
         let auto_assigned = if self.config.auto_assign {
-            Some(format!("team-{}", classified_type.to_string().to_lowercase()))
+            Some(format!(
+                "team-{}",
+                classified_type.to_string().to_lowercase()
+            ))
         } else {
             None
         };
@@ -687,7 +693,11 @@ mod tests {
     #[test]
     fn classify_feature_request() {
         let c = IssueClassifier;
-        let issue = make_issue("3", "Feature request: add dark mode", "Please implement this");
+        let issue = make_issue(
+            "3",
+            "Feature request: add dark mode",
+            "Please implement this",
+        );
         assert_eq!(c.classify(&issue), IssueType::FeatureRequest);
     }
 
@@ -701,21 +711,33 @@ mod tests {
     #[test]
     fn classify_documentation() {
         let c = IssueClassifier;
-        let issue = make_issue("5", "Docs are outdated", "The readme has a typo in the guide");
+        let issue = make_issue(
+            "5",
+            "Docs are outdated",
+            "The readme has a typo in the guide",
+        );
         assert_eq!(c.classify(&issue), IssueType::Documentation);
     }
 
     #[test]
     fn classify_enhancement() {
         let c = IssueClassifier;
-        let issue = make_issue("6", "Improve performance of indexer", "Optimize the algorithm");
+        let issue = make_issue(
+            "6",
+            "Improve performance of indexer",
+            "Optimize the algorithm",
+        );
         assert_eq!(c.classify(&issue), IssueType::Enhancement);
     }
 
     #[test]
     fn classify_chore() {
         let c = IssueClassifier;
-        let issue = make_issue("7", "Chore: bump deps", "Update dependency versions and lint");
+        let issue = make_issue(
+            "7",
+            "Chore: bump deps",
+            "Update dependency versions and lint",
+        );
         assert_eq!(c.classify(&issue), IssueType::Chore);
     }
 
@@ -792,7 +814,11 @@ mod tests {
     #[test]
     fn confidence_clamped_to_one() {
         let c = IssueClassifier;
-        let issue = make_issue("c4", "bug crash error broken fail not working regression", "");
+        let issue = make_issue(
+            "c4",
+            "bug crash error broken fail not working regression",
+            "",
+        );
         assert!(c.confidence(&issue) <= 1.0);
     }
 
@@ -968,10 +994,9 @@ mod tests {
             ..Default::default()
         };
         let mut engine = TriageEngine::new(config);
-        engine.issues.insert(
-            "b1".into(),
-            make_issue("b1", "Bug crash", "error"),
-        );
+        engine
+            .issues
+            .insert("b1".into(), make_issue("b1", "Bug crash", "error"));
         engine.issues.insert(
             "b2".into(),
             make_issue("b2", "Feature request", "add dark mode"),

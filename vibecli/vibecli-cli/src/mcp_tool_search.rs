@@ -155,9 +155,7 @@ impl ToolRegistry {
 
     /// Returns the full schema for a loaded tool, or `None` if not loaded.
     pub fn get_schema(&self, name: &str) -> Option<&ToolSchema> {
-        self.tools
-            .get(name)
-            .and_then(|t| t.schema.as_ref())
+        self.tools.get(name).and_then(|t| t.schema.as_ref())
     }
 
     /// Returns a compact multi-line context string with one line per registered
@@ -218,7 +216,11 @@ impl ToolRegistry {
         let schema_chars: usize = names
             .iter()
             .filter_map(|&n| self.get_schema(n))
-            .map(|s| serde_json::to_string(&s.parameters).unwrap_or_default().len())
+            .map(|s| {
+                serde_json::to_string(&s.parameters)
+                    .unwrap_or_default()
+                    .len()
+            })
             .sum();
         (stubs_chars + schema_chars) / 4
     }

@@ -298,10 +298,7 @@ impl StreamPatcher {
                             return Some((expected.clone(), actual.clone()));
                         }
                         None => {
-                            return Some((
-                                expected.clone(),
-                                "<end of file>".to_string(),
-                            ));
+                            return Some((expected.clone(), "<end of file>".to_string()));
                         }
                     }
                 }
@@ -363,9 +360,17 @@ fn parse_hunk_header(line: &str) -> (usize, usize, String) {
         ctx = context.to_string();
         for part in ranges.split_whitespace() {
             if let Some(old) = part.strip_prefix('-') {
-                old_start = old.split(',').next().and_then(|s| s.parse().ok()).unwrap_or(1);
+                old_start = old
+                    .split(',')
+                    .next()
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(1);
             } else if let Some(new) = part.strip_prefix('+') {
-                new_start = new.split(',').next().and_then(|s| s.parse().ok()).unwrap_or(1);
+                new_start = new
+                    .split(',')
+                    .next()
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(1);
             }
         }
     }
@@ -462,7 +467,8 @@ mod tests {
     #[test]
     fn test_multiple_hunks_applied_sequentially() {
         let src = "line1\nline2\nline3\nline4\nline5\n";
-        let patch_str = "@@ -1,2 +1,2 @@\n-line1\n+LINE1\n line2\n@@ -4,2 +4,2 @@\n line4\n-line5\n+LINE5";
+        let patch_str =
+            "@@ -1,2 +1,2 @@\n-line1\n+LINE1\n line2\n@@ -4,2 +4,2 @@\n line4\n-line5\n+LINE5";
         let mut patcher = StreamPatcher::new(src.trim_end_matches('\n'));
         let hunks = parse_patch(patch_str);
         assert_eq!(hunks.len(), 2);

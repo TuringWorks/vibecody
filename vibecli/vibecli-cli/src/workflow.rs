@@ -111,7 +111,6 @@ pub enum StageStatus {
     Skipped,
 }
 
-
 impl fmt::Display for StageStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -210,7 +209,10 @@ impl Workflow {
             name: name.into(),
             description: description.into(),
             current_stage: WorkflowStage::Requirements,
-            stages: WorkflowStage::ALL.iter().map(|s| StageData::new(*s)).collect(),
+            stages: WorkflowStage::ALL
+                .iter()
+                .map(|s| StageData::new(*s))
+                .collect(),
             created_at: now,
             source,
         }
@@ -265,7 +267,10 @@ impl Workflow {
                 out.push_str("### Checklist\n\n");
                 for item in &stage.checklist {
                     let check = if item.done { "x" } else { " " };
-                    out.push_str(&format!("- [{}] **{}**: {}\n", check, item.id, item.description));
+                    out.push_str(&format!(
+                        "- [{}] **{}**: {}\n",
+                        check, item.id, item.description
+                    ));
                 }
                 out.push('\n');
             }
@@ -400,7 +405,11 @@ impl WorkflowManager {
         if let Some(item) = stage.checklist.iter_mut().find(|c| c.id == item_id) {
             item.done = done;
         } else {
-            anyhow::bail!("Checklist item {} not found in stage {}", item_id, stage_index);
+            anyhow::bail!(
+                "Checklist item {} not found in stage {}",
+                item_id,
+                stage_index
+            );
         }
 
         // Auto-update stage status based on checklist completion
@@ -475,7 +484,10 @@ impl WorkflowManager {
             .unwrap_or(WorkflowStage::Requirements);
 
         // Parse stages from ## Stage: <label> sections
-        let mut stages: Vec<StageData> = WorkflowStage::ALL.iter().map(|s| StageData::new(*s)).collect();
+        let mut stages: Vec<StageData> = WorkflowStage::ALL
+            .iter()
+            .map(|s| StageData::new(*s))
+            .collect();
 
         let mut current_section: Option<usize> = None;
         let mut section_lines: Vec<String> = vec![];
@@ -543,7 +555,9 @@ fn flush_stage_section(stage: &mut StageData, lines: &[String]) {
                     let id_str = &stripped[..idx];
                     let desc = stripped[idx + 3..].trim();
                     (
-                        id_str.parse::<u32>().unwrap_or(stage.checklist.len() as u32 + 1),
+                        id_str
+                            .parse::<u32>()
+                            .unwrap_or(stage.checklist.len() as u32 + 1),
                         desc.to_string(),
                     )
                 } else {
@@ -579,15 +593,18 @@ fn flush_stage_section(stage: &mut StageData, lines: &[String]) {
 /// Build an LLM prompt to generate a stage-appropriate checklist.
 pub fn stage_checklist_prompt(stage: &WorkflowStage, project_desc: &str) -> String {
     let stage_guidance = match stage {
-        WorkflowStage::Requirements => r#"Generate a requirements checklist. Include items for:
+        WorkflowStage::Requirements => {
+            r#"Generate a requirements checklist. Include items for:
 - Specific functional requirements (core features, inputs/outputs)
 - Non-functional requirements (performance, security, scalability, usability)
 - User stories in brief form
 - Scope boundaries (what's in/out)
 - Error handling requirements
-- Data requirements and constraints"#,
+- Data requirements and constraints"#
+        }
 
-        WorkflowStage::Architecture => r#"Generate an architecture checklist. Include items for:
+        WorkflowStage::Architecture => {
+            r#"Generate an architecture checklist. Include items for:
 - System decomposition into subsystems/packages
 - Inter-component communication strategy
 - Data storage approach (database, file, cache)
@@ -595,9 +612,11 @@ pub fn stage_checklist_prompt(stage: &WorkflowStage, project_desc: &str) -> Stri
 - Security architecture (auth, encryption, input validation)
 - Build vs buy decisions for major components
 - Scalability and deployment considerations
-- Third-party dependencies selection"#,
+- Third-party dependencies selection"#
+        }
 
-        WorkflowStage::Design => r#"Generate a detailed design checklist. Include items for:
+        WorkflowStage::Design => {
+            r#"Generate a detailed design checklist. Include items for:
 - Key classes/modules identification and responsibilities
 - Interface/API design for major components
 - Data structures and algorithms selection
@@ -605,9 +624,11 @@ pub fn stage_checklist_prompt(stage: &WorkflowStage, project_desc: &str) -> Stri
 - Coupling and cohesion review
 - Edge cases and boundary conditions
 - State management approach
-- Concurrency/async design (if applicable)"#,
+- Concurrency/async design (if applicable)"#
+        }
 
-        WorkflowStage::ConstructionPlanning => r#"Generate a construction planning checklist. Include items for:
+        WorkflowStage::ConstructionPlanning => {
+            r#"Generate a construction planning checklist. Include items for:
 - Programming language and framework choices confirmed
 - Coding standards and naming conventions documented
 - Development environment and tooling setup
@@ -615,9 +636,11 @@ pub fn stage_checklist_prompt(stage: &WorkflowStage, project_desc: &str) -> Stri
 - Integration order (bottom-up, top-down, or sandwich)
 - Build and CI/CD pipeline setup
 - Task breakdown and estimation
-- Risk identification and mitigation"#,
+- Risk identification and mitigation"#
+        }
 
-        WorkflowStage::Coding => r#"Generate a coding quality checklist. Include items for:
+        WorkflowStage::Coding => {
+            r#"Generate a coding quality checklist. Include items for:
 - Variable naming follows conventions (clear, unambiguous)
 - Defensive programming (assertions, error handling, bounds checks)
 - No magic numbers (constants extracted and named)
@@ -625,9 +648,11 @@ pub fn stage_checklist_prompt(stage: &WorkflowStage, project_desc: &str) -> Stri
 - Code duplication minimized (DRY principle)
 - Control structures are straightforward (no deep nesting)
 - Comments explain WHY not WHAT
-- Input validation at system boundaries"#,
+- Input validation at system boundaries"#
+        }
 
-        WorkflowStage::QualityAssurance => r#"Generate a quality assurance checklist. Include items for:
+        WorkflowStage::QualityAssurance => {
+            r#"Generate a quality assurance checklist. Include items for:
 - Code review completed (peer or AI-assisted)
 - Unit tests written for core logic (coverage target met)
 - Integration tests for component interactions
@@ -635,9 +660,11 @@ pub fn stage_checklist_prompt(stage: &WorkflowStage, project_desc: &str) -> Stri
 - Security scan (no OWASP Top 10 vulnerabilities)
 - Performance profiling done (no obvious bottlenecks)
 - Error handling tested (invalid inputs, network failures)
-- Accessibility review (if UI exists)"#,
+- Accessibility review (if UI exists)"#
+        }
 
-        WorkflowStage::Integration => r#"Generate an integration and testing checklist. Include items for:
+        WorkflowStage::Integration => {
+            r#"Generate an integration and testing checklist. Include items for:
 - All modules integrated and communicating correctly
 - End-to-end tests pass for critical user flows
 - Regression tests pass (no broken existing functionality)
@@ -645,9 +672,11 @@ pub fn stage_checklist_prompt(stage: &WorkflowStage, project_desc: &str) -> Stri
 - Cross-platform/browser testing (if applicable)
 - Database migration tested (if applicable)
 - API contract validation (if applicable)
-- Logging and monitoring verified"#,
+- Logging and monitoring verified"#
+        }
 
-        WorkflowStage::CodeComplete => r#"Generate a code-complete checklist. Include items for:
+        WorkflowStage::CodeComplete => {
+            r#"Generate a code-complete checklist. Include items for:
 - All features implemented per requirements
 - README and setup instructions updated
 - API documentation generated/updated
@@ -657,7 +686,8 @@ pub fn stage_checklist_prompt(stage: &WorkflowStage, project_desc: &str) -> Stri
 - Configuration externalized (no hardcoded secrets)
 - Release version tagged in source control
 - Deployment runbook documented
-- Post-launch monitoring plan in place"#,
+- Post-launch monitoring plan in place"#
+        }
     };
 
     format!(
@@ -746,7 +776,9 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let mgr = WorkflowManager::new(tmp.path().to_path_buf());
 
-        let workflow = mgr.create("todo_app", "Build a simple todo application").unwrap();
+        let workflow = mgr
+            .create("todo_app", "Build a simple todo application")
+            .unwrap();
         assert_eq!(workflow.name, "todo_app");
         assert_eq!(workflow.current_stage, WorkflowStage::Requirements);
         assert_eq!(workflow.stages.len(), 8);
@@ -867,7 +899,8 @@ mod tests {
 
     #[test]
     fn parse_checklist_response_mixed() {
-        let response = "1) First item\n- Second item\n* Third item\n\nSome non-list text\n4. Fourth item\n";
+        let response =
+            "1) First item\n- Second item\n* Third item\n\nSome non-list text\n4. Fourth item\n";
         let items = parse_checklist_response(response);
         assert_eq!(items.len(), 4);
     }
@@ -898,8 +931,16 @@ mod tests {
         let mut workflow = mgr.create("app", "Test app").unwrap();
         workflow.stages[0].body = "Some design notes here.".to_string();
         workflow.stages[0].checklist = vec![
-            ChecklistItem { id: 1, description: "Item one".to_string(), done: true },
-            ChecklistItem { id: 2, description: "Item two".to_string(), done: false },
+            ChecklistItem {
+                id: 1,
+                description: "Item one".to_string(),
+                done: true,
+            },
+            ChecklistItem {
+                id: 2,
+                description: "Item two".to_string(),
+                done: false,
+            },
         ];
         mgr.save(&workflow).unwrap();
 
@@ -916,12 +957,8 @@ mod tests {
         let mgr = WorkflowManager::new(tmp.path().to_path_buf());
 
         mgr.create("app", "Test").unwrap();
-        mgr.set_stage_checklist(
-            "app",
-            0,
-            vec![ChecklistItem::new(1, "Item one")],
-        )
-        .unwrap();
+        mgr.set_stage_checklist("app", 0, vec![ChecklistItem::new(1, "Item one")])
+            .unwrap();
 
         let result = mgr.toggle_checklist_item("app", 0, 999, true);
         assert!(result.is_err());
@@ -982,7 +1019,10 @@ mod tests {
         mgr.create("app", "Test").unwrap();
         let result = mgr.toggle_checklist_item("app", 99, 1, true);
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid stage index"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid stage index"));
     }
 
     // ── WorkflowStage tests ──
@@ -1036,10 +1076,16 @@ mod tests {
 
     #[test]
     fn stage_status_from_str_all_variants() {
-        assert_eq!(StageStatus::from_str("in-progress"), StageStatus::InProgress);
+        assert_eq!(
+            StageStatus::from_str("in-progress"),
+            StageStatus::InProgress
+        );
         assert_eq!(StageStatus::from_str("complete"), StageStatus::Complete);
         assert_eq!(StageStatus::from_str("skipped"), StageStatus::Skipped);
-        assert_eq!(StageStatus::from_str("not-started"), StageStatus::NotStarted);
+        assert_eq!(
+            StageStatus::from_str("not-started"),
+            StageStatus::NotStarted
+        );
         assert_eq!(StageStatus::from_str("garbage"), StageStatus::NotStarted);
         assert_eq!(StageStatus::from_str(""), StageStatus::NotStarted);
     }
@@ -1063,9 +1109,21 @@ mod tests {
     #[test]
     fn stage_data_progress_pct_partial() {
         let mut stage = StageData::new(WorkflowStage::Coding);
-        stage.checklist.push(ChecklistItem { id: 1, description: "A".into(), done: true });
-        stage.checklist.push(ChecklistItem { id: 2, description: "B".into(), done: false });
-        stage.checklist.push(ChecklistItem { id: 3, description: "C".into(), done: true });
+        stage.checklist.push(ChecklistItem {
+            id: 1,
+            description: "A".into(),
+            done: true,
+        });
+        stage.checklist.push(ChecklistItem {
+            id: 2,
+            description: "B".into(),
+            done: false,
+        });
+        stage.checklist.push(ChecklistItem {
+            id: 3,
+            description: "C".into(),
+            done: true,
+        });
         assert!((stage.progress_pct() - 66.666).abs() < 1.0);
         assert_eq!(stage.completed_count(), 2);
         assert_eq!(stage.total_count(), 3);
@@ -1074,7 +1132,11 @@ mod tests {
     #[test]
     fn stage_data_progress_pct_all_done() {
         let mut stage = StageData::new(WorkflowStage::Design);
-        stage.checklist.push(ChecklistItem { id: 1, description: "X".into(), done: true });
+        stage.checklist.push(ChecklistItem {
+            id: 1,
+            description: "X".into(),
+            done: true,
+        });
         assert_eq!(stage.progress_pct(), 100.0);
     }
 
@@ -1117,8 +1179,11 @@ mod tests {
         let wf = Workflow::new("app", "App", PathBuf::from("/tmp/app.md"));
         let content = wf.to_file_content();
         for stage in &WorkflowStage::ALL {
-            assert!(content.contains(&format!("## Stage: {}", stage.label())),
-                    "Missing stage: {}", stage.label());
+            assert!(
+                content.contains(&format!("## Stage: {}", stage.label())),
+                "Missing stage: {}",
+                stage.label()
+            );
         }
     }
 
@@ -1208,9 +1273,9 @@ mod tests {
         let wf = mgr.load("app").unwrap();
         assert_eq!(wf.stages[1].status, StageStatus::NotStarted);
 
-        let wf = mgr.set_stage_checklist("app", 1, vec![
-            ChecklistItem::new(1, "Item"),
-        ]).unwrap();
+        let wf = mgr
+            .set_stage_checklist("app", 1, vec![ChecklistItem::new(1, "Item")])
+            .unwrap();
         assert_eq!(wf.stages[1].status, StageStatus::InProgress);
     }
 

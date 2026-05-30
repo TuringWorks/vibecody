@@ -31,10 +31,7 @@ impl PodmanRuntime {
             .args(["info", "--format", "{{.Host.Security.Rootless}}"])
             .output()
             .await
-            .map(|o| {
-                o.status.success()
-                    && String::from_utf8_lossy(&o.stdout).trim() == "true"
-            })
+            .map(|o| o.status.success() && String::from_utf8_lossy(&o.stdout).trim() == "true")
             .unwrap_or(false)
     }
 
@@ -58,10 +55,7 @@ impl PodmanRuntime {
             "vibecody=sandbox".to_string(),
         ];
 
-        let name = config
-            .name
-            .clone()
-            .unwrap_or_else(generate_container_name);
+        let name = config.name.clone().unwrap_or_else(generate_container_name);
         args.push("--name".to_string());
         args.push(name);
 
@@ -173,8 +167,7 @@ impl PodmanRuntime {
     /// Parse `podman ps --format json` output.
     fn parse_ps_json(&self, json_str: &str) -> Vec<ContainerInfo> {
         // Podman `--format json` returns a JSON array (unlike Docker's JSONL)
-        let arr: Vec<serde_json::Value> =
-            serde_json::from_str(json_str).unwrap_or_default();
+        let arr: Vec<serde_json::Value> = serde_json::from_str(json_str).unwrap_or_default();
 
         arr.into_iter()
             .map(|v| ContainerInfo {
@@ -223,18 +216,14 @@ impl ContainerRuntime for PodmanRuntime {
     }
 
     async fn version(&self) -> anyhow::Result<String> {
-        self.run_cmd(&["version", "--format", "{{.Version}}"])
-            .await
+        self.run_cmd(&["version", "--format", "{{.Version}}"]).await
     }
 
     async fn create(&self, config: &ContainerConfig) -> anyhow::Result<ContainerInfo> {
         let args = self.build_create_args(config);
         let str_args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
 
-        let output = Command::new(&self.binary)
-            .args(&str_args)
-            .output()
-            .await?;
+        let output = Command::new(&self.binary).args(&str_args).output().await?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -243,7 +232,10 @@ impl ContainerRuntime for PodmanRuntime {
 
         let container_id = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
-        if let NetworkPolicy::Restricted { ref allowed_domains } = config.network_policy {
+        if let NetworkPolicy::Restricted {
+            ref allowed_domains,
+        } = config.network_policy
+        {
             self.apply_network_restrictions(&container_id, allowed_domains)
                 .await?;
         }
@@ -310,12 +302,7 @@ impl ContainerRuntime for PodmanRuntime {
         })
     }
 
-    async fn exec(
-        &self,
-        id: &str,
-        command: &str,
-        cwd: Option<&str>,
-    ) -> anyhow::Result<ExecResult> {
+    async fn exec(&self, id: &str, command: &str, cwd: Option<&str>) -> anyhow::Result<ExecResult> {
         let mut args = vec!["exec"];
         if let Some(dir) = cwd {
             args.push("-w");
@@ -443,9 +430,11 @@ impl ContainerRuntime for PodmanRuntime {
             .run_cmd(&["stats", "--no-stream", "--format", "json", id])
             .await?;
 
-        let arr: Vec<serde_json::Value> =
-            serde_json::from_str(&output).unwrap_or_default();
-        let v = arr.first().cloned().unwrap_or_else(|| serde_json::json!({}));
+        let arr: Vec<serde_json::Value> = serde_json::from_str(&output).unwrap_or_default();
+        let v = arr
+            .first()
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!({}));
 
         let cpu = v["cpu_percent"]
             .as_f64()

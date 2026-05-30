@@ -17,18 +17,32 @@ use std::collections::HashMap;
 pub struct OrgId(pub String);
 
 impl OrgId {
-    pub fn new(id: impl Into<String>) -> Self { Self(id.into()) }
+    pub fn new(id: impl Into<String>) -> Self {
+        Self(id.into())
+    }
 }
 
 impl std::fmt::Display for OrgId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result { write!(f, "{}", self.0) }
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub enum TrustLevel { Untrusted, Verified, Trusted, Partner }
+pub enum TrustLevel {
+    Untrusted,
+    Verified,
+    Trusted,
+    Partner,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum SlaTier { BestEffort, Standard, Premium, Critical }
+pub enum SlaTier {
+    BestEffort,
+    Standard,
+    Premium,
+    Critical,
+}
 
 /// Data-residency constraint: which regions are permitted for this org's data.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,7 +51,11 @@ pub struct DataResidency {
 }
 
 impl DataResidency {
-    pub fn global() -> Self { Self { allowed_regions: vec!["*".into()] } }
+    pub fn global() -> Self {
+        Self {
+            allowed_regions: vec!["*".into()],
+        }
+    }
     pub fn allows(&self, region: &str) -> bool {
         self.allowed_regions.iter().any(|r| r == "*" || r == region)
     }
@@ -60,21 +78,45 @@ pub struct OrgNode {
 impl OrgNode {
     pub fn new(id: impl Into<String>, name: impl Into<String>) -> Self {
         Self {
-            id: OrgId::new(id), name: name.into(),
-            capabilities: Vec::new(), trust: TrustLevel::Untrusted,
-            sla: SlaTier::BestEffort, residency: DataResidency::global(),
-            token_budget: 10_000, online: true,
+            id: OrgId::new(id),
+            name: name.into(),
+            capabilities: Vec::new(),
+            trust: TrustLevel::Untrusted,
+            sla: SlaTier::BestEffort,
+            residency: DataResidency::global(),
+            token_budget: 10_000,
+            online: true,
         }
     }
 
-    pub fn with_trust(mut self, t: TrustLevel) -> Self { self.trust = t; self }
-    pub fn with_sla(mut self, s: SlaTier) -> Self { self.sla = s; self }
-    pub fn with_budget(mut self, b: u64) -> Self { self.token_budget = b; self }
-    pub fn add_capability(mut self, cap: impl Into<String>) -> Self { self.capabilities.push(cap.into()); self }
-    pub fn with_residency(mut self, r: DataResidency) -> Self { self.residency = r; self }
-    pub fn offline(mut self) -> Self { self.online = false; self }
+    pub fn with_trust(mut self, t: TrustLevel) -> Self {
+        self.trust = t;
+        self
+    }
+    pub fn with_sla(mut self, s: SlaTier) -> Self {
+        self.sla = s;
+        self
+    }
+    pub fn with_budget(mut self, b: u64) -> Self {
+        self.token_budget = b;
+        self
+    }
+    pub fn add_capability(mut self, cap: impl Into<String>) -> Self {
+        self.capabilities.push(cap.into());
+        self
+    }
+    pub fn with_residency(mut self, r: DataResidency) -> Self {
+        self.residency = r;
+        self
+    }
+    pub fn offline(mut self) -> Self {
+        self.online = false;
+        self
+    }
 
-    pub fn has_capability(&self, cap: &str) -> bool { self.capabilities.iter().any(|c| c == cap) }
+    pub fn has_capability(&self, cap: &str) -> bool {
+        self.capabilities.iter().any(|c| c == cap)
+    }
 }
 
 // ─── Federation Policy ───────────────────────────────────────────────────────
@@ -93,14 +135,27 @@ pub struct FederationPolicy {
 
 impl FederationPolicy {
     pub fn permissive() -> Self {
-        Self { allow_list: vec![], deny_list: vec![], min_trust: TrustLevel::Untrusted, task_region: "global".into() }
+        Self {
+            allow_list: vec![],
+            deny_list: vec![],
+            min_trust: TrustLevel::Untrusted,
+            task_region: "global".into(),
+        }
     }
 
     pub fn permits(&self, org: &OrgNode) -> bool {
-        if !self.deny_list.is_empty() && self.deny_list.contains(&org.id) { return false; }
-        if !self.allow_list.is_empty() && !self.allow_list.contains(&org.id) { return false; }
-        if org.trust < self.min_trust { return false; }
-        if !org.residency.allows(&self.task_region) { return false; }
+        if !self.deny_list.is_empty() && self.deny_list.contains(&org.id) {
+            return false;
+        }
+        if !self.allow_list.is_empty() && !self.allow_list.contains(&org.id) {
+            return false;
+        }
+        if org.trust < self.min_trust {
+            return false;
+        }
+        if !org.residency.allows(&self.task_region) {
+            return false;
+        }
         true
     }
 }
@@ -145,20 +200,32 @@ pub enum AuditEvent {
 // ─── Conflict Resolution ─────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ConflictStrategy { FirstWins, MajorityVote, PriorityMerge, LastWins }
+pub enum ConflictStrategy {
+    FirstWins,
+    MajorityVote,
+    PriorityMerge,
+    LastWins,
+}
 
 /// Resolve conflicting results from multiple orgs.
-pub fn resolve_conflicts<'a>(results: &'a [FederatedResult], strategy: &ConflictStrategy) -> Option<&'a FederatedResult> {
+pub fn resolve_conflicts<'a>(
+    results: &'a [FederatedResult],
+    strategy: &ConflictStrategy,
+) -> Option<&'a FederatedResult> {
     let successful: Vec<_> = results.iter().filter(|r| r.success).collect();
-    if successful.is_empty() { return None; }
+    if successful.is_empty() {
+        return None;
+    }
 
     match strategy {
         ConflictStrategy::FirstWins => Some(successful[0]),
-        ConflictStrategy::LastWins  => successful.last().copied(),
+        ConflictStrategy::LastWins => successful.last().copied(),
         ConflictStrategy::MajorityVote => {
             // Output with most matching exact strings wins.
             let mut counts: HashMap<&str, usize> = HashMap::new();
-            for r in &successful { *counts.entry(r.output.as_str()).or_insert(0) += 1; }
+            for r in &successful {
+                *counts.entry(r.output.as_str()).or_insert(0) += 1;
+            }
             let best = counts.into_iter().max_by_key(|(_, c)| *c).map(|(s, _)| s)?;
             successful.iter().find(|r| r.output == best).copied()
         }
@@ -179,24 +246,41 @@ pub struct FederatedOrchestrator {
 
 impl FederatedOrchestrator {
     pub fn new(strategy: ConflictStrategy) -> Self {
-        Self { orgs: HashMap::new(), audit_log: Vec::new(), conflict_strategy: strategy }
+        Self {
+            orgs: HashMap::new(),
+            audit_log: Vec::new(),
+            conflict_strategy: strategy,
+        }
     }
 
-    pub fn register(&mut self, org: OrgNode) { self.orgs.insert(org.id.clone(), org); }
+    pub fn register(&mut self, org: OrgNode) {
+        self.orgs.insert(org.id.clone(), org);
+    }
 
     /// Select eligible orgs for a task (online, policy-permitted, has capability, budget sufficient).
     pub fn eligible_orgs(&self, task: &FederatedTask) -> Vec<&OrgNode> {
-        self.orgs.values().filter(|org| {
-            org.online
-            && org.has_capability(&task.required_capability)
-            && task.policy.permits(org)
-            && org.token_budget >= task.token_cost
-        }).collect()
+        self.orgs
+            .values()
+            .filter(|org| {
+                org.online
+                    && org.has_capability(&task.required_capability)
+                    && task.policy.permits(org)
+                    && org.token_budget >= task.token_cost
+            })
+            .collect()
     }
 
     /// Route task to all eligible orgs and collect results (simulated).
-    pub fn route(&mut self, task: &FederatedTask, simulate_outputs: &HashMap<OrgId, (String, bool)>) -> Vec<FederatedResult> {
-        let eligible: Vec<OrgId> = self.eligible_orgs(task).iter().map(|o| o.id.clone()).collect();
+    pub fn route(
+        &mut self,
+        task: &FederatedTask,
+        simulate_outputs: &HashMap<OrgId, (String, bool)>,
+    ) -> Vec<FederatedResult> {
+        let eligible: Vec<OrgId> = self
+            .eligible_orgs(task)
+            .iter()
+            .map(|o| o.id.clone())
+            .collect();
         let mut results = Vec::new();
 
         for org_id in &eligible {
@@ -205,14 +289,16 @@ impl FederatedOrchestrator {
             // Token budget check
             if org.token_budget < task.token_cost {
                 self.audit_log.push(AuditEntry {
-                    task_id: task.id.clone(), org_id: org_id.clone(),
+                    task_id: task.id.clone(),
+                    org_id: org_id.clone(),
                     event: AuditEvent::TokenBudgetExceeded,
                 });
                 continue;
             }
 
             self.audit_log.push(AuditEntry {
-                task_id: task.id.clone(), org_id: org_id.clone(),
+                task_id: task.id.clone(),
+                org_id: org_id.clone(),
                 event: AuditEvent::TaskRouted,
             });
 
@@ -222,12 +308,18 @@ impl FederatedOrchestrator {
                 .unwrap_or_else(|| ("(no response)".into(), false));
 
             let result = FederatedResult {
-                task_id: task.id.clone(), org_id: org_id.clone(),
-                output, tokens_used: task.token_cost, success,
+                task_id: task.id.clone(),
+                org_id: org_id.clone(),
+                output,
+                tokens_used: task.token_cost,
+                success,
             };
             self.audit_log.push(AuditEntry {
-                task_id: task.id.clone(), org_id: org_id.clone(),
-                event: AuditEvent::TaskCompleted { success: result.success },
+                task_id: task.id.clone(),
+                org_id: org_id.clone(),
+                event: AuditEvent::TaskCompleted {
+                    success: result.success,
+                },
             });
             results.push(result);
         }
@@ -236,22 +328,33 @@ impl FederatedOrchestrator {
     }
 
     /// Route and automatically resolve via configured strategy.
-    pub fn route_and_resolve(&mut self, task: &FederatedTask, simulate_outputs: &HashMap<OrgId, (String, bool)>) -> Option<String> {
+    pub fn route_and_resolve(
+        &mut self,
+        task: &FederatedTask,
+        simulate_outputs: &HashMap<OrgId, (String, bool)>,
+    ) -> Option<String> {
         let results = self.route(task, simulate_outputs);
         resolve_conflicts(&results, &self.conflict_strategy).map(|r| r.output.clone())
     }
 
     /// Return audit entries for a specific task.
     pub fn audit_for_task(&self, task_id: &str) -> Vec<&AuditEntry> {
-        self.audit_log.iter().filter(|e| e.task_id == task_id).collect()
+        self.audit_log
+            .iter()
+            .filter(|e| e.task_id == task_id)
+            .collect()
     }
 
     /// Orgs that have been denied by policy (attempted but blocked).
     pub fn denied_orgs(&self, task: &FederatedTask) -> Vec<&OrgNode> {
-        self.orgs.values().filter(|org| {
-            org.online && org.has_capability(&task.required_capability)
-            && !task.policy.permits(org)
-        }).collect()
+        self.orgs
+            .values()
+            .filter(|org| {
+                org.online
+                    && org.has_capability(&task.required_capability)
+                    && !task.policy.permits(org)
+            })
+            .collect()
     }
 }
 
@@ -279,7 +382,10 @@ mod tests {
     }
 
     fn sim(outputs: &[(&str, &str, bool)]) -> HashMap<OrgId, (String, bool)> {
-        outputs.iter().map(|(id, out, ok)| (OrgId::new(*id), (out.to_string(), *ok))).collect()
+        outputs
+            .iter()
+            .map(|(id, out, ok)| (OrgId::new(*id), (out.to_string(), *ok)))
+            .collect()
     }
 
     #[test]
@@ -292,7 +398,9 @@ mod tests {
     #[test]
     fn test_org_missing_capability_not_eligible() {
         let mut orch = FederatedOrchestrator::new(ConflictStrategy::FirstWins);
-        let org = OrgNode::new("a", "A").with_trust(TrustLevel::Trusted).add_capability("deploy");
+        let org = OrgNode::new("a", "A")
+            .with_trust(TrustLevel::Trusted)
+            .add_capability("deploy");
         orch.register(org);
         let task = make_task(); // requires code-review
         assert!(orch.eligible_orgs(&task).is_empty());
@@ -341,8 +449,20 @@ mod tests {
 
     #[test]
     fn test_resolve_first_wins() {
-        let r1 = FederatedResult { task_id: "t1".into(), org_id: OrgId::new("a"), output: "A".into(), tokens_used: 100, success: true };
-        let r2 = FederatedResult { task_id: "t1".into(), org_id: OrgId::new("b"), output: "B".into(), tokens_used: 200, success: true };
+        let r1 = FederatedResult {
+            task_id: "t1".into(),
+            org_id: OrgId::new("a"),
+            output: "A".into(),
+            tokens_used: 100,
+            success: true,
+        };
+        let r2 = FederatedResult {
+            task_id: "t1".into(),
+            org_id: OrgId::new("b"),
+            output: "B".into(),
+            tokens_used: 200,
+            success: true,
+        };
         let items = [r1, r2];
         let winner = resolve_conflicts(&items, &ConflictStrategy::FirstWins);
         assert_eq!(winner.unwrap().output, "A");
@@ -350,8 +470,20 @@ mod tests {
 
     #[test]
     fn test_resolve_last_wins() {
-        let r1 = FederatedResult { task_id: "t1".into(), org_id: OrgId::new("a"), output: "A".into(), tokens_used: 100, success: true };
-        let r2 = FederatedResult { task_id: "t1".into(), org_id: OrgId::new("b"), output: "B".into(), tokens_used: 200, success: true };
+        let r1 = FederatedResult {
+            task_id: "t1".into(),
+            org_id: OrgId::new("a"),
+            output: "A".into(),
+            tokens_used: 100,
+            success: true,
+        };
+        let r2 = FederatedResult {
+            task_id: "t1".into(),
+            org_id: OrgId::new("b"),
+            output: "B".into(),
+            tokens_used: 200,
+            success: true,
+        };
         let items = [r1, r2];
         let winner = resolve_conflicts(&items, &ConflictStrategy::LastWins);
         assert_eq!(winner.unwrap().output, "B");
@@ -360,7 +492,11 @@ mod tests {
     #[test]
     fn test_resolve_majority_vote() {
         let make = |id: &str, out: &str| FederatedResult {
-            task_id: "t1".into(), org_id: OrgId::new(id), output: out.into(), tokens_used: 100, success: true,
+            task_id: "t1".into(),
+            org_id: OrgId::new(id),
+            output: out.into(),
+            tokens_used: 100,
+            success: true,
         };
         let results = vec![make("a", "LGTM"), make("b", "LGTM"), make("c", "NACK")];
         let winner = resolve_conflicts(&results, &ConflictStrategy::MajorityVote);
@@ -369,8 +505,20 @@ mod tests {
 
     #[test]
     fn test_resolve_priority_merge_cheapest() {
-        let r1 = FederatedResult { task_id: "t1".into(), org_id: OrgId::new("a"), output: "A".into(), tokens_used: 500, success: true };
-        let r2 = FederatedResult { task_id: "t1".into(), org_id: OrgId::new("b"), output: "B".into(), tokens_used: 100, success: true };
+        let r1 = FederatedResult {
+            task_id: "t1".into(),
+            org_id: OrgId::new("a"),
+            output: "A".into(),
+            tokens_used: 500,
+            success: true,
+        };
+        let r2 = FederatedResult {
+            task_id: "t1".into(),
+            org_id: OrgId::new("b"),
+            output: "B".into(),
+            tokens_used: 100,
+            success: true,
+        };
         let items = [r1, r2];
         let winner = resolve_conflicts(&items, &ConflictStrategy::PriorityMerge);
         assert_eq!(winner.unwrap().output, "B");
@@ -378,7 +526,13 @@ mod tests {
 
     #[test]
     fn test_resolve_all_failed_returns_none() {
-        let r = FederatedResult { task_id: "t1".into(), org_id: OrgId::new("a"), output: "err".into(), tokens_used: 0, success: false };
+        let r = FederatedResult {
+            task_id: "t1".into(),
+            org_id: OrgId::new("a"),
+            output: "err".into(),
+            tokens_used: 0,
+            success: false,
+        };
         assert!(resolve_conflicts(&[r], &ConflictStrategy::FirstWins).is_none());
     }
 
@@ -395,14 +549,22 @@ mod tests {
         orch.route(&task, &sim(&[("a", "ok", true)]));
         let entries = orch.audit_for_task("t001");
         assert!(entries.iter().any(|e| e.event == AuditEvent::TaskRouted));
-        assert!(entries.iter().any(|e| matches!(e.event, AuditEvent::TaskCompleted { success: true })));
+        assert!(entries
+            .iter()
+            .any(|e| matches!(e.event, AuditEvent::TaskCompleted { success: true })));
     }
 
     #[test]
     fn test_policy_deny_list() {
         let mut policy = FederationPolicy::permissive();
         policy.deny_list = vec![OrgId::new("a")];
-        let task = FederatedTask { id: "t".into(), required_capability: "code-review".into(), payload: "".into(), token_cost: 100, policy };
+        let task = FederatedTask {
+            id: "t".into(),
+            required_capability: "code-review".into(),
+            payload: "".into(),
+            token_cost: 100,
+            policy,
+        };
         let mut orch = FederatedOrchestrator::new(ConflictStrategy::FirstWins);
         orch.register(make_org("a"));
         assert!(orch.eligible_orgs(&task).is_empty());
@@ -412,7 +574,13 @@ mod tests {
     fn test_policy_allow_list_restricts() {
         let mut policy = FederationPolicy::permissive();
         policy.allow_list = vec![OrgId::new("b")];
-        let task = FederatedTask { id: "t".into(), required_capability: "code-review".into(), payload: "".into(), token_cost: 100, policy };
+        let task = FederatedTask {
+            id: "t".into(),
+            required_capability: "code-review".into(),
+            payload: "".into(),
+            token_cost: 100,
+            policy,
+        };
         let mut orch = FederatedOrchestrator::new(ConflictStrategy::FirstWins);
         orch.register(make_org("a"));
         assert!(orch.eligible_orgs(&task).is_empty());
@@ -422,7 +590,13 @@ mod tests {
     fn test_policy_min_trust_blocks_untrusted() {
         let mut policy = FederationPolicy::permissive();
         policy.min_trust = TrustLevel::Partner;
-        let task = FederatedTask { id: "t".into(), required_capability: "code-review".into(), payload: "".into(), token_cost: 100, policy };
+        let task = FederatedTask {
+            id: "t".into(),
+            required_capability: "code-review".into(),
+            payload: "".into(),
+            token_cost: 100,
+            policy,
+        };
         let mut orch = FederatedOrchestrator::new(ConflictStrategy::FirstWins);
         orch.register(make_org("a")); // Trusted < Partner
         assert!(orch.eligible_orgs(&task).is_empty());
@@ -437,7 +611,9 @@ mod tests {
 
     #[test]
     fn test_data_residency_restricts_region() {
-        let r = DataResidency { allowed_regions: vec!["eu-west-1".into()] };
+        let r = DataResidency {
+            allowed_regions: vec!["eu-west-1".into()],
+        };
         assert!(r.allows("eu-west-1"));
         assert!(!r.allows("us-east-1"));
     }
@@ -446,9 +622,17 @@ mod tests {
     fn test_policy_data_residency_blocks() {
         let mut policy = FederationPolicy::permissive();
         policy.task_region = "us-east-1".into();
-        let task = FederatedTask { id: "t".into(), required_capability: "code-review".into(), payload: "".into(), token_cost: 100, policy };
+        let task = FederatedTask {
+            id: "t".into(),
+            required_capability: "code-review".into(),
+            payload: "".into(),
+            token_cost: 100,
+            policy,
+        };
         let mut orch = FederatedOrchestrator::new(ConflictStrategy::FirstWins);
-        let org = make_org("a").with_residency(DataResidency { allowed_regions: vec!["eu-west-1".into()] });
+        let org = make_org("a").with_residency(DataResidency {
+            allowed_regions: vec!["eu-west-1".into()],
+        });
         orch.register(org);
         assert!(orch.eligible_orgs(&task).is_empty());
     }
@@ -478,7 +662,13 @@ mod tests {
     fn test_denied_orgs_tracked() {
         let mut policy = FederationPolicy::permissive();
         policy.deny_list = vec![OrgId::new("a")];
-        let task = FederatedTask { id: "t".into(), required_capability: "code-review".into(), payload: "".into(), token_cost: 100, policy };
+        let task = FederatedTask {
+            id: "t".into(),
+            required_capability: "code-review".into(),
+            payload: "".into(),
+            token_cost: 100,
+            policy,
+        };
         let mut orch = FederatedOrchestrator::new(ConflictStrategy::FirstWins);
         orch.register(make_org("a"));
         let denied = orch.denied_orgs(&task);

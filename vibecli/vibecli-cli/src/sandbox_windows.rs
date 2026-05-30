@@ -15,15 +15,24 @@ pub struct WindowsSandboxConfig {
 
 impl WindowsSandboxConfig {
     pub fn default_restricted() -> Self {
-        Self { allowed_paths: vec![], denied_paths: vec![], network: NetworkPolicy { allow_internet: false, allowed_hosts: vec![] } }
+        Self {
+            allowed_paths: vec![],
+            denied_paths: vec![],
+            network: NetworkPolicy {
+                allow_internet: false,
+                allowed_hosts: vec![],
+            },
+        }
     }
 
     pub fn allow_path(mut self, path: &str) -> Self {
-        self.allowed_paths.push(path.to_string()); self
+        self.allowed_paths.push(path.to_string());
+        self
     }
 
     pub fn deny_path(mut self, path: &str) -> Self {
-        self.denied_paths.push(path.to_string()); self
+        self.denied_paths.push(path.to_string());
+        self
     }
 }
 
@@ -34,34 +43,56 @@ pub struct SandboxVerdict {
 }
 
 #[derive(Debug)]
-pub struct WindowsSandbox { cfg: WindowsSandboxConfig }
+pub struct WindowsSandbox {
+    cfg: WindowsSandboxConfig,
+}
 
 impl WindowsSandbox {
-    pub fn new(cfg: WindowsSandboxConfig) -> Self { Self { cfg } }
+    pub fn new(cfg: WindowsSandboxConfig) -> Self {
+        Self { cfg }
+    }
 
     pub fn check_path(&self, path: &str) -> SandboxVerdict {
         // Deny takes precedence
         for denied in &self.cfg.denied_paths {
             if path.starts_with(denied.as_str()) {
-                return SandboxVerdict { allowed: false, reason: format!("path denied by rule: {}", denied) };
+                return SandboxVerdict {
+                    allowed: false,
+                    reason: format!("path denied by rule: {}", denied),
+                };
             }
         }
         for allowed in &self.cfg.allowed_paths {
             if path.starts_with(allowed.as_str()) {
-                return SandboxVerdict { allowed: true, reason: format!("path allowed by rule: {}", allowed) };
+                return SandboxVerdict {
+                    allowed: true,
+                    reason: format!("path allowed by rule: {}", allowed),
+                };
             }
         }
-        SandboxVerdict { allowed: false, reason: "no matching allow rule".to_string() }
+        SandboxVerdict {
+            allowed: false,
+            reason: "no matching allow rule".to_string(),
+        }
     }
 
     pub fn check_network(&self, host: &str) -> SandboxVerdict {
         if self.cfg.network.allow_internet {
-            return SandboxVerdict { allowed: true, reason: "internet allowed".to_string() };
+            return SandboxVerdict {
+                allowed: true,
+                reason: "internet allowed".to_string(),
+            };
         }
         if self.cfg.network.allowed_hosts.iter().any(|h| h == host) {
-            return SandboxVerdict { allowed: true, reason: format!("host {} explicitly allowed", host) };
+            return SandboxVerdict {
+                allowed: true,
+                reason: format!("host {} explicitly allowed", host),
+            };
         }
-        SandboxVerdict { allowed: false, reason: "internet disabled and host not in allowlist".to_string() }
+        SandboxVerdict {
+            allowed: false,
+            reason: "internet disabled and host not in allowlist".to_string(),
+        }
     }
 }
 
@@ -108,7 +139,10 @@ mod tests {
     #[test]
     fn test_network_allowed_when_internet_open() {
         let cfg = WindowsSandboxConfig {
-            network: NetworkPolicy { allow_internet: true, allowed_hosts: vec![] },
+            network: NetworkPolicy {
+                allow_internet: true,
+                allowed_hosts: vec![],
+            },
             ..Default::default()
         };
         let sb = WindowsSandbox::new(cfg);

@@ -219,7 +219,10 @@ impl BenchmarkRunner {
                 run.status = RunStatus::Cancelled;
                 Ok(())
             }
-            _ => Err(format!("Run {} cannot be cancelled in current state", run_id)),
+            _ => Err(format!(
+                "Run {} cannot be cancelled in current state",
+                run_id
+            )),
         }
     }
 
@@ -707,7 +710,10 @@ mod tests {
 
     #[test]
     fn test_suite_name() {
-        assert_eq!(BenchmarkSuite::SWEBenchVerified.name(), "SWE-bench Verified");
+        assert_eq!(
+            BenchmarkSuite::SWEBenchVerified.name(),
+            "SWE-bench Verified"
+        );
         assert_eq!(BenchmarkSuite::SWEBenchPro.name(), "SWE-bench Pro");
         assert_eq!(BenchmarkSuite::SWEBenchLite.name(), "SWE-bench Lite");
         assert_eq!(

@@ -85,7 +85,11 @@ fn assert_queued(world: &mut DrWorld) {
 fn assert_completed(world: &mut DrWorld) {
     let id = world.last_id.clone();
     let r = world.queue.poll(&id).unwrap();
-    assert!(matches!(r.status, JobStatus::Completed(_)), "expected Completed, got {:?}", r.status);
+    assert!(
+        matches!(r.status, JobStatus::Completed(_)),
+        "expected Completed, got {:?}",
+        r.status
+    );
 }
 
 #[then(expr = "dequeuing the next job should return prompt {string}")]
@@ -99,7 +103,11 @@ fn assert_dequeued_prompt(world: &mut DrWorld, expected: String) {
 
 #[then(expr = "the pending count should be {int}")]
 fn assert_pending(world: &mut DrWorld, expected: usize) {
-    assert_eq!(world.queue.pending_count(), expected, "pending count mismatch");
+    assert_eq!(
+        world.queue.pending_count(),
+        expected,
+        "pending count mismatch"
+    );
 }
 
 fn main() {

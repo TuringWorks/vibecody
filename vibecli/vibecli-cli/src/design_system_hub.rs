@@ -7,7 +7,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::design_providers::{DesignToken, DesignTokenType, ProviderKind, tokens_to_css, tokens_to_ts};
+use crate::design_providers::{
+    tokens_to_css, tokens_to_ts, DesignToken, DesignTokenType, ProviderKind,
+};
 
 // ─── Token namespace ──────────────────────────────────────────────────────────
 
@@ -20,7 +22,11 @@ pub struct TokenNamespace {
 
 impl TokenNamespace {
     pub fn new(name: &str) -> Self {
-        Self { name: name.to_string(), tokens: Vec::new(), provider: None }
+        Self {
+            name: name.to_string(),
+            tokens: Vec::new(),
+            provider: None,
+        }
     }
 
     pub fn add(&mut self, token: DesignToken) {
@@ -28,7 +34,10 @@ impl TokenNamespace {
     }
 
     pub fn by_type(&self, t: &DesignTokenType) -> Vec<&DesignToken> {
-        self.tokens.iter().filter(|tok| &tok.token_type == t).collect()
+        self.tokens
+            .iter()
+            .filter(|tok| &tok.token_type == t)
+            .collect()
     }
 }
 
@@ -73,24 +82,40 @@ impl DesignSystem {
 
     /// Flatten all tokens across all namespaces
     pub fn all_tokens(&self) -> Vec<&DesignToken> {
-        self.namespaces.iter().flat_map(|ns| ns.tokens.iter()).collect()
+        self.namespaces
+            .iter()
+            .flat_map(|ns| ns.tokens.iter())
+            .collect()
     }
 
     /// Flatten all tokens by type
     pub fn tokens_by_type(&self, t: &DesignTokenType) -> Vec<&DesignToken> {
-        self.all_tokens().into_iter().filter(|tok| &tok.token_type == t).collect()
+        self.all_tokens()
+            .into_iter()
+            .filter(|tok| &tok.token_type == t)
+            .collect()
     }
 
     /// Export all tokens to CSS variables
     pub fn export_css(&self) -> String {
         let all: Vec<DesignToken> = self.all_tokens().into_iter().cloned().collect();
-        format!("/* Design System: {} v{} */\n{}", self.name, self.version, tokens_to_css(&all))
+        format!(
+            "/* Design System: {} v{} */\n{}",
+            self.name,
+            self.version,
+            tokens_to_css(&all)
+        )
     }
 
     /// Export all tokens to TypeScript
     pub fn export_ts(&self) -> String {
         let all: Vec<DesignToken> = self.all_tokens().into_iter().cloned().collect();
-        format!("// Design System: {} v{}\n{}", self.name, self.version, tokens_to_ts(&all))
+        format!(
+            "// Design System: {} v{}\n{}",
+            self.name,
+            self.version,
+            tokens_to_ts(&all)
+        )
     }
 
     /// Export to Tailwind CSS config extend section
@@ -98,15 +123,21 @@ impl DesignSystem {
         let colors = self.tokens_by_type(&DesignTokenType::Color);
         let spacing = self.tokens_by_type(&DesignTokenType::Spacing);
 
-        let color_entries: String = colors.iter().map(|t| {
-            let key = t.name.to_lowercase().replace([' ', '/'], "-");
-            format!("      \"{}\": \"{}\",\n", key, t.value)
-        }).collect();
+        let color_entries: String = colors
+            .iter()
+            .map(|t| {
+                let key = t.name.to_lowercase().replace([' ', '/'], "-");
+                format!("      \"{}\": \"{}\",\n", key, t.value)
+            })
+            .collect();
 
-        let spacing_entries: String = spacing.iter().map(|t| {
-            let key = t.name.to_lowercase().replace(' ', "-");
-            format!("      \"{}\": \"{}\",\n", key, t.value)
-        }).collect();
+        let spacing_entries: String = spacing
+            .iter()
+            .map(|t| {
+                let key = t.name.to_lowercase().replace(' ', "-");
+                format!("      \"{}\": \"{}\",\n", key, t.value)
+            })
+            .collect();
 
         format!(
             r#"// tailwind.config.js extend block (from Design System: {} v{})
@@ -131,11 +162,14 @@ module.exports = {{
             let mut ns_obj = serde_json::Map::new();
             for token in &ns.tokens {
                 let key = token.name.to_lowercase().replace([' ', '-'], "_");
-                ns_obj.insert(key, serde_json::json!({
-                    "value": token.value,
-                    "type": format!("{:?}", token.token_type).to_lowercase(),
-                    "description": token.description.as_deref().unwrap_or("")
-                }));
+                ns_obj.insert(
+                    key,
+                    serde_json::json!({
+                        "value": token.value,
+                        "type": format!("{:?}", token.token_type).to_lowercase(),
+                        "description": token.description.as_deref().unwrap_or("")
+                    }),
+                );
             }
             let ns_key = ns.name.to_lowercase().replace(' ', "_");
             root.insert(ns_key, serde_json::Value::Object(ns_obj));
@@ -232,7 +266,9 @@ pub fn audit_design_system(ds: &DesignSystem) -> AuditReport {
             code: "NO_COLORS".to_string(),
             message: "No color tokens defined".to_string(),
             affected: vec![],
-            suggestion: Some("Add a color namespace with primary, secondary, and semantic colors".to_string()),
+            suggestion: Some(
+                "Add a color namespace with primary, secondary, and semantic colors".to_string(),
+            ),
         });
     }
 
@@ -254,7 +290,9 @@ pub fn audit_design_system(ds: &DesignSystem) -> AuditReport {
             code: "NO_SPACING".to_string(),
             message: "No spacing tokens defined".to_string(),
             affected: vec![],
-            suggestion: Some("Define a spacing scale (4px, 8px, 16px, 24px, 32px, ...)".to_string()),
+            suggestion: Some(
+                "Define a spacing scale (4px, 8px, 16px, 24px, 32px, ...)".to_string(),
+            ),
         });
     }
 
@@ -264,7 +302,8 @@ pub fn audit_design_system(ds: &DesignSystem) -> AuditReport {
     for t in &all_tokens {
         *name_counts.entry(t.name.clone()).or_insert(0) += 1;
     }
-    let duplicates: Vec<String> = name_counts.into_iter()
+    let duplicates: Vec<String> = name_counts
+        .into_iter()
         .filter(|(_, count)| *count > 1)
         .map(|(name, _)| name)
         .collect();
@@ -285,17 +324,28 @@ pub fn audit_design_system(ds: &DesignSystem) -> AuditReport {
             code: "NO_COMPONENTS".to_string(),
             message: "No components registered in the catalogue".to_string(),
             affected: vec![],
-            suggestion: Some("Add components to the catalogue via import or manual registration".to_string()),
+            suggestion: Some(
+                "Add components to the catalogue via import or manual registration".to_string(),
+            ),
         });
     }
 
     // Score: start at 100, deduct for issues
-    let error_count = issues.iter().filter(|i| i.severity == AuditSeverity::Error).count();
-    let warning_count = issues.iter().filter(|i| i.severity == AuditSeverity::Warning).count();
+    let error_count = issues
+        .iter()
+        .filter(|i| i.severity == AuditSeverity::Error)
+        .count();
+    let warning_count = issues
+        .iter()
+        .filter(|i| i.severity == AuditSeverity::Warning)
+        .count();
     let score = (100u8).saturating_sub((error_count * 20 + warning_count * 10) as u8);
 
     let summary = if issues.is_empty() {
-        format!("Design system '{}' passes all checks. Score: {}/100", ds.name, score)
+        format!(
+            "Design system '{}' passes all checks. Score: {}/100",
+            ds.name, score
+        )
     } else {
         format!(
             "Design system '{}' has {} error(s), {} warning(s). Score: {}/100",
@@ -303,7 +353,13 @@ pub fn audit_design_system(ds: &DesignSystem) -> AuditReport {
         )
     };
 
-    AuditReport { system_name: ds.name.clone(), system_version: ds.version.clone(), issues, score, summary }
+    AuditReport {
+        system_name: ds.name.clone(),
+        system_version: ds.version.clone(),
+        issues,
+        score,
+        summary,
+    }
 }
 
 // ─── Token drift detection ────────────────────────────────────────────────────
@@ -416,9 +472,14 @@ pub fn vibecody_default_design_system() -> DesignSystem {
     let mut spacing = TokenNamespace::new("spacing");
     spacing.provider = Some(ProviderKind::Inhouse);
     for (name, value) in [
-        ("space-1", "4px"), ("space-2", "8px"), ("space-3", "12px"),
-        ("space-4", "16px"), ("space-6", "24px"), ("space-8", "32px"),
-        ("space-12", "48px"), ("space-16", "64px"),
+        ("space-1", "4px"),
+        ("space-2", "8px"),
+        ("space-3", "12px"),
+        ("space-4", "16px"),
+        ("space-6", "24px"),
+        ("space-8", "32px"),
+        ("space-12", "48px"),
+        ("space-16", "64px"),
     ] {
         spacing.add(DesignToken {
             name: name.to_string(),
@@ -434,9 +495,16 @@ pub fn vibecody_default_design_system() -> DesignSystem {
     typography.provider = Some(ProviderKind::Inhouse);
     for (name, value) in [
         ("font-mono", "'SF Mono', 'Fira Code', monospace"),
-        ("font-sans", "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"),
-        ("font-size-xs", "11px"), ("font-size-sm", "12px"), ("font-size-base", "14px"),
-        ("font-size-lg", "16px"), ("font-size-xl", "20px"), ("font-size-2xl", "24px"),
+        (
+            "font-sans",
+            "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        ),
+        ("font-size-xs", "11px"),
+        ("font-size-sm", "12px"),
+        ("font-size-base", "14px"),
+        ("font-size-lg", "16px"),
+        ("font-size-xl", "20px"),
+        ("font-size-2xl", "24px"),
     ] {
         typography.add(DesignToken {
             name: name.to_string(),
@@ -454,13 +522,18 @@ pub fn vibecody_default_design_system() -> DesignSystem {
 
 fn uuid_short() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let t = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
+    let t = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default();
     format!("{:x}{:04x}", t.as_secs(), t.subsec_micros() & 0xffff)
 }
 
 fn epoch_ms() -> u64 {
     use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -553,9 +626,15 @@ mod tests {
     #[test]
     fn merge_provider_tokens_deduplicates() {
         let tokens_a = vec![make_color_token("primary", "#000")];
-        let tokens_b = vec![make_color_token("primary", "#fff"), make_color_token("secondary", "#888")];
+        let tokens_b = vec![
+            make_color_token("primary", "#fff"),
+            make_color_token("secondary", "#888"),
+        ];
         let merged = merge_provider_tokens(
-            &[(ProviderKind::Figma, tokens_a), (ProviderKind::Penpot, tokens_b)],
+            &[
+                (ProviderKind::Figma, tokens_a),
+                (ProviderKind::Penpot, tokens_b),
+            ],
             Some(&ProviderKind::Figma),
         );
         assert_eq!(merged.len(), 2); // primary from Figma + secondary from Penpot

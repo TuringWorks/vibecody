@@ -72,9 +72,7 @@ fn ro_subpath_rejects_traversal_via_dotdot() {
 #[test]
 fn rw_subpath_rejects_relative_path() {
     let mut p = fresh_profile();
-    let err = p
-        .allow_rw_subpath(Path::new("relative/work"))
-        .unwrap_err();
+    let err = p.allow_rw_subpath(Path::new("relative/work")).unwrap_err();
     assert!(
         format!("{err}").contains("absolute"),
         "macOS sandbox subpaths must be absolute"
@@ -139,9 +137,7 @@ fn broker_socket_grant_is_literal_path_and_keeps_global_deny() {
     let mut p = fresh_profile();
     p.allow_outbound_socket(Path::new("/private/var/run/vibe-broker.sock"));
     let r = p.render();
-    assert!(r.contains(
-        "(allow network-outbound (literal \"/private/var/run/vibe-broker.sock\"))"
-    ));
+    assert!(r.contains("(allow network-outbound (literal \"/private/var/run/vibe-broker.sock\"))"));
     assert!(r.contains("(deny network*)"));
 }
 

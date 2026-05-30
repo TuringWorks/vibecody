@@ -160,22 +160,34 @@ impl PatternExtractor {
         };
 
         // Detect library preferences
-        patterns.extend(Self::detect_library_preference(code).into_iter().map(|mut p| {
-            p.source = source.clone();
-            p
-        }));
+        patterns.extend(
+            Self::detect_library_preference(code)
+                .into_iter()
+                .map(|mut p| {
+                    p.source = source.clone();
+                    p
+                }),
+        );
 
         // Detect naming conventions
-        patterns.extend(Self::detect_naming_convention(code).into_iter().map(|mut p| {
-            p.source = source.clone();
-            p
-        }));
+        patterns.extend(
+            Self::detect_naming_convention(code)
+                .into_iter()
+                .map(|mut p| {
+                    p.source = source.clone();
+                    p
+                }),
+        );
 
         // Detect file organization
-        patterns.extend(Self::detect_file_organization(&outcome.file_path).into_iter().map(|mut p| {
-            p.source = source.clone();
-            p
-        }));
+        patterns.extend(
+            Self::detect_file_organization(&outcome.file_path)
+                .into_iter()
+                .map(|mut p| {
+                    p.source = source.clone();
+                    p
+                }),
+        );
 
         // Detect error handling
         patterns.extend(Self::detect_error_handling(code).into_iter().map(|mut p| {
@@ -218,7 +230,9 @@ impl PatternExtractor {
             }
 
             // JS/TS imports
-            if trimmed.starts_with("import ") || (trimmed.starts_with("const ") && trimmed.contains("require(")) {
+            if trimmed.starts_with("import ")
+                || (trimmed.starts_with("const ") && trimmed.contains("require("))
+            {
                 if let Some(start) = trimmed.find('\"').or_else(|| trimmed.find('\'')) {
                     let rest = &trimmed[start + 1..];
                     if let Some(end) = rest.find('\"').or_else(|| rest.find('\'')) {
@@ -449,8 +463,11 @@ impl PatternExtractor {
                 project_scope: None,
             });
         }
-        if path.contains("/src/utils/") || path.contains("/src/helpers/")
-            || path.starts_with("src/utils/") || path.starts_with("src/helpers/") {
+        if path.contains("/src/utils/")
+            || path.contains("/src/helpers/")
+            || path.starts_with("src/utils/")
+            || path.starts_with("src/helpers/")
+        {
             patterns.push(LearnedPattern {
                 id: String::new(),
                 pattern_type: PatternType::FileOrganization,
@@ -695,11 +712,7 @@ impl DistillationEngine {
                 PatternType::Custom(ref s) => format!("custom-{}", s),
             };
 
-            let description = format!(
-                "Distilled {} patterns ({} rules)",
-                name,
-                group.len()
-            );
+            let description = format!("Distilled {} patterns ({} rules)", name, group.len());
 
             let pattern_rules: Vec<String> = group.iter().map(|p| p.rule.clone()).collect();
             let trigger_words: Vec<String> = group
@@ -835,8 +848,14 @@ mod tests {
 
     #[test]
     fn test_pattern_type_equality() {
-        assert_eq!(PatternType::LibraryPreference, PatternType::LibraryPreference);
-        assert_ne!(PatternType::LibraryPreference, PatternType::NamingConvention);
+        assert_eq!(
+            PatternType::LibraryPreference,
+            PatternType::LibraryPreference
+        );
+        assert_ne!(
+            PatternType::LibraryPreference,
+            PatternType::NamingConvention
+        );
     }
 
     #[test]
@@ -859,18 +878,42 @@ mod tests {
 
     #[test]
     fn test_confidence_promote() {
-        assert_eq!(PatternConfidence::Tentative.promote(), PatternConfidence::Weak);
-        assert_eq!(PatternConfidence::Weak.promote(), PatternConfidence::Moderate);
-        assert_eq!(PatternConfidence::Moderate.promote(), PatternConfidence::Strong);
-        assert_eq!(PatternConfidence::Strong.promote(), PatternConfidence::Strong);
+        assert_eq!(
+            PatternConfidence::Tentative.promote(),
+            PatternConfidence::Weak
+        );
+        assert_eq!(
+            PatternConfidence::Weak.promote(),
+            PatternConfidence::Moderate
+        );
+        assert_eq!(
+            PatternConfidence::Moderate.promote(),
+            PatternConfidence::Strong
+        );
+        assert_eq!(
+            PatternConfidence::Strong.promote(),
+            PatternConfidence::Strong
+        );
     }
 
     #[test]
     fn test_confidence_demote() {
-        assert_eq!(PatternConfidence::Strong.demote(), PatternConfidence::Moderate);
-        assert_eq!(PatternConfidence::Moderate.demote(), PatternConfidence::Weak);
-        assert_eq!(PatternConfidence::Weak.demote(), PatternConfidence::Tentative);
-        assert_eq!(PatternConfidence::Tentative.demote(), PatternConfidence::Tentative);
+        assert_eq!(
+            PatternConfidence::Strong.demote(),
+            PatternConfidence::Moderate
+        );
+        assert_eq!(
+            PatternConfidence::Moderate.demote(),
+            PatternConfidence::Weak
+        );
+        assert_eq!(
+            PatternConfidence::Weak.demote(),
+            PatternConfidence::Tentative
+        );
+        assert_eq!(
+            PatternConfidence::Tentative.demote(),
+            PatternConfidence::Tentative
+        );
     }
 
     #[test]
@@ -943,7 +986,9 @@ mod tests {
     fn test_detect_scoped_npm_package() {
         let code = r#"import { Client } from "@anthropic-ai/sdk";"#;
         let patterns = PatternExtractor::detect_library_preference(code);
-        assert!(patterns.iter().any(|p| p.rule == "use-package:@anthropic-ai"));
+        assert!(patterns
+            .iter()
+            .any(|p| p.rule == "use-package:@anthropic-ai"));
     }
 
     // --- PatternExtractor: detect_naming_convention ---
@@ -973,7 +1018,10 @@ mod tests {
     fn test_naming_convention_occurrences_count() {
         let code = "fn one_thing() {}\nfn two_thing() {}\nfn three_thing() {}";
         let patterns = PatternExtractor::detect_naming_convention(code);
-        let snake = patterns.iter().find(|p| p.rule == "naming:snake_case").expect("should find snake_case");
+        let snake = patterns
+            .iter()
+            .find(|p| p.rule == "naming:snake_case")
+            .expect("should find snake_case");
         assert_eq!(snake.occurrences, 3);
     }
 
@@ -982,26 +1030,34 @@ mod tests {
     #[test]
     fn test_detect_tests_directory() {
         let patterns = PatternExtractor::detect_file_organization("src/tests/foo_test.rs");
-        assert!(patterns.iter().any(|p| p.rule == "file-org:tests-directory"));
+        assert!(patterns
+            .iter()
+            .any(|p| p.rule == "file-org:tests-directory"));
     }
 
     #[test]
     fn test_detect_jest_tests() {
         let patterns = PatternExtractor::detect_file_organization("src/__tests__/App.test.tsx");
         assert!(patterns.iter().any(|p| p.rule == "file-org:jest-tests"));
-        assert!(patterns.iter().any(|p| p.rule == "file-org:suffix-test-files"));
+        assert!(patterns
+            .iter()
+            .any(|p| p.rule == "file-org:suffix-test-files"));
     }
 
     #[test]
     fn test_detect_go_tests() {
         let patterns = PatternExtractor::detect_file_organization("pkg/handler_test.go");
-        assert!(patterns.iter().any(|p| p.rule == "file-org:go-colocated-tests"));
+        assert!(patterns
+            .iter()
+            .any(|p| p.rule == "file-org:go-colocated-tests"));
     }
 
     #[test]
     fn test_detect_spec_file() {
         let patterns = PatternExtractor::detect_file_organization("src/utils.spec.ts");
-        assert!(patterns.iter().any(|p| p.rule == "file-org:suffix-test-files"));
+        assert!(patterns
+            .iter()
+            .any(|p| p.rule == "file-org:suffix-test-files"));
     }
 
     #[test]
@@ -1034,14 +1090,18 @@ mod tests {
     fn test_detect_result_question_mark() {
         let code = "fn foo() -> Result<(), Error> {\n    let x = bar()?;\n    Ok(x)\n}";
         let patterns = PatternExtractor::detect_error_handling(code);
-        assert!(patterns.iter().any(|p| p.rule == "error:result-question-mark"));
+        assert!(patterns
+            .iter()
+            .any(|p| p.rule == "error:result-question-mark"));
     }
 
     #[test]
     fn test_detect_expect_over_unwrap() {
         let code = "let f = File::open(\"x\").expect(\"open failed\");";
         let patterns = PatternExtractor::detect_error_handling(code);
-        assert!(patterns.iter().any(|p| p.rule == "error:expect-over-unwrap"));
+        assert!(patterns
+            .iter()
+            .any(|p| p.rule == "error:expect-over-unwrap"));
     }
 
     #[test]
@@ -1104,7 +1164,9 @@ mod tests {
             user_correction: Some("Use anyhow not thiserror".to_string()),
         };
         let patterns = PatternExtractor::extract_from_outcome(&edit);
-        assert!(patterns.iter().all(|p| p.source == PatternSource::Corrected));
+        assert!(patterns
+            .iter()
+            .all(|p| p.source == PatternSource::Corrected));
     }
 
     // --- DistillationEngine: creation and reset ---
@@ -1159,7 +1221,10 @@ mod tests {
             project_scope: None,
         });
         assert_eq!(engine.patterns.len(), 1);
-        let p = engine.patterns.get("style:braces").expect("pattern should exist");
+        let p = engine
+            .patterns
+            .get("style:braces")
+            .expect("pattern should exist");
         assert_eq!(p.id, "pat-1");
         assert_eq!(p.occurrences, 1);
     }
@@ -1287,7 +1352,10 @@ mod tests {
         });
         let id = engine.patterns.get("r1").expect("exists").id.clone();
         engine.promote_pattern(&id).expect("should succeed");
-        assert_eq!(engine.patterns.get("r1").expect("exists").confidence, PatternConfidence::Weak);
+        assert_eq!(
+            engine.patterns.get("r1").expect("exists").confidence,
+            PatternConfidence::Weak
+        );
         assert_eq!(engine.metrics.patterns_promoted, 1);
     }
 
@@ -1309,7 +1377,10 @@ mod tests {
         });
         let id = engine.patterns.get("r1").expect("exists").id.clone();
         engine.demote_pattern(&id).expect("should succeed");
-        assert_eq!(engine.patterns.get("r1").expect("exists").confidence, PatternConfidence::Moderate);
+        assert_eq!(
+            engine.patterns.get("r1").expect("exists").confidence,
+            PatternConfidence::Moderate
+        );
         assert_eq!(engine.metrics.patterns_demoted, 1);
     }
 
@@ -1524,7 +1595,9 @@ mod tests {
         let skills = engine.distill_skills();
         assert_eq!(skills.len(), 1);
         assert_eq!(skills[0].name, "error-handling");
-        assert!(skills[0].patterns.contains(&"error:result-question-mark".to_string()));
+        assert!(skills[0]
+            .patterns
+            .contains(&"error:result-question-mark".to_string()));
     }
 
     #[test]
@@ -1615,9 +1688,22 @@ mod tests {
             last_seen: 0,
             project_scope: None,
         });
-        assert_eq!(engine.get_patterns_by_type(&PatternType::CodeStyle).len(), 1);
-        assert_eq!(engine.get_patterns_by_type(&PatternType::ErrorHandling).len(), 1);
-        assert_eq!(engine.get_patterns_by_type(&PatternType::LibraryPreference).len(), 0);
+        assert_eq!(
+            engine.get_patterns_by_type(&PatternType::CodeStyle).len(),
+            1
+        );
+        assert_eq!(
+            engine
+                .get_patterns_by_type(&PatternType::ErrorHandling)
+                .len(),
+            1
+        );
+        assert_eq!(
+            engine
+                .get_patterns_by_type(&PatternType::LibraryPreference)
+                .len(),
+            0
+        );
     }
 
     // --- DistillationEngine: export_skills ---
@@ -1943,7 +2029,10 @@ mod tests {
             last_seen: 0,
             project_scope: Some("my-frontend".to_string()),
         });
-        let p = engine.patterns.get("config:eslint-flat").expect("should exist");
+        let p = engine
+            .patterns
+            .get("config:eslint-flat")
+            .expect("should exist");
         assert_eq!(p.project_scope, Some("my-frontend".to_string()));
     }
 
@@ -2017,7 +2106,12 @@ mod tests {
             project_scope: None,
         });
 
-        let id = engine.patterns.get("test:arrange-act-assert").expect("exists").id.clone();
+        let id = engine
+            .patterns
+            .get("test:arrange-act-assert")
+            .expect("exists")
+            .id
+            .clone();
         engine.promote_pattern(&id).expect("ok");
         engine.promote_pattern(&id).expect("ok");
         engine.demote_pattern(&id).expect("ok");

@@ -143,7 +143,11 @@ pub async fn search_tainted(
 /// admin-policy engine plugs in here without changing the signature.
 pub fn audit_rag_hit(hit: &TaintedRagHit) -> std::result::Result<(), String> {
     match hit.text.origin() {
-        Provenance::Rag { index, doc_id, score } => {
+        Provenance::Rag {
+            index,
+            doc_id,
+            score,
+        } => {
             tracing::debug!(
                 target: "vibecody::tainted::rag_boundary",
                 index = %index,

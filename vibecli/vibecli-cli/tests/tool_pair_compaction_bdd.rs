@@ -2,7 +2,7 @@
  * BDD tests for tool_pair_compaction using Cucumber.
  * Run with: cargo test --test tool_pair_compaction_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::tool_pair_compaction::{
     CompactionConfig, CompactionEngine, CompactionSummary, SimpleMessage, SimpleMessageRole,
 };
@@ -77,14 +77,16 @@ fn conv_with_tool_pairs(world: &mut TpcWorld) {
 
 #[given(expr = "a compaction summary with {int} user and {int} assistant message")]
 fn summary_with_counts(world: &mut TpcWorld, u: usize, a: usize) {
-    world.summary =
-        Some(CompactionSummary { user_count: u, assistant_count: a, ..Default::default() });
+    world.summary = Some(CompactionSummary {
+        user_count: u,
+        assistant_count: a,
+        ..Default::default()
+    });
 }
 
 #[when("I find the safe boundary")]
 fn find_boundary(world: &mut TpcWorld) {
-    world.safe_boundary =
-        CompactionEngine::find_safe_boundary(&world.messages, world.raw_boundary);
+    world.safe_boundary = CompactionEngine::find_safe_boundary(&world.messages, world.raw_boundary);
 }
 
 #[when("I generate a compaction summary")]
@@ -100,8 +102,10 @@ fn create_continuation(world: &mut TpcWorld) {
 
 #[when(expr = "I compact the conversation with keep_recent {int}")]
 fn compact_conv(world: &mut TpcWorld, keep: usize) {
-    let engine =
-        CompactionEngine::new(CompactionConfig { keep_recent: keep, ..Default::default() });
+    let engine = CompactionEngine::new(CompactionConfig {
+        keep_recent: keep,
+        ..Default::default()
+    });
     world.compacted = engine.compact(&world.messages);
 }
 
@@ -146,7 +150,5 @@ fn check_no_orphans(world: &mut TpcWorld) {
 }
 
 fn main() {
-    futures::executor::block_on(
-        TpcWorld::run("tests/features/tool_pair_compaction.feature"),
-    );
+    futures::executor::block_on(TpcWorld::run("tests/features/tool_pair_compaction.feature"));
 }

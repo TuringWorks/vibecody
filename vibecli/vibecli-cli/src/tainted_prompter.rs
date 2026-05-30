@@ -94,19 +94,13 @@ impl CliPrompter {
     /// Wire the prompter to the real `std::io::stdin()` and
     /// `std::io::stderr()`. This is the production constructor.
     pub fn new_real() -> Self {
-        Self::new_with(
-            Box::new(std::io::stdin()),
-            Box::new(std::io::stderr()),
-        )
+        Self::new_with(Box::new(std::io::stdin()), Box::new(std::io::stderr()))
     }
 
     /// Wire the prompter to caller-supplied reader and writer. Used
     /// by tests to capture the prompt banner and inject the
     /// approve / deny input.
-    pub fn new_with(
-        stdin: Box<dyn Read + Send>,
-        stderr: Box<dyn Write + Send>,
-    ) -> Self {
+    pub fn new_with(stdin: Box<dyn Read + Send>, stderr: Box<dyn Write + Send>) -> Self {
         Self {
             stdin: BufReader::new(stdin),
             stderr,
@@ -133,25 +127,46 @@ impl CliPrompter {
             },
             Provenance::WebFetch { url, .. } => format!("web fetch from {url}"),
             Provenance::Mcp { server, tool, .. } => format!("MCP server '{server}' tool '{tool}'"),
-            Provenance::Rag { index, doc_id, score } => {
+            Provenance::Rag {
+                index,
+                doc_id,
+                score,
+            } => {
                 format!("RAG index '{index}' doc {doc_id} (score {score:.3})")
             }
-            Provenance::LlmResponse { provider, model, .. } => {
+            Provenance::LlmResponse {
+                provider, model, ..
+            } => {
                 format!("LLM provider '{provider}' model '{model}'")
             }
             Provenance::External { reason } => format!("external source ({reason})"),
         };
         writeln!(self.stderr)?;
-        writeln!(self.stderr, "┌─ Confirmation required ─────────────────────────────────────────────")?;
+        writeln!(
+            self.stderr,
+            "┌─ Confirmation required ─────────────────────────────────────────────"
+        )?;
         writeln!(self.stderr, "│ Sink:    {sink_name}")?;
         writeln!(self.stderr, "│ Origin:  {origin_hint}")?;
         writeln!(self.stderr, "│ Audit:   {}", tainted.audit_summary())?;
         writeln!(self.stderr, "│")?;
-        writeln!(self.stderr, "│ The above operation includes data from a T5 (attacker-controlled)")?;
-        writeln!(self.stderr, "│ source. The payload itself is not shown — the audit_id correlates")?;
-        writeln!(self.stderr, "│ to log entries if you need to inspect later. Type 'y' to approve,")?;
+        writeln!(
+            self.stderr,
+            "│ The above operation includes data from a T5 (attacker-controlled)"
+        )?;
+        writeln!(
+            self.stderr,
+            "│ source. The payload itself is not shown — the audit_id correlates"
+        )?;
+        writeln!(
+            self.stderr,
+            "│ to log entries if you need to inspect later. Type 'y' to approve,"
+        )?;
         writeln!(self.stderr, "│ anything else to deny.")?;
-        writeln!(self.stderr, "└─────────────────────────────────────────────────────────────────────")?;
+        writeln!(
+            self.stderr,
+            "└─────────────────────────────────────────────────────────────────────"
+        )?;
         write!(self.stderr, "Approve? [y/N]: ")?;
         self.stderr.flush()?;
         Ok(())
@@ -379,10 +394,7 @@ mod tests {
 
         let written = stderr_buf.lock().unwrap().clone();
         let s = String::from_utf8(written).expect("ASCII banner");
-        assert!(
-            !s.contains(payload),
-            "banner leaked payload: {s}",
-        );
+        assert!(!s.contains(payload), "banner leaked payload: {s}",);
         // Sanity: the banner *does* contain the kind + audit_id.
         assert!(s.contains("kind=file"));
         assert!(s.contains("audit_id="));

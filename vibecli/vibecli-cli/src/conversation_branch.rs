@@ -233,18 +233,12 @@ impl BranchManager {
     }
 
     /// Compare two branches: returns messages unique to each.
-    pub fn diff(
-        &self,
-        a: &BranchId,
-        b: &BranchId,
-    ) -> (Vec<&Message>, Vec<&Message>) {
+    pub fn diff(&self, a: &BranchId, b: &BranchId) -> (Vec<&Message>, Vec<&Message>) {
         let hist_a = self.full_history(a);
         let hist_b = self.full_history(b);
 
-        let ids_b: std::collections::HashSet<&str> =
-            hist_b.iter().map(|m| m.id.as_str()).collect();
-        let ids_a: std::collections::HashSet<&str> =
-            hist_a.iter().map(|m| m.id.as_str()).collect();
+        let ids_b: std::collections::HashSet<&str> = hist_b.iter().map(|m| m.id.as_str()).collect();
+        let ids_a: std::collections::HashSet<&str> = hist_a.iter().map(|m| m.id.as_str()).collect();
 
         let only_in_a: Vec<&Message> = hist_a
             .iter()
@@ -267,11 +261,7 @@ impl BranchManager {
 
     /// List all non-archived branches.
     pub fn list_branches(&self) -> Vec<&Branch> {
-        let mut branches: Vec<_> = self
-            .branches
-            .values()
-            .filter(|b| !b.archived)
-            .collect();
+        let mut branches: Vec<_> = self.branches.values().filter(|b| !b.archived).collect();
         branches.sort_by_key(|b| &b.id.0);
         branches
     }

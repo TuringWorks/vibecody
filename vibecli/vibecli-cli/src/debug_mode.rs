@@ -32,7 +32,6 @@ pub enum DebugMode {
     Hybrid,
 }
 
-
 impl std::fmt::Display for DebugMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -218,7 +217,6 @@ pub enum SessionState {
     Crashed,
 }
 
-
 // ── Debug Hypothesis ────────────────────────────────────────────────────────
 
 /// An AI-generated hypothesis about the root cause of an error.
@@ -283,15 +281,11 @@ impl DebugSession {
     // ── Breakpoint management ───────────────────────────────────────────
 
     /// Add a breakpoint and return its ID.
-    pub fn add_breakpoint(
-        &mut self,
-        file: &str,
-        line: usize,
-        bp_type: BreakpointType,
-    ) -> u64 {
+    pub fn add_breakpoint(&mut self, file: &str, line: usize, bp_type: BreakpointType) -> u64 {
         let id = self.next_bp_id;
         self.next_bp_id += 1;
-        self.breakpoints.push(Breakpoint::new(id, file, line, bp_type));
+        self.breakpoints
+            .push(Breakpoint::new(id, file, line, bp_type));
         id
     }
 
@@ -379,7 +373,10 @@ impl DebugSession {
                     return Err("Session must be paused to step".to_string());
                 }
                 self.state = SessionState::Paused;
-                Ok(format!("Executed: {}", self.action_history.last().expect("just pushed")))
+                Ok(format!(
+                    "Executed: {}",
+                    self.action_history.last().expect("just pushed")
+                ))
             }
             DebugAction::Continue => {
                 self.state = SessionState::Running;
@@ -392,9 +389,7 @@ impl DebugSession {
                 self.state = SessionState::Paused;
                 Ok("Paused execution".to_string())
             }
-            DebugAction::Evaluate(ref expr) => {
-                Ok(format!("Evaluated: {}", expr))
-            }
+            DebugAction::Evaluate(ref expr) => Ok(format!("Evaluated: {}", expr)),
             DebugAction::SetBreakpoint { ref file, line } => {
                 let id = self.add_breakpoint(file, line, BreakpointType::Line);
                 Ok(format!("Breakpoint {} set at {}:{}", id, file, line))
@@ -466,7 +461,9 @@ impl DebugSession {
             hypotheses.push(DebugHypothesis {
                 rank: 1,
                 summary: "Null/None dereference".to_string(),
-                likely_cause: "A value expected to be present was null/None. Check optional handling.".to_string(),
+                likely_cause:
+                    "A value expected to be present was null/None. Check optional handling."
+                        .to_string(),
                 confidence: 0.85,
                 suggested_breakpoints: stack_trace
                     .first()
@@ -534,7 +531,9 @@ impl DebugSession {
             hypotheses.push(DebugHypothesis {
                 rank: hypotheses.len() + 1,
                 summary: "Stack overflow / infinite recursion".to_string(),
-                likely_cause: "A recursive function lacks a proper base case or has unbounded depth.".to_string(),
+                likely_cause:
+                    "A recursive function lacks a proper base case or has unbounded depth."
+                        .to_string(),
                 confidence: 0.88,
                 suggested_breakpoints: Vec::new(),
             });
@@ -575,15 +574,15 @@ impl DebugSession {
         }
 
         for (name, var) in &frame.variables {
-            report.push_str(&format!(
-                "  {} : {} = {}\n",
-                name, var.var_type, var.value
-            ));
+            report.push_str(&format!("  {} : {} = {}\n", name, var.var_type, var.value));
 
             // Flag suspicious values.
             let lower = var.value.to_lowercase();
             if lower == "null" || lower == "none" || lower == "nil" || lower == "undefined" {
-                report.push_str(&format!("    ⚠ '{}' is null/None — possible root cause\n", name));
+                report.push_str(&format!(
+                    "    ⚠ '{}' is null/None — possible root cause\n",
+                    name
+                ));
             }
             if var.value == "0" && var.var_type.contains("int") {
                 report.push_str(&format!(
@@ -637,7 +636,15 @@ impl DebugSession {
                 "Division by zero" => {
                     if let Some(frame) = self.current_frame() {
                         for (name, var) in &frame.variables {
-                            if var.value == "0" && (var.var_type.contains("int") || var.var_type.starts_with("i32") || var.var_type.starts_with("i64") || var.var_type.starts_with("u32") || var.var_type.starts_with("u64") || var.var_type.contains("number") || var.var_type.contains("unsigned")) {
+                            if var.value == "0"
+                                && (var.var_type.contains("int")
+                                    || var.var_type.starts_with("i32")
+                                    || var.var_type.starts_with("i64")
+                                    || var.var_type.starts_with("u32")
+                                    || var.var_type.starts_with("u64")
+                                    || var.var_type.contains("number")
+                                    || var.var_type.contains("unsigned"))
+                            {
                                 suggestions.push(AutoFixSuggestion {
                                     file: frame.file.clone(),
                                     line: frame.line,
@@ -663,7 +670,8 @@ impl DebugSession {
                             line: frame.line,
                             original: "collection[index]".to_string(),
                             replacement: "collection.get(index)".to_string(),
-                            explanation: "Use bounds-checked access instead of direct indexing.".to_string(),
+                            explanation: "Use bounds-checked access instead of direct indexing."
+                                .to_string(),
                             confidence: hyp.confidence,
                         });
                     }
@@ -926,10 +934,16 @@ mod tests {
         let mut session = DebugSession::new("s", "f.rs", DebugMode::Interactive);
         session.push_frame(StackFrame::new("main", "main.rs", 1));
         session.push_frame(StackFrame::new("foo", "foo.rs", 42));
-        assert_eq!(session.current_frame().expect("has frame").function_name, "foo");
+        assert_eq!(
+            session.current_frame().expect("has frame").function_name,
+            "foo"
+        );
         let popped = session.pop_frame().expect("has frame");
         assert_eq!(popped.function_name, "foo");
-        assert_eq!(session.current_frame().expect("has frame").function_name, "main");
+        assert_eq!(
+            session.current_frame().expect("has frame").function_name,
+            "main"
+        );
     }
 
     #[test]
@@ -1051,7 +1065,10 @@ mod tests {
         let trace = vec!["at main.rs:42".to_string()];
         let hyps = session.generate_hypotheses("called unwrap() on None", &trace);
         assert!(!hyps[0].suggested_breakpoints.is_empty());
-        assert_eq!(hyps[0].suggested_breakpoints[0], ("main.rs".to_string(), 42));
+        assert_eq!(
+            hyps[0].suggested_breakpoints[0],
+            ("main.rs".to_string(), 42)
+        );
     }
 
     // -- Root cause analysis --
@@ -1102,8 +1119,14 @@ mod tests {
 
     #[test]
     fn test_extract_location() {
-        assert_eq!(extract_location("at main.rs:42"), Some(("main.rs".to_string(), 42)));
-        assert_eq!(extract_location("  src/lib.rs:100  "), Some(("src/lib.rs".to_string(), 100)));
+        assert_eq!(
+            extract_location("at main.rs:42"),
+            Some(("main.rs".to_string(), 42))
+        );
+        assert_eq!(
+            extract_location("  src/lib.rs:100  "),
+            Some(("src/lib.rs".to_string(), 100))
+        );
         assert_eq!(extract_location("no colon here"), None);
     }
 
@@ -1120,7 +1143,13 @@ mod tests {
     fn test_debug_action_display() {
         assert_eq!(format!("{}", DebugAction::StepOver), "Step Over");
         assert_eq!(
-            format!("{}", DebugAction::SetBreakpoint { file: "a.rs".into(), line: 1 }),
+            format!(
+                "{}",
+                DebugAction::SetBreakpoint {
+                    file: "a.rs".into(),
+                    line: 1
+                }
+            ),
             "SetBreakpoint(a.rs:1)"
         );
     }

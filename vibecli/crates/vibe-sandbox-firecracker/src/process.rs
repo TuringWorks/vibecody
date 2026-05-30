@@ -213,11 +213,7 @@ impl JailerWrap {
         }
     }
 
-    pub fn with_cgroup(
-        mut self,
-        key: impl Into<String>,
-        value: impl Into<String>,
-    ) -> Self {
+    pub fn with_cgroup(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.cgroups.push(JailerCgroup {
             key: key.into(),
             value: value.into(),
@@ -307,31 +303,28 @@ mod tests {
 
     #[test]
     fn vm_id_with_slash_rejected() {
-        let e = FirecrackerSpawn::new("/usr/bin/firecracker", "/run/a.sock", "bad/id")
-            .unwrap_err();
+        let e = FirecrackerSpawn::new("/usr/bin/firecracker", "/run/a.sock", "bad/id").unwrap_err();
         assert!(matches!(e, SpawnError::InvalidVmId(_)));
     }
 
     #[test]
     fn vm_id_with_dash_underscore_accepted() {
-        let s =
-            FirecrackerSpawn::new("/usr/bin/firecracker", "/run/a.sock", "vm-1_test").unwrap();
+        let s = FirecrackerSpawn::new("/usr/bin/firecracker", "/run/a.sock", "vm-1_test").unwrap();
         assert_eq!(s.vm_id(), "vm-1_test");
     }
 
     #[test]
     fn vm_id_too_long_rejected() {
         let too_long = "a".repeat(65);
-        let e = FirecrackerSpawn::new("/usr/bin/firecracker", "/run/a.sock", &too_long)
-            .unwrap_err();
+        let e =
+            FirecrackerSpawn::new("/usr/bin/firecracker", "/run/a.sock", &too_long).unwrap_err();
         assert!(matches!(e, SpawnError::VmIdTooLong(_)));
     }
 
     #[test]
     fn vm_id_max_64_accepted() {
         let exactly_64 = "a".repeat(64);
-        let s =
-            FirecrackerSpawn::new("/usr/bin/firecracker", "/run/a.sock", &exactly_64).unwrap();
+        let s = FirecrackerSpawn::new("/usr/bin/firecracker", "/run/a.sock", &exactly_64).unwrap();
         assert_eq!(s.vm_id().len(), 64);
     }
 
@@ -388,8 +381,13 @@ mod tests {
             .with_extra_arg("--no-seccomp")
             .with_extra_arg("--metrics-fifo");
         let argv = s.argv();
-        let last_two: Vec<String> = argv.iter().rev().take(2).rev()
-            .map(|o| o.to_string_lossy().into_owned()).collect();
+        let last_two: Vec<String> = argv
+            .iter()
+            .rev()
+            .take(2)
+            .rev()
+            .map(|o| o.to_string_lossy().into_owned())
+            .collect();
         assert_eq!(last_two, vec!["--no-seccomp", "--metrics-fifo"]);
     }
 
@@ -421,13 +419,7 @@ mod tests {
     #[test]
     fn jailer_argv_has_required_flags() {
         let inner = ok_spawn();
-        let jw = JailerWrap::new(
-            "/usr/bin/jailer",
-            inner,
-            1234,
-            5678,
-            "/srv/jailer",
-        );
+        let jw = JailerWrap::new("/usr/bin/jailer", inner, 1234, 5678, "/srv/jailer");
         let argv_v = jw.argv();
         let argv = argv_str(&argv_v);
         assert!(argv.contains("--id vibe-vm-42"));

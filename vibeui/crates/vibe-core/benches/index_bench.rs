@@ -5,9 +5,9 @@
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use std::path::PathBuf;
-use vibe_core::index::{CodebaseIndex, Language};
-use vibe_core::index::symbol::extract_symbols;
 use vibe_core::diff::DiffEngine;
+use vibe_core::index::symbol::extract_symbols;
+use vibe_core::index::{CodebaseIndex, Language};
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -21,14 +21,10 @@ fn generate_rust_source(n_functions: usize) -> String {
             "pub fn function_{i}(x: i32) -> i32 {{\n    x + {i}\n}}\n\n"
         ));
         if i % 5 == 0 {
-            buf.push_str(&format!(
-                "pub struct Struct{i} {{\n    field: i32,\n}}\n\n"
-            ));
+            buf.push_str(&format!("pub struct Struct{i} {{\n    field: i32,\n}}\n\n"));
         }
         if i % 10 == 0 {
-            buf.push_str(&format!(
-                "pub enum Enum{i} {{\n    A,\n    B,\n}}\n\n"
-            ));
+            buf.push_str(&format!("pub enum Enum{i} {{\n    A,\n    B,\n}}\n\n"));
         }
     }
     buf
@@ -42,9 +38,7 @@ fn bench_extract_symbols(c: &mut Criterion) {
     let path = PathBuf::from("large_module.rs");
 
     c.bench_function("extract_symbols_1000_lines", |b| {
-        b.iter(|| {
-            extract_symbols(black_box(&path), black_box(&content), &Language::Rust)
-        });
+        b.iter(|| extract_symbols(black_box(&path), black_box(&content), &Language::Rust));
     });
 }
 
@@ -81,7 +75,7 @@ fn bench_search_symbols(c: &mut Criterion) {
 
 fn bench_diff_generate(c: &mut Criterion) {
     let original = generate_rust_source(100); // ~500 lines
-    // Produce a modified version: change every 10th function body
+                                              // Produce a modified version: change every 10th function body
     let modified: String = original
         .lines()
         .enumerate()
@@ -96,9 +90,7 @@ fn bench_diff_generate(c: &mut Criterion) {
         .join("\n");
 
     c.bench_function("diff_generate_500_lines", |b| {
-        b.iter(|| {
-            DiffEngine::generate_diff(black_box(&original), black_box(&modified))
-        });
+        b.iter(|| DiffEngine::generate_diff(black_box(&original), black_box(&modified)));
     });
 }
 

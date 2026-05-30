@@ -448,7 +448,8 @@ impl EvalScenario {
     }
 
     pub fn add_env_override(&mut self, key: &str, value: &str) {
-        self.env_overrides.insert(key.to_string(), value.to_string());
+        self.env_overrides
+            .insert(key.to_string(), value.to_string());
     }
 
     pub fn add_tag(&mut self, tag: &str) {
@@ -506,7 +507,10 @@ pub struct PerformanceMetrics {
     pub episode_count: usize,
 }
 
-pub fn compute_performance_metrics(episodes: &[EpisodeRecord], win_threshold: f64) -> PerformanceMetrics {
+pub fn compute_performance_metrics(
+    episodes: &[EpisodeRecord],
+    win_threshold: f64,
+) -> PerformanceMetrics {
     if episodes.is_empty() {
         return PerformanceMetrics {
             cumulative_reward: 0.0,
@@ -589,14 +593,22 @@ pub fn compute_robustness_metrics(episodes: &[EpisodeRecord]) -> RobustnessMetri
 
     let mean: f64 = rewards.iter().sum::<f64>() / n as f64;
     let std_dev = (rewards.iter().map(|r| (r - mean).powi(2)).sum::<f64>() / n as f64).sqrt();
-    let cv = if mean.abs() > f64::EPSILON { std_dev / mean.abs() } else { 0.0 };
+    let cv = if mean.abs() > f64::EPSILON {
+        std_dev / mean.abs()
+    } else {
+        0.0
+    };
 
     // Reward stability: 1 - CV (capped at 0)
     let stability = (1.0 - cv).max(0.0);
 
     // Cross-period stability: compare first half vs second half means
     let mid = n / 2;
-    let first_half_mean = if mid > 0 { rewards[..mid].iter().sum::<f64>() / mid as f64 } else { 0.0 };
+    let first_half_mean = if mid > 0 {
+        rewards[..mid].iter().sum::<f64>() / mid as f64
+    } else {
+        0.0
+    };
     let second_half_mean = if n - mid > 0 {
         rewards[mid..].iter().sum::<f64>() / (n - mid) as f64
     } else {
@@ -724,7 +736,11 @@ pub fn compute_safety_metrics(
         margins.iter().sum::<f64>() / margins.len() as f64
     };
     let margin_min = margins.iter().cloned().fold(f64::INFINITY, f64::min);
-    let margin_min = if margin_min == f64::INFINITY { 0.0 } else { margin_min };
+    let margin_min = if margin_min == f64::INFINITY {
+        0.0
+    } else {
+        margin_min
+    };
 
     SafetyMetrics {
         violation_rate,
@@ -846,7 +862,11 @@ pub fn fitted_q_evaluation(
     }
 
     let estimated_value = q_estimates.iter().sum::<f64>() / n;
-    let variance = q_estimates.iter().map(|q| (q - estimated_value).powi(2)).sum::<f64>() / n;
+    let variance = q_estimates
+        .iter()
+        .map(|q| (q - estimated_value).powi(2))
+        .sum::<f64>()
+        / n;
     let std_err = (variance / n).sqrt();
 
     OpeResult {
@@ -981,14 +1001,18 @@ pub fn magic_estimate(
         let mut boot_sum = 0.0;
         let pseudo_seed = seed_base.wrapping_add(b as u64);
         for i in 0..blended.len() {
-            let idx = (pseudo_seed.wrapping_mul(31).wrapping_add(i as u64) as usize) % blended.len();
+            let idx =
+                (pseudo_seed.wrapping_mul(31).wrapping_add(i as u64) as usize) % blended.len();
             boot_sum += blended[idx];
         }
         bootstrap_means.push(boot_sum / n);
     }
     bootstrap_means.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-    let ci_lower = bootstrap_means.get(num_bootstrap / 40).copied().unwrap_or(mean);
+    let ci_lower = bootstrap_means
+        .get(num_bootstrap / 40)
+        .copied()
+        .unwrap_or(mean);
     let ci_upper = bootstrap_means
         .get(num_bootstrap - num_bootstrap / 40)
         .copied()
@@ -1098,7 +1122,11 @@ pub fn run_adversarial_eval(
     }
 }
 
-pub fn fgsm_perturb(states: &[Vec<f64>], epsilon: f64, gradient_signs: &[Vec<f64>]) -> Vec<Vec<f64>> {
+pub fn fgsm_perturb(
+    states: &[Vec<f64>],
+    epsilon: f64,
+    gradient_signs: &[Vec<f64>],
+) -> Vec<Vec<f64>> {
     states
         .iter()
         .zip(gradient_signs.iter())
@@ -1120,7 +1148,11 @@ pub fn random_noise_perturb(states: &[Vec<f64>], epsilon: f64, seed: u64) -> Vec
                 .enumerate()
                 .map(|(j, &sv)| {
                     // Deterministic pseudo-random based on seed
-                    let hash = seed.wrapping_mul(31).wrapping_add(i as u64).wrapping_mul(17).wrapping_add(j as u64);
+                    let hash = seed
+                        .wrapping_mul(31)
+                        .wrapping_add(i as u64)
+                        .wrapping_mul(17)
+                        .wrapping_add(j as u64);
                     let noise = ((hash % 2001) as f64 / 1000.0 - 1.0) * epsilon;
                     sv + noise
                 })
@@ -1166,8 +1198,16 @@ pub fn detect_regression_ttest(
 
     let mean1 = baseline_rewards.iter().sum::<f64>() / n1;
     let mean2 = candidate_rewards.iter().sum::<f64>() / n2;
-    let var1 = baseline_rewards.iter().map(|r| (r - mean1).powi(2)).sum::<f64>() / (n1 - 1.0);
-    let var2 = candidate_rewards.iter().map(|r| (r - mean2).powi(2)).sum::<f64>() / (n2 - 1.0);
+    let var1 = baseline_rewards
+        .iter()
+        .map(|r| (r - mean1).powi(2))
+        .sum::<f64>()
+        / (n1 - 1.0);
+    let var2 = candidate_rewards
+        .iter()
+        .map(|r| (r - mean2).powi(2))
+        .sum::<f64>()
+        / (n2 - 1.0);
 
     let pooled_std = ((var1 / n1) + (var2 / n2)).sqrt();
     let t_stat = if pooled_std > f64::EPSILON {
@@ -1231,7 +1271,11 @@ pub fn detect_regression_bootstrap(
     let observed_diff = mean2 - mean1;
 
     // Pooled data for permutation-style bootstrap
-    let pooled: Vec<f64> = baseline_rewards.iter().chain(candidate_rewards.iter()).copied().collect();
+    let pooled: Vec<f64> = baseline_rewards
+        .iter()
+        .chain(candidate_rewards.iter())
+        .copied()
+        .collect();
     let total = pooled.len();
 
     let mut count_more_extreme = 0usize;
@@ -1246,7 +1290,11 @@ pub fn detect_regression_bootstrap(
             group1_sum += pooled[idx];
         }
         for i in 0..n2 {
-            let idx = (pseudo.wrapping_mul(47).wrapping_add(i as u64).wrapping_add(n1 as u64) as usize) % total;
+            let idx = (pseudo
+                .wrapping_mul(47)
+                .wrapping_add(i as u64)
+                .wrapping_add(n1 as u64) as usize)
+                % total;
             group2_sum += pooled[idx];
         }
         let boot_diff = group2_sum / n2 as f64 - group1_sum / n1 as f64;
@@ -1257,8 +1305,16 @@ pub fn detect_regression_bootstrap(
 
     let p_value = count_more_extreme as f64 / num_bootstrap as f64;
 
-    let var1 = baseline_rewards.iter().map(|r| (r - mean1).powi(2)).sum::<f64>() / n1.max(1) as f64;
-    let var2 = candidate_rewards.iter().map(|r| (r - mean2).powi(2)).sum::<f64>() / n2.max(1) as f64;
+    let var1 = baseline_rewards
+        .iter()
+        .map(|r| (r - mean1).powi(2))
+        .sum::<f64>()
+        / n1.max(1) as f64;
+    let var2 = candidate_rewards
+        .iter()
+        .map(|r| (r - mean2).powi(2))
+        .sum::<f64>()
+        / n2.max(1) as f64;
     let pooled_sd = ((var1 + var2) / 2.0).sqrt();
     let cohens_d = if pooled_sd > f64::EPSILON {
         observed_diff / pooled_sd
@@ -1348,7 +1404,8 @@ pub fn compute_generalization_score(
 
     let scores: Vec<f64> = per_env.values().copied().collect();
     let mean_score = scores.iter().sum::<f64>() / scores.len() as f64;
-    let variance = scores.iter().map(|s| (s - mean_score).powi(2)).sum::<f64>() / scores.len() as f64;
+    let variance =
+        scores.iter().map(|s| (s - mean_score).powi(2)).sum::<f64>() / scores.len() as f64;
 
     // Domain shift: average feature distance between training and eval
     let mut total_shift = 0.0;
@@ -1369,7 +1426,8 @@ pub fn compute_generalization_score(
     let domain_shift_penalty = 1.0 - (-domain_shift).exp(); // higher shift = higher penalty
 
     // Transfer efficiency: ratio of eval performance to training performance
-    let eval_mean_reward = eval_envs.iter().map(|e| e.mean_reward).sum::<f64>() / eval_envs.len() as f64;
+    let eval_mean_reward =
+        eval_envs.iter().map(|e| e.mean_reward).sum::<f64>() / eval_envs.len() as f64;
     let transfer_efficiency = if training_env.mean_reward.abs() > f64::EPSILON {
         (eval_mean_reward / training_env.mean_reward).clamp(0.0, 1.0)
     } else {
@@ -1449,7 +1507,11 @@ pub enum GateCondition {
     MaxRewardVariance(f64),
     MinGeneralizationScore(f64),
     MaxRegressionPValue(f64),
-    Custom { name: String, threshold: f64, higher_is_better: bool },
+    Custom {
+        name: String,
+        threshold: f64,
+        higher_is_better: bool,
+    },
 }
 
 impl GateCondition {
@@ -1457,44 +1519,97 @@ impl GateCondition {
         match self {
             Self::MinSharpe(min) => {
                 let pass = metrics.sharpe_ratio >= *min;
-                (pass, format!("Sharpe {:.3} < min {:.3}", metrics.sharpe_ratio, min))
+                (
+                    pass,
+                    format!("Sharpe {:.3} < min {:.3}", metrics.sharpe_ratio, min),
+                )
             }
             Self::MaxDrawdown(max) => {
                 let pass = metrics.max_drawdown <= *max;
-                (pass, format!("Drawdown {:.3} > max {:.3}", metrics.max_drawdown, max))
+                (
+                    pass,
+                    format!("Drawdown {:.3} > max {:.3}", metrics.max_drawdown, max),
+                )
             }
             Self::MinAdversarialRobustness(min) => {
                 let pass = metrics.adversarial_robustness >= *min;
-                (pass, format!("Adv robustness {:.3} < min {:.3}", metrics.adversarial_robustness, min))
+                (
+                    pass,
+                    format!(
+                        "Adv robustness {:.3} < min {:.3}",
+                        metrics.adversarial_robustness, min
+                    ),
+                )
             }
             Self::MaxViolationRate(max) => {
                 let pass = metrics.violation_rate <= *max;
-                (pass, format!("Violation rate {:.3} > max {:.3}", metrics.violation_rate, max))
+                (
+                    pass,
+                    format!(
+                        "Violation rate {:.3} > max {:.3}",
+                        metrics.violation_rate, max
+                    ),
+                )
             }
             Self::MinWinRate(min) => {
                 let pass = metrics.win_rate >= *min;
-                (pass, format!("Win rate {:.3} < min {:.3}", metrics.win_rate, min))
+                (
+                    pass,
+                    format!("Win rate {:.3} < min {:.3}", metrics.win_rate, min),
+                )
             }
             Self::MinMeanReward(min) => {
                 let pass = metrics.mean_reward >= *min;
-                (pass, format!("Mean reward {:.3} < min {:.3}", metrics.mean_reward, min))
+                (
+                    pass,
+                    format!("Mean reward {:.3} < min {:.3}", metrics.mean_reward, min),
+                )
             }
             Self::MaxRewardVariance(max) => {
                 let pass = metrics.reward_variance <= *max;
-                (pass, format!("Reward variance {:.3} > max {:.3}", metrics.reward_variance, max))
+                (
+                    pass,
+                    format!(
+                        "Reward variance {:.3} > max {:.3}",
+                        metrics.reward_variance, max
+                    ),
+                )
             }
             Self::MinGeneralizationScore(min) => {
                 let pass = metrics.generalization_score >= *min;
-                (pass, format!("Gen score {:.3} < min {:.3}", metrics.generalization_score, min))
+                (
+                    pass,
+                    format!(
+                        "Gen score {:.3} < min {:.3}",
+                        metrics.generalization_score, min
+                    ),
+                )
             }
             Self::MaxRegressionPValue(max) => {
                 let pass = metrics.regression_p_value <= *max;
-                (pass, format!("P-value {:.4} > max {:.4}", metrics.regression_p_value, max))
+                (
+                    pass,
+                    format!("P-value {:.4} > max {:.4}", metrics.regression_p_value, max),
+                )
             }
-            Self::Custom { name, threshold, higher_is_better } => {
+            Self::Custom {
+                name,
+                threshold,
+                higher_is_better,
+            } => {
                 let val = metrics.custom_metrics.get(name).copied().unwrap_or(0.0);
-                let pass = if *higher_is_better { val >= *threshold } else { val <= *threshold };
-                (pass, format!("Custom '{}' {:.3} failed threshold {:.3}", name, val, threshold))
+                let pass = if *higher_is_better {
+                    val >= *threshold
+                } else {
+                    val <= *threshold
+                };
+                (
+                    pass,
+                    format!(
+                        "Custom '{}' {:.3} failed threshold {:.3}",
+                        name, val, threshold
+                    ),
+                )
             }
         }
     }
@@ -1624,7 +1739,8 @@ impl EvalPipeline {
                     r.add_metric("episode_count", perf.episode_count as f64);
                     if perf.mean_reward.is_nan() || perf.mean_reward.is_infinite() {
                         r.passed = false;
-                        r.messages.push("Invalid reward values detected".to_string());
+                        r.messages
+                            .push("Invalid reward values detected".to_string());
                     }
                 }
                 r
@@ -1666,9 +1782,16 @@ impl EvalPipeline {
     pub fn summary(&self) -> String {
         let mut out = String::new();
         out.push_str("Pipeline Summary\n");
-        out.push_str(&format!("Overall: {}\n", if self.overall_passed { "PASS" } else { "FAIL" }));
+        out.push_str(&format!(
+            "Overall: {}\n",
+            if self.overall_passed { "PASS" } else { "FAIL" }
+        ));
         for r in &self.results {
-            out.push_str(&format!("  {} — {}\n", r.stage, if r.passed { "PASS" } else { "FAIL" }));
+            out.push_str(&format!(
+                "  {} — {}\n",
+                r.stage,
+                if r.passed { "PASS" } else { "FAIL" }
+            ));
             for msg in &r.messages {
                 out.push_str(&format!("    {}\n", msg));
             }
@@ -1704,8 +1827,16 @@ pub fn compare_policies(
     name_b: &str,
     rewards_b: &[f64],
 ) -> PolicyComparison {
-    let mean_a = if rewards_a.is_empty() { 0.0 } else { rewards_a.iter().sum::<f64>() / rewards_a.len() as f64 };
-    let mean_b = if rewards_b.is_empty() { 0.0 } else { rewards_b.iter().sum::<f64>() / rewards_b.len() as f64 };
+    let mean_a = if rewards_a.is_empty() {
+        0.0
+    } else {
+        rewards_a.iter().sum::<f64>() / rewards_a.len() as f64
+    };
+    let mean_b = if rewards_b.is_empty() {
+        0.0
+    } else {
+        rewards_b.iter().sum::<f64>() / rewards_b.len() as f64
+    };
 
     let var_a = if rewards_a.len() > 1 {
         rewards_a.iter().map(|r| (r - mean_a).powi(2)).sum::<f64>() / (rewards_a.len() - 1) as f64
@@ -1745,7 +1876,11 @@ pub fn compare_policies(
         value_a: var_a,
         value_b: var_b,
         difference: var_b - var_a,
-        relative_change_pct: if var_a.abs() > f64::EPSILON { ((var_b - var_a) / var_a) * 100.0 } else { 0.0 },
+        relative_change_pct: if var_a.abs() > f64::EPSILON {
+            ((var_b - var_a) / var_a) * 100.0
+        } else {
+            0.0
+        },
         effect_size: 0.0,
     };
 
@@ -1830,7 +1965,11 @@ impl EvalReport {
         out.push_str("## Stage Results\n\n");
         out.push_str("| Stage | Result |\n|---|---|\n");
         for sr in &self.stage_results {
-            out.push_str(&format!("| {} | {} |\n", sr.stage, if sr.passed { "PASS" } else { "FAIL" }));
+            out.push_str(&format!(
+                "| {} | {} |\n",
+                sr.stage,
+                if sr.passed { "PASS" } else { "FAIL" }
+            ));
         }
 
         out.push_str("\n## Metrics\n\n");
@@ -1872,7 +2011,11 @@ impl EvalReport {
         out.push_str(&format!("  \"suite\": \"{}\",\n", self.suite_name));
         out.push_str(&format!("  \"verdict\": \"{}\",\n", self.overall_verdict));
         out.push_str("  \"metrics\": {\n");
-        let items: Vec<String> = self.metric_summary.iter().map(|(k, v)| format!("    \"{}\": {:.4}", k, v)).collect();
+        let items: Vec<String> = self
+            .metric_summary
+            .iter()
+            .map(|(k, v)| format!("    \"{}\": {:.4}", k, v))
+            .collect();
         out.push_str(&items.join(",\n"));
         out.push_str("\n  }\n");
         out.push('}');
@@ -1882,7 +2025,10 @@ impl EvalReport {
     fn render_html(&self) -> String {
         let mut out = String::from("<html><body>\n");
         out.push_str(&format!("<h1>{}</h1>\n", self.title));
-        out.push_str(&format!("<p>Suite: {} | Verdict: <strong>{}</strong></p>\n", self.suite_name, self.overall_verdict));
+        out.push_str(&format!(
+            "<p>Suite: {} | Verdict: <strong>{}</strong></p>\n",
+            self.suite_name, self.overall_verdict
+        ));
         out.push_str("<table><tr><th>Metric</th><th>Value</th></tr>\n");
         for (k, v) in &self.metric_summary {
             out.push_str(&format!("<tr><td>{}</td><td>{:.4}</td></tr>\n", k, v));
@@ -1897,10 +2043,7 @@ pub fn generate_report(
     pipeline: &EvalPipeline,
     gates: &[QualityGate],
 ) -> EvalReport {
-    let mut report = EvalReport::new(
-        &format!("Evaluation Report: {}", suite.name),
-        &suite.name,
-    );
+    let mut report = EvalReport::new(&format!("Evaluation Report: {}", suite.name), &suite.name);
 
     report.stage_results = pipeline.results.clone();
     report.gate_results = gates.to_vec();
@@ -1979,7 +2122,11 @@ pub fn counterfactual_evaluate(query: &CounterfactualQuery) -> CounterfactualRes
     let mut cf_estimates = Vec::new();
     for i in 0..n {
         let behavior_prob = query.action_probs_logged.get(i).copied().unwrap_or(1.0);
-        let target_prob = query.action_probs_counterfactual.get(i).copied().unwrap_or(1.0);
+        let target_prob = query
+            .action_probs_counterfactual
+            .get(i)
+            .copied()
+            .unwrap_or(1.0);
         let weight = if behavior_prob > f64::EPSILON {
             target_prob / behavior_prob
         } else {
@@ -1996,7 +2143,11 @@ pub fn counterfactual_evaluate(query: &CounterfactualQuery) -> CounterfactualRes
         0.0
     };
 
-    let variance = cf_estimates.iter().map(|e| (e - cf_value).powi(2)).sum::<f64>() / n as f64;
+    let variance = cf_estimates
+        .iter()
+        .map(|e| (e - cf_value).powi(2))
+        .sum::<f64>()
+        / n as f64;
     let std_err = (variance / n as f64).sqrt();
 
     CounterfactualResult {
@@ -2055,12 +2206,19 @@ pub fn compute_multi_agent_metrics(agents: &[AgentRecord]) -> MultiAgentMetrics 
 
     let mut per_agent = HashMap::new();
     let mut total_rewards: Vec<f64> = Vec::new();
-    let total_messages: usize = agents.iter().map(|a| a.messages_sent + a.messages_received).sum();
+    let total_messages: usize = agents
+        .iter()
+        .map(|a| a.messages_sent + a.messages_received)
+        .sum();
     let grand_total_reward: f64 = agents.iter().map(|a| a.rewards.iter().sum::<f64>()).sum();
 
     for agent in agents {
         let total = agent.rewards.iter().sum::<f64>();
-        let mean = if agent.rewards.is_empty() { 0.0 } else { total / agent.rewards.len() as f64 };
+        let mean = if agent.rewards.is_empty() {
+            0.0
+        } else {
+            total / agent.rewards.len() as f64
+        };
         let contrib = if grand_total_reward.abs() > f64::EPSILON {
             total / grand_total_reward
         } else {
@@ -2149,7 +2307,11 @@ pub struct FinanceMetrics {
     pub downside_deviation: f64,
 }
 
-pub fn compute_finance_metrics(returns: &[f64], risk_free_rate: f64, periods_per_year: f64) -> FinanceMetrics {
+pub fn compute_finance_metrics(
+    returns: &[f64],
+    risk_free_rate: f64,
+    periods_per_year: f64,
+) -> FinanceMetrics {
     if returns.is_empty() {
         return FinanceMetrics {
             sharpe_ratio: 0.0,
@@ -2168,9 +2330,17 @@ pub fn compute_finance_metrics(returns: &[f64], risk_free_rate: f64, periods_per
 
     let n = returns.len() as f64;
     let mean_return = returns.iter().sum::<f64>() / n;
-    let excess_returns: Vec<f64> = returns.iter().map(|r| r - risk_free_rate / periods_per_year).collect();
+    let excess_returns: Vec<f64> = returns
+        .iter()
+        .map(|r| r - risk_free_rate / periods_per_year)
+        .collect();
     let mean_excess = excess_returns.iter().sum::<f64>() / n;
-    let volatility = (returns.iter().map(|r| (r - mean_return).powi(2)).sum::<f64>() / n).sqrt();
+    let volatility = (returns
+        .iter()
+        .map(|r| (r - mean_return).powi(2))
+        .sum::<f64>()
+        / n)
+        .sqrt();
 
     // Sharpe ratio
     let sharpe = if volatility > f64::EPSILON {
@@ -2185,7 +2355,10 @@ pub fn compute_finance_metrics(returns: &[f64], risk_free_rate: f64, periods_per
         .filter(|&&r| r < risk_free_rate / periods_per_year)
         .map(|r| (r - risk_free_rate / periods_per_year).powi(2))
         .sum();
-    let downside_count = returns.iter().filter(|&&r| r < risk_free_rate / periods_per_year).count();
+    let downside_count = returns
+        .iter()
+        .filter(|&&r| r < risk_free_rate / periods_per_year)
+        .count();
     let downside_dev = if downside_count > 0 {
         (downside_sq / downside_count as f64).sqrt()
     } else {
@@ -2370,7 +2543,11 @@ impl ContinuousEvalState {
 
         // Compare recent window (last 5) vs baseline window (first 5)
         let baseline_window = self.history.len().min(5);
-        let recent_start = if self.history.len() > 5 { self.history.len() - 5 } else { 0 };
+        let recent_start = if self.history.len() > 5 {
+            self.history.len() - 5
+        } else {
+            0
+        };
 
         let baseline_mean = self.history[..baseline_window]
             .iter()
@@ -2432,7 +2609,11 @@ impl ContinuousEvalState {
                 current_value: recent_wr,
                 drift_magnitude: wr_magnitude,
                 is_significant: true,
-                severity: if wr_magnitude > 0.2 { AlertSeverity::High } else { AlertSeverity::Medium },
+                severity: if wr_magnitude > 0.2 {
+                    AlertSeverity::High
+                } else {
+                    AlertSeverity::Medium
+                },
             };
             self.drift_detections.push(wr_detection);
         }
@@ -2449,7 +2630,11 @@ impl ContinuousEvalState {
                     severity: drift.severity.clone(),
                     message: format!(
                         "{} drift detected: {} changed from {:.4} to {:.4} (magnitude: {:.4})",
-                        drift.drift_type, drift.metric_name, drift.baseline_value, drift.current_value, drift.drift_magnitude
+                        drift.drift_type,
+                        drift.metric_name,
+                        drift.baseline_value,
+                        drift.current_value,
+                        drift.drift_magnitude
                     ),
                     metric_name: drift.metric_name.clone(),
                     current_value: drift.current_value,
@@ -2515,7 +2700,11 @@ mod tests {
             .collect()
     }
 
-    fn make_trajectory(rewards: &[f64], behavior_prob: f64, target_prob: f64) -> Vec<OpeTransition> {
+    fn make_trajectory(
+        rewards: &[f64],
+        behavior_prob: f64,
+        target_prob: f64,
+    ) -> Vec<OpeTransition> {
         rewards
             .iter()
             .map(|&r| OpeTransition {
@@ -2736,7 +2925,16 @@ mod tests {
 
     #[test]
     fn test_robustness_iqr() {
-        let episodes = make_episodes(&[vec![1.0], vec![2.0], vec![3.0], vec![4.0], vec![5.0], vec![6.0], vec![7.0], vec![8.0]]);
+        let episodes = make_episodes(&[
+            vec![1.0],
+            vec![2.0],
+            vec![3.0],
+            vec![4.0],
+            vec![5.0],
+            vec![6.0],
+            vec![7.0],
+            vec![8.0],
+        ]);
         let rm = compute_robustness_metrics(&episodes);
         assert!(rm.interquartile_range > 0.0);
     }
@@ -3418,10 +3616,7 @@ mod tests {
 
     #[test]
     fn test_multi_agent_fairness_equal() {
-        let agents = make_agents(&[
-            ("a1", &[10.0], 1, 1, 0.5),
-            ("a2", &[10.0], 1, 1, 0.5),
-        ]);
+        let agents = make_agents(&[("a1", &[10.0], 1, 1, 0.5), ("a2", &[10.0], 1, 1, 0.5)]);
         let metrics = compute_multi_agent_metrics(&agents);
         assert!((metrics.gini_coefficient).abs() < f64::EPSILON);
         assert!((metrics.fairness_score - 1.0).abs() < f64::EPSILON);
@@ -3429,10 +3624,7 @@ mod tests {
 
     #[test]
     fn test_multi_agent_fairness_unequal() {
-        let agents = make_agents(&[
-            ("rich", &[100.0], 1, 1, 0.5),
-            ("poor", &[1.0], 1, 1, 0.5),
-        ]);
+        let agents = make_agents(&[("rich", &[100.0], 1, 1, 0.5), ("poor", &[1.0], 1, 1, 0.5)]);
         let metrics = compute_multi_agent_metrics(&agents);
         assert!(metrics.gini_coefficient > 0.0);
         assert!(metrics.fairness_score < 1.0);
@@ -3440,19 +3632,14 @@ mod tests {
 
     #[test]
     fn test_multi_agent_communication_efficiency() {
-        let agents = make_agents(&[
-            ("a1", &[100.0], 2, 2, 0.9),
-        ]);
+        let agents = make_agents(&[("a1", &[100.0], 2, 2, 0.9)]);
         let metrics = compute_multi_agent_metrics(&agents);
         assert!(metrics.communication_efficiency > 0.0);
     }
 
     #[test]
     fn test_multi_agent_coalition_value() {
-        let agents = make_agents(&[
-            ("a1", &[10.0], 1, 1, 0.8),
-            ("a2", &[10.0], 1, 1, 0.6),
-        ]);
+        let agents = make_agents(&[("a1", &[10.0], 1, 1, 0.8), ("a2", &[10.0], 1, 1, 0.6)]);
         let metrics = compute_multi_agent_metrics(&agents);
         assert!((metrics.coalition_value - 1.4).abs() < f64::EPSILON);
     }
@@ -3461,7 +3648,9 @@ mod tests {
 
     #[test]
     fn test_finance_metrics_basic() {
-        let returns = vec![0.01, 0.02, -0.005, 0.015, 0.01, -0.01, 0.02, 0.005, 0.01, -0.003];
+        let returns = vec![
+            0.01, 0.02, -0.005, 0.015, 0.01, -0.01, 0.02, 0.005, 0.01, -0.003,
+        ];
         let fm = compute_finance_metrics(&returns, 0.02, 252.0);
         assert!(fm.sharpe_ratio != 0.0);
         assert!(fm.total_return > 0.0);
@@ -3490,8 +3679,10 @@ mod tests {
 
     #[test]
     fn test_finance_var_cvar() {
-        let returns = vec![-0.05, -0.03, -0.01, 0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06,
-                          -0.02, 0.01, 0.02, 0.03, -0.04, 0.01, 0.02, 0.03, 0.04, 0.05];
+        let returns = vec![
+            -0.05, -0.03, -0.01, 0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, -0.02, 0.01, 0.02, 0.03,
+            -0.04, 0.01, 0.02, 0.03, 0.04, 0.05,
+        ];
         let fm = compute_finance_metrics(&returns, 0.0, 252.0);
         assert!(fm.var_95 < 0.0); // VaR should be negative (loss)
         assert!(fm.cvar_95 <= fm.var_95); // CVaR should be worse than VaR
@@ -3513,7 +3704,9 @@ mod tests {
 
     #[test]
     fn test_finance_calmar_ratio() {
-        let returns = vec![0.02, -0.01, 0.03, 0.02, -0.005, 0.01, 0.015, -0.008, 0.02, 0.01];
+        let returns = vec![
+            0.02, -0.01, 0.03, 0.02, -0.005, 0.01, 0.015, -0.008, 0.02, 0.01,
+        ];
         let fm = compute_finance_metrics(&returns, 0.0, 252.0);
         // Calmar = annualized_return / max_drawdown
         if fm.max_drawdown > 0.0 {
@@ -3618,7 +3811,9 @@ mod tests {
         }
         let drifts = state.detect_drift();
         // All runs identical, drift magnitude should be 0
-        assert!(drifts.iter().all(|d| !d.is_significant || d.drift_magnitude < 0.11));
+        assert!(drifts
+            .iter()
+            .all(|d| !d.is_significant || d.drift_magnitude < 0.11));
     }
 
     #[test]
@@ -3695,7 +3890,10 @@ mod tests {
     #[test]
     fn test_eval_stage_display() {
         assert_eq!(format!("{}", EvalStage::SmokeTest), "Smoke Test");
-        assert_eq!(format!("{}", EvalStage::OffPolicyEval), "Off-Policy Evaluation");
+        assert_eq!(
+            format!("{}", EvalStage::OffPolicyEval),
+            "Off-Policy Evaluation"
+        );
     }
 
     #[test]
@@ -3715,7 +3913,10 @@ mod tests {
     #[test]
     fn test_adversarial_method_display() {
         assert_eq!(format!("{}", AdversarialMethod::Fgsm), "FGSM");
-        assert_eq!(format!("{}", AdversarialMethod::RandomNoise), "Random Noise");
+        assert_eq!(
+            format!("{}", AdversarialMethod::RandomNoise),
+            "Random Noise"
+        );
     }
 
     #[test]

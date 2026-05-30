@@ -155,18 +155,27 @@ impl WatchAuthManager {
 
     pub fn new(machine_id: impl Into<String>) -> Result<Self> {
         let machine_id = machine_id.into();
-        let store = crate::profile_store::ProfileStore::new()
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
-        let secret = match store.get_api_key("default", "watch.jwt_secret").ok().flatten() {
+        let store =
+            crate::profile_store::ProfileStore::new().map_err(|e| anyhow::anyhow!("{}", e))?;
+        let secret = match store
+            .get_api_key("default", "watch.jwt_secret")
+            .ok()
+            .flatten()
+        {
             Some(s) if !s.is_empty() => hex::decode(&s)?,
             _ => {
                 let bytes: Vec<u8> = rand::rng().random::<[u8; 32]>().to_vec();
-                store.set_api_key("default", "watch.jwt_secret", &hex::encode(&bytes))
+                store
+                    .set_api_key("default", "watch.jwt_secret", &hex::encode(&bytes))
                     .map_err(|e| anyhow::anyhow!("{}", e))?;
                 bytes
             }
         };
-        Ok(Self { machine_id, jwt_secret: secret, pending_nonces: Default::default() })
+        Ok(Self {
+            machine_id,
+            jwt_secret: secret,
+            pending_nonces: Default::default(),
+        })
     }
 
     // ── Challenge generation ───────────────────────────────────────────────
@@ -176,9 +185,11 @@ impl WatchAuthManager {
         let nonce: String = format!("{:032x}", rand::rng().random::<u128>());
         let now = now_unix();
         let expires_at = now + NONCE_TTL_SECS;
-        self.pending_nonces.insert(nonce.clone(), (now, String::new()));
+        self.pending_nonces
+            .insert(nonce.clone(), (now, String::new()));
         // Prune expired nonces
-        self.pending_nonces.retain(|_, (iat, _)| now - *iat < NONCE_TTL_SECS + 10);
+        self.pending_nonces
+            .retain(|_, (iat, _)| now - *iat < NONCE_TTL_SECS + 10);
         Ok(RegistrationChallenge {
             nonce,
             machine_id: self.machine_id.clone(),
@@ -203,7 +214,10 @@ impl WatchAuthManager {
         // 2. Decode public key (64-byte P256 raw: x||y, Swift rawRepresentation)
         let pk_bytes = B64.decode(&req.public_key_b64)?;
         if pk_bytes.len() != 64 {
-            bail!("Invalid P256 public key length (expected 64 bytes, got {})", pk_bytes.len());
+            bail!(
+                "Invalid P256 public key length (expected 64 bytes, got {})",
+                pk_bytes.len()
+            );
         }
 
         // 3. Verify P256 ECDSA signature over SHA-256(nonce || device_id || issued_at_be)
@@ -222,7 +236,10 @@ impl WatchAuthManager {
             devices.sort_by_key(|d| d.registered_at);
             if let Some(oldest) = devices.first() {
                 let old_id = oldest.device_id.clone();
-                tracing::info!("Watch device limit reached; evicting oldest device {}", old_id);
+                tracing::info!(
+                    "Watch device limit reached; evicting oldest device {}",
+                    old_id
+                );
                 let store = crate::profile_store::ProfileStore::new()
                     .map_err(|e| anyhow::anyhow!("{}", e))?;
                 let key = format!("watch.device.{}.record", old_id);
@@ -358,8 +375,8 @@ impl WatchAuthManager {
     // ── Device management ─────────────────────────────────────────────────
 
     pub fn list_devices(&self) -> Result<Vec<WatchDevice>> {
-        let store = crate::profile_store::ProfileStore::new()
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let store =
+            crate::profile_store::ProfileStore::new().map_err(|e| anyhow::anyhow!("{}", e))?;
         let prefix = "watch.device.";
         // We store device JSON under "watch.device.{id}.record"
         // Enumerate by loading the index key
@@ -386,8 +403,8 @@ impl WatchAuthManager {
     }
 
     pub fn load_device(&self, device_id: &str) -> Result<WatchDevice> {
-        let store = crate::profile_store::ProfileStore::new()
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let store =
+            crate::profile_store::ProfileStore::new().map_err(|e| anyhow::anyhow!("{}", e))?;
         let key = format!("watch.device.{}.record", device_id);
         let raw = store
             .get_api_key("default", &key)
@@ -397,10 +414,11 @@ impl WatchAuthManager {
     }
 
     pub fn save_device(&self, device: &WatchDevice) -> Result<()> {
-        let store = crate::profile_store::ProfileStore::new()
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let store =
+            crate::profile_store::ProfileStore::new().map_err(|e| anyhow::anyhow!("{}", e))?;
         let key = format!("watch.device.{}.record", device.device_id);
-        store.set_api_key("default", &key, &serde_json::to_string(device)?)
+        store
+            .set_api_key("default", &key, &serde_json::to_string(device)?)
             .map_err(|e| anyhow::anyhow!("{}", e))?;
         // Update index
         let mut ids = self
@@ -412,7 +430,12 @@ impl WatchAuthManager {
         if !ids.contains(&device.device_id) {
             ids.push(device.device_id.clone());
         }
-        store.set_api_key("default", "watch.device_index", &serde_json::to_string(&ids)?)
+        store
+            .set_api_key(
+                "default",
+                "watch.device_index",
+                &serde_json::to_string(&ids)?,
+            )
             .map_err(|e| anyhow::anyhow!("{}", e))?;
         Ok(())
     }
@@ -429,8 +452,8 @@ impl WatchAuthManager {
         let header = B64.encode(b"{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
         let payload = B64.encode(serde_json::to_string(claims)?.as_bytes());
         let signing_input = format!("{}.{}", header, payload);
-        let mut mac = HmacSha256::new_from_slice(&self.jwt_secret)
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let mut mac =
+            HmacSha256::new_from_slice(&self.jwt_secret).map_err(|e| anyhow::anyhow!("{}", e))?;
         mac.update(signing_input.as_bytes());
         let sig = B64.encode(mac.finalize().into_bytes());
         Ok(format!("{}.{}", signing_input, sig))
@@ -442,8 +465,8 @@ impl WatchAuthManager {
             bail!("Malformed JWT");
         }
         let signing_input = format!("{}.{}", parts[0], parts[1]);
-        let mut mac = HmacSha256::new_from_slice(&self.jwt_secret)
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+        let mut mac =
+            HmacSha256::new_from_slice(&self.jwt_secret).map_err(|e| anyhow::anyhow!("{}", e))?;
         mac.update(signing_input.as_bytes());
         let expected = B64.encode(mac.finalize().into_bytes());
         if !constant_time_eq(parts[2].as_bytes(), expected.as_bytes()) {
@@ -463,7 +486,11 @@ impl WatchAuthManager {
     /// Construct a `WatchAuthManager` directly for testing, bypassing ProfileStore.
     #[doc(hidden)]
     pub fn for_testing(machine_id: impl Into<String>, jwt_secret: Vec<u8>) -> Self {
-        Self { machine_id: machine_id.into(), jwt_secret, pending_nonces: Default::default() }
+        Self {
+            machine_id: machine_id.into(),
+            jwt_secret,
+            pending_nonces: Default::default(),
+        }
     }
 
     /// Decode a JWT for testing — exposes the private `decode_jwt` method.
@@ -535,7 +562,10 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     if a.len() != b.len() {
         return false;
     }
-    a.iter().zip(b.iter()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
+    a.iter()
+        .zip(b.iter())
+        .fold(0u8, |acc, (x, y)| acc | (x ^ y))
+        == 0
 }
 
 fn now_unix() -> u64 {
@@ -606,7 +636,7 @@ mod tests {
         let claims = WatchClaims {
             sub: "dev".into(),
             iat: now_unix() - 1000,
-            exp: now_unix() - 1,  // expired
+            exp: now_unix() - 1, // expired
             jti: "x".into(),
             machine_id: "test-machine-001".into(),
             kind: "access".into(),
@@ -679,8 +709,10 @@ mod tests {
         let (mut mgr, _tmp) = make_manager();
         let ch = mgr.issue_challenge().unwrap();
         assert_eq!(ch.nonce.len(), 32);
-        assert!(ch.nonce.chars().all(|c| c.is_ascii_hexdigit()),
-            "nonce should be lowercase hex");
+        assert!(
+            ch.nonce.chars().all(|c| c.is_ascii_hexdigit()),
+            "nonce should be lowercase hex"
+        );
     }
 
     #[test]
@@ -775,9 +807,13 @@ mod tests {
     #[test]
     fn watch_device_revoked_at_serializes() {
         let dev = WatchDevice {
-            device_id: "r".into(), name: "R".into(),
-            public_key_b64: "K".into(), os_version: "11".into(), model: "M".into(),
-            registered_at: 1_700_000_000, last_seen: 1_700_000_001,
+            device_id: "r".into(),
+            name: "R".into(),
+            public_key_b64: "K".into(),
+            os_version: "11".into(),
+            model: "M".into(),
+            registered_at: 1_700_000_000,
+            last_seen: 1_700_000_001,
             revoked_at: Some(1_700_000_002),
             wrist_suspended: false,
         };
@@ -887,7 +923,11 @@ mod tests {
         let pk_bytes = &pk_uncompressed.as_bytes()[1..]; // strip 0x04 prefix
 
         let result = verify_p256_signature(pk_bytes, msg, &sig.to_bytes());
-        assert!(result.is_ok(), "valid P256 signature must verify: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "valid P256 signature must verify: {:?}",
+            result.err()
+        );
     }
 
     #[test]
@@ -904,7 +944,10 @@ mod tests {
         let pk_bytes = &pk_uncompressed.as_bytes()[1..];
 
         let result = verify_p256_signature(pk_bytes, b"tampered message", &sig.to_bytes());
-        assert!(result.is_err(), "signature over different message must be rejected");
+        assert!(
+            result.is_err(),
+            "signature over different message must be rejected"
+        );
     }
 
     #[test]
@@ -922,13 +965,16 @@ mod tests {
         let wrong_pk_bytes = &wrong_pk.as_bytes()[1..];
 
         let result = verify_p256_signature(wrong_pk_bytes, msg, &sig.to_bytes());
-        assert!(result.is_err(), "signature verified with wrong key must fail");
+        assert!(
+            result.is_err(),
+            "signature verified with wrong key must fail"
+        );
     }
 
     #[test]
     fn register_device_full_p256_roundtrip() {
-        use p256::ecdsa::{signature::Signer, SigningKey};
         use base64::{engine::general_purpose::URL_SAFE_NO_PAD as B64, Engine};
+        use p256::ecdsa::{signature::Signer, SigningKey};
 
         let (mut mgr, _tmp) = make_manager();
         let ch = mgr.issue_challenge().unwrap();
@@ -958,7 +1004,11 @@ mod tests {
         };
 
         let result = mgr.register_device(&req);
-        assert!(result.is_ok(), "full P256 registration roundtrip failed: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "full P256 registration roundtrip failed: {:?}",
+            result.err()
+        );
         let device = result.unwrap();
         assert_eq!(device.device_id, device_id);
     }

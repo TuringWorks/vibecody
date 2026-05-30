@@ -2,12 +2,12 @@
  * BDD tests for design_system_hub using Cucumber.
  * Run with: cargo test --test design_system_hub_bdd
  */
-use cucumber::{World, given, then, when};
-use vibecli_cli::design_system_hub::{
-    audit_design_system, detect_token_drift, merge_provider_tokens,
-    vibecody_default_design_system, AuditReport, AuditSeverity, DesignSystem, TokenNamespace,
-};
+use cucumber::{given, then, when, World};
 use vibecli_cli::design_providers::{DesignToken, DesignTokenType, ProviderKind};
+use vibecli_cli::design_system_hub::{
+    audit_design_system, detect_token_drift, merge_provider_tokens, vibecody_default_design_system,
+    AuditReport, AuditSeverity, DesignSystem, TokenNamespace,
+};
 
 #[derive(Debug, Default, World)]
 pub struct HubWorld {
@@ -25,7 +25,13 @@ pub struct HubWorld {
 }
 
 fn make_color(name: &str, value: &str, provider: ProviderKind) -> DesignToken {
-    DesignToken { name: name.to_string(), token_type: DesignTokenType::Color, value: value.to_string(), description: None, provider }
+    DesignToken {
+        name: name.to_string(),
+        token_type: DesignTokenType::Color,
+        value: value.to_string(),
+        description: None,
+        provider,
+    }
 }
 
 // ── Given ──────────────────────────────────────────────────────────────────
@@ -94,7 +100,14 @@ fn given_provider_token(_world: &mut HubWorld, _provider: String, _name: String,
 }
 
 #[given(expr = "provider {string} has token {string} value {string} and {string} value {string}")]
-fn given_provider_two_tokens(_world: &mut HubWorld, _p: String, _n1: String, _v1: String, _n2: String, _v2: String) {
+fn given_provider_two_tokens(
+    _world: &mut HubWorld,
+    _p: String,
+    _n1: String,
+    _v1: String,
+    _n2: String,
+    _v2: String,
+) {
     // stored implicitly below
 }
 
@@ -133,13 +146,16 @@ fn when_drift(world: &mut HubWorld) {
     );
     world.drift_count = drifts.len();
     if !drifts.is_empty() {
-        world.merged_tokens = drifts.iter().map(|d| DesignToken {
-            name: d.token_name.clone(),
-            token_type: DesignTokenType::Color,
-            value: d.current_value.clone(),
-            description: None,
-            provider: d.provider.clone(),
-        }).collect();
+        world.merged_tokens = drifts
+            .iter()
+            .map(|d| DesignToken {
+                name: d.token_name.clone(),
+                token_type: DesignTokenType::Color,
+                value: d.current_value.clone(),
+                description: None,
+                provider: d.provider.clone(),
+            })
+            .collect();
     }
 }
 
@@ -150,9 +166,16 @@ fn when_merge(world: &mut HubWorld, preferred_str: String) {
         make_color("primary", "#fff", ProviderKind::Penpot),
         make_color("secondary", "#888", ProviderKind::Penpot),
     ];
-    let preferred = if preferred_str == "figma" { ProviderKind::Figma } else { ProviderKind::Penpot };
+    let preferred = if preferred_str == "figma" {
+        ProviderKind::Figma
+    } else {
+        ProviderKind::Penpot
+    };
     let merged = merge_provider_tokens(
-        &[(ProviderKind::Figma, figma_tokens), (ProviderKind::Penpot, penpot_tokens)],
+        &[
+            (ProviderKind::Figma, figma_tokens),
+            (ProviderKind::Penpot, penpot_tokens),
+        ],
         Some(&preferred),
     );
     world.merged_len = merged.len();
@@ -173,9 +196,13 @@ fn then_css_contains(world: &mut HubWorld, s: String) {
 
 #[then(expr = "the output should contain {string}")]
 fn then_output_contains(world: &mut HubWorld, s: String) {
-    let text = if !world.tailwind_output.is_empty() { &world.tailwind_output }
-               else if !world.ts_output.is_empty() { &world.ts_output }
-               else { &world.sd_output };
+    let text = if !world.tailwind_output.is_empty() {
+        &world.tailwind_output
+    } else if !world.ts_output.is_empty() {
+        &world.ts_output
+    } else {
+        &world.sd_output
+    };
     assert!(text.contains(s.as_str()), "Output missing: {s}");
 }
 
@@ -193,7 +220,12 @@ fn then_json_has_primary(world: &mut HubWorld) {
 #[then(expr = "the report should have at least {int} issue")]
 fn then_report_issues(world: &mut HubWorld, min: usize) {
     let report = world.audit_report.as_ref().unwrap();
-    assert!(report.issues.len() >= min, "Expected >= {} issues, got {}", min, report.issues.len());
+    assert!(
+        report.issues.len() >= min,
+        "Expected >= {} issues, got {}",
+        min,
+        report.issues.len()
+    );
 }
 
 #[then(expr = "the score should be less than {int}")]
@@ -205,7 +237,9 @@ fn then_score_lt(world: &mut HubWorld, max: u8) {
 fn then_report_error_code(world: &mut HubWorld, code: String) {
     let issues = &world.audit_report.as_ref().unwrap().issues;
     assert!(
-        issues.iter().any(|i| i.code == code && i.severity == AuditSeverity::Error),
+        issues
+            .iter()
+            .any(|i| i.code == code && i.severity == AuditSeverity::Error),
         "No error with code {code}"
     );
 }
@@ -214,7 +248,9 @@ fn then_report_error_code(world: &mut HubWorld, code: String) {
 fn then_report_warning_code(world: &mut HubWorld, code: String) {
     let issues = &world.audit_report.as_ref().unwrap().issues;
     assert!(
-        issues.iter().any(|i| i.code == code && i.severity == AuditSeverity::Warning),
+        issues
+            .iter()
+            .any(|i| i.code == code && i.severity == AuditSeverity::Warning),
         "No warning with code {code}"
     );
 }
@@ -248,7 +284,11 @@ fn then_token_value(world: &mut HubWorld, name: String, value: String) {
 
 #[then("it should have color tokens")]
 fn then_has_colors(world: &mut HubWorld) {
-    let colors = world.system.as_ref().unwrap().tokens_by_type(&DesignTokenType::Color);
+    let colors = world
+        .system
+        .as_ref()
+        .unwrap()
+        .tokens_by_type(&DesignTokenType::Color);
     assert!(!colors.is_empty());
 }
 

@@ -206,14 +206,22 @@ impl LintConfig {
         if project_path.join("Cargo.toml").exists() {
             linters.push(Self {
                 tool: "cargo".to_string(),
-                args: vec!["clippy".to_string(), "--quiet".to_string(), "--message-format=short".to_string()],
+                args: vec![
+                    "clippy".to_string(),
+                    "--quiet".to_string(),
+                    "--message-format=short".to_string(),
+                ],
                 file_patterns: vec!["*.rs".to_string()],
             });
         }
         if project_path.join("package.json").exists() {
             linters.push(Self {
                 tool: "npx".to_string(),
-                args: vec!["eslint".to_string(), ".".to_string(), "--format=compact".to_string()],
+                args: vec![
+                    "eslint".to_string(),
+                    ".".to_string(),
+                    "--format=compact".to_string(),
+                ],
                 file_patterns: vec!["*.ts".to_string(), "*.tsx".to_string(), "*.js".to_string()],
             });
         }
@@ -331,7 +339,8 @@ impl SecretScanner {
                 },
                 SecretPattern {
                     name: "Generic API Key".to_string(),
-                    pattern: r#"(?i)(api[_-]?key|apikey)\s*[=:]\s*["']?[A-Za-z0-9]{20,}"#.to_string(),
+                    pattern: r#"(?i)(api[_-]?key|apikey)\s*[=:]\s*["']?[A-Za-z0-9]{20,}"#
+                        .to_string(),
                     severity: Severity::Error,
                 },
                 SecretPattern {
@@ -346,7 +355,9 @@ impl SecretScanner {
                 },
                 SecretPattern {
                     name: "Slack Webhook".to_string(),
-                    pattern: "https://hooks\\.slack\\.com/services/T[A-Z0-9]+/B[A-Z0-9]+/[A-Za-z0-9]+".to_string(),
+                    pattern:
+                        "https://hooks\\.slack\\.com/services/T[A-Z0-9]+/B[A-Z0-9]+/[A-Za-z0-9]+"
+                            .to_string(),
                     severity: Severity::Error,
                 },
             ],
@@ -376,7 +387,10 @@ impl SecretScanner {
                     &format!("Potential {}", pattern.name),
                 ));
             }
-            if line.contains("BEGIN") && line.contains("PRIVATE KEY") && pattern.name == "Private Key" {
+            if line.contains("BEGIN")
+                && line.contains("PRIVATE KEY")
+                && pattern.name == "Private Key"
+            {
                 findings.push(Finding::new(
                     CheckKind::Security,
                     pattern.severity.clone(),
@@ -677,7 +691,11 @@ impl ReviewReport {
         md.push_str("# Self-Review Report\n\n");
         md.push_str(&format!(
             "**Status**: {}\n",
-            if self.final_passed { "PASSED" } else { "FAILED" }
+            if self.final_passed {
+                "PASSED"
+            } else {
+                "FAILED"
+            }
         ));
         md.push_str(&format!("**Iterations**: {}\n", self.total_iterations));
         md.push_str(&format!("**Total findings**: {}\n", self.total_findings));
@@ -757,16 +775,14 @@ mod tests {
 
     #[test]
     fn test_finding_with_location() {
-        let f = Finding::new(CheckKind::Lint, Severity::Error, "err")
-            .with_location("main.rs", 42);
+        let f = Finding::new(CheckKind::Lint, Severity::Error, "err").with_location("main.rs", 42);
         assert_eq!(f.file.as_deref(), Some("main.rs"));
         assert_eq!(f.line, Some(42));
     }
 
     #[test]
     fn test_finding_with_suggestion() {
-        let f = Finding::new(CheckKind::Lint, Severity::Warning, "w")
-            .with_suggestion("remove it");
+        let f = Finding::new(CheckKind::Lint, Severity::Warning, "w").with_suggestion("remove it");
         assert_eq!(f.suggestion.as_deref(), Some("remove it"));
     }
 
@@ -787,7 +803,10 @@ mod tests {
     fn test_finding_summary_file_only() {
         let mut f = Finding::new(CheckKind::Security, Severity::Critical, "secret found");
         f.file = Some("config.toml".to_string());
-        assert_eq!(f.summary(), "[security] critical: secret found (config.toml)");
+        assert_eq!(
+            f.summary(),
+            "[security] critical: secret found (config.toml)"
+        );
     }
 
     #[test]
@@ -917,8 +936,7 @@ mod tests {
 
     #[test]
     fn test_self_review_config_with_checks() {
-        let cfg = SelfReviewConfig::default()
-            .with_checks(vec![CheckKind::Build, CheckKind::Lint]);
+        let cfg = SelfReviewConfig::default().with_checks(vec![CheckKind::Build, CheckKind::Lint]);
         assert_eq!(cfg.checks.len(), 2);
     }
 
@@ -969,7 +987,11 @@ mod tests {
         let mut gate = SelfReviewGate::new(config, test_project());
         let fail_results = vec![CheckResult::fail(
             CheckKind::Test,
-            vec![Finding::new(CheckKind::Test, Severity::Error, "test failed")],
+            vec![Finding::new(
+                CheckKind::Test,
+                Severity::Error,
+                "test failed",
+            )],
         )];
         // Iteration 1: fail
         let d1 = gate.evaluate(fail_results.clone());
@@ -1097,12 +1119,10 @@ mod tests {
         let gate = SelfReviewGate::new(config, test_project());
         let results = vec![CheckResult::fail(
             CheckKind::Security,
-            vec![Finding::new(
-                CheckKind::Security,
-                Severity::Critical,
-                "secret found",
-            )
-            .with_suggestion("remove the secret")],
+            vec![
+                Finding::new(CheckKind::Security, Severity::Critical, "secret found")
+                    .with_suggestion("remove the secret"),
+            ],
         )];
         let feedback = gate.generate_feedback(&results);
         assert!(feedback.contains("security check FAILED"));

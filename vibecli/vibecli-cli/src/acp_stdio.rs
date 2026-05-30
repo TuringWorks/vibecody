@@ -167,9 +167,11 @@ impl AcpServer {
         let result = match self.run_method(&req.method, req.params) {
             Ok(value) => AcpResponse::ok(id, value),
             Err(handler_err) => match handler_err {
-                HandlerError::MethodNotFound => {
-                    AcpResponse::err(id, errors::METHOD_NOT_FOUND, format!("Method not found: {}", req.method))
-                }
+                HandlerError::MethodNotFound => AcpResponse::err(
+                    id,
+                    errors::METHOD_NOT_FOUND,
+                    format!("Method not found: {}", req.method),
+                ),
                 HandlerError::MethodNotImplemented(msg) => {
                     AcpResponse::err(id, errors::METHOD_NOT_IMPLEMENTED, msg)
                 }
@@ -181,15 +183,17 @@ impl AcpServer {
                 HandlerError::InvalidParams(msg) => {
                     AcpResponse::err(id, errors::INVALID_PARAMS, msg)
                 }
-                HandlerError::Internal(msg) => {
-                    AcpResponse::err(id, errors::INTERNAL_ERROR, msg)
-                }
+                HandlerError::Internal(msg) => AcpResponse::err(id, errors::INTERNAL_ERROR, msg),
             },
         };
         Ok(Some(result))
     }
 
-    fn run_method(&self, method: &str, params: Option<Value>) -> std::result::Result<Value, HandlerError> {
+    fn run_method(
+        &self,
+        method: &str,
+        params: Option<Value>,
+    ) -> std::result::Result<Value, HandlerError> {
         match method {
             "initialize" => self.handle_initialize(params),
             "authenticate" => self.handle_authenticate(params),
@@ -207,7 +211,10 @@ impl AcpServer {
     }
 
     /// `initialize` handshake — server advertises its capabilities.
-    pub fn handle_initialize(&self, _params: Option<Value>) -> std::result::Result<Value, HandlerError> {
+    pub fn handle_initialize(
+        &self,
+        _params: Option<Value>,
+    ) -> std::result::Result<Value, HandlerError> {
         Ok(json!({
             "protocolVersion": ACP_PROTOCOL_VERSION,
             "agentCapabilities": {
@@ -231,12 +238,18 @@ impl AcpServer {
 
     /// `authenticate` — VibeCLI requires no auth; advertise so hosts
     /// can skip the prompt.
-    pub fn handle_authenticate(&self, _params: Option<Value>) -> std::result::Result<Value, HandlerError> {
+    pub fn handle_authenticate(
+        &self,
+        _params: Option<Value>,
+    ) -> std::result::Result<Value, HandlerError> {
         Ok(json!({ "authenticated": true }))
     }
 
     /// `newSession` — create a new session and return its id.
-    pub fn handle_new_session(&self, _params: Option<Value>) -> std::result::Result<Value, HandlerError> {
+    pub fn handle_new_session(
+        &self,
+        _params: Option<Value>,
+    ) -> std::result::Result<Value, HandlerError> {
         let mut state = self
             .state
             .lock()
@@ -254,7 +267,10 @@ impl AcpServer {
     }
 
     /// `loadSession` — return existing session or SESSION_NOT_FOUND.
-    pub fn handle_load_session(&self, params: Option<Value>) -> std::result::Result<Value, HandlerError> {
+    pub fn handle_load_session(
+        &self,
+        params: Option<Value>,
+    ) -> std::result::Result<Value, HandlerError> {
         let sid = params
             .as_ref()
             .and_then(|p| p.get("sessionId"))
@@ -274,7 +290,10 @@ impl AcpServer {
     /// `cancel` — best-effort cancel for an in-flight prompt. Stub
     /// returns success; the prompt slice will hook this into the agent
     /// loop's cancellation token.
-    pub fn handle_cancel(&self, _params: Option<Value>) -> std::result::Result<Value, HandlerError> {
+    pub fn handle_cancel(
+        &self,
+        _params: Option<Value>,
+    ) -> std::result::Result<Value, HandlerError> {
         Ok(json!({ "cancelled": true }))
     }
 }
@@ -334,8 +353,14 @@ mod tests {
         assert_eq!(resp.id, json!(1));
         let result = resp.result.expect("initialize must succeed");
         assert_eq!(result["protocolVersion"], ACP_PROTOCOL_VERSION);
-        assert!(result["agentCapabilities"].is_object(), "agentCapabilities required: {result}");
-        assert!(result["serverInfo"].is_object(), "serverInfo required: {result}");
+        assert!(
+            result["agentCapabilities"].is_object(),
+            "agentCapabilities required: {result}"
+        );
+        assert!(
+            result["serverInfo"].is_object(),
+            "serverInfo required: {result}"
+        );
         assert_eq!(result["serverInfo"]["name"], "vibecli");
     }
 
@@ -352,8 +377,14 @@ mod tests {
             .dispatch(req(3, "newSession", json!({})))
             .unwrap()
             .expect("newSession must respond");
-        let id1 = r1.result.unwrap()["sessionId"].as_str().unwrap().to_string();
-        let id2 = r2.result.unwrap()["sessionId"].as_str().unwrap().to_string();
+        let id1 = r1.result.unwrap()["sessionId"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        let id2 = r2.result.unwrap()["sessionId"]
+            .as_str()
+            .unwrap()
+            .to_string();
         assert!(!id1.is_empty());
         assert!(!id2.is_empty());
         assert_ne!(id1, id2, "session ids must be unique");
@@ -366,14 +397,19 @@ mod tests {
     fn load_session_with_unknown_id_returns_session_not_found() {
         let s = AcpServer::new();
         let resp = s
-            .dispatch(req(4, "loadSession", json!({"sessionId": "does-not-exist"})))
+            .dispatch(req(
+                4,
+                "loadSession",
+                json!({"sessionId": "does-not-exist"}),
+            ))
             .unwrap()
             .expect("loadSession must respond");
         let err = resp.error.expect("must be an error");
         assert_eq!(err.code, errors::SESSION_NOT_FOUND);
         assert!(
             err.message.to_lowercase().contains("session"),
-            "error message should mention session: {}", err.message
+            "error message should mention session: {}",
+            err.message
         );
     }
 

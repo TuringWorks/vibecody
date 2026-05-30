@@ -61,10 +61,10 @@ pub struct SkillMetrics {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SkillHealth {
-    Thriving,   // success_rate >= 0.80
-    Healthy,    // 0.60 <= success_rate < 0.80
-    Struggling, // 0.40 <= success_rate < 0.60
-    Critical,   // success_rate < 0.40
+    Thriving,     // success_rate >= 0.80
+    Healthy,      // 0.60 <= success_rate < 0.80
+    Struggling,   // 0.40 <= success_rate < 0.60
+    Critical,     // success_rate < 0.40
     Insufficient, // not enough data yet
 }
 
@@ -84,11 +84,11 @@ pub struct SkillEvolution {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum EvolutionKind {
-    RefineTriggers,   // keep content, improve trigger words
-    RefineContent,    // keep triggers, improve instructions
-    AddExample,       // add a usage example to the body
-    NewSkill,         // brand-new skill draft from observed patterns
-    Prune,            // mark as deprecated / remove
+    RefineTriggers, // keep content, improve trigger words
+    RefineContent,  // keep triggers, improve instructions
+    AddExample,     // add a usage example to the body
+    NewSkill,       // brand-new skill draft from observed patterns
+    Prune,          // mark as deprecated / remove
 }
 
 /// Summary returned to the UI.
@@ -205,7 +205,9 @@ impl SelfImprovingSkillsEngine {
         let outcome = if accepted {
             ActivationOutcome::Accepted
         } else if let Some(c) = correction {
-            ActivationOutcome::Corrected { correction_summary: c.chars().take(200).collect() }
+            ActivationOutcome::Corrected {
+                correction_summary: c.chars().take(200).collect(),
+            }
         } else {
             ActivationOutcome::Rejected
         };
@@ -227,7 +229,9 @@ impl SelfImprovingSkillsEngine {
         // (total, accepted, rejected, corrected, ignored, last_ts)
 
         for a in &store.activations {
-            let e = map.entry(a.skill_name.clone()).or_insert((0, 0, 0, 0, 0, 0));
+            let e = map
+                .entry(a.skill_name.clone())
+                .or_insert((0, 0, 0, 0, 0, 0));
             e.0 += 1;
             e.5 = e.5.max(a.timestamp);
             match &a.outcome {
@@ -242,7 +246,11 @@ impl SelfImprovingSkillsEngine {
         map.into_iter()
             .map(|(name, (total, acc, rej, cor, ign, last_ts))| {
                 let judged = acc + rej + cor;
-                let success_rate = if judged == 0 { 0.5 } else { acc as f32 / judged as f32 };
+                let success_rate = if judged == 0 {
+                    0.5
+                } else {
+                    acc as f32 / judged as f32
+                };
                 let health = if total < MIN_ACTIVATIONS_FOR_METRICS {
                     SkillHealth::Insufficient
                 } else if success_rate >= 0.80 {
@@ -274,8 +282,11 @@ impl SelfImprovingSkillsEngine {
     pub fn propose_evolutions(&self) -> Vec<SkillEvolution> {
         let metrics = self.compute_metrics();
         let mut store = self.load();
-        let existing_names: std::collections::HashSet<String> =
-            store.evolutions.iter().map(|e| e.skill_name.clone()).collect();
+        let existing_names: std::collections::HashSet<String> = store
+            .evolutions
+            .iter()
+            .map(|e| e.skill_name.clone())
+            .collect();
         let mut new_evolutions: Vec<SkillEvolution> = Vec::new();
 
         for m in &metrics {
@@ -355,7 +366,12 @@ impl SelfImprovingSkillsEngine {
 
         store.evolutions.extend(new_evolutions);
         self.save(&store);
-        store.evolutions.iter().filter(|e| !e.applied).cloned().collect()
+        store
+            .evolutions
+            .iter()
+            .filter(|e| !e.applied)
+            .cloned()
+            .collect()
     }
 
     // ── Apply an evolution ────────────────────────────────────────────────────
@@ -375,7 +391,11 @@ impl SelfImprovingSkillsEngine {
                 return Err("Already applied".to_string());
             }
 
-            let data = (ev.kind.clone(), ev.skill_name.clone(), ev.proposed_content.clone());
+            let data = (
+                ev.kind.clone(),
+                ev.skill_name.clone(),
+                ev.proposed_content.clone(),
+            );
             ev.applied = true;
             data
             // ev drops here, releasing the mutable borrow on store
@@ -475,9 +495,18 @@ impl SelfImprovingSkillsEngine {
         SelfImprovingStatus {
             total_activations: store.activations.len() as u64,
             skills_tracked: metrics.len(),
-            thriving: metrics.iter().filter(|m| m.health == SkillHealth::Thriving).count(),
-            struggling: metrics.iter().filter(|m| m.health == SkillHealth::Struggling).count(),
-            critical: metrics.iter().filter(|m| m.health == SkillHealth::Critical).count(),
+            thriving: metrics
+                .iter()
+                .filter(|m| m.health == SkillHealth::Thriving)
+                .count(),
+            struggling: metrics
+                .iter()
+                .filter(|m| m.health == SkillHealth::Struggling)
+                .count(),
+            critical: metrics
+                .iter()
+                .filter(|m| m.health == SkillHealth::Critical)
+                .count(),
             evolutions_pending: store.evolutions.iter().filter(|e| !e.applied).count(),
             evolutions_applied: store.evolutions.iter().filter(|e| e.applied).count(),
             new_skills_drafted: store
@@ -504,7 +533,12 @@ impl SelfImprovingSkillsEngine {
         let bad_tasks: Vec<&str> = activations
             .iter()
             .filter(|a| a.skill_name == skill_name)
-            .filter(|a| matches!(a.outcome, Some(ActivationOutcome::Rejected) | Some(ActivationOutcome::Corrected { .. })))
+            .filter(|a| {
+                matches!(
+                    a.outcome,
+                    Some(ActivationOutcome::Rejected) | Some(ActivationOutcome::Corrected { .. })
+                )
+            })
             .map(|a| a.task_text.as_str())
             .take(5)
             .collect();
@@ -567,10 +601,11 @@ fn extract_skill_triggers(task: &str, response: &str) -> Vec<String> {
     let mut freq: HashMap<String, usize> = HashMap::new();
 
     // Simple tokeniser: split on non-alphanumeric, keep tokens >= 4 chars
-    let stopwords = ["this", "that", "with", "from", "have", "will", "your",
-                     "the", "and", "for", "are", "not", "was", "but", "use",
-                     "you", "can", "all", "has", "been", "they", "when", "also",
-                     "into", "more", "then", "than", "just", "like", "would"];
+    let stopwords = [
+        "this", "that", "with", "from", "have", "will", "your", "the", "and", "for", "are", "not",
+        "was", "but", "use", "you", "can", "all", "has", "been", "they", "when", "also", "into",
+        "more", "then", "than", "just", "like", "would",
+    ];
     for word in combined.split(|c: char| !c.is_alphanumeric()) {
         let w = word.to_lowercase();
         if w.len() >= 4 && !stopwords.contains(&w.as_str()) {
@@ -688,12 +723,18 @@ mod tests {
         let (engine, _dir) = tmp_engine();
         for i in 0..8u32 {
             let id = engine.record_activation("flaky", "some task", "flaky", &format!("s{i}"));
-            let outcome = if i < 2 { ActivationOutcome::Accepted } else { ActivationOutcome::Rejected };
+            let outcome = if i < 2 {
+                ActivationOutcome::Accepted
+            } else {
+                ActivationOutcome::Rejected
+            };
             engine.record_outcome(&id, outcome);
         }
         let evs = engine.propose_evolutions();
         assert!(!evs.is_empty());
-        assert!(evs.iter().any(|e| e.kind == EvolutionKind::RefineTriggers || e.kind == EvolutionKind::Prune));
+        assert!(evs
+            .iter()
+            .any(|e| e.kind == EvolutionKind::RefineTriggers || e.kind == EvolutionKind::Prune));
     }
 
     #[test]

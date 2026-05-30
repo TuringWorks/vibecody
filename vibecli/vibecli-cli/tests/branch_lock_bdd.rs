@@ -2,7 +2,7 @@
  * BDD tests for branch_lock using Cucumber.
  * Run with: cargo test --test branch_lock_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::branch_lock::{CollisionRegistry, LockIntent};
 
 #[derive(Debug, Default, World)]
@@ -31,7 +31,10 @@ fn lock_branch(world: &mut BlWorld, branch: String, lane: String, intent_str: St
 
 #[when(expr = "lane {string} tries to lock {string} for {word}")]
 fn try_lock(world: &mut BlWorld, lane: String, branch: String, intent_str: String) {
-    match world.registry.acquire(&branch, &lane, intent_from(&intent_str)) {
+    match world
+        .registry
+        .acquire(&branch, &lane, intent_from(&intent_str))
+    {
         Ok(_) => {
             world.last_acquire_ok = true;
             world.last_collisions = 0;

@@ -2,7 +2,7 @@
  * BDD tests for the ngrok tunnel auto-detection module.
  * Run with: cargo test --test ngrok_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 
 /// Local copy of TunnelConfig for BDD assertions — mirrors config::TunnelConfig.
 #[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
@@ -31,7 +31,9 @@ fn parse_ngrok_api(body: &str, port: u16) -> Option<String> {
     let tunnels = json["tunnels"].as_array()?;
     let port_str = port.to_string();
     for tunnel in tunnels {
-        if tunnel["proto"].as_str() != Some("https") { continue; }
+        if tunnel["proto"].as_str() != Some("https") {
+            continue;
+        }
         let addr = tunnel["config"]["addr"].as_str().unwrap_or("");
         if addr.contains(&port_str) {
             if let Some(url) = tunnel["public_url"].as_str() {
@@ -114,20 +116,29 @@ fn roundtrip_config(world: &mut NgrokWorld) {
 
 #[then("the result should be None")]
 fn result_is_none(world: &mut NgrokWorld) {
-    assert!(world.extracted_url.is_none(),
-        "expected None but got {:?}", world.extracted_url);
+    assert!(
+        world.extracted_url.is_none(),
+        "expected None but got {:?}",
+        world.extracted_url
+    );
 }
 
 #[then(expr = "the extracted URL should be {string}")]
 fn extracted_url_eq(world: &mut NgrokWorld, expected: String) {
-    assert_eq!(world.extracted_url.as_deref(), Some(expected.as_str()),
-        "URL mismatch");
+    assert_eq!(
+        world.extracted_url.as_deref(),
+        Some(expected.as_str()),
+        "URL mismatch"
+    );
 }
 
 #[then("the extracted URL should be empty")]
 fn extracted_url_empty(world: &mut NgrokWorld) {
-    assert!(world.extracted_url.is_none(),
-        "expected no URL but got {:?}", world.extracted_url);
+    assert!(
+        world.extracted_url.is_none(),
+        "expected no URL but got {:?}",
+        world.extracted_url
+    );
 }
 
 #[then("tailscale_funnel should be false")]
@@ -142,7 +153,9 @@ fn ngrok_start_false(world: &mut NgrokWorld) {
 
 #[then("ngrok_auto_start should be true")]
 fn ngrok_start_true(world: &mut NgrokWorld) {
-    let cfg = world.roundtripped_config.as_ref()
+    let cfg = world
+        .roundtripped_config
+        .as_ref()
         .or(world.tunnel_config.as_ref())
         .unwrap();
     assert!(cfg.ngrok_auto_start);
@@ -150,19 +163,24 @@ fn ngrok_start_true(world: &mut NgrokWorld) {
 
 #[then("ngrok_auth_token should be None")]
 fn ngrok_token_none(world: &mut NgrokWorld) {
-    assert!(world.tunnel_config.as_ref().unwrap().ngrok_auth_token.is_none());
+    assert!(world
+        .tunnel_config
+        .as_ref()
+        .unwrap()
+        .ngrok_auth_token
+        .is_none());
 }
 
 #[then(expr = "ngrok_auth_token should be {string}")]
 fn ngrok_token_eq(world: &mut NgrokWorld, expected: String) {
-    let cfg = world.roundtripped_config.as_ref()
+    let cfg = world
+        .roundtripped_config
+        .as_ref()
         .or(world.tunnel_config.as_ref())
         .unwrap();
     assert_eq!(cfg.ngrok_auth_token.as_deref(), Some(expected.as_str()));
 }
 
 fn main() {
-    futures::executor::block_on(
-        NgrokWorld::run("tests/features/ngrok.feature"),
-    );
+    futures::executor::block_on(NgrokWorld::run("tests/features/ngrok.feature"));
 }

@@ -2,7 +2,7 @@
  * BDD tests for worker_bootstrap (six-state lifecycle) using Cucumber.
  * Run with: cargo test --test worker_bootstrap_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::worker_bootstrap::{WorkerLifecycle, WorkerState};
 
 #[derive(Debug, Default, World)]
@@ -14,13 +14,13 @@ pub struct WbWorld {
 
 fn state_from(s: &str) -> WorkerState {
     match s {
-        "spawning"         => WorkerState::Spawning,
-        "trust_required"   => WorkerState::TrustRequired,
+        "spawning" => WorkerState::Spawning,
+        "trust_required" => WorkerState::TrustRequired,
         "ready_for_prompt" => WorkerState::ReadyForPrompt,
-        "running"          => WorkerState::Running,
-        "finished"         => WorkerState::Finished,
-        "failed"           => WorkerState::Failed,
-        _                  => WorkerState::Spawning,
+        "running" => WorkerState::Running,
+        "finished" => WorkerState::Finished,
+        "failed" => WorkerState::Failed,
+        _ => WorkerState::Spawning,
     }
 }
 
@@ -39,10 +39,7 @@ fn worker_in_state(world: &mut WbWorld, state_str: String) {
             WorkerState::Running,
             WorkerState::Finished,
         ],
-        WorkerState::Running => vec![
-            WorkerState::ReadyForPrompt,
-            WorkerState::Running,
-        ],
+        WorkerState::Running => vec![WorkerState::ReadyForPrompt, WorkerState::Running],
         _ => vec![target.clone()],
     };
     for s in path {
@@ -60,7 +57,7 @@ fn output_line(world: &mut WbWorld, line: String) {
 fn do_transition(world: &mut WbWorld, state_str: String) {
     if let Some(w) = world.worker.as_mut() {
         match w.transition(state_from(&state_str)) {
-            Ok(_)  => world.transition_error = None,
+            Ok(_) => world.transition_error = None,
             Err(e) => world.transition_error = Some(e),
         }
     }
@@ -84,7 +81,10 @@ fn check_state_after(world: &mut WbWorld, expected: String) {
 
 #[then("the transition should fail with an error")]
 fn check_fail(world: &mut WbWorld) {
-    assert!(world.transition_error.is_some(), "expected transition to fail");
+    assert!(
+        world.transition_error.is_some(),
+        "expected transition to fail"
+    );
 }
 
 #[then("detect_readiness should return false")]
@@ -98,7 +98,5 @@ fn check_ready(world: &mut WbWorld) {
 }
 
 fn main() {
-    futures::executor::block_on(WbWorld::run(
-        "tests/features/worker_bootstrap.feature",
-    ));
+    futures::executor::block_on(WbWorld::run("tests/features/worker_bootstrap.feature"));
 }

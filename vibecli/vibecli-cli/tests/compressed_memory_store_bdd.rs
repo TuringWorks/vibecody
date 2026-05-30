@@ -7,7 +7,7 @@
  *
  * Run with: cargo test --test compressed_memory_store_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use std::collections::HashMap;
 use tempfile::TempDir;
 use vibecli_cli::open_memory::{OpenMemoryStore, QueryResult};
@@ -58,9 +58,7 @@ fn when_add_many(w: &mut StoreWorld, n: usize) {
     let store = w.store_mut();
     // Synthetic content with no overlap so each one is its own cluster.
     for i in 0..n {
-        let content = format!(
-            "memory_{i}_alpha_{i} memory_{i}_beta_{i} memory_{i}_gamma_{i}"
-        );
+        let content = format!("memory_{i}_alpha_{i} memory_{i}_beta_{i} memory_{i}_gamma_{i}");
         store.add(content);
     }
 }
@@ -115,7 +113,10 @@ fn then_no_id(w: &mut StoreWorld, name: String) {
         .filter(|r| r.memory.id == id)
         .map(|r| r.memory.id.clone())
         .collect();
-    assert!(bad.is_empty(), "deleted id {id} still appears in results: {bad:?}");
+    assert!(
+        bad.is_empty(),
+        "deleted id {id} still appears in results: {bad:?}"
+    );
 }
 
 fn main() {

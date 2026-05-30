@@ -115,7 +115,13 @@ pub struct KvCacheReport {
 impl KvCacheReport {
     /// Napkin-math memory estimate for a given sequence length + model shape.
     /// Ignores backend-specific alignment / paging overhead.
-    pub fn estimate_memory(method: &KvCacheMethod, tokens: u64, num_layers: u32, num_kv_heads: u32, head_dim: u32) -> u64 {
+    pub fn estimate_memory(
+        method: &KvCacheMethod,
+        tokens: u64,
+        num_layers: u32,
+        num_kv_heads: u32,
+        head_dim: u32,
+    ) -> u64 {
         let elements = tokens * num_layers as u64 * num_kv_heads as u64 * head_dim as u64 * 2; // K + V
         (elements as f32 * method.bytes_per_element()) as u64
     }
@@ -140,7 +146,10 @@ mod tests {
 
     #[test]
     fn fp16_baseline_doubles_fp8() {
-        assert_eq!(KvCacheMethod::Fp16.bytes_per_element(), 2.0 * KvCacheMethod::Fp8.bytes_per_element());
+        assert_eq!(
+            KvCacheMethod::Fp16.bytes_per_element(),
+            2.0 * KvCacheMethod::Fp8.bytes_per_element()
+        );
     }
 
     #[test]

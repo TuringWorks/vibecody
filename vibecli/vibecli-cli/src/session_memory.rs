@@ -136,7 +136,10 @@ impl MemoryProfiler {
 
         let growth = self.growth_rate_percent();
         if growth > self.config.alert_threshold_growth_percent {
-            let last = self.samples.last().expect("samples not empty after len check");
+            let last = self
+                .samples
+                .last()
+                .expect("samples not empty after len check");
             // Check if growth is sustained (linear regression slope positive)
             let slope = self.linear_regression_slope();
             if slope > 0.0 {
@@ -305,7 +308,9 @@ impl MemoryProfiler {
 
         let remaining_bytes = self.config.auto_compact_threshold_bytes - current;
         let n = self.samples.len();
-        let time_span = self.samples[n - 1].timestamp.saturating_sub(self.samples[0].timestamp);
+        let time_span = self.samples[n - 1]
+            .timestamp
+            .saturating_sub(self.samples[0].timestamp);
         if time_span == 0 || n < 2 {
             return None;
         }

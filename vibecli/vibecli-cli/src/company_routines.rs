@@ -11,9 +11,14 @@ use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }
-fn new_id() -> String { uuid::Uuid::new_v4().to_string() }
+fn new_id() -> String {
+    uuid::Uuid::new_v4().to_string()
+}
 
 // ── Data structs ──────────────────────────────────────────────────────────────
 
@@ -55,10 +60,13 @@ pub struct RoutineStore<'a> {
 }
 
 impl<'a> RoutineStore<'a> {
-    pub fn new(conn: &'a Connection) -> Self { Self { conn } }
+    pub fn new(conn: &'a Connection) -> Self {
+        Self { conn }
+    }
 
     pub fn ensure_schema(&self) -> Result<()> {
-        self.conn.execute_batch(r#"
+        self.conn.execute_batch(
+            r#"
             CREATE TABLE IF NOT EXISTS routines (
                 id              TEXT PRIMARY KEY,
                 company_id      TEXT NOT NULL,
@@ -80,14 +88,25 @@ impl<'a> RoutineStore<'a> {
             CREATE INDEX IF NOT EXISTS idx_routines_company ON routines(company_id);
             CREATE INDEX IF NOT EXISTS idx_routines_agent ON routines(agent_id);
             CREATE INDEX IF NOT EXISTS idx_routines_due ON routines(active, next_run_at);
-        "#)?;
+        "#,
+        )?;
         // Schema migrations for new columns
         // Migrations for existing databases (silently ignored if columns already present)
-        let _ = self.conn.execute_batch("ALTER TABLE routines ADD COLUMN delivery_mode TEXT NOT NULL DEFAULT 'none'");
-        let _ = self.conn.execute_batch("ALTER TABLE routines ADD COLUMN skill_name TEXT");
-        let _ = self.conn.execute_batch("ALTER TABLE routines ADD COLUMN model TEXT");
-        let _ = self.conn.execute_batch("ALTER TABLE routines ADD COLUMN thinking_level TEXT");
-        let _ = self.conn.execute_batch("ALTER TABLE routines ADD COLUMN timeout_secs INTEGER");
+        let _ = self.conn.execute_batch(
+            "ALTER TABLE routines ADD COLUMN delivery_mode TEXT NOT NULL DEFAULT 'none'",
+        );
+        let _ = self
+            .conn
+            .execute_batch("ALTER TABLE routines ADD COLUMN skill_name TEXT");
+        let _ = self
+            .conn
+            .execute_batch("ALTER TABLE routines ADD COLUMN model TEXT");
+        let _ = self
+            .conn
+            .execute_batch("ALTER TABLE routines ADD COLUMN thinking_level TEXT");
+        let _ = self
+            .conn
+            .execute_batch("ALTER TABLE routines ADD COLUMN timeout_secs INTEGER");
         Ok(())
     }
 
@@ -99,7 +118,15 @@ impl<'a> RoutineStore<'a> {
         prompt: &str,
         interval_secs: i64,
     ) -> Result<Routine> {
-        self.create_with_delivery(company_id, agent_id, name, prompt, interval_secs, "none", None)
+        self.create_with_delivery(
+            company_id,
+            agent_id,
+            name,
+            prompt,
+            interval_secs,
+            "none",
+            None,
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -159,9 +186,11 @@ impl<'a> RoutineStore<'a> {
             "SELECT id, company_id, agent_id, name, prompt, interval_secs, next_run_at, last_run_at, active, max_concurrent, created_at, delivery_mode, skill_name, model, thinking_level, timeout_secs
              FROM routines ORDER BY name ASC",
         )?;
-        let rows = stmt.query_map([], row_to_routine_full)?
+        let rows = stmt
+            .query_map([], row_to_routine_full)?
             .collect::<rusqlite::Result<Vec<_>>>()?;
-        let values = rows.into_iter()
+        let values = rows
+            .into_iter()
             .map(|r| serde_json::to_value(&r).unwrap_or(serde_json::Value::Null))
             .collect();
         Ok(values)
@@ -181,7 +210,8 @@ impl<'a> RoutineStore<'a> {
             "SELECT id, company_id, agent_id, name, prompt, interval_secs, next_run_at, last_run_at, active, max_concurrent, created_at, COALESCE(delivery_mode,'none'), skill_name, model, thinking_level, timeout_secs
              FROM routines WHERE company_id = ?1 ORDER BY name ASC",
         )?;
-        let rows = stmt.query_map(params![company_id], row_to_routine_full)?
+        let rows = stmt
+            .query_map(params![company_id], row_to_routine_full)?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(rows)
     }
@@ -193,11 +223,14 @@ impl<'a> RoutineStore<'a> {
             "UPDATE routines SET active = ?1 WHERE id = ?2",
             params![(!routine.active) as i64, id],
         )?;
-        self.get(id)?.ok_or_else(|| anyhow!("routine not found after toggle"))
+        self.get(id)?
+            .ok_or_else(|| anyhow!("routine not found after toggle"))
     }
 
     pub fn delete(&self, id: &str) -> Result<bool> {
-        let n = self.conn.execute("DELETE FROM routines WHERE id = ?1", params![id])?;
+        let n = self
+            .conn
+            .execute("DELETE FROM routines WHERE id = ?1", params![id])?;
         Ok(n > 0)
     }
 
@@ -208,7 +241,8 @@ impl<'a> RoutineStore<'a> {
             "SELECT id, company_id, agent_id, name, prompt, interval_secs, next_run_at, last_run_at, active, max_concurrent, created_at, COALESCE(delivery_mode,'none'), skill_name, model, thinking_level, timeout_secs
              FROM routines WHERE active = 1 AND next_run_at <= ?1 ORDER BY next_run_at ASC",
         )?;
-        let rows = stmt.query_map(params![now], row_to_routine_full)?
+        let rows = stmt
+            .query_map(params![now], row_to_routine_full)?
             .collect::<rusqlite::Result<Vec<_>>>()?;
         Ok(rows)
     }
@@ -239,7 +273,9 @@ fn row_to_routine_full(row: &rusqlite::Row) -> rusqlite::Result<Routine> {
         active: row.get::<_, i64>(8)? != 0,
         max_concurrent: row.get(9)?,
         created_at: row.get::<_, i64>(10)? as u64,
-        delivery_mode: row.get::<_, Option<String>>(11)?.unwrap_or_else(|| "none".to_string()),
+        delivery_mode: row
+            .get::<_, Option<String>>(11)?
+            .unwrap_or_else(|| "none".to_string()),
         skill_name: row.get(12)?,
         model: row.get(13)?,
         thinking_level: row.get(14)?,
@@ -265,7 +301,9 @@ mod tests {
         let conn = make_conn();
         let store = RoutineStore::new(&conn);
         store.ensure_schema().unwrap();
-        let r = store.create("co1", "ag1", "daily-report", "Run daily report", 86400).unwrap();
+        let r = store
+            .create("co1", "ag1", "daily-report", "Run daily report", 86400)
+            .unwrap();
         assert_eq!(r.name, "daily-report");
         assert!(r.active);
         assert_eq!(r.last_run_at, 0);
@@ -278,8 +316,12 @@ mod tests {
         let store = RoutineStore::new(&conn);
         store.ensure_schema().unwrap();
         let before_ms = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
-        let r = store.create("co1", "ag1", "check", "Check things", 3600).unwrap();
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+        let r = store
+            .create("co1", "ag1", "check", "Check things", 3600)
+            .unwrap();
         assert!(r.next_run_at > before_ms);
     }
 
@@ -290,7 +332,9 @@ mod tests {
         let conn = make_conn();
         let store = RoutineStore::new(&conn);
         store.ensure_schema().unwrap();
-        let r = store.create("co1", "ag1", "ping", "Ping the world", 60).unwrap();
+        let r = store
+            .create("co1", "ag1", "ping", "Ping the world", 60)
+            .unwrap();
         let fetched = store.get(&r.id).unwrap();
         assert!(fetched.is_some());
         assert_eq!(fetched.unwrap().id, r.id);
@@ -378,7 +422,8 @@ mod tests {
         conn.execute(
             "UPDATE routines SET next_run_at = ?1 WHERE id = ?2",
             rusqlite::params![past, r.id],
-        ).unwrap();
+        )
+        .unwrap();
         let due = store.due_routines().unwrap();
         assert_eq!(due.len(), 1);
         assert_eq!(due[0].id, r.id);
@@ -393,7 +438,8 @@ mod tests {
         conn.execute(
             "UPDATE routines SET next_run_at = 1, active = 0 WHERE id = ?1",
             rusqlite::params![r.id],
-        ).unwrap();
+        )
+        .unwrap();
         let due = store.due_routines().unwrap();
         assert!(due.is_empty());
     }
@@ -440,7 +486,9 @@ impl Routine {
         };
         format!(
             "{} {} [every {}]  agent:{}  [{}]",
-            status, self.name, interval,
+            status,
+            self.name,
+            interval,
             &self.agent_id[..8.min(self.agent_id.len())],
             &self.id[..8.min(self.id.len())]
         )

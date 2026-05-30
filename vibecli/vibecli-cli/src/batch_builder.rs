@@ -1,4 +1,3 @@
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
@@ -386,7 +385,10 @@ impl BatchSpec {
         if self.requirements.is_empty() && self.user_stories.is_empty() {
             errors.push("At least one requirement or user story is needed".to_string());
         }
-        if self.api_endpoints.is_empty() && self.data_models.is_empty() && self.ui_components.is_empty() {
+        if self.api_endpoints.is_empty()
+            && self.data_models.is_empty()
+            && self.ui_components.is_empty()
+        {
             errors.push("At least one endpoint, data model, or UI component is needed".to_string());
         }
         if errors.is_empty() {
@@ -450,11 +452,13 @@ impl DataModel {
     }
 
     pub fn add_field(&mut self, name: &str, field_type: &str, required: bool) {
-        self.fields.push((name.to_string(), field_type.to_string(), required));
+        self.fields
+            .push((name.to_string(), field_type.to_string(), required));
     }
 
     pub fn add_relationship(&mut self, target: &str, relation: &str) {
-        self.relationships.push((target.to_string(), relation.to_string()));
+        self.relationships
+            .push((target.to_string(), relation.to_string()));
     }
 
     pub fn add_index(&mut self, field: &str) {
@@ -526,7 +530,10 @@ impl BatchAgent {
     pub fn is_active(&self) -> bool {
         matches!(
             self.status,
-            BatchStatus::Generating | BatchStatus::Validating | BatchStatus::Compiling | BatchStatus::Testing
+            BatchStatus::Generating
+                | BatchStatus::Validating
+                | BatchStatus::Compiling
+                | BatchStatus::Testing
         )
     }
 }
@@ -725,8 +732,7 @@ impl ArchitecturePlan {
     }
 
     pub fn add_dependency(&mut self, from: &str, to: &str) {
-        self.dependencies
-            .push((from.to_string(), to.to_string()));
+        self.dependencies.push((from.to_string(), to.to_string()));
     }
 
     pub fn topological_order(&self) -> Vec<String> {
@@ -1018,7 +1024,10 @@ impl BatchBuilder {
                 run.pause(reason);
                 Ok(())
             }
-            _ => Err(format!("Run {} cannot be paused in {:?} state", run_id, run.status)),
+            _ => Err(format!(
+                "Run {} cannot be paused in {:?} state",
+                run_id, run.status
+            )),
         }
     }
 
@@ -1069,10 +1078,7 @@ impl BatchBuilder {
         self.history.iter().collect()
     }
 
-    pub fn generate_architecture(
-        &mut self,
-        run_id: &str,
-    ) -> Result<ArchitecturePlan, String> {
+    pub fn generate_architecture(&mut self, run_id: &str) -> Result<ArchitecturePlan, String> {
         let run = self
             .runs
             .iter()
@@ -1163,11 +1169,7 @@ impl BatchBuilder {
         Ok(plan)
     }
 
-    pub fn decompose_modules(
-        &self,
-        plan: &ArchitecturePlan,
-        _spec: &BatchSpec,
-    ) -> Vec<ModuleNode> {
+    pub fn decompose_modules(&self, plan: &ArchitecturePlan, _spec: &BatchSpec) -> Vec<ModuleNode> {
         plan.modules
             .iter()
             .map(|m| ModuleNode {
@@ -1483,7 +1485,9 @@ mod tests {
         let mut spec = BatchSpec::new("App", "Desc", TechStack::GoGin);
         spec.add_requirement("Something");
         let err = spec.validate().unwrap_err();
-        assert!(err.iter().any(|e| e.contains("endpoint, data model, or UI component")));
+        assert!(err
+            .iter()
+            .any(|e| e.contains("endpoint, data model, or UI component")));
     }
 
     #[test]
@@ -1570,7 +1574,10 @@ mod tests {
         model.add_field("name", "String", true);
         model.add_field("price", "Float", false);
         assert_eq!(model.fields.len(), 2);
-        assert_eq!(model.fields[0], ("name".to_string(), "String".to_string(), true));
+        assert_eq!(
+            model.fields[0],
+            ("name".to_string(), "String".to_string(), true)
+        );
     }
 
     #[test]
@@ -1625,7 +1632,10 @@ mod tests {
         let mut agent = BatchAgent::new(AgentRole::Testing);
         agent.start();
         agent.fail("compilation error");
-        assert_eq!(agent.status, BatchStatus::Failed("compilation error".to_string()));
+        assert_eq!(
+            agent.status,
+            BatchStatus::Failed("compilation error".to_string())
+        );
         assert_eq!(agent.errors.len(), 1);
     }
 
@@ -1794,8 +1804,20 @@ mod tests {
     fn test_generation_metrics_update_from_files() {
         let mut m = GenerationMetrics::new();
         let files = vec![
-            GeneratedFile::new(PathBuf::from("a.rs"), "line1\nline2", "a1", AgentRole::Backend, GenerationPhase::CodeGeneration),
-            GeneratedFile::new(PathBuf::from("b.rs"), "line1", "a2", AgentRole::Frontend, GenerationPhase::CodeGeneration),
+            GeneratedFile::new(
+                PathBuf::from("a.rs"),
+                "line1\nline2",
+                "a1",
+                AgentRole::Backend,
+                GenerationPhase::CodeGeneration,
+            ),
+            GeneratedFile::new(
+                PathBuf::from("b.rs"),
+                "line1",
+                "a2",
+                AgentRole::Frontend,
+                GenerationPhase::CodeGeneration,
+            ),
         ];
         m.update_from_files(&files);
         assert_eq!(m.total_files, 2);
@@ -2011,8 +2033,18 @@ mod tests {
         let spec = make_valid_spec();
         let config = BatchConfig::default_config();
         let mut run = BatchRun::new(spec, &config);
-        run.add_log(LogLevel::Info, GenerationPhase::CodeGeneration, "started gen", Some("a1"));
-        run.add_log(LogLevel::Error, GenerationPhase::CompileValidation, "compile fail", None);
+        run.add_log(
+            LogLevel::Info,
+            GenerationPhase::CodeGeneration,
+            "started gen",
+            Some("a1"),
+        );
+        run.add_log(
+            LogLevel::Error,
+            GenerationPhase::CompileValidation,
+            "compile fail",
+            None,
+        );
         assert_eq!(run.logs.len(), 2);
     }
 
@@ -2021,9 +2053,24 @@ mod tests {
         let spec = make_valid_spec();
         let config = BatchConfig::default_config();
         let mut run = BatchRun::new(spec, &config);
-        run.add_log(LogLevel::Info, GenerationPhase::CodeGeneration, "info1", None);
-        run.add_log(LogLevel::Error, GenerationPhase::CodeGeneration, "err1", None);
-        run.add_log(LogLevel::Info, GenerationPhase::CodeGeneration, "info2", None);
+        run.add_log(
+            LogLevel::Info,
+            GenerationPhase::CodeGeneration,
+            "info1",
+            None,
+        );
+        run.add_log(
+            LogLevel::Error,
+            GenerationPhase::CodeGeneration,
+            "err1",
+            None,
+        );
+        run.add_log(
+            LogLevel::Info,
+            GenerationPhase::CodeGeneration,
+            "info2",
+            None,
+        );
         assert_eq!(run.logs_by_level(&LogLevel::Info).len(), 2);
         assert_eq!(run.logs_by_level(&LogLevel::Error).len(), 1);
         assert_eq!(run.logs_by_level(&LogLevel::Warning).len(), 0);
@@ -2052,13 +2099,27 @@ mod tests {
         let config = BatchConfig::default_config();
         let mut run = BatchRun::new(spec, &config);
         run.add_generated_file(GeneratedFile::new(
-            PathBuf::from("a.rs"), "code", "a1", AgentRole::Backend, GenerationPhase::CodeGeneration,
+            PathBuf::from("a.rs"),
+            "code",
+            "a1",
+            AgentRole::Backend,
+            GenerationPhase::CodeGeneration,
         ));
         run.add_generated_file(GeneratedFile::new(
-            PathBuf::from("t.rs"), "test", "a1", AgentRole::Testing, GenerationPhase::TestGeneration,
+            PathBuf::from("t.rs"),
+            "test",
+            "a1",
+            AgentRole::Testing,
+            GenerationPhase::TestGeneration,
         ));
-        assert_eq!(run.files_by_phase(&GenerationPhase::CodeGeneration).len(), 1);
-        assert_eq!(run.files_by_phase(&GenerationPhase::TestGeneration).len(), 1);
+        assert_eq!(
+            run.files_by_phase(&GenerationPhase::CodeGeneration).len(),
+            1
+        );
+        assert_eq!(
+            run.files_by_phase(&GenerationPhase::TestGeneration).len(),
+            1
+        );
     }
 
     #[test]
@@ -2067,10 +2128,18 @@ mod tests {
         let config = BatchConfig::default_config();
         let mut run = BatchRun::new(spec, &config);
         run.add_generated_file(GeneratedFile::new(
-            PathBuf::from("a.rs"), "code", "a1", AgentRole::Backend, GenerationPhase::CodeGeneration,
+            PathBuf::from("a.rs"),
+            "code",
+            "a1",
+            AgentRole::Backend,
+            GenerationPhase::CodeGeneration,
         ));
         run.add_generated_file(GeneratedFile::new(
-            PathBuf::from("b.rs"), "more", "a2", AgentRole::Backend, GenerationPhase::CodeGeneration,
+            PathBuf::from("b.rs"),
+            "more",
+            "a2",
+            AgentRole::Backend,
+            GenerationPhase::CodeGeneration,
         ));
         assert_eq!(run.files_by_role(&AgentRole::Backend).len(), 2);
         assert_eq!(run.files_by_role(&AgentRole::Frontend).len(), 0);
@@ -2381,9 +2450,15 @@ mod tests {
 
     #[test]
     fn test_tech_stack_display_name() {
-        assert_eq!(TechStack::ReactNode.display_name(), "React + Node.js + PostgreSQL");
+        assert_eq!(
+            TechStack::ReactNode.display_name(),
+            "React + Node.js + PostgreSQL"
+        );
         assert_eq!(TechStack::GoGin.display_name(), "Go + Gin + PostgreSQL");
-        assert_eq!(TechStack::Custom("X".to_string()).display_name(), "Custom Stack");
+        assert_eq!(
+            TechStack::Custom("X".to_string()).display_name(),
+            "Custom Stack"
+        );
     }
 
     #[test]
@@ -2512,7 +2587,13 @@ mod tests {
 
     #[test]
     fn test_generation_phase_equality() {
-        assert_eq!(GenerationPhase::CodeGeneration, GenerationPhase::CodeGeneration);
-        assert_ne!(GenerationPhase::CodeGeneration, GenerationPhase::TestGeneration);
+        assert_eq!(
+            GenerationPhase::CodeGeneration,
+            GenerationPhase::CodeGeneration
+        );
+        assert_ne!(
+            GenerationPhase::CodeGeneration,
+            GenerationPhase::TestGeneration
+        );
     }
 }

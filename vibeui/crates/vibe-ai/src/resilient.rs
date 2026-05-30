@@ -351,7 +351,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_retry_async_succeeds_first_try() {
-        let config = RetryConfig { max_attempts: 3, jitter: false, ..Default::default() };
+        let config = RetryConfig {
+            max_attempts: 3,
+            jitter: false,
+            ..Default::default()
+        };
         let result = retry_async(&config, "test", || async { Ok::<_, anyhow::Error>(42) }).await;
         assert_eq!(result.unwrap(), 42);
     }

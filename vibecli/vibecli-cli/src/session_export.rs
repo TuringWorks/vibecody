@@ -48,7 +48,13 @@ pub struct Message {
 
 impl Message {
     pub fn new(id: impl Into<String>, role: Role, content: impl Into<String>, ts: u64) -> Self {
-        Self { id: id.into(), role, content: content.into(), timestamp_ms: ts, metadata: HashMap::new() }
+        Self {
+            id: id.into(),
+            role,
+            content: content.into(),
+            timestamp_ms: ts,
+            metadata: HashMap::new(),
+        }
     }
 }
 
@@ -74,9 +80,14 @@ pub struct SessionBundle {
 }
 
 impl SessionBundle {
-    pub fn message_count(&self) -> usize { self.messages.len() }
+    pub fn message_count(&self) -> usize {
+        self.messages.len()
+    }
     pub fn word_count(&self) -> usize {
-        self.messages.iter().map(|m| m.content.split_whitespace().count()).sum()
+        self.messages
+            .iter()
+            .map(|m| m.content.split_whitespace().count())
+            .sum()
     }
 }
 
@@ -97,15 +108,19 @@ impl SessionExporter {
     }
 
     fn to_json(b: &SessionBundle) -> String {
-        let msgs: Vec<String> = b.messages.iter().map(|m| {
-            format!(
-                "{{\"id\":\"{}\",\"role\":\"{}\",\"content\":{},\"ts\":{}}}",
-                m.id,
-                m.role.as_str(),
-                serde_escape(&m.content),
-                m.timestamp_ms
-            )
-        }).collect();
+        let msgs: Vec<String> = b
+            .messages
+            .iter()
+            .map(|m| {
+                format!(
+                    "{{\"id\":\"{}\",\"role\":\"{}\",\"content\":{},\"ts\":{}}}",
+                    m.id,
+                    m.role.as_str(),
+                    serde_escape(&m.content),
+                    m.timestamp_ms
+                )
+            })
+            .collect();
         format!(
             "{{\"session_id\":\"{}\",\"title\":{},\"model\":\"{}\",\"created\":{},\"messages\":[{}]}}",
             b.session_id,
@@ -119,12 +134,20 @@ impl SessionExporter {
     fn to_markdown(b: &SessionBundle) -> String {
         let mut lines = vec![
             format!("# {}", b.title),
-            format!("**Session**: {}  |  **Model**: {}  |  **Messages**: {}",
-                b.session_id, b.model, b.message_count()),
+            format!(
+                "**Session**: {}  |  **Model**: {}  |  **Messages**: {}",
+                b.session_id,
+                b.model,
+                b.message_count()
+            ),
             String::new(),
         ];
         for msg in &b.messages {
-            lines.push(format!("## {} ({})", msg.role.as_str().to_uppercase(), msg.timestamp_ms));
+            lines.push(format!(
+                "## {} ({})",
+                msg.role.as_str().to_uppercase(),
+                msg.timestamp_ms
+            ));
             lines.push(msg.content.clone());
             lines.push(String::new());
         }
@@ -135,14 +158,23 @@ impl SessionExporter {
         let mut lines = vec!["id,role,timestamp_ms,content".to_string()];
         for m in &b.messages {
             let content_esc = m.content.replace('"', "\"\"");
-            lines.push(format!("{},{},{},\"{}\"", m.id, m.role.as_str(), m.timestamp_ms, content_esc));
+            lines.push(format!(
+                "{},{},{},\"{}\"",
+                m.id,
+                m.role.as_str(),
+                m.timestamp_ms,
+                content_esc
+            ));
         }
         lines.join("\n")
     }
 }
 
 fn serde_escape(s: &str) -> String {
-    let escaped = s.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n");
+    let escaped = s
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\n', "\\n");
     format!("\"{}\"", escaped)
 }
 
@@ -169,11 +201,21 @@ impl SessionImporter {
                 // Flush previous
                 if let Some(role) = current_role.take() {
                     let content = current_content.join("\n").trim().to_string();
-                    messages.push(Message::new(format!("m{}", msg_counter), role, content, msg_counter));
+                    messages.push(Message::new(
+                        format!("m{}", msg_counter),
+                        role,
+                        content,
+                        msg_counter,
+                    ));
                     msg_counter += 1;
                     current_content.clear();
                 }
-                let role_str = header.split('(').next().unwrap_or("USER").trim().to_lowercase();
+                let role_str = header
+                    .split('(')
+                    .next()
+                    .unwrap_or("USER")
+                    .trim()
+                    .to_lowercase();
                 current_role = Some(Role::from_str(&role_str));
             } else if current_role.is_some() {
                 current_content.push(line.to_string());
@@ -182,7 +224,12 @@ impl SessionImporter {
         if let Some(role) = current_role {
             let content = current_content.join("\n").trim().to_string();
             if !content.is_empty() {
-                messages.push(Message::new(format!("m{}", msg_counter), role, content, msg_counter));
+                messages.push(Message::new(
+                    format!("m{}", msg_counter),
+                    role,
+                    content,
+                    msg_counter,
+                ));
             }
         }
 
@@ -235,8 +282,18 @@ mod tests {
 
     fn sample_bundle() -> SessionBundle {
         let mut msgs = Vec::new();
-        msgs.push(Message::new("m1", Role::User, "Hello, explain Rust ownership.", 1000));
-        msgs.push(Message::new("m2", Role::Assistant, "Rust ownership means each value has one owner.", 2000));
+        msgs.push(Message::new(
+            "m1",
+            Role::User,
+            "Hello, explain Rust ownership.",
+            1000,
+        ));
+        msgs.push(Message::new(
+            "m2",
+            Role::Assistant,
+            "Rust ownership means each value has one owner.",
+            2000,
+        ));
         SessionBundle {
             session_id: "sess-abc".to_string(),
             title: "Rust Ownership Q&A".to_string(),

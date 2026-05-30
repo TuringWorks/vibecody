@@ -14,7 +14,13 @@ use std::path::{Path, PathBuf};
 
 // ── Memory File Names ─────────────────────────────────────────────────────────
 
-const REPO_CANDIDATES: &[&str] = &["VIBECLI.md", "AGENTS.md", "CLAUDE.md", "GEMINI.md", ".vibecli.md"];
+const REPO_CANDIDATES: &[&str] = &[
+    "VIBECLI.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "GEMINI.md",
+    ".vibecli.md",
+];
 
 // ── MemoryLevel ───────────────────────────────────────────────────────────────
 
@@ -86,7 +92,14 @@ impl ProjectMemory {
         let mut parts: Vec<String> = self
             .levels
             .iter()
-            .map(|l| format!("## {} Instructions ({})\n\n{}", title(l.label), l.path.display(), l.content))
+            .map(|l| {
+                format!(
+                    "## {} Instructions ({})\n\n{}",
+                    title(l.label),
+                    l.path.display(),
+                    l.content
+                )
+            })
             .collect();
 
         if let Some(s) = &self.scratch {
@@ -110,12 +123,12 @@ impl ProjectMemory {
         if self.is_empty() {
             return "No memory files found.".to_string();
         }
-        let labels: Vec<String> = self
-            .levels
-            .iter()
-            .map(|l| l.label.to_string())
-            .collect();
-        let mut s = format!("Memory: {} level(s) loaded [{}]", self.levels.len(), labels.join(", "));
+        let labels: Vec<String> = self.levels.iter().map(|l| l.label.to_string()).collect();
+        let mut s = format!(
+            "Memory: {} level(s) loaded [{}]",
+            self.levels.len(),
+            labels.join(", ")
+        );
         if self.scratch.is_some() {
             s.push_str(" + scratch pad");
         }
@@ -138,14 +151,18 @@ impl ProjectMemory {
     /// The first project-level content found, for backward-compat callers.
     #[allow(dead_code)]
     pub fn repo_content(&self) -> Option<&str> {
-        self.levels.iter().find(|l| l.label == "project" || l.label == "directory")
+        self.levels
+            .iter()
+            .find(|l| l.label == "project" || l.label == "directory")
             .map(|l| l.content.as_str())
     }
 
     /// The first project-level path found, for backward-compat callers.
     #[allow(dead_code)]
     pub fn repo_path(&self) -> Option<&Path> {
-        self.levels.iter().find(|l| l.label == "project" || l.label == "directory")
+        self.levels
+            .iter()
+            .find(|l| l.label == "project" || l.label == "directory")
             .map(|l| l.path.as_path())
     }
 }
@@ -154,18 +171,24 @@ impl ProjectMemory {
 
 fn title(label: &str) -> &str {
     match label {
-        "system"    => "System",
-        "user"      => "User",
-        "project"   => "Project",
+        "system" => "System",
+        "user" => "User",
+        "project" => "Project",
         "directory" => "Directory",
-        _           => "Custom",
+        _ => "Custom",
     }
 }
 
 fn load_file(path: impl Into<PathBuf>, label: &'static str) -> Option<MemoryLevel> {
     let path = path.into();
-    let content = std::fs::read_to_string(&path).ok().filter(|s| !s.trim().is_empty())?;
-    Some(MemoryLevel { label, path, content })
+    let content = std::fs::read_to_string(&path)
+        .ok()
+        .filter(|s| !s.trim().is_empty())?;
+    Some(MemoryLevel {
+        label,
+        path,
+        content,
+    })
 }
 
 /// Walk up the directory tree from `cwd` looking for a repo memory file.
@@ -176,7 +199,11 @@ fn load_repo_level(cwd: &Path, label: &'static str) -> Option<MemoryLevel> {
             let path = dir.join(candidate);
             if let Ok(content) = std::fs::read_to_string(&path) {
                 if !content.trim().is_empty() {
-                    return Some(MemoryLevel { label, path, content });
+                    return Some(MemoryLevel {
+                        label,
+                        path,
+                        content,
+                    });
                 }
             }
         }
@@ -197,7 +224,11 @@ fn load_dir_level(cwd: &Path, label: &'static str) -> Option<MemoryLevel> {
         let path = cwd.join(candidate);
         if let Ok(content) = std::fs::read_to_string(&path) {
             if !content.trim().is_empty() {
-                return Some(MemoryLevel { label, path, content });
+                return Some(MemoryLevel {
+                    label,
+                    path,
+                    content,
+                });
             }
         }
     }

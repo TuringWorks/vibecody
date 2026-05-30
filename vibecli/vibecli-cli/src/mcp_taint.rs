@@ -112,11 +112,13 @@ pub fn call_tool_tainted(
 /// — caller is expected to surface the rejection as a `tool_result`
 /// with `status: "user_rejected"` matching the slice-B / slice-C
 /// pattern.
-pub fn audit_mcp_response(
-    response: &Tainted<String>,
-) -> std::result::Result<(), String> {
+pub fn audit_mcp_response(response: &Tainted<String>) -> std::result::Result<(), String> {
     match response.origin() {
-        Provenance::Mcp { server, tool, call_id } => {
+        Provenance::Mcp {
+            server,
+            tool,
+            call_id,
+        } => {
             tracing::debug!(
                 target: "vibecody::tainted::mcp_boundary",
                 server = %server,

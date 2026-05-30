@@ -3,9 +3,9 @@
 //! Feature: Project Memory Store
 //! These tests verify the behavior of the per-workspace memory store.
 
-use vibe_memory::*;
 use std::path::PathBuf;
 use tempfile::TempDir;
+use vibe_memory::*;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Gherkin scenarios — read the docstring above each test to see intent
@@ -22,22 +22,22 @@ use tempfile::TempDir;
 async fn store_memory_entry_with_vector() {
     let workspace = TempDir::new().unwrap();
     let store = ProjectMemStore::open(workspace.path()).expect("open store");
-    
+
     let entry = store
         .store("Rust ownership prevents data races", None)
         .await
         .expect("store memory");
-    
+
     // Entry has valid ID
     assert!(!entry.id.is_empty());
     assert!(entry.id.len() > 20); // hex timestamp + suffix
-    
+
     // Sector classified as procedural (from keyword signals)
     assert_eq!(entry.sector, "procedural");
-    
+
     // Vector dimensions match configured
     assert_eq!(entry.embedding.len(), 768);
-    
+
     // Timestamps are set
     assert!(entry.created_at > 0);
 }
@@ -51,22 +51,28 @@ async fn store_memory_entry_with_vector() {
 async fn query_by_semantic_similarity() {
     let workspace = TempDir::new().unwrap();
     let store = ProjectMemStore::open(workspace.path()).expect("open store");
-    
+
     // Store three memories
-    let _ = store.store("Rust ownership prevents data races at compile time", None).await;
-    let _ = store.store("Go uses goroutines and channels for concurrency", None).await;
-    let _ = store.store("Python GIL prevents true multi-threading", None).await;
-    
+    let _ = store
+        .store("Rust ownership prevents data races at compile time", None)
+        .await;
+    let _ = store
+        .store("Go uses goroutines and channels for concurrency", None)
+        .await;
+    let _ = store
+        .store("Python GIL prevents true multi-threading", None)
+        .await;
+
     // Query
     let results = store
         .search("memory safety in systems programming", 5, None)
         .await
         .expect("search");
-    
+
     // Top result is Rust (semantic similarity + procedural weight)
     assert!(!results.is_empty());
     assert!(results[0].content.contains("Rust"));
-    
+
     // Results are sorted by score descending
     for window in results.windows(2) {
         assert!(window[0].score >= window[1].score);
@@ -83,29 +89,35 @@ async fn query_by_semantic_similarity() {
 async fn project_isolation() {
     let workspace_a = TempDir::new().unwrap();
     let workspace_b = TempDir::new().unwrap();
-    
+
     let store_a = ProjectMemStore::open(workspace_a.path()).expect("open store A");
     let store_b = ProjectMemStore::open(workspace_b.path()).expect("open store B");
-    
+
     // Different memories in each project
-    store_a.store("Auth service uses JWT tokens", None).await.expect("store A");
-    store_b.store("Auth service uses OAuth 2.0", None).await.expect("store B");
-    
+    store_a
+        .store("Auth service uses JWT tokens", None)
+        .await
+        .expect("store A");
+    store_b
+        .store("Auth service uses OAuth 2.0", None)
+        .await
+        .expect("store B");
+
     // Query project A
     let results_a = store_a
         .search("authentication", 5, None)
         .await
         .expect("search A");
-    
+
     // Query project B
     let results_b = store_b
         .search("authentication", 5, None)
         .await
         .expect("search B");
-    
+
     // A sees only JWT memory
     assert!(results_a.iter().all(|r| r.content.contains("JWT")));
-    
+
     // B sees only OAuth memory
     assert!(results_b.iter().all(|r| r.content.contains("OAuth")));
 }
@@ -118,27 +130,33 @@ async fn project_isolation() {
 async fn encrypted_at_rest() {
     let workspace = TempDir::new().unwrap();
     let store = ProjectMemStore::open(workspace.path()).expect("open store");
-    
+
     // Store a memory
-    store.store("sensitive project data", None).await.expect("store");
-    
+    store
+        .store("sensitive project data", None)
+        .await
+        .expect("store");
+
     // Flush to disk
     drop(store);
-    
+
     // Read raw file bytes
     let db_path = workspace.path().join(".vibecli").join("memory.db");
     assert!(db_path.exists(), "DB file should exist");
     let raw_bytes = std::fs::read(&db_path).expect("read raw DB");
-    
+
     // The DB should not contain plaintext "sensitive"
     // (This is a weak test but checks for obvious plaintext leakage)
     assert!(
         !String::from_utf8_lossy(&raw_bytes).contains("sensitive project data"),
         "DB should not contain plaintext"
     );
-    
+
     // The DB should contain some data (encrypted)
-    assert!(raw_bytes.len() > 1000, "DB should have substantial encrypted content");
+    assert!(
+        raw_bytes.len() > 1000,
+        "DB should have substantial encrypted content"
+    );
 }
 
 /// Scenario: Delete memory entry by ID
@@ -150,26 +168,25 @@ async fn encrypted_at_rest() {
 async fn delete_memory_by_id() {
     let workspace = TempDir::new().unwrap();
     let store = ProjectMemStore::open(workspace.path()).expect("open store");
-    
+
     // Store 5 memories
-    let ids: Vec<_> = futures::future::join_all(
-        (0..5).map(|i| store.store(format!("Memory {}", i), None))
-    )
-    .await
-    .into_iter()
-    .map(|r| r.expect("store").id)
-    .collect();
-    
+    let ids: Vec<_> =
+        futures::future::join_all((0..5).map(|i| store.store(format!("Memory {}", i), None)))
+            .await
+            .into_iter()
+            .map(|r| r.expect("store").id)
+            .collect();
+
     assert_eq!(ids.len(), 5);
-    
+
     // Delete the third one
     let to_delete = &ids[2];
     store.delete(to_delete).await.expect("delete");
-    
+
     // Store should have 4 entries now
     let all = store.list(None, None).await.expect("list");
     assert_eq!(all.len(), 4);
-    
+
     // Deleted ID should not be found
     assert!(store.get(to_delete).await.expect("get").is_none());
 }
@@ -182,26 +199,44 @@ async fn delete_memory_by_id() {
 async fn list_memories_with_metadata() {
     let workspace = TempDir::new().unwrap();
     let store = ProjectMemStore::open(workspace.path()).expect("open store");
-    
+
     // Store diverse memories
-    store.store("Yesterday we discussed Rust ownership", Some(MemoryMeta {
-        tags: vec!["rust".to_string(), "session".to_string()],
-        ..Default::default()
-    })).await.expect("store episodic");
-    
-    store.store("The definition of a closure is a function with captured state", Some(MemoryMeta {
-        tags: vec!["concept".to_string()],
-        ..Default::default()
-    })).await.expect("store semantic");
-    
-    store.store("Step 1: Run cargo build", Some(MemoryMeta {
-        tags: vec!["workflow".to_string()],
-        ..Default::default()
-    })).await.expect("store procedural");
-    
+    store
+        .store(
+            "Yesterday we discussed Rust ownership",
+            Some(MemoryMeta {
+                tags: vec!["rust".to_string(), "session".to_string()],
+                ..Default::default()
+            }),
+        )
+        .await
+        .expect("store episodic");
+
+    store
+        .store(
+            "The definition of a closure is a function with captured state",
+            Some(MemoryMeta {
+                tags: vec!["concept".to_string()],
+                ..Default::default()
+            }),
+        )
+        .await
+        .expect("store semantic");
+
+    store
+        .store(
+            "Step 1: Run cargo build",
+            Some(MemoryMeta {
+                tags: vec!["workflow".to_string()],
+                ..Default::default()
+            }),
+        )
+        .await
+        .expect("store procedural");
+
     // List all
     let all = store.list(None, None).await.expect("list");
-    
+
     assert_eq!(all.len(), 3);
     for entry in &all {
         // All required fields present
@@ -211,9 +246,12 @@ async fn list_memories_with_metadata() {
         assert!(entry.salience > 0.0);
         assert!(entry.created_at > 0);
     }
-    
+
     // Check specific tags
-    let rust_mem = all.iter().find(|e| e.content.contains("Rust")).expect("find Rust");
+    let rust_mem = all
+        .iter()
+        .find(|e| e.content.contains("Rust"))
+        .expect("find Rust");
     assert!(rust_mem.tags.contains(&"rust".to_string()));
 }
 
@@ -226,27 +264,33 @@ async fn list_memories_with_metadata() {
 async fn pin_prevents_decay_and_purge() {
     let workspace = TempDir::new().unwrap();
     let store = ProjectMemStore::open(workspace.path()).expect("open store");
-    
+
     // Store and pin a memory
-    let entry = store.store("Important project context", Some(MemoryMeta {
-        pinned: true,
-        ..Default::default()
-    })).await.expect("store pinned");
-    
+    let entry = store
+        .store(
+            "Important project context",
+            Some(MemoryMeta {
+                pinned: true,
+                ..Default::default()
+            }),
+        )
+        .await
+        .expect("store pinned");
+
     let original_salience = entry.salience;
-    
+
     // Apply decay multiple times (simulate time passing)
     for _ in 0..10 {
         store.apply_decay().await.expect("apply decay");
     }
-    
+
     // Get the entry again
     let updated = store.get(&entry.id).await.expect("get");
     let updated = updated.expect("entry should exist");
-    
+
     // Pinned memory retained salience
     assert_eq!(updated.salience, original_salience);
-    
+
     // Purge should not remove pinned
     let purged = store.purge(0.5).await.expect("purge");
     assert_eq!(purged, 0, "Pinned memories should not be purged");
@@ -260,22 +304,28 @@ async fn pin_prevents_decay_and_purge() {
 async fn salience_decay_over_time() {
     let workspace = TempDir::new().unwrap();
     let store = ProjectMemStore::open(workspace.path()).expect("open store");
-    
+
     // Store a memory (will have salience 1.0)
-    let entry = store.store("Regular memory content", None).await.expect("store");
+    let entry = store
+        .store("Regular memory content", None)
+        .await
+        .expect("store");
     assert_eq!(entry.salience, 1.0);
-    
+
     // Manually backdate the entry (simulate 7 days ago)
     let seven_days_ago = chrono::Utc::now().timestamp() - (7 * 24 * 3600);
-    store.backdate(&entry.id, seven_days_ago).await.expect("backdate");
-    
+    store
+        .backdate(&entry.id, seven_days_ago)
+        .await
+        .expect("backdate");
+
     // Apply decay
     store.apply_decay().await.expect("apply decay");
-    
+
     // Get updated entry
     let updated = store.get(&entry.id).await.expect("get");
     let updated = updated.expect("entry should exist");
-    
+
     // Salience should be less than 1.0
     // With ~0.01 decay rate, 7 days should reduce by ~7%
     assert!(
@@ -294,21 +344,27 @@ async fn salience_decay_over_time() {
 async fn cross_project_waypoints() {
     let workspace_a = TempDir::new().unwrap();
     let store_a = ProjectMemStore::open(workspace_a.path()).expect("open store A");
-    
+
     let id_a = store_a
         .store("Use REST for public APIs", None)
         .await
         .expect("store A")
         .id;
-    
+
     // Add cross-project waypoint (simulated - normally via GlobalMemStore)
-    store_a.add_waypoint(&id_a, "cross-project-ref", 0.8, true).await.expect("waypoint");
-    
+    store_a
+        .add_waypoint(&id_a, "cross-project-ref", 0.8, true)
+        .await
+        .expect("waypoint");
+
     // Query waypoints
     let waypoints = store_a.get_waypoints(&id_a).await.expect("get waypoints");
-    
+
     assert!(!waypoints.is_empty());
-    let cross_wp = waypoints.iter().find(|w| w.cross_project).expect("find cross-project");
+    let cross_wp = waypoints
+        .iter()
+        .find(|w| w.cross_project)
+        .expect("find cross-project");
     assert_eq!(cross_wp.weight, 0.8);
 }
 
@@ -321,7 +377,7 @@ async fn cross_project_waypoints() {
 async fn context_budget_trimming() {
     let workspace = TempDir::new().unwrap();
     let store = ProjectMemStore::open(workspace.path()).expect("open store");
-    
+
     // Store many memories with varying content lengths
     let contents = vec![
         "Short",
@@ -330,22 +386,23 @@ async fn context_budget_trimming() {
         "Another short one",
         "A moderate length entry with some technical details about async programming in Rust using tokio",
     ];
-    
+
     for content in contents {
         store.store(content, None).await.expect("store");
     }
-    
+
     // Search with budget
     let results = store
         .search_with_budget("rust programming", 5, 500) // 500 token budget
         .await
         .expect("search with budget");
-    
+
     // Calculate approximate token count
-    let total_tokens: usize = results.iter()
+    let total_tokens: usize = results
+        .iter()
         .map(|r| r.content.split_whitespace().count() * 1.3 as usize) // rough estimate
         .sum();
-    
+
     assert!(
         total_tokens <= 800, // Allow some overhead
         "Results should fit budget, got ~{} tokens",
@@ -361,19 +418,22 @@ async fn context_budget_trimming() {
 async fn project_store_path_derivation() {
     let workspace = TempDir::new().unwrap();
     let store = ProjectMemStore::open(workspace.path()).expect("open store");
-    
+
     let project_path = store.path();
     assert!(
         project_path.to_string_lossy().contains(".vibecli"),
         "Path should contain .vibecli directory"
     );
-    
+
     // Compare with global store path
     let global_store = GlobalMemStore::open().expect("open global");
     let global_path = global_store.path();
-    
+
     // Paths should differ
-    assert_ne!(project_path, global_path, "Project and global paths should differ");
+    assert_ne!(
+        project_path, global_path,
+        "Project and global paths should differ"
+    );
 }
 
 /// Scenario: Store with custom sector
@@ -384,12 +444,12 @@ async fn project_store_path_derivation() {
 async fn explicit_sector_preserved() {
     let workspace = TempDir::new().unwrap();
     let store = ProjectMemStore::open(workspace.path()).expect("open store");
-    
+
     // Store with explicit sector
     let entry = store
         .store_with_sector("This is important project knowledge", "semantic")
         .await
         .expect("store with sector");
-    
+
     assert_eq!(entry.sector, "semantic");
 }

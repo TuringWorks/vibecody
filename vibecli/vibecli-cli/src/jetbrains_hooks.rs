@@ -52,31 +52,16 @@ pub struct JetBrainsHookDef {
 pub enum HookEvent {
     SessionStart,
     SessionEnd,
-    PreToolUse {
-        tool_name: Option<String>,
-    },
-    PostToolUse {
-        tool_name: Option<String>,
-    },
-    FileSaved {
-        pattern: Option<String>,
-    },
-    FileOpened {
-        pattern: Option<String>,
-    },
+    PreToolUse { tool_name: Option<String> },
+    PostToolUse { tool_name: Option<String> },
+    FileSaved { pattern: Option<String> },
+    FileOpened { pattern: Option<String> },
     DiagnosticsChanged,
     BuildStarted,
-    BuildCompleted {
-        success: bool,
-    },
-    TestRunCompleted {
-        passed: usize,
-        failed: usize,
-    },
+    BuildCompleted { success: bool },
+    TestRunCompleted { passed: usize, failed: usize },
     DebugBreakpoint,
-    RefactoringApplied {
-        kind: String,
-    },
+    RefactoringApplied { kind: String },
     GitCommit,
     GitPush,
 }
@@ -660,7 +645,12 @@ mod tests {
 
     #[test]
     fn test_filter_none_matches_all() {
-        assert!(matches_filter(&None, Some("foo.rs"), Some("proj"), Some("rust")));
+        assert!(matches_filter(
+            &None,
+            Some("foo.rs"),
+            Some("proj"),
+            Some("rust")
+        ));
         assert!(matches_filter(&None, None, None, None));
     }
 
@@ -882,7 +872,10 @@ mod tests {
         let hooks = strict_hooks();
         assert_eq!(hooks.len(), 2);
         assert!(matches!(hooks[0].event, HookEvent::PreToolUse { .. }));
-        assert!(matches!(hooks[1].action, HookAction::RunConfiguration { .. }));
+        assert!(matches!(
+            hooks[1].action,
+            HookAction::RunConfiguration { .. }
+        ));
     }
 
     #[test]

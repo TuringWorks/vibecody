@@ -62,7 +62,6 @@ pub struct SearchContext {
     pub turn_count: usize,
 }
 
-
 // ---------------------------------------------------------------------------
 // Answer synthesizer
 // ---------------------------------------------------------------------------
@@ -145,11 +144,7 @@ impl AnswerSynthesizer {
     }
 
     /// Suggest follow-up questions based on gaps.
-    fn suggest_follow_ups(
-        query: &str,
-        results: &[SearchResult],
-        _facts: &[String],
-    ) -> Vec<String> {
+    fn suggest_follow_ups(query: &str, results: &[SearchResult], _facts: &[String]) -> Vec<String> {
         let mut suggestions: Vec<String> = Vec::new();
 
         // Suggest exploring related files.
@@ -165,10 +160,7 @@ impl AnswerSynthesizer {
 
         // Suggest digging deeper.
         if !results.is_empty() {
-            suggestions.push(format!(
-                "How is the code related to \"{}\" tested?",
-                query
-            ));
+            suggestions.push(format!("How is the code related to \"{}\" tested?", query));
             suggestions.push(format!(
                 "What calls or depends on the results for \"{}\"?",
                 query
@@ -218,15 +210,12 @@ impl ConversationalSearchEngine {
         snippet: &str,
         explanation: &str,
     ) {
-        self.index
-            .entry(keyword.to_lowercase())
-            .or_default()
-            .push((
-                file_path.to_string(),
-                line,
-                snippet.to_string(),
-                explanation.to_string(),
-            ));
+        self.index.entry(keyword.to_lowercase()).or_default().push((
+            file_path.to_string(),
+            line,
+            snippet.to_string(),
+            explanation.to_string(),
+        ));
     }
 
     /// Primary entry point: ask a free-form question.

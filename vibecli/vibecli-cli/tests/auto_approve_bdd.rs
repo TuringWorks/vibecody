@@ -2,7 +2,7 @@
  * BDD tests for auto_approve using Cucumber 0.20.
  * Run with: cargo test --test auto_approve_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::auto_approve::{ApprovalConfig, ApprovalDecision, ApprovalScore, AutoApprover};
 
 #[derive(Debug, Default, World)]

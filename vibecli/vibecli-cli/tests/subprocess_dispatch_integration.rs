@@ -209,12 +209,19 @@ async fn job_manager_spawn_subprocess_end_to_end() {
         .await
         .unwrap()
         .unwrap();
-    assert!(chunk_seen || bridge_saw, "must observe at least one chunk Event");
+    assert!(
+        chunk_seen || bridge_saw,
+        "must observe at least one chunk Event"
+    );
 
     let final_record = jm.get(&sid).await.expect("record still exists");
     assert_eq!(final_record.status, "complete", "job must be complete");
     assert!(
-        final_record.summary.as_deref().unwrap_or("").contains("integration via jm"),
+        final_record
+            .summary
+            .as_deref()
+            .unwrap_or("")
+            .contains("integration via jm"),
         "summary must echo task, got {:?}",
         final_record.summary
     );
@@ -261,7 +268,9 @@ async fn worker_cancel_roundtrip_emits_error() {
 
     handle
         .outgoing
-        .send(DispatchFrame::Cancel { reason: "user requested".into() })
+        .send(DispatchFrame::Cancel {
+            reason: "user requested".into(),
+        })
         .await
         .expect("send Cancel");
 
@@ -333,7 +342,8 @@ async fn job_manager_cancel_propagates_to_subprocess() {
         .unwrap();
 
     // Register the outgoing sender with JobManager so cancel() can find it.
-    jm.register_dispatch_sender(&sid, handle.outgoing.clone()).await;
+    jm.register_dispatch_sender(&sid, handle.outgoing.clone())
+        .await;
 
     let bcast = jm.open_stream(&sid).await;
 

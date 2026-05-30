@@ -154,7 +154,13 @@ mod tests {
     #[test]
     fn from_pairs_populates() {
         let s = InMemorySecretStore::from_pairs([("@profile.a", "1"), ("@profile.b", "2")]);
-        assert_eq!(s.resolve(&SecretRef("@profile.a".into())).as_deref(), Some("1"));
-        assert_eq!(s.resolve(&SecretRef("@profile.b".into())).as_deref(), Some("2"));
+        assert_eq!(
+            s.resolve(&SecretRef("@profile.a".into())).as_deref(),
+            Some("1")
+        );
+        assert_eq!(
+            s.resolve(&SecretRef("@profile.b".into())).as_deref(),
+            Some("2")
+        );
     }
 }

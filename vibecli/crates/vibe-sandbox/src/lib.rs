@@ -166,7 +166,10 @@ pub fn select(tier: SandboxTier, opts: &SelectOptions) -> Result<Selection> {
         t => (t, false),
     };
     let sandbox = build_stub(effective)?;
-    Ok(Selection { sandbox, downgraded })
+    Ok(Selection {
+        sandbox,
+        downgraded,
+    })
 }
 
 /// Until concrete tier crates are wired in, every tier resolves to a stub

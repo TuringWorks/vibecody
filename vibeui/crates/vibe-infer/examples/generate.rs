@@ -34,8 +34,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let prompt = std::env::args()
         .nth(1)
         .unwrap_or_else(|| "Say hi in one word.".to_string());
-    let model_id =
-        std::env::var("VIBE_INFER_MODEL").unwrap_or_else(|_| "Qwen/Qwen2.5-0.5B-Instruct".to_string());
+    let model_id = std::env::var("VIBE_INFER_MODEL")
+        .unwrap_or_else(|_| "Qwen/Qwen2.5-0.5B-Instruct".to_string());
 
     eprintln!("loading {model_id} via Mistral.rs …");
     let t0 = std::time::Instant::now();

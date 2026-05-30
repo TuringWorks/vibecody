@@ -51,24 +51,63 @@ impl MemorySector {
     pub fn keyword_signals(&self) -> &'static [&'static str] {
         match self {
             Self::Episodic => &[
-                "yesterday", "today", "remember", "happened", "when i", "last time",
-                "session", "just now", "earlier", "event", "experience", "meeting",
+                "yesterday",
+                "today",
+                "remember",
+                "happened",
+                "when i",
+                "last time",
+                "session",
+                "just now",
+                "earlier",
+                "event",
+                "experience",
+                "meeting",
             ],
             Self::Semantic => &[
-                "means", "defined", "always", "fact", "is a", "known as",
-                "definition", "concept", "api", "protocol", "standard",
+                "means",
+                "defined",
+                "always",
+                "fact",
+                "is a",
+                "known as",
+                "definition",
+                "concept",
+                "api",
+                "protocol",
+                "standard",
             ],
             Self::Procedural => &[
-                "step", "how to", "command", "recipe", "process", "workflow",
-                "first", "then", "next", "run", "execute", "build", "install",
+                "step", "how to", "command", "recipe", "process", "workflow", "first", "then",
+                "next", "run", "execute", "build", "install",
             ],
             Self::Emotional => &[
-                "frustrated", "happy", "love", "hate", "annoying", "great",
-                "terrible", "excited", "worried", "confused", "delighted", "prefers", "prefer",
+                "frustrated",
+                "happy",
+                "love",
+                "hate",
+                "annoying",
+                "great",
+                "terrible",
+                "excited",
+                "worried",
+                "confused",
+                "delighted",
+                "prefers",
+                "prefer",
             ],
             Self::Reflective => &[
-                "realize", "insight", "pattern", "lesson", "learned", "principle",
-                "takeaway", "reflection", "observation", "noticed", "strategy",
+                "realize",
+                "insight",
+                "pattern",
+                "lesson",
+                "learned",
+                "principle",
+                "takeaway",
+                "reflection",
+                "observation",
+                "noticed",
+                "strategy",
             ],
         }
     }
@@ -260,7 +299,7 @@ pub fn epoch_secs() -> i64 {
 
 /// Hash a workspace path to derive storage location.
 pub fn workspace_hash(workspace: &std::path::Path) -> String {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(workspace.to_string_lossy().as_bytes());
     hex::encode(&hasher.finalize()[..8])
@@ -272,7 +311,8 @@ pub fn classify_sector(content: &str) -> MemorySector {
     let mut scores: Vec<(MemorySector, f64)> = MemorySector::all()
         .iter()
         .map(|s| {
-            let score = s.keyword_signals()
+            let score = s
+                .keyword_signals()
                 .iter()
                 .filter(|kw| content_lower.contains(*kw))
                 .count() as f64;
@@ -281,8 +321,9 @@ pub fn classify_sector(content: &str) -> MemorySector {
         .collect();
 
     scores.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-    
-    scores.first()
+
+    scores
+        .first()
         .map(|(s, _)| s.clone())
         .unwrap_or(MemorySector::Episodic)
 }

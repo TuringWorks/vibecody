@@ -52,10 +52,20 @@ pub struct Annotation {
 /// Convert an annotation to a natural-language instruction string.
 pub fn annotation_to_instruction(ann: &Annotation) -> String {
     match &ann.kind {
-        AnnotationKind::Arrow { from_label, to_label, label } => {
+        AnnotationKind::Arrow {
+            from_label,
+            to_label,
+            label,
+        } => {
             format!("Move {} to align with {}: {}", from_label, to_label, label)
         }
-        AnnotationKind::Region { x, y, width, height, description } => {
+        AnnotationKind::Region {
+            x,
+            y,
+            width,
+            height,
+            description,
+        } => {
             format!(
                 "Update the region at ({},{}) size {}x{}: {}",
                 x, y, width, height, description
@@ -64,7 +74,10 @@ pub fn annotation_to_instruction(ann: &Annotation) -> String {
         AnnotationKind::TextLabel { x, y, text } => {
             format!("Change text at ({},{}) to: {}", x, y, text)
         }
-        AnnotationKind::BeforeAfter { before_url, after_url } => {
+        AnnotationKind::BeforeAfter {
+            before_url,
+            after_url,
+        } => {
             format!(
                 "Apply before/after change: before={} after={}",
                 before_url, after_url
@@ -73,7 +86,11 @@ pub fn annotation_to_instruction(ann: &Annotation) -> String {
         AnnotationKind::ColorSwatch { hex, label } => {
             format!("Use color {} for {}", hex, label)
         }
-        AnnotationKind::Measurement { from_label, to_label, expected_value } => {
+        AnnotationKind::Measurement {
+            from_label,
+            to_label,
+            expected_value,
+        } => {
             format!(
                 "Set distance from {} to {} to {}",
                 from_label, to_label, expected_value
@@ -474,9 +491,9 @@ mod tests {
         // Add in reverse priority order
         spec.add(make_color_swatch()); // priority 5
         spec.add(make_before_after()); // priority 4
-        spec.add(make_text_label());   // priority 3
-        spec.add(make_region());       // priority 2
-        spec.add(make_arrow());        // priority 1
+        spec.add(make_text_label()); // priority 3
+        spec.add(make_region()); // priority 2
+        spec.add(make_arrow()); // priority 1
         let instructions = spec.to_instructions();
         // First instruction should be for priority 1 (Arrow)
         assert!(instructions[0].contains("Button"));

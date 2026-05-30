@@ -76,7 +76,10 @@ fn assert_compact(world: &mut LsWorld) {
 #[then("the decision should be Halt")]
 fn assert_halt(world: &mut LsWorld) {
     assert!(
-        matches!(world.decision.as_ref().unwrap(), ContinuationDecision::Halt(_)),
+        matches!(
+            world.decision.as_ref().unwrap(),
+            ContinuationDecision::Halt(_)
+        ),
         "expected Halt, got {:?}",
         world.decision
     );

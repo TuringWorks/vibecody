@@ -4,7 +4,10 @@
 //! mixtral-8x7b-32768, gemma2-9b-it, deepseek-r1-distill-llama-70b
 
 use super::openai_compat::{self, ChatRequest};
-use crate::provider::{AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message, ProviderConfig};
+use crate::provider::{
+    AIProvider, CodeContext, CompletionResponse, CompletionStream, ImageAttachment, Message,
+    ProviderConfig,
+};
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 
@@ -28,7 +31,10 @@ impl GroqProvider {
     }
 
     fn base_url(&self) -> String {
-        self.config.api_url.clone().unwrap_or_else(|| GROQ_BASE_URL.to_string())
+        self.config
+            .api_url
+            .clone()
+            .unwrap_or_else(|| GROQ_BASE_URL.to_string())
     }
 
     fn chat_url(&self) -> String {
@@ -36,10 +42,18 @@ impl GroqProvider {
     }
 
     fn api_key(&self) -> Result<&str> {
-        self.config.api_key.as_deref().context("Groq API key not set (GROQ_API_KEY)")
+        self.config
+            .api_key
+            .as_deref()
+            .context("Groq API key not set (GROQ_API_KEY)")
     }
 
-    fn make_request(&self, messages: &[Message], context: Option<String>, stream: bool) -> ChatRequest {
+    fn make_request(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+        stream: bool,
+    ) -> ChatRequest {
         ChatRequest {
             model: self.config.model.clone(),
             messages: openai_compat::build_messages(messages, context),
@@ -52,9 +66,13 @@ impl GroqProvider {
 
 #[async_trait]
 impl AIProvider for GroqProvider {
-    fn name(&self) -> &str { &self.display_name }
+    fn name(&self) -> &str {
+        &self.display_name
+    }
 
-    async fn is_available(&self) -> bool { self.config.api_key.is_some() }
+    async fn is_available(&self) -> bool {
+        self.config.api_key.is_some()
+    }
 
     async fn complete(&self, context: &CodeContext) -> Result<CompletionResponse> {
         let prompt = format!(
@@ -62,8 +80,14 @@ impl AIProvider for GroqProvider {
             context.language, context.prefix, context.suffix
         );
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "You are a helpful coding assistant.".to_string() },
-            Message { role: crate::provider::MessageRole::User, content: prompt },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "You are a helpful coding assistant.".to_string(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: prompt,
+            },
         ];
         self.chat_response(&messages, None).await
     }
@@ -74,16 +98,27 @@ impl AIProvider for GroqProvider {
             context.language, context.prefix, context.suffix
         );
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "You are a helpful coding assistant.".to_string() },
-            Message { role: crate::provider::MessageRole::User, content: prompt },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "You are a helpful coding assistant.".to_string(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: prompt,
+            },
         ];
         self.stream_chat(&messages).await
     }
 
-    async fn chat_response(&self, messages: &[Message], context: Option<String>) -> Result<CompletionResponse> {
+    async fn chat_response(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+    ) -> Result<CompletionResponse> {
         let api_key = self.api_key()?;
         let request = self.make_request(messages, context, false);
-        openai_compat::send_chat_request(&self.client, &self.chat_url(), api_key, &request, "Groq").await
+        openai_compat::send_chat_request(&self.client, &self.chat_url(), api_key, &request, "Groq")
+            .await
     }
 
     async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String> {
@@ -93,10 +128,22 @@ impl AIProvider for GroqProvider {
     async fn stream_chat(&self, messages: &[Message]) -> Result<CompletionStream> {
         let api_key = self.api_key()?;
         let request = self.make_request(messages, None, true);
-        openai_compat::send_stream_request(&self.client, &self.chat_url(), api_key, &request, "Groq").await
+        openai_compat::send_stream_request(
+            &self.client,
+            &self.chat_url(),
+            api_key,
+            &request,
+            "Groq",
+        )
+        .await
     }
 
-    async fn chat_with_images(&self, messages: &[Message], _images: &[ImageAttachment], context: Option<String>) -> Result<String> {
+    async fn chat_with_images(
+        &self,
+        messages: &[Message],
+        _images: &[ImageAttachment],
+        context: Option<String>,
+    ) -> Result<String> {
         self.chat(messages, context).await
     }
 }
@@ -104,7 +151,7 @@ impl AIProvider for GroqProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use openai_compat::{ChatResponse, ChatMessage, StreamResponse};
+    use openai_compat::{ChatMessage, ChatResponse, StreamResponse};
 
     fn test_config() -> ProviderConfig {
         ProviderConfig {
@@ -155,8 +202,14 @@ mod tests {
     #[test]
     fn build_messages_no_context() {
         let messages = vec![
-            Message { role: crate::provider::MessageRole::System, content: "sys".into() },
-            Message { role: crate::provider::MessageRole::User, content: "hello".into() },
+            Message {
+                role: crate::provider::MessageRole::System,
+                content: "sys".into(),
+            },
+            Message {
+                role: crate::provider::MessageRole::User,
+                content: "hello".into(),
+            },
         ];
         let result = openai_compat::build_messages(&messages, None);
         assert_eq!(result.len(), 2);
@@ -166,9 +219,10 @@ mod tests {
 
     #[test]
     fn build_messages_with_context() {
-        let messages = vec![
-            Message { role: crate::provider::MessageRole::User, content: "explain this".into() },
-        ];
+        let messages = vec![Message {
+            role: crate::provider::MessageRole::User,
+            content: "explain this".into(),
+        }];
         let result = openai_compat::build_messages(&messages, Some("fn bar() {}".into()));
         assert!(result[0].content.starts_with("Context:\nfn bar() {}"));
         assert!(result[0].content.ends_with("User: explain this"));
@@ -192,7 +246,10 @@ mod tests {
     fn request_omits_none_fields() {
         let req = ChatRequest {
             model: "llama-3.3-70b-versatile".into(),
-            messages: vec![ChatMessage { role: "user".into(), content: "hi".into() }],
+            messages: vec![ChatMessage {
+                role: "user".into(),
+                content: "hi".into(),
+            }],
             temperature: None,
             max_tokens: None,
             stream: false,
@@ -241,7 +298,10 @@ mod tests {
 
     #[test]
     fn message_roundtrip() {
-        let msg = ChatMessage { role: "assistant".into(), content: "fast response".into() };
+        let msg = ChatMessage {
+            role: "assistant".into(),
+            content: "fast response".into(),
+        };
         let json = serde_json::to_string(&msg).unwrap();
         let msg2: ChatMessage = serde_json::from_str(&json).unwrap();
         assert_eq!(msg.role, msg2.role);
@@ -278,7 +338,10 @@ mod tests {
 
     #[test]
     fn unicode_content() {
-        let msg = ChatMessage { role: "user".into(), content: "日本語テスト 🚀".into() };
+        let msg = ChatMessage {
+            role: "user".into(),
+            content: "日本語テスト 🚀".into(),
+        };
         let json = serde_json::to_string(&msg).unwrap();
         let msg2: ChatMessage = serde_json::from_str(&json).unwrap();
         assert_eq!(msg2.content, "日本語テスト 🚀");

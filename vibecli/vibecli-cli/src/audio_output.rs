@@ -508,7 +508,13 @@ impl AudioOutput {
 
 fn sanitize_filename(name: &str) -> String {
     name.chars()
-        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '-'
+            }
+        })
         .collect::<String>()
         .to_lowercase()
 }
@@ -833,7 +839,9 @@ mod tests {
     #[test]
     fn test_generate_custom_audio() {
         let mut ao = default_output();
-        let result = ao.generate_custom_audio("Hello from VibeCody", "greeting").unwrap();
+        let result = ao
+            .generate_custom_audio("Hello from VibeCody", "greeting")
+            .unwrap();
         assert_eq!(result.request_type, AudioRequestType::CustomNarration);
         assert_eq!(result.title, "greeting");
         assert!(result.word_count > 0);
@@ -878,7 +886,10 @@ mod tests {
         let err = AudioError::ProviderNotConfigured("google".to_string());
         assert!(err.to_string().contains("google"));
 
-        let err = AudioError::TextTooLong { length: 6000, max: 5000 };
+        let err = AudioError::TextTooLong {
+            length: 6000,
+            max: 5000,
+        };
         assert!(err.to_string().contains("6000"));
 
         let err = AudioError::InvalidVoice("bad_id".to_string());

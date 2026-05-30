@@ -2,7 +2,9 @@ use rustyline::completion::{Completer, FilenameCompleter, Pair};
 use rustyline::error::ReadlineError;
 use rustyline::highlight::{Highlighter, MatchingBracketHighlighter};
 use rustyline::hint::{Hinter, HistoryHinter};
-use rustyline::validate::{MatchingBracketValidator, Validator, ValidationContext, ValidationResult};
+use rustyline::validate::{
+    MatchingBracketValidator, ValidationContext, ValidationResult, Validator,
+};
 use rustyline::{Context, Helper};
 use std::borrow::Cow;
 
@@ -184,8 +186,8 @@ static WORKFLOW_SUBS: &[&str] = &["new", "list", "show", "advance", "check", "ge
 
 /// Sub-commands for `/goal <sub>` — durable execution intent.
 pub static GOAL_SUBS: &[&str] = &[
-    "new", "list", "show", "status", "link", "start", "children", "reparent",
-    "pin", "unpin", "current", "delete",
+    "new", "list", "show", "status", "link", "start", "children", "reparent", "pin", "unpin",
+    "current", "delete",
 ];
 
 /// Sub-commands for `/orchestrate <sub>`
@@ -198,25 +200,58 @@ static SANDBOX_SUBS: &[&str] = &["status", "start", "stop", "list", "exec", "log
 static APPBUILDER_SUBS: &[&str] = &["enhance", "template", "provision", "scaffold", "templates"];
 
 /// Sub-commands for `/icontext <sub>`
-static ICONTEXT_SUBS: &[&str] = &["status", "expand", "compress", "refresh", "summary", "clear"];
+static ICONTEXT_SUBS: &[&str] = &[
+    "status", "expand", "compress", "refresh", "summary", "clear",
+];
 
 /// Sub-commands for `/batch <sub>`
-static BATCH_SUBS: &[&str] = &["new", "start", "pause", "resume", "cancel", "status", "list", "estimate", "history"];
+static BATCH_SUBS: &[&str] = &[
+    "new", "start", "pause", "resume", "cancel", "status", "list", "estimate", "history",
+];
 
 /// Sub-commands for `/qavalidate <sub>`
-static QAVALIDATE_SUBS: &[&str] = &["run", "status", "report", "findings", "resolve", "config", "history"];
+static QAVALIDATE_SUBS: &[&str] = &[
+    "run", "status", "report", "findings", "resolve", "config", "history",
+];
 
 /// Sub-commands for `/legacymigrate <sub>`
-static LEGACYMIGRATE_SUBS: &[&str] = &["analyze", "plan", "translate", "validate", "report", "rules", "pairs"];
+static LEGACYMIGRATE_SUBS: &[&str] = &[
+    "analyze",
+    "plan",
+    "translate",
+    "validate",
+    "report",
+    "rules",
+    "pairs",
+];
 
 /// Sub-commands for `/gitplatform <sub>`
-static GITPLATFORM_SUBS: &[&str] = &["add", "list", "remove", "default", "pr", "issue", "pipeline", "webhook"];
+static GITPLATFORM_SUBS: &[&str] = &[
+    "add", "list", "remove", "default", "pr", "issue", "pipeline", "webhook",
+];
 
 /// Sub-commands for `/bundle <sub>`
-static BUNDLE_SUBS: &[&str] = &["create", "activate", "deactivate", "list", "share", "import", "export", "delete"];
+static BUNDLE_SUBS: &[&str] = &[
+    "create",
+    "activate",
+    "deactivate",
+    "list",
+    "share",
+    "import",
+    "export",
+    "delete",
+];
 
 /// Sub-commands for `/cloud <sub>`
-static CLOUD_SUBS: &[&str] = &["scan", "iam", "terraform", "cloudformation", "pulumi", "cost", "providers"];
+static CLOUD_SUBS: &[&str] = &[
+    "scan",
+    "iam",
+    "terraform",
+    "cloudformation",
+    "pulumi",
+    "cost",
+    "providers",
+];
 
 /// Sub-commands for `/benchmark <sub>`
 static BENCHMARK_SUBS: &[&str] = &["run", "compare", "export", "list"];
@@ -225,28 +260,112 @@ static BENCHMARK_SUBS: &[&str] = &["run", "compare", "export", "list"];
 static METERING_SUBS: &[&str] = &["status", "budget", "report", "alerts", "top"];
 
 /// Sub-commands for `/blueteam <sub>`
-static BLUETEAM_SUBS: &[&str] = &["status", "scan", "incidents", "iocs", "rules", "forensics", "playbooks", "siem", "hunt", "report"];
+static BLUETEAM_SUBS: &[&str] = &[
+    "status",
+    "scan",
+    "incidents",
+    "iocs",
+    "rules",
+    "forensics",
+    "playbooks",
+    "siem",
+    "hunt",
+    "report",
+];
 
 /// Sub-commands for `/purpleteam <sub>`
-static PURPLETEAM_SUBS: &[&str] = &["status", "exercise", "simulate", "validate", "matrix", "gaps", "heatmap", "report"];
+static PURPLETEAM_SUBS: &[&str] = &[
+    "status", "exercise", "simulate", "validate", "matrix", "gaps", "heatmap", "report",
+];
 
 /// Sub-commands for `/idp <sub>`
-static IDP_SUBS: &[&str] = &["status", "catalog", "register", "golden", "scorecard", "infra", "team", "onboard", "backstage", "platforms", "report"];
+static IDP_SUBS: &[&str] = &[
+    "status",
+    "catalog",
+    "register",
+    "golden",
+    "scorecard",
+    "infra",
+    "team",
+    "onboard",
+    "backstage",
+    "platforms",
+    "report",
+];
 
 /// Sub-commands for `/quantum <sub>`
-static QUANTUM_SUBS: &[&str] = &["languages", "os", "hardware", "algorithms", "circuits", "projects", "create", "export", "compat", "status"];
+static QUANTUM_SUBS: &[&str] = &[
+    "languages",
+    "os",
+    "hardware",
+    "algorithms",
+    "circuits",
+    "projects",
+    "create",
+    "export",
+    "compat",
+    "status",
+];
 
 /// Sub-commands for `/autoresearch <sub>`
-static AUTORESEARCH_SUBS: &[&str] = &["new", "start", "stop", "pause", "status", "list", "analyze", "export", "suggest", "lessons", "config"];
+static AUTORESEARCH_SUBS: &[&str] = &[
+    "new", "start", "stop", "pause", "status", "list", "analyze", "export", "suggest", "lessons",
+    "config",
+];
 
 /// Sub-commands for `/openmemory <sub>`
-static OPENMEMORY_SUBS: &[&str] = &["add", "query", "list", "delete", "pin", "unpin", "fact", "facts", "decay", "consolidate", "reflect", "summary", "health", "at-risk", "dedup", "ingest", "import", "stats", "export", "encrypt", "context"];
+static OPENMEMORY_SUBS: &[&str] = &[
+    "add",
+    "query",
+    "list",
+    "delete",
+    "pin",
+    "unpin",
+    "fact",
+    "facts",
+    "decay",
+    "consolidate",
+    "reflect",
+    "summary",
+    "health",
+    "at-risk",
+    "dedup",
+    "ingest",
+    "import",
+    "stats",
+    "export",
+    "encrypt",
+    "context",
+];
 
 /// Sub-commands for `/vulnscan <sub>`
-static VULNSCAN_SUBS: &[&str] = &["scan", "deps", "file", "lockfile", "sarif", "report", "summary", "db-update", "db-status", "cache-clear"];
+static VULNSCAN_SUBS: &[&str] = &[
+    "scan",
+    "deps",
+    "file",
+    "lockfile",
+    "sarif",
+    "report",
+    "summary",
+    "db-update",
+    "db-status",
+    "cache-clear",
+];
 
 /// Sub-commands for `/dispatch <sub>`
-static DISPATCH_SUBS: &[&str] = &["register", "unregister", "machines", "pair", "unpair", "devices", "send", "cancel", "status", "stats", "heartbeat"];
+static DISPATCH_SUBS: &[&str] = &[
+    "register",
+    "unregister",
+    "machines",
+    "pair",
+    "unpair",
+    "devices",
+    "send",
+    "cancel",
+    "status",
+    "stats",
+    "heartbeat",
+];
 
 /// Sub-commands for `/resources <sub>`
 static RESOURCES_SUBS: &[&str] = &["status", "export", "verify", "path"];
@@ -273,7 +392,15 @@ static TRIAGE_SUBS: &[&str] = &["run", "rules", "labels", "history", "batch"];
 static SEARCH_SUBS: &[&str] = &["web", "cache", "providers", "config"];
 
 /// Sub-commands for `/semindex <sub>`
-static SEMINDEX_SUBS: &[&str] = &["build", "query", "callers", "callees", "hierarchy", "deps", "stats"];
+static SEMINDEX_SUBS: &[&str] = &[
+    "build",
+    "query",
+    "callers",
+    "callees",
+    "hierarchy",
+    "deps",
+    "stats",
+];
 static WEBSEARCH_SUBS: &[&str] = &["web", "search", "citations", "cache"];
 
 /// Sub-commands for `/mcp-http <sub>`
@@ -317,10 +444,23 @@ static SKETCH_SUBS: &[&str] = &["new", "recognize", "generate", "export"];
 
 /// Sub-commands for `/company <sub>`
 static COMPANY_SUBS: &[&str] = &[
-    "create", "list", "switch", "delete", "status",
-    "agent", "goal", "task", "approval", "budget",
-    "secret", "routine", "doc", "heartbeat", "adapter",
-    "export", "import",
+    "create",
+    "list",
+    "switch",
+    "delete",
+    "status",
+    "agent",
+    "goal",
+    "task",
+    "approval",
+    "budget",
+    "secret",
+    "routine",
+    "doc",
+    "heartbeat",
+    "adapter",
+    "export",
+    "import",
 ];
 
 /// Sub-commands for `/arena <sub>`
@@ -349,10 +489,27 @@ static DEPS_SUBS: &[&str] = &["scan", "outdated", "vulnerable", "upgrade", "list
 
 /// Sub-commands for `/deploy <sub>`
 static DEPLOY_SUBS: &[&str] = &[
-    "list", "vercel", "netlify", "railway", "github-pages",
-    "gcp", "firebase", "aws", "aws-apprunner", "aws-s3", "aws-lambda", "aws-ecs",
-    "azure", "azure-appservice", "azure-container", "azure-static",
-    "digitalocean", "kubernetes", "helm", "oci", "ibm",
+    "list",
+    "vercel",
+    "netlify",
+    "railway",
+    "github-pages",
+    "gcp",
+    "firebase",
+    "aws",
+    "aws-apprunner",
+    "aws-s3",
+    "aws-lambda",
+    "aws-ecs",
+    "azure",
+    "azure-appservice",
+    "azure-container",
+    "azure-static",
+    "digitalocean",
+    "kubernetes",
+    "helm",
+    "oci",
+    "ibm",
 ];
 
 /// Sub-commands for `/compliance <sub>`
@@ -514,7 +671,10 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 .map(|cmd| {
                     // Append a space so the user is ready to type args.
                     let repl = format!("{} ", cmd);
-                    Pair { display: cmd.to_string(), replacement: repl }
+                    Pair {
+                        display: cmd.to_string(),
+                        replacement: repl,
+                    }
                 })
                 .collect();
             if matches.is_empty() {
@@ -527,40 +687,40 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
         // ── Space typed: complete sub-commands or file paths ───────────────
         Some(after_space) => {
             let subs: Option<&[&str]> = match first {
-                "/arena"    => Some(ARENA_SUBS),
-                "/bisect"   => Some(BISECT_SUBS),
-                "/deps"     => Some(DEPS_SUBS),
-                "/deploy"   => Some(DEPLOY_SUBS),
-                "/env"      => Some(ENV_SUBS),
-                "/logs"     => Some(LOGS_SUBS),
-                "/markers"  => Some(MARKERS_SUBS),
-                "/mock"     => Some(MOCK_SUBS),
+                "/arena" => Some(ARENA_SUBS),
+                "/bisect" => Some(BISECT_SUBS),
+                "/deps" => Some(DEPS_SUBS),
+                "/deploy" => Some(DEPLOY_SUBS),
+                "/env" => Some(ENV_SUBS),
+                "/logs" => Some(LOGS_SUBS),
+                "/markers" => Some(MARKERS_SUBS),
+                "/mock" => Some(MOCK_SUBS),
                 "/profiler" => Some(PROFILER_SUBS),
-                "/profile"  => Some(PROFILE_SUBS),
-                "/plugin"   => Some(PLUGIN_SUBS),
-                "/memory"   => Some(MEMORY_SUBS),
+                "/profile" => Some(PROFILE_SUBS),
+                "/plugin" => Some(PLUGIN_SUBS),
+                "/memory" => Some(MEMORY_SUBS),
                 "/openmemory" => Some(OPENMEMORY_SUBS),
                 "/vulnscan" => Some(VULNSCAN_SUBS),
                 "/resources" => Some(RESOURCES_SUBS),
                 "/migration" => Some(MIGRATION_SUBS),
-                "/spec"     => Some(SPEC_SUBS),
-                "/agents"   => Some(AGENTS_SUBS),
-                "/team"     => Some(TEAM_SUBS),
-                "/trace"    => Some(TRACE_SUBS),
-                "/mcp"      => Some(MCP_SUBS),
-                "/theme"    => Some(THEME_NAMES),
-                "/snippet"  => Some(SNIPPET_SUBS),
-                "/linear"   => Some(LINEAR_SUBS),
-                "/remind"   => Some(REMIND_SUBS),
-                "/sandbox"  => Some(SANDBOX_SUBS),
+                "/spec" => Some(SPEC_SUBS),
+                "/agents" => Some(AGENTS_SUBS),
+                "/team" => Some(TEAM_SUBS),
+                "/trace" => Some(TRACE_SUBS),
+                "/mcp" => Some(MCP_SUBS),
+                "/theme" => Some(THEME_NAMES),
+                "/snippet" => Some(SNIPPET_SUBS),
+                "/linear" => Some(LINEAR_SUBS),
+                "/remind" => Some(REMIND_SUBS),
+                "/sandbox" => Some(SANDBOX_SUBS),
                 "/schedule" => Some(SCHEDULE_SUBS),
                 "/workflow" => Some(WORKFLOW_SUBS),
-                "/goal"     => Some(GOAL_SUBS),
+                "/goal" => Some(GOAL_SUBS),
                 "/orchestrate" => Some(ORCHESTRATE_SUBS),
-                "/redteam"  => Some(REDTEAM_SUBS),
+                "/redteam" => Some(REDTEAM_SUBS),
                 "/compliance" => Some(COMPLIANCE_SUBS),
-                "/verify"   => Some(VERIFY_SUBS),
-                "/handoff"  => Some(HANDOFF_SUBS),
+                "/verify" => Some(VERIFY_SUBS),
+                "/handoff" => Some(HANDOFF_SUBS),
                 "/appbuilder" => Some(APPBUILDER_SUBS),
                 "/icontext" => Some(ICONTEXT_SUBS),
                 "/batch" => Some(BATCH_SUBS),
@@ -612,7 +772,10 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                     let matches: Vec<Pair> = subs
                         .iter()
                         .filter(|s| s.starts_with(prefix))
-                        .map(|s| Pair { display: s.to_string(), replacement: s.to_string() })
+                        .map(|s| Pair {
+                            display: s.to_string(),
+                            replacement: s.to_string(),
+                        })
                         .collect();
                     if !matches.is_empty() {
                         return Some((start, matches));
@@ -771,8 +934,10 @@ mod tests {
         let hint = command_hint("/rewind");
         assert!(hint.is_some(), "/rewind should have an argument hint");
         let hint_text = hint.unwrap();
-        assert!(hint_text.contains("list") || hint_text.contains("timestamp"),
-            "hint should describe list / timestamp usage, got: {hint_text}");
+        assert!(
+            hint_text.contains("list") || hint_text.contains("timestamp"),
+            "hint should describe list / timestamp usage, got: {hint_text}"
+        );
     }
 
     #[test]
@@ -781,8 +946,10 @@ mod tests {
         let result = complete_slash("/rew");
         let (start, pairs) = result.unwrap();
         assert_eq!(start, 0);
-        assert!(pairs.iter().any(|p| p.display == "/rewind"),
-            "/rew should complete to /rewind");
+        assert!(
+            pairs.iter().any(|p| p.display == "/rewind"),
+            "/rew should complete to /rewind"
+        );
     }
 
     #[test]
@@ -790,17 +957,23 @@ mod tests {
         // completing "/rewind" exactly should offer a trailing-space replacement
         let result = complete_slash("/rewind");
         let (_, pairs) = result.unwrap();
-        assert!(pairs.iter().any(|p| p.replacement == "/rewind "),
-            "completion for /rewind should add trailing space");
+        assert!(
+            pairs.iter().any(|p| p.replacement == "/rewind "),
+            "completion for /rewind should add trailing space"
+        );
     }
 
     #[test]
     fn test_all_commands_in_list() {
         // Spot-check that every command we care about is discoverable
-        for cmd in &["/agent", "/chat", "/rewind", "/fork", "/model", "/cost", "/mcp"] {
+        for cmd in &[
+            "/agent", "/chat", "/rewind", "/fork", "/model", "/cost", "/mcp",
+        ] {
             let result = complete_slash(cmd);
             assert!(
-                result.map(|(_, v)| v.iter().any(|p| &p.display == cmd)).unwrap_or(false),
+                result
+                    .map(|(_, v)| v.iter().any(|p| &p.display == cmd))
+                    .unwrap_or(false),
                 "{cmd} must be in COMMANDS and completable exactly"
             );
         }
@@ -905,8 +1078,8 @@ mod tests {
     #[test]
     fn test_commands_list_contains_core_commands() {
         let core = &[
-            "/agent", "/chat", "/exit", "/quit", "/help", "/model",
-            "/plan", "/exec", "/diff", "/apply", "/status", "/config",
+            "/agent", "/chat", "/exit", "/quit", "/help", "/model", "/plan", "/exec", "/diff",
+            "/apply", "/status", "/config",
         ];
         for cmd in core {
             assert!(
@@ -919,8 +1092,17 @@ mod tests {
     #[test]
     fn test_commands_list_contains_workflow_commands() {
         let workflow = &[
-            "/workflow", "/orchestrate", "/spec", "/deploy", "/test", "/bisect",
-            "/sandbox", "/arena", "/redteam", "/verify", "/handoff",
+            "/workflow",
+            "/orchestrate",
+            "/spec",
+            "/deploy",
+            "/test",
+            "/bisect",
+            "/sandbox",
+            "/arena",
+            "/redteam",
+            "/verify",
+            "/handoff",
         ];
         for cmd in workflow {
             assert!(
@@ -933,8 +1115,16 @@ mod tests {
     #[test]
     fn test_commands_list_contains_utility_commands() {
         let util = &[
-            "/snippet", "/memory", "/trace", "/mcp", "/theme",
-            "/remind", "/schedule", "/jobs", "/sessions", "/share",
+            "/snippet",
+            "/memory",
+            "/trace",
+            "/mcp",
+            "/theme",
+            "/remind",
+            "/schedule",
+            "/jobs",
+            "/sessions",
+            "/share",
         ];
         for cmd in util {
             assert!(
@@ -947,10 +1137,7 @@ mod tests {
     #[test]
     fn test_commands_all_start_with_slash() {
         for cmd in COMMANDS {
-            assert!(
-                cmd.starts_with('/'),
-                "command {cmd} must start with '/'"
-            );
+            assert!(cmd.starts_with('/'), "command {cmd} must start with '/'");
         }
     }
 
@@ -1070,9 +1257,11 @@ mod tests {
             assert!(result.is_some(), "completion failed for '{input}'");
             let (_, pairs) = result.unwrap();
             assert_eq!(
-                pairs.len(), subs.len(),
+                pairs.len(),
+                subs.len(),
                 "sub-command count mismatch for {cmd}: expected {}, got {}",
-                subs.len(), pairs.len()
+                subs.len(),
+                pairs.len()
             );
         }
     }
@@ -1083,16 +1272,63 @@ mod tests {
     fn test_every_hinted_command_exists_in_commands_list() {
         // Every command that has a hint should exist in the COMMANDS list
         let hinted = &[
-            "/agent", "/arena", "/autofix", "/bisect", "/plan", "/chat",
-            "/deps", "/deploy", "/env", "/profiler", "/generate", "/diff",
-            "/apply", "/exec", "/qa", "/index", "/resume", "/profile",
-            "/plugin", "/memory", "/trace", "/mcp", "/logs", "/markers",
-            "/mock", "/migration", "/model", "/notebook", "/compliance",
-            "/cost", "/context", "/status", "/fork", "/rewind", "/spec",
-            "/agents", "/team", "/test", "/theme", "/snippet", "/linear",
-            "/remind", "/schedule", "/jobs", "/sessions", "/share",
-            "/workflow", "/goal", "/redteam", "/voice", "/discover", "/pair",
-            "/sandbox", "/verify", "/handoff", "/orient", "/research",
+            "/agent",
+            "/arena",
+            "/autofix",
+            "/bisect",
+            "/plan",
+            "/chat",
+            "/deps",
+            "/deploy",
+            "/env",
+            "/profiler",
+            "/generate",
+            "/diff",
+            "/apply",
+            "/exec",
+            "/qa",
+            "/index",
+            "/resume",
+            "/profile",
+            "/plugin",
+            "/memory",
+            "/trace",
+            "/mcp",
+            "/logs",
+            "/markers",
+            "/mock",
+            "/migration",
+            "/model",
+            "/notebook",
+            "/compliance",
+            "/cost",
+            "/context",
+            "/status",
+            "/fork",
+            "/rewind",
+            "/spec",
+            "/agents",
+            "/team",
+            "/test",
+            "/theme",
+            "/snippet",
+            "/linear",
+            "/remind",
+            "/schedule",
+            "/jobs",
+            "/sessions",
+            "/share",
+            "/workflow",
+            "/goal",
+            "/redteam",
+            "/voice",
+            "/discover",
+            "/pair",
+            "/sandbox",
+            "/verify",
+            "/handoff",
+            "/orient",
+            "/research",
         ];
         for cmd in hinted {
             assert!(command_hint(cmd).is_some(), "{cmd} should have a hint");
@@ -1140,9 +1376,15 @@ mod tests {
         let line = "/agent do something";
         let result = helper.highlight(line, 0);
         // Should contain the ANSI cyan code \x1b[36m
-        assert!(result.contains("\x1b[36m"), "known command should be coloured cyan");
+        assert!(
+            result.contains("\x1b[36m"),
+            "known command should be coloured cyan"
+        );
         assert!(result.contains("/agent"), "should contain the command text");
-        assert!(result.contains("do something"), "should contain rest of text");
+        assert!(
+            result.contains("do something"),
+            "should contain rest of text"
+        );
     }
 
     #[test]
@@ -1151,15 +1393,24 @@ mod tests {
         let line = "/zzz whatever";
         let result = helper.highlight(line, 0);
         // Unknown commands should NOT get cyan colouring by our logic
-        assert!(!result.contains("\x1b[36m"), "unknown command should not be cyan");
+        assert!(
+            !result.contains("\x1b[36m"),
+            "unknown command should not be cyan"
+        );
     }
 
     #[test]
     fn test_highlight_hint_renders_dim() {
         let helper = VibeHelper::new();
         let result = helper.highlight_hint("some hint text");
-        assert!(result.contains("\x1b[2m"), "hint should start with dim ANSI");
+        assert!(
+            result.contains("\x1b[2m"),
+            "hint should start with dim ANSI"
+        );
         assert!(result.contains("\x1b[m"), "hint should end with ANSI reset");
-        assert!(result.contains("some hint text"), "hint text should be present");
+        assert!(
+            result.contains("some hint text"),
+            "hint text should be present"
+        );
     }
 }

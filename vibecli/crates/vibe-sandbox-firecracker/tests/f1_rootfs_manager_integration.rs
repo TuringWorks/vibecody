@@ -37,10 +37,8 @@ fn manager_round_trip_against_real_artifact() {
         return;
     };
 
-    let cache = std::env::temp_dir().join(format!(
-        "vibe_rootfs_integration_{}",
-        std::process::id()
-    ));
+    let cache =
+        std::env::temp_dir().join(format!("vibe_rootfs_integration_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&cache);
 
     let mgr = RootfsManager::new(&cache);

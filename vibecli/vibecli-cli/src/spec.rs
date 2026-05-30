@@ -30,7 +30,6 @@ pub enum SpecStatus {
     Done,
 }
 
-
 impl fmt::Display for SpecStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -53,7 +52,11 @@ pub struct SpecTask {
 
 impl SpecTask {
     pub fn new(id: u32, description: impl Into<String>) -> Self {
-        Self { id, description: description.into(), done: false }
+        Self {
+            id,
+            description: description.into(),
+            done: false,
+        }
     }
 }
 
@@ -87,10 +90,14 @@ impl Spec {
 
     /// Build a string ready for serialization back to disk.
     pub fn to_file_content(&self) -> String {
-        let tasks_md: String = self.tasks.iter().map(|t| {
-            let check = if t.done { "x" } else { " " };
-            format!("- [{}] **{}**: {}\n", check, t.id, t.description)
-        }).collect();
+        let tasks_md: String = self
+            .tasks
+            .iter()
+            .map(|t| {
+                let check = if t.done { "x" } else { " " };
+                format!("- [{}] **{}**: {}\n", check, t.id, t.description)
+            })
+            .collect();
 
         // Strip any existing ## Tasks section from body to avoid duplication
         let clean_body = if let Some(pos) = self.body.find("\n## Tasks") {
@@ -109,14 +116,22 @@ impl Spec {
 
     /// Build a context string to inject into agent system prompt.
     pub fn context_string(&self) -> String {
-        let pending: Vec<String> = self.tasks.iter()
+        let pending: Vec<String> = self
+            .tasks
+            .iter()
             .filter(|t| !t.done)
             .map(|t| format!("{}. {}", t.id, t.description))
             .collect();
         format!(
             "=== Spec: {} (status: {}) ===\nRequirements: {}\n\nPending tasks:\n{}\n",
-            self.name, self.status, self.requirements,
-            if pending.is_empty() { "All done!".to_string() } else { pending.join("\n") }
+            self.name,
+            self.status,
+            self.requirements,
+            if pending.is_empty() {
+                "All done!".to_string()
+            } else {
+                pending.join("\n")
+            }
         )
     }
 }
@@ -131,7 +146,9 @@ pub struct SpecManager {
 impl SpecManager {
     /// Create a manager rooted at `workspace_root/.vibecli/specs/`.
     pub fn for_workspace(workspace_root: &Path) -> Self {
-        Self { specs_dir: workspace_root.join(".vibecli").join("specs") }
+        Self {
+            specs_dir: workspace_root.join(".vibecli").join("specs"),
+        }
     }
 
     /// Create a manager rooted at a given directory.
@@ -228,7 +245,10 @@ impl SpecManager {
             let after_open = stripped.trim_start_matches('\n');
             if let Some(close_pos) = after_open.find("\n---") {
                 let fm = &after_open[..close_pos];
-                body = after_open[close_pos..].trim_start_matches("\n---").trim_start().to_string();
+                body = after_open[close_pos..]
+                    .trim_start_matches("\n---")
+                    .trim_start()
+                    .to_string();
                 for line in fm.lines() {
                     if let Some((k, v)) = line.split_once(':') {
                         let val = v.trim().trim_matches('"').trim_matches('\'');
@@ -259,17 +279,26 @@ impl SpecManager {
             } else {
                 continue;
             };
-            if rest.is_empty() { continue; }
+            if rest.is_empty() {
+                continue;
+            }
             let (id, desc) = if let Some(stripped) = rest.strip_prefix("**") {
                 if let Some((id_part, desc_part)) = stripped.split_once("**:") {
-                    (id_part.parse::<u32>().unwrap_or(tasks.len() as u32 + 1), desc_part.trim().to_string())
+                    (
+                        id_part.parse::<u32>().unwrap_or(tasks.len() as u32 + 1),
+                        desc_part.trim().to_string(),
+                    )
                 } else {
                     (tasks.len() as u32 + 1, rest.to_string())
                 }
             } else {
                 (tasks.len() as u32 + 1, rest.to_string())
             };
-            tasks.push(SpecTask { id, description: desc, done });
+            tasks.push(SpecTask {
+                id,
+                description: desc,
+                done,
+            });
         }
 
         Ok(Spec {
@@ -367,8 +396,16 @@ mod tests {
             status: SpecStatus::Approved,
             requirements: "Do X".to_string(),
             tasks: vec![
-                SpecTask { id: 1, description: "Step 1".to_string(), done: true },
-                SpecTask { id: 2, description: "Step 2".to_string(), done: false },
+                SpecTask {
+                    id: 1,
+                    description: "Step 1".to_string(),
+                    done: true,
+                },
+                SpecTask {
+                    id: 2,
+                    description: "Step 2".to_string(),
+                    done: false,
+                },
             ],
             body: String::new(),
             source: PathBuf::from("feat.md"),
@@ -385,9 +422,21 @@ mod tests {
             status: SpecStatus::InProgress,
             requirements: String::new(),
             tasks: vec![
-                SpecTask { id: 1, description: "a".to_string(), done: true },
-                SpecTask { id: 2, description: "b".to_string(), done: false },
-                SpecTask { id: 3, description: "c".to_string(), done: false },
+                SpecTask {
+                    id: 1,
+                    description: "a".to_string(),
+                    done: true,
+                },
+                SpecTask {
+                    id: 2,
+                    description: "b".to_string(),
+                    done: false,
+                },
+                SpecTask {
+                    id: 3,
+                    description: "c".to_string(),
+                    done: false,
+                },
             ],
             body: String::new(),
             source: PathBuf::from("x.md"),
@@ -425,8 +474,16 @@ mod tests {
             status: SpecStatus::Done,
             requirements: "all done".to_string(),
             tasks: vec![
-                SpecTask { id: 1, description: "a".to_string(), done: true },
-                SpecTask { id: 2, description: "b".to_string(), done: true },
+                SpecTask {
+                    id: 1,
+                    description: "a".to_string(),
+                    done: true,
+                },
+                SpecTask {
+                    id: 2,
+                    description: "b".to_string(),
+                    done: true,
+                },
             ],
             body: String::new(),
             source: PathBuf::from("done.md"),
@@ -455,9 +512,11 @@ mod tests {
             name: "f".to_string(),
             status: SpecStatus::Done,
             requirements: "req".to_string(),
-            tasks: vec![
-                SpecTask { id: 1, description: "a".to_string(), done: true },
-            ],
+            tasks: vec![SpecTask {
+                id: 1,
+                description: "a".to_string(),
+                done: true,
+            }],
             body: String::new(),
             source: PathBuf::from("f.md"),
         };
@@ -490,7 +549,11 @@ mod tests {
             name: "s".to_string(),
             status: SpecStatus::Done,
             requirements: String::new(),
-            tasks: vec![SpecTask { id: 1, description: "done task".to_string(), done: true }],
+            tasks: vec![SpecTask {
+                id: 1,
+                description: "done task".to_string(),
+                done: true,
+            }],
             body: String::new(),
             source: PathBuf::from("s.md"),
         };

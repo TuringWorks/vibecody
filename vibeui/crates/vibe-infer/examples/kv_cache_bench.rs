@@ -148,9 +148,15 @@ fn run_distribution(
 
     print_header();
     let query_seed = 99u64;
-    print_row(&fidelity_turboquant(&codec, &tensor, num_heads, seq_len, query_seed));
-    print_row(&fidelity_fp8(&tensor, num_heads, seq_len, head_dim, query_seed));
-    print_row(&fidelity_int8(&tensor, num_heads, seq_len, head_dim, query_seed));
+    print_row(&fidelity_turboquant(
+        &codec, &tensor, num_heads, seq_len, query_seed,
+    ));
+    print_row(&fidelity_fp8(
+        &tensor, num_heads, seq_len, head_dim, query_seed,
+    ));
+    print_row(&fidelity_int8(
+        &tensor, num_heads, seq_len, head_dim, query_seed,
+    ));
 }
 
 /// Throughput sweep across realistic context lengths. Reports prefill TPS
@@ -243,8 +249,10 @@ fn main() {
     run_tps_sweep(num_heads, head_dim);
 
     println!("\n── Phase 3 interpretation ──");
-    println!("  • TurboQuant gives ~{:.1}× memory savings vs fp16 at head_dim={head_dim}.",
-        2.0 / 0.4375);
+    println!(
+        "  • TurboQuant gives ~{:.1}× memory savings vs fp16 at head_dim={head_dim}.",
+        2.0 / 0.4375
+    );
     println!("  • Fp8 / Int8 give 2.0× savings, effectively lossless on both distributions.");
     println!("  • On *realistic* (spiked) data, `attn_mae` and `top1_agree` tell you whether");
     println!("    TurboQuant's 2.3× extra savings cost you any real tokens. Judge viability");

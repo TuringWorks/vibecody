@@ -2,10 +2,10 @@
  * BDD tests for watch_auth — device registration, JWT lifecycle, security.
  * Run with: cargo test --test watch_auth_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use vibecli_cli::watch_auth::{
-    WatchAuthManager, WatchClaims, WatchDevice, WristEvent,
-    NONCE_TTL_SECS, verify_ed25519_signature_pub,
+    verify_ed25519_signature_pub, WatchAuthManager, WatchClaims, WatchDevice, WristEvent,
+    NONCE_TTL_SECS,
 };
 
 // ── World ─────────────────────────────────────────────────────────────────────
@@ -30,10 +30,7 @@ fn now_unix() -> u64 {
 }
 
 fn fresh() -> WatchAuthManager {
-    WatchAuthManager::for_testing(
-        "test-machine",
-        b"test-secret-32-bytes-for-hmac!!!".to_vec(),
-    )
+    WatchAuthManager::for_testing("test-machine", b"test-secret-32-bytes-for-hmac!!!".to_vec())
 }
 
 fn with_machine(id: &str) -> WatchAuthManager {
@@ -123,13 +120,15 @@ fn consume_nonce(world: &mut WatchAuthWorld) {
     // and if we issue another challenge the first remains until consumed.
     // This step simply records the state.
     let _ = mgr; // consumed marker — Then checks has_pending_nonce
-    // Note: actual consumption happens in register_device (removes from map).
-    // We test single-use by verifying the nonce IS pending right after issuance
-    // and then verify it's absent after removal simulation.
-    // Use internal helper:
+                 // Note: actual consumption happens in register_device (removes from map).
+                 // We test single-use by verifying the nonce IS pending right after issuance
+                 // and then verify it's absent after removal simulation.
+                 // Use internal helper:
     let nonce = world.nonce.clone();
-    assert!(world.mgr.as_ref().unwrap().has_pending_nonce(&nonce),
-        "nonce should be pending before consumption");
+    assert!(
+        world.mgr.as_ref().unwrap().has_pending_nonce(&nonce),
+        "nonce should be pending before consumption"
+    );
     // Simulate consumption: in production, register_device() removes the nonce.
     // Here we call issue_challenge a second time and check the original remains.
     let _ = world.mgr.as_mut().unwrap().issue_challenge();
@@ -219,7 +218,10 @@ fn check_nonce_hex(world: &mut WatchAuthWorld) {
 
 #[then("the nonce expiry should be NONCE_TTL_SECS seconds from now")]
 fn check_nonce_expiry(world: &mut WatchAuthWorld) {
-    assert_eq!(world.challenge_expires_at - world.challenge_issued_at, NONCE_TTL_SECS);
+    assert_eq!(
+        world.challenge_expires_at - world.challenge_issued_at,
+        NONCE_TTL_SECS
+    );
 }
 
 #[then("the nonce should no longer be pending")]
@@ -233,10 +235,12 @@ fn check_nonce_consumed(world: &mut WatchAuthWorld) {
     // This scenario tests that issue_challenge creates a single entry.
     // The "no longer pending" state occurs AFTER register_device removes it.
     // We verify the has_pending_nonce API is consistent with what we issued.
-    assert!(world.mgr.as_ref().unwrap().has_pending_nonce(&nonce)
-        || !world.mgr.as_ref().unwrap().has_pending_nonce(&nonce),
+    assert!(
+        world.mgr.as_ref().unwrap().has_pending_nonce(&nonce)
+            || !world.mgr.as_ref().unwrap().has_pending_nonce(&nonce),
         // The important thing is the API doesn't panic
-        "has_pending_nonce should be callable without error");
+        "has_pending_nonce should be callable without error"
+    );
 }
 
 #[then(expr = "the token claims should have sub {string}")]
@@ -264,8 +268,12 @@ fn check_token_kind(world: &mut WatchAuthWorld, expected: String) {
 fn check_verify_fails(world: &mut WatchAuthWorld, needle: String) {
     let mgr = world.mgr.as_ref().unwrap();
     let err = mgr.decode_jwt_pub(&world.token).unwrap_err();
-    assert!(err.to_string().contains(&needle),
-        "expected '{}' in: {}", needle, err);
+    assert!(
+        err.to_string().contains(&needle),
+        "expected '{}' in: {}",
+        needle,
+        err
+    );
 }
 
 #[then("decoding the token should fail")]
@@ -309,7 +317,5 @@ fn check_wrist_not_suspended(world: &mut WatchAuthWorld) {
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 fn main() {
-    futures::executor::block_on(WatchAuthWorld::run(
-        "tests/features/watch_auth.feature",
-    ));
+    futures::executor::block_on(WatchAuthWorld::run("tests/features/watch_auth.feature"));
 }

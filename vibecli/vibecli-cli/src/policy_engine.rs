@@ -209,15 +209,19 @@ impl DerivedRoleSet {
 
         for dr in &self.roles {
             // Principal must hold at least one parent role.
-            let has_parent = dr.parent_roles.iter().any(|pr| principal.roles.contains(pr));
+            let has_parent = dr
+                .parent_roles
+                .iter()
+                .any(|pr| principal.roles.contains(pr));
             if !has_parent {
                 continue;
             }
 
             // All conditions must pass.
-            let conditions_pass = dr.conditions.iter().all(|c| {
-                evaluator.evaluate(c, principal, resource, &empty_aux)
-            });
+            let conditions_pass = dr
+                .conditions
+                .iter()
+                .all(|c| evaluator.evaluate(c, principal, resource, &empty_aux));
             if conditions_pass {
                 derived.push(dr.name.clone());
             }
@@ -288,7 +292,9 @@ impl ConditionEvaluator {
                 let lhs = resolved.clone().unwrap_or_default();
                 match &condition.value {
                     ConditionValue::String(s) => lhs == *s,
-                    ConditionValue::Number(n) => lhs.parse::<f64>().is_ok_and(|v| (v - n).abs() < f64::EPSILON),
+                    ConditionValue::Number(n) => lhs
+                        .parse::<f64>()
+                        .is_ok_and(|v| (v - n).abs() < f64::EPSILON),
                     ConditionValue::Bool(b) => lhs.parse::<bool>() == Ok(*b),
                     ConditionValue::Null => is_none,
                     ConditionValue::List(_) => false,
@@ -298,7 +304,9 @@ impl ConditionEvaluator {
                 let lhs = resolved.clone().unwrap_or_default();
                 match &condition.value {
                     ConditionValue::String(s) => lhs != *s,
-                    ConditionValue::Number(n) => lhs.parse::<f64>().map_or(true, |v| (v - n).abs() >= f64::EPSILON),
+                    ConditionValue::Number(n) => lhs
+                        .parse::<f64>()
+                        .map_or(true, |v| (v - n).abs() >= f64::EPSILON),
                     ConditionValue::Bool(b) => lhs.parse::<bool>() != Ok(*b),
                     ConditionValue::Null => is_some,
                     ConditionValue::List(_) => true,
@@ -526,7 +534,9 @@ impl PolicyEngine {
         let request_id = format!("req-{}", self.request_counter);
 
         // Resolve derived roles for this principal + resource.
-        let derived = self.derived_roles.resolve_roles(&request.principal, &request.resource);
+        let derived = self
+            .derived_roles
+            .resolve_roles(&request.principal, &request.resource);
 
         // All effective roles = direct roles + derived roles.
         let mut effective_roles: Vec<String> = request.principal.roles.clone();
@@ -549,14 +559,23 @@ impl PolicyEngine {
 
             for rule in &policy.rules {
                 // Check action match (supports wildcard "*").
-                let action_match = rule.actions.iter().any(|a| a == "*" || a == &request.action);
+                let action_match = rule
+                    .actions
+                    .iter()
+                    .any(|a| a == "*" || a == &request.action);
                 if !action_match {
                     continue;
                 }
 
                 // Check role match.
-                let role_match = rule.roles.iter().any(|r| r == "*" || effective_roles.contains(r))
-                    || rule.derived_roles.iter().any(|dr| effective_roles.contains(dr));
+                let role_match = rule
+                    .roles
+                    .iter()
+                    .any(|r| r == "*" || effective_roles.contains(r))
+                    || rule
+                        .derived_roles
+                        .iter()
+                        .any(|dr| effective_roles.contains(dr));
                 if !role_match {
                     continue;
                 }
@@ -761,7 +780,11 @@ impl PolicySerializer {
                     actions: vec!["read".to_string(), "list".to_string()],
                     effect: Effect::Allow,
                     conditions: Vec::new(),
-                    roles: vec!["viewer".to_string(), "editor".to_string(), "admin".to_string()],
+                    roles: vec![
+                        "viewer".to_string(),
+                        "editor".to_string(),
+                        "admin".to_string(),
+                    ],
                     derived_roles: Vec::new(),
                     priority: 10,
                 },
@@ -892,10 +915,9 @@ impl PolicyAnalytics {
                         }
 
                         // Find overlapping roles.
-                        let role_overlap = ra
-                            .roles
-                            .iter()
-                            .any(|r| rb.roles.contains(r) || rb.roles.contains(&"*".to_string()) || r == "*");
+                        let role_overlap = ra.roles.iter().any(|r| {
+                            rb.roles.contains(r) || rb.roles.contains(&"*".to_string()) || r == "*"
+                        });
 
                         if !role_overlap {
                             continue;
@@ -934,9 +956,11 @@ impl PolicyAnalytics {
         let matched: std::collections::HashSet<String> = audit_log
             .iter()
             .filter_map(|entry| {
-                entry.result.matched_rule.as_ref().map(|rule_id| {
-                    format!("{}:{}", entry.result.policy_id, rule_id)
-                })
+                entry
+                    .result
+                    .matched_rule
+                    .as_ref()
+                    .map(|rule_id| format!("{}:{}", entry.result.policy_id, rule_id))
             })
             .collect();
 
@@ -1105,8 +1129,13 @@ mod tests {
             vec![
                 PolicyRule::new("read-rule", "Read", vec!["read", "list"], Effect::Allow)
                     .with_roles(vec!["viewer", "editor", "admin"]),
-                PolicyRule::new("write-rule", "Write", vec!["create", "update"], Effect::Allow)
-                    .with_roles(vec!["editor", "admin"]),
+                PolicyRule::new(
+                    "write-rule",
+                    "Write",
+                    vec!["create", "update"],
+                    Effect::Allow,
+                )
+                .with_roles(vec!["editor", "admin"]),
                 PolicyRule::new("delete-rule", "Delete", vec!["delete"], Effect::Allow)
                     .with_roles(vec!["admin"]),
             ],
@@ -1221,7 +1250,12 @@ mod tests {
         for action in &["read", "list", "create", "update", "delete"] {
             let req = CheckRequest::new(make_admin(), make_document(), action);
             let result = engine.check(&req);
-            assert_eq!(result.effect, Effect::Allow, "admin should be allowed to {}", action);
+            assert_eq!(
+                result.effect,
+                Effect::Allow,
+                "admin should be allowed to {}",
+                action
+            );
         }
     }
 
@@ -1265,8 +1299,10 @@ mod tests {
             "Catch All",
             "document",
             PolicyType::ResourcePolicy,
-            vec![PolicyRule::new("any-action", "Any", vec!["*"], Effect::Allow)
-                .with_roles(vec!["superadmin"])],
+            vec![
+                PolicyRule::new("any-action", "Any", vec!["*"], Effect::Allow)
+                    .with_roles(vec!["superadmin"]),
+            ],
         );
         engine.add_policy(policy).unwrap();
 
@@ -1284,8 +1320,10 @@ mod tests {
             "Public Read",
             "document",
             PolicyType::ResourcePolicy,
-            vec![PolicyRule::new("public", "Public", vec!["read"], Effect::Allow)
-                .with_roles(vec!["*"])],
+            vec![
+                PolicyRule::new("public", "Public", vec!["read"], Effect::Allow)
+                    .with_roles(vec!["*"]),
+            ],
         );
         engine.add_policy(policy).unwrap();
 
@@ -1308,8 +1346,9 @@ mod tests {
             "Document Wildcard",
             "document:*",
             PolicyType::ResourcePolicy,
-            vec![PolicyRule::new("r1", "R1", vec!["read"], Effect::Allow)
-                .with_roles(vec!["viewer"])],
+            vec![
+                PolicyRule::new("r1", "R1", vec!["read"], Effect::Allow).with_roles(vec!["viewer"])
+            ],
         );
         engine.add_policy(policy).unwrap();
 
@@ -1326,7 +1365,11 @@ mod tests {
         let evaluator = ConditionEvaluator;
         let principal = make_viewer().with_attr("department", "engineering");
         let resource = make_document();
-        let cond = Condition::new("P.attr.department", ConditionOperator::Eq, ConditionValue::String("engineering".into()));
+        let cond = Condition::new(
+            "P.attr.department",
+            ConditionOperator::Eq,
+            ConditionValue::String("engineering".into()),
+        );
         assert!(evaluator.evaluate(&cond, &principal, &resource, &HashMap::new()));
     }
 
@@ -1335,7 +1378,11 @@ mod tests {
         let evaluator = ConditionEvaluator;
         let principal = make_viewer().with_attr("department", "sales");
         let resource = make_document();
-        let cond = Condition::new("P.attr.department", ConditionOperator::Eq, ConditionValue::String("engineering".into()));
+        let cond = Condition::new(
+            "P.attr.department",
+            ConditionOperator::Eq,
+            ConditionValue::String("engineering".into()),
+        );
         assert!(!evaluator.evaluate(&cond, &principal, &resource, &HashMap::new()));
     }
 
@@ -1344,7 +1391,11 @@ mod tests {
         let evaluator = ConditionEvaluator;
         let principal = make_viewer().with_attr("status", "active");
         let resource = make_document();
-        let cond = Condition::new("P.attr.status", ConditionOperator::NotEq, ConditionValue::String("disabled".into()));
+        let cond = Condition::new(
+            "P.attr.status",
+            ConditionOperator::NotEq,
+            ConditionValue::String("disabled".into()),
+        );
         assert!(evaluator.evaluate(&cond, &principal, &resource, &HashMap::new()));
     }
 
@@ -1379,7 +1430,11 @@ mod tests {
         let evaluator = ConditionEvaluator;
         let principal = make_viewer().with_attr("email", "alice@example.com");
         let resource = make_document();
-        let cond = Condition::new("P.attr.email", ConditionOperator::Contains, ConditionValue::String("example.com".into()));
+        let cond = Condition::new(
+            "P.attr.email",
+            ConditionOperator::Contains,
+            ConditionValue::String("example.com".into()),
+        );
         assert!(evaluator.evaluate(&cond, &principal, &resource, &HashMap::new()));
     }
 
@@ -1388,7 +1443,11 @@ mod tests {
         let evaluator = ConditionEvaluator;
         let principal = Principal::new("u1", vec![]);
         let resource = Resource::new("file", "f1").with_attr("path", "/home/alice/docs/report.pdf");
-        let cond = Condition::new("R.attr.path", ConditionOperator::StartsWith, ConditionValue::String("/home/alice".into()));
+        let cond = Condition::new(
+            "R.attr.path",
+            ConditionOperator::StartsWith,
+            ConditionValue::String("/home/alice".into()),
+        );
         assert!(evaluator.evaluate(&cond, &principal, &resource, &HashMap::new()));
     }
 
@@ -1397,7 +1456,11 @@ mod tests {
         let evaluator = ConditionEvaluator;
         let principal = Principal::new("u1", vec![]);
         let resource = Resource::new("file", "f1").with_attr("name", "report.pdf");
-        let cond = Condition::new("R.attr.name", ConditionOperator::EndsWith, ConditionValue::String(".pdf".into()));
+        let cond = Condition::new(
+            "R.attr.name",
+            ConditionOperator::EndsWith,
+            ConditionValue::String(".pdf".into()),
+        );
         assert!(evaluator.evaluate(&cond, &principal, &resource, &HashMap::new()));
     }
 
@@ -1432,7 +1495,11 @@ mod tests {
         let evaluator = ConditionEvaluator;
         let principal = make_viewer().with_attr("clearance", "5");
         let resource = make_document();
-        let cond = Condition::new("P.attr.clearance", ConditionOperator::Gt, ConditionValue::Number(3.0));
+        let cond = Condition::new(
+            "P.attr.clearance",
+            ConditionOperator::Gt,
+            ConditionValue::Number(3.0),
+        );
         assert!(evaluator.evaluate(&cond, &principal, &resource, &HashMap::new()));
     }
 
@@ -1441,7 +1508,11 @@ mod tests {
         let evaluator = ConditionEvaluator;
         let principal = make_viewer().with_attr("risk_score", "2");
         let resource = make_document();
-        let cond = Condition::new("P.attr.risk_score", ConditionOperator::Lt, ConditionValue::Number(5.0));
+        let cond = Condition::new(
+            "P.attr.risk_score",
+            ConditionOperator::Lt,
+            ConditionValue::Number(5.0),
+        );
         assert!(evaluator.evaluate(&cond, &principal, &resource, &HashMap::new()));
     }
 
@@ -1450,7 +1521,11 @@ mod tests {
         let evaluator = ConditionEvaluator;
         let principal = make_viewer().with_attr("level", "10");
         let resource = make_document();
-        let cond = Condition::new("P.attr.level", ConditionOperator::Gte, ConditionValue::Number(10.0));
+        let cond = Condition::new(
+            "P.attr.level",
+            ConditionOperator::Gte,
+            ConditionValue::Number(10.0),
+        );
         assert!(evaluator.evaluate(&cond, &principal, &resource, &HashMap::new()));
     }
 
@@ -1459,7 +1534,11 @@ mod tests {
         let evaluator = ConditionEvaluator;
         let principal = make_viewer().with_attr("age", "18");
         let resource = make_document();
-        let cond = Condition::new("P.attr.age", ConditionOperator::Lte, ConditionValue::Number(21.0));
+        let cond = Condition::new(
+            "P.attr.age",
+            ConditionOperator::Lte,
+            ConditionValue::Number(21.0),
+        );
         assert!(evaluator.evaluate(&cond, &principal, &resource, &HashMap::new()));
     }
 
@@ -1468,7 +1547,11 @@ mod tests {
         let evaluator = ConditionEvaluator;
         let principal = make_viewer().with_attr("version", "3");
         let resource = make_document();
-        let cond = Condition::new("P.attr.version", ConditionOperator::Eq, ConditionValue::Number(3.0));
+        let cond = Condition::new(
+            "P.attr.version",
+            ConditionOperator::Eq,
+            ConditionValue::Number(3.0),
+        );
         assert!(evaluator.evaluate(&cond, &principal, &resource, &HashMap::new()));
     }
 
@@ -1477,7 +1560,11 @@ mod tests {
         let evaluator = ConditionEvaluator;
         let principal = make_viewer().with_attr("mfa_enabled", "true");
         let resource = make_document();
-        let cond = Condition::new("P.attr.mfa_enabled", ConditionOperator::Eq, ConditionValue::Bool(true));
+        let cond = Condition::new(
+            "P.attr.mfa_enabled",
+            ConditionOperator::Eq,
+            ConditionValue::Bool(true),
+        );
         assert!(evaluator.evaluate(&cond, &principal, &resource, &HashMap::new()));
     }
 
@@ -1486,7 +1573,11 @@ mod tests {
         let evaluator = ConditionEvaluator;
         let principal = make_viewer().with_attr("suspended", "false");
         let resource = make_document();
-        let cond = Condition::new("P.attr.suspended", ConditionOperator::Not, ConditionValue::Bool(true));
+        let cond = Condition::new(
+            "P.attr.suspended",
+            ConditionOperator::Not,
+            ConditionValue::Bool(true),
+        );
         assert!(evaluator.evaluate(&cond, &principal, &resource, &HashMap::new()));
     }
 
@@ -1495,7 +1586,11 @@ mod tests {
         let evaluator = ConditionEvaluator;
         let principal = Principal::new("u1", vec![]);
         let resource = Resource::new("document", "d1");
-        let cond = Condition::new("R.kind", ConditionOperator::Eq, ConditionValue::String("document".into()));
+        let cond = Condition::new(
+            "R.kind",
+            ConditionOperator::Eq,
+            ConditionValue::String("document".into()),
+        );
         assert!(evaluator.evaluate(&cond, &principal, &resource, &HashMap::new()));
     }
 
@@ -1504,7 +1599,11 @@ mod tests {
         let evaluator = ConditionEvaluator;
         let principal = Principal::new("u1", vec![]);
         let resource = Resource::new("document", "d1");
-        let cond = Condition::new("R.id", ConditionOperator::Eq, ConditionValue::String("d1".into()));
+        let cond = Condition::new(
+            "R.id",
+            ConditionOperator::Eq,
+            ConditionValue::String("d1".into()),
+        );
         assert!(evaluator.evaluate(&cond, &principal, &resource, &HashMap::new()));
     }
 
@@ -1513,7 +1612,11 @@ mod tests {
         let evaluator = ConditionEvaluator;
         let principal = Principal::new("alice", vec![]);
         let resource = Resource::new("document", "d1");
-        let cond = Condition::new("P.id", ConditionOperator::Eq, ConditionValue::String("alice".into()));
+        let cond = Condition::new(
+            "P.id",
+            ConditionOperator::Eq,
+            ConditionValue::String("alice".into()),
+        );
         assert!(evaluator.evaluate(&cond, &principal, &resource, &HashMap::new()));
     }
 
@@ -1524,7 +1627,11 @@ mod tests {
         let resource = Resource::new("document", "d1");
         let mut aux = HashMap::new();
         aux.insert("ip_country".to_string(), "US".to_string());
-        let cond = Condition::new("aux.ip_country", ConditionOperator::Eq, ConditionValue::String("US".into()));
+        let cond = Condition::new(
+            "aux.ip_country",
+            ConditionOperator::Eq,
+            ConditionValue::String("US".into()),
+        );
         assert!(evaluator.evaluate(&cond, &principal, &resource, &aux));
     }
 
@@ -1550,8 +1657,8 @@ mod tests {
         );
         engine.add_policy(policy).unwrap();
 
-        let principal = Principal::new("alice", vec!["employee"])
-            .with_attr("department", "engineering");
+        let principal =
+            Principal::new("alice", vec!["employee"]).with_attr("department", "engineering");
         let req = CheckRequest::new(principal, make_document(), "read");
         let result = engine.check(&req);
         assert_eq!(result.effect, Effect::Allow);
@@ -1577,8 +1684,8 @@ mod tests {
         );
         engine.add_policy(policy).unwrap();
 
-        let principal = Principal::new("bob", vec!["employee"])
-            .with_attr("department", "marketing");
+        let principal =
+            Principal::new("bob", vec!["employee"]).with_attr("department", "marketing");
         let req = CheckRequest::new(principal, make_document(), "read");
         let result = engine.check(&req);
         assert_eq!(result.effect, Effect::Deny);
@@ -1632,12 +1739,11 @@ mod tests {
     fn test_derived_role_resolution() {
         let mut drs = DerivedRoleSet::new();
         drs.add_role(
-            DerivedRole::new("owner", vec!["employee"])
-                .with_condition(Condition::new(
-                    "P.attr.owner_id",
-                    ConditionOperator::Eq,
-                    ConditionValue::String("doc-42".into()),
-                )),
+            DerivedRole::new("owner", vec!["employee"]).with_condition(Condition::new(
+                "P.attr.owner_id",
+                ConditionOperator::Eq,
+                ConditionValue::String("doc-42".into()),
+            )),
         );
 
         // Matches
@@ -1666,24 +1772,26 @@ mod tests {
     #[test]
     fn test_derived_role_in_engine() {
         let mut engine = PolicyEngine::new();
-        engine.add_derived_role(
-            DerivedRole::new("owner", vec!["employee"])
-                .with_condition(Condition::new(
-                    "R.attr.owner_id",
-                    ConditionOperator::Eq,
-                    ConditionValue::String("alice".into()),
-                )),
-        );
+        engine.add_derived_role(DerivedRole::new("owner", vec!["employee"]).with_condition(
+            Condition::new(
+                "R.attr.owner_id",
+                ConditionOperator::Eq,
+                ConditionValue::String("alice".into()),
+            ),
+        ));
 
         let policy = Policy::new(
             "owner-policy",
             "Owner Policy",
             "document",
             PolicyType::ResourcePolicy,
-            vec![
-                PolicyRule::new("owner-delete", "Owner Delete", vec!["delete"], Effect::Allow)
-                    .with_derived_roles(vec!["owner"]),
-            ],
+            vec![PolicyRule::new(
+                "owner-delete",
+                "Owner Delete",
+                vec!["delete"],
+                Effect::Allow,
+            )
+            .with_derived_roles(vec!["owner"])],
         );
         engine.add_policy(policy).unwrap();
 
@@ -1697,24 +1805,26 @@ mod tests {
     #[test]
     fn test_derived_role_not_matched() {
         let mut engine = PolicyEngine::new();
-        engine.add_derived_role(
-            DerivedRole::new("owner", vec!["employee"])
-                .with_condition(Condition::new(
-                    "R.attr.owner_id",
-                    ConditionOperator::Eq,
-                    ConditionValue::String("alice".into()),
-                )),
-        );
+        engine.add_derived_role(DerivedRole::new("owner", vec!["employee"]).with_condition(
+            Condition::new(
+                "R.attr.owner_id",
+                ConditionOperator::Eq,
+                ConditionValue::String("alice".into()),
+            ),
+        ));
 
         let policy = Policy::new(
             "owner-policy",
             "Owner Policy",
             "document",
             PolicyType::ResourcePolicy,
-            vec![
-                PolicyRule::new("owner-delete", "Owner Delete", vec!["delete"], Effect::Allow)
-                    .with_derived_roles(vec!["owner"]),
-            ],
+            vec![PolicyRule::new(
+                "owner-delete",
+                "Owner Delete",
+                vec!["delete"],
+                Effect::Allow,
+            )
+            .with_derived_roles(vec!["owner"])],
         );
         engine.add_policy(policy).unwrap();
 
@@ -1866,7 +1976,9 @@ mod tests {
             version: "1.0.0".into(),
             policy_type: PolicyType::ResourcePolicy,
             resource: "doc".into(),
-            rules: vec![PolicyRule::new("r1", "R1", vec!["read"], Effect::Allow).with_roles(vec!["viewer"])],
+            rules: vec![
+                PolicyRule::new("r1", "R1", vec!["read"], Effect::Allow).with_roles(vec!["viewer"])
+            ],
             variables: HashMap::new(),
             disabled: false,
         };
@@ -1932,7 +2044,9 @@ mod tests {
             }],
         );
         let errors = PolicyEngine::validate_policy(&policy);
-        assert!(errors.iter().any(|e| e.contains("at least one role or derived role")));
+        assert!(errors
+            .iter()
+            .any(|e| e.contains("at least one role or derived role")));
     }
 
     #[test]
@@ -1944,7 +2058,8 @@ mod tests {
             PolicyType::ResourcePolicy,
             vec![
                 PolicyRule::new("dup", "R1", vec!["read"], Effect::Allow).with_roles(vec!["admin"]),
-                PolicyRule::new("dup", "R2", vec!["write"], Effect::Allow).with_roles(vec!["admin"]),
+                PolicyRule::new("dup", "R2", vec!["write"], Effect::Allow)
+                    .with_roles(vec!["admin"]),
             ],
         );
         let errors = PolicyEngine::validate_policy(&policy);
@@ -1958,15 +2073,13 @@ mod tests {
             "Test",
             "doc",
             PolicyType::ResourcePolicy,
-            vec![
-                PolicyRule::new("r1", "R1", vec!["read"], Effect::Allow)
-                    .with_roles(vec!["admin"])
-                    .with_condition(Condition::new(
-                        "P.attr.email",
-                        ConditionOperator::Regex,
-                        ConditionValue::String("[invalid".into()),
-                    )),
-            ],
+            vec![PolicyRule::new("r1", "R1", vec!["read"], Effect::Allow)
+                .with_roles(vec!["admin"])
+                .with_condition(Condition::new(
+                    "P.attr.email",
+                    ConditionOperator::Regex,
+                    ConditionValue::String("[invalid".into()),
+                ))],
         );
         let errors = PolicyEngine::validate_policy(&policy);
         assert!(errors.iter().any(|e| e.contains("invalid regex")));
@@ -2152,16 +2265,20 @@ mod tests {
             "Allow Doc",
             "document",
             PolicyType::ResourcePolicy,
-            vec![PolicyRule::new("r1", "Allow Read", vec!["read"], Effect::Allow)
-                .with_roles(vec!["viewer"])],
+            vec![
+                PolicyRule::new("r1", "Allow Read", vec!["read"], Effect::Allow)
+                    .with_roles(vec!["viewer"]),
+            ],
         );
         let deny = Policy::new(
             "deny-doc",
             "Deny Doc",
             "document",
             PolicyType::ResourcePolicy,
-            vec![PolicyRule::new("r2", "Deny Read", vec!["read"], Effect::Deny)
-                .with_roles(vec!["viewer"])],
+            vec![
+                PolicyRule::new("r2", "Deny Read", vec!["read"], Effect::Deny)
+                    .with_roles(vec!["viewer"]),
+            ],
         );
         engine.add_policy(allow).unwrap();
         engine.add_policy(deny).unwrap();
@@ -2216,7 +2333,10 @@ mod tests {
 
     #[test]
     fn test_resource_match_prefix_wildcard() {
-        assert!(PolicyEngine::resource_matches("document:*", "document:public"));
+        assert!(PolicyEngine::resource_matches(
+            "document:*",
+            "document:public"
+        ));
         assert!(!PolicyEngine::resource_matches("document:*", "file:public"));
     }
 
@@ -2231,18 +2351,22 @@ mod tests {
             "Base",
             "document",
             PolicyType::ResourcePolicy,
-            vec![PolicyRule::new("base-read", "Base Read", vec!["read"], Effect::Allow)
-                .with_roles(vec!["viewer"])
-                .with_priority(20)],
+            vec![
+                PolicyRule::new("base-read", "Base Read", vec!["read"], Effect::Allow)
+                    .with_roles(vec!["viewer"])
+                    .with_priority(20),
+            ],
         );
         let p2 = Policy::new(
             "restricted-access",
             "Restricted",
             "document",
             PolicyType::ResourcePolicy,
-            vec![PolicyRule::new("restrict-read", "No Read", vec!["read"], Effect::Deny)
-                .with_roles(vec!["viewer"])
-                .with_priority(1)], // Higher precedence
+            vec![
+                PolicyRule::new("restrict-read", "No Read", vec!["read"], Effect::Deny)
+                    .with_roles(vec!["viewer"])
+                    .with_priority(1),
+            ], // Higher precedence
         );
         engine.add_policy(p1).unwrap();
         engine.add_policy(p2).unwrap();
@@ -2272,8 +2396,8 @@ mod tests {
 
     #[test]
     fn test_serde_json_roundtrip_check_request() {
-        let req = CheckRequest::new(make_viewer(), make_document(), "read")
-            .with_aux("ip", "1.2.3.4");
+        let req =
+            CheckRequest::new(make_viewer(), make_document(), "read").with_aux("ip", "1.2.3.4");
         let json = serde_json::to_string(&req).unwrap();
         let parsed: CheckRequest = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.action, "read");
@@ -2284,8 +2408,7 @@ mod tests {
 
     #[test]
     fn test_principal_builder() {
-        let p = Principal::new("alice", vec!["admin", "viewer"])
-            .with_attr("dept", "eng");
+        let p = Principal::new("alice", vec!["admin", "viewer"]).with_attr("dept", "eng");
         assert_eq!(p.id, "alice");
         assert_eq!(p.roles.len(), 2);
         assert_eq!(p.attributes.get("dept").unwrap(), "eng");
@@ -2293,17 +2416,22 @@ mod tests {
 
     #[test]
     fn test_resource_builder() {
-        let r = Resource::new("document", "d1")
-            .with_attr("classification", "public");
+        let r = Resource::new("document", "d1").with_attr("classification", "public");
         assert_eq!(r.kind, "document");
         assert_eq!(r.attributes.get("classification").unwrap(), "public");
     }
 
     #[test]
     fn test_policy_builder() {
-        let p = Policy::new("p1", "Test", "doc", PolicyType::ResourcePolicy, vec![
-            PolicyRule::new("r1", "R1", vec!["read"], Effect::Allow).with_roles(vec!["viewer"]),
-        ])
+        let p = Policy::new(
+            "p1",
+            "Test",
+            "doc",
+            PolicyType::ResourcePolicy,
+            vec![
+                PolicyRule::new("r1", "R1", vec!["read"], Effect::Allow).with_roles(vec!["viewer"])
+            ],
+        )
         .with_description("A test policy")
         .with_variable("env", "production");
 
@@ -2319,7 +2447,11 @@ mod tests {
         let principal = Principal::new("u1", vec![]);
         let resource = Resource::new("doc", "d1");
         // Attribute does not exist — resolve returns None
-        let cond = Condition::new("P.attr.missing", ConditionOperator::Eq, ConditionValue::Null);
+        let cond = Condition::new(
+            "P.attr.missing",
+            ConditionOperator::Eq,
+            ConditionValue::Null,
+        );
         // resolved is None, match_expr "P.attr.missing" → None → unwrap_or_default gives "".
         // For Null, we check resolved.is_none() — but resolve_expr returns None when key missing.
         // Actually in our code, we call unwrap_or_default before the match. Let's handle via
@@ -2333,7 +2465,11 @@ mod tests {
         let evaluator = ConditionEvaluator;
         let principal = make_viewer().with_attr("x", "test");
         let resource = make_document();
-        let cond = Condition::new("P.attr.x", ConditionOperator::Regex, ConditionValue::String("[bad".into()));
+        let cond = Condition::new(
+            "P.attr.x",
+            ConditionOperator::Regex,
+            ConditionValue::String("[bad".into()),
+        );
         assert!(!evaluator.evaluate(&cond, &principal, &resource, &HashMap::new()));
     }
 

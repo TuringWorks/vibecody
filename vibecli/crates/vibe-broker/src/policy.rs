@@ -56,15 +56,29 @@ fn default_true() -> bool {
 pub enum Inject {
     #[default]
     None,
-    Bearer { key: SecretRef },
-    Basic { user: SecretRef, pass: SecretRef },
+    Bearer {
+        key: SecretRef,
+    },
+    Basic {
+        user: SecretRef,
+        pass: SecretRef,
+    },
     #[serde(rename = "aws-sigv4")]
-    AwsSigV4 { profile: SecretRef },
+    AwsSigV4 {
+        profile: SecretRef,
+    },
     #[serde(rename = "gcp-iam")]
-    GcpIam { service_account: SecretRef },
+    GcpIam {
+        service_account: SecretRef,
+    },
     #[serde(rename = "azure-msi")]
-    AzureMsi { client_id: SecretRef },
-    HeaderTemplate { name: String, value_template: String },
+    AzureMsi {
+        client_id: SecretRef,
+    },
+    HeaderTemplate {
+        name: String,
+        value_template: String,
+    },
 }
 
 impl Inject {
@@ -141,7 +155,12 @@ impl Policy {
             }
             if !rule.match_.methods.is_empty() {
                 let m_upper = req.method.to_ascii_uppercase();
-                if !rule.match_.methods.iter().any(|m| m.eq_ignore_ascii_case(&m_upper)) {
+                if !rule
+                    .match_
+                    .methods
+                    .iter()
+                    .any(|m| m.eq_ignore_ascii_case(&m_upper))
+                {
                     continue;
                 }
             }

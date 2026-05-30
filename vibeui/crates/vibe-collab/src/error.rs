@@ -101,29 +101,53 @@ mod tests {
 
     #[test]
     fn status_code_not_found() {
-        assert_eq!(StatusCode::from(CollabError::RoomNotFound("x".into())), StatusCode::NOT_FOUND);
-        assert_eq!(StatusCode::from(CollabError::PeerNotFound("x".into())), StatusCode::NOT_FOUND);
+        assert_eq!(
+            StatusCode::from(CollabError::RoomNotFound("x".into())),
+            StatusCode::NOT_FOUND
+        );
+        assert_eq!(
+            StatusCode::from(CollabError::PeerNotFound("x".into())),
+            StatusCode::NOT_FOUND
+        );
     }
 
     #[test]
     fn status_code_conflict() {
-        assert_eq!(StatusCode::from(CollabError::RoomFull(5)), StatusCode::CONFLICT);
+        assert_eq!(
+            StatusCode::from(CollabError::RoomFull(5)),
+            StatusCode::CONFLICT
+        );
     }
 
     #[test]
     fn status_code_unauthorized() {
-        assert_eq!(StatusCode::from(CollabError::AuthFailed("x".into())), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            StatusCode::from(CollabError::AuthFailed("x".into())),
+            StatusCode::UNAUTHORIZED
+        );
     }
 
     #[test]
     fn status_code_bad_request() {
-        assert_eq!(StatusCode::from(CollabError::InvalidMessage("x".into())), StatusCode::BAD_REQUEST);
+        assert_eq!(
+            StatusCode::from(CollabError::InvalidMessage("x".into())),
+            StatusCode::BAD_REQUEST
+        );
     }
 
     #[test]
     fn status_code_internal() {
-        assert_eq!(StatusCode::from(CollabError::YrsError("x".into())), StatusCode::INTERNAL_SERVER_ERROR);
-        assert_eq!(StatusCode::from(CollabError::WebSocketError("x".into())), StatusCode::INTERNAL_SERVER_ERROR);
-        assert_eq!(StatusCode::from(CollabError::Internal("x".into())), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(
+            StatusCode::from(CollabError::YrsError("x".into())),
+            StatusCode::INTERNAL_SERVER_ERROR
+        );
+        assert_eq!(
+            StatusCode::from(CollabError::WebSocketError("x".into())),
+            StatusCode::INTERNAL_SERVER_ERROR
+        );
+        assert_eq!(
+            StatusCode::from(CollabError::Internal("x".into())),
+            StatusCode::INTERNAL_SERVER_ERROR
+        );
     }
 }

@@ -238,9 +238,7 @@ impl EgressRequest {
             ));
         }
         if self.timeout_ms == 0 {
-            return Err(HostAbiError::InvalidEgress(
-                "timeout_ms must be > 0",
-            ));
+            return Err(HostAbiError::InvalidEgress("timeout_ms must be > 0"));
         }
         if self.timeout_ms > 5 * 60 * 1000 {
             return Err(HostAbiError::InvalidEgress(
@@ -330,8 +328,7 @@ mod base64_bytes {
     // Tiny in-tree RFC 4648 base64 encoder/decoder — same rationale
     // as the in-tree SHA-256 in `rootfs.rs`: avoids pulling a crate
     // for a few hundred lines of operations on a leaf crate.
-    const ALPHA: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const ALPHA: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
     fn b64_encode(input: &[u8]) -> String {
         let mut out = String::with_capacity((input.len() + 2) / 3 * 4);
@@ -391,8 +388,10 @@ mod base64_bytes {
                     _ => return Err(format!("invalid base64 character: {:?}", c as char)),
                 };
             }
-            let v =
-                ((buf[0] as u32) << 18) | ((buf[1] as u32) << 12) | ((buf[2] as u32) << 6) | (buf[3] as u32);
+            let v = ((buf[0] as u32) << 18)
+                | ((buf[1] as u32) << 12)
+                | ((buf[2] as u32) << 6)
+                | (buf[3] as u32);
             out.push(((v >> 16) & 0xFF) as u8);
             if pad < 2 {
                 out.push(((v >> 8) & 0xFF) as u8);

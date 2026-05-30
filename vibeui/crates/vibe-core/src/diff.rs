@@ -33,7 +33,7 @@ impl DiffEngine {
         let diff = TextDiff::from_lines(original, modified);
         let mut hunks = Vec::new();
         let mut current_hunk: Option<DiffHunk> = None;
-        
+
         let mut old_line = 1;
         let mut new_line = 1;
 
@@ -61,7 +61,7 @@ impl DiffEngine {
 
             if let Some(ref mut hunk) = current_hunk {
                 hunk.lines.push(line);
-                
+
                 match tag {
                     DiffTag::Equal => {
                         hunk.old_count += 1;
@@ -90,7 +90,7 @@ impl DiffEngine {
 
     pub fn format_unified_diff(hunks: &[DiffHunk], old_path: &Path, new_path: &Path) -> String {
         let mut output = String::new();
-        
+
         output.push_str(&format!("--- {}\n", old_path.display()));
         output.push_str(&format!("+++ {}\n", new_path.display()));
 
@@ -165,7 +165,8 @@ mod tests {
         let original = "line1\nline2\n";
         let modified = "line1\nline2\nline3\n";
         let hunks = DiffEngine::generate_diff(original, modified);
-        let inserts: Vec<_> = hunks.iter()
+        let inserts: Vec<_> = hunks
+            .iter()
             .flat_map(|h| h.lines.iter())
             .filter(|l| l.tag == DiffTag::Insert)
             .collect();
@@ -178,7 +179,8 @@ mod tests {
         let original = "line1\nline2\nline3\n";
         let modified = "line1\nline3\n";
         let hunks = DiffEngine::generate_diff(original, modified);
-        let deletes: Vec<_> = hunks.iter()
+        let deletes: Vec<_> = hunks
+            .iter()
             .flat_map(|h| h.lines.iter())
             .filter(|l| l.tag == DiffTag::Delete)
             .collect();
@@ -189,7 +191,8 @@ mod tests {
     #[test]
     fn generate_diff_empty_to_content() {
         let hunks = DiffEngine::generate_diff("", "new\n");
-        let inserts: Vec<_> = hunks.iter()
+        let inserts: Vec<_> = hunks
+            .iter()
             .flat_map(|h| h.lines.iter())
             .filter(|l| l.tag == DiffTag::Insert)
             .collect();
@@ -199,7 +202,8 @@ mod tests {
     #[test]
     fn generate_diff_content_to_empty() {
         let hunks = DiffEngine::generate_diff("old\n", "");
-        let deletes: Vec<_> = hunks.iter()
+        let deletes: Vec<_> = hunks
+            .iter()
             .flat_map(|h| h.lines.iter())
             .filter(|l| l.tag == DiffTag::Delete)
             .collect();
@@ -209,7 +213,8 @@ mod tests {
     #[test]
     fn format_unified_diff_has_header() {
         let hunks = DiffEngine::generate_diff("a\n", "b\n");
-        let output = DiffEngine::format_unified_diff(&hunks, Path::new("old.rs"), Path::new("new.rs"));
+        let output =
+            DiffEngine::format_unified_diff(&hunks, Path::new("old.rs"), Path::new("new.rs"));
         assert!(output.contains("--- old.rs"));
         assert!(output.contains("+++ new.rs"));
         assert!(output.contains("@@"));
@@ -286,8 +291,16 @@ mod tests {
         assert_eq!(h.new_start, 1, "new_start should be 1");
 
         // The hunk must contain a delete of the old line and an insert of the new line
-        let deletes: Vec<_> = h.lines.iter().filter(|l| l.tag == DiffTag::Delete).collect();
-        let inserts: Vec<_> = h.lines.iter().filter(|l| l.tag == DiffTag::Insert).collect();
+        let deletes: Vec<_> = h
+            .lines
+            .iter()
+            .filter(|l| l.tag == DiffTag::Delete)
+            .collect();
+        let inserts: Vec<_> = h
+            .lines
+            .iter()
+            .filter(|l| l.tag == DiffTag::Insert)
+            .collect();
         assert_eq!(deletes.len(), 1);
         assert_eq!(inserts.len(), 1);
         assert!(deletes[0].content.contains("abcdef"));
@@ -298,11 +311,8 @@ mod tests {
     fn format_unified_diff_empty_hunks() {
         // With an empty slice of hunks the formatter should still produce
         // the file header lines (--- and +++) but no @@ sections.
-        let output = DiffEngine::format_unified_diff(
-            &[],
-            Path::new("old.txt"),
-            Path::new("new.txt"),
-        );
+        let output =
+            DiffEngine::format_unified_diff(&[], Path::new("old.txt"), Path::new("new.txt"));
         assert!(
             output.contains("--- old.txt"),
             "header should contain --- even with empty hunks"
@@ -322,7 +332,10 @@ mod tests {
         // Applying an empty set of hunks should produce an empty string,
         // because apply_diff rebuilds content solely from hunk lines.
         let result = DiffEngine::apply_diff("anything\n", &[]).unwrap();
-        assert_eq!(result, "", "apply_diff with no hunks should produce empty string");
+        assert_eq!(
+            result, "",
+            "apply_diff with no hunks should produce empty string"
+        );
     }
 
     #[test]
@@ -339,7 +352,8 @@ mod tests {
         let original = "line1\n";
         let modified = "line1\nline2\nline3\nline4\n";
         let hunks = DiffEngine::generate_diff(original, modified);
-        let inserts: Vec<_> = hunks.iter()
+        let inserts: Vec<_> = hunks
+            .iter()
             .flat_map(|h| h.lines.iter())
             .filter(|l| l.tag == DiffTag::Insert)
             .collect();
@@ -351,7 +365,8 @@ mod tests {
         let original = "a\nb\nc\nd\ne\n";
         let modified = "a\ne\n";
         let hunks = DiffEngine::generate_diff(original, modified);
-        let deletes: Vec<_> = hunks.iter()
+        let deletes: Vec<_> = hunks
+            .iter()
             .flat_map(|h| h.lines.iter())
             .filter(|l| l.tag == DiffTag::Delete)
             .collect();
@@ -374,7 +389,11 @@ mod tests {
         let hunks = DiffEngine::generate_diff(original, modified);
         let output = DiffEngine::format_unified_diff(&hunks, Path::new("a.rs"), Path::new("b.rs"));
         // The @@ line should contain the correct counts
-        assert!(output.contains("@@ -1,3 +1,3 @@"), "hunk header should show 3,3 for single-line replacement: {}", output);
+        assert!(
+            output.contains("@@ -1,3 +1,3 @@"),
+            "hunk header should show 3,3 for single-line replacement: {}",
+            output
+        );
     }
 
     #[test]
@@ -390,12 +409,16 @@ mod tests {
         let original = "  indented\n\ttabbed\n";
         let modified = "  indented\n\ttabbed\nextra\n";
         let hunks = DiffEngine::generate_diff(original, modified);
-        let all_content: String = hunks.iter()
+        let all_content: String = hunks
+            .iter()
             .flat_map(|h| h.lines.iter())
             .filter(|l| l.tag == DiffTag::Equal)
             .map(|l| l.content.clone())
             .collect();
-        assert!(all_content.contains("  indented"), "whitespace should be preserved");
+        assert!(
+            all_content.contains("  indented"),
+            "whitespace should be preserved"
+        );
         assert!(all_content.contains("\ttabbed"), "tab should be preserved");
     }
 
@@ -405,9 +428,18 @@ mod tests {
         let modified = "first\nSECOND\nthird\n";
         let hunks = DiffEngine::generate_diff(original, modified);
         let output = DiffEngine::format_unified_diff(&hunks, Path::new("a"), Path::new("b"));
-        assert!(output.contains("-second"), "deleted line should have - prefix");
-        assert!(output.contains("+SECOND"), "inserted line should have + prefix");
-        assert!(output.contains(" first"), "equal line should have space prefix");
+        assert!(
+            output.contains("-second"),
+            "deleted line should have - prefix"
+        );
+        assert!(
+            output.contains("+SECOND"),
+            "inserted line should have + prefix"
+        );
+        assert!(
+            output.contains(" first"),
+            "equal line should have space prefix"
+        );
     }
 
     #[test]
@@ -415,8 +447,16 @@ mod tests {
         let original = "aaa\nbbb\nccc\n";
         let modified = "xxx\nyyy\nzzz\n";
         let hunks = DiffEngine::generate_diff(original, modified);
-        let deletes = hunks.iter().flat_map(|h| h.lines.iter()).filter(|l| l.tag == DiffTag::Delete).count();
-        let inserts = hunks.iter().flat_map(|h| h.lines.iter()).filter(|l| l.tag == DiffTag::Insert).count();
+        let deletes = hunks
+            .iter()
+            .flat_map(|h| h.lines.iter())
+            .filter(|l| l.tag == DiffTag::Delete)
+            .count();
+        let inserts = hunks
+            .iter()
+            .flat_map(|h| h.lines.iter())
+            .filter(|l| l.tag == DiffTag::Insert)
+            .count();
         assert_eq!(deletes, 3);
         assert_eq!(inserts, 3);
     }

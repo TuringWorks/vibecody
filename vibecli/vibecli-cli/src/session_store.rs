@@ -72,7 +72,7 @@ pub struct AgentTreeNode {
 pub struct MessageRow {
     pub id: i64,
     pub session_id: String,
-    pub role: String,   // "system" | "user" | "assistant"
+    pub role: String, // "system" | "user" | "assistant"
     pub content: String,
     pub created_at: u64,
 }
@@ -110,8 +110,7 @@ impl SessionStore {
             std::fs::create_dir_all(parent)
                 .with_context(|| format!("create dirs for {:?}", parent))?;
         }
-        let conn = Connection::open(path)
-            .with_context(|| format!("open SQLite at {:?}", path))?;
+        let conn = Connection::open(path).with_context(|| format!("open SQLite at {:?}", path))?;
         conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")?;
         let store = Self { conn };
         store.create_schema()?;
@@ -326,13 +325,7 @@ impl SessionStore {
     // ── Write ─────────────────────────────────────────────────────────────────
 
     /// Insert a new session record (status = "running").
-    pub fn insert_session(
-        &self,
-        id: &str,
-        task: &str,
-        provider: &str,
-        model: &str,
-    ) -> Result<()> {
+    pub fn insert_session(&self, id: &str, task: &str, provider: &str, model: &str) -> Result<()> {
         self.insert_session_with_parent(id, task, provider, model, None, 0)
     }
 
@@ -394,18 +387,14 @@ impl SessionStore {
     ///
     /// Returns the stored recap (which may differ from the input
     /// when the idempotency rule fires).
-    pub fn insert_recap(
-        &self,
-        recap: &crate::recap::Recap,
-    ) -> Result<crate::recap::Recap> {
+    pub fn insert_recap(&self, recap: &crate::recap::Recap) -> Result<crate::recap::Recap> {
         // Idempotency check first — same subject + last_message_id =>
         // return the existing row. NULL equality in SQL: a stored
         // NULL `last_message_id` matches an input None, an integer
         // matches an equal integer.
-        if let Some(existing) = self.get_recap_by_subject_and_last_msg(
-            &recap.subject_id,
-            recap.last_message_id,
-        )? {
+        if let Some(existing) =
+            self.get_recap_by_subject_and_last_msg(&recap.subject_id, recap.last_message_id)?
+        {
             return Ok(existing);
         }
 
@@ -485,14 +474,18 @@ impl SessionStore {
         last_message_id: Option<i64>,
     ) -> Result<Option<crate::recap::Recap>> {
         let sql = match last_message_id {
-            Some(_) => "SELECT id, kind, subject_id, last_message_id, workspace, generated_at,
+            Some(_) => {
+                "SELECT id, kind, subject_id, last_message_id, workspace, generated_at,
                               generator_kind, generator_provider, generator_model,
                               headline, body_json, token_input, token_output, schema_version
-                       FROM recaps WHERE subject_id = ?1 AND last_message_id = ?2",
-            None => "SELECT id, kind, subject_id, last_message_id, workspace, generated_at,
+                       FROM recaps WHERE subject_id = ?1 AND last_message_id = ?2"
+            }
+            None => {
+                "SELECT id, kind, subject_id, last_message_id, workspace, generated_at,
                             generator_kind, generator_provider, generator_model,
                             headline, body_json, token_input, token_output, schema_version
-                     FROM recaps WHERE subject_id = ?1 AND last_message_id IS NULL",
+                     FROM recaps WHERE subject_id = ?1 AND last_message_id IS NULL"
+            }
         };
         let mut stmt = self.conn.prepare(sql)?;
         let mut rows = match last_message_id {
@@ -517,7 +510,8 @@ impl SessionStore {
             "SELECT id, kind, subject_id, last_message_id, workspace, generated_at,
                     generator_kind, generator_provider, generator_model,
                     headline, body_json, token_input, token_output, schema_version
-             FROM recaps WHERE subject_id = ?1 ORDER BY generated_at DESC".to_string()
+             FROM recaps WHERE subject_id = ?1 ORDER BY generated_at DESC"
+                .to_string()
         } else {
             format!(
                 "SELECT id, kind, subject_id, last_message_id, workspace, generated_at,
@@ -598,10 +592,7 @@ impl SessionStore {
     /// Insert a new goal row. Returns the stored goal (clone of input
     /// on success). UNIQUE on `(workspace, title)` — the daemon should
     /// translate the SQLite constraint error into a clean HTTP 409.
-    pub fn insert_goal(
-        &self,
-        goal: &crate::exec_goal::Goal,
-    ) -> Result<crate::exec_goal::Goal> {
+    pub fn insert_goal(&self, goal: &crate::exec_goal::Goal) -> Result<crate::exec_goal::Goal> {
         let workspace_str = goal
             .workspace
             .as_ref()
@@ -643,10 +634,7 @@ impl SessionStore {
     }
 
     /// Fetch a goal by id. `Ok(None)` for a missing row.
-    pub fn get_goal_by_id(
-        &self,
-        id: &str,
-    ) -> Result<Option<crate::exec_goal::Goal>> {
+    pub fn get_goal_by_id(&self, id: &str) -> Result<Option<crate::exec_goal::Goal>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, workspace, title, statement, status, success_criteria,
                     tags, created_at, updated_at, parent_goal_id,
@@ -662,10 +650,7 @@ impl SessionStore {
 
     /// List goals with optional filters. Newest-updated first. `limit
     /// = 0` means no limit.
-    pub fn list_goals(
-        &self,
-        filter: &GoalListFilter,
-    ) -> Result<Vec<crate::exec_goal::Goal>> {
+    pub fn list_goals(&self, filter: &GoalListFilter) -> Result<Vec<crate::exec_goal::Goal>> {
         let mut where_parts: Vec<String> = Vec::new();
         let mut bind: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
         if let Some(s) = &filter.status {
@@ -707,8 +692,7 @@ impl SessionStore {
             where_clause, limit_clause,
         );
         let mut stmt = self.conn.prepare(&sql)?;
-        let bind_refs: Vec<&dyn rusqlite::ToSql> =
-            bind.iter().map(|b| b.as_ref()).collect();
+        let bind_refs: Vec<&dyn rusqlite::ToSql> = bind.iter().map(|b| b.as_ref()).collect();
         let rows = stmt.query_map(rusqlite::params_from_iter(bind_refs), |r| {
             row_to_goal(r).map_err(|e| {
                 rusqlite::Error::FromSqlConversionFailure(
@@ -771,8 +755,8 @@ impl SessionStore {
             None => existing.parent_goal_id.clone(),
         };
 
-        let invalidate_plan = new_statement != existing.statement
-            || new_criteria != existing.success_criteria;
+        let invalidate_plan =
+            new_statement != existing.statement || new_criteria != existing.success_criteria;
 
         let plan_json: Option<String> = if invalidate_plan {
             None
@@ -849,10 +833,7 @@ impl SessionStore {
     /// newest-updated-first to match `list_goals`. Returns an empty
     /// vec when the parent has no children, never errors on missing
     /// parent (the route layer 404s on its own lookup).
-    pub fn list_children_goals(
-        &self,
-        parent_goal_id: &str,
-    ) -> Result<Vec<crate::exec_goal::Goal>> {
+    pub fn list_children_goals(&self, parent_goal_id: &str) -> Result<Vec<crate::exec_goal::Goal>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, workspace, title, statement, status, success_criteria,
                     tags, created_at, updated_at, parent_goal_id,
@@ -899,10 +880,7 @@ impl SessionStore {
     }
 
     /// List all links attached to a goal, newest first.
-    pub fn list_goal_links(
-        &self,
-        goal_id: &str,
-    ) -> Result<Vec<crate::exec_goal::GoalLink>> {
+    pub fn list_goal_links(&self, goal_id: &str) -> Result<Vec<crate::exec_goal::GoalLink>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, goal_id, kind, target_id, linked_at, note
              FROM goal_links WHERE goal_id = ?1
@@ -927,10 +905,9 @@ impl SessionStore {
     /// Delete a single goal_link by id. Returns whether a row was
     /// removed.
     pub fn delete_goal_link(&self, id: &str) -> Result<bool> {
-        let n = self.conn.execute(
-            "DELETE FROM goal_links WHERE id = ?1",
-            params![id],
-        )?;
+        let n = self
+            .conn
+            .execute("DELETE FROM goal_links WHERE id = ?1", params![id])?;
         Ok(n > 0)
     }
 
@@ -958,10 +935,7 @@ impl SessionStore {
     }
 
     /// Look up the pinned goal id + when it was pinned for a workspace.
-    pub fn get_pinned_goal(
-        &self,
-        workspace: Option<&str>,
-    ) -> Result<Option<(String, String)>> {
+    pub fn get_pinned_goal(&self, workspace: Option<&str>) -> Result<Option<(String, String)>> {
         let ws = workspace.unwrap_or("");
         let row = self
             .conn
@@ -978,10 +952,9 @@ impl SessionStore {
     /// removed (`false` = nothing was pinned).
     pub fn unpin_goal(&self, workspace: Option<&str>) -> Result<bool> {
         let ws = workspace.unwrap_or("");
-        let n = self.conn.execute(
-            "DELETE FROM pinned_goals WHERE workspace = ?1",
-            params![ws],
-        )?;
+        let n = self
+            .conn
+            .execute("DELETE FROM pinned_goals WHERE workspace = ?1", params![ws])?;
         Ok(n > 0)
     }
 
@@ -990,7 +963,9 @@ impl SessionStore {
     /// that list goals across workspaces and want to mark each row
     /// with ★ without firing one query per goal.
     pub fn list_all_pinned_goal_ids(&self) -> Result<std::collections::HashSet<String>> {
-        let mut stmt = self.conn.prepare("SELECT DISTINCT goal_id FROM pinned_goals")?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT DISTINCT goal_id FROM pinned_goals")?;
         let ids = stmt
             .query_map([], |r| r.get::<_, String>(0))?
             .filter_map(|r| r.ok())
@@ -1014,12 +989,7 @@ impl SessionStore {
     }
 
     /// Mark a session complete (or failed) with an optional summary.
-    pub fn finish_session(
-        &self,
-        id: &str,
-        status: &str,
-        summary: Option<&str>,
-    ) -> Result<()> {
+    pub fn finish_session(&self, id: &str, status: &str, summary: Option<&str>) -> Result<()> {
         let now = now_ms();
         self.conn.execute(
             "UPDATE sessions
@@ -1128,7 +1098,11 @@ impl SessionStore {
             Some(session) => {
                 let messages = self.get_messages(id)?;
                 let steps = self.get_steps(id)?;
-                Ok(Some(SessionDetail { session, messages, steps }))
+                Ok(Some(SessionDetail {
+                    session,
+                    messages,
+                    steps,
+                }))
             }
         }
     }
@@ -1136,12 +1110,7 @@ impl SessionStore {
     /// FTS5-backed message search with optional project scope. Returns ranked hits
     /// (best match first) with `<mark>`-highlighted snippets — the primary self-recall
     /// surface for long-running agents. `query` is an FTS5 MATCH expression.
-    pub fn search_fts(
-        &self,
-        query: &str,
-        scope: SearchScope,
-        limit: usize,
-    ) -> Result<Vec<FtsHit>> {
+    pub fn search_fts(&self, query: &str, scope: SearchScope, limit: usize) -> Result<Vec<FtsHit>> {
         let trimmed = query.trim();
         if trimmed.is_empty() {
             return Ok(Vec::new());
@@ -1169,21 +1138,18 @@ impl SessionStore {
              ORDER BY bm25(messages_fts)
              LIMIT ?3"#,
         )?;
-        let rows = stmt.query_map(
-            params![trimmed, project_filter, limit as i64],
-            |row| {
-                Ok(FtsHit {
-                    session_id: row.get(0)?,
-                    message_id: row.get(1)?,
-                    role: row.get(2)?,
-                    content: row.get(3)?,
-                    created_at: row.get::<_, i64>(4)? as u64,
-                    project_path: row.get(5)?,
-                    snippet: row.get(6)?,
-                    rank: row.get(7)?,
-                })
-            },
-        )?;
+        let rows = stmt.query_map(params![trimmed, project_filter, limit as i64], |row| {
+            Ok(FtsHit {
+                session_id: row.get(0)?,
+                message_id: row.get(1)?,
+                role: row.get(2)?,
+                content: row.get(3)?,
+                created_at: row.get::<_, i64>(4)? as u64,
+                project_path: row.get(5)?,
+                snippet: row.get(6)?,
+                rank: row.get(7)?,
+            })
+        })?;
         Ok(rows.filter_map(|r| r.ok()).collect())
     }
 
@@ -1197,9 +1163,7 @@ impl SessionStore {
         // Build a LIKE pattern for each keyword across sessions + steps + messages
         // Using a sub-query approach: get session IDs that match all keywords
         let like_pattern = |kw: &str| {
-            let escaped = kw.to_lowercase()
-                .replace('%', "\\%")
-                .replace('_', "\\_");
+            let escaped = kw.to_lowercase().replace('%', "\\%").replace('_', "\\_");
             format!("%{}%", escaped)
         };
 
@@ -1294,14 +1258,18 @@ impl SessionStore {
 
     /// Count of all sessions.
     pub fn count(&self) -> Result<i64> {
-        let n: i64 =
-            self.conn.query_row("SELECT COUNT(*) FROM sessions", [], |row| row.get(0))?;
+        let n: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM sessions", [], |row| row.get(0))?;
         Ok(n)
     }
 
     /// Update the task/name of a session (used by AI auto-naming).
     pub fn rename_session(&self, id: &str, new_name: &str) -> Result<()> {
-        self.conn.execute("UPDATE sessions SET task = ?1 WHERE id = ?2", params![new_name, id])?;
+        self.conn.execute(
+            "UPDATE sessions SET task = ?1 WHERE id = ?2",
+            params![new_name, id],
+        )?;
         Ok(())
     }
 
@@ -1309,12 +1277,24 @@ impl SessionStore {
     /// All messages and steps up to the current point are duplicated into the fork.
     pub fn fork_session(&self, source_id: &str, new_id: &str) -> Result<()> {
         // Check the source exists
-        let source = self.get_session(source_id)?
+        let source = self
+            .get_session(source_id)?
             .ok_or_else(|| anyhow::anyhow!("Session '{}' not found", source_id))?;
 
         // Insert forked session row
-        let task = format!("[fork of {}] {}", &source_id[..source_id.len().min(12)], source.task);
-        self.insert_session_with_parent(new_id, &task, &source.provider, &source.model, Some(source_id), 0)?;
+        let task = format!(
+            "[fork of {}] {}",
+            &source_id[..source_id.len().min(12)],
+            source.task
+        );
+        self.insert_session_with_parent(
+            new_id,
+            &task,
+            &source.provider,
+            &source.model,
+            Some(source_id),
+            0,
+        )?;
 
         // Copy messages
         for msg in self.get_messages(source_id)? {
@@ -1323,8 +1303,14 @@ impl SessionStore {
 
         // Copy steps
         for step in self.get_steps(source_id)? {
-            self.insert_step(new_id, step.step_num as usize, &step.tool_name,
-                &step.input_summary, &step.output, step.success)?;
+            self.insert_step(
+                new_id,
+                step.step_num as usize,
+                &step.tool_name,
+                &step.input_summary,
+                &step.output,
+                step.success,
+            )?;
         }
 
         Ok(())
@@ -1455,9 +1441,7 @@ pub struct GoalPatch {
     pub parent_goal_id: Option<Option<String>>,
 }
 
-fn row_to_goal(
-    row: &rusqlite::Row<'_>,
-) -> Result<crate::exec_goal::Goal> {
+fn row_to_goal(row: &rusqlite::Row<'_>) -> Result<crate::exec_goal::Goal> {
     let id: String = row.get(0)?;
     let workspace: Option<String> = row.get(1)?;
     let title: String = row.get(2)?;
@@ -1507,9 +1491,7 @@ fn row_to_goal(
     })
 }
 
-fn row_to_goal_link(
-    row: &rusqlite::Row<'_>,
-) -> Result<crate::exec_goal::GoalLink> {
+fn row_to_goal_link(row: &rusqlite::Row<'_>) -> Result<crate::exec_goal::GoalLink> {
     let id: String = row.get(0)?;
     let goal_id: String = row.get(1)?;
     let kind_str: String = row.get(2)?;
@@ -1573,11 +1555,14 @@ pub fn default_db_path() -> PathBuf {
 pub fn render_session_html(detail: &SessionDetail) -> String {
     let s = &detail.session;
     let started = format_ts(s.started_at);
-    let finished = s.finished_at.map(format_ts).unwrap_or_else(|| "in progress…".to_string());
+    let finished = s
+        .finished_at
+        .map(format_ts)
+        .unwrap_or_else(|| "in progress…".to_string());
     let status_badge = match s.status.as_str() {
         "complete" => r#"<span class="badge ok">✅ complete</span>"#,
-        "failed"   => r#"<span class="badge err">❌ failed</span>"#,
-        _          => r#"<span class="badge run">🟡 running</span>"#,
+        "failed" => r#"<span class="badge err">❌ failed</span>"#,
+        _ => r#"<span class="badge run">🟡 running</span>"#,
     };
     let duration = if let Some(fin) = s.finished_at {
         let ms = fin.saturating_sub(s.started_at);
@@ -1651,7 +1636,11 @@ pub fn render_session_html(detail: &SessionDetail) -> String {
         id = escape_html(&s.id),
         status_badge = status_badge,
         provider = escape_html(&s.provider),
-        model_str = if s.model.is_empty() { String::new() } else { format!(" / {}", escape_html(&s.model)) },
+        model_str = if s.model.is_empty() {
+            String::new()
+        } else {
+            format!(" / {}", escape_html(&s.model))
+        },
         started = escape_html(&started),
         finished = escape_html(&finished),
         duration = duration,
@@ -1686,7 +1675,8 @@ pub fn render_session_html(detail: &SessionDetail) -> String {
 "#,
                 step.step_num,
                 escape_html(&step.tool_name),
-                status_cls, status_icon,
+                status_cls,
+                status_icon,
                 escape_html(&step.input_summary),
                 escape_html(&step.output),
             ));
@@ -1699,13 +1689,17 @@ pub fn render_session_html(detail: &SessionDetail) -> String {
         for msg in &detail.messages {
             let role_cls = match msg.role.as_str() {
                 "system" => "system",
-                "user"   => "user",
-                _        => "assistant",
+                "user" => "user",
+                _ => "assistant",
             };
             // Truncate very long messages (char-safe)
             let preview = if msg.content.len() > 4000 {
                 let truncated: String = msg.content.chars().take(4000).collect();
-                format!("{}…\n[truncated {} chars]", truncated, msg.content.chars().count())
+                format!(
+                    "{}…\n[truncated {} chars]",
+                    truncated,
+                    msg.content.chars().count()
+                )
             } else {
                 msg.content.clone()
             };
@@ -1769,8 +1763,8 @@ pub fn render_sessions_index_html(sessions: &[SessionRow]) -> String {
         for s in sessions {
             let badge = match s.status.as_str() {
                 "complete" => r#"<span class="badge ok">✅ complete</span>"#,
-                "failed"   => r#"<span class="badge err">❌ failed</span>"#,
-                _          => r#"<span class="badge run">🟡 running</span>"#,
+                "failed" => r#"<span class="badge err">❌ failed</span>"#,
+                _ => r#"<span class="badge run">🟡 running</span>"#,
             };
             let task_preview: String = s.task.chars().take(80).collect();
             let task_preview = if s.task.len() > 80 {
@@ -1806,7 +1800,7 @@ fn format_ts(ms: u64) -> String {
     // Simple ISO-like: seconds since epoch → human-readable
     let secs = ms / 1000;
     // We just show relative + rough absolute
-    
+
     chrono_simple(secs)
 }
 
@@ -1879,8 +1873,12 @@ mod tests {
     #[test]
     fn test_insert_and_list() {
         let store = open_temp();
-        store.insert_session("s1", "Write a hello world", "claude", "claude-3").unwrap();
-        store.insert_session("s2", "Fix the bug", "ollama", "llama3").unwrap();
+        store
+            .insert_session("s1", "Write a hello world", "claude", "claude-3")
+            .unwrap();
+        store
+            .insert_session("s2", "Fix the bug", "ollama", "llama3")
+            .unwrap();
         let sessions = store.list_sessions(10).unwrap();
         assert_eq!(sessions.len(), 2);
     }
@@ -1888,9 +1886,15 @@ mod tests {
     #[test]
     fn test_finish_session() {
         let store = open_temp();
-        store.insert_session("s1", "task", "ollama", "llama3").unwrap();
-        store.insert_step("s1", 1, "read_file", "src/main.rs", "fn main() {}", true).unwrap();
-        store.finish_session("s1", "complete", Some("Done!")).unwrap();
+        store
+            .insert_session("s1", "task", "ollama", "llama3")
+            .unwrap();
+        store
+            .insert_step("s1", 1, "read_file", "src/main.rs", "fn main() {}", true)
+            .unwrap();
+        store
+            .finish_session("s1", "complete", Some("Done!"))
+            .unwrap();
         let s = store.get_session("s1").unwrap().unwrap();
         assert_eq!(s.status, "complete");
         assert_eq!(s.summary.as_deref(), Some("Done!"));
@@ -1900,10 +1904,16 @@ mod tests {
     #[test]
     fn test_messages_and_steps() {
         let store = open_temp();
-        store.insert_session("s1", "task", "claude", "claude-3").unwrap();
+        store
+            .insert_session("s1", "task", "claude", "claude-3")
+            .unwrap();
         store.insert_message("s1", "user", "Hello agent").unwrap();
-        store.insert_message("s1", "assistant", "I'll help you").unwrap();
-        store.insert_step("s1", 1, "bash", "ls -la", "total 42", true).unwrap();
+        store
+            .insert_message("s1", "assistant", "I'll help you")
+            .unwrap();
+        store
+            .insert_step("s1", 1, "bash", "ls -la", "total 42", true)
+            .unwrap();
         let detail = store.get_session_detail("s1").unwrap().unwrap();
         assert_eq!(detail.messages.len(), 2);
         assert_eq!(detail.steps.len(), 1);
@@ -1912,10 +1922,18 @@ mod tests {
     #[test]
     fn test_search() {
         let store = open_temp();
-        store.insert_session("s1", "Write tests for auth module", "claude", "claude-3").unwrap();
-        store.insert_message("s1", "assistant", "I'll write tests for authentication").unwrap();
-        store.insert_session("s2", "Fix deploy pipeline", "ollama", "llama3").unwrap();
-        store.insert_step("s2", 1, "bash", "git push --force", "error", false).unwrap();
+        store
+            .insert_session("s1", "Write tests for auth module", "claude", "claude-3")
+            .unwrap();
+        store
+            .insert_message("s1", "assistant", "I'll write tests for authentication")
+            .unwrap();
+        store
+            .insert_session("s2", "Fix deploy pipeline", "ollama", "llama3")
+            .unwrap();
+        store
+            .insert_step("s2", 1, "bash", "git push --force", "error", false)
+            .unwrap();
 
         let results = store.search("auth").unwrap();
         assert_eq!(results.len(), 1);
@@ -1928,10 +1946,18 @@ mod tests {
     #[test]
     fn test_render_html_no_panic() {
         let store = open_temp();
-        store.insert_session("s1", "hello world task", "claude", "claude-3").unwrap();
-        store.insert_message("s1", "user", "Do something <dangerous> & tricky").unwrap();
-        store.insert_step("s1", 1, "bash", "ls", "file.txt", true).unwrap();
-        store.finish_session("s1", "complete", Some("All done")).unwrap();
+        store
+            .insert_session("s1", "hello world task", "claude", "claude-3")
+            .unwrap();
+        store
+            .insert_message("s1", "user", "Do something <dangerous> & tricky")
+            .unwrap();
+        store
+            .insert_step("s1", 1, "bash", "ls", "file.txt", true)
+            .unwrap();
+        store
+            .finish_session("s1", "complete", Some("All done"))
+            .unwrap();
         let detail = store.get_session_detail("s1").unwrap().unwrap();
         let html = render_session_html(&detail);
         assert!(html.contains("All done"));
@@ -1941,8 +1967,19 @@ mod tests {
     #[test]
     fn test_insert_session_with_parent() {
         let store = open_temp();
-        store.insert_session("root", "Main task", "claude", "claude-3").unwrap();
-        store.insert_session_with_parent("child1", "Sub-task 1", "claude", "claude-3", Some("root"), 1).unwrap();
+        store
+            .insert_session("root", "Main task", "claude", "claude-3")
+            .unwrap();
+        store
+            .insert_session_with_parent(
+                "child1",
+                "Sub-task 1",
+                "claude",
+                "claude-3",
+                Some("root"),
+                1,
+            )
+            .unwrap();
         let child = store.get_session("child1").unwrap().unwrap();
         assert_eq!(child.parent_session_id.as_deref(), Some("root"));
         assert_eq!(child.depth, 1);
@@ -1951,10 +1988,18 @@ mod tests {
     #[test]
     fn test_get_children() {
         let store = open_temp();
-        store.insert_session("root", "Main task", "claude", "claude-3").unwrap();
-        store.insert_session_with_parent("c1", "Child 1", "claude", "claude-3", Some("root"), 1).unwrap();
-        store.insert_session_with_parent("c2", "Child 2", "claude", "claude-3", Some("root"), 1).unwrap();
-        store.insert_session_with_parent("gc1", "Grandchild", "claude", "claude-3", Some("c1"), 2).unwrap();
+        store
+            .insert_session("root", "Main task", "claude", "claude-3")
+            .unwrap();
+        store
+            .insert_session_with_parent("c1", "Child 1", "claude", "claude-3", Some("root"), 1)
+            .unwrap();
+        store
+            .insert_session_with_parent("c2", "Child 2", "claude", "claude-3", Some("root"), 1)
+            .unwrap();
+        store
+            .insert_session_with_parent("gc1", "Grandchild", "claude", "claude-3", Some("c1"), 2)
+            .unwrap();
         let children = store.get_children("root").unwrap();
         assert_eq!(children.len(), 2);
         let grandchildren = store.get_children("c1").unwrap();
@@ -1964,10 +2009,18 @@ mod tests {
     #[test]
     fn test_get_tree() {
         let store = open_temp();
-        store.insert_session("root", "Main task", "claude", "claude-3").unwrap();
-        store.insert_session_with_parent("c1", "Child 1", "claude", "claude-3", Some("root"), 1).unwrap();
-        store.insert_session_with_parent("c2", "Child 2", "claude", "claude-3", Some("root"), 1).unwrap();
-        store.insert_session_with_parent("gc1", "Grandchild", "claude", "claude-3", Some("c1"), 2).unwrap();
+        store
+            .insert_session("root", "Main task", "claude", "claude-3")
+            .unwrap();
+        store
+            .insert_session_with_parent("c1", "Child 1", "claude", "claude-3", Some("root"), 1)
+            .unwrap();
+        store
+            .insert_session_with_parent("c2", "Child 2", "claude", "claude-3", Some("root"), 1)
+            .unwrap();
+        store
+            .insert_session_with_parent("gc1", "Grandchild", "claude", "claude-3", Some("c1"), 2)
+            .unwrap();
         let tree = store.get_tree("root").unwrap().unwrap();
         assert_eq!(tree.session.id, "root");
         assert_eq!(tree.children.len(), 2);
@@ -1978,9 +2031,15 @@ mod tests {
     #[test]
     fn test_list_root_sessions() {
         let store = open_temp();
-        store.insert_session("root1", "Task 1", "claude", "claude-3").unwrap();
-        store.insert_session("root2", "Task 2", "ollama", "llama3").unwrap();
-        store.insert_session_with_parent("child", "Sub", "claude", "claude-3", Some("root1"), 1).unwrap();
+        store
+            .insert_session("root1", "Task 1", "claude", "claude-3")
+            .unwrap();
+        store
+            .insert_session("root2", "Task 2", "ollama", "llama3")
+            .unwrap();
+        store
+            .insert_session_with_parent("child", "Sub", "claude", "claude-3", Some("root1"), 1)
+            .unwrap();
         let roots = store.list_root_sessions(10).unwrap();
         assert_eq!(roots.len(), 2); // only root sessions, not child
     }
@@ -2010,7 +2069,10 @@ mod tests {
 
     #[test]
     fn test_escape_html_lt_gt() {
-        assert_eq!(escape_html("<script>alert(1)</script>"), "&lt;script&gt;alert(1)&lt;/script&gt;");
+        assert_eq!(
+            escape_html("<script>alert(1)</script>"),
+            "&lt;script&gt;alert(1)&lt;/script&gt;"
+        );
     }
 
     #[test]
@@ -2028,7 +2090,16 @@ mod tests {
         assert!(out.contains("&gt;"));
         assert!(out.contains("&quot;"));
         // No raw special chars remain
-        assert!(!out.contains('&') || out.replace("&amp;", "").replace("&lt;", "").replace("&gt;", "").replace("&quot;", "").find('&').is_none());
+        assert!(
+            !out.contains('&')
+                || out
+                    .replace("&amp;", "")
+                    .replace("&lt;", "")
+                    .replace("&gt;", "")
+                    .replace("&quot;", "")
+                    .find('&')
+                    .is_none()
+        );
     }
 
     #[test]
@@ -2057,7 +2128,11 @@ mod tests {
             .unwrap()
             .as_millis() as u64;
         let result = format_age(now_ms - 30_000);
-        assert!(result.ends_with("s ago"), "Expected 's ago', got: {}", result);
+        assert!(
+            result.ends_with("s ago"),
+            "Expected 's ago', got: {}",
+            result
+        );
     }
 
     #[test]
@@ -2067,8 +2142,16 @@ mod tests {
             .unwrap()
             .as_millis() as u64;
         let result = format_age(now_ms - 300_000); // 5 minutes ago
-        assert!(result.ends_with("m ago"), "Expected 'm ago', got: {}", result);
-        assert!(result.starts_with('5') || result.starts_with('4'), "Expected ~5m, got: {}", result);
+        assert!(
+            result.ends_with("m ago"),
+            "Expected 'm ago', got: {}",
+            result
+        );
+        assert!(
+            result.starts_with('5') || result.starts_with('4'),
+            "Expected ~5m, got: {}",
+            result
+        );
     }
 
     #[test]
@@ -2078,7 +2161,11 @@ mod tests {
             .unwrap()
             .as_millis() as u64;
         let result = format_age(now_ms - 7_200_000); // 2 hours ago
-        assert!(result.ends_with("h ago"), "Expected 'h ago', got: {}", result);
+        assert!(
+            result.ends_with("h ago"),
+            "Expected 'h ago', got: {}",
+            result
+        );
     }
 
     #[test]
@@ -2088,30 +2175,35 @@ mod tests {
             .unwrap()
             .as_millis() as u64;
         let result = format_age(now_ms - 172_800_000); // 2 days ago
-        assert!(result.ends_with("d ago"), "Expected 'd ago', got: {}", result);
+        assert!(
+            result.ends_with("d ago"),
+            "Expected 'd ago', got: {}",
+            result
+        );
     }
 
     #[test]
     fn test_render_sessions_index_html_structure() {
-        let sessions = vec![
-            SessionRow {
-                id: "abc123".into(),
-                task: "Build feature X".into(),
-                provider: "claude".into(),
-                model: "claude-3".into(),
-                started_at: 1_700_000_000_000,
-                finished_at: Some(1_700_000_060_000),
-                status: "complete".into(),
-                summary: Some("Done".into()),
-                step_count: 3,
-                parent_session_id: None,
-                depth: 0,
-                project_path: None,
-            },
-        ];
+        let sessions = vec![SessionRow {
+            id: "abc123".into(),
+            task: "Build feature X".into(),
+            provider: "claude".into(),
+            model: "claude-3".into(),
+            started_at: 1_700_000_000_000,
+            finished_at: Some(1_700_000_060_000),
+            status: "complete".into(),
+            summary: Some("Done".into()),
+            step_count: 3,
+            parent_session_id: None,
+            depth: 0,
+            project_path: None,
+        }];
         let html = render_sessions_index_html(&sessions);
         assert!(html.contains("<!DOCTYPE html>"), "Missing doctype");
-        assert!(html.contains("<title>VibeCLI Sessions</title>"), "Missing title");
+        assert!(
+            html.contains("<title>VibeCLI Sessions</title>"),
+            "Missing title"
+        );
         assert!(html.contains("VibeCLI Sessions"), "Missing heading text");
         assert!(html.contains("Build feature X"), "Missing task text");
         assert!(html.contains("abc123"), "Missing session ID in link");
@@ -2123,23 +2215,42 @@ mod tests {
     #[test]
     fn test_render_sessions_index_html_empty() {
         let html = render_sessions_index_html(&[]);
-        assert!(html.contains("No sessions yet"), "Missing empty state message");
+        assert!(
+            html.contains("No sessions yet"),
+            "Missing empty state message"
+        );
     }
 
     #[test]
     fn test_render_sessions_index_html_plural() {
         let sessions = vec![
             SessionRow {
-                id: "s1".into(), task: "Task 1".into(), provider: "p".into(),
-                model: "m".into(), started_at: 1_700_000_000_000, finished_at: None,
-                status: "running".into(), summary: None, step_count: 0,
-                parent_session_id: None, depth: 0, project_path: None,
+                id: "s1".into(),
+                task: "Task 1".into(),
+                provider: "p".into(),
+                model: "m".into(),
+                started_at: 1_700_000_000_000,
+                finished_at: None,
+                status: "running".into(),
+                summary: None,
+                step_count: 0,
+                parent_session_id: None,
+                depth: 0,
+                project_path: None,
             },
             SessionRow {
-                id: "s2".into(), task: "Task 2".into(), provider: "p".into(),
-                model: "m".into(), started_at: 1_700_000_001_000, finished_at: None,
-                status: "failed".into(), summary: None, step_count: 1,
-                parent_session_id: None, depth: 0, project_path: None,
+                id: "s2".into(),
+                task: "Task 2".into(),
+                provider: "p".into(),
+                model: "m".into(),
+                started_at: 1_700_000_001_000,
+                finished_at: None,
+                status: "failed".into(),
+                summary: None,
+                step_count: 1,
+                parent_session_id: None,
+                depth: 0,
+                project_path: None,
             },
         ];
         let html = render_sessions_index_html(&sessions);
@@ -2165,41 +2276,66 @@ mod tests {
             },
             messages: vec![
                 MessageRow {
-                    id: 1, session_id: "sess-42".into(), role: "user".into(),
-                    content: "Please refactor".into(), created_at: 1_700_000_000_000,
+                    id: 1,
+                    session_id: "sess-42".into(),
+                    role: "user".into(),
+                    content: "Please refactor".into(),
+                    created_at: 1_700_000_000_000,
                 },
                 MessageRow {
-                    id: 2, session_id: "sess-42".into(), role: "assistant".into(),
-                    content: "Done refactoring".into(), created_at: 1_700_000_010_000,
+                    id: 2,
+                    session_id: "sess-42".into(),
+                    role: "assistant".into(),
+                    content: "Done refactoring".into(),
+                    created_at: 1_700_000_010_000,
                 },
             ],
             steps: vec![
                 StepRow {
-                    id: 1, session_id: "sess-42".into(), step_num: 1,
-                    tool_name: "read_file".into(), input_summary: "src/parser.rs".into(),
-                    output: "fn parse() {}".into(), success: true, created_at: 1_700_000_005_000,
+                    id: 1,
+                    session_id: "sess-42".into(),
+                    step_num: 1,
+                    tool_name: "read_file".into(),
+                    input_summary: "src/parser.rs".into(),
+                    output: "fn parse() {}".into(),
+                    success: true,
+                    created_at: 1_700_000_005_000,
                 },
                 StepRow {
-                    id: 2, session_id: "sess-42".into(), step_num: 2,
-                    tool_name: "write_file".into(), input_summary: "src/parser.rs".into(),
-                    output: "Written".into(), success: true, created_at: 1_700_000_008_000,
+                    id: 2,
+                    session_id: "sess-42".into(),
+                    step_num: 2,
+                    tool_name: "write_file".into(),
+                    input_summary: "src/parser.rs".into(),
+                    output: "Written".into(),
+                    success: true,
+                    created_at: 1_700_000_008_000,
                 },
             ],
         };
         let html = render_session_html(&detail);
         assert!(html.contains("<!DOCTYPE html>"), "Missing doctype");
-        assert!(html.contains("Session sess-42"), "Missing session ID in title");
+        assert!(
+            html.contains("Session sess-42"),
+            "Missing session ID in title"
+        );
         assert!(html.contains("Agent Session"), "Missing heading");
         assert!(html.contains("Refactor the parser"), "Missing task text");
         assert!(html.contains("Refactored successfully"), "Missing summary");
         assert!(html.contains("ollama"), "Missing provider");
         assert!(html.contains("llama3"), "Missing model");
         assert!(html.contains("Tool Calls"), "Missing tool calls section");
-        assert!(html.contains("Conversation"), "Missing conversation section");
+        assert!(
+            html.contains("Conversation"),
+            "Missing conversation section"
+        );
         assert!(html.contains("read_file"), "Missing step tool name");
         assert!(html.contains("write_file"), "Missing second step tool name");
         assert!(html.contains("Please refactor"), "Missing user message");
-        assert!(html.contains("Done refactoring"), "Missing assistant message");
+        assert!(
+            html.contains("Done refactoring"),
+            "Missing assistant message"
+        );
         assert!(html.contains("complete"), "Missing status badge");
         assert!(html.contains("2 steps"), "Missing step count");
     }
@@ -2208,10 +2344,18 @@ mod tests {
     fn test_render_session_html_failed_status() {
         let detail = SessionDetail {
             session: SessionRow {
-                id: "f1".into(), task: "Fail task".into(), provider: "p".into(),
-                model: "m".into(), started_at: 1_000_000, finished_at: Some(2_000_000),
-                status: "failed".into(), summary: None, step_count: 0,
-                parent_session_id: None, depth: 0, project_path: None,
+                id: "f1".into(),
+                task: "Fail task".into(),
+                provider: "p".into(),
+                model: "m".into(),
+                started_at: 1_000_000,
+                finished_at: Some(2_000_000),
+                status: "failed".into(),
+                summary: None,
+                step_count: 0,
+                parent_session_id: None,
+                depth: 0,
+                project_path: None,
             },
             messages: vec![],
             steps: vec![],
@@ -2224,17 +2368,28 @@ mod tests {
     fn test_render_session_html_running_status_no_finished() {
         let detail = SessionDetail {
             session: SessionRow {
-                id: "r1".into(), task: "Running".into(), provider: "p".into(),
-                model: "m".into(), started_at: 1_000_000, finished_at: None,
-                status: "running".into(), summary: None, step_count: 0,
-                parent_session_id: None, depth: 0, project_path: None,
+                id: "r1".into(),
+                task: "Running".into(),
+                provider: "p".into(),
+                model: "m".into(),
+                started_at: 1_000_000,
+                finished_at: None,
+                status: "running".into(),
+                summary: None,
+                step_count: 0,
+                parent_session_id: None,
+                depth: 0,
+                project_path: None,
             },
             messages: vec![],
             steps: vec![],
         };
         let html = render_session_html(&detail);
         assert!(html.contains("running"), "Missing running status");
-        assert!(html.contains("in progress"), "Missing in progress text for None finished_at");
+        assert!(
+            html.contains("in progress"),
+            "Missing in progress text for None finished_at"
+        );
     }
 
     #[test]
@@ -2257,9 +2412,15 @@ mod tests {
     #[test]
     fn test_search_multi_keyword_and() {
         let store = open_temp();
-        store.insert_session("s1", "rust parser module", "claude", "claude-3").unwrap();
-        store.insert_session("s2", "rust deploy script", "ollama", "llama3").unwrap();
-        store.insert_session("s3", "python parser lib", "openai", "gpt-4").unwrap();
+        store
+            .insert_session("s1", "rust parser module", "claude", "claude-3")
+            .unwrap();
+        store
+            .insert_session("s2", "rust deploy script", "ollama", "llama3")
+            .unwrap();
+        store
+            .insert_session("s3", "python parser lib", "openai", "gpt-4")
+            .unwrap();
 
         // "rust parser" should match only s1 (AND of both keywords)
         let results = store.search("rust parser").unwrap();
@@ -2270,7 +2431,9 @@ mod tests {
     #[test]
     fn test_search_no_results() {
         let store = open_temp();
-        store.insert_session("s1", "Write tests", "claude", "claude-3").unwrap();
+        store
+            .insert_session("s1", "Write tests", "claude", "claude-3")
+            .unwrap();
         let results = store.search("nonexistent_keyword_xyz").unwrap();
         assert!(results.is_empty());
     }
@@ -2278,12 +2441,23 @@ mod tests {
     #[test]
     fn test_search_partial_match_in_steps() {
         let store = open_temp();
-        store.insert_session("s1", "Generic task", "p", "m").unwrap();
-        store.insert_step("s1", 1, "bash", "cargo build", "compiled successfully", true).unwrap();
+        store
+            .insert_session("s1", "Generic task", "p", "m")
+            .unwrap();
+        store
+            .insert_step(
+                "s1",
+                1,
+                "bash",
+                "cargo build",
+                "compiled successfully",
+                true,
+            )
+            .unwrap();
         // Search for content only present in step output
         let results = store.search("compiled").unwrap();
         assert_eq!(results.len(), 0); // "compiled" is in output, not in tool_name or input_summary or content or task
-        // But searching for tool_name or input_summary should work
+                                      // But searching for tool_name or input_summary should work
         let results = store.search("cargo").unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].id, "s1");
@@ -2366,22 +2540,36 @@ mod tests {
     fn test_agent_tree_node_serde_roundtrip() {
         let node = AgentTreeNode {
             session: SessionRow {
-                id: "tree-root".into(), task: "Root".into(), provider: "p".into(),
-                model: "m".into(), started_at: 100, finished_at: None,
-                status: "running".into(), summary: None, step_count: 0,
-                parent_session_id: None, depth: 0, project_path: None,
+                id: "tree-root".into(),
+                task: "Root".into(),
+                provider: "p".into(),
+                model: "m".into(),
+                started_at: 100,
+                finished_at: None,
+                status: "running".into(),
+                summary: None,
+                step_count: 0,
+                parent_session_id: None,
+                depth: 0,
+                project_path: None,
             },
-            children: vec![
-                AgentTreeNode {
-                    session: SessionRow {
-                        id: "tree-child".into(), task: "Child".into(), provider: "p".into(),
-                        model: "m".into(), started_at: 200, finished_at: None,
-                        status: "running".into(), summary: None, step_count: 0,
-                        parent_session_id: Some("tree-root".into()), depth: 1, project_path: None,
-                    },
-                    children: vec![],
+            children: vec![AgentTreeNode {
+                session: SessionRow {
+                    id: "tree-child".into(),
+                    task: "Child".into(),
+                    provider: "p".into(),
+                    model: "m".into(),
+                    started_at: 200,
+                    finished_at: None,
+                    status: "running".into(),
+                    summary: None,
+                    step_count: 0,
+                    parent_session_id: Some("tree-root".into()),
+                    depth: 1,
+                    project_path: None,
                 },
-            ],
+                children: vec![],
+            }],
         };
         let json = serde_json::to_string(&node).unwrap();
         let deserialized: AgentTreeNode = serde_json::from_str(&json).unwrap();
@@ -2396,7 +2584,9 @@ mod tests {
         // Insert session -> messages -> steps -> get detail -> finish -> verify status
         let store = open_temp();
 
-        store.insert_session("life-1", "Full lifecycle test", "claude", "claude-3").unwrap();
+        store
+            .insert_session("life-1", "Full lifecycle test", "claude", "claude-3")
+            .unwrap();
 
         // Verify initial state
         let session = store.get_session("life-1").unwrap().unwrap();
@@ -2404,14 +2594,33 @@ mod tests {
         assert!(session.finished_at.is_none());
 
         // Insert messages
-        store.insert_message("life-1", "system", "You are a helpful assistant").unwrap();
-        store.insert_message("life-1", "user", "Help me refactor").unwrap();
-        store.insert_message("life-1", "assistant", "I will help you refactor").unwrap();
+        store
+            .insert_message("life-1", "system", "You are a helpful assistant")
+            .unwrap();
+        store
+            .insert_message("life-1", "user", "Help me refactor")
+            .unwrap();
+        store
+            .insert_message("life-1", "assistant", "I will help you refactor")
+            .unwrap();
 
         // Insert steps
-        store.insert_step("life-1", 1, "read_file", "src/main.rs", "fn main() {}", true).unwrap();
-        store.insert_step("life-1", 2, "write_file", "src/main.rs", "written", true).unwrap();
-        store.insert_step("life-1", 3, "bash", "cargo test", "test failed", false).unwrap();
+        store
+            .insert_step(
+                "life-1",
+                1,
+                "read_file",
+                "src/main.rs",
+                "fn main() {}",
+                true,
+            )
+            .unwrap();
+        store
+            .insert_step("life-1", 2, "write_file", "src/main.rs", "written", true)
+            .unwrap();
+        store
+            .insert_step("life-1", 3, "bash", "cargo test", "test failed", false)
+            .unwrap();
 
         // Verify messages
         let messages = store.get_messages("life-1").unwrap();
@@ -2430,14 +2639,23 @@ mod tests {
         assert!(!steps[2].success);
 
         // Finish session
-        store.finish_session("life-1", "complete", Some("Refactored with minor test failure")).unwrap();
+        store
+            .finish_session(
+                "life-1",
+                "complete",
+                Some("Refactored with minor test failure"),
+            )
+            .unwrap();
 
         // Verify final state
         let session = store.get_session("life-1").unwrap().unwrap();
         assert_eq!(session.status, "complete");
         assert!(session.finished_at.is_some());
         assert_eq!(session.step_count, 3);
-        assert_eq!(session.summary.as_deref(), Some("Refactored with minor test failure"));
+        assert_eq!(
+            session.summary.as_deref(),
+            Some("Refactored with minor test failure")
+        );
 
         // Verify full detail
         let detail = store.get_session_detail("life-1").unwrap().unwrap();
@@ -2468,7 +2686,9 @@ mod tests {
     fn test_list_sessions_limit() {
         let store = open_temp();
         for i in 0..10 {
-            store.insert_session(&format!("s{}", i), &format!("Task {}", i), "p", "m").unwrap();
+            store
+                .insert_session(&format!("s{}", i), &format!("Task {}", i), "p", "m")
+                .unwrap();
         }
         let sessions = store.list_sessions(3).unwrap();
         assert_eq!(sessions.len(), 3);
@@ -2491,7 +2711,9 @@ mod tests {
     #[test]
     fn test_get_children_no_children() {
         let store = open_temp();
-        store.insert_session("lonely", "No children", "p", "m").unwrap();
+        store
+            .insert_session("lonely", "No children", "p", "m")
+            .unwrap();
         let children = store.get_children("lonely").unwrap();
         assert!(children.is_empty());
     }
@@ -2501,9 +2723,15 @@ mod tests {
         let store = open_temp();
         store.insert_session("r1", "Root 1", "p", "m").unwrap();
         store.insert_session("r2", "Root 2", "p", "m").unwrap();
-        store.insert_session_with_parent("c1", "Child of r1", "p", "m", Some("r1"), 1).unwrap();
-        store.insert_session_with_parent("c2", "Child of r1", "p", "m", Some("r1"), 1).unwrap();
-        store.insert_session_with_parent("gc1", "Grandchild", "p", "m", Some("c1"), 2).unwrap();
+        store
+            .insert_session_with_parent("c1", "Child of r1", "p", "m", Some("r1"), 1)
+            .unwrap();
+        store
+            .insert_session_with_parent("c2", "Child of r1", "p", "m", Some("r1"), 1)
+            .unwrap();
+        store
+            .insert_session_with_parent("gc1", "Grandchild", "p", "m", Some("c1"), 2)
+            .unwrap();
 
         let roots = store.list_root_sessions(100).unwrap();
         // Only r1 and r2 should appear, not c1/c2/gc1
@@ -2542,7 +2770,9 @@ mod tests {
     #[test]
     fn test_search_case_insensitive() {
         let store = open_temp();
-        store.insert_session("s1", "Build the PARSER", "claude", "claude-3").unwrap();
+        store
+            .insert_session("s1", "Build the PARSER", "claude", "claude-3")
+            .unwrap();
         // Search with lowercase should match uppercase task
         let results = store.search("parser").unwrap();
         assert_eq!(results.len(), 1);
@@ -2555,8 +2785,12 @@ mod tests {
     #[test]
     fn test_search_matches_in_messages() {
         let store = open_temp();
-        store.insert_session("s1", "Generic task", "p", "m").unwrap();
-        store.insert_message("s1", "assistant", "Found a segfault in the allocator").unwrap();
+        store
+            .insert_session("s1", "Generic task", "p", "m")
+            .unwrap();
+        store
+            .insert_message("s1", "assistant", "Found a segfault in the allocator")
+            .unwrap();
         // Search for word only present in message content
         let results = store.search("segfault").unwrap();
         assert_eq!(results.len(), 1);
@@ -2567,9 +2801,15 @@ mod tests {
     fn test_get_tree_deep_hierarchy() {
         let store = open_temp();
         store.insert_session("d0", "Depth 0", "p", "m").unwrap();
-        store.insert_session_with_parent("d1", "Depth 1", "p", "m", Some("d0"), 1).unwrap();
-        store.insert_session_with_parent("d2", "Depth 2", "p", "m", Some("d1"), 2).unwrap();
-        store.insert_session_with_parent("d3", "Depth 3", "p", "m", Some("d2"), 3).unwrap();
+        store
+            .insert_session_with_parent("d1", "Depth 1", "p", "m", Some("d0"), 1)
+            .unwrap();
+        store
+            .insert_session_with_parent("d2", "Depth 2", "p", "m", Some("d1"), 2)
+            .unwrap();
+        store
+            .insert_session_with_parent("d3", "Depth 3", "p", "m", Some("d2"), 3)
+            .unwrap();
 
         let tree = store.get_tree("d0").unwrap().unwrap();
         assert_eq!(tree.session.id, "d0");
@@ -2588,7 +2828,10 @@ mod tests {
         // Document this behavior explicitly (the function only escapes &, <, >, ").
         let input = "it's a test";
         let out = escape_html(input);
-        assert_eq!(out, "it's a test", "Single quotes should pass through unchanged");
+        assert_eq!(
+            out, "it's a test",
+            "Single quotes should pass through unchanged"
+        );
     }
 
     #[test]
@@ -2608,8 +2851,14 @@ mod tests {
         assert!(!out.contains('<'), "No raw '<' should remain");
         assert!(!out.contains('>'), "No raw '>' should remain");
         assert!(out.contains("&lt;div"), "Opening tag should be escaped");
-        assert!(out.contains("&lt;/div&gt;"), "Closing tag should be escaped");
-        assert!(out.contains("&lt;script&gt;"), "Script tag should be escaped");
+        assert!(
+            out.contains("&lt;/div&gt;"),
+            "Closing tag should be escaped"
+        );
+        assert!(
+            out.contains("&lt;script&gt;"),
+            "Script tag should be escaped"
+        );
     }
 
     #[test]
@@ -2617,7 +2866,10 @@ mod tests {
         // "&amp;" in input: the & should be escaped, producing "&amp;amp;"
         let input = "&amp;";
         let out = escape_html(input);
-        assert_eq!(out, "&amp;amp;", "Ampersand in entity-like sequences should still be escaped");
+        assert_eq!(
+            out, "&amp;amp;",
+            "Ampersand in entity-like sequences should still be escaped"
+        );
     }
 
     #[test]
@@ -2671,7 +2923,10 @@ mod tests {
         // A timestamp in the far future should saturate to "0s ago" (no underflow)
         let far_future_ms = u64::MAX / 2;
         let result = format_age(far_future_ms);
-        assert_eq!(result, "0s ago", "Future timestamps should show 0s ago due to saturating_sub");
+        assert_eq!(
+            result, "0s ago",
+            "Future timestamps should show 0s ago due to saturating_sub"
+        );
     }
 
     #[test]
@@ -2691,8 +2946,14 @@ mod tests {
             project_path: None,
         }];
         let html = render_sessions_index_html(&sessions);
-        assert!(!html.contains("<img"), "XSS payload in task must be escaped in index HTML");
-        assert!(html.contains("&lt;img"), "Angle brackets in task should be escaped");
+        assert!(
+            !html.contains("<img"),
+            "XSS payload in task must be escaped in index HTML"
+        );
+        assert!(
+            html.contains("&lt;img"),
+            "Angle brackets in task should be escaped"
+        );
     }
 
     #[test]
@@ -2712,7 +2973,10 @@ mod tests {
             project_path: None,
         }];
         let html = render_sessions_index_html(&sessions);
-        assert!(!html.contains("<script>"), "XSS payload in provider must be escaped");
+        assert!(
+            !html.contains("<script>"),
+            "XSS payload in provider must be escaped"
+        );
     }
 
     #[test]
@@ -2735,28 +2999,46 @@ mod tests {
         let html = render_sessions_index_html(&sessions);
         // The task should be truncated to 80 chars in the index view
         let full_a_120 = "A".repeat(120);
-        assert!(!html.contains(&full_a_120), "Full 120-char task should be truncated");
+        assert!(
+            !html.contains(&full_a_120),
+            "Full 120-char task should be truncated"
+        );
         // Should contain the first 80 chars
         let a_80 = "A".repeat(80);
-        assert!(html.contains(&a_80), "Index should contain first 80 chars of task");
+        assert!(
+            html.contains(&a_80),
+            "Index should contain first 80 chars of task"
+        );
     }
 
     #[test]
     fn test_search_sql_wildcard_injection() {
         // Ensure that SQL LIKE wildcards (% and _) in user input are escaped
         let store = open_temp();
-        store.insert_session("s1", "100% complete", "p", "m").unwrap();
-        store.insert_session("s2", "a_b_c pattern", "p", "m").unwrap();
+        store
+            .insert_session("s1", "100% complete", "p", "m")
+            .unwrap();
+        store
+            .insert_session("s2", "a_b_c pattern", "p", "m")
+            .unwrap();
         store.insert_session("s3", "normal task", "p", "m").unwrap();
 
         // Searching for "%" should only match sessions that literally contain %
         let results = store.search("%").unwrap();
-        assert_eq!(results.len(), 1, "% wildcard should be escaped, matching only literal %");
+        assert_eq!(
+            results.len(),
+            1,
+            "% wildcard should be escaped, matching only literal %"
+        );
         assert_eq!(results[0].id, "s1");
 
         // Searching for "_" should only match sessions that literally contain _
         let results = store.search("_").unwrap();
-        assert_eq!(results.len(), 1, "_ wildcard should be escaped, matching only literal _");
+        assert_eq!(
+            results.len(),
+            1,
+            "_ wildcard should be escaped, matching only literal _"
+        );
         assert_eq!(results[0].id, "s2");
     }
 
@@ -2766,7 +3048,11 @@ mod tests {
         store.insert_session("s1", "Task one", "p", "m").unwrap();
         // Whitespace-only query should behave like empty (split_whitespace yields nothing)
         let results = store.search("   \t  ").unwrap();
-        assert_eq!(results.len(), 1, "Whitespace-only query should fall back to list_sessions");
+        assert_eq!(
+            results.len(),
+            1,
+            "Whitespace-only query should fall back to list_sessions"
+        );
     }
 
     #[test]
@@ -2791,9 +3077,15 @@ mod tests {
         };
         let html = render_session_html(&detail);
         // Duration should be 65s
-        assert!(html.contains("65s"), "Duration should show 65s for 65000ms difference");
+        assert!(
+            html.contains("65s"),
+            "Duration should show 65s for 65000ms difference"
+        );
         // Empty model should not produce " / " separator
-        assert!(!html.contains(" / "), "Empty model should not add model separator");
+        assert!(
+            !html.contains(" / "),
+            "Empty model should not add model separator"
+        );
     }
 
     #[test]
@@ -2819,7 +3111,10 @@ mod tests {
         let html = render_session_html(&detail);
         assert!(html.contains("1 step"), "Should show '1 step' (singular)");
         // Make sure it doesn't say "1 steps"
-        assert!(!html.contains("1 steps"), "Should not show '1 steps' (plural)");
+        assert!(
+            !html.contains("1 steps"),
+            "Should not show '1 steps' (plural)"
+        );
     }
 
     #[test]
@@ -2827,14 +3122,21 @@ mod tests {
         let store = open_temp();
         store.insert_session("dup", "First", "p", "m").unwrap();
         store.insert_session("dup", "Second", "p", "m").unwrap(); // INSERT OR IGNORE
-        assert_eq!(store.count().unwrap(), 1, "Duplicate insert should not increase count");
+        assert_eq!(
+            store.count().unwrap(),
+            1,
+            "Duplicate insert should not increase count"
+        );
     }
 
     // ── escape_html additional edge cases ─────────────────────────────────
 
     #[test]
     fn test_escape_html_consecutive_special_chars() {
-        assert_eq!(escape_html("<<>>&&\"\""), "&lt;&lt;&gt;&gt;&amp;&amp;&quot;&quot;");
+        assert_eq!(
+            escape_html("<<>>&&\"\""),
+            "&lt;&lt;&gt;&gt;&amp;&amp;&quot;&quot;"
+        );
     }
 
     #[test]
@@ -2902,7 +3204,9 @@ mod tests {
     #[test]
     fn test_search_case_insensitive_matching() {
         let store = open_temp();
-        store.insert_session("ci1", "Build the PARSER module", "claude", "c3").unwrap();
+        store
+            .insert_session("ci1", "Build the PARSER module", "claude", "c3")
+            .unwrap();
         let results = store.search("parser").unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].id, "ci1");
@@ -2911,8 +3215,12 @@ mod tests {
     #[test]
     fn test_search_matches_in_message_content() {
         let store = open_temp();
-        store.insert_session("sm1", "Generic task", "p", "m").unwrap();
-        store.insert_message("sm1", "assistant", "The authentication module needs work").unwrap();
+        store
+            .insert_session("sm1", "Generic task", "p", "m")
+            .unwrap();
+        store
+            .insert_message("sm1", "assistant", "The authentication module needs work")
+            .unwrap();
         let results = store.search("authentication").unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].id, "sm1");
@@ -2921,9 +3229,15 @@ mod tests {
     #[test]
     fn test_search_three_keyword_and_semantics() {
         let store = open_temp();
-        store.insert_session("tk1", "rust auth parser test", "p", "m").unwrap();
-        store.insert_session("tk2", "rust auth helper", "p", "m").unwrap();
-        store.insert_session("tk3", "rust parser deploy", "p", "m").unwrap();
+        store
+            .insert_session("tk1", "rust auth parser test", "p", "m")
+            .unwrap();
+        store
+            .insert_session("tk2", "rust auth helper", "p", "m")
+            .unwrap();
+        store
+            .insert_session("tk3", "rust parser deploy", "p", "m")
+            .unwrap();
         let results = store.search("rust auth parser").unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].id, "tk1");
@@ -2934,10 +3248,18 @@ mod tests {
     #[test]
     fn test_finish_updates_step_count_correctly() {
         let store = open_temp();
-        store.insert_session("fsc1", "step counting", "p", "m").unwrap();
-        store.insert_step("fsc1", 1, "read_file", "a.rs", "ok", true).unwrap();
-        store.insert_step("fsc1", 2, "write_file", "b.rs", "ok", true).unwrap();
-        store.insert_step("fsc1", 3, "bash", "ls", "ok", true).unwrap();
+        store
+            .insert_session("fsc1", "step counting", "p", "m")
+            .unwrap();
+        store
+            .insert_step("fsc1", 1, "read_file", "a.rs", "ok", true)
+            .unwrap();
+        store
+            .insert_step("fsc1", 2, "write_file", "b.rs", "ok", true)
+            .unwrap();
+        store
+            .insert_step("fsc1", 3, "bash", "ls", "ok", true)
+            .unwrap();
         store.finish_session("fsc1", "complete", None).unwrap();
         let s = store.get_session("fsc1").unwrap().unwrap();
         assert_eq!(s.step_count, 3);
@@ -2949,22 +3271,36 @@ mod tests {
     fn test_render_session_html_failed_step_output() {
         let detail = SessionDetail {
             session: SessionRow {
-                id: "sf1".into(), task: "Step failure test".into(),
-                provider: "p".into(), model: "m".into(),
-                started_at: 1_700_000_000_000, finished_at: Some(1_700_000_010_000),
-                status: "complete".into(), summary: None,
-                step_count: 1, parent_session_id: None, depth: 0, project_path: None,
+                id: "sf1".into(),
+                task: "Step failure test".into(),
+                provider: "p".into(),
+                model: "m".into(),
+                started_at: 1_700_000_000_000,
+                finished_at: Some(1_700_000_010_000),
+                status: "complete".into(),
+                summary: None,
+                step_count: 1,
+                parent_session_id: None,
+                depth: 0,
+                project_path: None,
             },
             messages: vec![],
             steps: vec![StepRow {
-                id: 1, session_id: "sf1".into(), step_num: 1,
-                tool_name: "bash".into(), input_summary: "rm -rf /".into(),
-                output: "Permission denied".into(), success: false,
+                id: 1,
+                session_id: "sf1".into(),
+                step_num: 1,
+                tool_name: "bash".into(),
+                input_summary: "rm -rf /".into(),
+                output: "Permission denied".into(),
+                success: false,
                 created_at: 1_700_000_005_000,
             }],
         };
         let html = render_session_html(&detail);
-        assert!(html.contains("Tool Calls"), "Should have tool calls section");
+        assert!(
+            html.contains("Tool Calls"),
+            "Should have tool calls section"
+        );
         assert!(html.contains("bash"), "Should show tool name");
         assert!(html.contains("Permission denied"), "Should show output");
     }
@@ -2973,20 +3309,33 @@ mod tests {
     fn test_render_session_html_system_message_role_class() {
         let detail = SessionDetail {
             session: SessionRow {
-                id: "sysm1".into(), task: "System msg test".into(),
-                provider: "p".into(), model: "m".into(),
-                started_at: 1_700_000_000_000, finished_at: Some(1_700_000_010_000),
-                status: "complete".into(), summary: None,
-                step_count: 0, parent_session_id: None, depth: 0, project_path: None,
+                id: "sysm1".into(),
+                task: "System msg test".into(),
+                provider: "p".into(),
+                model: "m".into(),
+                started_at: 1_700_000_000_000,
+                finished_at: Some(1_700_000_010_000),
+                status: "complete".into(),
+                summary: None,
+                step_count: 0,
+                parent_session_id: None,
+                depth: 0,
+                project_path: None,
             },
             messages: vec![MessageRow {
-                id: 1, session_id: "sysm1".into(), role: "system".into(),
-                content: "You are a helpful assistant".into(), created_at: 1_700_000_000_000,
+                id: 1,
+                session_id: "sysm1".into(),
+                role: "system".into(),
+                content: "You are a helpful assistant".into(),
+                created_at: 1_700_000_000_000,
             }],
             steps: vec![],
         };
         let html = render_session_html(&detail);
-        assert!(html.contains("msg system"), "System message should have system class");
+        assert!(
+            html.contains("msg system"),
+            "System message should have system class"
+        );
         assert!(html.contains("You are a helpful assistant"));
     }
 
@@ -2996,22 +3345,46 @@ mod tests {
     fn test_render_sessions_index_all_status_badges() {
         let sessions = vec![
             SessionRow {
-                id: "c1".into(), task: "Complete".into(), provider: "p".into(),
-                model: "m".into(), started_at: 1_700_000_003_000, finished_at: Some(1_700_000_010_000),
-                status: "complete".into(), summary: None, step_count: 0,
-                parent_session_id: None, depth: 0, project_path: None,
+                id: "c1".into(),
+                task: "Complete".into(),
+                provider: "p".into(),
+                model: "m".into(),
+                started_at: 1_700_000_003_000,
+                finished_at: Some(1_700_000_010_000),
+                status: "complete".into(),
+                summary: None,
+                step_count: 0,
+                parent_session_id: None,
+                depth: 0,
+                project_path: None,
             },
             SessionRow {
-                id: "f1".into(), task: "Failed".into(), provider: "p".into(),
-                model: "m".into(), started_at: 1_700_000_002_000, finished_at: Some(1_700_000_010_000),
-                status: "failed".into(), summary: None, step_count: 0,
-                parent_session_id: None, depth: 0, project_path: None,
+                id: "f1".into(),
+                task: "Failed".into(),
+                provider: "p".into(),
+                model: "m".into(),
+                started_at: 1_700_000_002_000,
+                finished_at: Some(1_700_000_010_000),
+                status: "failed".into(),
+                summary: None,
+                step_count: 0,
+                parent_session_id: None,
+                depth: 0,
+                project_path: None,
             },
             SessionRow {
-                id: "r1".into(), task: "Running".into(), provider: "p".into(),
-                model: "m".into(), started_at: 1_700_000_001_000, finished_at: None,
-                status: "running".into(), summary: None, step_count: 0,
-                parent_session_id: None, depth: 0, project_path: None,
+                id: "r1".into(),
+                task: "Running".into(),
+                provider: "p".into(),
+                model: "m".into(),
+                started_at: 1_700_000_001_000,
+                finished_at: None,
+                status: "running".into(),
+                summary: None,
+                step_count: 0,
+                parent_session_id: None,
+                depth: 0,
+                project_path: None,
             },
         ];
         let html = render_sessions_index_html(&sessions);
@@ -3026,9 +3399,15 @@ mod tests {
     fn test_get_tree_deep_four_levels() {
         let store = open_temp();
         store.insert_session("d0", "Root", "p", "m").unwrap();
-        store.insert_session_with_parent("d1", "Depth 1", "p", "m", Some("d0"), 1).unwrap();
-        store.insert_session_with_parent("d2", "Depth 2", "p", "m", Some("d1"), 2).unwrap();
-        store.insert_session_with_parent("d3", "Depth 3", "p", "m", Some("d2"), 3).unwrap();
+        store
+            .insert_session_with_parent("d1", "Depth 1", "p", "m", Some("d0"), 1)
+            .unwrap();
+        store
+            .insert_session_with_parent("d2", "Depth 2", "p", "m", Some("d1"), 2)
+            .unwrap();
+        store
+            .insert_session_with_parent("d3", "Depth 3", "p", "m", Some("d2"), 3)
+            .unwrap();
         let tree = store.get_tree("d0").unwrap().unwrap();
         assert_eq!(tree.session.id, "d0");
         assert_eq!(tree.children[0].session.id, "d1");
@@ -3042,7 +3421,9 @@ mod tests {
     #[test]
     fn test_steps_ordered_by_step_num() {
         let store = open_temp();
-        store.insert_session("ord", "Step order test", "p", "m").unwrap();
+        store
+            .insert_session("ord", "Step order test", "p", "m")
+            .unwrap();
         store.insert_step("ord", 3, "tool_c", "", "", true).unwrap();
         store.insert_step("ord", 1, "tool_a", "", "", true).unwrap();
         store.insert_step("ord", 2, "tool_b", "", "", true).unwrap();
@@ -3103,7 +3484,9 @@ mod tests {
             .insert_message("s1", "assistant", "I'll start with the login module")
             .unwrap();
 
-        let hits = store.search_fts("authentication", SearchScope::All, 10).unwrap();
+        let hits = store
+            .search_fts("authentication", SearchScope::All, 10)
+            .unwrap();
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].session_id, "s1");
         assert!(hits[0].content.contains("authentication"));
@@ -3118,8 +3501,12 @@ mod tests {
         store
             .insert_session_with_project("s2", "t", "c", "m", "/p/beta")
             .unwrap();
-        store.insert_message("s1", "user", "deploy the service").unwrap();
-        store.insert_message("s2", "user", "deploy the service").unwrap();
+        store
+            .insert_message("s1", "user", "deploy the service")
+            .unwrap();
+        store
+            .insert_message("s2", "user", "deploy the service")
+            .unwrap();
 
         let hits_alpha = store
             .search_fts("deploy", SearchScope::Project("/p/alpha".into()), 10)
@@ -3141,7 +3528,10 @@ mod tests {
             .insert_message("s1", "user", "searchable unique phrase xyzzy")
             .unwrap();
         assert_eq!(
-            store.search_fts("xyzzy", SearchScope::All, 10).unwrap().len(),
+            store
+                .search_fts("xyzzy", SearchScope::All, 10)
+                .unwrap()
+                .len(),
             1,
             "message should be in FTS before delete"
         );
@@ -3149,7 +3539,10 @@ mod tests {
         store.delete_session("s1").unwrap();
 
         assert_eq!(
-            store.search_fts("xyzzy", SearchScope::All, 10).unwrap().len(),
+            store
+                .search_fts("xyzzy", SearchScope::All, 10)
+                .unwrap()
+                .len(),
             0,
             "FTS rows should be cleaned up when the session is deleted"
         );
@@ -3195,7 +3588,9 @@ mod tests {
         }
         // Re-open — migration/index must survive.
         let store = SessionStore::open(&path).unwrap();
-        let hits = store.search_fts("persistent", SearchScope::All, 10).unwrap();
+        let hits = store
+            .search_fts("persistent", SearchScope::All, 10)
+            .unwrap();
         assert_eq!(hits.len(), 1, "FTS entries must persist across open()");
     }
 
@@ -3212,7 +3607,9 @@ mod tests {
         store
             .insert_session_with_parent(&sid, "test task", "mock", "test-model", None, 0)
             .unwrap();
-        store.insert_message(&sid, "user", "Refactor auth module").unwrap();
+        store
+            .insert_message(&sid, "user", "Refactor auth module")
+            .unwrap();
         let detail = store
             .get_session_detail(&sid)
             .unwrap()
@@ -3273,8 +3670,7 @@ mod tests {
         // deterministic for the ORDER BY assertion. Without this the
         // two recaps could share a timestamp on fast hardware and the
         // ORDER BY tie-break would be undefined.
-        recap2.generated_at =
-            recap1.generated_at + chrono::Duration::seconds(1);
+        recap2.generated_at = recap1.generated_at + chrono::Duration::seconds(1);
         let _ = store.insert_recap(&recap2).expect("insert 2");
 
         let list = store.list_recaps_for_subject(&sid, 10).expect("list");
@@ -3350,14 +3746,19 @@ mod tests {
     }
 }
 
-
 // ── CLI command helpers ───────────────────────────────────────────────────────
 
 /// CLI handler for `vibecli --fork <session-id>`.
 pub async fn fork_session_cmd(source_id: &str) -> anyhow::Result<()> {
     let store = SessionStore::open_default()?;
-    let new_id = format!("fork-{}-{}", &source_id[..source_id.len().min(12)],
-        SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs());
+    let new_id = format!(
+        "fork-{}-{}",
+        &source_id[..source_id.len().min(12)],
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs()
+    );
     store.fork_session(source_id, &new_id)?;
     println!("✔ Forked session '{}' → '{}'", source_id, new_id);
     println!("  Resume the fork with: vibecli --resume {}", new_id);
@@ -3372,10 +3773,14 @@ pub async fn fork_session_cmd(source_id: &str) -> anyhow::Result<()> {
 pub fn auto_name_session(raw_task: &str) -> String {
     // Strip leading/trailing whitespace and truncate long tasks
     let task = raw_task.trim();
-    if task.is_empty() { return "Unnamed session".to_string(); }
+    if task.is_empty() {
+        return "Unnamed session".to_string();
+    }
 
     // If the task is already short enough, use it as-is
-    if task.chars().count() <= 60 { return task.to_string(); }
+    if task.chars().count() <= 60 {
+        return task.to_string();
+    }
 
     // Extract the first sentence (up to '. ', '? ', or '! ')
     for pat in &[". ", "? ", "! ", "\n"] {
@@ -3389,7 +3794,8 @@ pub fn auto_name_session(raw_task: &str) -> String {
     }
 
     // Fall back: first 60 characters + ellipsis
-    let end = task.char_indices()
+    let end = task
+        .char_indices()
         .nth(57)
         .map(|(i, _)| i)
         .unwrap_or(task.len());

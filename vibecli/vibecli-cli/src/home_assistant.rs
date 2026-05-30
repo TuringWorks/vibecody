@@ -47,17 +47,17 @@ impl HaEntity {
     /// Return a domain emoji.
     pub fn domain_emoji(&self) -> &str {
         match self.domain() {
-            "light" => "\u{1f4a1}",       // 💡
-            "climate" => "\u{1f321}\u{fe0f}", // 🌡️
-            "switch" => "\u{1f50c}",      // 🔌
-            "scene" => "\u{1f3a8}",       // 🎨
-            "sensor" => "\u{1f4e1}",      // 📡
+            "light" => "\u{1f4a1}",             // 💡
+            "climate" => "\u{1f321}\u{fe0f}",   // 🌡️
+            "switch" => "\u{1f50c}",            // 🔌
+            "scene" => "\u{1f3a8}",             // 🎨
+            "sensor" => "\u{1f4e1}",            // 📡
             "automation" => "\u{2699}\u{fe0f}", // ⚙️
-            "binary_sensor" => "\u{1f518}", // 🔘
-            "fan" => "\u{1f4a8}",         // 💨
-            "cover" => "\u{1fa9f}",       // 🪟
-            "lock" => "\u{1f512}",        // 🔒
-            _ => "\u{1f3e0}",             // 🏠
+            "binary_sensor" => "\u{1f518}",     // 🔘
+            "fan" => "\u{1f4a8}",               // 💨
+            "cover" => "\u{1fa9f}",             // 🪟
+            "lock" => "\u{1f512}",              // 🔒
+            _ => "\u{1f3e0}",                   // 🏠
         }
     }
 
@@ -105,18 +105,36 @@ impl HomeAssistantClient {
     pub fn from_env_or_config() -> Option<Self> {
         // 0. ProfileStore (encrypted SQLite)
         if let Ok(store) = crate::profile_store::ProfileStore::new() {
-            let url = store.get_api_key("default", "integration.smarthome.home_assistant_url").ok().flatten();
-            let token = store.get_api_key("default", "integration.smarthome.home_assistant_token").ok().flatten();
+            let url = store
+                .get_api_key("default", "integration.smarthome.home_assistant_url")
+                .ok()
+                .flatten();
+            let token = store
+                .get_api_key("default", "integration.smarthome.home_assistant_token")
+                .ok()
+                .flatten();
             if let (Some(u), Some(t)) = (url, token) {
-                if !u.is_empty() && !t.is_empty() { return Some(Self::new(u, t)); }
+                if !u.is_empty() && !t.is_empty() {
+                    return Some(Self::new(u, t));
+                }
             }
         }
-        let url = std::env::var("HOME_ASSISTANT_URL").ok().filter(|s| !s.is_empty()).or_else(|| {
-            crate::config::Config::load().ok().and_then(|c| c.home_assistant.and_then(|ha| ha.url))
-        });
-        let token = std::env::var("HOME_ASSISTANT_TOKEN").ok().filter(|s| !s.is_empty()).or_else(|| {
-            crate::config::Config::load().ok().and_then(|c| c.home_assistant.and_then(|ha| ha.token))
-        });
+        let url = std::env::var("HOME_ASSISTANT_URL")
+            .ok()
+            .filter(|s| !s.is_empty())
+            .or_else(|| {
+                crate::config::Config::load()
+                    .ok()
+                    .and_then(|c| c.home_assistant.and_then(|ha| ha.url))
+            });
+        let token = std::env::var("HOME_ASSISTANT_TOKEN")
+            .ok()
+            .filter(|s| !s.is_empty())
+            .or_else(|| {
+                crate::config::Config::load()
+                    .ok()
+                    .and_then(|c| c.home_assistant.and_then(|ha| ha.token))
+            });
         match (url, token) {
             (Some(u), Some(t)) => Some(Self::new(u, t)),
             _ => None,
@@ -215,12 +233,16 @@ impl HomeAssistantClient {
     /// List automations.
     pub async fn list_automations(&self) -> Result<Vec<HaEntity>> {
         let states = self.get_states().await?;
-        Ok(states.into_iter().filter(|e| e.domain() == "automation").collect())
+        Ok(states
+            .into_iter()
+            .filter(|e| e.domain() == "automation")
+            .collect())
     }
 
     /// Trigger an automation.
     pub async fn trigger_automation(&self, entity_id: &str) -> Result<serde_json::Value> {
-        self.call_service("automation", "trigger", entity_id, None).await
+        self.call_service("automation", "trigger", entity_id, None)
+            .await
     }
 }
 
@@ -335,7 +357,8 @@ pub async fn handle_ha_command(args: &str) -> String {
         "scene" => {
             let scene = parts.get(1).copied().unwrap_or("").trim();
             if scene.is_empty() {
-                return "Usage: /ha scene <scene_name>  e.g. /ha scene scene.movie_time\n".to_string();
+                return "Usage: /ha scene <scene_name>  e.g. /ha scene scene.movie_time\n"
+                    .to_string();
             }
             handle_scene(&client, scene).await
         }
@@ -372,8 +395,7 @@ pub async fn handle_ha_command(args: &str) -> String {
                 _ => "Usage: /ha automation list | /ha automation trigger <id>\n".to_string(),
             }
         }
-        _ => {
-            "Usage:\n  \
+        _ => "Usage:\n  \
              /ha status                         \u{2014} List all entities by domain\n  \
              /ha lights                         \u{2014} List lights\n  \
              /ha on <entity_id>                 \u{2014} Turn on device\n  \
@@ -385,8 +407,7 @@ pub async fn handle_ha_command(args: &str) -> String {
              /ha history <entity_id>            \u{2014} Recent state changes\n  \
              /ha automation list                \u{2014} List automations\n  \
              /ha automation trigger <id>        \u{2014} Trigger automation\n"
-                .to_string()
-        }
+            .to_string(),
     }
 }
 
@@ -402,9 +423,15 @@ async fn handle_status(client: &HomeAssistantClient) -> String {
             for e in &entities {
                 grouped.entry(e.domain().to_string()).or_default().push(e);
             }
-            let mut out = format!("\u{1f3e0} Home Assistant \u{2014} {} entities\n\n", entities.len());
+            let mut out = format!(
+                "\u{1f3e0} Home Assistant \u{2014} {} entities\n\n",
+                entities.len()
+            );
             for (domain, items) in &grouped {
-                let emoji = items.first().map(|e| e.domain_emoji()).unwrap_or("\u{1f3e0}");
+                let emoji = items
+                    .first()
+                    .map(|e| e.domain_emoji())
+                    .unwrap_or("\u{1f3e0}");
                 out.push_str(&format!("{} {} ({}):\n", emoji, domain, items.len()));
                 for e in items.iter().take(15) {
                     out.push_str(&format!("  {} \u{2014} {}\n", e.friendly_name(), e.state));
@@ -423,18 +450,29 @@ async fn handle_status(client: &HomeAssistantClient) -> String {
 async fn handle_lights(client: &HomeAssistantClient) -> String {
     match client.get_states().await {
         Ok(entities) => {
-            let lights: Vec<&HaEntity> = entities.iter().filter(|e| e.domain() == "light").collect();
+            let lights: Vec<&HaEntity> =
+                entities.iter().filter(|e| e.domain() == "light").collect();
             if lights.is_empty() {
                 return "\u{1f4a1} No lights found.\n".to_string();
             }
             let mut out = format!("\u{1f4a1} Lights ({}):\n", lights.len());
             for light in &lights {
-                let status = if light.state == "on" { "\u{1f7e2} ON" } else { "\u{1f534} OFF" };
+                let status = if light.state == "on" {
+                    "\u{1f7e2} ON"
+                } else {
+                    "\u{1f534} OFF"
+                };
                 let brightness = light
                     .brightness_pct()
                     .map(|b| format!(" ({}%)", b))
                     .unwrap_or_default();
-                out.push_str(&format!("  {} {} {}{}\n", light.entity_id, status, light.friendly_name(), brightness));
+                out.push_str(&format!(
+                    "  {} {} {}{}\n",
+                    light.entity_id,
+                    status,
+                    light.friendly_name(),
+                    brightness
+                ));
             }
             out.push('\n');
             out
@@ -445,7 +483,10 @@ async fn handle_lights(client: &HomeAssistantClient) -> String {
 
 async fn handle_turn_on(client: &HomeAssistantClient, entity_id: &str) -> String {
     let domain = entity_id.split('.').next().unwrap_or("homeassistant");
-    match client.call_service(domain, "turn_on", entity_id, None).await {
+    match client
+        .call_service(domain, "turn_on", entity_id, None)
+        .await
+    {
         Ok(_) => format!("\u{2705} Turned on {}\n", entity_id),
         Err(e) => format!("\u{274c} Failed to turn on {}: {}\n", entity_id, e),
     }
@@ -453,7 +494,10 @@ async fn handle_turn_on(client: &HomeAssistantClient, entity_id: &str) -> String
 
 async fn handle_turn_off(client: &HomeAssistantClient, entity_id: &str) -> String {
     let domain = entity_id.split('.').next().unwrap_or("homeassistant");
-    match client.call_service(domain, "turn_off", entity_id, None).await {
+    match client
+        .call_service(domain, "turn_off", entity_id, None)
+        .await
+    {
         Ok(_) => format!("\u{2705} Turned off {}\n", entity_id),
         Err(e) => format!("\u{274c} Failed to turn off {}: {}\n", entity_id, e),
     }
@@ -467,7 +511,12 @@ async fn handle_toggle(client: &HomeAssistantClient, entity_id: &str) -> String 
     }
 }
 
-async fn handle_set(client: &HomeAssistantClient, entity_id: &str, attr: &str, value: &str) -> String {
+async fn handle_set(
+    client: &HomeAssistantClient,
+    entity_id: &str,
+    attr: &str,
+    value: &str,
+) -> String {
     let domain = entity_id.split('.').next().unwrap_or("homeassistant");
     // Try to parse value as number, otherwise send as string
     let val: serde_json::Value = value
@@ -475,7 +524,10 @@ async fn handle_set(client: &HomeAssistantClient, entity_id: &str, attr: &str, v
         .map(|n| serde_json::json!(n))
         .unwrap_or_else(|_| serde_json::json!(value));
     let data = serde_json::json!({ attr: val });
-    match client.call_service(domain, "turn_on", entity_id, Some(data)).await {
+    match client
+        .call_service(domain, "turn_on", entity_id, Some(data))
+        .await
+    {
         Ok(_) => format!("\u{2705} Set {} = {} on {}\n", attr, value, entity_id),
         Err(e) => format!("\u{274c} Failed to set attribute: {}\n", e),
     }
@@ -487,7 +539,10 @@ async fn handle_scene(client: &HomeAssistantClient, scene: &str) -> String {
     } else {
         format!("scene.{}", scene)
     };
-    match client.call_service("scene", "turn_on", &entity_id, None).await {
+    match client
+        .call_service("scene", "turn_on", &entity_id, None)
+        .await
+    {
         Ok(_) => format!("\u{1f3a8} Activated scene {}\n", entity_id),
         Err(e) => format!("\u{274c} Failed to activate scene: {}\n", e),
     }
@@ -497,19 +552,27 @@ async fn handle_climate_status(client: &HomeAssistantClient, entity_id: &str) ->
     match client.get_states().await {
         Ok(entities) => {
             if let Some(e) = entities.iter().find(|e| e.entity_id == entity_id) {
-                let temp = e.attributes.get("current_temperature")
+                let temp = e
+                    .attributes
+                    .get("current_temperature")
                     .and_then(|v| v.as_f64())
                     .map(|t| format!("{:.1}\u{00b0}", t))
                     .unwrap_or_else(|| "N/A".to_string());
-                let target = e.attributes.get("temperature")
+                let target = e
+                    .attributes
+                    .get("temperature")
                     .and_then(|v| v.as_f64())
                     .map(|t| format!("{:.1}\u{00b0}", t))
                     .unwrap_or_else(|| "N/A".to_string());
-                let humidity = e.attributes.get("current_humidity")
+                let humidity = e
+                    .attributes
+                    .get("current_humidity")
                     .and_then(|v| v.as_f64())
                     .map(|h| format!("{:.0}%", h))
                     .unwrap_or_else(|| "N/A".to_string());
-                let mode = e.attributes.get("hvac_action")
+                let mode = e
+                    .attributes
+                    .get("hvac_action")
                     .or_else(|| e.attributes.get("hvac_mode"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("unknown");
@@ -529,8 +592,14 @@ async fn handle_climate_set(client: &HomeAssistantClient, entity_id: &str, temp:
     match temp.parse::<f64>() {
         Ok(t) => {
             let data = serde_json::json!({ "temperature": t });
-            match client.call_service("climate", "set_temperature", entity_id, Some(data)).await {
-                Ok(_) => format!("\u{2705} Set {} temperature to {:.1}\u{00b0}\n", entity_id, t),
+            match client
+                .call_service("climate", "set_temperature", entity_id, Some(data))
+                .await
+            {
+                Ok(_) => format!(
+                    "\u{2705} Set {} temperature to {:.1}\u{00b0}\n",
+                    entity_id, t
+                ),
                 Err(e) => format!("\u{274c} Failed to set temperature: {}\n", e),
             }
         }
@@ -544,7 +613,11 @@ async fn handle_history(client: &HomeAssistantClient, entity_id: &str) -> String
             if entries.is_empty() {
                 return format!("\u{1f4c5} No recent history for {}\n", entity_id);
             }
-            let mut out = format!("\u{1f4c5} History for {} ({} entries):\n", entity_id, entries.len());
+            let mut out = format!(
+                "\u{1f4c5} History for {} ({} entries):\n",
+                entity_id,
+                entries.len()
+            );
             for entry in entries.iter().take(20) {
                 out.push_str(&format!("  {} \u{2014} {}\n", entry.state, entry.entity_id));
             }
@@ -565,8 +638,17 @@ async fn handle_automation_list(client: &HomeAssistantClient) -> String {
             }
             let mut out = format!("\u{2699}\u{fe0f} Automations ({}):\n", automations.len());
             for a in &automations {
-                let status = if a.state == "on" { "\u{1f7e2}" } else { "\u{1f534}" };
-                out.push_str(&format!("  {} {} \u{2014} {}\n", status, a.entity_id, a.friendly_name()));
+                let status = if a.state == "on" {
+                    "\u{1f7e2}"
+                } else {
+                    "\u{1f534}"
+                };
+                out.push_str(&format!(
+                    "  {} {} \u{2014} {}\n",
+                    status,
+                    a.entity_id,
+                    a.friendly_name()
+                ));
             }
             out.push('\n');
             out
@@ -617,20 +699,51 @@ mod tests {
 
     #[test]
     fn entity_domain_emoji() {
-        assert_eq!(make_entity("light.x", "on", serde_json::json!({})).domain_emoji(), "\u{1f4a1}");
-        assert_eq!(make_entity("climate.x", "on", serde_json::json!({})).domain_emoji(), "\u{1f321}\u{fe0f}");
-        assert_eq!(make_entity("switch.x", "on", serde_json::json!({})).domain_emoji(), "\u{1f50c}");
-        assert_eq!(make_entity("scene.x", "on", serde_json::json!({})).domain_emoji(), "\u{1f3a8}");
-        assert_eq!(make_entity("sensor.x", "on", serde_json::json!({})).domain_emoji(), "\u{1f4e1}");
-        assert_eq!(make_entity("automation.x", "on", serde_json::json!({})).domain_emoji(), "\u{2699}\u{fe0f}");
-        assert_eq!(make_entity("fan.x", "on", serde_json::json!({})).domain_emoji(), "\u{1f4a8}");
-        assert_eq!(make_entity("lock.x", "on", serde_json::json!({})).domain_emoji(), "\u{1f512}");
-        assert_eq!(make_entity("unknown_domain.x", "on", serde_json::json!({})).domain_emoji(), "\u{1f3e0}");
+        assert_eq!(
+            make_entity("light.x", "on", serde_json::json!({})).domain_emoji(),
+            "\u{1f4a1}"
+        );
+        assert_eq!(
+            make_entity("climate.x", "on", serde_json::json!({})).domain_emoji(),
+            "\u{1f321}\u{fe0f}"
+        );
+        assert_eq!(
+            make_entity("switch.x", "on", serde_json::json!({})).domain_emoji(),
+            "\u{1f50c}"
+        );
+        assert_eq!(
+            make_entity("scene.x", "on", serde_json::json!({})).domain_emoji(),
+            "\u{1f3a8}"
+        );
+        assert_eq!(
+            make_entity("sensor.x", "on", serde_json::json!({})).domain_emoji(),
+            "\u{1f4e1}"
+        );
+        assert_eq!(
+            make_entity("automation.x", "on", serde_json::json!({})).domain_emoji(),
+            "\u{2699}\u{fe0f}"
+        );
+        assert_eq!(
+            make_entity("fan.x", "on", serde_json::json!({})).domain_emoji(),
+            "\u{1f4a8}"
+        );
+        assert_eq!(
+            make_entity("lock.x", "on", serde_json::json!({})).domain_emoji(),
+            "\u{1f512}"
+        );
+        assert_eq!(
+            make_entity("unknown_domain.x", "on", serde_json::json!({})).domain_emoji(),
+            "\u{1f3e0}"
+        );
     }
 
     #[test]
     fn friendly_name_from_attributes() {
-        let e = make_entity("light.desk", "on", serde_json::json!({"friendly_name": "Desk Lamp"}));
+        let e = make_entity(
+            "light.desk",
+            "on",
+            serde_json::json!({"friendly_name": "Desk Lamp"}),
+        );
         assert_eq!(e.friendly_name(), "Desk Lamp");
     }
 
@@ -658,7 +771,11 @@ mod tests {
 
     #[test]
     fn entity_serde_roundtrip() {
-        let e = make_entity("sensor.temp", "22.5", serde_json::json!({"unit_of_measurement": "°C"}));
+        let e = make_entity(
+            "sensor.temp",
+            "22.5",
+            serde_json::json!({"unit_of_measurement": "°C"}),
+        );
         let json = serde_json::to_string(&e).unwrap();
         let back: HaEntity = serde_json::from_str(&json).unwrap();
         assert_eq!(back.entity_id, "sensor.temp");
@@ -722,116 +839,154 @@ mod tests {
         std::env::remove_var("HOME_ASSISTANT_TOKEN");
         let output = handle_ha_command("status").await;
         assert!(
-            output.contains("not configured") || output.contains("HOME_ASSISTANT") || !output.is_empty()
+            output.contains("not configured")
+                || output.contains("HOME_ASSISTANT")
+                || !output.is_empty()
         );
     }
 
     #[tokio::test]
     async fn handle_ha_command_unknown_sub_shows_usage() {
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-          std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
-          std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
+            std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token");
+        }
         let output = handle_ha_command("unknown_sub").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-          std::env::remove_var("HOME_ASSISTANT_URL");
-          std::env::remove_var("HOME_ASSISTANT_TOKEN"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::remove_var("HOME_ASSISTANT_URL");
+            std::env::remove_var("HOME_ASSISTANT_TOKEN");
+        }
     }
 
     #[tokio::test]
     async fn handle_ha_command_on_empty_entity() {
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-          std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
-          std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
+            std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token");
+        }
         let output = handle_ha_command("on").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-          std::env::remove_var("HOME_ASSISTANT_URL");
-          std::env::remove_var("HOME_ASSISTANT_TOKEN"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::remove_var("HOME_ASSISTANT_URL");
+            std::env::remove_var("HOME_ASSISTANT_TOKEN");
+        }
     }
 
     #[tokio::test]
     async fn handle_ha_command_off_empty_entity() {
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-          std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
-          std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
+            std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token");
+        }
         let output = handle_ha_command("off").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-          std::env::remove_var("HOME_ASSISTANT_URL");
-          std::env::remove_var("HOME_ASSISTANT_TOKEN"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::remove_var("HOME_ASSISTANT_URL");
+            std::env::remove_var("HOME_ASSISTANT_TOKEN");
+        }
     }
 
     #[tokio::test]
     async fn handle_ha_command_toggle_empty_entity() {
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-          std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
-          std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
+            std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token");
+        }
         let output = handle_ha_command("toggle").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-          std::env::remove_var("HOME_ASSISTANT_URL");
-          std::env::remove_var("HOME_ASSISTANT_TOKEN"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::remove_var("HOME_ASSISTANT_URL");
+            std::env::remove_var("HOME_ASSISTANT_TOKEN");
+        }
     }
 
     #[tokio::test]
     async fn handle_ha_command_set_missing_args() {
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-          std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
-          std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
+            std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token");
+        }
         let output = handle_ha_command("set light.x").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-          std::env::remove_var("HOME_ASSISTANT_URL");
-          std::env::remove_var("HOME_ASSISTANT_TOKEN"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::remove_var("HOME_ASSISTANT_URL");
+            std::env::remove_var("HOME_ASSISTANT_TOKEN");
+        }
     }
 
     #[tokio::test]
     async fn handle_ha_command_scene_empty() {
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-          std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
-          std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
+            std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token");
+        }
         let output = handle_ha_command("scene").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-          std::env::remove_var("HOME_ASSISTANT_URL");
-          std::env::remove_var("HOME_ASSISTANT_TOKEN"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::remove_var("HOME_ASSISTANT_URL");
+            std::env::remove_var("HOME_ASSISTANT_TOKEN");
+        }
     }
 
     #[tokio::test]
     async fn handle_ha_command_climate_empty() {
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-          std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
-          std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
+            std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token");
+        }
         let output = handle_ha_command("climate").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-          std::env::remove_var("HOME_ASSISTANT_URL");
-          std::env::remove_var("HOME_ASSISTANT_TOKEN"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::remove_var("HOME_ASSISTANT_URL");
+            std::env::remove_var("HOME_ASSISTANT_TOKEN");
+        }
     }
 
     #[tokio::test]
     async fn handle_ha_command_history_empty() {
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-          std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
-          std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
+            std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token");
+        }
         let output = handle_ha_command("history").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-          std::env::remove_var("HOME_ASSISTANT_URL");
-          std::env::remove_var("HOME_ASSISTANT_TOKEN"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::remove_var("HOME_ASSISTANT_URL");
+            std::env::remove_var("HOME_ASSISTANT_TOKEN");
+        }
     }
 
     #[tokio::test]
     async fn handle_ha_command_automation_trigger_empty() {
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-          std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
-          std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::set_var("HOME_ASSISTANT_URL", "http://fake:8123");
+            std::env::set_var("HOME_ASSISTANT_TOKEN", "fake-token");
+        }
         let output = handle_ha_command("automation trigger").await;
         assert!(output.contains("Usage:") || output.contains("not configured"));
-        { let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-          std::env::remove_var("HOME_ASSISTANT_URL");
-          std::env::remove_var("HOME_ASSISTANT_TOKEN"); }
+        {
+            let _g = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            std::env::remove_var("HOME_ASSISTANT_URL");
+            std::env::remove_var("HOME_ASSISTANT_TOKEN");
+        }
     }
 
     #[test]

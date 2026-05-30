@@ -6,12 +6,12 @@
 
 #[cfg(target_os = "macos")]
 mod e2e {
-    use cucumber::{World, given, then, when};
+    use cucumber::{given, then, when, World};
     use std::path::PathBuf;
     use std::sync::Arc;
     use tempfile::TempDir;
     use tokio::runtime::Runtime;
-    use vibe_broker::{Broker, BrokerHandle, Policy, SsrfGuard, policy::DefaultRule};
+    use vibe_broker::{policy::DefaultRule, Broker, BrokerHandle, Policy, SsrfGuard};
     use vibe_sandbox::Sandbox;
     use vibe_sandbox_native::macos::MacosSandbox;
 
@@ -112,7 +112,9 @@ match.require_tls = false
         });
     }
 
-    #[when(expr = "the sandbox runs curl with --unix-socket pointing at the broker, target {string}")]
+    #[when(
+        expr = "the sandbox runs curl with --unix-socket pointing at the broker, target {string}"
+    )]
     fn run_curl(world: &mut EWorld, target: String) {
         let mut parts = target.splitn(2, ' ');
         let method = parts.next().unwrap();
@@ -159,8 +161,12 @@ match.require_tls = false
 
     #[then(expr = "the curl HTTP status code captured was {int}")]
     fn status_was(world: &mut EWorld, expected: u16) {
-        assert_eq!(world.captured_status, Some(expected),
-            "captured_reason: {:?}", world.captured_reason);
+        assert_eq!(
+            world.captured_status,
+            Some(expected),
+            "captured_reason: {:?}",
+            world.captured_reason
+        );
     }
 
     #[then(expr = "the curl X-Vibe-Broker-Reason header captured was {string}")]

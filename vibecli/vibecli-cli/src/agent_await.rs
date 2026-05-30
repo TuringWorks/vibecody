@@ -135,9 +135,7 @@ impl AwaitRegistry {
     /// `Satisfied(TimedOut)`.
     pub fn check_timers(&mut self, now_ms: u64) {
         for cond in self.conditions.values_mut() {
-            if cond.status == AwaitStatus::Waiting
-                && is_timer_expired(cond, now_ms)
-            {
+            if cond.status == AwaitStatus::Waiting && is_timer_expired(cond, now_ms) {
                 cond.status = AwaitStatus::Satisfied(AwaitResult::TimedOut);
             }
         }
@@ -189,7 +187,10 @@ pub fn condition_description(kind: &ConditionKind) -> String {
         ConditionKind::PortOpen { host, port } => {
             format!("port {}:{} open", host, port)
         }
-        ConditionKind::HttpReady { url, expected_status } => {
+        ConditionKind::HttpReady {
+            url,
+            expected_status,
+        } => {
             format!("HTTP {} returns {}", url, expected_status)
         }
         ConditionKind::TimerElapsed { duration_secs } => {
@@ -247,7 +248,9 @@ mod tests {
     fn waiting_cond(registered_at_ms: u64, timeout_secs: u64) -> AwaitCondition {
         AwaitCondition {
             condition_id: "c1".to_string(),
-            kind: ConditionKind::TimerElapsed { duration_secs: timeout_secs },
+            kind: ConditionKind::TimerElapsed {
+                duration_secs: timeout_secs,
+            },
             timeout_secs,
             registered_at_ms,
             status: AwaitStatus::Waiting,
@@ -265,7 +268,12 @@ mod tests {
     #[test]
     fn registry_register_returns_id() {
         let mut reg = AwaitRegistry::new();
-        let id = reg.register(ConditionKind::ManualResume { token: "abc".to_string() }, 60);
+        let id = reg.register(
+            ConditionKind::ManualResume {
+                token: "abc".to_string(),
+            },
+            60,
+        );
         assert!(!id.is_empty());
         assert_eq!(reg.condition_count(), 1);
     }
@@ -324,7 +332,12 @@ mod tests {
     #[test]
     fn registry_cancel_transitions_to_cancelled() {
         let mut reg = AwaitRegistry::new();
-        let id = reg.register(ConditionKind::ManualResume { token: "t".to_string() }, 60);
+        let id = reg.register(
+            ConditionKind::ManualResume {
+                token: "t".to_string(),
+            },
+            60,
+        );
         reg.cancel(&id).unwrap();
         assert_eq!(reg.get(&id).unwrap().status, AwaitStatus::Cancelled);
     }
@@ -338,7 +351,12 @@ mod tests {
     #[test]
     fn registry_cancel_already_cancelled_returns_err() {
         let mut reg = AwaitRegistry::new();
-        let id = reg.register(ConditionKind::ManualResume { token: "t".to_string() }, 60);
+        let id = reg.register(
+            ConditionKind::ManualResume {
+                token: "t".to_string(),
+            },
+            60,
+        );
         reg.cancel(&id).unwrap();
         assert!(reg.cancel(&id).is_err());
     }
@@ -425,7 +443,10 @@ mod tests {
         let mut reg = AwaitRegistry::new();
         let id = reg.register(ConditionKind::ProcessExit { pid: 1234 }, 30);
         let cond = reg.get(&id).unwrap();
-        assert!(matches!(cond.kind, ConditionKind::ProcessExit { pid: 1234 }));
+        assert!(matches!(
+            cond.kind,
+            ConditionKind::ProcessExit { pid: 1234 }
+        ));
     }
 
     #[test]
@@ -438,7 +459,10 @@ mod tests {
             },
             60,
         );
-        assert!(matches!(reg.get(&id).unwrap().kind, ConditionKind::LogPattern { .. }));
+        assert!(matches!(
+            reg.get(&id).unwrap().kind,
+            ConditionKind::LogPattern { .. }
+        ));
     }
 
     #[test]
@@ -451,17 +475,26 @@ mod tests {
             },
             10,
         );
-        assert!(matches!(reg.get(&id).unwrap().kind, ConditionKind::FileChange { .. }));
+        assert!(matches!(
+            reg.get(&id).unwrap().kind,
+            ConditionKind::FileChange { .. }
+        ));
     }
 
     #[test]
     fn register_port_open_kind() {
         let mut reg = AwaitRegistry::new();
         let id = reg.register(
-            ConditionKind::PortOpen { host: "localhost".to_string(), port: 8080 },
+            ConditionKind::PortOpen {
+                host: "localhost".to_string(),
+                port: 8080,
+            },
             15,
         );
-        assert!(matches!(reg.get(&id).unwrap().kind, ConditionKind::PortOpen { .. }));
+        assert!(matches!(
+            reg.get(&id).unwrap().kind,
+            ConditionKind::PortOpen { .. }
+        ));
     }
 
     #[test]
@@ -474,21 +507,35 @@ mod tests {
             },
             20,
         );
-        assert!(matches!(reg.get(&id).unwrap().kind, ConditionKind::HttpReady { .. }));
+        assert!(matches!(
+            reg.get(&id).unwrap().kind,
+            ConditionKind::HttpReady { .. }
+        ));
     }
 
     #[test]
     fn register_timer_elapsed_kind() {
         let mut reg = AwaitRegistry::new();
         let id = reg.register(ConditionKind::TimerElapsed { duration_secs: 5 }, 10);
-        assert!(matches!(reg.get(&id).unwrap().kind, ConditionKind::TimerElapsed { .. }));
+        assert!(matches!(
+            reg.get(&id).unwrap().kind,
+            ConditionKind::TimerElapsed { .. }
+        ));
     }
 
     #[test]
     fn register_manual_resume_kind() {
         let mut reg = AwaitRegistry::new();
-        let id = reg.register(ConditionKind::ManualResume { token: "resume-xyz".to_string() }, 3600);
-        assert!(matches!(reg.get(&id).unwrap().kind, ConditionKind::ManualResume { .. }));
+        let id = reg.register(
+            ConditionKind::ManualResume {
+                token: "resume-xyz".to_string(),
+            },
+            3600,
+        );
+        assert!(matches!(
+            reg.get(&id).unwrap().kind,
+            ConditionKind::ManualResume { .. }
+        ));
     }
 
     // ── is_timer_expired ─────────────────────────────────────────────────────
@@ -600,7 +647,9 @@ mod tests {
 
     #[test]
     fn description_manual_resume() {
-        let d = condition_description(&ConditionKind::ManualResume { token: "tok-abc".to_string() });
+        let d = condition_description(&ConditionKind::ManualResume {
+            token: "tok-abc".to_string(),
+        });
         assert!(d.contains("tok-abc"));
     }
 
@@ -636,7 +685,10 @@ mod tests {
         };
         let json = tool.to_json();
         let decoded = AwaitTool::from_json(&json).unwrap();
-        assert!(matches!(decoded.kind, ConditionKind::ProcessExit { pid: 99 }));
+        assert!(matches!(
+            decoded.kind,
+            ConditionKind::ProcessExit { pid: 99 }
+        ));
     }
 
     #[test]
@@ -669,7 +721,9 @@ mod tests {
     #[test]
     fn await_tool_manual_resume_round_trip() {
         let tool = AwaitTool {
-            kind: ConditionKind::ManualResume { token: "approval-123".to_string() },
+            kind: ConditionKind::ManualResume {
+                token: "approval-123".to_string(),
+            },
             reason: "awaiting human approval".to_string(),
             timeout_secs: 3600,
         };

@@ -147,10 +147,7 @@ pub enum BridgeAttachResponse {
         uds_path: String,
     },
     /// Broker refused — policy not loaded, UDS not creatable, etc.
-    Refused {
-        sandbox_id: String,
-        reason: String,
-    },
+    Refused { sandbox_id: String, reason: String },
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────

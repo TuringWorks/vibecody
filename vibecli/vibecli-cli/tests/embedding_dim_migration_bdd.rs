@@ -9,7 +9,7 @@
  *
  * Run with: cargo test --test embedding_dim_migration_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use serde_json::json;
 use std::path::PathBuf;
 use tempfile::TempDir;
@@ -42,8 +42,11 @@ impl MigWorld {
     fn write_memories(&self, memories: serde_json::Value) {
         let dir = self.data_dir();
         std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("memories.json"), serde_json::to_vec(&memories).unwrap())
-            .unwrap();
+        std::fs::write(
+            dir.join("memories.json"),
+            serde_json::to_vec(&memories).unwrap(),
+        )
+        .unwrap();
     }
 }
 
@@ -81,12 +84,20 @@ fn given_legacy_n(w: &mut MigWorld, n: usize, len: usize) {
     w.tmp = Some(fresh_tmp());
     let stale: Vec<f32> = (0..len).map(|i| (i as f32) * 0.1 + 0.01).collect();
     let mems: Vec<serde_json::Value> = (0..n)
-        .map(|i| make_memory(&format!("m{i}"), &format!("legacy memory {i}"), stale.clone()))
+        .map(|i| {
+            make_memory(
+                &format!("m{i}"),
+                &format!("legacy memory {i}"),
+                stale.clone(),
+            )
+        })
         .collect();
     w.write_memories(json!(mems));
 }
 
-#[given(regex = r#"^a legacy memories\.json with a target "([^"]+)" and (\d+) unrelated decoys all carrying length-(\d+) embeddings$"#)]
+#[given(
+    regex = r#"^a legacy memories\.json with a target "([^"]+)" and (\d+) unrelated decoys all carrying length-(\d+) embeddings$"#
+)]
 fn given_legacy_target_and_decoys(
     w: &mut MigWorld,
     target: String,
@@ -108,7 +119,9 @@ fn given_legacy_target_and_decoys(
     w.write_memories(json!(mems));
 }
 
-#[given(regex = r"^a legacy memories\.json with 1 entry whose embedding is already at the engine dimension$")]
+#[given(
+    regex = r"^a legacy memories\.json with 1 entry whose embedding is already at the engine dimension$"
+)]
 fn given_legacy_correct(w: &mut MigWorld) {
     w.tmp = Some(fresh_tmp());
     // Build an embedding via the current engine so we know it's "correct dim".
@@ -148,7 +161,9 @@ fn then_dim_uniform(w: &mut MigWorld) {
             m.embedding.len(),
             expected,
             "memory {} embedding len = {} != engine dim {}",
-            m.id, m.embedding.len(), expected
+            m.id,
+            m.embedding.len(),
+            expected
         );
     }
 }
@@ -158,7 +173,8 @@ fn then_no_legacy_len(w: &mut MigWorld, legacy_len: usize) {
     let store = w.store.as_ref().expect("store");
     for m in store.list_memories(0, 1_000_000) {
         assert_ne!(
-            m.embedding.len(), legacy_len,
+            m.embedding.len(),
+            legacy_len,
             "memory {} still carries legacy length-{legacy_len} embedding",
             m.id
         );

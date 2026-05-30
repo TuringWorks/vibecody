@@ -1,10 +1,10 @@
 //! Collaboration protocol messages and Yjs sync helpers.
 
+use crate::awareness::{AwarenessState, PeerInfo};
 use serde::{Deserialize, Serialize};
 use yrs::updates::decoder::Decode;
 use yrs::updates::encoder::Encode;
 use yrs::{ReadTxn, Transact};
-use crate::awareness::{AwarenessState, PeerInfo};
 
 /// JSON messages sent over text WebSocket frames for session coordination.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,9 +94,11 @@ pub fn apply_sync_message(doc: &yrs::Doc, msg: &[u8]) -> Result<Option<Vec<u8>>,
         }
         sync::SYNC_STEP2 | sync::UPDATE => {
             // Apply remote update to our doc
-            let update = yrs::Update::decode_v1(payload).map_err(|e| format!("decode update: {e}"))?;
+            let update =
+                yrs::Update::decode_v1(payload).map_err(|e| format!("decode update: {e}"))?;
             let mut txn = doc.transact_mut();
-            txn.apply_update(update).map_err(|e| format!("apply update: {e}"))?;
+            txn.apply_update(update)
+                .map_err(|e| format!("apply update: {e}"))?;
             Ok(None)
         }
         _ => Err(format!("unknown sync message type: {msg_type}")),

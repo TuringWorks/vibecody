@@ -131,10 +131,7 @@ impl ContextBudget {
             AgentKind::Chat => Self {
                 max_total_chars: 32_000,
                 max_section_chars: 16_000,
-                section_caps: vec![
-                    ("project_memory", 16_000),
-                    ("orchestration", 8_000),
-                ],
+                section_caps: vec![("project_memory", 16_000), ("orchestration", 8_000)],
             },
             AgentKind::CodingAgent => Self {
                 max_total_chars: 128_000,
@@ -204,8 +201,7 @@ impl AssembledContext {
         if self.sections.is_empty() {
             return None;
         }
-        let mut out =
-            String::with_capacity(self.total_chars + self.sections.len() * 8);
+        let mut out = String::with_capacity(self.total_chars + self.sections.len() * 8);
         for (i, s) in self.sections.iter().enumerate() {
             if i > 0 {
                 out.push_str("\n\n---\n\n");
@@ -291,16 +287,12 @@ fn collect_chat_sections(workspace: &Path) -> Vec<ContextSection> {
     }
 
     // 2) Orchestration rules + saved lessons + active task.
-    let lessons_store =
-        crate::workflow_orchestration::LessonsStore::for_workspace(workspace);
-    let todo_store =
-        crate::workflow_orchestration::TodoStore::for_workspace(workspace);
+    let lessons_store = crate::workflow_orchestration::LessonsStore::for_workspace(workspace);
+    let todo_store = crate::workflow_orchestration::TodoStore::for_workspace(workspace);
     let lessons = lessons_store.load();
     let current_task = todo_store.load();
-    let prompt = crate::workflow_orchestration::orchestration_system_prompt(
-        &lessons,
-        current_task.as_ref(),
-    );
+    let prompt =
+        crate::workflow_orchestration::orchestration_system_prompt(&lessons, current_task.as_ref());
     if !prompt.is_empty() {
         out.push(ContextSection {
             name: "orchestration",
@@ -325,8 +317,7 @@ fn collect_agent_sections(
     //    working state (plans, cursors, hypotheses). Must survive every
     //    other retriever's budget. Populated only when the policy supplies
     //    a job_id AND the toggles expose a scratchpad source.
-    if let (Some(sid), Some(db_path)) = (job_id, toggles.jobs_db_path.as_deref())
-    {
+    if let (Some(sid), Some(db_path)) = (job_id, toggles.jobs_db_path.as_deref()) {
         if let Some(rendered) = render_scratchpad(db_path, sid) {
             out.push(ContextSection {
                 name: "agent_scratchpad",
@@ -356,8 +347,7 @@ fn collect_agent_sections(
     }
 
     // 3) Task-relevant files (preview, max 5 files / 80 lines each).
-    let relevant =
-        crate::project_init::extract_relevant_files_for_task(workspace, task);
+    let relevant = crate::project_init::extract_relevant_files_for_task(workspace, task);
     let mut files_block = String::new();
     let mut included = 0usize;
     for rel_path in relevant.iter() {
@@ -369,13 +359,11 @@ fn collect_agent_sections(
             continue;
         }
         if let Ok(content) = std::fs::read_to_string(&full_path) {
-            let preview: String =
-                content.lines().take(80).collect::<Vec<_>>().join("\n");
+            let preview: String = content.lines().take(80).collect::<Vec<_>>().join("\n");
             if files_block.is_empty() {
                 files_block.push_str("=== Task-Relevant Files ===\n\n");
             }
-            files_block
-                .push_str(&format!("--- {} ---\n{}\n\n", rel_path, preview));
+            files_block.push_str(&format!("--- {} ---\n{}\n\n", rel_path, preview));
             included += 1;
         }
     }
@@ -470,9 +458,7 @@ fn render_scratchpad(db_path: &Path, session_id: &str) -> Option<String> {
     }
     let mut block = String::new();
     block.push_str("=== Agent Scratchpad ===\n");
-    block.push_str(
-        "(durable working state from prior turns of this job)\n\n",
-    );
+    block.push_str("(durable working state from prior turns of this job)\n\n");
     for e in entries.iter() {
         block.push_str(&format!("[{}]\n{}\n\n", e.key, e.value));
     }
@@ -485,10 +471,7 @@ fn render_scratchpad(db_path: &Path, session_id: &str) -> Option<String> {
 /// priority order (lower = higher priority); once the total budget is
 /// exhausted, further sections are dropped. Sections that exceed the
 /// per-section cap are truncated with a marker.
-fn apply_budget(
-    mut sections: Vec<ContextSection>,
-    budget: &ContextBudget,
-) -> AssembledContext {
+fn apply_budget(mut sections: Vec<ContextSection>, budget: &ContextBudget) -> AssembledContext {
     sections.sort_by_key(|s| s.priority);
     let mut out: Vec<ContextSection> = Vec::with_capacity(sections.len());
     let mut total = 0usize;
@@ -556,9 +539,18 @@ mod tests {
         // would silently break mobile/watch/IDE callers that hard-coded
         // the strings against an earlier daemon version.
         assert_eq!(parse_agent_kind("Chat").unwrap(), AgentKind::Chat);
-        assert_eq!(parse_agent_kind("CodingAgent").unwrap(), AgentKind::CodingAgent);
-        assert_eq!(parse_agent_kind("ResearchAgent").unwrap(), AgentKind::ResearchAgent);
-        assert_eq!(parse_agent_kind("BackgroundJob").unwrap(), AgentKind::BackgroundJob);
+        assert_eq!(
+            parse_agent_kind("CodingAgent").unwrap(),
+            AgentKind::CodingAgent
+        );
+        assert_eq!(
+            parse_agent_kind("ResearchAgent").unwrap(),
+            AgentKind::ResearchAgent
+        );
+        assert_eq!(
+            parse_agent_kind("BackgroundJob").unwrap(),
+            AgentKind::BackgroundJob
+        );
     }
 
     #[test]
@@ -594,8 +586,7 @@ mod tests {
         // KNOWN_SECTION_NAMES list. If a future slice adds a new
         // section but forgets to update this constant, /v1/capabilities
         // advertises a stale shape and clients break.
-        let known: std::collections::HashSet<&str> =
-            KNOWN_SECTION_NAMES.iter().copied().collect();
+        let known: std::collections::HashSet<&str> = KNOWN_SECTION_NAMES.iter().copied().collect();
         for expected in [
             "project_memory",
             "plugin_rules",
@@ -769,7 +760,11 @@ mod tests {
     fn budget_for_chat_is_small_and_covers_project_memory_and_orchestration() {
         let b = ContextBudget::for_kind(AgentKind::Chat);
         // Chat is lightweight — small total, no code retrievers.
-        assert!(b.max_total_chars <= 64_000, "chat total too large: {}", b.max_total_chars);
+        assert!(
+            b.max_total_chars <= 64_000,
+            "chat total too large: {}",
+            b.max_total_chars
+        );
         assert!(b.cap_for("project_memory").is_some());
         assert!(b.cap_for("orchestration").is_some());
     }
@@ -930,8 +925,7 @@ mod tests {
         // Scratchpad is the agent's own durable state — must never be
         // dropped when other retrievers' budgets are tight.
         let workspace = TempDir::new().unwrap();
-        let (db_path, _db_tmp) =
-            jobs_db_with(&[("job-p", "plan", "PLAN-MARKER")]);
+        let (db_path, _db_tmp) = jobs_db_with(&[("job-p", "plan", "PLAN-MARKER")]);
         let toggles = MemoryToggles {
             openmemory_enabled: false,
             openmemory_auto_inject: false,
@@ -957,11 +951,7 @@ mod tests {
             "scratchpad must survive a tight budget; got {:?}",
             ctx.sections.iter().map(|s| s.name).collect::<Vec<_>>()
         );
-        assert!(
-            ctx.get("agent_scratchpad")
-                .unwrap()
-                .contains("PLAN-MARKER")
-        );
+        assert!(ctx.get("agent_scratchpad").unwrap().contains("PLAN-MARKER"));
     }
 
     // ── B2.10 — plugin_rules section ─────────────────────────────────────
@@ -976,8 +966,8 @@ mod tests {
         policy: crate::plugin_manifest::DefaultPolicy,
     ) {
         use crate::plugin_manifest::{
-            Components, McpServerComponent, Publisher, RuleComponent, SkillComponent,
-            SubagentComponent, HookComponent,
+            Components, HookComponent, McpServerComponent, Publisher, RuleComponent,
+            SkillComponent, SubagentComponent,
         };
         use crate::plugin_signing::{sign_manifest, MANIFEST_FILENAME, SIGNATURE_FILENAME};
         use crate::signed_agent_card::jwk_from_verifying_key;

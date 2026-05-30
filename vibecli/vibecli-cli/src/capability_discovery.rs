@@ -17,7 +17,11 @@ pub struct Capability {
 
 impl Capability {
     pub fn new(name: impl Into<String>) -> Self {
-        Self { name: name.into(), version: "1.0".to_string(), params: Vec::new() }
+        Self {
+            name: name.into(),
+            version: "1.0".to_string(),
+            params: Vec::new(),
+        }
     }
     pub fn with_version(mut self, v: impl Into<String>) -> Self {
         self.version = v.into();
@@ -40,7 +44,12 @@ pub struct CapabilityAdvertisement {
 
 impl CapabilityAdvertisement {
     pub fn new(agent_id: impl Into<String>, caps: Vec<Capability>, ts: u64, ttl: u64) -> Self {
-        Self { agent_id: agent_id.into(), capabilities: caps, timestamp_ms: ts, ttl_ms: ttl }
+        Self {
+            agent_id: agent_id.into(),
+            capabilities: caps,
+            timestamp_ms: ts,
+            ttl_ms: ttl,
+        }
     }
     pub fn is_expired(&self, now_ms: u64) -> bool {
         now_ms > self.timestamp_ms + self.ttl_ms
@@ -56,7 +65,10 @@ pub enum NegotiationOutcome {
     /// All required capabilities satisfied; `agent_id` selected.
     Satisfied { agent_id: String },
     /// Partially satisfied; some capabilities missing.
-    Partial { agent_id: String, missing: Vec<String> },
+    Partial {
+        agent_id: String,
+        missing: Vec<String>,
+    },
     /// No agent can satisfy requirements.
     Unsatisfied { missing: Vec<String> },
 }
@@ -73,7 +85,9 @@ pub struct CapabilityRegistry {
 }
 
 impl CapabilityRegistry {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     /// Register or update an advertisement.
     pub fn advertise(&mut self, ad: CapabilityAdvertisement) {
@@ -94,7 +108,8 @@ impl CapabilityRegistry {
 
     /// Find all live agents that advertise a given capability.
     pub fn find_by_capability(&self, cap_name: &str, now_ms: u64) -> Vec<&CapabilityAdvertisement> {
-        self.advertisements.values()
+        self.advertisements
+            .values()
             .filter(|ad| !ad.is_expired(now_ms) && ad.has_capability(cap_name))
             .collect()
     }
@@ -105,9 +120,15 @@ impl CapabilityRegistry {
         let mut best_agent: Option<(&str, usize)> = None; // (agent_id, matched_count)
 
         for (agent_id, ad) in &self.advertisements {
-            if ad.is_expired(now_ms) { continue; }
-            let agent_caps: HashSet<&str> = ad.capabilities.iter().map(|c| c.name.as_str()).collect();
-            let matched = required_set.iter().filter(|&&r| agent_caps.contains(r)).count();
+            if ad.is_expired(now_ms) {
+                continue;
+            }
+            let agent_caps: HashSet<&str> =
+                ad.capabilities.iter().map(|c| c.name.as_str()).collect();
+            let matched = required_set
+                .iter()
+                .filter(|&&r| agent_caps.contains(r))
+                .count();
             if matched > best_agent.map(|(_, n)| n).unwrap_or(0) {
                 best_agent = Some((agent_id.as_str(), matched));
             }
@@ -115,22 +136,27 @@ impl CapabilityRegistry {
 
         match best_agent {
             Some((agent_id, matched)) if matched == required_set.len() => {
-                NegotiationOutcome::Satisfied { agent_id: agent_id.to_string() }
+                NegotiationOutcome::Satisfied {
+                    agent_id: agent_id.to_string(),
+                }
             }
             Some((agent_id, _)) => {
                 let ad = &self.advertisements[agent_id];
-                let agent_caps: HashSet<&str> = ad.capabilities.iter().map(|c| c.name.as_str()).collect();
-                let missing: Vec<String> = required_set.iter()
+                let agent_caps: HashSet<&str> =
+                    ad.capabilities.iter().map(|c| c.name.as_str()).collect();
+                let missing: Vec<String> = required_set
+                    .iter()
                     .filter(|&&r| !agent_caps.contains(r))
                     .map(|s| s.to_string())
                     .collect();
-                NegotiationOutcome::Partial { agent_id: agent_id.to_string(), missing }
-            }
-            None => {
-                NegotiationOutcome::Unsatisfied {
-                    missing: required.iter().map(|s| s.to_string()).collect()
+                NegotiationOutcome::Partial {
+                    agent_id: agent_id.to_string(),
+                    missing,
                 }
             }
+            None => NegotiationOutcome::Unsatisfied {
+                missing: required.iter().map(|s| s.to_string()).collect(),
+            },
         }
     }
 
@@ -138,7 +164,9 @@ impl CapabilityRegistry {
     pub fn known_capabilities(&self, now_ms: u64) -> Vec<String> {
         let mut names: HashSet<String> = HashSet::new();
         for ad in self.advertisements.values() {
-            if ad.is_expired(now_ms) { continue; }
+            if ad.is_expired(now_ms) {
+                continue;
+            }
             for c in &ad.capabilities {
                 names.insert(c.name.clone());
             }
@@ -148,7 +176,9 @@ impl CapabilityRegistry {
         v
     }
 
-    pub fn agent_count(&self) -> usize { self.advertisements.len() }
+    pub fn agent_count(&self) -> usize {
+        self.advertisements.len()
+    }
 }
 
 // ---------------------------------------------------------------------------

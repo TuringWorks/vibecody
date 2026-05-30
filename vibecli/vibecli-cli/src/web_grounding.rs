@@ -612,10 +612,17 @@ impl WebGroundingEngine {
         if url_lower.contains("readthedocs") || url_lower.contains("devdocs.io") {
             return ResultContentType::Documentation;
         }
-        if url_lower.contains("docs.") || url_lower.contains("/docs/") || url_lower.contains("/documentation/") || url_lower.contains("doc.rust-lang.org") {
+        if url_lower.contains("docs.")
+            || url_lower.contains("/docs/")
+            || url_lower.contains("/documentation/")
+            || url_lower.contains("doc.rust-lang.org")
+        {
             return ResultContentType::OfficialDocs;
         }
-        if title_lower.contains("tutorial") || title_lower.contains("getting started") || title_lower.contains("how to") {
+        if title_lower.contains("tutorial")
+            || title_lower.contains("getting started")
+            || title_lower.contains("how to")
+        {
             return ResultContentType::Tutorial;
         }
         if url_lower.contains("reddit.com")
@@ -678,8 +685,7 @@ impl WebGroundingEngine {
         if total <= 1.0 {
             self.metrics.avg_results_per_search = count as f64;
         } else {
-            self.metrics.avg_results_per_search =
-                prev + (count as f64 - prev) / total;
+            self.metrics.avg_results_per_search = prev + (count as f64 - prev) / total;
         }
     }
 }
@@ -756,12 +762,22 @@ mod tests {
 
     #[test]
     fn test_provider_default_endpoints() {
-        assert!(SearchProvider::Google.default_endpoint().contains("googleapis"));
-        assert!(SearchProvider::Bing.default_endpoint().contains("bing.microsoft"));
-        assert!(SearchProvider::Brave.default_endpoint().contains("brave.com"));
-        assert!(SearchProvider::SearXNG.default_endpoint().contains("localhost"));
+        assert!(SearchProvider::Google
+            .default_endpoint()
+            .contains("googleapis"));
+        assert!(SearchProvider::Bing
+            .default_endpoint()
+            .contains("bing.microsoft"));
+        assert!(SearchProvider::Brave
+            .default_endpoint()
+            .contains("brave.com"));
+        assert!(SearchProvider::SearXNG
+            .default_endpoint()
+            .contains("localhost"));
         assert!(SearchProvider::Tavily.default_endpoint().contains("tavily"));
-        assert!(SearchProvider::DuckDuckGo.default_endpoint().contains("duckduckgo"));
+        assert!(SearchProvider::DuckDuckGo
+            .default_endpoint()
+            .contains("duckduckgo"));
     }
 
     // ── SearchConfig tests ──────────────────────────────────────────────
@@ -851,7 +867,10 @@ mod tests {
     #[test]
     fn test_classify_documentation() {
         assert_eq!(
-            WebGroundingEngine::classify_result("https://serde.readthedocs.io/en/latest/", "Serde docs"),
+            WebGroundingEngine::classify_result(
+                "https://serde.readthedocs.io/en/latest/",
+                "Serde docs"
+            ),
             ResultContentType::Documentation
         );
     }
@@ -859,7 +878,10 @@ mod tests {
     #[test]
     fn test_classify_tutorial() {
         assert_eq!(
-            WebGroundingEngine::classify_result("https://example.com/learn", "How to build a REST API"),
+            WebGroundingEngine::classify_result(
+                "https://example.com/learn",
+                "How to build a REST API"
+            ),
             ResultContentType::Tutorial
         );
     }
@@ -1197,7 +1219,11 @@ mod tests {
         let mut engine = WebGroundingEngine::new(sample_config());
         engine.now = 1000;
         // Pre-populate cache for one query
-        engine.cache.put("cached", vec![sample_result("X", "http://x.com", "s", 0.5)], 1000);
+        engine.cache.put(
+            "cached",
+            vec![sample_result("X", "http://x.com", "s", 0.5)],
+            1000,
+        );
         let _ = engine.search("cached"); // cache hit
         let _ = engine.search("fresh"); // cache miss
         assert_eq!(engine.metrics.total_searches, 2);
@@ -1248,11 +1274,18 @@ mod tests {
             "tokio",
             vec![
                 sample_result("Tokio Docs", "https://docs.rs/tokio", "async runtime", 0.5),
-                sample_result("Random post", "https://blog.com/x", "unrelated content", 0.5),
+                sample_result(
+                    "Random post",
+                    "https://blog.com/x",
+                    "unrelated content",
+                    0.5,
+                ),
             ],
             1000,
         );
-        let results = engine.search_with_context("tokio", "async runtime rust").unwrap();
+        let results = engine
+            .search_with_context("tokio", "async runtime rust")
+            .unwrap();
         assert_eq!(results.len(), 2);
         // The docs result should be ranked higher due to keyword overlap
         assert!(results[0].title.contains("Tokio"));

@@ -134,8 +134,15 @@ mod tests {
         av.append_stream("partial text");
         let step = AgentStep {
             step_num: 1,
-            tool_call: ToolCall::Bash { command: "ls".into() },
-            tool_result: ToolResult { tool_name: "bash".into(), output: "file.txt".into(), success: true, truncated: false },
+            tool_call: ToolCall::Bash {
+                command: "ls".into(),
+            },
+            tool_result: ToolResult {
+                tool_name: "bash".into(),
+                output: "file.txt".into(),
+                success: true,
+                truncated: false,
+            },
             approved: true,
         };
         av.add_step(step);
@@ -148,8 +155,15 @@ mod tests {
         let mut av = AgentViewComponent::new();
         let step = AgentStep {
             step_num: 42,
-            tool_call: ToolCall::ReadFile { path: "/tmp/x".into() },
-            tool_result: ToolResult { tool_name: "read_file".into(), output: "contents".into(), success: true, truncated: false },
+            tool_call: ToolCall::ReadFile {
+                path: "/tmp/x".into(),
+            },
+            tool_result: ToolResult {
+                tool_name: "read_file".into(),
+                output: "contents".into(),
+                success: true,
+                truncated: false,
+            },
             approved: false,
         };
         av.add_step(step);
@@ -197,8 +211,15 @@ mod tests {
         av.scroll = 20;
         let step = AgentStep {
             step_num: 1,
-            tool_call: ToolCall::Bash { command: "echo hi".into() },
-            tool_result: ToolResult { tool_name: "bash".into(), output: "hi".into(), success: true, truncated: false },
+            tool_call: ToolCall::Bash {
+                command: "echo hi".into(),
+            },
+            tool_result: ToolResult {
+                tool_name: "bash".into(),
+                output: "hi".into(),
+                success: true,
+                truncated: false,
+            },
             approved: true,
         };
         av.add_step(step);

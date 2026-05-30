@@ -20,8 +20,8 @@
 //! - [`MpError::Parse`] covers JSON deserialization failures
 //! - [`MpError::Unauthorized`] is distinct so callers can re-trigger the auth flow
 
-use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD as B64_URL_NO_PAD;
+use base64::Engine;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -262,9 +262,7 @@ impl McpStreamClient {
             .await
             .map_err(|e| McpError::Http(e.to_string()))?;
         let status = resp.status();
-        if status == reqwest::StatusCode::UNAUTHORIZED
-            || status == reqwest::StatusCode::FORBIDDEN
-        {
+        if status == reqwest::StatusCode::UNAUTHORIZED || status == reqwest::StatusCode::FORBIDDEN {
             let body = resp.text().await.unwrap_or_default();
             return Err(McpError::Unauthorized(body));
         }

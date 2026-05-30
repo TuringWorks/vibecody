@@ -283,7 +283,11 @@ impl SemanticIndex {
 
         // Update metrics.
         *self.metrics.symbols_by_kind.entry(kind_key).or_insert(0) += 1;
-        *self.metrics.symbols_by_language.entry(lang_key).or_insert(0) += 1;
+        *self
+            .metrics
+            .symbols_by_language
+            .entry(lang_key)
+            .or_insert(0) += 1;
         self.metrics.total_symbols = self.symbols.len();
         self.metrics.total_files = self.file_index.len();
     }
@@ -455,7 +459,9 @@ impl SemanticIndex {
         let q = query.to_lowercase();
         self.symbols
             .values()
-            .filter(|s| s.name.to_lowercase().contains(&q) || s.qualified_name.to_lowercase().contains(&q))
+            .filter(|s| {
+                s.name.to_lowercase().contains(&q) || s.qualified_name.to_lowercase().contains(&q)
+            })
             .collect()
     }
 
@@ -528,20 +534,55 @@ impl SimpleParser {
                 let sig = Self::extract_until(trimmed, '{').or_else(|| Some(trimmed.to_string()));
                 (SymbolKind::Function, name, vis, sig)
             } else if let Some(rest) = Self::strip_rust_item(trimmed, "struct ") {
-                (SymbolKind::Struct, Self::extract_ident(rest), Self::rust_visibility(trimmed), None)
+                (
+                    SymbolKind::Struct,
+                    Self::extract_ident(rest),
+                    Self::rust_visibility(trimmed),
+                    None,
+                )
             } else if let Some(rest) = Self::strip_rust_item(trimmed, "enum ") {
-                (SymbolKind::Enum, Self::extract_ident(rest), Self::rust_visibility(trimmed), None)
+                (
+                    SymbolKind::Enum,
+                    Self::extract_ident(rest),
+                    Self::rust_visibility(trimmed),
+                    None,
+                )
             } else if let Some(rest) = Self::strip_rust_item(trimmed, "trait ") {
-                (SymbolKind::Trait, Self::extract_ident(rest), Self::rust_visibility(trimmed), None)
+                (
+                    SymbolKind::Trait,
+                    Self::extract_ident(rest),
+                    Self::rust_visibility(trimmed),
+                    None,
+                )
             } else if let Some(rest) = Self::strip_rust_item(trimmed, "mod ") {
                 let name = Self::extract_ident(rest);
-                (SymbolKind::Module, name, Self::rust_visibility(trimmed), None)
+                (
+                    SymbolKind::Module,
+                    name,
+                    Self::rust_visibility(trimmed),
+                    None,
+                )
             } else if let Some(rest) = Self::strip_rust_item(trimmed, "const ") {
-                (SymbolKind::Constant, Self::extract_ident(rest), Self::rust_visibility(trimmed), None)
+                (
+                    SymbolKind::Constant,
+                    Self::extract_ident(rest),
+                    Self::rust_visibility(trimmed),
+                    None,
+                )
             } else if let Some(rest) = Self::strip_rust_item(trimmed, "type ") {
-                (SymbolKind::TypeAlias, Self::extract_ident(rest), Self::rust_visibility(trimmed), None)
+                (
+                    SymbolKind::TypeAlias,
+                    Self::extract_ident(rest),
+                    Self::rust_visibility(trimmed),
+                    None,
+                )
             } else if let Some(rest) = Self::strip_rust_item(trimmed, "macro_rules! ") {
-                (SymbolKind::Macro, Self::extract_ident(rest), Visibility::Public, None)
+                (
+                    SymbolKind::Macro,
+                    Self::extract_ident(rest),
+                    Visibility::Public,
+                    None,
+                )
             } else {
                 current_doc.clear();
                 continue;
@@ -596,19 +637,46 @@ impl SimpleParser {
                 (SymbolKind::Function, name, vis, sig)
             } else if trimmed.contains("class ") {
                 let rest = Self::after_keyword(trimmed, "class ");
-                (SymbolKind::Class, Self::extract_ident(rest), Self::ts_visibility(trimmed), None)
+                (
+                    SymbolKind::Class,
+                    Self::extract_ident(rest),
+                    Self::ts_visibility(trimmed),
+                    None,
+                )
             } else if trimmed.contains("interface ") {
                 let rest = Self::after_keyword(trimmed, "interface ");
-                (SymbolKind::Interface, Self::extract_ident(rest), Self::ts_visibility(trimmed), None)
+                (
+                    SymbolKind::Interface,
+                    Self::extract_ident(rest),
+                    Self::ts_visibility(trimmed),
+                    None,
+                )
             } else if trimmed.contains("enum ") && !trimmed.starts_with("//") {
                 let rest = Self::after_keyword(trimmed, "enum ");
-                (SymbolKind::Enum, Self::extract_ident(rest), Self::ts_visibility(trimmed), None)
-            } else if (trimmed.starts_with("const ") || trimmed.starts_with("export const ")) && !trimmed.contains("=> {") {
+                (
+                    SymbolKind::Enum,
+                    Self::extract_ident(rest),
+                    Self::ts_visibility(trimmed),
+                    None,
+                )
+            } else if (trimmed.starts_with("const ") || trimmed.starts_with("export const "))
+                && !trimmed.contains("=> {")
+            {
                 let rest = Self::after_keyword(trimmed, "const ");
-                (SymbolKind::Constant, Self::extract_ident(rest), Self::ts_visibility(trimmed), None)
+                (
+                    SymbolKind::Constant,
+                    Self::extract_ident(rest),
+                    Self::ts_visibility(trimmed),
+                    None,
+                )
             } else if trimmed.contains("type ") && trimmed.contains('=') {
                 let rest = Self::after_keyword(trimmed, "type ");
-                (SymbolKind::TypeAlias, Self::extract_ident(rest), Self::ts_visibility(trimmed), None)
+                (
+                    SymbolKind::TypeAlias,
+                    Self::extract_ident(rest),
+                    Self::ts_visibility(trimmed),
+                    None,
+                )
             } else {
                 current_doc.clear();
                 continue;
@@ -655,7 +723,9 @@ impl SimpleParser {
                 continue;
             }
 
-            let (kind, name, vis, sig) = if trimmed.starts_with("def ") || trimmed.starts_with("async def ") {
+            let (kind, name, vis, sig) = if trimmed.starts_with("def ")
+                || trimmed.starts_with("async def ")
+            {
                 let rest = if let Some(r) = trimmed.strip_prefix("async def ") {
                     r
                 } else if let Some(r) = trimmed.strip_prefix("def ") {
@@ -1241,7 +1311,9 @@ mod tests {
     fn test_parse_rust_trait() {
         let code = "pub trait Drawable {\n    fn draw(&self);\n}\n";
         let syms = SimpleParser::parse_rust(code, "draw.rs");
-        assert!(syms.iter().any(|s| s.kind == SymbolKind::Trait && s.name == "Drawable"));
+        assert!(syms
+            .iter()
+            .any(|s| s.kind == SymbolKind::Trait && s.name == "Drawable"));
     }
 
     #[test]
@@ -1285,7 +1357,11 @@ mod tests {
         let syms = SimpleParser::parse_rust(code, "lib.rs");
         assert_eq!(syms.len(), 1);
         assert!(syms[0].doc_comment.is_some());
-        assert!(syms[0].doc_comment.as_ref().unwrap().contains("doc comment"));
+        assert!(syms[0]
+            .doc_comment
+            .as_ref()
+            .unwrap()
+            .contains("doc comment"));
     }
 
     #[test]
@@ -1416,8 +1492,14 @@ mod tests {
 
     #[test]
     fn test_detect_language_typescript() {
-        assert_eq!(SimpleParser::detect_language("app.ts"), Language::TypeScript);
-        assert_eq!(SimpleParser::detect_language("app.tsx"), Language::TypeScript);
+        assert_eq!(
+            SimpleParser::detect_language("app.ts"),
+            Language::TypeScript
+        );
+        assert_eq!(
+            SimpleParser::detect_language("app.tsx"),
+            Language::TypeScript
+        );
     }
 
     #[test]
@@ -1516,7 +1598,12 @@ mod tests {
     #[test]
     fn test_import_types() {
         let mut idx = SemanticIndex::new();
-        for itype in [ImportType::Named, ImportType::Wildcard, ImportType::Default, ImportType::Reexport] {
+        for itype in [
+            ImportType::Named,
+            ImportType::Wildcard,
+            ImportType::Default,
+            ImportType::Reexport,
+        ] {
             idx.add_import_edge(ImportEdge {
                 source_file: "a.rs".into(),
                 target_file: "b.rs".into(),

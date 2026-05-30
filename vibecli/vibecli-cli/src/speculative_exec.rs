@@ -235,8 +235,10 @@ impl SpeculativeEngine {
         // Check for decision indicators
         let has_or = lower.contains(" or ");
         let has_alternatively = lower.contains("alternatively");
-        let has_option = lower.contains("option a") || lower.contains("option b")
-            || lower.contains("option 1") || lower.contains("option 2");
+        let has_option = lower.contains("option a")
+            || lower.contains("option b")
+            || lower.contains("option 1")
+            || lower.contains("option 2");
         let has_question = lower.contains('?');
         let has_choice = lower.contains("choose between")
             || lower.contains("should we")
@@ -249,31 +251,38 @@ impl SpeculativeEngine {
         }
 
         // Determine decision type from content
-        let decision_type = if lower.contains("architecture") || lower.contains("monolith")
+        let decision_type = if lower.contains("architecture")
+            || lower.contains("monolith")
             || lower.contains("microservice")
         {
             DecisionType::ArchitectureChoice
-        } else if lower.contains("library") || lower.contains("crate")
-            || lower.contains("package") || lower.contains("dependency")
+        } else if lower.contains("library")
+            || lower.contains("crate")
+            || lower.contains("package")
+            || lower.contains("dependency")
         {
             DecisionType::LibrarySelection
-        } else if lower.contains("algorithm") || lower.contains("sort")
-            || lower.contains("search") || lower.contains("hash")
+        } else if lower.contains("algorithm")
+            || lower.contains("sort")
+            || lower.contains("search")
+            || lower.contains("hash")
         {
             DecisionType::AlgorithmChoice
         } else if lower.contains("pattern") || lower.contains("design") {
             DecisionType::PatternChoice
-        } else if lower.contains("api") || lower.contains("endpoint")
-            || lower.contains("rest") || lower.contains("grpc")
+        } else if lower.contains("api")
+            || lower.contains("endpoint")
+            || lower.contains("rest")
+            || lower.contains("grpc")
         {
             DecisionType::APIDesign
-        } else if lower.contains("error") || lower.contains("exception")
-            || lower.contains("result") || lower.contains("panic")
+        } else if lower.contains("error")
+            || lower.contains("exception")
+            || lower.contains("result")
+            || lower.contains("panic")
         {
             DecisionType::ErrorStrategy
-        } else if lower.contains("test") || lower.contains("spec")
-            || lower.contains("assert")
-        {
+        } else if lower.contains("test") || lower.contains("spec") || lower.contains("assert") {
             DecisionType::TestStrategy
         } else {
             DecisionType::Custom("general".to_string())
@@ -312,7 +321,13 @@ impl SpeculativeEngine {
         }
 
         // Confidence: lower when more uncertainty signals are present
-        let signals = [has_or, has_alternatively, has_option, has_question, has_choice];
+        let signals = [
+            has_or,
+            has_alternatively,
+            has_option,
+            has_question,
+            has_choice,
+        ];
         let signal_count = signals.iter().filter(|&&s| s).count();
         let confidence = (1.0 - signal_count as f64 * 0.15).max(0.1);
 
@@ -351,11 +366,7 @@ impl SpeculativeEngine {
         id
     }
 
-    pub fn add_branch(
-        &mut self,
-        session_id: &str,
-        option: &str,
-    ) -> Result<String, String> {
+    pub fn add_branch(&mut self, session_id: &str, option: &str) -> Result<String, String> {
         // Validate first with immutable borrow, then mutate
         {
             let session = self
@@ -373,7 +384,13 @@ impl SpeculativeEngine {
             }
         }
 
-        let decision_id = self.sessions.get(session_id).expect("session verified above").decision.id.clone();
+        let decision_id = self
+            .sessions
+            .get(session_id)
+            .expect("session verified above")
+            .decision
+            .id
+            .clone();
         let branch_id = self.gen_id("br");
         let ts = self.now();
 
@@ -397,11 +414,7 @@ impl SpeculativeEngine {
         Ok(branch_id)
     }
 
-    pub fn start_branch(
-        &mut self,
-        session_id: &str,
-        branch_id: &str,
-    ) -> Result<(), String> {
+    pub fn start_branch(&mut self, session_id: &str, branch_id: &str) -> Result<(), String> {
         let session = self
             .sessions
             .get_mut(session_id)
@@ -509,39 +522,35 @@ impl SpeculativeEngine {
             SelectionStrategy::TestScore => {
                 let mut best: Option<(&str, f64)> = None;
                 for b in &completed {
-                    let score = b.test_results.as_ref().map(|t| t.pass_rate()).unwrap_or(0.0);
+                    let score = b
+                        .test_results
+                        .as_ref()
+                        .map(|t| t.pass_rate())
+                        .unwrap_or(0.0);
                     if best.is_none() || score > best.unwrap().1 {
                         best = Some((&b.id, score));
                     }
                 }
                 best.unwrap().0.to_string()
             }
-            SelectionStrategy::SmallestDiff => {
-                completed
-                    .iter()
-                    .min_by_key(|b| b.diff_size)
-                    .unwrap()
-                    .id
-                    .clone()
-            }
-            SelectionStrategy::LowestCost => {
-                completed
-                    .iter()
-                    .min_by_key(|b| b.cost_tokens)
-                    .unwrap()
-                    .id
-                    .clone()
-            }
+            SelectionStrategy::SmallestDiff => completed
+                .iter()
+                .min_by_key(|b| b.diff_size)
+                .unwrap()
+                .id
+                .clone(),
+            SelectionStrategy::LowestCost => completed
+                .iter()
+                .min_by_key(|b| b.cost_tokens)
+                .unwrap()
+                .id
+                .clone(),
             SelectionStrategy::Composite | SelectionStrategy::Manual => {
                 // Composite uses BranchScorer
                 let completed_owned: Vec<SpeculativeBranch> =
                     completed.into_iter().cloned().collect();
                 let ranked = BranchScorer::rank(&completed_owned);
-                ranked
-                    .first()
-                    .ok_or("No branches to rank")?
-                    .0
-                    .clone()
+                ranked.first().ok_or("No branches to rank")?.0.clone()
             }
         };
 
@@ -559,7 +568,10 @@ impl SpeculativeEngine {
         let total_serial: f64 = session
             .branches
             .iter()
-            .filter_map(|b| b.completed_at.map(|c| c.saturating_sub(b.started_at) as f64))
+            .filter_map(|b| {
+                b.completed_at
+                    .map(|c| c.saturating_sub(b.started_at) as f64)
+            })
             .sum();
         // Parallel execution saves (total_serial - max_single_branch) time
         let max_duration = session
@@ -574,11 +586,7 @@ impl SpeculativeEngine {
         Ok(best_id)
     }
 
-    pub fn manual_select(
-        &mut self,
-        session_id: &str,
-        branch_id: &str,
-    ) -> Result<(), String> {
+    pub fn manual_select(&mut self, session_id: &str, branch_id: &str) -> Result<(), String> {
         let session = self
             .sessions
             .get_mut(session_id)
@@ -598,10 +606,7 @@ impl SpeculativeEngine {
         Ok(())
     }
 
-    pub fn compare_branches(
-        &self,
-        session_id: &str,
-    ) -> Result<Vec<BranchComparison>, String> {
+    pub fn compare_branches(&self, session_id: &str) -> Result<Vec<BranchComparison>, String> {
         let session = self
             .sessions
             .get(session_id)
@@ -618,8 +623,7 @@ impl SpeculativeEngine {
         }
 
         // Rank to determine recommendation
-        let completed_owned: Vec<SpeculativeBranch> =
-            completed.iter().cloned().cloned().collect();
+        let completed_owned: Vec<SpeculativeBranch> = completed.iter().cloned().cloned().collect();
         let ranked = BranchScorer::rank(&completed_owned);
         let best_id = ranked.first().map(|(id, _)| id.clone());
 
@@ -860,9 +864,7 @@ mod tests {
     #[test]
     fn test_detect_error_strategy() {
         let mut e = default_engine();
-        let dp = e.detect_decision_point(
-            "Should we use Result types or panic on errors?",
-        );
+        let dp = e.detect_decision_point("Should we use Result types or panic on errors?");
         assert!(dp.is_some());
         assert_eq!(dp.unwrap().decision_type, DecisionType::ErrorStrategy);
     }
@@ -870,9 +872,7 @@ mod tests {
     #[test]
     fn test_detect_test_strategy() {
         let mut e = default_engine();
-        let dp = e.detect_decision_point(
-            "Should we use integration tests or unit test specs?",
-        );
+        let dp = e.detect_decision_point("Should we use integration tests or unit test specs?");
         assert!(dp.is_some());
         assert_eq!(dp.unwrap().decision_type, DecisionType::TestStrategy);
     }
@@ -880,7 +880,9 @@ mod tests {
     #[test]
     fn test_detect_pattern_choice() {
         let mut e = default_engine();
-        let dp = e.detect_decision_point("Which design pattern should we use or alternatively a builder?");
+        let dp = e.detect_decision_point(
+            "Which design pattern should we use or alternatively a builder?",
+        );
         assert!(dp.is_some());
         assert_eq!(dp.unwrap().decision_type, DecisionType::PatternChoice);
     }
@@ -1319,7 +1321,9 @@ mod tests {
 
         // Detect a decision
         let dp = e
-            .detect_decision_point("Should we use Option A microservices or Option B monolith architecture?")
+            .detect_decision_point(
+                "Should we use Option A microservices or Option B monolith architecture?",
+            )
             .unwrap();
         assert_eq!(dp.decision_type, DecisionType::ArchitectureChoice);
 
@@ -1360,7 +1364,9 @@ mod tests {
     fn test_detect_numeric_options() {
         let mut e = default_engine();
         let dp = e
-            .detect_decision_point("Option 1: use threads. Option 2: use async. Option 3: use processes.")
+            .detect_decision_point(
+                "Option 1: use threads. Option 2: use async. Option 3: use processes.",
+            )
             .unwrap();
         assert!(dp.options.contains(&"Option 1".to_string()));
         assert!(dp.options.contains(&"Option 2".to_string()));

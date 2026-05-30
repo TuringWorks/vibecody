@@ -1,15 +1,15 @@
 //! BDD: audit emission on the plain-HTTP path. Sends raw HTTP through
 //! the broker, then asserts what landed in the MemoryAuditSink.
 
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use vibe_broker::{
+    policy::{DefaultRule, SecretRef},
     AuditEvent, AwsCredentials, BoundAddr, Broker, BrokerHandle, EgressOutcome, ImdsHandle,
     ImdsServer, InMemorySecretStore, MemoryAuditSink, Policy, SecretStore, SsrfGuard,
-    policy::{DefaultRule, SecretRef},
 };
 
 #[derive(Default, World)]
@@ -61,7 +61,9 @@ fn empty_policy(world: &mut AWorld) {
     install_broker(world, broker);
 }
 
-#[given(expr = "a broker with an in-memory audit sink and a rule allowing {string} methods {string}")]
+#[given(
+    expr = "a broker with an in-memory audit sink and a rule allowing {string} methods {string}"
+)]
 fn one_rule(world: &mut AWorld, host: String, methods: String) {
     let sink = Arc::new(MemoryAuditSink::new());
     world.audit = Some(sink.clone());
@@ -97,9 +99,7 @@ fn send_request(world: &mut AWorld, req: String) {
         parsed.path(),
         parsed.query().map(|q| format!("?{q}")).unwrap_or_default()
     );
-    let raw = format!(
-        "{method} {path_q} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n"
-    );
+    let raw = format!("{method} {path_q} HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\n\r\n");
     drive(world, raw);
 }
 
@@ -124,8 +124,12 @@ fn drive(world: &mut AWorld, raw: String) {
 #[then(expr = "the audit sink recorded {int} events")]
 fn count(world: &mut AWorld, expected: usize) {
     let actual = world.audit.as_ref().unwrap().len();
-    assert_eq!(actual, expected,
-        "events: {:?}", world.audit.as_ref().unwrap().events());
+    assert_eq!(
+        actual,
+        expected,
+        "events: {:?}",
+        world.audit.as_ref().unwrap().events()
+    );
 }
 
 fn event_at(world: &AWorld, idx: usize) -> AuditEvent {
@@ -204,9 +208,7 @@ fn imds_put(world: &mut AWorld, path: String) {
 #[when(expr = "I GET {string} against the IMDS faker without a token")]
 fn imds_get_no_token(world: &mut AWorld, path: String) {
     let addr = world.imds_addr.unwrap();
-    let req = format!(
-        "GET {path} HTTP/1.1\r\nHost: 169.254.169.254\r\nConnection: close\r\n\r\n"
-    );
+    let req = format!("GET {path} HTTP/1.1\r\nHost: 169.254.169.254\r\nConnection: close\r\n\r\n");
     let rt = world.rt();
     rt.block_on(async move {
         let mut s = TcpStream::connect(addr).await.unwrap();

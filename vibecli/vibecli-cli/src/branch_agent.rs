@@ -360,27 +360,28 @@ impl BranchAgentManager {
         let mut agents: Vec<&BranchAgent> = self
             .agents
             .values()
-            .filter(|a| matches!(
-                a.status,
-                BranchAgentStatus::Creating
-                    | BranchAgentStatus::Working
-                    | BranchAgentStatus::Committing
-                    | BranchAgentStatus::PushingBranch
-                    | BranchAgentStatus::CreatingPR
-                    | BranchAgentStatus::Rebasing
-            ))
+            .filter(|a| {
+                matches!(
+                    a.status,
+                    BranchAgentStatus::Creating
+                        | BranchAgentStatus::Working
+                        | BranchAgentStatus::Committing
+                        | BranchAgentStatus::PushingBranch
+                        | BranchAgentStatus::CreatingPR
+                        | BranchAgentStatus::Rebasing
+                )
+            })
             .collect();
         agents.sort_by_key(|a| a.created_at);
         agents
     }
 
     /// Record a commit for an agent.
-    pub fn record_commit(
-        &mut self,
-        agent_id: &str,
-        commit: CommitInfo,
-    ) -> Result<(), BranchError> {
-        let agent = self.agents.get_mut(agent_id).ok_or(BranchError::AgentNotFound)?;
+    pub fn record_commit(&mut self, agent_id: &str, commit: CommitInfo) -> Result<(), BranchError> {
+        let agent = self
+            .agents
+            .get_mut(agent_id)
+            .ok_or(BranchError::AgentNotFound)?;
         // Track files changed
         for f in &commit.files {
             if !agent.files_changed.contains(f) {
@@ -434,7 +435,11 @@ impl BranchAgentManager {
         if !agent.commits.is_empty() {
             desc.push_str("## Commits\n\n");
             for c in &agent.commits {
-                desc.push_str(&format!("- `{}` {}\n", &c.hash[..7.min(c.hash.len())], c.message));
+                desc.push_str(&format!(
+                    "- `{}` {}\n",
+                    &c.hash[..7.min(c.hash.len())],
+                    c.message
+                ));
             }
             desc.push('\n');
         }
@@ -465,10 +470,7 @@ impl BranchAgentManager {
 
         PullRequestInfo {
             number: (agent.created_at % 10000) as u32,
-            url: format!(
-                "https://github.com/repo/pull/{}",
-                agent.created_at % 10000
-            ),
+            url: format!("https://github.com/repo/pull/{}", agent.created_at % 10000),
             title,
             description,
             status,
@@ -481,18 +483,15 @@ impl BranchAgentManager {
     }
 
     /// Mark an agent as completed and generate a PR.
-    pub fn complete_agent(
-        &mut self,
-        agent_id: &str,
-    ) -> Result<PullRequestInfo, BranchError> {
-        let agent = self.agents.get_mut(agent_id).ok_or(BranchError::AgentNotFound)?;
+    pub fn complete_agent(&mut self, agent_id: &str) -> Result<PullRequestInfo, BranchError> {
+        let agent = self
+            .agents
+            .get_mut(agent_id)
+            .ok_or(BranchError::AgentNotFound)?;
         agent.status = BranchAgentStatus::Completed;
         agent.completed_at = Some(Self::now_millis());
 
-        let pr = self.build_pr_info(
-            &self.agents[agent_id].clone(),
-            PrStatus::Open,
-        );
+        let pr = self.build_pr_info(&self.agents[agent_id].clone(), PrStatus::Open);
         let agent = self.agents.get_mut(agent_id).expect("agent exists");
         agent.pr = Some(pr.clone());
         Ok(pr)
@@ -504,16 +503,16 @@ impl BranchAgentManager {
         agent_id: &str,
         error: &str,
     ) -> Result<Option<PullRequestInfo>, BranchError> {
-        let agent = self.agents.get_mut(agent_id).ok_or(BranchError::AgentNotFound)?;
+        let agent = self
+            .agents
+            .get_mut(agent_id)
+            .ok_or(BranchError::AgentNotFound)?;
         agent.status = BranchAgentStatus::Failed;
         agent.completed_at = Some(Self::now_millis());
         agent.error = Some(error.to_string());
 
         if self.config.wip_pr_on_failure {
-            let pr = self.build_pr_info(
-                &self.agents[agent_id].clone(),
-                PrStatus::Wip,
-            );
+            let pr = self.build_pr_info(&self.agents[agent_id].clone(), PrStatus::Wip);
             let agent = self.agents.get_mut(agent_id).expect("agent exists");
             agent.pr = Some(pr.clone());
             Ok(Some(pr))
@@ -539,7 +538,8 @@ impl BranchAgentManager {
                     .collect();
                 if !overlapping.is_empty() {
                     let severity = self.calculate_severity(&overlapping);
-                    let suggestion = self.suggest_conflict_resolution_inner(&severity, overlapping.len());
+                    let suggestion =
+                        self.suggest_conflict_resolution_inner(&severity, overlapping.len());
                     reports.push(ConflictReport {
                         agent_a_id: a.id.clone(),
                         agent_b_id: b.id.clone(),
@@ -587,7 +587,10 @@ impl BranchAgentManager {
 
     /// Mark an agent as rebasing.
     pub fn rebase_agent(&mut self, agent_id: &str) -> Result<(), BranchError> {
-        let agent = self.agents.get_mut(agent_id).ok_or(BranchError::AgentNotFound)?;
+        let agent = self
+            .agents
+            .get_mut(agent_id)
+            .ok_or(BranchError::AgentNotFound)?;
         match agent.status {
             BranchAgentStatus::Working
             | BranchAgentStatus::Committing
@@ -601,7 +604,10 @@ impl BranchAgentManager {
 
     /// Clean up a single agent (mark as cleaned up).
     pub fn cleanup_agent(&mut self, agent_id: &str) -> Result<(), BranchError> {
-        let agent = self.agents.get_mut(agent_id).ok_or(BranchError::AgentNotFound)?;
+        let agent = self
+            .agents
+            .get_mut(agent_id)
+            .ok_or(BranchError::AgentNotFound)?;
         match agent.status {
             BranchAgentStatus::Completed | BranchAgentStatus::Failed => {
                 agent.status = BranchAgentStatus::CleanedUp;
@@ -617,7 +623,9 @@ impl BranchAgentManager {
             .agents
             .values()
             .filter(|a| {
-                a.pr.as_ref().map(|pr| pr.status == PrStatus::Merged).unwrap_or(false)
+                a.pr.as_ref()
+                    .map(|pr| pr.status == PrStatus::Merged)
+                    .unwrap_or(false)
                     && a.status != BranchAgentStatus::CleanedUp
             })
             .map(|a| a.id.clone())
@@ -638,15 +646,17 @@ impl BranchAgentManager {
         let agents: Vec<&BranchAgent> = self.agents.values().collect();
         let active = agents
             .iter()
-            .filter(|a| matches!(
-                a.status,
-                BranchAgentStatus::Creating
-                    | BranchAgentStatus::Working
-                    | BranchAgentStatus::Committing
-                    | BranchAgentStatus::PushingBranch
-                    | BranchAgentStatus::CreatingPR
-                    | BranchAgentStatus::Rebasing
-            ))
+            .filter(|a| {
+                matches!(
+                    a.status,
+                    BranchAgentStatus::Creating
+                        | BranchAgentStatus::Working
+                        | BranchAgentStatus::Committing
+                        | BranchAgentStatus::PushingBranch
+                        | BranchAgentStatus::CreatingPR
+                        | BranchAgentStatus::Rebasing
+                )
+            })
             .count();
         let completed = agents
             .iter()
@@ -789,7 +799,10 @@ mod tests {
     #[test]
     fn test_slugify_multiple_spaces() {
         let mgr = default_manager();
-        assert_eq!(mgr.slugify("fix   multiple   spaces"), "fix-multiple-spaces");
+        assert_eq!(
+            mgr.slugify("fix   multiple   spaces"),
+            "fix-multiple-spaces"
+        );
     }
 
     #[test]
@@ -1125,8 +1138,10 @@ mod tests {
         let id1 = mgr.create_agent("task a").unwrap();
         std::thread::sleep(std::time::Duration::from_millis(2));
         let id2 = mgr.create_agent("task b").unwrap();
-        mgr.record_commit(&id1, make_commit("a1", "c1", vec!["src/a.rs"])).unwrap();
-        mgr.record_commit(&id2, make_commit("b1", "c2", vec!["src/b.rs"])).unwrap();
+        mgr.record_commit(&id1, make_commit("a1", "c1", vec!["src/a.rs"]))
+            .unwrap();
+        mgr.record_commit(&id2, make_commit("b1", "c2", vec!["src/b.rs"]))
+            .unwrap();
         let conflicts = mgr.detect_conflicts();
         assert!(conflicts.is_empty());
     }
@@ -1137,8 +1152,10 @@ mod tests {
         let id1 = mgr.create_agent("task a").unwrap();
         std::thread::sleep(std::time::Duration::from_millis(2));
         let id2 = mgr.create_agent("task b").unwrap();
-        mgr.record_commit(&id1, make_commit("a1", "c1", vec!["src/shared.rs"])).unwrap();
-        mgr.record_commit(&id2, make_commit("b1", "c2", vec!["src/shared.rs"])).unwrap();
+        mgr.record_commit(&id1, make_commit("a1", "c1", vec!["src/shared.rs"]))
+            .unwrap();
+        mgr.record_commit(&id2, make_commit("b1", "c2", vec!["src/shared.rs"]))
+            .unwrap();
         let conflicts = mgr.detect_conflicts();
         assert_eq!(conflicts.len(), 1);
         assert_eq!(conflicts[0].conflicting_files, vec!["src/shared.rs"]);
@@ -1152,8 +1169,10 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(2));
         let id2 = mgr.create_agent("task b").unwrap();
         let files = vec!["a.rs", "b.rs", "c.rs"];
-        mgr.record_commit(&id1, make_commit("a1", "c1", files.clone())).unwrap();
-        mgr.record_commit(&id2, make_commit("b1", "c2", files)).unwrap();
+        mgr.record_commit(&id1, make_commit("a1", "c1", files.clone()))
+            .unwrap();
+        mgr.record_commit(&id2, make_commit("b1", "c2", files))
+            .unwrap();
         let conflicts = mgr.detect_conflicts();
         assert_eq!(conflicts.len(), 1);
         assert_eq!(conflicts[0].conflicting_files.len(), 3);
@@ -1167,8 +1186,10 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(2));
         let id2 = mgr.create_agent("task b").unwrap();
         let files: Vec<&str> = vec!["a.rs", "b.rs", "c.rs", "d.rs", "e.rs"];
-        mgr.record_commit(&id1, make_commit("a1", "c1", files.clone())).unwrap();
-        mgr.record_commit(&id2, make_commit("b1", "c2", files)).unwrap();
+        mgr.record_commit(&id1, make_commit("a1", "c1", files.clone()))
+            .unwrap();
+        mgr.record_commit(&id2, make_commit("b1", "c2", files))
+            .unwrap();
         let conflicts = mgr.detect_conflicts();
         assert_eq!(conflicts[0].severity, ConflictSeverity::High);
     }
@@ -1188,7 +1209,10 @@ mod tests {
             severity: ConflictSeverity::Low,
             suggestion: ConflictResolution::AutoRebase,
         };
-        assert_eq!(mgr.suggest_conflict_resolution(&report), ConflictResolution::AutoRebase);
+        assert_eq!(
+            mgr.suggest_conflict_resolution(&report),
+            ConflictResolution::AutoRebase
+        );
     }
 
     #[test]
@@ -1237,7 +1261,10 @@ mod tests {
         let id = mgr.create_agent("task").unwrap();
         mgr.get_agent_mut(&id).unwrap().status = BranchAgentStatus::Working;
         mgr.rebase_agent(&id).unwrap();
-        assert_eq!(mgr.get_agent(&id).unwrap().status, BranchAgentStatus::Rebasing);
+        assert_eq!(
+            mgr.get_agent(&id).unwrap().status,
+            BranchAgentStatus::Rebasing
+        );
     }
 
     #[test]
@@ -1264,7 +1291,10 @@ mod tests {
         let id = mgr.create_agent("task").unwrap();
         mgr.complete_agent(&id).unwrap();
         mgr.cleanup_agent(&id).unwrap();
-        assert_eq!(mgr.get_agent(&id).unwrap().status, BranchAgentStatus::CleanedUp);
+        assert_eq!(
+            mgr.get_agent(&id).unwrap().status,
+            BranchAgentStatus::CleanedUp
+        );
     }
 
     #[test]
@@ -1273,7 +1303,10 @@ mod tests {
         let id = mgr.create_agent("task").unwrap();
         mgr.fail_agent(&id, "err").unwrap();
         mgr.cleanup_agent(&id).unwrap();
-        assert_eq!(mgr.get_agent(&id).unwrap().status, BranchAgentStatus::CleanedUp);
+        assert_eq!(
+            mgr.get_agent(&id).unwrap().status,
+            BranchAgentStatus::CleanedUp
+        );
     }
 
     #[test]
@@ -1296,8 +1329,14 @@ mod tests {
         mgr.get_agent_mut(&id1).unwrap().pr.as_mut().unwrap().status = PrStatus::Merged;
         let cleaned = mgr.cleanup_merged_branches();
         assert_eq!(cleaned.len(), 1);
-        assert_eq!(mgr.get_agent(&id1).unwrap().status, BranchAgentStatus::CleanedUp);
-        assert_eq!(mgr.get_agent(&id2).unwrap().status, BranchAgentStatus::Completed);
+        assert_eq!(
+            mgr.get_agent(&id1).unwrap().status,
+            BranchAgentStatus::CleanedUp
+        );
+        assert_eq!(
+            mgr.get_agent(&id2).unwrap().status,
+            BranchAgentStatus::Completed
+        );
     }
 
     // --- Summary ---
@@ -1323,8 +1362,10 @@ mod tests {
         std::thread::sleep(std::time::Duration::from_millis(2));
         let _id3 = mgr.create_agent("task c").unwrap();
 
-        mgr.record_commit(&id1, make_commit("a1", "c1", vec!["f1.rs"])).unwrap();
-        mgr.record_commit(&id2, make_commit("b1", "c2", vec!["f2.rs"])).unwrap();
+        mgr.record_commit(&id1, make_commit("a1", "c1", vec!["f1.rs"]))
+            .unwrap();
+        mgr.record_commit(&id2, make_commit("b1", "c2", vec!["f2.rs"]))
+            .unwrap();
         mgr.complete_agent(&id1).unwrap();
         mgr.fail_agent(&id2, "err").unwrap();
 
@@ -1422,15 +1463,26 @@ mod tests {
 
         // Create
         let id = mgr.create_agent("implement user auth").unwrap();
-        assert_eq!(mgr.get_agent(&id).unwrap().status, BranchAgentStatus::Creating);
+        assert_eq!(
+            mgr.get_agent(&id).unwrap().status,
+            BranchAgentStatus::Creating
+        );
 
         // Work
         mgr.get_agent_mut(&id).unwrap().status = BranchAgentStatus::Working;
 
         // Commit
-        let c1 = make_commit("aaa1111", "feat: add auth module", vec!["src/auth.rs", "src/lib.rs"]);
+        let c1 = make_commit(
+            "aaa1111",
+            "feat: add auth module",
+            vec!["src/auth.rs", "src/lib.rs"],
+        );
         mgr.record_commit(&id, c1).unwrap();
-        let c2 = make_commit("bbb2222", "test: add auth tests", vec!["tests/auth_test.rs"]);
+        let c2 = make_commit(
+            "bbb2222",
+            "test: add auth tests",
+            vec!["tests/auth_test.rs"],
+        );
         mgr.record_commit(&id, c2).unwrap();
 
         assert_eq!(mgr.get_agent(&id).unwrap().commits.len(), 2);
@@ -1446,7 +1498,10 @@ mod tests {
         mgr.get_agent_mut(&id).unwrap().pr.as_mut().unwrap().status = PrStatus::Merged;
         let cleaned = mgr.cleanup_merged_branches();
         assert_eq!(cleaned.len(), 1);
-        assert_eq!(mgr.get_agent(&id).unwrap().status, BranchAgentStatus::CleanedUp);
+        assert_eq!(
+            mgr.get_agent(&id).unwrap().status,
+            BranchAgentStatus::CleanedUp
+        );
     }
 
     // --- Display impls ---
@@ -1469,8 +1524,14 @@ mod tests {
 
     #[test]
     fn test_error_display() {
-        assert_eq!(format!("{}", BranchError::MaxAgentsReached), "maximum parallel agents reached");
+        assert_eq!(
+            format!("{}", BranchError::MaxAgentsReached),
+            "maximum parallel agents reached"
+        );
         assert_eq!(format!("{}", BranchError::AgentNotFound), "agent not found");
-        assert_eq!(format!("{}", BranchError::InvalidTask), "invalid task description");
+        assert_eq!(
+            format!("{}", BranchError::InvalidTask),
+            "invalid task description"
+        );
     }
 }

@@ -105,7 +105,10 @@ impl TeamConfig {
         if !self.shared_commands.is_empty() {
             parts.push("Shared commands:".to_string());
             for cmd in &self.shared_commands {
-                parts.push(format!("- {} → `{}` — {}", cmd.name, cmd.command, cmd.description));
+                parts.push(format!(
+                    "- {} → `{}` — {}",
+                    cmd.name, cmd.command, cmd.description
+                ));
             }
         }
 
@@ -121,11 +124,15 @@ pub struct TeamManager {
 
 impl TeamManager {
     pub fn for_workspace(workspace_root: &Path) -> Self {
-        Self { workspace_path: Some(workspace_root.to_path_buf()) }
+        Self {
+            workspace_path: Some(workspace_root.to_path_buf()),
+        }
     }
 
     fn team_toml_path(&self) -> Option<PathBuf> {
-        self.workspace_path.as_ref().map(|p| p.join(".vibecli").join("team.toml"))
+        self.workspace_path
+            .as_ref()
+            .map(|p| p.join(".vibecli").join("team.toml"))
     }
 
     fn global_team_path() -> Option<PathBuf> {
@@ -155,7 +162,8 @@ impl TeamManager {
 
     /// Save the team config to the workspace.
     pub fn save(&self, config: &TeamConfig) -> Result<()> {
-        let path = self.team_toml_path()
+        let path = self
+            .team_toml_path()
             .ok_or_else(|| anyhow::anyhow!("No workspace set for team config"))?;
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
@@ -193,22 +201,34 @@ impl TeamManager {
     /// Sync team.toml from the remote URL (if configured).
     pub async fn sync(&self) -> Result<String> {
         let config = self.load();
-        let url = config.team.knowledge_base_url
+        let url = config
+            .team
+            .knowledge_base_url
             .ok_or_else(|| anyhow::anyhow!("No knowledge_base_url configured in team.toml"))?;
 
         let client = reqwest::Client::new();
-        let resp = client.get(&url).send().await
+        let resp = client
+            .get(&url)
+            .send()
+            .await
             .map_err(|e| anyhow::anyhow!("Failed to fetch team config: {}", e))?;
         if !resp.status().is_success() {
             anyhow::bail!("Failed to sync team config: HTTP {}", resp.status());
         }
         let raw = resp.text().await?;
-        let remote_cfg: TeamConfig = toml::from_str(&raw)
-            .map_err(|e| anyhow::anyhow!("Invalid remote team.toml: {}", e))?;
-        let team_name = remote_cfg.team.name.clone().unwrap_or_else(|| "team".to_string());
+        let remote_cfg: TeamConfig =
+            toml::from_str(&raw).map_err(|e| anyhow::anyhow!("Invalid remote team.toml: {}", e))?;
+        let team_name = remote_cfg
+            .team
+            .name
+            .clone()
+            .unwrap_or_else(|| "team".to_string());
         let knowledge_count = remote_cfg.knowledge.len();
         self.save(&remote_cfg)?;
-        Ok(format!("Synced team '{}' — {} knowledge entries", team_name, knowledge_count))
+        Ok(format!(
+            "Synced team '{}' — {} knowledge entries",
+            team_name, knowledge_count
+        ))
     }
 }
 
@@ -229,7 +249,8 @@ mod tests {
     fn add_and_remove_knowledge() {
         let tmp = TempDir::new().unwrap();
         let mgr = TeamManager::for_workspace(tmp.path());
-        mgr.add_knowledge("deploy", "Run `npm run deploy`", vec!["ops".to_string()]).unwrap();
+        mgr.add_knowledge("deploy", "Run `npm run deploy`", vec!["ops".to_string()])
+            .unwrap();
 
         let cfg = mgr.load();
         assert_eq!(cfg.knowledge.len(), 1);
@@ -243,7 +264,10 @@ mod tests {
     #[test]
     fn context_string_format() {
         let cfg = TeamConfig {
-            team: TeamInfo { name: Some("Acme".to_string()), knowledge_base_url: None },
+            team: TeamInfo {
+                name: Some("Acme".to_string()),
+                knowledge_base_url: None,
+            },
             knowledge: vec![KnowledgeEntry {
                 name: "tip".to_string(),
                 content: "Use cargo check before cargo build".to_string(),
@@ -268,7 +292,10 @@ mod tests {
     #[test]
     fn context_string_includes_shared_commands() {
         let cfg = TeamConfig {
-            team: TeamInfo { name: None, knowledge_base_url: None },
+            team: TeamInfo {
+                name: None,
+                knowledge_base_url: None,
+            },
             knowledge: vec![],
             shared_commands: vec![SharedCommand {
                 name: "deploy".to_string(),
@@ -286,9 +313,14 @@ mod tests {
     #[test]
     fn context_string_no_team_name_uses_default_header() {
         let cfg = TeamConfig {
-            team: TeamInfo { name: None, knowledge_base_url: None },
+            team: TeamInfo {
+                name: None,
+                knowledge_base_url: None,
+            },
             knowledge: vec![KnowledgeEntry {
-                name: "k".into(), content: "v".into(), tags: vec![],
+                name: "k".into(),
+                content: "v".into(),
+                tags: vec![],
             }],
             shared_commands: vec![],
             shared_mcp: vec![],
@@ -300,7 +332,10 @@ mod tests {
     #[test]
     fn context_string_knowledge_tags_shown() {
         let cfg = TeamConfig {
-            team: TeamInfo { name: Some("T".into()), knowledge_base_url: None },
+            team: TeamInfo {
+                name: Some("T".into()),
+                knowledge_base_url: None,
+            },
             knowledge: vec![KnowledgeEntry {
                 name: "tip".into(),
                 content: "do it".into(),
@@ -316,7 +351,10 @@ mod tests {
     #[test]
     fn context_string_knowledge_no_tags() {
         let cfg = TeamConfig {
-            team: TeamInfo { name: Some("T".into()), knowledge_base_url: None },
+            team: TeamInfo {
+                name: Some("T".into()),
+                knowledge_base_url: None,
+            },
             knowledge: vec![KnowledgeEntry {
                 name: "tip".into(),
                 content: "do it".into(),
@@ -335,15 +373,24 @@ mod tests {
     #[test]
     fn team_config_serde_roundtrip() {
         let cfg = TeamConfig {
-            team: TeamInfo { name: Some("Acme".into()), knowledge_base_url: None },
+            team: TeamInfo {
+                name: Some("Acme".into()),
+                knowledge_base_url: None,
+            },
             knowledge: vec![KnowledgeEntry {
-                name: "k".into(), content: "v".into(), tags: vec!["t".into()],
+                name: "k".into(),
+                content: "v".into(),
+                tags: vec!["t".into()],
             }],
             shared_commands: vec![SharedCommand {
-                name: "c".into(), command: "cmd".into(), description: "d".into(),
+                name: "c".into(),
+                command: "cmd".into(),
+                description: "d".into(),
             }],
             shared_mcp: vec![SharedMcp {
-                name: "m".into(), command: "mcmd".into(), args: vec!["--arg".into()],
+                name: "m".into(),
+                command: "mcmd".into(),
+                args: vec!["--arg".into()],
             }],
         };
         let toml_str = toml::to_string(&cfg).unwrap();
@@ -361,7 +408,10 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         let mgr = TeamManager::for_workspace(tmp.path());
         let cfg = TeamConfig {
-            team: TeamInfo { name: Some("Test Team".into()), knowledge_base_url: None },
+            team: TeamInfo {
+                name: Some("Test Team".into()),
+                knowledge_base_url: None,
+            },
             knowledge: vec![],
             shared_commands: vec![],
             shared_mcp: vec![],

@@ -23,7 +23,11 @@ pub struct WorkspaceFingerprint {
 
 impl WorkspaceFingerprint {
     /// Build a fingerprint from explicit components.
-    pub fn new(head_commit: impl Into<String>, branch: impl Into<String>, files: BTreeMap<String, u64>) -> Self {
+    pub fn new(
+        head_commit: impl Into<String>,
+        branch: impl Into<String>,
+        files: BTreeMap<String, u64>,
+    ) -> Self {
         let mut fp = Self {
             head_commit: head_commit.into(),
             branch: branch.into(),
@@ -45,11 +49,13 @@ impl WorkspaceFingerprint {
     }
 
     /// True if two fingerprints represent the same workspace state.
-    pub fn matches(&self, other: &Self) -> bool { self.hash == other.hash }
+    pub fn matches(&self, other: &Self) -> bool {
+        self.hash == other.hash
+    }
 
     /// Compute a diff: which files changed/added/removed.
     pub fn diff(&self, newer: &Self) -> FingerprintDiff {
-        let mut added   = Vec::new();
+        let mut added = Vec::new();
         let mut removed = Vec::new();
         let mut changed = Vec::new();
 
@@ -61,29 +67,46 @@ impl WorkspaceFingerprint {
             }
         }
         for path in self.file_hashes.keys() {
-            if !newer.file_hashes.contains_key(path) { removed.push(path.clone()); }
+            if !newer.file_hashes.contains_key(path) {
+                removed.push(path.clone());
+            }
         }
         let branch_changed = self.branch != newer.branch;
         let commit_changed = self.head_commit != newer.head_commit;
 
-        FingerprintDiff { added, removed, changed, branch_changed, commit_changed }
+        FingerprintDiff {
+            added,
+            removed,
+            changed,
+            branch_changed,
+            commit_changed,
+        }
     }
 
     /// Whether the fingerprint represents a clean state (no tracked files changed from HEAD).
-    pub fn is_clean(&self) -> bool { self.file_hashes.is_empty() }
+    pub fn is_clean(&self) -> bool {
+        self.file_hashes.is_empty()
+    }
 
     /// Number of tracked files.
-    pub fn file_count(&self) -> usize { self.file_hashes.len() }
+    pub fn file_count(&self) -> usize {
+        self.file_hashes.len()
+    }
 }
 
 fn fnv1a(bytes: &[u8]) -> u64 {
     let mut h: u64 = 0xcbf29ce484222325;
-    for &b in bytes { h ^= b as u64; h = h.wrapping_mul(0x100000001b3); }
+    for &b in bytes {
+        h ^= b as u64;
+        h = h.wrapping_mul(0x100000001b3);
+    }
     h
 }
 
 /// Content hash of a file for use in fingerprints.
-pub fn hash_content(content: &str) -> u64 { fnv1a(content.as_bytes()) }
+pub fn hash_content(content: &str) -> u64 {
+    fnv1a(content.as_bytes())
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FingerprintDiff {
@@ -96,11 +119,16 @@ pub struct FingerprintDiff {
 
 impl FingerprintDiff {
     pub fn is_empty(&self) -> bool {
-        self.added.is_empty() && self.removed.is_empty() && self.changed.is_empty()
-        && !self.branch_changed && !self.commit_changed
+        self.added.is_empty()
+            && self.removed.is_empty()
+            && self.changed.is_empty()
+            && !self.branch_changed
+            && !self.commit_changed
     }
 
-    pub fn total_changes(&self) -> usize { self.added.len() + self.removed.len() + self.changed.len() }
+    pub fn total_changes(&self) -> usize {
+        self.added.len() + self.removed.len() + self.changed.len()
+    }
 }
 
 // ─── Fingerprint Store ────────────────────────────────────────────────────────
@@ -112,7 +140,9 @@ pub struct FingerprintStore {
 }
 
 impl FingerprintStore {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn save(&mut self, session_id: impl Into<String>, fp: WorkspaceFingerprint) {
         self.entries.insert(session_id.into(), fp);
@@ -122,11 +152,17 @@ impl FingerprintStore {
         self.entries.get(session_id)
     }
 
-    pub fn remove(&mut self, session_id: &str) -> bool { self.entries.remove(session_id).is_some() }
+    pub fn remove(&mut self, session_id: &str) -> bool {
+        self.entries.remove(session_id).is_some()
+    }
 
     /// Find sessions whose workspace matches the given fingerprint.
     pub fn find_matching(&self, fp: &WorkspaceFingerprint) -> Vec<&str> {
-        self.entries.iter().filter(|(_, v)| v.matches(fp)).map(|(k, _)| k.as_str()).collect()
+        self.entries
+            .iter()
+            .filter(|(_, v)| v.matches(fp))
+            .map(|(k, _)| k.as_str())
+            .collect()
     }
 }
 
@@ -179,7 +215,10 @@ mod tests {
     use super::*;
 
     fn fp(commit: &str, branch: &str, files: &[(&str, &str)]) -> WorkspaceFingerprint {
-        let map = files.iter().map(|(p, c)| (p.to_string(), hash_content(c))).collect();
+        let map = files
+            .iter()
+            .map(|(p, c)| (p.to_string(), hash_content(c)))
+            .collect();
         WorkspaceFingerprint::new(commit, branch, map)
     }
 
@@ -320,12 +359,18 @@ mod tests {
 
     #[test]
     fn fnv1a_deterministic_for_same_input() {
-        assert_eq!(fnv1a_hash("/home/user/project"), fnv1a_hash("/home/user/project"));
+        assert_eq!(
+            fnv1a_hash("/home/user/project"),
+            fnv1a_hash("/home/user/project")
+        );
     }
 
     #[test]
     fn fnv1a_differs_for_different_input() {
-        assert_ne!(fnv1a_hash("/home/user/alpha"), fnv1a_hash("/home/user/beta"));
+        assert_ne!(
+            fnv1a_hash("/home/user/alpha"),
+            fnv1a_hash("/home/user/beta")
+        );
     }
 
     #[test]
@@ -360,7 +405,13 @@ mod tests {
 
     #[test]
     fn same_workspace_normalizes_trailing_slash() {
-        assert!(is_same_workspace("/home/user/project", "/home/user/project/"));
-        assert!(is_same_workspace("/home/user/project/", "/home/user/project"));
+        assert!(is_same_workspace(
+            "/home/user/project",
+            "/home/user/project/"
+        ));
+        assert!(is_same_workspace(
+            "/home/user/project/",
+            "/home/user/project"
+        ));
     }
 }

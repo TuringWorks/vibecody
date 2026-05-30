@@ -1,6 +1,6 @@
 //! BDD: broker forwards an allowed request to a real (test-local) upstream.
 
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -113,9 +113,7 @@ fn ssrf_allowing_stub(host: &str) -> SsrfGuard {
 
 fn install_broker(world: &mut FWorld, broker: Broker) {
     let rt = world.rt();
-    let handle = rt.block_on(async move {
-        broker.start_tcp("127.0.0.1:0").await.unwrap()
-    });
+    let handle = rt.block_on(async move { broker.start_tcp("127.0.0.1:0").await.unwrap() });
     match handle.addr.clone() {
         BoundAddr::Tcp(addr) => world.broker_addr = Some(addr),
         other => panic!("expected TCP, got {other:?}"),
@@ -132,7 +130,9 @@ fn broker_forwarding(world: &mut FWorld) {
     install_broker(world, broker);
 }
 
-#[given(expr = "a running broker with upstream forwarding timeout {int} ms and a rule for the stub host")]
+#[given(
+    expr = "a running broker with upstream forwarding timeout {int} ms and a rule for the stub host"
+)]
 fn broker_forwarding_timeout(world: &mut FWorld, ms: u64) {
     let upstream = world.upstream_addr.unwrap();
     let host = upstream.ip().to_string();
@@ -150,9 +150,7 @@ fn send(world: &mut FWorld, req_line: String) {
     let path = parts.next().unwrap();
     let upstream = world.upstream_addr.unwrap();
     let host_hdr = format!("{}:{}", upstream.ip(), upstream.port());
-    let raw = format!(
-        "{method} {path} HTTP/1.1\r\nHost: {host_hdr}\r\nConnection: close\r\n\r\n"
-    );
+    let raw = format!("{method} {path} HTTP/1.1\r\nHost: {host_hdr}\r\nConnection: close\r\n\r\n");
     let broker_addr = world.broker_addr.unwrap();
     let rt = world.rt();
     let resp = rt.block_on(async move {
@@ -166,7 +164,10 @@ fn send(world: &mut FWorld, req_line: String) {
 }
 
 fn parse_into(world: &mut FWorld, resp: &[u8]) {
-    let split = resp.windows(4).position(|w| w == b"\r\n\r\n").unwrap_or(resp.len());
+    let split = resp
+        .windows(4)
+        .position(|w| w == b"\r\n\r\n")
+        .unwrap_or(resp.len());
     let head_text = String::from_utf8_lossy(&resp[..split]);
     let body = if split + 4 <= resp.len() {
         resp[split + 4..].to_vec()
@@ -193,8 +194,12 @@ fn parse_into(world: &mut FWorld, resp: &[u8]) {
 
 #[then(expr = "the broker response status is {int}")]
 fn status_is(world: &mut FWorld, expected: u16) {
-    assert_eq!(world.response_status, Some(expected),
-        "headers: {:?}", world.response_headers);
+    assert_eq!(
+        world.response_status,
+        Some(expected),
+        "headers: {:?}",
+        world.response_headers
+    );
 }
 
 #[then(expr = "the broker response header {string} is {string}")]
@@ -205,7 +210,12 @@ fn header_is(world: &mut FWorld, name: String, value: String) {
         .iter()
         .find(|(n, _)| n == &lower)
         .map(|(_, v)| v.as_str());
-    assert_eq!(actual, Some(value.as_str()), "headers: {:?}", world.response_headers);
+    assert_eq!(
+        actual,
+        Some(value.as_str()),
+        "headers: {:?}",
+        world.response_headers
+    );
 }
 
 #[then(expr = "the broker response body equals {string}")]
@@ -214,7 +224,5 @@ fn body_equals(world: &mut FWorld, expected: String) {
 }
 
 fn main() {
-    futures::executor::block_on(FWorld::run(
-        "tests/features/broker_forward.feature",
-    ));
+    futures::executor::block_on(FWorld::run("tests/features/broker_forward.feature"));
 }

@@ -452,11 +452,7 @@ impl PlanDocument {
 
     /// Return all unresolved comments (plan-level + step-level).
     pub fn unresolved_comments(&self) -> Vec<&PlanComment> {
-        let mut result: Vec<&PlanComment> = self
-            .comments
-            .iter()
-            .filter(|c| !c.resolved)
-            .collect();
+        let mut result: Vec<&PlanComment> = self.comments.iter().filter(|c| !c.resolved).collect();
         for step in &self.steps {
             for c in &step.comments {
                 if !c.resolved {
@@ -531,12 +527,7 @@ impl PlanManager {
     }
 
     /// Create a new plan and return a reference to it.
-    pub fn create_plan(
-        &mut self,
-        title: &str,
-        desc: &str,
-        author: &str,
-    ) -> &PlanDocument {
+    pub fn create_plan(&mut self, title: &str, desc: &str, author: &str) -> &PlanDocument {
         self.next_plan_id += 1;
         let mut doc = PlanDocument::new(title, desc, author);
         doc.id = gen_id("plan", self.next_plan_id);

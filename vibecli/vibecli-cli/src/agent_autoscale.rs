@@ -84,7 +84,9 @@ impl PoolMetrics {
     }
 
     pub fn utilization(&self) -> f64 {
-        if self.active_agents == 0 { return 0.0; }
+        if self.active_agents == 0 {
+            return 0.0;
+        }
         self.busy_agents as f64 / self.active_agents as f64
     }
 
@@ -146,7 +148,10 @@ impl AgentAutoScaler {
         {
             let elapsed = now.saturating_sub(self.last_scale_up_ms) / 1000;
             if elapsed >= self.policy.scale_up_cooldown_secs {
-                let add = self.policy.scale_step.min(self.policy.max_agents - self.current_size);
+                let add = self
+                    .policy
+                    .scale_step
+                    .min(self.policy.max_agents - self.current_size);
                 return ScalingDecision::ScaleUp(add);
             }
         }
@@ -157,7 +162,10 @@ impl AgentAutoScaler {
         {
             let elapsed = now.saturating_sub(self.last_scale_up_ms) / 1000;
             if elapsed >= self.policy.scale_up_cooldown_secs {
-                let add = self.policy.scale_step.min(self.policy.max_agents - self.current_size);
+                let add = self
+                    .policy
+                    .scale_step
+                    .min(self.policy.max_agents - self.current_size);
                 return ScalingDecision::ScaleUp(add);
             }
         }
@@ -169,7 +177,10 @@ impl AgentAutoScaler {
         {
             let elapsed = now.saturating_sub(self.last_scale_down_ms) / 1000;
             if elapsed >= self.policy.cooldown_secs {
-                let remove = self.policy.scale_step.min(self.current_size - self.policy.min_agents);
+                let remove = self
+                    .policy
+                    .scale_step
+                    .min(self.current_size - self.policy.min_agents);
                 return ScalingDecision::ScaleDown(remove);
             }
         }
@@ -178,7 +189,11 @@ impl AgentAutoScaler {
     }
 
     /// Apply a scaling decision (updates internal size + records event).
-    pub fn apply(&mut self, decision: &ScalingDecision, reason: impl Into<String>) -> Option<ScalingEvent> {
+    pub fn apply(
+        &mut self,
+        decision: &ScalingDecision,
+        reason: impl Into<String>,
+    ) -> Option<ScalingEvent> {
         let reason_str = reason.into();
         let from_size = self.current_size;
         let event = match decision {
@@ -195,7 +210,10 @@ impl AgentAutoScaler {
                 }
             }
             ScalingDecision::ScaleDown(n) => {
-                self.current_size = self.current_size.saturating_sub(*n).max(self.policy.min_agents);
+                self.current_size = self
+                    .current_size
+                    .saturating_sub(*n)
+                    .max(self.policy.min_agents);
                 self.last_scale_down_ms = now_ms();
                 ScalingEvent {
                     kind: ScalingEventKind::ScaleDown,
@@ -216,18 +234,28 @@ impl AgentAutoScaler {
     }
 
     fn smooth_utilization(&self) -> f64 {
-        if self.utilization_window.is_empty() { return 0.0; }
+        if self.utilization_window.is_empty() {
+            return 0.0;
+        }
         self.utilization_window.iter().sum::<f64>() / self.utilization_window.len() as f64
     }
 
-    pub fn history(&self) -> &VecDeque<ScalingEvent> { &self.history }
+    pub fn history(&self) -> &VecDeque<ScalingEvent> {
+        &self.history
+    }
 
     pub fn scale_up_count(&self) -> usize {
-        self.history.iter().filter(|e| e.kind == ScalingEventKind::ScaleUp).count()
+        self.history
+            .iter()
+            .filter(|e| e.kind == ScalingEventKind::ScaleUp)
+            .count()
     }
 
     pub fn scale_down_count(&self) -> usize {
-        self.history.iter().filter(|e| e.kind == ScalingEventKind::ScaleDown).count()
+        self.history
+            .iter()
+            .filter(|e| e.kind == ScalingEventKind::ScaleDown)
+            .count()
     }
 
     /// Force-set the current size (for testing / external control).
@@ -243,7 +271,10 @@ impl AgentAutoScaler {
 }
 
 fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 // ---------------------------------------------------------------------------
@@ -310,7 +341,11 @@ mod tests {
 
     #[test]
     fn test_respects_max_limit() {
-        let p = ScalingPolicy { max_agents: 4, scale_step: 10, ..policy() };
+        let p = ScalingPolicy {
+            max_agents: 4,
+            scale_step: 10,
+            ..policy()
+        };
         let mut scaler = AgentAutoScaler::new(p, 4);
         scaler.reset_cooldowns();
         let decision = scaler.evaluate(&PoolMetrics::new(4, 4, 0));
@@ -339,7 +374,9 @@ mod tests {
     #[test]
     fn test_apply_scale_down() {
         let mut scaler = AgentAutoScaler::new(policy(), 4);
-        let event = scaler.apply(&ScalingDecision::ScaleDown(2), "test").unwrap();
+        let event = scaler
+            .apply(&ScalingDecision::ScaleDown(2), "test")
+            .unwrap();
         assert_eq!(scaler.current_size, 2);
         assert_eq!(event.delta, -2);
     }
@@ -375,7 +412,11 @@ mod tests {
 
     #[test]
     fn test_initial_size_clamped_to_policy() {
-        let p = ScalingPolicy { min_agents: 2, max_agents: 8, ..policy() };
+        let p = ScalingPolicy {
+            min_agents: 2,
+            max_agents: 8,
+            ..policy()
+        };
         let scaler = AgentAutoScaler::new(p, 0); // 0 < min
         assert_eq!(scaler.current_size, 2);
     }

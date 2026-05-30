@@ -5,14 +5,14 @@
  * The module is included directly via #[path] so that it compiles as part of
  * this test binary without requiring a lib.rs declaration.
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 
 #[path = "../src/pod_manager.rs"]
 mod pod_manager;
 
 use pod_manager::{
-    GpuAssignment, GpuTier, ModelConfig, PodManager, PodSpec, PreflightResult, VllmBuild,
-    assign_gpus,
+    assign_gpus, GpuAssignment, GpuTier, ModelConfig, PodManager, PodSpec, PreflightResult,
+    VllmBuild,
 };
 
 // ---------------------------------------------------------------------------
@@ -121,8 +121,12 @@ fn do_build_launch(world: &mut PmWorld) {
 
 #[when("I assign the models to GPUs")]
 fn do_assign(world: &mut PmWorld) {
-    let result = assign_gpus(&world.models_for_assign, world.total_gpus, world.vram_per_gpu)
-        .expect("GPU assignment failed");
+    let result = assign_gpus(
+        &world.models_for_assign,
+        world.total_gpus,
+        world.vram_per_gpu,
+    )
+    .expect("GPU assignment failed");
     world.assignments = result;
 }
 
@@ -148,19 +152,13 @@ fn check_preflight_pass(world: &mut PmWorld) {
 #[then("the preflight result should fail")]
 fn check_preflight_fail(world: &mut PmWorld) {
     let pf = world.preflight.as_ref().expect("preflight not run");
-    assert!(
-        !pf.is_ok(),
-        "expected preflight to fail but it passed"
-    );
+    assert!(!pf.is_ok(), "expected preflight to fail but it passed");
 }
 
 #[then(expr = "the vram_available_gb should be {int}")]
 fn check_vram_available(world: &mut PmWorld, expected: u32) {
     let pf = world.preflight.as_ref().expect("preflight not run");
-    assert_eq!(
-        pf.vram_available_gb, expected,
-        "vram_available_gb mismatch"
-    );
+    assert_eq!(pf.vram_available_gb, expected, "vram_available_gb mismatch");
 }
 
 #[then(expr = "the preflight errors should mention {string}")]
@@ -194,12 +192,7 @@ fn check_no_overlap(world: &mut PmWorld) {
         .flat_map(|a| a.gpu_indices.clone())
         .collect();
     let unique: std::collections::HashSet<u32> = all.iter().cloned().collect();
-    assert_eq!(
-        all.len(),
-        unique.len(),
-        "GPU indices overlap: {:?}",
-        all
-    );
+    assert_eq!(all.len(), unique.len(), "GPU indices overlap: {:?}", all);
 }
 
 #[then(expr = "the assignment for {string} should start at index {int}")]
@@ -210,11 +203,9 @@ fn check_assignment_start(world: &mut PmWorld, model_name: String, expected_star
         .find(|a| a.model_name == model_name)
         .unwrap_or_else(|| panic!("No assignment found for model '{}'", model_name));
     assert_eq!(
-        asgn.gpu_indices[0],
-        expected_start,
+        asgn.gpu_indices[0], expected_start,
         "assignment for '{}' should start at index {}",
-        model_name,
-        expected_start
+        model_name, expected_start
     );
 }
 

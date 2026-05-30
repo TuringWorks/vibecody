@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -131,12 +130,7 @@ impl DiscussionManager {
         Some(message)
     }
 
-    pub fn add_reaction(
-        &mut self,
-        session_id: &str,
-        message_id: &str,
-        reaction: Reaction,
-    ) -> bool {
+    pub fn add_reaction(&mut self, session_id: &str, message_id: &str, reaction: Reaction) -> bool {
         if let Some(session) = self.sessions.get_mut(session_id) {
             if let Some(msg) = session.messages.iter_mut().find(|m| m.id == message_id) {
                 msg.reactions.push(reaction);
@@ -156,8 +150,7 @@ impl DiscussionManager {
 
     pub fn get_unresolved(&self, session_id: &str) -> Vec<Message> {
         self.filter_messages(session_id, |m| {
-            m.message_type == MessageType::Concern
-                && !m.reactions.contains(&Reaction::Resolved)
+            m.message_type == MessageType::Concern && !m.reactions.contains(&Reaction::Resolved)
         })
     }
 
@@ -204,7 +197,13 @@ impl DiscussionManager {
     {
         self.sessions
             .get(session_id)
-            .map(|s| s.messages.iter().filter(|m| predicate(m)).cloned().collect())
+            .map(|s| {
+                s.messages
+                    .iter()
+                    .filter(|m| predicate(m))
+                    .cloned()
+                    .collect()
+            })
             .unwrap_or_default()
     }
 
@@ -278,7 +277,9 @@ mod tests {
     #[test]
     fn test_add_reaction() {
         let (mut mgr, sid) = manager_with_session();
-        let msg = mgr.add_message(&sid, "alice", "idea", MessageType::Suggestion).unwrap();
+        let msg = mgr
+            .add_message(&sid, "alice", "idea", MessageType::Suggestion)
+            .unwrap();
         let ok = mgr.add_reaction(&sid, &msg.id, Reaction::Agree);
         assert!(ok);
 
@@ -329,7 +330,9 @@ mod tests {
     #[test]
     fn test_get_unresolved_concerns() {
         let (mut mgr, sid) = manager_with_session();
-        let c1 = mgr.add_message(&sid, "alice", "Perf risk", MessageType::Concern).unwrap();
+        let c1 = mgr
+            .add_message(&sid, "alice", "Perf risk", MessageType::Concern)
+            .unwrap();
         mgr.add_message(&sid, "bob", "Security gap", MessageType::Concern);
 
         // Resolve the first concern
@@ -343,7 +346,9 @@ mod tests {
     #[test]
     fn test_all_concerns_resolved() {
         let (mut mgr, sid) = manager_with_session();
-        let c1 = mgr.add_message(&sid, "alice", "Issue A", MessageType::Concern).unwrap();
+        let c1 = mgr
+            .add_message(&sid, "alice", "Issue A", MessageType::Concern)
+            .unwrap();
         mgr.add_reaction(&sid, &c1.id, Reaction::Resolved);
 
         let unresolved = mgr.get_unresolved(&sid);
@@ -443,7 +448,9 @@ mod tests {
     #[test]
     fn test_multiple_reactions_on_message() {
         let (mut mgr, sid) = manager_with_session();
-        let msg = mgr.add_message(&sid, "alice", "idea", MessageType::Suggestion).unwrap();
+        let msg = mgr
+            .add_message(&sid, "alice", "idea", MessageType::Suggestion)
+            .unwrap();
         mgr.add_reaction(&sid, &msg.id, Reaction::Agree);
         mgr.add_reaction(&sid, &msg.id, Reaction::Interesting);
         mgr.add_reaction(&sid, &msg.id, Reaction::NeedsMoreInfo);

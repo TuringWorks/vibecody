@@ -1,13 +1,13 @@
 //! BDD coverage for real MCP Streamable HTTP + OAuth 2.1 PKCE (US-004).
 
 use axum::{
-    Router,
     extract::{Form, State},
     http::{HeaderMap, StatusCode},
-    response::{IntoResponse, Sse, sse::Event as SseEvent},
+    response::{sse::Event as SseEvent, IntoResponse, Sse},
     routing::{get, post},
+    Router,
 };
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use futures::stream::Stream;
 use serde::Deserialize;
 use std::convert::Infallible;
@@ -15,8 +15,7 @@ use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::Mutex;
 use vibecli_cli::mcp_http::{
-    AuthUrlParams, McpError, McpOAuthClient, McpStreamClient, PkceChallengeV2,
-    build_auth_url,
+    build_auth_url, AuthUrlParams, McpError, McpOAuthClient, McpStreamClient, PkceChallengeV2,
 };
 
 #[derive(Clone, Default)]
@@ -59,7 +58,10 @@ impl std::fmt::Debug for McpWorld {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("McpWorld")
             .field("auth_url", &self.auth_url)
-            .field("last_token", &self.last_token.as_ref().map(|t| t.access_token.clone()))
+            .field(
+                "last_token",
+                &self.last_token.as_ref().map(|t| t.access_token.clone()),
+            )
             .field("msgs", &self.last_messages.len())
             .field("server_addr", &self.server_addr)
             .finish()
@@ -151,10 +153,7 @@ async fn stream_handler(
             .and_then(|v| v.strip_prefix("Bearer "))
             .unwrap_or("");
         if got != req_tok {
-            return Err((
-                StatusCode::UNAUTHORIZED,
-                "bearer mismatch".to_string(),
-            ));
+            return Err((StatusCode::UNAUTHORIZED, "bearer mismatch".to_string()));
         }
     }
     let count = s.emit_count;
@@ -196,7 +195,9 @@ fn given_oauth_config(w: &mut McpWorld, client: String, redirect: String, scopes
     w.oauth_cfg_scopes = scopes.split_whitespace().map(|s| s.to_string()).collect();
 }
 
-#[given(regex = r#"^a mock OAuth token server that requires code_verifier "([^"]+)" and issues access "([^"]+)" refresh "([^"]+)"$"#)]
+#[given(
+    regex = r#"^a mock OAuth token server that requires code_verifier "([^"]+)" and issues access "([^"]+)" refresh "([^"]+)"$"#
+)]
 async fn given_oauth_mock(w: &mut McpWorld, verifier: String, access: String, refresh: String) {
     let mocks: SharedMocks = Arc::new(Mutex::new(MockServers::default()));
     {
@@ -210,7 +211,9 @@ async fn given_oauth_mock(w: &mut McpWorld, verifier: String, access: String, re
     w.server_addr = Some(addr);
 }
 
-#[given(regex = r#"^a mock OAuth token server that accepts refresh "([^"]+)" and issues access "([^"]+)"$"#)]
+#[given(
+    regex = r#"^a mock OAuth token server that accepts refresh "([^"]+)" and issues access "([^"]+)"$"#
+)]
 async fn given_oauth_refresh_mock(w: &mut McpWorld, refresh: String, access: String) {
     let mocks: SharedMocks = Arc::new(Mutex::new(MockServers::default()));
     {
@@ -223,7 +226,9 @@ async fn given_oauth_refresh_mock(w: &mut McpWorld, refresh: String, access: Str
     w.server_addr = Some(addr);
 }
 
-#[given(regex = r#"^a mock MCP server that requires bearer "([^"]+)" and emits (\d+) SSE messages$"#)]
+#[given(
+    regex = r#"^a mock MCP server that requires bearer "([^"]+)" and emits (\d+) SSE messages$"#
+)]
 async fn given_stream_mock(w: &mut McpWorld, bearer: String, count: usize) {
     let mocks: SharedMocks = Arc::new(Mutex::new(MockServers::default()));
     {
@@ -243,7 +248,9 @@ fn when_pkce(w: &mut McpWorld) {
     w.pkce = Some(PkceChallengeV2::generate());
 }
 
-#[when(regex = r#"^the client builds an authorization URL with state "([^"]+)" and a fresh PKCE challenge$"#)]
+#[when(
+    regex = r#"^the client builds an authorization URL with state "([^"]+)" and a fresh PKCE challenge$"#
+)]
 fn when_build_auth(w: &mut McpWorld, state: String) {
     let pkce = PkceChallengeV2::generate();
     let client = w.oauth_cfg_client_id.clone().expect("client");
@@ -285,7 +292,9 @@ async fn when_refresh(w: &mut McpWorld, refresh: String) {
     w.last_token = Some(tok);
 }
 
-#[when(regex = r#"^the client opens a stream with token "([^"]+)" and reads at most (\d+) messages$"#)]
+#[when(
+    regex = r#"^the client opens a stream with token "([^"]+)" and reads at most (\d+) messages$"#
+)]
 async fn when_open_stream(w: &mut McpWorld, token: String, n: usize) {
     let addr = w.server_addr.expect("addr");
     let stream_url = format!("http://{}/mcp/stream", addr);
@@ -302,7 +311,11 @@ async fn when_open_stream(w: &mut McpWorld, token: String, n: usize) {
 #[then(regex = r#"^the verifier is at least (\d+) base64url characters$"#)]
 fn then_verifier_len(w: &mut McpWorld, min: usize) {
     let p = w.pkce.as_ref().expect("pkce");
-    assert!(p.code_verifier.len() >= min, "len={}", p.code_verifier.len());
+    assert!(
+        p.code_verifier.len() >= min,
+        "len={}",
+        p.code_verifier.len()
+    );
     assert!(!p.code_verifier.contains('+'));
     assert!(!p.code_verifier.contains('/'));
     assert!(!p.code_verifier.contains('='));
@@ -340,7 +353,11 @@ fn then_msg_count(w: &mut McpWorld, n: usize) {
 #[then(regex = r#"^message (\d+) contains "([^"]+)"$"#)]
 fn then_msg_contains(w: &mut McpWorld, idx: usize, needle: String) {
     let m = w.last_messages.get(idx - 1).expect("msg idx");
-    assert!(m.data.contains(&needle), "data {:?} missing {needle}", m.data);
+    assert!(
+        m.data.contains(&needle),
+        "data {:?} missing {needle}",
+        m.data
+    );
 }
 
 #[then(regex = r#"^opening the stream returns an authorization error$"#)]

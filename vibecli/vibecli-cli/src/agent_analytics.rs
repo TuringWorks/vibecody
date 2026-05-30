@@ -31,7 +31,11 @@ impl UserMetrics {
 
     pub fn acceptance_rate(&self) -> f64 {
         let total = self.suggestions_accepted + self.suggestions_rejected;
-        if total == 0 { 0.0 } else { self.suggestions_accepted as f64 / total as f64 }
+        if total == 0 {
+            0.0
+        } else {
+            self.suggestions_accepted as f64 / total as f64
+        }
     }
 }
 
@@ -145,7 +149,11 @@ impl TrendAnalysis {
             let first = points.first().expect("has points").value;
             let last = points.last().expect("has points").value;
             let pct = if first.abs() < f64::EPSILON {
-                if last > 0.0 { 100.0 } else { 0.0 }
+                if last > 0.0 {
+                    100.0
+                } else {
+                    0.0
+                }
             } else {
                 ((last - first) / first) * 100.0
             };
@@ -175,7 +183,10 @@ pub struct RoiCalculator {
 
 impl RoiCalculator {
     pub fn new(hourly_rate: f64, agent_cost: f64) -> Self {
-        Self { hourly_rate, agent_cost }
+        Self {
+            hourly_rate,
+            agent_cost,
+        }
     }
 
     /// Compute ROI given time saved (minutes) and agent cost.
@@ -254,14 +265,18 @@ impl AnalyticsEngine {
         cost: f64,
         timestamp: u64,
     ) {
-        let user = self.users.entry(user_id.to_string())
+        let user = self
+            .users
+            .entry(user_id.to_string())
             .or_insert_with(|| UserMetrics::new(user_id));
         user.tasks_completed += 1;
         user.time_saved_mins += time_saved_mins;
         user.cost += cost;
 
         if let Some(pid) = project_id {
-            let proj = self.projects.entry(pid.to_string())
+            let proj = self
+                .projects
+                .entry(pid.to_string())
                 .or_insert_with(|| ProjectMetrics::new(pid));
             proj.tasks_completed += 1;
             proj.time_saved_mins += time_saved_mins;
@@ -279,7 +294,9 @@ impl AnalyticsEngine {
 
     /// Record a suggestion acceptance or rejection.
     pub fn record_suggestion(&mut self, user_id: &str, accepted: bool) {
-        let user = self.users.entry(user_id.to_string())
+        let user = self
+            .users
+            .entry(user_id.to_string())
             .or_insert_with(|| UserMetrics::new(user_id));
         if accepted {
             user.suggestions_accepted += 1;
@@ -290,7 +307,9 @@ impl AnalyticsEngine {
 
     /// Calculate ROI for a user.
     pub fn calculate_roi(&self, user_id: &str) -> Result<f64, String> {
-        let user = self.users.get(user_id)
+        let user = self
+            .users
+            .get(user_id)
             .ok_or_else(|| format!("User {} not found", user_id))?;
         let calc = RoiCalculator::new(self.config.default_hourly_rate, user.cost);
         Ok(calc.compute_roi(user.time_saved_mins))
@@ -315,8 +334,12 @@ impl AnalyticsEngine {
                 for (id, u) in &self.users {
                     lines.push(format!(
                         "{},{},{},{},{:.1},{:.2}",
-                        id, u.tasks_completed, u.suggestions_accepted, u.suggestions_rejected,
-                        u.time_saved_mins, u.cost
+                        id,
+                        u.tasks_completed,
+                        u.suggestions_accepted,
+                        u.suggestions_rejected,
+                        u.time_saved_mins,
+                        u.cost
                     ));
                 }
                 lines.join("\n")
@@ -331,7 +354,9 @@ impl AnalyticsEngine {
 
     /// Get trends from the task log.
     pub fn get_trends(&self, user_id: Option<&str>) -> TrendAnalysis {
-        let filtered: Vec<&TaskRecord> = self.task_log.iter()
+        let filtered: Vec<&TaskRecord> = self
+            .task_log
+            .iter()
             .filter(|r| {
                 r.timestamp >= self.date_range.0
                     && r.timestamp <= self.date_range.1
@@ -339,7 +364,8 @@ impl AnalyticsEngine {
             })
             .collect();
 
-        let points: Vec<TrendPoint> = filtered.iter()
+        let points: Vec<TrendPoint> = filtered
+            .iter()
             .map(|r| TrendPoint {
                 timestamp: r.timestamp,
                 value: r.time_saved_mins,
@@ -356,14 +382,18 @@ impl AnalyticsEngine {
 
     /// Create or get a team and assign a user.
     pub fn assign_user_to_team(&mut self, user_id: &str, team_id: &str) {
-        let team = self.teams.entry(team_id.to_string())
+        let team = self
+            .teams
+            .entry(team_id.to_string())
             .or_insert_with(|| TeamMetrics::new(team_id));
         team.add_member(user_id);
     }
 
     /// Aggregate user metrics into team.
     pub fn refresh_team(&mut self, team_id: &str) -> Result<(), String> {
-        let team = self.teams.get(team_id)
+        let team = self
+            .teams
+            .get(team_id)
             .ok_or_else(|| format!("Team {} not found", team_id))?;
         let member_ids = team.members.clone();
         let mut agg = TeamMetrics::new(team_id);
@@ -612,7 +642,10 @@ mod tests {
 
     #[test]
     fn test_trend_analysis_single_point() {
-        let trend = TrendAnalysis::from_points(vec![TrendPoint { timestamp: 1, value: 10.0 }]);
+        let trend = TrendAnalysis::from_points(vec![TrendPoint {
+            timestamp: 1,
+            value: 10.0,
+        }]);
         assert_eq!(trend.trend_direction, TrendDirection::Flat);
         assert_eq!(trend.percent_change, 0.0);
     }
@@ -620,8 +653,14 @@ mod tests {
     #[test]
     fn test_trend_analysis_flat() {
         let trend = TrendAnalysis::from_points(vec![
-            TrendPoint { timestamp: 1, value: 10.0 },
-            TrendPoint { timestamp: 2, value: 10.05 },
+            TrendPoint {
+                timestamp: 1,
+                value: 10.0,
+            },
+            TrendPoint {
+                timestamp: 2,
+                value: 10.05,
+            },
         ]);
         assert_eq!(trend.trend_direction, TrendDirection::Flat);
     }

@@ -125,17 +125,17 @@ impl TokenMinter for AzureClientCredentialsMinter {
             .map_err(|e| MintError::Http(e.to_string()))?;
         let status = resp.status().as_u16();
         if !resp.status().is_success() {
-            let body = resp
-                .text()
-                .await
-                .unwrap_or_else(|_| "<no body>".into());
+            let body = resp.text().await.unwrap_or_else(|_| "<no body>".into());
             return Err(MintError::Upstream { status, body });
         }
         let parsed: AzureTokenResp = resp
             .json()
             .await
             .map_err(|e| MintError::Parse(e.to_string()))?;
-        Ok(MintedToken::from_expires_in(parsed.access_token, parsed.expires_in))
+        Ok(MintedToken::from_expires_in(
+            parsed.access_token,
+            parsed.expires_in,
+        ))
     }
 }
 
@@ -171,10 +171,10 @@ impl GcpServiceAccountMinter {
     }
 
     fn build_signed_jwt(&self) -> Result<String, MintError> {
-        use base64::Engine as _;
         use base64::engine::general_purpose::URL_SAFE_NO_PAD as B64;
+        use base64::Engine as _;
         use rsa::pkcs8::DecodePrivateKey;
-        use rsa::{RsaPrivateKey, pkcs1v15::SigningKey, signature::SignatureEncoding};
+        use rsa::{pkcs1v15::SigningKey, signature::SignatureEncoding, RsaPrivateKey};
         use sha2::Sha256;
 
         #[derive(Serialize)]
@@ -207,14 +207,10 @@ impl GcpServiceAccountMinter {
             exp: now + 3600,
         };
 
-        let header_b64 = B64.encode(
-            serde_json::to_vec(&header)
-                .map_err(|e| MintError::Crypto(e.to_string()))?,
-        );
-        let claims_b64 = B64.encode(
-            serde_json::to_vec(&claims)
-                .map_err(|e| MintError::Crypto(e.to_string()))?,
-        );
+        let header_b64 =
+            B64.encode(serde_json::to_vec(&header).map_err(|e| MintError::Crypto(e.to_string()))?);
+        let claims_b64 =
+            B64.encode(serde_json::to_vec(&claims).map_err(|e| MintError::Crypto(e.to_string()))?);
         let signing_input = format!("{header_b64}.{claims_b64}");
 
         let pk = RsaPrivateKey::from_pkcs8_pem(&self.private_key_pem)
@@ -262,7 +258,10 @@ impl TokenMinter for GcpServiceAccountMinter {
             .json()
             .await
             .map_err(|e| MintError::Parse(e.to_string()))?;
-        Ok(MintedToken::from_expires_in(parsed.access_token, parsed.expires_in))
+        Ok(MintedToken::from_expires_in(
+            parsed.access_token,
+            parsed.expires_in,
+        ))
     }
 }
 

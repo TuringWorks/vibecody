@@ -7,9 +7,9 @@
  *
  * Run with: cargo test --test compressed_memory_bdd
  */
-use cucumber::{World, given, then, when};
-use rand::{Rng, SeedableRng};
+use cucumber::{given, then, when, World};
 use rand::rngs::StdRng;
+use rand::{Rng, SeedableRng};
 use std::collections::HashMap;
 use vibecli_cli::compressed_hnsw::CompressedMemoryIndex;
 
@@ -72,11 +72,15 @@ fn given_seeded(w: &mut CmWorld, dim: usize, n: usize) {
 
 /// Clustered seeding — `k_clusters` random unit centroids, `per_cluster` noisy
 /// variants per centroid. This is the realistic shape for text embeddings.
-#[given(regex = r"^a compressed memory index of dimension (\d+) seeded with (\d+) clusters of (\d+) vectors$")]
+#[given(
+    regex = r"^a compressed memory index of dimension (\d+) seeded with (\d+) clusters of (\d+) vectors$"
+)]
 fn given_clustered(w: &mut CmWorld, dim: usize, k_clusters: usize, per_cluster: usize) {
     let mut idx = CompressedMemoryIndex::new(dim);
     let mut rng = StdRng::seed_from_u64(0xC0DE_F00D);
-    let centroids: Vec<Vec<f32>> = (0..k_clusters).map(|_| random_unit_vec(&mut rng, dim)).collect();
+    let centroids: Vec<Vec<f32>> = (0..k_clusters)
+        .map(|_| random_unit_vec(&mut rng, dim))
+        .collect();
     let mut truth = Vec::with_capacity(k_clusters * per_cluster);
     // Per-component noise sigma. For dim=384 a unit vector's component
     // magnitude is ~1/sqrt(384) ≈ 0.051; sigma=0.03 yields intra-cluster
@@ -211,7 +215,5 @@ fn idx_dim_or_panic(idx: &CompressedMemoryIndex) -> usize {
 }
 
 fn main() {
-    futures::executor::block_on(CmWorld::run(
-        "tests/features/compressed_memory.feature",
-    ));
+    futures::executor::block_on(CmWorld::run("tests/features/compressed_memory.feature"));
 }

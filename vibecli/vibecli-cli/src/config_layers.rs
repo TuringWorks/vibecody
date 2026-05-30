@@ -35,11 +35,11 @@ pub enum LayerPriority {
 impl std::fmt::Display for LayerPriority {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::System      => write!(f, "system"),
-            Self::Project     => write!(f, "project"),
-            Self::User        => write!(f, "user"),
+            Self::System => write!(f, "system"),
+            Self::Project => write!(f, "project"),
+            Self::User => write!(f, "user"),
             Self::Environment => write!(f, "env"),
-            Self::Cli         => write!(f, "cli"),
+            Self::Cli => write!(f, "cli"),
         }
     }
 }
@@ -53,7 +53,11 @@ pub struct ConfigLayerEntry {
 
 impl ConfigLayerEntry {
     pub fn new(priority: LayerPriority, source: impl Into<String>) -> Self {
-        Self { priority, source: source.into(), values: HashMap::new() }
+        Self {
+            priority,
+            source: source.into(),
+            values: HashMap::new(),
+        }
     }
 
     pub fn set(&mut self, key: impl Into<String>, value: ConfigValue) {
@@ -87,20 +91,38 @@ pub enum ConfigValue {
 }
 
 impl ConfigValue {
-    pub fn as_str(&self) -> Option<&str> { if let Self::Str(s) = self { Some(s) } else { None } }
-    pub fn as_bool(&self) -> Option<bool> { if let Self::Bool(b) = self { Some(*b) } else { None } }
-    pub fn as_int(&self) -> Option<i64>   { if let Self::Int(i) = self { Some(*i) } else { None } }
+    pub fn as_str(&self) -> Option<&str> {
+        if let Self::Str(s) = self {
+            Some(s)
+        } else {
+            None
+        }
+    }
+    pub fn as_bool(&self) -> Option<bool> {
+        if let Self::Bool(b) = self {
+            Some(*b)
+        } else {
+            None
+        }
+    }
+    pub fn as_int(&self) -> Option<i64> {
+        if let Self::Int(i) = self {
+            Some(*i)
+        } else {
+            None
+        }
+    }
 }
 
 impl std::fmt::Display for ConfigValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Str(s)    => write!(f, "{s}"),
-            Self::Bool(b)   => write!(f, "{b}"),
-            Self::Int(i)    => write!(f, "{i}"),
-            Self::Float(x)  => write!(f, "{x}"),
-            Self::List(v)   => write!(f, "[{}]", v.join(", ")),
-            Self::Cleared   => write!(f, "(cleared)"),
+            Self::Str(s) => write!(f, "{s}"),
+            Self::Bool(b) => write!(f, "{b}"),
+            Self::Int(i) => write!(f, "{i}"),
+            Self::Float(x) => write!(f, "{x}"),
+            Self::List(v) => write!(f, "[{}]", v.join(", ")),
+            Self::Cleared => write!(f, "(cleared)"),
         }
     }
 }
@@ -115,11 +137,21 @@ pub struct ResolvedConfig {
 }
 
 impl ResolvedConfig {
-    pub fn get(&self, key: &str) -> Option<&ConfigValue> { self.values.get(key) }
-    pub fn get_str(&self, key: &str) -> Option<&str> { self.get(key)?.as_str() }
-    pub fn get_bool(&self, key: &str) -> Option<bool> { self.get(key)?.as_bool() }
-    pub fn get_int(&self, key: &str) -> Option<i64> { self.get(key)?.as_int() }
-    pub fn origin_of(&self, key: &str) -> Option<&LayerPriority> { self.origins.get(key) }
+    pub fn get(&self, key: &str) -> Option<&ConfigValue> {
+        self.values.get(key)
+    }
+    pub fn get_str(&self, key: &str) -> Option<&str> {
+        self.get(key)?.as_str()
+    }
+    pub fn get_bool(&self, key: &str) -> Option<bool> {
+        self.get(key)?.as_bool()
+    }
+    pub fn get_int(&self, key: &str) -> Option<i64> {
+        self.get(key)?.as_int()
+    }
+    pub fn origin_of(&self, key: &str) -> Option<&LayerPriority> {
+        self.origins.get(key)
+    }
 }
 
 // ─── Config Resolver ─────────────────────────────────────────────────────────
@@ -130,7 +162,9 @@ pub struct ConfigResolver {
 }
 
 impl ConfigResolver {
-    pub fn new() -> Self { Self { layers: Vec::new() } }
+    pub fn new() -> Self {
+        Self { layers: Vec::new() }
+    }
 
     pub fn add_layer(&mut self, layer: ConfigLayerEntry) {
         self.layers.push(layer);
@@ -159,11 +193,15 @@ impl ConfigResolver {
         ResolvedConfig { values, origins }
     }
 
-    pub fn layer_count(&self) -> usize { self.layers.len() }
+    pub fn layer_count(&self) -> usize {
+        self.layers.len()
+    }
 }
 
 impl Default for ConfigResolver {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -174,14 +212,16 @@ mod tests {
 
     fn layer(p: LayerPriority, kv: &[(&str, &str)]) -> ConfigLayerEntry {
         let mut l = ConfigLayerEntry::new(p, "test");
-        for (k, v) in kv { l.set_str(*k, *v); }
+        for (k, v) in kv {
+            l.set_str(*k, *v);
+        }
         l
     }
 
     #[test]
     fn test_higher_priority_wins() {
         let mut res = ConfigResolver::new();
-        res.add_layer(layer(LayerPriority::System,  &[("model", "haiku")]));
+        res.add_layer(layer(LayerPriority::System, &[("model", "haiku")]));
         res.add_layer(layer(LayerPriority::Project, &[("model", "sonnet")]));
         let cfg = res.resolve();
         assert_eq!(cfg.get_str("model"), Some("sonnet"));
@@ -191,8 +231,8 @@ mod tests {
     fn test_cli_overrides_all() {
         let mut res = ConfigResolver::new();
         res.add_layer(layer(LayerPriority::System, &[("model", "haiku")]));
-        res.add_layer(layer(LayerPriority::User,   &[("model", "opus")]));
-        res.add_layer(layer(LayerPriority::Cli,    &[("model", "custom")]));
+        res.add_layer(layer(LayerPriority::User, &[("model", "opus")]));
+        res.add_layer(layer(LayerPriority::Cli, &[("model", "custom")]));
         let cfg = res.resolve();
         assert_eq!(cfg.get_str("model"), Some("custom"));
     }
@@ -246,7 +286,7 @@ mod tests {
     #[test]
     fn test_multiple_keys_merged() {
         let mut res = ConfigResolver::new();
-        res.add_layer(layer(LayerPriority::System,  &[("a", "1"), ("b", "2")]));
+        res.add_layer(layer(LayerPriority::System, &[("a", "1"), ("b", "2")]));
         res.add_layer(layer(LayerPriority::Project, &[("c", "3")]));
         let cfg = res.resolve();
         assert_eq!(cfg.get_str("a"), Some("1"));
@@ -257,9 +297,9 @@ mod tests {
     #[test]
     fn test_layers_sorted_by_priority() {
         let mut res = ConfigResolver::new();
-        res.add_layer(layer(LayerPriority::Cli,    &[]));
+        res.add_layer(layer(LayerPriority::Cli, &[]));
         res.add_layer(layer(LayerPriority::System, &[]));
-        res.add_layer(layer(LayerPriority::User,   &[]));
+        res.add_layer(layer(LayerPriority::User, &[]));
         assert_eq!(res.layers[0].priority, LayerPriority::System);
         assert_eq!(res.layers[2].priority, LayerPriority::Cli);
     }
@@ -294,7 +334,7 @@ mod tests {
     #[test]
     fn test_env_overrides_project() {
         let mut res = ConfigResolver::new();
-        res.add_layer(layer(LayerPriority::Project,     &[("key", "project-val")]));
+        res.add_layer(layer(LayerPriority::Project, &[("key", "project-val")]));
         res.add_layer(layer(LayerPriority::Environment, &[("key", "env-val")]));
         let cfg = res.resolve();
         assert_eq!(cfg.get_str("key"), Some("env-val"));
@@ -319,9 +359,9 @@ pub enum ConfigLayer {
 impl std::fmt::Display for ConfigLayer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::User    => write!(f, "user"),
+            Self::User => write!(f, "user"),
             Self::Project => write!(f, "project"),
-            Self::Local   => write!(f, "local"),
+            Self::Local => write!(f, "local"),
         }
     }
 }
@@ -355,9 +395,9 @@ impl std::fmt::Display for ConfigError {
 /// replaced wholesale by the overlay value.
 #[derive(Debug, Clone, Default)]
 pub struct LayeredConfig {
-    pub user:    Value,
+    pub user: Value,
     pub project: Value,
-    pub local:   Value,
+    pub local: Value,
 }
 
 impl LayeredConfig {
@@ -373,7 +413,7 @@ impl LayeredConfig {
                 for (key, overlay_val) in overlay_map {
                     let merged_val = match merged.get(key) {
                         Some(base_val) => Self::deep_merge(base_val, overlay_val),
-                        None           => overlay_val.clone(),
+                        None => overlay_val.clone(),
                     };
                     merged.insert(key.clone(), merged_val);
                 }
@@ -396,9 +436,9 @@ impl LayeredConfig {
                 v.clone()
             }
         };
-        let user    = null_to_empty(&self.user);
+        let user = null_to_empty(&self.user);
         let project = null_to_empty(&self.project);
-        let local   = null_to_empty(&self.local);
+        let local = null_to_empty(&self.local);
         let after_project = Self::deep_merge(&user, &project);
         Self::deep_merge(&after_project, &local)
     }
@@ -411,10 +451,7 @@ impl LayeredConfig {
             other => vec![ConfigError {
                 layer: layer.clone(),
                 line: None,
-                message: format!(
-                    "expected object, found {}",
-                    json_type_name(other)
-                ),
+                message: format!("expected object, found {}", json_type_name(other)),
             }],
         }
     }
@@ -433,12 +470,12 @@ impl LayeredConfig {
             .join("config.toml");
 
         let project_path = workspace.join(".vibecli").join("settings.json");
-        let local_path   = workspace.join(".vibecli").join("settings.local.json");
+        let local_path = workspace.join(".vibecli").join("settings.local.json");
 
         Ok(Self {
-            user:    load_toml_as_json(&user_path),
+            user: load_toml_as_json(&user_path),
             project: read_json_file(&project_path),
-            local:   read_json_file(&local_path),
+            local: read_json_file(&local_path),
         })
     }
 }
@@ -447,11 +484,11 @@ impl LayeredConfig {
 
 fn json_type_name(v: &Value) -> &'static str {
     match v {
-        Value::Null      => "null",
-        Value::Bool(_)   => "boolean",
+        Value::Null => "null",
+        Value::Bool(_) => "boolean",
         Value::Number(_) => "number",
         Value::String(_) => "string",
-        Value::Array(_)  => "array",
+        Value::Array(_) => "array",
         Value::Object(_) => "object",
     }
 }
@@ -483,44 +520,44 @@ mod layered_config_tests {
 
     #[test]
     fn deep_merge_overlay_wins() {
-        let base    = json!({"model": "gpt-4"});
+        let base = json!({"model": "gpt-4"});
         let overlay = json!({"model": "claude"});
-        let merged  = LayeredConfig::deep_merge(&base, &overlay);
+        let merged = LayeredConfig::deep_merge(&base, &overlay);
         assert_eq!(merged["model"], "claude");
     }
 
     #[test]
     fn deep_merge_nested_objects() {
-        let base    = json!({"a": {"x": 1, "y": 2}});
+        let base = json!({"a": {"x": 1, "y": 2}});
         let overlay = json!({"a": {"y": 3}});
-        let merged  = LayeredConfig::deep_merge(&base, &overlay);
+        let merged = LayeredConfig::deep_merge(&base, &overlay);
         assert_eq!(merged["a"]["x"], 1);
         assert_eq!(merged["a"]["y"], 3);
     }
 
     #[test]
     fn deep_merge_base_keys_preserved() {
-        let base    = json!({"keep": "me", "override": "old"});
+        let base = json!({"keep": "me", "override": "old"});
         let overlay = json!({"override": "new"});
-        let merged  = LayeredConfig::deep_merge(&base, &overlay);
+        let merged = LayeredConfig::deep_merge(&base, &overlay);
         assert_eq!(merged["keep"], "me");
         assert_eq!(merged["override"], "new");
     }
 
     #[test]
     fn deep_merge_array_replaced_not_appended() {
-        let base    = json!({"items": [1, 2, 3]});
+        let base = json!({"items": [1, 2, 3]});
         let overlay = json!({"items": [4, 5]});
-        let merged  = LayeredConfig::deep_merge(&base, &overlay);
+        let merged = LayeredConfig::deep_merge(&base, &overlay);
         assert_eq!(merged["items"], json!([4, 5]));
     }
 
     #[test]
     fn layer_priority_local_over_project_over_user() {
         let config = LayeredConfig {
-            user:    json!({"model": "gpt-4"}),
+            user: json!({"model": "gpt-4"}),
             project: json!({"model": "claude"}),
-            local:   json!({"model": "ollama"}),
+            local: json!({"model": "ollama"}),
         };
         assert_eq!(config.merge()["model"], "ollama");
     }
@@ -534,14 +571,14 @@ mod layered_config_tests {
 
     #[test]
     fn layer_name_display() {
-        assert_eq!(ConfigLayer::User.to_string(),    "user");
+        assert_eq!(ConfigLayer::User.to_string(), "user");
         assert_eq!(ConfigLayer::Project.to_string(), "project");
-        assert_eq!(ConfigLayer::Local.to_string(),   "local");
+        assert_eq!(ConfigLayer::Local.to_string(), "local");
     }
 
     #[test]
     fn validate_schema_reports_layer_name_on_error() {
-        let bad    = Value::String("not-an-object".into());
+        let bad = Value::String("not-an-object".into());
         let errors = LayeredConfig::validate_schema(&bad, &ConfigLayer::Project);
         assert!(!errors.is_empty());
         assert!(errors[0].to_string().contains("project"));

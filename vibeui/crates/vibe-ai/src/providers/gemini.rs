@@ -280,7 +280,9 @@ impl fmt::Display for GeminiError {
             Self::ApiKeyMissing => write!(f, "Gemini API key is missing"),
             Self::RequestFailed(msg) => write!(f, "Gemini request failed: {}", msg),
             Self::ResponseParseError => write!(f, "Failed to parse Gemini response"),
-            Self::SafetyBlocked(reason) => write!(f, "Gemini response blocked by safety filter: {}", reason),
+            Self::SafetyBlocked(reason) => {
+                write!(f, "Gemini response blocked by safety filter: {}", reason)
+            }
             Self::QuotaExceeded => write!(f, "Gemini API quota exceeded"),
             Self::ModelNotFound => write!(f, "Gemini model not found"),
             Self::InvalidConfig => write!(f, "Invalid Gemini provider configuration"),
@@ -361,11 +363,7 @@ impl GeminiProvider {
     }
 
     /// Construct a `GeminiRequest` from message contents and optional system instruction.
-    pub fn build_request(
-        &self,
-        messages: &[Content],
-        system: Option<&str>,
-    ) -> GeminiRequest {
+    pub fn build_request(&self, messages: &[Content], system: Option<&str>) -> GeminiRequest {
         let system_instruction = system.map(|s| Content {
             role: "user".to_string(),
             parts: vec![Part::Text {
@@ -693,7 +691,8 @@ impl AIProvider for GeminiProvider {
                         }
                         None => {
                             // Stream ended — try to parse any remaining buffer.
-                            let trimmed = buf.trim()
+                            let trimmed = buf
+                                .trim()
                                 .trim_start_matches('[')
                                 .trim_end_matches(']')
                                 .trim_start_matches(',')
@@ -705,7 +704,10 @@ impl AIProvider for GeminiProvider {
                                         if let Some(candidate) = candidates.first() {
                                             if let Some(part) = candidate.content.parts.first() {
                                                 if !part.text.is_empty() {
-                                                    return Some((Ok(part.text.clone()), (stream, buf)));
+                                                    return Some((
+                                                        Ok(part.text.clone()),
+                                                        (stream, buf),
+                                                    ));
                                                 }
                                             }
                                         }
@@ -977,9 +979,7 @@ mod tests {
         let p = GeminiProvider::new(test_config());
         let contents = vec![Content {
             role: "user".into(),
-            parts: vec![Part::Text {
-                text: "hi".into(),
-            }],
+            parts: vec![Part::Text { text: "hi".into() }],
         }];
         let req = p.build_request(&contents, Some("You are a coding assistant"));
         assert!(req.system_instruction.is_some());
@@ -1044,7 +1044,8 @@ mod tests {
 
     #[test]
     fn parse_streaming_chunk_valid() {
-        let chunk = r#"{"candidates":[{"content":{"parts":[{"text":"stream part"}]},"safetyRatings":[]}]}"#;
+        let chunk =
+            r#"{"candidates":[{"content":{"parts":[{"text":"stream part"}]},"safetyRatings":[]}]}"#;
         let result = GeminiProvider::parse_streaming_chunk(chunk);
         assert_eq!(result.unwrap(), "stream part");
     }
@@ -1062,7 +1063,8 @@ mod tests {
 
     #[test]
     fn parse_streaming_chunk_comma_prefix() {
-        let chunk = r#",{"candidates":[{"content":{"parts":[{"text":"chunk"}]},"safetyRatings":[]}]}"#;
+        let chunk =
+            r#",{"candidates":[{"content":{"parts":[{"text":"chunk"}]},"safetyRatings":[]}]}"#;
         let result = GeminiProvider::parse_streaming_chunk(chunk);
         assert_eq!(result.unwrap(), "chunk");
     }
@@ -1338,8 +1340,14 @@ mod tests {
 
     #[test]
     fn harm_category_display() {
-        assert_eq!(format!("{}", HarmCategory::HateSpeech), "HARM_CATEGORY_HATE_SPEECH");
-        assert_eq!(format!("{}", HarmCategory::Harassment), "HARM_CATEGORY_HARASSMENT");
+        assert_eq!(
+            format!("{}", HarmCategory::HateSpeech),
+            "HARM_CATEGORY_HATE_SPEECH"
+        );
+        assert_eq!(
+            format!("{}", HarmCategory::Harassment),
+            "HARM_CATEGORY_HARASSMENT"
+        );
         assert_eq!(
             format!("{}", HarmCategory::SexuallyExplicit),
             "HARM_CATEGORY_SEXUALLY_EXPLICIT"
@@ -1352,10 +1360,7 @@ mod tests {
 
     #[test]
     fn harm_block_threshold_display() {
-        assert_eq!(
-            format!("{}", HarmBlockThreshold::BlockNone),
-            "BLOCK_NONE"
-        );
+        assert_eq!(format!("{}", HarmBlockThreshold::BlockNone), "BLOCK_NONE");
         assert_eq!(
             format!("{}", HarmBlockThreshold::BlockLowAndAbove),
             "BLOCK_LOW_AND_ABOVE"
@@ -1407,7 +1412,10 @@ mod tests {
         let buf = r#"[{"candidates":[{"content":{"parts":[{"text":"code: { x }"}]}}]}]"#;
         let (json, _) = extract_json_object(buf).unwrap();
         let r: GeminiResponse = serde_json::from_str(&json).unwrap();
-        assert_eq!(r.candidates.unwrap()[0].content.parts[0].text, "code: { x }");
+        assert_eq!(
+            r.candidates.unwrap()[0].content.parts[0].text,
+            "code: { x }"
+        );
     }
 
     #[test]

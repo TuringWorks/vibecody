@@ -54,12 +54,8 @@ impl EmbeddingProvider {
     /// Call the embedding API and return the embedding vector.
     pub async fn embed(&self, text: &str) -> Result<Vec<f32>> {
         match self {
-            Self::Ollama { model, api_url } => {
-                embed_ollama(text, model, api_url).await
-            }
-            Self::OpenAI { api_key, model } => {
-                embed_openai(text, api_key, model).await
-            }
+            Self::Ollama { model, api_url } => embed_ollama(text, model, api_url).await,
+            Self::OpenAI { api_key, model } => embed_openai(text, api_key, model).await,
         }
     }
 }
@@ -70,8 +66,8 @@ impl EmbeddingProvider {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmbeddingDoc {
     pub file: PathBuf,
-    pub chunk_start: usize,  // start line (0-indexed)
-    pub chunk_end: usize,    // end line (exclusive)
+    pub chunk_start: usize, // start line (0-indexed)
+    pub chunk_end: usize,   // end line (exclusive)
     pub text: String,
 }
 
@@ -169,17 +165,23 @@ impl EmbeddingIndex {
         if self.vectors.is_empty() {
             return Ok(vec![]);
         }
-        let query_vec = self.provider.embed(query).await
+        let query_vec = self
+            .provider
+            .embed(query)
+            .await
             .context("Failed to embed search query")?;
 
-        let mut scored: Vec<(f32, usize)> = self.vectors.iter()
+        let mut scored: Vec<(f32, usize)> = self
+            .vectors
+            .iter()
             .enumerate()
             .map(|(i, v)| (cosine_similarity(&query_vec, v), i))
             .collect();
 
         scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
-        let hits = scored.into_iter()
+        let hits = scored
+            .into_iter()
             .take(k)
             .filter(|(score, _)| *score > 0.0)
             .map(|(score, i)| {
@@ -295,8 +297,8 @@ impl EmbeddingIndex {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const MAX_FILE_SIZE_BYTES: u64 = 500 * 1024; // 500 KB
-const CHUNK_LINES: usize = 60;               // ~512 tokens at typical density
-const CHUNK_OVERLAP: usize = 8;              // overlap between consecutive chunks
+const CHUNK_LINES: usize = 60; // ~512 tokens at typical density
+const CHUNK_OVERLAP: usize = 8; // overlap between consecutive chunks
 
 // ── Chunking ──────────────────────────────────────────────────────────────────
 
@@ -336,14 +338,22 @@ fn collect_source_files(workspace: &Path) -> Vec<PathBuf> {
     use walkdir::WalkDir;
 
     const SKIP_DIRS: &[&str] = &[
-        ".git", "node_modules", "target", "dist", "build",
-        "__pycache__", ".venv", "venv", ".tox", ".cargo",
+        ".git",
+        "node_modules",
+        "target",
+        "dist",
+        "build",
+        "__pycache__",
+        ".venv",
+        "venv",
+        ".tox",
+        ".cargo",
     ];
 
     const SOURCE_EXTENSIONS: &[&str] = &[
-        "rs", "py", "ts", "tsx", "js", "jsx", "go", "java", "c", "cpp", "h",
-        "cs", "rb", "swift", "kt", "scala", "ml", "hs", "ex", "exs", "lua",
-        "sh", "bash", "zsh", "fish", "toml", "yaml", "yml", "json", "md",
+        "rs", "py", "ts", "tsx", "js", "jsx", "go", "java", "c", "cpp", "h", "cs", "rb", "swift",
+        "kt", "scala", "ml", "hs", "ex", "exs", "lua", "sh", "bash", "zsh", "fish", "toml", "yaml",
+        "yml", "json", "md",
     ];
 
     WalkDir::new(workspace)
@@ -354,8 +364,7 @@ fn collect_source_files(workspace: &Path) -> Vec<PathBuf> {
         .filter(|e| {
             let path_str = e.path().to_string_lossy();
             !SKIP_DIRS.iter().any(|d| {
-                path_str.contains(&format!("/{}/", d))
-                    || path_str.contains(&format!("\\{}\\", d))
+                path_str.contains(&format!("/{}/", d)) || path_str.contains(&format!("\\{}\\", d))
             })
         })
         .filter(|e| {
@@ -422,7 +431,10 @@ async fn embed_ollama(text: &str, model: &str, api_url: &str) -> Result<Vec<f32>
 
     let resp: OllamaResponse = client
         .post(&url)
-        .json(&OllamaRequest { model, prompt: text })
+        .json(&OllamaRequest {
+            model,
+            prompt: text,
+        })
         .send()
         .await
         .context("Ollama embedding request failed")?
@@ -510,7 +522,10 @@ mod tests {
         let a = vec![1.0f32, 1e-7];
         let b = vec![1.0f32, 1e-7];
         let sim = cosine_similarity(&a, &b);
-        assert!(sim <= 1.0 && sim >= -1.0, "cosine must be in [-1, 1], got {sim}");
+        assert!(
+            sim <= 1.0 && sim >= -1.0,
+            "cosine must be in [-1, 1], got {sim}"
+        );
     }
 
     /// Single-file removal via update() must be O(n), not O(n²).
@@ -527,9 +542,24 @@ mod tests {
             provider: EmbeddingProvider::ollama("test"),
             vectors: vec![vec![1.0], vec![2.0], vec![3.0]],
             docs: vec![
-                EmbeddingDoc { file: f1.clone(), chunk_start: 0, chunk_end: 1, text: "fn a()".into() },
-                EmbeddingDoc { file: f2.clone(), chunk_start: 0, chunk_end: 1, text: "fn b()".into() },
-                EmbeddingDoc { file: f1.clone(), chunk_start: 1, chunk_end: 2, text: "fn a2()".into() },
+                EmbeddingDoc {
+                    file: f1.clone(),
+                    chunk_start: 0,
+                    chunk_end: 1,
+                    text: "fn a()".into(),
+                },
+                EmbeddingDoc {
+                    file: f2.clone(),
+                    chunk_start: 0,
+                    chunk_end: 1,
+                    text: "fn b()".into(),
+                },
+                EmbeddingDoc {
+                    file: f1.clone(),
+                    chunk_start: 1,
+                    chunk_end: 2,
+                    text: "fn a2()".into(),
+                },
             ],
         };
 
@@ -636,8 +666,18 @@ mod tests {
             provider: EmbeddingProvider::ollama("test"),
             vectors: vec![vec![1.0], vec![2.0]],
             docs: vec![
-                EmbeddingDoc { file: PathBuf::from("a.rs"), chunk_start: 0, chunk_end: 1, text: "a".into() },
-                EmbeddingDoc { file: PathBuf::from("b.rs"), chunk_start: 0, chunk_end: 1, text: "b".into() },
+                EmbeddingDoc {
+                    file: PathBuf::from("a.rs"),
+                    chunk_start: 0,
+                    chunk_end: 1,
+                    text: "a".into(),
+                },
+                EmbeddingDoc {
+                    file: PathBuf::from("b.rs"),
+                    chunk_start: 0,
+                    chunk_end: 1,
+                    text: "b".into(),
+                },
             ],
         };
         assert_eq!(idx.len(), 2);
@@ -650,9 +690,24 @@ mod tests {
             provider: EmbeddingProvider::ollama("test"),
             vectors: vec![vec![1.0], vec![2.0], vec![3.0]],
             docs: vec![
-                EmbeddingDoc { file: PathBuf::from("a.rs"), chunk_start: 0, chunk_end: 10, text: "a1".into() },
-                EmbeddingDoc { file: PathBuf::from("a.rs"), chunk_start: 10, chunk_end: 20, text: "a2".into() },
-                EmbeddingDoc { file: PathBuf::from("b.rs"), chunk_start: 0, chunk_end: 10, text: "b1".into() },
+                EmbeddingDoc {
+                    file: PathBuf::from("a.rs"),
+                    chunk_start: 0,
+                    chunk_end: 10,
+                    text: "a1".into(),
+                },
+                EmbeddingDoc {
+                    file: PathBuf::from("a.rs"),
+                    chunk_start: 10,
+                    chunk_end: 20,
+                    text: "a2".into(),
+                },
+                EmbeddingDoc {
+                    file: PathBuf::from("b.rs"),
+                    chunk_start: 0,
+                    chunk_end: 10,
+                    text: "b1".into(),
+                },
             ],
         };
         assert_eq!(idx.file_count(), 2);
@@ -668,14 +723,12 @@ mod tests {
         let idx = EmbeddingIndex {
             provider: EmbeddingProvider::ollama("test"),
             vectors: vec![vec![1.0, 2.0, 3.0]],
-            docs: vec![
-                EmbeddingDoc {
-                    file: PathBuf::from("src/main.rs"),
-                    chunk_start: 0,
-                    chunk_end: 10,
-                    text: "fn main() {}".into(),
-                },
-            ],
+            docs: vec![EmbeddingDoc {
+                file: PathBuf::from("src/main.rs"),
+                chunk_start: 0,
+                chunk_end: 10,
+                text: "fn main() {}".into(),
+            }],
         };
         idx.save(&path).unwrap();
         let loaded = EmbeddingIndex::load(&path).unwrap();
@@ -707,14 +760,12 @@ mod tests {
         let idx = EmbeddingIndex {
             provider: EmbeddingProvider::ollama("test"),
             vectors: vec![vec![1.0, 2.0, 3.0, 4.0]],
-            docs: vec![
-                EmbeddingDoc {
-                    file: PathBuf::from("f.rs"),
-                    chunk_start: 0,
-                    chunk_end: 5,
-                    text: "code".into(),
-                },
-            ],
+            docs: vec![EmbeddingDoc {
+                file: PathBuf::from("f.rs"),
+                chunk_start: 0,
+                chunk_end: 5,
+                text: "code".into(),
+            }],
         };
         let tq = idx.to_turboquant(42);
         assert!(tq.is_some());
@@ -738,7 +789,10 @@ mod tests {
 
     #[test]
     fn chunk_text_exact_chunk_size() {
-        let content: String = (0..60).map(|i| format!("line {}", i)).collect::<Vec<_>>().join("\n");
+        let content: String = (0..60)
+            .map(|i| format!("line {}", i))
+            .collect::<Vec<_>>()
+            .join("\n");
         let chunks = chunk_text(&content);
         assert_eq!(chunks.len(), 1);
         assert_eq!(chunks[0].start, 0);
@@ -782,7 +836,9 @@ mod tests {
         std::fs::create_dir(&nm).unwrap();
         std::fs::write(nm.join("index.js"), "module.exports = {}").unwrap();
         let files = collect_source_files(dir.path());
-        assert!(!files.iter().any(|f| f.to_string_lossy().contains("node_modules")));
+        assert!(!files
+            .iter()
+            .any(|f| f.to_string_lossy().contains("node_modules")));
     }
 
     #[test]

@@ -5,12 +5,11 @@
  *
  * Run with: cargo test --test context_assembler_bdd
  */
-use cucumber::{World, given, then, when};
+use cucumber::{given, then, when, World};
 use std::path::PathBuf;
 use tempfile::TempDir;
 use vibecli_cli::context_assembler::{
-    AgentKind, AssembledContext, ContextBudget, ContextPolicy, MemoryToggles,
-    assemble_context,
+    assemble_context, AgentKind, AssembledContext, ContextBudget, ContextPolicy, MemoryToggles,
 };
 
 #[derive(Default, World)]
@@ -24,13 +23,17 @@ impl std::fmt::Debug for AssemblerWorld {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AssemblerWorld")
             .field("tmp", &self.tmp.as_ref().map(|t| t.path().to_owned()))
-            .field("jobs_tmp", &self.jobs_tmp.as_ref().map(|t| t.path().to_owned()))
-            .field("ctx_sections", &self.ctx.as_ref().map(|c| {
-                c.sections
-                    .iter()
-                    .map(|s| s.name)
-                    .collect::<Vec<_>>()
-            }))
+            .field(
+                "jobs_tmp",
+                &self.jobs_tmp.as_ref().map(|t| t.path().to_owned()),
+            )
+            .field(
+                "ctx_sections",
+                &self
+                    .ctx
+                    .as_ref()
+                    .map(|c| c.sections.iter().map(|s| s.name).collect::<Vec<_>>()),
+            )
             .finish()
     }
 }
@@ -73,18 +76,12 @@ fn given_file_of_size(w: &mut AssemblerWorld, name: String, size: usize) {
     std::fs::write(workspace.join(&name), body).expect("write file");
 }
 
-#[given(
-    regex = r#"^job "([^"]+)" has scratchpad entry "([^"]+)" with value "([^"]+)"$"#
-)]
-fn given_scratchpad_entry(
-    w: &mut AssemblerWorld,
-    session_id: String,
-    key: String,
-    value: String,
-) {
+#[given(regex = r#"^job "([^"]+)" has scratchpad entry "([^"]+)" with value "([^"]+)"$"#)]
+fn given_scratchpad_entry(w: &mut AssemblerWorld, session_id: String, key: String, value: String) {
     let path = w.jobs_db_path();
     let db = vibecli_cli::job_manager::JobsDb::open(&path).expect("open jobs db");
-    db.scratchpad_set(&session_id, &key, &value).expect("set entry");
+    db.scratchpad_set(&session_id, &key, &value)
+        .expect("set entry");
 }
 
 // ── When ────────────────────────────────────────────────────────────────────
@@ -128,18 +125,13 @@ fn when_run_agent_disabled(w: &mut AssemblerWorld, task: String) {
     };
     w.ctx = Some(assemble_context(
         &workspace,
-        &ContextPolicy::Agent {
-            task,
-            job_id: None,
-        },
+        &ContextPolicy::Agent { task, job_id: None },
         &ContextBudget::default(),
         &toggles,
     ));
 }
 
-#[when(
-    regex = r#"^the assembler runs with policy "agent" for task "([^"]+)" and job "([^"]+)"$"#
-)]
+#[when(regex = r#"^the assembler runs with policy "agent" for task "([^"]+)" and job "([^"]+)"$"#)]
 fn when_run_agent_with_job(w: &mut AssemblerWorld, task: String, job_id: String) {
     let workspace = w.workspace();
     let db_path = w.jobs_db_path();
@@ -233,12 +225,7 @@ fn then_section_contains(w: &mut AssemblerWorld, name: String, needle: String) {
 #[then(expr = "the assembled total chars are at most {int}")]
 fn then_total_at_most(w: &mut AssemblerWorld, n: usize) {
     let ctx = w.ctx();
-    assert!(
-        ctx.total_chars <= n,
-        "total {} > {}",
-        ctx.total_chars,
-        n
-    );
+    assert!(ctx.total_chars <= n, "total {} > {}", ctx.total_chars, n);
 }
 
 #[then(expr = "the combined context contains {string}")]
@@ -286,11 +273,7 @@ fn then_budget_kind_cap_higher(
 }
 
 #[then(expr = "the budget for kind {string} has total at most {int}")]
-fn then_budget_kind_total_at_most(
-    _w: &mut AssemblerWorld,
-    kind: String,
-    max: usize,
-) {
+fn then_budget_kind_total_at_most(_w: &mut AssemblerWorld, kind: String, max: usize) {
     let b = ContextBudget::for_kind(kind_from(&kind));
     assert!(
         b.max_total_chars <= max,

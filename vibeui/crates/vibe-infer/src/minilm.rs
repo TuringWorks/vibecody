@@ -69,7 +69,11 @@ impl MiniLmEmbedder {
         };
         let model = BertModel::load(vb, &config).map_err(be)?;
 
-        Ok(Self { model, tokenizer, device })
+        Ok(Self {
+            model,
+            tokenizer,
+            device,
+        })
     }
 
     fn forward(&self, text: &str) -> Result<Vec<f32>> {
@@ -166,7 +170,10 @@ mod tests {
         assert_eq!(v.len(), 384);
 
         let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
-        assert!((norm - 1.0).abs() < 1e-3, "expected L2-norm ~1.0, got {norm}");
+        assert!(
+            (norm - 1.0).abs() < 1e-3,
+            "expected L2-norm ~1.0, got {norm}"
+        );
     }
 
     #[tokio::test]
@@ -175,10 +182,16 @@ mod tests {
         let embedder = MiniLmEmbedder::load().await.expect("load model");
         let a = embedder.embed("a cat sat on the mat").await.unwrap();
         let b = embedder.embed("a kitten rested on a rug").await.unwrap();
-        let c = embedder.embed("quarterly earnings exceeded forecasts").await.unwrap();
+        let c = embedder
+            .embed("quarterly earnings exceeded forecasts")
+            .await
+            .unwrap();
 
         let ab: f32 = a.iter().zip(&b).map(|(x, y)| x * y).sum();
         let ac: f32 = a.iter().zip(&c).map(|(x, y)| x * y).sum();
-        assert!(ab > ac, "related pair ({ab}) should outscore unrelated ({ac})");
+        assert!(
+            ab > ac,
+            "related pair ({ab}) should outscore unrelated ({ac})"
+        );
     }
 }

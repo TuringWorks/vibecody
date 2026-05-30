@@ -35,11 +35,21 @@ impl CheckState {
     }
 
     pub fn is_terminal(&self) -> bool {
-        matches!(self, CheckState::Success | CheckState::Failure | CheckState::Error | CheckState::Neutral | CheckState::Skipped)
+        matches!(
+            self,
+            CheckState::Success
+                | CheckState::Failure
+                | CheckState::Error
+                | CheckState::Neutral
+                | CheckState::Skipped
+        )
     }
 
     pub fn is_pass(&self) -> bool {
-        matches!(self, CheckState::Success | CheckState::Neutral | CheckState::Skipped)
+        matches!(
+            self,
+            CheckState::Success | CheckState::Neutral | CheckState::Skipped
+        )
     }
 
     /// Return the "worst" of two states for aggregation.
@@ -55,7 +65,11 @@ impl CheckState {
                 CheckState::Error => 6,
             }
         };
-        if rank(a) >= rank(b) { a.clone() } else { b.clone() }
+        if rank(a) >= rank(b) {
+            a.clone()
+        } else {
+            b.clone()
+        }
     }
 }
 
@@ -126,7 +140,13 @@ pub struct CheckAnnotation {
 }
 
 impl CheckAnnotation {
-    pub fn new(path: &str, start_line: usize, end_line: usize, level: AnnotationLevel, message: &str) -> Self {
+    pub fn new(
+        path: &str,
+        start_line: usize,
+        end_line: usize,
+        level: AnnotationLevel,
+        message: &str,
+    ) -> Self {
         Self {
             path: path.to_string(),
             start_line,
@@ -345,7 +365,11 @@ pub struct CheckSuite {
 
 impl CheckSuite {
     pub fn new(commit_sha: &str, branch: &str, repo: &str) -> Self {
-        let id = format!("suite-{}-{}", &commit_sha[..7.min(commit_sha.len())], now_secs());
+        let id = format!(
+            "suite-{}-{}",
+            &commit_sha[..7.min(commit_sha.len())],
+            now_secs()
+        );
         Self {
             id,
             commit_sha: commit_sha.to_string(),
@@ -397,7 +421,10 @@ impl CheckSuite {
     }
 
     pub fn failed_checks(&self) -> Vec<&StatusCheck> {
-        self.checks.iter().filter(|c| c.state == CheckState::Failure || c.state == CheckState::Error).collect()
+        self.checks
+            .iter()
+            .filter(|c| c.state == CheckState::Failure || c.state == CheckState::Error)
+            .collect()
     }
 
     /// Generate a markdown summary of the suite.
@@ -410,7 +437,10 @@ impl CheckSuite {
         if let Some(pr) = self.pr_number {
             md.push_str(&format!("- **PR**: #{}\n", pr));
         }
-        md.push_str(&format!("- **Overall**: {}\n\n", self.overall_state.as_str()));
+        md.push_str(&format!(
+            "- **Overall**: {}\n\n",
+            self.overall_state.as_str()
+        ));
 
         md.push_str("| Check | State | Annotations |\n");
         md.push_str("|-------|-------|-------------|\n");
@@ -418,7 +448,11 @@ impl CheckSuite {
             let (n, w, f) = check.output.annotation_counts();
             md.push_str(&format!(
                 "| {} | {} | {} notices, {} warnings, {} failures |\n",
-                check.name, check.state.as_str(), n, w, f
+                check.name,
+                check.state.as_str(),
+                n,
+                w,
+                f
             ));
         }
         md
@@ -524,7 +558,10 @@ impl CiStatusManager {
     }
 
     pub fn suites_for_pr(&self, pr_number: u64) -> Vec<&CheckSuite> {
-        self.suites.iter().filter(|s| s.pr_number == Some(pr_number)).collect()
+        self.suites
+            .iter()
+            .filter(|s| s.pr_number == Some(pr_number))
+            .collect()
     }
 
     /// Remove suites older than `max_age_days`.
@@ -613,10 +650,22 @@ mod tests {
 
     #[test]
     fn test_check_state_worst() {
-        assert_eq!(CheckState::worst(&CheckState::Success, &CheckState::Failure), CheckState::Failure);
-        assert_eq!(CheckState::worst(&CheckState::Success, &CheckState::Success), CheckState::Success);
-        assert_eq!(CheckState::worst(&CheckState::Neutral, &CheckState::Error), CheckState::Error);
-        assert_eq!(CheckState::worst(&CheckState::Pending, &CheckState::Success), CheckState::Pending);
+        assert_eq!(
+            CheckState::worst(&CheckState::Success, &CheckState::Failure),
+            CheckState::Failure
+        );
+        assert_eq!(
+            CheckState::worst(&CheckState::Success, &CheckState::Success),
+            CheckState::Success
+        );
+        assert_eq!(
+            CheckState::worst(&CheckState::Neutral, &CheckState::Error),
+            CheckState::Error
+        );
+        assert_eq!(
+            CheckState::worst(&CheckState::Pending, &CheckState::Success),
+            CheckState::Pending
+        );
     }
 
     // -- CheckType tests --
@@ -629,7 +678,10 @@ mod tests {
         assert_eq!(CheckType::StyleCheck.as_str(), "style_check");
         assert_eq!(CheckType::DependencyAudit.as_str(), "dependency_audit");
         assert_eq!(CheckType::PerformanceCheck.as_str(), "performance_check");
-        assert_eq!(CheckType::DocumentationCheck.as_str(), "documentation_check");
+        assert_eq!(
+            CheckType::DocumentationCheck.as_str(),
+            "documentation_check"
+        );
         assert_eq!(CheckType::CustomCheck("lint".into()).as_str(), "lint");
     }
 
@@ -652,7 +704,13 @@ mod tests {
 
     #[test]
     fn test_annotation_new() {
-        let ann = CheckAnnotation::new("src/main.rs", 10, 15, AnnotationLevel::Warning, "unused variable");
+        let ann = CheckAnnotation::new(
+            "src/main.rs",
+            10,
+            15,
+            AnnotationLevel::Warning,
+            "unused variable",
+        );
         assert_eq!(ann.path, "src/main.rs");
         assert_eq!(ann.start_line, 10);
         assert_eq!(ann.end_line, 15);
@@ -680,18 +738,54 @@ mod tests {
     #[test]
     fn test_check_output_add_annotation() {
         let mut out = CheckOutput::new("Review", "Summary");
-        out.add_annotation(CheckAnnotation::new("a.rs", 1, 1, AnnotationLevel::Notice, "info"));
-        out.add_annotation(CheckAnnotation::new("b.rs", 2, 2, AnnotationLevel::Warning, "warn"));
+        out.add_annotation(CheckAnnotation::new(
+            "a.rs",
+            1,
+            1,
+            AnnotationLevel::Notice,
+            "info",
+        ));
+        out.add_annotation(CheckAnnotation::new(
+            "b.rs",
+            2,
+            2,
+            AnnotationLevel::Warning,
+            "warn",
+        ));
         assert_eq!(out.annotations.len(), 2);
     }
 
     #[test]
     fn test_check_output_annotation_counts() {
         let mut out = CheckOutput::new("Test", "Test");
-        out.add_annotation(CheckAnnotation::new("a.rs", 1, 1, AnnotationLevel::Notice, "n1"));
-        out.add_annotation(CheckAnnotation::new("a.rs", 2, 2, AnnotationLevel::Notice, "n2"));
-        out.add_annotation(CheckAnnotation::new("b.rs", 3, 3, AnnotationLevel::Warning, "w1"));
-        out.add_annotation(CheckAnnotation::new("c.rs", 4, 4, AnnotationLevel::Failure, "f1"));
+        out.add_annotation(CheckAnnotation::new(
+            "a.rs",
+            1,
+            1,
+            AnnotationLevel::Notice,
+            "n1",
+        ));
+        out.add_annotation(CheckAnnotation::new(
+            "a.rs",
+            2,
+            2,
+            AnnotationLevel::Notice,
+            "n2",
+        ));
+        out.add_annotation(CheckAnnotation::new(
+            "b.rs",
+            3,
+            3,
+            AnnotationLevel::Warning,
+            "w1",
+        ));
+        out.add_annotation(CheckAnnotation::new(
+            "c.rs",
+            4,
+            4,
+            AnnotationLevel::Failure,
+            "f1",
+        ));
         let (n, w, f) = out.annotation_counts();
         assert_eq!(n, 2);
         assert_eq!(w, 1);
@@ -702,8 +796,14 @@ mod tests {
     fn test_check_output_to_markdown() {
         let mut out = CheckOutput::new("Security Scan", "Found 1 issue");
         out.add_annotation(
-            CheckAnnotation::new("src/auth.rs", 42, 42, AnnotationLevel::Failure, "SQL injection risk")
-                .with_suggestion("Use parameterized queries")
+            CheckAnnotation::new(
+                "src/auth.rs",
+                42,
+                42,
+                AnnotationLevel::Failure,
+                "SQL injection risk",
+            )
+            .with_suggestion("Use parameterized queries"),
         );
         out.text = Some("Full report here.".to_string());
         let md = out.to_markdown();
@@ -764,7 +864,13 @@ mod tests {
     #[test]
     fn test_status_check_add_annotation() {
         let mut check = StatusCheck::new("Review", CheckType::CodeReview);
-        check.add_annotation(CheckAnnotation::new("main.rs", 1, 1, AnnotationLevel::Warning, "test"));
+        check.add_annotation(CheckAnnotation::new(
+            "main.rs",
+            1,
+            1,
+            AnnotationLevel::Warning,
+            "test",
+        ));
         assert_eq!(check.output.annotations.len(), 1);
     }
 
@@ -797,7 +903,13 @@ mod tests {
     fn test_status_check_to_github_json() {
         let mut check = StatusCheck::new("AI Review", CheckType::CodeReview);
         check.start();
-        check.add_annotation(CheckAnnotation::new("src/lib.rs", 10, 12, AnnotationLevel::Warning, "unused import"));
+        check.add_annotation(CheckAnnotation::new(
+            "src/lib.rs",
+            10,
+            12,
+            AnnotationLevel::Warning,
+            "unused import",
+        ));
         check.succeed("1 warning");
         let json = check.to_github_json();
         assert!(json.contains("\"name\": \"AI Review\""));
@@ -943,7 +1055,13 @@ mod tests {
         suite.pr_number = Some(99);
         let mut c1 = StatusCheck::new("Review", CheckType::CodeReview);
         c1.succeed("ok");
-        c1.add_annotation(CheckAnnotation::new("a.rs", 1, 1, AnnotationLevel::Notice, "info"));
+        c1.add_annotation(CheckAnnotation::new(
+            "a.rs",
+            1,
+            1,
+            AnnotationLevel::Notice,
+            "info",
+        ));
         suite.add_check(c1);
         let md = suite.to_summary_markdown();
         assert!(md.contains("org/repo"));

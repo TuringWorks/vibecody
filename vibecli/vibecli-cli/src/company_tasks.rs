@@ -18,9 +18,14 @@ use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn now_ms() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64
 }
-fn new_id() -> String { uuid::Uuid::new_v4().to_string() }
+fn new_id() -> String {
+    uuid::Uuid::new_v4().to_string()
+}
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
 
@@ -65,11 +70,28 @@ impl TaskStatus {
     pub fn allowed_transitions(&self) -> &[TaskStatus] {
         match self {
             Self::Backlog => &[TaskStatus::Todo, TaskStatus::Cancelled],
-            Self::Todo => &[TaskStatus::InProgress, TaskStatus::Blocked, TaskStatus::Cancelled],
-            Self::InProgress => &[TaskStatus::InReview, TaskStatus::Blocked, TaskStatus::Cancelled],
-            Self::InReview => &[TaskStatus::Done, TaskStatus::InProgress, TaskStatus::Blocked, TaskStatus::Cancelled],
+            Self::Todo => &[
+                TaskStatus::InProgress,
+                TaskStatus::Blocked,
+                TaskStatus::Cancelled,
+            ],
+            Self::InProgress => &[
+                TaskStatus::InReview,
+                TaskStatus::Blocked,
+                TaskStatus::Cancelled,
+            ],
+            Self::InReview => &[
+                TaskStatus::Done,
+                TaskStatus::InProgress,
+                TaskStatus::Blocked,
+                TaskStatus::Cancelled,
+            ],
             Self::Done => &[],
-            Self::Blocked => &[TaskStatus::Todo, TaskStatus::InProgress, TaskStatus::Cancelled],
+            Self::Blocked => &[
+                TaskStatus::Todo,
+                TaskStatus::InProgress,
+                TaskStatus::Cancelled,
+            ],
             Self::Cancelled => &[],
         }
     }
@@ -156,7 +178,8 @@ impl<'a> TaskStore<'a> {
     }
 
     pub fn ensure_schema(&self) -> Result<()> {
-        self.conn.execute_batch(r#"
+        self.conn.execute_batch(
+            r#"
             CREATE TABLE IF NOT EXISTS tasks (
                 id              TEXT PRIMARY KEY,
                 company_id      TEXT NOT NULL,
@@ -186,7 +209,8 @@ impl<'a> TaskStore<'a> {
                 created_at      INTEGER NOT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_comments_task ON task_comments(task_id);
-        "#)?;
+        "#,
+        )?;
         // Migrate existing tables — ignore "duplicate column" errors
         for sql in &[
             "ALTER TABLE tasks ADD COLUMN owner TEXT NOT NULL DEFAULT 'agent'",
@@ -323,9 +347,7 @@ impl<'a> TaskStore<'a> {
             stmt.query_map(params![company_id], row_to_task)?
                 .collect::<rusqlite::Result<Vec<_>>>()?
         };
-        rows.into_iter()
-            .map(Ok)
-            .collect()
+        rows.into_iter().map(Ok).collect()
     }
 
     /// Validate and perform a status transition.
@@ -361,7 +383,8 @@ impl<'a> TaskStore<'a> {
         if task.status == TaskStatus::InProgress {
             return Err(anyhow!(
                 "Task is already checked out{}",
-                task.assigned_agent.as_deref()
+                task.assigned_agent
+                    .as_deref()
                     .map(|a| format!(" by agent {}", &a[..8.min(a.len())]))
                     .unwrap_or_default()
             ));
@@ -380,7 +403,12 @@ impl<'a> TaskStore<'a> {
         self.get(id)?.context("task not found after checkout")
     }
 
-    pub fn add_comment(&self, task_id: &str, author_agent_id: Option<&str>, content: &str) -> Result<TaskComment> {
+    pub fn add_comment(
+        &self,
+        task_id: &str,
+        author_agent_id: Option<&str>,
+        content: &str,
+    ) -> Result<TaskComment> {
         self.conn.execute(
             "INSERT INTO task_comments (task_id, author_agent_id, content, created_at) VALUES (?1,?2,?3,?4)",
             params![task_id, author_agent_id, content, now_ms() as i64],
@@ -430,7 +458,9 @@ fn row_to_task(row: &rusqlite::Row) -> Result<CompanyTask, rusqlite::Error> {
         result_summary: row.get(11)?,
         created_at: row.get::<_, i64>(12)? as u64,
         updated_at: row.get::<_, i64>(13)? as u64,
-        owner: row.get::<_, Option<String>>(14)?.unwrap_or_else(|| "agent".to_string()),
+        owner: row
+            .get::<_, Option<String>>(14)?
+            .unwrap_or_else(|| "agent".to_string()),
         program: row.get::<_, Option<String>>(15)?.unwrap_or_default(),
         recurrence: row.get(16)?,
     })
@@ -467,13 +497,13 @@ mod tests {
     #[test]
     fn task_status_round_trip() {
         for (s, v) in &[
-            ("backlog",     TaskStatus::Backlog),
-            ("todo",        TaskStatus::Todo),
+            ("backlog", TaskStatus::Backlog),
+            ("todo", TaskStatus::Todo),
             ("in_progress", TaskStatus::InProgress),
-            ("in_review",   TaskStatus::InReview),
-            ("done",        TaskStatus::Done),
-            ("blocked",     TaskStatus::Blocked),
-            ("cancelled",   TaskStatus::Cancelled),
+            ("in_review", TaskStatus::InReview),
+            ("done", TaskStatus::Done),
+            ("blocked", TaskStatus::Blocked),
+            ("cancelled", TaskStatus::Cancelled),
         ] {
             assert_eq!(TaskStatus::from_str(s), *v);
             assert_eq!(v.as_str(), *s);
@@ -564,7 +594,17 @@ mod tests {
     #[test]
     fn create_and_get_task() {
         let store = make_store();
-        let task = store.create("co-1", "Test task", "description", None, None, None, TaskPriority::Medium).unwrap();
+        let task = store
+            .create(
+                "co-1",
+                "Test task",
+                "description",
+                None,
+                None,
+                None,
+                TaskPriority::Medium,
+            )
+            .unwrap();
         assert!(!task.id.is_empty());
         assert_eq!(task.title, "Test task");
         assert_eq!(task.status, TaskStatus::Backlog);
@@ -585,9 +625,15 @@ mod tests {
     #[test]
     fn list_tasks_by_company() {
         let store = make_store();
-        store.create("co-1", "Task A", "", None, None, None, TaskPriority::Low).unwrap();
-        store.create("co-1", "Task B", "", None, None, None, TaskPriority::High).unwrap();
-        store.create("co-2", "Task C", "", None, None, None, TaskPriority::Medium).unwrap();
+        store
+            .create("co-1", "Task A", "", None, None, None, TaskPriority::Low)
+            .unwrap();
+        store
+            .create("co-1", "Task B", "", None, None, None, TaskPriority::High)
+            .unwrap();
+        store
+            .create("co-2", "Task C", "", None, None, None, TaskPriority::Medium)
+            .unwrap();
 
         let co1_tasks = store.list("co-1", None).unwrap();
         assert_eq!(co1_tasks.len(), 2);
@@ -597,8 +643,12 @@ mod tests {
     #[test]
     fn list_tasks_with_status_filter() {
         let store = make_store();
-        let t1 = store.create("co-1", "Task 1", "", None, None, None, TaskPriority::Low).unwrap();
-        store.create("co-1", "Task 2", "", None, None, None, TaskPriority::Low).unwrap();
+        let t1 = store
+            .create("co-1", "Task 1", "", None, None, None, TaskPriority::Low)
+            .unwrap();
+        store
+            .create("co-1", "Task 2", "", None, None, None, TaskPriority::Low)
+            .unwrap();
         store.transition(&t1.id, TaskStatus::Todo).unwrap();
 
         let todo_tasks = store.list("co-1", Some("todo")).unwrap();
@@ -618,7 +668,9 @@ mod tests {
     #[test]
     fn valid_transition_persisted() {
         let store = make_store();
-        let task = store.create("co-1", "Task", "", None, None, None, TaskPriority::Medium).unwrap();
+        let task = store
+            .create("co-1", "Task", "", None, None, None, TaskPriority::Medium)
+            .unwrap();
         let updated = store.transition(&task.id, TaskStatus::Todo).unwrap();
         assert_eq!(updated.status, TaskStatus::Todo);
         // Verify persisted to DB
@@ -629,7 +681,9 @@ mod tests {
     #[test]
     fn invalid_transition_returns_error() {
         let store = make_store();
-        let task = store.create("co-1", "Task", "", None, None, None, TaskPriority::Low).unwrap();
+        let task = store
+            .create("co-1", "Task", "", None, None, None, TaskPriority::Low)
+            .unwrap();
         // Backlog → Done is invalid
         let result = store.transition(&task.id, TaskStatus::Done);
         assert!(result.is_err());
@@ -649,7 +703,9 @@ mod tests {
     #[test]
     fn assign_sets_agent_id() {
         let store = make_store();
-        let task = store.create("co-1", "Task", "", None, None, None, TaskPriority::Low).unwrap();
+        let task = store
+            .create("co-1", "Task", "", None, None, None, TaskPriority::Low)
+            .unwrap();
         let updated = store.assign(&task.id, "agent-42").unwrap();
         assert_eq!(updated.assigned_agent.as_deref(), Some("agent-42"));
     }
@@ -659,7 +715,9 @@ mod tests {
     #[test]
     fn checkout_transitions_to_in_progress_and_sets_branch() {
         let store = make_store();
-        let task = store.create("co-1", "Task", "", None, None, None, TaskPriority::Medium).unwrap();
+        let task = store
+            .create("co-1", "Task", "", None, None, None, TaskPriority::Medium)
+            .unwrap();
         store.transition(&task.id, TaskStatus::Todo).unwrap();
 
         let checked = store.checkout(&task.id, "agent-007").unwrap();
@@ -672,7 +730,9 @@ mod tests {
     #[test]
     fn double_checkout_returns_error() {
         let store = make_store();
-        let task = store.create("co-1", "Task", "", None, None, None, TaskPriority::Medium).unwrap();
+        let task = store
+            .create("co-1", "Task", "", None, None, None, TaskPriority::Medium)
+            .unwrap();
         store.transition(&task.id, TaskStatus::Todo).unwrap();
         store.checkout(&task.id, "agent-1").unwrap();
 
@@ -685,7 +745,9 @@ mod tests {
     #[test]
     fn checkout_from_backlog_returns_error() {
         let store = make_store();
-        let task = store.create("co-1", "Task", "", None, None, None, TaskPriority::Low).unwrap();
+        let task = store
+            .create("co-1", "Task", "", None, None, None, TaskPriority::Low)
+            .unwrap();
         // Backlog → InProgress not allowed
         let result = store.checkout(&task.id, "agent-1");
         assert!(result.is_err());
@@ -697,9 +759,15 @@ mod tests {
     #[test]
     fn add_and_list_comments() {
         let store = make_store();
-        let task = store.create("co-1", "Task", "", None, None, None, TaskPriority::Low).unwrap();
-        store.add_comment(&task.id, Some("agent-1"), "First comment").unwrap();
-        store.add_comment(&task.id, None, "Second comment from system").unwrap();
+        let task = store
+            .create("co-1", "Task", "", None, None, None, TaskPriority::Low)
+            .unwrap();
+        store
+            .add_comment(&task.id, Some("agent-1"), "First comment")
+            .unwrap();
+        store
+            .add_comment(&task.id, None, "Second comment from system")
+            .unwrap();
 
         let comments = store.list_comments(&task.id).unwrap();
         assert_eq!(comments.len(), 2);
@@ -712,7 +780,9 @@ mod tests {
     #[test]
     fn list_comments_empty_for_new_task() {
         let store = make_store();
-        let task = store.create("co-1", "Task", "", None, None, None, TaskPriority::Low).unwrap();
+        let task = store
+            .create("co-1", "Task", "", None, None, None, TaskPriority::Low)
+            .unwrap();
         let comments = store.list_comments(&task.id).unwrap();
         assert!(comments.is_empty());
     }
@@ -722,9 +792,31 @@ mod tests {
     #[test]
     fn list_orders_by_priority_desc() {
         let store = make_store();
-        store.create("co-1", "Low prio",      "", None, None, None, TaskPriority::Low).unwrap();
-        store.create("co-1", "Critical prio", "", None, None, None, TaskPriority::Critical).unwrap();
-        store.create("co-1", "High prio",     "", None, None, None, TaskPriority::High).unwrap();
+        store
+            .create("co-1", "Low prio", "", None, None, None, TaskPriority::Low)
+            .unwrap();
+        store
+            .create(
+                "co-1",
+                "Critical prio",
+                "",
+                None,
+                None,
+                None,
+                TaskPriority::Critical,
+            )
+            .unwrap();
+        store
+            .create(
+                "co-1",
+                "High prio",
+                "",
+                None,
+                None,
+                None,
+                TaskPriority::High,
+            )
+            .unwrap();
 
         let tasks = store.list("co-1", None).unwrap();
         assert_eq!(tasks[0].priority.as_str(), "critical");
@@ -737,7 +829,17 @@ mod tests {
     #[test]
     fn summary_line_contains_title_and_status() {
         let store = make_store();
-        let task = store.create("co-1", "My Test Task", "desc", None, None, None, TaskPriority::High).unwrap();
+        let task = store
+            .create(
+                "co-1",
+                "My Test Task",
+                "desc",
+                None,
+                None,
+                None,
+                TaskPriority::High,
+            )
+            .unwrap();
         let line = task.summary_line();
         assert!(line.contains("My Test Task"));
         assert!(line.contains("backlog"));
@@ -747,7 +849,9 @@ mod tests {
     #[test]
     fn summary_line_uses_correct_icons_for_each_status() {
         let store = make_store();
-        let task = store.create("co-1", "Task", "", None, None, None, TaskPriority::Low).unwrap();
+        let task = store
+            .create("co-1", "Task", "", None, None, None, TaskPriority::Low)
+            .unwrap();
 
         // Backlog
         assert!(task.summary_line().contains("▫"));
@@ -761,8 +865,28 @@ mod tests {
     #[test]
     fn create_task_with_parent() {
         let store = make_store();
-        let parent = store.create("co-1", "Parent task", "", None, None, None, TaskPriority::High).unwrap();
-        let child = store.create("co-1", "Child task", "", None, Some(&parent.id), None, TaskPriority::Low).unwrap();
+        let parent = store
+            .create(
+                "co-1",
+                "Parent task",
+                "",
+                None,
+                None,
+                None,
+                TaskPriority::High,
+            )
+            .unwrap();
+        let child = store
+            .create(
+                "co-1",
+                "Child task",
+                "",
+                None,
+                Some(&parent.id),
+                None,
+                TaskPriority::Low,
+            )
+            .unwrap();
         assert_eq!(child.parent_task_id.as_deref(), Some(parent.id.as_str()));
     }
 
@@ -771,7 +895,17 @@ mod tests {
     #[test]
     fn create_task_with_goal_id() {
         let store = make_store();
-        let task = store.create("co-1", "Task", "", Some("goal-xyz"), None, None, TaskPriority::Medium).unwrap();
+        let task = store
+            .create(
+                "co-1",
+                "Task",
+                "",
+                Some("goal-xyz"),
+                None,
+                None,
+                TaskPriority::Medium,
+            )
+            .unwrap();
         assert_eq!(task.goal_id.as_deref(), Some("goal-xyz"));
     }
 
@@ -781,10 +915,16 @@ mod tests {
     fn created_at_and_updated_at_are_set_on_create() {
         let store = make_store();
         let before = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
-        let task = store.create("co-1", "Task", "", None, None, None, TaskPriority::Low).unwrap();
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
+        let task = store
+            .create("co-1", "Task", "", None, None, None, TaskPriority::Low)
+            .unwrap();
         let after = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64;
         assert!(task.created_at >= before);
         assert!(task.created_at <= after);
         assert!(task.updated_at >= before);
@@ -793,7 +933,9 @@ mod tests {
     #[test]
     fn transition_updates_updated_at() {
         let store = make_store();
-        let task = store.create("co-1", "Task", "", None, None, None, TaskPriority::Low).unwrap();
+        let task = store
+            .create("co-1", "Task", "", None, None, None, TaskPriority::Low)
+            .unwrap();
         let original_updated = task.updated_at;
         // Brief sleep to ensure timestamp changes
         std::thread::sleep(std::time::Duration::from_millis(2));
@@ -823,8 +965,11 @@ impl CompanyTask {
         };
         format!(
             "{} {} [{}]  {}  [{}]",
-            status_icon, priority_icon, self.status.as_str(),
-            self.title, &self.id[..8.min(self.id.len())]
+            status_icon,
+            priority_icon,
+            self.status.as_str(),
+            self.title,
+            &self.id[..8.min(self.id.len())]
         )
     }
 }

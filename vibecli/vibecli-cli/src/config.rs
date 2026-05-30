@@ -374,9 +374,15 @@ pub struct SandboxConfig {
 }
 
 impl SandboxConfig {
-    fn default_runtime() -> String { "auto".to_string() }
-    fn default_image() -> String { "ubuntu:22.04".to_string() }
-    fn default_timeout() -> u64 { 3600 }
+    fn default_runtime() -> String {
+        "auto".to_string()
+    }
+    fn default_image() -> String {
+        "ubuntu:22.04".to_string()
+    }
+    fn default_timeout() -> u64 {
+        3600
+    }
 
     /// Convert to a ContainerConfig for creating a container.
     pub fn to_container_config(&self) -> crate::container_runtime::ContainerConfig {
@@ -445,7 +451,9 @@ pub struct NetworkPolicyConfig {
 }
 
 impl NetworkPolicyConfig {
-    fn default_mode() -> String { "full".to_string() }
+    fn default_mode() -> String {
+        "full".to_string()
+    }
 }
 
 impl Default for NetworkPolicyConfig {
@@ -527,7 +535,9 @@ pub struct EmailConfig {
 }
 
 impl EmailConfig {
-    fn default_provider() -> String { "gmail".to_string() }
+    fn default_provider() -> String {
+        "gmail".to_string()
+    }
 }
 
 /// Calendar integration configuration.
@@ -545,9 +555,15 @@ pub struct CalendarConfig {
 }
 
 impl CalendarConfig {
-    fn default_provider() -> String { "google".to_string() }
-    fn default_work_start() -> u8 { 9 }
-    fn default_work_end() -> u8 { 18 }
+    fn default_provider() -> String {
+        "google".to_string()
+    }
+    fn default_work_start() -> u8 {
+        9
+    }
+    fn default_work_end() -> u8 {
+        18
+    }
 }
 
 /// Home Assistant integration configuration.
@@ -597,10 +613,18 @@ pub struct RedTeamCfg {
 }
 
 impl RedTeamCfg {
-    fn default_max_depth() -> usize { 3 }
-    fn default_timeout() -> u64 { 300 }
-    fn default_parallel() -> usize { 3 }
-    fn default_scope() -> Vec<String> { vec!["*".to_string()] }
+    fn default_max_depth() -> usize {
+        3
+    }
+    fn default_timeout() -> u64 {
+        300
+    }
+    fn default_parallel() -> usize {
+        3
+    }
+    fn default_scope() -> Vec<String> {
+        vec!["*".to_string()]
+    }
 }
 
 impl Default for RedTeamCfg {
@@ -645,21 +669,30 @@ pub struct VoiceConfig {
 
 #[allow(dead_code)]
 impl VoiceConfig {
-    fn default_local_model() -> String { "base".to_string() }
-    fn default_language() -> String { "en".to_string() }
-    fn default_silence_timeout() -> u64 { 1500 }
+    fn default_local_model() -> String {
+        "base".to_string()
+    }
+    fn default_language() -> String {
+        "en".to_string()
+    }
+    fn default_silence_timeout() -> u64 {
+        1500
+    }
 
     pub fn resolve_whisper_api_key(&self, groq_key: Option<&str>) -> Option<String> {
-        self.whisper_api_key.clone()
+        self.whisper_api_key
+            .clone()
             .or_else(|| groq_key.map(|s| s.to_string()))
             .or_else(|| std::env::var("GROQ_API_KEY").ok())
     }
     pub fn resolve_elevenlabs_api_key(&self) -> Option<String> {
-        self.elevenlabs_api_key.clone()
+        self.elevenlabs_api_key
+            .clone()
             .or_else(|| std::env::var("ELEVENLABS_API_KEY").ok())
     }
     pub fn resolve_elevenlabs_voice_id(&self) -> String {
-        self.elevenlabs_voice_id.clone()
+        self.elevenlabs_voice_id
+            .clone()
             .or_else(|| std::env::var("ELEVENLABS_VOICE_ID").ok())
             .unwrap_or_else(|| "21m00Tcm4TlvDq8ikWAM".to_string()) // Rachel default
     }
@@ -861,216 +894,384 @@ pub struct GatewayConfig {
 fn integration_store_get(category: &str, field: &str) -> Option<String> {
     let store = crate::profile_store::ProfileStore::new().ok()?;
     let key = format!("integration.{}.{}", category, field);
-    store.get_api_key("default", &key).ok().flatten().filter(|v| !v.is_empty())
+    store
+        .get_api_key("default", &key)
+        .ok()
+        .flatten()
+        .filter(|v| !v.is_empty())
 }
 
 #[allow(dead_code)]
 impl GatewayConfig {
-    fn default_max_len() -> usize { 4000 }
+    fn default_max_len() -> usize {
+        4000
+    }
 
     pub fn resolve_telegram_token(&self) -> Option<String> {
-        self.telegram_token.clone().or_else(|| integration_store_get("messaging", "telegram_token")).or_else(|| std::env::var("TELEGRAM_BOT_TOKEN").ok())
+        self.telegram_token
+            .clone()
+            .or_else(|| integration_store_get("messaging", "telegram_token"))
+            .or_else(|| std::env::var("TELEGRAM_BOT_TOKEN").ok())
     }
     pub fn resolve_discord_token(&self) -> Option<String> {
-        self.discord_token.clone().or_else(|| integration_store_get("messaging", "discord_token")).or_else(|| std::env::var("DISCORD_BOT_TOKEN").ok())
+        self.discord_token
+            .clone()
+            .or_else(|| integration_store_get("messaging", "discord_token"))
+            .or_else(|| std::env::var("DISCORD_BOT_TOKEN").ok())
     }
     pub fn resolve_slack_bot_token(&self) -> Option<String> {
-        self.slack_bot_token.clone().or_else(|| integration_store_get("messaging", "slack_bot_token")).or_else(|| std::env::var("SLACK_BOT_TOKEN").ok())
+        self.slack_bot_token
+            .clone()
+            .or_else(|| integration_store_get("messaging", "slack_bot_token"))
+            .or_else(|| std::env::var("SLACK_BOT_TOKEN").ok())
     }
 
     // ── Signal ──
     pub fn resolve_signal_api_url(&self) -> Option<String> {
-        self.signal_api_url.clone().or_else(|| integration_store_get("messaging", "signal_api_url")).or_else(|| std::env::var("SIGNAL_API_URL").ok())
+        self.signal_api_url
+            .clone()
+            .or_else(|| integration_store_get("messaging", "signal_api_url"))
+            .or_else(|| std::env::var("SIGNAL_API_URL").ok())
     }
     pub fn resolve_signal_phone_number(&self) -> Option<String> {
-        self.signal_phone_number.clone().or_else(|| integration_store_get("messaging", "signal_phone_number")).or_else(|| std::env::var("SIGNAL_PHONE_NUMBER").ok())
+        self.signal_phone_number
+            .clone()
+            .or_else(|| integration_store_get("messaging", "signal_phone_number"))
+            .or_else(|| std::env::var("SIGNAL_PHONE_NUMBER").ok())
     }
 
     // ── Matrix ──
     pub fn resolve_matrix_homeserver_url(&self) -> Option<String> {
-        self.matrix_homeserver_url.clone().or_else(|| integration_store_get("messaging", "matrix_homeserver_url")).or_else(|| std::env::var("MATRIX_HOMESERVER_URL").ok())
+        self.matrix_homeserver_url
+            .clone()
+            .or_else(|| integration_store_get("messaging", "matrix_homeserver_url"))
+            .or_else(|| std::env::var("MATRIX_HOMESERVER_URL").ok())
     }
     pub fn resolve_matrix_access_token(&self) -> Option<String> {
-        self.matrix_access_token.clone().or_else(|| integration_store_get("messaging", "matrix_access_token")).or_else(|| std::env::var("MATRIX_ACCESS_TOKEN").ok())
+        self.matrix_access_token
+            .clone()
+            .or_else(|| integration_store_get("messaging", "matrix_access_token"))
+            .or_else(|| std::env::var("MATRIX_ACCESS_TOKEN").ok())
     }
     pub fn resolve_matrix_room_id(&self) -> Option<String> {
-        self.matrix_room_id.clone().or_else(|| integration_store_get("messaging", "matrix_room_id")).or_else(|| std::env::var("MATRIX_ROOM_ID").ok())
+        self.matrix_room_id
+            .clone()
+            .or_else(|| integration_store_get("messaging", "matrix_room_id"))
+            .or_else(|| std::env::var("MATRIX_ROOM_ID").ok())
     }
     pub fn resolve_matrix_user_id(&self) -> Option<String> {
-        self.matrix_user_id.clone().or_else(|| integration_store_get("messaging", "matrix_user_id")).or_else(|| std::env::var("MATRIX_USER_ID").ok())
+        self.matrix_user_id
+            .clone()
+            .or_else(|| integration_store_get("messaging", "matrix_user_id"))
+            .or_else(|| std::env::var("MATRIX_USER_ID").ok())
     }
 
     // ── Twilio SMS ──
     pub fn resolve_twilio_account_sid(&self) -> Option<String> {
-        self.twilio_account_sid.clone().or_else(|| integration_store_get("messaging", "twilio_account_sid")).or_else(|| std::env::var("TWILIO_ACCOUNT_SID").ok())
+        self.twilio_account_sid
+            .clone()
+            .or_else(|| integration_store_get("messaging", "twilio_account_sid"))
+            .or_else(|| std::env::var("TWILIO_ACCOUNT_SID").ok())
     }
     pub fn resolve_twilio_auth_token(&self) -> Option<String> {
-        self.twilio_auth_token.clone().or_else(|| integration_store_get("messaging", "twilio_auth_token")).or_else(|| std::env::var("TWILIO_AUTH_TOKEN").ok())
+        self.twilio_auth_token
+            .clone()
+            .or_else(|| integration_store_get("messaging", "twilio_auth_token"))
+            .or_else(|| std::env::var("TWILIO_AUTH_TOKEN").ok())
     }
     pub fn resolve_twilio_from_number(&self) -> Option<String> {
-        self.twilio_from_number.clone().or_else(|| integration_store_get("messaging", "twilio_from_number")).or_else(|| std::env::var("TWILIO_FROM_NUMBER").ok())
+        self.twilio_from_number
+            .clone()
+            .or_else(|| integration_store_get("messaging", "twilio_from_number"))
+            .or_else(|| std::env::var("TWILIO_FROM_NUMBER").ok())
     }
 
     // ── WhatsApp ──
     pub fn resolve_whatsapp_access_token(&self) -> Option<String> {
-        self.whatsapp_access_token.clone().or_else(|| integration_store_get("messaging", "whatsapp_access_token")).or_else(|| std::env::var("WHATSAPP_ACCESS_TOKEN").ok())
+        self.whatsapp_access_token
+            .clone()
+            .or_else(|| integration_store_get("messaging", "whatsapp_access_token"))
+            .or_else(|| std::env::var("WHATSAPP_ACCESS_TOKEN").ok())
     }
     pub fn resolve_whatsapp_phone_number_id(&self) -> Option<String> {
-        self.whatsapp_phone_number_id.clone().or_else(|| integration_store_get("messaging", "whatsapp_phone_number_id")).or_else(|| std::env::var("WHATSAPP_PHONE_NUMBER_ID").ok())
+        self.whatsapp_phone_number_id
+            .clone()
+            .or_else(|| integration_store_get("messaging", "whatsapp_phone_number_id"))
+            .or_else(|| std::env::var("WHATSAPP_PHONE_NUMBER_ID").ok())
     }
     pub fn resolve_whatsapp_verify_token(&self) -> Option<String> {
-        self.whatsapp_verify_token.clone().or_else(|| integration_store_get("messaging", "whatsapp_verify_token")).or_else(|| std::env::var("WHATSAPP_VERIFY_TOKEN").ok())
+        self.whatsapp_verify_token
+            .clone()
+            .or_else(|| integration_store_get("messaging", "whatsapp_verify_token"))
+            .or_else(|| std::env::var("WHATSAPP_VERIFY_TOKEN").ok())
     }
 
     // ── iMessage ──
     pub fn resolve_imessage_db_path(&self) -> Option<String> {
-        self.imessage_db_path.clone().or_else(|| integration_store_get("messaging", "imessage_db_path")).or_else(|| std::env::var("IMESSAGE_DB_PATH").ok())
+        self.imessage_db_path
+            .clone()
+            .or_else(|| integration_store_get("messaging", "imessage_db_path"))
+            .or_else(|| std::env::var("IMESSAGE_DB_PATH").ok())
     }
 
     // ── Teams ──
     pub fn resolve_teams_tenant_id(&self) -> Option<String> {
-        self.teams_tenant_id.clone().or_else(|| integration_store_get("messaging", "teams_tenant_id")).or_else(|| std::env::var("TEAMS_TENANT_ID").ok())
+        self.teams_tenant_id
+            .clone()
+            .or_else(|| integration_store_get("messaging", "teams_tenant_id"))
+            .or_else(|| std::env::var("TEAMS_TENANT_ID").ok())
     }
     pub fn resolve_teams_client_id(&self) -> Option<String> {
-        self.teams_client_id.clone().or_else(|| integration_store_get("messaging", "teams_client_id")).or_else(|| std::env::var("TEAMS_CLIENT_ID").ok())
+        self.teams_client_id
+            .clone()
+            .or_else(|| integration_store_get("messaging", "teams_client_id"))
+            .or_else(|| std::env::var("TEAMS_CLIENT_ID").ok())
     }
     pub fn resolve_teams_client_secret(&self) -> Option<String> {
-        self.teams_client_secret.clone().or_else(|| integration_store_get("messaging", "teams_client_secret")).or_else(|| std::env::var("TEAMS_CLIENT_SECRET").ok())
+        self.teams_client_secret
+            .clone()
+            .or_else(|| integration_store_get("messaging", "teams_client_secret"))
+            .or_else(|| std::env::var("TEAMS_CLIENT_SECRET").ok())
     }
 
     // ── Google Chat ──
     pub fn resolve_googlechat_service_account_json(&self) -> Option<String> {
-        self.googlechat_service_account_json.clone().or_else(|| integration_store_get("messaging", "googlechat_service_account_json")).or_else(|| std::env::var("GOOGLE_CHAT_SERVICE_ACCOUNT_JSON").ok())
+        self.googlechat_service_account_json
+            .clone()
+            .or_else(|| integration_store_get("messaging", "googlechat_service_account_json"))
+            .or_else(|| std::env::var("GOOGLE_CHAT_SERVICE_ACCOUNT_JSON").ok())
     }
     pub fn resolve_googlechat_space_id(&self) -> Option<String> {
-        self.googlechat_space_id.clone().or_else(|| integration_store_get("messaging", "googlechat_space_id")).or_else(|| std::env::var("GOOGLE_CHAT_SPACE_ID").ok())
+        self.googlechat_space_id
+            .clone()
+            .or_else(|| integration_store_get("messaging", "googlechat_space_id"))
+            .or_else(|| std::env::var("GOOGLE_CHAT_SPACE_ID").ok())
     }
 
     // ── Mattermost ──
     pub fn resolve_mattermost_url(&self) -> Option<String> {
-        self.mattermost_url.clone().or_else(|| integration_store_get("messaging", "mattermost_url")).or_else(|| std::env::var("MATTERMOST_URL").ok())
+        self.mattermost_url
+            .clone()
+            .or_else(|| integration_store_get("messaging", "mattermost_url"))
+            .or_else(|| std::env::var("MATTERMOST_URL").ok())
     }
     pub fn resolve_mattermost_token(&self) -> Option<String> {
-        self.mattermost_token.clone().or_else(|| integration_store_get("messaging", "mattermost_token")).or_else(|| std::env::var("MATTERMOST_TOKEN").ok())
+        self.mattermost_token
+            .clone()
+            .or_else(|| integration_store_get("messaging", "mattermost_token"))
+            .or_else(|| std::env::var("MATTERMOST_TOKEN").ok())
     }
     pub fn resolve_mattermost_channel_id(&self) -> Option<String> {
-        self.mattermost_channel_id.clone().or_else(|| integration_store_get("messaging", "mattermost_channel_id")).or_else(|| std::env::var("MATTERMOST_CHANNEL_ID").ok())
+        self.mattermost_channel_id
+            .clone()
+            .or_else(|| integration_store_get("messaging", "mattermost_channel_id"))
+            .or_else(|| std::env::var("MATTERMOST_CHANNEL_ID").ok())
     }
 
     // ── IRC ──
     pub fn resolve_irc_server(&self) -> Option<String> {
-        self.irc_server.clone().or_else(|| integration_store_get("messaging", "irc_server")).or_else(|| std::env::var("IRC_SERVER").ok())
+        self.irc_server
+            .clone()
+            .or_else(|| integration_store_get("messaging", "irc_server"))
+            .or_else(|| std::env::var("IRC_SERVER").ok())
     }
     pub fn resolve_irc_nick(&self) -> Option<String> {
-        self.irc_nick.clone().or_else(|| integration_store_get("messaging", "irc_nick")).or_else(|| std::env::var("IRC_NICK").ok())
+        self.irc_nick
+            .clone()
+            .or_else(|| integration_store_get("messaging", "irc_nick"))
+            .or_else(|| std::env::var("IRC_NICK").ok())
     }
     pub fn resolve_irc_channel(&self) -> Option<String> {
-        self.irc_channel.clone().or_else(|| integration_store_get("messaging", "irc_channel")).or_else(|| std::env::var("IRC_CHANNEL").ok())
+        self.irc_channel
+            .clone()
+            .or_else(|| integration_store_get("messaging", "irc_channel"))
+            .or_else(|| std::env::var("IRC_CHANNEL").ok())
     }
 
     // ── LINE ──
     pub fn resolve_line_channel_access_token(&self) -> Option<String> {
-        self.line_channel_access_token.clone().or_else(|| integration_store_get("messaging", "line_channel_access_token")).or_else(|| std::env::var("LINE_CHANNEL_ACCESS_TOKEN").ok())
+        self.line_channel_access_token
+            .clone()
+            .or_else(|| integration_store_get("messaging", "line_channel_access_token"))
+            .or_else(|| std::env::var("LINE_CHANNEL_ACCESS_TOKEN").ok())
     }
     pub fn resolve_line_channel_secret(&self) -> Option<String> {
-        self.line_channel_secret.clone().or_else(|| integration_store_get("messaging", "line_channel_secret")).or_else(|| std::env::var("LINE_CHANNEL_SECRET").ok())
+        self.line_channel_secret
+            .clone()
+            .or_else(|| integration_store_get("messaging", "line_channel_secret"))
+            .or_else(|| std::env::var("LINE_CHANNEL_SECRET").ok())
     }
 
     // ── Twitch ──
     pub fn resolve_twitch_oauth_token(&self) -> Option<String> {
-        self.twitch_oauth_token.clone().or_else(|| integration_store_get("messaging", "twitch_oauth_token")).or_else(|| std::env::var("TWITCH_OAUTH_TOKEN").ok())
+        self.twitch_oauth_token
+            .clone()
+            .or_else(|| integration_store_get("messaging", "twitch_oauth_token"))
+            .or_else(|| std::env::var("TWITCH_OAUTH_TOKEN").ok())
     }
     pub fn resolve_twitch_channel(&self) -> Option<String> {
-        self.twitch_channel.clone().or_else(|| integration_store_get("messaging", "twitch_channel")).or_else(|| std::env::var("TWITCH_CHANNEL").ok())
+        self.twitch_channel
+            .clone()
+            .or_else(|| integration_store_get("messaging", "twitch_channel"))
+            .or_else(|| std::env::var("TWITCH_CHANNEL").ok())
     }
     pub fn resolve_twitch_nick(&self) -> Option<String> {
-        self.twitch_nick.clone().or_else(|| integration_store_get("messaging", "twitch_nick")).or_else(|| std::env::var("TWITCH_NICK").ok())
+        self.twitch_nick
+            .clone()
+            .or_else(|| integration_store_get("messaging", "twitch_nick"))
+            .or_else(|| std::env::var("TWITCH_NICK").ok())
     }
 
     // ── Nextcloud Talk ──
     pub fn resolve_nextcloud_url(&self) -> Option<String> {
-        self.nextcloud_url.clone().or_else(|| integration_store_get("messaging", "nextcloud_url")).or_else(|| std::env::var("NEXTCLOUD_URL").ok())
+        self.nextcloud_url
+            .clone()
+            .or_else(|| integration_store_get("messaging", "nextcloud_url"))
+            .or_else(|| std::env::var("NEXTCLOUD_URL").ok())
     }
     pub fn resolve_nextcloud_user(&self) -> Option<String> {
-        self.nextcloud_user.clone().or_else(|| integration_store_get("messaging", "nextcloud_user")).or_else(|| std::env::var("NEXTCLOUD_USER").ok())
+        self.nextcloud_user
+            .clone()
+            .or_else(|| integration_store_get("messaging", "nextcloud_user"))
+            .or_else(|| std::env::var("NEXTCLOUD_USER").ok())
     }
     pub fn resolve_nextcloud_password(&self) -> Option<String> {
-        self.nextcloud_password.clone().or_else(|| integration_store_get("messaging", "nextcloud_password")).or_else(|| std::env::var("NEXTCLOUD_PASSWORD").ok())
+        self.nextcloud_password
+            .clone()
+            .or_else(|| integration_store_get("messaging", "nextcloud_password"))
+            .or_else(|| std::env::var("NEXTCLOUD_PASSWORD").ok())
     }
     pub fn resolve_nextcloud_room_token(&self) -> Option<String> {
-        self.nextcloud_room_token.clone().or_else(|| integration_store_get("messaging", "nextcloud_room_token")).or_else(|| std::env::var("NEXTCLOUD_ROOM_TOKEN").ok())
+        self.nextcloud_room_token
+            .clone()
+            .or_else(|| integration_store_get("messaging", "nextcloud_room_token"))
+            .or_else(|| std::env::var("NEXTCLOUD_ROOM_TOKEN").ok())
     }
 
     // ── Nostr ──
     pub fn resolve_nostr_private_key(&self) -> Option<String> {
-        self.nostr_private_key.clone().or_else(|| integration_store_get("messaging", "nostr_private_key")).or_else(|| std::env::var("NOSTR_PRIVATE_KEY").ok())
+        self.nostr_private_key
+            .clone()
+            .or_else(|| integration_store_get("messaging", "nostr_private_key"))
+            .or_else(|| std::env::var("NOSTR_PRIVATE_KEY").ok())
     }
 
     // ── Feishu (Lark) ──
     pub fn resolve_feishu_app_id(&self) -> Option<String> {
-        self.feishu_app_id.clone().or_else(|| integration_store_get("messaging", "feishu_app_id")).or_else(|| std::env::var("FEISHU_APP_ID").ok())
+        self.feishu_app_id
+            .clone()
+            .or_else(|| integration_store_get("messaging", "feishu_app_id"))
+            .or_else(|| std::env::var("FEISHU_APP_ID").ok())
     }
     pub fn resolve_feishu_app_secret(&self) -> Option<String> {
-        self.feishu_app_secret.clone().or_else(|| integration_store_get("messaging", "feishu_app_secret")).or_else(|| std::env::var("FEISHU_APP_SECRET").ok())
+        self.feishu_app_secret
+            .clone()
+            .or_else(|| integration_store_get("messaging", "feishu_app_secret"))
+            .or_else(|| std::env::var("FEISHU_APP_SECRET").ok())
     }
 
     // ── DingTalk ──
     pub fn resolve_dingtalk_access_token(&self) -> Option<String> {
-        self.dingtalk_access_token.clone().or_else(|| integration_store_get("messaging", "dingtalk_access_token")).or_else(|| std::env::var("DINGTALK_ACCESS_TOKEN").ok())
+        self.dingtalk_access_token
+            .clone()
+            .or_else(|| integration_store_get("messaging", "dingtalk_access_token"))
+            .or_else(|| std::env::var("DINGTALK_ACCESS_TOKEN").ok())
     }
     pub fn resolve_dingtalk_webhook_secret(&self) -> Option<String> {
-        self.dingtalk_webhook_secret.clone().or_else(|| integration_store_get("messaging", "dingtalk_webhook_secret")).or_else(|| std::env::var("DINGTALK_WEBHOOK_SECRET").ok())
+        self.dingtalk_webhook_secret
+            .clone()
+            .or_else(|| integration_store_get("messaging", "dingtalk_webhook_secret"))
+            .or_else(|| std::env::var("DINGTALK_WEBHOOK_SECRET").ok())
     }
 
     // ── QQ ──
     pub fn resolve_qq_app_id(&self) -> Option<String> {
-        self.qq_app_id.clone().or_else(|| integration_store_get("messaging", "qq_app_id")).or_else(|| std::env::var("QQ_APP_ID").ok())
+        self.qq_app_id
+            .clone()
+            .or_else(|| integration_store_get("messaging", "qq_app_id"))
+            .or_else(|| std::env::var("QQ_APP_ID").ok())
     }
     pub fn resolve_qq_token(&self) -> Option<String> {
-        self.qq_token.clone().or_else(|| integration_store_get("messaging", "qq_token")).or_else(|| std::env::var("QQ_TOKEN").ok())
+        self.qq_token
+            .clone()
+            .or_else(|| integration_store_get("messaging", "qq_token"))
+            .or_else(|| std::env::var("QQ_TOKEN").ok())
     }
 
     // ── WeCom ──
     pub fn resolve_wecom_corp_id(&self) -> Option<String> {
-        self.wecom_corp_id.clone().or_else(|| integration_store_get("messaging", "wecom_corp_id")).or_else(|| std::env::var("WECOM_CORP_ID").ok())
+        self.wecom_corp_id
+            .clone()
+            .or_else(|| integration_store_get("messaging", "wecom_corp_id"))
+            .or_else(|| std::env::var("WECOM_CORP_ID").ok())
     }
     pub fn resolve_wecom_agent_id(&self) -> Option<String> {
-        self.wecom_agent_id.clone().or_else(|| integration_store_get("messaging", "wecom_agent_id")).or_else(|| std::env::var("WECOM_AGENT_ID").ok())
+        self.wecom_agent_id
+            .clone()
+            .or_else(|| integration_store_get("messaging", "wecom_agent_id"))
+            .or_else(|| std::env::var("WECOM_AGENT_ID").ok())
     }
     pub fn resolve_wecom_secret(&self) -> Option<String> {
-        self.wecom_secret.clone().or_else(|| integration_store_get("messaging", "wecom_secret")).or_else(|| std::env::var("WECOM_SECRET").ok())
+        self.wecom_secret
+            .clone()
+            .or_else(|| integration_store_get("messaging", "wecom_secret"))
+            .or_else(|| std::env::var("WECOM_SECRET").ok())
     }
 
     // ── Zalo ──
     pub fn resolve_zalo_access_token(&self) -> Option<String> {
-        self.zalo_access_token.clone().or_else(|| integration_store_get("messaging", "zalo_access_token")).or_else(|| std::env::var("ZALO_ACCESS_TOKEN").ok())
+        self.zalo_access_token
+            .clone()
+            .or_else(|| integration_store_get("messaging", "zalo_access_token"))
+            .or_else(|| std::env::var("ZALO_ACCESS_TOKEN").ok())
     }
 
     // ── BlueBubbles ──
     pub fn resolve_bluebubbles_url(&self) -> Option<String> {
-        self.bluebubbles_url.clone().or_else(|| integration_store_get("messaging", "bluebubbles_url")).or_else(|| std::env::var("BLUEBUBBLES_URL").ok())
+        self.bluebubbles_url
+            .clone()
+            .or_else(|| integration_store_get("messaging", "bluebubbles_url"))
+            .or_else(|| std::env::var("BLUEBUBBLES_URL").ok())
     }
     pub fn resolve_bluebubbles_password(&self) -> Option<String> {
-        self.bluebubbles_password.clone().or_else(|| integration_store_get("messaging", "bluebubbles_password")).or_else(|| std::env::var("BLUEBUBBLES_PASSWORD").ok())
+        self.bluebubbles_password
+            .clone()
+            .or_else(|| integration_store_get("messaging", "bluebubbles_password"))
+            .or_else(|| std::env::var("BLUEBUBBLES_PASSWORD").ok())
     }
 
     // ── Synology Chat ──
     pub fn resolve_synology_url(&self) -> Option<String> {
-        self.synology_url.clone().or_else(|| integration_store_get("messaging", "synology_url")).or_else(|| std::env::var("SYNOLOGY_URL").ok())
+        self.synology_url
+            .clone()
+            .or_else(|| integration_store_get("messaging", "synology_url"))
+            .or_else(|| std::env::var("SYNOLOGY_URL").ok())
     }
     pub fn resolve_synology_incoming_url(&self) -> Option<String> {
-        self.synology_incoming_url.clone().or_else(|| integration_store_get("messaging", "synology_incoming_url")).or_else(|| std::env::var("SYNOLOGY_INCOMING_URL").ok())
+        self.synology_incoming_url
+            .clone()
+            .or_else(|| integration_store_get("messaging", "synology_incoming_url"))
+            .or_else(|| std::env::var("SYNOLOGY_INCOMING_URL").ok())
     }
     pub fn resolve_synology_token(&self) -> Option<String> {
-        self.synology_token.clone().or_else(|| integration_store_get("messaging", "synology_token")).or_else(|| std::env::var("SYNOLOGY_TOKEN").ok())
+        self.synology_token
+            .clone()
+            .or_else(|| integration_store_get("messaging", "synology_token"))
+            .or_else(|| std::env::var("SYNOLOGY_TOKEN").ok())
     }
 
     // ── Tlon (Urbit) ──
     pub fn resolve_tlon_ship_url(&self) -> Option<String> {
-        self.tlon_ship_url.clone().or_else(|| integration_store_get("messaging", "tlon_ship_url")).or_else(|| std::env::var("TLON_SHIP_URL").ok())
+        self.tlon_ship_url
+            .clone()
+            .or_else(|| integration_store_get("messaging", "tlon_ship_url"))
+            .or_else(|| std::env::var("TLON_SHIP_URL").ok())
     }
     pub fn resolve_tlon_ship_code(&self) -> Option<String> {
-        self.tlon_ship_code.clone().or_else(|| integration_store_get("messaging", "tlon_ship_code")).or_else(|| std::env::var("TLON_SHIP_CODE").ok())
+        self.tlon_ship_code
+            .clone()
+            .or_else(|| integration_store_get("messaging", "tlon_ship_code"))
+            .or_else(|| std::env::var("TLON_SHIP_CODE").ok())
     }
 }
 
@@ -1089,18 +1290,34 @@ pub struct RoutingConfig {
 
 impl RoutingConfig {
     /// Effective planning provider: routing config → fallback.
-    pub fn resolve_planning(&self, fallback_provider: &str, fallback_model: &str) -> (String, String) {
+    pub fn resolve_planning(
+        &self,
+        fallback_provider: &str,
+        fallback_model: &str,
+    ) -> (String, String) {
         (
-            self.planning_provider.clone().unwrap_or_else(|| fallback_provider.to_string()),
-            self.planning_model.clone().unwrap_or_else(|| fallback_model.to_string()),
+            self.planning_provider
+                .clone()
+                .unwrap_or_else(|| fallback_provider.to_string()),
+            self.planning_model
+                .clone()
+                .unwrap_or_else(|| fallback_model.to_string()),
         )
     }
 
     /// Effective execution provider: routing config → fallback.
-    pub fn resolve_execution(&self, fallback_provider: &str, fallback_model: &str) -> (String, String) {
+    pub fn resolve_execution(
+        &self,
+        fallback_provider: &str,
+        fallback_model: &str,
+    ) -> (String, String) {
         (
-            self.execution_provider.clone().unwrap_or_else(|| fallback_provider.to_string()),
-            self.execution_model.clone().unwrap_or_else(|| fallback_model.to_string()),
+            self.execution_provider
+                .clone()
+                .unwrap_or_else(|| fallback_provider.to_string()),
+            self.execution_model
+                .clone()
+                .unwrap_or_else(|| fallback_model.to_string()),
         )
     }
 
@@ -1140,9 +1357,15 @@ pub struct IndexConfig {
 }
 
 impl IndexConfig {
-    fn default_provider() -> String { "ollama".to_string() }
-    fn default_model() -> String { "nomic-embed-text".to_string() }
-    fn default_max_file_size_kb() -> u64 { 500 }
+    fn default_provider() -> String {
+        "ollama".to_string()
+    }
+    fn default_model() -> String {
+        "nomic-embed-text".to_string()
+    }
+    fn default_max_file_size_kb() -> u64 {
+        500
+    }
 }
 
 impl Default for IndexConfig {
@@ -1192,11 +1415,17 @@ pub struct WebSearchConfig {
 impl WebSearchConfig {
     /// Resolve Tavily API key: config field first, then TAVILY_API_KEY env var.
     pub fn resolve_tavily_key(&self) -> Option<String> {
-        self.tavily_api_key.clone().or_else(|| integration_store_get("search", "tavily_api_key")).or_else(|| std::env::var("TAVILY_API_KEY").ok())
+        self.tavily_api_key
+            .clone()
+            .or_else(|| integration_store_get("search", "tavily_api_key"))
+            .or_else(|| std::env::var("TAVILY_API_KEY").ok())
     }
     /// Resolve Brave API key: config field first, then BRAVE_API_KEY env var.
     pub fn resolve_brave_key(&self) -> Option<String> {
-        self.brave_api_key.clone().or_else(|| integration_store_get("search", "brave_api_key")).or_else(|| std::env::var("BRAVE_API_KEY").ok())
+        self.brave_api_key
+            .clone()
+            .or_else(|| integration_store_get("search", "brave_api_key"))
+            .or_else(|| std::env::var("BRAVE_API_KEY").ok())
     }
 }
 
@@ -1234,8 +1463,12 @@ pub struct OtelConfig {
 }
 
 impl OtelConfig {
-    fn default_endpoint() -> String { "http://localhost:4318".to_string() }
-    fn default_service_name() -> String { "vibecli".to_string() }
+    fn default_endpoint() -> String {
+        "http://localhost:4318".to_string()
+    }
+    fn default_service_name() -> String {
+        "vibecli".to_string()
+    }
 }
 
 impl Default for OtelConfig {
@@ -1248,9 +1481,15 @@ impl Default for OtelConfig {
     }
 }
 
-fn default_true() -> bool { true }
-fn default_engine() -> String { "duckduckgo".to_string() }
-fn default_max_results() -> usize { 5 }
+fn default_true() -> bool {
+    true
+}
+fn default_engine() -> String {
+    "duckduckgo".to_string()
+}
+fn default_max_results() -> usize {
+    5
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UiConfig {
@@ -1312,7 +1551,9 @@ pub struct ShellEnvironmentConfig {
 }
 
 impl ShellEnvironmentConfig {
-    fn default_inherit() -> String { "all".to_string() }
+    fn default_inherit() -> String {
+        "all".to_string()
+    }
 
     /// Convert to the ToolExecutor's ShellEnvPolicy.
     pub fn to_policy(&self) -> crate::tool_executor::ShellEnvPolicy {
@@ -1379,11 +1620,17 @@ pub struct MemoryConfig {
     pub openmemory: OpenMemoryConfig,
 }
 
-fn default_min_steps() -> usize { 3 }
+fn default_min_steps() -> usize {
+    3
+}
 
 impl Default for MemoryConfig {
     fn default() -> Self {
-        Self { auto_record: false, min_session_steps: 3, openmemory: OpenMemoryConfig::default() }
+        Self {
+            auto_record: false,
+            min_session_steps: 3,
+            openmemory: OpenMemoryConfig::default(),
+        }
     }
 }
 
@@ -1424,10 +1671,18 @@ pub struct OpenMemoryConfig {
     pub encryption_passphrase: String,
 }
 
-fn om_default_true() -> bool { true }
-fn default_reflect_interval() -> usize { 10 }
-fn default_dedup_threshold() -> f64 { 0.8 }
-fn default_max_context() -> usize { 8 }
+fn om_default_true() -> bool {
+    true
+}
+fn default_reflect_interval() -> usize {
+    10
+}
+fn default_dedup_threshold() -> f64 {
+    0.8
+}
+fn default_max_context() -> usize {
+    8
+}
 
 impl Default for OpenMemoryConfig {
     fn default() -> Self {
@@ -1493,8 +1748,12 @@ pub struct BedrockConfig {
 }
 
 impl BedrockConfig {
-    fn default_region() -> String { "us-east-1".to_string() }
-    fn default_model() -> String { "anthropic.claude-3-5-sonnet-20241022-v2:0".to_string() }
+    fn default_region() -> String {
+        "us-east-1".to_string()
+    }
+    fn default_model() -> String {
+        "anthropic.claude-3-5-sonnet-20241022-v2:0".to_string()
+    }
 }
 
 impl Default for BedrockConfig {
@@ -1528,7 +1787,9 @@ pub struct CopilotConfig {
 }
 
 impl CopilotConfig {
-    fn default_model() -> String { "gpt-4o".to_string() }
+    fn default_model() -> String {
+        "gpt-4o".to_string()
+    }
 
     /// Resolve the Copilot token from ProfileStore → env → hosts.json → config field.
     ///
@@ -1542,7 +1803,9 @@ impl CopilotConfig {
         // 0. ProfileStore (encrypted SQLite)
         if let Ok(store) = crate::profile_store::ProfileStore::new() {
             if let Ok(Some(t)) = store.get_api_key("default", "copilot") {
-                if !t.is_empty() { return Some(t); }
+                if !t.is_empty() {
+                    return Some(t);
+                }
             }
         }
         // 1. Environment variable
@@ -1550,8 +1813,12 @@ impl CopilotConfig {
             return Some(t);
         }
         // 2. VS Code Copilot hosts.json
-        let hosts_path = std::env::var("HOME").ok()
-            .map(|h| std::path::PathBuf::from(h).join(".config").join("github-copilot").join("hosts.json"));
+        let hosts_path = std::env::var("HOME").ok().map(|h| {
+            std::path::PathBuf::from(h)
+                .join(".config")
+                .join("github-copilot")
+                .join("hosts.json")
+        });
         if let Some(path) = hosts_path {
             if let Ok(raw) = std::fs::read_to_string(&path) {
                 // hosts.json structure: { "github.com": { "oauth_token": "..." } }
@@ -1596,18 +1863,32 @@ impl Config {
     /// Called automatically by `load()`. ProfileStore takes precedence over TOML.
     /// Silently ignores any store errors (store unavailable ⇒ TOML-only mode).
     pub fn overlay_from_store(&mut self) {
-        let Ok(store) = crate::profile_store::ProfileStore::new() else { return };
+        let Ok(store) = crate::profile_store::ProfileStore::new() else {
+            return;
+        };
 
         // ── Helper closures ────────────────────────────────────────────────────
         let get_key = |p: &str| -> Option<String> {
-            store.get_api_key("default", p).ok().flatten().filter(|v| !v.is_empty())
+            store
+                .get_api_key("default", p)
+                .ok()
+                .flatten()
+                .filter(|v| !v.is_empty())
         };
         let get_cfg = |p: &str, k: &str| -> Option<String> {
-            store.get_provider_config("default", p, k).ok().flatten().filter(|v| !v.is_empty())
+            store
+                .get_provider_config("default", p, k)
+                .ok()
+                .flatten()
+                .filter(|v| !v.is_empty())
         };
         let get_int = |cat: &str, field: &str| -> Option<String> {
             let key = format!("integration.{}.{}", cat, field);
-            store.get_api_key("default", &key).ok().flatten().filter(|v| !v.is_empty())
+            store
+                .get_api_key("default", &key)
+                .ok()
+                .flatten()
+                .filter(|v| !v.is_empty())
         };
 
         // ── AI provider API keys + model + api_url ─────────────────────────────
@@ -1615,39 +1896,45 @@ impl Config {
         macro_rules! overlay {
             ($field:expr, $store_name:expr) => {{
                 let api_key = get_key($store_name);
-                let model   = get_cfg($store_name, "model");
+                let model = get_cfg($store_name, "model");
                 let api_url = get_cfg($store_name, "api_url");
                 if api_key.is_some() || model.is_some() || api_url.is_some() {
                     let pc = $field.get_or_insert_with(ProviderConfig::default);
-                    if let Some(v) = api_key { pc.api_key = Some(v); }
-                    if let Some(v) = model   { pc.model   = Some(v); }
-                    if let Some(v) = api_url { pc.api_url = Some(v); }
+                    if let Some(v) = api_key {
+                        pc.api_key = Some(v);
+                    }
+                    if let Some(v) = model {
+                        pc.model = Some(v);
+                    }
+                    if let Some(v) = api_url {
+                        pc.api_url = Some(v);
+                    }
                 }
             }};
         }
 
-        overlay!(self.claude,      "anthropic");
-        overlay!(self.openai,      "openai");
-        overlay!(self.gemini,      "gemini");
-        overlay!(self.grok,        "grok");
-        overlay!(self.groq,        "groq");
-        overlay!(self.openrouter,  "openrouter");
-        overlay!(self.azure_openai,"azure_openai");
-        overlay!(self.mistral,     "mistral");
-        overlay!(self.cerebras,    "cerebras");
-        overlay!(self.deepseek,    "deepseek");
-        overlay!(self.zhipu,       "zhipu");
-        overlay!(self.vercel_ai,   "vercel_ai");
-        overlay!(self.minimax,     "minimax");
-        overlay!(self.perplexity,  "perplexity");
-        overlay!(self.together,    "together");
-        overlay!(self.fireworks,   "fireworks");
-        overlay!(self.sambanova,   "sambanova");
-        overlay!(self.ollama,      "ollama");
+        overlay!(self.claude, "anthropic");
+        overlay!(self.openai, "openai");
+        overlay!(self.gemini, "gemini");
+        overlay!(self.grok, "grok");
+        overlay!(self.groq, "groq");
+        overlay!(self.openrouter, "openrouter");
+        overlay!(self.azure_openai, "azure_openai");
+        overlay!(self.mistral, "mistral");
+        overlay!(self.cerebras, "cerebras");
+        overlay!(self.deepseek, "deepseek");
+        overlay!(self.zhipu, "zhipu");
+        overlay!(self.vercel_ai, "vercel_ai");
+        overlay!(self.minimax, "minimax");
+        overlay!(self.perplexity, "perplexity");
+        overlay!(self.together, "together");
+        overlay!(self.fireworks, "fireworks");
+        overlay!(self.sambanova, "sambanova");
+        overlay!(self.ollama, "ollama");
 
         // ── Email ──────────────────────────────────────────────────────────────
         {
-            let gmail_token   = get_int("email", "gmail_access_token");
+            let gmail_token = get_int("email", "gmail_access_token");
             let outlook_token = get_int("email", "outlook_access_token");
             // OAuth refresh credentials. Loaded alongside the access token
             // so EmailClient can mint a fresh one on 401 instead of
@@ -1658,63 +1945,110 @@ impl Config {
             let outlook_refresh = get_int("email", "outlook_refresh_token");
             let outlook_oauth_id = get_int("email", "outlook_oauth_client_id");
             let outlook_oauth_secret = get_int("email", "outlook_oauth_client_secret");
-            let any_email_int = gmail_token.is_some() || outlook_token.is_some()
-                || gmail_refresh.is_some() || gmail_oauth_id.is_some() || gmail_oauth_secret.is_some()
-                || outlook_refresh.is_some() || outlook_oauth_id.is_some() || outlook_oauth_secret.is_some();
+            let any_email_int = gmail_token.is_some()
+                || outlook_token.is_some()
+                || gmail_refresh.is_some()
+                || gmail_oauth_id.is_some()
+                || gmail_oauth_secret.is_some()
+                || outlook_refresh.is_some()
+                || outlook_oauth_id.is_some()
+                || outlook_oauth_secret.is_some();
             if any_email_int {
                 let ec = self.email.get_or_insert_with(EmailConfig::default);
-                if let Some(v) = gmail_token          { ec.gmail_access_token         = Some(v); }
-                if let Some(v) = outlook_token        { ec.outlook_access_token       = Some(v); }
-                if let Some(v) = gmail_refresh        { ec.gmail_refresh_token        = Some(v); }
-                if let Some(v) = gmail_oauth_id       { ec.gmail_oauth_client_id      = Some(v); }
-                if let Some(v) = gmail_oauth_secret   { ec.gmail_oauth_client_secret  = Some(v); }
-                if let Some(v) = outlook_refresh      { ec.outlook_refresh_token      = Some(v); }
-                if let Some(v) = outlook_oauth_id     { ec.outlook_oauth_client_id    = Some(v); }
-                if let Some(v) = outlook_oauth_secret { ec.outlook_oauth_client_secret = Some(v); }
+                if let Some(v) = gmail_token {
+                    ec.gmail_access_token = Some(v);
+                }
+                if let Some(v) = outlook_token {
+                    ec.outlook_access_token = Some(v);
+                }
+                if let Some(v) = gmail_refresh {
+                    ec.gmail_refresh_token = Some(v);
+                }
+                if let Some(v) = gmail_oauth_id {
+                    ec.gmail_oauth_client_id = Some(v);
+                }
+                if let Some(v) = gmail_oauth_secret {
+                    ec.gmail_oauth_client_secret = Some(v);
+                }
+                if let Some(v) = outlook_refresh {
+                    ec.outlook_refresh_token = Some(v);
+                }
+                if let Some(v) = outlook_oauth_id {
+                    ec.outlook_oauth_client_id = Some(v);
+                }
+                if let Some(v) = outlook_oauth_secret {
+                    ec.outlook_oauth_client_secret = Some(v);
+                }
             }
         }
 
         // ── Calendar ───────────────────────────────────────────────────────────
         {
-            let google_token  = get_int("calendar", "google_access_token");
+            let google_token = get_int("calendar", "google_access_token");
             let outlook_token = get_int("calendar", "outlook_access_token");
             if google_token.is_some() || outlook_token.is_some() {
                 let cc = self.calendar.get_or_insert_with(CalendarConfig::default);
-                if let Some(v) = google_token  { cc.google_access_token  = Some(v); }
-                if let Some(v) = outlook_token { cc.outlook_access_token = Some(v); }
+                if let Some(v) = google_token {
+                    cc.google_access_token = Some(v);
+                }
+                if let Some(v) = outlook_token {
+                    cc.outlook_access_token = Some(v);
+                }
             }
         }
 
         // ── Project tools ──────────────────────────────────────────────────────
-        if let Some(v) = get_int("projecttools", "linear_api_key")  { self.linear_api_key  = Some(v); }
-        if let Some(v) = get_int("projecttools", "notion_api_key")  { self.notion_api_key  = Some(v); }
-        if let Some(v) = get_int("projecttools", "todoist_api_key") { self.todoist_api_key = Some(v); }
+        if let Some(v) = get_int("projecttools", "linear_api_key") {
+            self.linear_api_key = Some(v);
+        }
+        if let Some(v) = get_int("projecttools", "notion_api_key") {
+            self.notion_api_key = Some(v);
+        }
+        if let Some(v) = get_int("projecttools", "todoist_api_key") {
+            self.todoist_api_key = Some(v);
+        }
         {
-            let url   = get_int("projecttools", "jira_url");
+            let url = get_int("projecttools", "jira_url");
             let email = get_int("projecttools", "jira_email");
             let token = get_int("projecttools", "jira_api_token");
             if url.is_some() || email.is_some() || token.is_some() {
                 let jc = self.jira.get_or_insert_with(JiraConfig::default);
-                if let Some(v) = url   { jc.url       = Some(v); }
-                if let Some(v) = email { jc.email     = Some(v); }
-                if let Some(v) = token { jc.api_token = Some(v); }
+                if let Some(v) = url {
+                    jc.url = Some(v);
+                }
+                if let Some(v) = email {
+                    jc.email = Some(v);
+                }
+                if let Some(v) = token {
+                    jc.api_token = Some(v);
+                }
             }
         }
 
         // ── Home Assistant ─────────────────────────────────────────────────────
         {
-            let url   = get_int("smarthome", "home_assistant_url");
+            let url = get_int("smarthome", "home_assistant_url");
             let token = get_int("smarthome", "home_assistant_token");
             if url.is_some() || token.is_some() {
-                let ha = self.home_assistant.get_or_insert_with(HomeAssistantConfig::default);
-                if let Some(v) = url   { ha.url   = Some(v); }
-                if let Some(v) = token { ha.token = Some(v); }
+                let ha = self
+                    .home_assistant
+                    .get_or_insert_with(HomeAssistantConfig::default);
+                if let Some(v) = url {
+                    ha.url = Some(v);
+                }
+                if let Some(v) = token {
+                    ha.token = Some(v);
+                }
             }
         }
 
         // ── Voice ──────────────────────────────────────────────────────────────
-        if let Some(v) = get_int("voice", "elevenlabs_api_key") { self.voice.elevenlabs_api_key = Some(v); }
-        if let Some(v) = get_int("voice", "elevenlabs_voice_id") { self.voice.elevenlabs_voice_id = Some(v); }
+        if let Some(v) = get_int("voice", "elevenlabs_api_key") {
+            self.voice.elevenlabs_api_key = Some(v);
+        }
+        if let Some(v) = get_int("voice", "elevenlabs_voice_id") {
+            self.voice.elevenlabs_voice_id = Some(v);
+        }
 
         // ── Messaging gateway ──────────────────────────────────────────────────
         // Store values are already read directly in GatewayConfig::resolve_*()
@@ -1752,7 +2086,8 @@ impl Config {
     }
 
     pub fn config_path() -> Result<PathBuf> {
-        let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
+        let home =
+            dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
         Ok(home.join(".vibecli").join("config.toml"))
     }
     /// Derive approval policy string from boolean CLI flags.
@@ -1784,7 +2119,6 @@ impl Config {
             _ => None,
         }
     }
-
 }
 
 #[cfg(test)]
@@ -1813,22 +2147,34 @@ mod tests {
 
     #[test]
     fn approval_policy_full_auto() {
-        assert_eq!(SafetyConfig::approval_policy_from_flags(false, false, true), "full-auto");
+        assert_eq!(
+            SafetyConfig::approval_policy_from_flags(false, false, true),
+            "full-auto"
+        );
     }
 
     #[test]
     fn approval_policy_auto_edit() {
-        assert_eq!(SafetyConfig::approval_policy_from_flags(false, true, false), "auto-edit");
+        assert_eq!(
+            SafetyConfig::approval_policy_from_flags(false, true, false),
+            "auto-edit"
+        );
     }
 
     #[test]
     fn approval_policy_suggest_explicit() {
-        assert_eq!(SafetyConfig::approval_policy_from_flags(true, false, false), "suggest");
+        assert_eq!(
+            SafetyConfig::approval_policy_from_flags(true, false, false),
+            "suggest"
+        );
     }
 
     #[test]
     fn approval_policy_none_defaults_to_suggest() {
-        assert_eq!(SafetyConfig::approval_policy_from_flags(false, false, false), "suggest");
+        assert_eq!(
+            SafetyConfig::approval_policy_from_flags(false, false, false),
+            "suggest"
+        );
     }
 
     #[test]
@@ -1838,13 +2184,19 @@ mod tests {
             planning_model: Some("opus".into()),
             ..Default::default()
         };
-        assert_eq!(r.resolve_planning("ollama", "llama3"), ("claude".into(), "opus".into()));
+        assert_eq!(
+            r.resolve_planning("ollama", "llama3"),
+            ("claude".into(), "opus".into())
+        );
     }
 
     #[test]
     fn routing_resolve_planning_fallback() {
         let r = RoutingConfig::default();
-        assert_eq!(r.resolve_planning("ollama", "llama3"), ("ollama".into(), "llama3".into()));
+        assert_eq!(
+            r.resolve_planning("ollama", "llama3"),
+            ("ollama".into(), "llama3".into())
+        );
     }
 
     #[test]
@@ -1854,7 +2206,10 @@ mod tests {
             execution_model: Some("gpt-4o".into()),
             ..Default::default()
         };
-        assert_eq!(r.resolve_execution("ollama", "llama3"), ("openai".into(), "gpt-4o".into()));
+        assert_eq!(
+            r.resolve_execution("ollama", "llama3"),
+            ("openai".into(), "gpt-4o".into())
+        );
     }
 
     #[test]
@@ -1864,7 +2219,10 @@ mod tests {
 
     #[test]
     fn routing_is_configured_partial() {
-        let r = RoutingConfig { planning_provider: Some("claude".into()), ..Default::default() };
+        let r = RoutingConfig {
+            planning_provider: Some("claude".into()),
+            ..Default::default()
+        };
         assert!(r.is_configured());
     }
 
@@ -1881,7 +2239,10 @@ mod tests {
 
     #[test]
     fn gateway_resolve_telegram_token_from_config() {
-        let g = GatewayConfig { telegram_token: Some("tok123".into()), ..Default::default() };
+        let g = GatewayConfig {
+            telegram_token: Some("tok123".into()),
+            ..Default::default()
+        };
         assert_eq!(g.resolve_telegram_token(), Some("tok123".into()));
     }
 
@@ -1895,7 +2256,10 @@ mod tests {
 
     #[test]
     fn copilot_resolve_token_from_config_field() {
-        let c = CopilotConfig { token: Some("ghp_abc".into()), ..Default::default() };
+        let c = CopilotConfig {
+            token: Some("ghp_abc".into()),
+            ..Default::default()
+        };
         // When env var and hosts.json are absent, config field is used.
         // We cannot guarantee env is clean, so just check it returns Some.
         assert!(c.resolve_token().is_some());
@@ -1945,10 +2309,16 @@ mod tests {
         assert!(w.tavily_api_key.is_none());
         assert!(w.brave_api_key.is_none());
 
-        let w2 = WebSearchConfig { tavily_api_key: Some("tvly-key".into()), ..Default::default() };
+        let w2 = WebSearchConfig {
+            tavily_api_key: Some("tvly-key".into()),
+            ..Default::default()
+        };
         assert_eq!(w2.resolve_tavily_key(), Some("tvly-key".into()));
 
-        let w3 = WebSearchConfig { brave_api_key: Some("BSA-key".into()), ..Default::default() };
+        let w3 = WebSearchConfig {
+            brave_api_key: Some("BSA-key".into()),
+            ..Default::default()
+        };
         assert_eq!(w3.resolve_brave_key(), Some("BSA-key".into()));
     }
 
@@ -2031,8 +2401,12 @@ mod tests {
     fn get_provider_config_various_names() {
         let mut cfg = Config::default();
         cfg.claude = Some(ProviderConfig {
-            enabled: true, api_url: None, model: None,
-            api_key: None, api_key_helper: None, thinking_budget_tokens: None,
+            enabled: true,
+            api_url: None,
+            model: None,
+            api_key: None,
+            api_key_helper: None,
+            thinking_budget_tokens: None,
         });
         assert!(cfg.get_provider_config("claude").is_some());
         assert!(cfg.get_provider_config("anthropic").is_some());
@@ -2080,7 +2454,10 @@ mod tests {
         let cfg2: Config = toml::from_str(&raw).expect("deserialize");
 
         assert!(cfg2.ollama.is_some());
-        assert_eq!(cfg2.ollama.as_ref().unwrap().model.as_deref(), Some("llama3"));
+        assert_eq!(
+            cfg2.ollama.as_ref().unwrap().model.as_deref(),
+            Some("llama3")
+        );
         assert_eq!(cfg2.safety.approval_policy, "full-auto");
         assert_eq!(cfg2.routing.planning_provider.as_deref(), Some("claude"));
         assert_eq!(cfg2.failover.chain, vec!["claude", "openai"]);
@@ -2139,7 +2516,10 @@ approval_policy = "auto-edit"
             signal_phone_number: Some("+15551234567".into()),
             ..Default::default()
         };
-        assert_eq!(g.resolve_signal_api_url(), Some("http://signal:8080".into()));
+        assert_eq!(
+            g.resolve_signal_api_url(),
+            Some("http://signal:8080".into())
+        );
         assert_eq!(g.resolve_signal_phone_number(), Some("+15551234567".into()));
     }
 
@@ -2152,7 +2532,10 @@ approval_policy = "auto-edit"
             matrix_user_id: Some("@bot:matrix.org".into()),
             ..Default::default()
         };
-        assert_eq!(g.resolve_matrix_homeserver_url(), Some("https://matrix.org".into()));
+        assert_eq!(
+            g.resolve_matrix_homeserver_url(),
+            Some("https://matrix.org".into())
+        );
         assert_eq!(g.resolve_matrix_access_token(), Some("mat-tok".into()));
         assert_eq!(g.resolve_matrix_room_id(), Some("!abc:matrix.org".into()));
         assert_eq!(g.resolve_matrix_user_id(), Some("@bot:matrix.org".into()));
@@ -2212,7 +2595,10 @@ api_key = "key123"
         assert_eq!(s.resources.pids_limit, Some(512));
         assert_eq!(s.network.mode, "restricted");
         assert_eq!(s.network.allowed_domains, vec!["github.com", "npmjs.org"]);
-        assert_eq!(s.opensandbox.api_url.as_deref(), Some("http://sandbox:9090"));
+        assert_eq!(
+            s.opensandbox.api_url.as_deref(),
+            Some("http://sandbox:9090")
+        );
         assert_eq!(s.opensandbox.api_key.as_deref(), Some("key123"));
     }
 
@@ -2342,16 +2728,28 @@ api_key = "key123"
     fn get_provider_config_all_aliases() {
         let mut cfg = Config::default();
         cfg.zhipu = Some(ProviderConfig {
-            enabled: true, api_url: None, model: None,
-            api_key: None, api_key_helper: None, thinking_budget_tokens: None,
+            enabled: true,
+            api_url: None,
+            model: None,
+            api_key: None,
+            api_key_helper: None,
+            thinking_budget_tokens: None,
         });
         cfg.vercel_ai = Some(ProviderConfig {
-            enabled: true, api_url: None, model: None,
-            api_key: None, api_key_helper: None, thinking_budget_tokens: None,
+            enabled: true,
+            api_url: None,
+            model: None,
+            api_key: None,
+            api_key_helper: None,
+            thinking_budget_tokens: None,
         });
         cfg.azure_openai = Some(ProviderConfig {
-            enabled: true, api_url: None, model: None,
-            api_key: None, api_key_helper: None, thinking_budget_tokens: None,
+            enabled: true,
+            api_url: None,
+            model: None,
+            api_key: None,
+            api_key_helper: None,
+            thinking_budget_tokens: None,
         });
         // "glm" is alias for zhipu
         assert!(cfg.get_provider_config("glm").is_some());
@@ -2403,7 +2801,10 @@ model = "gpt-4o"
 "#;
         let cfg: Config = toml::from_str(toml_str).expect("parse provider with api_url");
         let openai = cfg.openai.unwrap();
-        assert_eq!(openai.api_url.as_deref(), Some("https://custom-openai.example.com/v1"));
+        assert_eq!(
+            openai.api_url.as_deref(),
+            Some("https://custom-openai.example.com/v1")
+        );
     }
 
     #[test]
@@ -2467,7 +2868,10 @@ model = "gpt-4o"
         assert!(cfg.ollama.as_ref().unwrap().enabled);
         assert!(cfg.claude.as_ref().unwrap().enabled);
         assert!(!cfg.openai.as_ref().unwrap().enabled);
-        assert_eq!(cfg.ollama.as_ref().unwrap().model.as_deref(), Some("llama3"));
+        assert_eq!(
+            cfg.ollama.as_ref().unwrap().model.as_deref(),
+            Some("llama3")
+        );
     }
 
     // ── Provider config resolution ──
@@ -2476,8 +2880,12 @@ model = "gpt-4o"
     fn get_provider_config_case_insensitive() {
         let mut cfg = Config::default();
         cfg.groq = Some(ProviderConfig {
-            enabled: true, api_url: None, model: Some("llama3-70b".into()),
-            api_key: None, api_key_helper: None, thinking_budget_tokens: None,
+            enabled: true,
+            api_url: None,
+            model: Some("llama3-70b".into()),
+            api_key: None,
+            api_key_helper: None,
+            thinking_budget_tokens: None,
         });
         assert!(cfg.get_provider_config("groq").is_some());
         assert!(cfg.get_provider_config("Groq").is_some());
@@ -2488,9 +2896,19 @@ model = "gpt-4o"
     fn get_provider_config_returns_none_when_not_set() {
         let cfg = Config::default();
         let providers = &[
-            "ollama", "openai", "claude", "gemini", "grok", "groq",
-            "openrouter", "azure_openai", "mistral", "cerebras",
-            "deepseek", "zhipu", "vercel_ai",
+            "ollama",
+            "openai",
+            "claude",
+            "gemini",
+            "grok",
+            "groq",
+            "openrouter",
+            "azure_openai",
+            "mistral",
+            "cerebras",
+            "deepseek",
+            "zhipu",
+            "vercel_ai",
         ];
         for name in providers {
             assert!(
@@ -2504,8 +2922,12 @@ model = "gpt-4o"
     fn get_provider_config_all_known_providers() {
         // Verify all provider name mappings work when providers are set
         let pc = || ProviderConfig {
-            enabled: true, api_url: None, model: None,
-            api_key: None, api_key_helper: None, thinking_budget_tokens: None,
+            enabled: true,
+            api_url: None,
+            model: None,
+            api_key: None,
+            api_key_helper: None,
+            thinking_budget_tokens: None,
         };
         let mut cfg = Config::default();
         cfg.ollama = Some(pc());
@@ -2528,10 +2950,28 @@ model = "gpt-4o"
         cfg.sambanova = Some(pc());
 
         let names = &[
-            "ollama", "openai", "claude", "anthropic", "gemini", "grok",
-            "groq", "openrouter", "azure_openai", "azure", "mistral",
-            "cerebras", "deepseek", "zhipu", "glm", "vercel_ai", "vercel",
-            "minimax", "perplexity", "together", "fireworks", "sambanova",
+            "ollama",
+            "openai",
+            "claude",
+            "anthropic",
+            "gemini",
+            "grok",
+            "groq",
+            "openrouter",
+            "azure_openai",
+            "azure",
+            "mistral",
+            "cerebras",
+            "deepseek",
+            "zhipu",
+            "glm",
+            "vercel_ai",
+            "vercel",
+            "minimax",
+            "perplexity",
+            "together",
+            "fireworks",
+            "sambanova",
         ];
         for name in names {
             assert!(
@@ -2574,7 +3014,10 @@ role_arn = "arn:aws:iam::123456789:role/bedrock-role"
         assert!(b.enabled);
         assert_eq!(b.region, "eu-west-1");
         assert_eq!(b.model, "anthropic.claude-3-haiku");
-        assert_eq!(b.role_arn.as_deref(), Some("arn:aws:iam::123456789:role/bedrock-role"));
+        assert_eq!(
+            b.role_arn.as_deref(),
+            Some("arn:aws:iam::123456789:role/bedrock-role")
+        );
     }
 
     #[test]
@@ -2705,9 +3148,18 @@ VIBECLI_AGENT = "1"
         assert!(s.sandbox);
         assert_eq!(s.sandbox_profile.as_deref(), Some("/path/to/profile.sb"));
         assert_eq!(s.shell_environment.inherit, "core");
-        assert_eq!(s.shell_environment.include, vec!["CARGO_HOME", "RUSTUP_HOME"]);
+        assert_eq!(
+            s.shell_environment.include,
+            vec!["CARGO_HOME", "RUSTUP_HOME"]
+        );
         assert_eq!(s.shell_environment.exclude, vec!["AWS_SECRET_*"]);
-        assert_eq!(s.shell_environment.set.get("VIBECLI_AGENT").map(|s| s.as_str()), Some("1"));
+        assert_eq!(
+            s.shell_environment
+                .set
+                .get("VIBECLI_AGENT")
+                .map(|s| s.as_str()),
+            Some("1")
+        );
     }
 
     // ── NetworkPolicyConfig ──

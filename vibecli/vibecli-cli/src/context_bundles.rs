@@ -260,11 +260,7 @@ impl BundleManager {
         Ok(())
     }
 
-    pub fn set_model_preference(
-        &mut self,
-        bundle_id: &str,
-        model: &str,
-    ) -> Result<(), String> {
+    pub fn set_model_preference(&mut self, bundle_id: &str, model: &str) -> Result<(), String> {
         let bundle = self
             .bundles
             .get_mut(bundle_id)
@@ -285,7 +281,10 @@ impl BundleManager {
         sections.push("## Active Context Bundles".to_string());
 
         for bundle in &active {
-            sections.push(format!("### {} (priority {})", bundle.name, bundle.priority));
+            sections.push(format!(
+                "### {} (priority {})",
+                bundle.name, bundle.priority
+            ));
 
             if !bundle.description.is_empty() {
                 sections.push(bundle.description.clone());
@@ -370,7 +369,10 @@ impl BundleManager {
         lines.push(format!("updated_at = {}", bundle.updated_at));
 
         if let Some(ref model) = bundle.model_preference {
-            lines.push(format!("model_preference = \"{}\"", escape_toml_string(model)));
+            lines.push(format!(
+                "model_preference = \"{}\"",
+                escape_toml_string(model)
+            ));
         }
 
         lines.push(format!(
@@ -428,9 +430,7 @@ impl BundleManager {
                     if let Some(start) = trimmed.find('"') {
                         if let Some(end) = trimmed.rfind('"') {
                             if end > start {
-                                return Ok(
-                                    unescape_toml_string(&trimmed[start + 1..end])
-                                );
+                                return Ok(unescape_toml_string(&trimmed[start + 1..end]));
                             }
                         }
                     }
@@ -457,9 +457,7 @@ impl BundleManager {
             Err(format!("Missing key '{}'", key))
         };
 
-        let get_u32 = |key: &str| -> Result<u32, String> {
-            get_u64(key).map(|v| v as u32)
-        };
+        let get_u32 = |key: &str| -> Result<u32, String> { get_u64(key).map(|v| v as u32) };
 
         let get_array = |key: &str| -> Vec<String> {
             for line in content.lines() {
@@ -758,7 +756,10 @@ fn json_string_array(items: &[String]) -> String {
     if items.is_empty() {
         return "[]".to_string();
     }
-    let inner: Vec<String> = items.iter().map(|s| format!("\"{}\"", json_escape(s))).collect();
+    let inner: Vec<String> = items
+        .iter()
+        .map(|s| format!("\"{}\"", json_escape(s)))
+        .collect();
     format!("[{}]", inner.join(","))
 }
 
@@ -952,7 +953,10 @@ mod tests {
         let mut mgr = make_manager();
         let id = mgr.create_bundle("excl", "");
         mgr.add_exclusion(&id, "target/*").unwrap();
-        assert_eq!(mgr.get_bundle(&id).unwrap().excluded_paths, vec!["target/*"]);
+        assert_eq!(
+            mgr.get_bundle(&id).unwrap().excluded_paths,
+            vec!["target/*"]
+        );
     }
 
     #[test]
@@ -968,7 +972,8 @@ mod tests {
     fn test_set_model_preference() {
         let mut mgr = make_manager();
         let id = mgr.create_bundle("model", "");
-        mgr.set_model_preference(&id, "claude-opus-4-20250514").unwrap();
+        mgr.set_model_preference(&id, "claude-opus-4-20250514")
+            .unwrap();
         assert_eq!(
             mgr.get_bundle(&id).unwrap().model_preference,
             Some("claude-opus-4-20250514".to_string())
@@ -1125,7 +1130,10 @@ mod tests {
     fn test_search_by_tag() {
         let mut mgr = make_manager();
         let id = mgr.create_bundle("proj", "");
-        mgr.get_bundle_mut(&id).unwrap().tags.push("kubernetes".to_string());
+        mgr.get_bundle_mut(&id)
+            .unwrap()
+            .tags
+            .push("kubernetes".to_string());
         let results = mgr.search_bundles("kubernetes");
         assert_eq!(results.len(), 1);
     }
@@ -1231,7 +1239,10 @@ mod tests {
     fn test_get_bundle_mut() {
         let mut mgr = make_manager();
         let id = mgr.create_bundle("mut", "");
-        mgr.get_bundle_mut(&id).unwrap().tags.push("test".to_string());
+        mgr.get_bundle_mut(&id)
+            .unwrap()
+            .tags
+            .push("test".to_string());
         assert_eq!(mgr.get_bundle(&id).unwrap().tags, vec!["test"]);
     }
 
