@@ -109,7 +109,7 @@ handlebars = "6"
 socket2 = "0.5"
 snow = "0.9"
 libc = "0.2"
-whisper-rs = { version = "0.13", optional = true }
+whisper-rs = { version = "0.16", optional = true }
 
 # Slice 7d (RL-OS) — opt-in native Rust ONNX inference. The actual
 # `ort` dep is intentionally NOT declared here yet: ort 2.0-rc.10 pins
