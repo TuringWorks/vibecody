@@ -76,7 +76,7 @@ walkdir = "2"
 regex = "1"
 
 # Terminal
-portable-pty = "0.8"
+portable-pty = "0.9"
 
 # Unique IDs
 uuid = { version = "1", features = ["v4"] }
