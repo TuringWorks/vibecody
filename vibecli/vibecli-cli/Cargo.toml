@@ -106,7 +106,7 @@ chrono = { version = "0.4", features = ["serde"] }
 clap_complete = "4"
 zip = "2"
 handlebars = "6"
-socket2 = "0.5"
+socket2 = "0.6"
 snow = "0.9"
 libc = "0.2"
 whisper-rs = { version = "0.13", optional = true }
