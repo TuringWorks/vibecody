@@ -1,0 +1,46 @@
+# CODEOWNERS — VibeCody
+# See AGENTS.md → Product Matrix for the full client surface.
+# Lines are ordered from most specific to least specific; last match wins per file.
+
+# ─── Rust daemon + CLI ────────────────────────────────────────────────────
+/vibecli/vibecli-cli/              @TuringWorks/vibecody-cli
+/vibecli/crates/                   @TuringWorks/vibecody-cli
+
+# ─── Shared Rust crates ──────────────────────────────────────────────────
+/vibeui/crates/vibe-core/          @TuringWorks/vibecody-core
+/vibeui/crates/vibe-ai/            @TuringWorks/vibecody-ai
+/vibeui/crates/vibe-lsp/           @TuringWorks/vibecody-core
+/vibeui/crates/vibe-infer/         @TuringWorks/vibecody-ai
+/vibeui/crates/vibe-extensions/    @TuringWorks/vibecody-core
+/vibeui/crates/vibe-collab/        @TuringWorks/vibecody-core
+
+# ─── VibeUI (desktop editor) ─────────────────────────────────────────────
+/vibeui/src/                        @TuringWorks/vibecody-ui
+/vibeui/src-tauri/                   @TuringWorks/vibecody-ui
+/vibeui/design-system/               @TuringWorks/vibecody-ui
+
+# ─── VibeApp (secondary desktop shell) ───────────────────────────────────
+/vibeapp/                            @TuringWorks/vibecody-ui
+
+# ─── Mobile ──────────────────────────────────────────────────────────────
+/vibemobile/                         @TuringWorks/vibecody-mobile
+
+# ─── Watch (watchOS + Wear OS + companions) ─────────────────────────────
+/vibewatch/                          @TuringWorks/vibecody-watch
+
+# ─── Editor plugins ──────────────────────────────────────────────────────
+/vscode-extension/                   @TuringWorks/vibecody-plugins
+/jetbrains-plugin/                   @TuringWorks/vibecody-plugins
+/neovim-plugin/                      @TuringWorks/vibecody-plugins
+
+# ─── SDK + Indexer ───────────────────────────────────────────────────────
+/packages/agent-sdk/                @TuringWorks/vibecody-sdk
+/vibe-indexer/                       @TuringWorks/vibecody-sdk
+
+# ─── CI/CD, security, docs ──────────────────────────────────────────────
+/.github/                            @TuringWorks/vibecody-infra
+/docs/                               @TuringWorks/vibecody-infra
+/Makefile                            @TuringWorks/vibecody-infra
+
+# ─── Fallback — everything else ──────────────────────────────────────────
+*                                    @TuringWorks/vibecody

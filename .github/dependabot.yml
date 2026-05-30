@@ -1,0 +1,104 @@
+# Dependabot configuration — auto-file PRs for dependency bumps across all four
+# ecosystems VibeCody ships. See AGENTS.md → Product Matrix for the full surface.
+#
+# Security-only updates (cargo-audit, npm audit, pip-audit) run in
+# .github/workflows/security.yml — Dependabot handles version bumps, not advisories.
+
+version: 2
+updates:
+  # ─── Rust (workspace Cargo.toml) ──────────────────────────────────────────
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - rust
+    # Group minor/patch bumps to reduce PR noise; major bumps stay separate.
+    groups:
+      rust-minor:
+        update-types: [minor, patch]
+
+  # ─── VibeUI (Tauri + React) ───────────────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /vibeui
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - typescript
+    groups:
+      vibeui-minor:
+        update-types: [minor, patch]
+
+  # ─── VibeApp (Tauri shell) ────────────────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /vibeapp
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - typescript
+    groups:
+      vibeapp-minor:
+        update-types: [minor, patch]
+
+  # ─── Agent SDK ────────────────────────────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /packages/agent-sdk
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - typescript
+    groups:
+      agent-sdk-minor:
+        update-types: [minor, patch]
+
+  # ─── VibeCody Mobile (Flutter/Dart) ───────────────────────────────────────
+  - package-ecosystem: pub
+    directory: /vibemobile
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - flutter
+
+  # ─── Wear OS (Kotlin/Gradle) ──────────────────────────────────────────────
+  - package-ecosystem: gradle
+    directory: /vibewatch/VibeCodyWear
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - kotlin
+
+  # ─── GitHub Actions ──────────────────────────────────────────────────────
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - ci
