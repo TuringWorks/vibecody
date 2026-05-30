@@ -122,7 +122,7 @@ whisper-rs = { version = "0.13", optional = true }
 # `OnnxRustRuntime::load`. See docs/design/rl-os/06-deployment.md.
 
 # OpenTelemetry (OTLP/HTTP export)
-opentelemetry = { version = "0.27", features = ["trace"] }
+opentelemetry = { version = "0.32", features = ["trace"] }
 opentelemetry-otlp = { version = "0.27", features = ["http-proto", "reqwest-client"] }
 opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
 opentelemetry-semantic-conventions = "0.27"
