@@ -639,6 +639,58 @@ pub async fn write_file_sandbox(path: String, content: String) -> Result<(), Str
     tokio::fs::write(&resolved, content).await.map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+pub async fn create_directory_sandbox(path: String) -> Result<(), String> {
+    if !std::path::Path::new(&path).is_absolute() {
+        return Err("Sandbox path must be absolute".to_string());
+    }
+    let resolved = reject_sensitive_path(&path)?;
+    tokio::fs::create_dir_all(&resolved).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn delete_path_sandbox(path: String) -> Result<(), String> {
+    if !std::path::Path::new(&path).is_absolute() {
+        return Err("Sandbox path must be absolute".to_string());
+    }
+    let resolved = reject_sensitive_path(&path)?;
+    let meta = tokio::fs::metadata(&resolved).await.map_err(|e| e.to_string())?;
+    if meta.is_dir() {
+        tokio::fs::remove_dir_all(&resolved).await.map_err(|e| e.to_string())
+    } else {
+        tokio::fs::remove_file(&resolved).await.map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn rename_path_sandbox(path: String, new_name: String) -> Result<(), String> {
+    if !std::path::Path::new(&path).is_absolute() {
+        return Err("Sandbox path must be absolute".to_string());
+    }
+    if new_name.contains('/') || new_name.contains('\\') || new_name.is_empty() {
+        return Err("new_name must be a bare filename (no path separators)".to_string());
+    }
+    let from = reject_sensitive_path(&path)?;
+    let parent = from.parent()
+        .ok_or_else(|| "Cannot rename a root-level path".to_string())?;
+    let to_candidate = parent.join(&new_name);
+    // Re-validate the destination so `new_name = "../foo"` (already filtered
+    // above) and credential-dir traversal both stay blocked.
+    let to = reject_sensitive_path(&to_candidate.to_string_lossy())?;
+    tokio::fs::rename(&from, &to).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_git_status_for_path(
+    path: String,
+) -> Result<vibe_core::git::GitStatus, String> {
+    if !std::path::Path::new(&path).is_absolute() {
+        return Err("Path must be absolute".to_string());
+    }
+    let resolved = reject_sensitive_path(&path)?;
+    vibe_core::git::get_status(&resolved).map_err(|e| e.to_string())
+}
+
 // ── Sandbox Gateway: messaging apps → AI + sandbox ───────────────────────────
 //
 // Starts a background Tokio task that polls the configured platform (Telegram,
