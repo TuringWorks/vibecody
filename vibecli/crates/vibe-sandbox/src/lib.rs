@@ -64,30 +64,25 @@ impl BindMode {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum NetPolicy {
+    #[default]
     None,
-    Brokered { socket: PathBuf, policy_id: String },
+    Brokered {
+        socket: PathBuf,
+        policy_id: String,
+    },
     Direct,
 }
 
-impl Default for NetPolicy {
-    fn default() -> Self {
-        NetPolicy::None
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum EnvPolicy {
+    #[default]
     Clear,
     Pass(Vec<String>),
-    Inherit { strip_secrets: bool },
-}
-
-impl Default for EnvPolicy {
-    fn default() -> Self {
-        EnvPolicy::Clear
-    }
+    Inherit {
+        strip_secrets: bool,
+    },
 }
 
 #[derive(Debug, Clone, Default)]
@@ -132,6 +127,7 @@ pub struct SelectOptions {
     pub on_downgrade: Option<Box<dyn FnMut() + Send + 'static>>,
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for SelectOptions {
     fn default() -> Self {
         SelectOptions {

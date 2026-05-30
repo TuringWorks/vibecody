@@ -42,8 +42,10 @@ jobs:
           components: rustfmt, clippy
 
       # Tauri system deps — required by vibe-ui / vibeapp crates on Linux.
+      # Both clippy and test compile the full workspace (including Tauri crates)
+      # which transitively depends on webkit2gtk-sys → glib-sys.
       - name: Install Linux system dependencies
-        if: matrix.check == 'clippy'
+        if: matrix.check == 'clippy' || matrix.check == 'test'
         run: |
           sudo apt-get update -q
           sudo apt-get install -y \
