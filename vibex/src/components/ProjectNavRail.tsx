@@ -1,8 +1,10 @@
 import { MessageSquarePlus, Search, Sparkles, Plug, Workflow, Folder, Settings, PanelLeftClose } from "lucide-react";
+import type { Task } from "../hooks/useTasks";
 
 interface ProjectNavRailProps {
   daemonUrl: string;
   daemonOnline: boolean;
+  tasks: Task[];
   onToggle: () => void;
 }
 
@@ -19,13 +21,29 @@ const TOP_ITEMS = [
   { icon: Workflow, label: "Automations" },
 ];
 
-// Placeholder until VX-112 wires the daemon's project/task list.
-const MOCK_PROJECTS = [
-  { name: "vibecody", chats: ["fix the auth timeout", "import vibecody relate…"] },
-  { name: "website", chats: ["build and run the site"] },
-];
+/** Group live tasks by their project path's last path segment. */
+function groupByProject(tasks: Task[]): { name: string; tasks: Task[] }[] {
+  const byProject = new Map<string, Task[]>();
+  for (const t of tasks) {
+    const name = t.project_path.split("/").filter(Boolean).pop() || "workspace";
+    const arr = byProject.get(name) ?? [];
+    arr.push(t);
+    byProject.set(name, arr);
+  }
+  return [...byProject.entries()].map(([name, tasks]) => ({ name, tasks }));
+}
 
-export function ProjectNavRail({ onToggle }: ProjectNavRailProps) {
+const STATUS_DOT: Record<string, string> = {
+  running: "var(--accent-green)",
+  reviewing: "var(--accent-blue)",
+  completed: "var(--text-tertiary)",
+  failed: "var(--error-color)",
+  queued: "var(--accent-gold)",
+  draft: "var(--text-tertiary)",
+};
+
+export function ProjectNavRail({ tasks, onToggle }: ProjectNavRailProps) {
+  const projects = groupByProject(tasks);
   return (
     <nav className="vx-nav">
       <div className="vx-nav__header">
@@ -48,18 +66,25 @@ export function ProjectNavRail({ onToggle }: ProjectNavRailProps) {
 
       <div className="vx-nav__section">Projects</div>
       <ul className="vx-nav__list">
-        {MOCK_PROJECTS.map((p) => (
+        {projects.length === 0 && (
+          <li className="vx-nav__empty">No tasks yet — type one below.</li>
+        )}
+        {projects.map((p) => (
           <li key={p.name}>
             <button className="vx-nav__item vx-nav__item--project" aria-label={p.name}>
               <Folder size={14} />
               <span>{p.name}</span>
             </button>
             <ul className="vx-nav__chats">
-              {p.chats.map((c, i) => (
-                <li key={c}>
-                  <button className="vx-nav__chat" aria-label={c}>
-                    <span className="vx-nav__chat-title">{c}</span>
-                    <kbd className="vx-nav__kbd">⌘{i + 1}</kbd>
+              {p.tasks.map((t, i) => (
+                <li key={t.id}>
+                  <button className="vx-nav__chat" aria-label={t.title} title={`${t.status} · ${t.branch || "no branch"}`}>
+                    <span
+                      className="vx-nav__chat-dot"
+                      style={{ background: STATUS_DOT[t.status] ?? "var(--text-tertiary)" }}
+                    />
+                    <span className="vx-nav__chat-title">{t.title}</span>
+                    {i < 9 && <kbd className="vx-nav__kbd">⌘{i + 1}</kbd>}
                   </button>
                 </li>
               ))}

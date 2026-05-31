@@ -568,6 +568,11 @@ pub struct AgentContext {
     /// Overrides AgentLoop::atomic_commits when set to true.
     #[serde(default)]
     pub auto_commit: bool,
+    /// VX-111: requested extended-thinking budget in tokens, derived from the
+    /// VibeX reasoning-effort pill. `None` means "use the provider default".
+    /// Providers with extended-thinking support honor it; others ignore it.
+    #[serde(default)]
+    pub reasoning_budget_tokens: Option<u32>,
 }
 
 // ── Tool Executor Trait ───────────────────────────────────────────────────────

@@ -2,10 +2,14 @@ import { useState } from "react";
 import { ProjectNavRail } from "../components/ProjectNavRail";
 import { SessionStream } from "../components/SessionStream";
 import { EnvironmentInspector } from "../components/EnvironmentInspector";
+import type { useTasks } from "../hooks/useTasks";
+
+type TasksApi = ReturnType<typeof useTasks>;
 
 interface ShellLayoutProps {
   daemonUrl: string;
   daemonOnline: boolean;
+  tasks: TasksApi;
 }
 
 /**
@@ -14,7 +18,7 @@ interface ShellLayoutProps {
  * Side rails are collapsible. No persistent editor pane (Codex hands off to
  * external editors; code is summoned via the Review/Files quick-actions).
  */
-export function ShellLayout({ daemonUrl, daemonOnline }: ShellLayoutProps) {
+export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps) {
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [envCollapsed, setEnvCollapsed] = useState(false);
 
@@ -28,11 +32,17 @@ export function ShellLayout({ daemonUrl, daemonOnline }: ShellLayoutProps) {
         <ProjectNavRail
           daemonUrl={daemonUrl}
           daemonOnline={daemonOnline}
+          tasks={tasks.tasks}
           onToggle={() => setNavCollapsed((v) => !v)}
         />
       </div>
       <div className="vibex-col vibex-col--stream">
-        <SessionStream daemonUrl={daemonUrl} daemonOnline={daemonOnline} />
+        <SessionStream
+          daemonUrl={daemonUrl}
+          daemonOnline={daemonOnline}
+          createTask={tasks.createTask}
+          linkSession={tasks.linkSession}
+        />
       </div>
       <div className="vibex-col vibex-col--env">
         <EnvironmentInspector

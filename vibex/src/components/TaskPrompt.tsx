@@ -5,10 +5,13 @@ import { ApprovalPill, type ApprovalTier } from "./ApprovalPill";
 import { ProviderPill } from "./ProviderPill";
 import { ReasoningPill, type ReasoningEffort } from "./ReasoningPill";
 import { QuickActionDrawer } from "./QuickActionDrawer";
+import type { Task } from "../hooks/useTasks";
 
 interface TaskPromptProps {
   daemonUrl: string;
   daemonOnline: boolean;
+  createTask: (title: string, provider: string, model?: string) => Promise<Task>;
+  linkSession: (id: string, sessionId: string, status?: string) => Promise<void>;
 }
 
 /**
@@ -18,7 +21,7 @@ interface TaskPromptProps {
  * NOTE: there is intentionally NO Cmd+K inline edit — targeted edits use the
  * ⌘. diffcomplete surface (see pdm/08 §1).
  */
-export function TaskPrompt({ daemonUrl, daemonOnline }: TaskPromptProps) {
+export function TaskPrompt({ daemonUrl, daemonOnline, createTask, linkSession }: TaskPromptProps) {
   const [text, setText] = useState("");
   const [provider, setProvider] = useState("ollama");
   const [model, setModel] = useState<string | undefined>(undefined);
@@ -32,7 +35,12 @@ export function TaskPrompt({ daemonUrl, daemonOnline }: TaskPromptProps) {
     if (!task || submitting || !daemonOnline) return;
     setSubmitting(true);
     try {
-      await invoke<string>("start_agent_session", {
+      // VX-112/113: create the task card (and its worktree) first, so the
+      // task exists with a branch before the agent starts.
+      const created = await createTask(task, provider, model);
+
+      // Start the agent run against the daemon.
+      const sessionId = await invoke<string>("start_agent_session", {
         url: daemonUrl,
         task,
         provider,
@@ -40,6 +48,9 @@ export function TaskPrompt({ daemonUrl, daemonOnline }: TaskPromptProps) {
         approval,
         reasoning,
       });
+
+      // Link the run's session back onto the task and mark it running.
+      await linkSession(created.id, sessionId, "running");
       setText("");
     } catch (e) {
       // Surfaced in the stream by VX-105 wiring; log for now.

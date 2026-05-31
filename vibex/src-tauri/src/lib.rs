@@ -51,6 +51,9 @@ pub fn run() {
             commands::list_daemon_models,
             commands::start_agent_session,
             commands::stream_agent,
+            commands::list_tasks,
+            commands::create_task,
+            commands::update_task,
         ])
         .run(tauri::generate_context!())
         .expect("error while running vibex");

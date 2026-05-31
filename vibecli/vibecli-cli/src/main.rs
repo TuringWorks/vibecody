@@ -189,6 +189,7 @@ mod redteam;
 mod repl;
 mod scheduler;
 mod session_store;
+mod task_store;
 mod spec;
 #[cfg(unix)]
 #[allow(dead_code)]
@@ -2267,6 +2268,7 @@ fn build_worker_agent_context(
         task_context_files,
         memory_context,
         auto_commit: false,
+        reasoning_budget_tokens: None,
     }
 }
 
@@ -19163,6 +19165,7 @@ async fn run_watch_mode(
                 task_context_files: vec![],
                 memory_context: None,
                 auto_commit: false,
+                reasoning_budget_tokens: None,
             };
             tokio::spawn(async move {
                 let _ = agent.run(&task_clone, ctx, event_tx).await;
