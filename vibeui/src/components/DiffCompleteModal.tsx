@@ -743,43 +743,125 @@ interface Hunk {
  * if the diff cannot be applied cleanly (context mismatch, malformed hunks).
  *
  * Intentionally lenient on file-header lines (`--- a/..`, `+++ b/..`) — we
- * only care about hunks. Strict on context matching.
+ * only care about hunks.
+ *
+ * Lenient about:
+ *   - **Hunk position**: if the model wrote `@@ -100 @@` but the matching
+ *     context is at line 102 (off-by-N is common), we widen the search ring
+ *     ±FUZZ_RING lines and finally fall back to a full-file scan.
+ *   - **Trailing whitespace**: a line that matches except for trailing
+ *     whitespace (the most common model drift, e.g. an added trailing space)
+ *     is accepted. Internal whitespace is preserved as-is so Python-
+ *     significant indentation stays meaningful.
+ *
+ * Strict about:
+ *   - The actual content of context/deletion lines. If the model claims to
+ *     delete `WRONG` and the file has `b`, we still return null.
+ *   - Context lines in the output: we substitute the original file's exact
+ *     text so trailing-whitespace fuzz on the model's side never rewrites
+ *     the file's real content.
  */
+const FUZZ_RING = 50;
+
 export function applyUnifiedDiff(original: string, unifiedDiff: string): string | null {
   const hunks = parseHunks(unifiedDiff);
   if (hunks.length === 0) return null;
 
-  const origLines = original.split("\n");
-  const out: string[] = [];
-  let cursor = 0; // 0-based index into origLines
+  const workingLines = original.split("\n");
+  // Cumulative insertion-vs-deletion delta from earlier hunks. Lets later
+  // hunks' oldStart be interpreted in the post-mutation file's coordinates.
+  let lineDelta = 0;
+  // Track the last applied region so a fuzzy search can't drift backwards
+  // into already-modified territory.
+  let minStart = 0;
 
   for (const hunk of hunks) {
-    const hunkStart = Math.max(0, hunk.oldStart - 1);
-    if (hunkStart < cursor) return null; // overlapping / out-of-order
-    while (cursor < hunkStart) out.push(origLines[cursor++]);
-
+    type Op = { kind: "ctx" | "del" | "add"; body: string };
+    const before: string[] = [];
+    const ops: Op[] = [];
     for (const line of hunk.lines) {
       if (line.length === 0) continue;
       const marker = line[0];
       const body = line.slice(1);
       if (marker === " ") {
-        if (origLines[cursor] !== body) return null;
-        out.push(origLines[cursor++]);
+        before.push(body);
+        ops.push({ kind: "ctx", body });
       } else if (marker === "-") {
-        if (origLines[cursor] !== body) return null;
-        cursor++;
+        before.push(body);
+        ops.push({ kind: "del", body });
       } else if (marker === "+") {
-        out.push(body);
+        ops.push({ kind: "add", body });
       } else if (marker === "\\") {
         // "\ No newline at end of file" — ignore
       } else {
         return null;
       }
     }
+
+    if (before.length === 0) {
+      // Pure-insertion hunk — anchor at the expected position.
+      const at = clamp(hunk.oldStart - 1 + lineDelta, minStart, workingLines.length);
+      const inserted: string[] = [];
+      for (const op of ops) if (op.kind === "add") inserted.push(op.body);
+      workingLines.splice(at, 0, ...inserted);
+      lineDelta += inserted.length;
+      minStart = at + inserted.length;
+      continue;
+    }
+
+    const expectedStart = clamp(hunk.oldStart - 1 + lineDelta, minStart, workingLines.length);
+    const matchStart = findHunkLocation(workingLines, before, expectedStart, minStart);
+    if (matchStart === -1) return null;
+
+    // Rebuild the after-window using the ORIGINAL file's text for context
+    // lines. That way whitespace fuzz only relaxes the matcher — it never
+    // rewrites the file's actual content for unchanged lines.
+    const after: string[] = [];
+    let walk = matchStart;
+    for (const op of ops) {
+      if (op.kind === "ctx") { after.push(workingLines[walk]); walk++; }
+      else if (op.kind === "del") { walk++; }
+      else { after.push(op.body); }
+    }
+    workingLines.splice(matchStart, before.length, ...after);
+    lineDelta += after.length - before.length;
+    minStart = matchStart + after.length;
   }
 
-  while (cursor < origLines.length) out.push(origLines[cursor++]);
-  return out.join("\n");
+  return workingLines.join("\n");
+}
+
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, n));
+}
+
+function findHunkLocation(lines: string[], before: string[], hint: number, minStart: number): number {
+  const tryAt = (start: number): boolean => {
+    if (start < minStart || start + before.length > lines.length) return false;
+    for (let i = 0; i < before.length; i++) {
+      if (!linesMatch(lines[start + i], before[i])) return false;
+    }
+    return true;
+  };
+  if (tryAt(hint)) return hint;
+  for (let d = 1; d <= FUZZ_RING; d++) {
+    if (tryAt(hint - d)) return hint - d;
+    if (tryAt(hint + d)) return hint + d;
+  }
+  // Wider fallback: scan everything past the last applied region in case
+  // the model's line-numbering is wildly off.
+  for (let i = minStart; i + before.length <= lines.length; i++) {
+    if (Math.abs(i - hint) > FUZZ_RING && tryAt(i)) return i;
+  }
+  return -1;
+}
+
+function linesMatch(actual: string, expected: string): boolean {
+  if (actual === expected) return true;
+  // Trailing-whitespace tolerance only. Don't touch internal whitespace —
+  // collapsing it would silently rewrite Python indentation, Markdown tables,
+  // etc. through context lines.
+  return actual.replace(/\s+$/, "") === expected.replace(/\s+$/, "");
 }
 
 function parseHunks(diff: string): Hunk[] {

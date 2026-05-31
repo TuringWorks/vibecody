@@ -229,6 +229,56 @@ describe('applyUnifiedDiff', () => {
     ].join("\n");
     expect(applyUnifiedDiff(original, diff)).toBe("A\nb\nc\nd\n");
   });
+
+  it('absorbs line-number drift (model writes wrong @@ line)', () => {
+    // The hunk claims to start at line 1, but the matching context is at
+    // line 3. A strict patch tool would reject this; we widen the search.
+    const original = "lead 1\nlead 2\nlead 3\nbody A\nbody B\nbody C\n";
+    const diff = [
+      "--- a/f",
+      "+++ b/f",
+      "@@ -1,3 +1,3 @@",
+      " body A",
+      "-body B",
+      "+BODY B",
+      " body C",
+    ].join("\n");
+    expect(applyUnifiedDiff(original, diff)).toBe("lead 1\nlead 2\nlead 3\nbody A\nBODY B\nbody C\n");
+  });
+
+  it('absorbs trailing-whitespace drift in context lines', () => {
+    // Model added a trailing space to the context line; we should still
+    // apply, AND the output should preserve the original (no trailing space).
+    const original = "alpha\nbeta\ngamma\n";
+    const diff = [
+      "--- a/f",
+      "+++ b/f",
+      "@@ -1,3 +1,3 @@",
+      " alpha  ",          // <-- trailing whitespace on context
+      "-beta",
+      "+BETA",
+      " gamma",
+    ].join("\n");
+    expect(applyUnifiedDiff(original, diff)).toBe("alpha\nBETA\ngamma\n");
+  });
+
+  it('still preserves Python-significant internal indentation', () => {
+    // 4 spaces vs tab in the context line should NOT match — we deliberately
+    // don't collapse internal whitespace because Python / YAML / Markdown
+    // tables would silently corrupt.
+    const original = "def f():\n    return 1\n";
+    const diff = [
+      "--- a/f",
+      "+++ b/f",
+      "@@ -1,2 +1,2 @@",
+      "\tdef f():",          // <-- tab where file has spaces
+      "-    return 1",
+      "+    return 2",
+    ].join("\n");
+    // First line doesn't fuzz-match (we only fuzz trailing whitespace),
+    // so the whole diff is rejected. Better than silently misapplying.
+    expect(applyUnifiedDiff(original, diff)).toBeNull();
+  });
 });
 
 describe('DiffCompleteModal — flow', () => {
