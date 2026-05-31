@@ -2097,7 +2097,8 @@ function App() {
                           const mod = isMac ? '⌘' : 'Ctrl+';
                           const shift = isMac ? '⇧' : 'Shift+';
                           return [
-                            [`${mod}K`, 'Command Palette / Inline Chat'],
+                            [`${mod}.`, 'AI Edit (DiffComplete)'],
+                            [`${mod}K`, 'Command Palette'],
                             [`${mod}${shift}P`, 'Command Palette'],
                             [`${mod}J`, 'Toggle AI Panel'],
                             [`${mod}B`, 'Toggle Sidebar'],

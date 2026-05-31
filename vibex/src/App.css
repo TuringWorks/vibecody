@@ -78,7 +78,9 @@ html, body, #root {
 .vx-nav__chats { list-style: none; padding-left: 18px; }
 .vx-nav__chat { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 4px 8px; border: none; border-radius: 5px; background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 12px; text-align: left; }
 .vx-nav__chat:hover { background: var(--bg-elevated); color: var(--text-primary); }
-.vx-nav__chat-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vx-nav__chat-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.vx-nav__chat-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.vx-nav__empty { padding: 6px 8px; font-size: 12px; color: var(--text-tertiary); }
 .vx-nav__kbd { font-size: 10px; color: var(--text-tertiary); border: 1px solid var(--border-color); border-radius: 4px; padding: 0 4px; }
 .vx-nav__spacer { flex: 1; }
 .vx-nav__item--settings { margin-top: auto; }

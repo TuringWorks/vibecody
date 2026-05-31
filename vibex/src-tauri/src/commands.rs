@@ -84,6 +84,115 @@ pub async fn start_agent_session(
         .ok_or_else(|| "No session_id in response".to_string())
 }
 
+/// GET /api/tasks — list recent VibeX tasks (VX-112).
+#[tauri::command]
+pub async fn list_tasks(url: String, token: Option<String>) -> Result<Vec<serde_json::Value>, String> {
+    let tasks_url = format!("{}/api/tasks", url.trim_end_matches('/'));
+    let client = reqwest::Client::new();
+    let mut req = client.get(&tasks_url);
+    if let Some(t) = &token {
+        if !t.is_empty() {
+            req = req.header("Authorization", format!("Bearer {}", t));
+        }
+    }
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    if !resp.status().is_success() {
+        return Err(format!("Daemon returned {}", resp.status()));
+    }
+    let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    Ok(body.as_array().cloned().unwrap_or_default())
+}
+
+/// POST /api/tasks — create a task (and its worktree). Returns the task row
+/// (VX-112 + VX-113). The frontend then starts an agent and PATCHes the
+/// returned session_id back via `update_task`.
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn create_task(
+    url: String,
+    title: String,
+    provider: Option<String>,
+    model: Option<String>,
+    project_path: Option<String>,
+    create_worktree: Option<bool>,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let tasks_url = format!("{}/api/tasks", url.trim_end_matches('/'));
+    let client = reqwest::Client::new();
+    let mut body = serde_json::json!({
+        "title": title,
+        "create_worktree": create_worktree.unwrap_or(true),
+    });
+    if let Some(p) = &provider {
+        if !p.is_empty() {
+            body["provider"] = serde_json::Value::String(p.clone());
+        }
+    }
+    if let Some(m) = &model {
+        if !m.is_empty() {
+            body["model"] = serde_json::Value::String(m.clone());
+        }
+    }
+    if let Some(pp) = &project_path {
+        if !pp.is_empty() {
+            body["project_path"] = serde_json::Value::String(pp.clone());
+        }
+    }
+    let mut req = client.post(&tasks_url).json(&body);
+    if let Some(t) = &token {
+        if !t.is_empty() {
+            req = req.header("Authorization", format!("Bearer {}", t));
+        }
+    }
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let b = resp.text().await.unwrap_or_default();
+        return Err(format!("Daemon returned {}: {}", status, b));
+    }
+    resp.json().await.map_err(|e| e.to_string())
+}
+
+/// PATCH /api/tasks/:id — update task status and/or link a session (VX-112).
+#[tauri::command]
+pub async fn update_task(
+    url: String,
+    id: String,
+    status: Option<String>,
+    session_id: Option<String>,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let task_url = format!("{}/api/tasks/{}", url.trim_end_matches('/'), id);
+    let client = reqwest::Client::new();
+    let mut body = serde_json::json!({});
+    if let Some(s) = &status {
+        body["status"] = serde_json::Value::String(s.clone());
+    }
+    if let Some(sid) = &session_id {
+        body["session_id"] = serde_json::Value::String(sid.clone());
+    }
+    let mut req = client.patch(&task_url).json(&body);
+    if let Some(t) = &token {
+        if !t.is_empty() {
+            req = req.header("Authorization", format!("Bearer {}", t));
+        }
+    }
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    if !resp.status().is_success() {
+        return Err(format!("Daemon returned {}", resp.status()));
+    }
+    resp.json().await.map_err(|e| e.to_string())
+}
+
 /// Connect to the daemon SSE stream and forward events to the frontend as
 /// `agent:chunk` / `agent:complete` / `agent:error` events.
 #[tauri::command]

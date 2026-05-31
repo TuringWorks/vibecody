@@ -1,5 +1,6 @@
 import { ShellLayout } from "./layouts/ShellLayout";
 import { useDaemon } from "./hooks/useDaemon";
+import { useTasks } from "./hooks/useTasks";
 
 /**
  * VibeX root. Renders the daemon status banner (zero-config-first: connection
@@ -7,6 +8,7 @@ import { useDaemon } from "./hooks/useDaemon";
  */
 export function App() {
   const daemon = useDaemon();
+  const tasks = useTasks(daemon.url, daemon.status === "online");
 
   return (
     <div className="vibex-root">
@@ -19,7 +21,11 @@ export function App() {
             `VibeX · daemon offline — run \`vibecli serve\` (${daemon.error ?? daemon.url})`}
         </span>
       </div>
-      <ShellLayout daemonUrl={daemon.url} daemonOnline={daemon.status === "online"} />
+      <ShellLayout
+        daemonUrl={daemon.url}
+        daemonOnline={daemon.status === "online"}
+        tasks={tasks}
+      />
     </div>
   );
 }

@@ -311,6 +311,8 @@ pub mod ngrok;
 
 // Apple Watch + Wear OS bridge
 pub mod session_store;
+// VibeX task store (/api/tasks — VX-112)
+pub mod task_store;
 pub mod watch_auth;
 pub mod watch_bridge;
 pub mod watch_session_relay;

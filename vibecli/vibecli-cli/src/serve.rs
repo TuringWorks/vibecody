@@ -216,6 +216,28 @@ pub struct AgentRequest {
     /// clients.
     #[serde(default)]
     pub context_request: Option<ContextRequest>,
+    /// VX-111: reasoning-effort hint from the VibeX composer pill
+    /// (`minimal|low|medium|high|extra-high|custom`). Mapped to a thinking-
+    /// token budget via `reasoning_effort_to_budget`. Providers that support
+    /// extended thinking (e.g. Claude) honor it; others ignore it gracefully.
+    #[serde(default)]
+    pub reasoning: Option<String>,
+}
+
+/// Map a VibeX reasoning-effort label to an extended-thinking token budget.
+/// `None` (or unknown) → no explicit budget (provider default). Mirrors the
+/// tiers in `reasoning_provider::token_budget_for_complexity`.
+fn reasoning_effort_to_budget(effort: &str) -> Option<u32> {
+    match effort.to_ascii_lowercase().as_str() {
+        "minimal" => Some(1_024),
+        "low" => Some(4_096),
+        "medium" => Some(8_192),
+        "high" => Some(16_384),
+        "extra-high" | "extra_high" | "extrahigh" => Some(32_768),
+        // "custom" is resolved client-side into one of the above before send;
+        // an unrecognized value falls back to the provider default.
+        _ => None,
+    }
 }
 
 /// Wire shape for per-request context negotiation. All fields optional
@@ -1045,6 +1067,7 @@ fn build_agent_context_from_request(
         task_context_files: vec![],
         memory_context,
         auto_commit: false,
+        reasoning_budget_tokens: None,
     })
 }
 
@@ -1108,6 +1131,25 @@ async fn start_agent(
         None => state.approval.clone(),
     };
 
+    // VX-111: resolve the reasoning-effort hint into a thinking-token budget.
+    // The active provider is a shared Arc built at daemon startup, so we can't
+    // mutate its config per-request here; instead we (a) surface the resolved
+    // budget onto the stream so clients can render it, and (b) stash it on the
+    // AgentContext (`reasoning_budget_tokens`) for the agent loop / any
+    // budget-aware provider to consume. Providers without extended-thinking
+    // support ignore it — graceful no-op, per the VX-108 acceptance criterion.
+    let reasoning_budget = req
+        .reasoning
+        .as_deref()
+        .and_then(reasoning_effort_to_budget);
+    if let (Some(effort), Some(budget)) = (req.reasoning.as_deref(), reasoning_budget) {
+        let msg = format!("Reasoning effort: {effort} (thinking budget {budget} tokens)");
+        let _ = state
+            .job_manager
+            .publish_event(&session_id, AgentEventPayload::system(msg))
+            .await;
+    }
+
     let task = req.task.clone();
     let sid = session_id.clone();
     let workspace_root = state.workspace_root.clone();
@@ -1116,6 +1158,8 @@ async fn start_agent(
     // Move context_request into the spawned task. Empty default keeps
     // the existing-clients path zero-overhead.
     let ctx_request = req.context_request;
+    // VX-111: carry the resolved thinking budget into the spawned agent.
+    let reasoning_budget = reasoning_budget;
     // DREAD #1 — propagate the daemon's tainted-strict / prompter
     // flags into every executor the agent loop uses. Extracted by
     // value (Copy) so the spawn closure doesn't capture `state`.
@@ -1178,6 +1222,7 @@ async fn start_agent(
                     task_context_files: vec![],
                     memory_context: None,
                     auto_commit: false,
+                    reasoning_budget_tokens: reasoning_budget,
                 },
             },
             None => AgentContext {
@@ -1197,6 +1242,7 @@ async fn start_agent(
                 task_context_files: vec![],
                 memory_context: None,
                 auto_commit: false,
+                reasoning_budget_tokens: reasoning_budget,
             },
         };
 
@@ -1308,6 +1354,201 @@ async fn cancel_job(
             )
         })?;
     Ok(Json(record))
+}
+
+// ── VibeX task API (VX-112 + VX-113) ────────────────────────────────────────
+//
+// `/api/tasks` backs VibeX's task-card model: every code-changing interaction
+// is a task with a lifecycle status, a branch, and a git worktree. The store
+// is opened on-demand (`TaskStore::open_default`) so we don't thread it through
+// every `ServeState` construction site — it's a lightweight sqlite table in
+// the shared `~/.vibecli/sessions.db`.
+
+#[derive(Debug, serde::Deserialize)]
+struct CreateTaskRequest {
+    /// Human title (typically the first line of the task prompt).
+    title: String,
+    #[serde(default)]
+    provider: Option<String>,
+    #[serde(default)]
+    model: Option<String>,
+    /// Repo the task operates on. Defaults to the daemon's workspace root.
+    #[serde(default)]
+    project_path: Option<String>,
+    /// When true (default), create a git worktree on a fresh branch for this
+    /// task if `project_path` is a git repo (VX-113). Set false for note-style
+    /// tasks that don't touch code.
+    #[serde(default = "default_true")]
+    create_worktree: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn now_unix() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
+/// Derive a git-safe branch slug from a task title, e.g.
+/// "Fix the auth timeout!" → "fix-the-auth-timeout".
+fn slugify_title(title: &str) -> String {
+    let mut slug: String = title
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '-' })
+        .collect();
+    while slug.contains("--") {
+        slug = slug.replace("--", "-");
+    }
+    let slug = slug.trim_matches('-');
+    let truncated: String = slug.chars().take(40).collect();
+    if truncated.is_empty() {
+        "task".to_string()
+    } else {
+        truncated.trim_matches('-').to_string()
+    }
+}
+
+/// POST /api/tasks — create a task (and optionally its worktree).
+async fn create_task(
+    State(state): State<ServeState>,
+    Json(req): Json<CreateTaskRequest>,
+) -> Result<Json<crate::task_store::TaskRow>, (StatusCode, Json<serde_json::Value>)> {
+    use crate::task_store::{TaskStatus, TaskStore};
+
+    let store = TaskStore::open_default().map_err(|e| {
+        json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("task store: {e}"))
+    })?;
+
+    let id = format!("{:016x}", rand::rng().random::<u64>());
+    let now = now_unix();
+    let provider = req.provider.unwrap_or_else(|| state.provider_name.clone());
+    let model = req.model.unwrap_or_default();
+    let project_path = req
+        .project_path
+        .unwrap_or_else(|| state.workspace_root.to_string_lossy().to_string());
+
+    store
+        .insert(&id, &req.title, TaskStatus::Queued, &provider, &model, &project_path, now)
+        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("insert task: {e}")))?;
+
+    // VX-113: spawn a worktree-on-a-branch when the project is a git repo.
+    if req.create_worktree {
+        let repo = std::path::PathBuf::from(&project_path);
+        if vibe_core::git::is_git_repo(&repo) {
+            let branch = format!("task/{}-{}", &id[..id.len().min(8)], slugify_title(&req.title));
+            let base_dir = repo.join(".vibecli").join("worktrees");
+            let mut pool = crate::worktree_git::GitWorktreePool::new(&repo, &base_dir, 16);
+            match pool.spawn(&id, &branch) {
+                Ok(handle) => {
+                    let _ = store.set_worktree(
+                        &id,
+                        &handle.branch,
+                        &handle.path.to_string_lossy(),
+                        now_unix(),
+                    );
+                }
+                Err(e) => {
+                    // Non-fatal: the task still exists, just without a worktree.
+                    // Surface it so the client can decide (e.g. retry, or run in-place).
+                    tracing::warn!("worktree spawn failed for task {id}: {e}");
+                }
+            }
+        }
+    }
+
+    let row = store
+        .get(&id)
+        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("get task: {e}")))?
+        .ok_or_else(|| json_error(StatusCode::INTERNAL_SERVER_ERROR, "task vanished after write"))?;
+    Ok(Json(row))
+}
+
+/// GET /api/tasks — list recent tasks (newest first).
+async fn list_tasks(
+    State(_state): State<ServeState>,
+) -> Result<Json<Vec<crate::task_store::TaskRow>>, (StatusCode, Json<serde_json::Value>)> {
+    let store = crate::task_store::TaskStore::open_default().map_err(|e| {
+        json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("task store: {e}"))
+    })?;
+    let tasks = store
+        .list(200)
+        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("list tasks: {e}")))?;
+    Ok(Json(tasks))
+}
+
+/// GET /api/tasks/:id — fetch one task.
+async fn get_task(
+    Path(id): Path<String>,
+    State(_state): State<ServeState>,
+) -> Result<Json<crate::task_store::TaskRow>, (StatusCode, Json<serde_json::Value>)> {
+    let store = crate::task_store::TaskStore::open_default().map_err(|e| {
+        json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("task store: {e}"))
+    })?;
+    store
+        .get(&id)
+        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("get task: {e}")))?
+        .map(Json)
+        .ok_or_else(|| {
+            json_error(
+                StatusCode::NOT_FOUND,
+                format!("Task '{}' not found", sanitize_user_input(&id)),
+            )
+        })
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct UpdateTaskRequest {
+    /// New lifecycle status (draft|queued|running|reviewing|completed|failed).
+    #[serde(default)]
+    status: Option<String>,
+    /// Link the agent run's session id once the agent starts.
+    #[serde(default)]
+    session_id: Option<String>,
+}
+
+/// PATCH /api/tasks/:id — update status and/or link a session.
+async fn update_task(
+    Path(id): Path<String>,
+    State(_state): State<ServeState>,
+    Json(req): Json<UpdateTaskRequest>,
+) -> Result<Json<crate::task_store::TaskRow>, (StatusCode, Json<serde_json::Value>)> {
+    use crate::task_store::{TaskStatus, TaskStore};
+    let store = TaskStore::open_default().map_err(|e| {
+        json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("task store: {e}"))
+    })?;
+
+    // 404 if the task doesn't exist before applying updates.
+    if store
+        .get(&id)
+        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("get task: {e}")))?
+        .is_none()
+    {
+        return Err(json_error(
+            StatusCode::NOT_FOUND,
+            format!("Task '{}' not found", sanitize_user_input(&id)),
+        ));
+    }
+
+    if let Some(s) = &req.status {
+        store
+            .set_status(&id, TaskStatus::from_str(s), now_unix())
+            .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("update: {e}")))?;
+    }
+    if let Some(sid) = &req.session_id {
+        store
+            .set_session(&id, sid, now_unix())
+            .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("update: {e}")))?;
+    }
+
+    let row = store
+        .get(&id)
+        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("get task: {e}")))?
+        .ok_or_else(|| json_error(StatusCode::INTERNAL_SERVER_ERROR, "task vanished after write"))?;
+    Ok(Json(row))
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
@@ -5391,7 +5632,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
     .collect();
     let cors = CorsLayer::new()
         .allow_origin(origins)
-        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::OPTIONS])
         .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION, header::ACCEPT]);
 
     // Rate limiter: 60 requests per 60 seconds (global across all authed endpoints)
@@ -5406,6 +5647,9 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/jobs", get(list_jobs))
         .route("/jobs/:id", get(get_job))
         .route("/jobs/:id/cancel", post(cancel_job))
+        // VibeX task API (VX-112): task-card CRUD + lifecycle status.
+        .route("/api/tasks", post(create_task).get(list_tasks))
+        .route("/api/tasks/:id", get(get_task).patch(update_task))
         .route("/collab/rooms", post(create_collab_room))
         .route("/collab/rooms", get(list_collab_rooms))
         .route("/collab/rooms/:room_id/peers", get(list_collab_peers))

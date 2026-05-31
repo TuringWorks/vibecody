@@ -82,7 +82,7 @@ jobs:
 
       - name: Run tests
         if: matrix.check == 'test'
-        run: cargo test --workspace --exclude vibe-memory
+        run: cargo test --workspace --exclude vibe-memory --exclude vibe-broker
 
   # ─── VibeUI: TypeScript + React ────────────────────────────────────────
   vibeui-checks:

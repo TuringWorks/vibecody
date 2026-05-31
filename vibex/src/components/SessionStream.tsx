@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { TaskPrompt } from "./TaskPrompt";
 import { ToolUseBlock } from "./ToolUseBlock";
+import type { Task } from "../hooks/useTasks";
 
 interface SessionStreamProps {
   daemonUrl: string;
   daemonOnline: boolean;
+  createTask: (title: string, provider: string, model?: string) => Promise<Task>;
+  linkSession: (id: string, sessionId: string, status?: string) => Promise<void>;
 }
 
 type StreamItem =
@@ -18,7 +21,7 @@ type StreamItem =
  * agent actions render as structured ToolUseBlocks (VX-104). The composer
  * (TaskPrompt) is pinned at the bottom and carries all run controls.
  */
-export function SessionStream({ daemonUrl, daemonOnline }: SessionStreamProps) {
+export function SessionStream({ daemonUrl, daemonOnline, createTask, linkSession }: SessionStreamProps) {
   // Scripted demo transcript until VX-105/VX-112 wire live streaming.
   const [items] = useState<StreamItem[]>([
     { kind: "user", text: "fix the auth timeout bug in the login flow" },
@@ -62,7 +65,12 @@ export function SessionStream({ daemonUrl, daemonOnline }: SessionStreamProps) {
         })}
       </div>
 
-      <TaskPrompt daemonUrl={daemonUrl} daemonOnline={daemonOnline} />
+      <TaskPrompt
+        daemonUrl={daemonUrl}
+        daemonOnline={daemonOnline}
+        createTask={createTask}
+        linkSession={linkSession}
+      />
     </div>
   );
 }
