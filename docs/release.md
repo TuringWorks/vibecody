@@ -90,6 +90,37 @@ Install the companion desktop/phone app first — pair the watch from the **Watc
 
 [SHA256SUMS.txt](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/SHA256SUMS.txt)
 
+### macOS install: first-launch warning
+
+VibeUI and Vibe App for macOS ship **ad-hoc signed by default** (until Apple Developer credentials are added to CI — see [macOS code signing setup](#macos-code-signing-setup-for-maintainers) below). Ad-hoc signing is enough to avoid the "is damaged and can't be opened" Gatekeeper error, but the first launch still shows an **"unidentified developer"** dialog.
+
+Two options:
+
+1. **Right-click → Open** (one-time): in Finder, right-click the app icon, choose **Open**, then click **Open** again in the dialog. The app launches and is whitelisted from then on.
+2. **Strip the quarantine xattr** from the terminal (one-time):
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/VibeUI.app
+   xattr -dr com.apple.quarantine "/Applications/Vibe App.app"
+   ```
+
+If you see *"is damaged and can't be opened"* (not "from an unidentified developer"), the DMG download was corrupted — re-download and verify against [SHA256SUMS.txt](https://github.com/TuringWorks/vibecody/releases/download/v0.5.7/SHA256SUMS.txt).
+
+### macOS code signing setup (for maintainers)
+
+To ship fully Apple-notarized builds (no first-launch warning at all), add the following repository secrets:
+
+| Secret | What it is |
+|---|---|
+| `APPLE_TEAM_ID` | Your 10-char Apple Developer Team ID |
+| `APPLE_SIGNING_IDENTITY` | Full identity string, e.g. `Developer ID Application: Acme Inc (TEAMID)` |
+| `APPLE_CERT_P12_BASE64` | `base64 -i DeveloperID.p12` of your exported Developer ID Application certificate |
+| `APPLE_CERT_P12_PASSWORD` | Password for the `.p12` |
+| `APPLE_KEYCHAIN_PASSWORD` | Any random string — used to lock the throwaway runner keychain |
+| `APPLE_ID` | Your Apple ID email (for notarization) |
+| `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password generated at appleid.apple.com (NOT your regular Apple ID password) |
+
+The `build-vibeui` and `build-vibeapp` jobs auto-detect these secrets — when `APPLE_CERT_P12_BASE64` is unset, the build emits a workflow `::notice::` and falls back to ad-hoc signing. The watchOS-signed track uses a parallel set of secrets (`APPLE_PROVISIONING_PROFILE_BASE64` + App Store Connect API key) — see `.github/workflows/release.yml` `build-watchos-signed` for that path.
+
 ---
 
 ## v0.5.6
