@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { TaskPrompt } from "./TaskPrompt";
+import { useEffect, useRef, useState } from "react";
+import { TaskPrompt, type ComposerSubmit } from "./TaskPrompt";
 import { ToolUseBlock } from "./ToolUseBlock";
+import { useAgentStream } from "../hooks/useAgentStream";
 import type { Task } from "../hooks/useTasks";
 
 interface SessionStreamProps {
@@ -10,66 +11,122 @@ interface SessionStreamProps {
   linkSession: (id: string, sessionId: string, status?: string) => Promise<void>;
 }
 
-type StreamItem =
-  | { kind: "user"; text: string }
-  | { kind: "agent"; text: string }
-  | { kind: "tool"; tool: string; summary: string; detail?: string; durationMs?: number };
-
 /**
- * VX-103 — center linear conversation (Codex screenshots 1, 8).
- * User messages are right-aligned chips; agent output is left-aligned prose;
- * agent actions render as structured ToolUseBlocks (VX-104). The composer
- * (TaskPrompt) is pinned at the bottom and carries all run controls.
+ * VX-103 + VX-105b — center linear conversation (Codex screenshots 1, 8).
+ * User messages are right-aligned chips; agent output is left-aligned prose
+ * streamed live from the daemon via `useAgentStream`. The composer (TaskPrompt)
+ * is pinned at the bottom; this component orchestrates the full submit flow:
+ * create task (+worktree) → run agent → link session → reflect lifecycle.
  */
 export function SessionStream({ daemonUrl, daemonOnline, createTask, linkSession }: SessionStreamProps) {
-  // Scripted demo transcript until VX-105/VX-112 wire live streaming.
-  const [items] = useState<StreamItem[]>([
-    { kind: "user", text: "fix the auth timeout bug in the login flow" },
-    { kind: "tool", tool: "Read", summary: "src/auth/mod.rs (2.3 KB)", detail: "14 lines of context", durationMs: 3000 },
-    { kind: "tool", tool: "Edit", summary: "src/auth/mod.rs (+18/-4)", detail: "exponential backoff with jitter", durationMs: 7000 },
-    { kind: "tool", tool: "Run", summary: "cargo test -- auth", detail: "✓ 3 tests passing", durationMs: 12000 },
-    { kind: "agent", text: "Done. Added exponential backoff with jitter to the auth timeout handler; all auth tests pass." },
-  ]);
+  const { items, state, runTask } = useAgentStream();
+  const [title, setTitle] = useState<string>("New task");
+  // The task whose run is currently streaming — used to PATCH its lifecycle
+  // status when the run reaches a terminal state (VX-201).
+  const activeTaskId = useRef<string | null>(null);
+
+  // VX-201: reflect the run's terminal state onto the task card. A completed
+  // run moves the task to "reviewing" (user reviews the diff); an error moves
+  // it to "failed". Mirrors the VibeX state machine in pdm/08 §7.
+  useEffect(() => {
+    const id = activeTaskId.current;
+    if (!id) return;
+    if (state === "done") {
+      linkSession(id, "", "reviewing").catch((e) => console.error("status update failed", e));
+      activeTaskId.current = null;
+    } else if (state === "error") {
+      linkSession(id, "", "failed").catch((e) => console.error("status update failed", e));
+      activeTaskId.current = null;
+    }
+  }, [state, linkSession]);
+
+  async function handleSubmit(p: ComposerSubmit) {
+    // First task message becomes the session title.
+    if (state === "idle") setTitle(p.task);
+
+    // VX-112/113: create the task card (+ worktree) before the agent starts.
+    let task: Task | null = null;
+    try {
+      task = await createTask(p.task, p.provider, p.model);
+      activeTaskId.current = task.id;
+    } catch (e) {
+      console.error("create task failed", e);
+    }
+
+    // VX-105b: run the agent and stream its output live.
+    const sessionId = await runTask({
+      daemonUrl,
+      task: p.task,
+      provider: p.provider,
+      model: p.model,
+      approval: p.approval,
+      reasoning: p.reasoning,
+    });
+
+    // VX-201: link the run's session and reflect lifecycle on the task.
+    if (task && sessionId) {
+      try {
+        await linkSession(task.id, sessionId, "running");
+      } catch (e) {
+        console.error("link session failed", e);
+      }
+    }
+  }
+
+  const statusLabel =
+    state === "running" ? "running" : state === "error" ? "failed" : state === "done" ? "reviewing" : "";
 
   return (
     <div className="vx-stream">
       <header className="vx-stream__header">
-        <span className="vx-stream__title">fix the auth timeout bug</span>
+        <span className="vx-stream__title">{title}</span>
+        {statusLabel && <span className={`vx-stream__status vx-stream__status--${state}`}>{statusLabel}</span>}
       </header>
 
       <div className="vx-stream__body">
+        {items.length === 0 && (
+          <div className="vx-stream__empty">
+            Type a task below — VibeX creates a branch, runs the agent, and streams the result here.
+          </div>
+        )}
         {items.map((item, i) => {
-          if (item.kind === "user") {
-            return (
-              <div key={i} className="vx-msg vx-msg--user">
-                <div className="vx-msg__chip">{item.text}</div>
-              </div>
-            );
+          switch (item.kind) {
+            case "user":
+              return (
+                <div key={i} className="vx-msg vx-msg--user">
+                  <div className="vx-msg__chip">{item.text}</div>
+                </div>
+              );
+            case "agent":
+              return (
+                <div key={i} className="vx-msg vx-msg--agent">
+                  <div className="vx-msg__prose">{item.text}</div>
+                </div>
+              );
+            case "system":
+              return (
+                <div key={i} className="vx-msg vx-msg--system">
+                  <div className="vx-msg__system">{item.text}</div>
+                </div>
+              );
+            case "tool":
+              return <ToolUseBlock key={i} tool={item.tool} summary={item.summary} />;
+            case "error":
+              return (
+                <div key={i} className="vx-msg vx-msg--agent">
+                  <div className="vx-msg__error">{item.text}</div>
+                </div>
+              );
           }
-          if (item.kind === "agent") {
-            return (
-              <div key={i} className="vx-msg vx-msg--agent">
-                <div className="vx-msg__prose">{item.text}</div>
-              </div>
-            );
-          }
-          return (
-            <ToolUseBlock
-              key={i}
-              tool={item.tool}
-              summary={item.summary}
-              detail={item.detail}
-              durationMs={item.durationMs}
-            />
-          );
         })}
+        {state === "running" && <div className="vx-stream__typing">●●●</div>}
       </div>
 
       <TaskPrompt
         daemonUrl={daemonUrl}
         daemonOnline={daemonOnline}
-        createTask={createTask}
-        linkSession={linkSession}
+        busy={state === "running"}
+        onSubmit={handleSubmit}
       />
     </div>
   );

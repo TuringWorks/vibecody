@@ -252,6 +252,21 @@ pub async fn stream_agent(
                                     let _ = app.emit("agent:chunk", t.to_string());
                                 }
                             }
+                            Some("system") => {
+                                if let Some(t) = ev["content"].as_str() {
+                                    let _ = app.emit("agent:system", t.to_string());
+                                }
+                            }
+                            Some("step") => {
+                                // Tool-use step — forward the tool name + summary
+                                // so the UI can render a structured ToolUseBlock.
+                                let tool = ev["tool_name"].as_str().unwrap_or("tool").to_string();
+                                let summary = ev["content"].as_str().unwrap_or("").to_string();
+                                let _ = app.emit(
+                                    "agent:step",
+                                    serde_json::json!({ "tool": tool, "summary": summary }),
+                                );
+                            }
                             Some("complete") => {
                                 let _ = app.emit("agent:complete", ());
                                 return;

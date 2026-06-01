@@ -1,63 +1,50 @@
 import { useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import { Plus, ArrowUp } from "lucide-react";
 import { ApprovalPill, type ApprovalTier } from "./ApprovalPill";
 import { ProviderPill } from "./ProviderPill";
 import { ReasoningPill, type ReasoningEffort } from "./ReasoningPill";
 import { QuickActionDrawer } from "./QuickActionDrawer";
-import type { Task } from "../hooks/useTasks";
+
+/** The composer's submit payload, bubbled up to SessionStream for orchestration. */
+export interface ComposerSubmit {
+  task: string;
+  provider: string;
+  model?: string;
+  approval: ApprovalTier;
+  reasoning: ReasoningEffort;
+}
 
 interface TaskPromptProps {
   daemonUrl: string;
   daemonOnline: boolean;
-  createTask: (title: string, provider: string, model?: string) => Promise<Task>;
-  linkSession: (id: string, sessionId: string, status?: string) => Promise<void>;
+  /** True while a run is in flight — disables submit. */
+  busy: boolean;
+  onSubmit: (payload: ComposerSubmit) => void;
 }
 
 /**
  * VX-105 — the composer (Codex screenshots 1, 2, 7). Carries all run controls
  * inline: + quick-action drawer, approval pill, provider pill, reasoning pill,
  * submit. This is the only primary input (P3: conversation is the interface).
+ * Orchestration (create task → run agent → link session) lives in the parent
+ * SessionStream; this component only gathers input and bubbles it up.
  * NOTE: there is intentionally NO Cmd+K inline edit — targeted edits use the
  * ⌘. diffcomplete surface (see pdm/08 §1).
  */
-export function TaskPrompt({ daemonUrl, daemonOnline, createTask, linkSession }: TaskPromptProps) {
+export function TaskPrompt({ daemonUrl, daemonOnline, busy, onSubmit }: TaskPromptProps) {
   const [text, setText] = useState("");
   const [provider, setProvider] = useState("ollama");
   const [model, setModel] = useState<string | undefined>(undefined);
   const [approval, setApproval] = useState<ApprovalTier>("default");
   const [reasoning, setReasoning] = useState<ReasoningEffort>("medium");
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
 
-  async function submit() {
-    const task = text.trim();
-    if (!task || submitting || !daemonOnline) return;
-    setSubmitting(true);
-    try {
-      // VX-112/113: create the task card (and its worktree) first, so the
-      // task exists with a branch before the agent starts.
-      const created = await createTask(task, provider, model);
+  const canSubmit = !!text.trim() && !busy && daemonOnline;
 
-      // Start the agent run against the daemon.
-      const sessionId = await invoke<string>("start_agent_session", {
-        url: daemonUrl,
-        task,
-        provider,
-        model,
-        approval,
-        reasoning,
-      });
-
-      // Link the run's session back onto the task and mark it running.
-      await linkSession(created.id, sessionId, "running");
-      setText("");
-    } catch (e) {
-      // Surfaced in the stream by VX-105 wiring; log for now.
-      console.error("submit failed", e);
-    } finally {
-      setSubmitting(false);
-    }
+  function submit() {
+    if (!canSubmit) return;
+    onSubmit({ task: text.trim(), provider, model, approval, reasoning });
+    setText("");
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -99,7 +86,7 @@ export function TaskPrompt({ daemonUrl, daemonOnline, createTask, linkSession }:
         <button
           className="vx-composer__submit"
           aria-label="Submit task"
-          disabled={!text.trim() || submitting || !daemonOnline}
+          disabled={!canSubmit}
           onClick={submit}
         >
           <ArrowUp size={16} />

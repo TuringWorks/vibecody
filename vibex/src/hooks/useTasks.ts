@@ -54,14 +54,19 @@ export function useTasks(daemonUrl: string, daemonOnline: boolean) {
     [daemonUrl, refresh]
   );
 
-  /** Link a started agent run's session id (and optionally update status). */
+  /**
+   * Update a task's lifecycle status and/or link a started agent run's session
+   * id. An empty `sessionId` sends a status-only update (the daemon's
+   * update_task only writes session_id when non-empty), so this doubles as the
+   * VX-201 status-transition call.
+   */
   const linkSession = useCallback(
     async (id: string, sessionId: string, status = "running") => {
       await invoke<Task>("update_task", {
         url: daemonUrl,
         id,
         status,
-        sessionId,
+        sessionId: sessionId || undefined,
       });
       await refresh();
     },
