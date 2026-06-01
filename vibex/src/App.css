@@ -149,3 +149,35 @@ html, body, #root {
 .vx-env__sources { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 6px 8px; border: none; border-radius: 6px; background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 13px; }
 .vx-env__sources:hover { background: var(--bg-elevated); color: var(--text-primary); }
 .vx-env__chevron { margin-left: auto; }
+.vx-env__changes { display: flex; align-items: center; gap: 8px; width: 100%; border: none; background: transparent; color: var(--text-primary); cursor: pointer; font-size: 13px; padding: 0; }
+.vx-env__changes:disabled { cursor: default; color: var(--text-secondary); }
+.vx-env__changes:not(:disabled):hover { color: var(--accent-blue); }
+.vx-env__branch { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vx-env__changed-list { list-style: none; margin: 6px 0; padding: 6px 0; border-top: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 2px; }
+.vx-env__changed { display: flex; align-items: center; gap: 8px; padding: 2px 8px; font-size: 12px; color: var(--text-secondary); }
+.vx-env__changed--more { color: var(--text-tertiary); font-style: italic; }
+.vx-env__changed-path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+.vx-env__changed-dot { width: 6px; height: 6px; border-radius: 50%; flex: none; background: var(--text-tertiary); }
+.vx-env__changed-dot--modified { background: var(--accent-gold); }
+.vx-env__changed-dot--new { background: var(--accent-green); }
+.vx-env__changed-dot--deleted { background: var(--error-color); }
+
+/* ── Review diff viewer (VX-202) ────────────────────────────────────────── */
+.vx-review, .vx-files { display: flex; flex-direction: column; height: 100%; }
+.vx-review__head, .vx-files__head { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--border-color); font-weight: 600; }
+.vx-review__body, .vx-files__body { flex: 1; overflow-y: auto; padding: 12px 16px; }
+.vx-review__empty, .vx-files__empty { color: var(--text-tertiary); font-size: 13px; padding: 24px 8px; text-align: center; }
+.vx-diff { margin-bottom: 16px; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
+.vx-diff__file { padding: 6px 10px; background: var(--bg-tertiary); font-size: 12px; font-weight: 600; border-bottom: 1px solid var(--border-color); }
+.vx-diff__code { margin: 0; padding: 0; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; line-height: 1.45; overflow-x: auto; }
+.vx-diff__line { padding: 0 10px; white-space: pre; }
+.vx-diff__line--add { background: rgba(52, 211, 153, 0.12); color: var(--accent-green); }
+.vx-diff__line--del { background: rgba(244, 114, 114, 0.12); color: var(--error-color); }
+.vx-diff__line--hunk { color: var(--text-tertiary); background: var(--bg-secondary); }
+
+/* ── Files quick-action (VX-110) ────────────────────────────────────────── */
+.vx-files__filter { margin: 10px 16px; padding: 6px 10px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 13px; }
+.vx-files__list { list-style: none; display: flex; flex-direction: column; gap: 1px; }
+.vx-files__item { display: flex; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 5px; font-size: 12px; color: var(--text-secondary); }
+.vx-files__item:hover { background: var(--bg-elevated); color: var(--text-primary); }
+.vx-files__path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -1,25 +1,27 @@
 import { FolderTree, MessagesSquare, Globe, GitCompare, TerminalSquare, X } from "lucide-react";
 
+export type QuickAction = "files" | "review" | "side-chat" | "browser" | "terminal";
+
 interface QuickActionDrawerProps {
-  daemonUrl: string;
+  onAction: (action: QuickAction) => void;
   onClose: () => void;
 }
 
 /**
  * VX-110 — the "+" quick-action drawer (Codex screenshots 6, 7).
- * This is Codex's progressive-disclosure model: summon Files / Side chat /
- * Browser / Review / Terminal on demand, instead of a time-gated level ramp.
- * Files + Terminal are wired first (VX-110); the rest land in Phase 3.
+ * Codex's progressive-disclosure model: summon Files / Side chat / Browser /
+ * Review / Terminal on demand, not a time-gated level ramp. Files + Review are
+ * wired (VX-110/202); the rest land in Phase 3.
  */
-const ACTIONS = [
-  { icon: FolderTree, label: "Files", sub: "Browse project files", phase: 1 },
-  { icon: MessagesSquare, label: "Side chat", sub: "Start a side conversation", phase: 3 },
-  { icon: Globe, label: "Browser", sub: "Open a website", phase: 3 },
-  { icon: GitCompare, label: "Review", sub: "View code changes", phase: 2 },
-  { icon: TerminalSquare, label: "Terminal", sub: "Start an interactive shell", phase: 1 },
+const ACTIONS: { id: QuickAction; icon: typeof FolderTree; label: string; sub: string; ready: boolean }[] = [
+  { id: "files", icon: FolderTree, label: "Files", sub: "Browse project files", ready: true },
+  { id: "review", icon: GitCompare, label: "Review", sub: "View code changes", ready: true },
+  { id: "side-chat", icon: MessagesSquare, label: "Side chat", sub: "Start a side conversation", ready: false },
+  { id: "browser", icon: Globe, label: "Browser", sub: "Open a website", ready: false },
+  { id: "terminal", icon: TerminalSquare, label: "Terminal", sub: "Start an interactive shell", ready: false },
 ];
 
-export function QuickActionDrawer({ onClose }: QuickActionDrawerProps) {
+export function QuickActionDrawer({ onAction, onClose }: QuickActionDrawerProps) {
   return (
     <div className="vx-drawer">
       <div className="vx-drawer__head">
@@ -29,12 +31,18 @@ export function QuickActionDrawer({ onClose }: QuickActionDrawerProps) {
         </button>
       </div>
       <div className="vx-drawer__grid">
-        {ACTIONS.map(({ icon: Icon, label, sub, phase }) => (
-          <button key={label} className="vx-drawer__action" disabled={phase > 1} aria-label={label}>
+        {ACTIONS.map(({ id, icon: Icon, label, sub, ready }) => (
+          <button
+            key={id}
+            className="vx-drawer__action"
+            disabled={!ready}
+            aria-label={label}
+            onClick={() => ready && onAction(id)}
+          >
             <Icon size={18} />
             <span className="vx-drawer__action-label">{label}</span>
             <span className="vx-drawer__action-sub">{sub}</span>
-            {phase > 1 && <span className="vx-drawer__soon">Phase {phase}</span>}
+            {!ready && <span className="vx-drawer__soon">soon</span>}
           </button>
         ))}
       </div>

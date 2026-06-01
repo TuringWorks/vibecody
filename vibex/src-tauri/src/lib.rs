@@ -54,6 +54,9 @@ pub fn run() {
             commands::list_tasks,
             commands::create_task,
             commands::update_task,
+            commands::git_status,
+            commands::git_diff,
+            commands::list_files,
         ])
         .run(tauri::generate_context!())
         .expect("error while running vibex");

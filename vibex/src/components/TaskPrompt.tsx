@@ -3,7 +3,7 @@ import { Plus, ArrowUp } from "lucide-react";
 import { ApprovalPill, type ApprovalTier } from "./ApprovalPill";
 import { ProviderPill } from "./ProviderPill";
 import { ReasoningPill, type ReasoningEffort } from "./ReasoningPill";
-import { QuickActionDrawer } from "./QuickActionDrawer";
+import { QuickActionDrawer, type QuickAction } from "./QuickActionDrawer";
 
 /** The composer's submit payload, bubbled up to SessionStream for orchestration. */
 export interface ComposerSubmit {
@@ -20,6 +20,7 @@ interface TaskPromptProps {
   /** True while a run is in flight — disables submit. */
   busy: boolean;
   onSubmit: (payload: ComposerSubmit) => void;
+  onQuickAction: (action: QuickAction) => void;
 }
 
 /**
@@ -31,7 +32,7 @@ interface TaskPromptProps {
  * NOTE: there is intentionally NO Cmd+K inline edit — targeted edits use the
  * ⌘. diffcomplete surface (see pdm/08 §1).
  */
-export function TaskPrompt({ daemonUrl, daemonOnline, busy, onSubmit }: TaskPromptProps) {
+export function TaskPrompt({ daemonOnline, busy, onSubmit, onQuickAction }: TaskPromptProps) {
   const [text, setText] = useState("");
   const [provider, setProvider] = useState("ollama");
   const [model, setModel] = useState<string | undefined>(undefined);
@@ -56,7 +57,15 @@ export function TaskPrompt({ daemonUrl, daemonOnline, busy, onSubmit }: TaskProm
 
   return (
     <div className="vx-composer">
-      {drawerOpen && <QuickActionDrawer daemonUrl={daemonUrl} onClose={() => setDrawerOpen(false)} />}
+      {drawerOpen && (
+        <QuickActionDrawer
+          onAction={(a) => {
+            setDrawerOpen(false);
+            onQuickAction(a);
+          }}
+          onClose={() => setDrawerOpen(false)}
+        />
+      )}
       <textarea
         className="vx-composer__input"
         placeholder="Ask for follow-up changes"

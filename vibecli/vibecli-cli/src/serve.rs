@@ -1551,6 +1551,81 @@ async fn update_task(
     Ok(Json(row))
 }
 
+// ── VibeX environment API (VX-109 / VX-202 / VX-110) ────────────────────────
+//
+// Read-only git/file inspection for the VibeX Environment inspector, the
+// Review diff viewer, and the Files quick-action. All operate on the daemon's
+// `workspace_root` and reuse `vibe_core::git` helpers — no new git logic.
+
+/// GET /api/vibex/git/status — branch + changed files for the Environment
+/// inspector (VX-109). Excludes ignored files so "Changes" matches Codex.
+async fn vibex_git_status(
+    State(state): State<ServeState>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let root = &state.workspace_root;
+    if !vibe_core::git::is_git_repo(root) {
+        return Ok(Json(serde_json::json!({
+            "is_git_repo": false,
+            "branch": "",
+            "changed": [],
+            "changed_count": 0,
+        })));
+    }
+    let status = vibe_core::git::get_status(root)
+        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("git status: {e}")))?;
+    let changed: Vec<serde_json::Value> = status
+        .file_statuses
+        .iter()
+        .filter(|(_, st)| **st != vibe_core::git::FileStatus::Ignored)
+        .map(|(path, st)| serde_json::json!({ "path": path, "status": format!("{st:?}").to_lowercase() }))
+        .collect();
+    Ok(Json(serde_json::json!({
+        "is_git_repo": true,
+        "branch": status.branch,
+        "changed_count": changed.len(),
+        "changed": changed,
+    })))
+}
+
+/// GET /api/vibex/git/diff — full working-tree diff for the Review action
+/// (VX-202). Returned as a single unified-diff string; the client splits it
+/// per file for rendering.
+async fn vibex_git_diff(
+    State(state): State<ServeState>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let root = &state.workspace_root;
+    if !vibe_core::git::is_git_repo(root) {
+        return Ok(Json(serde_json::json!({ "diff": "" })));
+    }
+    let diff = vibe_core::git::get_repo_diff(root)
+        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("git diff: {e}")))?;
+    Ok(Json(serde_json::json!({ "diff": diff })))
+}
+
+/// GET /api/vibex/files — tracked + changed file paths for the Files
+/// quick-action (VX-110). Uses git's view of the tree (gitignore-correct)
+/// rather than a raw fs walk. Falls back to an empty list outside a repo.
+async fn vibex_files(
+    State(state): State<ServeState>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    let root = &state.workspace_root;
+    if !vibe_core::git::is_git_repo(root) {
+        return Ok(Json(serde_json::json!({ "files": [] })));
+    }
+    // `git ls-files` gives the tracked set, gitignore-respecting and fast.
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(["ls-files"])
+        .output()
+        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("git ls-files: {e}")))?;
+    let files: Vec<String> = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .map(|s| s.to_string())
+        .collect();
+    Ok(Json(serde_json::json!({ "files": files })))
+}
+
 #[derive(Debug, Default, serde::Deserialize)]
 struct StreamQuery {
     /// Replay events with `seq > since_seq` before switching to live.
@@ -5652,6 +5727,10 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         // VibeX task API (VX-112): task-card CRUD + lifecycle status.
         .route("/api/tasks", post(create_task).get(list_tasks))
         .route("/api/tasks/:id", get(get_task).patch(update_task))
+        // VibeX environment API (VX-109/202/110): read-only git + file inspection.
+        .route("/api/vibex/git/status", get(vibex_git_status))
+        .route("/api/vibex/git/diff", get(vibex_git_diff))
+        .route("/api/vibex/files", get(vibex_files))
         .route("/collab/rooms", post(create_collab_room))
         .route("/collab/rooms", get(list_collab_rooms))
         .route("/collab/rooms/:room_id/peers", get(list_collab_peers))

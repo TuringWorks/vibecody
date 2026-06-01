@@ -3,12 +3,16 @@ import { TaskPrompt, type ComposerSubmit } from "./TaskPrompt";
 import { ToolUseBlock } from "./ToolUseBlock";
 import { useAgentStream } from "../hooks/useAgentStream";
 import type { Task } from "../hooks/useTasks";
+import type { QuickAction } from "./QuickActionDrawer";
 
 interface SessionStreamProps {
   daemonUrl: string;
   daemonOnline: boolean;
   createTask: (title: string, provider: string, model?: string) => Promise<Task>;
   linkSession: (id: string, sessionId: string, status?: string) => Promise<void>;
+  onQuickAction: (action: QuickAction) => void;
+  /** Fired when a run reaches a terminal state, so the parent can refresh env. */
+  onRunFinished: () => void;
 }
 
 /**
@@ -18,7 +22,14 @@ interface SessionStreamProps {
  * is pinned at the bottom; this component orchestrates the full submit flow:
  * create task (+worktree) → run agent → link session → reflect lifecycle.
  */
-export function SessionStream({ daemonUrl, daemonOnline, createTask, linkSession }: SessionStreamProps) {
+export function SessionStream({
+  daemonUrl,
+  daemonOnline,
+  createTask,
+  linkSession,
+  onQuickAction,
+  onRunFinished,
+}: SessionStreamProps) {
   const { items, state, runTask } = useAgentStream();
   const [title, setTitle] = useState<string>("New task");
   // The task whose run is currently streaming — used to PATCH its lifecycle
@@ -34,11 +45,13 @@ export function SessionStream({ daemonUrl, daemonOnline, createTask, linkSession
     if (state === "done") {
       linkSession(id, "", "reviewing").catch((e) => console.error("status update failed", e));
       activeTaskId.current = null;
+      onRunFinished();
     } else if (state === "error") {
       linkSession(id, "", "failed").catch((e) => console.error("status update failed", e));
       activeTaskId.current = null;
+      onRunFinished();
     }
-  }, [state, linkSession]);
+  }, [state, linkSession, onRunFinished]);
 
   async function handleSubmit(p: ComposerSubmit) {
     // First task message becomes the session title.
@@ -127,6 +140,7 @@ export function SessionStream({ daemonUrl, daemonOnline, createTask, linkSession
         daemonOnline={daemonOnline}
         busy={state === "running"}
         onSubmit={handleSubmit}
+        onQuickAction={onQuickAction}
       />
     </div>
   );

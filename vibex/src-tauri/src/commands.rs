@@ -193,6 +193,45 @@ pub async fn update_task(
     resp.json().await.map_err(|e| e.to_string())
 }
 
+/// Generic authed GET against the daemon, returning parsed JSON. Shared by the
+/// VibeX environment endpoints (git status/diff, files).
+async fn daemon_get(url: String, path: &str, token: Option<String>) -> Result<serde_json::Value, String> {
+    let full = format!("{}{}", url.trim_end_matches('/'), path);
+    let client = reqwest::Client::new();
+    let mut req = client.get(&full);
+    if let Some(t) = &token {
+        if !t.is_empty() {
+            req = req.header("Authorization", format!("Bearer {}", t));
+        }
+    }
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    if !resp.status().is_success() {
+        return Err(format!("Daemon returned {}", resp.status()));
+    }
+    resp.json().await.map_err(|e| e.to_string())
+}
+
+/// GET /api/vibex/git/status — branch + changed files (VX-109).
+#[tauri::command]
+pub async fn git_status(url: String, token: Option<String>) -> Result<serde_json::Value, String> {
+    daemon_get(url, "/api/vibex/git/status", token).await
+}
+
+/// GET /api/vibex/git/diff — working-tree diff for the Review action (VX-202).
+#[tauri::command]
+pub async fn git_diff(url: String, token: Option<String>) -> Result<serde_json::Value, String> {
+    daemon_get(url, "/api/vibex/git/diff", token).await
+}
+
+/// GET /api/vibex/files — tracked file paths for the Files action (VX-110).
+#[tauri::command]
+pub async fn list_files(url: String, token: Option<String>) -> Result<serde_json::Value, String> {
+    daemon_get(url, "/api/vibex/files", token).await
+}
+
 /// Connect to the daemon SSE stream and forward events to the frontend as
 /// `agent:chunk` / `agent:complete` / `agent:error` events.
 #[tauri::command]
