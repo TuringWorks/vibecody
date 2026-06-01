@@ -1,3 +1,4 @@
+#![allow(dead_code)] // Staged wave6 / Phase 53 module — wired up in a later cycle
 //! Provenance-tracking newtype for T5-derived data — the building block
 //! for prompt-injection containment per DREAD #1 and the design in
 //! [`docs/security/tainted-data-flow.md`](../../docs/security/tainted-data-flow.md).

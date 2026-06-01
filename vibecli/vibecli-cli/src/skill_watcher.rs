@@ -1,3 +1,4 @@
+#![allow(dead_code)] // Staged wave6 / Phase 53 module — wired up in a later cycle
 //! Skills hot-reload watcher — `notify`-backed file-system observer for the
 //! skills directory.
 //!

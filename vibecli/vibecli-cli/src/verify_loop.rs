@@ -1,3 +1,4 @@
+#![allow(dead_code)] // Staged wave6 / Phase 53 module — wired up in a later cycle
 //! Self-verifying agent loop — bounded retry around a `verify → fix`
 //! cycle.
 //!

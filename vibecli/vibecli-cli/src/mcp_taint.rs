@@ -1,3 +1,4 @@
+#![allow(dead_code)] // Staged wave6 / Phase 53 module — wired up in a later cycle
 //! Tainted boundary for the **MCP client** — when VibeCody invokes an
 //! external MCP server and consumes its tool-call output.
 //!

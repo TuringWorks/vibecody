@@ -1,3 +1,4 @@
+#![allow(dead_code)] // Staged wave6 / Phase 53 module — wired up in a later cycle
 //! MCP Apps payload — `application/vnd.mcp.app+json` parser + validator.
 //!
 //! Phase 53 P0 (A1 from v13 fitgap, SEP-1865 / experimental-ext-skills

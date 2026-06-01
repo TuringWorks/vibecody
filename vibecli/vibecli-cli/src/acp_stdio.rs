@@ -1,3 +1,4 @@
+#![allow(dead_code)] // Staged wave6 / Phase 53 module — wired up in a later cycle
 //! ACP (Agent Client Protocol) v0.11+ server — JSON-RPC 2.0 over stdio.
 //!
 //! Zed and JetBrains co-developed ACP as the LSP-equivalent for AI coding

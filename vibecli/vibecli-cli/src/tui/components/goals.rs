@@ -18,6 +18,10 @@ pub struct GoalRow {
     /// G13.1 — raw workspace path (used as the pin key when toggling).
     /// `None` = global, mirroring `Goal::workspace`.
     pub workspace: Option<String>,
+    // Sourced from `Goal::updated_at` for sort stability; the TUI display
+    // doesn't render this directly today but the field is preserved so
+    // future sort-by-recent paths don't have to refetch.
+    #[allow(dead_code)]
     pub updated_at: String,
     /// G11.1 — parent for tree-mode ordering. `None` in list mode and
     /// for true roots.

@@ -1,3 +1,4 @@
+#![allow(dead_code)] // Staged wave6 / Phase 53 module — wired up in a later cycle
 //! Async subagent state machine — long-running, check-back-later
 //! subagents distinct from the synchronous-oversight pool in
 //! `nested_agents.rs`.

@@ -1,3 +1,4 @@
+#![allow(dead_code)] // Staged wave6 / Phase 53 module — wired up in a later cycle
 //! A2A v1.2 signed agent cards — P-256 ECDSA over the canonical JSON of
 //! an [`AgentCard`].
 //!

@@ -11,6 +11,9 @@
 //! collapse what had become four near-identical copies of the gate
 //! into one source of truth.
 
-pub use vibe_core::path_guard::{
-    canonicalize_lenient, reject_sensitive_path, DENIED_FILENAMES, DENIED_SEGMENTS,
-};
+// Only `reject_sensitive_path` is consumed via this crate's shim; the rest of
+// `vibe_core::path_guard`'s public surface (`canonicalize_lenient`,
+// `DENIED_FILENAMES`, `DENIED_SEGMENTS`) is consumed directly by other crates
+// and doesn't need to round-trip through here. Re-exporting them anyway just
+// produces an `unused_imports` warning in the vibecli binary target.
+pub use vibe_core::path_guard::reject_sensitive_path;

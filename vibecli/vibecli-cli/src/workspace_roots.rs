@@ -1,3 +1,4 @@
+#![allow(dead_code)] // Staged wave6 / Phase 53 module — wired up in a later cycle
 //! Multi-root workspace permission resolver.
 //!
 //! Phase 53 P0 (A6 from v13 fitgap): extend `--add-dir` from read-only

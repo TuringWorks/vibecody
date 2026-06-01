@@ -1,3 +1,4 @@
+#![allow(dead_code)] // Staged wave6 / Phase 53 module — wired up in a later cycle
 //! Slice G part 1 — confirmation prompters for the [`Tainted`] gate.
 //!
 //! DREAD #1 design doc §8.2 (CLI prompt) and the broader §8 scoping.

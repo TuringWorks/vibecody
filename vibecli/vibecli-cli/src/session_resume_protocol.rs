@@ -1,3 +1,4 @@
+#![allow(dead_code)] // Staged wave6 / Phase 53 module — wired up in a later cycle
 //! Session resume protocol — cloud-agent remote-control envelope.
 //!
 //! Phase 53 P1 (A9 from v13 fitgap, Copilot Cloud Agent + VS 2026

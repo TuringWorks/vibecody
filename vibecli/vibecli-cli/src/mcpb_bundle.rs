@@ -1,3 +1,4 @@
+#![allow(dead_code)] // Staged wave6 / Phase 53 module — wired up in a later cycle
 //! MCPB bundle format — local distribution package for MCP servers.
 //!
 //! Phase 53 P0 (A2 from v13 fitgap, MCP 2026 roadmap). MCPB is to MCP

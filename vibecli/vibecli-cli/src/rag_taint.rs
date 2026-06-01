@@ -1,3 +1,4 @@
+#![allow(dead_code)] // Staged wave6 / Phase 53 module — wired up in a later cycle
 //! Tainted boundary for RAG / semantic-index retrieval — when VibeCody
 //! pulls chunks from the local embedding index and feeds them into the
 //! model's context.

@@ -1723,7 +1723,9 @@ impl RateLimiter {
     }
 
     /// Backwards-compatible single-bucket check. New code should call
-    /// [`check_for`] with the caller's remote `IpAddr`.
+    /// [`check_for`] with the caller's remote `IpAddr`. Retained for tests
+    /// that haven't been migrated to the per-IP API yet.
+    #[allow(dead_code)]
     fn check(&self) -> bool {
         self.check_for(UNKNOWN_IP)
     }

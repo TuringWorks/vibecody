@@ -1,3 +1,4 @@
+#![allow(dead_code)] // Staged wave6 / Phase 53 module — wired up in a later cycle
 //! `/.well-known/mcp.json` — stateless capability advertisement for the
 //! daemon's MCP surface.
 //!

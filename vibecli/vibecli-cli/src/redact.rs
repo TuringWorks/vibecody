@@ -1,3 +1,4 @@
+#![allow(dead_code)] // Staged wave6 / Phase 53 module — wired up in a later cycle
 //! Newtype that prevents accidental leakage of credentials through `Debug`
 //! / `Display` (and therefore through any `tracing::info!(?config)` or
 //! `format!("{cfg:?}")` site).
