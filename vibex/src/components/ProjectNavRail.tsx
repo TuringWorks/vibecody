@@ -12,6 +12,7 @@ interface ProjectNavRailProps {
   onNewProject: (path: string) => void;
   onSelectProject: (path: string) => void;
   onSelectChat: (id: string) => void;
+  onOpenSettings: () => void;
   onToggle: () => void;
 }
 
@@ -54,6 +55,7 @@ export function ProjectNavRail({
   onNewProject,
   onSelectProject,
   onSelectChat,
+  onOpenSettings,
   onToggle,
 }: ProjectNavRailProps) {
   const projects = groupByProject(tasks);
@@ -155,7 +157,7 @@ export function ProjectNavRail({
       </ul>
 
       <div className="vx-nav__spacer" />
-      <button className="vx-nav__item vx-nav__item--settings vx-nav__item--soon" aria-label="Settings" disabled title="Coming soon">
+      <button className="vx-nav__item vx-nav__item--settings" aria-label="Settings" onClick={onOpenSettings}>
         <Settings size={15} />
         <span>Settings</span>
       </button>

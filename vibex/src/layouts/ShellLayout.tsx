@@ -5,11 +5,12 @@ import { SessionStream } from "../components/SessionStream";
 import { EnvironmentInspector } from "../components/EnvironmentInspector";
 import { ReviewView } from "../components/ReviewView";
 import { FilesView } from "../components/FilesView";
+import { SettingsView } from "../components/SettingsView";
 import type { QuickAction } from "../components/QuickActionDrawer";
 import type { useTasks } from "../hooks/useTasks";
 
 type TasksApi = ReturnType<typeof useTasks>;
-type Overlay = null | "review" | "files";
+type Overlay = null | "review" | "files" | "settings";
 
 interface ShellLayoutProps {
   daemonUrl: string;
@@ -83,13 +84,16 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
             }}
             onSelectProject={(path) => setActiveProject(path)}
             onSelectChat={(id) => setActiveChatId(id)}
+            onOpenSettings={() => setOverlay("settings")}
             onToggle={() => setNavCollapsed(true)}
           />
         )}
       </div>
 
       <div className="vibex-col vibex-col--stream">
-        {overlay === "review" ? (
+        {overlay === "settings" ? (
+          <SettingsView onClose={() => setOverlay(null)} />
+        ) : overlay === "review" ? (
           <ReviewView daemonUrl={daemonUrl} onClose={() => setOverlay(null)} />
         ) : overlay === "files" ? (
           <FilesView daemonUrl={daemonUrl} onClose={() => setOverlay(null)} />

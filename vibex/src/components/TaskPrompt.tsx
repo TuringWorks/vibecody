@@ -32,7 +32,7 @@ interface TaskPromptProps {
  * NOTE: there is intentionally NO Cmd+K inline edit — targeted edits use the
  * ⌘. diffcomplete surface (see pdm/08 §1).
  */
-export function TaskPrompt({ daemonOnline, busy, onSubmit, onQuickAction }: TaskPromptProps) {
+export function TaskPrompt({ daemonUrl, daemonOnline, busy, onSubmit, onQuickAction }: TaskPromptProps) {
   const [text, setText] = useState("");
   const [provider, setProvider] = useState("ollama");
   const [model, setModel] = useState<string | undefined>(undefined);
@@ -86,6 +86,8 @@ export function TaskPrompt({ daemonOnline, busy, onSubmit, onQuickAction }: Task
         <ApprovalPill value={approval} onChange={setApproval} />
         <div className="vx-composer__spacer" />
         <ProviderPill
+          daemonUrl={daemonUrl}
+          daemonOnline={daemonOnline}
           provider={provider}
           model={model}
           onProvider={setProvider}

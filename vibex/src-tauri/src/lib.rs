@@ -5,6 +5,7 @@
 //! (the same pattern as vibeapp). The daemon is the source of truth.
 
 mod commands;
+mod settings;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -58,6 +59,17 @@ pub fn run() {
             commands::git_status,
             commands::git_diff,
             commands::list_files,
+            settings::provider_key_set,
+            settings::provider_key_has,
+            settings::provider_key_list,
+            settings::provider_key_delete,
+            settings::provider_config_set,
+            settings::provider_config_get_all,
+            settings::setting_set,
+            settings::setting_get,
+            settings::setting_get_all,
+            settings::oauth_client_set,
+            settings::oauth_client_has,
         ])
         .run(tauri::generate_context!())
         .expect("error while running vibex");

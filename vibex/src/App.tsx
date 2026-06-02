@@ -1,6 +1,7 @@
 import { ShellLayout } from "./layouts/ShellLayout";
 import { useDaemon } from "./hooks/useDaemon";
 import { useTasks } from "./hooks/useTasks";
+import { useTheme } from "./hooks/useTheme";
 
 /**
  * VibeX root. Renders the daemon status banner (zero-config-first: connection
@@ -9,6 +10,8 @@ import { useTasks } from "./hooks/useTasks";
 export function App() {
   const daemon = useDaemon();
   const tasks = useTasks(daemon.url, daemon.status === "online");
+  // Apply the persisted theme app-wide (data-theme on <html>) on boot.
+  useTheme();
 
   return (
     <div className="vibex-root">
