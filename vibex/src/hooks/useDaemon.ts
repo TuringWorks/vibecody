@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
-/** Default VibeCLI daemon address. The daemon is the source of truth (AGENTS.md). */
-export const DEFAULT_DAEMON_URL = "http://127.0.0.1:7878";
+/**
+ * Default VibeCLI daemon address. The daemon is the source of truth (AGENTS.md).
+ * Overridable via the `VITE_DAEMON_URL` env var (e.g. to point at a daemon on a
+ * non-default port during development) without touching code.
+ */
+export const DEFAULT_DAEMON_URL =
+  import.meta.env.VITE_DAEMON_URL ?? "http://127.0.0.1:7878";
 
 export type DaemonStatus = "checking" | "online" | "offline";
 

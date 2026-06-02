@@ -4,6 +4,40 @@
 
 use tauri::AppHandle;
 
+/// Resolve the daemon bearer token. Prefers an explicit token from the caller,
+/// then falls back to `~/.vibecli/daemon.token` (where `vibecli --serve` writes
+/// it) and the `VIBECLI_TOKEN` env var. This keeps VibeX zero-config: the
+/// frontend never has to know the token — the local daemon's token file is the
+/// source of truth. Returns `None` if no token is found (the daemon may be
+/// running without auth).
+fn resolve_token(explicit: Option<String>) -> Option<String> {
+    if let Some(t) = explicit {
+        if !t.is_empty() {
+            return Some(t);
+        }
+    }
+    if let Ok(t) = std::env::var("VIBECLI_TOKEN") {
+        if !t.is_empty() {
+            return Some(t);
+        }
+    }
+    let path = dirs_home()?.join(".vibecli").join("daemon.token");
+    std::fs::read_to_string(path).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+}
+
+/// Minimal home-dir lookup without pulling the `dirs` crate into vibex.
+fn dirs_home() -> Option<std::path::PathBuf> {
+    std::env::var_os("HOME").map(std::path::PathBuf::from)
+}
+
+/// Apply bearer auth to a request using the resolved token (if any).
+fn with_auth(req: reqwest::RequestBuilder, token: Option<String>) -> reqwest::RequestBuilder {
+    match resolve_token(token) {
+        Some(t) => req.header("Authorization", format!("Bearer {}", t)),
+        None => req,
+    }
+}
+
 /// Ping the vibecli daemon `/health` endpoint; return "online" or an error.
 #[tauri::command]
 pub async fn check_daemon(url: String) -> Result<String, String> {
@@ -56,12 +90,7 @@ pub async fn start_agent_session(
             body["reasoning"] = serde_json::Value::String(r.clone());
         }
     }
-    let mut req = client.post(&agent_url).json(&body);
-    if let Some(t) = &token {
-        if !t.is_empty() {
-            req = req.header("Authorization", format!("Bearer {}", t));
-        }
-    }
+    let req = with_auth(client.post(&agent_url).json(&body), token);
     let res = req
         .send()
         .await
@@ -89,12 +118,7 @@ pub async fn start_agent_session(
 pub async fn list_tasks(url: String, token: Option<String>) -> Result<Vec<serde_json::Value>, String> {
     let tasks_url = format!("{}/api/tasks", url.trim_end_matches('/'));
     let client = reqwest::Client::new();
-    let mut req = client.get(&tasks_url);
-    if let Some(t) = &token {
-        if !t.is_empty() {
-            req = req.header("Authorization", format!("Bearer {}", t));
-        }
-    }
+    let req = with_auth(client.get(&tasks_url), token);
     let resp = req
         .send()
         .await
@@ -141,12 +165,7 @@ pub async fn create_task(
             body["project_path"] = serde_json::Value::String(pp.clone());
         }
     }
-    let mut req = client.post(&tasks_url).json(&body);
-    if let Some(t) = &token {
-        if !t.is_empty() {
-            req = req.header("Authorization", format!("Bearer {}", t));
-        }
-    }
+    let req = with_auth(client.post(&tasks_url).json(&body), token);
     let resp = req
         .send()
         .await
@@ -177,12 +196,7 @@ pub async fn update_task(
     if let Some(sid) = &session_id {
         body["session_id"] = serde_json::Value::String(sid.clone());
     }
-    let mut req = client.patch(&task_url).json(&body);
-    if let Some(t) = &token {
-        if !t.is_empty() {
-            req = req.header("Authorization", format!("Bearer {}", t));
-        }
-    }
+    let req = with_auth(client.patch(&task_url).json(&body), token);
     let resp = req
         .send()
         .await
@@ -198,12 +212,7 @@ pub async fn update_task(
 async fn daemon_get(url: String, path: &str, token: Option<String>) -> Result<serde_json::Value, String> {
     let full = format!("{}{}", url.trim_end_matches('/'), path);
     let client = reqwest::Client::new();
-    let mut req = client.get(&full);
-    if let Some(t) = &token {
-        if !t.is_empty() {
-            req = req.header("Authorization", format!("Bearer {}", t));
-        }
-    }
+    let req = with_auth(client.get(&full), token);
     let resp = req
         .send()
         .await
@@ -245,12 +254,10 @@ pub async fn stream_agent(
 
     let stream_url = format!("{}/stream/{}", url.trim_end_matches('/'), session_id);
     let client = reqwest::Client::new();
-    let mut req = client.get(&stream_url).header("Accept", "text/event-stream");
-    if let Some(t) = &token {
-        if !t.is_empty() {
-            req = req.header("Authorization", format!("Bearer {}", t));
-        }
-    }
+    let req = with_auth(
+        client.get(&stream_url).header("Accept", "text/event-stream"),
+        token,
+    );
     let res = req
         .send()
         .await

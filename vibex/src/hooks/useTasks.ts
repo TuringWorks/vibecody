@@ -41,12 +41,13 @@ export function useTasks(daemonUrl: string, daemonOnline: boolean) {
 
   /** Create a task (and its worktree). Returns the new task row. */
   const createTask = useCallback(
-    async (title: string, provider: string, model?: string): Promise<Task> => {
+    async (title: string, provider: string, model?: string, projectPath?: string): Promise<Task> => {
       const task = await invoke<Task>("create_task", {
         url: daemonUrl,
         title,
         provider,
         model,
+        projectPath,
       });
       await refresh();
       return task;

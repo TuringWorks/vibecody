@@ -25,8 +25,8 @@ html, body, #root {
   grid-template-columns: var(--nav-w, 240px) 1fr var(--env-w, 300px);
   min-height: 0;
 }
-.vibex-shell[data-nav="collapsed"]  { --nav-w: 0px; }
-.vibex-shell[data-env="collapsed"]  { --env-w: 0px; }
+.vibex-shell[data-nav="collapsed"]  { --nav-w: 40px; }
+.vibex-shell[data-env="collapsed"]  { --env-w: 40px; }
 
 .vibex-col {
   min-width: 0;
@@ -62,6 +62,12 @@ html, body, #root {
 }
 .vx-icon-btn:hover { background: var(--bg-elevated); color: var(--text-primary); }
 
+/* Collapsed side rails — a thin strip holding the expand button so collapse
+   is always reversible. */
+.vx-rail { display: flex; justify-content: center; padding-top: 8px; height: 100%; }
+.vx-rail--left { background: var(--bg-secondary); border-right: 1px solid var(--border-color); }
+.vx-rail--right { background: var(--bg-secondary); border-left: 1px solid var(--border-color); }
+
 /* ── Nav rail (VX-102) ──────────────────────────────────────────────────── */
 .vx-nav { display: flex; flex-direction: column; height: 100%; padding: 8px; gap: 2px; }
 .vx-nav__header { display: flex; align-items: center; justify-content: space-between; padding: 4px 6px 8px; }
@@ -72,7 +78,10 @@ html, body, #root {
   padding: 6px 8px; border: none; border-radius: 6px; background: transparent;
   color: var(--text-secondary); cursor: pointer; font-size: 13px; text-align: left;
 }
-.vx-nav__item:hover { background: var(--bg-elevated); color: var(--text-primary); }
+.vx-nav__item:hover:not(:disabled) { background: var(--bg-elevated); color: var(--text-primary); }
+.vx-nav__item--soon { opacity: 0.45; cursor: default; }
+.vx-nav__item.is-active, .vx-nav__chat.is-active { background: var(--bg-elevated); color: var(--text-primary); }
+.vx-nav__chat.is-active { font-weight: 600; }
 .vx-nav__item--project { color: var(--text-primary); margin-top: 4px; }
 .vx-nav__section { padding: 10px 8px 4px; font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); letter-spacing: 0.5px; }
 .vx-nav__chats { list-style: none; padding-left: 18px; }

@@ -1,38 +1,27 @@
-import { MessageSquarePlus, Search, Sparkles, Plug, Workflow, Folder, Settings, PanelLeftClose } from "lucide-react";
+import { MessageSquarePlus, FolderPlus, Search, Sparkles, Plug, Workflow, Folder, Settings, PanelLeftClose } from "lucide-react";
+import { open } from "@tauri-apps/plugin-dialog";
 import type { Task } from "../hooks/useTasks";
 
 interface ProjectNavRailProps {
   daemonUrl: string;
   daemonOnline: boolean;
   tasks: Task[];
+  activeChatId: string | null;
+  activeProject: string | null;
+  onNewChat: () => void;
+  onNewProject: (path: string) => void;
+  onSelectProject: (path: string) => void;
+  onSelectChat: (id: string) => void;
   onToggle: () => void;
 }
 
 /**
  * VX-102 — left project/chat navigator (Codex screenshots 1, 4, 8).
- * Fixed top items, then a Projects→chats tree, then Settings pinned bottom.
- * Currently renders the static structure; chats wire to /api/tasks in VX-112.
+ * Fixed top items (New chat / New project / Search / Skills / Plugins /
+ * Automations), then a Projects→chats tree grouped from live tasks, then
+ * Settings pinned at the bottom. Rows are clickable; "New project" opens a
+ * native folder picker and scopes the next task to it.
  */
-const TOP_ITEMS = [
-  { icon: MessageSquarePlus, label: "New chat" },
-  { icon: Search, label: "Search" },
-  { icon: Sparkles, label: "Skills" },
-  { icon: Plug, label: "Plugins" },
-  { icon: Workflow, label: "Automations" },
-];
-
-/** Group live tasks by their project path's last path segment. */
-function groupByProject(tasks: Task[]): { name: string; tasks: Task[] }[] {
-  const byProject = new Map<string, Task[]>();
-  for (const t of tasks) {
-    const name = t.project_path.split("/").filter(Boolean).pop() || "workspace";
-    const arr = byProject.get(name) ?? [];
-    arr.push(t);
-    byProject.set(name, arr);
-  }
-  return [...byProject.entries()].map(([name, tasks]) => ({ name, tasks }));
-}
-
 const STATUS_DOT: Record<string, string> = {
   running: "var(--accent-green)",
   reviewing: "var(--accent-blue)",
@@ -42,8 +31,42 @@ const STATUS_DOT: Record<string, string> = {
   draft: "var(--text-tertiary)",
 };
 
-export function ProjectNavRail({ tasks, onToggle }: ProjectNavRailProps) {
+/** Group live tasks by their project path; keep the full path for selection. */
+function groupByProject(tasks: Task[]): { name: string; path: string; tasks: Task[] }[] {
+  const byPath = new Map<string, Task[]>();
+  for (const t of tasks) {
+    const arr = byPath.get(t.project_path) ?? [];
+    arr.push(t);
+    byPath.set(t.project_path, arr);
+  }
+  return [...byPath.entries()].map(([path, tasks]) => ({
+    name: path.split("/").filter(Boolean).pop() || "workspace",
+    path,
+    tasks,
+  }));
+}
+
+export function ProjectNavRail({
+  tasks,
+  activeChatId,
+  activeProject,
+  onNewChat,
+  onNewProject,
+  onSelectProject,
+  onSelectChat,
+  onToggle,
+}: ProjectNavRailProps) {
   const projects = groupByProject(tasks);
+
+  async function pickProject() {
+    try {
+      const picked = await open({ directory: true, multiple: false, title: "Open a project folder" });
+      if (typeof picked === "string" && picked) onNewProject(picked);
+    } catch (e) {
+      console.error("folder picker failed", e);
+    }
+  }
+
   return (
     <nav className="vx-nav">
       <div className="vx-nav__header">
@@ -54,31 +77,69 @@ export function ProjectNavRail({ tasks, onToggle }: ProjectNavRailProps) {
       </div>
 
       <ul className="vx-nav__list">
-        {TOP_ITEMS.map(({ icon: Icon, label }) => (
-          <li key={label}>
-            <button className="vx-nav__item" aria-label={label}>
-              <Icon size={15} />
-              <span>{label}</span>
-            </button>
-          </li>
-        ))}
+        <li>
+          <button className="vx-nav__item" aria-label="New chat" onClick={onNewChat}>
+            <MessageSquarePlus size={15} />
+            <span>New chat</span>
+          </button>
+        </li>
+        <li>
+          <button className="vx-nav__item" aria-label="New project" onClick={pickProject}>
+            <FolderPlus size={15} />
+            <span>New project</span>
+          </button>
+        </li>
+        <li>
+          <button className="vx-nav__item vx-nav__item--soon" aria-label="Search" disabled title="Coming soon">
+            <Search size={15} />
+            <span>Search</span>
+          </button>
+        </li>
+        <li>
+          <button className="vx-nav__item vx-nav__item--soon" aria-label="Skills" disabled title="Coming soon">
+            <Sparkles size={15} />
+            <span>Skills</span>
+          </button>
+        </li>
+        <li>
+          <button className="vx-nav__item vx-nav__item--soon" aria-label="Plugins" disabled title="Coming soon">
+            <Plug size={15} />
+            <span>Plugins</span>
+          </button>
+        </li>
+        <li>
+          <button className="vx-nav__item vx-nav__item--soon" aria-label="Automations" disabled title="Coming soon">
+            <Workflow size={15} />
+            <span>Automations</span>
+          </button>
+        </li>
       </ul>
 
       <div className="vx-nav__section">Projects</div>
       <ul className="vx-nav__list">
         {projects.length === 0 && (
-          <li className="vx-nav__empty">No tasks yet — type one below.</li>
+          <li className="vx-nav__empty">No tasks yet — type one below or add a project.</li>
         )}
         {projects.map((p) => (
-          <li key={p.name}>
-            <button className="vx-nav__item vx-nav__item--project" aria-label={p.name}>
+          <li key={p.path}>
+            <button
+              className={`vx-nav__item vx-nav__item--project${activeProject === p.path ? " is-active" : ""}`}
+              aria-label={p.name}
+              title={p.path}
+              onClick={() => onSelectProject(p.path)}
+            >
               <Folder size={14} />
               <span>{p.name}</span>
             </button>
             <ul className="vx-nav__chats">
               {p.tasks.map((t, i) => (
                 <li key={t.id}>
-                  <button className="vx-nav__chat" aria-label={t.title} title={`${t.status} · ${t.branch || "no branch"}`}>
+                  <button
+                    className={`vx-nav__chat${activeChatId === t.id ? " is-active" : ""}`}
+                    aria-label={t.title}
+                    title={`${t.status} · ${t.branch || "no branch"}`}
+                    onClick={() => onSelectChat(t.id)}
+                  >
                     <span
                       className="vx-nav__chat-dot"
                       style={{ background: STATUS_DOT[t.status] ?? "var(--text-tertiary)" }}
@@ -94,7 +155,7 @@ export function ProjectNavRail({ tasks, onToggle }: ProjectNavRailProps) {
       </ul>
 
       <div className="vx-nav__spacer" />
-      <button className="vx-nav__item vx-nav__item--settings" aria-label="Settings">
+      <button className="vx-nav__item vx-nav__item--settings vx-nav__item--soon" aria-label="Settings" disabled title="Coming soon">
         <Settings size={15} />
         <span>Settings</span>
       </button>

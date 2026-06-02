@@ -8,7 +8,9 @@ import type { QuickAction } from "./QuickActionDrawer";
 interface SessionStreamProps {
   daemonUrl: string;
   daemonOnline: boolean;
-  createTask: (title: string, provider: string, model?: string) => Promise<Task>;
+  /** Project the next task is scoped to (null → daemon workspace default). */
+  projectPath: string | null;
+  createTask: (title: string, provider: string, model?: string, projectPath?: string) => Promise<Task>;
   linkSession: (id: string, sessionId: string, status?: string) => Promise<void>;
   onQuickAction: (action: QuickAction) => void;
   /** Fired when a run reaches a terminal state, so the parent can refresh env. */
@@ -25,6 +27,7 @@ interface SessionStreamProps {
 export function SessionStream({
   daemonUrl,
   daemonOnline,
+  projectPath,
   createTask,
   linkSession,
   onQuickAction,
@@ -60,7 +63,7 @@ export function SessionStream({
     // VX-112/113: create the task card (+ worktree) before the agent starts.
     let task: Task | null = null;
     try {
-      task = await createTask(p.task, p.provider, p.model);
+      task = await createTask(p.task, p.provider, p.model, projectPath ?? undefined);
       activeTaskId.current = task.id;
     } catch (e) {
       console.error("create task failed", e);
