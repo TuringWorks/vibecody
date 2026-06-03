@@ -124,7 +124,7 @@ whisper-rs = { version = "0.16", optional = true }
 # OpenTelemetry (OTLP/HTTP export)
 opentelemetry = { version = "0.32", features = ["trace"] }
 opentelemetry-otlp = { version = "0.27", features = ["http-proto", "reqwest-client"] }
-opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
+opentelemetry_sdk = { version = "0.32", features = ["rt-tokio"] }
 opentelemetry-semantic-conventions = "0.32"
 tracing-opentelemetry = "0.28"
 
