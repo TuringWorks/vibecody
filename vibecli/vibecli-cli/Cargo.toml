@@ -123,10 +123,10 @@ whisper-rs = { version = "0.16", optional = true }
 
 # OpenTelemetry (OTLP/HTTP export)
 opentelemetry = { version = "0.32", features = ["trace"] }
-opentelemetry-otlp = { version = "0.27", features = ["http-proto", "reqwest-client"] }
+opentelemetry-otlp = { version = "0.32", features = ["http-proto", "reqwest-client"] }
 opentelemetry_sdk = { version = "0.32", features = ["rt-tokio"] }
 opentelemetry-semantic-conventions = "0.32"
-tracing-opentelemetry = "0.28"
+tracing-opentelemetry = "0.33"
 
 # macOS: always pull in the Metal-accelerated mistral.rs backend. Cargo
 # unifies feature flags across multiple declarations of the same dep, so

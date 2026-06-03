@@ -19,7 +19,7 @@ use crate::config::OtelConfig;
 use anyhow::Result;
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_otlp::WithExportConfig;
-use opentelemetry_sdk::trace::TracerProvider as SdkTracerProvider;
+use opentelemetry_sdk::trace::SdkTracerProvider;
 use tracing_subscriber::filter::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -61,14 +61,19 @@ pub fn setup(config: &OtelConfig) -> Result<Option<OtelGuard>> {
         .build()?;
 
     // ── Build SDK tracer provider ──────────────────────────────────────────────
+    // opentelemetry_sdk 0.32: `Resource::new` is gone (use the builder), and
+    // `with_batch_exporter` no longer takes a runtime — the batch processor
+    // owns a dedicated background thread.
     let provider = SdkTracerProvider::builder()
-        .with_resource(opentelemetry_sdk::Resource::new(vec![
-            opentelemetry::KeyValue::new(
-                opentelemetry_semantic_conventions::resource::SERVICE_NAME,
-                config.service_name.clone(),
-            ),
-        ]))
-        .with_batch_exporter(exporter, opentelemetry_sdk::runtime::Tokio)
+        .with_resource(
+            opentelemetry_sdk::Resource::builder()
+                .with_attribute(opentelemetry::KeyValue::new(
+                    opentelemetry_semantic_conventions::resource::SERVICE_NAME,
+                    config.service_name.clone(),
+                ))
+                .build(),
+        )
+        .with_batch_exporter(exporter)
         .build();
 
     // ── Bridge: tracing → opentelemetry ───────────────────────────────────────

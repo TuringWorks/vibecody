@@ -88,6 +88,7 @@ fn noise_params() -> NoiseParams {
 pub fn build_initiator(psk: &[u8; 32]) -> Result<HandshakeState> {
     Builder::new(noise_params())
         .psk(0, psk)
+        .map_err(|e| anyhow!("noise psk: {e}"))?
         .build_initiator()
         .map_err(|e| anyhow!("noise initiator: {e}"))
 }
@@ -96,13 +97,14 @@ pub fn build_initiator(psk: &[u8; 32]) -> Result<HandshakeState> {
 pub fn build_responder(psk: &[u8; 32]) -> Result<HandshakeState> {
     Builder::new(noise_params())
         .psk(0, psk)
+        .map_err(|e| anyhow!("noise psk: {e}"))?
         .build_responder()
         .map_err(|e| anyhow!("noise responder: {e}"))
 }
 
 /// Generate a fresh 32-byte PSK for a new job.
 pub fn generate_psk() -> [u8; 32] {
-    use rand::RngCore;
+    use rand::Rng;
     let mut buf = [0u8; 32];
     rand::rng().fill_bytes(&mut buf);
     buf

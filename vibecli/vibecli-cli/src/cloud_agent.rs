@@ -178,7 +178,7 @@ pub async fn start_cloud_agent(config: &CloudAgentConfig, task: &str) -> Result<
 
 /// Generate a short random hex string for container naming.
 fn rand_hex() -> String {
-    use rand::Rng;
+    use rand::RngExt;
     format!("{:08x}", rand::rng().random::<u32>())
 }
 

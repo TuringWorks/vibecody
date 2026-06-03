@@ -56,7 +56,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use rand::Rng;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use std::{
     convert::Infallible,
@@ -302,7 +302,7 @@ pub(crate) fn internal_error_value(
 ) -> (StatusCode, serde_json::Value) {
     // Short, log-greppable correlation ID. 8 hex chars of entropy is plenty
     // for matching a single request to a log line; not a security boundary.
-    use rand::Rng;
+    use rand::RngExt;
     let correlation_id = format!("{:08x}", rand::rng().random::<u32>());
     tracing::error!(
         target: "vibecody::http",

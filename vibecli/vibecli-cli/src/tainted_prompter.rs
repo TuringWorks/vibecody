@@ -295,7 +295,7 @@ pub fn confirm_with_prompter(
 }
 
 fn mint_confirmation_id() -> String {
-    use rand::Rng;
+    use rand::RngExt;
     // 96 bits of correlation entropy — collision chance is astronomical
     // and the format matches the existing `serve.rs` correlation-id
     // shape (lowercase hex). Two u64 draws + truncate to keep the

@@ -17,7 +17,7 @@
 
 use anyhow::{anyhow, Context, Result};
 use hmac::{Hmac, Mac};
-use rand::Rng;
+use rand::RngExt;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;

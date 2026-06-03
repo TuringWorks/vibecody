@@ -44,7 +44,7 @@ use chacha20poly1305::{
     ChaCha20Poly1305, Nonce,
 };
 use chrono::Utc;
-use rand::Rng;
+use rand::RngExt;
 use rusqlite::{params, Connection};
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};

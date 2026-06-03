@@ -31,7 +31,7 @@ pub fn generate_pairing_url(host: &str, port: u16) -> (String, String) {
 /// the seed is roughly `hash(unix_nanos) ^ hash(pid)`, predictable to
 /// an attacker who can probe the pairing endpoint with timing.
 fn generate_random_token() -> String {
-    use rand::Rng;
+    use rand::RngExt;
     let mut rng = rand::rng();
     let bytes: [u8; 16] = rng.random();
     let mut hex = String::with_capacity(32);
