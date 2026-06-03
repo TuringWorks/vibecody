@@ -222,3 +222,65 @@ html, body, #root {
 .vx-set-theme__swatch { width: 28px; height: 18px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-primary); }
 .vx-set-theme__swatch[data-theme="light"] { background: #fafbfd; }
 .vx-set-theme__swatch[data-theme="dark"] { background: #0f1117; }
+
+/* Full theme picker (grouped by category) ────────────────────────────── */
+.vx-set-theme-group { margin-top: 18px; }
+.vx-set-theme-group__h {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.vx-set-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.vx-set-theme-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 12px;
+  text-align: left;
+  transition: border-color 80ms ease;
+}
+.vx-set-theme-card:hover { border-color: var(--text-secondary); }
+.vx-set-theme-card.is-active { border-color: var(--accent-blue); }
+.vx-set-theme-card__swatch {
+  position: relative;
+  height: 38px;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  padding: 4px;
+}
+.vx-set-theme-card__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+.vx-set-theme-card__name {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vx-set-theme-card__check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  color: var(--accent-blue);
+}

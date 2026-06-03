@@ -133,19 +133,35 @@ function ProvidersSection() {
 }
 
 function AppearanceSection() {
-  const { mode, setTheme } = useTheme();
+  const { mode, setTheme, themeId, setThemeId, themes } = useTheme();
   const modes: { id: ThemeMode; label: string }[] = [
     { id: "dark", label: "Dark" },
     { id: "light", label: "Light" },
   ];
+  // Show themes of the currently-selected mode, grouped by category. The
+  // category labels mirror the VibeUI Settings → Appearance ordering so
+  // a user moving between apps doesn't have to relearn the layout.
+  const CATEGORY_ORDER = ["standard", "high-contrast", "color-blind", "supercar"] as const;
+  const CATEGORY_LABEL: Record<(typeof CATEGORY_ORDER)[number], string> = {
+    standard: "Standard",
+    "high-contrast": "High contrast",
+    "color-blind": "Color-blind friendly",
+    supercar: "Supercar",
+  };
+  const visible = themes.filter((t) => t.mode === mode);
   return (
     <div className="vx-set-section">
       <h3 className="vx-set-h">Theme</h3>
       <p className="vx-set-hint">Uses the shared VibeCody design tokens, so VibeX matches VibeUI.</p>
-      <div className="vx-set-themes">
+
+      {/* Mode toggle — flips within the current pair, so "Charcoal dark → light"
+          stays on Charcoal instead of jumping back to Default. */}
+      <div className="vx-set-themes" role="radiogroup" aria-label="Theme mode">
         {modes.map((m) => (
           <button
             key={m.id}
+            role="radio"
+            aria-checked={mode === m.id}
             className={`vx-set-theme${mode === m.id ? " is-active" : ""}`}
             onClick={() => setTheme(m.id)}
             data-theme-preview={m.id}
@@ -156,6 +172,54 @@ function AppearanceSection() {
           </button>
         ))}
       </div>
+
+      {/* Full theme picker — grouped by category. The swatch is rendered from
+          each theme's own `preview` colors (bg + fg + accent + secondary) so
+          you can compare palettes without applying them. */}
+      {CATEGORY_ORDER.map((cat) => {
+        const inCat = visible.filter((t) => t.category === cat);
+        if (inCat.length === 0) return null;
+        return (
+          <div key={cat} className="vx-set-theme-group">
+            <h4 className="vx-set-theme-group__h">{CATEGORY_LABEL[cat]}</h4>
+            <div className="vx-set-theme-grid" role="radiogroup" aria-label={`${CATEGORY_LABEL[cat]} themes`}>
+              {inCat.map((t) => {
+                const active = themeId === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    role="radio"
+                    aria-checked={active}
+                    className={`vx-set-theme-card${active ? " is-active" : ""}`}
+                    onClick={() => setThemeId(t.id)}
+                    title={t.name}
+                  >
+                    <span
+                      className="vx-set-theme-card__swatch"
+                      style={{
+                        background: t.preview.bg,
+                        color: t.preview.fg,
+                        boxShadow: `inset 0 0 0 1px var(--border-color)`,
+                      }}
+                    >
+                      <span
+                        className="vx-set-theme-card__dot"
+                        style={{ background: t.preview.accent }}
+                      />
+                      <span
+                        className="vx-set-theme-card__dot"
+                        style={{ background: t.preview.secondary }}
+                      />
+                    </span>
+                    <span className="vx-set-theme-card__name">{t.name}</span>
+                    {active && <Check size={12} className="vx-set-theme-card__check" />}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
