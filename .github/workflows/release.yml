@@ -96,7 +96,7 @@ jobs:
 
       # TODO: pin to a verified SHA during Phase 3 hardening.
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
