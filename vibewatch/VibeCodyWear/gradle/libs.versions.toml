@@ -72,7 +72,7 @@ androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "u
 
 # Speech (on-device; maps to SpeechRecognizer system API — no extra dep needed)
 # Alias kept for build.gradle.kts reference; actual dep not needed
-androidx-speech-recognizer = { group = "androidx.wear", name = "wear", version = "1.3.0" }
+androidx-speech-recognizer = { group = "androidx.wear", name = "wear", version = "1.4.0" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
