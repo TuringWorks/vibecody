@@ -125,7 +125,7 @@ whisper-rs = { version = "0.16", optional = true }
 opentelemetry = { version = "0.27", features = ["trace"] }
 opentelemetry-otlp = { version = "0.27", features = ["http-proto", "reqwest-client"] }
 opentelemetry_sdk = { version = "0.27", features = ["rt-tokio"] }
-opentelemetry-semantic-conventions = "0.27"
+opentelemetry-semantic-conventions = "0.32"
 tracing-opentelemetry = "0.28"
 
 # macOS: always pull in the Metal-accelerated mistral.rs backend. Cargo
