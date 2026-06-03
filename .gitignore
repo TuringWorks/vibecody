@@ -57,3 +57,4 @@ docs/Gemfile.lock
 /vibewatch/VibeCodyWear/.gradle
 /.obsidian
 /.codex
+ollama-launch-codex-app.config.toml

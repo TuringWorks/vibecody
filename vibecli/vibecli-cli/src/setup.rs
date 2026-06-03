@@ -262,7 +262,7 @@ fn prompt_choice(message: &str, options: &[(&str, &str)], default: usize) -> usi
 // ── Setup steps ────────────────────────────────────────────────────────────
 
 fn step_detect(info: &PlatformInfo) {
-    println!("\n{BOLD}┌─ VibeCody Setup Wizard ─────────────────────────────────┐{RESET}");
+    println!("\n{BOLD}┌─ VibeCody Setup Wizard ──────────────────────────────────┐{RESET}");
     println!(
         "{BOLD}│{RESET}                                                          {BOLD}│{RESET}"
     );
@@ -582,9 +582,9 @@ fn step_summary(info: &PlatformInfo, provider: &str, model: Option<&str>, always
     println!(
         "{BOLD}│{RESET}                                                         {BOLD}│{RESET}"
     );
-    println!("{BOLD}│{RESET}  {CYAN}Next steps:{RESET}                                           {BOLD}│{RESET}");
+    println!("{BOLD}│{RESET}  {CYAN}Next steps:{RESET}                                            {BOLD}│{RESET}");
     println!("{BOLD}│{RESET}    vibecli                    {DIM}# Start chatting{RESET}           {BOLD}│{RESET}");
-    println!("{BOLD}│{RESET}    vibecli --agent \"fix bugs\" {DIM}# Run an agent{RESET}            {BOLD}│{RESET}");
+    println!("{BOLD}│{RESET}    vibecli --agent \"fix bugs\" {DIM}# Run an agent{RESET}           {BOLD}│{RESET}");
     println!("{BOLD}│{RESET}    vibecli --review           {DIM}# Review code{RESET}              {BOLD}│{RESET}");
     if !always_on {
         println!("{BOLD}│{RESET}    vibecli --serve            {DIM}# Start daemon{RESET}             {BOLD}│{RESET}");
