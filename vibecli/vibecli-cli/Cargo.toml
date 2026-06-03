@@ -107,7 +107,7 @@ clap_complete = "4"
 zip = "2"
 handlebars = "6"
 socket2 = "0.6"
-snow = "0.9"
+snow = "0.10"
 libc = "0.2"
 whisper-rs = { version = "0.16", optional = true }
 
