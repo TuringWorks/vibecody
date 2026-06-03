@@ -26,7 +26,7 @@ walkdir = "2"
 regex = "1"
 
 # Terminal
-portable-pty = "0.8"
+portable-pty = "0.9"
 
 # Diff
 similar = { version = "2.6", features = ["inline"] }
