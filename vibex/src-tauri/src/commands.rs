@@ -74,6 +74,7 @@ pub async fn start_agent_session(
     model: Option<String>,
     approval: Option<String>,
     reasoning: Option<String>,
+    resume_session_id: Option<String>,
     token: Option<String>,
 ) -> Result<String, String> {
     let agent_url = format!("{}/agent", url.trim_end_matches('/'));
@@ -91,6 +92,13 @@ pub async fn start_agent_session(
     if let Some(r) = &reasoning {
         if !r.is_empty() {
             body["reasoning"] = serde_json::Value::String(r.clone());
+        }
+    }
+    // VibeX resume: continue the selected chat's session instead of starting a
+    // fresh one. The daemon reuses this id and seeds prior conversation.
+    if let Some(rid) = &resume_session_id {
+        if !rid.is_empty() {
+            body["resume_session_id"] = serde_json::Value::String(rid.clone());
         }
     }
     let req = with_auth(client.post(&agent_url).json(&body), token);
@@ -203,6 +211,82 @@ pub async fn update_task(
         body["session_id"] = serde_json::Value::String(sid.clone());
     }
     let req = with_auth(client.patch(&task_url).json(&body), token);
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    if !resp.status().is_success() {
+        return Err(format!("Daemon returned {}", resp.status()));
+    }
+    resp.json().await.map_err(|e| e.to_string())
+}
+
+/// DELETE /api/tasks/:id — remove a task. When `remove_worktree` is true the
+/// daemon also tears down the task's git worktree (VX bug-2 "delete chat").
+#[tauri::command]
+pub async fn delete_task(
+    url: String,
+    id: String,
+    remove_worktree: Option<bool>,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let task_url = format!(
+        "{}/api/tasks/{}?remove_worktree={}",
+        url.trim_end_matches('/'),
+        id,
+        remove_worktree.unwrap_or(false)
+    );
+    let client = reqwest::Client::new();
+    let req = with_auth(client.delete(&task_url), token);
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let b = resp.text().await.unwrap_or_default();
+        return Err(format!("Daemon returned {}: {}", status, b));
+    }
+    resp.json().await.map_err(|e| e.to_string())
+}
+
+/// POST /api/tasks/:id/merge — merge the task's worktree branch back into the
+/// project's branch, then remove the worktree + task on success. On conflict
+/// the daemon aborts the merge and returns 409; the error string carries the
+/// conflict detail so the UI can surface it (VX bug-2 "merge & delete").
+#[tauri::command]
+pub async fn merge_task(
+    url: String,
+    id: String,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let merge_url = format!("{}/api/tasks/{}/merge", url.trim_end_matches('/'), id);
+    let client = reqwest::Client::new();
+    let req = with_auth(client.post(&merge_url), token);
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let b = resp.text().await.unwrap_or_default();
+        return Err(format!("Daemon returned {}: {}", status, b));
+    }
+    resp.json().await.map_err(|e| e.to_string())
+}
+
+/// GET /api/tasks/:id/history — fetch a finished chat's conversation
+/// (reconstructed from the daemon's durable event log) so it can be re-rendered
+/// in the center pane when the chat is selected (VX bug-3).
+#[tauri::command]
+pub async fn get_task_history(
+    url: String,
+    id: String,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let hist_url = format!("{}/api/tasks/{}/history", url.trim_end_matches('/'), id);
+    let client = reqwest::Client::new();
+    let req = with_auth(client.get(&hist_url), token);
     let resp = req
         .send()
         .await

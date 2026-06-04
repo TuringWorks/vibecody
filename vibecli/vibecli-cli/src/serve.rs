@@ -222,6 +222,13 @@ pub struct AgentRequest {
     /// extended thinking (e.g. Claude) honor it; others ignore it gracefully.
     #[serde(default)]
     pub reasoning: Option<String>,
+    /// VibeX resume: continue an existing session instead of starting a fresh
+    /// one. When `Some`, the run reuses this `session_id` (appending to its
+    /// durable event log) and seeds the agent with the prior conversation
+    /// reconstructed from that log. `None` (every other client) creates a new
+    /// session — backward compatible.
+    #[serde(default)]
+    pub resume_session_id: Option<String>,
 }
 
 /// Map a VibeX reasoning-effort label to an extended-thinking token budget.
@@ -1068,7 +1075,73 @@ fn build_agent_context_from_request(
         memory_context,
         auto_commit: false,
         reasoning_budget_tokens: None,
+        prior_messages: Vec::new(),
     })
+}
+
+/// Rebuild a conversation from a session's durable `job_events` log so a
+/// resumed VibeX run continues with full context (VX bug-3). The log records
+/// `user` turns and assistant `chunk` tokens; we fold consecutive chunks into a
+/// single assistant turn and drop `step`/`system`/`complete`/`error` events
+/// (not conversational content). Guards keep the result provider-safe: it
+/// starts with a user turn and never has two same-role turns in a row, which
+/// strict providers (e.g. Claude) require.
+fn reconstruct_prior_messages(
+    events: Vec<(u64, crate::job_manager::AgentEventPayload)>,
+) -> Vec<Message> {
+    let mut out: Vec<Message> = Vec::new();
+    let mut assistant_buf = String::new();
+
+    fn flush(out: &mut Vec<Message>, buf: &mut String) {
+        if !buf.is_empty() {
+            out.push(Message {
+                role: MessageRole::Assistant,
+                content: std::mem::take(buf),
+            });
+        }
+    }
+
+    for (_seq, ev) in events {
+        match ev.kind.as_str() {
+            "user" => {
+                flush(&mut out, &mut assistant_buf);
+                // Keep strict user/assistant alternation: a user turn with no
+                // assistant reply before the next user turn gets a placeholder.
+                if matches!(out.last(), Some(m) if m.role == MessageRole::User) {
+                    out.push(Message {
+                        role: MessageRole::Assistant,
+                        content: "(no response recorded)".into(),
+                    });
+                }
+                out.push(Message {
+                    role: MessageRole::User,
+                    content: ev.content.unwrap_or_default(),
+                });
+            }
+            "chunk" => {
+                if let Some(c) = ev.content {
+                    assistant_buf.push_str(&c);
+                }
+            }
+            _ => {}
+        }
+    }
+    flush(&mut out, &mut assistant_buf);
+
+    // Providers require the first non-system message to be a user turn. Older
+    // sessions (pre-`user`-event) reconstruct to assistant-only; prepend a
+    // minimal user turn so the resumed run is still valid.
+    if matches!(out.first(), Some(m) if m.role != MessageRole::User) {
+        out.insert(
+            0,
+            Message {
+                role: MessageRole::User,
+                content: "(resumed conversation)".into(),
+            },
+        );
+    }
+
+    out
 }
 
 async fn start_agent(
@@ -1086,26 +1159,55 @@ async fn start_agent(
         }
     }
 
-    let session_id = state
-        .job_manager
-        .create(CreateJobReq {
-            task: req.task.clone(),
-            provider: state.provider_name.clone(),
-            approval: req.approval.clone().unwrap_or_else(|| "auto".into()),
-            workspace_root: state.workspace_root.to_string_lossy().to_string(),
-            priority: 5,
-            webhook_url: None,
-            tags: vec![],
-            quota_bucket: None,
-        })
-        .await
-        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    // VibeX resume: when the client passes `resume_session_id`, continue that
+    // session — reuse its id so new events append to the same durable log —
+    // instead of creating a fresh job. Otherwise create a new session.
+    let resuming = req
+        .resume_session_id
+        .as_deref()
+        .map(|s| !s.is_empty())
+        .unwrap_or(false);
+    let session_id = match req.resume_session_id.clone() {
+        Some(rid) if !rid.is_empty() => rid,
+        _ => state
+            .job_manager
+            .create(CreateJobReq {
+                task: req.task.clone(),
+                provider: state.provider_name.clone(),
+                approval: req.approval.clone().unwrap_or_else(|| "auto".into()),
+                workspace_root: state.workspace_root.to_string_lossy().to_string(),
+                priority: 5,
+                webhook_url: None,
+                tags: vec![],
+                quota_bucket: None,
+            })
+            .await
+            .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?,
+    };
 
     let _ = state.job_manager.mark_running(&session_id).await;
     // Register the broadcast channel; events are persisted+fanned-out via
     // `job_manager.publish_event` below so reconnecting SSE clients can
-    // replay with `?since_seq=N`.
+    // replay with `?since_seq=N`. On resume this re-opens the channel that
+    // `close_stream` removed when the prior run finished.
     let _ = state.job_manager.open_stream(&session_id).await;
+
+    // VibeX resume: reconstruct the prior conversation from the durable event
+    // log BEFORE appending the new user turn, so the agent continues with full
+    // context. Empty for fresh sessions.
+    let prior_messages: Vec<Message> = if resuming {
+        reconstruct_prior_messages(state.job_manager.replay_events(&session_id, 0).await)
+    } else {
+        Vec::new()
+    };
+
+    // Persist the user's turn so the durable log is a faithful transcript that
+    // replays as a multi-turn conversation (VibeX history + resume). Live SSE
+    // consumers switch on event `type` and ignore the `user` kind.
+    let _ = state
+        .job_manager
+        .publish_event(&session_id, AgentEventPayload::user(req.task.clone()))
+        .await;
 
     // G5.2 — auto-link the new session to the pinned goal, if one is
     // pinned for the daemon's workspace (or globally). Best-effort:
@@ -1153,7 +1255,18 @@ async fn start_agent(
     let task = req.task.clone();
     let sid = session_id.clone();
     let workspace_root = state.workspace_root.clone();
-    let provider = state.provider.clone();
+    // Honor the per-request provider/model (VibeX model picker, mobile, watch,
+    // IDE). Without this the agent always used the daemon's *startup* provider,
+    // so a request for a local model (e.g. ollama/codellama:13b) silently ran
+    // the configured default — often `qwen3-coder:480b-cloud`, a cloud model
+    // that 500s. Fall back to the daemon default when unspecified or when the
+    // override can't be built (missing key / unknown provider).
+    let provider = match (req.provider.as_deref(), req.model.as_deref()) {
+        (Some(p), Some(m)) if !p.is_empty() && !m.is_empty() => {
+            build_provider_override(p, m).unwrap_or_else(|| state.provider.clone())
+        }
+        _ => state.provider.clone(),
+    };
     let job_manager = state.job_manager.clone();
     // Move context_request into the spawned task. Empty default keeps
     // the existing-clients path zero-overhead.
@@ -1223,6 +1336,7 @@ async fn start_agent(
                     memory_context: None,
                     auto_commit: false,
                     reasoning_budget_tokens: reasoning_budget,
+                    prior_messages: Vec::new(),
                 },
             },
             None => AgentContext {
@@ -1243,6 +1357,7 @@ async fn start_agent(
                 memory_context: None,
                 auto_commit: false,
                 reasoning_budget_tokens: reasoning_budget,
+                prior_messages: Vec::new(),
             },
         };
 
@@ -1258,6 +1373,9 @@ async fn start_agent(
                 context.approved_plan = Some(goal_to_agent_preamble(goal));
             }
         }
+
+        // VibeX resume: seed the run with the reconstructed prior conversation.
+        context.prior_messages = prior_messages;
 
         let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import type { AgentEventPayload } from "./useTasks";
 
 /** A rendered item in the conversation stream. */
 export type StreamItem =
@@ -19,6 +20,46 @@ interface RunArgs {
   model?: string;
   approval: string;
   reasoning: string;
+  /** When set, resume this session (continue the conversation) instead of
+   *  starting a fresh one. */
+  resumeSessionId?: string;
+}
+
+/**
+ * Convert a finished chat's persisted events (job_events) into renderable
+ * stream items, mirroring the live SSE mapping in `src-tauri/commands.rs`.
+ * Consecutive `chunk` events are folded into one agent bubble; `complete` is
+ * dropped (it's a duplicate summary). Used to re-render a selected chat (VX
+ * bug-3).
+ */
+export function eventsToStreamItems(events: AgentEventPayload[]): StreamItem[] {
+  const items: StreamItem[] = [];
+  for (const ev of events) {
+    switch (ev.type) {
+      case "user":
+        items.push({ kind: "user", text: ev.content ?? "" });
+        break;
+      case "chunk": {
+        const last = items[items.length - 1];
+        if (last && last.kind === "agent") last.text += ev.content ?? "";
+        else items.push({ kind: "agent", text: ev.content ?? "" });
+        break;
+      }
+      case "step":
+        items.push({ kind: "tool", tool: ev.tool_name ?? "tool", summary: ev.content ?? "" });
+        break;
+      case "system":
+        items.push({ kind: "system", text: ev.content ?? "" });
+        break;
+      case "error":
+        items.push({ kind: "error", text: ev.content ?? "" });
+        break;
+      // "complete" carries only a duplicate summary — skip it.
+      default:
+        break;
+    }
+  }
+  return items;
 }
 
 /**
@@ -42,6 +83,14 @@ export function useAgentStream() {
   }, []);
 
   useEffect(() => cleanup, [cleanup]);
+
+  /** Seed the stream with a previously-finished conversation (VX bug-3). The
+   *  stream returns to `idle` so the composer is ready for a follow-up. */
+  const loadItems = useCallback((seed: StreamItem[]) => {
+    cleanup();
+    setItems(seed);
+    setState("idle");
+  }, [cleanup]);
 
   /** Append to the trailing agent bubble, or start one if the last item isn't agent text. */
   const appendChunk = useCallback((chunk: string) => {
@@ -89,6 +138,7 @@ export function useAgentStream() {
           model: args.model,
           approval: args.approval,
           reasoning: args.reasoning,
+          resumeSessionId: args.resumeSessionId,
         });
         // Begin forwarding the daemon SSE stream into Tauri events.
         await invoke("stream_agent", { url: args.daemonUrl, sessionId });
@@ -103,5 +153,5 @@ export function useAgentStream() {
     [appendChunk, cleanup]
   );
 
-  return { items, state, runTask };
+  return { items, state, runTask, loadItems };
 }

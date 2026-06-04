@@ -175,6 +175,16 @@ impl TaskStore {
         Ok(())
     }
 
+    /// Delete a task row. Returns `true` if a row was removed, `false` if the
+    /// id didn't exist. The caller is responsible for any worktree cleanup —
+    /// this only touches the `tasks` table (VX delete / merge flow).
+    pub fn delete(&self, id: &str) -> Result<bool> {
+        let n = self
+            .conn
+            .execute("DELETE FROM tasks WHERE id = ?1", params![id])?;
+        Ok(n > 0)
+    }
+
     pub fn get(&self, id: &str) -> Result<Option<TaskRow>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, title, status, provider, model, branch, worktree_path, session_id, project_path, created_at, updated_at
@@ -293,6 +303,28 @@ mod tests {
         assert_eq!(got.branch, "task/t1-fix");
         assert_eq!(got.worktree_path, "/tmp/wt/t1");
         assert_eq!(got.session_id, "sess-abc");
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn delete_removes_row_and_reports_hit() {
+        let dir = std::env::temp_dir().join(format!("vibex-tasks-del-{}", std::process::id()));
+        let db = dir.join("t.db");
+        let store = TaskStore::open(&db).unwrap();
+
+        store
+            .insert("t1", "task", TaskStatus::Queued, "", "", "/repo", now())
+            .unwrap();
+        assert!(store.get("t1").unwrap().is_some());
+
+        // Deleting a present row returns true and removes it.
+        assert!(store.delete("t1").unwrap());
+        assert!(store.get("t1").unwrap().is_none());
+        assert_eq!(store.list(10).unwrap().len(), 0);
+
+        // Deleting an absent row returns false (idempotent, no error).
+        assert!(!store.delete("t1").unwrap());
 
         let _ = std::fs::remove_dir_all(&dir);
     }

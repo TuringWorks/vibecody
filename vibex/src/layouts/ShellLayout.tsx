@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { PanelLeftOpen, PanelRightOpen } from "lucide-react";
+import { ask, confirm, message } from "@tauri-apps/plugin-dialog";
 import { ProjectNavRail } from "../components/ProjectNavRail";
 import { SessionStream } from "../components/SessionStream";
 import { EnvironmentInspector } from "../components/EnvironmentInspector";
@@ -7,7 +8,8 @@ import { ReviewView } from "../components/ReviewView";
 import { FilesView } from "../components/FilesView";
 import { SettingsView } from "../components/SettingsView";
 import type { QuickAction } from "../components/QuickActionDrawer";
-import type { useTasks } from "../hooks/useTasks";
+import { useProjects } from "../hooks/useProjects";
+import type { Task, useTasks } from "../hooks/useTasks";
 
 type TasksApi = ReturnType<typeof useTasks>;
 type Overlay = null | "review" | "files" | "settings";
@@ -39,6 +41,11 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
   const [activeProject, setActiveProject] = useState<string | null>(null);
   // The currently selected chat/task id (visual highlight in the nav).
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
+  // The selected chat's full task row — loaded into SessionStream so its
+  // conversation renders and follow-ups resume its session (VX bug-3).
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  // Persisted project list so empty projects show + survive restart (bug-1).
+  const projects = useProjects();
 
   function handleQuickAction(action: QuickAction) {
     if (action === "review") setOverlay("review");
@@ -49,7 +56,44 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
   function newChat() {
     setOverlay(null);
     setActiveChatId(null);
+    setSelectedTask(null);
     setChatNonce((n) => n + 1);
+  }
+
+  // VX bug-3: selecting a chat loads it into the center pane. Remounting
+  // SessionStream (fresh nonce) makes it fetch + render the chat's history.
+  function selectChat(id: string) {
+    const t = tasks.tasks.find((x) => x.id === id) ?? null;
+    setActiveChatId(id);
+    setSelectedTask(t);
+    if (t?.project_path) setActiveProject(t.project_path);
+    setOverlay(null);
+    setChatNonce((n) => n + 1);
+  }
+
+  // VX bug-2: delete a chat. For a chat with a worktree, offer to merge its
+  // branch back first; otherwise just drop the task row (keeping the worktree).
+  async function deleteChat(task: Task) {
+    const ok = await confirm(`Delete chat “${task.title}”?`, {
+      title: "Delete chat",
+      kind: "warning",
+    });
+    if (!ok) return;
+    try {
+      if (task.worktree_path) {
+        const merge = await ask(
+          "Merge this chat's worktree branch back into the project before deleting?\n\nChoose “Delete only” to remove the chat and keep its worktree on disk.",
+          { title: "Merge worktree?", okLabel: "Merge & delete", cancelLabel: "Delete only" }
+        );
+        if (merge) await tasks.mergeTask(task.id);
+        else await tasks.deleteTask(task.id, false);
+      } else {
+        await tasks.deleteTask(task.id, false);
+      }
+      if (activeChatId === task.id) newChat();
+    } catch (e) {
+      await message(String(e), { title: "Delete failed", kind: "error" });
+    }
   }
 
   return (
@@ -75,15 +119,18 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
             daemonUrl={daemonUrl}
             daemonOnline={daemonOnline}
             tasks={tasks.tasks}
+            projectPaths={projects.projectPaths}
             activeChatId={activeChatId}
             activeProject={activeProject}
             onNewChat={newChat}
             onNewProject={(path) => {
+              projects.addProject(path);
               setActiveProject(path);
               newChat();
             }}
             onSelectProject={(path) => setActiveProject(path)}
-            onSelectChat={(id) => setActiveChatId(id)}
+            onSelectChat={selectChat}
+            onDeleteChat={deleteChat}
             onOpenSettings={() => setOverlay("settings")}
             onToggle={() => setNavCollapsed(true)}
           />
@@ -103,8 +150,10 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
             daemonUrl={daemonUrl}
             daemonOnline={daemonOnline}
             projectPath={activeProject}
+            selectedTask={selectedTask}
             createTask={tasks.createTask}
             linkSession={tasks.linkSession}
+            getHistory={tasks.getHistory}
             onQuickAction={handleQuickAction}
             onRunFinished={() => setEnvRefresh((n) => n + 1)}
           />

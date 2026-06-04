@@ -2269,6 +2269,7 @@ fn build_worker_agent_context(
         memory_context,
         auto_commit: false,
         reasoning_budget_tokens: None,
+        prior_messages: Vec::new(),
     }
 }
 
@@ -19166,6 +19167,7 @@ async fn run_watch_mode(
                 memory_context: None,
                 auto_commit: false,
                 reasoning_budget_tokens: None,
+                prior_messages: Vec::new(),
             };
             tokio::spawn(async move {
                 let _ = agent.run(&task_clone, ctx, event_tx).await;

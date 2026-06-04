@@ -16,6 +16,24 @@ export interface Task {
   updated_at: number;
 }
 
+/** Raw agent event as persisted in the daemon's durable log (job_events). */
+export interface AgentEventPayload {
+  type: string; // "user" | "chunk" | "step" | "system" | "complete" | "error"
+  content?: string | null;
+  step_num?: number | null;
+  tool_name?: string | null;
+  success?: boolean | null;
+}
+
+/** A finished chat's reconstructed conversation, from `/api/tasks/:id/history`. */
+export interface TaskHistory {
+  id: string;
+  title: string;
+  status: string;
+  session_id: string;
+  events: AgentEventPayload[];
+}
+
 /**
  * Live task list + create/update, backed by the daemon `/api/tasks` API
  * (VX-112). The daemon is the source of truth; this hook is a thin client.
@@ -74,5 +92,35 @@ export function useTasks(daemonUrl: string, daemonOnline: boolean) {
     [daemonUrl, refresh]
   );
 
-  return { tasks, error, refresh, createTask, linkSession };
+  /** Delete a task. `removeWorktree` also tears down its git worktree. */
+  const deleteTask = useCallback(
+    async (id: string, removeWorktree = false): Promise<void> => {
+      await invoke("delete_task", { url: daemonUrl, id, removeWorktree });
+      await refresh();
+    },
+    [daemonUrl, refresh]
+  );
+
+  /**
+   * Merge a task's worktree branch back, then delete the task on success.
+   * Rejects (with the daemon's conflict detail) when the merge conflicts — the
+   * task is left intact in that case.
+   */
+  const mergeTask = useCallback(
+    async (id: string): Promise<void> => {
+      await invoke("merge_task", { url: daemonUrl, id });
+      await refresh();
+    },
+    [daemonUrl, refresh]
+  );
+
+  /** Fetch a finished chat's reconstructed conversation for display. */
+  const getHistory = useCallback(
+    async (id: string): Promise<TaskHistory> => {
+      return invoke<TaskHistory>("get_task_history", { url: daemonUrl, id });
+    },
+    [daemonUrl]
+  );
+
+  return { tasks, error, refresh, createTask, linkSession, deleteTask, mergeTask, getHistory };
 }

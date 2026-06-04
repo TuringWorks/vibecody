@@ -5380,6 +5380,7 @@ pub async fn start_agent_task(
         memory_context,
         auto_commit: false,
         reasoning_budget_tokens: None,
+        prior_messages: Vec::new(),
     };
 
     let executor = Arc::new(
@@ -6009,6 +6010,7 @@ pub async fn start_parallel_agent_task(
                 memory_context: None,
                 auto_commit: false,
                 reasoning_budget_tokens: None,
+                prior_messages: Vec::new(),
             };
 
             let executor = Arc::new(
@@ -10094,6 +10096,7 @@ pub async fn start_parallel_agents(
                 memory_context,
                 auto_commit: false,
                 reasoning_budget_tokens: None,
+                prior_messages: Vec::new(),
             };
 
             let executor = Arc::new(

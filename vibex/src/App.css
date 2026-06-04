@@ -89,6 +89,12 @@ html, body, #root {
 .vx-nav__chat:hover { background: var(--bg-elevated); color: var(--text-primary); }
 .vx-nav__chat-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 .vx-nav__chat-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.vx-nav__chat-row { display: flex; align-items: center; gap: 2px; }
+.vx-nav__chat-row .vx-nav__chat { flex: 1; min-width: 0; }
+.vx-nav__chat-del { display: flex; align-items: center; justify-content: center; flex: none; width: 24px; height: 24px; padding: 0; border: none; border-radius: 5px; background: transparent; color: var(--text-tertiary); cursor: pointer; opacity: 0; transition: opacity 0.12s ease; }
+.vx-nav__chat-row:hover .vx-nav__chat-del, .vx-nav__chat-del:focus-visible { opacity: 1; }
+.vx-nav__chat-del:hover { background: var(--bg-elevated); color: var(--error-color); }
+.vx-nav__chats-empty { padding: 4px 8px; font-size: 11px; color: var(--text-tertiary); font-style: italic; }
 .vx-nav__empty { padding: 6px 8px; font-size: 12px; color: var(--text-tertiary); }
 .vx-nav__kbd { font-size: 10px; color: var(--text-tertiary); border: 1px solid var(--border-color); border-radius: 4px; padding: 0 4px; }
 .vx-nav__spacer { flex: 1; }

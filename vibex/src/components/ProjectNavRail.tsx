@@ -1,4 +1,4 @@
-import { MessageSquarePlus, FolderPlus, Search, Sparkles, Plug, Workflow, Folder, Settings, PanelLeftClose } from "lucide-react";
+import { MessageSquarePlus, FolderPlus, Search, Sparkles, Plug, Workflow, Folder, Settings, PanelLeftClose, Trash2 } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { Task } from "../hooks/useTasks";
 
@@ -6,12 +6,15 @@ interface ProjectNavRailProps {
   daemonUrl: string;
   daemonOnline: boolean;
   tasks: Task[];
+  /** Explicitly-added project paths (persisted) — shown even with no chats. */
+  projectPaths: string[];
   activeChatId: string | null;
   activeProject: string | null;
   onNewChat: () => void;
   onNewProject: (path: string) => void;
   onSelectProject: (path: string) => void;
   onSelectChat: (id: string) => void;
+  onDeleteChat: (task: Task) => void;
   onOpenSettings: () => void;
   onToggle: () => void;
 }
@@ -32,9 +35,19 @@ const STATUS_DOT: Record<string, string> = {
   draft: "var(--text-tertiary)",
 };
 
-/** Group live tasks by their project path; keep the full path for selection. */
-function groupByProject(tasks: Task[]): { name: string; path: string; tasks: Task[] }[] {
+/**
+ * Group live tasks by their project path, unioned with explicitly-added
+ * project paths so a freshly-picked project with no chats still renders (VX
+ * bug-1). Seed the map with `projectPaths` first to preserve add order.
+ */
+function groupByProject(
+  tasks: Task[],
+  projectPaths: string[]
+): { name: string; path: string; tasks: Task[] }[] {
   const byPath = new Map<string, Task[]>();
+  for (const p of projectPaths) {
+    if (p && !byPath.has(p)) byPath.set(p, []);
+  }
   for (const t of tasks) {
     const arr = byPath.get(t.project_path) ?? [];
     arr.push(t);
@@ -49,16 +62,18 @@ function groupByProject(tasks: Task[]): { name: string; path: string; tasks: Tas
 
 export function ProjectNavRail({
   tasks,
+  projectPaths,
   activeChatId,
   activeProject,
   onNewChat,
   onNewProject,
   onSelectProject,
   onSelectChat,
+  onDeleteChat,
   onOpenSettings,
   onToggle,
 }: ProjectNavRailProps) {
-  const projects = groupByProject(tasks);
+  const projects = groupByProject(tasks, projectPaths);
 
   async function pickProject() {
     try {
@@ -134,8 +149,11 @@ export function ProjectNavRail({
               <span>{p.name}</span>
             </button>
             <ul className="vx-nav__chats">
+              {p.tasks.length === 0 && (
+                <li className="vx-nav__chats-empty">No chats yet — type a task below.</li>
+              )}
               {p.tasks.map((t, i) => (
-                <li key={t.id}>
+                <li key={t.id} className="vx-nav__chat-row">
                   <button
                     className={`vx-nav__chat${activeChatId === t.id ? " is-active" : ""}`}
                     aria-label={t.title}
@@ -148,6 +166,17 @@ export function ProjectNavRail({
                     />
                     <span className="vx-nav__chat-title">{t.title}</span>
                     {i < 9 && <kbd className="vx-nav__kbd">⌘{i + 1}</kbd>}
+                  </button>
+                  <button
+                    className="vx-nav__chat-del"
+                    aria-label={`Delete chat ${t.title}`}
+                    title="Delete chat"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteChat(t);
+                    }}
+                  >
+                    <Trash2 size={13} />
                   </button>
                 </li>
               ))}
