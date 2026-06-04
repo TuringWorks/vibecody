@@ -1774,9 +1774,12 @@ async fn delete_task(
         }
     }
 
-    let deleted = store
-        .delete(&id)
-        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("delete task: {e}")))?;
+    let deleted = store.delete(&id).map_err(|e| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("delete task: {e}"),
+        )
+    })?;
 
     Ok(Json(serde_json::json!({
         "deleted": deleted,
@@ -1814,7 +1817,10 @@ async fn merge_task(
     // No branch/worktree to merge: just drop the row (nothing to integrate).
     if row.branch.is_empty() || row.worktree_path.is_empty() || row.project_path.is_empty() {
         let deleted = store.delete(&id).map_err(|e| {
-            json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("delete task: {e}"))
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("delete task: {e}"),
+            )
         })?;
         return Ok(Json(serde_json::json!({
             "merged": false,
@@ -1858,9 +1864,12 @@ async fn merge_task(
             false
         }
     };
-    let deleted = store
-        .delete(&id)
-        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("delete task: {e}")))?;
+    let deleted = store.delete(&id).map_err(|e| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("delete task: {e}"),
+        )
+    })?;
 
     Ok(Json(serde_json::json!({
         "merged": true,
