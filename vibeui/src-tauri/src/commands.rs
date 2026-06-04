@@ -18408,12 +18408,14 @@ mod tests {
 
     #[test]
     fn build_temp_provider_claude_returns_some() {
+        std::env::set_var("ANTHROPIC_API_KEY", "test-key-claude");
         let p = build_temp_provider("claude", "claude-sonnet-4-6");
         assert!(p.is_some());
     }
 
     #[test]
     fn build_temp_provider_anthropic_alias() {
+        std::env::set_var("ANTHROPIC_API_KEY", "test-key-anthropic");
         let p = build_temp_provider("anthropic", "claude-sonnet-4-6");
         assert!(p.is_some());
     }
