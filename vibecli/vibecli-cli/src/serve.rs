@@ -273,6 +273,15 @@ fn json_error(status: StatusCode, msg: impl Into<String>) -> (StatusCode, Json<s
     (status, Json(serde_json::json!({ "error": msg.into() })))
 }
 
+/// Like [`json_error`] but carries a structured JSON body (e.g. an error plus a
+/// `conflicts` list) instead of a bare `{ "error": "…" }` message.
+fn json_error_value(
+    status: StatusCode,
+    body: serde_json::Value,
+) -> (StatusCode, Json<serde_json::Value>) {
+    (status, Json(body))
+}
+
 /// 500 Internal Server Error helper that **does not leak the underlying error
 /// detail to the client**. Full detail goes to `tracing::error!` with a short
 /// correlation ID; the response body just says `internal` + the same
@@ -1715,6 +1724,197 @@ async fn update_task(
             )
         })?;
     Ok(Json(row))
+}
+
+/// Query params for `DELETE /api/tasks/:id`.
+#[derive(Debug, serde::Deserialize)]
+struct DeleteTaskQuery {
+    /// When true, also `git worktree remove --force` the task's worktree
+    /// (discarding any uncommitted work in it) before deleting the row.
+    /// Defaults to false — the safe path keeps the worktree on disk.
+    #[serde(default)]
+    remove_worktree: bool,
+}
+
+/// DELETE /api/tasks/:id — remove a task. With `?remove_worktree=true`, also
+/// tears down the task's git worktree. Drives worktree cleanup from the
+/// persisted `TaskRow` fields (the in-memory `GitWorktreePool` is per-request
+/// and has no record of worktrees spawned by earlier requests).
+async fn delete_task(
+    Path(id): Path<String>,
+    Query(q): Query<DeleteTaskQuery>,
+    State(_state): State<ServeState>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    use crate::task_store::TaskStore;
+    let store = TaskStore::open_default().map_err(|e| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("task store: {e}"),
+        )
+    })?;
+
+    let row = store
+        .get(&id)
+        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("get task: {e}")))?
+        .ok_or_else(|| {
+            json_error(
+                StatusCode::NOT_FOUND,
+                format!("Task '{}' not found", sanitize_user_input(&id)),
+            )
+        })?;
+
+    let mut worktree_removed = false;
+    if q.remove_worktree && !row.worktree_path.is_empty() && !row.project_path.is_empty() {
+        let repo = std::path::PathBuf::from(&row.project_path);
+        let wt = std::path::PathBuf::from(&row.worktree_path);
+        match vibe_core::git::remove_worktree(&repo, &wt) {
+            Ok(()) => worktree_removed = true,
+            // Non-fatal: still delete the task row so the chat disappears.
+            Err(e) => tracing::warn!("worktree remove failed for task {id}: {e}"),
+        }
+    }
+
+    let deleted = store
+        .delete(&id)
+        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("delete task: {e}")))?;
+
+    Ok(Json(serde_json::json!({
+        "deleted": deleted,
+        "worktree_removed": worktree_removed,
+    })))
+}
+
+/// POST /api/tasks/:id/merge — merge the task's worktree branch back into the
+/// project's current branch, then (on success) remove the worktree and delete
+/// the task row. On merge conflict the merge is aborted and the task is left
+/// intact so the user can resolve it manually. Tasks with no worktree fall
+/// through to a plain row delete.
+async fn merge_task(
+    Path(id): Path<String>,
+    State(_state): State<ServeState>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    use crate::task_store::TaskStore;
+    let store = TaskStore::open_default().map_err(|e| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("task store: {e}"),
+        )
+    })?;
+
+    let row = store
+        .get(&id)
+        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("get task: {e}")))?
+        .ok_or_else(|| {
+            json_error(
+                StatusCode::NOT_FOUND,
+                format!("Task '{}' not found", sanitize_user_input(&id)),
+            )
+        })?;
+
+    // No branch/worktree to merge: just drop the row (nothing to integrate).
+    if row.branch.is_empty() || row.worktree_path.is_empty() || row.project_path.is_empty() {
+        let deleted = store.delete(&id).map_err(|e| {
+            json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("delete task: {e}"))
+        })?;
+        return Ok(Json(serde_json::json!({
+            "merged": false,
+            "deleted": deleted,
+            "worktree_removed": false,
+            "message": "no worktree to merge — task removed",
+        })));
+    }
+
+    let repo = std::path::PathBuf::from(&row.project_path);
+    let result = vibe_core::git::merge_worktree_branch(&repo, &row.branch).map_err(|e| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("merge worktree branch: {e}"),
+        )
+    })?;
+
+    if !result.success {
+        // Leave the repo clean: abort the in-progress merge so the working
+        // tree isn't stuck mid-conflict. Keep the task so it can be retried.
+        let _ = std::process::Command::new("git")
+            .args(["merge", "--abort"])
+            .current_dir(&repo)
+            .output();
+        return Err(json_error_value(
+            StatusCode::CONFLICT,
+            serde_json::json!({
+                "error": "merge conflict — task left intact, merge aborted",
+                "conflicts": result.conflicts,
+                "message": result.message,
+            }),
+        ));
+    }
+
+    // Merge succeeded — tear down the worktree and delete the task row.
+    let wt = std::path::PathBuf::from(&row.worktree_path);
+    let worktree_removed = match vibe_core::git::remove_worktree(&repo, &wt) {
+        Ok(()) => true,
+        Err(e) => {
+            tracing::warn!("worktree remove failed after merge for task {id}: {e}");
+            false
+        }
+    };
+    let deleted = store
+        .delete(&id)
+        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("delete task: {e}")))?;
+
+    Ok(Json(serde_json::json!({
+        "merged": true,
+        "deleted": deleted,
+        "worktree_removed": worktree_removed,
+        "message": result.message,
+    })))
+}
+
+/// GET /api/tasks/:id/history — reconstruct a task's conversation from the
+/// durable `job_events` log so a finished chat can be re-rendered in VibeX
+/// (VX bug-3). Returns the task title/status plus the ordered event payloads
+/// (`replay_events` reads from persistence, so this works after a run ends).
+/// Empty `events` when the task has no linked session yet.
+async fn task_history(
+    Path(id): Path<String>,
+    State(state): State<ServeState>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    use crate::task_store::TaskStore;
+    let store = TaskStore::open_default().map_err(|e| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("task store: {e}"),
+        )
+    })?;
+    let row = store
+        .get(&id)
+        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("get task: {e}")))?
+        .ok_or_else(|| {
+            json_error(
+                StatusCode::NOT_FOUND,
+                format!("Task '{}' not found", sanitize_user_input(&id)),
+            )
+        })?;
+
+    let events: Vec<crate::job_manager::AgentEventPayload> = if row.session_id.is_empty() {
+        Vec::new()
+    } else {
+        state
+            .job_manager
+            .replay_events(&row.session_id, 0)
+            .await
+            .into_iter()
+            .map(|(_seq, p)| p)
+            .collect()
+    };
+
+    Ok(Json(serde_json::json!({
+        "id": row.id,
+        "title": row.title,
+        "status": row.status,
+        "session_id": row.session_id,
+        "events": events,
+    })))
 }
 
 // ── VibeX environment API (VX-109 / VX-202 / VX-110) ────────────────────────
@@ -5901,7 +6101,12 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/jobs/:id/cancel", post(cancel_job))
         // VibeX task API (VX-112): task-card CRUD + lifecycle status.
         .route("/api/tasks", post(create_task).get(list_tasks))
-        .route("/api/tasks/:id", get(get_task).patch(update_task))
+        .route(
+            "/api/tasks/:id",
+            get(get_task).patch(update_task).delete(delete_task),
+        )
+        .route("/api/tasks/:id/merge", post(merge_task))
+        .route("/api/tasks/:id/history", get(task_history))
         // VibeX environment API (VX-109/202/110): read-only git + file inspection.
         .route("/api/vibex/git/status", get(vibex_git_status))
         .route("/api/vibex/git/diff", get(vibex_git_diff))

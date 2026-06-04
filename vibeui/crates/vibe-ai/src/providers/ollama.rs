@@ -372,18 +372,6 @@ impl AIProvider for OllamaProvider {
             options: self.build_options(),
         };
 
-        // TEMP DIAG: surface exactly what we send so we can see why the agent
-        // re-prompt 500s (base_url, whether a Bearer is attached, turn shape).
-        tracing::warn!(
-            base_url = %self.base_url,
-            bearer = self.api_key.is_some(),
-            model = %request.model,
-            n_msgs = request.messages.len(),
-            roles = ?request.messages.iter().map(|m| m.role.as_str()).collect::<Vec<_>>(),
-            sizes = ?request.messages.iter().map(|m| m.content.len()).collect::<Vec<_>>(),
-            "OLLAMA stream_chat request"
-        );
-
         let response = self
             .auth_post(format!("{}/api/chat", self.base_url))
             .json(&request)
