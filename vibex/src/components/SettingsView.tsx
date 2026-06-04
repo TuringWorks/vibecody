@@ -68,7 +68,7 @@ function ProvidersSection() {
     setDrafts((d) => ({ ...d, [id]: "" }));
   }
 
-  const providerOptions = [...LOCAL_PROVIDERS, ...KEYED_PROVIDERS.map((p) => p.id)];
+  const providerOptions = [...new Set([...LOCAL_PROVIDERS, ...KEYED_PROVIDERS.map((p) => p.id)])];
 
   return (
     <div className="vx-set-section">

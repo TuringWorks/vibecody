@@ -3,7 +3,11 @@ import { invoke } from "@tauri-apps/api/core";
 
 /** Providers that need an API key (vs local ollama/mistralrs). Mirrors the
  *  key-requiring set from VibeUI's useModelRegistry. */
-export const KEYED_PROVIDERS: { id: string; label: string; needsUrl?: boolean }[] = [
+export const KEYED_PROVIDERS: { id: string; label: string; needsUrl?: boolean; optional?: boolean }[] = [
+  // Ollama is local-first (no key for local models), but a token is required to
+  // reach Ollama Cloud / Turbo models (e.g. `qwen3-coder:480b-cloud`). Optional:
+  // local models ignore it, and a loopback Ollama drops it for local models.
+  { id: "ollama", label: "Ollama Cloud / Turbo (optional — for *-cloud models)", optional: true },
   { id: "anthropic", label: "Anthropic (Claude)" },
   { id: "openai", label: "OpenAI" },
   { id: "gemini", label: "Google Gemini" },
