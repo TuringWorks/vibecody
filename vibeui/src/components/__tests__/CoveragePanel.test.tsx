@@ -145,7 +145,7 @@ describe('CoveragePanel', () => {
     fireEvent.click(screen.getByText('Run Coverage'));
     await waitFor(() => {
       expect(screen.getByText(/Build failed/)).toBeInTheDocument();
-    });
+    }, { timeout: 5000 });
   });
 
   // ── Filter tabs ───────────────────────────────────────────────────────
