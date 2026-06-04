@@ -771,23 +771,15 @@ async fn list_models(State(state): State<ServeState>) -> impl IntoResponse {
         "active": true,
     }));
 
-    // Try to list Ollama models. Each model is annotated with its declared
-    // capabilities so clients can avoid selecting a completion-only model
-    // (e.g. codellama) for an agent task — the agent loop requires `tools`,
-    // and a completion-only model fails the moment it re-prompts for one.
+    // Try to list Ollama models
     if let Ok(ollama_models) = vibe_ai::providers::ollama::OllamaProvider::list_models(None).await {
         for m in ollama_models {
             let id = format!("ollama/{}", m);
             if !models.iter().any(|x| x["id"].as_str() == Some(&id)) {
-                let caps =
-                    vibe_ai::providers::ollama::OllamaProvider::show_capabilities(None, &m).await;
-                let supports_tools = caps.iter().any(|c| c == "tools");
                 models.push(serde_json::json!({
                     "id": id,
                     "name": m,
                     "provider": "ollama",
-                    "tools": supports_tools,
-                    "capabilities": caps,
                 }));
             }
         }
