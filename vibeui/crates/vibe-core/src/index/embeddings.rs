@@ -625,7 +625,7 @@ mod tests {
         match p {
             EmbeddingProvider::Ollama { model, api_url } => {
                 assert_eq!(model, "nomic-embed-text");
-                assert_eq!(api_url, "http://localhost:11434");
+                assert_eq!(api_url, "http://127.0.0.1:11434");
             }
             _ => panic!("expected Ollama variant"),
         }
