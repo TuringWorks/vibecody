@@ -64,7 +64,7 @@ function relativeTime(date: Date, now = new Date()): string {
  const mos = Math.floor(days / 30.44);
  const yrs = Math.floor(days / 365.25);
 
- let label = "";
+ let label: string;
  if (secs < 5) label = "just now";
  else if (secs < 60) label = `${secs} second${secs !== 1 ? "s" : ""}`;
  else if (mins < 60) label = `${mins} minute${mins !== 1 ? "s" : ""}`;
@@ -92,10 +92,9 @@ function calcDuration(a: Date, b: Date): Duration {
  const totalHours = Math.floor(totalMins / 60);
  const totalDays = Math.floor(totalHours / 24);
 
- let years = 0, months = 0;
  const [start, end] = a <= b ? [a, b] : [b, a];
- years = end.getFullYear() - start.getFullYear();
- months = end.getMonth() - start.getMonth();
+ let years = end.getFullYear() - start.getFullYear();
+ let months = end.getMonth() - start.getMonth();
  if (months < 0) { years--; months += 12; }
  const dayDiff = end.getDate() - start.getDate();
  if (dayDiff < 0) { months--; if (months < 0) { years--; months += 12; } }

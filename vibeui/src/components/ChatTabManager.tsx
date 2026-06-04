@@ -416,7 +416,7 @@ export function ChatTabManager({
         let raw: string | null = null;
         try { raw = localStorage.getItem("vibeui-sessions"); } catch { /* private browsing */ }
         if (!raw) return;
-        let auto = false;
+        let auto: boolean;
         try {
             const parsed = JSON.parse(raw) as { autoResumeLast?: boolean };
             auto = parsed.autoResumeLast === true;
@@ -537,7 +537,7 @@ export function ChatTabManager({
         if (editingTabId === tabId) return; // rename input owns the keys
         const idx = tabs.findIndex(t => t.id === tabId);
         if (idx < 0) return;
-        let next = idx;
+        let next: number;
         if (e.key === "ArrowRight") next = (idx + 1) % tabs.length;
         else if (e.key === "ArrowLeft") next = (idx - 1 + tabs.length) % tabs.length;
         else if (e.key === "Home") next = 0;

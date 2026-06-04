@@ -500,7 +500,7 @@ export default function ArchitectureSpecPanel({ workspacePath }: Props) {
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);
-    let ago = "";
+    let ago: string;
     if (diffMins < 1) ago = "just now";
     else if (diffMins < 60) ago = `${diffMins}m ago`;
     else if (diffHours < 24) ago = `${diffHours}h ago`;

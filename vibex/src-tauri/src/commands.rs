@@ -22,7 +22,10 @@ fn resolve_token(explicit: Option<String>) -> Option<String> {
         }
     }
     let path = dirs_home()?.join(".vibecli").join("daemon.token");
-    std::fs::read_to_string(path).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+    std::fs::read_to_string(path)
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
 }
 
 /// Minimal home-dir lookup without pulling the `dirs` crate into vibex.
@@ -115,7 +118,10 @@ pub async fn start_agent_session(
 
 /// GET /api/tasks — list recent VibeX tasks (VX-112).
 #[tauri::command]
-pub async fn list_tasks(url: String, token: Option<String>) -> Result<Vec<serde_json::Value>, String> {
+pub async fn list_tasks(
+    url: String,
+    token: Option<String>,
+) -> Result<Vec<serde_json::Value>, String> {
     let tasks_url = format!("{}/api/tasks", url.trim_end_matches('/'));
     let client = reqwest::Client::new();
     let req = with_auth(client.get(&tasks_url), token);
@@ -209,7 +215,11 @@ pub async fn update_task(
 
 /// Generic authed GET against the daemon, returning parsed JSON. Shared by the
 /// VibeX environment endpoints (git status/diff, files).
-async fn daemon_get(url: String, path: &str, token: Option<String>) -> Result<serde_json::Value, String> {
+async fn daemon_get(
+    url: String,
+    path: &str,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
     let full = format!("{}{}", url.trim_end_matches('/'), path);
     let client = reqwest::Client::new();
     let req = with_auth(client.get(&full), token);
@@ -255,7 +265,9 @@ pub async fn stream_agent(
     let stream_url = format!("{}/stream/{}", url.trim_end_matches('/'), session_id);
     let client = reqwest::Client::new();
     let req = with_auth(
-        client.get(&stream_url).header("Accept", "text/event-stream"),
+        client
+            .get(&stream_url)
+            .header("Accept", "text/event-stream"),
         token,
     );
     let res = req
@@ -318,8 +330,10 @@ pub async fn stream_agent(
                                 return;
                             }
                             Some("error") => {
-                                let msg =
-                                    ev["content"].as_str().unwrap_or("unknown error").to_string();
+                                let msg = ev["content"]
+                                    .as_str()
+                                    .unwrap_or("unknown error")
+                                    .to_string();
                                 let _ = app.emit("agent:error", msg);
                                 return;
                             }

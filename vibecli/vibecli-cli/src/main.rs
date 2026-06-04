@@ -189,11 +189,11 @@ mod redteam;
 mod repl;
 mod scheduler;
 mod session_store;
-mod task_store;
 mod spec;
 #[cfg(unix)]
 #[allow(dead_code)]
 mod subprocess_dispatch;
+mod task_store;
 mod team;
 #[allow(dead_code)]
 mod webhook;

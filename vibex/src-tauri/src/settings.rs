@@ -46,7 +46,11 @@ pub async fn provider_key_delete(provider: String) -> Result<(), String> {
 
 /// Set a per-provider config value (e.g. `api_url`, `model`).
 #[tauri::command]
-pub async fn provider_config_set(provider: String, key: String, value: String) -> Result<(), String> {
+pub async fn provider_config_set(
+    provider: String,
+    key: String,
+    value: String,
+) -> Result<(), String> {
     store()?.set_provider_config(DEFAULT_PROFILE, &provider, &key, &value)
 }
 

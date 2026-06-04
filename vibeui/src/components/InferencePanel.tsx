@@ -226,7 +226,7 @@ function generateDockerCompose(c: DeployConfig): string {
     ? `    deploy:\n      resources:\n        reservations:\n          devices:\n            - driver: nvidia\n              count: ${c.gpuCount}\n              capabilities: [gpu]`
     : "";
 
-  let command = "";
+  let command: string;
   switch (c.backend) {
     case "vllm":
       command = `    command: ["--model", "${c.modelPath || "<model>"}", "--port", "${c.port}", "--tensor-parallel-size", "${c.tensorParallel}", "--gpu-memory-utilization", "${(c.gpuMemUtil / 100).toFixed(2)}", "--max-num-batched-tokens", "${c.maxBatchSize}"${c.quantization !== "none" ? `, "--quantization", "${c.quantization}"` : ""}]`;

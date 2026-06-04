@@ -750,13 +750,13 @@ function renderContent(
       }
       parts.push(
         <StreamingCodeBlock
-          key={key++}
+          key={key}
           language={unfinishedFence[1] || "text"}
           code={unfinishedFence[3]}
         />
       );
     } else {
-      parts.push(<TextSegment key={key++} text={remaining} />);
+      parts.push(<TextSegment key={key} text={remaining} />);
     }
   }
 

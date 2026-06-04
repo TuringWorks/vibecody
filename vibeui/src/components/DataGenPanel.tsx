@@ -174,7 +174,7 @@ export function DataGenPanel() {
 
  const genLorem = useCallback(() => {
  reseed();
- let out = "";
+ let out: string;
  if (loremMode === "words") out = loremWords(loremCount);
  else if (loremMode === "sentences") out = Array.from({length: loremCount}, loremSentence).join(" ");
  else out = Array.from({length: loremCount}, loremParagraph).join("\n\n");

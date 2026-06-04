@@ -57,7 +57,7 @@ export function useDaemonMonitor({
   const startingRef = useRef(false);
 
   const check = useCallback(async () => {
-    let isOnline = false;
+    let isOnline: boolean;
     try {
       const res = await fetch(`${daemonUrlRef.current}${HEALTH_PATH}`, {
         signal: AbortSignal.timeout(4000),

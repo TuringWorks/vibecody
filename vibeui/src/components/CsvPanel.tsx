@@ -393,7 +393,7 @@ export function CsvPanel() {
  {(["JSON", "SQL", "Markdown"] as const).map(fmt => (
  <button key={fmt}
  onClick={() => {
- let out = "";
+ let out: string;
  if (fmt === "JSON") out = convertToJson();
  else if (fmt === "SQL") out = convertToSql();
  else {

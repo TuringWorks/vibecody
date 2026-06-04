@@ -152,7 +152,13 @@ impl TaskStore {
     }
 
     /// Attach the branch + worktree path once a worktree is spawned (VX-113).
-    pub fn set_worktree(&self, id: &str, branch: &str, worktree_path: &str, now: i64) -> Result<()> {
+    pub fn set_worktree(
+        &self,
+        id: &str,
+        branch: &str,
+        worktree_path: &str,
+        now: i64,
+    ) -> Result<()> {
         self.conn.execute(
             "UPDATE tasks SET branch = ?2, worktree_path = ?3, updated_at = ?4 WHERE id = ?1",
             params![id, branch, worktree_path, now],
@@ -188,9 +194,12 @@ impl TaskStore {
              FROM tasks ORDER BY created_at DESC LIMIT ?1",
         )?;
         let rows = stmt.query_map(params![limit as i64], |r| {
-            row_to_task(r).map_err(|e| rusqlite::Error::ToSqlConversionFailure(Box::new(
-                std::io::Error::new(std::io::ErrorKind::Other, e.to_string()),
-            )))
+            row_to_task(r).map_err(|e| {
+                rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    e.to_string(),
+                )))
+            })
         })?;
         let mut out = Vec::new();
         for r in rows {
@@ -239,7 +248,15 @@ mod tests {
         let store = TaskStore::open(&db).unwrap();
 
         store
-            .insert("t1", "fix the auth timeout", TaskStatus::Queued, "ollama", "qwen3", "/repo", now())
+            .insert(
+                "t1",
+                "fix the auth timeout",
+                TaskStatus::Queued,
+                "ollama",
+                "qwen3",
+                "/repo",
+                now(),
+            )
             .unwrap();
         let got = store.get("t1").unwrap().unwrap();
         assert_eq!(got.title, "fix the auth timeout");
@@ -263,7 +280,9 @@ mod tests {
         store
             .insert("t1", "task", TaskStatus::Draft, "", "", "/repo", now())
             .unwrap();
-        store.set_status("t1", TaskStatus::Running, now() + 1).unwrap();
+        store
+            .set_status("t1", TaskStatus::Running, now() + 1)
+            .unwrap();
         store
             .set_worktree("t1", "task/t1-fix", "/tmp/wt/t1", now() + 2)
             .unwrap();

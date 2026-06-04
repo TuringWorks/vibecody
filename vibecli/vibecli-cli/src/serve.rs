@@ -1398,7 +1398,13 @@ fn now_unix() -> i64 {
 fn slugify_title(title: &str) -> String {
     let mut slug: String = title
         .chars()
-        .map(|c| if c.is_ascii_alphanumeric() { c.to_ascii_lowercase() } else { '-' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '-'
+            }
+        })
         .collect();
     while slug.contains("--") {
         slug = slug.replace("--", "-");
@@ -1420,7 +1426,10 @@ async fn create_task(
     use crate::task_store::{TaskStatus, TaskStore};
 
     let store = TaskStore::open_default().map_err(|e| {
-        json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("task store: {e}"))
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("task store: {e}"),
+        )
     })?;
 
     let id = format!("{:016x}", rand::rng().random::<u64>());
@@ -1432,14 +1441,31 @@ async fn create_task(
         .unwrap_or_else(|| state.workspace_root.to_string_lossy().to_string());
 
     store
-        .insert(&id, &req.title, TaskStatus::Queued, &provider, &model, &project_path, now)
-        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("insert task: {e}")))?;
+        .insert(
+            &id,
+            &req.title,
+            TaskStatus::Queued,
+            &provider,
+            &model,
+            &project_path,
+            now,
+        )
+        .map_err(|e| {
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("insert task: {e}"),
+            )
+        })?;
 
     // VX-113: spawn a worktree-on-a-branch when the project is a git repo.
     if req.create_worktree {
         let repo = std::path::PathBuf::from(&project_path);
         if vibe_core::git::is_git_repo(&repo) {
-            let branch = format!("task/{}-{}", &id[..id.len().min(8)], slugify_title(&req.title));
+            let branch = format!(
+                "task/{}-{}",
+                &id[..id.len().min(8)],
+                slugify_title(&req.title)
+            );
             let base_dir = repo.join(".vibecli").join("worktrees");
             let mut pool = crate::worktree_git::GitWorktreePool::new(&repo, &base_dir, 16);
             match pool.spawn(&id, &branch) {
@@ -1463,7 +1489,12 @@ async fn create_task(
     let row = store
         .get(&id)
         .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("get task: {e}")))?
-        .ok_or_else(|| json_error(StatusCode::INTERNAL_SERVER_ERROR, "task vanished after write"))?;
+        .ok_or_else(|| {
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "task vanished after write",
+            )
+        })?;
     Ok(Json(row))
 }
 
@@ -1472,11 +1503,17 @@ async fn list_tasks(
     State(_state): State<ServeState>,
 ) -> Result<Json<Vec<crate::task_store::TaskRow>>, (StatusCode, Json<serde_json::Value>)> {
     let store = crate::task_store::TaskStore::open_default().map_err(|e| {
-        json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("task store: {e}"))
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("task store: {e}"),
+        )
     })?;
-    let tasks = store
-        .list(200)
-        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("list tasks: {e}")))?;
+    let tasks = store.list(200).map_err(|e| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("list tasks: {e}"),
+        )
+    })?;
     Ok(Json(tasks))
 }
 
@@ -1486,7 +1523,10 @@ async fn get_task(
     State(_state): State<ServeState>,
 ) -> Result<Json<crate::task_store::TaskRow>, (StatusCode, Json<serde_json::Value>)> {
     let store = crate::task_store::TaskStore::open_default().map_err(|e| {
-        json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("task store: {e}"))
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("task store: {e}"),
+        )
     })?;
     store
         .get(&id)
@@ -1518,7 +1558,10 @@ async fn update_task(
 ) -> Result<Json<crate::task_store::TaskRow>, (StatusCode, Json<serde_json::Value>)> {
     use crate::task_store::{TaskStatus, TaskStore};
     let store = TaskStore::open_default().map_err(|e| {
-        json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("task store: {e}"))
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("task store: {e}"),
+        )
     })?;
 
     // 404 if the task doesn't exist before applying updates.
@@ -1547,7 +1590,12 @@ async fn update_task(
     let row = store
         .get(&id)
         .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("get task: {e}")))?
-        .ok_or_else(|| json_error(StatusCode::INTERNAL_SERVER_ERROR, "task vanished after write"))?;
+        .ok_or_else(|| {
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "task vanished after write",
+            )
+        })?;
     Ok(Json(row))
 }
 
@@ -1571,8 +1619,12 @@ async fn vibex_git_status(
             "changed_count": 0,
         })));
     }
-    let status = vibe_core::git::get_status(root)
-        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("git status: {e}")))?;
+    let status = vibe_core::git::get_status(root).map_err(|e| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("git status: {e}"),
+        )
+    })?;
     let changed: Vec<serde_json::Value> = status
         .file_statuses
         .iter()
@@ -1618,7 +1670,12 @@ async fn vibex_files(
         .arg(root)
         .args(["ls-files"])
         .output()
-        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("git ls-files: {e}")))?;
+        .map_err(|e| {
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("git ls-files: {e}"),
+            )
+        })?;
     let files: Vec<String> = String::from_utf8_lossy(&output.stdout)
         .lines()
         .map(|s| s.to_string())

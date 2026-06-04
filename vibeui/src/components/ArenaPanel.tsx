@@ -207,7 +207,7 @@ export function ArenaPanel() {
 
   const handleSendWinner = () => {
     if (!result || !voteChoice) return;
-    let winnerContent = "";
+    let winnerContent: string;
     if (voteChoice === "a") {
       winnerContent = result.a.content;
     } else if (voteChoice === "b") {
