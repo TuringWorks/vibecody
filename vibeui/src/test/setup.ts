@@ -1,4 +1,10 @@
 import '@testing-library/jest-dom/vitest';
+import { configure } from '@testing-library/react';
+
+// CI runners are 3-4× slower than dev macOS for async render + state
+// propagation. Default `waitFor` timeout (1000ms) flakes on otherwise-
+// correct tests. Match the file-level test timeout from vitest.config.ts.
+configure({ asyncUtilTimeout: 5000 });
 
 // jsdom 29 + vitest 4 in this repo's pool config exposes a `localStorage`
 // global that's missing the Storage methods (`setItem`, `getItem`, `clear`),
