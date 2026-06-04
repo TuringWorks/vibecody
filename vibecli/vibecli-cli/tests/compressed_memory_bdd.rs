@@ -9,7 +9,7 @@
  */
 use cucumber::{given, then, when, World};
 use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use rand::{RngExt, SeedableRng};
 use std::collections::HashMap;
 use vibecli_cli::compressed_hnsw::CompressedMemoryIndex;
 
