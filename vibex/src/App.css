@@ -53,6 +53,18 @@ html, body, #root {
 .vibex-banner__dot--online  { background: var(--accent-green); }
 .vibex-banner__dot--offline { background: var(--accent-orange); }
 .vibex-banner__dot--checking { background: var(--text-secondary); }
+.vibex-banner__btn {
+  margin-left: auto;
+  padding: 2px 10px;
+  font-size: 11px;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.vibex-banner__btn:hover:not(:disabled) { background: var(--bg-secondary); }
+.vibex-banner__btn:disabled { opacity: 0.6; cursor: default; }
 
 /* ── Shared atoms ───────────────────────────────────────────────────────── */
 .vx-icon-btn {

@@ -46,10 +46,24 @@ pub fn run() {
                     let _ = window.set_icon(icon);
                 }
             }
+
+            // Zero-config: autostart the VibeCLI daemon on launch so VibeX works
+            // out of the box. Reuses an already-running daemon; only spawns one
+            // if `/health` is unreachable. Fire-and-forget — the daemon-status
+            // banner reflects the result as the daemon comes online.
+            tauri::async_runtime::spawn(async {
+                let port = commands::daemon_port();
+                if commands::ensure_daemon_running(port).await {
+                    eprintln!("vibex: VibeCLI daemon ready on port {port}");
+                } else {
+                    eprintln!("vibex: could not autostart VibeCLI daemon on port {port} — is `vibecli` on PATH?");
+                }
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::check_daemon,
+            commands::start_daemon,
             commands::list_daemon_models,
             commands::start_agent_session,
             commands::stream_agent,

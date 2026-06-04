@@ -51,6 +51,111 @@ pub async fn check_daemon(url: String) -> Result<String, String> {
     Ok("online".to_string())
 }
 
+// ── Daemon autostart (zero-config) ──────────────────────────────────────────
+//
+// VibeX is a thin client over the VibeCLI daemon, so the daemon must be running
+// for anything to work. Rather than make the user run `vibecli serve` by hand,
+// VibeX starts it automatically on launch (see `lib.rs::run`'s setup hook) and
+// exposes `start_daemon` so the UI can offer a retry if autostart failed. An
+// already-running daemon is reused — it's shared infra for the mobile / watch /
+// IDE clients, so we never start a second one.
+
+/// Default daemon port — mirrors `DEFAULT_DAEMON_URL` (127.0.0.1:7878) in the
+/// frontend. Override with the `VIBEX_DAEMON_PORT` env var.
+pub fn daemon_port() -> u16 {
+    std::env::var("VIBEX_DAEMON_PORT")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(7878)
+}
+
+/// True if the daemon answers `/health` on `127.0.0.1:port`. Any HTTP response
+/// counts as "up" (mirrors `check_daemon`); only a transport error means down.
+async fn daemon_health_ok(port: u16) -> bool {
+    let url = format!("http://127.0.0.1:{}/health", port);
+    reqwest::Client::new()
+        .get(&url)
+        .timeout(std::time::Duration::from_millis(800))
+        .send()
+        .await
+        .is_ok()
+}
+
+/// Spawn the VibeCLI daemon, detached from VibeX's stdio so it outlives the
+/// window (a persistent local service). Tries the `--serve` flag form first —
+/// a `--`-prefixed token can only be parsed as a flag, never as an agent task,
+/// so a binary that doesn't know it errors out fast and we fall back to the
+/// `serve` subcommand form. Returns true once a child appears to stay alive.
+/// Relies on `vibecli` being on PATH (lib.rs patches PATH for macOS bundles).
+fn spawn_daemon(port: u16) -> bool {
+    use std::process::{Command, Stdio};
+    let port = port.to_string();
+    // `--serve` first: safe because clap rejects an unknown `--serve` flag
+    // (fast non-zero exit) rather than treating it as an agent prompt.
+    let forms: [&[&str]; 2] = [&["--serve"], &["serve"]];
+    for base in forms {
+        let mut cmd = Command::new("vibecli");
+        cmd.args(base)
+            .arg("--port")
+            .arg(&port)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null());
+        match cmd.spawn() {
+            Ok(mut child) => {
+                // A wrong invocation form exits almost immediately; a real
+                // daemon keeps running. Give it a beat, then decide.
+                std::thread::sleep(std::time::Duration::from_millis(400));
+                match child.try_wait() {
+                    Ok(Some(status)) if !status.success() => continue, // try next form
+                    _ => return true, // still running (daemon) or clean exit
+                }
+            }
+            Err(_) => continue, // `vibecli` not found / not executable — try next
+        }
+    }
+    false
+}
+
+/// Ensure the daemon is running on `port`: reuse it if `/health` already
+/// answers, otherwise spawn it and poll until it binds (~10s). Returns whether
+/// the daemon is up. Called on launch and by the `start_daemon` command.
+pub async fn ensure_daemon_running(port: u16) -> bool {
+    if daemon_health_ok(port).await {
+        return true;
+    }
+    // Spawn off the async runtime — `spawn_daemon` blocks briefly on liveness.
+    let started = tokio::task::spawn_blocking(move || spawn_daemon(port))
+        .await
+        .unwrap_or(false);
+    if !started {
+        return false;
+    }
+    for _ in 0..20 {
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        if daemon_health_ok(port).await {
+            return true;
+        }
+    }
+    false
+}
+
+/// Start the VibeCLI daemon if it isn't already running (UI "retry" affordance
+/// when autostart didn't take, e.g. `vibecli` wasn't on PATH at launch).
+/// Returns "online" on success, or an error the banner can surface.
+#[tauri::command]
+pub async fn start_daemon(port: Option<u16>) -> Result<String, String> {
+    let port = port.unwrap_or_else(daemon_port);
+    if ensure_daemon_running(port).await {
+        Ok("online".to_string())
+    } else {
+        Err(format!(
+            "Could not start the VibeCLI daemon on port {}. Is `vibecli` installed and on your PATH? Try running `vibecli serve` in a terminal.",
+            port
+        ))
+    }
+}
+
 /// Fetch available models from the daemon's `/models` endpoint.
 #[tauri::command]
 pub async fn list_daemon_models(url: String) -> Result<Vec<serde_json::Value>, String> {
