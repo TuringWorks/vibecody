@@ -86,11 +86,32 @@ impl OllamaProvider {
 
         let display_name = format!("Ollama ({})", config.model);
 
-        // Resolve API key: explicit config → env var → None (no auth)
-        let api_key = config
-            .api_key
-            .clone()
-            .or_else(|| std::env::var("OLLAMA_API_KEY").ok());
+        // Resolve API key: explicit config → env var → None (no auth).
+        //
+        // BUT: the Ollama desktop app (0.24+) signed in to Ollama Cloud will
+        // *proxy a request to ollama.com* whenever a valid cloud Bearer is
+        // attached — even for the loopback server and a locally-installed model.
+        // The cloud then 500s on the agent's multi-turn re-prompt ("Internal
+        // Server Error (ref: …)"), so a purely local model appears broken. A
+        // cloud Bearer is also meaningless for a loopback server (needs no auth).
+        //
+        // So we drop the Bearer for a *local* model on a loopback endpoint,
+        // forcing local execution. Cloud models (name contains "cloud") keep the
+        // key so the local→cloud proxy can still reach them.
+        let base_lower = base_url.to_ascii_lowercase();
+        let is_loopback = base_lower.contains("127.0.0.1")
+            || base_lower.contains("//localhost")
+            || base_lower.contains("//[::1]")
+            || base_lower.contains("0.0.0.0");
+        let model_is_cloud = config.model.contains("cloud");
+        let api_key = if is_loopback && !model_is_cloud {
+            None
+        } else {
+            config
+                .api_key
+                .clone()
+                .or_else(|| std::env::var("OLLAMA_API_KEY").ok())
+        };
 
         Self {
             config,
