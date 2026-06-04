@@ -741,9 +741,16 @@ mod tests {
 
     // ── API key resolution ─────────────────────────────────────────────
 
+    // The loopback override (don't ship a Bearer to a loopback Ollama for a
+    // local model — desktop Ollama 0.24+ would proxy the call to the cloud)
+    // kicks in for `127.0.0.1` / `localhost` / `[::1]` / `0.0.0.0`. The two
+    // precedence tests below use a remote `api_url` so they exercise the
+    // explicit-key → env-var fallback chain without that override interfering.
+
     #[test]
     fn api_key_uses_config_when_set() {
         let config = ProviderConfig::new("ollama".to_string(), "llama3".to_string())
+            .with_api_url("https://ollama.example.com".to_string())
             .with_api_key("my-secret-key".to_string());
         let provider = OllamaProvider::new(config);
         assert_eq!(provider.api_key, Some("my-secret-key".to_string()));
@@ -764,8 +771,30 @@ mod tests {
     #[test]
     fn config_api_key_takes_precedence() {
         let config = ProviderConfig::new("ollama".to_string(), "llama3".to_string())
+            .with_api_url("https://ollama.example.com".to_string())
             .with_api_key("config-key".to_string());
         let provider = OllamaProvider::new(config);
         assert_eq!(provider.api_key, Some("config-key".to_string()));
+    }
+
+    #[test]
+    fn loopback_local_model_drops_explicit_api_key() {
+        // Locks the d6af8fc5 fix: an explicit config key is *intentionally*
+        // dropped when targeting a loopback Ollama with a non-cloud model,
+        // so a stray cloud Bearer can't trigger a desktop-Ollama→cloud proxy.
+        let config = ProviderConfig::new("ollama".to_string(), "llama3".to_string())
+            .with_api_key("would-be-cloud-bearer".to_string());
+        let provider = OllamaProvider::new(config);
+        assert_eq!(provider.api_key, None);
+    }
+
+    #[test]
+    fn loopback_cloud_model_keeps_api_key() {
+        // Cloud models (name contains "cloud") still need the Bearer so the
+        // local→cloud proxy can authenticate.
+        let config = ProviderConfig::new("ollama".to_string(), "llama3-cloud".to_string())
+            .with_api_key("cloud-bearer".to_string());
+        let provider = OllamaProvider::new(config);
+        assert_eq!(provider.api_key, Some("cloud-bearer".to_string()));
     }
 }
