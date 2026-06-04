@@ -1,36 +1,73 @@
 # VibeCody — Developer Makefile
 #
-# Usage:
-#   make setup           — Install all prerequisites (Rust, Node, system libs)
-#   make ui              — Run VibeUI in dev mode
-#   make cli             — Build VibeCLI release binary
-#   make build-mobile    — Build vibemobile (iPhone .app + Android APK)
-#   make build-watch     — Build vibewatch (watchOS + Wear OS)
-#   make build-all       — Build desktop + mobile + watch
-#   make test            — Run all tests
-#   make check           — Fast type-check (Rust + TypeScript)
-#   make help            — Show all targets
+# Every surface gets a consistent  build-<surface>  and  test-<surface>  target.
+# Run `make help` for the full list, or `make help-surfaces` for the matrix.
+#
+#   Surface            Dev            Build               Test
+#   ─────────────────  ─────────────  ──────────────────  ──────────────────
+#   VibeCLI (Rust)     make cli-run   make build-cli      make test-cli
+#   VibeUI  (Tauri)    make ui        make build-ui       make test-ui
+#   VibeApp (Tauri)    make app       make build-app      make test-app
+#   VibeX   (Tauri)    make vibex     make build-vibex    make test-vibex
+#   Agent SDK (TS)     —              make build-sdk      make test-sdk
+#   vibe-indexer       —              make build-indexer  make test-indexer
+#   vibe-memory        —              make build-memory   make test-memory
+#   vibe-rl-py (uv)    —              make build-rl       make test-rl
+#   VS Code ext        —              make build-vscode   make lint-vscode
+#   JetBrains plugin   —              make build-jetbrains make test-jetbrains
+#   Mobile (Flutter)   —              make build-mobile   make test-mobile
+#   Watch (iOS/Wear)   —              make build-watch    make test-watch
+#
+# Aggregates:
+#   make build         Desktop shells (cli + ui + app + vibex)
+#   make build-apps    The three Tauri shells (ui + app + vibex)
+#   make build-all     Desktop + mobile + watch
+#   make test          Rust workspace tests (fast path)
+#   make test-all      Every ecosystem's tests (Rust + Node + Flutter + Python)
+#   make ci            Mirror the GitHub CI gate locally
+#   make check / lint  Fast type-checks / linters
 
-.PHONY: help setup ui cli app test check lint clean build doctor \
+.PHONY: help help-surfaces setup doctor \
+        ui app vibex cli cli-run \
+        build build-apps build-cli build-ui build-app build-vibex \
+        build-sdk build-indexer build-memory build-rl build-vscode build-jetbrains \
+        test test-fast test-all test-rust \
+        test-cli test-ai test-core test-indexer test-memory \
+        test-ui test-app test-vibex test-sdk test-mobile test-rl test-jetbrains test-watch \
+        check check-cli check-ui check-app check-vibex \
+        lint lint-ui lint-sdk lint-vscode lint-vibex check-neovim \
+        fmt fmt-check ci analyze-mobile \
         mobile-setup mobile-ios mobile-ios-ipa mobile-android mobile-android-bundle \
         mobile-clean watch-ios watch-ios-archive watch-wear watch-wear-bundle \
-        watch-clean build-mobile build-watch build-all
+        watch-clean build-mobile build-watch \
+        clean docker docker-run
 
 # Ensure ~/.cargo/bin is in PATH (fixes npm rustup shadowing on Linux)
 export PATH := $(HOME)/.cargo/bin:$(PATH)
 
-# ── Mobile / Watch toolchain locations ────────────────────────────────────────
+# ── Toolchain locations ───────────────────────────────────────────────────────
+CARGO            ?= cargo
+NPM              ?= npm
+UV               ?= uv
 FLUTTER          ?= flutter
 XCODEBUILD       ?= xcodebuild
+GRADLE           ?= gradle
 GRADLE_WEAR      := ./gradlew
 MOBILE_DIR       := vibemobile
 WATCH_IOS_DIR    := vibewatch
 WATCH_IOS_PROJ   := VibeCodyWatch.xcodeproj
 WATCH_IOS_SCHEME := VibeCodyWatch
 WATCH_WEAR_DIR   := vibewatch/VibeCodyWear
+SDK_DIR          := packages/agent-sdk
+RL_DIR           := vibe-rl-py
+VSCODE_DIR       := vscode-extension
+JETBRAINS_DIR    := jetbrains-plugin
 
 help: ## Show available targets
-	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
+
+help-surfaces: ## Print the per-surface build/test matrix (from the header)
+	@sed -n '4,28p' $(MAKEFILE_LIST)
 
 # ── Setup ──────────────────────────────────────────────────────────────────────
 
@@ -45,6 +82,7 @@ doctor: ## Verify development environment is ready
 	@printf "  %-20s" "Node.js:" && (node --version 2>/dev/null || echo "MISSING — install from https://nodejs.org/")
 	@printf "  %-20s" "npm:" && (npm --version 2>/dev/null || echo "MISSING")
 	@printf "  %-20s" "Git:" && (git --version 2>/dev/null || echo "MISSING")
+	@printf "  %-20s" "uv (vibe-rl-py):" && (uv --version 2>/dev/null || echo "not installed (needed for test-rl) — https://docs.astral.sh/uv/")
 	@printf "  %-20s" "Ollama:" && (ollama --version 2>/dev/null || echo "not installed (optional)")
 	@printf "  %-20s" "Docker:" && (docker --version 2>/dev/null || echo "not installed (optional)")
 	@printf "  %-20s" "JDK (watch-wear):" && \
@@ -69,7 +107,7 @@ doctor: ## Verify development environment is ready
 	@printf "  %-20s" "Flutter:" && (flutter --version 2>/dev/null | head -1 || echo "not installed (needed for mobile-*)")
 	@echo ""
 	@echo "Required: Rust, Cargo, Node.js, npm, Git"
-	@echo "Optional: Ollama (local AI), Docker (container sandbox), JDK 17/21 (watch-wear), Flutter (mobile-*)"
+	@echo "Optional: uv (vibe-rl-py), Ollama (local AI), Docker (container sandbox), JDK 17/21 (watch-wear), Flutter (mobile-*)"
 ifeq ($(shell uname -s),Linux)
 	@echo ""
 	@echo "Linux — checking Tauri system dependencies..."
@@ -81,71 +119,178 @@ ifeq ($(shell uname -s),Darwin)
 	@printf "  %-20s" "Xcode:" && (xcodebuild -version 2>/dev/null | head -1 || echo "not installed (needed for watch-ios + mobile-ios)")
 endif
 
-# ── Development ────────────────────────────────────────────────────────────────
+# ── node_modules guards (install on first use, only when missing) ─────────────
 
-ui: ## Run VibeUI in dev mode (Vite + Tauri)
-	cd vibeui && npm run tauri:dev
+vibeui/node_modules:
+	cd vibeui && $(NPM) install --no-audit --no-fund
 
-app: ## Run VibeCLI App in dev mode
-	cd vibeapp && npm run tauri:dev
+vibeapp/node_modules:
+	cd vibeapp && $(NPM) install --no-audit --no-fund
 
-cli: ## Build VibeCLI release binary → target/release/vibecli
-	cargo build --release -p vibecli
+vibex/node_modules:
+	cd vibex && $(NPM) install --no-audit --no-fund
+
+$(SDK_DIR)/node_modules:
+	cd $(SDK_DIR) && $(NPM) install --no-audit --no-fund
+
+$(VSCODE_DIR)/node_modules:
+	cd $(VSCODE_DIR) && $(NPM) install --no-audit --no-fund
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SURFACE: VibeCLI — Rust CLI + daemon + TUI (vibecli/vibecli-cli)
+# ══════════════════════════════════════════════════════════════════════════════
+
+cli: build-cli ## (alias) Build VibeCLI release binary
+
+build-cli: ## Build VibeCLI release binary → target/release/vibecli
+	$(CARGO) build --release -p vibecli
 	@echo ""
 	@ls -lh target/release/vibecli 2>/dev/null || ls -lh target/release/vibecli.exe 2>/dev/null
 	@echo ""
 	@echo "Binary: target/release/vibecli"
 
 cli-run: ## Build and run VibeCLI with TUI
-	cargo run --release -p vibecli -- --tui
+	$(CARGO) run --release -p vibecli -- --tui
 
-# ── Testing ────────────────────────────────────────────────────────────────────
+test-cli: ## Test VibeCLI crate
+	$(CARGO) test -p vibecli
 
-test: ## Run all workspace tests
-	cargo test --workspace
+check-cli: ## Fast type-check VibeCLI crate
+	$(CARGO) check -p vibecli
 
-test-fast: ## Run tests excluding collab crate (faster)
-	cargo test --workspace --exclude vibe-collab
+# ══════════════════════════════════════════════════════════════════════════════
+# SURFACE: VibeUI — desktop editor (Tauri 2 + React)
+# ══════════════════════════════════════════════════════════════════════════════
 
-test-cli: ## Run VibeCLI tests only
-	cargo test -p vibecli
+ui: vibeui/node_modules ## Run VibeUI in dev mode (Vite + Tauri)
+	cd vibeui && $(NPM) run tauri:dev
 
-test-ai: ## Run vibe-ai tests only
-	cargo test -p vibe-ai
+build-ui: vibeui/node_modules ## Build VibeUI for production (Tauri bundle)
+	cd vibeui && $(NPM) run tauri:build
 
-test-core: ## Run vibe-core tests only
-	cargo test -p vibe-core
+test-ui: vibeui/node_modules ## Test VibeUI (vitest)
+	cd vibeui && $(NPM) test
 
-# ── Quality ────────────────────────────────────────────────────────────────────
-
-check: ## Fast type-check (Rust + TypeScript, no codegen)
-	cargo check --workspace --exclude vibe-collab
+check-ui: vibeui/node_modules ## Type-check VibeUI (tsc --noEmit)
 	cd vibeui && npx tsc --noEmit
 
-lint: ## Run clippy + TypeScript check
-	cargo clippy --workspace --exclude vibe-collab -- -D warnings
-	cd vibeui && npx tsc --noEmit
+lint-ui: vibeui/node_modules ## Lint VibeUI (eslint)
+	cd vibeui && $(NPM) run lint
 
-fmt: ## Format all Rust code
-	cargo fmt --all
+# ══════════════════════════════════════════════════════════════════════════════
+# SURFACE: VibeApp — secondary Tauri shell (vibeapp)
+# ══════════════════════════════════════════════════════════════════════════════
 
-fmt-check: ## Check Rust formatting without modifying
-	cargo fmt --all -- --check
+app: vibeapp/node_modules ## Run VibeApp in dev mode
+	cd vibeapp && $(NPM) run tauri:dev
 
-# ── Building ───────────────────────────────────────────────────────────────────
+build-app: vibeapp/node_modules ## Build VibeApp for production (Tauri bundle)
+	cd vibeapp && $(NPM) run tauri:build
 
-build: ## Build everything (CLI + VibeUI + VibeCLI App)
-	cargo build --release -p vibecli
-	cd vibeui && npm run tauri:build
-	cd vibeapp && npm run tauri:build
+test-app: check-app ## Test VibeApp (typecheck only — no unit suite yet)
 
-build-ui: ## Build VibeUI for production
-	cd vibeui && npm run tauri:build
+check-app: vibeapp/node_modules ## Type-check VibeApp (tsc --noEmit)
+	cd vibeapp && npx tsc --noEmit
 
-build-app: ## Build VibeCLI App for production
-	cd vibeapp && npm run tauri:build
+# ══════════════════════════════════════════════════════════════════════════════
+# SURFACE: VibeX — Tauri shell (vibex)
+# ══════════════════════════════════════════════════════════════════════════════
 
-# ── Mobile (Flutter — iPhone + Android phone) ─────────────────────────────────
+vibex: vibex/node_modules ## Run VibeX in dev mode
+	cd vibex && $(NPM) run tauri:dev
+
+build-vibex: vibex/node_modules ## Build VibeX for production (Tauri bundle)
+	cd vibex && $(NPM) run tauri:build
+
+test-vibex: check-vibex lint-vibex ## Test VibeX (typecheck + no-inline-edit guard)
+
+check-vibex: vibex/node_modules ## Type-check VibeX (tsc --noEmit)
+	cd vibex && npx tsc --noEmit
+
+lint-vibex: vibex/node_modules ## Run VibeX patent-distance guard (no-inline-edit)
+	cd vibex && $(NPM) run lint:no-inline-edit
+
+# ── Desktop apps aggregate (the three Tauri shells) ───────────────────────────
+
+build-apps: build-ui build-app build-vibex ## Build all three Tauri shells (ui + app + vibex)
+
+test-apps: test-ui test-app test-vibex ## Test all three Tauri shells
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SURFACE: Agent SDK — TypeScript (packages/agent-sdk)
+# ══════════════════════════════════════════════════════════════════════════════
+
+build-sdk: $(SDK_DIR)/node_modules ## Build Agent SDK (tsup → cjs/esm/dts)
+	cd $(SDK_DIR) && $(NPM) run build
+
+test-sdk: $(SDK_DIR)/node_modules ## Test Agent SDK (vitest)
+	cd $(SDK_DIR) && $(NPM) test
+
+lint-sdk: $(SDK_DIR)/node_modules ## Type-check Agent SDK (tsc --noEmit)
+	cd $(SDK_DIR) && $(NPM) run lint
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SURFACE: Rust services — vibe-indexer, vibe-memory
+# ══════════════════════════════════════════════════════════════════════════════
+
+build-indexer: ## Build vibe-indexer (release)
+	$(CARGO) build --release -p vibe-indexer
+
+test-indexer: ## Test vibe-indexer
+	$(CARGO) test -p vibe-indexer
+
+build-memory: ## Build vibe-memory (release)
+	$(CARGO) build --release -p vibe-memory
+
+test-memory: ## Test vibe-memory
+	$(CARGO) test -p vibe-memory
+
+test-ai: ## Test vibe-ai crate
+	$(CARGO) test -p vibe-ai
+
+test-core: ## Test vibe-core crate
+	$(CARGO) test -p vibe-core
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SURFACE: vibe-rl-py — Python RL sidecar (uv)
+# ══════════════════════════════════════════════════════════════════════════════
+
+build-rl: ## Build the vibe-rl Python wheel (uv build)
+	@command -v $(UV) >/dev/null || (echo "✗ uv not found — https://docs.astral.sh/uv/" && exit 1)
+	cd $(RL_DIR) && $(UV) build
+
+test-rl: ## Test vibe-rl-py (uv run pytest)
+	@command -v $(UV) >/dev/null || (echo "✗ uv not found — https://docs.astral.sh/uv/" && exit 1)
+	cd $(RL_DIR) && $(UV) run --extra dev pytest
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SURFACE: Editor plugins — VS Code, JetBrains, Neovim
+# ══════════════════════════════════════════════════════════════════════════════
+
+build-vscode: $(VSCODE_DIR)/node_modules ## Compile the VS Code extension (tsc -p .)
+	cd $(VSCODE_DIR) && $(NPM) run compile
+
+lint-vscode: $(VSCODE_DIR)/node_modules ## Lint the VS Code extension (eslint)
+	cd $(VSCODE_DIR) && $(NPM) run lint
+
+build-jetbrains: ## Build the JetBrains plugin (gradle buildPlugin)
+	@command -v $(GRADLE) >/dev/null || (echo "✗ gradle not found — install: brew install gradle" && exit 1)
+	cd $(JETBRAINS_DIR) && $(GRADLE) buildPlugin
+
+test-jetbrains: ## Test the JetBrains plugin (gradle test)
+	@command -v $(GRADLE) >/dev/null || (echo "✗ gradle not found — install: brew install gradle" && exit 1)
+	cd $(JETBRAINS_DIR) && $(GRADLE) test
+
+check-neovim: ## Lint the Neovim plugin (luacheck, if installed)
+	@if command -v luacheck >/dev/null; then \
+		cd neovim-plugin && luacheck lua; \
+	else \
+		echo "luacheck not installed — skipping (brew install luacheck)"; \
+	fi
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SURFACE: Mobile — Flutter (iPhone + Android phone)
+# ══════════════════════════════════════════════════════════════════════════════
 
 mobile-setup: ## Install Flutter deps + CocoaPods for vibemobile
 	@command -v $(FLUTTER) >/dev/null || (echo "✗ Flutter not found — install from https://docs.flutter.dev/get-started/install" && exit 1)
@@ -172,10 +317,20 @@ mobile-android-bundle: ## Build Android App Bundle (.aab) for Play Store
 	cd $(MOBILE_DIR) && $(FLUTTER) pub get && $(FLUTTER) build appbundle --release
 	@echo "✓ AAB: $(MOBILE_DIR)/build/app/outputs/bundle/release/app-release.aab"
 
+test-mobile: ## Test vibemobile (flutter test)
+	@command -v $(FLUTTER) >/dev/null || (echo "✗ Flutter not found" && exit 1)
+	cd $(MOBILE_DIR) && $(FLUTTER) pub get && $(FLUTTER) test
+
+analyze-mobile: ## Static-analyze vibemobile (dart analyze --fatal-infos)
+	@command -v $(FLUTTER) >/dev/null || (echo "✗ Flutter not found" && exit 1)
+	cd $(MOBILE_DIR) && $(FLUTTER) pub get && dart analyze --fatal-infos
+
 mobile-clean: ## Clean Flutter mobile build artifacts
 	cd $(MOBILE_DIR) && $(FLUTTER) clean
 
-# ── Watch — watchOS (Xcode) + Wear OS (Gradle) ────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# SURFACE: Watch — watchOS (Xcode) + Wear OS (Gradle)
+# ══════════════════════════════════════════════════════════════════════════════
 
 watch-ios: ## Build watchOS app (release, simulator) — vibewatch/VibeCodyWatch
 	@[ "$$(uname -s)" = "Darwin" ] || (echo "✗ watchOS builds require macOS" && exit 1)
@@ -209,6 +364,11 @@ watch-wear-bundle: ## Build Wear OS App Bundle (.aab)
 	cd $(WATCH_WEAR_DIR) && $(GRADLE_WEAR) :app:bundleRelease
 	@echo "✓ Wear OS AAB: $(WATCH_WEAR_DIR)/app/build/outputs/bundle/release/app-release.aab"
 
+test-watch: ## Test Wear OS unit tests (gradle test); watchOS tests need Xcode schemes
+	@[ -x $(WATCH_WEAR_DIR)/gradlew ] || (echo "✗ gradlew missing — run setup" && exit 1)
+	cd $(WATCH_WEAR_DIR) && $(GRADLE_WEAR) test
+	@echo "✓ Wear OS unit tests passed (watchOS: run 'xcodebuild test' in $(WATCH_IOS_DIR) on macOS)"
+
 watch-clean: ## Clean watchOS + Wear OS build artifacts
 	-cd $(WATCH_WEAR_DIR) && $(GRADLE_WEAR) clean
 	-rm -rf $(WATCH_IOS_DIR)/build
@@ -225,14 +385,78 @@ ifeq ($(shell uname -s),Darwin)
 	$(MAKE) watch-ios
 endif
 
+# ══════════════════════════════════════════════════════════════════════════════
+# AGGREGATE: Building
+# ══════════════════════════════════════════════════════════════════════════════
+
+build: build-cli build-ui build-app build-vibex ## Build all desktop shells (CLI + UI + App + VibeX)
+
 build-all: build build-mobile build-watch ## Build everything: desktop + mobile + watch
 
-# ── Cleanup ────────────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# AGGREGATE: Testing
+# ══════════════════════════════════════════════════════════════════════════════
 
-clean: mobile-clean watch-clean ## Remove build artifacts (Rust + UI + mobile + watch)
-	cargo clean
+test: ## Run all Rust workspace tests (fast path)
+	$(CARGO) test --workspace
+
+test-rust: test ## (alias) Run all Rust workspace tests
+
+test-fast: ## Run Rust tests excluding the collab crate (faster)
+	$(CARGO) test --workspace --exclude vibe-collab
+
+test-all: test test-ui test-app test-vibex test-sdk ## Test every Node + Rust surface (mobile/rl run separately)
+	@echo ""
+	@echo "✓ Rust + Node surfaces tested. For platform-gated suites run: make test-mobile test-rl test-jetbrains"
+
+# ══════════════════════════════════════════════════════════════════════════════
+# AGGREGATE: Quality (type-check, lint, format)
+# ══════════════════════════════════════════════════════════════════════════════
+
+check: ## Fast type-check (Rust workspace + UI/App/VibeX TypeScript)
+	$(CARGO) check --workspace --exclude vibe-collab
+	$(MAKE) check-ui check-app check-vibex
+
+lint: ## Run clippy + UI TypeScript check
+	$(CARGO) clippy --workspace --exclude vibe-collab -- -D warnings
+	$(MAKE) check-ui
+
+fmt: ## Format all Rust code
+	$(CARGO) fmt --all
+
+fmt-check: ## Check Rust formatting without modifying
+	$(CARGO) fmt --all -- --check
+
+# Mirror the GitHub CI gate (.github/workflows/ci.yml) locally.
+ci: fmt-check ## Run the same checks CI does (Rust + VibeUI + VibeApp + SDK + Mobile)
+	@echo "── Rust: clippy + test ──────────────────────────────"
+	$(CARGO) clippy --workspace
+	$(CARGO) test --workspace --exclude vibe-memory --exclude vibe-broker
+	@echo "── VibeUI: lint + typecheck + test ──────────────────"
+	$(MAKE) lint-ui check-ui test-ui
+	@echo "── VibeApp: typecheck ───────────────────────────────"
+	$(MAKE) check-app
+	@echo "── Agent SDK: lint + test ───────────────────────────"
+	$(MAKE) lint-sdk test-sdk
+	@echo "── Mobile: analyze + test ───────────────────────────"
+	@if command -v $(FLUTTER) >/dev/null; then \
+		$(MAKE) analyze-mobile test-mobile; \
+	else \
+		echo "Flutter not installed — skipping mobile checks (CI runs them)"; \
+	fi
+	@echo ""
+	@echo "✓ Local CI gate passed."
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Cleanup
+# ══════════════════════════════════════════════════════════════════════════════
+
+clean: mobile-clean watch-clean ## Remove build artifacts (Rust + UI + App + VibeX + mobile + watch)
+	$(CARGO) clean
 	rm -rf vibeui/dist vibeui/node_modules/.vite
 	rm -rf vibeapp/dist vibeapp/node_modules/.vite
+	rm -rf vibex/dist vibex/node_modules/.vite
+	rm -rf $(SDK_DIR)/dist
 
 # ── Docker ─────────────────────────────────────────────────────────────────────
 

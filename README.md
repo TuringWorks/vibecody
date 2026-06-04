@@ -56,16 +56,41 @@ make doctor    # Checks all required + optional tools
 
 ### All Make Targets
 
+Run `make help` for the full list, or `make help-surfaces` for the matrix below.
+Every surface has a consistent `build-<surface>` / `test-<surface>` pair:
+
 ```bash
+# Surface            Dev            Build                Test
+# ─────────────────  ─────────────  ───────────────────  ──────────────────
+# VibeCLI (Rust)     make cli-run   make build-cli       make test-cli
+# VibeUI  (Tauri)    make ui        make build-ui        make test-ui
+# VibeApp (Tauri)    make app       make build-app       make test-app
+# VibeX   (Tauri)    make vibex     make build-vibex     make test-vibex
+# Agent SDK (TS)     —              make build-sdk       make test-sdk
+# vibe-indexer       —              make build-indexer   make test-indexer
+# vibe-memory        —              make build-memory    make test-memory
+# vibe-rl-py (uv)    —              make build-rl        make test-rl
+# VS Code ext        —              make build-vscode    make lint-vscode
+# JetBrains plugin   —              make build-jetbrains make test-jetbrains
+# Mobile (Flutter)   —              make build-mobile    make test-mobile
+# Watch (iOS/Wear)   —              make build-watch     make test-watch
+```
+
+```bash
+# Setup & environment
 make setup              Install all prerequisites
 make doctor             Verify dev environment is ready
-make ui                 Run VibeUI in dev mode (Vite + Tauri)
-make cli                Build VibeCLI release binary
-make test               Run all workspace tests
-make test-fast          Run tests (excluding collab crate)
-make check              Fast type-check (Rust + TypeScript)
-make lint               Run clippy + TypeScript check
-make build              Build everything for production
+
+# Aggregates
+make build              Build all desktop shells (CLI + UI + App + VibeX)
+make build-apps         Build the three Tauri shells (UI + App + VibeX)
+make build-all          Rust + Tauri + Mobile + Watch (what CI builds)
+make test               Run all Rust workspace tests (fast path)
+make test-fast          Run Rust tests (excluding collab crate)
+make test-all           Test every Rust + Node surface
+make ci                 Mirror the GitHub CI gate locally
+make check              Fast type-check (Rust + UI/App/VibeX TypeScript)
+make lint               Run clippy + UI TypeScript check
 make clean              Remove build artifacts
 make docker             Build Docker image
 
@@ -76,6 +101,7 @@ make mobile-ios-ipa     Archive + export signed iOS .ipa (needs APPLE_TEAM_ID)
 make mobile-android     Release APK
 make mobile-android-bundle   Release AAB for Play Store
 make build-mobile       Everything above (platform-gated)
+make test-mobile        flutter test    ·    make analyze-mobile   dart analyze
 
 # Watch (Xcode + Gradle)
 make watch-ios          Build watchOS app for Simulator (Xcode)
@@ -83,8 +109,7 @@ make watch-ios-archive  Archive watchOS app for a real device
 make watch-wear         Wear OS release APK
 make watch-wear-bundle  Wear OS release AAB
 make build-watch        Everything above (platform-gated)
-
-make build-all          Rust + Tauri + Mobile + Watch (what CI builds)
+make test-watch         Wear OS unit tests (gradle test)
 ```
 
 ---
@@ -350,14 +375,18 @@ sudo pacman -S webkit2gtk-4.1 gtk3 libappindicator-gtk3 librsvg patchelf openssl
 **11,000+ unit tests + 62 BDD/integration harnesses** across the workspace.
 
 ```bash
-make test          # All workspace tests
+make test          # All Rust workspace tests (fast path)
 make test-fast     # Skip collab crate (faster)
-make check         # Type-check only (Rust + TypeScript)
+make test-all      # Every Rust + Node surface
+make check         # Type-check only (Rust + UI/App/VibeX TypeScript)
+make ci            # Mirror the GitHub CI gate locally
 
-# Specific crates
-cargo test -p vibe-core
-cargo test -p vibe-ai
-cargo test -p vibecli
+# Per-surface tests
+make test-cli      # VibeCLI (Rust)      make test-ui     # VibeUI  (vitest)
+make test-app      # VibeApp (typecheck) make test-vibex  # VibeX   (typecheck + guard)
+make test-sdk      # Agent SDK (vitest)  make test-mobile # Flutter
+make test-indexer  # vibe-indexer        make test-memory # vibe-memory
+make test-rl       # vibe-rl-py (pytest) make test-jetbrains  # JetBrains plugin
 ```
 
 ---

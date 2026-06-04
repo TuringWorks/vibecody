@@ -59,6 +59,7 @@ Upload [`VibeCody-Wear-v0.5.5.aab`](https://github.com/TuringWorks/vibecody/rele
 # Linux, macOS, or Windows:
 make watch-wear            # Release APK
 make watch-wear-bundle     # Release AAB
+make test-watch            # Wear OS unit tests (gradle test)
 
 # Or drive Gradle directly:
 cd vibewatch/VibeCodyWear
