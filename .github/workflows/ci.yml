@@ -82,6 +82,12 @@ jobs:
 
       - name: Run tests
         if: matrix.check == 'test'
+        # A handful of tests mutate process-wide env vars (VIBECLI_SKILLS_DIR,
+        # HOME). Run them serially to avoid races between concurrent tests
+        # sharing one global env. Locally `cargo test` defaults to threads=N,
+        # which masks these races on dev machines.
+        env:
+          RUST_TEST_THREADS: "1"
         run: cargo test --workspace --exclude vibe-memory --exclude vibe-broker
 
   # ─── VibeUI: TypeScript + React ────────────────────────────────────────
