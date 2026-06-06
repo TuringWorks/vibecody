@@ -96,6 +96,34 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
     }
   }
 
+  // Delete a project: forget the picked path and drop its chats. The Projects
+  // rail is the union of task paths + picked paths (groupByProject), so the
+  // project only fully disappears once its tasks are gone — hence we remove
+  // them too. Worktrees on disk are kept (matching the chat "Delete only" path).
+  async function deleteProject(path: string) {
+    const name = path.split("/").filter(Boolean).pop() || path;
+    const chats = tasks.tasks.filter((t) => t.project_path === path);
+    const ok = await confirm(
+      chats.length > 0
+        ? `Delete project “${name}” and its ${chats.length} chat${chats.length === 1 ? "" : "s"}?\n\nWorktrees on disk are kept — this removes the project and its chats from VibeX.`
+        : `Delete project “${name}”?`,
+      { title: "Delete project", kind: "warning" }
+    );
+    if (!ok) return;
+    try {
+      for (const t of chats) {
+        await tasks.deleteTask(t.id, false);
+      }
+      projects.removeProject(path);
+      if (activeProject === path) {
+        setActiveProject(null);
+        newChat();
+      }
+    } catch (e) {
+      await message(String(e), { title: "Delete failed", kind: "error" });
+    }
+  }
+
   return (
     <div
       className="vibex-shell"
@@ -129,6 +157,7 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
               newChat();
             }}
             onSelectProject={(path) => setActiveProject(path)}
+            onDeleteProject={deleteProject}
             onSelectChat={selectChat}
             onDeleteChat={deleteChat}
             onOpenSettings={() => setOverlay("settings")}

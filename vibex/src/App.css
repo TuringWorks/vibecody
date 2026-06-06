@@ -95,6 +95,10 @@ html, body, #root {
 .vx-nav__item.is-active, .vx-nav__chat.is-active { background: var(--bg-elevated); color: var(--text-primary); }
 .vx-nav__chat.is-active { font-weight: 600; }
 .vx-nav__item--project { color: var(--text-primary); margin-top: 4px; }
+.vx-nav__project-row { display: flex; align-items: center; gap: 2px; margin-top: 4px; }
+.vx-nav__project-row .vx-nav__item--project { flex: 1; min-width: 0; margin-top: 0; }
+.vx-nav__project-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vx-nav__project-row:hover .vx-nav__project-del, .vx-nav__project-del:focus-visible { opacity: 1; }
 .vx-nav__section { padding: 10px 8px 4px; font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); letter-spacing: 0.5px; }
 .vx-nav__chats { list-style: none; padding-left: 18px; }
 .vx-nav__chat { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 4px 8px; border: none; border-radius: 5px; background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 12px; text-align: left; }
