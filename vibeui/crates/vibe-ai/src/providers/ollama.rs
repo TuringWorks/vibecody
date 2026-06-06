@@ -8,6 +8,25 @@ use async_trait::async_trait;
 use futures::stream::StreamExt;
 use serde::{Deserialize, Serialize};
 
+/// Ollama Cloud / Turbo models — datacenter-hosted, addressed by the `*-cloud`
+/// suffix. Unlike local models these are never reported by `/api/tags`, so the
+/// daemon advertises them statically (see `serve::list_models`). A request for
+/// any model whose name contains "cloud" keeps its Bearer even on a loopback
+/// endpoint (see [`OllamaProvider::new`]) so the local→cloud proxy can reach
+/// ollama.com. Requires an Ollama Cloud / Turbo token (`OLLAMA_API_KEY` env or
+/// the encrypted ProfileStore key).
+///
+/// Source: <https://ollama.com/library?c=cloud>
+pub const OLLAMA_CLOUD_MODELS: &[&str] = &[
+    "qwen3-coder:480b-cloud",
+    "deepseek-v3.1:671b-cloud",
+    "kimi-k2:1t-cloud",
+    "gpt-oss:120b-cloud",
+    "gpt-oss:20b-cloud",
+    "glm-4.6:cloud",
+    "minimax-m2:cloud",
+];
+
 #[derive(Debug, Serialize)]
 struct OllamaRequest {
     model: String,

@@ -8,7 +8,33 @@
  * Embedding models, vision-only models, and OCR models are excluded.
  * To refresh: visit the URLs above and add new chat model IDs.
  */
+
+/**
+ * Ollama Cloud / Turbo models — datacenter-hosted, addressed by the `*-cloud`
+ * suffix. Selecting one routes the request to ollama.com instead of the local
+ * runtime: the backend keeps the Bearer for any model whose name contains
+ * "cloud", even on a loopback endpoint (see `OllamaProvider::new`). These are
+ * never reported by a local `/api/tags`, so they're listed statically here.
+ *
+ * Requires an Ollama Cloud / Turbo token (Settings → Providers → "Ollama Cloud /
+ * Turbo"); without one, selecting these will fail at request time.
+ *
+ * Source: https://ollama.com/library?c=cloud   ·  Last updated: 2026-06-06
+ */
+export const OLLAMA_CLOUD_MODELS: string[] = [
+  "qwen3-coder:480b-cloud",   // Qwen · 480B · coding-agent flagship
+  "deepseek-v3.1:671b-cloud", // DeepSeek · 671B · reasoning + tools
+  "kimi-k2:1t-cloud",         // Moonshot · 1T MoE
+  "gpt-oss:120b-cloud",       // OpenAI OSS · 120B
+  "gpt-oss:20b-cloud",        // OpenAI OSS · 20B · faster
+  "glm-4.6:cloud",            // Zhipu
+  "minimax-m2:cloud",         // MiniMax
+];
+
 export const OLLAMA_CHAT_MODELS: string[] = [
+  // ── Ollama Cloud / Turbo (datacenter-hosted, *-cloud, needs token) ──
+  ...OLLAMA_CLOUD_MODELS,
+
   // ── Cloud-hosted flagship · non-Chinese · tool-calling ─────────────
   // These run on Ollama Cloud (no local pull needed when an API key is
   // configured). Strong on coding, agentic loops, and `tools` JSON mode.

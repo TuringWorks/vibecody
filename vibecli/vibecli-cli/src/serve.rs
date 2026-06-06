@@ -787,7 +787,7 @@ async fn list_models(State(state): State<ServeState>) -> impl IntoResponse {
         "active": true,
     }));
 
-    // Try to list Ollama models
+    // Try to list local Ollama models (from `/api/tags`)
     if let Ok(ollama_models) = vibe_ai::providers::ollama::OllamaProvider::list_models(None).await {
         for m in ollama_models {
             let id = format!("ollama/{}", m);
@@ -798,6 +798,21 @@ async fn list_models(State(state): State<ServeState>) -> impl IntoResponse {
                     "provider": "ollama",
                 }));
             }
+        }
+    }
+
+    // Ollama Cloud / Turbo models are datacenter-hosted and never appear in a
+    // local `/api/tags`, so advertise them statically — independent of whether
+    // a local Ollama is reachable. Selecting one routes to ollama.com and needs
+    // a Cloud/Turbo token (see `OllamaProvider`). De-dup against locals above.
+    for m in vibe_ai::providers::ollama::OLLAMA_CLOUD_MODELS {
+        let id = format!("ollama/{}", m);
+        if !models.iter().any(|x| x["id"].as_str() == Some(&id)) {
+            models.push(serde_json::json!({
+                "id": id,
+                "name": m,
+                "provider": "ollama",
+            }));
         }
     }
 
