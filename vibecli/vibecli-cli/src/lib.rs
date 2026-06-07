@@ -41,6 +41,7 @@ pub mod voice_whisper;
 pub mod web_grounding;
 pub mod web_grounding_backend;
 pub mod worktree_git;
+pub mod worktree_reaper;
 #[allow(dead_code)]
 pub mod worktree_pool;
 // A5 — async subagent state machine.

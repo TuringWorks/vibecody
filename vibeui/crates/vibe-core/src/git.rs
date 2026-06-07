@@ -401,6 +401,64 @@ pub fn create_worktree(repo_path: &Path, branch: &str, worktree_path: &Path) -> 
     Ok(())
 }
 
+/// Create a worktree for an **existing** branch (no new branch created). Used by
+/// the restore path to re-materialize a worktree from a kept/preserved branch.
+///
+/// Equivalent to: `git worktree add <worktree_path> <branch>`
+pub fn add_worktree_existing_branch(
+    repo_path: &Path,
+    branch: &str,
+    worktree_path: &Path,
+) -> Result<()> {
+    let output = std::process::Command::new("git")
+        .args([
+            "worktree",
+            "add",
+            &worktree_path.to_string_lossy(),
+            branch,
+        ])
+        .current_dir(repo_path)
+        .output()?;
+    if !output.status.success() {
+        anyhow::bail!(
+            "git worktree add (existing branch) failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    Ok(())
+}
+
+/// Create a branch pointing at an arbitrary ref (e.g. recover a deleted task
+/// branch from its preserved `refs/trash/<id>`). No-op if the branch exists.
+///
+/// Equivalent to: `git branch <branch> <source_ref>`
+pub fn create_branch_from_ref(repo_path: &Path, branch: &str, source_ref: &str) -> Result<()> {
+    if branch_exists(repo_path, branch) {
+        return Ok(());
+    }
+    let output = std::process::Command::new("git")
+        .args(["branch", branch, source_ref])
+        .current_dir(repo_path)
+        .output()?;
+    if !output.status.success() {
+        anyhow::bail!(
+            "git branch {branch} {source_ref} failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    Ok(())
+}
+
+/// Whether a ref (any namespace, e.g. `refs/trash/<id>`) exists.
+pub fn ref_exists(repo_path: &Path, full_ref: &str) -> bool {
+    std::process::Command::new("git")
+        .args(["show-ref", "--verify", "--quiet", full_ref])
+        .current_dir(repo_path)
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
 /// Remove a git worktree at `worktree_path`.
 ///
 /// Equivalent to: `git worktree remove --force <worktree_path>`
@@ -417,6 +475,141 @@ pub fn remove_worktree(repo_path: &Path, worktree_path: &Path) -> Result<()> {
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr);
         anyhow::bail!("git worktree remove failed: {}", err);
+    }
+    Ok(())
+}
+
+/// Whether `branch` is fully merged into the repo's current HEAD — i.e. its tip
+/// is an ancestor of HEAD, so it holds no unique commits and is safe to delete.
+///
+/// Equivalent to: `git merge-base --is-ancestor refs/heads/<branch> HEAD`
+/// (exit 0 = merged, exit 1 = not merged). Used by the worktree reaper to decide
+/// whether a branch can be deleted or must be preserved.
+pub fn is_branch_merged(repo_path: &Path, branch: &str) -> Result<bool> {
+    let status = std::process::Command::new("git")
+        .args([
+            "merge-base",
+            "--is-ancestor",
+            &format!("refs/heads/{branch}"),
+            "HEAD",
+        ])
+        .current_dir(repo_path)
+        .status()?;
+    Ok(status.success())
+}
+
+/// Whether a local branch ref exists.
+pub fn branch_exists(repo_path: &Path, branch: &str) -> bool {
+    std::process::Command::new("git")
+        .args([
+            "show-ref",
+            "--verify",
+            "--quiet",
+            &format!("refs/heads/{branch}"),
+        ])
+        .current_dir(repo_path)
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
+/// Commit any uncommitted changes in a worktree onto its branch, so removing the
+/// worktree directory can never discard work. Returns `Ok(true)` if a commit was
+/// made, `Ok(false)` if the tree was already clean (nothing to commit).
+///
+/// Runs `git -C <worktree> add -A` then `git -C <worktree> commit -m <message>`.
+pub fn commit_all_in_worktree(worktree_path: &Path, message: &str) -> Result<bool> {
+    // Fast path: clean tree → nothing to do.
+    let status = std::process::Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(worktree_path)
+        .output()?;
+    if status.stdout.is_empty() {
+        return Ok(false);
+    }
+    let add = std::process::Command::new("git")
+        .args(["add", "-A"])
+        .current_dir(worktree_path)
+        .output()?;
+    if !add.status.success() {
+        anyhow::bail!(
+            "git add -A failed: {}",
+            String::from_utf8_lossy(&add.stderr)
+        );
+    }
+    let commit = std::process::Command::new("git")
+        .args(["commit", "--no-verify", "-m", message])
+        .current_dir(worktree_path)
+        .output()?;
+    if !commit.status.success() {
+        anyhow::bail!(
+            "git commit failed: {}",
+            String::from_utf8_lossy(&commit.stderr)
+        );
+    }
+    Ok(true)
+}
+
+/// Preserve a branch's tip under `refs/trash/<id>` before the branch itself is
+/// deleted, so unmerged work stays recoverable (hidden from `git branch`, but
+/// reachable via `git update-ref` / reflog). No-op if the branch doesn't exist.
+///
+/// Runs `git update-ref refs/trash/<id> refs/heads/<branch>`.
+pub fn preserve_branch_ref(repo_path: &Path, branch: &str, id: &str) -> Result<()> {
+    if !branch_exists(repo_path, branch) {
+        return Ok(());
+    }
+    let output = std::process::Command::new("git")
+        .args([
+            "update-ref",
+            &format!("refs/trash/{id}"),
+            &format!("refs/heads/{branch}"),
+        ])
+        .current_dir(repo_path)
+        .output()?;
+    if !output.status.success() {
+        anyhow::bail!(
+            "git update-ref refs/trash/{id} failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    Ok(())
+}
+
+/// Delete a local branch. `force` selects `-D` (unconditional) over `-d` (only
+/// if merged). No-op (Ok) if the branch is already gone.
+pub fn delete_branch(repo_path: &Path, branch: &str, force: bool) -> Result<()> {
+    if !branch_exists(repo_path, branch) {
+        return Ok(());
+    }
+    let flag = if force { "-D" } else { "-d" };
+    let output = std::process::Command::new("git")
+        .args(["branch", flag, branch])
+        .current_dir(repo_path)
+        .output()?;
+    if !output.status.success() {
+        anyhow::bail!(
+            "git branch {flag} {branch} failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    Ok(())
+}
+
+/// Prune stale administrative worktree metadata (`.git/worktrees/*`) for
+/// directories that no longer exist on disk.
+///
+/// Equivalent to: `git worktree prune`
+pub fn prune_worktrees(repo_path: &Path) -> Result<()> {
+    let output = std::process::Command::new("git")
+        .args(["worktree", "prune"])
+        .current_dir(repo_path)
+        .output()?;
+    if !output.status.success() {
+        anyhow::bail!(
+            "git worktree prune failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
     Ok(())
 }

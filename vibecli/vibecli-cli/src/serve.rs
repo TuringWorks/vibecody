@@ -1535,6 +1535,37 @@ fn now_unix() -> i64 {
         .unwrap_or(0)
 }
 
+/// Run one worktree-reaper sweep (blocking — git CLI). Opens the shared task
+/// store, reaps post-grace trashed tasks, reclaims archived dirs, and
+/// reconciles orphans against `workspace_root` plus every repo referenced by a
+/// task. Errors are non-fatal and logged. See docs/design/worktree-lifecycle/.
+fn run_worktree_sweep(workspace_root: &std::path::Path, label: &str) {
+    let store = match crate::task_store::TaskStore::open_default() {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("[reaper] {label}: task store unavailable: {e}");
+            return;
+        }
+    };
+    let policy = crate::worktree_reaper::ReaperPolicy::default();
+    let extra = [workspace_root.to_path_buf()];
+    let report = crate::worktree_reaper::sweep(&store, &extra, &policy, now_unix());
+    if report.did_work() || !report.errors.is_empty() {
+        eprintln!(
+            "[reaper] {label}: {} trashed reaped, {} archived reclaimed, {} orphans removed, {} branches preserved{}",
+            report.trashed_reaped,
+            report.archived_reclaimed,
+            report.orphans_removed,
+            report.branches_preserved,
+            if report.errors.is_empty() {
+                String::new()
+            } else {
+                format!(" ({} error(s): {})", report.errors.len(), report.errors.join("; "))
+            }
+        );
+    }
+}
+
 /// Derive a git-safe branch slug from a task title, e.g.
 /// "Fix the auth timeout!" → "fix-the-auth-timeout".
 fn slugify_title(title: &str) -> String {
@@ -1640,8 +1671,19 @@ async fn create_task(
     Ok(Json(row))
 }
 
-/// GET /api/tasks — list recent tasks (newest first).
+/// Query params for `GET /api/tasks`.
+#[derive(Debug, serde::Deserialize)]
+struct ListTasksQuery {
+    /// Lifecycle filter: omitted/`active` → Active cards (excludes Trashed);
+    /// `trashed` → the Trash view; `archived` → the Archive view; `all` → every
+    /// row. See docs/design/worktree-lifecycle/.
+    state: Option<String>,
+}
+
+/// GET /api/tasks — list recent tasks (newest first). Excludes Trashed by
+/// default; `?state=trashed|archived|all` selects the recovery views.
 async fn list_tasks(
+    Query(q): Query<ListTasksQuery>,
     State(_state): State<ServeState>,
 ) -> Result<Json<Vec<crate::task_store::TaskRow>>, (StatusCode, Json<serde_json::Value>)> {
     let store = crate::task_store::TaskStore::open_default().map_err(|e| {
@@ -1650,7 +1692,11 @@ async fn list_tasks(
             format!("task store: {e}"),
         )
     })?;
-    let tasks = store.list(200).map_err(|e| {
+    let tasks = match q.state.as_deref() {
+        None | Some("") | Some("active") => store.list(200),
+        Some(state) => store.list_in_state(state, 200),
+    }
+    .map_err(|e| {
         json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             format!("list tasks: {e}"),
@@ -1744,17 +1790,22 @@ async fn update_task(
 /// Query params for `DELETE /api/tasks/:id`.
 #[derive(Debug, serde::Deserialize)]
 struct DeleteTaskQuery {
-    /// When true, also `git worktree remove --force` the task's worktree
-    /// (discarding any uncommitted work in it) before deleting the row.
-    /// Defaults to false — the safe path keeps the worktree on disk.
+    /// Permanently remove the task *now* instead of soft-deleting it. Goes
+    /// through the reaper's safe teardown (commit WIP → preserve-if-unmerged →
+    /// remove dir → hard-delete row), so it can never discard unmerged work.
+    #[serde(default)]
+    purge: bool,
+    /// Back-compat alias for `purge` (the old footgun param). Now routed through
+    /// the same safe path — it no longer `--force`-discards uncommitted work.
     #[serde(default)]
     remove_worktree: bool,
 }
 
-/// DELETE /api/tasks/:id — remove a task. With `?remove_worktree=true`, also
-/// tears down the task's git worktree. Drives worktree cleanup from the
-/// persisted `TaskRow` fields (the in-memory `GitWorktreePool` is per-request
-/// and has no record of worktrees spawned by earlier requests).
+/// DELETE /api/tasks/:id — **soft-delete** a task by default: it moves to the
+/// Trashed state (recoverable, worktree untouched) and the reaper reclaims the
+/// worktree after the grace window. Pass `?purge=true` to remove it permanently
+/// now (still safe — unmerged work is preserved at `refs/trash/<id>`).
+/// See docs/design/worktree-lifecycle/.
 async fn delete_task(
     Path(id): Path<String>,
     Query(q): Query<DeleteTaskQuery>,
@@ -1778,27 +1829,88 @@ async fn delete_task(
             )
         })?;
 
-    let mut worktree_removed = false;
-    if q.remove_worktree && !row.worktree_path.is_empty() && !row.project_path.is_empty() {
-        let repo = std::path::PathBuf::from(&row.project_path);
-        let wt = std::path::PathBuf::from(&row.worktree_path);
-        match vibe_core::git::remove_worktree(&repo, &wt) {
-            Ok(()) => worktree_removed = true,
-            // Non-fatal: still delete the task row so the chat disappears.
-            Err(e) => tracing::warn!("worktree remove failed for task {id}: {e}"),
-        }
+    let now = now_unix();
+
+    // Permanent purge — explicit opt-in, still goes through the safe teardown.
+    if q.purge || q.remove_worktree {
+        let preserved = crate::worktree_reaper::purge_task(&store, &row, now).map_err(|e| {
+            json_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("purge task: {e}"),
+            )
+        })?;
+        return Ok(Json(serde_json::json!({
+            "deleted": true,
+            "purged": true,
+            "worktree_removed": !row.worktree_path.is_empty(),
+            "branch_preserved": preserved,
+        })));
     }
 
-    let deleted = store.delete(&id).map_err(|e| {
+    // Default: soft-delete (Trashed). Reversible via POST /api/tasks/:id/restore.
+    let trashed = store.trash(&id, now).map_err(|e| {
         json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!("delete task: {e}"),
+            format!("trash task: {e}"),
         )
     })?;
-
+    let grace = crate::worktree_reaper::ReaperPolicy::default().trash_grace_secs;
     Ok(Json(serde_json::json!({
-        "deleted": deleted,
-        "worktree_removed": worktree_removed,
+        "deleted": trashed,
+        "trashed": trashed,
+        "recoverable_until": now + grace,
+    })))
+}
+
+/// POST /api/tasks/:id/archive — mark a task Archived: its branch is kept
+/// forever, the reaper frees the worktree directory, and restore re-creates it.
+async fn archive_task(
+    Path(id): Path<String>,
+    State(_state): State<ServeState>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    use crate::task_store::TaskStore;
+    let store = TaskStore::open_default().map_err(|e| {
+        json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("task store: {e}"))
+    })?;
+    let now = now_unix();
+    let archived = store.archive(&id, now).map_err(|e| {
+        json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("archive task: {e}"))
+    })?;
+    if !archived {
+        return Err(json_error(
+            StatusCode::NOT_FOUND,
+            format!("Task '{}' not found", sanitize_user_input(&id)),
+        ));
+    }
+    Ok(Json(serde_json::json!({ "archived": true })))
+}
+
+/// POST /api/tasks/:id/restore — bring a Trashed/Archived task back to Active,
+/// re-materializing its worktree from the (possibly preserved) branch.
+async fn restore_task(
+    Path(id): Path<String>,
+    State(_state): State<ServeState>,
+) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
+    use crate::task_store::TaskStore;
+    let store = TaskStore::open_default().map_err(|e| {
+        json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("task store: {e}"))
+    })?;
+    let row = store
+        .get(&id)
+        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("get task: {e}")))?
+        .ok_or_else(|| {
+            json_error(
+                StatusCode::NOT_FOUND,
+                format!("Task '{}' not found", sanitize_user_input(&id)),
+            )
+        })?;
+    let now = now_unix();
+    let worktree_path = crate::worktree_reaper::restore_task(&store, &row, now).map_err(|e| {
+        json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("restore task: {e}"))
+    })?;
+    Ok(Json(serde_json::json!({
+        "restored": true,
+        "worktree_path": worktree_path,
     })))
 }
 
@@ -6130,6 +6242,8 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
             get(get_task).patch(update_task).delete(delete_task),
         )
         .route("/api/tasks/:id/merge", post(merge_task))
+        .route("/api/tasks/:id/archive", post(archive_task))
+        .route("/api/tasks/:id/restore", post(restore_task))
         .route("/api/tasks/:id/history", get(task_history))
         // VibeX environment API (VX-109/202/110): read-only git + file inspection.
         .route("/api/vibex/git/status", get(vibex_git_status))
@@ -6789,6 +6903,25 @@ pub async fn serve(
             }
         });
     }
+
+    // Worktree reaper (docs/design/worktree-lifecycle/): one boot sweep to heal
+    // crashes + pre-existing orphans, then every 6h. The single owner of
+    // destructive git for task worktrees — soft-deletes/archives only flip row
+    // state; this reclaims the disk + branches once the work is provably safe.
+    let reaper_root = state.workspace_root.clone();
+    {
+        let root = reaper_root.clone();
+        tokio::task::spawn_blocking(move || run_worktree_sweep(&root, "startup"));
+    }
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(6 * 60 * 60));
+        interval.tick().await; // skip the immediate tick (boot sweep already ran)
+        loop {
+            interval.tick().await;
+            let root = reaper_root.clone();
+            let _ = tokio::task::spawn_blocking(move || run_worktree_sweep(&root, "periodic")).await;
+        }
+    });
 
     let app = build_router(state, port);
 

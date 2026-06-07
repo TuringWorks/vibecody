@@ -3040,6 +3040,8 @@ mod web_grounding_backend;
 #[allow(dead_code)]
 mod worktree_git;
 #[allow(dead_code)]
+mod worktree_reaper;
+#[allow(dead_code)]
 mod worktree_pool;
 // Phase 32: New capabilities
 mod code_replay;
