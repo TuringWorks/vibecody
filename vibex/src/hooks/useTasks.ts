@@ -14,6 +14,10 @@ export interface Task {
   project_path: string;
   created_at: number;
   updated_at: number;
+  /** Lifecycle timestamps (worktree-lifecycle). Present only when set. */
+  archived_at?: number;
+  trashed_at?: number;
+  reaped_at?: number;
 }
 
 /** Raw agent event as persisted in the daemon's durable log (job_events). */
@@ -92,13 +96,57 @@ export function useTasks(daemonUrl: string, daemonOnline: boolean) {
     [daemonUrl, refresh]
   );
 
-  /** Delete a task. `removeWorktree` also tears down its git worktree. */
+  /**
+   * Delete a task. With the worktree-lifecycle backend this SOFT-deletes by
+   * default (moves the chat to Trash, recoverable via {@link restoreTask}); the
+   * worktree is reclaimed later by the daemon's reaper. `removeWorktree` maps to
+   * the daemon's `?purge=true` (permanent now — still preserves unmerged work).
+   */
   const deleteTask = useCallback(
     async (id: string, removeWorktree = false): Promise<void> => {
       await invoke("delete_task", { url: daemonUrl, id, removeWorktree });
       await refresh();
     },
     [daemonUrl, refresh]
+  );
+
+  /** Archive a task: keep its branch, free the worktree dir. Recoverable. */
+  const archiveTask = useCallback(
+    async (id: string): Promise<void> => {
+      await invoke("archive_task", { url: daemonUrl, id });
+      await refresh();
+    },
+    [daemonUrl, refresh]
+  );
+
+  /** Restore a trashed/archived task to Active (re-materializes its worktree). */
+  const restoreTask = useCallback(
+    async (id: string): Promise<void> => {
+      await invoke("restore_task", { url: daemonUrl, id });
+      await refresh();
+    },
+    [daemonUrl, refresh]
+  );
+
+  /** Permanently remove a task now (safe purge — preserves unmerged work). */
+  const purgeTask = useCallback(
+    async (id: string): Promise<void> => {
+      await invoke("purge_task", { url: daemonUrl, id });
+      await refresh();
+    },
+    [daemonUrl, refresh]
+  );
+
+  /**
+   * Fetch tasks by lifecycle state for the recovery views WITHOUT touching the
+   * live `tasks` list: `"trashed"` → the Trash view, `"archived"` → the Archive
+   * view, `"all"` → everything. The default list (`refresh`) excludes Trashed.
+   */
+  const listInState = useCallback(
+    async (state: "trashed" | "archived" | "all"): Promise<Task[]> => {
+      return invoke<Task[]>("list_tasks_by_state", { url: daemonUrl, state });
+    },
+    [daemonUrl]
   );
 
   /**
@@ -122,5 +170,18 @@ export function useTasks(daemonUrl: string, daemonOnline: boolean) {
     [daemonUrl]
   );
 
-  return { tasks, error, refresh, createTask, linkSession, deleteTask, mergeTask, getHistory };
+  return {
+    tasks,
+    error,
+    refresh,
+    createTask,
+    linkSession,
+    deleteTask,
+    mergeTask,
+    archiveTask,
+    restoreTask,
+    purgeTask,
+    listInState,
+    getHistory,
+  };
 }

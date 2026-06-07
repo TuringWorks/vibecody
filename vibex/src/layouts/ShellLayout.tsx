@@ -7,12 +7,13 @@ import { EnvironmentInspector } from "../components/EnvironmentInspector";
 import { ReviewView } from "../components/ReviewView";
 import { FilesView } from "../components/FilesView";
 import { SettingsView } from "../components/SettingsView";
+import { RecoveryView } from "../components/RecoveryView";
 import type { QuickAction } from "../components/QuickActionDrawer";
 import { useProjects } from "../hooks/useProjects";
 import type { Task, useTasks } from "../hooks/useTasks";
 
 type TasksApi = ReturnType<typeof useTasks>;
-type Overlay = null | "review" | "files" | "settings";
+type Overlay = null | "review" | "files" | "settings" | "trash";
 
 interface ShellLayoutProps {
   daemonUrl: string;
@@ -71,23 +72,24 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
     setChatNonce((n) => n + 1);
   }
 
-  // VX bug-2: delete a chat. For a chat with a worktree, offer to merge its
-  // branch back first; otherwise just drop the task row (keeping the worktree).
+  // VX bug-2 + worktree-lifecycle: delete a chat → move it to Trash (reversible
+  // from the Trash & Archive view; the daemon reclaims its worktree after the
+  // grace window). For a chat with a worktree, still offer to merge its branch
+  // back first as the alternative to trashing.
   async function deleteChat(task: Task) {
-    const ok = await confirm(`Delete chat “${task.title}”?`, {
-      title: "Delete chat",
-      kind: "warning",
-    });
-    if (!ok) return;
     try {
       if (task.worktree_path) {
         const merge = await ask(
-          "Merge this chat's worktree branch back into the project before deleting?\n\nChoose “Delete only” to remove the chat and keep its worktree on disk.",
-          { title: "Merge worktree?", okLabel: "Merge & delete", cancelLabel: "Delete only" }
+          "Merge this chat's worktree branch back into the project, or move the chat to Trash?\n\nTrashed chats are recoverable; their worktree is reclaimed later.",
+          { title: "Merge or Trash?", okLabel: "Merge & delete", cancelLabel: "Move to Trash" }
         );
         if (merge) await tasks.mergeTask(task.id);
         else await tasks.deleteTask(task.id, false);
       } else {
+        const ok = await confirm(`Move chat “${task.title}” to Trash?`, {
+          title: "Move to Trash",
+        });
+        if (!ok) return;
         await tasks.deleteTask(task.id, false);
       }
       if (activeChatId === task.id) newChat();
@@ -96,16 +98,28 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
     }
   }
 
-  // Delete a project: forget the picked path and drop its chats. The Projects
-  // rail is the union of task paths + picked paths (groupByProject), so the
-  // project only fully disappears once its tasks are gone — hence we remove
-  // them too. Worktrees on disk are kept (matching the chat "Delete only" path).
+  // Archive a chat: keep its branch forever, free the worktree dir. Recoverable
+  // from the Trash & Archive view (restore re-materializes the worktree).
+  async function archiveChat(task: Task) {
+    try {
+      await tasks.archiveTask(task.id);
+      if (activeChatId === task.id) newChat();
+    } catch (e) {
+      await message(String(e), { title: "Archive failed", kind: "error" });
+    }
+  }
+
+  // Delete a project: forget the picked path and move its chats to Trash. The
+  // Projects rail is the union of task paths + picked paths (groupByProject), so
+  // the project only fully disappears once its tasks are gone — hence we trash
+  // them too. Chats are recoverable from the Trash & Archive view; their
+  // worktrees are reclaimed later by the daemon's reaper.
   async function deleteProject(path: string) {
     const name = path.split("/").filter(Boolean).pop() || path;
     const chats = tasks.tasks.filter((t) => t.project_path === path);
     const ok = await confirm(
       chats.length > 0
-        ? `Delete project “${name}” and its ${chats.length} chat${chats.length === 1 ? "" : "s"}?\n\nWorktrees on disk are kept — this removes the project and its chats from VibeX.`
+        ? `Delete project “${name}” and move its ${chats.length} chat${chats.length === 1 ? "" : "s"} to Trash?\n\nChats are recoverable from Trash & Archive; worktrees are reclaimed later.`
         : `Delete project “${name}”?`,
       { title: "Delete project", kind: "warning" }
     );
@@ -160,6 +174,8 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
             onDeleteProject={deleteProject}
             onSelectChat={selectChat}
             onDeleteChat={deleteChat}
+            onArchiveChat={archiveChat}
+            onOpenTrash={() => setOverlay("trash")}
             onOpenSettings={() => setOverlay("settings")}
             onToggle={() => setNavCollapsed(true)}
           />
@@ -169,6 +185,14 @@ export function ShellLayout({ daemonUrl, daemonOnline, tasks }: ShellLayoutProps
       <div className="vibex-col vibex-col--stream">
         {overlay === "settings" ? (
           <SettingsView onClose={() => setOverlay(null)} />
+        ) : overlay === "trash" ? (
+          <RecoveryView
+            tasks={tasks}
+            onClose={() => setOverlay(null)}
+            onChanged={(id) => {
+              if (activeChatId === id) newChat();
+            }}
+          />
         ) : overlay === "review" ? (
           <ReviewView daemonUrl={daemonUrl} onClose={() => setOverlay(null)} />
         ) : overlay === "files" ? (
