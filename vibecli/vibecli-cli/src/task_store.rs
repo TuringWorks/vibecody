@@ -72,7 +72,22 @@ pub struct TaskRow {
     pub project_path: String,
     pub created_at: i64,
     pub updated_at: i64,
+    /// Lifecycle timestamps (see docs/design/worktree-lifecycle/). All three
+    /// nullable; the derived state is Active when all are NULL. Archived keeps
+    /// the branch but reclaims the worktree dir; Trashed is a soft-delete with a
+    /// grace window; Reaped means the reaper has reclaimed the worktree.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub archived_at: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trashed_at: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reaped_at: Option<i64>,
 }
+
+/// The `tasks` column list, in the order `row_to_task` reads them. Kept in one
+/// place so every SELECT stays in sync with the row decoder.
+const TASK_COLS: &str = "id, title, status, provider, model, branch, worktree_path, \
+     session_id, project_path, created_at, updated_at, archived_at, trashed_at, reaped_at";
 
 pub struct TaskStore {
     conn: Connection,
@@ -118,6 +133,34 @@ impl TaskStore {
             CREATE INDEX IF NOT EXISTS idx_tasks_created ON tasks(created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_tasks_status  ON tasks(status);
             "#,
+        )?;
+        self.migrate_lifecycle_columns()?;
+        Ok(())
+    }
+
+    /// Additive, idempotent migration for the worktree-lifecycle columns
+    /// (docs/design/worktree-lifecycle/). Existing rows get NULL for all three →
+    /// derived state Active, which is correct. Guarded by `PRAGMA table_info`
+    /// so re-running on an already-migrated DB is a no-op.
+    fn migrate_lifecycle_columns(&self) -> Result<()> {
+        let mut have: std::collections::HashSet<String> = std::collections::HashSet::new();
+        {
+            let mut stmt = self.conn.prepare("PRAGMA table_info(tasks)")?;
+            let cols = stmt.query_map([], |r| r.get::<_, String>(1))?;
+            for c in cols {
+                have.insert(c?);
+            }
+        }
+        for col in ["archived_at", "trashed_at", "reaped_at"] {
+            if !have.contains(col) {
+                // Column names are a fixed allow-list above, not user input.
+                self.conn
+                    .execute(&format!("ALTER TABLE tasks ADD COLUMN {col} INTEGER"), [])?;
+            }
+        }
+        self.conn.execute_batch(
+            "CREATE INDEX IF NOT EXISTS idx_tasks_trashed  ON tasks(trashed_at);
+             CREATE INDEX IF NOT EXISTS idx_tasks_archived ON tasks(archived_at);",
         )?;
         Ok(())
     }
@@ -175,9 +218,55 @@ impl TaskStore {
         Ok(())
     }
 
-    /// Delete a task row. Returns `true` if a row was removed, `false` if the
-    /// id didn't exist. The caller is responsible for any worktree cleanup —
-    /// this only touches the `tasks` table (VX delete / merge flow).
+    /// Soft-delete: move a task to the Trashed state (sets `trashed_at`). The
+    /// worktree is left untouched — the reaper reclaims it after the grace
+    /// window. Reversible via [`restore`]. This is the default delete path so an
+    /// accidental delete never loses work. Returns `true` if a row was updated.
+    pub fn trash(&self, id: &str, now: i64) -> Result<bool> {
+        let n = self.conn.execute(
+            "UPDATE tasks SET trashed_at = ?2, updated_at = ?2 WHERE id = ?1",
+            params![id, now],
+        )?;
+        Ok(n > 0)
+    }
+
+    /// Archive a task: keep the branch forever, but mark it so the reaper
+    /// reclaims the worktree directory (disk). Reversible via [`restore`], which
+    /// re-creates the worktree from the kept branch.
+    pub fn archive(&self, id: &str, now: i64) -> Result<bool> {
+        let n = self.conn.execute(
+            "UPDATE tasks SET archived_at = ?2, updated_at = ?2 WHERE id = ?1",
+            params![id, now],
+        )?;
+        Ok(n > 0)
+    }
+
+    /// Restore a task to Active — clears `trashed_at`/`archived_at`/`reaped_at`.
+    /// The caller re-creates the worktree from the branch if the directory was
+    /// already reclaimed. Returns `true` if a row was updated.
+    pub fn restore(&self, id: &str, now: i64) -> Result<bool> {
+        let n = self.conn.execute(
+            "UPDATE tasks SET trashed_at = NULL, archived_at = NULL, reaped_at = NULL, updated_at = ?2 WHERE id = ?1",
+            params![id, now],
+        )?;
+        Ok(n > 0)
+    }
+
+    /// Mark a task as reaped (worktree directory reclaimed by the reaper) and
+    /// clear the now-stale `worktree_path`. The branch field is left as-is: it
+    /// still records what was preserved (kept ref, `refs/trash/<id>`, or merged).
+    pub fn mark_reaped(&self, id: &str, now: i64) -> Result<()> {
+        self.conn.execute(
+            "UPDATE tasks SET reaped_at = ?2, worktree_path = '', updated_at = ?2 WHERE id = ?1",
+            params![id, now],
+        )?;
+        Ok(())
+    }
+
+    /// Hard-delete a task row. Returns `true` if a row was removed, `false` if
+    /// the id didn't exist. The caller is responsible for any worktree cleanup —
+    /// this only touches the `tasks` table. Used by the reaper's permanent-purge
+    /// path and by `merge` once the branch is integrated.
     pub fn delete(&self, id: &str) -> Result<bool> {
         let n = self
             .conn
@@ -185,11 +274,68 @@ impl TaskStore {
         Ok(n > 0)
     }
 
+    /// Trashed rows whose grace window has elapsed (`trashed_at <= before`) and
+    /// that are not currently running/reviewing — i.e. safe for the reaper to
+    /// reclaim. Includes rows not yet reaped only.
+    pub fn reapable_trashed(&self, before: i64) -> Result<Vec<TaskRow>> {
+        let sql = format!(
+            "SELECT {TASK_COLS} FROM tasks
+             WHERE trashed_at IS NOT NULL AND trashed_at <= ?1 AND reaped_at IS NULL
+               AND status NOT IN ('running','reviewing')"
+        );
+        let mut stmt = self.conn.prepare(&sql)?;
+        let rows = stmt.query_map(params![before], map_row)?;
+        collect(rows)
+    }
+
+    /// Archived rows whose worktree directory has not yet been reclaimed
+    /// (`worktree_path` non-empty, not yet reaped). The reaper frees their disk
+    /// while keeping the branch.
+    pub fn archived_with_worktree(&self) -> Result<Vec<TaskRow>> {
+        let sql = format!(
+            "SELECT {TASK_COLS} FROM tasks
+             WHERE archived_at IS NOT NULL AND reaped_at IS NULL AND worktree_path <> ''
+               AND status NOT IN ('running','reviewing')"
+        );
+        let mut stmt = self.conn.prepare(&sql)?;
+        let rows = stmt.query_map([], map_row)?;
+        collect(rows)
+    }
+
+    /// Every worktree path the store currently knows about (Active, Archived, or
+    /// Trashed but not yet reaped). The reaper uses this set to tell a tracked
+    /// worktree from an orphan during filesystem reconciliation.
+    pub fn known_worktree_paths(&self) -> Result<Vec<String>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT worktree_path FROM tasks WHERE worktree_path <> ''")?;
+        let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+        let mut out = Vec::new();
+        for r in rows {
+            out.push(r?);
+        }
+        Ok(out)
+    }
+
+    /// Distinct project repos referenced by tasks — the set of repos whose
+    /// `.vibecli/worktrees/` directories the reaper scans for orphans.
+    pub fn distinct_project_paths(&self) -> Result<Vec<String>> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT DISTINCT project_path FROM tasks WHERE project_path <> ''")?;
+        let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
+        let mut out = Vec::new();
+        for r in rows {
+            out.push(r?);
+        }
+        Ok(out)
+    }
+
+    /// Fetch one task by id, regardless of lifecycle state (so trashed/archived
+    /// rows can be restored or inspected).
     pub fn get(&self, id: &str) -> Result<Option<TaskRow>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, title, status, provider, model, branch, worktree_path, session_id, project_path, created_at, updated_at
-             FROM tasks WHERE id = ?1",
-        )?;
+        let sql = format!("SELECT {TASK_COLS} FROM tasks WHERE id = ?1");
+        let mut stmt = self.conn.prepare(&sql)?;
         let mut rows = stmt.query(params![id])?;
         if let Some(r) = rows.next()? {
             Ok(Some(row_to_task(r)?))
@@ -198,24 +344,35 @@ impl TaskStore {
         }
     }
 
+    /// List Active tasks (excludes Trashed) — the default VibeX card view. Use
+    /// [`list_in_state`] for the Trash/Archive views.
     pub fn list(&self, limit: usize) -> Result<Vec<TaskRow>> {
-        let mut stmt = self.conn.prepare(
-            "SELECT id, title, status, provider, model, branch, worktree_path, session_id, project_path, created_at, updated_at
-             FROM tasks ORDER BY created_at DESC LIMIT ?1",
-        )?;
-        let rows = stmt.query_map(params![limit as i64], |r| {
-            row_to_task(r).map_err(|e| {
-                rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    e.to_string(),
-                )))
-            })
-        })?;
-        let mut out = Vec::new();
-        for r in rows {
-            out.push(r?);
-        }
-        Ok(out)
+        let sql = format!(
+            "SELECT {TASK_COLS} FROM tasks
+             WHERE trashed_at IS NULL
+             ORDER BY created_at DESC LIMIT ?1"
+        );
+        let mut stmt = self.conn.prepare(&sql)?;
+        let rows = stmt.query_map(params![limit as i64], map_row)?;
+        collect(rows)
+    }
+
+    /// List tasks filtered by lifecycle state for the recovery UIs.
+    /// `state`: "trashed" → soft-deleted rows; "archived" → archived rows;
+    /// "all" → everything; anything else → Active (same as [`list`]).
+    pub fn list_in_state(&self, state: &str, limit: usize) -> Result<Vec<TaskRow>> {
+        let filter = match state {
+            "trashed" => "trashed_at IS NOT NULL",
+            "archived" => "archived_at IS NOT NULL AND trashed_at IS NULL",
+            "all" => "1=1",
+            _ => "trashed_at IS NULL",
+        };
+        let sql = format!(
+            "SELECT {TASK_COLS} FROM tasks WHERE {filter} ORDER BY created_at DESC LIMIT ?1"
+        );
+        let mut stmt = self.conn.prepare(&sql)?;
+        let rows = stmt.query_map(params![limit as i64], map_row)?;
+        collect(rows)
     }
 }
 
@@ -232,7 +389,30 @@ fn row_to_task(r: &rusqlite::Row) -> Result<TaskRow> {
         project_path: r.get(8)?,
         created_at: r.get(9)?,
         updated_at: r.get(10)?,
+        archived_at: r.get(11)?,
+        trashed_at: r.get(12)?,
+        reaped_at: r.get(13)?,
     })
+}
+
+/// `query_map` adapter — decodes a row, converting our `anyhow::Error` into the
+/// `rusqlite::Error` the closure must return.
+fn map_row(r: &rusqlite::Row) -> rusqlite::Result<TaskRow> {
+    row_to_task(r).map_err(|e| {
+        rusqlite::Error::ToSqlConversionFailure(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            e.to_string(),
+        )))
+    })
+}
+
+/// Drain a `query_map` iterator into a `Vec`, propagating the first error.
+fn collect(rows: impl Iterator<Item = rusqlite::Result<TaskRow>>) -> Result<Vec<TaskRow>> {
+    let mut out = Vec::new();
+    for r in rows {
+        out.push(r?);
+    }
+    Ok(out)
 }
 
 /// Default DB path: `~/.vibecli/sessions.db` (shared with the session store).
@@ -326,6 +506,80 @@ mod tests {
         // Deleting an absent row returns false (idempotent, no error).
         assert!(!store.delete("t1").unwrap());
 
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn trash_hides_from_list_and_restore_brings_back() {
+        let dir = std::env::temp_dir().join(format!("vibex-tasks-trash-{}", std::process::id()));
+        let db = dir.join("t.db");
+        let store = TaskStore::open(&db).unwrap();
+        store
+            .insert("t1", "task", TaskStatus::Queued, "", "", "/repo", now())
+            .unwrap();
+
+        // Trash → excluded from the default list, but still fetchable + listed
+        // under the trashed filter.
+        assert!(store.trash("t1", now() + 1).unwrap());
+        assert_eq!(store.list(10).unwrap().len(), 0);
+        assert_eq!(store.list_in_state("trashed", 10).unwrap().len(), 1);
+        assert!(store.get("t1").unwrap().unwrap().trashed_at.is_some());
+
+        // Restore → back in the active list, flags cleared.
+        assert!(store.restore("t1", now() + 2).unwrap());
+        assert_eq!(store.list(10).unwrap().len(), 1);
+        assert!(store.get("t1").unwrap().unwrap().trashed_at.is_none());
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn archive_keeps_in_list_in_state_and_reapable_respects_grace() {
+        let dir = std::env::temp_dir().join(format!("vibex-tasks-arch-{}", std::process::id()));
+        let db = dir.join("t.db");
+        let store = TaskStore::open(&db).unwrap();
+        store
+            .insert("t1", "task", TaskStatus::Completed, "", "", "/repo", now())
+            .unwrap();
+        store
+            .set_worktree("t1", "task/t1-x", "/tmp/wt/t1", now())
+            .unwrap();
+
+        store.archive("t1", now()).unwrap();
+        assert_eq!(store.list_in_state("archived", 10).unwrap().len(), 1);
+        assert_eq!(store.archived_with_worktree().unwrap().len(), 1);
+
+        // A running task is never reapable even if trashed long ago.
+        store
+            .insert("t2", "live", TaskStatus::Running, "", "", "/repo", now())
+            .unwrap();
+        store.trash("t2", 1).unwrap();
+        store.trash("t1", 1).unwrap(); // t1 is Completed → eligible
+        let reapable = store.reapable_trashed(now()).unwrap();
+        assert_eq!(reapable.len(), 1);
+        assert_eq!(reapable[0].id, "t1");
+
+        // Before the grace cutoff → nothing reapable.
+        assert_eq!(store.reapable_trashed(0).unwrap().len(), 0);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn migration_is_idempotent() {
+        let dir = std::env::temp_dir().join(format!("vibex-tasks-mig-{}", std::process::id()));
+        let db = dir.join("t.db");
+        // Open twice — the second open re-runs create_schema/migrate and must
+        // not error on already-present columns.
+        {
+            let store = TaskStore::open(&db).unwrap();
+            store
+                .insert("t1", "task", TaskStatus::Queued, "", "", "/repo", now())
+                .unwrap();
+        }
+        let store = TaskStore::open(&db).unwrap();
+        let row = store.get("t1").unwrap().unwrap();
+        assert!(row.archived_at.is_none() && row.trashed_at.is_none() && row.reaped_at.is_none());
         let _ = std::fs::remove_dir_all(&dir);
     }
 
