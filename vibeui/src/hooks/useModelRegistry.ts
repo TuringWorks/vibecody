@@ -7,7 +7,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { OLLAMA_CHAT_MODELS } from "../constants/ollamaModels";
+import { OLLAMA_CHAT_MODELS, OLLAMA_CLOUD_MODELS } from "../constants/ollamaModels";
 
 const CACHE_KEY = "vibecody:model-registry";
 const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
@@ -229,7 +229,14 @@ export function useModelRegistry() {
       // Merge with static models
       const models = { ...STATIC_MODELS };
       if (ollamaModels.length > 0) {
-        models.ollama = ollamaModels;
+        // A local /api/tags only reports pulled local models — never the
+        // Ollama Cloud / Turbo catalog. Union the cloud models in (deduped,
+        // cloud first) so *-cloud entries stay selectable when a local Ollama
+        // is also running, not just when it's unreachable.
+        const seen = new Set<string>();
+        models.ollama = [...OLLAMA_CLOUD_MODELS, ...ollamaModels].filter((m) =>
+          seen.has(m) ? false : (seen.add(m), true)
+        );
       }
 
       const newData: ModelRegistryData = {

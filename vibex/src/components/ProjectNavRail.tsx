@@ -13,6 +13,7 @@ interface ProjectNavRailProps {
   onNewChat: () => void;
   onNewProject: (path: string) => void;
   onSelectProject: (path: string) => void;
+  onDeleteProject: (path: string) => void;
   onSelectChat: (id: string) => void;
   onDeleteChat: (task: Task) => void;
   onOpenSettings: () => void;
@@ -68,6 +69,7 @@ export function ProjectNavRail({
   onNewChat,
   onNewProject,
   onSelectProject,
+  onDeleteProject,
   onSelectChat,
   onDeleteChat,
   onOpenSettings,
@@ -139,15 +141,28 @@ export function ProjectNavRail({
         )}
         {projects.map((p) => (
           <li key={p.path}>
-            <button
-              className={`vx-nav__item vx-nav__item--project${activeProject === p.path ? " is-active" : ""}`}
-              aria-label={p.name}
-              title={p.path}
-              onClick={() => onSelectProject(p.path)}
-            >
-              <Folder size={14} />
-              <span>{p.name}</span>
-            </button>
+            <div className="vx-nav__project-row">
+              <button
+                className={`vx-nav__item vx-nav__item--project${activeProject === p.path ? " is-active" : ""}`}
+                aria-label={p.name}
+                title={p.path}
+                onClick={() => onSelectProject(p.path)}
+              >
+                <Folder size={14} />
+                <span className="vx-nav__project-name">{p.name}</span>
+              </button>
+              <button
+                className="vx-nav__chat-del vx-nav__project-del"
+                aria-label={`Delete project ${p.name}`}
+                title="Delete project"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteProject(p.path);
+                }}
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
             <ul className="vx-nav__chats">
               {p.tasks.length === 0 && (
                 <li className="vx-nav__chats-empty">No chats yet — type a task below.</li>
