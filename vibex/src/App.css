@@ -217,6 +217,21 @@ html, body, #root {
 .vx-files__item:hover { background: var(--bg-elevated); color: var(--text-primary); }
 .vx-files__path { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* ── Trash & Archive recovery view (worktree-lifecycle) ─────────────────── */
+.vx-trash__tabs { display: flex; gap: 4px; padding: 8px 16px 0; }
+.vx-trash__tab { display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: transparent; border: 1px solid transparent; border-radius: 6px 6px 0 0; color: var(--text-secondary); font-size: 13px; cursor: pointer; }
+.vx-trash__tab:hover { color: var(--text-primary); background: var(--bg-elevated); }
+.vx-trash__tab.is-active { color: var(--text-primary); border-color: var(--border-color); border-bottom-color: transparent; background: var(--bg-tertiary); }
+.vx-trash__item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px; border-radius: 6px; }
+.vx-trash__item:hover { background: var(--bg-elevated); }
+.vx-trash__meta { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
+.vx-trash__title { font-size: 13px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vx-trash__sub { font-size: 11px; color: var(--text-tertiary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vx-trash__actions { display: flex; gap: 6px; flex-shrink: 0; }
+.vx-trash__btn { display: flex; align-items: center; gap: 5px; padding: 4px 10px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); font-size: 12px; cursor: pointer; }
+.vx-trash__btn:hover { color: var(--text-primary); background: var(--bg-elevated); }
+.vx-trash__btn--danger:hover { color: var(--error-color); border-color: var(--error-color); }
+
 /* ── Settings (providers / appearance / account) ────────────────────────── */
 .vx-settings { display: flex; flex-direction: column; height: 100%; }
 .vx-settings__head { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--border-color); font-weight: 600; }

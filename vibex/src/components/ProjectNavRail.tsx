@@ -1,4 +1,4 @@
-import { MessageSquarePlus, FolderPlus, Search, Sparkles, Plug, Workflow, Folder, Settings, PanelLeftClose, Trash2 } from "lucide-react";
+import { MessageSquarePlus, FolderPlus, Search, Sparkles, Plug, Workflow, Folder, Settings, PanelLeftClose, Trash2, Archive } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { Task } from "../hooks/useTasks";
 
@@ -16,6 +16,8 @@ interface ProjectNavRailProps {
   onDeleteProject: (path: string) => void;
   onSelectChat: (id: string) => void;
   onDeleteChat: (task: Task) => void;
+  onArchiveChat: (task: Task) => void;
+  onOpenTrash: () => void;
   onOpenSettings: () => void;
   onToggle: () => void;
 }
@@ -72,6 +74,8 @@ export function ProjectNavRail({
   onDeleteProject,
   onSelectChat,
   onDeleteChat,
+  onArchiveChat,
+  onOpenTrash,
   onOpenSettings,
   onToggle,
 }: ProjectNavRailProps) {
@@ -184,8 +188,19 @@ export function ProjectNavRail({
                   </button>
                   <button
                     className="vx-nav__chat-del"
+                    aria-label={`Archive chat ${t.title}`}
+                    title="Archive chat"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onArchiveChat(t);
+                    }}
+                  >
+                    <Archive size={13} />
+                  </button>
+                  <button
+                    className="vx-nav__chat-del"
                     aria-label={`Delete chat ${t.title}`}
-                    title="Delete chat"
+                    title="Move chat to Trash"
                     onClick={(e) => {
                       e.stopPropagation();
                       onDeleteChat(t);
@@ -201,6 +216,10 @@ export function ProjectNavRail({
       </ul>
 
       <div className="vx-nav__spacer" />
+      <button className="vx-nav__item" aria-label="Trash and Archive" onClick={onOpenTrash}>
+        <Trash2 size={15} />
+        <span>Trash &amp; Archive</span>
+      </button>
       <button className="vx-nav__item vx-nav__item--settings" aria-label="Settings" onClick={onOpenSettings}>
         <Settings size={15} />
         <span>Settings</span>

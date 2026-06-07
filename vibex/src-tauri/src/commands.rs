@@ -380,6 +380,104 @@ pub async fn merge_task(
     resp.json().await.map_err(|e| e.to_string())
 }
 
+/// GET /api/tasks?state=trashed|archived|all — list tasks filtered by lifecycle
+/// state for the Trash / Archive recovery views (worktree-lifecycle slice 2).
+#[tauri::command]
+pub async fn list_tasks_by_state(
+    url: String,
+    state: String,
+    token: Option<String>,
+) -> Result<Vec<serde_json::Value>, String> {
+    // `state` is a fixed daemon-side enum (active|trashed|archived|all); the
+    // daemon ignores unknown values (falls back to active), so no encoding needed.
+    let tasks_url = format!("{}/api/tasks?state={}", url.trim_end_matches('/'), state);
+    let client = reqwest::Client::new();
+    let req = with_auth(client.get(&tasks_url), token);
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    if !resp.status().is_success() {
+        return Err(format!("Daemon returned {}", resp.status()));
+    }
+    let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    Ok(body.as_array().cloned().unwrap_or_default())
+}
+
+/// POST /api/tasks/:id/archive — archive a task: its branch is kept, the reaper
+/// frees the worktree directory, and restore re-creates it (worktree-lifecycle).
+#[tauri::command]
+pub async fn archive_task(
+    url: String,
+    id: String,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let u = format!("{}/api/tasks/{}/archive", url.trim_end_matches('/'), id);
+    let client = reqwest::Client::new();
+    let req = with_auth(client.post(&u), token);
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let b = resp.text().await.unwrap_or_default();
+        return Err(format!("Daemon returned {}: {}", status, b));
+    }
+    resp.json().await.map_err(|e| e.to_string())
+}
+
+/// POST /api/tasks/:id/restore — bring a trashed/archived task back to Active,
+/// re-materializing its worktree from the (possibly preserved) branch.
+#[tauri::command]
+pub async fn restore_task(
+    url: String,
+    id: String,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let u = format!("{}/api/tasks/{}/restore", url.trim_end_matches('/'), id);
+    let client = reqwest::Client::new();
+    let req = with_auth(client.post(&u), token);
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let b = resp.text().await.unwrap_or_default();
+        return Err(format!("Daemon returned {}: {}", status, b));
+    }
+    resp.json().await.map_err(|e| e.to_string())
+}
+
+/// DELETE /api/tasks/:id?purge=true — permanently remove a task now. Routes
+/// through the daemon's safe teardown (unmerged work is still preserved at
+/// refs/trash/<id>), so it cannot silently discard work (worktree-lifecycle).
+#[tauri::command]
+pub async fn purge_task(
+    url: String,
+    id: String,
+    token: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let u = format!(
+        "{}/api/tasks/{}?purge=true",
+        url.trim_end_matches('/'),
+        id
+    );
+    let client = reqwest::Client::new();
+    let req = with_auth(client.delete(&u), token);
+    let resp = req
+        .send()
+        .await
+        .map_err(|e| format!("Cannot reach daemon: {}", e))?;
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let b = resp.text().await.unwrap_or_default();
+        return Err(format!("Daemon returned {}: {}", status, b));
+    }
+    resp.json().await.map_err(|e| e.to_string())
+}
+
 /// GET /api/tasks/:id/history — fetch a finished chat's conversation
 /// (reconstructed from the daemon's durable event log) so it can be re-rendered
 /// in the center pane when the chat is selected (VX bug-3).
