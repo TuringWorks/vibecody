@@ -65,7 +65,7 @@ dirs = "5.0"
 futures = "0.3"
 crossterm = { workspace = true, features = ["event-stream"] }
 serde = { workspace = true, features = ["derive"] }
-toml = "0.8"
+toml = "1.1"
 async-trait.workspace = true
 thiserror = { workspace = true }
 regex.workspace = true

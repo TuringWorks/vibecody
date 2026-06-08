@@ -24,7 +24,7 @@ tokio-stream = "0.1"
 dotenvy = "0.15"
 
 # Configuration
-toml = "0.8"
+toml = "1.1"
 
 # Tool call parsing
 regex.workspace = true
