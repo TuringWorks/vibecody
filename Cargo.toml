@@ -50,7 +50,7 @@ anyhow = "1.0"
 thiserror = "1.0"
 
 # Diff
-similar = { version = "2.6", features = ["inline"] }
+similar = { version = "3.1", features = ["inline"] }
 
 # Git
 git2 = { version = "0.20.4", features = ["vendored-openssl"] }
