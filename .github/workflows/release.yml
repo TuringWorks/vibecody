@@ -527,7 +527,7 @@ jobs:
 
       # Pin Xcode 26 — iOS 26 SDK is the required build SDK from April 28, 2026.
       - name: Select Xcode 26
-        uses: maxim-lobanov/setup-xcode@1242409711ff5721add51979e9e11e23ebb7e5a4 # v1.7.0
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: ^26.0
 
@@ -628,7 +628,7 @@ jobs:
       # Pin Xcode 26 so builds link against the watchOS 26 SDK — required
       # for App Store Connect submissions from April 28, 2026 onward.
       - name: Select Xcode 26
-        uses: maxim-lobanov/setup-xcode@1242409711ff5721add51979e9e11e23ebb7e5a4 # v1.7.0
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: ^26.0
 
@@ -705,7 +705,7 @@ jobs:
 
       - name: Select Xcode 26
         if: steps.apple-secrets.outputs.skip != 'true'
-        uses: maxim-lobanov/setup-xcode@1242409711ff5721add51979e9e11e23ebb7e5a4 # v1.7.0
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: ^26.0
 
