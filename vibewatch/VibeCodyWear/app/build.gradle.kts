@@ -28,6 +28,16 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
+
+    lint {
+        // androidx.lifecycle's NonNullableMutableLiveDataDetector crashes under
+        // AGP 8.7.3's bundled lint with an IncompatibleClassChangeError
+        // (KaCallableMemberCall class-vs-interface — a Kotlin analysis-API
+        // version skew), aborting lintVitalAnalyzeRelease and thus the release
+        // build. This is a Compose app with no LiveData usage, so the check has
+        // nothing to verify here — disable it to unblock assembleRelease.
+        disable += "NullSafeMutableLiveData"
+    }
 }
 
 dependencies {
