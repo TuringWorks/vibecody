@@ -41,9 +41,9 @@ pub mod voice_whisper;
 pub mod web_grounding;
 pub mod web_grounding_backend;
 pub mod worktree_git;
-pub mod worktree_reaper;
 #[allow(dead_code)]
 pub mod worktree_pool;
+pub mod worktree_reaper;
 // A5 — async subagent state machine.
 pub mod async_subagent;
 // A1 — MCP Apps payload parser/validator (SEP-1865).
