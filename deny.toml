@@ -67,6 +67,14 @@ ignore = [
     { id = "RUSTSEC-2024-0420", reason = "gtk-rs GTK3 unmaintained — same chain as 2024-0411. [review-by 2026-08-19]" },
     { id = "RUSTSEC-2024-0429", reason = "glib 0.18.5 unsound `VariantStrIter` Iterator/DoubleEndedIterator impls. Transitive via webkit2gtk → wry / tauri 2.x; same gtk4-migration gate as 2024-0411..0420. [review-by 2026-08-19]" },
 
+    # ── ratatui 0.29 (TUI layout cache) ───────────────────────────────
+    # Surfaced 2026-06-13 as Dependabot alert #15. ratatui 0.29 pins
+    # `lru = "^0.12"`, so `cargo update -p lru --precise 0.16.3` does not
+    # resolve — the only fix is the ratatui 0.29 → 0.30 major upgrade
+    # (modular-crate split, breaking API). Tracked separately; suppressed
+    # here until that migration lands.
+    { id = "RUSTSEC-2026-0002", reason = "lru 0.12.5 `IterMut` Stacked-Borrows unsoundness (invalidates an internal pointer; Miri/UB-level). Transitive via ratatui 0.29 → vibecli TUI layout cache. Not attacker-reachable: the cache holds widget-layout geometry derived from terminal size, never external input. Fix (lru 0.16.3) is gated on the ratatui 0.29 → 0.30 upgrade. [review-by 2026-08-19]" },
+
     # ── unic-* family ─────────────────────────────────────────────────
     # All transitive from a single upstream Unicode handler chain. Five
     # separate IDs because each unic-* subcrate has its own advisory.
