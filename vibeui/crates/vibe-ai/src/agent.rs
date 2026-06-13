@@ -523,6 +523,35 @@ fn is_retryable_error(error: &str) -> bool {
     crate::resilient::is_retryable(error)
 }
 
+/// Marker that begins a `<tool_call>` block in the text tool protocol.
+const TOOL_CALL_MARKER: &str = "<tool_call";
+
+/// Decide how much of `accumulated` (from byte offset `from`) is safe to stream
+/// live to the client, gating out `<tool_call>` syntax.
+///
+/// Returns `(end, hit_marker)`: the caller streams `accumulated[from..end]`, and
+/// when `hit_marker` is `true` it suppresses the rest of the turn (everything
+/// from the marker onward is tool syntax, surfaced separately as a tool step).
+///
+/// When no complete marker is present yet, a short tail (`MARKER.len() - 1`
+/// bytes) is held back so a marker split across stream-chunk boundaries (e.g.
+/// `…<tool_ca` then `ll name=…`) is never emitted before it can be detected.
+/// `end` is always a UTF-8 char boundary, so callers can slice safely.
+fn streamable_prose_end(accumulated: &str, from: usize) -> (usize, bool) {
+    if let Some(rel) = accumulated[from..].find(TOOL_CALL_MARKER) {
+        return (from + rel, true);
+    }
+    let holdback = TOOL_CALL_MARKER.len() - 1;
+    if accumulated.len() <= from + holdback {
+        return (from, false);
+    }
+    let mut end = accumulated.len() - holdback;
+    while end > from && !accumulated.is_char_boundary(end) {
+        end -= 1;
+    }
+    (end, false)
+}
+
 // ── Agent Context ─────────────────────────────────────────────────────────────
 
 /// Environmental context injected at agent startup.
@@ -859,11 +888,38 @@ impl AgentLoop {
                     };
 
                     let mut stream_failed = false;
+                    // Gate raw `<tool_call>` syntax out of the live stream. The
+                    // tool protocol requires tool-only output on a tool turn, so
+                    // forwarding that XML to clients renders as garbled "prose"
+                    // (the model's tool call shown verbatim — VX chat bug). Stream
+                    // genuine prose up to the first `<tool_call` marker, then stay
+                    // silent for the rest of the turn; the parsed call surfaces as
+                    // a ToolCallExecuted step instead. `accumulated` still gets the
+                    // full text — only the StreamChunk feed is gated.
+                    let mut streamed = 0usize;
+                    let mut suppressing = false;
                     while let Some(chunk) = stream.next().await {
                         match chunk {
                             Ok(text) => {
                                 accumulated.push_str(&text);
-                                let _ = event_tx.send(AgentEvent::StreamChunk(text)).await;
+                                if suppressing {
+                                    continue;
+                                }
+                                let (end, hit) = streamable_prose_end(&accumulated, streamed);
+                                if end > streamed {
+                                    let slice = &accumulated[streamed..end];
+                                    // Skip a whitespace-only prefix before a tool
+                                    // call so we don't emit an empty agent bubble.
+                                    if !(hit && slice.trim().is_empty()) {
+                                        let _ = event_tx
+                                            .send(AgentEvent::StreamChunk(slice.to_string()))
+                                            .await;
+                                    }
+                                    streamed = end;
+                                }
+                                if hit {
+                                    suppressing = true;
+                                }
                             }
                             Err(e) => {
                                 let err_str = e.to_string();
@@ -879,6 +935,15 @@ impl AgentLoop {
                                 return Err(e);
                             }
                         }
+                    }
+
+                    // Flush any held-back prose tail (only when this turn was
+                    // genuine prose — never a tool call — and the stream didn't
+                    // fail; a failed stream is retried with `accumulated` cleared).
+                    if !stream_failed && !suppressing && streamed < accumulated.len() {
+                        let _ = event_tx
+                            .send(AgentEvent::StreamChunk(accumulated[streamed..].to_string()))
+                            .await;
                     }
 
                     if !stream_failed {
@@ -2469,5 +2534,70 @@ mod circuit_breaker_tests {
         let result = sanitize_tool_output(content);
         assert!(result.contains("SECURITY WARNING"));
         assert!(result.contains(content));
+    }
+}
+
+#[cfg(test)]
+mod stream_gate_tests {
+    use super::*;
+
+    const HOLDBACK: usize = TOOL_CALL_MARKER.len() - 1;
+
+    #[test]
+    fn plain_prose_holds_back_only_a_short_tail() {
+        // No `<tool_call` → stream everything but a short holdback tail (so a
+        // marker split across chunks can't slip through), and never suppress.
+        let s = "Hello! How can I help you today?";
+        let (end, hit) = streamable_prose_end(s, 0);
+        assert!(!hit);
+        assert_eq!(end, s.len() - HOLDBACK);
+    }
+
+    #[test]
+    fn short_buffer_streams_nothing_until_more_arrives() {
+        // Fewer than the holdback bytes available → emit nothing yet.
+        let s = "<tool_c"; // a partial marker prefix
+        let (end, hit) = streamable_prose_end(s, 0);
+        assert!(!hit);
+        assert_eq!(end, 0);
+    }
+
+    #[test]
+    fn pure_tool_call_suppresses_from_the_start() {
+        let s = "<tool_call name=\"list_directory\">\n<path>.</path>\n</tool_call>";
+        let (end, hit) = streamable_prose_end(s, 0);
+        assert!(hit);
+        assert_eq!(end, 0, "nothing precedes the tool call → stream nothing");
+    }
+
+    #[test]
+    fn streams_prose_before_a_tool_call_then_suppresses() {
+        let s = "Sure, let me look.\n<tool_call name=\"bash\"><command>ls</command></tool_call>";
+        let (end, hit) = streamable_prose_end(s, 0);
+        assert!(hit);
+        assert_eq!(&s[0..end], "Sure, let me look.\n");
+    }
+
+    #[test]
+    fn marker_split_across_chunks_is_not_streamed() {
+        // Chunk boundary lands mid-marker: the partial `<tool_ca` tail (plus the
+        // fixed holdback window) is retained, so no part of the marker is ever
+        // streamed before the next chunk can confirm it.
+        let s = "done<tool_ca";
+        let (end, hit) = streamable_prose_end(s, 0);
+        assert!(!hit);
+        assert!(
+            !s[0..end].contains('<'),
+            "partial marker must not be streamed: {:?}",
+            &s[0..end]
+        );
+    }
+
+    #[test]
+    fn end_is_always_a_char_boundary() {
+        // Multi-byte chars near the holdback cut must never be split.
+        let s = "résumé café naïve crème brûlée"; // many 2-byte chars
+        let (end, _) = streamable_prose_end(s, 0);
+        assert!(s.is_char_boundary(end));
     }
 }
