@@ -627,7 +627,7 @@ class _NewGoalSheetState extends State<_NewGoalSheet> {
           const SizedBox(height: 12),
           if (machines.length > 1) ...[
             DropdownButtonFormField<int>(
-              value: _machineIndex,
+              initialValue: _machineIndex,
               decoration: const InputDecoration(labelText: 'Machine'),
               items: [
                 for (int i = 0; i < machines.length; i++)

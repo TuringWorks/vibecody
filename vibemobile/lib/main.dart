@@ -19,7 +19,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider.value(value: authService),
         ProxyProvider<AuthService, ApiClient>(
-          update: (_, auth, __) => ApiClient(auth: auth),
+          update: (_, auth, _) => ApiClient(auth: auth),
         ),
         ChangeNotifierProxyProvider<AuthService, HandoffService>(
           create: (ctx) => HandoffService(ctx.read<AuthService>()),
