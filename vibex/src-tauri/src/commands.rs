@@ -459,11 +459,7 @@ pub async fn purge_task(
     id: String,
     token: Option<String>,
 ) -> Result<serde_json::Value, String> {
-    let u = format!(
-        "{}/api/tasks/{}?purge=true",
-        url.trim_end_matches('/'),
-        id
-    );
+    let u = format!("{}/api/tasks/{}?purge=true", url.trim_end_matches('/'), id);
     let client = reqwest::Client::new();
     let req = with_auth(client.delete(&u), token);
     let resp = req

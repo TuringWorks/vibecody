@@ -147,7 +147,17 @@ jobs:
       - name: Run npm audit
         if: steps.precheck.outputs.exists == 'true'
         working-directory: ${{ matrix.path }}
-        run: npm audit --audit-level=high
+        # packages/agent-sdk is a published library with ZERO runtime
+        # dependencies — every advisory comes from build tooling
+        # (tsup / vitest → esbuild), which a consumer of the SDK never
+        # installs. Audit production deps only there. The apps (vibeui,
+        # vibeapp) bundle and ship, so they keep the full dev+prod audit.
+        run: |
+          if [ "${{ matrix.path }}" = "packages/agent-sdk" ]; then
+            npm audit --audit-level=high --omit=dev
+          else
+            npm audit --audit-level=high
+          fi
 
   # ─── Python supply-chain (vibe-rl-py) ──────────────────────────────────────
   # vibe-rl-py uses uv.lock — outside the npm/cargo coverage above. pip-audit
@@ -188,25 +198,31 @@ jobs:
           #   Dismissed in Dependabot alert #9. Re-evaluate when upgrading
           #   to transformers 5.x (currently pinned <5.0 in pyproject.toml).
           #
-          # PYSEC-2025-189 .. 197, 210, and PYSEC-2026-139 (torch 2.11.0):
+          # PYSEC-2025-189 .. 197, 210, PYSEC-2026-139, and CVE-2025-3000
+          # (torch 2.11.0):
           #   Pre-existing torch CVEs surfaced 2026-05-20 when the Security
           #   workflow started actually running (see commit 6ab99683
           #   notes). No upstream fix has been published for any of these
           #   advisories at triage time; the `Fix Versions` column in
-          #   pip-audit output is empty for all 11. vibe-rl-py uses torch
-          #   only as an in-process RL training library (mappo / quantize
-          #   / inference paths under vibe_rl/algos/*.py) — never as a
-          #   network-facing deserialization sink. Threat-model
+          #   pip-audit output is empty for all of them. vibe-rl-py uses
+          #   torch only as an in-process RL training library (mappo /
+          #   quantize / inference paths under vibe_rl/algos/*.py) — never
+          #   as a network-facing deserialization sink. Threat-model
           #   applicability is low: the typical torch CVE involves
           #   pickle.load on adversary-controlled checkpoint bytes; our
           #   checkpoint loader (vibe_rl/checkpoint.py) reads from
-          #   workspace-local files only. Re-evaluate at quarterly review
-          #   (2026-08-19) — bump torch when a release ships the fixes,
-          #   or document each PYSEC individually with a tighter
-          #   threat-model trace if any becomes exploitable in our usage.
+          #   workspace-local files only. CVE-2025-3000 (torch.jit.script
+          #   memory corruption, GHSA-rrmf-rvhw-rf47) was added 2026-06-13
+          #   when pip-audit's DB began reporting it under its CVE id (the
+          #   PYSEC-* ignores above don't alias it); same no-fix torch
+          #   2.11.0 story, dismissed as Dependabot alert #16. Re-evaluate
+          #   at quarterly review (2026-08-19) — bump torch when a release
+          #   ships the fixes, or document each id individually with a
+          #   tighter threat-model trace if any becomes exploitable.
           pip-audit \
             -r /tmp/vibe-rl-py-requirements.txt \
             --ignore-vuln GHSA-69w3-r845-3855 \
+            --ignore-vuln CVE-2025-3000 \
             --ignore-vuln PYSEC-2025-189 \
             --ignore-vuln PYSEC-2025-190 \
             --ignore-vuln PYSEC-2025-191 \

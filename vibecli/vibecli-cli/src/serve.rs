@@ -1870,11 +1870,17 @@ async fn archive_task(
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     use crate::task_store::TaskStore;
     let store = TaskStore::open_default().map_err(|e| {
-        json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("task store: {e}"))
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("task store: {e}"),
+        )
     })?;
     let now = now_unix();
     let archived = store.archive(&id, now).map_err(|e| {
-        json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("archive task: {e}"))
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("archive task: {e}"),
+        )
     })?;
     if !archived {
         return Err(json_error(
@@ -1893,7 +1899,10 @@ async fn restore_task(
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     use crate::task_store::TaskStore;
     let store = TaskStore::open_default().map_err(|e| {
-        json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("task store: {e}"))
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("task store: {e}"),
+        )
     })?;
     let row = store
         .get(&id)
@@ -1906,7 +1915,10 @@ async fn restore_task(
         })?;
     let now = now_unix();
     let worktree_path = crate::worktree_reaper::restore_task(&store, &row, now).map_err(|e| {
-        json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("restore task: {e}"))
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("restore task: {e}"),
+        )
     })?;
     Ok(Json(serde_json::json!({
         "restored": true,
@@ -6919,7 +6931,8 @@ pub async fn serve(
         loop {
             interval.tick().await;
             let root = reaper_root.clone();
-            let _ = tokio::task::spawn_blocking(move || run_worktree_sweep(&root, "periodic")).await;
+            let _ =
+                tokio::task::spawn_blocking(move || run_worktree_sweep(&root, "periodic")).await;
         }
     });
 

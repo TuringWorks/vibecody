@@ -92,9 +92,7 @@ pub fn sweep(
                             report.branches_preserved += 1;
                         }
                     }
-                    Err(e) => report
-                        .errors
-                        .push(format!("reap trashed {}: {e}", row.id)),
+                    Err(e) => report.errors.push(format!("reap trashed {}: {e}", row.id)),
                 }
             }
         }
@@ -224,7 +222,8 @@ fn reclaim_worktree_dir(repo: &Path, worktree_path: &str) -> anyhow::Result<()> 
     }
     // Best-effort commit so nothing is discarded; a failure here must not block
     // reclaim (e.g. detached/odd state) — the branch dispose step still runs.
-    if let Err(e) = vibe_core::git::commit_all_in_worktree(&wt, "vibecli: preserve WIP before worktree reclaim")
+    if let Err(e) =
+        vibe_core::git::commit_all_in_worktree(&wt, "vibecli: preserve WIP before worktree reclaim")
     {
         tracing::warn!("commit-before-reclaim failed for {worktree_path}: {e}");
     }

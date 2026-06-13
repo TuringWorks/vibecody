@@ -411,12 +411,7 @@ pub fn add_worktree_existing_branch(
     worktree_path: &Path,
 ) -> Result<()> {
     let output = std::process::Command::new("git")
-        .args([
-            "worktree",
-            "add",
-            &worktree_path.to_string_lossy(),
-            branch,
-        ])
+        .args(["worktree", "add", &worktree_path.to_string_lossy(), branch])
         .current_dir(repo_path)
         .output()?;
     if !output.status.success() {
