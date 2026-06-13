@@ -1,20 +1,41 @@
 # VibeCody — Remaining Work Items
 
-> Aggregated from all docs (FIT-GAP v1-v14, ROADMAP Appendices A-E, COMPETITIVE-ANALYSIS, AGENT-FRAMEWORK-BLUEPRINT, CHANGELOG).
+> Aggregated from all docs (FIT-GAP v1-v15, ROADMAP Appendices A-F, COMPETITIVE-ANALYSIS, AGENT-FRAMEWORK-BLUEPRINT, CHANGELOG).
 > Items are ordered by priority (P0 first) then by effort.
-> For the phase-by-phase ledger see [ROADMAP.md](./ROADMAP.md) (especially Appendices D + E). For competitive analysis see [FIT-GAP-ANALYSIS.md](./FIT-GAP-ANALYSIS.md).
+> For the phase-by-phase ledger see [ROADMAP.md](./ROADMAP.md) (especially Appendices D + E + F). For competitive analysis see [FIT-GAP-ANALYSIS.md](./FIT-GAP-ANALYSIS.md).
 >
-> Last verified: 2026-05-19 (B2.9 + B2.9.daemon + B2.10 closed — plugin hooks + rules now actually run)
+> Last verified: 2026-06-13 (v15 competitor delta folded in — C1–C6 queued for Phase 55; A7/B3 now competitor-shipped, see escalation notes)
 
 ---
 
-## P0 — In-flight
+## P0 — Phase 55 newly queued (v0.5.8 cycle)
 
-No P0 items. **A1 MCP Apps React host closed 2026-05-19**; **B2 plugin bundle format closed 2026-05-18** — see "Recently Closed" below. The two patent-gated P1 items (A7, B3) remain queued for the next cycle pending design-distance proposals.
+The v15 competitor delta ([FIT-GAP §16.6](./FIT-GAP-ANALYSIS.md) / [ROADMAP Appendix F](./ROADMAP.md)) opened six new gaps (C1–C6). Prior P0 items are clear — **A1 MCP Apps React host closed 2026-05-19**, **B2 plugin bundle format closed 2026-05-18** (see "Recently Closed"). Three C-gaps are P0 this cycle:
+
+### C1 — Recurring / scheduled / self-paced agent ergonomics ("Routines" + `/loop`)
+
+- **Source**: Phase 55 P0, FIT-GAP §16.6 (Claude Code Routines + Managed Agents + **`/loop`**; Codex `/goal` CLI 0.128.0 + Automations; Cursor Automations; Antigravity 2.0 scheduled tasks)
+- **Current State**: Trigger *engine* exists — `automations.rs` ships **Cron / FileWatch / Webhook** triggers → sandboxed agent task; `/goal` durable-intent ships (`exec_goal.rs` — parity with Claude Code + Codex `/goal`, **shipped first**). **No `/loop` command** (grep-confirmed absent), no machine-off hosted execution, no `WorkspaceStore` secret injection.
+- **What's Needed**: (1) a **`/loop <interval|self-paced> <prompt>`** REPL command — cron-cadence re-run **or self-paced loop-until-provably-done**, with auto-expiry + job ID + Esc-to-stop (Claude Code `/loop`; `MAX_ITER≈20` guard); (2) machine-off hosted execution + `WorkspaceStore` secret injection (never env-plaintext) à la Managed Agents; (3) `AutomationsPanel.tsx` + `/routine` + `/loop` surface; 6 BDD scenarios.
+- **Effort**: Medium (2-3 weeks — trigger plumbing exists in `automations.rs`; the `/loop` ergonomic + self-pacing loop controller is the new code).
+
+### C3 — MCP Tasks extension + stateless transport (2026-07-28 RC)
+
+- **Source**: Phase 55 P0, FIT-GAP §16.6 (MCP 2026-07-28 spec release candidate)
+- **Current State**: `mcp_streamable.rs` ships streamable HTTP + OAuth 2.1; A3 `/.well-known/mcp.json` descriptor shipped (`b13f9106`). Missing the RC's Tasks extension + stateless session model.
+- **What's Needed**: Implement the **Tasks extension** (async task IDs + poll/cancel) and the **stateless core** (no server-held state, horizontal-scale-safe); 5 BDD scenarios against RC conformance vectors.
+- **Effort**: Medium (2 weeks).
+
+### C6 — ACP + MCP Registry self-listing
+
+- **Source**: Phase 55 P0, FIT-GAP §16.6 (ACP Registry 28+ agents; MCP Registry v0.1 freeze)
+- **Current State**: A4 ACP server mode (`acp_stdio.rs`) shipped (`e9dc09af`); VibeCLI is not yet listed in the ACP Registry (Zed + JetBrains) or the MCP Registry.
+- **What's Needed**: Register VibeCLI as an ACP agent + publish the daemon / `vibecli-skills-mcp` server in the MCP Registry. Packaging + a registry PR, minimal new runtime code.
+- **Effort**: Low (registry submission + manifest; ~2-3 days).
 
 ---
 
-## P1 — High Priority (3 items)
+## P1 — High Priority (7 items)
 
 ### 1. Hosted Plugin / Model Hub
 
@@ -35,16 +56,39 @@ No P0 items. **A1 MCP Apps React host closed 2026-05-19**; **B2 plugin bundle fo
 ### 3. A7 — Browser-native UI-element annotation (Design Mode)
 
 - **Source**: Phase 53 P1, FIT-GAP §16
-- **Current State**: Patent-distance posture documented in fit-gap §18 (`403ea1c2`). No implementation yet — must remain distant from Cursor 3 annotation UX.
-- **What's Needed**: Extend `desktop_agent.rs` browser-control track with DOM-element click-to-annotate, generating natural-language instructions tied to specific selectors. Per-feature note in `notes/`.
+- **⚠ Escalated 2026-06-13**: Cursor shipped **Design Mode GA on 2026-06-05** — the exact surface (point / draw / narrate UI changes in the browser; agent edits code underneath). The *design proposal* is now overdue; the **build stays gated** on the §18.A7 slice audit.
+- **Current State**: Patent-distance posture documented in fit-gap §18 (`403ea1c2`). No implementation yet — must remain distant from the Cursor Design Mode UX.
+- **What's Needed**: The §18.A7 cleared shape only — diffcomplete-into-DOM: user clicks an element in their own (CDP-attached) browser, types an instruction, presses ⌘.; agent emits a CSS/HTML unified diff into `DiffReviewPanel`. No agent-controlled browser, no live DOM mutation. Per-feature note in `notes/`. (Also covers **C4 WebMCP** producer/consumer, which reuses this shape.)
 - **Effort**: Medium-high (2 wk design + 3 wk impl, patent-distance gated)
 
 ### 4. B3 — Always-on security-review agent class
 
 - **Source**: Phase 54 P1 (v0.5.8)
-- **Current State**: `/review` exists as on-demand command. Patent-distance posture documented (close to Cursor Security Review UX).
-- **What's Needed**: Convert `/review` to a daemon-resident agent class; trigger on file-watcher / pre-commit / CI; route findings to the existing `Finding` schema; UI surface in `SecurityPanel.tsx`.
+- **⚠ Escalated 2026-06-13**: GitHub Copilot moved code review to an **agentic always-on architecture on 2026-06-01** (runs on GitHub Actions); Cursor Security Review already shipped. The build stays gated on the §18.B3 slice audit.
+- **Current State**: `/review` exists as on-demand command. Patent-distance posture documented (close to Cursor Security Review / Copilot agentic-review UX).
+- **What's Needed**: §18.B3 cleared shape only — opt-in workspace flag → file-watcher rule → LLM call → `Finding` records (alongside clippy/eslint/semgrep) → existing `ReviewPanel` → user invokes diffcomplete (⌘.) to act. No system-imposed always-on default; no privileged "security agent" canvas. UI surface in `SecurityPanel.tsx`.
 - **Effort**: Medium-high (3-4 weeks, patent-distance gated)
+
+### 5. C2 — Dynamic large-scale workflow primitive
+
+- **Source**: Phase 55 P1 (v0.5.9), FIT-GAP §16.6 (Claude Code Dynamic Workflows; Devin Spaces)
+- **Current State**: `multi_agent.rs` + `planner.rs` + `nested_agents.rs` + the A8 verify-repair loop (`desktop_agent.rs`) exist but aren't fused into a single self-scaling primitive.
+- **What's Needed**: `dynamic_workflow.rs` — auto-decompose a large task, fan out parallel sub-agents over `worktree_pool.rs`, verify each output (test runners / `visual_verify.rs`), report back; tuned for 100k-line migrations. Engineering complement to the P2 100M-line benchmark (which stays the stress-test).
+- **Effort**: High (3-4 weeks).
+
+### 6. C4 — WebMCP browser-tool exposure
+
+- **Source**: Phase 55 P1 (v0.5.9), FIT-GAP §16.6 (Google I/O WebMCP, W3C; Chrome 149 origin trial)
+- **Current State**: `browser_agent.rs` drives a CDP-attached browser; no WebMCP consume/produce.
+- **What's Needed**: (a) **consumer** — discover + call WebMCP-annotated JS/HTML-form tools on authorized sites; (b) **producer** — expose selected VibeUI panels as WebMCP tools. Behind a feature flag while the spec is in origin trial. **Patent-distance gated** — reuses the §18.A7 cleared shape (no live DOM mutation by the agent).
+- **Effort**: Medium (2-3 weeks; folds into A7 design work).
+
+### 7. C5 — Per-request effort / compute control knob
+
+- **Source**: Phase 55 P1 (v0.5.9), FIT-GAP §16.6 (Claude Opus 4.8 Effort Control; GPT-5.5 token efficiency)
+- **Current State**: No per-request effort tier; `cost_router.rs` routes by task complexity but exposes no user-facing effort knob.
+- **What's Needed**: Provider-agnostic `effort: low | medium | high | xhigh` mapped per provider (Opus 4.8 Effort Control, GPT-5.5 reasoning budget, open-model token/step cap), wired through `cost_router.rs` + the toolbar selector; default `high`. Touches every LLM call path. 4 BDD scenarios.
+- **Effort**: Low-medium (1-2 weeks, but broad surface).
 
 
 ---
@@ -198,10 +242,10 @@ All prior roadmap and fit-gap iterations have been merged into exactly **two can
 
 ## Summary
 
-**Open code items**: 4 (0 P0 + 2 P1 + 2 P2 — both P1 are patent-gated A7/B3). With A1 shipped, the next-cycle code work depends on the patent-distance audits clearing for A7 / B3, plus the discretionary P2 items (managed hosting, 100M+ benchmarking) and the non-code roadmap items.
+**Open code items**: 9 (3 P0 — C1/C3/C6, the Phase 55 trio; 5 P1 — A7/B3 patent-gated + C2/C4/C5; 1 P2 — 100M-line benchmark). A7 and B3 are now **competitor-shipped** (Cursor Design Mode GA 2026-06-05; Copilot agentic review 2026-06-01) — design proposals are overdue, builds still gated on the §18 patent-distance audits.
 
-**Open non-code items**: 4 (SOC 2 cert, managed hosting domain, frontier model, VS Code full compat) — all infrastructure / business-process / explicit-design-choice items.
+**Open non-code items**: 4 (SOC 2 cert, managed hosting domain, frontier model, VS Code full compat) — unchanged; all infrastructure / business-process / explicit-design-choice items. Plus the c-series trivial closes (Opus 4.8 / Gemini 3.5 Flash / GPT-5.5 / open-weight model-registry entries; MCP Registry self-listing) — append-only.
 
 **Parked**: 1 (B5 NVFP4 — hardware-blocked).
 
-**Bottom line**: Phase 53 (A1–A11) is now **fully closed** (A1 React host shipped 2026-05-19); Phase 54 P0 (B1, B2, B6 + trivial closes c1, c2) is closed; only **A7** (P1, patent-gated) and **B3** (P1 v0.5.8, patent-gated) remain queued for the next cycle. Three large design tracks (RL-OS productionization, Recap & Resume, Sandbox tiers) are landing slice-by-slice and tracked in their own design docs rather than here.
+**Bottom line**: Phase 53 (A1–A11) and Phase 54 P0 (B1, B2, B4, B6 + trivial closes c1, c2) are fully closed. The **v15 competitor delta (2026-06-13)** opened six new gaps (**C1–C6**, Phase 55, v0.5.8/0.5.9) and escalated **A7** + **B3** — both now shipped at competitors (Cursor Design Mode; Copilot agentic review) but held behind their §18 patent-distance audits. Three large design tracks (RL-OS productionization, Recap & Resume, Sandbox tiers) continue landing slice-by-slice in their own design docs rather than here.

@@ -6,11 +6,11 @@ permalink: /fit-gap-analysis/
 
 # Fit-Gap Analysis — VibeCody vs the AI Coding Landscape
 
-**Originally published:** 2026-02-25 &middot; **Last refreshed:** 2026-05-03 (v0.5.7 — v14 weekly + missed-quarter delta layered on v13)
+**Originally published:** 2026-02-25 &middot; **Last refreshed:** 2026-06-13 (v0.5.8 — v15 May–June delta layered on v14)
 **Scope:** Cumulative delta of 9 sequential iterations (v4 → v13) plus 5 topic-specific deep-dives (AgentOS, Pi-mono, RL-OS, Paperclip, Code-Review/Architecture) — **40+ competing AI coding products and frameworks analyzed**.
 **Companion document:** [Competitive Landscape & Roadmap](./roadmap/).
 
-> **Executive bottom line (revised 2026-05-03 for v14):** Across approximately **170 cumulative gaps** (deduplicated) catalogued over 10 iterations and 5 topic deep-dives, **~106 are closed with real I/O**, **~41 are partial — design / type-system / panel exists but the I/O layer is not yet wired** (8 audit-flagged modules + 52 RL-OS entries sharing one deferred-training plan + 2 partial AgentOS items + 5 v14 trivial-closes-pending; see §16.2 audit reconciliation + §16.4), and **~23 are open** — comprising the 6 long-horizon items already tracked, the 11 v13 April-2026 trend gaps (§16.1, A1–A11), and the 6 v14 May-2026 trend gaps (§16.4, B1–B6). The previous "136 closed of 142" framing conflated typed-and-tested with shipped-with-real-I/O; the audit at [docs/audit/05-fitgap-overstatements.md](./audit/05-fitgap-overstatements.md) is reflected directly in the scoreboard. **Closed-with-real-I/O is the only number worth quoting externally** — the partial work continues to ship as the US-001…US-006 cadence proves real conversions are happening.
+> **Executive bottom line (revised 2026-05-03 for v14):** Across approximately **170 cumulative gaps** (deduplicated) catalogued over 10 iterations and 5 topic deep-dives, **~106 are closed with real I/O**, **~41 are partial — design / type-system / panel exists but the I/O layer is not yet wired** (8 audit-flagged modules + 52 RL-OS entries sharing one deferred-training plan + 2 partial AgentOS items + 5 v14 trivial-closes-pending; see §16.2 audit reconciliation + §16.4), and **~29 are open** — comprising the 6 long-horizon items already tracked, the 11 v13 April-2026 trend gaps (§16.1, A1–A11), the 6 v14 May-2026 trend gaps (§16.4, B1–B6), and the 6 v15 May–June-2026 trend gaps (§16.6, C1–C6). *(Identification-time count: per [REMAINING-WORK](./remaining-work/), A1–A11 and B1/B2/B4/B6 have since shipped — the truly-unshipped engineering remainder is A7 + B3 + C1–C6 plus the 6 long-horizon items; see §16.7.)* The previous "136 closed of 142" framing conflated typed-and-tested with shipped-with-real-I/O; the audit at [docs/audit/05-fitgap-overstatements.md](./audit/05-fitgap-overstatements.md) is reflected directly in the scoreboard. **Closed-with-real-I/O is the only number worth quoting externally** — the partial work continues to ship as the US-001…US-006 cadence proves real conversions are happening.
 
 ---
 
@@ -30,7 +30,8 @@ This document consolidates 13 prior files (now removed — `git log` preserves t
 | v12 | 2026-04-14 | Reasoning infra, prompt-cache, design platform, computer use | 20 | All closed |
 | v13 | 2026-04-26 | Cursor 3.0/3.2, Copilot Cloud Agent, Devin 2.2, Claude Opus 4.7, Gemini CLI v0.38, Junie CLI Beta, Codex CLI Bedrock + Spark, MCP 2026 roadmap, ACP v0.11, Antigravity 1.22, Augment 72% | 17 | 6 near-shipped (existing infra covers), 11 open (§16.1) |
 | v14 | 2026-05-03 | MCP `experimental-ext-skills`, Cursor Plugin Marketplace v2 + Security Review + SDK + Interactive Canvases, VS 2026 Integrated Cloud Agent, GPT-5.5, Sonnet 4.8 leaked, llama.cpp NVFP4, Ollama 0.22.x `/v1/messages`, DeepSeek V4 + Qwen 3.6 + Kimi K2.6, A2A v1.2 LF, ACP Registry, DAPO mainstream, sandbox cold-start floor, SWE-bench Verified contamination, JetBrains Air, Devin v3 API GA | 11 | 5 trivial closes, 6 open (§16.4 — B1–B6) |
-| **Sequential total** | — | **40+ competitors** | **~170 (deduplicated)** | **~106 closed, ~41 partial, ~23 open (revised 2026-05-03 — see §3 + §16.5)** |
+| v15 | 2026-06-13 | Windsurf→Devin Desktop (Rust "Devin Local"), Cursor Design Mode GA + Composer 2.5 + Automations + Enterprise Orgs, Claude Code Routines + Managed Agents + Dynamic Workflows + Opus 4.8 (Effort Control), Codex Goal Mode + GPT-5.5, Google I/O 2026 (Gemini 3.5 Flash, Antigravity 2.0, WebMCP), MCP 2026-07-28 RC (stateless + Tasks + Registry), ACP Registry 28+ agents, Copilot agentic review + usage-based billing, open-weight wave (DeepSeek V4 / Kimi K2.6 / Qwen 3.6 / GLM-5.1 / MiniMax M3) | 6 | 6 open (§16.6 — C1–C6) + A7/B3 competitor-shipped escalations |
+| **Sequential total** | — | **40+ competitors** | **~176 (deduplicated)** | **~106 closed, ~41 partial, ~29 open (revised 2026-06-13 — see §3 + §16.7)** |
 
 Alongside the sequential sweeps, five topic-specific deep-dives were added when VibeCody pushed into new domains:
 
@@ -227,7 +228,7 @@ The 142 gaps discovered over 8 iterations resolve into nine cross-cutting themes
 
 ## 3. Gap status — cumulative scoreboard
 
-Revised 2026-04-26 to reflect the audit at [docs/audit/05-fitgap-overstatements.md](./audit/05-fitgap-overstatements.md). "Closed" now requires real I/O (HTTP/process/FFI/external API) — modules that are typed, tested in-memory, and panel-wired but lack the I/O layer are reclassified as **Partial**.
+Revised 2026-04-26 to reflect the audit at [docs/audit/05-fitgap-overstatements.md](./audit/05-fitgap-overstatements.md). "Closed" now requires real I/O (HTTP/process/FFI/external API) — modules that are typed, tested in-memory, and panel-wired but lack the I/O layer are reclassified as **Partial**. **Revised 2026-06-13:** added the v14 (B1–B6) and v15 (C1–C6) trend-delta rows that the §16 narrative had outrun; the three trend-delta rows are *identification-time* counts (footnote ³).
 
 | Category | Identified | Closed (real I/O) | Partial (design-only) | Open |
 |----------|-----------:|-------:|--------:|-----:|
@@ -246,17 +247,21 @@ Revised 2026-04-26 to reflect the audit at [docs/audit/05-fitgap-overstatements.
 | Paperclip deep-dive | 13 | 13 | 0 | 0 |
 | Code-Review / Architecture | 10 + 8 | 10 + 8 | 0 | 0 |
 | Long-horizon (tracked in roadmap) | 6 | 0 | — | 6 |
-| **v13 trend delta (2026-04-26, identification-only)** | **17** | **0** | **0** | **17** |
-| **Per-category sum (pre-dedup)** | **259** | **174** | **62** | **23** |
-| **Total (deduplicated, approximate)** | **~159** | **~106** | **~36** | **~17** |
+| **v13 trend delta (2026-04-26, identification-only)³** | **17** | **0** | **0** | **17** |
+| **v14 trend delta (2026-05-03, identification-only)³** | **6** | **0** | **0** | **6** |
+| **v15 trend delta (2026-06-13, identification-only)³** | **6** | **0** | **0** | **6** |
+| **Per-category sum (pre-dedup)** | **271** | **174** | **62** | **35** |
+| **Total (deduplicated, approximate)** | **~171** | **~106** | **~36** | **~29** |
 
 ¹ Audit-flagged module that retains its design + tests + panel + REPL command but does not yet ship the I/O layer claimed in the original gap closure. Roadmap work is tracked in Phase 53.
 
 ² The RL-OS subsystem (~31K lines across 8 `rl_*.rs` files) is honest about being a type-system + orchestration substrate; neural-net training, GPU/TPU kernels, and PyO3 bindings are explicitly deferred (already noted in §12). Counting the 52 entries as "Partial" rather than "Closed" matches that intent.
 
+³ **Identification-time count.** The trend-delta rows tally gaps *when surfaced*, not current build state. Per [§16.7](#167-updated-remaining-parity-gaps-list-v15) and [REMAINING-WORK](./remaining-work/), **Phase 53 (A1–A11) and Phase 54 P0 (B1, B2, B4, B6) have since shipped** — so the truly-unshipped *engineering* remainder is **A7 + B3 + C1–C6 (8 items)** plus the 6 long-horizon / business items. The scoreboard keeps the identification-time view so the cumulative "what did we find" history stays auditable; §16.7 is the "what's actually left" view.
+
 The pre-dedup per-category sum is exact; the deduplicated total is approximate because the v4–v12 dedup math is opaque (the original "142 deduplicated of 242 raw" implied a 0.59 collapse ratio, applied here as a directional estimate). The audit-aware reclassification is what matters: **fewer items are "shipped with real I/O" than the prior scoreboard claimed, and the new ones are listed by name** so they can be tracked.
 
-The 6 long-horizon items remain competitive-frontier / business moves rather than engineering tasks — they live in the [roadmap](./roadmap/#93-where-we-still-have-parity-gaps-to-close). The 14 partial modules (8 individual + 52 RL-OS entries that share one conversion plan) and 11 open v13 items have a real-I/O conversion plan in [Phase 53](./roadmap/#appendix-d--phase-53-april-2026-trend-delta--audit-reconciliation) of the roadmap, modeled on the US-001…US-006 conversions that already shipped.
+The 6 long-horizon items remain competitive-frontier / business moves rather than engineering tasks — they live in the [roadmap](./roadmap/#93-where-we-still-have-parity-gaps-to-close). The 14 partial modules (8 individual + 52 RL-OS entries that share one conversion plan) have a real-I/O conversion plan in [Phase 53](./roadmap/#appendix-d--phase-53-april-2026-trend-delta--audit-reconciliation) of the roadmap (US-007…US-015), modeled on the US-001…US-006 conversions that already shipped. The trend-delta items are built out per cycle — **A1–A11** in [Phase 53](./roadmap/#appendix-d--phase-53-april-2026-trend-delta--audit-reconciliation), **B1–B6** in [Phase 54](./roadmap/), and **C1–C6** in [Phase 55](./roadmap/#appendix-f--phase-55-may-june-2026-delta-c1-c6); the current unshipped status is the §16.7 view (A7 + B3 + C1–C6).
 
 ---
 
@@ -594,9 +599,9 @@ VibeCody matches all RBAC/ABAC/derived-roles/conditions/audit-trail features and
 Six items remain open from the v4–v12 cycles; none are engineering-blocked, and each is a conscious trade-off tracked in the [roadmap](./roadmap/). Eleven additional items from the v13 April-2026 trend survey are listed in §16.1.
 
 1. **Cursor's proprietary Tab model** — next-edit prediction quality. We ship FIM completions via Ollama + cloud models; Cursor trains their own Behavior-Informed Completion model. *(Note 2026-04-26: Cursor 3.0 added an Agents Window and Cursor 3.2 added async subagents — the Tab model itself is unchanged but the surrounding multi-agent UX has widened the gap; tracked separately as v13 items A8/A9.)*
-2. **Devin-level hours-long autonomy** — Devin 2.2 (Apr 2026) added computer-use self-verification + Linux-desktop access; our agent loop still tops out at ~50 steps before compaction / re-plan, and we don't run UI tests against our own output. **Cognition's 2025 acquisition of Windsurf** consolidated three previously-tracked competitors (Devin + Windsurf + Cascade) into one entity — competitive positioning §1 should treat them as a single "Cognition family" going forward.
+2. **Devin-level hours-long autonomy** — Devin 2.2 (Apr 2026) added computer-use self-verification + Linux-desktop access; our agent loop still tops out at ~50 steps before compaction / re-plan, and we don't run UI tests against our own output. **Cognition's 2025 acquisition of Windsurf** consolidated three previously-tracked competitors (Devin + Windsurf + Cascade) into one entity — competitive positioning §1 should treat them as a single "Cognition family" going forward. **Update 2026-06-02:** the consolidation is now literal — Windsurf shipped an OTA update rebranding to **Devin Desktop**, with Cascade replaced by **Devin Local** (rebuilt from scratch in Rust, ~30% more token-efficient, subagent-capable, ACP support). The Agent Command Center (Kanban over local + cloud agents) is now the primary surface; **Spaces** share context across agents. Treat "Windsurf" as retired; note that Devin Local being Rust-native narrows our Rust-substrate differentiator to "open-source + self-hostable" (Roadmap §5.1).
 3. **Claude Code's MCP catalog** — our MCP client is spec-compliant and we ship a directory, but the Anthropic-curated server catalog continues to grow and now includes the **MCP Apps** extension (interactive UI in conversations) + **MCPB** bundle format from the [2026 MCP roadmap](https://blog.modelcontextprotocol.io/posts/2026-mcp-roadmap/). Tracked as v13 items A1–A4.
-4. **SWE-bench leaderboard position** — Augment Code leads open agent systems at **72.0% pass@1 SWE-bench Verified** (April 2026), Claude Opus 4.7 hits **87.6% Verified / 64.3% Pro**, Claude Mythos Preview tops the provisional board at 93.9% Verified, GPT-5.3-Codex sits at 85.0%. **Caveat (2026-05-03):** OpenAI stopped reporting Verified scores after a contamination audit found **59.4% of hard tasks have flawed tests** and all frontier models test as contaminated; SWE-bench Pro, SWE-rebench, and SWE-bench-Live are now the primary references. We track all four boards in the benchmark panel but haven't entered the leaderboards ourselves.
+4. **SWE-bench leaderboard position** — Augment Code leads open agent systems at **72.0% pass@1 SWE-bench Verified** (April 2026), Claude Opus 4.7 hits **87.6% Verified / 64.3% Pro**, Claude Mythos Preview tops the provisional board at 93.9% Verified, GPT-5.3-Codex sits at 85.0%. **Caveat (2026-05-03):** OpenAI stopped reporting Verified scores after a contamination audit found **59.4% of hard tasks have flawed tests** and all frontier models test as contaminated; SWE-bench Pro, SWE-rebench, and SWE-bench-Live are now the primary references. We track all four boards in the benchmark panel but haven't entered the leaderboards ourselves. **Refresh (2026-06-13):** Claude Mythos 5 + Fable 5 now top the provisional weighted-coding board (~100); **Claude Opus 4.8** posts 98.9% weighted / **69.2% SWE-bench Pro** (Jun 8); **Fable 5** leads SWE-bench Pro at **80.3%** (Jun 9); **Gemini 3.5 Flash** lands Terminal-Bench 2.1 76.2% / MCP Atlas 83.6%; GPT-5.4 leads the public set by 4.1 pts but is third on commercial code. The contamination caveat is unchanged.
 5. **Enterprise SSO / audit packaging** — Cody Enterprise and Copilot for Business are further along on SOC 2 Type II, SAML SSO, central policy distribution. **MCP enterprise readiness is now a first-class roadmap workstream** for the protocol (audit/SSO/gateway as extensions, not core), opening a path for VibeCody to lead on open-source MCP enterprise tooling.
 6. **Polished BYOA adapters for Claude/Codex/Cursor** — covered today by the generic `HttpAdapter`; dedicated adapters arrive when upstream APIs stabilise. **JetBrains Junie CLI's "1-click migration from Claude Code, Codex"** (Mar 2026) is the bar for what users now expect; tracked as v13 item A17.
 
@@ -722,6 +727,61 @@ This is a one-week refresh on top of v13, plus a small set of Q1-Q2 2026 items v
 ### 16.5 Updated remaining-parity-gaps list (v14)
 
 Combining §15 (six long-horizon items), §16.1 (eleven v13 external gaps A1–A11), and §16.4 (six v14 external gaps B1–B6), the **honest open-gaps total is 23**, up from 17 in v13. The 14 partial items continue to be tracked separately. Phase 54 (queued in [Roadmap §1ter](./roadmap/#1ter-may-2026-weekly-delta--missed-quarter-items-added-2026-05-03)) targets B1–B6 plus the trivially-closeable items above.
+
+### 16.6 v15 — May-June 2026 delta (added 2026-06-13)
+
+A six-week refresh on top of v14. Sources surveyed (web, 2026-05-03 → 2026-06-13): cursor.com/changelog, code.claude.com/docs/whats-new, github.blog/changelog, developers.openai.com/codex/changelog, devin.ai/blog, blog.modelcontextprotocol.io (2026-07-28 RC), blog.google (I/O 2026), jetbrains.com/acp + zed.dev/acp, Artificial Analysis + SWE-bench Pro / BenchLM leaderboards, and the open-weight labs (DeepSeek / Moonshot / Alibaba / Z.ai / MiniMax).
+
+**Headline shifts in the six weeks since v14** (all also surfaced in [Roadmap §1quater](./roadmap/#1quater-may-june-2026-delta-added-2026-06-13)):
+
+- **Windsurf → Devin Desktop (Jun 2)** — Cognition rebrands Windsurf via OTA update; **Cascade replaced by "Devin Local" — rebuilt from scratch in Rust**, ~30% more token-efficient, subagent-capable, ACP support; Agent Command Center (Kanban over local + cloud agents) is the primary surface; **Spaces** share context across agents; ~$26B valuation. The v13 "Cognition family" prediction is now literal.
+- **Cursor Design Mode GA (Jun 5)** — point / draw / narrate UI changes in the browser; the agent edits the code underneath. This is **gap A7**, shipped at a competitor.
+- **Claude Code Routines + Managed Agents + `/loop` (May–Jun; `/loop` ~Mar, missed-quarter)** — scheduled cloud agents that run on triggers **without your machine on** (cron + vault-stored env vars + browser-capable); the **`/loop`** command re-runs a prompt on a cadence **or self-paces and ends itself when the task is provably done** (auto-expiry, job ID, Esc-to-stop, `MAX_ITER≈20` guard — the "Ralph-loop / loop-engineering" pattern); `/goal` (run-until-validator) now ships in **both** Claude Code and Codex CLI 0.128.0 (Apr 30) — parity with our `/goal`, **which shipped first**. → **C1**.
+- **Claude Code Dynamic Workflows (Jun, research preview)** — plan → parallel sub-agents → verify → report; migrates 100k+ line codebases. → **C2**.
+- **OpenAI Codex Goal Mode + GPT-5.5 (May)** — Goal Mode keeps Codex working until done; Codex re-based on GPT-5.5. Validates our `/goal` (we shipped first).
+- **Google I/O 2026 (May 20) — *not* Gemini 4** — **Gemini 3.5 Flash** (beats 3.1 Pro on coding/agentic, ~4× faster; Terminal-Bench 2.1 76.2%, MCP Atlas 83.6%), **Antigravity 2.0** (scheduled tasks + dynamic subagents), **WebMCP** (W3C browser-agent tool standard), Chrome DevTools for agents. → **C4**; corrects the v14 "Gemini 4" projection.
+- **GitHub Copilot agentic review + usage-based billing (Jun 1)** — code review moved to an agentic GitHub-Actions architecture (always-on); full credit billing; Agents Window in VS Code Stable; VS Plan agent. Always-on agentic review = **gap B3**, shipped at a competitor.
+- **MCP 2026-07-28 spec RC** — largest revision since launch: **stateless core**, **MCP Apps** (server-rendered UI), **Tasks extension** (long-running async work), OAuth/OIDC alignment; **MCP Registry** v0.1 API freeze. → **C3** + **C6**.
+- **Claude Opus 4.8 GA (May)** — stronger coding/agentic vs 4.7; **Effort Control** (low → high → xhigh); API `claude-opus-4-8`. → **C5** + c-series model entry.
+- **Open-weight frontier wave (Apr–Jun)** — DeepSeek V4 (1.6T params, **MIT**), Kimi K2.6 (native 300-subagent swarm), Qwen 3.6 (top tool-calling), GLM-5.1 (top MIT SWE-bench Pro), **MiniMax M3** (Jun); two now lead Artificial Analysis' open-weight ranking, all at a fraction of frontier price. → c-series model entries.
+
+**Six new gaps surfaced by this delta** (C1–C6, all open; A1–A11 from v13 and B1–B6 from v14 unchanged):
+
+| # | Gap | Surfaced by | Notes |
+|---|-----|-------------|-------|
+| C1 | Recurring / scheduled / self-paced agent ergonomics — `/loop` (recurring-interval + loop-until-done), machine-off Routines, secret-vault injection | Claude Code `/loop` + Routines + Managed Agents; Codex `/goal` (CLI 0.128.0, Apr 30) + Automations; Cursor Automations; Antigravity 2.0 scheduled tasks | Engine exists (`automations.rs` Cron/FileWatch/Webhook; `/goal` durable-intent ships — parity, **we shipped first**). Missing: the `/loop` recurring + **self-paced loop-until-done** REPL ergonomic, machine-off hosted execution, `WorkspaceStore` secret injection. |
+| C2 | Dynamic large-scale workflow primitive (auto-decompose → parallel sub-agents → verify → report; 100k-line migrations) | Claude Code Dynamic Workflows (Jun); Devin Spaces | `multi_agent` + `planner` + `nested_agents` + the A8 verify-repair loop exist but aren't fused into one self-scaling primitive. Engineering complement to the P2 100M-line benchmark. |
+| C3 | MCP Tasks extension + stateless transport (2026-07-28 RC) | MCP spec RC | Extend `mcp_streamable.rs` + the A3 `.well-known` descriptor with the Tasks extension (async task IDs + poll/cancel) and the stateless session model. |
+| C4 | WebMCP browser-tool exposure (consume + produce) | Google I/O WebMCP (W3C; Chrome 149 origin trial) | Extend `browser_agent.rs` to call WebMCP-annotated site tools and expose VibeUI panels as WebMCP tools. Patent-distance gated (§18 A7-shape). |
+| C5 | Per-request effort / compute control knob (low → xhigh) | Claude Opus 4.8 Effort Control; GPT-5.5 token efficiency | Provider-agnostic `effort` param mapped per provider, wired through `cost_router.rs` + the toolbar selector; default `high`. |
+| C6 | ACP + MCP Registry self-listing | ACP Registry (28+ agents, Zed + JetBrains); MCP Registry v0.1 freeze | Register VibeCLI as an ACP agent (reuse the A4 `acp_stdio.rs` server) + publish the daemon MCP server. Packaging + a registry PR, minimal new runtime code. |
+
+**Two competitor-shipped escalations** — already on the backlog as patent-gated items, now shipped at a competitor (this raises *design urgency*, not a new gap, and the build stays gated on the §18 slice audits):
+
+- **A7 (Design Mode)** — Cursor GA 2026-06-05. Cleared shape: §18.A7 diffcomplete-into-DOM.
+- **B3 (always-on security review)** — Copilot agentic review 2026-06-01. Cleared shape: §18.B3 opt-in file-watcher → `Finding` → diffcomplete.
+
+**Items already covered or trivially closeable** (c-series — append to `useModelRegistry.ts` / packaging only):
+
+- Claude Opus 4.8, Gemini 3.5 Flash, GPT-5.5 / GPT-5.5-Pro, and the open-weight models (DeepSeek V4 / Kimi K2.6 / Qwen 3.6 / GLM-5.1 / MiniMax M3) — model-registry entries; route default Codex to GPT-5.5.
+- VibeCLI MCP server self-listing in the MCP Registry — packaging (ties to C6).
+- *(C5 effort knob is **not** trivial — it threads every LLM call path; kept as a gap.)*
+
+**Positioning signals** (informational, no roadmap action):
+
+- **Devin Local is Rust** — third-party validation of our Rust-native thesis *and* the first major cloud-agent competitor to match us on substrate; the §5.1 differentiator narrows to "open-source + self-hostable Rust core spanning CLI → watch."
+- **Copilot usage-based billing (Jun 1)** — every suggestion / chat / review bills credits; sharpens the "self-hosted, BYO-key, no per-action metering" axis. Marketing, not engineering.
+- **ACP + MCP registries are the discovery layer** — 28+ agents in the ACP Registry; MCP Registry v0.1 frozen. Absence from both is a measurable discoverability gap (C6).
+
+### 16.7 Updated remaining-parity-gaps list (v15)
+
+Combining §15 (six long-horizon items), §16.1 (A1–A11), §16.4 (B1–B6), and §16.6 (C1–C6), the **identification-time open-gaps total is 29**, up from 23 in v14. But per [REMAINING-WORK](./remaining-work/), **Phase 53 (A1–A11) and Phase 54 P0 (B1, B2, B4, B6) have since shipped** — so the *truly-unshipped* set is smaller and concrete:
+
+- **6 long-horizon items** (§15) — competitive-frontier / business moves, unchanged (Tab/Composer-class proprietary model, Devin-class hours-long autonomy, MCP catalog breadth, SWE-bench leaderboard entry, enterprise SSO/audit packaging, polished BYOA adapters).
+- **A7** (Design Mode) + **B3** (always-on review) — patent-gated P1, now competitor-shipped → design proposals are overdue.
+- **C1–C6** (this delta) — queued for **Phase 55** ([Roadmap Appendix F](./roadmap/#appendix-f--phase-55-may-june-2026-delta-c1-c6)).
+
+Net **unshipped engineering remainder = A7 + B3 + C1–C6 = 8 concrete items**, plus the 6 long-horizon/business items. The 14 partial (8 audit-flagged + 52 RL-OS sharing one conversion plan) items continue under their Phase 53 real-I/O conversion playbook.
 
 ---
 

@@ -7,6 +7,16 @@ title: "COMPETITIVE ANALYSIS 2026 03"
 **Date:** 2026-03-07 | **Updated:** 2026-03-29
 **Scope:** Full technical and business capability evaluation across 15 products in the AI-assisted development space
 
+> **⚠ Update 2026-06-13 — this is a March 2026 point-in-time snapshot; several facts below are now stale.** The **live** competitive docs are **[ROADMAP.md](./ROADMAP.md)** (see §1quater + Appendix F / Phase 55) and **[FIT-GAP-ANALYSIS.md](./FIT-GAP-ANALYSIS.md)** (§16.6, v15). Headline changes since this snapshot:
+>
+> - **Windsurf is now Devin Desktop** (Cognition, 2026-06-02) — Cascade replaced by Rust-native "Devin Local" (~30% more token-efficient); treat the Windsurf row below as retired.
+> - **Model wave**: Claude Opus 4.8 (Effort Control), Gemini 3.5 Flash, GPT-5.5 GA; open-weight surge (DeepSeek V4 MIT, Kimi K2.6, Qwen 3.6, GLM-5.1, MiniMax M3). VibeCody is now at **24+ providers** (this snapshot says "23").
+> - **Loop engineering**: Claude Code shipped `/loop` (recurring + self-paced loop-until-done) and `/goal`; Codex shipped `/goal` (CLI 0.128.0, Apr 30). VibeCody ships `/goal` (durable intent, **first**) + `automations.rs` (cron / file-watch / webhook); the lightweight **`/loop`** ergonomic is queued as gap **C1**.
+> - **Protocols**: MCP 2026-07-28 spec RC (stateless core + Tasks extension + Registry v0.1 freeze); ACP Registry live (28+ agents, VibeCLI not yet listed); WebMCP (W3C). New gaps **C3 / C4 / C6**.
+> - Six new competitor-driven gaps **C1–C6**, plus **A7** (Cursor Design Mode GA 2026-06-05) and **B3** (Copilot agentic review 2026-06-01) escalations — both patent-gated. See Phase 55.
+>
+> The §12 differentiators and §13 gaps below remain directionally accurate; the specific version numbers, the "all gaps closed through v7" framing, and the Windsurf entry are superseded by the v15 delta.
+
 ## Table of Contents
 
 1. [Executive Summary](#1-executive-summary)
@@ -46,7 +56,7 @@ The AI-assisted development landscape in March 2026 spans 15+ significant produc
 | | Kiro CLI | AWS | Proprietary | Terminal + spec-driven |
 | **IDE/Desktop** | VibeUI | VibeCody | MIT (OSS) | Tauri 2 desktop (Monaco + React) |
 | | Cursor | Anysphere | Proprietary | Electron (VS Code fork) |
-| | Windsurf | Cognition AI | Proprietary | Electron (VS Code fork) |
+| | Windsurf → **Devin Desktop** | Cognition | Proprietary | Electron fork; Cascade → Rust "Devin Local" (2026-06-02) |
 | | Zed | Zed Industries | OSS (GPL/AGPL) | Native (Rust/GPUI) |
 | | Trae | ByteDance | Free (proprietary) | Electron (VS Code fork) |
 | | GitHub Copilot | Microsoft/GitHub | Proprietary | VS Code/JetBrains/Xcode extension |
