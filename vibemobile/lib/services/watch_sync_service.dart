@@ -130,7 +130,7 @@ class WatchSyncService extends ChangeNotifier {
     try {
       final body = jsonEncode({
         'content': content,
-        if (sessionId != null) 'session_id': sessionId,
+        'session_id': ?sessionId,
         'nonce': DateTime.now().millisecondsSinceEpoch.toRadixString(16),
         'timestamp': DateTime.now().millisecondsSinceEpoch ~/ 1000,
       });

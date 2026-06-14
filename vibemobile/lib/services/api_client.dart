@@ -316,8 +316,8 @@ class ApiClient {
             headers: _headers(token),
             body: jsonEncode({
               'session_id': sessionId,
-              if (deviceId != null) 'device_id': deviceId,
-              if (deviceLabel != null) 'device_label': deviceLabel,
+              'device_id': ?deviceId,
+              'device_label': ?deviceLabel,
             }),
           )
           .timeout(const Duration(seconds: 5));
@@ -625,7 +625,7 @@ class ApiClient {
       Uri.parse(_url(baseUrl, '/v1/goals/$goalId/start')),
       headers: _headers(token),
       body: jsonEncode({
-        if (task != null) 'task': task,
+        'task': ?task,
       }),
     );
     if (resp.statusCode != 201 && resp.statusCode != 200) {
@@ -685,7 +685,7 @@ class ApiClient {
       headers: _headers(token),
       body: jsonEncode({
         'goal_id': goalId,
-        if (workspace != null) 'workspace': workspace,
+        'workspace': ?workspace,
       }),
     );
     if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
