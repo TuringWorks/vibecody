@@ -10,6 +10,10 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+### Changed
+
+- **Mobile · Flutter toolchain floor** — raised the CI/release Flutter pin from `3.29.3` to `3.44.2` (Dart 3.7 → ≥3.10) and the `vibemobile` Dart SDK floor to `^3.8.0`, to support `flutter_lints` 6.0.0 (requires Dart `^3.8.0`) and the regenerated lockfile (resolved deps require Flutter ≥3.38.4 / Dart ≥3.10.3). `FLUTTER_VERSION` updated in `ci.yml` and `release.yml`; platform-requirements table in `docs/vibemobile.md` updated to match.
+
 ## [0.5.7]
 
 Release-engineering patch — restores the artifacts that didn't build for v0.5.6.

@@ -33,7 +33,7 @@ As of **v0.5.5** VibeMobile gained URL-only pairing, zero-config mDNS / Tailscal
 | Android | 7.0 / API 24+ |
 | macOS | 12.0+ |
 | Linux / Windows | GTK 3 / Edge WebView2 |
-| Build toolchain | Flutter 3.29.3 (CI-pinned, floor ≥ 3.2.0), Xcode 26 (App Store submissions after 2026-04-28) |
+| Build toolchain | Flutter 3.44.2 (CI-pinned, floor ≥ 3.8.0), Xcode 26 (App Store submissions after 2026-04-28) |
 
 ---
 
