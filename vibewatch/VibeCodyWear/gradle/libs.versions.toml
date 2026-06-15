@@ -13,7 +13,7 @@ wearCompose = "1.6.2"
 wearTiles = "1.6.0"
 
 # Play Services Wearable
-playServicesWearable = "18.2.0"
+playServicesWearable = "20.0.1"
 
 # OkHttp
 okhttp = "5.4.0"
