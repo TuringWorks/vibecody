@@ -70,7 +70,7 @@ url = "2.5"
 ropey = "1.6"
 
 # File watching
-notify = "7.0"
+notify = "8.2"
 
 # Search
 walkdir = "2"
