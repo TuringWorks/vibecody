@@ -19,7 +19,7 @@ tracing.workspace = true
 git2.workspace = true
 
 # File watching
-notify = "7.0"
+notify = "8.2"
 
 # Search
 walkdir = "2"
