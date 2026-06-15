@@ -53,7 +53,7 @@ thiserror = "1.0"
 similar = { version = "2.6", features = ["inline"] }
 
 # Git
-git2 = { version = "0.20.4", features = ["vendored-openssl"] }
+git2 = { version = "0.21.0", features = ["vendored-openssl"] }
 
 # Syntax highlighting
 syntect = "5.2"
