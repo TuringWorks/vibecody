@@ -71,6 +71,19 @@ beforeEach(() => {
   window.HTMLElement.prototype.scrollIntoView = vi.fn();
 });
 
+// Click "Run Coverage" only once tool detection has finished and enabled the
+// button. Waiting for the text alone races the async detect_coverage_tool: a
+// click on the still-disabled button is dropped, run_coverage never fires, and
+// the following waitFor times out — the source of this suite's CI flakiness.
+async function clickRunCoverage() {
+  const button = await waitFor(() => {
+    const btn = screen.getByText('Run Coverage').closest('button');
+    expect(btn).not.toBeDisabled();
+    return btn as HTMLButtonElement;
+  });
+  fireEvent.click(button);
+}
+
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 describe('CoveragePanel', () => {
@@ -122,8 +135,7 @@ describe('CoveragePanel', () => {
 
   it('runs coverage and displays total percentage', async () => {
     render(<CoveragePanel workspacePath="/workspace" />);
-    await waitFor(() => screen.getByText('Run Coverage'));
-    fireEvent.click(screen.getByText('Run Coverage'));
+    await clickRunCoverage();
     await waitFor(() => {
       expect(screen.getByText('72.5%')).toBeInTheDocument();
     });
@@ -131,8 +143,7 @@ describe('CoveragePanel', () => {
 
   it('shows file count after running coverage', async () => {
     render(<CoveragePanel workspacePath="/workspace" />);
-    await waitFor(() => screen.getByText('Run Coverage'));
-    fireEvent.click(screen.getByText('Run Coverage'));
+    await clickRunCoverage();
     await waitFor(() => {
       expect(screen.getByText('4 files')).toBeInTheDocument();
     });
@@ -141,8 +152,7 @@ describe('CoveragePanel', () => {
   it('displays error when coverage run fails', async () => {
     setupMocks({ run_coverage: new Error("Build failed") });
     render(<CoveragePanel workspacePath="/workspace" />);
-    await waitFor(() => screen.getByText('Run Coverage'));
-    fireEvent.click(screen.getByText('Run Coverage'));
+    await clickRunCoverage();
     await waitFor(() => {
       expect(screen.getByText(/Build failed/)).toBeInTheDocument();
     });
@@ -152,12 +162,7 @@ describe('CoveragePanel', () => {
 
   it('shows filter tabs after running coverage', async () => {
     render(<CoveragePanel workspacePath="/workspace" />);
-    // Wait for tool detection so the button becomes enabled before clicking
-    await waitFor(() => {
-      const btn = screen.getByText('Run Coverage').closest('button');
-      expect(btn).not.toBeDisabled();
-    });
-    fireEvent.click(screen.getByText('Run Coverage'));
+    await clickRunCoverage();
     await waitFor(() => {
       expect(screen.getByText(/All \(4\)/)).toBeInTheDocument();
       expect(screen.getByText(/Partial/)).toBeInTheDocument();
@@ -167,8 +172,7 @@ describe('CoveragePanel', () => {
 
   it('shows Raw button to toggle raw output', async () => {
     render(<CoveragePanel workspacePath="/workspace" />);
-    await waitFor(() => screen.getByText('Run Coverage'));
-    fireEvent.click(screen.getByText('Run Coverage'));
+    await clickRunCoverage();
     await waitFor(() => {
       expect(screen.getByText('Raw')).toBeInTheDocument();
     });
@@ -176,8 +180,7 @@ describe('CoveragePanel', () => {
 
   it('shows raw output when Raw button clicked', async () => {
     render(<CoveragePanel workspacePath="/workspace" />);
-    await waitFor(() => screen.getByText('Run Coverage'));
-    fireEvent.click(screen.getByText('Run Coverage'));
+    await clickRunCoverage();
     await waitFor(() => screen.getByText('Raw'));
     fireEvent.click(screen.getByText('Raw'));
     await waitFor(() => {
