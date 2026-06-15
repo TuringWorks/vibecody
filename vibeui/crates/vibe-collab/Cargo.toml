@@ -7,7 +7,7 @@ license.workspace = true
 description = "CRDT-based multiplayer collaboration for VibeCody"
 
 [dependencies]
-yrs = "0.21"
+yrs = "0.27"
 dashmap = "6"
 axum = { workspace = true, features = ["ws"] }
 tokio = { workspace = true }
