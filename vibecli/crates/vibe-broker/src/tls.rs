@@ -17,8 +17,8 @@ use std::path::Path;
 use std::sync::Mutex;
 
 use rcgen::{
-    BasicConstraints, Certificate, CertificateParams, DistinguishedName, DnType, IsCa, KeyPair,
-    KeyUsagePurpose,
+    BasicConstraints, Certificate, CertificateParams, DistinguishedName, DnType, IsCa, Issuer,
+    KeyPair, KeyUsagePurpose, SerialNumber,
 };
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 
@@ -52,14 +52,11 @@ pub struct LeafCert {
 pub struct BrokerCa {
     ca_keypair_pem: String,
     ca_cert_pem: String,
-    /// Live rcgen Certificate used as the `issuer` argument when minting
-    /// leaves. On generate this is the freshly-self-signed cert; on
-    /// load_or_generate we re-self-sign from disk-stored params + key.
-    /// The DER bytes may differ from `ca_cert_pem` after reload, but the
-    /// signing identity (DN + key + key-usages) is the same so leaves
-    /// chain to the on-disk public PEM.
-    ca_cert: Certificate,
-    ca_kp: KeyPair,
+    /// CA signing identity (DN + key-usages + private key) used to sign leaves.
+    /// Built from the CA cert PEM + key — on generate from the freshly
+    /// self-signed cert, on load_or_generate from the on-disk PEM — so every
+    /// leaf chains to `ca_cert_pem`.
+    issuer: Issuer<'static, KeyPair>,
     /// Cached leaves; rendered PEM strings.
     leaf_cache: Mutex<HashMap<String, LeafCert>>,
 }
@@ -79,11 +76,15 @@ impl BrokerCa {
     pub fn generate() -> Result<Self, TlsError> {
         let kp = KeyPair::generate()?;
         let cert = build_ca_certificate(&kp)?;
+        let ca_cert_pem = cert.pem();
+        let ca_keypair_pem = kp.serialize_pem();
+        // Issuer owns the signing key; build it from the cert PEM so its DN +
+        // key-usages match the published CA cert.
+        let issuer = Issuer::from_ca_cert_pem(&ca_cert_pem, kp)?;
         Ok(BrokerCa {
-            ca_keypair_pem: kp.serialize_pem(),
-            ca_cert_pem: cert.pem(),
-            ca_cert: cert,
-            ca_kp: kp,
+            ca_keypair_pem,
+            ca_cert_pem,
+            issuer,
             leaf_cache: Mutex::new(HashMap::new()),
         })
     }
@@ -98,18 +99,14 @@ impl BrokerCa {
             let ca_cert_pem = std::fs::read_to_string(&cert_path)?;
             let ca_keypair_pem = std::fs::read_to_string(&key_path)?;
             let kp = KeyPair::from_pem(&ca_keypair_pem)?;
-            // Recover params from the disk PEM so the in-memory issuer
-            // has the same DN + key-usages as the original. We re-self-
-            // sign to get a Certificate; its DER differs from the disk
-            // bytes, but it carries identical signing identity, so leaves
-            // it issues chain to the on-disk public PEM.
-            let params = CertificateParams::from_ca_cert_pem(&ca_cert_pem)?;
-            let cert = params.self_signed(&kp)?;
+            // Build the issuer straight from the on-disk CA cert PEM + key; it
+            // carries the original DN + key-usages, so leaves chain to the
+            // stored public PEM.
+            let issuer = Issuer::from_ca_cert_pem(&ca_cert_pem, kp)?;
             return Ok(BrokerCa {
                 ca_keypair_pem,
                 ca_cert_pem,
-                ca_cert: cert,
-                ca_kp: kp,
+                issuer,
                 leaf_cache: Mutex::new(HashMap::new()),
             });
         }
@@ -152,18 +149,18 @@ impl BrokerCa {
             KeyUsagePurpose::DigitalSignature,
             KeyUsagePurpose::KeyEncipherment,
         ];
-        let leaf = leaf_params.signed_by(&leaf_kp, &self.ca_cert, &self.ca_kp)?;
+        // rcgen 0.14's Certificate no longer exposes params(), so choose the
+        // serial up front and reuse it for the LeafCert instead of reading it
+        // back off the signed cert.
+        let serial = leaf_serial(hostname);
+        leaf_params.serial_number = Some(SerialNumber::from_slice(&serial));
+        let leaf = leaf_params.signed_by(&leaf_kp, &self.issuer)?;
 
         let leaf_cert = LeafCert {
             cert_pem: leaf.pem(),
             key_pem: leaf_kp.serialize_pem(),
             san_list: vec![hostname.to_string()],
-            serial: leaf
-                .params()
-                .serial_number
-                .as_ref()
-                .map(|s| s.to_bytes())
-                .unwrap_or_default(),
+            serial,
         };
         self.leaf_cache
             .lock()
@@ -183,6 +180,17 @@ impl BrokerCa {
         let key_der = parse_private_key_pem(&leaf.key_pem)?;
         Ok((vec![cert_der], key_der))
     }
+}
+
+/// Deterministic per-host serial. rcgen 0.14 drops `Certificate::params()`, so
+/// we pick the serial ourselves rather than read back an auto-generated one. A
+/// hash of the hostname keeps each host's leaf distinguishable from other
+/// hosts' and stable for the cached entry.
+fn leaf_serial(hostname: &str) -> Vec<u8> {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    hostname.hash(&mut hasher);
+    hasher.finish().to_be_bytes().to_vec()
 }
 
 fn build_ca_certificate(kp: &KeyPair) -> Result<Certificate, TlsError> {
