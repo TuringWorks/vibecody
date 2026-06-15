@@ -36,7 +36,7 @@ pub fn get_status(root_path: &Path) -> Result<GitStatus> {
     let head = repo.head().ok();
     let branch = head
         .as_ref()
-        .and_then(|h| h.shorthand())
+        .and_then(|h| h.shorthand().ok())
         .unwrap_or("DETACHED")
         .to_string();
 
@@ -185,7 +185,7 @@ pub fn switch_branch(repo_path: &Path, branch: &str) -> Result<()> {
         let ref_name = branch_ref
             .get()
             .name()
-            .ok_or_else(|| anyhow::anyhow!("Branch reference has non-UTF-8 name"))?
+            .map_err(|_| anyhow::anyhow!("Branch reference has non-UTF-8 name"))?
             .to_string();
         repo.set_head(&ref_name)?;
         repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
@@ -208,13 +208,13 @@ pub fn switch_branch(repo_path: &Path, branch: &str) -> Result<()> {
         let remote_ref = remote_branch
             .get()
             .name()
-            .ok_or_else(|| anyhow::anyhow!("Remote branch reference has non-UTF-8 name"))?;
+            .map_err(|_| anyhow::anyhow!("Remote branch reference has non-UTF-8 name"))?;
         new_branch.set_upstream(Some(remote_ref))?;
 
         let ref_name = new_branch
             .get()
             .name()
-            .ok_or_else(|| anyhow::anyhow!("New branch reference has non-UTF-8 name"))?
+            .map_err(|_| anyhow::anyhow!("New branch reference has non-UTF-8 name"))?
             .to_string();
         repo.set_head(&ref_name)?;
         repo.checkout_head(Some(git2::build::CheckoutBuilder::default().force()))?;
