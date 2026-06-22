@@ -22,7 +22,7 @@ okhttp = "5.4.0"
 moshi = "1.15.1"
 
 # Coroutines
-coroutinesPlayServices = "1.8.1"
+coroutinesPlayServices = "1.11.0"
 
 # Security crypto
 securityCrypto = "1.1.0"
