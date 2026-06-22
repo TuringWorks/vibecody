@@ -19,6 +19,9 @@ struct OpenAIRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     max_tokens: Option<usize>,
     stream: bool,
+    /// Reasoning effort (gap C5) — GPT-5.x / o-series only; omitted otherwise.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reasoning_effort: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -88,6 +91,24 @@ impl OpenAIProvider {
             .api_url
             .as_deref()
             .unwrap_or(Self::DEFAULT_API_URL)
+    }
+
+    /// Map the per-request effort tier (gap C5) to OpenAI `reasoning_effort`, but
+    /// only for reasoning-capable models (GPT-5.x / o-series / Codex). Returns
+    /// `None` for chat-only models, which would 400 on an unknown field.
+    fn reasoning_effort(&self) -> Option<String> {
+        let m = self.config.model.to_lowercase();
+        let reasoning_capable = m.starts_with("gpt-5")
+            || m.starts_with("o1")
+            || m.starts_with("o3")
+            || m.starts_with("o4")
+            || m.contains("codex");
+        if !reasoning_capable {
+            return None;
+        }
+        self.config
+            .effort
+            .map(|e| e.openai_reasoning_effort().to_string())
     }
 
     /// Translate a raw OpenAI API error response into a user-friendly message.
@@ -235,6 +256,7 @@ impl AIProvider for OpenAIProvider {
             messages: self.build_messages(messages, context),
             temperature: self.config.temperature,
             max_tokens: self.config.max_tokens,
+            reasoning_effort: self.reasoning_effort(),
             stream: false,
         };
 
@@ -297,6 +319,7 @@ impl AIProvider for OpenAIProvider {
             messages: self.build_messages(messages, None), // Context handled in build_messages
             temperature: self.config.temperature,
             max_tokens: self.config.max_tokens,
+            reasoning_effort: self.reasoning_effort(),
             stream: true,
         };
 
@@ -376,6 +399,7 @@ impl AIProvider for OpenAIProvider {
             messages: self.build_vision_messages(messages, images, context),
             temperature: self.config.temperature,
             max_tokens: self.config.max_tokens,
+            reasoning_effort: self.reasoning_effort(),
             stream: false,
         };
 
@@ -427,6 +451,7 @@ mod tests {
             max_tokens: None,
             api_key_helper: None,
             thinking_budget_tokens: None,
+            effort: None,
         }
     }
 

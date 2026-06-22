@@ -4,7 +4,7 @@
 > Items are ordered by priority (P0 first) then by effort.
 > For the phase-by-phase ledger see [ROADMAP.md](./ROADMAP.md) (especially Appendices D + E + F). For competitive analysis see [FIT-GAP-ANALYSIS.md](./FIT-GAP-ANALYSIS.md).
 >
-> Last verified: 2026-06-13 (v15 competitor delta folded in — C1–C6 queued for Phase 55; A7/B3 now competitor-shipped, see escalation notes)
+> Last verified: 2026-06-22 (codebase-reconciliation pass against working tree **v0.5.7** + nine-day industry delta, folded into the v15 layer in place — see [FIT-GAP §16.8](./FIT-GAP-ANALYSIS.md) and [Roadmap §1quinquies](./ROADMAP.md). Corrections this pass: **A7 is partially built** (`DesignMode.tsx` exists — not "no implementation"); the **c-series model-registry entries are open-trivial, not append-only-done** (only `gpt-5.5` actually landed); `mcp_app.rs` → real name `mcp_apps_payload.rs`; headline counts were stale undercounts.)
 
 ---
 
@@ -57,7 +57,7 @@ The v15 competitor delta ([FIT-GAP §16.6](./FIT-GAP-ANALYSIS.md) / [ROADMAP App
 
 - **Source**: Phase 53 P1, FIT-GAP §16
 - **⚠ Escalated 2026-06-13**: Cursor shipped **Design Mode GA on 2026-06-05** — the exact surface (point / draw / narrate UI changes in the browser; agent edits code underneath). The *design proposal* is now overdue; the **build stays gated** on the §18.A7 slice audit.
-- **Current State**: Patent-distance posture documented in fit-gap §18 (`403ea1c2`). No implementation yet — must remain distant from the Cursor Design Mode UX.
+- **Current State (corrected 2026-06-22)**: Patent-distance posture documented in fit-gap §18 (`403ea1c2`). **Partial UI exists** — `vibeui/src/components/DesignMode.tsx` (708 lines) + `DesignAnnotationsPanel.tsx` (284 lines) ship in the working tree (the prior "no implementation yet" was wrong). **Open question:** whether these implement the §18.A7 cleared shape (diffcomplete-into-CDP-DOM, no agent-controlled browser, no live DOM mutation) or are a separate design-canvas/annotation surface. **Next action is an audit of these two components against the §18.A7 principles**, then reclassify A7 from "open" to "partial — audit pending." Build stays gated until that audit clears; must remain distant from the Cursor Design Mode UX.
 - **What's Needed**: The §18.A7 cleared shape only — diffcomplete-into-DOM: user clicks an element in their own (CDP-attached) browser, types an instruction, presses ⌘.; agent emits a CSS/HTML unified diff into `DiffReviewPanel`. No agent-controlled browser, no live DOM mutation. Per-feature note in `notes/`. (Also covers **C4 WebMCP** producer/consumer, which reuses this shape.)
 - **Effort**: Medium-high (2 wk design + 3 wk impl, patent-distance gated)
 
@@ -161,7 +161,7 @@ The v15 competitor delta ([FIT-GAP §16.6](./FIT-GAP-ANALYSIS.md) / [ROADMAP App
 
 | Item | Module | Commit |
 |---|---|---|
-| A1 — MCP Apps payload parser | `mcp_app.rs` | `647b58de` |
+| A1 — MCP Apps payload parser | `mcp_apps_payload.rs` (+ `mcp_apps.rs`) | `647b58de` |
 | A2 — MCPB bundle format (pack / extract / digest) | `mcpb_bundle.rs` | `84a7e636` |
 | A3 — `/.well-known/mcp.json` descriptor builder | `serve.rs` | `b13f9106` |
 | A4 — ACP stdio JSON-RPC dispatcher | `acp_stdio.rs` | `e9dc09af` |
@@ -244,8 +244,12 @@ All prior roadmap and fit-gap iterations have been merged into exactly **two can
 
 **Open code items**: 9 (3 P0 — C1/C3/C6, the Phase 55 trio; 5 P1 — A7/B3 patent-gated + C2/C4/C5; 1 P2 — 100M-line benchmark). A7 and B3 are now **competitor-shipped** (Cursor Design Mode GA 2026-06-05; Copilot agentic review 2026-06-01) — design proposals are overdue, builds still gated on the §18 patent-distance audits.
 
-**Open non-code items**: 4 (SOC 2 cert, managed hosting domain, frontier model, VS Code full compat) — unchanged; all infrastructure / business-process / explicit-design-choice items. Plus the c-series trivial closes (Opus 4.8 / Gemini 3.5 Flash / GPT-5.5 / open-weight model-registry entries; MCP Registry self-listing) — append-only.
+**Open non-code items**: 4 (SOC 2 cert, managed hosting domain, frontier model, VS Code full compat) — unchanged; all infrastructure / business-process / explicit-design-choice items.
+
+**Open-trivial (c-series model-registry entries — corrected 2026-06-22)**: these were previously framed as "append-only / effectively done." Verified against `vibeui/src/hooks/useModelRegistry.ts`, **only `gpt-5.5` has actually landed.** Still pending (~1-file edit each in `useModelRegistry.ts`): **Claude Opus 4.8**, **Gemini 3.5 Flash + 3.5 Pro** (GA end-June), **DeepSeek V4**, **Qwen 3.6**, **Kimi K2.6 → K2.7 Code**, **GLM-5.1 → GLM-5.2** (Jun 13, now leads the AA open-weight index), **MiniMax M3**. Plus MCP Registry self-listing (packaging, ties to C6). Append-list, but genuinely open.
 
 **Parked**: 1 (B5 NVFP4 — hardware-blocked).
 
 **Bottom line**: Phase 53 (A1–A11) and Phase 54 P0 (B1, B2, B4, B6 + trivial closes c1, c2) are fully closed. The **v15 competitor delta (2026-06-13)** opened six new gaps (**C1–C6**, Phase 55, v0.5.8/0.5.9) and escalated **A7** + **B3** — both now shipped at competitors (Cursor Design Mode; Copilot agentic review) but held behind their §18 patent-distance audits. Three large design tracks (RL-OS productionization, Recap & Resume, Sandbox tiers) continue landing slice-by-slice in their own design docs rather than here.
+
+**2026-06-22 mid-month refresh** (no new gaps; see [Roadmap §1quinquies](./ROADMAP.md) + [FIT-GAP §16.8](./FIT-GAP-ANALYSIS.md)): the **Fable 5 + Mythos 5 export-control suspension (Jun 12)** — a top-of-board frontier model disabled for all customers by US government order — is the strongest external validation yet of VibeCody's provider-agnostic + self-hostable + open-weight-fallback thesis (`cost_router.rs` failover + Ollama-first defaults are now a *resilience* story). Other movement: **GLM-5.2** + **Kimi K2.7 Code** (Jun 13), the **Gemini CLI → Antigravity CLI** consolidation (Jun 18), **Gemini 3.5 Pro** GA end-June, **Copilot Max $100/mo** tier, and the **MCP 2026-07-28 RC** detail (stateless removes the `initialize` handshake + `Mcp-Session-Id`; Tasks = `tasks/get|update|cancel`) which sharpens **C3** into a concrete conformance target. The engineering remainder is unchanged: **A7 (now partial) + B3 + C1–C6 + 6 long-horizon items**, plus the open-trivial c-series registry appends.

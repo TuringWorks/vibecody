@@ -16791,6 +16791,17 @@ fn build_temp_provider(
     provider_type: &str,
     model: &str,
 ) -> Option<Arc<dyn vibe_ai::provider::AIProvider>> {
+    build_temp_provider_with_effort(provider_type, model, None)
+}
+
+/// Like [`build_temp_provider`] but threads a per-request effort tier (gap C5).
+/// `effort` is a case-insensitive `"low" | "medium" | "high" | "xhigh"`; unknown
+/// or `None` values leave the provider at its default (no effort override).
+fn build_temp_provider_with_effort(
+    provider_type: &str,
+    model: &str,
+    effort: Option<&str>,
+) -> Option<Arc<dyn vibe_ai::provider::AIProvider>> {
     use vibe_ai::provider::ProviderConfig;
     use vibe_ai::providers;
 
@@ -16863,6 +16874,7 @@ fn build_temp_provider(
         provider_type: provider_type.to_string(),
         api_key,
         model: model.to_string(),
+        effort: effort.and_then(vibe_ai::provider::Effort::parse),
         ..Default::default()
     };
 
@@ -16886,6 +16898,38 @@ fn build_temp_provider(
         _ => return None,
     };
     Some(vibe_ai::ResilientProvider::wrap(p))
+}
+
+/// Chat with a provider at an explicit per-request effort tier (gap C5).
+///
+/// Provider-agnostic: `effort` (`"low" | "medium" | "high" | "xhigh"`, default
+/// `"high"` when `None`) is mapped to each provider's native reasoning knob —
+/// Claude/Gemini extended-thinking token budget, OpenAI `reasoning_effort`.
+/// Honors the toolbar `selectedProvider` / `selectedModel`; never defaults to
+/// Anthropic. Returns an empty-state error when the model selection is blank.
+#[tauri::command]
+pub async fn ai_chat_with_effort(
+    provider: String,
+    model: String,
+    prompt: String,
+    effort: Option<String>,
+) -> Result<String, String> {
+    use vibe_ai::provider::{Message, MessageRole};
+    if provider.trim().is_empty() || model.trim().is_empty() {
+        return Err("Select a provider and model first".to_string());
+    }
+    let provider_inst = build_temp_provider_with_effort(&provider, &model, effort.as_deref())
+        .ok_or_else(|| {
+            format!("Provider '{provider}' is not configured — add an API key in Settings")
+        })?;
+    let messages = vec![Message {
+        role: MessageRole::User,
+        content: prompt,
+    }];
+    provider_inst
+        .chat(&messages, None)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Call a single provider with a prompt and return a `ModelResponse`.

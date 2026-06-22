@@ -163,6 +163,82 @@ impl TokenUsage {
     }
 }
 
+/// Per-request reasoning / compute effort tier (gap C5).
+///
+/// Provider-agnostic: each provider maps the tier onto its own knob —
+/// Claude/Gemini extended-thinking token budget, OpenAI `reasoning_effort`,
+/// or a generic output-token cap for open models that lack a reasoning dial.
+/// Default tier is `High` (see `Effort::default`), matching the C5 spec.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Effort {
+    Low,
+    Medium,
+    High,
+    XHigh,
+}
+
+impl Default for Effort {
+    fn default() -> Self {
+        Effort::High
+    }
+}
+
+impl Effort {
+    /// Parse a case-insensitive effort string (`"low"`, `"medium"`, `"high"`, `"xhigh"`).
+    /// Accepts `"x-high"` / `"extra-high"` as aliases for `XHigh`. Returns `None` on miss.
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.trim().to_lowercase().as_str() {
+            "low" => Some(Effort::Low),
+            "medium" | "med" => Some(Effort::Medium),
+            "high" => Some(Effort::High),
+            "xhigh" | "x-high" | "extra-high" | "max" => Some(Effort::XHigh),
+            _ => None,
+        }
+    }
+
+    /// Lowercase wire string for this tier.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Effort::Low => "low",
+            Effort::Medium => "medium",
+            Effort::High => "high",
+            Effort::XHigh => "xhigh",
+        }
+    }
+
+    /// Claude / Anthropic extended-thinking budget in tokens for this tier
+    /// (Opus 4.8 "Effort Control"). `Low` disables thinking entirely.
+    pub fn claude_thinking_budget(self) -> Option<u32> {
+        match self {
+            Effort::Low => None,
+            Effort::Medium => Some(4_096),
+            Effort::High => Some(16_384),
+            Effort::XHigh => Some(32_768),
+        }
+    }
+
+    /// Gemini `thinkingConfig.thinkingBudget` tokens. `Low` disables thinking (0).
+    pub fn gemini_thinking_budget(self) -> i32 {
+        match self {
+            Effort::Low => 0,
+            Effort::Medium => 4_096,
+            Effort::High => 16_384,
+            Effort::XHigh => 32_768,
+        }
+    }
+
+    /// OpenAI `reasoning_effort` string (GPT-5.x / o-series). OpenAI tops out at
+    /// `"high"`, so `XHigh` clamps to `"high"`.
+    pub fn openai_reasoning_effort(self) -> &'static str {
+        match self {
+            Effort::Low => "low",
+            Effort::Medium => "medium",
+            Effort::High | Effort::XHigh => "high",
+        }
+    }
+}
+
 /// Completion response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompletionResponse {
@@ -251,6 +327,11 @@ pub struct ProviderConfig {
     /// When set, passes `"thinking": {"type":"enabled","budget_tokens":N}` to the API.
     #[serde(default)]
     pub thinking_budget_tokens: Option<u32>,
+    /// Per-request reasoning / compute effort tier (gap C5). Provider-agnostic;
+    /// each provider maps it to its own knob. An explicit `thinking_budget_tokens`
+    /// always wins over the budget derived from `effort`.
+    #[serde(default)]
+    pub effort: Option<Effort>,
 }
 
 impl ProviderConfig {
@@ -264,7 +345,14 @@ impl ProviderConfig {
             temperature: None,
             api_key_helper: None,
             thinking_budget_tokens: None,
+            effort: None,
         }
+    }
+
+    /// Set the per-request effort tier (gap C5).
+    pub fn with_effort(mut self, effort: Effort) -> Self {
+        self.effort = Some(effort);
+        self
     }
 
     pub fn with_api_key(mut self, api_key: String) -> Self {
@@ -326,6 +414,46 @@ impl ProviderConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ── Effort (gap C5) ──────────────────────────────────────────────────
+
+    #[test]
+    fn effort_parse_accepts_tiers_and_aliases() {
+        assert_eq!(Effort::parse("low"), Some(Effort::Low));
+        assert_eq!(Effort::parse(" HIGH "), Some(Effort::High));
+        assert_eq!(Effort::parse("med"), Some(Effort::Medium));
+        assert_eq!(Effort::parse("xhigh"), Some(Effort::XHigh));
+        assert_eq!(Effort::parse("x-high"), Some(Effort::XHigh));
+        assert_eq!(Effort::parse("max"), Some(Effort::XHigh));
+        assert_eq!(Effort::parse("bogus"), None);
+    }
+
+    #[test]
+    fn effort_default_is_high() {
+        assert_eq!(Effort::default(), Effort::High);
+    }
+
+    #[test]
+    fn effort_maps_to_provider_knobs() {
+        // Claude/Anthropic: Low disables thinking; tiers escalate the budget.
+        assert_eq!(Effort::Low.claude_thinking_budget(), None);
+        assert!(
+            Effort::XHigh.claude_thinking_budget().unwrap()
+                > Effort::High.claude_thinking_budget().unwrap()
+        );
+        // OpenAI clamps XHigh to "high".
+        assert_eq!(Effort::Low.openai_reasoning_effort(), "low");
+        assert_eq!(Effort::XHigh.openai_reasoning_effort(), "high");
+        // Gemini: Low is 0 (thinking off); tiers escalate.
+        assert_eq!(Effort::Low.gemini_thinking_budget(), 0);
+        assert!(Effort::XHigh.gemini_thinking_budget() > Effort::Medium.gemini_thinking_budget());
+    }
+
+    #[test]
+    fn provider_config_carries_effort() {
+        let cfg = ProviderConfig::new("openai".into(), "gpt-5.5".into()).with_effort(Effort::XHigh);
+        assert_eq!(cfg.effort, Some(Effort::XHigh));
+    }
 
     // ── TokenUsage ───────────────────────────────────────────────────────
 

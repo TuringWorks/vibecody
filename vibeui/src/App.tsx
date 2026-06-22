@@ -15,6 +15,7 @@ import { DiffCompleteModal } from "./components/DiffCompleteModal";
 import { Terminal } from "./components/Terminal";
 import { BrowserPanel } from "./components/BrowserPanel";
 import { detectLanguage, getFileIcon } from "./utils/fileUtils";
+import { EFFORT_LEVELS, type EffortLevel, getSelectedEffort, setSelectedEffort, effortLabel } from "./utils/effort";
 import { ImageViewer, isImageFile } from "./components/ImageViewer";
 import { DocumentViewer, isDocumentFile } from "./components/DocumentViewer";
 import "./App.css";
@@ -92,6 +93,9 @@ function App() {
   const [dirContents, setDirContents] = useState<Map<string, FileEntry[]>>(new Map());
   const [aiProviders, setAiProviders] = useState<string[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string>("");
+  // Per-request reasoning/compute effort tier (gap C5). Persisted via the
+  // effort util so any LLM-calling panel can read the current selection.
+  const [selectedEffort, setSelectedEffortState] = useState<EffortLevel>(() => getSelectedEffort());
   const [showSidebar, setShowSidebar] = useState(true);
   const [activeSidebarTab, setActiveSidebarTab] = useState<"explorer" | "search" | "git" | "testing" | "project" | "infra" | "ai" | "security">("explorer");
   const [showAIChat, setShowAIChat] = useState(false);
@@ -1447,6 +1451,22 @@ function App() {
             {aiProviders.map((provider) => (
               <option key={provider} value={provider}>
                 {provider}
+              </option>
+            ))}
+          </select>
+          <select
+            className="ai-selector"
+            value={selectedEffort}
+            title={`Reasoning effort: ${effortLabel(selectedEffort)}`}
+            onChange={(e) => {
+              const lvl = e.target.value as EffortLevel;
+              setSelectedEffortState(lvl);
+              setSelectedEffort(lvl);
+            }}
+          >
+            {EFFORT_LEVELS.map((lvl) => (
+              <option key={lvl} value={lvl} title={effortLabel(lvl)}>
+                {lvl === "xhigh" ? "x-high" : lvl}
               </option>
             ))}
           </select>

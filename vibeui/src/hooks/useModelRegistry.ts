@@ -24,19 +24,27 @@ const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 export const STATIC_MODELS: Record<string, string[]> = {
   // claude-code uses the local Claude Code CLI — works with Free, Pro, Max, Team, and Enterprise plans
   // without consuming Anthropic API credits.
-  "claude-code": ["claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5"],
-  claude: ["claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5", "claude-sonnet-4-5", "claude-3-5-sonnet-20241022"],
+  // claude-opus-4-8 is the highest *available* Anthropic model as of 2026-06: Fable 5 /
+  // Mythos 5 are deliberately omitted here — both were suspended for all customers by US
+  // export-control directive on 2026-06-12 and are not a routable production option.
+  "claude-code": ["claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5"],
+  claude: ["claude-opus-4-8", "claude-opus-4-7", "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5", "claude-sonnet-4-5", "claude-3-5-sonnet-20241022"],
   openai: ["gpt-5.5", "gpt-5.4", "gpt-5.3-codex", "gpt-5.3-codex-spark", "gpt-5", "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "o4-mini", "o3", "o3-mini", "gpt-4.1", "gpt-4.1-mini", "gpt-4.1-nano"],
-  gemini: ["gemini-3.1-pro", "gemini-3-pro", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"],
+  // gemini-3.5-pro GA'd end-June 2026 (2M context, Deep Think); 3.5-flash GA'd at I/O (2026-05-19).
+  gemini: ["gemini-3.5-pro", "gemini-3.5-flash", "gemini-3.1-pro", "gemini-3-pro", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.0-flash-lite"],
   groq: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"],
   grok: ["grok-3", "grok-3-mini", "grok-2"],
   mistral: ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest", "codestral-latest"],
-  deepseek: ["deepseek-chat", "deepseek-reasoner", "deepseek-coder"],
+  // deepseek-v4 (Pro) / deepseek-v4-flash reset the open-weight cost floor (released 2026-04-24, MIT).
+  deepseek: ["deepseek-v4", "deepseek-v4-flash", "deepseek-chat", "deepseek-reasoner", "deepseek-coder"],
   cerebras: ["llama-3.3-70b", "llama-3.1-8b"],
   perplexity: ["sonar-pro", "sonar", "sonar-reasoning"],
   together: ["meta-llama/Llama-3.3-70B-Instruct", "mistralai/Mixtral-8x7B-Instruct-v0.1"],
   fireworks: ["accounts/fireworks/models/llama-v3p3-70b-instruct", "accounts/fireworks/models/mixtral-8x7b-instruct"],
-  openrouter: ["anthropic/claude-3.5-sonnet", "openai/gpt-4o", "google/gemini-2.0-flash-001"],
+  // OpenRouter doubles as the home for frontier open-weight models that have no dedicated
+  // VibeCody provider key yet — notably Moonshot's Kimi K2.7 Code (2026-06-13), which cuts
+  // thinking tokens ~30% vs K2.6. Add a first-class Moonshot provider (6-file dance) if usage warrants.
+  openrouter: ["moonshotai/kimi-k2.7-code", "moonshotai/kimi-k2.6", "z-ai/glm-5.2", "qwen/qwen3.6-coder", "deepseek/deepseek-v4", "anthropic/claude-3.5-sonnet", "openai/gpt-4o", "google/gemini-2.0-flash-001"],
   azure_openai: ["gpt-4o", "gpt-4-turbo"],
   bedrock: ["anthropic.claude-3-5-sonnet-20241022-v2:0", "anthropic.claude-3-haiku-20240307-v1:0"],
   copilot: ["gpt-4o"],
@@ -51,6 +59,8 @@ export const STATIC_MODELS: Record<string, string[]> = {
     "meta-llama/Llama-3.1-8B-Instruct",
     "meta-llama/Llama-3.2-3B-Instruct",
     "meta-llama/Llama-3.2-1B-Instruct",
+    "Qwen/Qwen3.6-Coder-7B-Instruct",
+    "Qwen/Qwen3.6-7B-Instruct",
     "Qwen/Qwen2.5-Coder-7B-Instruct",
     "Qwen/Qwen2.5-7B-Instruct",
     "Qwen/Qwen2.5-Coder-1.5B-Instruct",
@@ -59,9 +69,11 @@ export const STATIC_MODELS: Record<string, string[]> = {
     "Qwen/Qwen2.5-0.5B-Instruct",
     "microsoft/Phi-3.5-mini-instruct",
   ],
-  zhipu: ["glm-4-plus", "glm-4-flash"],
+  // glm-5.2 (Z.ai, 744B, 2026-06-13) leads the Artificial Analysis open-weight intelligence index.
+  zhipu: ["glm-5.2", "glm-5.1", "glm-4-plus", "glm-4-flash"],
   vercel_ai: [],
-  minimax: ["abab6.5s-chat"],
+  // MiniMax-M3 (2026-06-01): 1M-token context + native multimodality in one open-weight model.
+  minimax: ["MiniMax-M3", "abab6.5s-chat"],
   sambanova: ["Meta-Llama-3.3-70B-Instruct"],
 };
 
@@ -135,10 +147,10 @@ export async function probeAndCacheDefaultProvider(): Promise<void> {
 
 /** Default model to pre-select when a provider is chosen in a dropdown. */
 export const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
-  "claude-code": "claude-opus-4-7",
-  claude:       "claude-opus-4-7",
+  "claude-code": "claude-opus-4-8",
+  claude:       "claude-opus-4-8",
   openai:       "gpt-5.5",
-  gemini:       "gemini-3.1-pro",
+  gemini:       "gemini-3.5-pro",
   groq:         "llama-3.3-70b-versatile",
   grok:         "grok-3-mini",
   mistral:      "mistral-large-latest",
@@ -153,9 +165,9 @@ export const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
   copilot:      "gpt-4o",
   ollama:       "devstral-2",
   "vibecli-mistralrs": "meta-llama/Llama-3.1-8B-Instruct",
-  zhipu:        "glm-4-plus",
+  zhipu:        "glm-5.2",
   vercel_ai:    "",
-  minimax:      "abab6.5s-chat",
+  minimax:      "MiniMax-M3",
   sambanova:    "Meta-Llama-3.3-70B-Instruct",
 };
 

@@ -35,7 +35,9 @@ pub use multi_agent::{
 };
 pub use planner::{ExecutionPlan, PlanStep, PlanStepStatus, PlannerAgent};
 pub use policy::{AdminPolicy, PolicyDecision};
-pub use provider::{CodeContext, CompletionStream, ImageAttachment, Message, MessageRole};
+pub use provider::{
+    CodeContext, CompletionStream, Effort, ImageAttachment, Message, MessageRole,
+};
 pub use providers::{
     AzureOpenAIProvider, BedrockProvider, CerebrasProvider, CopilotProvider, DeepSeekProvider,
     FailoverProvider, GroqProvider, LocalEditProvider, MistralProvider, OpenRouterProvider,

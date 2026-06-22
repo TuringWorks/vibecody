@@ -160,13 +160,18 @@ impl ClaudeProvider {
     }
 
     /// Build the optional extended-thinking config from provider settings.
+    ///
+    /// An explicit `thinking_budget_tokens` always wins; otherwise the per-request
+    /// `effort` tier (gap C5) derives the budget — `Effort::Low` disables thinking.
     fn thinking_config(&self) -> Option<ThinkingConfig> {
-        self.config
+        let budget = self
+            .config
             .thinking_budget_tokens
-            .map(|budget| ThinkingConfig {
-                thinking_type: "enabled".to_string(),
-                budget_tokens: budget,
-            })
+            .or_else(|| self.config.effort.and_then(|e| e.claude_thinking_budget()))?;
+        Some(ThinkingConfig {
+            thinking_type: "enabled".to_string(),
+            budget_tokens: budget,
+        })
     }
 
     /// Build a vision request message with text + images.
@@ -497,6 +502,7 @@ mod tests {
             max_tokens: None,
             api_key_helper: None,
             thinking_budget_tokens: None,
+            effort: None,
         }
     }
 

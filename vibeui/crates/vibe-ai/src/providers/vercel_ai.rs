@@ -155,6 +155,7 @@ mod tests {
             max_tokens: None,
             api_key_helper: None,
             thinking_budget_tokens: None,
+            effort: None,
         }
     }
 
@@ -447,6 +448,7 @@ mod tests {
             max_tokens: None,
             api_key_helper: None,
             thinking_budget_tokens: None,
+            effort: None,
         };
         assert!(!VercelAIProvider::new(cfg3).is_available().await);
     }

@@ -24,7 +24,7 @@ pub struct ModelInfo {
 }
 
 /// Complexity classification for a task.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum TaskComplexity {
     Trivial,
     Simple,
@@ -434,6 +434,36 @@ impl CostRouter {
     }
 
     /// Route a task to the best model given the current strategy and budget.
+    /// Route a task at an explicit per-request effort tier (gap C5).
+    ///
+    /// The effort tier raises the complexity floor (so a higher tier prefers a
+    /// stronger model) and scales the estimated token budget to account for the
+    /// extra reasoning/thinking tokens that tier will spend. `Effort::Low` is a
+    /// no-op floor (routes purely on the task's own complexity). Delegates to
+    /// [`route_task`] after adjusting a cloned profile, so budget checks,
+    /// alternatives, and feedback all behave identically.
+    pub fn route_task_with_effort(
+        &mut self,
+        task_id: &str,
+        profile: &TaskProfile,
+        effort: vibe_ai::Effort,
+    ) -> Result<RoutingDecision, String> {
+        use vibe_ai::Effort;
+        let (floor, token_mult) = match effort {
+            Effort::Low => (TaskComplexity::Trivial, 1.0_f32),
+            Effort::Medium => (TaskComplexity::Moderate, 1.15),
+            Effort::High => (TaskComplexity::Complex, 1.35),
+            Effort::XHigh => (TaskComplexity::Expert, 1.6),
+        };
+        let mut adjusted = profile.clone();
+        if (adjusted.complexity as u8) < (floor as u8) {
+            adjusted.complexity = floor;
+        }
+        adjusted.estimated_tokens =
+            ((adjusted.estimated_tokens as f32) * token_mult).ceil() as u32;
+        self.route_task(task_id, &adjusted)
+    }
+
     pub fn route_task(
         &mut self,
         task_id: &str,

@@ -714,6 +714,7 @@ mod tests {
             max_tokens: Some(1024),
             api_key_helper: None,
             thinking_budget_tokens: None,
+            effort: None,
         }
     }
 

@@ -65,6 +65,14 @@ pub struct StreamableHttpConfig {
     pub keepalive_secs: u64,
     pub max_message_size_bytes: usize,
     pub allowed_origins: Vec<String>,
+    /// Stateless core (MCP 2026-07-28 RC, gap C3): when true the server holds no
+    /// per-client session — there is no `initialize`/`initialized` handshake and
+    /// no `Mcp-Session-Id` header; protocol version / client info / capabilities
+    /// ride a `_meta` field on every request (see [`crate::mcp_tasks::RequestMeta`]).
+    /// Any instance can serve any request, so the daemon scales behind a plain
+    /// round-robin load balancer.
+    #[serde(default)]
+    pub stateless: bool,
 }
 
 impl Default for StreamableHttpConfig {
@@ -76,6 +84,7 @@ impl Default for StreamableHttpConfig {
             keepalive_secs: 30,
             max_message_size_bytes: 1_048_576, // 1 MB
             allowed_origins: Vec::new(),
+            stateless: false,
         }
     }
 }
@@ -832,6 +841,7 @@ mod tests {
             keepalive_secs: 30,
             max_message_size_bytes: 1_048_576,
             allowed_origins: vec!["http://localhost".to_string()],
+            stateless: false,
         }
     }
 

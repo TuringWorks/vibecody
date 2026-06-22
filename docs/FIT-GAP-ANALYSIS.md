@@ -6,7 +6,7 @@ permalink: /fit-gap-analysis/
 
 # Fit-Gap Analysis — VibeCody vs the AI Coding Landscape
 
-**Originally published:** 2026-02-25 &middot; **Last refreshed:** 2026-06-13 (v0.5.8 — v15 May–June delta layered on v14)
+**Originally published:** 2026-02-25 &middot; **Last refreshed:** 2026-06-22 (v0.5.8 cycle — v15 May–June delta layered on v14; **2026-06-22 codebase-reconciliation + mid-month refresh in §16.8**, no version bump. Shipped workspace version is still **0.5.7**; 0.5.8 is the in-flight cycle.)
 **Scope:** Cumulative delta of 9 sequential iterations (v4 → v13) plus 5 topic-specific deep-dives (AgentOS, Pi-mono, RL-OS, Paperclip, Code-Review/Architecture) — **40+ competing AI coding products and frameworks analyzed**.
 **Companion document:** [Competitive Landscape & Roadmap](./roadmap/).
 
@@ -406,18 +406,18 @@ Similar parity tables exist for **Codex CLI**, **Cursor 4.1**, **Windsurf 2.0**,
 
 Across the 8 sequential iterations and 5 topic deep-dives, the team delivered:
 
-| Metric | Feb 2026 | Apr 2026 (v0.5.5) |
-|--------|---------:|-----------:|
-| Rust modules in `vibecli-cli/src/` | ~120 | **354** |
-| VibeUI panels | ~90 | **293 + 42 composites** |
-| Skill files | ~300 | **711** |
-| Tests (workspace) | ~4,500 | **13,270** |
-| AI providers | 17 | **22** |
-| REPL commands | 76 | **~150** |
-| Tauri commands | ~600 | **1,045+** |
-| Surfaces shipped | 2 (CLI, UI) | **8 (CLI, UI, App, Mobile, AppleWatch, WearOS, CI action, SDK)** |
+| Metric | Feb 2026 | Apr 2026 (v0.5.5) | Jun 2026 (verified 2026-06-22, v0.5.7) |
+|--------|---------:|-----------:|-----------:|
+| Rust files in `vibecli/vibecli-cli/src/` | ~120 | 354 | **432** |
+| VibeUI components (`vibeui/src/components/*.tsx`) | ~90 | 293 + 42 composites | **393** |
+| Skill files (`vibecli/vibecli-cli/skills/`) | ~300 | 711 | **964** |
+| Tests (workspace) | ~4,500 | 13,270 | _(not re-counted)_ |
+| AI providers | 17 | 22 | **22** (24 files incl. `failover.rs` + `openai_compat.rs`) |
+| REPL commands | 76 | ~150 | _(not re-counted)_ |
+| Tauri command identifiers in `generate_handler![]` | ~600 | 1,045+ | **~1,263** |
+| Surfaces shipped | 2 (CLI, UI) | 8 | **8 (CLI, UI, App, Mobile, AppleWatch, WearOS, CI action, SDK)** |
 
-No iteration shipped stubs — every gap closure had Rust implementation + BDD harness + skill file + cross-surface hookup.
+No iteration shipped stubs — every gap closure had Rust implementation + BDD harness + skill file + cross-surface hookup. **The Apr-2026 figures are now stale undercounts** — the 2026-06-22 column is a direct `find`/grep count against the working tree (see §16.8). The earlier "293 panels + 42 composites" framing is superseded by a single `393` `.tsx`-component count.
 
 ---
 
@@ -761,9 +761,9 @@ A six-week refresh on top of v14. Sources surveyed (web, 2026-05-03 → 2026-06-
 - **A7 (Design Mode)** — Cursor GA 2026-06-05. Cleared shape: §18.A7 diffcomplete-into-DOM.
 - **B3 (always-on security review)** — Copilot agentic review 2026-06-01. Cleared shape: §18.B3 opt-in file-watcher → `Finding` → diffcomplete.
 
-**Items already covered or trivially closeable** (c-series — append to `useModelRegistry.ts` / packaging only):
+**Items already covered or trivially closeable** (c-series — append to `useModelRegistry.ts` / packaging only). **⚠ Reconciled 2026-06-22 (§16.8): these are open-trivial, NOT closed — only `gpt-5.5` has actually landed in the registry; all others below are still absent.**
 
-- Claude Opus 4.8, Gemini 3.5 Flash, GPT-5.5 / GPT-5.5-Pro, and the open-weight models (DeepSeek V4 / Kimi K2.6 / Qwen 3.6 / GLM-5.1 / MiniMax M3) — model-registry entries; route default Codex to GPT-5.5.
+- Claude Opus 4.8, Gemini 3.5 Flash/Pro, GPT-5.5 / GPT-5.5-Pro, and the open-weight models (DeepSeek V4 / Kimi K2.6 → K2.7 Code / Qwen 3.6 / GLM-5.1 → **GLM-5.2** / MiniMax M3) — model-registry entries; route default Codex to GPT-5.5. **Status: only `gpt-5.5` shipped; the rest are pending ~1-file edits each (verified §16.8).**
 - VibeCLI MCP server self-listing in the MCP Registry — packaging (ties to C6).
 - *(C5 effort knob is **not** trivial — it threads every LLM call path; kept as a gap.)*
 
@@ -781,7 +781,23 @@ Combining §15 (six long-horizon items), §16.1 (A1–A11), §16.4 (B1–B6), an
 - **A7** (Design Mode) + **B3** (always-on review) — patent-gated P1, now competitor-shipped → design proposals are overdue.
 - **C1–C6** (this delta) — queued for **Phase 55** ([Roadmap Appendix F](./roadmap/#appendix-f--phase-55-may-june-2026-delta-c1-c6)).
 
-Net **unshipped engineering remainder = A7 + B3 + C1–C6 = 8 concrete items**, plus the 6 long-horizon/business items. The 14 partial (8 audit-flagged + 52 RL-OS sharing one conversion plan) items continue under their Phase 53 real-I/O conversion playbook.
+Net **unshipped engineering remainder = A7 + B3 + C1–C6 = 8 concrete items**, plus the 6 long-horizon/business items. The 14 partial (8 audit-flagged + 52 RL-OS sharing one conversion plan) items continue under their Phase 53 real-I/O conversion playbook. *(See §16.8 for a 2026-06-22 codebase reconciliation that corrects two of these claims.)*
+
+### 16.8 — 2026-06-22 codebase reconciliation + mid-month delta (in place, v15 layer)
+
+A direct verification pass against the working tree (workspace **v0.5.7**) on 2026-06-22, plus the nine-day industry delta since 2026-06-13. No version bump — folded into the v15 layer. The industry side (Fable 5 / Mythos 5 export-control suspension, GLM-5.2, Kimi K2.7 Code, the Gemini CLI → Antigravity CLI consolidation, Gemini 3.5 Pro GA, Copilot Max tier, MCP RC lock detail) is narrated in [Roadmap §1quinquies](./roadmap/#1quinquies-june-2026-mid-month-refresh-added-2026-06-22). The codebase-truth corrections to *this* document:
+
+**1. The c-series "trivial closes" are NOT closed — they are open-trivial.** Verified against `vibeui/src/hooks/useModelRegistry.ts`: of the §16.6 / §1quater c-series model-registry entries, **only `gpt-5.5` has actually landed** (and is the OpenAI default). Still absent: **Claude Opus 4.8** (newest is `claude-opus-4-7`, the default), **Gemini 3.5 Flash/Pro** (newest is `gemini-3.1-pro`), **DeepSeek V4** (`deepseek-chat`/`-reasoner`/`-coder` only), **Qwen 3.6**, **Kimi K2.6/K2.7** (no Moonshot key at all), **GLM-5.1/5.2** (`glm-4-*` only), **MiniMax M3** (`abab6.5s-chat` only). The §16.6 "Items already covered or trivially closeable" bullet and the REMAINING-WORK "append-only" framing overstated status: each is a real ~1-file edit that **has not been made**. Reclassified as **open-trivial (c-series)**, ~1 file each.
+
+**2. A7 (Design Mode) is partially built, not "no implementation yet."** REMAINING-WORK / §16.7 describe A7 as design-notes-only. The working tree already ships **`vibeui/src/components/DesignMode.tsx` (708 lines)** + **`DesignAnnotationsPanel.tsx` (284 lines)**. This does **not** mean the §18.A7 cleared shape (diffcomplete-into-CDP-DOM) is done — it may be a separate design-canvas/annotation surface — but the flat "absent" claim is wrong. **Action:** audit these two components against the §18.A7 principles (no agent-controlled browser, no live DOM mutation, diffcomplete-only apply) and reclassify A7 from "open" to "partial — UI exists, patent-distance audit pending" once confirmed. Until that audit, A7 stays gated.
+
+**3. `mcp_app.rs` is a naming error in REMAINING-WORK.** The A1 backend parser is `mcp_apps.rs` + `mcp_apps_payload.rs` (commit `647b58de` resolves); there is no `mcp_app.rs`. Corrected in REMAINING-WORK "Recently Closed."
+
+**4. Headline counts were stale undercounts** — corrected in §9: 432 Rust files (not ~354), 964 skills (not 711), 393 components (not "293 + 42"), ~1,263 Tauri handler identifiers (not 1,045+). The codebase grew past the figures; none of the analysis-doc conclusions change.
+
+**5. Spot-check clean.** All 7 sampled commit hashes (`647b58de`, `e9dc09af`, `d2f9209e`, `4a9f4275`, `cea41606`, `39e95b17`, `55cf91ea`) resolve to real commits. C1 `/loop` (absent), C2 `dynamic_workflow.rs` (absent), C3 MCP Tasks/stateless (absent in `mcp_streamable.rs`), C4 WebMCP (absent in `browser_agent.rs`), C5 `effort` knob (absent in `cost_router.rs`) all confirmed still-open — the engineering remainder **A7 (now "partial") + B3 + C1–C6** is otherwise accurate.
+
+**Net effect on the scoreboard:** the *open* count is unchanged in substance, but its composition is corrected — the c-series moves from "effectively closed" to **open-trivial**, and A7 moves toward **partial**. The headline "closed-with-real-I/O ≈ 106" figure is unaffected (the c-series was never in it).
 
 ---
 

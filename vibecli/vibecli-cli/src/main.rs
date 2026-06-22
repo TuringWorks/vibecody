@@ -2939,6 +2939,9 @@ mod resume;
 mod exec_goal;
 #[allow(dead_code)]
 mod exec_goal_repl;
+// /loop — recurring + self-paced loop-until-done engine (gap C1).
+#[allow(dead_code)]
+mod loop_engine;
 // Recap & Resume — Phase D1.1: diffcomplete chain types + encrypted
 // store on workspace.db. Patent re-audit: PASS (1–5 unchanged).
 #[allow(dead_code)]
@@ -3000,6 +3003,12 @@ mod large_codebase_bench;
 mod mcp_http;
 #[allow(dead_code)]
 mod mcp_streamable;
+// MCP Tasks extension + stateless _meta (2026-07-28 RC, gap C3).
+#[allow(dead_code)]
+mod mcp_tasks;
+// ACP + MCP Registry self-listing (gap C6).
+#[allow(dead_code)]
+mod registry_listing;
 #[allow(dead_code)]
 mod mcts_repair;
 mod mobile_gateway;
@@ -5684,6 +5693,187 @@ async fn main() -> Result<()> {
                                 no_network,
                             )
                             .await?;
+                        }
+                        // ── /loop — recurring + self-paced loop-until-done (C1) ─
+                        "/loop" => {
+                            let trimmed = args.trim();
+                            let (sub, rest) = match trimmed.split_once(char::is_whitespace) {
+                                Some((s, r)) => (s, r.trim()),
+                                None => (trimmed, ""),
+                            };
+                            let path = loop_engine::loops_path();
+                            match sub {
+                                "list" => {
+                                    let jobs = loop_engine::load_jobs(&path);
+                                    if jobs.is_empty() {
+                                        println!("No loop jobs.\n");
+                                    } else {
+                                        for j in &jobs {
+                                            let p: String =
+                                                j.spec.prompt.chars().take(48).collect();
+                                            println!(
+                                                "  {}  iters {}/{}  {:?}  {}",
+                                                j.id,
+                                                j.iterations_done,
+                                                j.spec.max_iter,
+                                                j.status,
+                                                p
+                                            );
+                                        }
+                                        println!();
+                                    }
+                                }
+                                "stop" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /loop stop <id>\n");
+                                    } else {
+                                        let mut jobs = loop_engine::load_jobs(&path);
+                                        let found = jobs.iter_mut().any(|j| {
+                                            if j.id == rest {
+                                                j.status = loop_engine::LoopStatus::Stopped;
+                                                true
+                                            } else {
+                                                false
+                                            }
+                                        });
+                                        let _ = loop_engine::save_jobs(&path, &jobs);
+                                        if found {
+                                            println!("Stopped {rest} (takes effect before its next iteration).\n");
+                                        } else {
+                                            println!("No loop job with id {rest}.\n");
+                                        }
+                                    }
+                                }
+                                "status" => {
+                                    let jobs = loop_engine::load_jobs(&path);
+                                    match jobs.iter().find(|j| j.id == rest) {
+                                        Some(j) => println!(
+                                            "  {}  {:?}\n  iterations: {}/{}\n  status: {:?}\n  prompt: {}\n",
+                                            j.id, j.spec.mode, j.iterations_done, j.spec.max_iter, j.status, j.spec.prompt
+                                        ),
+                                        None => println!("No loop job with id {rest}.\n"),
+                                    }
+                                }
+                                _ => match loop_engine::parse_loop_args(trimmed) {
+                                    Err(e) => println!("{e}\n"),
+                                    Ok(spec) => {
+                                        let now = std::time::SystemTime::now()
+                                            .duration_since(std::time::UNIX_EPOCH)
+                                            .map(|d| d.as_secs())
+                                            .unwrap_or(0);
+                                        let salt = std::time::SystemTime::now()
+                                            .duration_since(std::time::UNIX_EPOCH)
+                                            .map(|d| d.subsec_nanos())
+                                            .unwrap_or(0);
+                                        let mut job = loop_engine::LoopJob::new(
+                                            loop_engine::job_id(now, salt),
+                                            spec,
+                                            now,
+                                        );
+                                        // Persist as running so `/loop list` shows it mid-run.
+                                        let mut jobs = loop_engine::load_jobs(&path);
+                                        jobs.push(job.clone());
+                                        let _ = loop_engine::save_jobs(&path, &jobs);
+
+                                        println!(
+                                            "▶ loop {} started ({:?}). Press Ctrl-C to stop.\n",
+                                            job.id, job.spec.mode
+                                        );
+                                        let start = std::time::Instant::now();
+                                        loop {
+                                            // One interruptible iteration.
+                                            let iter = tokio::select! {
+                                                r = run_agent_repl_with_context(
+                                                    llm.clone(),
+                                                    &job.spec.prompt,
+                                                    &approval_policy,
+                                                    None,
+                                                    false,
+                                                    false,
+                                                    None,
+                                                    &active_provider,
+                                                    active_model.as_deref().unwrap_or(""),
+                                                    no_network,
+                                                ) => Some(r),
+                                                _ = tokio::signal::ctrl_c() => None,
+                                            };
+                                            match iter {
+                                                None => {
+                                                    job.status = loop_engine::LoopStatus::Stopped;
+                                                    println!("\n⏹ loop {} stopped.\n", job.id);
+                                                    break;
+                                                }
+                                                Some(Err(e)) => {
+                                                    println!("iteration error: {e}");
+                                                    job.status = loop_engine::LoopStatus::Failed;
+                                                    break;
+                                                }
+                                                Some(Ok(())) => {}
+                                            }
+                                            job.iterations_done += 1;
+
+                                            // Self-paced loops consult an LLM validator each turn.
+                                            let done = if matches!(
+                                                job.spec.mode,
+                                                loop_engine::LoopMode::SelfPaced
+                                            ) {
+                                                validate_loop_done(&llm, &job.spec.prompt).await
+                                            } else {
+                                                false
+                                            };
+                                            let decision = job
+                                                .decide_next(done, start.elapsed().as_secs());
+                                            if decision != loop_engine::LoopDecision::Continue {
+                                                job.status =
+                                                    loop_engine::LoopJob::status_for(decision);
+                                                println!(
+                                                    "\n■ loop {} → {:?} after {} iteration(s).\n",
+                                                    job.id, job.status, job.iterations_done
+                                                );
+                                                break;
+                                            }
+
+                                            // Honor an external `/loop stop` between iterations.
+                                            if loop_engine::load_jobs(&path)
+                                                .iter()
+                                                .any(|j| j.id == job.id && j.status == loop_engine::LoopStatus::Stopped)
+                                            {
+                                                job.status = loop_engine::LoopStatus::Stopped;
+                                                println!("\n⏹ loop {} stopped.\n", job.id);
+                                                break;
+                                            }
+
+                                            // Recurring loops wait the interval (interruptible).
+                                            if let loop_engine::LoopMode::Recurring { interval_secs } =
+                                                job.spec.mode
+                                            {
+                                                let slept = tokio::select! {
+                                                    _ = tokio::time::sleep(
+                                                        std::time::Duration::from_secs(interval_secs),
+                                                    ) => true,
+                                                    _ = tokio::signal::ctrl_c() => false,
+                                                };
+                                                if !slept {
+                                                    job.status = loop_engine::LoopStatus::Stopped;
+                                                    println!("\n⏹ loop {} stopped.\n", job.id);
+                                                    break;
+                                                }
+                                            }
+                                        }
+
+                                        // Persist the terminal state.
+                                        let mut jobs = loop_engine::load_jobs(&path);
+                                        if let Some(existing) =
+                                            jobs.iter_mut().find(|j| j.id == job.id)
+                                        {
+                                            *existing = job.clone();
+                                        } else {
+                                            jobs.push(job.clone());
+                                        }
+                                        let _ = loop_engine::save_jobs(&path, &jobs);
+                                    }
+                                },
+                            }
                         }
                         "/plan" => {
                             if args.is_empty() {
@@ -17021,6 +17211,32 @@ async fn run_parallel_agents(
 }
 
 #[allow(clippy::too_many_arguments)]
+/// Validator for self-paced `/loop` jobs (gap C1): ask the model whether the
+/// goal is provably complete given the current repository state. Provider-
+/// agnostic — uses the same `llm` the loop runs on. Conservative: any answer
+/// that isn't an unambiguous "DONE" (or an error) keeps the loop running, so a
+/// flaky validator can never prematurely declare success.
+async fn validate_loop_done(llm: &Arc<dyn LLMProvider>, goal: &str) -> bool {
+    let messages = vec![
+        Message {
+            role: MessageRole::System,
+            content: "You are a strict completion validator for an autonomous coding loop. \
+                      Given the user's goal and the current repository state, decide whether \
+                      the goal is fully and verifiably achieved. Reply with exactly one word: \
+                      DONE if it is complete, or CONTINUE if any work remains."
+                .to_string(),
+        },
+        Message {
+            role: MessageRole::User,
+            content: format!("Goal:\n{goal}\n\nIs this goal complete? Answer DONE or CONTINUE."),
+        },
+    ];
+    match llm.chat(&messages, None).await {
+        Ok(reply) => reply.trim().to_uppercase().starts_with("DONE"),
+        Err(_) => false,
+    }
+}
+
 async fn run_agent_repl_with_context(
     llm: Arc<dyn LLMProvider>,
     task: &str,
@@ -18041,6 +18257,7 @@ fn create_raw_provider(
                 temperature: None,
                 api_key_helper,
                 thinking_budget_tokens: thinking,
+                effort: None,
             })))
         }
 

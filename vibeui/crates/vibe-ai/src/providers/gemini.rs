@@ -194,6 +194,18 @@ pub struct GenerationConfig {
     pub candidate_count: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stop_sequences: Option<Vec<String>>,
+    /// Extended-thinking budget (gap C5) — serialized as `thinkingConfig`. Only set
+    /// for thinking-capable models (Gemini 2.5+/3.x); omitted otherwise.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking_config: Option<ThinkingConfig>,
+}
+
+/// Gemini extended-thinking config, nested under `generationConfig.thinkingConfig`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThinkingConfig {
+    /// Thinking budget in tokens. `0` disables thinking.
+    pub thinking_budget: i32,
 }
 
 /// Tool declaration for function calling.
@@ -382,10 +394,28 @@ impl GeminiProvider {
                 max_output_tokens: self.config.max_tokens.map(|t| t as u32),
                 candidate_count: None,
                 stop_sequences: None,
+                thinking_config: self.thinking_config(),
             },
             safety_settings: Self::default_safety_settings(),
             tools: None,
         }
+    }
+
+    /// Build the per-request `thinkingConfig` from the effort tier (gap C5).
+    /// Only emitted for thinking-capable Gemini models (2.5+/3.x); returns
+    /// `None` for older models that would reject the field.
+    fn thinking_config(&self) -> Option<ThinkingConfig> {
+        let m = self.config.model.to_lowercase();
+        let thinking_capable = m.contains("gemini-2.5")
+            || m.contains("gemini-3")
+            || m.contains("gemini-3.1")
+            || m.contains("gemini-3.5");
+        if !thinking_capable {
+            return None;
+        }
+        self.config.effort.map(|e| ThinkingConfig {
+            thinking_budget: e.gemini_thinking_budget(),
+        })
     }
 
     /// Extract text from a successful JSON response body.
@@ -855,6 +885,7 @@ mod tests {
             max_tokens: None,
             api_key_helper: None,
             thinking_budget_tokens: None,
+            effort: None,
         }
     }
 
@@ -1316,6 +1347,7 @@ mod tests {
             max_output_tokens: None,
             candidate_count: None,
             stop_sequences: None,
+            thinking_config: None,
         };
         let json = serde_json::to_value(&cfg).unwrap();
         assert!(json.get("temperature").is_none());

@@ -47,6 +47,7 @@ pub static COMMANDS: &[&str] = &[
     "/notebook",
     "/plan",
     "/goal",
+    "/loop",
     "/plugin",
     "/profile",
     "/profiler",
@@ -189,6 +190,9 @@ pub static GOAL_SUBS: &[&str] = &[
     "new", "list", "show", "status", "link", "start", "children", "reparent", "pin", "unpin",
     "current", "delete",
 ];
+
+/// Sub-commands for `/loop <sub>` (gap C1)
+pub static LOOP_SUBS: &[&str] = &["auto", "list", "stop", "status"];
 
 /// Sub-commands for `/orchestrate <sub>`
 static ORCHESTRATE_SUBS: &[&str] = &["status", "lessons", "lesson", "todo", "verify", "reset"];
@@ -585,6 +589,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/share"    => Some("<session_id>  — print shareable URL for a session (requires vibecli serve)"),
         "/workflow" => Some("[new <name>|list|show <n>|advance <n>|check <n> <id>|generate <n>]  — Code Complete workflow"),
         "/goal"     => Some("[new <title>|list [status]|show <id>|status <id> <s>|link <id> <kind> <target>|start <id> [task]|children <id>|reparent <id> <parent>|delete <id>]  — durable execution intent"),
+        "/loop"     => Some("<interval> <prompt> | auto <prompt> | list | stop <id> | status <id>  — recurring or self-paced loop-until-done (MAX_ITER guard, Ctrl-C to stop)"),
         "/redteam"  => Some("[scan <url>|list|show <id>|report <id>|config]  — autonomous security scanning"),
         "/voice"    => Some("[transcribe <file>|speak <text>]  — voice transcription (Whisper) & TTS (ElevenLabs)"),
         "/discover" => Some("— discover VibeCLI peers on the local network"),
@@ -716,6 +721,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/schedule" => Some(SCHEDULE_SUBS),
                 "/workflow" => Some(WORKFLOW_SUBS),
                 "/goal" => Some(GOAL_SUBS),
+                "/loop" => Some(LOOP_SUBS),
                 "/orchestrate" => Some(ORCHESTRATE_SUBS),
                 "/redteam" => Some(REDTEAM_SUBS),
                 "/compliance" => Some(COMPLIANCE_SUBS),
@@ -1239,6 +1245,7 @@ mod tests {
             ("/schedule", SCHEDULE_SUBS),
             ("/workflow", WORKFLOW_SUBS),
             ("/goal", GOAL_SUBS),
+            ("/loop", LOOP_SUBS),
             ("/orchestrate", ORCHESTRATE_SUBS),
             ("/redteam", REDTEAM_SUBS),
             ("/compliance", COMPLIANCE_SUBS),
@@ -1320,6 +1327,7 @@ mod tests {
             "/share",
             "/workflow",
             "/goal",
+            "/loop",
             "/redteam",
             "/voice",
             "/discover",

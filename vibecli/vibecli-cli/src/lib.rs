@@ -19,6 +19,10 @@ pub mod doc_sync;
 pub mod issue_triage;
 pub mod mcp_http;
 pub mod mcp_streamable;
+// MCP Tasks extension + stateless _meta (2026-07-28 RC, gap C3).
+pub mod mcp_tasks;
+// ACP + MCP Registry self-listing (gap C6).
+pub mod registry_listing;
 pub mod mcp_taint;
 pub mod native_connectors;
 pub mod proactive_agent;
@@ -212,6 +216,8 @@ pub mod recap;
 pub mod resume;
 // /goal — durable execution intent. See docs/design/goal/.
 pub mod exec_goal;
+// /loop — recurring + self-paced loop-until-done engine (gap C1).
+pub mod loop_engine;
 // /goal — REPL handlers (display + direct-DB CRUD).
 pub mod exec_goal_repl;
 // Recap & Resume — Phase D1.1: diffcomplete chain types + encrypted

@@ -169,6 +169,7 @@ mod tests {
             max_tokens: None,
             api_key_helper: None,
             thinking_budget_tokens: None,
+            effort: None,
         }
     }
 
