@@ -343,6 +343,10 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::ai_chat_with_effort,
+            commands::design_emit_diff,
+            commands::security_review_file,
+            commands::webmcp_parse_tools,
+            commands::webmcp_publish_panels,
             commands::assemble_context,
             commands::read_file,
             commands::read_file_base64,

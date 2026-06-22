@@ -23,6 +23,12 @@ pub mod mcp_streamable;
 pub mod mcp_tasks;
 // ACP + MCP Registry self-listing (gap C6).
 pub mod registry_listing;
+// Opt-in always-on security review (gap B3, §18.B3 cleared shape).
+pub mod security_review_watch;
+// WebMCP browser-tool exposure (gap C4, §18.A7-shape, origin-trial gated).
+pub mod webmcp;
+// Design Mode → diffcomplete-into-DOM (gap A7, §18.A7 cleared shape).
+pub mod design_diff;
 pub mod mcp_taint;
 pub mod native_connectors;
 pub mod proactive_agent;

@@ -16932,6 +16932,126 @@ pub async fn ai_chat_with_effort(
         .map_err(|e| e.to_string())
 }
 
+/// A7 (§18.A7) — turn a clicked browser element + a natural-language instruction
+/// into a CSS/HTML **unified diff** for `DiffReviewPanel`. Never emits live-DOM
+/// mutation: the underlying parser rejects DOM-mutation payloads. Provider-
+/// agnostic and effort-aware; honors the toolbar provider/model selection.
+#[tauri::command]
+pub async fn design_emit_diff(
+    provider: String,
+    model: String,
+    selector: String,
+    source_file: String,
+    snippet: String,
+    instruction: String,
+    effort: Option<String>,
+) -> Result<vibecli_cli::design_diff::DesignDiff, String> {
+    use vibe_ai::provider::{Message, MessageRole};
+    use vibecli_cli::design_diff::{build_design_prompt, parse_design_diff, SelectedElement};
+    if provider.trim().is_empty() || model.trim().is_empty() {
+        return Err("Select a provider and model first".to_string());
+    }
+    let element = SelectedElement {
+        selector,
+        source_file,
+        snippet,
+    };
+    let prompt = build_design_prompt(&element, &instruction);
+    let provider_inst = build_temp_provider_with_effort(&provider, &model, effort.as_deref())
+        .ok_or_else(|| format!("Provider '{provider}' is not configured"))?;
+    let reply = provider_inst
+        .chat(
+            &[Message {
+                role: MessageRole::User,
+                content: prompt,
+            }],
+            None,
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    parse_design_diff(&element, &reply)
+}
+
+/// A security finding shaped for the frontend (the lib `Finding` isn't Serialize).
+#[derive(serde::Serialize)]
+pub struct SecurityFindingDto {
+    pub severity: String,
+    pub message: String,
+    pub file: Option<String>,
+    pub line: Option<usize>,
+    pub suggestion: Option<String>,
+}
+
+/// B3 (§18.B3) — run an opt-in security review over one file's contents and
+/// return standard findings for the existing `ReviewPanel`. On-demand entry
+/// point the daemon's opt-in file-watcher also calls; acting on a finding is an
+/// explicit user diffcomplete, never an auto-applied fix.
+#[tauri::command]
+pub async fn security_review_file(
+    provider: String,
+    model: String,
+    file: String,
+    contents: String,
+    effort: Option<String>,
+) -> Result<Vec<SecurityFindingDto>, String> {
+    use vibe_ai::provider::{Message, MessageRole};
+    use vibecli_cli::security_review_watch::{build_review_prompt, parse_findings, SecurityReviewConfig};
+    use vibecli_cli::self_review::Severity;
+    if provider.trim().is_empty() || model.trim().is_empty() {
+        return Err("Select a provider and model first".to_string());
+    }
+    let prompt = build_review_prompt(&file, &contents);
+    let provider_inst = build_temp_provider_with_effort(&provider, &model, effort.as_deref())
+        .ok_or_else(|| format!("Provider '{provider}' is not configured"))?;
+    let reply = provider_inst
+        .chat(
+            &[Message {
+                role: MessageRole::User,
+                content: prompt,
+            }],
+            None,
+        )
+        .await
+        .map_err(|e| e.to_string())?;
+    // On-demand invocation reports everything; the daemon watcher applies the
+    // workspace `min_severity` from config when running unattended.
+    let cfg = SecurityReviewConfig {
+        enabled: true,
+        min_severity: Severity::Info,
+        ..Default::default()
+    };
+    Ok(parse_findings(&file, &reply, &cfg)
+        .into_iter()
+        .map(|f| SecurityFindingDto {
+            severity: f.severity.as_str().to_string(),
+            message: f.message,
+            file: f.file,
+            line: f.line,
+            suggestion: f.suggestion,
+        })
+        .collect())
+}
+
+/// C4 (§18.A7-shape) — parse the WebMCP tool descriptors a page advertises.
+/// Pure parsing; consumer invocation is gated separately behind the origin-trial
+/// flag and surfaced for explicit user confirmation.
+#[tauri::command]
+pub fn webmcp_parse_tools(json: String) -> Vec<vibecli_cli::webmcp::WebMcpTool> {
+    vibecli_cli::webmcp::parse_advertised_tools(&json)
+}
+
+/// C4 producer — publish selected VibeUI panels as WebMCP tools (read/affordance
+/// only; the agent never mutates the live DOM). Returns the `{"tools":[...]}`
+/// payload VibeUI hands a page's `window.agent`.
+#[tauri::command]
+pub fn webmcp_publish_panels(panels: Vec<(String, String)>) -> String {
+    let tools: Vec<vibecli_cli::webmcp::WebMcpTool> = panels
+        .iter()
+        .map(|(id, desc)| vibecli_cli::webmcp::panel_as_tool(id, desc, &[]))
+        .collect();
+    vibecli_cli::webmcp::publish_tools(&tools)
+}
+
 /// Call a single provider with a prompt and return a `ModelResponse`.
 async fn call_provider(provider_type: &str, model: &str, prompt: &str) -> ModelResponse {
     use vibe_ai::provider::{Message, MessageRole};
