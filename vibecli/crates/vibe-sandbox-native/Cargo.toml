@@ -15,7 +15,7 @@ path = "../vibe-broker"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 # Wired in slice N1.x. Listed here so the cfg-gated module compiles cleanly.
-nix = { version = "0.29", features = ["fs", "process", "user", "signal"] }
+nix = { version = "0.31", features = ["fs", "process", "user", "signal"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 # Wired in slice N3.x.
