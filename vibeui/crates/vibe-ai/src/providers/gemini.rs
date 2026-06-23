@@ -413,8 +413,18 @@ impl GeminiProvider {
         if !thinking_capable {
             return None;
         }
-        self.config.effort.map(|e| ThinkingConfig {
-            thinking_budget: e.gemini_thinking_budget(),
+        // Gemini *Pro* models cannot disable thinking — the API rejects
+        // thinkingBudget 0 (range 128–32768). Only Flash accepts 0. So on the
+        // Low tier (budget 0), clamp Pro to the documented minimum (128).
+        let is_pro = m.contains("pro");
+        self.config.effort.map(|e| {
+            let mut budget = e.gemini_thinking_budget();
+            if is_pro && budget < 128 {
+                budget = 128;
+            }
+            ThinkingConfig {
+                thinking_budget: budget,
+            }
         })
     }
 
@@ -887,6 +897,40 @@ mod tests {
             thinking_budget_tokens: None,
             effort: None,
         }
+    }
+
+    // ── effort → thinkingConfig (gap C5) ────────────────────────────────
+
+    #[test]
+    fn effort_low_clamps_pro_thinking_budget_to_min() {
+        // test_config() uses gemini-2.5-pro, which cannot disable thinking.
+        let mut cfg = test_config();
+        cfg.effort = Some(crate::provider::Effort::Low);
+        let req = GeminiProvider::new(cfg).build_request(&[], None);
+        let tc = req
+            .generation_config
+            .thinking_config
+            .expect("pro is thinking-capable");
+        assert_eq!(tc.thinking_budget, 128, "Low must clamp Pro to the 128 minimum, not 0");
+    }
+
+    #[test]
+    fn effort_low_allows_zero_budget_on_flash() {
+        let mut cfg = test_config();
+        cfg.model = "gemini-3.5-flash".into();
+        cfg.effort = Some(crate::provider::Effort::Low);
+        let req = GeminiProvider::new(cfg).build_request(&[], None);
+        let tc = req
+            .generation_config
+            .thinking_config
+            .expect("3.5-flash is thinking-capable");
+        assert_eq!(tc.thinking_budget, 0, "Flash may disable thinking on Low");
+    }
+
+    #[test]
+    fn no_thinking_config_without_effort() {
+        let req = GeminiProvider::new(test_config()).build_request(&[], None);
+        assert!(req.generation_config.thinking_config.is_none());
     }
 
     // ── config defaults ─────────────────────────────────────────────────

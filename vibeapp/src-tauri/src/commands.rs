@@ -69,6 +69,7 @@ pub async fn start_agent_session(
     provider: String,
     model: Option<String>,
     token: Option<String>,
+    effort: Option<String>,
 ) -> Result<String, String> {
     let agent_url = format!("{}/agent", url.trim_end_matches('/'));
     let client = reqwest::Client::new();
@@ -80,6 +81,14 @@ pub async fn start_agent_session(
     if let Some(m) = &model {
         if !m.is_empty() {
             body["model"] = serde_json::Value::String(m.clone());
+        }
+    }
+    // C5: forward the per-request effort tier as the daemon's `reasoning` field,
+    // which resolves to the unified Effort (Claude/Gemini thinking budget,
+    // OpenAI reasoning_effort). Omitted/empty → daemon/provider default.
+    if let Some(e) = &effort {
+        if !e.is_empty() {
+            body["reasoning"] = serde_json::Value::String(e.clone());
         }
     }
     let mut req = client.post(&agent_url).json(&body);

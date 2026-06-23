@@ -85,6 +85,11 @@ vibecli --provider gemini
 | `--serve` | false | Run as HTTP daemon (REST + SSE API — powers VibeUI, VibeMobile, VibeWatch) |
 | `--port <n>` | `7878` | Port for `--serve` |
 | `--bind <addr>` | `127.0.0.1` | Bind address for `--serve`; use `0.0.0.0` to expose to LAN |
+| `--registry <kind>` | `all` | Print the ACP agent-card / MCP Registry server entry for a registry-submission PR: `acp`, `mcp`, or `all` |
+
+### Reasoning effort
+
+VibeCody exposes a provider-agnostic **effort** tier — `low`, `medium`, `high` (default), `xhigh` — that maps onto each provider's native reasoning knob: Claude/Gemini extended-thinking token budget, OpenAI `reasoning_effort`. In VibeUI it's the toolbar dropdown next to the provider selector; on the daemon `/agent` endpoint it's the `reasoning` request field; providers without a reasoning dial ignore it gracefully. Higher tiers also bias `cost_router` toward stronger models. (Gemini *Pro* models can't fully disable thinking, so `low` uses the 128-token minimum there.)
 
 ## TUI Commands
 
@@ -140,6 +145,11 @@ In REPL mode, the following slash commands are available:
 | `/goal current [--global]` | Print the currently pinned goal for this workspace |
 | `/goal delete <id>` | Hard-delete a goal (links cascade) |
 | `/goal plan <id>` | Generate / refresh an `ExecutionPlan` (requires `vibecli serve`) |
+| `/loop <interval> <prompt>` | Re-run a prompt on a cadence (`30s`, `5m`, `1h`) until stopped/expired (e.g. `/loop 5m run the tests`) |
+| `/loop auto <prompt>` | Self-paced loop: re-run until an LLM validator says the task is done, bounded by a `MAX_ITER` guard (20) + wall-clock budget. `--until-done` is an alias. Ctrl-C stops it. |
+| `/loop list` | List loop jobs (id, iterations, status) |
+| `/loop stop <id>` | Stop a loop job before its next iteration |
+| `/loop status <id>` | Show a loop job's mode, iterations, and status |
 | `/redteam scan <url>` | Start an autonomous red team scan against a target URL |
 | `/redteam list` | List all red team sessions |
 | `/redteam show <id>` | Display findings for a session |

@@ -1285,9 +1285,17 @@ async fn start_agent(
     // the configured default — often `qwen3-coder:480b-cloud`, a cloud model
     // that 500s. Fall back to the daemon default when unspecified or when the
     // override can't be built (missing key / unknown provider).
+    // C5: the VX-111 reasoning label also resolves to the unified Effort tier so
+    // OpenAI (`reasoning_effort`) and Gemini (`thinkingConfig`) get their proper
+    // knobs, not just Claude's thinking budget. `None`/unknown → provider default.
+    let req_effort = req
+        .reasoning
+        .as_deref()
+        .and_then(vibe_ai::provider::Effort::parse);
     let provider = match (req.provider.as_deref(), req.model.as_deref()) {
         (Some(p), Some(m)) if !p.is_empty() && !m.is_empty() => {
-            build_provider_override(p, m).unwrap_or_else(|| state.provider.clone())
+            build_provider_override_with_effort(p, m, req_effort)
+                .unwrap_or_else(|| state.provider.clone())
         }
         _ => state.provider.clone(),
     };
@@ -4695,6 +4703,17 @@ fn build_provider_override(
     provider_type: &str,
     model: &str,
 ) -> Option<Arc<dyn vibe_ai::provider::AIProvider>> {
+    build_provider_override_with_effort(provider_type, model, None)
+}
+
+/// Like [`build_provider_override`] but threads a per-request effort tier
+/// (gap C5) onto the provider config. Provider-agnostic: Claude/Gemini map it to
+/// an extended-thinking budget, OpenAI to `reasoning_effort`; others ignore it.
+fn build_provider_override_with_effort(
+    provider_type: &str,
+    model: &str,
+    effort: Option<vibe_ai::provider::Effort>,
+) -> Option<Arc<dyn vibe_ai::provider::AIProvider>> {
     use vibe_ai::provider::ProviderConfig;
     use vibe_ai::providers;
 
@@ -4740,6 +4759,7 @@ fn build_provider_override(
         provider_type: provider_type.to_string(),
         api_key,
         model: model.to_string(),
+        effort,
         ..Default::default()
     };
 

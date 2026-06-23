@@ -10,6 +10,19 @@ All notable changes to VibeCody are documented here. This project follows [Seman
 
 ## [Unreleased]
 
+### Added
+
+- **Phase 55 fit-gap closures — `feat/bridge-cgap-fitgap-gaps`** — eight competitive-parity gaps from the v15 delta shipped as compiling, unit + BDD-tested code (full ledger in [docs/REMAINING-WORK.md → Implemented this cycle](./remaining-work/)):
+  - **C5 · Per-request effort knob** — provider-agnostic `Effort` (`low|medium|high|xhigh`, default `high`) in `vibe-ai/provider.rs`, mapped per provider: Claude/Gemini extended-thinking budget, OpenAI `reasoning_effort` (clamped to "high"). Wired through `ProviderConfig.effort`, `cost_router::route_task_with_effort`, the daemon `/agent` path (`serve.rs`, via the VX-111 `reasoning` label), the `ai_chat_with_effort` Tauri command, `vibeapp` `start_agent_session`, and a VibeUI toolbar selector (`utils/effort.ts`). **Fix:** Gemini *Pro* models can't disable thinking — `Effort::Low` now clamps Pro to the 128-token minimum instead of emitting an API-rejected `thinkingBudget: 0`. BDD: `effort_bdd` (5 scenarios).
+  - **C1 · `/loop`** — recurring (`/loop 5m <prompt>`) and self-paced (`/loop auto <prompt>`, loop-until-done) REPL command with a `MAX_ITER` guard (20), wall-clock auto-expiry, job IDs, Ctrl-C stop, an LLM done-validator, and `list`/`stop`/`status` + JSON persistence (`loop_engine.rs`). BDD: `loop_engine_bdd` (6 scenarios).
+  - **C3 · MCP Tasks extension + stateless transport** (2026-07-28 RC) — `tasks/get|update|cancel` registry with a `Working→…→Completed/Failed/Cancelled` state machine, plus stateless `_meta` (`RequestMeta`) and a `stateless` flag on `StreamableHttpConfig` (`mcp_tasks.rs`). BDD: `mcp_tasks_bdd` (5 scenarios).
+  - **C6 · ACP + MCP Registry self-listing** — `vibecli --registry <acp|mcp|all>` emits the ACP agent-card / MCP Registry v0.1 server entry from one versioned identity (`registry_listing.rs`).
+  - **A7 · Design-Mode diffcomplete** (§18.A7 cleared shape) — clicked element + instruction → a CSS/HTML **unified diff** for `DiffReviewPanel`; rejects live-DOM-mutation payloads. Tauri `design_emit_diff` (`design_diff.rs`).
+  - **B3 · Opt-in security review** (§18.B3 cleared shape) — default-OFF watcher that emits standard `self_review::Finding` records (no auto-apply). Tauri `security_review_file` (`security_review_watch.rs`).
+  - **C4 · WebMCP** (§18.A7-shape, origin-trial gated) — consumer (parse/validate site tools) + producer (panel→tool, read-only). Tauri `webmcp_parse_tools` / `webmcp_publish_panels` (`webmcp.rs`).
+  - **c-series model registry** — added Claude Opus 4.8, Gemini 3.5 Pro/Flash, DeepSeek V4, Qwen 3.6, Kimi K2.7 Code (via OpenRouter), GLM-5.2, MiniMax M3 to `useModelRegistry.ts` with updated defaults; Fable 5 / Mythos 5 omitted (export-suspended 2026-06-12).
+  - Follow-ups still open: UI panels (`/loop` Automations, Design-Mode wiring, SecurityPanel), daemon/live-transport loops (B3 always-on watcher, C3 live MCP dispatch, C4 `browser_agent` CDP), C5 streaming-path propagation, and C2 (dynamic large-scale workflow primitive).
+
 ### Changed
 
 - **Mobile · Flutter toolchain floor** — raised the CI/release Flutter pin from `3.29.3` to `3.44.2` (Dart 3.7 → ≥3.10) and the `vibemobile` Dart SDK floor to `^3.8.0`, to support `flutter_lints` 6.0.0 (requires Dart `^3.8.0`) and the regenerated lockfile (resolved deps require Flutter ≥3.38.4 / Dart ≥3.10.3). `FLUTTER_VERSION` updated in `ci.yml` and `release.yml`; platform-requirements table in `docs/vibemobile.md` updated to match.
