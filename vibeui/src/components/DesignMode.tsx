@@ -10,6 +10,8 @@ import { DrawioEditorPanel } from "./DrawioEditorPanel";
 import { PencilPanel } from "./PencilPanel";
 import { PenpotPanel } from "./PenpotPanel";
 import { DiagramGeneratorPanel } from "./DiagramGeneratorPanel";
+import { PROVIDER_DEFAULT_MODEL } from "../hooks/useModelRegistry";
+import { getSelectedEffort } from "../utils/effort";
 
 interface DesignModeProps {
   workspacePath: string | null;
@@ -95,6 +97,12 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
   const [visualEditEnabled, setVisualEditEnabled] = useState(false);
   const [selectedElement, setSelectedElement] = useState<SelectedElement | null>(null);
   const [aiInstruction, setAiInstruction] = useState("");
+  // A7 (§18.A7 cleared shape): diffcomplete-into-DOM. Instruction + element →
+  // a CSS/HTML unified diff (never a live-DOM mutation), shown for explicit apply.
+  const [diffInstruction, setDiffInstruction] = useState("");
+  const [designDiff, setDesignDiff] = useState<string | null>(null);
+  const [diffLoading, setDiffLoading] = useState(false);
+  const [diffError, setDiffError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationResult, setGenerationResult] = useState("");
   const [previewSrcdoc, setPreviewSrcdoc] = useState<string | null>(null);
@@ -280,6 +288,40 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
       setGenerationResult(result);
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  // A7 cleared shape: emit a CSS/HTML unified diff for the selected element.
+  // The backend (`design_emit_diff`) rejects live-DOM-mutation payloads, so the
+  // agent can only ever propose a source diff the user explicitly applies.
+  const handleEmitDiff = async () => {
+    if (!selectedElement || !diffInstruction.trim()) return;
+    if (!provider) {
+      setDiffError("Select a provider in the toolbar first.");
+      return;
+    }
+    setDiffLoading(true);
+    setDiffError(null);
+    setDesignDiff(null);
+    try {
+      const result = await invoke<{ source_file: string; unified_diff: string }>(
+        "design_emit_diff",
+        {
+          provider,
+          model: PROVIDER_DEFAULT_MODEL[provider] ?? "",
+          selector: selectedElement.selector,
+          // Best-effort source label: the React component name when known.
+          sourceFile: selectedElement.reactComponent ?? selectedElement.selector,
+          snippet: selectedElement.outerHTML,
+          instruction: diffInstruction,
+          effort: getSelectedEffort(),
+        },
+      );
+      setDesignDiff(result.unified_diff || "(no change needed)");
+    } catch (e) {
+      setDiffError(String(e));
+    } finally {
+      setDiffLoading(false);
     }
   };
 
@@ -524,6 +566,42 @@ export function DesignMode({ workspacePath, provider }: DesignModeProps) {
           <pre style={{ fontSize: "var(--font-size-sm)", overflow: "auto", maxHeight: 200, whiteSpace: "pre", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 10, border: "1px solid var(--border-color)" }}>
             {selectedElement.outerHTML}
           </pre>
+
+          {/* A7 — diffcomplete: instruction → unified diff (no live DOM mutation) */}
+          <div style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--border-color)" }}>
+            <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 6 }}>
+              Describe a change — get a reviewable diff
+            </div>
+            <input
+              type="text"
+              value={diffInstruction}
+              onChange={(e) => setDiffInstruction(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleEmitDiff(); }}
+              placeholder='e.g. "make the button green and larger"'
+              style={{ width: "100%", padding: 8, fontSize: "var(--font-size-md)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", background: "var(--bg-primary)", color: "var(--text-primary)", boxSizing: "border-box" }}
+            />
+            <button
+              onClick={handleEmitDiff}
+              disabled={diffLoading || !diffInstruction.trim()}
+              style={{ marginTop: 8, padding: "6px 14px", fontSize: "var(--font-size-md)", borderRadius: "var(--radius-sm)", border: "none", background: "var(--accent-color)", color: "#fff", cursor: diffLoading ? "default" : "pointer", opacity: diffLoading || !diffInstruction.trim() ? 0.6 : 1 }}
+            >
+              {diffLoading ? "Generating…" : "Generate diff (⌘.)"}
+            </button>
+            {diffError && (
+              <div style={{ marginTop: 8, fontSize: "var(--font-size-sm)", color: "var(--text-error, #e55)" }}>{diffError}</div>
+            )}
+            {designDiff && (
+              <div style={{ marginTop: 10 }}>
+                <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4 }}>
+                  Proposed diff — review and apply in the diff panel
+                </div>
+                <pre style={{ fontSize: "var(--font-size-sm)", overflow: "auto", maxHeight: 320, whiteSpace: "pre", background: "var(--bg-secondary)", borderRadius: "var(--radius-sm)", padding: 10, border: "1px solid var(--border-color)" }}>
+                  {designDiff}
+                </pre>
+              </div>
+            )}
+          </div>
+
           {generationResult && (
             <div style={{ marginTop: 12 }}>
               <div style={{ fontSize: "var(--font-size-base)", color: "var(--text-secondary)", marginBottom: 4 }}>Edit Result</div>
