@@ -789,6 +789,77 @@ impl BrowserSession {
         Ok(Self::extract_js_value(&result))
     }
 
+    // ── C4: WebMCP over CDP (§18.A7-shape, origin-trial gated) ──────────────
+
+    /// C4 consumer — discover the WebMCP tools the current page advertises.
+    /// Probes the known WebMCP surfaces (`window.agent.tools`,
+    /// `navigator.modelContext.tools`) and parses the descriptors via
+    /// [`crate::webmcp`]. Returns an empty list when WebMCP is disabled (the
+    /// origin-trial flag is off) so it's a safe no-op behind the flag.
+    pub async fn discover_webmcp_tools(
+        &mut self,
+        flag: crate::webmcp::WebMcpFlag,
+    ) -> Result<Vec<crate::webmcp::WebMcpTool>> {
+        if !flag.enabled() {
+            return Ok(Vec::new());
+        }
+        let js = r#"(() => {
+            const t = (window.agent && window.agent.tools)
+                || (navigator.modelContext && navigator.modelContext.tools)
+                || (window.__webmcp && window.__webmcp.tools)
+                || [];
+            try { return JSON.stringify({ tools: t }); } catch (e) { return '{"tools":[]}'; }
+        })()"#;
+        let json = self.evaluate_js(js).await?;
+        Ok(crate::webmcp::parse_advertised_tools(&json))
+    }
+
+    /// C4 consumer — call a discovered WebMCP tool over CDP. The invocation is
+    /// first validated by [`crate::webmcp::build_invocation`] (flag on + required
+    /// params present), so a malformed or disabled call never reaches the page.
+    /// The agent invokes the page-author-provided tool function — it never
+    /// mutates the DOM directly (§18.A7 #7). Returns the tool's JSON result.
+    pub async fn call_webmcp_tool(
+        &mut self,
+        flag: crate::webmcp::WebMcpFlag,
+        tools: &[crate::webmcp::WebMcpTool],
+        tool_name: &str,
+        args: &[(String, String)],
+    ) -> Result<String> {
+        let inv = crate::webmcp::build_invocation(flag, tools, tool_name, args)
+            .map_err(|e| anyhow::anyhow!(e))?;
+        let mut obj = serde_json::Map::new();
+        for (k, v) in &inv.args {
+            obj.insert(k.clone(), serde_json::Value::String(v.clone()));
+        }
+        let args_json = serde_json::Value::Object(obj).to_string();
+        let name_json = serde_json::Value::String(inv.tool).to_string();
+        let js = format!(
+            r#"(async () => {{
+                const reg = (window.agent && window.agent.callTool) ? window.agent
+                    : (navigator.modelContext && navigator.modelContext.callTool) ? navigator.modelContext
+                    : null;
+                if (!reg) return JSON.stringify({{ error: 'page exposes no WebMCP callTool' }});
+                try {{ const r = await reg.callTool({name_json}, {args_json}); return JSON.stringify(r ?? null); }}
+                catch (e) {{ return JSON.stringify({{ error: String(e) }}); }}
+            }})()"#
+        );
+        self.evaluate_js(&js).await
+    }
+
+    /// C4 producer — publish VibeUI panel tools to the page's WebMCP surface as
+    /// `window.__vibeWebMcp` (read/affordance only; no live DOM mutation). The
+    /// page's agent can then enumerate/call them.
+    pub async fn publish_webmcp_tools(
+        &mut self,
+        tools: &[crate::webmcp::WebMcpTool],
+    ) -> Result<()> {
+        let payload = crate::webmcp::publish_tools(tools);
+        let js = format!("window.__vibeWebMcp = {payload}; 'ok'");
+        self.evaluate_js(&js).await?;
+        Ok(())
+    }
+
     /// Wait for a CSS selector to appear in the DOM, polling until timeout.
     pub async fn wait_for_selector(&mut self, selector: &str, timeout_ms: u64) -> Result<bool> {
         info!(selector = %selector, timeout_ms, "Waiting for selector");
