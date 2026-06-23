@@ -5318,6 +5318,7 @@ pub async fn start_agent_task(
     approval_policy: String,
     provider: String,
     tab_id: Option<String>,
+    effort: Option<String>,
     app_handle: tauri::AppHandle,
     state: tauri::State<'_, AppState>,
 ) -> Result<(), String> {
@@ -5351,6 +5352,12 @@ pub async fn start_agent_task(
             .active_provider()
             .ok_or("No active provider")?
             .clone()
+    };
+
+    // C5: apply the per-request effort tier to the agent's provider.
+    let provider_arc = match effort.as_deref().and_then(vibe_ai::provider::Effort::parse) {
+        Some(e) => provider_arc.with_effort(e).unwrap_or(provider_arc),
+        None => provider_arc,
     };
 
     // Get workspace root
@@ -5886,6 +5893,7 @@ pub async fn resume_agent_task(
         approval_policy,
         provider,
         None,
+        None, // effort: resume runs use the provider default
         app_handle,
         state,
     )

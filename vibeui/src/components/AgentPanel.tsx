@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { flowContext } from "../utils/FlowContext";
 import { runLinter, formatLintForAgent } from "../utils/LinterIntegration";
+import { getSelectedEffort } from "../utils/effort";
 import { useToast } from "../hooks/useToast";
 import { Toaster } from "./Toaster";
 import { AgentUIRenderer, parseVibeUIBlocks, stripVibeUIBlocks } from "./AgentUIRenderer";
@@ -245,6 +246,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
      task: task.trim(),
      approvalPolicy,
      provider,
+     effort: getSelectedEffort(),
    });
  }
  } catch (e) {
@@ -304,6 +306,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
      task: task.trim(),
      approvalPolicy,
      provider,
+     effort: getSelectedEffort(),
    });
  } catch (e) {
    setStatus("error");
@@ -321,6 +324,7 @@ export function AgentPanel({ provider, workspacePath }: AgentPanelProps) {
  task: message,
  approvalPolicy,
  provider,
+ effort: getSelectedEffort(),
  }).catch((e) => {
  toast.error(`Action failed: ${e}`);
  });

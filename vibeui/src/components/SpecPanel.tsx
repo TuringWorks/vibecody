@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Loader2 } from "lucide-react";
+import { getSelectedEffort } from "../utils/effort";
 
 interface SpecTask {
  id: number;
@@ -128,7 +129,7 @@ export function SpecPanel({ workspacePath, provider = "ollama" }: SpecPanelProps
  return;
  }
  // kick off the agent with the spec task
- await invoke("start_agent_task", { task: taskPrompt, approvalPolicy: "auto-edit", provider });
+ await invoke("start_agent_task", { task: taskPrompt, approvalPolicy: "auto-edit", provider, effort: getSelectedEffort() });
  } catch (e) {
  setError(String(e));
  } finally {

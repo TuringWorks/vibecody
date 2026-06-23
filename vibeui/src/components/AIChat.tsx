@@ -1892,6 +1892,7 @@ export function AIChat({
           approvalPolicy: "suggest",
           provider,
           tabId: sessionId ?? null,
+          effort: getSelectedEffort(),
         });
       } catch (error) {
         agentRunOwnerRef.current = false;
