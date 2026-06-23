@@ -17082,6 +17082,33 @@ pub fn webmcp_publish_panels(panels: Vec<(String, String)>) -> String {
     vibecli_cli::webmcp::publish_tools(&tools)
 }
 
+/// C1 — list persisted `/loop` jobs from `~/.vibecli/loops.json`. Loop jobs run
+/// in the CLI REPL process; VibeUI is a viewer/manager. Returns `[]` when none.
+#[tauri::command]
+pub fn list_loop_jobs() -> Vec<vibecli_cli::loop_engine::LoopJob> {
+    vibecli_cli::loop_engine::load_jobs(&vibecli_cli::loop_engine::loops_path())
+}
+
+/// C1 — request a `/loop` job stop by marking it `Stopped` in the shared store;
+/// the REPL loop honors this before its next iteration. Returns true if found.
+#[tauri::command]
+pub fn stop_loop_job(id: String) -> bool {
+    let path = vibecli_cli::loop_engine::loops_path();
+    let mut jobs = vibecli_cli::loop_engine::load_jobs(&path);
+    let found = jobs.iter_mut().any(|j| {
+        if j.id == id {
+            j.status = vibecli_cli::loop_engine::LoopStatus::Stopped;
+            true
+        } else {
+            false
+        }
+    });
+    if found {
+        let _ = vibecli_cli::loop_engine::save_jobs(&path, &jobs);
+    }
+    found
+}
+
 /// Call a single provider with a prompt and return a `ModelResponse`.
 async fn call_provider(provider_type: &str, model: &str, prompt: &str) -> ModelResponse {
     use vibe_ai::provider::{Message, MessageRole};
