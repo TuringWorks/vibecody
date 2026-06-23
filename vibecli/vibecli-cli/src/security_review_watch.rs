@@ -23,7 +23,8 @@
 //! without a watcher or a provider.
 
 use crate::self_review::{CheckKind, Finding, Severity};
-use std::path::Path;
+use crate::file_watcher::ChangeBatch;
+use std::path::{Path, PathBuf};
 
 /// Workspace configuration for opt-in security review. **Disabled by default.**
 #[derive(Debug, Clone, PartialEq)]
@@ -60,6 +61,27 @@ impl SecurityReviewConfig {
         }
         let name = path.to_string_lossy();
         self.watched_suffixes.iter().any(|s| name.ends_with(s))
+    }
+
+    /// The always-on bridge (§18.B3): from a [`ChangeBatch`] the file-watcher
+    /// flushed, return the changed files that should be security-reviewed —
+    /// honoring the opt-in gate + suffix filter. Empty when disabled, so the
+    /// daemon's watcher loop is a no-op until a user opts the workspace in. The
+    /// daemon then runs [`build_review_prompt`] + the LLM + [`parse_findings`]
+    /// per returned path and surfaces the findings in the existing ReviewPanel.
+    pub fn review_targets(&self, batch: &ChangeBatch) -> Vec<PathBuf> {
+        if !self.enabled {
+            return Vec::new();
+        }
+        let mut targets: Vec<PathBuf> = batch
+            .changed_paths()
+            .into_iter()
+            .filter(|p| self.should_review(p))
+            .cloned()
+            .collect();
+        // Deterministic order so repeated batches review in a stable sequence.
+        targets.sort();
+        targets
     }
 }
 
@@ -189,6 +211,34 @@ mod tests {
         let findings = parse_findings("f.rs", out, &cfg);
         assert_eq!(findings.len(), 1);
         assert_eq!(findings[0].severity, Severity::Error);
+    }
+
+    #[test]
+    fn review_targets_gates_a_change_batch() {
+        use crate::file_watcher::{ChangeBatch, ChangeKind, FileChangeEvent};
+        use std::time::Instant;
+        let batch = ChangeBatch {
+            events: vec![
+                FileChangeEvent::new("src/auth.rs", ChangeKind::Modified),
+                FileChangeEvent::new("README.md", ChangeKind::Modified),
+                FileChangeEvent::new("src/db.rs", ChangeKind::Created),
+            ],
+            window_start: Instant::now(),
+            window_end: Instant::now(),
+        };
+
+        // Disabled → no targets (the daemon loop is a no-op until opt-in).
+        let off = SecurityReviewConfig::default();
+        assert!(off.review_targets(&batch).is_empty());
+
+        // Opt-in, .rs only → the two Rust files, sorted, README excluded.
+        let on = SecurityReviewConfig {
+            enabled: true,
+            watched_suffixes: vec![".rs".into()],
+            ..Default::default()
+        };
+        let targets = on.review_targets(&batch);
+        assert_eq!(targets, vec![PathBuf::from("src/auth.rs"), PathBuf::from("src/db.rs")]);
     }
 
     #[test]
