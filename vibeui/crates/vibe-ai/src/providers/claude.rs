@@ -485,6 +485,15 @@ impl AIProvider for ClaudeProvider {
             .map(|c| c.text.clone())
             .context("No content in Claude vision response")
     }
+
+    fn with_effort(
+        &self,
+        effort: crate::provider::Effort,
+    ) -> Option<std::sync::Arc<dyn AIProvider>> {
+        let mut cfg = self.config.clone();
+        cfg.effort = Some(effort);
+        Some(std::sync::Arc::new(ClaudeProvider::new(cfg)))
+    }
 }
 
 #[cfg(test)]

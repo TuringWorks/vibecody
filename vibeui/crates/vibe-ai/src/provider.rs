@@ -307,6 +307,18 @@ pub trait AIProvider: Send + Sync {
     fn supports_vision(&self) -> bool {
         false
     }
+
+    /// Return a clone of this provider with a per-request effort tier applied
+    /// (gap C5), or `None` if this provider has no reasoning knob.
+    ///
+    /// Lets the streaming chat path honor the toolbar effort selector without a
+    /// model round-trip: the engine's already-configured provider (keys + model)
+    /// is cloned with `effort` set. The reasoning-capable providers (Claude,
+    /// OpenAI, Gemini) override this; everything else returns `None` and the
+    /// caller keeps the original provider (effort is a graceful no-op there).
+    fn with_effort(&self, _effort: Effort) -> Option<std::sync::Arc<dyn AIProvider>> {
+        None
+    }
 }
 
 /// AI provider configuration

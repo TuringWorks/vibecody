@@ -822,6 +822,15 @@ impl AIProvider for GeminiProvider {
 
         Self::parse_response(&body).map_err(|e| anyhow::anyhow!("{}", e))
     }
+
+    fn with_effort(
+        &self,
+        effort: crate::provider::Effort,
+    ) -> Option<std::sync::Arc<dyn AIProvider>> {
+        let mut cfg = self.config.clone();
+        cfg.effort = Some(effort);
+        Some(std::sync::Arc::new(GeminiProvider::new(cfg)))
+    }
 }
 
 // ─── Streaming helpers ─────────────────────────────────────────────────────

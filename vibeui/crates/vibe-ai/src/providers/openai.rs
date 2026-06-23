@@ -434,6 +434,15 @@ impl AIProvider for OpenAIProvider {
             other => Ok(other.to_string()),
         }
     }
+
+    fn with_effort(
+        &self,
+        effort: crate::provider::Effort,
+    ) -> Option<std::sync::Arc<dyn AIProvider>> {
+        let mut cfg = self.config.clone();
+        cfg.effort = Some(effort);
+        Some(std::sync::Arc::new(OpenAIProvider::new(cfg)))
+    }
 }
 
 #[cfg(test)]

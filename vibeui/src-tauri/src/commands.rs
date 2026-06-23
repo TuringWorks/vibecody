@@ -3028,6 +3028,10 @@ pub struct ChatRequest {
     /// Human-readable tab title (e.g. "Ember Ridge") — used as session task name.
     #[serde(default)]
     pub session_title: Option<String>,
+    /// Per-request reasoning effort tier (gap C5): `low|medium|high|xhigh`.
+    /// Maps to the active provider's reasoning knob; absent/unknown → default.
+    #[serde(default)]
+    pub effort: Option<String>,
 }
 
 #[derive(Serialize, Clone)]
@@ -3225,6 +3229,19 @@ pub async fn stream_chat_message(
             .active_provider()
             .ok_or_else(|| "No active provider".to_string())?
             .clone()
+    };
+
+    // C5: apply the per-request effort tier. The engine's provider already has
+    // the resolved keys + model; `with_effort` clones its config with the tier
+    // set (Claude/Gemini thinking budget, OpenAI reasoning_effort). Providers
+    // with no reasoning knob return None and we keep the original — graceful.
+    let provider = match request
+        .effort
+        .as_deref()
+        .and_then(vibe_ai::provider::Effort::parse)
+    {
+        Some(eff) => provider.with_effort(eff).unwrap_or(provider),
+        None => provider,
     };
 
     // Inject system prompt (same as send_chat_message)

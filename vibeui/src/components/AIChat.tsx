@@ -7,6 +7,7 @@ import { useWatchSync, WatchMessage as WatchSyncMessage } from "../hooks/useWatc
 import { ContextPicker } from "./ContextPicker";
 import { McpAppEmbed, type McpAppPayload } from "./McpAppEmbed";
 import { flowContext } from "../utils/FlowContext";
+import { getSelectedEffort } from "../utils/effort";
 import { Mic, User, Paperclip, X, FileText, Loader2, Download, ZoomIn } from "lucide-react";
 import "./AIChat.css";
 
@@ -1482,6 +1483,7 @@ export function AIChat({
             attachments: [],
             session_id: sessionIdRef.current ?? null,
             session_title: sessionTitleRef.current ?? null,
+            effort: getSelectedEffort(),
           };
           invoke("stream_chat_message", { request: chatRequest }).catch((err) => {
             console.error("[AIChat] auto-continue invoke failed:", err);
@@ -1923,6 +1925,7 @@ export function AIChat({
         })),
         session_id: sessionId ?? null,
         session_title: sessionTitle ?? null,
+        effort: getSelectedEffort(),
       };
       console.warn("[AIChat] invoke stream_chat_message:", {
         provider,
