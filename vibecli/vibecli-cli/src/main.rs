@@ -3018,6 +3018,9 @@ mod webmcp;
 // Design Mode → diffcomplete-into-DOM (gap A7, §18.A7 cleared shape).
 #[allow(dead_code)]
 mod design_diff;
+// Dynamic large-scale workflow primitive (gap C2).
+#[allow(dead_code)]
+mod dynamic_workflow;
 #[allow(dead_code)]
 mod mcts_repair;
 mod mobile_gateway;

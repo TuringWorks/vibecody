@@ -29,6 +29,8 @@ pub mod security_review_watch;
 pub mod webmcp;
 // Design Mode → diffcomplete-into-DOM (gap A7, §18.A7 cleared shape).
 pub mod design_diff;
+// Dynamic large-scale workflow primitive (gap C2).
+pub mod dynamic_workflow;
 pub mod mcp_taint;
 pub mod native_connectors;
 pub mod proactive_agent;
