@@ -3009,6 +3009,15 @@ mod mcp_tasks;
 // ACP + MCP Registry self-listing (gap C6).
 #[allow(dead_code)]
 mod registry_listing;
+// Opt-in always-on security review (gap B3, §18.B3 cleared shape).
+#[allow(dead_code)]
+mod security_review_watch;
+// WebMCP browser-tool exposure (gap C4, §18.A7-shape, origin-trial gated).
+#[allow(dead_code)]
+mod webmcp;
+// Design Mode → diffcomplete-into-DOM (gap A7, §18.A7 cleared shape).
+#[allow(dead_code)]
+mod design_diff;
 #[allow(dead_code)]
 mod mcts_repair;
 mod mobile_gateway;
@@ -3820,6 +3829,14 @@ async fn main() -> Result<()> {
         let argv: Vec<String> = std::env::args().skip(1).collect();
         if argv.first().map(|a| a == "--metering").unwrap_or(false) {
             run_metering_command(&argv[1..]);
+            return Ok(());
+        }
+        // ── --registry <acp|mcp|all>: emit the ACP agent-card / MCP Registry
+        //    server entry for a registry-submission PR (gap C6). Defaults to
+        //    "all" when no kind is given.
+        if argv.first().map(|a| a == "--registry").unwrap_or(false) {
+            let which = argv.get(1).map(|s| s.as_str()).unwrap_or("all");
+            println!("{}", registry_listing::render_listing(which));
             return Ok(());
         }
     }

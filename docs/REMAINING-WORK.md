@@ -6,6 +6,23 @@
 >
 > Last verified: 2026-06-22 (codebase-reconciliation pass against working tree **v0.5.7** + nine-day industry delta, folded into the v15 layer in place — see [FIT-GAP §16.8](./FIT-GAP-ANALYSIS.md) and [Roadmap §1quinquies](./ROADMAP.md). Corrections this pass: **A7 is partially built** (`DesignMode.tsx` exists — not "no implementation"); the **c-series model-registry entries are open-trivial, not append-only-done** (only `gpt-5.5` actually landed); `mcp_app.rs` → real name `mcp_apps_payload.rs`; headline counts were stale undercounts.)
 
+> **✅ Implementation pass 2026-06-22 (branch `feat/bridge-cgap-fitgap-gaps`, commits `a7e5b373` + `b49bf131`).** Eight of the open gaps now have shipped, compiling, unit-tested code — see the **✅ Implemented** banners inline and the [Implemented this cycle](#implemented-this-cycle-2026-06-22) summary. Most are **backend cores + CLI/Tauri command surfaces**; the listed *UI panels* and a few *daemon-loop / live-transport* integrations remain as follow-ups (called out per item). c-series: **all** model-registry entries landed (not just `gpt-5.5`). Build verified natively after the Metal Toolchain was installed.
+
+## Implemented this cycle (2026-06-22)
+
+| Gap | What shipped | Module / surface | Tests | Follow-up still open |
+|---|---|---|---|---|
+| **c-series** | Opus 4.8, Gemini 3.5 Pro/Flash, DeepSeek V4, Qwen 3.6, Kimi K2.7, GLM-5.2, MiniMax M3 + defaults | `useModelRegistry.ts` | tsc | — |
+| **C5** | `Effort` enum + per-provider mapping (Claude/Gemini thinking budget, OpenAI `reasoning_effort`), `cost_router::route_task_with_effort`, `ai_chat_with_effort` cmd, toolbar selector | `vibe-ai/provider.rs`, providers, `cost_router.rs`, `commands.rs`, `App.tsx`, `utils/effort.ts` | 4 | thread effort through the streaming `chat_engine` path in every panel |
+| **C1** | `/loop <interval> <prompt>` + `/loop auto` (self-paced, MAX_ITER guard, Ctrl-C, LLM done-validator), list/stop/status, persistence | `loop_engine.rs`, `main.rs` REPL, `repl.rs` | 9 | VibeUI `AutomationsPanel` surface; machine-off hosted exec + `WorkspaceStore` secret injection |
+| **C3** | MCP Tasks extension (`tasks/get|update|cancel` state machine) + stateless `_meta` (`RequestMeta`), `stateless` config flag | `mcp_tasks.rs`, `mcp_streamable.rs` | 6 | wire the verbs into the live MCP HTTP dispatch loop |
+| **C6** | ACP agent-card + MCP Registry entry generators; `vibecli --registry <acp\|mcp\|all>` CLI | `registry_listing.rs`, `main.rs` | 4 | submit the actual registry PRs (external) |
+| **A7** | Element + instruction → CSS/HTML unified diff for `DiffReviewPanel`; rejects live-DOM-mutation (§18.A7); `design_emit_diff` cmd | `design_diff.rs`, `commands.rs` | 5 | wire into `DesignMode.tsx` / CDP element-pick |
+| **B3** | Opt-in (default-off) security review → standard `Finding`s (§18.B3); `security_review_file` cmd | `security_review_watch.rs`, `commands.rs` | 6 | daemon always-on file-watcher loop; `SecurityPanel` surface |
+| **C4** | WebMCP consumer (parse/validate) + producer (panel→tool), origin-trial gated (§18.A7-shape); `webmcp_parse_tools`/`webmcp_publish_panels` cmds | `webmcp.rs`, `commands.rs` | 5 | wire into `browser_agent.rs` CDP path |
+
+The per-item sections below retain the original "What's Needed" for the full target shape; the **✅ Implemented** banner notes what of that has landed.
+
 ---
 
 ## P0 — Phase 55 newly queued (v0.5.8 cycle)
@@ -14,6 +31,8 @@ The v15 competitor delta ([FIT-GAP §16.6](./FIT-GAP-ANALYSIS.md) / [ROADMAP App
 
 ### C1 — Recurring / scheduled / self-paced agent ergonomics ("Routines" + `/loop`)
 
+> **✅ Implemented 2026-06-22 (`b49bf131`/`a7e5b373`).** `/loop <interval> <prompt>` (recurring) and `/loop auto <prompt>` (self-paced loop-until-done) ship in the REPL with a `MAX_ITER` guard, wall-clock auto-expiry, job IDs, Ctrl-C stop, an LLM done-validator, and `list`/`stop`/`status` subcommands + JSON persistence (`loop_engine.rs`, 9 tests). **Still open:** the VibeUI `AutomationsPanel` surface and machine-off hosted execution with `WorkspaceStore` secret injection.
+
 - **Source**: Phase 55 P0, FIT-GAP §16.6 (Claude Code Routines + Managed Agents + **`/loop`**; Codex `/goal` CLI 0.128.0 + Automations; Cursor Automations; Antigravity 2.0 scheduled tasks)
 - **Current State**: Trigger *engine* exists — `automations.rs` ships **Cron / FileWatch / Webhook** triggers → sandboxed agent task; `/goal` durable-intent ships (`exec_goal.rs` — parity with Claude Code + Codex `/goal`, **shipped first**). **No `/loop` command** (grep-confirmed absent), no machine-off hosted execution, no `WorkspaceStore` secret injection.
 - **What's Needed**: (1) a **`/loop <interval|self-paced> <prompt>`** REPL command — cron-cadence re-run **or self-paced loop-until-provably-done**, with auto-expiry + job ID + Esc-to-stop (Claude Code `/loop`; `MAX_ITER≈20` guard); (2) machine-off hosted execution + `WorkspaceStore` secret injection (never env-plaintext) à la Managed Agents; (3) `AutomationsPanel.tsx` + `/routine` + `/loop` surface; 6 BDD scenarios.
@@ -21,12 +40,16 @@ The v15 competitor delta ([FIT-GAP §16.6](./FIT-GAP-ANALYSIS.md) / [ROADMAP App
 
 ### C3 — MCP Tasks extension + stateless transport (2026-07-28 RC)
 
+> **✅ Implemented 2026-06-22 (`a7e5b373`).** `mcp_tasks.rs` (6 tests) ships the **Tasks extension** — a `TaskRegistry` with `create` / `tasks/get` / `tasks/update` / `tasks/cancel`, a `Working→InputRequired→Completed/Failed/Cancelled` state machine with terminal-state guards — and the **stateless `_meta`** model (`RequestMeta` parsing protocol version / client info / extensions inline), plus a `stateless` flag on `StreamableHttpConfig`. **Still open:** wiring the verbs into the live MCP HTTP request dispatch.
+
 - **Source**: Phase 55 P0, FIT-GAP §16.6 (MCP 2026-07-28 spec release candidate)
 - **Current State**: `mcp_streamable.rs` ships streamable HTTP + OAuth 2.1; A3 `/.well-known/mcp.json` descriptor shipped (`b13f9106`). Missing the RC's Tasks extension + stateless session model.
 - **What's Needed**: Implement the **Tasks extension** (async task IDs + poll/cancel) and the **stateless core** (no server-held state, horizontal-scale-safe); 5 BDD scenarios against RC conformance vectors.
 - **Effort**: Medium (2 weeks).
 
 ### C6 — ACP + MCP Registry self-listing
+
+> **✅ Implemented 2026-06-22 (`b49bf131`).** `registry_listing.rs` (4 tests) generates the **ACP agent-card** and **MCP Registry v0.1 server entry** from one versioned identity, exposed via **`vibecli --registry <acp|mcp|all>`** (smoke-tested: emits valid agent-card JSON). **Still open:** submitting the actual PRs to the ACP and MCP registries (external process).
 
 - **Source**: Phase 55 P0, FIT-GAP §16.6 (ACP Registry 28+ agents; MCP Registry v0.1 freeze)
 - **Current State**: A4 ACP server mode (`acp_stdio.rs`) shipped (`e9dc09af`); VibeCLI is not yet listed in the ACP Registry (Zed + JetBrains) or the MCP Registry.
@@ -55,6 +78,8 @@ The v15 competitor delta ([FIT-GAP §16.6](./FIT-GAP-ANALYSIS.md) / [ROADMAP App
 
 ### 3. A7 — Browser-native UI-element annotation (Design Mode)
 
+> **✅ Cleared-shape backend implemented 2026-06-22 (`b49bf131`).** `design_diff.rs` (5 tests) implements the §18.A7 shape: `SelectedElement` + instruction → a provider-agnostic prompt → a **CSS/HTML unified diff** for `DiffReviewPanel`. It **rejects live-DOM-mutation payloads** (`document.`/`.innerHTML`/`.style.`) outright, enforcing principle #7. Exposed via the `design_emit_diff` Tauri command. **Still open:** wiring it into `DesignMode.tsx` + the CDP element-pick UX. Build stays distant from the Cursor Design Mode surface.
+
 - **Source**: Phase 53 P1, FIT-GAP §16
 - **⚠ Escalated 2026-06-13**: Cursor shipped **Design Mode GA on 2026-06-05** — the exact surface (point / draw / narrate UI changes in the browser; agent edits code underneath). The *design proposal* is now overdue; the **build stays gated** on the §18.A7 slice audit.
 - **Current State (corrected 2026-06-22)**: Patent-distance posture documented in fit-gap §18 (`403ea1c2`). **Partial UI exists** — `vibeui/src/components/DesignMode.tsx` (708 lines) + `DesignAnnotationsPanel.tsx` (284 lines) ship in the working tree (the prior "no implementation yet" was wrong). **Open question:** whether these implement the §18.A7 cleared shape (diffcomplete-into-CDP-DOM, no agent-controlled browser, no live DOM mutation) or are a separate design-canvas/annotation surface. **Next action is an audit of these two components against the §18.A7 principles**, then reclassify A7 from "open" to "partial — audit pending." Build stays gated until that audit clears; must remain distant from the Cursor Design Mode UX.
@@ -62,6 +87,8 @@ The v15 competitor delta ([FIT-GAP §16.6](./FIT-GAP-ANALYSIS.md) / [ROADMAP App
 - **Effort**: Medium-high (2 wk design + 3 wk impl, patent-distance gated)
 
 ### 4. B3 — Always-on security-review agent class
+
+> **✅ Cleared-shape backend implemented 2026-06-22 (`b49bf131`).** `security_review_watch.rs` (6 tests) implements the §18.B3 shape: an **opt-in, default-OFF** `SecurityReviewConfig` (the opt-in gate + suffix filter), a provider-agnostic review prompt (no RAG / cross-file taint), and a parser that emits standard `self_review::Finding` records (`CheckKind::Security`) filtered by `min_severity` — the LLM is one finding source among many, with no auto-apply. Exposed via the `security_review_file` Tauri command. **Still open:** the daemon's opt-in always-on file-watcher loop and the `SecurityPanel` surface.
 
 - **Source**: Phase 54 P1 (v0.5.8)
 - **⚠ Escalated 2026-06-13**: GitHub Copilot moved code review to an **agentic always-on architecture on 2026-06-01** (runs on GitHub Actions); Cursor Security Review already shipped. The build stays gated on the §18.B3 slice audit.
@@ -78,12 +105,16 @@ The v15 competitor delta ([FIT-GAP §16.6](./FIT-GAP-ANALYSIS.md) / [ROADMAP App
 
 ### 6. C4 — WebMCP browser-tool exposure
 
+> **✅ Cleared-shape backend implemented 2026-06-22 (`b49bf131`).** `webmcp.rs` (5 tests) ships both roles: **consumer** (`parse_advertised_tools` + `build_invocation`, which validates required params and refuses to fire when the origin-trial flag is off) and **producer** (`panel_as_tool` + `publish_tools`, read/affordance only — no live DOM mutation, §18.A7-shape). Exposed via `webmcp_parse_tools` / `webmcp_publish_panels` Tauri commands. **Still open:** wiring into the `browser_agent.rs` CDP path.
+
 - **Source**: Phase 55 P1 (v0.5.9), FIT-GAP §16.6 (Google I/O WebMCP, W3C; Chrome 149 origin trial)
 - **Current State**: `browser_agent.rs` drives a CDP-attached browser; no WebMCP consume/produce.
 - **What's Needed**: (a) **consumer** — discover + call WebMCP-annotated JS/HTML-form tools on authorized sites; (b) **producer** — expose selected VibeUI panels as WebMCP tools. Behind a feature flag while the spec is in origin trial. **Patent-distance gated** — reuses the §18.A7 cleared shape (no live DOM mutation by the agent).
 - **Effort**: Medium (2-3 weeks; folds into A7 design work).
 
 ### 7. C5 — Per-request effort / compute control knob
+
+> **✅ Implemented 2026-06-22 (`a7e5b373`).** `Effort` enum (`low|medium|high|xhigh`, default `high`) in `vibe-ai/provider.rs` with per-provider mapping (Claude/Gemini extended-thinking budget, OpenAI `reasoning_effort` clamped to "high"), `ProviderConfig.effort`, `cost_router::route_task_with_effort` (raises complexity floor + token budget), the `ai_chat_with_effort` Tauri command, and a toolbar selector + `utils/effort.ts` (4 tests). **Still open:** threading effort through the streaming `chat_engine` path in every panel (the broad "every LLM call path" target).
 
 - **Source**: Phase 55 P1 (v0.5.9), FIT-GAP §16.6 (Claude Opus 4.8 Effort Control; GPT-5.5 token efficiency)
 - **Current State**: No per-request effort tier; `cost_router.rs` routes by task complexity but exposes no user-facing effort knob.
@@ -242,14 +273,16 @@ All prior roadmap and fit-gap iterations have been merged into exactly **two can
 
 ## Summary
 
-**Open code items**: 9 (3 P0 — C1/C3/C6, the Phase 55 trio; 5 P1 — A7/B3 patent-gated + C2/C4/C5; 1 P2 — 100M-line benchmark). A7 and B3 are now **competitor-shipped** (Cursor Design Mode GA 2026-06-05; Copilot agentic review 2026-06-01) — design proposals are overdue, builds still gated on the §18 patent-distance audits.
+**Open code items (revised 2026-06-22 after the implementation pass)**: the **C1, C3, C5, C6 cores shipped**, and the **A7, B3, C4 §18-cleared-shape backends + command surfaces shipped** (see [Implemented this cycle](#implemented-this-cycle-2026-06-22)). What remains code-wise is **integration, not invention**: UI panels (`/loop` Automations panel, `DesignMode` wiring, `SecurityPanel`), daemon/transport loops (B3 always-on watcher, C3 live MCP dispatch, C4 `browser_agent` CDP), C5 streaming-path propagation, plus the still-unstarted **C2** (dynamic large-scale workflow primitive) and **P2** 100M-line benchmark. A7/B3 are built to the patent-distant cleared shapes (not the competitor UX).
 
-**Open non-code items**: 4 (SOC 2 cert, managed hosting domain, frontier model, VS Code full compat) — unchanged; all infrastructure / business-process / explicit-design-choice items.
+**Open non-code items**: 4 (SOC 2 cert, managed hosting domain, frontier model, VS Code full compat) — unchanged; all infrastructure / business-process / explicit-design-choice items. Plus C6's actual registry-PR submissions (external).
 
-**Open-trivial (c-series model-registry entries — corrected 2026-06-22)**: these were previously framed as "append-only / effectively done." Verified against `vibeui/src/hooks/useModelRegistry.ts`, **only `gpt-5.5` has actually landed.** Still pending (~1-file edit each in `useModelRegistry.ts`): **Claude Opus 4.8**, **Gemini 3.5 Flash + 3.5 Pro** (GA end-June), **DeepSeek V4**, **Qwen 3.6**, **Kimi K2.6 → K2.7 Code**, **GLM-5.1 → GLM-5.2** (Jun 13, now leads the AA open-weight index), **MiniMax M3**. Plus MCP Registry self-listing (packaging, ties to C6). Append-list, but genuinely open.
+**c-series (✅ landed 2026-06-22)**: the earlier "only `gpt-5.5`" reconciliation is now superseded — **all** entries were added to `useModelRegistry.ts`: Claude Opus 4.8 (+ default), Gemini 3.5 Pro/Flash (+ default), DeepSeek V4, Qwen 3.6, Kimi K2.7 Code (via OpenRouter — no Moonshot provider key yet), GLM-5.2 (+ default), MiniMax M3 (+ default). Fable 5 / Mythos 5 deliberately omitted (export-suspended).
 
 **Parked**: 1 (B5 NVFP4 — hardware-blocked).
 
 **Bottom line**: Phase 53 (A1–A11) and Phase 54 P0 (B1, B2, B4, B6 + trivial closes c1, c2) are fully closed. The **v15 competitor delta (2026-06-13)** opened six new gaps (**C1–C6**, Phase 55, v0.5.8/0.5.9) and escalated **A7** + **B3** — both now shipped at competitors (Cursor Design Mode; Copilot agentic review) but held behind their §18 patent-distance audits. Three large design tracks (RL-OS productionization, Recap & Resume, Sandbox tiers) continue landing slice-by-slice in their own design docs rather than here.
 
 **2026-06-22 mid-month refresh** (no new gaps; see [Roadmap §1quinquies](./ROADMAP.md) + [FIT-GAP §16.8](./FIT-GAP-ANALYSIS.md)): the **Fable 5 + Mythos 5 export-control suspension (Jun 12)** — a top-of-board frontier model disabled for all customers by US government order — is the strongest external validation yet of VibeCody's provider-agnostic + self-hostable + open-weight-fallback thesis (`cost_router.rs` failover + Ollama-first defaults are now a *resilience* story). Other movement: **GLM-5.2** + **Kimi K2.7 Code** (Jun 13), the **Gemini CLI → Antigravity CLI** consolidation (Jun 18), **Gemini 3.5 Pro** GA end-June, **Copilot Max $100/mo** tier, and the **MCP 2026-07-28 RC** detail (stateless removes the `initialize` handshake + `Mcp-Session-Id`; Tasks = `tasks/get|update|cancel`) which sharpens **C3** into a concrete conformance target. The engineering remainder is unchanged: **A7 (now partial) + B3 + C1–C6 + 6 long-horizon items**, plus the open-trivial c-series registry appends.
+
+**2026-06-22 implementation pass** (branch `feat/bridge-cgap-fitgap-gaps`): c-series + C1 + C3 + C5 + C6 cores and the A7/B3/C4 §18-cleared-shape backends + command surfaces landed and are unit-tested (see [Implemented this cycle](#implemented-this-cycle-2026-06-22)). The remaining code work is UI/transport integration + C2 + the 100M-line benchmark; A7/B3 deliberately stay distant from the competitor UX.

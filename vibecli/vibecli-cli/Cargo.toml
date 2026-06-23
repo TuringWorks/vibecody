@@ -524,3 +524,18 @@ harness = false
 name = "tailscale_bdd"
 path = "tests/tailscale_bdd.rs"
 harness = false
+
+[[test]]
+name = "loop_engine_bdd"
+path = "tests/loop_engine_bdd.rs"
+harness = false
+
+[[test]]
+name = "mcp_tasks_bdd"
+path = "tests/mcp_tasks_bdd.rs"
+harness = false
+
+[[test]]
+name = "effort_bdd"
+path = "tests/effort_bdd.rs"
+harness = false

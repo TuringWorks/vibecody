@@ -799,6 +799,8 @@ A direct verification pass against the working tree (workspace **v0.5.7**) on 20
 
 **Net effect on the scoreboard:** the *open* count is unchanged in substance, but its composition is corrected — the c-series moves from "effectively closed" to **open-trivial**, and A7 moves toward **partial**. The headline "closed-with-real-I/O ≈ 106" figure is unaffected (the c-series was never in it).
 
+**Implementation pass — 2026-06-22 (branch `feat/bridge-cgap-fitgap-gaps`).** Same-day, the open Phase-55 backlog was largely built (see [REMAINING-WORK → Implemented this cycle](./remaining-work/)): the **c-series** registry entries all landed; **C5** (effort knob — enum + per-provider mapping + `cost_router` + Tauri cmd + toolbar), **C1** (`/loop` recurring + self-paced engine), **C3** (MCP Tasks + stateless `_meta`), and **C6** (registry-listing generators + `vibecli --registry` CLI) shipped as compiling, unit-tested cores; and **A7 / B3 / C4** shipped as §18-cleared-shape backends + Tauri/CLI command surfaces (A7 diff-only with live-DOM-mutation rejection; B3 opt-in default-off findings; C4 WebMCP consumer/producer behind the origin-trial flag). What remains is **integration, not invention** — UI panels, daemon/live-transport loops, C5 streaming-path propagation — plus the still-unstarted **C2** and the 100M-line benchmark. This shifts the genuine engineering remainder from "A7 + B3 + C1–C6 + 6 long-horizon" to **C2 + integration glue + the 6 long-horizon/business items**; A7/B3 stay patent-distant.
+
 ---
 
 ## 17. Headline positioning

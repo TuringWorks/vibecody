@@ -125,6 +125,10 @@ The nine days since the v15 snapshot (2026-06-13) produced **no new gap class** 
 
 No item in this refresh opens a new gap; the engineering remainder is unchanged from §16.7 (A7 + B3 + C1–C6 + 6 long-horizon items). The c-series registry entries are reclassified from "append-only / effectively done" to **open-trivial** (≈1 file, `useModelRegistry.ts`, per model).
 
+### 1quinquies.3 Implementation pass (2026-06-22, branch `feat/bridge-cgap-fitgap-gaps`)
+
+Same day, most of the Phase-55 backlog was built and unit-tested (full ledger in [Fit-Gap §16.8](./fit-gap-analysis/) + [REMAINING-WORK](./remaining-work/)): the **c-series** model-registry entries all landed (Opus 4.8, Gemini 3.5 Pro/Flash, DeepSeek V4, Qwen 3.6, Kimi K2.7, GLM-5.2, MiniMax M3); **C5** (effort knob), **C1** (`/loop` recurring + self-paced engine), **C3** (MCP Tasks + stateless `_meta`), and **C6** (registry-listing generators + `vibecli --registry` CLI) shipped as compiling, tested cores; and **A7 / B3 / C4** shipped as §18-cleared-shape backends + command surfaces — A7 emits a diff and *rejects* live-DOM mutation, B3 is opt-in/default-off, C4 WebMCP is origin-trial-gated. The remaining work is **integration (UI panels, daemon/transport loops, C5 streaming propagation) plus C2 and the 100M-line benchmark** — not new invention. A7/B3 stay distant from the Cursor/Copilot UX by construction.
+
 ## 1. Competitive Landscape Summary
 
 AI-assisted development splits into six tool categories. VibeCody is the only project that ships a competitive entry in **every single one** of them from a shared Rust + TypeScript monorepo — plus two surfaces (Watch, Flutter Mobile) that have **no serious competitor** as of 0.5.5.
