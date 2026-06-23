@@ -83,6 +83,11 @@ pub async fn run_server(
     let mut out = tokio::io::BufWriter::new(stdout);
     let mut line = String::new();
 
+    // C3: per-connection task registry backing the MCP Tasks extension
+    // (tasks/get | tasks/update | tasks/cancel). The stdio loop is sequential,
+    // so a plain &mut across awaits is sound.
+    let mut tasks = crate::mcp_tasks::TaskRegistry::new();
+
     loop {
         line.clear();
         let n = reader.read_line(&mut line).await?;
@@ -119,6 +124,7 @@ pub async fn run_server(
             &provider,
             approval.clone(),
             sandbox,
+            &mut tasks,
         )
         .await;
 
@@ -173,13 +179,18 @@ async fn dispatch(
     provider: &Arc<dyn AIProvider>,
     approval: ApprovalPolicy,
     sandbox: bool,
+    tasks: &mut crate::mcp_tasks::TaskRegistry,
 ) -> Result<Value> {
+    use crate::mcp_tasks::{TaskState, TASKS_EXTENSION_KEY};
     match method {
         // ── Handshake ────────────────────────────────────────────────────────
         "initialize" => Ok(json!({
             "protocolVersion": "2024-11-05",
             "capabilities": {
-                "tools": { "listChanged": false }
+                "tools": { "listChanged": false },
+                // C3: advertise the MCP Tasks extension (2026-07-28 RC) so a
+                // client can drive tasks/get | tasks/update | tasks/cancel.
+                "extensions": [TASKS_EXTENSION_KEY]
             },
             "serverInfo": {
                 "name": "vibecli",
@@ -206,6 +217,47 @@ async fn dispatch(
             };
             append_audit_event(&name, "mcp-stdio", outcome, reason, latency_ms);
             result
+        }
+
+        // ── Tasks extension (C3, 2026-07-28 RC) ──────────────────────────────
+        "tasks/get" => {
+            let p = params.unwrap_or_default();
+            let id = p["taskId"].as_str().unwrap_or("");
+            tasks
+                .get(id)
+                .map(|t| serde_json::to_value(t).unwrap_or_default())
+                .ok_or_else(|| anyhow::anyhow!("Unknown task: {id}"))
+        }
+        "tasks/update" => {
+            let p = params.unwrap_or_default();
+            let id = p["taskId"].as_str().unwrap_or("");
+            let progress = p["progress"].as_u64().map(|v| v as u8);
+            let state = p["state"].as_str().and_then(|s| match s {
+                "working" => Some(TaskState::Working),
+                "input_required" => Some(TaskState::InputRequired),
+                "completed" => Some(TaskState::Completed),
+                "failed" => Some(TaskState::Failed),
+                "cancelled" => Some(TaskState::Cancelled),
+                _ => None,
+            });
+            let result = if p["result"].is_null() {
+                None
+            } else {
+                Some(p["result"].clone())
+            };
+            let error = p["error"].as_str().map(|s| s.to_string());
+            tasks
+                .update(id, progress, state, result, error)
+                .map(|t| serde_json::to_value(t).unwrap_or_default())
+                .map_err(|e| anyhow::anyhow!("{e}"))
+        }
+        "tasks/cancel" => {
+            let p = params.unwrap_or_default();
+            let id = p["taskId"].as_str().unwrap_or("");
+            tasks
+                .cancel(id)
+                .map(|t| serde_json::to_value(t).unwrap_or_default())
+                .map_err(|e| anyhow::anyhow!("{e}"))
         }
 
         _ => Err(anyhow::anyhow!("Method not found: {}", method)),
