@@ -3172,8 +3172,13 @@ pub async fn send_chat_message(
         }
     }
 
+    // C5: apply the per-request effort tier to the active provider.
+    let req_effort = request
+        .effort
+        .as_deref()
+        .and_then(vibe_ai::provider::Effort::parse);
     let response_text = chat_engine
-        .chat(&request.messages, context)
+        .chat_with_effort(&request.messages, context, req_effort)
         .await
         .map_err(|e| e.to_string())?;
 

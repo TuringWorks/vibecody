@@ -116,10 +116,26 @@ impl ChatEngine {
 
     /// Chat with the active provider using a list of messages
     pub async fn chat(&self, messages: &[Message], context: Option<String>) -> Result<String> {
-        let provider = self
+        self.chat_with_effort(messages, context, None).await
+    }
+
+    /// Like [`chat`](Self::chat) but applies a per-request effort tier (gap C5)
+    /// to the active provider. `None` behaves exactly like `chat`; providers with
+    /// no reasoning knob ignore it (the original provider is kept).
+    pub async fn chat_with_effort(
+        &self,
+        messages: &[Message],
+        context: Option<String>,
+        effort: Option<crate::provider::Effort>,
+    ) -> Result<String> {
+        let base = self
             .active_provider()
             .ok_or_else(|| anyhow::anyhow!("No active provider"))?
             .clone();
+        let provider = match effort {
+            Some(e) => base.with_effort(e).unwrap_or(base),
+            None => base,
+        };
 
         if !provider.is_available().await {
             anyhow::bail!("Provider {} is not available", provider.name());
