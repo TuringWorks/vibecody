@@ -138,7 +138,7 @@ vibe-infer = { path = "../../vibeui/crates/vibe-infer", features = ["mistralrs",
 
 [dev-dependencies]
 tower.workspace = true
-cucumber = { version = "0.20", features = ["macros"] }
+cucumber = { version = "0.21", features = ["macros"] }
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
 
