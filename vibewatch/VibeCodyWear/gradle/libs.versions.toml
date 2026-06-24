@@ -30,7 +30,7 @@ securityCrypto = "1.1.0"
 # Tiles support — async + preview
 guava = "33.6.0-android"
 concurrentFutures = "1.2.0"
-composeUiToolingPreview = "1.7.6"
+composeUiToolingPreview = "1.11.3"
 
 [libraries]
 # Activity
