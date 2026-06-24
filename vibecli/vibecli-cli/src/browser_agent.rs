@@ -353,6 +353,9 @@ pub struct BrowserSession {
     debug_url: String,
     /// The CDP target ID for the active page.
     target_id: String,
+    /// The target's WebSocket DevTools URL — CDP *commands* (Page.navigate,
+    /// Runtime.evaluate, …) go over this WS; only target *discovery* is HTTP.
+    ws_url: Option<String>,
     /// Current page URL.
     pub page_url: String,
     /// Current page title.
@@ -405,6 +408,7 @@ impl BrowserSession {
             client,
             debug_url,
             target_id: page_target.id.clone(),
+            ws_url: page_target.web_socket_debugger_url.clone(),
             page_url: page_target.url.clone(),
             page_title: page_target.title.clone(),
             history: Vec::new(),
@@ -427,6 +431,7 @@ impl BrowserSession {
             client,
             debug_url,
             target_id,
+            ws_url: None,
             page_url,
             page_title,
             history: Vec::new(),
@@ -490,61 +495,72 @@ impl BrowserSession {
         format!("{}/json/command/{}", self.debug_url, self.target_id)
     }
 
-    /// Send a CDP command via HTTP POST and return the result.
+    /// Send a CDP command over the target's WebSocket and return its `result`.
     ///
-    /// Uses the `/json/command/{target_id}` endpoint for HTTP-based CDP.
-    /// Falls back to evaluating via `PUT /json/activate/{target_id}` + direct endpoint
-    /// if the command endpoint is not available.
+    /// Modern Chrome serves only target *discovery* over HTTP (`/json/list`,
+    /// `/json/version`); actual protocol commands (`Page.navigate`,
+    /// `Runtime.evaluate`, …) must go over the per-target DevTools WebSocket.
+    /// Opens a short-lived WS per command, correlates the response by `id`
+    /// (skipping unsolicited protocol *events*, which have no `id`), and returns
+    /// the command's `result` object.
     async fn cdp_send(
         &mut self,
         method: &str,
         params: serde_json::Value,
     ) -> Result<serde_json::Value> {
+        use futures::{SinkExt, StreamExt};
+        use tokio_tungstenite::tungstenite::Message;
+
+        let ws_url = self
+            .ws_url
+            .clone()
+            .ok_or_else(|| anyhow!("target has no webSocketDebuggerUrl"))?;
         let cmd_id = self.next_cmd_id();
-        let cmd = CdpCommand {
-            id: cmd_id,
-            method: method.to_string(),
-            params,
-        };
+        debug!(method = %method, id = cmd_id, "Sending CDP command (ws)");
 
-        debug!(method = %method, id = cmd_id, "Sending CDP command");
+        let (mut ws, _) = tokio::time::timeout(
+            self.timeout,
+            tokio_tungstenite::connect_async(&ws_url),
+        )
+        .await
+        .with_context(|| format!("CDP {method}: WebSocket connect timed out"))?
+        .with_context(|| format!("CDP {method}: WebSocket connect failed"))?;
 
-        let url = self.target_url(method);
-        let resp = self
-            .client
-            .post(&url)
-            .json(&cmd)
-            .send()
+        let cmd = serde_json::json!({ "id": cmd_id, "method": method, "params": params });
+        ws.send(Message::text(cmd.to_string()))
             .await
-            .with_context(|| format!("CDP command {method} failed to send"))?;
+            .with_context(|| format!("CDP {method}: WebSocket send failed"))?;
 
-        let status = resp.status();
-        let body: serde_json::Value = resp
-            .json()
-            .await
-            .unwrap_or_else(|_| serde_json::json!({"error": {"message": "Empty response"}}));
+        loop {
+            let msg = tokio::time::timeout(self.timeout, ws.next())
+                .await
+                .with_context(|| format!("CDP {method}: response timed out"))?
+                .ok_or_else(|| anyhow!("CDP {method}: WebSocket closed before response"))?
+                .with_context(|| format!("CDP {method}: WebSocket receive error"))?;
 
-        if !status.is_success() {
-            let err_msg = body
-                .get("error")
-                .and_then(|e| e.get("message"))
-                .and_then(|m| m.as_str())
-                .unwrap_or("Unknown CDP error");
-            bail!("CDP {method} failed (HTTP {status}): {err_msg}");
+            let txt = match msg {
+                Message::Text(t) => t.to_string(),
+                Message::Close(_) => bail!("CDP {method}: WebSocket closed before response"),
+                _ => continue, // ping/pong/binary — ignore
+            };
+            let v: serde_json::Value = serde_json::from_str(&txt)
+                .with_context(|| format!("CDP {method}: invalid JSON response"))?;
+
+            // Protocol events have no `id`; skip until our command's reply.
+            if v.get("id").and_then(|i| i.as_u64()) != Some(cmd_id) {
+                continue;
+            }
+            let _ = ws.close(None).await;
+
+            if let Some(error) = v.get("error") {
+                let m = error
+                    .get("message")
+                    .and_then(|m| m.as_str())
+                    .unwrap_or("Unknown CDP error");
+                bail!("CDP {method} error: {m}");
+            }
+            return Ok(v.get("result").cloned().unwrap_or(serde_json::Value::Null));
         }
-
-        if let Some(error) = body.get("error") {
-            let msg = error
-                .get("message")
-                .and_then(|m| m.as_str())
-                .unwrap_or("Unknown CDP error");
-            bail!("CDP {method} error: {msg}");
-        }
-
-        Ok(body
-            .get("result")
-            .cloned()
-            .unwrap_or(serde_json::Value::Null))
     }
 
     /// Shorthand for `Runtime.evaluate`.
@@ -1070,6 +1086,7 @@ impl BrowserPool {
             client,
             debug_url: self.config.debug_base_url(),
             target_id: target.id,
+            ws_url: target.web_socket_debugger_url,
             page_url: target.url,
             page_title: target.title,
             history: Vec::new(),
@@ -1211,8 +1228,22 @@ pub async fn launch_chrome(config: &BrowserConfig) -> Result<tokio::process::Chi
     info!(path = %chrome_path, port = config.debug_port, "Launching Chrome");
 
     let args = config.chrome_args();
+    // Isolate the automation profile in a unique temp dir. Without this, Chrome
+    // reuses the user's DEFAULT profile, which (a) fails to open the debug port
+    // when their Chrome is already running and (b) pollutes their real profile.
+    // Uniqueness keyed on the debug port + a monotonic nanos stamp.
+    let profile_dir = std::env::temp_dir().join(format!(
+        "vibecli-chrome-{}-{}",
+        config.debug_port,
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
+    ));
     let child = tokio::process::Command::new(&chrome_path)
         .args(&args)
+        .arg(format!("--user-data-dir={}", profile_dir.display()))
+        .arg("--no-default-browser-check")
         .arg("about:blank")
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())

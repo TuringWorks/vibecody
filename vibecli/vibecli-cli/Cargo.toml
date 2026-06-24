@@ -63,6 +63,7 @@ tracing-subscriber = { workspace = true, features = ["env-filter"] }
 rustyline = { version = "14.0", features = ["derive"] }
 dirs = "5.0"
 futures = "0.3"
+tokio-tungstenite = "0.28"
 crossterm = { workspace = true, features = ["event-stream"] }
 serde = { workspace = true, features = ["derive"] }
 toml = "0.8"
