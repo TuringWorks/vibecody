@@ -22,8 +22,8 @@
 //! [`crate::file_watcher`] events and the LLM call, so the policy is testable
 //! without a watcher or a provider.
 
-use crate::self_review::{CheckKind, Finding, Severity};
 use crate::file_watcher::ChangeBatch;
+use crate::self_review::{CheckKind, Finding, Severity};
 use std::path::{Path, PathBuf};
 
 /// Workspace configuration for opt-in security review. **Disabled by default.**
@@ -238,7 +238,10 @@ mod tests {
             ..Default::default()
         };
         let targets = on.review_targets(&batch);
-        assert_eq!(targets, vec![PathBuf::from("src/auth.rs"), PathBuf::from("src/db.rs")]);
+        assert_eq!(
+            targets,
+            vec![PathBuf::from("src/auth.rs"), PathBuf::from("src/db.rs")]
+        );
     }
 
     #[test]

@@ -17025,7 +17025,9 @@ pub async fn security_review_file(
     effort: Option<String>,
 ) -> Result<Vec<SecurityFindingDto>, String> {
     use vibe_ai::provider::{Message, MessageRole};
-    use vibecli_cli::security_review_watch::{build_review_prompt, parse_findings, SecurityReviewConfig};
+    use vibecli_cli::security_review_watch::{
+        build_review_prompt, parse_findings, SecurityReviewConfig,
+    };
     use vibecli_cli::self_review::Severity;
     if provider.trim().is_empty() || model.trim().is_empty() {
         return Err("Select a provider and model first".to_string());

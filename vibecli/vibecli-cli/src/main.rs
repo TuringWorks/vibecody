@@ -5841,8 +5841,8 @@ async fn main() -> Result<()> {
                                             } else {
                                                 false
                                             };
-                                            let decision = job
-                                                .decide_next(done, start.elapsed().as_secs());
+                                            let decision =
+                                                job.decide_next(done, start.elapsed().as_secs());
                                             if decision != loop_engine::LoopDecision::Continue {
                                                 job.status =
                                                     loop_engine::LoopJob::status_for(decision);
@@ -5854,18 +5854,19 @@ async fn main() -> Result<()> {
                                             }
 
                                             // Honor an external `/loop stop` between iterations.
-                                            if loop_engine::load_jobs(&path)
-                                                .iter()
-                                                .any(|j| j.id == job.id && j.status == loop_engine::LoopStatus::Stopped)
-                                            {
+                                            if loop_engine::load_jobs(&path).iter().any(|j| {
+                                                j.id == job.id
+                                                    && j.status == loop_engine::LoopStatus::Stopped
+                                            }) {
                                                 job.status = loop_engine::LoopStatus::Stopped;
                                                 println!("\n⏹ loop {} stopped.\n", job.id);
                                                 break;
                                             }
 
                                             // Recurring loops wait the interval (interruptible).
-                                            if let loop_engine::LoopMode::Recurring { interval_secs } =
-                                                job.spec.mode
+                                            if let loop_engine::LoopMode::Recurring {
+                                                interval_secs,
+                                            } = job.spec.mode
                                             {
                                                 let slept = tokio::select! {
                                                     _ = tokio::time::sleep(

@@ -459,8 +459,7 @@ impl CostRouter {
         if (adjusted.complexity as u8) < (floor as u8) {
             adjusted.complexity = floor;
         }
-        adjusted.estimated_tokens =
-            ((adjusted.estimated_tokens as f32) * token_mult).ceil() as u32;
+        adjusted.estimated_tokens = ((adjusted.estimated_tokens as f32) * token_mult).ceil() as u32;
         self.route_task(task_id, &adjusted)
     }
 

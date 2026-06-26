@@ -60,7 +60,12 @@ async fn webmcp_discover_and_call_over_cdp() {
 
         // Consumer: call the tool; the page's callTool echoes the args.
         let out = session
-            .call_webmcp_tool(WebMcpFlag(true), &tools, "search", &[("q".into(), "rust".into())])
+            .call_webmcp_tool(
+                WebMcpFlag(true),
+                &tools,
+                "search",
+                &[("q".into(), "rust".into())],
+            )
             .await?;
         assert!(out.contains("ok-rust"), "call result was: {out}");
 

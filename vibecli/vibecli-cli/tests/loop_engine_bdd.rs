@@ -3,9 +3,7 @@
  * Run with: cargo test --test loop_engine_bdd
  */
 use cucumber::{given, then, when, World};
-use vibecli_cli::loop_engine::{
-    parse_loop_args, LoopDecision, LoopJob, LoopMode, LoopSpec,
-};
+use vibecli_cli::loop_engine::{parse_loop_args, LoopDecision, LoopJob, LoopMode, LoopSpec};
 
 #[derive(Debug, Default, World)]
 #[allow(dead_code)]
@@ -64,18 +62,31 @@ fn validator_not_done(w: &mut LoopWorld, elapsed: u64) {
 
 #[then("parsing succeeds")]
 fn parse_ok(w: &mut LoopWorld) {
-    assert!(matches!(w.parsed, Some(Ok(_))), "expected Ok, got {:?}", w.parsed);
+    assert!(
+        matches!(w.parsed, Some(Ok(_))),
+        "expected Ok, got {:?}",
+        w.parsed
+    );
 }
 
 #[then("parsing fails")]
 fn parse_err(w: &mut LoopWorld) {
-    assert!(matches!(w.parsed, Some(Err(_))), "expected Err, got {:?}", w.parsed);
+    assert!(
+        matches!(w.parsed, Some(Err(_))),
+        "expected Err, got {:?}",
+        w.parsed
+    );
 }
 
 #[then(expr = "the mode is recurring with interval {int} seconds")]
 fn mode_recurring(w: &mut LoopWorld, secs: u64) {
     let spec = w.parsed.as_ref().unwrap().as_ref().unwrap();
-    assert_eq!(spec.mode, LoopMode::Recurring { interval_secs: secs });
+    assert_eq!(
+        spec.mode,
+        LoopMode::Recurring {
+            interval_secs: secs
+        }
+    );
 }
 
 #[then("the mode is self-paced")]

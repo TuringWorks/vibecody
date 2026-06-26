@@ -115,8 +115,9 @@ pub fn mcp_registry_entry(id: &ListingIdentity<'_>) -> McpRegistryEntry {
 pub fn render_listing(which: &str) -> String {
     let id = vibecli_identity();
     match which {
-        "acp" => serde_json::to_string_pretty(&acp_agent_card(&id))
-            .unwrap_or_else(|_| "{}".to_string()),
+        "acp" => {
+            serde_json::to_string_pretty(&acp_agent_card(&id)).unwrap_or_else(|_| "{}".to_string())
+        }
         "mcp" => serde_json::to_string_pretty(&mcp_registry_entry(&id))
             .unwrap_or_else(|_| "{}".to_string()),
         _ => {

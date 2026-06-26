@@ -249,7 +249,10 @@ mod tests {
         assert_eq!(w.subtasks.len(), 3);
         assert_eq!(w.subtasks[0].id, "st-0001");
         assert_eq!(w.subtasks[0].description, "Migrate src/a.rs");
-        assert!(w.subtasks.iter().all(|t| t.status == SubTaskStatus::Pending));
+        assert!(w
+            .subtasks
+            .iter()
+            .all(|t| t.status == SubTaskStatus::Pending));
     }
 
     #[test]

@@ -276,10 +276,7 @@ mod tests {
     #[test]
     fn parse_recurring() {
         let spec = parse_loop_args("5m run the tests").unwrap();
-        assert_eq!(
-            spec.mode,
-            LoopMode::Recurring { interval_secs: 300 }
-        );
+        assert_eq!(spec.mode, LoopMode::Recurring { interval_secs: 300 });
         assert_eq!(spec.prompt, "run the tests");
     }
 

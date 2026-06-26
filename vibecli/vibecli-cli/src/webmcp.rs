@@ -147,9 +147,7 @@ mod tests {
     #[test]
     fn parses_wrapped_and_bare_arrays() {
         assert_eq!(sample_tools().len(), 1);
-        let bare = parse_advertised_tools(
-            r#"[{"name":"t","description":"d"}]"#,
-        );
+        let bare = parse_advertised_tools(r#"[{"name":"t","description":"d"}]"#);
         assert_eq!(bare.len(), 1);
         assert_eq!(bare[0].name, "t");
     }

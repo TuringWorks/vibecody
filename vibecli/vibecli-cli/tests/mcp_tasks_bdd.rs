@@ -57,7 +57,13 @@ fn update_progress(w: &mut TasksWorld, p: u8) {
 fn complete_task(w: &mut TasksWorld) {
     let id = w.task_id.clone().unwrap();
     w.reg
-        .update(&id, None, Some(TaskState::Completed), Some(json!({"ok": true})), None)
+        .update(
+            &id,
+            None,
+            Some(TaskState::Completed),
+            Some(json!({"ok": true})),
+            None,
+        )
         .unwrap();
 }
 

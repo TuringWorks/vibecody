@@ -920,7 +920,10 @@ mod tests {
             .generation_config
             .thinking_config
             .expect("pro is thinking-capable");
-        assert_eq!(tc.thinking_budget, 128, "Low must clamp Pro to the 128 minimum, not 0");
+        assert_eq!(
+            tc.thinking_budget, 128,
+            "Low must clamp Pro to the 128 minimum, not 0"
+        );
     }
 
     #[test]

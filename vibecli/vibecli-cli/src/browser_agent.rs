@@ -518,13 +518,11 @@ impl BrowserSession {
         let cmd_id = self.next_cmd_id();
         debug!(method = %method, id = cmd_id, "Sending CDP command (ws)");
 
-        let (mut ws, _) = tokio::time::timeout(
-            self.timeout,
-            tokio_tungstenite::connect_async(&ws_url),
-        )
-        .await
-        .with_context(|| format!("CDP {method}: WebSocket connect timed out"))?
-        .with_context(|| format!("CDP {method}: WebSocket connect failed"))?;
+        let (mut ws, _) =
+            tokio::time::timeout(self.timeout, tokio_tungstenite::connect_async(&ws_url))
+                .await
+                .with_context(|| format!("CDP {method}: WebSocket connect timed out"))?
+                .with_context(|| format!("CDP {method}: WebSocket connect failed"))?;
 
         let cmd = serde_json::json!({ "id": cmd_id, "method": method, "params": params });
         ws.send(Message::text(cmd.to_string()))
