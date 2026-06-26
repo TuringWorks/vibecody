@@ -94,8 +94,8 @@ describe('Given PROVIDER_DEFAULT_MODEL', () => {
     }
   });
 
-  it('Then claude default is claude-sonnet-4-6', () => {
-    expect(PROVIDER_DEFAULT_MODEL.claude).toBe('claude-opus-4-7');
+  it('Then claude default is claude-opus-4-8', () => {
+    expect(PROVIDER_DEFAULT_MODEL.claude).toBe('claude-opus-4-8');
   });
 
   it('Then openai default is gpt-4o', () => {
@@ -252,8 +252,8 @@ describe('Given the May 2026 industry delta', () => {
     expect(STATIC_MODELS.gemini).toContain('gemini-3.1-pro');
   });
 
-  it('When inspecting PROVIDER_DEFAULT_MODEL, Then OpenAI defaults to GPT-5.5 and Claude to Opus 4.7', () => {
+  it('When inspecting PROVIDER_DEFAULT_MODEL, Then OpenAI defaults to GPT-5.5 and Claude to Opus 4.8', () => {
     expect(PROVIDER_DEFAULT_MODEL.openai).toBe('gpt-5.5');
-    expect(PROVIDER_DEFAULT_MODEL.claude).toBe('claude-opus-4-7');
+    expect(PROVIDER_DEFAULT_MODEL.claude).toBe('claude-opus-4-8');
   });
 });
