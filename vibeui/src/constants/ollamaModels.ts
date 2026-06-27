@@ -63,7 +63,6 @@ export const OLLAMA_CHAT_MODELS: string[] = [
   "llama4",
   "llama3.3",
   "llama3.2",
-  "gemma4",
   "gemma3",
   "gemma3n",
   "phi4",
@@ -73,7 +72,6 @@ export const OLLAMA_CHAT_MODELS: string[] = [
   "mistral-large-3",
   "mistral-small3.2",
   "mistral-small3.1",
-  "gemini-3-flash-preview",
 
   // ── Strong reasoning / agentic ─────────────────────────────────────
   "glm-5.1",
@@ -92,8 +90,6 @@ export const OLLAMA_CHAT_MODELS: string[] = [
 
   // ── NVIDIA Nemotron ────────────────────────────────────────────────
   "nemotron-cascade-2",
-  "nemotron-3-super",
-  "nemotron-3-nano",
   "nemotron",
   "nemotron-mini",
 
@@ -122,8 +118,6 @@ export const OLLAMA_CHAT_MODELS: string[] = [
   "olmo-3.1",
   "olmo-3",
   "olmo2",
-  "rnj-1",
-  "ministral-3",
   "falcon3",
   "exaone3.5",
   "smollm2",

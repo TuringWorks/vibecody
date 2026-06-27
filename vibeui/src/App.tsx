@@ -190,7 +190,10 @@ function App() {
 
   useEffect(() => {
     // Load available AI providers
-    const refreshProviders = (providers: string[]) => {
+    const refreshProviders = (rawProviders: string[]) => {
+      // Dedup: provider display names ("Ollama (llama3.2)") are used as React
+      // keys in the toolbar/select; duplicates from the backend would warn.
+      const providers = [...new Set(rawProviders)];
       setAiProviders(providers);
       if (providers.length > 0 && !selectedProvider) {
         const defaultProvider = providers.find(p => p.startsWith("Ollama")) || providers[0];
@@ -206,7 +209,7 @@ function App() {
 
     // Listen for provider updates from Settings panel (API key changes)
     const onProvidersUpdated = (e: Event) => {
-      const providers = (e as CustomEvent<string[]>).detail;
+      const providers = [...new Set((e as CustomEvent<string[]>).detail)];
       setAiProviders(providers);
       // If current selection is no longer valid, pick the first available
       if (providers.length > 0 && !providers.includes(selectedProvider)) {

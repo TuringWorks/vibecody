@@ -5078,11 +5078,17 @@ pub async fn get_available_ai_providers(
 
     // 1. Fetch local Ollama models
     if let Ok(models) = vibe_ai::providers::ollama::OllamaProvider::list_models(None).await {
-        let existing_names = chat_engine.get_provider_names();
+        // Track names in a live set updated inside the loop. /api/tags can
+        // report the same model more than once, and a model may already be
+        // registered at startup — without updating the set per-iteration we'd
+        // register duplicate "Ollama (<model>)" providers and surface duplicate
+        // option keys in the UI.
+        let mut existing_names: std::collections::HashSet<String> =
+            chat_engine.get_provider_names().into_iter().collect();
 
         for model in models {
             let display_name = format!("Ollama ({})", model);
-            if !existing_names.contains(&display_name) {
+            if existing_names.insert(display_name) {
                 // Register new provider for this model
                 let config = vibe_ai::provider::ProviderConfig {
                     provider_type: "ollama".to_string(),
@@ -5103,7 +5109,15 @@ pub async fn get_available_ai_providers(
     // In a real app, we'd check config or availability for these too.
     // For now, we rely on what's registered in lib.rs or added here.
 
-    Ok(chat_engine.get_provider_names())
+    // Dedup defensively: even if providers were registered with identical
+    // display names elsewhere, the UI uses these as React keys.
+    let mut seen = std::collections::HashSet::new();
+    let names = chat_engine
+        .get_provider_names()
+        .into_iter()
+        .filter(|n| seen.insert(n.clone()))
+        .collect();
+    Ok(names)
 }
 
 // ─── Phase 3 Commands ─────────────────────────────────────────────────────────
