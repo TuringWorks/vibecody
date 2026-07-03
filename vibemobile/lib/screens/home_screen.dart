@@ -10,8 +10,9 @@ import 'watch_chat_screen.dart';
 import 'sandbox_chat_screen.dart';
 import 'sessions_screen.dart';
 import 'settings_screen.dart';
+import 'connection_diagnostics_screen.dart';
 
-/// Main screen with bottom navigation: Machines, Chat, Sandbox, Sessions, Settings.
+/// Main screen with bottom navigation: Machines, Chat, Sandbox, Sessions, Connection Diagnostics, Goals, Settings.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -27,6 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
     WatchChatScreen(),
     SandboxChatScreen(),
     SessionsScreen(),
+    ConnectionDiagnosticsScreen(),
     GoalsScreen(),
     SettingsScreen(),
   ];
@@ -87,6 +89,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Icon(Icons.history_rounded, color: c.accentBlue),
                 ),
                 label: 'Sessions',
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.settings_ethernet),
+                selectedIcon: Icon(Icons.settings_ethernet, color: c.accentBlue),
+                label: 'Connection',
               ),
               NavigationDestination(
                 icon: const Icon(Icons.track_changes_rounded),
