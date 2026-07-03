@@ -4,7 +4,6 @@ title: Recap & Resume
 permalink: /recap/
 ---
 
-# Recap & Resume
 
 > When you close a chat tab, finish a job, or restore a session days later, VibeCody pins a four-block recap above the transcript: **headline · what happened · next actions · artifacts**. One click on **Resume from here** reopens the work where you left off — with the right model, the right context, and the right pending tasks.
 

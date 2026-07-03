@@ -1,10 +1,4 @@
----
-layout: default
-title: Hooks Reference
-nav_order: 15
----
 
-# Hooks Reference
 
 All React hooks live in `vibeui/src/hooks/`. They provide shared state, persistence, and integration with the Tauri backend.
 

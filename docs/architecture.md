@@ -1,8 +1,3 @@
----
-layout: page
-title: Architecture
-permalink: /architecture/
----
 
 
 VibeCody is a Rust workspace (monorepo) with 10 crate members: three binary applications, six shared library crates, and a standalone indexing service, plus editor plugins, an agent SDK, a skills library, a Flutter mobile companion, and native Apple Watch + Wear OS watch clients.

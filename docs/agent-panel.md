@@ -1,8 +1,3 @@
----
-layout: page
-title: Agent Panel
-permalink: /agent-panel/
----
 
 # Agent Panel
 

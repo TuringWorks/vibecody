@@ -1,8 +1,3 @@
----
-layout: page
-title: Mobile Connectivity — Handoff & Remote Access
-permalink: /connectivity/
----
 
 The VibeMobile app connects to a running `vibecli --serve` daemon. Three complementary network paths are supported, tried in priority order from fastest to most universally reachable. No single path is required — the app races all available paths and uses whichever responds first.
 

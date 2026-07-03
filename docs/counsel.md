@@ -1,8 +1,3 @@
----
-layout: page
-title: Counsel — Multi-LLM Debate
-permalink: /counsel/
----
 
 # Counsel — Multi-LLM Debate Panel
 

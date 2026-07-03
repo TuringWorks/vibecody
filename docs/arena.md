@@ -1,8 +1,3 @@
----
-layout: page
-title: Multi-Model Arena
-permalink: /arena/
----
 
 # Arena Mode
 
