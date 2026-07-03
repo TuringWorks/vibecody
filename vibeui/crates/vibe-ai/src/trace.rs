@@ -3,12 +3,24 @@
 //! Each agent run writes entries to a configurable directory
 //! (VibeCLI uses `~/.vibecli/traces/<unix_secs>.jsonl`).
 //! Entries capture every tool call, result, timing, and approval source.
+//! Optional decision tracing logs agent decision points for audit/debugging.
 //!
 //! # Session Resume
 //!
 //! `TraceWriter::save_messages()` persists the full message history to
 //! `<session_id>-messages.json` in the same directory. `load_session()` can
 //! then restore a prior conversation for `vibecli --resume <session-id>`.
+//!
+//! # Decision Tracing
+//!
+//! When enabled via `AgentLoop::with_decision_tracing(true)`, decision traces
+//! are written to `<session_id>-decisions.jsonl` in the same directory.
+//! Each entry captures a significant agent decision point (tool selection,
+//! plan updates, approvals, etc.) with context and metadata.
+//!
+//! Decision traces use the same secret redaction as regular traces to protect
+//! to prevent
+//! leakage of sensitive information.
 
 use crate::agent::AgentContext;
 use crate::provider::Message;
@@ -41,6 +53,27 @@ pub struct TraceEntry {
     pub duration_ms: u64,
     /// Who approved the action: `"user"` | `"auto"` | `"ci-auto"` | `"rejected"`.
     pub approved_by: String,
+}
+
+/// A single decision trace entry — one JSONL row for audit/debugging.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DecisionTraceEntry {
+    /// Unix timestamp (seconds).
+    pub timestamp: u64,
+    /// Identifies the session this entry belongs to.
+    pub session_id: String,
+    /// 0-based step index within the agent loop.
+    pub step: usize,
+    /// Type of decision made.
+    pub decision_type: String,
+    /// Description of the decision.
+    pub description: String,
+    /// Context or reasoning behind the decision (truncated if too long).
+    pub context: String,
+    /// Whether this decision was made automatically or required user input.
+    pub decision_source: String, // "auto", "user", "policy", "hook"
+    /// Additional metadata as key-value pairs (JSON string).
+    pub metadata: String,
 }
 
 // ── TraceWriter ───────────────────────────────────────────────────────────────
@@ -548,3 +581,95 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
     }
 }
+
+// ── DecisionWriter ──────────────────────────────────────────────────────────────
+
+/// Appends [`DecisionTraceEntry`] records to a JSONL file in `dir`.
+///
+/// Each entry captures a significant agent decision point for audit and debugging.
+/// Decision types include: tool_selection, plan_update, plan_execution, approval_decision,
+/// user_approval, context_pruning, circuit_breaker, double_check, prose_turn, max_steps_reached, etc.
+///
+/// All string fields are passed through secret redaction to prevent accidental
+/// leakage of sensitive information (API keys, passwords, etc.).
+pub struct DecisionWriter {
+    session_id: String,
+    path: PathBuf,
+}
+
+impl DecisionWriter {
+    /// Create a new writer.  The file is created lazily on the first
+    /// [`record`] call, so construction never fails.
+    pub fn new(dir: PathBuf) -> Self {
+        let _ = fs::create_dir_all(&dir);
+        let session_id = format!("{}", now_secs());
+        let path = dir.join(format!("{}-decisions.jsonl", &session_id));
+        Self { session_id, path }
+    }
+
+    /// Like [`new`] but prefixes the session ID with a human-readable name.
+    /// Useful for `--session-name` so traces are easy to identify.
+    /// Example: `new_named(dir, "my-task")` → `"my-task-1700000000-decisions.jsonl"`
+    pub fn new_named(dir: PathBuf, name: &str) -> Self {
+        let _ = fs::create_dir_all(&dir);
+        let session_id = format!("{}-{}", name, now_secs());
+        let path = dir.join(format!("{}-decisions.jsonl", &session_id));
+        Self { session_id, path }
+    }
+
+    /// Unique identifier for this session (also the stem of the decision file).
+    pub fn session_id(&self) -> &str {
+        &self.session_id
+    }
+
+    /// Absolute path to the JSONL file.
+    pub fn path(&self) -> &PathBuf {
+        &self.path
+    }
+
+    /// Append one decision entry to the log.
+    #[allow(clippy::too_many_arguments)]
+    pub fn record(
+        &self,
+        step: usize,
+        decision_type: &str,
+        description: &str,
+        context: &str,
+        decision_source: &str,
+        metadata: &str,
+    ) {
+        let entry = DecisionTraceEntry {
+            timestamp: now_secs(),
+            session_id: self.session_id.clone(),
+            step,
+            decision_type: decision_type.to_string(),
+            description: description.to_string(),
+            context: {
+                let truncated = if context.len() > 600 {
+                    let safe_end = context
+                        .char_indices()
+                        .nth(600)
+                        .map(|(i, _)| i)
+                        .unwrap_or(context.len());
+                    format!("{}\n…(truncated)", &context[..safe_end])
+                } else {
+                    context.to_string()
+                };
+                redact_secrets(&truncated)
+            },
+            decision_source: decision_source.to_string(),
+            metadata: redact_secrets(metadata),
+        };
+        if let Ok(line) = serde_json::to_string(&entry) {
+            if let Ok(mut f) = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&self.path)
+            {
+                let _ = writeln!(f, "{}", line);
+            }
+        }
+    }
+}
+
+// ── SessionSnapshot ───────────────────────────────────────────────────────────

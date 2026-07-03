@@ -330,6 +330,7 @@ Workspace-level security restrictions:
 JSONL audit logging and session resume:
 
 - `TraceWriter` records every tool call with input, output, timing, and approval source
+- Optional decision tracing logs agent decision points (tool selection, plan updates, approvals, etc.) for audit/debugging
 - `load_session()` restores full `SessionSnapshot` for `--resume`
 - `list_traces()` for browsing past sessions
 

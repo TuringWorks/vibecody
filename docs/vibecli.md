@@ -117,8 +117,9 @@ In REPL mode, the following slash commands are available:
 | `/diff <file>` | Show the git diff for a file |
 | `/apply <file> <changes>` | Apply AI-generated changes to a file (with diff preview) |
 | `/exec <task>` | Generate a shell command from a description and optionally run it |
-| `/trace` | List recent agent session traces |
+| `/trace` | List recent agent session traces (includes decision traces when enabled) |
 | `/trace view <id>` | Show detailed timeline for a trace session |
+| `/trace decisions <id>` | Show decision trace log for a session (when decision tracing enabled) |
 | `/plan <task>` | Generate an execution plan without acting |
 | `/review` | Run code review agent on current diff |
 | `/review --pr <n>` | Review a GitHub PR and post comments |

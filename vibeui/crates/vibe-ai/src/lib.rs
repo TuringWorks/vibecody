@@ -51,7 +51,8 @@ pub use rules::{Rule, RulesLoader};
 pub use skills::{Skill, SkillInstaller, SkillLoader, SkillWatcher};
 pub use tools::{format_tool_result, parse_tool_calls, ToolCall, ToolResult, TOOL_SYSTEM_PROMPT};
 pub use trace::{
-    list_traces, load_session, load_trace, SessionSnapshot, TraceEntry, TraceSession, TraceWriter,
+    DecisionTraceEntry, DecisionWriter, list_traces, load_session, load_trace, SessionSnapshot,
+    TraceEntry, TraceSession, TraceWriter,
 };
 // Claw-code parity: reusable mock provider for deterministic CI testing
 #[cfg(any(test, feature = "testing"))]
