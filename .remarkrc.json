@@ -1,0 +1,31 @@
+{
+  "plugins": [
+    "preset-lint-recommended",
+    "lint-no-duplicate-headers",
+    "lint-max-blank-lines",
+    {
+      "name": "lint-heading-style",
+      "options": {
+        "style": "atx",
+        "position": "consistent"
+      }
+    },
+    {
+      "name": "lint-list-item-indent",
+      "options": {
+        "style": "spaces"
+      }
+    },
+    {
+      "name": "lint-maximum-line-length",
+      "options": {
+        "max": 100
+      }
+    }
+  ],
+  "settings": {
+    "listItemIndent": "space",
+    "emphasis": "_",
+    "strong": "**"
+  }
+}

@@ -220,6 +220,32 @@ jobs:
         if: matrix.check == 'test'
         run: flutter test
 
+  # ─── Documentation: Markdown linting ────────────────────────────────
+  docs-check:
+    name: Documentation (${{ matrix.check }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [lint]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install remark and plugins
+        run: npm install remark-cli@12 @wooorm/storyline-preset@1 remark-preset-lint-recommended@6 remark-lint-no-duplicate-headers@4 remark-lint-max-blank-lines@2 remark-lint-heading-style@3 remark-lint-list-item-indent@2 remark-lint-maximum-line-length@6
+
+      - name: Lint Markdown files
+        if: matrix.check == "lint"
+        run: npx remark . --frail --quiet --ignore-component-path=false
+
   # ─── Aggregate gate ────────────────────────────────────────────────────
   # Single required check for branch protection — easier than listing every
   # individual job in repo settings.
@@ -232,6 +258,7 @@ jobs:
       - vibeapp-checks
       - agent-sdk-checks
       - mobile-checks
+      - docs-check
     if: always()
     steps:
       - name: Aggregate result
@@ -240,7 +267,8 @@ jobs:
              [[ "${{ needs.vibeui-checks.result }}"    != "success" ]] || \
              [[ "${{ needs.vibeapp-checks.result }}"   != "success" ]] || \
              [[ "${{ needs.agent-sdk-checks.result }}" != "success" ]] || \
-             [[ "${{ needs.mobile-checks.result }}"    != "success" ]]; then
+             [[ "${{ needs.mobile-checks.result }}"    != "success" ]] || \
+             [[ "${{ needs.docs-check.result }}"       != "success" ]]; then
             echo "::error::One or more CI checks failed. See individual job logs."
             exit 1
           fi
