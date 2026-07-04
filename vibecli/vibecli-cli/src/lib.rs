@@ -39,7 +39,7 @@ pub mod quantum_computing;
 pub mod rag_taint;
 pub mod redact;
 pub mod rlcef_loop;
-pub mod semantic_index;
+pub mod graph_index;
 pub mod signed_agent_card;
 pub mod sketch_canvas;
 pub mod smart_deps;
@@ -174,7 +174,6 @@ pub mod test_impact;
 // FIT-GAP v10 — Phase 43: Developer Experience (P2)
 pub mod auto_stub;
 pub mod conversation_branch;
-pub mod dep_visualizer;
 // FIT-GAP v11 — Phase 45: Agent-OS (P0)
 pub mod agent_autoscale;
 pub mod agent_quota;

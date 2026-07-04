@@ -202,6 +202,72 @@ export class VibeCLIClient {
     return { sessionId: data.session_id };
   }
 
+  // ── /graph — kodegraph code-knowledge-graph (no LLM call) ──────────────
+
+  /** `GET /v1/graph/status` — `{status, node_count, edge_count, last_built_at?}`. */
+  async graphStatus(): Promise<Record<string, unknown>> {
+    const res = await fetch(`${this.baseUrl}/v1/graph/status`);
+    if (!res.ok) throw new Error(`graph.status failed: ${res.status} ${await res.text()}`);
+    return res.json() as Promise<Record<string, unknown>>;
+  }
+
+  /** `POST /v1/graph/build` — kick off a background build; returns `{status:"indexing"}`. */
+  async graphBuild(): Promise<Record<string, unknown>> {
+    const res = await fetch(`${this.baseUrl}/v1/graph/build`, { method: 'POST' });
+    if (!res.ok) throw new Error(`graph.build failed: ${res.status} ${await res.text()}`);
+    return res.json() as Promise<Record<string, unknown>>;
+  }
+
+  /** `POST /v1/graph/query {query, budget?}` — token-budgeted subgraph. */
+  async graphQuery(query: string, budget?: number): Promise<Record<string, unknown>> {
+    const res = await fetch(`${this.baseUrl}/v1/graph/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, budget: budget ?? 2000 }),
+    });
+    if (!res.ok) throw new Error(`graph.query failed: ${res.status} ${await res.text()}`);
+    return res.json() as Promise<Record<string, unknown>>;
+  }
+
+  /** `GET /v1/graph/node/:name` — one node payload. */
+  async graphNode(name: string): Promise<Record<string, unknown>> {
+    const res = await fetch(`${this.baseUrl}/v1/graph/node/${encodeURIComponent(name)}`);
+    if (!res.ok) throw new Error(`graph.node failed: ${res.status} ${await res.text()}`);
+    return res.json() as Promise<Record<string, unknown>>;
+  }
+
+  /** `GET /v1/graph/neighbors/:name` — adjacent nodes. */
+  async graphNeighbors(name: string): Promise<Record<string, unknown>[]> {
+    const res = await fetch(`${this.baseUrl}/v1/graph/neighbors/${encodeURIComponent(name)}`);
+    if (!res.ok) throw new Error(`graph.neighbors failed: ${res.status} ${await res.text()}`);
+    return res.json() as Promise<Record<string, unknown>[]>;
+  }
+
+  /** `GET /v1/graph/path/:from/:to` — `{path:[…], hops}`. */
+  async graphPath(from: string, to: string): Promise<Record<string, unknown>> {
+    const res = await fetch(`${this.baseUrl}/v1/graph/path/${encodeURIComponent(from)}/${encodeURIComponent(to)}`);
+    if (!res.ok) throw new Error(`graph.path failed: ${res.status} ${await res.text()}`);
+    return res.json() as Promise<Record<string, unknown>>;
+  }
+
+  /** `POST /v1/graph/blast {name, max_hops?}` — blast radius. */
+  async graphBlast(name: string, maxHops?: number): Promise<Record<string, unknown>> {
+    const res = await fetch(`${this.baseUrl}/v1/graph/blast`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, max_hops: maxHops ?? 2 }),
+    });
+    if (!res.ok) throw new Error(`graph.blast failed: ${res.status} ${await res.text()}`);
+    return res.json() as Promise<Record<string, unknown>>;
+  }
+
+  /** `GET /v1/graph/report` — full `GRAPH_REPORT.md` text (`{report:string}`). */
+  async graphReport(): Promise<Record<string, unknown>> {
+    const res = await fetch(`${this.baseUrl}/v1/graph/report`);
+    if (!res.ok) throw new Error(`graph.report failed: ${res.status} ${await res.text()}`);
+    return res.json() as Promise<Record<string, unknown>>;
+  }
+
   /** Stream agent events for a running session. */
   async *streamAgent(sessionId: string): AsyncGenerator<AgentEvent> {
     const res = await fetch(`${this.baseUrl}/stream/${sessionId}`);

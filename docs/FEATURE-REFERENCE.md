@@ -932,6 +932,14 @@ pub struct Goal {
 | `GET` | `/v1/goals/:id/children` | One-level tree query |
 | `GET` | `/v1/goals/:id/tree?depth=N` | Recursive subtree walk (clamped 1..10, default 3, cycle-safe) |
 | `GET`/`PUT`/`DELETE` | `/v1/goals/current` | Per-workspace "current pin" (empty workspace = global slot) |
+| `POST` | `/v1/graph/build` | Kick off a background kodegraph build; returns `{status:"indexing"}` (no LLM call) |
+| `GET` | `/v1/graph/status` | Probe `{status,node_count,edge_count,last_built_at?}` |
+| `POST` | `/v1/graph/query` | `{query,budget?}` → token-budgeted subgraph `{seeds,nodes,edges,est_tokens}` |
+| `GET` | `/v1/graph/node/:name` | One node's payload (404 if not found) |
+| `GET` | `/v1/graph/neighbors/:name` | Adjacent nodes |
+| `GET` | `/v1/graph/path/:from/:to` | `{path:[labels],hops}` (404 if no path) |
+| `POST` | `/v1/graph/blast` | `{name,max_hops?}` → blast radius `{seed,affected,by_hop}` |
+| `GET` | `/v1/graph/report` | Full `GRAPH_REPORT.md` text `{report}` |
 
 ### Watch surface (curated)
 
@@ -940,6 +948,8 @@ pub struct Goal {
 | `GET` | `/watch/goals` | Active only, ≤25, slim payload |
 | `GET` | `/watch/goals/:id` | Full goal + links |
 | `POST` | `/watch/goals/:id/start` | Wrapper for `do_v1_exec_goal_start` |
+| `GET` | `/watch/graph/status` | Compact `{status,n,m}` for the wrist form factor |
+| `POST` | `/watch/graph/query` | `{query,budget?}` → subgraph capped to ≤5 nodes/edges |
 
 ### REPL
 

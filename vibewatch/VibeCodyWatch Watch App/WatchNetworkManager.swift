@@ -166,6 +166,46 @@ final class WatchNetworkManager: NSObject, ObservableObject {
         return resp.session_id
     }
 
+    // MARK: - Code Graph (kodegraph — curated /watch/graph/*)
+    //
+    // Two routes only (Watch never hits /v1/*): a compact status and a query
+    // capped server-side to ≤5 nodes so it fits a wrist screen.
+
+    /// Compact graph probe for the watch face: `{status, n, m}`.
+    struct WatchGraphStatus: Decodable {
+        let status: String
+        let n: Int
+        let m: Int
+    }
+    @Published var graphStatus: WatchGraphStatus?
+
+    /// `GET /watch/graph/status`. Best-effort — failures leave the prior value.
+    func loadGraphStatus() async {
+        guard auth.isPaired else { return }
+        do {
+            let token = try await auth.validAccessToken()
+            let url = URL(string: "\(auth.endpoint)/watch/graph/status")!
+            graphStatus = try await getJSON(url: url, token: token)
+        } catch {
+            // silent — same precedent as loadJobs/loadGoals
+        }
+    }
+
+    /// `POST /watch/graph/query {query, budget?}` — capped subgraph as a raw
+    /// JSON dict (`{seeds, nodes, edges, est_tokens}`). The watch renders the
+    /// seed names + node labels; full NodeData shapes are left untyped.
+    func loadGraphQuery(_ query: String, budget: Int = 2000) async throws -> [String: Any] {
+        let token = try await auth.validAccessToken()
+        guard let url = URL(string: "\(auth.endpoint)/watch/graph/query") else {
+            throw WatchAuthError.networkError("bad graph-query URL")
+        }
+        return try await postJSONDict(
+            url: url,
+            body: ["query": query, "budget": budget],
+            token: token
+        )
+    }
+
     // MARK: - Messages for a session
 
     func loadMessages(sessionId: String) async throws -> [WatchMessage] {
@@ -457,6 +497,27 @@ private func getJSON<Resp: Decodable>(url: URL, token: String) async throws -> R
         throw WatchAuthError.networkError("HTTP \((resp as? HTTPURLResponse)?.statusCode ?? 0): \(msg)")
     }
     return try JSONDecoder().decode(Resp.self, from: data)
+}
+
+/// POST a loose JSON body and return the response as a `[String: Any]` dict.
+/// Used by the graph query route, whose NodeData shapes are too rich to model
+/// as a fixed Codable struct on the watch.
+private func postJSONDict(url: URL, body: [String: Any], token: String) async throws -> [String: Any] {
+    var req = URLRequest(url: url)
+    req.httpMethod = "POST"
+    req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    req.setValue("Watch-Token \(token)", forHTTPHeaderField: "Authorization")
+    req.httpBody = try JSONSerialization.data(withJSONObject: body)
+    let (data, resp) = try await URLSession.shared.data(for: req)
+    guard let http = resp as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+        let msg = String(data: data, encoding: .utf8) ?? ""
+        throw WatchAuthError.networkError("HTTP \((resp as? HTTPURLResponse)?.statusCode ?? 0): \(msg)")
+    }
+    guard let obj = try? JSONSerialization.jsonObject(with: data),
+          let dict = obj as? [String: Any] else {
+        throw WatchAuthError.networkError("non-JSON graph response")
+    }
+    return dict
 }
 
 private func postJSON<Req: Encodable, Resp: Decodable>(url: URL, body: Req, token: String) async throws -> Resp {

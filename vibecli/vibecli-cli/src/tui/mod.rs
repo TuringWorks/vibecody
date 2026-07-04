@@ -268,10 +268,20 @@ async fn run_app<B: ratatui::backend::Backend>(
             .map(|s| s.file_statuses.into_keys().collect())
             .unwrap_or_default();
 
+        // Load the kodegraph code graph if one was persisted at
+        // <workspace>/.vibecli/codegraph.db (by the daemon or a prior
+        // `vibecli semindex build`). Load-only — no background build here,
+        // so a fresh TUI session stays snappy. When a graph is available,
+        // seed the context's `## Relevant Symbols` block with graph-aware
+        // symbols (god nodes for a generic task); empty otherwise.
+        let _ = crate::graph_index::init_graph_handle(&workspace);
+        let graph_syms = crate::graph_index::graph_aware_symbols("general coding assistance", 50);
+
         let context = vibe_core::ContextBuilder::new()
             .with_git_branch(&branch)
             .with_git_diff(&diff)
             .with_git_changed_files(changed_files)
+            .with_relevant_symbols(graph_syms)
             .with_token_budget(4_000)
             .build_for_task("general coding assistance");
 

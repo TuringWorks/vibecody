@@ -4,7 +4,7 @@
 //! token-budget-aware context that combines git status, relevant symbols,
 //! and open file content — ordered by task relevance.
 
-use crate::index::CodebaseIndex;
+use crate::index::{CodebaseIndex, SymbolInfo};
 use std::path::Path;
 
 /// Approximate characters per token (conservative estimate for LLM context).
@@ -18,6 +18,13 @@ pub struct ContextBuilder<'a> {
     git_diff: Option<&'a str>,
     git_changed_files: Vec<String>,
     open_files: Vec<&'a Path>,
+    /// Graph-aware symbols supplied by the caller (e.g. the daemon's
+    /// kodegraph bridge via `graph_index::graph_aware_symbols`). When
+    /// non-empty, `build_for_task` prefers these over the term-overlap
+    /// index — seed-and-expand from a code knowledge graph beats regex
+    /// term matching for cross-cutting tasks. Owned so the builder
+    /// doesn't borrow the graph source.
+    relevant_symbols: Vec<SymbolInfo>,
     /// Target token budget for the context block.
     token_budget: usize,
 }
@@ -30,6 +37,7 @@ impl<'a> ContextBuilder<'a> {
             git_diff: None,
             git_changed_files: Vec::new(),
             open_files: Vec::new(),
+            relevant_symbols: Vec::new(),
             token_budget: 8_000,
         }
     }
@@ -61,6 +69,14 @@ impl<'a> ContextBuilder<'a> {
 
     pub fn with_token_budget(mut self, tokens: usize) -> Self {
         self.token_budget = tokens;
+        self
+    }
+
+    /// Supply graph-aware symbols (e.g. from a kodegraph blast-radius). When
+    /// non-empty, `build_for_task` renders these as the `## Relevant Symbols`
+    /// block instead of querying the term-overlap `CodebaseIndex`.
+    pub fn with_relevant_symbols(mut self, symbols: Vec<SymbolInfo>) -> Self {
+        self.relevant_symbols = symbols;
         self
     }
 
@@ -116,32 +132,44 @@ impl<'a> ContextBuilder<'a> {
             }
         }
 
-        // ── 3. Relevant symbols from index ────────────────────────────────────
-        if let Some(index) = self.index {
-            let symbol_budget = char_budget * 30 / 100;
-            let remaining = char_budget.saturating_sub(used_chars);
-            let sym_limit = symbol_budget.min(remaining);
-
-            if sym_limit > 200 {
-                let symbols = index.relevant_symbols(task, 50);
-                if !symbols.is_empty() {
-                    let mut sym_block = String::from("\n## Relevant Symbols\n");
-                    for sym in symbols {
-                        let line = format!("  {}\n", sym.format_ref());
-                        if sym_block.len() + line.len() > sym_limit {
-                            break;
-                        }
-                        sym_block.push_str(&line);
+        // ── 3. Relevant symbols (graph-aware, else term-overlap index) ───────
+        let symbol_budget = char_budget * 30 / 100;
+        let remaining = char_budget.saturating_sub(used_chars);
+        let sym_limit = symbol_budget.min(remaining);
+        if sym_limit > 200 {
+            // Prefer caller-supplied graph-aware symbols (kodegraph
+            // blast-radius) over the term-overlap index when available.
+            let from_graph = !self.relevant_symbols.is_empty();
+            let symbols: Vec<SymbolInfo> = if from_graph {
+                self.relevant_symbols.clone()
+            } else if let Some(index) = self.index {
+                index.relevant_symbols(task, 50)
+            } else {
+                Vec::new()
+            };
+            if !symbols.is_empty() {
+                let mut sym_block = String::from("\n## Relevant Symbols\n");
+                for sym in symbols {
+                    let line = format!("  {}\n", sym.format_ref());
+                    if sym_block.len() + line.len() > sym_limit {
+                        break;
                     }
-                    let index_summary = format!(
-                        "Index: {} files, {} symbols indexed.\n",
-                        index.file_count(),
-                        index.symbol_count()
-                    );
-                    sym_block.push_str(&index_summary);
-                    used_chars += sym_block.len();
-                    parts.push(sym_block);
+                    sym_block.push_str(&line);
                 }
+                // The index-counts summary only makes sense when symbols came
+                // from the index, not from the graph.
+                if !from_graph {
+                    if let Some(index) = self.index {
+                        let index_summary = format!(
+                            "Index: {} files, {} symbols indexed.\n",
+                            index.file_count(),
+                            index.symbol_count()
+                        );
+                        sym_block.push_str(&index_summary);
+                    }
+                }
+                used_chars += sym_block.len();
+                parts.push(sym_block);
             }
         }
 

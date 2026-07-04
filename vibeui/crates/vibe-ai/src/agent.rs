@@ -591,6 +591,13 @@ pub struct AgentContext {
     /// OpenMemory context — relevant memories auto-injected into system prompt.
     #[serde(default)]
     pub memory_context: Option<String>,
+    /// kodegraph-backed code-graph summary (top god nodes, communities,
+    /// surprising edges). When `Some`, replaces the directory-tree repo map
+    /// in the system prompt's `## Workspace Structure` section — a few hundred
+    /// tokens of graph structure instead of a flat file listing. Populated by
+    /// the daemon; `None` for non-daemon callers (CLI/REPL/test paths).
+    #[serde(default)]
+    pub graph_summary: Option<String>,
     /// Auto-gathered relevant file contents for the current task.
     #[serde(default)]
     pub task_context_files: Vec<(String, String)>, // (path, preview)
@@ -2270,8 +2277,14 @@ fn build_system_prompt(context: &AgentContext, approval: &ApprovalPolicy) -> Str
             context.workspace_root.display()
         ));
 
-        // Repo-map: compact 2-level directory tree + key file detection.
-        let repo_map = build_repo_map(&context.workspace_root);
+        // Repo-map: prefer the kodegraph code-graph summary (god nodes /
+        // communities / surprising edges — a few hundred tokens of graph
+        // structure) when the daemon populated `graph_summary`; fall back to
+        // the compact 2-level directory tree otherwise.
+        let repo_map = match context.graph_summary.as_deref().filter(|s| !s.is_empty()) {
+            Some(g) => g.to_string(),
+            None => build_repo_map(&context.workspace_root),
+        };
         if !repo_map.is_empty() {
             extras.push_str(&format!("\n\n## Workspace Structure\n{}", repo_map));
         }

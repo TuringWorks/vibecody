@@ -144,6 +144,33 @@ class WearNetworkManager(
         }
     }
 
+    // ── Code Graph (kodegraph — curated /watch/graph/*) ───────────────────────
+    //
+    // Two routes only (Wear never hits /v1/*): compact status + a query capped
+    // server-side to ≤5 nodes so it fits a wrist screen.
+
+    /** `GET /watch/graph/status` → compact `{status, n, m}`. */
+    suspend fun graphStatus(): JSONObject = withContext(Dispatchers.IO) {
+        val req = watchRequest("${auth.daemonUrl}/watch/graph/status").get().build()
+        val resp = client.newCall(req).awaitResponse()
+        JSONObject(resp.body?.string() ?: "{}")
+    }
+
+    /** `POST /watch/graph/query {query, budget?}` → capped subgraph
+     *  (`{seeds, nodes, edges, est_tokens}`). Throws on network failure. */
+    suspend fun graphQuery(query: String, budget: Int = 2000): JSONObject = withContext(Dispatchers.IO) {
+        val bodyJson = JSONObject().apply {
+            put("query", query)
+            put("budget", budget)
+        }.toString()
+        val req = watchRequest("${auth.daemonUrl}/watch/graph/query")
+            .post(bodyJson.toRequestBody("application/json".toMediaType()))
+            .build()
+        val resp = client.newCall(req).awaitResponse()
+        if (!resp.isSuccessful) throw IOException("graphQuery HTTP ${resp.code}")
+        JSONObject(resp.body?.string() ?: "{}")
+    }
+
     suspend fun getMessages(sessionId: String): JSONObject = withContext(Dispatchers.IO) {
         val req = watchRequest("${auth.daemonUrl}/watch/sessions/$sessionId/messages").get().build()
         val resp = client.newCall(req).awaitResponse()

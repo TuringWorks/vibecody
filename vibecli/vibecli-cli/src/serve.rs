@@ -584,6 +584,7 @@ async fn health(State(state): State<ServeState>) -> impl IntoResponse {
         .map(|s| !s.is_empty())
         .unwrap_or(false);
     let codec_probe = CODEC_PROBE.get();
+    let graph_probe = crate::graph_index::graph_handle().map(|h| h.probe.read().unwrap().clone());
     let providers = configured_provider_names();
     let provider_count = providers.len();
     let unconfigured = unconfigured_integrations();
@@ -616,6 +617,19 @@ async fn health(State(state): State<ServeState>) -> impl IntoResponse {
         // a real model. Null if the probe didn't run (very early /health
         // hit before serve() reached the probe call).
         "kv_cache_codec_probe": codec_probe,
+        // kodegraph code-graph status. `disabled` when the daemon hasn't
+        // initialized a handle (e.g. CLI-only paths); `indexing` while the
+        // background build runs; `ready` with counts when queryable. Stores
+        // only code structure at <workspace>/.vibecli/codegraph.db — no secrets.
+        "graph": match &graph_probe {
+            Some(p) => serde_json::json!({
+                "status": p.status.as_str(),
+                "node_count": p.node_count,
+                "edge_count": p.edge_count,
+                "last_built_at": p.last_built_at.map(|d| d.to_rfc3339()),
+            }),
+            None => serde_json::json!({ "status": "disabled" }),
+        },
         // Configured AI providers (by ProfileStore key presence). Names
         // only, never values. The canonical readiness signal for any
         // provider-dependent feature.
@@ -1077,6 +1091,12 @@ fn build_agent_context_from_request(
         Some(memory_pieces.join("\n\n---\n\n"))
     };
 
+    // kodegraph repo-map summary (god nodes / communities). Refreshes the
+    // graph if files changed since the last build, then renders a few hundred
+    // tokens that replace the dir-tree in the system prompt. Computed before
+    // `workspace` is moved into the context below.
+    let graph_summary = crate::graph_index::current_summary(&workspace);
+
     Ok(AgentContext {
         workspace_root: workspace,
         open_files: vec![],
@@ -1091,6 +1111,10 @@ fn build_agent_context_from_request(
         team_bus: None,
         team_agent_id: None,
         project_summary,
+        // kodegraph repo-map summary (god nodes / communities). Refreshes the
+        // graph if files changed since the last build, then renders a few
+        // hundred tokens that replace the dir-tree in the system prompt.
+        graph_summary,
         // task_context_files left empty here — the relevance scanner
         // is workspace-CPU-heavy and the in-process daemon path is
         // not where we want that running synchronously inside an HTTP
@@ -1369,6 +1393,7 @@ async fn start_agent(
                     auto_commit: false,
                     reasoning_budget_tokens: reasoning_budget,
                     prior_messages: Vec::new(),
+                    graph_summary: crate::graph_index::render_current_summary(),
                 },
             },
             None => AgentContext {
@@ -1390,6 +1415,7 @@ async fn start_agent(
                 auto_commit: false,
                 reasoning_budget_tokens: reasoning_budget,
                 prior_messages: Vec::new(),
+                graph_summary: crate::graph_index::render_current_summary(),
             },
         };
 
@@ -4189,6 +4215,169 @@ async fn v1_exec_goal_tree(
     (status, Json(body))
 }
 
+// ── /graph/* — kodegraph code-knowledge-graph surface ──────────────────────
+//
+// Pure helpers (`do_v1_graph_*`) read the process-global `graph_index` handle;
+// the thin async shells just extract params. These routes carry no LLM call, so
+// the provider-agnostic-panel rule is moot — they accept no provider/model and
+// never validate against the provider registry. Responses are
+// `serde_json::Value` so no kodegraph type leaks across the HTTP boundary.
+
+fn graph_unavailable() -> (StatusCode, serde_json::Value) {
+    (
+        StatusCode::SERVICE_UNAVAILABLE,
+        serde_json::json!({
+            "error": "code graph not available — POST /graph/build to populate it",
+            "status": "disabled",
+        }),
+    )
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GraphQueryRequest {
+    pub query: String,
+    #[serde(default = "default_graph_budget")]
+    pub budget: usize,
+}
+fn default_graph_budget() -> usize {
+    2000
+}
+
+#[derive(Debug, Deserialize)]
+pub struct GraphBlastRequest {
+    pub name: String,
+    #[serde(default = "default_graph_max_hops")]
+    pub max_hops: usize,
+}
+fn default_graph_max_hops() -> usize {
+    2
+}
+
+pub(crate) fn do_v1_graph_status() -> (StatusCode, serde_json::Value) {
+    let v = crate::graph_index::status_value().unwrap_or_else(|| {
+        serde_json::json!({ "status": "disabled", "node_count": 0, "edge_count": 0 })
+    });
+    (StatusCode::OK, v)
+}
+
+pub(crate) fn do_v1_graph_build() -> (StatusCode, serde_json::Value) {
+    match crate::graph_index::graph_handle() {
+        Some(h) => {
+            crate::graph_index::spawn_background_build(h.workspace_root.clone());
+            (
+                StatusCode::ACCEPTED,
+                serde_json::json!({ "status": "indexing" }),
+            )
+        }
+        None => graph_unavailable(),
+    }
+}
+
+pub(crate) fn do_v1_graph_query(req: &GraphQueryRequest) -> (StatusCode, serde_json::Value) {
+    match crate::graph_index::query_value(&req.query, req.budget) {
+        Some(v) => (StatusCode::OK, v),
+        None => graph_unavailable(),
+    }
+}
+
+pub(crate) fn do_v1_graph_node(name: &str) -> (StatusCode, serde_json::Value) {
+    if crate::graph_index::graph_handle().is_none() {
+        return graph_unavailable();
+    }
+    match crate::graph_index::node_value(name) {
+        Some(v) => (StatusCode::OK, v),
+        None => (
+            StatusCode::NOT_FOUND,
+            serde_json::json!({ "error": "no graph node with that name" }),
+        ),
+    }
+}
+
+pub(crate) fn do_v1_graph_neighbors(name: &str) -> (StatusCode, serde_json::Value) {
+    match crate::graph_index::neighbors_value(name) {
+        Some(v) => (StatusCode::OK, v),
+        None => graph_unavailable(),
+    }
+}
+
+pub(crate) fn do_v1_graph_path(from: &str, to: &str) -> (StatusCode, serde_json::Value) {
+    if crate::graph_index::graph_handle().is_none() {
+        return graph_unavailable();
+    }
+    match crate::graph_index::path_value(from, to) {
+        Some(v) => (StatusCode::OK, v),
+        None => (
+            StatusCode::NOT_FOUND,
+            serde_json::json!({ "error": "no path between those nodes" }),
+        ),
+    }
+}
+
+pub(crate) fn do_v1_graph_blast(req: &GraphBlastRequest) -> (StatusCode, serde_json::Value) {
+    match crate::graph_index::blast_value(&req.name, req.max_hops) {
+        Some(v) => (StatusCode::OK, v),
+        None => graph_unavailable(),
+    }
+}
+
+pub(crate) fn do_v1_graph_report() -> (StatusCode, serde_json::Value) {
+    match crate::graph_index::graph_handle().and_then(crate::graph_index::render_report) {
+        Some(s) => (
+            StatusCode::OK,
+            serde_json::json!({ "report": s }),
+        ),
+        None => graph_unavailable(),
+    }
+}
+
+async fn v1_graph_status() -> (StatusCode, Json<serde_json::Value>) {
+    let (s, b) = do_v1_graph_status();
+    (s, Json(b))
+}
+
+async fn v1_graph_build() -> (StatusCode, Json<serde_json::Value>) {
+    let (s, b) = do_v1_graph_build();
+    (s, Json(b))
+}
+
+async fn v1_graph_query(
+    Json(req): Json<GraphQueryRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let (s, b) = do_v1_graph_query(&req);
+    (s, Json(b))
+}
+
+async fn v1_graph_node(Path(name): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
+    let (s, b) = do_v1_graph_node(&name);
+    (s, Json(b))
+}
+
+async fn v1_graph_neighbors(
+    Path(name): Path<String>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let (s, b) = do_v1_graph_neighbors(&name);
+    (s, Json(b))
+}
+
+async fn v1_graph_path(
+    Path((from, to)): Path<(String, String)>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let (s, b) = do_v1_graph_path(&from, &to);
+    (s, Json(b))
+}
+
+async fn v1_graph_blast(
+    Json(req): Json<GraphBlastRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let (s, b) = do_v1_graph_blast(&req);
+    (s, Json(b))
+}
+
+async fn v1_graph_report() -> (StatusCode, Json<serde_json::Value>) {
+    let (s, b) = do_v1_graph_report();
+    (s, Json(b))
+}
+
 // ── G4.4 pin current goal ──────────────────────────────────────────────────
 //
 // `/v1/goals/current` is the pin endpoint. Workspace is passed in the
@@ -6449,6 +6638,15 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/v1/goals/:id/recap", post(v1_exec_goal_recap))
         .route("/v1/goals/:id/children", get(v1_exec_goal_children))
         .route("/v1/goals/:id/tree", get(v1_exec_goal_tree))
+        // /graph/* — kodegraph code-knowledge-graph (no LLM call; provider-agnostic rule moot).
+        .route("/v1/graph/build", post(v1_graph_build))
+        .route("/v1/graph/status", get(v1_graph_status))
+        .route("/v1/graph/query", post(v1_graph_query))
+        .route("/v1/graph/node/:name", get(v1_graph_node))
+        .route("/v1/graph/neighbors/:name", get(v1_graph_neighbors))
+        .route("/v1/graph/path/:from/:to", get(v1_graph_path))
+        .route("/v1/graph/blast", post(v1_graph_blast))
+        .route("/v1/graph/report", get(v1_graph_report))
         // Recap & Resume v1 — D1.1 (diffcomplete chain autosave).
         // Patent re-audit: PASS (1–5 unchanged). Writes happen only
         // on discrete user-driven events posted by the modal.
@@ -6748,6 +6946,32 @@ pub async fn serve(
         );
     }
     let _ = CODEC_PROBE.set(probe);
+
+    // Initialize the kodegraph code-graph handle. If a persisted graph loads
+    // from <workspace>/.vibecli/codegraph.db it's ready immediately;
+    // otherwise kick off a non-blocking background build (tree-sitter parse
+    // is CPU-bound — runs on a dedicated OS thread, off the tokio runtime).
+    // Status is surfaced in /health.graph and here in the startup banner.
+    // Zero-Config: requires no env var or key; the graph stores only code
+    // structure, never secrets. AGENTS.md → Zero-Config First.
+    {
+        let handle = crate::graph_index::init_graph_handle(&workspace_root);
+        let probe = handle.probe.read().unwrap().clone();
+        match probe.status {
+            crate::graph_index::GraphStatus::Ready => {
+                eprintln!(
+                    "[vibecli serve] code graph: ready ({} nodes, {} edges) — loaded from {}",
+                    probe.node_count,
+                    probe.edge_count,
+                    handle.db_path.display(),
+                );
+            }
+            _ => {
+                eprintln!("[vibecli serve] code graph: indexing in background…");
+                crate::graph_index::spawn_background_build(workspace_root.clone());
+            }
+        }
+    }
 
     // Legacy jobs directory — kept for feedback/intervene side-car files and
     // one-shot migration. Job records themselves now live in

@@ -211,7 +211,49 @@ pub fn build_watch_router(state: WatchBridgeState) -> Router {
         // whichever paired client is online. Watch-Token authed.
         .route("/tainted/pending", get(watch_tainted_pending))
         .route("/tainted/respond", post(watch_tainted_respond))
+        // /graph/* — kodegraph surface for the watch form factor. Two curated
+        // routes (Watch/Wear never hit /v1/*): compact status + a query capped
+        // to ≤5 nodes so it fits on a wrist screen. Reuses the serve.rs helpers.
+        .route("/graph/status", get(watch_graph_status))
+        .route("/graph/query", post(watch_graph_query))
         .with_state(state)
+}
+
+// ── /graph/* — watch form-factor views over the kodegraph handle ─────────────
+
+/// `GET /graph/status` → compact `{status, n, m}` for a wrist screen.
+async fn watch_graph_status() -> impl IntoResponse {
+    let (s, b) = crate::serve::do_v1_graph_status();
+    let compact = match &b {
+        serde_json::Value::Object(map) => {
+            let status = map.get("status").cloned().unwrap_or(serde_json::Value::Null);
+            let n = map.get("node_count").cloned().unwrap_or(serde_json::json!(0));
+            let m = map.get("edge_count").cloned().unwrap_or(serde_json::json!(0));
+            serde_json::json!({ "status": status, "n": n, "m": m })
+        }
+        _ => b,
+    };
+    (s, Json(compact))
+}
+
+/// `POST /graph/query {query, budget}` → subgraph capped to ≤5 nodes/edges.
+async fn watch_graph_query(
+    Json(req): Json<crate::serve::GraphQueryRequest>,
+) -> impl IntoResponse {
+    let (s, b) = crate::serve::do_v1_graph_query(&req);
+    let capped = match b {
+        serde_json::Value::Object(mut map) => {
+            if let Some(nodes) = map.get_mut("nodes").and_then(|v| v.as_array_mut()) {
+                nodes.truncate(5);
+            }
+            if let Some(edges) = map.get_mut("edges").and_then(|v| v.as_array_mut()) {
+                edges.truncate(5);
+            }
+            serde_json::Value::Object(map)
+        }
+        other => other,
+    };
+    (s, Json(capped))
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────

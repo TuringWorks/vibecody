@@ -5421,6 +5421,7 @@ pub async fn start_agent_task(
         project_summary: None,
         task_context_files: vec![],
         memory_context,
+        graph_summary: None,
         auto_commit: false,
         reasoning_budget_tokens: None,
         prior_messages: Vec::new(),
@@ -6052,6 +6053,7 @@ pub async fn start_parallel_agent_task(
                 project_summary: None,
                 task_context_files: vec![],
                 memory_context: None,
+                graph_summary: None,
                 auto_commit: false,
                 reasoning_budget_tokens: None,
                 prior_messages: Vec::new(),
@@ -10138,6 +10140,7 @@ pub async fn start_parallel_agents(
                 project_summary: None,
                 task_context_files: vec![],
                 memory_context,
+                graph_summary: None,
                 auto_commit: false,
                 reasoning_budget_tokens: None,
                 prior_messages: Vec::new(),
@@ -61205,6 +61208,61 @@ pub async fn exec_goal_unpin(workspace: Option<String>) -> Result<serde_json::Va
         return Err(format!("daemon returned {}: {}", status, json));
     }
     Ok(json)
+}
+
+// ── Code Graph (/v1/graph/*) — kodegraph surface ───────────────────────
+//
+// These commands forward to the daemon's `/v1/graph/*` routes. They carry no
+// LLM call, so there is no provider/model to dispatch — the provider-agnostic
+// panel rule is moot here. Responses are `serde_json::Value` (no kodegraph
+// type coupling into the Tauri shell). The Tauri process has no graph handle
+// of its own; it always proxies to the daemon, which owns the graph.
+
+#[tauri::command]
+pub async fn graph_status() -> Result<serde_json::Value, String> {
+    exec_goal_authed_get("/v1/graph/status", None).await
+}
+
+#[tauri::command]
+pub async fn graph_build() -> Result<serde_json::Value, String> {
+    exec_goal_authed_json(
+        reqwest::Method::POST,
+        "/v1/graph/build",
+        serde_json::json!({}),
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn graph_query(query: String, budget: Option<usize>) -> Result<serde_json::Value, String> {
+    let body = serde_json::json!({ "query": query, "budget": budget.unwrap_or(2000) });
+    exec_goal_authed_json(reqwest::Method::POST, "/v1/graph/query", body).await
+}
+
+#[tauri::command]
+pub async fn graph_node(name: String) -> Result<serde_json::Value, String> {
+    exec_goal_authed_get(&format!("/v1/graph/node/{}", name), None).await
+}
+
+#[tauri::command]
+pub async fn graph_neighbors(name: String) -> Result<serde_json::Value, String> {
+    exec_goal_authed_get(&format!("/v1/graph/neighbors/{}", name), None).await
+}
+
+#[tauri::command]
+pub async fn graph_path(from: String, to: String) -> Result<serde_json::Value, String> {
+    exec_goal_authed_get(&format!("/v1/graph/path/{}/{}", from, to), None).await
+}
+
+#[tauri::command]
+pub async fn graph_blast(name: String, max_hops: Option<usize>) -> Result<serde_json::Value, String> {
+    let body = serde_json::json!({ "name": name, "max_hops": max_hops.unwrap_or(2) });
+    exec_goal_authed_json(reqwest::Method::POST, "/v1/graph/blast", body).await
+}
+
+#[tauri::command]
+pub async fn graph_report() -> Result<serde_json::Value, String> {
+    exec_goal_authed_get("/v1/graph/report", None).await
 }
 
 // ── Security Posture ─────────────────────────────────────────────────

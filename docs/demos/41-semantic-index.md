@@ -7,7 +7,7 @@ permalink: /demos/41-semantic-index/
 
 ## Overview
 
-VibeCody's semantic index goes beyond text search by parsing your codebase into an AST (Abstract Syntax Tree) and building a structural graph of functions, types, traits, modules, and their relationships. You can query callers, callees, type hierarchies, trait implementations, and cross-module dependencies at the symbol level. This gives you IDE-quality code intelligence directly in the terminal, powered by tree-sitter parsing and an in-memory graph index.
+VibeCody's code graph goes beyond text search by parsing your codebase into an AST (Abstract Syntax Tree) and building a structural graph of functions, types, traits, modules, and their relationships. You can query callers, callees, type hierarchies, trait implementations, and cross-module dependencies at the symbol level. This gives you IDE-quality code intelligence directly in the terminal, powered by **kodegraph** — tree-sitter parsing persisted to a SQLite graph at `<workspace>/.vibecli/codegraph.db`. The daemon builds the graph in the background on startup and surfaces status in the startup banner, `/health`, and the `/graph/*` HTTP routes; the `/semindex` CLI and the TUI `ContextBuilder` read the same graph.
 
 **Time to complete:** ~8 minutes
 

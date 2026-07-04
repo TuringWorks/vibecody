@@ -15,6 +15,19 @@
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Glob|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "test -f .vibecli/codegraph.db && echo 'kodegraph code graph present — consider /graph/report, /graph/query, or /graph/status before broad file sweeps (token-reduction substrate)' || true",
+            "timeout": 5,
+            "statusMessage": "Checking for kodegraph…"
+          }
+        ]
+      }
     ]
   }
 }

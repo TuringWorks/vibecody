@@ -460,6 +460,69 @@ export class VibeCLIAgent {
     },
   };
 
+  // kodegraph code-knowledge-graph surface. Exposed as `agent.graph.*` — a thin
+  // proxy to /v1/graph/*. No LLM call, so no provider/model. Responses are
+  // untyped JSON (kodegraph shapes are daemon-owned; the SDK stays decoupled).
+
+  /** `/v1/graph/status` — `{status:"ready"|"indexing"|"disabled", node_count, edge_count, last_built_at?}`. */
+  readonly graph = {
+    status: async (): Promise<Record<string, unknown>> => {
+      const res = await fetch(`${this.baseUrl}/v1/graph/status`);
+      if (!res.ok) throw new AgentError(`graph.status failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<Record<string, unknown>>;
+    },
+    /** `POST /v1/graph/build` — kicks off a background build, returns `{status:"indexing"}`. */
+    build: async (): Promise<Record<string, unknown>> => {
+      const res = await fetch(`${this.baseUrl}/v1/graph/build`, { method: 'POST' });
+      if (!res.ok) throw new AgentError(`graph.build failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<Record<string, unknown>>;
+    },
+    /** `POST /v1/graph/query {query, budget?}` — token-budgeted subgraph. */
+    query: async (query: string, budget?: number): Promise<Record<string, unknown>> => {
+      const res = await fetch(`${this.baseUrl}/v1/graph/query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query, budget: budget ?? 2000 }),
+      });
+      if (!res.ok) throw new AgentError(`graph.query failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<Record<string, unknown>>;
+    },
+    /** `GET /v1/graph/node/:name` — one node's payload. */
+    node: async (name: string): Promise<Record<string, unknown>> => {
+      const res = await fetch(`${this.baseUrl}/v1/graph/node/${encodeURIComponent(name)}`);
+      if (!res.ok) throw new AgentError(`graph.node failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<Record<string, unknown>>;
+    },
+    /** `GET /v1/graph/neighbors/:name` — adjacent nodes. */
+    neighbors: async (name: string): Promise<Record<string, unknown>[]> => {
+      const res = await fetch(`${this.baseUrl}/v1/graph/neighbors/${encodeURIComponent(name)}`);
+      if (!res.ok) throw new AgentError(`graph.neighbors failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<Record<string, unknown>[]>;
+    },
+    /** `GET /v1/graph/path/:from/:to` — `{path:[…], hops}`. */
+    path: async (from: string, to: string): Promise<Record<string, unknown>> => {
+      const res = await fetch(`${this.baseUrl}/v1/graph/path/${encodeURIComponent(from)}/${encodeURIComponent(to)}`);
+      if (!res.ok) throw new AgentError(`graph.path failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<Record<string, unknown>>;
+    },
+    /** `POST /v1/graph/blast {name, max_hops?}` — blast radius. */
+    blast: async (name: string, maxHops?: number): Promise<Record<string, unknown>> => {
+      const res = await fetch(`${this.baseUrl}/v1/graph/blast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, max_hops: maxHops ?? 2 }),
+      });
+      if (!res.ok) throw new AgentError(`graph.blast failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<Record<string, unknown>>;
+    },
+    /** `GET /v1/graph/report` — full `GRAPH_REPORT.md` text (`{report:string}`). */
+    report: async (): Promise<Record<string, unknown>> => {
+      const res = await fetch(`${this.baseUrl}/v1/graph/report`);
+      if (!res.ok) throw new AgentError(`graph.report failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<Record<string, unknown>>;
+    },
+  };
+
   /**
    * Check if the daemon is reachable.
    */

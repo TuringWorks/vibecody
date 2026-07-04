@@ -134,6 +134,7 @@
 | Workspace rules injection | ✅ | ✅ | `.vibehints`, `rules/*.md` |
 | `.vibeui.md` workspace rules | ❌ | ✅ | Injected into every AI prompt |
 | Semantic index (fast search) | ✅ | ✅ | Trigram + LRU cache |
+| Code Graph (kodegraph) | ✅ | ✅ | tree-sitter → SQLite graph at `.vibecli/codegraph.db`; god-node/community summary replaces the dir-tree repo map in the agent system prompt; TUI seeds `## Relevant Symbols` via blast-radius. Background build on daemon startup; `/graph/*` + `/watch/graph/*` routes; `/semindex` CLI (`build/query/node/callers/callees/hierarchy/stats`) |
 | Hierarchical project memory | ✅ | ✅ | system → user → project → dir |
 | Session memory (auto-extracted) | ✅ | ✅ | Facts from assistant messages |
 | Pinned memory in system prompt | ❌ | ✅ | ChatMemoryPanel |

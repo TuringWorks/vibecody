@@ -90,6 +90,12 @@ vibe-sandbox-firecracker = { path = "../crates/vibe-sandbox-firecracker" }
 vibe-sandbox-hyperlight = { path = "../crates/vibe-sandbox-hyperlight" }
 vibe-broker = { path = "../crates/vibe-broker" }
 vibe-memory = { path = "../../vibe-memory" }
+# kodegraph — tree-sitter code knowledge graph (token-reduction substrate).
+# Daemon owns the graph; vibe-ai/vibe-core stay kodegraph-free and receive
+# pre-rendered strings / SymbolInfo vecs. Only tree-sitter+sqlite+viz are
+# enabled — `lsp`/`cli`/`mcp` would pull a clap CLI + MCP server + a
+# duplicate LSP client into the daemon dep tree.
+kodegraph = { path = "../../kodegraph", features = ["tree-sitter", "sqlite", "viz"] }
 sha2.workspace = true
 hmac.workspace = true
 p256.workspace = true

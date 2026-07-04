@@ -707,6 +707,129 @@ class ApiClient {
     return data['removed'] == true;
   }
 
+  // ── /v1/graph/* — kodegraph code-knowledge-graph (no LLM call) ──────────
+  //
+  // Thin proxies to the daemon's graph routes. Responses are raw JSON maps
+  // (kodegraph shapes are daemon-owned). Mobile polls `graphStatus` to show
+  // indexing→ready; `graphBuild` triggers a background rebuild.
+
+  /// `GET /v1/graph/status` — `{status, node_count, edge_count, last_built_at?}`.
+  Future<Map<String, dynamic>> graphStatus(
+    String baseUrl,
+    String token,
+  ) async {
+    final resp = await _client.get(
+      Uri.parse(_url(baseUrl, '/v1/graph/status')),
+      headers: _headers(token),
+    );
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+    return Map<String, dynamic>.from(jsonDecode(resp.body));
+  }
+
+  /// `POST /v1/graph/build` — kick off a background build; returns `{status:"indexing"}`.
+  Future<Map<String, dynamic>> graphBuild(
+    String baseUrl,
+    String token,
+  ) async {
+    final resp = await _client.post(
+      Uri.parse(_url(baseUrl, '/v1/graph/build')),
+      headers: _headers(token),
+    );
+    if (resp.statusCode != 202 && resp.statusCode != 200) {
+      throw ApiException(resp.statusCode, resp.body);
+    }
+    return Map<String, dynamic>.from(jsonDecode(resp.body));
+  }
+
+  /// `POST /v1/graph/query {query, budget?}` — token-budgeted subgraph.
+  Future<Map<String, dynamic>> graphQuery(
+    String baseUrl,
+    String token,
+    String query, {
+    int budget = 2000,
+  }) async {
+    final resp = await _client.post(
+      Uri.parse(_url(baseUrl, '/v1/graph/query')),
+      headers: _headers(token),
+      body: jsonEncode({'query': query, 'budget': budget}),
+    );
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+    return Map<String, dynamic>.from(jsonDecode(resp.body));
+  }
+
+  /// `GET /v1/graph/node/:name` — one node payload.
+  Future<Map<String, dynamic>> graphNode(
+    String baseUrl,
+    String token,
+    String name,
+  ) async {
+    final resp = await _client.get(
+      Uri.parse(_url(baseUrl, '/v1/graph/node/${Uri.encodeComponent(name)}')),
+      headers: _headers(token),
+    );
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+    return Map<String, dynamic>.from(jsonDecode(resp.body));
+  }
+
+  /// `GET /v1/graph/neighbors/:name` — adjacent nodes (a JSON array).
+  Future<List<dynamic>> graphNeighbors(
+    String baseUrl,
+    String token,
+    String name,
+  ) async {
+    final resp = await _client.get(
+      Uri.parse(_url(baseUrl, '/v1/graph/neighbors/${Uri.encodeComponent(name)}')),
+      headers: _headers(token),
+    );
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+    return jsonDecode(resp.body) as List<dynamic>;
+  }
+
+  /// `GET /v1/graph/path/:from/:to` — `{path:[…], hops}`.
+  Future<Map<String, dynamic>> graphPath(
+    String baseUrl,
+    String token,
+    String from,
+    String to,
+  ) async {
+    final resp = await _client.get(
+      Uri.parse(_url(baseUrl,
+          '/v1/graph/path/${Uri.encodeComponent(from)}/${Uri.encodeComponent(to)}')),
+      headers: _headers(token),
+    );
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+    return Map<String, dynamic>.from(jsonDecode(resp.body));
+  }
+
+  /// `POST /v1/graph/blast {name, max_hops?}` — blast radius.
+  Future<Map<String, dynamic>> graphBlast(
+    String baseUrl,
+    String token,
+    String name, {
+    int maxHops = 2,
+  }) async {
+    final resp = await _client.post(
+      Uri.parse(_url(baseUrl, '/v1/graph/blast')),
+      headers: _headers(token),
+      body: jsonEncode({'name': name, 'max_hops': maxHops}),
+    );
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+    return Map<String, dynamic>.from(jsonDecode(resp.body));
+  }
+
+  /// `GET /v1/graph/report` — full `GRAPH_REPORT.md` text (`{report:string}`).
+  Future<Map<String, dynamic>> graphReport(
+    String baseUrl,
+    String token,
+  ) async {
+    final resp = await _client.get(
+      Uri.parse(_url(baseUrl, '/v1/graph/report')),
+      headers: _headers(token),
+    );
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+    return Map<String, dynamic>.from(jsonDecode(resp.body));
+  }
+
   void dispose() {
     _client.close();
   }

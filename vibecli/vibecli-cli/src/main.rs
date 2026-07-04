@@ -2251,6 +2251,12 @@ fn build_worker_agent_context(
         .take(5)
         .collect();
 
+    // kodegraph repo-map summary (god nodes / communities) — refreshes the
+    // graph if files changed, then renders a few hundred tokens that replace
+    // the dir-tree in the system prompt. None when no graph handle is init'd
+    // (e.g. a worker subprocess) — falls back to the dir-tree repo map.
+    let graph_summary = crate::graph_index::current_summary(&workspace_root);
+
     AgentContext {
         workspace_root,
         open_files: vec![],
@@ -2267,6 +2273,7 @@ fn build_worker_agent_context(
         project_summary,
         task_context_files,
         memory_context,
+        graph_summary,
         auto_commit: false,
         reasoning_budget_tokens: None,
         prior_messages: Vec::new(),
@@ -3037,8 +3044,7 @@ mod proactive_agent;
 mod proactive_scanner;
 #[allow(dead_code)]
 mod rlcef_loop;
-#[allow(dead_code)]
-mod semantic_index;
+mod graph_index;
 mod signed_agent_card;
 #[allow(dead_code)]
 mod sketch_canvas;
@@ -3196,7 +3202,6 @@ mod test_impact;
 // FIT-GAP v10 — Phase 43: Developer Experience (P2)
 mod auto_stub;
 mod conversation_branch;
-mod dep_visualizer;
 // FIT-GAP v10 — Phase 44: P3 Gaps (closed)
 mod agent_replay;
 mod ai_merge;
@@ -15538,27 +15543,32 @@ async fn main() -> Result<()> {
                         "/semindex" => {
                             let sub = args.split_whitespace().next().unwrap_or("help");
                             let rest = args.trim().strip_prefix(sub).unwrap_or("").trim();
-                            use semantic_index::*;
-                            use std::sync::OnceLock;
-                            static SEMIDX: OnceLock<std::sync::Mutex<SemanticIndex>> =
-                                OnceLock::new();
-                            let idx_lock =
-                                SEMIDX.get_or_init(|| std::sync::Mutex::new(SemanticIndex::new()));
-                            let idx = idx_lock.lock().unwrap_or_else(|e| e.into_inner());
+                            let workspace = std::env::current_dir().unwrap_or_default();
+                            // Lazily load the kodegraph handle (persisted at
+                            // <workspace>/.vibecli/codegraph.db). `build` constructs
+                            // it; the other subcommands read whatever is loaded.
+                            let _ = crate::graph_index::init_graph_handle(&workspace);
                             match sub {
                                 "build" => {
                                     let path = if rest.is_empty() { "." } else { rest };
-                                    println!("Indexing '{}' ...", path);
-                                    // Index by reading source files — for now show stats
-                                    println!("  Symbols: {}", idx.metrics.total_symbols);
-                                    println!("  Files:   {}\n", idx.metrics.total_files);
-                                    println!("Tip: Use /index for embedding-based search, /semindex for AST-level analysis.\n");
+                                    println!("Building code graph for '{}' ...", path);
+                                    match crate::graph_index::build_graph_blocking(&workspace) {
+                                        Ok(probe) => {
+                                            println!("  Nodes: {}", probe.node_count);
+                                            println!("  Edges: {}", probe.edge_count);
+                                            println!(
+                                                "  Saved to {}/.vibecli/codegraph.db\n",
+                                                workspace.display()
+                                            );
+                                        }
+                                        Err(e) => println!("  build failed: {e}\n"),
+                                    }
                                 }
                                 "query" | "search" => {
                                     if rest.is_empty() {
                                         println!("Usage: /semindex query <symbol>\n");
                                     } else {
-                                        let results = idx.search_symbols(rest);
+                                        let results = crate::graph_index::search_symbols(rest);
                                         if results.is_empty() {
                                             println!("No symbols matching '{}'\n", rest);
                                         } else {
@@ -15567,13 +15577,23 @@ async fn main() -> Result<()> {
                                                 rest,
                                                 results.len()
                                             );
-                                            for s in &results {
-                                                println!(
-                                                    "  {} — {:?} in {} (line {})",
-                                                    s.name, s.kind, s.file_path, s.line_start
-                                                );
+                                            for (name, file, line) in &results {
+                                                println!("  {} — {} (line {})", name, file, line);
                                             }
                                             println!();
+                                        }
+                                    }
+                                }
+                                "node" => {
+                                    if rest.is_empty() {
+                                        println!("Usage: /semindex node <name>\n");
+                                    } else {
+                                        match crate::graph_index::node_summary(rest) {
+                                            Some(n) => println!(
+                                                "  {} [{}] — {} (line {})\n",
+                                                n.label, n.kind, n.file, n.line
+                                            ),
+                                            None => println!("No node named '{}'\n", rest),
                                         }
                                     }
                                 }
@@ -15581,10 +15601,10 @@ async fn main() -> Result<()> {
                                     if rest.is_empty() {
                                         println!("Usage: /semindex callers <symbol>\n");
                                     } else {
-                                        let callers = idx.callers(rest);
+                                        let callers = crate::graph_index::callers(rest);
                                         println!("Callers of '{}' ({}):\n", rest, callers.len());
                                         for c in &callers {
-                                            println!("  {} → {}", c.caller, c.callee);
+                                            println!("  {}", c);
                                         }
                                         println!();
                                     }
@@ -15593,45 +15613,76 @@ async fn main() -> Result<()> {
                                     if rest.is_empty() {
                                         println!("Usage: /semindex callees <symbol>\n");
                                     } else {
-                                        let callees = idx.callees(rest);
+                                        let callees = crate::graph_index::callees(rest);
                                         println!("Callees of '{}' ({}):\n", rest, callees.len());
                                         for c in &callees {
-                                            println!("  {} → {}", c.caller, c.callee);
+                                            println!("  {}", c);
                                         }
                                         println!();
                                     }
                                 }
                                 "hierarchy" => {
                                     if rest.is_empty() {
-                                        println!("Usage: /semindex hierarchy <type>\n");
+                                        println!("Usage: /semindex hierarchy <name>\n");
                                     } else {
-                                        let tree = idx.type_hierarchy(rest);
-                                        println!("Type hierarchy for '{}':\n  Root: {}\n  Children: {}\n",
-                                            rest, tree.root, tree.children.len());
+                                        // Lossy stand-in for the old (stub) type
+                                        // hierarchy: the node itself + its graph
+                                        // neighbors. True type-hierarchy edges live in
+                                        // kodegraph's TypeRelation — a follow-up.
+                                        let node = crate::graph_index::node_summary(rest);
+                                        let nbrs = crate::graph_index::neighbor_labels(rest);
+                                        match node {
+                                            Some(n) => println!(
+                                                "{} [{}] — {} (line {})",
+                                                n.label, n.kind, n.file, n.line
+                                            ),
+                                            None => println!("(node '{}' not in graph)", rest),
+                                        }
+                                        println!("  Neighbors ({}):", nbrs.len());
+                                        for nb in &nbrs {
+                                            println!("    - {}", nb);
+                                        }
+                                        println!();
                                     }
                                 }
                                 "stats" => {
-                                    let m = &idx.metrics;
-                                    println!("Semantic Index Stats\n");
-                                    println!("  Files indexed: {}", m.total_files);
-                                    println!("  Symbols:       {}", m.total_symbols);
-                                    println!("  Call edges:    {}", m.total_call_edges);
-                                    println!("  Type entries:  {}\n", m.total_type_relations);
+                                    match crate::graph_index::status_value() {
+                                        Some(v) => {
+                                            let status = v
+                                                .get("status")
+                                                .and_then(|s| s.as_str())
+                                                .unwrap_or("?");
+                                            let n = v
+                                                .get("node_count")
+                                                .and_then(|x| x.as_u64())
+                                                .unwrap_or(0);
+                                            let m = v
+                                                .get("edge_count")
+                                                .and_then(|x| x.as_u64())
+                                                .unwrap_or(0);
+                                            println!("Code Graph Stats (kodegraph)\n");
+                                            println!("  Status: {}", status);
+                                            println!("  Nodes:  {}", n);
+                                            println!("  Edges:  {}\n", m);
+                                        }
+                                        None => println!(
+                                            "Code graph not initialized — run /semindex build\n"
+                                        ),
+                                    }
                                 }
                                 _ => {
-                                    println!("VibeCody Semantic Index — AST-level codebase understanding\n");
+                                    println!("VibeCody Semantic Index — kodegraph code-knowledge graph\n");
                                     println!(
-                                        "  /semindex build [path]       — Build/rebuild index"
+                                        "  /semindex build [path]       — Build/rebuild the graph"
                                     );
                                     println!("  /semindex query <symbol>     — Search symbols");
+                                    println!("  /semindex node <name>        — Show one node");
                                     println!("  /semindex callers <symbol>   — Find callers");
                                     println!("  /semindex callees <symbol>   — Find callees");
                                     println!(
-                                        "  /semindex hierarchy <type>   — Show type hierarchy"
+                                        "  /semindex hierarchy <name>   — Node + neighbors (lossy)"
                                     );
-                                    println!(
-                                        "  /semindex stats              — Show index statistics\n"
-                                    );
+                                    println!("  /semindex stats              — Show graph statistics\n");
                                 }
                             }
                         }
@@ -19408,6 +19459,7 @@ async fn run_watch_mode(
                 auto_commit: false,
                 reasoning_budget_tokens: None,
                 prior_messages: Vec::new(),
+                graph_summary: None,
             };
             tokio::spawn(async move {
                 let _ = agent.run(&task_clone, ctx, event_tx).await;
