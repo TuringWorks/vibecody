@@ -18,6 +18,7 @@ members = [
     "vibex/src-tauri",
     "vibe-indexer",
     "vibe-memory",
+    "kodegraph",
 ]
 
 [workspace.package]
@@ -95,6 +96,14 @@ sha2 = "0.10"
 hmac = "0.12"
 p256 = { version = "0.13", features = ["ecdsa"] }
 hex = "0.4"
+
+# Code knowledge graph (kodegraph) — incremental AST-based symbol/edge graphs
+tree-sitter = "0.25"
+tree-sitter-rust = "0.23"
+tree-sitter-typescript = "0.23"
+tree-sitter-python = "0.23"
+tree-sitter-go = "0.23"
+petgraph = "0.7"
 
 [profile.dev]
 opt-level = 0

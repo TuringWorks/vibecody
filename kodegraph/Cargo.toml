@@ -1,0 +1,79 @@
+[package]
+name = "kodegraph"
+version = "0.1.0"
+description = "Tree-sitter + LSP code knowledge graph for token-efficient codebase navigation. Builds symbol/call/import/type graphs with provenance-tagged edges, community detection, and an MCP/CLI surface."
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository = "https://github.com/ravituringworks/vibecody"
+keywords = ["code-graph", "knowledge-graph", "tree-sitter", "lsp", "code-intelligence"]
+categories = ["development-tools", "parser-implementations", "text-processing"]
+readme = "README.md"
+exclude = ["/kodegraph-out", "/examples/**/kodegraph-out"]
+
+[lib]
+name = "kodegraph"
+path = "src/lib.rs"
+
+[[bin]]
+name = "kodegraph"
+path = "src/bin/cli.rs"
+required-features = ["cli"]
+
+[features]
+default = ["tree-sitter", "sqlite", "viz"]
+tree-sitter = [
+    "dep:tree-sitter",
+    "dep:tree-sitter-rust",
+    "dep:tree-sitter-typescript",
+    "dep:tree-sitter-python",
+    "dep:tree-sitter-go",
+]
+sqlite = ["dep:rusqlite"]
+lsp = ["dep:lsp-types", "dep:tokio", "dep:async-trait", "dep:url"]
+mcp = ["dep:tokio"]
+cli = ["dep:clap", "mcp", "sqlite"]
+viz = []
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+walkdir.workspace = true
+regex.workspace = true
+sha2.workspace = true
+petgraph = { workspace = true, features = ["serde-1"] }
+
+# Optional — tree-sitter backbone (zero-config, always works)
+tree-sitter = { workspace = true, optional = true }
+tree-sitter-rust = { workspace = true, optional = true }
+tree-sitter-typescript = { workspace = true, optional = true }
+tree-sitter-python = { workspace = true, optional = true }
+tree-sitter-go = { workspace = true, optional = true }
+
+# Optional — SQLite persistence
+rusqlite = { workspace = true, optional = true }
+
+# Optional — LSP enrichment tier
+lsp-types = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+async-trait = { workspace = true, optional = true }
+url = { workspace = true, optional = true }
+
+# Optional — CLI
+clap = { workspace = true, optional = true }
+
+[dev-dependencies]
+tempfile = "3"
+
+[[example]]
+name = "build_graph"
+path = "examples/build_graph.rs"
+required-features = ["tree-sitter", "sqlite"]
+
+[[example]]
+name = "mcp_server"
+path = "examples/mcp_server.rs"
+required-features = ["mcp"]

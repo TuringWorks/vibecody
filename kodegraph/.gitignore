@@ -1,0 +1,5 @@
+/target
+Cargo.lock
+
+# CLI build output (`kodegraph build <dir>` writes here by default)
+/kodegraph-out/
