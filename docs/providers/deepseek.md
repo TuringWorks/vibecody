@@ -4,8 +4,6 @@ title: "Provider: DeepSeek"
 permalink: /providers/deepseek/
 ---
 
-# DeepSeek Provider
-
 [DeepSeek](https://www.deepseek.com) is a Chinese AI lab producing high-quality open-weight models with strong coding performance at very affordable prices. DeepSeek V3 and R1 consistently rank among the top models on coding benchmarks.
 
 ## Get an API Key

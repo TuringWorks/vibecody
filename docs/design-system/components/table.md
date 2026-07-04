@@ -5,8 +5,6 @@ title: Table — Design System
 permalink: /design-system/components/table/
 ---
 
-# Table
-
 Use `panel-table` for structured data with columns. For simple item lists, prefer cards with `panel-card`. Use tables when data has 2+ aligned columns and benefits from visual column comparison.
 
 ---

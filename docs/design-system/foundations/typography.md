@@ -5,8 +5,6 @@ title: Typography — Design System
 permalink: /design-system/foundations/typography/
 ---
 
-# Typography
-
 VibeUI uses **Inter** for UI text and **JetBrains Mono** for code, paths, and numeric values that need alignment. Both are accessed via CSS variables — never hardcode font family strings.
 
 ---

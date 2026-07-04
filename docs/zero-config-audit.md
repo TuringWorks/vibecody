@@ -4,8 +4,6 @@ title: Zero-Config Audit
 permalink: /zero-config-audit/
 ---
 
-# Zero-Config Audit (2026-05-02)
-
 > First pass of the codebase against [AGENTS.md → Zero-Config First](https://github.com/anthropics/claude-code/blob/main/AGENTS.md#zero-config-first--the-user-experience-contract). The policy: features ship working out-of-the-box; required values live in the encrypted ProfileStore; env vars are accepted as a *fallback* read path only, never the *only* way.
 >
 > **TL;DR**: 137 unique env-var reads. **35 are AI provider keys with ProfileStore paths (compliant).** **18 are developer-only knobs (compliant per the policy carve-out).** **44 are system context (`HOME`, `PATH` etc., not knobs).** **40+ are user-facing integration tokens, of which a documented subset already routes through ProfileStore via `config.rs`, but five files are env-only and need migration.**

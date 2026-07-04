@@ -1,5 +1,8 @@
-
-# Agent Panel
+---
+layout: page
+title: Agent Panel
+permalink: /agent-panel/
+---
 
 The Agent Panel is the core "describe a task, the agent plans and executes it" surface in VibeUI/VibeApp. It owns the agent loop UX — prompt, plan, tool calls, approval gates, partial-completion checkpoints, and parallel-chunk execution via git-worktree isolation.
 

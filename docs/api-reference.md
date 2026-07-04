@@ -1,4 +1,8 @@
-
+---
+layout: page
+title: API Reference
+permalink: /api-reference/
+---
 
 Complete HTTP API reference for the VibeCLI daemon (`vibecli serve`).
 

@@ -5,8 +5,6 @@ title: Forms — Design System
 permalink: /design-system/patterns/forms/
 ---
 
-# Forms
-
 Form patterns for data entry in panels. Panels use compact, single-card forms — not full-page form layouts.
 
 ---

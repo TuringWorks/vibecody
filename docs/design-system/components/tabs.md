@@ -5,8 +5,6 @@ title: Tabs — Design System
 permalink: /design-system/components/tabs/
 ---
 
-# Tabs
-
 VibeUI has **three tab levels** with a clear visual hierarchy:
 
 | Level | Class | Font | Padding | Use case |

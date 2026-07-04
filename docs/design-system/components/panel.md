@@ -5,8 +5,6 @@ title: Panel — Design System
 permalink: /design-system/components/panel/
 ---
 
-# Panel
-
 The Panel is the core layout primitive in VibeUI. Every panel component must follow this structure. It ensures correct height filling inside Tauri's WebKit renderer and consistent visual framing.
 
 ---

@@ -4,8 +4,6 @@ title: Workspace
 permalink: /workspace/
 ---
 
-# Workspace
-
 The Workspace is the folder VibeCody operates inside — every file read, every git operation, every agent task is rooted at the active workspace path. Picking a workspace is the first thing you do after launching VibeUI/VibeApp; it's the one input that dominates everything downstream.
 
 This page documents the desktop workspace switcher. The daemon side (`add_workspace_folder`, `get_workspace_folders`) is shared across clients — but mobile / watch clients don't pick a workspace today; they consume sessions from whichever workspace the daemon was launched in.

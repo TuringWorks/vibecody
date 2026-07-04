@@ -4,8 +4,6 @@ title: "Provider: Grok"
 permalink: /providers/grok/
 ---
 
-# Grok Provider
-
 [Grok](https://x.ai) by xAI is a frontier AI model with strong reasoning and coding abilities, available through the xAI API.
 
 ## Get an API Key

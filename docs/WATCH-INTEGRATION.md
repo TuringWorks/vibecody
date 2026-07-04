@@ -5,8 +5,6 @@ permalink: /watch-integration/
 nav_order: 25
 ---
 
-# Watch Integration — Apple Watch & Wear OS
-
 VibeCody extends its AI coding assistant to wrist-worn devices, giving developers a lightweight session monitor and voice dispatch capability while away from the desktop.
 
 ## Architecture Overview

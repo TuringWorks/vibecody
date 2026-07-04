@@ -4,8 +4,6 @@ title: "Provider: Mistral"
 permalink: /providers/mistral/
 ---
 
-# Mistral Provider
-
 [Mistral AI](https://mistral.ai) is a European AI company producing high-performance models with strong coding abilities. Their models offer a good balance of quality and speed.
 
 ## Get an API Key

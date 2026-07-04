@@ -4,8 +4,6 @@ title: VibeCLI Reference
 permalink: /vibecli/
 ---
 
-# VibeCLI
-
 **AI-powered coding assistant for the terminal.**
 
 VibeCLI provides two interaction modes: a rich **Terminal UI (TUI)** powered by Ratatui, and a **REPL** mode for quick, scriptable use. It also runs as an HTTP daemon (`--serve`) that powers VibeUI, VibeMobile, and the new native VibeWatch clients.

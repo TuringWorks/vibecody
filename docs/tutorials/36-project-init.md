@@ -4,8 +4,6 @@ title: "Tutorial: Project Init & Auto-Context"
 permalink: /tutorials/project-init/
 ---
 
-# Project Init & Auto-Context
-
 Learn how VibeCody's smart project scanner gives the AI deep understanding of your codebase — automatically, in every conversation.
 
 **Prerequisites:** VibeCody installed with a working provider. See [First Provider](/vibecody/tutorials/first-provider/) if needed.

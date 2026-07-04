@@ -4,8 +4,6 @@ title: Sandbox
 permalink: /sandbox/
 ---
 
-# Sandbox
-
 > Every shell command an agent runs through VibeCody passes through a sandbox layer. Tier-0 (Native) is the only tier shipping today and delivers **network isolation everywhere + filesystem isolation on Linux + Windows**. macOS filesystem isolation, Landlock + seccomp on Linux, and Tiers 1-3 (WASI, Hyperlight, Firecracker) are explicitly deferred — that's a deliberate scope choice and this page is honest about what you do and don't get.
 
 The full multi-tier design is in [`docs/design/sandbox-tiers/`](https://github.com/TuringWorks/vibecody/tree/main/docs/design/sandbox-tiers/). This page documents what *ships*.

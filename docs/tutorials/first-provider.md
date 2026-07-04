@@ -4,8 +4,6 @@ title: "Tutorial: Setting Up Your First AI Provider"
 permalink: /tutorials/first-provider/
 ---
 
-# Setting Up Your First AI Provider
-
 Connect VibeCody to an AI model so you can start chatting, generating code, and running the agent loop.
 
 **Prerequisites:** VibeCody installed and on your PATH. See the [Quickstart](../../quickstart/) if you need to install it first.

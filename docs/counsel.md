@@ -1,5 +1,8 @@
-
-# Counsel — Multi-LLM Debate Panel
+---
+layout: page
+title: Counsel — Multi-LLM Debate
+permalink: /counsel/
+---
 
 Counsel is the panel for running structured debates between multiple LLMs on a single topic, then synthesizing the result. It's modeled after a deliberative council: each participant gets a role (Expert, Skeptic, Devil's Advocate, Pragmatist, etc.), responses are recorded round-by-round, and a moderator can synthesize a final answer.
 

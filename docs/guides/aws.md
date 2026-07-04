@@ -5,8 +5,6 @@ permalink: /guides/aws/
 parent: Deployment Guides
 ---
 
-# Deploy VibeCody on AWS
-
 Run VibeCody as an always-on service on AWS ECS Fargate with an Application Load Balancer. Includes Ollama sidecar for local model inference.
 
 **Setup time:** 10 minutes | **Cost:** $15–60/month | **Tier:** Lite / Pro / Max

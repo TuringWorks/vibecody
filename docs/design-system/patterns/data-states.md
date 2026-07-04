@@ -5,8 +5,6 @@ title: Data States — Design System
 permalink: /design-system/patterns/data-states/
 ---
 
-# Data States
-
 Every panel that loads async data has three possible states: **loading**, **error**, and **empty**. All three must be handled. Missing any one creates a broken user experience.
 
 ---

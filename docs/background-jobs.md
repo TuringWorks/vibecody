@@ -4,8 +4,6 @@ title: Background Jobs
 permalink: /background-jobs/
 ---
 
-# Background Jobs
-
 > Long-running agent tasks that don't block your editor. Submit a job, walk away, come back to a finished result — or watch the live event stream and intervene mid-flight if you want to. Jobs persist across daemon restarts, replay their event history on resume, and surface a heuristic recap the moment they finish.
 
 The Background Jobs panel is VibeCody's queued-work surface. It's wired around three principles:

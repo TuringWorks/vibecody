@@ -4,8 +4,6 @@ title: "Tutorial: Agent Workflow"
 permalink: /tutorials/agent-workflow/
 ---
 
-# Using the Agent to Fix Bugs and Add Features
-
 The VibeCody agent is an autonomous loop that reads your codebase, plans changes, writes code, and runs commands -- all guided by a natural language task description. This tutorial walks you through three real-world scenarios.
 
 **Prerequisites:**

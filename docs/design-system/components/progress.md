@@ -5,8 +5,6 @@ title: Progress — Design System
 permalink: /design-system/components/progress/
 ---
 
-# Progress
-
 Progress bars communicate completion, score, quality, and acceptance rates. All progress bars animate their width change automatically via CSS transitions.
 
 ---

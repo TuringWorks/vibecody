@@ -5,8 +5,6 @@ title: Design System
 permalink: /design-system/
 ---
 
-# VibeCody Design System
-
 A token-based design system used across all VibeCody UI surfaces. Inspired by Material Design 3, GitHub Primer, and Shopify Polaris.
 
 ---

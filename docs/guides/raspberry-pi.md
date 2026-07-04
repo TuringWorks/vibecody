@@ -5,8 +5,6 @@ permalink: /guides/raspberry-pi/
 parent: Deployment Guides
 ---
 
-# Deploy VibeCody on Raspberry Pi
-
 Run VibeCody on a Raspberry Pi 3, 4, or 5 as a privacy-first, always-on AI coding assistant.
 
 **Setup time:** 5–10 minutes | **Cost:** $35 hardware | **Models:** TinyLlama to Mistral 7B

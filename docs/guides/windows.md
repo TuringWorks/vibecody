@@ -5,8 +5,6 @@ permalink: /guides/windows/
 parent: Deployment Guides
 ---
 
-# Deploy VibeCody on Windows
-
 PowerShell installer with optional always-on Scheduled Task.
 
 **Setup time:** 3 minutes | **Cost:** Free | **GPU:** CUDA (NVIDIA)

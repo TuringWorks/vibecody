@@ -4,8 +4,6 @@ title: "Provider: Gemini"
 permalink: /providers/gemini/
 ---
 
-# Gemini Provider
-
 [Google Gemini](https://ai.google.dev) is Google's multimodal AI model family. Gemini offers a generous free tier, making it an excellent choice for getting started without any cost.
 
 ## Get an API Key

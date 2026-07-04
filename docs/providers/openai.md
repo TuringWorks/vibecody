@@ -4,8 +4,6 @@ title: "Provider: OpenAI"
 permalink: /providers/openai/
 ---
 
-# OpenAI Provider
-
 [OpenAI](https://openai.com) provides GPT-4o and the o-series reasoning models. Widely used, well-documented, and available in most regions.
 
 ## Get an API Key

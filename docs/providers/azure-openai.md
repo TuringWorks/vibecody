@@ -4,8 +4,6 @@ title: "Provider: Azure OpenAI"
 permalink: /providers/azure-openai/
 ---
 
-# Azure OpenAI Provider
-
 [Azure OpenAI Service](https://azure.microsoft.com/en-us/products/ai-services/openai-service) provides OpenAI models through Microsoft Azure, with enterprise security, compliance, and regional data residency.
 
 ## Prerequisites

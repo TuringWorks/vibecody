@@ -5,8 +5,6 @@ permalink: /guides/macos/
 parent: Deployment Guides
 ---
 
-# Deploy VibeCody on macOS
-
 Works on MacBook (Air/Pro) and Mac Mini/Studio. Apple Silicon gets Metal GPU acceleration for fast local inference.
 
 **Setup time:** 2 minutes | **Cost:** Free | **GPU:** Metal (Apple Silicon)

@@ -5,8 +5,6 @@ permalink: /guides/azure/
 parent: Deployment Guides
 ---
 
-# Deploy VibeCody on Azure
-
 Run VibeCody on Azure Container Apps with Ollama sidecar.
 
 **Setup time:** 10 minutes | **Cost:** $15–55/month | **Free credit:** $200 for new accounts

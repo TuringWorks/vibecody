@@ -4,8 +4,6 @@ title: Sessions
 permalink: /sessions/
 ---
 
-# Sessions
-
 The Session Browser is the panel for inspecting, replaying, forking, and deleting your past VibeCody conversations. Every interactive vibecli or vibeui session writes a JSONL trace to `<workspace>/.vibecli/traces/`; the panel reads from that directory directly.
 
 This page covers the desktop session browser. The chat-tab side of session lifecycle (auto-save, recap-on-close) is documented in [`docs/chat-tabs`](./chat-tabs.md), and the cross-client recap shape lives in [`docs/recap`](./recap.md).

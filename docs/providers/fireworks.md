@@ -4,8 +4,6 @@ title: "Provider: Fireworks AI"
 permalink: /providers/fireworks/
 ---
 
-# Fireworks AI Provider
-
 [Fireworks AI](https://fireworks.ai) provides fast inference for open-source models with optimized serving infrastructure and competitive pricing.
 
 ## Get an API Key

@@ -6,8 +6,6 @@ nav_order: 4
 has_children: true
 ---
 
-# Deploy VibeCody Anywhere
-
 Pick your platform and follow the guide. Every deployment gives you the same VibeCody experience — 23 AI providers, 106+ REPL commands, 556+ skills, autonomous agent loop, and always-on server mode. All deployments include the productivity integrations (Gmail, Calendar, Todoist, Notion, Jira, Home Assistant).
 
 ## Cloud Platforms — Always-On, Team-Ready

@@ -4,8 +4,6 @@ title: VibeUI Reference
 permalink: /vibeui/
 ---
 
-# VibeUI
-
 **AI-powered desktop code editor built with Tauri 2 and Monaco.** VibeUI provides a VS Code-like editing experience with a native Rust backend, Monaco Editor frontend, integrated AI chat, autonomous agent mode, explicit-chord diff-mode AI editing (⌘.), terminal, Git panel, code review, and a WASM extension system.
 
 ### What's new in 0.5.5

@@ -5,8 +5,6 @@ permalink: /guides/digitalocean/
 parent: Deployment Guides
 ---
 
-# Deploy VibeCody on DigitalOcean
-
 Run VibeCody on a DigitalOcean Droplet with Docker Compose.
 
 **Setup time:** 5 minutes | **Cost:** $12–48/month | **Free credit:** $200 for new accounts

@@ -1,5 +1,8 @@
-
-# Arena Mode
+---
+layout: page
+title: Multi-Model Arena
+permalink: /arena/
+---
 
 Arena is the panel for blind A/B model comparisons. You configure two providers and one prompt; the panel sends the prompt to both in parallel, hides which side is which, and asks you to vote. The leaderboard tracks per-provider win rates over time.
 

@@ -4,8 +4,6 @@ title: Fit-Gap Analysis — VibeCody vs the AI Coding Landscape
 permalink: /fit-gap-analysis/
 ---
 
-# Fit-Gap Analysis — VibeCody vs the AI Coding Landscape
-
 **Originally published:** 2026-02-25 &middot; **Last refreshed:** 2026-06-22 (v0.5.8 cycle — v15 May–June delta layered on v14; **2026-06-22 codebase-reconciliation + mid-month refresh in §16.8**, no version bump. Shipped workspace version is still **0.5.7**; 0.5.8 is the in-flight cycle.)
 **Scope:** Cumulative delta of 9 sequential iterations (v4 → v13) plus 5 topic-specific deep-dives (AgentOS, Pi-mono, RL-OS, Paperclip, Code-Review/Architecture) — **40+ competing AI coding products and frameworks analyzed**.
 **Companion document:** [Competitive Landscape & Roadmap](./roadmap/).

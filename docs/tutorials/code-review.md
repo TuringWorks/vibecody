@@ -4,8 +4,6 @@ title: "Tutorial: AI-Powered Code Review"
 permalink: /tutorials/code-review/
 ---
 
-# AI-Powered Code Review
-
 Use VibeCody to get instant, AI-powered feedback on code changes -- uncommitted work, branches, or GitHub pull requests.
 
 **Prerequisites:**

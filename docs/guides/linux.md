@@ -5,8 +5,6 @@ permalink: /guides/linux/
 parent: Deployment Guides
 ---
 
-# Deploy VibeCody on Linux
-
 Supports Ubuntu, Debian, Fedora, Arch, and most distributions. Optional CUDA/ROCm GPU acceleration.
 
 **Setup time:** 2 minutes | **Cost:** Free | **GPU:** CUDA (NVIDIA) / ROCm (AMD)

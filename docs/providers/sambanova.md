@@ -4,8 +4,6 @@ title: "Provider: SambaNova"
 permalink: /providers/sambanova/
 ---
 
-# SambaNova Provider
-
 [SambaNova](https://sambanova.ai) runs AI models on custom RDU (Reconfigurable Dataflow Unit) hardware, delivering fast inference for open-source models.
 
 ## Get an API Key

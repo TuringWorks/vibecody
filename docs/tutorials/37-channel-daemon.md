@@ -4,8 +4,6 @@ title: "Tutorial: Always-On Channel Daemon"
 permalink: /tutorials/channel-daemon/
 ---
 
-# Always-On Channel Daemon
-
 Run VibeCody as a persistent bot that listens on Slack, Discord, or GitHub webhooks and autonomously handles tasks — like Claude Code Channels or Cursor Automations.
 
 **Prerequisites:** VibeCody installed, a provider configured, and a platform bot token.

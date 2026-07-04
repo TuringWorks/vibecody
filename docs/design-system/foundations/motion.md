@@ -5,8 +5,6 @@ title: Motion — Design System
 permalink: /design-system/foundations/motion/
 ---
 
-# Motion
-
 Motion in VibeUI is intentional and subtle. Transitions communicate state changes. Animations are never decorative — they carry meaning.
 
 ---

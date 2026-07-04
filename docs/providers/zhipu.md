@@ -4,8 +4,6 @@ title: "Provider: Zhipu GLM"
 permalink: /providers/zhipu/
 ---
 
-# Zhipu GLM Provider
-
 [Zhipu AI](https://www.zhipuai.cn) develops the GLM (General Language Model) series, a family of Chinese AI models with strong multilingual and coding abilities.
 
 ## Get an API Key

@@ -5,8 +5,6 @@ permalink: /guides/gcp/
 parent: Deployment Guides
 ---
 
-# Deploy VibeCody on Google Cloud
-
 Run VibeCody on Cloud Run with Ollama sidecar.
 
 **Setup time:** 10 minutes | **Cost:** $10–50/month | **Free credit:** $300 for new accounts

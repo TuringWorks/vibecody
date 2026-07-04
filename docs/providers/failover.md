@@ -4,8 +4,6 @@ title: "Provider: Failover"
 permalink: /providers/failover/
 ---
 
-# Failover Provider
-
 The Failover provider wraps multiple providers and automatically falls back to the next one in the chain if a request fails. Use it for high-reliability setups where uptime is critical.
 
 ## Configure VibeCody

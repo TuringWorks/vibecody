@@ -4,8 +4,6 @@ title: Memory & Context Architecture
 permalink: /memory-architecture/
 ---
 
-# VibeCody Memory & Context Architecture
-
 This document describes the complete memory and context architecture of VibeCody — from encrypted storage through context assembly to cross-client recap/resume.
 
 **Last Updated:** 2026-05-08  

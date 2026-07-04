@@ -4,8 +4,6 @@ title: "Provider: Perplexity"
 permalink: /providers/perplexity/
 ---
 
-# Perplexity Provider
-
 [Perplexity](https://www.perplexity.ai) combines LLM reasoning with real-time web search, producing responses grounded in current information. Their Sonar models are uniquely suited for research-heavy coding tasks.
 
 ## Get an API Key

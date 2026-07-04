@@ -4,8 +4,6 @@ title: "Provider: Ollama"
 permalink: /providers/ollama/
 ---
 
-# Ollama Provider
-
 Run AI models locally on your machine with [Ollama](https://ollama.ai). No API key required. Completely free. Your code never leaves your machine.
 
 ## Why Ollama?

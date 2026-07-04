@@ -4,8 +4,6 @@ title: "Provider: Vercel AI"
 permalink: /providers/vercel-ai/
 ---
 
-# Vercel AI Provider
-
 [Vercel AI](https://vercel.com/ai) is a gateway that provides unified access to multiple AI providers. Use it when you have an existing Vercel AI setup or want to route through Vercel's infrastructure.
 
 ## Prerequisites

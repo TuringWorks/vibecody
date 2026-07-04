@@ -4,8 +4,6 @@ title: "Provider: GitHub Copilot"
 permalink: /providers/copilot/
 ---
 
-# GitHub Copilot Provider
-
 [GitHub Copilot](https://github.com/features/copilot) provides AI-powered coding assistance through GitHub's infrastructure. VibeCody can use your existing Copilot subscription as an AI provider.
 
 ## Prerequisites

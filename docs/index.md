@@ -3,8 +3,6 @@ layout: home
 title: VibeCody Documentation
 ---
 
-# VibeCody
-
 **AI-powered developer toolchain built in Rust.**
 
 VibeCody is a monorepo that provides a full family of AI-assisted development surfaces:

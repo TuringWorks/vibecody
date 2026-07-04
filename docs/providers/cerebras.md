@@ -4,8 +4,6 @@ title: "Provider: Cerebras"
 permalink: /providers/cerebras/
 ---
 
-# Cerebras Provider
-
 [Cerebras](https://cerebras.ai) runs AI models on wafer-scale custom chips, delivering extremely fast inference for open-source models. Their hardware is purpose-built for AI workloads.
 
 ## Get an API Key

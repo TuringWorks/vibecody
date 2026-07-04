@@ -4,8 +4,6 @@ title: "Provider: Groq"
 permalink: /providers/groq/
 ---
 
-# Groq Provider
-
 [Groq](https://groq.com) runs open-source models on custom LPU (Language Processing Unit) hardware, delivering extremely low latency inference -- often 10-20x faster than cloud GPU providers.
 
 ## Get an API Key

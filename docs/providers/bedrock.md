@@ -4,8 +4,6 @@ title: "Provider: AWS Bedrock"
 permalink: /providers/bedrock/
 ---
 
-# AWS Bedrock Provider
-
 [Amazon Bedrock](https://aws.amazon.com/bedrock/) provides managed access to foundation models from Anthropic, Meta, Mistral, and Amazon through the AWS ecosystem, with IAM-based authentication and SigV4 request signing.
 
 ## Prerequisites

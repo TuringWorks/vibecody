@@ -4,8 +4,6 @@ title: Pairing
 permalink: /pairing/
 ---
 
-# Device Pairing
-
 Pairing is the flow that bootstraps a mobile, watch, IDE plugin, or second-shell client onto a VibeCody daemon. Every cross-client deployment starts here.
 
 This page covers the bearer-token pairing flow surfaced by the daemon's `/pair` endpoint and the watch-specific P-256 ECDSA flow used by Apple Watch and Wear OS companions.

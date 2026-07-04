@@ -4,8 +4,6 @@ title: Model Comparison
 permalink: /model-comparison/
 ---
 
-# Model Comparison
-
 > A practical guide to picking the right model for the job across every provider VibeCody supports.
 > Last updated: **2026-05-08**.
 >

@@ -4,8 +4,6 @@ title: "Provider: MiniMax"
 permalink: /providers/minimax/
 ---
 
-# MiniMax Provider
-
 [MiniMax](https://www.minimaxi.com) is a Chinese AI company offering large language models through their API platform.
 
 ## Get an API Key

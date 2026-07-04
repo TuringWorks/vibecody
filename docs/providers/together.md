@@ -4,8 +4,6 @@ title: "Provider: Together AI"
 permalink: /providers/together/
 ---
 
-# Together AI Provider
-
 [Together AI](https://www.together.ai) hosts open-source models with competitive pricing and a free tier. They offer a wide catalog of Llama, Mixtral, Qwen, and other open models.
 
 ## Get an API Key

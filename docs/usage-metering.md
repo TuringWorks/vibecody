@@ -4,8 +4,6 @@ title: Usage Metering
 permalink: /usage-metering/
 ---
 
-# Usage Metering
-
 The Usage Metering panel tracks AI spend across providers and models, lets you define budgets, and surfaces alerts when consumption crosses thresholds. It's the operator dashboard for "where is the money going" — Counsel-style panels and agent-loop runs are typically the dominant cost centers.
 
 This page covers the desktop panel. Mobile/watch/IDE clients don't have a metering surface today; usage data is daemon-side and observable only via the desktop UI or by reading `~/.vibeui/usage-metering.json` directly.

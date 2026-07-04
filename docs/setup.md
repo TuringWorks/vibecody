@@ -5,8 +5,6 @@ permalink: /setup/
 nav_order: 2
 ---
 
-# Deploy VibeCody Anywhere
-
 **Your own always-on AI coding assistant — zero DevOps required.**
 
 VibeCody runs on anything from a $35 Raspberry Pi to a full cloud instance. Pick your platform, run one command, and you're live in under 5 minutes.

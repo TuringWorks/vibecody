@@ -4,8 +4,6 @@ title: Settings
 permalink: /settings/
 ---
 
-# Settings
-
 > Everything you can configure in VibeCody — and *where* your configuration is actually stored. Per AGENTS.md → Zero-Config First, every value lives in the encrypted ProfileStore (or your local `localStorage` for cosmetic preferences). No `.env` files. No plaintext credentials. Ever.
 
 The Settings panel in VibeUI groups configuration into seven sections. Most users never need to touch any of them — VibeCody self-configures with safe defaults — but here's what each section does, where the values live, and how to change them from the terminal if you prefer.

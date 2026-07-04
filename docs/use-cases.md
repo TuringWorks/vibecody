@@ -5,9 +5,6 @@ permalink: /use-cases/
 nav_order: 3
 ---
 
-
-# VibeCody Use Cases
-
 VibeCody is an AI-powered coding assistant that runs **anywhere you need it** -- on your laptop, in the cloud, or on a Raspberry Pi. Deploy it as a desktop app (VibeUI), a terminal companion (VibeCLI), or an always-on server (`vibecli --serve --port 7878`) that monitors your infrastructure, responds to webhooks, and runs scheduled tasks around the clock.
 
 With **23 AI providers** (from local Ollama to Claude, OpenAI, Gemini, and 20 more), **106+ REPL commands**, **556+ skill files**, and a full autonomous agent loop, VibeCody covers the entire software development lifecycle -- from writing the first line of code to deploying, monitoring, and securing production systems. It also connects to **Gmail/Outlook, Google/Outlook Calendar, Todoist, Notion, Jira, and Home Assistant** for productivity workflows beyond coding.

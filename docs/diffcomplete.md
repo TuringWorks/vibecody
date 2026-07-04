@@ -4,8 +4,6 @@ title: Diffcomplete (⌘.)
 permalink: /diffcomplete/
 ---
 
-# Diffcomplete (⌘.)
-
 > AI editing without ghost-text. Press **⌘.** anywhere in the editor, describe the change you want, review the unified diff hunk-by-hunk, accept or reject what you like.
 
 Diffcomplete is VibeCody's only AI code-editing surface. It deliberately replaces keystroke-driven inline completions with an explicit-trigger, diff-output flow — better for review, better for safety, and patent-distant from FIM / next-edit / ghost-text systems.

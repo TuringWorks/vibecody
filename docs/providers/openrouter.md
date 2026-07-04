@@ -4,8 +4,6 @@ title: "Provider: OpenRouter"
 permalink: /providers/openrouter/
 ---
 
-# OpenRouter Provider
-
 [OpenRouter](https://openrouter.ai) is a unified API gateway that provides access to 300+ models from multiple providers (OpenAI, Anthropic, Google, Meta, Mistral, and more) through a single API key and billing account.
 
 ## Get an API Key

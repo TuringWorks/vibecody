@@ -4,8 +4,6 @@ title: "Provider: Claude"
 permalink: /providers/claude/
 ---
 
-# Claude Provider
-
 [Claude](https://www.anthropic.com/claude) by Anthropic is one of the most capable AI models for code generation, reasoning, and long-context tasks.
 
 ## Get an API Key

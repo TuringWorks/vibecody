@@ -5,8 +5,6 @@ permalink: /guides/oracle-cloud/
 parent: Deployment Guides
 ---
 
-# Deploy VibeCody on Oracle Cloud (FREE)
-
 Oracle Cloud's always-free tier provides **4 ARM OCPU + 24 GB RAM** — enough to run VibeCody with Mistral 7B at **$0/month forever**.
 
 **Setup time:** 10 minutes | **Cost:** $0 (always-free tier) | **Best value of any cloud platform**

@@ -1,4 +1,8 @@
-
+---
+layout: page
+title: Configuration Guide
+permalink: /configuration/
+---
 
 VibeCody uses TOML-based configuration for VibeCLI. VibeUI provider settings are managed through environment variables or the in-app settings UI.
 

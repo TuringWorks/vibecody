@@ -5,8 +5,6 @@ title: Spacing — Design System
 permalink: /design-system/foundations/spacing/
 ---
 
-# Spacing
-
 VibeUI uses a **4px base grid**. All spacing values are multiples of 4. Space tokens are defined as CSS custom properties.
 
 ---

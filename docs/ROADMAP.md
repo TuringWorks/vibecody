@@ -4,8 +4,6 @@ title: Competitive Landscape & Roadmap
 permalink: /roadmap/
 ---
 
-# Fit-Gap Analysis & Feature Implementation Roadmap
-
 **Originally published:** February 2026 &middot; **Last refreshed:** 2026-06-22 (v0.5.8 cycle, v15 industry delta on top of v14 fitgap; **2026-06-22 mid-month refresh folded into the v15 layer in place — see §1quinquies**, no version bump)
 **Scope:** VibeCody compared against **30+** competing AI coding products across terminal, editor, cloud-agent, code-review, completions-only, and mobile/watch categories.
 

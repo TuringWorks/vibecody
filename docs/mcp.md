@@ -4,8 +4,6 @@ title: MCP — Model Context Protocol
 permalink: /mcp/
 ---
 
-# MCP — Model Context Protocol
-
 VibeCody is a fully-featured MCP host. The MCP panel inside VibeUI/VibeApp is the unified surface for managing servers, browsing the plugin directory, viewing the lazy-loaded tool registry, and inspecting cache metrics. This page documents the user-facing surface; the underlying client lives in `crates/vibe-ai/src/mcp.rs`.
 
 ---
