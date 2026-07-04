@@ -11,7 +11,7 @@ use crate::skills::SkillLoader;
 use crate::tools::{
     format_tool_result, parse_tool_calls, ToolCall, ToolResult, TOOL_SYSTEM_PROMPT,
 };
-use crate::trace::{DecisionTraceEntry, DecisionWriter};
+use crate::trace::DecisionWriter;
 use anyhow::Result;
 use async_trait::async_trait;
 use futures::StreamExt;
@@ -859,7 +859,7 @@ impl AgentLoop {
 
             // Log context pruning decision if decision tracing is enabled
             if self.decision_tracing_enabled && messages_pruned > 0 {
-                if let Some(ref mut decision_writer) = decision_writer {
+                if let Some(decision_writer) = &decision_writer {
                     let description = format!("Pruned {} messages from context window to stay within token limit", messages_pruned);
                     let context = format!("Reduced message count from {} to {}", message_count_before, message_count_after);
                     let metadata = serde_json::json!({
@@ -1011,7 +1011,7 @@ impl AgentLoop {
                 if step == 0 {
                     // Log initial prose turn decision if decision tracing is enabled
                     if self.decision_tracing_enabled {
-                        if let Some(ref mut decision_writer) = self.decision_writer {
+                        if let Some(decision_writer) = &decision_writer {
                             let description = "Model returned prose instead of tool call on step 0".to_string();
                             let context = "First step requires tool call, so re-prompting to force tool usage".to_string();
                             let metadata = serde_json::json!({
@@ -1046,7 +1046,7 @@ impl AgentLoop {
 
                 // Log prose turn decision if decision tracing is enabled
                 if self.decision_tracing_enabled {
-                    if let Some(ref mut decision_writer) = self.decision_writer {
+                    if let Some(decision_writer) = &decision_writer {
                         let description = format!("Model returned prose instead of tool call on step {} (consecutive: {})", step, consecutive_prose_turns);
                         let context = "Model did not invoke any tools, treating as prose response".to_string();
                         let metadata = serde_json::json!({
@@ -1073,7 +1073,7 @@ impl AgentLoop {
                 if plan_has_remaining && consecutive_prose_turns <= 2 {
                     // Log re-prompt decision due to unfinished plan if decision tracing is enabled
                     if self.decision_tracing_enabled {
-                        if let Some(ref mut decision_writer) = self.decision_writer {
+                        if let Some(decision_writer) = &decision_writer {
                             let remaining = plan_steps.iter().skip(plan_steps_done).cloned().collect::<Vec<_>>();
                             let description = format!("Re-prompting model to continue with {} remaining plan steps", remaining.len());
                             let context = "Model returned prose but plan has unfinished steps, so encouraging continued execution".to_string();
@@ -1125,7 +1125,7 @@ impl AgentLoop {
                 if plan_has_remaining {
                     // Log decision to emit partial due to exhausted re-prompts if decision tracing is enabled
                     if self.decision_tracing_enabled {
-                        if let Some(ref mut decision_writer) = self.decision_writer {
+                        if let Some(decision_writer) = &decision_writer {
                             let remaining = plan_steps.iter().skip(plan_steps_done).cloned().collect::<Vec<_>>();
                             let description = format!("Agent stopping with {} unfinished plan steps after exhausting re-prompts", remaining.len());
                             let context = "Model repeatedly returned prose instead of executing remaining plan steps".to_string();
@@ -1178,7 +1178,7 @@ impl AgentLoop {
                 // No active plan — prose is the genuine final answer.
                 // Log decision to treat prose as final answer if decision tracing is enabled
                 if self.decision_tracing_enabled {
-                    if let Some(ref mut decision_writer) = self.decision_writer {
+                    if let Some(decision_writer) = &decision_writer {
                         let description = "Treating prose as final answer (no active plan)".to_string();
                         let context = "Model returned prose and there is no active plan to continue".to_string();
                         let metadata = serde_json::json!({
@@ -1214,76 +1214,6 @@ impl AgentLoop {
                 }
                 let _ = event_tx.send(AgentEvent::Complete(accumulated)).await;
                 return Ok(());
-            }=
-                        plan_steps.iter().skip(plan_steps_done).cloned().collect();
-                    tracing::warn!(
-                        remaining_steps = remaining.len(),
-                        consecutive_prose = consecutive_prose_turns,
-                        "Model emitted prose with no tool call but plan has remaining steps — re-prompting",
-                    );
-                    messages.push(Message {
-                        role: MessageRole::Assistant,
-                        content: accumulated,
-                    });
-                    messages.push(Message {
-                        role: MessageRole::User,
-                        content: format!(
-                            "You still have {} unfinished plan steps. Do NOT summarize or stop — execute the next step now using a tool call:\n{}",
-                            remaining.len(),
-                            remaining.iter().enumerate()
-                                .map(|(i, s)| format!("  {}. {}", plan_steps_done + i + 1, s))
-                                .collect::<Vec<_>>()
-                                .join("\n"),
-                        ),
-                    });
-                    continue;
-                }
-
-                // Plan still has items but we exhausted re-prompt attempts → partial.
-                if plan_has_remaining {
-                    let remaining: Vec<String> =
-                        plan_steps.iter().skip(plan_steps_done).cloned().collect();
-                    tracing::warn!(
-                        done = plan_steps_done,
-                        total = plan_steps.len(),
-                        "Agent stopped with unfinished plan steps — emitting Partial",
-                    );
-                    if let Some(hooks) = &self.hooks {
-                        hooks
-                            .run(&HookEvent::Stop {
-                                reason: "partial_plan".to_string(),
-                                session_id: session_id.clone(),
-                            })
-                            .await;
-                    }
-                    let _ = event_tx
-                        .send(AgentEvent::Partial {
-                            summary: accumulated,
-                            steps_completed: plan_steps_done,
-                            steps_planned: plan_steps.len(),
-                            remaining_plan: remaining,
-                        })
-                        .await;
-                    return Ok(());
-                }
-
-                // No active plan — prose is the genuine final answer.
-                if let Some(hooks) = &self.hooks {
-                    let _hook_span = tracing::info_span!(
-                        "agent.hook",
-                        event = "Stop",
-                        reason = "prose_response",
-                        session_id = %session_id,
-                    );
-                    hooks
-                        .run(&HookEvent::Stop {
-                            reason: "prose_response".to_string(),
-                            session_id: session_id.clone(),
-                        })
-                        .await;
-                }
-                let _ = event_tx.send(AgentEvent::Complete(accumulated)).await;
-                return Ok(());
             }
 
             // Reset consecutive prose counter on any successful tool call turn
@@ -1295,7 +1225,7 @@ impl AgentLoop {
             });
 
             // ── 3. Handle first tool call (one tool per turn) ─────────────────
-            let call = match tool_calls.into_iter().next() {
+            let call = match tool_calls.first().cloned() {
                 Some(c) => c,
                 None => {
                     let _ = event_tx.send(AgentEvent::Complete(accumulated)).await;
@@ -1305,7 +1235,7 @@ impl AgentLoop {
 
             // Log tool selection decision if decision tracing is enabled
             if self.decision_tracing_enabled {
-                if let Some(ref mut decision_writer) = decision_writer {
+                if let Some(decision_writer) = &decision_writer {
                     let tool_count = tool_calls.len();
                     let selected_tool = call.name();
                     let description = format!("Selected tool '{}' from {} available options", selected_tool, tool_count);
@@ -1331,22 +1261,22 @@ impl AgentLoop {
                 if self.double_check_enabled {
                     // Log double-check decision if decision tracing is enabled
                     if self.decision_tracing_enabled {
-                        if let Some(ref mut decision_writer) = self.decision_writer {
+                        if let Some(decision_writer) = &decision_writer {
                             let description = "Running pre-completion double-check (build/test verification)".to_string();
-                            let context = "Checking build status before allowing task completion".to_string();
+                            let decision_context = "Checking build status before allowing task completion".to_string();
                             let metadata = serde_json::json!({
                                 "step": step,
                                 "tool_call": call.name(),
                                 "double_check_enabled": true,
-                                "workspace_has_cargo": self.context.workspace_root.join("Cargo.toml").exists(),
-                                "workspace_has_package_json": self.context.workspace_root.join("package.json").exists()
+                                "workspace_has_cargo": context.workspace_root.join("Cargo.toml").exists(),
+                                "workspace_has_package_json": context.workspace_root.join("package.json").exists()
                             }).to_string();
 
                             decision_writer.record(
                                 step,
                                 "double_check_start",
                                 &description,
-                                &context,
+                                &decision_context,
                                 "auto",
                                 &metadata,
                             );
@@ -1378,7 +1308,7 @@ impl AgentLoop {
                     if !build_ok {
                         // Log double-check failure if decision tracing is enabled
                         if self.decision_tracing_enabled {
-                            if let Some(ref mut decision_writer) = self.decision_writer {
+                            if let Some(decision_writer) = &decision_writer {
                                 let description = "Double-check failed: build/test verification unsuccessful".to_string();
                                 let context = "Build or test check failed, preventing task completion and requesting user to fix issues".to_string();
                                 let metadata = serde_json::json!({
@@ -1409,7 +1339,7 @@ impl AgentLoop {
 
                     // Log double-check success if decision tracing is enabled
                     if self.decision_tracing_enabled {
-                        if let Some(ref mut decision_writer) = self.decision_writer {
+                        if let Some(decision_writer) = &decision_writer {
                             let description = "Double-check passed: build/test verification successful".to_string();
                             let context = "Build or test check passed, allowing task completion to proceed".to_string();
                             let metadata = serde_json::json!({
@@ -1592,12 +1522,13 @@ impl AgentLoop {
 
             // Log approval decision if decision tracing is enabled
             if self.decision_tracing_enabled {
-                if let Some(ref mut decision_writer) = self.decision_writer {
+                if let Some(decision_writer) = &decision_writer {
                     let approval_source = match &self.approval {
                         ApprovalPolicy::ChatOnly => "policy_chat_only",
                         ApprovalPolicy::ReadOnly => "policy_readonly",
                         ApprovalPolicy::FullAuto => "policy_full_auto",
                         ApprovalPolicy::Suggest => "policy_suggest",
+                        ApprovalPolicy::AutoEdit => "policy_auto_edit",
                     };
                     let description = if needs_approval {
                         format!("Tool '{}' requires approval (policy: {})", call.name(), approval_source)
@@ -1648,7 +1579,7 @@ impl AgentLoop {
 
                             // Log user approval decision if decision tracing is enabled
                             if self.decision_tracing_enabled {
-                                if let Some(ref mut decision_writer) = self.decision_writer {
+                                if let Some(decision_writer) = &decision_writer {
                                     let description = format!("User approved tool '{}'", call.name());
                                     let context = "User explicitly approved the tool call via interactive prompt".to_string();
                                     let metadata = serde_json::json!({
@@ -1676,7 +1607,7 @@ impl AgentLoop {
 
                             // Log user rejection decision if decision tracing is enabled
                             if self.decision_tracing_enabled {
-                                if let Some(ref mut decision_writer) = self.decision_writer {
+                                if let Some(decision_writer) = &decision_writer {
                                     let description = format!("User rejected tool '{}'", call.name());
                                     let context = "User explicitly rejected the tool call via interactive prompt".to_string();
                                     let metadata = serde_json::json!({
@@ -1742,7 +1673,7 @@ impl AgentLoop {
 
                 // Log plan update decision if decision tracing is enabled
                 if self.decision_tracing_enabled {
-                    if let Some(ref mut decision_writer) = self.decision_writer {
+                    if let Some(decision_writer) = &decision_writer {
                         let description = "Updated plan with new steps from plan_task tool call".to_string();
                         let context = format!("Plan contains {} steps", plan_steps.len());
                         let metadata = serde_json::json!({
@@ -1762,12 +1693,11 @@ impl AgentLoop {
                     }
                 }
             } else if !call.is_think() && !plan_steps.is_empty() {
-                let old_plan_steps_done = plan_steps_done;
                 plan_steps_done += 1;
 
                 // Log plan step execution decision if decision tracing is enabled
                 if self.decision_tracing_enabled {
-                    if let Some(ref mut decision_writer) = self.decision_writer {
+                    if let Some(decision_writer) = &decision_writer {
                         let description = format!("Executed plan step {} (progress: {}/{})", plan_steps_done, plan_steps_done, plan_steps.len());
                         let context = if plan_steps_done <= plan_steps.len() {
                             format!("Executing step: {}", plan_steps.get(plan_steps_done - 1).unwrap_or(&"Unknown".to_string()))
@@ -1886,7 +1816,7 @@ impl AgentLoop {
                 if let Some(new_state) = cb.record_step(&call, &tool_result, accumulated.len()) {
                     // Log circuit breaker decision if decision tracing is enabled
                     if self.decision_tracing_enabled {
-                        if let Some(ref mut decision_writer) = self.decision_writer {
+                        if let Some(decision_writer) = &decision_writer {
                             let description = format!("Circuit breaker transitioned to {:?} state", new_state);
                             let context = format!("Circuit breaker evaluated step {} and decided to change state", step);
                             let metadata = serde_json::json!({
@@ -1924,7 +1854,7 @@ impl AgentLoop {
 
                         // Log circuit breaker blocking decision if decision tracing is enabled
                         if self.decision_tracing_enabled {
-                            if let Some(ref mut decision_writer) = self.decision_writer {
+                            if let Some(decision_writer) = &decision_writer {
                                 let description = "Circuit breaker blocked agent due to repeated failures".to_string();
                                 let context = format!("Agent has been blocked after {} rotations", cb.max_rotations);
                                 let metadata = serde_json::json!({
@@ -1960,7 +1890,7 @@ impl AgentLoop {
 
         // Log max steps reached decision if decision tracing is enabled
         if self.decision_tracing_enabled {
-            if let Some(ref mut decision_writer) = self.decision_writer {
+            if let Some(decision_writer) = &decision_writer {
                 let description = if !plan_steps.is_empty() && plan_steps_done < plan_steps.len() {
                     format!("Agent reached step limit ({}) with {}/{} plan items done - emitting Partial", self.max_steps, plan_steps_done, plan_steps.len())
                 } else {
