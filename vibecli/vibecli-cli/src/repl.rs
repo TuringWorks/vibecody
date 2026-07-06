@@ -121,6 +121,7 @@ pub static COMMANDS: &[&str] = &[
     "/triage",
     "/search",
     "/semindex",
+    "/skillforge",
     "/websearch",
     "/mcp-http",
     "/repair",
@@ -405,6 +406,19 @@ static SEMINDEX_SUBS: &[&str] = &[
     "deps",
     "stats",
 ];
+
+/// Sub-commands for `/skillforge <sub>`
+static SKILLFORGE_SUBS: &[&str] = &[
+    "list",
+    "show",
+    "refresh",
+    "score",
+    "train",
+    "status",
+    "cancel",
+    "promote",
+    "health",
+];
 static WEBSEARCH_SUBS: &[&str] = &["web", "search", "citations", "cache"];
 
 /// Sub-commands for `/mcp-http <sub>`
@@ -617,6 +631,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/triage" => Some("[run|rules|labels|history|batch]  — autonomous issue triage"),
         "/search" => Some("[web|cache|providers|config]  — web search grounding"),
         "/semindex" => Some("[build|query|callers|callees|hierarchy|deps|stats]  — deep semantic codebase index"),
+        "/skillforge" => Some("[list|show|refresh|score|train|status|cancel|promote|health]  — measure & train agent-skill docs"),
         "/websearch" => Some("[web|citations|cache]  — integrated web search grounding"),
         "/mcp-http" => Some("[serve|oauth|tokens|remote]  — MCP streamable HTTP + OAuth 2.1"),
         "/repair" => Some("[mcts|agentless|compare|config]  — MCTS code repair"),
@@ -751,6 +766,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/triage" => Some(TRIAGE_SUBS),
                 "/search" => Some(SEARCH_SUBS),
                 "/semindex" => Some(SEMINDEX_SUBS),
+                "/skillforge" => Some(SKILLFORGE_SUBS),
                 "/websearch" => Some(WEBSEARCH_SUBS),
                 "/mcp-http" => Some(MCPHTTP_SUBS),
                 "/repair" => Some(REPAIR_SUBS),
