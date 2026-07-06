@@ -19,6 +19,9 @@ members = [
     "vibe-indexer",
     "vibe-memory",
     "kodegraph",
+    "skilllensai-rs",
+    "skilloptai-rs",
+    "skillforgeai-rs",
 ]
 
 [workspace.package]
@@ -31,6 +34,7 @@ license = "MIT"
 # Async runtime
 tokio = { version = "1.42", features = ["full"] }
 async-trait = "0.1"
+futures = "0.3"
 
 # CLI
 clap = { version = "4.5", features = ["derive", "cargo"] }

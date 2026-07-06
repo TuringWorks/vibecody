@@ -1,0 +1,25 @@
+[package]
+name = "skillforgeai-rs"
+version = "0.1.0"
+description = "SkillForge facade — re-exports skilllensai-rs (analyse) and skilloptai-rs (train) as one convenience crate for measuring and self-improving agent skills."
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository = "https://github.com/ravituringworks/vibecody"
+keywords = ["agent-skills", "prompt-optimization", "llm", "evaluation"]
+categories = ["development-tools", "science"]
+readme = "README.md"
+
+[lib]
+name = "skillforgeai"
+path = "src/lib.rs"
+
+[features]
+default = ["sqlite"]
+# Forward feature toggles to both member crates.
+sqlite = ["skilllensai-rs/sqlite", "skilloptai-rs/sqlite"]
+llm = ["skilllensai-rs/llm"]
+
+[dependencies]
+skilllensai-rs = { path = "../skilllensai-rs", version = "0.1.0", default-features = false }
+skilloptai-rs = { path = "../skilloptai-rs", version = "0.1.0", default-features = false }

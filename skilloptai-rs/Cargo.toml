@@ -1,0 +1,51 @@
+[package]
+name = "skilloptai-rs"
+version = "0.1.0"
+description = "Train agent-skill documents against a benchmark: scored rollouts drive bounded add/delete/replace edits accepted only on held-out validation improvement (textual-gradient optimization). Rust port of TuringWorks/SkillOpt."
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository = "https://github.com/ravituringworks/vibecody"
+keywords = ["prompt-optimization", "agent-skills", "llm", "textual-gradient", "training"]
+categories = ["development-tools", "science"]
+readme = "README.md"
+
+[lib]
+name = "skilloptai"
+path = "src/lib.rs"
+
+[[bin]]
+name = "skilloptai"
+path = "src/bin/cli.rs"
+required-features = ["cli"]
+
+[features]
+default = ["sqlite", "llm"]
+sqlite = ["dep:rusqlite"]
+llm = ["dep:async-trait", "dep:tokio", "dep:futures", "skilllensai-rs/llm"]
+cli = ["dep:clap", "dep:reqwest", "sqlite", "llm"]
+
+[dependencies]
+# Shared Trajectory schema + metrics + the SkillLlm seam.
+# `version` alongside `path` so `cargo publish` resolves it from crates.io.
+skilllensai-rs = { path = "../skilllensai-rs", version = "0.1.0", default-features = false }
+
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+
+# Optional — SQLite persistence for trajectory + training-run stores
+rusqlite = { workspace = true, optional = true }
+
+# Optional — async training loop over the SkillLlm seam
+async-trait = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
+
+# Optional — CLI (OpenAI-compatible chat client)
+clap = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
+
+[dev-dependencies]
+tempfile = "3"

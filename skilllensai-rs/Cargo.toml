@@ -1,0 +1,48 @@
+[package]
+name = "skilllensai-rs"
+version = "0.1.0"
+description = "Analyse and measure agent-skill utility: trajectory normalisation, skill extraction (sequential / parallel-merge), and Extraction-Efficacy / Target-Evolvability metrics. Rust port of TuringWorks/SkillLens."
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository = "https://github.com/ravituringworks/vibecody"
+keywords = ["agent-skills", "llm", "evaluation", "prompt-optimization", "trajectory"]
+categories = ["development-tools", "science"]
+readme = "README.md"
+
+[lib]
+name = "skilllensai"
+path = "src/lib.rs"
+
+[[bin]]
+name = "skilllensai"
+path = "src/bin/cli.rs"
+required-features = ["cli"]
+
+[features]
+default = ["sqlite"]
+sqlite = ["dep:rusqlite"]
+llm = ["dep:async-trait", "dep:tokio", "dep:regex", "dep:futures"]
+cli = ["dep:clap", "sqlite"]
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+
+# Optional — SQLite persistence for trajectory + report stores
+rusqlite = { workspace = true, optional = true }
+
+# Optional — provider-agnostic LLM seam (SkillLlm trait) + LLM-backed
+# extraction/metrics (Extraction Efficacy, Target Evolvability).
+async-trait = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+regex = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
+
+# Optional — CLI
+clap = { workspace = true, optional = true }
+
+[dev-dependencies]
+tempfile = "3"
