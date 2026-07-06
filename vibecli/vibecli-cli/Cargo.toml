@@ -96,6 +96,16 @@ vibe-memory = { path = "../../vibe-memory" }
 # enabled — `lsp`/`cli`/`mcp` would pull a clap CLI + MCP server + a
 # duplicate LSP client into the daemon dep tree.
 kodegraph = { path = "../../kodegraph", features = ["tree-sitter", "sqlite", "viz"] }
+# SkillForge — SkillLens (analyse) + SkillOpt (train) workspace crates. The
+# daemon owns the catalog + the AiProviderLlm adapter that bridges the
+# crate-local `SkillLlm` seam onto `vibe_ai::AIProvider` (STRICT
+# provider-agnostic — honours the toolbar-selected provider+model, never
+# hard-coded Anthropic). Only the light feature set is enabled: `sqlite`
+# (catalog persistence) + `llm` (extract/metrics/train). The `cli` feature
+# is OFF — it would pull a clap binary + reqwest into the daemon dep tree.
+# See `vibecli/vibecli-cli/src/skillforge_index.rs` + notes/skillforge/.
+skilllensai-rs = { path = "../../skilllensai-rs", default-features = false, features = ["sqlite", "llm"] }
+skilloptai-rs = { path = "../../skilloptai-rs", default-features = false, features = ["sqlite", "llm"] }
 sha2.workspace = true
 hmac.workspace = true
 p256.workspace = true

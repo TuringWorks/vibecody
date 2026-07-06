@@ -42,6 +42,7 @@ pub mod rlcef_loop;
 pub mod graph_index;
 pub mod signed_agent_card;
 pub mod sketch_canvas;
+pub mod skillforge_index;
 pub mod smart_deps;
 pub mod spawn_agent;
 pub mod superbrain;

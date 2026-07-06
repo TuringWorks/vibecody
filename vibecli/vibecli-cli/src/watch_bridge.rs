@@ -216,6 +216,12 @@ pub fn build_watch_router(state: WatchBridgeState) -> Router {
         // to ≤5 nodes so it fits on a wrist screen. Reuses the serve.rs helpers.
         .route("/graph/status", get(watch_graph_status))
         .route("/graph/query", post(watch_graph_query))
+        // /skilllens/* — SkillForge surface for the watch/mobile form factor.
+        // Two read-only routes (Watch/Wear never hit /v1/* and never mutate):
+        // a compact catalog count + a one-line skill summary. The heavy
+        // train/promote mutations stay desktop-only. Reuses serve.rs helpers.
+        .route("/skilllens/skills", get(watch_skilllens_skills))
+        .route("/skilllens/skills/:name", get(watch_skilllens_skill))
         .with_state(state)
 }
 
@@ -254,6 +260,59 @@ async fn watch_graph_query(
         other => other,
     };
     (s, Json(capped))
+}
+
+// ── /skilllens/* — watch form-factor views over the SkillForge catalog ───────
+
+/// `GET /skilllens/skills` → compact `{count, top5: [{name, category}]} for a
+/// wrist screen. The full catalog is desktop-only; this just lets a watch
+/// show "710 skills indexed, e.g. …".
+async fn watch_skilllens_skills() -> impl IntoResponse {
+    let (s, b) = crate::skillforge_index::do_v1_skilllens_skills();
+    let compact = match &b {
+        serde_json::Value::Object(map) => {
+            let skills = map.get("skills").and_then(|v| v.as_array());
+            let count = skills.map(|a| a.len()).unwrap_or(0);
+            let top5: Vec<serde_json::Value> = skills
+                .map(|a| {
+                    a.iter()
+                        .take(5)
+                        .map(|s| serde_json::json!({
+                            "name": s["name"],
+                            "category": s["category"],
+                        }))
+                        .collect()
+                })
+                .unwrap_or_default();
+            serde_json::json!({ "count": count, "top5": top5 })
+        }
+        _ => b.clone(),
+    };
+    (s, Json(compact))
+}
+
+/// `GET /skilllens/skills/:name` → one-line `{name, summary, category}`.
+async fn watch_skilllens_skill(
+    axum::extract::Path(name): axum::extract::Path<String>,
+) -> impl IntoResponse {
+    let (s, b) = crate::skillforge_index::do_v1_skilllens_skill(&name);
+    let compact = match &b {
+        serde_json::Value::Object(map) => serde_json::json!({
+            "name": map.get("name").cloned().unwrap_or(serde_json::Value::Null),
+            "category": map.get("category").cloned().unwrap_or(serde_json::Value::Null),
+            "summary": map.get("body")
+                .and_then(|v| v.as_str())
+                .map(|body| {
+                    body.lines()
+                        .map(|l| l.trim())
+                        .find(|l| !l.is_empty() && !l.starts_with('#'))
+                        .unwrap_or("")
+                })
+                .unwrap_or_default(),
+        }),
+        _ => b.clone(),
+    };
+    (s, Json(compact))
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────

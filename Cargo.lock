@@ -11905,6 +11905,8 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sha2",
+ "skilllensai-rs",
+ "skilloptai-rs",
  "snow",
  "socket2 0.6.4",
  "subtle",

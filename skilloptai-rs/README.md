@@ -17,8 +17,19 @@ Design & roadmap: `notes/skillforge/` (start at `SkillForge — MOC.md`).
 
 ## Status
 
-**Phase 0 — scaffold.** Module skeleton compiles; the epoch loop lands in
-Phase 2. See `notes/skillforge/05 — Implementation Roadmap.md`.
+**Phases 0–2 done.** `edit` / `buffer` / `report` compile without the LLM
+feature; the `llm` feature adds `env` (`Env` + `StaticEnv` + seeded split),
+`rollout`, `propose`, `gate`, and `trainer::train` (strict gate, rejected-edit
+buffer, textual-LR, patience early-stop, fully seeded). CLI: `skilloptai train`
+/ `propose` over an OpenAI-compatible `SkillLlm`. `cargo test -p skilloptai-rs`
+green (30 tests, incl. a deterministic val-curve test + a strict-gate
+rejection test). Wired into the VibeCody daemon via
+`vibecli/vibecli-cli/src/skillforge_index.rs` (Phase 3 done —
+`/v1/skillopt/train` + `status`/`cancel`/`promote` + `RepoAgentEnv` over the
+catalog) and into VibeUI via `SkillForgePanel.tsx` (Phase 4 done — Optimize
+tab with live val-curve + guarded Promote). Next: per-epoch streaming + the
+Flutter/Watch/VS Code/SDK fan-out (Phase 5). See
+`notes/skillforge/05 — Implementation Roadmap.md`.
 
 ## License
 

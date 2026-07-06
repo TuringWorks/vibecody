@@ -3049,6 +3049,8 @@ mod signed_agent_card;
 #[allow(dead_code)]
 mod sketch_canvas;
 #[allow(dead_code)]
+mod skillforge_index;
+#[allow(dead_code)]
 mod smart_deps;
 mod spawn_agent;
 mod superbrain;

@@ -1753,6 +1753,19 @@ pub fn run() {
             commands::get_daemon_status,
             commands::start_daemon,
             commands::stop_daemon,
+            // SkillForge — SkillLens (analyse) + SkillOpt (train). Thin HTTP
+            // proxies to the daemon's /v1/skilllens/* + /v1/skillopt/* routes.
+            // LLM commands take provider+model (STRICT provider-agnostic).
+            commands::skilllens_list_skills,
+            commands::skilllens_get_skill,
+            commands::skilllens_refresh,
+            commands::skilllens_convert,
+            commands::skilllens_extract,
+            commands::skilllens_score,
+            commands::skillopt_train,
+            commands::skillopt_status,
+            commands::skillopt_cancel,
+            commands::skillopt_promote,
             // FIT-GAP v8: Phase 33-39 — Agent Intelligence panels
             commands::env_dispatch_list,
             commands::env_dispatch_task,

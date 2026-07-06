@@ -630,6 +630,13 @@ async fn health(State(state): State<ServeState>) -> impl IntoResponse {
             }),
             None => serde_json::json!({ "status": "disabled" }),
         },
+        // SkillForge — SkillLens (analyse) + SkillOpt (train) bridge.
+        // `disabled` when the daemon hasn't initialized the catalog;
+        // `loading` while the background parse runs; `ready` with counts
+        // when queryable. Catalog parse is parse-only — no LLM, no key, no
+        // secrets. Scoring/training are on-demand and take provider+model
+        // from the request body (toolbar selection). AGENTS.md → Zero-Config.
+        "skillforge": crate::skillforge_index::status_value(),
         // Configured AI providers (by ProfileStore key presence). Names
         // only, never values. The canonical readiness signal for any
         // provider-dependent feature.
@@ -4378,6 +4385,72 @@ async fn v1_graph_report() -> (StatusCode, Json<serde_json::Value>) {
     (s, Json(b))
 }
 
+// ── /v1/skilllens/* + /v1/skillopt/* — SkillForge surface ───────────────────
+//
+// Thin axum wrappers over `skillforge_index::do_v1_*`. Provider+model come
+// from the request body (toolbar selection) — never `config.toml`, never a
+// hard-coded default. See `skillforge_index.rs` + notes/skillforge/.
+
+async fn v1_skilllens_skills() -> (StatusCode, Json<serde_json::Value>) {
+    let (s, b) = crate::skillforge_index::do_v1_skilllens_skills();
+    (s, Json(b))
+}
+
+async fn v1_skilllens_skill(Path(name): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
+    let (s, b) = crate::skillforge_index::do_v1_skilllens_skill(&name);
+    (s, Json(b))
+}
+
+async fn v1_skilllens_refresh() -> (StatusCode, Json<serde_json::Value>) {
+    let (s, b) = crate::skillforge_index::do_v1_skilllens_refresh();
+    (s, Json(b))
+}
+
+async fn v1_skilllens_convert(
+    Json(req): Json<crate::skillforge_index::ConvertRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let (s, b) = crate::skillforge_index::do_v1_skilllens_convert(&req);
+    (s, Json(b))
+}
+
+async fn v1_skilllens_extract(
+    Json(req): Json<crate::skillforge_index::ExtractRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let (s, b) = crate::skillforge_index::do_v1_skilllens_extract(&req).await;
+    (s, Json(b))
+}
+
+async fn v1_skilllens_score(
+    Json(req): Json<crate::skillforge_index::ScoreRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let (s, b) = crate::skillforge_index::do_v1_skilllens_score(&req).await;
+    (s, Json(b))
+}
+
+async fn v1_skillopt_train(
+    Json(req): Json<crate::skillforge_index::TrainRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let (s, b) = crate::skillforge_index::do_v1_skillopt_train(&req).await;
+    (s, Json(b))
+}
+
+async fn v1_skillopt_status(Path(job): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
+    let (s, b) = crate::skillforge_index::do_v1_skillopt_status(&job).await;
+    (s, Json(b))
+}
+
+async fn v1_skillopt_cancel(Path(job): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
+    let (s, b) = crate::skillforge_index::do_v1_skillopt_cancel(&job).await;
+    (s, Json(b))
+}
+
+async fn v1_skillopt_promote(
+    Json(req): Json<crate::skillforge_index::PromoteRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let (s, b) = crate::skillforge_index::do_v1_skillopt_promote(&req);
+    (s, Json(b))
+}
+
 // ── G4.4 pin current goal ──────────────────────────────────────────────────
 //
 // `/v1/goals/current` is the pin endpoint. Workspace is passed in the
@@ -4888,7 +4961,7 @@ async fn v1_exec_goal_plan(
 /// Kept small on purpose: we only support the handful of providers
 /// that are widely used for planning. Niche providers can still be
 /// configured at daemon startup and used via the fallback path.
-fn build_provider_override(
+pub(crate) fn build_provider_override(
     provider_type: &str,
     model: &str,
 ) -> Option<Arc<dyn vibe_ai::provider::AIProvider>> {
@@ -6647,6 +6720,20 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/v1/graph/path/:from/:to", get(v1_graph_path))
         .route("/v1/graph/blast", post(v1_graph_blast))
         .route("/v1/graph/report", get(v1_graph_report))
+        // SkillForge — SkillLens (analyse) + SkillOpt (train). Catalog list/
+        // get/refresh need no LLM; extract/score/train/promote take
+        // provider+model in the body (toolbar selection), never config.toml.
+        // See `skillforge_index.rs` + notes/skillforge/.
+        .route("/v1/skilllens/skills", get(v1_skilllens_skills))
+        .route("/v1/skilllens/skills/:name", get(v1_skilllens_skill))
+        .route("/v1/skilllens/refresh", post(v1_skilllens_refresh))
+        .route("/v1/skilllens/convert", post(v1_skilllens_convert))
+        .route("/v1/skilllens/extract", post(v1_skilllens_extract))
+        .route("/v1/skilllens/score", post(v1_skilllens_score))
+        .route("/v1/skillopt/train", post(v1_skillopt_train))
+        .route("/v1/skillopt/status/:job", get(v1_skillopt_status))
+        .route("/v1/skillopt/cancel/:job", post(v1_skillopt_cancel))
+        .route("/v1/skillopt/promote", post(v1_skillopt_promote))
         // Recap & Resume v1 — D1.1 (diffcomplete chain autosave).
         // Patent re-audit: PASS (1–5 unchanged). Writes happen only
         // on discrete user-driven events posted by the modal.
@@ -6970,6 +7057,29 @@ pub async fn serve(
                 eprintln!("[vibecli serve] code graph: indexing in background…");
                 crate::graph_index::spawn_background_build(workspace_root.clone());
             }
+        }
+    }
+
+    // Initialize the SkillForge catalog (SkillLens + SkillOpt bridge). Parse-
+    // only over the bundled `skills/*.md` tree — **no LLM, no key needed** —
+    // so the panel opens instantly and `/skilllens/skills` works out of the
+    // box. Scoring/training are on-demand and honour the toolbar-selected
+    // provider+model. Status surfaced in /health.skillforge + the banner.
+    // Zero-Config: AGENTS.md → Zero-Config First.
+    {
+        let status = crate::skillforge_index::init_skillforge(None);
+        match status {
+            crate::skillforge_index::SkillForgeStatus::Ready => {
+                let v = crate::skillforge_index::status_value();
+                eprintln!(
+                    "[vibecli serve] skillforge: ready ({} skills) — {}",
+                    v["skills"], v["toolchain"],
+                );
+            }
+            _ => eprintln!(
+                "[vibecli serve] skillforge: catalog parsing in background… ({})",
+                crate::skillforge_index::toolchain_version(),
+            ),
         }
     }
 
