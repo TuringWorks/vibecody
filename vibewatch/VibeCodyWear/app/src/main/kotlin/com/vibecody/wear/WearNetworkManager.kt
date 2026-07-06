@@ -171,6 +171,30 @@ class WearNetworkManager(
         JSONObject(resp.body?.string() ?: "{}")
     }
 
+    // ── SkillForge (skill catalogue — curated /watch/skilllens/*) ─────────────
+    //
+    // Two read-only routes (Wear never hits /v1/*): a compact catalogue
+    // summary (`{count, top5}`) and a one-line skill detail. The heavy
+    // score/train/promote mutations stay desktop-only (they need a
+    // toolbar-selected LLM). Shapes are daemon-owned; responses are raw JSON.
+
+    /** `GET /watch/skilllens/skills` → compact `{count, top5:[{name, category, summary}]}`. */
+    suspend fun skilllensSkills(): JSONObject = withContext(Dispatchers.IO) {
+        val req = watchRequest("${auth.daemonUrl}/watch/skilllens/skills").get().build()
+        val resp = client.newCall(req).awaitResponse()
+        JSONObject(resp.body?.string() ?: "{}")
+    }
+
+    /** `GET /watch/skilllens/skills/:name` → one-line `{name, category, summary}`.
+     *  Throws on network failure. */
+    suspend fun skilllensSkill(name: String): JSONObject = withContext(Dispatchers.IO) {
+        val encoded = java.net.URLEncoder.encode(name, "UTF-8")
+        val req = watchRequest("${auth.daemonUrl}/watch/skilllens/skills/$encoded").get().build()
+        val resp = client.newCall(req).awaitResponse()
+        if (!resp.isSuccessful) throw IOException("skilllensSkill HTTP ${resp.code}")
+        JSONObject(resp.body?.string() ?: "{}")
+    }
+
     suspend fun getMessages(sessionId: String): JSONObject = withContext(Dispatchers.IO) {
         val req = watchRequest("${auth.daemonUrl}/watch/sessions/$sessionId/messages").get().build()
         val resp = client.newCall(req).awaitResponse()

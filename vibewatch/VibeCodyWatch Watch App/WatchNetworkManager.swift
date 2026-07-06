@@ -206,6 +206,46 @@ final class WatchNetworkManager: NSObject, ObservableObject {
         )
     }
 
+    // MARK: - SkillForge (skill catalogue — curated /watch/skilllens/*)
+    //
+    // Two read-only routes (Watch never hits /v1/*): a compact catalogue
+    // summary (`{count, top5}`) and a one-line skill detail. The heavy
+    // score/train/promote mutations stay desktop-only.
+
+    /// Compact catalogue probe for the watch: `{count, top5:[{name, category, summary}]}`.
+    struct WatchSkillRow: Decodable {
+        let name: String
+        let category: String
+        let summary: String
+    }
+    struct WatchSkilllensCatalog: Decodable {
+        let count: Int
+        let top5: [WatchSkillRow]
+    }
+    @Published var skilllensCatalog: WatchSkilllensCatalog?
+
+    /// `GET /watch/skilllens/skills`. Best-effort — failures leave the prior value.
+    func loadSkilllensSkills() async {
+        guard auth.isPaired else { return }
+        do {
+            let token = try await auth.validAccessToken()
+            let url = URL(string: "\(auth.endpoint)/watch/skilllens/skills")!
+            skilllensCatalog = try await getJSON(url: url, token: token)
+        } catch {
+            // silent — same precedent as loadGraphStatus
+        }
+    }
+
+    /// `GET /watch/skilllens/skills/:name` — one-line `{name, category, summary}`.
+    func loadSkilllensSkill(_ name: String) async throws -> WatchSkillRow {
+        let token = try await auth.validAccessToken()
+        guard let encoded = name.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed),
+              let url = URL(string: "\(auth.endpoint)/watch/skilllens/skills/\(encoded)") else {
+            throw WatchAuthError.networkError("bad skilllens-skill URL")
+        }
+        return try await getJSON(url: url, token: token)
+    }
+
     // MARK: - Messages for a session
 
     func loadMessages(sessionId: String) async throws -> [WatchMessage] {

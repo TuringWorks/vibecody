@@ -830,6 +830,57 @@ class ApiClient {
     return Map<String, dynamic>.from(jsonDecode(resp.body));
   }
 
+  // ── /v1/skilllens/* + /v1/skillopt/* — SkillForge (read-only on mobile) ──
+  //
+  // SkillForge trains/optimises agent-skill docs in the daemon (Phase 3) and
+  // on desktop (Phase 4). Mobile surfaces the read-only views: the catalog
+  // and a running train-job's status. The heavy `score`/`train`/`promote`
+  // mutations stay desktop-only (they need a toolbar-selected LLM). Shapes
+  // are daemon-owned; responses are raw JSON maps.
+
+  /// `GET /v1/skilllens/skills` — `{skills:[{name, category, summary, source,
+  /// trigger_coverage?, extraction_efficacy?, target_evolvability?}]}`.
+  Future<Map<String, dynamic>> skilllensSkills(
+    String baseUrl,
+    String token,
+  ) async {
+    final resp = await _client.get(
+      Uri.parse(_url(baseUrl, '/v1/skilllens/skills')),
+      headers: _headers(token),
+    );
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+    return Map<String, dynamic>.from(jsonDecode(resp.body));
+  }
+
+  /// `GET /v1/skilllens/skills/:name` — one skill detail.
+  Future<Map<String, dynamic>> skilllensSkill(
+    String baseUrl,
+    String token,
+    String name,
+  ) async {
+    final resp = await _client.get(
+      Uri.parse(_url(baseUrl, '/v1/skilllens/skills/${Uri.encodeComponent(name)}')),
+      headers: _headers(token),
+    );
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+    return Map<String, dynamic>.from(jsonDecode(resp.body));
+  }
+
+  /// `GET /v1/skillopt/status/:job` — train-job state
+  /// (`{id, skill, llm:{provider,model}, state, report?, error?}`).
+  Future<Map<String, dynamic>> skilloptStatus(
+    String baseUrl,
+    String token,
+    String jobId,
+  ) async {
+    final resp = await _client.get(
+      Uri.parse(_url(baseUrl, '/v1/skillopt/status/${Uri.encodeComponent(jobId)}')),
+      headers: _headers(token),
+    );
+    if (resp.statusCode != 200) throw ApiException(resp.statusCode, resp.body);
+    return Map<String, dynamic>.from(jsonDecode(resp.body));
+  }
+
   void dispose() {
     _client.close();
   }

@@ -523,6 +523,107 @@ export class VibeCLIAgent {
     },
   };
 
+  // SkillForge — analyse + train agent-skill docs. Exposed as `agent.skilllens.*`
+  // and `agent.skillopt.*`, thin proxies to /v1/skilllens/* + /v1/skillopt/*.
+  // The LLM-calling methods take `provider` + `model` (the caller's toolbar
+  // selection — STRICT, no hard-coded default) and forward them in the body.
+  // Responses are untyped JSON (shapes are daemon-owned; the SDK stays decoupled).
+
+  /** `/v1/skilllens/*` — measure skills (catalogue, score, extract). */
+  readonly skilllens = {
+    /** `GET /v1/skilllens/skills` — catalogue. */
+    list: async (): Promise<Record<string, unknown>> => {
+      const res = await fetch(`${this.baseUrl}/v1/skilllens/skills`);
+      if (!res.ok) throw new AgentError(`skilllens.list failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<Record<string, unknown>>;
+    },
+    /** `GET /v1/skilllens/skills/:name` — one skill detail. */
+    get: async (name: string): Promise<Record<string, unknown>> => {
+      const res = await fetch(`${this.baseUrl}/v1/skilllens/skills/${encodeURIComponent(name)}`);
+      if (!res.ok) throw new AgentError(`skilllens.get failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<Record<string, unknown>>;
+    },
+    /** `POST /v1/skilllens/refresh` — reload the catalogue from disk. */
+    refresh: async (): Promise<Record<string, unknown>> => {
+      const res = await fetch(`${this.baseUrl}/v1/skilllens/refresh`, { method: 'POST' });
+      if (!res.ok) throw new AgentError(`skilllens.refresh failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<Record<string, unknown>>;
+    },
+    /** `POST /v1/skilllens/convert {runs}` — normalise agent runs into trajectories. */
+    convert: async (runs: unknown): Promise<Record<string, unknown>> => {
+      const res = await fetch(`${this.baseUrl}/v1/skilllens/convert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ runs }),
+      });
+      if (!res.ok) throw new AgentError(`skilllens.convert failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<Record<string, unknown>>;
+    },
+    /** `POST /v1/skilllens/extract {pool, method, provider, model}` — extract candidate skills. */
+    extract: async (pool: unknown, method: string, provider: string, model: string): Promise<Record<string, unknown>> => {
+      const res = await fetch(`${this.baseUrl}/v1/skilllens/extract`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pool, method, provider, model }),
+      });
+      if (!res.ok) throw new AgentError(`skilllens.extract failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<Record<string, unknown>>;
+    },
+    /** `POST /v1/skilllens/score {skill, tasks?, provider, model}` — score a skill. */
+    score: async (skill: string, tasks: string | undefined, provider: string, model: string): Promise<Record<string, unknown>> => {
+      const res = await fetch(`${this.baseUrl}/v1/skilllens/score`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skill, tasks, provider, model }),
+      });
+      if (!res.ok) throw new AgentError(`skilllens.score failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<Record<string, unknown>>;
+    },
+  };
+
+  /** `/v1/skillopt/*` — train skills (launch, poll, cancel, promote). */
+  readonly skillopt = {
+    /** `POST /v1/skillopt/train {skill, env, config, provider, model}` — launch a train job; returns `{job_id}`. */
+    train: async (
+      skill: string,
+      envKind: 'repo' | 'static',
+      envTasks: string | undefined,
+      config: Record<string, unknown> | undefined,
+      provider: string,
+      model: string,
+    ): Promise<Record<string, unknown>> => {
+      const res = await fetch(`${this.baseUrl}/v1/skillopt/train`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skill, env: { kind: envKind, tasks: envTasks }, config: config ?? {}, provider, model }),
+      });
+      if (!res.ok) throw new AgentError(`skillopt.train failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<Record<string, unknown>>;
+    },
+    /** `GET /v1/skillopt/status/:job` — train-job state + report. */
+    status: async (jobId: string): Promise<Record<string, unknown>> => {
+      const res = await fetch(`${this.baseUrl}/v1/skillopt/status/${encodeURIComponent(jobId)}`);
+      if (!res.ok) throw new AgentError(`skillopt.status failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<Record<string, unknown>>;
+    },
+    /** `POST /v1/skillopt/cancel/:job` — best-effort cancel. */
+    cancel: async (jobId: string): Promise<Record<string, unknown>> => {
+      const res = await fetch(`${this.baseUrl}/v1/skillopt/cancel/${encodeURIComponent(jobId)}`, { method: 'POST' });
+      if (!res.ok) throw new AgentError(`skillopt.cancel failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<Record<string, unknown>>;
+    },
+    /** `POST /v1/skillopt/promote {skill, content}` — write `*.opt.md` (shipped skill untouched). */
+    promote: async (skill: string, content: string): Promise<Record<string, unknown>> => {
+      const res = await fetch(`${this.baseUrl}/v1/skillopt/promote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skill, content }),
+      });
+      if (!res.ok) throw new AgentError(`skillopt.promote failed: ${res.status} ${await res.text()}`);
+      return res.json() as Promise<Record<string, unknown>>;
+    },
+  };
+
   /**
    * Check if the daemon is reachable.
    */
