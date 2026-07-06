@@ -394,3 +394,4 @@ index_path = ".vibecli/semindex.db"
 - [Demo 8: Code Search & Embeddings](../08-code-search/) -- Text-level semantic search
 - [Demo 10: Code Transforms](../10-code-transforms/) -- AST-based refactoring tools
 - [Demo 40: Web Search Grounding](../40-web-grounding/) -- Enrich answers with live web data
+- [Demo 66: SkillForge](../66-skillforge/) -- Measure and train agent-skill docs (the same daemon-bridge pattern this demo uses)

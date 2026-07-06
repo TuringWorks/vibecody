@@ -24,11 +24,12 @@ buffer, textual-LR, patience early-stop, fully seeded). CLI: `skilloptai train`
 / `propose` over an OpenAI-compatible `SkillLlm`. `cargo test -p skilloptai-rs`
 green (30 tests, incl. a deterministic val-curve test + a strict-gate
 rejection test). Wired into the VibeCody daemon via
-`vibecli/vibecli-cli/src/skillforge_index.rs` (Phase 3 done —
+`vibecli/vibecli-cli/src/skillforge_index.rs` (Phase 3 —
 `/v1/skillopt/train` + `status`/`cancel`/`promote` + `RepoAgentEnv` over the
-catalog) and into VibeUI via `SkillForgePanel.tsx` (Phase 4 done — Optimize
-tab with live val-curve + guarded Promote). Next: per-epoch streaming + the
-Flutter/Watch/VS Code/SDK fan-out (Phase 5). See
+catalog), into VibeUI via `SkillForgePanel.tsx` (Phase 4 — Optimize tab with
+live val-curve + guarded Promote), and out to every client (Phase 5 —
+Flutter/Watch/Wear read-only status + VS Code/Agent SDK full surface). Next:
+per-epoch SSE streaming + `RepoAgentEnv` from real agent-job history. See
 `notes/skillforge/05 — Implementation Roadmap.md`.
 
 ## License

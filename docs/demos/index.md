@@ -47,6 +47,7 @@ Interactive walkthroughs covering VibeCody's 65 major capabilities across CLI, D
 | [39 — Proactive Agent](39-proactive-agent/) | CLI + UI | Background scanning with learning from feedback |
 | [43 — Cost-Optimized Routing](43-cost-routing/) | CLI + UI | Smart model selection based on task complexity |
 | [60 — Next-Task Prediction](60-next-task/) | CLI + UI | Workflow-level task suggestions with learning |
+| [66 — SkillForge](66-skillforge/) | UI + HTTP | Measure and train agent-skill docs against any provider; guarded Promote |
 
 ## DevOps & Infrastructure
 

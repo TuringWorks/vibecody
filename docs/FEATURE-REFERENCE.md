@@ -940,6 +940,16 @@ pub struct Goal {
 | `GET` | `/v1/graph/path/:from/:to` | `{path:[labels],hops}` (404 if no path) |
 | `POST` | `/v1/graph/blast` | `{name,max_hops?}` → blast radius `{seed,affected,by_hop}` |
 | `GET` | `/v1/graph/report` | Full `GRAPH_REPORT.md` text `{report}` |
+| `GET` | `/v1/skilllens/skills` | SkillForge catalogue `{skills:[{name,category,summary,source,…}]}` (no LLM) |
+| `GET` | `/v1/skilllens/skills/:name` | One skill detail + cached `SkillReport` (no LLM) |
+| `POST` | `/v1/skilllens/refresh` | Reload the catalogue from disk (no LLM) |
+| `POST` | `/v1/skilllens/convert` | `{runs}` → normalised `Trajectory[]` (no LLM) |
+| `POST` | `/v1/skilllens/extract` | `{pool,method,provider,model}` → candidate skills (LLM) |
+| `POST` | `/v1/skilllens/score` | `{skill,tasks?,provider,model}` → `{report:{trigger_coverage,extraction_efficacy?,target_evolvability?}}` (LLM) |
+| `POST` | `/v1/skillopt/train` | `{skill,env:{kind:"repo"\|"static",tasks?},config,provider,model}` → `{job_id}` (LLM, async) |
+| `GET` | `/v1/skillopt/status/:job` | `{id,skill,llm,state:"running"\|"done"\|"failed"\|"cancelled",report?,error?}` |
+| `POST` | `/v1/skillopt/cancel/:job` | Best-effort cancel (no LLM) |
+| `POST` | `/v1/skillopt/promote` | `{skill,content}` → writes `*.opt.md` (shipped skill untouched; no LLM) |
 
 ### Watch surface (curated)
 
@@ -950,6 +960,8 @@ pub struct Goal {
 | `POST` | `/watch/goals/:id/start` | Wrapper for `do_v1_exec_goal_start` |
 | `GET` | `/watch/graph/status` | Compact `{status,n,m}` for the wrist form factor |
 | `POST` | `/watch/graph/query` | `{query,budget?}` → subgraph capped to ≤5 nodes/edges |
+| `GET` | `/watch/skilllens/skills` | SkillForge catalogue compact `{count,top5:[{name,category,summary}]}` |
+| `GET` | `/watch/skilllens/skills/:name` | One-line `{name,category,summary}` |
 
 ### REPL
 

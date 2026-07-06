@@ -135,6 +135,7 @@
 | `.vibeui.md` workspace rules | ❌ | ✅ | Injected into every AI prompt |
 | Semantic index (fast search) | ✅ | ✅ | Trigram + LRU cache |
 | Code Graph (kodegraph) | ✅ | ✅ | tree-sitter → SQLite graph at `.vibecli/codegraph.db`; god-node/community summary replaces the dir-tree repo map in the agent system prompt; TUI seeds `## Relevant Symbols` via blast-radius. Background build on daemon startup; `/graph/*` + `/watch/graph/*` routes; `/semindex` CLI (`build/query/node/callers/callees/hierarchy/stats`) |
+| SkillForge (skill optimisation) | ✅ | ✅ | `skilllensai-rs` (analyse: trajectory → extract → score) + `skilloptai-rs` (train: rollout → bounded edit → strict held-out gate → epoch) wired through one daemon bridge `skillforge_index.rs`; `/v1/skilllens/*` + `/v1/skillopt/*` + `/watch/skilllens/*` routes; VibeUI `SkillForgePanel` (Catalog / Lens / Optimize) in `AiMlComposite`; full surface in VS Code + Agent SDK, read-only catalog/status on Flutter + Watch + Wear. Provider-agnostic (toolbar `selectedProvider`/`selectedModel`); promote writes `*.opt.md` (shipped 711 skills untouched) |
 | Hierarchical project memory | ✅ | ✅ | system → user → project → dir |
 | Session memory (auto-extracted) | ✅ | ✅ | Facts from assistant messages |
 | Pinned memory in system prompt | ❌ | ✅ | ChatMemoryPanel |

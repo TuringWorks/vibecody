@@ -33,6 +33,7 @@ All surfaces are backed by a shared set of Rust crates for AI providers, text ed
 | [Memory Guide](./memory-guide/) | All memory layers — auto-recording, cognitive store, verbatim drawers, benchmarking |
 | [Memory Architecture](./memory-architecture/) | Detailed architecture: five stores, Context Assembler, Recap/Resume, storage security |
 | [Architecture](./architecture/) | Crate structure, data flow, and design decisions |
+| [SkillForge](./skillforge/) | Measure and train agent-skill docs (SkillLens + SkillOpt) against any provider |
 | [Roadmap](./roadmap/) | Competitive landscape, phase-level history (1–39), and positioning |
 | [Plugin Development](./plugin-development/) | Build plugins, skills, hooks, WASM extensions, and MCP integrations |
 | [VibeMobile](vibemobile/) | Mobile companion (Flutter) — pairing, Handoff, remote chat, sync |
@@ -82,6 +83,7 @@ All providers support streaming. Local providers require no API key.
 - Git-aware context injection, multi-file diff view with syntax highlighting
 - AI-assisted code apply with interactive confirmation and approval gate
 - HTTP daemon mode (`vibecli --serve --port 7878`)
+- SkillForge — analyse (`/v1/skilllens/*`) and train (`/v1/skillopt/*`) the shipped skill files against any provider; promote writes `*.opt.md` (shipped skills untouched)
 
 ### VibeUI Highlights
 
@@ -97,6 +99,7 @@ All providers support streaming. Local providers require no API key.
 - Deploy to 6 targets from the editor
 - Rope-based text buffer, async file I/O with file-watching
 - Full Git panel, integrated terminal (PTY), LSP client, WASM extension system
+- SkillForge panel (Catalog / Lens / Optimize) — score, train, and promote agent-skill docs against the toolbar-selected model, with a live validation curve + guarded Promote
 
 
 ### VibeMobile (Flutter Companion)
