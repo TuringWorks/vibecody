@@ -46,6 +46,27 @@ export interface JobRecord {
   summary?: string;
 }
 
+/** One per-epoch progress event streamed from `/v1/skillopt/train/stream`. */
+export interface SkilloptEpochEvent {
+  epoch: number;
+  best_val: number;
+  accepted: number;
+  rejected: number;
+  spent_tokens: number;
+  early_stopped: boolean;
+}
+
+/** Discriminated stream of events from `skilloptStreamTrain`.
+ *  - `job`   — once, the `{job_id, status, llm}` payload (use the id for `cancel`/`status`)
+ *  - `epoch` — one per completed epoch (live validation curve)
+ *  - `done`  — terminal, the final `TrainJob` JSON (state = done|cancelled|failed)
+ *  - `error` — terminal, on launch failure */
+export type SkilloptTrainEvent =
+  | { type: 'job'; job: Record<string, unknown> }
+  | { type: 'epoch'; epoch: SkilloptEpochEvent }
+  | { type: 'done'; final: Record<string, unknown> | null }
+  | { type: 'error'; error: string };
+
 /** Durable execution intent (G1.7). Subset of the daemon's full `Goal` —
  *  rich fields (plan, criteria, tags) are accessible via the raw JSON path
  *  for clients that want them. */
@@ -340,6 +361,53 @@ export class VibeCLIClient {
     return res.json() as Promise<Record<string, unknown>>;
   }
 
+  /** `POST /v1/skillopt/train/stream` — streaming variant of `skilloptTrain`.
+   *  Same body, same job map (so `skilloptStatus`/`skilloptCancel` work on the
+   *  streamed job), but yields live per-epoch events as an async generator
+   *  instead of returning a job id to poll. Cancellation: call `skilloptCancel`
+   *  with the id from the `job` event — the next epoch boundary observes the
+   *  cancel token and a `done` event with `state: cancelled` ends the stream.
+   *
+   *  @example
+   *  ```ts
+   *  for await (const ev of client.skilloptStreamTrain('rust-tests', 'repo', undefined, cfg, provider, model)) {
+   *    if (ev.type === 'job') console.log('job', ev.job.job_id);
+   *    if (ev.type === 'epoch') console.log('val', ev.epoch.best_val);
+   *    if (ev.type === 'done' || ev.type === 'error') break;
+   *  }
+   *  ```
+   */
+  async *skilloptStreamTrain(
+    skill: string,
+    envKind: 'repo' | 'static',
+    envTasks: string | undefined,
+    config: Record<string, unknown> | undefined,
+    provider: string,
+    model: string,
+  ): AsyncGenerator<SkilloptTrainEvent> {
+    const res = await fetch(`${this.baseUrl}/v1/skillopt/train/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ skill, env: { kind: envKind, tasks: envTasks }, config: config ?? {}, provider, model }),
+    });
+    if (!res.ok || !res.body) {
+      throw new Error(`skillopt.trainStream failed: ${res.status} ${await res.text()}`);
+    }
+    for await (const ev of readSseTypedEvents(res.body)) {
+      if (ev.event === 'job') {
+        yield { type: 'job', job: ev.data ? (JSON.parse(ev.data) as Record<string, unknown>) : {} };
+      } else if (ev.event === 'epoch') {
+        yield { type: 'epoch', epoch: ev.data ? (JSON.parse(ev.data) as SkilloptEpochEvent) : ({} as SkilloptEpochEvent) };
+      } else if (ev.event === 'done') {
+        yield { type: 'done', final: ev.data ? (JSON.parse(ev.data) as Record<string, unknown>) : null };
+        break;
+      } else if (ev.event === 'error') {
+        yield { type: 'error', error: ev.data || 'unknown error' };
+        break;
+      }
+    }
+  }
+
   /** `GET /v1/skillopt/status/:job` — train-job state + report. */
   async skilloptStatus(jobId: string): Promise<Record<string, unknown>> {
     const res = await fetch(`${this.baseUrl}/v1/skillopt/status/${encodeURIComponent(jobId)}`);
@@ -410,4 +478,44 @@ async function *readSseText(body: ReadableStream<Uint8Array>): AsyncGenerator<st
 
 async function *readSseData(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {
   yield* readSseText(body);
+}
+
+/** Typed SSE parser — yields `{event, data}` pairs grouped by blank-line
+ *  boundaries, capturing the `event:` field the `data:`-only helpers discard.
+ *  Used by `skilloptStreamTrain` (the daemon emits `job`/`epoch`/`done`/
+ *  `error` events). Multiple `data:` lines within one event are joined with
+ *  `\n` per the SSE spec; the daemon emits exactly one per event. */
+async function *readSseTypedEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<{ event: string; data: string }> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let event = 'message';
+  let data = '';
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        const trimmed = line.replace(/\r$/, '');
+        if (trimmed === '') {
+          if (data || event !== 'message') yield { event, data };
+          event = 'message';
+          data = '';
+          continue;
+        }
+        if (trimmed.startsWith('event:')) {
+          event = trimmed.slice('event:'.length).trim();
+        } else if (trimmed.startsWith('data:')) {
+          const d = trimmed.startsWith('data: ') ? trimmed.slice('data: '.length) : trimmed.slice('data:'.length);
+          data = data ? `${data}\n${d}` : d;
+        }
+      }
+    }
+    if (data || event !== 'message') yield { event, data };
+  } finally {
+    reader.releaseLock();
+  }
 }

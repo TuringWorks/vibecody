@@ -10,7 +10,7 @@ import {
   AgentError,
   createAgent,
 } from './index';
-import type { AgentEvent, JobRecord, ChatMessage } from './index';
+import type { AgentEvent, JobRecord, ChatMessage, SkilloptTrainEvent } from './index';
 
 // ── SSE helpers ───────────────────────────────────────────────────────────────
 
@@ -557,5 +557,83 @@ describe('SSE stream — multi-chunk buffering', () => {
 
     expect(received).toHaveLength(1);
     expect(received[0].content).toBe('trailing');
+  });
+});
+
+// ── VibeCLIAgent.skillopt.streamTrain (typed SSE consumer) ────────────────────
+
+describe('VibeCLIAgent.skillopt.streamTrain', () => {
+  it('yields job → epoch* → done in order from the typed SSE stream', async () => {
+    const agent = new VibeCLIAgent();
+    const job = JSON.stringify({ job_id: 'math-anthropic-claude-1', status: 'running', llm: { provider: 'anthropic', model: 'claude' } });
+    const epoch0 = JSON.stringify({ epoch: 0, best_val: 0.5, accepted: 1, rejected: 0, spent_tokens: 10, early_stopped: false });
+    const epoch1 = JSON.stringify({ epoch: 1, best_val: 1.0, accepted: 1, rejected: 1, spent_tokens: 20, early_stopped: true });
+    const done = JSON.stringify({ id: 'math-anthropic-claude-1', state: 'done' });
+    const body = makeStream(
+      `event: job\n`, `data: ${job}\n`, `\n`,
+      `event: epoch\n`, `data: ${epoch0}\n`, `\n`,
+      `event: epoch\n`, `data: ${epoch1}\n`, `\n`,
+      `event: done\n`, `data: ${done}\n`, `\n`,
+    );
+    fetchMock.mockResolvedValueOnce({ ok: true, body });
+
+    const received: SkilloptTrainEvent[] = [];
+    for await (const e of agent.skillopt.streamTrain('math', 'repo', undefined, {}, 'anthropic', 'claude')) {
+      received.push(e);
+    }
+
+    expect(received).toHaveLength(4);
+    expect(received[0]).toEqual({ type: 'job', job: JSON.parse(job) });
+    expect(received[1]).toEqual({ type: 'epoch', epoch: JSON.parse(epoch0) });
+    expect(received[2]).toEqual({ type: 'epoch', epoch: JSON.parse(epoch1) });
+    expect(received[3]).toEqual({ type: 'done', final: JSON.parse(done) });
+  });
+
+  it('stops after an error event and surfaces the error text', async () => {
+    const agent = new VibeCLIAgent();
+    const body = makeStream(
+      `event: error\n`, `data: skill 'nope' not in catalog\n`, `\n`,
+    );
+    fetchMock.mockResolvedValueOnce({ ok: true, body });
+
+    const received: SkilloptTrainEvent[] = [];
+    for await (const e of agent.skillopt.streamTrain('nope', 'repo', undefined, {}, 'anthropic', 'claude')) {
+      received.push(e);
+    }
+
+    expect(received).toEqual([{ type: 'error', error: "skill 'nope' not in catalog" }]);
+  });
+
+  it('throws AgentError on non-2xx', async () => {
+    const agent = new VibeCLIAgent();
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 500, text: async () => 'boom' });
+
+    await expect(async () => {
+      for await (const _ of agent.skillopt.streamTrain('s', 'repo', undefined, {}, 'p', 'm')) {
+        void _;
+      }
+    }).rejects.toThrow(AgentError);
+  });
+
+  it('POSTs to /v1/skillopt/train/stream with the train body shape', async () => {
+    const agent = new VibeCLIAgent();
+    fetchMock.mockResolvedValueOnce({ ok: true, body: makeStream(`event: done\n`, `data: null\n`, `\n`) });
+
+    for await (const _ of agent.skillopt.streamTrain('rust-tests', 'static', 't1', { epochs: 2 }, 'anthropic', 'claude')) {
+      void _;
+    }
+
+    const call = fetchMock.mock.calls[0];
+    expect(call[0]).toBe('http://localhost:7878/v1/skillopt/train/stream');
+    const init = call[1] as RequestInit;
+    expect(init.method).toBe('POST');
+    const sent = JSON.parse(init.body as string);
+    expect(sent).toEqual({
+      skill: 'rust-tests',
+      env: { kind: 'static', tasks: 't1' },
+      config: { epochs: 2 },
+      provider: 'anthropic',
+      model: 'claude',
+    });
   });
 });

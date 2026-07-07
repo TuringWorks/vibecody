@@ -84,6 +84,29 @@ export interface JobRecord {
   summary?: string;
 }
 
+// ── SkillForge train-stream events ───────────────────────────────────────────
+
+/** One per-epoch progress event streamed from `/v1/skillopt/train/stream`. */
+export interface SkilloptEpochEvent {
+  epoch: number;
+  best_val: number;
+  accepted: number;
+  rejected: number;
+  spent_tokens: number;
+  early_stopped: boolean;
+}
+
+/** Discriminated stream of events from `agent.skillopt.streamTrain`.
+ *  - `job`   — once, the `{job_id, status, llm}` payload (use the id for `cancel`/`status`)
+ *  - `epoch` — one per completed epoch (live validation curve)
+ *  - `done`  — terminal, the final `TrainJob` JSON (state = done|cancelled|failed)
+ *  - `error` — terminal, on launch failure */
+export type SkilloptTrainEvent =
+  | { type: 'job'; job: Record<string, unknown> }
+  | { type: 'epoch'; epoch: SkilloptEpochEvent }
+  | { type: 'done'; final: Record<string, unknown> | null }
+  | { type: 'error'; error: string };
+
 // ── VibeCLIAgent ─────────────────────────────────────────────────────────────
 
 /**
@@ -600,6 +623,45 @@ export class VibeCLIAgent {
       if (!res.ok) throw new AgentError(`skillopt.train failed: ${res.status} ${await res.text()}`);
       return res.json() as Promise<Record<string, unknown>>;
     },
+    /** `POST /v1/skillopt/train/stream` — streaming variant of `train`. Same
+     *  body + job map (so `status`/`cancel` work on the streamed job), but
+     *  yields live per-epoch events instead of returning a job id to poll.
+     *  Cancel with `cancel(jobId)` using the id from the `job` event; the next
+     *  epoch boundary observes the token and a `done` event with
+     *  `state: cancelled` ends the stream. (Bound to the agent instance so
+     *  the async generator sees `this.baseUrl` — arrow generators aren't
+     *  valid syntax, so the `function*` is `.bind(this)`'d at field-init.) */
+    streamTrain: (async function* (
+      this: VibeCLIAgent,
+      skill: string,
+      envKind: 'repo' | 'static',
+      envTasks: string | undefined,
+      config: Record<string, unknown> | undefined,
+      provider: string,
+      model: string,
+    ): AsyncGenerator<SkilloptTrainEvent> {
+      const res = await fetch(`${this.baseUrl}/v1/skillopt/train/stream`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skill, env: { kind: envKind, tasks: envTasks }, config: config ?? {}, provider, model }),
+      });
+      if (!res.ok || !res.body) {
+        throw new AgentError(`skillopt.streamTrain failed: ${res.status} ${await res.text()}`);
+      }
+      for await (const ev of readSseTypedEvents(res.body)) {
+        if (ev.event === 'job') {
+          yield { type: 'job', job: ev.data ? (JSON.parse(ev.data) as Record<string, unknown>) : {} };
+        } else if (ev.event === 'epoch') {
+          yield { type: 'epoch', epoch: ev.data ? (JSON.parse(ev.data) as SkilloptEpochEvent) : ({} as SkilloptEpochEvent) };
+        } else if (ev.event === 'done') {
+          yield { type: 'done', final: ev.data ? (JSON.parse(ev.data) as Record<string, unknown>) : null };
+          break;
+        } else if (ev.event === 'error') {
+          yield { type: 'error', error: ev.data || 'unknown error' };
+          break;
+        }
+      }
+    }).bind(this),
     /** `GET /v1/skillopt/status/:job` — train-job state + report. */
     status: async (jobId: string): Promise<Record<string, unknown>> => {
       const res = await fetch(`${this.baseUrl}/v1/skillopt/status/${encodeURIComponent(jobId)}`);
@@ -683,6 +745,46 @@ async function *readSseLines(body: ReadableStream<Uint8Array>): AsyncGenerator<s
       const data = buf.slice(6).trim();
       if (data) yield data;
     }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
+/** Typed SSE parser — yields `{event, data}` pairs grouped by blank-line
+ *  boundaries, capturing the `event:` field `readSseLines` discards. Used by
+ *  `skillopt.streamTrain` (the daemon emits `job`/`epoch`/`done`/`error`
+ *  events). Multiple `data:` lines within one event are joined with `\n`
+ *  per the SSE spec; the daemon emits exactly one per event. */
+async function *readSseTypedEvents(body: ReadableStream<Uint8Array>): AsyncGenerator<{ event: string; data: string }> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let event = 'message';
+  let data = '';
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        const trimmed = line.replace(/\r$/, '');
+        if (trimmed === '') {
+          if (data || event !== 'message') yield { event, data };
+          event = 'message';
+          data = '';
+          continue;
+        }
+        if (trimmed.startsWith('event:')) {
+          event = trimmed.slice('event:'.length).trim();
+        } else if (trimmed.startsWith('data:')) {
+          const d = trimmed.startsWith('data: ') ? trimmed.slice('data: '.length) : trimmed.slice('data:'.length);
+          data = data ? `${data}\n${d}` : d;
+        }
+      }
+    }
+    if (data || event !== 'message') yield { event, data };
   } finally {
     reader.releaseLock();
   }
