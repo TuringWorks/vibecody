@@ -252,10 +252,10 @@ fn draw_skillforge(f: &mut Frame, app: &App, area: Rect) {
     let n = app.skillforge.items.len();
     let status_str = app.skillforge.status["status"].as_str().unwrap_or("—");
     let skills_n = app.skillforge.status["skills"].as_u64().unwrap_or(0);
-    let cached = app.skillforge.status["cached_reports"].as_u64().unwrap_or(0);
-    let toolchain = app.skillforge.status["toolchain"]
-        .as_str()
-        .unwrap_or("—");
+    let cached = app.skillforge.status["cached_reports"]
+        .as_u64()
+        .unwrap_or(0);
+    let toolchain = app.skillforge.status["toolchain"].as_str().unwrap_or("—");
     let title = format!(
         " SkillForge — {status_str} · {skills_n} skills · {cached} scored · {toolchain} ({n} shown) — r: refresh, j/k: select, ESC: back ",
     );
@@ -318,7 +318,10 @@ fn draw_skillforge(f: &mut Frame, app: &App, area: Rect) {
                     row_style,
                 ),
                 Span::styled(
-                    format!("[{:<10}] ", row.category.chars().take(10).collect::<String>()),
+                    format!(
+                        "[{:<10}] ",
+                        row.category.chars().take(10).collect::<String>()
+                    ),
                     Style::default().fg(t.dim),
                 ),
                 Span::styled(
@@ -329,10 +332,7 @@ fn draw_skillforge(f: &mut Frame, app: &App, area: Rect) {
                     format!("evo {} ", fmt_pct(row.target_evolvability)),
                     Style::default().fg(evo_color),
                 ),
-                Span::styled(
-                    row.source.clone(),
-                    Style::default().fg(t.dim),
-                ),
+                Span::styled(row.source.clone(), Style::default().fg(t.dim)),
             ];
             lines.push(Line::from(spans));
         }
@@ -365,7 +365,10 @@ fn draw_skillforge(f: &mut Frame, app: &App, area: Rect) {
                     format!("{:<10} ", job.id.chars().take(10).collect::<String>()),
                     Style::default().fg(t.dim),
                 ),
-                Span::styled(format!("[{:<8}] ", job.state), Style::default().fg(state_color)),
+                Span::styled(
+                    format!("[{:<8}] ", job.state),
+                    Style::default().fg(state_color),
+                ),
                 Span::styled(
                     format!("{:<24} ", job.skill.chars().take(24).collect::<String>()),
                     Style::default().fg(t.text),

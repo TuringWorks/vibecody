@@ -3031,6 +3031,7 @@ mod design_diff;
 // Dynamic large-scale workflow primitive (gap C2).
 #[allow(dead_code)]
 mod dynamic_workflow;
+mod graph_index;
 #[allow(dead_code)]
 mod mcts_repair;
 mod mobile_gateway;
@@ -3047,7 +3048,6 @@ mod proactive_agent;
 mod proactive_scanner;
 #[allow(dead_code)]
 mod rlcef_loop;
-mod graph_index;
 mod signed_agent_card;
 #[allow(dead_code)]
 mod sketch_canvas;
@@ -15650,31 +15650,27 @@ async fn main() -> Result<()> {
                                         println!();
                                     }
                                 }
-                                "stats" => {
-                                    match crate::graph_index::status_value() {
-                                        Some(v) => {
-                                            let status = v
-                                                .get("status")
-                                                .and_then(|s| s.as_str())
-                                                .unwrap_or("?");
-                                            let n = v
-                                                .get("node_count")
-                                                .and_then(|x| x.as_u64())
-                                                .unwrap_or(0);
-                                            let m = v
-                                                .get("edge_count")
-                                                .and_then(|x| x.as_u64())
-                                                .unwrap_or(0);
-                                            println!("Code Graph Stats (kodegraph)\n");
-                                            println!("  Status: {}", status);
-                                            println!("  Nodes:  {}", n);
-                                            println!("  Edges:  {}\n", m);
-                                        }
-                                        None => println!(
-                                            "Code graph not initialized — run /semindex build\n"
-                                        ),
+                                "stats" => match crate::graph_index::status_value() {
+                                    Some(v) => {
+                                        let status =
+                                            v.get("status").and_then(|s| s.as_str()).unwrap_or("?");
+                                        let n = v
+                                            .get("node_count")
+                                            .and_then(|x| x.as_u64())
+                                            .unwrap_or(0);
+                                        let m = v
+                                            .get("edge_count")
+                                            .and_then(|x| x.as_u64())
+                                            .unwrap_or(0);
+                                        println!("Code Graph Stats (kodegraph)\n");
+                                        println!("  Status: {}", status);
+                                        println!("  Nodes:  {}", n);
+                                        println!("  Edges:  {}\n", m);
                                     }
-                                }
+                                    None => println!(
+                                        "Code graph not initialized — run /semindex build\n"
+                                    ),
+                                },
                                 _ => {
                                     println!("VibeCody Semantic Index — kodegraph code-knowledge graph\n");
                                     println!(
@@ -15687,7 +15683,9 @@ async fn main() -> Result<()> {
                                     println!(
                                         "  /semindex hierarchy <name>   — Node + neighbors (lossy)"
                                     );
-                                    println!("  /semindex stats              — Show graph statistics\n");
+                                    println!(
+                                        "  /semindex stats              — Show graph statistics\n"
+                                    );
                                 }
                             }
                         }
@@ -15733,20 +15731,37 @@ async fn main() -> Result<()> {
                                         })
                                         .collect();
                                     if rows.is_empty() {
-                                        let suffix = if q.is_empty() { String::new() } else { format!(" matching '{q}'") };
+                                        let suffix = if q.is_empty() {
+                                            String::new()
+                                        } else {
+                                            format!(" matching '{q}'")
+                                        };
                                         println!("No skills{suffix}\n");
                                     } else {
-                                        let suffix = if q.is_empty() { String::new() } else { format!(" matching '{q}'") };
+                                        let suffix = if q.is_empty() {
+                                            String::new()
+                                        } else {
+                                            format!(" matching '{q}'")
+                                        };
                                         println!(
                                             "SkillForge catalogue ({} skills{suffix}):\n",
                                             rows.len(),
                                         );
                                         for s in &rows {
-                                            let name = s.get("name").and_then(|n| n.as_str()).unwrap_or("?");
-                                            let cat = s.get("category").and_then(|n| n.as_str()).unwrap_or("");
+                                            let name = s
+                                                .get("name")
+                                                .and_then(|n| n.as_str())
+                                                .unwrap_or("?");
+                                            let cat = s
+                                                .get("category")
+                                                .and_then(|n| n.as_str())
+                                                .unwrap_or("");
                                             let cov = pct(s.get("trigger_coverage"));
                                             let ev = pct(s.get("target_evolvability"));
-                                            let src = s.get("source").and_then(|n| n.as_str()).unwrap_or("");
+                                            let src = s
+                                                .get("source")
+                                                .and_then(|n| n.as_str())
+                                                .unwrap_or("");
                                             println!("  {name:<32} {cat:<14} cov {cov:>6} evolv {ev:>6}  [{src}]");
                                         }
                                         println!();
@@ -15758,18 +15773,36 @@ async fn main() -> Result<()> {
                                     } else {
                                         match crate::skillforge_index::get_skill_value(rest) {
                                             Some(v) => {
-                                                let name = v.get("name").and_then(|n| n.as_str()).unwrap_or("?");
-                                                let cat = v.get("category").and_then(|n| n.as_str()).unwrap_or("");
-                                                let src = v.get("source").and_then(|n| n.as_str()).unwrap_or("");
-                                                let triggers = v.get("triggers").and_then(|n| n.as_array());
+                                                let name = v
+                                                    .get("name")
+                                                    .and_then(|n| n.as_str())
+                                                    .unwrap_or("?");
+                                                let cat = v
+                                                    .get("category")
+                                                    .and_then(|n| n.as_str())
+                                                    .unwrap_or("");
+                                                let src = v
+                                                    .get("source")
+                                                    .and_then(|n| n.as_str())
+                                                    .unwrap_or("");
+                                                let triggers =
+                                                    v.get("triggers").and_then(|n| n.as_array());
                                                 println!("Skill: {name}  [{cat}]  source: {src}");
                                                 if let Some(t) = triggers {
-                                                    let names: Vec<&str> = t.iter().filter_map(|x| x.as_str()).collect();
+                                                    let names: Vec<&str> = t
+                                                        .iter()
+                                                        .filter_map(|x| x.as_str())
+                                                        .collect();
                                                     if !names.is_empty() {
-                                                        println!("  triggers: {}", names.join(", "));
+                                                        println!(
+                                                            "  triggers: {}",
+                                                            names.join(", ")
+                                                        );
                                                     }
                                                 }
-                                                if let Some(r) = v.get("report").and_then(|r| r.as_object()) {
+                                                if let Some(r) =
+                                                    v.get("report").and_then(|r| r.as_object())
+                                                {
                                                     println!(
                                                         "  cached: cov {}  evolv {}",
                                                         pct(r.get("trigger_coverage")),
@@ -15786,26 +15819,36 @@ async fn main() -> Result<()> {
                                 }
                                 "refresh" => {
                                     let v = crate::skillforge_index::refresh_value();
-                                    let status = v.get("status").and_then(|s| s.as_str()).unwrap_or("?");
+                                    let status =
+                                        v.get("status").and_then(|s| s.as_str()).unwrap_or("?");
                                     let n = v.get("skills").and_then(|x| x.as_u64()).unwrap_or(0);
-                                    println!("SkillForge refreshed — status: {status}, {n} skills\n");
+                                    println!(
+                                        "SkillForge refreshed — status: {status}, {n} skills\n"
+                                    );
                                 }
                                 "score" => {
                                     if rest.is_empty() {
                                         println!("Usage: /skillforge score <name>\n");
                                     } else if model.is_empty() {
-                                        println!("Set a model first with /model <provider> <model>\n");
+                                        println!(
+                                            "Set a model first with /model <provider> <model>\n"
+                                        );
                                     } else {
                                         print!("Scoring '{rest}' against {active_provider}/{model} ... ");
                                         use std::io::Write as _;
                                         let _ = std::io::stdout().flush();
                                         match crate::skillforge_index::score_value(
-                                            rest, None, &active_provider, model,
+                                            rest,
+                                            None,
+                                            &active_provider,
+                                            model,
                                         )
                                         .await
                                         {
                                             Ok(v) => {
-                                                if let Some(r) = v.get("report").and_then(|r| r.as_object()) {
+                                                if let Some(r) =
+                                                    v.get("report").and_then(|r| r.as_object())
+                                                {
                                                     println!(
                                                         "cov {}  evolv {}  efficacy {}\n",
                                                         pct(r.get("trigger_coverage")),
@@ -15822,11 +15865,16 @@ async fn main() -> Result<()> {
                                 }
                                 "train" => {
                                     let name = rest.split_whitespace().next().unwrap_or("");
-                                    let epochs = rest.split_whitespace().nth(1).and_then(|s| s.parse::<usize>().ok());
+                                    let epochs = rest
+                                        .split_whitespace()
+                                        .nth(1)
+                                        .and_then(|s| s.parse::<usize>().ok());
                                     if name.is_empty() {
                                         println!("Usage: /skillforge train <name> [epochs]\n");
                                     } else if model.is_empty() {
-                                        println!("Set a model first with /model <provider> <model>\n");
+                                        println!(
+                                            "Set a model first with /model <provider> <model>\n"
+                                        );
                                     } else {
                                         let req = crate::skillforge_index::TrainRequest {
                                             skill: name.to_string(),
@@ -15843,7 +15891,10 @@ async fn main() -> Result<()> {
                                         };
                                         match crate::skillforge_index::spawn_train(&req).await {
                                             Ok(v) => {
-                                                let job = v.get("job_id").and_then(|j| j.as_str()).unwrap_or("?");
+                                                let job = v
+                                                    .get("job_id")
+                                                    .and_then(|j| j.as_str())
+                                                    .unwrap_or("?");
                                                 println!("Training '{name}' — job {job}");
                                                 println!("  poll with: /skillforge status {job}\n");
                                             }
@@ -15855,26 +15906,62 @@ async fn main() -> Result<()> {
                                     if rest.is_empty() {
                                         println!("Usage: /skillforge status <job>\n");
                                     } else {
-                                        match crate::skillforge_index::train_status_value(rest).await {
+                                        match crate::skillforge_index::train_status_value(rest)
+                                            .await
+                                        {
                                             Some(v) => {
-                                                let state = v.get("state").and_then(|s| s.as_str()).unwrap_or("?");
-                                                let skill = v.get("skill").and_then(|s| s.as_str()).unwrap_or("?");
+                                                let state = v
+                                                    .get("state")
+                                                    .and_then(|s| s.as_str())
+                                                    .unwrap_or("?");
+                                                let skill = v
+                                                    .get("skill")
+                                                    .and_then(|s| s.as_str())
+                                                    .unwrap_or("?");
                                                 println!("Job {rest} — {state} (skill: {skill})");
                                                 if let Some(report) = v.get("report") {
-                                                    let best = report.get("best_val_score").and_then(|x| x.as_f64()).unwrap_or(0.0);
-                                                    let epochs_run = report.get("epochs_run").and_then(|x| x.as_u64()).unwrap_or(0);
-                                                    let accepted = report.get("accepted").and_then(|x| x.as_u64()).unwrap_or(0);
-                                                    let rejected = report.get("rejected").and_then(|x| x.as_u64()).unwrap_or(0);
-                                                    let spent = report.get("spent_tokens").and_then(|x| x.as_u64()).unwrap_or(0);
-                    let curve = report.get("val_curve").and_then(|c| c.as_array());
+                                                    let best = report
+                                                        .get("best_val_score")
+                                                        .and_then(|x| x.as_f64())
+                                                        .unwrap_or(0.0);
+                                                    let epochs_run = report
+                                                        .get("epochs_run")
+                                                        .and_then(|x| x.as_u64())
+                                                        .unwrap_or(0);
+                                                    let accepted = report
+                                                        .get("accepted")
+                                                        .and_then(|x| x.as_u64())
+                                                        .unwrap_or(0);
+                                                    let rejected = report
+                                                        .get("rejected")
+                                                        .and_then(|x| x.as_u64())
+                                                        .unwrap_or(0);
+                                                    let spent = report
+                                                        .get("spent_tokens")
+                                                        .and_then(|x| x.as_u64())
+                                                        .unwrap_or(0);
+                                                    let curve = report
+                                                        .get("val_curve")
+                                                        .and_then(|c| c.as_array());
                                                     println!("  epochs {epochs_run}  best_val {best:.3}  accepted {accepted}  rejected {rejected}  spent {spent} tok");
                                                     if let Some(curve) = curve {
-                                                        let pts: Vec<String> = curve.iter().filter_map(|x| x.as_f64().map(|f| format!("{f:.2}"))).collect();
+                                                        let pts: Vec<String> = curve
+                                                            .iter()
+                                                            .filter_map(|x| {
+                                                                x.as_f64()
+                                                                    .map(|f| format!("{f:.2}"))
+                                                            })
+                                                            .collect();
                                                         if !pts.is_empty() {
-                                                            println!("  val_curve: {}", pts.join(" → "));
+                                                            println!(
+                                                                "  val_curve: {}",
+                                                                pts.join(" → ")
+                                                            );
                                                         }
                                                     }
-                                                } else if let Some(err) = v.get("error").and_then(|e| e.as_str()) {
+                                                } else if let Some(err) =
+                                                    v.get("error").and_then(|e| e.as_str())
+                                                {
                                                     println!("  error: {err}");
                                                 }
                                                 println!();
@@ -15887,7 +15974,8 @@ async fn main() -> Result<()> {
                                     if rest.is_empty() {
                                         println!("Usage: /skillforge cancel <job>\n");
                                     } else {
-                                        let _ = crate::skillforge_index::cancel_train_value(rest).await;
+                                        let _ =
+                                            crate::skillforge_index::cancel_train_value(rest).await;
                                         println!("Cancel requested for job {rest} (best-effort — a running epoch finishes)\n");
                                     }
                                 }
@@ -15897,7 +15985,8 @@ async fn main() -> Result<()> {
                                     if name.is_empty() || job.is_empty() {
                                         println!("Usage: /skillforge promote <name> <job>\n");
                                     } else {
-                                        match crate::skillforge_index::train_status_value(job).await {
+                                        match crate::skillforge_index::train_status_value(job).await
+                                        {
                                             Some(v) => {
                                                 let content = v
                                                     .get("report")
@@ -15923,10 +16012,15 @@ async fn main() -> Result<()> {
                                 }
                                 "health" => {
                                     let v = crate::skillforge_index::status_value();
-                                    let status = v.get("status").and_then(|s| s.as_str()).unwrap_or("?");
+                                    let status =
+                                        v.get("status").and_then(|s| s.as_str()).unwrap_or("?");
                                     let n = v.get("skills").and_then(|x| x.as_u64()).unwrap_or(0);
-                                    let cached = v.get("cached_reports").and_then(|x| x.as_u64()).unwrap_or(0);
-                                    let tc = v.get("toolchain").and_then(|s| s.as_str()).unwrap_or("?");
+                                    let cached = v
+                                        .get("cached_reports")
+                                        .and_then(|x| x.as_u64())
+                                        .unwrap_or(0);
+                                    let tc =
+                                        v.get("toolchain").and_then(|s| s.as_str()).unwrap_or("?");
                                     println!("SkillForge Health\n");
                                     println!("  Status:        {status}");
                                     println!("  Skills:         {n}");
@@ -15934,16 +16028,26 @@ async fn main() -> Result<()> {
                                     println!("  Toolchain:      {tc}\n");
                                 }
                                 _ => {
-                                    println!("VibeCody SkillForge — measure & train agent-skill docs\n");
-                                    println!("  /skillforge list [query]      — catalogue (no LLM)");
+                                    println!(
+                                        "VibeCody SkillForge — measure & train agent-skill docs\n"
+                                    );
+                                    println!(
+                                        "  /skillforge list [query]      — catalogue (no LLM)"
+                                    );
                                     println!("  /skillforge show <name>       — one skill + cached report");
-                                    println!("  /skillforge refresh           — reload the catalogue");
+                                    println!(
+                                        "  /skillforge refresh           — reload the catalogue"
+                                    );
                                     println!("  /skillforge score <name>      — score against the current /model");
                                     println!("  /skillforge train <name> [N]  — launch a train job (N epochs)");
                                     println!("  /skillforge status <job>      — poll a train job");
-                                    println!("  /skillforge cancel <job>      — best-effort cancel");
+                                    println!(
+                                        "  /skillforge cancel <job>      — best-effort cancel"
+                                    );
                                     println!("  /skillforge promote <name> <job> — write *.opt.md (shipped skill untouched)");
-                                    println!("  /skillforge health            — SkillForge status\n");
+                                    println!(
+                                        "  /skillforge health            — SkillForge status\n"
+                                    );
                                 }
                             }
                         }

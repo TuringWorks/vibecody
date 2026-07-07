@@ -29,6 +29,10 @@ pub struct TrainingReport {
     pub best_skill_md: String,
     /// Whether early-stop fired (`patience` epochs without val gain).
     pub early_stopped: bool,
+    /// Whether the run was cancelled via a [`super::trainer::CancelToken`]
+    /// before exhausting `epochs`. When `true`, `best_skill_md` reflects the
+    /// best skill seen so far and `epochs_run` is the count actually completed.
+    pub cancelled: bool,
 }
 
 impl TrainingReport {
@@ -48,7 +52,8 @@ impl TrainingReport {
              - accepted / rejected: {acc} / {rej}\n\
              - final tokens: {ftok}\n\
              - spent tokens (LLM): {spent}\n\
-             - early stopped: {es}\n\n\
+             - early stopped: {es}\n\
+             - cancelled: {can}\n\n\
              ## best_skill.md\n\n```markdown\n{md}\n```\n",
             name = self.skill_name,
             epochs = self.epochs_run,
@@ -58,6 +63,7 @@ impl TrainingReport {
             ftok = self.final_tokens,
             spent = self.spent_tokens,
             es = self.early_stopped,
+            can = self.cancelled,
             md = self.best_skill_md.trim_end(),
         )
     }
@@ -98,6 +104,7 @@ mod tests {
             spent_tokens: 10_000,
             best_skill_md: "---\ntriggers: [\"x\"]\ncategory: c\n---\nbody\n".into(),
             early_stopped: false,
+            cancelled: false,
         };
         let md = r.to_markdown();
         assert!(md.contains("formal-verification"));

@@ -30,10 +30,11 @@
 //! - SkillForge is a dependency of `vibecli-cli` only. `vibe-ai` /
 //!   `vibe-core` stay SkillForge-free.
 //! - `POST /skillopt/train` spawns the run on a tokio task and returns a job
-//!   id; `GET /skillopt/status/:job` reports `Running`/`Done`/`Failed`.
-//!   Per-epoch streaming + true cancellation need a callback/cancel token in
-//!   `skilloptai::trainer::train` — deferred to Phase 4. Today cancellation
-//!   marks the job `Cancelled` and discards the result when the run finishes.
+//!   id; `GET /skillopt/status/:job` reports `Running`/`Done`/`Failed`/
+//!   `Cancelled`. `POST /v1/skillopt/train/stream` is the SSE variant — it
+//!   emits `job` / per-epoch `epoch` / terminal `done` events. Both paths
+//!   share the same `JOBS` map, and `cancel/:job` flips a live `CancelToken`
+//!   (in `skilloptai::trainer`) so the run stops at the next epoch boundary.
 //! - The catalog refresh is **on startup + explicit `/skilllens/refresh`**;
 //!   there is no file-watcher loop driving `skills/*.md`.
 
@@ -55,7 +56,7 @@ use skilllensai::{
 };
 use skilloptai::env::{Env as OptEnv, StaticEnv};
 use skilloptai::report::TrainingReport;
-use skilloptai::trainer::{train, TrainConfig};
+use skilloptai::trainer::{train_with_signals, CancelToken, EpochEvent, TrainConfig, TrainSignals};
 use skilloptai::VERSION as OPT_VERSION;
 
 use vibe_ai::provider::{AIProvider, Message, MessageRole};
@@ -117,10 +118,7 @@ impl SkillLlm for AiProviderLlm {
 /// selection. Returns `None` when the provider isn't configured (no key in
 /// `ProfileStore` and no env override) — callers surface a "select a
 /// configured model" empty state rather than silently calling a default.
-pub fn adapter_from_selection(
-    provider: &str,
-    model: &str,
-) -> Option<AiProviderLlm> {
+pub fn adapter_from_selection(provider: &str, model: &str) -> Option<AiProviderLlm> {
     let p = crate::serve::build_provider_override(provider, model)?;
     Some(AiProviderLlm::new(p, model.to_string()))
 }
@@ -193,7 +191,9 @@ fn skills_dir_default() -> PathBuf {
 /// it off the serving thread for parity with `graph_index`).
 pub fn init_skillforge(skills_dir: Option<&Path>) -> SkillForgeStatus {
     let _ = STATUS.set(RwLock::new(SkillForgeStatus::Loading));
-    let dir = skills_dir.map(Path::to_path_buf).unwrap_or_else(skills_dir_default);
+    let dir = skills_dir
+        .map(Path::to_path_buf)
+        .unwrap_or_else(skills_dir_default);
     std::thread::spawn(move || {
         let catalog = SkillCatalog::load_from_with_cwd_plugins(&dir).unwrap_or_default();
         let state = SkillForgeState {
@@ -257,7 +257,9 @@ pub fn render_health_line() -> Option<String> {
         Some(v) => format!("{v:.2}"),
         None => "—".to_string(),
     };
-    Some(format!("{skills} skills, {cached} scored, top evolvability {top}"))
+    Some(format!(
+        "{skills} skills, {cached} scored, top evolvability {top}"
+    ))
 }
 
 fn with_state<R>(f: impl FnOnce(&SkillForgeState) -> R) -> Option<R> {
@@ -369,12 +371,17 @@ pub async fn extract_value(
             ex.extract(&pool, &llm).await.map_err(|e| e.to_string())?
         }
     };
-    let rendered: Vec<Value> = skills.iter().map(|s| json!({
-        "name": s.name,
-        "category": s.category,
-        "triggers": s.triggers,
-        "body": s.render(),
-    })).collect();
+    let rendered: Vec<Value> = skills
+        .iter()
+        .map(|s| {
+            json!({
+                "name": s.name,
+                "category": s.category,
+                "triggers": s.triggers,
+                "body": s.render(),
+            })
+        })
+        .collect();
     Ok(json!({ "candidates": rendered, "method": method, "llm": llm.descriptor().model }))
 }
 
@@ -397,12 +404,10 @@ pub async fn score_value(
         .ok_or_else(|| format!("provider '{provider}' not configured (no key in ProfileStore)"))?;
 
     let tasks: Vec<EvalTask> = match tasks_jsonl {
-        Some(s) if !s.trim().is_empty() => {
-            serde_json::Deserializer::from_str(s)
-                .into_iter::<EvalTask>()
-                .collect::<Result<_, _>>()
-                .map_err(|e| format!("parsing tasks: {e}"))?
-        }
+        Some(s) if !s.trim().is_empty() => serde_json::Deserializer::from_str(s)
+            .into_iter::<EvalTask>()
+            .collect::<Result<_, _>>()
+            .map_err(|e| format!("parsing tasks: {e}"))?,
         _ => RepoAgentEnv::from_catalog_for(&skill_name).tasks(),
     };
 
@@ -469,21 +474,22 @@ impl RepoAgentEnv {
                 .filter_map(|e| eval_task_for_skill(skill_name, e))
                 .collect::<Vec<_>>()
         })
-        .unwrap_or_else(|| vec![EvalTask {
-            id: skill_name.to_string(),
-            prompt: format!("Follow the {skill_name} skill for its stated purpose."),
-            grader: Grader::Contains(skill_name.to_string()),
-        }]);
+        .unwrap_or_else(|| {
+            vec![EvalTask {
+                id: skill_name.to_string(),
+                prompt: format!("Follow the {skill_name} skill for its stated purpose."),
+                grader: Grader::Contains(skill_name.to_string()),
+            }]
+        });
         Self { tasks }
     }
 
     /// Build from an explicit JSONL task set (passthrough to `StaticEnv` for
     /// callers that supply their own benchmark).
     pub fn from_jsonl(s: &str) -> anyhow::Result<Self> {
-        let tasks: Vec<EvalTask> =
-            serde_json::Deserializer::from_str(s)
-                .into_iter::<EvalTask>()
-                .collect::<Result<_, _>>()?;
+        let tasks: Vec<EvalTask> = serde_json::Deserializer::from_str(s)
+            .into_iter::<EvalTask>()
+            .collect::<Result<_, _>>()?;
         Ok(Self { tasks })
     }
 }
@@ -493,7 +499,12 @@ impl RepoAgentEnv {
 /// meaningful phrase of the skill body (a cheap, deterministic signal that
 /// the skill's guidance actually showed up in the rollout).
 fn eval_task_for_skill(name: &str, e: &crate::skill_catalog::Skill) -> Option<EvalTask> {
-    let trigger = e.frontmatter.triggers.first().cloned().unwrap_or_else(|| name.to_string());
+    let trigger = e
+        .frontmatter
+        .triggers
+        .first()
+        .cloned()
+        .unwrap_or_else(|| name.to_string());
     let phrase = e
         .body
         .lines()
@@ -609,13 +620,25 @@ impl TrainConfigOverride {
 #[derive(Debug, Clone, serde::Serialize)]
 #[serde(rename_all = "lowercase", tag = "state")]
 pub enum TrainJobState {
-    Running { started_at: u64 },
-    Done { report: Value, started_at: u64, finished_at: u64 },
-    Failed { error: String, started_at: u64, finished_at: u64 },
-    /// Set by `POST /skillopt/cancel/:job`. The spawned task runs to
-    /// completion (skilloptai's `train()` has no cancel token in Phase 3)
-    /// and its result is discarded.
-    Cancelled { started_at: u64 },
+    Running {
+        started_at: u64,
+    },
+    Done {
+        report: Value,
+        started_at: u64,
+        finished_at: u64,
+    },
+    Failed {
+        error: String,
+        started_at: u64,
+        finished_at: u64,
+    },
+    /// Set by `POST /skillopt/cancel/:job`. `cancel_train_value` flips the
+    /// job's [`CancelToken`] so the spawned task observes cancellation at
+    /// the next epoch boundary and stops; its (partial) result is discarded.
+    Cancelled {
+        started_at: u64,
+    },
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -625,6 +648,10 @@ pub struct TrainJob {
     pub llm: LlmDescriptor,
     #[serde(flatten)]
     pub state: TrainJobState,
+    /// Live cancellation handle — observed between epochs by the spawned
+    /// training task. Not part of the HTTP surface (skipped over the wire).
+    #[serde(skip)]
+    pub cancel: CancelToken,
 }
 
 type JobMap = HashMap<String, TrainJob>;
@@ -650,43 +677,106 @@ fn env_for(spec: &EnvSpec) -> Result<Box<dyn OptEnv>, String> {
 }
 
 /// `POST /skillopt/train` — spawn a training run and return its job id.
-/// The run executes on a tokio task; poll `GET /skillopt/status/:job`.
+/// The run executes on a tokio task; poll `GET /skillopt/status/:job` or
+/// stream `POST /v1/skillopt/train/stream` for live per-epoch events.
 pub async fn spawn_train(req: &TrainRequest) -> Result<Value, String> {
+    let prep = prepare_run(req)?;
+    Ok(launch_run(prep, None).await)
+}
+
+/// `POST /v1/skillopt/train/stream` — like [`spawn_train`] but returns a
+/// live [`EpochEvent`] stream alongside the job id. The caller (the SSE
+/// handler in `serve.rs`) drains the receiver and forwards each event;
+/// the run registers in the same `JOBS` map, so `cancel/:job` and
+/// `status/:job` work identically to the non-streaming path.
+pub async fn spawn_train_streaming(
+    req: &TrainRequest,
+) -> Result<(Value, tokio::sync::mpsc::Receiver<EpochEvent>), String> {
+    let prep = prepare_run(req)?;
+    let (tx, rx) = tokio::sync::mpsc::channel::<EpochEvent>(64);
+    let json = launch_run(prep, Some(tx)).await;
+    Ok((json, rx))
+}
+
+/// Everything needed to launch a run, derived from a [`TrainRequest`] with
+/// no IO side effects (no `JOBS` mutation) so the streaming + non-streaming
+/// entry points share one validation + construction path.
+struct RunPrep {
+    id: String,
+    started_at: u64,
+    skill_name: String,
+    skill: LensSkill,
+    env: Box<dyn OptEnv>,
+    llm: Arc<dyn SkillLlm>,
+    cfg: TrainConfig,
+    descriptor: LlmDescriptor,
+}
+
+fn prepare_run(req: &TrainRequest) -> Result<RunPrep, String> {
     let skill = lens_skill_by_name(&req.skill)
         .ok_or_else(|| format!("skill '{}' not in catalog", req.skill))?;
     let llm = adapter_from_selection(&req.provider, &req.model)
         .ok_or_else(|| format!("provider '{}' not configured", req.provider))?;
     let env = env_for(&req.env)?;
-    let cfg = req.config.into_cfg(); // &self — borrows, no move out of &TrainRequest
+    let cfg = req.config.into_cfg();
 
     // Deterministic-ish job id: skill + provider+model + seed. Collisions
     // (same triple re-submitted) overwrite the prior job — intended.
-    let id = format!(
-        "{}-{}-{}-{}",
-        req.skill,
-        req.provider,
-        req.model,
-        cfg.seed
-    );
+    let id = format!("{}-{}-{}-{}", req.skill, req.provider, req.model, cfg.seed);
     let started_at = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs())
         .unwrap_or(0);
-
     let descriptor = llm.descriptor();
+
+    Ok(RunPrep {
+        id,
+        started_at,
+        skill_name: req.skill.clone(),
+        skill,
+        env,
+        llm: Arc::new(llm),
+        cfg,
+        descriptor,
+    })
+}
+
+/// Register the job as `Running` and spawn the training task. `progress`
+/// is forwarded to `train_with_signals` so the streaming path receives
+/// one [`EpochEvent`] per epoch; `None` for the non-streaming path. Returns
+/// the `job_id` JSON the HTTP boundary hands back to the client.
+async fn launch_run(
+    prep: RunPrep,
+    progress: Option<tokio::sync::mpsc::Sender<EpochEvent>>,
+) -> Value {
+    let RunPrep {
+        id,
+        started_at,
+        skill_name,
+        skill,
+        env,
+        llm,
+        cfg,
+        descriptor,
+    } = prep;
+    let cancel = CancelToken::new();
     let job = TrainJob {
         id: id.clone(),
-        skill: req.skill.clone(),
+        skill: skill_name.clone(),
         llm: descriptor.clone(),
         state: TrainJobState::Running { started_at },
+        cancel: cancel.clone(),
     };
     jobs().lock().await.insert(id.clone(), job);
 
     let id_spawn = id.clone();
-    let skill_name = req.skill.clone();
-    let llm: Arc<dyn SkillLlm> = Arc::new(llm);
+    let cancel_spawn = cancel.clone();
     tokio::spawn(async move {
-        let result = train(skill, env.as_ref(), llm.as_ref(), &cfg).await;
+        let signals = TrainSignals {
+            cancel: Some(&cancel_spawn),
+            progress: progress.as_ref(),
+        };
+        let result = train_with_signals(skill, env.as_ref(), llm.as_ref(), &cfg, signals).await;
         let finished_at = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs())
@@ -695,11 +785,15 @@ pub async fn spawn_train(req: &TrainRequest) -> Result<Value, String> {
         let Some(job) = map.get_mut(&id_spawn) else {
             return;
         };
-        // If cancelled while running, drop the result.
+        // Late external cancel (state already Cancelled) — discard result.
         if matches!(job.state, TrainJobState::Cancelled { .. }) {
             return;
         }
         match result {
+            Ok(report) if report.cancelled => {
+                // Train observed the cancel token mid-run.
+                job.state = TrainJobState::Cancelled { started_at };
+            }
             Ok(report) => {
                 job.state = TrainJobState::Done {
                     report: report_to_value(&report),
@@ -718,16 +812,20 @@ pub async fn spawn_train(req: &TrainRequest) -> Result<Value, String> {
         let _ = skill_name; // provenance kept for future per-skill job pages
     });
 
-    Ok(json!({ "job_id": id, "status": "running", "llm": descriptor }))
+    json!({ "job_id": id, "status": "running", "llm": descriptor })
 }
 
 /// `GET /skillopt/status/:job` — current job state. `404` if unknown.
 pub async fn train_status_value(job_id: &str) -> Option<Value> {
     let map = jobs().lock().await;
-    map.get(job_id).map(|j| serde_json::to_value(j).unwrap_or_else(|_| json!({"id": j.id})))
+    map.get(job_id)
+        .map(|j| serde_json::to_value(j).unwrap_or_else(|_| json!({"id": j.id})))
 }
 
-/// `POST /skillopt/cancel/:job` — best-effort cancel (see [`TrainJobState::Cancelled`]).
+/// `POST /skillopt/cancel/:job` — request cancellation of a running job.
+/// Flips the job's [`CancelToken`] (observed at the next epoch boundary by
+/// the spawned task) and marks state `Cancelled`. Best-effort: a job that
+/// has already finished is reported `not running`.
 pub async fn cancel_train_value(job_id: &str) -> Value {
     let mut map = jobs().lock().await;
     match map.get_mut(job_id) {
@@ -738,6 +836,8 @@ pub async fn cancel_train_value(job_id: &str) -> Value {
                 } else {
                     0
                 };
+                // Signal the running task to stop at the next epoch boundary.
+                job.cancel.cancel();
                 job.state = TrainJobState::Cancelled { started_at };
                 json!({ "job_id": job_id, "cancelled": true })
             } else {
@@ -779,7 +879,12 @@ pub async fn list_jobs_value() -> Value {
             .as_str()
             .unwrap_or("")
             .cmp(b["skill"].as_str().unwrap_or(""))
-            .then_with(|| a["id"].as_str().unwrap_or("").cmp(b["id"].as_str().unwrap_or("")))
+            .then_with(|| {
+                a["id"]
+                    .as_str()
+                    .unwrap_or("")
+                    .cmp(b["id"].as_str().unwrap_or(""))
+            })
     });
     json!(rows)
 }
@@ -797,6 +902,7 @@ pub fn report_to_value(report: &TrainingReport) -> Value {
         "final_tokens": report.final_tokens,
         "spent_tokens": report.spent_tokens,
         "early_stopped": report.early_stopped,
+        "cancelled": report.cancelled,
         "best_skill_md": report.best_skill_md,
     })
 }
@@ -877,7 +983,10 @@ pub(crate) fn do_v1_skilllens_skills() -> (StatusCode, Value) {
 pub(crate) fn do_v1_skilllens_skill(name: &str) -> (StatusCode, Value) {
     match get_skill_value(name) {
         Some(v) => ok(v),
-        None => (StatusCode::NOT_FOUND, json!({ "error": format!("skill '{name}' not found") })),
+        None => (
+            StatusCode::NOT_FOUND,
+            json!({ "error": format!("skill '{name}' not found") }),
+        ),
     }
 }
 
@@ -893,7 +1002,11 @@ pub(crate) fn do_v1_skilllens_convert(req: &ConvertRequest) -> (StatusCode, Valu
 }
 
 pub(crate) async fn do_v1_skilllens_extract(req: &ExtractRequest) -> (StatusCode, Value) {
-    let method = if req.method.is_empty() { "parallel" } else { req.method.as_str() };
+    let method = if req.method.is_empty() {
+        "parallel"
+    } else {
+        req.method.as_str()
+    };
     match extract_value(&req.pool, method, &req.provider, &req.model).await {
         Ok(v) => ok(v),
         Err(e) => bad(e),
@@ -917,7 +1030,10 @@ pub(crate) async fn do_v1_skillopt_train(req: &TrainRequest) -> (StatusCode, Val
 pub(crate) async fn do_v1_skillopt_status(job: &str) -> (StatusCode, Value) {
     match train_status_value(job).await {
         Some(v) => ok(v),
-        None => (StatusCode::NOT_FOUND, json!({ "error": format!("no job '{job}'") })),
+        None => (
+            StatusCode::NOT_FOUND,
+            json!({ "error": format!("no job '{job}'") }),
+        ),
     }
 }
 
@@ -947,6 +1063,19 @@ mod tests {
         assert_eq!(s.as_str(), "disabled");
         assert_eq!(SkillForgeStatus::Ready.as_str(), "ready");
         assert_eq!(SkillForgeStatus::Loading.as_str(), "loading");
+    }
+
+    /// G3 — `render_health_line` must auto-gate to `None` when no skills
+    /// have been scored, so the agent system prompt is not bloated for
+    /// users who never ran SkillLens. When the index hasn't been
+    /// initialised (or has zero cached reports), `with_state` returns
+    /// `None` → `(skills, cached) = (0, 0)` → `None`. This is the
+    /// no-bloat contract the G3 deviation from note 07 relies on.
+    #[test]
+    fn render_health_line_is_none_when_nothing_scored() {
+        // No init in this test → STATE is unset → with_state returns None
+        // → cached == 0 → the auto-gate returns None.
+        assert!(render_health_line().is_none());
     }
 
     #[test]
@@ -1021,6 +1150,71 @@ mod tests {
         assert!(v.get("error").is_some());
     }
 
+    /// `cancel_train_value` flips the job's `CancelToken` (so the running
+    /// task observes cancellation at the next epoch boundary) and marks the
+    /// state `Cancelled`. Insert a synthetic `Running` job to exercise the
+    /// path without a configured LLM provider.
+    #[tokio::test]
+    async fn cancel_flips_running_jobs_token() {
+        let id = "test-cancel-token-flip";
+        let token = CancelToken::new();
+        let job = TrainJob {
+            id: id.into(),
+            skill: "demo".into(),
+            llm: LlmDescriptor {
+                provider: "mock".into(),
+                model: "mock-1".into(),
+            },
+            state: TrainJobState::Running { started_at: 0 },
+            cancel: token.clone(),
+        };
+        jobs().lock().await.insert(id.into(), job);
+
+        assert!(!token.is_cancelled(), "token fresh");
+        let v = cancel_train_value(id).await;
+        assert_eq!(v["cancelled"], true);
+        assert!(
+            token.is_cancelled(),
+            "cancel_train_value must flip the live token"
+        );
+
+        // Second cancel on the now-Cancelled job is a no-op (not running).
+        let v2 = cancel_train_value(id).await;
+        assert_eq!(v2["cancelled"], false);
+        assert!(v2["reason"].as_str().unwrap_or("").contains("not running"));
+
+        // Cleanup so it doesn't leak across tests sharing the process map.
+        jobs().lock().await.remove(id);
+    }
+
+    /// A `Done` job is not cancellable — `cancel_train_value` reports
+    /// `not running` and leaves the state + token untouched.
+    #[tokio::test]
+    async fn cancel_is_noop_for_done_job() {
+        let id = "test-cancel-done-noop";
+        let token = CancelToken::new();
+        let job = TrainJob {
+            id: id.into(),
+            skill: "demo".into(),
+            llm: LlmDescriptor {
+                provider: "mock".into(),
+                model: "mock-1".into(),
+            },
+            state: TrainJobState::Done {
+                report: json!({ "skill_name": "demo" }),
+                started_at: 0,
+                finished_at: 1,
+            },
+            cancel: token.clone(),
+        };
+        jobs().lock().await.insert(id.into(), job);
+
+        let v = cancel_train_value(id).await;
+        assert_eq!(v["cancelled"], false);
+        assert!(!token.is_cancelled(), "done job must not flip token");
+        jobs().lock().await.remove(id);
+    }
+
     #[test]
     fn null_llm_descriptor_and_error_path() {
         let n = NullLlm;
@@ -1041,6 +1235,7 @@ mod tests {
             spent_tokens: 9000,
             best_skill_md: "---\n---\n# demo".into(),
             early_stopped: false,
+            cancelled: false,
         };
         let v = report_to_value(&report);
         assert_eq!(v["skill_name"], "demo");

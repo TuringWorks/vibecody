@@ -40,7 +40,7 @@ pub use report::{approx_tokens, render_skill, TrainingReport};
 #[cfg(feature = "llm")]
 pub use env::{Env, StaticEnv, TaskSpec};
 #[cfg(feature = "llm")]
-pub use trainer::{train, TrainConfig};
+pub use trainer::{train, train_with_signals, CancelToken, EpochEvent, TrainConfig, TrainSignals};
 
 /// Crate version — surfaced in the daemon `/health` block and startup banner.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

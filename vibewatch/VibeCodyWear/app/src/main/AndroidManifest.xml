@@ -67,6 +67,20 @@
             </intent-filter>
         </service>
 
+        <!-- G5 — Wear OS Tile for the top SkillForge skill. Mirrors the
+             Goals tile shape; tapping deep-links into the in-app Skills
+             screen. -->
+        <service
+            android:name=".SkillforgeTileService"
+            android:label="@string/skills_tile_label"
+            android:icon="@mipmap/ic_launcher"
+            android:exported="true"
+            android:permission="com.google.android.wearable.permission.BIND_TILE_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.tiles.action.BIND_TILE_PROVIDER" />
+            </intent-filter>
+        </service>
+
     </application>
 
 </manifest>

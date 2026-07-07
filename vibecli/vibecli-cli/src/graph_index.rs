@@ -33,7 +33,9 @@ use kodegraph::analyze::{detect_communities, god_nodes, surprising_edges};
 use kodegraph::builder::CodeGraphBuilder;
 use kodegraph::incremental::FileHashes;
 use kodegraph::model::graph::{CodeGraph, NodeData};
-use kodegraph::model::symbol::{Language as KgLanguage, Symbol as KgSymbol, SymbolKind as KgSymbolKind};
+use kodegraph::model::symbol::{
+    Language as KgLanguage, Symbol as KgSymbol, SymbolKind as KgSymbolKind,
+};
 use kodegraph::query::{get_neighbors, query_graph, shortest_path as kodegraph_shortest_path};
 use kodegraph::report::render_report as kodegraph_render_report;
 use kodegraph::store::{SQLiteStore, Store};
@@ -87,7 +89,12 @@ pub struct GraphProbeReport {
 
 impl Default for GraphProbeReport {
     fn default() -> Self {
-        Self { status: GraphStatus::Disabled, node_count: 0, edge_count: 0, last_built_at: None }
+        Self {
+            status: GraphStatus::Disabled,
+            node_count: 0,
+            edge_count: 0,
+            last_built_at: None,
+        }
     }
 }
 
@@ -149,7 +156,11 @@ pub fn init_graph_handle(workspace_root: &Path) -> &'static GraphHandle {
             .as_ref()
             .map(|g| (g.node_count(), g.edge_count()))
             .unwrap_or((0, 0));
-        let status = if graph.is_some() { GraphStatus::Ready } else { GraphStatus::Disabled };
+        let status = if graph.is_some() {
+            GraphStatus::Ready
+        } else {
+            GraphStatus::Disabled
+        };
 
         let probe = GraphProbeReport {
             status,
@@ -248,7 +259,9 @@ pub fn spawn_background_build(workspace_root: PathBuf) {
 /// cache and trusts the persisted graph (returns `false`) — the assumption
 /// being that `init_graph_handle` just loaded a fresh graph from SQLite.
 pub fn refresh_if_stale(workspace_root: &Path) -> bool {
-    let Some(handle) = graph_handle() else { return false };
+    let Some(handle) = graph_handle() else {
+        return false;
+    };
     let _ = workspace_root; // handle already knows its root
 
     let mut current: HashMap<String, (SystemTime, u64)> = HashMap::new();
@@ -304,27 +317,36 @@ fn files_differ(
 /// Skips the same ignore set as the builder plus `.vibecli`/`kodegraph-out`.
 fn walk_source_files(root: &Path) -> Vec<(String, (SystemTime, u64))> {
     const IGNORED: &[&str] = &[
-        "target", "node_modules", ".git", ".next", "dist", "build", ".venv", "venv",
-        "__pycache__", ".mypy_cache", "kodegraph-out", ".vibecli",
+        "target",
+        "node_modules",
+        ".git",
+        ".next",
+        "dist",
+        "build",
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".mypy_cache",
+        "kodegraph-out",
+        ".vibecli",
     ];
     let mut out = Vec::new();
-    for entry in walkdir::WalkDir::new(root)
-        .into_iter()
-        .filter_entry(|e| {
-            if !e.file_type().is_dir() {
-                return true;
-            }
-            e.file_name()
-                .to_str()
-                .map(|n| !IGNORED.contains(&n))
-                .unwrap_or(true)
-        })
-    {
+    for entry in walkdir::WalkDir::new(root).into_iter().filter_entry(|e| {
+        if !e.file_type().is_dir() {
+            return true;
+        }
+        e.file_name()
+            .to_str()
+            .map(|n| !IGNORED.contains(&n))
+            .unwrap_or(true)
+    }) {
         let Ok(entry) = entry else { continue };
         if !entry.file_type().is_file() {
             continue;
         }
-        let Some(ext) = entry.path().extension().and_then(|e| e.to_str()) else { continue };
+        let Some(ext) = entry.path().extension().and_then(|e| e.to_str()) else {
+            continue;
+        };
         if !SOURCE_EXTS.contains(&ext) {
             continue;
         }
@@ -333,7 +355,9 @@ fn walk_source_files(root: &Path) -> Vec<(String, (SystemTime, u64))> {
             .strip_prefix(root)
             .map(|p| p.to_string_lossy().into_owned())
             .unwrap_or_else(|_| entry.path().to_string_lossy().into_owned());
-        let Ok(meta) = std::fs::metadata(entry.path()) else { continue };
+        let Ok(meta) = std::fs::metadata(entry.path()) else {
+            continue;
+        };
         let mtime = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
         out.push((rel, (mtime, meta.len())));
     }
@@ -361,7 +385,13 @@ pub fn render_repo_map_summary(handle: &GraphHandle) -> Option<String> {
     if !gods.is_empty() {
         s.push_str("God nodes (highest-coupling keystones):\n");
         for (i, g) in gods.iter().enumerate() {
-            s.push_str(&format!("  {}. {} — {} (coupling {})\n", i + 1, g.name, short(&g.file), g.coupling));
+            s.push_str(&format!(
+                "  {}. {} — {} (coupling {})\n",
+                i + 1,
+                g.name,
+                short(&g.file),
+                g.coupling
+            ));
             if s.len() > SUMMARY_CHAR_CAP {
                 break;
             }
@@ -400,7 +430,11 @@ pub fn render_repo_map_summary(handle: &GraphHandle) -> Option<String> {
         for e in surprising.iter().take(SUMMARY_SURPRISING) {
             s.push_str(&format!(
                 "  - {} → {} [{}] ({} → {})\n",
-                e.from, e.to, e.kind.as_str(), short(&e.from_file), short(&e.to_file),
+                e.from,
+                e.to,
+                e.kind.as_str(),
+                short(&e.from_file),
+                short(&e.to_file),
             ));
             if s.len() > SUMMARY_CHAR_CAP {
                 break;
@@ -455,9 +489,13 @@ pub fn current_summary(workspace_root: &std::path::Path) -> Option<String> {
 
 /// Names of symbols that call `name`.
 pub fn callers(name: &str) -> Vec<String> {
-    let Some(handle) = graph_handle() else { return Vec::new() };
+    let Some(handle) = graph_handle() else {
+        return Vec::new();
+    };
     let graph = handle.graph.read().unwrap();
-    let Some(graph) = graph.as_ref() else { return Vec::new() };
+    let Some(graph) = graph.as_ref() else {
+        return Vec::new();
+    };
     let mut out: Vec<String> = graph
         .callers(name)
         .iter()
@@ -470,9 +508,13 @@ pub fn callers(name: &str) -> Vec<String> {
 
 /// Names of symbols called by `name`.
 pub fn callees(name: &str) -> Vec<String> {
-    let Some(handle) = graph_handle() else { return Vec::new() };
+    let Some(handle) = graph_handle() else {
+        return Vec::new();
+    };
     let graph = handle.graph.read().unwrap();
-    let Some(graph) = graph.as_ref() else { return Vec::new() };
+    let Some(graph) = graph.as_ref() else {
+        return Vec::new();
+    };
     let mut out: Vec<String> = graph
         .callees(name)
         .iter()
@@ -501,7 +543,9 @@ pub fn status_value() -> Option<serde_json::Value> {
     });
     if let Some(ts) = probe.last_built_at {
         if let Ok(map) = serde_json::to_value(ts) {
-            v.as_object_mut().unwrap().insert("last_built_at".to_string(), map);
+            v.as_object_mut()
+                .unwrap()
+                .insert("last_built_at".to_string(), map);
         }
     }
     Some(v)
@@ -514,9 +558,7 @@ pub fn query_value(query: &str, budget: usize) -> Option<serde_json::Value> {
     let graph = handle.graph.read().unwrap();
     let graph = graph.as_ref()?;
     let sg = query_graph(graph, query, budget);
-    let label_of = |id: kodegraph::model::graph::NodeId| {
-        graph.node(id).map(|nd| nd.label())
-    };
+    let label_of = |id: kodegraph::model::graph::NodeId| graph.node(id).map(|nd| nd.label());
     let seeds: Vec<String> = sg.seeds.iter().filter_map(|id| label_of(*id)).collect();
     let nodes: Vec<serde_json::Value> = sg
         .nodes
@@ -548,8 +590,7 @@ pub fn node_value(name: &str) -> Option<serde_json::Value> {
     let handle = graph_handle()?;
     let graph = handle.graph.read().unwrap();
     let graph = graph.as_ref()?;
-    kodegraph::query::get_node(graph, name)
-        .and_then(|nd| serde_json::to_value(&nd).ok())
+    kodegraph::query::get_node(graph, name).and_then(|nd| serde_json::to_value(&nd).ok())
 }
 
 /// Adjacent nodes as a JSON array of `NodeData`. `None` if no graph.
@@ -583,15 +624,14 @@ pub fn blast_value(name: &str, max_hops: usize) -> Option<serde_json::Value> {
     let graph = handle.graph.read().unwrap();
     let graph = graph.as_ref()?;
     let br = kodegraph::analyze::blast_radius(graph, name, max_hops);
-    let label_of = |id: kodegraph::model::graph::NodeId| {
-        graph.node(id).map(|nd| nd.label())
-    };
+    let label_of = |id: kodegraph::model::graph::NodeId| graph.node(id).map(|nd| nd.label());
     let mut by_hop = serde_json::Map::new();
     for (hop, ids) in &br.by_hop {
         let labels: Vec<String> = ids.iter().filter_map(|id| label_of(*id)).collect();
-        by_hop.insert(hop.to_string(), serde_json::Value::Array(
-            labels.into_iter().map(serde_json::Value::String).collect(),
-        ));
+        by_hop.insert(
+            hop.to_string(),
+            serde_json::Value::Array(labels.into_iter().map(serde_json::Value::String).collect()),
+        );
     }
     Some(serde_json::json!({
         "seed": br.seed_name,
@@ -640,9 +680,13 @@ pub fn node_summary(name: &str) -> Option<NodeSummary> {
 /// Labels of nodes adjacent to `name` (callers + callees + imports/etc.).
 /// Empty when no graph. Used by `/semindex hierarchy` as a lossy stand-in.
 pub fn neighbor_labels(name: &str) -> Vec<String> {
-    let Some(handle) = graph_handle() else { return Vec::new() };
+    let Some(handle) = graph_handle() else {
+        return Vec::new();
+    };
     let graph = handle.graph.read().unwrap();
-    let Some(graph) = graph.as_ref() else { return Vec::new() };
+    let Some(graph) = graph.as_ref() else {
+        return Vec::new();
+    };
     get_neighbors(graph, name)
         .into_iter()
         .map(|nd| nd.label())
@@ -653,9 +697,13 @@ pub fn neighbor_labels(name: &str) -> Vec<String> {
 /// A lightweight replacement for the retired `SemanticIndex::search_symbols`.
 /// Empty when no graph.
 pub fn search_symbols(query: &str) -> Vec<(String, String, usize)> {
-    let Some(handle) = graph_handle() else { return Vec::new() };
+    let Some(handle) = graph_handle() else {
+        return Vec::new();
+    };
     let graph = handle.graph.read().unwrap();
-    let Some(graph) = graph.as_ref() else { return Vec::new() };
+    let Some(graph) = graph.as_ref() else {
+        return Vec::new();
+    };
     let terms: Vec<String> = query
         .split_whitespace()
         .map(|s| s.to_ascii_lowercase())
@@ -679,16 +727,21 @@ pub fn search_symbols(query: &str) -> Vec<(String, String, usize)> {
 /// `query_graph` over the task terms, expanding via blast-radius. Returns an
 /// empty vec when no graph is available (caller falls back to the index path).
 pub fn graph_aware_symbols(task: &str, limit: usize) -> Vec<SymbolInfo> {
-    let Some(handle) = graph_handle() else { return Vec::new() };
+    let Some(handle) = graph_handle() else {
+        return Vec::new();
+    };
     let graph = handle.graph.read().unwrap();
-    let Some(graph) = graph.as_ref() else { return Vec::new() };
+    let Some(graph) = graph.as_ref() else {
+        return Vec::new();
+    };
     if graph.node_count() == 0 {
         return Vec::new();
     }
 
     let terms: Vec<&str> = task.split_whitespace().collect();
     let mut out: Vec<SymbolInfo> = Vec::new();
-    let mut seen: std::collections::HashSet<(String, String, usize)> = std::collections::HashSet::new();
+    let mut seen: std::collections::HashSet<(String, String, usize)> =
+        std::collections::HashSet::new();
 
     let push = |out: &mut Vec<SymbolInfo>,
                 seen: &mut std::collections::HashSet<(String, String, usize)>,
@@ -801,7 +854,11 @@ mod tests {
 
         // alpha is called by beta → callers includes beta.
         let callers_alpha = callers("alpha");
-        assert!(callers_alpha.iter().any(|c| c.contains("beta")), "{:?}", callers_alpha);
+        assert!(
+            callers_alpha.iter().any(|c| c.contains("beta")),
+            "{:?}",
+            callers_alpha
+        );
 
         // summary is non-empty.
         let summary = render_repo_map_summary(handle).unwrap_or_default();
@@ -832,8 +889,14 @@ mod tests {
 
     #[test]
     fn map_symbol_kind_alias_and_macro_fall_back() {
-        assert!(matches!(map_symbol_kind(KgSymbolKind::TypeAlias), VcSymbolKind::Type));
-        assert!(matches!(map_symbol_kind(KgSymbolKind::Macro), VcSymbolKind::Constant));
+        assert!(matches!(
+            map_symbol_kind(KgSymbolKind::TypeAlias),
+            VcSymbolKind::Type
+        ));
+        assert!(matches!(
+            map_symbol_kind(KgSymbolKind::Macro),
+            VcSymbolKind::Constant
+        ));
     }
 
     #[test]
@@ -843,6 +906,8 @@ mod tests {
         build_graph_blocking(dir.path()).unwrap();
         let syms = graph_aware_symbols("alpha", 10);
         assert!(!syms.is_empty(), "should seed symbols from query 'alpha'");
-        assert!(syms.iter().any(|s| s.name.contains("alpha") || s.name.contains("beta")));
+        assert!(syms
+            .iter()
+            .any(|s| s.name.contains("alpha") || s.name.contains("beta")));
     }
 }

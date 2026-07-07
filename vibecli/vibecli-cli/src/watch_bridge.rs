@@ -232,9 +232,18 @@ async fn watch_graph_status() -> impl IntoResponse {
     let (s, b) = crate::serve::do_v1_graph_status();
     let compact = match &b {
         serde_json::Value::Object(map) => {
-            let status = map.get("status").cloned().unwrap_or(serde_json::Value::Null);
-            let n = map.get("node_count").cloned().unwrap_or(serde_json::json!(0));
-            let m = map.get("edge_count").cloned().unwrap_or(serde_json::json!(0));
+            let status = map
+                .get("status")
+                .cloned()
+                .unwrap_or(serde_json::Value::Null);
+            let n = map
+                .get("node_count")
+                .cloned()
+                .unwrap_or(serde_json::json!(0));
+            let m = map
+                .get("edge_count")
+                .cloned()
+                .unwrap_or(serde_json::json!(0));
             serde_json::json!({ "status": status, "n": n, "m": m })
         }
         _ => b,
@@ -243,9 +252,7 @@ async fn watch_graph_status() -> impl IntoResponse {
 }
 
 /// `POST /graph/query {query, budget}` → subgraph capped to ≤5 nodes/edges.
-async fn watch_graph_query(
-    Json(req): Json<crate::serve::GraphQueryRequest>,
-) -> impl IntoResponse {
+async fn watch_graph_query(Json(req): Json<crate::serve::GraphQueryRequest>) -> impl IntoResponse {
     let (s, b) = crate::serve::do_v1_graph_query(&req);
     let capped = match b {
         serde_json::Value::Object(mut map) => {
@@ -277,10 +284,12 @@ async fn watch_skilllens_skills() -> impl IntoResponse {
                 .map(|a| {
                     a.iter()
                         .take(5)
-                        .map(|s| serde_json::json!({
-                            "name": s["name"],
-                            "category": s["category"],
-                        }))
+                        .map(|s| {
+                            serde_json::json!({
+                                "name": s["name"],
+                                "category": s["category"],
+                            })
+                        })
                         .collect()
                 })
                 .unwrap_or_default();

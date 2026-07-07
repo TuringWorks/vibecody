@@ -30,12 +30,16 @@ struct ContentView: View {
                     .tag(2)
                     .tabItem { Label("Goals", systemImage: "target") }
 
-                SandboxStatusView()
+                SkillforgeView()
                     .tag(3)
+                    .tabItem { Label("Skills", systemImage: "graduationcap") }
+
+                SandboxStatusView()
+                    .tag(4)
                     .tabItem { Label("Sandbox", systemImage: "shippingbox") }
 
                 SettingsView()
-                    .tag(4)
+                    .tag(5)
                     .tabItem { Label("Settings", systemImage: "gear") }
             }
             // DREAD #1 Slice G part 3 — tainted-confirmation overlay

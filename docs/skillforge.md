@@ -58,9 +58,12 @@ All routes live on the VibeCLI daemon (`vibecli --serve --port 7878`). Shapes ar
 | Method | Path | Body | LLM? |
 |---|---|---|---|
 | `POST` | `/v1/skillopt/train` | `{skill, env:{kind, tasks?}, config, provider, model}` → `{job_id}` | yes (async) |
+| `POST` | `/v1/skillopt/train/stream` | same body → SSE: `job` → `epoch`* → `done` | yes (async) |
 | `GET` | `/v1/skillopt/status/:job` | — | no |
 | `POST` | `/v1/skillopt/cancel/:job` | — | no |
 | `POST` | `/v1/skillopt/promote` | `{skill, content}` | no |
+
+`/v1/skillopt/train/stream` is the streaming variant of `/train`: it spawns the same job (registered in the shared job map, so `/status` and `/cancel` work identically) and emits Server-Sent Events — one `job` event carrying `{job_id, status, llm}`, one `epoch` event per completed epoch (the `EpochEvent` JSON: `epoch`, `best_val`, `accepted`, `rejected`, `spent_tokens`, `early_stopped`), and a terminal `done` event with the final `TrainJob` JSON (state `done` / `cancelled` / `failed`). On launch failure it emits a single `error` event. Keep-alive pings every 15s. Cancel with `POST /v1/skillopt/cancel/:job` flips a live cancel token observed at the next epoch boundary — the run stops promptly and a final `done` event carries the `cancelled` state.
 
 `/health` reports `skillforge: {status, skills, cached_reports, toolchain}`; the startup banner prints `skillforge: ready (N skills)`.
 
@@ -79,14 +82,18 @@ The daemon is the single source of truth; clients proxy it.
 
 | Client | Surface | Methods |
 |---|---|---|
+| **VibeCLI REPL** | full (drive) | `/skillforge list/show/refresh/score/train/status/cancel/promote/health` — calls the bridge in-process; `score`/`train` use the REPL `active_provider`/`active_model` (STRICT) |
+| **VibeCLI TUI** | read-only browse | `/skillforge` opens a Ratatui screen — catalogue (cov/evolvability) + train-jobs pane + `/health` footer; `j`/`k`/`r` navigate |
 | **VibeUI** (desktop) | full | `SkillForgePanel` (Catalog / Lens / Optimize) via 10 Tauri commands that proxy the daemon |
+| **VibeApp** (companion) | backend surface | 10 Tauri proxy commands registered in `vibeapp/src-tauri` (the bespoke UI has no panel; reachable via `invoke()`) |
 | **VS Code extension** | full | `skilllens{ListSkills,GetSkill,Refresh,Convert,Extract,Score}` + `skillopt{Train,Status,Cancel,Promote}` |
 | **Agent SDK** (TypeScript) | full | `agent.skilllens.{list,get,refresh,convert,extract,score}` + `agent.skillopt.{train,status,cancel,promote}` |
-| **VibeMobile** (Flutter) | read-only | `skilllensSkills`, `skilllensSkill(name)`, `skilloptStatus(jobId)` |
-| **Apple Watch** | read-only | `loadSkilllensSkills`, `loadSkilllensSkill(name)` |
-| **Wear OS** | read-only | `skilllensSkills()`, `skilllensSkill(name)` |
+| **VibeMobile** (Flutter) | read-only | `SkillforgeScreen` (8th "Skills" tab) — catalogue across paired machines + detail + train-status lookup |
+| **Apple Watch** | read-only | `SkillforgeView` (6th "Skills" tab) — `top5` catalogue → one-line detail |
+| **Wear OS** | read-only | `SkillforgeScreen` + `SkillforgeTileService` — `top5` catalogue → detail |
+| **Agent system prompt** | auto | a compact `## Skill Health` line (`N skills, M scored, top evolvability X`) auto-injected when `cached_reports > 0` (G3) |
 
-Read-only endpoints (catalogue + train-status) fan out to every client; the heavy `score`/`train`/`promote` mutations ship only in the desktop-class clients (VibeUI, VS Code, Agent SDK) — the wrist/mobile form factor doesn't surface a toolbar-selected LLM, so the mutations would have no `provider`/`model` to forward.
+Read-only endpoints (catalogue + train-status) fan out to every client; the heavy `score`/`train`/`promote` mutations ship only in the desktop-class clients (VibeCLI REPL, VibeUI, VS Code, Agent SDK) — the wrist/mobile form factor doesn't surface a toolbar-selected LLM, so the mutations would have no `provider`/`model` to forward.
 
 ## The standalone crates
 
@@ -104,8 +111,11 @@ Provider-agnostic via a crate-local `SkillLlm` trait; the daemon bridge adapts i
 
 **Phases 0–5 done** (2026-07-06): crates, daemon bridge + routes, watch mirror, VibeUI panel, full client fan-out, docs. `cargo test` green (23 + 1 golden, 30 tests); `cargo check` + `tsc --noEmit` + `dart analyze` clean.
 
+**Gap-closure pass done** (2026-07-06): the seven post-Phase-5 visibility gaps from `notes/skillforge/07` are all closed — VibeCLI REPL `/skillforge` command + TUI browse screen + agent system-prompt `## Skill Health` line (auto-gated on `cached_reports > 0`), VibeApp Tauri surface, Flutter "Skills" screen, Apple Watch "Skills" view + Wear OS `SkillforgeScreen`/`SkillforgeTileService`. The daemon's own client no longer needs `curl`; every client surface now renders the catalogue. See `notes/skillforge/07 — Client Visibility & UX Gaps.md`.
+
+**Per-epoch streaming + true cancellation done** (2026-07-07): `skilloptai::trainer::train_with_signals` threads a dependency-free `CancelToken` (checked between epochs) and an optional per-epoch `EpochEvent` channel; the plain `train()` entry point is now a thin wrapper with empty signals. The daemon surfaces this as `POST /v1/skillopt/train/stream` (SSE: `job` → `epoch`* → `done`/`error`), sharing the same job map as the poll-based `/train` so `/status` and `/cancel` work on both. `cancel/:job` now flips the live token so the run stops at the next epoch boundary instead of running to completion. 30 existing skilloptai tests + 3 new (cancel-before-first-epoch, cancel-observed-between-epochs, one-event-per-epoch) green; 13 bridge tests green (2 new cancel-token cases). Client SSE consumption (VS Code / Agent SDK) is a future enhancement — the poll-based `/status` surface already serves every client.
+
 **Deferred follow-ups** (tracked in `notes/skillforge/06`):
-- Per-epoch SSE streaming + true cancellation (needs a callback/cancel token in `skilloptai::trainer::train`).
 - `RepoAgentEnv` tasks derived from real VibeCody agent-job history (decision-tracing already exists) instead of the catalog.
 - Efficacy-metric substrate: LLM-judge vs embedding-overlap for `extraction_efficacy`.
 - Promoted-skill override dir (`<ws>/.vibecli/skills/*.opt.md`) vs in-repo overwrite — leaning per-workspace override so the shipped 710 stay pristine.

@@ -31,6 +31,7 @@ pub mod webmcp;
 pub mod design_diff;
 // Dynamic large-scale workflow primitive (gap C2).
 pub mod dynamic_workflow;
+pub mod graph_index;
 pub mod mcp_taint;
 pub mod native_connectors;
 pub mod proactive_agent;
@@ -39,7 +40,6 @@ pub mod quantum_computing;
 pub mod rag_taint;
 pub mod redact;
 pub mod rlcef_loop;
-pub mod graph_index;
 pub mod signed_agent_card;
 pub mod sketch_canvas;
 pub mod skillforge_index;

@@ -409,15 +409,7 @@ static SEMINDEX_SUBS: &[&str] = &[
 
 /// Sub-commands for `/skillforge <sub>`
 static SKILLFORGE_SUBS: &[&str] = &[
-    "list",
-    "show",
-    "refresh",
-    "score",
-    "train",
-    "status",
-    "cancel",
-    "promote",
-    "health",
+    "list", "show", "refresh", "score", "train", "status", "cancel", "promote", "health",
 ];
 static WEBSEARCH_SUBS: &[&str] = &["web", "search", "citations", "cache"];
 

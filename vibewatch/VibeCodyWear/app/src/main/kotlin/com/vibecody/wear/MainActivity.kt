@@ -34,6 +34,7 @@ class MainActivity : ComponentActivity() {
 private fun startDestinationFor(deeplink: String?): String = when (deeplink) {
     "jobs" -> "jobs"
     "goals" -> "goals"
+    "skills" -> "skills"
     else -> "sessions"
 }
 
@@ -135,6 +136,23 @@ fun VibeCodyWearApp(activity: Activity, startDestination: String = "sessions") {
                 back.arguments?.getString("goalId").orEmpty(), "UTF-8"
             )
             GoalDetailScreen(net = net, goalId = goalId)
+        }
+        // G5 — SkillForge catalogue + detail. Read-only browse; the heavy
+        // score/train/promote mutations stay desktop-only (STRICT).
+        composable("skills") {
+            SkillforgeScreen(
+                net = net,
+                onOpenSkill = { name ->
+                    val safe = java.net.URLEncoder.encode(name, "UTF-8")
+                    navController.navigate("skill-detail/$safe")
+                },
+            )
+        }
+        composable("skill-detail/{skillName}") { back ->
+            val skillName = java.net.URLDecoder.decode(
+                back.arguments?.getString("skillName").orEmpty(), "UTF-8"
+            )
+            SkillforgeDetailScreen(net = net, skillName = skillName)
         }
         composable("settings") {
             SettingsScreen(auth = auth) {

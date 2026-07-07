@@ -4266,9 +4266,9 @@ fn default_graph_max_hops() -> usize {
 }
 
 pub(crate) fn do_v1_graph_status() -> (StatusCode, serde_json::Value) {
-    let v = crate::graph_index::status_value().unwrap_or_else(|| {
-        serde_json::json!({ "status": "disabled", "node_count": 0, "edge_count": 0 })
-    });
+    let v = crate::graph_index::status_value().unwrap_or_else(
+        || serde_json::json!({ "status": "disabled", "node_count": 0, "edge_count": 0 }),
+    );
     (StatusCode::OK, v)
 }
 
@@ -4334,10 +4334,7 @@ pub(crate) fn do_v1_graph_blast(req: &GraphBlastRequest) -> (StatusCode, serde_j
 
 pub(crate) fn do_v1_graph_report() -> (StatusCode, serde_json::Value) {
     match crate::graph_index::graph_handle().and_then(crate::graph_index::render_report) {
-        Some(s) => (
-            StatusCode::OK,
-            serde_json::json!({ "report": s }),
-        ),
+        Some(s) => (StatusCode::OK, serde_json::json!({ "report": s })),
         None => graph_unavailable(),
     }
 }
@@ -4364,9 +4361,7 @@ async fn v1_graph_node(Path(name): Path<String>) -> (StatusCode, Json<serde_json
     (s, Json(b))
 }
 
-async fn v1_graph_neighbors(
-    Path(name): Path<String>,
-) -> (StatusCode, Json<serde_json::Value>) {
+async fn v1_graph_neighbors(Path(name): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
     let (s, b) = do_v1_graph_neighbors(&name);
     (s, Json(b))
 }
@@ -4437,6 +4432,60 @@ async fn v1_skillopt_train(
 ) -> (StatusCode, Json<serde_json::Value>) {
     let (s, b) = crate::skillforge_index::do_v1_skillopt_train(&req).await;
     (s, Json(b))
+}
+
+/// `POST /v1/skillopt/train/stream` — the streaming variant of
+/// [`v1_skillopt_train`]. Spawns the same training job (registered in the
+/// shared `JOBS` map, so `/status` + `/cancel` work identically) and emits
+/// per-epoch progress as Server-Sent Events:
+/// - `job`   — once, carrying `{job_id, status, llm}` (so clients can poll/cancel)
+/// - `epoch` — one per completed epoch, the `EpochEvent` JSON
+/// - `done`  — once, the final `TrainJob` JSON (state = done|cancelled|failed)
+/// - `error` — once, on launch failure (e.g. unknown skill/provider)
+///
+/// Keep-alive pings every 15s mirror [`chat_stream`]. The client may cancel
+/// the run at any time with `POST /v1/skillopt/cancel/:job`; the next epoch
+/// boundary observes the token, the run stops, and a final `done` event
+/// carries the `cancelled` state.
+async fn v1_skillopt_train_stream(
+    Json(req): Json<crate::skillforge_index::TrainRequest>,
+) -> Sse<impl futures::Stream<Item = Result<Event, Infallible>>> {
+    use tokio_stream::wrappers::ReceiverStream;
+
+    let (tx, rx) = tokio::sync::mpsc::channel::<Result<Event, Infallible>>(128);
+
+    tokio::spawn(async move {
+        match crate::skillforge_index::spawn_train_streaming(&req).await {
+            Ok((job_value, mut epoch_rx)) => {
+                let _ = tx
+                    .send(Ok(Event::default()
+                        .event("job")
+                        .data(serde_json::to_string(&job_value).unwrap_or_default())))
+                    .await;
+                while let Some(ev) = epoch_rx.recv().await {
+                    let _ = tx
+                        .send(Ok(Event::default()
+                            .event("epoch")
+                            .data(serde_json::to_string(&ev).unwrap_or_default())))
+                        .await;
+                }
+                // epoch_rx closed → train task finished. Emit final state.
+                let job_id = job_value["job_id"].as_str().unwrap_or("").to_string();
+                let final_state = crate::skillforge_index::train_status_value(&job_id).await;
+                let _ = tx
+                    .send(Ok(Event::default().event("done").data(
+                        serde_json::to_string(&final_state).unwrap_or_default(),
+                    )))
+                    .await;
+            }
+            Err(e) => {
+                let _ = tx.send(Ok(Event::default().event("error").data(e))).await;
+            }
+        }
+    });
+
+    let stream = ReceiverStream::new(rx);
+    Sse::new(stream).keep_alive(KeepAlive::new().interval(Duration::from_secs(15)))
 }
 
 async fn v1_skillopt_status(Path(job): Path<String>) -> (StatusCode, Json<serde_json::Value>) {
@@ -6736,6 +6785,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/v1/skilllens/extract", post(v1_skilllens_extract))
         .route("/v1/skilllens/score", post(v1_skilllens_score))
         .route("/v1/skillopt/train", post(v1_skillopt_train))
+        .route("/v1/skillopt/train/stream", post(v1_skillopt_train_stream))
         .route("/v1/skillopt/status/:job", get(v1_skillopt_status))
         .route("/v1/skillopt/cancel/:job", post(v1_skillopt_cancel))
         .route("/v1/skillopt/promote", post(v1_skillopt_promote))
