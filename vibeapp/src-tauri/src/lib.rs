@@ -53,6 +53,20 @@ pub fn run() {
             commands::list_daemon_models,
             commands::start_agent_session,
             commands::stream_agent,
+            // SkillForge — 10 daemon-proxy commands (G7). vibeapp's
+            // bespoke UI doesn't render the panel (that lives in VibeUI),
+            // but the surface is registered so SkillForge is reachable
+            // from vibeapp via `invoke()`.
+            commands::skilllens_list_skills,
+            commands::skilllens_get_skill,
+            commands::skilllens_refresh,
+            commands::skilllens_convert,
+            commands::skilllens_extract,
+            commands::skilllens_score,
+            commands::skillopt_train,
+            commands::skillopt_status,
+            commands::skillopt_cancel,
+            commands::skillopt_promote,
         ])
         .run(tauri::generate_context!())
         .expect("error while running vibeapp");

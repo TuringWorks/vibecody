@@ -2274,6 +2274,9 @@ fn build_worker_agent_context(
         task_context_files,
         memory_context,
         graph_summary,
+        // SkillForge skill-health line (G3). Auto-gated to None when no
+        // skills have been scored, so this is a no-op for fresh installs.
+        skill_health: crate::skillforge_index::render_health_line(),
         auto_commit: false,
         reasoning_budget_tokens: None,
         prior_messages: Vec::new(),
@@ -19727,6 +19730,7 @@ async fn run_watch_mode(
                 reasoning_budget_tokens: None,
                 prior_messages: Vec::new(),
                 graph_summary: None,
+                skill_health: crate::skillforge_index::render_health_line(),
             };
             tokio::spawn(async move {
                 let _ = agent.run(&task_clone, ctx, event_tx).await;

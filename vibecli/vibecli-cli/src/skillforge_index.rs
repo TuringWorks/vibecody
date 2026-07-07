@@ -228,6 +228,38 @@ pub fn status_value() -> Value {
     })
 }
 
+/// Compact one-line "skill health" summary for the agent system prompt
+/// (G3). Returns `None` when no skills have been scored yet, so the
+/// prompt is **not** bloated for users who never ran SkillLens — the
+/// line only appears once `cached_reports > 0`. This auto-gate replaces
+/// the config-flag opt-in sketched in note 07: it satisfies the same
+/// rationale ("don't bloat the prompt for users who haven't scored
+/// skills") with no `Config` plumbing, and mirrors how kodegraph's
+/// `graph_summary` is always-on when a graph exists.
+///
+/// Format: `N skills, M scored, top evolvability X.XX`.
+pub fn render_health_line() -> Option<String> {
+    let (skills, cached) = with_state(|s| (s.catalog.len(), s.reports.len())).unwrap_or((0, 0));
+    if cached == 0 {
+        return None;
+    }
+    let top_evo = with_state(|s| {
+        s.reports
+            .values()
+            .filter_map(|r| r.target_evolvability)
+            .fold(None, |acc, v| match acc {
+                None => Some(v),
+                Some(m) => Some(m.max(v)),
+            })
+    })
+    .flatten();
+    let top = match top_evo {
+        Some(v) => format!("{v:.2}"),
+        None => "—".to_string(),
+    };
+    Some(format!("{skills} skills, {cached} scored, top evolvability {top}"))
+}
+
 fn with_state<R>(f: impl FnOnce(&SkillForgeState) -> R) -> Option<R> {
     STATE.get().map(|g| f(&g.read().unwrap()))
 }
@@ -714,6 +746,42 @@ pub async fn cancel_train_value(job_id: &str) -> Value {
         }
         None => json!({ "job_id": job_id, "error": "no such job" }),
     }
+}
+
+/// Compact list of all known train jobs for the TUI SkillForge screen's
+/// train-status pane (G2). No HTTP route — this is read directly by the
+/// in-process TUI component (the daemon's own client), mirroring how the
+/// Goals screen reads `SessionStore` directly. Each row is
+/// `{id, skill, state, llm}` with a short human-readable `state` label.
+pub async fn list_jobs_value() -> Value {
+    let map = jobs().lock().await;
+    let mut rows: Vec<Value> = map
+        .values()
+        .map(|j| {
+            let state = match &j.state {
+                TrainJobState::Running { .. } => "running",
+                TrainJobState::Done { .. } => "done",
+                TrainJobState::Failed { .. } => "failed",
+                TrainJobState::Cancelled { .. } => "cancelled",
+            };
+            json!({
+                "id": j.id,
+                "skill": j.skill,
+                "state": state,
+                "llm": format!("{}/{}", j.llm.provider, j.llm.model),
+            })
+        })
+        .collect();
+    // Deterministic order: newest-feeling by id desc isn't meaningful
+    // without timestamps on every variant, so sort by skill then id.
+    rows.sort_by(|a, b| {
+        a["skill"]
+            .as_str()
+            .unwrap_or("")
+            .cmp(b["skill"].as_str().unwrap_or(""))
+            .then_with(|| a["id"].as_str().unwrap_or("").cmp(b["id"].as_str().unwrap_or("")))
+    });
+    json!(rows)
 }
 
 /// Render a [`TrainingReport`] as JSON for the HTTP boundary (no crate type

@@ -320,6 +320,7 @@ async fn run_app<B: ratatui::backend::Backend>(
                         CurrentScreen::FileTree => app.file_tree.previous(),
                         CurrentScreen::Agent => app.agent_view.scroll_up(),
                         CurrentScreen::Goals => app.goals.previous(),
+                        CurrentScreen::SkillForge => app.skillforge.previous(),
                         CurrentScreen::VimEditor => {}
                     },
                     event::MouseEventKind::ScrollDown => match app.current_screen {
@@ -330,6 +331,7 @@ async fn run_app<B: ratatui::backend::Backend>(
                         CurrentScreen::FileTree => app.file_tree.next(),
                         CurrentScreen::Agent => app.agent_view.scroll_down(),
                         CurrentScreen::Goals => app.goals.next(),
+                        CurrentScreen::SkillForge => app.skillforge.next(),
                         CurrentScreen::VimEditor => {}
                     },
                     _ => {}
@@ -510,6 +512,20 @@ async fn run_app<B: ratatui::backend::Backend>(
                                     'k' => app.goals.previous(),
                                     _ => {}
                                 },
+                                CurrentScreen::SkillForge => match c {
+                                    // G2 — read-only browse. r reloads the
+                                    // catalogue + status footer + train-jobs
+                                    // pane; j/k + arrows move selection.
+                                    // Score/train/promote are REPL commands
+                                    // (G1), not TUI keys.
+                                    'r' => {
+                                        app.skillforge.refresh();
+                                        app.skillforge.refresh_jobs().await;
+                                    }
+                                    'j' => app.skillforge.next(),
+                                    'k' => app.skillforge.previous(),
+                                    _ => {}
+                                },
                                 _ => {}
                             }
                         }
@@ -523,6 +539,7 @@ async fn run_app<B: ratatui::backend::Backend>(
                             CurrentScreen::DiffView => app.diff_view.scroll_up(),
                             CurrentScreen::Agent => app.agent_view.scroll_up(),
                             CurrentScreen::Goals => app.goals.previous(),
+                            CurrentScreen::SkillForge => app.skillforge.previous(),
                             _ => {}
                         },
                         KeyCode::Down => match app.current_screen {
@@ -530,6 +547,7 @@ async fn run_app<B: ratatui::backend::Backend>(
                             CurrentScreen::DiffView => app.diff_view.scroll_down(),
                             CurrentScreen::Agent => app.agent_view.scroll_down(),
                             CurrentScreen::Goals => app.goals.next(),
+                            CurrentScreen::SkillForge => app.skillforge.next(),
                             _ => {}
                         },
                         KeyCode::PageUp => {
@@ -713,6 +731,14 @@ async fn handle_chat_input(
                 // mutations; this is a one-glance overview.
                 app.goals.refresh();
                 app.current_screen = CurrentScreen::Goals;
+            }
+            "/skillforge" => {
+                // G2 — open the SkillForge screen (read-only browse:
+                // catalogue + train-status). Score/train/promote stay
+                // REPL commands (G1) — this is browse-only, like Goals.
+                app.skillforge.refresh();
+                app.skillforge.refresh_jobs().await;
+                app.current_screen = CurrentScreen::SkillForge;
             }
             "/help" => {
                 app.messages

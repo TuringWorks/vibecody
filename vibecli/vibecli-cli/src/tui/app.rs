@@ -33,6 +33,7 @@ pub enum CurrentScreen {
     Agent,
     VimEditor,
     Goals,
+    SkillForge,
 }
 
 use crate::tui::components::agent_view::AgentViewComponent;
@@ -40,6 +41,7 @@ use crate::tui::components::diagnostics::DiagnosticsComponent;
 use crate::tui::components::diff_view::DiffViewComponent;
 use crate::tui::components::file_tree::FileTreeComponent;
 use crate::tui::components::goals::GoalsComponent;
+use crate::tui::components::skillforge::SkillforgeComponent;
 use crate::tui::components::vim_editor::VimEditorComponent;
 
 /// Holds a pending tool-call approval: the call to show the user and the
@@ -59,6 +61,8 @@ pub struct App {
     pub agent_view: AgentViewComponent,
     pub vim_editor: VimEditorComponent,
     pub goals: GoalsComponent,
+    /// G2 — SkillForge read-only browse screen (catalogue + train-status).
+    pub skillforge: SkillforgeComponent,
     pub exit_pending: bool,
     pub scroll_offset: u16,
     /// Pending approval for the current tool call (Suggest mode).
@@ -124,6 +128,7 @@ impl App {
             agent_view: AgentViewComponent::new(),
             vim_editor: VimEditorComponent::new(),
             goals: GoalsComponent::new(),
+            skillforge: SkillforgeComponent::new(),
             exit_pending: false,
             scroll_offset: 0,
             pending_approval: None,

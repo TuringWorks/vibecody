@@ -598,6 +598,15 @@ pub struct AgentContext {
     /// the daemon; `None` for non-daemon callers (CLI/REPL/test paths).
     #[serde(default)]
     pub graph_summary: Option<String>,
+    /// Compact SkillForge "skill health" line (G3) — e.g.
+    /// `N skills, M scored, top evolvability X.XX`. Populated by the
+    /// daemon from `skillforge_index::render_health_line()`; `None` for
+    /// non-daemon callers and when no skills have been scored (the
+    /// `render_health_line` auto-gate returns `None` so the prompt is
+    /// not bloated for users who never ran SkillLens). Rendered as a
+    /// `## Skill Health` section in the system prompt.
+    #[serde(default)]
+    pub skill_health: Option<String>,
     /// Auto-gathered relevant file contents for the current task.
     #[serde(default)]
     pub task_context_files: Vec<(String, String)>, // (path, preview)
@@ -2149,6 +2158,36 @@ mod context_tests {
             "nothing to drain when only tail + header"
         );
     }
+
+    // G3 — SkillForge skill-health line in the agent system prompt.
+    // The daemon populates `AgentContext::skill_health` from
+    // `skillforge_index::render_health_line()` (auto-gated to None when
+    // no skills have been scored). `build_system_prompt` must render it
+    // as a `## Skill Health` section only when `Some`.
+    #[test]
+    fn system_prompt_includes_skill_health_when_set() {
+        let mut context = AgentContext::default();
+        context.workspace_root = std::path::PathBuf::from("/nonexistent-vibe-test");
+        context.skill_health = Some("7 skills, 3 scored, top evolvability 0.82".to_string());
+        let prompt = build_system_prompt(&context, &ApprovalPolicy::FullAuto);
+        assert!(
+            prompt.contains("## Skill Health"),
+            "expected a ## Skill Health section, got:\n{prompt}"
+        );
+        assert!(prompt.contains("7 skills, 3 scored, top evolvability 0.82"));
+    }
+
+    #[test]
+    fn system_prompt_omits_skill_health_when_none() {
+        let mut context = AgentContext::default();
+        context.workspace_root = std::path::PathBuf::from("/nonexistent-vibe-test");
+        // skill_health defaults to None — the auto-gate path.
+        let prompt = build_system_prompt(&context, &ApprovalPolicy::FullAuto);
+        assert!(
+            !prompt.contains("## Skill Health"),
+            "skill-health section must not appear when skill_health is None"
+        );
+    }
 }
 
 /// Generate a compact repo map: 2-level directory tree (up to 40 entries) plus
@@ -2287,6 +2326,15 @@ fn build_system_prompt(context: &AgentContext, approval: &ApprovalPolicy) -> Str
         };
         if !repo_map.is_empty() {
             extras.push_str(&format!("\n\n## Workspace Structure\n{}", repo_map));
+        }
+
+        // SkillForge skill-health line (G3): a compact one-liner the daemon
+        // derives from `skillforge_index::render_health_line()`. Auto-gated
+        // to `None` when no skills have been scored, so this section only
+        // appears once the user has actually run SkillLens against the
+        // bundled skill library — no prompt bloat for fresh installs.
+        if let Some(health) = context.skill_health.as_deref().filter(|s| !s.is_empty()) {
+            extras.push_str(&format!("\n\n## Skill Health\n{}", health));
         }
     }
     if let Some(branch) = &context.git_branch {

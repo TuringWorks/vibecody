@@ -206,3 +206,182 @@ pub async fn stream_agent(
 
     Ok(())
 }
+
+// ── SkillForge — Tauri commands proxying to the vibecli daemon (G7) ──────────
+//
+// vibeapp is a lightweight companion overlay (no AiMlComposite, no model
+// toolbar), so it doesn't ship the full `SkillForgePanel.tsx` UI — that lives
+// in VibeUI. These 10 commands register the SkillForge surface so it is
+// *reachable* from vibeapp via `invoke()` for any future UI, with the same
+// daemon-proxy + STRICT semantics as VibeUI: thin HTTP proxies to
+// `http://localhost:7878/v1/skilllens/*` + `/v1/skillopt/*`, authenticated
+// with the daemon bearer token at `~/.vibecli/daemon.token`. The daemon stays
+// the single source of truth. Each LLM-calling command takes `provider` +
+// `model` and forwards them in the request body — STRICT provider-agnostic,
+// never a hard-coded default (see CLAUDE.md → Provider-Agnostic Panels).
+
+const SKILLFORGE_DAEMON_BASE: &str = "http://localhost:7878";
+
+/// Read the daemon bearer token from `~/.vibecli/daemon.token`. Uses
+/// `$HOME` directly (vibeapp doesn't depend on the `dirs` crate) —
+/// equivalent to `dirs::home_dir()` on macOS/Linux.
+fn daemon_bearer_token() -> Result<String, String> {
+    let home = std::env::var("HOME").map_err(|_| "HOME not set".to_string())?;
+    let token = std::fs::read_to_string(format!("{home}/.vibecli/daemon.token"))
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    if token.is_empty() {
+        Err(
+            "daemon not running or no token at ~/.vibecli/daemon.token — start `vibecli serve`"
+                .to_string(),
+        )
+    } else {
+        Ok(token)
+    }
+}
+
+async fn skillforge_daemon_get(path: &str) -> Result<serde_json::Value, String> {
+    let token = daemon_bearer_token()?;
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client
+        .get(format!("{SKILLFORGE_DAEMON_BASE}{path}"))
+        .header("Authorization", format!("Bearer {token}"))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let status = resp.status();
+    let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    if status.is_success() {
+        Ok(json)
+    } else {
+        Err(format!("daemon {path} → {}: {json}", status.as_u16()))
+    }
+}
+
+async fn skillforge_daemon_post(
+    path: &str,
+    body: &serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    let token = daemon_bearer_token()?;
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client
+        .post(format!("{SKILLFORGE_DAEMON_BASE}{path}"))
+        .header("Authorization", format!("Bearer {token}"))
+        .json(body)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    let status = resp.status();
+    let json: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    if status.is_success() {
+        Ok(json)
+    } else {
+        Err(format!("daemon {path} → {}: {json}", status.as_u16()))
+    }
+}
+
+/// `GET /v1/skilllens/skills` — catalog list with cached scores. No LLM.
+#[tauri::command]
+pub async fn skilllens_list_skills() -> Result<serde_json::Value, String> {
+    skillforge_daemon_get("/v1/skilllens/skills").await
+}
+
+/// `GET /v1/skilllens/skills/:name` — one skill + body + cached report.
+#[tauri::command]
+pub async fn skilllens_get_skill(name: String) -> Result<serde_json::Value, String> {
+    let path = format!("/v1/skilllens/skills/{name}");
+    skillforge_daemon_get(&path).await
+}
+
+/// `POST /v1/skilllens/refresh` — re-read the skills dir, reset the cache.
+#[tauri::command]
+pub async fn skilllens_refresh() -> Result<serde_json::Value, String> {
+    skillforge_daemon_post("/v1/skilllens/refresh", &serde_json::json!({})).await
+}
+
+/// `POST /v1/skilllens/convert` — raw agent runs (JSONL) → ExperiencePool.
+#[tauri::command]
+pub async fn skilllens_convert(runs: String) -> Result<serde_json::Value, String> {
+    skillforge_daemon_post("/v1/skilllens/convert", &serde_json::json!({ "runs": runs })).await
+}
+
+/// `POST /v1/skilllens/extract` — distil candidate skills from a pool. LLM.
+#[tauri::command]
+pub async fn skilllens_extract(
+    pool: String,
+    method: String,
+    provider: String,
+    model: String,
+) -> Result<serde_json::Value, String> {
+    skillforge_daemon_post(
+        "/v1/skilllens/extract",
+        &serde_json::json!({ "pool": pool, "method": method, "provider": provider, "model": model }),
+    )
+    .await
+}
+
+/// `POST /v1/skilllens/score` — measure a skill (target_evolvability + coverage). LLM.
+#[tauri::command]
+pub async fn skilllens_score(
+    skill: String,
+    tasks: Option<String>,
+    provider: String,
+    model: String,
+) -> Result<serde_json::Value, String> {
+    skillforge_daemon_post(
+        "/v1/skilllens/score",
+        &serde_json::json!({ "skill": skill, "tasks": tasks, "provider": provider, "model": model }),
+    )
+    .await
+}
+
+/// `POST /v1/skillopt/train` — spawn a training run, return `{job_id}`. LLM.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn skillopt_train(
+    skill: String,
+    env_kind: String,
+    env_tasks: Option<String>,
+    config: Option<serde_json::Value>,
+    provider: String,
+    model: String,
+) -> Result<serde_json::Value, String> {
+    let body = serde_json::json!({
+        "skill": skill,
+        "env": { "kind": env_kind, "tasks": env_tasks },
+        "config": config.unwrap_or_else(|| serde_json::json!({})),
+        "provider": provider,
+        "model": model,
+    });
+    skillforge_daemon_post("/v1/skillopt/train", &body).await
+}
+
+/// `GET /v1/skillopt/status/:job` — Running | Done | Failed | Cancelled.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn skillopt_status(job_id: String) -> Result<serde_json::Value, String> {
+    let path = format!("/v1/skillopt/status/{job_id}");
+    skillforge_daemon_get(&path).await
+}
+
+/// `POST /v1/skillopt/cancel/:job` — best-effort cancel.
+#[tauri::command(rename_all = "camelCase")]
+pub async fn skillopt_cancel(job_id: String) -> Result<serde_json::Value, String> {
+    let path = format!("/v1/skillopt/cancel/{job_id}");
+    skillforge_daemon_post(&path, &serde_json::json!({})).await
+}
+
+/// `POST /v1/skillopt/promote` — write `*.opt.md` next to the shipped skill.
+#[tauri::command]
+pub async fn skillopt_promote(skill: String, content: String) -> Result<serde_json::Value, String> {
+    skillforge_daemon_post(
+        "/v1/skillopt/promote",
+        &serde_json::json!({ "skill": skill, "content": content }),
+    )
+    .await
+}

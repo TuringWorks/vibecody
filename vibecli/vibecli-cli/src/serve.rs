@@ -1122,6 +1122,9 @@ fn build_agent_context_from_request(
         // graph if files changed since the last build, then renders a few
         // hundred tokens that replace the dir-tree in the system prompt.
         graph_summary,
+        // SkillForge skill-health line (G3). Auto-gated to None when no
+        // skills have been scored, so this is a no-op for fresh installs.
+        skill_health: crate::skillforge_index::render_health_line(),
         // task_context_files left empty here — the relevance scanner
         // is workspace-CPU-heavy and the in-process daemon path is
         // not where we want that running synchronously inside an HTTP
@@ -1401,6 +1404,7 @@ async fn start_agent(
                     reasoning_budget_tokens: reasoning_budget,
                     prior_messages: Vec::new(),
                     graph_summary: crate::graph_index::render_current_summary(),
+                    skill_health: crate::skillforge_index::render_health_line(),
                 },
             },
             None => AgentContext {
@@ -1423,6 +1427,7 @@ async fn start_agent(
                 reasoning_budget_tokens: reasoning_budget,
                 prior_messages: Vec::new(),
                 graph_summary: crate::graph_index::render_current_summary(),
+                skill_health: crate::skillforge_index::render_health_line(),
             },
         };
 

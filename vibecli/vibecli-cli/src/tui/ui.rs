@@ -40,6 +40,7 @@ pub fn draw(f: &mut Frame, app: &App) {
         CurrentScreen::FileTree => draw_file_tree(f, app, chunks[0]),
         CurrentScreen::Agent => draw_agent_view(f, app, chunks[0]),
         CurrentScreen::Goals => draw_goals(f, app, chunks[0]),
+        CurrentScreen::SkillForge => draw_skillforge(f, app, chunks[0]),
         CurrentScreen::VimEditor => {
             // Vim editor renders itself into the full available area (no input strip)
             app.vim_editor.render(f, chunks[0]);
@@ -240,6 +241,141 @@ fn draw_goals(f: &mut Frame, app: &App, area: Rect) {
 
     let paragraph = Paragraph::new(lines);
     f.render_widget(paragraph, inner_area);
+}
+
+/// G2 — render the SkillForge browse screen: catalogue list (name /
+/// category / coverage / evolvability / source) on top, a train-jobs
+/// pane in the middle, and the `/health`-style status footer at the
+/// bottom. Read-only — score/train/promote are REPL commands (G1).
+fn draw_skillforge(f: &mut Frame, app: &App, area: Rect) {
+    let t = &app.theme;
+    let n = app.skillforge.items.len();
+    let status_str = app.skillforge.status["status"].as_str().unwrap_or("—");
+    let skills_n = app.skillforge.status["skills"].as_u64().unwrap_or(0);
+    let cached = app.skillforge.status["cached_reports"].as_u64().unwrap_or(0);
+    let toolchain = app.skillforge.status["toolchain"]
+        .as_str()
+        .unwrap_or("—");
+    let title = format!(
+        " SkillForge — {status_str} · {skills_n} skills · {cached} scored · {toolchain} ({n} shown) — r: refresh, j/k: select, ESC: back ",
+    );
+    let block = Block::default().borders(Borders::ALL).title(title);
+    let inner_area = block.inner(area);
+    f.render_widget(block, area);
+
+    if let Some(err) = &app.skillforge.last_error {
+        let line = Line::from(Span::styled(
+            format!("⚠ {err}"),
+            Style::default().fg(t.error).add_modifier(Modifier::BOLD),
+        ));
+        f.render_widget(Paragraph::new(line), inner_area);
+        return;
+    }
+
+    // Split: catalogue (top, grows) + train-jobs pane (bottom, fixed).
+    let jobs_height = if app.skillforge.jobs.is_empty() {
+        2 // header line + empty hint
+    } else {
+        (app.skillforge.jobs.len() as u16 + 2).min(8)
+    };
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(3), Constraint::Length(jobs_height)].as_ref())
+        .split(inner_area);
+    let cat_area = chunks[0];
+    let jobs_area = chunks[1];
+
+    if app.skillforge.items.is_empty() {
+        let line = Line::from(Span::styled(
+            "No skills loaded. Press `r` to refresh, or run `/skillforge health` in the REPL.",
+            Style::default().fg(t.dim).add_modifier(Modifier::ITALIC),
+        ));
+        f.render_widget(Paragraph::new(line), cat_area);
+    } else {
+        let fmt_pct = |o: Option<f32>| match o {
+            Some(v) => format!("{:.2}", v),
+            None => "—".to_string(),
+        };
+        let mut lines: Vec<Line> = Vec::new();
+        for (i, row) in app.skillforge.items.iter().enumerate() {
+            let row_style = if i == app.skillforge.selected_index {
+                Style::default()
+                    .fg(t.selection_fg)
+                    .bg(t.selection_bg)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(t.text)
+            };
+            let evo_color = match row.target_evolvability {
+                Some(v) if v >= 0.7 => t.success,
+                Some(v) if v >= 0.4 => t.warning,
+                Some(_) => t.dim,
+                None => t.dim,
+            };
+            let spans = vec![
+                Span::styled(
+                    format!("{:<28} ", row.name.chars().take(28).collect::<String>()),
+                    row_style,
+                ),
+                Span::styled(
+                    format!("[{:<10}] ", row.category.chars().take(10).collect::<String>()),
+                    Style::default().fg(t.dim),
+                ),
+                Span::styled(
+                    format!("cov {} ", fmt_pct(row.trigger_coverage)),
+                    Style::default().fg(t.info),
+                ),
+                Span::styled(
+                    format!("evo {} ", fmt_pct(row.target_evolvability)),
+                    Style::default().fg(evo_color),
+                ),
+                Span::styled(
+                    row.source.clone(),
+                    Style::default().fg(t.dim),
+                ),
+            ];
+            lines.push(Line::from(spans));
+        }
+        f.render_widget(Paragraph::new(lines), cat_area);
+    }
+
+    // Train-jobs pane.
+    let jobs_title = " Train jobs (status only — train via /skillforge train <name>) ";
+    let jobs_block = Block::default().borders(Borders::TOP).title(jobs_title);
+    let jobs_inner = jobs_block.inner(jobs_area);
+    f.render_widget(jobs_block, jobs_area);
+    if app.skillforge.jobs.is_empty() {
+        let line = Line::from(Span::styled(
+            "No train jobs. Run `/skillforge train <name>` in the REPL, then `r` here.",
+            Style::default().fg(t.dim).add_modifier(Modifier::ITALIC),
+        ));
+        f.render_widget(Paragraph::new(line), jobs_inner);
+    } else {
+        let mut lines: Vec<Line> = Vec::new();
+        for job in &app.skillforge.jobs {
+            let state_color = match job.state.as_str() {
+                "running" => t.info,
+                "done" => t.success,
+                "failed" => t.error,
+                "cancelled" => t.warning,
+                _ => t.text,
+            };
+            let spans = vec![
+                Span::styled(
+                    format!("{:<10} ", job.id.chars().take(10).collect::<String>()),
+                    Style::default().fg(t.dim),
+                ),
+                Span::styled(format!("[{:<8}] ", job.state), Style::default().fg(state_color)),
+                Span::styled(
+                    format!("{:<24} ", job.skill.chars().take(24).collect::<String>()),
+                    Style::default().fg(t.text),
+                ),
+                Span::styled(job.llm.clone(), Style::default().fg(t.dim)),
+            ];
+            lines.push(Line::from(spans));
+        }
+        f.render_widget(Paragraph::new(lines), jobs_inner);
+    }
 }
 
 fn draw_diff_view(f: &mut Frame, app: &App, area: Rect) {
