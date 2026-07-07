@@ -10,9 +10,10 @@ import 'watch_chat_screen.dart';
 import 'sandbox_chat_screen.dart';
 import 'sessions_screen.dart';
 import 'settings_screen.dart';
+import 'skillforge_screen.dart';
 import 'connection_diagnostics_screen.dart';
 
-/// Main screen with bottom navigation: Machines, Chat, Sandbox, Sessions, Connection Diagnostics, Goals, Settings.
+/// Main screen with bottom navigation: Machines, Chat, Sandbox, Sessions, Connection Diagnostics, Goals, Skills, Settings.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -30,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
     SessionsScreen(),
     ConnectionDiagnosticsScreen(),
     GoalsScreen(),
+    SkillforgeScreen(),
     SettingsScreen(),
   ];
 
@@ -99,6 +101,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 icon: const Icon(Icons.track_changes_rounded),
                 selectedIcon: Icon(Icons.track_changes_rounded, color: c.accentBlue),
                 label: 'Goals',
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.school_rounded),
+                selectedIcon: Icon(Icons.school_rounded, color: c.accentBlue),
+                label: 'Skills',
               ),
               NavigationDestination(
                 icon: const Icon(Icons.settings_rounded),
