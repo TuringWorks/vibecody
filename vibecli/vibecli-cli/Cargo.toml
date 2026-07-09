@@ -61,7 +61,7 @@ serde_json.workspace = true
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 rustyline = { version = "14.0", features = ["derive"] }
-dirs = "5.0"
+dirs = "6.0"
 futures = "0.3"
 tokio-tungstenite = { version = "0.28", features = ["connect"] }
 crossterm = { workspace = true, features = ["event-stream"] }
