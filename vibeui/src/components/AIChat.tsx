@@ -449,6 +449,19 @@ function toolLabel(tool: string, path?: string): string {
   }
 }
 
+// Label for the per-turn collapsible "Work" section. Counts tools and sums
+// their durations so a glance shows how much work a turn did without having
+// to expand it.
+function workLabel(thinking: string | undefined, toolCalls?: ToolCallInfo[]): string {
+  const n = toolCalls?.length ?? 0;
+  const totalMs = (toolCalls ?? []).reduce((s, t) => s + (t.duration_ms ?? 0), 0);
+  if (n > 0) {
+    const dur = totalMs > 0 ? ` · ${totalMs < 1000 ? `${totalMs}ms` : `${(totalMs / 1000).toFixed(1)}s`}` : "";
+    return `Work · ${n} tool${n > 1 ? "s" : ""}${dur}`;
+  }
+  return thinking ? "Work · thinking" : "Work";
+}
+
 function ToolStatusIcon({ status }: { status: "running" | "success" | "error" }) {
   switch (status) {
     case "running": return <svg {...svgProps} className="spin-icon" style={{ opacity: 0.7 }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>;
@@ -804,6 +817,33 @@ function ThinkingBlock({ text }: { text: string }) {
   );
 }
 
+// ── Work section (collapsible per-turn work) ─────────────────────────────────
+// Wraps the thinking block + tool-call cards (and the live agent step log)
+// for a single assistant turn in one collapsed-by-default disclosure. Keeps
+// the chat Q/response scroll clean; click the chevron to see the work.
+
+function WorkSection({ label, children, defaultExpanded = false }: {
+  label: string;
+  children: React.ReactNode;
+  defaultExpanded?: boolean;
+}) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  return (
+    <div className="work-section">
+      <button
+        type="button"
+        className="work-toggle"
+        onClick={() => setExpanded((e) => !e)}
+        aria-expanded={expanded}
+      >
+        <span className="work-chevron">{expanded ? "▾" : "▸"}</span>
+        <span className="work-label">{label}</span>
+      </button>
+      {expanded && <div className="work-content">{children}</div>}
+    </div>
+  );
+}
+
 // ── Tool call card ───────────────────────────────────────────────────────────
 
 function ToolCallCard({ call }: { call: ToolCallInfo }) {
@@ -1052,7 +1092,6 @@ export function AIChat({
   const [providerHealth, setProviderHealth] = useState<number>(1.0);
   const [streamStatus, setStreamStatus] = useState<string | null>(null);
   const [retryInfo, setRetryInfo] = useState<{ attempt: number; max: number } | null>(null);
-  const [expandedThinking, setExpandedThinking] = useState<Record<number, boolean>>({});
 
   // Agent-loop UI state (only meaningful when useAgentLoop is true).
   // pendingApproval: the current ToolCallPending awaiting user approve/reject.
@@ -2261,31 +2300,24 @@ export function AIChat({
                 </time>
               )}
               <div className="message-content" style={{ position: "relative" }}>
-                {/* Thinking block */}
-                {msg.thinking && (
-                  <div className="thinking-block">
-                    <button
-                      className="thinking-toggle"
-                      onClick={() => setExpandedThinking((prev) => ({ ...prev, [idx]: !prev[idx] }))}
-                    >
-                      <span className="thinking-icon">{expandedThinking[idx] ? "\u25BE" : "\u25B8"}</span>
-                      <span className="thinking-label">Thinking...</span>
-                    </button>
-                    {expandedThinking[idx] && (
-                      <div className="thinking-content">
-                        <pre>{msg.thinking}</pre>
+                {/* Work for this turn \u2014 thinking + tool calls, collapsed by default */}
+                {(msg.thinking || (msg.toolCalls && msg.toolCalls.length > 0)) && (
+                  <WorkSection label={workLabel(msg.thinking, msg.toolCalls)}>
+                    {msg.thinking && (
+                      <div className="thinking-block">
+                        <div className="thinking-content">
+                          <pre>{msg.thinking}</pre>
+                        </div>
                       </div>
                     )}
-                  </div>
-                )}
-
-                {/* Tool call cards */}
-                {msg.toolCalls && msg.toolCalls.length > 0 && (
-                  <div className="tool-cards">
-                    {msg.toolCalls.map((tc, ti) => (
-                      <ToolCallCard key={ti} call={tc} />
-                    ))}
-                  </div>
+                    {msg.toolCalls && msg.toolCalls.length > 0 && (
+                      <div className="tool-cards">
+                        {msg.toolCalls.map((tc, ti) => (
+                          <ToolCallCard key={ti} call={tc} />
+                        ))}
+                      </div>
+                    )}
+                  </WorkSection>
                 )}
 
                 {/* Attachments on user messages */}
@@ -2384,13 +2416,15 @@ export function AIChat({
           ))
         )}
 
-        {/* Agent steps — completed tool executions in the current run */}
+        {/* Agent steps — completed tool executions in the current run.
+            Collapsed by default; the label count climbs live as steps land. */}
         {agentSteps.length > 0 && (
           <div className="message message-assistant">
             <div className="message-icon"><span className="assistant-icon">AI</span></div>
             <div className="message-content">
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {agentSteps.map((step) => (
+              <WorkSection label={`Work · ${agentSteps.length} step${agentSteps.length !== 1 ? "s" : ""}`}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {agentSteps.map((step) => (
                   <div
                     key={step.step_num}
                     style={{
@@ -2428,6 +2462,7 @@ export function AIChat({
                   </div>
                 ))}
               </div>
+              </WorkSection>
             </div>
           </div>
         )}
@@ -2484,9 +2519,12 @@ export function AIChat({
             <div className="message-content">
               {streamingText ? (
                 <>
-                  {/* Streaming thinking block */}
+                  {/* Streaming thinking block — collapsed so in-progress
+                      reasoning doesn't crowd the streaming response. */}
                   {streamingParts?.thinking && (
-                    <ThinkingBlock text={streamingParts.thinking} />
+                    <WorkSection label="Work · thinking">
+                      <ThinkingBlock text={streamingParts.thinking} />
+                    </WorkSection>
                   )}
 
                   <div className="msg-rendered">

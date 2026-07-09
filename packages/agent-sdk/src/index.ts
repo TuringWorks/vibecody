@@ -606,19 +606,25 @@ export class VibeCLIAgent {
 
   /** `/v1/skillopt/*` — train skills (launch, poll, cancel, promote). */
   readonly skillopt = {
-    /** `POST /v1/skillopt/train {skill, env, config, provider, model}` — launch a train job; returns `{job_id}`. */
+    /** `POST /v1/skillopt/train {skill, env, config, provider, model}` — launch a train job; returns `{job_id}`.
+     *  `envKind` selects the task source: `'repo'` (catalog), `'static'` (inline
+     *  JSONL `envTasks`), or `'history'` (real agent-job history — `<sess>-eval.json`
+     *  records; `envGrader` picks `'llm_judge'` (default, meaningful — extra LLM
+     *  call per task per epoch) or `'contains'` (free, weak); `envTasks`
+     *  optionally overrides the trace dir to scan). */
     train: async (
       skill: string,
-      envKind: 'repo' | 'static',
+      envKind: 'repo' | 'static' | 'history',
       envTasks: string | undefined,
       config: Record<string, unknown> | undefined,
       provider: string,
       model: string,
+      envGrader?: 'llm_judge' | 'contains',
     ): Promise<Record<string, unknown>> => {
       const res = await fetch(`${this.baseUrl}/v1/skillopt/train`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ skill, env: { kind: envKind, tasks: envTasks }, config: config ?? {}, provider, model }),
+        body: JSON.stringify({ skill, env: { kind: envKind, tasks: envTasks, ...(envGrader ? { grader: envGrader } : {}) }, config: config ?? {}, provider, model }),
       });
       if (!res.ok) throw new AgentError(`skillopt.train failed: ${res.status} ${await res.text()}`);
       return res.json() as Promise<Record<string, unknown>>;
@@ -634,16 +640,17 @@ export class VibeCLIAgent {
     streamTrain: (async function* (
       this: VibeCLIAgent,
       skill: string,
-      envKind: 'repo' | 'static',
+      envKind: 'repo' | 'static' | 'history',
       envTasks: string | undefined,
       config: Record<string, unknown> | undefined,
       provider: string,
       model: string,
+      envGrader?: 'llm_judge' | 'contains',
     ): AsyncGenerator<SkilloptTrainEvent> {
       const res = await fetch(`${this.baseUrl}/v1/skillopt/train/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ skill, env: { kind: envKind, tasks: envTasks }, config: config ?? {}, provider, model }),
+        body: JSON.stringify({ skill, env: { kind: envKind, tasks: envTasks, ...(envGrader ? { grader: envGrader } : {}) }, config: config ?? {}, provider, model }),
       });
       if (!res.ok || !res.body) {
         throw new AgentError(`skillopt.streamTrain failed: ${res.status} ${await res.text()}`);
@@ -674,7 +681,7 @@ export class VibeCLIAgent {
       if (!res.ok) throw new AgentError(`skillopt.cancel failed: ${res.status} ${await res.text()}`);
       return res.json() as Promise<Record<string, unknown>>;
     },
-    /** `POST /v1/skillopt/promote {skill, content}` — write `*.opt.md` (shipped skill untouched). */
+    /** `POST /v1/skillopt/promote {skill, content}` — write `*.opt.md` to the per-workspace override dir `<ws>/.vibecli/skills/` (shipped skills/*.md untouched). */
     promote: async (skill: string, content: string): Promise<Record<string, unknown>> => {
       const res = await fetch(`${this.baseUrl}/v1/skillopt/promote`, {
         method: 'POST',

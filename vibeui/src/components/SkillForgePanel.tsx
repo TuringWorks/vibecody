@@ -258,7 +258,7 @@ export function SkillForgePanel({ provider: providerProp }: SkillForgePanelProps
     try {
       await invoke("skillopt_promote", { skill: job.skill, content: job.report.best_skill_md });
       setShowPromote(false);
-      alert(`Promoted ${job.skill} → ${job.skill}.opt.md (shipped skill untouched).`);
+      alert(`Promoted ${job.skill} → <workspace>/.vibecli/skills/${job.skill}.opt.md (shipped skills/*.md untouched).`);
     } catch (e) {
       alert(`Promote failed: ${e}`);
     }
@@ -459,10 +459,12 @@ export function SkillForgePanel({ provider: providerProp }: SkillForgePanelProps
           {job && <JobView job={job} onPromote={() => setShowPromote(true)} />}
           {job && showPromote && job.report && (
             <div style={{ ...cardStyle, marginTop: 12 }}>
-              <div style={labelStyle}>Promote — writes {job.skill}.opt.md (shipped skill untouched)</div>
+              <div style={labelStyle}>Promote — writes {job.skill}.opt.md to the override dir (shipped skills/*.md untouched)</div>
               <p style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)", margin: "6px 0" }}>
-                Promoting copies the trained artifact next to the shipped skill. The live loader is not
-                changed — swapping a promoted skill into the agent is a separate, deliberate action.
+                Promoting writes the trained artifact to the per-workspace override dir
+                (<code>&lt;workspace&gt;/.vibecli/skills/{job.skill}.opt.md</code>) so the shipped
+                <code> skills/*.md</code> tree stays pristine. The live loader is not changed —
+                swapping a promoted skill into the agent is a separate, deliberate action.
               </p>
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="panel-btn-primary" onClick={promote}>Promote {job.skill}.opt.md</button>

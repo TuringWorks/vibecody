@@ -30,9 +30,9 @@ Open the **SkillForge** tab in the AI/ML composite. Three views:
 
 1. **Catalog** — the ~710 skills as a table (name, category, cached coverage/evolvability, source). No LLM call. Click a row to open it in Lens.
 2. **Lens** — pick a skill → **Score** against the toolbar-selected model → three metric cards (Trigger Coverage, Target Evolvability, Extraction Efficacy) with progress bars.
-3. **Optimize** — configure `TrainConfig` (epochs / val split / textual LR / patience / seed + env kind `repo`|`static`), launch a train job, watch the **validation curve** (inline SVG sparkline) update as epochs complete, see accepted/rejected counts + a spent-tokens meter, expand the trained `best_skill.md`, then **Promote**.
+3. **Optimize** — configure `TrainConfig` (epochs / val split / textual LR / patience / seed + env kind `repo`|`static`|`history`), launch a train job, watch the **validation curve** (inline SVG sparkline) update as epochs complete, see accepted/rejected counts + a spent-tokens meter, expand the trained `best_skill.md`, then **Promote**.
 
-**Promote is guarded.** It writes `<skill>.opt.md` next to the shipped skill and **never overwrites the shipped file**. Swapping a promoted skill into the live agent is a separate, deliberate action — no silent regressions.
+**Promote is guarded.** It writes `<skill>.opt.md` to the per-workspace override dir (`<workspace>/.vibecli/skills/`, or `~/.vibecli/skills/` when no workspace is resolved) and **never overwrites the shipped `skills/*.md`** — the 710 shipped skills stay pristine. The catalogue JSON surfaces `has_promoted_override` on each skill and `promoted_override` (path) on the detail view, so a UI can badge overridden skills. Swapping a promoted skill into the live agent is a separate, deliberate action — no silent regressions.
 
 ## Provider-agnostic (STRICT)
 
@@ -57,7 +57,7 @@ All routes live on the VibeCLI daemon (`vibecli --serve --port 7878`). Shapes ar
 
 | Method | Path | Body | LLM? |
 |---|---|---|---|
-| `POST` | `/v1/skillopt/train` | `{skill, env:{kind, tasks?}, config, provider, model}` → `{job_id}` | yes (async) |
+| `POST` | `/v1/skillopt/train` | `{skill, env:{kind:"repo"\|"static"\|"history", tasks?, grader?}, config, provider, model}` → `{job_id}` | yes (async) |
 | `POST` | `/v1/skillopt/train/stream` | same body → SSE: `job` → `epoch`* → `done` | yes (async) |
 | `GET` | `/v1/skillopt/status/:job` | — | no |
 | `POST` | `/v1/skillopt/cancel/:job` | — | no |
@@ -115,9 +115,11 @@ Provider-agnostic via a crate-local `SkillLlm` trait; the daemon bridge adapts i
 
 **Per-epoch streaming + true cancellation done** (2026-07-07): `skilloptai::trainer::train_with_signals` threads a dependency-free `CancelToken` (checked between epochs) and an optional per-epoch `EpochEvent` channel; the plain `train()` entry point is now a thin wrapper with empty signals. The daemon surfaces this as `POST /v1/skillopt/train/stream` (SSE: `job` → `epoch`* → `done`/`error`), sharing the same job map as the poll-based `/train` so `/status` and `/cancel` work on both. `cancel/:job` now flips the live token so the run stops at the next epoch boundary instead of running to completion. 30 existing skilloptai tests + 3 new (cancel-before-first-epoch, cancel-observed-between-epochs, one-event-per-epoch) green; 13 bridge tests green (2 new cancel-token cases). The VS Code extension (`VibeCLIClient.skilloptStreamTrain`) and the Agent SDK (`agent.skillopt.streamTrain`) consume the stream as an `AsyncGenerator<SkilloptTrainEvent>` (`{type:'job'|'epoch'|'done'|'error', …}`) via a small typed-SSE parser (`readSseTypedEvents`) layered over the existing `data:`-only helpers; 4 new Agent SDK vitest cases (job→epoch*→done ordering, error-stop, non-2xx throw, request-body shape) + `tsc --noEmit` clean for both clients. The poll-based `/status` surface remains for clients that prefer it (Flutter/Watch/Wear).
 
+**Promoted-skill override dir done** (2026-07-08): `promote` now writes `<skill>.opt.md` to the per-workspace override dir (`<workspace>/.vibecli/skills/`, falling back to `~/.vibecli/skills/` when no workspace is resolved), so the 710 shipped `skills/*.md` stay pristine — no in-repo overwrite. The catalogue list surfaces `has_promoted_override` per skill and the detail view surfaces `promoted_override` (path or null); the bridge scans the override dir at init + refresh so overrides are picked up without a restart. 4 new bridge tests cover the dir resolver, the write helper, the stem-keyed scan, and a missing-dir empty result; 17 bridge tests + `cargo check` + `tsc --noEmit` clean. The shipped-skill path resolution is unchanged (`SkillCatalog` still wins over same-named plugins).
+
+**Real agent-job history env done** (2026-07-08): a third env kind, `history`, derives `EvalTask`s from actual agent runs instead of the catalog. The CLI writes a lightweight per-session `SkillEvalRecord` (`<session_id>-eval.json`) at the end of every agent run — `{session_id, timestamp, prompt (first user msg), final_answer (last assistant prose), tool_success_rate, steps, completed}` — alongside the existing `<session_id>.jsonl` trace (secrets scrubbed). `env.kind=history` scans `~/.vibecli/traces/` (or an `env.tasks` override dir) for those records and builds one task per run: the session's prompt becomes the task prompt, and the grader is `LlmJudge` (default — rubric cites the reference final answer + tool-success rate + completion; one extra LLM call per task per epoch) or `Contains` (free, weak — a phrase from the reference answer), selected via `env.grader="llm_judge"|"contains"`. Records with an empty prompt or final answer (errored/truncated runs) are skipped; an empty trace dir returns a user-facing "no agent-job history found" error. The catalog-derived `repo` env is unchanged. New: `SkillEvalRecord` + `TraceWriter::save_eval_record` + `load_eval_records` in `vibe-ai::trace` (re-exported); `EnvKind::History` + `EnvSpec.grader` + `RepoAgentEnv::from_history` + `history_trace_dir` + `parse_history_grader` in the bridge; the VS Code extension + Agent SDK `train`/`streamTrain` accept `'history'` + an optional `envGrader`. 9 new bridge tests + 4 new trace tests green; `cargo check` + `tsc --noEmit` + 42 Agent SDK vitest clean.
+
 **Deferred follow-ups** (tracked in `notes/skillforge/06`):
-- `RepoAgentEnv` tasks derived from real VibeCody agent-job history (decision-tracing already exists) instead of the catalog; the catalog-derived env is deterministic + LLM-free.
 - Efficacy-metric substrate: LLM-judge vs embedding-overlap for `extraction_efficacy`.
-- Promoted-skill override dir (`<ws>/.vibecli/skills/*.opt.md`) vs in-repo overwrite — leaning per-workspace override so the shipped 710 stay pristine.
 - Nightly "sleep" job (offline self-evolution with experience replay).
 - External benchmark `Env` impls (SWE-bench / BFCL) behind a `benchmarks` feature.

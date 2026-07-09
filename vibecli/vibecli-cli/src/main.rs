@@ -15881,6 +15881,7 @@ async fn main() -> Result<()> {
                                             env: crate::skillforge_index::EnvSpec {
                                                 kind: crate::skillforge_index::EnvKind::Repo,
                                                 tasks: None,
+                                                grader: None,
                                             },
                                             config: crate::skillforge_index::TrainConfigOverride {
                                                 epochs,
@@ -16044,7 +16045,7 @@ async fn main() -> Result<()> {
                                     println!(
                                         "  /skillforge cancel <job>      — best-effort cancel"
                                     );
-                                    println!("  /skillforge promote <name> <job> — write *.opt.md (shipped skill untouched)");
+                                    println!("  /skillforge promote <name> <job> — write *.opt.md to <ws>/.vibecli/skills/ (shipped skills untouched)");
                                     println!(
                                         "  /skillforge health            — SkillForge status\n"
                                     );
@@ -17674,6 +17675,18 @@ async fn validate_loop_done(llm: &Arc<dyn LLMProvider>, goal: &str) -> bool {
     }
 }
 
+/// Fraction of completed tool-call steps that succeeded, for the SkillForge
+/// `History` env's eval record. `1.0` when no tools ran (a pure conversational
+/// turn vacuously has no failures); otherwise `successes / total`.
+fn history_tool_success_rate(completed_steps: &[(String, String, bool)]) -> f32 {
+    let total = completed_steps.len();
+    if total == 0 {
+        return 1.0;
+    }
+    let successes = completed_steps.iter().filter(|(_, _, ok)| *ok).count();
+    successes as f32 / total as f32
+}
+
 async fn run_agent_repl_with_context(
     llm: Arc<dyn LLMProvider>,
     task: &str,
@@ -18186,6 +18199,18 @@ async fn run_agent_repl_with_context(
                 }
                 // Save context for future resume
                 let _ = trace_for_save.save_context(&context);
+                // Persist a SkillForge eval-record summary so the `History` env
+                // can derive a real EvalTask (prompt + reference answer + outcome)
+                // from this run. Non-fatal — tracing is best-effort.
+                let _ = trace_for_save.save_eval_record(&vibe_ai::SkillEvalRecord {
+                    timestamp: session_id.parse::<u64>().unwrap_or(0),
+                    session_id: session_id.clone(),
+                    prompt: task.to_string(),
+                    final_answer: summary.clone(),
+                    tool_success_rate: history_tool_success_rate(&completed_steps),
+                    steps: step_count,
+                    completed: true,
+                });
                 // Auto memory recording
                 if config.memory.auto_record && step_count >= config.memory.min_session_steps {
                     let llm2 = llm.clone();
@@ -18260,6 +18285,15 @@ async fn run_agent_repl_with_context(
                     let _ = store.finish_session(&session_id, "partial", Some(&summary));
                 }
                 let _ = trace_for_save.save_context(&context);
+                let _ = trace_for_save.save_eval_record(&vibe_ai::SkillEvalRecord {
+                    timestamp: session_id.parse::<u64>().unwrap_or(0),
+                    session_id: session_id.clone(),
+                    prompt: task.to_string(),
+                    final_answer: summary.clone(),
+                    tool_success_rate: history_tool_success_rate(&completed_steps),
+                    steps: step_count,
+                    completed: false,
+                });
                 break;
             }
             AgentEvent::Error(e) => {

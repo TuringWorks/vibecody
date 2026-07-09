@@ -876,15 +876,22 @@ impl AgentLoop {
             // Log context pruning decision if decision tracing is enabled
             if self.decision_tracing_enabled && messages_pruned > 0 {
                 if let Some(decision_writer) = &decision_writer {
-                    let description = format!("Pruned {} messages from context window to stay within token limit", messages_pruned);
-                    let context = format!("Reduced message count from {} to {}", message_count_before, message_count_after);
+                    let description = format!(
+                        "Pruned {} messages from context window to stay within token limit",
+                        messages_pruned
+                    );
+                    let context = format!(
+                        "Reduced message count from {} to {}",
+                        message_count_before, message_count_after
+                    );
                     let metadata = serde_json::json!({
                         "step": step,
                         "message_count_before": message_count_before,
                         "message_count_after": message_count_after,
                         "messages_pruned": messages_pruned,
                         "context_limit": self.max_context_tokens.unwrap_or(200_000)
-                    }).to_string();
+                    })
+                    .to_string();
 
                     decision_writer.record(
                         step,
@@ -1028,13 +1035,15 @@ impl AgentLoop {
                     // Log initial prose turn decision if decision tracing is enabled
                     if self.decision_tracing_enabled {
                         if let Some(decision_writer) = &decision_writer {
-                            let description = "Model returned prose instead of tool call on step 0".to_string();
+                            let description =
+                                "Model returned prose instead of tool call on step 0".to_string();
                             let context = "First step requires tool call, so re-prompting to force tool usage".to_string();
                             let metadata = serde_json::json!({
                                 "step": step,
                                 "prose_content_length": accumulated.len(),
                                 "is_first_step": true
-                            }).to_string();
+                            })
+                            .to_string();
 
                             decision_writer.record(
                                 step,
@@ -1064,12 +1073,14 @@ impl AgentLoop {
                 if self.decision_tracing_enabled {
                     if let Some(decision_writer) = &decision_writer {
                         let description = format!("Model returned prose instead of tool call on step {} (consecutive: {})", step, consecutive_prose_turns);
-                        let context = "Model did not invoke any tools, treating as prose response".to_string();
+                        let context = "Model did not invoke any tools, treating as prose response"
+                            .to_string();
                         let metadata = serde_json::json!({
                             "step": step,
                             "consecutive_prose_turns": consecutive_prose_turns,
                             "prose_content_length": accumulated.len()
-                        }).to_string();
+                        })
+                        .to_string();
 
                         decision_writer.record(
                             step,
@@ -1090,8 +1101,15 @@ impl AgentLoop {
                     // Log re-prompt decision due to unfinished plan if decision tracing is enabled
                     if self.decision_tracing_enabled {
                         if let Some(decision_writer) = &decision_writer {
-                            let remaining = plan_steps.iter().skip(plan_steps_done).cloned().collect::<Vec<_>>();
-                            let description = format!("Re-prompting model to continue with {} remaining plan steps", remaining.len());
+                            let remaining = plan_steps
+                                .iter()
+                                .skip(plan_steps_done)
+                                .cloned()
+                                .collect::<Vec<_>>();
+                            let description = format!(
+                                "Re-prompting model to continue with {} remaining plan steps",
+                                remaining.len()
+                            );
                             let context = "Model returned prose but plan has unfinished steps, so encouraging continued execution".to_string();
                             let metadata = serde_json::json!({
                                 "step": step,
@@ -1100,7 +1118,8 @@ impl AgentLoop {
                                 "remaining_steps": remaining.len(),
                                 "total_plan_steps": plan_steps.len(),
                                 "completed_plan_steps": plan_steps_done
-                            }).to_string();
+                            })
+                            .to_string();
 
                             decision_writer.record(
                                 step,
@@ -1142,7 +1161,11 @@ impl AgentLoop {
                     // Log decision to emit partial due to exhausted re-prompts if decision tracing is enabled
                     if self.decision_tracing_enabled {
                         if let Some(decision_writer) = &decision_writer {
-                            let remaining = plan_steps.iter().skip(plan_steps_done).cloned().collect::<Vec<_>>();
+                            let remaining = plan_steps
+                                .iter()
+                                .skip(plan_steps_done)
+                                .cloned()
+                                .collect::<Vec<_>>();
                             let description = format!("Agent stopping with {} unfinished plan steps after exhausting re-prompts", remaining.len());
                             let context = "Model repeatedly returned prose instead of executing remaining plan steps".to_string();
                             let metadata = serde_json::json!({
@@ -1153,7 +1176,8 @@ impl AgentLoop {
                                 "total_plan_steps": plan_steps.len(),
                                 "completed_plan_steps": plan_steps_done,
                                 "reason": "exhausted_reprompts"
-                            }).to_string();
+                            })
+                            .to_string();
 
                             decision_writer.record(
                                 step,
@@ -1195,14 +1219,18 @@ impl AgentLoop {
                 // Log decision to treat prose as final answer if decision tracing is enabled
                 if self.decision_tracing_enabled {
                     if let Some(decision_writer) = &decision_writer {
-                        let description = "Treating prose as final answer (no active plan)".to_string();
-                        let context = "Model returned prose and there is no active plan to continue".to_string();
+                        let description =
+                            "Treating prose as final answer (no active plan)".to_string();
+                        let context =
+                            "Model returned prose and there is no active plan to continue"
+                                .to_string();
                         let metadata = serde_json::json!({
                             "step": step,
                             "consecutive_prose_turns": consecutive_prose_turns,
                             "plan_has_remaining": false,
                             "prose_content_length": accumulated.len()
-                        }).to_string();
+                        })
+                        .to_string();
 
                         decision_writer.record(
                             step,
@@ -1254,8 +1282,18 @@ impl AgentLoop {
                 if let Some(decision_writer) = &decision_writer {
                     let tool_count = tool_calls.len();
                     let selected_tool = call.name();
-                    let description = format!("Selected tool '{}' from {} available options", selected_tool, tool_count);
-                    let context = format!("Available tools: [{}]", tool_calls.iter().map(|tc| tc.name()).collect::<Vec<_>>().join(", "));
+                    let description = format!(
+                        "Selected tool '{}' from {} available options",
+                        selected_tool, tool_count
+                    );
+                    let context = format!(
+                        "Available tools: [{}]",
+                        tool_calls
+                            .iter()
+                            .map(|tc| tc.name())
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    );
                     let metadata = serde_json::json!({
                         "step": step,
                         "available_tools": tool_calls.iter().map(|tc| tc.name()).collect::<Vec<_>>(),
@@ -1278,8 +1316,11 @@ impl AgentLoop {
                     // Log double-check decision if decision tracing is enabled
                     if self.decision_tracing_enabled {
                         if let Some(decision_writer) = &decision_writer {
-                            let description = "Running pre-completion double-check (build/test verification)".to_string();
-                            let decision_context = "Checking build status before allowing task completion".to_string();
+                            let description =
+                                "Running pre-completion double-check (build/test verification)"
+                                    .to_string();
+                            let decision_context =
+                                "Checking build status before allowing task completion".to_string();
                             let metadata = serde_json::json!({
                                 "step": step,
                                 "tool_call": call.name(),
@@ -1325,7 +1366,9 @@ impl AgentLoop {
                         // Log double-check failure if decision tracing is enabled
                         if self.decision_tracing_enabled {
                             if let Some(decision_writer) = &decision_writer {
-                                let description = "Double-check failed: build/test verification unsuccessful".to_string();
+                                let description =
+                                    "Double-check failed: build/test verification unsuccessful"
+                                        .to_string();
                                 let context = "Build or test check failed, preventing task completion and requesting user to fix issues".to_string();
                                 let metadata = serde_json::json!({
                                     "step": step,
@@ -1356,8 +1399,12 @@ impl AgentLoop {
                     // Log double-check success if decision tracing is enabled
                     if self.decision_tracing_enabled {
                         if let Some(decision_writer) = &decision_writer {
-                            let description = "Double-check passed: build/test verification successful".to_string();
-                            let context = "Build or test check passed, allowing task completion to proceed".to_string();
+                            let description =
+                                "Double-check passed: build/test verification successful"
+                                    .to_string();
+                            let context =
+                                "Build or test check passed, allowing task completion to proceed"
+                                    .to_string();
                             let metadata = serde_json::json!({
                                 "step": step,
                                 "tool_call": call.name(),
@@ -1547,18 +1594,30 @@ impl AgentLoop {
                         ApprovalPolicy::AutoEdit => "policy_auto_edit",
                     };
                     let description = if needs_approval {
-                        format!("Tool '{}' requires approval (policy: {})", call.name(), approval_source)
+                        format!(
+                            "Tool '{}' requires approval (policy: {})",
+                            call.name(),
+                            approval_source
+                        )
                     } else {
-                        format!("Tool '{}' approved automatically (policy: {})", call.name(), approval_source)
+                        format!(
+                            "Tool '{}' approved automatically (policy: {})",
+                            call.name(),
+                            approval_source
+                        )
                     };
-                    let context = format!("Tool requires approval by policy: {}", self.policy.requires_approval(call.name()));
+                    let context = format!(
+                        "Tool requires approval by policy: {}",
+                        self.policy.requires_approval(call.name())
+                    );
                     let metadata = serde_json::json!({
                         "step": step,
                         "tool": call.name(),
                         "needs_approval": needs_approval,
                         "approval_policy": format!("{:?}", self.approval),
                         "policy_requires_approval": self.policy.requires_approval(call.name())
-                    }).to_string();
+                    })
+                    .to_string();
 
                     decision_writer.record(
                         step,
@@ -1596,14 +1655,16 @@ impl AgentLoop {
                             // Log user approval decision if decision tracing is enabled
                             if self.decision_tracing_enabled {
                                 if let Some(decision_writer) = &decision_writer {
-                                    let description = format!("User approved tool '{}'", call.name());
+                                    let description =
+                                        format!("User approved tool '{}'", call.name());
                                     let context = "User explicitly approved the tool call via interactive prompt".to_string();
                                     let metadata = serde_json::json!({
                                         "step": step,
                                         "tool": call.name(),
                                         "approval_decision": "approved",
                                         "approval_method": "user_interactive"
-                                    }).to_string();
+                                    })
+                                    .to_string();
 
                                     decision_writer.record(
                                         step,
@@ -1624,14 +1685,16 @@ impl AgentLoop {
                             // Log user rejection decision if decision tracing is enabled
                             if self.decision_tracing_enabled {
                                 if let Some(decision_writer) = &decision_writer {
-                                    let description = format!("User rejected tool '{}'", call.name());
+                                    let description =
+                                        format!("User rejected tool '{}'", call.name());
                                     let context = "User explicitly rejected the tool call via interactive prompt".to_string();
                                     let metadata = serde_json::json!({
                                         "step": step,
                                         "tool": call.name(),
                                         "approval_decision": "rejected",
                                         "approval_method": "user_interactive"
-                                    }).to_string();
+                                    })
+                                    .to_string();
 
                                     decision_writer.record(
                                         step,
@@ -1690,13 +1753,15 @@ impl AgentLoop {
                 // Log plan update decision if decision tracing is enabled
                 if self.decision_tracing_enabled {
                     if let Some(decision_writer) = &decision_writer {
-                        let description = "Updated plan with new steps from plan_task tool call".to_string();
+                        let description =
+                            "Updated plan with new steps from plan_task tool call".to_string();
                         let context = format!("Plan contains {} steps", plan_steps.len());
                         let metadata = serde_json::json!({
                             "step": step,
                             "plan_steps": plan_steps,
                             "plan_steps_count": plan_steps.len()
-                        }).to_string();
+                        })
+                        .to_string();
 
                         decision_writer.record(
                             step,
@@ -1714,9 +1779,19 @@ impl AgentLoop {
                 // Log plan step execution decision if decision tracing is enabled
                 if self.decision_tracing_enabled {
                     if let Some(decision_writer) = &decision_writer {
-                        let description = format!("Executed plan step {} (progress: {}/{})", plan_steps_done, plan_steps_done, plan_steps.len());
+                        let description = format!(
+                            "Executed plan step {} (progress: {}/{})",
+                            plan_steps_done,
+                            plan_steps_done,
+                            plan_steps.len()
+                        );
                         let context = if plan_steps_done <= plan_steps.len() {
-                            format!("Executing step: {}", plan_steps.get(plan_steps_done - 1).unwrap_or(&"Unknown".to_string()))
+                            format!(
+                                "Executing step: {}",
+                                plan_steps
+                                    .get(plan_steps_done - 1)
+                                    .unwrap_or(&"Unknown".to_string())
+                            )
                         } else {
                             "Completed all plan steps".to_string()
                         };
@@ -1726,7 +1801,8 @@ impl AgentLoop {
                             "plan_steps_done": plan_steps_done,
                             "plan_steps_total": plan_steps.len(),
                             "plan_steps": plan_steps
-                        }).to_string();
+                        })
+                        .to_string();
 
                         decision_writer.record(
                             step,
@@ -1833,15 +1909,20 @@ impl AgentLoop {
                     // Log circuit breaker decision if decision tracing is enabled
                     if self.decision_tracing_enabled {
                         if let Some(decision_writer) = &decision_writer {
-                            let description = format!("Circuit breaker transitioned to {:?} state", new_state);
-                            let context = format!("Circuit breaker evaluated step {} and decided to change state", step);
+                            let description =
+                                format!("Circuit breaker transitioned to {:?} state", new_state);
+                            let context = format!(
+                                "Circuit breaker evaluated step {} and decided to change state",
+                                step
+                            );
                             let metadata = serde_json::json!({
                                 "step": step,
                                 "circuit_breaker_state": format!("{:?}", new_state),
                                 "tool_call": call.name(),
                                 "tool_success": tool_result.success,
                                 "rotation_hint": cb.rotation_hint()
-                            }).to_string();
+                            })
+                            .to_string();
 
                             decision_writer.record(
                                 step,
@@ -1871,14 +1952,20 @@ impl AgentLoop {
                         // Log circuit breaker blocking decision if decision tracing is enabled
                         if self.decision_tracing_enabled {
                             if let Some(decision_writer) = &decision_writer {
-                                let description = "Circuit breaker blocked agent due to repeated failures".to_string();
-                                let context = format!("Agent has been blocked after {} rotations", cb.max_rotations);
+                                let description =
+                                    "Circuit breaker blocked agent due to repeated failures"
+                                        .to_string();
+                                let context = format!(
+                                    "Agent has been blocked after {} rotations",
+                                    cb.max_rotations
+                                );
                                 let metadata = serde_json::json!({
                                     "step": step,
                                     "circuit_breaker_state": "Blocked",
                                     "max_rotations": cb.max_rotations,
                                     "rotation_hint": hint
-                                }).to_string();
+                                })
+                                .to_string();
 
                                 decision_writer.record(
                                     step,
@@ -1910,9 +1997,15 @@ impl AgentLoop {
                 let description = if !plan_steps.is_empty() && plan_steps_done < plan_steps.len() {
                     format!("Agent reached step limit ({}) with {}/{} plan items done - emitting Partial", self.max_steps, plan_steps_done, plan_steps.len())
                 } else {
-                    format!("Agent reached maximum step limit ({}) - emitting Error", self.max_steps)
+                    format!(
+                        "Agent reached maximum step limit ({}) - emitting Error",
+                        self.max_steps
+                    )
                 };
-                let context = format!("Agent executed {} steps out of maximum {}", plan_steps_done, self.max_steps);
+                let context = format!(
+                    "Agent executed {} steps out of maximum {}",
+                    plan_steps_done, self.max_steps
+                );
                 let metadata = serde_json::json!({
                     "step": self.max_steps - 1,
                     "max_steps": self.max_steps,

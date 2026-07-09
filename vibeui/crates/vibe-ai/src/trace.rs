@@ -76,6 +76,36 @@ pub struct DecisionTraceEntry {
     pub metadata: String,
 }
 
+/// Lightweight per-session summary for SkillForge's `History` env.
+///
+/// Written alongside the regular `<session_id>.jsonl` trace at the end of an
+/// agent run (see `TraceWriter::save_eval_record`) so SkillOpt can derive real
+/// [`skilllensai::metrics::eval::EvalTask`]s — prompt + reference answer +
+/// outcome — from actual agent runs, instead of the synthetic catalog-derived
+/// tasks in `RepoAgentEnv::from_catalog`. Secrets are scrubbed before writing
+/// (same redaction as `save_messages`/`save_context`).
+///
+/// One file per session: `<session_id>-eval.json`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillEvalRecord {
+    /// Unix timestamp (seconds); matches the trace session id stem.
+    pub timestamp: u64,
+    /// Identifies the session this record belongs to (unix seconds as string).
+    pub session_id: String,
+    /// The first user message — the task intent the agent was asked to perform.
+    pub prompt: String,
+    /// The agent's final prose answer — the reference answer for grading.
+    pub final_answer: String,
+    /// Fraction of tool calls that succeeded, `0.0..=1.0` (`1.0` when no
+    /// tools ran — a pure conversational turn vacuously has no failures).
+    pub tool_success_rate: f32,
+    /// Number of agent-loop steps that executed.
+    pub steps: usize,
+    /// Whether the run reached a final prose answer (`true`) or was cut off
+    /// partial (`false`).
+    pub completed: bool,
+}
+
 // ── TraceWriter ───────────────────────────────────────────────────────────────
 
 /// Appends [`TraceEntry`] records to a JSONL file in `dir`.
@@ -177,6 +207,16 @@ impl TraceWriter {
         fs::write(path, redact_secrets(&json))
     }
 
+    /// Persist a [`SkillEvalRecord`] summary for this session, so SkillForge's
+    /// `History` env can derive a real `EvalTask` from this run. Saved as
+    /// `<session_id>-eval.json` alongside the JSONL trace. Secrets are scrubbed
+    /// before writing (same as `save_messages`/`save_context`).
+    pub fn save_eval_record(&self, record: &SkillEvalRecord) -> std::io::Result<()> {
+        let path = self.eval_path();
+        let json = serde_json::to_string_pretty(record).map_err(std::io::Error::other)?;
+        fs::write(path, redact_secrets(&json))
+    }
+
     fn messages_path(&self) -> PathBuf {
         self.path
             .parent()
@@ -189,6 +229,13 @@ impl TraceWriter {
             .parent()
             .unwrap_or_else(|| std::path::Path::new("."))
             .join(format!("{}-context.json", self.session_id))
+    }
+
+    fn eval_path(&self) -> PathBuf {
+        self.path
+            .parent()
+            .unwrap_or_else(|| std::path::Path::new("."))
+            .join(format!("{}-eval.json", self.session_id))
     }
 }
 
@@ -289,6 +336,31 @@ pub fn load_trace(path: &Path) -> Vec<TraceEntry> {
         .map_while(Result::ok)
         .filter_map(|l| serde_json::from_str(&l).ok())
         .collect()
+}
+
+/// Load every [`SkillEvalRecord`] in `dir`, sorted newest-first by timestamp.
+///
+/// Scans for files matching `<session_id>-eval.json` (the per-session summaries
+/// written by [`TraceWriter::save_eval_record`]). A missing `dir` returns an
+/// empty vec (the caller — SkillForge's `History` env — turns an empty result
+/// into a user-facing "no agent-job history found" error).
+pub fn load_eval_records(dir: &Path) -> Vec<SkillEvalRecord> {
+    let Ok(entries) = fs::read_dir(dir) else {
+        return vec![];
+    };
+    let mut records: Vec<SkillEvalRecord> = entries
+        .flatten()
+        .filter_map(|e| {
+            let name = e.file_name().to_string_lossy().to_string();
+            if !name.ends_with("-eval.json") {
+                return None;
+            }
+            let json = fs::read_to_string(e.path()).ok()?;
+            serde_json::from_str(&json).ok()
+        })
+        .collect();
+    records.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+    records
 }
 
 // ── Secrets scrubbing ────────────────────────────────────────────────────────
@@ -578,6 +650,120 @@ mod tests {
         assert_eq!(entries[1].approved_by, "user");
 
         // Clean up
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn save_eval_record_writes_redacted_json() {
+        let dir = temp_dir().join(format!("vibe_eval_redact_{}", now_secs()));
+        let writer = TraceWriter::new(dir.clone());
+        let record = SkillEvalRecord {
+            timestamp: "1700000000".parse().unwrap(),
+            session_id: writer.session_id().to_string(),
+            prompt: "Deploy with key sk-abcdefghij1234567890abcdefghij".to_string(),
+            final_answer: "Done — token ghp_xyzABCDEFGHIJ1234567890abcdef rotated.".to_string(),
+            tool_success_rate: 1.0,
+            steps: 3,
+            completed: true,
+        };
+        writer.save_eval_record(&record).unwrap();
+
+        let path = writer.eval_path();
+        let on_disk = fs::read_to_string(&path).unwrap();
+        assert!(
+            !on_disk.contains("sk-abcdefghij"),
+            "prompt secret must be redacted"
+        );
+        assert!(
+            !on_disk.contains("ghp_xyz"),
+            "final_answer secret must be redacted"
+        );
+        // Still parses back into the struct.
+        let reparsed: SkillEvalRecord = serde_json::from_str(&on_disk).unwrap();
+        assert_eq!(reparsed.session_id, record.session_id);
+        assert_eq!(reparsed.steps, 3);
+        assert!(reparsed.completed);
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_eval_records_reads_dir_sorted_newest_first() {
+        let dir = temp_dir().join(format!("vibe_eval_load_{}", now_secs()));
+        let _ = fs::create_dir_all(&dir);
+
+        let older = SkillEvalRecord {
+            timestamp: 1700000000,
+            session_id: "1700000000".to_string(),
+            prompt: "old task".to_string(),
+            final_answer: "old answer".to_string(),
+            tool_success_rate: 0.5,
+            steps: 2,
+            completed: true,
+        };
+        let newer = SkillEvalRecord {
+            timestamp: 1800000000,
+            session_id: "1800000000".to_string(),
+            prompt: "new task".to_string(),
+            final_answer: "new answer".to_string(),
+            tool_success_rate: 1.0,
+            steps: 5,
+            completed: false,
+        };
+        // Write older first, then newer — order on disk shouldn't matter.
+        fs::write(
+            dir.join("1700000000-eval.json"),
+            serde_json::to_string_pretty(&older).unwrap(),
+        )
+        .unwrap();
+        fs::write(
+            dir.join("1800000000-eval.json"),
+            serde_json::to_string_pretty(&newer).unwrap(),
+        )
+        .unwrap();
+
+        let records = load_eval_records(&dir);
+        assert_eq!(records.len(), 2, "both eval records should load");
+        assert_eq!(records[0].timestamp, 1800000000, "newest first");
+        assert_eq!(records[1].timestamp, 1700000000);
+        assert_eq!(records[0].prompt, "new task");
+
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn load_eval_records_missing_dir_is_empty() {
+        let records = load_eval_records(&temp_dir().join("vibe_eval_no_such_dir_9999"));
+        assert!(records.is_empty(), "missing dir should yield no records");
+    }
+
+    #[test]
+    fn load_eval_records_ignores_non_eval_files() {
+        let dir = temp_dir().join(format!("vibe_eval_filter_{}", now_secs()));
+        let _ = fs::create_dir_all(&dir);
+        // A regular trace JSONL + a messages JSON — both must be ignored.
+        fs::write(dir.join("1700000000.jsonl"), "{\"timestamp\":1700000000}\n").unwrap();
+        fs::write(dir.join("1700000000-messages.json"), "[]").unwrap();
+        // One real eval record.
+        let rec = SkillEvalRecord {
+            timestamp: 1700000000,
+            session_id: "1700000000".to_string(),
+            prompt: "task".to_string(),
+            final_answer: "answer".to_string(),
+            tool_success_rate: 1.0,
+            steps: 1,
+            completed: true,
+        };
+        fs::write(
+            dir.join("1700000000-eval.json"),
+            serde_json::to_string_pretty(&rec).unwrap(),
+        )
+        .unwrap();
+
+        let records = load_eval_records(&dir);
+        assert_eq!(records.len(), 1, "only *-eval.json files should load");
+        assert_eq!(records[0].session_id, "1700000000");
+
         let _ = fs::remove_dir_all(&dir);
     }
 }

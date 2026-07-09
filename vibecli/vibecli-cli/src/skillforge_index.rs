@@ -60,6 +60,7 @@ use skilloptai::trainer::{train_with_signals, CancelToken, EpochEvent, TrainConf
 use skilloptai::VERSION as OPT_VERSION;
 
 use vibe_ai::provider::{AIProvider, Message, MessageRole};
+use vibe_ai::{load_eval_records, SkillEvalRecord};
 
 use crate::skill_catalog::SkillCatalog;
 
@@ -154,6 +155,12 @@ type ReportCache = HashMap<String, SkillReport>;
 struct SkillForgeState {
     catalog: SkillCatalog,
     reports: ReportCache,
+    /// Promoted-skill override paths keyed by skill name, scanned from the
+    /// per-workspace override dir (`<ws>/.vibecli/skills/*.opt.md`) on init +
+    /// refresh. The shipped `skills/*.md` tree is never written to — promoted
+    /// artifacts land here so the 710 shipped skills stay pristine. Surfaced
+    /// as `promoted_override` on the skill-detail JSON.
+    promoted_overrides: HashMap<String, PathBuf>,
 }
 
 static STATE: OnceLock<RwLock<SkillForgeState>> = OnceLock::new();
@@ -185,6 +192,65 @@ fn skills_dir_default() -> PathBuf {
     manifest_dir
 }
 
+/// Resolve the per-workspace promoted-skill override dir — where promoted
+/// `*.opt.md` artifacts land so the shipped `skills/*.md` tree stays pristine.
+///
+/// - `Some(ws)` → `<ws>/.vibecli/skills` (explicit workspace, e.g. from a
+///   future request param or a test tempdir).
+/// - `None` → resolve from the daemon's cwd: use it only when a workspace
+///   store already exists there (`<cwd>/.vibecli/workspace.db`), so promote
+///   never creates a stray `.vibecli/` tree in an arbitrary scratch dir.
+///   Otherwise fall back to the global per-user `~/.vibecli/skills`.
+pub fn promote_dir_for(workspace: Option<&Path>) -> PathBuf {
+    if let Some(ws) = workspace {
+        return ws.join(".vibecli").join("skills");
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        if cwd.join(".vibecli").join("workspace.db").exists() {
+            return cwd.join(".vibecli").join("skills");
+        }
+    }
+    dirs::home_dir()
+        .map(|h| h.join(".vibecli").join("skills"))
+        .unwrap_or_else(|| PathBuf::from(".vibecli").join("skills"))
+}
+
+/// Scan `dir` for `*.opt.md` promoted-skill overrides, keyed by skill name
+/// (the stem minus `.opt`). Returns an empty map when `dir` is missing — no
+/// overrides yet is the common case. Pure (no STATE) so it's unit-testable.
+fn scan_promoted_overrides_in(dir: &Path) -> HashMap<String, PathBuf> {
+    let mut out = HashMap::new();
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return out;
+    };
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if !p.is_file() {
+            continue;
+        }
+        if p.extension().and_then(|e| e.to_str()) != Some("md") {
+            continue;
+        }
+        // `file_stem("foo.opt.md")` == `"foo.opt"` → strip `.opt` → `"foo"`.
+        let Some(stem) = p.file_stem().and_then(|s| s.to_str()) else {
+            continue;
+        };
+        let Some(name) = stem.strip_suffix(".opt") else {
+            continue;
+        };
+        if name.is_empty() {
+            continue;
+        }
+        out.insert(name.to_string(), p);
+    }
+    out
+}
+
+/// Scan the resolved override dir for promoted skills (init + refresh path).
+fn scan_promoted_overrides() -> HashMap<String, PathBuf> {
+    scan_promoted_overrides_in(&promote_dir_for(None))
+}
+
 /// Initialize the process-global catalog. Idempotent — the `skills_dir`
 /// argument is only used the first time. Kicks off a non-blocking background
 /// parse (parse is CPU/IO-bound and cheap over ~710 small files, but we keep
@@ -199,6 +265,7 @@ pub fn init_skillforge(skills_dir: Option<&Path>) -> SkillForgeStatus {
         let state = SkillForgeState {
             catalog,
             reports: HashMap::new(),
+            promoted_overrides: scan_promoted_overrides(),
         };
         let _ = STATE.set(RwLock::new(state));
         if let Some(s) = STATUS.get() {
@@ -299,6 +366,7 @@ pub fn list_skills_value() -> Value {
                     "trigger_coverage": cached.map(|r| r.trigger_coverage),
                     "extraction_efficacy": cached.and_then(|r| r.extraction_efficacy),
                     "target_evolvability": cached.and_then(|r| r.target_evolvability),
+                    "has_promoted_override": s.promoted_overrides.contains_key(&skill.name),
                 })
             })
             .collect()
@@ -311,7 +379,14 @@ pub fn list_skills_value() -> Value {
 pub fn get_skill_value(name: &str) -> Option<Value> {
     let entry = with_state(|s| s.catalog.get(name).map(|e| e.clone()))??;
     let body = std::fs::read_to_string(&entry.path).unwrap_or_default();
-    let cached: Option<SkillReport> = with_state(|s| s.reports.get(name).cloned())?;
+    let (cached, promoted_override): (Option<SkillReport>, Option<String>) = with_state(|s| {
+        (
+            s.reports.get(name).cloned(),
+            s.promoted_overrides
+                .get(name)
+                .map(|p| p.display().to_string()),
+        )
+    })?;
     Some(json!({
         "name": entry.name,
         "category": entry.frontmatter.category.clone().unwrap_or_default(),
@@ -322,6 +397,7 @@ pub fn get_skill_value(name: &str) -> Option<Value> {
             crate::skill_catalog::SkillSource::Plugin(p) => p.as_str(),
         },
         "body": body,
+        "promoted_override": promoted_override,
         "report": cached.as_ref().map(|r| r.to_json()),
     }))
 }
@@ -331,9 +407,11 @@ pub fn get_skill_value(name: &str) -> Option<Value> {
 pub fn refresh_value() -> Value {
     let dir = skills_dir_default();
     let catalog = SkillCatalog::load_from_with_cwd_plugins(&dir).unwrap_or_default();
+    let overrides = scan_promoted_overrides();
     let _ = with_state_mut(|s| {
         s.catalog = catalog;
         s.reports.clear();
+        s.promoted_overrides = overrides;
     });
     status_value()
 }
@@ -432,18 +510,25 @@ pub async fn score_value(
     }))
 }
 
-// ── RepoAgentEnv — day-one Env over the repo's own skills ───────────────────
+// ── RepoAgentEnv — Env over the repo's own skills / agent-job history ───────
 
-/// The day-one concrete [`OptEnv`] for the daemon. Derives [`EvalTask`]s
-/// from the catalog: each skill becomes a task whose prompt asks the model
-/// to perform the skill's first trigger and whose grader is [`Grader::Contains`]
-/// on a key phrase drawn from the skill body. Deterministic, no extra LLM,
-/// exercises the full `train()` loop against the repo's own skill library.
+/// The concrete [`OptEnv`] for the daemon. Two task sources:
 ///
-/// Richer tasks drawn from real VibeCody agent-job history (graded by
-/// `ToolExit`/`LlmJudge`) are a documented follow-up — the daemon is the
-/// right place for that coupling, but the job-history → EvalTask derivation
-/// needs a per-job grader which is not yet wired.
+/// - **Catalog** ([`RepoAgentEnv::from_catalog`] / [`from_catalog_for`]):
+///   each skill becomes a task whose prompt asks the model to perform the
+///   skill's first trigger and whose grader is [`Grader::Contains`] on a key
+///   phrase drawn from the skill body. Deterministic, no extra LLM, exercises
+///   the full `train()` loop against the repo's own skill library.
+/// - **History** ([`RepoAgentEnv::from_history`]): one [`EvalTask`] per real
+///   agent run, derived from the per-session [`SkillEvalRecord`] written at
+///   the end of every agent run (see `vibe_ai::trace::TraceWriter::save_eval_record`).
+///   The prompt is the session's first user message; the grader is either
+///   [`Grader::LlmJudge`] (default — scores each rollout against the session's
+///   reference final answer; one extra LLM call per task per epoch) or
+///   [`Grader::Contains`] (free, weak — checks for a phrase from the reference
+///   answer). Selected via `env.grader` on the train request.
+///
+/// [`from_catalog_for`]: RepoAgentEnv::from_catalog_for
 pub struct RepoAgentEnv {
     tasks: Vec<EvalTask>,
 }
@@ -492,6 +577,119 @@ impl RepoAgentEnv {
             .collect::<Result<_, _>>()?;
         Ok(Self { tasks })
     }
+
+    /// Build tasks from real agent-job history — one [`EvalTask`] per
+    /// [`SkillEvalRecord`] (a prior agent run). The record's `prompt` (the
+    /// session's first user message) becomes the task prompt; the grader is
+    /// chosen by `grader` ([`HistoryGrader::LlmJudge`] scores against the
+    /// reference final answer; [`HistoryGrader::Contains`] checks for a phrase
+    /// from it). Records with an empty `prompt` or `final_answer` (errored /
+    /// truncated runs) are skipped. Returns `Err` if no usable records remain.
+    pub fn from_history(
+        records: Vec<SkillEvalRecord>,
+        grader: HistoryGrader,
+    ) -> Result<Self, String> {
+        let mut tasks = Vec::with_capacity(records.len());
+        for r in records {
+            if r.prompt.trim().is_empty() || r.final_answer.trim().is_empty() {
+                continue;
+            }
+            let g = match grader {
+                HistoryGrader::LlmJudge => Grader::LlmJudge(rubric_for(&r)),
+                HistoryGrader::Contains => Grader::Contains(phrase_from(&r.final_answer)),
+            };
+            tasks.push(EvalTask {
+                id: r.session_id.clone(),
+                prompt: r.prompt,
+                grader: g,
+            });
+        }
+        if tasks.is_empty() {
+            return Err(
+                "no usable skill-eval records (all had an empty prompt or final answer)"
+                    .to_string(),
+            );
+        }
+        Ok(Self { tasks })
+    }
+}
+
+/// How to grade `History`-env tasks derived from [`SkillEvalRecord`]s.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HistoryGrader {
+    /// [`Grader::LlmJudge`] — scores each rollout against the session's
+    /// reference final answer. Meaningful, but adds one LLM call per task
+    /// per epoch (eval cost ≈ doubles).
+    LlmJudge,
+    /// [`Grader::Contains`] — free, weak: checks for a phrase drawn from the
+    /// reference answer. Use for cheap smoke training.
+    Contains,
+}
+
+/// Parse the `env.grader` string from a train request into a [`HistoryGrader`].
+/// `None` (omitted) and `"llm_judge"` → [`HistoryGrader::LlmJudge`] (default);
+/// `"contains"` → [`HistoryGrader::Contains`]; anything else → `Err`.
+fn parse_history_grader(s: Option<&str>) -> Result<HistoryGrader, String> {
+    match s.map(|x| x.to_ascii_lowercase()).as_deref() {
+        None | Some("llm_judge") => Ok(HistoryGrader::LlmJudge),
+        Some("contains") => Ok(HistoryGrader::Contains),
+        Some(other) => Err(format!(
+            "env.grader must be \"llm_judge\" or \"contains\", got {other:?}"
+        )),
+    }
+}
+
+/// Resolve the trace dir to scan for `<sess>-eval.json` records. `override_dir`
+/// (the `env.tasks` field, repurposed for `History`) wins if it exists; else
+/// fall back to `~/.vibecli/traces/` (where the CLI's `TraceWriter` writes).
+fn history_trace_dir(override_dir: Option<&str>) -> PathBuf {
+    if let Some(p) = override_dir {
+        let path = PathBuf::from(p);
+        if path.exists() {
+            return path;
+        }
+    }
+    dirs::home_dir()
+        .map(|h| h.join(".vibecli").join("traces"))
+        .unwrap_or_else(|| PathBuf::from(".vibecli").join("traces"))
+}
+
+/// Build the [`Grader::LlmJudge`] rubric for one [`SkillEvalRecord`]: instructs
+/// the judge to score the rollout 0.0–1.0 against the session's reference final
+/// answer, with the tool-success rate + completion status as hints.
+fn rubric_for(r: &SkillEvalRecord) -> String {
+    let completed = if r.completed { "completed" } else { "partial" };
+    let answer = truncate_chars(&r.final_answer, 1200);
+    let rate_pct = r.tool_success_rate * 100.0;
+    format!(
+        "Score the response 0.0-1.0 on whether it accomplishes the user's task. \
+         Reference: a prior agent run {completed} this task with the final answer below \
+         (tool success rate {rate_pct:.0}%, {steps} steps).\n\n\
+         --- Reference final answer ---\n{answer}\n--- End ---\n\n\
+         Respond with a single number in [0, 1].",
+        steps = r.steps,
+    )
+}
+
+/// Extract a cheap `Contains` phrase from a reference answer: the first
+/// non-empty, non-`#`-heading line, truncated to 80 chars. Falls back to the
+/// first 80 chars of the answer. Intentionally weak — use [`HistoryGrader::LlmJudge`]
+/// for meaningful grading.
+fn phrase_from(answer: &str) -> String {
+    let line = answer
+        .lines()
+        .map(|l| l.trim())
+        .find(|l| !l.is_empty() && !l.starts_with('#'))
+        .unwrap_or(answer.trim());
+    truncate_chars(line, 80)
+}
+
+fn truncate_chars(s: &str, max: usize) -> String {
+    if s.chars().count() <= max {
+        return s.to_string();
+    }
+    let end = s.char_indices().nth(max).map(|(i, _)| i).unwrap_or(s.len());
+    format!("{}…", &s[..end])
 }
 
 /// Construct one [`EvalTask`] from a catalog entry: the prompt asks the model
@@ -531,7 +729,9 @@ impl OptEnv for RepoAgentEnv {
 #[derive(Debug, serde::Deserialize)]
 pub struct TrainRequest {
     pub skill: String,
-    /// `env`: `{kind: "static", tasks: "<jsonl>"}` or `{kind: "repo"}`.
+    /// `env`: `{kind: "static", tasks: "<jsonl>"}` or `{kind: "repo"}` or
+    /// `{kind: "history", grader: "llm_judge"|"contains"}` (tasks optionally
+    /// overrides the trace dir to scan).
     #[serde(default = "default_env_kind")]
     pub env: EnvSpec,
     /// Overrides for `TrainConfig` (all optional; defaults from `TrainConfig`).
@@ -545,6 +745,7 @@ fn default_env_kind() -> EnvSpec {
     EnvSpec {
         kind: EnvKind::Repo,
         tasks: None,
+        grader: None,
     }
 }
 
@@ -552,8 +753,16 @@ fn default_env_kind() -> EnvSpec {
 pub struct EnvSpec {
     #[serde(rename = "kind")]
     pub kind: EnvKind,
-    /// Inline JSONL of `EvalTask`s (required when `kind == Static`).
+    /// Inline JSONL of `EvalTask`s (required when `kind == Static`). For
+    /// `kind == History`, an optional override of the trace dir to scan for
+    /// `<sess>-eval.json` records (defaults to `~/.vibecli/traces/`).
     pub tasks: Option<String>,
+    /// History-only: grader for derived tasks — `"llm_judge"` (default,
+    /// meaningful — scores each rollout against the session's reference
+    /// answer; adds one LLM call per task per epoch) or `"contains"` (free,
+    /// weak). Ignored for `Static`/`Repo`.
+    #[serde(default)]
+    pub grader: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, Clone, Copy)]
@@ -561,6 +770,9 @@ pub struct EnvSpec {
 pub enum EnvKind {
     Static,
     Repo,
+    /// Derive `EvalTask`s from real agent-job history (`<sess>-eval.json`
+    /// records written at the end of every agent run).
+    History,
 }
 
 /// A `TrainConfig` subset that the panel may override. Unspecified fields
@@ -662,7 +874,8 @@ fn jobs() -> &'static Mutex<JobMap> {
 }
 
 /// Build the [`OptEnv`] for a train request. `Static` → inline JSONL;
-/// `Repo` → [`RepoAgentEnv::from_catalog`].
+/// `Repo` → [`RepoAgentEnv::from_catalog`]; `History` → [`RepoAgentEnv::from_history`]
+/// over the `<sess>-eval.json` records in the trace dir.
 fn env_for(spec: &EnvSpec) -> Result<Box<dyn OptEnv>, String> {
     Ok(match spec.kind {
         EnvKind::Static => {
@@ -673,6 +886,19 @@ fn env_for(spec: &EnvSpec) -> Result<Box<dyn OptEnv>, String> {
             Box::new(StaticEnv::from_jsonl(s).map_err(|e| e.to_string())?)
         }
         EnvKind::Repo => Box::new(RepoAgentEnv::from_catalog()),
+        EnvKind::History => {
+            let grader = parse_history_grader(spec.grader.as_deref())?;
+            let dir = history_trace_dir(spec.tasks.as_deref());
+            let records = load_eval_records(&dir);
+            if records.is_empty() {
+                return Err(format!(
+                    "no skill-eval records found in {} — run an agent first (the daemon writes \
+                     <session>-eval.json at the end of every run)",
+                    dir.display()
+                ));
+            }
+            Box::new(RepoAgentEnv::from_history(records, grader)?)
+        }
     })
 }
 
@@ -907,23 +1133,46 @@ pub fn report_to_value(report: &TrainingReport) -> Value {
     })
 }
 
-// ── promote (write *.opt.md) — explicit, audited ────────────────────────────
+// ── promote (write *.opt.md to the override dir) — explicit, audited ──────────
 
-/// `POST /skillopt/promote {skill, content}` — write `*.opt.md` next to the
-/// shipped skill file. **Never** overwrites the shipped `skills/*.md`; the
-/// panel requires a separate human action to swap a promoted artifact into
-/// the live loader (ties into the patent-audit rule about surfacing AI
-/// output). Returns the written path.
+/// Write a promoted skill body to `<dir>/<skill>.opt.md`, creating `dir` if
+/// missing. Pure (no STATE) so the path + creation logic is unit-testable
+/// with a tempdir. Used by [`promote_value`].
+fn write_promoted_override_in(
+    skill_name: &str,
+    content: &str,
+    dir: &Path,
+) -> Result<PathBuf, String> {
+    std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    let opt_path = dir.join(format!("{skill_name}.opt.md"));
+    std::fs::write(&opt_path, content).map_err(|e| e.to_string())?;
+    Ok(opt_path)
+}
+
+/// `POST /skillopt/promote {skill, content}` — write `<skill>.opt.md` to the
+/// per-workspace override dir (`<ws>/.vibecli/skills/`). **Never** overwrites
+/// the shipped `skills/*.md` tree — promoted artifacts land in the override
+/// dir so the 710 shipped skills stay pristine. The panel requires a separate
+/// human action to swap a promoted artifact into the live loader (ties into
+/// the patent-audit rule about surfacing AI output). Returns the written path.
 pub fn promote_value(skill_name: &str, content: &str) -> Result<Value, String> {
-    let path = with_state(|s| s.catalog.get(skill_name).map(|e| e.path.clone()))
+    // Precondition: the skill must exist in the catalog (don't write an
+    // override for an unknown name).
+    let _shipped_path = with_state(|s| s.catalog.get(skill_name).map(|e| e.path.clone()))
         .ok_or_else(|| "skillforge catalog not initialized".to_string())?
         .ok_or_else(|| format!("skill '{skill_name}' not in catalog"))?;
-    let opt_path = path.with_extension("opt.md");
-    std::fs::write(&opt_path, content).map_err(|e| e.to_string())?;
+    let dir = promote_dir_for(None);
+    let opt_path = write_promoted_override_in(skill_name, content, &dir)?;
+    // Update the override cache so the panel sees it without a refresh.
+    let _ = with_state_mut(|s| {
+        s.promoted_overrides
+            .insert(skill_name.to_string(), opt_path.clone());
+    });
     Ok(json!({
         "skill": skill_name,
         "written": opt_path.display().to_string(),
-        "note": "promoted to *.opt.md — the shipped skill is untouched; swap into the live loader deliberately.",
+        "dir": dir.display().to_string(),
+        "note": "promoted to the per-workspace override dir (<ws>/.vibecli/skills/*.opt.md) — the shipped skills/*.md tree is untouched; swap into the live loader deliberately.",
     }))
 }
 
@@ -1215,6 +1464,60 @@ mod tests {
         jobs().lock().await.remove(id);
     }
 
+    // ── promoted-skill override dir ─────────────────────────────────────────
+
+    #[test]
+    fn promote_dir_for_explicit_workspace_is_vibecli_skills() {
+        let ws = std::path::PathBuf::from("/tmp/test-ws");
+        let dir = promote_dir_for(Some(&ws));
+        assert_eq!(
+            dir,
+            std::path::PathBuf::from("/tmp/test-ws/.vibecli/skills")
+        );
+    }
+
+    #[test]
+    fn write_promoted_override_creates_dir_and_file() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("override"); // does not exist yet
+        let path = write_promoted_override_in("rust-tests", "trained body", &dir).unwrap();
+        assert!(dir.is_dir(), "override dir is created on demand");
+        assert_eq!(path.file_name().unwrap(), "rust-tests.opt.md");
+        let on_disk = std::fs::read_to_string(&path).unwrap();
+        assert_eq!(on_disk, "trained body");
+    }
+
+    #[test]
+    fn scan_promoted_overrides_keys_by_stem_and_ignores_non_opt() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path().join("skills");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("rust-tests.opt.md"), "a").unwrap();
+        std::fs::write(dir.join("formal-verification.opt.md"), "b").unwrap();
+        // A plain shipped-style skill — not an override, must be skipped.
+        std::fs::write(dir.join("plain-skill.md"), "c").unwrap();
+        // A README — not markdown-with-.opt.
+        std::fs::write(dir.join("README.txt"), "d").unwrap();
+
+        let map = scan_promoted_overrides_in(&dir);
+        assert_eq!(map.len(), 2);
+        assert!(map.contains_key("rust-tests"));
+        assert!(map.contains_key("formal-verification"));
+        assert!(
+            !map.contains_key("plain-skill"),
+            "plain .md is not an override"
+        );
+    }
+
+    #[test]
+    fn scan_promoted_overrides_missing_dir_is_empty() {
+        let map = scan_promoted_overrides_in(std::path::Path::new("/nonexistent-vibe-test-123"));
+        assert!(
+            map.is_empty(),
+            "missing override dir → empty map, not an error"
+        );
+    }
+
     #[test]
     fn null_llm_descriptor_and_error_path() {
         let n = NullLlm;
@@ -1243,5 +1546,219 @@ mod tests {
         // f32 → JSON f64 rounding: compare with tolerance, not exact eq.
         let last = v["val_curve"][2].as_f64().unwrap();
         assert!((last - 0.66).abs() < 1e-5);
+    }
+
+    // ── History env (real agent-job history → EvalTask) ─────────────────────
+
+    fn eval_record(prompt: &str, answer: &str, completed: bool) -> SkillEvalRecord {
+        SkillEvalRecord {
+            timestamp: 1700000000,
+            session_id: "1700000000".to_string(),
+            prompt: prompt.to_string(),
+            final_answer: answer.to_string(),
+            tool_success_rate: 0.75,
+            steps: 4,
+            completed,
+        }
+    }
+
+    #[test]
+    fn from_history_llm_judge_builds_rubric_per_record() {
+        let records = vec![
+            SkillEvalRecord {
+                session_id: "sess-a".into(),
+                prompt: "Refactor the auth module".into(),
+                final_answer: "Extracted a `TokenValidator` and added tests".into(),
+                timestamp: 1,
+                tool_success_rate: 1.0,
+                steps: 5,
+                completed: true,
+            },
+            SkillEvalRecord {
+                session_id: "sess-b".into(),
+                prompt: "Fix the flaky CI test".into(),
+                final_answer: "Added a retry guard around the network call".into(),
+                timestamp: 2,
+                tool_success_rate: 0.5,
+                steps: 3,
+                completed: false,
+            },
+        ];
+        let env = RepoAgentEnv::from_history(records, HistoryGrader::LlmJudge).unwrap();
+        let tasks = env.tasks();
+        assert_eq!(tasks.len(), 2, "one task per record");
+        assert_eq!(tasks[0].id, "sess-a");
+        assert_eq!(tasks[0].prompt, "Refactor the auth module");
+        match &tasks[0].grader {
+            Grader::LlmJudge(rubric) => {
+                assert!(
+                    rubric.contains("Reference final answer"),
+                    "rubric cites the reference"
+                );
+                assert!(
+                    rubric.contains("TokenValidator"),
+                    "rubric embeds the reference answer"
+                );
+                assert!(rubric.contains("100%"), "rubric includes tool success rate");
+            }
+            other => panic!("expected LlmJudge, got {other:?}"),
+        }
+        // Partial run → rubric flags partial.
+        match &tasks[1].grader {
+            Grader::LlmJudge(rubric) => assert!(rubric.contains("partial")),
+            _ => panic!("expected LlmJudge for second task"),
+        }
+    }
+
+    #[test]
+    fn from_history_contains_extracts_phrase() {
+        let env = RepoAgentEnv::from_history(
+            vec![eval_record(
+                "Summarise the meeting",
+                "## Notes\nAction items: file ticket, ping Alice.\n",
+                true,
+            )],
+            HistoryGrader::Contains,
+        )
+        .unwrap();
+        let tasks = env.tasks();
+        assert_eq!(tasks.len(), 1);
+        match &tasks[0].grader {
+            Grader::Contains(phrase) => {
+                // First non-empty, non-`#` line is the action-items line.
+                assert!(phrase.contains("Action items"), "phrase = {phrase}");
+                assert!(phrase.chars().count() <= 80, "phrase is truncated");
+            }
+            other => panic!("expected Contains, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn from_history_skips_records_with_empty_prompt_or_answer() {
+        let records = vec![
+            SkillEvalRecord {
+                session_id: "empty-prompt".into(),
+                prompt: "   ".into(),
+                final_answer: "has answer".into(),
+                timestamp: 1,
+                tool_success_rate: 1.0,
+                steps: 1,
+                completed: true,
+            },
+            SkillEvalRecord {
+                session_id: "empty-answer".into(),
+                prompt: "has prompt".into(),
+                final_answer: String::new(),
+                timestamp: 2,
+                tool_success_rate: 1.0,
+                steps: 1,
+                completed: true,
+            },
+            eval_record("kept", "kept answer", true),
+        ];
+        let env = RepoAgentEnv::from_history(records, HistoryGrader::Contains).unwrap();
+        let tasks = env.tasks();
+        assert_eq!(tasks.len(), 1, "only the complete record survives");
+        assert_eq!(tasks[0].id, "1700000000");
+    }
+
+    #[test]
+    fn from_history_all_unusable_is_err() {
+        let err = RepoAgentEnv::from_history(
+            vec![SkillEvalRecord {
+                session_id: "s".into(),
+                prompt: String::new(),
+                final_answer: String::new(),
+                timestamp: 0,
+                tool_success_rate: 0.0,
+                steps: 0,
+                completed: false,
+            }],
+            HistoryGrader::LlmJudge,
+        )
+        .err()
+        .expect("expected an error when all records are unusable");
+        assert!(err.contains("no usable skill-eval records"), "err = {err}");
+    }
+
+    #[test]
+    fn parse_history_grader_defaults_and_rejects() {
+        assert_eq!(parse_history_grader(None).unwrap(), HistoryGrader::LlmJudge);
+        assert_eq!(
+            parse_history_grader(Some("llm_judge")).unwrap(),
+            HistoryGrader::LlmJudge
+        );
+        assert_eq!(
+            parse_history_grader(Some("contains")).unwrap(),
+            HistoryGrader::Contains
+        );
+        // Case-insensitive.
+        assert_eq!(
+            parse_history_grader(Some("Contains")).unwrap(),
+            HistoryGrader::Contains
+        );
+        assert!(parse_history_grader(Some("bogus")).is_err());
+    }
+
+    #[test]
+    fn history_trace_dir_uses_override_when_it_exists() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = history_trace_dir(Some(tmp.path().to_str().unwrap()));
+        assert_eq!(dir, tmp.path());
+    }
+
+    #[test]
+    fn history_trace_dir_falls_back_to_home_when_override_missing() {
+        // Override path that does not exist → fall back to ~/.vibecli/traces.
+        let dir = history_trace_dir(Some("/nonexistent-vibe-history-test-9999"));
+        assert!(
+            dir.ends_with(std::path::Path::new(".vibecli/traces")),
+            "expected ~/.vibecli/traces fallback, got {}",
+            dir.display()
+        );
+    }
+
+    #[test]
+    fn env_for_history_reads_eval_records_from_dir() {
+        let tmp = tempfile::tempdir().unwrap();
+        let rec = SkillEvalRecord {
+            session_id: "1800000000".into(),
+            prompt: "Write a migration".into(),
+            final_answer: "Created `migrate_002.sql` and ran it".into(),
+            timestamp: 1800000000,
+            tool_success_rate: 1.0,
+            steps: 2,
+            completed: true,
+        };
+        std::fs::write(
+            tmp.path().join("1800000000-eval.json"),
+            serde_json::to_string_pretty(&rec).unwrap(),
+        )
+        .unwrap();
+
+        let spec = EnvSpec {
+            kind: EnvKind::History,
+            tasks: Some(tmp.path().to_str().unwrap().to_string()),
+            grader: Some("contains".into()),
+        };
+        let env = env_for(&spec).unwrap();
+        let tasks = env.tasks();
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].prompt, "Write a migration");
+        assert!(matches!(tasks[0].grader, Grader::Contains(_)));
+    }
+
+    #[test]
+    fn env_for_history_no_records_is_err() {
+        let tmp = tempfile::tempdir().unwrap();
+        let spec = EnvSpec {
+            kind: EnvKind::History,
+            tasks: Some(tmp.path().to_str().unwrap().to_string()),
+            grader: None,
+        };
+        let err = env_for(&spec)
+            .err()
+            .expect("expected an error for no records");
+        assert!(err.contains("no skill-eval records"), "err = {err}");
     }
 }

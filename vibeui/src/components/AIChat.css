@@ -440,6 +440,46 @@
     line-height: 1.5;
 }
 
+/* ── Work section (collapsible per-turn work) ─────────────────────────────── */
+
+.work-section {
+    margin-bottom: 8px;
+}
+
+.work-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 2px 0;
+    transition: color 0.15s;
+}
+
+.work-toggle:hover {
+    color: var(--text-primary);
+}
+
+.work-chevron {
+    font-size: 10px;
+    width: 12px;
+    text-align: center;
+}
+
+.work-label {
+    opacity: 0.85;
+}
+
+.work-content {
+    margin-top: 4px;
+    padding-left: 8px;
+    border-left: 2px solid var(--border-color, #2a2a2a);
+    animation: slideIn 0.15s ease-out;
+}
+
 /* ── Tool call cards ──────────────────────────────────────────────────────── */
 
 .tool-cards {

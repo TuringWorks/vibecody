@@ -4737,8 +4737,9 @@ pub async fn skillopt_cancel(job_id: String) -> Result<serde_json::Value, String
     skillforge_daemon_post(&path, &serde_json::json!({})).await
 }
 
-/// `POST /v1/skillopt/promote` — write `*.opt.md` next to the shipped skill.
-/// The shipped `skills/*.md` is never overwritten; promote is explicit + audited.
+/// `POST /v1/skillopt/promote` — write `*.opt.md` to the per-workspace override dir
+/// (`<ws>/.vibecli/skills/`). The shipped `skills/*.md` tree is never written to;
+/// promote is explicit + audited.
 #[tauri::command]
 pub async fn skillopt_promote(skill: String, content: String) -> Result<serde_json::Value, String> {
     skillforge_daemon_post(
