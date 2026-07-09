@@ -242,7 +242,10 @@ async fn run_app<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
     app: &mut App,
     llm: Arc<dyn LLMProvider>,
-) -> Result<()> {
+) -> Result<()>
+where
+    <B as ratatui::backend::Backend>::Error: Send + Sync + 'static,
+{
     let (tx, mut rx) = mpsc::channel::<AppEvent>(200);
     let mut event_stream = event::EventStream::new();
     spawn_metrics_poller(tx.clone());
