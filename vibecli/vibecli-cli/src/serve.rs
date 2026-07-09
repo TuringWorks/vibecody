@@ -10,14 +10,14 @@
 //! | POST   | `/chat`                   | Single-turn chat (non-streaming)     |
 //! | POST   | `/chat/stream`            | Streaming chat as SSE                |
 //! | POST   | `/agent`                  | Start an agent task → returns `{session_id}` |
-//! | GET    | `/stream/:session_id`     | SSE stream of agent events           |
+//! | GET    | `/stream/{session_id}`     | SSE stream of agent events           |
 //! | GET    | `/jobs`                   | List all persisted job records       |
-//! | GET    | `/jobs/:id`               | Get a single job record              |
-//! | POST   | `/jobs/:id/cancel`        | Cancel a running job                 |
+//! | GET    | `/jobs/{id}`               | Get a single job record              |
+//! | POST   | `/jobs/{id}/cancel`        | Cancel a running job                 |
 //! | GET    | `/sessions`               | HTML index of all agent sessions     |
 //! | GET    | `/sessions.json`          | JSON list of all sessions            |
-//! | GET    | `/view/:id`               | HTML page for a specific session     |
-//! | GET    | `/share/:id`              | Shareable readonly session view (adds "Shared" banner) |
+//! | GET    | `/view/{id}`               | HTML page for a specific session     |
+//! | GET    | `/share/{id}`              | Shareable readonly session view (adds "Shared" banner) |
 //! | POST   | `/memory/add`             | Add a cognitive memory               |
 //! | POST   | `/memory/query`           | Semantic query with composite scoring |
 //! | GET    | `/memory/list`            | List all memories                    |
@@ -1751,7 +1751,7 @@ async fn list_tasks(
     Ok(Json(tasks))
 }
 
-/// GET /api/tasks/:id — fetch one task.
+/// GET /api/tasks/{id} — fetch one task.
 async fn get_task(
     Path(id): Path<String>,
     State(_state): State<ServeState>,
@@ -1784,7 +1784,7 @@ struct UpdateTaskRequest {
     session_id: Option<String>,
 }
 
-/// PATCH /api/tasks/:id — update status and/or link a session.
+/// PATCH /api/tasks/{id} — update status and/or link a session.
 async fn update_task(
     Path(id): Path<String>,
     State(_state): State<ServeState>,
@@ -1833,7 +1833,7 @@ async fn update_task(
     Ok(Json(row))
 }
 
-/// Query params for `DELETE /api/tasks/:id`.
+/// Query params for `DELETE /api/tasks/{id}`.
 #[derive(Debug, serde::Deserialize)]
 struct DeleteTaskQuery {
     /// Permanently remove the task *now* instead of soft-deleting it. Goes
@@ -1847,7 +1847,7 @@ struct DeleteTaskQuery {
     remove_worktree: bool,
 }
 
-/// DELETE /api/tasks/:id — **soft-delete** a task by default: it moves to the
+/// DELETE /api/tasks/{id} — **soft-delete** a task by default: it moves to the
 /// Trashed state (recoverable, worktree untouched) and the reaper reclaims the
 /// worktree after the grace window. Pass `?purge=true` to remove it permanently
 /// now (still safe — unmerged work is preserved at `refs/trash/<id>`).
@@ -1893,7 +1893,7 @@ async fn delete_task(
         })));
     }
 
-    // Default: soft-delete (Trashed). Reversible via POST /api/tasks/:id/restore.
+    // Default: soft-delete (Trashed). Reversible via POST /api/tasks/{id}/restore.
     let trashed = store.trash(&id, now).map_err(|e| {
         json_error(
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -1908,7 +1908,7 @@ async fn delete_task(
     })))
 }
 
-/// POST /api/tasks/:id/archive — mark a task Archived: its branch is kept
+/// POST /api/tasks/{id}/archive — mark a task Archived: its branch is kept
 /// forever, the reaper frees the worktree directory, and restore re-creates it.
 async fn archive_task(
     Path(id): Path<String>,
@@ -1937,7 +1937,7 @@ async fn archive_task(
     Ok(Json(serde_json::json!({ "archived": true })))
 }
 
-/// POST /api/tasks/:id/restore — bring a Trashed/Archived task back to Active,
+/// POST /api/tasks/{id}/restore — bring a Trashed/Archived task back to Active,
 /// re-materializing its worktree from the (possibly preserved) branch.
 async fn restore_task(
     Path(id): Path<String>,
@@ -1972,7 +1972,7 @@ async fn restore_task(
     })))
 }
 
-/// POST /api/tasks/:id/merge — merge the task's worktree branch back into the
+/// POST /api/tasks/{id}/merge — merge the task's worktree branch back into the
 /// project's current branch, then (on success) remove the worktree and delete
 /// the task row. On merge conflict the merge is aborted and the task is left
 /// intact so the user can resolve it manually. Tasks with no worktree fall
@@ -2064,7 +2064,7 @@ async fn merge_task(
     })))
 }
 
-/// GET /api/tasks/:id/history — reconstruct a task's conversation from the
+/// GET /api/tasks/{id}/history — reconstruct a task's conversation from the
 /// durable `job_events` log so a finished chat can be re-rendered in VibeX
 /// (VX bug-3). Returns the task title/status plus the ordered event payloads
 /// (`replay_events` reads from persistence, so this works after a run ends).
@@ -2904,7 +2904,7 @@ async fn v1_list_tasks(State(state): State<ServeState>) -> impl IntoResponse {
     Json(serde_json::json!({ "tasks": statuses, "total": statuses.len() }))
 }
 
-/// GET /v1/tasks/:id — Get task status.
+/// GET /v1/tasks/{id} — Get task status.
 async fn v1_get_task(State(state): State<ServeState>, Path(id): Path<String>) -> impl IntoResponse {
     match state.job_manager.get(&id).await {
         Some(job) => {
@@ -2933,7 +2933,7 @@ async fn v1_jobs_metrics(State(state): State<ServeState>) -> impl IntoResponse {
     Json(snap)
 }
 
-/// POST /v1/tasks/:id/cancel — Cancel a running task.
+/// POST /v1/tasks/{id}/cancel — Cancel a running task.
 async fn v1_cancel_task(
     State(state): State<ServeState>,
     Path(id): Path<String>,
@@ -2967,7 +2967,7 @@ async fn v1_cancel_task(
     }
 }
 
-/// POST /v1/tasks/:id/feedback — Submit human feedback on a task.
+/// POST /v1/tasks/{id}/feedback — Submit human feedback on a task.
 async fn v1_task_feedback(
     State(state): State<ServeState>,
     Path(id): Path<String>,
@@ -3041,7 +3041,7 @@ async fn v1_create_browse(
     (StatusCode::CREATED, Json(status)).into_response()
 }
 
-/// GET /v1/browse/:id — Get browse task status.
+/// GET /v1/browse/{id} — Get browse task status.
 async fn v1_get_browse(
     State(state): State<ServeState>,
     Path(id): Path<String>,
@@ -3070,7 +3070,7 @@ async fn v1_get_browse(
     }
 }
 
-/// GET /v1/browse/:id/screenshots — Get screenshot history.
+/// GET /v1/browse/{id}/screenshots — Get screenshot history.
 async fn v1_browse_screenshots(
     State(state): State<ServeState>,
     Path(id): Path<String>,
@@ -3120,7 +3120,7 @@ async fn v1_browse_screenshots(
     }
 }
 
-/// POST /v1/browse/:id/intervene — Human takeover of a browse session.
+/// POST /v1/browse/{id}/intervene — Human takeover of a browse session.
 async fn v1_browse_intervene(
     State(state): State<ServeState>,
     Path(id): Path<String>,
@@ -3277,7 +3277,7 @@ fn default_generator() -> String {
     "heuristic".to_string()
 }
 
-/// PATCH /v1/recap/:id request body. All three fields required — a
+/// PATCH /v1/recap/{id} request body. All three fields required — a
 /// user edit replaces the prior heuristic/LLM output wholesale. The
 /// row's id, subject_id, last_message_id, generated_at, and artifacts
 /// are preserved by the daemon (artifacts are inferred from steps,
@@ -3773,7 +3773,7 @@ async fn v1_recap_delete(
 // ── /goal — G1.2 daemon HTTP CRUD ──────────────────────────────────────────
 //
 // Routes registered in `authed_routes` below: POST/GET/PATCH/DELETE
-// `/v1/goals` + `/v1/goals/:id`. Plan/link/start/recap routes added in
+// `/v1/goals` + `/v1/goals/{id}`. Plan/link/start/recap routes added in
 // G1.3 / G1.6. All work happens in `pub(crate) do_v1_exec_goal_*`
 // helpers so they're unit-testable without spinning up a server.
 
@@ -4444,7 +4444,7 @@ async fn v1_skillopt_train(
 /// - `error` — once, on launch failure (e.g. unknown skill/provider)
 ///
 /// Keep-alive pings every 15s mirror [`chat_stream`]. The client may cancel
-/// the run at any time with `POST /v1/skillopt/cancel/:job`; the next epoch
+/// the run at any time with `POST /v1/skillopt/cancel/{job}`; the next epoch
 /// boundary observes the token, the run stops, and a final `done` event
 /// carries the `cancelled` state.
 async fn v1_skillopt_train_stream(
@@ -4881,7 +4881,7 @@ pub(crate) fn do_v1_exec_goal_start(
         kind: crate::exec_goal::GoalLinkKind::Session,
         target_id: session_id.clone(),
         linked_at: chrono::Utc::now(),
-        note: Some("auto-linked via /v1/goals/:id/start".to_string()),
+        note: Some("auto-linked via /v1/goals/{id}/start".to_string()),
     };
     let link_id = link.id.clone();
     if let Err(e) = store.insert_goal_link(&link) {
@@ -5140,7 +5140,7 @@ async fn v1_exec_goal_start(
 // aggregator returns a freeform JSON that the UI can render alongside
 // per-session recaps without conflating schemas.
 
-/// G4.5 — body for `POST /v1/goals/:id/recap`. Both fields default to
+/// G4.5 — body for `POST /v1/goals/{id}/recap`. Both fields default to
 /// `None`; when both are present (and the named provider is reachable)
 /// the daemon synthesizes the headline + bullets with the LLM and tags
 /// the response `recap_synthesizer: "llm"`. Otherwise the heuristic
@@ -6139,7 +6139,7 @@ struct EvalResultsUpsertResponse {
     upserted: usize,
 }
 
-/// POST `/v1/rl/eval/runs/:run_id/results?suite_id=<id>` — record one or
+/// POST `/v1/rl/eval/runs/{run_id}/results?suite_id=<id>` — record one or
 /// more eval metrics for `run_id` under `suite_id`. Idempotent: re-posting
 /// the same `(run_id, suite_id, metric_name)` overwrites the previous row.
 /// External eval harnesses (the sidecar's `eval` command, CI scripts,
@@ -6579,35 +6579,35 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/chat", post(chat))
         .route("/chat/stream", post(chat_stream))
         .route("/agent", post(start_agent))
-        .route("/stream/:session_id", get(stream_agent))
+        .route("/stream/{session_id}", get(stream_agent))
         .route("/jobs", get(list_jobs))
-        .route("/jobs/:id", get(get_job))
-        .route("/jobs/:id/cancel", post(cancel_job))
+        .route("/jobs/{id}", get(get_job))
+        .route("/jobs/{id}/cancel", post(cancel_job))
         // VibeX task API (VX-112): task-card CRUD + lifecycle status.
         .route("/api/tasks", post(create_task).get(list_tasks))
         .route(
-            "/api/tasks/:id",
+            "/api/tasks/{id}",
             get(get_task).patch(update_task).delete(delete_task),
         )
-        .route("/api/tasks/:id/merge", post(merge_task))
-        .route("/api/tasks/:id/archive", post(archive_task))
-        .route("/api/tasks/:id/restore", post(restore_task))
-        .route("/api/tasks/:id/history", get(task_history))
+        .route("/api/tasks/{id}/merge", post(merge_task))
+        .route("/api/tasks/{id}/archive", post(archive_task))
+        .route("/api/tasks/{id}/restore", post(restore_task))
+        .route("/api/tasks/{id}/history", get(task_history))
         // VibeX environment API (VX-109/202/110): read-only git + file inspection.
         .route("/api/vibex/git/status", get(vibex_git_status))
         .route("/api/vibex/git/diff", get(vibex_git_diff))
         .route("/api/vibex/files", get(vibex_files))
         .route("/collab/rooms", post(create_collab_room))
         .route("/collab/rooms", get(list_collab_rooms))
-        .route("/collab/rooms/:room_id/peers", get(list_collab_peers))
+        .route("/collab/rooms/{room_id}/peers", get(list_collab_peers))
         .route("/acp/v1/tasks", post(acp_create_task))
-        .route("/acp/v1/tasks/:id", get(acp_get_task))
+        .route("/acp/v1/tasks/{id}", get(acp_get_task))
         // Session viewer & skill webhook now require auth
         .route("/sessions", get(sessions_index_html))
         .route("/sessions.json", get(sessions_json))
-        .route("/view/:id", get(view_session))
-        .route("/share/:id", get(share_session))
-        .route("/webhook/skill/:skill_name", post(skill_webhook_handler))
+        .route("/view/{id}", get(view_session))
+        .route("/share/{id}", get(share_session))
+        .route("/webhook/skill/{skill_name}", post(skill_webhook_handler))
         // OpenMemory — cognitive memory engine REST API
         .route("/memory/add", post(memory_add))
         .route("/memory/query", post(memory_query))
@@ -6643,14 +6643,14 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         // Agent-as-a-Service v1 API
         .route("/v1/tasks", post(v1_create_task))
         .route("/v1/tasks", get(v1_list_tasks))
-        .route("/v1/tasks/:id", get(v1_get_task))
-        .route("/v1/tasks/:id/cancel", post(v1_cancel_task))
-        .route("/v1/tasks/:id/feedback", post(v1_task_feedback))
+        .route("/v1/tasks/{id}", get(v1_get_task))
+        .route("/v1/tasks/{id}/cancel", post(v1_cancel_task))
+        .route("/v1/tasks/{id}/feedback", post(v1_task_feedback))
         .route("/v1/metrics/jobs", get(v1_jobs_metrics))
         .route("/v1/browse", post(v1_create_browse))
-        .route("/v1/browse/:id", get(v1_get_browse))
-        .route("/v1/browse/:id/screenshots", get(v1_browse_screenshots))
-        .route("/v1/browse/:id/intervene", post(v1_browse_intervene))
+        .route("/v1/browse/{id}", get(v1_get_browse))
+        .route("/v1/browse/{id}/screenshots", get(v1_browse_screenshots))
+        .route("/v1/browse/{id}/intervene", post(v1_browse_intervene))
         // DREAD #1 Slice G part 2 — tainted-argument confirmation bridge.
         // SSE stream of pending prompts; POST a decision to resolve one.
         // See docs/security/tainted-data-flow.md §8.
@@ -6660,92 +6660,92 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         // See docs/design/rl-os/01-persistence.md
         .route("/v1/rl/runs", post(rl_create_run))
         .route("/v1/rl/runs", get(rl_list_runs_h))
-        .route("/v1/rl/runs/:id", get(rl_get_run))
-        .route("/v1/rl/runs/:id", axum::routing::delete(rl_delete_run))
-        .route("/v1/rl/runs/:id/start", post(rl_start_run))
-        .route("/v1/rl/runs/:id/stop", post(rl_stop_run))
-        .route("/v1/rl/runs/:id/cancel", post(rl_cancel_run))
-        .route("/v1/rl/runs/:id/metrics", get(rl_get_metrics))
-        .route("/v1/rl/runs/:id/episodes", get(rl_get_episodes))
-        .route("/v1/rl/runs/:id/artifacts", get(rl_get_artifacts))
+        .route("/v1/rl/runs/{id}", get(rl_get_run))
+        .route("/v1/rl/runs/{id}", axum::routing::delete(rl_delete_run))
+        .route("/v1/rl/runs/{id}/start", post(rl_start_run))
+        .route("/v1/rl/runs/{id}/stop", post(rl_stop_run))
+        .route("/v1/rl/runs/{id}/cancel", post(rl_cancel_run))
+        .route("/v1/rl/runs/{id}/metrics", get(rl_get_metrics))
+        .route("/v1/rl/runs/{id}/episodes", get(rl_get_episodes))
+        .route("/v1/rl/runs/{id}/artifacts", get(rl_get_artifacts))
         // RL-OS slice 3 — environment registry
         .route("/v1/rl/envs", get(rl_list_envs_h))
-        .route("/v1/rl/envs/:id", get(rl_get_env_h))
-        .route("/v1/rl/envs/:id", axum::routing::delete(rl_delete_env_h))
+        .route("/v1/rl/envs/{id}", get(rl_get_env_h))
+        .route("/v1/rl/envs/{id}", axum::routing::delete(rl_delete_env_h))
         .route("/v1/rl/envs/refresh", post(rl_refresh_envs_h))
         .route("/v1/rl/envs/custom", post(rl_register_custom_env_h))
         // RL-OS slice 4 — eval suites + results + compare
         .route("/v1/rl/eval/suites", post(rl_eval_create_suite))
         .route("/v1/rl/eval/suites", get(rl_eval_list_suites))
-        .route("/v1/rl/eval/suites/:id", get(rl_eval_get_suite))
+        .route("/v1/rl/eval/suites/{id}", get(rl_eval_get_suite))
         .route(
-            "/v1/rl/eval/suites/:id",
+            "/v1/rl/eval/suites/{id}",
             axum::routing::delete(rl_eval_delete_suite),
         )
         .route("/v1/rl/eval/results", get(rl_eval_list_results))
         .route(
-            "/v1/rl/eval/runs/:run_id/results",
+            "/v1/rl/eval/runs/{run_id}/results",
             post(rl_eval_upsert_results),
         )
         .route("/v1/rl/eval/compare", post(rl_eval_compare))
         // RL-OS slice 5 — policy registry + lineage + reward decomposition
         .route("/v1/rl/policies", post(rl_register_policy))
         .route("/v1/rl/policies", get(rl_list_policies_h))
-        .route("/v1/rl/policies/:id", get(rl_get_policy))
+        .route("/v1/rl/policies/{id}", get(rl_get_policy))
         .route(
-            "/v1/rl/policies/:id",
+            "/v1/rl/policies/{id}",
             axum::routing::delete(rl_delete_policy),
         )
-        .route("/v1/rl/policies/:id/lineage", get(rl_get_policy_lineage))
-        .route("/v1/rl/policies/:id/card", get(rl_get_policy_card))
+        .route("/v1/rl/policies/{id}/lineage", get(rl_get_policy_lineage))
+        .route("/v1/rl/policies/{id}/card", get(rl_get_policy_card))
         .route(
-            "/v1/rl/runs/:id/reward-components",
+            "/v1/rl/runs/{id}/reward-components",
             get(rl_get_reward_components),
         )
         // RL-OS slice 6 — deployment management (inference wired in 6.5)
         .route("/v1/rl/serve/deployments", post(rl_create_deployment))
         .route("/v1/rl/serve/deployments", get(rl_list_deployments_h))
-        .route("/v1/rl/serve/deployments/:id", get(rl_get_deployment))
+        .route("/v1/rl/serve/deployments/{id}", get(rl_get_deployment))
         .route(
-            "/v1/rl/serve/deployments/:id/promote",
+            "/v1/rl/serve/deployments/{id}/promote",
             post(rl_promote_deployment),
         )
         .route(
-            "/v1/rl/serve/deployments/:id/rollback",
+            "/v1/rl/serve/deployments/{id}/rollback",
             post(rl_rollback_deployment),
         )
         .route(
-            "/v1/rl/serve/deployments/:id/stop",
+            "/v1/rl/serve/deployments/{id}/stop",
             post(rl_stop_deployment),
         )
         .route(
-            "/v1/rl/serve/deployments/:id/health",
+            "/v1/rl/serve/deployments/{id}/health",
             get(rl_get_deployment_health_h),
         )
-        .route("/v1/rl/serve/:name/act", post(rl_serve_act))
+        .route("/v1/rl/serve/{name}/act", post(rl_serve_act))
         // RL-OS slice 7 — RLHF + Optimization + Multi-Agent
         .route("/v1/rl/rlhf/preferences", post(rl_create_preference))
         .route("/v1/rl/rlhf/preferences", get(rl_list_preferences))
         .route(
-            "/v1/rl/rlhf/preferences/:id/judge",
+            "/v1/rl/rlhf/preferences/{id}/judge",
             post(rl_judge_preference),
         )
-        .route("/v1/rl/rlhf/runs/:id/alignment", get(rl_alignment_metrics))
+        .route("/v1/rl/rlhf/runs/{id}/alignment", get(rl_alignment_metrics))
         .route("/v1/rl/optimization/runs", get(rl_optimization_runs_h))
         .route("/v1/rl/multi-agent/runs", get(rl_multi_agent_runs_h))
         // Recap & Resume v1 — F1.2 (Session-only, heuristic-only)
         .route("/v1/recap", post(v1_recap_post))
         .route("/v1/recap", get(v1_recap_list))
-        .route("/v1/recap/:id", get(v1_recap_get))
-        .route("/v1/recap/:id", axum::routing::patch(v1_recap_patch))
-        .route("/v1/recap/:id", axum::routing::delete(v1_recap_delete))
+        .route("/v1/recap/{id}", get(v1_recap_get))
+        .route("/v1/recap/{id}", axum::routing::patch(v1_recap_patch))
+        .route("/v1/recap/{id}", axum::routing::delete(v1_recap_delete))
         // Recap & Resume v1 — F1.3 (resume handles)
         .route("/v1/resume", post(v1_resume_post))
-        .route("/v1/resume/:handle", get(v1_resume_get))
+        .route("/v1/resume/{handle}", get(v1_resume_get))
         // /goal — G1.2 CRUD + G1.3 plan/link/start.
         .route("/v1/goals", post(v1_exec_goal_post))
         .route("/v1/goals", get(v1_exec_goal_list))
-        // G4.4 — register `/v1/goals/current` before the `/v1/goals/:id`
+        // G4.4 — register `/v1/goals/current` before the `/v1/goals/{id}`
         // parameterized routes so axum's matchit picks the static path.
         .route("/v1/goals/current", get(v1_exec_goal_current_get))
         .route(
@@ -6756,22 +6756,22 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
             "/v1/goals/current",
             axum::routing::delete(v1_exec_goal_current_delete),
         )
-        .route("/v1/goals/:id", get(v1_exec_goal_get))
-        .route("/v1/goals/:id", axum::routing::patch(v1_exec_goal_patch))
-        .route("/v1/goals/:id", axum::routing::delete(v1_exec_goal_delete))
-        .route("/v1/goals/:id/plan", post(v1_exec_goal_plan))
-        .route("/v1/goals/:id/link", post(v1_exec_goal_link))
-        .route("/v1/goals/:id/start", post(v1_exec_goal_start))
-        .route("/v1/goals/:id/recap", post(v1_exec_goal_recap))
-        .route("/v1/goals/:id/children", get(v1_exec_goal_children))
-        .route("/v1/goals/:id/tree", get(v1_exec_goal_tree))
+        .route("/v1/goals/{id}", get(v1_exec_goal_get))
+        .route("/v1/goals/{id}", axum::routing::patch(v1_exec_goal_patch))
+        .route("/v1/goals/{id}", axum::routing::delete(v1_exec_goal_delete))
+        .route("/v1/goals/{id}/plan", post(v1_exec_goal_plan))
+        .route("/v1/goals/{id}/link", post(v1_exec_goal_link))
+        .route("/v1/goals/{id}/start", post(v1_exec_goal_start))
+        .route("/v1/goals/{id}/recap", post(v1_exec_goal_recap))
+        .route("/v1/goals/{id}/children", get(v1_exec_goal_children))
+        .route("/v1/goals/{id}/tree", get(v1_exec_goal_tree))
         // /graph/* — kodegraph code-knowledge-graph (no LLM call; provider-agnostic rule moot).
         .route("/v1/graph/build", post(v1_graph_build))
         .route("/v1/graph/status", get(v1_graph_status))
         .route("/v1/graph/query", post(v1_graph_query))
-        .route("/v1/graph/node/:name", get(v1_graph_node))
-        .route("/v1/graph/neighbors/:name", get(v1_graph_neighbors))
-        .route("/v1/graph/path/:from/:to", get(v1_graph_path))
+        .route("/v1/graph/node/{name}", get(v1_graph_node))
+        .route("/v1/graph/neighbors/{name}", get(v1_graph_neighbors))
+        .route("/v1/graph/path/{from}/{to}", get(v1_graph_path))
         .route("/v1/graph/blast", post(v1_graph_blast))
         .route("/v1/graph/report", get(v1_graph_report))
         // SkillForge — SkillLens (analyse) + SkillOpt (train). Catalog list/
@@ -6779,15 +6779,15 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         // provider+model in the body (toolbar selection), never config.toml.
         // See `skillforge_index.rs` + notes/skillforge/.
         .route("/v1/skilllens/skills", get(v1_skilllens_skills))
-        .route("/v1/skilllens/skills/:name", get(v1_skilllens_skill))
+        .route("/v1/skilllens/skills/{name}", get(v1_skilllens_skill))
         .route("/v1/skilllens/refresh", post(v1_skilllens_refresh))
         .route("/v1/skilllens/convert", post(v1_skilllens_convert))
         .route("/v1/skilllens/extract", post(v1_skilllens_extract))
         .route("/v1/skilllens/score", post(v1_skilllens_score))
         .route("/v1/skillopt/train", post(v1_skillopt_train))
         .route("/v1/skillopt/train/stream", post(v1_skillopt_train_stream))
-        .route("/v1/skillopt/status/:job", get(v1_skillopt_status))
-        .route("/v1/skillopt/cancel/:job", post(v1_skillopt_cancel))
+        .route("/v1/skillopt/status/{job}", get(v1_skillopt_status))
+        .route("/v1/skillopt/cancel/{job}", post(v1_skillopt_cancel))
         .route("/v1/skillopt/promote", post(v1_skillopt_promote))
         // Recap & Resume v1 — D1.1 (diffcomplete chain autosave).
         // Patent re-audit: PASS (1–5 unchanged). Writes happen only
@@ -6796,44 +6796,44 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         // Mobile Gateway — machine registration & dispatch (iOS/Android remote management)
         .route("/mobile/machines", get(mobile_list_machines))
         .route("/mobile/machines", post(mobile_register_machine))
-        .route("/mobile/machines/:id", get(mobile_get_machine))
+        .route("/mobile/machines/{id}", get(mobile_get_machine))
         .route(
-            "/mobile/machines/:id",
+            "/mobile/machines/{id}",
             axum::routing::delete(mobile_unregister_machine),
         )
-        .route("/mobile/machines/:id/heartbeat", post(mobile_heartbeat))
+        .route("/mobile/machines/{id}/heartbeat", post(mobile_heartbeat))
         .route("/mobile/pairing", post(mobile_create_pairing))
-        .route("/mobile/pairing/:id/accept", post(mobile_accept_pairing))
-        .route("/mobile/pairing/:id/verify", post(mobile_verify_pin))
-        .route("/mobile/pairing/:id/reject", post(mobile_reject_pairing))
+        .route("/mobile/pairing/{id}/accept", post(mobile_accept_pairing))
+        .route("/mobile/pairing/{id}/verify", post(mobile_verify_pin))
+        .route("/mobile/pairing/{id}/reject", post(mobile_reject_pairing))
         .route("/mobile/devices", get(mobile_list_devices))
         .route(
-            "/mobile/devices/:id/push-token",
+            "/mobile/devices/{id}/push-token",
             post(mobile_update_push_token),
         )
         .route(
-            "/mobile/devices/:device_id/machines/:machine_id/unpair",
+            "/mobile/devices/{device_id}/machines/{machine_id}/unpair",
             post(mobile_unpair),
         )
         .route("/mobile/dispatch", post(mobile_dispatch))
-        .route("/mobile/dispatch/:id", get(mobile_get_dispatch))
-        .route("/mobile/dispatch/:id/cancel", post(mobile_cancel_dispatch))
-        .route("/mobile/dispatch/:id/update", post(mobile_update_dispatch))
+        .route("/mobile/dispatch/{id}", get(mobile_get_dispatch))
+        .route("/mobile/dispatch/{id}/cancel", post(mobile_cancel_dispatch))
+        .route("/mobile/dispatch/{id}/update", post(mobile_update_dispatch))
         .route(
-            "/mobile/dispatches/machine/:id",
+            "/mobile/dispatches/machine/{id}",
             get(mobile_machine_dispatches),
         )
         .route(
-            "/mobile/dispatches/device/:id",
+            "/mobile/dispatches/device/{id}",
             get(mobile_device_dispatches),
         )
         .route(
-            "/mobile/notifications/:device_id",
+            "/mobile/notifications/{device_id}",
             get(mobile_notifications),
         )
         .route("/mobile/stats", get(mobile_stats))
         .route("/mobile/sessions", get(mobile_sessions))
-        .route("/mobile/sessions/:id/context", get(mobile_session_context))
+        .route("/mobile/sessions/{id}/context", get(mobile_session_context))
         // F3.x — cross-device active session. Mobile claims with PUT;
         // VibeUI polls GET to follow the claim. Mirrors the
         // /watch/active-session pattern from W1.1.
@@ -6856,7 +6856,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/pair", get(pairing_handler))
         .route("/acp/v1/capabilities", get(acp_capabilities))
         .route("/v1/capabilities", get(v1_capabilities))
-        .route("/ws/collab/:room_id", get(ws_collab_handler))
+        .route("/ws/collab/{room_id}", get(ws_collab_handler))
         .route("/mobile/beacon", get(mobile_beacon))
         .route_layer(middleware::from_fn_with_state(public_limiter, rate_limit));
 
@@ -7535,7 +7535,7 @@ async fn handle_collab_ws(
                 message: e.to_string(),
             };
             if let Ok(json) = serde_json::to_string(&err_msg) {
-                let _ = socket.send(WsMessage::Text(json)).await;
+                let _ = socket.send(WsMessage::Text(json.into())).await;
             }
             return;
         }
@@ -7549,14 +7549,14 @@ async fn handle_collab_ws(
         peers,
     };
     let welcome_json = serde_json::to_string(&welcome).unwrap_or_default();
-    if socket.send(WsMessage::Text(welcome_json)).await.is_err() {
+    if socket.send(WsMessage::Text(welcome_json.into())).await.is_err() {
         room.remove_peer(&peer_id).await;
         return;
     }
 
     // Send current doc state as SyncStep1
     let state_msg = room.encode_state().await;
-    if socket.send(WsMessage::Binary(state_msg)).await.is_err() {
+    if socket.send(WsMessage::Binary(state_msg.into())).await.is_err() {
         room.remove_peer(&peer_id).await;
         return;
     }
@@ -7581,11 +7581,11 @@ async fn handle_collab_ws(
                 match msg {
                     Some(Ok(WsMessage::Binary(data))) => {
                         // Binary frame = Yjs sync protocol
-                        let data_vec: Vec<u8> = data;
+                        let data_vec: Vec<u8> = data.into();
                         match room.apply_message(&data_vec).await {
                             Ok(Some(reply)) => {
                                 // Send reply (e.g. SyncStep2) back to sender
-                                let _ = socket.send(WsMessage::Binary(reply)).await;
+                                let _ = socket.send(WsMessage::Binary(reply.into())).await;
                             }
                             Ok(None) => {}
                             Err(e) => {
@@ -7621,13 +7621,13 @@ async fn handle_collab_ws(
                         if let Ok(text) = std::str::from_utf8(data) {
                             if text.starts_with('{') {
                                 // JSON text message
-                                let _ = socket.send(WsMessage::Text(text.to_string())).await;
+                                let _ = socket.send(WsMessage::Text(text.to_string().into())).await;
                             } else {
-                                let _ = socket.send(WsMessage::Binary(data.clone())).await;
+                                let _ = socket.send(WsMessage::Binary(data.clone().into())).await;
                             }
                         } else {
                             // Binary Yjs update
-                            let _ = socket.send(WsMessage::Binary(data.clone())).await;
+                            let _ = socket.send(WsMessage::Binary(data.clone().into())).await;
                         }
                     }
                     Err(_) => break, // channel closed
@@ -7727,7 +7727,7 @@ async fn sessions_json() -> impl IntoResponse {
     }
 }
 
-/// Shareable readonly view of a session — identical to `/view/:id` but injects
+/// Shareable readonly view of a session — identical to `/view/{id}` but injects
 /// a green "Shared" banner and a `noindex` meta tag so search engines don't index it.
 async fn share_session(Path(id): Path<String>) -> impl IntoResponse {
     match SessionStore::open_default() {
@@ -9238,7 +9238,7 @@ async fn mobile_sessions(State(state): State<ServeState>) -> Json<serde_json::Va
     Json(serde_json::json!({ "sessions": sessions }))
 }
 
-/// `GET /mobile/sessions/:id/context` — auth required.
+/// `GET /mobile/sessions/{id}/context` — auth required.
 ///
 /// Returns a HandoffContext JSON bundle for the requested session so the
 /// mobile app can "continue" it with full conversation history. Phase 7
@@ -9286,7 +9286,7 @@ async fn mobile_session_context(
     }
 }
 
-/// Pure builder for the `/mobile/sessions/:id/context` response body.
+/// Pure builder for the `/mobile/sessions/{id}/context` response body.
 // ── F3.x: cross-device active session ───────────────────────────────────────
 
 /// `PUT /mobile/active-session` request body.
@@ -10988,7 +10988,7 @@ mod tests {
             assert_eq!(json.as_array().unwrap().len(), 0);
         }
 
-        // ── GET /jobs/:id for nonexistent job → 404 ──────────────────
+        // ── GET /jobs/{id} for nonexistent job → 404 ──────────────────
 
         #[tokio::test]
         async fn get_nonexistent_job_returns_404() {
@@ -11002,7 +11002,7 @@ mod tests {
             assert_eq!(resp.status(), StatusCode::NOT_FOUND);
         }
 
-        // ── POST /jobs/:id/cancel for nonexistent job → 404 ──────────
+        // ── POST /jobs/{id}/cancel for nonexistent job → 404 ──────────
 
         #[tokio::test]
         async fn cancel_nonexistent_job_returns_404() {
@@ -11272,7 +11272,7 @@ mod tests {
             let (status, _) = send(&app, "POST", "/v1/goals", tok, Some(dup)).await;
             assert_eq!(status, StatusCode::CONFLICT);
 
-            // 5. GET /v1/goals/:id — detail + links.
+            // 5. GET /v1/goals/{id} — detail + links.
             let (status, body) =
                 send(&app, "GET", &format!("/v1/goals/{goal_id}"), tok, None).await;
             assert_eq!(status, StatusCode::OK);
@@ -11332,7 +11332,7 @@ mod tests {
             assert_eq!(status, StatusCode::CREATED);
 
             // 10. Create a child goal, reparent it under our goal,
-            //     and confirm GET /:id/children returns just it.
+            //     and confirm GET /{id}/children returns just it.
             let (_, child_body) = send(
                 &app,
                 "POST",
@@ -11404,7 +11404,7 @@ mod tests {
             }
         }
 
-        // ── GET /jobs/:id 404 body contains error message ───────────
+        // ── GET /jobs/{id} 404 body contains error message ───────────
 
         #[tokio::test]
         async fn get_nonexistent_job_body_has_error_message() {

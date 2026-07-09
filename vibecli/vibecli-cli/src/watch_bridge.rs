@@ -14,11 +14,11 @@
 //!   POST /watch/refresh-token                — renew access token
 //!   POST /watch/wrist                        — wrist-on/off event
 //!   GET  /watch/sessions                     — list recent sessions (watch-optimised)
-//!   GET  /watch/sessions/:id/messages        — get messages for session
-//!   GET  /watch/stream/:id                   — SSE stream (watch-optimised events)
+//!   GET  /watch/sessions/{id}/messages        — get messages for session
+//!   GET  /watch/stream/{id}                   — SSE stream (watch-optimised events)
 //!   POST /watch/dispatch                     — send message / start session
 //!   GET  /watch/devices                      — list registered watch devices
-//!   DELETE /watch/devices/:id                — revoke watch device
+//!   DELETE /watch/devices/{id}                — revoke watch device
 //!
 //! This module is imported and wired into `serve.rs` via `build_watch_router()`.
 
@@ -185,14 +185,14 @@ pub fn build_watch_router(state: WatchBridgeState) -> Router {
         .route("/refresh-token", post(watch_refresh_token))
         .route("/wrist", post(watch_wrist_event))
         .route("/sessions", get(watch_list_sessions))
-        .route("/sessions/:id/messages", get(watch_session_messages))
-        .route("/sessions/:id/recap", get(watch_session_recap))
+        .route("/sessions/{id}/messages", get(watch_session_messages))
+        .route("/sessions/{id}/recap", get(watch_session_recap))
         .route("/jobs", get(watch_list_jobs))
-        .route("/jobs/:id/recap", get(watch_job_recap))
+        .route("/jobs/{id}/recap", get(watch_job_recap))
         .route("/goals", get(watch_list_goals))
-        .route("/goals/:id", get(watch_get_goal))
-        .route("/goals/:id/start", post(watch_start_goal))
-        .route("/stream/:id", get(watch_stream))
+        .route("/goals/{id}", get(watch_get_goal))
+        .route("/goals/{id}/start", post(watch_start_goal))
+        .route("/stream/{id}", get(watch_stream))
         .route("/dispatch", post(watch_dispatch))
         .route(
             "/active-session",
@@ -204,7 +204,7 @@ pub fn build_watch_router(state: WatchBridgeState) -> Router {
             get(watch_get_sandbox_chat_session).put(watch_set_sandbox_chat_session),
         )
         .route("/devices", get(watch_list_devices))
-        .route("/devices/:id", delete(watch_revoke_device))
+        .route("/devices/{id}", delete(watch_revoke_device))
         // DREAD #1 Slice G part 3 (watch) — tainted-argument bridge.
         // Bridges to the same `HttpPromptQueue` powering /v1/tainted/*
         // so a prompt enqueued by an agent's tool-call surfaces on
@@ -221,7 +221,7 @@ pub fn build_watch_router(state: WatchBridgeState) -> Router {
         // a compact catalog count + a one-line skill summary. The heavy
         // train/promote mutations stay desktop-only. Reuses serve.rs helpers.
         .route("/skilllens/skills", get(watch_skilllens_skills))
-        .route("/skilllens/skills/:name", get(watch_skilllens_skill))
+        .route("/skilllens/skills/{name}", get(watch_skilllens_skill))
         .with_state(state)
 }
 
@@ -300,7 +300,7 @@ async fn watch_skilllens_skills() -> impl IntoResponse {
     (s, Json(compact))
 }
 
-/// `GET /skilllens/skills/:name` → one-line `{name, summary, category}`.
+/// `GET /skilllens/skills/{name}` → one-line `{name, summary, category}`.
 async fn watch_skilllens_skill(
     axum::extract::Path(name): axum::extract::Path<String>,
 ) -> impl IntoResponse {
@@ -500,7 +500,7 @@ async fn watch_list_sessions(
     Json(serde_json::json!({"sessions": summaries})).into_response()
 }
 
-/// GET /watch/sessions/:id/messages — paginated message list.
+/// GET /watch/sessions/{id}/messages — paginated message list.
 /// Auth: Watch-Token (watch/wear) OR Bearer (phone apps / VibeUI).
 async fn watch_session_messages(
     State(state): State<WatchBridgeState>,
@@ -558,7 +558,7 @@ async fn watch_session_messages(
     .into_response()
 }
 
-/// GET /watch/sessions/:id/recap — read-only freshest recap for a session.
+/// GET /watch/sessions/{id}/recap — read-only freshest recap for a session.
 ///
 /// Returns `{"recap": <Recap json>}` when a recap exists, or
 /// `{"recap": null}` when none has been generated yet. Watch never
@@ -638,7 +638,7 @@ async fn watch_list_jobs(
     Json(serde_json::json!({"jobs": slim})).into_response()
 }
 
-/// W1.2 — GET /watch/jobs/:id/recap — read-only freshest job recap.
+/// W1.2 — GET /watch/jobs/{id}/recap — read-only freshest job recap.
 /// Mirrors `watch_session_recap` but reads from `jobs.db` (J1.1
 /// schema, decrypted on read). Watch never generates recaps; the
 /// daemon's J1.2 terminal-state hook owns generation.
@@ -671,7 +671,7 @@ async fn watch_job_recap(
     }
 }
 
-/// GET /watch/stream/:id — SSE stream with Watch-optimised payloads.
+/// GET /watch/stream/{id} — SSE stream with Watch-optimised payloads.
 async fn watch_stream(
     State(state): State<WatchBridgeState>,
     headers: axum::http::HeaderMap,
@@ -1058,7 +1058,7 @@ async fn watch_list_devices(
     Json(serde_json::json!({"devices": safe})).into_response()
 }
 
-/// DELETE /watch/devices/:id — revoke a watch device (requires bearer token).
+/// DELETE /watch/devices/{id} — revoke a watch device (requires bearer token).
 async fn watch_revoke_device(
     State(state): State<WatchBridgeState>,
     headers: axum::http::HeaderMap,
@@ -1087,8 +1087,8 @@ async fn watch_revoke_device(
 //
 // `/watch/goals` returns a compact summary list (id, title, status,
 // workspace short-name) so the watch tile/picker can render without
-// pulling full plan/link payloads. `/watch/goals/:id` returns the full
-// goal + links — same shape as `/v1/goals/:id` since the watch detail
+// pulling full plan/link payloads. `/watch/goals/{id}` returns the full
+// goal + links — same shape as `/v1/goals/{id}` since the watch detail
 // view shows everything anyway.
 
 #[derive(serde::Serialize)]

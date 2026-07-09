@@ -82,7 +82,7 @@ pub async fn serve_agent(agent: Shared) -> Result<ServerHandle, String> {
     let app = Router::new()
         .route("/a2a/card", get(get_card))
         .route("/a2a/tasks", post(submit_task))
-        .route("/a2a/tasks/:id", get(get_task))
+        .route("/a2a/tasks/{id}", get(get_task))
         .route("/a2a/events", get(sse_events))
         .with_state(state);
 
