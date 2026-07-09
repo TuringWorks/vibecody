@@ -6,7 +6,7 @@ minSdk = "30"
 
 # AndroidX
 activityCompose = "1.13.0"
-lifecycleRuntimeCompose = "2.10.0"
+lifecycleRuntimeCompose = "2.11.0"
 
 # Wear OS Compose
 wearCompose = "1.6.2"
