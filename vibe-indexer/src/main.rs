@@ -9,7 +9,7 @@
 //! | Method | Path                  | Description                          |
 //! |--------|-----------------------|--------------------------------------|
 //! | POST   | `/index`              | Start a new indexing job             |
-//! | GET    | `/index/status/:id`   | Poll job progress                    |
+//! | GET    | `/index/status/{id}`   | Poll job progress                    |
 //! | POST   | `/search`             | Semantic search over indexed content |
 //! | GET    | `/health`             | Liveness probe                       |
 //!
@@ -205,7 +205,7 @@ async fn start_index(
     .into_response()
 }
 
-/// GET /index/status/:id — poll a job.
+/// GET /index/status/{id} — poll a job.
 async fn index_status(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
@@ -365,7 +365,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/health", get(health))
         .route("/index", post(start_index))
         .route("/index/jobs", get(list_jobs))
-        .route("/index/status/:id", get(index_status))
+        .route("/index/status/{id}", get(index_status))
         .route("/search", post(search))
         .with_state(state)
         .layer(
@@ -378,7 +378,7 @@ async fn main() -> anyhow::Result<()> {
     let addr = format!("0.0.0.0:{}", port);
     info!("vibe-indexer listening on http://{}", addr);
     info!("  POST /index           — start indexing job");
-    info!("  GET  /index/status/:id — poll job");
+    info!("  GET  /index/status/{{id}} — poll job");
     info!("  GET  /index/jobs       — list all jobs");
     info!("  POST /search          — semantic search");
     info!("  GET  /health          — liveness probe");
