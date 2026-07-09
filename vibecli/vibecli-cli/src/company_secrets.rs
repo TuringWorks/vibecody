@@ -136,7 +136,7 @@ fn load_from_keychain_or_file(company_id: &str) -> Option<[u8; 32]> {
 fn cleanup_legacy(company_id: &str) {
     let account = key_account(company_id);
     if let Ok(entry) = keyring::Entry::new(KEYCHAIN_SERVICE, account) {
-        let _ = entry.delete_password();
+        let _ = entry.delete_credential();
     }
     let _ = std::fs::remove_file(legacy_key_path(company_id));
 }
