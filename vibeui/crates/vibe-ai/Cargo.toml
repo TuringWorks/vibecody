@@ -42,7 +42,7 @@ testing = []
 
 [dev-dependencies]
 tempfile = "3"
-cucumber = { version = "0.20", features = ["macros"] }
+cucumber = { version = "0.21", features = ["macros"] }
 tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
 
 [[test]]
