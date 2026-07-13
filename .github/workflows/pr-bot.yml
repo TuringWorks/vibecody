@@ -45,7 +45,7 @@ jobs:
 
       # ── React with eyes emoji to acknowledge ─────────────────────────────
       - name: React to comment
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             github.rest.reactions.createForIssueComment({
