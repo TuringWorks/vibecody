@@ -10,7 +10,7 @@ lifecycleRuntimeCompose = "2.11.0"
 
 # Wear OS Compose
 wearCompose = "1.6.2"
-wearTiles = "1.6.0"
+wearTiles = "1.6.1"
 
 # Play Services Wearable
 playServicesWearable = "20.0.1"
