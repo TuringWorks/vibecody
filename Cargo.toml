@@ -103,7 +103,7 @@ hex = "0.4"
 
 # Code knowledge graph (kodegraph) — incremental AST-based symbol/edge graphs
 tree-sitter = "0.25"
-tree-sitter-rust = "0.23"
+tree-sitter-rust = "0.24"
 tree-sitter-typescript = "0.23"
 tree-sitter-python = "0.23"
 tree-sitter-go = "0.23"
