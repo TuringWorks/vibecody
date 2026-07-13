@@ -39,7 +39,7 @@ marl = [
 # dep — DPO loss is ~30 lines of math. Reward-model training (for PPO-
 # style alignment) is 7c-extras.
 rlhf = [
-    "transformers>=5.3.0,<6.0",
+    "transformers>=5.5.0,<6.0",
     "accelerate>=0.27,<2.0",
 ]
 dev = ["pytest>=7", "pytest-timeout>=2"]
