@@ -1,0 +1,12 @@
+[package]
+name = "fluxo-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Fluxo workflow engine core: Conductor-compatible DSL, state machine, and pure decider."
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

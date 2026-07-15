@@ -22,6 +22,9 @@ members = [
     "skilllensai-rs",
     "skilloptai-rs",
     "skillforgeai-rs",
+    "fluxo/fluxo-core",
+    "fluxo/fluxo-store",
+    "fluxo/fluxo-engine",
 ]
 
 [workspace.package]

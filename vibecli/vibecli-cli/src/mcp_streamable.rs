@@ -557,18 +557,19 @@ impl McpStreamableServer {
         connection_id: &str,
         token: OAuthToken,
     ) -> Result<(), String> {
-        if !self.connections.contains_key(connection_id) {
-            return Err(format!("Connection '{}' not found", connection_id));
-        }
-        // Validate before borrowing mutably.
+        // Validate before borrowing the connection mutably (immutable borrow of self).
         let valid = self.validate_token(&token).is_ok();
+        // Single lookup: resolve the connection once and fail totally if absent,
+        // instead of contains_key + two get_mut().unwrap() (double lookup + panic path).
+        let conn = self
+            .connections
+            .get_mut(connection_id)
+            .ok_or_else(|| format!("Connection '{}' not found", connection_id))?;
         if !valid {
-            self.metrics.auth_failures += 1;
-            let conn = self.connections.get_mut(connection_id).unwrap();
             conn.status = ConnectionStatus::AuthRequired;
+            self.metrics.auth_failures += 1;
             return Err("Invalid or expired token".to_string());
         }
-        let conn = self.connections.get_mut(connection_id).unwrap();
         conn.auth = Some(token);
         conn.status = ConnectionStatus::Connected;
         Ok(())

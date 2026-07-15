@@ -47,6 +47,13 @@ pub struct LoopSpec {
     pub prompt: String,
     pub max_iter: u32,
     pub max_duration_secs: u64,
+    /// Names of `WorkspaceStore` secrets to inject into the loop body's
+    /// environment each iteration (gap C1). Only the *names* are persisted here;
+    /// the values live in the encrypted `WorkspaceStore` and are resolved at run
+    /// time via [`resolve_loop_secrets`] — never written to `loops.json` or any
+    /// plaintext file. `#[serde(default)]` keeps older persisted jobs loadable.
+    #[serde(default)]
+    pub secrets: Vec<String>,
 }
 
 /// Lifecycle status of a loop job.
@@ -178,39 +185,87 @@ pub fn parse_loop_args(args: &str) -> Result<LoopSpec, String> {
     }
 
     if head.eq_ignore_ascii_case("auto") || head == "--until-done" {
-        if rest.is_empty() {
+        let (prompt, secrets) = extract_secret_flags(rest);
+        if prompt.is_empty() {
             return Err("A self-paced loop needs a prompt: /loop auto <prompt>".to_string());
         }
         return Ok(LoopSpec {
             mode: LoopMode::SelfPaced,
-            prompt: rest.to_string(),
+            prompt,
             max_iter: DEFAULT_MAX_ITER,
             max_duration_secs: DEFAULT_MAX_DURATION.as_secs(),
+            secrets,
         });
     }
 
     if let Some(interval) = parse_interval(head) {
-        if rest.is_empty() {
+        let (prompt, secrets) = extract_secret_flags(rest);
+        if prompt.is_empty() {
             return Err("A recurring loop needs a prompt: /loop <interval> <prompt>".to_string());
         }
         return Ok(LoopSpec {
             mode: LoopMode::Recurring {
                 interval_secs: interval.as_secs(),
             },
-            prompt: rest.to_string(),
+            prompt,
             // Recurring loops also honour an iteration cap so an unattended REPL
             // can't run unbounded; the wall-clock budget is the primary expiry.
             max_iter: DEFAULT_MAX_ITER,
             max_duration_secs: DEFAULT_MAX_DURATION.as_secs(),
+            secrets,
         });
     }
 
     Err(usage())
 }
 
+/// Pull `--secret NAME` (repeatable) flags out of a loop's argument tail,
+/// returning the cleaned prompt (flags removed) and the collected secret names.
+/// A trailing `--secret` with no name is ignored. Names are the keys looked up
+/// in the `WorkspaceStore` at run time by [`resolve_loop_secrets`].
+pub fn extract_secret_flags(rest: &str) -> (String, Vec<String>) {
+    let mut prompt_words: Vec<&str> = Vec::new();
+    let mut secrets: Vec<String> = Vec::new();
+    let mut tokens = rest.split_whitespace();
+    while let Some(tok) = tokens.next() {
+        if tok == "--secret" {
+            if let Some(name) = tokens.next() {
+                if !secrets.iter().any(|s| s == name) {
+                    secrets.push(name.to_string());
+                }
+            }
+        } else {
+            prompt_words.push(tok);
+        }
+    }
+    (prompt_words.join(" "), secrets)
+}
+
+/// Resolve a loop's declared secret names into `(NAME, VALUE)` environment pairs
+/// using `lookup` — at the live call site a closure over
+/// `WorkspaceStore::secret_get`, so values are read from the encrypted store and
+/// never touch `loops.json` or the environment until injected into the child
+/// process. Returns the resolved pairs plus the names that were missing (so the
+/// caller can warn rather than silently run without a required secret).
+pub fn resolve_loop_secrets<F>(names: &[String], lookup: F) -> (Vec<(String, String)>, Vec<String>)
+where
+    F: Fn(&str) -> Option<String>,
+{
+    let mut resolved = Vec::new();
+    let mut missing = Vec::new();
+    for name in names {
+        match lookup(name) {
+            Some(value) => resolved.push((name.clone(), value)),
+            None => missing.push(name.clone()),
+        }
+    }
+    (resolved, missing)
+}
+
 fn usage() -> String {
     "Usage: /loop <interval> <prompt>   (e.g. /loop 5m run the tests)\n       \
      /loop auto <prompt>          (self-paced, runs until done; MAX_ITER guard)\n       \
+     add --secret NAME to inject a WorkspaceStore secret into the loop's env\n       \
      /loop list | /loop stop <id> | /loop status <id>"
         .to_string()
 }
@@ -342,5 +397,59 @@ mod tests {
         let loaded = load_jobs(&path);
         assert_eq!(loaded, jobs);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // -- C1: WorkspaceStore secret injection --------------------------------
+
+    #[test]
+    fn parse_extracts_secret_flags_from_prompt() {
+        let spec = parse_loop_args("5m --secret OPENAI_KEY deploy the service --secret DB_URL")
+            .unwrap();
+        assert_eq!(spec.prompt, "deploy the service");
+        assert_eq!(spec.secrets, vec!["OPENAI_KEY", "DB_URL"]);
+
+        // Self-paced too, with a duplicate name deduped.
+        let s2 = parse_loop_args("auto --secret TOK --secret TOK run it").unwrap();
+        assert_eq!(s2.prompt, "run it");
+        assert_eq!(s2.secrets, vec!["TOK"]);
+    }
+
+    #[test]
+    fn parse_without_secrets_defaults_empty() {
+        let spec = parse_loop_args("5m just run").unwrap();
+        assert!(spec.secrets.is_empty());
+    }
+
+    #[test]
+    fn secret_flag_without_name_is_ignored_and_still_needs_prompt() {
+        // A dangling `--secret` consumes no name and leaves an empty prompt → err.
+        assert!(parse_loop_args("auto --secret").is_err());
+    }
+
+    #[test]
+    fn resolve_secrets_splits_present_and_missing() {
+        let names = vec!["A".to_string(), "B".to_string(), "C".to_string()];
+        let store: std::collections::HashMap<&str, &str> =
+            [("A", "1"), ("C", "3")].into_iter().collect();
+        let (resolved, missing) =
+            resolve_loop_secrets(&names, |k| store.get(k).map(|v| v.to_string()));
+        assert_eq!(
+            resolved,
+            vec![("A".to_string(), "1".to_string()), ("C".to_string(), "3".to_string())]
+        );
+        assert_eq!(missing, vec!["B".to_string()]);
+    }
+
+    #[test]
+    fn secrets_survive_persistence_roundtrip() {
+        let spec = parse_loop_args("10s --secret KEY tick").unwrap();
+        let job = LoopJob::new("loop-abc".into(), spec, 100);
+        let json = serde_json::to_string(&job).unwrap();
+        let back: LoopJob = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.spec.secrets, vec!["KEY"]);
+        // And an old job JSON with no `secrets` field still loads (serde default).
+        let legacy = r#"{"id":"x","spec":{"mode":{"SelfPaced":null},"prompt":"p","max_iter":5,"max_duration_secs":60},"iterations_done":0,"status":"running","created_at_secs":1}"#;
+        let loaded: LoopJob = serde_json::from_str(legacy).unwrap();
+        assert!(loaded.spec.secrets.is_empty());
     }
 }

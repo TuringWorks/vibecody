@@ -1,0 +1,26 @@
+[package]
+name = "fluxo-store"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Fluxo storage layer: Store trait + Memory, SQLite, and Postgres backends."
+
+[features]
+default = ["sqlite"]
+sqlite = ["dep:rusqlite"]
+postgres = ["dep:sqlx"]
+
+[dependencies]
+fluxo-core = { path = "../fluxo-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+tokio = { workspace = true }
+rusqlite = { workspace = true, optional = true }
+sqlx = { version = "0.8", default-features = false, features = ["postgres", "runtime-tokio-rustls"], optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+serde_json = { workspace = true }

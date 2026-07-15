@@ -5809,6 +5809,46 @@ async fn main() -> Result<()> {
                                             "▶ loop {} started ({:?}). Press Ctrl-C to stop.\n",
                                             job.id, job.spec.mode
                                         );
+
+                                        // C1 — inject the job's declared secrets into the process
+                                        // environment for the loop's lifetime, so shell tools the
+                                        // agent runs inherit them. Values come from the encrypted
+                                        // WorkspaceStore, never loops.json or any plaintext file.
+                                        let injected_secrets: Vec<String> = if job.spec.secrets.is_empty()
+                                        {
+                                            Vec::new()
+                                        } else {
+                                            match std::env::current_dir().ok().and_then(|d| {
+                                                crate::workspace_store::WorkspaceStore::open(&d).ok()
+                                            }) {
+                                                Some(store) => {
+                                                    let (resolved, missing) =
+                                                        loop_engine::resolve_loop_secrets(
+                                                            &job.spec.secrets,
+                                                            |name| store.secret_get(name).ok().flatten(),
+                                                        );
+                                                    if !missing.is_empty() {
+                                                        println!(
+                                                            "⚠ loop {}: secrets not in WorkspaceStore: {}",
+                                                            job.id,
+                                                            missing.join(", ")
+                                                        );
+                                                    }
+                                                    for (k, v) in &resolved {
+                                                        std::env::set_var(k, v);
+                                                    }
+                                                    resolved.into_iter().map(|(k, _)| k).collect()
+                                                }
+                                                None => {
+                                                    println!(
+                                                        "⚠ loop {}: could not open WorkspaceStore; secrets not injected.",
+                                                        job.id
+                                                    );
+                                                    Vec::new()
+                                                }
+                                            }
+                                        };
+
                                         let start = std::time::Instant::now();
                                         loop {
                                             // One interruptible iteration.
@@ -5890,6 +5930,12 @@ async fn main() -> Result<()> {
                                                     break;
                                                 }
                                             }
+                                        }
+
+                                        // C1 — remove injected secrets from the process env now the
+                                        // loop is done, so they don't linger in the REPL session.
+                                        for k in &injected_secrets {
+                                            std::env::remove_var(k);
                                         }
 
                                         // Persist the terminal state.

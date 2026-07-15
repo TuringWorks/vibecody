@@ -148,6 +148,81 @@ pub fn parse_findings(file: &str, output: &str, cfg: &SecurityReviewConfig) -> V
     findings
 }
 
+/// The LLM seam for the always-on watcher. A real implementation calls the
+/// user-selected provider/model (provider-agnostic — never hard-codes
+/// Anthropic); tests use a mock. Kept a trait so [`review_batch`] and
+/// [`poll_and_review`] are testable without a live provider.
+#[async_trait::async_trait]
+pub trait SecurityReviewer {
+    /// Review one file given the prompt, returning the raw LLM output (the
+    /// `SEVERITY|LINE|MESSAGE|SUGGESTION` lines [`parse_findings`] expects).
+    async fn review(&self, prompt: String) -> Result<String, String>;
+}
+
+/// Run one security-review pass over a flushed [`ChangeBatch`]: gate the targets
+/// (opt-in + suffix filter), read each file via `read`, build the prompt, call
+/// `reviewer`, and collect the parsed [`Finding`]s. A file that can't be read or
+/// whose review errors is skipped rather than aborting the batch. Returns empty
+/// when the feature is disabled (the daemon loop is a no-op until opt-in).
+pub async fn review_batch<R, F>(
+    cfg: &SecurityReviewConfig,
+    batch: &ChangeBatch,
+    read: F,
+    reviewer: &R,
+) -> Vec<Finding>
+where
+    R: SecurityReviewer + Sync,
+    F: Fn(&Path) -> Option<String>,
+{
+    let mut all = Vec::new();
+    for path in cfg.review_targets(batch) {
+        let contents = match read(&path) {
+            Some(c) => c,
+            None => continue,
+        };
+        let file = path.to_string_lossy();
+        let prompt = build_review_prompt(&file, &contents);
+        if let Ok(output) = reviewer.review(prompt).await {
+            all.extend(parse_findings(&file, &output, cfg));
+        }
+    }
+    all
+}
+
+/// One tick of the always-on daemon loop: drain the watcher's pending
+/// [`ChangeBatch`]es and security-review each, using the real filesystem as the
+/// reader. The daemon calls this whenever the watcher flushes (or on an
+/// interval); `reviewer` is the provider-backed adapter. Returns all findings
+/// produced this tick for the caller to surface in the existing ReviewPanel.
+///
+/// A no-op (empty result, no reads) while `cfg.enabled` is false — the opt-in
+/// gate (§18.B3 #5) means the loop costs nothing until a workspace opts in.
+pub async fn poll_and_review<R>(
+    cfg: &SecurityReviewConfig,
+    watcher: &crate::file_watcher::SharedFileWatcher,
+    reviewer: &R,
+) -> Vec<Finding>
+where
+    R: SecurityReviewer + Sync,
+{
+    if !cfg.enabled {
+        return Vec::new();
+    }
+    let batches = watcher.with(|w| w.poll());
+    let mut all = Vec::new();
+    for batch in &batches {
+        let found = review_batch(
+            cfg,
+            batch,
+            |p| std::fs::read_to_string(p).ok(),
+            reviewer,
+        )
+        .await;
+        all.extend(found);
+    }
+    all
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -253,5 +328,77 @@ mod tests {
         };
         assert!(parse_findings("f.rs", "NONE", &cfg).is_empty());
         assert!(parse_findings("f.rs", "garbage line\n\nfoo|bar", &cfg).is_empty());
+    }
+
+    // -- always-on daemon loop (review_batch + poll_and_review) -------------
+
+    /// Mock reviewer returning a canned output for every file.
+    struct MockReviewer(String);
+
+    #[async_trait::async_trait]
+    impl SecurityReviewer for MockReviewer {
+        async fn review(&self, _prompt: String) -> Result<String, String> {
+            Ok(self.0.clone())
+        }
+    }
+
+    fn rs_batch() -> ChangeBatch {
+        use crate::file_watcher::{ChangeKind, FileChangeEvent};
+        use std::time::Instant;
+        ChangeBatch {
+            events: vec![
+                FileChangeEvent::new("src/auth.rs", ChangeKind::Modified),
+                FileChangeEvent::new("README.md", ChangeKind::Modified),
+            ],
+            window_start: Instant::now(),
+            window_end: Instant::now(),
+        }
+    }
+
+    #[tokio::test]
+    async fn review_batch_disabled_is_noop() {
+        let cfg = SecurityReviewConfig::default(); // disabled
+        let reviewer = MockReviewer("critical|1|x|y".into());
+        let findings = review_batch(&cfg, &rs_batch(), |_| Some("code".into()), &reviewer).await;
+        assert!(findings.is_empty());
+    }
+
+    #[tokio::test]
+    async fn review_batch_gates_reviews_and_collects_findings() {
+        let cfg = SecurityReviewConfig {
+            enabled: true,
+            watched_suffixes: vec![".rs".into()],
+            min_severity: Severity::Info,
+        };
+        // Only src/auth.rs passes the .rs gate (README excluded) → one review.
+        let reviewer = MockReviewer("critical|7|hardcoded secret|use a vault".into());
+        let findings = review_batch(&cfg, &rs_batch(), |_| Some("let k=\"secret\";".into()), &reviewer).await;
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].check, CheckKind::Security);
+        assert_eq!(findings[0].line, Some(7));
+        assert_eq!(findings[0].file.as_deref(), Some("src/auth.rs"));
+    }
+
+    #[tokio::test]
+    async fn review_batch_skips_unreadable_files() {
+        let cfg = SecurityReviewConfig {
+            enabled: true,
+            watched_suffixes: vec![".rs".into()],
+            min_severity: Severity::Info,
+        };
+        let reviewer = MockReviewer("critical|1|x|y".into());
+        // Reader returns None → the file is skipped, no findings.
+        let findings = review_batch(&cfg, &rs_batch(), |_| None, &reviewer).await;
+        assert!(findings.is_empty());
+    }
+
+    #[tokio::test]
+    async fn poll_and_review_disabled_never_polls() {
+        use crate::file_watcher::{SharedFileWatcher, WatcherConfig};
+        let cfg = SecurityReviewConfig::default(); // disabled
+        let watcher = SharedFileWatcher::new(WatcherConfig::default());
+        let reviewer = MockReviewer("critical|1|x|y".into());
+        let findings = poll_and_review(&cfg, &watcher, &reviewer).await;
+        assert!(findings.is_empty());
     }
 }
