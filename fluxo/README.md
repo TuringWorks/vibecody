@@ -47,12 +47,12 @@ Fluxo is that loop, as a clean, high-performance Rust core.
 
 ## Supported task types (v1)
 
-`SIMPLE` (worker), `SWITCH` (decision), `FORK_JOIN` + `JOIN`, `SET_VARIABLE`, `INLINE`,
-`WAIT`, `HUMAN`, `SUB_WORKFLOW`, `TERMINATE`.
+`SIMPLE` (worker), `SWITCH` (decision), `FORK_JOIN` + `JOIN`, `FORK_JOIN_DYNAMIC`,
+`DO_WHILE` (loop), `SET_VARIABLE`, `INLINE`, `WAIT`, `HUMAN`, `SUB_WORKFLOW`, `TERMINATE`.
 Every external task honors `retryCount` / `retryDelaySeconds` / `retryLogic`
 (FIXED | EXPONENTIAL_BACKOFF), `timeoutSeconds`, and `optional`.
-Deferred: `DO_WHILE`, `FORK_JOIN_DYNAMIC`, `JSON_JQ_TRANSFORM`, `HTTP`, `EVENT`,
-`START_WORKFLOW`, and the `LLM_*` AI task family (next milestones).
+Deferred: `JSON_JQ_TRANSFORM`, `HTTP`, `EVENT`, `START_WORKFLOW`, and the `LLM_*` AI task
+family (next milestones).
 
 ## Build & test
 

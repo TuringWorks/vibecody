@@ -6911,12 +6911,55 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         ))
         .route_layer(middleware::from_fn_with_state(state.clone(), require_auth));
 
+    // Fluxo durable workflow engine — mounted at /fluxo/* behind bearer auth.
+    // Store lives in the encrypted-adjacent ~/.vibecli dir; falls back to in-memory.
+    let fluxo_db = dirs::home_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join(".vibecli")
+        .join("fluxo.db");
+    if let Some(parent) = fluxo_db.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let fluxo_router = match fluxo_store::sqlite::SqliteStore::open(&fluxo_db)
+        .or_else(|_| fluxo_store::sqlite::SqliteStore::open_in_memory())
+    {
+        Ok(store) => {
+            let engine = Arc::new(fluxo_engine::Engine::new(store));
+            // Background reaper enforces per-task timeouts on otherwise-idle workflows.
+            if let Ok(handle) = tokio::runtime::Handle::try_current() {
+                let reaper = engine.clone();
+                handle.spawn(async move {
+                    loop {
+                        tokio::time::sleep(Duration::from_secs(15)).await;
+                        let _ = reaper.reap().await;
+                    }
+                });
+            }
+            // Bearer auth applies; the 60/min limiter is intentionally omitted here because
+            // workers poll /fluxo/tasks/poll/* at high frequency.
+            Some(
+                fluxo_server::router(engine)
+                    .route_layer(middleware::from_fn_with_state(state.clone(), require_auth)),
+            )
+        }
+        Err(e) => {
+            tracing::warn!("fluxo: workflow API disabled, store unavailable: {e}");
+            None
+        }
+    };
+
     // Public routes (health check, GitHub webhook with HMAC, pairing, collab WS, ACP discovery)
-    public_routes
+    let app = public_routes
         .merge(authed_routes)
         .merge(inference_routes)
-        .nest("/watch", watch_router)
-        .fallback(|| async {
+        .nest("/watch", watch_router);
+    let app = match fluxo_router {
+        // `.with_state(())` re-labels the fully-stated fluxo router to the parent's state type
+        // (same trick as the nested watch router above).
+        Some(fluxo) => app.nest("/fluxo", fluxo.with_state(())),
+        None => app,
+    };
+    app.fallback(|| async {
             (
                 StatusCode::NOT_FOUND,
                 Json(serde_json::json!({"error":"Not found"})),

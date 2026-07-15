@@ -276,6 +276,9 @@ fn apply(run: &mut WorkflowRun, decision: Decision) {
         if let Some(task) = run.task_by_id_mut(&update.task_id) {
             task.status = update.status;
             task.reason_for_incompletion = update.reason;
+            if let Some(output) = update.output {
+                task.output = output;
+            }
             task.updated_at = now;
         }
     }

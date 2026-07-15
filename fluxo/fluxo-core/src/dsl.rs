@@ -40,6 +40,12 @@ fn collect_refs(tasks: &[WorkflowTask], refs: &mut BTreeSet<String>) -> Result<(
                 t.name
             )));
         }
+        if t.task_reference_name.contains("__") {
+            return Err(FluxoError::InvalidDefinition(format!(
+                "taskReferenceName '{}' must not contain '__' (reserved for loop instancing)",
+                t.task_reference_name
+            )));
+        }
         if !refs.insert(t.task_reference_name.clone()) {
             return Err(FluxoError::InvalidDefinition(format!(
                 "duplicate taskReferenceName: {}",
@@ -59,8 +65,18 @@ fn collect_refs(tasks: &[WorkflowTask], refs: &mut BTreeSet<String>) -> Result<(
 }
 
 fn validate_tasks(tasks: &[WorkflowTask], all_refs: &BTreeSet<String>) -> Result<()> {
-    for t in tasks {
+    for (i, t) in tasks.iter().enumerate() {
         match t.task_type {
+            TaskType::ForkJoinDynamic => {
+                let next_is_join =
+                    tasks.get(i + 1).map(|n| n.task_type == TaskType::Join).unwrap_or(false);
+                if !next_is_join {
+                    return Err(FluxoError::InvalidDefinition(format!(
+                        "dynamic fork '{}' must be immediately followed by a JOIN",
+                        t.task_reference_name
+                    )));
+                }
+            }
             TaskType::Switch => {
                 if t.decision_cases.is_empty() {
                     return Err(FluxoError::InvalidDefinition(format!(
@@ -90,6 +106,37 @@ fn validate_tasks(tasks: &[WorkflowTask], all_refs: &BTreeSet<String>) -> Result
                         return Err(FluxoError::InvalidDefinition(format!(
                             "join '{}' waits on unknown reference '{}'",
                             t.task_reference_name, dep
+                        )));
+                    }
+                }
+            }
+            TaskType::DoWhile => {
+                if t.loop_over.is_empty() {
+                    return Err(FluxoError::InvalidDefinition(format!(
+                        "do-while '{}' has an empty loopOver",
+                        t.task_reference_name
+                    )));
+                }
+                if t.loop_condition.as_deref().map(str::trim).unwrap_or("").is_empty() {
+                    return Err(FluxoError::InvalidDefinition(format!(
+                        "do-while '{}' has no loopCondition",
+                        t.task_reference_name
+                    )));
+                }
+                for b in &t.loop_over {
+                    if !matches!(
+                        b.task_type,
+                        TaskType::Simple
+                            | TaskType::Other
+                            | TaskType::SetVariable
+                            | TaskType::Inline
+                            | TaskType::Wait
+                            | TaskType::Human
+                    ) {
+                        return Err(FluxoError::InvalidDefinition(format!(
+                            "do-while '{}' body task '{}' has unsupported type {:?} (v1 loop bodies \
+                             are SIMPLE/SET_VARIABLE/INLINE/WAIT/HUMAN)",
+                            t.task_reference_name, b.task_reference_name, b.task_type
                         )));
                     }
                 }

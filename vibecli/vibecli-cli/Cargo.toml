@@ -106,6 +106,13 @@ kodegraph = { path = "../../kodegraph", features = ["tree-sitter", "sqlite", "vi
 # See `vibecli/vibecli-cli/src/skillforge_index.rs` + notes/skillforge/.
 skilllensai-rs = { path = "../../skilllensai-rs", default-features = false, features = ["sqlite", "llm"] }
 skilloptai-rs = { path = "../../skilloptai-rs", default-features = false, features = ["sqlite", "llm"] }
+# Fluxo — durable workflow engine. The daemon mounts fluxo's HTTP API under
+# /fluxo/* (behind bearer auth) and runs a background timeout reaper. See
+# fluxo/ and `docs`/the Obsidian "Fluxo Workflow Engine" note.
+fluxo-core = { path = "../../fluxo/fluxo-core" }
+fluxo-store = { path = "../../fluxo/fluxo-store" }
+fluxo-engine = { path = "../../fluxo/fluxo-engine" }
+fluxo-server = { path = "../../fluxo/fluxo-server" }
 sha2.workspace = true
 hmac.workspace = true
 p256.workspace = true

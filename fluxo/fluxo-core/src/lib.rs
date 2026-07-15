@@ -50,6 +50,9 @@ mod tests {
             if let Some(t) = run.task_by_id_mut(&update.task_id) {
                 t.status = update.status;
                 t.reason_for_incompletion = update.reason.clone();
+                if let Some(output) = &update.output {
+                    t.output = output.clone();
+                }
             }
         }
         for (i, exec) in decision.schedule.iter().enumerate() {
@@ -377,5 +380,119 @@ mod tests {
         run.tasks[0].status = TaskStatus::TimedOut;
         let decision = decide(&def, &run, 5000).expect("decide");
         assert_eq!(decision.terminal.expect("terminal").status, WorkflowStatus::Failed);
+    }
+
+    #[test]
+    fn do_while_loops_fixed_count() {
+        let def = parse_workflow_def(
+            r#"{ "name": "repeat", "tasks": [
+                { "name": "loop", "taskReferenceName": "loop", "type": "DO_WHILE",
+                  "loopCondition": "iteration < 3",
+                  "loopOver": [ { "name": "work", "taskReferenceName": "b" } ] }
+            ]}"#,
+        )
+        .expect("parse");
+        let mut run = new_run(&def, json!({}));
+        // Complete each body instance; leave the loop task itself to the decider.
+        drive(&def, &mut run, |t| {
+            if t.task_type == TaskType::Simple {
+                Some((TaskStatus::Completed, json!({})))
+            } else {
+                None
+            }
+        });
+        assert_eq!(run.status, WorkflowStatus::Completed);
+        assert!(run.task_by_ref("b__1").is_some());
+        assert!(run.task_by_ref("b__2").is_some());
+        assert!(run.task_by_ref("b__3").is_some());
+        assert!(run.task_by_ref("b__4").is_none(), "loops exactly 3 times");
+        assert_eq!(run.task_by_ref("loop").unwrap().status, TaskStatus::Completed);
+    }
+
+    #[test]
+    fn do_while_stops_on_body_output() {
+        let def = parse_workflow_def(
+            r#"{ "name": "poll_until_done", "tasks": [
+                { "name": "loop", "taskReferenceName": "loop", "type": "DO_WHILE",
+                  "loopCondition": "${probe.output.done} == false",
+                  "loopOver": [ { "name": "probe", "taskReferenceName": "probe" } ] },
+                { "name": "after", "taskReferenceName": "after" }
+            ]}"#,
+        )
+        .expect("parse");
+        let mut run = new_run(&def, json!({}));
+        // The probe reports done=true on the second iteration.
+        drive(&def, &mut run, |t| {
+            if t.task_type == TaskType::Simple {
+                let done = t.reference_name.ends_with("__2");
+                Some((TaskStatus::Completed, json!({ "done": done })))
+            } else {
+                None
+            }
+        });
+        assert_eq!(run.status, WorkflowStatus::Completed);
+        assert!(run.task_by_ref("probe__1").is_some());
+        assert!(run.task_by_ref("probe__2").is_some());
+        assert!(run.task_by_ref("probe__3").is_none(), "stops once done");
+        assert!(run.task_by_ref("after").is_some(), "loop successor runs");
+    }
+
+    #[test]
+    fn dynamic_fork_spawns_branches() {
+        let def = parse_workflow_def(
+            r#"{ "name": "fanout", "tasks": [
+                { "name": "fan", "taskReferenceName": "F", "type": "FORK_JOIN_DYNAMIC",
+                  "inputParameters": { "forkedTasks": "${workflow.input.items}" } },
+                { "name": "join", "taskReferenceName": "J", "type": "JOIN" },
+                { "name": "after", "taskReferenceName": "after" }
+            ]}"#,
+        )
+        .expect("parse");
+        let input = json!({ "items": [
+            { "name": "proc", "input": { "i": 0 } },
+            { "name": "proc", "input": { "i": 1 } },
+            { "name": "proc", "input": { "i": 2 } }
+        ]});
+        let mut run = new_run(&def, input);
+        drive(&def, &mut run, |t| {
+            if t.task_type == TaskType::Simple {
+                Some((TaskStatus::Completed, json!({ "ref": t.reference_name })))
+            } else {
+                None
+            }
+        });
+        assert_eq!(run.status, WorkflowStatus::Completed);
+        // Three runtime branches, each carrying its own input.
+        assert_eq!(run.task_by_ref("F__1").unwrap().input, json!({ "i": 1 }));
+        assert!(run.task_by_ref("F__2").is_some());
+        assert!(run.task_by_ref("F__3").is_none());
+        // The dynamic JOIN aggregated all three branch outputs.
+        let join = run.task_by_ref("J").unwrap();
+        assert_eq!(join.output.get("F__0").unwrap(), &json!({ "ref": "F__0" }));
+        assert_eq!(join.output.get("F__2").unwrap(), &json!({ "ref": "F__2" }));
+        assert!(run.task_by_ref("after").is_some());
+    }
+
+    #[test]
+    fn dynamic_fork_with_no_branches_completes() {
+        let def = parse_workflow_def(
+            r#"{ "name": "empty_fan", "tasks": [
+                { "name": "fan", "taskReferenceName": "F", "type": "FORK_JOIN_DYNAMIC",
+                  "inputParameters": { "forkedTasks": "${workflow.input.items}" } },
+                { "name": "join", "taskReferenceName": "J", "type": "JOIN" },
+                { "name": "after", "taskReferenceName": "after" }
+            ]}"#,
+        )
+        .expect("parse");
+        let mut run = new_run(&def, json!({ "items": [] }));
+        drive(&def, &mut run, |t| {
+            if t.task_type == TaskType::Simple {
+                Some((TaskStatus::Completed, json!({})))
+            } else {
+                None
+            }
+        });
+        assert_eq!(run.status, WorkflowStatus::Completed);
+        assert!(run.task_by_ref("after").is_some(), "empty fork still proceeds");
     }
 }
