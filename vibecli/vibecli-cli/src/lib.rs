@@ -25,6 +25,7 @@ pub mod mcp_tasks;
 pub mod registry_listing;
 // Opt-in always-on security review (gap B3, §18.B3 cleared shape).
 pub mod security_review_watch;
+pub mod security_watch_daemon;
 // WebMCP browser-tool exposure (gap C4, §18.A7-shape, origin-trial gated).
 pub mod webmcp;
 // Design Mode → diffcomplete-into-DOM (gap A7, §18.A7 cleared shape).

@@ -1,0 +1,30 @@
+[package]
+name = "fluxo-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Fluxo HTTP API: workflow CRUD, execute, worker poll/complete, run control, and an SSE timeline."
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "fluxo-server"
+path = "src/main.rs"
+
+[dependencies]
+fluxo-core = { path = "../fluxo-core" }
+fluxo-store = { path = "../fluxo-store" }
+fluxo-engine = { path = "../fluxo-engine" }
+axum = { workspace = true }
+tokio = { workspace = true }
+tower-http = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+futures = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+tower = { workspace = true }
+serde_json = { workspace = true }

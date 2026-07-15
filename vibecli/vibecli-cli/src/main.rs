@@ -3022,6 +3022,7 @@ mod registry_listing;
 // Opt-in always-on security review (gap B3, §18.B3 cleared shape).
 #[allow(dead_code)]
 mod security_review_watch;
+mod security_watch_daemon;
 // WebMCP browser-tool exposure (gap C4, §18.A7-shape, origin-trial gated).
 #[allow(dead_code)]
 mod webmcp;

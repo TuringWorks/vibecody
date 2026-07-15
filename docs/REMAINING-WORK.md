@@ -273,6 +273,18 @@ All prior roadmap and fit-gap iterations have been merged into exactly **two can
 
 ## Summary
 
+> **✅ Implementation pass 2026-07-14 (on `main`).** A codebase-reconciliation pass found the working tree well **ahead** of the 2026-06-22 ledger — the A7/C5/C6 command surfaces were already fully wired (DesignMode→`design_emit_diff`, effort knob through the streaming path + toolbar, `--registry` CLI), and C2's `dynamic_workflow.rs` state-machine already existed. This pass closed the remaining integration gaps for the C-series:
+>
+> | Item | What shipped this pass | Tests |
+> |---|---|---|
+> | **C3** | `McpStreamableServer::handle_rpc` — JSON-RPC dispatch routing `initialize` + `tasks/get\|update\|cancel` under the stateless `_meta` model (the streamable path had *no* method routing before; mirrors the stdio loop) | +9 (69 in module) |
+> | **C4** | REPL `/webmcp list\|call` driver over the CDP browser (origin-trial gated) + `webmcp_build_invocation` Tauri command completing the consumer pipeline; `parse_kv_args`/`format_tools`/`WebMcpFlag::from_env` helpers | +3 (8) |
+> | **C2** | `DynamicWorkflow::run()` async orchestrator (the missing decompose→fan-out→verify→report fusion) + `SubtaskExecutor` seam + concrete `ShellSubtaskExecutor` + REPL `/bulk` driver | +7 (14) |
+> | **B3** | `review_batch` orchestrator + `SecurityReviewer` seam + `poll_and_review` watcher-loop step, **then wired live into the daemon**: new `security_watch_daemon.rs` (real `notify` FS watcher → `SharedFileWatcher` → interval `poll_and_review` loop + provider-backed `ProviderReviewer` + bounded `SecurityFindingsQueue`), spawned opt-in in `serve.rs` from a `[security_review]` config section, surfaced at `GET /v1/security-review/findings`. **Fully wired — opt-in/default-OFF.** | +4 +6 |
+> | **C1** | WorkspaceStore secret injection — `LoopSpec.secrets`, `--secret NAME` parsing, `resolve_loop_secrets`, live encrypted-store→env injection/cleanup at the loop run site — *tested*; **remaining:** machine-off hosted/detached execution (daemon scheduler) | +5 (14) |
+>
+> All modules compile (`cargo check -p vibecli --bins` + `-p vibe-ui`) and their unit tests pass. C2/C3/C4 are fully closed; B3 and C1 delivered their tested cores with the live-infra remainders noted above. Build used the Metal-precompile workaround (`MISTRALRS_METAL_PRECOMPILE=0` — the Metal Toolchain has regressed to missing again).
+
 **Open code items (revised 2026-06-22 after the implementation pass)**: the **C1, C3, C5, C6 cores shipped**, and the **A7, B3, C4 §18-cleared-shape backends + command surfaces shipped** (see [Implemented this cycle](#implemented-this-cycle-2026-06-22)). What remains code-wise is **integration, not invention**: UI panels (`/loop` Automations panel, `DesignMode` wiring, `SecurityPanel`), daemon/transport loops (B3 always-on watcher, C3 live MCP dispatch, C4 `browser_agent` CDP), C5 streaming-path propagation, plus the still-unstarted **C2** (dynamic large-scale workflow primitive) and **P2** 100M-line benchmark. A7/B3 are built to the patent-distant cleared shapes (not the competitor UX).
 
 **Open non-code items**: 4 (SOC 2 cert, managed hosting domain, frontier model, VS Code full compat) — unchanged; all infrastructure / business-process / explicit-design-choice items. Plus C6's actual registry-PR submissions (external).

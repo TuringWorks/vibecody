@@ -8,10 +8,59 @@ use std::path::PathBuf;
 use vibe_ai::hooks::HookConfig;
 use vibe_ai::mcp::McpServerConfig;
 
+/// B3 — opt-in always-on security-review daemon settings (default OFF). Maps to
+/// [`crate::security_review_watch::SecurityReviewConfig`] at daemon boot.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SecurityReviewSettings {
+    /// Master switch. Off unless the user explicitly opts in.
+    #[serde(default)]
+    pub enabled: bool,
+    /// File suffixes to review (e.g. `.rs`, `.ts`). Empty = all files.
+    #[serde(default)]
+    pub watched_suffixes: Vec<String>,
+    /// Minimum severity to surface: `info` | `warning` | `error` | `critical`.
+    #[serde(default = "default_min_severity")]
+    pub min_severity: String,
+    /// Seconds between watcher polls.
+    #[serde(default = "default_review_interval_secs")]
+    pub interval_secs: u64,
+}
+
+impl Default for SecurityReviewSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            watched_suffixes: Vec::new(),
+            min_severity: default_min_severity(),
+            interval_secs: default_review_interval_secs(),
+        }
+    }
+}
+
+fn default_min_severity() -> String {
+    "warning".to_string()
+}
+
+fn default_review_interval_secs() -> u64 {
+    60
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     #[serde(default)]
     pub index: IndexConfig,
+
+    /// B3 — opt-in always-on security review (default OFF).
+    ///
+    /// ```toml
+    /// [security_review]
+    /// enabled = true
+    /// watched_suffixes = [".rs", ".ts", ".py"]
+    /// min_severity = "warning"   # info | warning | error | critical
+    /// interval_secs = 60
+    /// ```
+    #[serde(default)]
+    pub security_review: SecurityReviewSettings,
 
     /// OpenTelemetry tracing configuration.
     ///

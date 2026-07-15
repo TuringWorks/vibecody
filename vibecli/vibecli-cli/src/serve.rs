@@ -154,6 +154,10 @@ pub struct ServeState {
     /// off, so the routes have a queue to read (it will simply stay
     /// empty when no executor is configured to enqueue into it).
     pub tainted_http_queue: Arc<crate::tainted_http_bridge::HttpPromptQueue>,
+    /// B3 — findings produced by the opt-in always-on security-review watcher,
+    /// drained by `GET /v1/security-review/findings`. Empty unless the
+    /// `[security_review]` config opts the daemon in.
+    pub security_findings: crate::security_watch_daemon::SecurityFindingsQueue,
 }
 
 /// F3.x — payload tracked on `ServeState.mobile_active_session`.
@@ -6656,6 +6660,10 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         // See docs/security/tainted-data-flow.md §8.
         .route("/v1/tainted/pending", get(v1_tainted_pending))
         .route("/v1/tainted/respond", post(v1_tainted_respond))
+        .route(
+            "/v1/security-review/findings",
+            get(v1_security_review_findings),
+        )
         // RL-OS v1 — slice 1 (persistence + run lifecycle)
         // See docs/design/rl-os/01-persistence.md
         .route("/v1/rl/runs", post(rl_create_run))
@@ -7246,6 +7254,7 @@ pub async fn serve(
         mobile_active_session: Arc::new(std::sync::Mutex::new(None)),
         tainted,
         tainted_http_queue,
+        security_findings: crate::security_watch_daemon::SecurityFindingsQueue::new(),
     };
 
     // Background task: detect or start an ngrok / Tailscale Funnel tunnel and
@@ -7344,6 +7353,56 @@ pub async fn serve(
                 tokio::task::spawn_blocking(move || run_worktree_sweep(&root, "periodic")).await;
         }
     });
+
+    // B3 — opt-in always-on security-review watcher. Reads `[security_review]`
+    // from ~/.vibecli/config.toml; a no-op when disabled (the default). Watches
+    // the workspace for changes, reviews each changed file with the daemon's
+    // provider, and pushes findings into `state.security_findings` for
+    // `GET /v1/security-review/findings`. The handle is forgotten so the watcher
+    // + loop run for the daemon's lifetime.
+    {
+        let sr = std::fs::read_to_string(
+            dirs::home_dir()
+                .unwrap_or_else(|| PathBuf::from("."))
+                .join(".vibecli")
+                .join("config.toml"),
+        )
+        .ok()
+        .and_then(|s| toml::from_str::<crate::config::Config>(&s).ok())
+        .map(|c| c.security_review)
+        .unwrap_or_default();
+
+        if sr.enabled {
+            let min_severity = match sr.min_severity.trim().to_ascii_lowercase().as_str() {
+                "info" => crate::self_review::Severity::Info,
+                "error" => crate::self_review::Severity::Error,
+                "critical" | "crit" => crate::self_review::Severity::Critical,
+                _ => crate::self_review::Severity::Warning,
+            };
+            let cfg = crate::security_review_watch::SecurityReviewConfig {
+                enabled: true,
+                watched_suffixes: sr.watched_suffixes.clone(),
+                min_severity,
+            };
+            let reviewer =
+                crate::security_watch_daemon::ProviderReviewer::new(state.provider.clone());
+            let interval = std::time::Duration::from_secs(sr.interval_secs.max(1));
+            if let Some(handle) = crate::security_watch_daemon::spawn(
+                &state.workspace_root,
+                cfg,
+                reviewer,
+                state.security_findings.clone(),
+                interval,
+            ) {
+                eprintln!(
+                    "[security-review] always-on watcher enabled (suffixes: {:?}, every {}s)",
+                    sr.watched_suffixes, sr.interval_secs
+                );
+                // Keep the watcher + loop alive for the daemon's lifetime.
+                std::mem::forget(handle);
+            }
+        }
+    }
 
     let app = build_router(state, port);
 
@@ -8364,6 +8423,28 @@ struct MemoryBenchmarkQuery {
 
 fn default_bench_k() -> usize {
     5
+}
+
+/// GET /v1/security-review/findings — snapshot of findings the opt-in always-on
+/// B3 watcher has produced (empty when `[security_review]` is disabled). Hand-
+/// serialized so `self_review::Finding` needn't derive `Serialize`.
+async fn v1_security_review_findings(State(state): State<ServeState>) -> Json<serde_json::Value> {
+    let findings: Vec<serde_json::Value> = state
+        .security_findings
+        .snapshot()
+        .iter()
+        .map(|f| {
+            serde_json::json!({
+                "check": f.check.name(),
+                "severity": f.severity.as_str(),
+                "message": f.message,
+                "file": f.file,
+                "line": f.line,
+                "suggestion": f.suggestion,
+            })
+        })
+        .collect();
+    Json(serde_json::json!({ "count": findings.len(), "findings": findings }))
 }
 
 async fn memory_benchmark(
@@ -10076,6 +10157,7 @@ mod tests {
                 mobile_active_session: Arc::new(std::sync::Mutex::new(None)),
                 tainted: TaintedDaemonFlags::default(),
                 tainted_http_queue: Arc::new(crate::tainted_http_bridge::HttpPromptQueue::new()),
+                security_findings: crate::security_watch_daemon::SecurityFindingsQueue::new(),
             };
             (build_router(state, 7878), tmp_dir)
         }
@@ -10532,6 +10614,7 @@ mod tests {
                 mobile_active_session: Arc::new(std::sync::Mutex::new(None)),
                 tainted: TaintedDaemonFlags::default(),
                 tainted_http_queue: Arc::new(crate::tainted_http_bridge::HttpPromptQueue::new()),
+                security_findings: crate::security_watch_daemon::SecurityFindingsQueue::new(),
             };
             (build_router(state, 7878), tmp_dir)
         }

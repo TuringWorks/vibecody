@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * AgilePanel — Comprehensive Agile Project Management panel.
  *
@@ -10,6 +9,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { X } from "lucide-react";
+import { errorMessage } from "../utils/errorMessage";
 
 /* ── Types ───────────────────────────────────────────────────────────── */
 
@@ -586,8 +586,8 @@ function BoardTab({ provider }: { provider?: string } = {}) {
         const data = await invoke<BoardData>("agile_get_board");
         setCards(data.cards || []);
         if (data.wipLimits) setWipLimits(data.wipLimits);
-      } catch (_e: any) {
-        setError(typeof _e === "string" ? _e : _e?.message || "Failed to load board");
+      } catch (_e) {
+        setError(errorMessage(_e) || "Failed to load board");
       }
       try {
         const sData = await invoke<{ sprints: Sprint[] }>("agile_get_sprints");
@@ -651,8 +651,8 @@ function BoardTab({ provider }: { provider?: string } = {}) {
     try {
       await invoke("agile_move_card", { cardId, column: targetCol });
       setCards(prev => prev.map(c => c.id === cardId ? { ...c, column: targetCol } : c));
-    } catch (_e: any) {
-      setError(typeof _e === "string" ? _e : _e?.message || "Failed to move card");
+    } catch (_e) {
+      setError(errorMessage(_e) || "Failed to move card");
     }
   }, []);
 
@@ -665,8 +665,8 @@ function BoardTab({ provider }: { provider?: string } = {}) {
         return [...prev, card];
       });
       setEditingCard(null);
-    } catch (_e: any) {
-      setError(typeof _e === "string" ? _e : _e?.message || "Failed to save card");
+    } catch (_e) {
+      setError(errorMessage(_e) || "Failed to save card");
     }
   }, []);
 
@@ -675,8 +675,8 @@ function BoardTab({ provider }: { provider?: string } = {}) {
       await invoke("agile_delete_card", { cardId });
       setCards(prev => prev.filter(c => c.id !== cardId));
       setEditingCard(null);
-    } catch (_e: any) {
-      setError(typeof _e === "string" ? _e : _e?.message || "Failed to delete card");
+    } catch (_e) {
+      setError(errorMessage(_e) || "Failed to delete card");
     }
   }, []);
 
@@ -705,8 +705,8 @@ function BoardTab({ provider }: { provider?: string } = {}) {
       const result = await invoke<{ subtasks: { title: string }[] }>("agile_ai_generate_subtasks", { card: editingCard , provider});
       const newSubtasks = (result.subtasks || []).map(s => ({ id: genId(), title: s.title, done: false }));
       setEditingCard({ ...editingCard, subtasks: [...(editingCard.subtasks || []), ...newSubtasks] });
-    } catch (_e: any) {
-      setError(typeof _e === "string" ? _e : _e?.message || "AI subtask generation failed");
+    } catch (_e) {
+      setError(errorMessage(_e) || "AI subtask generation failed");
     } finally {
       setSubtaskLoading(false);
     }
@@ -929,7 +929,7 @@ function BoardTab({ provider }: { provider?: string } = {}) {
                     if (result.criteria?.length) {
                       setEditingCard({ ...editingCard, acceptanceCriteria: [...editingCard.acceptanceCriteria, ...result.criteria] });
                     }
-                  } catch (_e: any) {
+                  } catch (_e) {
                     setError(typeof _e === "string" ? _e : "Failed to generate AC");
                   }
                 }}>AI Generate</button>
@@ -1009,8 +1009,8 @@ function SprintTab() {
         const active = (data.sprints || []).find(s => s.status === "Active");
         if (active) setCurrent(active);
         else if ((data.sprints || []).length > 0) setCurrent(data.sprints[0]);
-      } catch (_e: any) {
-        setError(typeof _e === "string" ? _e : _e?.message || "Failed to load sprints");
+      } catch (_e) {
+        setError(errorMessage(_e) || "Failed to load sprints");
       }
     })();
   }, []);
@@ -1035,8 +1035,8 @@ function SprintTab() {
       setCurrent(sprint);
       setCreating(false);
       setNewSprint({ name: "", goal: "", startDate: "", endDate: "" });
-    } catch (_e: any) {
-      setError(typeof _e === "string" ? _e : _e?.message || "Failed to create sprint");
+    } catch (_e) {
+      setError(errorMessage(_e) || "Failed to create sprint");
     }
   }, [newSprint]);
 
@@ -1047,8 +1047,8 @@ function SprintTab() {
       await invoke("agile_update_sprint", { sprint: updated });
       setCurrent(updated);
       setSprints(prev => prev.map(s => s.id === updated.id ? updated : s));
-    } catch (_e: any) {
-      setError(typeof _e === "string" ? _e : _e?.message || "Failed to update sprint");
+    } catch (_e) {
+      setError(errorMessage(_e) || "Failed to update sprint");
     }
   }, [current]);
 
@@ -1173,7 +1173,7 @@ function SprintTab() {
                           setCurrent(updated);
                           setSprints(prev => prev.map(s => s.id === updated.id ? updated : s));
                           setAvailableBacklog(prev => prev.filter(b => b.id !== item.id));
-                        } catch (_e: any) {
+                        } catch (_e) {
                           setError(typeof _e === "string" ? _e : "Failed to add to sprint");
                         }
                       }}
@@ -1255,8 +1255,8 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
       try {
         const data = await invoke<Card[]>("agile_get_backlog");
         setItems(data || []);
-      } catch (_e: any) {
-        setError(typeof _e === "string" ? _e : _e?.message || "Failed to load backlog");
+      } catch (_e) {
+        setError(errorMessage(_e) || "Failed to load backlog");
       }
     })();
   }, []);
@@ -1280,20 +1280,20 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
       setItems(prev => [story, ...prev]);
       setNewStory({ title: "", description: "", storyPoints: 0, priority: "P2", labels: "", acceptanceCriteria: "" });
       setShowCreate(false);
-    } catch (_e: any) {
-      setError(typeof _e === "string" ? _e : _e?.message || "Failed to create story");
+    } catch (_e) {
+      setError(errorMessage(_e) || "Failed to create story");
     }
   }, [newStory]);
 
-  const updateInline = useCallback(async (id: string, field: "storyPoints" | "priority", value: any) => {
+  const updateInline = useCallback(async (id: string, field: "storyPoints" | "priority", value: string | number) => {
     const item = items.find(c => c.id === id);
     if (!item) return;
     const updated = { ...item, [field]: value };
     try {
       await invoke("agile_update_story", { story: updated });
       setItems(prev => prev.map(c => c.id === id ? updated : c));
-    } catch (_e: any) {
-      setError(typeof _e === "string" ? _e : _e?.message || "Failed to update story");
+    } catch (_e) {
+      setError(errorMessage(_e) || "Failed to update story");
     }
   }, [items]);
 
@@ -1301,8 +1301,8 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
     try {
       await invoke("agile_update_story", { story: updated });
       setItems(prev => prev.map(c => c.id === updated.id ? updated : c));
-    } catch (_e: any) {
-      setError(typeof _e === "string" ? _e : _e?.message || "Failed to save story");
+    } catch (_e) {
+      setError(errorMessage(_e) || "Failed to save story");
     }
     setDetailCard(null);
   }, []);
@@ -1312,8 +1312,8 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
     try {
       await invoke("agile_delete_story", { storyId: detailCard.id });
       setItems(prev => prev.filter(c => c.id !== detailCard.id));
-    } catch (_e: any) {
-      setError(typeof _e === "string" ? _e : _e?.message || "Failed to delete story");
+    } catch (_e) {
+      setError(errorMessage(_e) || "Failed to delete story");
     }
     setDetailCard(null);
   }, [detailCard]);
@@ -1359,8 +1359,8 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
         setError("AI could not determine a good split for this story.");
         setTimeout(() => setError(""), 3000);
       }
-    } catch (_e: any) {
-      setError(typeof _e === "string" ? _e : _e?.message || "AI split failed");
+    } catch (_e) {
+      setError(errorMessage(_e) || "AI split failed");
     } finally {
       setSplitLoading(null);
     }
@@ -1388,8 +1388,8 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
       stories.sort((a, b) => a.order - b.order);
       setAiSuggestions(stories);
       setAiEpics(result.epics || []);
-    } catch (_e: any) {
-      setError(typeof _e === "string" ? _e : _e?.message || "AI generation failed");
+    } catch (_e) {
+      setError(errorMessage(_e) || "AI generation failed");
     } finally {
       setAiGenerating(false);
     }
@@ -1428,8 +1428,8 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
       setAiEpics([]);
       setAiPrompt("");
       setShowAiGenerate(false);
-    } catch (_e: any) {
-      setError(typeof _e === "string" ? _e : _e?.message || "Failed to add stories");
+    } catch (_e) {
+      setError(errorMessage(_e) || "Failed to add stories");
     }
   }, [aiSuggestions]);
 
@@ -1635,7 +1635,7 @@ function BacklogTab({ provider }: { provider?: string } = {}) {
                 if (card) await invoke("agile_update_story", { story: card });
               }
             }
-          } catch (_e: any) {
+          } catch (_e) {
             setError(typeof _e === "string" ? _e : "AI estimation failed");
           }
         }}>AI Estimate</button>
@@ -1763,8 +1763,8 @@ function CeremoniesTab({ provider }: { provider?: string } = {}) {
         if (data.capacity) setCapacity(data.capacity);
         if (data.demoChecklist) setDemoChecklist(data.demoChecklist);
         if (data.retro) setRetro(data.retro);
-      } catch (_e: any) {
-        setError(typeof _e === "string" ? _e : _e?.message || "Failed to load ceremonies");
+      } catch (_e) {
+        setError(errorMessage(_e) || "Failed to load ceremonies");
       }
     })();
   }, []);
@@ -1778,8 +1778,8 @@ function CeremoniesTab({ provider }: { provider?: string } = {}) {
         retro: data.retro ?? retro,
       };
       await invoke("agile_save_ceremony", { ceremony });
-    } catch (_e: any) {
-      setError(typeof _e === "string" ? _e : _e?.message || "Failed to save ceremony");
+    } catch (_e) {
+      setError(errorMessage(_e) || "Failed to save ceremony");
     }
   }, [standups, capacity, demoChecklist, retro]);
 
@@ -1914,7 +1914,7 @@ function CeremoniesTab({ provider }: { provider?: string } = {}) {
                 const next = [...retro, ...newCards];
                 setRetro(next);
                 saveCeremony({ retro: next });
-              } catch (_e: any) {
+              } catch (_e) {
                 setError(typeof _e === "string" ? _e : "AI retro generation failed");
               }
             }}>AI Generate Cards</button>
@@ -1953,8 +1953,9 @@ function MetricsTab() {
   useEffect(() => {
     (async () => {
       try {
-        const raw = await invoke<any>("agile_get_metrics");
-        // Backend returns flat shape — normalize to MetricsData
+        // Backend returns a flat, partially-populated shape (with snake_case
+        // alternates) — normalize to MetricsData below.
+        const raw = await invoke<Partial<MetricsData> & { velocities?: number[]; avg_velocity?: number }>("agile_get_metrics");
         const velocities: number[] = raw.velocities || [];
         const data: MetricsData = {
           velocityHistory: raw.velocityHistory || velocities.map((pts: number, i: number) => ({ sprint: `S${i + 1}`, points: pts })),
@@ -1966,8 +1967,8 @@ function MetricsTab() {
           capacityUtilization: raw.capacityUtilization ?? 0,
         };
         setMetrics(data);
-      } catch (_e: any) {
-        setError(typeof _e === "string" ? _e : _e?.message || "Failed to load metrics");
+      } catch (_e) {
+        setError(errorMessage(_e) || "Failed to load metrics");
       }
     })();
   }, []);
@@ -2286,9 +2287,9 @@ function AiCoachTab({ provider }: { provider?: string } = {}) {
       if (cancelRef.current) return;
       taskIdRef.current = result.taskId;
       setAnalysis(result);
-    } catch (_e: any) {
+    } catch (_e) {
       if (!cancelRef.current) {
-        setError(typeof _e === "string" ? _e : _e?.message || "AI analysis failed");
+        setError(errorMessage(_e) || "AI analysis failed");
       }
     } finally {
       if (!cancelRef.current) {
@@ -2498,7 +2499,7 @@ function SAFeTab({ provider }: { provider?: string } = {}) {
           }));
           save({ ...safeData, programIncrements: safeData.programIncrements.map(p => p.id === piId ? { ...p, features: [...p.features, ...newFeatures] } : p) });
         }
-      } catch (_e: any) {
+      } catch (_e) {
         // silently fail — user can add manually
       } finally {
         setFeatureLoading(false);
