@@ -13,6 +13,7 @@
 //! - **Http**: Calls a custom HTTP endpoint
 //! - **Process**: Runs a shell command
 
+use crate::sync_ext::RwLockRecover;
 use anyhow::Result;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -356,13 +357,13 @@ impl AdapterRegistry {
     }
 
     pub fn unregister(&self, name: &str) -> bool {
-        let removed = self.adapters.write().unwrap().remove(name).is_some();
-        self.configs.write().unwrap().remove(name);
+        let removed = self.adapters.write_recover().remove(name).is_some();
+        self.configs.write_recover().remove(name);
         removed
     }
 
     pub fn get(&self, name: &str) -> Option<Arc<dyn AgentAdapter>> {
-        self.adapters.read().unwrap().get(name).cloned()
+        self.adapters.read_recover().get(name).cloned()
     }
 
     /// Get adapter by type string (first match wins).
@@ -376,8 +377,8 @@ impl AdapterRegistry {
     }
 
     pub fn list(&self) -> Vec<AdapterInfo> {
-        let adapters = self.adapters.read().unwrap();
-        let configs = self.configs.read().unwrap();
+        let adapters = self.adapters.read_recover();
+        let configs = self.configs.read_recover();
         let mut infos: Vec<AdapterInfo> = adapters
             .iter()
             .map(|(name, adapter)| AdapterInfo {

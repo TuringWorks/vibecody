@@ -19,10 +19,12 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
+    "@dagrejs/dagre": "^3.0.0",
     "@monaco-editor/react": "^4.7.0",
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-dialog": "^2.7.1",
     "@tauri-apps/plugin-opener": "^2",
+    "@xyflow/react": "^12.11.2",
     "dompurify": "^3.2.4",
     "fuse.js": "^7.1.0",
     "lucide-react": "^1.17.0",

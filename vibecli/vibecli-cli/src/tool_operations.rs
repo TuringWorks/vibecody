@@ -14,6 +14,7 @@
 //! Custom backends (SSH, Docker, etc.) implement the traits and register
 //! themselves with [`OpsRegistry`].
 
+use crate::sync_ext::LockRecover;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Command;
@@ -121,7 +122,7 @@ impl DryRunBashOps {
 
     /// Snapshot of all recorded commands in order.
     pub fn commands(&self) -> Vec<String> {
-        self.recorded.lock().unwrap().clone()
+        self.recorded.lock_recover().clone()
     }
 }
 
@@ -133,7 +134,7 @@ impl Default for DryRunBashOps {
 
 impl BashOperations for DryRunBashOps {
     fn run(&self, command: &str, _cwd: Option<&str>, _env: &HashMap<String, String>) -> BashOutput {
-        self.recorded.lock().unwrap().push(command.to_owned());
+        self.recorded.lock_recover().push(command.to_owned());
         BashOutput::success(format!("[dry-run] {command}"))
     }
 
@@ -349,12 +350,12 @@ impl MemoryEditOps {
 
     /// Read back the content of `path` (test assertion helper).
     pub fn get(&self, path: &str) -> Option<String> {
-        self.files.lock().unwrap().get(path).cloned()
+        self.files.lock_recover().get(path).cloned()
     }
 
     /// All paths currently stored in the virtual filesystem, sorted.
     pub fn all_paths(&self) -> Vec<String> {
-        let mut paths: Vec<String> = self.files.lock().unwrap().keys().cloned().collect();
+        let mut paths: Vec<String> = self.files.lock_recover().keys().cloned().collect();
         paths.sort();
         paths
     }
@@ -368,7 +369,7 @@ impl Default for MemoryEditOps {
 
 impl EditOperations for MemoryEditOps {
     fn read_file(&self, path: &str) -> Result<FileReadResult, String> {
-        let files = self.files.lock().unwrap();
+        let files = self.files.lock_recover();
         match files.get(path) {
             Some(content) => {
                 let size_bytes = content.len() as u64;
@@ -394,7 +395,7 @@ impl EditOperations for MemoryEditOps {
 
     fn apply_patch(&self, path: &str, patch: &EditPatch) -> Result<EditResult, String> {
         let content = {
-            let files = self.files.lock().unwrap();
+            let files = self.files.lock_recover();
             files
                 .get(path)
                 .cloned()
@@ -430,7 +431,7 @@ impl EditOperations for MemoryEditOps {
         } else {
             format!("{path}/")
         };
-        let files = self.files.lock().unwrap();
+        let files = self.files.lock_recover();
         let mut names: Vec<String> = files
             .keys()
             .filter_map(|k| {
@@ -448,7 +449,7 @@ impl EditOperations for MemoryEditOps {
     }
 
     fn file_exists(&self, path: &str) -> bool {
-        self.files.lock().unwrap().contains_key(path)
+        self.files.lock_recover().contains_key(path)
     }
 
     fn backend_name(&self) -> &str {

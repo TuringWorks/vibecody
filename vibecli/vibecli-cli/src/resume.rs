@@ -22,6 +22,7 @@
 
 #![allow(dead_code)]
 
+use crate::sync_ext::LockRecover;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -109,19 +110,19 @@ impl ResumeRegistry {
 
     pub fn insert(&self, record: ResumeRecord) {
         let handle = record.response.handle.clone();
-        self.inner.lock().unwrap().insert(handle, record);
+        self.inner.lock_recover().insert(handle, record);
     }
 
     pub fn get(&self, handle: &str) -> Option<ResumeRecord> {
-        self.inner.lock().unwrap().get(handle).cloned()
+        self.inner.lock_recover().get(handle).cloned()
     }
 
     pub fn len(&self) -> usize {
-        self.inner.lock().unwrap().len()
+        self.inner.lock_recover().len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.inner.lock().unwrap().is_empty()
+        self.inner.lock_recover().is_empty()
     }
 }
 

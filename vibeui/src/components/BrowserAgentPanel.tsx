@@ -14,6 +14,12 @@ interface BrowseSession {
   screenshots: number;
 }
 
+interface RawBrowserSession {
+  id?: string | number;
+  url?: string; task?: string; status?: string;
+  actions?: number; screenshots?: number;
+}
+
 export function BrowserAgentPanel() {
   const [tab, setTab] = useState<SubTab>("browse");
   const [url, setUrl] = useState("https://");
@@ -26,8 +32,8 @@ export function BrowserAgentPanel() {
   const fetchSessions = useCallback(async () => {
     try {
       const data = await invoke<unknown>("browser_list_sessions");
-      const list = Array.isArray(data) ? data : [];
-      setSessions(list.map((s: any) => ({
+      const list: RawBrowserSession[] = Array.isArray(data) ? data : [];
+      setSessions(list.map((s) => ({
         id: String(s.id),
         url: s.url || "",
         task: s.task || "",

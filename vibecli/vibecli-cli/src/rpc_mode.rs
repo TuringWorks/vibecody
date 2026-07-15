@@ -6,6 +6,7 @@
 //!
 //! Pi-mono gap bridge: Phase C4.
 
+use crate::sync_ext::LockRecover;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Mutex;
 
@@ -334,13 +335,13 @@ impl MemoryTransport {
     /// Enqueue a frame as a JSONL line for reading.
     pub fn push_inbound(&self, frame: &RpcFrame) {
         let line = frame.to_jsonl();
-        self.inbound.lock().unwrap().push_back(line);
+        self.inbound.lock_recover().push_back(line);
     }
 
     /// Drain and parse all captured outbound lines into frames (errors dropped).
     pub fn pop_outbound(&self) -> Vec<RpcFrame> {
         let lines: Vec<String> = {
-            let mut guard = self.outbound.lock().unwrap();
+            let mut guard = self.outbound.lock_recover();
             guard.drain(..).collect()
         };
         lines
@@ -351,7 +352,7 @@ impl MemoryTransport {
 
     /// Number of captured outbound lines (without consuming them).
     pub fn outbound_count(&self) -> usize {
-        self.outbound.lock().unwrap().len()
+        self.outbound.lock_recover().len()
     }
 
     /// Build an `RpcReader` backed by the inbound queue.
@@ -387,7 +388,7 @@ impl<'a> std::io::Read for MemoryBufRead<'a> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         // Refill from the queue when the current line is exhausted.
         while self.pos >= self.current.len() {
-            let next = self.queue.lock().unwrap().pop_front();
+            let next = self.queue.lock_recover().pop_front();
             match next {
                 Some(line) => {
                     self.current = line;
@@ -407,7 +408,7 @@ impl<'a> std::io::Read for MemoryBufRead<'a> {
 impl<'a> std::io::BufRead for MemoryBufRead<'a> {
     fn fill_buf(&mut self) -> std::io::Result<&[u8]> {
         if self.pos >= self.current.len() {
-            let next = self.queue.lock().unwrap().pop_front();
+            let next = self.queue.lock_recover().pop_front();
             match next {
                 Some(line) => {
                     self.current = line;
@@ -442,7 +443,7 @@ impl<'a> std::io::Write for MemoryWrite<'a> {
         // Flush complete lines into the shared buffer.
         while let Some(pos) = self.line_buf.find('\n') {
             let line = self.line_buf[..=pos].to_string();
-            self.buf.lock().unwrap().push(line);
+            self.buf.lock_recover().push(line);
             self.line_buf = self.line_buf[pos + 1..].to_string();
         }
         Ok(data.len())
@@ -452,7 +453,7 @@ impl<'a> std::io::Write for MemoryWrite<'a> {
         // If there is a partial line (no trailing newline), flush it anyway.
         if !self.line_buf.is_empty() {
             let line = std::mem::take(&mut self.line_buf);
-            self.buf.lock().unwrap().push(line);
+            self.buf.lock_recover().push(line);
         }
         Ok(())
     }

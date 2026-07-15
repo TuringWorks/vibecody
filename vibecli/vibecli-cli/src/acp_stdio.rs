@@ -35,6 +35,7 @@
 //! lifetime gymnastics. Sessions are in-memory for this slice; persistence
 //! ties into [`crate::session_store`] in a follow-up.
 
+use crate::sync_ext::LockRecover;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
@@ -146,7 +147,7 @@ impl AcpServer {
 
     /// Convenience for tests: how many sessions are currently held.
     pub fn session_count(&self) -> usize {
-        self.state.lock().unwrap().sessions.len()
+        self.state.lock_recover().sessions.len()
     }
 
     /// Top-level dispatch — turn an `AcpRequest` into the response

@@ -223,7 +223,7 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
           addLog("info", stage, "Checking response headers, CORS policy, CSP directives");
           await new Promise((r) => setTimeout(r, 600));
           updateStage(stage, { details: ["Target resolved", "Headers analyzed", "Tech stack detected", `Session: ${sessionId}`] });
-          (window as any).__vibeScanSession = sessionId;
+          window.__vibeScanSession = sessionId;
         } else if (stage === "Analysis") {
           addLog("info", stage, "Running static pattern analysis (CWE/OWASP Top 10)");
           await new Promise((r) => setTimeout(r, 1500));
@@ -256,7 +256,7 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
           updateStage(stage, { details: ["False positives removed", "Confirmed exploits verified"] });
         } else if (stage === "Report") {
           addLog("info", stage, "Generating security assessment report");
-          const sessionId = (window as any).__vibeScanSession || "scan-1";
+          const sessionId = window.__vibeScanSession || "scan-1";
           let findings: VulnFinding[] = [];
           try {
             const fetchFindings = Promise.race([

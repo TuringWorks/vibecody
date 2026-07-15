@@ -6,6 +6,7 @@
 //! with filters and priority; blocking handlers can veto `ToolCall` and
 //! `BeforeProviderRequest` events before execution proceeds.
 
+use crate::sync_ext::LockRecover;
 use std::sync::{Arc, Mutex, OnceLock};
 
 // ---------------------------------------------------------------------------
@@ -353,7 +354,7 @@ impl EventBus {
         F: Fn(&BusEvent) -> HandlerDecision + Send + Sync + 'static,
     {
         let id = {
-            let mut n = self.next_id.lock().unwrap();
+            let mut n = self.next_id.lock_recover();
             let id = *n;
             *n += 1;
             id
@@ -364,7 +365,7 @@ impl EventBus {
             handler: Box::new(handler),
             priority,
         };
-        let mut subs = self.subscriptions.lock().unwrap();
+        let mut subs = self.subscriptions.lock_recover();
         subs.push(sub);
         // Keep sorted: highest priority first, then insertion order (stable sort).
         subs.sort_by(|a, b| b.priority.cmp(&a.priority));
@@ -373,7 +374,7 @@ impl EventBus {
 
     /// Unsubscribe by ID. Returns `true` if a subscription was removed.
     pub fn unsubscribe(&self, id: SubscriberId) -> bool {
-        let mut subs = self.subscriptions.lock().unwrap();
+        let mut subs = self.subscriptions.lock_recover();
         let before = subs.len();
         subs.retain(|s| s.id != id);
         subs.len() < before
@@ -388,7 +389,7 @@ impl EventBus {
     pub fn emit(&self, event: BusEvent) -> HandlerDecision {
         // Record in history first (even if blocked, for auditability).
         if self.max_history > 0 {
-            let mut hist = self.history.lock().unwrap();
+            let mut hist = self.history.lock_recover();
             if hist.len() >= self.max_history {
                 hist.remove(0);
             }
@@ -396,7 +397,7 @@ impl EventBus {
         }
 
         let is_blocking = event.is_blocking_candidate();
-        let subs = self.subscriptions.lock().unwrap();
+        let subs = self.subscriptions.lock_recover();
 
         for sub in subs.iter() {
             if !sub.filter.matches(&event) {
@@ -415,22 +416,22 @@ impl EventBus {
 
     /// Return a snapshot of the event history (oldest first).
     pub fn history(&self) -> Vec<BusEvent> {
-        self.history.lock().unwrap().clone()
+        self.history.lock_recover().clone()
     }
 
     /// Number of active subscriptions.
     pub fn subscription_count(&self) -> usize {
-        self.subscriptions.lock().unwrap().len()
+        self.subscriptions.lock_recover().len()
     }
 
     /// Number of events currently stored in history.
     pub fn history_count(&self) -> usize {
-        self.history.lock().unwrap().len()
+        self.history.lock_recover().len()
     }
 
     /// Clear the event history.
     pub fn clear_history(&self) {
-        self.history.lock().unwrap().clear();
+        self.history.lock_recover().clear();
     }
 }
 

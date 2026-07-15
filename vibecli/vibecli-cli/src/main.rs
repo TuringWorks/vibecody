@@ -2953,6 +2953,7 @@ mod exec_goal_repl;
 #[allow(dead_code)]
 mod loop_engine;
 mod hosted_loop;
+mod sync_ext;
 // Recap & Resume — Phase D1.1: diffcomplete chain types + encrypted
 // store on workspace.db. Patent re-audit: PASS (1–5 unchanged).
 #[allow(dead_code)]

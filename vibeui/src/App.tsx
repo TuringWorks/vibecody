@@ -235,11 +235,11 @@ function App() {
     // Initialize Extension Manager
     const manager = new ExtensionManager({
       showInformationMessage: (message) => {
-        (window as any).lastExtensionMessage = message;
+        window.lastExtensionMessage = message;
       },
       showErrorMessage: (message) => {
         console.error(`[Extension Error] ${message}`);
-        (window as any).lastExtensionMessage = `Error: ${message}`;
+        window.lastExtensionMessage = `Error: ${message}`;
       },
     });
 
@@ -247,7 +247,7 @@ function App() {
       const worker = new ExtensionHostWorker();
       manager.setWorker(worker);
       extensionManagerRef.current = manager;
-      (window as any).extensionManager = manager;
+      window.extensionManager = manager;
       // Extension Manager initialized
     } catch (e) {
       toast.error(`Failed to initialize extension worker: ${e}`);
@@ -1131,7 +1131,7 @@ function App() {
           });
         `;
         extensionManagerRef.current?.loadExtension(code);
-        (window as any).lastExtensionMessage = "Test extension loaded";
+        window.lastExtensionMessage = "Test extension loaded";
       }
     },
     {

@@ -1767,6 +1767,17 @@ pub fn run() {
             commands::skillopt_status,
             commands::skillopt_cancel,
             commands::skillopt_promote,
+            // Fluxo — durable workflow engine (proxies to daemon /fluxo/*)
+            commands::fluxo_register,
+            commands::fluxo_list_workflows,
+            commands::fluxo_get_workflow,
+            commands::fluxo_execute,
+            commands::fluxo_get_run,
+            commands::fluxo_list_runs,
+            commands::fluxo_pause_run,
+            commands::fluxo_resume_run,
+            commands::fluxo_terminate_run,
+            commands::fluxo_signal,
             // FIT-GAP v8: Phase 33-39 — Agent Intelligence panels
             commands::env_dispatch_list,
             commands::env_dispatch_task,

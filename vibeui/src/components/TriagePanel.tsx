@@ -61,7 +61,7 @@ export function TriagePanel() {
         invoke<unknown>("triage_get_metrics"),
       ]);
       setRules(Array.isArray(rulesData) ? rulesData as TriageRule[] : []);
-      const histList = Array.isArray(historyData) ? historyData : (historyData as any)?.history ?? [];
+      const histList: TriageResult[] = Array.isArray(historyData) ? historyData : ((historyData as { history?: TriageResult[] })?.history ?? []);
       setHistory(histList);
       setMetrics(metricsData as Record<string, unknown>);
     } catch (e) {

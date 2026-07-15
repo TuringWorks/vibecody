@@ -345,6 +345,17 @@ function buildEmptyQaAgents(): QaAgent[] {
 
 /* ── Component ───────────────────────────────────────────────────────── */
 
+interface RawBatchRun {
+  status?: string; id?: string; title?: string; projectTitle?: string;
+  files?: number; lines?: number; duration?: string; elapsed?: string;
+  agentCount?: number; createdAt?: string; qaScore?: number; fileTree?: string[];
+}
+interface RawBatchLog { level?: string; timestamp?: string; agentId?: string; message?: string; }
+interface RawBatchProgress {
+  status?: string; progress?: number; phaseLabel?: string; tokenUsed?: number;
+  elapsed?: string; files?: number; lines?: number; logs?: RawBatchLog[];
+}
+
 const BatchBuilderPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey>("newrun");
 
@@ -475,9 +486,9 @@ const BatchBuilderPanel: React.FC = () => {
   // Load history from backend on mount
   const loadHistory = useCallback(async () => {
     try {
-      const runs = await invoke<Record<string, unknown>[]>("batch_list_runs");
+      const runs = await invoke<RawBatchRun[]>("batch_list_runs");
       if (Array.isArray(runs)) {
-        setHistoryRuns(runs.filter((r: any) => ["Completed", "Failed", "Cancelled"].includes(r.status)).map((r: any) => ({
+        setHistoryRuns(runs.filter((r) => ["Completed", "Failed", "Cancelled"].includes(r.status ?? "")).map((r) => ({
           id: r.id || "",
           title: r.title || r.projectTitle || "Untitled",
           status: r.status || "Completed",
@@ -533,7 +544,7 @@ const BatchBuilderPanel: React.FC = () => {
       if (pollRef.current) clearInterval(pollRef.current);
       pollRef.current = setInterval(async () => {
         try {
-          const updated = await invoke<any>("batch_simulate_progress", { runId: newRunId });
+          const updated = await invoke<RawBatchProgress | null>("batch_simulate_progress", { runId: newRunId });
           if (!updated) return;
           setRunStatus(updated.status || "Generating");
           setProgress(updated.progress || 0);
@@ -546,12 +557,12 @@ const BatchBuilderPanel: React.FC = () => {
             files: f, lines: l,
             linesPerHour: l > 0 ? Math.round(l * 3.6) : 0,
             filesPerHour: f > 0 ? Math.round(f * 3.6) : 0,
-            compilePass: updated.progress > 60 ? 92 : 0,
-            testPass: updated.progress > 80 ? 78 : 0,
+            compilePass: (updated.progress ?? 0) > 60 ? 92 : 0,
+            testPass: (updated.progress ?? 0) > 80 ? 78 : 0,
           });
           // Update logs
           if (Array.isArray(updated.logs)) {
-            setLogs(updated.logs.map((lg: any, i: number) => ({
+            setLogs(updated.logs.map((lg, i: number) => ({
               id: i + 1000,
               level: lg.level || "Info",
               timestamp: lg.timestamp || "",

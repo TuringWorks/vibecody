@@ -37,6 +37,12 @@ const statusColor: Record<string, string> = { running: "var(--accent-color)", su
 const stratColor: Record<string, string> = { mcts: "var(--accent-purple)", agentless: "var(--warning-color)", linear: "var(--text-secondary)" };
 
 
+interface RawMctsSession {
+  id?: string | number;
+  file?: string; error?: string; status?: string; strategy?: string;
+  nodesExplored?: number; nodes_explored?: number; depth?: number;
+}
+
 export function MctsRepairPanel() {
   const [tab, setTab] = useState("sessions");
   const [sessions, setSessions] = useState<RepairSession[]>([]);
@@ -52,8 +58,8 @@ export function MctsRepairPanel() {
   const fetchSessions = useCallback(async () => {
     try {
       const data = await invoke<unknown>("mcts_list_sessions");
-      const list = Array.isArray(data) ? data : [];
-      setSessions(list.map((s: any) => ({
+      const list: RawMctsSession[] = Array.isArray(data) ? data : [];
+      setSessions(list.map((s) => ({
         id: String(s.id),
         file: s.file || "",
         error: s.error || "",
@@ -93,7 +99,7 @@ export function MctsRepairPanel() {
   const handleCreate = useCallback(async () => {
     if (!newFile.trim() || !newError.trim()) return;
     try {
-      const created = await invoke<any>("mcts_create_session", { file: newFile, errorMsg: newError, strategy: newStrategy });
+      const created = await invoke<{ id?: string | number }>("mcts_create_session", { file: newFile, errorMsg: newError, strategy: newStrategy });
       setNewFile("");
       setNewError("");
       await fetchSessions();

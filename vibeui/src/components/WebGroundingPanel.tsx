@@ -23,6 +23,13 @@ interface Citation {
   usedIn: string;
 }
 
+interface RawWebResult {
+  id?: string; title?: string; name?: string; symbol?: string;
+  url?: string; link?: string; file?: string;
+  snippet?: string; description?: string; content?: string;
+  relevance?: number; score?: number;
+}
+
 export function WebGroundingPanel() {
   const [tab, setTab] = useState("search");
   const [query, setQuery] = useState("");
@@ -41,8 +48,8 @@ export function WebGroundingPanel() {
     setError(null);
     try {
       const data = await invoke<unknown>("web_search", { query });
-      const resultList = Array.isArray(data) ? data : (data as any)?.results ?? [];
-      const mapped: SearchResult[] = resultList.map((r: any, i: number) => ({
+      const resultList: RawWebResult[] = Array.isArray(data) ? data : ((data as { results?: RawWebResult[] })?.results ?? []);
+      const mapped: SearchResult[] = resultList.map((r, i: number) => ({
         id: r.id || `r${Date.now()}_${i}`,
         title: r.title || r.name || query,
         url: r.url || r.link || "",
@@ -63,8 +70,8 @@ export function WebGroundingPanel() {
     setError(null);
     try {
       const data = await invoke<unknown>("semindex_search", { query });
-      const resultList = Array.isArray(data) ? data : (data as any)?.results ?? [];
-      const mapped: SearchResult[] = resultList.map((r: any, i: number) => ({
+      const resultList: RawWebResult[] = Array.isArray(data) ? data : ((data as { results?: RawWebResult[] })?.results ?? []);
+      const mapped: SearchResult[] = resultList.map((r, i: number) => ({
         id: r.id || `s${Date.now()}_${i}`,
         title: r.title || r.symbol || r.name || query,
         url: r.url || r.file || "",

@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import type { SpeechRecognitionLike } from "../types/globals";
 import { invoke } from "@tauri-apps/api/core";
 
 export function useVoiceInput(onTranscript: (text: string) => void) {
@@ -6,7 +7,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [interimText, setInterimText] = useState("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
@@ -29,7 +30,7 @@ export function useVoiceInput(onTranscript: (text: string) => void) {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
       try {
         const recognition = new SpeechRecognition();

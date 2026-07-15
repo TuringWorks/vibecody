@@ -24,6 +24,7 @@
 //! - Only the tree-sitter backbone is enabled (no `lsp`/`cli`/`mcp` features)
 //!   to keep the daemon dep tree light.
 
+use crate::sync_ext::RwLockRecover;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock, RwLock};
@@ -197,7 +198,7 @@ pub fn build_graph_blocking(workspace_root: &Path) -> Result<GraphProbeReport, S
 fn do_build(handle: &GraphHandle) -> Result<GraphProbeReport, String> {
     // Mark indexing.
     {
-        let mut p = handle.probe.write().unwrap();
+        let mut p = handle.probe.write_recover();
         p.status = GraphStatus::Indexing;
     }
 
@@ -218,8 +219,8 @@ fn do_build(handle: &GraphHandle) -> Result<GraphProbeReport, String> {
 
     let node_count = graph.node_count();
     let edge_count = graph.edge_count();
-    *handle.graph.write().unwrap() = Some(graph);
-    *handle.hashes.write().unwrap() = hashes;
+    *handle.graph.write_recover() = Some(graph);
+    *handle.hashes.write_recover() = hashes;
     refresh_mtimes(handle);
 
     let probe = GraphProbeReport {
@@ -228,7 +229,7 @@ fn do_build(handle: &GraphHandle) -> Result<GraphProbeReport, String> {
         edge_count,
         last_built_at: Some(chrono::Utc::now()),
     };
-    *handle.probe.write().unwrap() = probe.clone();
+    *handle.probe.write_recover() = probe.clone();
     eprintln!("[vibecli graph] built: {node_count} nodes, {edge_count} edges");
     Ok(probe)
 }
@@ -239,14 +240,14 @@ fn do_build(handle: &GraphHandle) -> Result<GraphProbeReport, String> {
 pub fn spawn_background_build(workspace_root: PathBuf) {
     // Mark indexing eagerly so /health reflects it before the thread starts.
     if let Some(h) = graph_handle() {
-        let mut p = h.probe.write().unwrap();
+        let mut p = h.probe.write_recover();
         p.status = GraphStatus::Indexing;
     }
     std::thread::spawn(move || {
         let h = init_graph_handle(&workspace_root);
         if let Err(e) = do_build(h) {
             eprintln!("[vibecli graph] background build failed: {e}");
-            let mut p = h.probe.write().unwrap();
+            let mut p = h.probe.write_recover();
             p.status = GraphStatus::Disabled;
         }
     });
@@ -270,7 +271,7 @@ pub fn refresh_if_stale(workspace_root: &Path) -> bool {
     }
 
     let need_rebuild = {
-        let cache = handle.mtimes.read().unwrap();
+        let cache = handle.mtimes.read_recover();
         if cache.is_empty() {
             // Cold cache: populate now, trust the persisted graph.
             false
@@ -279,7 +280,7 @@ pub fn refresh_if_stale(workspace_root: &Path) -> bool {
         }
     };
 
-    *handle.mtimes.write().unwrap() = current;
+    *handle.mtimes.write_recover() = current;
 
     if need_rebuild {
         eprintln!("[vibecli graph] stale files detected — rebuilding");
@@ -291,7 +292,7 @@ pub fn refresh_if_stale(workspace_root: &Path) -> bool {
 }
 
 fn refresh_mtimes(handle: &GraphHandle) {
-    let mut cache = handle.mtimes.write().unwrap();
+    let mut cache = handle.mtimes.write_recover();
     cache.clear();
     for (rel, meta) in walk_source_files(&handle.workspace_root) {
         cache.insert(rel, meta);
@@ -368,7 +369,7 @@ fn walk_source_files(root: &Path) -> Vec<(String, (SystemTime, u64))> {
 /// community structure, and surprising cross-file links. Returns `None` when
 /// the graph is empty/unavailable — callers fall back to `build_repo_map`.
 pub fn render_repo_map_summary(handle: &GraphHandle) -> Option<String> {
-    let graph = handle.graph.read().unwrap();
+    let graph = handle.graph.read_recover();
     let graph = graph.as_ref()?;
     if graph.node_count() == 0 {
         return None;
@@ -461,7 +462,7 @@ fn short(path: &str) -> String {
 
 /// Render the full `GRAPH_REPORT.md` for the graph, or `None` if unavailable.
 pub fn render_report(handle: &GraphHandle) -> Option<String> {
-    let graph = handle.graph.read().unwrap();
+    let graph = handle.graph.read_recover();
     graph.as_ref().map(kodegraph_render_report)
 }
 
@@ -492,7 +493,7 @@ pub fn callers(name: &str) -> Vec<String> {
     let Some(handle) = graph_handle() else {
         return Vec::new();
     };
-    let graph = handle.graph.read().unwrap();
+    let graph = handle.graph.read_recover();
     let Some(graph) = graph.as_ref() else {
         return Vec::new();
     };
@@ -511,7 +512,7 @@ pub fn callees(name: &str) -> Vec<String> {
     let Some(handle) = graph_handle() else {
         return Vec::new();
     };
-    let graph = handle.graph.read().unwrap();
+    let graph = handle.graph.read_recover();
     let Some(graph) = graph.as_ref() else {
         return Vec::new();
     };
@@ -535,7 +536,7 @@ pub fn callees(name: &str) -> Vec<String> {
 /// `None` (→ caller returns 503/disabled) when no handle is initialized.
 pub fn status_value() -> Option<serde_json::Value> {
     let handle = graph_handle()?;
-    let probe = handle.probe.read().unwrap();
+    let probe = handle.probe.read_recover();
     let mut v = serde_json::json!({
         "status": probe.status.as_str(),
         "node_count": probe.node_count,
@@ -555,7 +556,7 @@ pub fn status_value() -> Option<serde_json::Value> {
 /// edges:[{from,to,kind,provenance}], est_tokens}`. `None` if no graph.
 pub fn query_value(query: &str, budget: usize) -> Option<serde_json::Value> {
     let handle = graph_handle()?;
-    let graph = handle.graph.read().unwrap();
+    let graph = handle.graph.read_recover();
     let graph = graph.as_ref()?;
     let sg = query_graph(graph, query, budget);
     let label_of = |id: kodegraph::model::graph::NodeId| graph.node(id).map(|nd| nd.label());
@@ -588,7 +589,7 @@ pub fn query_value(query: &str, budget: usize) -> Option<serde_json::Value> {
 /// A single node's payload as JSON, or `None` if no graph / not found.
 pub fn node_value(name: &str) -> Option<serde_json::Value> {
     let handle = graph_handle()?;
-    let graph = handle.graph.read().unwrap();
+    let graph = handle.graph.read_recover();
     let graph = graph.as_ref()?;
     kodegraph::query::get_node(graph, name).and_then(|nd| serde_json::to_value(&nd).ok())
 }
@@ -596,7 +597,7 @@ pub fn node_value(name: &str) -> Option<serde_json::Value> {
 /// Adjacent nodes as a JSON array of `NodeData`. `None` if no graph.
 pub fn neighbors_value(name: &str) -> Option<serde_json::Value> {
     let handle = graph_handle()?;
-    let graph = handle.graph.read().unwrap();
+    let graph = handle.graph.read_recover();
     let graph = graph.as_ref()?;
     let arr: Vec<serde_json::Value> = get_neighbors(graph, name)
         .into_iter()
@@ -608,7 +609,7 @@ pub fn neighbors_value(name: &str) -> Option<serde_json::Value> {
 /// Shortest path as `{path:[label…], hops:N}`. `None` if no graph / no path.
 pub fn path_value(from: &str, to: &str) -> Option<serde_json::Value> {
     let handle = graph_handle()?;
-    let graph = handle.graph.read().unwrap();
+    let graph = handle.graph.read_recover();
     let graph = graph.as_ref()?;
     kodegraph_shortest_path(graph, from, to).map(|(hops, nodes)| {
         serde_json::json!({
@@ -621,7 +622,7 @@ pub fn path_value(from: &str, to: &str) -> Option<serde_json::Value> {
 /// Blast radius as `{seed, affected, by_hop:{0:[label…],1:[…]}}`. `None` if no graph.
 pub fn blast_value(name: &str, max_hops: usize) -> Option<serde_json::Value> {
     let handle = graph_handle()?;
-    let graph = handle.graph.read().unwrap();
+    let graph = handle.graph.read_recover();
     let graph = graph.as_ref()?;
     let br = kodegraph::analyze::blast_radius(graph, name, max_hops);
     let label_of = |id: kodegraph::model::graph::NodeId| graph.node(id).map(|nd| nd.label());
@@ -672,7 +673,7 @@ fn node_summary_from(nd: &NodeData) -> NodeSummary {
 /// The node at `name` as a flat summary, or `None` if no graph / not found.
 pub fn node_summary(name: &str) -> Option<NodeSummary> {
     let handle = graph_handle()?;
-    let graph = handle.graph.read().unwrap();
+    let graph = handle.graph.read_recover();
     let graph = graph.as_ref()?;
     kodegraph::query::get_node(graph, name).map(|nd| node_summary_from(&nd))
 }
@@ -683,7 +684,7 @@ pub fn neighbor_labels(name: &str) -> Vec<String> {
     let Some(handle) = graph_handle() else {
         return Vec::new();
     };
-    let graph = handle.graph.read().unwrap();
+    let graph = handle.graph.read_recover();
     let Some(graph) = graph.as_ref() else {
         return Vec::new();
     };
@@ -700,7 +701,7 @@ pub fn search_symbols(query: &str) -> Vec<(String, String, usize)> {
     let Some(handle) = graph_handle() else {
         return Vec::new();
     };
-    let graph = handle.graph.read().unwrap();
+    let graph = handle.graph.read_recover();
     let Some(graph) = graph.as_ref() else {
         return Vec::new();
     };
@@ -730,7 +731,7 @@ pub fn graph_aware_symbols(task: &str, limit: usize) -> Vec<SymbolInfo> {
     let Some(handle) = graph_handle() else {
         return Vec::new();
     };
-    let graph = handle.graph.read().unwrap();
+    let graph = handle.graph.read_recover();
     let Some(graph) = graph.as_ref() else {
         return Vec::new();
     };

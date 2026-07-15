@@ -44,8 +44,8 @@ export function ProactivePanel() {
 
   const fetchSuggestions = useCallback(async () => {
     try {
-      const data = await invoke<{ suggestions: Suggestion[] }>("proactive_get_suggestions");
-      const list = (data as any)?.suggestions ?? (Array.isArray(data) ? data : []);
+      const data = await invoke<unknown>("proactive_get_suggestions");
+      const list: Suggestion[] = Array.isArray(data) ? data : ((data as { suggestions?: Suggestion[] })?.suggestions ?? []);
       setSuggestions(list);
     } catch (e) {
       console.error("proactive_get_suggestions failed:", e);
@@ -85,8 +85,8 @@ export function ProactivePanel() {
       const newScan: ScanRecord = {
         id: `sc${Date.now()}`,
         triggeredAt: new Date().toISOString().slice(0, 16).replace("T", " "),
-        suggestionsFound: (result as any)?.new_suggestions ?? 0,
-        duration: (result as any)?.duration ?? "0.5s",
+        suggestionsFound: (result as { new_suggestions?: number }).new_suggestions ?? 0,
+        duration: (result as { duration?: string }).duration ?? "0.5s",
       };
       setScans((prev) => [newScan, ...prev]);
       await fetchSuggestions();

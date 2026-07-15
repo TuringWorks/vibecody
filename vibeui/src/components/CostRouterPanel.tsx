@@ -19,6 +19,8 @@ interface RoutingDecision {
   timestamp: string;
 }
 
+interface RawBudget { total?: number; spent?: number; remaining?: number; }
+
 interface AbTest {
   id: string;
   name: string;
@@ -63,11 +65,11 @@ export function CostRouterPanel() {
         invoke<unknown>("cost_router_list_models"),
         invoke<unknown>("cost_router_get_budget"),
       ]);
-      const rd = routerData as any;
+      const rd = routerData as { decisions?: RoutingDecision[]; budget?: RawBudget };
       if (rd?.decisions && Array.isArray(rd.decisions)) {
         setDecisions(rd.decisions);
       }
-      const bd = (budgetData ?? rd?.budget) as any;
+      const bd = (budgetData ?? rd?.budget) as RawBudget;
       if (bd) {
         setBudget({
           total: bd.total ?? 100,
@@ -128,7 +130,7 @@ export function CostRouterPanel() {
       {tab === "routing" && (
         <div>
           {decisions.length === 0 && <div className="panel-empty">No routing decisions recorded yet.</div>}
-          {decisions.map((d: any, idx: number) => (
+          {decisions.map((d, idx: number) => (
             <div key={d.id || idx} className="panel-card">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
                 <strong style={{ fontSize: "var(--font-size-md)" }}>{d.query}</strong>

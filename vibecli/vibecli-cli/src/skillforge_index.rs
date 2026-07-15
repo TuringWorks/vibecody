@@ -38,6 +38,7 @@
 //! - The catalog refresh is **on startup + explicit `/skilllens/refresh`**;
 //!   there is no file-watcher loop driving `skills/*.md`.
 
+use crate::sync_ext::RwLockRecover;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock, RwLock};
@@ -269,7 +270,7 @@ pub fn init_skillforge(skills_dir: Option<&Path>) -> SkillForgeStatus {
         };
         let _ = STATE.set(RwLock::new(state));
         if let Some(s) = STATUS.get() {
-            *s.write().unwrap() = SkillForgeStatus::Ready;
+            *s.write_recover() = SkillForgeStatus::Ready;
         }
     });
     SkillForgeStatus::Loading
@@ -279,7 +280,7 @@ pub fn init_skillforge(skills_dir: Option<&Path>) -> SkillForgeStatus {
 pub fn current_status() -> SkillForgeStatus {
     STATUS
         .get()
-        .map(|s| *s.read().unwrap())
+        .map(|s| *s.read_recover())
         .unwrap_or(SkillForgeStatus::Disabled)
 }
 
@@ -330,11 +331,11 @@ pub fn render_health_line() -> Option<String> {
 }
 
 fn with_state<R>(f: impl FnOnce(&SkillForgeState) -> R) -> Option<R> {
-    STATE.get().map(|g| f(&g.read().unwrap()))
+    STATE.get().map(|g| f(&g.read_recover()))
 }
 
 fn with_state_mut<R>(f: impl FnOnce(&mut SkillForgeState) -> R) -> Option<R> {
-    STATE.get().map(|g| f(&mut g.write().unwrap()))
+    STATE.get().map(|g| f(&mut g.write_recover()))
 }
 
 /// Load a [`LensSkill`] by name from the catalog (parses the on-disk file).

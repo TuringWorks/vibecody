@@ -61773,3 +61773,157 @@ pub async fn security_posture_decisions_log(
     .await
     .map_err(|e| format!("decisions_log join error: {e}"))?
 }
+
+// ---------------------------------------------------------------------------
+// Fluxo — durable workflow engine. Thin HTTP proxies to the daemon's `/fluxo/*`
+// API (mounted in `vibecli/vibecli-cli/src/serve.rs::build_router`), authed with
+// the daemon bearer token at `~/.vibecli/daemon.token` — same pattern as the
+// SkillForge proxies above. The daemon stays the single source of truth.
+// These commands don't call an LLM, so they take no provider/model.
+// ---------------------------------------------------------------------------
+
+const FLUXO_DAEMON_BASE: &str = "http://localhost:7878/fluxo";
+
+async fn fluxo_read(resp: reqwest::Response) -> Result<serde_json::Value, String> {
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if status.is_success() {
+        if text.trim().is_empty() {
+            // 204 No Content (pause/resume/terminate/signal) → uniform ok marker.
+            Ok(serde_json::json!({ "ok": true }))
+        } else {
+            serde_json::from_str(&text).map_err(|e| e.to_string())
+        }
+    } else {
+        Err(format!("fluxo {}: {text}", status.as_u16()))
+    }
+}
+
+async fn fluxo_get(path: &str) -> Result<serde_json::Value, String> {
+    let token = daemon_bearer_token()?;
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client
+        .get(format!("{FLUXO_DAEMON_BASE}{path}"))
+        .header("Authorization", format!("Bearer {token}"))
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    fluxo_read(resp).await
+}
+
+async fn fluxo_post(path: &str, body: &serde_json::Value) -> Result<serde_json::Value, String> {
+    let token = daemon_bearer_token()?;
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client
+        .post(format!("{FLUXO_DAEMON_BASE}{path}"))
+        .header("Authorization", format!("Bearer {token}"))
+        .json(body)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+    fluxo_read(resp).await
+}
+
+/// `POST /fluxo/workflow` — register a Conductor-compatible workflow definition.
+#[tauri::command]
+pub async fn fluxo_register(definition: serde_json::Value) -> Result<serde_json::Value, String> {
+    fluxo_post("/workflow", &definition).await
+}
+
+/// `GET /fluxo/workflow` — list registered `(name, version)` pairs.
+#[tauri::command]
+pub async fn fluxo_list_workflows() -> Result<serde_json::Value, String> {
+    fluxo_get("/workflow").await
+}
+
+/// `GET /fluxo/workflow/{name}` — fetch a definition (latest unless `version` is pinned).
+#[tauri::command]
+pub async fn fluxo_get_workflow(
+    name: String,
+    version: Option<u32>,
+) -> Result<serde_json::Value, String> {
+    let path = match version {
+        Some(v) => format!("/workflow/{name}?version={v}"),
+        None => format!("/workflow/{name}"),
+    };
+    fluxo_get(&path).await
+}
+
+/// `POST /fluxo/workflow/{name}/execute` — start a run. Returns `{ workflowId }`.
+#[tauri::command]
+pub async fn fluxo_execute(
+    name: String,
+    input: serde_json::Value,
+    version: Option<u32>,
+    correlation_id: Option<String>,
+) -> Result<serde_json::Value, String> {
+    let mut body = serde_json::json!({ "input": input });
+    if let Some(v) = version {
+        body["version"] = serde_json::json!(v);
+    }
+    if let Some(c) = correlation_id {
+        body["correlationId"] = serde_json::json!(c);
+    }
+    fluxo_post(&format!("/workflow/{name}/execute"), &body).await
+}
+
+/// `GET /fluxo/workflow/run/{id}` — fetch a run (status, tasks, output).
+#[tauri::command]
+pub async fn fluxo_get_run(workflow_id: String) -> Result<serde_json::Value, String> {
+    fluxo_get(&format!("/workflow/run/{workflow_id}")).await
+}
+
+/// `GET /fluxo/runs` — list runs, optionally filtered by status.
+#[tauri::command]
+pub async fn fluxo_list_runs(status: Option<String>) -> Result<serde_json::Value, String> {
+    let path = match status {
+        Some(s) => format!("/runs?status={s}"),
+        None => "/runs".to_string(),
+    };
+    fluxo_get(&path).await
+}
+
+/// `POST /fluxo/workflow/run/{id}/pause` — pause a running workflow.
+#[tauri::command]
+pub async fn fluxo_pause_run(workflow_id: String) -> Result<serde_json::Value, String> {
+    fluxo_post(&format!("/workflow/run/{workflow_id}/pause"), &serde_json::json!({})).await
+}
+
+/// `POST /fluxo/workflow/run/{id}/resume` — resume a paused workflow.
+#[tauri::command]
+pub async fn fluxo_resume_run(workflow_id: String) -> Result<serde_json::Value, String> {
+    fluxo_post(&format!("/workflow/run/{workflow_id}/resume"), &serde_json::json!({})).await
+}
+
+/// `POST /fluxo/workflow/run/{id}/terminate` — terminate a workflow with an optional reason.
+#[tauri::command]
+pub async fn fluxo_terminate_run(
+    workflow_id: String,
+    reason: Option<String>,
+) -> Result<serde_json::Value, String> {
+    fluxo_post(
+        &format!("/workflow/run/{workflow_id}/terminate"),
+        &serde_json::json!({ "reason": reason }),
+    )
+    .await
+}
+
+/// `POST /fluxo/workflow/run/{id}/signal` — complete a `WAIT`/`HUMAN` task (human-in-the-loop).
+#[tauri::command]
+pub async fn fluxo_signal(
+    workflow_id: String,
+    reference_name: String,
+    output: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    fluxo_post(
+        &format!("/workflow/run/{workflow_id}/signal"),
+        &serde_json::json!({ "referenceName": reference_name, "output": output }),
+    )
+    .await
+}

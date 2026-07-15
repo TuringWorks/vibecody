@@ -13,6 +13,7 @@
 //!
 //! Read locks coexist; Write and Exclusive locks conflict.
 
+use crate::sync_ext::LockRecover;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -307,7 +308,7 @@ impl CollisionRegistry {
 
     /// Detect all collisions for a requested branch + intent against current locks.
     pub fn detect_collisions(&self, branch: &str, intent: &LockIntent) -> Vec<Collision> {
-        let locks = self.locks.lock().unwrap();
+        let locks = self.locks.lock_recover();
         let mut collisions = Vec::new();
 
         for (locked_branch, entry) in locks.iter() {
@@ -360,7 +361,7 @@ impl CollisionRegistry {
         intent: LockIntent,
     ) -> Result<(), Vec<Collision>> {
         {
-            let mut locks = self.locks.lock().unwrap();
+            let mut locks = self.locks.lock_recover();
             if let Some(existing) = locks.get(branch) {
                 if existing.lane_id == lane_id {
                     // Upgrade — always allowed
@@ -383,7 +384,7 @@ impl CollisionRegistry {
             return Err(collisions);
         }
 
-        let mut locks = self.locks.lock().unwrap();
+        let mut locks = self.locks.lock_recover();
         locks.insert(
             branch.to_string(),
             LockEntry {
@@ -398,7 +399,7 @@ impl CollisionRegistry {
 
     /// Release a lock. Returns true if the lock was held by the given lane.
     pub fn release(&self, branch: &str, lane_id: &str) -> bool {
-        let mut locks = self.locks.lock().unwrap();
+        let mut locks = self.locks.lock_recover();
         if let Some(entry) = locks.get(branch) {
             if entry.lane_id == lane_id {
                 locks.remove(branch);
@@ -409,7 +410,7 @@ impl CollisionRegistry {
     }
 
     pub fn lock_count(&self) -> usize {
-        self.locks.lock().unwrap().len()
+        self.locks.lock_recover().len()
     }
 }
 

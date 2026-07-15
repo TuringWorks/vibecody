@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect, useCallback, useMemo } from "react";
+import type { SpeechRecognitionLike } from "../types/globals";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -18,14 +19,14 @@ import "./AIChat.css";
 //   is unavailable (requires GROQ_API_KEY env var on the Tauri backend).
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 function useVoiceInput(onTranscript: (text: string) => void) {
  const [isListening, setIsListening] = useState(false);
  const [isTranscribing, setIsTranscribing] = useState(false);
  const [interimText, setInterimText] = useState("");
  // eslint-disable-next-line @typescript-eslint/no-explicit-any
- const recognitionRef = useRef<any>(null);
+ const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
  const recorderRef = useRef<MediaRecorder | null>(null);
  const chunksRef = useRef<Blob[]>([]);
  const { toast } = useToast();
