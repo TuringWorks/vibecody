@@ -21,7 +21,7 @@ The file is created automatically with defaults on first run. You can also creat
 [ollama]
 enabled = true
 api_url = "http://localhost:11434"   # Local Ollama endpoint
-model = "qwen3-coder:480b-cloud"     # Any model pulled via 'ollama pull'
+model = "glm-5.2:cloud"     # Any model pulled via 'ollama pull'
 
 [claude]
 enabled = false
@@ -318,7 +318,7 @@ Ollama runs models locally on your machine. No API key needed, no data leaves yo
    [ollama]
    enabled = true
    api_url = "http://localhost:11434"
-   model = "qwen3-coder:480b-cloud"
+   model = "glm-5.2:cloud"
    ```
 
    Override the base URL with the `OLLAMA_HOST` env var if Ollama is running on a remote machine.

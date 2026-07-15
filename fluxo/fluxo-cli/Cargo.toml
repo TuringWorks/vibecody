@@ -1,0 +1,27 @@
+[package]
+name = "fluxo-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Fluxo command-line client: register, run, tail (SSE), list, and signal workflows."
+
+[[bin]]
+name = "fluxo"
+path = "src/main.rs"
+
+[dependencies]
+clap = { workspace = true, features = ["env"] }
+reqwest = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+futures = { workspace = true }
+
+[dev-dependencies]
+fluxo-store = { path = "../fluxo-store" }
+fluxo-engine = { path = "../fluxo-engine" }
+fluxo-server = { path = "../fluxo-server" }
+axum = { workspace = true }
+tokio = { workspace = true }

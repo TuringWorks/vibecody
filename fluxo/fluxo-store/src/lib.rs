@@ -81,15 +81,17 @@ pub trait Store: Send + Sync {
 
     /// Claim one `Scheduled` worker task of `task_type`, marking it `InProgress` for `worker_id`.
     ///
-    /// The default implementation scans running workflows; it is correct but not atomic
-    /// across concurrent pollers in the same process. Backends may override for stronger
-    /// semantics or a dedicated queue index.
+    /// Honors retry backoff: a task whose `scheduled_at` is in the future is skipped until due.
+    /// The default implementation scans running workflows; it is correct but not atomic across
+    /// concurrent pollers in the same process. Backends may override for a dedicated queue index.
     async fn poll_task(&self, task_type: &str, worker_id: &str) -> Result<Option<PolledTask>> {
+        let now = now_ms();
         let running = self.list_runs(Some(WorkflowStatus::Running)).await?;
         for mut run in running {
             let candidate = run.tasks.iter().position(|t| {
                 t.status == TaskStatus::Scheduled
                     && t.task_name == task_type
+                    && t.scheduled_at <= now
                     && matches!(t.task_type, TaskType::Simple | TaskType::Other)
             });
             if let Some(idx) = candidate {
@@ -103,6 +105,14 @@ pub trait Store: Send + Sync {
         }
         Ok(None)
     }
+}
+
+/// Current time in epoch milliseconds (the store is an I/O edge, so reading the clock is fine).
+pub(crate) fn now_ms() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or(0)
 }
 
 /// Render a [`WorkflowStatus`] as its canonical string (e.g. `RUNNING`).

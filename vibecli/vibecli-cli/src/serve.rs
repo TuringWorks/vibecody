@@ -1320,7 +1320,7 @@ async fn start_agent(
     // Honor the per-request provider/model (VibeX model picker, mobile, watch,
     // IDE). Without this the agent always used the daemon's *startup* provider,
     // so a request for a local model (e.g. ollama/codellama:13b) silently ran
-    // the configured default — often `qwen3-coder:480b-cloud`, a cloud model
+    // the configured default — often `glm-5.2:cloud`, a cloud model
     // that 500s. Fall back to the daemon default when unspecified or when the
     // override can't be built (missing key / unknown provider).
     // C5: the VX-111 reasoning label also resolves to the unified Effort tier so
@@ -6664,6 +6664,9 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
             "/v1/security-review/findings",
             get(v1_security_review_findings),
         )
+        // C1 — hosted (daemon-run) loops: enqueue, list, stop.
+        .route("/v1/loops", post(v1_create_loop).get(v1_list_loops))
+        .route("/v1/loops/{id}/stop", post(v1_stop_loop))
         // RL-OS v1 — slice 1 (persistence + run lifecycle)
         // See docs/design/rl-os/01-persistence.md
         .route("/v1/rl/runs", post(rl_create_run))
@@ -7402,6 +7405,48 @@ pub async fn serve(
                 std::mem::forget(handle);
             }
         }
+    }
+
+    // C1 — daemon-resident hosted-loop scheduler. Runs persisted `hosted` loops
+    // on their schedule independent of any REPL, so a client can enqueue a loop
+    // (POST /v1/loops) and disconnect ("machine-off"); the loop keeps running
+    // server-side and resumes across daemon restarts. Each tick is a no-op when
+    // there are no hosted jobs. Secrets are resolved from the WorkspaceStore and
+    // passed scoped to the executor — the daemon never mutates its global env.
+    {
+        let provider = state.provider.clone();
+        let ws_path = state.workspace_root.clone();
+        tokio::spawn(async move {
+            let executor = crate::hosted_loop::ProviderLoopExecutor::new(provider);
+            let mut last_runs: std::collections::HashMap<String, u64> =
+                std::collections::HashMap::new();
+            let mut ticker = tokio::time::interval(std::time::Duration::from_secs(15));
+            ticker.tick().await; // skip the immediate first tick
+            loop {
+                ticker.tick().await;
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                let path = crate::loop_engine::loops_path();
+                let ws = ws_path.clone();
+                let ran = crate::hosted_loop::scheduler_tick(
+                    &path,
+                    now,
+                    &mut last_runs,
+                    &executor,
+                    move |name| {
+                        crate::workspace_store::WorkspaceStore::open(&ws)
+                            .ok()
+                            .and_then(|s| s.secret_get(name).ok().flatten())
+                    },
+                )
+                .await;
+                if !ran.is_empty() {
+                    eprintln!("[hosted-loop] ran {} loop iteration(s)", ran.len());
+                }
+            }
+        });
     }
 
     let app = build_router(state, port);
@@ -8445,6 +8490,66 @@ async fn v1_security_review_findings(State(state): State<ServeState>) -> Json<se
         })
         .collect();
     Json(serde_json::json!({ "count": findings.len(), "findings": findings }))
+}
+
+/// Body for `POST /v1/loops` — the raw `/loop` argument string, e.g.
+/// `"5m run the tests --secret DEPLOY_KEY"` or `"auto ship the feature"`.
+#[derive(serde::Deserialize)]
+struct CreateLoopReq {
+    args: String,
+}
+
+/// POST /v1/loops — enqueue a **hosted** loop the daemon runs on its schedule
+/// (C1). The client can disconnect immediately; the daemon scheduler picks it up
+/// on the next tick and keeps running it until a cap/stop. Returns the job id.
+async fn v1_create_loop(
+    State(_state): State<ServeState>,
+    Json(req): Json<CreateLoopReq>,
+) -> Json<serde_json::Value> {
+    let spec = match crate::loop_engine::parse_loop_args(&req.args) {
+        Ok(s) => s,
+        Err(e) => return Json(serde_json::json!({ "error": e })),
+    };
+    let path = crate::loop_engine::loops_path();
+    let mut jobs = crate::loop_engine::load_jobs(&path);
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let id = crate::loop_engine::job_id(now, (jobs.len() as u32).wrapping_add(1));
+    let job = crate::loop_engine::LoopJob::new(id.clone(), spec, now).hosted();
+    jobs.push(job);
+    let _ = crate::loop_engine::save_jobs(&path, &jobs);
+    Json(serde_json::json!({ "id": id, "status": "running", "hosted": true }))
+}
+
+/// GET /v1/loops — list the hosted loop jobs the daemon is running.
+async fn v1_list_loops(State(_state): State<ServeState>) -> Json<serde_json::Value> {
+    let loops: Vec<crate::loop_engine::LoopJob> =
+        crate::loop_engine::load_jobs(&crate::loop_engine::loops_path())
+            .into_iter()
+            .filter(|j| j.hosted)
+            .collect();
+    Json(serde_json::json!({ "count": loops.len(), "loops": loops }))
+}
+
+/// POST /v1/loops/{id}/stop — stop a hosted loop; the scheduler skips terminal
+/// jobs on its next tick.
+async fn v1_stop_loop(
+    State(_state): State<ServeState>,
+    Path(id): Path<String>,
+) -> Json<serde_json::Value> {
+    let path = crate::loop_engine::loops_path();
+    let mut jobs = crate::loop_engine::load_jobs(&path);
+    let mut stopped = false;
+    for j in jobs.iter_mut() {
+        if j.id == id && !j.status.is_terminal() {
+            j.status = crate::loop_engine::LoopStatus::Stopped;
+            stopped = true;
+        }
+    }
+    let _ = crate::loop_engine::save_jobs(&path, &jobs);
+    Json(serde_json::json!({ "id": id, "stopped": stopped }))
 }
 
 async fn memory_benchmark(

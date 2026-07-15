@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { errorMessage } from "../utils/errorMessage";
 import { CircleAlert, AlertTriangle, Info, CheckCircle2, Loader2, XCircle, ChevronDown, ChevronRight } from "lucide-react";
 
 // -- Types --------------------------------------------------------------------
@@ -212,8 +213,8 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
             if (cancelRef.current || taskIdRef.current !== thisId) break;
             sessionId = typeof result === "string" ? result : result?.session_id || sessionId;
             addLog("success", stage, `Session ${sessionId} created`);
-          } catch (e: any) {
-            addLog("warning", stage, `Backend: ${e?.message || e?.toString() || "unavailable"} — continuing with local session`);
+          } catch (e) {
+            addLog("warning", stage, `Backend: ${errorMessage(e) || "unavailable"} — continuing with local session`);
           }
           if (cancelRef.current || taskIdRef.current !== thisId) break;
           addLog("info", stage, "Enumerating endpoints, headers, and cookies");
@@ -284,9 +285,9 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
         const dur = ((Date.now() - stageStart) / 1000).toFixed(1);
         updateStage(stage, { status: "success", duration: parseFloat(dur) });
         addLog("success", stage, `Completed in ${dur}s`);
-      } catch (e: any) {
+      } catch (e) {
         if (cancelRef.current || taskIdRef.current !== thisId) break;
-        const errMsg = e?.toString() || "Unknown error";
+        const errMsg = errorMessage(e) || "Unknown error";
         updateStage(stage, { status: "failed", duration: (Date.now() - stageStart) / 1000 });
         addLog("error", stage, `Failed: ${errMsg}`);
         // Don't break — continue to next stage if possible
@@ -313,8 +314,8 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
       a.download = `${sessionId}-report.md`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch (e: any) {
-      addLog("error", "Report", e?.toString() || "Failed to generate report");
+    } catch (e) {
+      addLog("error", "Report", errorMessage(e) || "Failed to generate report");
     }
   }, [addLog]);
 

@@ -214,6 +214,26 @@ impl<S: Store> Engine<S> {
         Ok(())
     }
 
+    /// Sweep all running workflows, applying task timeouts and re-driving. Returns the number
+    /// of runs that changed state. Call this periodically from a background loop to enforce
+    /// per-task `timeoutSeconds`.
+    pub async fn reap(&self) -> Result<usize> {
+        let running = self.store.list_runs(Some(WorkflowStatus::Running)).await?;
+        let mut changed = 0;
+        for run in running {
+            let before = run.status;
+            let task_states: Vec<TaskStatus> = run.tasks.iter().map(|t| t.status).collect();
+            let def = self.def_for(&run).await?;
+            self.drive(&def, &run.workflow_id).await?;
+            let after = self.get_run(&run.workflow_id).await?;
+            let after_states: Vec<TaskStatus> = after.tasks.iter().map(|t| t.status).collect();
+            if before != after.status || task_states != after_states {
+                changed += 1;
+            }
+        }
+        Ok(changed)
+    }
+
     async fn def_for(&self, run: &WorkflowRun) -> Result<WorkflowDef> {
         self.store
             .get_workflow_def(&run.workflow_name, Some(run.workflow_version))
@@ -234,7 +254,9 @@ impl<S: Store> Engine<S> {
                 break;
             }
             let decision = decide(def, &run, now_ms())?;
-            let progressed = !decision.schedule.is_empty() || decision.terminal.is_some();
+            let progressed = !decision.schedule.is_empty()
+                || !decision.updates.is_empty()
+                || decision.terminal.is_some();
             apply(&mut run, decision);
             run.updated_at = now_ms();
             self.store.update_run(&run).await?;
@@ -249,6 +271,14 @@ impl<S: Store> Engine<S> {
 /// Apply a decision to a run: assign task ids, merge `SET_VARIABLE` output into variables,
 /// append tasks, and record any terminal outcome.
 fn apply(run: &mut WorkflowRun, decision: Decision) {
+    let now = now_ms();
+    for update in decision.updates {
+        if let Some(task) = run.task_by_id_mut(&update.task_id) {
+            task.status = update.status;
+            task.reason_for_incompletion = update.reason;
+            task.updated_at = now;
+        }
+    }
     for mut exec in decision.schedule {
         exec.task_id = new_id();
         if exec.task_type == TaskType::SetVariable && exec.status == TaskStatus::Completed {
@@ -368,5 +398,56 @@ mod tests {
             .await
             .expect("complete");
         assert_eq!(engine.get_run(&id).await.unwrap().status, WorkflowStatus::Completed);
+    }
+
+    #[tokio::test]
+    async fn engine_retries_a_failed_task() {
+        let engine = Engine::new(MemoryStore::new());
+        let def = parse_workflow_def(
+            r#"{ "name": "retryable", "tasks": [
+                { "name": "work", "taskReferenceName": "w", "retryCount": 1 }
+            ]}"#,
+        )
+        .expect("parse");
+        engine.register(&def).await.expect("register");
+        let id = engine.start("retryable", None, json!({}), None).await.expect("start");
+
+        // First attempt fails.
+        let a1 = engine.poll("work", "w1").await.expect("poll").expect("task");
+        assert_eq!(a1.task.retry_count, 0);
+        engine
+            .complete_task(&id, &a1.task.task_id, TaskStatus::Failed, json!({}))
+            .await
+            .expect("fail 1");
+
+        // A retry attempt is available (zero backoff) and succeeds.
+        let a2 = engine.poll("work", "w1").await.expect("poll").expect("retry task");
+        assert_eq!(a2.task.retry_count, 1);
+        engine
+            .complete_task(&id, &a2.task.task_id, TaskStatus::Completed, json!({ "ok": true }))
+            .await
+            .expect("complete 2");
+
+        assert_eq!(engine.get_run(&id).await.unwrap().status, WorkflowStatus::Completed);
+    }
+
+    #[tokio::test]
+    async fn reap_times_out_a_stuck_task() {
+        let engine = Engine::new(MemoryStore::new());
+        let def = parse_workflow_def(
+            r#"{ "name": "stuck", "tasks": [
+                { "name": "slow", "taskReferenceName": "s", "timeoutSeconds": 0 }
+            ]}"#,
+        )
+        .expect("parse");
+        engine.register(&def).await.expect("register");
+        let id = engine.start("stuck", None, json!({}), None).await.expect("start");
+        let _ = engine.poll("slow", "w1").await.expect("poll");
+
+        // Let the clock move past the (0s) timeout, then sweep.
+        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        let changed = engine.reap().await.expect("reap");
+        assert!(changed >= 1);
+        assert_eq!(engine.get_run(&id).await.unwrap().status, WorkflowStatus::Failed);
     }
 }

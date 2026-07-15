@@ -81,8 +81,8 @@ mod tests {
         use vibe_ai::providers::ollama::OllamaProvider;
         // Mirrors the default fallback in create_provider for "ollama"
         let model: Option<String> = None;
-        let resolved_model = model.unwrap_or_else(|| "qwen3-coder:480b-cloud".to_string());
-        assert_eq!(resolved_model, "qwen3-coder:480b-cloud");
+        let resolved_model = model.unwrap_or_else(|| "glm-5.2:cloud".to_string());
+        assert_eq!(resolved_model, "glm-5.2:cloud");
 
         let config = ProviderConfig {
             provider_type: "ollama".to_string(),
@@ -100,7 +100,7 @@ mod tests {
     #[test]
     fn create_provider_ollama_custom_model() {
         let model = Some("llama3:70b".to_string());
-        let resolved = model.unwrap_or_else(|| "qwen3-coder:480b-cloud".to_string());
+        let resolved = model.unwrap_or_else(|| "glm-5.2:cloud".to_string());
         assert_eq!(resolved, "llama3:70b");
     }
 

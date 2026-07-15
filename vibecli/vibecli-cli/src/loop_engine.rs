@@ -83,6 +83,12 @@ pub struct LoopJob {
     pub status: LoopStatus,
     /// Unix-epoch seconds when the job was created.
     pub created_at_secs: u64,
+    /// C1 — machine-off hosted execution. When true this loop is run by the
+    /// daemon's resident scheduler ([`crate::hosted_loop`]) rather than an
+    /// interactive REPL, so it survives client disconnect. Default false keeps
+    /// REPL-created loops (and older persisted jobs) interactive-only.
+    #[serde(default)]
+    pub hosted: bool,
 }
 
 /// The controller's decision for the next tick.
@@ -106,7 +112,14 @@ impl LoopJob {
             iterations_done: 0,
             status: LoopStatus::Running,
             created_at_secs,
+            hosted: false,
         }
+    }
+
+    /// Mark this job for daemon-resident hosted execution (C1). Chainable.
+    pub fn hosted(mut self) -> Self {
+        self.hosted = true;
+        self
     }
 
     /// Decide whether to run the body again.

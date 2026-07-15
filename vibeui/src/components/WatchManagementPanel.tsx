@@ -1,6 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { errorMessage } from "../utils/errorMessage";
 import { ChevronRight, Watch, Plus, Trash2, RefreshCw, QrCode, Shield, Wifi } from "lucide-react";
 
 /** Detect device platform from the model string recorded at registration. */
@@ -61,8 +61,8 @@ export function WatchManagementPanel() {
     try {
       const result = await invoke<{ devices: WatchDevice[] }>("list_watch_devices");
       setDevices(result.devices ?? []);
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to load watch devices");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to load watch devices");
     } finally {
       setLoading(false);
     }
@@ -77,8 +77,8 @@ export function WatchManagementPanel() {
       const info = await invoke<PairingInfo>("get_watch_pairing_info");
       setPairing(info);
       setShowQR(true);
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to generate pairing info. Is the daemon running?");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to generate pairing info. Is the daemon running?");
     } finally {
       setPairingLoading(false);
     }
@@ -89,8 +89,8 @@ export function WatchManagementPanel() {
     try {
       await invoke("revoke_watch_device", { deviceId });
       setDevices(prev => prev.filter(d => d.device_id !== deviceId));
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to revoke device");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to revoke device");
     } finally {
       setRevoking(null);
     }

@@ -82,7 +82,7 @@ VibeCLI uses a TOML configuration file located at `~/.vibecli/config.toml`.
 [ollama]
 enabled = true
 api_url = "http://localhost:11434"
-model = "qwen3-coder:480b-cloud"
+model = "glm-5.2:cloud"
 
 [openai]
 enabled = false

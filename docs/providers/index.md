@@ -20,7 +20,7 @@ VibeCody supports 23 AI providers, covering cloud APIs, local models, inference 
 
 | Provider | Type | API Key Env Var | Default Model | Free Tier | Streaming |
 |----------|------|-----------------|---------------|-----------|-----------|
-| [Ollama](ollama/) | Local | None (no key needed) | `qwen3-coder:480b-cloud` | Yes (fully free) | Yes |
+| [Ollama](ollama/) | Local | None (no key needed) | `glm-5.2:cloud` | Yes (fully free) | Yes |
 | [Claude](claude/) | Cloud | `ANTHROPIC_API_KEY` | `claude-sonnet-4-6` | No | Yes |
 | [OpenAI](openai/) | Cloud | `OPENAI_API_KEY` | `gpt-4o` | No | Yes |
 | [Gemini](gemini/) | Cloud | `GEMINI_API_KEY` | `gemini-2.5-flash` | Yes (generous) | Yes |
@@ -164,7 +164,7 @@ model = "claude-sonnet-4-6"
 [ollama]
 enabled = true
 api_url = "http://localhost:11434"
-model = "qwen3-coder:480b-cloud"
+model = "glm-5.2:cloud"
 ```
 
 

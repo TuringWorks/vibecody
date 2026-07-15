@@ -2,6 +2,11 @@
 //!
 //! [`decide`] is a pure function — no clock, no I/O, no randomness. The engine supplies
 //! `now_ms`, applies the returned [`Decision`], and re-invokes `decide` to a fixed point.
+//!
+//! Beyond routing (linear / switch / fork-join / set-variable / inline / terminate), the
+//! decider enforces **timeouts** and **retries**: an overdue task is timed out; a failed
+//! task with retries remaining is rescheduled (with backoff); an exhausted failure fails the
+//! workflow.
 
 use crate::error::{FluxoError, Result};
 use crate::expr::EvalContext;
@@ -21,22 +26,41 @@ pub struct Terminal {
     pub reason: Option<String>,
 }
 
+/// A status change applied to an existing task execution (e.g. a timeout).
+#[derive(Debug, Clone)]
+pub struct TaskUpdate {
+    /// The task-execution id to update.
+    pub task_id: String,
+    /// The new status.
+    pub status: TaskStatus,
+    /// Reason recorded on the task.
+    pub reason: Option<String>,
+}
+
 /// The result of one decide pass.
 #[derive(Debug, Clone, Default)]
 pub struct Decision {
     /// New task instances to append to the run. Inline system tasks arrive already resolved
     /// (status `Completed`); external tasks arrive `Scheduled`.
     pub schedule: Vec<TaskExecution>,
+    /// In-place status changes for existing tasks (timeouts).
+    pub updates: Vec<TaskUpdate>,
     /// Set when the run reaches a terminal state this pass.
     pub terminal: Option<Terminal>,
 }
 
-/// Decide the next step for a running workflow. Returns tasks to schedule and/or a terminal outcome.
+/// Decide the next step for a running workflow.
 pub fn decide(def: &WorkflowDef, run: &WorkflowRun, now_ms: i64) -> Result<Decision> {
     if run.status != WorkflowStatus::Running {
         return Ok(Decision::default());
     }
     let plan = ExecPlan::compile(def)?;
+
+    // Latest attempt per reference (later attempts overwrite earlier retries).
+    let mut latest: BTreeMap<&str, &TaskExecution> = BTreeMap::new();
+    for t in &run.tasks {
+        latest.insert(t.reference_name.as_str(), t);
+    }
 
     let task_outputs: BTreeMap<String, Value> = run
         .tasks
@@ -56,51 +80,104 @@ pub fn decide(def: &WorkflowDef, run: &WorkflowRun, now_ms: i64) -> Result<Decis
         task_inputs: &task_inputs,
     };
 
-    // Fail fast on the first non-optional failure.
-    if let Some(failed) = run.tasks.iter().find(|t| {
-        matches!(
-            t.status,
-            TaskStatus::Failed | TaskStatus::FailedWithTerminalError | TaskStatus::TimedOut
-        ) && !plan.is_optional(&t.reference_name)
-    }) {
-        let reason = failed
-            .reason_for_incompletion
-            .clone()
-            .unwrap_or_else(|| format!("task '{}' failed", failed.reference_name));
-        return Ok(Decision {
-            schedule: Vec::new(),
-            terminal: Some(Terminal {
-                status: WorkflowStatus::Failed,
-                output: Value::Null,
-                reason: Some(reason),
-            }),
-        });
+    // --- Phase 1: timeouts. Overdue non-terminal tasks flip to TimedOut; re-drive handles them.
+    let mut updates = Vec::new();
+    for (reference, t) in &latest {
+        if t.status.is_terminal() {
+            continue;
+        }
+        let timeout = plan.task_by_ref.get(*reference).and_then(|task| task.timeout_ms());
+        if let Some(timeout) = timeout {
+            if now_ms - t.scheduled_at > timeout {
+                updates.push(TaskUpdate {
+                    task_id: t.task_id.clone(),
+                    status: TaskStatus::TimedOut,
+                    reason: Some(format!("task '{}' timed out", reference)),
+                });
+            }
+        }
+    }
+    if !updates.is_empty() {
+        return Ok(Decision { updates, ..Default::default() });
     }
 
-    let scheduled: BTreeSet<&str> = run.tasks.iter().map(|t| t.reference_name.as_str()).collect();
+    // --- Phase 2: fail the workflow on an exhausted, non-optional failure.
+    for (reference, t) in &latest {
+        if plan.is_optional(reference) {
+            continue;
+        }
+        if is_failure(t.status) {
+            let max = plan
+                .task_by_ref
+                .get(*reference)
+                .map(|task| task.retry_policy().max_retries)
+                .unwrap_or(0);
+            if t.status == TaskStatus::FailedWithTerminalError || t.retry_count >= max {
+                let reason = t
+                    .reason_for_incompletion
+                    .clone()
+                    .unwrap_or_else(|| format!("task '{}' failed", reference));
+                return Ok(Decision {
+                    terminal: Some(Terminal {
+                        status: WorkflowStatus::Failed,
+                        output: Value::Null,
+                        reason: Some(reason),
+                    }),
+                    ..Default::default()
+                });
+            }
+        }
+    }
 
-    // Which references become schedulable this pass.
+    // --- Phase 3: reschedule retryable failures (with backoff).
+    let mut retries = Vec::new();
+    for (reference, t) in &latest {
+        if plan.is_optional(reference) {
+            continue;
+        }
+        if matches!(t.status, TaskStatus::Failed | TaskStatus::TimedOut) {
+            let task = plan.task_by_ref.get(*reference).ok_or_else(|| {
+                FluxoError::InvalidState(format!("no definition for reference '{}'", reference))
+            })?;
+            let attempt = t.retry_count + 1;
+            let input = Value::Object(ctx.resolve_map(&task.input_parameters));
+            let mut exec = TaskExecution::scheduled(
+                reference.to_string(),
+                task.name.clone(),
+                task.task_type,
+                input,
+                now_ms + task.retry_policy().backoff_ms(attempt),
+            );
+            exec.retry_count = attempt;
+            retries.push(exec);
+        }
+    }
+    if !retries.is_empty() {
+        return Ok(Decision { schedule: retries, ..Default::default() });
+    }
+
+    // --- Phase 4: normal scheduling.
+    let scheduled: BTreeSet<&str> = latest.keys().copied().collect();
     let mut to_schedule: Vec<String> = Vec::new();
     if run.tasks.is_empty() {
         to_schedule.extend(plan.entry.iter().cloned());
     } else {
-        for t in &run.tasks {
+        for (reference, t) in &latest {
             if plan.progresses(t) {
-                for succ in plan.successors_of(&t.reference_name, run) {
+                for succ in plan.successors_of(reference, run) {
                     if !scheduled.contains(succ.as_str()) && !to_schedule.contains(&succ) {
                         to_schedule.push(succ);
                     }
                 }
             }
         }
-        // JOIN barriers are pull-based: schedulable once every joined ref has succeeded.
         for (join_ref, deps) in &plan.join_deps {
             if scheduled.contains(join_ref.as_str()) || to_schedule.contains(join_ref) {
                 continue;
             }
             let ready = deps
                 .iter()
-                .all(|d| run.task_by_ref(d).map(|t| t.status.is_success()).unwrap_or(false));
+                .all(|d| latest.get(d.as_str()).map(|t| t.status.is_success()).unwrap_or(false));
             if ready {
                 to_schedule.push(join_ref.clone());
             }
@@ -159,6 +236,7 @@ pub fn decide(def: &WorkflowDef, run: &WorkflowRun, now_ms: i64) -> Result<Decis
                 return Ok(Decision {
                     schedule,
                     terminal: Some(Terminal { status, output, reason }),
+                    ..Default::default()
                 });
             }
             TaskType::DoWhile
@@ -175,21 +253,28 @@ pub fn decide(def: &WorkflowDef, run: &WorkflowRun, now_ms: i64) -> Result<Decis
 
     // Completion: nothing new to schedule and nothing pending → the run is done.
     if schedule.is_empty() {
-        let any_pending = run.tasks.iter().any(|t| !t.status.is_terminal());
+        let any_pending = latest.values().any(|t| !t.status.is_terminal());
         if !run.tasks.is_empty() && !any_pending {
             let output = Value::Object(ctx.resolve_map(&def.output_parameters));
             return Ok(Decision {
-                schedule: Vec::new(),
                 terminal: Some(Terminal {
                     status: WorkflowStatus::Completed,
                     output,
                     reason: None,
                 }),
+                ..Default::default()
             });
         }
     }
 
-    Ok(Decision { schedule, terminal: None })
+    Ok(Decision { schedule, ..Default::default() })
+}
+
+fn is_failure(status: TaskStatus) -> bool {
+    matches!(
+        status,
+        TaskStatus::Failed | TaskStatus::FailedWithTerminalError | TaskStatus::TimedOut
+    )
 }
 
 /// Evaluate a switch task to its selected case key.
@@ -199,7 +284,6 @@ fn evaluate_switch(task: &WorkflowTask, input: &Value, ctx: &EvalContext) -> Str
         let key = task.expression.as_deref().unwrap_or("switchCaseValue");
         return input.get(key).map(value_to_case).unwrap_or_default();
     }
-    // Any other evaluator: treat the expression as a reference or literal.
     match &task.expression {
         Some(e) => {
             let inner = e.trim().trim_start_matches("${").trim_end_matches('}');
@@ -267,7 +351,6 @@ impl<'a> ExecPlan<'a> {
                     let mut entries = Vec::new();
                     for branch in &t.fork_tasks {
                         entries.extend(first_refs(branch, &[]));
-                        // Branch tasks flow to their own end; the JOIN is scheduled via join_deps.
                         self.compile_seq(branch, &[])?;
                     }
                     self.fork_branch_entries
@@ -298,11 +381,7 @@ impl<'a> ExecPlan<'a> {
 
     /// Whether a completed/optional-failed task should unlock its successors.
     fn progresses(&self, t: &TaskExecution) -> bool {
-        t.status.is_success()
-            || (matches!(
-                t.status,
-                TaskStatus::Failed | TaskStatus::FailedWithTerminalError | TaskStatus::TimedOut
-            ) && self.is_optional(&t.reference_name))
+        t.status.is_success() || (is_failure(t.status) && self.is_optional(&t.reference_name))
     }
 
     /// The references that become schedulable after `reference` succeeds.

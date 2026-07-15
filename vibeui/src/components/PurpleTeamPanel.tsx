@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { errorMessage } from "../utils/errorMessage";
 
 type PurpleTeamTab = "Exercises" | "ATT&CK Matrix" | "Simulations" | "Coverage Gaps" | "Reports";
 
@@ -167,8 +168,8 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
       setLoading(true);
       const result = await invoke<Exercise[]>("list_purple_team_exercises");
       setExercises(result);
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to load exercises");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to load exercises");
     } finally {
       setLoading(false);
     }
@@ -193,8 +194,8 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
         }
       }
       setMatrix(cells);
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to load ATT&CK matrix");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to load ATT&CK matrix");
     } finally {
       setLoading(false);
     }
@@ -205,8 +206,8 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
       setLoading(true);
       const result = await invoke<Simulation[]>("get_purple_team_simulations");
       setSimulations(result);
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to load simulations");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to load simulations");
     } finally {
       setLoading(false);
     }
@@ -217,8 +218,8 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
       setLoading(true);
       const result = await invoke<CoverageGap[]>("get_purple_team_gaps");
       setGaps(result);
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to load coverage gaps");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to load coverage gaps");
     } finally {
       setLoading(false);
     }
@@ -237,8 +238,8 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
       setExDescription("");
       showSuccess("Exercise created");
       loadExercises();
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to create exercise");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to create exercise");
     }
   }
 
@@ -261,8 +262,8 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
       setSimNotes("");
       showSuccess("Simulation recorded");
       loadSimulations();
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to record simulation");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to record simulation");
     }
   }
 
@@ -274,8 +275,8 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
         compareId: compareExerciseId || null,
       });
       setReportContent(result);
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to generate report");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to generate report");
     } finally {
       setLoading(false);
     }
@@ -332,8 +333,8 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
                     setAiPlan(result.plan);
                     setExercises(prev => [result.exercise, ...prev]);
                     showSuccess(`Exercise "${result.exercise.name}" created with ${result.plan?.simulations?.length || 0} simulations`);
-                  } catch (e: any) {
-                    setError(e?.toString() ?? "AI generation failed");
+                  } catch (e) {
+                    setError(errorMessage(e) ?? "AI generation failed");
                   }
                   setAiGenerating(false);
                 }}

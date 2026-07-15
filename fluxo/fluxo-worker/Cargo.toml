@@ -1,0 +1,23 @@
+[package]
+name = "fluxo-worker"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+description = "Fluxo worker client: poll tasks by type, run registered handlers, report results."
+
+[dependencies]
+fluxo-core = { path = "../fluxo-core" }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+fluxo-store = { path = "../fluxo-store" }
+fluxo-engine = { path = "../fluxo-engine" }
+fluxo-server = { path = "../fluxo-server" }
+axum = { workspace = true }
+tokio = { workspace = true }
+serde_json = { workspace = true }

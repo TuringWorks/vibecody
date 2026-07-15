@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Source: <https://ollama.com/library?c=cloud>
 pub const OLLAMA_CLOUD_MODELS: &[&str] = &[
-    "qwen3-coder:480b-cloud",
+    "glm-5.2:cloud",
     "deepseek-v3.1:671b-cloud",
     "kimi-k2:1t-cloud",
     "gpt-oss:120b-cloud",

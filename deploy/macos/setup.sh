@@ -41,7 +41,7 @@ fi
 # Model recommendation
 if (( RAM >= 32 )); then MODEL="codellama:13b"
 elif (( RAM >= 16 )); then MODEL="codellama:7b"
-else MODEL="qwen3-coder:480b-cloud"; fi
+else MODEL="glm-5.2:cloud"; fi
 printf "${BLUE}[INFO]${NC} Recommended model: ${MODEL}\n"
 
 # Always-on (launchd)

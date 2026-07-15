@@ -26,6 +26,8 @@ members = [
     "fluxo/fluxo-store",
     "fluxo/fluxo-engine",
     "fluxo/fluxo-server",
+    "fluxo/fluxo-worker",
+    "fluxo/fluxo-cli",
 ]
 
 [workspace.package]

@@ -112,7 +112,7 @@ Each provider implements the AIProvider trait from vibe-ai. Configure in
 
 Provider        | Env Var                | Default Model                              | --provider flag
 ----------------|------------------------|--------------------------------------------|----------------
-Ollama          | (none, local)          | qwen3-coder:480b-cloud                     | ollama
+Ollama          | (none, local)          | glm-5.2:cloud                     | ollama
 Claude          | ANTHROPIC_API_KEY      | claude-sonnet-4-6                          | claude
 OpenAI          | OPENAI_API_KEY         | gpt-4o                                     | openai
 Gemini          | GEMINI_API_KEY         | gemini-2.5-flash                           | gemini

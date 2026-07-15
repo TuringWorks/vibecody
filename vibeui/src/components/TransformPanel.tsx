@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * TransformPanel — AI-powered code transformation and language migration.
  *
@@ -7,6 +6,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { errorMessage } from "../utils/errorMessage";
 import { listen } from "@tauri-apps/api/event";
 import { STATIC_MODELS, PROVIDER_DEFAULT_MODEL, ALL_PROVIDERS } from "../hooks/useModelRegistry";
 
@@ -182,8 +182,8 @@ export function TransformPanel({ provider }: TransformPanelProps) {
         setPlan(result);
         setSelectedFiles(new Set(result.files.map(f => f.file)));
       }
-    } catch (e: any) {
-      if (mountedRef.current) setError(typeof e === "string" ? e : e?.message || "Planning failed");
+    } catch (e) {
+      if (mountedRef.current) setError(errorMessage(e) || "Planning failed");
     } finally {
       if (mountedRef.current) setPlanning(false);
     }
@@ -204,8 +204,8 @@ export function TransformPanel({ provider }: TransformPanelProps) {
         model: effectiveModel || undefined,
       });
       if (mountedRef.current) setExecResult(result);
-    } catch (e: any) {
-      if (mountedRef.current) setError(typeof e === "string" ? e : e?.message || "Transform failed");
+    } catch (e) {
+      if (mountedRef.current) setError(errorMessage(e) || "Transform failed");
     } finally {
       if (mountedRef.current) setExecuting(false);
     }
@@ -232,8 +232,8 @@ export function TransformPanel({ provider }: TransformPanelProps) {
         }
         setTransformedCode(code);
       }
-    } catch (e: any) {
-      if (mountedRef.current) setTransformedCode(`Error: ${e}`);
+    } catch (e) {
+      if (mountedRef.current) setTransformedCode(`Error: ${String(e)}`);
     } finally {
       if (mountedRef.current) setPasteTransforming(false);
     }

@@ -22,7 +22,7 @@
  * Source: https://ollama.com/library?c=cloud   ·  Last updated: 2026-06-06
  */
 export const OLLAMA_CLOUD_MODELS: string[] = [
-  "qwen3-coder:480b-cloud",   // Qwen · 480B · coding-agent flagship
+  "glm-5.2:cloud",   // Qwen · 480B · coding-agent flagship
   "deepseek-v3.1:671b-cloud", // DeepSeek · 671B · reasoning + tools
   "kimi-k2:1t-cloud",         // Moonshot · 1T MoE
   "gpt-oss:120b-cloud",       // OpenAI OSS · 120B

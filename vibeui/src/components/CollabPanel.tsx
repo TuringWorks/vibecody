@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * CollabPanel — Session management UI for CRDT multiplayer collaboration.
  *
@@ -7,6 +6,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { errorMessage } from "../utils/errorMessage";
 import { ExperimentalBadge } from "./ExperimentalBadge";
 
 interface CollabSessionInfo {
@@ -61,8 +61,8 @@ export function CollabPanel({
       });
       const wsUrl = `${session.ws_url}?token=${encodeURIComponent(apiToken)}`;
       onConnect(wsUrl, userName);
-    } catch (e: any) {
-      setError(e?.toString() || "Failed to create session");
+    } catch (e) {
+      setError(errorMessage(e) || "Failed to create session");
     } finally {
       setLoading(false);
     }
@@ -80,8 +80,8 @@ export function CollabPanel({
       });
       const wsUrl = `${session.ws_url}?token=${encodeURIComponent(apiToken)}`;
       onConnect(wsUrl, userName);
-    } catch (e: any) {
-      setError(e?.toString() || "Failed to join session");
+    } catch (e) {
+      setError(errorMessage(e) || "Failed to join session");
     } finally {
       setLoading(false);
     }

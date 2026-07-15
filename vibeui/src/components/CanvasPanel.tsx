@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { ChevronLeft } from "lucide-react";
@@ -132,7 +131,7 @@ export default function CanvasPanel() {
  await invoke("save_canvas_workflow", { workflow: wf });
  setCurrentWorkflow(wf);
  loadWorkflows();
- } catch (err: any) {
+ } catch (err) {
  console.error("save canvas:", err);
  }
  };
@@ -140,7 +139,7 @@ export default function CanvasPanel() {
  const handleRun = async () => {
  try {
  await invoke("run_canvas_workflow", { workflow: currentWorkflow });
- } catch (err: any) {
+ } catch (err) {
  console.error("run canvas:", err);
  }
  };

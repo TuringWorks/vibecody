@@ -149,9 +149,60 @@ pub struct WorkflowTask {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sub_workflow_param: Option<SubWorkflowParam>,
 
-    /// Per-task retry override; falls back to engine defaults when absent.
+    /// Maximum retry attempts after the first failure (default 0 = no retry).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retry_count: Option<u32>,
+    /// Base delay between retries, in seconds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retry_delay_seconds: Option<u64>,
+    /// Retry backoff: `FIXED` (default) or `EXPONENTIAL_BACKOFF`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub retry_logic: Option<String>,
+    /// Per-task timeout in seconds; measured from when the attempt was scheduled.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub timeout_seconds: Option<u64>,
+}
+
+/// A resolved retry policy for a task.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct RetryPolicy {
+    /// Maximum retry attempts after the first failure.
+    pub max_retries: u32,
+    /// Base delay in milliseconds.
+    pub base_delay_ms: i64,
+    /// Whether the delay doubles each attempt.
+    pub exponential: bool,
+}
+
+impl RetryPolicy {
+    /// Backoff before the given 1-based retry attempt.
+    pub fn backoff_ms(&self, attempt: u32) -> i64 {
+        if self.base_delay_ms == 0 {
+            return 0;
+        }
+        if self.exponential {
+            let exp = attempt.saturating_sub(1).min(30);
+            self.base_delay_ms.saturating_mul(2i64.saturating_pow(exp))
+        } else {
+            self.base_delay_ms
+        }
+    }
+}
+
+impl WorkflowTask {
+    /// The task's resolved retry policy (defaults to no retry).
+    pub fn retry_policy(&self) -> RetryPolicy {
+        RetryPolicy {
+            max_retries: self.retry_count.unwrap_or(0),
+            base_delay_ms: self.retry_delay_seconds.unwrap_or(0) as i64 * 1000,
+            exponential: matches!(self.retry_logic.as_deref(), Some("EXPONENTIAL_BACKOFF")),
+        }
+    }
+
+    /// The task's timeout in milliseconds, if any.
+    pub fn timeout_ms(&self) -> Option<i64> {
+        self.timeout_seconds.map(|s| s as i64 * 1000)
+    }
 }
 
 fn default_task_type() -> TaskType {

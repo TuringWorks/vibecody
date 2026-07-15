@@ -1,6 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { errorMessage } from "../utils/errorMessage";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
 
 type BlueTeamTab = "Incidents" | "IOCs" | "Detection Rules" | "Forensics" | "SIEM" | "Playbooks" | "Threat Hunt";
@@ -183,8 +183,8 @@ export function BlueTeamPanel() {
       setLoading(true);
       const result = await invoke<Incident[]>("get_blue_team_incidents");
       setIncidents(result);
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to load incidents");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to load incidents");
     } finally {
       setLoading(false);
     }
@@ -195,8 +195,8 @@ export function BlueTeamPanel() {
       setLoading(true);
       const result = await invoke<IOC[]>("get_blue_team_iocs", { search: iocSearch });
       setIOCs(result);
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to load IOCs");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to load IOCs");
     } finally {
       setLoading(false);
     }
@@ -214,8 +214,8 @@ export function BlueTeamPanel() {
       setIncTitle("");
       setIncDescription("");
       loadIncidents();
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to create incident");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to create incident");
     }
   }
 
@@ -229,8 +229,8 @@ export function BlueTeamPanel() {
       setShowIOCForm(false);
       setIOCValue("");
       loadIOCs();
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to add IOC");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to add IOC");
     }
   }
 
@@ -239,8 +239,8 @@ export function BlueTeamPanel() {
       setLoading(true);
       const result = await invoke<DetectionRule[]>("get_blue_team_rules");
       setRules(result);
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to load rules");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to load rules");
     } finally {
       setLoading(false);
     }
@@ -251,8 +251,8 @@ export function BlueTeamPanel() {
       setLoading(true);
       const result = await invoke<SIEMConnection[]>("get_blue_team_siem_connections");
       setSiemConns(result);
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to load SIEM connections");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to load SIEM connections");
     } finally {
       setLoading(false);
     }
@@ -263,8 +263,8 @@ export function BlueTeamPanel() {
       setLoading(true);
       const result = await invoke<Playbook[]>("get_blue_team_playbooks");
       setPlaybooks(result);
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to load playbooks");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to load playbooks");
     } finally {
       setLoading(false);
     }
@@ -275,8 +275,8 @@ export function BlueTeamPanel() {
       setLoading(true);
       const result = await invoke<ThreatHunt[]>("get_blue_team_hunts");
       setHunts(result);
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to load hunts");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to load hunts");
     } finally {
       setLoading(false);
     }
@@ -297,8 +297,8 @@ export function BlueTeamPanel() {
       setRuleQuery("");
       showSuccess("Detection rule created");
       loadRules();
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to create rule");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to create rule");
     }
   }
 
@@ -306,8 +306,8 @@ export function BlueTeamPanel() {
     try {
       await invoke("toggle_blue_team_rule", { ruleId, enabled });
       loadRules();
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to toggle rule");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to toggle rule");
     }
   }
 
@@ -321,8 +321,8 @@ export function BlueTeamPanel() {
       setSiemEndpoint("");
       showSuccess("SIEM connection added");
       loadSIEM();
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to add SIEM connection");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to add SIEM connection");
     }
   }
 
@@ -339,8 +339,8 @@ export function BlueTeamPanel() {
       setHuntQuery("");
       showSuccess("Threat hunt created");
       loadHunts();
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to create hunt");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to create hunt");
     }
   }
 
@@ -356,8 +356,8 @@ export function BlueTeamPanel() {
       a.click();
       URL.revokeObjectURL(url);
       showSuccess("Report downloaded");
-    } catch (e: any) {
-      setError(e?.toString() ?? "Failed to generate report");
+    } catch (e) {
+      setError(errorMessage(e) ?? "Failed to generate report");
     } finally {
       setLoading(false);
     }

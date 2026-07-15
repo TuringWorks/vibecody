@@ -39,7 +39,7 @@ curl -fsSL https://ollama.ai/install.sh | sh
 ### Step 2: Pull a Model
 
 ```bash
-ollama pull qwen3-coder:480b-cloud
+ollama pull glm-5.2:cloud
 ```
 
 This downloads the default model VibeCLI expects. Other good options:
@@ -68,7 +68,7 @@ That is it. Ollama is the default provider, so no flags are needed. You should s
 
 ```
 VibeCLI v0.3.3 — AI coding assistant
-Provider: ollama (qwen3-coder:480b-cloud)
+Provider: ollama (glm-5.2:cloud)
 
 vibecli>
 ```
@@ -227,7 +227,7 @@ enabled = true
 [ollama]
 enabled = true
 api_url = "http://localhost:11434"
-model = "qwen3-coder:480b-cloud"
+model = "glm-5.2:cloud"
 ```
 
 Then just use the `--provider` flag to switch:
@@ -265,7 +265,7 @@ You need to pull the model first:
 
 ```bash
 ollama list                          # See what you have
-ollama pull qwen3-coder:480b-cloud   # Pull the default
+ollama pull glm-5.2:cloud   # Pull the default
 ```
 
 ### "Rate limited" (Cloud providers)

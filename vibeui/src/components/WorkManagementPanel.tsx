@@ -223,7 +223,7 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
       }
       setCreating(null); setName(""); setDesc(""); setPrefix("");
       onRefresh();
-    } catch (e: any) { setError(String(e)); }
+    } catch (e) { setError(String(e)); }
   };
 
   const startEdit = (type: "org" | "group" | "team" | "workspace", item: any) => {
@@ -244,7 +244,7 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
       await invoke(cmd, param);
       setEditing(null); setName(""); setDesc(""); setPrefix("");
       onRefresh();
-    } catch (e: any) { setError(String(e)); }
+    } catch (e) { setError(String(e)); }
   };
 
   const handleDelete = async (type: "org" | "group" | "team" | "workspace", id: string, name: string) => {
@@ -259,7 +259,7 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
       else if (type === "team" && scope.teamId === id) setScope({ orgId: scope.orgId, groupId: scope.groupId });
       else if (type === "workspace" && scope.workspaceId === id) setScope({ orgId: scope.orgId, groupId: scope.groupId, teamId: scope.teamId });
       onRefresh();
-    } catch (e: any) { setError(String(e)); }
+    } catch (e) { setError(String(e)); }
   };
 
   const renderLevel = (label: string, items: { id: string; name: string; description: string }[], onSelect: (id: string) => void, selectedId?: string, createType?: "org" | "group" | "team" | "workspace") => (
@@ -437,7 +437,7 @@ function ItemsTab({ items, scope, onRefresh, setError, provider }: {
       setCreating(false);
       setNewItem({ type: "story", title: "", description: "", priority: "medium", labels: "", storyPoints: 0, parentId: "" });
       onRefresh();
-    } catch (e: any) { setError(String(e)); }
+    } catch (e) { setError(String(e)); }
   };
 
   const handleAiBreakdown = async (item: WorkItem) => {
@@ -452,7 +452,7 @@ function ItemsTab({ items, scope, onRefresh, setError, provider }: {
         }
         onRefresh();
       }
-    } catch (e: any) { setError(String(e)); }
+    } catch (e) { setError(String(e)); }
     setAiBreaking(null);
   };
 
@@ -476,7 +476,7 @@ function ItemsTab({ items, scope, onRefresh, setError, provider }: {
       }));
       setShowAiPrompt(false);
       setAiPrompt("");
-    } catch (e: any) { setError(String(e)); }
+    } catch (e) { setError(String(e)); }
     setAiGenerating(false);
   };
 
@@ -575,7 +575,7 @@ function ItemsTab({ items, scope, onRefresh, setError, provider }: {
                 await invoke("wm_update_item", { item: editingItem });
                 setEditingItem(null);
                 onRefresh();
-              } catch (e: any) { setError(String(e)); }
+              } catch (e) { setError(String(e)); }
             }}>Save</button>
             <button className="panel-btn" style={btnS} onClick={() => setEditingItem(null)}>Cancel</button>
           </div>
@@ -617,7 +617,7 @@ function ItemsTab({ items, scope, onRefresh, setError, provider }: {
               onClick={async () => {
                 if (!confirm(`Delete ${item.displayId}?`)) return;
                 try { await invoke("wm_delete_item", { displayId: item.displayId }); onRefresh(); }
-                catch (e: any) { setError(String(e)); }
+                catch (e) { setError(String(e)); }
               }}>Delete</button>
           </div>
           <div style={{ fontWeight: 500, fontSize: "var(--font-size-md)" }}>{item.title}</div>
@@ -677,7 +677,7 @@ function BoardTab({ items, onRefresh, setError }: {
     try {
       await invoke("wm_move_item", { displayId, status: newStatus });
       onRefresh();
-    } catch (e: any) { setError(String(e)); }
+    } catch (e) { setError(String(e)); }
   };
 
   const onDragStart = (e: React.DragEvent, id: string) => {
@@ -822,7 +822,7 @@ function RelationshipsTab({ items, onRefresh, setError }: { items: WorkItem[]; o
       await invoke("wm_add_relationship", { sourceId: sourceId.trim(), targetId: targetId.trim(), relType });
       setSourceId(""); setTargetId("");
       onRefresh();
-    } catch (e: any) { setError(String(e)); }
+    } catch (e) { setError(String(e)); }
   };
 
   const linked = items.filter(i => i.relationships.length > 0);
@@ -853,7 +853,7 @@ function RelationshipsTab({ items, onRefresh, setError }: { items: WorkItem[]; o
               <span style={badge("var(--bg-tertiary)", "var(--text-secondary)")}>{r.type.replace("_", " ")}</span>
               <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--accent-color)" }}>{r.targetId}</span>
               <button className="panel-btn" style={{ ...btnS, fontSize: 9, padding: "1px 4px", marginLeft: "auto" }} onClick={async () => {
-                try { await invoke("wm_remove_relationship", { sourceId: item.displayId, targetId: r.targetId, relType: r.type }); onRefresh(); } catch (e: any) { setError(String(e)); }
+                try { await invoke("wm_remove_relationship", { sourceId: item.displayId, targetId: r.targetId, relType: r.type }); onRefresh(); } catch (e) { setError(String(e)); }
               }}>x</button>
             </div>
           ))}

@@ -16,10 +16,10 @@ pub mod expr;
 pub mod model;
 pub mod run;
 
-pub use decider::{decide, Decision, Terminal};
+pub use decider::{decide, Decision, TaskUpdate, Terminal};
 pub use dsl::{parse_workflow_def, validate};
 pub use error::{FluxoError, Result};
-pub use model::{SubWorkflowParam, TaskType, WorkflowDef, WorkflowTask};
+pub use model::{RetryPolicy, SubWorkflowParam, TaskType, WorkflowDef, WorkflowTask};
 pub use run::{TaskExecution, TaskStatus, WorkflowRun, WorkflowStatus};
 
 #[cfg(test)]
@@ -46,6 +46,12 @@ mod tests {
 
     /// Apply a decision to a run the way the engine would, assigning ids and merging variables.
     fn apply(run: &mut WorkflowRun, decision: &Decision) {
+        for update in &decision.updates {
+            if let Some(t) = run.task_by_id_mut(&update.task_id) {
+                t.status = update.status;
+                t.reason_for_incompletion = update.reason.clone();
+            }
+        }
         for (i, exec) in decision.schedule.iter().enumerate() {
             let mut exec = exec.clone();
             exec.task_id = format!("{}-{}", exec.reference_name, run.tasks.len() + i);
@@ -73,7 +79,9 @@ mod tests {
     ) {
         for _ in 0..100 {
             let decision = decide(def, run, 1).expect("decide");
-            let progressed = !decision.schedule.is_empty() || decision.terminal.is_some();
+            let progressed = !decision.schedule.is_empty()
+                || !decision.updates.is_empty()
+                || decision.terminal.is_some();
             apply(run, &decision);
             if run.status.is_terminal() {
                 return;
@@ -296,5 +304,78 @@ mod tests {
         drive(&def, &mut run, |_| None);
         assert_eq!(run.status, WorkflowStatus::Running);
         assert_eq!(run.task_by_ref("w").unwrap().status, TaskStatus::Scheduled);
+    }
+
+    #[test]
+    fn retries_then_succeeds() {
+        let def = parse_workflow_def(
+            r#"{ "name": "flaky", "tasks": [
+                { "name": "work", "taskReferenceName": "w", "retryCount": 2 }
+            ]}"#,
+        )
+        .expect("parse");
+        let mut run = new_run(&def, json!({}));
+        // Fail the first attempt (retry_count 0), succeed on the retry.
+        drive(&def, &mut run, |t| {
+            if t.retry_count == 0 {
+                Some((TaskStatus::Failed, json!({})))
+            } else {
+                Some((TaskStatus::Completed, json!({ "attempt": t.retry_count })))
+            }
+        });
+        assert_eq!(run.status, WorkflowStatus::Completed);
+        let attempts: Vec<_> = run.tasks.iter().filter(|t| t.reference_name == "w").collect();
+        assert_eq!(attempts.len(), 2, "one failure + one retry");
+        assert_eq!(attempts.last().unwrap().status, TaskStatus::Completed);
+    }
+
+    #[test]
+    fn retries_exhausted_fails_workflow() {
+        let def = parse_workflow_def(
+            r#"{ "name": "doomed", "tasks": [
+                { "name": "work", "taskReferenceName": "w", "retryCount": 1 }
+            ]}"#,
+        )
+        .expect("parse");
+        let mut run = new_run(&def, json!({}));
+        drive(&def, &mut run, |_| Some((TaskStatus::Failed, json!({}))));
+        assert_eq!(run.status, WorkflowStatus::Failed);
+        let attempts = run.tasks.iter().filter(|t| t.reference_name == "w").count();
+        assert_eq!(attempts, 2, "initial attempt + one retry, then exhausted");
+    }
+
+    #[test]
+    fn overdue_task_times_out_then_fails() {
+        let def = parse_workflow_def(
+            r#"{ "name": "slowpoke", "tasks": [
+                { "name": "slow", "taskReferenceName": "s", "timeoutSeconds": 1 }
+            ]}"#,
+        )
+        .expect("parse");
+        let mut run = new_run(&def, json!({}));
+        run.tasks.push(TaskExecution {
+            task_id: "s-0".into(),
+            reference_name: "s".into(),
+            task_type: TaskType::Simple,
+            task_name: "slow".into(),
+            status: TaskStatus::InProgress,
+            input: json!({}),
+            output: Value::Null,
+            retry_count: 0,
+            scheduled_at: 0,
+            updated_at: 0,
+            worker_id: Some("w1".into()),
+            reason_for_incompletion: None,
+        });
+
+        // 5s later, well past the 1s timeout → a TimedOut update.
+        let decision = decide(&def, &run, 5000).expect("decide");
+        assert_eq!(decision.updates.len(), 1);
+        assert_eq!(decision.updates[0].status, TaskStatus::TimedOut);
+
+        // Apply it; with no retry budget, the next pass fails the workflow.
+        run.tasks[0].status = TaskStatus::TimedOut;
+        let decision = decide(&def, &run, 5000).expect("decide");
+        assert_eq!(decision.terminal.expect("terminal").status, WorkflowStatus::Failed);
     }
 }

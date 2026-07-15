@@ -2952,6 +2952,7 @@ mod exec_goal_repl;
 // /loop — recurring + self-paced loop-until-done engine (gap C1).
 #[allow(dead_code)]
 mod loop_engine;
+mod hosted_loop;
 // Recap & Resume — Phase D1.1: diffcomplete chain types + encrypted
 // store on workspace.db. Patent re-audit: PASS (1–5 unchanged).
 #[allow(dead_code)]
@@ -18730,7 +18731,7 @@ fn list_providers_and_models() {
     const PROVIDERS: &[(&str, &str, &str)] = &[
         (
             "ollama",
-            "qwen3-coder:480b-cloud",
+            "glm-5.2:cloud",
             "Local LLM via Ollama (no API key)",
         ),
         (
@@ -18880,7 +18881,7 @@ fn create_raw_provider(
             };
             let model = model
                 .or(cfg_model)
-                .unwrap_or_else(|| "qwen3-coder:480b-cloud".to_string());
+                .unwrap_or_else(|| "glm-5.2:cloud".to_string());
             Ok(Arc::new(OllamaProvider::new(ProviderConfig {
                 provider_type: "ollama".to_string(),
                 api_url: Some(api_url),

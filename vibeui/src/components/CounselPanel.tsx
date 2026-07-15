@@ -1,6 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { errorMessage } from "../utils/errorMessage";
 import { listen } from "@tauri-apps/api/event";
 import { useModelRegistry } from "../hooks/useModelRegistry";
 
@@ -166,8 +166,8 @@ export function CounselPanel() {
       setActiveSession(s);
       setShowSetup(false);
       loadSessions();
-    } catch (e: any) {
-      setError(`Failed to create session: ${e?.toString() || "unknown error"}`);
+    } catch (e) {
+      setError(`Failed to create session: ${errorMessage(e) || "unknown error"}`);
     }
   }, [topic, participants, moderatorIdx, loadSessions]);
 
@@ -177,8 +177,8 @@ export function CounselPanel() {
     try {
       await invoke("counsel_run_round", { sessionId: activeSession.id });
       await loadSession(activeSession.id);
-    } catch (e: any) {
-      setError(`Round failed: ${e?.toString() || "unknown error"}`);
+    } catch (e) {
+      setError(`Round failed: ${errorMessage(e) || "unknown error"}`);
     } finally {
       setDeliberating(false);
     }
@@ -190,8 +190,8 @@ export function CounselPanel() {
     try {
       await invoke("counsel_synthesize", { sessionId: activeSession.id });
       await loadSession(activeSession.id);
-    } catch (e: any) {
-      setError(`Synthesis failed: ${e?.toString() || "unknown error"}`);
+    } catch (e) {
+      setError(`Synthesis failed: ${errorMessage(e) || "unknown error"}`);
     } finally {
       setSynthesizing(false);
     }
@@ -251,8 +251,8 @@ export function CounselPanel() {
         model,
       });
       setActiveSession(updated);
-    } catch (e: any) {
-      setError(`Failed to update participant: ${e?.toString()}`);
+    } catch (e) {
+      setError(`Failed to update participant: ${errorMessage(e)}`);
     }
   }, [activeSession]);
 

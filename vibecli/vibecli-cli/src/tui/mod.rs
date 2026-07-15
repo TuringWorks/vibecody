@@ -79,7 +79,7 @@ fn create_raw_tui_provider(
                 .unwrap_or_else(|| "http://127.0.0.1:11434".to_string());
             let model = model
                 .or_else(|| provider_config.and_then(|c| c.model.clone()))
-                .unwrap_or_else(|| "qwen3-coder:480b-cloud".to_string());
+                .unwrap_or_else(|| "glm-5.2:cloud".to_string());
             Ok(Arc::new(OllamaProvider::new(ProviderConfig {
                 provider_type: "ollama".to_string(),
                 api_url: Some(base_url),

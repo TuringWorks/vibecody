@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * ProfileManager — Manage settings profiles.
  * Can be embedded in the Settings panel or used standalone.
@@ -25,7 +24,7 @@ export function ProfileManager() {
     try {
       const list = await listProfiles();
       setProfiles(list);
-    } catch (e: any) {
+    } catch (e) {
       setError(typeof e === "string" ? e : "Failed to load profiles");
     }
   }, []);
@@ -41,7 +40,7 @@ export function ProfileManager() {
       setSuccess(`Profile "${newName}" created`);
       setTimeout(() => setSuccess(null), 3000);
       await load();
-    } catch (e: any) {
+    } catch (e) {
       setError(typeof e === "string" ? e : "Failed to create profile");
     }
   };
@@ -50,7 +49,7 @@ export function ProfileManager() {
     try {
       await deleteProfile(id);
       await load();
-    } catch (e: any) {
+    } catch (e) {
       setError(typeof e === "string" ? e : "Cannot delete this profile");
     }
   };
@@ -59,7 +58,7 @@ export function ProfileManager() {
     try {
       await setDefaultProfile(id);
       await load();
-    } catch (e: any) {
+    } catch (e) {
       setError(typeof e === "string" ? e : "Failed to set default");
     }
   };
@@ -76,7 +75,7 @@ export function ProfileManager() {
       URL.revokeObjectURL(url);
       setSuccess("Profile exported");
       setTimeout(() => setSuccess(null), 3000);
-    } catch (e: any) {
+    } catch (e) {
       setError(typeof e === "string" ? e : "Export failed");
     }
   };
@@ -94,7 +93,7 @@ export function ProfileManager() {
         const count = await importProfile(id, data);
         setSuccess(`Imported ${count} settings`);
         setTimeout(() => setSuccess(null), 3000);
-      } catch (e: any) {
+      } catch (e) {
         setError(typeof e === "string" ? e : "Import failed");
       }
     };

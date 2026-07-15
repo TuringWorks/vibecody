@@ -98,13 +98,13 @@ impl PlatformInfo {
             return "mistral:7b";
         }
         if self.ram_gb >= 32.0 {
-            "qwen3-coder:480b-cloud"
+            "glm-5.2:cloud"
         } else if self.ram_gb >= 16.0 {
             "codellama:13b"
         } else if self.ram_gb >= 8.0 {
             "codellama:7b"
         } else {
-            "qwen3-coder:480b-cloud"
+            "glm-5.2:cloud"
         }
     }
 }

@@ -12,6 +12,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { errorMessage } from "../utils/errorMessage";
 
 interface UsePanelSettingsResult {
   /** All settings for this panel as a key-value map */
@@ -69,9 +70,9 @@ export function usePanelSettings(panelName: string): UsePanelSettingsResult {
       if (mountedRef.current) {
         setSettings(data || {});
       }
-    } catch (e: any) {
+    } catch (e) {
       if (mountedRef.current) {
-        setError(typeof e === "string" ? e : e?.message || "Failed to load settings");
+        setError(errorMessage(e) || "Failed to load settings");
         setSettings({});
       }
     } finally {
@@ -96,8 +97,8 @@ export function usePanelSettings(panelName: string): UsePanelSettingsResult {
           value,
         });
         setSettings((prev) => ({ ...prev, [key]: value }));
-      } catch (e: any) {
-        setError(typeof e === "string" ? e : e?.message || "Failed to save setting");
+      } catch (e) {
+        setError(errorMessage(e) || "Failed to save setting");
       }
     },
     [profileId, panelName]
@@ -117,8 +118,8 @@ export function usePanelSettings(panelName: string): UsePanelSettingsResult {
           delete next[key];
           return next;
         });
-      } catch (e: any) {
-        setError(typeof e === "string" ? e : e?.message || "Failed to delete setting");
+      } catch (e) {
+        setError(errorMessage(e) || "Failed to delete setting");
       }
     },
     [profileId, panelName]
@@ -132,8 +133,8 @@ export function usePanelSettings(panelName: string): UsePanelSettingsResult {
         panel: panelName,
       });
       setSettings({});
-    } catch (e: any) {
-      setError(typeof e === "string" ? e : e?.message || "Failed to reset panel");
+    } catch (e) {
+      setError(errorMessage(e) || "Failed to reset panel");
     }
   }, [profileId, panelName]);
 

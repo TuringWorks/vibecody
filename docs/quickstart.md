@@ -85,7 +85,7 @@ You will see the prompt:
 
 ```
 VibeCLI v0.5.5 — AI coding assistant
-Provider: ollama (qwen3-coder:480b-cloud)
+Provider: ollama (glm-5.2:cloud)
 Type a message or /help for commands.
 
 vibecli>
@@ -285,7 +285,7 @@ Ollama must be running before you launch VibeCLI.
 ollama serve
 
 # In another terminal, pull a model if you have not already
-ollama pull qwen3-coder:480b-cloud
+ollama pull glm-5.2:cloud
 
 # Now launch VibeCLI
 vibecli

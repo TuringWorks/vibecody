@@ -81,7 +81,7 @@ vibecli --provider ollama
 [ollama]
 enabled = true
 api_url = "http://localhost:11434"
-model = "qwen3-coder:480b-cloud"
+model = "glm-5.2:cloud"
 ```
 
 **Option 3: CLI flag**

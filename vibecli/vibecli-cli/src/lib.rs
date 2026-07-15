@@ -227,6 +227,7 @@ pub mod resume;
 pub mod exec_goal;
 // /loop — recurring + self-paced loop-until-done engine (gap C1).
 pub mod loop_engine;
+pub mod hosted_loop;
 // /goal — REPL handlers (display + direct-DB CRUD).
 pub mod exec_goal_repl;
 // Recap & Resume — Phase D1.1: diffcomplete chain types + encrypted

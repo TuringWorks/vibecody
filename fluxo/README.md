@@ -26,10 +26,10 @@ Fluxo is that loop, as a clean, high-performance Rust core.
 |---|---|---|
 | `fluxo-core` | Domain model, **Conductor-compatible JSON DSL**, validation, `${…}` expression resolution, and the **pure decider** (the workflow state machine). No I/O. | ✅ implemented + tested |
 | `fluxo-store` | `Store` trait + backends: `MemoryStore` (always on), `SqliteStore` (feature `sqlite`, default), `PostgresStore` (feature `postgres`). | ✅ implemented + tested |
-| `fluxo-engine` | Ties core + store into a runnable engine: `register` → `start` → `decide` (to fixed point) → `poll` / `complete_task`. | ✅ implemented + tested |
-| `fluxo-server` *(next)* | Axum HTTP API: workflow CRUD, execute, task poll/update, SSE timeline. | ⏳ planned |
-| `fluxo-worker` *(next)* | Poll-by-task-type worker client + task handler registry. | ⏳ planned |
-| `fluxo-cli` *(next)* | `fluxo run def.json`, register, tail. | ⏳ planned |
+| `fluxo-engine` | Ties core + store into a runnable engine: `register` → `start` → `decide` (to fixed point) → `poll` / `complete_task` → `signal` / `pause` / `resume` / `terminate` / `reap`. Per-task **retries + timeouts**. | ✅ implemented + tested |
+| `fluxo-server` | Axum HTTP API: workflow CRUD, execute, run control, task poll/complete, SSE timeline. Ships a `fluxo-server` binary. | ✅ implemented + tested |
+| `fluxo-worker` | Poll-by-task-type worker client + task handler registry; stateless & scalable. | ✅ implemented + tested |
+| `fluxo-cli` | `fluxo` binary — thin HTTP client: register/run/tail(SSE)/ls/runs/signal. | ✅ implemented + tested |
 
 ## Design principles
 
@@ -49,12 +49,15 @@ Fluxo is that loop, as a clean, high-performance Rust core.
 
 `SIMPLE` (worker), `SWITCH` (decision), `FORK_JOIN` + `JOIN`, `SET_VARIABLE`, `INLINE`,
 `WAIT`, `HUMAN`, `SUB_WORKFLOW`, `TERMINATE`.
+Every external task honors `retryCount` / `retryDelaySeconds` / `retryLogic`
+(FIXED | EXPONENTIAL_BACKOFF), `timeoutSeconds`, and `optional`.
 Deferred: `DO_WHILE`, `FORK_JOIN_DYNAMIC`, `JSON_JQ_TRANSFORM`, `HTTP`, `EVENT`,
 `START_WORKFLOW`, and the `LLM_*` AI task family (next milestones).
 
 ## Build & test
 
 ```bash
-cargo test -p fluxo-core -p fluxo-store -p fluxo-engine          # default (sqlite) backend
-cargo test -p fluxo-store --features postgres                    # requires a reachable Postgres
+cargo test -p fluxo-core -p fluxo-store -p fluxo-engine -p fluxo-server   # default (sqlite)
+cargo test -p fluxo-store --features postgres                            # needs a reachable Postgres
+cargo run  -p fluxo-server                                               # FLUXO_ADDR / FLUXO_DB
 ```
