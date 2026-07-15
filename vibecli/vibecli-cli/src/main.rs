@@ -6405,6 +6405,137 @@ async fn main() -> Result<()> {
                             }
                         }
 
+                        "/webmcp" => {
+                            // C4 driver — discover/call WebMCP tools a page
+                            // advertises over the CDP-attached browser. Origin-
+                            // trial gated (off unless VIBECLI_WEBMCP=1) and never
+                            // mutates the live DOM (§18.A7): it only invokes the
+                            // page-author-provided tool functions.
+                            let flag = crate::webmcp::WebMcpFlag::from_env();
+                            if !flag.enabled() {
+                                println!("WebMCP is disabled (origin-trial gated). Enable with VIBECLI_WEBMCP=1.\n");
+                                continue;
+                            }
+                            let parts: Vec<String> =
+                                args.split_whitespace().map(|s| s.to_string()).collect();
+                            let sub = parts.first().map(|s| s.as_str()).unwrap_or("list");
+                            // Attach to a running Chrome (start it with
+                            // --remote-debugging-port=9222).
+                            let mut session = match crate::browser_agent::BrowserSession::new(
+                                &crate::browser_agent::BrowserConfig::default(),
+                            )
+                            .await
+                            {
+                                Ok(s) => s,
+                                Err(e) => {
+                                    eprintln!("❌ Could not attach to Chrome (launch it with --remote-debugging-port=9222): {e}\n");
+                                    continue;
+                                }
+                            };
+                            let tools = match session.discover_webmcp_tools(flag).await {
+                                Ok(t) => t,
+                                Err(e) => {
+                                    eprintln!("❌ WebMCP discovery failed: {e}\n");
+                                    continue;
+                                }
+                            };
+                            match sub {
+                                "list" | "" => {
+                                    println!(
+                                        "\n🧩 WebMCP tools on {}:\n{}\n",
+                                        session.page_url,
+                                        crate::webmcp::format_tools(&tools)
+                                    );
+                                }
+                                "call" if parts.len() >= 2 => {
+                                    let tool_name = parts[1].clone();
+                                    let call_args = crate::webmcp::parse_kv_args(&parts[2..]);
+                                    // call_webmcp_tool validates (flag + required
+                                    // params) before it reaches the page.
+                                    match session
+                                        .call_webmcp_tool(flag, &tools, &tool_name, &call_args)
+                                        .await
+                                    {
+                                        Ok(res) => println!("\n{res}\n"),
+                                        Err(e) => eprintln!("❌ {e}\n"),
+                                    }
+                                }
+                                _ => {
+                                    println!("Usage: /webmcp list  |  /webmcp call <tool> k=v ...\n");
+                                }
+                            }
+                        }
+
+                        "/bulk" => {
+                            // C2 driver — run a dynamic large-scale workflow: fan a
+                            // shell command across many files (bounded parallelism),
+                            // verify each, retry, and report. `{task}` in the
+                            // apply/verify templates is replaced with each file.
+                            // Syntax: /bulk <apply> ||| <verify> ||| [files…]
+                            let segs: Vec<String> =
+                                args.split("|||").map(|s| s.trim().to_string()).collect();
+                            let apply = segs.first().cloned().unwrap_or_default();
+                            if apply.is_empty() {
+                                println!("Usage: /bulk <apply-cmd> ||| <verify-cmd> ||| [file …]\n  {{task}} is replaced with each file; files default to git-changed.\n");
+                                continue;
+                            }
+                            let verify = segs.get(1).cloned().unwrap_or_default();
+                            // File list: explicit third segment, else git-changed.
+                            let files: Vec<String> = match segs.get(2) {
+                                Some(f) if !f.is_empty() => {
+                                    f.split_whitespace().map(|s| s.to_string()).collect()
+                                }
+                                _ => std::process::Command::new("git")
+                                    .args(["diff", "--name-only", "HEAD"])
+                                    .output()
+                                    .ok()
+                                    .filter(|o| o.status.success())
+                                    .map(|o| {
+                                        String::from_utf8_lossy(&o.stdout)
+                                            .lines()
+                                            .map(|l| l.trim().to_string())
+                                            .filter(|l| !l.is_empty())
+                                            .collect()
+                                    })
+                                    .unwrap_or_default(),
+                            };
+                            if files.is_empty() {
+                                println!("No files to process (none given and no git-changed files).\n");
+                                continue;
+                            }
+                            let mut wf = crate::dynamic_workflow::DynamicWorkflow::new(
+                                apply.clone(),
+                                crate::dynamic_workflow::WorkflowConfig::default(),
+                            );
+                            wf.decompose(files.clone());
+                            let exec = crate::dynamic_workflow::ShellSubtaskExecutor::new(
+                                apply.clone(),
+                                verify.clone(),
+                            );
+                            println!(
+                                "\n🛠  Running '{}' across {} file(s){}…",
+                                apply,
+                                files.len(),
+                                if verify.is_empty() {
+                                    String::new()
+                                } else {
+                                    format!(", verify '{verify}'")
+                                }
+                            );
+                            match wf.run(&exec).await {
+                                Ok(report) => {
+                                    println!(
+                                        "\n✅ done: {} verified, {} failed / {} total{}\n",
+                                        report.verified,
+                                        report.failed,
+                                        report.total,
+                                        if report.success { " — all passed" } else { "" }
+                                    );
+                                }
+                                Err(e) => eprintln!("❌ workflow error: {e}\n"),
+                            }
+                        }
+
                         "/mcp" => {
                             let config = Config::load().unwrap_or_default();
                             if config.mcp_servers.is_empty() {

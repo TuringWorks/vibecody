@@ -228,6 +228,171 @@ impl DynamicWorkflow {
             .find(|t| t.id == id)
             .ok_or_else(|| format!("no sub-task {id}"))
     }
+
+    /// Drive the workflow to completion: repeatedly take the next batch (bounded
+    /// by `max_parallelism`), fan the sub-tasks out **concurrently** through
+    /// `executor`, feed each outcome back through the verify-gate + retry logic,
+    /// and loop until every sub-task is terminal. Returns the final
+    /// [`WorkflowReport`].
+    ///
+    /// This is the fusion the module docs describe — decompose → fan-out →
+    /// verify → report as one call. The [`SubtaskExecutor`] is the injection seam
+    /// the daemon/CLI supplies (a real one runs a sub-agent in a worktree and a
+    /// verifier; tests use a mock), so the orchestration is exercised without a
+    /// live agent. A safety bound guarantees termination even if an executor
+    /// misbehaves.
+    pub async fn run<E>(&mut self, executor: &E) -> Result<WorkflowReport, String>
+    where
+        E: SubtaskExecutor + Sync,
+    {
+        // Worst case: every sub-task runs (max_retries + 1) times, one batch per
+        // outer iteration. Bound with headroom so a logic error can't spin.
+        let max_iters = self
+            .subtasks
+            .len()
+            .saturating_mul(self.config.max_retries as usize + 2)
+            .saturating_add(1);
+
+        let mut iters = 0usize;
+        loop {
+            let batch = self.next_batch();
+            if batch.is_empty() {
+                break;
+            }
+            iters += 1;
+            if iters > max_iters {
+                return Err(format!(
+                    "dynamic workflow exceeded {max_iters} iterations without converging"
+                ));
+            }
+
+            // Mark the batch running and snapshot each sub-task for the executor
+            // (cloned so the concurrent futures don't borrow `self`).
+            let mut running: Vec<SubTask> = Vec::with_capacity(batch.len());
+            for id in &batch {
+                self.mark_running(id)?;
+                let st = self
+                    .subtasks
+                    .iter()
+                    .find(|t| &t.id == id)
+                    .cloned()
+                    .ok_or_else(|| format!("no sub-task {id}"))?;
+                running.push(st);
+            }
+
+            // Fan out concurrently — the batch size already respects the
+            // parallelism cap, so this never exceeds `max_parallelism` in flight.
+            let outcomes =
+                futures::future::join_all(running.iter().map(|st| executor.execute(st))).await;
+
+            for (st, outcome) in running.iter().zip(outcomes) {
+                self.record_result(&st.id, outcome.produced_output, outcome.verified)?;
+            }
+        }
+
+        Ok(self.report())
+    }
+}
+
+/// Outcome of executing one sub-task: did the sub-agent produce output, and did
+/// verification pass? Fed straight into [`DynamicWorkflow::record_result`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SubtaskOutcome {
+    pub produced_output: bool,
+    pub verified: bool,
+}
+
+impl SubtaskOutcome {
+    /// Produced output and passed verification.
+    pub fn pass() -> Self {
+        Self {
+            produced_output: true,
+            verified: true,
+        }
+    }
+    /// Produced output but verification failed (eligible for retry).
+    pub fn unverified() -> Self {
+        Self {
+            produced_output: true,
+            verified: false,
+        }
+    }
+    /// Produced nothing (eligible for retry).
+    pub fn empty() -> Self {
+        Self {
+            produced_output: false,
+            verified: false,
+        }
+    }
+}
+
+/// The injection seam for [`DynamicWorkflow::run`]: run one decomposed sub-task
+/// (spawn a sub-agent in an isolated worktree, run a verifier, …) and report
+/// whether it produced output and passed verification. Keeping this a trait lets
+/// the orchestration be unit-tested with a mock while the daemon/CLI supplies a
+/// live implementation such as [`ShellSubtaskExecutor`].
+#[async_trait::async_trait]
+pub trait SubtaskExecutor {
+    async fn execute(&self, subtask: &SubTask) -> SubtaskOutcome;
+}
+
+/// A concrete [`SubtaskExecutor`] for mechanical large-scale migrations: run a
+/// shell **apply** command per sub-task, then an optional **verify** command.
+/// `{task}` in either template is replaced with the sub-task description (e.g.
+/// the target file). Output is "produced" when the apply command exits 0; the
+/// sub-task is "verified" when the verify command exits 0 (or when no verify
+/// command is set). This runs with the same trust as the REPL's `/exec` — the
+/// user supplies the templates.
+#[derive(Debug, Clone)]
+pub struct ShellSubtaskExecutor {
+    /// Command run per sub-task; `{task}` → the sub-task description.
+    pub apply_template: String,
+    /// Optional verify command run after apply; empty ⇒ no verify command (the
+    /// sub-task is considered verified as long as apply produced output).
+    pub verify_template: String,
+}
+
+impl ShellSubtaskExecutor {
+    pub fn new(apply_template: impl Into<String>, verify_template: impl Into<String>) -> Self {
+        Self {
+            apply_template: apply_template.into(),
+            verify_template: verify_template.into(),
+        }
+    }
+
+    /// Substitute `{task}` and run the command via `sh -c`, returning whether it
+    /// exited successfully.
+    async fn run_cmd(template: &str, description: &str) -> bool {
+        let cmd = template.replace("{task}", description);
+        match tokio::process::Command::new("sh")
+            .arg("-c")
+            .arg(&cmd)
+            .output()
+            .await
+        {
+            Ok(out) => out.status.success(),
+            Err(_) => false,
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl SubtaskExecutor for ShellSubtaskExecutor {
+    async fn execute(&self, subtask: &SubTask) -> SubtaskOutcome {
+        let produced = Self::run_cmd(&self.apply_template, &subtask.description).await;
+        if !produced {
+            return SubtaskOutcome::empty();
+        }
+        let verified = if self.verify_template.trim().is_empty() {
+            true
+        } else {
+            Self::run_cmd(&self.verify_template, &subtask.description).await
+        };
+        SubtaskOutcome {
+            produced_output: true,
+            verified,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -333,5 +498,104 @@ mod tests {
         w.record_result("st-0001", true, true).unwrap();
         assert!(w.mark_running("st-0001").is_err());
         assert!(w.mark_running("nope").is_err());
+    }
+
+    // -- run() orchestration (C2 fusion) -----------------------------------
+
+    /// Mock executor whose outcome is decided by a closure of the sub-task.
+    struct MockExec<F: Fn(&SubTask) -> SubtaskOutcome + Sync>(F);
+
+    #[async_trait::async_trait]
+    impl<F: Fn(&SubTask) -> SubtaskOutcome + Sync> SubtaskExecutor for MockExec<F> {
+        async fn execute(&self, subtask: &SubTask) -> SubtaskOutcome {
+            (self.0)(subtask)
+        }
+    }
+
+    #[tokio::test]
+    async fn run_completes_when_every_subtask_passes() {
+        let mut w = wf();
+        let report = w.run(&MockExec(|_| SubtaskOutcome::pass())).await.unwrap();
+        assert_eq!(report.verified, 3);
+        assert!(report.success);
+        assert!(w.is_complete());
+    }
+
+    #[tokio::test]
+    async fn run_respects_parallelism_cap_and_still_finishes() {
+        let mut w = DynamicWorkflow::new("bulk", WorkflowConfig::default());
+        w.config.max_parallelism = 2;
+        let files: Vec<String> = (0..5).map(|i| format!("src/f{i}.rs")).collect();
+        w.decompose_by_files("Migrate", &files);
+        let report = w.run(&MockExec(|_| SubtaskOutcome::pass())).await.unwrap();
+        assert_eq!(report.total, 5);
+        assert_eq!(report.verified, 5);
+        assert!(report.success);
+    }
+
+    #[tokio::test]
+    async fn run_retries_unverified_then_passes_via_attempts() {
+        let mut w = wf();
+        w.config.max_retries = 2;
+        // Fail verification on the first attempt, pass on any retry.
+        let report = w
+            .run(&MockExec(|st: &SubTask| {
+                if st.attempts >= 2 {
+                    SubtaskOutcome::pass()
+                } else {
+                    SubtaskOutcome::unverified()
+                }
+            }))
+            .await
+            .unwrap();
+        assert_eq!(report.verified, 3);
+        assert!(report.success);
+    }
+
+    #[tokio::test]
+    async fn run_marks_failed_after_exhausting_retries_and_terminates() {
+        let mut w = wf();
+        w.config.max_retries = 1;
+        // Never verifies → every sub-task exhausts its budget and fails, but the
+        // safety bound guarantees run() returns rather than spinning.
+        let report = w
+            .run(&MockExec(|_| SubtaskOutcome::unverified()))
+            .await
+            .unwrap();
+        assert_eq!(report.failed, 3);
+        assert_eq!(report.verified, 0);
+        assert!(!report.success);
+        assert!(w.is_complete());
+    }
+
+    #[tokio::test]
+    async fn shell_executor_apply_and_verify_pass() {
+        let mut w = DynamicWorkflow::new("codemod", WorkflowConfig::default());
+        w.decompose_by_files("touch-check", &["a".into(), "b".into()]);
+        let exec = ShellSubtaskExecutor::new("true", "true");
+        let report = w.run(&exec).await.unwrap();
+        assert!(report.success);
+        assert_eq!(report.verified, 2);
+    }
+
+    #[tokio::test]
+    async fn shell_executor_failed_verify_retries_to_failure() {
+        let mut w = DynamicWorkflow::new("codemod", WorkflowConfig::default());
+        w.config.max_retries = 1;
+        w.decompose(["only-one"]);
+        // apply succeeds (`true`) but verify always fails (`false`).
+        let exec = ShellSubtaskExecutor::new("true", "false");
+        let report = w.run(&exec).await.unwrap();
+        assert_eq!(report.failed, 1);
+        assert!(!report.success);
+    }
+
+    #[tokio::test]
+    async fn shell_executor_empty_verify_template_passes_on_apply() {
+        let mut w = DynamicWorkflow::new("codemod", WorkflowConfig::default());
+        w.decompose(["x"]);
+        let exec = ShellSubtaskExecutor::new("true", "");
+        let report = w.run(&exec).await.unwrap();
+        assert!(report.success);
     }
 }

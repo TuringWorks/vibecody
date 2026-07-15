@@ -123,6 +123,8 @@ pub static COMMANDS: &[&str] = &[
     "/semindex",
     "/skillforge",
     "/websearch",
+    "/webmcp",
+    "/bulk",
     "/mcp-http",
     "/repair",
     "/route",
@@ -194,6 +196,9 @@ pub static GOAL_SUBS: &[&str] = &[
 
 /// Sub-commands for `/loop <sub>` (gap C1)
 pub static LOOP_SUBS: &[&str] = &["auto", "list", "stop", "status"];
+
+/// Sub-commands for `/webmcp <sub>` (gap C4)
+pub static WEBMCP_SUBS: &[&str] = &["list", "call"];
 
 /// Sub-commands for `/orchestrate <sub>`
 static ORCHESTRATE_SUBS: &[&str] = &["status", "lessons", "lesson", "todo", "verify", "reset"];
@@ -625,6 +630,8 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/semindex" => Some("[build|query|callers|callees|hierarchy|deps|stats]  — deep semantic codebase index"),
         "/skillforge" => Some("[list|show|refresh|score|train|status|cancel|promote|health]  — measure & train agent-skill docs"),
         "/websearch" => Some("[web|citations|cache]  — integrated web search grounding"),
+        "/webmcp" => Some("[list|call <tool> k=v…]  — WebMCP page tools over CDP (origin-trial gated; VIBECLI_WEBMCP=1)"),
+        "/bulk" => Some("<apply> ||| <verify> ||| [files…]  — run a command across many files (verify-gated, retrying); files default to git-changed"),
         "/mcp-http" => Some("[serve|oauth|tokens|remote]  — MCP streamable HTTP + OAuth 2.1"),
         "/repair" => Some("[mcts|agentless|compare|config]  — MCTS code repair"),
         "/route" => Some("[cost|budget|model|stats|compare]  — cost-optimized agent routing"),
@@ -760,6 +767,7 @@ fn complete_slash(line: &str) -> Option<(usize, Vec<Pair>)> {
                 "/semindex" => Some(SEMINDEX_SUBS),
                 "/skillforge" => Some(SKILLFORGE_SUBS),
                 "/websearch" => Some(WEBSEARCH_SUBS),
+                "/webmcp" => Some(WEBMCP_SUBS),
                 "/mcp-http" => Some(MCPHTTP_SUBS),
                 "/repair" => Some(REPAIR_SUBS),
                 "/route" => Some(ROUTE_SUBS),

@@ -231,6 +231,7 @@ VibeCody is shipped to users (developers, integrators, operators) who want to *u
 - **Surface every required knob** in the daemon startup banner, `/health`, and `docs/`.
 - **Honour the toolbar model dropdown in every panel that calls an LLM** — see [Provider-Agnostic Panels](#provider-agnostic-panels--strict) below.
 - **Explain non-trivial changes with an ASCII architecture diagram before writing code** (see [Explaining Changes](#explaining-changes--diagrams-before-prose) below).
+- **Write in a functional style and refactor toward it** — pure functions, immutable bindings, iterator/combinator chains, and total error handling. See [Functional Style & Safe Refactoring](#functional-style--safe-refactoring--rust--typescript) below.
 
 ### DO NOT
 
@@ -243,6 +244,58 @@ VibeCody is shipped to users (developers, integrators, operators) who want to *u
 - **Ship a feature that requires the user to `export FOO=...` before it works** — that value belongs in `ProfileStore` and must be settable via `vibecli set-key`. Env-var fallback is fine for compatibility; env-var-only is not.
 - **Fail silently when a configured value is missing** — log it at startup, surface it in `/health`, document the fix.
 - **Hard-code Anthropic (or any single provider) as the LLM backend in a panel.** Every panel that talks to an LLM must route through the toolbar's selected provider/model — see [Provider-Agnostic Panels](#provider-agnostic-panels--strict) below.
+- **`.unwrap()` / `.expect()` / `panic!` on a value that can legitimately be absent or fail** in daemon, library, or command code — return `Result`/`Option` and propagate with `?`. Panics are for tests and provably-infallible invariants (with a comment saying why). See [Functional Style & Safe Refactoring](#functional-style--safe-refactoring--rust--typescript).
+- **Reach for `let mut` + an index loop when an iterator chain says it more clearly**, or `.clone()` to dodge the borrow checker in a hot path when a borrow, `Arc`, or `Cow` would do. See [Functional Style & Safe Refactoring](#functional-style--safe-refactoring--rust--typescript).
+
+---
+
+## Functional Style & Safe Refactoring — Rust & TypeScript
+
+VibeCody is a large, long-lived daemon with 13 clients. Code that is **pure, immutable, and total** is easier to test, parallelize, and reason about across that surface. Write new code this way, and when you touch existing code, leave it a little more functional than you found it — as long as the refactor is behaviour-preserving and covered by tests.
+
+**Guiding principle:** separate *computation* (pure, deterministic, easy to test) from *effects* (IO, DB, network, mutation). Push effects to the edges; keep the core a set of pure functions over immutable data. A function that both computes a result and writes to the DB is two functions wearing a trenchcoat.
+
+### Rust
+
+- **Prefer iterator combinators over manual loops.** `map` / `filter` / `filter_map` / `fold` / `try_fold` / `collect` / `partition` express intent and eliminate off-by-one and index-out-of-bounds classes entirely. Reach for a `for` loop only when the body has early-exit side effects that read worse as a chain.
+- **Total error handling — no panics in library/daemon/command paths.** Return `Result<_, _>` / `Option<_>` and propagate with `?`. Replace `match`-pyramids with `?`, `map_err`, `and_then`, `ok_or_else`, `unwrap_or_else`, `unwrap_or_default`. `.unwrap()`/`.expect()` are allowed in tests and for invariants that cannot fail (leave a one-line comment proving it).
+- **Immutable by default.** Start every binding as `let`; add `mut` only when the compiler forces you to. Prefer building a new value (`Vec::from_iter`, struct update syntax `..old`) over mutating in place.
+- **Borrow, don't clone.** Take `&str` / `&[T]` / `&T` (or `impl AsRef<str>`, `Cow<'_, str>`) in function signatures instead of owned `String` / `Vec<T>`. Share with `Arc<T>` rather than deep-cloning in hot or fan-out paths. Every `.clone()` in a loop is a refactor candidate — audit whether a borrow, `Arc::clone` (cheap), or `Cow` removes it.
+- **Return `impl Iterator` instead of allocating a `Vec`** when the caller just iterates. Avoid `.collect::<Vec<_>>()` followed immediately by another iteration.
+- **Make illegal states unrepresentable.** Prefer enums over `bool` flags and stringly-typed status; newtype wrappers (`struct DeviceId(String)`) over bare `String`; `NonZeroU32` / `NonEmpty` where the domain forbids the empty/zero case. Exhaustive `match` (no catch-all `_` on domain enums) so new variants become compile errors.
+- **Use the map APIs that avoid double lookups:** `entry(k).or_insert_with(..)`, `HashMap::get_or_insert`, `.retain(..)`. Replace an O(n²) nested-loop membership test with a `HashSet`/`HashMap` built once.
+- **Parallelize independent CPU-bound work with `rayon` `par_iter`** where the crate already depends on it and the work is side-effect-free. Never block the async runtime — wrap blocking IO/CPU in `tokio::task::spawn_blocking`.
+- **Use `itertools`** (already a workspace dep) for `chunks`, `group_by`, `unique`, `partition_map`, `try_collect` rather than hand-rolling.
+
+### TypeScript / React
+
+- **`const` over `let`; never mutate props or state.** Build new values with spread / `map` / `filter` / `structuredClone`. Treat arrays and objects flowing through the UI as `readonly`.
+- **Combinators over loops.** `map` / `filter` / `reduce` / `flatMap` / `Object.entries().map()` instead of `for`/`push`. Early returns over deeply nested `if`.
+- **Pure render, derived state.** Derive values during render (memoized with `useMemo`/`useCallback` when the computation is expensive) rather than storing a duplicate in `useState` and syncing it in an effect. Effects are for *effects* (subscriptions, IO), not for deriving state.
+- **Total types.** No `any` — use `unknown` + narrowing. Model variants as discriminated unions and switch exhaustively with a `never` default so a new variant is a compile error. Use optional chaining `?.` and nullish coalescing `??` over manual `&&` guards.
+- **Small composable functions** with explicit return types on exported functions. Keep Tauri `invoke` calls (the effects) at the edge; keep transforms pure and unit-testable.
+
+### Refactor triggers (safe, high-value — do these when you see them)
+
+| Smell | Refactor | Wins |
+|---|---|---|
+| `.unwrap()`/`.expect()` off a fallible value in non-test code | `?` + `Result`, or `unwrap_or_else`/`ok_or_else` | safety (no panic) |
+| `.clone()` inside a loop / per-request | borrow, `Arc::clone`, or `Cow` | speed (fewer allocs) |
+| Nested loop doing membership/lookup | build a `HashSet`/`HashMap` once | speed (O(n²)→O(n)) |
+| `let mut v = Vec::new(); for … { v.push(…) }` | `iter().map(…).collect()` / `filter_map` | clarity + safety |
+| `match` pyramid on `Result`/`Option` | `?`, `map_err`, `and_then` | clarity |
+| `bool` flag pair encoding a state | enum with exhaustive `match` | safety |
+| Blocking IO/CPU on the async runtime | `spawn_blocking` / `rayon` | responsiveness |
+| String built by `+=` in a loop | `push_str` into one buffer, or `join` / `format!` | speed |
+| `useState` mirror kept in sync via `useEffect` | derive with `useMemo` | fewer renders, no drift |
+| `any` on a boundary type | `unknown` + a narrowing type guard | safety |
+
+### Discipline for refactors
+
+- **Behaviour-preserving only.** A speed/safety refactor must not change observable output. If a test doesn't already pin the behaviour, add one *first* (red/green — see [Test discipline](#test-discipline-redgreen-tdd--bdd)), then refactor under it.
+- **Let the hooks gate you.** Every `.rs` edit runs `cargo check --workspace --exclude vibe-collab`; every `.ts`/`.tsx` edit runs `tsc --noEmit` (see CLAUDE.md → Claude Code Setup). A refactor isn't done until both are clean.
+- **One concern per commit.** Don't fold a broad style sweep into a feature change — it makes review and `git bisect` painful. Mechanical FP refactors go in their own commit.
+- **Don't refactor what you can't test or measure.** For a "this is faster" claim on a hot path, prefer a `criterion` bench or a before/after measurement over intuition. Micro-optimizing cold code adds risk for no user-visible win.
 
 ---
 

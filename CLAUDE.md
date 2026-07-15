@@ -47,6 +47,16 @@ Every panel that calls an LLM MUST use the provider and model selected in the to
 
 Full rule + audit checklist: [AGENTS.md → Provider-Agnostic Panels — STRICT](./AGENTS.md#provider-agnostic-panels--strict).
 
+### Functional style — Rust & TypeScript
+
+Write new code and refactor existing code toward a functional style: **pure functions over immutable data, effects pushed to the edges, total error handling.**
+
+- **Rust**: iterator combinators (`map`/`filter_map`/`fold`/`collect`) over index loops; `let` (not `let mut`) by default; `?` + `map_err`/`ok_or_else` over `match` pyramids; **no `.unwrap()`/`.expect()`/`panic!` in daemon/library/command paths** — reserve for tests and commented invariants; borrow / `Arc` / `Cow` instead of `.clone()` in hot paths; enums + exhaustive `match` over `bool` flags; `spawn_blocking`/`rayon` for blocking or CPU-bound work.
+- **TypeScript/React**: `const` and immutable updates (never mutate props/state); `map`/`filter`/`reduce` over loops; derive with `useMemo` instead of mirroring state in `useEffect`; discriminated unions with a `never`-exhaustive switch; `unknown` + narrowing, never `any`.
+- **Refactors must be behaviour-preserving and test-covered.** Pin behaviour with a test first, then refactor; the PostToolUse hooks (`cargo check` / `tsc --noEmit`) must be clean before it's done. Keep style sweeps in their own commit.
+
+Full guidance + refactor-trigger table: [AGENTS.md → Functional Style & Safe Refactoring](./AGENTS.md#functional-style--safe-refactoring--rust--typescript).
+
 ### Tauri commands
 
 1,045+ commands registered via `tauri::generate_handler!` in `vibeui/src-tauri/src/lib.rs`. When adding a new Tauri command: implement in `commands.rs`, register in `tauri::generate_handler!` in `lib.rs`.

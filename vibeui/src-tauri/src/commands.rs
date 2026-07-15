@@ -17290,6 +17290,27 @@ pub fn webmcp_publish_panels(panels: Vec<(String, String)>) -> String {
     vibecli_cli::webmcp::publish_tools(&tools)
 }
 
+/// C4 consumer — validate + build a WebMCP tool invocation from discovered
+/// descriptors (the middle of the consumer pipeline: parse → **build** → call).
+/// Errors when WebMCP is disabled, the tool is unknown, or a required parameter
+/// is missing, so the UI never dispatches an invalid call over CDP. `enabled`
+/// carries the origin-trial gate; the panel surfaces the returned invocation for
+/// explicit user confirmation before dispatch.
+#[tauri::command]
+pub fn webmcp_build_invocation(
+    enabled: bool,
+    tools: Vec<vibecli_cli::webmcp::WebMcpTool>,
+    tool_name: String,
+    args: Vec<(String, String)>,
+) -> Result<vibecli_cli::webmcp::WebMcpInvocation, String> {
+    vibecli_cli::webmcp::build_invocation(
+        vibecli_cli::webmcp::WebMcpFlag(enabled),
+        &tools,
+        &tool_name,
+        &args,
+    )
+}
+
 /// C1 — list persisted `/loop` jobs from `~/.vibecli/loops.json`. Loop jobs run
 /// in the CLI REPL process; VibeUI is a viewer/manager. Returns `[]` when none.
 #[tauri::command]

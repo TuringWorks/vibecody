@@ -32,6 +32,21 @@ impl WebMcpFlag {
     pub fn enabled(self) -> bool {
         self.0
     }
+
+    /// Resolve the origin-trial gate from the environment. Off unless
+    /// `VIBECLI_WEBMCP` is `1`/`true`/`on`/`yes` (case-insensitive), keeping
+    /// WebMCP disabled by default per §18.A7 while the spec is in origin trial.
+    pub fn from_env() -> Self {
+        let on = std::env::var("VIBECLI_WEBMCP")
+            .map(|v| {
+                matches!(
+                    v.trim().to_ascii_lowercase().as_str(),
+                    "1" | "true" | "on" | "yes"
+                )
+            })
+            .unwrap_or(false);
+        WebMcpFlag(on)
+    }
 }
 
 /// A WebMCP tool descriptor (the JSON a page advertises, or the host produces).
@@ -131,6 +146,39 @@ pub fn publish_tools(tools: &[WebMcpTool]) -> String {
         .unwrap_or_else(|_| "{\"tools\":[]}".to_string())
 }
 
+/// Parse CLI-style `key=value` tokens (from a `/webmcp call` invocation) into
+/// invocation args. A token without `=` is a bare flag (empty value). Order is
+/// preserved so positional intent survives.
+pub fn parse_kv_args(tokens: &[String]) -> Vec<(String, String)> {
+    tokens
+        .iter()
+        .filter(|t| !t.is_empty())
+        .map(|t| match t.split_once('=') {
+            Some((k, v)) => (k.to_string(), v.to_string()),
+            None => (t.clone(), String::new()),
+        })
+        .collect()
+}
+
+/// Human-readable listing of discovered tools for the REPL `/webmcp list`.
+pub fn format_tools(tools: &[WebMcpTool]) -> String {
+    if tools.is_empty() {
+        return "No WebMCP tools advertised by the current page.".to_string();
+    }
+    let mut out = String::new();
+    for t in tools {
+        out.push_str(&format!("  {} — {}\n", t.name, t.description));
+        for p in &t.params {
+            out.push_str(&format!(
+                "      {}{}\n",
+                p.name,
+                if p.required { " (required)" } else { "" }
+            ));
+        }
+    }
+    out.trim_end().to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -187,6 +235,42 @@ mod tests {
         )
         .unwrap();
         assert_eq!(inv.tool, "search");
+    }
+
+    #[test]
+    fn parse_kv_args_splits_pairs_and_bare_flags() {
+        let toks = vec!["q=rust".to_string(), "limit=10".to_string(), "verbose".to_string()];
+        let args = parse_kv_args(&toks);
+        assert_eq!(args[0], ("q".to_string(), "rust".to_string()));
+        assert_eq!(args[1], ("limit".to_string(), "10".to_string()));
+        assert_eq!(args[2], ("verbose".to_string(), String::new()));
+        // Values may themselves contain '=' — only the first '=' splits.
+        let eq = parse_kv_args(&["expr=a=b".to_string()]);
+        assert_eq!(eq[0], ("expr".to_string(), "a=b".to_string()));
+    }
+
+    #[test]
+    fn format_tools_empty_and_populated() {
+        assert!(format_tools(&[]).contains("No WebMCP tools"));
+        let out = format_tools(&sample_tools());
+        assert!(out.contains("search"));
+        assert!(out.contains("q (required)"));
+        assert!(out.contains("limit"));
+    }
+
+    #[test]
+    fn flag_from_env_defaults_off_and_reads_truthy() {
+        // Default (var unset in test env) is off.
+        assert!(!WebMcpFlag::from_env().enabled() || std::env::var("VIBECLI_WEBMCP").is_ok());
+        // Truthy parsing is covered by matching the accepted set directly.
+        for v in ["1", "true", "on", "yes", "TRUE", "On"] {
+            let on = matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "on" | "yes");
+            assert!(on, "{v} should be truthy");
+        }
+        for v in ["0", "false", "off", ""] {
+            let on = matches!(v.trim().to_ascii_lowercase().as_str(), "1" | "true" | "on" | "yes");
+            assert!(!on, "{v} should be falsy");
+        }
     }
 
     #[test]

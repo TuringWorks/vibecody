@@ -347,6 +347,7 @@ pub fn run() {
             commands::security_review_file,
             commands::webmcp_parse_tools,
             commands::webmcp_publish_panels,
+            commands::webmcp_build_invocation,
             commands::list_loop_jobs,
             commands::stop_loop_job,
             commands::assemble_context,

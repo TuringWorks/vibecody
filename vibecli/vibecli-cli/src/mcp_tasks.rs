@@ -122,7 +122,7 @@ impl Task {
 /// In-memory registry implementing the `tasks/*` verbs. Stateless at the
 /// protocol layer (no client sessions); a shared instance can be fronted by a
 /// load balancer if backed by a shared store — the verbs are store-agnostic.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct TaskRegistry {
     tasks: HashMap<String, Task>,
     counter: u64,

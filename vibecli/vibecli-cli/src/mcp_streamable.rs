@@ -4,8 +4,26 @@
 //! authentication support including PKCE, token refresh, and connection pooling.
 //! This closes Gap 7 from FIT-GAP v7.
 
+use crate::mcp_tasks::{RequestMeta, Task, TaskRegistry, TaskState, TASKS_EXTENSION_KEY};
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 use std::collections::HashMap;
+
+/// The protocol version this server speaks when a request carries no `_meta`
+/// (MCP 2026-07-28 RC — the version that introduced the stateless core + Tasks).
+const DEFAULT_PROTOCOL_VERSION: &str = "2026-07-28";
+
+/// Map an RC task-state string to [`TaskState`]. Unknown strings yield `None`.
+fn parse_task_state(s: &str) -> Option<TaskState> {
+    match s {
+        "working" => Some(TaskState::Working),
+        "input_required" => Some(TaskState::InputRequired),
+        "completed" => Some(TaskState::Completed),
+        "failed" => Some(TaskState::Failed),
+        "cancelled" => Some(TaskState::Cancelled),
+        _ => None,
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Enums
@@ -391,6 +409,10 @@ pub struct McpStreamableServer {
     pub issued_tokens: Vec<OAuthToken>,
     pub message_log: Vec<StreamMessage>,
     pub metrics: StreamMetrics,
+    /// Server-directed task bookkeeping for the MCP Tasks extension (gap C3).
+    /// Not part of the serialized connection state — reconstructed empty on load.
+    #[serde(skip)]
+    pub tasks: TaskRegistry,
 }
 
 impl McpStreamableServer {
@@ -402,6 +424,114 @@ impl McpStreamableServer {
             issued_tokens: Vec::new(),
             message_log: Vec::new(),
             metrics: StreamMetrics::default(),
+            tasks: TaskRegistry::new(),
+        }
+    }
+
+    /// Server-directed task creation for the streamable path: turn a
+    /// long-running `tools/call` into a task handle the client then drives via
+    /// the `tasks/*` verbs. Mirrors the stdio server's delegation to
+    /// [`TaskRegistry::create`] — tool execution itself is the transport
+    /// caller's job; this owns only the protocol-layer task record.
+    pub fn create_task(&mut self, tool: &str) -> Task {
+        self.tasks.create(tool)
+    }
+
+    /// JSON-RPC 2.0 dispatch for the streamable HTTP path (gap C3, MCP
+    /// 2026-07-28 RC). Routes the stateless `initialize`/`ping` handshake
+    /// substitute plus the Tasks verbs (`tasks/get` | `tasks/update` |
+    /// `tasks/cancel`) against this server's [`TaskRegistry`], mirroring the
+    /// stdio loop in [`crate::mcp_server`].
+    ///
+    /// Honors the stateless `_meta` model: there is no session pinning and no
+    /// `Mcp-Session-Id`; protocol version / client info / advertised extensions
+    /// are read from each request's `_meta` ([`RequestMeta`]), so any instance
+    /// can serve any request. Returns a JSON-RPC 2.0 response value; unknown
+    /// methods yield a `-32601 Method not found` error object.
+    pub fn handle_rpc(&mut self, request: &Value) -> Value {
+        let id = request.get("id").cloned().unwrap_or(Value::Null);
+        let method = request.get("method").and_then(|m| m.as_str()).unwrap_or("");
+        let params = request.get("params").cloned().unwrap_or_default();
+        let meta = RequestMeta::from_request_json(request);
+
+        // Error variant carries (code, message) for the JSON-RPC error object.
+        let outcome: Result<Value, (i64, String)> = match method {
+            "initialize" => {
+                // Stateless: echo the client's advertised protocol version when
+                // present, else fall back to the RC default. Always advertise
+                // the Tasks extension so clients know they may drive `tasks/*`.
+                let proto = if meta.protocol_version.is_empty() {
+                    DEFAULT_PROTOCOL_VERSION.to_string()
+                } else {
+                    meta.protocol_version.clone()
+                };
+                Ok(json!({
+                    "protocolVersion": proto,
+                    "capabilities": {
+                        "tools": { "listChanged": false },
+                        "extensions": [TASKS_EXTENSION_KEY]
+                    },
+                    "serverInfo": {
+                        "name": "vibecli",
+                        "version": env!("CARGO_PKG_VERSION")
+                    },
+                    // Surface the stateless posture so a client can skip session
+                    // pinning entirely when true.
+                    "stateless": self.config.stateless
+                }))
+            }
+            "ping" => Ok(json!({})),
+
+            "tasks/get" => {
+                let tid = params.get("taskId").and_then(|v| v.as_str()).unwrap_or("");
+                self.tasks
+                    .get(tid)
+                    .map(|t| serde_json::to_value(t).unwrap_or_default())
+                    .ok_or_else(|| (-32001, format!("Unknown task: {tid}")))
+            }
+            "tasks/update" => {
+                let tid = params
+                    .get("taskId")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let progress = params.get("progress").and_then(|v| v.as_u64()).map(|v| v as u8);
+                let state = params
+                    .get("state")
+                    .and_then(|v| v.as_str())
+                    .and_then(parse_task_state);
+                let result = match params.get("result") {
+                    Some(v) if !v.is_null() => Some(v.clone()),
+                    _ => None,
+                };
+                let error = params.get("error").and_then(|v| v.as_str()).map(|s| s.to_string());
+                self.tasks
+                    .update(&tid, progress, state, result, error)
+                    .map(|t| serde_json::to_value(t).unwrap_or_default())
+                    .map_err(|e| (-32602, e))
+            }
+            "tasks/cancel" => {
+                let tid = params
+                    .get("taskId")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                self.tasks
+                    .cancel(&tid)
+                    .map(|t| serde_json::to_value(t).unwrap_or_default())
+                    .map_err(|e| (-32602, e))
+            }
+
+            other => Err((-32601, format!("Method not found: {other}"))),
+        };
+
+        match outcome {
+            Ok(value) => json!({ "jsonrpc": "2.0", "id": id, "result": value }),
+            Err((code, message)) => json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "error": { "code": code, "message": message }
+            }),
         }
     }
 
@@ -1499,6 +1629,140 @@ mod tests {
         assert_eq!(token.token_type, TokenType::Mac);
         let server = make_server();
         assert!(server.validate_token(&token).is_ok());
+    }
+
+    // -- C3: Tasks-extension dispatch over the streamable path --------------
+
+    #[test]
+    fn test_rpc_initialize_advertises_tasks_extension() {
+        let mut server = make_server();
+        let req = serde_json::json!({
+            "jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": { "_meta": { "protocolVersion": "2026-07-28",
+                "clientInfo": "vibecli/test", "extensions": [TASKS_EXTENSION_KEY] } }
+        });
+        let resp = server.handle_rpc(&req);
+        assert_eq!(resp["id"], 1);
+        assert_eq!(resp["result"]["protocolVersion"], "2026-07-28");
+        let exts = resp["result"]["capabilities"]["extensions"]
+            .as_array()
+            .unwrap();
+        assert!(exts.iter().any(|e| e == TASKS_EXTENSION_KEY));
+        assert_eq!(resp["result"]["serverInfo"]["name"], "vibecli");
+    }
+
+    #[test]
+    fn test_rpc_initialize_defaults_protocol_when_meta_absent() {
+        let mut server = make_server();
+        let resp = server.handle_rpc(&serde_json::json!({
+            "jsonrpc": "2.0", "id": 7, "method": "initialize"
+        }));
+        assert_eq!(resp["result"]["protocolVersion"], "2026-07-28");
+        assert_eq!(resp["result"]["stateless"], false);
+    }
+
+    #[test]
+    fn test_rpc_unknown_method_is_method_not_found() {
+        let mut server = make_server();
+        let resp = server.handle_rpc(&serde_json::json!({
+            "jsonrpc": "2.0", "id": 2, "method": "does/not/exist"
+        }));
+        assert_eq!(resp["error"]["code"], -32601);
+        assert!(resp["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("Method not found"));
+    }
+
+    #[test]
+    fn test_rpc_tasks_get_unknown_errors() {
+        let mut server = make_server();
+        let resp = server.handle_rpc(&serde_json::json!({
+            "jsonrpc": "2.0", "id": 3, "method": "tasks/get",
+            "params": { "taskId": "task-999999" }
+        }));
+        assert_eq!(resp["error"]["code"], -32001);
+    }
+
+    #[test]
+    fn test_rpc_task_lifecycle_create_get_update_complete() {
+        let mut server = make_server();
+        // Server-directed creation (a long-running tools/call becomes a task).
+        let task = server.create_task("build_project");
+        assert_eq!(task.state, TaskState::Working);
+        let id = task.id.clone();
+
+        // tasks/get returns the working task.
+        let got = server.handle_rpc(&serde_json::json!({
+            "jsonrpc": "2.0", "id": 10, "method": "tasks/get",
+            "params": { "taskId": id }
+        }));
+        assert_eq!(got["result"]["state"], "working");
+
+        // tasks/update advances progress.
+        let upd = server.handle_rpc(&serde_json::json!({
+            "jsonrpc": "2.0", "id": 11, "method": "tasks/update",
+            "params": { "taskId": id, "progress": 60 }
+        }));
+        assert_eq!(upd["result"]["progress"], 60);
+
+        // tasks/update → completed with a result populates + clamps progress.
+        let done = server.handle_rpc(&serde_json::json!({
+            "jsonrpc": "2.0", "id": 12, "method": "tasks/update",
+            "params": { "taskId": id, "state": "completed", "result": { "ok": true } }
+        }));
+        assert_eq!(done["result"]["state"], "completed");
+        assert_eq!(done["result"]["progress"], 100);
+        assert_eq!(done["result"]["result"]["ok"], true);
+    }
+
+    #[test]
+    fn test_rpc_tasks_complete_without_result_is_rejected() {
+        let mut server = make_server();
+        let id = server.create_task("x").id;
+        let resp = server.handle_rpc(&serde_json::json!({
+            "jsonrpc": "2.0", "id": 4, "method": "tasks/update",
+            "params": { "taskId": id, "state": "completed" }
+        }));
+        assert_eq!(resp["error"]["code"], -32602);
+        assert!(resp["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("requires a result"));
+    }
+
+    #[test]
+    fn test_rpc_tasks_cancel_is_idempotent_then_blocks_update() {
+        let mut server = make_server();
+        let id = server.create_task("x").id;
+        let cancelled = server.handle_rpc(&serde_json::json!({
+            "jsonrpc": "2.0", "id": 5, "method": "tasks/cancel",
+            "params": { "taskId": id }
+        }));
+        assert_eq!(cancelled["result"]["state"], "cancelled");
+        // Cancel again → still ok (idempotent).
+        let again = server.handle_rpc(&serde_json::json!({
+            "jsonrpc": "2.0", "id": 6, "method": "tasks/cancel",
+            "params": { "taskId": id }
+        }));
+        assert_eq!(again["result"]["state"], "cancelled");
+        // But a further update on a terminal task is rejected.
+        let upd = server.handle_rpc(&serde_json::json!({
+            "jsonrpc": "2.0", "id": 8, "method": "tasks/update",
+            "params": { "taskId": id, "progress": 10 }
+        }));
+        assert_eq!(upd["error"]["code"], -32602);
+    }
+
+    #[test]
+    fn test_rpc_stateless_flag_surfaced_in_initialize() {
+        let mut cfg = make_http_config();
+        cfg.stateless = true;
+        let mut server = McpStreamableServer::new(cfg, None);
+        let resp = server.handle_rpc(&serde_json::json!({
+            "jsonrpc": "2.0", "id": 9, "method": "initialize"
+        }));
+        assert_eq!(resp["result"]["stateless"], true);
     }
 
     #[test]
