@@ -63,8 +63,8 @@ export function MctsRepairPanel() {
         id: String(s.id),
         file: s.file || "",
         error: s.error || "",
-        status: s.status || "running",
-        strategy: s.strategy || "mcts",
+        status: (s.status || "running") as RepairSession["status"],
+        strategy: (s.strategy || "mcts") as RepairSession["strategy"],
         nodesExplored: s.nodesExplored ?? s.nodes_explored ?? 0,
         depth: s.depth ?? 0,
       })));

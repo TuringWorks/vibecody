@@ -491,7 +491,7 @@ const BatchBuilderPanel: React.FC = () => {
         setHistoryRuns(runs.filter((r) => ["Completed", "Failed", "Cancelled"].includes(r.status ?? "")).map((r) => ({
           id: r.id || "",
           title: r.title || r.projectTitle || "Untitled",
-          status: r.status || "Completed",
+          status: (r.status || "Completed") as HistoryRun["status"],
           files: r.files || 0,
           lines: r.lines || 0,
           duration: r.duration || r.elapsed || "0m",
@@ -546,7 +546,7 @@ const BatchBuilderPanel: React.FC = () => {
         try {
           const updated = await invoke<RawBatchProgress | null>("batch_simulate_progress", { runId: newRunId });
           if (!updated) return;
-          setRunStatus(updated.status || "Generating");
+          setRunStatus((updated.status || "Generating") as RunStatus);
           setProgress(updated.progress || 0);
           setPhaseLabel(updated.phaseLabel || "");
           setTokenUsed(updated.tokenUsed || 0);
@@ -564,7 +564,7 @@ const BatchBuilderPanel: React.FC = () => {
           if (Array.isArray(updated.logs)) {
             setLogs(updated.logs.map((lg, i: number) => ({
               id: i + 1000,
-              level: lg.level || "Info",
+              level: (lg.level || "Info") as LogLevel,
               timestamp: lg.timestamp || "",
               agentId: lg.agentId || "System",
               message: lg.message || "",

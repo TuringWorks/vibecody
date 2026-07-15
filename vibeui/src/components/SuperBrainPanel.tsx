@@ -254,8 +254,8 @@ export function SuperBrainPanel() {
   const [routingInfo, setRoutingInfo] = useState<RoutingDecision | null>(null);
 
   useEffect(() => {
-    const unlisten = listen("superbrain:progress", (event: any) => {
-      const data = event.payload as Record<string, any>;
+    const unlisten = listen<{ step?: string; provider?: string; model?: string; index?: number; total?: number; subtask?: string }>("superbrain:progress", (event) => {
+      const data = event.payload;
       if (data.step === "routing") setProgress(`Routing to ${data.provider}/${data.model}`);
       else if (data.step === "querying") setProgress(`Querying ${data.provider} (${(data.index ?? 0) + 1})`);
       else if (data.step === "synthesizing") setProgress("Synthesizing consensus...");

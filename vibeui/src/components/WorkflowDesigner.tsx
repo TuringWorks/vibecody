@@ -196,8 +196,8 @@ export function WorkflowDesigner({ onRun }: { onRun?: (workflowId: string) => vo
               nodeTypes={nodeTypes}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
-              onNodeClick={(_: React.MouseEvent, node: FlowNode) => setSelectedRef(node.id)}
-              onNodeDragStop={(_: React.MouseEvent, node: FlowNode) => {
+              onNodeClick={(_, node) => setSelectedRef(node.id)}
+              onNodeDragStop={(_, node) => {
                 positionsRef.current[node.id] = node.position;
               }}
               onPaneClick={() => setSelectedRef(null)}

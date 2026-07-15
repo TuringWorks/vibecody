@@ -201,12 +201,12 @@ export function RedTeamPanel({ workspacePath, onOpenFile }: Props) {
           addLog("info", stage, `Probing ${targetUrl} for technology stack...`);
           let sessionId = `rt-${Date.now()}`;
           try {
-            const invokeWithTimeout = <T,>(cmd: string, args: any, ms: number): Promise<T> =>
+            const invokeWithTimeout = <T,>(cmd: string, args: Record<string, unknown>, ms: number): Promise<T> =>
               Promise.race([
                 invoke<T>(cmd, args),
                 new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${cmd} timed out after ${ms}ms`)), ms)),
               ]);
-            const result = await invokeWithTimeout<any>("start_redteam_scan", {
+            const result = await invokeWithTimeout<string | { session_id?: string }>("start_redteam_scan", {
               url: targetUrl,
               config: workspacePath ? { source_path: workspacePath } : null,
             }, 10000);

@@ -22,7 +22,7 @@ interface UsePanelSettingsResult {
   /** Current profile ID */
   profileId: string;
   /** Set a single setting value (persists immediately) */
-  setSetting: (key: string, value: any) => Promise<void>;
+  setSetting: (key: string, value: unknown) => Promise<void>;
   /** Delete a single setting */
   deleteSetting: (key: string) => Promise<void>;
   /** Delete all settings for this panel */
@@ -87,7 +87,7 @@ export function usePanelSettings(panelName: string): UsePanelSettingsResult {
   }, [reload]);
 
   const setSetting = useCallback(
-    async (key: string, value: any) => {
+    async (key: string, value: unknown) => {
       setError(null);
       try {
         await invoke("panel_settings_set", {

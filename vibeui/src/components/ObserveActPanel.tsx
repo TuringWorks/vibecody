@@ -96,7 +96,7 @@ export function ObserveActPanel() {
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 8 }}>
               <div>
                 <label className="panel-label">Safety Mode</label>
-                <select className="panel-select" style={{ width: "100%" }} value={mode} onChange={e => setMode(e.target.value as any)}>
+                <select className="panel-select" style={{ width: "100%" }} value={mode} onChange={e => setMode(e.target.value as "cautious" | "autonomous" | "restricted")}>
                   <option value="cautious">Cautious (confirm destructive)</option>
                   <option value="autonomous">Autonomous (full auto)</option>
                   <option value="restricted">Restricted (read-only)</option>

@@ -15,6 +15,7 @@ interface RoutingDecision {
   id: string;
   query: string;
   chosenModel: string;
+  chosen_model?: string;
   reason: string;
   timestamp: string;
 }

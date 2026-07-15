@@ -72,6 +72,7 @@ use tower_http::cors::CorsLayer;
 use tower_http::set_header::SetResponseHeaderLayer;
 
 use crate::job_manager::{CreateJobReq, JobManager, JobStatus};
+use crate::sync_ext::RwLockRecover;
 use crate::session_store::{render_session_html, render_sessions_index_html, SessionStore};
 use crate::tainted_http_bridge::{PromptResponse, PromptResponseResult};
 use axum::extract::ws::{Message as WsMessage, WebSocket, WebSocketUpgrade};
@@ -588,7 +589,7 @@ async fn health(State(state): State<ServeState>) -> impl IntoResponse {
         .map(|s| !s.is_empty())
         .unwrap_or(false);
     let codec_probe = CODEC_PROBE.get();
-    let graph_probe = crate::graph_index::graph_handle().map(|h| h.probe.read().unwrap().clone());
+    let graph_probe = crate::graph_index::graph_handle().map(|h| h.probe.read_recover().clone());
     let providers = configured_provider_names();
     let provider_count = providers.len();
     let unconfigured = unconfigured_integrations();
@@ -7152,7 +7153,7 @@ pub async fn serve(
     // structure, never secrets. AGENTS.md → Zero-Config First.
     {
         let handle = crate::graph_index::init_graph_handle(&workspace_root);
-        let probe = handle.probe.read().unwrap().clone();
+        let probe = handle.probe.read_recover().clone();
         match probe.status {
             crate::graph_index::GraphStatus::Ready => {
                 eprintln!(

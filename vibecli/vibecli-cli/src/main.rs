@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::sync_ext::LockRecover;
 use anyhow::Result;
 use clap::Parser;
 
@@ -11983,7 +11984,7 @@ async fn main() -> Result<()> {
                             let rev_lock = REVIEWER.get_or_init(|| {
                                 std::sync::Mutex::new(CodeReviewAgent::new(ReviewConfig::default()))
                             });
-                            let mut reviewer = rev_lock.lock().unwrap();
+                            let mut reviewer = rev_lock.lock_recover();
                             match sub {
                                 "file" => {
                                     if rest.is_empty() {
@@ -12136,7 +12137,7 @@ async fn main() -> Result<()> {
                                 OnceLock::new();
                             let re_lock =
                                 REPLAY.get_or_init(|| std::sync::Mutex::new(ReplayEngine::new()));
-                            let mut engine = re_lock.lock().unwrap();
+                            let mut engine = re_lock.lock_recover();
                             match sub {
                                 "list" | "" => {
                                     let timelines = engine.list_timelines();
@@ -12257,7 +12258,7 @@ async fn main() -> Result<()> {
                             let spec_lock = SPEC.get_or_init(|| {
                                 std::sync::Mutex::new(SpeculativeEngine::new(SpecConfig::default()))
                             });
-                            let spec = spec_lock.lock().unwrap();
+                            let spec = spec_lock.lock_recover();
                             match sub {
                                 "status" | "" => {
                                     let sessions = spec.list_sessions();
@@ -12326,7 +12327,7 @@ async fn main() -> Result<()> {
                                     ExplainConfig::default(),
                                 ))
                             });
-                            let exp = exp_lock.lock().unwrap();
+                            let exp = exp_lock.lock_recover();
                             match sub {
                                 "last" | "" => {
                                     let trail = exp.get_trail();
