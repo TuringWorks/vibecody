@@ -26,6 +26,7 @@
 //! /email triage             — AI-powered triage of unread emails
 //! ```
 
+use crate::sync_ext::LockRecover;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
@@ -245,24 +246,21 @@ impl EmailClient {
         // Brief lock — clone out and drop the guard before awaiting.
         let tok = self
             .access_token
-            .lock()
-            .expect("email access_token mutex poisoned")
+            .lock_recover()
             .clone();
         format!("Bearer {}", tok)
     }
 
     fn current_access_token(&self) -> String {
         self.access_token
-            .lock()
-            .expect("email access_token mutex poisoned")
+            .lock_recover()
             .clone()
     }
 
     fn store_new_access_token(&self, new_token: &str) {
         *self
             .access_token
-            .lock()
-            .expect("email access_token mutex poisoned") = new_token.to_string();
+            .lock_recover() = new_token.to_string();
     }
 
     fn can_refresh(&self) -> bool {

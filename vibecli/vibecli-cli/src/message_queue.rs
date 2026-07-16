@@ -8,6 +8,7 @@
 //! Both queues are thread-safe and support two drain modes: `OneAtATime`
 //! (one message per opportunity) or `All` (flush everything at once).
 
+use crate::sync_ext::LockRecover;
 use std::collections::HashMap;
 use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
@@ -123,7 +124,7 @@ impl MessageQueue {
     ///
     /// Returns `Err` if the queue is at capacity.
     pub fn enqueue(&self, msg: QueuedMessage) -> Result<(), String> {
-        let mut guard = self.inner.lock().expect("message_queue lock poisoned");
+        let mut guard = self.inner.lock_recover();
         if guard.len() >= self.max_size {
             return Err(format!(
                 "queue is full ({} / {} messages)",
@@ -140,7 +141,7 @@ impl MessageQueue {
     /// - `OneAtATime` — returns a `Vec` with at most one message.
     /// - `All` — drains the entire queue and returns all messages.
     pub fn drain(&self) -> Vec<QueuedMessage> {
-        let mut guard = self.inner.lock().expect("message_queue lock poisoned");
+        let mut guard = self.inner.lock_recover();
         match self.mode {
             DrainMode::OneAtATime => {
                 if let Some(msg) = guard.pop_front() {
@@ -155,15 +156,14 @@ impl MessageQueue {
 
     /// Peek at the front message without removing it.
     pub fn peek(&self) -> Option<QueuedMessage> {
-        let guard = self.inner.lock().expect("message_queue lock poisoned");
+        let guard = self.inner.lock_recover();
         guard.front().cloned()
     }
 
     /// Return the number of messages currently in the queue.
     pub fn len(&self) -> usize {
         self.inner
-            .lock()
-            .expect("message_queue lock poisoned")
+            .lock_recover()
             .len()
     }
 
@@ -175,8 +175,7 @@ impl MessageQueue {
     /// Discard all queued messages.
     pub fn clear(&self) {
         self.inner
-            .lock()
-            .expect("message_queue lock poisoned")
+            .lock_recover()
             .clear();
     }
 

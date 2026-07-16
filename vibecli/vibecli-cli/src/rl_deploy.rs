@@ -20,6 +20,7 @@
 //!
 //! See `docs/design/rl-os/06-deployment.md`.
 
+use crate::sync_ext::LockRecover;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
@@ -223,7 +224,7 @@ impl DeploymentStore {
             .config
             .clone()
             .unwrap_or(serde_json::Value::Object(Default::default()));
-        let conn = self.conn.lock().expect("rl_deploy mutex poisoned");
+        let conn = self.conn.lock_recover();
         conn.execute(
             "INSERT INTO rl_deployments
                 (deployment_id, name, artifact_id, runtime, status, traffic_pct,
@@ -256,7 +257,7 @@ impl DeploymentStore {
     }
 
     pub fn get(&self, deployment_id: &str) -> Result<Option<Deployment>, RunError> {
-        let conn = self.conn.lock().expect("rl_deploy mutex poisoned");
+        let conn = self.conn.lock_recover();
         let mut stmt = conn.prepare(
             "SELECT deployment_id, name, artifact_id, runtime, status, traffic_pct,
                     config_json, created_at, promoted_at, rolled_back_at, rollback_reason
@@ -270,7 +271,7 @@ impl DeploymentStore {
     }
 
     pub fn list(&self) -> Result<Vec<Deployment>, RunError> {
-        let conn = self.conn.lock().expect("rl_deploy mutex poisoned");
+        let conn = self.conn.lock_recover();
         let mut stmt = conn.prepare(
             "SELECT deployment_id, name, artifact_id, runtime, status, traffic_pct,
                     config_json, created_at, promoted_at, rolled_back_at, rollback_reason
@@ -335,7 +336,7 @@ impl DeploymentStore {
         rollback_reason: Option<String>,
     ) -> Result<Deployment, RunError> {
         let now = now_ms();
-        let conn = self.conn.lock().expect("rl_deploy mutex poisoned");
+        let conn = self.conn.lock_recover();
 
         let current_str: String = conn
             .query_row(

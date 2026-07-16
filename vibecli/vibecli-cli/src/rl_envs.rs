@@ -15,6 +15,7 @@
 //!
 //! See `docs/design/rl-os/03-environments.md` for the full design.
 
+use crate::sync_ext::LockRecover;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::Mutex;
@@ -120,7 +121,7 @@ impl EnvStore {
     // ── Read ──────────────────────────────────────────────────────────────────
 
     pub fn get(&self, env_id: &str) -> Result<Option<Environment>, RunError> {
-        let conn = self.conn.lock().expect("rl_envs mutex poisoned");
+        let conn = self.conn.lock_recover();
         let mut stmt = conn.prepare(
             "SELECT env_id, name, version, source, spec_json, entry_point, file_path, parent_env_id, created_at
              FROM rl_environments WHERE env_id = ?1",
@@ -134,7 +135,7 @@ impl EnvStore {
 
     pub fn list(&self, filter: EnvFilter) -> Result<Vec<Environment>, RunError> {
         let limit = filter.limit.unwrap_or(500).clamp(1, 5000);
-        let conn = self.conn.lock().expect("rl_envs mutex poisoned");
+        let conn = self.conn.lock_recover();
         let mut sql = String::from(
             "SELECT env_id, name, version, source, spec_json, entry_point, file_path, parent_env_id, created_at
              FROM rl_environments WHERE 1=1",
@@ -165,7 +166,7 @@ impl EnvStore {
     /// sidecar probe path. Keyed by `(name, version, source)` per the
     /// schema's UNIQUE constraint; on conflict updates spec_json + entry_point.
     pub fn upsert(&self, env: &Environment) -> Result<(), RunError> {
-        let conn = self.conn.lock().expect("rl_envs mutex poisoned");
+        let conn = self.conn.lock_recover();
         conn.execute(
             "INSERT INTO rl_environments
                 (env_id, name, version, source, spec_json, entry_point, file_path, parent_env_id, created_at)
@@ -189,7 +190,7 @@ impl EnvStore {
     }
 
     pub fn delete(&self, env_id: &str) -> Result<(), RunError> {
-        let conn = self.conn.lock().expect("rl_envs mutex poisoned");
+        let conn = self.conn.lock_recover();
         // Only custom_* sources can be deleted; gym/pettingzoo are
         // refresh-managed (delete + re-probe is the right pattern there).
         let source: String = conn
@@ -337,7 +338,7 @@ impl EnvStore {
     }
 
     pub fn count(&self, source: &str) -> Result<i64, RunError> {
-        let conn = self.conn.lock().expect("rl_envs mutex poisoned");
+        let conn = self.conn.lock_recover();
         let n: i64 = conn.query_row(
             "SELECT COUNT(*) FROM rl_environments WHERE source = ?1",
             params![source],
@@ -407,7 +408,7 @@ impl EnvStore {
     /// Look for an existing env with the same name + custom_python source
     /// and pick the most recent as the parent for the version DAG.
     fn find_predecessor(&self, env_id: &str) -> Result<Option<String>, RunError> {
-        let conn = self.conn.lock().expect("rl_envs mutex poisoned");
+        let conn = self.conn.lock_recover();
         let mut stmt = conn.prepare(
             "SELECT env_id FROM rl_environments
              WHERE source = 'custom_python' AND env_id != ?1

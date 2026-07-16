@@ -249,7 +249,10 @@ impl MctsTree {
         }
 
         // Check breadth limit on parent
-        let parent = self.nodes.get(parent_id).unwrap();
+        let parent = self
+            .nodes
+            .get(parent_id)
+            .ok_or_else(|| format!("parent node '{}' not found", parent_id))?;
         if parent.children.len() as u32 >= self.config.max_breadth {
             return Err(format!(
                 "Max breadth {} exceeded for parent '{}'",
@@ -271,7 +274,7 @@ impl MctsTree {
         self.nodes.insert(node_id.clone(), node);
         self.nodes
             .get_mut(parent_id)
-            .unwrap()
+            .expect("parent verified present above")
             .children
             .push(node_id);
         Ok(())
@@ -671,7 +674,11 @@ impl RepairEngine {
         // Select: find node to expand (walk down best UCB1 path)
         let mut select_id = tree.root_id.clone();
         loop {
-            let node = tree.nodes.get(&select_id).unwrap();
+            // Every id reached by the UCB1 walk is an existing tree node.
+            let node = tree
+                .nodes
+                .get(&select_id)
+                .expect("select_id walks existing tree nodes");
             if node.children.is_empty() {
                 break;
             }

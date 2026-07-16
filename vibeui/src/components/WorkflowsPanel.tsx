@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { WorkflowDef } from "../workflow/dsl";
 import { WorkflowDesigner } from "./WorkflowDesigner";
 import { WorkflowRunGraph } from "./WorkflowRunGraph";
@@ -27,7 +28,12 @@ interface RunDetail {
   reasonForIncompletion?: string;
 }
 
-const TERMINAL = new Set(["COMPLETED", "FAILED", "TERMINATED", "TIMED_OUT"]);
+interface RunEvent {
+  workflowId?: string;
+  status?: string;
+  output?: unknown;
+  tasks?: Array<{ taskId: string; ref: string; type: string; status: string }>;
+}
 
 function statusColor(status: string): string {
   if (status === "COMPLETED") return "var(--success-color)";
@@ -85,16 +91,45 @@ export function WorkflowsPanel() {
     if (tab === "runs") void loadRuns();
   }, [tab, loadRuns]);
 
-  // Poll the open run until it is terminal.
+  // Live updates: bridge the daemon SSE stream to `fluxo:run` events. The stream
+  // self-closes when the run reaches a terminal state.
   useEffect(() => {
-    if (!selectedRunId || (runDetail && TERMINAL.has(runDetail.status))) return;
-    const t = setInterval(() => {
-      void invoke<RunDetail>("fluxo_get_run", { workflowId: selectedRunId })
-        .then((r) => setRunDetail(r))
-        .catch(() => undefined);
-    }, 1500);
-    return () => clearInterval(t);
-  }, [selectedRunId, runDetail]);
+    if (!selectedRunId) return;
+    const id = selectedRunId;
+    let unlisten: UnlistenFn | undefined;
+    let cancelled = false;
+    void invoke("fluxo_stream_run", { workflowId: id }).catch(() => undefined);
+    void listen<RunEvent>("fluxo:run", (event) => {
+      const p = event.payload;
+      if (!p || p.workflowId !== id) return;
+      setRunDetail((prev) =>
+        prev
+          ? {
+              ...prev,
+              status: p.status ?? prev.status,
+              output: "output" in p ? p.output : prev.output,
+              tasks: Array.isArray(p.tasks)
+                ? p.tasks.map((t) => ({
+                    taskId: t.taskId,
+                    referenceName: t.ref,
+                    taskType: t.type,
+                    taskName: t.ref,
+                    status: t.status,
+                  }))
+                : prev.tasks,
+            }
+          : prev,
+      );
+    }).then((u) => {
+      if (cancelled) u();
+      else unlisten = u;
+    });
+    return () => {
+      cancelled = true;
+      unlisten?.();
+      void invoke("fluxo_stop_stream", { workflowId: id }).catch(() => undefined);
+    };
+  }, [selectedRunId]);
 
   const control = useCallback(
     async (cmd: "fluxo_pause_run" | "fluxo_resume_run" | "fluxo_terminate_run") => {

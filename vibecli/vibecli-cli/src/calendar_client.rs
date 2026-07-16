@@ -439,18 +439,8 @@ impl CalendarClient {
     /// Get today's events.
     pub async fn today_events(&self) -> Result<Vec<CalendarEvent>> {
         let today = chrono::Local::now().date_naive();
-        let start = today
-            .and_hms_opt(0, 0, 0)
-            .unwrap()
-            .and_local_timezone(chrono::Local)
-            .unwrap()
-            .to_rfc3339();
-        let end = today
-            .and_hms_opt(23, 59, 59)
-            .unwrap()
-            .and_local_timezone(chrono::Local)
-            .unwrap()
-            .to_rfc3339();
+        let start = local_rfc3339(today, 0, 0, 0)?;
+        let end = local_rfc3339(today, 23, 59, 59)?;
         self.list_events(&start, &end, 50).await
     }
 
@@ -460,18 +450,8 @@ impl CalendarClient {
         let weekday = today.weekday().num_days_from_monday();
         let monday = today - chrono::Duration::days(weekday as i64);
         let sunday = monday + chrono::Duration::days(6);
-        let start = monday
-            .and_hms_opt(0, 0, 0)
-            .unwrap()
-            .and_local_timezone(chrono::Local)
-            .unwrap()
-            .to_rfc3339();
-        let end = sunday
-            .and_hms_opt(23, 59, 59)
-            .unwrap()
-            .and_local_timezone(chrono::Local)
-            .unwrap()
-            .to_rfc3339();
+        let start = local_rfc3339(monday, 0, 0, 0)?;
+        let end = local_rfc3339(sunday, 23, 59, 59)?;
         self.list_events(&start, &end, 100).await
     }
 
@@ -669,19 +649,39 @@ pub async fn ui_status() -> crate::email_client::ProviderStatus {
 
 // ── Free-slot calculation ────────────────────────────────────────────────────
 
+/// RFC-3339 timestamp for `date` at `h:m:s` in the machine's local zone.
+///
+/// Errors instead of panicking: `and_hms_opt` is `None` for an out-of-range
+/// time, and `and_local_timezone(..).single()` is `None` when the local time is
+/// ambiguous or nonexistent (DST transitions) — neither should crash a calendar
+/// query.
+fn local_rfc3339(date: chrono::NaiveDate, h: u32, m: u32, s: u32) -> anyhow::Result<String> {
+    let naive = date
+        .and_hms_opt(h, m, s)
+        .ok_or_else(|| anyhow::anyhow!("invalid time {h}:{m}:{s}"))?;
+    naive
+        .and_local_timezone(chrono::Local)
+        .single()
+        .map(|dt| dt.to_rfc3339())
+        .ok_or_else(|| anyhow::anyhow!("ambiguous or nonexistent local time for {naive}"))
+}
+
 /// Compute free slots between events during work hours (9am–6pm).
 pub fn compute_free_slots(events: &[CalendarEvent], date: chrono::NaiveDate) -> Vec<FreeSlot> {
     let tz = chrono::Local::now().timezone();
-    let work_start = date
+    // No work-hour bounds computable (out-of-range or DST-ambiguous) → no slots.
+    let Some(work_start) = date
         .and_hms_opt(WORK_HOUR_START, 0, 0)
-        .unwrap()
-        .and_local_timezone(tz)
-        .unwrap();
-    let work_end = date
+        .and_then(|dt| dt.and_local_timezone(tz).single())
+    else {
+        return Vec::new();
+    };
+    let Some(work_end) = date
         .and_hms_opt(WORK_HOUR_END, 0, 0)
-        .unwrap()
-        .and_local_timezone(tz)
-        .unwrap();
+        .and_then(|dt| dt.and_local_timezone(tz).single())
+    else {
+        return Vec::new();
+    };
 
     // Collect busy intervals, clamped to work hours.
     let mut busy: Vec<(
@@ -881,18 +881,11 @@ pub async fn handle_calendar_command(args: &str) -> String {
                 .get(1)
                 .and_then(|s| parse_date_loose(s))
                 .unwrap_or_else(|| chrono::Local::now().date_naive());
-            let date_start = date
-                .and_hms_opt(0, 0, 0)
-                .unwrap()
-                .and_local_timezone(chrono::Local)
-                .unwrap()
-                .to_rfc3339();
-            let date_end = date
-                .and_hms_opt(23, 59, 59)
-                .unwrap()
-                .and_local_timezone(chrono::Local)
-                .unwrap()
-                .to_rfc3339();
+            let (date_start, date_end) =
+                match (local_rfc3339(date, 0, 0, 0), local_rfc3339(date, 23, 59, 59)) {
+                    (Ok(s), Ok(e)) => (s, e),
+                    (Err(e), _) | (_, Err(e)) => return format!("❌ Calendar error: {e}\n"),
+                };
             match client.list_events(&date_start, &date_end, 50).await {
                 Ok(events) => {
                     let slots = compute_free_slots(&events, date);
@@ -925,7 +918,9 @@ pub async fn handle_calendar_command(args: &str) -> String {
             if id.is_empty() || new_time.is_none() {
                 return "Usage: /calendar move <event-id> --to <ISO-datetime>\n".to_string();
             }
-            match client.move_event(id, new_time.unwrap()).await {
+            // `new_time.is_none()` returned early above, so this is Some.
+            let new_time = new_time.expect("new_time checked Some above");
+            match client.move_event(id, new_time).await {
                 Ok(ev) => format!(
                     "✅ Rescheduled: {} → 🕐 {} – {}\n",
                     ev.summary,

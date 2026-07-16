@@ -66,6 +66,7 @@
 //! * Queue full: `prompt` denies immediately (resource-exhaustion
 //!   protection — bounded `MAX_PENDING`).
 
+use crate::sync_ext::LockRecover;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -149,8 +150,7 @@ impl HttpPromptQueue {
     /// to deliver any prompts that landed before the UI connected.
     pub fn snapshot(&self) -> Vec<PendingPromptEvent> {
         self.pending
-            .lock()
-            .expect("HttpPromptQueue mutex poisoned")
+            .lock_recover()
             .values()
             .map(|e| e.event.clone())
             .collect()
@@ -165,7 +165,7 @@ impl HttpPromptQueue {
     /// Resolve a pending prompt. Returns false if the `request_id` is
     /// not known (already timed out, or never existed).
     pub fn resolve(&self, request_id: &str, decision: bool) -> bool {
-        let mut pending = self.pending.lock().expect("HttpPromptQueue mutex poisoned");
+        let mut pending = self.pending.lock_recover();
         let Some(entry) = pending.remove(request_id) else {
             return false;
         };
@@ -186,7 +186,7 @@ impl HttpPromptQueue {
     ) -> Option<oneshot::Receiver<bool>> {
         let (tx, rx) = oneshot::channel();
         {
-            let mut pending = self.pending.lock().expect("HttpPromptQueue mutex poisoned");
+            let mut pending = self.pending.lock_recover();
             if pending.len() >= MAX_PENDING {
                 return None;
             }
@@ -216,16 +216,14 @@ impl HttpPromptQueue {
     /// on timeout to clean up the map.
     fn cancel(&self, request_id: &str) {
         self.pending
-            .lock()
-            .expect("HttpPromptQueue mutex poisoned")
+            .lock_recover()
             .remove(request_id);
     }
 
     /// Currently-pending count. Used by `/health` exposure and tests.
     pub fn pending_count(&self) -> usize {
         self.pending
-            .lock()
-            .expect("HttpPromptQueue mutex poisoned")
+            .lock_recover()
             .len()
     }
 }

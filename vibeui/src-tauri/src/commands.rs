@@ -61927,3 +61927,84 @@ pub async fn fluxo_signal(
     )
     .await
 }
+
+// Live run timeline: bridge the daemon's SSE stream (`GET /fluxo/workflow/run/{id}/stream`)
+// to Tauri `fluxo:run` events, since Tauri commands are request/response. One background
+// stream per workflow id; starting a new one for the same id aborts the previous.
+
+fn fluxo_streams() -> &'static std::sync::Mutex<std::collections::HashMap<String, tokio::task::AbortHandle>>
+{
+    static STREAMS: std::sync::OnceLock<
+        std::sync::Mutex<std::collections::HashMap<String, tokio::task::AbortHandle>>,
+    > = std::sync::OnceLock::new();
+    STREAMS.get_or_init(|| std::sync::Mutex::new(std::collections::HashMap::new()))
+}
+
+fn fluxo_stream_forget(workflow_id: &str) {
+    if let Ok(mut map) = fluxo_streams().lock() {
+        if let Some(handle) = map.remove(workflow_id) {
+            handle.abort();
+        }
+    }
+}
+
+/// Open (or restart) an SSE stream for a run; emits `fluxo:run` events with the run snapshot.
+#[tauri::command]
+pub async fn fluxo_stream_run(app: tauri::AppHandle, workflow_id: String) -> Result<(), String> {
+    let token = daemon_bearer_token()?;
+    fluxo_stream_forget(&workflow_id);
+    let url = format!("{FLUXO_DAEMON_BASE}/workflow/run/{workflow_id}/stream");
+    let id = workflow_id.clone();
+    let handle = tokio::spawn(async move {
+        use tauri::Emitter;
+        let client = match reqwest::Client::builder().build() {
+            Ok(c) => c,
+            Err(_) => return,
+        };
+        let mut resp = match client
+            .get(&url)
+            .header("Authorization", format!("Bearer {token}"))
+            .send()
+            .await
+        {
+            Ok(r) => r,
+            Err(_) => return,
+        };
+        let mut buffer = String::new();
+        let mut data_lines: Vec<String> = Vec::new();
+        loop {
+            match resp.chunk().await {
+                Ok(Some(bytes)) => {
+                    buffer.push_str(&String::from_utf8_lossy(&bytes));
+                    while let Some(nl) = buffer.find('\n') {
+                        let line = buffer[..nl].trim_end_matches('\r').to_string();
+                        buffer.drain(..=nl);
+                        if line.is_empty() {
+                            if !data_lines.is_empty() {
+                                let data = std::mem::take(&mut data_lines).join("\n");
+                                if let Ok(v) = serde_json::from_str::<serde_json::Value>(&data) {
+                                    let _ = app.emit("fluxo:run", v);
+                                }
+                            }
+                        } else if let Some(rest) = line.strip_prefix("data:") {
+                            data_lines.push(rest.trim_start().to_string());
+                        }
+                    }
+                }
+                Ok(None) | Err(_) => break,
+            }
+        }
+        fluxo_stream_forget(&id);
+    });
+    if let Ok(mut map) = fluxo_streams().lock() {
+        map.insert(workflow_id, handle.abort_handle());
+    }
+    Ok(())
+}
+
+/// Stop a run's SSE stream started by `fluxo_stream_run`.
+#[tauri::command]
+pub async fn fluxo_stop_stream(workflow_id: String) -> Result<(), String> {
+    fluxo_stream_forget(&workflow_id);
+    Ok(())
+}

@@ -1778,6 +1778,8 @@ pub fn run() {
             commands::fluxo_resume_run,
             commands::fluxo_terminate_run,
             commands::fluxo_signal,
+            commands::fluxo_stream_run,
+            commands::fluxo_stop_stream,
             // FIT-GAP v8: Phase 33-39 — Agent Intelligence panels
             commands::env_dispatch_list,
             commands::env_dispatch_task,

@@ -387,7 +387,7 @@ impl SpeculativeEngine {
         let decision_id = self
             .sessions
             .get(session_id)
-            .expect("session verified above")
+            .ok_or_else(|| format!("Session not found: {}", session_id))?
             .decision
             .id
             .clone();
@@ -407,7 +407,10 @@ impl SpeculativeEngine {
             completed_at: None,
         };
 
-        let session = self.sessions.get_mut(session_id).unwrap();
+        let session = self
+            .sessions
+            .get_mut(session_id)
+            .ok_or_else(|| format!("Session not found: {}", session_id))?;
         session.branches.push(branch);
         self.metrics.total_branches += 1;
         self.update_avg_branches();
@@ -527,24 +530,23 @@ impl SpeculativeEngine {
                         .as_ref()
                         .map(|t| t.pass_rate())
                         .unwrap_or(0.0);
-                    if best.is_none() || score > best.unwrap().1 {
+                    if best.map_or(true, |(_, s)| score > s) {
                         best = Some((&b.id, score));
                     }
                 }
-                best.unwrap().0.to_string()
+                best.map(|(id, _)| id.to_string())
+                    .ok_or("No completed branches to select from")?
             }
             SelectionStrategy::SmallestDiff => completed
                 .iter()
                 .min_by_key(|b| b.diff_size)
-                .unwrap()
-                .id
-                .clone(),
+                .map(|b| b.id.clone())
+                .ok_or("No completed branches to select from")?,
             SelectionStrategy::LowestCost => completed
                 .iter()
                 .min_by_key(|b| b.cost_tokens)
-                .unwrap()
-                .id
-                .clone(),
+                .map(|b| b.id.clone())
+                .ok_or("No completed branches to select from")?,
             SelectionStrategy::Composite | SelectionStrategy::Manual => {
                 // Composite uses BranchScorer
                 let completed_owned: Vec<SpeculativeBranch> =
@@ -554,7 +556,10 @@ impl SpeculativeEngine {
             }
         };
 
-        let session = self.sessions.get_mut(session_id).unwrap();
+        let session = self
+            .sessions
+            .get_mut(session_id)
+            .ok_or_else(|| format!("Session not found: {}", session_id))?;
         session.selected_branch = Some(best_id.clone());
         self.metrics.auto_selected += 1;
 

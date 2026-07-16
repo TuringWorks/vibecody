@@ -12,6 +12,7 @@
 //!
 //! See `docs/design/rl-os/04-evaluation.md`.
 
+use crate::sync_ext::LockRecover;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
@@ -149,7 +150,7 @@ impl EvalStore {
         }
         let suite_id = format!("suite-{}", uuid::Uuid::new_v4());
         let now = now_ms();
-        let conn = self.conn.lock().expect("rl_eval mutex poisoned");
+        let conn = self.conn.lock_recover();
         conn.execute(
             "INSERT INTO rl_eval_suites (suite_id, name, description, config_yaml, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5)",
@@ -176,7 +177,7 @@ impl EvalStore {
     }
 
     pub fn list_suites(&self) -> Result<Vec<EvalSuite>, RunError> {
-        let conn = self.conn.lock().expect("rl_eval mutex poisoned");
+        let conn = self.conn.lock_recover();
         let mut stmt = conn.prepare(
             "SELECT suite_id, name, description, config_yaml, created_at
              FROM rl_eval_suites ORDER BY created_at DESC",
@@ -188,7 +189,7 @@ impl EvalStore {
     }
 
     pub fn get_suite(&self, suite_id: &str) -> Result<Option<EvalSuite>, RunError> {
-        let conn = self.conn.lock().expect("rl_eval mutex poisoned");
+        let conn = self.conn.lock_recover();
         let mut stmt = conn.prepare(
             "SELECT suite_id, name, description, config_yaml, created_at
              FROM rl_eval_suites WHERE suite_id = ?1",
@@ -201,7 +202,7 @@ impl EvalStore {
     }
 
     pub fn delete_suite(&self, suite_id: &str) -> Result<(), RunError> {
-        let conn = self.conn.lock().expect("rl_eval mutex poisoned");
+        let conn = self.conn.lock_recover();
         let n = conn.execute(
             "DELETE FROM rl_eval_suites WHERE suite_id = ?1",
             params![suite_id],
@@ -223,7 +224,7 @@ impl EvalStore {
         if rows.is_empty() {
             return Ok(());
         }
-        let mut conn = self.conn.lock().expect("rl_eval mutex poisoned");
+        let mut conn = self.conn.lock_recover();
         let tx = conn.transaction()?;
         {
             let mut stmt = tx.prepare(
@@ -259,7 +260,7 @@ impl EvalStore {
     }
 
     pub fn list_results_for_run(&self, run_id: &str) -> Result<Vec<EvalResult>, RunError> {
-        let conn = self.conn.lock().expect("rl_eval mutex poisoned");
+        let conn = self.conn.lock_recover();
         let mut stmt = conn.prepare(
             "SELECT run_id, suite_id, metric_name, value, ci_low, ci_high, n_episodes, extra_json
              FROM rl_eval_results WHERE run_id = ?1
@@ -272,7 +273,7 @@ impl EvalStore {
     }
 
     pub fn list_results_for_suite(&self, suite_id: &str) -> Result<Vec<EvalResult>, RunError> {
-        let conn = self.conn.lock().expect("rl_eval mutex poisoned");
+        let conn = self.conn.lock_recover();
         let mut stmt = conn.prepare(
             "SELECT run_id, suite_id, metric_name, value, ci_low, ci_high, n_episodes, extra_json
              FROM rl_eval_results WHERE suite_id = ?1
@@ -293,7 +294,7 @@ impl EvalStore {
         suite_id: Option<&str>,
     ) -> Result<ComparisonReport, RunError> {
         // Pull all results for both runs, restricted to suite if given.
-        let conn = self.conn.lock().expect("rl_eval mutex poisoned");
+        let conn = self.conn.lock_recover();
         let mut sql = String::from(
             "SELECT run_id, suite_id, metric_name, value, ci_low, ci_high, n_episodes, extra_json
              FROM rl_eval_results WHERE run_id IN (?1, ?2)",
@@ -330,7 +331,10 @@ impl EvalStore {
         let mut metric_names: Vec<String> = by_metric.keys().cloned().collect();
         metric_names.sort();
         for metric in metric_names {
-            let (a, b) = by_metric.remove(&metric).unwrap();
+            // `metric` was sourced from `by_metric.keys()`, so the entry exists.
+            let (a, b) = by_metric
+                .remove(&metric)
+                .expect("metric key sourced from by_metric.keys()");
             let value_a = a.as_ref().map(|r| r.value);
             let value_b = b.as_ref().map(|r| r.value);
             let n_a = a.as_ref().map(|r| r.n_episodes).unwrap_or(0);

@@ -12334,7 +12334,11 @@ async fn main() -> Result<()> {
                                     if trail.entries.is_empty() {
                                         println!("No explanations recorded yet. Agent edits are explained automatically.\n");
                                     } else {
-                                        let last = trail.entries.last().unwrap();
+                                        // In the `else` of `entries.is_empty()`, so non-empty.
+                                        let last = trail
+                                            .entries
+                                            .last()
+                                            .expect("entries non-empty in else branch");
                                         let c = &last.chain;
                                         println!("Last change explanation:\n");
                                         println!(

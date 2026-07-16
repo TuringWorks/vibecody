@@ -410,7 +410,12 @@ pub fn diff_schemas(from: &Schema, to: &Schema) -> Vec<SchemaDiff> {
         let from_idx: HashSet<&str> = from_t.indexes.iter().map(|i| i.name.as_str()).collect();
         let to_idx: HashSet<&str> = to_t.indexes.iter().map(|i| i.name.as_str()).collect();
         for iname in to_idx.difference(&from_idx) {
-            let idx = to_t.indexes.iter().find(|i| i.name == *iname).unwrap();
+            // `iname` came from `to_t.indexes`' own names, so the find succeeds.
+            let idx = to_t
+                .indexes
+                .iter()
+                .find(|i| i.name == *iname)
+                .expect("iname sourced from to_t.indexes");
             diffs.push(SchemaDiff::IndexAdded {
                 table: name.to_string(),
                 index: idx.clone(),
@@ -431,7 +436,12 @@ pub fn diff_schemas(from: &Schema, to: &Schema) -> Vec<SchemaDiff> {
             .collect();
         let to_fk: HashSet<&str> = to_t.foreign_keys.iter().map(|f| f.name.as_str()).collect();
         for fname in to_fk.difference(&from_fk) {
-            let fk = to_t.foreign_keys.iter().find(|f| f.name == *fname).unwrap();
+            // `fname` came from `to_t.foreign_keys`' own names, so find succeeds.
+            let fk = to_t
+                .foreign_keys
+                .iter()
+                .find(|f| f.name == *fname)
+                .expect("fname sourced from to_t.foreign_keys");
             diffs.push(SchemaDiff::FkAdded {
                 table: name.to_string(),
                 fk: fk.clone(),
@@ -689,7 +699,9 @@ impl MigrationPlanner {
             let mut next: Vec<&str> = graph[id].to_vec();
             next.sort();
             for succ in next {
-                let deg = in_degree.get_mut(succ).unwrap();
+                let deg = in_degree
+                    .get_mut(succ)
+                    .expect("succ is a graph node present in in_degree");
                 *deg -= 1;
                 if *deg == 0 {
                     queue.push(succ);

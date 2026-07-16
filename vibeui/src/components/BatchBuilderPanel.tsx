@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * BatchBuilderPanel — Bulk/Batch Development "Hands-Off" UI.
  *

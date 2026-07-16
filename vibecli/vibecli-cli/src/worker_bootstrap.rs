@@ -317,7 +317,12 @@ impl WorkerLifecycle {
             return false;
         }
         // Reject bare single shell-only prompt chars
-        if trimmed.len() == 1 && SHELL_ONLY_PROMPTS.contains(&trimmed.chars().next().unwrap()) {
+        if trimmed.len() == 1
+            && trimmed
+                .chars()
+                .next()
+                .is_some_and(|c| SHELL_ONLY_PROMPTS.contains(&c))
+        {
             return false;
         }
         true

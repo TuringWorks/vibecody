@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * WorkManagementPanel — Unified project management combining enterprise work
  * management (hierarchy, work items, OKRs, risks) with Agile project management
@@ -13,6 +12,17 @@ const AgilePanel = lazy(() => import("./AgilePanel"));
 const DiscussionModePanel = lazy(() => import("./DiscussionModePanel"));
 
 /* ── Types ─────────────────────────────────────────────────── */
+
+interface WorkEntity {
+  name?: string;
+  description?: string;
+  prefix?: string;
+  [key: string]: unknown;
+}
+interface WmGenerateResult {
+  title?: string; description?: string; type?: string;
+  priority?: string; storyPoints?: number; labels?: unknown;
+}
 
 type TabKey = "hierarchy" | "agile" | "items" | "board" | "relationships" | "okrs" | "risks" | "dashboard" | "discussions";
 
@@ -203,7 +213,7 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
   setScope: (s: Scope) => void; onRefresh: () => void; setError: (e: string) => void;
 }) {
   const [creating, setCreating] = useState<"org" | "group" | "team" | "workspace" | null>(null);
-  const [editing, setEditing] = useState<{ type: "org" | "group" | "team" | "workspace"; item: any } | null>(null);
+  const [editing, setEditing] = useState<{ type: "org" | "group" | "team" | "workspace"; item: WorkEntity } | null>(null);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [prefix, setPrefix] = useState("");
@@ -226,7 +236,7 @@ function HierarchyTab({ orgs, groups, teams, workspaces, scope, setScope, onRefr
     } catch (e) { setError(String(e)); }
   };
 
-  const startEdit = (type: "org" | "group" | "team" | "workspace", item: any) => {
+  const startEdit = (type: "org" | "group" | "team" | "workspace", item: WorkEntity) => {
     setEditing({ type, item });
     setName(item.name || "");
     setDesc(item.description || "");
@@ -443,7 +453,7 @@ function ItemsTab({ items, scope, onRefresh, setError, provider }: {
   const handleAiBreakdown = async (item: WorkItem) => {
     setAiBreaking(item.displayId);
     try {
-      const result = await invoke<{ items: any[] }>("wm_ai_suggest_breakdown", { item, provider });
+      const result = await invoke<{ items?: Array<Record<string, unknown>> }>("wm_ai_suggest_breakdown", { item, provider });
       if (result.items?.length) {
         for (const child of result.items) {
           await invoke("wm_create_item", {
@@ -460,7 +470,7 @@ function ItemsTab({ items, scope, onRefresh, setError, provider }: {
     if (!aiPrompt.trim()) return;
     setAiGenerating(true);
     try {
-      const result = await invoke<any>("wm_ai_generate_item", {
+      const result = await invoke<WmGenerateResult>("wm_ai_generate_item", {
         prompt: aiPrompt,
         itemType: newItem.type,
         provider,

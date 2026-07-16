@@ -56,8 +56,14 @@ function targetLabel(t: AddTarget): string {
   }
 }
 
-export function WorkflowDesigner({ onRun }: { onRun?: (workflowId: string) => void }) {
-  const [def, setDef] = useState<WorkflowDef>(() => blankWorkflow());
+export function WorkflowDesigner({
+  onRun,
+  initialDef,
+}: {
+  onRun?: (workflowId: string) => void;
+  initialDef?: WorkflowDef;
+}) {
+  const [def, setDef] = useState<WorkflowDef>(() => initialDef ?? blankWorkflow());
   const [selectedRef, setSelectedRef] = useState<string | null>(null);
   const [addTarget, setAddTarget] = useState<AddTarget>({ kind: "top" });
   const [dir, setDir] = useState<LayoutDir>("TB");

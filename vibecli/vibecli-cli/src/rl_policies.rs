@@ -7,6 +7,7 @@
 //!
 //! See `docs/design/rl-os/05-model-hub.md`.
 
+use crate::sync_ext::LockRecover;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
@@ -190,7 +191,7 @@ impl PolicyStore {
         let now = now_ms();
         let card_md = render_model_card(&run, primary, &req, &framework);
 
-        let conn = self.conn.lock().expect("rl_policies mutex poisoned");
+        let conn = self.conn.lock_recover();
         conn.execute(
             "INSERT INTO rl_policies (
                 policy_id, name, version, description, primary_artifact, onnx_artifact,
@@ -241,7 +242,7 @@ impl PolicyStore {
     // ── Read ──────────────────────────────────────────────────────────────────
 
     pub fn get(&self, policy_id: &str) -> Result<Option<Policy>, RunError> {
-        let conn = self.conn.lock().expect("rl_policies mutex poisoned");
+        let conn = self.conn.lock_recover();
         let mut stmt = conn.prepare(
             "SELECT policy_id, name, version, description, primary_artifact, onnx_artifact,
                     model_card_md, framework, obs_space_json, act_space_json,
@@ -256,7 +257,7 @@ impl PolicyStore {
     }
 
     pub fn list(&self, name_filter: Option<&str>) -> Result<Vec<Policy>, RunError> {
-        let conn = self.conn.lock().expect("rl_policies mutex poisoned");
+        let conn = self.conn.lock_recover();
         let (sql, args): (&str, Vec<String>) = match name_filter {
             Some(n) => (
                 "SELECT policy_id, name, version, description, primary_artifact, onnx_artifact,
@@ -285,7 +286,7 @@ impl PolicyStore {
     }
 
     pub fn delete(&self, policy_id: &str) -> Result<(), RunError> {
-        let conn = self.conn.lock().expect("rl_policies mutex poisoned");
+        let conn = self.conn.lock_recover();
         let n = conn.execute(
             "DELETE FROM rl_policies WHERE policy_id = ?1",
             params![policy_id],
@@ -297,7 +298,7 @@ impl PolicyStore {
     }
 
     pub fn card(&self, policy_id: &str) -> Result<String, RunError> {
-        let conn = self.conn.lock().expect("rl_policies mutex poisoned");
+        let conn = self.conn.lock_recover();
         conn.query_row(
             "SELECT model_card_md FROM rl_policies WHERE policy_id = ?1",
             params![policy_id],
@@ -322,7 +323,7 @@ impl PolicyStore {
             .get(policy_id)?
             .ok_or_else(|| RunError::NotFound(policy_id.to_string()))?;
 
-        let conn = self.conn.lock().expect("rl_policies mutex poisoned");
+        let conn = self.conn.lock_recover();
 
         // Policy → producer run.
         let producer_run_id: String = conn.query_row(

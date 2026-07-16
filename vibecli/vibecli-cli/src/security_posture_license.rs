@@ -281,7 +281,8 @@ fn parse_package_dependencies(content: &str) -> Vec<DependencyRecord> {
         };
         if let Some(caps) = re.captures(content) {
             if let Some(body) = caps.get(1) {
-                let dep_re = regex::Regex::new(r#""([^"]+)"\s*:\s*"[^"]*""#).unwrap();
+                let dep_re = regex::Regex::new(r#""([^"]+)"\s*:\s*"[^"]*""#)
+                    .expect("valid regex: dependency line");
                 for dep_cap in dep_re.captures_iter(body.as_str()) {
                     if let Some(name) = dep_cap.get(1) {
                         out.push(DependencyRecord {
@@ -324,7 +325,8 @@ fn parse_pyproject_dependencies(content: &str) -> Vec<DependencyRecord> {
     if let Ok(re) = regex::Regex::new(r#"(?ms)^\s*dependencies\s*=\s*\[(.*?)\]"#) {
         if let Some(caps) = re.captures(content) {
             if let Some(body) = caps.get(1) {
-                let dep_re = regex::Regex::new(r#""([a-zA-Z0-9_\-\.]+)"#).unwrap();
+                let dep_re = regex::Regex::new(r#""([a-zA-Z0-9_\-\.]+)"#)
+                    .expect("valid regex: dependency name");
                 for dep_cap in dep_re.captures_iter(body.as_str()) {
                     if let Some(name) = dep_cap.get(1) {
                         let raw = name.as_str();

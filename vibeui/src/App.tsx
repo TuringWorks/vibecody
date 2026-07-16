@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useToast } from "./hooks/useToast";
 import { useNotifications } from "./hooks/useNotifications";
@@ -62,6 +61,23 @@ interface GitStatus {
   branch: string;
   file_statuses: Record<string, string>; // path -> status
 }
+
+/* LSP + Monaco structural types (replace `any` in editor providers). */
+type MonacoEditor = Parameters<OnMount>[0];
+type LspModel = { getLanguageId(): string; uri: { toString(): string } };
+type LspPosition = { lineNumber: number; column: number };
+interface LspRange {
+  start: { line: number; character: number };
+  end: { line: number; character: number };
+}
+interface LspCompletionItem {
+  label: string; kind?: number; insertText?: string; detail?: string;
+  documentation?: unknown; textEdit?: { range: LspRange };
+}
+interface LspHoverResponse {
+  contents: string | { kind?: string; value: string } | Array<string | { value: string }>;
+}
+interface LspLocation { uri: string; range: LspRange; }
 
 interface OpenFile {
   path: string;
@@ -614,7 +630,7 @@ function App() {
     selectionStartLine: number; // 1-based
     selectionEndLine: number;
   } | null>(null);
-  const editorRef = useRef<any>(null);
+  const editorRef = useRef<MonacoEditor | null>(null);
   // Ref mirror of currentDirectory for use inside async callbacks that outlive a render
   const currentDirectoryRef = useRef(currentDirectory);
   currentDirectoryRef.current = currentDirectory;
@@ -674,13 +690,13 @@ function App() {
     );
 
     monaco.languages.registerCompletionItemProvider('*', {
-      provideCompletionItems: async (model: any, position: any) => {
+      provideCompletionItems: async (model: LspModel, position: LspPosition) => {
         const language = model.getLanguageId();
         const rootPath = getRootPath();
         if (!rootPath) return { suggestions: [] };
 
         try {
-          const response = await invoke<any>("lsp_completion", {
+          const response = await invoke<LspCompletionItem[] | { items: LspCompletionItem[] }>("lsp_completion", {
             language,
             rootPath,
             params: {
@@ -693,7 +709,7 @@ function App() {
           if (!response) return { suggestions: [] };
 
           // Transform LSP items to Monaco items
-          const suggestions = (Array.isArray(response) ? response : response.items).map((item: any) => ({
+          const suggestions = (Array.isArray(response) ? response : response.items).map((item) => ({
             label: item.label,
             kind: item.kind, // Map LSP kind to Monaco kind if needed
             insertText: item.insertText || item.label,
@@ -716,13 +732,13 @@ function App() {
     });
 
     monaco.languages.registerHoverProvider('*', {
-      provideHover: async (model: any, position: any) => {
+      provideHover: async (model: LspModel, position: LspPosition) => {
         const language = model.getLanguageId();
         const rootPath = getRootPath();
         if (!rootPath) return null;
 
         try {
-          const response = await invoke<any>("lsp_hover", {
+          const response = await invoke<LspHoverResponse>("lsp_hover", {
             language,
             rootPath,
             params: {
@@ -734,13 +750,13 @@ function App() {
           if (!response || !response.contents) return null;
 
           // Handle different content formats (MarkupContent, MarkedString, etc.)
-          let contents: any[] = [];
+          let contents: { value: string }[] = [];
           if (typeof response.contents === 'string') {
             contents = [{ value: response.contents }];
           } else if ('kind' in response.contents) {
             contents = [{ value: response.contents.value }];
           } else if (Array.isArray(response.contents)) {
-            contents = response.contents.map((c: any) => typeof c === 'string' ? { value: c } : { value: c.value });
+            contents = response.contents.map((c) => typeof c === 'string' ? { value: c } : { value: c.value });
           }
 
           return {
@@ -754,13 +770,13 @@ function App() {
     });
 
     monaco.languages.registerDefinitionProvider('*', {
-      provideDefinition: async (model: any, position: any) => {
+      provideDefinition: async (model: LspModel, position: LspPosition) => {
         const language = model.getLanguageId();
         const rootPath = getRootPath();
         if (!rootPath) return null;
 
         try {
-          const response = await invoke<any>("lsp_goto_definition", {
+          const response = await invoke<LspLocation | LspLocation[]>("lsp_goto_definition", {
             language,
             rootPath,
             params: {
@@ -774,7 +790,7 @@ function App() {
           // Handle Location or Location[] or LocationLink[]
           const locations = Array.isArray(response) ? response : [response];
 
-          return locations.map((loc: any) => ({
+          return locations.map((loc) => ({
             uri: monaco.Uri.parse(loc.uri),
             range: {
               startLineNumber: loc.range.start.line + 1,
@@ -826,8 +842,8 @@ function App() {
 
         const language = detectLanguage(path);
         setOpenFiles((prev) => {
-          const exists = prev.some((f: any) => f.path === path);
-          if (exists) return prev.map((f: any) =>
+          const exists = prev.some((f) => f.path === path);
+          if (exists) return prev.map((f) =>
             f.path === path ? { ...f, content, isDirty: false, isImage: true, base64Data: content } : f
           );
           return [...prev, { path, content, language, isDirty: false, isImage: true, base64Data: content }];
@@ -1950,7 +1966,7 @@ function App() {
                         .catch((e) => console.error("Undo write failed:", e));
                       setTimeout(() => {
                         try {
-                          setOpenFiles((prev) => prev.map((f: any) => f.path === path ? { ...f, content: original, isDirty: false } : f));
+                          setOpenFiles((prev) => prev.map((f) => f.path === path ? { ...f, content: original, isDirty: false } : f));
                           setActiveFilePath(path);
                         } catch (e) { console.error("Undo state sync failed:", e); }
                       }, 50);
@@ -2030,8 +2046,8 @@ function App() {
                               const language = detectLanguage(diffPath);
                               const isImage = isImageFile(diffPath);
                               setOpenFiles((prev) => {
-                                const exists = prev.some((f: any) => f.path === diffPath);
-                                if (exists) return prev.map((f: any) =>
+                                const exists = prev.some((f) => f.path === diffPath);
+                                if (exists) return prev.map((f) =>
                                   f.path === diffPath ? { 
                                     ...f, 
                                     content: result, 
@@ -2394,7 +2410,8 @@ function App() {
           onApply={(modified) => {
             if (modified === null) return;
             const editor = editorRef.current;
-            const model = editor?.getModel();
+            if (!editor) return;
+            const model = editor.getModel();
             if (!model) return;
             const fullRange = model.getFullModelRange();
             editor.executeEdits("diffcomplete-apply", [{

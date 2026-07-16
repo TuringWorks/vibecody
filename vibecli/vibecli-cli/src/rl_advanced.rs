@@ -21,6 +21,7 @@
 //! - Lineage edges added at distill / merge / RLHF time — already in
 //!   `rl_lineage_edges` (slice 1 schema, slice 5 walks it).
 
+use crate::sync_ext::LockRecover;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
@@ -135,7 +136,7 @@ impl PreferenceStore {
         }
         let pref_id = format!("pref-{}", uuid::Uuid::new_v4());
         let now = now_ms();
-        let conn = self.conn.lock().expect("rl_advanced mutex poisoned");
+        let conn = self.conn.lock_recover();
         conn.execute(
             "INSERT INTO rl_preferences (pref_id, suite_id, prompt, completion_a, completion_b, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
@@ -176,7 +177,7 @@ impl PreferenceStore {
             }
         }
         let now = now_ms();
-        let conn = self.conn.lock().expect("rl_advanced mutex poisoned");
+        let conn = self.conn.lock_recover();
         let updated = conn.execute(
             "UPDATE rl_preferences
              SET chosen = ?2, rationale = ?3, reviewer = ?4, judged_at = ?5
@@ -192,7 +193,7 @@ impl PreferenceStore {
     }
 
     pub fn get(&self, pref_id: &str) -> Result<Option<Preference>, RunError> {
-        let conn = self.conn.lock().expect("rl_advanced mutex poisoned");
+        let conn = self.conn.lock_recover();
         let mut stmt = conn.prepare(
             "SELECT pref_id, suite_id, prompt, completion_a, completion_b,
                     chosen, rationale, reviewer, created_at, judged_at
@@ -206,7 +207,7 @@ impl PreferenceStore {
     }
 
     pub fn list(&self, suite_id: Option<&str>) -> Result<Vec<Preference>, RunError> {
-        let conn = self.conn.lock().expect("rl_advanced mutex poisoned");
+        let conn = self.conn.lock_recover();
         let (sql, args): (&str, Vec<String>) = match suite_id {
             Some(s) => (
                 "SELECT pref_id, suite_id, prompt, completion_a, completion_b,
@@ -235,7 +236,7 @@ impl PreferenceStore {
     /// Read alignment scores written by an RLHF run. Slice 7c sidecar
     /// extension emits these in addition to the regular tick stream.
     pub fn alignment_scores(&self, run_id: &str) -> Result<Vec<AlignmentScoreRow>, RunError> {
-        let conn = self.conn.lock().expect("rl_advanced mutex poisoned");
+        let conn = self.conn.lock_recover();
         let mut stmt = conn.prepare(
             "SELECT run_id, metric, value, timestep
              FROM rl_alignment_scores WHERE run_id = ?1 ORDER BY metric, timestep ASC",

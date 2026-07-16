@@ -6,6 +6,7 @@
 //!
 //! See `docs/design/rl-os/01-persistence.md` for the spec.
 
+use crate::sync_ext::LockRecover;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -538,7 +539,7 @@ impl RunStore {
         let sidecar_version = req
             .sidecar_version
             .unwrap_or_else(|| SIDECAR_VERSION_PLACEHOLDER.to_string());
-        let conn = self.conn.lock().expect("rl_runs mutex poisoned");
+        let conn = self.conn.lock_recover();
         conn.execute(
             "INSERT INTO rl_runs (
                 run_id, name, kind, status, algorithm, environment_id, parent_run_id,
@@ -567,7 +568,7 @@ impl RunStore {
     }
 
     pub fn get(&self, run_id: &str) -> Result<Option<Run>, RunError> {
-        let conn = self.conn.lock().expect("rl_runs mutex poisoned");
+        let conn = self.conn.lock_recover();
         let mut stmt = conn.prepare(
             "SELECT run_id, name, kind, status, algorithm, environment_id, parent_run_id,
                     config_yaml, seed, sidecar_version, created_at, started_at, finished_at,
@@ -584,7 +585,7 @@ impl RunStore {
 
     pub fn list(&self, filter: RunFilter) -> Result<Vec<Run>, RunError> {
         let limit = filter.limit.unwrap_or(500).clamp(1, 5000);
-        let conn = self.conn.lock().expect("rl_runs mutex poisoned");
+        let conn = self.conn.lock_recover();
         let mut sql = String::from(
             "SELECT run_id, name, kind, status, algorithm, environment_id, parent_run_id,
                     config_yaml, seed, sidecar_version, created_at, started_at, finished_at,
@@ -624,7 +625,7 @@ impl RunStore {
         error_message: Option<String>,
     ) -> Result<Run, RunError> {
         let now = now_ms();
-        let conn = self.conn.lock().expect("rl_runs mutex poisoned");
+        let conn = self.conn.lock_recover();
 
         let current: String = conn
             .query_row(
@@ -681,7 +682,7 @@ impl RunStore {
     }
 
     pub fn delete(&self, run_id: &str) -> Result<(), RunError> {
-        let conn = self.conn.lock().expect("rl_runs mutex poisoned");
+        let conn = self.conn.lock_recover();
         let status: String = conn
             .query_row(
                 "SELECT status FROM rl_runs WHERE run_id = ?1",
@@ -708,7 +709,7 @@ impl RunStore {
         if batch.is_empty() {
             return Ok(());
         }
-        let mut conn = self.conn.lock().expect("rl_runs mutex poisoned");
+        let mut conn = self.conn.lock_recover();
         let tx = conn.transaction()?;
         {
             let mut stmt = tx.prepare(
@@ -726,7 +727,7 @@ impl RunStore {
     }
 
     pub fn list_metrics(&self, run_id: &str, since_tick: i64) -> Result<Vec<MetricTick>, RunError> {
-        let conn = self.conn.lock().expect("rl_runs mutex poisoned");
+        let conn = self.conn.lock_recover();
         let mut stmt = conn.prepare(
             "SELECT tick, timestep, wall_time, payload FROM rl_metrics
              WHERE run_id = ?1 AND tick > ?2 ORDER BY tick ASC",
@@ -750,7 +751,7 @@ impl RunStore {
         if batch.is_empty() {
             return Ok(());
         }
-        let mut conn = self.conn.lock().expect("rl_runs mutex poisoned");
+        let mut conn = self.conn.lock_recover();
         let tx = conn.transaction()?;
         {
             let mut stmt = tx.prepare(
@@ -797,7 +798,7 @@ impl RunStore {
         limit: i64,
     ) -> Result<Vec<EpisodeRow>, RunError> {
         let limit = limit.clamp(1, 10_000);
-        let conn = self.conn.lock().expect("rl_runs mutex poisoned");
+        let conn = self.conn.lock_recover();
         let mut stmt = conn.prepare(
             "SELECT episode_idx, timestep, reward_sum, length, success, duration_ms
              FROM rl_episodes WHERE run_id = ?1 AND episode_idx > ?2
@@ -834,7 +835,7 @@ impl RunStore {
         }
         let artifact_id = new_id();
         let now = now_ms();
-        let conn = self.conn.lock().expect("rl_runs mutex poisoned");
+        let conn = self.conn.lock_recover();
         conn.execute(
             "INSERT INTO rl_artifacts (artifact_id, run_id, kind, timestep, rel_path,
                                        sha256, size_bytes, created_at, metadata_json)
@@ -869,7 +870,7 @@ impl RunStore {
     /// needs to resolve the file path without knowing which run produced
     /// it.
     pub fn find_artifact_by_id(&self, artifact_id: &str) -> Result<Option<Artifact>, RunError> {
-        let conn = self.conn.lock().expect("rl_runs mutex poisoned");
+        let conn = self.conn.lock_recover();
         let mut stmt = conn.prepare(
             "SELECT artifact_id, run_id, kind, timestep, rel_path, sha256, size_bytes,
                     created_at, metadata_json
@@ -895,7 +896,7 @@ impl RunStore {
     }
 
     pub fn list_artifacts(&self, run_id: &str) -> Result<Vec<Artifact>, RunError> {
-        let conn = self.conn.lock().expect("rl_runs mutex poisoned");
+        let conn = self.conn.lock_recover();
         let mut stmt = conn.prepare(
             "SELECT artifact_id, run_id, kind, timestep, rel_path, sha256, size_bytes,
                     created_at, metadata_json
@@ -934,7 +935,7 @@ impl RunStore {
         if rows.is_empty() {
             return Ok(());
         }
-        let mut conn = self.conn.lock().expect("rl_runs mutex poisoned");
+        let mut conn = self.conn.lock_recover();
         let tx = conn.transaction()?;
         {
             let mut stmt = tx.prepare(
@@ -959,7 +960,7 @@ impl RunStore {
         &self,
         run_id: &str,
     ) -> Result<Vec<(String, f64, f64, i64)>, RunError> {
-        let conn = self.conn.lock().expect("rl_runs mutex poisoned");
+        let conn = self.conn.lock_recover();
         let mut stmt = conn.prepare(
             "SELECT component,
                     AVG(contribution) AS mean,

@@ -343,8 +343,7 @@ impl MemoryEditOps {
     /// Pre-populate the virtual filesystem with `content` at `path`.
     pub fn seed(&self, path: &str, content: &str) {
         self.files
-            .lock()
-            .unwrap()
+            .lock_recover()
             .insert(path.to_owned(), content.to_owned());
     }
 
@@ -387,8 +386,7 @@ impl EditOperations for MemoryEditOps {
 
     fn write_file(&self, path: &str, content: &str) -> Result<(), String> {
         self.files
-            .lock()
-            .unwrap()
+            .lock_recover()
             .insert(path.to_owned(), content.to_owned());
         Ok(())
     }
@@ -414,8 +412,7 @@ impl EditOperations for MemoryEditOps {
         let new_lines = patch.new_text.lines().count();
         let lines_changed = old_lines.max(new_lines);
         self.files
-            .lock()
-            .unwrap()
+            .lock_recover()
             .insert(path.to_owned(), new_content);
         Ok(EditResult {
             path: path.to_owned(),

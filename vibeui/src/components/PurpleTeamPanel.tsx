@@ -1,7 +1,20 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { errorMessage } from "../utils/errorMessage";
+
+interface RawTactic {
+  tactic?: string;
+  techniques?: Array<{ id?: string; technique_id?: string; name?: string; technique_name?: string; coverage?: string }>;
+}
+interface PurpleSimulation {
+  technique_id?: string; technique_name?: string; tactic?: string;
+  difficulty?: string; expected_detection?: string; steps: string[];
+}
+interface PurplePlan {
+  name?: string; threat_scenario?: string; duration_hours?: number;
+  objectives: string[]; simulations: PurpleSimulation[];
+  success_criteria: string[]; required_resources: string[];
+}
 
 type PurpleTeamTab = "Exercises" | "ATT&CK Matrix" | "Simulations" | "Coverage Gaps" | "Reports";
 
@@ -128,7 +141,7 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
   const [showAiGenerate, setShowAiGenerate] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiGenerating, setAiGenerating] = useState(false);
-  const [aiPlan, setAiPlan] = useState<any>(null);
+  const [aiPlan, setAiPlan] = useState<PurplePlan | null>(null);
 
   // Simulation form
   const [showSimForm, setShowSimForm] = useState(false);
@@ -178,7 +191,7 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
   async function loadMatrix() {
     try {
       setLoading(true);
-      const raw = await invoke<any[]>("get_purple_team_matrix");
+      const raw = await invoke<RawTactic[]>("get_purple_team_matrix");
       // Backend returns nested: [{ tactic, techniques: [{ id, name, coverage, ... }] }]
       // Flatten into MatrixCell[]
       const cells: MatrixCell[] = [];
@@ -189,7 +202,7 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
             technique_id: tech.id || tech.technique_id || "",
             technique_name: tech.name || tech.technique_name || "",
             tactic,
-            coverage: tech.coverage || "NotTested",
+            coverage: (tech.coverage || "NotTested") as MatrixCell["coverage"],
           });
         }
       }
@@ -329,7 +342,7 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
                   setAiPlan(null);
                   setError(null);
                   try {
-                    const result = await invoke<{ exercise: Exercise; plan: any }>("purple_team_ai_generate_exercise", { prompt: aiPrompt.trim(), provider });
+                    const result = await invoke<{ exercise: Exercise; plan: PurplePlan }>("purple_team_ai_generate_exercise", { prompt: aiPrompt.trim(), provider });
                     setAiPlan(result.plan);
                     setExercises(prev => [result.exercise, ...prev]);
                     showSuccess(`Exercise "${result.exercise.name}" created with ${result.plan?.simulations?.length || 0} simulations`);
@@ -361,7 +374,7 @@ export function PurpleTeamPanel({ provider }: { provider?: string } = {}) {
                 {aiPlan.simulations?.length > 0 && (
                   <div style={{ marginBottom: 8 }}>
                     <div style={{ fontSize: "var(--font-size-sm)", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", marginBottom: 4 }}>Attack Simulations ({aiPlan.simulations.length})</div>
-                    {aiPlan.simulations.map((sim: any, i: number) => (
+                    {aiPlan.simulations.map((sim, i: number) => (
                       <div key={i} style={{ padding: "8px 12px", marginBottom: 4, borderRadius: "var(--radius-xs-plus)", background: "var(--bg-secondary)", border: "1px solid var(--border-color)" }}>
                         <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 2 }}>
                           <span style={{ fontFamily: "var(--font-mono)", fontSize: "var(--font-size-xs)", color: "var(--accent-color)" }}>{sim.technique_id}</span>
