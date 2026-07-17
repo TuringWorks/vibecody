@@ -16805,8 +16805,8 @@ pub async fn run_coverage(
         .spawn()
         .map_err(|e| format!("Failed to spawn {prog}: {e}"))?;
 
-    let stdout = child.stdout.take().unwrap();
-    let stderr = child.stderr.take().unwrap();
+    let stdout = child.stdout.take().expect("stdout piped");
+    let stderr = child.stderr.take().expect("stderr piped");
 
     let raw_lines: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
 
@@ -16816,7 +16816,7 @@ pub async fn run_coverage(
         let mut reader = TokioBufReader::new(stdout).lines();
         while let Ok(Some(line)) = reader.next_line().await {
             let _ = app_out.emit("coverage:log", line.clone());
-            lines_out.lock().unwrap().push(line);
+            lines_out.lock().unwrap_or_else(|e| e.into_inner()).push(line);
         }
     });
 
@@ -16826,7 +16826,7 @@ pub async fn run_coverage(
         let mut reader = TokioBufReader::new(stderr).lines();
         while let Ok(Some(line)) = reader.next_line().await {
             let _ = app_err.emit("coverage:log", line.clone());
-            lines_err.lock().unwrap().push(line);
+            lines_err.lock().unwrap_or_else(|e| e.into_inner()).push(line);
         }
     });
 
@@ -16836,7 +16836,7 @@ pub async fn run_coverage(
         .map_err(|e| format!("Process error: {e}"))?;
     let _ = tokio::join!(stdout_task, stderr_task);
 
-    let raw_output = raw_lines.lock().unwrap().join("\n");
+    let raw_output = raw_lines.lock().unwrap_or_else(|e| e.into_inner()).join("\n");
 
     if !status.success() {
         let _ = app.emit(

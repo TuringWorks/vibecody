@@ -70,8 +70,8 @@ impl LspClient {
             .stderr(Stdio::null())
             .spawn()
             .map_err(|e| anyhow!("failed to spawn {cmd}: {e}"))?;
-        let stdin = child.stdin.take().unwrap();
-        let stdout = BufReader::new(child.stdout.take().unwrap());
+        let stdin = child.stdin.take().expect("stdin piped");
+        let stdout = BufReader::new(child.stdout.take().expect("stdout piped"));
         let inner = LspClientInner { stdin, stdout, next_id: AtomicU64::new(1) };
         let client = Self { inner: Mutex::new(inner), root: root.to_path_buf(), language };
 
@@ -90,7 +90,7 @@ impl LspClient {
     }
 
     fn request(&self, method: &str, params: Value) -> Result<Value> {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         let id = inner.next_id.fetch_add(1, Ordering::SeqCst);
         let body = json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params });
         let serialized = serde_json::to_string(&body)?;
@@ -112,7 +112,7 @@ impl LspClient {
     }
 
     fn notify(&self, method: &str, params: Value) -> Result<()> {
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         let body = json!({ "jsonrpc": "2.0", "method": method, "params": params });
         let serialized = serde_json::to_string(&body)?;
         write!(inner.stdin, "Content-Length: {}\r\n\r\n{}", serialized.len(), serialized)?;

@@ -69,7 +69,7 @@ impl KvCacheCodec for CandleTurboQuantCodec {
         if shape.is_empty() {
             candle_core::bail!("TurboQuantCodec: expected a ranked tensor, got scalar");
         }
-        if *shape.last().unwrap() != self.head_dim {
+        if *shape.last().expect("shape non-empty checked above") != self.head_dim {
             candle_core::bail!(
                 "TurboQuantCodec: last-axis must be head_dim={}, got shape {:?}",
                 self.head_dim,
@@ -240,7 +240,7 @@ impl KvCacheCodec for NativeTurboQuantCodec {
         if dims.is_empty() {
             candle_core::bail!("NativeTurboQuantCodec: expected a ranked tensor, got scalar");
         }
-        if *dims.last().unwrap() != self.head_dim {
+        if *dims.last().expect("dims non-empty checked above") != self.head_dim {
             candle_core::bail!(
                 "NativeTurboQuantCodec: last-axis must be head_dim={}, got shape {:?}",
                 self.head_dim,
@@ -252,7 +252,7 @@ impl KvCacheCodec for NativeTurboQuantCodec {
             Device::Cpu => self.cpu_encode_fallback(tensor),
             device => {
                 // Materialise / refresh the device matrices.
-                let mut guard = self.device_matrices.lock().unwrap();
+                let mut guard = self.device_matrices.lock().unwrap_or_else(|e| e.into_inner());
                 let needs_rebuild = match &*guard {
                     Some(dm) => !dm.device.same_device(device),
                     None => true,

@@ -46,7 +46,7 @@ impl SQLiteStore {
 impl Store for SQLiteStore {
     fn save_graph(&self, graph: &CodeGraph) -> Result<()> {
         let payload = serde_json::to_string(graph)?;
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let now = rfc3339_now();
         conn.execute(
             "INSERT OR REPLACE INTO graph (id, payload, updated_at) VALUES (1, ?1, ?2)",
@@ -56,7 +56,7 @@ impl Store for SQLiteStore {
     }
 
     fn load_graph(&self) -> Result<Option<CodeGraph>> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let mut stmt = conn.prepare("SELECT payload FROM graph WHERE id = 1")?;
         let row: rusqlite::Result<String> = stmt.query_row([], |r| r.get(0));
         match row {
@@ -71,7 +71,7 @@ impl Store for SQLiteStore {
     }
 
     fn save_hashes(&self, hashes: &FileHashes) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         conn.execute("DELETE FROM file_hashes", [])?;
         let json = hashes.to_json()?;
         // Store the whole cache as one JSON blob in a synthetic row so we don't need
@@ -84,7 +84,7 @@ impl Store for SQLiteStore {
     }
 
     fn load_hashes(&self) -> Result<FileHashes> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().unwrap_or_else(|e| e.into_inner());
         let row: rusqlite::Result<String> = conn.query_row(
             "SELECT hash FROM file_hashes WHERE path = '__cache_blob__'",
             [],
