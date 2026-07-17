@@ -279,7 +279,10 @@ impl<'a> BudgetStore<'a> {
         };
         let mut stmt = self.conn.prepare(sql)?;
         let rows = if use_agent {
-            stmt.query_map(params![company_id, agent_id.unwrap()], row_to_event)?
+            stmt.query_map(
+                params![company_id, agent_id.expect("agent_id is Some when use_agent")],
+                row_to_event,
+            )?
                 .collect::<rusqlite::Result<Vec<_>>>()?
         } else {
             stmt.query_map(params![company_id], row_to_event)?

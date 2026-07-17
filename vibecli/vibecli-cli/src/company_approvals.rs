@@ -198,7 +198,10 @@ impl<'a> ApprovalStore<'a> {
         };
         let mut stmt = self.conn.prepare(sql)?;
         let rows = if use_status {
-            stmt.query_map(params![company_id, status_filter.unwrap()], row_to_approval)?
+            stmt.query_map(
+                params![company_id, status_filter.expect("status_filter is Some when use_status")],
+                row_to_approval,
+            )?
                 .collect::<rusqlite::Result<Vec<_>>>()?
         } else {
             stmt.query_map(params![company_id], row_to_approval)?

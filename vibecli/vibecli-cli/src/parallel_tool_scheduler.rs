@@ -407,7 +407,9 @@ impl ParallelToolScheduler {
             result.push(id.clone());
             if let Some(neighbors) = adj.get(id) {
                 for next in neighbors {
-                    let deg = in_degree.get_mut(next).unwrap();
+                    let deg = in_degree
+                        .get_mut(next)
+                        .expect("next is a graph node in in_degree");
                     *deg -= 1;
                     if *deg == 0 {
                         queue.push_back(next);

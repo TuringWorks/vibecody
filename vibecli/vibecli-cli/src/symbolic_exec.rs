@@ -276,7 +276,9 @@ impl SymbolicExecutor {
                 continue;
             }
 
-            let current = *path.nodes.last().unwrap();
+            let Some(&current) = path.nodes.last() else {
+                continue;
+            };
 
             if current == exit {
                 completed.push(path);
@@ -440,7 +442,7 @@ impl CfgBuilder {
                 // Back-edge from loop to itself (unrolled by executor)
                 exec.nodes
                     .get_mut(&loop_id)
-                    .unwrap()
+                    .expect("loop_id is an existing node")
                     .successors
                     .push(loop_id);
                 prev = loop_id;

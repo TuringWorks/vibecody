@@ -1715,7 +1715,9 @@ impl SessionManager {
             let session = Session::new(session_id, client_id);
             self.sessions.insert(session_id.to_string(), session);
         }
-        self.sessions.get_mut(session_id).unwrap()
+        self.sessions
+            .get_mut(session_id)
+            .expect("session present after insert above")
     }
 
     pub fn get(&self, session_id: &str) -> Option<&Session> {
@@ -2604,7 +2606,9 @@ impl DeploymentManager {
     ) -> &Deployment {
         let deploy = Deployment::new(deployment_id, policy_id, version, target);
         self.deployments.insert(deployment_id.to_string(), deploy);
-        self.deployments.get(deployment_id).unwrap()
+        self.deployments
+            .get(deployment_id)
+            .expect("deployment just inserted above")
     }
 
     pub fn activate(&mut self, deployment_id: &str) -> bool {

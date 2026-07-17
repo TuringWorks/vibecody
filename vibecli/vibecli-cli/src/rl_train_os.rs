@@ -904,7 +904,13 @@ impl ReplayBuffer {
                     }
                 }
                 while result.len() < actual_size {
-                    result.push(&self.entries.last().unwrap().transition);
+                    result.push(
+                        &self
+                            .entries
+                            .last()
+                            .expect("entries non-empty when sampling")
+                            .transition,
+                    );
                 }
                 result
             }

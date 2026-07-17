@@ -337,12 +337,10 @@ impl AdapterRegistry {
         config: serde_json::Value,
     ) {
         self.adapters
-            .write()
-            .unwrap()
+            .write_recover()
             .insert(name.to_string(), adapter);
         self.configs
-            .write()
-            .unwrap()
+            .write_recover()
             .insert(name.to_string(), config);
     }
 
@@ -369,8 +367,7 @@ impl AdapterRegistry {
     /// Get adapter by type string (first match wins).
     pub fn get_by_type(&self, adapter_type: &str) -> Option<Arc<dyn AgentAdapter>> {
         self.adapters
-            .read()
-            .unwrap()
+            .read_recover()
             .values()
             .find(|a| a.adapter_type() == adapter_type)
             .cloned()

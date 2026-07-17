@@ -545,7 +545,7 @@ pub fn status_value() -> Option<serde_json::Value> {
     if let Some(ts) = probe.last_built_at {
         if let Ok(map) = serde_json::to_value(ts) {
             v.as_object_mut()
-                .unwrap()
+                .expect("v is a serialized struct object")
                 .insert("last_built_at".to_string(), map);
         }
     }

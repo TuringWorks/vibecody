@@ -289,7 +289,7 @@ impl SupplyChainValidator {
         dep.vulnerabilities = matching;
         dep.risk_score = self.compute_risk(&dep);
         self.dependencies.push(dep);
-        self.dependencies.last().unwrap()
+        self.dependencies.last().expect("just pushed a dependency")
     }
 
     fn compute_risk(&self, dep: &Dependency) -> u8 {

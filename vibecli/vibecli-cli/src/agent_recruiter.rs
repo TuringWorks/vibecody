@@ -164,7 +164,7 @@ impl AgentRecruiter {
                 let sb = self.score(b, &task);
                 sa.partial_cmp(&sb).unwrap_or(std::cmp::Ordering::Equal)
             })
-            .unwrap();
+            .expect("capable is non-empty (checked above)");
 
         let assignment = Assignment {
             task_id: task.task_id.clone(),

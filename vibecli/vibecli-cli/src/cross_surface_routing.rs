@@ -357,7 +357,7 @@ impl SurfaceRouter {
             }
 
             let score = self.score_surface(surface, request);
-            if best.is_none() || score > best.unwrap().1 {
+            if best.as_ref().map_or(true, |(_, s)| score > *s) {
                 best = Some((surface, score));
             }
         }

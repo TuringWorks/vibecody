@@ -48,13 +48,20 @@ impl PromptCache {
         let key = CacheKey::from_parts(system, tools, config);
         if self.store.contains_key(&key) {
             self.stats.hits += 1;
-            self.store.get_mut(&key).unwrap().hit = true;
+            // `contains_key(&key)` returned true just above.
+            self.store
+                .get_mut(&key)
+                .expect("key present (contains_key checked)")
+                .hit = true;
         } else {
             self.stats.misses += 1;
             self.store.insert(key, CacheEntry { key, hit: false });
             self.stats.entries = self.store.len();
         }
-        self.store.get(&key).unwrap()
+        // Present in both branches above (pre-existing, or just inserted).
+        self.store
+            .get(&key)
+            .expect("key present or just inserted")
     }
 
     pub fn invalidate(&mut self, key: CacheKey) {

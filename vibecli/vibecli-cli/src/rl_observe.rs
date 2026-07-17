@@ -2753,7 +2753,7 @@ impl RetentionManager {
             DownsampleStrategy::Average => values.iter().sum::<f64>() / values.len() as f64,
             DownsampleStrategy::Min => values.iter().copied().fold(f64::INFINITY, f64::min),
             DownsampleStrategy::Max => values.iter().copied().fold(f64::NEG_INFINITY, f64::max),
-            DownsampleStrategy::Last => *values.last().unwrap(),
+            DownsampleStrategy::Last => *values.last().expect("values non-empty checked above"),
             DownsampleStrategy::Median => {
                 let mut sorted = values.to_vec();
                 sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));

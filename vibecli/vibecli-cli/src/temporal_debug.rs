@@ -239,7 +239,7 @@ impl TemporalDebugger {
             }
         }
         self.snapshots.push(snap);
-        self.snapshots.last().unwrap()
+        self.snapshots.last().expect("just pushed a snapshot")
     }
 
     /// Diff two snapshots by ID.

@@ -416,7 +416,9 @@ impl SelfImprovingSkillsEngine {
                     return Err("No content to apply".to_string());
                 }
                 let path = self.skill_path(&skill_name);
-                std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
+                if let Some(parent) = path.parent() {
+                    std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+                }
                 std::fs::write(&path, &proposed_content).map_err(|e| e.to_string())?;
                 self.save(&store);
                 Ok(format!("Skill '{skill_name}' updated at {path:?}"))

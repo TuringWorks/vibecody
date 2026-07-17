@@ -123,7 +123,7 @@ impl Recipe {
 /// Render `{{ param }}` placeholders in a template string.
 /// Unresolved placeholders are left as-is with a warning.
 pub fn render_template(template: &str, params: &HashMap<String, String>) -> String {
-    let re = regex::Regex::new(r"\{\{\s*(\w+)\s*\}\}").unwrap();
+    let re = regex::Regex::new(r"\{\{\s*(\w+)\s*\}\}").expect("valid regex: template placeholder");
     re.replace_all(template, |caps: &regex::Captures| {
         let key = &caps[1];
         params.get(key).cloned().unwrap_or_else(|| {
