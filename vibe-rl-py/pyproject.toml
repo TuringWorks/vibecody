@@ -9,7 +9,7 @@ authors = [{ name = "VibeCody" }]
 dependencies = [
     "gymnasium>=0.29,<2.0",
     "numpy>=1.26,<3.0",
-    "torch>=2.2,<3.0",
+    "torch>=2.13.0,<3.0",
     "pyyaml>=6.0,<7.0",        # config files from the daemon
     "tyro>=0.7,<1.0",          # CleanRL's CLI parser of choice — light, typed
     "tensorboardX>=2.6,<3.0",  # CleanRL writes here; we ignore the events
