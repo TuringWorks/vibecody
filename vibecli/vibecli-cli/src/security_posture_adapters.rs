@@ -380,9 +380,12 @@ impl Scanner for SonarScannerAdapter {
             let rel_str = rel.to_string_lossy().to_string();
             let result = vibe_core::sonar_rules::scan_content(&rel_str, &content);
 
-            for issue in result.issues {
-                findings.push(sonar_issue_to_finding(&issue, rel));
-            }
+            findings.extend(
+                result
+                    .issues
+                    .iter()
+                    .map(|issue| sonar_issue_to_finding(issue, rel)),
+            );
         }
 
         Ok(findings)

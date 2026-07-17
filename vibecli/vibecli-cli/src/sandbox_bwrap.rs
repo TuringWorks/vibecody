@@ -201,9 +201,7 @@ impl BwrapProfile {
         }
 
         // Unshare flags
-        for flag in &self.unshare {
-            args.push(flag.to_arg().to_string());
-        }
+        args.extend(self.unshare.iter().map(|flag| flag.to_arg().to_string()));
 
         // Lifecycle options
         if self.die_with_parent {

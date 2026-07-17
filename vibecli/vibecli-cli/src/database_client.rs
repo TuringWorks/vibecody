@@ -448,9 +448,7 @@ impl DatabaseClient {
             args.push(pass.clone());
         }
         // Split command into individual tokens.
-        for token in command.split_whitespace() {
-            args.push(token.to_string());
-        }
+        args.extend(command.split_whitespace().map(str::to_string));
         args
     }
 }
@@ -517,11 +515,11 @@ pub fn generate_schema_sql(tables: &[TableInfo], engine: &DatabaseEngine) -> Str
         }
 
         // Add foreign key constraints.
-        for col in &table.columns {
-            if let Some(ref fk) = col.foreign_key {
-                column_defs.push(format!("  FOREIGN KEY ({}) REFERENCES {}", col.name, fk));
-            }
-        }
+        column_defs.extend(table.columns.iter().filter_map(|col| {
+            col.foreign_key
+                .as_ref()
+                .map(|fk| format!("  FOREIGN KEY ({}) REFERENCES {}", col.name, fk))
+        }));
 
         sql.push_str(&column_defs.join(",\n"));
         sql.push_str("\n);\n\n");

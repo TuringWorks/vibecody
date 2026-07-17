@@ -85,9 +85,7 @@ pub fn insert_cursor_marker(line: &str, col: usize) -> String {
                 }
             }
             // Re-emit the escape sequence verbatim.
-            for c in chars[seq_start..i].iter() {
-                out.push(*c);
-            }
+            out.extend(chars[seq_start..i].iter().copied());
             continue;
         }
 

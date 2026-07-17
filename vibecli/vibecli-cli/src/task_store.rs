@@ -310,11 +310,7 @@ impl TaskStore {
             .conn
             .prepare("SELECT worktree_path FROM tasks WHERE worktree_path <> ''")?;
         let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
-        let mut out = Vec::new();
-        for r in rows {
-            out.push(r?);
-        }
-        Ok(out)
+        Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
     }
 
     /// Distinct project repos referenced by tasks — the set of repos whose
@@ -324,11 +320,7 @@ impl TaskStore {
             .conn
             .prepare("SELECT DISTINCT project_path FROM tasks WHERE project_path <> ''")?;
         let rows = stmt.query_map([], |r| r.get::<_, String>(0))?;
-        let mut out = Vec::new();
-        for r in rows {
-            out.push(r?);
-        }
-        Ok(out)
+        Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
     }
 
     /// Fetch one task by id, regardless of lifecycle state (so trashed/archived
@@ -408,11 +400,7 @@ fn map_row(r: &rusqlite::Row) -> rusqlite::Result<TaskRow> {
 
 /// Drain a `query_map` iterator into a `Vec`, propagating the first error.
 fn collect(rows: impl Iterator<Item = rusqlite::Result<TaskRow>>) -> Result<Vec<TaskRow>> {
-    let mut out = Vec::new();
-    for r in rows {
-        out.push(r?);
-    }
-    Ok(out)
+    Ok(rows.collect::<rusqlite::Result<Vec<_>>>()?)
 }
 
 /// Default DB path: `~/.vibecli/sessions.db` (shared with the session store).
