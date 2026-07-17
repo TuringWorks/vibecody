@@ -270,23 +270,22 @@ impl<'a> BudgetStore<'a> {
     }
 
     pub fn list_events(&self, company_id: &str, agent_id: Option<&str>) -> Result<Vec<CostEvent>> {
-        let (sql, use_agent) = if agent_id.is_some() {
-            ("SELECT id, company_id, agent_id, budget_id, amount_cents, model, task_id, description, created_at
-              FROM cost_events WHERE company_id = ?1 AND agent_id = ?2 ORDER BY created_at DESC LIMIT 100", true)
-        } else {
-            ("SELECT id, company_id, agent_id, budget_id, amount_cents, model, task_id, description, created_at
-              FROM cost_events WHERE company_id = ?1 ORDER BY created_at DESC LIMIT 100", false)
+        // Match on the Option directly: its presence selects the query and binds
+        // the param, so there's no bool flag to keep in sync and no unwrap.
+        let sql = match agent_id {
+            Some(_) => "SELECT id, company_id, agent_id, budget_id, amount_cents, model, task_id, description, created_at
+              FROM cost_events WHERE company_id = ?1 AND agent_id = ?2 ORDER BY created_at DESC LIMIT 100",
+            None => "SELECT id, company_id, agent_id, budget_id, amount_cents, model, task_id, description, created_at
+              FROM cost_events WHERE company_id = ?1 ORDER BY created_at DESC LIMIT 100",
         };
         let mut stmt = self.conn.prepare(sql)?;
-        let rows = if use_agent {
-            stmt.query_map(
-                params![company_id, agent_id.expect("agent_id is Some when use_agent")],
-                row_to_event,
-            )?
-                .collect::<rusqlite::Result<Vec<_>>>()?
-        } else {
-            stmt.query_map(params![company_id], row_to_event)?
-                .collect::<rusqlite::Result<Vec<_>>>()?
+        let rows = match agent_id {
+            Some(agent_id) => stmt
+                .query_map(params![company_id, agent_id], row_to_event)?
+                .collect::<rusqlite::Result<Vec<_>>>()?,
+            None => stmt
+                .query_map(params![company_id], row_to_event)?
+                .collect::<rusqlite::Result<Vec<_>>>()?,
         };
         Ok(rows)
     }

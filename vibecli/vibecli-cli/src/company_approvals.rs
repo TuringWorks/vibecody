@@ -181,31 +181,23 @@ impl<'a> ApprovalStore<'a> {
     }
 
     pub fn list(&self, company_id: &str, status_filter: Option<&str>) -> Result<Vec<Approval>> {
-        let (sql, use_status) = if status_filter.is_some() {
-            (
-                "SELECT id, company_id, request_type, subject_id, requester_id, status,
+        // Match on the Option directly — no bool flag mirroring `is_some()`, no unwrap.
+        let sql = match status_filter {
+            Some(_) => "SELECT id, company_id, request_type, subject_id, requester_id, status,
                      reason, decided_by, decided_at, created_at
               FROM approvals WHERE company_id = ?1 AND status = ?2 ORDER BY created_at DESC",
-                true,
-            )
-        } else {
-            (
-                "SELECT id, company_id, request_type, subject_id, requester_id, status,
+            None => "SELECT id, company_id, request_type, subject_id, requester_id, status,
                      reason, decided_by, decided_at, created_at
               FROM approvals WHERE company_id = ?1 ORDER BY created_at DESC",
-                false,
-            )
         };
         let mut stmt = self.conn.prepare(sql)?;
-        let rows = if use_status {
-            stmt.query_map(
-                params![company_id, status_filter.expect("status_filter is Some when use_status")],
-                row_to_approval,
-            )?
-                .collect::<rusqlite::Result<Vec<_>>>()?
-        } else {
-            stmt.query_map(params![company_id], row_to_approval)?
-                .collect::<rusqlite::Result<Vec<_>>>()?
+        let rows = match status_filter {
+            Some(status) => stmt
+                .query_map(params![company_id, status], row_to_approval)?
+                .collect::<rusqlite::Result<Vec<_>>>()?,
+            None => stmt
+                .query_map(params![company_id], row_to_approval)?
+                .collect::<rusqlite::Result<Vec<_>>>()?,
         };
         Ok(rows)
     }
