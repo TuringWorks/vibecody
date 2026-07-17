@@ -121,9 +121,9 @@ impl MockAIProvider {
     fn resolve(&self, prompt: &str) -> Result<String> {
         // 1. Sequenced queue
         {
-            let mut queue = self.responses.lock().expect("mock response queue poisoned");
+            let mut queue = self.responses.lock().unwrap_or_else(|e| e.into_inner());
             if !queue.is_empty() {
-                return Ok(queue.pop_front().unwrap());
+                return Ok(queue.pop_front().expect("queue non-empty checked above"));
             }
         }
 

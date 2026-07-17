@@ -408,7 +408,9 @@ fn http_client() -> &'static reqwest::Client {
         reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(120))
             .build()
-            .expect("failed to build embedding HTTP client")
+            // Fall back to a default client rather than panicking if the
+            // TLS/backend init ever fails at startup.
+            .unwrap_or_else(|_| reqwest::Client::new())
     })
 }
 
