@@ -3,6 +3,7 @@
 pub mod agent;
 pub mod agent_team;
 pub mod artifacts;
+pub mod catalog;
 pub mod chat;
 pub mod config;
 pub mod diffcomplete;

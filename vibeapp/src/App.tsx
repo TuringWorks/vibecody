@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import "./App.css";
@@ -61,136 +61,49 @@ function loadSetting(key: string, fallback: string): string {
   return localStorage.getItem(key) ?? fallback;
 }
 
-// ── Static model catalog (Option B) ──────────────────────────────────────────
-// The daemon's /models endpoint only reports what a local runtime advertises
-// (primarily ollama's pulled models) — never ollama *-cloud models nor the
-// cloud providers' catalogs, and nothing at all while the daemon is offline.
-// So VibeApp carries a full static catalog and shows it regardless, unioning
-// the daemon's live ollama list on top when it's reachable. Mirrors the
-// desktop registry (vibeui/src/hooks/useModelRegistry.ts).
+// ── Model catalog — daemon is the single source of truth ─────────────────────
+// The daemon's /models endpoint (vibe-ai/src/catalog.rs) returns the full
+// catalog for every provider, including ollama local + cloud. VibeApp renders
+// exactly that and caches the last success, so the picker survives a brief
+// disconnect without carrying its own hardcoded list.
 
-// Ollama Cloud / Turbo (*-cloud) — datacenter-hosted, never in a local /api/tags.
-const OLLAMA_CLOUD_MODELS: string[] = [
-  "glm-5.2:cloud",
-  "deepseek-v3.1:671b-cloud",
-  "kimi-k2:1t-cloud",
-  "gpt-oss:120b-cloud",
-  "gpt-oss:20b-cloud",
-  "glm-4.6:cloud",
-  "minimax-m2:cloud",
-];
+const MODELS_CACHE_KEY = "vibeapp_models_cache";
 
-// Ollama chat catalog (cloud rows first, then pull-able local models).
-const OLLAMA_CHAT_MODELS: string[] = [
-  ...OLLAMA_CLOUD_MODELS,
-  "devstral-2",
-  "devstral-small-2",
-  "nemotron-3-super",
-  "cogito-2.1",
-  "gemma4",
-  "ministral-3",
-  "qwen3-coder",
-  "qwen3.6",
-  "qwen3.5",
-  "qwen3",
-  "deepseek-v4-pro",
-  "deepseek-v4-flash",
-  "deepseek-v3.2",
-  "deepseek-r1",
-  "llama4",
-  "llama3.3",
-  "llama3.2",
-  "gemma3",
-  "phi4",
-  "phi4-mini",
-  "mistral-large-3",
-  "mistral-small3.2",
-  "glm-5.1",
-  "glm-5",
-  "codellama",
-  "codegemma",
-  "starcoder2",
-];
+type ModelRow = { id: string; name?: string; provider?: string };
 
-// Provider ids the picker offers (sent verbatim to the daemon, which supports
-// all of them). Order = display order.
-const PROVIDER_OPTIONS: Array<{ id: string; label: string }> = [
-  { id: "claude", label: "Claude" },
-  { id: "openai", label: "OpenAI" },
-  { id: "ollama", label: "Ollama (local + cloud)" },
-  { id: "gemini", label: "Gemini" },
-  { id: "grok", label: "Grok (xAI)" },
-  { id: "groq", label: "Groq" },
-  { id: "mistral", label: "Mistral" },
-  { id: "deepseek", label: "DeepSeek" },
-  { id: "openrouter", label: "OpenRouter" },
-  { id: "zhipu", label: "Zhipu (GLM)" },
-  { id: "cerebras", label: "Cerebras" },
-  { id: "perplexity", label: "Perplexity" },
-  { id: "together", label: "Together" },
-  { id: "fireworks", label: "Fireworks" },
-  { id: "minimax", label: "MiniMax" },
-  { id: "sambanova", label: "SambaNova" },
-  { id: "azure_openai", label: "Azure OpenAI" },
-];
+function readModelsCache(): ModelRow[] {
+  try {
+    const raw = localStorage.getItem(MODELS_CACHE_KEY);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+    return Array.isArray(parsed) ? (parsed as ModelRow[]) : [];
+  } catch {
+    return [];
+  }
+}
 
-// Build {id,name} rows from bare model ids (name = id unless overridden).
-const asRows = (ids: string[]): Array<{ id: string; name: string }> =>
-  ids.map((id) => ({ id, name: id }));
-
-const PROVIDER_MODELS: Record<string, Array<{ id: string; name: string }>> = {
-  claude: [
-    { id: "claude-opus-4-8", name: "Claude Opus 4.8" },
-    { id: "claude-opus-4-7", name: "Claude Opus 4.7" },
-    { id: "claude-opus-4-6", name: "Claude Opus 4.6" },
-    { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6" },
-    { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5" },
-    { id: "claude-3-5-sonnet-latest", name: "Claude 3.5 Sonnet" },
-  ],
-  openai: asRows([
-    "gpt-5.5",
-    "gpt-5.4",
-    "gpt-5.3-codex",
-    "gpt-5",
-    "gpt-4o",
-    "gpt-4o-mini",
-    "o4-mini",
-    "o3",
-    "gpt-4.1",
-    "gpt-4.1-mini",
-  ]),
-  gemini: asRows([
-    "gemini-3.5-pro",
-    "gemini-3.5-flash",
-    "gemini-3.1-pro",
-    "gemini-3-pro",
-    "gemini-2.5-pro",
-    "gemini-2.5-flash",
-  ]),
-  grok: asRows(["grok-3", "grok-3-mini", "grok-2"]),
-  groq: asRows(["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768", "gemma2-9b-it"]),
-  mistral: asRows(["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest", "codestral-latest"]),
-  deepseek: asRows(["deepseek-v4", "deepseek-v4-flash", "deepseek-chat", "deepseek-reasoner", "deepseek-coder"]),
-  openrouter: asRows([
-    "moonshotai/kimi-k2.7-code",
-    "z-ai/glm-5.2",
-    "qwen/qwen3.6-coder",
-    "deepseek/deepseek-v4",
-    "anthropic/claude-3.5-sonnet",
-    "openai/gpt-4o",
-  ]),
-  zhipu: asRows(["glm-5.2", "glm-5.1", "glm-4-plus", "glm-4-flash"]),
-  cerebras: asRows(["llama-3.3-70b", "llama-3.1-8b"]),
-  perplexity: asRows(["sonar-pro", "sonar", "sonar-reasoning"]),
-  together: asRows(["meta-llama/Llama-3.3-70B-Instruct", "mistralai/Mixtral-8x7B-Instruct-v0.1"]),
-  fireworks: asRows([
-    "accounts/fireworks/models/llama-v3p3-70b-instruct",
-    "accounts/fireworks/models/mixtral-8x7b-instruct",
-  ]),
-  minimax: asRows(["MiniMax-M3", "abab6.5s-chat"]),
-  sambanova: asRows(["Meta-Llama-3.3-70B-Instruct"]),
-  azure_openai: asRows(["gpt-4o", "gpt-4-turbo"]),
-  ollama: asRows(OLLAMA_CHAT_MODELS),
+// Friendly labels for the provider dropdown; the providers themselves are
+// derived from the daemon's model list. Unknown ids fall back to the raw id.
+const PROVIDER_LABELS: Record<string, string> = {
+  claude: "Claude",
+  openai: "OpenAI",
+  ollama: "Ollama (local + cloud)",
+  gemini: "Gemini",
+  grok: "Grok (xAI)",
+  groq: "Groq",
+  mistral: "Mistral",
+  deepseek: "DeepSeek",
+  openrouter: "OpenRouter",
+  zhipu: "Zhipu (GLM)",
+  cerebras: "Cerebras",
+  perplexity: "Perplexity",
+  together: "Together",
+  fireworks: "Fireworks",
+  minimax: "MiniMax",
+  sambanova: "SambaNova",
+  azure_openai: "Azure OpenAI",
+  bedrock: "AWS Bedrock",
+  copilot: "GitHub Copilot",
+  "vibecli-mistralrs": "VibeCLI (mistral.rs)",
 };
 
 // ── Main App ──────────────────────────────────────────────────────────────────
@@ -205,7 +118,7 @@ export default function App() {
   const [daemonOk, setDaemonOk]     = useState<boolean | null>(null);
   const [pinned, setPinned]         = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [availableModels, setAvailableModels] = useState<Array<{ id: string; name?: string; provider?: string }>>([]);
+  const [availableModels, setAvailableModels] = useState<ModelRow[]>(readModelsCache);
   const [selectedModel, setSelectedModel] = useState(() => loadSetting(MODEL_KEY, ""));
 
   const bottomRef   = useRef<HTMLDivElement>(null);
@@ -217,13 +130,15 @@ export default function App() {
       try {
         await invoke("check_daemon", { url: daemonUrl });
         setDaemonOk(true);
-        // Fetch available models from daemon (primarily Ollama)
+        // The daemon is the single source of truth for the model catalog.
+        // Keep addressable rows (drop the synthetic active entry), cache them
+        // so the picker survives a brief disconnect.
         try {
-          const models = await invoke<Array<{ id: string; name?: string; provider?: string }>>(
-            "list_daemon_models", { url: daemonUrl }
-          );
-          setAvailableModels(models);
-        } catch { /* daemon may not support /models yet */ }
+          const models = await invoke<ModelRow[]>("list_daemon_models", { url: daemonUrl });
+          const named = models.filter(m => !!m.name);
+          setAvailableModels(named);
+          localStorage.setItem(MODELS_CACHE_KEY, JSON.stringify(named));
+        } catch { /* daemon may not support /models yet — keep cache */ }
       } catch {
         setDaemonOk(false);
       }
@@ -233,31 +148,25 @@ export default function App() {
     return () => clearInterval(id);
   }, [daemonUrl]);
 
+  // ── Providers derived from the daemon's catalog ─────────────────────────
+  const providerOptions = useMemo(() => {
+    const present = Array.from(
+      new Set(availableModels.map(m => m.provider).filter((p): p is string => !!p)),
+    );
+    const ids = present.length > 0 ? present : Object.keys(PROVIDER_LABELS);
+    return ids.map(id => ({ id, label: PROVIDER_LABELS[id] ?? id }));
+  }, [availableModels]);
+
   // ── Models filtered by selected provider ────────────────────────────────
-  const filteredModels: Array<{ id: string; name: string; provider?: string }> = (() => {
-    if (provider === "ollama") {
-      // Live local models the daemon actually reports (real, installed) …
-      const live = availableModels
-        .filter(m => !m.provider || m.provider === "ollama")
-        .map(m => ({ id: m.id, name: m.name || m.id, provider: "ollama" as const }));
-      // … unioned with the static catalog (cloud + pull-able), so cloud models
-      // and the full library are always selectable, daemon up or down. Dedupe
-      // by the tag-normalised name (daemon reports "llama3.2:latest").
-      const norm = (n: string) => n.replace(/:latest$/, "");
-      const seen = new Set(live.map(m => norm(m.name)));
-      const staticRows = (PROVIDER_MODELS.ollama ?? [])
-        .filter(m => !seen.has(norm(m.name)))
-        .map(m => ({ id: m.id, name: m.name, provider: "ollama" as const }));
-      return [...live, ...staticRows];
-    }
-    // Cloud providers: static catalog.
-    return PROVIDER_MODELS[provider] ?? [];
-  })();
+  const filteredModels: Array<{ id: string; name: string; provider?: string }> =
+    availableModels
+      .filter(m => (m.provider ?? "") === provider && !!m.name)
+      .map(m => ({ id: m.id, name: m.name as string, provider: m.provider }));
 
   // Auto-select first model when provider changes and current selection doesn't match
   useEffect(() => {
-    if (filteredModels.length > 0 && !filteredModels.some(m => m.id === selectedModel)) {
-      setSelectedModel(filteredModels[0].id);
+    if (filteredModels.length > 0 && !filteredModels.some(m => m.name === selectedModel)) {
+      setSelectedModel(filteredModels[0].name);
     }
   }, [provider, filteredModels.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -444,7 +353,7 @@ export default function App() {
               title="Select model"
             >
               {filteredModels.map(m => (
-                <option key={m.id} value={m.id}>
+                <option key={m.id} value={m.name}>
                   {m.name || m.id}{m.provider ? ` (${m.provider})` : ""}
                 </option>
               ))}
@@ -478,7 +387,7 @@ export default function App() {
           <label>
             Provider
             <select value={provider} onChange={e => setProvider(e.target.value)}>
-              {PROVIDER_OPTIONS.map(p => (
+              {providerOptions.map(p => (
                 <option key={p.id} value={p.id}>{p.label}</option>
               ))}
             </select>
@@ -488,7 +397,7 @@ export default function App() {
             {filteredModels.length > 0 ? (
               <select value={selectedModel} onChange={e => setSelectedModel(e.target.value)}>
                 {filteredModels.map(m => (
-                  <option key={m.id} value={m.id}>
+                  <option key={m.id} value={m.name}>
                     {m.name || m.id}{m.provider ? ` (${m.provider})` : ""}
                   </option>
                 ))}

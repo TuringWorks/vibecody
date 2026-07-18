@@ -802,43 +802,56 @@ async fn health(State(state): State<ServeState>) -> impl IntoResponse {
     }))
 }
 
-/// List available models from Ollama (if reachable) plus the daemon's active provider.
+/// The daemon's `/models` endpoint — the single source of truth for the model
+/// catalog across every thin client (VibeX, VibeApp, mobile, watch, plugins).
+///
+/// Returns, de-duplicated by `id`:
+///   1. the active provider (carries `active: true`, no `name` — clients that
+///      only render addressable rows skip it),
+///   2. live local Ollama models (`/api/tags`) — real, installed, so highest
+///      priority for the `ollama` provider,
+///   3. Ollama Cloud / Turbo (`*-cloud`, never in `/api/tags`) + the pull-able
+///      Ollama chat catalog,
+///   4. the full static catalog for every other provider.
+///
+/// The provider ids match the daemon's `create_provider`, so any model a client
+/// selects round-trips back to a buildable provider.
 async fn list_models(State(state): State<ServeState>) -> impl IntoResponse {
     let mut models: Vec<serde_json::Value> = Vec::new();
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
 
-    // Active provider
+    let mut push = |models: &mut Vec<serde_json::Value>, id: String, name: &str, provider: &str| {
+        if seen.insert(id.clone()) {
+            models.push(serde_json::json!({ "id": id, "name": name, "provider": provider }));
+        }
+    };
+
+    // 1. Active provider (back-compat: highlighted, no addressable name).
     models.push(serde_json::json!({
         "id": state.provider.name(),
         "provider": state.provider_name,
         "active": true,
     }));
 
-    // Try to list local Ollama models (from `/api/tags`)
+    // 2. Live local Ollama models (real / installed).
     if let Ok(ollama_models) = vibe_ai::providers::ollama::OllamaProvider::list_models(None).await {
         for m in ollama_models {
-            let id = format!("ollama/{}", m);
-            if !models.iter().any(|x| x["id"].as_str() == Some(&id)) {
-                models.push(serde_json::json!({
-                    "id": id,
-                    "name": m,
-                    "provider": "ollama",
-                }));
-            }
+            push(&mut models, format!("ollama/{m}"), &m, "ollama");
         }
     }
 
-    // Ollama Cloud / Turbo models are datacenter-hosted and never appear in a
-    // local `/api/tags`, so advertise them statically — independent of whether
-    // a local Ollama is reachable. Selecting one routes to ollama.com and needs
-    // a Cloud/Turbo token (see `OllamaProvider`). De-dup against locals above.
+    // 3. Ollama Cloud / Turbo, then the pull-able chat catalog.
     for m in vibe_ai::providers::ollama::OLLAMA_CLOUD_MODELS {
-        let id = format!("ollama/{}", m);
-        if !models.iter().any(|x| x["id"].as_str() == Some(&id)) {
-            models.push(serde_json::json!({
-                "id": id,
-                "name": m,
-                "provider": "ollama",
-            }));
+        push(&mut models, format!("ollama/{m}"), m, "ollama");
+    }
+    for m in vibe_ai::catalog::OLLAMA_CHAT_MODELS {
+        push(&mut models, format!("ollama/{m}"), m, "ollama");
+    }
+
+    // 4. Every other provider's static catalog.
+    for (provider, names) in vibe_ai::catalog::PROVIDER_MODELS {
+        for name in *names {
+            push(&mut models, format!("{provider}/{name}"), name, provider);
         }
     }
 

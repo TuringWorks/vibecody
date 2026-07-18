@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { FALLBACK_MODELS } from "../constants/models";
 
 export interface DaemonModel {
   id: string;
@@ -9,54 +8,49 @@ export interface DaemonModel {
   active?: boolean;
 }
 
-/**
- * Merge the daemon's live list with the static catalog. Live rows win on
- * collision (they reflect what's actually installed/configured), and every
- * static row a live list omits — notably ollama `*-cloud` models and other
- * providers' catalogs, which a local `/api/tags` never advertises — is added
- * so the picker is never missing selectable models.
- */
-function mergeWithCatalog(live: DaemonModel[]): DaemonModel[] {
-  const seen = new Set<string>();
-  const out: DaemonModel[] = [];
-  const push = (m: DaemonModel) => {
-    const key = `${m.provider}/${m.name}`;
-    if (m.name && !seen.has(key)) {
-      seen.add(key);
-      out.push(m);
-    }
-  };
-  live.forEach(push);
-  FALLBACK_MODELS.forEach(push);
-  return out;
+// The daemon's /models endpoint is the single source of truth for the catalog
+// (see vibe-ai/src/catalog.rs). We cache its last successful response so the
+// picker still lists models while the daemon is briefly unreachable — the cache
+// is the daemon's own data, not a hardcoded fallback list.
+const CACHE_KEY = "vibex:models:v1";
+
+function readCache(): DaemonModel[] {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
+    return Array.isArray(parsed) ? (parsed as DaemonModel[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 /**
- * Model list for the picker. Prefers the daemon's `/models` endpoint (the
- * source of truth for what's actually installed/configured), unioned with a
- * static catalog so cloud/catalog models are always selectable. When the
- * daemon is offline the static catalog stands in on its own, so the picker
- * still loads models instead of showing nothing.
+ * Model list for the picker, sourced entirely from the daemon's `/models`
+ * endpoint. Rows are cached to localStorage on each success and served from
+ * cache when the daemon is offline, so the list survives a disconnect without
+ * VibeX carrying its own catalog.
  */
 export function useModels(daemonUrl: string, daemonOnline: boolean) {
-  const [models, setModels] = useState<DaemonModel[]>(FALLBACK_MODELS);
+  const [models, setModels] = useState<DaemonModel[]>(readCache);
 
   useEffect(() => {
     if (!daemonOnline) {
-      setModels(FALLBACK_MODELS);
+      setModels(readCache());
       return;
     }
     let cancelled = false;
     (async () => {
       try {
         const rows = await invoke<DaemonModel[]>("list_daemon_models", { url: daemonUrl });
+        // Keep addressable "provider/model" rows (drop the synthetic active
+        // entry, which carries no name).
+        const named = rows.filter((m) => !!m.name);
         if (!cancelled) {
-          // Keep the addressable "provider/model" rows that carry a clean name
-          // (drop the synthetic "active" entry), then union with the catalog.
-          setModels(mergeWithCatalog(rows.filter((m) => !!m.name)));
+          setModels(named);
+          localStorage.setItem(CACHE_KEY, JSON.stringify(named));
         }
       } catch {
-        if (!cancelled) setModels(FALLBACK_MODELS);
+        if (!cancelled) setModels(readCache());
       }
     })();
     return () => {
