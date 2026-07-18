@@ -9,7 +9,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { OLLAMA_CHAT_MODELS, OLLAMA_CLOUD_MODELS } from "../constants/ollamaModels";
 
-const CACHE_KEY = "vibecody:model-registry";
+// Versioned: bump when the static catalog / merge logic changes so a stale cache
+// (e.g. one saved before Ollama Cloud models were added) is discarded on load
+// instead of lingering until the TTL expires and hiding the newer models.
+const CACHE_KEY = "vibecody:model-registry:v2";
 const CACHE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 /**
@@ -238,18 +241,21 @@ export function useModelRegistry() {
         // Ollama not running — keep static list
       }
 
-      // Merge with static models
+      // Merge with static models.
       const models = { ...STATIC_MODELS };
-      if (ollamaModels.length > 0) {
-        // A local /api/tags only reports pulled local models — never the
-        // Ollama Cloud / Turbo catalog. Union the cloud models in (deduped,
-        // cloud first) so *-cloud entries stay selectable when a local Ollama
-        // is also running, not just when it's unreachable.
-        const seen = new Set<string>();
-        models.ollama = [...OLLAMA_CLOUD_MODELS, ...ollamaModels].filter((m) =>
-          seen.has(m) ? false : (seen.add(m), true)
-        );
-      }
+      // The three ollama sources are disjoint: a local `/api/tags` reports only
+      // pulled local models (never the Cloud/Turbo catalog); `OLLAMA_CLOUD_MODELS`
+      // are datacenter-hosted `*-cloud` entries; `OLLAMA_CHAT_MODELS` is the full
+      // static library. Always union all three (cloud first, then locally-pulled,
+      // then the rest of the catalog; deduped) so *-cloud entries stay selectable
+      // whether or not a local Ollama is running, and locally-pulled models also
+      // appear when it is — without dropping the rest of the catalog.
+      const seen = new Set<string>();
+      models.ollama = [
+        ...OLLAMA_CLOUD_MODELS,
+        ...ollamaModels,
+        ...OLLAMA_CHAT_MODELS,
+      ].filter((m) => (seen.has(m) ? false : (seen.add(m), true)));
 
       const newData: ModelRegistryData = {
         providers: ALL_PROVIDERS,
