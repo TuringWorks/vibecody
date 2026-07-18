@@ -6,7 +6,7 @@ permalink: /skillforge/
 
 > **One-liner.** SkillForge makes VibeCody's shipped skill library **measurable** (SkillLens) and **self-improving** (SkillOpt) — turning each skill markdown doc into trainable state that improves against held-out validation, with **zero inference-time overhead** at deploy.
 
-VibeCody ships ~710 skill files in `vibecli/vibecli-cli/skills/*.md`. Today they are hand-authored and static. SkillForge is a Rust port of [TuringWorks/SkillLens](https://github.com/TuringWorks/SkillLens) + [TuringWorks/SkillOpt](https://github.com/TuringWorks/SkillOpt), wired into the daemon the same way the [Code Graph](./demos/41-semantic-index/) (kodegraph) is — one standalone crate, one daemon bridge module, HTTP routes, and a VibeUI panel.
+VibeCody ships ~710 skill files in `vibecli/vibecli-cli/skills/*.md`. Today they are hand-authored and static. SkillForge is a Rust port of [TuringWorks/SkillLens](https://github.com/TuringWorks/SkillLens) + [TuringWorks/SkillOpt](https://github.com/TuringWorks/SkillOpt), wired into the daemon the same way the [Code Graph](./demos/41-semantic-index/) (kodegraph) is — one standalone crate, one daemon bridge module, HTTP routes, and a VibeCoder panel.
 
 This page documents the user-facing surface. For the full design, decisions, and roadmap, see the **`notes/skillforge/`** vault (start at `SkillForge — MOC.md`). For a runnable walkthrough, see [Demo 66: SkillForge](./demos/66-skillforge/).
 
@@ -24,7 +24,7 @@ Normalises agent runs into a unified **Trajectory** schema, extracts candidate s
 
 Treats a skill markdown doc as the trainable state of a frozen agent. Scored **rollouts** drive bounded **add/delete/replace** edits, accepted **only when a held-out validation score strictly improves** — epoch after epoch, with a rejected-edit buffer and a textual learning rate for stability. Output is a `best_skill.md` deployed with **zero inference-time overhead** (no new model call at inference time — the loader just reads the improved file).
 
-## The VibeUI panel
+## The VibeCoder panel
 
 Open the **SkillForge** tab in the AI/ML composite. Three views:
 
@@ -36,7 +36,7 @@ Open the **SkillForge** tab in the AI/ML composite. Three views:
 
 ## Provider-agnostic (STRICT)
 
-Every LLM call — SkillLens scoring/extraction and SkillOpt training — uses the provider and model selected in the VibeUI toolbar dropdown (`selectedProvider` / `selectedModel`). No panel, daemon route, Tauri command, or client method hard-codes Anthropic or any single provider. If the toolbar selection is empty, the panel shows a "select a model" empty state rather than silently calling a default. See [AGENTS.md → Provider-Agnostic Panels](../AGENTS.md).
+Every LLM call — SkillLens scoring/extraction and SkillOpt training — uses the provider and model selected in the VibeCoder toolbar dropdown (`selectedProvider` / `selectedModel`). No panel, daemon route, Tauri command, or client method hard-codes Anthropic or any single provider. If the toolbar selection is empty, the panel shows a "select a model" empty state rather than silently calling a default. See [AGENTS.md → Provider-Agnostic Panels](../AGENTS.md).
 
 ## HTTP surface
 
@@ -84,7 +84,7 @@ The daemon is the single source of truth; clients proxy it.
 |---|---|---|
 | **VibeCLI REPL** | full (drive) | `/skillforge list/show/refresh/score/train/status/cancel/promote/health` — calls the bridge in-process; `score`/`train` use the REPL `active_provider`/`active_model` (STRICT) |
 | **VibeCLI TUI** | read-only browse | `/skillforge` opens a Ratatui screen — catalogue (cov/evolvability) + train-jobs pane + `/health` footer; `j`/`k`/`r` navigate |
-| **VibeUI** (desktop) | full | `SkillForgePanel` (Catalog / Lens / Optimize) via 10 Tauri commands that proxy the daemon |
+| **VibeCoder** (desktop) | full | `SkillForgePanel` (Catalog / Lens / Optimize) via 10 Tauri commands that proxy the daemon |
 | **VibeApp** (companion) | backend surface | 10 Tauri proxy commands registered in `vibeapp/src-tauri` (the bespoke UI has no panel; reachable via `invoke()`) |
 | **VS Code extension** | full | `skilllens{ListSkills,GetSkill,Refresh,Convert,Extract,Score}` + `skillopt{Train,StreamTrain,Status,Cancel,Promote}` |
 | **Agent SDK** (TypeScript) | full | `agent.skilllens.{list,get,refresh,convert,extract,score}` + `agent.skillopt.{train,streamTrain,status,cancel,promote}` |
@@ -93,7 +93,7 @@ The daemon is the single source of truth; clients proxy it.
 | **Wear OS** | read-only | `SkillforgeScreen` + `SkillforgeTileService` — `top5` catalogue → detail |
 | **Agent system prompt** | auto | a compact `## Skill Health` line (`N skills, M scored, top evolvability X`) auto-injected when `cached_reports > 0` (G3) |
 
-Read-only endpoints (catalogue + train-status) fan out to every client; the heavy `score`/`train`/`promote` mutations ship only in the desktop-class clients (VibeCLI REPL, VibeUI, VS Code, Agent SDK) — the wrist/mobile form factor doesn't surface a toolbar-selected LLM, so the mutations would have no `provider`/`model` to forward.
+Read-only endpoints (catalogue + train-status) fan out to every client; the heavy `score`/`train`/`promote` mutations ship only in the desktop-class clients (VibeCLI REPL, VibeCoder, VS Code, Agent SDK) — the wrist/mobile form factor doesn't surface a toolbar-selected LLM, so the mutations would have no `provider`/`model` to forward.
 
 ## The standalone crates
 
@@ -109,7 +109,7 @@ Provider-agnostic via a crate-local `SkillLlm` trait; the daemon bridge adapts i
 
 ## Status & follow-ups
 
-**Phases 0–5 done** (2026-07-06): crates, daemon bridge + routes, watch mirror, VibeUI panel, full client fan-out, docs. `cargo test` green (23 + 1 golden, 30 tests); `cargo check` + `tsc --noEmit` + `dart analyze` clean.
+**Phases 0–5 done** (2026-07-06): crates, daemon bridge + routes, watch mirror, VibeCoder panel, full client fan-out, docs. `cargo test` green (23 + 1 golden, 30 tests); `cargo check` + `tsc --noEmit` + `dart analyze` clean.
 
 **Gap-closure pass done** (2026-07-06): the seven post-Phase-5 visibility gaps from `notes/skillforge/07` are all closed — VibeCLI REPL `/skillforge` command + TUI browse screen + agent system-prompt `## Skill Health` line (auto-gated on `cached_reports > 0`), VibeApp Tauri surface, Flutter "Skills" screen, Apple Watch "Skills" view + Wear OS `SkillforgeScreen`/`SkillforgeTileService`. The daemon's own client no longer needs `curl`; every client surface now renders the catalogue. See `notes/skillforge/07 — Client Visibility & UX Gaps.md`.
 

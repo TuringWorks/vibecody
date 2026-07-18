@@ -26,7 +26,7 @@
 //!
 //! No SQL — that lives in `diff_chain_store.rs`. No HTTP — that
 //! lives in `serve.rs`. No editor / IDE behaviour — that lives in
-//! `vibeui/src/components/DiffCompleteModal.tsx` and is out of
+//! `vibecoder/src/components/DiffCompleteModal.tsx` and is out of
 //! scope for D1.1 (autosave RPC only).
 
 #![allow(dead_code)]

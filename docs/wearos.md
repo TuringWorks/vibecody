@@ -27,7 +27,7 @@ Introduced in **v0.5.5**.
 | Watch | Wear OS 3 device (Pixel Watch, Galaxy Watch 4+, TicWatch Pro 5, …) |
 | Wear OS | 3.5+ (API 30+) runtime — latest tested: **Wear OS 6** on Android 16 |
 | Phone | Android 10+ with VibeMobile installed and paired |
-| Desktop | VibeCLI or VibeUI ≥ 0.5.5 running `--serve` |
+| Desktop | VibeCLI or VibeCoder ≥ 0.5.5 running `--serve` |
 | ADB (for sideload) | latest |
 
 > **Build SDK** — `compileSdk = 36` and `targetSdk = 36` (Android 16 / Wear OS 6) as of v0.5.5; `minSdk = 30` preserves Wear OS 3 compatibility. AGP 8.7.3, Kotlin 2.1.0, JDK 17.
@@ -184,7 +184,7 @@ Some carrier NATs drop idle connections. VibeCodyWear auto-reconnects; the Googl
 
 - **P-256 private key** lives in Android Keystore. On devices with StrongBox (Pixel Watch 2+, Galaxy Watch 6+), it's stored in dedicated tamper-resistant hardware.
 - **JWT** is kept in `EncryptedSharedPreferences`, backed by the Keystore.
-- **Revocation** — `/watch revoke <device-id>` on the desktop, or **Governance → Watch Devices** in VibeUI. Takes effect on the next request.
+- **Revocation** — `/watch revoke <device-id>` on the desktop, or **Governance → Watch Devices** in VibeCoder. Takes effect on the next request.
 
 See [Watch Integration](/vibecody/watch-integration/) for the full architecture and protocol reference.
 

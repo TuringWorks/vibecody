@@ -1,12 +1,12 @@
 # VibeCody
 
-> AI-powered developer toolchain: VibeCLI (terminal) + VibeUI (desktop editor)
+> AI-powered developer toolchain: VibeCLI (terminal) + VibeCoder (desktop editor)
 
 VibeCody is an open-source, self-hostable AI coding assistant built in Rust and
 TypeScript. It ships two products that share a common library layer:
 
 - VibeCLI -- a terminal AI assistant with TUI, REPL, agent loop, and HTTP daemon
-- VibeUI  -- a full desktop code editor built on Tauri 2 + Monaco + React
+- VibeCoder  -- a full desktop code editor built on Tauri 2 + Monaco + React
 
 License: MIT
 Repository: https://github.com/TuringWorks/vibecody
@@ -26,12 +26,12 @@ Monorepo with 9 Cargo workspace members and a React/Vite frontend:
   vibecody/
     Cargo.toml              -- workspace root
     vibecli/vibecli-cli/    -- CLI binary (TUI + REPL + HTTP daemon)
-    vibeui/                 -- Tauri desktop app (React frontend + Rust backend)
-    vibeui/crates/vibe-core -- text buffer, FS, workspace, Git, terminal, search
-    vibeui/crates/vibe-ai   -- 23 AI providers, agent loop, hooks, planner, tools
-    vibeui/crates/vibe-lsp  -- Language Server Protocol client
-    vibeui/crates/vibe-extensions -- WASM plugin runtime (Wasmtime)
-    vibeui/crates/vibe-collab     -- CRDT multiplayer collaboration
+    vibecoder/                 -- Tauri desktop app (React frontend + Rust backend)
+    vibecoder/crates/vibe-core -- text buffer, FS, workspace, Git, terminal, search
+    vibecoder/crates/vibe-ai   -- 23 AI providers, agent loop, hooks, planner, tools
+    vibecoder/crates/vibe-lsp  -- Language Server Protocol client
+    vibecoder/crates/vibe-extensions -- WASM plugin runtime (Wasmtime)
+    vibecoder/crates/vibe-collab     -- CRDT multiplayer collaboration
     vibe-indexer/           -- remote indexing service
     vscode-extension/       -- VS Code extension
     jetbrains-plugin/       -- JetBrains IDE plugin
@@ -46,7 +46,7 @@ provider -- no native function-calling API required.
 
 - [Quickstart](/)
 - [VibeCLI Reference](/vibecli/)
-- [VibeUI Reference](/vibeui/)
+- [VibeCoder Reference](/vibecoder/)
 - [Configuration](/configuration/)
 - [Architecture](/architecture/)
 - [Plugin Development](/PLUGIN-DEVELOPMENT/)
@@ -189,7 +189,7 @@ Each provider section accepts: enabled, api_key, api_url, model
   make help        -- list every target
   make help-surfaces -- per-surface build/test matrix
   make cli         -- build VibeCLI release binary
-  make ui          -- run VibeUI in dev mode
+  make ui          -- run VibeCoder in dev mode
   make test        -- run all Rust workspace tests
   make test-fast   -- run tests excluding collab crate
   make test-all    -- test every Rust + Node surface
@@ -201,7 +201,7 @@ Each provider section accepts: enabled, api_key, api_url, model
   cargo test --workspace             -- all Rust tests
 
   Per-surface (consistent build-<surface> / test-<surface> pairs):
-  make build-ui    / make test-ui        -- VibeUI (Tauri + React)
+  make build-ui    / make test-ui        -- VibeCoder (Tauri + React)
   make build-app   / make test-app       -- VibeApp (Tauri shell)
   make build-vibedesk / make test-vibedesk     -- VibeDesk (Tauri shell)
   make build-cli   / make test-cli       -- VibeCLI (Rust)

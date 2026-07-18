@@ -269,9 +269,9 @@ Session cost summary:
 
 VibeCody's context pruning automatically summarizes older messages when the context window fills up, keeping the most recent and relevant information.
 
-## VibeUI Agent Panel
+## VibeCoder Agent Panel
 
-In VibeUI, the Agent panel (`Cmd+J` then "Agent" tab) provides a visual representation of the agent loop:
+In VibeCoder, the Agent panel (`Cmd+J` then "Agent" tab) provides a visual representation of the agent loop:
 
 1. Each tool call is shown as a collapsible card
 2. File edits show inline diffs in the Monaco editor
@@ -279,7 +279,7 @@ In VibeUI, the Agent panel (`Cmd+J` then "Agent" tab) provides a visual represen
 4. A progress bar indicates the agent's iteration count
 5. Checkpoint controls are available in the toolbar
 
-<!-- Screenshot placeholder: VibeUI agent panel -->
+<!-- Screenshot placeholder: VibeCoder agent panel -->
 
 ## Demo Recording
 

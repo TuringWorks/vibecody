@@ -5,7 +5,7 @@
 // and renders title + status + statement + linked-session count.
 // G5.1 added a `Start session` chip that POSTs to the curated
 // `/watch/goals/:id/start` route. Other mutations (status flip, link,
-// plan, reparent) still happen via the daemon REPL or VibeUI.
+// plan, reparent) still happen via the daemon REPL or VibeCoder.
 
 package com.vibecody.wear
 

@@ -15,7 +15,7 @@ Not every task needs the most expensive model. A simple variable rename does not
 
 - VibeCLI 0.5.1 installed and on your PATH
 - Two or more AI providers configured (to see routing in action)
-- For VibeUI: the desktop app running with the **CostRouterPanel** visible
+- For VibeCoder: the desktop app running with the **CostRouterPanel** visible
 
 ## How Cost Routing Works
 
@@ -231,9 +231,9 @@ Clear the override:
 Override cleared. Resuming automatic cheapest-viable-model routing.
 ```
 
-### Step 7: Use cost routing in VibeUI
+### Step 7: Use cost routing in VibeCoder
 
-In the VibeUI desktop app, open the **CostRouterPanel** from the AI sidebar. The panel provides:
+In the VibeCoder desktop app, open the **CostRouterPanel** from the AI sidebar. The panel provides:
 
 - **Dashboard** -- Real-time spending chart with budget threshold lines
 - **Routing Log** -- Every request with its tier classification, model selected, and cost

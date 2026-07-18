@@ -127,7 +127,7 @@ When rotating API keys:
 
 ## SSRF Prevention
 
-Both the CLI tool executor and the VibeUI agent executor validate all URLs before making HTTP requests. The `validate_url_for_ssrf()` function enforces:
+Both the CLI tool executor and the VibeCoder agent executor validate all URLs before making HTTP requests. The `validate_url_for_ssrf()` function enforces:
 
 **Allowed schemes:** `http://` and `https://` only. All others (`file://`, `ftp://`, `gopher://`, etc.) are rejected.
 
@@ -141,7 +141,7 @@ Both the CLI tool executor and the VibeUI agent executor validate all URLs befor
 This protection is enforced in three locations:
 
 1. `tool_executor.rs` — CLI agent's `fetch_url` tool
-2. `agent_executor.rs` — VibeUI agent's `fetch_url` tool
+2. `agent_executor.rs` — VibeCoder agent's `fetch_url` tool
 3. `commands.rs` — `fetch_and_strip()` used by context pickers and chat
 
 ## Path Traversal Prevention
@@ -154,7 +154,7 @@ All file operations performed by the agent go through path validation that:
 - **Handles non-existent files** — for new file creation, the parent directory is canonicalized.
 - **Normalizes path separators** to prevent bypass via mixed separators on Windows.
 
-Both executor implementations (`tool_executor.rs` for CLI, `agent_executor.rs` for VibeUI) enforce these checks.
+Both executor implementations (`tool_executor.rs` for CLI, `agent_executor.rs` for VibeCoder) enforce these checks.
 
 ## Command Execution Security
 
@@ -181,7 +181,7 @@ The following patterns are blocked before execution:
 All agent bash commands have a wall-clock timeout:
 
 - **CLI executor:** Configurable, default unlimited (sandbox provides isolation)
-- **VibeUI executor:** 120 seconds (hard limit, process killed on expiry)
+- **VibeCoder executor:** 120 seconds (hard limit, process killed on expiry)
 - **Project scripts:** 300 seconds (5 minutes)
 
 ### AI Response Command Filtering
@@ -258,7 +258,7 @@ Each trace entry includes:
 - Duration in milliseconds
 - Token usage (prompt and completion)
 
-Traces can be reviewed in the VibeUI Traces panel or exported for external analysis. The compliance controls module supports configurable retention policies and automatic PII redaction.
+Traces can be reviewed in the VibeCoder Traces panel or exported for external analysis. The compliance controls module supports configurable retention policies and automatic PII redaction.
 
 ## Air-Gapped Mode
 

@@ -1,7 +1,7 @@
 # VibeCody UI Current-State Assessment
 
 > Evaluation date: 2026-05-28
-> Codebase: VibeUI (Tauri 2 + React/TS + Monaco)
+> Codebase: VibeCoder (Tauri 2 + React/TS + Monaco)
 > Panels: 308 components across 41 composites
 > AI panel: 11 tab groups, 40+ sub-tabs
 
@@ -9,7 +9,7 @@
 
 ## 1. Architecture Overview
 
-VibeUI is structured as a **classic IDE layout** with an AI panel bolted on the right:
+VibeCoder is structured as a **classic IDE layout** with an AI panel bolted on the right:
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -59,7 +59,7 @@ No other tool offers 23 AI providers, triple-protocol support (MCP + ACP + A2A),
 
 ### 2.5 Design system discipline
 
-`vibeui/design-system/` with tokens, component specs, and 10 hard rules. This is more disciplined than any competitor's UI codebase.
+`vibecoder/design-system/` with tokens, component specs, and 10 hard rules. This is more disciplined than any competitor's UI codebase.
 
 ### 2.6 Cost tracking
 
@@ -189,4 +189,4 @@ The opportunity is to be **project-first**: the project (its goals, its context,
 - You see the result (diff, test, deployment)
 - You iterate (branch, refine, approve)
 
-Making Sandbox Chat the center of VibeUI — not a tab in a sidebar — is the single most impactful change in the next version.
+Making Sandbox Chat the center of VibeCoder — not a tab in a sidebar — is the single most impactful change in the next version.

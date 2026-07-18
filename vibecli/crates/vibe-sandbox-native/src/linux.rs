@@ -154,7 +154,7 @@ impl Sandbox for LinuxSandbox {
 /// code read the bearer token, API keys for every configured provider, OAuth
 /// refresh tokens, and the workspace job/recap history. See
 /// `docs/security/threat-model.md` §7 item #11 (DREAD 7.2).
-const DENIED_SEGMENTS: &[&str] = &[".vibecli", ".vibeui", ".claude"];
+const DENIED_SEGMENTS: &[&str] = &[".vibecli", ".vibecoder", ".claude"];
 
 /// Specific filenames that name credential blobs, regardless of parent dir.
 /// `daemon.token` is written by `vibecli serve`; the others are sqlx databases
@@ -305,9 +305,9 @@ mod tests {
     }
 
     #[test]
-    fn validate_path_rejects_user_vibeui_state_dir() {
-        let err = validate_path(Path::new("/home/alice/.vibeui")).unwrap_err();
-        assert!(format!("{err}").contains(".vibeui"));
+    fn validate_path_rejects_user_vibecoder_state_dir() {
+        let err = validate_path(Path::new("/home/alice/.vibecoder")).unwrap_err();
+        assert!(format!("{err}").contains(".vibecoder"));
     }
 
     #[test]

@@ -4,7 +4,7 @@ Flutter companion app for remote management of VibeCody CLI and desktop sessions
 
 ## Features
 
-- **QR Code Pairing** — Scan a QR code from VibeCLI (`/pair`) or VibeUI to connect
+- **QR Code Pairing** — Scan a QR code from VibeCLI (`/pair`) or VibeCoder to connect
 - **Manual Connect** — Enter host:port directly for remote machines
 - **Remote Chat** — Send messages to AI providers through connected VibeCody instances
 - **Machine Management** — Register, monitor health, view metrics for multiple machines

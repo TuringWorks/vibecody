@@ -1,5 +1,5 @@
 title: VibeCody
-description: AI-powered developer toolchain — VibeCLI terminal assistant + VibeUI desktop editor
+description: AI-powered developer toolchain — VibeCLI terminal assistant + VibeCoder desktop editor
 baseurl: ""
 url: ""
 
@@ -51,9 +51,9 @@ sidebar:
   - title: VibeCLI
     icon: terminal
     url: /vibecli/
-  - title: VibeUI
+  - title: VibeCoder
     icon: layout
-    url: /vibeui/
+    url: /vibecoder/
   - title: VibeMobile
     icon: smartphone
     url: /vibemobile/
@@ -225,7 +225,7 @@ header_pages:
   - guides/index.md
   - tutorials/index.md
   - vibecli.md
-  - vibeui.md
+  - vibecoder.md
   - vibemobile.md
   - watchos.md
   - wearos.md

@@ -6,7 +6,7 @@
 
 ## What's in v0.5.7
 
-v0.5.6 shipped successfully across the critical surfaces (CLI binaries, VibeUI, VibeCLI App, Android, Firecracker rootfs) but five optional release-workflow jobs failed before publish, so the iOS `.ipa`, watchOS `.app.zip`, Wear OS APK/AAB, Docker tarball, and CycloneDX SBOMs never landed under the v0.5.6 tag.
+v0.5.6 shipped successfully across the critical surfaces (CLI binaries, VibeCoder, VibeCLI App, Android, Firecracker rootfs) but five optional release-workflow jobs failed before publish, so the iOS `.ipa`, watchOS `.app.zip`, Wear OS APK/AAB, Docker tarball, and CycloneDX SBOMs never landed under the v0.5.6 tag.
 
 v0.5.7 carries no application-level changes — same surface as v0.5.6 — and fixes the five broken jobs so the full artifact set is back.
 
@@ -16,7 +16,7 @@ v0.5.7 carries no application-level changes — same surface as v0.5.6 — and f
 - **Mobile · iOS** (`b8d95e0f`, closes [#29](https://github.com/TuringWorks/vibecody/issues/29)) — `AppDelegate.swift` referenced `FlutterImplicitEngineDelegate` / `FlutterImplicitEngineBridge`, both introduced in Flutter 3.38; CI is pinned to 3.29.3. Rewrite to the 3.29-compatible `GeneratedPluginRegistrant.register(with: self)` plugin-registry pattern; register the relay-credentials method channel synchronously in `didFinishLaunchingWithOptions`.
 - **Watch · watchOS** (`014f5cce`, closes [#30](https://github.com/TuringWorks/vibecody/issues/30)) — `GoalsView.swift`, `JobPickerView.swift`, `RecapView.swift`, and `TaintedConfirmationView.swift` existed on disk but were never registered in `VibeCodyWatch.xcodeproj`'s Sources build phase. Add them as `PBXFileReference` + `PBXBuildFile` entries.
 - **Watch · Wear OS** (`6193920a`, closes [#31](https://github.com/TuringWorks/vibecody/issues/31)) — `JobRecapTileService` / `GoalsTileService` import `androidx.concurrent.futures.CallbackToFutureAdapter` + Guava `Futures` / `ListenableFuture`, and `RecapScreen` uses `@Preview`. Declare `guava` (33.4.0-android), `androidx.concurrent:concurrent-futures` (1.2.0), and `androidx.compose.ui:ui-tooling-preview` (1.7.6).
-- **Docker image** (`99d8adfe` + `f922536b`, closes [#32](https://github.com/TuringWorks/vibecody/issues/32)) — Dockerfile fell behind the workspace; seven members added since March (`vibecli/crates/vibe-sandbox{,-native,-firecracker,-hyperlight}`, `vibecli/crates/vibe-broker`, `vibeui/crates/vibe-infer`, `vibe-memory`) lacked manifest COPY + stub-creation, and `vibe-memory/src/` was never copied over the stub in the second-stage source phase. Add the missing COPY + stub lines.
+- **Docker image** (`99d8adfe` + `f922536b`, closes [#32](https://github.com/TuringWorks/vibecody/issues/32)) — Dockerfile fell behind the workspace; seven members added since March (`vibecli/crates/vibe-sandbox{,-native,-firecracker,-hyperlight}`, `vibecli/crates/vibe-broker`, `vibecoder/crates/vibe-infer`, `vibe-memory`) lacked manifest COPY + stub-creation, and `vibe-memory/src/` was never copied over the stub in the second-stage source phase. Add the missing COPY + stub lines.
 
 ### Docs fixes
 
@@ -37,12 +37,12 @@ v0.5.7 carries no application-level changes — same surface as v0.5.6 — and f
 | Windows x64 | `vibecli-x86_64-windows.zip` |
 | Docker | `vibecli-docker-v0.5.7.tar.gz` |
 
-### VibeUI — Desktop Code Editor
+### VibeCoder — Desktop Code Editor
 
 | Platform | File |
 |----------|------|
-| macOS (Apple Silicon) | `VibeUI_0.5.7_aarch64.dmg` |
-| macOS (Intel) | `VibeUI_0.5.7_x64.dmg` |
+| macOS (Apple Silicon) | `VibeCoder_0.5.7_aarch64.dmg` |
+| macOS (Intel) | `VibeCoder_0.5.7_x64.dmg` |
 | Linux x64 | `.deb` / `.AppImage` |
 | Linux arm64 | `.deb` / `.AppImage` |
 | Windows x64 | `.msi` / `.exe` |

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
 /** Providers that need an API key (vs local ollama/mistralrs). Mirrors the
- *  key-requiring set from VibeUI's useModelRegistry. */
+ *  key-requiring set from VibeCoder's useModelRegistry. */
 export const KEYED_PROVIDERS: { id: string; label: string; needsUrl?: boolean; optional?: boolean }[] = [
   // Ollama is local-first (no key for local models), but a token is required to
   // reach Ollama Cloud / Turbo models (e.g. `glm-5.2:cloud`). Optional:
@@ -33,7 +33,7 @@ export const LOCAL_PROVIDERS = ["ollama", "vibecli-mistralrs"];
  * Provider config management against the shared ProfileStore (via Tauri
  * commands embedded from vibecli_cli). Keys are write-only from the UI's view —
  * we only ever learn *whether* a provider is configured, never read the secret
- * back. Carries over with VibeUI because it's the same encrypted store.
+ * back. Carries over with VibeCoder because it's the same encrypted store.
  */
 export function useProviderSettings() {
   const [configured, setConfigured] = useState<Set<string>>(new Set());

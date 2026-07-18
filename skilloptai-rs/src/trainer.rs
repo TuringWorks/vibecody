@@ -54,7 +54,7 @@ impl CancelToken {
 
 /// One per-epoch progress event, streamed from [`train_with_signals`] to a
 /// caller-supplied channel. The daemon forwards these as SSE `epoch` events
-/// on `/v1/skillopt/train/stream` so the VibeUI panel can render the
+/// on `/v1/skillopt/train/stream` so the VibeCoder panel can render the
 /// validation curve live.
 #[derive(Debug, Clone, Serialize)]
 pub struct EpochEvent {

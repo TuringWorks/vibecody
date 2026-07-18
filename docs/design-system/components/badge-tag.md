@@ -7,7 +7,7 @@ permalink: /design-system/components/badge-tag/
 {% raw %}
 # Badge & Tag
 
-VibeUI has two label systems: **tags** (small, pill-like, inline) for status and intent, and **badges** (medium, filled or outlined) for counts and emphasis. Choose based on size and semantic weight.
+VibeCoder has two label systems: **tags** (small, pill-like, inline) for status and intent, and **badges** (medium, filled or outlined) for counts and emphasis. Choose based on size and semantic weight.
 
 ---
 

@@ -43,7 +43,7 @@ The self-review gate runs automated quality checks before an agent marks a task 
 3. Use `min_blocking_severity = "error"` to allow warnings through
 4. Enable `fail_on_warning` for critical production code changes
 5. The security scanner catches AWS keys, GitHub tokens, private keys, and Slack webhooks
-6. Check the self-review report in the VibeUI SelfReview panel for detailed findings
+6. Check the self-review report in the VibeCoder SelfReview panel for detailed findings
 7. Custom checks can be added via the `Custom("name")` check kind
 8. Self-review integrates with the existing build double-check in agent.rs
 9. Use `/self-review config` to adjust settings without editing config.toml

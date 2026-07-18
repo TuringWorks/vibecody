@@ -221,19 +221,19 @@ curl http://localhost:7878/health
 }
 ```
 
-## VibeUI Setup
+## VibeCoder Setup
 
 If you want the desktop IDE experience:
 
 ```bash
-cd vibeui
+cd vibecoder
 npm install
 npm run tauri dev
 ```
 
-VibeUI shares the same `~/.vibecli/config.toml` configuration, so any provider setup you did above carries over.
+VibeCoder shares the same `~/.vibecli/config.toml` configuration, so any provider setup you did above carries over.
 
-<!-- Screenshot placeholder: VibeUI main window after first launch -->
+<!-- Screenshot placeholder: VibeCoder main window after first launch -->
 
 ## Demo Recording
 

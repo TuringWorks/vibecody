@@ -16,7 +16,7 @@ VibeCody's proactive agent continuously monitors your codebase in the background
 - VibeCLI v0.5.1 installed and on your PATH
 - A git repository with source code
 - At least one AI provider configured
-- For VibeUI: the desktop app running with the **Proactive** panel visible
+- For VibeCoder: the desktop app running with the **Proactive** panel visible
 
 ## How It Works
 
@@ -242,9 +242,9 @@ Suggestion History (last 10):
   2026-03-27  HIGH      bug-prevention   src/main.rs:112          accepted
 ```
 
-### 8. VibeUI Proactive Panel
+### 8. VibeCoder Proactive Panel
 
-Open the **Proactive** panel in VibeUI to see:
+Open the **Proactive** panel in VibeCoder to see:
 
 - **Suggestions** tab: card-based view of current suggestions with accept/reject buttons, file links, and inline diffs
 - **Config** tab: toggle categories, set severity threshold, adjust scan interval with a slider
@@ -326,14 +326,14 @@ learning_store = "~/.vibecli/proactive-learning.json"
     },
     {
       "id": 7,
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "Proactive",
       "tab": "Suggestions",
-      "description": "Browse and act on suggestions in VibeUI"
+      "description": "Browse and act on suggestions in VibeCoder"
     },
     {
       "id": 8,
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "Proactive",
       "tab": "Learning",
       "description": "View pattern preferences and confidence levels"

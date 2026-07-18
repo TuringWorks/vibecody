@@ -13,7 +13,7 @@ The Batch Builder enables large-scale autonomous code generation across entire p
 
 - VibeCLI installed and on your PATH
 - At least one AI provider configured (e.g., `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`)
-- For VibeUI: the desktop app running with the **Batch Builder** panel visible
+- For VibeCoder: the desktop app running with the **Batch Builder** panel visible
 
 ## Step-by-Step Walkthrough
 
@@ -30,7 +30,7 @@ vibecli --batch create --name "ecommerce-platform" \
   --checkpoint-interval 30m
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 Open the **Batch Builder** panel and select the **New Run** tab. Fill in the project name, target line count, and toggle the agent roles you want to include. Click **Create BatchSpec**.
 
@@ -44,7 +44,7 @@ Once the BatchSpec is created, the Architect agent produces an architecture plan
 vibecli --batch status ecommerce-platform --show-plan
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 In the **Monitor** tab, expand the **Architecture Plan** section to review the generated service graph and module breakdown.
 
@@ -58,7 +58,7 @@ Launch the autonomous run. All 10 agent roles work in parallel according to the 
 vibecli --batch start ecommerce-platform
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 Click **Start Run** in the **Monitor** tab. The progress bar and per-agent status indicators will update in real time.
 
@@ -93,7 +93,7 @@ Agent Roles:
   QA           ████░░░░░░░░░░░░░░░░  22%
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 The **Monitor** tab shows a live dashboard with per-agent progress bars, a timeline view of checkpoints, and token consumption graphs.
 
@@ -109,7 +109,7 @@ vibecli --batch pause ecommerce-platform
 vibecli --batch resume ecommerce-platform
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 Click **Pause** in the Monitor tab toolbar. The run saves a checkpoint and halts. Click **Resume** when ready to continue.
 
@@ -123,7 +123,7 @@ After the run completes (or at any checkpoint), review the generated code throug
 vibecli --batch status ecommerce-platform --qa-summary
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 Switch to the **QA Review** tab to see severity-weighted scores, auto-fix suggestions, and cross-validation confidence ratings for each module.
 
@@ -147,7 +147,7 @@ Browse past batch runs, their specs, and outcomes.
 vibecli --batch status --history
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 The **History** tab lists all previous runs with their specs, durations, line counts, and QA scores.
 
@@ -215,25 +215,25 @@ BatchSpec → Architect → ArchitecturePlan → ModulePlan → [10 Agents in pa
       "description": "Review QA scores after completion"
     },
     {
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "BatchBuilder",
       "tab": "New Run",
       "description": "Create a BatchSpec using the GUI form"
     },
     {
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "BatchBuilder",
       "tab": "Monitor",
       "description": "Watch live progress dashboard with per-agent bars"
     },
     {
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "BatchBuilder",
       "tab": "QA Review",
       "description": "Review auto-fix suggestions and quality scores"
     },
     {
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "BatchBuilder",
       "tab": "History",
       "description": "Browse past batch runs and outcomes"

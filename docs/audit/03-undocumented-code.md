@@ -67,7 +67,7 @@ Despite `docs/RL-OS-ARCHITECTURE.md` existing, none of these filenames appear in
 ### Remaining (17 modules, ~10,538 lines)
 `debug_mode.rs`, `soul_generator.rs`, `resource_manager.rs`, `podman_runtime.rs`, `mermaid_ascii.rs`, `document_ingest.rs`, `distributed_training.rs`, `company_cmd.rs`, `agent_teams_v2_enhanced.rs`, `gpu_cluster.rs`, `render_optimize.rs`, `semantic_mcp.rs`, `company_meeting_notes.rs`, `company_priority_map.rs`, `company_workspace_config.rs`, `discussion_mode.rs`, `workspace_detect.rs`
 
-## Undocumented VibeUI Panels — ~48 panels
+## Undocumented VibeCoder Panels — ~48 panels
 
 ### Company/Enterprise (15 panels)
 `CompanyAdapterPanel`, `CompanyAgentDetailPanel`, `CompanyApprovalsPanel`, `CompanyBudgetPanel`, `CompanyDashboardPanel`, `CompanyDocumentsPanel`, `CompanyGoalsPanel`, `CompanyHeartbeatPanel`, `CompanyOrgChartPanel`, `CompanyPortabilityPanel`, `CompanyPriorityMapPanel`, `CompanyRoutinesPanel`, `CompanySecretsPanel`, `CompanyTaskBoardPanel`, `CompanyWorkspaceConfigPanel`

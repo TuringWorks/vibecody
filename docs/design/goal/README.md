@@ -1,7 +1,7 @@
 # `/goal` — Durable Execution Intent
 
 **Status:** Shipped · 2026-05-18 (G1.1–G1.7 baseline, G3 hardening, G4 hierarchy + current-pin, G5 fan-out)
-**Scope:** vibecli (daemon + REPL + TUI), vibeui (Tauri desktop), vibemobile (Flutter), vibewatch (watchOS + Wear OS), vscode-extension, agent-sdk
+**Scope:** vibecli (daemon + REPL + TUI), vibecoder (Tauri desktop), vibemobile (Flutter), vibewatch (watchOS + Wear OS), vscode-extension, agent-sdk
 **Owner:** TBD
 
 ---
@@ -94,8 +94,8 @@ Watch never talks to `/v1/*` directly. The curated `/watch/goals` routes return 
 |---|---|
 | **VibeCLI REPL** (`/goal`) | `new`, `list`, `show`, `status`, `link`, `start`, `children`, `reparent`, `pin`, `unpin`, `current`, `delete`; `plan` points to daemon |
 | **VibeCLI TUI** | Read-only `Goals` screen — `/goal` from chat opens it; `f` cycles status filter, `j/k` scroll, `r` refresh |
-| **VibeUI** (Goals panel, tab `goals`) | List + detail + status switcher + Generate Plan + Start session + Linked sessions; New Goal modal; tree-view toggle (children indented under parents); Aggregate recap routed through toolbar `selectedProvider` + `selectedModel` |
-| **VibeUI** slash palette | `/goal` opens the Goals panel; `/goal <text>` opens it and seeds the New Goal modal; AIChat input hybrid mirrors the palette action |
+| **VibeCoder** (Goals panel, tab `goals`) | List + detail + status switcher + Generate Plan + Start session + Linked sessions; New Goal modal; tree-view toggle (children indented under parents); Aggregate recap routed through toolbar `selectedProvider` + `selectedModel` |
+| **VibeCoder** slash palette | `/goal` opens the Goals panel; `/goal <text>` opens it and seeds the New Goal modal; AIChat input hybrid mirrors the palette action |
 | **VibeMobile** (Flutter) | `listGoals`, `getGoal`, `startGoal`, `getGoalTree`, `getCurrentGoal`, `pinGoal`, `unpinGoal` |
 | **Apple Watch** | `loadGoals`, `fetchGoal`, `startGoal` — read-mostly via `/watch/goals` plus the curated `/start` wrapper |
 | **Wear OS** | `listGoals`, `getGoal`, `startGoal` plus `GoalDetailScreen` (row tap → detail) and `GoalsTileService` (freshest active goal as a Tile) |
@@ -105,7 +105,7 @@ Watch never talks to `/v1/*` directly. The curated `/watch/goals` routes return 
 
 ## Naming — why `exec_goal_*`?
 
-VibeUI already has `CompanyGoalsPanel` (company strategy goals via `company_cmd "goal …"`) and `AgilePanel` (sprint goals). The HTTP path stays friendly (`/v1/goals`) but the Rust module is `exec_goal.rs` and the Tauri commands are `exec_goal_*` so future maintainers reading `commands.rs` see no ambiguity.
+VibeCoder already has `CompanyGoalsPanel` (company strategy goals via `company_cmd "goal …"`) and `AgilePanel` (sprint goals). The HTTP path stays friendly (`/v1/goals`) but the Rust module is `exec_goal.rs` and the Tauri commands are `exec_goal_*` so future maintainers reading `commands.rs` see no ambiguity.
 
 ## Slice history
 
@@ -115,7 +115,7 @@ VibeUI already has `CompanyGoalsPanel` (company strategy goals via `company_cmd 
 - **G1.2** — Daemon HTTP CRUD.
 - **G1.3** — `/plan`, `/link`, `/start` routes; PlannerAgent wiring.
 - **G1.4** — REPL `/goal` subcommands.
-- **G1.5** — VibeUI panel + Tauri commands + slash palette action.
+- **G1.5** — VibeCoder panel + Tauri commands + slash palette action.
 - **G1.6** — Mobile + Watch curated routes.
 - **G1.7** — VS Code + Agent SDK + design docs.
 
@@ -142,7 +142,7 @@ VibeUI already has `CompanyGoalsPanel` (company strategy goals via `company_cmd 
 - **G5.2** — `/agent` auto-link of new sessions to the pinned goal for the daemon's workspace (or the global slot) — silent best-effort, never blocks session creation.
 - **G5.3** — Agent SDK `goals.*` adds `tree(id, depth?)`, `pin(id, ws?)`, `unpin(ws?)`, `current(ws?)`, `recap(id, {provider, model})`.
 - **G5.4** — Flutter `ApiClient` gains parallel `getGoalTree`, `getCurrentGoal`, `pinGoal`, `unpinGoal`.
-- **G5.5** — VibeUI `GoalPanel` tree-view toggle (children indented under parents) + Aggregate recap section routed through `selectedProvider` + `selectedModel`.
+- **G5.5** — VibeCoder `GoalPanel` tree-view toggle (children indented under parents) + Aggregate recap section routed through `selectedProvider` + `selectedModel`.
 
 ## Deferred / future
 

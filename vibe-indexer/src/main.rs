@@ -1,7 +1,7 @@
 //! vibe-indexer — Remote codebase indexing HTTP service.
 //!
 //! Exposes an Axum HTTP server that wraps `EmbeddingIndex` from `vibe-core`.
-//! Designed to run as a sidecar for large monorepos where the VibeUI/VibeCLI
+//! Designed to run as a sidecar for large monorepos where the VibeCoder/VibeCLI
 //! clients need a shared, persistently-warm semantic search index.
 //!
 //! # Endpoints

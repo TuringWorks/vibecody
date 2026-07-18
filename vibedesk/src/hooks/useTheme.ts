@@ -34,7 +34,7 @@ function isKnownThemeId(id: string | null | undefined): id is string {
 /* ── Hook ─────────────────────────────────────────────────────────────── */
 
 /**
- * Theme state + persistence over the full VibeUI theme registry.
+ * Theme state + persistence over the full VibeCoder theme registry.
  *
  * Reads the instant localStorage mirror first, then reconciles with the
  * shared ProfileStore. If the durable store holds the legacy `theme_mode`

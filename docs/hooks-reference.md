@@ -4,7 +4,7 @@ title: Hooks Reference
 permalink: /hooks-reference/
 ---
 
-All React hooks live in `vibeui/src/hooks/`. They provide shared state, persistence, and integration with the Tauri backend.
+All React hooks live in `vibecoder/src/hooks/`. They provide shared state, persistence, and integration with the Tauri backend.
 
 ---
 
@@ -88,7 +88,7 @@ const { online } = useDaemonMonitor({ toast, addNotification });
 useEditorTheme()
 ```
 
-**Purpose:** Generates and registers a Monaco editor theme from the active VibeUI CSS variable theme, keeping them in sync.
+**Purpose:** Generates and registers a Monaco editor theme from the active VibeCoder CSS variable theme, keeping them in sync.
 
 **Parameters:** None.
 
@@ -193,7 +193,7 @@ usePersistentState<T>(key: string, initialValue: T)
 
 **Parameters:**
 
-- `key` (`string`) -- storage key (auto-prefixed with `"vibeui-panel:"`)
+- `key` (`string`) -- storage key (auto-prefixed with `"vibecoder-panel:"`)
 - `initialValue` (`T`) -- fallback when no stored value exists
 
 **Returns:** `[value, setValue]` -- same API as `useState`.

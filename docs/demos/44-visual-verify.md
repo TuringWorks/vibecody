@@ -16,7 +16,7 @@ Code changes can silently break visual layouts. A CSS tweak that fixes one compo
 - VibeCLI 0.5.1 installed and on your PATH
 - A running web application (e.g., `http://localhost:3000`)
 - Chromium-based browser installed (Chrome, Chromium, or Edge) for headless screenshots
-- For VibeUI: the desktop app running with the **VisualVerifyPanel** visible
+- For VibeCoder: the desktop app running with the **VisualVerifyPanel** visible
 
 ## Step-by-Step Walkthrough
 
@@ -200,9 +200,9 @@ Baseline updated. Previous baseline archived at:
   .vibecli/vverify/baselines/archive/localhost-3000-2026-03-29T14-30-00.png
 ```
 
-### Step 8: Use visual verification in VibeUI
+### Step 8: Use visual verification in VibeCoder
 
-In the VibeUI desktop app, open the **VisualVerifyPanel** from the AI sidebar. The panel provides:
+In the VibeCoder desktop app, open the **VisualVerifyPanel** from the AI sidebar. The panel provides:
 
 - **Side-by-Side View** -- Baseline and current screenshot with synchronized zoom and pan
 - **Overlay Mode** -- Red pixel overlay highlighting exact differences

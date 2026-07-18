@@ -6,7 +6,7 @@ permalink: /usage-metering/
 
 The Usage Metering panel tracks AI spend across providers and models, lets you define budgets, and surfaces alerts when consumption crosses thresholds. It's the operator dashboard for "where is the money going" — Counsel-style panels and agent-loop runs are typically the dominant cost centers.
 
-This page covers the desktop panel. Mobile/watch/IDE clients don't have a metering surface today; usage data is daemon-side and observable only via the desktop UI or by reading `~/.vibeui/usage-metering.json` directly.
+This page covers the desktop panel. Mobile/watch/IDE clients don't have a metering surface today; usage data is daemon-side and observable only via the desktop UI or by reading `~/.vibecoder/usage-metering.json` directly.
 
 ---
 
@@ -53,13 +53,13 @@ The Create Budget form takes:
 | Limit ($) | Numeric, parsed as float |
 | Period | `daily` / `weekly` / `monthly` |
 
-Submitting calls `create_usage_budget` and persists to `~/.vibeui/usage-metering.json`. The new budget appears immediately above the form.
+Submitting calls `create_usage_budget` and persists to `~/.vibecoder/usage-metering.json`. The new budget appears immediately above the form.
 
 ### Delete (was broken — fixed)
 
 **Bug fix:** until this release, "Remove" only mutated local React state. After a page reload the deleted budget came back. The panel now calls a real `delete_usage_budget` Tauri command that updates the on-disk record.
 
-If you have a workspace with "ghost budgets" that keep returning, edit `~/.vibeui/usage-metering.json` directly to remove them — the new delete path won't fix entries that pre-existed the bug.
+If you have a workspace with "ghost budgets" that keep returning, edit `~/.vibecoder/usage-metering.json` directly to remove them — the new delete path won't fix entries that pre-existed the bug.
 
 ### Period semantics
 
@@ -97,7 +97,7 @@ Each alert card shows the severity badge, the message, and a timestamp. Dismiss 
 {
   "available": true,
   "transport": "tauri-desktop",
-  "store_path": "~/.vibeui/usage-metering.json",
+  "store_path": "~/.vibecoder/usage-metering.json",
   "budget_periods": ["daily", "weekly", "monthly"]
 }
 ```
@@ -144,7 +144,7 @@ INFO vibecody::usage: usage.alert.dismiss id=al17149...
 
 | Client | Usage UI |
 |---|---|
-| **VibeUI / VibeApp** | Full panel |
+| **VibeCoder / VibeApp** | Full panel |
 | **VibeMobile** | None |
 | **VibeWatch** | None |
 | **IDE plugins** | None |
@@ -157,7 +157,7 @@ Mobile and IDE clients still incur metered usage when they make LLM calls throug
 
 ### "Total spend is $0 but I've made requests"
 
-The daemon may not be configured to log to the metering store. Check `~/.vibeui/usage-metering.json` exists; if not, the metering hooks aren't wired into the active provider path. Restart the daemon with `RUST_LOG=vibecody::usage=info` and watch for `usage.request.recorded` events on each LLM call.
+The daemon may not be configured to log to the metering store. Check `~/.vibecoder/usage-metering.json` exists; if not, the metering hooks aren't wired into the active provider path. Restart the daemon with `RUST_LOG=vibecody::usage=info` and watch for `usage.request.recorded` events on each LLM call.
 
 ### "Budget shows 100% but no alert appeared"
 
@@ -165,7 +165,7 @@ Alerts are generated at the moment the threshold is crossed, not on a periodic c
 
 ### "Removed budgets keep coming back"
 
-You're on a build before the `delete_usage_budget` fix. Edit `~/.vibeui/usage-metering.json` and remove the entries from the `budgets` array directly.
+You're on a build before the `delete_usage_budget` fix. Edit `~/.vibecoder/usage-metering.json` and remove the entries from the `budgets` array directly.
 
 ### "By Task report is always empty"
 
@@ -176,4 +176,4 @@ That column isn't wired to a real source yet. The `task` reportData is `[]` in t
 ## Related
 
 - **Cost router:** [`docs/cost-router/`] (TODO) — the routing layer that picks the cheapest provider for a request given quality constraints
-- **Source:** `vibeui/src/components/UsageMeteringPanel.tsx` (~310 LOC) · backend `vibeui/src-tauri/src/commands.rs` (`create_usage_budget`, `delete_usage_budget`, `dismiss_usage_alert`, `get_usage_kpis`, `get_usage_budgets`, `get_usage_by_provider`, `get_usage_by_model`, `get_usage_alerts`)
+- **Source:** `vibecoder/src/components/UsageMeteringPanel.tsx` (~310 LOC) · backend `vibecoder/src-tauri/src/commands.rs` (`create_usage_budget`, `delete_usage_budget`, `dismiss_usage_alert`, `get_usage_kpis`, `get_usage_budgets`, `get_usage_by_provider`, `get_usage_by_model`, `get_usage_alerts`)

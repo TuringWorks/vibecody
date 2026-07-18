@@ -186,7 +186,7 @@ impl VirtioFsShare {
 /// FirecrackerSandbox bind API. Kept in-crate to avoid pulling
 /// `vibe-core` (and tokio + the vibecli dep tree) into this leaf crate;
 /// parity is enforced by the cross-crate test below.
-const DENIED_SEGMENTS: &[&str] = &[".vibecli", ".vibeui", ".claude", ".ssh", ".aws", ".gnupg"];
+const DENIED_SEGMENTS: &[&str] = &[".vibecli", ".vibecoder", ".claude", ".ssh", ".aws", ".gnupg"];
 
 /// Filenames that name credential blobs regardless of parent dir.
 const DENIED_FILENAMES: &[&str] = &[

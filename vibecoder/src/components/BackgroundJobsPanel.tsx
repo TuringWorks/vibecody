@@ -1,0 +1,494 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Clock, CircleCheck, CircleX, Square } from 'lucide-react';
+import { useToast } from '../hooks/useToast';
+import { Toaster } from './Toaster';
+import { useModelRegistry } from '../hooks/useModelRegistry';
+import type { Recap } from '../types/recap';
+
+interface JobRecord {
+ session_id: string;
+ task: string;
+ status: 'running' | 'complete' | 'failed' | 'cancelled';
+ provider: string;
+ started_at: number;
+ finished_at?: number;
+ summary?: string;
+}
+
+interface JobManagerMetrics {
+ jobs_created: number;
+ jobs_completed: number;
+ jobs_failed: number;
+ jobs_cancelled: number;
+ quota_denied: number;
+ subprocesses_spawned: number;
+ events_published: number;
+ events_replayed: number;
+ webhooks_delivered: number;
+ webhooks_dead_lettered: number;
+ queued: number;
+ running: number;
+}
+
+interface BackgroundJobsPanelProps {
+ /** URL of the vibecli daemon (default: http://localhost:7878) */
+ daemonUrl?: string;
+}
+
+const STATUS_ICONS: Record<string, React.ReactNode> = {
+ running: <Clock size={14} strokeWidth={1.5} style={{ color: "var(--text-warning)" }} />,
+ complete: <CircleCheck size={14} strokeWidth={1.5} style={{ color: "var(--text-success)" }} />,
+ failed: <CircleX size={14} strokeWidth={1.5} style={{ color: "var(--text-danger)" }} />,
+ cancelled: <Square size={14} strokeWidth={1.5} />,
+};
+
+const APPROVALS = ['suggest', 'auto-edit', 'full-auto'];
+
+export function BackgroundJobsPanel({ daemonUrl = 'http://localhost:7878' }: BackgroundJobsPanelProps) {
+ const { toasts, toast, dismiss } = useToast();
+ const { providers: PROVIDERS } = useModelRegistry();
+ const [jobs, setJobs] = useState<JobRecord[]>([]);
+ const [metrics, setMetrics] = useState<JobManagerMetrics | null>(null);
+ const [daemonOnline, setDaemonOnline] = useState(false);
+ const [expandedId, setExpandedId] = useState<string | null>(null);
+ const [liveEvents, setLiveEvents] = useState<Record<string, string[]>>({});
+ const [task, setTask] = useState('');
+ const [provider, setProvider] = useState('ollama');
+ const [approval, setApproval] = useState('suggest');
+ const [submitting, setSubmitting] = useState(false);
+ // J1.4 — recap row + Resume button. Fetched lazily when a terminal
+ // job is expanded; null = "we already looked and the daemon has none".
+ const [recapsByJobId, setRecapsByJobId] = useState<Record<string, Recap | null>>({});
+ const [resumingId, setResumingId] = useState<string | null>(null);
+ const esRefs = useRef<Record<string, EventSource>>({});
+
+ const fetchJobs = async () => {
+ try {
+ const res = await fetch(`${daemonUrl}/jobs`);
+ if (!res.ok) throw new Error(await res.text());
+ const data: JobRecord[] = await res.json();
+ setJobs(data);
+ setDaemonOnline(true);
+ } catch {
+ // Do NOT set daemonOnline(false) here — useDaemonMonitor (via
+ // vibecoder:daemon-status events) is the single source of truth for daemon
+ // reachability. A /jobs fetch failure (e.g. unimplemented route, transient
+ // error) must not override a health-check that already confirmed online.
+ }
+ };
+
+ const fetchMetrics = async () => {
+ try {
+ const res = await fetch(`${daemonUrl}/v1/metrics/jobs`);
+ if (!res.ok) return;
+ const data: JobManagerMetrics = await res.json();
+ setMetrics(data);
+ } catch {
+ // Same rationale as fetchJobs — transient failure doesn't toggle status.
+ }
+ };
+
+ // Sync daemon status from app-level useDaemonMonitor events so we don't
+ // double-poll. Also keep a local 10-second job-list refresh while online.
+ useEffect(() => {
+ const onStatus = (e: Event) => {
+  const { online } = (e as CustomEvent<{ online: boolean; checkedAt: number }>).detail;
+  setDaemonOnline(online);
+  if (online) { fetchJobs(); fetchMetrics(); }
+ };
+ window.addEventListener("vibecoder:daemon-status", onStatus);
+
+ // On mount: check /health first so daemonOnline reflects reality before
+ // fetchJobs() runs. This prevents a stale offline state when the panel
+ // mounts after useDaemonMonitor already confirmed the daemon is up.
+ fetch(`${daemonUrl}/health`, { signal: AbortSignal.timeout(4000) })
+  .then((r) => { if (r.ok) setDaemonOnline(true); })
+  .catch(() => { /* remain false until useDaemonMonitor next fires */ })
+  .finally(() => { fetchJobs(); fetchMetrics(); });
+
+ return () => window.removeEventListener("vibecoder:daemon-status", onStatus);
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [daemonUrl]);
+
+ // While the panel is open, refresh the job list every 10 s (daemon status
+ // itself is managed by useDaemonMonitor at app level every 30 s).
+ useEffect(() => {
+ if (!daemonOnline) return;
+ const id = setInterval(() => { fetchJobs(); fetchMetrics(); }, 10_000);
+ return () => clearInterval(id);
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [daemonOnline, daemonUrl]);
+
+ // Close all open EventSources on unmount to prevent resource leaks
+ useEffect(() => {
+ return () => {
+ Object.values(esRefs.current).forEach(es => es.close());
+ esRefs.current = {};
+ };
+ }, []);
+
+ const submitJob = async () => {
+ if (!task.trim()) return;
+ setSubmitting(true);
+ try {
+ const res = await fetch(`${daemonUrl}/agent`, {
+ method: 'POST',
+ headers: { 'Content-Type': 'application/json' },
+ body: JSON.stringify({ task, approval }),
+ });
+ if (!res.ok) throw new Error(await res.text());
+ setTask('');
+ await fetchJobs();
+ } catch (e) {
+ toast.error(`Failed to submit job: ${e}`);
+ } finally {
+ setSubmitting(false);
+ }
+ };
+
+ // J1.4 — lazy-fetch the freshest recap for a terminal job. The daemon
+ // auto-recaps on terminal-state hook (J1.2), so for `complete | failed |
+ // cancelled` jobs there is normally a row waiting; for jobs from older
+ // daemons or in-flight recap generation the response lists none and we
+ // record `null` so we don't refetch on every expand toggle.
+ const fetchRecap = async (jobId: string) => {
+ if (jobId in recapsByJobId) return;
+ try {
+  const url = `${daemonUrl}/v1/recap?kind=job&subject_id=${encodeURIComponent(jobId)}&limit=1`;
+  const res = await fetch(url);
+  if (!res.ok) { setRecapsByJobId((prev) => ({ ...prev, [jobId]: null })); return; }
+  const body = await res.json();
+  const recap: Recap | undefined = Array.isArray(body?.recaps) ? body.recaps[0] : undefined;
+  setRecapsByJobId((prev) => ({ ...prev, [jobId]: recap ?? null }));
+ } catch {
+  setRecapsByJobId((prev) => ({ ...prev, [jobId]: null }));
+ }
+ };
+
+ // J1.4 — Resume a job from its recap. Server creates a new job (the
+ // J1.3b parent-link columns track lineage). We surface the new
+ // session_id via toast and refresh the list so the new row appears.
+ const resumeFromRecap = async (recap: Recap) => {
+ setResumingId(recap.id);
+ try {
+  const res = await fetch(`${daemonUrl}/v1/resume`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+   from_recap_id: recap.id,
+   branch: false,
+   client: 'vibecoder-jobs',
+  }),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  const data = await res.json();
+  toast.success(`Resumed as ${data.resumed_session_id ?? 'new job'}`);
+  await fetchJobs();
+ } catch (e) {
+  toast.error(`Failed to resume: ${e}`);
+ } finally {
+  setResumingId(null);
+ }
+ };
+
+ const cancelJob = async (id: string) => {
+ try {
+ await fetch(`${daemonUrl}/jobs/${id}/cancel`, { method: 'POST' });
+ await fetchJobs();
+ } catch (e) {
+ toast.error(`Failed to cancel: ${e}`);
+ }
+ };
+
+ const streamLive = (id: string) => {
+ if (esRefs.current[id]) {
+ esRefs.current[id].close();
+ delete esRefs.current[id];
+ setLiveEvents((prev) => { const n = { ...prev }; delete n[id]; return n; });
+ return;
+ }
+ const es = new EventSource(`${daemonUrl}/stream/${id}`);
+ es.onmessage = (e) => {
+ try {
+ const payload = JSON.parse(e.data);
+ const line = `[${payload.type}] ${payload.content ?? payload.tool_name ?? ''}`;
+ setLiveEvents((prev) => ({
+ ...prev,
+ [id]: [...(prev[id] ?? []).slice(-49), line],
+ }));
+ if (payload.type === 'complete' || payload.type === 'error') {
+ es.close();
+ delete esRefs.current[id];
+ fetchJobs();
+ }
+ } catch { /* ignore */ }
+ };
+ es.onerror = () => { es.close(); delete esRefs.current[id]; };
+ esRefs.current[id] = es;
+ };
+
+ const fmtTime = (ms: number) =>
+ new Date(ms).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+
+ return (
+ <div className="panel-container">
+ {/* Header */}
+ <div className="panel-header">
+ <h3>Background Jobs</h3>
+ <span style={{
+ fontSize: '10px', padding: '2px 8px', borderRadius: '10px',
+ background: daemonOnline ? 'var(--accent-green)' : 'var(--text-secondary)',
+ color: 'white',
+ }}>
+ {daemonOnline ? '● online' : '○ offline'}
+ </span>
+ </div>
+
+ <div className="panel-body">
+ {!daemonOnline && (
+ <div className="panel-error" role="alert">
+ Daemon not running. Start it with: <code>vibecli --serve --port 7878</code>
+ </div>
+ )}
+
+ {/* Metrics strip */}
+ {metrics && (
+ <div
+ role="group"
+ aria-label="Job manager metrics"
+ style={{
+ display: 'flex', flexWrap: 'wrap', gap: '12px',
+ padding: '8px 12px', marginBottom: '12px',
+ borderRadius: '6px', background: 'var(--bg-secondary)',
+ border: '1px solid var(--border-color)',
+ fontSize: '11px', color: 'var(--text-secondary)',
+ }}
+ >
+ <span><strong style={{ color: 'var(--text-primary)' }}>{metrics.queued}</strong> queued</span>
+ <span><strong style={{ color: 'var(--text-warning)' }}>{metrics.running}</strong> running</span>
+ <span><strong style={{ color: 'var(--text-success)' }}>{metrics.jobs_completed}</strong> done</span>
+ <span><strong style={{ color: 'var(--text-danger)' }}>{metrics.jobs_failed}</strong> failed</span>
+ <span>{metrics.jobs_cancelled} cancelled</span>
+ <span>{metrics.jobs_created} total</span>
+ {metrics.quota_denied > 0 && (
+ <span title="Submissions rejected by quota">
+ <strong style={{ color: 'var(--text-danger)' }}>{metrics.quota_denied}</strong> quota-denied
+ </span>
+ )}
+ {metrics.webhooks_dead_lettered > 0 && (
+ <span title="Webhook deliveries that exhausted retries">
+ <strong style={{ color: 'var(--text-danger)' }}>{metrics.webhooks_dead_lettered}</strong> dead-letter
+ </span>
+ )}
+ </div>
+ )}
+
+ {/* Submit form */}
+ <div className="panel-card" style={{ marginBottom: '12px' }}>
+ <textarea
+ value={task}
+ onChange={(e) => setTask(e.target.value)}
+ placeholder="Describe a background agent task…"
+ rows={2}
+ className="panel-input panel-input-full"
+ style={{ resize: 'vertical', marginBottom: '8px' }}
+ />
+ <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+ <select
+ value={provider}
+ onChange={(e) => setProvider(e.target.value)}
+ className="panel-select"
+ >
+ {PROVIDERS.map((p) => <option key={p} value={p}>{p}</option>)}
+ </select>
+ <select
+ value={approval}
+ onChange={(e) => setApproval(e.target.value)}
+ className="panel-select"
+ >
+ {APPROVALS.map((a) => <option key={a} value={a}>{a}</option>)}
+ </select>
+ <button
+ onClick={submitJob}
+ disabled={submitting || !task.trim() || !daemonOnline}
+ className="panel-btn panel-btn-primary"
+ style={{ marginLeft: 'auto' }}
+ >
+ {submitting ? 'Submitting…' : ' Submit'}
+ </button>
+ </div>
+ </div>
+
+ {/* Job list */}
+ <div>
+ {jobs.length === 0 && daemonOnline && (
+ <p className="panel-empty" style={{ fontSize: '12px', color: 'var(--text-secondary)', textAlign: 'center', marginTop: '20px' }}>
+ No jobs yet. Submit one above.
+ </p>
+ )}
+ {jobs.map((job) => (
+ <div key={job.session_id} style={{
+ marginBottom: '8px', borderRadius: '6px',
+ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
+ }}>
+ {/* Job row */}
+ <div role="button" tabIndex={0}
+ onClick={() => {
+ const next = expandedId === job.session_id ? null : job.session_id;
+ setExpandedId(next);
+ if (next && job.status !== 'running') fetchRecap(job.session_id);
+ }}
+ style={{ padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: '8px' }}
+ >
+ <span style={{ fontSize: '14px', flexShrink: 0 }}>{STATUS_ICONS[job.status] ?? '?'}</span>
+ <div style={{ flex: 1, minWidth: 0 }}>
+ <div style={{ fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+ {job.task}
+ </div>
+ <div style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+ {job.provider} · {job.status} · {fmtTime(job.started_at)}
+ </div>
+ </div>
+ {job.status === 'running' && (
+ <button
+ onClick={(e) => { e.stopPropagation(); cancelJob(job.session_id); }}
+ style={{ fontSize: '10px', padding: '2px 8px', border: 'none', borderRadius: '3px', background: 'var(--text-danger)', color: 'white', cursor: 'pointer', flexShrink: 0 }}
+ >
+ Cancel
+ </button>
+ )}
+ </div>
+
+ {/* Expanded detail */}
+ {expandedId === job.session_id && (
+ <div style={{ borderTop: '1px solid var(--border-color)', padding: '8px 12px' }}>
+ {/* J1.4 — recap row replaces the bare "Done" summary when the
+  daemon has a recap. We still keep `job.summary` as a fallback
+  for older daemons / jobs that haven't generated a recap yet. */}
+ {recapsByJobId[job.session_id] ? (
+ <JobRecapRow
+ recap={recapsByJobId[job.session_id]!}
+ onResume={() => resumeFromRecap(recapsByJobId[job.session_id]!)}
+ resuming={resumingId === recapsByJobId[job.session_id]!.id}
+ />
+ ) : job.summary && (
+ <div style={{ fontSize: '11px', marginBottom: '8px', whiteSpace: 'pre-wrap' }}>
+ <strong>Summary:</strong> {job.summary}
+ </div>
+ )}
+ {job.status === 'running' && (
+ <button
+ onClick={() => streamLive(job.session_id)}
+ style={{ fontSize: '11px', padding: '2px 8px', border: '1px solid var(--border-color)', borderRadius: '3px', background: 'none', color: 'var(--accent-blue)', cursor: 'pointer', marginBottom: '8px' }}
+ >
+ {esRefs.current[job.session_id] ? ' Stop stream' : ' Stream live'}
+ </button>
+ )}
+ {liveEvents[job.session_id] && liveEvents[job.session_id].length > 0 && (
+ <div style={{
+ fontSize: '10px', fontFamily: 'var(--font-mono)', maxHeight: '120px',
+ overflowY: 'auto', background: 'var(--bg-tertiary)', padding: '4px 8px',
+ borderRadius: '4px', color: 'var(--text-secondary)',
+ }}>
+ {liveEvents[job.session_id].map((line, i) => (
+ <div key={i}>{line}</div>
+ ))}
+ </div>
+ )}
+ </div>
+ )}
+ </div>
+ ))}
+ </div>
+ </div>
+ <Toaster toasts={toasts} onDismiss={dismiss} />
+ </div>
+ );
+}
+
+// ── J1.4: per-row recap render ───────────────────────────────────────────────
+
+interface JobRecapRowProps {
+ recap: Recap;
+ onResume: () => void;
+ resuming: boolean;
+}
+
+function JobRecapRow({ recap, onResume, resuming }: JobRecapRowProps) {
+ const generatorLabel =
+ recap.generator.type === 'llm'
+ ? `LLM · ${recap.generator.provider}/${recap.generator.model}`
+ : recap.generator.type === 'user_edited'
+ ? 'user-edited'
+ : 'heuristic';
+
+ return (
+ <div
+ data-testid={`recap-row-${recap.subject_id}`}
+ style={{
+ fontSize: '11px',
+ marginBottom: '8px',
+ padding: '8px',
+ borderRadius: '4px',
+ background: 'var(--bg-tertiary)',
+ border: '1px solid var(--border-color)',
+ }}
+ >
+ <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+ <strong style={{ flex: 1, lineHeight: 1.3 }}>{recap.headline}</strong>
+ <span
+ style={{
+ fontSize: '9px',
+ padding: '1px 6px',
+ borderRadius: '8px',
+ background: 'var(--bg-secondary)',
+ color: 'var(--text-secondary)',
+ whiteSpace: 'nowrap',
+ }}
+ >
+ {generatorLabel}
+ </span>
+ </div>
+
+ {recap.bullets.length > 0 && (
+ <ul style={{ margin: '6px 0 0 0', paddingLeft: '14px', color: 'var(--text-secondary)' }}>
+ {recap.bullets.slice(0, 3).map((b, i) => (
+ <li key={i} style={{ marginBottom: '2px' }}>{b}</li>
+ ))}
+ </ul>
+ )}
+
+ {recap.next_actions.length > 0 && (
+ <div style={{ marginTop: '6px' }}>
+ <div style={{ fontSize: '9px', fontWeight: 600, letterSpacing: '0.5px', color: 'var(--text-secondary)' }}>
+ NEXT
+ </div>
+ <ul style={{ margin: '2px 0 0 0', paddingLeft: '14px' }}>
+ {recap.next_actions.slice(0, 2).map((a, i) => (
+ <li key={i} style={{ marginBottom: '2px' }}>{a}</li>
+ ))}
+ </ul>
+ </div>
+ )}
+
+ <div style={{ marginTop: '8px', textAlign: 'right' }}>
+ <button
+ data-testid={`resume-btn-${recap.subject_id}`}
+ onClick={onResume}
+ disabled={resuming}
+ style={{
+ fontSize: '11px',
+ padding: '3px 10px',
+ border: '1px solid var(--border-color)',
+ borderRadius: '3px',
+ background: 'none',
+ color: 'var(--accent-blue)',
+ cursor: resuming ? 'wait' : 'pointer',
+ }}
+ >
+ {resuming ? 'Resuming…' : '▶ Resume'}
+ </button>
+ </div>
+ </div>
+ );
+}

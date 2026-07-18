@@ -5,7 +5,7 @@ permalink: /use-cases/
 nav_order: 3
 ---
 
-VibeCody is an AI-powered coding assistant that runs **anywhere you need it** -- on your laptop, in the cloud, or on a Raspberry Pi. Deploy it as a desktop app (VibeUI), a terminal companion (VibeCLI), or an always-on server (`vibecli --serve --port 7878`) that monitors your infrastructure, responds to webhooks, and runs scheduled tasks around the clock.
+VibeCody is an AI-powered coding assistant that runs **anywhere you need it** -- on your laptop, in the cloud, or on a Raspberry Pi. Deploy it as a desktop app (VibeCoder), a terminal companion (VibeCLI), or an always-on server (`vibecli --serve --port 7878`) that monitors your infrastructure, responds to webhooks, and runs scheduled tasks around the clock.
 
 With **23 AI providers** (from local Ollama to Claude, OpenAI, Gemini, and 20 more), **106+ REPL commands**, **556+ skill files**, and a full autonomous agent loop, VibeCody covers the entire software development lifecycle -- from writing the first line of code to deploying, monitoring, and securing production systems. It also connects to **Gmail/Outlook, Google/Outlook Calendar, Todoist, Notion, Jira, and Home Assistant** for productivity workflows beyond coding.
 
@@ -92,7 +92,7 @@ Describe a bug in natural language. The agent reads stack traces, searches for r
 
 ### **CI/CD Pipeline Management**
 
-Monitor GitHub Actions runs, view build logs, trigger workflows, and debug failing pipelines from VibeCLI or VibeUI. The GH Actions agent can diagnose flaky tests and suggest fixes.
+Monitor GitHub Actions runs, view build logs, trigger workflows, and debug failing pipelines from VibeCLI or VibeCoder. The GH Actions agent can diagnose flaky tests and suggest fixes.
 
 ```bash
 /cicd status --repo myorg/myapp
@@ -1071,10 +1071,10 @@ Connect to any MCP-compatible tool server to extend VibeCody's capabilities. Bro
 
 ### **Kiosk and Display Mode**
 
-Run VibeUI in kiosk mode on a dedicated display for dashboards, monitoring, or team status boards.
+Run VibeCoder in kiosk mode on a dedicated display for dashboards, monitoring, or team status boards.
 
 ```bash
-vibeui --kiosk --panel cost-observatory --refresh 60s
+vibecoder --kiosk --panel cost-observatory --refresh 60s
 ```
 
 *Works on: Pi, desktop*
@@ -1350,7 +1350,7 @@ VibeCody predicts what you will ask next and pre-computes likely responses using
 | **Multi-Agent Teams** | 5 specialized roles with shared memory | Single agent |
 | **MCP Integration** | Full MCP server support with lazy loading | No MCP support |
 | **Security Scanning** | Red team, OWASP, blue/purple team, secret detection | Basic scanning |
-| **Desktop App** | VibeUI with 196+ panels (Tauri + React) | Web-only interface |
+| **Desktop App** | VibeCoder with 196+ panels (Tauri + React) | Web-only interface |
 | **REPL Commands** | 106+ commands with subcommands | Limited CLI |
 | **Skill Library** | 550+ skill files | No skill system |
 | **Messaging Gateway** | 18 platforms (Slack, Teams, Discord, etc.) | Slack only |

@@ -17,7 +17,7 @@ A single platform that:
 - Eliminates fragmentation between environment, training, evaluation, optimization, and deployment
 - Supports multi-agent, multi-environment, distributed RL at production scale
 - Bridges the research-to-production gap that plagues every existing RL tool
-- Leverages VibeCody's 18 AI providers, agent framework, sandbox, VibeUI, and 106+ REPL commands
+- Leverages VibeCody's 18 AI providers, agent framework, sandbox, VibeCoder, and 106+ REPL commands
 
 ---
 
@@ -68,7 +68,7 @@ A single platform that:
 │                                                                     │        
 ├────────────────────────────────────────────────────────-------──────┤  
 │                   VibeCody Integration Layer                        │        
-│  18 AI Providers │ Agent Framework │ Sandbox │ VibeUI │ REPL        │ 
+│  18 AI Providers │ Agent Framework │ Sandbox │ VibeCoder │ REPL        │ 
 └─────────────────────────────────────────────────────────────────────┘
 
                               ↕
@@ -103,7 +103,7 @@ ServeOS ─────────► Feedback Loop ──► EnvOS (cycle)
 ### 3.3 Rust Crate Structure (within VibeCody)
 
 ```
-vibeui/crates/
+vibecoder/crates/
 ├── vibe-rl/                    # Core RL-OS crate
 │   ├── src/
 │   │   ├── lib.rs
@@ -162,7 +162,7 @@ vibeui/crates/
 │   │   │   ├── reward_drift.rs # Reward distribution monitoring
 │   │   │   ├── dist_shift.rs   # Observation/action distributional shift
 │   │   │   ├── safety_mon.rs   # Safety constraint violation tracking
-│   │   │   └── dashboards.rs   # VibeUI panel data providers
+│   │   │   └── dashboards.rs   # VibeCoder panel data providers
 │   │   │
 │   │   └── rlhf/               # LLM Alignment Module
 │   │       ├── mod.rs
@@ -948,7 +948,7 @@ spec:
 /rlos monitor drift <deployment>       # Check distributional shift
 ```
 
-### 6.2 VibeUI Panels
+### 6.2 VibeCoder Panels
 
 | Panel | Description |
 |-------|-------------|
@@ -995,7 +995,7 @@ spec:
 | **Edge runtime** | ONNX Runtime + WASM | Portable; no_std Rust for bare-metal |
 | **GPU compute** | CUDA + ROCm + Metal | Multi-vendor GPU support |
 | **Monitoring** | OpenTelemetry + custom RL metrics | Standards-based with RL-specific extensions |
-| **UI** | VibeUI (React + Tauri) | Leverages existing 196+ panel infrastructure |
+| **UI** | VibeCoder (React + Tauri) | Leverages existing 196+ panel infrastructure |
 
 ---
 
@@ -1007,7 +1007,7 @@ spec:
 - PPO/SAC/DQN training with PyTorch backend
 - Basic distributed training (2-4 GPUs)
 - REPL commands: `/rlos env`, `/rlos train`
-- VibeUI: RLTrainingDashboard panel
+- VibeCoder: RLTrainingDashboard panel
 
 ### Phase RL-2: Evaluation + Offline RL
 
@@ -1015,7 +1015,7 @@ spec:
 - Off-Policy Evaluation (FQE, IS, DR)
 - Offline RL algorithms (CQL, IQL, BCQ)
 - Safety constraint checking
-- VibeUI: RLEvalResults, RLPolicyComparison panels
+- VibeCoder: RLEvalResults, RLPolicyComparison panels
 
 ### Phase RL-3: Optimization + Distillation
 
@@ -1023,7 +1023,7 @@ spec:
 - RL-aware quantization (INT8/INT4 with sensitivity analysis)
 - Structured pruning with action-sensitivity criterion
 - ONNX + WASM + TorchScript export
-- VibeUI: RLOptimizationReport panel
+- VibeCoder: RLOptimizationReport panel
 
 ### Phase RL-4: Serving + Deployment
 
@@ -1032,7 +1032,7 @@ spec:
 - A/B testing + canary rollout
 - Edge deployment (WASM/ONNX)
 - Auto-rollback on reward regression
-- VibeUI: RLDeploymentMonitor panel
+- VibeCoder: RLDeploymentMonitor panel
 
 ### Phase RL-5: Multi-Agent + A2A
 
@@ -1040,7 +1040,7 @@ spec:
 - A2A communication protocol for agents
 - League training (AlphaStar-style)
 - Population-based training
-- VibeUI: RLMultiAgentView panel
+- VibeCoder: RLMultiAgentView panel
 
 ### Phase RL-6: RLHF + LLM Alignment
 
@@ -1048,7 +1048,7 @@ spec:
 - Reward model training + ensemble
 - RLEF (code execution as reward, via VibeCody sandbox)
 - Constitutional AI / RLAIF pipeline
-- VibeUI: RLHFAlignmentDashboard panel
+- VibeCoder: RLHFAlignmentDashboard panel
 
 ### Phase RL-7: AutoRL + Advanced
 

@@ -153,7 +153,7 @@ pub enum Inject {
 }
 ```
 
-`require_user_consent` borrows from the existing `ApprovalPolicy` system. First call to a new host pauses the agent and shows an approval prompt in vibeui (or REPL). Subsequent calls within the session are auto-approved unless policy says otherwise.
+`require_user_consent` borrows from the existing `ApprovalPolicy` system. First call to a new host pauses the agent and shows an approval prompt in vibecoder (or REPL). Subsequent calls within the session are auto-approved unless policy says otherwise.
 
 ## Credential injection — how it actually works
 
@@ -332,7 +332,7 @@ The recap LLM prompt (when the user opts in to LLM recaps) gets a redacted summa
 | **B2.3** | GCP IAM + Azure MSI injection | `vibe-broker/inject.rs` | Live: GCP storage list, Azure blob list |
 | **B3** | IMDS faker on `169.254.169.254` (and GCP/Azure equivalents) | `vibe-broker/imds.rs` | Live: boto3 + gcloud + az inside a Tier-0 sandbox |
 | **B4** | Tier-0 wiring: bind UDS into bwrap / .sb / AppContainer | per-platform native impls | E2E: curl from sandbox lands in audit log with correct policy_id |
-| **B5** | Approval prompt for `require_user_consent` rules | `vibe-broker` + `agent.rs` ApprovalPolicy | UI integration in vibeui + REPL prompt |
+| **B5** | Approval prompt for `require_user_consent` rules | `vibe-broker` + `agent.rs` ApprovalPolicy | UI integration in vibecoder + REPL prompt |
 | **B6** | Recap audit-summary integration | `vibe-broker` + recap | RTL: job recap shows network summary |
 
 Each slice is independent; B1.* and B2.* can ship in parallel.

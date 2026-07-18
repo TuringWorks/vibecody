@@ -1,6 +1,6 @@
 # VibeCody Documentation-vs-Code Audit
 
-> Generated: 2026-04-09 | Audited by: 5 parallel agents scanning docs/, CLAUDE.md, AGENTS.md, FIT-GAP files, Rust modules, and VibeUI panels
+> Generated: 2026-04-09 | Audited by: 5 parallel agents scanning docs/, CLAUDE.md, AGENTS.md, FIT-GAP files, Rust modules, and VibeCoder panels
 
 This folder contains the results of a comprehensive cross-reference audit between VibeCody's documentation and its actual codebase. Each file covers a specific audit domain.
 

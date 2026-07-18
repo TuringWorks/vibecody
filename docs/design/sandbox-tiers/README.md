@@ -1,7 +1,7 @@
 # Sandbox Tiers — Design Index
 
 **Status:** Draft · 2026-04-26
-**Scope:** vibecli daemon (Rust) — used by vibeui, vibemobile, vibewatch, vscode-extension, jetbrains-plugin, neovim-plugin, agent-sdk
+**Scope:** vibecli daemon (Rust) — used by vibecoder, vibemobile, vibewatch, vscode-extension, jetbrains-plugin, neovim-plugin, agent-sdk
 **Owner:** TBD
 
 ---
@@ -45,12 +45,12 @@ The default path for every interactive workload is Tier-0 + broker. The other ti
 | `WindowsSandboxConfig` (Windows policy struct) | `vibecli/vibecli-cli/src/sandbox_windows.rs` | Allow/deny path policy, **no kernel enforcement** |
 | `tool_executor.rs::with_no_network()` | `vibecli/vibecli-cli/src/tool_executor.rs:151,371-373` | Wraps shell with `sandbox-exec -n no-network` (macOS) / `unshare --net` (Linux) — **network only, no FS isolation** |
 | Regex command blocklist | `tool_executor.rs:16-67` | Rejects `rm -rf /`, fork bombs, `curl|sh` etc. — defense-in-depth, not isolation |
-| `agent_executor.rs` SSRF guard | `vibeui/src-tauri/src/agent_executor.rs:21-56` | Per-call URL validation for `fetch_url` — **explicitly notes (line 4) that the Tauri path skips bwrap/sandbox-exec entirely** |
+| `agent_executor.rs` SSRF guard | `vibecoder/src-tauri/src/agent_executor.rs:21-56` | Per-call URL validation for `fetch_url` — **explicitly notes (line 4) that the Tauri path skips bwrap/sandbox-exec entirely** |
 | `DockerRuntime` + `ContainerRuntime` trait | `vibecli/vibecli-cli/src/docker_runtime.rs`, `container_runtime.rs` | Real Docker integration with iptables egress allow-list (`docker_runtime.rs:99-136`) — **the prior art for the broker pattern** |
 | `OpenSandboxClient` | `opensandbox_client.rs` (1011 lines) | HTTP client for an external "OpenSandbox" service; not a local runtime |
 | `CloudSandboxManager` | `cloud_sandbox.rs` (382 lines) | Pure in-memory data model — instance lifecycle but **no backend wired** |
-| `Wasmtime 43.0` for `vibe-extensions` | `vibeui/crates/vibe-extensions/Cargo.toml:18`, `loader.rs` | Loaded into separate `Store<HostState>`s; **no fuel/timeout/resource metering** |
-| `ApprovalPolicy` enum | `vibeui/crates/vibe-ai/src/agent.rs` | `ChatOnly` / `ReadOnly` / `Suggest` / `AutoEdit` / `FullAuto` — **policy gate, not isolation** |
+| `Wasmtime 43.0` for `vibe-extensions` | `vibecoder/crates/vibe-extensions/Cargo.toml:18`, `loader.rs` | Loaded into separate `Store<HostState>`s; **no fuel/timeout/resource metering** |
+| `ApprovalPolicy` enum | `vibecoder/crates/vibe-ai/src/agent.rs` | `ChatOnly` / `ReadOnly` / `Suggest` / `AutoEdit` / `FullAuto` — **policy gate, not isolation** |
 | `config.safety.sandbox: bool` | `vibecli/vibecli-cli/src/config.rs:1268` | TOML toggle; on Linux/mac it would invoke bwrap/sandbox-exec — **the toggle exists but the wrap is partial (network only)** |
 
 So most of the *parts* are present. The work is wiring them, replacing the Linux/Windows stubs with real enforcement, adding the egress broker, and registering Firecracker + Hyperlight as additional `Sandbox` backends.

@@ -2,7 +2,7 @@
 //
 // Modal bottom sheet that surfaces a pending tainted-argument prompt
 // from `TaintedService` and lets the user approve or deny. Mirrors
-// the VibeUI WebView `TaintedConfirmationModal` UX: head-of-queue
+// the VibeCoder WebView `TaintedConfirmationModal` UX: head-of-queue
 // render, payload-free summary, Deny-by-default visual weight.
 //
 // The widget only renders when `TaintedService.headPrompt != null`.

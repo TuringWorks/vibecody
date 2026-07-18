@@ -18,7 +18,7 @@ VibeCody's Red Team module provides automated security scanning that checks your
 - VibeCody installed and configured with at least one AI provider
 - A project with source code to scan
 - (Optional) `cargo-audit`, `npm audit`, or `pip-audit` for dependency scanning
-- (Optional) VibeUI installed for the graphical Red Team panel
+- (Optional) VibeCoder installed for the graphical Red Team panel
 
 ## Step-by-Step Walkthrough
 
@@ -279,7 +279,7 @@ Security report generated: security-report.md
 
 Other formats: `--format json`, `--format html`, `--format sarif` (for CI integration).
 
-### Step 8: Using the Red Team panel in VibeUI
+### Step 8: Using the Red Team panel in VibeCoder
 
 Open the **Red Team** panel from the sidebar.
 
@@ -392,7 +392,7 @@ The editor integration highlights vulnerable code with red underlines and shows 
         "tab": "Findings",
         "action_detail": "click_finding_C001",
         "details": "Editor jumps to src/db/queries.rs:45 with red underline on vulnerable code",
-        "narration": "Click a finding in VibeUI to jump to the affected code"
+        "narration": "Click a finding in VibeCoder to jump to the affected code"
       },
       {
         "timestamp": 275,

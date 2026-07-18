@@ -243,7 +243,7 @@ class WearNetworkManager(
         }
     }
 
-    /** Poll the daemon for the active session on VibeUI (for auto-switching). */
+    /** Poll the daemon for the active session on VibeCoder (for auto-switching). */
     suspend fun getActiveSession(): String? = withContext(Dispatchers.IO) {
         try {
             val req = watchRequest("${auth.daemonUrl}/watch/active-session").get().build()
@@ -257,7 +257,7 @@ class WearNetworkManager(
 
     // ── Sandbox chat session ──────────────────────────────────────────────────
 
-    /** Fetch the VibeUI sandbox chat session ID so Sandbox tab shows the AI Chat card. */
+    /** Fetch the VibeCoder sandbox chat session ID so Sandbox tab shows the AI Chat card. */
     suspend fun getSandboxChatSession(): String? = withContext(Dispatchers.IO) {
         try {
             val req = watchRequest("${auth.daemonUrl}/watch/sandbox/chat-session").get().build()

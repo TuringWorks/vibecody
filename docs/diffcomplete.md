@@ -12,7 +12,7 @@ Diffcomplete is VibeCody's only AI code-editing surface. It deliberately replace
 
 ## Quick start
 
-1. Open any file in **VibeUI** (the desktop editor).
+1. Open any file in **VibeCoder** (the desktop editor).
 2. (Optional) Select a region of code. If nothing is selected, the whole file is the editing target.
 3. Press **⌘.** (Cmd-Period on macOS, Ctrl-Period on Linux/Windows). Or open the command palette and run **AI edit (diff)**.
 4. Type the change you want — e.g. *"extract the validation into a helper function"*.
@@ -94,7 +94,7 @@ If you want a file in scope, attach it. Diffcomplete will not guess.
 
 ### Default provider
 
-Diffcomplete uses the AI provider that's currently active in VibeUI's Settings → API Keys. Any provider with a `chat()` surface works — Anthropic, OpenAI, Gemini, Groq, OpenRouter, Mistral, DeepSeek, Cerebras, Together, Fireworks, SambaNova, Perplexity, and the local mistralrs / Ollama paths are all supported.
+Diffcomplete uses the AI provider that's currently active in VibeCoder's Settings → API Keys. Any provider with a `chat()` surface works — Anthropic, OpenAI, Gemini, Groq, OpenRouter, Mistral, DeepSeek, Cerebras, Together, Fireworks, SambaNova, Perplexity, and the local mistralrs / Ollama paths are all supported.
 
 To change the active provider mid-session: Settings → API Keys → click the provider you want.
 
@@ -171,7 +171,7 @@ Slow connection or the provider's region is unhealthy. Switch providers, or wait
 
 ## Scope
 
-Diffcomplete is currently **desktop-only** — it ships as a Tauri command in VibeUI, not as a daemon HTTP route. Mobile / Watch / IDE plugins do not surface it today.
+Diffcomplete is currently **desktop-only** — it ships as a Tauri command in VibeCoder, not as a daemon HTTP route. Mobile / Watch / IDE plugins do not surface it today.
 
 If you need diffcomplete from another client surface, file an issue describing the use case. The backend (`vibe_ai::diffcomplete`) is already a clean library and can be exposed via daemon HTTP without protocol changes.
 
@@ -222,5 +222,5 @@ Diffcomplete is a deliberate, claim-distant alternative to those patterns. If yo
 ## Related
 
 - **Design doc:** [`docs/design/recap-resume/03-diffcomplete.md`](https://github.com/TuringWorks/vibecody/blob/main/docs/design/recap-resume/03-diffcomplete.md)
-- **Source:** [`vibeui/crates/vibe-ai/src/diffcomplete.rs`](https://github.com/TuringWorks/vibecody/blob/main/vibeui/crates/vibe-ai/src/diffcomplete.rs) · [`vibeui/src/components/DiffCompleteModal.tsx`](https://github.com/TuringWorks/vibecody/blob/main/vibeui/src/components/DiffCompleteModal.tsx)
+- **Source:** [`vibecoder/crates/vibe-ai/src/diffcomplete.rs`](https://github.com/TuringWorks/vibecody/blob/main/vibecoder/crates/vibe-ai/src/diffcomplete.rs) · [`vibecoder/src/components/DiffCompleteModal.tsx`](https://github.com/TuringWorks/vibecody/blob/main/vibecoder/src/components/DiffCompleteModal.tsx)
 - **Patent audit working doc:** `notes/PATENT_AUDIT_INLINE.md` (gitignored — local only)

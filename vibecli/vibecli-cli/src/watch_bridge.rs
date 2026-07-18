@@ -72,12 +72,12 @@ pub struct WatchBridgeState {
     /// Human-readable provider name (e.g. "claude", "ollama").
     pub provider_name: String,
     /// Currently active session on Watch (set via PUT /watch/active-session).
-    /// Used so VibeUI can sync to the same session the Watch is viewing.
+    /// Used so VibeCoder can sync to the same session the Watch is viewing.
     pub active_session: Arc<Mutex<Option<String>>>,
     /// Broadcast channel for real-time session events.
     /// Payloads: {"type":"session_updated","session_id":"..."} etc.
     pub session_events: Arc<tokio::sync::broadcast::Sender<serde_json::Value>>,
-    /// Sandbox chat session ID (set via PUT /watch/sandbox/chat-session by VibeUI).
+    /// Sandbox chat session ID (set via PUT /watch/sandbox/chat-session by VibeCoder).
     /// Watch reads this to navigate to the sandbox conversation.
     pub sandbox_chat_session: Arc<Mutex<Option<String>>>,
     /// DREAD #1 Slice G part 3 (watch) — shared `HttpPromptQueue` used
@@ -161,7 +161,7 @@ fn extract_watch_auth(
     })
 }
 
-/// Accept Watch-Token (watch/wear device) OR Bearer (phone app / VibeUI).
+/// Accept Watch-Token (watch/wear device) OR Bearer (phone app / VibeCoder).
 /// Returns Ok("bearer") for Bearer auth, Ok(device_id) for Watch-Token.
 fn extract_any_auth(
     state: &WatchBridgeState,
@@ -501,7 +501,7 @@ async fn watch_list_sessions(
 }
 
 /// GET /watch/sessions/{id}/messages — paginated message list.
-/// Auth: Watch-Token (watch/wear) OR Bearer (phone apps / VibeUI).
+/// Auth: Watch-Token (watch/wear) OR Bearer (phone apps / VibeCoder).
 async fn watch_session_messages(
     State(state): State<WatchBridgeState>,
     headers: axum::http::HeaderMap,
@@ -850,7 +850,7 @@ async fn watch_dispatch(
         }
     });
 
-    // Broadcast session_updated so VibeUI clients on /watch/events know immediately
+    // Broadcast session_updated so VibeCoder clients on /watch/events know immediately
     let _ = state.session_events.send(serde_json::json!({
         "type": "session_updated",
         "session_id": session_id,
@@ -869,12 +869,12 @@ async fn watch_dispatch(
 // ── Active session tracking ────────────────────────────────────────────────────
 
 /// GET /watch/active-session — returns the session Watch is currently viewing.
-/// VibeUI subscribes to this so both surfaces stay on the same session.
+/// VibeCoder subscribes to this so both surfaces stay on the same session.
 async fn watch_get_active_session(
     State(state): State<WatchBridgeState>,
     headers: axum::http::HeaderMap,
 ) -> impl IntoResponse {
-    // Allow both Watch-Token and Bearer auth so VibeUI can poll this too
+    // Allow both Watch-Token and Bearer auth so VibeCoder can poll this too
     let authed = extract_watch_auth(&state, &headers).is_ok()
         || crate::auth_util::bearer_matches(
             headers.get("Authorization").and_then(|v| v.to_str().ok()),
@@ -913,7 +913,7 @@ async fn watch_set_active_session(
         .active_session
         .lock()
         .unwrap_or_else(|e| e.into_inner()) = Some(req.session_id.clone());
-    // Notify VibeUI that the Watch switched sessions
+    // Notify VibeCoder that the Watch switched sessions
     let _ = state.session_events.send(serde_json::json!({
         "type": "watch_session_changed",
         "session_id": req.session_id,
@@ -923,9 +923,9 @@ async fn watch_set_active_session(
 
 /// GET /watch/events — SSE stream of real-time session events.
 ///
-/// VibeUI Tauri backend subscribes here so it gets instant push when Watch
+/// VibeCoder Tauri backend subscribes here so it gets instant push when Watch
 /// sends a message or changes session. Auth: Bearer only — the daemon-local
-/// caller is VibeUI, and on a `--host 0.0.0.0` deployment an unauthed SSE
+/// caller is VibeCoder, and on a `--host 0.0.0.0` deployment an unauthed SSE
 /// stream would let any LAN peer subscribe to real-time session activity
 /// (DREAD #9 in docs/security/threat-model.md).
 async fn watch_session_events_sse(
@@ -962,9 +962,9 @@ async fn watch_session_events_sse(
 
 // ── Sandbox chat session tracking ────────────────────────────────────────────
 
-/// GET /watch/sandbox/chat-session — returns the VibeUI sandbox chat session ID.
+/// GET /watch/sandbox/chat-session — returns the VibeCoder sandbox chat session ID.
 /// Watch reads this on the Sandbox tab to navigate to the matching conversation.
-/// Auth: Bearer (VibeUI/daemon) OR Watch-Token (Watch device).
+/// Auth: Bearer (VibeCoder/daemon) OR Watch-Token (Watch device).
 async fn watch_get_sandbox_chat_session(
     State(state): State<WatchBridgeState>,
     headers: axum::http::HeaderMap,
@@ -994,17 +994,17 @@ struct SetSandboxChatSessionRequest {
     session_id: Option<String>,
 }
 
-/// PUT /watch/sandbox/chat-session — VibeUI notifies the daemon which sandbox
+/// PUT /watch/sandbox/chat-session — VibeCoder notifies the daemon which sandbox
 /// chat session is active so the Watch can navigate to it.
-/// Auth: Bearer only (VibeUI sets this, Watch reads it).
+/// Auth: Bearer only (VibeCoder sets this, Watch reads it).
 async fn watch_set_sandbox_chat_session(
     State(state): State<WatchBridgeState>,
     headers: axum::http::HeaderMap,
     Json(req): Json<SetSandboxChatSessionRequest>,
 ) -> impl IntoResponse {
     let bearer = headers.get("Authorization").and_then(|v| v.to_str().ok());
-    // Bearer only — the doc-comment above declares this is "VibeUI sets, Watch
-    // reads." Watch should not be able to redirect VibeUI's sandbox session
+    // Bearer only — the doc-comment above declares this is "VibeCoder sets, Watch
+    // reads." Watch should not be able to redirect VibeCoder's sandbox session
     // pointer (DREAD #9 in docs/security/threat-model.md).
     if !crate::auth_util::bearer_matches(bearer, &state.api_token) {
         return (
@@ -1259,7 +1259,7 @@ async fn watch_get_goal(
 
 /// G4.2 — start a session bound to a goal from the watch. Wraps
 /// `crate::serve::do_v1_exec_goal_start` so the watch goes through
-/// the same path as VibeUI / mobile. Body shape is forward-compat:
+/// the same path as VibeCoder / mobile. Body shape is forward-compat:
 /// `{ task?, provider?, model? }` — providers + model are accepted
 /// for future hand-off scenarios but ignored today (the watch never
 /// drives an LLM directly).

@@ -18,7 +18,7 @@ The MCP Plugin Directory is VibeCody's curated marketplace for MCP servers. Inst
 - VibeCLI installed and configured ([Demo 1](../01-first-run/))
 - MCP basics understood ([Demo 16](../16-mcp-servers/))
 - Node.js 18+ (most plugins use npx)
-- (Optional) VibeUI for the desktop panel experience
+- (Optional) VibeCoder for the desktop panel experience
 
 ## Step-by-Step Walkthrough
 
@@ -354,12 +354,12 @@ Reviews for mcp-postgres (★★★★★ 4.8, 343 ratings)
 Showing 4 of 343 reviews. Use --all to see more.
 ```
 
-### Step 10: Use the MCP Directory panel in VibeUI
+### Step 10: Use the MCP Directory panel in VibeCoder
 
-Open VibeUI and navigate to the **MCP** panel, then select the **Directory** sub-tab.
+Open VibeCoder and navigate to the **MCP** panel, then select the **Directory** sub-tab.
 
 ```bash
-cd vibeui && npm run tauri dev
+cd vibecoder && npm run tauri dev
 ```
 
 The MCP Directory panel has three tabs:
@@ -487,15 +487,15 @@ The MCP Directory panel has three tabs:
     {
       "id": 15,
       "action": "shell",
-      "command": "cd vibeui && npm run tauri dev",
-      "description": "Launch VibeUI to explore the MCP Directory panel",
+      "command": "cd vibecoder && npm run tauri dev",
+      "description": "Launch VibeCoder to explore the MCP Directory panel",
       "delay_ms": 8000
     },
     {
       "id": 16,
       "action": "Navigate",
       "target": "panel://mcp",
-      "description": "Open the MCP panel in VibeUI"
+      "description": "Open the MCP panel in VibeCoder"
     },
     {
       "id": 17,

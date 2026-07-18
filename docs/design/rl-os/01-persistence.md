@@ -9,7 +9,7 @@
 
 ## Goal
 
-Replace the in-memory mock state at `vibeui/src-tauri/src/commands.rs:41692-41699` with durable, encrypted storage in `WorkspaceStore` (`<workspace>/.vibecli/workspace.db`). Runs created in the UI must survive process restart. No real training yet — that's slice 2 — but the schema, the `RunLifecycle` state machine, and the daemon HTTP routes go in here so slice 2 only has to plug in the executor.
+Replace the in-memory mock state at `vibecoder/src-tauri/src/commands.rs:41692-41699` with durable, encrypted storage in `WorkspaceStore` (`<workspace>/.vibecli/workspace.db`). Runs created in the UI must survive process restart. No real training yet — that's slice 2 — but the schema, the `RunLifecycle` state machine, and the daemon HTTP routes go in here so slice 2 only has to plug in the executor.
 
 ## Where state lives
 

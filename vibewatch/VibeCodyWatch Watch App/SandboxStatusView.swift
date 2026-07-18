@@ -17,7 +17,7 @@ struct SandboxStatusView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 10) {
-                    // AI Chat row — shows when VibeUI Sandbox chat is active
+                    // AI Chat row — shows when VibeCoder Sandbox chat is active
                     if let chatSession = sandboxChatSession {
                         NavigationLink(destination: ConversationView(session: chatSession)) {
                             HStack(spacing: 8) {

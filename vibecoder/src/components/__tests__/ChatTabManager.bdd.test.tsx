@@ -1,0 +1,740 @@
+/**
+ * BDD tests for ChatTabManager — adventure names and tab lifecycle.
+ *
+ * Scenarios:
+ *  1. First tab gets an adventure name from the pool
+ *  2. Each new tab gets the next name (pool cycles)
+ *  3. Pool wraps at 30 entries without repeating prematurely
+ *  4. refreshAdventureNames updates the module cache from the backend
+ *  5. Tab lifecycle: add, close (not last), close-last guard
+ *  6. Closing a tab with messages auto-saves to history
+ *  7. Provider override and reset follow top-bar changes
+ */
+
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// ── Mocks ──────────────────────────────────────────────────────────────────────
+
+const mockInvoke = vi.fn();
+vi.mock('@tauri-apps/api/core', () => ({
+  invoke: (...args: unknown[]) => mockInvoke(...args),
+}));
+
+vi.mock('../AIChat', () => ({
+  AIChat: ({ messages, onMessagesChange, sessionId }: {
+    messages: { role: string; content: string }[];
+    onMessagesChange?: (msgs: { role: string; content: string }[]) => void;
+    sessionId?: string;
+  }) => (
+    <div data-testid="ai-chat" data-session-id={sessionId}>
+      messages:{messages.length}
+      <button
+        type="button"
+        data-testid="mock-send"
+        onClick={() => onMessagesChange?.([
+          ...messages,
+          { role: 'user', content: `msg-${messages.length + 1}` },
+        ])}
+      >
+        send
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock('../ChatMemoryPanel', () => ({
+  ChatMemoryPanel: () => <div data-testid="memory-panel" />,
+}));
+
+vi.mock('../RecapCard', () => ({
+  RecapCard: ({ recap, onResume }: {
+    recap: { id: string; headline: string };
+    onResume?: (r: { id: string; headline: string }) => void;
+  }) => (
+    <div data-testid="recap-card">
+      <span data-testid="recap-headline">{recap.headline}</span>
+      <button type="button" data-testid="recap-resume" onClick={() => onResume?.(recap)}>
+        Resume from here
+      </button>
+    </div>
+  ),
+}));
+
+vi.mock('../../hooks/useSessionMemory', () => ({
+  useSessionMemory: () => ({
+    factsForTab: () => [],
+    extractFromMessages: vi.fn(),
+    getPinnedSystemPromptText: () => '',
+    pinFact: vi.fn(),
+    unpinFact: vi.fn(),
+    deleteFact: vi.fn(),
+    editFact: vi.fn(),
+    addManual: vi.fn(),
+  }),
+}));
+
+import { ChatTabManager } from '../ChatTabManager';
+
+// ── Default prop helpers ───────────────────────────────────────────────────────
+
+function defaultProps(overrides: Record<string, unknown> = {}) {
+  return {
+    defaultProvider: 'ollama',
+    availableProviders: ['ollama', 'openai'],
+    ...overrides,
+  };
+}
+
+function renderManager(overrides: Record<string, unknown> = {}) {
+  return render(<ChatTabManager {...defaultProps(overrides)} />);
+}
+
+// ── Setup ──────────────────────────────────────────────────────────────────────
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  // Reset only the keys ChatTabManager touches. Some jsdom/vitest combos
+  // expose a localStorage proxy without a `clear()` method, which used to
+  // make this beforeEach throw and skip every test in the file.
+  for (const key of ["vibecody:chat-history", "vibecody:chat-sessions", "vibecoder-sessions"]) {
+    try { localStorage.removeItem(key); } catch { /* localStorage unavailable */ }
+  }
+  // Default: get_adventure_names returns backend list; get_adventure_names is called on mount
+  mockInvoke.mockImplementation(async (cmd: string) => {
+    if (cmd === 'get_adventure_names') return ['Alpha', 'Beta', 'Gamma'];
+    return null;
+  });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+// ── Scenario 1: First tab title comes from the adventure names pool ────────────
+
+describe('Given the ChatTabManager renders for the first time', () => {
+  it('When it mounts, Then the first tab has a non-empty title from the pool', () => {
+    renderManager();
+    // The tablist is the canonical ARIA container for the tab strip.
+    const tabBar = screen.getByRole('tablist', { name: /chat sessions/i });
+    const allText = tabBar.textContent ?? '';
+    // The adventure pool names are distinct non-empty strings
+    expect(allText.length).toBeGreaterThan(0);
+  });
+});
+
+// ── Scenario 2: Adding a new tab picks the next adventure name ─────────────────
+
+describe('Given the user adds a second tab', () => {
+  it('When they click +, Then two distinct tabs exist', () => {
+    renderManager();
+
+    const addBtn = screen.getByTitle('New chat tab');
+    fireEvent.click(addBtn);
+
+    // Two "×" close buttons appear once there are 2 tabs
+    const closeBtns = screen.getAllByTitle('Close tab');
+    expect(closeBtns).toHaveLength(2);
+  });
+
+  it('When they add 30 tabs, Then all tab titles are non-empty strings', () => {
+    renderManager();
+    const addBtn = screen.getByTitle('New chat tab');
+    // Add 29 more tabs (starting from 1, get to 30)
+    for (let i = 0; i < 29; i++) {
+      fireEvent.click(addBtn);
+    }
+    const closeBtns = screen.getAllByTitle('Close tab');
+    expect(closeBtns).toHaveLength(30);
+  });
+});
+
+// ── Scenario 3: refreshAdventureNames calls the backend on mount ───────────────
+
+describe('Given refreshAdventureNames is called on mount', () => {
+  it('When the component mounts, Then invoke("get_adventure_names") is called', async () => {
+    renderManager();
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('get_adventure_names');
+    });
+  });
+
+  it('When the backend returns names, Then no error is thrown', async () => {
+    mockInvoke.mockResolvedValueOnce(['Adventure One', 'Adventure Two']);
+    expect(() => renderManager()).not.toThrow();
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith('get_adventure_names');
+    });
+  });
+
+  it('When the backend throws, Then the component renders with default names (graceful degradation)', async () => {
+    mockInvoke.mockRejectedValueOnce(new Error('backend unavailable'));
+    expect(() => renderManager()).not.toThrow();
+    // Component should still render with the + button
+    expect(screen.getByTitle('New chat tab')).toBeInTheDocument();
+  });
+});
+
+// ── Scenario 4: Tab lifecycle — closing is guarded when only one tab remains ──
+
+describe('Given only one tab is open', () => {
+  it('When the user tries to close it, Then the tab remains open', () => {
+    renderManager();
+    // With only 1 tab, no close button is rendered
+    expect(screen.queryByTitle('Close tab')).not.toBeInTheDocument();
+  });
+});
+
+describe('Given two tabs are open', () => {
+  it('When the user closes the second tab, Then only one tab remains', () => {
+    renderManager();
+    fireEvent.click(screen.getByTitle('New chat tab'));
+    expect(screen.getAllByTitle('Close tab')).toHaveLength(2);
+
+    // Close the second tab
+    const closeBtns = screen.getAllByTitle('Close tab');
+    fireEvent.click(closeBtns[1]);
+
+    // Only one tab left → close button disappears
+    expect(screen.queryByTitle('Close tab')).not.toBeInTheDocument();
+  });
+});
+
+// ── Scenario 5: Provider override and reset ────────────────────────────────────
+
+describe('Given a tab with the default provider', () => {
+  it('When the user selects a different provider in the per-tab dropdown, Then "reset" appears', () => {
+    renderManager();
+    const select = screen.getByRole('combobox');
+    fireEvent.change(select, { target: { value: 'openai' } });
+    expect(screen.getByText('reset')).toBeInTheDocument();
+  });
+
+  it('When the user clicks reset, Then the override indicator disappears', () => {
+    renderManager();
+    const select = screen.getByRole('combobox');
+    fireEvent.change(select, { target: { value: 'openai' } });
+    fireEvent.click(screen.getByText('reset'));
+    expect(screen.queryByText('reset')).not.toBeInTheDocument();
+  });
+});
+
+// ── Scenario 6: History panel ─────────────────────────────────────────────────
+
+describe('Given the History button is clicked', () => {
+  it('When there are no saved sessions, Then the empty state message is shown', () => {
+    renderManager();
+    fireEvent.click(screen.getByTitle('Session history'));
+    expect(screen.getByText(/No saved sessions yet/i)).toBeInTheDocument();
+  });
+
+  it('When History is toggled twice, Then the chat view is restored', () => {
+    renderManager();
+    const historyBtn = screen.getByTitle('Session history');
+    fireEvent.click(historyBtn);
+    expect(screen.getByText(/Session History/i)).toBeInTheDocument();
+    fireEvent.click(historyBtn);
+    expect(screen.queryByText(/Session History/i)).not.toBeInTheDocument();
+  });
+});
+
+// ── Scenario 7: Tab rename (inline edit) ──────────────────────────────────────
+
+describe('Given the user double-clicks a tab title', () => {
+  it('When they press Enter, Then the new name is saved', () => {
+    renderManager();
+    // Find the tab title span (has "Double-click to rename" title)
+    const titleSpan = screen.getByTitle('Double-click to rename');
+    fireEvent.dblClick(titleSpan);
+
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: 'My Renamed Tab' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(screen.getByText('My Renamed Tab')).toBeInTheDocument();
+  });
+
+  it('When they press Escape, Then the original name is preserved', async () => {
+    renderManager();
+    const titleSpan = screen.getByTitle('Double-click to rename');
+    const originalName = titleSpan.textContent ?? '';
+    fireEvent.dblClick(titleSpan);
+
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: 'Discarded Name' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+
+    expect(screen.queryByText('Discarded Name')).not.toBeInTheDocument();
+    expect(screen.getByText(originalName)).toBeInTheDocument();
+  });
+});
+
+// ── Scenario 8: Session persistence ───────────────────────────────────────────
+
+describe('Given localStorage has a legacy persisted-sessions blob', () => {
+  it('When the component mounts, Then the new tab opens fresh (not resurrected from localStorage)', () => {
+    localStorage.setItem('vibecody:chat-sessions', JSON.stringify({
+      'tab-1': [{ id: '1', role: 'user', content: 'Hello', timestamp: Date.now() }],
+    }));
+    renderManager();
+    // Mock AIChat renders "messages:N" — fresh tab must show 0
+    expect(screen.getByTestId('ai-chat')).toHaveTextContent('messages:0');
+    // And the legacy blob must be evicted on mount
+    expect(localStorage.getItem('vibecody:chat-sessions')).toBeNull();
+  });
+
+  it('When localStorage has corrupt JSON, Then the component renders normally', () => {
+    localStorage.setItem('vibecody:chat-sessions', 'not-valid-json{{{');
+    expect(() => renderManager()).not.toThrow();
+    expect(screen.getByTitle('New chat tab')).toBeInTheDocument();
+  });
+});
+
+// ── Scenario 9: History dedup — Save twice updates one entry ──────────────────
+
+function readHistory(): Array<{ id: string; messages: { role: string; content: string }[] }> {
+  const raw = localStorage.getItem('vibecody:chat-history');
+  return raw ? JSON.parse(raw) : [];
+}
+
+describe('Given a tab has been saved to history once', () => {
+  it('When the user adds more messages and clicks Save again, Then history holds one entry (updated, not duplicated)', () => {
+    renderManager();
+
+    // Type a message → Save button appears
+    fireEvent.click(screen.getByTestId('mock-send'));
+    fireEvent.click(screen.getByTitle('Save current session to history'));
+    expect(readHistory()).toHaveLength(1);
+    const firstId = readHistory()[0].id;
+    expect(readHistory()[0].messages).toHaveLength(1);
+
+    // Add another message and save again
+    fireEvent.click(screen.getByTestId('mock-send'));
+    fireEvent.click(screen.getByTitle('Save current session to history'));
+
+    const after = readHistory();
+    expect(after).toHaveLength(1);
+    expect(after[0].id).toBe(firstId);
+    expect(after[0].messages).toHaveLength(2);
+  });
+
+  it('When the user closes the tab after saving, Then no duplicate is appended', () => {
+    renderManager();
+
+    // Type into and save the only tab (which is the active one)
+    fireEvent.click(screen.getByTestId('mock-send'));
+    fireEvent.click(screen.getByTitle('Save current session to history'));
+    expect(readHistory()).toHaveLength(1);
+    const firstId = readHistory()[0].id;
+
+    // Add a second tab so closeTab is allowed, then close the first (saved) tab.
+    fireEvent.click(screen.getByTitle('New chat tab'));
+    fireEvent.click(screen.getAllByTitle('Close tab')[0]);
+
+    const after = readHistory();
+    expect(after).toHaveLength(1);
+    expect(after[0].id).toBe(firstId);
+  });
+});
+
+describe('Given a session is restored from history into a new tab', () => {
+  it('When the user adds messages and saves, Then the original history entry is updated in place', () => {
+    // Pre-seed history with a session
+    const seededId = 'session-seed-1';
+    localStorage.setItem('vibecody:chat-history', JSON.stringify([{
+      id: seededId,
+      title: 'Seeded',
+      provider: 'ollama',
+      messages: [{ role: 'user', content: 'original' }],
+      savedAt: 1700000000000,
+    }]));
+
+    renderManager();
+
+    // Open History panel and click Restore on the seeded entry
+    fireEvent.click(screen.getByTitle('Session history'));
+    fireEvent.click(screen.getByTitle('Restore into new tab'));
+
+    // After restore, two tabs are mounted (original + restored). The restored
+    // one is active; its parent wrapper has display:flex (vs display:none).
+    const aiChats = screen.getAllByTestId('ai-chat');
+    const activeChat = aiChats.find(el => (el.parentElement as HTMLElement).style.display !== 'none');
+    expect(activeChat).toBeTruthy();
+    fireEvent.click(activeChat!.querySelector('[data-testid="mock-send"]')!);
+    fireEvent.click(screen.getByTitle('Save current session to history'));
+
+    const after = readHistory();
+    expect(after).toHaveLength(1);
+    expect(after[0].id).toBe(seededId);
+    expect(after[0].messages).toHaveLength(2);
+  });
+});
+
+// ── F2.2: Recap card pinned to a restored tab ───────────────────────────────────
+
+describe('Given a history entry has a recapSubjectId', () => {
+  function seedHistoryWithRecap(subjectId = 'sess_xyz') {
+    localStorage.setItem('vibecody:chat-history', JSON.stringify([{
+      id: 'session-seed-1',
+      title: 'Seeded',
+      provider: 'ollama',
+      messages: [{ role: 'user', content: 'original' }],
+      savedAt: 1700000000000,
+      recapSubjectId: subjectId,
+    }]));
+  }
+
+  function mockRecapInvoke(headline = 'Wired auth refresh-token rotation') {
+    mockInvoke.mockImplementation(async (cmd: string, args?: { subjectId?: string }) => {
+      if (cmd === 'get_adventure_names') return ['Alpha', 'Beta', 'Gamma'];
+      if (cmd === 'recap_get_for_session') {
+        return {
+          id: 'rcp_1',
+          kind: 'session',
+          subject_id: args?.subjectId ?? '',
+          generated_at: '2026-01-01T00:00:00Z',
+          generator: { type: 'heuristic' },
+          headline,
+          bullets: ['b1'],
+          next_actions: [],
+          artifacts: [],
+          schema_version: 1,
+        };
+      }
+      return null;
+    });
+  }
+
+  it('When the daemon returns a recap, Then a RecapCard renders with the headline', async () => {
+    seedHistoryWithRecap();
+    mockRecapInvoke('Wired auth refresh-token rotation');
+
+    renderManager();
+    fireEvent.click(screen.getByTitle('Session history'));
+    fireEvent.click(screen.getByTitle('Restore into new tab'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('recap-card')).toBeInTheDocument();
+    });
+    expect(screen.getByTestId('recap-headline').textContent).toBe('Wired auth refresh-token rotation');
+    expect(mockInvoke).toHaveBeenCalledWith('recap_get_for_session', { subjectId: 'sess_xyz' });
+  });
+
+  it('When the user clicks "Resume from here", Then recap_resume_session is invoked with the recap id', async () => {
+    seedHistoryWithRecap();
+    mockRecapInvoke();
+
+    renderManager();
+    fireEvent.click(screen.getByTitle('Session history'));
+    fireEvent.click(screen.getByTitle('Restore into new tab'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('recap-card')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('recap-resume'));
+
+    expect(mockInvoke).toHaveBeenCalledWith('recap_resume_session', { recapId: 'rcp_1', branch: false });
+  });
+
+  it('When the daemon command throws, Then no RecapCard renders and the tab still works', async () => {
+    seedHistoryWithRecap();
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_adventure_names') return ['Alpha', 'Beta', 'Gamma'];
+      if (cmd === 'recap_get_for_session') throw new Error('daemon offline');
+      return null;
+    });
+
+    renderManager();
+    fireEvent.click(screen.getByTitle('Session history'));
+    fireEvent.click(screen.getByTitle('Restore into new tab'));
+
+    // Allow the rejected promise to flush
+    await new Promise(r => setTimeout(r, 0));
+    expect(screen.queryByTestId('recap-card')).toBeNull();
+  });
+});
+
+describe('Given a restored history entry has no recapSubjectId', () => {
+  it('When the user restores it, Then no RecapCard renders and recap_get_for_session is not called', async () => {
+    localStorage.setItem('vibecody:chat-history', JSON.stringify([{
+      id: 'session-seed-1',
+      title: 'Seeded',
+      provider: 'ollama',
+      messages: [{ role: 'user', content: 'original' }],
+      savedAt: 1700000000000,
+      // recapSubjectId omitted on purpose
+    }]));
+
+    renderManager();
+    fireEvent.click(screen.getByTitle('Session history'));
+    fireEvent.click(screen.getByTitle('Restore into new tab'));
+
+    await new Promise(r => setTimeout(r, 0));
+    expect(screen.queryByTestId('recap-card')).toBeNull();
+    expect(mockInvoke).not.toHaveBeenCalledWith('recap_get_for_session', expect.anything());
+  });
+});
+
+// ── F2.3: auto-recap on tab close ───────────────────────────────────────────────
+
+describe('Given a tab has messages and recap-on-close is enabled', () => {
+  function setRecapOnClose(enabled: boolean) {
+    localStorage.setItem('vibecoder-sessions', JSON.stringify({ recapOnTabClose: enabled }));
+  }
+
+  function recapInvoke() {
+    const calls: Array<{ cmd: string; args: unknown }> = [];
+    mockInvoke.mockImplementation(async (cmd: string, args?: unknown) => {
+      calls.push({ cmd, args });
+      if (cmd === 'get_adventure_names') return ['Alpha', 'Beta', 'Gamma'];
+      if (cmd === 'recap_generate') return { id: 'rcp_42' };
+      return null;
+    });
+    return calls;
+  }
+
+  it('When the user closes a tab with messages, Then recap_generate is invoked with that tab id as subject_id', async () => {
+    setRecapOnClose(true);
+    const calls = recapInvoke();
+
+    renderManager();
+    // Open a second tab so the close-last-tab guard doesn't block
+    fireEvent.click(screen.getByTitle('New chat tab'));
+    // Send a message in the active (second) tab
+    const aiChats = screen.getAllByTestId('ai-chat');
+    const activeChat = aiChats.find(el => (el.parentElement as HTMLElement).style.display !== 'none')!;
+    fireEvent.click(activeChat.querySelector('[data-testid="mock-send"]')!);
+
+    // Close the active tab
+    const closeBtns = screen.getAllByTitle('Close tab');
+    fireEvent.click(closeBtns[closeBtns.length - 1]);
+
+    await new Promise(r => setTimeout(r, 0));
+    const generated = calls.filter(c => c.cmd === 'recap_generate');
+    expect(generated).toHaveLength(1);
+    expect((generated[0].args as { subjectId: string }).subjectId).toMatch(/^tab-\d+$/);
+  });
+
+  it('When the user closes an empty tab, Then recap_generate is NOT invoked', async () => {
+    setRecapOnClose(true);
+    const calls = recapInvoke();
+
+    renderManager();
+    fireEvent.click(screen.getByTitle('New chat tab'));
+    // Do NOT send a message in the new tab
+    const closeBtns = screen.getAllByTitle('Close tab');
+    fireEvent.click(closeBtns[closeBtns.length - 1]);
+
+    await new Promise(r => setTimeout(r, 0));
+    expect(calls.filter(c => c.cmd === 'recap_generate')).toHaveLength(0);
+  });
+
+  it('When recap-on-close is disabled in settings, Then recap_generate is NOT invoked even with messages', async () => {
+    setRecapOnClose(false);
+    const calls = recapInvoke();
+
+    renderManager();
+    fireEvent.click(screen.getByTitle('New chat tab'));
+    const aiChats = screen.getAllByTestId('ai-chat');
+    const activeChat = aiChats.find(el => (el.parentElement as HTMLElement).style.display !== 'none')!;
+    fireEvent.click(activeChat.querySelector('[data-testid="mock-send"]')!);
+
+    const closeBtns = screen.getAllByTitle('Close tab');
+    fireEvent.click(closeBtns[closeBtns.length - 1]);
+
+    await new Promise(r => setTimeout(r, 0));
+    expect(calls.filter(c => c.cmd === 'recap_generate')).toHaveLength(0);
+  });
+
+  it('When recap_generate succeeds, Then the history entry gains recapSubjectId equal to the closed tab id', async () => {
+    setRecapOnClose(true);
+    const calls = recapInvoke();
+
+    renderManager();
+    fireEvent.click(screen.getByTitle('New chat tab'));
+    const aiChats = screen.getAllByTestId('ai-chat');
+    const activeChat = aiChats.find(el => (el.parentElement as HTMLElement).style.display !== 'none')!;
+    fireEvent.click(activeChat.querySelector('[data-testid="mock-send"]')!);
+
+    const closeBtns = screen.getAllByTitle('Close tab');
+    fireEvent.click(closeBtns[closeBtns.length - 1]);
+
+    // Wait for the .then() to flush + setHistory writes localStorage
+    await waitFor(() => {
+      const raw = localStorage.getItem('vibecody:chat-history');
+      const entries = raw ? JSON.parse(raw) : [];
+      expect(entries[0]?.recapSubjectId).toBeDefined();
+    });
+    const subj = (calls.find(c => c.cmd === 'recap_generate')!.args as { subjectId: string }).subjectId;
+    const entries = JSON.parse(localStorage.getItem('vibecody:chat-history')!);
+    expect(entries[0].recapSubjectId).toBe(subj);
+  });
+
+  it('When recap_generate rejects, Then the close completes and no recapSubjectId is written', async () => {
+    setRecapOnClose(true);
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'get_adventure_names') return ['Alpha', 'Beta', 'Gamma'];
+      if (cmd === 'recap_generate') throw new Error('daemon offline');
+      return null;
+    });
+
+    renderManager();
+    fireEvent.click(screen.getByTitle('New chat tab'));
+    const aiChats = screen.getAllByTestId('ai-chat');
+    const activeChat = aiChats.find(el => (el.parentElement as HTMLElement).style.display !== 'none')!;
+    fireEvent.click(activeChat.querySelector('[data-testid="mock-send"]')!);
+
+    const closeBtns = screen.getAllByTitle('Close tab');
+    fireEvent.click(closeBtns[closeBtns.length - 1]);
+
+    await new Promise(r => setTimeout(r, 0));
+    const entries = JSON.parse(localStorage.getItem('vibecody:chat-history') || '[]');
+    expect(entries).toHaveLength(1);
+    expect(entries[0].recapSubjectId).toBeUndefined();
+  });
+});
+
+// ── A11y: tablist + tab roles + keyboard navigation ─────────────────────────────
+
+describe('Given the tab strip renders', () => {
+  it('When a sighted user opens the panel, Then the strip is exposed as a tablist with one tab per chat', () => {
+    renderManager();
+    const list = screen.getByRole('tablist', { name: /chat sessions/i });
+    expect(list).toBeInTheDocument();
+    expect(screen.getAllByRole('tab')).toHaveLength(1);
+  });
+
+  it('When a second tab is added, Then exactly one tab has aria-selected="true"', () => {
+    renderManager();
+    fireEvent.click(screen.getByTitle('New chat tab'));
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs).toHaveLength(2);
+    const selected = tabs.filter(t => t.getAttribute('aria-selected') === 'true');
+    expect(selected).toHaveLength(1);
+    // The newly added tab is the active one
+    expect(selected[0]).toBe(tabs[1]);
+  });
+
+  it('When the user presses ArrowRight on the active tab, Then focus and selection move to the next tab', () => {
+    renderManager();
+    fireEvent.click(screen.getByTitle('New chat tab'));
+    const tabs = screen.getAllByRole('tab');
+    // Active is tabs[1]; ArrowRight should wrap to tabs[0]
+    fireEvent.keyDown(tabs[1], { key: 'ArrowRight' });
+    const after = screen.getAllByRole('tab');
+    expect(after[0].getAttribute('aria-selected')).toBe('true');
+    expect(after[1].getAttribute('aria-selected')).toBe('false');
+  });
+
+  it('When the user presses Home, Then the first tab becomes selected', () => {
+    renderManager();
+    fireEvent.click(screen.getByTitle('New chat tab'));
+    fireEvent.click(screen.getByTitle('New chat tab'));
+    const tabs = screen.getAllByRole('tab');
+    fireEvent.keyDown(tabs[2], { key: 'Home' });
+    expect(screen.getAllByRole('tab')[0].getAttribute('aria-selected')).toBe('true');
+  });
+});
+
+// ── Error UX: recap-resume failure surfaces an inline alert ─────────────────────
+
+describe('Given a recap is pinned and recap_resume_session fails', () => {
+  it('When the user clicks "Resume from here", Then an alert banner appears', async () => {
+    localStorage.setItem('vibecody:chat-history', JSON.stringify([{
+      id: 'session-seed-1',
+      title: 'Seeded',
+      provider: 'ollama',
+      messages: [{ role: 'user', content: 'original' }],
+      savedAt: 1700000000000,
+      recapSubjectId: 'sess_xyz',
+    }]));
+    mockInvoke.mockImplementation(async (cmd: string, args?: { subjectId?: string }) => {
+      if (cmd === 'get_adventure_names') return ['Alpha', 'Beta', 'Gamma'];
+      if (cmd === 'recap_get_for_session') {
+        return {
+          id: 'rcp_1',
+          kind: 'session',
+          subject_id: args?.subjectId ?? '',
+          generated_at: '2026-01-01T00:00:00Z',
+          generator: { type: 'heuristic' },
+          headline: 'h',
+          bullets: ['b1'],
+          next_actions: [],
+          artifacts: [],
+          schema_version: 1,
+        };
+      }
+      if (cmd === 'recap_resume_session') throw new Error('daemon offline');
+      return null;
+    });
+
+    renderManager();
+    fireEvent.click(screen.getByTitle('Session history'));
+    fireEvent.click(screen.getByTitle('Restore into new tab'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('recap-card')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('recap-resume'));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('alert').textContent).toMatch(/couldn['’]t resume/i);
+  });
+});
+
+// ── F3.1: Auto-resume last session on launch ────────────────────────────────────
+
+describe("F3.1 — auto-resume the last session on launch", () => {
+  function seedHistory() {
+    localStorage.setItem("vibecody:chat-history", JSON.stringify([{
+      id: "session-seed-1",
+      title: "Last session",
+      provider: "ollama",
+      messages: [{ role: "user", content: "previous turn" }],
+      savedAt: 1700000000000,
+    }]));
+  }
+
+  it("Given autoResumeLast=true and history is non-empty, When the manager mounts, Then a second tab is restored", () => {
+    seedHistory();
+    localStorage.setItem("vibecoder-sessions", JSON.stringify({ autoResumeLast: true }));
+
+    renderManager();
+
+    // Default empty tab + restored tab = 2 tabs (close buttons visible).
+    expect(screen.getAllByTitle("Close tab")).toHaveLength(2);
+  });
+
+  it("Given autoResumeLast=false, When the manager mounts, Then no auto-restore happens", () => {
+    seedHistory();
+    localStorage.setItem("vibecoder-sessions", JSON.stringify({ autoResumeLast: false }));
+
+    renderManager();
+
+    // Only the default tab; no close buttons.
+    expect(screen.queryByTitle("Close tab")).not.toBeInTheDocument();
+  });
+
+  it("Given the setting is missing, When the manager mounts, Then no auto-restore happens (default off)", () => {
+    seedHistory();
+    // No vibecoder-sessions key.
+    renderManager();
+    expect(screen.queryByTitle("Close tab")).not.toBeInTheDocument();
+  });
+
+  it("Given autoResumeLast=true but history is empty, When the manager mounts, Then only the default tab exists", () => {
+    localStorage.setItem("vibecoder-sessions", JSON.stringify({ autoResumeLast: true }));
+    renderManager();
+    expect(screen.queryByTitle("Close tab")).not.toBeInTheDocument();
+  });
+
+  it("Given the setting blob is corrupt, When the manager mounts, Then the default tab is unaffected", () => {
+    seedHistory();
+    localStorage.setItem("vibecoder-sessions", "{not json");
+    renderManager();
+    expect(screen.queryByTitle("Close tab")).not.toBeInTheDocument();
+  });
+});

@@ -10,12 +10,12 @@ permalink: /quickstart/
 
 ## What is VibeCody?
 
-VibeCody is an AI-powered developer toolchain built in Rust. It gives you many ways to work: **VibeCLI** (terminal), **VibeUI** (desktop editor, 293+ panels), **VibeCLI App** (desktop chat), **VibeMobile** (Flutter, 6 platforms), and **VibeWatch** (native Apple Watch + Wear OS). All surfaces share the same backend crates, supporting 22 AI providers, an autonomous agent loop, code review, multi-agent orchestration, MCP integration, and 711 built-in skills. Start with a local model and zero API keys — and with zero-config mDNS / Tailscale / ngrok connectivity, your phone and watch find your desktop automatically.
+VibeCody is an AI-powered developer toolchain built in Rust. It gives you many ways to work: **VibeCLI** (terminal), **VibeCoder** (desktop editor, 293+ panels), **VibeCLI App** (desktop chat), **VibeMobile** (Flutter, 6 platforms), and **VibeWatch** (native Apple Watch + Wear OS). All surfaces share the same backend crates, supporting 22 AI providers, an autonomous agent loop, code review, multi-agent orchestration, MCP integration, and 711 built-in skills. Start with a local model and zero API keys — and with zero-config mDNS / Tailscale / ngrok connectivity, your phone and watch find your desktop automatically.
 
 
 ## Choose Your Surface
 
-| | **VibeCLI** | **VibeUI** |
+| | **VibeCLI** | **VibeCoder** |
 |---|---|---|
 | **Best for** | Terminal users, CI/CD, scripting | Visual editing, panel-rich workflows |
 | **Interface** | TUI (Ratatui) or REPL | Desktop app (Tauri + Monaco) |
@@ -23,7 +23,7 @@ VibeCody is an AI-powered developer toolchain built in Rust. It gives you many w
 | **Works headless** | Yes | No |
 | **AI features** | All 23 providers, agent, review, skills | All CLI features + visual panels |
 
-**Recommendation:** Start with VibeCLI. You can add VibeUI later -- they share the same config and crates.
+**Recommendation:** Start with VibeCLI. You can add VibeCoder later -- they share the same config and crates.
 
 
 ## Install in 60 Seconds
@@ -266,7 +266,7 @@ You are up and running. Here is where to go next:
 | Deep-dive on code review | [Code Review Tutorial](/vibecody/tutorials/code-review/) |
 | Browse all tutorials | [Tutorials Index](/vibecody/tutorials/) |
 | Configure VibeCLI fully | [Configuration Guide](/vibecody/configuration/) |
-| Set up the desktop editor | [VibeUI Reference](/vibecody/vibeui/) |
+| Set up the desktop editor | [VibeCoder Reference](/vibecody/vibecoder/) |
 | Full CLI reference | [VibeCLI Reference](/vibecody/vibecli/) |
 | Pair your phone | [VibeMobile](/vibecody/vibemobile/) |
 | Pair your Apple Watch | [watchOS guide](/vibecody/watchos/) |
@@ -303,7 +303,7 @@ echo $ANTHROPIC_API_KEY
 export ANTHROPIC_API_KEY="sk-ant-your-key-here"
 ```
 
-To persist the key, add the `export` line to your `~/.bashrc` or `~/.zshrc`. In VibeUI, you can also store keys securely via the **Settings** panel, which saves them to the encrypted ProfileStore (`~/.vibecli/profile_settings.db`).
+To persist the key, add the `export` line to your `~/.bashrc` or `~/.zshrc`. In VibeCoder, you can also store keys securely via the **Settings** panel, which saves them to the encrypted ProfileStore (`~/.vibecli/profile_settings.db`).
 
 > **Security note:** Never store API keys in plaintext files such as `config.toml` or `.json` files. VibeCody's encrypted ProfileStore is the only safe persistent storage for secrets.
 

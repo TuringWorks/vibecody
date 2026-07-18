@@ -219,9 +219,9 @@ $ ls -la src/
 
 The terminal supports full ANSI colors and can be resized by dragging the divider or pressing `Ctrl+Arrow`.
 
-## VibeUI Equivalent
+## VibeCoder Equivalent
 
-In VibeUI (the desktop IDE), the same panels are available in the AI sidebar. Open it with `Cmd+J` and use the tab bar to switch between Chat, Agent, History, and other panels. The diff view is integrated into the Monaco editor with inline change highlighting.
+In VibeCoder (the desktop IDE), the same panels are available in the AI sidebar. Open it with `Cmd+J` and use the tab bar to switch between Chat, Agent, History, and other panels. The diff view is integrated into the Monaco editor with inline change highlighting.
 
 ## Demo Recording
 

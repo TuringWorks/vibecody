@@ -6,7 +6,7 @@ permalink: /vibecli/
 
 **AI-powered coding assistant for the terminal.**
 
-VibeCLI provides two interaction modes: a rich **Terminal UI (TUI)** powered by Ratatui, and a **REPL** mode for quick, scriptable use. It also runs as an HTTP daemon (`--serve`) that powers VibeUI, VibeMobile, and the new native VibeWatch clients.
+VibeCLI provides two interaction modes: a rich **Terminal UI (TUI)** powered by Ratatui, and a **REPL** mode for quick, scriptable use. It also runs as an HTTP daemon (`--serve`) that powers VibeCoder, VibeMobile, and the new native VibeWatch clients.
 
 ### What's new in 0.5.5
 
@@ -80,14 +80,14 @@ vibecli --provider gemini
 | `--tailscale` | false | Enable Tailscale Funnel for public HTTPS remote access |
 | `--ngrok` | false | Auto-start an ngrok tunnel (requires `NGROK_AUTHTOKEN`) |
 | `--mdns` | true | Advertise `_vibecli._tcp.local.` for zero-config LAN discovery (set `--mdns=false` to disable) |
-| `--serve` | false | Run as HTTP daemon (REST + SSE API — powers VibeUI, VibeMobile, VibeWatch) |
+| `--serve` | false | Run as HTTP daemon (REST + SSE API — powers VibeCoder, VibeMobile, VibeWatch) |
 | `--port <n>` | `7878` | Port for `--serve` |
 | `--bind <addr>` | `127.0.0.1` | Bind address for `--serve`; use `0.0.0.0` to expose to LAN |
 | `--registry <kind>` | `all` | Print the ACP agent-card / MCP Registry server entry for a registry-submission PR: `acp`, `mcp`, or `all` |
 
 ### Reasoning effort
 
-VibeCody exposes a provider-agnostic **effort** tier — `low`, `medium`, `high` (default), `xhigh` — that maps onto each provider's native reasoning knob: Claude/Gemini extended-thinking token budget, OpenAI `reasoning_effort`. In VibeUI it's the toolbar dropdown next to the provider selector; on the daemon `/agent` endpoint it's the `reasoning` request field; providers without a reasoning dial ignore it gracefully. Higher tiers also bias `cost_router` toward stronger models. (Gemini *Pro* models can't fully disable thinking, so `low` uses the 128-token minimum there.)
+VibeCody exposes a provider-agnostic **effort** tier — `low`, `medium`, `high` (default), `xhigh` — that maps onto each provider's native reasoning knob: Claude/Gemini extended-thinking token budget, OpenAI `reasoning_effort`. In VibeCoder it's the toolbar dropdown next to the provider selector; on the daemon `/agent` endpoint it's the `reasoning` request field; providers without a reasoning dial ignore it gracefully. Higher tiers also bias `cost_router` toward stronger models. (Gemini *Pro* models can't fully disable thinking, so `low` uses the 128-token minimum there.)
 
 ## TUI Commands
 
@@ -953,7 +953,7 @@ Workflow: my_app  [12% complete]
 Yes Advanced to stage: Architecture
 ```
 
-Workflows are stored as markdown files in `.vibecli/workflows/` with YAML front-matter. The stage advancement gate requires ≥80% checklist completion in VibeUI.
+Workflows are stored as markdown files in `.vibecli/workflows/` with YAML front-matter. The stage advancement gate requires ≥80% checklist completion in VibeCoder.
 
 ## Red Team Security Testing
 
@@ -1028,7 +1028,7 @@ Yes Tests passed
 
 If no framework is detected, provide a custom command: `/test <command>`.
 
-In VibeUI, the **Tests** panel provides a richer experience with live streaming log output, per-test pass/fail results, expandable failure details, filter tabs (All / Failed / Passed), and a custom command input field.
+In VibeCoder, the **Tests** panel provides a richer experience with live streaming log output, per-test pass/fail results, expandable failure details, filter tabs (All / Failed / Passed), and a custom command input field.
 
 ## Skills System
 

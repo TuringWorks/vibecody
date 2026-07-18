@@ -89,14 +89,14 @@ On macOS, WebView is bundled with the OS. On Windows, WebView2 is typically pre-
 
 ### npm install failures
 
-**Symptom:** `npm install` in `vibeui/` fails with permission errors or dependency conflicts.
+**Symptom:** `npm install` in `vibecoder/` fails with permission errors or dependency conflicts.
 
 **Cause:** Stale lockfile, corrupted cache, or permission issues.
 
 **Solution:**
 
 ```bash
-cd vibeui
+cd vibecoder
 
 # Clean and retry
 rm -rf node_modules package-lock.json
@@ -263,7 +263,7 @@ For self-hosted providers, you can set a custom API URL with your internal CA.
 
 **Solution:**
 
-1. **Interrupt** the agent with `Ctrl+C` (CLI) or the Stop button (VibeUI).
+1. **Interrupt** the agent with `Ctrl+C` (CLI) or the Stop button (VibeCoder).
 2. Set a maximum step limit in config:
 
 ```toml
@@ -339,11 +339,11 @@ vibecli session new
 
 Session data is stored in `~/.vibecli/sessions/`. You can inspect or delete individual session files there.
 
-## VibeUI Issues
+## VibeCoder Issues
 
 ### Blank screen on launch
 
-**Symptom:** VibeUI window opens but shows a blank white or black screen.
+**Symptom:** VibeCoder window opens but shows a blank white or black screen.
 
 **Cause:** WebView rendering issue, often related to GPU drivers or missing WebView runtime.
 
@@ -376,7 +376,7 @@ WEBKIT_DISABLE_COMPOSITING_MODE=1 npm run tauri:dev
 
 **Solution:**
 
-1. Disable the minimap in VibeUI settings (Settings > Editor > Minimap: off).
+1. Disable the minimap in VibeCoder settings (Settings > Editor > Minimap: off).
 2. Disable word wrap for very large files.
 3. For files over 5 MB, consider using the terminal-based editor or an external editor.
 
@@ -395,7 +395,7 @@ ls -la /dev/pts/
 # Ensure your user is in the tty group
 sudo usermod -aG tty $(whoami)
 
-# Restart VibeUI after group change
+# Restart VibeCoder after group change
 ```
 
 On macOS, ensure Terminal has Full Disk Access in System Settings > Privacy & Security.
@@ -413,7 +413,7 @@ On macOS, ensure Terminal has Full Disk Access in System Settings > Privacy & Se
 3. Ensure you are running the latest build:
 
 ```bash
-cd vibeui
+cd vibecoder
 npm run tauri:dev
 ```
 
@@ -456,7 +456,7 @@ Run through this checklist:
 4. Clean and rebuild:
 
 ```bash
-cd vibeui
+cd vibecoder
 rm -rf node_modules src-tauri/target
 npm install
 npm run tauri:build
@@ -687,11 +687,11 @@ The API only returns pages explicitly shared with the integration.
 
 ---
 
-### VibeUI Productivity Panel: "vibecli not found on PATH"
+### VibeCoder Productivity Panel: "vibecli not found on PATH"
 
-**Symptom:** The Productivity panel in VibeUI shows "vibecli not found on PATH".
+**Symptom:** The Productivity panel in VibeCoder shows "vibecli not found on PATH".
 
-**Cause:** The `vibecli` binary is not on the system PATH when VibeUI is launched.
+**Cause:** The `vibecli` binary is not on the system PATH when VibeCoder is launched.
 
 **Solution:**
 
@@ -706,7 +706,7 @@ curl -fsSL https://vibecody.github.io/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-On macOS, apps launched from Finder or the Dock may not inherit the full shell PATH. Start VibeUI from a terminal: `open -a VibeUI` or `npx tauri dev`.
+On macOS, apps launched from Finder or the Dock may not inherit the full shell PATH. Start VibeCoder from a terminal: `open -a VibeCoder` or `npx tauri dev`.
 
 ---
 

@@ -1,9 +1,9 @@
 # App Server
-Unified JSON-RPC 2.0 server dispatcher powering CLI, VS Code extension, and VibeUI over the same wire protocol.
+Unified JSON-RPC 2.0 server dispatcher powering CLI, VS Code extension, and VibeCoder over the same wire protocol.
 
 ## When to Use
 - Exposing VibeCLI capabilities over a language-agnostic JSON-RPC 2.0 interface
-- Building VS Code extensions or VibeUI panels that call backend methods by name
+- Building VS Code extensions or VibeCoder panels that call backend methods by name
 - Adding new server-side handlers without touching the transport layer
 
 ## Commands

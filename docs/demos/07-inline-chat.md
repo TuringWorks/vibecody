@@ -24,13 +24,13 @@ api_key = "sk-ant-..."
 model = "claude-sonnet-4-6"
 ```
 
-- VibeUI built and running:
+- VibeCoder built and running:
 
 ```bash
-cd vibeui && npm install && npm run tauri dev
+cd vibecoder && npm install && npm run tauri dev
 ```
 
-- A project open in VibeUI (File > Open Folder)
+- A project open in VibeCoder (File > Open Folder)
 
 ## Step-by-Step Walkthrough
 
@@ -87,9 +87,9 @@ The following Tauri commands and frontend modules were removed on 2026-04-26 and
 - `inline_edit` / `generate_code` — Cmd+K backend
 - `semantic_search_codebase` / `build_embedding_index` — orphan after `SupercompleteEngine` was removed
 - `vibe-ai/src/completion.rs` (`CompletionEngine`)
-- `vibeui/src/components/InlineChat.tsx`
-- `vibeui/src/utils/SupercompleteEngine.ts`
-- `vibeui-ai-inline-completion-enabled` localStorage toggle
+- `vibecoder/src/components/InlineChat.tsx`
+- `vibecoder/src/utils/SupercompleteEngine.ts`
+- `vibecoder-ai-inline-completion-enabled` localStorage toggle
 - `Monaco.languages.registerInlineCompletionsProvider` registration in `App.tsx`
 
 If you need an alternative, use DiffComplete (⌘.) — it is the supported AI editing surface.

@@ -5,7 +5,7 @@
 //!   1. The router needs typed frames (`ChatChunk`, …) to decide e.g. whether
 //!      to inject metadata or rate-limit per-token. Forwarding raw bytes
 //!      would punch a hole through that abstraction.
-//!   2. Downstream clients (VibeUI, mobile, watch) talk to *us* over HTTPS
+//!   2. Downstream clients (VibeCoder, mobile, watch) talk to *us* over HTTPS
 //!      with our auth scheme. Surfacing ollama's plain-HTTP socket via a
 //!      transparent passthrough would expose model traffic outside the
 //!      daemon's auth boundary.

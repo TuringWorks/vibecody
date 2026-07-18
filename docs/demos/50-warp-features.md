@@ -183,7 +183,7 @@ Suggested command:
  210M    models/
   98M    data/
   82M    node_modules/
-  64M    vibeui/
+  64M    vibecoder/
   48M    docs/
   22M    vibecli/
   14M    logs/
@@ -216,9 +216,9 @@ Suggested command:
 ```
   12 vibecli/vibecli-cli/src/agent.rs
    8 vibecli/vibecli-cli/src/open_memory.rs
-   5 vibeui/crates/vibe-ai/src/provider.rs
+   5 vibecoder/crates/vibe-ai/src/provider.rs
    4 vibecli/vibecli-cli/src/auto_research.rs
-   3 vibeui/crates/vibe-core/src/buffer.rs
+   3 vibecoder/crates/vibe-core/src/buffer.rs
 
 Total: 32 TODO comments across 5 files
 

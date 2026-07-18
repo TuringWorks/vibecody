@@ -1,7 +1,7 @@
 # Worktree Lifecycle — Design Index
 
 **Status:** Draft · 2026-06-06
-**Scope:** vibecli daemon (Rust) — the task/worktree subsystem behind VibeDesk's `/api/tasks`; surfaced in VibeUI, VibeApp, VibeMobile, VibeWatch
+**Scope:** vibecli daemon (Rust) — the task/worktree subsystem behind VibeDesk's `/api/tasks`; surfaced in VibeCoder, VibeApp, VibeMobile, VibeWatch
 **Owner:** TBD
 
 ---
@@ -92,7 +92,7 @@ A task row gains three nullable timestamps; the derived state is computed from t
 | Task↔worktree mapping | `vibecli/vibecli-cli/src/task_store.rs:59` (`TaskRow`) | `branch` + `worktree_path` columns in `tasks` (sessions.db) — **lost on row delete** |
 | Merge (clean teardown) | `serve.rs:1810` (`merge_task`) | merge → `remove_worktree` → `delete` row; conflict → abort + keep task |
 | Delete (footgun) | `serve.rs:1758` (`delete_task`) | default `?remove_worktree=false` → **row gone, worktree orphaned**; `=true` → `--force` discard |
-| Worktree git ops | `vibeui/crates/vibe-core/src/git.rs:386–520` | `create_worktree`, `remove_worktree` (**`--force`**), `list_worktrees`, `merge_worktree_branch` |
+| Worktree git ops | `vibecoder/crates/vibe-core/src/git.rs:386–520` | `create_worktree`, `remove_worktree` (**`--force`**), `list_worktrees`, `merge_worktree_branch` |
 | Status enum | `task_store.rs:19` (`TaskStatus`) | Draft/Queued/Running/Reviewing/Completed/Failed — **no Archived/Trashed**; deletes are hard |
 | GC / orphan detection | — | **none** — no prune, TTL, periodic loop, or startup sweep |
 | Trash / recovery | — | **none** — all deletes permanent |
@@ -165,7 +165,7 @@ No backfill: existing rows have all three `NULL` → Active, which is correct.
    prevents the orphan accumulation that produced the 20 stray worktrees on `91ff4b63`,
    and makes accidental deletes recoverable.
 2. **Recovery UX.** `restore` / `archive` / `purge` routes + a Trash list in VibeDesk, wired
-   through VibeUI → VibeMobile.
+   through VibeCoder → VibeMobile.
 3. **Cross-surface cascade.** Project-delete and chat-delete cascade-trash child tasks
    through the same funnel; document in the AGENTS.md change-surface cookbook.
 

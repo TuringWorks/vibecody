@@ -132,7 +132,7 @@ impl Sandbox for WindowsSandbox {
 const DENIED_SEGMENTS: &[&str] = &[
     // Cross-platform VibeCody / Claude state.
     ".vibecli",
-    ".vibeui",
+    ".vibecoder",
     ".claude",
     // Unix-shaped credential dirs (some users keep `.ssh` / `.aws` on
     // Windows under their home).

@@ -121,7 +121,7 @@ fun VibeCodyWearApp(activity: Activity, startDestination: String = "sessions") {
             )
         }
         // G2.3 — Goals list. G3.6 added a detail screen behind a tap;
-        // mutations still happen via VibeUI / mobile / CLI.
+        // mutations still happen via VibeCoder / mobile / CLI.
         composable("goals") {
             GoalsScreen(
                 net = net,

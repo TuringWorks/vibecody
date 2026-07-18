@@ -35,7 +35,7 @@ VibeCody has a **five-layer extensibility architecture**:
 | **Skills** | Markdown with YAML front-matter | Loaded at startup, matched by trigger keywords | `~/.vibecli/skills/` or `<workspace>/.vibecli/skills/` |
 | **Hooks** | Shell scripts, LLM prompts, or HTTP webhooks | Fired on agent events (pre/post tool use, file save, etc.) | Configured in `~/.vibecli/config.toml` |
 | **Plugins** | Bundles of skills + hooks + commands | Installed to `~/.vibecli/plugins/<name>/` | Registry at `https://registry.vibecody.dev/api/v1` |
-| **WASM Extensions** | Sandboxed WebAssembly modules | Loaded by VibeUI (Tauri desktop app) | `~/.vibeui/extensions/` |
+| **WASM Extensions** | Sandboxed WebAssembly modules | Loaded by VibeCoder (Tauri desktop app) | `~/.vibecoder/extensions/` |
 | **MCP/ACP** | JSON-RPC over stdio or HTTP | Bidirectional tool integration | Configured in `config.toml` or via `--mcp-server` flag |
 
 ### Monorepo Structure
@@ -54,7 +54,7 @@ vibecody/
     mcp_server.rs               # MCP server (JSON-RPC over stdio)
     acp.rs                      # Agent Communication Protocol
   vibecli/vibecli-cli/skills/   # 599 built-in skill files
-  vibeui/crates/
+  vibecoder/crates/
     vibe-ai/src/
       provider.rs               # AIProvider trait
       agent.rs                  # AgentLoop, AgentContext, AgentEvent
@@ -67,7 +67,7 @@ vibecody/
       lib.rs                    # Extension loader (wasmtime)
       api.rs                    # Host function constants
       manifest.rs               # ExtensionManifest, Permission, Registry
-  vibeui/src/                   # React/TypeScript frontend (Tauri 2)
+  vibecoder/src/                   # React/TypeScript frontend (Tauri 2)
 ```
 
 ## Plugin System
@@ -180,7 +180,7 @@ default = "medium"
 | `Theme` | UI themes and color schemes | vibecody-dracula-theme |
 | `SkillPack` | Bundles of skill markdown files | vibecody-devops-pack |
 | `Workflow` | Pre-built agent workflow templates | vibecody-code-review |
-| `Extension` | WASM extensions for VibeUI | vibecody-minimap |
+| `Extension` | WASM extensions for VibeCoder | vibecody-minimap |
 
 ### Plugin Capabilities
 
@@ -451,12 +451,12 @@ handler = { command = "cargo clippy" }
 
 ## WASM Extensions
 
-Sandboxed WebAssembly modules that extend VibeUI (the desktop app).
+Sandboxed WebAssembly modules that extend VibeCoder (the desktop app).
 
 ### Extension Structure
 
 ```sh
-~/.vibeui/extensions/my-extension/
+~/.vibecoder/extensions/my-extension/
   extension.json         # Manifest
   extension.wasm         # Compiled WASM module
 ```
@@ -490,7 +490,7 @@ Sandboxed WebAssembly modules that extend VibeUI (the desktop app).
 
 ### WASM Host API
 
-Extensions are loaded by wasmtime. The host module is `"vibeui_host"`.
+Extensions are loaded by wasmtime. The host module is `"vibecoder_host"`.
 
 #### Host Functions (imported by WASM)
 
@@ -1215,7 +1215,7 @@ pub extern "C" fn on_file_save(ptr: *const u8, len: usize) {
 
 ```bash
 cargo build --target wasm32-wasi --release
-cp target/wasm32-wasi/release/word_counter.wasm ~/.vibeui/extensions/word-counter/extension.wasm
+cp target/wasm32-wasi/release/word_counter.wasm ~/.vibecoder/extensions/word-counter/extension.wasm
 ```
 
 ## Quick Reference

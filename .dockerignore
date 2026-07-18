@@ -4,8 +4,8 @@ node_modules/
 *.md
 docs/
 .github/
-vibeui/dist/
-vibeui/node_modules/
+vibecoder/dist/
+vibecoder/node_modules/
 vibeapp/dist/
 vibeapp/node_modules/
 vscode-extension/

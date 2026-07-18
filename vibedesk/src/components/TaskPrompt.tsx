@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, ArrowUp } from "lucide-react";
+import { Plus, ArrowUp, GitBranch } from "lucide-react";
 import { ApprovalPill, type ApprovalTier } from "./ApprovalPill";
 import { ProviderPill } from "./ProviderPill";
 import { ReasoningPill, type ReasoningEffort } from "./ReasoningPill";
@@ -12,6 +12,10 @@ export interface ComposerSubmit {
   model?: string;
   approval: ApprovalTier;
   reasoning: ReasoningEffort;
+  /** When true, this run gets its own git worktree branch for isolation. Off by
+   *  default — a plain chat/question should not fork a branch. Opt in per-run
+   *  via the composer's Branch toggle for isolated coding tasks. */
+  isolate: boolean;
 }
 
 interface TaskPromptProps {
@@ -38,13 +42,14 @@ export function TaskPrompt({ daemonUrl, daemonOnline, busy, onSubmit, onQuickAct
   const [model, setModel] = useState<string | undefined>(undefined);
   const [approval, setApproval] = useState<ApprovalTier>("default");
   const [reasoning, setReasoning] = useState<ReasoningEffort>("medium");
+  const [isolate, setIsolate] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const canSubmit = !!text.trim() && !busy && daemonOnline;
 
   function submit() {
     if (!canSubmit) return;
-    onSubmit({ task: text.trim(), provider, model, approval, reasoning });
+    onSubmit({ task: text.trim(), provider, model, approval, reasoning, isolate });
     setText("");
   }
 
@@ -84,6 +89,20 @@ export function TaskPrompt({ daemonUrl, daemonOnline, busy, onSubmit, onQuickAct
           <Plus size={16} />
         </button>
         <ApprovalPill value={approval} onChange={setApproval} />
+        <button
+          type="button"
+          className={`vx-pill vx-pill--branch${isolate ? " vx-pill--branch-on" : ""}`}
+          aria-pressed={isolate}
+          title={
+            isolate
+              ? "This run will get its own git worktree branch"
+              : "Run in place (no branch). Click to isolate this run in a git worktree branch."
+          }
+          onClick={() => setIsolate((v) => !v)}
+        >
+          <GitBranch size={13} />
+          <span>Branch: {isolate ? "on" : "off"}</span>
+        </button>
         <div className="vx-composer__spacer" />
         <ProviderPill
           daemonUrl={daemonUrl}

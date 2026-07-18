@@ -9,7 +9,7 @@ parent: Demos
 
 ## Overview
 
-VibeCody detects your cloud infrastructure usage directly from your codebase, generates least-privilege IAM policies, produces Infrastructure-as-Code templates, and estimates costs. This demo covers the full workflow using the `/cloud` REPL commands and the Cloud Provider panel in VibeUI.
+VibeCody detects your cloud infrastructure usage directly from your codebase, generates least-privilege IAM policies, produces Infrastructure-as-Code templates, and estimates costs. This demo covers the full workflow using the `/cloud` REPL commands and the Cloud Provider panel in VibeCoder.
 
 **Time to complete:** ~20 minutes
 
@@ -18,7 +18,7 @@ VibeCody detects your cloud infrastructure usage directly from your codebase, ge
 - VibeCLI installed and configured ([Demo 1](../01-first-run/))
 - A project that uses at least one cloud provider (AWS, GCP, or Azure)
 - (Optional) Terraform, AWS CLI, `gcloud`, or `az` CLI installed for template validation
-- (Optional) VibeUI for the desktop panel experience
+- (Optional) VibeCoder for the desktop panel experience
 
 ## Step-by-Step Walkthrough
 
@@ -308,12 +308,12 @@ depend on real traffic patterns. Free tier not applied.
 Saved to: .vibecli/generated/cost-estimate.json
 ```
 
-### Step 7: Use the Cloud Provider panel in VibeUI
+### Step 7: Use the Cloud Provider panel in VibeCoder
 
-Open VibeUI and navigate to the **Cloud** panel in the left sidebar.
+Open VibeCoder and navigate to the **Cloud** panel in the left sidebar.
 
 ```bash
-cd vibeui && npm run tauri dev
+cd vibecoder && npm run tauri dev
 ```
 
 The Cloud Provider panel has four tabs:
@@ -431,13 +431,13 @@ Supported manifests:
     {
       "id": 10,
       "action": "Narrate",
-      "value": "The estimated monthly cost is $106.63 across AWS and GCP. Now let's see this in VibeUI."
+      "value": "The estimated monthly cost is $106.63 across AWS and GCP. Now let's see this in VibeCoder."
     },
     {
       "id": 11,
       "action": "shell",
-      "command": "cd vibeui && npm run tauri dev",
-      "description": "Launch VibeUI to use the Cloud Provider panel",
+      "command": "cd vibecoder && npm run tauri dev",
+      "description": "Launch VibeCoder to use the Cloud Provider panel",
       "delay_ms": 8000
     },
     {

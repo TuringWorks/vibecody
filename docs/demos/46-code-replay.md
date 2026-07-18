@@ -15,7 +15,7 @@ Every VibeCody agent session is recorded as a trace -- a complete log of the rea
 
 - VibeCLI 0.5.1 installed and on your PATH
 - At least one completed agent session (traces stored in `~/.vibecli/traces/`)
-- For VibeUI: the desktop app with access to the Traces panel
+- For VibeCoder: the desktop app with access to the Traces panel
 
 ## How Traces Work
 
@@ -245,9 +245,9 @@ Approach difference: First session was a targeted bug fix (minimal change).
 Second session was feature addition (new code paths, new tests).
 ```
 
-### Step 7: Use code replay in VibeUI
+### Step 7: Use code replay in VibeCoder
 
-In the VibeUI desktop app, the **Traces** panel provides a visual replay experience:
+In the VibeCoder desktop app, the **Traces** panel provides a visual replay experience:
 
 - **Timeline View** -- Horizontal timeline with event markers, click to jump to any point
 - **Diff Viewer** -- Side-by-side file diffs at each edit step

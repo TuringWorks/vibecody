@@ -14,7 +14,7 @@
 |---|---|---|---|---|
 | **c-series** | Opus 4.8, Gemini 3.5 Pro/Flash, DeepSeek V4, Qwen 3.6, Kimi K2.7, GLM-5.2, MiniMax M3 + defaults | `useModelRegistry.ts` | tsc | — |
 | **C5** | `Effort` enum + per-provider mapping (Claude/Gemini thinking budget, OpenAI `reasoning_effort`), `cost_router::route_task_with_effort`, `ai_chat_with_effort` cmd, toolbar selector | `vibe-ai/provider.rs`, providers, `cost_router.rs`, `commands.rs`, `App.tsx`, `utils/effort.ts` | 4 | thread effort through the streaming `chat_engine` path in every panel |
-| **C1** | `/loop <interval> <prompt>` + `/loop auto` (self-paced, MAX_ITER guard, Ctrl-C, LLM done-validator), list/stop/status, persistence | `loop_engine.rs`, `main.rs` REPL, `repl.rs` | 9 | VibeUI `AutomationsPanel` surface; machine-off hosted exec + `WorkspaceStore` secret injection |
+| **C1** | `/loop <interval> <prompt>` + `/loop auto` (self-paced, MAX_ITER guard, Ctrl-C, LLM done-validator), list/stop/status, persistence | `loop_engine.rs`, `main.rs` REPL, `repl.rs` | 9 | VibeCoder `AutomationsPanel` surface; machine-off hosted exec + `WorkspaceStore` secret injection |
 | **C3** | MCP Tasks extension (`tasks/get|update|cancel` state machine) + stateless `_meta` (`RequestMeta`), `stateless` config flag | `mcp_tasks.rs`, `mcp_streamable.rs` | 6 | wire the verbs into the live MCP HTTP dispatch loop |
 | **C6** | ACP agent-card + MCP Registry entry generators; `vibecli --registry <acp\|mcp\|all>` CLI | `registry_listing.rs`, `main.rs` | 4 | submit the actual registry PRs (external) |
 | **A7** | Element + instruction → CSS/HTML unified diff for `DiffReviewPanel`; rejects live-DOM-mutation (§18.A7); `design_emit_diff` cmd | `design_diff.rs`, `commands.rs` | 5 | wire into `DesignMode.tsx` / CDP element-pick |
@@ -31,7 +31,7 @@ The v15 competitor delta ([FIT-GAP §16.6](./FIT-GAP-ANALYSIS.md) / [ROADMAP App
 
 ### C1 — Recurring / scheduled / self-paced agent ergonomics ("Routines" + `/loop`)
 
-> **✅ Implemented 2026-06-22 (`b49bf131`/`a7e5b373`).** `/loop <interval> <prompt>` (recurring) and `/loop auto <prompt>` (self-paced loop-until-done) ship in the REPL with a `MAX_ITER` guard, wall-clock auto-expiry, job IDs, Ctrl-C stop, an LLM done-validator, and `list`/`stop`/`status` subcommands + JSON persistence (`loop_engine.rs`, 9 tests). **Still open:** the VibeUI `AutomationsPanel` surface and machine-off hosted execution with `WorkspaceStore` secret injection.
+> **✅ Implemented 2026-06-22 (`b49bf131`/`a7e5b373`).** `/loop <interval> <prompt>` (recurring) and `/loop auto <prompt>` (self-paced loop-until-done) ship in the REPL with a `MAX_ITER` guard, wall-clock auto-expiry, job IDs, Ctrl-C stop, an LLM done-validator, and `list`/`stop`/`status` subcommands + JSON persistence (`loop_engine.rs`, 9 tests). **Still open:** the VibeCoder `AutomationsPanel` surface and machine-off hosted execution with `WorkspaceStore` secret injection.
 
 - **Source**: Phase 55 P0, FIT-GAP §16.6 (Claude Code Routines + Managed Agents + **`/loop`**; Codex `/goal` CLI 0.128.0 + Automations; Cursor Automations; Antigravity 2.0 scheduled tasks)
 - **Current State**: Trigger *engine* exists — `automations.rs` ships **Cron / FileWatch / Webhook** triggers → sandboxed agent task; `/goal` durable-intent ships (`exec_goal.rs` — parity with Claude Code + Codex `/goal`, **shipped first**). **No `/loop` command** (grep-confirmed absent), no machine-off hosted execution, no `WorkspaceStore` secret injection.
@@ -82,7 +82,7 @@ The v15 competitor delta ([FIT-GAP §16.6](./FIT-GAP-ANALYSIS.md) / [ROADMAP App
 
 - **Source**: Phase 53 P1, FIT-GAP §16
 - **⚠ Escalated 2026-06-13**: Cursor shipped **Design Mode GA on 2026-06-05** — the exact surface (point / draw / narrate UI changes in the browser; agent edits code underneath). The *design proposal* is now overdue; the **build stays gated** on the §18.A7 slice audit.
-- **Current State (corrected 2026-06-22)**: Patent-distance posture documented in fit-gap §18 (`403ea1c2`). **Partial UI exists** — `vibeui/src/components/DesignMode.tsx` (708 lines) + `DesignAnnotationsPanel.tsx` (284 lines) ship in the working tree (the prior "no implementation yet" was wrong). **Open question:** whether these implement the §18.A7 cleared shape (diffcomplete-into-CDP-DOM, no agent-controlled browser, no live DOM mutation) or are a separate design-canvas/annotation surface. **Next action is an audit of these two components against the §18.A7 principles**, then reclassify A7 from "open" to "partial — audit pending." Build stays gated until that audit clears; must remain distant from the Cursor Design Mode UX.
+- **Current State (corrected 2026-06-22)**: Patent-distance posture documented in fit-gap §18 (`403ea1c2`). **Partial UI exists** — `vibecoder/src/components/DesignMode.tsx` (708 lines) + `DesignAnnotationsPanel.tsx` (284 lines) ship in the working tree (the prior "no implementation yet" was wrong). **Open question:** whether these implement the §18.A7 cleared shape (diffcomplete-into-CDP-DOM, no agent-controlled browser, no live DOM mutation) or are a separate design-canvas/annotation surface. **Next action is an audit of these two components against the §18.A7 principles**, then reclassify A7 from "open" to "partial — audit pending." Build stays gated until that audit clears; must remain distant from the Cursor Design Mode UX.
 - **What's Needed**: The §18.A7 cleared shape only — diffcomplete-into-DOM: user clicks an element in their own (CDP-attached) browser, types an instruction, presses ⌘.; agent emits a CSS/HTML unified diff into `DiffReviewPanel`. No agent-controlled browser, no live DOM mutation. Per-feature note in `notes/`. (Also covers **C4 WebMCP** producer/consumer, which reuses this shape.)
 - **Effort**: Medium-high (2 wk design + 3 wk impl, patent-distance gated)
 
@@ -109,7 +109,7 @@ The v15 competitor delta ([FIT-GAP §16.6](./FIT-GAP-ANALYSIS.md) / [ROADMAP App
 
 - **Source**: Phase 55 P1 (v0.5.9), FIT-GAP §16.6 (Google I/O WebMCP, W3C; Chrome 149 origin trial)
 - **Current State**: `browser_agent.rs` drives a CDP-attached browser; no WebMCP consume/produce.
-- **What's Needed**: (a) **consumer** — discover + call WebMCP-annotated JS/HTML-form tools on authorized sites; (b) **producer** — expose selected VibeUI panels as WebMCP tools. Behind a feature flag while the spec is in origin trial. **Patent-distance gated** — reuses the §18.A7 cleared shape (no live DOM mutation by the agent).
+- **What's Needed**: (a) **consumer** — discover + call WebMCP-annotated JS/HTML-form tools on authorized sites; (b) **producer** — expose selected VibeCoder panels as WebMCP tools. Behind a feature flag while the spec is in origin trial. **Patent-distance gated** — reuses the §18.A7 cleared shape (no live DOM mutation by the agent).
 - **Effort**: Medium (2-3 weeks; folds into A7 design work).
 
 ### 7. C5 — Per-request effort / compute control knob
@@ -240,16 +240,16 @@ All four patent-distance §18 principles anchored: no telemetry (#1), client-sid
 |---|---|---|
 | A1 — `McpAppEmbed.tsx` + `mcp_apps_parse` Tauri command + AIChat fence detection | `McpAppEmbed.tsx`, `commands.rs`, `AIChat.tsx` | `39e95b17` |
 
-Backend parser (`647b58de`) is the authoritative validator. Frontend host renders fenced ```mcp.app blocks via a typed React card with action buttons that dispatch `vibeui:mcp-app-action` window events. Component allow-list (`react@18`, `react@19`, `json-view`, `list`, `card`) — unknown components render a warning, never arbitrary JSX. Future iframe-sandboxed renderer honoring `payload.csp` is the next iteration; current host surfaces CSP declarations informationally.
+Backend parser (`647b58de`) is the authoritative validator. Frontend host renders fenced ```mcp.app blocks via a typed React card with action buttons that dispatch `vibecoder:mcp-app-action` window events. Component allow-list (`react@18`, `react@19`, `json-view`, `list`, `card`) — unknown components render a warning, never arbitrary JSX. Future iframe-sandboxed renderer honoring `payload.csp` is the next iteration; current host surfaces CSP declarations informationally.
 
 **`/goal` durable execution intent (entire feature shipped end-to-end):**
 
 | Slice | Surface | Commit |
 |---|---|---|
-| G1.1 – G1.7 | Daemon CRUD + plan/link/start + REPL + VibeUI + curated /watch + VS Code + SDK + design docs | `55cf91ea` |
+| G1.1 – G1.7 | Daemon CRUD + plan/link/start + REPL + VibeCoder + curated /watch + VS Code + SDK + design docs | `55cf91ea` |
 | G3.1 – G3.6 | TUI Goals screen, tree query, slash hybrid, planner override, Wear OS detail | `0ef69c24` |
 | G4 + G5 | Recursive tree, current-pin, LLM recap, /agent auto-link, VS Code tree-view, SDK parity | `4c0294fc` |
-| G6 | VibeUI + mobile pin chips, agent-stream attribution | `e76f17b4` |
+| G6 | VibeCoder + mobile pin chips, agent-stream attribution | `e76f17b4` |
 
 **DREAD threat-model closures (selected):**
 
@@ -288,7 +288,7 @@ All prior roadmap and fit-gap iterations have been merged into exactly **two can
 > | **B3** | `review_batch` orchestrator + `SecurityReviewer` seam + `poll_and_review` watcher-loop step, **then wired live into the daemon**: new `security_watch_daemon.rs` (real `notify` FS watcher → `SharedFileWatcher` → interval `poll_and_review` loop + provider-backed `ProviderReviewer` + bounded `SecurityFindingsQueue`), spawned opt-in in `serve.rs` from a `[security_review]` config section, surfaced at `GET /v1/security-review/findings`. **Fully wired — opt-in/default-OFF.** | +4 +6 |
 > | **C1** | WorkspaceStore secret injection (`LoopSpec.secrets`, `--secret NAME`, `resolve_loop_secrets`, live env injection at the REPL run site), **then machine-off hosted execution**: `LoopJob.hosted` flag + new `hosted_loop.rs` (pure `due_hosted_jobs` scheduler decision + `scheduler_tick` orchestration + `LoopExecutor` seam + provider-backed `ProviderLoopExecutor`), a daemon-resident scheduler task in `serve.rs`, and `POST/GET /v1/loops` + `POST /v1/loops/{id}/stop` so a client enqueues a loop and disconnects. Secrets resolved **scoped** (not global env) in the long-lived daemon. **Fully wired.** | +5 +8 |
 >
-> All modules compile (`cargo check -p vibecli --bins` + `-p vibe-ui`) and their unit tests pass. C2/C3/C4 are fully closed; B3 and C1 delivered their tested cores with the live-infra remainders noted above. Build used the Metal-precompile workaround (`MISTRALRS_METAL_PRECOMPILE=0` — the Metal Toolchain has regressed to missing again).
+> All modules compile (`cargo check -p vibecli --bins` + `-p vibe-coder`) and their unit tests pass. C2/C3/C4 are fully closed; B3 and C1 delivered their tested cores with the live-infra remainders noted above. Build used the Metal-precompile workaround (`MISTRALRS_METAL_PRECOMPILE=0` — the Metal Toolchain has regressed to missing again).
 
 **Open code items (revised 2026-06-22 after the implementation pass)**: the **C1, C3, C5, C6 cores shipped**, and the **A7, B3, C4 §18-cleared-shape backends + command surfaces shipped** (see [Implemented this cycle](#implemented-this-cycle-2026-06-22)). What remains code-wise is **integration, not invention**: UI panels (`/loop` Automations panel, `DesignMode` wiring, `SecurityPanel`), daemon/transport loops (B3 always-on watcher, C3 live MCP dispatch, C4 `browser_agent` CDP), C5 streaming-path propagation, plus the still-unstarted **C2** (dynamic large-scale workflow primitive) and **P2** 100M-line benchmark. A7/B3 are built to the patent-distant cleared shapes (not the competitor UX).
 

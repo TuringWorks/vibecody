@@ -3,7 +3,7 @@
 //! Each handler is a pure-side-effect function that prints to stdout
 //! and operates against `SessionStore::open_default()` directly — same
 //! convention as `/recap` session at `main.rs:5121-5191`. The daemon
-//! HTTP routes in `serve.rs` exist for non-REPL clients (VibeUI,
+//! HTTP routes in `serve.rs` exist for non-REPL clients (VibeCoder,
 //! mobile, watch, VS Code, SDK).
 
 use crate::exec_goal::{Goal, GoalLink, GoalLinkKind, GoalStatus, TITLE_MAX_LEN};
@@ -40,7 +40,7 @@ fn short(id: &str) -> &str {
 }
 
 /// `/goal new <title…>` — create a new goal at default scope. The
-/// statement and other fields can be edited via VibeUI or `/goal edit`.
+/// statement and other fields can be edited via VibeCoder or `/goal edit`.
 pub fn handle_goal_new(args: &str) {
     let title = args.trim();
     if title.is_empty() {

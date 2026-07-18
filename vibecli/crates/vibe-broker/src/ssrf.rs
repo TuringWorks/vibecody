@@ -1,5 +1,5 @@
 //! SSRF guard. Ports the rules from
-//! `vibeui/src-tauri/src/agent_executor.rs:21-56` and extends them so they
+//! `vibecoder/src-tauri/src/agent_executor.rs:21-56` and extends them so they
 //! cover every tier and every tool, not just `fetch_url`.
 
 use std::net::IpAddr;

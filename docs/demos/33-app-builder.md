@@ -7,14 +7,14 @@ permalink: /demos/33-app-builder/
 
 ## Overview
 
-The App Builder lets you describe an application in natural language and receive a fully scaffolded, AI-enhanced project. It combines a template library, an AI-powered scaffolder, and managed backend provisioning into a single workflow. Use the CLI or the 4-tab VibeUI panel to go from idea to running code in minutes.
+The App Builder lets you describe an application in natural language and receive a fully scaffolded, AI-enhanced project. It combines a template library, an AI-powered scaffolder, and managed backend provisioning into a single workflow. Use the CLI or the 4-tab VibeCoder panel to go from idea to running code in minutes.
 
 ## Prerequisites
 
 - VibeCLI installed and on your PATH
 - At least one AI provider configured (e.g., `ANTHROPIC_API_KEY` or `OPENAI_API_KEY`)
 - Node.js and/or Rust toolchain (depending on the template you choose)
-- For VibeUI: the desktop app running with the **App Builder** panel visible
+- For VibeCoder: the desktop app running with the **App Builder** panel visible
 
 ## Step-by-Step Walkthrough
 
@@ -62,7 +62,7 @@ Created: task-manager-api/
 Files: 18 | Lines: 2,340
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 Open the **App Builder** panel and select the **Quick Start** tab. Type your description into the text area and click **Generate**. The scaffolded project appears in the file tree.
 
@@ -98,7 +98,7 @@ Available Templates:
 vibecli --appbuilder create --template rest-api --name my-api --language rust
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 Switch to the **Templates** tab to browse templates as cards with descriptions, tech stacks, and preview screenshots. Click **Use Template** to scaffold.
 
@@ -126,7 +126,7 @@ AI Enhancement Pass:
   Enhancement complete: 847 lines added across 19 files
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 In the **Quick Start** or **Templates** tab, toggle **AI Enhance** before generating. The enhancement runs automatically after scaffolding.
 
@@ -156,7 +156,7 @@ Provisioning Backend:
 Backend ready. Run `fly deploy` to go live.
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 Switch to the **Backend** tab. Select your infrastructure components from dropdowns and click **Provision**. Connection strings and configuration are written to `.env` automatically.
 
@@ -175,13 +175,13 @@ vibecli --appbuilder fullstack "An e-commerce store with product catalog, shoppi
 
 This runs Quick Start, AI Enhancement, and Backend Provisioning in sequence, producing a deployable full-stack application.
 
-**VibeUI:**
+**VibeCoder:**
 
 In the **Quick Start** tab, check **Full-Stack Mode**, enter your description, select infrastructure options, and click **Generate Full Stack**.
 
 ### 6. Customize and Iterate
 
-After generation, use VibeCLI's agent or VibeUI's chat panel to refine the scaffolded code. The App Builder output is standard code -- no lock-in or proprietary formats.
+After generation, use VibeCLI's agent or VibeCoder's chat panel to refine the scaffolded code. The App Builder output is standard code -- no lock-in or proprietary formats.
 
 **CLI (REPL):**
 
@@ -233,25 +233,25 @@ Status: Ready for development
       "description": "End-to-end full-stack generation from a single prompt"
     },
     {
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "AppBuilder",
       "tab": "Quick Start",
       "description": "Generate a scaffold from natural language in the GUI"
     },
     {
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "AppBuilder",
       "tab": "Templates",
       "description": "Browse and select from the template library"
     },
     {
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "AppBuilder",
       "tab": "Provision",
       "description": "Configure and provision backend services"
     },
     {
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "AppBuilder",
       "tab": "Backend",
       "description": "View and manage provisioned infrastructure"

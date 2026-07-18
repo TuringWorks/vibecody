@@ -11,8 +11,8 @@ VibeCody is **not a single app**. It's a toolchain of ~13 clients that share one
 | # | Product | Path | Stack | Purpose | Talks to |
 |---|---------|------|-------|---------|----------|
 | 1 | **VibeCLI** (daemon + TUI + REPL) | `vibecli/vibecli-cli/` | Rust, Axum, Ratatui | Terminal AI assistant; `--serve` daemon is the **source of truth** for every other client. ~354 modules. | Providers direct · serves `/mobile/*` · `/watch/*` · `/api/*` |
-| 2 | **VibeUI** (desktop editor) | `vibeui/` | Tauri 2 + React/TS, Monaco | Full desktop code editor. **1,045+ Tauri commands**, ~293 panels + 42 composites. | Embeds VibeCLI crates · Tauri IPC to frontend |
-| 3 | **VibeCLI App** (secondary Tauri shell) | `vibeapp/` | Tauri 2 + React/TS | Lightweight desktop chat shell. | Same Tauri commands as VibeUI (subset) |
+| 2 | **VibeCoder** (desktop editor) | `vibecoder/` | Tauri 2 + React/TS, Monaco | Full desktop code editor. **1,045+ Tauri commands**, ~293 panels + 42 composites. | Embeds VibeCLI crates · Tauri IPC to frontend |
+| 3 | **VibeCLI App** (secondary Tauri shell) | `vibeapp/` | Tauri 2 + React/TS | Lightweight desktop chat shell. | Same Tauri commands as VibeCoder (subset) |
 | 4 | **VibeMobile** | `vibemobile/` | Flutter (Dart) | Phone / tablet / web companion. 11 screens, 6 services. | HTTPS/SSE to VibeCLI daemon `/mobile/*` + `/watch/*` relay |
 | 5 | **VibeCodyWatch** (Apple Watch) | `vibewatch/VibeCodyWatch Watch App/` | SwiftUI, watchOS 10+ | Wrist client. Secure Enclave P-256 keys. | HTTPS/SSE `/watch/*` or WatchConnectivity relay |
 | 6 | **VibeCodyWatchCompanion** (iOS) | `vibewatch/VibeCodyWatchCompanion/` | Swift, WatchConnectivity | Phone-side relay when watch is off-LAN. | Bridges watch ↔ VibeMobile ↔ daemon |
@@ -24,11 +24,11 @@ VibeCody is **not a single app**. It's a toolchain of ~13 clients that share one
 | 12 | **Agent SDK** | `packages/agent-sdk/` | TypeScript | Programmatic SDK for third-party integrations. | HTTP to VibeCLI daemon |
 | 13 | **vibe-indexer** | `vibe-indexer/` | Rust | Standalone code-indexing service (semantic search, embeddings). | Standalone HTTP service |
 
-**Shared crates** (`vibeui/crates/`): `vibe-core` (buffers/FS/Git), `vibe-ai` (22 providers), `vibe-lsp`, `vibe-extensions` (Wasmtime), `vibe-collab` (CRDT).
+**Shared crates** (`vibecoder/crates/`): `vibe-core` (buffers/FS/Git), `vibe-ai` (22 providers), `vibe-lsp`, `vibe-extensions` (Wasmtime), `vibe-collab` (CRDT).
 
 **Single source of truth**: the VibeCLI Rust daemon. If a client has drifted from the daemon's API, the client is wrong. Never fork protocol semantics into a client.
 
-**Per-feature coverage** across VibeCLI / VibeUI / Mobile / Watch / plugins lives in:
+**Per-feature coverage** across VibeCLI / VibeCoder / Mobile / Watch / plugins lives in:
 
 - [`docs/FEATURE-MATRIX.md`](./docs/FEATURE-MATRIX.md) — at-a-glance ✅/⚙️/🔬/❌ per capability
 - [`docs/FEATURE-REFERENCE.md`](./docs/FEATURE-REFERENCE.md) — detailed reference per feature
@@ -48,8 +48,8 @@ Use this table as a pre-flight checklist. Cross-cutting changes that miss a surf
 |------------|-----|
 | `vibecli/vibecli-cli/src/serve.rs` (or `watch_bridge.rs` for `/watch/*`) | Route registration |
 | `vibecli/vibecli-cli/tests/` | BDD harness for the endpoint |
-| `vibeui/src-tauri/src/commands.rs` | Tauri wrapper if VibeUI/VibeApp need it |
-| `vibeui/src-tauri/src/lib.rs` | Register the new command via `generate_handler!` |
+| `vibecoder/src-tauri/src/commands.rs` | Tauri wrapper if VibeCoder/VibeApp need it |
+| `vibecoder/src-tauri/src/lib.rs` | Register the new command via `generate_handler!` |
 | `vibemobile/lib/services/api_client.dart` | Flutter client method |
 | `vibewatch/VibeCodyWatch Watch App/WatchNetworkManager.swift` | Swift client if wrist-relevant |
 | `vibewatch/VibeCodyWear/app/src/main/kotlin/com/vibecody/wear/` | Kotlin client if wrist-relevant |
@@ -59,7 +59,7 @@ Use this table as a pre-flight checklist. Cross-cutting changes that miss a surf
 
 ### Adding a new Tauri command
 
-`vibeui/src-tauri/src/commands.rs` (implementation) → `vibeui/src-tauri/src/lib.rs` (register in `tauri::generate_handler!`). VibeApp (`vibeapp/src-tauri/`) has its own `lib.rs` — register there too if the command is needed there. **Frontend consumers**: `vibeui/src/` panels call `invoke("your_command", …)` from TypeScript. No mobile/watch impact (mobile/watch don't speak Tauri IPC, only HTTP).
+`vibecoder/src-tauri/src/commands.rs` (implementation) → `vibecoder/src-tauri/src/lib.rs` (register in `tauri::generate_handler!`). VibeApp (`vibeapp/src-tauri/`) has its own `lib.rs` — register there too if the command is needed there. **Frontend consumers**: `vibecoder/src/` panels call `invoke("your_command", …)` from TypeScript. No mobile/watch impact (mobile/watch don't speak Tauri IPC, only HTTP).
 
 ### Adding or updating an AI provider
 
@@ -75,7 +75,7 @@ Follow the 6-file dance in **"Adding / Updating Providers and Models"** below. *
 | `vibemobile/lib/screens/pair_screen.dart` + `manual_connect_screen.dart` | Phone pairing UI |
 | `vibewatch/VibeCodyWatch Watch App/` (PairingView.swift etc.) | Watch pairing UI |
 | `vibewatch/VibeCodyWear/app/src/main/kotlin/…/pair/` | Wear pairing UI |
-| `vibeui/src/panels/Governance/WatchDevices/` | Approval/revoke panel |
+| `vibecoder/src/panels/Governance/WatchDevices/` | Approval/revoke panel |
 | `docs/WATCH-INTEGRATION.md` + `docs/vibemobile.md` + `docs/watchos.md` + `docs/wearos.md` | Doc sync |
 | **Cryptography**: device keys MUST be **P-256 ECDSA (secp256r1)** — the only algorithm Apple Secure Enclave supports. Do not reintroduce Ed25519. |
 
@@ -85,7 +85,7 @@ Follow the 6-file dance in **"Adding / Updating Providers and Models"** below. *
 2. Non-sensitive → `vibecli/vibecli-cli/src/config.rs` (`Config` struct).
 3. Surface it:
    - CLI: `vibecli config` subcommands.
-   - VibeUI / VibeApp: `invoke("profile_global_set", …)` from a Settings panel.
+   - VibeCoder / VibeApp: `invoke("profile_global_set", …)` from a Settings panel.
    - Mobile: add a field to `vibemobile/lib/services/` settings; expose in `settings_screen.dart`.
    - Watch: most settings are *inherited* from the desktop; only add on-watch toggles when the watch needs to override (battery mode, relay prefer, …).
 4. Document it in `docs/configuration.md`.
@@ -97,7 +97,7 @@ Follow the 6-file dance in **"Adding / Updating Providers and Models"** below. *
 | iOS deployment target | `vibemobile/ios/Runner.xcodeproj/project.pbxproj` (3× `IPHONEOS_DEPLOYMENT_TARGET`), `vibemobile/ios/Flutter/AppFrameworkInfo.plist` (`MinimumOSVersion`), `vibemobile/ios/Podfile` (commented `platform :ios, 'X.Y'`), `docs/vibemobile.md` Platform-requirements table |
 | watchOS deployment target | `vibewatch/project.yml` (`deploymentTarget.watchOS`), regenerate with `xcodegen`, `docs/watchos.md` |
 | Wear OS / Android `compileSdk` / `targetSdk` / `minSdk` | `vibewatch/VibeCodyWear/app/build.gradle.kts`, `vibewatch/VibeCodyWear/gradle/libs.versions.toml` (`compileSdk` / `minSdk`), `docs/wearos.md` |
-| macOS `minimumSystemVersion` | `vibeui/src-tauri/tauri.conf.json` and `vibeapp/src-tauri/tauri.conf.json` (`bundle.macOS.minimumSystemVersion`) |
+| macOS `minimumSystemVersion` | `vibecoder/src-tauri/tauri.conf.json` and `vibeapp/src-tauri/tauri.conf.json` (`bundle.macOS.minimumSystemVersion`) |
 | Linux runner pin | `.github/workflows/release.yml` (`ubuntu-22.04`, `ubuntu-22.04-arm`, `smoke-linux-next` uses `ubuntu-24.04`) |
 | Xcode version | `.github/workflows/release.yml` — `maxim-lobanov/setup-xcode` `xcode-version` (currently `^26.0`, required for App Store submissions after **2026-04-28**) |
 
@@ -114,7 +114,7 @@ Follow the 6-file dance in **"Adding / Updating Providers and Models"** below. *
 
 ### Version bump
 
-`Cargo.toml` (`[workspace.package].version`) → `vibeui/package.json` → `vibeapp/package.json` → `vibeui/src-tauri/tauri.conf.json` → `vibeapp/src-tauri/tauri.conf.json` → `vibemobile/pubspec.yaml` (`version:`) → `docs/release.md` + `docs/CHANGELOG.md` + `RELEASE.md`. Watch apps inherit version from their project files (`vibewatch/project.yml`, `vibewatch/VibeCodyWear/app/build.gradle.kts` `versionName`). Keep them in lockstep.
+`Cargo.toml` (`[workspace.package].version`) → `vibecoder/package.json` → `vibeapp/package.json` → `vibecoder/src-tauri/tauri.conf.json` → `vibeapp/src-tauri/tauri.conf.json` → `vibemobile/pubspec.yaml` (`version:`) → `docs/release.md` + `docs/CHANGELOG.md` + `RELEASE.md`. Watch apps inherit version from their project files (`vibewatch/project.yml`, `vibewatch/VibeCodyWear/app/build.gradle.kts` `versionName`). Keep them in lockstep.
 
 ---
 
@@ -124,7 +124,7 @@ VibeCody uses **two encrypted SQLite databases** for all sensitive settings. Nev
 
 ### System Store — `~/.vibecli/profile_settings.db`
 
-Encrypted with ChaCha20-Poly1305 (per-value random nonces). Key derived from machine identity (SHA-256 of HOME + USER). Accessible to both VibeCLI and VibeUI.
+Encrypted with ChaCha20-Poly1305 (per-value random nonces). Key derived from machine identity (SHA-256 of HOME + USER). Accessible to both VibeCLI and VibeCoder.
 
 | Table | Contents |
 |---|---|
@@ -215,7 +215,7 @@ VibeCody is shipped to users (developers, integrators, operators) who want to *u
 
 **When env-var-only is acceptable.** Build-time selection (`CARGO_FEATURES`, `RUSTFLAGS`) and developer-only knobs that change behavior during local debugging (`RUST_BACKTRACE`, `VIBE_INFER_KV_CACHE`, `VIBE_INFER_TURBOQUANT_BACKEND`) stay env-var-driven — they're not user-facing. The line is: **does a non-developer user ever need to set this?** If yes → ProfileStore. If no → env var is fine.
 
-**Existing code that violates this.** When you find one, fix it on the way past. Recent examples already corrected: plaintext `api_key = "..."` lines stripped from `~/.vibecli/config.toml`; `~/.vibeui/api_keys.json` deleted and migrated. Recent example pending: HF_TOKEN currently has no ProfileStore path — it should be settable as `vibecli set-key huggingface hf_...` and read back at daemon startup.
+**Existing code that violates this.** When you find one, fix it on the way past. Recent examples already corrected: plaintext `api_key = "..."` lines stripped from `~/.vibecli/config.toml`; `~/.vibecoder/api_keys.json` deleted and migrated. Recent example pending: HF_TOKEN currently has no ProfileStore path — it should be settable as `vibecli set-key huggingface hf_...` and read back at daemon startup.
 
 ---
 
@@ -236,8 +236,8 @@ VibeCody is shipped to users (developers, integrators, operators) who want to *u
 ### DO NOT
 
 - Write API keys, tokens, or credentials to any plaintext file (`*.json`, `*.toml`, `*.env`).
-- Read from or write to `~/.vibeui/api_keys.json` — this file has been deleted and migrated.
-- Read from or write to `~/.vibeui/panel_settings.db` — this has been replaced by `profile_settings.db`.
+- Read from or write to `~/.vibecoder/api_keys.json` — this file has been deleted and migrated.
+- Read from or write to `~/.vibecoder/panel_settings.db` — this has been replaced by `profile_settings.db`.
 - Store company master keys in `~/.vibecli/keys/*.key` files — use `ProfileStore.set_master_key()`.
 - Hard-code API keys in source code, config files, or test fixtures.
 - Commit any file containing real credentials.
@@ -305,15 +305,15 @@ VibeCody is a large, long-lived daemon with 13 clients. Code that is **pure, imm
 
 **What this means in practice:**
 
-1. **Source of truth.** The toolbar's `selectedProvider` and `selectedModel` state live in `vibeui/src/App.tsx` and are forwarded as props (or read from a shared hook). New panels must accept them as props or call `useModelRegistry()` + the toolbar selectors — never instantiate a provider client directly.
+1. **Source of truth.** The toolbar's `selectedProvider` and `selectedModel` state live in `vibecoder/src/App.tsx` and are forwarded as props (or read from a shared hook). New panels must accept them as props or call `useModelRegistry()` + the toolbar selectors — never instantiate a provider client directly.
 
-2. **Forward into Tauri commands.** Every Tauri command that calls an LLM must take `provider: String` and `model: String` parameters and route through `build_temp_provider()` (or equivalent dispatch) in `vibeui/src-tauri/src/commands.rs`. No `commands.rs` handler may default to `"anthropic"` when the caller didn't specify — refuse the call instead.
+2. **Forward into Tauri commands.** Every Tauri command that calls an LLM must take `provider: String` and `model: String` parameters and route through `build_temp_provider()` (or equivalent dispatch) in `vibecoder/src-tauri/src/commands.rs`. No `commands.rs` handler may default to `"anthropic"` when the caller didn't specify — refuse the call instead.
 
 3. **Forward into the daemon.** HTTP routes that proxy to a provider must read the provider/model from the request body, NOT from `config.toml` defaults. The daemon's `/api/chat`-class routes already do this; preserve the contract.
 
 4. **No silent fallback to a hard-coded default.** If the toolbar provider/model is empty (e.g. very first launch), the panel must surface a "select a model" empty-state — it must not silently invoke Anthropic.
 
-5. **Reference implementation.** `vibeui/src/components/GitPanel.tsx` is the canonical example: it accepts `selectedProvider?: string` from `App.tsx`, forwards it to AI git commands, and degrades gracefully when unset. New panels with LLM calls must follow this pattern.
+5. **Reference implementation.** `vibecoder/src/components/GitPanel.tsx` is the canonical example: it accepts `selectedProvider?: string` from `App.tsx`, forwards it to AI git commands, and degrades gracefully when unset. New panels with LLM calls must follow this pattern.
 
 **When auditing a panel for compliance:**
 
@@ -393,7 +393,7 @@ For detailed architecture including the five memory stores, Context Assembler, a
 
 ### Frontend only (update model list or default)
 
-Edit **one file**: `vibeui/src/hooks/useModelRegistry.ts`
+Edit **one file**: `vibecoder/src/hooks/useModelRegistry.ts`
 
 | Goal | What to change |
 |---|---|
@@ -407,10 +407,10 @@ All UI panels consume `useModelRegistry()` — no other frontend file needs upda
 
 Touch these files in order:
 
-1. **`vibeui/crates/vibe-ai/src/providers/{name}.rs`** — implement the `AIProvider` trait.  
+1. **`vibecoder/crates/vibe-ai/src/providers/{name}.rs`** — implement the `AIProvider` trait.  
    For OpenAI-compatible APIs, copy `groq.rs` — it's the thinnest implementation.
 
-2. **`vibeui/crates/vibe-ai/src/providers.rs`** — export the new module:
+2. **`vibecoder/crates/vibe-ai/src/providers.rs`** — export the new module:
 
    ```rust
    pub mod {name};
@@ -434,7 +434,7 @@ Touch these files in order:
    - `resolve_env_key()` — add `"{name}" => "PROVIDER_NAME_API_KEY"`
    - `configured_providers()` — add `"{name}"` to the names array
 
-6. **`vibeui/src-tauri/src/commands.rs`** — add match arm in `build_temp_provider()` and map the API key field in `load_api_key_settings()` / `save_api_key_settings_to_store()`.
+6. **`vibecoder/src-tauri/src/commands.rs`** — add match arm in `build_temp_provider()` and map the API key field in `load_api_key_settings()` / `save_api_key_settings_to_store()`.
 
 Then update `useModelRegistry.ts` as described above.
 
@@ -442,22 +442,22 @@ Then update `useModelRegistry.ts` as described above.
 
 ## Design System — mandatory for every panel, tab, and UI feature
 
-VibeUI ships its own token-based design system at **`vibeui/design-system/`**. It is **not optional**. Every new panel, tab, dialog, modal, popover, or in-line widget that you add to `vibeui/src/components/` must consume tokens and CSS classes from there. Reviewers will reject a PR that introduces hard-coded colors, ad-hoc spacing, reinvented toast/empty/loading states, or `<div onClick>` where a `<button>` belongs.
+VibeCoder ships its own token-based design system at **`vibecoder/design-system/`**. It is **not optional**. Every new panel, tab, dialog, modal, popover, or in-line widget that you add to `vibecoder/src/components/` must consume tokens and CSS classes from there. Reviewers will reject a PR that introduces hard-coded colors, ad-hoc spacing, reinvented toast/empty/loading states, or `<div onClick>` where a `<button>` belongs.
 
 ### Read first
 
 | File | Read when |
 |---|---|
-| [`vibeui/design-system/README.md`](./vibeui/design-system/README.md) | Always. Has the 10 rules every panel must follow + minimal panel template + color/spacing/font quick-pick. |
-| `vibeui/design-system/tokens.css` | Looking up a CSS variable. |
-| `vibeui/design-system/foundations/{color,typography,spacing,elevation,motion}.md` | Picking semantic colors / sizing / shadows. |
-| `vibeui/design-system/components/{panel,button,input,card,badge-tag,progress,table,tabs}.md` | Implementing a primitive. Use the documented `panel-*` class — do not roll your own. |
-| `vibeui/design-system/patterns/{data-states,forms}.md` | Loading/empty/error states or any form. |
+| [`vibecoder/design-system/README.md`](./vibecoder/design-system/README.md) | Always. Has the 10 rules every panel must follow + minimal panel template + color/spacing/font quick-pick. |
+| `vibecoder/design-system/tokens.css` | Looking up a CSS variable. |
+| `vibecoder/design-system/foundations/{color,typography,spacing,elevation,motion}.md` | Picking semantic colors / sizing / shadows. |
+| `vibecoder/design-system/components/{panel,button,input,card,badge-tag,progress,table,tabs}.md` | Implementing a primitive. Use the documented `panel-*` class — do not roll your own. |
+| `vibecoder/design-system/patterns/{data-states,forms}.md` | Loading/empty/error states or any form. |
 
 ### Hard rules
 
 1. **Never write hex colors** (`#fff`, `#4caf50`, etc.) — always `var(--text-primary)`, `var(--success-color)`, etc. The only legal exception is icon assets that already carry `currentColor`.
-2. **Never write a panel without the `panel-container` → `panel-header` → `panel-body` (→ `panel-footer`) skeleton.** The minimal template at the bottom of `vibeui/design-system/README.md` is the starting point.
+2. **Never write a panel without the `panel-container` → `panel-header` → `panel-body` (→ `panel-footer`) skeleton.** The minimal template at the bottom of `vibecoder/design-system/README.md` is the starting point.
 3. **Use `panel-btn panel-btn-{primary|secondary|ghost|…}`** for buttons. Inline-style buttons get rejected.
 4. **Loading/empty/error are `panel-loading` / `panel-empty` / `panel-error`** — do not invent your own status banner with `setStatusMsg + setTimeout`. Use `useToast()` from `src/hooks/useToast.ts` for transient feedback.
 5. **Tabs use `panel-tab-bar` + `panel-tab`** with `role="tablist"` / `role="tab"` / `aria-selected`.
@@ -476,7 +476,7 @@ Panels live or die on cross-component invariants — keyboard nav, error handlin
 
 The workflow when adding a panel feature:
 
-1. **Red.** Add the failing scenario to `*.bdd.test.tsx` first (or create one). Run `npm test --prefix vibeui -- --run <PanelName>` and confirm it fails for the *expected* reason.
+1. **Red.** Add the failing scenario to `*.bdd.test.tsx` first (or create one). Run `npm test --prefix vibecoder -- --run <PanelName>` and confirm it fails for the *expected* reason.
 2. **Green.** Implement the smallest change that passes. Use the design-system classes — do not stub with inline styles "for now" intending to refactor later.
 3. **Refactor.** Extract repeated markup into a shared component in `src/components/composite/` or a sub-component file.
 
@@ -484,7 +484,7 @@ Backend changes that span the daemon use the cucumber-style feature files in `vi
 
 ### When you are unsure
 
-Open an existing well-formed panel as your reference: `SettingsPanel.tsx`, `CostPanel.tsx`, `BackgroundJobsPanel.tsx`, `DiffReviewPanel.tsx`, `DesignHubPanel.tsx`, `DesignAnnotationsPanel.tsx`, or `DesignImportPanel.tsx` (the design-panel cluster was migrated to the design system in April 2026 — see `vibeui/src/components/__tests__/DesignHubPanel.bdd.test.tsx` for the BDD scenarios that lock in the contract). **Do not** copy from `DesignMode.tsx` — it still predates the design system and is being migrated.
+Open an existing well-formed panel as your reference: `SettingsPanel.tsx`, `CostPanel.tsx`, `BackgroundJobsPanel.tsx`, `DiffReviewPanel.tsx`, `DesignHubPanel.tsx`, `DesignAnnotationsPanel.tsx`, or `DesignImportPanel.tsx` (the design-panel cluster was migrated to the design system in April 2026 — see `vibecoder/src/components/__tests__/DesignHubPanel.bdd.test.tsx` for the BDD scenarios that lock in the contract). **Do not** copy from `DesignMode.tsx` — it still predates the design system and is being migrated.
 
 ---
 
@@ -497,29 +497,29 @@ vibecli/vibecli-cli/src/
 ├── company_secrets.rs   ← company secret vault (uses profile_store for master keys)
 └── config.rs            ← VibeCLI TOML config (non-sensitive)
 
-vibeui/src-tauri/src/
+vibecoder/src-tauri/src/
 ├── panel_store.rs       ← thin re-export of ProfileStore
 └── commands.rs          ← Tauri commands (profile_*, workspace_*, panel_settings_*)
 
-vibeui/src/hooks/
+vibecoder/src/hooks/
 └── useModelRegistry.ts  ← single source of truth for provider list + model lists
 
-vibeui/src/constants/
+vibecoder/src/constants/
 └── ollamaModels.ts      ← Ollama static fallback model list
 
-vibeui/crates/vibe-infer/
+vibecoder/crates/vibe-infer/
 ├── src/lib.rs           ← Embedder + TextGenerator traits, StubBackend (default)
 ├── src/minilm.rs        ← candle BERT MiniLM-L6-v2 backend (feature: candle)
 └── examples/embed.rs    ← end-to-end candle smoke-test
 ```
 
-`vibe-infer` is the in-process inference layer (see also "Adding / Updating Providers and Models" — it complements the sidecar-based providers in `vibeui/crates/vibe-ai/`). Default builds pull no ML deps; opt in with `--features candle` (or `candle-metal` on macOS for GPU). `LocalEmbeddingEngine` in `vibecli/vibecli-cli/src/open_memory.rs` implements `vibe_infer::Embedder`, so async sites can take `&dyn vibe_infer::Embedder` and swap backends without touching OpenMemory.
+`vibe-infer` is the in-process inference layer (see also "Adding / Updating Providers and Models" — it complements the sidecar-based providers in `vibecoder/crates/vibe-ai/`). Default builds pull no ML deps; opt in with `--features candle` (or `candle-metal` on macOS for GPU). `LocalEmbeddingEngine` in `vibecli/vibecli-cli/src/open_memory.rs` implements `vibe_infer::Embedder`, so async sites can take `&dyn vibe_infer::Embedder` and swap backends without touching OpenMemory.
 
 ---
 
 ## Icons
 
-All icons across VibeUI **must** be thin, themable SVGs. No emoji, Unicode symbols (▶ ▼ ◀ ×), or raster images as icons.
+All icons across VibeCoder **must** be thin, themable SVGs. No emoji, Unicode symbols (▶ ▼ ◀ ×), or raster images as icons.
 
 ### Use the `<Icon>` component
 
@@ -530,7 +530,7 @@ import { Icon } from "./Icon";
 <Icon name="maximize" size={16} style={{ color: "var(--accent-color)" }} />
 ```
 
-All available names are declared in the `IconName` union type in `vibeui/src/components/Icon.tsx`. TypeScript will error on unknown names — check that file before using a name.
+All available names are declared in the `IconName` union type in `vibecoder/src/components/Icon.tsx`. TypeScript will error on unknown names — check that file before using a name.
 
 ### Rules
 

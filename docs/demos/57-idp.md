@@ -18,7 +18,7 @@ VibeCody includes a full Internal Developer Platform (IDP) module that integrate
 - VibeCLI v0.5.1 installed and on your PATH
 - At least one AI provider configured
 - (Optional) An existing Backstage, Port, or other IDP instance for live integration
-- (Optional) VibeUI running with the **IDP** panel visible
+- (Optional) VibeCoder running with the **IDP** panel visible
 
 ## Supported Platforms
 
@@ -258,9 +258,9 @@ Written to: catalog-info.yaml
 Register at: https://backstage.internal.acme.com/catalog-import
 ```
 
-### Step 7: View in VibeUI
+### Step 7: View in VibeCoder
 
-Open VibeUI and navigate to the **IDP** panel. The panel has 7 tabs:
+Open VibeCoder and navigate to the **IDP** panel. The panel has 7 tabs:
 
 - **Platforms** -- Connection status for all 12 platforms
 - **Catalog** -- Unified service catalog with search and filters
@@ -297,14 +297,14 @@ Open VibeUI and navigate to the **IDP** panel. The panel has 7 tabs:
     },
     {
       "id": 2,
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "IDP",
       "tab": "Catalog",
       "description": "Browse unified service catalog"
     },
     {
       "id": 3,
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "IDP",
       "tab": "Scorecards",
       "description": "View team DORA metrics and scorecard"

@@ -299,7 +299,7 @@ class ApiClient {
 
   // ── Active session (F3.x — cross-device handoff) ───────────
 
-  /// Claim a session as "active on this device" so VibeUI can follow
+  /// Claim a session as "active on this device" so VibeCoder can follow
   /// (mirrors the W1.1 watch path). Best-effort: failures are logged
   /// but do not block opening the chat.
   Future<void> setActiveSession(
@@ -328,7 +328,7 @@ class ApiClient {
 
   /// Read the daemon's currently-claimed mobile active session. Used
   /// by SessionsScreen to show an "Active on $device" badge so the
-  /// user knows which row VibeUI is following.
+  /// user knows which row VibeCoder is following.
   Future<Map<String, dynamic>?> getActiveSession(
       String baseUrl, String token) async {
     try {
@@ -462,7 +462,7 @@ class ApiClient {
 
   // ── DREAD #1 Slice G part 3 — tainted-argument confirmation bridge ──
   //
-  // Same daemon endpoints as the VibeUI WebView modal. Mobile renders
+  // Same daemon endpoints as the VibeCoder WebView modal. Mobile renders
   // through `TaintedConfirmationSheet`; the underlying tainted bytes
   // never leave the daemon — only `audit_summary` (kind / origin /
   // audit_id) crosses the wire. See

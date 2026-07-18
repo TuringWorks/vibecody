@@ -25,7 +25,7 @@ const TODOIST_API: &str = "https://api.todoist.com/rest/v2";
 /// Read an integration secret from the encrypted ProfileStore. The short
 /// `vibecli set-key <name>` keys (notion, todoist, jira_url, jira_email,
 /// jira_api_token) are checked first, falling back to the legacy
-/// `integration.productivity.*` keys that the VibeUI Settings flow has
+/// `integration.productivity.*` keys that the VibeCoder Settings flow has
 /// historically used. Returns None when the store is unavailable, the key
 /// is missing, or the stored value is empty.
 fn store_lookup(short: &str, legacy: &str) -> Option<String> {

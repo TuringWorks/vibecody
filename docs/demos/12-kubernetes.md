@@ -7,7 +7,7 @@ permalink: /demos/12-kubernetes/
 
 ## Overview
 
-VibeCody provides comprehensive Kubernetes management through the CLI and the VibeUI K8s panel. Browse namespaces and pods, view deployment status, scale workloads, stream pod logs, inspect YAML manifests, describe resources, and restart deployments. VibeCody supports 10 dedicated K8s Tauri commands and integrates with `kubectl` for full cluster operations.
+VibeCody provides comprehensive Kubernetes management through the CLI and the VibeCoder K8s panel. Browse namespaces and pods, view deployment status, scale workloads, stream pod logs, inspect YAML manifests, describe resources, and restart deployments. VibeCody supports 10 dedicated K8s Tauri commands and integrates with `kubectl` for full cluster operations.
 
 
 ## Prerequisites
@@ -21,14 +21,14 @@ kubectl cluster-info         # Verify cluster connectivity
 ```
 
 - A Kubernetes cluster (local via minikube/kind/k3d, or remote)
-- For VibeUI: `cd vibeui && npm install && npm run tauri dev`
+- For VibeCoder: `cd vibecoder && npm install && npm run tauri dev`
 
 
 ## Step-by-Step Walkthrough
 
-### 1. K8s Panel Overview (VibeUI)
+### 1. K8s Panel Overview (VibeCoder)
 
-**VibeUI:**
+**VibeCoder:**
 1. Open the **K8s** panel (AI Panel > K8s tab)
 2. The panel displays:
    - **Namespace selector** — Switch between namespaces
@@ -132,7 +132,7 @@ Scale complete: 4/4 replicas ready
 /k8s scale api-server --replicas 4
 ```
 
-**VibeUI:**
+**VibeCoder:**
 1. In the K8s panel, click a deployment
 2. Click the **Scale** button in the deployment detail view
 3. Enter the target replica count
@@ -168,7 +168,7 @@ vibecli k8s logs --deployment api-server --follow
 /k8s logs api-server-7d8f9b6c4-x2k9l --follow
 ```
 
-**VibeUI:**
+**VibeCoder:**
 1. Click a pod in the K8s panel
 2. The **Logs** tab shows live-streaming output
 3. Use the search bar to filter log lines
@@ -219,7 +219,7 @@ vibecli k8s yaml pod/api-server-7d8f9b6c4-x2k9l
 vibecli k8s yaml service/api-server
 ```
 
-**VibeUI:**
+**VibeCoder:**
 1. Click any resource in the K8s panel
 2. Click the **YAML** tab to see the full manifest
 3. Syntax highlighting and collapsible sections for readability
@@ -348,7 +348,7 @@ frontend      NodePort       10.96.56.78    <none>           3000:30080/TCP   1d
   "steps": [
     {
       "action": "Navigate",
-      "target": "vibeui://panel/k8s"
+      "target": "vibecoder://panel/k8s"
     },
     {
       "action": "Narrate",

@@ -16,7 +16,7 @@ VibeCody implements the Agent-to-Agent (A2A) protocol, enabling VibeCLI instance
 - VibeCLI v0.5.1 installed and on your PATH
 - At least one AI provider configured
 - Network access between agents (localhost for local demos, or open ports for remote)
-- For VibeUI: the desktop app running with the **A2A** panel visible
+- For VibeCoder: the desktop app running with the **A2A** panel visible
 
 ## A2A Concepts
 
@@ -260,9 +260,9 @@ Step 2: qa-agent generating tests...
 Tests written to: tests/auth_security_tests.rs
 ```
 
-### 7. Monitor A2A Activity in VibeUI
+### 7. Monitor A2A Activity in VibeCoder
 
-Open the **A2A** panel in VibeUI to see:
+Open the **A2A** panel in VibeCoder to see:
 
 - **Agent Card** tab: edit your agent card, toggle skills on/off
 - **Server** tab: view incoming requests, active tasks, connection log
@@ -331,14 +331,14 @@ token = "your-server-token"
     },
     {
       "id": 5,
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "A2A",
       "tab": "Discovery",
-      "description": "Browse discovered agents and test connectivity in VibeUI"
+      "description": "Browse discovered agents and test connectivity in VibeCoder"
     },
     {
       "id": 6,
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "A2A",
       "tab": "Tasks",
       "description": "View task history with status and duration"

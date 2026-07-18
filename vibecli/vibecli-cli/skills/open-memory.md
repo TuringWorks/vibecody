@@ -108,7 +108,7 @@ score = 0.45 × semantic_similarity   (TF-IDF cosine, HNSW)
 |---------|------|-------|
 | VibeCLI global | `~/.local/share/vibecli/openmemory/` | memories.json, waypoints.json, facts.json, drawers.json |
 | VibeCLI project | `<workspace>/.vibecli/openmemory/` | same |
-| VibeUI | `~/.local/share/vibeui/openmemory/` | same |
+| VibeCoder | `~/.local/share/vibecoder/openmemory/` | same |
 
 ## Architecture: Verbatim Drawers (MemPalace Technique)
 

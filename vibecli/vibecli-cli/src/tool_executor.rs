@@ -179,7 +179,7 @@ pub struct ToolExecutor {
     /// tainted-argument confirmation through an HTTP bridge prompter
     /// that publishes pending prompts on `GET /v1/tainted/pending`
     /// (SSE) and accepts decisions on `POST /v1/tainted/respond`.
-    /// Used by VibeUI WebView, VibeMobile, and VibeWatch. Takes
+    /// Used by VibeCoder WebView, VibeMobile, and VibeWatch. Takes
     /// precedence over `use_cli_prompter`. See
     /// `docs/security/tainted-data-flow.md` §8 and `tainted_http_bridge`.
     pub http_prompter_queue: Option<Arc<crate::tainted_http_bridge::HttpPromptQueue>>,

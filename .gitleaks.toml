@@ -56,8 +56,8 @@ paths = [
     '''vibecli/vibecli-cli/src/security_scan\.rs$''',
     '''vibecli/vibecli-cli/src/session_sharing\.rs$''',
     '''vibecli/vibecli-cli/src/warp_features\.rs$''',
-    '''vibeui/crates/vibe-ai/src/trace\.rs$''',
-    '''vibeui/src/components/__tests__/SettingsPanel\.test\.tsx$''',
+    '''vibecoder/crates/vibe-ai/src/trace\.rs$''',
+    '''vibecoder/src/components/__tests__/SettingsPanel\.test\.tsx$''',
     # Docs frequently include example tokens in code blocks.
     '''^docs/.*\.md$''',
     '''docs/demos/.*''',

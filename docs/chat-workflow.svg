@@ -258,16 +258,16 @@
   <!-- ═══════════ KEY FILES LEGEND ═══════════ -->
   <rect x="15" y="658" width="1310" height="80" rx="8" fill="#0d1117" stroke="#333" stroke-width="1"/>
   <text x="30" y="678" fill="#666" font-size="10" font-weight="600">Key Files</text>
-  <text x="30" y="696" fill="#4a9eff" font-size="9">vibeui/src/components/AIChat.tsx</text>
+  <text x="30" y="696" fill="#4a9eff" font-size="9">vibecoder/src/components/AIChat.tsx</text>
   <text x="265" y="696" fill="#555" font-size="9">— React chat UI, event listeners, rendering</text>
-  <text x="30" y="712" fill="#e67e22" font-size="9">vibeui/src-tauri/src/commands.rs</text>
+  <text x="30" y="712" fill="#e67e22" font-size="9">vibecoder/src-tauri/src/commands.rs</text>
   <text x="265" y="712" fill="#555" font-size="9">— stream_chat_message, process_tool_calls, resolve_at_references</text>
-  <text x="30" y="728" fill="#8e44ad" font-size="9">vibeui/crates/vibe-ai/src/providers/*.rs</text>
+  <text x="30" y="728" fill="#8e44ad" font-size="9">vibecoder/crates/vibe-ai/src/providers/*.rs</text>
   <text x="265" y="728" fill="#555" font-size="9">— Gemini, Ollama, Claude, OpenAI streaming implementations</text>
-  <text x="670" y="696" fill="#1abc9c" font-size="9">vibeui/crates/vibe-ai/src/resilient.rs</text>
+  <text x="670" y="696" fill="#1abc9c" font-size="9">vibecoder/crates/vibe-ai/src/resilient.rs</text>
   <text x="920" y="696" fill="#555" font-size="9">— RetryConfig, is_retryable(), classify_error()</text>
-  <text x="670" y="712" fill="#27ae60" font-size="9">vibeui/crates/vibe-ai/src/provider.rs</text>
+  <text x="670" y="712" fill="#27ae60" font-size="9">vibecoder/crates/vibe-ai/src/provider.rs</text>
   <text x="920" y="712" fill="#555" font-size="9">— AIProvider trait, Message, CompletionStream</text>
-  <text x="670" y="728" fill="#c0392b" font-size="9">vibeui/src-tauri/src/lib.rs</text>
+  <text x="670" y="728" fill="#c0392b" font-size="9">vibecoder/src-tauri/src/lib.rs</text>
   <text x="920" y="728" fill="#555" font-size="9">— AppState initialization, command registration</text>
 </svg>

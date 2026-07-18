@@ -335,7 +335,7 @@ pub mod watch_auth;
 pub mod watch_bridge;
 pub mod watch_session_relay;
 
-// Modules previously declared only in main.rs — exposed here so library consumers (e.g. vibe-ui Tauri shell) can use them. See CLAUDE.md "Module declaration pattern".
+// Modules previously declared only in main.rs — exposed here so library consumers (e.g. vibe-coder Tauri shell) can use them. See CLAUDE.md "Module declaration pattern".
 pub mod acp;
 pub mod acp_protocol;
 pub mod agent_modes;

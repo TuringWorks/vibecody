@@ -648,7 +648,7 @@ mod tests {
             from_message: None,
             seed_instruction: None,
             branch: None,
-            client: Some("vibeui".to_string()),
+            client: Some("vibecoder".to_string()),
         };
         let out = do_v1_resume_post(&store, &reg, &req);
         assert_eq!(out.status, HTTP_OK);

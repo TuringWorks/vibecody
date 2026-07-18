@@ -12,7 +12,7 @@ VibeCody's Design panel now supports five integrated design and diagramming prov
 
 ## Prerequisites
 
-- VibeUI desktop app running (Tauri 2)
+- VibeCoder desktop app running (Tauri 2)
 - Optional: Penpot account (cloud at `design.penpot.app` or self-hosted)
 - Optional: Draw.io Desktop or browser access
 
@@ -26,7 +26,7 @@ The Draw.io tab embeds a full `diagrams.net` editor via `embed.diagrams.net` wit
 
 | Sub-tab | What it does |
 |---|---|
-| **Editor** | Full draw.io editor — create, edit, and save `.drawio` files without leaving VibeUI |
+| **Editor** | Full draw.io editor — create, edit, and save `.drawio` files without leaving VibeCoder |
 | **Preview** | Read-only viewer for any `.drawio` XML |
 | **AI Generate** | Describe a diagram in plain English and get draw.io XML back |
 | **Templates** | 8 built-in templates (microservices, CI/CD, ERD, C4 context/container, API sequence, state machine, domain model) |
@@ -84,7 +84,7 @@ U(foo, { fill: "#3b82f6" })
 
 ### Setup
 
-1. Open VibeUI → Design → Penpot → Connect tab
+1. Open VibeCoder → Design → Penpot → Connect tab
 2. Enter your Penpot host (e.g. `https://design.penpot.app`) and access token
 3. Click **Connect** — projects and files load automatically
 

@@ -1,9 +1,9 @@
 # VibeDesk
 
 > Task-first, conversation-driven companion app in the VibeCody ecosystem.
-> Tauri 2 + React/TS. Shares all VibeCLI Rust crates and the VibeUI design system; owns only its React tree + a thin daemon bridge.
+> Tauri 2 + React/TS. Shares all VibeCLI Rust crates and the VibeCoder design system; owns only its React tree + a thin daemon bridge.
 
-VibeDesk is **not** VibeUI v2. It is the fast path — type a task, watch it happen — built to mirror the Codex desktop UX: a three-column shell (left project/chat nav · center conversation · right Environment inspector) with all run controls inline in the composer.
+VibeDesk is **not** VibeCoder v2. It is the fast path — type a task, watch it happen — built to mirror the Codex desktop UX: a three-column shell (left project/chat nav · center conversation · right Environment inspector) with all run controls inline in the composer.
 
 Spec & plan live in the PDM vault:
 `obsidian/.../Projects/VibeCody/pdm/` → `06` spec · `07` Codex-alignment critique · `08` build plan · `09` task backlog.
@@ -24,7 +24,7 @@ npm run lint:no-inline-edit # VX-013 gate
 npm run build              # tsc + vite production build
 ```
 
-Dev server runs on **:1422** (vibeui=1420, vibeapp=1421). The Rust crate is `vibedesk` in the workspace; `cargo check -p vibedesk`.
+Dev server runs on **:1422** (vibecoder=1420, vibeapp=1421). The Rust crate is `vibedesk` in the workspace; `cargo check -p vibedesk`.
 
 ## Status
 

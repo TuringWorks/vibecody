@@ -47,6 +47,6 @@ Steps are JSON arrays with these action types:
 ## Architecture
 
 - `feature_demo.rs` — Core: DemoStep, DemoRunner, DemoGenerator, DemoExporter, BrowserSession (CDP)
-- `DemoPanel.tsx` — VibeUI panel with list, create, and AI-generate tabs
+- `DemoPanel.tsx` — VibeCoder panel with list, create, and AI-generate tabs
 - Demos stored at `~/.vibecli/demos/<name>-<timestamp>/demo.json`
 - Screenshots saved as PNG frames alongside each demo

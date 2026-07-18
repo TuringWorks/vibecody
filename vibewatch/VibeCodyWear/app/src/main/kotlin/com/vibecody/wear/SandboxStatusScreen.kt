@@ -1,7 +1,7 @@
 // SandboxStatusScreen.kt — Sandbox container status view for Wear OS.
 //
 // Shows:
-//  1. AI Chat card — when VibeUI sandbox chat is active (links to ConversationScreen)
+//  1. AI Chat card — when VibeCoder sandbox chat is active (links to ConversationScreen)
 //  2. Container list — Docker/Podman container status with CPU/RAM bars
 //
 // Polls every 10 seconds.  Matches the Apple Watch SandboxStatusView behaviour.

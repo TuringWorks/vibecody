@@ -5,7 +5,7 @@ title: Input — Design System
 permalink: /design-system/components/input/
 ---
 
-VibeUI provides CSS classes for text inputs, textareas, and selects. All form elements inherit global base styles from `App.css` automatically. The `panel-input` class adds panel-specific refinements.
+VibeCoder provides CSS classes for text inputs, textareas, and selects. All form elements inherit global base styles from `App.css` automatically. The `panel-input` class adds panel-specific refinements.
 
 ---
 

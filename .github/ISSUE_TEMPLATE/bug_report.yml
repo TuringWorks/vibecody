@@ -15,7 +15,7 @@ body:
       description: Where did you encounter this bug?
       options:
         - VibeCLI (terminal)
-        - VibeUI (desktop editor)
+        - VibeCoder (desktop editor)
         - HTTP daemon (vibecli serve)
         - MCP server
         - Documentation / Website

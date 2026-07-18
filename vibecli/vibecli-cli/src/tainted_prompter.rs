@@ -17,7 +17,7 @@
 //!      prompter needs to be **injectable for tests** (we cannot
 //!      block on real stdin in `cargo test`).
 //!   2. There will be **multiple prompter implementations** as Slice G
-//!      expands: the CLI stdin/stderr one shipped here, the VibeUI
+//!      expands: the CLI stdin/stderr one shipped here, the VibeCoder
 //!      WebView modal one, the mobile/watch push-confirm one. All
 //!      three need to satisfy the same contract.
 //!   3. The gate function signatures stay shape-compatible with

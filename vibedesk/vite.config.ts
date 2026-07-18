@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-// VibeDesk dev server runs on 1422 (vibeui=1420, vibeapp=1421).
+// VibeDesk dev server runs on 1422 (vibecoder=1420, vibeapp=1421).
 const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig(async () => ({

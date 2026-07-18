@@ -32,7 +32,7 @@ It's an **opt-in upgrade**, not the default. Cross-platform — falls back trans
 
 ## What's there today
 
-- `vibeui/crates/vibe-extensions/Cargo.toml:18` — Wasmtime 43.
+- `vibecoder/crates/vibe-extensions/Cargo.toml:18` — Wasmtime 43.
 - `vibe-extensions/src/loader.rs` — loads `.wasm` modules into per-extension `Store<HostState>` instances. Linker registers host functions. **No fuel, no timeout, no resource metering.**
 - `TuringWorks/hyperlight` — vanilla mirror of `hyperlight-dev/hyperlight`. We can use upstream directly via the `hyperlight_host` and `hyperlight_guest` crates.
 

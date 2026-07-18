@@ -18,7 +18,7 @@ VibeCody's DocSync module keeps your documentation in lockstep with your code. I
 - VibeCLI v0.5.1 installed and on your PATH
 - At least one AI provider configured
 - A project with documentation files (Markdown, RST, or inline doc comments)
-- (Optional) VibeUI running with the **DocSync** panel visible
+- (Optional) VibeCoder running with the **DocSync** panel visible
 
 ## Step-by-Step Walkthrough
 
@@ -205,9 +205,9 @@ Doc-to-Code Drift
   2 spec-to-code gaps found.
 ```
 
-### Step 6: View in VibeUI
+### Step 6: View in VibeCoder
 
-Open VibeUI and navigate to the **DocSync** panel. The panel provides:
+Open VibeCoder and navigate to the **DocSync** panel. The panel provides:
 
 - **Overview** -- Freshness gauge and document status table
 - **Drift Map** -- Visual graph showing which docs link to which code files, with drift highlighted in red
@@ -240,7 +240,7 @@ Open VibeUI and navigate to the **DocSync** panel. The panel provides:
     },
     {
       "id": 2,
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "DocSync",
       "tab": "Drift Map",
       "description": "View doc-to-code dependency graph with drift highlights"

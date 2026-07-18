@@ -662,9 +662,9 @@ The `embedding_*` fields describe the in-process vector index. `embedding_backen
 }
 ```
 
-### Tauri Commands (VibeUI)
+### Tauri Commands (VibeCoder)
 
-The following Tauri commands are available for the VibeUI frontend via `invoke()`. All commands are registered in `vibeui/src-tauri/src/lib.rs`.
+The following Tauri commands are available for the VibeCoder frontend via `invoke()`. All commands are registered in `vibecoder/src-tauri/src/lib.rs`.
 
 #### Memory commands
 

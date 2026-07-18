@@ -1,0 +1,325 @@
+/**
+ * UsageMeteringPanel — Usage Metering panel.
+ *
+ * Dashboard for tracking AI usage: spend, tokens, requests, budgets,
+ * provider/model breakdowns, and configurable alerts.
+ * Wired to Tauri backend commands persisted at ~/.vibecoder/usage-metering.json.
+ */
+import { useState, useEffect, useCallback } from "react";
+import { invoke } from "@tauri-apps/api/core";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface Budget {
+  id: string;
+  name: string;
+  limit: number;
+  used: number;
+  period: "daily" | "weekly" | "monthly";
+}
+
+interface UsageRow {
+  label: string;
+  tokens: number;
+  requests: number;
+  cost: number;
+}
+
+interface UsageAlert {
+  id: string;
+  severity: "info" | "warning" | "critical";
+  message: string;
+  timestamp: string;
+  dismissed: boolean;
+}
+
+interface KpiData {
+  totalSpend: number;
+  tokensUsed: number;
+  requests: number;
+  activeBudgets: number;
+  alertsTriggered: number;
+}
+
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const inputStyle: React.CSSProperties = { width: "100%", padding: "6px 10px", borderRadius: "var(--radius-xs-plus)", border: "1px solid var(--border-color)", background: "var(--bg-secondary)", color: "var(--text-primary)", fontSize: "var(--font-size-base)", fontFamily: "var(--font-family)", boxSizing: "border-box" };
+const selectStyle: React.CSSProperties = { ...inputStyle, width: "auto", cursor: "pointer" };
+
+const barBg: React.CSSProperties = { height: 8, borderRadius: "var(--radius-xs-plus)", background: "var(--bg-tertiary)", overflow: "hidden" };
+const barFill = (pct: number, color: string): React.CSSProperties => ({ height: "100%", width: `${Math.min(pct, 100)}%`, borderRadius: "var(--radius-xs-plus)", background: color });
+
+const thStyle: React.CSSProperties = { textAlign: "left", padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" };
+const tdStyle: React.CSSProperties = { padding: "6px 10px", borderBottom: "1px solid var(--border-color)", fontSize: "var(--font-size-base)" };
+
+const severityColor: Record<string, string> = { info: "var(--info-color)", warning: "var(--warning-color)", critical: "var(--error-color)" };
+const badgeStyle = (severity: string): React.CSSProperties => ({ display: "inline-block", padding: "2px 8px", borderRadius: "var(--radius-md)", fontSize: "var(--font-size-xs)", fontWeight: 600, color: "var(--btn-primary-fg)", background: severityColor[severity] || "var(--text-secondary)" });
+
+const budgetBarColor = (pct: number) => pct >= 90 ? "var(--error-color)" : pct >= 70 ? "var(--warning-color)" : "var(--success-color)";
+const formatTokens = (n: number) => n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(0)}k` : String(n);
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+type Tab = "dashboard" | "budgets" | "reports" | "alerts";
+type ReportView = "provider" | "model" | "task";
+
+export function UsageMeteringPanel() {
+  const [tab, setTab] = useState<Tab>("dashboard");
+  const [kpis, setKpis] = useState<KpiData>({ totalSpend: 0, tokensUsed: 0, requests: 0, activeBudgets: 0, alertsTriggered: 0 });
+  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [alerts, setAlerts] = useState<UsageAlert[]>([]);
+  const [byProvider, setByProvider] = useState<UsageRow[]>([]);
+  const [byModel, setByModel] = useState<UsageRow[]>([]);
+  const [reportView, setReportView] = useState<ReportView>("provider");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Create budget form
+  const [newBudgetName, setNewBudgetName] = useState("");
+  const [newBudgetLimit, setNewBudgetLimit] = useState("");
+  const [newBudgetPeriod, setNewBudgetPeriod] = useState<"daily" | "weekly" | "monthly">("monthly");
+
+  const loadData = useCallback(async () => {
+    try {
+      setError(null);
+      const [kpiResult, budgetResult, providerResult, modelResult, alertResult] = await Promise.all([
+        invoke<KpiData>("get_usage_kpis"),
+        invoke<Budget[]>("get_usage_budgets"),
+        invoke<UsageRow[]>("get_usage_by_provider"),
+        invoke<UsageRow[]>("get_usage_by_model"),
+        invoke<UsageAlert[]>("get_usage_alerts"),
+      ]);
+      setKpis(kpiResult);
+      setBudgets(budgetResult);
+      setByProvider(providerResult);
+      setByModel(modelResult);
+      setAlerts(alertResult);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const createBudget = async () => {
+    if (!newBudgetName.trim() || !newBudgetLimit) return;
+    try {
+      await invoke("create_usage_budget", {
+        name: newBudgetName.trim(),
+        limit: parseFloat(newBudgetLimit),
+        period: newBudgetPeriod,
+      });
+      setNewBudgetName("");
+      setNewBudgetLimit("");
+      await loadData();
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const deleteBudget = async (id: string) => {
+    try {
+      await invoke("delete_usage_budget", { id });
+      // Optimistic local update — backend mutation is durable, so a
+      // reload would re-fetch the same state. Kept the local trim so
+      // the UI updates immediately rather than waiting for loadData.
+      setBudgets((prev) => prev.filter((b) => b.id !== id));
+      await loadData();
+    } catch (e) {
+      setError(`Failed to delete budget: ${String(e)}`);
+    }
+  };
+
+  const dismissAlert = async (id: string) => {
+    try {
+      await invoke("dismiss_usage_alert", { id });
+      await loadData();
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const reportData: Record<ReportView, UsageRow[]> = { provider: byProvider, model: byModel, task: [] };
+
+  const renderTable = (rows: UsageRow[]) => (
+    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <thead>
+        <tr>
+          <th style={thStyle}>Label</th>
+          <th style={{ ...thStyle, textAlign: "right" }}>Tokens</th>
+          <th style={{ ...thStyle, textAlign: "right" }}>Requests</th>
+          <th style={{ ...thStyle, textAlign: "right" }}>Cost</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r, i) => (
+          <tr key={i}>
+            <td style={tdStyle}>{r.label}</td>
+            <td style={{ ...tdStyle, textAlign: "right" }}>{formatTokens(r.tokens)}</td>
+            <td style={{ ...tdStyle, textAlign: "right" }}>{r.requests.toLocaleString()}</td>
+            <td style={{ ...tdStyle, textAlign: "right" }}>${r.cost.toFixed(2)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+
+  if (loading) {
+    return (
+      <div className="panel-container">
+        <h2 style={{ margin: "0 0 12px", fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>Usage Metering</h2>
+        <div className="panel-loading">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="panel-container">
+      <h2 style={{ margin: "0 0 12px", fontSize: "var(--font-size-xl)", fontWeight: 600, color: "var(--text-primary)" }}>Usage Metering</h2>
+
+      {error && (
+        <div role="alert" aria-live="assertive" className="panel-error" style={{ marginBottom: 12 }}>
+          {error}
+        </div>
+      )}
+
+      <div className="panel-tab-bar" role="tablist" aria-label="Usage views" style={{ marginBottom: 12 }}>
+        <button role="tab" aria-selected={tab === "dashboard"} className={`panel-tab ${tab === "dashboard" ? "active" : ""}`} onClick={() => setTab("dashboard")}>Dashboard</button>
+        <button role="tab" aria-selected={tab === "budgets"} className={`panel-tab ${tab === "budgets" ? "active" : ""}`} onClick={() => setTab("budgets")}>Budgets</button>
+        <button role="tab" aria-selected={tab === "reports"} className={`panel-tab ${tab === "reports" ? "active" : ""}`} onClick={() => setTab("reports")}>Reports</button>
+        <button role="tab" aria-selected={tab === "alerts"} className={`panel-tab ${tab === "alerts" ? "active" : ""}`} onClick={() => setTab("alerts")}>Alerts ({alerts.filter((a) => !a.dismissed).length})</button>
+      </div>
+
+      {tab === "dashboard" && (
+        <div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 12 }}>
+            <div className="panel-card">
+              <div className="panel-label">Total Spend</div>
+              <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--accent-primary)" }}>${kpis.totalSpend.toFixed(2)}</div>
+            </div>
+            <div className="panel-card">
+              <div className="panel-label">Tokens Used</div>
+              <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{formatTokens(kpis.tokensUsed)}</div>
+            </div>
+            <div className="panel-card">
+              <div className="panel-label">Requests</div>
+              <div style={{ fontSize: 22, fontWeight: 700, fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{kpis.requests.toLocaleString()}</div>
+            </div>
+          </div>
+
+          <div className="panel-card">
+            <div className="panel-label">Spend by Provider</div>
+            {byProvider.length === 0 && <div style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>No provider data yet.</div>}
+            {byProvider.map((p) => {
+              const pct = kpis.totalSpend > 0 ? (p.cost / kpis.totalSpend) * 100 : 0;
+              return (
+                <div key={p.label} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                  <div style={{ width: 140, fontSize: "var(--font-size-sm)" }}>{p.label}</div>
+                  <div style={{ ...barBg, flex: 1 }}>
+                    <div style={barFill(pct, "var(--accent-primary)")} />
+                  </div>
+                  <div style={{ width: 60, fontSize: "var(--font-size-sm)", textAlign: "right" }}>${p.cost.toFixed(2)}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {tab === "budgets" && (
+        <div>
+          {budgets.length === 0 && <div className="panel-empty">No budgets configured. Create one below.</div>}
+          {budgets.map((b) => {
+            const pct = b.limit > 0 ? (b.used / b.limit) * 100 : 0;
+            return (
+              <div key={b.id} className="panel-card">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                  <div>
+                    <span style={{ fontWeight: 600 }}>{b.name}</span>
+                    <span style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginLeft: 6 }}>{b.period}</span>
+                  </div>
+                  <button className="panel-btn panel-btn-secondary" aria-label={`Remove budget: ${b.name}`} style={{ fontSize: "var(--font-size-xs)", padding: "3px 8px" }} onClick={() => deleteBudget(b.id)}>Remove</button>
+                </div>
+                <div
+                  style={barBg}
+                  role="progressbar"
+                  aria-valuenow={Math.round(pct)}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`${b.name} budget — ${b.used.toFixed(2)} used of ${b.limit.toFixed(2)} ${b.period}, ${pct.toFixed(0)} percent`}
+                >
+                  <div style={barFill(pct, budgetBarColor(pct))} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 4 }}>
+                  <span>${b.used.toFixed(2)} used</span>
+                  <span>${b.limit.toFixed(2)} limit ({pct.toFixed(0)}%)</span>
+                </div>
+              </div>
+            );
+          })}
+
+          <div className="panel-card">
+            <div className="panel-label" style={{ fontWeight: 600, fontSize: "var(--font-size-base)" }}>Create Budget</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 8 }}>
+              <div>
+                <div className="panel-label">Name</div>
+                <input style={inputStyle} value={newBudgetName} onChange={(e) => setNewBudgetName(e.target.value)} placeholder="Budget name" />
+              </div>
+              <div>
+                <div className="panel-label">Limit ($)</div>
+                <input style={inputStyle} type="number" value={newBudgetLimit} onChange={(e) => setNewBudgetLimit(e.target.value)} placeholder="100.00" />
+              </div>
+              <div>
+                <div className="panel-label">Period</div>
+                <select style={selectStyle} value={newBudgetPeriod} onChange={(e) => setNewBudgetPeriod(e.target.value as "daily" | "weekly" | "monthly")}>
+                  <option value="daily">Daily</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
+            </div>
+            <button className="panel-btn panel-btn-primary" style={{ marginTop: 8 }} onClick={createBudget}>Create</button>
+          </div>
+        </div>
+      )}
+
+      {tab === "reports" && (
+        <div>
+          <div className="panel-tab-bar" style={{ marginBottom: 10 }}>
+            <button className={`panel-tab ${reportView === "provider" ? "active" : ""}`} onClick={() => setReportView("provider")}>By Provider</button>
+            <button className={`panel-tab ${reportView === "model" ? "active" : ""}`} onClick={() => setReportView("model")}>By Model</button>
+          </div>
+          <div className="panel-card">
+            {reportData[reportView].length === 0
+              ? <div className="panel-empty" style={{ fontSize: "var(--font-size-sm)", color: "var(--text-secondary)" }}>No data yet.</div>
+              : renderTable(reportData[reportView])}
+          </div>
+        </div>
+      )}
+
+      {tab === "alerts" && (
+        <div>
+          {alerts.filter((a) => !a.dismissed).length === 0 && <div className="panel-empty">No active alerts.</div>}
+          {alerts.map((a) => (
+            <div key={a.id} className="panel-card" style={{ opacity: a.dismissed ? 0.5 : 1 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={badgeStyle(a.severity)}>{a.severity}</span>
+                  <span>{a.message}</span>
+                </div>
+                {!a.dismissed && (
+                  <button className="panel-btn panel-btn-secondary" style={{ fontSize: "var(--font-size-xs)", padding: "3px 8px" }} onClick={() => dismissAlert(a.id)}>Dismiss</button>
+                )}
+              </div>
+              <div style={{ fontSize: "var(--font-size-xs)", color: "var(--text-secondary)", marginTop: 4 }}>{new Date(a.timestamp).toLocaleString()}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

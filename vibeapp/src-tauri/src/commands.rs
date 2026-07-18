@@ -211,9 +211,9 @@ pub async fn stream_agent(
 //
 // vibeapp is a lightweight companion overlay (no AiMlComposite, no model
 // toolbar), so it doesn't ship the full `SkillForgePanel.tsx` UI — that lives
-// in VibeUI. These 10 commands register the SkillForge surface so it is
+// in VibeCoder. These 10 commands register the SkillForge surface so it is
 // *reachable* from vibeapp via `invoke()` for any future UI, with the same
-// daemon-proxy + STRICT semantics as VibeUI: thin HTTP proxies to
+// daemon-proxy + STRICT semantics as VibeCoder: thin HTTP proxies to
 // `http://localhost:7878/v1/skilllens/*` + `/v1/skillopt/*`, authenticated
 // with the daemon bearer token at `~/.vibecli/daemon.token`. The daemon stays
 // the single source of truth. Each LLM-calling command takes `provider` +

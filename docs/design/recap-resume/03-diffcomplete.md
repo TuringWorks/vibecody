@@ -19,9 +19,9 @@
 
 Grounded in `b1e28ad1` (Phase 2 slice 3, just shipped):
 
-- **Backend:** `vibeui/crates/vibe-ai/src/diffcomplete.rs` — `DiffCompleteRequest` includes `previous_diff: Option<String>` and `refinement: Option<String>`; the prompt renders `=== Previous attempt ===` then `Refinement:` then `Instruction:`. Slice 3 confirmed.
-- **Tauri command:** `diffcomplete_generate` in `vibeui/src-tauri/src/commands.rs:6522` accepts the two optional fields.
-- **Modal:** `vibeui/src/components/DiffCompleteModal.tsx` — keeps `lastDiff`, `refinement`, `phase`, `instruction`, `additionalFiles`, `modified` in **component state only**. Closing the modal loses the chain.
+- **Backend:** `vibecoder/crates/vibe-ai/src/diffcomplete.rs` — `DiffCompleteRequest` includes `previous_diff: Option<String>` and `refinement: Option<String>`; the prompt renders `=== Previous attempt ===` then `Refinement:` then `Instruction:`. Slice 3 confirmed.
+- **Tauri command:** `diffcomplete_generate` in `vibecoder/src-tauri/src/commands.rs:6522` accepts the two optional fields.
+- **Modal:** `vibecoder/src/components/DiffCompleteModal.tsx` — keeps `lastDiff`, `refinement`, `phase`, `instruction`, `additionalFiles`, `modified` in **component state only**. Closing the modal loses the chain.
 - **Tests:** `DiffCompleteModal.test.tsx` covers the regenerate flow.
 - **No persistence**, no chain history, no resume of a chain across modal opens.
 - **Memory artifact:** `feedback_patent_distance_priority.md` — user explicitly prefers patent-distance moves over ergonomics polish on this surface.
@@ -74,7 +74,7 @@ If any future change to this surface would soften any of these rows, the change 
 A chain is a sequence of (instruction, refinement, diff, applied?) tuples on a single (file, selection) target.
 
 ```rust
-// vibeui/crates/vibe-ai/src/diffcomplete_chain.rs (new)
+// vibecoder/crates/vibe-ai/src/diffcomplete_chain.rs (new)
 pub struct DiffChain {
     pub id: ChainId,                        // ULID
     pub workspace: PathBuf,
@@ -232,7 +232,7 @@ Generates a chain recap. `force` and `generator` semantics same as session.
   "kind": "diff_chain",
   "from_diff_index": null,         // overrides recap.resume_hint.from_diff_index
   "seed_refinement": null,
-  "client": "vibeui"
+  "client": "vibecoder"
 }
 
 // response
@@ -249,7 +249,7 @@ The frontend translates this into: open `DiffCompleteModal` with `phase = 'revie
 
 ## Per-surface UX
 
-### vibeui — DiffCompleteModal
+### vibecoder — DiffCompleteModal
 
 This is the primary surface.
 
@@ -261,7 +261,7 @@ This is the primary surface.
 - **On reopening a previously-cancelled chain:** the side panel offers "Resume" (forks a new chain). Original chain is preserved.
 - **No keyboard accept-style affordance is added.** The existing Cmd+. trigger remains the explicit-action gateway. The chain breadcrumb does not have hotkeys to "step forward / back" — that would creep toward Element-4 territory.
 
-### vibeui — Chain History panel
+### vibecoder — Chain History panel
 
 A new panel reachable via:
 - The modal footer "History" link (filtered to current selection)
@@ -283,7 +283,7 @@ Diffcomplete is desktop-only today (it's an editor flow). The CLI gets a *read-o
 - **`/diff-chains [--file PATH]`** — list chains in the current workspace.
 - **`/diff-chain show <chain_id>`** — print all steps inline (instruction, refinement, diff).
 - **`/diff-chain recap <chain_id>`** — print recap.
-- **No CLI resume.** Resuming requires the modal UI; the CLI prints "Open in vibeui to resume." This is a deliberate restriction — running a "regenerate from refinement" loop in a terminal would push toward an inline-suggestion shape that we want to stay distant from.
+- **No CLI resume.** Resuming requires the modal UI; the CLI prints "Open in vibecoder to resume." This is a deliberate restriction — running a "regenerate from refinement" loop in a terminal would push toward an inline-suggestion shape that we want to stay distant from.
 
 ### vibemobile
 
@@ -326,12 +326,12 @@ Diffcomplete is desktop-only today (it's an editor flow). The CLI gets a *read-o
 | Slice | What | Surfaces | Patent re-audit |
 |---|---|---|---|
 | **D1.1** | `diff_chains` table on `workspace.db` + `DiffChain` types + autosave RPC | daemon + Tauri command | Required: confirm autosave doesn't run on idle/typing. |
-| **D1.2** | `DiffCompleteModal` autosave on regenerate / final-state | vibeui | Required: confirm no editor-buffer decoration added. |
-| **D1.3** | Chain History panel (read-only) | vibeui | Required: confirm panel does not auto-open. |
+| **D1.2** | `DiffCompleteModal` autosave on regenerate / final-state | vibecoder | Required: confirm no editor-buffer decoration added. |
+| **D1.3** | Chain History panel (read-only) | vibecoder | Required: confirm panel does not auto-open. |
 | **D1.4** | `diff_chain_recaps` table + heuristic generator + `/v1/recap` (kind=diff_chain) | daemon | Required: confirm recap is not generated on a timer. |
-| **D1.5** | "Resume from last step" button in chain history; `/v1/resume` (kind=diff_chain); modal opens at primed step | vibeui + daemon | Required: confirm resume requires explicit click and uses existing modal-Apply gesture. |
+| **D1.5** | "Resume from last step" button in chain history; `/v1/resume` (kind=diff_chain); modal opens at primed step | vibecoder + daemon | Required: confirm resume requires explicit click and uses existing modal-Apply gesture. |
 | **D1.6** | REPL `/diff-chains` and `/diff-chain show` (read-only) | vibecli | Required: confirm no CLI loop affordance added. |
-| **D2.x** | LLM recap generator option | daemon + vibeui Settings | Required: confirm generator is opt-in per call. |
+| **D2.x** | LLM recap generator option | daemon + vibecoder Settings | Required: confirm generator is opt-in per call. |
 | **M1.3** | Mobile read-only chain recap view via `/v1/recap` shared shape | vibemobile | (Read-only — minimal patent surface.) |
 
 Each slice is required to commit a one-line note in its PR description: `Patent re-audit: PASS (elements 1–5 unchanged)`. If any element is touched, the audit is the merge blocker.

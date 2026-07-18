@@ -38,7 +38,7 @@
 ## P2 — Medium (fix this month)
 
 ### P2-1: ~~Update all stale counts across docs~~ RESOLVED
-- **Commit**: `d22dfb0e` — updated Tauri (1,045+), modules (222), panels (235+/39), skills (599), REPL (126), tests (~10,535), providers (22) across CLAUDE.md, architecture.md, vibeui.md, development.md
+- **Commit**: `d22dfb0e` — updated Tauri (1,045+), modules (222), panels (235+/39), skills (599), REPL (126), tests (~10,535), providers (22) across CLAUDE.md, architecture.md, vibecoder.md, development.md
 
 ### P2-2: ~~Fix Tauri macro name in CLAUDE.md~~ RESOLVED
 - **Commit**: `d22dfb0e` — changed `invoke_handler!` to `tauri::generate_handler!`

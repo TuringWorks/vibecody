@@ -10,7 +10,7 @@ Freeform drawing canvas that converts hand-drawn sketches, wireframes, and diagr
 - Iterating on UI designs visually before committing to code
 
 ## Commands
-- `/sketch open` — Open the sketch canvas in VibeUI
+- `/sketch open` — Open the sketch canvas in VibeCoder
 - `/sketch import <image>` — Import an image or photo of a sketch
 - `/sketch generate <target>` — Generate code from canvas (react, html, swiftui, flutter)
 - `/sketch refine <feedback>` — Refine generated code with natural language feedback

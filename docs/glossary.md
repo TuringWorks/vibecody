@@ -76,7 +76,7 @@ An alphabetical reference of terms used throughout VibeCody's documentation and 
 
 **MCP (Model Context Protocol)** — An open standard for connecting AI models to external data sources and tools. VibeCody supports MCP as both a client and a server, and includes a verified plugin directory.
 
-**Monaco Editor** — The code editor component used in VibeUI, the same editor that powers VS Code. Provides syntax highlighting, IntelliSense, and multi-cursor editing.
+**Monaco Editor** — The code editor component used in VibeCoder, the same editor that powers VS Code. Provides syntax highlighting, IntelliSense, and multi-cursor editing.
 
 **Legacy Migration** — A module for converting codebases from older languages (COBOL, Fortran, VB6, and 15 others) to modern target languages. Supports strategies including Strangler Fig pattern and service boundary detection.
 
@@ -86,7 +86,7 @@ An alphabetical reference of terms used throughout VibeCody's documentation and 
 
 **Orchestration** — The workflow orchestration system that manages task tracking (`tasks/todo.md`), lessons learned (`tasks/lessons.md`), and complexity estimation. Context from orchestration is automatically injected into the agent loop.
 
-**Panel** — A UI component in VibeUI that provides a focused interface for a specific feature. VibeUI includes 187 panels covering AI, security, DevOps, development tools, and more.
+**Panel** — A UI component in VibeCoder that provides a focused interface for a specific feature. VibeCoder includes 187 panels covering AI, security, DevOps, development tools, and more.
 
 **Policy File** — A TOML configuration file (`.vibecli/policy.toml`) that enforces organizational restrictions such as allowed providers, blocked commands, and mandatory sandbox usage. Cannot be overridden by user configuration.
 
@@ -120,7 +120,7 @@ An alphabetical reference of terms used throughout VibeCody's documentation and 
 
 **SWE-bench** — A benchmark suite for evaluating AI coding assistants on real-world software engineering tasks. VibeCody includes a benchmarking harness for running, comparing, and exporting SWE-bench results.
 
-**Tauri** — The framework used to build VibeUI. Tauri v2 combines a Rust backend with a web frontend (React/TypeScript), producing lightweight, secure desktop applications that use the system WebView.
+**Tauri** — The framework used to build VibeCoder. Tauri v2 combines a Rust backend with a web frontend (React/TypeScript), producing lightweight, secure desktop applications that use the system WebView.
 
 **Token** — The basic unit of text processed by an AI model. A token is roughly 4 characters or 0.75 words in English. Token counts determine context window usage and API costs.
 
@@ -134,7 +134,7 @@ An alphabetical reference of terms used throughout VibeCody's documentation and 
 
 **VibeCLI** — The command-line interface for VibeCody, located in `vibecli/vibecli-cli/`. Provides a TUI, REPL, and HTTP daemon mode.
 
-**VibeUI** — The desktop application for VibeCody, located in `vibeui/`. Built with Tauri 2, React, and Monaco Editor. Provides a full graphical IDE experience with 187 integrated panels.
+**VibeCoder** — The desktop application for VibeCody, located in `vibecoder/`. Built with Tauri 2, React, and Monaco Editor. Provides a full graphical IDE experience with 187 integrated panels.
 
 **WASM (WebAssembly)** — A binary instruction format used for VibeCody's extension system. WASM extensions run in a sandboxed runtime, providing safe third-party plugin execution.
 

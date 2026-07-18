@@ -1,4 +1,4 @@
-//! Slice G part 2 — cross-process prompter for VibeUI WebView,
+//! Slice G part 2 — cross-process prompter for VibeCoder WebView,
 //! VibeMobile, and VibeWatch.
 //!
 //! DREAD #1 design doc §8.1 (desktop modal) and §8.3 (mobile / watch

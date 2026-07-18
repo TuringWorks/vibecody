@@ -6,7 +6,7 @@ nav_order: 16
 
 # Utilities Reference
 
-Five shared utility modules live in `vibeui/src/utils/`. They provide common functionality consumed by panels, hooks, and the main App shell.
+Five shared utility modules live in `vibecoder/src/utils/`. They provide common functionality consumed by panels, hooks, and the main App shell.
 
 ---
 

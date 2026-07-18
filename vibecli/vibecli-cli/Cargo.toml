@@ -50,8 +50,8 @@ name = "vibecli"
 path = "src/main.rs"
 
 [dependencies]
-vibe-core = { path = "../../vibeui/crates/vibe-core" }
-vibe-ai = { path = "../../vibeui/crates/vibe-ai" }
+vibe-core = { path = "../../vibecoder/crates/vibe-core" }
+vibe-ai = { path = "../../vibecoder/crates/vibe-ai" }
 syntect.workspace = true
 tokio.workspace = true
 clap.workspace = true
@@ -82,8 +82,8 @@ walkdir = { workspace = true }
 rusqlite = { workspace = true }
 notify = { workspace = true }
 serde_yaml = "0.9.34"
-vibe-collab = { path = "../../vibeui/crates/vibe-collab" }
-vibe-infer = { path = "../../vibeui/crates/vibe-infer" }
+vibe-collab = { path = "../../vibecoder/crates/vibe-collab" }
+vibe-infer = { path = "../../vibecoder/crates/vibe-infer" }
 vibe-sandbox = { path = "../crates/vibe-sandbox" }
 vibe-sandbox-native = { path = "../crates/vibe-sandbox-native" }
 vibe-sandbox-firecracker = { path = "../crates/vibe-sandbox-firecracker" }
@@ -157,7 +157,7 @@ tracing-opentelemetry = "0.33"
 # this is additive on top of the workspace `vibe-infer` line above. Pair
 # with the `mistralrs_enabled` cfg emitted by `build.rs`.
 [target.'cfg(target_os = "macos")'.dependencies]
-vibe-infer = { path = "../../vibeui/crates/vibe-infer", features = ["mistralrs", "mistralrs-metal"] }
+vibe-infer = { path = "../../vibecoder/crates/vibe-infer", features = ["mistralrs", "mistralrs-metal"] }
 
 [dev-dependencies]
 tower.workspace = true

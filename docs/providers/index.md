@@ -13,7 +13,7 @@ VibeCody supports 23 AI providers, covering cloud APIs, local models, inference 
 1. Pick a provider from the table below
 2. Follow its setup guide to get an API key (or install locally)
 3. Set the environment variable or edit `~/.vibecli/config.toml`
-4. Run `vibecli --provider <name>` or enable it in VibeUI settings
+4. Run `vibecli --provider <name>` or enable it in VibeCoder settings
 
 
 ## Provider Comparison

@@ -1,6 +1,6 @@
 // vibe_tokens.dart — VibeCody Design System Token Translation for Flutter
 //
-// This file is the Flutter equivalent of vibeui/design-system/tokens.css.
+// This file is the Flutter equivalent of vibecoder/design-system/tokens.css.
 // All values are kept in sync with the CSS custom properties defined there.
 // When updating tokens in tokens.css, update the corresponding values here.
 //

@@ -75,7 +75,7 @@ Shannon is a standalone autonomous pentesting tool ("The Red Team to your vibe-c
 
 | Capability | Shannon | VibeCody | Notes |
 |------------|---------|----------|-------|
-| Desktop GUI | No CLI-only (+ Temporal Web UI) | Yes RedTeamPanel.tsx in VibeUI | VibeCody has native desktop UI |
+| Desktop GUI | No CLI-only (+ Temporal Web UI) | Yes RedTeamPanel.tsx in VibeCoder | VibeCody has native desktop UI |
 | IDE integration | No | Yes VS Code, JetBrains, Neovim | VibeCody has full IDE ecosystem |
 | REPL commands | No Shell script only | Yes `/redteam` with tab-completion | VibeCody has interactive REPL |
 | Scheduling | No Manual launch | Yes `/schedule` cron integration | VibeCody can schedule recurring scans |
@@ -102,7 +102,7 @@ CLI (./shannon) → Docker Compose → Temporal Worker
 ### VibeCody Red Team Architecture
 
 ```text
-CLI (vibecli --redteam) or REPL (/redteam scan) or VibeUI (RedTeamPanel)
+CLI (vibecli --redteam) or REPL (/redteam scan) or VibeCoder (RedTeamPanel)
   └─ 5-Stage Pipeline (redteam.rs):
      1. Recon (HTTP crawl + source analysis via codebase index)
      2. Analysis (CWE regex + LLM white-box review)

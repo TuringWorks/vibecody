@@ -9,7 +9,7 @@ parent: Demos
 
 ## Overview
 
-This demo covers VibeCody's HTTP Playground, an API request builder built into both the CLI and VibeUI. You can construct GET, POST, PUT, and DELETE requests with custom headers, body content, and query parameters, organize requests into collections, manage environment variables for API keys, and import or export cURL commands.
+This demo covers VibeCody's HTTP Playground, an API request builder built into both the CLI and VibeCoder. You can construct GET, POST, PUT, and DELETE requests with custom headers, body content, and query parameters, organize requests into collections, manage environment variables for API keys, and import or export cURL commands.
 
 **Time to complete:** ~10 minutes
 
@@ -17,7 +17,7 @@ This demo covers VibeCody's HTTP Playground, an API request builder built into b
 
 - VibeCody installed and configured
 - A target API to test against (this demo uses `https://jsonplaceholder.typicode.com`)
-- For VibeUI: the desktop app running (`npm run tauri dev`)
+- For VibeCoder: the desktop app running (`npm run tauri dev`)
 
 ## Step-by-Step Walkthrough
 
@@ -219,9 +219,9 @@ Switch between response display formats:
 
 The JSON viewer pretty-prints and syntax-highlights the response. The raw mode shows the unprocessed body. Headers-only mode is useful for debugging CORS or caching headers.
 
-### Step 9: Use the HTTP panel in VibeUI
+### Step 9: Use the HTTP panel in VibeCoder
 
-Open VibeUI and navigate to the **HTTP** panel. The interface provides:
+Open VibeCoder and navigate to the **HTTP** panel. The interface provides:
 
 - **Request builder** at the top: method dropdown, URL bar, tabs for Headers, Body, Query Params, and Auth.
 - **Send button** fires the request. The response appears below with tabs for Body (syntax-highlighted JSON/HTML/raw), Headers, and Timing.
@@ -288,10 +288,10 @@ Open VibeUI and navigate to the **HTTP** panel. The interface provides:
     },
     {
       "id": 6,
-      "action": "vibeui",
+      "action": "vibecoder",
       "panel": "HTTP",
       "actions": ["build_request", "send", "view_response", "save_collection", "switch_env"],
-      "description": "Use the HTTP panel in VibeUI to build requests and manage collections",
+      "description": "Use the HTTP panel in VibeCoder to build requests and manage collections",
       "delay_ms": 5000
     }
   ]

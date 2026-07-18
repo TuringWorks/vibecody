@@ -67,7 +67,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
 
   // Register the Goals tree-view. Refresh on every daemon-status change
-  // so the tree picks up new goals created from CLI / VibeUI / mobile.
+  // so the tree picks up new goals created from CLI / VibeCoder / mobile.
   goalsProvider = new GoalsTreeProvider(client);
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider('vibecli.goalsView', goalsProvider),
@@ -347,7 +347,7 @@ async function handleNewGoal(): Promise<void> {
   const statement = await vscode.window.showInputBox({
     title: 'Goal statement (optional)',
     prompt: 'A longer description, success criteria, constraints…',
-    placeHolder: 'Optional — can be edited later in VibeUI.',
+    placeHolder: 'Optional — can be edited later in VibeCoder.',
   });
   const workspace = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
   try {

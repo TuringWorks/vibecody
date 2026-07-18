@@ -4,7 +4,7 @@ title: Sessions
 permalink: /sessions/
 ---
 
-The Session Browser is the panel for inspecting, replaying, forking, and deleting your past VibeCody conversations. Every interactive vibecli or vibeui session writes a JSONL trace to `<workspace>/.vibecli/traces/`; the panel reads from that directory directly.
+The Session Browser is the panel for inspecting, replaying, forking, and deleting your past VibeCody conversations. Every interactive vibecli or vibecoder session writes a JSONL trace to `<workspace>/.vibecli/traces/`; the panel reads from that directory directly.
 
 This page covers the desktop session browser. The chat-tab side of session lifecycle (auto-save, recap-on-close) is documented in [`docs/chat-tabs`](./chat-tabs.md), and the cross-client recap shape lives in [`docs/recap`](./recap.md).
 
@@ -117,7 +117,7 @@ Session contents are **never** logged.
 
 | Client | Sessions UI | Trace dir |
 |---|---|---|
-| **VibeUI / VibeApp** | Full browser | reads `<workspace>/.vibecli/traces/` |
+| **VibeCoder / VibeApp** | Full browser | reads `<workspace>/.vibecli/traces/` |
 | **VibeMobile** | List + read-only replay (different shape — uses recap) | uses `/v1/recap` for summaries |
 | **VibeWatch** | Active-session indicator only | n/a |
 | **IDE plugins** | None | n/a |
@@ -158,5 +158,5 @@ Forks land in the same trace directory and should appear after Refresh. If they 
 
 - **Chat Tabs:** [`docs/chat-tabs`](./chat-tabs.md) — auto-save / recap-on-close lifecycle
 - **Recap & Resume:** [`docs/recap`](./recap.md) — cross-client summary shape
-- **Source:** `vibeui/src/components/SessionBrowserPanel.tsx` (562 LOC) · backend `vibeui/src-tauri/src/commands.rs` (`list_sessions`, `get_session_detail`, `delete_session`, `fork_session`)
-- **Tests:** `vibeui/src/components/__tests__/SessionBrowserPanel.bdd.test.tsx` (9 BDD scenarios)
+- **Source:** `vibecoder/src/components/SessionBrowserPanel.tsx` (562 LOC) · backend `vibecoder/src-tauri/src/commands.rs` (`list_sessions`, `get_session_detail`, `delete_session`, `fork_session`)
+- **Tests:** `vibecoder/src/components/__tests__/SessionBrowserPanel.bdd.test.tsx` (9 BDD scenarios)

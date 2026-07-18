@@ -4,7 +4,7 @@ title: VibeWatch — Apple Watch (watchOS)
 permalink: /watchos/
 ---
 
-**VibeCodyWatch** is the native Apple Watch client for VibeCody. Written in SwiftUI for watchOS 10+, it pairs with a running VibeCLI or VibeUI instance and gives you a glanceable session monitor + dictated reply from your wrist.
+**VibeCodyWatch** is the native Apple Watch client for VibeCody. Written in SwiftUI for watchOS 10+, it pairs with a running VibeCLI or VibeCoder instance and gives you a glanceable session monitor + dictated reply from your wrist.
 
 Introduced in **v0.5.5**. Shares the `/watch/*` backend with the Wear OS client.
 
@@ -28,7 +28,7 @@ Introduced in **v0.5.5**. Shares the `/watch/*` backend with the Wear OS client.
 | watch | Apple Watch Series 6 or later (SE 2nd gen OK) |
 | watchOS | 10.0+ (runtime) — latest tested: watchOS 26 |
 | iPhone | iOS 17+ with VibeMobile installed and paired |
-| Desktop | VibeCLI or VibeUI ≥ 0.5.5 running `--serve` |
+| Desktop | VibeCLI or VibeCoder ≥ 0.5.5 running `--serve` |
 | Xcode (to sideload) | 15+ |
 | Xcode (to submit to App Store / TestFlight) | **26+** — Apple requires watchOS 26 / iOS 26 SDKs for App Store Connect submissions after **2026-04-28**. CI pins `xcode-version: ^26.0` accordingly. |
 
@@ -142,9 +142,9 @@ Approve / reject answers stream back to the desktop in under 200ms.
 
 ---
 
-## Sandbox sessions and VibeUI auto-focus
+## Sandbox sessions and VibeCoder auto-focus
 
-If you start a **sandbox** session from the watch (agent runs in a container), VibeUI on the desktop automatically switches to the **Sandbox** tab so you can watch the container output while the watch drives. Turn this off in `vibeui/Settings → Handoff → Auto-focus sandbox tab`.
+If you start a **sandbox** session from the watch (agent runs in a container), VibeCoder on the desktop automatically switches to the **Sandbox** tab so you can watch the container output while the watch drives. Turn this off in `vibecoder/Settings → Handoff → Auto-focus sandbox tab`.
 
 ---
 
@@ -174,7 +174,7 @@ Sideloaded `.app`s require trust from **Settings → General → VPN & Device Ma
 
 - **P-256 private key** lives in the Secure Enclave and never leaves the watch.
 - **JWT** is stored in the watch keychain (access group per-app, `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`).
-- **Revocation** is instant: `/watch revoke <device-id>` from VibeCLI, or the **Watch Devices** panel in VibeUI — the next request gets a 401 and the watch falls back to re-pair.
+- **Revocation** is instant: `/watch revoke <device-id>` from VibeCLI, or the **Watch Devices** panel in VibeCoder — the next request gets a 401 and the watch falls back to re-pair.
 
 See [Watch Integration](/vibecody/watch-integration/) for the full pairing / signature / relay architecture.
 

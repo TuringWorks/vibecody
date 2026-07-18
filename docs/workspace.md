@@ -4,7 +4,7 @@ title: Workspace
 permalink: /workspace/
 ---
 
-The Workspace is the folder VibeCody operates inside — every file read, every git operation, every agent task is rooted at the active workspace path. Picking a workspace is the first thing you do after launching VibeUI/VibeApp; it's the one input that dominates everything downstream.
+The Workspace is the folder VibeCody operates inside — every file read, every git operation, every agent task is rooted at the active workspace path. Picking a workspace is the first thing you do after launching VibeCoder/VibeApp; it's the one input that dominates everything downstream.
 
 This page documents the desktop workspace switcher. The daemon side (`add_workspace_folder`, `get_workspace_folders`) is shared across clients — but mobile / watch clients don't pick a workspace today; they consume sessions from whichever workspace the daemon was launched in.
 
@@ -34,35 +34,35 @@ All three converge on the same backend path: `add_workspace_folder(path)` valida
 | Path is a file | `Err("Path is not a directory: …")` — `workspace.add.rejected: not a directory` warn event |
 | Valid directory | Active workspace updated, added to recents (move-to-front) |
 
-This guards the most common footgun — copy-pasting a path that was renamed/deleted while the user wasn't looking. Without validation, every panel that reads `vibeui_workspace` from localStorage would silently fail until the user noticed.
+This guards the most common footgun — copy-pasting a path that was renamed/deleted while the user wasn't looking. Without validation, every panel that reads `vibecoder_workspace` from localStorage would silently fail until the user noticed.
 
 ---
 
 ## Recents
 
-Recents are an LRU list of the last **10** workspaces, persisted in `~/.vibeui/recent-workspaces.json` as a JSON array (most-recent-first). The list:
+Recents are an LRU list of the last **10** workspaces, persisted in `~/.vibecoder/recent-workspaces.json` as a JSON array (most-recent-first). The list:
 
 - **Self-prunes** on read: `list_recent_workspaces` filters out entries whose paths no longer exist on disk. A renamed or deleted project doesn't keep haunting the list.
 - **Move-to-front semantics**: re-opening a recent doesn't duplicate the entry; it bubbles to position 0. Idempotent.
 - **Capped at 10**: oldest entry is dropped on overflow.
 - **Manual remove**: each row has an `×` button that calls `remove_recent_workspace` — useful when you renamed a project but the recent still points at the old path.
 
-The empty-state UI surfaces recents below the "Open Folder" button. Clicking a recent has the same effect as picking it through the system folder dialog (validation runs, panels notified via `vibeui:workspace-changed`).
+The empty-state UI surfaces recents below the "Open Folder" button. Clicking a recent has the same effect as picking it through the system folder dialog (validation runs, panels notified via `vibecoder:workspace-changed`).
 
 ---
 
 ## Cross-panel notification
 
-When the workspace changes, the panel emits a `vibeui:workspace-changed` window event with the new path as `event.detail`:
+When the workspace changes, the panel emits a `vibecoder:workspace-changed` window event with the new path as `event.detail`:
 
 ```ts
-window.addEventListener("vibeui:workspace-changed", (e) => {
+window.addEventListener("vibecoder:workspace-changed", (e) => {
   const newPath = (e as CustomEvent<string>).detail;
   // re-fetch panel state for the new workspace
 });
 ```
 
-Panels that read workspace-scoped data (Sessions, Memory, Diffcomplete, Agent, etc.) listen for this event and reload. If you write a new panel that depends on the workspace, listen for this event — don't assume a one-shot read of `vibeui_workspace` from localStorage at mount is enough.
+Panels that read workspace-scoped data (Sessions, Memory, Diffcomplete, Agent, etc.) listen for this event and reload. If you write a new panel that depends on the workspace, listen for this event — don't assume a one-shot read of `vibecoder_workspace` from localStorage at mount is enough.
 
 ---
 
@@ -74,7 +74,7 @@ Panels that read workspace-scoped data (Sessions, Memory, Diffcomplete, Agent, e
 {
   "available": true,
   "transport": "tauri-desktop",
-  "recents_path": "~/.vibeui/recent-workspaces.json",
+  "recents_path": "~/.vibecoder/recent-workspaces.json",
   "recents_cap": 10,
   "validates": ["exists", "is_directory"]
 }
@@ -117,7 +117,7 @@ Workspace **paths are logged** because they're already operator-facing (visible 
 
 | Client | Workspace UI |
 |---|---|
-| **VibeUI / VibeApp** | Full picker + recents |
+| **VibeCoder / VibeApp** | Full picker + recents |
 | **VibeMobile** | Inherits the daemon's active workspace; can't change it |
 | **VibeWatch** | Same — read-only inheritance |
 | **IDE plugins** | Use the IDE's own workspace; tell the daemon via `add_workspace_folder` on workspace open |
@@ -142,7 +142,7 @@ The list self-prunes when the path no longer exists, but if the path STILL exist
 
 ### "Panels show stale data after switching workspaces"
 
-The panel didn't subscribe to `vibeui:workspace-changed`. File a bug on the panel — the contract is that every workspace-scoped panel re-fetches on this event.
+The panel didn't subscribe to `vibecoder:workspace-changed`. File a bug on the panel — the contract is that every workspace-scoped panel re-fetches on this event.
 
 ### "Cmd+O doesn't open the folder picker"
 
@@ -153,7 +153,7 @@ The keyboard shortcut binding requires focus to be in the main app shell. If you
 ## Related
 
 - **Source:**
-  - `vibeui/src-tauri/src/commands.rs` — `add_workspace_folder`, `get_workspace_folders`, `list_recent_workspaces`, `remove_recent_workspace`
-  - `vibeui/src/App.tsx` — the picker UI + recents rendering
+  - `vibecoder/src-tauri/src/commands.rs` — `add_workspace_folder`, `get_workspace_folders`, `list_recent_workspaces`, `remove_recent_workspace`
+  - `vibecoder/src/App.tsx` — the picker UI + recents rendering
 - **Sessions:** [`docs/sessions`](./sessions.md) — session list reads from `<workspace>/.vibecli/traces/`
 - **Agent Panel:** [`docs/agent-panel`](./agent-panel.md) — agent runs are rooted at the active workspace

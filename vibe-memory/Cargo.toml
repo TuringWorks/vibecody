@@ -13,7 +13,7 @@ system = ["dep:rusqlite"]
 encryption = ["chacha20poly1305", "getrandom"]
 
 [dependencies]
-# Use same version as vibeui for compatibility (bundled SQLite)
+# Use same version as vibecoder for compatibility (bundled SQLite)
 rusqlite = { version = "0.40", features = ["bundled"], optional = true }
 
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "fs", "macros"] }

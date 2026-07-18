@@ -28,13 +28,13 @@ COPY vibecli/crates/vibe-sandbox-native/Cargo.toml vibecli/crates/vibe-sandbox-n
 COPY vibecli/crates/vibe-sandbox-firecracker/Cargo.toml vibecli/crates/vibe-sandbox-firecracker/Cargo.toml
 COPY vibecli/crates/vibe-sandbox-hyperlight/Cargo.toml vibecli/crates/vibe-sandbox-hyperlight/Cargo.toml
 COPY vibecli/crates/vibe-broker/Cargo.toml vibecli/crates/vibe-broker/Cargo.toml
-COPY vibeui/crates/vibe-core/Cargo.toml vibeui/crates/vibe-core/Cargo.toml
-COPY vibeui/crates/vibe-ai/Cargo.toml vibeui/crates/vibe-ai/Cargo.toml
-COPY vibeui/crates/vibe-infer/Cargo.toml vibeui/crates/vibe-infer/Cargo.toml
-COPY vibeui/crates/vibe-lsp/Cargo.toml vibeui/crates/vibe-lsp/Cargo.toml
-COPY vibeui/crates/vibe-extensions/Cargo.toml vibeui/crates/vibe-extensions/Cargo.toml
-COPY vibeui/crates/vibe-collab/Cargo.toml vibeui/crates/vibe-collab/Cargo.toml
-COPY vibeui/src-tauri/Cargo.toml vibeui/src-tauri/Cargo.toml
+COPY vibecoder/crates/vibe-core/Cargo.toml vibecoder/crates/vibe-core/Cargo.toml
+COPY vibecoder/crates/vibe-ai/Cargo.toml vibecoder/crates/vibe-ai/Cargo.toml
+COPY vibecoder/crates/vibe-infer/Cargo.toml vibecoder/crates/vibe-infer/Cargo.toml
+COPY vibecoder/crates/vibe-lsp/Cargo.toml vibecoder/crates/vibe-lsp/Cargo.toml
+COPY vibecoder/crates/vibe-extensions/Cargo.toml vibecoder/crates/vibe-extensions/Cargo.toml
+COPY vibecoder/crates/vibe-collab/Cargo.toml vibecoder/crates/vibe-collab/Cargo.toml
+COPY vibecoder/src-tauri/Cargo.toml vibecoder/src-tauri/Cargo.toml
 COPY vibeapp/src-tauri/Cargo.toml vibeapp/src-tauri/Cargo.toml
 COPY vibe-indexer/Cargo.toml vibe-indexer/Cargo.toml
 COPY vibe-memory/Cargo.toml vibe-memory/Cargo.toml
@@ -46,13 +46,13 @@ RUN mkdir -p vibecli/vibecli-cli/src && echo 'fn main() {}' > vibecli/vibecli-cl
     mkdir -p vibecli/crates/vibe-sandbox-firecracker/src && echo '' > vibecli/crates/vibe-sandbox-firecracker/src/lib.rs && \
     mkdir -p vibecli/crates/vibe-sandbox-hyperlight/src && echo '' > vibecli/crates/vibe-sandbox-hyperlight/src/lib.rs && \
     mkdir -p vibecli/crates/vibe-broker/src && echo '' > vibecli/crates/vibe-broker/src/lib.rs && \
-    mkdir -p vibeui/crates/vibe-core/src && echo '' > vibeui/crates/vibe-core/src/lib.rs && \
-    mkdir -p vibeui/crates/vibe-ai/src && echo '' > vibeui/crates/vibe-ai/src/lib.rs && \
-    mkdir -p vibeui/crates/vibe-infer/src && echo '' > vibeui/crates/vibe-infer/src/lib.rs && \
-    mkdir -p vibeui/crates/vibe-lsp/src && echo '' > vibeui/crates/vibe-lsp/src/lib.rs && \
-    mkdir -p vibeui/crates/vibe-extensions/src && echo '' > vibeui/crates/vibe-extensions/src/lib.rs && \
-    mkdir -p vibeui/crates/vibe-collab/src && echo '' > vibeui/crates/vibe-collab/src/lib.rs && \
-    mkdir -p vibeui/src-tauri/src && echo '' > vibeui/src-tauri/src/lib.rs && \
+    mkdir -p vibecoder/crates/vibe-core/src && echo '' > vibecoder/crates/vibe-core/src/lib.rs && \
+    mkdir -p vibecoder/crates/vibe-ai/src && echo '' > vibecoder/crates/vibe-ai/src/lib.rs && \
+    mkdir -p vibecoder/crates/vibe-infer/src && echo '' > vibecoder/crates/vibe-infer/src/lib.rs && \
+    mkdir -p vibecoder/crates/vibe-lsp/src && echo '' > vibecoder/crates/vibe-lsp/src/lib.rs && \
+    mkdir -p vibecoder/crates/vibe-extensions/src && echo '' > vibecoder/crates/vibe-extensions/src/lib.rs && \
+    mkdir -p vibecoder/crates/vibe-collab/src && echo '' > vibecoder/crates/vibe-collab/src/lib.rs && \
+    mkdir -p vibecoder/src-tauri/src && echo '' > vibecoder/src-tauri/src/lib.rs && \
     mkdir -p vibeapp/src-tauri/src && echo '' > vibeapp/src-tauri/src/lib.rs && \
     mkdir -p vibe-indexer/src && echo 'fn main() {}' > vibe-indexer/src/main.rs && \
     mkdir -p vibe-memory/src && echo '' > vibe-memory/src/lib.rs
@@ -64,8 +64,8 @@ RUN cargo build --release --package vibecli --target x86_64-unknown-linux-musl 2
 # IMPORTANT: any workspace member listed above must have its real
 # src/ copied here, otherwise vibecli imports against the empty stub.
 COPY vibecli/ vibecli/
-COPY vibeui/crates/ vibeui/crates/
-COPY vibeui/src-tauri/src/ vibeui/src-tauri/src/
+COPY vibecoder/crates/ vibecoder/crates/
+COPY vibecoder/src-tauri/src/ vibecoder/src-tauri/src/
 COPY vibeapp/src-tauri/src/ vibeapp/src-tauri/src/
 COPY vibe-indexer/src/ vibe-indexer/src/
 COPY vibe-memory/src/ vibe-memory/src/

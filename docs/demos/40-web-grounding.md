@@ -16,7 +16,7 @@ VibeCody can ground AI responses in live web search results, ensuring answers re
 - VibeCLI v0.5.1 installed and on your PATH
 - At least one AI provider configured
 - A search provider API key (or a self-hosted SearXNG instance for offline use)
-- For VibeUI: the desktop app running with the **WebGrounding** panel visible
+- For VibeCoder: the desktop app running with the **WebGrounding** panel visible
 
 ## Supported Search Providers
 
@@ -163,7 +163,7 @@ Sources:
 [4] https://docs.rs/tokio/latest/tokio/sync/mpsc/index.html
 ```
 
-The numbered citations link back to the web search results. You can click them in VibeUI or copy the URLs from the terminal.
+The numbered citations link back to the web search results. You can click them in VibeCoder or copy the URLs from the terminal.
 
 ### 4. Search with a Specific Provider
 
@@ -269,9 +269,9 @@ vibecli
 
 SearXNG aggregates results from multiple search engines without sending your queries to a third-party API.
 
-### 8. VibeUI WebGrounding Panel
+### 8. VibeCoder WebGrounding Panel
 
-Open the **WebGrounding** panel in VibeUI to see:
+Open the **WebGrounding** panel in VibeCoder to see:
 
 - **Search** tab: run searches, view results with previews, click to open in browser
 - **Config** tab: manage providers, set API keys, adjust cache TTL and mode
@@ -331,14 +331,14 @@ Open the **WebGrounding** panel in VibeUI to see:
     },
     {
       "id": 6,
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "WebGrounding",
       "tab": "Search",
-      "description": "Run searches and view results in VibeUI"
+      "description": "Run searches and view results in VibeCoder"
     },
     {
       "id": 7,
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "WebGrounding",
       "tab": "Citations",
       "description": "Browse all citations from grounded responses"

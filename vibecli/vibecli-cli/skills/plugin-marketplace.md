@@ -1,6 +1,6 @@
 # Plugin Marketplace
 
-Discovery, metadata browsing, and one-click installation of WASM-based VibeUI extensions. Extends the `vibe-extensions` WASM system.
+Discovery, metadata browsing, and one-click installation of WASM-based VibeCoder extensions. Extends the `vibe-extensions` WASM system.
 
 ## Categories
 `language-support` | `linting` | `formatting` | `debugging` | `git` | `ai` | `theme` | `productivity` | `testing`

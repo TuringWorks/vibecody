@@ -143,7 +143,7 @@ Mobile pairing has a slightly richer flow with a 6-digit PIN displayed on the da
 |---|---|
 | `POST /mobile/pairing` | Mobile creates a pairing intent — daemon returns an id + PIN |
 | `POST /mobile/pairing/:id/verify` | Mobile sends the PIN; daemon issues a bearer token |
-| `POST /mobile/pairing/:id/accept` | Daemon-side accept (e.g. user clicks "Allow" in VibeUI) |
+| `POST /mobile/pairing/:id/accept` | Daemon-side accept (e.g. user clicks "Allow" in VibeCoder) |
 | `POST /mobile/pairing/:id/reject` | Daemon-side reject |
 
 The PIN is a usability layer — it doesn't add security beyond the bearer token, since the token is what's actually checked on every request. It exists so the user explicitly types digits to confirm "yes this is my device" rather than silently accepting any inbound pairing request.
@@ -154,7 +154,7 @@ The PIN is a usability layer — it doesn't add security beyond the bearer token
 
 | Client | Pairing flow | Crypto |
 |---|---|---|
-| **VibeCLI / VibeUI / VibeApp** | n/a — runs on the daemon machine | n/a |
+| **VibeCLI / VibeCoder / VibeApp** | n/a — runs on the daemon machine | n/a |
 | **VibeMobile** | `/mobile/pairing/*` with 6-digit PIN | bearer token |
 | **VibeCodyWatch / VibeCodyWear** | `/watch/devices` + Secure Enclave / HW KeyStore | P-256 ECDSA |
 | **VS Code / JetBrains / Neovim** | `/pair` with bearer token | bearer token |
@@ -194,7 +194,7 @@ Either the URL contains `localhost` (see above) or your phone is on a different 
 - **Source:**
   - `vibecli/vibecli-cli/src/pairing.rs` — bearer-token generation
   - `vibecli/vibecli-cli/src/serve.rs` — `/pair`, `/mobile/pairing/*`, `/watch/devices/*`
-  - `vibeui/src/components/RemoteControlPanel.tsx` — the host-side server UI
-  - `vibeui/src/components/WatchManagementPanel.tsx` — registered watches + revocation
+  - `vibecoder/src/components/RemoteControlPanel.tsx` — the host-side server UI
+  - `vibecoder/src/components/WatchManagementPanel.tsx` — registered watches + revocation
 - **Connectivity:** [`docs/connectivity`](./connectivity.md) — mDNS / Tailscale / ngrok / phone-relay races
 - **Watch integration:** [`docs/watch-integration`](./WATCH-INTEGRATION.md) — companion-app architecture

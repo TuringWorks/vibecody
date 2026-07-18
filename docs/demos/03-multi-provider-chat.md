@@ -330,11 +330,11 @@ vibecli --provider failover --full-auto \
 ```
 
 
-## VibeUI Provider Switching
+## VibeCoder Provider Switching
 
-In VibeUI, open the AI panel (`Cmd+J`) and use the provider dropdown in the top toolbar to switch providers. The Keys panel (`Cmd+J` then "Keys" tab) lets you manage API keys with a graphical interface.
+In VibeCoder, open the AI panel (`Cmd+J`) and use the provider dropdown in the top toolbar to switch providers. The Keys panel (`Cmd+J` then "Keys" tab) lets you manage API keys with a graphical interface.
 
-<!-- Screenshot placeholder: VibeUI provider dropdown -->
+<!-- Screenshot placeholder: VibeCoder provider dropdown -->
 
 ## Demo Recording
 

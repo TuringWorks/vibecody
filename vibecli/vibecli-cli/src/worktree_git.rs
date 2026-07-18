@@ -1,7 +1,7 @@
 //! Real `git worktree` pool (US-003).
 //!
 //! [`worktree_pool`] provides the in-memory data model (agents, tasks,
-//! metrics, branch-name generator) that powers the VibeUI panel. This module
+//! metrics, branch-name generator) that powers the VibeCoder panel. This module
 //! provides the actual disk-side implementation: shelling out to the `git`
 //! CLI to create worktrees, merge branches, and clean up on completion.
 //!

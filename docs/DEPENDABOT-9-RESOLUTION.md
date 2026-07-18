@@ -7,7 +7,7 @@ Dependabot PR/Issue #9 flagged a potential vulnerability in `serde_yaml`.
 
 ### Current State
 - **Current version**: `serde_yaml = "0.9.34+deprecated"`
-- **Location**: `vibecli/vibecli-cli/Cargo.toml` and `vibeui/src-tauri/Cargo.toml`
+- **Location**: `vibecli/vibecli-cli/Cargo.toml` and `vibecoder/src-tauri/Cargo.toml`
 
 ### Historical Advisory
 The RustSec advisory database shows one historical issue (RUSTSEC-2018-0005):
@@ -30,7 +30,7 @@ Changed from `"0.9"` to `"0.9.34"` to pin a specific version:
 # vibecli/vibecli-cli/Cargo.toml
 serde_yaml = "0.9.34"
 
-# vibeui/src-tauri/Cargo.toml  
+# vibecoder/src-tauri/Cargo.toml  
 serde_yaml = "0.9.34"
 ```
 

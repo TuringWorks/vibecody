@@ -1,6 +1,6 @@
 # VibeCody
 
-**VibeCody** is an AI-powered developer toolchain built entirely in Rust. It combines a terminal-first CLI coding assistant (**VibeCLI**) with a full-featured desktop code editor (**VibeUI**), both powered by a shared library of AI and editor primitives.
+**VibeCody** is an AI-powered developer toolchain built entirely in Rust. It combines a terminal-first CLI coding assistant (**VibeCLI**) with a full-featured desktop code editor (**VibeCoder**), both powered by a shared library of AI and editor primitives.
 
 ---
 
@@ -9,7 +9,7 @@
 | Project | Description | Status |
 |---------|-------------|--------|
 | [VibeCLI](./vibecli/) | AI coding assistant for the terminal (TUI + REPL + `--serve` daemon) | Active |
-| [VibeUI](./vibeui/) | AI-powered desktop code editor (Tauri + Monaco) | Active |
+| [VibeCoder](./vibecoder/) | AI-powered desktop code editor (Tauri + Monaco) | Active |
 | [VibeApp](./vibeapp/) | Secondary Tauri shell | Active |
 | [VibeMobile](./vibemobile/) | Mobile companion app (Flutter — iOS, Android, macOS, Linux, Windows, Web) | Active |
 | [VibeWatch](./vibewatch/) | Apple Watch (SwiftUI, watchOS 10+) + Wear OS (Kotlin/Compose) clients with companion relays | Active |
@@ -32,7 +32,7 @@ Or run the setup script directly:
 ./scripts/setup.sh
 ```
 
-### Run VibeUI (Desktop Editor)
+### Run VibeCoder (Desktop Editor)
 
 ```bash
 make ui
@@ -63,7 +63,7 @@ Every surface has a consistent `build-<surface>` / `test-<surface>` pair:
 # Surface            Dev            Build                Test
 # ─────────────────  ─────────────  ───────────────────  ──────────────────
 # VibeCLI (Rust)     make cli-run   make build-cli       make test-cli
-# VibeUI  (Tauri)    make ui        make build-ui        make test-ui
+# VibeCoder  (Tauri)    make ui        make build-ui        make test-ui
 # VibeApp (Tauri)    make app       make build-app       make test-app
 # VibeDesk   (Tauri)    make vibedesk     make build-vibedesk     make test-vibedesk
 # Agent SDK (TS)     —              make build-sdk       make test-sdk
@@ -137,7 +137,7 @@ vibecody/
 │       │   └── tui/            # Ratatui TUI (app, ui, components)
 │       ├── tests/              # 62+ BDD / integration harnesses
 │       └── skills/             # 711 skill files (25+ categories)
-├── vibeui/
+├── vibecoder/
 │   ├── src/                    # React + TypeScript frontend
 │   │   ├── App.tsx             # Root component
 │   │   └── components/         # 293 panels + 42 composite dashboards
@@ -172,7 +172,7 @@ vibecody/
 
 ## Shared Crates
 
-The `vibeui/crates/` libraries are designed to be reused across both VibeCLI and VibeUI:
+The `vibecoder/crates/` libraries are designed to be reused across both VibeCLI and VibeCoder:
 
 ### `vibe-core`
 
@@ -239,7 +239,7 @@ pub trait AIProvider: Send + Sync {
 Configure providers in `~/.vibecli/config.toml`:
 
 > **Security note**: Do not put API keys in `config.toml`. Keys are stored encrypted in
-> `~/.vibecli/profile_settings.db`. Use `vibecli secret set` or the VibeUI Settings panel (⚙️ Keys tab) to manage them.
+> `~/.vibecli/profile_settings.db`. Use `vibecli secret set` or the VibeCoder Settings panel (⚙️ Keys tab) to manage them.
 
 ```toml
 [ollama]
@@ -323,7 +323,7 @@ VibeCody extends to wrist-worn devices via two parallel native clients that shar
 | **Wear OS** | `vibewatch/VibeCodyWear/` | Kotlin / Jetpack Compose for Wear, Wear OS 3+ | Android Keystore (StrongBox) P-256; EncryptedSharedPreferences |
 | **Wear OS companion** | `vibewatch/VibeCodyWearCompanion/` | Kotlin, Wearable Data Layer | Android phone relay service |
 
-**Pairing** happens with a single URL (or Bearer token for emulators) — no JSON copy required. The Watch Devices panel in VibeUI (`Governance → Watch Devices`) surfaces live device status, transport, and Secure Enclave / StrongBox attestation.
+**Pairing** happens with a single URL (or Bearer token for emulators) — no JSON copy required. The Watch Devices panel in VibeCoder (`Governance → Watch Devices`) surfaces live device status, transport, and Secure Enclave / StrongBox attestation.
 
 **Transports (priority order)**: Direct LAN → Tailscale mesh → phone-relay (WatchConnectivity / Wearable Data Layer).
 
@@ -382,7 +382,7 @@ make check         # Type-check only (Rust + UI/App/VibeDesk TypeScript)
 make ci            # Mirror the GitHub CI gate locally
 
 # Per-surface tests
-make test-cli      # VibeCLI (Rust)      make test-ui     # VibeUI  (vitest)
+make test-cli      # VibeCLI (Rust)      make test-ui     # VibeCoder  (vitest)
 make test-app      # VibeApp (typecheck) make test-vibedesk  # VibeDesk   (typecheck + guard)
 make test-sdk      # Agent SDK (vitest)  make test-mobile # Flutter
 make test-indexer  # vibe-indexer        make test-memory # vibe-memory
@@ -398,7 +398,7 @@ make test-rl       # vibe-rl-py (pytest) make test-jetbrains  # JetBrains plugin
 | `rustup could not choose a version of cargo` | Run `rustup default stable` |
 | `npm run tauri dev` can't find cargo (Linux) | Use `make ui` or `npm run tauri:dev` — these prepend `~/.cargo/bin` to PATH |
 | Port 1420 already in use | Kill stale Vite: `lsof -i :1420` then `kill <pid>` |
-| `"VibeUI" is damaged` (macOS) | Run `xattr -cr /Applications/VibeUI.app` (unsigned app — Gatekeeper quarantine) |
+| `"VibeCoder" is damaged` (macOS) | Run `xattr -cr /Applications/VibeCoder.app` (unsigned app — Gatekeeper quarantine) |
 | Missing `libwebkit2gtk-4.1-dev` (Linux) | Run `make setup` or install manually (see Prerequisites) |
 | `Failed to run cargo: No such file` (macOS .app) | Fixed in v0.3.0 — app now inherits shell PATH at startup |
 
@@ -410,7 +410,7 @@ Full documentation is available at the [GitHub Pages site](https://vibecody.gith
 
 - [Architecture Overview](./docs/architecture.md)
 - [VibeCLI Reference](./docs/vibecli.md)
-- [VibeUI Reference](./docs/vibeui.md)
+- [VibeCoder Reference](./docs/vibecoder.md)
 - [Roadmap](./docs/ROADMAP.md) — consolidated roadmap (phases 1–39 history in appendices)
 - [Fit-Gap Analysis](./docs/FIT-GAP-ANALYSIS.md) — consolidated competitive catalogue (142 gaps, 8 iterations, 5 deep-dives)
 - [Configuration Guide](./docs/configuration.md)

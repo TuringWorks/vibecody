@@ -15,7 +15,7 @@ VibeCody's code graph goes beyond text search by parsing your codebase into an A
 
 - VibeCLI v0.5.1 installed and on your PATH
 - A source code project (Rust, TypeScript, Python, Go, Java, C/C++ supported)
-- For VibeUI: the desktop app running with the **SemanticIndex** panel visible
+- For VibeCoder: the desktop app running with the **SemanticIndex** panel visible
 
 ## Semantic Index vs Text Search
 
@@ -280,9 +280,9 @@ Incremental index update:
   Update time:    0.2s
 ```
 
-### 9. VibeUI SemanticIndex Panel
+### 9. VibeCoder SemanticIndex Panel
 
-Open the **SemanticIndex** panel in VibeUI to see:
+Open the **SemanticIndex** panel in VibeCoder to see:
 
 - **Overview** tab: index statistics, language breakdown, last build time
 - **Explorer** tab: browse the symbol tree by module, click to jump to source
@@ -373,14 +373,14 @@ index_path = ".vibecli/semindex.db"
     },
     {
       "id": 8,
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "SemanticIndex",
       "tab": "Call Graph",
-      "description": "Visualize caller/callee relationships in VibeUI"
+      "description": "Visualize caller/callee relationships in VibeCoder"
     },
     {
       "id": 9,
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "SemanticIndex",
       "tab": "Hierarchy",
       "description": "Explore type hierarchies visually"

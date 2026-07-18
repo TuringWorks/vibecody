@@ -224,7 +224,7 @@ fn validate_bind_path(host: &Path) -> Result<()> {
     // workspace dep into this otherwise lean crate). The list is
     // small, audited in `vibe-core`'s test suite, and the parity is
     // covered by `tests/firecracker_deny_list_parity.rs`.
-    const DENIED_SEGMENTS: &[&str] = &[".vibecli", ".vibeui", ".claude", ".ssh", ".aws", ".gnupg"];
+    const DENIED_SEGMENTS: &[&str] = &[".vibecli", ".vibecoder", ".claude", ".ssh", ".aws", ".gnupg"];
     const DENIED_FILENAMES: &[&str] = &[
         "daemon.token",
         "profile_settings.db",

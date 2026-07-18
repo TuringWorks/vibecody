@@ -22,9 +22,9 @@ updates:
       rust-minor:
         update-types: [minor, patch]
 
-  # ─── VibeUI (Tauri + React) ───────────────────────────────────────────────
+  # ─── VibeCoder (Tauri + React) ───────────────────────────────────────────────
   - package-ecosystem: npm
-    directory: /vibeui
+    directory: /vibecoder
     schedule:
       interval: weekly
       day: monday
@@ -34,7 +34,7 @@ updates:
       - dependencies
       - typescript
     groups:
-      vibeui-minor:
+      vibecoder-minor:
         update-types: [minor, patch]
 
   # ─── VibeApp (Tauri shell) ────────────────────────────────────────────────

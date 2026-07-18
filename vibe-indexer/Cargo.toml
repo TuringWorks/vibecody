@@ -11,7 +11,7 @@ name = "vibe-indexer"
 path = "src/main.rs"
 
 [dependencies]
-vibe-core = { path = "../vibeui/crates/vibe-core" }
+vibe-core = { path = "../vibecoder/crates/vibe-core" }
 
 # HTTP server
 axum = { workspace = true }

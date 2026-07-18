@@ -343,21 +343,39 @@ export default function App() {
         </div>
       </div>
 
-      {/* Model selector bar — shown when settings are closed and models are available */}
-      {!showSettings && (selectedModel || filteredModels.length > 0) && (
+      {/* Model selector bar — shown when settings are closed. Provider + model
+          pickers live here so you can switch between Claude, Ollama (local +
+          cloud), etc. without opening Settings. Both are populated from the
+          daemon's /models catalog (the single source of truth). */}
+      {!showSettings && (selectedModel || availableModels.length > 0) && (
         <div className="model-bar">
-          {filteredModels.length > 0 ? (
-            <select
-              value={selectedModel}
-              onChange={e => { setSelectedModel(e.target.value); localStorage.setItem(MODEL_KEY, e.target.value); }}
-              title="Select model"
-            >
-              {filteredModels.map(m => (
-                <option key={m.id} value={m.name}>
-                  {m.name || m.id}{m.provider ? ` (${m.provider})` : ""}
-                </option>
-              ))}
-            </select>
+          {availableModels.length > 0 ? (
+            <>
+              <select
+                value={provider}
+                onChange={e => { setProvider(e.target.value); localStorage.setItem(PROVIDER_KEY, e.target.value); }}
+                title="Select provider"
+              >
+                {providerOptions.map(p => (
+                  <option key={p.id} value={p.id}>{p.label}</option>
+                ))}
+              </select>
+              {filteredModels.length > 0 ? (
+                <select
+                  value={selectedModel}
+                  onChange={e => { setSelectedModel(e.target.value); localStorage.setItem(MODEL_KEY, e.target.value); }}
+                  title="Select model"
+                >
+                  {filteredModels.map(m => (
+                    <option key={m.id} value={m.name}>
+                      {m.name || m.id}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <span style={{ fontSize: 12, color: "var(--text-dim)" }}>No models for this provider</span>
+              )}
+            </>
           ) : (
             <span style={{ fontSize: 12, color: "var(--text-dim)" }}>{selectedModel || "No model selected"}</span>
           )}

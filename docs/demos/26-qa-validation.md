@@ -17,7 +17,7 @@ This demo walks you through VibeCody's QA validation pipeline, which uses 8 spec
 
 - VibeCody installed and configured with an AI provider
 - A project directory with source code to validate
-- For VibeUI: the desktop app running (`npm run tauri dev`)
+- For VibeCoder: the desktop app running (`npm run tauri dev`)
 
 ## Step-by-Step Walkthrough
 
@@ -190,9 +190,9 @@ auto_fix = true
 severity_weights = { high = 10, medium = 5, low = 1 }
 ```
 
-### Step 8: Use the QA panel in VibeUI
+### Step 8: Use the QA panel in VibeCoder
 
-Open VibeUI and navigate to the **QA Validation** panel. The workflow is:
+Open VibeCoder and navigate to the **QA Validation** panel. The workflow is:
 
 1. Select the target directory or changed files from the file tree.
 2. Choose which QA agents to enable using the agent toggles.
@@ -253,10 +253,10 @@ Open VibeUI and navigate to the **QA Validation** panel. The workflow is:
     },
     {
       "id": 6,
-      "action": "vibeui",
+      "action": "vibecoder",
       "panel": "QAValidation",
       "actions": ["select_agents", "run_validation", "view_results", "apply_fixes"],
-      "description": "Use the QA Validation panel in VibeUI to run agents and review findings",
+      "description": "Use the QA Validation panel in VibeCoder to run agents and review findings",
       "delay_ms": 5000
     }
   ]

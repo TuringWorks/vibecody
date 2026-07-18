@@ -1,6 +1,6 @@
 # VibeCody — AI-Powered Developer Toolchain
 
-> VibeCody is an open-source monorepo (Rust + React/TypeScript) providing VibeCLI (terminal AI assistant) and VibeUI (desktop code editor). MIT License.
+> VibeCody is an open-source monorepo (Rust + React/TypeScript) providing VibeCLI (terminal AI assistant) and VibeCoder (desktop code editor). MIT License.
 
 ## Plugin Development Quick Start
 
@@ -165,7 +165,7 @@ Tools exposed: read_file, write_file, list_directory, bash, search_files, agent_
 | GET | /acp/v1/tasks/:id | Task status |
 | GET | /acp/v1/tasks/:id/events | SSE events |
 
-## WASM Extensions (VibeUI)
+## WASM Extensions (VibeCoder)
 
 Manifest (`extension.json`):
 ```json
@@ -174,7 +174,7 @@ Manifest (`extension.json`):
 
 Permissions: FileRead, FileWrite, Network, ProcessExec, EnvRead, Notify, Clipboard.
 
-Host module: `vibeui_host`. Host functions: log, read_file, write_file, notify.
+Host module: `vibecoder_host`. Host functions: log, read_file, write_file, notify.
 Extension exports: alloc, init, on_file_save, on_text_change.
 Max memory: 64 MiB.
 
@@ -212,7 +212,7 @@ Env vars: ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, GROK_API_KEY, GROQ_
 
 ```bash
 cargo build --release -p vibecli          # CLI binary
-cd vibeui && npm install && npm run tauri dev  # Desktop app
+cd vibecoder && npm install && npm run tauri dev  # Desktop app
 cargo test --workspace                     # All tests
 ```
 

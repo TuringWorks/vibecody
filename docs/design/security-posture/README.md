@@ -4,7 +4,7 @@
 
 ## What this is
 
-A new VibeUI panel and matching daemon module that **scans every codebase
+A new VibeCoder panel and matching daemon module that **scans every codebase
 loaded into VibeCody** for the vulnerability classes catalogued in the
 top-20 DREAD ledger, aggregates findings from every available scanner
 into a single severity-ranked feed, and lets the user one-click promote
@@ -143,10 +143,10 @@ vibecli/vibecli-cli/src/
   security_posture_taint.rs        # TS/Python intra-procedural taint
   security_posture_store.rs        # WorkspaceStore-backed suppression + goal-link
 
-vibeui/src-tauri/src/
+vibecoder/src-tauri/src/
   commands.rs   # +6 Tauri commands (delegating to the daemon module)
 
-vibeui/src/components/
+vibecoder/src/components/
   SecurityPosturePanel.tsx
   composite/EnterpriseGovernanceComposite.tsx   # +1 tab entry
 ```
@@ -286,6 +286,6 @@ fields, not from a `Display` impl.
 | License clash scanner | Manifest license parsing (Cargo / package.json / pyproject) + direct-dep walk + clash rules over `classify_license` (Permissive+GPL = Critical, AGPL = High always, Unknown = High, missing project license = skip) + 11 unit tests | ✅ shipped 2026-05-18 |
 | TS / Python taint scanner | Regex-based intra-procedural source→sink→sanitizer analysis. Sources: `req.body|query|params|headers|cookies`, `request.args|form|json|...`, `process.argv|env`, `ctx.*`, `sys.argv`, `os.environ`, `input()`, Flask request. Sinks: command-injection (`child_process.exec*`, `os.system`, `subprocess(shell=True)`, `commands.getoutput`), path-traversal (`fs.readFile|writeFile|...`, `fsPromises.*`, `open()`, `pathlib.Path.*`, `shutil.*`), SQL-injection (string-concat in `.query|.exec|.execute`, f-string SQL, %-format SQL), DOM XSS (`.innerHTML=`, `.outerHTML=`, `document.write`, `dangerouslySetInnerHTML`, `.insertAdjacentHTML`), code-injection (`eval`, `new Function`, `vm.runInNewContext`, `compile`, `__import__`, `pickle.loads`, `yaml.load`, `marshal.loads`). Sanitizers: `encodeURIComponent`, `DOMPurify.sanitize`, `validator.*`, `path.normalize|resolve`, `html.escape`, `shlex.quote`, `os.path.normpath|realpath`, `quote`, `quote_plus`, `re.escape`, `bleach.clean`. Two rules: direct sink+source on same line, and intra-procedural variable taint within a function body (function/class boundary resets tainted-var set). Word-boundary variable matching (`path` doesn't match `pathname`). Sink severity: code/cmd/SQL = Critical, path/DOM = High. Sink category: PathTraversal mapped directly, the other four via `Category::Other(*)`. `// nosectaint:` inline opt-out. Per (file,line,sink_kind) dedup. 512 KiB file cap. Skips `node_modules`/`target`/`.git`/`vendor`/`.venv`/`venv`/`__pycache__`/`dist`/`build`/`.next`. Languages by extension: `.ts/.tsx/.js/.jsx/.mjs/.cjs` → JS, `.py` → Python. 19 unit tests + 13-case isolated logic harness all green. **Documented limitations** (carry to tree-sitter v2 in a later slice): inter-procedural flow not tracked, object property tracking flattened to whole-object, indirect taint via array methods unrecognised, string concat conservatively taints whole result. Threat-model invariant: snippet carries source-code text, not runtime input, so `Tainted<T>` boundary is unnecessary at this seam; size-bounded by `SNIPPET_MAX_BYTES`. | ✅ shipped 2026-05-19 |
 | Goal bridge | `security_posture_create_goal` ↔ Goals system: load finding → mint `Goal` from named fields only (never `snippet`) → `SessionStore::insert_goal` → `link_goal` flips finding status to `GoalLinked`. Title format `[SEVERITY] <finding.title>`, statement carries rule_id / scanner / location / severity / category / remediation / finding-id source, success_criteria pin "rule no longer appears in next scan" + reference URLs, tags = `security` + `severity:*` + `scanner:*` + `category:*` | ✅ shipped 2026-05-18 |
-| Sonar adapter | `sonar_rules` promoted from `vibeui/src-tauri/src/` to `vibe-core/src/sonar_rules.rs` (rusqlite added to vibe-core deps; Tauri side keeps `pub use vibe_core::sonar_rules` re-export so the existing 4 call sites in `commands.rs::sonar_*` keep compiling unchanged). `SonarScannerAdapter` in `security_posture_adapters.rs` walks the workspace, runs `vibe_core::sonar_rules::scan_content` per source file, maps `BLOCKER → Critical / CRITICAL → High / MAJOR → Medium / MINOR → Low / INFO → Info`, and routes `VULNERABILITY`/`SECURITY_HOTSPOT` → `Category::Sast` while `BUG`/`CODE_SMELL` → `Category::CodeHealth`. 5 unit tests pin the mapping + 1:1 vulnerability/code-smell categorization. Registered in the aggregator between license and taint. | ✅ shipped 2026-05-19 |
+| Sonar adapter | `sonar_rules` promoted from `vibecoder/src-tauri/src/` to `vibe-core/src/sonar_rules.rs` (rusqlite added to vibe-core deps; Tauri side keeps `pub use vibe_core::sonar_rules` re-export so the existing 4 call sites in `commands.rs::sonar_*` keep compiling unchanged). `SonarScannerAdapter` in `security_posture_adapters.rs` walks the workspace, runs `vibe_core::sonar_rules::scan_content` per source file, maps `BLOCKER → Critical / CRITICAL → High / MAJOR → Medium / MINOR → Low / INFO → Info`, and routes `VULNERABILITY`/`SECURITY_HOTSPOT` → `Category::Sast` while `BUG`/`CODE_SMELL` → `Category::CodeHealth`. 5 unit tests pin the mapping + 1:1 vulnerability/code-smell categorization. Registered in the aggregator between license and taint. | ✅ shipped 2026-05-19 |
 
 Promotion gates between slices are tracked in `scanners.md`.

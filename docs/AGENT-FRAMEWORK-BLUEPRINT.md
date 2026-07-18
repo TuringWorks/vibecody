@@ -210,7 +210,7 @@ BrowserAgent
 - Add tool descriptions to `TOOL_SYSTEM_PROMPT`
 - Implement execution in `tool_executor.rs`
 - Add `/browse` REPL command
-- Add BrowserAgentPanel.tsx to VibeUI
+- Add BrowserAgentPanel.tsx to VibeCoder
 
 **Dependencies**: `chromiumoxide` or `headless_chrome` Rust crate for CDP, or shell out to `chrome --remote-debugging-port`
 
@@ -381,7 +381,7 @@ API Enhancements
   External API ────>│  serve.rs (REST/SSE)                     │
   Gateway ─────────>│  gateway.rs (18 platforms)               │
   REPL ────────────>│  repl.rs (interactive)                   │
-  VibeUI ──────────>│  Tauri commands                          │
+  VibeCoder ──────────>│  Tauri commands                          │
                     │         │                                │
                     │         ▼                                │
                     │  ┌─────────────────┐                     │

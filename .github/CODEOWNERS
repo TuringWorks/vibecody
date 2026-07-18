@@ -7,17 +7,17 @@
 /vibecli/crates/                   @TuringWorks/vibecody-cli
 
 # ─── Shared Rust crates ──────────────────────────────────────────────────
-/vibeui/crates/vibe-core/          @TuringWorks/vibecody-core
-/vibeui/crates/vibe-ai/            @TuringWorks/vibecody-ai
-/vibeui/crates/vibe-lsp/           @TuringWorks/vibecody-core
-/vibeui/crates/vibe-infer/         @TuringWorks/vibecody-ai
-/vibeui/crates/vibe-extensions/    @TuringWorks/vibecody-core
-/vibeui/crates/vibe-collab/        @TuringWorks/vibecody-core
+/vibecoder/crates/vibe-core/          @TuringWorks/vibecody-core
+/vibecoder/crates/vibe-ai/            @TuringWorks/vibecody-ai
+/vibecoder/crates/vibe-lsp/           @TuringWorks/vibecody-core
+/vibecoder/crates/vibe-infer/         @TuringWorks/vibecody-ai
+/vibecoder/crates/vibe-extensions/    @TuringWorks/vibecody-core
+/vibecoder/crates/vibe-collab/        @TuringWorks/vibecody-core
 
-# ─── VibeUI (desktop editor) ─────────────────────────────────────────────
-/vibeui/src/                        @TuringWorks/vibecody-ui
-/vibeui/src-tauri/                   @TuringWorks/vibecody-ui
-/vibeui/design-system/               @TuringWorks/vibecody-ui
+# ─── VibeCoder (desktop editor) ─────────────────────────────────────────────
+/vibecoder/src/                        @TuringWorks/vibecody-ui
+/vibecoder/src-tauri/                   @TuringWorks/vibecody-ui
+/vibecoder/design-system/               @TuringWorks/vibecody-ui
 
 # ─── VibeApp (secondary desktop shell) ───────────────────────────────────
 /vibeapp/                            @TuringWorks/vibecody-ui

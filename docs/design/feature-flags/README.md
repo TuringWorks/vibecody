@@ -1,9 +1,9 @@
 # Feature Flags — Design Index
 
 **Status:** Draft · 2026-04-30
-**Scope:** vibecli daemon (Rust) + vibeui (Tauri/React) + vibeapp + vibemobile (Flutter) + vibewatch (SwiftUI / Kotlin Compose) + vscode-extension + jetbrains-plugin + neovim-plugin + agent-sdk
+**Scope:** vibecli daemon (Rust) + vibecoder (Tauri/React) + vibeapp + vibemobile (Flutter) + vibewatch (SwiftUI / Kotlin Compose) + vscode-extension + jetbrains-plugin + neovim-plugin + agent-sdk
 **Owner:** TBD
-**Related docs:** [AGENTS.md → Zero-Config First](../../../AGENTS.md), [vibeui/design-system/README.md](../../../vibeui/design-system/README.md), [docs/design/sandbox-tiers/README.md](../sandbox-tiers/README.md), [docs/design/recap-resume/README.md](../recap-resume/README.md), [docs/design/rl-os/README.md](../rl-os/README.md)
+**Related docs:** [AGENTS.md → Zero-Config First](../../../AGENTS.md), [vibecoder/design-system/README.md](../../../vibecoder/design-system/README.md), [docs/design/sandbox-tiers/README.md](../sandbox-tiers/README.md), [docs/design/recap-resume/README.md](../recap-resume/README.md), [docs/design/rl-os/README.md](../rl-os/README.md)
 
 ---
 
@@ -114,8 +114,8 @@ Flag names are **lowercase**, **dotted**, **hierarchical**, and **stable across 
 
 | Scope prefix | Meaning | Example |
 |---|---|---|
-| `panel.` | Single React panel under `vibeui/src/components/` | `panel.rl_training`, `panel.diffcomplete_history` |
-| `composite.` | A composite under `vibeui/src/components/composite/` (groups multiple panels into tabs) | `composite.rl_os`, `composite.ai_playground` |
+| `panel.` | Single React panel under `vibecoder/src/components/` | `panel.rl_training`, `panel.diffcomplete_history` |
+| `composite.` | A composite under `vibecoder/src/components/composite/` (groups multiple panels into tabs) | `composite.rl_os`, `composite.ai_playground` |
 | `feature.` | Backend or cross-cutting capability that does not map 1:1 to a panel | `feature.recap_llm_generator`, `feature.sandbox_tier_firecracker`, `feature.developer_mode` |
 
 ### Rules
@@ -169,7 +169,7 @@ A GA-tier flag short-circuits all of this and always returns `true`. Internal fl
 
 ### Where each layer lives
 
-#### 4.1 Compiled defaults — `vibeui/src/featureFlags/defaults.json`
+#### 4.1 Compiled defaults — `vibecoder/src/featureFlags/defaults.json`
 
 Authoritative copy of the registry, generated from the Rust source of truth at build time (see §4.4). Read by the React frontend so panel render guards can synchronously evaluate "does this flag exist? what's its tier? what's its default?" without a daemon round-trip on first paint.
 
@@ -238,7 +238,7 @@ impl ProfileStore {
 }
 ```
 
-**Critical:** flag overrides are **encrypted at rest** like any other ProfileStore value. They are never written to `*.toml`, `*.json`, or any plaintext file. They are never written to `~/.vibeui/`.
+**Critical:** flag overrides are **encrypted at rest** like any other ProfileStore value. They are never written to `*.toml`, `*.json`, or any plaintext file. They are never written to `~/.vibecoder/`.
 
 #### 4.3 Env-var override — `VIBE_FLAG_<NAME>=on|off`
 
@@ -321,13 +321,13 @@ impl Registry {
 }
 ```
 
-A `build.rs` step in `vibecli-cli` writes `vibeui/src/featureFlags/defaults.json` from `Registry::compiled().export_json()` so the two are always in sync. CI fails the build if `defaults.json` is committed out of date with the Rust source.
+A `build.rs` step in `vibecli-cli` writes `vibecoder/src/featureFlags/defaults.json` from `Registry::compiled().export_json()` so the two are always in sync. CI fails the build if `defaults.json` is committed out of date with the Rust source.
 
 ### Storage summary table
 
 | Layer | Location | Format | Mutability | Scope |
 |---|---|---|---|---|
-| Compiled defaults | `vibeui/src/featureFlags/defaults.json` (generated from Rust `Registry::compiled()`) | JSON | Build-time only | Per build |
+| Compiled defaults | `vibecoder/src/featureFlags/defaults.json` (generated from Rust `Registry::compiled()`) | JSON | Build-time only | Per build |
 | User overrides | `~/.vibecli/profile_settings.db` namespace `feature_flags` | Encrypted KV (string→bool) | Runtime, via Settings UI or `vibecli flags set` | Per profile |
 | Env-var override | Process env `VIBE_FLAG_<NAME>` | String (`on`/`off`) | Per-process | Dev-only |
 
@@ -419,7 +419,7 @@ impl ResolvedFlags {
 ### 5.2 Tauri command
 
 ```rust
-// vibeui/src-tauri/src/commands.rs
+// vibecoder/src-tauri/src/commands.rs
 
 #[tauri::command]
 pub async fn feature_flags(
@@ -451,7 +451,7 @@ pub async fn feature_flag_set(
 }
 ```
 
-Both commands are registered in `vibeui/src-tauri/src/lib.rs`'s `tauri::generate_handler!` block, and (mirroring) in `vibeapp/src-tauri/src/lib.rs`.
+Both commands are registered in `vibecoder/src-tauri/src/lib.rs`'s `tauri::generate_handler!` block, and (mirroring) in `vibeapp/src-tauri/src/lib.rs`.
 
 ### 5.3 HTTP route
 
@@ -488,7 +488,7 @@ Response shape:
 ### 5.4 React hook
 
 ```ts
-// vibeui/src/featureFlags/useFeatureFlag.ts
+// vibecoder/src/featureFlags/useFeatureFlag.ts
 
 import { useContext } from "react";
 import { FeatureFlagsContext } from "./FeatureFlagsProvider";
@@ -521,7 +521,7 @@ The provider lives at the app root, fetches `feature_flags` once on mount, and r
 A panel that's flag-gated wraps its export:
 
 ```tsx
-// vibeui/src/components/RLTrainingPanel.tsx
+// vibecoder/src/components/RLTrainingPanel.tsx
 
 import { withFeatureFlag } from "../featureFlags/withFeatureFlag";
 
@@ -561,7 +561,7 @@ This is the AGENTS.md Zero-Config First requirement: the resolved feature-flag s
 
 ### 6.1 Where it lives
 
-A new section in `vibeui/src/components/SettingsPanel.tsx`. The existing `SettingsSection` type is extended:
+A new section in `vibecoder/src/components/SettingsPanel.tsx`. The existing `SettingsSection` type is extended:
 
 ```ts
 type SettingsSection =
@@ -633,7 +633,7 @@ A single text input filters rows by case-insensitive substring against {label, d
 [INTERNAL]        background: var(--surface-magenta-soft), text: var(--text-magenta)
 ```
 
-Per `vibeui/design-system/README.md` token system. No raw hex codes.
+Per `vibecoder/design-system/README.md` token system. No raw hex codes.
 
 ### 6.7 Empty states
 
@@ -651,7 +651,7 @@ Flag toggles do **not** go through `localStorage`. They are persisted exclusivel
 ### 6.9 Sketch
 
 ```tsx
-// vibeui/src/components/settings/FeaturesSection.tsx
+// vibecoder/src/components/settings/FeaturesSection.tsx
 
 import React, { useState, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -724,7 +724,7 @@ export function FeaturesSection() {
 }
 ```
 
-(Concrete `FlagRow`, `Tabs`, `BulkActions`, `EmptyState` components left as exercises for the implementor. They follow the design-system token rules in `vibeui/design-system/README.md`.)
+(Concrete `FlagRow`, `Tabs`, `BulkActions`, `EmptyState` components left as exercises for the implementor. They follow the design-system token rules in `vibecoder/design-system/README.md`.)
 
 ---
 
@@ -946,10 +946,10 @@ Four ships, each independently releasable. No phase requires breaking changes fr
 1. `vibecli/vibecli-cli/src/feature_flags/` module (`registry.rs`, `resolver.rs`, `mod.rs`).
 2. Initial `Registry::compiled()` containing **only** the GA flags from §8.1 plus `feature.developer_mode`. (No Beta/Experimental/Internal entries yet — those land in later phases.)
 3. ProfileStore extension: `feature_flags` namespace + `get/set/clear/all_flag_overrides`.
-4. Tauri commands: `feature_flags`, `feature_flag_set`. Registered in both `vibeui/src-tauri/src/lib.rs` and `vibeapp/src-tauri/src/lib.rs`.
+4. Tauri commands: `feature_flags`, `feature_flag_set`. Registered in both `vibecoder/src-tauri/src/lib.rs` and `vibeapp/src-tauri/src/lib.rs`.
 5. HTTP routes: `GET /v1/flags`, `GET /v1/flags/:name`, `POST /v1/flags/:name`. Wired in `serve.rs`.
-6. `build.rs` step that regenerates `vibeui/src/featureFlags/defaults.json` from the Rust registry.
-7. `vibeui/src/featureFlags/`: `FeatureFlagsProvider.tsx`, `useFeatureFlag.ts`, `withFeatureFlag.ts`, `types.ts`.
+6. `build.rs` step that regenerates `vibecoder/src/featureFlags/defaults.json` from the Rust registry.
+7. `vibecoder/src/featureFlags/`: `FeatureFlagsProvider.tsx`, `useFeatureFlag.ts`, `withFeatureFlag.ts`, `types.ts`.
 8. SettingsPanel extension: new "Features" section with Beta / Experimental / Developer sub-tabs. **All three sub-tabs render their empty state on day one** because no Beta/Experimental/Internal flags exist yet.
 9. CLI subcommand: `vibecli flags list [--user|--env|--all]`, `vibecli flags set NAME VALUE`, `vibecli flags clear NAME`, `vibecli flags log`.
 10. `/health` `feature_flags` block.
@@ -1065,7 +1065,7 @@ VibeCody is 13 clients × 1 daemon. Flags are defined in the daemon. Each client
        │            │
        ▼            └────────┬─────────┬────────┬────────┬───────┐
    ┌────────┐                ▼         ▼        ▼        ▼       ▼
-   │ vibeui │           ┌────────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐
+   │ vibecoder │           ┌────────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐
    │ vibeapp│           │mobile  │ │watch │ │vscode│ │jetbr.│ │SDK   │
    └────────┘           │Flutter │ │Swift │ │ext   │ │plugin│ │      │
                         │+ Kotlin│ │+ Wear│ │      │ │      │ │      │
@@ -1077,8 +1077,8 @@ VibeCody is 13 clients × 1 daemon. Flags are defined in the daemon. Each client
 | Client | Path | Reads via | Cache | Offline fallback |
 |---|---|---|---|---|
 | **vibecli daemon (self)** | `vibecli/vibecli-cli/src/feature_flags/` | `ResolvedFlags` in-memory | n/a (source of truth) | n/a |
-| **vibeui (Tauri)** | `vibeui/src/featureFlags/FeatureFlagsProvider.tsx` | `feature_flags` Tauri command | React provider, refetch on `feature-flags-changed` event | bundled `defaults.json` (compiled-in) for first paint |
-| **vibeapp (Tauri)** | mirror of vibeui | same as vibeui | same | same |
+| **vibecoder (Tauri)** | `vibecoder/src/featureFlags/FeatureFlagsProvider.tsx` | `feature_flags` Tauri command | React provider, refetch on `feature-flags-changed` event | bundled `defaults.json` (compiled-in) for first paint |
+| **vibeapp (Tauri)** | mirror of vibecoder | same as vibecoder | same | same |
 | **vibemobile (Flutter)** | `vibemobile/lib/services/feature_flags_service.dart` (new) | `GET /v1/flags` via existing `api_client.dart` | sqflite cache `feature_flags_cache` | last-known-good cached set + banner "synced N min ago" |
 | **vibewatch (SwiftUI)** | `vibewatch/VibeCodyWatch/FeatureFlagsManager.swift` (new) | `GET /v1/flags` via existing `WatchNetworkManager.swift` | UserDefaults `featureFlagsCache` | last-known-good or, on cold start with no cache, "GA-only" mode (only GA-tier surfaces shown) |
 | **vibewatch (Wear OS)** | `vibewatch/VibeCodyWear/FeatureFlagsRepository.kt` (new) | `GET /v1/flags` via existing Retrofit client | DataStore `feature_flags_cache` | same as Swift |
@@ -1142,7 +1142,7 @@ FlagSpec {
 
 ### 13.2 Build-time JSON dump
 
-`build.rs` regenerates `vibeui/src/featureFlags/defaults.json` to include:
+`build.rs` regenerates `vibecoder/src/featureFlags/defaults.json` to include:
 
 ```json
 {
@@ -1169,7 +1169,7 @@ A user starts `vibecli serve`. The daemon:
 
 ### 13.4 Frontend first paint
 
-vibeui mounts. `FeatureFlagsProvider` synchronously loads `defaults.json` from the bundle so the app can render *something* before the Tauri round-trip completes. For the RL-OS composite, the bundled default says `false`, so `RLOSComposite` (wrapped with `withFeatureFlag("composite.rl_os", ...)`) returns `null` and never enters the DOM.
+vibecoder mounts. `FeatureFlagsProvider` synchronously loads `defaults.json` from the bundle so the app can render *something* before the Tauri round-trip completes. For the RL-OS composite, the bundled default says `false`, so `RLOSComposite` (wrapped with `withFeatureFlag("composite.rl_os", ...)`) returns `null` and never enters the DOM.
 
 200ms later the `feature_flags` Tauri command resolves and the provider updates with the daemon's authoritative answer. For this user, the answer matches the bundled default (`false`), so no re-render is needed.
 
@@ -1265,7 +1265,7 @@ A user who had specifically opted out is now forced to see the composite again. 
 
 These are the decisions left to make during Phase A implementation. None of them blocks design approval; all of them need an answer before code lands.
 
-1. **Where exactly does `defaults.json` live?** The doc proposes `vibeui/src/featureFlags/defaults.json`. Alternative: `vibeui/src/generated/featureFlags.json` to make the "this is generated, don't edit by hand" warning more obvious. Decision punted to Phase A reviewer.
+1. **Where exactly does `defaults.json` live?** The doc proposes `vibecoder/src/featureFlags/defaults.json`. Alternative: `vibecoder/src/generated/featureFlags.json` to make the "this is generated, don't edit by hand" warning more obvious. Decision punted to Phase A reviewer.
 2. **Composite.rl_os covers list — auto-derived or manual?** Auto-derived from a `RegisterPanel`-style declaration would be cleaner but doesn't exist today. Manual list is fine for Day 1; auto-derivation is a Phase F nice-to-have if anyone ever wants it.
 3. **SSE channel: new endpoint or piggy-back on existing event stream?** vibecli already has `/v1/events` for session updates. Adding a `feature-flags-changed` event type is cheaper than a new endpoint. Recommend piggy-back.
 4. **`vibecli flags list` output format.** Default to a human table. `--json` for machine. `--tier=experimental` to filter. Standard CLI hygiene; decide once during implementation.
@@ -1289,15 +1289,15 @@ For an engineer implementing Phase A, these are every file that needs to be touc
 * `vibecli/vibecli-cli/src/feature_flags/resolver.rs`
 * `vibecli/vibecli-cli/src/feature_flags/cli.rs` (`vibecli flags ...` subcommands)
 * `vibecli/vibecli-cli/build.rs` extension (regenerate `defaults.json`)
-* `vibeui/src/featureFlags/FeatureFlagsProvider.tsx`
-* `vibeui/src/featureFlags/useFeatureFlag.ts`
-* `vibeui/src/featureFlags/withFeatureFlag.ts`
-* `vibeui/src/featureFlags/types.ts`
-* `vibeui/src/featureFlags/defaults.json` (generated)
-* `vibeui/src/components/settings/FeaturesSection.tsx`
-* `vibeui/src/components/settings/FlagRow.tsx`
-* `vibeui/src/components/settings/BulkActions.tsx`
-* `vibeui/src/components/settings/EmptyState.tsx`
+* `vibecoder/src/featureFlags/FeatureFlagsProvider.tsx`
+* `vibecoder/src/featureFlags/useFeatureFlag.ts`
+* `vibecoder/src/featureFlags/withFeatureFlag.ts`
+* `vibecoder/src/featureFlags/types.ts`
+* `vibecoder/src/featureFlags/defaults.json` (generated)
+* `vibecoder/src/components/settings/FeaturesSection.tsx`
+* `vibecoder/src/components/settings/FlagRow.tsx`
+* `vibecoder/src/components/settings/BulkActions.tsx`
+* `vibecoder/src/components/settings/EmptyState.tsx`
 * `docs/design/feature-flags/README.md` (this file)
 
 ### Modified files
@@ -1307,12 +1307,12 @@ For an engineer implementing Phase A, these are every file that needs to be touc
 * `vibecli/vibecli-cli/src/profile_store.rs` — add `*_flag_override` methods
 * `vibecli/vibecli-cli/src/serve.rs` (or `watch_bridge.rs` per current routing convention) — `/v1/flags`, `/v1/flags/:name` routes
 * `vibecli/vibecli-cli/src/health.rs` — add `feature_flags` block to `/health` response
-* `vibeui/src-tauri/src/commands.rs` — `feature_flags` and `feature_flag_set` commands
-* `vibeui/src-tauri/src/lib.rs` — register both in `tauri::generate_handler!`
+* `vibecoder/src-tauri/src/commands.rs` — `feature_flags` and `feature_flag_set` commands
+* `vibecoder/src-tauri/src/lib.rs` — register both in `tauri::generate_handler!`
 * `vibeapp/src-tauri/src/commands.rs` — mirror
 * `vibeapp/src-tauri/src/lib.rs` — mirror in `tauri::generate_handler!`
-* `vibeui/src/components/SettingsPanel.tsx` — extend `SettingsSection` with `"features"`, render `FeaturesSection`
-* `vibeui/src/App.tsx` (or wherever the root provider chain lives) — wrap with `FeatureFlagsProvider`
+* `vibecoder/src/components/SettingsPanel.tsx` — extend `SettingsSection` with `"features"`, render `FeaturesSection`
+* `vibecoder/src/App.tsx` (or wherever the root provider chain lives) — wrap with `FeatureFlagsProvider`
 * `AGENTS.md` — one-paragraph mention under Zero-Config First pointing to this doc
 * `docs/release.md` — entry in the next release's "what's new"
 * `CLAUDE.md` — a "feature flags" line under Quick Reference (`vibecli flags list`)
@@ -1322,8 +1322,8 @@ For an engineer implementing Phase A, these are every file that needs to be touc
 * `vibecli/vibecli-cli/tests/feature_flags_resolver.rs`
 * `vibecli/vibecli-cli/tests/feature_flags_http.rs`
 * `vibecli/vibecli-cli/tests/feature_flags_cli.rs`
-* `vibeui/src/featureFlags/__tests__/useFeatureFlag.test.ts`
-* `vibeui/src/components/settings/__tests__/FeaturesSection.test.tsx`
+* `vibecoder/src/featureFlags/__tests__/useFeatureFlag.test.ts`
+* `vibecoder/src/components/settings/__tests__/FeaturesSection.test.tsx`
 
 ---
 
@@ -1445,7 +1445,7 @@ fn parse_bool(s: &str) -> anyhow::Result<bool> {
 }
 ```
 
-### B.3 `vibeui/src/featureFlags/types.ts`
+### B.3 `vibecoder/src/featureFlags/types.ts`
 
 ```ts
 export type Tier = "ga" | "beta" | "experimental" | "internal";
@@ -1474,7 +1474,7 @@ export interface FeatureFlagsResponse {
 }
 ```
 
-### B.4 `vibeui/src/featureFlags/FeatureFlagsProvider.tsx`
+### B.4 `vibecoder/src/featureFlags/FeatureFlagsProvider.tsx`
 
 ```tsx
 import React, {
@@ -1555,7 +1555,7 @@ export function FeatureFlagsProvider({ children }: { children: ReactNode }) {
 }
 ```
 
-### B.5 `vibeui/src/featureFlags/withFeatureFlag.ts`
+### B.5 `vibecoder/src/featureFlags/withFeatureFlag.ts`
 
 ```tsx
 import React from "react";
@@ -1580,7 +1580,7 @@ export function withFeatureFlag<P extends object>(
 Wherever the sidebar consumes the composite list, add a flag-aware filter:
 
 ```tsx
-// vibeui/src/components/Sidebar.tsx (or wherever the composite registry is enumerated)
+// vibecoder/src/components/Sidebar.tsx (or wherever the composite registry is enumerated)
 
 import { useAllFlags } from "../featureFlags/useFeatureFlag";
 
@@ -1740,8 +1740,8 @@ The flag system is therefore not just *compliant* with Zero-Config First — it 
 | **Beta** | On by default, user can opt out |
 | **Experimental** | Off by default, user must opt in |
 | **Internal** | Hidden unless `feature.developer_mode` is on |
-| **Composite** | A grouping of related panels under one sidebar entry; lives in `vibeui/src/components/composite/` |
-| **Panel** | A single React component under `vibeui/src/components/` that the user navigates to |
+| **Composite** | A grouping of related panels under one sidebar entry; lives in `vibecoder/src/components/composite/` |
+| **Panel** | A single React component under `vibecoder/src/components/` that the user navigates to |
 | **Feature** | A backend or cross-cutting capability that doesn't 1:1 map to a panel |
 | **Override** | A user-set value that takes precedence over the compiled default |
 | **Registry** | The compiled-in list of all known flags + their tiers + their metadata |

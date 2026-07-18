@@ -119,9 +119,9 @@ Up to 5 relevant files are previewed and injected into the agent's context windo
 
 The profile is re-scanned automatically if the cache is older than 1 hour.
 
-## AI Panel Context (VibeUI)
+## AI Panel Context (VibeCoder)
 
-In VibeUI, the same project context is available:
+In VibeCoder, the same project context is available:
 
 - **@project** in the chat context picker injects the project profile
 - **ProjectContextPanel** shows the full profile with 4 tabs: Overview, Commands, Key Files, AI Context

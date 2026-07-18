@@ -8,17 +8,17 @@ permalink: /faq/
 
 ### What is VibeCody?
 
-VibeCody is an open-source AI coding assistant that runs locally as a CLI tool (VibeCLI) and as a desktop editor (VibeUI). It connects to multiple AI providers and gives you agent-powered code generation, editing, debugging, and project management in your own environment.
+VibeCody is an open-source AI coding assistant that runs locally as a CLI tool (VibeCLI) and as a desktop editor (VibeCoder). It connects to multiple AI providers and gives you agent-powered code generation, editing, debugging, and project management in your own environment.
 
 ### Is VibeCody free?
 
 Yes. VibeCody is released under the MIT License. You bring your own API keys for cloud AI providers, or use local models (Ollama) at no cost. There are no usage fees from VibeCody itself.
 
-### What is the difference between VibeCLI and VibeUI?
+### What is the difference between VibeCLI and VibeCoder?
 
 **VibeCLI** is a terminal-based interface with a TUI (built on Ratatui) and a REPL. It is ideal for SSH sessions, CI pipelines, and developers who prefer the command line.
 
-**VibeUI** is a desktop application built with Tauri 2, React, and Monaco Editor. It provides a graphical code editor with 187 integrated panels for AI interaction, debugging, deployment, security, and more.
+**VibeCoder** is a desktop application built with Tauri 2, React, and Monaco Editor. It provides a graphical code editor with 187 integrated panels for AI interaction, debugging, deployment, security, and more.
 
 Both share the same Rust backend crates (vibe-core, vibe-ai, vibe-lsp).
 
@@ -80,7 +80,7 @@ Or set a default in `~/.vibecli/config.toml`:
 name = "claude"
 ```
 
-In VibeUI, use the Keys panel to configure and switch providers.
+In VibeCoder, use the Keys panel to configure and switch providers.
 
 ### What is OpenRouter?
 
@@ -135,7 +135,7 @@ VibeCody ships with 500+ built-in skills covering cloud, security, data, DevOps,
 
 ### How do I add a new AI provider?
 
-Implement the `AIProvider` trait in `vibeui/crates/vibe-ai/src/provider.rs`. The trait requires methods for `chat`, `stream`, and `models`. See any existing provider (e.g., `ollama.rs`, `claude.rs`) as a reference. Register the new provider in the provider factory and add it to the CLI argument parser.
+Implement the `AIProvider` trait in `vibecoder/crates/vibe-ai/src/provider.rs`. The trait requires methods for `chat`, `stream`, and `models`. See any existing provider (e.g., `ollama.rs`, `claude.rs`) as a reference. Register the new provider in the provider factory and add it to the CLI argument parser.
 
 ### What are WASM extensions?
 
@@ -143,7 +143,7 @@ VibeCody supports WebAssembly (WASM) extensions through the `vibe-extensions` cr
 
 ### What is MCP?
 
-MCP (Model Context Protocol) is an open standard for connecting AI models to external data sources and tools. VibeCody supports MCP both as a client (consuming MCP servers) and as a server (exposing VibeCody tools to other MCP clients). The MCP Directory panel in VibeUI lets you browse and install verified MCP plugins.
+MCP (Model Context Protocol) is an open standard for connecting AI models to external data sources and tools. VibeCody supports MCP both as a client (consuming MCP servers) and as a server (exposing VibeCody tools to other MCP clients). The MCP Directory panel in VibeCoder lets you browse and install verified MCP plugins.
 
 ## Enterprise
 
@@ -171,7 +171,7 @@ The `compliance_controls.rs` module provides technical controls aligned with SOC
 
 ### How does usage metering work?
 
-The usage metering system tracks token consumption and API costs across users, projects, and teams. You can set budgets, configure alerts at threshold percentages, and generate chargeback reports. Manage it via the `/metering` REPL command or the UsageMetering panel in VibeUI.
+The usage metering system tracks token consumption and API costs across users, projects, and teams. You can set budgets, configure alerts at threshold percentages, and generate chargeback reports. Manage it via the `/metering` REPL command or the UsageMetering panel in VibeCoder.
 
 ## More Questions?
 

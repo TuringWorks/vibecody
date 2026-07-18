@@ -67,14 +67,14 @@ CWE-798:
   reason: "Env var reads, error message variable names, and test fixture example keys"
   files:
     # (a) Environment variable reads — correct credential handling
-    - path: vibeui/crates/vibe-ai/src/providers/bedrock.rs
+    - path: vibecoder/crates/vibe-ai/src/providers/bedrock.rs
       lines: [183, 271]
       context: "env::var(\"AWS_SECRET_ACCESS_KEY\") read + error message if unset"
     - path: vibecli/vibecli-cli/src/voice.rs
       lines: [194]
       context: "env::var read for API key"
     # (b) Test fixture data for secret redaction verification
-    - path: vibeui/crates/vibe-ai/src/trace.rs
+    - path: vibecoder/crates/vibe-ai/src/trace.rs
       lines: [277, 380, 419, 420, 423]
       context: "Test cases verifying API key redaction (AKIAIOSFODNN7EXAMPLE etc.)"
     # (c) Test API keys in security test fixtures
@@ -107,13 +107,13 @@ CWE-22:
   status: false_positive
   reason: "Test cases verifying path traversal prevention (all assert!(result.is_err()))"
   files:
-    - path: vibeui/src-tauri/src/shadow_workspace.rs
+    - path: vibecoder/src-tauri/src/shadow_workspace.rs
       lines: [371, 416, 417]
       context: "Tests: sync_file(\"../../etc/passwd\") → assert!(result.is_err())"
-    - path: vibeui/src-tauri/src/agent_executor.rs
+    - path: vibecoder/src-tauri/src/agent_executor.rs
       lines: [367]
       context: "Test: resolve(\"../../etc/passwd\") → assert!(result.is_err())"
-    - path: vibeui/src/hooks/useEditorTheme.ts
+    - path: vibecoder/src/hooks/useEditorTheme.ts
       lines: [10]
       context: "Relative import path, not user-controlled file access"
     - path: vibecli/vibecli-cli/src/security_hardening.rs

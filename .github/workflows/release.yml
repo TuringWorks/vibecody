@@ -80,10 +80,10 @@ jobs:
       - name: Install cdxgen
         run: npm install -g @cyclonedx/cdxgen
 
-      - name: JS SBOMs (vibeui, vibeapp, agent-sdk)
+      - name: JS SBOMs (vibecoder, vibeapp, agent-sdk)
         run: |
           set -euo pipefail
-          for dir in vibeui vibeapp packages/agent-sdk; do
+          for dir in vibecoder vibeapp packages/agent-sdk; do
             if [ -f "$dir/package.json" ]; then
               ( cd "$dir" && npm install --package-lock-only --ignore-scripts )
               out="$(basename "$dir")-js.cdx.json"
@@ -121,7 +121,7 @@ jobs:
           name: sboms
           path: |
             vibecody-rust.cdx.json
-            vibeui-js.cdx.json
+            vibecoder-js.cdx.json
             vibeapp-js.cdx.json
             agent-sdk-js.cdx.json
             vibe-rl-py.cdx.json
@@ -217,9 +217,9 @@ jobs:
           name: ${{ matrix.archive }}
           path: ${{ matrix.archive }}
 
-  # ─── VibeUI desktop app (Tauri) ────────────────────────────────────────
-  build-vibeui:
-    name: VibeUI · ${{ matrix.label }}
+  # ─── VibeCoder desktop app (Tauri) ────────────────────────────────────────
+  build-vibecoder:
+    name: VibeCoder · ${{ matrix.label }}
     needs: audit
     runs-on: ${{ matrix.os }}
     strategy:
@@ -273,14 +273,14 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Install frontend dependencies
-        working-directory: vibeui
+        working-directory: vibecoder
         run: npm install --no-audit --no-fund
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2
         with:
-          key: vibeui-${{ matrix.label }}
-          workspaces: vibeui/src-tauri
+          key: vibecoder-${{ matrix.label }}
+          workspaces: vibecoder/src-tauri
 
       # ── macOS codesigning (dual-mode) ────────────────────────────────────
       # If APPLE_CERT_P12_BASE64 is set, import the Developer ID cert into a
@@ -290,7 +290,7 @@ jobs:
       # avoids the macOS "is damaged" Gatekeeper error but still shows the
       # "unidentified developer" first-launch warning (right-click → Open).
       - name: Import Apple Developer ID certificate (macOS)
-        id: vibeui-apple-cert
+        id: vibecoder-apple-cert
         if: runner.os == 'macOS'
         env:
           CERT_P12_BASE64: ${{ secrets.APPLE_CERT_P12_BASE64 }}
@@ -315,15 +315,15 @@ jobs:
           echo "signed=true" >> "$GITHUB_OUTPUT"
 
       - name: Build Tauri app
-        working-directory: vibeui
+        working-directory: vibecoder
         env:
           # Tauri picks these up automatically. On non-macOS / when the cert
           # isn't configured, they're all empty and the config-level "-"
           # (ad-hoc) identity is used instead.
-          APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && steps.vibeui-apple-cert.outputs.signed == 'true' && secrets.APPLE_SIGNING_IDENTITY || '' }}
-          APPLE_ID: ${{ runner.os == 'macOS' && steps.vibeui-apple-cert.outputs.signed == 'true' && secrets.APPLE_ID || '' }}
-          APPLE_TEAM_ID: ${{ runner.os == 'macOS' && steps.vibeui-apple-cert.outputs.signed == 'true' && secrets.APPLE_TEAM_ID || '' }}
-          APPLE_PASSWORD: ${{ runner.os == 'macOS' && steps.vibeui-apple-cert.outputs.signed == 'true' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
+          APPLE_SIGNING_IDENTITY: ${{ runner.os == 'macOS' && steps.vibecoder-apple-cert.outputs.signed == 'true' && secrets.APPLE_SIGNING_IDENTITY || '' }}
+          APPLE_ID: ${{ runner.os == 'macOS' && steps.vibecoder-apple-cert.outputs.signed == 'true' && secrets.APPLE_ID || '' }}
+          APPLE_TEAM_ID: ${{ runner.os == 'macOS' && steps.vibecoder-apple-cert.outputs.signed == 'true' && secrets.APPLE_TEAM_ID || '' }}
+          APPLE_PASSWORD: ${{ runner.os == 'macOS' && steps.vibecoder-apple-cert.outputs.signed == 'true' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
         run: npx tauri build ${{ matrix.args }}
 
       - name: Collect artifacts
@@ -334,17 +334,17 @@ jobs:
           find target -name "*.AppImage" -exec cp {} dist/ \; 2>/dev/null || true
           find target -name "*.msi" -exec cp {} dist/ \; 2>/dev/null || true
           find target -path "*/nsis/*.exe" -exec cp {} dist/ \; 2>/dev/null || true
-          APP_DIR=$(find target -name "VibeUI.app" -type d 2>/dev/null | head -1)
+          APP_DIR=$(find target -name "VibeCoder.app" -type d 2>/dev/null | head -1)
           if [ -n "$APP_DIR" ]; then
-            cd "$(dirname "$APP_DIR")" && zip -r "$GITHUB_WORKSPACE/dist/VibeUI-${{ matrix.label }}.app.zip" "VibeUI.app"
+            cd "$(dirname "$APP_DIR")" && zip -r "$GITHUB_WORKSPACE/dist/VibeCoder-${{ matrix.label }}.app.zip" "VibeCoder.app"
           fi
           ls -lhR dist/ || echo "dist/ is empty"
         shell: bash
 
-      - name: Upload VibeUI artifacts
+      - name: Upload VibeCoder artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: vibeui-${{ matrix.label }}
+          name: vibecoder-${{ matrix.label }}
           path: dist/*
 
   # ─── VibeCLI desktop app (Tauri) ───────────────────────────────────────
@@ -412,7 +412,7 @@ jobs:
           key: vibeapp-${{ matrix.label }}
           workspaces: vibeapp/src-tauri
 
-      # ── macOS codesigning (dual-mode) — see build-vibeui for full rationale.
+      # ── macOS codesigning (dual-mode) — see build-vibecoder for full rationale.
       - name: Import Apple Developer ID certificate (macOS)
         id: vibeapp-apple-cert
         if: runner.os == 'macOS'
@@ -845,11 +845,11 @@ jobs:
         with:
           key: smoke-linux-next
           workspaces: |
-            vibeui/src-tauri
+            vibecoder/src-tauri
             vibeapp/src-tauri
 
-      - name: Check VibeUI Tauri crate
-        working-directory: vibeui/src-tauri
+      - name: Check VibeCoder Tauri crate
+        working-directory: vibecoder/src-tauri
         run: cargo check --release
 
       - name: Check VibeCLI App Tauri crate
@@ -947,14 +947,14 @@ jobs:
   # ─── Publish GitHub Release ────────────────────────────────────────────
   release:
     name: Publish GitHub Release
-    needs: [sbom, build-cli, build-vibeui, build-vibeapp, build-android, build-ios, build-wear, build-watchos, build-docker, build-firecracker-rootfs]
+    needs: [sbom, build-cli, build-vibecoder, build-vibeapp, build-android, build-ios, build-wear, build-watchos, build-docker, build-firecracker-rootfs]
     # Publish even if optional jobs (mobile, watch, docker, SBOM) fail.
-    # Critical: CLI, VibeUI, VibeApp, Firecracker rootfs must succeed.
+    # Critical: CLI, VibeCoder, VibeApp, Firecracker rootfs must succeed.
     if: >-
       ${{
         !cancelled() &&
         needs.build-cli.result == 'success' &&
-        needs.build-vibeui.result == 'success' &&
+        needs.build-vibecoder.result == 'success' &&
         needs.build-vibeapp.result == 'success' &&
         needs.build-firecracker-rootfs.result == 'success'
       }}
@@ -1004,12 +1004,12 @@ jobs:
             | Windows x64 | `vibecli-x86_64-windows.zip` |
             | Docker | `vibecli-docker-*.tar.gz` |
 
-            #### VibeUI — Desktop Code Editor
+            #### VibeCoder — Desktop Code Editor
 
             | Platform | Download |
             |----------|----------|
-            | macOS (Apple Silicon) | `VibeUI-macOS-arm64.app.zip` / `.dmg` |
-            | macOS (Intel) | `VibeUI-macOS-x64.app.zip` / `.dmg` |
+            | macOS (Apple Silicon) | `VibeCoder-macOS-arm64.app.zip` / `.dmg` |
+            | macOS (Intel) | `VibeCoder-macOS-x64.app.zip` / `.dmg` |
             | Linux x64 | `.deb` / `.AppImage` |
             | Linux arm64 | `.deb` / `.AppImage` |
             | Windows x64 | `.msi` / `.exe` installer |
@@ -1093,16 +1093,16 @@ jobs:
 
             - **Parallel Agent Spawning** — Claude Code-style `/spawn` command: launch multiple autonomous agents, decompose tasks, aggregate results
             - **Agent Pool Management** — Priority queuing, pause/resume, inter-agent messaging, conflict detection
-            - **SpawnAgentPanel** — VibeUI panel for managing parallel agents with live progress tracking
+            - **SpawnAgentPanel** — VibeCoder panel for managing parallel agents with live progress tracking
             - **iOS & Android builds** — VibeCody Mobile companion app now included in releases
-            - **150+ VibeUI panels**, 18 AI providers, 540+ skills, 6,000+ tests
+            - **150+ VibeCoder panels**, 18 AI providers, 540+ skills, 6,000+ tests
 
             ### Full Platform Matrix
 
             | Product | macOS arm64 | macOS x64 | Linux x64 | Linux arm64 | Windows x64 | Android | iOS | watchOS | Wear OS | Docker |
             |---------|:-----------:|:---------:|:---------:|:-----------:|:-----------:|:-------:|:---:|:-------:|:-------:|:------:|
             | VibeCLI | x | x | x | x | x | | | | | x |
-            | VibeUI | x | x | x | x | x | | | | | |
+            | VibeCoder | x | x | x | x | x | | | | | |
             | VibeCLI App | x | x | x | x | x | | | | | |
             | VibeCody Mobile | | | | | | x | x | | | |
             | VibeCody Watch | | | | | | | | x | x | |

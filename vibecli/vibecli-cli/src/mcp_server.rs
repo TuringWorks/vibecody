@@ -1530,7 +1530,7 @@ fn guard_mcp_path(root: &Path, raw: &str) -> Result<PathBuf> {
 // ── Audit log ─────────────────────────────────────────────────────────────────
 //
 // Every `tools/call` dispatch appends a single JSON line to
-// `~/.vibecli/mcp_audit.jsonl`. VibeUI's MCP Governance panel tails this
+// `~/.vibecli/mcp_audit.jsonl`. VibeCoder's MCP Governance panel tails this
 // file via the `mcp_audit_query` Tauri command.
 
 /// Path to the MCP audit log (`~/.vibecli/mcp_audit.jsonl`).

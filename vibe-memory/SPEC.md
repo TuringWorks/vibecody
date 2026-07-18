@@ -370,7 +370,7 @@ When adding this crate:
 | `vibecli/vibecli-cli/src/serve.rs` | Add `/api/memory` route |
 | `docs/FEATURE-MATRIX.md` | Mark memory feature as implemented |
 | `docs/FEATURE-REFERENCE.md` | Document the new API |
-| `vibeui/src-tauri/src/commands.rs` | Expose Tauri commands for memory ops |
+| `vibecoder/src-tauri/src/commands.rs` | Expose Tauri commands for memory ops |
 
 ---
 

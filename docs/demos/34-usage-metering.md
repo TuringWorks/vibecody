@@ -7,14 +7,14 @@ permalink: /demos/34-usage-metering/
 
 ## Overview
 
-Usage Metering provides full visibility into token consumption across agents, tasks, users, and providers. Set credit budgets with automatic alerts at 80%, 95%, and 100% thresholds. Generate reports by provider, model, or task type, and produce chargeback summaries for departments. Available through both CLI commands and the 4-tab VibeUI panel.
+Usage Metering provides full visibility into token consumption across agents, tasks, users, and providers. Set credit budgets with automatic alerts at 80%, 95%, and 100% thresholds. Generate reports by provider, model, or task type, and produce chargeback summaries for departments. Available through both CLI commands and the 4-tab VibeCoder panel.
 
 ## Prerequisites
 
 - VibeCLI installed and on your PATH
 - At least one AI provider configured
 - For team/project budgets: VibeCody running in multi-user mode (optional)
-- For VibeUI: the desktop app running with the **Usage Metering** panel visible
+- For VibeCoder: the desktop app running with the **Usage Metering** panel visible
 
 ## Step-by-Step Walkthrough
 
@@ -51,7 +51,7 @@ Top Consumers:
 Alerts: None active
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 Open the **Usage Metering** panel and select the **Dashboard** tab. The dashboard shows real-time token consumption, budget utilization bars, and a top-consumers ranking.
 
@@ -101,7 +101,7 @@ Active Budgets:
   global            50,000,000   Monthly    8,450,000 16.9%
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 Switch to the **Budgets** tab. Click **New Budget** to create one. Select the owner type (User, Team, Project, Global), set the token limit, choose the period (Daily, Weekly, Monthly, Quarterly), and configure alert thresholds.
 
@@ -140,7 +140,7 @@ Active Alerts:
   [CRITICAL] project:legacy-migration at 96.3% of quarterly budget
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 The **Alerts** tab shows all active and recent alerts with timestamps, owner details, and quick actions (increase budget, acknowledge, snooze).
 
@@ -177,7 +177,7 @@ vibecli --metering report --period 2026-03 --group-by model
 vibecli --metering report --period 2026-03 --group-by task-type
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 In the **Reports** tab, select the date range and grouping dimension. Click **Generate Report** to view tables and charts. Export as CSV or PDF.
 
@@ -270,25 +270,25 @@ Agent: batch-ecommerce
       "description": "Drill into per-agent token consumption"
     },
     {
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "UsageMetering",
       "tab": "Dashboard",
       "description": "View real-time usage dashboard with top consumers"
     },
     {
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "UsageMetering",
       "tab": "Budgets",
       "description": "Create and manage credit budgets by owner"
     },
     {
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "UsageMetering",
       "tab": "Reports",
       "description": "Generate and export usage reports"
     },
     {
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "UsageMetering",
       "tab": "Alerts",
       "description": "Review and manage budget alerts"

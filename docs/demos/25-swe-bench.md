@@ -9,7 +9,7 @@ parent: Demos
 
 ## Overview
 
-This demo shows how to run SWE-bench benchmarks against your AI provider configuration, compare model performance across runs, and export results as Markdown reports. VibeCody integrates the SWE-bench harness directly into both the CLI and VibeUI so you can evaluate coding ability without leaving your workflow.
+This demo shows how to run SWE-bench benchmarks against your AI provider configuration, compare model performance across runs, and export results as Markdown reports. VibeCody integrates the SWE-bench harness directly into both the CLI and VibeCoder so you can evaluate coding ability without leaving your workflow.
 
 **Time to complete:** ~15 minutes (excluding benchmark execution time)
 
@@ -18,7 +18,7 @@ This demo shows how to run SWE-bench benchmarks against your AI provider configu
 - VibeCody installed and configured with at least one AI provider
 - A working internet connection (benchmarks download test cases on first run)
 - At least 2 GB of free disk space for benchmark data
-- For VibeUI: the desktop app running (`npm run tauri dev`)
+- For VibeCoder: the desktop app running (`npm run tauri dev`)
 
 ## Step-by-Step Walkthrough
 
@@ -172,9 +172,9 @@ Generated: 2026-03-13T10:55:00Z
 ...
 ```
 
-### Step 8: Use the SWE-bench panel in VibeUI
+### Step 8: Use the SWE-bench panel in VibeCoder
 
-Open VibeUI and navigate to the **SWE-bench** panel from the AI sidebar. The panel has three tabs:
+Open VibeCoder and navigate to the **SWE-bench** panel from the AI sidebar. The panel has three tabs:
 
 1. **Run** -- Select a suite, provider, and model. Click "Start Benchmark" to begin. A progress bar shows completion status with live pass/fail indicators.
 
@@ -244,10 +244,10 @@ Open VibeUI and navigate to the **SWE-bench** panel from the AI sidebar. The pan
     },
     {
       "id": 7,
-      "action": "vibeui",
+      "action": "vibecoder",
       "panel": "SWEBench",
       "tabs": ["Run", "Results", "Compare"],
-      "description": "Navigate the SWE-bench panel in VibeUI: start a run, view results, compare models",
+      "description": "Navigate the SWE-bench panel in VibeCoder: start a run, view results, compare models",
       "delay_ms": 5000
     }
   ]

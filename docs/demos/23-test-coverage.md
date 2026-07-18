@@ -9,7 +9,7 @@ parent: Demos
 
 ## Overview
 
-VibeCody integrates a unified test runner that works across multiple frameworks (Cargo test, Jest, pytest, and more). The AI can generate test cases from your code, run them, track coverage, and suggest missing tests. The VibeUI Test panel provides a visual overlay showing which lines are covered, which are not, and where the AI recommends adding tests.
+VibeCody integrates a unified test runner that works across multiple frameworks (Cargo test, Jest, pytest, and more). The AI can generate test cases from your code, run them, track coverage, and suggest missing tests. The VibeCoder Test panel provides a visual overlay showing which lines are covered, which are not, and where the AI recommends adding tests.
 
 **Time to complete:** ~12 minutes
 
@@ -19,7 +19,7 @@ VibeCody integrates a unified test runner that works across multiple frameworks 
 - A project with testable source code
 - Test framework installed for your language (e.g., Rust's built-in `cargo test`, Node.js `jest`, Python `pytest`)
 - (Optional) Coverage tool installed (`cargo-tarpaulin`, `nyc`/`c8`, `coverage.py`)
-- (Optional) VibeUI installed for the visual Test panel
+- (Optional) VibeCoder installed for the visual Test panel
 
 ## Step-by-Step Walkthrough
 
@@ -213,7 +213,7 @@ Re-running 2 previously failed tests:
 2 passed, 0 failed
 ```
 
-### Step 8: Using the Test panel in VibeUI
+### Step 8: Using the Test panel in VibeCoder
 
 Open the **Test** panel from the sidebar.
 
@@ -314,7 +314,7 @@ The coverage overlay integrates directly with the Monaco editor. Hovering over a
         "tab": "Coverage",
         "action_detail": "view_overlay",
         "details": "Green gutters on covered lines, red on uncovered. Click to generate tests.",
-        "narration": "View the coverage overlay in VibeUI's editor"
+        "narration": "View the coverage overlay in VibeCoder's editor"
       },
       {
         "timestamp": 210,

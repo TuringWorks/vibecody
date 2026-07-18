@@ -16,7 +16,7 @@ VibeCody supports voice-driven coding through two modes: cloud-based transcripti
 - VibeCLI 0.5.1 installed and on your PATH
 - A working microphone
 - At least one AI provider configured (Ollama recommended for fully offline operation)
-- For VibeUI: the desktop app running with the **VoiceLocalPanel** visible
+- For VibeCoder: the desktop app running with the **VoiceLocalPanel** visible
 - Disk space: ~150 MB for the small model, ~1.5 GB for the large model
 
 ## Whisper Model Sizes
@@ -243,9 +243,9 @@ vibecli
 🎤 Listening... (fully offline: whisper.cpp + Ollama/codellama)
 ```
 
-### Step 9: Use offline voice in VibeUI
+### Step 9: Use offline voice in VibeCoder
 
-In the VibeUI desktop app, open the **VoiceLocalPanel** from the AI sidebar. The panel provides:
+In the VibeCoder desktop app, open the **VoiceLocalPanel** from the AI sidebar. The panel provides:
 
 - **Waveform Display** -- Real-time audio waveform visualization
 - **Transcript Log** -- Scrollable history of all transcriptions with confidence scores

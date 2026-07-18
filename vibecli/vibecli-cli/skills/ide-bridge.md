@@ -1,15 +1,15 @@
 ---
-triggers: ["IDE bridge", "CLI IDE context", "VibeUI context", "open files agent", "IDE state"]
+triggers: ["IDE bridge", "CLI IDE context", "VibeCoder context", "open files agent", "IDE state"]
 tools_allowed: ["read_file", "write_file", "bash"]
 category: developer-experience
 ---
 
 # CLI to IDE Context Bridging
 
-When bridging context between the CLI agent and an IDE (VibeUI or external editors):
+When bridging context between the CLI agent and an IDE (VibeCoder or external editors):
 
 1. **What State to Pass** — Pass the following IDE state to the agent: currently open file paths (not content), active cursor position (file + line + column), current text selection (file + start + end), most recent test run results (pass/fail counts + failed test names), active diagnostics (errors and warnings from LSP, file + line + message), and git status summary (staged/unstaged file list). This set provides full task context without redundant data transfer.
-2. **IPC Socket Discovery** — Discover the IDE's IPC socket via a well-known location: `$TMPDIR/vibeui-{pid}.sock` for VibeUI, `~/.vscode/ipc.sock` for VS Code (via extension), or a port advertised in `~/.vibeui/bridge.json` (format: `{"socket": "/tmp/vibeui-12345.sock", "pid": 12345, "version": "1.0"}`). If multiple IDE instances are running, prompt the user to select one by project root path. Fail with a clear error if no bridge socket is found, never silently skip context.
+2. **IPC Socket Discovery** — Discover the IDE's IPC socket via a well-known location: `$TMPDIR/vibecoder-{pid}.sock` for VibeCoder, `~/.vscode/ipc.sock` for VS Code (via extension), or a port advertised in `~/.vibecoder/bridge.json` (format: `{"socket": "/tmp/vibecoder-12345.sock", "pid": 12345, "version": "1.0"}`). If multiple IDE instances are running, prompt the user to select one by project root path. Fail with a clear error if no bridge socket is found, never silently skip context.
 3. **State Freshness: Debounce 200ms** — Subscribe to IDE state change events (file open/close, cursor move, selection change, test run complete) and debounce updates at 200ms before forwarding to the agent. This prevents flooding the agent with intermediate states during rapid typing or cursor movement. The agent always sees the IDE state as of 200ms after the last change — treat all received state as a consistent snapshot.
 4. **What NOT to Include** — Never include in the bridged context: full file content for files larger than 100KB (send the path and line range only), binary file contents, `.env` files or any file matching secrets patterns, node_modules or vendor directory listings, or build artifact paths. These would bloat the agent context with low-value data and risk leaking sensitive information.
 5. **Privacy Considerations** — The IDE bridge may expose file paths and code snippets. Before transmitting any state, apply the workspace's file ignore rules (`.gitignore`, `.vibeignore`). Do not transmit open file state for files outside the current workspace root. When the agent is a remote or cloud agent, require explicit user consent before bridging IDE state — local-only agents may receive state automatically.

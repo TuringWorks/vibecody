@@ -1,9 +1,9 @@
 # RL-OS Productionization — Design Index
 
 **Status:** **✅ Shipped** · 2026-05-01 — every slice + named algorithm in this doc set is implemented, smoke-tested, and on `main`. The disclaimer banner is empty.
-**Scope:** vibecli daemon (Rust) + new `vibe-rl-py/` sidecar + vibeui RL-OS panels (10) + Tauri bridge (20 commands)
+**Scope:** vibecli daemon (Rust) + new `vibe-rl-py/` sidecar + vibecoder RL-OS panels (10) + Tauri bridge (20 commands)
 **Owner:** TBD
-**Cross-references:** [QUICKSTART.md](./QUICKSTART.md) (runnable end-to-end pipeline), [AGENTS.md](../../../AGENTS.md) (storage rules, Product Matrix), [vibeui/design-system/README.md](../../../vibeui/design-system/README.md) (panel UX), [docs/RL-OS-ARCHITECTURE.md](../../RL-OS-ARCHITECTURE.md) (the original 1.0 spec these docs operationalize)
+**Cross-references:** [QUICKSTART.md](./QUICKSTART.md) (runnable end-to-end pipeline), [AGENTS.md](../../../AGENTS.md) (storage rules, Product Matrix), [vibecoder/design-system/README.md](../../../vibecoder/design-system/README.md) (panel UX), [docs/RL-OS-ARCHITECTURE.md](../../RL-OS-ARCHITECTURE.md) (the original 1.0 spec these docs operationalize)
 
 > **TL;DR:** start with [QUICKSTART.md](./QUICKSTART.md) for the runnable pipeline. The seven slice docs ([01-persistence.md](./01-persistence.md) … [07-advanced.md](./07-advanced.md)) cover the per-slice design rationale that this README enumerates.
 
@@ -36,7 +36,7 @@ See [QUICKSTART.md](./QUICKSTART.md) for the runnable end-to-end pipeline.
 
 ## What this is
 
-The RL-OS surface in VibeCody — a 10-panel composite tab covering Training, Environments, Evaluation, Optimization, Deployment, Policy Comparison, Model Lineage, Multi-Agent, Reward Decomposition, and RLHF Alignment — currently renders **deterministic synthetic data**. The disclaimer banner at `vibeui/src/components/composite/RLOSComposite.tsx:19` is honest: numbers are illustrative and do not reflect production runs.
+The RL-OS surface in VibeCody — a 10-panel composite tab covering Training, Environments, Evaluation, Optimization, Deployment, Policy Comparison, Model Lineage, Multi-Agent, Reward Decomposition, and RLHF Alignment — currently renders **deterministic synthetic data**. The disclaimer banner at `vibecoder/src/components/composite/RLOSComposite.tsx:19` is honest: numbers are illustrative and do not reflect production runs.
 
 This doc set is the plan to remove that disclaimer panel-by-panel by building a real RL lifecycle stack: persistence, a training executor, real environments, real evaluation, a real model hub, real deployment, and the advanced surfaces (RLHF, MARL, optimization). Each slice ends with one or more panels showing real numbers and the disclaimer text being trimmed to cover only the still-illustrative panels.
 
@@ -67,12 +67,12 @@ After looking at the three credible compute backends, the chosen path is:
 ## Architecture (target state)
 
 ```text
-┌────────────────────── vibeui (Tauri 2 + React) ────────────────────-──┐
+┌────────────────────── vibecoder (Tauri 2 + React) ────────────────────-──┐
 │  RLOSComposite.tsx → 10 panels                                        │
 └───────────────────────────────┬───────────────────────────────────────┘
                                 │ Tauri commands (20)
                                 ▼
-┌────────────── vibeui/src-tauri/src/commands.rs ───────────────────────┐
+┌────────────── vibecoder/src-tauri/src/commands.rs ───────────────────────┐
 │  rl_* command handlers — thin wrappers → daemon HTTP /v1/rl/*         │
 └───────────────────────────────┬───────────────────────────────────────┘
                                 │ HTTP / SSE
@@ -118,10 +118,10 @@ The daemon stays the single source of truth (per CLAUDE.md cross-cutting invaria
 
 | Surface | File | State |
 |---|---|---|
-| Disclaimer banner | `vibeui/src/components/composite/RLOSComposite.tsx:19` | Renders today; gates removal of panel-specific labels |
-| 10 panel components | `vibeui/src/components/RL*.tsx` | Render synthetic data fed by Tauri commands |
-| 20 Tauri commands | `vibeui/src-tauri/src/commands.rs:41688-42029` | All return mock data from `OnceLock<Mutex<Vec<Value>>>` |
-| Tauri registration | `vibeui/src-tauri/src/lib.rs:1526-1545` | All 20 wired in `generate_handler!` |
+| Disclaimer banner | `vibecoder/src/components/composite/RLOSComposite.tsx:19` | Renders today; gates removal of panel-specific labels |
+| 10 panel components | `vibecoder/src/components/RL*.tsx` | Render synthetic data fed by Tauri commands |
+| 20 Tauri commands | `vibecoder/src-tauri/src/commands.rs:41688-42029` | All return mock data from `OnceLock<Mutex<Vec<Value>>>` |
+| Tauri registration | `vibecoder/src-tauri/src/lib.rs:1526-1545` | All 20 wired in `generate_handler!` |
 | `rl_train_os.rs` | `vibecli/vibecli-cli/src/rl_train_os.rs` (3,780 LOC) | Algorithm/config/registry types + ELO + replay-buffer priority math. **No `step` / `forward` / `rollout` functions.** Module declared in `lib.rs:362` but **no callers** |
 | `rl_eval_os.rs` | (3,819 LOC) | Eval suite types, off-policy estimator types, regression-test types. **No execution.** No callers |
 | `rl_env_os.rs` | (4,202 LOC) | Space DSL, env-registry types, version DAG, domain-randomization config. **No env step.** No callers |
@@ -140,12 +140,12 @@ This is a build, not a refactor. The slice docs scope the build.
 
 ## Cross-cutting impact (per CLAUDE.md change-surface checklist)
 
-Per AGENTS.md → Product Matrix, RL-OS is currently a **VibeUI-only** feature. Mobile/watch/VS Code/JetBrains/Neovim plugins do not surface RL-OS panels and do not need to in v1. If we ever expose run-status notifications to mobile, that's a separate slice not in this doc set.
+Per AGENTS.md → Product Matrix, RL-OS is currently a **VibeCoder-only** feature. Mobile/watch/VS Code/JetBrains/Neovim plugins do not surface RL-OS panels and do not need to in v1. If we ever expose run-status notifications to mobile, that's a separate slice not in this doc set.
 
 | Change type (as we ship slices) | Surfaces touched |
 |---|---|
 | New daemon HTTP route (`/v1/rl/*`) | `serve.rs` → Tauri thin wrapper in `commands.rs` → optional doc in `docs/api/` |
-| New Tauri command | `commands.rs` → `generate_handler!` in `vibeui/src-tauri/src/lib.rs` (and `vibeapp/src-tauri/src/lib.rs` if RL is ever surfaced there — currently not) |
+| New Tauri command | `commands.rs` → `generate_handler!` in `vibecoder/src-tauri/src/lib.rs` (and `vibeapp/src-tauri/src/lib.rs` if RL is ever surfaced there — currently not) |
 | New SQL migration | `WorkspaceStore` schema bump + migration test |
 | New Python dependency | `vibe-rl-py/pyproject.toml` + lockfile + `Makefile` install target + CI matrix |
 | Sidecar version bump | `vibe-rl-py/VERSION` + Rust `vibe-rl-sidecar` crate constant + CI integration test |

@@ -7,7 +7,7 @@ permalink: /design-system/components/card/
 {% raw %}
 # Card
 
-Cards group related content into a visually distinct surface. In VibeUI, cards are the primary content container within `panel-body`.
+Cards group related content into a visually distinct surface. In VibeCoder, cards are the primary content container within `panel-body`.
 
 ---
 

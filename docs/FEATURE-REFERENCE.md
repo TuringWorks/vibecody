@@ -9,7 +9,7 @@
 1. [AI Providers](#1-ai-providers)
 2. [Chat & Conversation](#2-chat--conversation)
 3. [Agent System](#3-agent-system)
-4. [Code Editing (VibeUI)](#4-code-editing-vibeui)
+4. [Code Editing (VibeCoder)](#4-code-editing-vibecoder)
 5. [Context & Memory Management](#5-context--memory-management)
 6. [Code Review & Analysis](#6-code-review--analysis)
 7. [Testing & Quality](#7-testing--quality)
@@ -25,7 +25,7 @@
 17. [Deployment & Infrastructure](#17-deployment--infrastructure)
 18. [Daemon & API Mode](#18-daemon--api-mode)
 19. [RL-OS (Advanced Training)](#19-rl-os)
-20. [UI Panels (VibeUI)](#20-ui-panels-vibeui)
+20. [UI Panels (VibeCoder)](#20-ui-panels-vibecoder)
 21. [Advanced Runtime Capabilities (FIT-GAP v12)](#21-advanced-runtime-capabilities-fit-gap-v12)
 22. [Goals — Durable Execution Intent](#22-goals--durable-execution-intent)
 23. [Plugin Governance (signed MCPB bundles)](#23-plugin-governance-signed-mcpb-bundles)
@@ -56,9 +56,9 @@ Chain multiple providers so VibeCLI automatically retries on the next if one fai
 failover_chain = ["claude", "openai", "ollama"]
 ```
 
-### Per-Tab Override (VibeUI)
+### Per-Tab Override (VibeCoder)
 
-Each chat tab in VibeUI has its own provider selector. Changing it marks the tab as "manually overridden" (shown in gold). Resetting follows the top-bar selection.
+Each chat tab in VibeCoder has its own provider selector. Changing it marks the tab as "manually overridden" (shown in gold). Resetting follows the top-bar selection.
 
 ### Resilient Provider
 
@@ -66,7 +66,7 @@ All providers are wrapped with `ResilientProvider` which adds:
 
 - Exponential backoff on transient errors
 - Rate-limit detection and waiting
-- Health score tracking (exposed in VibeUI status bar)
+- Health score tracking (exposed in VibeCoder status bar)
 
 ---
 
@@ -78,7 +78,7 @@ All chat uses token-by-token Server-Sent Events from the Tauri backend. Tokens/s
 
 ### Auto-Compaction
 
-When conversation history exceeds **80,000 characters**, VibeCLI/VibeUI:
+When conversation history exceeds **80,000 characters**, VibeCLI/VibeCoder:
 
 1. Waits for the current response to complete
 2. Calls `summarise_messages` Tauri command on messages before the last 20
@@ -87,7 +87,7 @@ When conversation history exceeds **80,000 characters**, VibeCLI/VibeUI:
 
 Threshold is defined as `COMPACTION_THRESHOLD = 80_000` in `AIChat.tsx`.
 
-### Chat Memory Panel (VibeUI)
+### Chat Memory Panel (VibeCoder)
 
 The collapsible **Memory** strip below each chat tab:
 
@@ -104,7 +104,7 @@ The collapsible **Memory** strip below each chat tab:
 - Restore into a new tab via **Restore** button
 - Manually save at any time with the **Save** button
 
-### Slash Commands (VibeUI)
+### Slash Commands (VibeCoder)
 
 | Command | Behaviour |
 |---|---|
@@ -154,11 +154,11 @@ The `spawn_agent` tool creates child agents. Results are returned to the parent.
 
 ---
 
-## 4. Code Editing (VibeUI)
+## 4. Code Editing (VibeCoder)
 
 ### Monaco Integration
 
-VibeUI uses Monaco Editor with `automaticLayout: true`. File writes from AI are split across two `requestAnimationFrame` callbacks to avoid ResizeObserver / React state race conditions:
+VibeCoder uses Monaco Editor with `automaticLayout: true`. File writes from AI are split across two `requestAnimationFrame` callbacks to avoid ResizeObserver / React state race conditions:
 
 - **Frame 0**: close diff overlay, invoke `write_file`
 - **Frame 1**: show 30-second undo strip (`setLastApply`)
@@ -254,7 +254,7 @@ Key parameters:
 
 **Cross-project Tunnels** — bidirectional weighted waypoints between memories in different project stores. Created manually (`/openmemory tunnel`) or automatically (`/openmemory auto-tunnel [threshold]`).
 
-**LongMemEval benchmark** — built-in recall@K evaluation across 20 probe cases spanning all 5 sectors. Available as `/openmemory benchmark [k]` (REPL), `GET /memory/benchmark?k=5` (HTTP daemon), and in the VibeUI **Drawers** tab.
+**LongMemEval benchmark** — built-in recall@K evaluation across 20 probe cases spanning all 5 sectors. Available as `/openmemory benchmark [k]` (REPL), `GET /memory/benchmark?k=5` (HTTP daemon), and in the VibeCoder **Drawers** tab.
 
 ### VibeMemory — SQLite Vector Store (`vibe-memory/` crate)
 
@@ -284,7 +284,7 @@ Key parameters:
 | `/vibememory/stats` | GET | Store statistics (counts, sizes) |
 | `/vibememory/consolidate` | POST | Apply decay + purge low-salience entries |
 
-**Tauri commands** (VibeUI):
+**Tauri commands** (VibeCoder):
 | Command | Purpose |
 |---------|---------|
 | `vibememory_store` | Store memory entry |
@@ -330,9 +330,9 @@ When editing Rust files, always check for unwrap() calls...
 
 Rules without `path_pattern` always inject. Rules with a pattern only inject when the open file matches.
 
-### `.vibeui.md` (VibeUI-specific)
+### `.vibecoder.md` (VibeCoder-specific)
 
-Place a `.vibeui.md` file in the workspace root. It is injected as `## Project AI Rules` into every AI system prompt, guiding AI-generated code to follow project conventions (e.g., "use the custom Icon system, not lucide-react").
+Place a `.vibecoder.md` file in the workspace root. It is injected as `## Project AI Rules` into every AI system prompt, guiding AI-generated code to follow project conventions (e.g., "use the custom Icon system, not lucide-react").
 
 ### Context Bundles
 
@@ -403,7 +403,7 @@ VibeCLI detects the test framework from the project structure:
 
 ### Coverage
 
-Coverage data is collected per-run and displayed in the VibeUI CoveragePanel as:
+Coverage data is collected per-run and displayed in the VibeCoder CoveragePanel as:
 
 - File-level line coverage percentages
 - Branch coverage
@@ -586,7 +586,7 @@ Token counts are estimated at ~4 chars/token and tracked per:
 
 ### Cost Estimation
 
-Provider-specific pricing tables map (input_tokens, output_tokens) → USD cost. Displayed in the `/cost` command and CostPanel in VibeUI.
+Provider-specific pricing tables map (input_tokens, output_tokens) → USD cost. Displayed in the `/cost` command and CostPanel in VibeCoder.
 
 ### Budget Alerts
 
@@ -632,7 +632,7 @@ command = "pyright-langserver --stdio"
 
 ### Features
 
-All LSP features are surfaced in Monaco (VibeUI) and as structured output in VibeCLI review mode: go-to-definition, find-references, hover, rename, code actions, diagnostics, call hierarchy, workspace symbols.
+All LSP features are surfaced in Monaco (VibeCoder) and as structured output in VibeCLI review mode: go-to-definition, find-references, hover, rename, code actions, diagnostics, call hierarchy, workspace symbols.
 
 ---
 
@@ -669,7 +669,7 @@ vibecli /plugin list                # show loaded plugins
 
 ### CRDT Multiplayer
 
-VibeUI uses CRDTs (Conflict-free Replicated Data Types) for real-time collaborative editing. Multiple users can edit the same file simultaneously with automatic conflict resolution. Presence indicators show remote cursors and selections.
+VibeCoder uses CRDTs (Conflict-free Replicated Data Types) for real-time collaborative editing. Multiple users can edit the same file simultaneously with automatic conflict resolution. Presence indicators show remote cursors and selections.
 
 ### Session Sharing
 
@@ -774,7 +774,7 @@ The Reinforcement Learning Operating System provides end-to-end ML training infr
 
 ---
 
-## 20. UI Panels (VibeUI)
+## 20. UI Panels (VibeCoder)
 
 ### Core Panels
 
@@ -986,8 +986,8 @@ pub struct Goal {
 | Client | What it shipped |
 |---|---|
 | **VibeCLI TUI** | Read-only `Goals` screen — `/goal` from chat opens it; `f` cycles status filter, `j/k` scroll, `r` refresh |
-| **VibeUI** | `GoalPanel` (tab `goals`) — list + detail + status switcher + Generate Plan + Start session + Linked sessions; tree-view toggle; Aggregate recap routed through toolbar `selectedProvider` + `selectedModel` |
-| **VibeUI slash palette + AIChat** | `/goal` opens the panel; `/goal <text>` seeds the New Goal modal |
+| **VibeCoder** | `GoalPanel` (tab `goals`) — list + detail + status switcher + Generate Plan + Start session + Linked sessions; tree-view toggle; Aggregate recap routed through toolbar `selectedProvider` + `selectedModel` |
+| **VibeCoder slash palette + AIChat** | `/goal` opens the panel; `/goal <text>` seeds the New Goal modal |
 | **VibeMobile** | `listGoals`, `getGoal`, `startGoal`, `getGoalTree`, `getCurrentGoal`, `pinGoal`, `unpinGoal` |
 | **Apple Watch** | `loadGoals`, `fetchGoal`, `startGoal` |
 | **Wear OS** | `listGoals`, `getGoal`, `startGoal` + `GoalDetailScreen` + `GoalsTileService` Tile (freshest active goal) |
@@ -997,7 +997,7 @@ pub struct Goal {
 
 ### Why `exec_goal_*`?
 
-VibeUI already has `CompanyGoalsPanel` (company strategy goals via `company_cmd "goal …"`) and `AgilePanel` (sprint goals). The HTTP path stays friendly (`/v1/goals`) but the Rust module is `exec_goal.rs` and the Tauri commands are `exec_goal_*` so future maintainers reading `commands.rs` see no ambiguity.
+VibeCoder already has `CompanyGoalsPanel` (company strategy goals via `company_cmd "goal …"`) and `AgilePanel` (sprint goals). The HTTP path stays friendly (`/v1/goals`) but the Rust module is `exec_goal.rs` and the Tauri commands are `exec_goal_*` so future maintainers reading `commands.rs` see no ambiguity.
 
 ---
 
@@ -1086,9 +1086,9 @@ Atomic: bundle extracts to `.staging.<pid>.<uuid>/`; only renamed into the final
 
 | Surface | Entry point |
 |---|---|
-| **REPL** (today) | Existing `/plugin install <url-or-git>` registry path unchanged. Signed-MCPB install lands via VibeUI panel; REPL parity is a follow-up. |
+| **REPL** (today) | Existing `/plugin install <url-or-git>` registry path unchanged. Signed-MCPB install lands via VibeCoder panel; REPL parity is a follow-up. |
 | **Tauri commands** | `plugin_install_from_file(workspace_path, bundle_path, force)`, `plugin_list_installed(workspace_path)`, `plugin_uninstall(workspace_path, name, is_admin)`, `plugin_get_policy(workspace_path, name)`, `plugin_set_policy(workspace_path, name, policy, is_admin)` — all sensitive-path-gated. |
-| **VibeUI** | `PluginGovernancePanel.tsx` under **Enterprise Governance** → **Plugin Governance**. Install form + per-plugin row with publisher fingerprint + policy buttons + Uninstall. |
+| **VibeCoder** | `PluginGovernancePanel.tsx` under **Enterprise Governance** → **Plugin Governance**. Install form + per-plugin row with publisher fingerprint + policy buttons + Uninstall. |
 | **MCP** | `list_skills` / `get_skill` already return enabled-plugin skills alongside built-ins, tagged with provenance: `{"kind": "builtin"}` or `{"kind": "plugin", "plugin": "<name>"}`. |
 
 ### Patent-distance anchors (fit-gap §18)
@@ -1107,7 +1107,7 @@ Atomic: bundle extracts to `.staging.<pid>.<uuid>/`; only renamed into the final
 | `workspace_store.rs::plugin_*` (B2.3) | `plugin_policies` table + Required-pin guard |
 | `plugin_install.rs` (B2.4) | Atomic install / list / uninstall |
 | `plugin_runtime.rs` (B2.5) | Policy-filtered component enumeration |
-| `PluginGovernancePanel.tsx` + 5 Tauri commands (B2.6) | VibeUI surface |
+| `PluginGovernancePanel.tsx` + 5 Tauri commands (B2.6) | VibeCoder surface |
 | `skill_catalog.rs::load_from_with_plugins` (B2.7) | First per-loader activation; `mcp_server.rs` consumes it |
 | `mcp_governance::register_plugin_servers` (B2.8) | MCP-server components registered as `plugin:<plugin>:<component>` |
 | `plugin_install::install_from_url` (B2.12) | HTTPS install (`vibecli plugin install <https://…>`), 60 s timeout, 50 MB cap |

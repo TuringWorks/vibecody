@@ -4,7 +4,7 @@ title: Agent Panel
 permalink: /agent-panel/
 ---
 
-The Agent Panel is the core "describe a task, the agent plans and executes it" surface in VibeUI/VibeApp. It owns the agent loop UX — prompt, plan, tool calls, approval gates, partial-completion checkpoints, and parallel-chunk execution via git-worktree isolation.
+The Agent Panel is the core "describe a task, the agent plans and executes it" surface in VibeCoder/VibeApp. It owns the agent loop UX — prompt, plan, tool calls, approval gates, partial-completion checkpoints, and parallel-chunk execution via git-worktree isolation.
 
 This page covers the desktop panel. The chat-tab side of agent invocation (per-tab agent loop toggle) is documented in [`docs/chat-tabs`](./chat-tabs.md). The cross-cutting agent runtime lives in `crates/vibe-ai/src/agent_loop.rs`.
 
@@ -125,7 +125,7 @@ INFO vibecody::agent: agent.task.stop was_running=true
 
 | Client | Agent UI |
 |---|---|
-| **VibeUI / VibeApp** | Full panel |
+| **VibeCoder / VibeApp** | Full panel |
 | **VibeMobile** | Single-task agent screen, no parallel mode |
 | **VibeWatch** | Active-agent indicator; can stop but not start |
 | **IDE plugins** | Implicit — extensions invoke the agent via `start_agent_task` directly |
@@ -162,6 +162,6 @@ After a `write_file` step, the panel auto-runs a linter against the changed file
 ## Related
 
 - **Agent runtime:** `crates/vibe-ai/src/agent_loop.rs` — the core loop (Plan → Act → Verify → Done)
-- **Source:** `vibeui/src/components/AgentPanel.tsx` (~750 LOC) · backend `vibeui/src-tauri/src/commands.rs` (`start_agent_task`, `stop_agent_task`, `respond_to_agent_approval`, `resume_agent_task`)
-- **Tests:** `vibeui/src/components/__tests__/AgentPanel.bdd.test.tsx` (25 BDD scenarios)
+- **Source:** `vibecoder/src/components/AgentPanel.tsx` (~750 LOC) · backend `vibecoder/src-tauri/src/commands.rs` (`start_agent_task`, `stop_agent_task`, `respond_to_agent_approval`, `resume_agent_task`)
+- **Tests:** `vibecoder/src/components/__tests__/AgentPanel.bdd.test.tsx` (25 BDD scenarios)
 - **Sandbox:** [`docs/sandbox`](./sandbox.md) — every agent shell tool call goes through the Tier-0 sandbox

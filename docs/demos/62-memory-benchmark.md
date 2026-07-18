@@ -151,9 +151,9 @@ Plot the log to see recall trend over time as your store grows.
 
 ---
 
-## VibeUI: Benchmark Runner (Drawers Tab)
+## VibeCoder: Benchmark Runner (Drawers Tab)
 
-The VibeUI **OpenMemory** panel → **Drawers** tab includes a live benchmark runner at the bottom.
+The VibeCoder **OpenMemory** panel → **Drawers** tab includes a live benchmark runner at the bottom.
 
 ### Running the benchmark
 
@@ -195,7 +195,7 @@ After running the benchmark, if the score is below your target:
 {
   "meta": {
     "title": "Memory Benchmarking — LongMemEval Recall@K",
-    "description": "Run the built-in LongMemEval benchmark in CLI and VibeUI, interpret results, and iterate to reach 100% combined recall.",
+    "description": "Run the built-in LongMemEval benchmark in CLI and VibeCoder, interpret results, and iterate to reach 100% combined recall.",
     "duration_seconds": 180,
     "version": "1.0.0"
   },
@@ -228,10 +228,10 @@ After running the benchmark, if the score is below your target:
     },
     {
       "id": 4,
-      "action": "vibeui",
+      "action": "vibecoder",
       "panel": "OpenMemory",
       "tab": "Drawers",
-      "description": "Open the Drawers tab in VibeUI — same benchmark runner with animated gauges"
+      "description": "Open the Drawers tab in VibeCoder — same benchmark runner with animated gauges"
     }
   ]
 }

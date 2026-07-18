@@ -20,8 +20,8 @@ This PDM vault contains deep competitive UI analyses and a product specification
 | 02 | [Claude Code UI Analysis](02-claude-code-ui-analysis.md) | Claude Code — conversation-native, terminal-first paradigm |
 | 03 | [Cursor / Antigravity Analysis](03-cursor-antigravity-analysis.md) | Cursor 4.0 & Antigravity 2.0 — editor-native, progressive disclosure |
 | 04 | [Additional Tools Analysis](04-additional-tools-analysis.md) | Windsurf, Augment, Aider, Cline, Devin — cross-pattern synthesis |
-| 05 | [VibeCody UI Assessment](05-vibecody-ui-assessment.md) | Current-state assessment of VibeUI — strengths, weaknesses, gaps |
-| 06 | [VibeUI v2 Specification](06-vibecody-ui-v2-specification.md) | Product specification for project-first, sandbox-chat-centric redesign |
+| 05 | [VibeCody UI Assessment](05-vibecody-ui-assessment.md) | Current-state assessment of VibeCoder — strengths, weaknesses, gaps |
+| 06 | [VibeCoder v2 Specification](06-vibecody-ui-v2-specification.md) | Product specification for project-first, sandbox-chat-centric redesign |
 
 ---
 

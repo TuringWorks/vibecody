@@ -17,7 +17,7 @@ VibeCody integrates defensive security (Blue Team) and adversarial validation (P
 
 - VibeCLI v0.5.1 installed and on your PATH
 - At least one AI provider configured
-- (Optional) VibeUI running with the **BlueTeam** and **PurpleTeam** panels visible
+- (Optional) VibeCoder running with the **BlueTeam** and **PurpleTeam** panels visible
 - (Optional) A SIEM platform for export testing (Splunk, Elastic, etc.)
 
 ## Step-by-Step Walkthrough
@@ -231,9 +231,9 @@ Top 3 Gaps:
   3. Resource Development (50% uncovered) - 2 techniques need rules
 ```
 
-### Step 6: View in VibeUI
+### Step 6: View in VibeCoder
 
-Open VibeUI and navigate to the **BlueTeam** panel. The panel has 7 tabs:
+Open VibeCoder and navigate to the **BlueTeam** panel. The panel has 7 tabs:
 
 - **Incidents** -- List, create, and manage security incidents with status tracking
 - **IOCs** -- Browse indicators of compromise with type filters
@@ -279,14 +279,14 @@ Switch to the **PurpleTeam** panel with 5 tabs:
     },
     {
       "id": 2,
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "BlueTeam",
       "tab": "Incidents",
       "description": "View and manage security incidents"
     },
     {
       "id": 3,
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "PurpleTeam",
       "tab": "Coverage",
       "description": "View ATT&CK coverage heatmap"

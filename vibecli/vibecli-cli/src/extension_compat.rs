@@ -1,7 +1,7 @@
 //! VS Code extension compatibility layer for VibeCody.
 //!
 //! Loads a subset of VS Code extensions (TextMate grammars, themes, snippets,
-//! language configurations) in VibeUI alongside native WASM extensions. Closes
+//! language configurations) in VibeCoder alongside native WASM extensions. Closes
 //! the gap vs Trae/PearAI which run standard `.vsix` extensions.
 //!
 //! REPL commands: `/extension search|install|uninstall|list|enable|disable|theme`

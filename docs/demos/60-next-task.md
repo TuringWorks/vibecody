@@ -18,7 +18,7 @@ VibeCody's NextTask module uses a workflow state machine and intent inference to
 - VibeCLI v0.5.1 installed and on your PATH
 - At least one AI provider configured
 - An active project with recent activity (file edits, git commits, test runs)
-- (Optional) VibeUI running with the **NextTask** panel visible
+- (Optional) VibeCoder running with the **NextTask** panel visible
 
 ## How It Works
 
@@ -247,9 +247,9 @@ Model reset. NextTask will start with default heuristics and learn
 from your new activity.
 ```
 
-### Step 7: View in VibeUI
+### Step 7: View in VibeCoder
 
-Open VibeUI and navigate to the **NextTask** panel. The panel provides:
+Open VibeCoder and navigate to the **NextTask** panel. The panel provides:
 
 - **Suggestion** -- Current suggestion with accept/reject buttons and confidence gauge
 - **Timeline** -- Visual timeline of recent state transitions
@@ -285,14 +285,14 @@ Open VibeUI and navigate to the **NextTask** panel. The panel provides:
     },
     {
       "id": 2,
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "NextTask",
       "tab": "Patterns",
       "description": "View learned workflow patterns as a heatmap"
     },
     {
       "id": 3,
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "NextTask",
       "tab": "Stats",
       "description": "View accuracy trend and learning progress"

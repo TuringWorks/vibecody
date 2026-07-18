@@ -5,7 +5,7 @@ title: Panel — Design System
 permalink: /design-system/components/panel/
 ---
 
-The Panel is the core layout primitive in VibeUI. Every panel component must follow this structure. It ensures correct height filling inside Tauri's WebKit renderer and consistent visual framing.
+The Panel is the core layout primitive in VibeCoder. Every panel component must follow this structure. It ensures correct height filling inside Tauri's WebKit renderer and consistent visual framing.
 
 ---
 
@@ -88,7 +88,7 @@ The Panel is the core layout primitive in VibeUI. Every panel component must fol
 
 ## The Height Rule
 
-**The single most important rule in VibeUI panels:**
+**The single most important rule in VibeCoder panels:**
 
 ```tsx
 // CORRECT — fills flex parent properly

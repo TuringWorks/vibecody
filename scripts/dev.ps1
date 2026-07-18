@@ -48,7 +48,7 @@ Usage: scripts\dev.ps1 <target>
 Development:
   cli           Build VibeCLI release binary -> target\release\vibecli.exe
   cli-run       Build and run VibeCLI with TUI
-  ui            Run VibeUI in dev mode (Vite + Tauri)
+  ui            Run VibeCoder in dev mode (Vite + Tauri)
   app           Run VibeCLI App in dev mode
 
 Quality:
@@ -65,8 +65,8 @@ Testing:
   test-core     cargo test -p vibe-core
 
 Building:
-  build         CLI + VibeUI + VibeCLI App (release)
-  build-ui      VibeUI production bundle
+  build         CLI + VibeCoder + VibeCLI App (release)
+  build-ui      VibeCoder production bundle
   build-app     VibeCLI App production bundle
 
 Cleanup:
@@ -95,17 +95,17 @@ switch ($Target) {
 
     'cli-run'   { Invoke-Step 'cargo run vibecli --tui' { cargo run --release -p vibecli -- --tui } }
 
-    'ui'        { In-Subdir 'vibeui'  { Invoke-Step 'vibeui tauri:dev'  { npm run tauri:dev } } }
+    'ui'        { In-Subdir 'vibecoder'  { Invoke-Step 'vibecoder tauri:dev'  { npm run tauri:dev } } }
     'app'       { In-Subdir 'vibeapp' { Invoke-Step 'vibeapp tauri:dev' { npm run tauri:dev } } }
 
     'check' {
         Invoke-Step 'cargo check' { cargo check --workspace --exclude vibe-collab }
-        In-Subdir 'vibeui' { Invoke-Step 'vibeui tsc' { npx tsc --noEmit } }
+        In-Subdir 'vibecoder' { Invoke-Step 'vibecoder tsc' { npx tsc --noEmit } }
     }
 
     'lint' {
         Invoke-Step 'cargo clippy' { cargo clippy --workspace --exclude vibe-collab -- -D warnings }
-        In-Subdir 'vibeui' { Invoke-Step 'vibeui tsc' { npx tsc --noEmit } }
+        In-Subdir 'vibecoder' { Invoke-Step 'vibecoder tsc' { npx tsc --noEmit } }
     }
 
     'fmt'        { Invoke-Step 'cargo fmt'       { cargo fmt --all } }
@@ -119,17 +119,17 @@ switch ($Target) {
 
     'build' {
         Invoke-Step 'cargo build vibecli' { cargo build --release -p vibecli }
-        In-Subdir 'vibeui'  { Invoke-Step 'vibeui tauri:build'  { npm run tauri:build } }
+        In-Subdir 'vibecoder'  { Invoke-Step 'vibecoder tauri:build'  { npm run tauri:build } }
         In-Subdir 'vibeapp' { Invoke-Step 'vibeapp tauri:build' { npm run tauri:build } }
     }
-    'build-ui'   { In-Subdir 'vibeui'  { Invoke-Step 'vibeui tauri:build'  { npm run tauri:build } } }
+    'build-ui'   { In-Subdir 'vibecoder'  { Invoke-Step 'vibecoder tauri:build'  { npm run tauri:build } } }
     'build-app'  { In-Subdir 'vibeapp' { Invoke-Step 'vibeapp tauri:build' { npm run tauri:build } } }
 
     'clean' {
         Invoke-Step 'cargo clean' { cargo clean }
         $paths = @(
-            'vibeui\dist',
-            'vibeui\node_modules\.vite',
+            'vibecoder\dist',
+            'vibecoder\node_modules\.vite',
             'vibeapp\dist',
             'vibeapp\node_modules\.vite'
         )

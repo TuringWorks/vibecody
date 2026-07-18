@@ -18,7 +18,7 @@ The Background Jobs panel is VibeCody's queued-work surface. It's wired around t
 
 ### From the panel
 
-VibeUI → **Background Jobs** tab → enter a task description → choose provider/model → **Submit**. The job lands as Queued, transitions to Running when the worker picks it up, and finishes Complete / Failed / Cancelled.
+VibeCoder → **Background Jobs** tab → enter a task description → choose provider/model → **Submit**. The job lands as Queued, transitions to Running when the worker picks it up, and finishes Complete / Failed / Cancelled.
 
 ### From the CLI
 
@@ -295,7 +295,7 @@ Job *content* (the task text, agent messages, tool outputs) is never logged at a
 
 | Client | Background-jobs surface |
 |---|---|
-| **VibeUI (desktop)** | Full panel: submit, list, stream, cancel, recap on completion |
+| **VibeCoder (desktop)** | Full panel: submit, list, stream, cancel, recap on completion |
 | **VibeCLI** | `vibecli jobs submit / list / cancel` (REPL + script) |
 | **VibeMobile** | Full read + cancel (M2 — read jobs, watch live events, tap to cancel; M3 will add submit) |
 | **VibeWatch** | Read-only glances of running + recently-finished jobs |
@@ -310,4 +310,4 @@ The daemon is the source of truth. Every client reads from `/jobs` or writes to 
 
 - **Design doc:** [`docs/design/recap-resume/02-job.md`](https://github.com/TuringWorks/vibecody/blob/main/docs/design/recap-resume/02-job.md) — Job recap shape + resume semantics (J1.x slices).
 - **Recap & Resume:** [`/recap/`](../recap/) — How job recaps fit into the broader recap system.
-- **Source:** `vibecli/vibecli-cli/src/job_manager.rs` (backend) · `vibeui/src/components/BackgroundJobsPanel.tsx` (UI).
+- **Source:** `vibecli/vibecli-cli/src/job_manager.rs` (backend) · `vibecoder/src/components/BackgroundJobsPanel.tsx` (UI).

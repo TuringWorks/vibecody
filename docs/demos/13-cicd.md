@@ -9,7 +9,7 @@ parent: Demos
 
 ## Overview
 
-This demo covers VibeCody's CI/CD integration, which brings pipeline visibility directly into your development workflow. You will learn how to monitor GitHub Actions pipelines, view build logs, trigger workflows, and use the GH Actions agent for automated workflow debugging -- all from the CLI and VibeUI.
+This demo covers VibeCody's CI/CD integration, which brings pipeline visibility directly into your development workflow. You will learn how to monitor GitHub Actions pipelines, view build logs, trigger workflows, and use the GH Actions agent for automated workflow debugging -- all from the CLI and VibeCoder.
 
 **Time to complete:** ~15 minutes
 
@@ -18,7 +18,7 @@ This demo covers VibeCody's CI/CD integration, which brings pipeline visibility 
 - VibeCLI installed and configured ([Demo 1](../01-first-run/))
 - A GitHub repository with at least one GitHub Actions workflow
 - A GitHub personal access token with `repo` and `workflow` scopes
-- (Optional) VibeUI for the desktop panel experience
+- (Optional) VibeCoder for the desktop panel experience
 
 ### GitHub Token Setup
 
@@ -248,12 +248,12 @@ Update `tests/fixtures/test_token.json` with a fresh token or use
 a time-independent mock.
 ```
 
-### Step 8: Use the CI/CD panel in VibeUI
+### Step 8: Use the CI/CD panel in VibeCoder
 
-Open VibeUI and navigate to the **CI/CD** panel in the left sidebar.
+Open VibeCoder and navigate to the **CI/CD** panel in the left sidebar.
 
 ```bash
-cd vibeui && npm run tauri dev
+cd vibecoder && npm run tauri dev
 ```
 
 The CI/CD panel provides four views:
@@ -290,7 +290,7 @@ slack_webhook = "https://hooks.slack.com/services/T.../B.../..."
 {
   "meta": {
     "title": "CI/CD Pipeline Integration",
-    "description": "Monitor GitHub Actions pipelines, view logs, debug failures, and use the CI review bot from VibeCLI and VibeUI.",
+    "description": "Monitor GitHub Actions pipelines, view logs, debug failures, and use the CI review bot from VibeCLI and VibeCoder.",
     "duration_seconds": 300,
     "version": "1.0.0"
   },
@@ -354,15 +354,15 @@ slack_webhook = "https://hooks.slack.com/services/T.../B.../..."
     {
       "id": 8,
       "action": "shell",
-      "command": "cd vibeui && npm run tauri dev",
-      "description": "Launch VibeUI to explore the CI/CD panel",
+      "command": "cd vibecoder && npm run tauri dev",
+      "description": "Launch VibeCoder to explore the CI/CD panel",
       "delay_ms": 8000
     },
     {
       "id": 9,
       "action": "Navigate",
       "target": "panel://cicd",
-      "description": "Open the CI/CD panel in VibeUI"
+      "description": "Open the CI/CD panel in VibeCoder"
     },
     {
       "id": 10,

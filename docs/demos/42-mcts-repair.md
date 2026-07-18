@@ -18,7 +18,7 @@ This demo walks through diagnosing a failing test with MCTS repair, comparing it
 - VibeCLI 0.5.1 installed and on your PATH
 - At least one AI provider configured (Claude, OpenAI, or Ollama)
 - A project with a test suite that can be run via `cargo test`, `pytest`, `npm test`, or similar
-- For VibeUI: the desktop app running with the **MctsRepairPanel** visible
+- For VibeCoder: the desktop app running with the **MctsRepairPanel** visible
 
 ## How MCTS Repair Works
 
@@ -221,9 +221,9 @@ Average cost per issue:  $0.013
 Average nodes explored:  6.0
 ```
 
-### Step 7: Use MCTS repair in VibeUI
+### Step 7: Use MCTS repair in VibeCoder
 
-In the VibeUI desktop app, open the **MctsRepairPanel** from the AI sidebar. The panel provides:
+In the VibeCoder desktop app, open the **MctsRepairPanel** from the AI sidebar. The panel provides:
 
 - **Tree Visualizer** -- Interactive tree diagram showing explored nodes, win rates, and the winning path highlighted in green
 - **Live Simulation** -- Watch test results stream in as each candidate fix is evaluated

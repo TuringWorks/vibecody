@@ -10,7 +10,7 @@ parent: Demos
 
 VibeCody discovers peers and exposes its daemon without manual port-forwarding or config files. Two mechanisms work in tandem:
 
-- **mDNS LAN discovery** — broadcast `_vibecli._tcp` on the local network so other VibeCLI instances and the VibeUI desktop app find each other instantly
+- **mDNS LAN discovery** — broadcast `_vibecli._tcp` on the local network so other VibeCLI instances and the VibeCoder desktop app find each other instantly
 - **ngrok auto-detection** — if `ngrok` is running, VibeCLI reads the tunnel URL from the ngrok API and announces it so remote collaborators can connect
 
 ---
@@ -46,7 +46,7 @@ Port         : 7860 (configurable)
 TXT records  : version=<semver>, agent=<agent-name>
 ```
 
-The VibeUI desktop app listens for these announcements and populates the "Local Peers" panel automatically.
+The VibeCoder desktop app listens for these announcements and populates the "Local Peers" panel automatically.
 
 ---
 
@@ -97,16 +97,16 @@ The `tailscale` module integrates with `mdns_announce` — the Funnel URL is add
 
 ---
 
-## VibeUI Auto-Connect
+## VibeCoder Auto-Connect
 
-When the VibeUI desktop app starts, it:
+When the VibeCoder desktop app starts, it:
 
 1. Listens for `_vibecli._tcp` mDNS announcements
 2. Checks the ngrok TXT record on discovered peers
 3. Connects to the first healthy peer (ping < 100ms)
 4. Falls back to `http://127.0.0.1:7860` if no peers found
 
-This means opening VibeUI on a machine where VibeCLI is already running connects them automatically — no configuration needed.
+This means opening VibeCoder on a machine where VibeCLI is already running connects them automatically — no configuration needed.
 
 ---
 

@@ -112,7 +112,7 @@
   <rect x="30" y="410" width="820" height="104" rx="8" fill="#1a0a28" stroke="#9b59b6" stroke-width="1.5" filter="url(#shadow)"/>
   <rect x="30" y="410" width="820" height="22" rx="8" fill="#9b59b6" opacity="0.12"/>
   <text x="50" y="426" fill="#9b59b6" font-size="13" font-weight="700">Layer 4 — WASM Extensions</text>
-  <text x="310" y="426" fill="#6a3a8a" font-size="10">Sandboxed modules for the VibeUI desktop app</text>
+  <text x="310" y="426" fill="#6a3a8a" font-size="10">Sandboxed modules for the VibeCoder desktop app</text>
 
   <rect x="50" y="440" width="175" height="60" rx="6" fill="#1a1030" stroke="#9b59b6" stroke-width="0.8"/>
   <text x="138" y="457" text-anchor="middle" fill="#c090e0" font-size="10" font-weight="600">Runtime</text>
@@ -131,7 +131,7 @@
 
   <rect x="620" y="440" width="215" height="60" rx="6" fill="#1a1030" stroke="#9b59b6" stroke-width="0.8"/>
   <text x="728" y="457" text-anchor="middle" fill="#c090e0" font-size="10" font-weight="600">Integration</text>
-  <text x="728" y="472" text-anchor="middle" fill="#806098" font-size="8">Loaded by VibeUI desktop</text>
+  <text x="728" y="472" text-anchor="middle" fill="#806098" font-size="8">Loaded by VibeCoder desktop</text>
   <text x="728" y="484" text-anchor="middle" fill="#806098" font-size="8">vibe-extensions crate</text>
 
   <!-- ═══════════ LAYER 5: MCP/ACP ═══════════ -->
@@ -223,7 +223,7 @@
   <text x="928" y="473" fill="#3498db" font-size="8">vibecli/src/plugins.rs</text>
 
   <circle cx="918" cy="490" r="4" fill="#9b59b6"/>
-  <text x="928" y="493" fill="#9b59b6" font-size="8">vibeui/crates/vibe-extensions/</text>
+  <text x="928" y="493" fill="#9b59b6" font-size="8">vibecoder/crates/vibe-extensions/</text>
 
   <circle cx="918" cy="510" r="4" fill="#e74c3c"/>
   <text x="928" y="513" fill="#e74c3c" font-size="8">vibecli/src/mcp_lazy.rs</text>

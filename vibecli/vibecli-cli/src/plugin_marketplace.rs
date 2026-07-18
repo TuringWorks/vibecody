@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 //! Plugin marketplace — discovery, metadata, and installation management for
-//! WASM-based VibeUI extensions. Extends the existing `vibe-extensions` system.
+//! WASM-based VibeCoder extensions. Extends the existing `vibe-extensions` system.
 //!
 //! Features:
 //! - `PluginManifest` with semver, capabilities, permissions

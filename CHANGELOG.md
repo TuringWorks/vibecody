@@ -13,7 +13,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- **VibeUI editor stuck on "Loading…"** — `@monaco-editor/react` was loading the Monaco engine from a `cdn.jsdelivr.net` script blocked by the Tauri CSP (`script-src 'self'`), so the editor never mounted for any file. Monaco and its web workers now ship in the app bundle (`loader.config({ monaco })` + Vite `?worker` imports).
+- **VibeCoder editor stuck on "Loading…"** — `@monaco-editor/react` was loading the Monaco engine from a `cdn.jsdelivr.net` script blocked by the Tauri CSP (`script-src 'self'`), so the editor never mounted for any file. Monaco and its web workers now ship in the app bundle (`loader.config({ monaco })` + Vite `?worker` imports).
 - **Ollama Cloud models missing from the model dropdown** — the registry now unconditionally unions cloud + locally-pulled + the full static catalog (deduped), so `*-cloud` entries always appear regardless of whether `ollama serve` is running; the model-registry cache key is versioned so a stale cache no longer hides newly-added models for up to its TTL.
 
 ## [0.5.5] — 2026-04-17
@@ -24,14 +24,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Wear OS client** (Kotlin / Jetpack Compose, Wear OS 3+) — native `VibeCodyWear` app with identical feature set; signs with Android Keystore / StrongBox-backed P-256.
 - **`/watch/*` backend** — Axum routes shared by both clients: `/watch/pair/challenge`, `/watch/pair/confirm`, `/watch/sessions`, `/watch/sessions/{id}/stream`, `/watch/sessions/{id}/reply`. New crates/modules: `watch_auth.rs`, `watch_bridge.rs`, `watch_session_relay.rs`.
 - **P-256 ECDSA (secp256r1) device pairing** — replaces Ed25519 for Secure Enclave compatibility. 64-byte raw public key; signature over `SHA-256(nonce ‖ device_id ‖ issued_at_be)`.
-- **URL-only / Bearer pairing on every platform** — manual pairing works without QR codes or JSON clipboard. Emulator-friendly path exposes a dedicated "Paste URL + Bearer" affordance in VibeUI, VibeMobile, VibeWatch.
+- **URL-only / Bearer pairing on every platform** — manual pairing works without QR codes or JSON clipboard. Emulator-friendly path exposes a dedicated "Paste URL + Bearer" affordance in VibeCoder, VibeMobile, VibeWatch.
 - **mDNS LAN discovery** (`_vibecli._tcp.local.`) — zero-config host advertisement; mobile/watch clients join on any IP range. New `mdns_announce.rs` + BDD harness.
 - **Tailscale Funnel support** — automatic tailscale detection; optionally opens a public HTTPS funnel URL and prints the join link. New `tailscale.rs` + BDD harness.
 - **ngrok integration** — auto-detects an existing tunnel; opt-in auto-start flag creates one. New `ngrok.rs` + BDD harness.
-- **Apple-Handoff-style session continuity** — sessions are advertised to paired devices in real time; VibeUI auto-switches to the Sandbox tab when a watch opens a sandbox session; VibeMobile shows a Handoff banner.
+- **Apple-Handoff-style session continuity** — sessions are advertised to paired devices in real time; VibeCoder auto-switches to the Sandbox tab when a watch opens a sandbox session; VibeMobile shows a Handoff banner.
 - **Google-Docs-style real-time sync** — ID-based message reconciliation with a content-window dedup filter; watch, phone, and desktop keep identical transcripts with no 80/512-char truncation.
-- **Watch Devices panel** (VibeUI → `Governance → Watch Devices`) — approve, rename, or revoke paired watches and phones.
-- **VibeWatch release artifacts** — CI now produces `VibeCodyWatch-watchOS.app.zip` (unsigned, Xcode-sideload) and `VibeCodyWear-wearos.apk` / `.aab` alongside the existing CLI / VibeUI / VibeCLI App / iOS / Android / Docker bundles.
+- **Watch Devices panel** (VibeCoder → `Governance → Watch Devices`) — approve, rename, or revoke paired watches and phones.
+- **VibeWatch release artifacts** — CI now produces `VibeCodyWatch-watchOS.app.zip` (unsigned, Xcode-sideload) and `VibeCodyWear-wearos.apk` / `.aab` alongside the existing CLI / VibeCoder / VibeCLI App / iOS / Android / Docker bundles.
 - **Makefile targets** — `make build-watch`, `make watch-ios`, `make watch-ios-archive`, `make watch-wear`, `make watch-wear-bundle`, `make build-all` (desktop + mobile + watch).
 
 ### Fixed
@@ -45,7 +45,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Pairing signature algorithm** — migrated from Ed25519 to P-256 ECDSA project-wide. Any previously-paired device must re-pair; new key material is generated in-place on first use of the v0.5.5 clients.
 - **Watch / phone auth** — JWT (HS256) issued on successful attestation, 32-byte secret stored in `ProfileStore`, 30-day default TTL.
 - **CI pipeline** — new matrix rows for `watchOS` (macOS runners) and `wearOS` (Linux runners with Android SDK). SHA-256 checksums now include the 3 new watch artifacts.
-- Version bumped to 0.5.5 across all manifests (Cargo, `vibeui`, `vibeapp`, `vibemobile`, `vibewatch/VibeCodyWatch`, `vibewatch/VibeCodyWear`).
+- Version bumped to 0.5.5 across all manifests (Cargo, `vibecoder`, `vibeapp`, `vibemobile`, `vibewatch/VibeCodyWatch`, `vibewatch/VibeCodyWear`).
 
 ---
 
@@ -71,7 +71,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **LSP invoke params** — fixed snake_case to camelCase field names (textDocument, triggerKind) for hover, completion, and goto-definition.
 - **Diff review toolbar** — thinner (28px), outlined ghost buttons matching app theme, visible text with ellipsis.
 - **Tool call card icons** — replaced emoji (📝✅❌) with thin-line SVG icons using CSS variables for theme consistency.
-- **VibeUI chat prompt parity** — added behavioral guidelines (read before modify, minimize files, security-first, one file per response) to match TOOL_SYSTEM_PROMPT.
+- **VibeCoder chat prompt parity** — added behavioral guidelines (read before modify, minimize files, security-first, one file per response) to match TOOL_SYSTEM_PROMPT.
 
 ### Changed
 
@@ -88,9 +88,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
-- **Document & Media Viewers** — new DocumentViewer, ImageViewer, HtmlPreview, and DrawioPreview components for VibeUI with full CSS styling and test coverage.
+- **Document & Media Viewers** — new DocumentViewer, ImageViewer, HtmlPreview, and DrawioPreview components for VibeCoder with full CSS styling and test coverage.
 - **Per-Provider Model Lists** — Vibe App settings now show provider-appropriate models (Claude, OpenAI, Gemini, Grok) with auto-selection on provider change; Ollama uses live-discovered models from the daemon.
-- **RL-OS Core Modules** — 8 core modules (EnvOS, TrainOS, EvalOS, OptiOS, ModelHub, ServeOS, RLHF, MultiAgent) with 660 tests, 10 VibeUI panels, and 20 wired Tauri commands.
+- **RL-OS Core Modules** — 8 core modules (EnvOS, TrainOS, EvalOS, OptiOS, ModelHub, ServeOS, RLHF, MultiAgent) with 660 tests, 10 VibeCoder panels, and 20 wired Tauri commands.
 - **Sketch Canvas** — working drawing support with Move tool, inline text editing, SVG/PNG export, shape recognition, and code generation.
 - **Training Run Wizard** — step-by-step setup wizard for RL training runs in the Training Dashboard.
 
@@ -100,17 +100,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Vibe App: Duplicate Streaming Text** — async Tauri event listeners now guarded against React StrictMode double-mount race condition.
 - **Vibe App: Response Never Completing** — added fallback completion event when agent exits without explicit Complete/Error signal.
 - **Vibe App: Stale Model/Token** — `useCallback` dependencies now include `selectedModel` and `daemonToken`.
-- **Vibe App: Window Icon** — replaced default Tauri icon with VibeUI icon; set programmatically via `window.set_icon()` for dev + production.
+- **Vibe App: Window Icon** — replaced default Tauri icon with VibeCoder icon; set programmatically via `window.set_icon()` for dev + production.
 - **Ollama Model List Slow/Missing** — removed per-model chat probe (up to 65s for 13 models); replaced with instant name-based filter.
 - **Monaco Crash on Apply All** — editor kept always mounted to prevent disposal crash.
 - **Terminal Input & Editor Apply Crash** — fixed terminal input handling and model selector UX.
 - **Chat Message Loss** — resolved message persistence and improved Ollama streaming reliability.
 - **RLMultiAgentView Crash** — added name fallback and complete backend data.
-- **VibeUI Panel Bugs** — TLS Inspector URL handling, Design Mode preview, Screenshot to App provider selection, file explorer refresh, Fast Context theming, SemanticIndexPanel crash.
+- **VibeCoder Panel Bugs** — TLS Inspector URL handling, Design Mode preview, Screenshot to App provider selection, file explorer refresh, Fast Context theming, SemanticIndexPanel crash.
 
 ### Changed
 
-- **Agent Identity** — renamed from "VibeCLI" to "Vibe Agent" across all system prompts (TOOL_SYSTEM_PROMPT, VibeUI chat, gateway bots).
+- **Agent Identity** — renamed from "VibeCLI" to "Vibe Agent" across all system prompts (TOOL_SYSTEM_PROMPT, VibeCoder chat, gateway bots).
 - Version bumped to 0.5.3 across all manifests.
 - RL-OS composite panels registered in panel host, tab groups, and search.
 - Distillation tab moved from Code Analysis to AI/ML composite.
@@ -141,7 +141,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Phase 32 P0** — context_protocol, code_review_agent, diff_review, code_replay, speculative_exec, explainable_agent.
 - **TurboQuant KV-Cache** — PolarQuant + QJL (~3 bits/dim) for vector DB integration with panel + REPL benchmark.
 - **FIT-GAP Code Review Architecture** comparison across 12+ competitors.
-- 3 VibeUI composite panels (ArchitectureComposite, CodeAnalysisComposite), 7 skill files.
+- 3 VibeCoder composite panels (ArchitectureComposite, CodeAnalysisComposite), 7 skill files.
 - 10 new Tauri commands for Phase 32 P1 modules.
 - VibeCody vs OpenClaw whitepaper.
 - Demo guides 36-60.
@@ -154,7 +154,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - Tests: ~10,535 (0 failures).
-- VibeUI panels: 196+.
+- VibeCoder panels: 196+.
 - REPL commands: 106+ with subcommands.
 - Rust modules: 196+ in vibecli-cli/src/.
 - Skill files: ~550.
@@ -350,7 +350,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Performance Benchmarks
 
-- **Criterion benchmark suite** for vibe-core hot paths (`vibeui/crates/vibe-core/benches/index_bench.rs`):
+- **Criterion benchmark suite** for vibe-core hot paths (`vibecoder/crates/vibe-core/benches/index_bench.rs`):
   - `cosine_similarity` (384d ~363ns, 1536d ~1.2µs, 1000-vector batch ~311µs)
   - `extract_symbols` (50 fns ~1.7ms, 500 fns ~2.4ms)
   - `index_build` (100 files ~1.1ms)
@@ -428,7 +428,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `chat:chunk` (each token as it arrives), `chat:complete` (full `ChatResponse` with tool-call
   processing), and `chat:error`. Any previously running chat stream is automatically cancelled
   before starting a new one. `ChatResponse` gained `#[derive(Clone)]` to satisfy the Tauri emitter
-  bound. Added `futures = "0.3"` to `vibeui/src-tauri/Cargo.toml`.
+  bound. Added `futures = "0.3"` to `vibecoder/src-tauri/Cargo.toml`.
 - **`stop_chat_stream` Tauri command** (`commands.rs`): Aborts the background task via the stored
   `AbortHandle`. The frontend commits any partial text as the final assistant message.
 - **`AppState.chat_abort_handle`** (`commands.rs` + `lib.rs`): New `Arc<Mutex<Option<AbortHandle>>>`
@@ -491,7 +491,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (since-ref input + editable markdown result + copy), ⚡ Resolve Merge Conflict (file path +
   conflict textarea + AI resolve + copy resolution). `/autofix` REPL command added.
 - **Phase 45**: Cost & Performance Observatory — `record_cost_entry` appends AI call cost
-  records to `~/.vibeui/cost-log.jsonl` (JSONL); `get_cost_metrics` loads entries, computes
+  records to `~/.vibecoder/cost-log.jsonl` (JSONL); `get_cost_metrics` loads entries, computes
   per-provider aggregates (`ProviderCostSummary`), and returns total cost/tokens plus
   budget remaining; `set_cost_limit` sets monthly budget cap; `clear_cost_history` wipes log.
 - **Phase 45**: AI Git Workflow — `suggest_branch_name` generates concise hyphenated branch
@@ -508,15 +508,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Phase 44**: Arena Mode — blind A/B model comparison with hidden identities; `ArenaPanel.tsx`
   (🥊 Arena tab) with randomized provider assignment, vote buttons (A better / B better / Tie /
   Both bad), post-vote identity reveal with timing/token stats, persistent leaderboard with
-  win/loss/tie/win-rate per provider, "Send winner to Chat" via `vibeui:inject-context`; Tauri
-  commands `save_arena_vote` (persists to `~/.vibeui/arena-votes.json`) and `get_arena_history`
+  win/loss/tie/win-rate per provider, "Send winner to Chat" via `vibecoder:inject-context`; Tauri
+  commands `save_arena_vote` (persists to `~/.vibecoder/arena-votes.json`) and `get_arena_history`
   (loads votes + computes per-provider stats); VibeCLI `/arena` REPL command with `compare`,
   `stats`, `history` sub-commands.
 - **Phase 44**: Live Preview with Element Selection — BrowserPanel gains inspect mode toggle
   (🔍 button, localhost-only); injects `inspector.js` into iframe on activate; postMessage
   listener captures `vibe:element-selected` events; element info overlay panel shows tag name,
   CSS selector, React component (if detected), parent chain (3 ancestors), and truncated
-  outerHTML; "Send to Chat" button dispatches `vibeui:inject-context` with formatted `@html-selected`
+  outerHTML; "Send to Chat" button dispatches `vibecoder:inject-context` with formatted `@html-selected`
   context; `inspector.js` upgraded with `parentChain` in `buildInfo()`; `@html-selected` added
   to ContextPicker SPECIAL_ITEMS and `resolve_at_references()`.
 - **Phase 44**: Recursive Subagent Trees — agents can spawn child agents that spawn grandchildren
@@ -585,7 +585,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Phase 43**: `/test` REPL command in VibeCLI — auto-detects test framework from CWD and
   runs tests; accepts an optional custom command override; added to COMMANDS array with hint
   "[command]  — run project tests (auto-detects cargo/npm/pytest/go)".
-- **Phase 42**: `@jira:PROJECT-123` context in both VibeCLI (`expand_at_refs`) and VibeUI
+- **Phase 42**: `@jira:PROJECT-123` context in both VibeCLI (`expand_at_refs`) and VibeCoder
   (`resolve_at_references`): fetches Jira issue summary, status, assignee, and description
   via REST API v2; uses `JIRA_BASE_URL` + `JIRA_EMAIL` + `JIRA_API_TOKEN` env vars;
   `re_at_jira()` OnceLock regex + `JiraIssue`/`JiraFields` Deserialize types;
@@ -594,10 +594,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Phase 42**: MCP OAuth install flow in `McpPanel.tsx` — each server gains an "OAuth" button
   that opens a two-step modal: enter Client ID / Auth URL / Token URL / Scopes → "Open Browser"
   launches the OAuth authorization URL; paste the authorization code back to complete the token
-  exchange; token stored at `~/.vibeui/mcp-tokens.json`; green `🔑 OAuth` badge on connected
+  exchange; token stored at `~/.vibecoder/mcp-tokens.json`; green `🔑 OAuth` badge on connected
   servers; three new Tauri commands: `initiate_mcp_oauth` (URL builder + system browser),
   `complete_mcp_oauth` (code exchange + persist), `get_mcp_token_status` (expiry check);
-  `url.workspace = true` added to `vibeui/src-tauri/Cargo.toml`.
+  `url.workspace = true` added to `vibecoder/src-tauri/Cargo.toml`.
 - **Phase 42**: Custom domain / publish in `DeployPanel.tsx` — "🌐 Custom Domain" input below
   the deploy button; `set_custom_domain` Tauri command returns per-provider DNS instructions:
   Vercel calls the REST API (requires `VERCEL_TOKEN`); Netlify/Railway/GitHub Pages/GCP Cloud
@@ -615,13 +615,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   SQL injection, XSS, SSRF, IDOR, path traversal, auth bypass; `run_recon()`, `analyze_recon()`,
   `exploit_candidate()` async stages; `RedTeamManager` with JSON-persisted sessions at
   `~/.vibecli/redteam/`; `/redteam scan|list|show|report|config` REPL commands; `--redteam`
-  CLI flag; `start_redteam_scan` VibeUI Tauri command; `RedTeamCfg` in `config.rs`
+  CLI flag; `start_redteam_scan` VibeCoder Tauri command; `RedTeamCfg` in `config.rs`
   (`max_depth`, `timeout_secs`, `parallel_agents`, `auto_report`).
 - **Phase 41**: Extended `detect_security_patterns()` in `bugbot.rs` with 8 additional CWE patterns:
   CWE-918 (SSRF), CWE-611 (XXE), CWE-502 (insecure deserialization), CWE-943 (NoSQL injection),
   CWE-1336 (template injection), CWE-639 (IDOR), CWE-352 (missing CSRF), CWE-319 (cleartext
   transmission); total 15 vulnerability patterns; `RedTeamPanel.tsx` added as 🛡️ RedTeam tab in
-  VibeUI AI panel; `docs/SHANNON-COMPARISON.md` feature comparison document.
+  VibeCoder AI panel; `docs/SHANNON-COMPARISON.md` feature comparison document.
 - **Phase 39**: LSP / linter diagnostics panel in VibeCLI TUI — `DiagnosticsComponent`
   (`tui/components/diagnostics.rs`); `/check` TUI command runs `cargo check --message-format=json`
   (or `npx eslint --format json` for npm projects), parses output via `parse_cargo_check()`,
@@ -633,7 +633,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   so search engines don't index it; `/share <session_id>` added to REPL `COMMANDS` array, hint
   text, and command handler (prints `http://localhost:7878/share/<id>`); `/share` added as TUI
   command in `tui/mod.rs`; module docs updated.
-- **Phase 38**: `@github:owner/repo#N` context in both VibeCLI (`expand_at_refs`) and VibeUI
+- **Phase 38**: `@github:owner/repo#N` context in both VibeCLI (`expand_at_refs`) and VibeCoder
   (`resolve_at_references`): fetches GitHub issue/PR title, state, author, labels, and body
   (first 20–30 lines) from the GitHub REST API; uses `GITHUB_TOKEN` env var if present.
   `ContextPicker.tsx` autocompletes `@github:` with a dynamic hint `owner/repo#N`.
@@ -778,7 +778,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ---
 
 - **Phase 31**: Semantic search upgrade — `semantic_search_codebase` now uses
-  `EmbeddingIndex` (cosine similarity) when `.vibeui/embeddings/index.json` exists,
+  `EmbeddingIndex` (cosine similarity) when `.vibecoder/embeddings/index.json` exists,
   with keyword-search fallback. New `build_embedding_index` Tauri command.
 - **Phase 31**: VS Code extension — `vibecli.inlineEdit` (Cmd/Ctrl+Shift+K),
   `vibecli.viewJobs` (background job QuickPick), `vibecli.sendSelection`
@@ -911,6 +911,6 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - Initial VibeCLI terminal agent (Ratatui TUI + Rustyline REPL).
-- Initial VibeUI desktop editor (Tauri 2 + Monaco Editor + React).
+- Initial VibeCoder desktop editor (Tauri 2 + Monaco Editor + React).
 - Agent loop with XML tool calling (ReadFile, WriteFile, RunBash, WebSearch, etc.).
 - Shared crates: `vibe-core`, `vibe-ai`, `vibe-lsp`, `vibe-extensions`.

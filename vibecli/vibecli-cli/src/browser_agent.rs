@@ -861,7 +861,7 @@ impl BrowserSession {
         self.evaluate_js(&js).await
     }
 
-    /// C4 producer — publish VibeUI panel tools to the page's WebMCP surface as
+    /// C4 producer — publish VibeCoder panel tools to the page's WebMCP surface as
     /// `window.__vibeWebMcp` (read/affordance only; no live DOM mutation). The
     /// page's agent can then enumerate/call them.
     pub async fn publish_webmcp_tools(

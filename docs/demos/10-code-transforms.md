@@ -15,7 +15,7 @@ VibeCody's **Code Transforms** engine performs AST-based (Abstract Syntax Tree) 
 - VibeCody installed (`vibecli --version` returns 0.5.1+)
 - An AI provider configured in `~/.vibecli/config.toml`
 - A language server running for your project's language (for symbol resolution)
-- For VibeUI: `cd vibeui && npm install && npm run tauri dev`
+- For VibeCoder: `cd vibecoder && npm install && npm run tauri dev`
 
 
 ## Step-by-Step Walkthrough
@@ -24,7 +24,7 @@ VibeCody's **Code Transforms** engine performs AST-based (Abstract Syntax Tree) 
 
 Rename a symbol (variable, function, type, module) across the entire codebase with semantic awareness. Unlike text replacement, this understands scope and will not rename unrelated identifiers that happen to share the same name.
 
-**VibeUI:**
+**VibeCoder:**
 1. Right-click a symbol in the editor
 2. Select **VibeCody > Rename Symbol** (or press `F2`)
 3. Type the new name
@@ -73,7 +73,7 @@ vibecli
 
 Select a block of code and extract it into a new function, automatically determining parameters and return types.
 
-**VibeUI:**
+**VibeCoder:**
 1. Select the code block to extract
 2. Right-click > **VibeCody > Extract Function** (or `Cmd+Shift+E`)
 3. Enter a name for the new function
@@ -226,11 +226,11 @@ vibecli transform custom \
 /transform custom "Replace all raw SQL strings with sqlx::query! macro calls" --scope src/**/*.rs
 ```
 
-### 6. Transform Panel in VibeUI
+### 6. Transform Panel in VibeCoder
 
 The Transform panel provides a visual interface for all transforms:
 
-**VibeUI:**
+**VibeCoder:**
 1. Open the **Transform** panel (AI Panel > Transform tab)
 2. Browse available transforms organized by language
 3. Select a transform and configure its parameters
@@ -251,12 +251,12 @@ The panel shows:
 {
   "id": "demo-code-transforms",
   "title": "Code Transforms",
-  "description": "Demonstrates AST-based rename refactoring, function extraction, pattern conversion, and the Transform panel in VibeUI",
+  "description": "Demonstrates AST-based rename refactoring, function extraction, pattern conversion, and the Transform panel in VibeCoder",
   "estimated_duration_s": 160,
   "steps": [
     {
       "action": "Navigate",
-      "target": "vibeui://open?folder=/home/user/my-project"
+      "target": "vibecoder://open?folder=/home/user/my-project"
     },
     {
       "action": "Narrate",

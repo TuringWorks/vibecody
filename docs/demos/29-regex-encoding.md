@@ -9,14 +9,14 @@ parent: Demos
 
 ## Overview
 
-This demo covers seven developer utility panels in VibeCody: Regex pattern tester, JWT decoder/encoder, Encoding converter, Number Base converter, Cron expression builder, Timestamp converter, and Data Generator. These tools run entirely client-side and are available in both the CLI and VibeUI.
+This demo covers seven developer utility panels in VibeCody: Regex pattern tester, JWT decoder/encoder, Encoding converter, Number Base converter, Cron expression builder, Timestamp converter, and Data Generator. These tools run entirely client-side and are available in both the CLI and VibeCoder.
 
 **Time to complete:** ~12 minutes
 
 ## Prerequisites
 
 - VibeCody installed and configured
-- For VibeUI: the desktop app running (`npm run tauri dev`)
+- For VibeCoder: the desktop app running (`npm run tauri dev`)
 
 ## Step-by-Step Walkthrough
 
@@ -79,7 +79,7 @@ Matches (2):
   Match 2: "error: permission denied"  at line 2
 ```
 
-In VibeUI, the **Regex** panel shows match highlighting in real time as you type, with colored overlays on the input text for each match and group.
+In VibeCoder, the **Regex** panel shows match highlighting in real time as you type, with colored overlays on the input text for each match and group.
 
 
 ### JWT Panel: Token Inspection
@@ -126,7 +126,7 @@ Token:
   eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTQyIiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzA5MjkxMjAwfQ.abc123...
 ```
 
-In VibeUI, the **JWT** panel has two sections: paste a token at the top to see its decoded header, payload, and expiration status below. A separate "Encode" tab lets you build tokens from scratch.
+In VibeCoder, the **JWT** panel has two sections: paste a token at the top to see its decoded header, payload, and expiration status below. A separate "Encode" tab lets you build tokens from scratch.
 
 
 ### Encoding Panel: Data Conversion
@@ -162,7 +162,7 @@ Other encoding operations:
 # Result: &lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;
 ```
 
-In VibeUI, the **Encoding** panel shows input and output side by side with a format selector dropdown (Base64, URL, Hex, HTML Entities). Encoding and decoding update in real time as you type.
+In VibeCoder, the **Encoding** panel shows input and output side by side with a format selector dropdown (Base64, URL, Hex, HTML Entities). Encoding and decoding update in real time as you type.
 
 
 ### Number Base Panel: Base Conversion
@@ -193,7 +193,7 @@ Octal:       15077
 Binary:      1101000111111
 ```
 
-In VibeUI, the **Number Base** panel has four input fields (decimal, hex, octal, binary) that update each other in real time as you type in any field.
+In VibeCoder, the **Number Base** panel has four input fields (decimal, hex, octal, binary) that update each other in real time as you type in any field.
 
 
 ### Cron Panel: Expression Builder
@@ -241,7 +241,7 @@ Cron Builder (use arrow keys to select)
   Description: At minute 0 past every 2nd hour
 ```
 
-In VibeUI, the **Cron** panel has dropdowns for each field plus a visual calendar preview highlighting when the job will run.
+In VibeCoder, the **Cron** panel has dropdowns for each field plus a visual calendar preview highlighting when the job will run.
 
 
 ### Timestamp Panel: Epoch Converter
@@ -289,7 +289,7 @@ Unix (milliseconds):  1710331200000
 ISO 8601:             2026-03-13T12:00:00Z
 ```
 
-In VibeUI, the **Timestamp** panel has an input field that auto-detects epoch or date strings, and displays all timezone conversions below. A timezone selector lets you add custom zones.
+In VibeCoder, the **Timestamp** panel has an input field that auto-detects epoch or date strings, and displays all timezone conversions below. A timezone selector lets you add custom zones.
 
 
 ### Data Gen Panel: Fake Data Generation
@@ -334,7 +334,7 @@ Generate other data types:
 > /datagen generate --type address --count 3 --locale en_GB
 ```
 
-In VibeUI, the **Data Gen** panel has a type selector, count field, format dropdown (JSON, CSV, SQL INSERT), and locale picker. Click "Generate" to produce data with a "Copy to clipboard" button.
+In VibeCoder, the **Data Gen** panel has a type selector, count field, format dropdown (JSON, CSV, SQL INSERT), and locale picker. Click "Generate" to produce data with a "Copy to clipboard" button.
 
 ## Demo Recording
 
@@ -417,9 +417,9 @@ In VibeUI, the **Data Gen** panel has a type selector, count field, format dropd
     },
     {
       "id": 9,
-      "action": "vibeui",
+      "action": "vibecoder",
       "panels": ["Regex", "JWT", "Encoding", "NumberBase", "Cron", "Timestamp", "DataGen"],
-      "description": "Tour all seven developer utility panels in VibeUI",
+      "description": "Tour all seven developer utility panels in VibeCoder",
       "delay_ms": 5000
     }
   ]

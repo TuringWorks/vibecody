@@ -61,15 +61,26 @@ export function useTasks(daemonUrl: string, daemonOnline: boolean) {
     refresh();
   }, [refresh]);
 
-  /** Create a task (and its worktree). Returns the new task row. */
+  /**
+   * Create a task. By default this does NOT fork a git worktree/branch — a plain
+   * chat should stay in place. Pass `createWorktree=true` to isolate the run on
+   * its own `task/…` branch (the composer's Branch toggle). Returns the new row.
+   */
   const createTask = useCallback(
-    async (title: string, provider: string, model?: string, projectPath?: string): Promise<Task> => {
+    async (
+      title: string,
+      provider: string,
+      model?: string,
+      projectPath?: string,
+      createWorktree = false,
+    ): Promise<Task> => {
       const task = await invoke<Task>("create_task", {
         url: daemonUrl,
         title,
         provider,
         model,
         projectPath,
+        createWorktree,
       });
       await refresh();
       return task;

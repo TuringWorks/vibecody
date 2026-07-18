@@ -7,7 +7,7 @@ permalink: /memory-architecture/
 This document describes the complete memory and context architecture of VibeCody — from encrypted storage through context assembly to cross-client recap/resume.
 
 **Last Updated:** 2026-05-08  
-**Scope:** vibecli, vibeui, vibemobile, vibewatch, plugins, Agent SDK  
+**Scope:** vibecli, vibecoder, vibemobile, vibewatch, plugins, Agent SDK  
 **Author:** System Architecture
 
 ---
@@ -514,7 +514,7 @@ pub struct ResumeHint {
 │   │                                                                     │   │
 │   │   ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐    │   │
 │   │   │ Agent task │  │User /recap │  │ Tab close  │  │Idle 30min  │    │   │
-│   │   │ completes  │  │ command    │  │ (vibeui)   │  │(optional)  │    │   │
+│   │   │ completes  │  │ command    │  │ (vibecoder)   │  │(optional)  │    │   │
 │   │   └──────┬─────┘  └──────┬─────┘  └──────┬─────┘  └──────┬─────┘    │   │
 │   │          │               │               │               │          │   │
 │   │          └───────────────┴───────────────┴───────────────┘          │   │
@@ -581,7 +581,7 @@ pub struct ResumeHint {
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │   ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────────────┐        │
-│   │  vibecli  │  │  vibeui   │  │ vibemobile│  │ vibewatch         │        │
+│   │  vibecli  │  │  vibecoder   │  │ vibemobile│  │ vibewatch         │        │
 │   │  REPL/TUI │  │  (Tauri)  │  │ (Flutter) │  │ (SwiftUI/Compose) │        │
 │   └─────┬─────┘  └─────┬─────┘  └─────┬─────┘  └────────┬──────────┘        │
 │         │              │              │                 │                   │
@@ -597,7 +597,7 @@ pub struct ResumeHint {
 │                                                                             │
 │   Per-client UX:                                                            │
 │   - vibecli: /recap command, --resume flag, end-of-agent print              │
-│   - vibeui: Recap card at top of restored tab, History panel                │
+│   - vibecoder: Recap card at top of restored tab, History panel                │
 │   - vibemobile: ChatScreen header with recap card before transcript         │
 │   - vibewatch: RecapView (3 bullets max), "Continue on phone" button        │
 │                                                                             │
@@ -617,18 +617,18 @@ pub struct ResumeHint {
 │                  COMPLETE REQUEST FLOW: Chat Message                        │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│   User types message in vibeui                                              │
+│   User types message in vibecoder                                              │
 │          │                                                                  │
 │          ▼                                                                  │
 │   ┌─────────────────────────────────────────────────────────────────────┐   │
-│   │  vibeui: AIChat.tsx                                                 │   │ 
+│   │  vibecoder: AIChat.tsx                                                 │   │ 
 │   │  - Read selectedProvider, selectedModel from toolbar                │   │
 │   │  - invoke("ai_chat", { provider, model, messages })                 │   │
 │   └─────────────────────────────────────────────────────────────────────┘   │
 │          │                                                                  │
 │          ▼                                                                  │
 │   ┌─────────────────────────────────────────────────────────────────────┐   │
-│   │  vibeui Tauri: commands.rs                                          │   │
+│   │  vibecoder Tauri: commands.rs                                          │   │
 │   │  - build_temp_provider(provider, model)                             │   │
 │   │  - Call Context Assembler for project_memory                        │   │
 │   └────────────────────────────────────────────────────┬────────────────┘   │
@@ -686,7 +686,7 @@ pub struct ResumeHint {
 │                  BACKGROUND JOB AGENT FLOW                                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│   User submits background job via vibeui BackgroundJobsPanel                │
+│   User submits background job via vibecoder BackgroundJobsPanel                │
 │          │                                                                  │
 │          ▼                                                                  │
 │   ┌─────────────────────────────────────────────────────────────────────┐   │
@@ -748,7 +748,7 @@ pub struct ResumeHint {
 | `/mobile/sessions` | Various | Mobile-specific session endpoints | Mobile |
 | `/watch/sessions` | Various | Watch-optimized session endpoints | Watch |
 
-### 8.2 Tauri Commands (VibeUI)
+### 8.2 Tauri Commands (VibeCoder)
 
 | Command | Description |
 |---------|-------------|

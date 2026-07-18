@@ -140,8 +140,8 @@ pub struct ServeState {
     /// `/stop` drops the runtime.
     pub rl_runtime_pool: Arc<crate::rl_runtime::RuntimePool>,
     /// F3.x — currently active session as last claimed by a mobile
-    /// client. VibeUI polls `/mobile/active-session` and follows the
-    /// claim, mirroring how W1.1 made VibeUI follow the watch's
+    /// client. VibeCoder polls `/mobile/active-session` and follows the
+    /// claim, mirroring how W1.1 made VibeCoder follow the watch's
     /// active session. `None` until the first PUT lands.
     pub mobile_active_session: Arc<std::sync::Mutex<Option<MobileActiveSession>>>,
     /// DREAD #1 Slice B/C/G — tainted-argument enforcement flags read
@@ -170,7 +170,7 @@ pub struct MobileActiveSession {
     /// Optional device identifier from the mobile client.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub device_id: Option<String>,
-    /// Optional human-readable label ("Ravi's iPhone") so VibeUI can
+    /// Optional human-readable label ("Ravi's iPhone") so VibeCoder can
     /// surface a "Active on Ravi's iPhone" badge instead of a UUID.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub device_label: Option<String>,
@@ -528,13 +528,13 @@ fn sandbox_health_block() -> serde_json::Value {
 }
 
 fn mcp_features_block() -> serde_json::Value {
-    // ~/.vibeui/mcp.json — server list managed by the VibeUI Tauri panel.
+    // ~/.vibecoder/mcp.json — server list managed by the VibeCoder Tauri panel.
     // The daemon doesn't own the file, but probing it lets /health report
     // whether MCP servers have been configured at all (a deciding signal
     // for clients that gate MCP-dependent features).
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
     let cfg_path = std::path::PathBuf::from(home)
-        .join(".vibeui")
+        .join(".vibecoder")
         .join("mcp.json");
     let server_count = std::fs::read_to_string(&cfg_path)
         .ok()
@@ -544,7 +544,7 @@ fn mcp_features_block() -> serde_json::Value {
     serde_json::json!({
         "available": true,
         "transport": "tauri-desktop",
-        "config_path": "~/.vibeui/mcp.json",
+        "config_path": "~/.vibecoder/mcp.json",
         "server_count": server_count,
         "configured": server_count > 0,
     })
@@ -707,12 +707,12 @@ async fn health(State(state): State<ServeState>) -> impl IntoResponse {
             // count from the providers block — needs at least 2 to make a
             // useful battle, but the panel still renders with 0/1 and
             // surfaces the configuration gap inline. Vote history lives in
-            // ~/.vibeui/arena-votes.json (plain JSON; non-secret).
+            // ~/.vibecoder/arena-votes.json (plain JSON; non-secret).
             "arena": {
                 "available": true,
                 "transport": "tauri-desktop",
                 "requires": "providers.configured_count >= 2 (for non-trivial battles)",
-                "votes_path": "~/.vibeui/arena-votes.json",
+                "votes_path": "~/.vibecoder/arena-votes.json",
             },
             // Session browser (list / search / delete / replay / fork).
             // Reads .vibecli/traces/ inside the user's workspace — one
@@ -725,8 +725,8 @@ async fn health(State(state): State<ServeState>) -> impl IntoResponse {
                 "trace_dir": ".vibecli/traces/",
             },
             // MCP (Model Context Protocol). Server config lives at
-            // ~/.vibeui/mcp.json (Tauri-managed); install registry at
-            // ~/.vibeui/mcp-installed.json. The boolean is a runtime
+            // ~/.vibecoder/mcp.json (Tauri-managed); install registry at
+            // ~/.vibecoder/mcp-installed.json. The boolean is a runtime
             // probe of the config file, not a fixed declaration.
             "mcp": mcp_features_block(),
             // Agent loop UI — plan-then-act with approval gates and
@@ -752,14 +752,14 @@ async fn health(State(state): State<ServeState>) -> impl IntoResponse {
                 "rng": "os-csprng",
             },
             // Counsel — multi-LLM debate / synthesis panel. Sessions are
-            // persisted to ~/.vibeui/counsel-sessions.json. Inherits
+            // persisted to ~/.vibecoder/counsel-sessions.json. Inherits
             // provider availability — needs at least 2 different
             // providers configured to make a useful panel.
             "counsel": {
                 "available": provider_count > 0,
                 "transport": "tauri-desktop",
                 "requires": "providers.configured_count >= 2 (for diverse debate)",
-                "store_path": "~/.vibeui/counsel-sessions.json",
+                "store_path": "~/.vibecoder/counsel-sessions.json",
             },
             // Usage metering — per-provider/model/task spend, budgets,
             // and alerts. Always available (no provider dependency —
@@ -768,7 +768,7 @@ async fn health(State(state): State<ServeState>) -> impl IntoResponse {
             "usage_metering": {
                 "available": true,
                 "transport": "tauri-desktop",
-                "store_path": "~/.vibeui/usage-metering.json",
+                "store_path": "~/.vibecoder/usage-metering.json",
                 "budget_periods": ["daily", "weekly", "monthly"],
             },
             // Workspace switcher — folder picker + LRU recents capped
@@ -778,7 +778,7 @@ async fn health(State(state): State<ServeState>) -> impl IntoResponse {
             "workspace": {
                 "available": true,
                 "transport": "tauri-desktop",
-                "recents_path": "~/.vibeui/recent-workspaces.json",
+                "recents_path": "~/.vibecoder/recent-workspaces.json",
                 "recents_cap": 10,
                 "validates": ["exists", "is_directory"],
             },
@@ -1290,7 +1290,7 @@ async fn start_agent(
     // session creation succeeds regardless of pin-lookup outcome, so
     // mobile / watch / VS Code never blocks on a missing pin.
     // G6.3 — surface the attribution onto the agent stream so SDK /
-    // VibeUI / CLI consumers can render an "attributed to <goal>" badge.
+    // VibeCoder / CLI consumers can render an "attributed to <goal>" badge.
     // G7.1 — keep the full Goal so we can also inject a context
     // preamble (title + statement + criteria + plan) below, making
     // the agent goal-aware instead of just metadata-attributed.
@@ -1375,7 +1375,7 @@ async fn start_agent(
         let executor = Arc::new(exec);
         // B2.9.daemon — plugin hooks (admin policy On/Required) fire on
         // the daemon agent path too, not only on `vibecli agent`. User
-        // hooks remain CLI-only by design (mobile/watch/VibeUI clients
+        // hooks remain CLI-only by design (mobile/watch/VibeCoder clients
         // don't share the local `config.hooks` shape). Best-effort: a
         // store/loader error falls through with empty hooks.
         let plugin_hooks =
@@ -1660,78 +1660,77 @@ async fn create_task(
     State(state): State<ServeState>,
     Json(req): Json<CreateTaskRequest>,
 ) -> Result<Json<crate::task_store::TaskRow>, (StatusCode, Json<serde_json::Value>)> {
-    use crate::task_store::{TaskStatus, TaskStore};
-
-    let store = TaskStore::open_default().map_err(|e| {
-        json_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("task store: {e}"),
-        )
-    })?;
-
-    let id = format!("{:016x}", rand::rng().random::<u64>());
-    let now = now_unix();
     let provider = req.provider.unwrap_or_else(|| state.provider_name.clone());
     let model = req.model.unwrap_or_default();
     let project_path = req
         .project_path
         .unwrap_or_else(|| state.workspace_root.to_string_lossy().to_string());
+    let title = req.title;
+    let create_worktree = req.create_worktree;
 
-    store
-        .insert(
-            &id,
-            &req.title,
-            TaskStatus::Queued,
-            &provider,
-            &model,
-            &project_path,
-            now,
-        )
-        .map_err(|e| {
-            json_error(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("insert task: {e}"),
+    // The task store is sqlite and worktree spawning shells out to `git` — both
+    // block. Run them on a blocking thread so a slow/hung git op can never starve
+    // the async runtime (which would otherwise wedge /health and every route).
+    let row = tokio::task::spawn_blocking(move || {
+        use crate::task_store::{TaskStatus, TaskStore};
+
+        let store = TaskStore::open_default().map_err(|e| format!("task store: {e}"))?;
+
+        let id = format!("{:016x}", rand::rng().random::<u64>());
+        let now = now_unix();
+
+        store
+            .insert(
+                &id,
+                &title,
+                TaskStatus::Queued,
+                &provider,
+                &model,
+                &project_path,
+                now,
             )
-        })?;
+            .map_err(|e| format!("insert task: {e}"))?;
 
-    // VX-113: spawn a worktree-on-a-branch when the project is a git repo.
-    if req.create_worktree {
-        let repo = std::path::PathBuf::from(&project_path);
-        if vibe_core::git::is_git_repo(&repo) {
-            let branch = format!(
-                "task/{}-{}",
-                &id[..id.len().min(8)],
-                slugify_title(&req.title)
-            );
-            let base_dir = repo.join(".vibecli").join("worktrees");
-            let mut pool = crate::worktree_git::GitWorktreePool::new(&repo, &base_dir, 16);
-            match pool.spawn(&id, &branch) {
-                Ok(handle) => {
-                    let _ = store.set_worktree(
-                        &id,
-                        &handle.branch,
-                        &handle.path.to_string_lossy(),
-                        now_unix(),
-                    );
-                }
-                Err(e) => {
-                    // Non-fatal: the task still exists, just without a worktree.
-                    // Surface it so the client can decide (e.g. retry, or run in-place).
-                    tracing::warn!("worktree spawn failed for task {id}: {e}");
+        // VX-113: spawn a worktree-on-a-branch only when requested and the
+        // project is a git repo. A plain chat opts out (create_worktree=false).
+        if create_worktree {
+            let repo = std::path::PathBuf::from(&project_path);
+            if vibe_core::git::is_git_repo(&repo) {
+                let branch =
+                    format!("task/{}-{}", &id[..id.len().min(8)], slugify_title(&title));
+                let base_dir = repo.join(".vibecli").join("worktrees");
+                let mut pool = crate::worktree_git::GitWorktreePool::new(&repo, &base_dir, 16);
+                match pool.spawn(&id, &branch) {
+                    Ok(handle) => {
+                        let _ = store.set_worktree(
+                            &id,
+                            &handle.branch,
+                            &handle.path.to_string_lossy(),
+                            now_unix(),
+                        );
+                    }
+                    Err(e) => {
+                        // Non-fatal: the task still exists, just without a worktree.
+                        tracing::warn!("worktree spawn failed for task {id}: {e}");
+                    }
                 }
             }
         }
-    }
 
-    let row = store
-        .get(&id)
-        .map_err(|e| json_error(StatusCode::INTERNAL_SERVER_ERROR, format!("get task: {e}")))?
-        .ok_or_else(|| {
-            json_error(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "task vanished after write",
-            )
-        })?;
+        store
+            .get(&id)
+            .map_err(|e| format!("get task: {e}"))?
+            .ok_or_else(|| "task vanished after write".to_string())
+    })
+    .await
+    .map_err(|e| {
+        json_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("task worker panicked: {e}"),
+        )
+    })?
+    .map_err(|msg| json_error(StatusCode::INTERNAL_SERVER_ERROR, msg))?;
+
     Ok(Json(row))
 }
 
@@ -3171,7 +3170,7 @@ async fn v1_browse_intervene(
 //
 // The daemon publishes pending prompts on `GET /v1/tainted/pending` (SSE)
 // and accepts decisions on `POST /v1/tainted/respond`. Any client that
-// can hold a bearer token (VibeUI WebView, VibeMobile, VibeWatch
+// can hold a bearer token (VibeCoder WebView, VibeMobile, VibeWatch
 // companion) renders the modal from the SSE event and posts back.
 //
 // Threat-model invariant: the SSE payload carries only the audit summary
@@ -6577,7 +6576,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         // Tauri 2 dev server origins
         "tauri://localhost".to_string(),
         "https://tauri.localhost".to_string(),
-        // Vite dev server origins (VibeUI :1420, VibeCLI app :1421)
+        // Vite dev server origins (VibeCoder :1420, VibeCLI app :1421)
         "http://localhost:1420".to_string(),
         "http://localhost:1421".to_string(),
     ]
@@ -6860,7 +6859,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/mobile/sessions", get(mobile_sessions))
         .route("/mobile/sessions/{id}/context", get(mobile_session_context))
         // F3.x — cross-device active session. Mobile claims with PUT;
-        // VibeUI polls GET to follow the claim. Mirrors the
+        // VibeCoder polls GET to follow the claim. Mirrors the
         // /watch/active-session pattern from W1.1.
         .route(
             "/mobile/active-session",
@@ -9543,9 +9542,9 @@ struct SetMobileActiveSessionRequest {
 }
 
 /// `GET /mobile/active-session` — returns the session that a mobile
-/// client most recently claimed. VibeUI polls this so the desktop
+/// client most recently claimed. VibeCoder polls this so the desktop
 /// can follow the user's mobile context, mirroring how W1.1 made
-/// VibeUI follow the watch's claim.
+/// VibeCoder follow the watch's claim.
 async fn mobile_get_active_session(State(state): State<ServeState>) -> Json<serde_json::Value> {
     let cur = state
         .mobile_active_session
@@ -10485,7 +10484,7 @@ mod tests {
             // configured must be a strict reflection of server_count > 0
             let count = mcp["server_count"].as_u64().unwrap();
             assert_eq!(mcp["configured"], count > 0);
-            assert_eq!(mcp["config_path"], "~/.vibeui/mcp.json");
+            assert_eq!(mcp["config_path"], "~/.vibecoder/mcp.json");
         }
 
         #[tokio::test]

@@ -14,7 +14,7 @@ The Legacy Migration engine translates codebases from 18 source languages to 10 
 - VibeCLI installed and on your PATH
 - At least one AI provider configured
 - Access to the source codebase you want to migrate
-- For VibeUI: the desktop app running with the **Batch Builder** panel visible (Migration tab)
+- For VibeCoder: the desktop app running with the **Batch Builder** panel visible (Migration tab)
 
 ## Supported Languages
 
@@ -73,7 +73,7 @@ Recommended strategy: StranglerFig
 Recommended target: Java
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 In the **Batch Builder** panel, switch to the **Migration** tab and click **Analyze Source**. Point it to your legacy project directory.
 
@@ -91,7 +91,7 @@ vibecli --legacymigrate configure \
   --output ./migrated-java-app
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 In the Migration tab, select the target language from the dropdown, choose a strategy, and set the output directory.
 
@@ -121,7 +121,7 @@ Translation Rules: COBOL → Java
   Total rules: 47
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 Click **View Rules** to see the full mapping table for the selected language pair.
 
@@ -160,7 +160,7 @@ vibecli --legacymigrate start \
   --boundary CustomerManagement
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 Click **Start Migration** after configuring all options. Progress appears in the Monitor tab.
 
@@ -236,13 +236,13 @@ vibecli --legacymigrate start --boundary InventoryControl
       "description": "Validate migrated code against legacy behavior"
     },
     {
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "BatchBuilder",
       "tab": "Migration",
       "description": "Configure and launch migration from the GUI"
     },
     {
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "BatchBuilder",
       "tab": "Monitor",
       "description": "Watch migration progress per service boundary"

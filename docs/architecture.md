@@ -19,7 +19,7 @@ vibecody/                          ← Cargo workspace root
 │       ├── src/                   ← ~354 Rust modules
 │       ├── tests/                 ← 62+ BDD / integration harnesses
 │       └── skills/                ← 711 skill files (25+ categories)
-├── vibeui/
+├── vibecoder/
 │   ├── src/                       ← React + TypeScript frontend (~293 panels + 42 composites)
 │   ├── src-tauri/                 ← Binary: Tauri desktop app (1,045+ Tauri commands)
 │   └── crates/
@@ -53,7 +53,7 @@ vibecli-cli ──────────────-────┐
                                ▼
                          vibe-ai  ──── reqwest, async-trait, futures
                                │
-vibe-ui (Tauri) ───────-───────┤
+vibe-coder (Tauri) ───────-───────┤
                                ▼
                          vibe-core ── ropey, git2, notify, walkdir,
                                │      portable-pty, similar, regex
@@ -130,7 +130,7 @@ Text-level diffing using the `similar` crate:
 - `DiffEngine::diff(old, new)` → `Vec<DiffHunk>`
 - Hunk types: Equal, Insert, Delete
 - Inline word-level diff within hunks
-- Used by both VibeCLI diff viewer and VibeUI Git panel
+- Used by both VibeCLI diff viewer and VibeCoder Git panel
 
 ### Terminal (`terminal.rs`)
 
@@ -138,7 +138,7 @@ PTY-based terminal using `portable-pty`:
 
 - Spawns a shell process in a PTY
 - Reads/writes raw bytes
-- Used by VibeUI's terminal panel via Tauri IPC
+- Used by VibeCoder's terminal panel via Tauri IPC
 
 ### Search (`search.rs`)
 
@@ -268,7 +268,7 @@ Inline code completion coordinator:
 
 - Calls `stream_complete()` with current `CodeContext`
 - Debounces requests
-- Used by VibeUI for as-you-type completions
+- Used by VibeCoder for as-you-type completions
 
 ### Agent Loop (`agent.rs`)
 
@@ -284,7 +284,7 @@ The autonomous plan→act→observe loop:
 Plan Mode — generates structured execution plans without executing:
 
 - `PlannerAgent::plan()` produces `ExecutionPlan` with typed `PlanStep` entries
-- Used by `/plan` in VibeCLI and "Plan first" toggle in VibeUI
+- Used by `/plan` in VibeCLI and "Plan first" toggle in VibeCoder
 - Steps can be approved individually before execution
 
 ### Multi-Agent Orchestrator (`multi_agent.rs`)
@@ -486,7 +486,7 @@ OTLP pipeline initialization:
 - Exports spans via OTLP/HTTP to any collector (Jaeger, Grafana, etc.)
 - `OtelGuard` ensures flush on shutdown
 
-## VibeUI Tauri Architecture
+## VibeCoder Tauri Architecture
 
 Tauri bridges the React frontend and Rust backend via IPC.
 
@@ -614,7 +614,7 @@ See [`memory-architecture.md`](./memory-architecture.md) for complete documentat
 | `vibecli` | 5,500+ unit, 62+ BDD | session store, serve, config, review, workflow, REPL, redteam, gateway, channel daemon, branch agent, spec pipeline, VM orchestrator, transform, marketplace, background agents, TUI, security scan, automations, counsel, superbrain, web client, open memory, auto research, blue/purple team, IDP, watch auth / bridge / session relay, mDNS / Tailscale / ngrok, pairing, all feature modules |
 | `vibe-ai` | 1,020+ | 22 providers + openai_compat, tools, trace, hooks, policy, skills, agent, multi-agent, MCP, agent teams |
 | `vibe-core` | 370+ | buffer, git, diff, context, file system, workspace, search, terminal, index/embeddings, executor |
-| `vibe-ui` | 230+ | Tauri commands, coverage, cost, flow, agent executor, shadow workspace |
+| `vibe-coder` | 230+ | Tauri commands, coverage, cost, flow, agent executor, shadow workspace |
 | `vibe-lsp` | 74 | LSP client, features, manager |
 | `vibe-collab` | 53 | CRDT rooms, server registry, protocol, awareness |
 | `vibe-extensions` | 46 | loader, manifest, permissions |

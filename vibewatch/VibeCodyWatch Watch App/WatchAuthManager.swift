@@ -35,7 +35,7 @@ enum WatchAuthError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notPaired:           return "Watch not paired — scan the QR code in VibeUI."
+        case .notPaired:           return "Watch not paired — scan the QR code in VibeCoder."
         case .wristOff:            return "Session locked — put watch back on wrist."
         case .tokenExpired:        return "Session token expired — please re-pair."
         case .keychainError(let s): return "Keychain error \(s)"

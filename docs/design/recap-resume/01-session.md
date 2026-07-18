@@ -14,7 +14,7 @@ Grounded in a code survey on `main` at `b1e28ad1`:
 - **`--resume SESSION_ID`** flag on the CLI — `main.rs:2444`. Already wired: `main.rs:4041`, `main.rs:4051–4063`. Loads a session and re-runs an agent from it. **Bare `--resume` (no `--agent`) currently lists/prints session info** (`main.rs:4052`).
 - **`/resume <id_prefix>` REPL command** — `main.rs:4458–4492`.
 - **Daemon routes:** `GET /sessions`, `GET /sessions.json`, `GET /view/:id`, `GET /share/:id` (read-only HTML view). No `recap` route, no JSON resume route.
-- **vibeui:** `ChatTabManager.tsx` persists chat history to `localStorage` under `vibecody:chat-history` (max 50 sessions). `restoreSession()` (line 290) loads a history entry into a new tab. Tabs themselves are ephemeral — not auto-restored on app reload.
+- **vibecoder:** `ChatTabManager.tsx` persists chat history to `localStorage` under `vibecody:chat-history` (max 50 sessions). `restoreSession()` (line 290) loads a history entry into a new tab. Tabs themselves are ephemeral — not auto-restored on app reload.
 - **vibemobile:** `ChatScreen` already accepts `resumeMachineId` / `resumeSessionId` / `resumeTask` constructor params and calls `/mobile/sessions/{id}/context` to fetch history fresh. No local cache.
 - **vibewatch (watchOS + Wear):** `/watch/sessions/{id}/messages` and `/watch/active-session` endpoints exist; both apps fetch fresh on view open. No cache, no recap surface.
 
@@ -30,7 +30,7 @@ So **resume exists in skeleton form on the CLI** and the data is already there. 
 
 ## Non-goals
 
-- Replacing the existing per-tab localStorage history in vibeui (kept as a UI-side cache; recap is the durable cross-device artifact).
+- Replacing the existing per-tab localStorage history in vibecoder (kept as a UI-side cache; recap is the durable cross-device artifact).
 - Resuming Counsel/Arena/Diffcomplete from a session recap — those have their own scopes (docs `02` and `03`).
 - Server-side conversation summarization across multiple sessions (that's memory, not recap).
 
@@ -40,7 +40,7 @@ So **resume exists in skeleton form on the CLI** and the data is already there. 
 |---|---|---|
 | Agent task completes | Auto-recap (heuristic) | Status moves to `complete` or `failed` in `sessions` table |
 | User runs `/recap` in REPL | Recap (heuristic, or LLM with `/recap --llm`) | Idempotent: returns existing recap if no new messages since last recap |
-| User closes a vibeui chat tab | Auto-recap (heuristic) | Already persists to localStorage; new flow also POSTs `/v1/recap` |
+| User closes a vibecoder chat tab | Auto-recap (heuristic) | Already persists to localStorage; new flow also POSTs `/v1/recap` |
 | Session idle > 30 min | Auto-recap (heuristic) | Configurable in Settings; off by default for privacy |
 | Tab reload / app restart | No auto-recap; offer auto-resume of *last* session | "Last session" = most recent recap with `resume_hint` set |
 
@@ -128,7 +128,7 @@ Standard fetch / list. List supports `?limit=` and `?cursor=` (newest-first pagi
   "from_message": null,              // overrides recap.resume_hint.from_message
   "seed_instruction": null,          // overrides recap.resume_hint.seed_instruction
   "branch": null,                    // overrides recap.resume_hint.branch_on_resume
-  "client": "vibeui"                 // for telemetry / activity tracking
+  "client": "vibecoder"                 // for telemetry / activity tracking
 }
 
 // response 200
@@ -158,7 +158,7 @@ Standard fetch / list. List supports `?limit=` and `?cursor=` (newest-first pagi
 - **Session-list view** (`vibecli --resume` with no id): each row shows headline + relative time + provider; "r" key resumes, "v" views.
 - **REPL `/recap`** as above.
 
-### vibeui (Tauri)
+### vibecoder (Tauri)
 
 - **Chat tab footer:** when a tab is closed via the X, a tiny non-blocking toast confirms "Recap saved — restore from History". The History panel (already exists, line ~290 in `ChatTabManager.tsx`) gains a recap card per entry instead of just the title.
 - **Tab restore flow:** `restoreSession()` is extended — on click, the tab opens with a **Recap card pinned at the top of the transcript** (collapsible, default open). The card has a "Resume from here" button that calls `/v1/resume` with the recap's hint.
@@ -167,7 +167,7 @@ Standard fetch / list. List supports `?limit=` and `?cursor=` (newest-first pagi
   - "Recap on idle (after N min)" — default off, N=30 if enabled
   - "Recap generator" — heuristic (default) | LLM (with provider picker)
   - "Auto-resume last session on startup" — default off
-- **Reuses existing tokens** from `vibeui/design-system` — no new design primitives. Recap card uses the same panel/card pattern as the existing History entries.
+- **Reuses existing tokens** from `vibecoder/design-system` — no new design primitives. Recap card uses the same panel/card pattern as the existing History entries.
 
 ### vibemobile (Flutter)
 
@@ -245,14 +245,14 @@ No off-device transmission.
 | **F1.2** | `POST/GET/PATCH/DELETE /v1/recap` routes (Session kind only) | daemon `serve.rs` + Tauri wrapper command | HTTP integration tests; auth enforcement |
 | **F1.3** | `POST /v1/resume` + `GET /v1/resume/:handle` | daemon | End-to-end: generate recap → resume → verify primed message count |
 | **F1.4** | REPL `/recap` and `/recap --edit`; end-of-agent auto-print | vibecli main.rs | REPL behavior tests |
-| **F2.1** | vibeui Settings → Sessions toggles | vibeui SettingsPanel | RTL: toggle persists to localStorage |
-| **F2.2** | Recap card pinned to restored tab | vibeui ChatTabManager | RTL: render + "Resume from here" calls Tauri command |
-| **F2.3** | Auto-recap on tab close | vibeui ChatTabManager | RTL: close fires `diffcomplete_generate`-style Tauri command (renamed `recap_generate`) |
+| **F2.1** | vibecoder Settings → Sessions toggles | vibecoder SettingsPanel | RTL: toggle persists to localStorage |
+| **F2.2** | Recap card pinned to restored tab | vibecoder ChatTabManager | RTL: render + "Resume from here" calls Tauri command |
+| **F2.3** | Auto-recap on tab close | vibecoder ChatTabManager | RTL: close fires `diffcomplete_generate`-style Tauri command (renamed `recap_generate`) |
 | **M1.1** | Flutter ChatScreen recap header + recap-aware sessions list | vibemobile | Widget tests; one integration test against a stub daemon |
 | **W1.1** | watchOS `RecapView` + Wear `RecapScreen` | both watch apps | Snapshot test (SwiftUI), Compose preview |
-| **F3.1** | Auto-resume-last-session on startup | vibeui App.tsx | E2E (manual sign-off) |
+| **F3.1** | Auto-resume-last-session on startup | vibecoder App.tsx | E2E (manual sign-off) |
 
-Each slice ships independently and each is `cargo test --workspace` + `npm run -w vibeui test` green before merge.
+Each slice ships independently and each is `cargo test --workspace` + `npm run -w vibecoder test` green before merge.
 
 ## Open questions
 

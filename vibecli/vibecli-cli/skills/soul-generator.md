@@ -36,6 +36,6 @@ The scanner reads the project directory and extracts:
 ## Architecture
 
 - `soul_generator.rs` — Core module: scan_project(), generate_template_soul(), build_generation_prompt(), write_soul()
-- `SoulPanel.tsx` — VibeUI panel (View/Generate/Signals tabs)
+- `SoulPanel.tsx` — VibeCoder panel (View/Generate/Signals tabs)
 - 4 Tauri commands: soul_scan, soul_generate, soul_regenerate, soul_read
 - Output: SOUL.md in the project root

@@ -12,7 +12,7 @@ Internal guide for engineers contributing to VibeCody. Covers build procedures, 
 | Tool | Version | Purpose |
 |------|---------|---------|
 | Rust | stable (1.77+) | Backend, shared crates, CLI |
-| Node.js | LTS 18+ | VibeUI frontend |
+| Node.js | LTS 18+ | VibeCoder frontend |
 | pnpm/npm | latest | Frontend package management |
 | Tauri CLI | 2.x | Desktop app builds |
 | Docker | 20+ | Container sandbox, on-prem deployment |
@@ -38,14 +38,14 @@ vibecody/
 │   ├── src/spec_pipeline.rs      # EARS spec-driven development
 │   ├── src/vm_orchestrator.rs    # Parallel VM agent orchestration
 │   └── skills/                   # 599 skill files
-├── vibeui/
+├── vibecoder/
 │   ├── src/                      # React + TypeScript frontend
 │   │   ├── App.tsx               # Root component, keyboard shortcuts
 │   │   └── components/           # 235+ panel components (plus 39 composites)
 │   ├── src-tauri/src/
 │   │   ├── lib.rs                # Tauri command registration (1,045+ commands)
 │   │   ├── commands.rs           # All Tauri command implementations
-│   │   └── agent_executor.rs     # Agent tool execution for VibeUI
+│   │   └── agent_executor.rs     # Agent tool execution for VibeCoder
 │   └── crates/
 │       ├── vibe-ai/              # AIProvider trait, agent loop, 22 providers
 │       ├── vibe-core/            # Text buffer, filesystem, git, search
@@ -80,8 +80,8 @@ cargo test -p vibe-core
 cargo test -p vibecli -- project_init
 cargo test -p vibecli -- channel_daemon::tests
 
-# VibeUI development mode
-cd vibeui && npm install && npm run tauri:dev
+# VibeCoder development mode
+cd vibecoder && npm install && npm run tauri:dev
 
 # Clippy (linting)
 cargo clippy --workspace --exclude vibe-collab -- -W clippy::all
@@ -102,10 +102,10 @@ which cargo
 
 See `linux-dev-setup.md` for full Linux environment setup.
 
-### VibeUI Development
+### VibeCoder Development
 
 ```bash
-cd vibeui
+cd vibecoder
 npm install          # Install frontend dependencies
 npm run tauri:dev    # Start Tauri dev server (use tauri:dev not tauri dev on Linux)
 npm run lint         # ESLint
@@ -121,7 +121,7 @@ npm run typecheck    # TypeScript type checking
 | vibecli | ~5,600+ | CLI commands, tool executor, providers, security, all feature modules |
 | vibe-ai | ~1,020+ | Provider implementations, agent loop, circuit breaker, tracing |
 | vibe-core | ~290+ | Text buffer, filesystem, git, search, embeddings |
-| vibe-ui | ~230+ | Tauri commands, agent executor, panel components |
+| vibe-coder | ~230+ | Tauri commands, agent executor, panel components |
 | vibe-extensions | ~46 | WASM extension loading, manifest parsing |
 | vibe-lsp | ~34 | LSP client protocol |
 
@@ -191,7 +191,7 @@ pub trait AIProvider: Send + Sync {
 
 To add a new provider:
 
-1. Create `vibeui/crates/vibe-ai/src/providers/my_provider.rs`
+1. Create `vibecoder/crates/vibe-ai/src/providers/my_provider.rs`
 2. Register in `providers.rs`: `pub mod my_provider;` + `pub use my_provider::MyProvider;`
 3. Add config handling in `vibecli/vibecli-cli/src/main.rs` `create_provider()` function
 4. Add to `Config` struct in `vibecli/vibecli-cli/src/config.rs`
@@ -218,11 +218,11 @@ Key components:
 Two executor implementations:
 
 - **`vibecli/src/tool_executor.rs`** — CLI executor with sandbox support, SSRF validation, command blocklist
-- **`vibeui/src-tauri/src/agent_executor.rs`** — Tauri executor with workspace-boundary path validation, command blocklist, 120s timeout
+- **`vibecoder/src-tauri/src/agent_executor.rs`** — Tauri executor with workspace-boundary path validation, command blocklist, 120s timeout
 
 ### Tauri Commands
 
-VibeUI exposes 1,045+ Tauri commands. Each is a `#[tauri::command]` function in `commands.rs`:
+VibeCoder exposes 1,045+ Tauri commands. Each is a `#[tauri::command]` function in `commands.rs`:
 
 ```rust
 #[tauri::command]
@@ -303,9 +303,9 @@ Example:
 }
 ```
 
-## Adding a VibeUI Panel
+## Adding a VibeCoder Panel
 
-1. Create `vibeui/src/components/MyPanel.tsx`
+1. Create `vibecoder/src/components/MyPanel.tsx`
 2. Follow the tab-bar pattern used by other panels:
 
 ```tsx
@@ -334,11 +334,11 @@ ls ~/.vibecli/traces/
 cat ~/.vibecli/traces/<session-id>.jsonl | jq .
 ```
 
-### VibeUI
+### VibeCoder
 
 ```bash
 # Open with DevTools
-cd vibeui && npm run tauri:dev
+cd vibecoder && npm run tauri:dev
 # Press F12 or Cmd+Opt+I for WebView DevTools
 
 # Rust backend logs
@@ -388,7 +388,7 @@ docker build -t vibecody/vibecli:latest .
 | `spec_pipeline.rs` | ~1,700 | 64 | EARS spec-driven development |
 | `vm_orchestrator.rs` | ~1,300 | 59 | Parallel VM agent execution |
 | `commands.rs` | ~30,000 | 227+ | All Tauri command implementations |
-| `agent_executor.rs` | ~350 | 12 | VibeUI agent tool executor |
+| `agent_executor.rs` | ~350 | 12 | VibeCoder agent tool executor |
 
 ## Performance Notes
 

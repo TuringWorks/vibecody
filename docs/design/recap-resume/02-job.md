@@ -12,7 +12,7 @@
 - **`JobRecord`** has `status`, `summary`, `started_at`, `finished_at`, `provider`, `webhook_url`, `priority`, `tags`, `cancellation_reason`, `steps_completed`, `tokens_used`, `cost_cents`. The `summary` field already exists — recap *replaces* it with structured content (and the existing flat `summary` becomes the recap's `headline`).
 - **Live event stream:** `tokio::broadcast` channels per job, exposed via `GET /stream/:session_id` (SSE). Not durable across daemon restart — the durable copy lives in `job_events`.
 - **Routes today:** `GET /jobs`, `GET /jobs/:id`, `POST /jobs/:id/cancel`, `GET /v1/metrics/jobs`. `POST /agent` creates a new job. **No** `/jobs/:id/recap`, `/jobs/:id/resume`.
-- **vibeui `BackgroundJobsPanel`** polls `GET /jobs` every 10s, opens an `EventSource` per active job for live token stream. Currently shows a "Done" badge on terminal status; no structured handoff.
+- **vibecoder `BackgroundJobsPanel`** polls `GET /jobs` every 10s, opens an `EventSource` per active job for live token stream. Currently shows a "Done" badge on terminal status; no structured handoff.
 - **`CounselSession`** (`counsel.rs`) and Arena state are **in-memory only** — no durable store. Out of scope for the first cut; design covers the path that exists today (`JobRecord`-backed) and notes Counsel/Arena as follow-on.
 
 ## Goals
@@ -120,7 +120,7 @@ The shared routes from `01-session.md` apply, with `kind: "job"`. Plus job-speci
   "seed_instruction": null,           // overrides recap.resume_hint.seed_instruction
   "inherit_provider": true,
   "inherit_tags": true,
-  "client": "vibeui"
+  "client": "vibecoder"
 }
 
 // response 200
@@ -139,7 +139,7 @@ The existing `webhook_url` field on `JobRecord` delivers events at `complete` / 
 
 ## Per-surface UX
 
-### vibeui — BackgroundJobsPanel
+### vibecoder — BackgroundJobsPanel
 
 Today (per the survey at `BackgroundJobsPanel.tsx`): polls `/jobs` every 10s, opens an `EventSource` per active job for tokens.
 
@@ -216,12 +216,12 @@ This work is **out of scope for v1** of job recaps. Tracked as follow-on slices 
 | **J1.1** | `recaps` table on `jobs.db` (encrypted) + `parent_job_id`/`resumed_from_recap_id` on `jobs` | daemon | Unit: encryption round-trip, idempotency on `(subject_id, last_event_seq)` |
 | **J1.2** | Heuristic job recap generator wired into terminal-state hook | daemon | Unit: synthetic JobRecord → expected recap shape; timeout paths |
 | **J1.3** | `POST/GET /v1/recap` (kind=job), `POST /v1/resume` (kind=job) | daemon `serve.rs` | HTTP integration; resume creates new job with parent link |
-| **J1.4** | vibeui BackgroundJobsPanel recap row + Resume button | vibeui | RTL: render, click, optimistic update |
-| **J1.5** | Settings toggles for auto-recap & generator | vibeui SettingsPanel | RTL |
+| **J1.4** | vibecoder BackgroundJobsPanel recap row + Resume button | vibecoder | RTL: render, click, optimistic update |
+| **J1.5** | Settings toggles for auto-recap & generator | vibecoder SettingsPanel | RTL |
 | **J1.6** | REPL `/recap job` and `/resume job` | vibecli main.rs | REPL integration |
 | **M1.2** | Mobile NotificationService recap category + JobRecapView | vibemobile | Widget tests + stub-daemon integration |
 | **W1.2** | watchOS complication + Tile, Wear Tile, slim `RecapView` | both watch apps | SwiftUI snapshot, Compose preview |
-| **J2.x** (deferred) | Counsel persistence + recap | daemon + vibeui | follow-on |
+| **J2.x** (deferred) | Counsel persistence + recap | daemon + vibecoder | follow-on |
 | **J3.x** (deferred) | Background-fetch path on mobile (true push) | vibemobile + daemon | follow-on |
 
 ## Open questions

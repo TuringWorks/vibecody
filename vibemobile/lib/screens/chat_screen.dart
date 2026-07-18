@@ -51,7 +51,7 @@ class _ChatScreenState extends State<ChatScreen> {
         await _loadRecap();
         await _loadSessionHistory();
         // F3.x — claim this session as "active on this device" so
-        // VibeUI follows and the user gets a single-active-session
+        // VibeCoder follows and the user gets a single-active-session
         // experience across phone + desktop.
         await _claimActiveSession();
       });

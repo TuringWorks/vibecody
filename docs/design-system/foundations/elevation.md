@@ -5,7 +5,7 @@ title: Elevation — Design System
 permalink: /design-system/foundations/elevation/
 ---
 
-Elevation communicates depth and hierarchy through shadows, backgrounds, and blur effects. VibeUI has three shadow levels, a glass surface system, and a Z-index layer map.
+Elevation communicates depth and hierarchy through shadows, backgrounds, and blur effects. VibeCoder has three shadow levels, a glass surface system, and a Z-index layer map.
 
 ---
 

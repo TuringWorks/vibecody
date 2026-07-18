@@ -37,7 +37,7 @@ The VibeCody Gateway connects your AI assistant to 18 messaging platforms simult
 
 - VibeCody installed and configured with at least one AI provider
 - API credentials for the platforms you want to connect
-- (Optional) VibeUI installed for the Gateway panel
+- (Optional) VibeCoder installed for the Gateway panel
 
 ## Step-by-Step Walkthrough
 
@@ -215,7 +215,7 @@ The gateway multiplexes across all active platforms. A message from any platform
   -> AI fetches PR diff, responds in Slack thread
 ```
 
-### Step 10: Using the Gateway panel in VibeUI
+### Step 10: Using the Gateway panel in VibeCoder
 
 Open the **Gateway** panel from the sidebar.
 
@@ -315,7 +315,7 @@ Open the **Gateway** panel from the sidebar.
         "panel": "Gateway",
         "tab": "Messages",
         "action_detail": "view_live_feed",
-        "narration": "View the live cross-platform message feed in VibeUI"
+        "narration": "View the live cross-platform message feed in VibeCoder"
       },
       {
         "timestamp": 240,

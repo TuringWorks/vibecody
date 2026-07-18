@@ -15,7 +15,7 @@ Different LLMs have different strengths. Claude excels at nuanced reasoning, GPT
 
 - VibeCLI 0.5.1 installed and on your PATH
 - Two or more AI providers configured (e.g., Claude + OpenAI, or Claude + Gemini + Groq)
-- For VibeUI: the desktop app running with the **CounselPanel** and **SuperBrainPanel** visible
+- For VibeCoder: the desktop app running with the **CounselPanel** and **SuperBrainPanel** visible
 
 ## Counsel vs SuperBrain
 
@@ -300,9 +300,9 @@ superbrain-002      │ Review     │ src/auth.rs                              
 Total deliberation cost: $0.131
 ```
 
-### Step 7: Use Counsel and SuperBrain in VibeUI
+### Step 7: Use Counsel and SuperBrain in VibeCoder
 
-In the VibeUI desktop app:
+In the VibeCoder desktop app:
 
 - **CounselPanel** -- Visual debate format with PRO/CON columns, round progression, and highlighted verdict. Save debates for future reference.
 - **SuperBrainPanel** -- Side-by-side provider responses with consensus highlights. Venn diagram showing agreement and unique insights per provider.

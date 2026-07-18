@@ -18,7 +18,7 @@ Design & roadmap: `notes/skillforge/` (start at `SkillForge — MOC.md`).
 `opt` = `skilloptai`), complete through Phase 2; the VibeCody daemon bridge
 (`vibecli/vibecli-cli/src/skillforge_index.rs`, Phase 3) adapts both onto
 `vibe_ai::AIProvider` and exposes `/v1/skilllens/*` + `/v1/skillopt/*`; the
-VibeUI panel (`SkillForgePanel.tsx`, Phase 4) drives them from the desktop;
+VibeCoder panel (`SkillForgePanel.tsx`, Phase 4) drives them from the desktop;
 the client fan-out (Phase 5) ships read-only catalogue/status to
 Flutter/Watch/Wear and the full surface to VS Code + the Agent SDK. See
 `notes/skillforge/05 — Implementation Roadmap.md`.

@@ -7,7 +7,7 @@ permalink: /model-comparison/
 > A practical guide to picking the right model for the job across every provider VibeCody supports.
 > Last updated: **2026-05-08**.
 >
-> **Caveat**: model leaderboards shift weekly. Treat the strength/weakness blurbs as a *shape* of each model's bias (what it was trained for), not a final benchmark verdict. When in doubt, run the same prompt through two candidates side-by-side in VibeUI's MultiModel panel.
+> **Caveat**: model leaderboards shift weekly. Treat the strength/weakness blurbs as a *shape* of each model's bias (what it was trained for), not a final benchmark verdict. When in doubt, run the same prompt through two candidates side-by-side in VibeCoder's MultiModel panel.
 
 ## Where models run
 
@@ -22,7 +22,7 @@ Three different execution shapes hide behind the model picker. Pick the row that
 > **Cloud APIs (`claude`, `openai`, `gemini`, `grok`, `mistral`, `deepseek`, `cerebras`, `perplexity`, `together`, `fireworks`, `openrouter`, `azure_openai`, `bedrock`, `copilot`, `zhipu`, `vercel_ai`, `minimax`, `sambanova`) — runs on the provider's hardware.**
 > Closed-weights flagships live here. Inputs and outputs traverse the network; check each provider's data-handling terms.
 
-The daemon serves all three from the same HTTP surface (`:7878`), so a remote VibeUI / VibeMobile / VibeWatch client can use any of them. The choice of provider determines *where the model itself executes*, not how the client connects.
+The daemon serves all three from the same HTTP surface (`:7878`), so a remote VibeCoder / VibeMobile / VibeWatch client can use any of them. The choice of provider determines *where the model itself executes*, not how the client connects.
 
 ## Notation
 
@@ -36,7 +36,7 @@ The daemon serves all three from the same HTTP surface (`:7878`), so a remote Vi
 
 ## Pick by task
 
-The "right" pick depends on what you're doing. Use this matrix as a starting point, then verify with the MultiModel panel in VibeUI.
+The "right" pick depends on what you're doing. Use this matrix as a starting point, then verify with the MultiModel panel in VibeCoder.
 
 ### Coding agent (multi-step file edits, run-and-fix loops)
 
@@ -114,7 +114,7 @@ Three-tier family — Opus (deepest reasoning), Sonnet (balanced workhorse), Hai
 
 **claude-opus-4-7** — Strongest at sustained agentic loops with many tools and many turns. It rarely loses the plot on long sessions and is willing to push back on bad instructions. Most expensive of the three. Use when latency doesn't matter and the work is hard.
 
-**claude-sonnet-4-6** — The model most VibeCody users will actually run. Roughly Opus-level coding quality on common tasks, ~3-4× cheaper, ~2× faster. Default for the VibeUI Code panel.
+**claude-sonnet-4-6** — The model most VibeCody users will actually run. Roughly Opus-level coding quality on common tasks, ~3-4× cheaper, ~2× faster. Default for the VibeCoder Code panel.
 
 **claude-haiku-4-5** — Surprisingly capable for its tier; handles routine tool-calling, summarization, intent classification. Don't use it for novel architecture or deep debugging — it gets confidently wrong.
 
@@ -292,7 +292,7 @@ Copilot's chat back-end uses gpt-4o-class models. We expose it as a provider for
 
 ### Ollama (`ollama`)
 
-The most-used provider in VibeCody. `ollama` covers both **local-pulled** models (run on your machine) and **cloud-hosted** models (run on ollama.com when an API key is configured). The full library list lives in `vibeui/src/constants/ollamaModels.ts`.
+The most-used provider in VibeCody. `ollama` covers both **local-pulled** models (run on your machine) and **cloud-hosted** models (run on ollama.com when an API key is configured). The full library list lives in `vibecoder/src/constants/ollamaModels.ts`.
 
 VibeCody's default Ollama model is **`devstral-2`** — Mistral's 123B coding-agent flagship, non-Chinese origin, native tool calling.
 
@@ -456,11 +456,11 @@ None of these are urgent. They become useful when you start *depending* on a spe
 
 ### What we update and when
 
-The lists in this doc and in `vibeui/src/hooks/useModelRegistry.ts` are refreshed on a roughly **quarterly** cadence — when a new flagship lands at one of the major providers, or when an existing model gets formally sunset. The "Last updated" date at the top of this page is authoritative; if it's more than 6 months old when you read this, treat the picks as historical and verify against the providers' current docs.
+The lists in this doc and in `vibecoder/src/hooks/useModelRegistry.ts` are refreshed on a roughly **quarterly** cadence — when a new flagship lands at one of the major providers, or when an existing model gets formally sunset. The "Last updated" date at the top of this page is authoritative; if it's more than 6 months old when you read this, treat the picks as historical and verify against the providers' current docs.
 
 ## How to set a different default
 
-Per-provider default lives in `vibeui/src/hooks/useModelRegistry.ts`:
+Per-provider default lives in `vibecoder/src/hooks/useModelRegistry.ts`:
 
 ```ts
 export const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
@@ -473,7 +473,7 @@ export const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
 };
 ```
 
-To **add a new model** to a provider's picker, append to the array in `STATIC_MODELS` in the same file. (For Ollama, the array is sourced from `vibeui/src/constants/ollamaModels.ts`.)
+To **add a new model** to a provider's picker, append to the array in `STATIC_MODELS` in the same file. (For Ollama, the array is sourced from `vibecoder/src/constants/ollamaModels.ts`.)
 
 Per [CLAUDE.md](https://github.com/anthropics/claude-code), the model list is the only file you need to touch for a frontend-only change.
 

@@ -230,9 +230,9 @@ vibecli --provider ollama --model my-code-assistant
 
 ---
 
-## VibeUI Model Wizard
+## VibeCoder Model Wizard
 
-For the full interactive experience, open the **Model Wizard** tab in VibeUI's AI panel. It provides:
+For the full interactive experience, open the **Model Wizard** tab in VibeCoder's AI panel. It provides:
 
 - Visual step-by-step form with option cards
 - Auto-calculated VRAM requirements

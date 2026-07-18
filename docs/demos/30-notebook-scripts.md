@@ -17,7 +17,7 @@ This demo covers VibeCody's Notebook panel for interactive code notebooks and th
 
 - VibeCody installed and configured with an AI provider
 - A language runtime for notebook execution (Python 3, Node.js, or Rust)
-- For VibeUI: the desktop app running (`npm run tauri dev`)
+- For VibeCoder: the desktop app running (`npm run tauri dev`)
 
 ## Step-by-Step Walkthrough
 
@@ -140,9 +140,9 @@ Exported: analysis.html (Standalone HTML with outputs)
 Exported: analysis.ipynb (Jupyter-compatible notebook)
 ```
 
-#### Step 7: Use the Notebook panel in VibeUI
+#### Step 7: Use the Notebook panel in VibeCoder
 
-Open VibeUI and navigate to the **Notebook** panel. The interface provides:
+Open VibeCoder and navigate to the **Notebook** panel. The interface provides:
 
 - **Cell toolbar** at the top with buttons for adding code or markdown cells, running all cells, and clearing outputs.
 - **Code cells** with syntax highlighting, line numbers, and a "Run" button. Output appears directly below each cell.
@@ -273,9 +273,9 @@ View output from a previous run:
 > /script history show 2
 ```
 
-#### Step 13: Use the Script panel in VibeUI
+#### Step 13: Use the Script panel in VibeCoder
 
-Open VibeUI and navigate to the **Scripts** panel. The interface provides:
+Open VibeCoder and navigate to the **Scripts** panel. The interface provides:
 
 - **Script list** on the left showing all scripts in the project's `scripts/` directory.
 - **Editor** in the center with syntax highlighting for bash, Python, and other scripting languages.
@@ -369,10 +369,10 @@ Open VibeUI and navigate to the **Scripts** panel. The interface provides:
     },
     {
       "id": 10,
-      "action": "vibeui",
+      "action": "vibecoder",
       "panels": ["Notebook", "Scripts"],
       "actions": ["create_notebook", "add_cells", "run_cells", "generate_script", "run_script"],
-      "description": "Tour the Notebook and Scripts panels in VibeUI",
+      "description": "Tour the Notebook and Scripts panels in VibeCoder",
       "delay_ms": 5000
     }
   ]

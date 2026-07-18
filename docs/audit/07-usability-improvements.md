@@ -1,4 +1,4 @@
-# 07 — VibeUI Usability Improvements
+# 07 — VibeCoder Usability Improvements
 
 > Comprehensive audit of UI consistency, accessibility, and interaction quality across 235+ panels.
 > Generated: 2026-04-10 | Audited by: 5 parallel agents covering spacing, interactivity, responsive, color, and a11y.

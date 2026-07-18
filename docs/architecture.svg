@@ -25,9 +25,9 @@
   <text x="175" y="144" text-anchor="middle" fill="#556688" font-size="8">Ratatui + Rustyline · 100+ REPL commands</text>
   <text x="175" y="157" text-anchor="middle" fill="#445566" font-size="7">serve.rs HTTP daemon · gateway.rs 18 platforms</text>
 
-  <!-- VibeUI -->
+  <!-- VibeCoder -->
   <rect x="340" y="80" width="320" height="85" rx="8" fill="#12243d" stroke="#4a9eff" stroke-width="1"/>
-  <text x="500" y="100" text-anchor="middle" fill="#e0e0e0" font-size="13" font-weight="700">vibe-ui (Tauri 2)</text>
+  <text x="500" y="100" text-anchor="middle" fill="#e0e0e0" font-size="13" font-weight="700">vibe-coder (Tauri 2)</text>
   <text x="500" y="116" text-anchor="middle" fill="#6699cc" font-size="9">Desktop Code Editor (macOS / Linux / Windows)</text>
   <text x="500" y="130" text-anchor="middle" fill="#556688" font-size="8">React + TypeScript · Monaco Editor · 160+ panels</text>
   <text x="500" y="144" text-anchor="middle" fill="#556688" font-size="8">commands.rs · 874 Tauri IPC commands</text>
@@ -189,25 +189,25 @@
   <!-- vibecli → vibe-ai -->
   <line x1="175" y1="165" x2="175" y2="193" stroke="#9b59b6" stroke-width="1.8" marker-end="url(#arr-purple)"/>
 
-  <!-- vibeui → vibe-ai -->
+  <!-- vibecoder → vibe-ai -->
   <line x1="460" y1="165" x2="400" y2="193" stroke="#9b59b6" stroke-width="1.8" marker-end="url(#arr-purple)"/>
 
-  <!-- vibeui → vibe-core -->
+  <!-- vibecoder → vibe-core -->
   <line x1="500" y1="165" x2="500" y2="408" stroke="#27ae60" stroke-width="1.2" marker-end="url(#arr-green)" stroke-dasharray="6,3"/>
 
   <!-- vibe-ai → vibe-core -->
   <line x1="328" y1="395" x2="328" y2="408" stroke="#27ae60" stroke-width="1.8" marker-end="url(#arr-green)"/>
 
-  <!-- vibeui → vibe-lsp -->
+  <!-- vibecoder → vibe-lsp -->
   <line x1="560" y1="130" x2="658" y2="230" stroke="#f39c12" stroke-width="1.2" marker-end="url(#arr-orange)"/>
 
-  <!-- vibeui → vibe-extensions -->
+  <!-- vibecoder → vibe-extensions -->
   <line x1="580" y1="145" x2="658" y2="360" stroke="#e74c3c" stroke-width="1" marker-end="url(#arr-orange)" stroke-dasharray="4,3"/>
 
-  <!-- vibeui → vibe-collab -->
+  <!-- vibecoder → vibe-collab -->
   <path d="M 590,155 Q 640,300 658,475" stroke="#1abc9c" stroke-width="1" fill="none" marker-end="url(#arr-green)" stroke-dasharray="4,3"/>
 
-  <!-- vibeui → React frontend -->
+  <!-- vibecoder → React frontend -->
   <line x1="660" y1="120" x2="988" y2="350" stroke="#4a9eff" stroke-width="1.2" marker-end="url(#arr-blue)" stroke-dasharray="5,3"/>
 
   <!-- ═══════ EXTERNAL DEPS ═══════ -->

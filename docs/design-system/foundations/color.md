@@ -5,7 +5,7 @@ title: Color — Design System
 permalink: /design-system/foundations/color/
 ---
 
-VibeUI uses a two-layer color system: **palette tokens** (raw values) and **semantic tokens** (intent-based aliases). Always use semantic tokens in component code. Only use palette tokens when creating new semantic aliases.
+VibeCoder uses a two-layer color system: **palette tokens** (raw values) and **semantic tokens** (intent-based aliases). Always use semantic tokens in component code. Only use palette tokens when creating new semantic aliases.
 
 ---
 

@@ -12,7 +12,7 @@
 //! | Cross-session learning     | Basic reinforcement| Decay + reinforce + merge  |
 //! | Temporal knowledge graph   | Basic validity     | Bi-temporal + point-in-time|
 //! | Project-aware scoping      | user_id only       | user + project + workspace |
-//! | VibeCody integration       | N/A                | Agent loop, REPL, VibeUI   |
+//! | VibeCody integration       | N/A                | Agent loop, REPL, VibeCoder   |
 //! | Embedding providers        | External API only  | Local TF-IDF (zero deps)   |
 
 use anyhow::Result;

@@ -6,7 +6,7 @@ permalink: /settings/
 
 > Everything you can configure in VibeCody — and *where* your configuration is actually stored. Per AGENTS.md → Zero-Config First, every value lives in the encrypted ProfileStore (or your local `localStorage` for cosmetic preferences). No `.env` files. No plaintext credentials. Ever.
 
-The Settings panel in VibeUI groups configuration into seven sections. Most users never need to touch any of them — VibeCody self-configures with safe defaults — but here's what each section does, where the values live, and how to change them from the terminal if you prefer.
+The Settings panel in VibeCoder groups configuration into seven sections. Most users never need to touch any of them — VibeCody self-configures with safe defaults — but here's what each section does, where the values live, and how to change them from the terminal if you prefer.
 
 ---
 
@@ -57,13 +57,13 @@ The Settings panel in VibeUI groups configuration into seven sections. Most user
 ### 7. Sessions
 - Recap toggles (on tab close, on idle, generator selection).
 - Auto-resume last session.
-- Saved as a single `vibeui-sessions` JSON blob in `localStorage`.
+- Saved as a single `vibecoder-sessions` JSON blob in `localStorage`.
 
 ---
 
 ## Provider keys — managed from the terminal
 
-The `vibecli` CLI exposes the same ProfileStore that the Settings panel writes to. Useful for headless deployments, CI, or when you're not running VibeUI:
+The `vibecli` CLI exposes the same ProfileStore that the Settings panel writes to. Useful for headless deployments, CI, or when you're not running VibeCoder:
 
 ```bash
 # List configured providers (no values shown — names only)
@@ -130,11 +130,11 @@ Fix: `chmod u+rw ~/.vibecli/profile_settings.db` and re-run.
 
 ### Keys disappeared after upgrade
 
-The pre-2026-04 `~/.vibeui/api_keys.json` was migrated to ProfileStore on first launch. If migration failed, the keys are still in that file — check, then re-enter.
+The pre-2026-04 `~/.vibecoder/api_keys.json` was migrated to ProfileStore on first launch. If migration failed, the keys are still in that file — check, then re-enter.
 
 ### "Invalid model" after switching providers
 
-The Settings panel re-registers cloud providers on save. If the chat engine doesn't pick up the new model, restart VibeUI — there's a one-time provider-cache miss after a fresh provider key.
+The Settings panel re-registers cloud providers on save. If the chat engine doesn't pick up the new model, restart VibeCoder — there's a one-time provider-cache miss after a fresh provider key.
 
 ---
 
@@ -164,7 +164,7 @@ User content is never logged — only counts and stable enums (provider names). 
 
 | Client | Settings access |
 |---|---|
-| **VibeUI (desktop)** | Full Settings panel: 7 sections |
+| **VibeCoder (desktop)** | Full Settings panel: 7 sections |
 | **VibeCLI** | `vibecli set-key` / `unset-key` / `list-keys` for the API Keys section; `~/.vibecli/config.toml` for daemon config |
 | **VibeMobile** | Read-only — picks up settings from the daemon over HTTPS; no in-app editor by design |
 | **VibeWatch** | None — too small for credential entry |

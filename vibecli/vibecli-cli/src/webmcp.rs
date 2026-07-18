@@ -6,7 +6,7 @@
 //!
 //! * **Consumer** — discover WebMCP tool descriptors a site advertises and build
 //!   validated invocations for the ones the user authorized.
-//! * **Producer** — expose selected VibeUI panels as WebMCP tools so a page's
+//! * **Producer** — expose selected VibeCoder panels as WebMCP tools so a page's
 //!   agent can call them.
 //!
 //! Both stay behind a feature flag while the spec is in origin trial, and both
@@ -123,11 +123,11 @@ pub fn build_invocation(
     })
 }
 
-/// Producer side: describe a VibeUI panel as a WebMCP tool a page can call.
+/// Producer side: describe a VibeCoder panel as a WebMCP tool a page can call.
 /// These are read/affordance tools — the agent never mutates the live DOM.
 pub fn panel_as_tool(panel_id: &str, description: &str, params: &[(&str, bool)]) -> WebMcpTool {
     WebMcpTool {
-        name: format!("vibeui.{panel_id}"),
+        name: format!("vibecoder.{panel_id}"),
         description: description.to_string(),
         params: params
             .iter()
@@ -139,7 +139,7 @@ pub fn panel_as_tool(panel_id: &str, description: &str, params: &[(&str, bool)])
     }
 }
 
-/// Serialize produced tools as the `{"tools":[...]}` payload VibeUI publishes to
+/// Serialize produced tools as the `{"tools":[...]}` payload VibeCoder publishes to
 /// a page's `window.agent`.
 pub fn publish_tools(tools: &[WebMcpTool]) -> String {
     serde_json::to_string(&serde_json::json!({ "tools": tools }))
@@ -276,7 +276,7 @@ mod tests {
     #[test]
     fn producer_roundtrips_through_publish() {
         let tool = panel_as_tool("git", "Inspect git status", &[("path", false)]);
-        assert_eq!(tool.name, "vibeui.git");
+        assert_eq!(tool.name, "vibecoder.git");
         let json = publish_tools(&[tool.clone()]);
         let reparsed = parse_advertised_tools(&json);
         assert_eq!(reparsed, vec![tool]);

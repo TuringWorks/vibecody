@@ -7,7 +7,7 @@ permalink: /demos/11-docker/
 
 ## Overview
 
-VibeCody provides first-class Docker and container management through both the CLI and the VibeUI Docker panel. Build images, run and manage containers, view logs, exec into running containers, and manage Docker Compose stacks. VibeCody also supports **Podman** and **OpenSandbox** as alternative container runtimes, and uses containers as sandboxed execution environments for AI agents.
+VibeCody provides first-class Docker and container management through both the CLI and the VibeCoder Docker panel. Build images, run and manage containers, view logs, exec into running containers, and manage Docker Compose stacks. VibeCody also supports **Podman** and **OpenSandbox** as alternative container runtimes, and uses containers as sandboxed execution environments for AI agents.
 
 
 ## Prerequisites
@@ -20,7 +20,7 @@ docker --version   # Docker 24.0+
 docker info        # Verify daemon is running
 ```
 
-- For VibeUI: `cd vibeui && npm install && npm run tauri dev`
+- For VibeCoder: `cd vibecoder && npm install && npm run tauri dev`
 - (Optional) Docker Compose for multi-service management:
 
 ```bash
@@ -30,9 +30,9 @@ docker compose version   # v2.20+
 
 ## Step-by-Step Walkthrough
 
-### 1. Docker Panel Overview (VibeUI)
+### 1. Docker Panel Overview (VibeCoder)
 
-**VibeUI:**
+**VibeCoder:**
 1. Open the **Docker** panel (AI Panel > Docker tab)
 2. The panel displays:
    - **Images** — Local images with tags, sizes, and creation dates
@@ -84,7 +84,7 @@ Step 8/8: COPY --from=builder /app/target/release/myapp /usr/local/bin/
 Successfully built: myapp:latest (42.1 MB)
 ```
 
-**VibeUI:**
+**VibeCoder:**
 1. In the Docker panel, click **Build Image**
 2. Select the project directory and Dockerfile
 3. Enter image name and tag
@@ -115,7 +115,7 @@ vibecli docker run --interactive --tty ubuntu:22.04 /bin/bash
 /docker run myapp:latest -p 8080:3000 -d --name myapp-dev
 ```
 
-**VibeUI:**
+**VibeCoder:**
 1. In the Docker panel Images tab, find your image
 2. Click the **Run** button next to it
 3. Configure ports, environment variables, volumes, and network in the dialog
@@ -149,7 +149,7 @@ vibecli docker exec myapp-dev -- ls -la /app
 /docker exec myapp-dev /bin/sh
 ```
 
-**VibeUI:**
+**VibeCoder:**
 1. In the Docker panel Containers tab, click a running container
 2. The detail view shows:
    - **Logs** tab — live-streaming log output with search and filtering
@@ -193,7 +193,7 @@ vibecli docker compose down --volumes
 /docker compose down
 ```
 
-**VibeUI:**
+**VibeCoder:**
 1. In the Docker panel Compose tab, your `docker-compose.yml` stacks are detected automatically
 2. Click **Up** to start all services
 3. Each service shows its status, ports, and health check results
@@ -278,7 +278,7 @@ Runtime-specific features:
   "steps": [
     {
       "action": "Navigate",
-      "target": "vibeui://open?folder=/home/user/my-project"
+      "target": "vibecoder://open?folder=/home/user/my-project"
     },
     {
       "action": "Narrate",

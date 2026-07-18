@@ -17,7 +17,7 @@ const TABS: { id: Tab; label: string; icon: typeof KeyRound }[] = [
 ];
 
 /**
- * Settings, carried over from VibeUI by sharing the encrypted ProfileStore:
+ * Settings, carried over from VibeCoder by sharing the encrypted ProfileStore:
  * Providers (API keys + per-provider config + default selection), Appearance
  * (theme), and Account (identity / OAuth). Opens as a center overlay.
  */
@@ -88,7 +88,7 @@ function ProvidersSection() {
 
       <h3 className="vx-set-h">API keys</h3>
       <p className="vx-set-hint">
-        Stored encrypted in the shared ProfileStore (~/.vibecli) — the same keys VibeUI uses.
+        Stored encrypted in the shared ProfileStore (~/.vibecli) — the same keys VibeCoder uses.
       </p>
       <ul className="vx-set-keys">
         {KEYED_PROVIDERS.map((p) => {
@@ -139,7 +139,7 @@ function AppearanceSection() {
     { id: "light", label: "Light" },
   ];
   // Show themes of the currently-selected mode, grouped by category. The
-  // category labels mirror the VibeUI Settings → Appearance ordering so
+  // category labels mirror the VibeCoder Settings → Appearance ordering so
   // a user moving between apps doesn't have to relearn the layout.
   const CATEGORY_ORDER = ["standard", "high-contrast", "color-blind", "supercar"] as const;
   const CATEGORY_LABEL: Record<(typeof CATEGORY_ORDER)[number], string> = {
@@ -152,7 +152,7 @@ function AppearanceSection() {
   return (
     <div className="vx-set-section">
       <h3 className="vx-set-h">Theme</h3>
-      <p className="vx-set-hint">Uses the shared VibeCody design tokens, so VibeDesk matches VibeUI.</p>
+      <p className="vx-set-hint">Uses the shared VibeCody design tokens, so VibeDesk matches VibeCoder.</p>
 
       {/* Mode toggle — flips within the current pair, so "Charcoal dark → light"
           stays on Charcoal instead of jumping back to Default. */}

@@ -36,7 +36,7 @@ title: "COMPETITIVE ANALYSIS 2026 03"
 
 ## 1. Executive Summary
 
-The AI-assisted development landscape in March 2026 spans 15+ significant products across three tiers: **CLI/terminal agents**, **IDE/desktop editors**, and **cloud-hosted app builders**. VibeCody is unique in straddling the first two tiers with both VibeCLI (terminal) and VibeUI (desktop IDE) sharing a unified Rust backend.
+The AI-assisted development landscape in March 2026 spans 15+ significant products across three tiers: **CLI/terminal agents**, **IDE/desktop editors**, and **cloud-hosted app builders**. VibeCody is unique in straddling the first two tiers with both VibeCLI (terminal) and VibeCoder (desktop IDE) sharing a unified Rust backend.
 
 **Key findings:**
 
@@ -54,7 +54,7 @@ The AI-assisted development landscape in March 2026 spans 15+ significant produc
 | | Codex CLI | OpenAI | OSS (Apache 2) | Terminal + cloud sandbox |
 | | Aider | OSS Community | Apache 2 | Terminal pair programmer |
 | | Kiro CLI | AWS | Proprietary | Terminal + spec-driven |
-| **IDE/Desktop** | VibeUI | VibeCody | MIT (OSS) | Tauri 2 desktop (Monaco + React) |
+| **IDE/Desktop** | VibeCoder | VibeCody | MIT (OSS) | Tauri 2 desktop (Monaco + React) |
 | | Cursor | Anysphere | Proprietary | Electron (VS Code fork) |
 | | Windsurf → **Devin Desktop** | Cognition | Proprietary | Electron fork; Cascade → Rust "Devin Local" (2026-06-02) |
 | | Zed | Zed Industries | OSS (GPL/AGPL) | Native (Rust/GPUI) |
@@ -178,7 +178,7 @@ The AI-assisted development landscape in March 2026 spans 15+ significant produc
 
 ### 4.1 Editor Fundamentals
 
-| Capability | VibeUI | Cursor | Windsurf | Zed | Trae | Copilot | Amazon Q |
+| Capability | VibeCoder | Cursor | Windsurf | Zed | Trae | Copilot | Amazon Q |
 |-----------|--------|--------|----------|-----|------|---------|----------|
 | Editor engine | Monaco (Tauri) | Monaco (Electron) | Monaco (Electron) | GPUI (native) | Monaco (Electron) | VS Code ext | VS Code ext |
 | File tree + workspace | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
@@ -193,7 +193,7 @@ The AI-assisted development landscape in March 2026 spans 15+ significant produc
 
 ### 4.2 AI Chat & Agent
 
-| Capability | VibeUI | Cursor | Windsurf | Zed | Trae | Copilot | Amazon Q |
+| Capability | VibeCoder | Cursor | Windsurf | Zed | Trae | Copilot | Amazon Q |
 |-----------|--------|--------|----------|-----|------|---------|----------|
 | AI chat panel | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Agent mode (autonomous) | Yes | Yes (Composer) | Yes (Cascade) | Yes | Yes (Builder) | Yes | Yes |
@@ -213,7 +213,7 @@ The AI-assisted development landscape in March 2026 spans 15+ significant produc
 
 ### 4.3 Code Completion & Prediction
 
-| Capability | VibeUI | Cursor | Windsurf | Zed | Trae | Copilot | Amazon Q |
+| Capability | VibeCoder | Cursor | Windsurf | Zed | Trae | Copilot | Amazon Q |
 |-----------|--------|--------|----------|-----|------|---------|----------|
 | Inline completions (FIM) | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Next-edit prediction (Tab) | Yes | Yes (specialized model) | Yes (Supercomplete) | Yes (Zeta OSS) | Yes | Yes | Yes |
@@ -224,7 +224,7 @@ The AI-assisted development landscape in March 2026 spans 15+ significant produc
 
 ### 4.4 Diff, Review & Checkpoints
 
-| Capability | VibeUI | Cursor | Windsurf | Zed | Trae | Copilot | Amazon Q |
+| Capability | VibeCoder | Cursor | Windsurf | Zed | Trae | Copilot | Amazon Q |
 |-----------|--------|--------|----------|-----|------|---------|----------|
 | Diff preview before apply | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Chunk-level accept/reject | Partial | Yes | Yes | Yes | No | Yes | No |
@@ -233,7 +233,7 @@ The AI-assisted development landscape in March 2026 spans 15+ significant produc
 
 ### 4.5 Multi-Agent & Orchestration
 
-| Capability | VibeUI | Cursor | Windsurf | Zed | Trae | Copilot | Amazon Q |
+| Capability | VibeCoder | Cursor | Windsurf | Zed | Trae | Copilot | Amazon Q |
 |-----------|--------|--------|----------|-----|------|---------|----------|
 | Parallel agents | Yes (10 local) | Yes (8 cloud) | Yes (multi) | No | No | No | No |
 | Manager/orchestration view | Yes | No | No | No | No | No | No |
@@ -246,7 +246,7 @@ The AI-assisted development landscape in March 2026 spans 15+ significant produc
 
 ### 4.6 Flow Awareness & Memory
 
-| Capability | VibeUI | Cursor | Windsurf | Zed | Trae | Copilot | Amazon Q |
+| Capability | VibeCoder | Cursor | Windsurf | Zed | Trae | Copilot | Amazon Q |
 |-----------|--------|--------|----------|-----|------|---------|----------|
 | Edit/command flow tracking | Yes | Partial | Yes (Flows) | No | No | No | No |
 | Persistent AI memory | Yes | Yes | Yes | No | No | No | No |
@@ -256,7 +256,7 @@ The AI-assisted development landscape in March 2026 spans 15+ significant produc
 
 ### 4.7 Planning & Spec-Driven
 
-| Capability | VibeUI | Cursor | Windsurf | Zed | Trae | Copilot | Amazon Q |
+| Capability | VibeCoder | Cursor | Windsurf | Zed | Trae | Copilot | Amazon Q |
 |-----------|--------|--------|----------|-----|------|---------|----------|
 | Planning agent | Yes | Yes | Yes (Plan mode) | No | Yes | No | No |
 | Spec-driven development | Yes | No | No | No | No | No | No |
@@ -265,7 +265,7 @@ The AI-assisted development landscape in March 2026 spans 15+ significant produc
 
 ## 5. Feature Comparison Matrix -- Cloud/App Builder Tools
 
-| Capability | VibeUI | Codex App | Devin | Replit Agent | Bolt.new | Lovable |
+| Capability | VibeCoder | Codex App | Devin | Replit Agent | Bolt.new | Lovable |
 |-----------|--------|-----------|-------|-------------|----------|---------|
 | Cloud VM execution | Yes (Docker) | Yes (native) | Yes (native) | Yes (native) | Yes | Yes |
 | Parallel agent instances | Yes (10) | Yes (many) | Yes (many) | Yes | No | No |
@@ -384,7 +384,7 @@ The AI-assisted development landscape in March 2026 spans 15+ significant produc
 
 **VibeCody advantage:** Completely unique — no competitor has a messaging gateway. 18-platform reach enables bot-based AI coding from any messaging client.
 
-### 6.7 Developer Tool Panels (VibeUI Exclusive)
+### 6.7 Developer Tool Panels (VibeCoder Exclusive)
 
 VibeCody ships 90+ specialized tool panels in the desktop IDE. No competitor offers anything comparable:
 
@@ -425,11 +425,11 @@ VibeCody ships 90+ specialized tool panels in the desktop IDE. No competitor off
 | Skip-to-content links | Yes | Yes | Yes | No | Yes |
 | Onboarding keyboard nav | Yes | N/A | N/A | N/A | N/A |
 
-**VibeCody gap:** VS Code-based competitors inherit VS Code's mature accessibility stack for free. VibeUI's custom React UI requires more accessibility work.
+**VibeCody gap:** VS Code-based competitors inherit VS Code's mature accessibility stack for free. VibeCoder's custom React UI requires more accessibility work.
 
 ### 6.10 Performance & Resource Usage
 
-| Metric | VibeCody (VibeUI) | Cursor | Windsurf | Zed | Copilot (VS Code) |
+| Metric | VibeCody (VibeCoder) | Cursor | Windsurf | Zed | Copilot (VS Code) |
 |--------|-------------------|--------|----------|-----|--------------------|
 | Runtime | Tauri 2 (WebView) | Electron | Electron | Native (GPUI) | Electron |
 | Startup time | Fast (~2s) | Medium (~4s) | Medium (~4s) | Very fast (<1s) | Medium (~3s) |
@@ -542,7 +542,7 @@ VibeCody ships 90+ specialized tool panels in the desktop IDE. No competitor off
 
 **VibeCody advantage:** Unique integrations (Linear, 18 messaging gateways, Supabase panel).
 
-**VibeCody gap:** No Figma integration, no Sentry integration, no Terraform/IaC tooling. No presence on VS Code or JetBrains marketplaces (VibeUI is standalone, not an extension).
+**VibeCody gap:** No Figma integration, no Sentry integration, no Terraform/IaC tooling. No presence on VS Code or JetBrains marketplaces (VibeCoder is standalone, not an extension).
 
 ## 11. Enterprise Readiness
 

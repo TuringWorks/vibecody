@@ -1,4 +1,4 @@
-# VibeUI Panel Functionality Audit
+# VibeCoder Panel Functionality Audit
 
 > **Updated:** 2026-04-09 | **Panels:** 235+ | **Composites:** 39 | **Registered Tauri Commands:** 950+
 > **Legend:** Backend = Tauri invoke wired | Utility = pure client-side JS

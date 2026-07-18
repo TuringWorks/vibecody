@@ -16,7 +16,7 @@ VibeCody's Workflow Orchestration module brings structured project management in
 - VibeCLI 0.5.1 or later installed and on your PATH
 - At least one AI provider configured
 - A project directory (orchestration files are created in `./tasks/`)
-- For VibeUI: the desktop app running with the **Orchestration** panel visible
+- For VibeCoder: the desktop app running with the **Orchestration** panel visible
 
 ## Step-by-Step Walkthrough
 
@@ -274,9 +274,9 @@ project/
 
 Both files use standard Markdown, so they render nicely on GitHub and can be edited manually.
 
-## VibeUI: Orchestration Panel
+## VibeCoder: Orchestration Panel
 
-The **Orchestration** panel in VibeUI provides a visual interface with tabs for:
+The **Orchestration** panel in VibeCoder provides a visual interface with tabs for:
 
 - **Status** -- Overview of lessons count, todo progress, and context preview
 - **Todos** -- Add, edit, reorder, and mark tasks complete with drag-and-drop

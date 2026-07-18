@@ -13,7 +13,13 @@ interface SessionStreamProps {
   /** When set, this finished chat is loaded into the pane and follow-ups resume
    *  its session instead of starting a fresh one (VX bug-3). */
   selectedTask: Task | null;
-  createTask: (title: string, provider: string, model?: string, projectPath?: string) => Promise<Task>;
+  createTask: (
+    title: string,
+    provider: string,
+    model?: string,
+    projectPath?: string,
+    createWorktree?: boolean,
+  ) => Promise<Task>;
   linkSession: (id: string, sessionId: string, status?: string) => Promise<void>;
   getHistory: (id: string) => Promise<TaskHistory>;
   onQuickAction: (action: QuickAction) => void;
@@ -113,10 +119,12 @@ export function SessionStream({
     // First task message becomes the session title.
     if (state === "idle") setTitle(p.task);
 
-    // VX-112/113: create the task card (+ worktree) before the agent starts.
+    // VX-112/113: create the task card before the agent starts. A worktree
+    // branch is only forked when the user opted in via the composer's Branch
+    // toggle (p.isolate) — a plain chat stays in place (no branch).
     let task: Task | null = null;
     try {
-      task = await createTask(p.task, p.provider, p.model, projectPath ?? undefined);
+      task = await createTask(p.task, p.provider, p.model, projectPath ?? undefined, p.isolate);
       activeTaskId.current = task.id;
     } catch (e) {
       console.error("create task failed", e);
@@ -155,7 +163,8 @@ export function SessionStream({
       <div className="vx-stream__body">
         {items.length === 0 && (
           <div className="vx-stream__empty">
-            Type a task below — VibeDesk creates a branch, runs the agent, and streams the result here.
+            Type a message below — VibeDesk runs the agent and streams the result here. Toggle
+            Branch in the composer to isolate a coding task on its own git worktree.
           </div>
         )}
         {items.map((item, i) => {

@@ -7,7 +7,7 @@ import '../theme/app_theme.dart';
 /// G2.2 — Mobile Goals screen. Read-mostly view of `/v1/goals` across
 /// every paired machine. Tapping a goal opens a detail sheet with a
 /// "Start session" action; the heavy lifting (plan generation, links,
-/// criteria editing) stays on VibeUI and the daemon REPL.
+/// criteria editing) stays on VibeCoder and the daemon REPL.
 class GoalsScreen extends StatefulWidget {
   const GoalsScreen({super.key});
 
@@ -141,7 +141,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Tap + to create one, or use VibeUI / CLI (`/goal new`).',
+                        'Tap + to create one, or use VibeCoder / CLI (`/goal new`).',
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                       const SizedBox(height: 12),
@@ -542,7 +542,7 @@ class _GoalDetailSheetState extends State<_GoalDetailSheet> {
 /// (we always create against /v1/goals on that machine — no global-
 /// across-fleet fan-out). Workspace defaults to the machine-global
 /// slot since phone keyboards aren't well-suited to typing absolute
-/// project paths; richer workspace targeting stays on VibeUI / CLI.
+/// project paths; richer workspace targeting stays on VibeCoder / CLI.
 class _NewGoalSheet extends StatefulWidget {
   const _NewGoalSheet({required this.onCreated});
 

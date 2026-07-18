@@ -5,7 +5,7 @@
 # under .semgrep/).
 #
 # Run locally:
-#   semgrep --config .semgrep/path-traversal.yml vibeui/src-tauri/src/
+#   semgrep --config .semgrep/path-traversal.yml vibecoder/src-tauri/src/
 
 rules:
   - id: discarded-safe-resolve-path
@@ -13,7 +13,7 @@ rules:
     severity: ERROR
     paths:
       include:
-        - "vibeui/src-tauri/src/**"
+        - "vibecoder/src-tauri/src/**"
     message: >-
       `safe_resolve_path()` (and `safe_resolve_path_in()` / `reject_sensitive_path()`)
       is `#[must_use]` — the returned PathBuf is the canonicalized,
@@ -35,7 +35,7 @@ rules:
     severity: ERROR
     paths:
       include:
-        - "vibeui/src-tauri/src/**"
+        - "vibecoder/src-tauri/src/**"
     message: >-
       Tauri command accepts a `path: String` argument and performs a filesystem
       operation on it. Validate the path with `safe_resolve_path()` (for
@@ -103,7 +103,7 @@ rules:
     severity: WARNING
     paths:
       include:
-        - "vibeui/src-tauri/src/**"
+        - "vibecoder/src-tauri/src/**"
     message: >-
       Tauri command accepts a `path: String` argument and passes it to a
       subprocess (`Command::new(...).arg($PATH)` or `.current_dir($PATH)`).

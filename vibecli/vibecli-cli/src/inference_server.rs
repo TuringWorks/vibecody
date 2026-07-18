@@ -314,7 +314,7 @@ pub fn build_ollama_command(_config: &ServingConfig) -> Vec<String> {
 
 /// Build the shell command that reproduces the deployment with Mistral.rs's
 /// in-process backend via `vibe-infer`. Emits the `cargo run ... --example
-/// generate` form we document in `vibeui/crates/vibe-infer/examples/generate.rs`.
+/// generate` form we document in `vibecoder/crates/vibe-infer/examples/generate.rs`.
 ///
 /// Mistral.rs does not ship as a Docker sidecar — the emitted command runs
 /// inside whatever VibeCLI is embedded in. Pick the feature flag closest to

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Check } from "lucide-react";
 
-/** Identity providers VibeDesk can be configured against (mirrors VibeUI's set). */
+/** Identity providers VibeDesk can be configured against (mirrors VibeCoder's set). */
 const IDENTITY_PROVIDERS: { id: string; label: string }[] = [
   { id: "google", label: "Google" },
   { id: "github", label: "GitHub" },
@@ -15,7 +15,7 @@ const IDENTITY_PROVIDERS: { id: string; label: string }[] = [
  * Account / identity-provider configuration (VX identity slice). Stores each
  * provider's OAuth client credentials in the shared encrypted ProfileStore
  * (client_id + client_secret), so VibeDesk is configurable for SSO. The live
- * browser-callback sign-in flow reuses VibeUI's cloud_oauth_* path and is a
+ * browser-callback sign-in flow reuses VibeCoder's cloud_oauth_* path and is a
  * follow-up; here we own the durable configuration.
  */
 export function AccountSection() {

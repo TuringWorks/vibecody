@@ -117,7 +117,7 @@ Interactive walkthroughs covering VibeCody's 65 major capabilities across CLI, D
 | [61 — Verbatim Drawers & MemPalace](61-memory-drawers/) | CLI + UI | Lossless 800-char chunk ingestion, Wing/Room scoping, cross-project Tunnels |
 | [62 — Memory Benchmarking](62-memory-benchmark/) | CLI + UI | LongMemEval recall@K benchmark across cognitive and verbatim layers |
 
-> **Full reference:** [Memory Guide](../memory-guide/) — all three memory layers (auto-recording, cognitive store, verbatim drawers), every REPL command, and VibeUI panel tour.
+> **Full reference:** [Memory Guide](../memory-guide/) — all three memory layers (auto-recording, cognitive store, verbatim drawers), every REPL command, and VibeCoder panel tour.
 
 ## Productivity Integrations
 
@@ -175,9 +175,9 @@ vibecli
 > /demo export <id> --format html
 ```
 
-### VibeUI Demos
+### VibeCoder Demos
 
-1. Open VibeUI: `cd vibeui && npm run tauri:dev`
+1. Open VibeCoder: `cd vibecoder && npm run tauri:dev`
 2. Navigate to the **Demo** tab in the AI panel
 3. Browse demos by category
 4. Click **Play** to step through interactively

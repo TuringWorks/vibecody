@@ -163,7 +163,7 @@ fn draw_file_tree(f: &mut Frame, app: &App, area: Rect) {
 }
 
 /// G3.1 — render the Goals list. Read-only display today; mutations
-/// happen via the REPL or VibeUI. Cycle status filter with `f`,
+/// happen via the REPL or VibeCoder. Cycle status filter with `f`,
 /// arrow keys for selection, `r` to refresh.
 fn draw_goals(f: &mut Frame, app: &App, area: Rect) {
     let t = &app.theme;
@@ -228,7 +228,7 @@ fn draw_goals(f: &mut Frame, app: &App, area: Rect) {
             ),
         ];
         // G13.1 — yellow ★ on rows pinned anywhere. Same glyph the
-        // watch, mobile, VibeUI, and VS Code surfaces use.
+        // watch, mobile, VibeCoder, and VS Code surfaces use.
         if row.pinned {
             prefix_spans.push(Span::styled(
                 "★ ",

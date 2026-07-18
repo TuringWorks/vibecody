@@ -25,7 +25,7 @@ This page documents the desktop panel. Counsel is currently desktop-only; mobile
 
 ## Session storage
 
-Sessions live in `~/.vibeui/counsel-sessions.json` as a JSON array. Each session has:
+Sessions live in `~/.vibecoder/counsel-sessions.json` as a JSON array. Each session has:
 
 - `id` — UUID
 - `topic` — the debate prompt
@@ -78,7 +78,7 @@ You can mix roles freely — a 4-participant session with Expert / Skeptic / Cre
   "available": true,
   "transport": "tauri-desktop",
   "requires": "providers.configured_count >= 2 (for diverse debate)",
-  "store_path": "~/.vibeui/counsel-sessions.json"
+  "store_path": "~/.vibecoder/counsel-sessions.json"
 }
 ```
 
@@ -128,7 +128,7 @@ INFO vibecody::counsel: counsel.session.delete
 
 | Client | Counsel |
 |---|---|
-| **VibeUI / VibeApp** | Full panel |
+| **VibeCoder / VibeApp** | Full panel |
 | **VibeMobile** | None — debates are inherently a side-by-side comparison UX |
 | **VibeWatch** | None |
 | **IDE plugins** | None |
@@ -153,13 +153,13 @@ The participants converged. This is a real outcome; the debate is over. Synthesi
 
 ### "Sessions disappeared after restart"
 
-`~/.vibeui/counsel-sessions.json` was deleted or corrupted. Sessions aren't backed up to the daemon — if the file goes, the sessions go. Consider a periodic backup to your dotfiles repo.
+`~/.vibecoder/counsel-sessions.json` was deleted or corrupted. Sessions aren't backed up to the daemon — if the file goes, the sessions go. Consider a periodic backup to your dotfiles repo.
 
 ---
 
 ## Related
 
-- **Source:** `vibeui/src/components/CounselPanel.tsx` (~545 LOC) · backend in `vibeui/src-tauri/src/commands.rs` (`counsel_create_session`, `counsel_run_round`, `counsel_synthesize`, `counsel_delete_session`, `counsel_inject_message`, `counsel_vote`, `counsel_update_participant`)
+- **Source:** `vibecoder/src/components/CounselPanel.tsx` (~545 LOC) · backend in `vibecoder/src-tauri/src/commands.rs` (`counsel_create_session`, `counsel_run_round`, `counsel_synthesize`, `counsel_delete_session`, `counsel_inject_message`, `counsel_vote`, `counsel_update_participant`)
 - **Counsel runtime:** `vibecli/vibecli-cli/src/counsel.rs` — session model + `add_round`
 - **Arena Mode:** [`docs/arena`](./arena.md) — for blind 1-vs-1 comparisons (different use case)
 - **SuperBrain:** for parallel multi-provider runs with judge-as-aggregator (different use case)

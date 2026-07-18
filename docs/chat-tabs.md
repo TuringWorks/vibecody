@@ -5,7 +5,7 @@ permalink: /chat-tabs/
 ---
 
 
-The chat tab manager is the heart of VibeCody's conversation UX in VibeUI and VibeCLI App. It owns multiple concurrent chat sessions, per-tab provider overrides, session history, recap-on-close, and Watch active-session sync. This page documents the user-facing surface; the cross-client `Recap` shape lives in [`docs/recap`](./recap.md).
+The chat tab manager is the heart of VibeCody's conversation UX in VibeCoder and VibeCLI App. It owns multiple concurrent chat sessions, per-tab provider overrides, session history, recap-on-close, and Watch active-session sync. This page documents the user-facing surface; the cross-client `Recap` shape lives in [`docs/recap`](./recap.md).
 
 ---
 
@@ -17,7 +17,7 @@ The chat tab manager is the heart of VibeCody's conversation UX in VibeUI and Vi
 - **Per-tab provider** — override the global provider for one conversation without disturbing the others. The global top-bar selector resets every tab back to the global default; click "reset" on a tab to drop a manual override.
 - **History** — closing a tab with messages auto-saves it. The History panel restores any past session into a new tab.
 - **Recap-on-close** — when enabled in Settings → Sessions (default on), closing a tab triggers a recap generation. The recap pins to the restored tab on next open.
-- **Watch sync** — when an Apple Watch / Wear OS companion switches its active session, VibeUI follows automatically (Google Docs-style).
+- **Watch sync** — when an Apple Watch / Wear OS companion switches its active session, VibeCoder follows automatically (Google Docs-style).
 
 ---
 
@@ -66,7 +66,7 @@ When the user closes a tab with at least one message and the **Recap on tab clos
 3. On success, the history entry gains `recapSubjectId = tab.id`.
 4. On failure (daemon offline, `subject_id` not in `sessions.db`), the close completes silently — no banner, no retry. The history entry stays without a `recapSubjectId`, so a future restore will simply not show a recap card.
 
-Toggle this in Settings → Sessions. The preference is read from `localStorage:vibeui-sessions.recapOnTabClose`; defaults to `true` if the key is missing or corrupt.
+Toggle this in Settings → Sessions. The preference is read from `localStorage:vibecoder-sessions.recapOnTabClose`; defaults to `true` if the key is missing or corrupt.
 
 ---
 
@@ -101,12 +101,12 @@ This is a **declaration**, not a probe — there is no daemon-side state to chec
 
 | Client | Tab strip | History | Recap-on-close |
 |---|---|---|---|
-| **VibeUI / VibeApp (desktop)** | ✅ | ✅ localStorage | ✅ |
+| **VibeCoder / VibeApp (desktop)** | ✅ | ✅ localStorage | ✅ |
 | **VibeMobile** | ❌ single-session UI | n/a | n/a — uses `/v1/recap` directly |
 | **VibeWatch (watchOS / Wear OS)** | ❌ single-session UI | n/a | n/a |
 | **IDE plugins** | ❌ — chat is per-editor pane | n/a | n/a |
 
-VibeUI and VibeApp share the exact same `ChatTabManager.tsx`. The implementation is intentionally desktop-only — small-screen clients use a single-session model.
+VibeCoder and VibeApp share the exact same `ChatTabManager.tsx`. The implementation is intentionally desktop-only — small-screen clients use a single-session model.
 
 ---
 
@@ -114,7 +114,7 @@ VibeUI and VibeApp share the exact same `ChatTabManager.tsx`. The implementation
 
 When the Apple Watch or Wear OS companion app switches its active session, the desktop subscribes via `useWatchActiveSession` and calls `setActiveTabId` if the corresponding tab is open. The reverse direction (desktop → watch) is owned by the watch companion's session-list refresh — see [`docs/watch-integration`](./WATCH-INTEGRATION.md).
 
-If the active session id from the watch doesn't match an open tab, the call is a no-op — VibeUI does NOT auto-restore from history on a watch trigger, because the session may not be in the user's history yet.
+If the active session id from the watch doesn't match an open tab, the call is a no-op — VibeCoder does NOT auto-restore from history on a watch trigger, because the session may not be in the user's history yet.
 
 ---
 
@@ -134,7 +134,7 @@ The history entry needs `recapSubjectId` for the card to render. Older history (
 
 ### "Watch active-session changes don't switch my tab"
 
-The watch sends a session id; VibeUI only switches if a tab with that id is already open. History entries are not auto-restored on a watch trigger. Open History and Restore manually if needed.
+The watch sends a session id; VibeCoder only switches if a tab with that id is already open. History entries are not auto-restored on a watch trigger. Open History and Restore manually if needed.
 
 ---
 
@@ -142,4 +142,4 @@ The watch sends a session id; VibeUI only switches if a tab with that id is alre
 
 - **Recap & Resume:** [`docs/recap`](./recap.md) — the cross-client recap shape and `/v1/recap` API
 - **Watch integration:** [`docs/watch-integration`](./WATCH-INTEGRATION.md) — pairing + session sync
-- **Source:** `vibeui/src/components/ChatTabManager.tsx` (804 LOC) · tests in `vibeui/src/components/__tests__/ChatTabManager.bdd.test.tsx`
+- **Source:** `vibecoder/src/components/ChatTabManager.tsx` (804 LOC) · tests in `vibecoder/src/components/__tests__/ChatTabManager.bdd.test.tsx`

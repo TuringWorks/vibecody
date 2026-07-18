@@ -73,7 +73,7 @@ struct PairingView: View {
                 Text("VibeCody")
                     .font(.headline)
 
-                Text("Open VibeUI → Governance → Watch Devices and tap **Pair**.")
+                Text("Open VibeCoder → Governance → Watch Devices and tap **Pair**.")
                     .font(.caption2)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)

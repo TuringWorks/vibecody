@@ -1,5 +1,5 @@
 /* ── VibeCody Design System tokens ─────────────────────────────────────────── */
-@import '../../vibeui/design-system/tokens.css';
+@import '../../vibecoder/design-system/tokens.css';
 
 /* ── VibeApp compatibility aliases ──────────────────────────────────────────── */
 /* Map the old vibeapp-specific var names to the canonical design system tokens  */
@@ -109,6 +109,9 @@ body {
 /* ── Model selector bar ────────────────────────────────────────────────────── */
 
 .model-bar {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
   padding: var(--space-1) 10px;
   border-bottom: 1px solid var(--border-color);
   background: var(--bg-secondary);
@@ -116,7 +119,8 @@ body {
 }
 
 .model-bar select {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   background: var(--bg-tertiary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);

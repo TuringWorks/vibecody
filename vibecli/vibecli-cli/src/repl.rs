@@ -574,7 +574,7 @@ fn command_hint(cmd: &str) -> Option<&'static str> {
         "/mcp"     => Some("[list|tools <server>]"),
         "/logs"    => Some("[tail <file>|sources|errors <file>|analyze <file>]  — log viewer & analyzer"),
         "/markers" => Some("[scan|list|bookmarks]  — scan TODO/FIXME/HACK markers & manage bookmarks"),
-        "/mock"    => Some("[start <port>|stop|add|remove|list|log|import]  — API mock server (VibeUI)"),
+        "/mock"    => Some("[start <port>|stop|add|remove|list|log|import]  — API mock server (VibeCoder)"),
         "/migration" => Some("[status|migrate|rollback|generate <name>]  — database migration management"),
         "/model"   => Some("<provider> [model]  — switch active model"),
         "/notebook" => Some("<file.vibe>  — run interactive notebook cells"),

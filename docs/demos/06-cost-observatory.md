@@ -48,7 +48,7 @@ This Month:
   Estimated cost:  $3.4521
 ```
 
-**VibeUI:** Open the AI panel (`Cmd+J`) and click the "Cost" tab.
+**VibeCoder:** Open the AI panel (`Cmd+J`) and click the "Cost" tab.
 
 <!-- Screenshot placeholder: Cost Observatory dashboard -->
 
@@ -261,9 +261,9 @@ Cost by Task Category (This Month)
 +------------------+--------+---------+-------------------+
 ```
 
-## VibeUI Cost Observatory Panel
+## VibeCoder Cost Observatory Panel
 
-In VibeUI, the Cost panel provides an interactive dashboard with:
+In VibeCoder, the Cost panel provides an interactive dashboard with:
 
 - **Real-time token counter** -- See tokens accumulate as you chat
 - **Pie chart** -- Provider cost distribution at a glance
@@ -272,7 +272,7 @@ In VibeUI, the Cost panel provides an interactive dashboard with:
 - **Session drill-down** -- Click any session to see per-message costs
 - **Export button** -- Download cost reports as CSV or JSON
 
-<!-- Screenshot placeholder: VibeUI Cost Observatory panel -->
+<!-- Screenshot placeholder: VibeCoder Cost Observatory panel -->
 
 <!-- Screenshot placeholder: Cost pie chart by provider -->
 

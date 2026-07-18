@@ -1,7 +1,7 @@
 //! Slice 1 — Persistence + Run Lifecycle for RL-OS.
 //!
 //! Replaces the in-memory `OnceLock<Mutex<Vec<Value>>>` mocks in
-//! `vibeui/src-tauri/src/commands.rs` with durable, per-workspace storage in
+//! `vibecoder/src-tauri/src/commands.rs` with durable, per-workspace storage in
 //! the same SQLite file as `WorkspaceStore` (`<workspace>/.vibecli/workspace.db`).
 //!
 //! See `docs/design/rl-os/01-persistence.md` for the spec.

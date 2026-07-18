@@ -1,7 +1,7 @@
 // sandbox_chat_screen.dart — Sandbox AI chat tab for the phone app.
 //
 // Polls /watch/sandbox/chat-session to discover the active sandbox session,
-// then syncs messages bidirectionally with VibeUI and all watches.
+// then syncs messages bidirectionally with VibeCoder and all watches.
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -98,7 +98,7 @@ class _SandboxChatScreenState extends State<SandboxChatScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Open VibeUI → Sandbox tab → pick a folder\nto start the sandbox AI chat.',
+                    'Open VibeCoder → Sandbox tab → pick a folder\nto start the sandbox AI chat.',
                     style: TextStyle(color: c.textSecondary, fontSize: 13),
                     textAlign: TextAlign.center,
                   ),

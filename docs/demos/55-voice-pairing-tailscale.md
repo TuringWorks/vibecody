@@ -217,9 +217,9 @@ Found 3 instances:
 Connect with: /pair connect <host>
 ```
 
-### Step 6: View in VibeUI
+### Step 6: View in VibeCoder
 
-The voice, pairing, and network features are also available in VibeUI:
+The voice, pairing, and network features are also available in VibeCoder:
 
 - **Voice button** in the chat toolbar activates microphone input
 - **Pair** menu item under Settings shows the QR code in a modal

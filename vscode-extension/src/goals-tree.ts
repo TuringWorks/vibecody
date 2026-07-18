@@ -31,7 +31,7 @@ const STATUS_ICON: Record<ExecGoalSummary['status'], string> = {
 export class GoalTreeItem extends vscode.TreeItem {
   constructor(public readonly goal: ExecGoalSummary, pinned: boolean = false) {
     // G13.1 — prefix the title with ★ when the goal is the current pin
-    // (in this workspace or the global slot), matching VibeUI / Watch /
+    // (in this workspace or the global slot), matching VibeCoder / Watch /
     // Wear / Mobile / TUI. Pin marker comes before the status glyph so
     // it's the first thing the eye lands on.
     const star = pinned ? '★ ' : '';

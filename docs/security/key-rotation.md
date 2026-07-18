@@ -38,9 +38,9 @@ rm -f ~/.vibecli/daemon.token
 vibecli serve
 ```
 
-After step 3, clients that were authenticated with the old token (mobile, watch, VibeUI tabs) will start receiving `401 Unauthorized`. They need the new token:
+After step 3, clients that were authenticated with the old token (mobile, watch, VibeCoder tabs) will start receiving `401 Unauthorized`. They need the new token:
 
-- **VibeUI**: reads `~/.vibecli/daemon.token` at IPC time on the same host — no user action required.
+- **VibeCoder**: reads `~/.vibecli/daemon.token` at IPC time on the same host — no user action required.
 - **Mobile / Watch**: re-pair through the daemon's `/pair` endpoint. Device keys (P-256 ECDSA per [AGENTS.md](../../AGENTS.md)) survive the rotation; only the *bearer* changes.
 - **Manual API consumers** (scripts, `curl`, etc.): read the new value from `~/.vibecli/daemon.token` or copy from the startup banner.
 

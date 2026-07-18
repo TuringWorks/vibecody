@@ -303,7 +303,7 @@ In the editor zone, selecting code and pressing Cmd+K opens an inline prompt:
 └──────────────────────────────────────────────────────────────┘
 ```
 
-The diff streams in-place over the selected code. Tab accepts, Esc rejects. This is the Cursor Cmd+K pattern, integrated into VibeUI.
+The diff streams in-place over the selected code. Tab accepts, Esc rejects. This is the Cursor Cmd+K pattern, integrated into VibeCoder.
 
 ---
 
@@ -508,9 +508,9 @@ When a task completes:
 
 ## 12. Naming
 
-The next version of VibeUI should be positioned as:
+The next version of VibeCoder should be positioned as:
 
-- **Internal**: VibeUI v2
+- **Internal**: VibeCoder v2
 - **Marketing**: VibeCody 2.0 — Project-First AI
 - **Key differentiator**: "Your project, your agents, your sandbox — not just a chat sidebar."
 

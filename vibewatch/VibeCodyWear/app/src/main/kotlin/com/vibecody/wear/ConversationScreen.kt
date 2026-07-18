@@ -101,7 +101,7 @@ fun ConversationScreen(
         }
     }
 
-    // Real-time sync loop: poll every 2s for new messages from VibeUI (Google Docs style)
+    // Real-time sync loop: poll every 2s for new messages from VibeCoder (Google Docs style)
     LaunchedEffect(activeSessionId) {
         val sid = activeSessionId ?: return@LaunchedEffect
         while (isActive) {

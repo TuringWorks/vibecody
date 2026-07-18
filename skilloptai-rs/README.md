@@ -26,7 +26,7 @@ green (30 tests, incl. a deterministic val-curve test + a strict-gate
 rejection test). Wired into the VibeCody daemon via
 `vibecli/vibecli-cli/src/skillforge_index.rs` (Phase 3 —
 `/v1/skillopt/train` + `status`/`cancel`/`promote` + `RepoAgentEnv` over the
-catalog), into VibeUI via `SkillForgePanel.tsx` (Phase 4 — Optimize tab with
+catalog), into VibeCoder via `SkillForgePanel.tsx` (Phase 4 — Optimize tab with
 live val-curve + guarded Promote), and out to every client (Phase 5 —
 Flutter/Watch/Wear read-only status + VS Code/Agent SDK full surface). Next:
 per-epoch SSE streaming + `RepoAgentEnv` from real agent-job history. See

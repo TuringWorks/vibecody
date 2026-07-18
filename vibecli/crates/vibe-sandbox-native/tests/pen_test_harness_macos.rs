@@ -6,7 +6,7 @@
 //! backends at a glance.
 //!
 //! **Important asymmetry the harness pins.** The Linux backend has a
-//! credential-directory deny-list (`.vibecli` / `.vibeui` / `.claude`
+//! credential-directory deny-list (`.vibecli` / `.vibecoder` / `.claude`
 //! segments + `daemon.token` / `profile_settings.db` / `workspace.db`
 //! filenames). The macOS backend's `validate_subpath` does **not** —
 //! it rejects `..` traversal and relative paths, but the `subpath`
@@ -238,7 +238,7 @@ fn allow_outbound_socket_overwrites_prior_value() {
 // The Linux `DENIED_SEGMENTS` deny-list was ported to macOS on
 // 2026-05-14 — the tests below are now active. They guard the same
 // promise as the Linux backend: no bind path may descend through a
-// VibeCody secret-state directory (`.vibecli`, `.vibeui`, `.claude`)
+// VibeCody secret-state directory (`.vibecli`, `.vibecoder`, `.claude`)
 // or a user-credential directory (`.ssh`, `.aws`, `.gnupg`).
 
 #[test]

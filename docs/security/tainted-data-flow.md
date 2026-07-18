@@ -150,7 +150,7 @@ The mechanical effect: anywhere in the codebase that today does `let path = some
 
 The visible UX. Three surfaces:
 
-### 8.1 Desktop (VibeUI WebView)
+### 8.1 Desktop (VibeCoder WebView)
 
 A modal interrupts the chat stream with:
 
@@ -215,7 +215,7 @@ Update `tracing::*!` sites that log raw model output to use the audit-trail `.ex
 
 ### Slice G — User-facing modal
 
-Wire the confirmation UI in VibeUI, CLI REPL, and mobile. ~1 week (the design is in §8, but each surface has its own UI plumbing).
+Wire the confirmation UI in VibeCoder, CLI REPL, and mobile. ~1 week (the design is in §8, but each surface has its own UI plumbing).
 
 **Part 1 (shipped)** — `tainted_prompter::CliPrompter` reads stdin / writes stderr; gated on `--tainted-prompt`. Banner shows `audit_summary()` (truncated, payload-free). Used by the CLI REPL and any daemon started with a TTY attached.
 
@@ -225,7 +225,7 @@ Wire the confirmation UI in VibeUI, CLI REPL, and mobile. ~1 week (the design is
 - Daemon side: `MAX_PENDING = 32`, `RESPONSE_TIMEOUT = 300s`, `block_in_place + Handle::current().block_on(timeout(rx))` to bridge the sync `Prompter` trait to async HTTP.
 - HTTP surface: `GET /v1/tainted/pending` (SSE — snapshot + live; events typed `pending`) and `POST /v1/tainted/respond` (JSON body `{ request_id, approve }`). Both authed via bearer-or-`?token=` query param (the EventSource API can't set custom headers, same fallback `ws_collab_handler` already uses).
 - CLI flag: `--tainted-http-prompt` (implies `--tainted-strict`; mutually exclusive with `--tainted-prompt` via `conflicts_with`).
-- VibeUI: `TaintedConfirmationModal.tsx` mounted in `App.tsx`. Subscribes to the SSE, head-of-queue render, exponential-backoff reconnect, dispatches `respond` POST on click. Gated on `VITE_TAINTED_HTTP_PROMPT=1` until token plumbing lands.
+- VibeCoder: `TaintedConfirmationModal.tsx` mounted in `App.tsx`. Subscribes to the SSE, head-of-queue render, exponential-backoff reconnect, dispatches `respond` POST on click. Gated on `VITE_TAINTED_HTTP_PROMPT=1` until token plumbing lands.
 - Fail-safe ordering: queue saturation → deny; timeout → deny; oneshot drop → deny; only explicit `approve=true` from UI executes.
 
 **Part 3 (mobile / watch — design)** — VibeMobile (Flutter) and VibeWatch / VibeWear (Swift / Kotlin) consume the **same** `GET /v1/tainted/pending` SSE + `POST /v1/tainted/respond` endpoints. They authenticate with their existing pairing bearer (mobile) / signed-nonce (watch — P-256 ECDSA via Secure Enclave / Strongbox; never Ed25519). The render surface is platform-specific:
@@ -267,7 +267,7 @@ In all three cases the **payload bytes never leave the daemon** — only `audit_
 
 ## 12. Companion changes outside this design
 
-- The **rejection path** through the confirmation modal needs a UX writer pass — the language has to land in the moment without scaring users into clicking Cancel reflexively. See `vibeui/design-system/README.md` for the existing modal patterns.
+- The **rejection path** through the confirmation modal needs a UX writer pass — the language has to land in the moment without scaring users into clicking Cancel reflexively. See `vibecoder/design-system/README.md` for the existing modal patterns.
 - The **mobile / watch surfaces** need their own pairing-style trust setup so a malicious LAN peer can't approve tool calls on behalf of the user. The watch-auth (P-256 ECDSA) layer already shipped is the right substrate — confirmation tokens reuse the same signing material.
 - The **audit log** is a separate slice; its design is out of scope for this document but is referenced in §10 question 5.
 

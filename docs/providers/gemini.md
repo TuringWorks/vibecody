@@ -87,7 +87,7 @@ Pricing varies by context length (under/over 200K tokens).
 
 ## Multimodal Capabilities
 
-Gemini natively supports image understanding. In VibeUI, you can:
+Gemini natively supports image understanding. In VibeCoder, you can:
 
 - Paste screenshots of UI mockups and ask Gemini to generate code
 - Share error screenshots for debugging

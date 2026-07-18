@@ -4,7 +4,7 @@ title: VibeMobile — Flutter Companion
 permalink: /vibemobile/
 ---
 
-**VibeMobile** is the Flutter companion for VibeCody — a full phone/tablet/desktop client that pairs with a running VibeCLI or VibeUI instance, streams AI sessions in real time, and hands the session back and forth between devices.
+**VibeMobile** is the Flutter companion for VibeCody — a full phone/tablet/desktop client that pairs with a running VibeCLI or VibeCoder instance, streams AI sessions in real time, and hands the session back and forth between devices.
 
 As of **v0.5.5** VibeMobile gained URL-only pairing, zero-config mDNS / Tailscale / ngrok discovery, Apple-Handoff-style continuity with desktop and watch clients, and Google-Docs-style full-content sync (no more 80/512-char truncation).
 
@@ -79,12 +79,12 @@ Pairing produces a short-lived challenge, the phone signs it with its Keystore/S
    ```bash
    vibecli --serve --port 7879
    ```
-2. **Desktop:** in the REPL or VibeUI `Governance → Watch Devices`, click **Pair Device**.
+2. **Desktop:** in the REPL or VibeCoder `Governance → Watch Devices`, click **Pair Device**.
 3. **Phone:** open VibeMobile → **Pair** → scan the QR code. Done.
 
 ### Path B — URL only (new in 0.5.5, works on emulators)
 
-1. **Desktop:** run `/pair --url-only` in VibeCLI (or click **Show URL** in VibeUI).
+1. **Desktop:** run `/pair --url-only` in VibeCLI (or click **Show URL** in VibeCoder).
 2. **Phone:** VibeMobile → **Pair** → **Paste URL** → confirm.
 
 The URL encodes `host:port` + a one-time bearer token. No clipboard JSON is needed.

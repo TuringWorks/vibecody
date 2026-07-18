@@ -17,7 +17,7 @@ VibeCody supports real-time collaborative editing powered by Conflict-free Repli
 
 - VibeCody installed on two or more machines (or two terminal sessions for local testing)
 - Both machines on the same network (for mDNS discovery) or Tailscale installed (for remote pairing)
-- (Optional) VibeUI installed for visual multi-cursor and presence indicators
+- (Optional) VibeCoder installed for visual multi-cursor and presence indicators
 
 ## How CRDTs Work in VibeCody
 
@@ -84,7 +84,7 @@ Both participants now see each other's cursors and edits in real time.
 
 ### Step 4: Observe real-time editing
 
-When Alice types on line 15, Bob's terminal (or VibeUI editor) immediately shows the insertion. The CRDT ensures that even if both users edit the same line simultaneously, the result is deterministic and consistent.
+When Alice types on line 15, Bob's terminal (or VibeCoder editor) immediately shows the insertion. The CRDT ensures that even if both users edit the same line simultaneously, the result is deterministic and consistent.
 
 **Host (Alice) edits line 15:**
 
@@ -117,7 +117,7 @@ If both users edit the same character range simultaneously, the CRDT resolves it
 
 ### Step 6: View presence indicators
 
-In VibeUI, each participant's cursor is shown in a distinct color with their username label. The sidebar shows a presence list:
+In VibeCoder, each participant's cursor is shown in a distinct color with their username label. The sidebar shows a presence list:
 
 ```
 Collaborators:
@@ -175,9 +175,9 @@ Collaboration session ended
   Final file saved: src/main.rs
 ```
 
-### Step 9: Using CRDT Collaboration in VibeUI
+### Step 9: Using CRDT Collaboration in VibeCoder
 
-In VibeUI, collaboration features are integrated directly into the editor.
+In VibeCoder, collaboration features are integrated directly into the editor.
 
 1. **Start sharing** -- Right-click a file tab and select **Share for Collaboration**, or use the collaboration icon in the toolbar.
 2. **Join** -- Click **File > Join Collaboration** and paste the session ID or scan the QR code.
@@ -262,7 +262,7 @@ In VibeUI, collaboration features are integrated directly into the editor.
         "panel": "Editor",
         "action_detail": "presence_indicators",
         "details": "alice: blue cursor at L15, bob: green cursor at L17",
-        "narration": "VibeUI shows colored cursors for each collaborator"
+        "narration": "VibeCoder shows colored cursors for each collaborator"
       },
       {
         "timestamp": 140,

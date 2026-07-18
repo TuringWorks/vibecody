@@ -149,7 +149,7 @@ impl SbProfile {
 /// (see `linux.rs::DENIED_SEGMENTS`) plus `.ssh`, `.aws`, `.gnupg` which
 /// cover the macOS-relevant credential stores. See
 /// `docs/security/threat-model.md` §7 item #11.
-const DENIED_SEGMENTS: &[&str] = &[".vibecli", ".vibeui", ".claude", ".ssh", ".aws", ".gnupg"];
+const DENIED_SEGMENTS: &[&str] = &[".vibecli", ".vibecoder", ".claude", ".ssh", ".aws", ".gnupg"];
 
 /// Specific filenames that name credential blobs, regardless of parent dir.
 const DENIED_FILENAMES: &[&str] = &[

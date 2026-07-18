@@ -20,7 +20,7 @@ tokio = { workspace = true }
 anyhow = { workspace = true }
 futures = "0.3"
 # Embed the CLI crate to reach the encrypted ProfileStore directly (provider
-# keys / config / UI prefs) — the same store VibeUI uses, so settings carry over.
+# keys / config / UI prefs) — the same store VibeCoder uses, so settings carry over.
 vibecli_cli = { package = "vibecli", path = "../../vibecli/vibecli-cli" }
 
 [build-dependencies]

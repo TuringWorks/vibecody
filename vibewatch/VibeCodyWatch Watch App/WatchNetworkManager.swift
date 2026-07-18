@@ -355,7 +355,7 @@ final class WatchNetworkManager: NSObject, ObservableObject {
     // MARK: - Active session (Google Docs-style session lock)
 
     /// Tell the daemon which session this Watch is currently viewing.
-    /// VibeUI subscribes to /watch/events and switches to the same tab automatically.
+    /// VibeCoder subscribes to /watch/events and switches to the same tab automatically.
     func setActiveSession(_ sessionId: String) async {
         guard auth.isPaired, let token = try? await auth.validAccessToken() else { return }
         guard let url = URL(string: "\(auth.endpoint)/watch/active-session") else { return }

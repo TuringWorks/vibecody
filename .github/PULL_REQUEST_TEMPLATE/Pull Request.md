@@ -7,7 +7,7 @@
 <!-- Which parts of the Product Matrix does this touch? Check all that apply. -->
 
 - [ ] VibeCLI (daemon / TUI / REPL)
-- [ ] VibeUI (desktop editor)
+- [ ] VibeCoder (desktop editor)
 - [ ] VibeApp (secondary Tauri shell)
 - [ ] VibeMobile (Flutter)
 - [ ] VibeCodyWatch (watchOS)

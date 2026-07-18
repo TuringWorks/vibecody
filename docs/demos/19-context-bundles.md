@@ -17,7 +17,7 @@ Context Bundles let you package a curated set of files, instructions, model pref
 
 - VibeCody installed and configured with at least one AI provider
 - A project directory with source files you want to pin
-- (Optional) VibeUI installed for the graphical Context Bundle panel
+- (Optional) VibeCoder installed for the graphical Context Bundle panel
 
 ## Step-by-Step Walkthrough
 
@@ -152,7 +152,7 @@ This writes a self-contained TOML file that teammates can import.
 /bundle import ./shared/backend-api.vibebundle.toml
 ```
 
-### Step 8: Using Context Bundles in VibeUI
+### Step 8: Using Context Bundles in VibeCoder
 
 Open the **Context Bundles** panel from the sidebar. It has three tabs:
 
@@ -221,7 +221,7 @@ max_tokens = 4096
 
 ## Demo Recording
 
-The following JSON represents a recorded demo session that can be replayed in VibeUI's Recording panel.
+The following JSON represents a recorded demo session that can be replayed in VibeCoder's Recording panel.
 
 ```json
 {
@@ -295,7 +295,7 @@ The following JSON represents a recorded demo session that can be replayed in Vi
         "tab": "My Bundles",
         "action_detail": "toggle_activate",
         "bundle": "backend-api",
-        "narration": "Activate the bundle from the VibeUI panel"
+        "narration": "Activate the bundle from the VibeCoder panel"
       }
     ]
   }

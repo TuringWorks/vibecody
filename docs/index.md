@@ -8,7 +8,7 @@ title: VibeCody Documentation
 VibeCody is a monorepo that provides a full family of AI-assisted development surfaces:
 
 - **[VibeCLI](./vibecli/)** — terminal-first AI coding assistant with a rich TUI + REPL
-- **[VibeUI](./vibeui/)** — AI-powered desktop code editor (Tauri + Monaco, 293+ panels)
+- **[VibeCoder](./vibecoder/)** — AI-powered desktop code editor (Tauri + Monaco, 293+ panels)
 - **[VibeCLI App](./release/)** — dedicated desktop chat companion (Tauri)
 - **[VibeMobile](./vibemobile/)** — Flutter companion for iOS, Android, macOS, Linux, Windows, Web
 - **[VibeWatch](./watch-integration/)** — native Apple Watch (SwiftUI, watchOS 10+) and Wear OS (Compose, Wear OS 3+) clients
@@ -27,7 +27,7 @@ All surfaces are backed by a shared set of Rust crates for AI providers, text ed
 | [Quickstart](./quickstart/) | Zero to productive in 5 minutes |
 | [Tutorials](./tutorials/) | Step-by-step guides for common workflows |
 | [VibeCLI Reference](./vibecli/) | CLI commands, TUI usage, and configuration |
-| [VibeUI Reference](./vibeui/) | Desktop editor features and setup |
+| [VibeCoder Reference](./vibecoder/) | Desktop editor features and setup |
 | [Design System](./design-system/) | Token-based UI system — colors, spacing, typography, components |
 | [Configuration Guide](./configuration/) | All configuration options for providers and UI |
 | [Memory Guide](./memory-guide/) | All memory layers — auto-recording, cognitive store, verbatim drawers, benchmarking |
@@ -54,7 +54,7 @@ All surfaces are backed by a shared set of Rust crates for AI providers, text ed
 
 ### Multi-Provider AI (23 Providers)
 
-Both VibeCLI and VibeUI share the `vibe-ai` provider abstraction:
+Both VibeCLI and VibeCoder share the `vibe-ai` provider abstraction:
 
 | Category | Providers |
 |----------|-----------|
@@ -85,7 +85,7 @@ All providers support streaming. Local providers require no API key.
 - HTTP daemon mode (`vibecli --serve --port 7878`)
 - SkillForge — analyse (`/v1/skilllens/*`) and train (`/v1/skillopt/*`) the shipped skill files against any provider; promote writes `*.opt.md` (shipped skills untouched)
 
-### VibeUI Highlights
+### VibeCoder Highlights
 
 - Monaco Editor integration (same engine as VS Code)
 - 196+ AI panel tabs (Chat, Agent, Counsel, Tests, Docker, K8s, Profiler, Design Canvas, and many more)
@@ -103,7 +103,7 @@ All providers support streaming. Local providers require no API key.
 
 
 ### VibeMobile (Flutter Companion)
-- QR code pairing with VibeCLI/VibeUI instances
+- QR code pairing with VibeCLI/VibeCoder instances
 - Remote AI chat from iOS, Android, macOS, Linux, Windows, Web
 - Machine management with health monitoring
 - Session browser and push notifications
@@ -122,8 +122,8 @@ cargo build --release -p vibecli
 # Launch the TUI (requires Ollama running locally)
 ./target/release/vibecli --tui
 
-# Or launch VibeUI
-cd vibeui && npm install && npm run tauri dev
+# Or launch VibeCoder
+cd vibecoder && npm install && npm run tauri dev
 ```
 
 See the [Configuration Guide](./configuration/) to set up cloud providers.

@@ -28,7 +28,7 @@ dimensions = 1536
 ```
 
 - A project to index (the demo uses a sample Rust project)
-- For VibeUI: `cd vibeui && npm install && npm run tauri dev`
+- For VibeCoder: `cd vibecoder && npm install && npm run tauri dev`
 
 
 ## Step-by-Step Walkthrough
@@ -62,7 +62,7 @@ Indexing project: /home/user/my-project
   Duration:         8.3s
 ```
 
-**VibeUI:**
+**VibeCoder:**
 1. Open the **Code Search** panel (Cmd+Shift+F or click the magnifying glass icon)
 2. Click **Build Index** in the panel toolbar
 3. A progress bar shows indexing status
@@ -220,7 +220,7 @@ Authentication in this project follows a JWT-based flow:
 Sources: middleware.rs:23-58, jwt.rs:12-45, login.rs:30-72
 ```
 
-**VibeUI:**
+**VibeCoder:**
 1. Open the **Code Search** panel
 2. Toggle **RAG Mode** in the panel toolbar
 3. Type your question in the search bar
@@ -254,7 +254,7 @@ vibecli embeddings export . --format jsonl --output embeddings.jsonl
   "steps": [
     {
       "action": "Navigate",
-      "target": "vibeui://open?folder=/home/user/my-project"
+      "target": "vibecoder://open?folder=/home/user/my-project"
     },
     {
       "action": "Narrate",

@@ -15,8 +15,8 @@ All visual decisions — colors, spacing, typography, shadows, motion — are ex
 
 | Layer | What | Where |
 |---|---|---|
-| **Tokens** | CSS custom properties | `vibeui/design-system/tokens.css` |
-| **Components** | CSS class system | `vibeui/src/App.css` |
+| **Tokens** | CSS custom properties | `vibecoder/design-system/tokens.css` |
+| **Components** | CSS class system | `vibecoder/src/App.css` |
 | **Flutter** | Dart constants | `vibemobile/lib/theme/vibe_tokens.dart` |
 | **Docs** | This site | `docs/design-system/` |
 

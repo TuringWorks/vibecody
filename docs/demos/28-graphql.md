@@ -9,7 +9,7 @@ parent: Demos
 
 ## Overview
 
-This demo covers VibeCody's GraphQL Explorer, which lets you introspect schemas, build queries with autocomplete, edit variables, browse schema documentation, and manage query history. Available in both the CLI and VibeUI's dedicated GraphQL panel.
+This demo covers VibeCody's GraphQL Explorer, which lets you introspect schemas, build queries with autocomplete, edit variables, browse schema documentation, and manage query history. Available in both the CLI and VibeCoder's dedicated GraphQL panel.
 
 **Time to complete:** ~10 minutes
 
@@ -17,7 +17,7 @@ This demo covers VibeCody's GraphQL Explorer, which lets you introspect schemas,
 
 - VibeCody installed and configured
 - A GraphQL endpoint to test against (this demo uses the public Star Wars API at `https://swapi-graphql.netlify.app/.netlify/functions/index`)
-- For VibeUI: the desktop app running (`npm run tauri dev`)
+- For VibeCoder: the desktop app running (`npm run tauri dev`)
 
 ## Step-by-Step Walkthrough
 
@@ -244,9 +244,9 @@ Authenticate with APIs that require tokens:
 > /graphql query '{ viewer { login name repositories(first: 5) { nodes { name } } } }'
 ```
 
-### Step 9: Use the GraphQL panel in VibeUI
+### Step 9: Use the GraphQL panel in VibeCoder
 
-Open VibeUI and navigate to the **GraphQL** panel. The interface provides:
+Open VibeCoder and navigate to the **GraphQL** panel. The interface provides:
 
 - **Endpoint bar** at the top with a connect button and header editor.
 - **Query editor** on the left with syntax highlighting, bracket matching, and autocomplete driven by the introspected schema.
@@ -318,10 +318,10 @@ Open VibeUI and navigate to the **GraphQL** panel. The interface provides:
     },
     {
       "id": 7,
-      "action": "vibeui",
+      "action": "vibecoder",
       "panel": "GraphQL",
       "actions": ["connect", "introspect", "build_query", "edit_variables", "view_response", "browse_docs"],
-      "description": "Use the GraphQL panel in VibeUI with autocomplete and schema browser",
+      "description": "Use the GraphQL panel in VibeCoder with autocomplete and schema browser",
       "delay_ms": 5000
     }
   ]

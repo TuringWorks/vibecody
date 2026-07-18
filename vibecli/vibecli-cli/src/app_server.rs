@@ -1,7 +1,7 @@
 /*!
  * app_server.rs — Unified JSON-RPC 2.0 server dispatcher.
  *
- * Powers CLI, VS Code extension, and VibeUI over the same wire protocol.
+ * Powers CLI, VS Code extension, and VibeCoder over the same wire protocol.
  */
 
 use serde::{Deserialize, Serialize};

@@ -1,7 +1,7 @@
 # Recap & Resume — Design Index
 
 **Status:** Draft · 2026-04-26
-**Scope:** vibecli (daemon + REPL/TUI), vibeui (Tauri desktop), vibemobile (Flutter), vibewatch (watchOS + Wear OS)
+**Scope:** vibecli (daemon + REPL/TUI), vibecoder (Tauri desktop), vibemobile (Flutter), vibewatch (watchOS + Wear OS)
 **Owner:** TBD
 
 ---
@@ -173,9 +173,9 @@ The three scopes ship independently but share a common foundation. Recommended o
 | Phase | Slice | Touches | Why first |
 |---|---|---|---|
 | **F1** | Foundation: `recap` + `resume` types, daemon `recaps` table on `sessions.db`, `/v1/recap` routes (Session kind only) | vibecli daemon, vibecli REPL `/recap` command | Everything else depends on the schema and routes; ship them under one `kind` first. |
-| **F2** | vibeui Session recap panel + auto-recap toggle in Settings | vibeui only | Validates the daemon contract from a real client before mobile/watch work. |
-| **J1** | Job kind: extend `recap` to jobs, table on `jobs.db`, BackgroundJobs panel "Recap" button | daemon + vibeui | Reuses the foundation; no new shape. |
-| **D1** | Diffcomplete kind: persisted chains in `workspace.db`, recap of chain at modal close | daemon + vibeui | Patent-distance review required before merge. |
+| **F2** | vibecoder Session recap panel + auto-recap toggle in Settings | vibecoder only | Validates the daemon contract from a real client before mobile/watch work. |
+| **J1** | Job kind: extend `recap` to jobs, table on `jobs.db`, BackgroundJobs panel "Recap" button | daemon + vibecoder | Reuses the foundation; no new shape. |
+| **D1** | Diffcomplete kind: persisted chains in `workspace.db`, recap of chain at modal close | daemon + vibecoder | Patent-distance review required before merge. |
 | **M1** | vibemobile: ChatScreen recap header + resume from recap | vibemobile | One surface, narrow scope. |
 | **W1** | watchOS + Wear: recap-only view, resume opens phone/desktop session | both watch apps | Watches read but never compose a full recap. |
 | **F3** | Auto-resume-last-session toggle, cross-device handoff via `/mobile/sessions` | all clients | Last; depends on every client knowing the recap shape. |
@@ -188,9 +188,9 @@ Detail lives in the per-scope docs; here's the cross-cutting picture:
 |---|---|---|---|
 | **vibecli REPL** | `/recap [session]` command, end-of-session auto-print | yes (Heuristic + LLM) | `/resume <id>` (existing) + new `--from-recap <id>` |
 | **vibecli TUI** | recap pane on session-end screen | yes | "r" hotkey on session list |
-| **vibeui chat tab** | recap card at top of restored tab | yes | "Resume" button on history list |
-| **vibeui BackgroundJobs** | recap row replaces "Done" badge after completion | yes (auto on terminal status) | "Re-run from recap" button |
-| **vibeui DiffComplete** | recap footer in modal after N regenerations | yes (heuristic) | "Resume chain" from chain history |
+| **vibecoder chat tab** | recap card at top of restored tab | yes | "Resume" button on history list |
+| **vibecoder BackgroundJobs** | recap row replaces "Done" badge after completion | yes (auto on terminal status) | "Re-run from recap" button |
+| **vibecoder DiffComplete** | recap footer in modal after N regenerations | yes (heuristic) | "Resume chain" from chain history |
 | **vibemobile ChatScreen** | recap card above transcript | no (read-only) | tap recap → opens chat at resume hint |
 | **vibewatch / Wear** | dedicated RecapView (3 bullets max) | no | tap "Continue on phone" → handoff via `/mobile/sessions` |
 
@@ -207,7 +207,7 @@ Detail lives in the per-scope docs; here's the cross-cutting picture:
 - [`AGENTS.md`](../../../AGENTS.md) — Product Matrix + Change-Surface Cookbook (which surfaces a cross-cutting change must touch)
 - [`CLAUDE.md`](../../../CLAUDE.md) — repo guidelines (storage rules, build commands, provider-add 6-file dance)
 - [`docs/connectivity.md`](../../connectivity.md) — mobile/watch transport stack (relevant for resume across devices)
-- [`vibeui/design-system/README.md`](../../../vibeui/design-system/README.md) — UI tokens for the recap panel
+- [`vibecoder/design-system/README.md`](../../../vibecoder/design-system/README.md) — UI tokens for the recap panel
 - `notes/PATENT_AUDIT_INLINE.md` (gitignored) — patent-distance audit working doc
 
 ## Status table

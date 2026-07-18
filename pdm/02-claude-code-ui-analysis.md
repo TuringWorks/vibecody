@@ -142,7 +142,7 @@ This file is read automatically at session start. It's a low-friction way to inj
 
 **VibeCody already has this** (`AGENTS.md` at repo root). The difference: Claude Code treats it as the primary configuration surface. VibeCody treats it as one input among many (ProfileStore, workspace settings, panel settings, config.toml).
 
-**Implication for VibeCody:** Consider making `AGENTS.md` more prominent in the VibeUI onboarding flow. When a user opens a project for the first time, the "project steering" panel should highlight the steering file and offer to scaffold one.
+**Implication for VibeCody:** Consider making `AGENTS.md` more prominent in the VibeCoder onboarding flow. When a user opens a project for the first time, the "project steering" panel should highlight the steering file and offer to scaffold one.
 
 ---
 

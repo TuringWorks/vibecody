@@ -184,9 +184,9 @@ pub type WatchEventStreams = Arc<Mutex<HashMap<String, broadcast::Sender<serde_j
 
 ---
 
-## VibeUI Panel
+## VibeCoder Panel
 
-The **Watch Devices** panel (`vibeui/src/components/WatchManagementPanel.tsx`) provides:
+The **Watch Devices** panel (`vibecoder/src/components/WatchManagementPanel.tsx`) provides:
 
 - Platform badge: "watchOS" (accent) or "Wear OS" (green) based on device model heuristic
 - Per-device: status dot, platform badge, device ID, last-seen timestamp

@@ -13,7 +13,7 @@ VibeCody includes built-in compliance tooling for SOC 2 readiness. The framework
 
 - VibeCLI installed and on your PATH
 - VibeCody running with audit logging enabled (`audit_logging = true` in `~/.vibecli/config.toml`)
-- For VibeUI: the desktop app running with the **Compliance** panel visible
+- For VibeCoder: the desktop app running with the **Compliance** panel visible
 
 ## SOC 2 Trust Service Criteria and Controls
 
@@ -63,7 +63,7 @@ Failures:
   [PRIV-03] Right to Deletion: deletion endpoint not implemented
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 Open the **Compliance** panel. The main dashboard shows a compliance score gauge, per-criteria breakdowns, and a list of findings.
 
@@ -109,7 +109,7 @@ Audit Log (last 20 entries):
 | `PermChange`    | User permissions were modified               |
 | `DataExport`    | Data was exported from the system            |
 
-**VibeUI:**
+**VibeCoder:**
 
 The audit log is available in the Compliance panel under the **Audit Log** tab, with filters for action type, actor, date range, and resource.
 
@@ -155,7 +155,7 @@ Redacted: Contact a****@e******.com or call 1**.***.*.*
 Detections: 2 (email, ip_address)
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 In the Compliance panel, open the **PII Redaction** settings to select the strategy and toggle PII types.
 
@@ -187,7 +187,7 @@ Example output file excerpt:
 ...
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 Click **Generate Report** in the Compliance panel toolbar. Choose the date range and format (Markdown or PDF). The report opens in a preview pane.
 
@@ -308,19 +308,19 @@ This runs a compliance scan every hour and alerts on any score changes.
       "description": "Rotate API keys with audit logging"
     },
     {
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "Compliance",
       "tab": "Dashboard",
       "description": "View compliance score gauge and per-criteria breakdown"
     },
     {
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "Compliance",
       "tab": "Audit Log",
       "description": "Browse and filter audit log entries"
     },
     {
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "Compliance",
       "tab": "PII Redaction",
       "description": "Configure PII detection and redaction settings"

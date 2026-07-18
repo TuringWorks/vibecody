@@ -11,7 +11,7 @@
 //! - [`McpStreamClient::open_stream`] — opens a Bearer-authenticated SSE stream
 //!
 //! The existing `mcp_streamable` module is kept for backward compatibility with
-//! the VibeUI panel and REPL command; real I/O goes through this module.
+//! the VibeCoder panel and REPL command; real I/O goes through this module.
 //!
 //! ## Error handling
 //!

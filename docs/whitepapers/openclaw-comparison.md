@@ -76,7 +76,7 @@ This whitepaper compares **VibeCody** against OpenClaw and 14 alternatives acros
 | | **Aider** | Apache 2 | Python | Terminal (pair programming) |
 | | **Plandex** | MIT | Go | Terminal REPL |
 | **IDE Extension Agent** | **Continue** | Apache 2 | TypeScript | VS Code + JetBrains |
-| **Desktop IDE Agent** | **VibeCody (VibeUI)** | MIT | Tauri 2 + React | Desktop app (Monaco) |
+| **Desktop IDE Agent** | **VibeCody (VibeCoder)** | MIT | Tauri 2 + React | Desktop app (Monaco) |
 | | Cursor | Proprietary | Electron + VS Code | Desktop IDE |
 | | Windsurf | Proprietary | Electron + VS Code | Desktop IDE |
 | **Managed SaaS** | Taskade | Proprietary | Cloud-hosted | Web app |
@@ -316,7 +316,7 @@ Both forks share the TypeScript codebase and have not addressed CVE-2026-25253 o
 
 ### 5.8 Data & Specialized Panels
 
-VibeCody ships **187 UI panels** in VibeUI covering domains no competitor touches:
+VibeCody ships **187 UI panels** in VibeCoder covering domains no competitor touches:
 
 | Domain | Panels | Competitor Coverage |
 |--------|--------|-------------------|

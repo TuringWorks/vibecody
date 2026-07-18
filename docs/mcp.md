@@ -4,7 +4,7 @@ title: MCP — Model Context Protocol
 permalink: /mcp/
 ---
 
-VibeCody is a fully-featured MCP host. The MCP panel inside VibeUI/VibeApp is the unified surface for managing servers, browsing the plugin directory, viewing the lazy-loaded tool registry, and inspecting cache metrics. This page documents the user-facing surface; the underlying client lives in `crates/vibe-ai/src/mcp.rs`.
+VibeCody is a fully-featured MCP host. The MCP panel inside VibeCoder/VibeApp is the unified surface for managing servers, browsing the plugin directory, viewing the lazy-loaded tool registry, and inspecting cache metrics. This page documents the user-facing surface; the underlying client lives in `crates/vibe-ai/src/mcp.rs`.
 
 ---
 
@@ -24,7 +24,7 @@ The panel has five tabs:
 
 ## Server configuration
 
-Server records live in `~/.vibeui/mcp.json` as a plain JSON array. Each entry:
+Server records live in `~/.vibecoder/mcp.json` as a plain JSON array. Each entry:
 
 ```json
 {
@@ -35,7 +35,7 @@ Server records live in `~/.vibeui/mcp.json` as a plain JSON array. Each entry:
 }
 ```
 
-The panel writes this file via the `save_mcp_servers` Tauri command. **OAuth tokens** for servers that require auth go to `~/.vibeui/mcp-tokens.json` separately — they are *not* stored alongside the config because tokens are sensitive material.
+The panel writes this file via the `save_mcp_servers` Tauri command. **OAuth tokens** for servers that require auth go to `~/.vibecoder/mcp-tokens.json` separately — they are *not* stored alongside the config because tokens are sensitive material.
 
 ### Test before save
 
@@ -82,7 +82,7 @@ The Directory tab is a curated catalog of MCP plugins. Each entry has:
 
 - **Author / Author rating** — surfaced for user trust signals.
 - **Category** — filterable from the sidebar.
-- **Install / Uninstall** — two-click confirmation. Install adds the plugin id to `~/.vibeui/mcp-installed.json`; uninstall removes it.
+- **Install / Uninstall** — two-click confirmation. Install adds the plugin id to `~/.vibecoder/mcp-installed.json`; uninstall removes it.
 
 **Install does not auto-add a server entry to `mcp.json`.** The directory is metadata-only — actually wiring a plugin into your active MCP host happens in the Servers tab, with the plugin's documented `command` / `args`. This separation is deliberate so that "installed" tracks intent (the user wants this plugin available) without conflating it with active runtime state.
 
@@ -90,13 +90,13 @@ The Directory tab is a curated catalog of MCP plugins. Each entry has:
 
 ## /health declaration
 
-`features.mcp` is a runtime probe of `~/.vibeui/mcp.json`:
+`features.mcp` is a runtime probe of `~/.vibecoder/mcp.json`:
 
 ```json
 {
   "available": true,
   "transport": "tauri-desktop",
-  "config_path": "~/.vibeui/mcp.json",
+  "config_path": "~/.vibecoder/mcp.json",
   "server_count": 3,
   "configured": true
 }
@@ -143,7 +143,7 @@ Server commands and arguments are **not** logged — only the server name. Tool 
 
 | Client | MCP UI |
 |---|---|
-| **VibeUI / VibeApp** | Full panel (servers, tools, directory, metrics) |
+| **VibeCoder / VibeApp** | Full panel (servers, tools, directory, metrics) |
 | **VibeMobile** | None — MCP is a desktop-host concern |
 | **VibeWatch** | None |
 | **IDE plugins** | Read-only — surface configured server names for tool-completion contexts |
@@ -164,7 +164,7 @@ The server connected but isn't returning a valid MCP `tools/list` response. Like
 
 ### "Plugin already installed" when nothing seems to be installed
 
-Clear `~/.vibeui/mcp-installed.json` to reset the install ledger. The directory tab tracks intent only — it doesn't probe the file system.
+Clear `~/.vibecoder/mcp-installed.json` to reset the install ledger. The directory tab tracks intent only — it doesn't probe the file system.
 
 ### "Token exchange failed" during OAuth
 
@@ -179,6 +179,6 @@ The Tools tab probes all servers in parallel, but rendering is gated by `serverT
 ## Related
 
 - **MCP client core:** `crates/vibe-ai/src/mcp.rs` — connect, list_tools, call_tool
-- **Source:** `vibeui/src/components/McpPanel.tsx` (902 LOC) · backend in `vibeui/src-tauri/src/commands.rs`
-- **Tests:** `vibeui/src/components/__tests__/McpPanel.test.tsx`
+- **Source:** `vibecoder/src/components/McpPanel.tsx` (902 LOC) · backend in `vibecoder/src-tauri/src/commands.rs`
+- **Tests:** `vibecoder/src/components/__tests__/McpPanel.test.tsx`
 - **Sandbox:** [`docs/sandbox`](./sandbox.md) — note that MCP server subprocesses are NOT sandboxed in the current Tier-0

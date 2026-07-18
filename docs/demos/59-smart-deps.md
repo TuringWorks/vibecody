@@ -18,7 +18,7 @@ VibeCody's SmartDeps module acts as an AI-powered package manager layer that wor
 - VibeCLI v0.5.1 installed and on your PATH
 - At least one AI provider configured
 - A project with a package manifest (Cargo.toml, package.json, requirements.txt, go.mod, or pom.xml)
-- (Optional) VibeUI running with the **SmartDeps** panel visible
+- (Optional) VibeCoder running with the **SmartDeps** panel visible
 
 ## Step-by-Step Walkthrough
 
@@ -223,9 +223,9 @@ Dependency Graph (top-level only, 42 crates)
   Export: /deps graph --format dot > deps.dot
 ```
 
-### Step 6: View in VibeUI
+### Step 6: View in VibeCoder
 
-Open VibeUI and navigate to the **SmartDeps** panel. The panel provides:
+Open VibeCoder and navigate to the **SmartDeps** panel. The panel provides:
 
 - **Overview** -- Dependency count, outdated packages, CVE summary
 - **Resolve** -- Interactive conflict resolution with diff preview
@@ -260,14 +260,14 @@ Open VibeUI and navigate to the **SmartDeps** panel. The panel provides:
     },
     {
       "id": 2,
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "SmartDeps",
       "tab": "Security",
       "description": "View CVE scan results and apply patches"
     },
     {
       "id": 3,
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "SmartDeps",
       "tab": "Graph",
       "description": "Explore interactive dependency graph"

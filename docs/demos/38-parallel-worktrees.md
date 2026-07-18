@@ -16,7 +16,7 @@ VibeCody can spawn multiple AI agents that work simultaneously in isolated git w
 - VibeCLI v0.5.1 installed and on your PATH
 - A git repository (worktrees require git)
 - At least one AI provider configured
-- For VibeUI: the desktop app running with the **WorktreePool** panel visible
+- For VibeCoder: the desktop app running with the **WorktreePool** panel visible
 
 ## Why Worktrees Instead of Containers?
 
@@ -272,9 +272,9 @@ vibecli
 Cleaned 2 worktrees (0 running agents remain).
 ```
 
-### 8. VibeUI WorktreePool Panel
+### 8. VibeCoder WorktreePool Panel
 
-Open the **WorktreePool** panel in VibeUI to see:
+Open the **WorktreePool** panel in VibeCoder to see:
 
 - **Spawn** tab: enter tasks and launch parallel agents visually
 - **Monitor** tab: live progress bars, file change counts, agent logs
@@ -346,14 +346,14 @@ default_provider = "claude"
     },
     {
       "id": 6,
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "WorktreePool",
       "tab": "Monitor",
-      "description": "View live agent progress in VibeUI"
+      "description": "View live agent progress in VibeCoder"
     },
     {
       "id": 7,
-      "action": "vibeui_interaction",
+      "action": "vibecoder_interaction",
       "panel": "WorktreePool",
       "tab": "Diff",
       "description": "Side-by-side diff viewer for worktree branches"

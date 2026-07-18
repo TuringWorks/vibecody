@@ -9,7 +9,7 @@ parent: Demos
 
 ## Overview
 
-This demo covers VibeCody's deployment workflows and database management capabilities. You will learn how to deploy applications, manage database connections, run queries, execute migrations, generate schema DDL, and integrate with Supabase -- all from the CLI and VibeUI.
+This demo covers VibeCody's deployment workflows and database management capabilities. You will learn how to deploy applications, manage database connections, run queries, execute migrations, generate schema DDL, and integrate with Supabase -- all from the CLI and VibeCoder.
 
 **Time to complete:** ~20 minutes
 
@@ -18,7 +18,7 @@ This demo covers VibeCody's deployment workflows and database management capabil
 - VibeCLI installed and configured ([Demo 1](../01-first-run/))
 - At least one database accessible (PostgreSQL, MySQL, SQLite, MongoDB, Redis, or DuckDB)
 - (Optional) A Supabase project for Supabase integration
-- (Optional) VibeUI for the desktop panel experience
+- (Optional) VibeCoder for the desktop panel experience
 
 ## Step-by-Step Walkthrough
 
@@ -380,12 +380,12 @@ Deployment complete!
 > /deploy history --target staging --limit 5
 ```
 
-### Step 8: Use the Deploy and Database panels in VibeUI
+### Step 8: Use the Deploy and Database panels in VibeCoder
 
-Open VibeUI and explore the **Deploy** and **Database** panels.
+Open VibeCoder and explore the **Deploy** and **Database** panels.
 
 ```bash
-cd vibeui && npm run tauri dev
+cd vibecoder && npm run tauri dev
 ```
 
 **Deploy Panel:**
@@ -531,15 +531,15 @@ cd vibeui && npm run tauri dev
     {
       "id": 16,
       "action": "shell",
-      "command": "cd vibeui && npm run tauri dev",
-      "description": "Launch VibeUI to explore the Database panel",
+      "command": "cd vibecoder && npm run tauri dev",
+      "description": "Launch VibeCoder to explore the Database panel",
       "delay_ms": 8000
     },
     {
       "id": 17,
       "action": "Navigate",
       "target": "panel://database",
-      "description": "Open the Database panel in VibeUI"
+      "description": "Open the Database panel in VibeCoder"
     },
     {
       "id": 18,

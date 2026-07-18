@@ -1,11 +1,11 @@
 /**
- * Theme registry + applier — VibeDesk copy of the canonical VibeUI registry at
- * `vibeui/src/theme/themes.ts`. Kept verbatim so the two apps render
+ * Theme registry + applier — VibeDesk copy of the canonical VibeCoder registry at
+ * `vibecoder/src/theme/themes.ts`. Kept verbatim so the two apps render
  * identically; the only intentional drift is the localStorage / event-name
- * prefix (`vibedesk-*` instead of `vibeui-*`) so theme writes from one app
+ * prefix (`vibedesk-*` instead of `vibecoder-*`) so theme writes from one app
  * don't poison the other's inspector / devtools view.
  *
- * If themes are added or palettes change, mirror the edit to the VibeUI
+ * If themes are added or palettes change, mirror the edit to the VibeCoder
  * copy at the same time (see AGENTS.md design-system rules).
  *
  * Public API:

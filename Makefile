@@ -6,7 +6,7 @@
 #   Surface            Dev            Build               Test
 #   ─────────────────  ─────────────  ──────────────────  ──────────────────
 #   VibeCLI (Rust)     make cli-run   make build-cli      make test-cli
-#   VibeUI  (Tauri)    make ui        make build-ui       make test-ui
+#   VibeCoder  (Tauri)    make ui        make build-ui       make test-ui
 #   VibeApp (Tauri)    make app       make build-app      make test-app
 #   VibeDesk   (Tauri)    make vibedesk     make build-vibedesk    make test-vibedesk
 #   Agent SDK (TS)     —              make build-sdk      make test-sdk
@@ -121,8 +121,8 @@ endif
 
 # ── node_modules guards (install on first use, only when missing) ─────────────
 
-vibeui/node_modules:
-	cd vibeui && $(NPM) install --no-audit --no-fund
+vibecoder/node_modules:
+	cd vibecoder && $(NPM) install --no-audit --no-fund
 
 vibeapp/node_modules:
 	cd vibeapp && $(NPM) install --no-audit --no-fund
@@ -159,23 +159,23 @@ check-cli: ## Fast type-check VibeCLI crate
 	$(CARGO) check -p vibecli
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SURFACE: VibeUI — desktop editor (Tauri 2 + React)
+# SURFACE: VibeCoder — desktop editor (Tauri 2 + React)
 # ══════════════════════════════════════════════════════════════════════════════
 
-ui: vibeui/node_modules ## Run VibeUI in dev mode (Vite + Tauri)
-	cd vibeui && $(NPM) run tauri:dev
+ui: vibecoder/node_modules ## Run VibeCoder in dev mode (Vite + Tauri)
+	cd vibecoder && $(NPM) run tauri:dev
 
-build-ui: vibeui/node_modules ## Build VibeUI for production (Tauri bundle)
-	cd vibeui && $(NPM) run tauri:build
+build-ui: vibecoder/node_modules ## Build VibeCoder for production (Tauri bundle)
+	cd vibecoder && $(NPM) run tauri:build
 
-test-ui: vibeui/node_modules ## Test VibeUI (vitest)
-	cd vibeui && $(NPM) test
+test-ui: vibecoder/node_modules ## Test VibeCoder (vitest)
+	cd vibecoder && $(NPM) test
 
-check-ui: vibeui/node_modules ## Type-check VibeUI (tsc --noEmit)
-	cd vibeui && npx tsc --noEmit
+check-ui: vibecoder/node_modules ## Type-check VibeCoder (tsc --noEmit)
+	cd vibecoder && npx tsc --noEmit
 
-lint-ui: vibeui/node_modules ## Lint VibeUI (eslint)
-	cd vibeui && $(NPM) run lint
+lint-ui: vibecoder/node_modules ## Lint VibeCoder (eslint)
+	cd vibecoder && $(NPM) run lint
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SURFACE: VibeApp — secondary Tauri shell (vibeapp)
@@ -428,11 +428,11 @@ fmt-check: ## Check Rust formatting without modifying
 	$(CARGO) fmt --all -- --check
 
 # Mirror the GitHub CI gate (.github/workflows/ci.yml) locally.
-ci: fmt-check ## Run the same checks CI does (Rust + VibeUI + VibeApp + SDK + Mobile)
+ci: fmt-check ## Run the same checks CI does (Rust + VibeCoder + VibeApp + SDK + Mobile)
 	@echo "── Rust: clippy + test ──────────────────────────────"
 	$(CARGO) clippy --workspace
 	$(CARGO) test --workspace --exclude vibe-memory --exclude vibe-broker
-	@echo "── VibeUI: lint + typecheck + test ──────────────────"
+	@echo "── VibeCoder: lint + typecheck + test ──────────────────"
 	$(MAKE) lint-ui check-ui test-ui
 	@echo "── VibeApp: typecheck ───────────────────────────────"
 	$(MAKE) check-app
@@ -453,7 +453,7 @@ ci: fmt-check ## Run the same checks CI does (Rust + VibeUI + VibeApp + SDK + Mo
 
 clean: mobile-clean watch-clean ## Remove build artifacts (Rust + UI + App + VibeDesk + mobile + watch)
 	$(CARGO) clean
-	rm -rf vibeui/dist vibeui/node_modules/.vite
+	rm -rf vibecoder/dist vibecoder/node_modules/.vite
 	rm -rf vibeapp/dist vibeapp/node_modules/.vite
 	rm -rf vibedesk/dist vibedesk/node_modules/.vite
 	rm -rf $(SDK_DIR)/dist

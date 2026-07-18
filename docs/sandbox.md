@@ -195,7 +195,7 @@ Sandbox enforcement happens **inside the daemon**. Every client that runs a tool
 
 | Client | Sandbox visibility |
 |---|---|
-| **VibeUI / VibeApp** | Tools run via daemon — automatic Tier-0 |
+| **VibeCoder / VibeApp** | Tools run via daemon — automatic Tier-0 |
 | **VibeCLI** | Same — automatic Tier-0 |
 | **VibeMobile / VibeWatch** | No tool execution — n/a |
 | **IDE plugins** | Tools run via daemon — automatic Tier-0 |

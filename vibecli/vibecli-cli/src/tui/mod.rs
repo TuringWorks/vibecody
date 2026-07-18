@@ -508,7 +508,7 @@ where
                                     // G11.1 — toggle flat list ↔ tree layout
                                     't' => app.goals.toggle_view_mode(),
                                     // G13.1 — toggle ★ pin on the selected row,
-                                    // matching VibeUI / Watch / Wear / Mobile /
+                                    // matching VibeCoder / Watch / Wear / Mobile /
                                     // VS Code.
                                     'p' => app.goals.toggle_pin_current(),
                                     'j' => app.goals.next(),

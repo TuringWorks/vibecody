@@ -18,7 +18,7 @@ When you connect dozens or hundreds of MCP servers, each exposing multiple tools
 - VibeCLI installed and configured ([Demo 1](../01-first-run/))
 - MCP basics understood ([Demo 16](../16-mcp-servers/))
 - At least 3 MCP servers configured (more servers make the benefits more visible)
-- (Optional) VibeUI for the desktop panel experience
+- (Optional) VibeCoder for the desktop panel experience
 
 ## Why Lazy Loading Matters
 
@@ -269,12 +269,12 @@ slack:send_message          0.7 KB   15 min ago        no
 Available capacity: 45/50 slots
 ```
 
-### Step 7: Use the MCP Lazy panel in VibeUI
+### Step 7: Use the MCP Lazy panel in VibeCoder
 
-Open VibeUI and navigate to the **MCP** panel, which has a **Lazy** sub-tab when lazy loading is enabled.
+Open VibeCoder and navigate to the **MCP** panel, which has a **Lazy** sub-tab when lazy loading is enabled.
 
 ```bash
-cd vibeui && npm run tauri dev
+cd vibecoder && npm run tauri dev
 ```
 
 The MCP Lazy panel has three tabs:
@@ -422,15 +422,15 @@ pinned = ["filesystem:read_file", "filesystem:write_file"]
     {
       "id": 14,
       "action": "shell",
-      "command": "cd vibeui && npm run tauri dev",
-      "description": "Launch VibeUI to explore the MCP Lazy panel",
+      "command": "cd vibecoder && npm run tauri dev",
+      "description": "Launch VibeCoder to explore the MCP Lazy panel",
       "delay_ms": 8000
     },
     {
       "id": 15,
       "action": "Navigate",
       "target": "panel://mcp",
-      "description": "Open the MCP panel in VibeUI"
+      "description": "Open the MCP panel in VibeCoder"
     },
     {
       "id": 16,

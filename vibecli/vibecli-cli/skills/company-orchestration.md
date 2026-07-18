@@ -70,11 +70,11 @@ automatically paused via AgentPool. Set with:
 `company_heartbeat_trigger`, `company_heartbeat_history`, `company_export`, `company_import`,
 `company_adapter_list`, `company_dashboard`
 
-## VibeUI Panels (12)
+## VibeCoder Panels (12)
 
 `CompanyDashboardPanel`, `CompanyOrgChartPanel`, `CompanyAgentDetailPanel`,
 `CompanyGoalsPanel`, `CompanyTaskBoardPanel`, `CompanyApprovalsPanel`,
 `CompanyBudgetPanel`, `CompanySecretsPanel`, `CompanyRoutinesPanel`,
 `CompanyDocumentsPanel`, `CompanyPortabilityPanel`, `CompanyAdapterPanel`
 
-Accessible via the **Company** tab group in VibeUI.
+Accessible via the **Company** tab group in VibeCoder.

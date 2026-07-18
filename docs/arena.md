@@ -6,7 +6,7 @@ permalink: /arena/
 
 Arena is the panel for blind A/B model comparisons. You configure two providers and one prompt; the panel sends the prompt to both in parallel, hides which side is which, and asks you to vote. The leaderboard tracks per-provider win rates over time.
 
-This page documents the user-facing surface. Arena is a desktop-only feature (VibeUI / VibeApp) — mobile and watch clients don't ship it.
+This page documents the user-facing surface. Arena is a desktop-only feature (VibeCoder / VibeApp) — mobile and watch clients don't ship it.
 
 ---
 
@@ -19,14 +19,14 @@ This page documents the user-facing surface. Arena is a desktop-only feature (Vi
 5. **Both responses render side-by-side**, each as a `BlindResponseCard` with `(identity hidden)` until you vote.
 6. **You vote** A / B / Tie / Both bad.
 7. **Reveal panel** unveils which model was on each side, plus latency and token counts. The reveal is announced to AT users via `aria-live="polite"`.
-8. **Vote saved** to `~/.vibeui/arena-votes.json` and the leaderboard refreshes.
-9. **Send winner to Chat** (optional) injects the winning response into the active chat tab via the `vibeui:inject-context` event.
+8. **Vote saved** to `~/.vibecoder/arena-votes.json` and the leaderboard refreshes.
+9. **Send winner to Chat** (optional) injects the winning response into the active chat tab via the `vibecoder:inject-context` event.
 
 ---
 
 ## Vote storage
 
-Votes are stored in `~/.vibeui/arena-votes.json` as a plain JSON array. They're not encrypted — the file contains no API keys, only:
+Votes are stored in `~/.vibecoder/arena-votes.json` as a plain JSON array. They're not encrypted — the file contains no API keys, only:
 
 - timestamp
 - prompt
@@ -35,7 +35,7 @@ Votes are stored in `~/.vibeui/arena-votes.json` as a plain JSON array. They're 
 
 Each vote has an entry per side. For per-provider stats, votes where both sides are the same provider self-cancel for that provider's win/loss columns (the leaderboard is informative when comparing across providers, less so within one).
 
-If you want to reset the leaderboard, delete `~/.vibeui/arena-votes.json` — there's no in-app "Reset" button by design (this is a write-once history).
+If you want to reset the leaderboard, delete `~/.vibecoder/arena-votes.json` — there's no in-app "Reset" button by design (this is a write-once history).
 
 ---
 
@@ -74,7 +74,7 @@ The Leaderboard table renders only when there's at least one vote. Columns:
   "available": true,
   "transport": "tauri-desktop",
   "requires": "providers.configured_count >= 2 (for non-trivial battles)",
-  "votes_path": "~/.vibeui/arena-votes.json"
+  "votes_path": "~/.vibecoder/arena-votes.json"
 }
 ```
 
@@ -120,7 +120,7 @@ Prompts are **never** logged — only the length. Response content is never logg
 
 | Client | Arena |
 |---|---|
-| **VibeUI / VibeApp** | ✅ |
+| **VibeCoder / VibeApp** | ✅ |
 | **VibeMobile** | ❌ — no plans (battles are inherently a side-by-side desktop UX) |
 | **VibeWatch** | ❌ |
 | **IDE plugins** | ❌ |
@@ -140,12 +140,12 @@ Position bias: the panel randomizes which side gets which model on every battle,
 
 ### "Send winner to Chat does nothing"
 
-The button dispatches a `vibeui:inject-context` window event. The Chat panel listens for this event when it's mounted and a tab is active. If no tab is active (e.g., Chat panel is closed), the event has no effect — switch to Chat first, then click Send winner to Chat.
+The button dispatches a `vibecoder:inject-context` window event. The Chat panel listens for this event when it's mounted and a tab is active. If no tab is active (e.g., Chat panel is closed), the event has no effect — switch to Chat first, then click Send winner to Chat.
 
 ---
 
 ## Related
 
 - **Providers:** [`docs/providers/`](./providers/) — what counts as a configured provider
-- **Source:** `vibeui/src/components/ArenaPanel.tsx` (399 LOC) · backend in `vibeui/src-tauri/src/commands.rs` (`compare_models`, `save_arena_vote`, `get_arena_history`)
-- **Tests:** `vibeui/src/components/__tests__/ArenaPanel.bdd.test.tsx`
+- **Source:** `vibecoder/src/components/ArenaPanel.tsx` (399 LOC) · backend in `vibecoder/src-tauri/src/commands.rs` (`compare_models`, `save_arena_vote`, `get_arena_history`)
+- **Tests:** `vibecoder/src/components/__tests__/ArenaPanel.bdd.test.tsx`

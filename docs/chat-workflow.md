@@ -53,7 +53,7 @@ User types message
 
 ### Entry point: `sendMessage()`
 
-**File:** `vibeui/src/components/AIChat.tsx`
+**File:** `vibecoder/src/components/AIChat.tsx`
 
 When the user presses Enter or clicks Send:
 
@@ -90,7 +90,7 @@ await invoke("stream_chat_message", {
 
 ## 2. Backend: Request Processing (`commands.rs`)
 
-**File:** `vibeui/src-tauri/src/commands.rs` — `stream_chat_message()`
+**File:** `vibecoder/src-tauri/src/commands.rs` — `stream_chat_message()`
 
 ### 2a. Cancel previous stream
 
@@ -118,7 +118,7 @@ The `ChatEngine` (from `vibe-ai`) manages provider instances. The provider `Arc<
 The system message is constructed with:
 
 1. **Base instructions** — XML tool tags (`<write_file>`, `<read_file>`, `<list_dir>`, `<build />`, `<run />`)
-2. **AI Rules** — from `.vibe/rules.md` or `.vibeui/rules.md` in workspace
+2. **AI Rules** — from `.vibe/rules.md` or `.vibecoder/rules.md` in workspace
 3. **File tree** — list of workspace files for context
 4. **Mode-specific** — planning mode adds "do NOT write code directly" instructions
 
@@ -440,14 +440,14 @@ User          AIChat.tsx       Tauri IPC          commands.rs            Provide
 
 | File | Role |
 |------|------|
-| `vibeui/src/components/AIChat.tsx` | React chat UI, event listeners, message rendering |
-| `vibeui/src/components/AIChat.css` | Chat styling (dark theme, code blocks, streaming cursor) |
-| `vibeui/src-tauri/src/commands.rs` | `stream_chat_message`, `send_chat_message`, `process_tool_calls`, `resolve_at_references` |
-| `vibeui/src-tauri/src/lib.rs` | AppState initialization, command registration |
-| `vibeui/crates/vibe-ai/src/provider.rs` | `AIProvider` trait, `Message`, `CompletionStream` |
-| `vibeui/crates/vibe-ai/src/providers/gemini.rs` | Gemini streaming implementation |
-| `vibeui/crates/vibe-ai/src/providers/ollama.rs` | Ollama streaming implementation |
-| `vibeui/crates/vibe-ai/src/resilient.rs` | `RetryConfig`, `is_retryable()`, `classify_error()` |
+| `vibecoder/src/components/AIChat.tsx` | React chat UI, event listeners, message rendering |
+| `vibecoder/src/components/AIChat.css` | Chat styling (dark theme, code blocks, streaming cursor) |
+| `vibecoder/src-tauri/src/commands.rs` | `stream_chat_message`, `send_chat_message`, `process_tool_calls`, `resolve_at_references` |
+| `vibecoder/src-tauri/src/lib.rs` | AppState initialization, command registration |
+| `vibecoder/crates/vibe-ai/src/provider.rs` | `AIProvider` trait, `Message`, `CompletionStream` |
+| `vibecoder/crates/vibe-ai/src/providers/gemini.rs` | Gemini streaming implementation |
+| `vibecoder/crates/vibe-ai/src/providers/ollama.rs` | Ollama streaming implementation |
+| `vibecoder/crates/vibe-ai/src/resilient.rs` | `RetryConfig`, `is_retryable()`, `classify_error()` |
 
 ---
 

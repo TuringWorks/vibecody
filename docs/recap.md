@@ -18,7 +18,7 @@ The recap surface is built around two principles:
 
 | Surface | What it shows | Where |
 |---|---|---|
-| **Desktop** (VibeUI) | Inline `RecapCard` above the chat transcript when a session is restored | `vibeui/src/components/RecapCard.tsx` |
+| **Desktop** (VibeCoder) | Inline `RecapCard` above the chat transcript when a session is restored | `vibecoder/src/components/RecapCard.tsx` |
 | **CLI** | `/recap` slash command in the REPL | F1.4 |
 | **Mobile** (Flutter) | Recap header on the sessions list + per-session detail | M1.1 |
 | **watchOS** | `RecapView.swift` — read-only glance | W1.1 |
@@ -239,7 +239,7 @@ User content (headline, bullets, next-actions) is **not** logged at any level �
 
 | Client | Recap surface |
 |---|---|
-| **VibeUI (desktop)** | `RecapCard` pinned above the chat transcript on session restore; auto-write on tab close (F2.3); manual write in any tab. |
+| **VibeCoder (desktop)** | `RecapCard` pinned above the chat transcript on session restore; auto-write on tab close (F2.3); manual write in any tab. |
 | **VibeCLI** | `/recap` slash command; HTTP API for scripting. |
 | **VibeMobile** | Recap header in the sessions list (M1.1); per-session detail card; Resume button opens the resume flow on the daemon. |
 | **VibeWatch (watchOS)** | `RecapView` — glance-only read of the freshest recap (W1.1). |
@@ -254,5 +254,5 @@ The daemon is the source of truth for the `Recap` shape. Watch clients are expli
 ## Related
 
 - **Design docs:** [`docs/design/recap-resume/`](https://github.com/TuringWorks/vibecody/blob/main/docs/design/recap-resume/) — Per-kind specs (session, job, diffcomplete) + the cross-cutting `Recap` shape.
-- **Source:** `vibecli/vibecli-cli/src/recap.rs` (heuristic generator) · `vibeui/src/components/RecapCard.tsx` (UI) · `vibemobile/lib/screens/sessions_screen.dart` (mobile).
+- **Source:** `vibecli/vibecli-cli/src/recap.rs` (heuristic generator) · `vibecoder/src/components/RecapCard.tsx` (UI) · `vibemobile/lib/screens/sessions_screen.dart` (mobile).
 - **Diffcomplete:** [`/diffcomplete/`](../diffcomplete/) — uses the same `Recap` shape for AI-edit summaries.

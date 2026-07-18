@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'vibe_tokens.dart';
 
 /// VibeCody adaptive theme — follows system light/dark preference.
-/// Colors sourced from vibe_tokens.dart, which mirrors vibeui/design-system/tokens.css.
+/// Colors sourced from vibe_tokens.dart, which mirrors vibecoder/design-system/tokens.css.
 class AppTheme {
   // ── Dark ThemeData ──────────────────────────────────────────────────────
   static final dark = ThemeData(

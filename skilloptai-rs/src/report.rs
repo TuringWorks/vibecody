@@ -1,7 +1,7 @@
 //! `TrainingReport` (epochs, val-curve, accepted/rejected, spent tokens) +
 //! the `best_skill.md` writer — the deployable artifact.
 //!
-//! The report is the surface the VibeUI panel renders (val-curve chart, accept
+//! The report is the surface the VibeCoder panel renders (val-curve chart, accept
 //! counts, spent-token meter). `best_skill.md` is **never** auto-overwritten onto
 //! a shipped `skills/*.md` — the panel writes `*.opt.md` and requires an explicit
 //! human "promote" action (see `notes/skillforge/06`).

@@ -7,7 +7,7 @@ permalink: /design-system/components/button/
 {% raw %}
 # Button
 
-VibeUI has two button systems: **app-level buttons** (`btn-primary`, `btn-secondary`, `icon-button`) for the main shell UI, and **panel buttons** (`panel-btn` + modifiers) for use inside panels. Always use panel buttons inside `panel-container`.
+VibeCoder has two button systems: **app-level buttons** (`btn-primary`, `btn-secondary`, `icon-button`) for the main shell UI, and **panel buttons** (`panel-btn` + modifiers) for use inside panels. Always use panel buttons inside `panel-container`.
 
 ---
 

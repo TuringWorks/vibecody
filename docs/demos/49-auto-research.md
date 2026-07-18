@@ -16,7 +16,7 @@ VibeCody's AutoResearch module is an autonomous iterative research agent that sy
 - VibeCLI 0.5.1 or later installed and on your PATH
 - At least one AI provider configured
 - A project directory with code to optimize (examples use a database-backed service)
-- For VibeUI: the desktop app running with the **AutoResearch** panel visible
+- For VibeCoder: the desktop app running with the **AutoResearch** panel visible
 
 ## Research Strategies
 
@@ -238,9 +238,9 @@ Suggested next experiments (based on Bayesian model + lessons):
      Expected improvement: 5-10% for repeated query patterns
 ```
 
-## VibeUI: AutoResearch Panel
+## VibeCoder: AutoResearch Panel
 
-The **AutoResearch** panel in VibeUI provides 5 tabs:
+The **AutoResearch** panel in VibeCoder provides 5 tabs:
 
 - **Setup** -- Create sessions, select domain and strategy, define metrics
 - **Experiments** -- Live experiment tracking with progress bar and metric charts

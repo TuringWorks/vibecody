@@ -24,7 +24,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 rustup update stable
 ```
 
-### 3. Install Node.js (for VibeUI)
+### 3. Install Node.js (for VibeCoder)
 
 Download from [nodejs.org](https://nodejs.org/) (LTS ≥ 18), or via a version manager:
 
@@ -34,7 +34,7 @@ nvm install --lts
 nvm use --lts
 ```
 
-### 4. Install Tauri Prerequisites (for VibeUI)
+### 4. Install Tauri Prerequisites (for VibeCoder)
 
 Follow the Tauri v2 system prerequisites guide for your OS:
 [tauri.app/start/prerequisites](https://tauri.app/start/prerequisites/)
@@ -51,10 +51,10 @@ xcode-select --install
 sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
 ```
 
-### 5. Install Frontend Dependencies (for VibeUI)
+### 5. Install Frontend Dependencies (for VibeCoder)
 
 ```bash
-cd vibeui && npm install && cd ..
+cd vibecoder && npm install && cd ..
 ```
 
 
@@ -72,8 +72,8 @@ cargo build --workspace
 # VibeCLI binary
 cargo build -p vibecli
 
-# VibeUI (Tauri + React)
-cd vibeui && npm run tauri build
+# VibeCoder (Tauri + React)
+cd vibecoder && npm run tauri build
 ```
 
 ### Development Mode
@@ -82,8 +82,8 @@ cd vibeui && npm run tauri build
 # VibeCLI with auto-reload (cargo-watch required)
 cargo watch -x 'run -p vibecli -- --tui'
 
-# VibeUI with hot reload
-cd vibeui && npm run tauri dev
+# VibeCoder with hot reload
+cd vibecoder && npm run tauri dev
 ```
 
 
@@ -102,7 +102,7 @@ cargo test -p vibecli
 cargo test -p vibe-core -- --nocapture
 
 # TypeScript type check
-cd vibeui && npx tsc --noEmit
+cd vibecoder && npx tsc --noEmit
 ```
 
 
@@ -131,7 +131,7 @@ Key conventions:
 ### TypeScript / React
 
 ```bash
-cd vibeui
+cd vibecoder
 
 # Type check
 npx tsc --noEmit
@@ -199,11 +199,11 @@ docs/architecture-diagram
 
 ## Adding a New AI Provider
 
-1. Create `vibeui/crates/vibe-ai/src/providers/<name>.rs`
+1. Create `vibecoder/crates/vibe-ai/src/providers/<name>.rs`
 2. Implement `AIProvider` for your new struct
-3. Export from `vibeui/crates/vibe-ai/src/providers.rs`
+3. Export from `vibecoder/crates/vibe-ai/src/providers.rs`
 4. Wire up in VibeCLI's `create_provider()` in `vibecli-cli/src/main.rs`
-5. Add to VibeUI's provider dropdown in `src/App.tsx`
+5. Add to VibeCoder's provider dropdown in `src/App.tsx`
 6. Document in the [Configuration Guide](../configuration/)
 
 ```rust

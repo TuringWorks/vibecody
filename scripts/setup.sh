@@ -155,10 +155,10 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." 2>/dev/null && pwd || pwd)"
 
-if [ -f "$REPO_ROOT/vibeui/package.json" ]; then
-  info "Installing VibeUI frontend dependencies..."
-  (cd "$REPO_ROOT/vibeui" && npm install --no-audit --no-fund)
-  ok "VibeUI npm dependencies installed"
+if [ -f "$REPO_ROOT/vibecoder/package.json" ]; then
+  info "Installing VibeCoder frontend dependencies..."
+  (cd "$REPO_ROOT/vibecoder" && npm install --no-audit --no-fund)
+  ok "VibeCoder npm dependencies installed"
 fi
 
 if [ -f "$REPO_ROOT/vibeapp/package.json" ]; then
@@ -184,7 +184,7 @@ echo ""
 echo "  # Build VibeCLI"
 echo "  make cli"
 echo ""
-echo "  # Run VibeUI in dev mode"
+echo "  # Run VibeCoder in dev mode"
 echo "  make ui"
 echo ""
 echo "  # Run all tests"

@@ -35,7 +35,7 @@ pub struct GoalRow {
 
 /// G11.1 — TUI Goals layout. `List` is the flat chronological view
 /// (default); `Tree` indents children under parents using a client-
-/// side BFS over `parent_goal_id`, mirroring VibeUI's `orderedGoals`.
+/// side BFS over `parent_goal_id`, mirroring VibeCoder's `orderedGoals`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ViewMode {
     List,
@@ -262,7 +262,7 @@ impl Default for GoalsComponent {
 /// whose `parent_goal_id` is either `None` or refers to a goal that
 /// isn't in the current list (a parent filtered out by the status
 /// filter is treated as a root so its children remain reachable).
-/// Mirrors `orderedGoals` in `vibeui/src/components/GoalPanel.tsx`.
+/// Mirrors `orderedGoals` in `vibecoder/src/components/GoalPanel.tsx`.
 fn order_as_tree(rows: Vec<GoalRow>) -> Vec<GoalRow> {
     use std::collections::HashMap;
     if rows.is_empty() {

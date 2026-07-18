@@ -523,7 +523,7 @@ fn run_metering_command(args: &[String]) {
                 );
                 println!();
                 println!("  Note: budget is held in-session memory. Persist it in");
-                println!("  ~/.vibecli/config.toml under [metering] or via VibeUI.");
+                println!("  ~/.vibecli/config.toml under [metering] or via VibeCoder.");
             }
             "list" => {
                 let meter = UsageMeter::new();
@@ -2701,7 +2701,7 @@ fn run_arena_command(args: &[String]) {
     println!("  Category : {}", category);
     println!("  Blind    : {}", blind);
     println!();
-    println!("  Full arena UI: cd vibeui && npm run tauri:dev  →  Arena tab");
+    println!("  Full arena UI: cd vibecoder && npm run tauri:dev  →  Arena tab");
     if export {
         println!("  Export: arena-result.json written");
     }
@@ -3469,7 +3469,7 @@ struct Cli {
     /// DREAD #1 Slice G part 2 — expose the tainted-argument
     /// confirmation bridge over HTTP. The daemon publishes pending
     /// prompts on `GET /v1/tainted/pending` (SSE) and accepts
-    /// decisions on `POST /v1/tainted/respond`. VibeUI WebView,
+    /// decisions on `POST /v1/tainted/respond`. VibeCoder WebView,
     /// VibeMobile, and VibeWatch consume the same endpoints.
     /// Implies `--tainted-strict`. Mutually exclusive with
     /// `--tainted-prompt` (one decision surface per process).
@@ -6198,7 +6198,7 @@ async fn main() -> Result<()> {
                                 "plan" => {
                                     println!(
                                         "Plan generation needs the daemon (LLM call). Start `vibecli serve`\n\
-                                         then POST to /v1/goals/{rest}/plan, or open VibeUI → Goals.\n"
+                                         then POST to /v1/goals/{rest}/plan, or open VibeCoder → Goals.\n"
                                     );
                                 }
                                 other => {
@@ -7427,7 +7427,7 @@ async fn main() -> Result<()> {
                                                     .join(format!("{}.md", name))
                                                     .display()
                                             );
-                                            println!("   Edit it to add tasks, or use the VibeUI Specs panel to generate one with AI.\n");
+                                            println!("   Edit it to add tasks, or use the VibeCoder Specs panel to generate one with AI.\n");
                                         }
                                         Err(e) => eprintln!("❌ {}\n", e),
                                     }
@@ -8139,7 +8139,7 @@ async fn main() -> Result<()> {
                                 }
                                 "scan" => {
                                     println!("Scanning project for cloud service usage...");
-                                    println!("  (Use VibeUI CloudProviders panel for interactive results)\n");
+                                    println!("  (Use VibeCoder CloudProviders panel for interactive results)\n");
                                 }
                                 "iam" => {
                                     println!("Generating IAM policy from detected services...");
@@ -8175,7 +8175,7 @@ async fn main() -> Result<()> {
                                     println!("  Suite: SWE-bench Verified");
                                     println!("  Provider: {}", active_provider);
                                     println!(
-                                        "  (Use VibeUI SweBench panel for interactive control)\n"
+                                        "  (Use VibeCoder SweBench panel for interactive control)\n"
                                     );
                                 }
                                 "compare" => {
@@ -8207,13 +8207,13 @@ async fn main() -> Result<()> {
                                     println!("Credit Budgets:");
                                     println!("  (No budgets configured)");
                                     println!(
-                                        "  Configure budgets in VibeUI UsageMetering panel.\n"
+                                        "  Configure budgets in VibeCoder UsageMetering panel.\n"
                                     );
                                 }
                                 "report" => {
                                     println!("Generating usage report...");
                                     println!(
-                                        "  (Use VibeUI UsageMetering panel for detailed reports)\n"
+                                        "  (Use VibeCoder UsageMetering panel for detailed reports)\n"
                                     );
                                 }
                                 "alerts" => {
@@ -8254,7 +8254,7 @@ async fn main() -> Result<()> {
                                 "incidents" => {
                                     println!("Incident Management:");
                                     println!("  (No open incidents)");
-                                    println!("  Use VibeUI BlueTeam panel for full incident management.\n");
+                                    println!("  Use VibeCoder BlueTeam panel for full incident management.\n");
                                 }
                                 "iocs" => {
                                     let query = parts.get(1).unwrap_or(&"");
@@ -8270,7 +8270,7 @@ async fn main() -> Result<()> {
                                 "rules" => {
                                     println!("Detection Rules:");
                                     println!("  (No rules configured)");
-                                    println!("  Use VibeUI BlueTeam panel to create detection rules.\n");
+                                    println!("  Use VibeCoder BlueTeam panel to create detection rules.\n");
                                 }
                                 "forensics" => {
                                     println!("Forensic Cases:");
@@ -8279,7 +8279,7 @@ async fn main() -> Result<()> {
                                 "playbooks" => {
                                     println!("Incident Response Playbooks:");
                                     println!("  (No playbooks configured)");
-                                    println!("  Create playbooks in VibeUI BlueTeam panel.\n");
+                                    println!("  Create playbooks in VibeCoder BlueTeam panel.\n");
                                 }
                                 "siem" => {
                                     println!("SIEM Connections:");
@@ -8289,7 +8289,7 @@ async fn main() -> Result<()> {
                                 "hunt" => {
                                     println!("Threat Hunt Queries:");
                                     println!("  (No hunt queries defined)");
-                                    println!("  Create hypothesis-driven hunts in VibeUI BlueTeam panel.\n");
+                                    println!("  Create hypothesis-driven hunts in VibeCoder BlueTeam panel.\n");
                                 }
                                 "report" => {
                                     println!("Generating Blue Team report...");
@@ -8323,14 +8323,14 @@ async fn main() -> Result<()> {
                                         }
                                         _ => {
                                             println!("Creating exercise '{}'...", sub);
-                                            println!("  Use VibeUI PurpleTeam panel for full exercise management.\n");
+                                            println!("  Use VibeCoder PurpleTeam panel for full exercise management.\n");
                                         }
                                     }
                                 }
                                 "simulate" => {
                                     println!("Attack Simulation:");
                                     println!("  Select a technique from the MITRE ATT&CK matrix.");
-                                    println!("  Use VibeUI PurpleTeam panel for guided simulations.\n");
+                                    println!("  Use VibeCoder PurpleTeam panel for guided simulations.\n");
                                 }
                                 "validate" => {
                                     println!("Detection Validation:");
@@ -8408,13 +8408,13 @@ async fn main() -> Result<()> {
                                         println!("Usage: /idp register <service-name>\n");
                                     } else {
                                         println!("Registering service '{}' in catalog...", name);
-                                        println!("  Use VibeUI IDP panel for full registration form.\n");
+                                        println!("  Use VibeCoder IDP panel for full registration form.\n");
                                     }
                                 }
                                 "golden" => {
                                     println!("Golden Paths (Paved Roads):");
                                     println!("  (No golden paths configured)");
-                                    println!("  Create templates in VibeUI IDP panel.\n");
+                                    println!("  Create templates in VibeCoder IDP panel.\n");
                                 }
                                 "scorecard" => {
                                     let svc = parts.get(1).unwrap_or(&"");
@@ -8437,7 +8437,7 @@ async fn main() -> Result<()> {
                                 "team" => {
                                     println!("Teams:");
                                     println!("  (No teams registered)");
-                                    println!("  Create via VibeUI IDP panel.\n");
+                                    println!("  Create via VibeCoder IDP panel.\n");
                                 }
                                 "onboard" => {
                                     println!("Team Onboarding:");
@@ -8450,7 +8450,7 @@ async fn main() -> Result<()> {
                                     println!("Backstage Integration:");
                                     println!("  Generate catalog-info.yaml: /idp backstage catalog <service-id>");
                                     println!("  Generate template: /idp backstage template <name>");
-                                    println!("  (Use VibeUI IDP > Backstage tab for full management)\n");
+                                    println!("  (Use VibeCoder IDP > Backstage tab for full management)\n");
                                 }
                                 "platforms" => {
                                     println!("Supported IDP Platforms:");
@@ -8470,7 +8470,7 @@ async fn main() -> Result<()> {
                                     println!("  │ CloudBolt     │ Off     │");
                                     println!("  │ Harness       │ Off     │");
                                     println!("  └───────────────┴─────────┘");
-                                    println!("  Enable in config.toml or VibeUI IDP > Platforms tab.\n");
+                                    println!("  Enable in config.toml or VibeCoder IDP > Platforms tab.\n");
                                 }
                                 "report" => {
                                     println!("Generating IDP report...");
@@ -9632,10 +9632,10 @@ async fn main() -> Result<()> {
                                     }
                                 }
                                 "stats" => {
-                                    println!("Arena stats: use the VibeUI Arena tab for full leaderboard.\n");
+                                    println!("Arena stats: use the VibeCoder Arena tab for full leaderboard.\n");
                                 }
                                 "history" => {
-                                    println!("Arena history: use the VibeUI Arena tab for full history.\n");
+                                    println!("Arena history: use the VibeCoder Arena tab for full history.\n");
                                 }
                                 _ => {
                                     println!("Usage:");
@@ -9959,7 +9959,7 @@ async fn main() -> Result<()> {
                             }
 
                             // Determine active env file
-                            let active_env_path = cwd.join(".vibeui").join("active-env.txt");
+                            let active_env_path = cwd.join(".vibecoder").join("active-env.txt");
                             let active_env = std::fs::read_to_string(&active_env_path)
                                 .map(|s| s.trim().to_string())
                                 .unwrap_or_else(|_| "default".to_string());
@@ -10143,15 +10143,15 @@ async fn main() -> Result<()> {
                                     if env_name.is_empty() {
                                         println!("Usage: /env switch <environment>\n  Current: {} ({})\n", active_env, env_filename);
                                     } else {
-                                        let vibeui_dir = cwd.join(".vibeui");
-                                        let _ = std::fs::create_dir_all(&vibeui_dir);
+                                        let vibecoder_dir = cwd.join(".vibecoder");
+                                        let _ = std::fs::create_dir_all(&vibecoder_dir);
                                         let target_file = if env_name == "default" {
                                             ".env".to_string()
                                         } else {
                                             format!(".env.{}", env_name)
                                         };
                                         match std::fs::write(
-                                            vibeui_dir.join("active-env.txt"),
+                                            vibecoder_dir.join("active-env.txt"),
                                             env_name,
                                         ) {
                                             Ok(_) => println!(
@@ -11213,7 +11213,7 @@ async fn main() -> Result<()> {
                                     let home =
                                         std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
                                     let bp = std::path::PathBuf::from(&home)
-                                        .join(".vibeui")
+                                        .join(".vibecoder")
                                         .join("bookmarks.json");
                                     match std::fs::read_to_string(&bp) {
                                         Ok(s) => {
@@ -11252,10 +11252,10 @@ async fn main() -> Result<()> {
 
                         "/mock" => {
                             println!(
-                                "🎭 Mock server management is available in VibeUI's Mock tab.\n"
+                                "🎭 Mock server management is available in VibeCoder's Mock tab.\n"
                             );
                             println!(
-                                "  The mock server requires the VibeUI runtime (Tauri) to host the"
+                                "  The mock server requires the VibeCoder runtime (Tauri) to host the"
                             );
                             println!("  HTTP server. Use the 🎭 Mock tab to start/stop, add routes, view");
                             println!("  request logs, and import from OpenAPI specs.\n");
@@ -17612,7 +17612,7 @@ async fn main() -> Result<()> {
                             println!("  /train finetune --library unsloth --model meta-llama/Llama-3.1-8B-Instruct");
                             println!("  /inference quantize --method gguf-q4km --model ./output");
                             println!("  /inference deploy --backend ollama --model ./model.gguf\n");
-                            println!("For the full interactive wizard, use the Model Wizard tab in VibeUI.\n");
+                            println!("For the full interactive wizard, use the Model Wizard tab in VibeCoder.\n");
                         }
 
                         _ => {

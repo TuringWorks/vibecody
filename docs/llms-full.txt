@@ -1,6 +1,6 @@
 # VibeCody -- Complete AI Agent Reference
 
-> AI-powered developer toolchain: VibeCLI (terminal) + VibeUI (desktop editor)
+> AI-powered developer toolchain: VibeCLI (terminal) + VibeCoder (desktop editor)
 > This is the comprehensive reference for AI agents working with VibeCody.
 > For the concise version, see llms.txt.
 
@@ -12,7 +12,7 @@ VibeCody is an open-source, self-hostable AI coding assistant built in Rust and
 TypeScript/React. It ships two products sharing a common library layer:
 
   VibeCLI -- terminal-first AI assistant (TUI + REPL + HTTP daemon)
-  VibeUI  -- full desktop code editor (Tauri 2 + Monaco Editor + React)
+  VibeCoder  -- full desktop code editor (Tauri 2 + Monaco Editor + React)
 
 License: MIT
 Repository: https://github.com/TuringWorks/vibecody
@@ -43,7 +43,7 @@ Monorepo structure (6 Cargo workspace members):
   |     |  |- tool_executor.rs     Tool execution engine
   |     |  \- tui/                 Ratatui TUI (app, ui, components)
   |     \- skills/                 568 skill files (25+ categories)
-  |- vibeui/
+  |- vibecoder/
   |  |- src/                       React + TypeScript frontend
   |  |  |- App.tsx                 Root component
   |  |  \- components/             187 panel components
@@ -831,7 +831,7 @@ Plugin CLI:
 
 
 ================================================================================
-14. VIBEUI PANELS (187)
+14. VIBECODER PANELS (187)
 ================================================================================
 
 Organized by category:
@@ -888,7 +888,7 @@ Test counts by crate (approximate):
   vibe-ai:            731
   vibe-core:          246
   vibe-collab:         53
-  vibe-ui (TS):       227
+  vibe-coder (TS):       227
   vibe-lsp:            57
   vibe-extensions:     46
   (+ integration tests across modules)
@@ -897,14 +897,14 @@ Run commands:
   make test              -- all Rust workspace tests (fast path)
   make test-fast         -- skip collab crate (faster)
   make test-all          -- every Rust + Node surface
-  make test-ui           -- VibeUI (vitest); also test-app / test-vibedesk / test-sdk
+  make test-ui           -- VibeCoder (vitest); also test-app / test-vibedesk / test-sdk
   cargo test --workspace -- all Rust tests
   cargo test -p vibe-core
   cargo test -p vibe-ai
   cargo test -p vibecli
   cargo test -p vibe-lsp
   cargo test -p vibe-extensions
-  cd vibeui && npm test  -- TypeScript/React tests
+  cd vibecoder && npm test  -- TypeScript/React tests
 
 Specific test module:
   cargo test -p vibecli -- tool_executor
@@ -999,8 +999,8 @@ Fix: Use `make ui` or `npm run tauri:dev` (prepends ~/.cargo/bin to PATH)
 Problem: Port 1420 already in use
 Fix: Kill stale Vite: `lsof -i :1420` then `kill <pid>`
 
-Problem: "VibeUI" is damaged (macOS)
-Fix: Run `xattr -cr /Applications/VibeUI.app` (unsigned, Gatekeeper quarantine)
+Problem: "VibeCoder" is damaged (macOS)
+Fix: Run `xattr -cr /Applications/VibeCoder.app` (unsigned, Gatekeeper quarantine)
 
 Problem: Missing libwebkit2gtk-4.1-dev (Linux)
 Fix: Run `make setup` or install manually (see Prerequisites above)
@@ -1045,23 +1045,23 @@ VibeCLI source:
   vibecli/vibecli-cli/skills/                539+ skill files
 
 Shared crates:
-  vibeui/crates/vibe-ai/src/agent.rs         Agent loop (AgentLoop)
-  vibeui/crates/vibe-ai/src/tools.rs         Tool definitions + XML parser
-  vibeui/crates/vibe-ai/src/provider.rs      AIProvider trait
-  vibeui/crates/vibe-ai/src/hooks.rs         Hook system
-  vibeui/crates/vibe-ai/src/planner.rs       Execution planner
-  vibeui/crates/vibe-ai/src/skills.rs        Skill loader
-  vibeui/crates/vibe-ai/src/trace.rs         JSONL trace writer
-  vibeui/crates/vibe-ai/src/mcp.rs           MCP client
-  vibeui/crates/vibe-ai/src/artifacts.rs     Artifact system
-  vibeui/crates/vibe-core/src/              Core editor primitives
-  vibeui/crates/vibe-lsp/src/               LSP client
-  vibeui/crates/vibe-extensions/src/        WASM plugin runtime
+  vibecoder/crates/vibe-ai/src/agent.rs         Agent loop (AgentLoop)
+  vibecoder/crates/vibe-ai/src/tools.rs         Tool definitions + XML parser
+  vibecoder/crates/vibe-ai/src/provider.rs      AIProvider trait
+  vibecoder/crates/vibe-ai/src/hooks.rs         Hook system
+  vibecoder/crates/vibe-ai/src/planner.rs       Execution planner
+  vibecoder/crates/vibe-ai/src/skills.rs        Skill loader
+  vibecoder/crates/vibe-ai/src/trace.rs         JSONL trace writer
+  vibecoder/crates/vibe-ai/src/mcp.rs           MCP client
+  vibecoder/crates/vibe-ai/src/artifacts.rs     Artifact system
+  vibecoder/crates/vibe-core/src/              Core editor primitives
+  vibecoder/crates/vibe-lsp/src/               LSP client
+  vibecoder/crates/vibe-extensions/src/        WASM plugin runtime
 
-VibeUI frontend:
-  vibeui/src/App.tsx                         Root React component
-  vibeui/src/components/                     187 panel components
-  vibeui/src-tauri/                          Tauri backend
+VibeCoder frontend:
+  vibecoder/src/App.tsx                         Root React component
+  vibecoder/src/components/                     187 panel components
+  vibecoder/src-tauri/                          Tauri backend
 
 User config (runtime):
   ~/.vibecli/config.toml                     Main configuration
@@ -1083,7 +1083,7 @@ User config (runtime):
   make doctor          Verify dev environment is ready
   make help            List every target
   make help-surfaces   Per-surface build/test matrix
-  make ui              Run VibeUI in dev mode (Vite + Tauri)
+  make ui              Run VibeCoder in dev mode (Vite + Tauri)
   make cli             Build VibeCLI release binary
   make test            Run all Rust workspace tests (fast path)
   make test-fast       Run tests excluding collab crate
@@ -1097,7 +1097,7 @@ User config (runtime):
   make docker          Build Docker image
 
 Per-surface (consistent build-<surface> / test-<surface> pairs):
-  make build-ui    / make test-ui        VibeUI (Tauri + React)
+  make build-ui    / make test-ui        VibeCoder (Tauri + React)
   make build-app   / make test-app       VibeApp (Tauri shell)
   make build-vibedesk / make test-vibedesk     VibeDesk (Tauri shell)
   make build-cli   / make test-cli       VibeCLI (Rust)
@@ -1112,8 +1112,8 @@ Individual commands:
   cargo build --release -p vibecli           Build CLI binary
   cargo test --workspace                     All Rust tests
   cargo check --workspace --exclude vibe-collab  Fast check
-  cd vibeui && npm install && npm run tauri:dev   VibeUI dev mode
-  cd vibeui && npm test                      Frontend tests
+  cd vibecoder && npm install && npm run tauri:dev   VibeCoder dev mode
+  cd vibecoder && npm test                      Frontend tests
   cd jetbrains-plugin && ./gradlew buildPlugin    JetBrains plugin
 
 

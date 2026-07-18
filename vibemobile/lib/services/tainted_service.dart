@@ -9,7 +9,7 @@
 // Threat-model invariants:
 //
 // * Payload bytes never leave the daemon — `TaintedPrompt` carries
-//   only `audit_summary`. Same invariant as the VibeUI WebView modal
+//   only `audit_summary`. Same invariant as the VibeCoder WebView modal
 //   and the CLI prompter banner.
 // * Fail-safe deny: any network failure or dismissed sheet that
 //   doesn't POST `approve=true` results in the daemon timing the

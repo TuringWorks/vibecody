@@ -452,7 +452,7 @@ impl PluginRegistry {
                 RegistryEntry {
                     name: "vibecody-dracula-theme".to_string(),
                     display_name: "Dracula Theme".to_string(),
-                    description: "Dracula color theme for VibeUI editor and terminal".to_string(),
+                    description: "Dracula color theme for VibeCoder editor and terminal".to_string(),
                     version: "1.0.0".to_string(),
                     author: "community".to_string(),
                     license: "MIT".to_string(),

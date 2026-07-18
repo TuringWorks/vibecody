@@ -57,7 +57,7 @@ pub fn render_markdown_for_scope(
     out.push_str(&format!("# {}\n", title));
     out.push_str(
         "_Generated projection of OpenMemory state. Edit memories via the \
-         `/openmemory` REPL or VibeUI — this file is overwritten on every \
+         `/openmemory` REPL or VibeCoder — this file is overwritten on every \
          refresh._\n\n",
     );
     out.push_str(&format!(

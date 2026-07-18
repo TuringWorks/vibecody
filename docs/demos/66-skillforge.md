@@ -8,14 +8,14 @@ permalink: /demos/66-skillforge/
 
 VibeCody ships ~710 agent-skill files in `vibecli/vibecli-cli/skills/*.md`. They're hand-authored and static. **SkillForge** makes that library measurable and self-improving: [SkillLens](https://github.com/TuringWorks/SkillLens) scores how useful a skill is to a target model, and [SkillOpt](https://github.com/TuringWorks/SkillOpt) trains the skill markdown with bounded edits accepted only when a held-out validation score strictly improves. The output is a `best_skill.md` deployed with **zero inference-time overhead** — the agent's skill loader just reads the improved file.
 
-SkillForge is wired into the daemon the same way the [Code Graph](./41-semantic-index/) is: two standalone Rust crates (`skilllensai-rs`, `skilloptai-rs`), one daemon bridge module (`skillforge_index.rs`), `/v1/skilllens/*` + `/v1/skillopt/*` HTTP routes, and a VibeUI panel. Every LLM call uses the toolbar-selected provider + model (STRICT — no hard-coded Anthropic).
+SkillForge is wired into the daemon the same way the [Code Graph](./41-semantic-index/) is: two standalone Rust crates (`skilllensai-rs`, `skilloptai-rs`), one daemon bridge module (`skillforge_index.rs`), `/v1/skilllens/*` + `/v1/skillopt/*` HTTP routes, and a VibeCoder panel. Every LLM call uses the toolbar-selected provider + model (STRICT — no hard-coded Anthropic).
 
 **Time to complete:** ~10 minutes.
 
 ## Prerequisites
 
-- VibeCLI daemon running (`vibecli --serve --port 7878`) — VibeUI starts this automatically.
-- At least one provider configured in the ProfileStore with a resolvable API key, selected in the VibeUI toolbar.
+- VibeCLI daemon running (`vibecli --serve --port 7878`) — VibeCoder starts this automatically.
+- At least one provider configured in the ProfileStore with a resolvable API key, selected in the VibeCoder toolbar.
 - For the HTTP steps: the daemon bearer token at `~/.vibecli/daemon.token`.
 
 ## SkillForge vs hand-authored skills
@@ -33,7 +33,7 @@ SkillForge is wired into the daemon the same way the [Code Graph](./41-semantic-
 
 ### 1. Open the SkillForge panel
 
-In VibeUI, open the **AI/ML** composite and click the **SkillForge** tab. Three views appear: **Catalog**, **Lens**, **Optimize**. The toolbar `selectedProvider` / `selectedModel` drive every LLM call — if either is unset, the Lens/Optimize views show a "select a model" empty state.
+In VibeCoder, open the **AI/ML** composite and click the **SkillForge** tab. Three views appear: **Catalog**, **Lens**, **Optimize**. The toolbar `selectedProvider` / `selectedModel` drive every LLM call — if either is unset, the Lens/Optimize views show a "select a model" empty state.
 
 ### 2. Browse the Catalog
 
@@ -109,7 +109,7 @@ curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
 
 | Client | What it ships |
 |---|---|
-| **VibeUI** | `SkillForgePanel` (Catalog / Lens / Optimize) — full surface |
+| **VibeCoder** | `SkillForgePanel` (Catalog / Lens / Optimize) — full surface |
 | **VS Code extension** | `skilllens{List,Get,Refresh,Convert,Extract,Score}` + `skillopt{Train,Status,Cancel,Promote}` — full surface |
 | **Agent SDK** | `agent.skilllens.*` + `agent.skillopt.*` — full surface |
 | **VibeMobile (Flutter)** | `skilllensSkills`, `skilllensSkill`, `skilloptStatus` — read-only |

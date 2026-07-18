@@ -145,7 +145,7 @@ Resource allocation is configured through your infrastructure provider's setting
 | **Code Intelligence** | 7 review detectors, 550+ skills, LSP | General-purpose |
 | **Deployment Targets** | 12 platforms | Managed cloud only |
 | **Raspberry Pi** | ✅ Full support | ❌ |
-| **Desktop App** | ✅ VibeUI (196+ panels) | ❌ |
+| **Desktop App** | ✅ VibeCoder (196+ panels) | ❌ |
 | **Open Source** | ✅ MIT License | Wraps open-source, hosted service |
 | **Always-On** | ✅ All platforms | ✅ Cloud only |
 | **MCP Integration** | ✅ Full | ✅ Via OpenClaw |

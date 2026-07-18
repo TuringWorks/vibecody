@@ -29,9 +29,9 @@ The quickstart actively contradicts the project's own security policy. Users fol
 
 ## P2 — Repo Layout Incomplete
 
-**CLAUDE.md "Repo Layout"** lists 4 crates under `vibeui/crates/`:
+**CLAUDE.md "Repo Layout"** lists 4 crates under `vibecoder/crates/`:
 ```
-vibeui/crates/ ← vibe-core, vibe-ai, vibe-lsp, vibe-extensions
+vibecoder/crates/ ← vibe-core, vibe-ai, vibe-lsp, vibe-extensions
 ```
 
 **Actual**: 5 crates (missing `vibe-collab`). Also missing from the layout: `vibeapp/src-tauri` and `vibe-indexer` which are workspace members.
@@ -57,7 +57,7 @@ vibeui/crates/ ← vibe-core, vibe-ai, vibe-lsp, vibe-extensions
 
 **design-system/README.md line 3**: "All tokens are CSS custom properties defined in `src/App.css`"
 
-**Actual**: Tokens are defined in `vibeui/design-system/tokens.css` (which has the header "Single source of truth for all CSS custom properties"). `App.css` consumes the tokens but does not define them.
+**Actual**: Tokens are defined in `vibecoder/design-system/tokens.css` (which has the header "Single source of truth for all CSS custom properties"). `App.css` consumes the tokens but does not define them.
 
 ## P3 — Design System README Misnumbered Rules
 

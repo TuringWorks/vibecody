@@ -2,17 +2,17 @@
 
 **Status:** Proposed
 **Date:** 2026-04-21
-**Owner:** VibeUI / vibe-ai
+**Owner:** VibeCoder / vibe-ai
 **Related:** `docs/chat-workflow.md`, `docs/AGENT-FRAMEWORK-BLUEPRINT.md`
 
 ---
 
 ## 0. The bug we are fixing
 
-`stream_chat_message` (`vibeui/src-tauri/src/commands.rs:2411`) is single-turn:
+`stream_chat_message` (`vibecoder/src-tauri/src/commands.rs:2411`) is single-turn:
 
 1. It streams one model completion to the frontend (`chat:chunk`).
-2. After the stream ends it runs `process_tool_calls` **once** (`vibeui/src-tauri/src/commands.rs:3600`), which scans the assistant text for ad-hoc XML tags like `<read_file path="…" />`, `<write_file …>`, `<list_dir …>`.
+2. After the stream ends it runs `process_tool_calls` **once** (`vibecoder/src-tauri/src/commands.rs:3600`), which scans the assistant text for ad-hoc XML tags like `<read_file path="…" />`, `<write_file …>`, `<list_dir …>`.
 3. The tool output is shipped back as `chat:complete`.
 
 There is **no second model turn**. So when the model emits `<list_dir path="src" />`, the user sees the directory listing — but the model never observes it, never decides what to do next, and the user has to type "continue" to push the conversation forward. A short-term frontend auto-continue loop is shipping now to mask this; the long-term fix is a real agentic loop.
@@ -23,51 +23,51 @@ The good news: the proper agent loop already exists. We do not need to invent it
 
 ## 1. Inventory — what's already built
 
-### 1.1 The agent loop (Rust, `vibeui/crates/vibe-ai`)
+### 1.1 The agent loop (Rust, `vibecoder/crates/vibe-ai`)
 
 | Concern | File:line | Status |
 |---|---|---|
-| `AgentLoop` struct + `run()` cycle | `vibeui/crates/vibe-ai/src/agent.rs:525`, `:622` | Built. Plan→act→observe with circuit breaker, retry, hooks, policy, context pruning. |
-| `ApprovalPolicy` enum (`ChatOnly`, `Suggest`, `AutoEdit`, `FullAuto`) | `vibeui/crates/vibe-ai/src/agent.rs:320` | Built. Goose-equivalent labels at `:343`. |
-| `AgentEvent` enum (StreamChunk, ToolCallPending, ToolCallExecuted, Complete, Partial, Error, RetryableError, CircuitBreak) | `vibeui/crates/vibe-ai/src/agent.rs:367` | Built. |
-| `AgentContext` (workspace, git, depth, parent_session_id, active_agent_counter, **team_bus**, **team_agent_id**, memory, plan, project_summary) | `vibeui/crates/vibe-ai/src/agent.rs:470` | Built. Note the team-related fields already exist but are not wired in Chat. |
-| `ToolExecutorTrait` (decouples loop from executor) | `vibeui/crates/vibe-ai/src/agent.rs:518` | Built. |
-| `CircuitBreaker` (Stalled/Spinning/Degraded/Blocked, with antifragile half-open recovery) | `vibeui/crates/vibe-ai/src/agent.rs:88`, `:138` | Built. |
-| Prompt-injection sanitizer for tool outputs | `vibeui/crates/vibe-ai/src/agent.rs:25`, `:46` | Built. |
-| `ToolCall::SpawnAgent { task, max_steps, max_depth }` (the subagent primitive) | `vibeui/crates/vibe-ai/src/tools.rs:375` | Built. |
-| `ToolCall::TaskComplete`, `Think`, `PlanTask`, `RecordMemory`, `Diffstat` | `vibeui/crates/vibe-ai/src/tools.rs:369`, `:385`, `:389`, `:397`, `:393` | Built. |
-| `MultiAgentOrchestrator` (parallel agents in git worktrees) | `vibeui/crates/vibe-ai/src/multi_agent.rs:103` | Built. Currently used by `start_parallel_agent_task` only. |
-| `AgentTeam` + `TeamMessageBus` (peer-to-peer broadcast/directed messages) | `vibeui/crates/vibe-ai/src/agent_team.rs:70`, `:158` | Built but **not wired to Chat or Sandbox** — `team_bus`/`team_agent_id` on `AgentContext` are set to `None` in `start_agent_task`. |
-| `HookRunner` + `HookEvent` (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop, TaskCompleted, **SubagentStart**, FileSaved/Created/Deleted) | `vibeui/crates/vibe-ai/src/hooks.rs:24`, `:107` | Built. Three handler types: shell command, LLM eval, HTTP webhook. |
-| `AdminPolicy` from `.vibecli/policy.toml` | `vibeui/crates/vibe-ai/src/policy.rs` (loaded at `agent.rs:607`) | Built. Can clamp `max_steps`. |
+| `AgentLoop` struct + `run()` cycle | `vibecoder/crates/vibe-ai/src/agent.rs:525`, `:622` | Built. Plan→act→observe with circuit breaker, retry, hooks, policy, context pruning. |
+| `ApprovalPolicy` enum (`ChatOnly`, `Suggest`, `AutoEdit`, `FullAuto`) | `vibecoder/crates/vibe-ai/src/agent.rs:320` | Built. Goose-equivalent labels at `:343`. |
+| `AgentEvent` enum (StreamChunk, ToolCallPending, ToolCallExecuted, Complete, Partial, Error, RetryableError, CircuitBreak) | `vibecoder/crates/vibe-ai/src/agent.rs:367` | Built. |
+| `AgentContext` (workspace, git, depth, parent_session_id, active_agent_counter, **team_bus**, **team_agent_id**, memory, plan, project_summary) | `vibecoder/crates/vibe-ai/src/agent.rs:470` | Built. Note the team-related fields already exist but are not wired in Chat. |
+| `ToolExecutorTrait` (decouples loop from executor) | `vibecoder/crates/vibe-ai/src/agent.rs:518` | Built. |
+| `CircuitBreaker` (Stalled/Spinning/Degraded/Blocked, with antifragile half-open recovery) | `vibecoder/crates/vibe-ai/src/agent.rs:88`, `:138` | Built. |
+| Prompt-injection sanitizer for tool outputs | `vibecoder/crates/vibe-ai/src/agent.rs:25`, `:46` | Built. |
+| `ToolCall::SpawnAgent { task, max_steps, max_depth }` (the subagent primitive) | `vibecoder/crates/vibe-ai/src/tools.rs:375` | Built. |
+| `ToolCall::TaskComplete`, `Think`, `PlanTask`, `RecordMemory`, `Diffstat` | `vibecoder/crates/vibe-ai/src/tools.rs:369`, `:385`, `:389`, `:397`, `:393` | Built. |
+| `MultiAgentOrchestrator` (parallel agents in git worktrees) | `vibecoder/crates/vibe-ai/src/multi_agent.rs:103` | Built. Currently used by `start_parallel_agent_task` only. |
+| `AgentTeam` + `TeamMessageBus` (peer-to-peer broadcast/directed messages) | `vibecoder/crates/vibe-ai/src/agent_team.rs:70`, `:158` | Built but **not wired to Chat or Sandbox** — `team_bus`/`team_agent_id` on `AgentContext` are set to `None` in `start_agent_task`. |
+| `HookRunner` + `HookEvent` (SessionStart, UserPromptSubmit, PreToolUse, PostToolUse, Stop, TaskCompleted, **SubagentStart**, FileSaved/Created/Deleted) | `vibecoder/crates/vibe-ai/src/hooks.rs:24`, `:107` | Built. Three handler types: shell command, LLM eval, HTTP webhook. |
+| `AdminPolicy` from `.vibecli/policy.toml` | `vibecoder/crates/vibe-ai/src/policy.rs` (loaded at `agent.rs:607`) | Built. Can clamp `max_steps`. |
 
-### 1.2 Tauri executor + commands (`vibeui/src-tauri/src`)
+### 1.2 Tauri executor + commands (`vibecoder/src-tauri/src`)
 
 | Concern | File:line | Status |
 |---|---|---|
-| `TauriToolExecutor` impl `ToolExecutorTrait` (read/write/patch/bash/search/list/web/fetch/diffstat/memory) | `vibeui/src-tauri/src/agent_executor.rs:58`, dispatch at `:538` | Built. |
-| Path-traversal protection (`resolve()`) | `vibeui/src-tauri/src/agent_executor.rs:91` | Built. |
-| Bash blocklist (rm -rf, fork bombs, exfil, reverse shells) | `vibeui/src-tauri/src/agent_executor.rs:172` | Built. |
-| SSRF guard (`validate_url_for_ssrf`) | `vibeui/src-tauri/src/agent_executor.rs:21` | Built. |
-| Bash 120s timeout | `vibeui/src-tauri/src/agent_executor.rs:17`, `:225` | Built. |
-| `spawn_sub_agent` — depth ≤ 5 hard cap, global ≤ 20 active | `vibeui/src-tauri/src/agent_executor.rs:388`, `:406`, `:424` | Built. Inherits parent context, runs sub-loop, streams steps back. |
-| `start_agent_task` Tauri command (events: `agent:chunk`, `agent:pending`, `agent:step`, `agent:complete`, `agent:partial`, `agent:error`, `agent:retry`, `agent:circuit_break`) | `vibeui/src-tauri/src/commands.rs:4115` | Built. Bridges `AgentEvent` → frontend, persists checkpoints to `.vibe/agent-runs/<id>.json`. |
-| `stop_agent_task` (abort + clear pending) | `vibeui/src-tauri/src/commands.rs:4417` | Built. |
-| `resume_agent_task` (replays remaining plan from checkpoint) | `vibeui/src-tauri/src/commands.rs:4481` | Built. |
-| `respond_to_agent_approval(approved: bool)` (resolves the `oneshot` from `ToolCallPending`) | `vibeui/src-tauri/src/commands.rs:4852` | Built. |
-| `start_parallel_agent_task` (LLM-decomposes + runs N agents) | `vibeui/src-tauri/src/commands.rs:4539` | Built. |
+| `TauriToolExecutor` impl `ToolExecutorTrait` (read/write/patch/bash/search/list/web/fetch/diffstat/memory) | `vibecoder/src-tauri/src/agent_executor.rs:58`, dispatch at `:538` | Built. |
+| Path-traversal protection (`resolve()`) | `vibecoder/src-tauri/src/agent_executor.rs:91` | Built. |
+| Bash blocklist (rm -rf, fork bombs, exfil, reverse shells) | `vibecoder/src-tauri/src/agent_executor.rs:172` | Built. |
+| SSRF guard (`validate_url_for_ssrf`) | `vibecoder/src-tauri/src/agent_executor.rs:21` | Built. |
+| Bash 120s timeout | `vibecoder/src-tauri/src/agent_executor.rs:17`, `:225` | Built. |
+| `spawn_sub_agent` — depth ≤ 5 hard cap, global ≤ 20 active | `vibecoder/src-tauri/src/agent_executor.rs:388`, `:406`, `:424` | Built. Inherits parent context, runs sub-loop, streams steps back. |
+| `start_agent_task` Tauri command (events: `agent:chunk`, `agent:pending`, `agent:step`, `agent:complete`, `agent:partial`, `agent:error`, `agent:retry`, `agent:circuit_break`) | `vibecoder/src-tauri/src/commands.rs:4115` | Built. Bridges `AgentEvent` → frontend, persists checkpoints to `.vibe/agent-runs/<id>.json`. |
+| `stop_agent_task` (abort + clear pending) | `vibecoder/src-tauri/src/commands.rs:4417` | Built. |
+| `resume_agent_task` (replays remaining plan from checkpoint) | `vibecoder/src-tauri/src/commands.rs:4481` | Built. |
+| `respond_to_agent_approval(approved: bool)` (resolves the `oneshot` from `ToolCallPending`) | `vibecoder/src-tauri/src/commands.rs:4852` | Built. |
+| `start_parallel_agent_task` (LLM-decomposes + runs N agents) | `vibecoder/src-tauri/src/commands.rs:4539` | Built. |
 | Pre-baked `PostToolUse` hooks (cargo check on `.rs`, tsc on `.ts`/`.tsx`) | `.claude/settings.json:6-18` | Built — but these are Claude Code's harness hooks, not vibe-ai HookRunner hooks. See §5. |
 
-### 1.3 Frontend (`vibeui/src`)
+### 1.3 Frontend (`vibecoder/src`)
 
 | Concern | File:line | Status |
 |---|---|---|
-| Single-turn `stream_chat_message` invocation | `vibeui/src/components/AIChat.tsx:1494` | Built — this is what we are migrating away from. |
-| `chat:chunk` / `chat:complete` / `chat:error` / `chat:status` / `chat:metrics` / `file:written` listeners | `vibeui/src/components/AIChat.tsx:1235`, `:1257`, `:1316`, `:1347`, `:1369`, `:1385` | Built. |
-| Ad-hoc tool-call XML parser (`parseToolCalls`) | `vibeui/src/components/AIChat.tsx:1260` | Built — temporary; deprecate when migration completes. |
-| `start_agent_task` reference impl in Sandbox panel — listens to `agent:chunk/step/pending/complete/error`, calls `respond_to_agent_approval` | `vibeui/src/components/SandboxChatPanel.tsx:77`, `:113`, `:150`, `:157`, `:188`, `:233`, `:259`, `:267` | Built. **This is the template for AIChat.tsx.** |
-| `AgentPanel`, `SubAgentPanel`, `AgentOSDashboard`, `TraceDashboard` — visualize agent runs | `vibeui/src/components/AgentPanel.tsx`, `SubAgentPanel.tsx`, `AgentOSDashboard.tsx`, `TraceDashboard.tsx` | Built. |
-| `ChatTabManager` (per-tab provider, history persistence) | `vibeui/src/components/ChatTabManager.tsx` (709 lines) | Built. Owns `messages` and forwards to `AIChat` — lifts state across tabs. Does **not** know about agent events today. |
+| Single-turn `stream_chat_message` invocation | `vibecoder/src/components/AIChat.tsx:1494` | Built — this is what we are migrating away from. |
+| `chat:chunk` / `chat:complete` / `chat:error` / `chat:status` / `chat:metrics` / `file:written` listeners | `vibecoder/src/components/AIChat.tsx:1235`, `:1257`, `:1316`, `:1347`, `:1369`, `:1385` | Built. |
+| Ad-hoc tool-call XML parser (`parseToolCalls`) | `vibecoder/src/components/AIChat.tsx:1260` | Built — temporary; deprecate when migration completes. |
+| `start_agent_task` reference impl in Sandbox panel — listens to `agent:chunk/step/pending/complete/error`, calls `respond_to_agent_approval` | `vibecoder/src/components/SandboxChatPanel.tsx:77`, `:113`, `:150`, `:157`, `:188`, `:233`, `:259`, `:267` | Built. **This is the template for AIChat.tsx.** |
+| `AgentPanel`, `SubAgentPanel`, `AgentOSDashboard`, `TraceDashboard` — visualize agent runs | `vibecoder/src/components/AgentPanel.tsx`, `SubAgentPanel.tsx`, `AgentOSDashboard.tsx`, `TraceDashboard.tsx` | Built. |
+| `ChatTabManager` (per-tab provider, history persistence) | `vibecoder/src/components/ChatTabManager.tsx` (709 lines) | Built. Owns `messages` and forwards to `AIChat` — lifts state across tabs. Does **not** know about agent events today. |
 
 ### 1.4 Skills relevant to a verifier subagent (`vibecli/vibecli-cli/skills/`)
 
@@ -82,7 +82,7 @@ The good news: the proper agent loop already exists. We do not need to invent it
 - `test-impact.md`, `visual-verify.md`
 - `rust-safety-critical.md`, `misra-c-safety-critical.md`
 
-Skills are loaded by `SkillLoader` (`vibeui/crates/vibe-ai/src/skills.rs`) and can be dropped into the system prompt for a spawned agent via `AgentContext.extra_skill_dirs`.
+Skills are loaded by `SkillLoader` (`vibecoder/crates/vibe-ai/src/skills.rs`) and can be dropped into the system prompt for a spawned agent via `AgentContext.extra_skill_dirs`.
 
 ### 1.5 What's NOT built
 
@@ -369,7 +369,7 @@ Goal: existing single-turn behavior is unchanged by default; opt-in users get th
 
 Work items:
 
-1. Add `Settings → Chat → Use agent loop` toggle (defaults off). Persist in `~/.vibeui/settings.json`.
+1. Add `Settings → Chat → Use agent loop` toggle (defaults off). Persist in `~/.vibecoder/settings.json`.
 2. In `AIChat.tsx:1417`, branch on the toggle: if on, call `start_agent_task` with `approval_policy = "suggest"`. If off, current code path.
 3. Add agent-event listeners next to existing chat-event listeners (`AIChat.tsx:1228-1394`). Reuse `SandboxChatPanel.tsx` patterns.
 4. Add inline `agent:step` rendering (collapsed by default; reuse existing tool-call card style).
@@ -427,7 +427,7 @@ Work items:
 
 These need a human decision before implementation begins:
 
-1. **Plan-mode source of truth.** `AgentContext.approved_plan` exists (`agent.rs:478`) and `tools.rs:168` documents `plan_task`. The Plan panel (`docs/PlanDocumentPanel`-related code at `vibeui/src/components/PlanDocumentPanel.tsx`) does not push into either today. Do we (a) keep Plan panel as a separate flow that calls `start_agent_task` with a pre-filled `approved_plan`, or (b) make the agent loop always emit a `plan_task` first via a system-prompt nudge and treat the panel as a viewer? **Recommendation: (a). Cleaner separation; reuses the existing field.**
+1. **Plan-mode source of truth.** `AgentContext.approved_plan` exists (`agent.rs:478`) and `tools.rs:168` documents `plan_task`. The Plan panel (`docs/PlanDocumentPanel`-related code at `vibecoder/src/components/PlanDocumentPanel.tsx`) does not push into either today. Do we (a) keep Plan panel as a separate flow that calls `start_agent_task` with a pre-filled `approved_plan`, or (b) make the agent loop always emit a `plan_task` first via a system-prompt nudge and treat the panel as a viewer? **Recommendation: (a). Cleaner separation; reuses the existing field.**
 
 2. **Verifier provider.** Should the verifier subagent use the same provider as the main agent, or always a small fast model (e.g., Haiku-equivalent) regardless? Same provider is simpler; small model is cheaper/faster but adds a config dependency. **Decision needed before phase 2.**
 
@@ -449,38 +449,38 @@ These need a human decision before implementation begins:
 
 | Subsystem | File:line |
 |---|---|
-| Bug source: single-turn chat | `vibeui/src-tauri/src/commands.rs:2411` |
-| Bug source: one-shot tool processing | `vibeui/src-tauri/src/commands.rs:3600` |
-| `AgentLoop` struct | `vibeui/crates/vibe-ai/src/agent.rs:525` |
-| `AgentLoop::run` | `vibeui/crates/vibe-ai/src/agent.rs:622` |
-| `AgentEvent` enum | `vibeui/crates/vibe-ai/src/agent.rs:367` |
-| `AgentContext` | `vibeui/crates/vibe-ai/src/agent.rs:470` |
-| `ApprovalPolicy` | `vibeui/crates/vibe-ai/src/agent.rs:320` |
-| `ToolExecutorTrait` | `vibeui/crates/vibe-ai/src/agent.rs:518` |
-| `CircuitBreaker` | `vibeui/crates/vibe-ai/src/agent.rs:88` |
-| Prompt-injection sanitizer | `vibeui/crates/vibe-ai/src/agent.rs:25` |
-| `ToolCall` enum (incl. `SpawnAgent`) | `vibeui/crates/vibe-ai/src/tools.rs:338`, `:375` |
-| `TaskComplete` | `vibeui/crates/vibe-ai/src/tools.rs:369` |
-| `TauriToolExecutor` | `vibeui/src-tauri/src/agent_executor.rs:58` |
-| Path resolution / traversal guard | `vibeui/src-tauri/src/agent_executor.rs:91` |
-| Bash blocklist | `vibeui/src-tauri/src/agent_executor.rs:172` |
-| SSRF guard | `vibeui/src-tauri/src/agent_executor.rs:21` |
-| `spawn_sub_agent` (depth/global caps) | `vibeui/src-tauri/src/agent_executor.rs:388` |
-| `execute_call` dispatch | `vibeui/src-tauri/src/agent_executor.rs:538` |
-| `start_agent_task` Tauri command | `vibeui/src-tauri/src/commands.rs:4115` |
-| `stop_agent_task` | `vibeui/src-tauri/src/commands.rs:4417` |
-| `resume_agent_task` | `vibeui/src-tauri/src/commands.rs:4481` |
-| `respond_to_agent_approval` | `vibeui/src-tauri/src/commands.rs:4852` |
-| `start_parallel_agent_task` | `vibeui/src-tauri/src/commands.rs:4539` |
-| `PendingAgentCall` slot in AppState | `vibeui/src-tauri/src/commands.rs:99`, `:112` |
-| `agent_abort_handle` (single slot) | `vibeui/src-tauri/src/lib.rs:101`, `:181` |
-| `HookEvent` / `HookDecision` / `HookHandler` | `vibeui/crates/vibe-ai/src/hooks.rs:24`, `:97`, `:110` |
-| `MultiAgentOrchestrator` | `vibeui/crates/vibe-ai/src/multi_agent.rs:103` |
-| `AgentTeam` / `TeamMessageBus` | `vibeui/crates/vibe-ai/src/agent_team.rs:70`, `:158` |
+| Bug source: single-turn chat | `vibecoder/src-tauri/src/commands.rs:2411` |
+| Bug source: one-shot tool processing | `vibecoder/src-tauri/src/commands.rs:3600` |
+| `AgentLoop` struct | `vibecoder/crates/vibe-ai/src/agent.rs:525` |
+| `AgentLoop::run` | `vibecoder/crates/vibe-ai/src/agent.rs:622` |
+| `AgentEvent` enum | `vibecoder/crates/vibe-ai/src/agent.rs:367` |
+| `AgentContext` | `vibecoder/crates/vibe-ai/src/agent.rs:470` |
+| `ApprovalPolicy` | `vibecoder/crates/vibe-ai/src/agent.rs:320` |
+| `ToolExecutorTrait` | `vibecoder/crates/vibe-ai/src/agent.rs:518` |
+| `CircuitBreaker` | `vibecoder/crates/vibe-ai/src/agent.rs:88` |
+| Prompt-injection sanitizer | `vibecoder/crates/vibe-ai/src/agent.rs:25` |
+| `ToolCall` enum (incl. `SpawnAgent`) | `vibecoder/crates/vibe-ai/src/tools.rs:338`, `:375` |
+| `TaskComplete` | `vibecoder/crates/vibe-ai/src/tools.rs:369` |
+| `TauriToolExecutor` | `vibecoder/src-tauri/src/agent_executor.rs:58` |
+| Path resolution / traversal guard | `vibecoder/src-tauri/src/agent_executor.rs:91` |
+| Bash blocklist | `vibecoder/src-tauri/src/agent_executor.rs:172` |
+| SSRF guard | `vibecoder/src-tauri/src/agent_executor.rs:21` |
+| `spawn_sub_agent` (depth/global caps) | `vibecoder/src-tauri/src/agent_executor.rs:388` |
+| `execute_call` dispatch | `vibecoder/src-tauri/src/agent_executor.rs:538` |
+| `start_agent_task` Tauri command | `vibecoder/src-tauri/src/commands.rs:4115` |
+| `stop_agent_task` | `vibecoder/src-tauri/src/commands.rs:4417` |
+| `resume_agent_task` | `vibecoder/src-tauri/src/commands.rs:4481` |
+| `respond_to_agent_approval` | `vibecoder/src-tauri/src/commands.rs:4852` |
+| `start_parallel_agent_task` | `vibecoder/src-tauri/src/commands.rs:4539` |
+| `PendingAgentCall` slot in AppState | `vibecoder/src-tauri/src/commands.rs:99`, `:112` |
+| `agent_abort_handle` (single slot) | `vibecoder/src-tauri/src/lib.rs:101`, `:181` |
+| `HookEvent` / `HookDecision` / `HookHandler` | `vibecoder/crates/vibe-ai/src/hooks.rs:24`, `:97`, `:110` |
+| `MultiAgentOrchestrator` | `vibecoder/crates/vibe-ai/src/multi_agent.rs:103` |
+| `AgentTeam` / `TeamMessageBus` | `vibecoder/crates/vibe-ai/src/agent_team.rs:70`, `:158` |
 | Claude Code harness PostToolUse hooks (NOT vibe-ai hooks) | `.claude/settings.json:6-18` |
-| `AIChat.tsx` — `stream_chat_message` invoke | `vibeui/src/components/AIChat.tsx:1494` |
-| `AIChat.tsx` — chat event listeners | `vibeui/src/components/AIChat.tsx:1235-1389` |
-| `AIChat.tsx` — `parseToolCalls` (legacy XML) | `vibeui/src/components/AIChat.tsx:1260` |
-| `SandboxChatPanel.tsx` — agent listeners + approval | `vibeui/src/components/SandboxChatPanel.tsx:77-267` |
-| `ChatTabManager.tsx` | `vibeui/src/components/ChatTabManager.tsx` |
+| `AIChat.tsx` — `stream_chat_message` invoke | `vibecoder/src/components/AIChat.tsx:1494` |
+| `AIChat.tsx` — chat event listeners | `vibecoder/src/components/AIChat.tsx:1235-1389` |
+| `AIChat.tsx` — `parseToolCalls` (legacy XML) | `vibecoder/src/components/AIChat.tsx:1260` |
+| `SandboxChatPanel.tsx` — agent listeners + approval | `vibecoder/src/components/SandboxChatPanel.tsx:77-267` |
+| `ChatTabManager.tsx` | `vibecoder/src/components/ChatTabManager.tsx` |
 | Verifier-shaped skill | `vibecli/vibecli-cli/skills/self-review-gate.md` |

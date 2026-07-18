@@ -15,7 +15,7 @@ VibeCody's **Autofix** system detects and repairs code issues automatically. It 
 - VibeCody installed (`vibecli --version` returns 0.5.1+)
 - An AI provider configured in `~/.vibecli/config.toml`
 - A project with at least one language server available (e.g., `rust-analyzer` for Rust, `typescript-language-server` for TypeScript)
-- For VibeUI: `cd vibeui && npm install && npm run tauri dev`
+- For VibeCoder: `cd vibecoder && npm install && npm run tauri dev`
 
 
 ## Step-by-Step Walkthrough
@@ -24,7 +24,7 @@ VibeCody's **Autofix** system detects and repairs code issues automatically. It 
 
 Open a file with errors or warnings. VibeCody's LSP integration surfaces diagnostics in real time.
 
-**VibeUI:**
+**VibeCoder:**
 - Error and warning counts appear in the status bar
 - Squiggly underlines highlight issues in the editor
 - Open the **Problems** panel (Cmd+Shift+M) for a full list
@@ -55,7 +55,7 @@ Diagnostics (14 issues in 6 files):
 
 ### 2. Fix a Single Diagnostic
 
-**VibeUI:**
+**VibeCoder:**
 1. Hover over an underlined error
 2. Click the lightbulb icon or press `Cmd+.`
 3. Select **VibeCody: AI Fix** from the quick actions menu
@@ -125,7 +125,7 @@ Batch autofix (dry run):
   Run without --dry-run to apply.
 ```
 
-**VibeUI:**
+**VibeCoder:**
 1. Open the **Autofix** panel (AI Panel > Autofix tab)
 2. Click **Scan Project**
 3. Review the list of detected issues with proposed fixes
@@ -183,7 +183,7 @@ Cloud Autofix Agent [agent-af-8c3d]:
   Container:  vibecody-sandbox-af-8c3d
 ```
 
-**VibeUI:**
+**VibeCoder:**
 1. In the **Autofix** panel, click **Cloud Autofix**
 2. Configure the scope and max fixes
 3. Click **Launch Agent**
@@ -228,7 +228,7 @@ vibecli --agent "Fix the SQL injection in src/db.rs, timing attack in src/auth.r
   and unwrap in src/handler.rs" --auto-edit
 ```
 
-**VibeUI:**
+**VibeCoder:**
 1. Open the **Autofix** panel (AI Panel > Autofix tab)
 2. Click **Scan Project** for compiler/linter diagnostics
 3. For deeper analysis, use the AI chat to ask for a security review
@@ -246,7 +246,7 @@ vibecli --agent "Fix the SQL injection in src/db.rs, timing attack in src/auth.r
   "steps": [
     {
       "action": "Navigate",
-      "target": "vibeui://open?folder=/home/user/my-project"
+      "target": "vibecoder://open?folder=/home/user/my-project"
     },
     {
       "action": "Narrate",

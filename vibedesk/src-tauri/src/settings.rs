@@ -1,6 +1,6 @@
 //! VibeDesk settings commands — provider config, API keys, UI prefs, and OAuth
 //! client config, all backed by the SAME encrypted `ProfileStore`
-//! (`~/.vibecli/profile_settings.db`) that VibeUI uses. This is how settings
+//! (`~/.vibecli/profile_settings.db`) that VibeCoder uses. This is how settings
 //! carry over between the two apps: they read/write one shared store.
 //!
 //! Secrets (API keys, OAuth client secrets) live encrypted in ProfileStore.
@@ -28,7 +28,7 @@ fn store() -> Result<ProfileStore, String> {
 /// Idempotent and non-destructive: it only copies when VibeDesk has no settings
 /// of its own yet (fresh `__vibedesk__`) and legacy VibeX settings exist, and it
 /// leaves the old namespace untouched. Provider API keys are stored per-provider
-/// (shared across VibeUI/VibeApp/VibeDesk), so they are unaffected and not
+/// (shared across VibeCoder/VibeApp/VibeDesk), so they are unaffected and not
 /// touched here. Returns the number of settings copied.
 pub fn migrate_legacy_settings() -> Result<usize, String> {
     migrate_legacy_settings_in(&store()?)

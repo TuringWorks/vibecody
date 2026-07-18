@@ -17,7 +17,7 @@ Agent Teams enable you to spin up multiple AI agents with specialized roles -- A
 
 - VibeCody installed and configured with at least one AI provider
 - Docker installed (required for cloud agent execution)
-- (Optional) VibeUI installed for the graphical Agent Teams panel
+- (Optional) VibeCoder installed for the graphical Agent Teams panel
 
 ## Step-by-Step Walkthrough
 
@@ -160,7 +160,7 @@ For isolated execution, run agents inside Docker containers.
 
 Cloud agents have full filesystem isolation. Changes are collected and presented as a unified diff when the team completes.
 
-### Step 8: Using Agent Teams in VibeUI
+### Step 8: Using Agent Teams in VibeCoder
 
 Open the **Agent Teams** panel from the sidebar.
 
@@ -277,7 +277,7 @@ The monitor view shows a Mermaid-style diagram of agent interactions updated in 
         "panel": "AgentTeams",
         "tab": "Monitor",
         "action_detail": "view_agent_graph",
-        "narration": "View the live agent interaction diagram in VibeUI"
+        "narration": "View the live agent interaction diagram in VibeCoder"
       },
       {
         "timestamp": 230,

@@ -25,7 +25,7 @@ lockfiles). Lockfile re-scan only on `Cargo.lock` / `package*.json` save.
 
 ## 2. sonar_rules adapter (existing)
 
-**Wraps:** `vibe_ui_lib::sonar_rules::scan_content`
+**Wraps:** `vibe_coder_lib::sonar_rules::scan_content`
 
 **Inputs:** every source file matching a rule's `applies_to`. Existing
 builtin_rules covers ~2,600 rule definitions across languages.

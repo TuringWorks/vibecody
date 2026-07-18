@@ -4,7 +4,7 @@ title: Memory Guide
 permalink: /memory-guide/
 ---
 
-Complete reference for all memory systems in VibeCLI and VibeUI — from the simple auto-recording file to the full cognitive engine with verbatim drawers, cross-project tunnels, and recall benchmarking.
+Complete reference for all memory systems in VibeCLI and VibeCoder — from the simple auto-recording file to the full cognitive engine with verbatim drawers, cross-project tunnels, and recall benchmarking.
 
 > **For system architecture details**, see [`memory-architecture.md`](./memory-architecture.md) — includes detailed ASCII diagrams of the five memory stores, Context Assembler pipeline, storage security model, and Recap/Resume architecture.
 
@@ -103,7 +103,7 @@ score = 0.45 × semantic_similarity
 | Surface | Path |
 |---------|------|
 | VibeCLI | `~/.local/share/vibecli/openmemory/` |
-| VibeUI | `~/.local/share/vibeui/openmemory/` |
+| VibeCoder | `~/.local/share/vibecoder/openmemory/` |
 | Project-scoped | `<workspace>/.vibecli/openmemory/` |
 
 Each store contains: `memories.json`, `waypoints.json`, `facts.json`, `drawers.json`.
@@ -448,9 +448,9 @@ LongMemEval Benchmark Results (k=5)
 
 ---
 
-## VibeUI — Memory Panels
+## VibeCoder — Memory Panels
 
-The VibeUI desktop app exposes memory through four dedicated panels.
+The VibeCoder desktop app exposes memory through four dedicated panels.
 
 ### OpenMemory Panel
 
@@ -731,7 +731,7 @@ On load failure, `load_memory_store()` falls back to a fresh empty store rather 
 
 | Client | Memory access |
 |---|---|
-| **VibeUI (desktop, Tauri)** | Full UI: OpenMemoryPanel, ChatMemoryPanel, SessionMemoryPanel, MemoryProjectionsPanel, MemoryPanel |
+| **VibeCoder (desktop, Tauri)** | Full UI: OpenMemoryPanel, ChatMemoryPanel, SessionMemoryPanel, MemoryProjectionsPanel, MemoryPanel |
 | **VibeCLI** | Full REPL: `/openmemory *` commands |
 | **VibeMobile** | None by current design |
 | **VibeWatch (watchOS / Wear OS)** | None by current design |
@@ -746,6 +746,6 @@ If you need a memory UI on a client where it's currently absent, file an issue �
 
 - [Demo 48: OpenMemory Cognitive Engine](../demos/48-open-memory/) — Basic walkthrough
 - [Demo 61: Verbatim Drawers & MemPalace](../demos/61-memory-drawers/) — Lossless chunk ingestion and cross-project tunnels
-- [Demo 62: Memory Benchmarking](../demos/62-memory-benchmark/) — LongMemEval recall@K in CLI and VibeUI
+- [Demo 62: Memory Benchmarking](../demos/62-memory-benchmark/) — LongMemEval recall@K in CLI and VibeCoder
 - [Configuration Reference](../configuration/) — `[memory]` and `[openmemory]` config tables
 - [API Reference](../api-reference/) — Tauri commands for frontend integration

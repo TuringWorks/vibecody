@@ -54,7 +54,7 @@ pub fn run() {
             commands::start_agent_session,
             commands::stream_agent,
             // SkillForge — 10 daemon-proxy commands (G7). vibeapp's
-            // bespoke UI doesn't render the panel (that lives in VibeUI),
+            // bespoke UI doesn't render the panel (that lives in VibeCoder),
             // but the surface is registered so SkillForge is reachable
             // from vibeapp via `invoke()`.
             commands::skilllens_list_skills,

@@ -33,7 +33,7 @@
   <text x="150" y="118" text-anchor="middle" fill="#8b949e" font-size="9">REPL + TUI (Ratatui + Rustyline)</text>
 
   <rect x="290" y="82" width="240" height="48" rx="6" fill="#12243d" stroke="#4a9eff" stroke-width="1.2"/>
-  <text x="410" y="102" text-anchor="middle" fill="#e0e0e0" font-size="12" font-weight="600">VibeUI</text>
+  <text x="410" y="102" text-anchor="middle" fill="#e0e0e0" font-size="12" font-weight="600">VibeCoder</text>
   <text x="410" y="118" text-anchor="middle" fill="#8b949e" font-size="9">Tauri 2 + Monaco + React</text>
 
   <rect x="550" y="82" width="240" height="48" rx="6" fill="#12243d" stroke="#4a9eff" stroke-width="1.2"/>

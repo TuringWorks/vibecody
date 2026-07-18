@@ -7,7 +7,7 @@
 Each gap from the FIT-GAP analyses was "closed" by creating:
 1. A Rust file with correct data structures, enums, and method signatures
 2. Unit tests exercising in-memory state manipulation
-3. A VibeUI panel
+3. A VibeCoder panel
 4. A REPL command
 
 But the modules **lack the actual I/O layer** (HTTP clients, process spawning, FFI bindings, external API calls) that would make them functional. The FIT-GAP documents conflate "designed and typed" with "implemented and working."

@@ -17,7 +17,7 @@ The Model Context Protocol (MCP) is an open standard that lets AI assistants con
 
 - VibeCLI installed and configured ([Demo 1](../01-first-run/))
 - Node.js 18+ or Python 3.10+ (for running MCP servers)
-- (Optional) VibeUI for the desktop panel experience
+- (Optional) VibeCoder for the desktop panel experience
 
 ## What is MCP?
 
@@ -234,12 +234,12 @@ Semantic Tool Search: "read a file from disk"
 
 The agent uses semantic search automatically when it encounters a task that does not match any tool name exactly -- it searches by intent and picks the best match.
 
-### Step 7: Use the MCP panel in VibeUI
+### Step 7: Use the MCP panel in VibeCoder
 
-Open VibeUI and navigate to the **MCP** panel.
+Open VibeCoder and navigate to the **MCP** panel.
 
 ```bash
-cd vibeui && npm run tauri dev
+cd vibecoder && npm run tauri dev
 ```
 
 The MCP panel provides:
@@ -446,15 +446,15 @@ The current weather in Tokyo is 22C and sunny with 45% humidity.
     {
       "id": 13,
       "action": "shell",
-      "command": "cd vibeui && npm run tauri dev",
-      "description": "Launch VibeUI to explore the MCP panel",
+      "command": "cd vibecoder && npm run tauri dev",
+      "description": "Launch VibeCoder to explore the MCP panel",
       "delay_ms": 8000
     },
     {
       "id": 14,
       "action": "Navigate",
       "target": "panel://mcp",
-      "description": "Open the MCP panel in VibeUI"
+      "description": "Open the MCP panel in VibeCoder"
     },
     {
       "id": 15,

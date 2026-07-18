@@ -8,7 +8,7 @@
 //! - Multi-agent traces with coalition detection
 //! - Training health (gradient norms, loss convergence, GPU utilization)
 //! - Configurable alert system
-//! - Dashboard data provider for VibeUI panels
+//! - Dashboard data provider for VibeCoder panels
 //! - Policy diff visualization
 //! - Trajectory analysis with reward attribution
 //! - Cost tracking and compute efficiency

@@ -158,9 +158,9 @@ if ($msvcVer) {
     Info 'Or download: https://aka.ms/vs/17/release/vs_BuildTools.exe'
 }
 
-# ── npm install (vibeui + vibeapp) ────────────────────────────────────────────
+# ── npm install (vibecoder + vibeapp) ────────────────────────────────────────────
 
-foreach ($sub in @('vibeui', 'vibeapp')) {
+foreach ($sub in @('vibecoder', 'vibeapp')) {
     $pkg = Join-Path $script:RepoRoot "$sub\package.json"
     if (Test-Path $pkg) {
         Info "Installing $sub frontend dependencies..."
@@ -202,7 +202,7 @@ Write-Host ''
 Write-Host '  # Build VibeCLI'
 Write-Host '  .\scripts\dev.ps1 cli'
 Write-Host ''
-Write-Host '  # Run VibeUI in dev mode'
+Write-Host '  # Run VibeCoder in dev mode'
 Write-Host '  .\scripts\dev.ps1 ui'
 Write-Host ''
 Write-Host '  # Run all tests'

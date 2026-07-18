@@ -213,7 +213,7 @@ The 142 gaps discovered over 8 iterations resolve into nine cross-cutting themes
 | # | Area | Source | Backing |
 |---|------|--------|---------|
 | VibeCLI TUI + REPL daemon | base | `vibecli-cli/` |
-| VibeUI Tauri + Monaco (293 panels + 42 composites) | base | `vibeui/` |
+| VibeCoder Tauri + Monaco (293 panels + 42 composites) | base | `vibecoder/` |
 | VibeCLI App (floating chat window) | v5 | `vibeapp/` |
 | VibeMobile (iOS/Android/macOS/Linux/Windows/Web) | v5 | `vibemobile/` |
 | VibeWatch — Apple Watch (SwiftUI, watchOS 10+) | v0.5.5 | `vibewatch/watchos/` |
@@ -316,9 +316,9 @@ Similar parity tables exist for **Codex CLI**, **Cursor 4.1**, **Windsurf 2.0**,
 
 ---
 
-## 5. VibeUI vs desktop-IDE competitors
+## 5. VibeCoder vs desktop-IDE competitors
 
-| Feature | VibeUI | Cursor | Windsurf | Antigravity | Claude Code | Copilot | JetBrains AI | Zed |
+| Feature | VibeCoder | Cursor | Windsurf | Antigravity | Claude Code | Copilot | JetBrains AI | Zed |
 |---------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | Monaco editor | Yes | Yes | Yes | Yes | — | Yes | Yes | Yes (GPUI) |
 | AI chat panel + agent mode | Yes | Yes | Yes | Yes | — | Yes | Yes | Yes |
@@ -407,7 +407,7 @@ Across the 8 sequential iterations and 5 topic deep-dives, the team delivered:
 | Metric | Feb 2026 | Apr 2026 (v0.5.5) | Jun 2026 (verified 2026-06-22, v0.5.7) |
 |--------|---------:|-----------:|-----------:|
 | Rust files in `vibecli/vibecli-cli/src/` | ~120 | 354 | **432** |
-| VibeUI components (`vibeui/src/components/*.tsx`) | ~90 | 293 + 42 composites | **393** |
+| VibeCoder components (`vibecoder/src/components/*.tsx`) | ~90 | 293 + 42 composites | **393** |
 | Skill files (`vibecli/vibecli-cli/skills/`) | ~300 | 711 | **964** |
 | Tests (workspace) | ~4,500 | 13,270 | _(not re-counted)_ |
 | AI providers | 17 | 22 | **22** (24 files incl. `failover.rs` + `openai_compat.rs`) |
@@ -635,7 +635,7 @@ Sources surveyed (web, 2026-04-26): Cursor changelog, Anthropic Claude Code chan
 | A1 | MCP Apps extension — interactive UI components in conversations | MCP 2026 roadmap | New extension; would render dashboards/forms/multi-step workflows directly inside the chat panel. |
 | A2 | MCPB bundle distribution format | MCP 2026 roadmap | Local-server packaging; analogous to VS Code `.vsix` for MCP. |
 | A3 | MCP `.well-known` capability discovery + stateless transport | MCP 2026 roadmap | Lets `vibecli serve` announce MCP endpoints without a live connection; required for horizontal scale. |
-| A4 | ACP server mode (Zed + JetBrains + Neovim editor protocol) | ACP v0.11 | VibeCLI/VibeUI as ACP servers callable from Zed/JetBrains/Neovim — different from being an ACP client. |
+| A4 | ACP server mode (Zed + JetBrains + Neovim editor protocol) | ACP v0.11 | VibeCLI/VibeCoder as ACP servers callable from Zed/JetBrains/Neovim — different from being an ACP client. |
 | A5 | Async subagents (long-running, check-back-later) | Cursor 3.2 | Distinct from our current parallel-agent worktree pool, which assumes synchronous oversight. |
 | A6 | Multi-root workspace agent — agent that targets several working dirs per turn | Cursor 3.2, Codex CLI | Our `--add-dir` is read-only; this is *write* across roots in one agent invocation. |
 | A7 | Browser-native UI-element annotation Design Mode | Cursor 3.0 | Existing `design_mode.rs` annotates static screenshots; this is live DOM annotation in a controlled browser. |
@@ -650,7 +650,7 @@ Six items from the same survey are **already in flight or partially shipped** an
 - **GPT-5.3-Codex-Spark-class fast inference** — covered by our existing routing layer; needs the model added to `useModelRegistry.ts` once OpenAI exposes it via API.
 - **Generalist routing layer** (Gemini CLI Chapters / generalist agent) — partially covered by our `cost_router.rs` (data-structure-only — see §16.2) and `next_task.rs`.
 - **AGENTS.md ↔ GEMINI.md fallback parser** — our `memory.rs` already reads AGENTS.md / VIBECLI.md / CLAUDE.md; adding `GEMINI.md` is one-line.
-- **Plugin marketplace listing** (Codex CLI) — our existing `plugin_marketplace.rs` covers this; needs remote browsing UX in VibeUI.
+- **Plugin marketplace listing** (Codex CLI) — our existing `plugin_marketplace.rs` covers this; needs remote browsing UX in VibeCoder.
 - **Manager/Agents Window UI consolidation** — our `ManagerView.tsx` covers parallel agents; we should explicitly stay distant from Cursor 3's "Agents Window" and Antigravity's "Manager Surface" layout choices on patent grounds (ties to the patent-distance posture in [notes/PATENT_AUDIT_INLINE.md](../notes/PATENT_AUDIT_INLINE.md)).
 
 ### 16.2 Internal delta — audit reconciliation
@@ -720,7 +720,7 @@ This is a one-week refresh on top of v13, plus a small set of Q1-Q2 2026 items v
 
 - **Copilot training-default opt-in** (Apr) — community backlash drove migration to Cline (58k stars), OpenHands (72k), Aider (27k). VibeCody's "no training on user code" stance becomes a measurable sales axis; surface in marketing, not engineering.
 - **Doe v. GitHub Copilot** (ongoing) — DMCA dismissed; license / contract claims still proceeding. Reinforces the privacy-first positioning above; informs `/review`'s open-source-license-scan UX (already shipped).
-- **JetBrains Air** (Mar) — agentic IDE rebuilt on Fleet remnants; supports OpenAI Codex, Anthropic Claude Agent, Gemini CLI, Junie as native agents. Watch item for §1.2; not a direct VibeUI competitor today.
+- **JetBrains Air** (Mar) — agentic IDE rebuilt on Fleet remnants; supports OpenAI Codex, Anthropic Claude Agent, Gemini CLI, Junie as native agents. Watch item for §1.2; not a direct VibeCoder competitor today.
 
 ### 16.5 Updated remaining-parity-gaps list (v14)
 
@@ -750,7 +750,7 @@ A six-week refresh on top of v14. Sources surveyed (web, 2026-05-03 → 2026-06-
 | C1 | Recurring / scheduled / self-paced agent ergonomics — `/loop` (recurring-interval + loop-until-done), machine-off Routines, secret-vault injection | Claude Code `/loop` + Routines + Managed Agents; Codex `/goal` (CLI 0.128.0, Apr 30) + Automations; Cursor Automations; Antigravity 2.0 scheduled tasks | Engine exists (`automations.rs` Cron/FileWatch/Webhook; `/goal` durable-intent ships — parity, **we shipped first**). Missing: the `/loop` recurring + **self-paced loop-until-done** REPL ergonomic, machine-off hosted execution, `WorkspaceStore` secret injection. |
 | C2 | Dynamic large-scale workflow primitive (auto-decompose → parallel sub-agents → verify → report; 100k-line migrations) | Claude Code Dynamic Workflows (Jun); Devin Spaces | `multi_agent` + `planner` + `nested_agents` + the A8 verify-repair loop exist but aren't fused into one self-scaling primitive. Engineering complement to the P2 100M-line benchmark. |
 | C3 | MCP Tasks extension + stateless transport (2026-07-28 RC) | MCP spec RC | Extend `mcp_streamable.rs` + the A3 `.well-known` descriptor with the Tasks extension (async task IDs + poll/cancel) and the stateless session model. |
-| C4 | WebMCP browser-tool exposure (consume + produce) | Google I/O WebMCP (W3C; Chrome 149 origin trial) | Extend `browser_agent.rs` to call WebMCP-annotated site tools and expose VibeUI panels as WebMCP tools. Patent-distance gated (§18 A7-shape). |
+| C4 | WebMCP browser-tool exposure (consume + produce) | Google I/O WebMCP (W3C; Chrome 149 origin trial) | Extend `browser_agent.rs` to call WebMCP-annotated site tools and expose VibeCoder panels as WebMCP tools. Patent-distance gated (§18 A7-shape). |
 | C5 | Per-request effort / compute control knob (low → xhigh) | Claude Opus 4.8 Effort Control; GPT-5.5 token efficiency | Provider-agnostic `effort` param mapped per provider, wired through `cost_router.rs` + the toolbar selector; default `high`. |
 | C6 | ACP + MCP Registry self-listing | ACP Registry (28+ agents, Zed + JetBrains); MCP Registry v0.1 freeze | Register VibeCLI as an ACP agent (reuse the A4 `acp_stdio.rs` server) + publish the daemon MCP server. Packaging + a registry PR, minimal new runtime code. |
 
@@ -785,9 +785,9 @@ Net **unshipped engineering remainder = A7 + B3 + C1–C6 = 8 concrete items**, 
 
 A direct verification pass against the working tree (workspace **v0.5.7**) on 2026-06-22, plus the nine-day industry delta since 2026-06-13. No version bump — folded into the v15 layer. The industry side (Fable 5 / Mythos 5 export-control suspension, GLM-5.2, Kimi K2.7 Code, the Gemini CLI → Antigravity CLI consolidation, Gemini 3.5 Pro GA, Copilot Max tier, MCP RC lock detail) is narrated in [Roadmap §1quinquies](./roadmap/#1quinquies-june-2026-mid-month-refresh-added-2026-06-22). The codebase-truth corrections to *this* document:
 
-**1. The c-series "trivial closes" are NOT closed — they are open-trivial.** Verified against `vibeui/src/hooks/useModelRegistry.ts`: of the §16.6 / §1quater c-series model-registry entries, **only `gpt-5.5` has actually landed** (and is the OpenAI default). Still absent: **Claude Opus 4.8** (newest is `claude-opus-4-7`, the default), **Gemini 3.5 Flash/Pro** (newest is `gemini-3.1-pro`), **DeepSeek V4** (`deepseek-chat`/`-reasoner`/`-coder` only), **Qwen 3.6**, **Kimi K2.6/K2.7** (no Moonshot key at all), **GLM-5.1/5.2** (`glm-4-*` only), **MiniMax M3** (`abab6.5s-chat` only). The §16.6 "Items already covered or trivially closeable" bullet and the REMAINING-WORK "append-only" framing overstated status: each is a real ~1-file edit that **has not been made**. Reclassified as **open-trivial (c-series)**, ~1 file each.
+**1. The c-series "trivial closes" are NOT closed — they are open-trivial.** Verified against `vibecoder/src/hooks/useModelRegistry.ts`: of the §16.6 / §1quater c-series model-registry entries, **only `gpt-5.5` has actually landed** (and is the OpenAI default). Still absent: **Claude Opus 4.8** (newest is `claude-opus-4-7`, the default), **Gemini 3.5 Flash/Pro** (newest is `gemini-3.1-pro`), **DeepSeek V4** (`deepseek-chat`/`-reasoner`/`-coder` only), **Qwen 3.6**, **Kimi K2.6/K2.7** (no Moonshot key at all), **GLM-5.1/5.2** (`glm-4-*` only), **MiniMax M3** (`abab6.5s-chat` only). The §16.6 "Items already covered or trivially closeable" bullet and the REMAINING-WORK "append-only" framing overstated status: each is a real ~1-file edit that **has not been made**. Reclassified as **open-trivial (c-series)**, ~1 file each.
 
-**2. A7 (Design Mode) is partially built, not "no implementation yet."** REMAINING-WORK / §16.7 describe A7 as design-notes-only. The working tree already ships **`vibeui/src/components/DesignMode.tsx` (708 lines)** + **`DesignAnnotationsPanel.tsx` (284 lines)**. This does **not** mean the §18.A7 cleared shape (diffcomplete-into-CDP-DOM) is done — it may be a separate design-canvas/annotation surface — but the flat "absent" claim is wrong. **Action:** audit these two components against the §18.A7 principles (no agent-controlled browser, no live DOM mutation, diffcomplete-only apply) and reclassify A7 from "open" to "partial — UI exists, patent-distance audit pending" once confirmed. Until that audit, A7 stays gated.
+**2. A7 (Design Mode) is partially built, not "no implementation yet."** REMAINING-WORK / §16.7 describe A7 as design-notes-only. The working tree already ships **`vibecoder/src/components/DesignMode.tsx` (708 lines)** + **`DesignAnnotationsPanel.tsx` (284 lines)**. This does **not** mean the §18.A7 cleared shape (diffcomplete-into-CDP-DOM) is done — it may be a separate design-canvas/annotation surface — but the flat "absent" claim is wrong. **Action:** audit these two components against the §18.A7 principles (no agent-controlled browser, no live DOM mutation, diffcomplete-only apply) and reclassify A7 from "open" to "partial — UI exists, patent-distance audit pending" once confirmed. Until that audit, A7 stays gated.
 
 **3. `mcp_app.rs` is a naming error in REMAINING-WORK.** The A1 backend parser is `mcp_apps.rs` + `mcp_apps_payload.rs` (commit `647b58de` resolves); there is no `mcp_app.rs`. Corrected in REMAINING-WORK "Recently Closed."
 

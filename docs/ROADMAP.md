@@ -25,7 +25,7 @@ The eight days between the v0.5.5 fitgap refresh (2026-04-17) and today produced
 | 2026-Q1–Q2 | **MCP 2026 roadmap published** | MCP Apps (interactive UI), MCPB bundle format, `.well-known` capability discovery, stateless transport, enterprise extensions | New gaps A1–A4. Largest single ecosystem shift this quarter. |
 | 2026-Mar | **JetBrains Junie CLI Beta** | LLM-agnostic; runs in IDE/CLI/CI/CD/GitHub/GitLab; **1-click migration from Claude Code + Codex configs** | New gap A11 — migration tooling. Junie sets the bar for switching cost. |
 | 2026-Q1 | **OpenAI Codex CLI v0.116+** | GPT-5.3-Codex-Spark (1000+ TPS), hooks GA, plugin marketplace, **AWS Bedrock auth + SigV4** | Bedrock partial; Spark drops in via existing routing layer. |
-| 2026-Mar | **ACP v0.11.0** | Zed + JetBrains official partnership Oct 2025; Anthropic, OpenAI, GitHub, Google all ship implementations | New gap A4 — VibeCLI/VibeUI as ACP **server**, not just client. |
+| 2026-Mar | **ACP v0.11.0** | Zed + JetBrains official partnership Oct 2025; Anthropic, OpenAI, GitHub, Google all ship implementations | New gap A4 — VibeCLI/VibeCoder as ACP **server**, not just client. |
 | 2026-Apr | **Antigravity 1.20.3 → 1.22.2** | AGENTS.md fallback, Linux sandboxing, MCP auth | One-line `memory.rs` addition for `GEMINI.md` fallback. |
 | 2026-Apr | **Augment Code 72.0% SWE-bench Verified pass@1** | Highest open-system score, no best-of-N tricks | Updates §1.4 / §9.3 SWE-bench callout. |
 | 2026-Q1 | **Sandbox infrastructure GA wave** | Cloudflare Sandboxes GA; E2B/Northflank/Modal/Vercel/Docker microVM platforms shipped | Optional roadmap track: VibeCLI `--cloud` provider for users without local sandboxing. |
@@ -61,7 +61,7 @@ The seven days between the v13 snapshot (2026-04-26) and today shipped another d
 - **Claude Sonnet 4.8 leaked** (Mar 2026) — Anthropic skips a 4.7 designation for the Sonnet tier; pricing held at $3 / $15 per 1M ([Anthropic source-code leak coverage](https://www.ainexusdaily.com/article/anthropic-source-leak-claude-sonnet-4-8-undercover-mode), unverified for exact GA week). Add to `useModelRegistry.ts` once the API exposes it.
 - **Cursor Interactive Canvases** (Apr 15, missed in v13) — agent responses render as dashboards / forms / charts inside the chat panel. Overlaps MCP Apps (A1 / SEP-1865); a single workstream now covers both surfaces.
 - **Copilot training-default opt-in** (Apr 2026) — GitHub flipped users' AI-training preference to opt-in by default; community backlash drove visible migration to Cline (58k stars), OpenHands (72k), Aider (27k). VibeCody's "no training on user code" stance becomes a measurable sales axis.
-- **JetBrains Air** (Mar 2026) — agentic IDE rebuilt on Fleet remnants; supports OpenAI Codex, Anthropic Claude Agent, Gemini CLI, and Junie as native agents. Adds to §1.2 IDE list as a watch item, not a direct VibeUI competitor today.
+- **JetBrains Air** (Mar 2026) — agentic IDE rebuilt on Fleet remnants; supports OpenAI Codex, Anthropic Claude Agent, Gemini CLI, and Junie as native agents. Adds to §1.2 IDE list as a watch item, not a direct VibeCoder competitor today.
 - **Doe v. GitHub Copilot** (ongoing, 2026 status) — DMCA claims dismissed; license / contract claims still proceeding; reshaping AI-gen-code compliance standards. Reinforces (3) above; informs `/review`'s open-source-license-scan UX.
 - **Devin v3 API GA** (Q1 2026) — Cognition's v3 API is now the primary surface (out of beta); HTML/PDF/SVG inline rendering in session sidebar; focus mode. Devin-family parity continues to track A8 (self-verifying loop) more than UI ergonomics.
 
@@ -94,7 +94,7 @@ The six weeks between the v14 snapshot (2026-05-03) and today were the densest s
 - **Devin Local is Rust** — Cognition rebuilding Cascade from scratch in Rust (≈30% more token-efficient) is third-party validation of VibeCody's Rust-native thesis *and* the first time a major cloud-agent competitor matches us on substrate. §5.1 now claims "only **open-source, self-hostable** Rust core" rather than "only Rust core."
 - **Copilot usage-based billing (Jun 1)** — every suggestion / chat / review now bills credits; reinforces the "self-hosted, BYO-key, no per-action metering" axis. Marketing, not engineering.
 - **ACP + MCP registries are now the discovery layer** — the ACP Registry lists **28+ agents** (Claude Code, Codex CLI, Copilot CLI, Gemini CLI, OpenCode, Goose, Cline, Auggie) inside Zed + JetBrains; the MCP Registry froze its v0.1 API. Being absent from both is now a measurable discoverability gap (**C6**, concrete follow-through on v14's ACP-registry note).
-- **WebMCP origin trial (Chrome 149)** — W3C draft (Google + Microsoft) letting sites expose JS functions / HTML-form tools to browser agents; pairs with our `browser_agent.rs` both as a *consumer* (drive WebMCP sites) and a *producer* (expose VibeUI panels as WebMCP tools). Tracked as **C4**.
+- **WebMCP origin trial (Chrome 149)** — W3C draft (Google + Microsoft) letting sites expose JS functions / HTML-form tools to browser agents; pairs with our `browser_agent.rs` both as a *consumer* (drive WebMCP sites) and a *producer* (expose VibeCoder panels as WebMCP tools). Tracked as **C4**.
 
 The 6 new external gaps (C1–C6), the A7 / B3 competitor-shipped escalations, and the c-series trivial closes are catalogued in §16.6 of the [Fit-Gap Analysis](./fit-gap-analysis/) and queued for **Phase 55** in [Appendix F](#appendix-f--phase-55-may-june-2026-delta-c1-c6) below.
 
@@ -167,7 +167,7 @@ AI-assisted development splits into six tool categories. VibeCody is the only pr
 | **PearAI** | OSS | VS Code fork | Cursor-alternative with marketplace |
 | **Melty** | OSS | Electron | Structured agent + changelog first editor |
 | **Tabnine** | Tabnine | VS Code / JetBrains | Privacy-first completions, on-prem |
-| **VibeUI** (this project) | TuringWorks | Tauri + React + Rust | 293 panels + 42 composites, all 22 providers, CRDT multiplayer, hooks, skills, WASM extensions |
+| **VibeCoder** (this project) | TuringWorks | Tauri + React + Rust | 293 panels + 42 composites, all 22 providers, CRDT multiplayer, hooks, skills, WASM extensions |
 
 ### 1.3 Cloud / remote-agent products
 
@@ -180,7 +180,7 @@ AI-assisted development splits into six tool categories. VibeCody is the only pr
 | **Lovable** | Lovable | Web | Prompt-to-app with Supabase + Stripe scaffolds |
 | **Builder.io Visual Copilot** | Builder.io | Web | Figma-to-code + visual editor |
 | **Sweep AI** | Sweep | GitHub App | Issue → PR automation |
-| **VibeCLI `--serve` + VibeUI + agent-sdk** | TuringWorks | Self-hosted | Same capability, **self-hostable and open-source**; pair from any device over mDNS/Tailscale/ngrok |
+| **VibeCLI `--serve` + VibeCoder + agent-sdk** | TuringWorks | Self-hosted | Same capability, **self-hostable and open-source**; pair from any device over mDNS/Tailscale/ngrok |
 
 ### 1.4 AI code review / CI bots
 
@@ -192,7 +192,7 @@ AI-assisted development splits into six tool categories. VibeCody is the only pr
 | **Cursor BugBot** | Anysphere | GitHub | Cursor-branded review bot |
 | **Ellipsis.dev** | Ellipsis | GitHub | Q&A + review across the repo |
 | **Graphite AI** | Graphite | GitHub stacked-PRs | AI review tuned for stacked-diff workflow |
-| **VibeCLI `/review` + VibeUI CIReviewPanel** | this project | GitHub App + CLI | Same capability, runs locally or in CI; red-team mode + Counsel multi-LLM deliberation |
+| **VibeCLI `/review` + VibeCoder CIReviewPanel** | this project | GitHub App + CLI | Same capability, runs locally or in CI; red-team mode + Counsel multi-LLM deliberation |
 
 ### 1.5 Completion-only / IDE helper
 
@@ -203,7 +203,7 @@ AI-assisted development splits into six tool categories. VibeCody is the only pr
 | **Codeium** (free tier) | Codeium | All IDEs | Free Copilot-tier completions |
 | **Continue.dev** | OSS | VS Code / JetBrains | Self-hosted model completions |
 | **Supermaven** | Supermaven | VS Code / JetBrains | 1M-token context window completions |
-| **VibeUI inline completions** | this project | VS Code + Monaco | FIM-enabled local Ollama + any cloud provider |
+| **VibeCoder inline completions** | this project | VS Code + Monaco | FIM-enabled local Ollama + any cloud provider |
 
 ### 1.6 Mobile / Watch — no serious competitor
 
@@ -222,10 +222,10 @@ AI-assisted development splits into six tool categories. VibeCody is the only pr
 | Category | Total tools surveyed | VibeCody ships a competitive entry |
 |----------|----------------------|-------------------------------------|
 | Terminal / CLI agents | 13 | ✅ VibeCLI |
-| AI-native IDE / editor | 15 | ✅ VibeUI |
+| AI-native IDE / editor | 15 | ✅ VibeCoder |
 | Cloud / remote-agent | 7 | ✅ `--serve` + agent-sdk (self-hosted) |
 | AI code review bots | 7 | ✅ `/review` + CIReviewPanel |
-| Completion-only | 6 | ✅ VibeUI inline completions (FIM) |
+| Completion-only | 6 | ✅ VibeCoder inline completions (FIM) |
 | Mobile / watch | 4 mobile, 0 watch | ✅ VibeMobile + **first-class VibeWatch** |
 | **Total** | **52 tools across 6 categories** | **VibeCody is the only project that ships in all six — and the only one with a native watch client.** |
 
@@ -257,7 +257,7 @@ AI-assisted development splits into six tool categories. VibeCody is the only pr
 | Trace / audit log | Yes Done | JSONL per session; `/trace` + `/trace view <id>` |
 | GitHub Actions integration | Yes Done | `.github/actions/vibecli/action.yml` |
 
-## 3. Current VibeUI — Feature Inventory
+## 3. Current VibeCoder — Feature Inventory
 
 | Feature | Status | Notes |
 |---------|--------|-------|
@@ -271,12 +271,12 @@ AI-assisted development splits into six tool categories. VibeCody is the only pr
 | Command palette | Yes Done | fuse.js fuzzy search |
 | Dark/light theme | Yes Done | localStorage persistence |
 | LSP client (completions, hover, go-to-def) | Yes Done | Wired to Monaco; lazy-start per language |
-| Extension system (WASM) | Yes Done | Full wasmtime host; loads `~/.vibeui/extensions/*.wasm` |
+| Extension system (WASM) | Yes Done | Full wasmtime host; loads `~/.vibecoder/extensions/*.wasm` |
 | Inline AI completions (FIM) | Yes Done | Monaco `registerInlineCompletionsProvider`; Ollama FIM format |
 | Agent mode (autonomous multi-file edits) | Yes Done | AgentPanel: steps, approval, streaming, events |
 | @ context (reference files/symbols in chat) | Yes Done | `@query` popup; file search + `@git` context |
 | Flow-awareness (edit/command tracking) | Yes Done | FlowTracker ring buffer; injected into AI context |
-| Memory / rules system | Yes Done | MemoryPanel; `.vibeui.md` + `~/.vibeui/rules.md` |
+| Memory / rules system | Yes Done | MemoryPanel; `.vibecoder.md` + `~/.vibecoder/rules.md` |
 | Diff preview before AI apply | Yes Done | Monaco DiffEditor; accept/reject; auto git stash |
 | Checkpoint / undo AI session | Yes Done | Backend (git stash) + CheckpointPanel UI |
 | Trace / audit log (History panel) | Yes Done | HistoryPanel; list + detail view; JSONL traces |
@@ -321,9 +321,9 @@ AI-assisted development splits into six tool categories. VibeCody is the only pr
 | Mobile companion | **Y** | — | — | — | — | — | — | — | — | — |
 | Watch companion | **Y** | — | — | — | — | — | — | — | — | — |
 
-### 4.2 VibeUI vs. IDE / editor competitors
+### 4.2 VibeCoder vs. IDE / editor competitors
 
-| Capability | VibeUI | Cursor | Windsurf | Antigravity | Copilot WS | JetBrains AI | Amazon Q | Zed | Cody | Continue | Aide | Void |
+| Capability | VibeCoder | Cursor | Windsurf | Antigravity | Copilot WS | JetBrains AI | Amazon Q | Zed | Cody | Continue | Aide | Void |
 |-----------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | Inline AI completions | **Y** | Y | Y | Y | Y | Y | Y | Y | P | Y | Y | Y |
 | Agent mode (multi-file) | **Y** | Y | Y | Y | Y | Y | P | P | P | P | Y | Y |
@@ -398,7 +398,7 @@ VibeCody has unique advantages to lean into — refreshed for v0.5.5:
 
 1. **Full Rust backend** — lower memory, faster startup, native performance vs. Electron apps (Cursor, Antigravity, Continue, Aide, Void, Cline, PearAI). *(As of 2026-06-02 Cognition's Devin Local is also Rust-native — third-party validation of the thesis, but the differentiator now narrows to the **only open-source, self-hostable** Rust agent core spanning CLI → desktop → mobile → watch; see §1quater.)*
 2. **Ollama first-class + 22 providers** — the widest provider catalog of any AI coding tool. Cursor/Windsurf treat local models as afterthoughts; Cody requires explicit configuration. *(As of 2026-06-12 this is also a **resilience** axis, not only breadth: when Fable 5 + Mythos 5 were disabled for all customers by US export-control order — see §1quinquies — provider-agnostic routing with an open-weight/local fallback was the only configuration that kept working. `cost_router.rs` failover + Ollama-first defaults turn a regulatory shock into a one-line provider switch.)*
-3. **Monorepo synergy** — VibeCLI, VibeUI, VibeCLI App, VibeMobile, and VibeWatch share `vibe-ai` and `vibe-core`; one piece of agent work applies everywhere.
+3. **Monorepo synergy** — VibeCLI, VibeCoder, VibeCLI App, VibeMobile, and VibeWatch share `vibe-ai` and `vibe-core`; one piece of agent work applies everywhere.
 4. **Privacy by design** — no telemetry, no cloud indexing, fully local option. Only OpenHands, Aider, Goose, and Cody offer a comparable story, and none of those ship a polished desktop IDE.
 5. **Open source** — full transparency, extensibility, self-hostable. Cursor, Windsurf, Antigravity, Copilot, JetBrains AI, Amazon Q, Devin, Replit, Bolt.new, v0 are all closed.
 6. **Wrist-to-terminal coverage** — the *only* product that lets a developer move from desktop → phone → watch within the same session. This is a category VibeCody effectively owns as of 0.5.5.
@@ -430,7 +430,7 @@ Organized into 5 phases. Each phase builds on the previous and targets specific 
 
 #### 1.2 Tool Use Framework (`vibe-ai`)
 
-**Crate:** `vibeui/crates/vibe-ai/`
+**Crate:** `vibecoder/crates/vibe-ai/`
 **Why:** All competitors give the LLM structured tools. Without this, no agent loop is possible.
 
 Add to `vibe-ai`:
@@ -535,7 +535,7 @@ CLI flags: `--suggest`, `--auto-edit`, `--full-auto`
 
 ### Phase 2 — Context Intelligence Yes Complete
 
-**Goal:** Make VibeCLI and VibeUI context-aware at the codebase level — the core of Cursor's competitive moat.
+**Goal:** Make VibeCLI and VibeCoder context-aware at the codebase level — the core of Cursor's competitive moat.
 
 #### 2.1 Codebase Indexing Engine (`vibe-core`)
 
@@ -614,23 +614,23 @@ impl ContextBuilder<'_> {
 **Files:** `vibecli-cli/src/memory.rs` (new), `vibecli-cli/src/main.rs`, `vibecli-cli/src/tui/mod.rs`
 **Estimate:** 2 days
 
-#### 2.4 @ Context System (VibeUI)
+#### 2.4 @ Context System (VibeCoder)
 
 **Why:** Cursor's most-loved UX feature — `@file`, `@symbol`, `@web`, `@docs` in the chat box.
 
-In `vibeui/src/components/AIChat.tsx`:
+In `vibecoder/src/components/AIChat.tsx`:
 
 - Detect `@` in the input box and open a fuzzy-search popup
 - Options: `@file:<path>`, `@symbol:<name>`, `@web:<url>`, `@git:diff`, `@git:history`
 - Inject the referenced content into the message before sending
 - Backend: Tauri commands `search_files_for_context`, `get_symbol_context`, `fetch_url_content`
 
-**Files:** `vibeui/src/components/AIChat.tsx`, `vibeui/src/components/ContextPicker.tsx` (new), `vibeui/src-tauri/src/commands/context.rs` (new)
+**Files:** `vibecoder/src/components/AIChat.tsx`, `vibecoder/src/components/ContextPicker.tsx` (new), `vibecoder/src-tauri/src/commands/context.rs` (new)
 **Estimate:** 1 week
 
 ### Phase 3 — Inline Intelligence Yes Complete
 
-**Goal:** Wire up LSP and inline AI completions in VibeUI to match Cursor/Windsurf's core editor experience.
+**Goal:** Wire up LSP and inline AI completions in VibeCoder to match Cursor/Windsurf's core editor experience.
 
 #### 3.1 LSP Client — Wire to Monaco
 
@@ -643,7 +643,7 @@ Complete `vibe-lsp`:
 - Language server discovery: look for executables in PATH; show install prompt if missing
 - Auto-start LSP on file open based on language detection
 
-**Files:** `vibe-lsp/src/client.rs` (complete), `vibe-lsp/src/bridge.rs` (new), `vibeui/src-tauri/src/commands/lsp.rs` (new), `vibeui/src/App.tsx`
+**Files:** `vibe-lsp/src/client.rs` (complete), `vibe-lsp/src/bridge.rs` (new), `vibecoder/src-tauri/src/commands/lsp.rs` (new), `vibecoder/src/App.tsx`
 **Estimate:** 2 weeks
 
 #### 3.2 Inline AI Completions
@@ -660,10 +660,10 @@ Implementation strategy:
 - For local mode (Ollama): use FIM (fill-in-the-middle) format with `<|fim_prefix|>`, `<|fim_suffix|>`, `<|fim_middle|>` tokens
 - For cloud models: use standard prefix+suffix prompt
 
-**Files:** `vibeui/src-tauri/src/commands/completion.rs` (new), `vibeui/src/App.tsx`, `vibeui/crates/vibe-ai/src/completion.rs`
+**Files:** `vibecoder/src-tauri/src/commands/completion.rs` (new), `vibecoder/src/App.tsx`, `vibecoder/crates/vibe-ai/src/completion.rs`
 **Estimate:** 1 week
 
-#### 3.3 Flow Awareness Engine (VibeUI)
+#### 3.3 Flow Awareness Engine (VibeCoder)
 
 **Why:** Windsurf's key differentiator — Cascade knows everything you've done. Replicate this.
 
@@ -691,27 +691,27 @@ pub struct FlowContext {
 
 This gets injected into every AI request to give the model full awareness of what the developer is doing.
 
-**Files:** `vibeui/src-tauri/src/flow.rs` (new), `vibeui/src/App.tsx`
+**Files:** `vibecoder/src-tauri/src/flow.rs` (new), `vibecoder/src/App.tsx`
 **Estimate:** 1 week
 
-#### 3.4 Diff Review Before AI Apply (VibeUI)
+#### 3.4 Diff Review Before AI Apply (VibeCoder)
 
 **Why:** AI edits currently applied without review — a critical trust gap.
 
 - Any AI-proposed file change goes through a `DiffReview` modal: unified diff with syntax highlighting, accept/reject per hunk
-- Before applying: create git stash automatically (silent, named `vibeui-pre-ai-TIMESTAMP`)
+- Before applying: create git stash automatically (silent, named `vibecoder-pre-ai-TIMESTAMP`)
 - After applying: show "Changes applied — Undo all" button that pops the stash
 
-**Files:** `vibeui/src/components/DiffReview.tsx` (new), `vibeui/src-tauri/src/commands/git.rs`
+**Files:** `vibecoder/src/components/DiffReview.tsx` (new), `vibecoder/src-tauri/src/commands/git.rs`
 **Estimate:** 3 days
 
 ### Phase 4 — Agentic Editor Yes Complete
 
-**Goal:** Make VibeUI a full agentic IDE — matching Antigravity's Manager View and Cursor's Composer.
+**Goal:** Make VibeCoder a full agentic IDE — matching Antigravity's Manager View and Cursor's Composer.
 
-#### 4.1 Agent Mode in VibeUI
+#### 4.1 Agent Mode in VibeCoder
 
-**Why:** The gap between VibeUI (chat panel) and Cursor/Windsurf (full agent) is the biggest competitive delta.
+**Why:** The gap between VibeCoder (chat panel) and Cursor/Windsurf (full agent) is the biggest competitive delta.
 
 - New "Agent" tab in the AI panel (alongside "Chat")
 - User describes a high-level task: "Add OAuth2 login to the Express app"
@@ -726,23 +726,23 @@ This gets injected into every AI request to give the model full awareness of wha
 - Show a live "Steps" panel listing each action with status (pending/in-progress/done/error)
 - Each step is expandable to show tool input/output
 
-**Files:** `vibeui/src/components/AgentPanel.tsx` (new), `vibeui/src-tauri/src/agent.rs` (new), `vibeui/crates/vibe-ai/src/agent.rs`
+**Files:** `vibecoder/src/components/AgentPanel.tsx` (new), `vibecoder/src-tauri/src/agent.rs` (new), `vibecoder/crates/vibe-ai/src/agent.rs`
 **Estimate:** 2 weeks
 
-#### 4.2 Memory / Rules System (VibeUI)
+#### 4.2 Memory / Rules System (VibeCoder)
 
 **Why:** Both Cursor (`.cursorrules`) and Windsurf (Cascade Memories) have persistent AI instructions.
 
-- Support `.vibeui.md` in workspace root as project-level AI instructions
-- Global rules in `~/.vibeui/rules.md`
+- Support `.vibecoder.md` in workspace root as project-level AI instructions
+- Global rules in `~/.vibecoder/rules.md`
 - Settings panel: "AI Rules" tab for editing rules inline
 - Cascade-style auto-memory: after each AI session, offer to save key decisions as a memory snippet
 - Knowledge base: searchable store of code snippets and past solutions, surfaced automatically in context
 
-**Files:** `vibeui/src/components/MemoryPanel.tsx` (new), `vibeui/src-tauri/src/memory.rs` (new)
+**Files:** `vibecoder/src/components/MemoryPanel.tsx` (new), `vibecoder/src-tauri/src/memory.rs` (new)
 **Estimate:** 1 week
 
-#### 4.3 Checkpoint System (VibeUI)
+#### 4.3 Checkpoint System (VibeCoder)
 
 **Why:** Windsurf's checkpoints let you rewind the entire AI session.
 
@@ -751,7 +751,7 @@ This gets injected into every AI request to give the model full awareness of wha
 - "Restore to checkpoint N" — pops stash, restores file state
 - Checkpoints are auto-created at: session start, before each agent step
 
-**Files:** `vibeui/src/components/CheckpointPanel.tsx` (new), `vibeui/src-tauri/src/checkpoint.rs` (new), `vibe-core/src/git.rs`
+**Files:** `vibecoder/src/components/CheckpointPanel.tsx` (new), `vibecoder/src-tauri/src/checkpoint.rs` (new), `vibe-core/src/git.rs`
 **Estimate:** 4 days
 
 #### 4.4 Planning Agent (two-level)
@@ -783,7 +783,7 @@ pub struct PlanStep {
 - Planner re-evaluates after each step completes (adaptive planning)
 - UI: plan shown as a todo list at the top of the Agent panel; steps update in real time
 
-**Files:** `vibe-ai/src/planner.rs` (new), `vibeui/src/components/AgentPanel.tsx`
+**Files:** `vibe-ai/src/planner.rs` (new), `vibecoder/src/components/AgentPanel.tsx`
 **Estimate:** 1 week
 
 #### 4.5 Multi-Agent Parallel Execution
@@ -791,11 +791,11 @@ pub struct PlanStep {
 **Why:** Cursor runs 8 parallel agents; Antigravity runs 5. This is the throughput multiplier.
 
 - VibeCLI: `vibecli --agent <task> --parallel N` spawns N sub-processes, each a `AgentLoop` on a git worktree
-- VibeUI: "Parallel Agents" view in the Manager tab — spawn up to 5 agents on different tasks simultaneously
+- VibeCoder: "Parallel Agents" view in the Manager tab — spawn up to 5 agents on different tasks simultaneously
 - Each agent operates on an isolated git worktree (no conflicts)
 - Results merged: show diff comparison of each agent's output, user picks winner or merges
 
-**Files:** `vibe-ai/src/multi_agent.rs` (new), `vibeui/src/components/ManagerView.tsx` (new), `vibe-core/src/git.rs` (add worktree support)
+**Files:** `vibe-ai/src/multi_agent.rs` (new), `vibecoder/src/components/ManagerView.tsx` (new), `vibe-core/src/git.rs` (add worktree support)
 **Estimate:** 2 weeks
 
 ### Phase 5 — Ecosystem & Polish Yes Complete
@@ -804,7 +804,7 @@ pub struct PlanStep {
 
 #### 5.1 MCP (Model Context Protocol) Integration
 
-**Why:** Claude Code has 300+ MCP integrations; VibeCLI/VibeUI have zero.
+**Why:** Claude Code has 300+ MCP integrations; VibeCLI/VibeCoder have zero.
 
 - Implement MCP client in `vibe-ai/src/mcp.rs` — JSON-RPC 2.0 over stdio or SSE
 - MCP servers auto-discovered from config:
@@ -823,7 +823,7 @@ pub struct PlanStep {
 - MCP tools exposed to the agent alongside built-in tools
 - MCP resources (e.g., database schema, API docs) injected into context
 
-**Files:** `vibe-ai/src/mcp.rs` (new), `vibecli-cli/src/config.rs`, `vibeui/src-tauri/src/mcp.rs` (new)
+**Files:** `vibe-ai/src/mcp.rs` (new), `vibecli-cli/src/config.rs`, `vibecoder/src-tauri/src/mcp.rs` (new)
 **Estimate:** 1.5 weeks
 
 #### 5.2 OS Sandbox for Command Execution
@@ -855,20 +855,20 @@ vibecli exec "Fix all clippy warnings" --full-auto --sandbox
 **Files:** `vibecli-cli/src/main.rs`, `vibecli-cli/src/ci.rs` (new), `.github/actions/vibecli/` (new)
 **Estimate:** 1 week
 
-#### 5.4 Multimodal Input (VibeCLI + VibeUI)
+#### 5.4 Multimodal Input (VibeCLI + VibeCoder)
 
 **Why:** Cursor and Codex CLI support pasting screenshots for visual debugging.
 
 - VibeCLI: detect image paths in input (`/chat [image.png] explain this error`)
-- VibeUI: drag-and-drop or paste image into chat; encode as base64 and send with the message
+- VibeCoder: drag-and-drop or paste image into chat; encode as base64 and send with the message
 - Providers: Claude and OpenAI support vision natively; add image encoding to those providers
 
-**Files:** `vibe-ai/src/provider.rs` (add `ImageContent` to `Message`), `vibe-ai/src/providers/claude.rs`, `vibe-ai/src/providers/openai.rs`, `vibeui/src/components/AIChat.tsx`
+**Files:** `vibe-ai/src/provider.rs` (add `ImageContent` to `Message`), `vibe-ai/src/providers/claude.rs`, `vibe-ai/src/providers/openai.rs`, `vibecoder/src/components/AIChat.tsx`
 **Estimate:** 4 days
 
-#### 5.5 Extension System (VibeUI) — Complete
+#### 5.5 Extension System (VibeCoder) — Complete
 
-**Why:** The wasmtime stub exists. Complete it so third parties can extend VibeUI.
+**Why:** The wasmtime stub exists. Complete it so third parties can extend VibeCoder.
 
 Define the extension host API:
 
@@ -885,11 +885,11 @@ pub trait ExtensionHost {
 }
 ```
 
-- Extensions loaded from `~/.vibeui/extensions/*.wasm`
+- Extensions loaded from `~/.vibecoder/extensions/*.wasm`
 - Extension marketplace page on the docs site
 - Example extensions: `prettier-format.wasm`, `rustfmt-on-save.wasm`
 
-**Files:** `vibe-extensions/src/host.rs` (complete), `vibe-extensions/src/api.rs` (new), `vibeui/src-tauri/src/extensions.rs`
+**Files:** `vibe-extensions/src/host.rs` (complete), `vibe-extensions/src/api.rs` (new), `vibecoder/src-tauri/src/extensions.rs`
 **Estimate:** 2 weeks
 
 #### 5.6 Trace / Audit Log
@@ -900,9 +900,9 @@ pub trait ExtensionHost {
 - Each entry: `{ timestamp, step, tool, input, output, duration_ms, approved_by }`
 - VibeCLI command: `/trace` — lists recent traces
 - VibeCLI command: `/trace view <id>` — renders trace as a human-readable timeline in TUI
-- VibeUI: "History" panel showing recent agent sessions with expandable trace
+- VibeCoder: "History" panel showing recent agent sessions with expandable trace
 
-**Files:** `vibe-ai/src/trace.rs` (new), `vibecli-cli/src/tui/components/trace_view.rs` (new), `vibeui/src/components/HistoryPanel.tsx` (new)
+**Files:** `vibe-ai/src/trace.rs` (new), `vibecli-cli/src/tui/components/trace_view.rs` (new), `vibecoder/src/components/HistoryPanel.tsx` (new)
 **Estimate:** 3 days
 
 ## 7. Prioritized Feature Backlog
@@ -933,7 +933,7 @@ pub trait ExtensionHost {
 
 | # | Feature | Addresses | Status |
 |---|---------|-----------|--------|
-| 13 | Agent mode in VibeUI (AgentPanel) | Antigravity, Cursor | Yes Done |
+| 13 | Agent mode in VibeCoder (AgentPanel) | Antigravity, Cursor | Yes Done |
 | 14 | Memory / rules (MemoryPanel) | Cursor, Windsurf | Yes Done |
 | 15 | Checkpoint system (backend + UI) | Windsurf | Yes Done |
 | 16 | MCP integration (JSON-RPC 2.0 stdio) | Claude Code, Codex | Yes Done |
@@ -1003,7 +1003,7 @@ vibe-core
 vibe-extensions
 └── loader.rs           (wasmtime WASM host)
 
-vibeui (React + Tauri)
+vibecoder (React + Tauri)
 ├── AgentPanel          (single-agent: steps, approval, artifacts)
 ├── ManagerView         (multi-agent: task board, worktrees, merge)
 ├── CheckpointPanel     (timeline, restore, auto-checkpoint)
@@ -1074,7 +1074,7 @@ As of **v0.5.5 (April 2026)**, VibeCody is the only product in our 52-tool surve
 4. **Zero-config device discovery** — mDNS `_vibecli._tcp.local.` + Tailscale Funnel + ngrok, auto-raced.
 5. **A Rust-native, fully open-source, self-hostable daemon** that drives all of the above.
 6. **22 AI providers** behind a single abstraction with failover — the widest catalog of any AI coding tool.
-7. **A terminal (VibeCLI) + full desktop IDE (VibeUI) + chat desktop app (VibeCLI App) + mobile + watch** — every surface built on the same crates.
+7. **A terminal (VibeCLI) + full desktop IDE (VibeCoder) + chat desktop app (VibeCLI App) + mobile + watch** — every surface built on the same crates.
 8. **Counsel** — structured multi-LLM deliberation (expert / devil's advocate / skeptic / pragmatist) with a moderator synthesis; no other tool ships this.
 9. **Red-team security pipeline + compliance reporting** built into the CLI.
 
@@ -1188,7 +1188,7 @@ Every competitor has a better story in *one* dimension; none of them ship a cohe
 
 - **37.1 Ultra-Long Context Adapter (2M–10M tokens)** — `long_context.rs` with Gemini 3.1 Pro (2M), Llama 4 Scout (10M), Claude Opus 4.6 (1M) routing, semantic-boundary chunking, sliding-window pagination, cost estimator, monorepo ingestion; `LongContextPanel.tsx`; `/ctx route|estimate|ingest|window`; 45+ tests.
 - **37.2 Interactive Design Mode** — `design_mode.rs` SVG annotation canvas (Arrow/Region/TextLabel/BeforeAfter/ColorSwatch/Measurement) → structured natural-language instruction generator with design-token extraction; `DesignModePanel.tsx`; `/design screenshot|annotate|generate|history`; 40+ tests.
-- **37.3 VibeCLI ↔ VibeUI Context Bridge** — `ide_bridge.rs` (UDS on macOS/Linux, named pipe on Windows) publishing open files, cursor, test/build output, terminal tail; VibeCLI client auto-discovers and injects `<ide_context>` into the agent window; `IdeBridgePanel.tsx`; `/ide connect|status|sync|disconnect`; 35+ tests.
+- **37.3 VibeCLI ↔ VibeCoder Context Bridge** — `ide_bridge.rs` (UDS on macOS/Linux, named pipe on Windows) publishing open files, cursor, test/build output, terminal tail; VibeCLI client auto-discovers and injects `<ide_context>` into the agent window; `IdeBridgePanel.tsx`; `/ide connect|status|sync|disconnect`; 35+ tests.
 
 ### Phase 38 — Private & Robust Intelligence (P2)
 
@@ -1338,7 +1338,7 @@ B2 (Plugin Marketplace) and B3 (Always-on Security Review) sit close to recently
 **P1 (next cycle, v0.5.9):**
 
 - **C2 — Dynamic large-scale workflow primitive** — a single `dynamic_workflow.rs` orchestration that auto-decomposes a large task, fans out parallel sub-agents over `worktree_pool.rs`, verifies each output (wires `visual_verify.rs` / test runners via the A8 verify-repair loop), and reports back — tuned for 100k-line migrations. This is the engineering complement to the P2 100M-line benchmark (which stays the stress-test). Surfaced by Claude Code Dynamic Workflows + Devin Spaces.
-- **C4 — WebMCP browser-tool exposure** — extend `browser_agent.rs` two ways: (a) **consumer** — discover and call WebMCP-annotated JS/HTML-form tools on sites the user has authorized via CDP; (b) **producer** — expose selected VibeUI panels as WebMCP tools for external browser agents. W3C draft; ship behind a feature flag while the spec is in origin trial (Chrome 149). **Patent-distance check** — must stay distant from agent-controlled-browser claims; reuse the §18.A7 cleared shape (user attaches their own browser; agent emits diffs, never mutates the DOM live).
+- **C4 — WebMCP browser-tool exposure** — extend `browser_agent.rs` two ways: (a) **consumer** — discover and call WebMCP-annotated JS/HTML-form tools on sites the user has authorized via CDP; (b) **producer** — expose selected VibeCoder panels as WebMCP tools for external browser agents. W3C draft; ship behind a feature flag while the spec is in origin trial (Chrome 149). **Patent-distance check** — must stay distant from agent-controlled-browser claims; reuse the §18.A7 cleared shape (user attaches their own browser; agent emits diffs, never mutates the DOM live).
 - **C5 — Per-request effort / compute control knob** — surface a provider-agnostic `effort: low | medium | high | xhigh` parameter that maps to Opus 4.8 Effort Control, GPT-5.5 reasoning budget, and (for open models) a token/step cap; wire through `cost_router.rs` + the toolbar selector; default `high`. Small, but it touches every LLM call path. 4 BDD scenarios.
 
 ### 55.2 Competitor-shipped escalations (design urgency, not a build-priority bump)

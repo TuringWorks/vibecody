@@ -1,13 +1,13 @@
 # VibeCody Feature Matrix
 
-> **At-a-glance reference** for every capability across VibeCLI (terminal) and VibeUI (desktop editor).
+> **At-a-glance reference** for every capability across VibeCLI (terminal) and VibeCoder (desktop editor).
 > ✅ = available · ⚙️ = configurable/optional · 🔬 = experimental · ❌ = not available
 
 ---
 
 ## AI Providers
 
-| Provider | VibeCLI | VibeUI | Notes |
+| Provider | VibeCLI | VibeCoder | Notes |
 |---|:---:|:---:|---|
 | Anthropic Claude | ✅ | ✅ | claude-3-5-sonnet, claude-opus-4, etc. |
 | OpenAI GPT-4 / GPT-4o | ✅ | ✅ | All model tiers |
@@ -31,14 +31,14 @@
 | GitHub Copilot | ✅ | ✅ | Device-flow auth |
 | Provider failover chain | ✅ | ✅ | Auto-retry on next provider |
 | Provider health tracking | ✅ | ✅ | ResilientProvider wrapper |
-| Per-tab provider override | ❌ | ✅ | VibeUI chat tab selector |
+| Per-tab provider override | ❌ | ✅ | VibeCoder chat tab selector |
 | Cost-optimized routing | ✅ | ⚙️ | `/route` command |
 
 ---
 
 ## Chat & Conversation
 
-| Feature | VibeCLI | VibeUI | Notes |
+| Feature | VibeCLI | VibeCoder | Notes |
 |---|:---:|:---:|---|
 | Streaming responses | ✅ | ✅ | Token-by-token streaming |
 | Multi-turn conversation | ✅ | ✅ | Full history context |
@@ -60,13 +60,13 @@
 | Token / speed metrics | ✅ | ✅ | Tokens/sec display |
 | Thinking blocks (extended thinking) | ✅ | ✅ | Collapsible `<thinking>` UI |
 | Context from open file | ✅ | ✅ | Current file auto-injected |
-| Context from workspace rules | ✅ | ✅ | `.vibeui.md` / `.vibecli/rules/` |
+| Context from workspace rules | ✅ | ✅ | `.vibecoder.md` / `.vibecli/rules/` |
 
 ---
 
 ## Agent Capabilities
 
-| Feature | VibeCLI | VibeUI | Notes |
+| Feature | VibeCLI | VibeCoder | Notes |
 |---|:---:|:---:|---|
 | Autonomous agent loop | ✅ | ✅ | Plan → Act → Observe |
 | Planning mode | ✅ | ✅ | Generates plan before execution |
@@ -100,7 +100,7 @@
 
 ---
 
-## Code Editing (VibeUI)
+## Code Editing (VibeCoder)
 
 | Feature | Available | Notes |
 |---|:---:|---|
@@ -123,7 +123,7 @@
 
 ## Context Management
 
-| Feature | VibeCLI | VibeUI | Notes |
+| Feature | VibeCLI | VibeCoder | Notes |
 |---|:---:|:---:|---|
 | File @ mention | ✅ | ✅ | |
 | Context picker (visual) | ❌ | ✅ | |
@@ -132,10 +132,10 @@
 | Sliding window eviction | ✅ | ✅ | LRU / hybrid strategy |
 | Auto-summarise old context | ✅ | ✅ | After compaction threshold |
 | Workspace rules injection | ✅ | ✅ | `.vibehints`, `rules/*.md` |
-| `.vibeui.md` workspace rules | ❌ | ✅ | Injected into every AI prompt |
+| `.vibecoder.md` workspace rules | ❌ | ✅ | Injected into every AI prompt |
 | Semantic index (fast search) | ✅ | ✅ | Trigram + LRU cache |
 | Code Graph (kodegraph) | ✅ | ✅ | tree-sitter → SQLite graph at `.vibecli/codegraph.db`; god-node/community summary replaces the dir-tree repo map in the agent system prompt; TUI seeds `## Relevant Symbols` via blast-radius. Background build on daemon startup; `/graph/*` + `/watch/graph/*` routes; `/semindex` CLI (`build/query/node/callers/callees/hierarchy/stats`) |
-| SkillForge (skill optimisation) | ✅ | ✅ | `skilllensai-rs` (analyse: trajectory → extract → score) + `skilloptai-rs` (train: rollout → bounded edit → strict held-out gate → epoch) wired through one daemon bridge `skillforge_index.rs`; `/v1/skilllens/*` + `/v1/skillopt/*` + `/watch/skilllens/*` routes; VibeUI `SkillForgePanel` (Catalog / Lens / Optimize) in `AiMlComposite`; full surface in VS Code + Agent SDK, read-only catalog/status on Flutter + Watch + Wear. Provider-agnostic (toolbar `selectedProvider`/`selectedModel`); promote writes `*.opt.md` (shipped 711 skills untouched) |
+| SkillForge (skill optimisation) | ✅ | ✅ | `skilllensai-rs` (analyse: trajectory → extract → score) + `skilloptai-rs` (train: rollout → bounded edit → strict held-out gate → epoch) wired through one daemon bridge `skillforge_index.rs`; `/v1/skilllens/*` + `/v1/skillopt/*` + `/watch/skilllens/*` routes; VibeCoder `SkillForgePanel` (Catalog / Lens / Optimize) in `AiMlComposite`; full surface in VS Code + Agent SDK, read-only catalog/status on Flutter + Watch + Wear. Provider-agnostic (toolbar `selectedProvider`/`selectedModel`); promote writes `*.opt.md` (shipped 711 skills untouched) |
 | Hierarchical project memory | ✅ | ✅ | system → user → project → dir |
 | Session memory (auto-extracted) | ✅ | ✅ | Facts from assistant messages |
 | Pinned memory in system prompt | ❌ | ✅ | ChatMemoryPanel |
@@ -144,7 +144,7 @@
 
 ## Code Review & Analysis
 
-| Feature | VibeCLI | VibeUI | Notes |
+| Feature | VibeCLI | VibeCoder | Notes |
 |---|:---:|:---:|---|
 | AI code review | ✅ | ✅ | 7 detectors (security, complexity, style, docs, tests, duplication, architecture) |
 | Security / OWASP scan | ✅ | ✅ | |
@@ -163,7 +163,7 @@
 
 ## Testing
 
-| Feature | VibeCLI | VibeUI | Notes |
+| Feature | VibeCLI | VibeCoder | Notes |
 |---|:---:|:---:|---|
 | Auto-detect test framework | ✅ | ✅ | Cargo, Jest, pytest, Go test |
 | Test runner execution | ✅ | ✅ | |
@@ -177,7 +177,7 @@
 
 ## Git Integration
 
-| Feature | VibeCLI | VibeUI | Notes |
+| Feature | VibeCLI | VibeCoder | Notes |
 |---|:---:|:---:|---|
 | Diff viewing | ✅ | ✅ | |
 | AI commit message generation | ✅ | ✅ | |
@@ -196,7 +196,7 @@
 
 ## Session Management
 
-| Feature | VibeCLI | VibeUI | Notes |
+| Feature | VibeCLI | VibeCoder | Notes |
 |---|:---:|:---:|---|
 | Session persistence (SQLite) | ✅ | ✅ | `~/.vibecli/sessions.db` |
 | Resume session (`--resume`) | ✅ | ✅ | |
@@ -211,7 +211,7 @@
 
 ## Plugin Governance (signed MCPB bundles)
 
-| Feature | VibeCLI | VibeUI | Notes |
+| Feature | VibeCLI | VibeCoder | Notes |
 |---|:---:|:---:|---|
 | `vibecli-plugin.toml` inner manifest schema | ✅ | ✅ | name + version + publisher (P-256 JWK) + components |
 | Per-publisher P-256 ECDSA signing | ✅ | ✅ | Detached `vibecli-plugin.sig` (B6 key infra) |
@@ -238,7 +238,7 @@
 
 ## Goals — Durable Execution Intent
 
-| Feature | VibeCLI | VibeUI | Notes |
+| Feature | VibeCLI | VibeCoder | Notes |
 |---|:---:|:---:|---|
 | Persistent goal record (intent + statement + criteria) | ✅ | ✅ | `goals` + `goal_links` in `~/.vibecli/sessions.db` |
 | Lifecycle: Active / Paused / Done / Abandoned | ✅ | ✅ | `/goal status <id> <s>` |
@@ -262,10 +262,10 @@
 
 ## Terminal & Shell
 
-| Feature | VibeCLI | VibeUI | Notes |
+| Feature | VibeCLI | VibeCoder | Notes |
 |---|:---:|:---:|---|
-| Full terminal emulator | ✅ | ✅ | xterm.js in VibeUI |
-| Multiple terminal tabs | ❌ | ✅ | VibeUI only |
+| Full terminal emulator | ✅ | ✅ | xterm.js in VibeCoder |
+| Multiple terminal tabs | ❌ | ✅ | VibeCoder only |
 | Shell completions | ✅ | ❌ | bash/zsh/fish/powershell/elvish |
 | Command history | ✅ | ✅ | |
 | Shell aliases | ✅ | ❌ | |
@@ -275,7 +275,7 @@
 
 ## Security & Sandbox
 
-| Feature | VibeCLI | VibeUI | Notes |
+| Feature | VibeCLI | VibeCoder | Notes |
 |---|:---:|:---:|---|
 | OS-level sandbox | ✅ | ❌ | sandbox-exec (macOS), bwrap (Linux) |
 | Network isolation | ✅ | ❌ | `--no-network` |
@@ -297,7 +297,7 @@
 
 ## Memory System
 
-| Feature | VibeCLI | VibeUI | Notes |
+| Feature | VibeCLI | VibeCoder | Notes |
 |---|:---:|:---:|---|
 | Auto-memory recording | ✅ | ✅ | Facts extracted post-session |
 | Project memory files | ✅ | ✅ | `.vibecli/memory.md` |
@@ -348,7 +348,7 @@
 
 ## Observability & Cost
 
-| Feature | VibeCLI | VibeUI | Notes |
+| Feature | VibeCLI | VibeCoder | Notes |
 |---|:---:|:---:|---|
 | Token counting per message | ✅ | ✅ | |
 | Session cost estimation | ✅ | ✅ | `/cost` |
@@ -401,7 +401,7 @@
 
 ## Collaboration
 
-| Feature | VibeCLI | VibeUI | Notes |
+| Feature | VibeCLI | VibeCoder | Notes |
 |---|:---:|:---:|---|
 | CRDT multiplayer editing | 🔬 | ✅ | Conflict-free real-time |
 | Presence awareness | ❌ | ✅ | Cursors, selections |
@@ -447,7 +447,7 @@
 
 ## Platform Support
 
-| Platform | VibeCLI | VibeUI |
+| Platform | VibeCLI | VibeCoder |
 |---|:---:|:---:|
 | macOS (Intel + Apple Silicon) | ✅ | ✅ |
 | Linux (Ubuntu, Fedora, Arch, etc.) | ✅ | ✅ |

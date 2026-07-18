@@ -229,7 +229,7 @@ This is done automatically at the end of every agent session when `auto_record =
 
 ---
 
-## VibeUI: Drawers Tab
+## VibeCoder: Drawers Tab
 
 In the **OpenMemory** panel, select the **Drawers** tab:
 

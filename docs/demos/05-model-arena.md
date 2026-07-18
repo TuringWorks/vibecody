@@ -17,15 +17,15 @@ The Model Arena lets you compare AI models head-to-head by sending the same prom
 
 - VibeCLI installed and configured (see [Demo 1: First Run](../01-first-run/))
 - API keys for at least two AI providers (see [Demo 3: Multi-Provider Chat](../03-multi-provider-chat/))
-- VibeUI installed for the graphical Arena panel (optional -- CLI arena also available)
+- VibeCoder installed for the graphical Arena panel (optional -- CLI arena also available)
 
 ## Step-by-Step Walkthrough
 
-### Step 1: Open the Arena in VibeUI
+### Step 1: Open the Arena in VibeCoder
 
-Launch VibeUI and navigate to the Arena panel:
+Launch VibeCoder and navigate to the Arena panel:
 
-1. Open VibeUI: `cd vibeui && npm run tauri dev`
+1. Open VibeCoder: `cd vibecoder && npm run tauri dev`
 2. Press `Cmd+J` to open the AI sidebar
 3. Click the "Arena" tab in the panel tab bar
 
@@ -41,7 +41,7 @@ vibecli arena
 
 In the Arena panel, choose which models to compare. You can select 2-4 models at a time.
 
-**VibeUI:** Use the model selector dropdowns at the top of the Arena panel.
+**VibeCoder:** Use the model selector dropdowns at the top of the Arena panel.
 
 **CLI:**
 
@@ -68,7 +68,7 @@ vibecli arena --models claude:claude-sonnet-4-6,deepseek:deepseek-coder,mistral:
 
 Type your prompt in the Arena input field. The same prompt is sent to all selected models simultaneously.
 
-**VibeUI:** Type in the input field and click "Send to All" or press `Cmd+Enter`.
+**VibeCoder:** Type in the input field and click "Send to All" or press `Cmd+Enter`.
 
 **CLI:**
 
@@ -88,9 +88,9 @@ Sending to 3 models...
 
 ### Step 4: View responses side by side
 
-Responses appear in parallel columns (VibeUI) or sequentially labeled sections (CLI).
+Responses appear in parallel columns (VibeCoder) or sequentially labeled sections (CLI).
 
-**VibeUI layout:**
+**VibeCoder layout:**
 
 ```
 +-------------------+-------------------+-------------------+
@@ -122,7 +122,7 @@ Each response card shows:
 
 After reviewing the responses, rate them to build your preference profile.
 
-**VibeUI:** Click the thumbs up/down buttons on each response card, or select a winner.
+**VibeCoder:** Click the thumbs up/down buttons on each response card, or select a winner.
 
 **CLI:**
 
@@ -265,9 +265,9 @@ Example JSON export:
 }
 ```
 
-## VibeUI Arena Panel Features
+## VibeCoder Arena Panel Features
 
-The VibeUI Arena panel provides additional graphical features:
+The VibeCoder Arena panel provides additional graphical features:
 
 - **Diff view** -- Toggle a diff between two responses to see exactly where they diverge
 - **Syntax highlighting** -- Code blocks are highlighted by language
@@ -276,7 +276,7 @@ The VibeUI Arena panel provides additional graphical features:
 - **Chart view** -- Elo rating trends over time as a line chart
 - **Quick rematch** -- Re-run the same prompt with updated models
 
-<!-- Screenshot placeholder: VibeUI Arena with charts -->
+<!-- Screenshot placeholder: VibeCoder Arena with charts -->
 
 ## Demo Recording
 

@@ -4,7 +4,7 @@ title: Configuration Guide
 permalink: /configuration/
 ---
 
-VibeCody uses TOML-based configuration for VibeCLI. VibeUI provider settings are managed through environment variables or the in-app settings UI.
+VibeCody uses TOML-based configuration for VibeCLI. VibeCoder provider settings are managed through environment variables or the in-app settings UI.
 
 
 ## VibeCLI Configuration
@@ -534,7 +534,7 @@ Uses your existing GitHub Copilot subscription.
 
 ### 11. LocalEdit — Local Code Editing Model
 
-A wrapper around Ollama for local GGUF models. (Note: VibeUI no longer surfaces inline / FIM-style completion — DiffComplete (⌘.) is the only AI editing surface — but this provider remains available for chat and other code paths that route through the standard provider trait.)
+A wrapper around Ollama for local GGUF models. (Note: VibeCoder no longer surfaces inline / FIM-style completion — DiffComplete (⌘.) is the only AI editing surface — but this provider remains available for chat and other code paths that route through the standard provider trait.)
 
    ```toml
    [ollama]
@@ -827,7 +827,7 @@ vibecli --tui --provider openai --model gpt-4o-mini
 vibecli --tui --provider groq --model mixtral-8x7b-32768
 ```
 
-**VibeUI:**
+**VibeCoder:**
 
 Use the provider dropdown in the top bar. The selection is persisted across sessions.
 
@@ -1183,7 +1183,7 @@ l3_threshold = 3            # Trigger L3 (verbatim drawers) when L2 < this many 
 |---------|-------------|
 | VibeCLI global | `~/.local/share/vibecli/openmemory/` |
 | VibeCLI project-scoped | `<workspace>/.vibecli/openmemory/` |
-| VibeUI | `~/.local/share/vibeui/openmemory/` |
+| VibeCoder | `~/.local/share/vibecoder/openmemory/` |
 
 Each store contains four files: `memories.json`, `waypoints.json`, `facts.json`, `drawers.json`.
 

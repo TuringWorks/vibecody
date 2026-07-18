@@ -15,7 +15,7 @@
 //!   `security_posture::adapters::*` and new scanners in
 //!   `security_posture_secrets.rs` / `_license.rs` / `_taint.rs`
 //! - The Tauri command wrappers — those live in
-//!   `vibeui/src-tauri/src/commands.rs::security_posture_*`
+//!   `vibecoder/src-tauri/src/commands.rs::security_posture_*`
 //!
 //! ## Threat-model invariants
 //!

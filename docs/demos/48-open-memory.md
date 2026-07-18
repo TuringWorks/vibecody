@@ -17,7 +17,7 @@ This demo covers the full memory lifecycle: adding, querying, inspecting the kno
 
 - VibeCLI 0.5.1 or later installed and on your PATH
 - At least one AI provider configured in `~/.vibecli/config.toml`
-- For VibeUI: the desktop app running with the **OpenMemory** panel visible
+- For VibeCoder: the desktop app running with the **OpenMemory** panel visible
 
 ## The 5 Cognitive Sectors
 
@@ -311,7 +311,7 @@ To restore on another machine or project:
 Import complete: 4 memories, 3 facts imported. 0 duplicates skipped.
 ```
 
-## VibeUI: OpenMemory Panel
+## VibeCoder: OpenMemory Panel
 
 In the desktop app, the **OpenMemory** panel provides 7 tabs:
 
@@ -406,6 +406,6 @@ In the desktop app, the **OpenMemory** panel provides 7 tabs:
 ## What's Next
 
 - [Demo 61: Verbatim Drawers & MemPalace](../61-memory-drawers/) — Deep dive into lossless chunk ingestion, dedup, and cross-project tunnels
-- [Demo 62: Memory Benchmarking](../62-memory-benchmark/) — Run LongMemEval recall@K in the CLI and VibeUI panel
+- [Demo 62: Memory Benchmarking](../62-memory-benchmark/) — Run LongMemEval recall@K in the CLI and VibeCoder panel
 - [Demo 49: Auto-Research](../49-auto-research/) — Autonomous iterative research agent that uses memory for cross-run learning
 - [Memory Guide](../../memory-guide/) — Full reference for all three memory layers

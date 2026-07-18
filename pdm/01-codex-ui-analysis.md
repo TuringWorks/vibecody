@@ -159,7 +159,7 @@ When you open Codex App for the first time, you see:
 
 No settings, no API key configuration, no workspace setup. The sandbox is pre-provisioned.
 
-VibeCody's onboarding currently requires: (1) start daemon, (2) set API key, (3) open workspace, (4) find AI chat. That's 4 steps before value. A sandbox-first flow could be: (1) open VibeUI, (2) type a task. Done.
+VibeCody's onboarding currently requires: (1) start daemon, (2) set API key, (3) open workspace, (4) find AI chat. That's 4 steps before value. A sandbox-first flow could be: (1) open VibeCoder, (2) type a task. Done.
 
 ### Pattern: Git branch as output
 
