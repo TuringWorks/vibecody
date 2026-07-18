@@ -161,7 +161,7 @@ vibe-infer = { path = "../../vibecoder/crates/vibe-infer", features = ["mistralr
 
 [dev-dependencies]
 tower.workspace = true
-cucumber = { version = "0.21", features = ["macros"] }
+cucumber = { version = "0.23", features = ["macros"] }
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"] }
 
