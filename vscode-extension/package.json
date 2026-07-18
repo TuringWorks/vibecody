@@ -77,8 +77,29 @@
         "vibecli.provider": {
           "type": "string",
           "default": "ollama",
-          "enum": ["ollama", "claude", "openai", "gemini", "grok"],
-          "description": "AI provider to use"
+          "enum": [
+            "ollama",
+            "claude",
+            "openai",
+            "gemini",
+            "grok",
+            "groq",
+            "mistral",
+            "deepseek",
+            "cerebras",
+            "perplexity",
+            "together",
+            "fireworks",
+            "openrouter",
+            "azure_openai",
+            "bedrock",
+            "copilot",
+            "zhipu",
+            "minimax",
+            "sambanova",
+            "vibecli-mistralrs"
+          ],
+          "description": "AI provider to use. Must be a provider the daemon can build (matches vibe-ai::catalog / create_provider). Set the provider's API key via the app or the daemon; ollama needs no key."
         },
         "vibecli.approval": {
           "type": "string",
