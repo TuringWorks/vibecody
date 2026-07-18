@@ -1,3 +1,8 @@
+// Must run before anything renders <Editor>: makes @monaco-editor/react use the
+// bundled Monaco instead of the CSP-blocked jsdelivr CDN (fixes the editor
+// hanging on "Loading..." for every file).
+import "./monaco-setup";
+
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
