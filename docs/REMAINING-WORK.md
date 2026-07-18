@@ -175,6 +175,11 @@ The v15 competitor delta ([FIT-GAP §16.6](./FIT-GAP-ANALYSIS.md) / [ROADMAP App
 - **Current State**: Run [26178130526](https://github.com/TuringWorks/vibecody/actions/runs/26178130526) shows 27 distinct RUSTSEC IDs across `cargo deny` + `cargo audit` (mostly unmaintained transitives — `derivative`, `instant`, `paste`, `proc-macro-error`, `rustls-pemfile`, gtk-rs GTK3, `unic-*`, `yaml-rust` — plus one unsound `Buf` and one Marvin-Attack vulnerability). All pre-existing; none introduced by recent commits.
 - **What's Needed**: Per-advisory triage decisions in `deny.toml [advisories.ignore]` per the policy already documented there (`reason` + 90-day `expiration`). Quarterly review per the threat-model. Separately: decide whether to license gitleaks ($ org-tier) or migrate to GitHub's native secret scanning.
 - **Effort**: 1-2 days of focused triage + dep upgrades where viable.
+- **Triaged 2026-07-18 (`eb943e62`)** — the three GitHub Dependabot alerts on `main` were assessed + patched. All three vulnerable code paths are **unused** in this repo (no `LightGlue`, no `serde_with::KeyValueMap`, no `torch.jit.script`), so real exposure was low; patched anyway (clean version bumps):
+  - **#20 High** `transformers` (CVE-2026-5241, ACE in LightGlue model load) → `5.3.0 → 5.14.1` (`vibe-rl-py`).
+  - **#22 Low** `torch` (CVE-2025-3000, `torch.jit.script` memory corruption) → `2.11.0 → 2.13.0` (`vibe-rl-py`; supersedes the "torch 2.11.0 has 11 PYSEC advisories, no upstream fix" note above — 2.13.0 is now available).
+  - **#21 Medium** `serde_with` (GHSA-7gcf-g7xr-8hxj, `KeyValueMap` empty-entry panic) → `3.20.0 → 3.21.0` (transitive Rust dep; semver-compatible patch).
+  Note: `transformers 5.3 → 5.14` is a sizable in-major jump in the `vibe-rl-py` RL-OS sidecar — smoke-test the training flow before relying on it. The 27 RUSTSEC IDs above remain separate open triage.
 
 ---
 
