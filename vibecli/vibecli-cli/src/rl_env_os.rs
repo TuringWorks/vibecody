@@ -1485,11 +1485,11 @@ impl EnvironmentDef {
     /// Check all safety constraints, returning violations.
     pub fn check_safety(&mut self, state: &[f64], action: &[f64]) -> Vec<ConstraintViolation> {
         let mut violations = Vec::new();
-        for constraint in &mut self.safety_constraints {
-            if let Some(v) = constraint.check(state, action) {
-                violations.push(v);
-            }
-        }
+        violations.extend(
+            self.safety_constraints
+                .iter_mut()
+                .filter_map(|constraint| constraint.check(state, action)),
+        );
         violations
     }
 

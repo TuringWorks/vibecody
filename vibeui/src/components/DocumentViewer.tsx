@@ -448,15 +448,12 @@ function extractHtmlChapters(entries: ZipEntry[], _basePath: string): EpubChapte
 
 /** Parse spine element IDs from OPF XML */
 function extractSpineIds(opfXml: string): string[] {
-  const ids: string[] = [];
   const spineMatch = opfXml.match(/<spine[^>]*>([\s\S]*?)<\/spine>/i);
-  if (!spineMatch) return ids;
+  if (!spineMatch) return [];
 
-  const itemRefs = spineMatch[1].matchAll(/<itemref\s+[^>]*idref="([^"]+)"/gi);
-  for (const m of itemRefs) {
-    ids.push(m[1]);
-  }
-  return ids;
+  return [...spineMatch[1].matchAll(/<itemref\s+[^>]*idref="([^"]+)"/gi)].map(
+    (m) => m[1],
+  );
 }
 
 /** Parse manifest items from OPF XML */

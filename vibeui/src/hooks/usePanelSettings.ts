@@ -7,7 +7,7 @@
  *
  * Usage:
  *   const { settings, setSetting, loading, profileId } = usePanelSettings("agile");
- *   // settings is a Record<string, any> of all saved settings for this panel
+ *   // settings is a Record<string, unknown> of all saved settings for this panel
  *   // setSetting("theme", "dark") persists a value
  */
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -16,7 +16,7 @@ import { errorMessage } from "../utils/errorMessage";
 
 interface UsePanelSettingsResult {
   /** All settings for this panel as a key-value map */
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
   /** Whether settings are still loading */
   loading: boolean;
   /** Current profile ID */
@@ -36,7 +36,7 @@ interface UsePanelSettingsResult {
 }
 
 export function usePanelSettings(panelName: string): UsePanelSettingsResult {
-  const [settings, setSettings] = useState<Record<string, any>>({});
+  const [settings, setSettings] = useState<Record<string, unknown>>({});
   const [loading, setLoading] = useState(true);
   const [profileId, setProfileId] = useState("default");
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +63,7 @@ export function usePanelSettings(panelName: string): UsePanelSettingsResult {
     setLoading(true);
     setError(null);
     try {
-      const data = await invoke<Record<string, any>>("panel_settings_get_all", {
+      const data = await invoke<Record<string, unknown>>("panel_settings_get_all", {
         profileId,
         panel: panelName,
       });
@@ -180,10 +180,10 @@ export async function setDefaultProfile(id: string): Promise<void> {
   return invoke("panel_settings_set_default_profile", { id });
 }
 
-export async function exportProfile(profileId: string): Promise<Record<string, any>> {
+export async function exportProfile(profileId: string): Promise<Record<string, unknown>> {
   return invoke("panel_settings_export", { profileId });
 }
 
-export async function importProfile(profileId: string, data: Record<string, any>): Promise<number> {
+export async function importProfile(profileId: string, data: Record<string, unknown>): Promise<number> {
   return invoke("panel_settings_import", { profileId, data });
 }

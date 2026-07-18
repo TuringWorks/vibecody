@@ -798,11 +798,10 @@ fn extract_imports(content: &str, lang: &str) -> Vec<String> {
             Ok(r) => r,
             Err(_) => continue,
         };
-        for cap in re.captures_iter(content) {
-            if let Some(m) = cap.get(1) {
-                imports.push(m.as_str().to_string());
-            }
-        }
+        imports.extend(
+            re.captures_iter(content)
+                .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string())),
+        );
     }
     imports
 }

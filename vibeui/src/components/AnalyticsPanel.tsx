@@ -196,10 +196,13 @@ export function AnalyticsPanel() {
     const filename = `vibecody-analytics-${dateFrom}-to-${dateTo}`;
 
     if (exportFormat === "csv") {
-      const lines = ["session_id,provider,model,prompt_tokens,completion_tokens,cost_usd,timestamp,task_hint"];
-      for (const e of filtered) {
-        lines.push(`${e.session_id},${e.provider},${e.model},${e.prompt_tokens},${e.completion_tokens},${e.cost_usd.toFixed(6)},${new Date(e.timestamp_ms).toISOString()},${e.task_hint ?? ""}`);
-      }
+      const lines = [
+        "session_id,provider,model,prompt_tokens,completion_tokens,cost_usd,timestamp,task_hint",
+        ...filtered.map(
+          (e) =>
+            `${e.session_id},${e.provider},${e.model},${e.prompt_tokens},${e.completion_tokens},${e.cost_usd.toFixed(6)},${new Date(e.timestamp_ms).toISOString()},${e.task_hint ?? ""}`,
+        ),
+      ];
       content = lines.join("\n");
       downloadFile(`${filename}.csv`, content, "text/csv");
     } else {

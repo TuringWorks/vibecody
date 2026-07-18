@@ -185,16 +185,24 @@ export default function KnowledgeGraphPanel() {
 
  // Generate DOT export from real data
  const dotExport = () => {
-   const lines = ["digraph KnowledgeGraph {", " rankdir=LR;", " node [shape=box];", ""];
-   for (const n of nodes) {
-     const shape = n.kind === "function" ? "ellipse" : n.kind === "trait" || n.kind === "interface" ? "diamond" : "box";
-     lines.push(` n${n.id} [label="${n.name}\\n(${n.kind})" shape=${shape}];`);
-   }
-   lines.push("");
-   for (const e of edges) {
-     lines.push(` n${e.from} -> n${e.to} [label="${e.kind}"];`);
-   }
-   lines.push("}");
+   const lines = [
+     "digraph KnowledgeGraph {",
+     " rankdir=LR;",
+     " node [shape=box];",
+     "",
+     ...nodes.map((n) => {
+       const shape =
+         n.kind === "function"
+           ? "ellipse"
+           : n.kind === "trait" || n.kind === "interface"
+             ? "diamond"
+             : "box";
+       return ` n${n.id} [label="${n.name}\\n(${n.kind})" shape=${shape}];`;
+     }),
+     "",
+     ...edges.map((e) => ` n${e.from} -> n${e.to} [label="${e.kind}"];`),
+     "}",
+   ];
    return lines.join("\n");
  };
 

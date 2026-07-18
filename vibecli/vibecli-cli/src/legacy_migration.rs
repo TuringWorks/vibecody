@@ -468,10 +468,13 @@ impl MigrationPlan {
 
     pub fn build_dependency_graph(&mut self) {
         self.dependency_graph.clear();
+        // Build the id set once: O(1) membership instead of an O(n) scan per dep.
+        let component_ids: std::collections::HashSet<&str> =
+            self.components.iter().map(|c| c.id.as_str()).collect();
         for component in &self.components {
             for dep in &component.dependencies {
-                // Only add edge if target component exists in the plan
-                if self.components.iter().any(|c| c.id == dep.target_id) {
+                // Only add edge if target component exists in the plan.
+                if component_ids.contains(dep.target_id.as_str()) {
                     self.dependency_graph
                         .push((component.id.clone(), dep.target_id.clone()));
                 }
