@@ -113,7 +113,7 @@ tree-sitter-rust = "0.23"
 tree-sitter-typescript = "0.23"
 tree-sitter-python = "0.23"
 tree-sitter-go = "0.23"
-petgraph = "0.7"
+petgraph = "0.8"
 
 [profile.dev]
 opt-level = 0
