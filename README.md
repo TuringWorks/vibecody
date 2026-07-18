@@ -65,7 +65,7 @@ Every surface has a consistent `build-<surface>` / `test-<surface>` pair:
 # VibeCLI (Rust)     make cli-run   make build-cli       make test-cli
 # VibeUI  (Tauri)    make ui        make build-ui        make test-ui
 # VibeApp (Tauri)    make app       make build-app       make test-app
-# VibeX   (Tauri)    make vibex     make build-vibex     make test-vibex
+# VibeDesk   (Tauri)    make vibedesk     make build-vibedesk     make test-vibedesk
 # Agent SDK (TS)     —              make build-sdk       make test-sdk
 # vibe-indexer       —              make build-indexer   make test-indexer
 # vibe-memory        —              make build-memory    make test-memory
@@ -82,14 +82,14 @@ make setup              Install all prerequisites
 make doctor             Verify dev environment is ready
 
 # Aggregates
-make build              Build all desktop shells (CLI + UI + App + VibeX)
-make build-apps         Build the three Tauri shells (UI + App + VibeX)
+make build              Build all desktop shells (CLI + UI + App + VibeDesk)
+make build-apps         Build the three Tauri shells (UI + App + VibeDesk)
 make build-all          Rust + Tauri + Mobile + Watch (what CI builds)
 make test               Run all Rust workspace tests (fast path)
 make test-fast          Run Rust tests (excluding collab crate)
 make test-all           Test every Rust + Node surface
 make ci                 Mirror the GitHub CI gate locally
-make check              Fast type-check (Rust + UI/App/VibeX TypeScript)
+make check              Fast type-check (Rust + UI/App/VibeDesk TypeScript)
 make lint               Run clippy + UI TypeScript check
 make clean              Remove build artifacts
 make docker             Build Docker image
@@ -378,12 +378,12 @@ sudo pacman -S webkit2gtk-4.1 gtk3 libappindicator-gtk3 librsvg patchelf openssl
 make test          # All Rust workspace tests (fast path)
 make test-fast     # Skip collab crate (faster)
 make test-all      # Every Rust + Node surface
-make check         # Type-check only (Rust + UI/App/VibeX TypeScript)
+make check         # Type-check only (Rust + UI/App/VibeDesk TypeScript)
 make ci            # Mirror the GitHub CI gate locally
 
 # Per-surface tests
 make test-cli      # VibeCLI (Rust)      make test-ui     # VibeUI  (vitest)
-make test-app      # VibeApp (typecheck) make test-vibex  # VibeX   (typecheck + guard)
+make test-app      # VibeApp (typecheck) make test-vibedesk  # VibeDesk   (typecheck + guard)
 make test-sdk      # Agent SDK (vitest)  make test-mobile # Flutter
 make test-indexer  # vibe-indexer        make test-memory # vibe-memory
 make test-rl       # vibe-rl-py (pytest) make test-jetbrains  # JetBrains plugin

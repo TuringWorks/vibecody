@@ -1,7 +1,7 @@
 # Worktree Lifecycle — Design Index
 
 **Status:** Draft · 2026-06-06
-**Scope:** vibecli daemon (Rust) — the task/worktree subsystem behind VibeX's `/api/tasks`; surfaced in VibeUI, VibeApp, VibeMobile, VibeWatch
+**Scope:** vibecli daemon (Rust) — the task/worktree subsystem behind VibeDesk's `/api/tasks`; surfaced in VibeUI, VibeApp, VibeMobile, VibeWatch
 **Owner:** TBD
 
 ---
@@ -164,7 +164,7 @@ No backfill: existing rows have all three `NULL` → Active, which is correct.
    (`reconcile_orphans` + `reap_trashed` + startup sweep + periodic loop). This alone
    prevents the orphan accumulation that produced the 20 stray worktrees on `91ff4b63`,
    and makes accidental deletes recoverable.
-2. **Recovery UX.** `restore` / `archive` / `purge` routes + a Trash list in VibeX, wired
+2. **Recovery UX.** `restore` / `archive` / `purge` routes + a Trash list in VibeDesk, wired
    through VibeUI → VibeMobile.
 3. **Cross-surface cascade.** Project-delete and chat-delete cascade-trash child tasks
    through the same funnel; document in the AGENTS.md change-surface cookbook.

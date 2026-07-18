@@ -8,7 +8,7 @@
 #   VibeCLI (Rust)     make cli-run   make build-cli      make test-cli
 #   VibeUI  (Tauri)    make ui        make build-ui       make test-ui
 #   VibeApp (Tauri)    make app       make build-app      make test-app
-#   VibeX   (Tauri)    make vibex     make build-vibex    make test-vibex
+#   VibeDesk   (Tauri)    make vibedesk     make build-vibedesk    make test-vibedesk
 #   Agent SDK (TS)     —              make build-sdk      make test-sdk
 #   vibe-indexer       —              make build-indexer  make test-indexer
 #   vibe-memory        —              make build-memory   make test-memory
@@ -19,8 +19,8 @@
 #   Watch (iOS/Wear)   —              make build-watch    make test-watch
 #
 # Aggregates:
-#   make build         Desktop shells (cli + ui + app + vibex)
-#   make build-apps    The three Tauri shells (ui + app + vibex)
+#   make build         Desktop shells (cli + ui + app + vibedesk)
+#   make build-apps    The three Tauri shells (ui + app + vibedesk)
 #   make build-all     Desktop + mobile + watch
 #   make test          Rust workspace tests (fast path)
 #   make test-all      Every ecosystem's tests (Rust + Node + Flutter + Python)
@@ -28,14 +28,14 @@
 #   make check / lint  Fast type-checks / linters
 
 .PHONY: help help-surfaces setup doctor \
-        ui app vibex cli cli-run \
-        build build-apps build-cli build-ui build-app build-vibex \
+        ui app vibedesk cli cli-run \
+        build build-apps build-cli build-ui build-app build-vibedesk \
         build-sdk build-indexer build-memory build-rl build-vscode build-jetbrains \
         test test-fast test-all test-rust \
         test-cli test-ai test-core test-indexer test-memory \
-        test-ui test-app test-vibex test-sdk test-mobile test-rl test-jetbrains test-watch \
-        check check-cli check-ui check-app check-vibex \
-        lint lint-ui lint-sdk lint-vscode lint-vibex check-neovim \
+        test-ui test-app test-vibedesk test-sdk test-mobile test-rl test-jetbrains test-watch \
+        check check-cli check-ui check-app check-vibedesk \
+        lint lint-ui lint-sdk lint-vscode lint-vibedesk check-neovim \
         fmt fmt-check ci analyze-mobile \
         mobile-setup mobile-ios mobile-ios-ipa mobile-android mobile-android-bundle \
         mobile-clean watch-ios watch-ios-archive watch-wear watch-wear-bundle \
@@ -127,8 +127,8 @@ vibeui/node_modules:
 vibeapp/node_modules:
 	cd vibeapp && $(NPM) install --no-audit --no-fund
 
-vibex/node_modules:
-	cd vibex && $(NPM) install --no-audit --no-fund
+vibedesk/node_modules:
+	cd vibedesk && $(NPM) install --no-audit --no-fund
 
 $(SDK_DIR)/node_modules:
 	cd $(SDK_DIR) && $(NPM) install --no-audit --no-fund
@@ -193,28 +193,28 @@ check-app: vibeapp/node_modules ## Type-check VibeApp (tsc --noEmit)
 	cd vibeapp && npx tsc --noEmit
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SURFACE: VibeX — Tauri shell (vibex)
+# SURFACE: VibeDesk — Tauri shell (vibedesk)
 # ══════════════════════════════════════════════════════════════════════════════
 
-vibex: vibex/node_modules ## Run VibeX in dev mode
-	cd vibex && $(NPM) run tauri:dev
+vibedesk: vibedesk/node_modules ## Run VibeDesk in dev mode
+	cd vibedesk && $(NPM) run tauri:dev
 
-build-vibex: vibex/node_modules ## Build VibeX for production (Tauri bundle)
-	cd vibex && $(NPM) run tauri:build
+build-vibedesk: vibedesk/node_modules ## Build VibeDesk for production (Tauri bundle)
+	cd vibedesk && $(NPM) run tauri:build
 
-test-vibex: check-vibex lint-vibex ## Test VibeX (typecheck + no-inline-edit guard)
+test-vibedesk: check-vibedesk lint-vibedesk ## Test VibeDesk (typecheck + no-inline-edit guard)
 
-check-vibex: vibex/node_modules ## Type-check VibeX (tsc --noEmit)
-	cd vibex && npx tsc --noEmit
+check-vibedesk: vibedesk/node_modules ## Type-check VibeDesk (tsc --noEmit)
+	cd vibedesk && npx tsc --noEmit
 
-lint-vibex: vibex/node_modules ## Run VibeX patent-distance guard (no-inline-edit)
-	cd vibex && $(NPM) run lint:no-inline-edit
+lint-vibedesk: vibedesk/node_modules ## Run VibeDesk patent-distance guard (no-inline-edit)
+	cd vibedesk && $(NPM) run lint:no-inline-edit
 
 # ── Desktop apps aggregate (the three Tauri shells) ───────────────────────────
 
-build-apps: build-ui build-app build-vibex ## Build all three Tauri shells (ui + app + vibex)
+build-apps: build-ui build-app build-vibedesk ## Build all three Tauri shells (ui + app + vibedesk)
 
-test-apps: test-ui test-app test-vibex ## Test all three Tauri shells
+test-apps: test-ui test-app test-vibedesk ## Test all three Tauri shells
 
 # ══════════════════════════════════════════════════════════════════════════════
 # SURFACE: Agent SDK — TypeScript (packages/agent-sdk)
@@ -389,7 +389,7 @@ endif
 # AGGREGATE: Building
 # ══════════════════════════════════════════════════════════════════════════════
 
-build: build-cli build-ui build-app build-vibex ## Build all desktop shells (CLI + UI + App + VibeX)
+build: build-cli build-ui build-app build-vibedesk ## Build all desktop shells (CLI + UI + App + VibeDesk)
 
 build-all: build build-mobile build-watch ## Build everything: desktop + mobile + watch
 
@@ -405,7 +405,7 @@ test-rust: test ## (alias) Run all Rust workspace tests
 test-fast: ## Run Rust tests excluding the collab crate (faster)
 	$(CARGO) test --workspace --exclude vibe-collab
 
-test-all: test test-ui test-app test-vibex test-sdk ## Test every Node + Rust surface (mobile/rl run separately)
+test-all: test test-ui test-app test-vibedesk test-sdk ## Test every Node + Rust surface (mobile/rl run separately)
 	@echo ""
 	@echo "✓ Rust + Node surfaces tested. For platform-gated suites run: make test-mobile test-rl test-jetbrains"
 
@@ -413,9 +413,9 @@ test-all: test test-ui test-app test-vibex test-sdk ## Test every Node + Rust su
 # AGGREGATE: Quality (type-check, lint, format)
 # ══════════════════════════════════════════════════════════════════════════════
 
-check: ## Fast type-check (Rust workspace + UI/App/VibeX TypeScript)
+check: ## Fast type-check (Rust workspace + UI/App/VibeDesk TypeScript)
 	$(CARGO) check --workspace --exclude vibe-collab
-	$(MAKE) check-ui check-app check-vibex
+	$(MAKE) check-ui check-app check-vibedesk
 
 lint: ## Run clippy + UI TypeScript check
 	$(CARGO) clippy --workspace --exclude vibe-collab -- -D warnings
@@ -451,11 +451,11 @@ ci: fmt-check ## Run the same checks CI does (Rust + VibeUI + VibeApp + SDK + Mo
 # Cleanup
 # ══════════════════════════════════════════════════════════════════════════════
 
-clean: mobile-clean watch-clean ## Remove build artifacts (Rust + UI + App + VibeX + mobile + watch)
+clean: mobile-clean watch-clean ## Remove build artifacts (Rust + UI + App + VibeDesk + mobile + watch)
 	$(CARGO) clean
 	rm -rf vibeui/dist vibeui/node_modules/.vite
 	rm -rf vibeapp/dist vibeapp/node_modules/.vite
-	rm -rf vibex/dist vibex/node_modules/.vite
+	rm -rf vibedesk/dist vibedesk/node_modules/.vite
 	rm -rf $(SDK_DIR)/dist
 
 # ── Docker ─────────────────────────────────────────────────────────────────────

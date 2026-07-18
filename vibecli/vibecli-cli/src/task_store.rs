@@ -1,12 +1,12 @@
-//! Task store — backs VibeX's `/api/tasks` CRUD (VX-112).
+//! Task store — backs VibeDesk's `/api/tasks` CRUD (VX-112).
 //!
-//! VibeX frames every code-changing interaction as a *task* with a lifecycle
+//! VibeDesk frames every code-changing interaction as a *task* with a lifecycle
 //! state, a branch, and a worktree. This is a thin SQLite store living
 //! alongside the session DB (`~/.vibecli/sessions.db`), modeled on
 //! `session_store.rs` — plain rusqlite, no encryption (tasks are not secrets).
 //!
 //! A task is distinct from a session: a session is the conversation/agent run;
-//! a task is the unit-of-work wrapper VibeX shows as a card, carrying status,
+//! a task is the unit-of-work wrapper VibeDesk shows as a card, carrying status,
 //! branch, worktree path, and (later) diff/cost. A task references its
 //! `session_id` once the agent run starts.
 
@@ -16,7 +16,7 @@ use anyhow::{Context, Result};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 
-/// Lifecycle state of a task. Mirrors the VibeX state machine
+/// Lifecycle state of a task. Mirrors the VibeDesk state machine
 /// (Draft → Queued → Running → Reviewing → Completed / Failed). Stored as the
 /// lowercase string in the `status` column.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -336,7 +336,7 @@ impl TaskStore {
         }
     }
 
-    /// List Active tasks (excludes Trashed) — the default VibeX card view. Use
+    /// List Active tasks (excludes Trashed) — the default VibeDesk card view. Use
     /// [`list_in_state`] for the Trash/Archive views.
     pub fn list(&self, limit: usize) -> Result<Vec<TaskRow>> {
         let sql = format!(
@@ -421,7 +421,7 @@ mod tests {
 
     #[test]
     fn insert_get_list_roundtrip() {
-        let dir = std::env::temp_dir().join(format!("vibex-tasks-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("vibedesk-tasks-{}", std::process::id()));
         let db = dir.join("t.db");
         let store = TaskStore::open(&db).unwrap();
 
@@ -451,7 +451,7 @@ mod tests {
 
     #[test]
     fn status_and_worktree_updates() {
-        let dir = std::env::temp_dir().join(format!("vibex-tasks2-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("vibedesk-tasks2-{}", std::process::id()));
         let db = dir.join("t.db");
         let store = TaskStore::open(&db).unwrap();
 
@@ -477,7 +477,7 @@ mod tests {
 
     #[test]
     fn delete_removes_row_and_reports_hit() {
-        let dir = std::env::temp_dir().join(format!("vibex-tasks-del-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("vibedesk-tasks-del-{}", std::process::id()));
         let db = dir.join("t.db");
         let store = TaskStore::open(&db).unwrap();
 
@@ -499,7 +499,7 @@ mod tests {
 
     #[test]
     fn trash_hides_from_list_and_restore_brings_back() {
-        let dir = std::env::temp_dir().join(format!("vibex-tasks-trash-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("vibedesk-tasks-trash-{}", std::process::id()));
         let db = dir.join("t.db");
         let store = TaskStore::open(&db).unwrap();
         store
@@ -523,7 +523,7 @@ mod tests {
 
     #[test]
     fn archive_keeps_in_list_in_state_and_reapable_respects_grace() {
-        let dir = std::env::temp_dir().join(format!("vibex-tasks-arch-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("vibedesk-tasks-arch-{}", std::process::id()));
         let db = dir.join("t.db");
         let store = TaskStore::open(&db).unwrap();
         store
@@ -555,7 +555,7 @@ mod tests {
 
     #[test]
     fn migration_is_idempotent() {
-        let dir = std::env::temp_dir().join(format!("vibex-tasks-mig-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("vibedesk-tasks-mig-{}", std::process::id()));
         let db = dir.join("t.db");
         // Open twice — the second open re-runs create_schema/migrate and must
         // not error on already-present columns.

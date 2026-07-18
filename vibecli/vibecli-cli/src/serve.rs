@@ -221,13 +221,13 @@ pub struct AgentRequest {
     /// clients.
     #[serde(default)]
     pub context_request: Option<ContextRequest>,
-    /// VX-111: reasoning-effort hint from the VibeX composer pill
+    /// VX-111: reasoning-effort hint from the VibeDesk composer pill
     /// (`minimal|low|medium|high|extra-high|custom`). Mapped to a thinking-
     /// token budget via `reasoning_effort_to_budget`. Providers that support
     /// extended thinking (e.g. Claude) honor it; others ignore it gracefully.
     #[serde(default)]
     pub reasoning: Option<String>,
-    /// VibeX resume: continue an existing session instead of starting a fresh
+    /// VibeDesk resume: continue an existing session instead of starting a fresh
     /// one. When `Some`, the run reuses this `session_id` (appending to its
     /// durable event log) and seeds the agent with the prior conversation
     /// reconstructed from that log. `None` (every other client) creates a new
@@ -236,7 +236,7 @@ pub struct AgentRequest {
     pub resume_session_id: Option<String>,
 }
 
-/// Map a VibeX reasoning-effort label to an extended-thinking token budget.
+/// Map a VibeDesk reasoning-effort label to an extended-thinking token budget.
 /// `None` (or unknown) → no explicit budget (provider default). Mirrors the
 /// tiers in `reasoning_provider::token_budget_for_complexity`.
 fn reasoning_effort_to_budget(effort: &str) -> Option<u32> {
@@ -803,7 +803,7 @@ async fn health(State(state): State<ServeState>) -> impl IntoResponse {
 }
 
 /// The daemon's `/models` endpoint — the single source of truth for the model
-/// catalog across every thin client (VibeX, VibeApp, mobile, watch, plugins).
+/// catalog across every thin client (VibeDesk, VibeApp, mobile, watch, plugins).
 ///
 /// Returns, de-duplicated by `id`:
 ///   1. the active provider (carries `active: true`, no `name` — clients that
@@ -1156,7 +1156,7 @@ fn build_agent_context_from_request(
 }
 
 /// Rebuild a conversation from a session's durable `job_events` log so a
-/// resumed VibeX run continues with full context (VX bug-3). The log records
+/// resumed VibeDesk run continues with full context (VX bug-3). The log records
 /// `user` turns and assistant `chunk` tokens; we fold consecutive chunks into a
 /// single assistant turn and drop `step`/`system`/`complete`/`error` events
 /// (not conversational content). Guards keep the result provider-safe: it
@@ -1235,7 +1235,7 @@ async fn start_agent(
         }
     }
 
-    // VibeX resume: when the client passes `resume_session_id`, continue that
+    // VibeDesk resume: when the client passes `resume_session_id`, continue that
     // session — reuse its id so new events append to the same durable log —
     // instead of creating a fresh job. Otherwise create a new session.
     let resuming = req
@@ -1268,7 +1268,7 @@ async fn start_agent(
     // `close_stream` removed when the prior run finished.
     let _ = state.job_manager.open_stream(&session_id).await;
 
-    // VibeX resume: reconstruct the prior conversation from the durable event
+    // VibeDesk resume: reconstruct the prior conversation from the durable event
     // log BEFORE appending the new user turn, so the agent continues with full
     // context. Empty for fresh sessions.
     let prior_messages: Vec<Message> = if resuming {
@@ -1278,7 +1278,7 @@ async fn start_agent(
     };
 
     // Persist the user's turn so the durable log is a faithful transcript that
-    // replays as a multi-turn conversation (VibeX history + resume). Live SSE
+    // replays as a multi-turn conversation (VibeDesk history + resume). Live SSE
     // consumers switch on event `type` and ignore the `user` kind.
     let _ = state
         .job_manager
@@ -1331,7 +1331,7 @@ async fn start_agent(
     let task = req.task.clone();
     let sid = session_id.clone();
     let workspace_root = state.workspace_root.clone();
-    // Honor the per-request provider/model (VibeX model picker, mobile, watch,
+    // Honor the per-request provider/model (VibeDesk model picker, mobile, watch,
     // IDE). Without this the agent always used the daemon's *startup* provider,
     // so a request for a local model (e.g. ollama/codellama:13b) silently ran
     // the configured default — often `glm-5.2:cloud`, a cloud model
@@ -1462,7 +1462,7 @@ async fn start_agent(
             }
         }
 
-        // VibeX resume: seed the run with the reconstructed prior conversation.
+        // VibeDesk resume: seed the run with the reconstructed prior conversation.
         context.prior_messages = prior_messages;
 
         let (event_tx, mut event_rx) = tokio::sync::mpsc::channel::<AgentEvent>(64);
@@ -1562,9 +1562,9 @@ async fn cancel_job(
     Ok(Json(record))
 }
 
-// ── VibeX task API (VX-112 + VX-113) ────────────────────────────────────────
+// ── VibeDesk task API (VX-112 + VX-113) ────────────────────────────────────────
 //
-// `/api/tasks` backs VibeX's task-card model: every code-changing interaction
+// `/api/tasks` backs VibeDesk's task-card model: every code-changing interaction
 // is a task with a lifecycle status, a branch, and a git worktree. The store
 // is opened on-demand (`TaskStore::open_default`) so we don't thread it through
 // every `ServeState` construction site — it's a lightweight sqlite table in
@@ -2083,7 +2083,7 @@ async fn merge_task(
 }
 
 /// GET /api/tasks/{id}/history — reconstruct a task's conversation from the
-/// durable `job_events` log so a finished chat can be re-rendered in VibeX
+/// durable `job_events` log so a finished chat can be re-rendered in VibeDesk
 /// (VX bug-3). Returns the task title/status plus the ordered event payloads
 /// (`replay_events` reads from persistence, so this works after a run ends).
 /// Empty `events` when the task has no linked session yet.
@@ -2129,15 +2129,15 @@ async fn task_history(
     })))
 }
 
-// ── VibeX environment API (VX-109 / VX-202 / VX-110) ────────────────────────
+// ── VibeDesk environment API (VX-109 / VX-202 / VX-110) ────────────────────────
 //
-// Read-only git/file inspection for the VibeX Environment inspector, the
+// Read-only git/file inspection for the VibeDesk Environment inspector, the
 // Review diff viewer, and the Files quick-action. All operate on the daemon's
 // `workspace_root` and reuse `vibe_core::git` helpers — no new git logic.
 
-/// GET /api/vibex/git/status — branch + changed files for the Environment
+/// GET /api/vibedesk/git/status — branch + changed files for the Environment
 /// inspector (VX-109). Excludes ignored files so "Changes" matches Codex.
-async fn vibex_git_status(
+async fn vibedesk_git_status(
     State(state): State<ServeState>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     let root = &state.workspace_root;
@@ -2169,10 +2169,10 @@ async fn vibex_git_status(
     })))
 }
 
-/// GET /api/vibex/git/diff — full working-tree diff for the Review action
+/// GET /api/vibedesk/git/diff — full working-tree diff for the Review action
 /// (VX-202). Returned as a single unified-diff string; the client splits it
 /// per file for rendering.
-async fn vibex_git_diff(
+async fn vibedesk_git_diff(
     State(state): State<ServeState>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     let root = &state.workspace_root;
@@ -2184,10 +2184,10 @@ async fn vibex_git_diff(
     Ok(Json(serde_json::json!({ "diff": diff })))
 }
 
-/// GET /api/vibex/files — tracked + changed file paths for the Files
+/// GET /api/vibedesk/files — tracked + changed file paths for the Files
 /// quick-action (VX-110). Uses git's view of the tree (gitignore-correct)
 /// rather than a raw fs walk. Falls back to an empty list outside a repo.
-async fn vibex_files(
+async fn vibedesk_files(
     State(state): State<ServeState>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, Json<serde_json::Value>)> {
     let root = &state.workspace_root;
@@ -6601,7 +6601,7 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/jobs", get(list_jobs))
         .route("/jobs/{id}", get(get_job))
         .route("/jobs/{id}/cancel", post(cancel_job))
-        // VibeX task API (VX-112): task-card CRUD + lifecycle status.
+        // VibeDesk task API (VX-112): task-card CRUD + lifecycle status.
         .route("/api/tasks", post(create_task).get(list_tasks))
         .route(
             "/api/tasks/{id}",
@@ -6611,10 +6611,10 @@ pub(crate) fn build_router(state: ServeState, port: u16) -> Router {
         .route("/api/tasks/{id}/archive", post(archive_task))
         .route("/api/tasks/{id}/restore", post(restore_task))
         .route("/api/tasks/{id}/history", get(task_history))
-        // VibeX environment API (VX-109/202/110): read-only git + file inspection.
-        .route("/api/vibex/git/status", get(vibex_git_status))
-        .route("/api/vibex/git/diff", get(vibex_git_diff))
-        .route("/api/vibex/files", get(vibex_files))
+        // VibeDesk environment API (VX-109/202/110): read-only git + file inspection.
+        .route("/api/vibedesk/git/status", get(vibedesk_git_status))
+        .route("/api/vibedesk/git/diff", get(vibedesk_git_diff))
+        .route("/api/vibedesk/files", get(vibedesk_files))
         .route("/collab/rooms", post(create_collab_room))
         .route("/collab/rooms", get(list_collab_rooms))
         .route("/collab/rooms/{room_id}/peers", get(list_collab_peers))

@@ -615,12 +615,12 @@ pub struct AgentContext {
     #[serde(default)]
     pub auto_commit: bool,
     /// VX-111: requested extended-thinking budget in tokens, derived from the
-    /// VibeX reasoning-effort pill. `None` means "use the provider default".
+    /// VibeDesk reasoning-effort pill. `None` means "use the provider default".
     /// Providers with extended-thinking support honor it; others ignore it.
     #[serde(default)]
     pub reasoning_budget_tokens: Option<u32>,
     /// VX-111/112: prior conversation turns (user/assistant) reconstructed from
-    /// the durable event log when resuming a VibeX session. Spliced in between
+    /// the durable event log when resuming a VibeDesk session. Spliced in between
     /// the system prompt and the new user turn so the agent continues with full
     /// context. Empty for fresh sessions.
     #[serde(default)]
@@ -807,7 +807,7 @@ impl AgentLoop {
             content: system_content,
         }];
 
-        // VX-111/112: when resuming a VibeX session, replay the prior turns so
+        // VX-111/112: when resuming a VibeDesk session, replay the prior turns so
         // the model continues with full context. These sit after the system
         // prompt and before the new user turn.
         messages.extend(context.prior_messages.iter().cloned());

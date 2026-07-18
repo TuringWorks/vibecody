@@ -1,0 +1,5 @@
+/* VibeDesk design tokens — single source of truth.
+   Re-exports the canonical VibeCody design-system token file so VibeDesk and
+   VibeUI never drift. Do NOT define tokens here; edit
+   vibeui/design-system/tokens.css instead (see AGENTS.md design-system rules). */
+@import "../../../vibeui/design-system/tokens.css";

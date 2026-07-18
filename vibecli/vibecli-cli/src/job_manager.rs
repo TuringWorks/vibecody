@@ -174,7 +174,7 @@ impl AgentEventPayload {
     }
 
     /// VX-111/112 — the user's prompt, persisted to the durable event log so the
-    /// session replays as a faithful multi-turn transcript (VibeX history +
+    /// session replays as a faithful multi-turn transcript (VibeDesk history +
     /// resume). Live SSE consumers switch on event `type` and ignore this kind.
     pub fn user(text: String) -> Self {
         Self {

@@ -12248,7 +12248,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "vibex"
+name = "vibedesk"
 version = "0.5.7"
 dependencies = [
  "anyhow",

@@ -897,7 +897,7 @@ Run commands:
   make test              -- all Rust workspace tests (fast path)
   make test-fast         -- skip collab crate (faster)
   make test-all          -- every Rust + Node surface
-  make test-ui           -- VibeUI (vitest); also test-app / test-vibex / test-sdk
+  make test-ui           -- VibeUI (vitest); also test-app / test-vibedesk / test-sdk
   cargo test --workspace -- all Rust tests
   cargo test -p vibe-core
   cargo test -p vibe-ai
@@ -1089,9 +1089,9 @@ User config (runtime):
   make test-fast       Run tests excluding collab crate
   make test-all        Test every Rust + Node surface
   make ci              Mirror the GitHub CI gate locally
-  make check           Fast type-check (Rust + UI/App/VibeX TypeScript)
+  make check           Fast type-check (Rust + UI/App/VibeDesk TypeScript)
   make lint            Run clippy + TypeScript check
-  make build           Build all desktop shells (CLI + UI + App + VibeX)
+  make build           Build all desktop shells (CLI + UI + App + VibeDesk)
   make build-all       Desktop + mobile + watch (what CI builds)
   make clean           Remove build artifacts
   make docker          Build Docker image
@@ -1099,7 +1099,7 @@ User config (runtime):
 Per-surface (consistent build-<surface> / test-<surface> pairs):
   make build-ui    / make test-ui        VibeUI (Tauri + React)
   make build-app   / make test-app       VibeApp (Tauri shell)
-  make build-vibex / make test-vibex     VibeX (Tauri shell)
+  make build-vibedesk / make test-vibedesk     VibeDesk (Tauri shell)
   make build-cli   / make test-cli       VibeCLI (Rust)
   make build-sdk   / make test-sdk       Agent SDK (TypeScript)
   make build-indexer / make test-indexer vibe-indexer (Rust)

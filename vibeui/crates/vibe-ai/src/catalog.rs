@@ -1,7 +1,7 @@
 //! Static model catalog — the single source of truth for the daemon's
 //! `/models` endpoint.
 //!
-//! Thin daemon clients (VibeX, VibeApp, VibeMobile, the watch apps, the editor
+//! Thin daemon clients (VibeDesk, VibeApp, VibeMobile, the watch apps, the editor
 //! plugins) render whatever `/models` returns instead of carrying their own
 //! hardcoded lists. This module is that list. It mirrors the desktop registry
 //! (`vibeui/src/hooks/useModelRegistry.ts` + `constants/ollamaModels.ts`) — keep

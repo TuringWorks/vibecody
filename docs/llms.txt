@@ -194,7 +194,7 @@ Each provider section accepts: enabled, api_key, api_url, model
   make test-fast   -- run tests excluding collab crate
   make test-all    -- test every Rust + Node surface
   make ci          -- mirror the GitHub CI gate locally
-  make check       -- fast type-check (Rust + UI/App/VibeX TypeScript)
+  make check       -- fast type-check (Rust + UI/App/VibeDesk TypeScript)
   make lint        -- clippy + TypeScript check
   make docker      -- build Docker image
   cargo build --release -p vibecli   -- build CLI directly
@@ -203,7 +203,7 @@ Each provider section accepts: enabled, api_key, api_url, model
   Per-surface (consistent build-<surface> / test-<surface> pairs):
   make build-ui    / make test-ui        -- VibeUI (Tauri + React)
   make build-app   / make test-app       -- VibeApp (Tauri shell)
-  make build-vibex / make test-vibex     -- VibeX (Tauri shell)
+  make build-vibedesk / make test-vibedesk     -- VibeDesk (Tauri shell)
   make build-cli   / make test-cli       -- VibeCLI (Rust)
   make build-sdk   / make test-sdk       -- Agent SDK (TypeScript)
   make build-indexer / make test-indexer -- vibe-indexer (Rust)

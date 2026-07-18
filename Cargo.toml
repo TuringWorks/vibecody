@@ -15,7 +15,7 @@ members = [
     "vibeui/crates/vibe-extensions",
     "vibeui/crates/vibe-collab",
     "vibeapp/src-tauri",
-    "vibex/src-tauri",
+    "vibedesk/src-tauri",
     "vibe-indexer",
     "vibe-memory",
     "kodegraph",
