@@ -47,6 +47,15 @@ pub fn run() {
                 }
             }
 
+            // One-time settings migration: carry global UI prefs forward from
+            // the pre-rename `__vibex__` namespace so an upgraded install keeps
+            // its theme and default provider/model. Idempotent + non-destructive.
+            match settings::migrate_legacy_settings() {
+                Ok(0) => {}
+                Ok(n) => eprintln!("vibedesk: migrated {n} setting(s) from VibeX"),
+                Err(e) => eprintln!("vibedesk: settings migration skipped ({e})"),
+            }
+
             // Zero-config: autostart the VibeCLI daemon on launch so VibeDesk works
             // out of the box. Reuses an already-running daemon; only spawns one
             // if `/health` is unreachable. Fire-and-forget — the daemon-status
