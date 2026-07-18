@@ -590,7 +590,7 @@ mod tests {
     }
 
     #[test]
-    fn js_innerHTML_with_req_body() {
+    fn js_inner_html_with_req_body() {
         let f = scan_js("el.innerHTML = req.body.html;");
         assert_eq!(f.len(), 1);
         assert!(f[0].rule_id.contains("dom-xss"));

@@ -16,6 +16,8 @@ use crate::skillforge_index;
 pub struct SkillRow {
     pub name: String,
     pub category: String,
+    /// Staged for the skill detail view; carried in the row but not yet rendered.
+    #[allow(dead_code)]
     pub summary: String,
     pub source: String,
     /// Deterministic 0.0–1.0 trigger coverage (no LLM). `None` when the
@@ -124,6 +126,8 @@ impl SkillforgeComponent {
         }
     }
 
+    /// Currently-highlighted row (staged for detail/action wiring).
+    #[allow(dead_code)]
     pub fn selected(&self) -> Option<&SkillRow> {
         self.items.get(self.selected_index)
     }

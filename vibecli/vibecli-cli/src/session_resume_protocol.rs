@@ -199,7 +199,6 @@ fn sort_value(v: serde_json::Value) -> serde_json::Value {
 mod tests {
     use super::*;
     use p256::ecdsa::SigningKey;
-    use p256::elliptic_curve::sec1::ToEncodedPoint;
     // p256's SigningKey::random binds to its bundled rand_core (older
     // version than the top-level `rand` crate). Importing `rand::rngs::OsRng`
     // here fails to satisfy `CryptoRngCore`; this is the same pattern the

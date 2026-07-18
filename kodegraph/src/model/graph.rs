@@ -18,10 +18,10 @@ use petgraph::stable_graph::{EdgeIndex, NodeIndex, StableDiGraph};
 use petgraph::visit::EdgeRef;
 use serde::{Deserialize, Serialize};
 
-use super::edge::{ApiContract, CallEdge, EdgeKind, EdgeSource, ImportEdge, Provenance,
+use super::edge::{ApiContract, CallEdge, EdgeKind, ImportEdge, Provenance,
                   TypeRelation, TypeRelationType};
 use super::hyperedge::Hyperedge;
-use super::symbol::{Language, Symbol};
+use super::symbol::Symbol;
 
 /// Stable petgraph node id.
 pub type NodeId = NodeIndex;
@@ -32,9 +32,17 @@ pub enum NodeData {
     /// A rich code symbol.
     Symbol(Symbol),
     /// A module / namespace node (coarse granularity).
-    Module { name: String, file_path: String },
+    Module {
+        /// Fully-qualified module or namespace name.
+        name: String,
+        /// Path to the file that declares the module.
+        file_path: String,
+    },
     /// A file node (coarse granularity).
-    File { path: String },
+    File {
+        /// Path to the source file.
+        path: String,
+    },
 }
 
 impl NodeData {
@@ -430,8 +438,8 @@ impl CodeGraph {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::edge::{CallType, ProvenanceTag};
-    use crate::model::symbol::{SymbolKind, Visibility};
+    use crate::model::edge::{CallType, EdgeSource, ProvenanceTag};
+    use crate::model::symbol::{Language, SymbolKind, Visibility};
 
     fn sym(name: &str, file: &str) -> Symbol {
         Symbol {

@@ -13,10 +13,9 @@ use std::path::Path;
 
 use tree_sitter::{Node, Parser};
 
-use crate::model::edge::{CallEdge, CallType, EdgeSource, ImportEdge, ImportType, Provenance,
-                         TypeRelation};
+use crate::model::edge::{CallEdge, CallType, EdgeSource, ImportEdge, ImportType, Provenance};
 use crate::model::symbol::{Language, Symbol, SymbolKind, Visibility};
-use crate::parse::{language_of, ParsedFile, Parser as ParserTrait};
+use crate::parse::{ParsedFile, Parser as ParserTrait};
 
 /// Tree-sitter node-kind → symbol mapping for one language.
 struct KindSpec {

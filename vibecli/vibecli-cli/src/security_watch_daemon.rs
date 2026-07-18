@@ -69,14 +69,6 @@ impl SecurityFindingsQueue {
             .collect()
     }
 
-    /// Number of retained findings.
-    pub fn len(&self) -> usize {
-        self.inner.lock().unwrap_or_else(|e| e.into_inner()).len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
 }
 
 /// Provider-backed [`SecurityReviewer`]: reviews a file by sending the prompt as
@@ -223,14 +215,14 @@ mod tests {
     #[test]
     fn findings_queue_push_snapshot_and_cap() {
         let q = SecurityFindingsQueue::new();
-        assert!(q.is_empty());
+        assert!(q.snapshot().is_empty());
         q.push_all(vec![finding("a"), finding("b")]);
-        assert_eq!(q.len(), 2);
+        assert_eq!(q.snapshot().len(), 2);
         assert_eq!(q.snapshot().len(), 2);
         // Overflow the cap → oldest evicted, newest retained.
         let flood: Vec<Finding> = (0..FINDINGS_CAP + 10).map(|i| finding(&format!("f{i}"))).collect();
         q.push_all(flood);
-        assert_eq!(q.len(), FINDINGS_CAP);
+        assert_eq!(q.snapshot().len(), FINDINGS_CAP);
         // The very last pushed finding is still present.
         let snap = q.snapshot();
         assert_eq!(snap.last().unwrap().message, format!("f{}", FINDINGS_CAP + 9));
@@ -240,7 +232,7 @@ mod tests {
     fn push_all_empty_is_noop() {
         let q = SecurityFindingsQueue::new();
         q.push_all(vec![]);
-        assert!(q.is_empty());
+        assert!(q.snapshot().is_empty());
     }
 
     #[test]
@@ -299,7 +291,7 @@ mod tests {
         // Poll for the finding to propagate (notify + debounce + interval).
         let mut got = false;
         for _ in 0..40 {
-            if !q.is_empty() {
+            if !q.snapshot().is_empty() {
                 got = true;
                 break;
             }

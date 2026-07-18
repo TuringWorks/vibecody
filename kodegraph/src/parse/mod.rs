@@ -18,7 +18,7 @@ use std::path::Path;
 
 use anyhow::Result;
 
-use crate::model::edge::{ApiContract, CallEdge, ImportEdge, Provenance, TypeRelation};
+use crate::model::edge::{ApiContract, CallEdge, ImportEdge, TypeRelation};
 use crate::model::symbol::{Language, Symbol};
 
 pub use treesitter::TreeSitterParser;
@@ -74,11 +74,6 @@ pub trait EdgeProvider: Send + Sync {
 
     /// Human-readable name for logging.
     fn name(&self) -> &'static str;
-}
-
-/// Default provenance for tree-sitter-discovered edges.
-pub(crate) fn ts_provenance() -> Provenance {
-    Provenance::from_source(crate::model::edge::EdgeSource::TreeSitter)
 }
 
 /// Detect language from a path; returns `Unknown` for unsupported extensions.
